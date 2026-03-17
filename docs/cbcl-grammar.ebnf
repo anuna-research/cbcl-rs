@@ -1,0 +1,209 @@
+(* ================================================================== *)
+(* CBCL — Conversational Business Communication Language               *)
+(* EBNF Grammar (extracted from cbcl-rs canonical implementation)      *)
+(*                                                                     *)
+(* Parser class: DCFL (Deterministic Context-Free Language)            *)
+(* Time complexity: O(n), no backtracking, fuel-bounded recursion      *)
+(* Reference: crates/cbcl-parser/src/parser.rs                         *)
+(*            crates/cbcl-core/src/message.rs (TryFrom<&SExpr>)        *)
+(*            crates/cbcl-parser/src/dialect_parser.rs                  *)
+(*            lean-cbcl/LeanCbcl/Parser.lean (formal model)            *)
+(* ================================================================== *)
+
+
+(* ================================================================== *)
+(* Layer 1: S-expression syntax                                        *)
+(* ================================================================== *)
+
+sexpr           = ws , expression , ws ;
+
+expression      = list
+                | string
+                | boolean
+                | keyword
+                | number
+                | symbol ;
+
+list            = "(" , { ws , expression } , ws , ")" ;
+
+(* -- Atoms --------------------------------------------------------- *)
+
+symbol          = symbol-char , { symbol-char } ;
+
+symbol-char     = letter | digit
+                | "_" | "-" | "." | "/" | "!" | "?"
+                | "+" | "*" | "<" | ">" | "=" | "@" ;
+
+number          = [ "-" ] , digit , { digit } ;              (* i64 *)
+
+string          = '"' , { string-char | escape } , '"' ;
+
+string-char     = ? any Unicode character except '"' and '\' ? ;
+
+escape          = "\" , ( '"' | "\" | "n" | "r" | "t" ) ;
+
+boolean         = "#t" | "#f" ;
+
+keyword         = ":" , symbol-char , { symbol-char } ;
+
+(* -- Whitespace & comments ----------------------------------------- *)
+
+ws              = { ws-char | comment } ;
+
+ws-char         = " " | "\t" | "\n" | "\r" ;
+
+comment         = ";" , { ? any character except '\n' ? } , "\n" ;
+
+letter          = ? ASCII A-Z, a-z ? ;
+
+digit           = ? ASCII 0-9 ? ;
+
+
+(* ================================================================== *)
+(* Layer 2: CBCL message grammar                                       *)
+(*                                                                     *)
+(* Dispatch is deterministic by head symbol (msgTag in Lean):          *)
+(*   "meta"        → meta-message                                      *)
+(*   "lang"        → dialect-message      (HeadAndSecond tag)          *)
+(*   "envelope"    → wrapped-message                                   *)
+(*   "signed"      → wrapped-message                                   *)
+(*   "with-limits" → wrapped-message                                   *)
+(*   otherwise     → simple-message                                    *)
+(* ================================================================== *)
+
+message         = simple-message
+                | meta-message
+                | dialect-message
+                | wrapped-message ;
+
+
+(* -- Simple message ------------------------------------------------ *)
+(* (performative [@recipient] content [:key value ...])                *)
+
+simple-message  = "(" , performative , [ ws , recipient ]
+                      , ws , content
+                      , { ws , param }
+                      , ")" ;
+
+performative    = core-performative | custom-performative ;
+
+core-performative
+                = "tell" | "ask" | "reply" | "error"
+                | "ok"   | "cancel" | "hello" | "bye" ;
+
+custom-performative
+                = symbol ;           (* any symbol not in core set *)
+
+recipient       = "@" , symbol-char , { symbol-char } ;
+                  (* parsed as a symbol starting with '@' *)
+
+content         = expression ;
+
+param           = keyword-param | expression ;
+
+keyword-param   = keyword , ws , expression ;
+                  (* :thread and :sender are extracted; others retained *)
+
+
+(* -- Meta message -------------------------------------------------- *)
+(* (meta <operation>)                                                  *)
+
+meta-message    = "(" , "meta" , ws , meta-operation , ")" ;
+
+meta-operation  = meta-query | meta-define | expression ;
+
+meta-query      = "(" , "query" , ws , expression , ")" ;
+
+meta-define     = dialect-definition ;
+
+
+(* -- Dialect-scoped message ---------------------------------------- *)
+(* (lang <dialect-name> <inner-message>)                               *)
+
+dialect-message = "(" , "lang" , ws , dialect-name
+                      , ws , message , ")" ;
+
+dialect-name    = symbol ;
+
+
+(* -- Wrapped message ----------------------------------------------- *)
+(* (wrapper-type <params...> <inner-message>)                          *)
+
+wrapped-message = "(" , wrapper-type
+                      , { ws , wrapper-param }
+                      , ws , message , ")" ;
+
+wrapper-type    = "envelope" | "signed" | "with-limits" ;
+
+wrapper-param   = expression ;
+                  (* everything before the last list element *)
+
+
+(* ================================================================== *)
+(* Layer 3: Dialect definition grammar                                 *)
+(*                                                                     *)
+(* Entered via (meta (define ...)) or standalone (define ...) form.     *)
+(* Reference: crates/cbcl-parser/src/dialect_parser.rs                 *)
+(* ================================================================== *)
+
+dialect-definition
+                = "(" , "define" , ws , dialect-name
+                      , ws , extends-list
+                      , ws , author
+                      , { ws , dialect-clause }
+                      , ")" ;
+
+extends-list    = "(" , { ws , symbol } , ")" ;
+
+author          = symbol | string ;
+                  (* conventionally "@name" *)
+
+dialect-clause  = extend-clause
+                | resource-clause
+                | examples-clause
+                | signature-clause
+                | hash-clause
+                | protocol-clause ;
+
+(* -- Performative extension ---------------------------------------- *)
+
+extend-clause   = "(" , "extend" , ws , symbol
+                      , ws , param-list
+                      , ws , template
+                      , ")" ;
+
+param-list      = "(" , { ws , expression } , ")" ;
+
+template        = expression ;
+
+(* -- Resource requirements ----------------------------------------- *)
+
+resource-clause = "(" , ":resource-requirements" , ws , resource-alist , ")" ;
+
+resource-alist  = "(" , { ws , resource-pair } , ")" ;
+
+resource-pair   = "(" , resource-key , ws , number , ")" ;
+
+resource-key    = "max-depth"
+                | "max-expansion-size"
+                | "verification-time" ;
+
+(* -- Integrity & metadata ------------------------------------------ *)
+
+examples-clause = "(" , ":examples" , { ws , expression } , ")" ;
+
+signature-clause= "(" , ( ":signature" | ":signed" ) , ws , expression , ")" ;
+
+hash-clause     = "(" , ":hash" , ws , ( string | symbol ) , ")" ;
+
+protocol-clause = "(" , ":protocol" , ws , ( string | symbol ) , ")" ;
+
+
+(* ================================================================== *)
+(* Defaults                                                            *)
+(*                                                                     *)
+(* When omitted from a dialect definition:                             *)
+(*   max-depth           = 16                                          *)
+(*   max-expansion-size  = 1024                                        *)
+(*   verification-time   = 50 (ms)                                     *)
+(* ================================================================== *)
