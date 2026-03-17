@@ -1,10 +1,8 @@
-# cbcl-rs
+# CBCL
 
-Rust implementation of [CBCL](https://github.com/hyperifyio/cbcl) (Communication-Based Communication Language) — a self-extensible, formally-verified agent communication language.
+Canonical implementation of CBCL (Conversational Business Communication Language) — a self-extensible, formally-verified agent communication language defined in [RFC 9804](https://datatracker.ietf.org/doc/draft-cbcl/).
 
-## Status
-
-**Early development.** Core types and parser are scaffolded; pipeline stages are being implemented.
+Rust implementation with Lean 4 formal proofs. Algorithms in Rust match those verified in Lean; correctness validated via differential testing.
 
 ## Features
 
@@ -13,43 +11,68 @@ Rust implementation of [CBCL](https://github.com/hyperifyio/cbcl) (Communication
 - Safety constraints R1 (no recursion), R2 (resource bounds), R3 (core preservation), R4 (integrity)
 - Deterministic message tagging preserving DCFL properties
 - `no_std` + `alloc` compatible pure core
-- WASM target (`wasm32-unknown-unknown`) with optional `wasm-bindgen` JS bindings
-- CLI tool for parsing and pipeline execution
+- WASM target (`wasm32-unknown-unknown`) via `wasm-bindgen`
+- C FFI via `cbindgen`
+- CLI tool for parsing, verification, agent REPL, and gossip simulation
 
-## Workspace Crates
+## Workspace
 
 | Crate | Zone | Description |
 |-------|------|-------------|
-| `cbcl-core` | Pure | Types, verification, serialization |
-| `cbcl-parser` | Pure | S-expression parser and pipeline |
+| `cbcl-core` | Pure | Types, constraints (R1-R4), template expansion, gossip, evaluator |
+| `cbcl-parser` | Pure | S-expression and message parser, pipeline |
 | `cbcl-cli` | Shell | Command-line interface |
 | `cbcl-wasm` | Shell | WebAssembly bindings |
+| `cbcl-ffi` | Shell | C FFI bindings |
+| `lean-cbcl` | Proofs | Lean 4 formal verification of core algorithms |
 
 ## Quick Start
 
 ```bash
-# Run tests
+# Run tests (453 tests)
 cargo test --workspace
 
-# Parse an S-expression
-cargo run -p cbcl-cli -- parse '(tell "hello")'
+# Parse a message
+cargo run -p cbcl-cli -- parse '(tell agent-b "hello")'
+
+# Verify a dialect
+cargo run -p cbcl-cli -- verify dialect.scm
+
+# Run benchmarks
+cargo bench --workspace
 
 # Build for WASM
 cargo build --target wasm32-unknown-unknown -p cbcl-wasm
 ```
 
-## Architecture
-
-The codebase enforces a strict **purity boundary** between the deterministic core and the effectful shell. Core crates have zero required dependencies beyond `alloc`, compile to `no_std`, and carry `#![forbid(unsafe_code)]`. See [CLAUDE.md](CLAUDE.md) for details.
-
 ## Formal Verification
 
-The Rust implementation mirrors the Lean 4 proof library in `lean-cbcl/`. Each pure core module corresponds to a Lean file, enabling cross-verification of safety properties:
+The `lean-cbcl/` directory contains Lean 4 proofs that verify the core algorithms. Each Rust module in `cbcl-core` has a corresponding Lean file:
 
-- **R1**: No recursive performative definitions
-- **R2**: Resource-bounded evaluation (fuel + depth + expansion limits)
-- **R3**: Core performative names cannot be overridden
-- **R4**: Cryptographic integrity of dialect signatures
+| Rust module | Lean file | What is proved |
+|---|---|---|
+| `sexpr.rs` | `SExpr.lean` | S-expression type well-formedness |
+| `parser.rs` | `Parser.lean`, `DetParser.lean` | Parser is deterministic (DCFL class) |
+| `r1.rs` | `R1NoRecursion.lean` | Cycle detection soundness |
+| `r2.rs` | `R2ResourceBounds.lean` | Resource bounds termination |
+| `r3.rs` | `R3CorePreservation.lean` | Core performative immutability |
+| `template.rs` | `TemplateExpansion.lean` | Expansion terminates within bounds |
+| `msg_tag.rs` | `DeterministicUnion.lean` | DCFL closure under dialect union |
+
+Differential tests (`crates/cbcl-parser/tests/differential.rs`) run both implementations on the same test vectors and assert identical accept/reject verdicts.
+
+## Architecture
+
+Strict **purity boundary**: the core crates are deterministic, `no_std + alloc`, `#![forbid(unsafe_code)]`. Effectful code (I/O, CLI, WASM bindings, FFI) lives in shell crates that import the core — never the reverse. See `.hence/ADR-004-purity-boundary.md` and `.hence/PURITY-MAP.md`.
+
+## Testing
+
+- **Unit tests**: 263 in cbcl-core, 92 in cbcl-parser
+- **Property tests**: 37 proptest suites covering 8 USDD verification properties
+- **Differential tests**: 21 integration tests comparing Rust vs Lean on 156 test vectors
+- **Fuzz targets**: libFuzzer harnesses for parser trust boundary
+- **Mutation testing**: cargo-mutants config targeting 7 critical-path modules (90% kill rate threshold)
+- **Benchmarks**: 44 Criterion benchmarks for parser, constraints, template expansion, gossip
 
 ## License
 

@@ -1,0 +1,10 @@
+name = "lean-cbcl"
+version = "0.1.0"
+defaultTargets = ["LeanCbcl", "cbcl-parse"]
+
+[[lean_lib]]
+name = "LeanCbcl"
+
+[[lean_exe]]
+name = "cbcl-parse"
+root = "Main"
