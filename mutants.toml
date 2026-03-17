@@ -1,0 +1,30 @@
+# cargo-mutants configuration for CBCL critical-path modules.
+#
+# Run with: cargo mutants --in-place
+# Or use:   scripts/run-mutation-tests.sh
+
+# Timeout multiplier — proptest-based tests can be slow.
+timeout_multiplier = 3.0
+
+# Minimum test timeout in seconds.
+minimum_test_timeout = 30
+
+# Only mutate critical-path source files.
+examine_re = [
+    "crates/cbcl-parser/src/parser\\.rs$",
+    "crates/cbcl-parser/src/message_parser\\.rs$",
+    "crates/cbcl-core/src/r1\\.rs$",
+    "crates/cbcl-core/src/r3\\.rs$",
+    "crates/cbcl-core/src/template\\.rs$",
+    "crates/cbcl-core/src/msg_tag\\.rs$",
+    "crates/cbcl-core/src/evaluator\\.rs$",
+]
+
+# Exclude test modules and benchmarks from mutation.
+exclude_re = [
+    "#\\[cfg\\(test\\)\\]",
+    "mod tests",
+    "benches/",
+    "_test\\.rs$",
+    "tests/",
+]

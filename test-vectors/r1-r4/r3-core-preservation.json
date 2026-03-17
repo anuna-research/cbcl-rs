@@ -1,0 +1,105 @@
+[
+  {
+    "id": "r3-001",
+    "description": "Core performative 'tell' is recognized",
+    "input": "tell",
+    "expected": {
+      "type": "success",
+      "is_core_performative": true
+    },
+    "source": "tests/test-grammar-compliance.scm:core-performatives",
+    "spec_ref": "R3 constraint, EBNF comment line 205"
+  },
+  {
+    "id": "r3-002",
+    "description": "Core performative 'ask' is recognized",
+    "input": "ask",
+    "expected": {
+      "type": "success",
+      "is_core_performative": true
+    },
+    "source": "tests/test-grammar-compliance.scm:core-performatives"
+  },
+  {
+    "id": "r3-003",
+    "description": "Core performative 'reply' is recognized",
+    "input": "reply",
+    "expected": {
+      "type": "success",
+      "is_core_performative": true
+    },
+    "source": "tests/test-grammar-compliance.scm:core-performatives"
+  },
+  {
+    "id": "r3-004",
+    "description": "Core performative 'error' is recognized",
+    "input": "error",
+    "expected": {
+      "type": "success",
+      "is_core_performative": true
+    },
+    "source": "tests/test-grammar-compliance.scm:core-performatives"
+  },
+  {
+    "id": "r3-005",
+    "description": "Core performative 'ok' is recognized",
+    "input": "ok",
+    "expected": {
+      "type": "success",
+      "is_core_performative": true
+    },
+    "source": "tests/test-grammar-compliance.scm:core-performatives"
+  },
+  {
+    "id": "r3-006",
+    "description": "Core performative 'cancel' is recognized",
+    "input": "cancel",
+    "expected": {
+      "type": "success",
+      "is_core_performative": true
+    },
+    "source": "tests/test-grammar-compliance.scm:core-performatives"
+  },
+  {
+    "id": "r3-007",
+    "description": "Core performative 'hello' is recognized",
+    "input": "hello",
+    "expected": {
+      "type": "success",
+      "is_core_performative": true
+    },
+    "source": "tests/test-grammar-compliance.scm:core-performatives"
+  },
+  {
+    "id": "r3-008",
+    "description": "Core performative 'bye' is recognized",
+    "input": "bye",
+    "expected": {
+      "type": "success",
+      "is_core_performative": true
+    },
+    "source": "tests/test-grammar-compliance.scm:core-performatives"
+  },
+  {
+    "id": "r3-009",
+    "description": "Custom performative is NOT a core performative",
+    "input": "custom",
+    "expected": {
+      "type": "success",
+      "is_core_performative": false
+    },
+    "source": "tests/test-grammar-compliance.scm:core-performatives"
+  },
+  {
+    "id": "r3-010",
+    "description": "Complete core performative set",
+    "input": ["tell", "ask", "reply", "error", "ok", "cancel", "hello", "bye"],
+    "expected": {
+      "type": "success",
+      "value": ["tell", "ask", "reply", "error", "ok", "cancel", "hello", "bye"],
+      "note": "This is the exhaustive set; dialect extensions cannot override these"
+    },
+    "source": "tests/simple-tests.scm:core-performatives",
+    "spec_ref": "EBNF lines 15-17, R3 constraint"
+  }
+]

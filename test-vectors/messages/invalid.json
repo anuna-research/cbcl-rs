@@ -1,0 +1,81 @@
+[
+  {
+    "id": "msg-inv-001",
+    "description": "Unknown performative (not in core set)",
+    "input": "(unknown-performative arg1 arg2)",
+    "expected": {
+      "type": "error",
+      "error_kind": "unknown_performative",
+      "note": "Performative must be one of: tell, ask, reply, error, ok, cancel, hello, bye"
+    },
+    "source": "tests/simple-tests.scm:error-handling",
+    "spec_ref": "EBNF lines 15-17"
+  },
+  {
+    "id": "msg-inv-002",
+    "description": "Missing recipient in tell",
+    "input": "(tell)",
+    "expected": {
+      "type": "error",
+      "error_kind": "missing_recipient"
+    },
+    "source": "inferred from EBNF",
+    "spec_ref": "EBNF lines 12-13"
+  },
+  {
+    "id": "msg-inv-003",
+    "description": "Empty message",
+    "input": "()",
+    "expected": {
+      "type": "error",
+      "error_kind": "empty_message"
+    },
+    "source": "inferred from EBNF",
+    "spec_ref": "EBNF line 6"
+  },
+  {
+    "id": "msg-inv-004",
+    "description": "Unclosed parenthesis",
+    "input": "(tell @bob \"hello\"",
+    "expected": {
+      "type": "error",
+      "error_kind": "unclosed_paren"
+    },
+    "source": "inferred from grammar",
+    "spec_ref": "EBNF line 12"
+  },
+  {
+    "id": "msg-inv-005",
+    "description": "Invalid agent ID format (missing @ prefix)",
+    "input": "(tell bob \"hello\")",
+    "expected": {
+      "type": "error",
+      "error_kind": "invalid_agent_id",
+      "note": "Agent IDs must start with @, per EBNF line 84"
+    },
+    "source": "inferred from EBNF",
+    "spec_ref": "EBNF line 84"
+  },
+  {
+    "id": "msg-inv-006",
+    "description": "Keyword without value",
+    "input": "(tell @alice \"hello\" :thread)",
+    "expected": {
+      "type": "error",
+      "error_kind": "keyword_missing_value"
+    },
+    "source": "inferred from EBNF",
+    "spec_ref": "EBNF line 24"
+  },
+  {
+    "id": "msg-inv-007",
+    "description": "Unterminated string literal",
+    "input": "(tell @bob \"hello)",
+    "expected": {
+      "type": "error",
+      "error_kind": "unterminated_string"
+    },
+    "source": "inferred from EBNF",
+    "spec_ref": "EBNF line 94"
+  }
+]

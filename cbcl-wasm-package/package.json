@@ -1,0 +1,73 @@
+{
+  "name": "cbcl-wasm",
+  "version": "1.0.0",
+  "description": "CBCL (Chat-based Communication Language) WebAssembly Package",
+  "main": "dist/cbcl-wasm.js",
+  "browser": "dist/cbcl-wasm.js",
+  "types": "dist/cbcl-wasm.d.ts",
+  "files": [
+    "dist/",
+    "src/",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "npm run build:wasm && npm run build:js",
+    "build:wasm": "cd .. && source setup-hoot-env.sh && make build-wasm && ./fix-wasm-build.sh",
+    "build:js": "cp src/cbcl-wasm.js dist/ && cp ../wasm-build/*.wasm dist/ && cp ../wasm-build/reflect.* dist/ && cp ../wasm-build/wtf8.wasm dist/",
+    "test": "node test/cbcl-test.js",
+    "test:browser": "npm run build && npm run serve && echo 'Open http://localhost:8080/test/ to run browser tests'",
+    "serve": "cd dist && python3 -m http.server 8080",
+    "demo": "npm run build && npm run serve",
+    "clean": "rm -rf dist/* && cd .. && make clean-wasm",
+    "prepare": "npm run build",
+    "lint": "echo 'Linting JavaScript files...' && node -c src/cbcl-wasm.js && node -c test/cbcl-test.js",
+    "docs": "echo 'Generating documentation...' && node scripts/generate-docs.js"
+  },
+  "keywords": [
+    "cbcl",
+    "webassembly",
+    "wasm",
+    "communication",
+    "agents",
+    "multi-agent",
+    "scheme",
+    "hoot",
+    "gossip",
+    "dialect"
+  ],
+  "author": "CBCL Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cbcl/cbcl-wasm.git"
+  },
+  "bugs": {
+    "url": "https://github.com/cbcl/cbcl-wasm/issues"
+  },
+  "homepage": "https://github.com/cbcl/cbcl-wasm#readme",
+  "devDependencies": {},
+  "dependencies": {},
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "browserslist": [
+    "last 2 Chrome versions",
+    "last 2 Firefox versions",
+    "last 2 Safari versions"
+  ],
+  "cbcl": {
+    "version": "1.0.0",
+    "hoot": {
+      "required": true,
+      "version": ">=0.4.0"
+    },
+    "features": [
+      "agents",
+      "environments", 
+      "gossip",
+      "dialects",
+      "messages"
+    ]
+  }
+}

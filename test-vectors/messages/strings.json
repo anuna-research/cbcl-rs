@@ -1,0 +1,183 @@
+[
+  {
+    "id": "msg-str-001",
+    "description": "Parse simple string literal",
+    "input": "\"hello\"",
+    "expected": {
+      "type": "success",
+      "value": "hello"
+    },
+    "source": "tests/test-grammar-compliance.scm:string-parsing",
+    "spec_ref": "EBNF lines 94-100"
+  },
+  {
+    "id": "msg-str-002",
+    "description": "Parse string with newline escape",
+    "input": "\"hello\\nworld\"",
+    "expected": {
+      "type": "success",
+      "value": "hello\nworld"
+    },
+    "source": "tests/test-grammar-compliance.scm:string-parsing",
+    "spec_ref": "EBNF line 100"
+  },
+  {
+    "id": "msg-str-003",
+    "description": "Parse string with tab escape",
+    "input": "\"hello\\tworld\"",
+    "expected": {
+      "type": "success",
+      "value": "hello\tworld"
+    },
+    "source": "tests/test-grammar-compliance.scm:string-parsing",
+    "spec_ref": "EBNF line 100"
+  },
+  {
+    "id": "msg-str-004",
+    "description": "Parse string with escaped quotes",
+    "input": "\"say \\\"hi\\\"\"",
+    "expected": {
+      "type": "success",
+      "value": "say \"hi\""
+    },
+    "source": "tests/test-grammar-compliance.scm:string-parsing",
+    "spec_ref": "EBNF line 100"
+  },
+  {
+    "id": "msg-str-005",
+    "description": "Parse string with escaped backslashes",
+    "input": "\"path\\\\to\\\\file\"",
+    "expected": {
+      "type": "success",
+      "value": "path\\to\\file"
+    },
+    "source": "tests/test-grammar-compliance.scm:string-parsing",
+    "spec_ref": "EBNF line 100"
+  },
+  {
+    "id": "msg-str-006",
+    "description": "Parse identifier: hello",
+    "input": "hello",
+    "expected": {
+      "type": "success",
+      "value": {
+        "kind": "identifier",
+        "name": "hello"
+      }
+    },
+    "source": "tests/basic-parser-test.scm",
+    "spec_ref": "EBNF line 92"
+  },
+  {
+    "id": "msg-str-007",
+    "description": "Parse number: 42",
+    "input": "42",
+    "expected": {
+      "type": "success",
+      "value": {
+        "kind": "number",
+        "value": 42
+      }
+    },
+    "source": "tests/basic-parser-test.scm",
+    "spec_ref": "EBNF lines 107-111"
+  },
+  {
+    "id": "msg-str-008",
+    "description": "Parse boolean true: #t",
+    "input": "#t",
+    "expected": {
+      "type": "success",
+      "value": {
+        "kind": "boolean",
+        "value": true
+      }
+    },
+    "source": "tests/test-csexp-standalone.scm",
+    "spec_ref": "EBNF line 113"
+  },
+  {
+    "id": "msg-str-009",
+    "description": "Parse boolean false: #f",
+    "input": "#f",
+    "expected": {
+      "type": "success",
+      "value": {
+        "kind": "boolean",
+        "value": false
+      }
+    },
+    "source": "tests/test-csexp-standalone.scm",
+    "spec_ref": "EBNF line 113"
+  },
+  {
+    "id": "msg-str-010",
+    "description": "Parse agent ID: @alice",
+    "input": "@alice",
+    "expected": {
+      "type": "success",
+      "value": {
+        "kind": "agent_id",
+        "name": "alice"
+      }
+    },
+    "source": "tests/string-parsing-test.scm",
+    "spec_ref": "EBNF line 84"
+  },
+  {
+    "id": "msg-str-011",
+    "description": "Parse keyword: :thread",
+    "input": ":thread",
+    "expected": {
+      "type": "success",
+      "value": {
+        "kind": "keyword",
+        "name": "thread"
+      }
+    },
+    "source": "tests/string-parsing-test.scm",
+    "spec_ref": "EBNF line 90"
+  },
+  {
+    "id": "msg-str-012",
+    "description": "Parse identifier with hyphens: my-variable",
+    "input": "my-variable",
+    "expected": {
+      "type": "success",
+      "value": {
+        "kind": "identifier",
+        "name": "my-variable"
+      }
+    },
+    "source": "inferred from EBNF",
+    "spec_ref": "EBNF line 92"
+  },
+  {
+    "id": "msg-str-013",
+    "description": "Parse identifier with underscores: my_var",
+    "input": "my_var",
+    "expected": {
+      "type": "success",
+      "value": {
+        "kind": "identifier",
+        "name": "my_var"
+      }
+    },
+    "source": "inferred from EBNF",
+    "spec_ref": "EBNF line 92"
+  },
+  {
+    "id": "msg-str-014",
+    "description": "Sequence parsing: (hello)",
+    "input": "(hello)",
+    "expected": {
+      "type": "success",
+      "value": {
+        "kind": "s_expr",
+        "elements": ["hello"]
+      }
+    },
+    "source": "tests/basic-parser-test.scm",
+    "spec_ref": "EBNF line 123"
+  }
+]

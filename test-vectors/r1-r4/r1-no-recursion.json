@@ -1,0 +1,140 @@
+[
+  {
+    "id": "r1-001",
+    "description": "Direct recursion in performative definition must be rejected",
+    "input": {
+      "performative_name": "factorial",
+      "template": "(literal (factorial (- n 1)))"
+    },
+    "expected": {
+      "type": "error",
+      "error_kind": "r1_recursion_violation",
+      "note": "Template references its own performative name"
+    },
+    "source": "tests/test-grammar-compliance.scm:no-recursion",
+    "spec_ref": "R1 constraint, EBNF comment line 203"
+  },
+  {
+    "id": "r1-002",
+    "description": "Safe template (no self-reference) must be accepted",
+    "input": {
+      "performative_name": "notify",
+      "template": "(literal (tell recipient message))"
+    },
+    "expected": {
+      "type": "success",
+      "verification": true
+    },
+    "source": "tests/test-grammar-compliance.scm:no-recursion"
+  },
+  {
+    "id": "r1-003",
+    "description": "Complex safe template with conditionals accepted",
+    "input": {
+      "performative_name": "complex",
+      "template": "(cond ((= type urgent) (literal (tell @emergency msg))) (else (literal (tell @normal msg))))"
+    },
+    "expected": {
+      "type": "success",
+      "verification": true
+    },
+    "source": "tests/test-grammar-compliance.scm:no-recursion"
+  },
+  {
+    "id": "r1-004",
+    "description": "Safe multi-step sequence performative accepted",
+    "input": {
+      "performative_name": "notify-complete",
+      "template": "(sequence (literal (tell coordinator \"task-complete\")) (literal (ask database (record-completion task-id))) (literal (tell requester \"notification-sent\")))"
+    },
+    "expected": {
+      "type": "success",
+      "verification": true
+    },
+    "source": "tests/r1-simple-test.scm"
+  },
+  {
+    "id": "r1-005",
+    "description": "Recursive performative via cond branch rejected",
+    "input": {
+      "performative_name": "bad-recursive",
+      "template": "(cond ((> count 0) (literal (bad-recursive (- count 1)))) (else (literal (tell done \"finished\"))))"
+    },
+    "expected": {
+      "type": "error",
+      "error_kind": "r1_recursion_violation"
+    },
+    "source": "tests/r1-simple-test.scm"
+  },
+  {
+    "id": "r1-006",
+    "description": "Complex safe definition with multiple cond branches accepted",
+    "input": {
+      "performative_name": "smart-dispatch",
+      "template": "(cond ((= priority critical) (sequence (literal (tell emergency-team urgent-message)) (literal (ask coordinator emergency-protocols)))) ((= priority normal) (literal (tell standard-team normal-message))) (else (sequence (literal (tell default-handler message)) (literal (ask manager approval-required)))))"
+    },
+    "expected": {
+      "type": "success",
+      "verification": true
+    },
+    "source": "tests/r1-simple-test.scm"
+  },
+  {
+    "id": "r1-007",
+    "description": "Recursive dialect definition rejected at installation",
+    "input": {
+      "dialect_name": "bad-recursive-dialect",
+      "performative_name": "recursive-perf",
+      "template": "(sequence (literal (tell coordinator \"starting\")) (literal (recursive-perf remaining-data)) (literal (tell coordinator \"done\")))"
+    },
+    "expected": {
+      "type": "error",
+      "error_kind": "r1_recursion_violation",
+      "note": "Rejected during dialect installation"
+    },
+    "source": "tests/test-r1-main-module.scm"
+  },
+  {
+    "id": "r1-008",
+    "description": "Safe delegation dialect accepted at installation",
+    "input": {
+      "dialect_name": "safe-delegation-dialect",
+      "performative_name": "delegate-work",
+      "template": "(sequence (literal (tell coordinator \"delegating\")) (literal (ask (car workers) task)) (literal (tell coordinator \"delegated\")))"
+    },
+    "expected": {
+      "type": "success",
+      "verification": true
+    },
+    "source": "tests/test-r1-main-module.scm"
+  },
+  {
+    "id": "r1-009",
+    "description": "Indirect recursion via sequence rejected",
+    "input": {
+      "dialect_name": "indirect-recursive-dialect",
+      "performative_name": "process-list",
+      "template": "(cond ((null? items) (literal (tell coordinator \"done\"))) (else (sequence (literal (tell worker (car items))) (literal (process-list (cdr items))))))"
+    },
+    "expected": {
+      "type": "error",
+      "error_kind": "r1_recursion_violation",
+      "note": "Indirect recursion detected in else branch"
+    },
+    "source": "tests/test-r1-main-module.scm"
+  },
+  {
+    "id": "r1-010",
+    "description": "Complex workflow with nested cond accepted",
+    "input": {
+      "dialect_name": "complex-workflow-dialect",
+      "performative_name": "workflow-execute",
+      "template": "(sequence (literal (tell logger \"workflow started\")) (cond ((eq? priority urgent) (sequence (literal (tell priority-handler steps)) (literal (ask supervisor \"approval\")))) ((eq? priority normal) (literal (tell normal-handler steps))) (else (literal (tell default-handler steps)))) (literal (tell logger \"workflow completed\")))"
+    },
+    "expected": {
+      "type": "success",
+      "verification": true
+    },
+    "source": "tests/test-r1-main-module.scm"
+  }
+]

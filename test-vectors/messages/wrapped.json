@@ -1,0 +1,140 @@
+[
+  {
+    "id": "msg-wrap-001",
+    "description": "Envelope message with from and to",
+    "input": "(envelope :from @alice :to @bob (tell @bob \"Hello\"))",
+    "expected": {
+      "type": "success",
+      "value": {
+        "message_type": "wrapped",
+        "wrapper": "envelope",
+        "params": {
+          "from": "@alice",
+          "to": "@bob"
+        },
+        "inner": {
+          "message_type": "simple",
+          "performative": "tell",
+          "recipient": "@bob",
+          "content": "Hello"
+        }
+      }
+    },
+    "source": "tests/ietf-compliance-test.scm:wrapped-messages",
+    "spec_ref": "EBNF lines 51-56"
+  },
+  {
+    "id": "msg-wrap-002",
+    "description": "Envelope with timestamp",
+    "input": "(envelope :from @alice :timestamp \"2025-01-15T14:30:00Z\" (tell @bob \"Wrapped message\"))",
+    "expected": {
+      "type": "success",
+      "value": {
+        "message_type": "wrapped",
+        "wrapper": "envelope",
+        "params": {
+          "from": "@alice",
+          "timestamp": "2025-01-15T14:30:00Z"
+        },
+        "inner": {
+          "message_type": "simple",
+          "performative": "tell",
+          "recipient": "@bob",
+          "content": "Wrapped message"
+        }
+      }
+    },
+    "source": "tests/string-parsing-test.scm",
+    "spec_ref": "EBNF lines 51-56"
+  },
+  {
+    "id": "msg-wrap-003",
+    "description": "Signed message with base64 signature",
+    "input": "(signed \"base64signature\" (tell @bob \"Verified message\"))",
+    "expected": {
+      "type": "success",
+      "value": {
+        "message_type": "wrapped",
+        "wrapper": "signed",
+        "signature": "base64signature",
+        "inner": {
+          "message_type": "simple",
+          "performative": "tell",
+          "recipient": "@bob",
+          "content": "Verified message"
+        }
+      }
+    },
+    "source": "tests/ietf-compliance-test.scm:wrapped-messages",
+    "spec_ref": "EBNF lines 58-59"
+  },
+  {
+    "id": "msg-wrap-004",
+    "description": "Resource-limited message (with-limits)",
+    "input": "(with-limits :depth 10 :cpu 100 (tell @bob \"Constrained\"))",
+    "expected": {
+      "type": "success",
+      "value": {
+        "message_type": "wrapped",
+        "wrapper": "with-limits",
+        "limits": {
+          "depth": 10,
+          "cpu": 100
+        },
+        "inner": {
+          "message_type": "simple",
+          "performative": "tell",
+          "recipient": "@bob",
+          "content": "Constrained"
+        }
+      }
+    },
+    "source": "tests/ietf-compliance-test.scm:wrapped-messages",
+    "spec_ref": "EBNF lines 61-66"
+  },
+  {
+    "id": "msg-wrap-005",
+    "description": "With-limits with max-depth and max-expansion-size",
+    "input": "(with-limits :max-depth 16 :max-expansion-size 1024 (tell @alice \"bounded\"))",
+    "expected": {
+      "type": "success",
+      "value": {
+        "message_type": "wrapped",
+        "wrapper": "with-limits",
+        "limits": {
+          "max-depth": 16,
+          "max-expansion-size": 1024
+        },
+        "inner": {
+          "message_type": "simple",
+          "performative": "tell",
+          "recipient": "@alice",
+          "content": "bounded"
+        }
+      }
+    },
+    "source": "tests/test-grammar-compliance.scm:message-validation",
+    "spec_ref": "EBNF lines 61-66"
+  },
+  {
+    "id": "msg-wrap-006",
+    "description": "Signed message wrapping verified content",
+    "input": "(signed \"base64sig==\" (tell @alice \"verified\"))",
+    "expected": {
+      "type": "success",
+      "value": {
+        "message_type": "wrapped",
+        "wrapper": "signed",
+        "signature": "base64sig==",
+        "inner": {
+          "message_type": "simple",
+          "performative": "tell",
+          "recipient": "@alice",
+          "content": "verified"
+        }
+      }
+    },
+    "source": "tests/test-grammar-compliance.scm:message-validation",
+    "spec_ref": "EBNF lines 58-59"
+  }
+]

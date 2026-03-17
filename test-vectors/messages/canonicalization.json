@@ -1,0 +1,34 @@
+[
+  {
+    "id": "msg-canon-001",
+    "description": "Simple message is already canonical",
+    "input": "(tell @alice (greeting \"hello\"))",
+    "expected": {
+      "type": "success",
+      "value": "(tell @alice (greeting \"hello\"))"
+    },
+    "source": "tests/simple-tests.scm:canonicalize"
+  },
+  {
+    "id": "msg-canon-002",
+    "description": "Keyword arguments sorted into canonical order",
+    "input": "(extend book-venue (venue date capacity :refundable #t :deposit 500))",
+    "expected": {
+      "type": "success",
+      "value": "(extend book-venue (venue date capacity :deposit 500 :refundable #t))"
+    },
+    "note": "Keywords sorted alphabetically: :deposit before :refundable",
+    "source": "tests/simple-tests.scm:canonicalize"
+  },
+  {
+    "id": "msg-canon-003",
+    "description": "Nested expressions with keyword reordering",
+    "input": "(tell @coordinator (plan-step :id step-1 :action (move block-a table)))",
+    "expected": {
+      "type": "success",
+      "value": "(tell @coordinator (plan-step :action (move block-a table) :id step-1))"
+    },
+    "note": "Keywords sorted alphabetically: :action before :id",
+    "source": "tests/simple-tests.scm:canonicalize"
+  }
+]

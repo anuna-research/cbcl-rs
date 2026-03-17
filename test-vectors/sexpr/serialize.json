@@ -1,0 +1,85 @@
+[
+  {
+    "id": "sexpr-ser-001",
+    "description": "Encode simple octet-string to canonical form",
+    "input": {
+      "kind": "octet-string",
+      "bytes": [97, 98, 99]
+    },
+    "expected": {
+      "type": "success",
+      "value": "3:abc"
+    },
+    "source": "tests/test-csexp.scm:verbatim-encoding"
+  },
+  {
+    "id": "sexpr-ser-002",
+    "description": "Encode zero-length octet-string",
+    "input": {
+      "kind": "octet-string",
+      "bytes": []
+    },
+    "expected": {
+      "type": "success",
+      "value": "0:"
+    },
+    "source": "tests/test-csexp.scm:verbatim-encoding"
+  },
+  {
+    "id": "sexpr-ser-003",
+    "description": "Encode empty list",
+    "input": {
+      "kind": "list",
+      "elements": []
+    },
+    "expected": {
+      "type": "success",
+      "value": "()"
+    },
+    "source": "tests/test-csexp.scm:lists"
+  },
+  {
+    "id": "sexpr-ser-004",
+    "description": "Encode simple list: (6:issuer3:bob)",
+    "input": {
+      "kind": "list",
+      "elements": [
+        {"kind": "octet-string", "text": "issuer"},
+        {"kind": "octet-string", "text": "bob"}
+      ]
+    },
+    "expected": {
+      "type": "success",
+      "value": "(6:issuer3:bob)"
+    },
+    "source": "tests/test-csexp.scm:lists"
+  },
+  {
+    "id": "sexpr-ser-005",
+    "description": "Encode hinted value: [3:foo]3:bar",
+    "input": {
+      "kind": "hinted",
+      "hint_text": "foo",
+      "value_text": "bar"
+    },
+    "expected": {
+      "type": "success",
+      "value": "[3:foo]3:bar"
+    },
+    "source": "tests/test-csexp.scm:display-hints"
+  },
+  {
+    "id": "sexpr-ser-006",
+    "description": "Encode hinted value without hint falls back to plain",
+    "input": {
+      "kind": "hinted",
+      "hint": null,
+      "value_text": "bar"
+    },
+    "expected": {
+      "type": "success",
+      "value": "3:bar"
+    },
+    "source": "tests/test-csexp.scm:display-hints"
+  }
+]

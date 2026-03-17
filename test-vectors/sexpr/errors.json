@@ -1,0 +1,62 @@
+[
+  {
+    "id": "sexpr-err-001",
+    "description": "Invalid character at start (no length prefix)",
+    "input": "abc",
+    "expected": {
+      "type": "error",
+      "error_kind": "invalid_character"
+    },
+    "source": "tests/test-csexp.scm:error-cases"
+  },
+  {
+    "id": "sexpr-err-002",
+    "description": "Truncated data: length says 5 but only 3 bytes follow",
+    "input": "5:abc",
+    "expected": {
+      "type": "error",
+      "error_kind": "truncated_data"
+    },
+    "source": "tests/test-csexp.scm:error-cases"
+  },
+  {
+    "id": "sexpr-err-003",
+    "description": "Unclosed list: missing closing parenthesis",
+    "input": "(3:abc",
+    "expected": {
+      "type": "error",
+      "error_kind": "unclosed_list"
+    },
+    "source": "tests/test-csexp.scm:error-cases"
+  },
+  {
+    "id": "sexpr-err-004",
+    "description": "Unclosed display hint bracket",
+    "input": "[3:foo3:bar",
+    "expected": {
+      "type": "error",
+      "error_kind": "unclosed_hint"
+    },
+    "source": "tests/test-csexp.scm:error-cases"
+  },
+  {
+    "id": "sexpr-err-005",
+    "description": "Whitespace not allowed in canonical form",
+    "input": "( 3:abc )",
+    "expected": {
+      "type": "error",
+      "error_kind": "invalid_character"
+    },
+    "source": "tests/test-csexp.scm:canonical-properties"
+  },
+  {
+    "id": "sexpr-err-006",
+    "description": "Leading zeros not allowed (except 0 itself)",
+    "input": "03:abc",
+    "expected": {
+      "type": "error",
+      "error_kind": "leading_zero"
+    },
+    "source": "tests/test-csexp.scm:canonical-properties"
+  }
+]

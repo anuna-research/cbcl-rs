@@ -1,0 +1,148 @@
+[
+  {
+    "id": "r2-001",
+    "description": "Valid resource bounds pass verification",
+    "input": {
+      "dialect_name": "test-dialect",
+      "resources": {
+        "max-depth": 16,
+        "max-expansion-size": 1024,
+        "verification-time": 100
+      }
+    },
+    "expected": {
+      "type": "success",
+      "verification": true
+    },
+    "source": "tests/test-grammar-compliance.scm:resource-bounds",
+    "spec_ref": "R2 constraint, EBNF comment line 204"
+  },
+  {
+    "id": "r2-002",
+    "description": "Missing max-depth fails verification",
+    "input": {
+      "dialect_name": "test-dialect",
+      "resources": {
+        "max-expansion-size": 1024,
+        "verification-time": 100
+      }
+    },
+    "expected": {
+      "type": "error",
+      "error_kind": "r2_missing_resource",
+      "missing_field": "max-depth"
+    },
+    "source": "tests/test-grammar-compliance.scm:resource-bounds"
+  },
+  {
+    "id": "r2-003",
+    "description": "Excessive max-depth (>64) fails verification",
+    "input": {
+      "dialect_name": "test-dialect",
+      "resources": {
+        "max-depth": 100,
+        "max-expansion-size": 1024,
+        "verification-time": 100
+      }
+    },
+    "expected": {
+      "type": "error",
+      "error_kind": "r2_resource_exceeded",
+      "note": "max-depth > 64 is not allowed"
+    },
+    "source": "tests/test-grammar-compliance.scm:resource-bounds"
+  },
+  {
+    "id": "r2-004",
+    "description": "Runtime depth limit enforcement triggers at boundary",
+    "input": {
+      "context": {
+        "max-depth": 3,
+        "max-expansion-size": 512,
+        "verification-time": 50
+      },
+      "operations": [
+        "enter-depth",
+        "enter-depth",
+        "enter-depth"
+      ]
+    },
+    "expected": {
+      "type": "error",
+      "error_kind": "resource_limit_exceeded",
+      "note": "Third enter-depth exceeds limit of 3"
+    },
+    "source": "tests/test-grammar-compliance.scm:resource-bounds"
+  },
+  {
+    "id": "r2-005",
+    "description": "Runtime expansion size enforcement triggers at boundary",
+    "input": {
+      "context": {
+        "max-depth": 16,
+        "max-expansion-size": 100,
+        "verification-time": 50
+      },
+      "operations": [
+        {"check-expansion": 50},
+        {"check-expansion": 60}
+      ]
+    },
+    "expected": {
+      "type": "error",
+      "error_kind": "resource_limit_exceeded",
+      "note": "Cumulative expansion 110 > limit 100"
+    },
+    "source": "tests/test-grammar-compliance.scm:resource-bounds"
+  },
+  {
+    "id": "r2-006",
+    "description": "Planning dialect resource bounds within spec",
+    "input": {
+      "dialect_name": "cbcl-planning",
+      "resources": {
+        "max-depth": 16,
+        "max-expansion-size": 1024
+      }
+    },
+    "expected": {
+      "type": "success",
+      "verification": true
+    },
+    "source": "tests/dialect-implementation-tests.scm"
+  },
+  {
+    "id": "r2-007",
+    "description": "Cross-chain dialect resource bounds within spec",
+    "input": {
+      "dialect_name": "cbcl-crosschain-transfer",
+      "resources": {
+        "max-depth": 12,
+        "max-expansion-size": 800,
+        "verification-time": 40
+      }
+    },
+    "expected": {
+      "type": "success",
+      "verification": true
+    },
+    "source": "tests/dialect-implementation-tests.scm"
+  },
+  {
+    "id": "r2-008",
+    "description": "Artifacts dialect resource bounds within spec",
+    "input": {
+      "dialect_name": "cbcl-artifacts",
+      "resources": {
+        "max-depth": 8,
+        "max-expansion-size": 512,
+        "verification-time": 20
+      }
+    },
+    "expected": {
+      "type": "success",
+      "verification": true
+    },
+    "source": "tests/dialect-implementation-tests.scm"
+  }
+]

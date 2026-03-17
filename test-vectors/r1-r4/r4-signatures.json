@@ -1,0 +1,62 @@
+[
+  {
+    "id": "r4-001",
+    "description": "Dialect signature verification rejects unknown authority",
+    "input": {
+      "dialect_def": "(define test-dialect :author \"@test-authority\")",
+      "signature": "mock-signature",
+      "authority": "@unknown"
+    },
+    "expected": {
+      "type": "success",
+      "value": false,
+      "note": "Unknown authority should fail verification"
+    },
+    "source": "tests/ietf-compliance-test.scm:signature-verification",
+    "spec_ref": "R4 constraint, EBNF comment line 206"
+  },
+  {
+    "id": "r4-002",
+    "description": "Different orderings produce different canonical encodings",
+    "input": {
+      "msg1": ["a", "b"],
+      "msg2": ["b", "a"]
+    },
+    "expected": {
+      "type": "success",
+      "value": "different_encodings",
+      "note": "Canonical encoding is order-dependent, ensuring signature integrity"
+    },
+    "source": "tests/test-csexp.scm:signature-integration"
+  },
+  {
+    "id": "r4-003",
+    "description": "Deterministic encoding ensures same message always signs the same",
+    "input": {
+      "message": ["hello", "world"]
+    },
+    "expected": {
+      "type": "success",
+      "property": "deterministic",
+      "note": "encode(msg) == encode(msg) always holds"
+    },
+    "source": "tests/test-csexp.scm:signature-integration"
+  },
+  {
+    "id": "r4-004",
+    "description": "Dialect with hash, signature, and protocol fields",
+    "input": {
+      "dialect_name": "test-integrity-fields",
+      "hash": "sha256:abcd1234",
+      "signature": "sig123",
+      "protocol": "ed25519"
+    },
+    "expected": {
+      "type": "success",
+      "hash": "sha256:abcd1234",
+      "signature": "sig123",
+      "protocol": "ed25519"
+    },
+    "source": "tests/simple-tests.scm:dialect-integrity"
+  }
+]

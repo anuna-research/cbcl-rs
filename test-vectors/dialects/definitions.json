@@ -1,0 +1,137 @@
+[
+  {
+    "id": "dial-def-001",
+    "description": "Planning dialect definition and properties",
+    "dialect": {
+      "name": "cbcl-planning",
+      "extends": ["cbcl"],
+      "performatives": [
+        "share-conditional",
+        "propose-step",
+        "establish-link",
+        "assert-ordering",
+        "claim-subgoal",
+        "commit-plan",
+        "revise-step",
+        "withdraw-step"
+      ],
+      "performative_count": 8,
+      "resources": {
+        "max-depth": 16,
+        "max-expansion-size": 1024
+      },
+      "author": "@planning-authority",
+      "protocol": "ed25519"
+    },
+    "expected": {
+      "type": "success",
+      "verification": true
+    },
+    "source": "tests/dialect-implementation-tests.scm, tests/validate-paper-dialects.scm",
+    "spec_ref": "Paper Appendix B"
+  },
+  {
+    "id": "dial-def-002",
+    "description": "Cross-chain transfer dialect definition and properties",
+    "dialect": {
+      "name": "cbcl-crosschain-transfer",
+      "extends": ["cbcl"],
+      "performatives": [
+        "lock-asset",
+        "mint-wrapped",
+        "burn-wrapped",
+        "unlock-asset",
+        "verify-proof",
+        "submit-attestation",
+        "challenge-transfer",
+        "finalize-transfer"
+      ],
+      "performative_count": 8,
+      "resources": {
+        "max-depth": 12,
+        "max-expansion-size": 800,
+        "verification-time": 40
+      },
+      "author": "@crosschain-authority",
+      "protocol": "ed25519"
+    },
+    "expected": {
+      "type": "success",
+      "verification": true
+    },
+    "source": "tests/dialect-implementation-tests.scm, tests/validate-paper-dialects.scm",
+    "spec_ref": "Paper Appendix E"
+  },
+  {
+    "id": "dial-def-003",
+    "description": "Artifacts dialect definition and properties",
+    "dialect": {
+      "name": "cbcl-artifacts",
+      "extends": ["cbcl"],
+      "performatives": [
+        "create-artifact",
+        "observe",
+        "act-on",
+        "leave-mark",
+        "establish-regulation",
+        "query-artifact",
+        "transfer-artifact",
+        "annotate",
+        "inspect"
+      ],
+      "performative_count": 9,
+      "resources": {
+        "max-depth": 8,
+        "max-expansion-size": 512,
+        "verification-time": 20
+      },
+      "author": "@artifacts-authority",
+      "protocol": "ed25519"
+    },
+    "expected": {
+      "type": "success",
+      "verification": true
+    },
+    "source": "tests/dialect-implementation-tests.scm, tests/validate-paper-dialects.scm",
+    "spec_ref": "Paper Appendix F"
+  },
+  {
+    "id": "dial-def-004",
+    "description": "Precision agriculture dialect definition and properties",
+    "dialect": {
+      "name": "precision-agriculture",
+      "extends": ["cbcl"],
+      "performatives": [
+        "plant",
+        "irrigate",
+        "harvest",
+        "fertilize",
+        "spray",
+        "report-soil",
+        "report-weather",
+        "report-crop-health",
+        "reserve-equipment",
+        "equipment-status",
+        "path-coordinate",
+        "water-allocation",
+        "yield-forecast",
+        "task-sequence",
+        "task-complete",
+        "crop-alert",
+        "weather-alert",
+        "equipment-emergency"
+      ],
+      "resources": {
+        "max-depth": 12,
+        "max-expansion-size": 2048,
+        "verification-time": 100
+      }
+    },
+    "expected": {
+      "type": "success",
+      "verification": true
+    },
+    "source": "tests/test-precision-agriculture.scm",
+    "spec_ref": "Precision Agriculture Walkthrough"
+  }
+]

@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CBCL WASM - Basic Example</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .example { background: #f5f5f5; padding: 15px; margin: 10px 0; border-radius: 5px; }
+        .output { background: #e8f4fd; padding: 10px; margin: 10px 0; border-radius: 5px; font-family: monospace; }
+        button { padding: 10px 20px; margin: 5px; background: #007acc; color: white; border: none; border-radius: 3px; cursor: pointer; }
+        button:hover { background: #005a9e; }
+        .success { color: #28a745; }
+        .error { color: #dc3545; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 CBCL WebAssembly - Basic Examples</h1>
+        
+        <div class="example">
+            <h2>1. Load CBCL Module</h2>
+            <button onclick="loadCBCLModule()">Load CBCL</button>
+            <div id="load-output" class="output"></div>
+        </div>
+
+        <div class="example">
+            <h2>2. Create Simple Agent</h2>
+            <button onclick="createSimpleAgent()">Create Agent</button>
+            <div id="agent-output" class="output"></div>
+        </div>
+
+        <div class="example">
+            <h2>3. Send Messages</h2>
+            <button onclick="sendMessages()">Send Messages</button>
+            <div id="message-output" class="output"></div>
+        </div>
+
+        <div class="example">
+            <h2>4. Multi-Agent Environment</h2>
+            <button onclick="createEnvironment()">Create Environment</button>
+            <div id="env-output" class="output"></div>
+        </div>
+
+        <div class="example">
+            <h2>5. Parse Messages</h2>
+            <button onclick="parseMessages()">Parse Messages</button>
+            <div id="parse-output" class="output"></div>
+        </div>
+
+        <div class="example">
+            <h2>6. Gossip Network</h2>
+            <button onclick="createGossipNetwork()">Create Gossip Network</button>
+            <div id="gossip-output" class="output"></div>
+        </div>
+
+        <div class="example">
+            <h2>7. Run Demo</h2>
+            <button onclick="runDemo()">Run CBCL Demo</button>
+            <div id="demo-output" class="output"></div>
+        </div>
+    </div>
+
+    <!-- Include CBCL WASM files -->
+    <script type="text/javascript" src="../dist/reflect.js"></script>
+    <script type="text/javascript" src="../dist/cbcl-wasm.js"></script>
+
+    <script>
+        let cbclInstance = null;
+
+        function log(elementId, message, isError = false) {
+            const element = document.getElementById(elementId);
+            const timestamp = new Date().toLocaleTimeString();
+            const className = isError ? 'error' : 'success';
+            element.innerHTML += `<div class="${className}">[${timestamp}] ${message}</div>`;
+        }
+
+        async function loadCBCLModule() {
+            try {
+                log('load-output', 'Loading CBCL WASM module...');
+                cbclInstance = await loadCBCL('../dist/cbcl-hoot.wasm');
+                log('load-output', '✅ CBCL module loaded successfully!');
+            } catch (error) {
+                log('load-output', `❌ Failed to load CBCL: ${error.message}`, true);
+            }
+        }
+
+        async function createSimpleAgent() {
+            if (!cbclInstance) {
+                log('agent-output', '❌ Please load CBCL module first', true);
+                return;
+            }
+
+            try {
+                log('agent-output', 'Creating agent "Alice"...');
+                const alice = await cbclInstance.createAgent('alice');
+                log('agent-output', `✅ Agent created with ID: ${alice.getId()}`);
+                
+                // Store for later use
+                window.alice = alice;
+            } catch (error) {
+                log('agent-output', `❌ Failed to create agent: ${error.message}`, true);
+            }
+        }
+
+        async function sendMessages() {
+            if (!window.alice) {
+                log('message-output', '❌ Please create an agent first', true);
+                return;
+            }
+
+            try {
+                log('message-output', 'Sending messages...');
+                
+                const tellResult = window.alice.tell('bob', 'Hello Bob!');
+                log('message-output', `📤 Tell message: ${JSON.stringify(tellResult.data)}`);
+                
+                const askResult = window.alice.ask('charlie', 'How are you?');
+                log('message-output', `❓ Ask message: ${JSON.stringify(askResult.data)}`);
+                
+                const replyResult = window.alice.reply('I am doing great!');
+                log('message-output', `💬 Reply message: ${JSON.stringify(replyResult.data)}`);
+                
+                log('message-output', '✅ All messages sent successfully!');
+            } catch (error) {
+                log('message-output', `❌ Failed to send messages: ${error.message}`, true);
+            }
+        }
+
+        async function createEnvironment() {
+            if (!cbclInstance) {
+                log('env-output', '❌ Please load CBCL module first', true);
+                return;
+            }
+
+            try {
+                log('env-output', 'Creating multi-agent environment...');
+                const env = cbclInstance.createEnvironment('demo-env');
+                
+                log('env-output', 'Creating agents in environment...');
+                const alice = await env.createAgent('alice');
+                const bob = await env.createAgent('bob');
+                const charlie = await env.createAgent('charlie');
+                
+                log('env-output', 'Sending messages between agents...');
+                env.sendMessage('alice', 'bob', 'Hello Bob!');
+                env.sendMessage('bob', 'alice', 'Hi Alice!');
+                env.sendMessage('charlie', 'alice', 'Hey everyone!');
+                
+                const stats = env.getStats();
+                log('env-output', `📊 Environment stats: ${JSON.stringify(stats)}`);
+                
+                const conversation = env.getConversation('alice', 'bob');
+                log('env-output', `💬 Alice-Bob conversation: ${conversation.length} messages`);
+                
+                log('env-output', '✅ Environment created and tested successfully!');
+                
+                // Store for later use
+                window.environment = env;
+            } catch (error) {
+                log('env-output', `❌ Failed to create environment: ${error.message}`, true);
+            }
+        }
+
+        async function parseMessages() {
+            if (!window.alice) {
+                log('parse-output', '❌ Please create an agent first', true);
+                return;
+            }
+
+            try {
+                log('parse-output', 'Parsing CBCL messages...');
+                
+                const messages = [
+                    '(tell bob "Hello World")',
+                    '(ask charlie "What time is it?")',
+                    '(reply "It is 3:30 PM")',
+                    'invalid message format'
+                ];
+                
+                for (const msg of messages) {
+                    const result = window.alice.parseMessage(msg);
+                    log('parse-output', `📝 "${msg}" → ${JSON.stringify(result.data.parsed)}`);
+                }
+                
+                log('parse-output', '✅ All messages parsed!');
+            } catch (error) {
+                log('parse-output', `❌ Failed to parse messages: ${error.message}`, true);
+            }
+        }
+
+        async function createGossipNetwork() {
+            if (!cbclInstance) {
+                log('gossip-output', '❌ Please load CBCL module first', true);
+                return;
+            }
+
+            try {
+                log('gossip-output', 'Creating gossip network...');
+                const network = cbclInstance.createGossipNetwork('demo-network');
+                
+                log('gossip-output', 'Adding agents to network...');
+                for (let i = 0; i < 5; i++) {
+                    const agent = await cbclInstance.createAgent(`agent${i}`);
+                    network.addAgent(agent);
+                }
+                
+                log('gossip-output', 'Creating dialect specification...');
+                const dialectSpec = {
+                    name: 'greeting-dialect',
+                    performatives: ['greet', 'farewell'],
+                    examples: [
+                        '(greet alice "Good morning!")',
+                        '(farewell bob "See you later!")'
+                    ]
+                };
+                
+                log('gossip-output', 'Starting dialect propagation...');
+                const propagation = network.propagateDialect('greeting-dialect', dialectSpec);
+                log('gossip-output', `🚀 Propagation started: ${propagation.propagationId}`);
+                
+                log('gossip-output', 'Simulating gossip steps...');
+                for (let step = 0; step < 5; step++) {
+                    const result = network.gossipStep(propagation.propagationId);
+                    log('gossip-output', `Round ${result.round}: ${result.newInfections} new infections, ${result.totalInfected} total infected`);
+                    
+                    if (result.converged) {
+                        log('gossip-output', '🎉 Dialect fully propagated!');
+                        break;
+                    }
+                }
+                
+                const stats = network.getNetworkStats();
+                log('gossip-output', `📊 Network stats: ${JSON.stringify(stats)}`);
+                
+                log('gossip-output', '✅ Gossip network simulation completed!');
+            } catch (error) {
+                log('gossip-output', `❌ Failed to create gossip network: ${error.message}`, true);
+            }
+        }
+
+        async function runDemo() {
+            if (!cbclInstance) {
+                log('demo-output', '❌ Please load CBCL module first', true);
+                return;
+            }
+
+            try {
+                log('demo-output', 'Running CBCL demo conversation...');
+                const demoResult = await cbclInstance.runDemo();
+                log('demo-output', `🎭 Demo result: ${JSON.stringify(demoResult)}`);
+                
+                log('demo-output', 'Running CBCL basic tests...');
+                const testResult = await cbclInstance.test();
+                log('demo-output', `🧪 Test result: ${JSON.stringify(testResult)}`);
+                
+                log('demo-output', '✅ Demo completed successfully!');
+            } catch (error) {
+                log('demo-output', `❌ Failed to run demo: ${error.message}`, true);
+            }
+        }
+
+        // Auto-load CBCL when page loads
+        window.addEventListener('DOMContentLoaded', () => {
+            log('load-output', '🌐 Page loaded. Click "Load CBCL" to start!');
+        });
+    </script>
+</body>
+</html>

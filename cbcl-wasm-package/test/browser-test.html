@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CBCL WASM - Browser Tests</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 1000px; margin: 0 auto; }
+        .test-section { background: #f8f9fa; padding: 15px; margin: 10px 0; border-radius: 5px; border-left: 4px solid #007acc; }
+        .test-results { background: #ffffff; padding: 10px; margin: 10px 0; border-radius: 5px; font-family: monospace; border: 1px solid #ddd; }
+        .success { color: #28a745; }
+        .error { color: #dc3545; }
+        .info { color: #007acc; }
+        button { padding: 10px 20px; margin: 5px; background: #007acc; color: white; border: none; border-radius: 3px; cursor: pointer; }
+        button:hover { background: #005a9e; }
+        button:disabled { background: #6c757d; cursor: not-allowed; }
+        .stats { background: #e7f3ff; padding: 10px; border-radius: 5px; margin: 10px 0; }
+        .progress { background: #e9ecef; border-radius: 10px; height: 20px; margin: 10px 0; }
+        .progress-bar { background: #007acc; height: 100%; border-radius: 10px; transition: width 0.3s; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 CBCL WASM - Browser Test Suite</h1>
+        
+        <div class="test-section">
+            <h2>Test Controls</h2>
+            <button onclick="runAllTests()" id="runTestsBtn">Run All Tests</button>
+            <button onclick="clearResults()">Clear Results</button>
+            <button onclick="runPerformanceTests()">Performance Tests</button>
+            <button onclick="runStressTests()">Stress Tests</button>
+        </div>
+
+        <div class="stats" id="testStats" style="display: none;">
+            <h3>📊 Test Statistics</h3>
+            <div class="progress"><div class="progress-bar" id="progressBar" style="width: 0%;"></div></div>
+            <div id="statsContent"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>📋 Test Results</h2>
+            <div id="testResults" class="test-results">Click "Run All Tests" to start testing...</div>
+        </div>
+    </div>
+
+    <!-- Include CBCL WASM files -->
+    <script type="text/javascript" src="../dist/reflect.js"></script>
+    <script type="text/javascript" src="../dist/cbcl-wasm.js"></script>
+
+    <script>
+        class BrowserTestFramework {
+            constructor() {
+                this.tests = [];
+                this.passed = 0;
+                this.failed = 0;
+                this.total = 0;
+                this.currentTest = 0;
+                this.resultElement = document.getElementById('testResults');
+                this.statsElement = document.getElementById('testStats');
+                this.progressBar = document.getElementById('progressBar');
+                this.statsContent = document.getElementById('statsContent');
+            }
+
+            test(description, testFunction) {
+                this.tests.push({ description, testFunction });
+                this.total++;
+            }
+
+            log(message, type = 'info') {
+                const timestamp = new Date().toLocaleTimeString();
+                const className = type === 'error' ? 'error' : type === 'success' ? 'success' : 'info';
+                this.resultElement.innerHTML += `<div class="${className}">[${timestamp}] ${message}</div>`;
+                this.resultElement.scrollTop = this.resultElement.scrollHeight;
+            }
+
+            assert(condition, message) {
+                if (condition) {
+                    this.log(`✓ ${message}`, 'success');
+                    this.passed++;
+                } else {
+                    this.log(`✗ ${message}`, 'error');
+                    this.failed++;
+                    throw new Error(`Assertion failed: ${message}`);
+                }
+            }
+
+            assertEqual(actual, expected, message) {
+                const condition = JSON.stringify(actual) === JSON.stringify(expected);
+                this.assert(condition, `${message} (expected: ${JSON.stringify(expected)}, got: ${JSON.stringify(actual)})`);
+            }
+
+            assertTrue(condition, message) {
+                this.assert(condition === true, message);
+            }
+
+            updateProgress() {
+                const percentage = (this.currentTest / this.total) * 100;
+                this.progressBar.style.width = `${percentage}%`;
+                
+                this.statsContent.innerHTML = `
+                    <strong>Progress:</strong> ${this.currentTest}/${this.total} tests<br>
+                    <strong>Passed:</strong> <span class="success">${this.passed}</span><br>
+                    <strong>Failed:</strong> <span class="error">${this.failed}</span><br>
+                    <strong>Success Rate:</strong> ${this.total > 0 ? ((this.passed / (this.passed + this.failed)) * 100).toFixed(1) : 0}%
+                `;
+            }
+
+            async run() {
+                this.log('🧪 Starting CBCL WASM Browser Tests...', 'info');
+                this.statsElement.style.display = 'block';
+                
+                const runBtn = document.getElementById('runTestsBtn');
+                runBtn.disabled = true;
+                runBtn.textContent = 'Running Tests...';
+
+                for (const { description, testFunction } of this.tests) {
+                    try {
+                        this.log(`📋 ${description}`, 'info');
+                        await testFunction();
+                        this.currentTest++;
+                        this.updateProgress();
+                        
+                        // Small delay to prevent UI blocking
+                        await new Promise(resolve => setTimeout(resolve, 10));
+                    } catch (error) {
+                        this.log(`❌ Test failed: ${error.message}`, 'error');
+                        this.currentTest++;
+                        this.updateProgress();
+                    }
+                }
+
+                this.log(`\n📊 Browser Test Results:`, 'info');
+                this.log(`✓ Passed: ${this.passed}`, 'success');
+                this.log(`✗ Failed: ${this.failed}`, this.failed > 0 ? 'error' : 'info');
+                this.log(`📈 Success Rate: ${((this.passed / (this.passed + this.failed)) * 100).toFixed(1)}%`, 'info');
+
+                runBtn.disabled = false;
+                runBtn.textContent = 'Run All Tests';
+                
+                return this.failed === 0;
+            }
+
+            clear() {
+                this.tests = [];
+                this.passed = 0;
+                this.failed = 0;
+                this.total = 0;
+                this.currentTest = 0;
+                this.resultElement.innerHTML = 'Tests cleared. Click "Run All Tests" to start testing...';
+                this.statsElement.style.display = 'none';
+            }
+        }
+
+        const browserTest = new BrowserTestFramework();
+
+        // Browser-specific tests
+        browserTest.test('Browser Environment - CBCL module loading', async () => {
+            browserTest.assertTrue(typeof loadCBCL === 'function', 'loadCBCL should be available globally');
+            browserTest.assertTrue(typeof CBCL !== 'undefined', 'CBCL class should be available globally');
+            browserTest.assertTrue(typeof CBCLAgent !== 'undefined', 'CBCLAgent class should be available globally');
+            browserTest.assertTrue(typeof CBCLEnvironment !== 'undefined', 'CBCLEnvironment class should be available globally');
+        });
+
+        browserTest.test('Browser Environment - Scheme runtime loading', async () => {
+            browserTest.assertTrue(typeof Scheme !== 'undefined', 'Scheme runtime should be loaded');
+            browserTest.assertTrue(typeof Scheme.load_main === 'function', 'Scheme.load_main should be available');
+        });
+
+        browserTest.test('CBCL WASM module initialization', async () => {
+            const cbcl = await loadCBCL('../dist/cbcl-hoot.wasm');
+            browserTest.assertTrue(cbcl instanceof CBCL, 'Should return CBCL instance');
+            window.testCBCL = cbcl; // Store for other tests
+        });
+
+        browserTest.test('Agent creation and basic functionality', async () => {
+            const cbcl = window.testCBCL;
+            const agent = await cbcl.createAgent('browser-alice');
+            
+            browserTest.assertTrue(agent instanceof CBCLAgent, 'Should create CBCLAgent instance');
+            browserTest.assertEqual(agent.getId(), 'browser-alice', 'Agent should have correct ID');
+            
+            const tellResult = agent.tell('bob', 'Hello from browser!');
+            browserTest.assertTrue(tellResult.success, 'Tell message should succeed');
+            
+            window.testAgent = agent; // Store for other tests
+        });
+
+        browserTest.test('Environment creation and multi-agent communication', async () => {
+            const cbcl = window.testCBCL;
+            const env = cbcl.createEnvironment('browser-env');
+            
+            const alice = await env.createAgent('alice');
+            const bob = await env.createAgent('bob');
+            
+            browserTest.assertEqual(env.listAgents().length, 2, 'Environment should have 2 agents');
+            
+            const result = env.sendMessage('alice', 'bob', 'Browser test message');
+            browserTest.assertTrue(result.success, 'Message sending should succeed');
+            
+            const stats = env.getStats();
+            browserTest.assertEqual(stats.agentCount, 2, 'Stats should show 2 agents');
+            browserTest.assertEqual(stats.messageCount, 1, 'Stats should show 1 message');
+            
+            window.testEnv = env; // Store for other tests
+        });
+
+        browserTest.test('Message parsing and evaluation', async () => {
+            const agent = window.testAgent;
+            
+            const parseResult = agent.parseMessage('(tell charlie "Browser parsed message")');
+            browserTest.assertTrue(parseResult.success, 'Parsing should succeed');
+            browserTest.assertEqual(parseResult.data.parsed.type, 'tell', 'Should parse as tell message');
+            
+            const evalResult = agent.evaluateMessage(parseResult.data.parsed);
+            browserTest.assertTrue(evalResult.success, 'Evaluation should succeed');
+        });
+
+        browserTest.test('Gossip network functionality', async () => {
+            const cbcl = window.testCBCL;
+            const network = cbcl.createGossipNetwork('browser-gossip');
+            
+            // Create and add agents
+            for (let i = 0; i < 3; i++) {
+                const agent = await cbcl.createAgent(`gossip-agent-${i}`);
+                network.addAgent(agent);
+            }
+            
+            const dialectSpec = { name: 'browser-dialect', performatives: ['browse', 'click'] };
+            const propagation = network.propagateDialect('browser-dialect', dialectSpec);
+            
+            browserTest.assertTrue(propagation.success, 'Dialect propagation should start successfully');
+            
+            const step = network.gossipStep(propagation.propagationId);
+            browserTest.assertTrue(step.success, 'Gossip step should execute successfully');
+        });
+
+        browserTest.test('Demo and test functions', async () => {
+            const cbcl = window.testCBCL;
+            
+            const demoResult = await cbcl.runDemo();
+            browserTest.assertTrue(demoResult.success, 'Demo should run successfully');
+            
+            const testResult = await cbcl.test();
+            browserTest.assertTrue(testResult.success, 'Basic test should run successfully');
+        });
+
+        browserTest.test('Performance - Rapid agent creation', async () => {
+            const cbcl = window.testCBCL;
+            const env = cbcl.createEnvironment('perf-env');
+            
+            const startTime = performance.now();
+            
+            for (let i = 0; i < 50; i++) {
+                await env.createAgent(`perf-agent-${i}`);
+            }
+            
+            const endTime = performance.now();
+            const duration = endTime - startTime;
+            
+            browserTest.assertTrue(duration < 3000, `Should create 50 agents in under 3 seconds (took ${duration.toFixed(2)}ms)`);
+            browserTest.assertEqual(env.listAgents().length, 50, 'Should have 50 agents created');
+        });
+
+        browserTest.test('Performance - Message throughput', async () => {
+            const env = window.testEnv;
+            const startTime = performance.now();
+            
+            for (let i = 0; i < 500; i++) {
+                env.sendMessage('alice', 'bob', `Performance test message ${i}`);
+            }
+            
+            const endTime = performance.now();
+            const duration = endTime - startTime;
+            
+            browserTest.assertTrue(duration < 2000, `Should send 500 messages in under 2 seconds (took ${duration.toFixed(2)}ms)`);
+        });
+
+        browserTest.test('Error handling - Invalid operations', async () => {
+            const env = window.testEnv;
+            
+            const result = env.sendMessage('nonexistent', 'alice', 'test');
+            browserTest.assertTrue(!result.success, 'Should fail for nonexistent sender');
+            browserTest.assertTrue(result.error.includes('not found'), 'Should have appropriate error message');
+            
+            const agent = window.testAgent;
+            const parseResult = agent.parseMessage('invalid message format');
+            browserTest.assertTrue(parseResult.success, 'Parse should succeed even for invalid format');
+            browserTest.assertEqual(parseResult.data.parsed.type, 'unknown', 'Should mark as unknown type');
+        });
+
+        // Test runner functions
+        async function runAllTests() {
+            browserTest.clear();
+            
+            // Re-register all tests
+            setupTests();
+            
+            await browserTest.run();
+        }
+
+        function setupTests() {
+            // Tests are already registered above in the browserTest object
+        }
+
+        function clearResults() {
+            browserTest.clear();
+        }
+
+        async function runPerformanceTests() {
+            browserTest.clear();
+            
+            browserTest.test('Performance - Large environment creation', async () => {
+                const cbcl = await loadCBCL('../dist/cbcl-hoot.wasm');
+                const env = cbcl.createEnvironment('large-env');
+                
+                const startTime = performance.now();
+                
+                for (let i = 0; i < 100; i++) {
+                    await env.createAgent(`large-agent-${i}`);
+                }
+                
+                const duration = performance.now() - startTime;
+                browserTest.assertTrue(duration < 5000, `Should create 100 agents in under 5 seconds (took ${duration.toFixed(2)}ms)`);
+            });
+
+            browserTest.test('Performance - High-frequency messaging', async () => {
+                const cbcl = await loadCBCL('../dist/cbcl-hoot.wasm');
+                const env = cbcl.createEnvironment('msg-env');
+                
+                await env.createAgent('sender');
+                await env.createAgent('receiver');
+                
+                const startTime = performance.now();
+                
+                for (let i = 0; i < 1000; i++) {
+                    env.sendMessage('sender', 'receiver', `Perf message ${i}`);
+                }
+                
+                const duration = performance.now() - startTime;
+                browserTest.assertTrue(duration < 3000, `Should send 1000 messages in under 3 seconds (took ${duration.toFixed(2)}ms)`);
+            });
+
+            await browserTest.run();
+        }
+
+        async function runStressTests() {
+            browserTest.clear();
+            
+            browserTest.test('Stress - Memory usage with many agents', async () => {
+                const cbcl = await loadCBCL('../dist/cbcl-hoot.wasm');
+                const env = cbcl.createEnvironment('stress-env');
+                
+                const initialMemory = performance.memory ? performance.memory.usedJSHeapSize : 0;
+                
+                for (let i = 0; i < 200; i++) {
+                    await env.createAgent(`stress-agent-${i}`);
+                }
+                
+                const finalMemory = performance.memory ? performance.memory.usedJSHeapSize : 0;
+                const memoryIncrease = finalMemory - initialMemory;
+                
+                browserTest.assertTrue(memoryIncrease < 50 * 1024 * 1024, `Memory increase should be under 50MB (was ${(memoryIncrease / 1024 / 1024).toFixed(2)}MB)`);
+                browserTest.assertEqual(env.listAgents().length, 200, 'Should have 200 agents');
+            });
+
+            browserTest.test('Stress - Rapid gossip propagation', async () => {
+                const cbcl = await loadCBCL('../dist/cbcl-hoot.wasm');
+                const network = cbcl.createGossipNetwork('stress-gossip');
+                
+                // Create larger network
+                for (let i = 0; i < 20; i++) {
+                    const agent = await cbcl.createAgent(`stress-gossip-${i}`);
+                    network.addAgent(agent);
+                }
+                
+                const dialectSpec = { name: 'stress-dialect', performatives: ['stress-test'] };
+                const propagation = network.propagateDialect('stress-dialect', dialectSpec);
+                
+                // Run many gossip steps
+                let converged = false;
+                let steps = 0;
+                const maxSteps = 50;
+                
+                while (!converged && steps < maxSteps) {
+                    const step = network.gossipStep(propagation.propagationId);
+                    converged = step.converged;
+                    steps++;
+                }
+                
+                browserTest.assertTrue(steps <= maxSteps, `Should converge or complete within ${maxSteps} steps (took ${steps})`);
+            });
+
+            await browserTest.run();
+        }
+
+        // Initialize on page load
+        window.addEventListener('DOMContentLoaded', () => {
+            browserTest.log('🌐 Browser test environment initialized', 'info');
+            browserTest.log('Click "Run All Tests" to begin testing the CBCL WASM package', 'info');
+        });
+    </script>
+</body>
+</html>

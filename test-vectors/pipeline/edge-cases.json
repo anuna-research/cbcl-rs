@@ -1,0 +1,125 @@
+[
+  {
+    "id": "edge-001",
+    "description": "Empty parameters handled gracefully",
+    "input": {
+      "dialect": "precision-agriculture",
+      "message": "(equipment-status \"eq-1\" \"unknown\" \"unknown\" #f #f)"
+    },
+    "expected": {
+      "type": "success",
+      "note": "Should handle gracefully even with minimal/unknown params"
+    },
+    "source": "tests/test-precision-agriculture.scm:edge-cases"
+  },
+  {
+    "id": "edge-002",
+    "description": "Nested data structures in message parameters",
+    "input": {
+      "dialect": "precision-agriculture",
+      "message": "(path-coordinate \"t1\" (:lat 40.71 :lon -74.00 :elevation 100) (:lat 40.72 :lon -74.01 :elevation 105) ((:type \"tree\" :lat 40.715 :lon -74.005) (:type \"rock\" :lat 40.716 :lon -74.006)))"
+    },
+    "expected": {
+      "type": "success",
+      "note": "Complex nested keyword structures should parse correctly"
+    },
+    "source": "tests/test-precision-agriculture.scm:edge-cases"
+  },
+  {
+    "id": "edge-003",
+    "description": "Csexp empty list is compact (<=3 bytes)",
+    "input": "()",
+    "format": "csexp",
+    "expected": {
+      "type": "success",
+      "max_bytes": 3,
+      "note": "Empty list encoded as () = 2 bytes"
+    },
+    "source": "tests/test-csexp-standalone.scm:performance"
+  },
+  {
+    "id": "edge-004",
+    "description": "Small tell message is compact (<=25 bytes in csexp)",
+    "input": "(tell bob \"hi\")",
+    "format": "csexp",
+    "expected": {
+      "type": "success",
+      "max_bytes": 25,
+      "note": "Canonical form: (4:tell3:bob2:hi) = ~20 bytes"
+    },
+    "source": "tests/test-csexp-standalone.scm:performance"
+  },
+  {
+    "id": "edge-005",
+    "description": "All 256 byte values round-trip through csexp",
+    "input": {
+      "kind": "octet-string",
+      "bytes_range": "0-255"
+    },
+    "format": "csexp",
+    "expected": {
+      "type": "success",
+      "property": "round_trip_all_bytes",
+      "note": "A bytevector containing bytes 0-255 must survive encode/decode"
+    },
+    "source": "tests/test-csexp.scm:binary-data"
+  },
+  {
+    "id": "edge-006",
+    "description": "String is not a canonical s-expression type",
+    "input": "hello",
+    "format": "csexp_type_check",
+    "expected": {
+      "type": "success",
+      "is_canonical_sexp": false,
+      "note": "Plain strings are not csexp; only bytevectors, lists, and hinted values are"
+    },
+    "source": "tests/test-csexp.scm:type-predicates"
+  },
+  {
+    "id": "edge-007",
+    "description": "Number is not a canonical s-expression type",
+    "input": 42,
+    "format": "csexp_type_check",
+    "expected": {
+      "type": "success",
+      "is_canonical_sexp": false
+    },
+    "source": "tests/test-csexp.scm:type-predicates"
+  },
+  {
+    "id": "edge-008",
+    "description": "Bytevector is a canonical s-expression type",
+    "input": {"kind": "octet-string", "bytes": [1, 2, 3]},
+    "format": "csexp_type_check",
+    "expected": {
+      "type": "success",
+      "is_canonical_sexp": true
+    },
+    "source": "tests/test-csexp.scm:type-predicates"
+  },
+  {
+    "id": "edge-009",
+    "description": "Nested list is a canonical s-expression type",
+    "input": {"kind": "list", "elements": [{"kind": "octet-string", "bytes": [1]}, {"kind": "list", "elements": [{"kind": "octet-string", "bytes": [2]}]}]},
+    "format": "csexp_type_check",
+    "expected": {
+      "type": "success",
+      "is_canonical_sexp": true
+    },
+    "source": "tests/test-csexp.scm:type-predicates"
+  },
+  {
+    "id": "edge-010",
+    "description": "Multiple agents use same dialect independently",
+    "input": {
+      "dialect": "precision-agriculture",
+      "agents": ["@agent1", "@agent2", "@agent3"]
+    },
+    "expected": {
+      "type": "success",
+      "all_agents_have_dialect": true
+    },
+    "source": "tests/test-precision-agriculture.scm:multi-agent-integration"
+  }
+]

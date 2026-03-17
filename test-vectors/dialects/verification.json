@@ -1,0 +1,80 @@
+[
+  {
+    "id": "dial-ver-001",
+    "description": "Base CBCL dialect verifies successfully",
+    "input": {
+      "dialect_name": "cbcl-base",
+      "performatives": ["tell", "ask", "reply", "error", "ok", "cancel", "hello", "bye"]
+    },
+    "expected": {
+      "type": "success",
+      "verification": true
+    },
+    "source": "tests/simple-tests.scm:base-dialect"
+  },
+  {
+    "id": "dial-ver-002",
+    "description": "Dialect with integrity fields verifies",
+    "input": {
+      "dialect_name": "test-integrity",
+      "hash": "sha256:abcd1234",
+      "signature": "sig123",
+      "protocol": "ed25519"
+    },
+    "expected": {
+      "type": "success",
+      "verification": true,
+      "hash_accessible": true,
+      "signature_accessible": true,
+      "protocol_accessible": true
+    },
+    "source": "tests/simple-tests.scm:dialect-integrity"
+  },
+  {
+    "id": "dial-ver-003",
+    "description": "All dialects extend base CBCL",
+    "property": "all_extend_base",
+    "dialects": ["cbcl-planning", "cbcl-crosschain-transfer", "cbcl-artifacts"],
+    "expected": {
+      "type": "success",
+      "all_extend_cbcl": true
+    },
+    "source": "tests/validate-paper-dialects.scm:cross-dialect-consistency"
+  },
+  {
+    "id": "dial-ver-004",
+    "description": "All dialects have resource requirements",
+    "property": "all_have_resources",
+    "dialects": ["cbcl-planning", "cbcl-crosschain-transfer", "cbcl-artifacts"],
+    "expected": {
+      "type": "success",
+      "all_have_max_depth": true
+    },
+    "source": "tests/validate-paper-dialects.scm:cross-dialect-consistency"
+  },
+  {
+    "id": "dial-ver-005",
+    "description": "All dialects use ed25519 signature protocol",
+    "property": "all_use_ed25519",
+    "dialects": ["cbcl-planning", "cbcl-crosschain-transfer", "cbcl-artifacts"],
+    "expected": {
+      "type": "success",
+      "all_use_ed25519": true
+    },
+    "source": "tests/validate-paper-dialects.scm:cross-dialect-consistency"
+  },
+  {
+    "id": "dial-ver-006",
+    "description": "Multiple dialects can be installed on same agent",
+    "input": {
+      "agent": "multi-dialect-agent",
+      "dialects_to_install": ["cbcl-planning", "cbcl-crosschain-transfer", "cbcl-artifacts"]
+    },
+    "expected": {
+      "type": "success",
+      "total_dialects": 4,
+      "note": "base dialect + 3 installed = 4"
+    },
+    "source": "tests/dialect-implementation-tests.scm:integration"
+  }
+]

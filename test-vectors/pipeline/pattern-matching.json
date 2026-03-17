@@ -1,0 +1,34 @@
+[
+  {
+    "id": "pipe-pat-001",
+    "description": "Variable binding in pattern matching",
+    "input": {
+      "pattern": "(x y)",
+      "data": "(hello world)",
+      "bindings": {}
+    },
+    "expected": {
+      "type": "success",
+      "value": {
+        "x": "hello",
+        "y": "world"
+      }
+    },
+    "source": "tests/simple-tests.scm:pattern-matching"
+  },
+  {
+    "id": "pipe-pat-002",
+    "description": "Pattern mismatch returns false",
+    "input": {
+      "pattern": "(tell bob)",
+      "data": "(ask alice)",
+      "bindings": {}
+    },
+    "expected": {
+      "type": "success",
+      "value": false,
+      "note": "Literal atoms in pattern must match exactly"
+    },
+    "source": "tests/simple-tests.scm:pattern-matching"
+  }
+]

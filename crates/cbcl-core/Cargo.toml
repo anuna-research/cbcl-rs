@@ -1,0 +1,28 @@
+[package]
+name = "cbcl-core"
+description = "CBCL pure core: types, verification, and serialization"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[features]
+default = ["std"]
+std = []
+serde = ["dep:serde"]
+thiserror = ["dep:thiserror"]
+tracing = ["dep:tracing"]
+
+[dependencies]
+serde = { version = "1", default-features = false, features = ["derive", "alloc"], optional = true }
+thiserror = { version = "2", default-features = false, optional = true }
+tracing = { workspace = true, optional = true }
+
+[dev-dependencies]
+proptest = "1"
+criterion.workspace = true
+
+[[bench]]
+name = "core_bench"
+harness = false

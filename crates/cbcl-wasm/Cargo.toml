@@ -1,0 +1,22 @@
+[package]
+name = "cbcl-wasm"
+description = "CBCL WebAssembly bindings"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = ["std"]
+std = ["cbcl-core/std", "cbcl-parser/std"]
+bindgen = ["dep:wasm-bindgen"]
+tracing = ["cbcl-core/tracing", "cbcl-parser/tracing"]
+
+[dependencies]
+cbcl-core = { workspace = true, default-features = false }
+cbcl-parser = { workspace = true, default-features = false }
+wasm-bindgen = { version = "0.2", optional = true }

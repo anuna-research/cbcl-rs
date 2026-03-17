@@ -1,0 +1,42 @@
+[
+  {
+    "id": "msg-lang-001",
+    "description": "Lang-scoped message to logistics dialect",
+    "input": "(lang logistics (tell @system \"PKG-123\"))",
+    "expected": {
+      "type": "success",
+      "value": {
+        "message_type": "dialect",
+        "dialect_name": "logistics",
+        "inner": {
+          "message_type": "simple",
+          "performative": "tell",
+          "recipient": "@system",
+          "content": "PKG-123"
+        }
+      }
+    },
+    "source": "tests/ietf-compliance-test.scm:lang-messages",
+    "spec_ref": "EBNF lines 42-44"
+  },
+  {
+    "id": "msg-lang-002",
+    "description": "Lang-scoped message to precision-ag dialect",
+    "input": "(lang precision-ag (tell @farmer \"plant\"))",
+    "expected": {
+      "type": "success",
+      "value": {
+        "message_type": "dialect",
+        "dialect_name": "precision-ag",
+        "inner": {
+          "message_type": "simple",
+          "performative": "tell",
+          "recipient": "@farmer",
+          "content": "plant"
+        }
+      }
+    },
+    "source": "tests/test-grammar-compliance.scm:message-validation",
+    "spec_ref": "EBNF lines 42-44"
+  }
+]

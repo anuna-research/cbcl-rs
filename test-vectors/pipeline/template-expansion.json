@@ -1,0 +1,115 @@
+[
+  {
+    "id": "pipe-tpl-001",
+    "description": "Literal template expansion with variable substitution",
+    "input": {
+      "template": "(literal (tell @alice message))",
+      "bindings": {"message": "hello"}
+    },
+    "expected": {
+      "type": "success",
+      "value": "(tell @alice \"hello\")"
+    },
+    "source": "tests/test-grammar-compliance.scm:template-expansion",
+    "spec_ref": "EBNF lines 137-144"
+  },
+  {
+    "id": "pipe-tpl-002",
+    "description": "Conditional template - equality test selects first branch",
+    "input": {
+      "template": "(cond ((= priority urgent) (literal (tell @emergency message))) (else (literal (tell @normal message))))",
+      "bindings": {"priority": "urgent", "message": "fire!"}
+    },
+    "expected": {
+      "type": "success",
+      "value": "(tell @emergency \"fire!\")"
+    },
+    "source": "tests/test-grammar-compliance.scm:template-expansion",
+    "spec_ref": "EBNF lines 154-159"
+  },
+  {
+    "id": "pipe-tpl-003",
+    "description": "Conditional template - membership test",
+    "input": {
+      "template": "(cond ((member category (urgent critical)) (literal (tell @emergency message))) (else (literal (tell @normal message))))",
+      "bindings": {"category": "urgent", "message": "alert"}
+    },
+    "expected": {
+      "type": "success",
+      "value": "(tell @emergency \"alert\")"
+    },
+    "source": "tests/test-grammar-compliance.scm:template-expansion",
+    "spec_ref": "EBNF lines 165-166"
+  },
+  {
+    "id": "pipe-tpl-004",
+    "description": "Type test - number",
+    "input": {
+      "condition": "(type? value number)",
+      "bindings": {"value": 42}
+    },
+    "expected": {
+      "type": "success",
+      "value": true
+    },
+    "source": "tests/test-grammar-compliance.scm:template-expansion",
+    "spec_ref": "EBNF lines 167-168"
+  },
+  {
+    "id": "pipe-tpl-005",
+    "description": "Type test - string",
+    "input": {
+      "condition": "(type? value string)",
+      "bindings": {"value": "hello"}
+    },
+    "expected": {
+      "type": "success",
+      "value": true
+    },
+    "source": "tests/test-grammar-compliance.scm:template-expansion"
+  },
+  {
+    "id": "pipe-tpl-006",
+    "description": "Type test - agent",
+    "input": {
+      "condition": "(type? value agent)",
+      "bindings": {"value": "@alice"}
+    },
+    "expected": {
+      "type": "success",
+      "value": true
+    },
+    "source": "tests/test-grammar-compliance.scm:template-expansion"
+  },
+  {
+    "id": "pipe-tpl-007",
+    "description": "Sequence template expansion",
+    "input": {
+      "template": "((literal (tell @coordinator \"start\")) (literal (tell @worker \"task\")) (literal (tell @coordinator \"done\")))",
+      "bindings": {}
+    },
+    "expected": {
+      "type": "success",
+      "value": [
+        "(tell @coordinator \"start\")",
+        "(tell @worker \"task\")",
+        "(tell @coordinator \"done\")"
+      ]
+    },
+    "source": "tests/test-grammar-compliance.scm:template-expansion",
+    "spec_ref": "EBNF line 169"
+  },
+  {
+    "id": "pipe-tpl-008",
+    "description": "Template substitution with bindings",
+    "input": {
+      "template": "(tell x (greeting y))",
+      "bindings": {"x": "alice", "y": "hello"}
+    },
+    "expected": {
+      "type": "success",
+      "value": "(tell alice (greeting hello))"
+    },
+    "source": "tests/simple-tests.scm:template-substitution"
+  }
+]

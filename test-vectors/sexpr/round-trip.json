@@ -1,0 +1,73 @@
+[
+  {
+    "id": "sexpr-rt-001",
+    "description": "Round-trip simple octet-string",
+    "input": "3:abc",
+    "expected": {
+      "type": "success",
+      "value": "3:abc"
+    },
+    "source": "tests/test-csexp.scm:round-trip"
+  },
+  {
+    "id": "sexpr-rt-002",
+    "description": "Round-trip empty list",
+    "input": "()",
+    "expected": {
+      "type": "success",
+      "value": "()"
+    },
+    "source": "tests/test-csexp.scm:round-trip"
+  },
+  {
+    "id": "sexpr-rt-003",
+    "description": "Round-trip nested list: (7:subject(3:ref5:alice6:mother))",
+    "input": "(7:subject(3:ref5:alice6:mother))",
+    "expected": {
+      "type": "success",
+      "value": "(7:subject(3:ref5:alice6:mother))"
+    },
+    "source": "tests/test-csexp.scm:lists"
+  },
+  {
+    "id": "sexpr-rt-004",
+    "description": "Round-trip IETF example: (6:issuer3:bob)",
+    "input": "(6:issuer3:bob)",
+    "expected": {
+      "type": "success",
+      "value": "(6:issuer3:bob)"
+    },
+    "source": "tests/test-csexp.scm:ietf-examples"
+  },
+  {
+    "id": "sexpr-rt-005",
+    "description": "Round-trip display hint: (4:icon[12:image/bitmap]9:xxxxxxxxx)",
+    "input": "(4:icon[12:image/bitmap]9:xxxxxxxxx)",
+    "expected": {
+      "type": "success",
+      "value": "(4:icon[12:image/bitmap]9:xxxxxxxxx)"
+    },
+    "source": "tests/test-csexp.scm:ietf-examples"
+  },
+  {
+    "id": "sexpr-rt-006",
+    "description": "Round-trip hinted value: [3:foo]3:bar",
+    "input": "[3:foo]3:bar",
+    "expected": {
+      "type": "success",
+      "value": "[3:foo]3:bar"
+    },
+    "source": "tests/test-csexp.scm:round-trip"
+  },
+  {
+    "id": "sexpr-rt-007",
+    "description": "Deterministic encoding: same input always produces same bytes",
+    "input": "(5:hello(5:world))",
+    "property": "deterministic",
+    "expected": {
+      "type": "success",
+      "note": "parse(input) == parse(serialize(parse(input)))"
+    },
+    "source": "tests/test-csexp.scm:canonical-properties"
+  }
+]

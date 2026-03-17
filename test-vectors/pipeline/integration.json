@@ -1,0 +1,91 @@
+[
+  {
+    "id": "pipe-int-001",
+    "description": "End-to-end: parse and evaluate simple tell message",
+    "input": {
+      "agent": "@test-agent",
+      "message": "(tell @alice \"hello\")"
+    },
+    "expected": {
+      "type": "success",
+      "parse_result": {
+        "message_type": "simple",
+        "performative": "tell"
+      },
+      "evaluation_produces_output": true
+    },
+    "source": "tests/test-grammar-compliance.scm:integration"
+  },
+  {
+    "id": "pipe-int-002",
+    "description": "End-to-end planning scenario: two agents with planning dialect",
+    "input": {
+      "agents": ["@planner1", "@planner2"],
+      "dialect": "cbcl-planning",
+      "messages": [
+        {"agent": "@planner1", "message": "(share-conditional pickup box-location box-in-hand)"},
+        {"agent": "@planner2", "message": "(propose-step step1 pickup box-in-hand)"}
+      ]
+    },
+    "expected": {
+      "type": "success",
+      "all_messages_evaluated": true
+    },
+    "source": "tests/simple-tests.scm:integration"
+  },
+  {
+    "id": "pipe-int-003",
+    "description": "Agriculture irrigation cycle: sensor -> allocation -> irrigate -> complete",
+    "input": {
+      "dialect": "precision-agriculture",
+      "sequence": [
+        {"agent": "@sensor", "message": "(report-soil \"s1\" \"f1\" \"15-pct\" \"70-F\" \"6.5\" \"N:low\")"},
+        {"agent": "@controller", "message": "(water-allocation \"z1\" \"500-gal\" \"high\" \"low-moisture\")"},
+        {"agent": "@controller", "message": "(irrigate \"z1\" \"500-gal\" \"30-min\" \"15-pct\")"},
+        {"agent": "@controller", "message": "(task-complete \"irr-1\" \"valve-1\" \"done\" \"monitor\")"}
+      ]
+    },
+    "expected": {
+      "type": "success",
+      "all_steps_succeed": true
+    },
+    "source": "tests/test-precision-agriculture.scm:protocol-patterns"
+  },
+  {
+    "id": "pipe-int-004",
+    "description": "Agriculture harvest workflow: forecast -> reserve -> harvest -> complete",
+    "input": {
+      "dialect": "precision-agriculture",
+      "sequence": [
+        {"agent": "@monitor", "message": "(yield-forecast \"f1\" \"wheat\" \"180-bu\" \"high\" \"2024-09-01\")"},
+        {"agent": "@coordinator", "message": "(reserve-equipment \"combine-1\" \"harvest\" \"2024-09-01T08:00\" \"8-hrs\")"},
+        {"agent": "@coordinator", "message": "(harvest \"f1\" \"combine-1\" \"wheat\" \"180-bu\")"},
+        {"agent": "@coordinator", "message": "(task-complete \"harvest-f1\" \"combine-1\" \"180-bu-harvested\" \"store\")"}
+      ]
+    },
+    "expected": {
+      "type": "success",
+      "all_steps_succeed": true
+    },
+    "source": "tests/test-precision-agriculture.scm:protocol-patterns"
+  },
+  {
+    "id": "pipe-int-005",
+    "description": "Multiple performatives processed efficiently in batch",
+    "input": {
+      "dialect": "precision-agriculture",
+      "batch": [
+        "(plant \"f1\" \"corn\" \"30k\" \"2in\" \"30in\")",
+        "(irrigate \"z1\" \"500gal\" \"30min\" \"20pct\")",
+        "(report-soil \"s1\" \"f1\" \"25pct\" \"70F\" \"6.5\" \"N:med\")",
+        "(harvest \"f1\" \"c1\" \"wheat\" \"180bu\")",
+        "(weather-alert \"rain\" \"low\" \"2024-04-20T14:00\" \"2hrs\" (\"z1\"))"
+      ]
+    },
+    "expected": {
+      "type": "success",
+      "all_succeed": true
+    },
+    "source": "tests/test-precision-agriculture.scm:performance-and-resources"
+  }
+]

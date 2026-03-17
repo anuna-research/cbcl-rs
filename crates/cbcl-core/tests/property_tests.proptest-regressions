@@ -1,0 +1,7 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 92c7c3af4b3a7c4090dbf4d95a33a58971c924ba9b4df1a740f6fd0003d624a8 # shrinks to msg = Simple { performative: Core(Tell), recipient: None, content: Atom(Keyword("A")), params: [], thread: None, sender: None }

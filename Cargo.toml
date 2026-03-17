@@ -1,0 +1,33 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/cbcl-core",
+    "crates/cbcl-parser",
+    "crates/cbcl-cli",
+    "crates/cbcl-wasm",
+    "crates/cbcl-ffi",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75.0"
+license = "Apache-2.0"
+repository = "https://github.com/hyperifyio/cbcl"
+
+[workspace.dependencies]
+cbcl-core = { path = "crates/cbcl-core", default-features = false }
+cbcl-parser = { path = "crates/cbcl-parser", default-features = false }
+
+[workspace.dependencies.criterion]
+version = "0.5"
+features = ["html_reports"]
+
+[workspace.dependencies.tracing]
+version = "0.1"
+default-features = false
+
+[profile.release]
+lto = true
+opt-level = "z"
+strip = true

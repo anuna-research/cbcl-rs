@@ -1,0 +1,82 @@
+[
+  {
+    "id": "msg-meta-001",
+    "description": "Meta query: can agent speak a dialect?",
+    "input": "(meta (query (speak? logistics)))",
+    "expected": {
+      "type": "success",
+      "value": {
+        "message_type": "meta",
+        "operation": "query",
+        "query_type": "speak?",
+        "dialect_name": "logistics"
+      }
+    },
+    "source": "tests/ietf-compliance-test.scm:meta-messages",
+    "spec_ref": "EBNF lines 26-39, IETF Section 3.2-3.6"
+  },
+  {
+    "id": "msg-meta-002",
+    "description": "Meta query for base CBCL capability",
+    "input": "(meta (query (speak? cbcl)))",
+    "expected": {
+      "type": "success",
+      "value": {
+        "message_type": "meta",
+        "operation": "query",
+        "query_type": "speak?",
+        "dialect_name": "cbcl"
+      }
+    },
+    "source": "tests/ietf-compliance-test.scm:integration",
+    "spec_ref": "EBNF lines 35-39"
+  },
+  {
+    "id": "msg-meta-003",
+    "description": "Meta query for precision agriculture dialect",
+    "input": "(meta (query (speak? precision-ag)))",
+    "expected": {
+      "type": "success",
+      "value": {
+        "message_type": "meta",
+        "operation": "query",
+        "query_type": "speak?",
+        "dialect_name": "precision-ag"
+      }
+    },
+    "source": "tests/test-grammar-compliance.scm:message-validation",
+    "spec_ref": "EBNF lines 35-39"
+  },
+  {
+    "id": "msg-meta-004",
+    "description": "Meta define dialect (parse structure only)",
+    "input": "(meta (define test-dialect))",
+    "expected": {
+      "type": "success",
+      "value": {
+        "message_type": "meta",
+        "operation": "define",
+        "dialect_name": "test-dialect"
+      }
+    },
+    "source": "tests/simple-tests.scm:message-parsing",
+    "spec_ref": "EBNF lines 32-33"
+  },
+  {
+    "id": "msg-meta-005",
+    "description": "Meta define dialect with extends clause",
+    "input": "(meta (define planning-v2 :extends cbcl :author @alice))",
+    "expected": {
+      "type": "success",
+      "value": {
+        "message_type": "meta",
+        "operation": "define",
+        "dialect_name": "planning-v2",
+        "extends": "cbcl",
+        "author": "@alice"
+      }
+    },
+    "source": "tests/test-grammar-compliance.scm",
+    "spec_ref": "EBNF lines 32-33, 69-81"
+  }
+]

@@ -1,0 +1,46 @@
+[package]
+name = "cbcl-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+arbitrary = { version = "1", features = ["derive"] }
+cbcl-core = { path = "../crates/cbcl-core", default-features = false, features = ["std"] }
+cbcl-parser = { path = "../crates/cbcl-parser", default-features = false, features = ["std"] }
+
+[workspace]
+
+[[bin]]
+name = "sexpr_parser"
+path = "fuzz_targets/sexpr_parser.rs"
+doc = false
+
+[[bin]]
+name = "message_parser"
+path = "fuzz_targets/message_parser.rs"
+doc = false
+
+[[bin]]
+name = "dialect_parser"
+path = "fuzz_targets/dialect_parser.rs"
+doc = false
+
+[[bin]]
+name = "constraint_check"
+path = "fuzz_targets/constraint_check.rs"
+doc = false
+
+[[bin]]
+name = "template_expand"
+path = "fuzz_targets/template_expand.rs"
+doc = false
+
+# Prevent this from interfering with workspace lints
+[profile.release]
+opt-level = 3
+debug = true

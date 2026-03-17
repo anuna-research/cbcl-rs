@@ -1,0 +1,188 @@
+[
+  {
+    "id": "msg-simple-001",
+    "description": "Basic tell message",
+    "input": "(tell @bob \"The meeting is at 3pm\")",
+    "expected": {
+      "type": "success",
+      "value": {
+        "message_type": "simple",
+        "performative": "tell",
+        "recipient": "@bob",
+        "content": "The meeting is at 3pm"
+      }
+    },
+    "source": "tests/ietf-compliance-test.scm:simple-messages",
+    "spec_ref": "EBNF lines 12-13, IETF Section 2.3"
+  },
+  {
+    "id": "msg-simple-002",
+    "description": "Ask with keyword parameters",
+    "input": "(ask @alice \"What is the status?\" :thread \"conv-17\" :timeout 30)",
+    "expected": {
+      "type": "success",
+      "value": {
+        "message_type": "simple",
+        "performative": "ask",
+        "recipient": "@alice",
+        "content": "What is the status?",
+        "parameters": {
+          "thread": "conv-17",
+          "timeout": 30
+        }
+      }
+    },
+    "source": "tests/ietf-compliance-test.scm:simple-messages",
+    "spec_ref": "EBNF lines 12-13, IETF Section 2.3"
+  },
+  {
+    "id": "msg-simple-003",
+    "description": "Reply message with thread",
+    "input": "(reply \"Task is complete\" :thread \"conv-17\")",
+    "expected": {
+      "type": "success",
+      "value": {
+        "message_type": "simple",
+        "performative": "reply",
+        "content": "Task is complete",
+        "parameters": {
+          "thread": "conv-17"
+        }
+      }
+    },
+    "source": "tests/ietf-compliance-test.scm:simple-messages",
+    "spec_ref": "EBNF lines 15-17"
+  },
+  {
+    "id": "msg-simple-004",
+    "description": "Tell message with greeting content (s-expression body)",
+    "input": "(tell @alice (greeting \"hello\"))",
+    "expected": {
+      "type": "success",
+      "value": {
+        "message_type": "simple",
+        "performative": "tell",
+        "recipient": "@alice",
+        "content": ["greeting", "hello"]
+      }
+    },
+    "source": "tests/simple-tests.scm:core-tests",
+    "spec_ref": "EBNF lines 12-13"
+  },
+  {
+    "id": "msg-simple-005",
+    "description": "Tell with string-only content",
+    "input": "(tell @bob \"Hello world\")",
+    "expected": {
+      "type": "success",
+      "value": {
+        "message_type": "simple",
+        "performative": "tell",
+        "recipient": "@bob",
+        "content": "Hello world"
+      }
+    },
+    "source": "tests/string-parsing-test.scm",
+    "spec_ref": "EBNF lines 12-13"
+  },
+  {
+    "id": "msg-simple-006",
+    "description": "Tell with keyword params (thread and priority)",
+    "input": "(tell @alice \"Status update\" :thread \"conv-123\" :priority high)",
+    "expected": {
+      "type": "success",
+      "value": {
+        "message_type": "simple",
+        "performative": "tell",
+        "recipient": "@alice",
+        "content": "Status update",
+        "parameters": {
+          "thread": "conv-123",
+          "priority": "high"
+        }
+      }
+    },
+    "source": "tests/string-parsing-test.scm",
+    "spec_ref": "EBNF lines 12-13, 23-24"
+  },
+  {
+    "id": "msg-simple-007",
+    "description": "Ok acknowledgment",
+    "input": "(ok @alice \"acknowledged\")",
+    "expected": {
+      "type": "success",
+      "value": {
+        "message_type": "simple",
+        "performative": "ok",
+        "recipient": "@alice",
+        "content": "acknowledged"
+      }
+    },
+    "source": "tests/test-grammar-compliance.scm:core-performatives",
+    "spec_ref": "EBNF line 17"
+  },
+  {
+    "id": "msg-simple-008",
+    "description": "Error message",
+    "input": "(error @bob \"invalid request\")",
+    "expected": {
+      "type": "success",
+      "value": {
+        "message_type": "simple",
+        "performative": "error",
+        "recipient": "@bob",
+        "content": "invalid request"
+      }
+    },
+    "source": "tests/test-grammar-compliance.scm:core-performatives",
+    "spec_ref": "EBNF line 17"
+  },
+  {
+    "id": "msg-simple-009",
+    "description": "Cancel message",
+    "input": "(cancel @alice \"abort task\")",
+    "expected": {
+      "type": "success",
+      "value": {
+        "message_type": "simple",
+        "performative": "cancel",
+        "recipient": "@alice",
+        "content": "abort task"
+      }
+    },
+    "source": "tests/test-grammar-compliance.scm:core-performatives",
+    "spec_ref": "EBNF line 17"
+  },
+  {
+    "id": "msg-simple-010",
+    "description": "Hello handshake message",
+    "input": "(hello @bob \"greetings\")",
+    "expected": {
+      "type": "success",
+      "value": {
+        "message_type": "simple",
+        "performative": "hello",
+        "recipient": "@bob",
+        "content": "greetings"
+      }
+    },
+    "source": "tests/test-grammar-compliance.scm:core-performatives",
+    "spec_ref": "EBNF line 16"
+  },
+  {
+    "id": "msg-simple-011",
+    "description": "Bye disconnect message",
+    "input": "(bye @bob \"farewell\")",
+    "expected": {
+      "type": "success",
+      "value": {
+        "message_type": "simple",
+        "performative": "bye",
+        "recipient": "@bob",
+        "content": "farewell"
+      }
+    },
+    "source": "tests/test-grammar-compliance.scm:core-performatives",
+    "spec_ref": "EBNF line 16"
+  }
+]
