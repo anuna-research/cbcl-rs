@@ -17,7 +17,7 @@ use alloc::vec;
 use alloc::vec::Vec;
 use core::fmt;
 
-use crate::dialect::DialectRegistry;
+use crate::dialect::{Dialect, DialectRegistry};
 use crate::message::{Message, MessageType, Performative};
 use crate::r2::ResourceState;
 use crate::sexpr::{Atom, SExpr};
@@ -129,25 +129,35 @@ pub struct EvalResult {
 /// This is a pure function: it inspects the message, expands templates using
 /// the registry, and returns the resulting effects without mutating any state.
 pub fn evaluate(msg: &Message, registry: &DialectRegistry) -> Result<EvalResult, EvalError> {
+    evaluate_with_scope(msg, registry, None)
+}
+
+fn evaluate_with_scope(
+    msg: &Message,
+    registry: &DialectRegistry,
+    scope: Option<&Dialect>,
+) -> Result<EvalResult, EvalError> {
     match msg.message_type() {
-        MessageType::Simple => evaluate_simple(msg, registry),
+        MessageType::Simple => evaluate_simple(msg, registry, scope),
         MessageType::Meta => evaluate_meta(msg),
         MessageType::Dialect => evaluate_dialect(msg, registry),
-        MessageType::Wrapped => evaluate_wrapped(msg, registry),
+        MessageType::Wrapped => evaluate_wrapped(msg, registry, scope),
     }
 }
 
 /// Evaluate a simple message: look up performative, expand template, interpret effects.
-fn evaluate_simple(msg: &Message, registry: &DialectRegistry) -> Result<EvalResult, EvalError> {
+fn evaluate_simple(
+    msg: &Message,
+    registry: &DialectRegistry,
+    scope: Option<&Dialect>,
+) -> Result<EvalResult, EvalError> {
     let performative = msg
         .performative()
         .ok_or_else(|| EvalError::MalformedMessage(String::from("missing performative")))?;
 
     let perf_name = performative.name();
 
-    // Find the dialect that defines this performative.
-    let dialect = registry
-        .find_performative_dialect(perf_name)
+    let dialect = resolve_performative_dialect(performative, registry, scope)
         .ok_or_else(|| EvalError::UnknownPerformative(String::from(perf_name)))?;
 
     let def = dialect
@@ -206,8 +216,7 @@ fn evaluate_dialect(msg: &Message, registry: &DialectRegistry) -> Result<EvalRes
         .dialect_name()
         .ok_or_else(|| EvalError::MalformedMessage(String::from("dialect message missing name")))?;
 
-    // Verify the named dialect is installed.
-    registry
+    let dialect = registry
         .find_by_name(dialect_name)
         .ok_or_else(|| EvalError::UnknownDialect(String::from(dialect_name)))?;
 
@@ -216,16 +225,37 @@ fn evaluate_dialect(msg: &Message, registry: &DialectRegistry) -> Result<EvalRes
         EvalError::MalformedMessage(String::from("dialect message missing inner"))
     })?;
 
-    evaluate(inner, registry)
+    evaluate_with_scope(inner, registry, Some(dialect))
 }
 
 /// Evaluate a wrapped message: unwrap and evaluate the inner message.
-fn evaluate_wrapped(msg: &Message, registry: &DialectRegistry) -> Result<EvalResult, EvalError> {
+fn evaluate_wrapped(
+    msg: &Message,
+    registry: &DialectRegistry,
+    scope: Option<&Dialect>,
+) -> Result<EvalResult, EvalError> {
     let inner = msg.inner_message().ok_or_else(|| {
         EvalError::MalformedMessage(String::from("wrapped message missing inner"))
     })?;
 
-    evaluate(inner, registry)
+    evaluate_with_scope(inner, registry, scope)
+}
+
+fn resolve_performative_dialect<'a>(
+    performative: &Performative,
+    registry: &'a DialectRegistry,
+    scope: Option<&'a Dialect>,
+) -> Option<&'a Dialect> {
+    if !performative.is_core() {
+        if let Some(dialect) = scope {
+            if dialect.defines_performative(performative.name()) {
+                return Some(dialect);
+            }
+            return None;
+        }
+    }
+
+    registry.find_performative_dialect(performative.name())
 }
 
 // ---------------------------------------------------------------------------
@@ -312,6 +342,37 @@ mod tests {
                 template: SExpr::List(vec![
                     SExpr::Atom(Atom::Symbol(String::from("effect"))),
                     SExpr::Atom(Atom::Symbol(String::from("dispatch-shipment"))),
+                ]),
+            }],
+            resources: ResourceBounds {
+                max_depth: 8,
+                max_expansion_size: 512,
+                verification_time_ms: 10,
+            },
+            examples: Vec::new(),
+            signature: None,
+            hash: None,
+            protocol: None,
+        })
+        .unwrap();
+        reg
+    }
+
+    fn make_registry_with_duplicate_customs() -> DialectRegistry {
+        let mut reg = make_registry_with_custom();
+        reg.install(Dialect {
+            name: String::from("warehouse"),
+            extends: vec![String::from("cbcl")],
+            author: None,
+            performatives: vec![PerformativeDef {
+                name: String::from("ship"),
+                params: vec![
+                    SExpr::Atom(Atom::Symbol(String::from("package"))),
+                    SExpr::Atom(Atom::Symbol(String::from("destination"))),
+                ],
+                template: SExpr::List(vec![
+                    SExpr::Atom(Atom::Symbol(String::from("effect"))),
+                    SExpr::Atom(Atom::Symbol(String::from("warehouse-dispatch"))),
                 ]),
             }],
             resources: ResourceBounds {
@@ -563,6 +624,49 @@ mod tests {
             Some(String::from("dispatch-shipment"))
         );
         assert_eq!(result.thread, Some(String::from("shipment-thread")));
+    }
+
+    #[test]
+    fn eval_dialect_message_uses_named_scope_for_custom_performatives() {
+        let reg = make_registry_with_duplicate_customs();
+        let inner = Message::Simple {
+            performative: Performative::Custom(String::from("ship")),
+            recipient: None,
+            content: SExpr::Atom(Atom::Str(String::from("PKG-789"))),
+            params: vec![SExpr::Atom(Atom::Symbol(String::from("dock-C")))],
+            thread: None,
+            sender: None,
+        };
+        let msg = Message::Dialect {
+            dialect_name: String::from("logistics"),
+            inner: Box::new(inner),
+        };
+
+        let result = evaluate(&msg, &reg).unwrap();
+        assert_eq!(
+            extract_effect_action(&result.expanded),
+            Some(String::from("dispatch-shipment"))
+        );
+    }
+
+    #[test]
+    fn eval_dialect_message_rejects_custom_performative_outside_scope() {
+        let reg = make_registry_with_duplicate_customs();
+        let inner = Message::Simple {
+            performative: Performative::Custom(String::from("ship")),
+            recipient: None,
+            content: SExpr::Atom(Atom::Str(String::from("PKG-000"))),
+            params: vec![SExpr::Atom(Atom::Symbol(String::from("dock-D")))],
+            thread: None,
+            sender: None,
+        };
+        let msg = Message::Dialect {
+            dialect_name: String::from("cbcl-base"),
+            inner: Box::new(inner),
+        };
+
+        let err = evaluate(&msg, &reg).unwrap_err();
+        assert!(matches!(err, EvalError::UnknownPerformative(_)));
     }
 
     #[test]

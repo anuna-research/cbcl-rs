@@ -177,16 +177,32 @@ pub fn arb_valid_dialect() -> impl Strategy<Value = Dialect> {
         arb_valid_resource_bounds(),
         prop::collection::vec(arb_safe_performative_def(), 0..3),
     )
-        .prop_map(|(name, resources, performatives)| Dialect {
-            name,
-            extends: vec![String::from("cbcl")],
-            author: None,
-            performatives,
-            resources,
-            examples: Vec::new(),
-            signature: None,
-            hash: None,
-            protocol: None,
+        .prop_map(|(name, resources, performatives)| {
+            let perf_names = performatives
+                .iter()
+                .map(|perf| perf.name.clone())
+                .collect::<Vec<_>>();
+            let performatives = performatives
+                .into_iter()
+                .map(|mut perf| {
+                    for perf_name in &perf_names {
+                        perf.template = sanitize_template(perf_name, &perf.template);
+                    }
+                    perf
+                })
+                .collect();
+
+            Dialect {
+                name,
+                extends: vec![String::from("cbcl")],
+                author: None,
+                performatives,
+                resources,
+                examples: Vec::new(),
+                signature: None,
+                hash: None,
+                protocol: None,
+            }
         })
 }
 

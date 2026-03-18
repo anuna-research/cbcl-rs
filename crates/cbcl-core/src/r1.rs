@@ -4,6 +4,7 @@
 
 #![forbid(unsafe_code)]
 
+use alloc::collections::{BTreeMap, BTreeSet};
 use alloc::string::String;
 use alloc::vec::Vec;
 
@@ -38,10 +39,7 @@ pub fn verify_r1_dialect(d: &Dialect) -> bool {
     if d.name == "cbcl-base" {
         return true;
     }
-    let pass = d
-        .performatives
-        .iter()
-        .all(|p| verify_r1(&p.name, &p.template));
+    let pass = r1_violations(d).is_empty();
     #[cfg(feature = "tracing")]
     tracing::event!(
         tracing::Level::INFO,
@@ -59,11 +57,80 @@ pub fn r1_violations(d: &Dialect) -> Vec<String> {
     if d.name == "cbcl-base" {
         return Vec::new();
     }
+
+    let graph = dependency_graph(d);
+    let cyclic = cyclic_performatives(&graph);
+
     d.performatives
         .iter()
-        .filter(|p| contains_self_reference(&p.name, &p.template))
+        .filter(|p| cyclic.contains(&p.name))
         .map(|p| p.name.clone())
         .collect()
+}
+
+fn dependency_graph(d: &Dialect) -> BTreeMap<String, BTreeSet<String>> {
+    let performative_names = d
+        .performatives
+        .iter()
+        .map(|p| p.name.clone())
+        .collect::<BTreeSet<_>>();
+
+    d.performatives
+        .iter()
+        .map(|p| {
+            let mut referenced = BTreeSet::new();
+            collect_symbol_references(&p.template, &mut referenced);
+            referenced.retain(|name| performative_names.contains(name));
+            (p.name.clone(), referenced)
+        })
+        .collect()
+}
+
+fn collect_symbol_references(expr: &SExpr, referenced: &mut BTreeSet<String>) {
+    match expr {
+        SExpr::Atom(Atom::Symbol(name)) => {
+            referenced.insert(name.clone());
+        }
+        SExpr::Atom(_) => {}
+        SExpr::List(items) => {
+            for item in items {
+                collect_symbol_references(item, referenced);
+            }
+        }
+    }
+}
+
+fn cyclic_performatives(graph: &BTreeMap<String, BTreeSet<String>>) -> BTreeSet<String> {
+    graph
+        .keys()
+        .filter(|name| reaches_cycle(name, name, graph, &mut BTreeSet::new()))
+        .cloned()
+        .collect()
+}
+
+fn reaches_cycle(
+    start: &str,
+    current: &str,
+    graph: &BTreeMap<String, BTreeSet<String>>,
+    visiting: &mut BTreeSet<String>,
+) -> bool {
+    let Some(dependencies) = graph.get(current) else {
+        return false;
+    };
+
+    for dependency in dependencies {
+        if dependency == start {
+            return true;
+        }
+        if visiting.insert(dependency.clone()) {
+            if reaches_cycle(start, dependency, graph, visiting) {
+                return true;
+            }
+            visiting.remove(dependency);
+        }
+    }
+
+    false
 }
 
 #[cfg(test)]
@@ -292,6 +359,19 @@ mod tests {
             other => panic!("expected R1Violation, got {:?}", other),
         }
         assert_eq!(reg.len(), 1);
+    }
+
+    #[test]
+    fn mutual_recursion_is_rejected() {
+        let d = make_dialect(
+            "mutual-recursion",
+            vec![
+                perf("ping", "(literal (pong x))"),
+                perf("pong", "(literal (ping x))"),
+            ],
+        );
+        assert!(!verify_r1_dialect(&d));
+        assert_eq!(r1_violations(&d), vec!["ping", "pong"]);
     }
 
     /// Multiple R1 violations in a single dialect

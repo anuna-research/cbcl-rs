@@ -161,7 +161,7 @@ fn cmd_verify(input: Option<String>) -> i32 {
     if !r1::verify_r1_dialect(&dialect) {
         for name in r1::r1_violations(&dialect) {
             violations.push(format!(
-                "R1: performative '{}' contains self-reference",
+                "R1: performative '{}' is recursively defined",
                 name
             ));
         }
