@@ -1,8 +1,38 @@
 # CBCL
 
-Canonical implementation of CBCL (Conversational Business Communication Language) — a self-extensible, formally-verified agent communication language defined in [RFC 9804](https://datatracker.ietf.org/doc/draft-cbcl/).
+Rust implementation of **CBCL** (Common Business Communication Language) — a self-extensible, formally verified agent communication language.
 
-Rust implementation with Lean 4 formal proofs. Algorithms in Rust match those verified in Lean; correctness validated via differential testing.
+## The Problem
+
+Language-theoretic security (LangSec) teaches that the computational complexity class of an input language determines the *category* of bugs its parsers can exhibit. Regular languages admit only finite-state bugs; context-free languages add stack-related bugs; Turing-complete inputs make parser correctness undecidable.
+
+Agent communication protocols have moved *up* this hierarchy without acknowledging the security consequences:
+
+| Protocol | Input Complexity | Extensible? | Verifiable? | Weird Machines? |
+|----------|-----------------|-------------|-------------|-----------------|
+| KQML | CFG | No | Partially | Stack-based |
+| FIPA-ACL | CFG | No | Partially | Stack-based |
+| MCP | Unrestricted JSON | Yes | No | Turing-complete |
+| LLM Agents | Natural language | Yes | No | Turing-complete |
+| **CBCL** | **DCFL** | **Yes** | **Yes** | **None (by construction)** |
+
+Early ACLs (KQML, FIPA-ACL) had fixed vocabularies that couldn't evolve without out-of-band standardisation. The modern alternative — natural language and unrestricted JSON (MCP, LLM agent frameworks) — provides unlimited extensibility but creates an input language whose computational complexity is effectively unbounded. Determining whether an arbitrary message will cause harmful behaviour requires solving undecidable problems.
+
+## The Solution
+
+CBCL occupies the "Goldilocks zone" between these extremes: a minimal core vocabulary (8 performatives) with a formal mechanism for agents to define, exchange, and adopt new domain-specific vocabularies ("dialects") at runtime — without centralized coordination and without escaping the DCFL complexity class.
+
+The key insight is *homoiconic self-extension*: dialect definitions are themselves valid CBCL messages in S-expression syntax, parsed and verified by the same deterministic pushdown automaton used for ordinary communication. Three safety constraints — verified in Lean 4 and enforced at runtime — ensure this self-extension is provably safe:
+
+- **R1 (No Recursion):** Dialect templates are purely declarative pattern-template substitutions. No cyclic dependencies, iteration, or reflection.
+- **R2 (Resource Bounds):** Every dialect declares static resource limits (depth, expansion size, verification time) enforced at both definition time and runtime.
+- **R3 (Core Preservation):** The eight core performatives (`tell`, `ask`, `reply`, `hello`, `bye`, `ok`, `error`, `cancel`) cannot be redefined by any dialect.
+
+**Why DCFL?** It is the minimal complexity class that supports nested structure (agent messages have envelopes wrapping messages, dialects scoping inner messages) while guaranteeing *parser equivalence*: every conformant implementation produces exactly one parse tree for every input. This eliminates parser differential attacks by construction. Regular languages are insufficient for nesting; general CFG introduces ambiguity; anything above DCFL makes validity checking undecidable.
+
+Named after McCarthy's 1982 proposal for a "Common Business Communication Language" that would be "open ended so that as programs improve, programs that can at first only order by stock numbers can later be programmed to inquire about specifications and prices."
+
+See the [LangSec workshop paper](https://github.com/anuna-research/cbcl-paper) for the full theoretical framework and proofs, and the [Scheme reference implementation](https://github.com/anuna-research/cbcl) for the original prototype.
 
 ## Features
 
