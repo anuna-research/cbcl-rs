@@ -9,8 +9,8 @@
 
 #![forbid(unsafe_code)]
 
+use crate::canonical::dialect_canonical_bytes;
 use crate::dialect::Dialect;
-use crate::serializer::serialize;
 use alloc::vec::Vec;
 
 /// Abstraction for Ed25519 (or similar) signing (REQ-090).
@@ -81,17 +81,14 @@ pub fn verify_r4(d: &Dialect, signer: &dyn Signer) -> bool {
 
 /// Compute the canonical serialized body of a dialect for signing.
 ///
-/// The canonical form is: dialect name ‖ (performative name ‖ serialized template)*
+/// Uses RFC 9804 canonical S-expression encoding. The signable S-expression
+/// includes all semantics-relevant fields (name, extends, author, performatives,
+/// resources, examples) and excludes integrity fields (signature, hash, protocol).
+///
 /// Order-dependent — different orderings produce different bodies (r4-002).
 /// Deterministic — same dialect always produces the same body (r4-003).
 pub fn dialect_sign_body(d: &Dialect) -> Vec<u8> {
-    let mut body = alloc::string::String::new();
-    body.push_str(&d.name);
-    for p in &d.performatives {
-        body.push_str(&p.name);
-        body.push_str(&serialize(&p.template));
-    }
-    body.into_bytes()
+    dialect_canonical_bytes(d)
 }
 
 #[cfg(test)]
@@ -303,7 +300,7 @@ mod tests {
         let d = test_dialect("my-dialect");
         let body = dialect_sign_body(&d);
         let body_str = core::str::from_utf8(&body).unwrap();
-        assert!(body_str.starts_with("my-dialect"));
+        assert!(body_str.contains("my-dialect"));
         assert!(body_str.contains("greet"));
     }
 
@@ -312,6 +309,9 @@ mod tests {
         let mut d = test_dialect("empty");
         d.performatives = vec![];
         let body = dialect_sign_body(&d);
-        assert_eq!(body, b"empty");
+        let body_str = core::str::from_utf8(&body).unwrap();
+        assert!(body_str.contains("empty"));
+        // Should still contain structural elements (extends, author, resources, etc.)
+        assert!(body_str.contains("performatives"));
     }
 }

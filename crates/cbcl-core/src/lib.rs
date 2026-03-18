@@ -27,6 +27,7 @@
 extern crate alloc;
 
 pub mod agent;
+pub mod canonical;
 pub mod dialect;
 pub mod evaluator;
 pub mod gossip;
