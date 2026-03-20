@@ -1,5 +1,5 @@
 ---
-title: "CBCL: A Self-Extensible Agent Communication Language"
+title: "CBCL: Safe Self-Extending Agent Communication"
 abbrev: "CBCL"
 category: info
 docname: draft-cbcl-00
