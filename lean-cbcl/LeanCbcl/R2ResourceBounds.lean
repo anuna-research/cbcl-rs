@@ -62,31 +62,6 @@ def verifyR2 (d : Dialect) : Bool :=
   0 < rb.maxExpansionSize && rb.maxExpansionSize ≤ maxAllowedExpansionSize &&
   0 < rb.verificationTime && rb.verificationTime ≤ maxAllowedVerificationTime
 
--- ============================================================
--- Termination proof for bounded evaluation
--- ============================================================
-
-/-- A fuel-based evaluation model. Each step consumes fuel.
-    When fuel reaches 0, evaluation halts. -/
-def boundedEval (fuel : Nat) (expr : SExpr) (rs : ResourceState) :
-    Option (SExpr × ResourceState) :=
-  match fuel with
-  | 0 => none
-  | fuel' + 1 =>
-    match expr with
-    | .atom _ => some (expr, rs)
-    | .list [] => some (expr, rs)
-    | .list (hd :: tl) =>
-      match rs.enterDepth with
-      | none => none
-      | some rs' =>
-        match rs'.addExpansion expr.byteSize with
-        | none => none
-        | some rs'' =>
-          match boundedEval fuel' hd rs'' with
-          | none => none
-          | some (_, rs''') => some (.list (hd :: tl), rs'''.exitDepth)
-
 /-- Entering depth strictly decreases remaining depth. -/
 theorem enterDepth_decreases (rs rs' : ResourceState)
     (h : rs.enterDepth = some rs') :
@@ -97,22 +72,12 @@ theorem enterDepth_decreases (rs rs' : ResourceState)
   simp [ResourceState.remainingDepth]
   omega
 
-/-- With 0 fuel, evaluation always returns none. -/
-theorem boundedEval_zero (expr : SExpr) (rs : ResourceState) :
-    boundedEval 0 expr rs = none := rfl
-
-/-- Atoms always evaluate successfully (given fuel > 0). -/
-theorem boundedEval_atom (fuel : Nat) (a : Atom) (rs : ResourceState) :
-    boundedEval (fuel + 1) (.atom a) rs = some (.atom a, rs) := rfl
-
 -- ============================================================
--- Full recursive evaluation (processes all children)
+-- Bounded evaluation (processes all children)
 -- ============================================================
 
-/-- A fuel-based evaluation model that recursively processes ALL children
-    of a list node, threading the resource state through each child.
-    Unlike `boundedEval`, which only processes the head element,
-    `boundedEvalFull` evaluates every child in a list. -/
+/-- A fuel-based evaluation model that recursively processes all children
+    of a list node, threading the resource state through each child. -/
 def boundedEvalFull (fuel : Nat) (expr : SExpr) (rs : ResourceState) :
     Option (SExpr × ResourceState) :=
   match fuel with
