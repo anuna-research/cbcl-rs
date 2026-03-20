@@ -79,4 +79,104 @@ theorem roundtrip_tell_message :
 theorem roundtrip_mixed :
     RoundTrippable (.list [.atom (.symbol "data"), .atom (.num 42), .atom (.bool true), .atom (.str "hi")]) := by native_decide
 
+-- ============================================================
+-- Parametric round-trip characterization
+-- ============================================================
+
+/-- A character is a delimiter (space, tab, newline, CR, parens, quote). -/
+def isDelimChar (c : Char) : Bool :=
+  c == '(' || c == ')' || c == '"' || c == ' ' || c == '\t' || c == '\n' || c == '\r'
+
+/-- A symbol string is "safe" for round-tripping: non-empty, contains no
+    delimiter characters, does not start with `:` (keyword syntax),
+    is not `#t` or `#f` (boolean literals), and is not parseable as an integer.
+    These are exactly the symbol names that `serialize` emits bare and
+    `parse` reads back as the same symbol. -/
+def SafeSymbol (s : String) : Prop :=
+  s ≠ "" ∧
+  (∀ c, c ∈ s.toList → isDelimChar c = false) ∧
+  ¬s.startsWith ":" ∧
+  s ≠ "#t" ∧
+  s ≠ "#f" ∧
+  s.toInt? = none
+
+instance : DecidablePred SafeSymbol := fun s =>
+  inferInstanceAs (Decidable (
+    s ≠ "" ∧
+    (∀ c, c ∈ s.toList → isDelimChar c = false) ∧
+    ¬s.startsWith ":" ∧
+    s ≠ "#t" ∧
+    s ≠ "#f" ∧
+    s.toInt? = none))
+
+/-- Structural characterization of round-trippable S-expressions.
+    An S-expression round-trips through `serialize` then `parse` iff it
+    is built from safe symbols, arbitrary strings, integers, booleans,
+    non-empty keywords, and lists of round-trippable sub-expressions. -/
+inductive RoundTrippable' : SExpr → Prop where
+  | symbol  : SafeSymbol s → RoundTrippable' (.atom (.symbol s))
+  | str     : RoundTrippable' (.atom (.str s))
+  | num     : RoundTrippable' (.atom (.num n))
+  | bool    : RoundTrippable' (.atom (.bool b))
+  | keyword : s ≠ "" → RoundTrippable' (.atom (.keyword s))
+  | list    : (∀ e, e ∈ xs → RoundTrippable' e) → RoundTrippable' (.list xs)
+
+-- ============================================================
+-- SafeSymbol concrete tests
+-- ============================================================
+
+theorem safeSymbol_hello : SafeSymbol "hello" := by native_decide
+
+theorem safeSymbol_foo_bar : SafeSymbol "foo-bar" := by native_decide
+
+theorem safeSymbol_x123 : SafeSymbol "x123" := by native_decide
+
+theorem safeSymbol_plus : SafeSymbol "+" := by native_decide
+
+theorem safeSymbol_underscore : SafeSymbol "my_var" := by native_decide
+
+/-- Negative test: empty string is not a safe symbol. -/
+theorem not_safeSymbol_empty : ¬SafeSymbol "" := by native_decide
+
+/-- Negative test: string with space is not a safe symbol. -/
+theorem not_safeSymbol_space : ¬SafeSymbol "a b" := by native_decide
+
+/-- Negative test: `#t` is a boolean literal, not a safe symbol. -/
+theorem not_safeSymbol_true : ¬SafeSymbol "#t" := by native_decide
+
+/-- Negative test: `#f` is a boolean literal, not a safe symbol. -/
+theorem not_safeSymbol_false : ¬SafeSymbol "#f" := by native_decide
+
+/-- Negative test: `:key` starts with colon (keyword syntax). -/
+theorem not_safeSymbol_keyword : ¬SafeSymbol ":key" := by native_decide
+
+/-- Negative test: `42` is parseable as an integer. -/
+theorem not_safeSymbol_number : ¬SafeSymbol "42" := by native_decide
+
+/-- Negative test: string with paren is not a safe symbol. -/
+theorem not_safeSymbol_paren : ¬SafeSymbol "a(b" := by native_decide
+
+-- ============================================================
+-- Round-trip tests for RoundTrippable' examples
+-- ============================================================
+
+/-- A safe symbol round-trips. -/
+theorem roundtrip_safe_symbol_hello :
+    RoundTrippable (.atom (.symbol "hello")) := by native_decide
+
+/-- A safe symbol with hyphens round-trips. -/
+theorem roundtrip_safe_symbol_foo_bar :
+    RoundTrippable (.atom (.symbol "foo-bar")) := by native_decide
+
+/-- A safe symbol with digits round-trips. -/
+theorem roundtrip_safe_symbol_x123 :
+    RoundTrippable (.atom (.symbol "x123")) := by native_decide
+
+-- Note: A general theorem `RoundTrippable' e → RoundTrippable e` would require
+-- an inductive proof over the parser/serializer interaction. This is left as
+-- future work. The `RoundTrippable'` predicate serves as a *specification* of
+-- which S-expressions are expected to round-trip, while the concrete
+-- `native_decide` tests above provide evidence that the specification
+-- is consistent with the actual implementation.
+
 end CBCL

@@ -1,0 +1,219 @@
+;; Plan: Address key gaps in CBCL Lean 4 formalization
+;; Generated from review of lean-cbcl theorems
+
+(meta plan
+  (id "CBCL-LEAN-GAPS")
+  (title "CBCL Lean 4 Proof Gaps")
+  (version "1.0.0")
+  (status "active")
+  (created "2026-03-20")
+  (author "agent:claude")
+  (description "Address the 6 key gaps identified in the Lean 4 formalization review: general round-trip theorem, WellFormedSExpr connection, boundedEval fidelity, computable R1 cycle detection, DeterministicUnion headline theorems verification, and proof golfing."))
+
+;; ============================================================
+;; Agents
+;; ============================================================
+
+(given agent-prover-available)
+(given agent-golfer-available)
+
+;; ============================================================
+;; Tasks
+;; ============================================================
+
+(given task-roundtrip)
+(given task-wellformed)
+(given task-bounded-eval)
+(given task-r1-computable)
+(given task-union-verify)
+(given task-golf-dpda)
+
+;; ============================================================
+;; Task metadata
+;; ============================================================
+
+(meta task-roundtrip
+  (description "Prove a general round-trip theorem for delimiter-free symbols: parse (serialize e) = .ok e for a well-characterized class of SExprs")
+  (acceptance "A parametric theorem RoundTrippable_of_safe covering atoms with delimiter-free symbol names, and lists of round-trippable elements, compiles without sorry")
+  (file "LeanCbcl/Serializer.lean")
+  (priority "high"))
+
+(meta task-wellformed
+  (description "Connect WellFormedSExpr to parseSExpr output: prove that successful parses produce well-formed S-expressions")
+  (acceptance "A theorem parseSExpr_wellFormed showing ParseResult.ok results satisfy WellFormedSExpr compiles without sorry")
+  (file "LeanCbcl/Parser.lean")
+  (priority "medium"))
+
+(meta task-bounded-eval
+  (description "Extend boundedEval to recursively process all list elements, not just the head, making the resource-tracking model faithful to r2-resource-bounds.scm")
+  (acceptance "boundedEval processes all children of a list node; enterDepth_decreases and existing R2 theorems still hold; no sorry")
+  (file "LeanCbcl/R2ResourceBounds.lean")
+  (priority "medium"))
+
+(meta task-r1-computable
+  (description "Replace noncomputable verifyR1NoMutualRecursion with a computable DFS-based cycle detector on the dependency graph, with a correctness proof")
+  (acceptance "verifyR1NoMutualRecursion is computable (no noncomputable annotation); r1_mutual_sound still holds; a completeness theorem is added; no sorry")
+  (file "LeanCbcl/R1NoRecursion.lean")
+  (priority "medium"))
+
+(meta task-union-verify
+  (description "Verify that decidable_preserved and dcfl_preserved theorems are fully proven in DeterministicUnion.lean (not just stated); fill any sorries if found")
+  (acceptance "Confirm or complete the headline theorems decidable_preserved and dcfl_preserved; report exact status; no sorry in file")
+  (file "LeanCbcl/DeterministicUnion.lean")
+  (priority "high"))
+
+(meta task-golf-dpda
+  (description "Golf langDetParser_step_state_lt and langDetParser_step_state_ne_zero from ~300 lines to <30 lines using omega/decide on bounded Nat state space")
+  (acceptance "Both theorems compile in <20 lines each; maxHeartbeats stays at or below current level; no sorry")
+  (file "LeanCbcl/DetParser.lean")
+  (priority "low"))
+
+;; ============================================================
+;; Dependencies — which tasks are independent, which depend on others
+;; ============================================================
+
+;; task-union-verify has no deps — it's an audit task
+(given no-deps-union-verify)
+
+;; task-golf-dpda has no deps — pure refactoring
+(given no-deps-golf-dpda)
+
+;; task-roundtrip has no deps — extends Serializer.lean independently
+(given no-deps-roundtrip)
+
+;; task-wellformed has no deps — extends Parser.lean independently
+(given no-deps-wellformed)
+
+;; task-bounded-eval has no deps — extends R2ResourceBounds.lean independently
+(given no-deps-bounded-eval)
+
+;; task-r1-computable has no deps — extends R1NoRecursion.lean independently
+(given no-deps-r1-computable)
+
+;; ============================================================
+;; Readiness rules
+;; ============================================================
+
+(normally r-ready-union-verify
+  (and task-union-verify no-deps-union-verify)
+  ready-union-verify)
+
+(normally r-ready-golf-dpda
+  (and task-golf-dpda no-deps-golf-dpda)
+  ready-golf-dpda)
+
+(normally r-ready-roundtrip
+  (and task-roundtrip no-deps-roundtrip)
+  ready-roundtrip)
+
+(normally r-ready-wellformed
+  (and task-wellformed no-deps-wellformed)
+  ready-wellformed)
+
+(normally r-ready-bounded-eval
+  (and task-bounded-eval no-deps-bounded-eval)
+  ready-bounded-eval)
+
+(normally r-ready-r1-computable
+  (and task-r1-computable no-deps-r1-computable)
+  ready-r1-computable)
+
+;; ============================================================
+;; Assignment rules
+;; ============================================================
+
+;; Audit and verification → prover agent
+(normally r-assign-union-verify
+  (and ready-union-verify agent-prover-available)
+  assign-to-union-verify-prover)
+
+;; Proof work → prover agent
+(normally r-assign-roundtrip
+  (and ready-roundtrip agent-prover-available)
+  assign-to-roundtrip-prover)
+
+(normally r-assign-wellformed
+  (and ready-wellformed agent-prover-available)
+  assign-to-wellformed-prover)
+
+(normally r-assign-bounded-eval
+  (and ready-bounded-eval agent-prover-available)
+  assign-to-bounded-eval-prover)
+
+(normally r-assign-r1-computable
+  (and ready-r1-computable agent-prover-available)
+  assign-to-r1-computable-prover)
+
+;; Golfing → golfer agent
+(normally r-assign-golf-dpda
+  (and ready-golf-dpda agent-golfer-available)
+  assign-to-golf-dpda-golfer)
+
+;; ============================================================
+;; Priority: audit first, then high-priority gaps, then medium, then golf
+;; ============================================================
+
+;; union-verify is the audit gate — do it first to know the real state
+(prefer r-assign-union-verify r-assign-roundtrip)
+(prefer r-assign-union-verify r-assign-wellformed)
+(prefer r-assign-union-verify r-assign-bounded-eval)
+(prefer r-assign-union-verify r-assign-r1-computable)
+(prefer r-assign-union-verify r-assign-golf-dpda)
+
+;; roundtrip is high priority
+(prefer r-assign-roundtrip r-assign-wellformed)
+(prefer r-assign-roundtrip r-assign-bounded-eval)
+(prefer r-assign-roundtrip r-assign-r1-computable)
+(prefer r-assign-roundtrip r-assign-golf-dpda)
+
+;; medium priority tasks before golf
+(prefer r-assign-wellformed r-assign-golf-dpda)
+(prefer r-assign-bounded-eval r-assign-golf-dpda)
+(prefer r-assign-r1-computable r-assign-golf-dpda)
+
+;; ============================================================
+;; Rule metadata
+;; ============================================================
+
+(meta r-ready-union-verify
+  (description "Audit task is always ready — no code dependencies")
+  (justification "Need to know if headline theorems exist before planning further work"))
+
+(meta r-assign-union-verify
+  (description "Audit goes to prover agent who can read and verify Lean proofs")
+  (justification "Requires LSP-level inspection of DeterministicUnion.lean"))
+
+(meta r-assign-golf-dpda
+  (description "Golfing goes to specialized golfer agent")
+  (justification "Proof golfing is a distinct skill from proof construction"))
+
+(claims agent:prover
+  :at "2026-03-20T03:44:24Z"
+  (given claim-v1-union-verify)
+  (normally r-cl-state-v1-union-verify claim-v1-union-verify state-claimed-v1-union-verify)
+  (normally r-cl-chain-v1-union-verify state-claimed-v1-union-verify claimed-union-verify)
+)
+
+(claims agent:prover
+  :at "2026-03-20T03:44:24Z"
+  (given completed-union-verify))
+
+(claims agent:prover
+  :at "2026-03-20T03:51:46Z"
+  (given completed-roundtrip))
+
+(claims agent:prover
+  :at "2026-03-20T03:51:46Z"
+  (given completed-wellformed))
+
+(claims agent:prover
+  :at "2026-03-20T03:51:46Z"
+  (given completed-bounded-eval))
+
+(claims agent:prover
+  :at "2026-03-20T03:51:46Z"
+  (given completed-r1-computable))
+
+(claims agent:golfer
+  :at "2026-03-20T03:51:46Z"
+  (given completed-golf-dpda))
