@@ -350,4 +350,122 @@ theorem r1_mutual_sound (d : Dialect)
   exact absurd hreach
     (dfsNoCycle_no_cycle _ _ [] a (hdfs a ha_perf) a (List.mem_singleton.mpr rfl))
 
+-- ============================================================
+-- DFS completeness
+-- ============================================================
+
+/-- If `node ∈ visiting`, DFS immediately returns false (back-edge detection). -/
+private theorem dfs_false_mem (graph : List (String × List String))
+    (fuel : Nat) (visiting : List String) (node : String)
+    (hfuel : fuel ≥ 1) (hmem : node ∈ visiting) :
+    dfsNoCycle graph fuel visiting [] node = false := by
+  obtain ⟨n, rfl⟩ : ∃ n, fuel = n + 1 := ⟨fuel - 1, by omega⟩
+  unfold dfsNoCycle
+  simp only [beq_iff_eq, Nat.succ_ne_zero, ↓reduceIte, List.contains_nil, Bool.false_eq_true]
+  split; · rfl
+  · rename_i h; exact absurd (List.contains_iff_mem.mpr hmem) h
+
+/-- If some neighbor of `node` makes DFS return false, then DFS from `node`
+    also returns false. -/
+private theorem dfs_false_nb (graph : List (String × List String))
+    (fuel : Nat) (visiting : List String) (node nb : String)
+    (hfuel : fuel ≥ 1) (hnb : nb ∈ graphNeighbors graph node)
+    (hfalse : dfsNoCycle graph (fuel - 1) (node :: visiting) [] nb = false) :
+    dfsNoCycle graph fuel visiting [] node = false := by
+  obtain ⟨n, rfl⟩ : ∃ n, fuel = n + 1 := ⟨fuel - 1, by omega⟩
+  simp only [show n + 1 - 1 = n from by omega] at hfalse
+  unfold dfsNoCycle
+  simp only [beq_iff_eq, Nat.succ_ne_zero, ↓reduceIte, List.contains_nil, Bool.false_eq_true]
+  split; · rfl
+  · apply Bool.eq_false_iff.mpr; intro hall
+    simp only [show n + 1 - 1 = n from by omega] at hall
+    rw [List.all_eq_true] at hall
+    have := hall nb (by simp [graphNeighbors] at hnb ⊢; exact hnb)
+    rw [hfalse] at this; exact absurd this Bool.false_ne_true
+
+/-- If `target ∈ visiting` and `Reachable graph s target`, then DFS from `s`
+    returns false for sufficiently large fuel. The DFS follows the reachable
+    path and eventually hits `target` in the visiting set. -/
+theorem dfs_false_reach (graph : List (String × List String))
+    {s t : String} (hreach : Reachable graph s t) :
+    ∀ visiting : List String, t ∈ visiting →
+    ∃ bound : Nat, ∀ fuel, fuel ≥ bound →
+      dfsNoCycle graph fuel visiting [] s = false := by
+  induction hreach with
+  | single hmem =>
+    rename_i a b
+    intro visiting htarget
+    exact ⟨2, fun fuel hfuel => by
+      by_cases hv : a ∈ visiting
+      · exact dfs_false_mem graph fuel visiting a (by omega) hv
+      · apply dfs_false_nb graph fuel visiting a b (by omega) hmem
+        exact dfs_false_mem graph (fuel - 1) (a :: visiting) b
+          (by omega) (List.mem_cons_of_mem _ htarget)⟩
+  | cons hmem _ ih =>
+    rename_i a b c _
+    intro visiting htarget
+    obtain ⟨bound, hbound⟩ := ih (a :: visiting) (List.mem_cons_of_mem _ htarget)
+    exact ⟨bound + 1, fun fuel hfuel => by
+      by_cases hv : a ∈ visiting
+      · exact dfs_false_mem graph fuel visiting a (by omega) hv
+      · apply dfs_false_nb graph fuel visiting a b (by omega) hmem
+        exact hbound (fuel - 1) (by omega)⟩
+
+/-- **DFS completeness for cycles:** if `Reachable graph node node` (a cycle
+    exists through `node`), then `dfsNoCycle` returns false for sufficiently
+    large fuel.
+
+    This is the converse of `dfsNoCycle_no_cycle` (soundness). Together they
+    establish that `dfsNoCycle` correctly characterizes cycle-freedom, modulo
+    fuel adequacy.
+
+    The fuel bound depends on the length of the cycle witness in the
+    `Reachable` proof. For a graph with `n` nodes, any simple cycle has
+    length at most `n`, so fuel `n + 2` suffices in practice. -/
+theorem dfsNoCycle_complete (graph : List (String × List String))
+    (node : String) (visiting : List String)
+    (hreach : Reachable graph node node) :
+    ∃ bound : Nat, ∀ fuel, fuel ≥ bound →
+      dfsNoCycle graph fuel visiting [] node = false := by
+  by_cases hv : node ∈ visiting
+  · exact ⟨1, fun fuel hfuel => dfs_false_mem graph fuel visiting node (by omega) hv⟩
+  · cases hreach with
+    | single hmem =>
+      exact ⟨2, fun fuel hfuel => by
+        apply dfs_false_nb graph fuel visiting node node (by omega) hmem
+        exact dfs_false_mem graph (fuel - 1) (node :: visiting) node
+          (by omega) List.mem_cons_self⟩
+    | cons hmem hreach' =>
+      rename_i b
+      have ⟨bound, hbound⟩ := dfs_false_reach graph hreach' (node :: visiting)
+        List.mem_cons_self
+      exact ⟨bound + 1, fun fuel hfuel => by
+        apply dfs_false_nb graph fuel visiting node b (by omega) hmem
+        exact hbound (fuel - 1) (by omega)⟩
+
+/-- **Mutual recursion completeness (conditional on fuel):**
+    if `mutualRecursion d` holds, performative names are unique, and all
+    dependency targets are performative names, then there exists a node
+    whose DFS returns false for sufficiently large fuel.
+
+    The `hclosed` hypothesis ensures all dependency targets are performative
+    names, which is needed so that `DependsClosure` translates faithfully
+    to `Reachable` in the dependency graph.
+
+    Combined with `r1_mutual_sound`, this gives: for well-formed dialects,
+    `checkNoCycles d = true` if and only if there is no mutual recursion. -/
+theorem r1_mutual_complete_fuel (d : Dialect)
+    (hnodup : d.performativeNames.Nodup)
+    (hmut : mutualRecursion d)
+    (hclosed : ∀ a b, DependsClosure d a b → b ∈ d.performativeNames) :
+    ∃ a ∈ d.performativeNames,
+      ∃ bound : Nat, ∀ fuel, fuel ≥ bound →
+        dfsNoCycle (buildDepGraph d) fuel [] [] a = false := by
+  obtain ⟨a, hcl⟩ := hmut
+  have ha_perf := dependsClosure_source_perf d a a hcl
+  have ha_target := hclosed a a hcl
+  have hreach := dependsClosure_reachable d a a hnodup ha_target hcl
+  have ⟨bound, hbound⟩ := dfsNoCycle_complete (buildDepGraph d) a [] hreach
+  exact ⟨a, ha_perf, bound, hbound⟩
+
 end CBCL
