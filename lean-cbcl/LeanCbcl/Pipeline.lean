@@ -88,10 +88,6 @@ def verifyDialectString (dialectDef : String) : Except String Dialect :=
       else
         .error "dialect failed R1/R2/R3 verification"
 
-/-- The pipeline always terminates. -/
-theorem pipeline_terminates (input : String) :
-    ∃ result, runPipeline input = result := ⟨_, rfl⟩
-
 /-- The pipeline correctly handles any input: it either succeeds or produces an error. -/
 theorem pipeline_total (input : String) :
     (∃ msg, runPipeline input = .success msg) ∨

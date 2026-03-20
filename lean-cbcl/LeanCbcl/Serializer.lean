@@ -31,9 +31,6 @@ where
     | [x] => serialize x
     | x :: xs => serialize x ++ " " ++ serializeList xs
 
-/-- Serialize is total. -/
-theorem serialize_total (e : SExpr) : ∃ s, serialize e = s := ⟨_, rfl⟩
-
 -- ============================================================
 -- Round-trip specification
 -- ============================================================

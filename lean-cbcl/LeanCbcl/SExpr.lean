@@ -26,21 +26,19 @@ inductive SExpr where
   | list : List SExpr → SExpr
   deriving Repr, BEq, Inhabited
 
-end CBCL
-
 mutual
-def decEqSExpr : (a b : CBCL.SExpr) → Decidable (a = b)
+private def decEqSExpr : (a b : SExpr) → Decidable (a = b)
   | .atom a, .atom b =>
-    if h : a = b then isTrue (congrArg CBCL.SExpr.atom h)
-    else isFalse (fun heq => h (CBCL.SExpr.atom.inj heq))
+    if h : a = b then isTrue (congrArg SExpr.atom h)
+    else isFalse (fun heq => h (SExpr.atom.inj heq))
   | .list as_, .list bs =>
     match decEqSExprList as_ bs with
-    | isTrue h  => isTrue (congrArg CBCL.SExpr.list h)
-    | isFalse h => isFalse (fun heq => h (CBCL.SExpr.list.inj heq))
-  | .atom _, .list _ => isFalse CBCL.SExpr.noConfusion
-  | .list _, .atom _ => isFalse CBCL.SExpr.noConfusion
+    | isTrue h  => isTrue (congrArg SExpr.list h)
+    | isFalse h => isFalse (fun heq => h (SExpr.list.inj heq))
+  | .atom _, .list _ => isFalse SExpr.noConfusion
+  | .list _, .atom _ => isFalse SExpr.noConfusion
 
-def decEqSExprList : (as_ bs : List CBCL.SExpr) → Decidable (as_ = bs)
+private def decEqSExprList : (as_ bs : List SExpr) → Decidable (as_ = bs)
   | [], [] => isTrue rfl
   | [], _ :: _ => isFalse (fun h => nomatch h)
   | _ :: _, [] => isFalse (fun h => nomatch h)
@@ -51,9 +49,7 @@ def decEqSExprList : (as_ bs : List CBCL.SExpr) → Decidable (as_ = bs)
     | _, isFalse h2         => isFalse (fun heq => h2 (List.cons.inj heq).2)
 end
 
-instance : DecidableEq CBCL.SExpr := decEqSExpr
-
-namespace CBCL
+instance : DecidableEq SExpr := decEqSExpr
 
 /-- Size of an S-expression (number of constructors).
     Used as a termination measure for recursive functions. -/

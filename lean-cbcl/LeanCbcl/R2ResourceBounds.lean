@@ -87,11 +87,6 @@ def boundedEval (fuel : Nat) (expr : SExpr) (rs : ResourceState) :
           | none => none
           | some (_, rs''') => some (.list (hd :: tl), rs'''.exitDepth)
 
-/-- Bounded evaluation always terminates (trivially, by fuel). -/
-theorem boundedEval_terminates (fuel : Nat) (expr : SExpr) (rs : ResourceState) :
-    ∃ result, boundedEval fuel expr rs = result :=
-  ⟨_, rfl⟩
-
 /-- Entering depth strictly decreases remaining depth. -/
 theorem enterDepth_decreases (rs rs' : ResourceState)
     (h : rs.enterDepth = some rs') :
@@ -148,11 +143,6 @@ where
         match evalChildren fuel rest rs' with
         | none => none
         | some (rest', rs'') => some (child' :: rest', rs'')
-
-/-- Bounded full evaluation always terminates (trivially, by fuel). -/
-theorem boundedEvalFull_terminates (fuel : Nat) (expr : SExpr) (rs : ResourceState) :
-    ∃ result, boundedEvalFull fuel expr rs = result :=
-  ⟨_, rfl⟩
 
 /-- With 0 fuel, full evaluation always returns none. -/
 theorem boundedEvalFull_zero (expr : SExpr) (rs : ResourceState) :

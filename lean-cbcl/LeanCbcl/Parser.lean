@@ -45,7 +45,9 @@ def readToken : List Char → String × List Char
       let (rest, remaining) := readToken cs
       (String.ofList [c] ++ rest, remaining)
 
-/-- Read a string literal (after opening quote consumed). -/
+/-- Read a string literal (after opening quote consumed).
+    Note: escape sequences other than `\"` and `\\` are treated as the literal
+    character with the backslash dropped (e.g., `\n` becomes `n`). -/
 def readStr : List Char → Option (String × List Char)
   | [] => none
   | '"' :: cs => some ("", cs)
@@ -149,10 +151,6 @@ theorem WellFormedSExpr.ofAtom (a : Atom) : WellFormedSExpr (.atom a) :=
 -- skipWs properties
 -- ============================================================
 
-/-- Parser always terminates (trivially, by fuel). -/
-theorem parse_terminates (input : String) :
-    ∃ result, parse input = result := ⟨_, rfl⟩
-
 /-- skipWs on empty list is empty. -/
 theorem skipWs_nil : skipWs [] = [] := rfl
 
@@ -212,9 +210,6 @@ theorem readToken_length_le (cs : List Char) :
 -- ============================================================
 -- tokenToAtom properties
 -- ============================================================
-
-/-- tokenToAtom always produces an atom (totality witness). -/
-theorem tokenToAtom_total (tok : String) : ∃ a, tokenToAtom tok = a := ⟨_, rfl⟩
 
 /-- Booleans are parsed correctly. -/
 theorem tokenToAtom_true : tokenToAtom "#t" = .bool true := by

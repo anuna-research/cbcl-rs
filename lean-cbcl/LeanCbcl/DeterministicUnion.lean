@@ -625,111 +625,13 @@ def wrappedLanguage_decidable : IsDecidable wrappedLanguage where
 private theorem langLanguage_sound (d : Dialect) (e : SExpr)
     (h : langLanguageBool d e = true) :
     langLanguage d e := by
-  cases e with
-  | atom a =>
-      have hfalse : False := by
-        have h' := h
-        simp [langLanguageBool, langCheckBool] at h'
-      exact False.elim hfalse
-  | list xs =>
-      cases xs with
-      | nil =>
-          have hfalse : False := by
-            have h' := h
-            simp [langLanguageBool, langCheckBool] at h'
-          exact False.elim hfalse
-      | cons x xs =>
-          cases xs with
-          | nil =>
-              have hfalse : False := by
-                have h' := h
-                simp [langLanguageBool, langCheckBool] at h'
-              exact False.elim hfalse
-          | cons x2 xs2 =>
-              cases xs2 with
-              | nil =>
-                  have hfalse : False := by
-                    have h' := h
-                    simp [langLanguageBool, langCheckBool] at h'
-                  exact False.elim hfalse
-              | cons x3 xs3 =>
-                  cases xs3 with
-                  | cons _ _ =>
-                      have hfalse : False := by
-                        have h' := h
-                        simp [langLanguageBool, langCheckBool] at h'
-                      exact False.elim hfalse
-                  | nil =>
-                      cases x with
-                      | atom a1 =>
-                          cases a1 with
-                          | symbol s =>
-                              by_cases hs : s = "lang"
-                              · subst hs
-                                cases x2 with
-                                | atom a2 =>
-                                    cases a2 with
-                                    | symbol dn =>
-                                        cases x3 with
-                                        | list inner =>
-                                            cases inner with
-                                            | nil =>
-                                                have hfalse : False := by
-                                                  have h' := h
-                                                  simp [langLanguageBool, langCheckBool] at h'
-                                                exact False.elim hfalse
-                                            | cons y ys =>
-                                                cases y with
-                                                | atom a3 =>
-                                                    cases a3 with
-                                                    | symbol perf =>
-                                                        have h' : dn = d.name ∧ perf ∈ d.performativeNames := by
-                                                          have h'' := h
-                                                          simp [langLanguageBool, langCheckBool] at h''
-                                                          exact h''
-                                                        have hdn : dn = d.name := h'.1
-                                                        have hmem : perf ∈ d.performativeNames := h'.2
-                                                        subst hdn
-                                                        exact ⟨perf, ys, rfl, hmem⟩
-                                                    | _ =>
-                                                        have hfalse : False := by
-                                                          have h' := h
-                                                          simp [langLanguageBool, langCheckBool] at h'
-                                                        exact False.elim hfalse
-                                                | list _ =>
-                                                    have hfalse : False := by
-                                                      have h' := h
-                                                      simp [langLanguageBool, langCheckBool] at h'
-                                                    exact False.elim hfalse
-                                        | atom _ =>
-                                            have hfalse : False := by
-                                              have h' := h
-                                              simp [langLanguageBool, langCheckBool] at h'
-                                            exact False.elim hfalse
-                                    | _ =>
-                                        have hfalse : False := by
-                                          have h' := h
-                                          simp [langLanguageBool, langCheckBool] at h'
-                                        exact False.elim hfalse
-                                | list _ =>
-                                    have hfalse : False := by
-                                      have h' := h
-                                      simp [langLanguageBool, langCheckBool] at h'
-                                    exact False.elim hfalse
-                              · have hfalse : False := by
-                                  have h' := h
-                                  simp [langLanguageBool, langCheckBool, hs] at h'
-                                exact False.elim hfalse
-                          | _ =>
-                              have hfalse : False := by
-                                have h' := h
-                                simp [langLanguageBool, langCheckBool] at h'
-                              exact False.elim hfalse
-                      | list _ =>
-                          have hfalse : False := by
-                            have h' := h
-                            simp [langLanguageBool, langCheckBool] at h'
-                          exact False.elim hfalse
+  unfold langLanguageBool langCheckBool at h
+  split at h
+  · next dn perf rest =>
+    simp only [Bool.and_eq_true, beq_iff_eq] at h
+    obtain ⟨rfl, hmem⟩ := h
+    exact ⟨perf, rest, rfl, List.mem_of_elem_eq_true hmem⟩
+  · simp at h
 
 private theorem langLanguage_complete (d : Dialect) (e : SExpr)
     (h : langLanguage d e) :
