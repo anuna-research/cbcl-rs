@@ -77,17 +77,28 @@ cargo build --target wasm32-unknown-unknown -p cbcl-wasm
 
 ## Formal Verification
 
-The `lean-cbcl/` directory contains Lean 4 proofs that verify the core algorithms. Each Rust module in `cbcl-core` has a corresponding Lean file:
+The `lean-cbcl/` directory contains a Lean 4 formalization that machine-checks the core safety properties. Zero sorries, standard axioms only (`propext`, `Classical.choice`, `Quot.sound`), 300+ declarations across 16 files.
 
 | Rust module | Lean file | What is proved |
 |---|---|---|
-| `sexpr.rs` | `SExpr.lean` | S-expression type well-formedness |
-| `parser.rs` | `Parser.lean`, `DetParser.lean` | Parser is deterministic (DCFL class) |
-| `r1.rs` | `R1NoRecursion.lean` | Cycle detection soundness |
-| `r2.rs` | `R2ResourceBounds.lean` | Resource bounds termination |
-| `r3.rs` | `R3CorePreservation.lean` | Core performative immutability |
-| `template.rs` | `TemplateExpansion.lean` | Expansion terminates within bounds |
-| `msg_tag.rs` | `DeterministicUnion.lean` | DCFL closure under dialect union |
+| `sexpr.rs` | `SExpr.lean` | S-expression type well-formedness, `DecidableEq` |
+| `parser.rs` | `Parser.lean` | Parser soundness (`WellFormedSExpr`), concrete parse tests |
+| `serializer.rs` | `Serializer.lean` | Round-trip theorem for `SafeSymbol`, `RoundTrippable'` spec |
+| `msg.rs` | `MessageParser.lean` | Grammar soundness + completeness (`ValidMessageGrammar` ↔ `parseMessage`) |
+| `r1.rs` | `R1NoRecursion.lean` | DFS cycle detection: **sound** (`true → ¬cycle`) **and complete** (`cycle → false`) |
+| `r2.rs` | `R2ResourceBounds.lean` | Bounded evaluation terminates; depth returns to original level |
+| `r3.rs` | `R3CorePreservation.lean` | Core performatives cannot be redefined by extension dialects |
+| `template.rs` | `TemplateExpansion.lean` | Expansion terminates within declared resource bounds |
+| `det_parser.rs` | `DetParser.lean` | DPDA agrees with boolean decider (`headCheck_agrees`, `langCheck_agrees`) |
+| `msg_tag.rs` | `DeterministicUnion.lean` | **`decidable_preserved`**, **`dcfl_preserved`**: installing R3-verified dialects preserves DCFL membership |
+| — | `Pipeline.lean` | End-to-end: `pipeline_success_grammar` (success ⟹ `ValidMessageGrammar`) |
+
+### Headline theorems
+
+- **`decidable_preserved`** / **`dcfl_preserved`**: installing a fresh, R3-verified dialect into a well-formed agent preserves decidability and DCFL membership of the agent's message language.
+- **`agentDetParser_agrees`**: the concrete DPDA agrees with the boolean membership decider on all inputs.
+- **`r1_mutual_sound`** + **`dfsNoCycle_complete`**: the DFS cycle detector is both sound and complete — it returns `true` iff no dependency cycle exists.
+- **`pipeline_success_grammar`**: if the verified pipeline accepts a string, the result satisfies the `ValidMessageGrammar` relation.
 
 Differential tests (`crates/cbcl-parser/tests/differential.rs`) run both implementations on the same test vectors and assert identical accept/reject verdicts.
 
