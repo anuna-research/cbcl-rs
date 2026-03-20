@@ -1,219 +1,205 @@
-;; Plan: Address key gaps in CBCL Lean 4 formalization
-;; Generated from review of lean-cbcl theorems
+;; Plan: Address quality issues from March 2026 review of CBCL Lean 4 formalization
+;; Supersedes previous plan (all prior tasks completed)
 
 (meta plan
-  (id "CBCL-LEAN-GAPS")
-  (title "CBCL Lean 4 Proof Gaps")
-  (version "1.0.0")
+  (id "CBCL-LEAN-QUALITY-V2")
+  (title "CBCL Lean 4 Quality Improvements — Round 2")
+  (version "2.0.0")
   (status "active")
   (created "2026-03-20")
   (author "agent:claude")
-  (description "Address the 6 key gaps identified in the Lean 4 formalization review: general round-trip theorem, WellFormedSExpr connection, boundedEval fidelity, computable R1 cycle detection, DeterministicUnion headline theorems verification, and proof golfing."))
+  (description "Address quality issues identified in second review: vacuous tautologies, DFS↔mutual-recursion gap, namespace hygiene, and proof verbosity."))
 
 ;; ============================================================
 ;; Agents
 ;; ============================================================
 
-(given agent-prover-available)
-(given agent-golfer-available)
+(given agent-claude-available)
 
 ;; ============================================================
 ;; Tasks
 ;; ============================================================
 
-(given task-roundtrip)
-(given task-wellformed)
-(given task-bounded-eval)
-(given task-r1-computable)
-(given task-union-verify)
-(given task-golf-dpda)
+(given task-remove-tautologies)
+(given task-dfs-mutual-link)
+(given task-namespace-hygiene)
+(given task-simplify-lang-sound)
+(given task-escape-comment)
 
 ;; ============================================================
 ;; Task metadata
 ;; ============================================================
 
-(meta task-roundtrip
-  (description "Prove a general round-trip theorem for delimiter-free symbols: parse (serialize e) = .ok e for a well-characterized class of SExprs")
-  (acceptance "A parametric theorem RoundTrippable_of_safe covering atoms with delimiter-free symbol names, and lists of round-trippable elements, compiles without sorry")
-  (file "LeanCbcl/Serializer.lean")
+(meta task-remove-tautologies
+  (description "Remove 5 vacuous termination/totality theorems that prove trivial ∃ result, f x = result")
+  (acceptance "parse_terminates, boundedEval_terminates, boundedEvalFull_terminates, pipeline_terminates, serialize_total, tokenToAtom_total removed; lake build passes")
+  (files "Parser.lean R2ResourceBounds.lean Pipeline.lean Serializer.lean")
   (priority "high"))
 
-(meta task-wellformed
-  (description "Connect WellFormedSExpr to parseSExpr output: prove that successful parses produce well-formed S-expressions")
-  (acceptance "A theorem parseSExpr_wellFormed showing ParseResult.ok results satisfy WellFormedSExpr compiles without sorry")
-  (file "LeanCbcl/Parser.lean")
-  (priority "medium"))
-
-(meta task-bounded-eval
-  (description "Extend boundedEval to recursively process all list elements, not just the head, making the resource-tracking model faithful to r2-resource-bounds.scm")
-  (acceptance "boundedEval processes all children of a list node; enterDepth_decreases and existing R2 theorems still hold; no sorry")
-  (file "LeanCbcl/R2ResourceBounds.lean")
-  (priority "medium"))
-
-(meta task-r1-computable
-  (description "Replace noncomputable verifyR1NoMutualRecursion with a computable DFS-based cycle detector on the dependency graph, with a correctness proof")
-  (acceptance "verifyR1NoMutualRecursion is computable (no noncomputable annotation); r1_mutual_sound still holds; a completeness theorem is added; no sorry")
-  (file "LeanCbcl/R1NoRecursion.lean")
-  (priority "medium"))
-
-(meta task-union-verify
-  (description "Verify that decidable_preserved and dcfl_preserved theorems are fully proven in DeterministicUnion.lean (not just stated); fill any sorries if found")
-  (acceptance "Confirm or complete the headline theorems decidable_preserved and dcfl_preserved; report exact status; no sorry in file")
-  (file "LeanCbcl/DeterministicUnion.lean")
+(meta task-dfs-mutual-link
+  (description "Prove that dfsCheckNoCycles d = true implies ¬ mutualRecursion d, connecting the computable DFS checker to the logical mutual recursion predicate. Remove noncomputable verifyR1NoMutualRecursion.")
+  (acceptance "A theorem dfsCheckNoCycles_no_mutual_recursion linking dfsCheckNoCycles to ¬mutualRecursion compiles; noncomputable verifyR1NoMutualRecursion removed; lake build passes")
+  (files "R1NoRecursion.lean")
   (priority "high"))
 
-(meta task-golf-dpda
-  (description "Golf langDetParser_step_state_lt and langDetParser_step_state_ne_zero from ~300 lines to <30 lines using omega/decide on bounded Nat state space")
-  (acceptance "Both theorems compile in <20 lines each; maxHeartbeats stays at or below current level; no sorry")
-  (file "LeanCbcl/DetParser.lean")
+(meta task-namespace-hygiene
+  (description "Move decEqSExpr/decEqSExprList mutual block and DecidableEq instance into CBCL namespace")
+  (acceptance "decEqSExpr, decEqSExprList not in global scope; instance DecidableEq CBCL.SExpr inside CBCL namespace; lake build passes")
+  (files "SExpr.lean")
+  (priority "medium"))
+
+(meta task-simplify-lang-sound
+  (description "Reduce langLanguage_sound proof from 108 lines of nested case-split to a more concise proof")
+  (acceptance "langLanguage_sound compiles in ≤40 lines; no sorry; lake build passes")
+  (files "DeterministicUnion.lean")
+  (priority "low"))
+
+(meta task-escape-comment
+  (description "Add a comment to readStr documenting that escape sequences other than backslash and double-quote are treated as literal characters (backslash dropped)")
+  (acceptance "Comment present at readStr; no code changes; lake build passes")
+  (files "Parser.lean")
   (priority "low"))
 
 ;; ============================================================
-;; Dependencies — which tasks are independent, which depend on others
+;; Dependencies
 ;; ============================================================
 
-;; task-union-verify has no deps — it's an audit task
-(given no-deps-union-verify)
-
-;; task-golf-dpda has no deps — pure refactoring
-(given no-deps-golf-dpda)
-
-;; task-roundtrip has no deps — extends Serializer.lean independently
-(given no-deps-roundtrip)
-
-;; task-wellformed has no deps — extends Parser.lean independently
-(given no-deps-wellformed)
-
-;; task-bounded-eval has no deps — extends R2ResourceBounds.lean independently
-(given no-deps-bounded-eval)
-
-;; task-r1-computable has no deps — extends R1NoRecursion.lean independently
-(given no-deps-r1-computable)
+;; All tasks are independent — can be done in parallel
+(given no-deps-remove-tautologies)
+(given no-deps-dfs-mutual-link)
+(given no-deps-namespace-hygiene)
+(given no-deps-simplify-lang-sound)
+(given no-deps-escape-comment)
 
 ;; ============================================================
 ;; Readiness rules
 ;; ============================================================
 
-(normally r-ready-union-verify
-  (and task-union-verify no-deps-union-verify)
-  ready-union-verify)
+(normally r-ready-remove-tautologies
+  (and task-remove-tautologies no-deps-remove-tautologies)
+  ready-remove-tautologies)
 
-(normally r-ready-golf-dpda
-  (and task-golf-dpda no-deps-golf-dpda)
-  ready-golf-dpda)
+(normally r-ready-dfs-mutual-link
+  (and task-dfs-mutual-link no-deps-dfs-mutual-link)
+  ready-dfs-mutual-link)
 
-(normally r-ready-roundtrip
-  (and task-roundtrip no-deps-roundtrip)
-  ready-roundtrip)
+(normally r-ready-namespace-hygiene
+  (and task-namespace-hygiene no-deps-namespace-hygiene)
+  ready-namespace-hygiene)
 
-(normally r-ready-wellformed
-  (and task-wellformed no-deps-wellformed)
-  ready-wellformed)
+(normally r-ready-simplify-lang-sound
+  (and task-simplify-lang-sound no-deps-simplify-lang-sound)
+  ready-simplify-lang-sound)
 
-(normally r-ready-bounded-eval
-  (and task-bounded-eval no-deps-bounded-eval)
-  ready-bounded-eval)
-
-(normally r-ready-r1-computable
-  (and task-r1-computable no-deps-r1-computable)
-  ready-r1-computable)
+(normally r-ready-escape-comment
+  (and task-escape-comment no-deps-escape-comment)
+  ready-escape-comment)
 
 ;; ============================================================
 ;; Assignment rules
 ;; ============================================================
 
-;; Audit and verification → prover agent
-(normally r-assign-union-verify
-  (and ready-union-verify agent-prover-available)
-  assign-to-union-verify-prover)
+(normally r-assign-remove-tautologies
+  (and ready-remove-tautologies agent-claude-available)
+  assign-to-remove-tautologies-claude)
 
-;; Proof work → prover agent
-(normally r-assign-roundtrip
-  (and ready-roundtrip agent-prover-available)
-  assign-to-roundtrip-prover)
+(normally r-assign-dfs-mutual-link
+  (and ready-dfs-mutual-link agent-claude-available)
+  assign-to-dfs-mutual-link-claude)
 
-(normally r-assign-wellformed
-  (and ready-wellformed agent-prover-available)
-  assign-to-wellformed-prover)
+(normally r-assign-namespace-hygiene
+  (and ready-namespace-hygiene agent-claude-available)
+  assign-to-namespace-hygiene-claude)
 
-(normally r-assign-bounded-eval
-  (and ready-bounded-eval agent-prover-available)
-  assign-to-bounded-eval-prover)
+(normally r-assign-simplify-lang-sound
+  (and ready-simplify-lang-sound agent-claude-available)
+  assign-to-simplify-lang-sound-claude)
 
-(normally r-assign-r1-computable
-  (and ready-r1-computable agent-prover-available)
-  assign-to-r1-computable-prover)
-
-;; Golfing → golfer agent
-(normally r-assign-golf-dpda
-  (and ready-golf-dpda agent-golfer-available)
-  assign-to-golf-dpda-golfer)
+(normally r-assign-escape-comment
+  (and ready-escape-comment agent-claude-available)
+  assign-to-escape-comment-claude)
 
 ;; ============================================================
-;; Priority: audit first, then high-priority gaps, then medium, then golf
+;; Priority: high first, then medium, then low
 ;; ============================================================
 
-;; union-verify is the audit gate — do it first to know the real state
-(prefer r-assign-union-verify r-assign-roundtrip)
-(prefer r-assign-union-verify r-assign-wellformed)
-(prefer r-assign-union-verify r-assign-bounded-eval)
-(prefer r-assign-union-verify r-assign-r1-computable)
-(prefer r-assign-union-verify r-assign-golf-dpda)
-
-;; roundtrip is high priority
-(prefer r-assign-roundtrip r-assign-wellformed)
-(prefer r-assign-roundtrip r-assign-bounded-eval)
-(prefer r-assign-roundtrip r-assign-r1-computable)
-(prefer r-assign-roundtrip r-assign-golf-dpda)
-
-;; medium priority tasks before golf
-(prefer r-assign-wellformed r-assign-golf-dpda)
-(prefer r-assign-bounded-eval r-assign-golf-dpda)
-(prefer r-assign-r1-computable r-assign-golf-dpda)
+(prefer r-assign-remove-tautologies r-assign-namespace-hygiene)
+(prefer r-assign-remove-tautologies r-assign-simplify-lang-sound)
+(prefer r-assign-remove-tautologies r-assign-escape-comment)
+(prefer r-assign-dfs-mutual-link r-assign-namespace-hygiene)
+(prefer r-assign-dfs-mutual-link r-assign-simplify-lang-sound)
+(prefer r-assign-dfs-mutual-link r-assign-escape-comment)
+(prefer r-assign-namespace-hygiene r-assign-simplify-lang-sound)
+(prefer r-assign-namespace-hygiene r-assign-escape-comment)
+(prefer r-assign-simplify-lang-sound r-assign-escape-comment)
 
 ;; ============================================================
 ;; Rule metadata
 ;; ============================================================
 
-(meta r-ready-union-verify
-  (description "Audit task is always ready — no code dependencies")
-  (justification "Need to know if headline theorems exist before planning further work"))
+(meta r-ready-remove-tautologies
+  (description "Tautology removal has no dependencies")
+  (justification "Each theorem is self-contained and can be deleted independently"))
 
-(meta r-assign-union-verify
-  (description "Audit goes to prover agent who can read and verify Lean proofs")
-  (justification "Requires LSP-level inspection of DeterministicUnion.lean"))
+(meta r-ready-dfs-mutual-link
+  (description "DFS-mutual link has no dependencies")
+  (justification "The existing DFS code and mutual recursion predicate are already in R1NoRecursion.lean"))
 
-(meta r-assign-golf-dpda
-  (description "Golfing goes to specialized golfer agent")
-  (justification "Proof golfing is a distinct skill from proof construction"))
+(meta r-assign-remove-tautologies
+  (description "High priority: these mislead readers about what the formalization proves")
+  (justification "Vacuous ∃ result, f x = result theorems are tautologies that add no value"))
 
-(claims agent:prover
-  :at "2026-03-20T03:44:24Z"
-  (given claim-v1-union-verify)
-  (normally r-cl-state-v1-union-verify claim-v1-union-verify state-claimed-v1-union-verify)
-  (normally r-cl-chain-v1-union-verify state-claimed-v1-union-verify claimed-union-verify)
+(claims agent:claude
+  :at "2026-03-20T04:07:51Z"
+  (given claim-v1-remove-tautologies)
+  (normally r-cl-state-v1-remove-tautologies claim-v1-remove-tautologies state-claimed-v1-remove-tautologies)
+  (normally r-cl-chain-v1-remove-tautologies state-claimed-v1-remove-tautologies claimed-remove-tautologies)
 )
 
-(claims agent:prover
-  :at "2026-03-20T03:44:24Z"
-  (given completed-union-verify))
+(claims agent:claude
+  :at "2026-03-20T04:07:51Z"
+  (given claim-v1-dfs-mutual-link)
+  (normally r-cl-state-v1-dfs-mutual-link claim-v1-dfs-mutual-link state-claimed-v1-dfs-mutual-link)
+  (normally r-cl-chain-v1-dfs-mutual-link state-claimed-v1-dfs-mutual-link claimed-dfs-mutual-link)
+)
 
-(claims agent:prover
-  :at "2026-03-20T03:51:46Z"
-  (given completed-roundtrip))
+(claims agent:claude
+  :at "2026-03-20T04:07:51Z"
+  (given claim-v1-namespace-hygiene)
+  (normally r-cl-state-v1-namespace-hygiene claim-v1-namespace-hygiene state-claimed-v1-namespace-hygiene)
+  (normally r-cl-chain-v1-namespace-hygiene state-claimed-v1-namespace-hygiene claimed-namespace-hygiene)
+)
 
-(claims agent:prover
-  :at "2026-03-20T03:51:46Z"
-  (given completed-wellformed))
+(claims agent:claude
+  :at "2026-03-20T04:07:51Z"
+  (given claim-v1-simplify-lang-sound)
+  (normally r-cl-state-v1-simplify-lang-sound claim-v1-simplify-lang-sound state-claimed-v1-simplify-lang-sound)
+  (normally r-cl-chain-v1-simplify-lang-sound state-claimed-v1-simplify-lang-sound claimed-simplify-lang-sound)
+)
 
-(claims agent:prover
-  :at "2026-03-20T03:51:46Z"
-  (given completed-bounded-eval))
+(claims agent:claude
+  :at "2026-03-20T04:07:51Z"
+  (given claim-v1-escape-comment)
+  (normally r-cl-state-v1-escape-comment claim-v1-escape-comment state-claimed-v1-escape-comment)
+  (normally r-cl-chain-v1-escape-comment state-claimed-v1-escape-comment claimed-escape-comment)
+)
 
-(claims agent:prover
-  :at "2026-03-20T03:51:46Z"
-  (given completed-r1-computable))
+(claims agent:claude
+  :at "2026-03-20T04:09:13Z"
+  (given completed-remove-tautologies))
 
-(claims agent:golfer
-  :at "2026-03-20T03:51:46Z"
-  (given completed-golf-dpda))
+(claims agent:claude
+  :at "2026-03-20T04:09:13Z"
+  (given completed-namespace-hygiene))
+
+(claims agent:claude
+  :at "2026-03-20T04:09:13Z"
+  (given completed-escape-comment))
+
+(claims agent:claude
+  :at "2026-03-20T04:40:03Z"
+  (given completed-dfs-mutual-link))
+
+(claims agent:claude
+  :at "2026-03-20T04:42:30Z"
+  (given completed-simplify-lang-sound))
