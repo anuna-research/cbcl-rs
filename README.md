@@ -32,7 +32,7 @@ The key insight is *homoiconic self-extension*: dialect definitions are themselv
 
 Named after McCarthy's 1982 proposal for a "Common Business Communication Language" that would be "open ended so that as programs improve, programs that can at first only order by stock numbers can later be programmed to inquire about specifications and prices."
 
-See the [LangSec workshop paper](https://github.com/anuna-research/cbcl-paper) for the full theoretical framework and proofs, and the [Scheme reference implementation](https://github.com/anuna-research/cbcl) for the original prototype.
+Forthcoming paper for the 2026 LangSec workshop with full theoretical framework and proofs, and the initial [Scheme implementation](https://github.com/anuna-research/cbcl) for the original prototype.
 
 ## Features
 
