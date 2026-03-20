@@ -136,197 +136,149 @@ The grammar in this specification uses Augmented Backus-Naur Form (ABNF) as defi
 The following grammar uses core rules from {{RFC5234}}:
 
 ~~~abnf
+; ================================================================
+; Layer 1: S-expression syntax
+; Reference: crates/cbcl-parser/src/parser.rs
+; ================================================================
+
 SP           = %x20                    ; space
 HTAB         = %x09                    ; horizontal tab
-WSP          = SP / HTAB               ; whitespace
+LF           = %x0A                    ; line feed
+CR           = %x0D                    ; carriage return
 ALPHA        = %x41-5A / %x61-7A       ; A-Z / a-z
 DIGIT        = %x30-39                 ; 0-9
 DQUOTE       = %x22                    ; " (double quote)
 
-; CBCL Message Grammar
+WS           = *( SP / HTAB / LF / CR / comment )
 
-cbcl-message = simple-message / meta-message /
-               lang-message / wrapped-message
+s-expr       = list / atom
 
-; Simple messages use core performatives
-simple-message = "(" performative SP recipient
-                 [SP content] *(SP parameter) ")"
+list         = "(" WS *( s-expr WS ) ")"
 
-performative = "tell" / "ask" / "reply" /
-               "hello" / "bye" /
-               "ok" / "error" / "cancel"
+atom         = string / boolean / keyword / number / symbol
 
-recipient = agent-id
+symbol       = 1*symbol-char
 
-content = string / s-expr
+symbol-char  = ALPHA / DIGIT / "_" / "-" / "." / "/"
+             / "!" / "?" / "+" / "*" / "<" / ">" / "=" / "@"
 
-parameter = keyword SP value
+number       = ["-"] 1*DIGIT
+
+string       = DQUOTE *( string-char / escape ) DQUOTE
+
+string-char  = %x20-21 / %x23-5B / %x5D-7E   ; printable ASCII
+             / utf8-2 / utf8-3 / utf8-4
+
+escape       = %x5C ( %x22 / %x5C / %x6E / %x72 / %x74 )
+
+utf8-2       = %xC2-DF %x80-BF
+utf8-3       = %xE0-EF 1*2(%x80-BF)
+utf8-4       = %xF0-F4 1*3(%x80-BF)
+
+boolean      = "#t" / "#f"
+
+keyword      = ":" 1*symbol-char
+
+comment      = ";" *(%x20-7E) LF
+
+; ================================================================
+; Layer 2: CBCL message grammar
+; Reference: crates/cbcl-core/src/message.rs
+;
+; Dispatch is deterministic by head symbol:
+;   "meta"        -> meta-message
+;   "lang"        -> lang-message
+;   "envelope"    -> wrapped-message
+;   "signed"      -> wrapped-message
+;   "with-limits" -> wrapped-message
+;   otherwise     -> simple-message
+; ================================================================
+
+cbcl-message = simple-message / meta-message
+             / lang-message / wrapped-message
+
+; Simple messages — recipient is optional (detected by @ prefix)
+simple-message = "(" performative [WS recipient]
+                 WS content *(WS param) ")"
+
+performative = "tell" / "ask" / "reply" / "hello"
+             / "bye" / "ok" / "error" / "cancel"
+
+recipient    = "@" 1*symbol-char
+
+content      = s-expr
+
+param        = keyword-param / s-expr
+
+keyword-param = keyword WS s-expr
 
 ; Meta messages for dialect operations
-meta-message = "(" "meta" SP meta-operation ")"
+meta-message = "(" "meta" WS meta-operation ")"
 
-meta-operation = define-dialect / query-dialect /
-                 teach-dialect
+meta-operation = meta-query / meta-define / s-expr
 
-define-dialect = "(" "define" SP dialect-name
-                 *(SP dialect-clause) ")"
+meta-query   = "(" "query" WS s-expr ")"
 
-query-dialect = "(" "query" SP "(" capability-query ")" ")"
-
-teach-dialect = "(" "teach" SP recipient SP dialect-def ")"
-
-capability-query = "speak?" SP dialect-name
+meta-define  = dialect-definition
 
 ; Language-scoped messages
-lang-message = "(" "lang" SP dialect-name SP inner-message ")"
+lang-message = "(" "lang" WS dialect-name WS cbcl-message ")"
 
-inner-message = cbcl-message
+dialect-name = symbol
 
-; Message wrappers
-wrapped-message = envelope-message / signed-message /
-                  limited-message
+; Wrapped messages — inner message is the last list element
+wrapped-message = "(" wrapper-type *(WS s-expr) WS cbcl-message ")"
 
-envelope-message = "(" "envelope" *(SP envelope-param)
-                   SP cbcl-message ")"
+wrapper-type = "envelope" / "signed" / "with-limits"
 
-envelope-param = ":from" SP agent-id /
-                 ":to" SP agent-id /
-                 ":timestamp" SP timestamp
+; ================================================================
+; Layer 3: Dialect definition grammar
+; Reference: crates/cbcl-parser/src/dialect_parser.rs
+;
+; Positional args: (define <name> <extends-list> <author> ...)
+; Followed by optional clauses in any order.
+; ================================================================
 
-signed-message = "(" "signed" SP signature SP
-                 cbcl-message ")"
+dialect-definition = "(" "define" WS dialect-name
+                     WS extends-list WS author
+                     *(WS dialect-clause) ")"
 
-limited-message = "(" "with-limits" *(SP limit-param)
-                  SP cbcl-message ")"
+extends-list = "(" *(WS symbol) ")"
 
-limit-param = ":timeout" SP integer /
-              ":max-depth" SP integer /
-              ":max-expansion-size" SP integer
+author       = symbol / string
 
-; Dialect definition structure
-dialect-clause = extends-clause / extend-clause /
-                 resource-clause / author-clause /
-                 examples-clause / signature-clause /
-                 hash-clause / protocol-clause
+dialect-clause = extend-clause / resource-clause
+               / examples-clause / signature-clause
+               / hash-clause / protocol-clause
 
-extends-clause = ":extends" SP dialect-name
+; Performative extension
+extend-clause = "(" "extend" WS symbol WS param-list
+                WS template ")"
 
-extend-clause = "(" "extend" SP new-perf-name
-                SP param-list SP expansion ")"
+param-list   = "(" *(WS s-expr) ")"
 
-resource-clause = ":resources" SP resource-spec
+template     = s-expr
 
-author-clause = ":author" SP agent-id
+; Resource requirements — alist of (key value) pairs
+resource-clause = "(" ":resource-requirements"
+                  WS resource-alist ")"
 
-examples-clause = ":examples" 1*(SP s-expr)
+resource-alist = "(" *(WS resource-pair) ")"
 
-signature-clause = ":signature" SP string
+resource-pair = "(" resource-key WS number ")"
 
-hash-clause = ":hash" SP string
+resource-key = "max-depth" / "max-expansion-size"
+             / "verification-time"
 
-protocol-clause = ":protocol" SP string
+; Integrity and metadata clauses
+examples-clause  = "(" ":examples" *(WS s-expr) ")"
 
-; Basic types
-agent-id = "@" identifier
+signature-clause = "(" ( ":signature" / ":signed" )
+                   WS s-expr ")"
 
-dialect-name = identifier
+hash-clause      = "(" ":hash" WS ( string / symbol ) ")"
 
-new-perf-name = identifier
-
-keyword = ":" identifier
-
-identifier = 1*( ALPHA / DIGIT / "-" / "_" )
-
-string = DQUOTE *string-char DQUOTE
-
-string-char = %x20-21 / %x23-5B / %x5D-7E /  ; printable ASCII
-              %x5C escaped /                  ; escaped characters
-              utf8-2 / utf8-3 / utf8-4        ; UTF-8 sequences
-
-escaped = %x22 / %x5C / %x6E / %x72 / %x74  ; \" \\ \n \r \t
-
-utf8-2 = %xC2-DF utf8-tail
-utf8-3 = %xE0-EF 1*2utf8-tail
-utf8-4 = %xF0-F4 1*3utf8-tail
-utf8-tail = %x80-BF
-
-integer = ["-"] 1*DIGIT
-
-decimal = ["-"] 1*DIGIT "." 1*DIGIT
-
-number = decimal / integer
-
-boolean = "#t" / "#f"
-
-symbol = identifier / quoted-symbol
-
-quoted-symbol = "'" identifier
-
-timestamp = date-time  ; As defined in RFC 3339, Section 5.6
-
-signature = base64-string
-
-s-expr = "(" *( s-expr / atom ) ")"
-
-atom = identifier / string / number / boolean / symbol
-
-value = atom / s-expr
-
-; Parameter list for dialect extension definitions
-param-list = "(" *( formal-param ) ")"
-
-formal-param = identifier /
-               "&key" SP identifier /
-               "&optional" SP identifier /
-               "&rest" SP identifier
-
-; Template expansion language
-expansion = template-expr
-
-template-expr = literal-template / substitution-template /
-                conditional-template / sequence-template
-
-literal-template = cbcl-message
-
-substitution-template = param-ref / tagged-substitution
-
-param-ref = identifier
-
-tagged-substitution = keyword SP param-ref
-
-; Bounded conditional (no recursion)
-conditional-template = "(" "cond" 1*( condition-clause )
-                       [default-clause] ")"
-
-condition-clause = "(" condition SP template-expr ")"
-
-default-clause = "(" "else" SP template-expr ")"
-
-condition = equality-test / membership-test / type-test
-
-equality-test = "(" "=" SP param-ref SP value ")"
-
-membership-test = "(" "member" SP param-ref SP value-list ")"
-
-type-test = "(" "type?" SP param-ref SP type-name ")"
-
-sequence-template = "(" 1*template-expr ")"
-
-value-list = "(" *value ")"
-
-type-name = "string" / "number" / "boolean" / "symbol" /
-            "list" / "agent"
-
-; Comment syntax (whitespace-equivalent)
-comment = ";" *(%x20-7E) CRLF
-
-resource-spec = "(" *(resource-limit) ")"
-
-resource-limit = ":max-depth" SP integer /
-                 ":max-expansion-size" SP integer /
-                 ":max-verify-time" SP integer
-
-base64-string = 1*( ALPHA / DIGIT / "+" / "/" / "=" )
+protocol-clause  = "(" ":protocol" WS ( string / symbol ) ")"
 ~~~
 
 ## Core Performatives
@@ -391,26 +343,27 @@ Dialects enable agents to extend CBCL's vocabulary with domain-specific performa
 
 ## Dialect Definition
 
-A dialect definition specifies:
+A dialect definition uses positional arguments followed by optional clauses:
 
-- A unique dialect name
-- The dialect it extends (typically "cbcl" for core extensions)
-- Author identifier for provenance tracking
-- A set of performative definitions (extend clauses)
-- Resource constraints for verification and execution
-- Optional examples illustrating intended expansion semantics
-- Optional signature and hash for integrity verification
+- **dialect-name** (positional, required): A unique dialect name
+- **extends-list** (positional, required): List of parent dialects, typically `(cbcl)` for core extensions
+- **author** (positional, required): Author identifier for provenance tracking
+- **extend clauses** (optional, repeatable): Performative definitions
+- **:resource-requirements** (optional): Resource constraints as an association list
+- **:examples** (optional): S-expressions illustrating intended expansion semantics
+- **:signature / :hash** (optional): Integrity verification fields
 
 Example dialect definition:
 
 ~~~
 (meta
   (define logistics-dialect
-    :extends cbcl
-    :author @logistics-consortium
-    :resources (:max-depth 16
-                :max-expansion-size 4096
-                :max-verify-time 1000)
+    (cbcl)
+    @logistics-consortium
+    (:resource-requirements
+      ((max-depth 16)
+       (max-expansion-size 4096)
+       (verification-time 1000)))
 
     (extend track-shipment
             (package-id &key route priority)
@@ -429,14 +382,14 @@ Example dialect definition:
               :time timestamp)
             :domain logistics))
 
-    :examples
+    (:examples
       (track-shipment "PKG-42" :route "A->B")
       (tell @tracking-service
         (shipment-request
           :package "PKG-42"
           :route "A->B"
           :priority "normal")
-        :domain logistics)))
+        :domain logistics))))
 ~~~
 
 The optional `:examples` clause carries semantic meaning: each input/output pair illustrates what the dialect author intends a performative to do in a concrete scenario. Examples serve as the primary mechanism for communicating intended semantics between agents. A receiving agent can evaluate the examples against its own expander to verify mechanical agreement before claiming dialect support.
@@ -447,11 +400,11 @@ To ensure safety and maintain DCFL parsing bounds, dialect definitions MUST sati
 
 **R1 - Declarative Only**: Extension definitions MUST use only pattern-template transformations. Recursion, iteration, and reflection are prohibited.
 
-**R2 - Resource Bounds**: Dialect definitions MUST declare resource limits:
+**R2 - Resource Bounds**: Dialect definitions MUST declare resource limits via a `:resource-requirements` clause containing an association list of `(key value)` pairs:
 
-- :max-depth - Maximum nesting depth of expanded messages (integer, RECOMMENDED: ≤ 32 levels)
-- :max-expansion-size - Maximum size of expanded message (integer, measured in characters, RECOMMENDED: ≤ 8192)
-- :max-verify-time - Maximum time to verify dialect definition (integer, measured in milliseconds, RECOMMENDED: ≤ 5000)
+- max-depth - Maximum nesting depth of expanded messages (integer, RECOMMENDED: ≤ 32 levels)
+- max-expansion-size - Maximum size of expanded message (integer, measured in characters, RECOMMENDED: ≤ 8192)
+- verification-time - Maximum time to verify dialect definition (integer, measured in milliseconds, RECOMMENDED: ≤ 5000)
 
 **R3 - Core Preservation**: Dialects MUST NOT redefine core performatives (tell, ask, reply, hello, bye, ok, error, cancel).
 
@@ -574,11 +527,12 @@ Agents can share dialect definitions with peers. When transmitting to untrusted 
 (meta (teach @bob
   (signed "base64-encoded-signature"
     (define logistics-dialect
-      :extends cbcl
-      :author @logistics-consortium
-      :resources (:max-depth 16
-                  :max-expansion-size 4096
-                  :max-verify-time 1000)
+      (cbcl)
+      @logistics-consortium
+      (:resource-requirements
+        ((max-depth 16)
+         (max-expansion-size 4096)
+         (verification-time 1000)))
       ; ... performative definitions ...
     ))))
 ~~~
@@ -720,7 +674,7 @@ Dialect definitions represent executable code that extends an agent's behavior. 
 
 Implementations MUST:
 
-- Verify dialect authorship through the :author field
+- Verify dialect authorship through the author field (fourth positional argument)
 - Reject dialects that fail integrity checks
 
 Implementations SHOULD:
@@ -776,8 +730,8 @@ Messages exceeding configured limits SHOULD be rejected with appropriate error r
 The with-limits message wrapper allows senders to request specific resource constraints for message processing:
 
 - :timeout - Wall-clock timeout in milliseconds for message evaluation
-- :max-depth - Maximum nesting depth for parsing and template expansion (maximum 64 levels)
-- :max-expansion-size - Maximum cumulative size of template expansions in characters
+- :max-depth - Maximum nesting depth for parsing and template expansion (system maximum: 64 levels)
+- :max-expansion-size - Maximum cumulative size of template expansions in characters (system maximum: 8192)
 
 Receivers MAY choose to honor, reduce, or ignore these limits based on local policy. The limits serve as hints for resource-constrained processing and provide no security guarantee unless enforced by the receiver.
 
@@ -899,11 +853,12 @@ Defining a planning dialect:
 ~~~
 (meta
   (define planning-dialect
-    :extends cbcl
-    :author @ai-research-lab
-    :resources (:max-depth 20
-                :max-expansion-size 4096
-                :max-verify-time 2000)
+    (cbcl)
+    @ai-research-lab
+    (:resource-requirements
+      ((max-depth 20)
+       (max-expansion-size 4096)
+       (verification-time 2000)))
 
     (extend propose-action
             (action preconditions effects)
