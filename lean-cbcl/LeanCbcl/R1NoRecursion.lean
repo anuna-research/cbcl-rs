@@ -8,7 +8,7 @@ Formalizes the R1 safety constraint: performative definitions must not contain
 direct self-references. Proves that the AST-walk detection algorithm is sound.
 
 Also defines a mutual-recursion predicate over performative dependencies and a
-Boolean verifier (noncomputable) that can be used to rule out dependency cycles.
+computable Boolean verifier (DFS-based) that rules out dependency cycles.
 
 Mirrors: `src/cbcl/r1-simple.scm`
 
@@ -181,16 +181,173 @@ inductive DependsClosure (d : Dialect) : String → String → Prop where
 def mutualRecursion (d : Dialect) : Prop :=
   ∃ a, DependsClosure d a a
 
-/-- Boolean verifier that rejects mutual recursion (noncomputable, uses classical decision). -/
-noncomputable def verifyR1NoMutualRecursion (d : Dialect) : Bool := by
-  classical
-  exact decide (¬ mutualRecursion d)
+-- ============================================================
+-- Graph helpers
+-- ============================================================
 
-/-- Soundness: if the verifier returns true, there is no mutual recursion. -/
-theorem r1_mutual_sound (d : Dialect) :
-    verifyR1NoMutualRecursion d = true → ¬ mutualRecursion d := by
-  classical
-  intro h
-  simpa [verifyR1NoMutualRecursion] using h
+/-- Look up neighbors of a node in the adjacency list. -/
+def graphNeighbors (graph : List (String × List String)) (node : String) : List String :=
+  match graph.find? (fun p => p.1 == node) with
+  | some (_, ns) => ns
+  | none => []
+
+/-- Reachability in the graph via a path of length at least 1. -/
+inductive Reachable (graph : List (String × List String)) : String → String → Prop where
+  | single : b ∈ graphNeighbors graph a → Reachable graph a b
+  | cons   : b ∈ graphNeighbors graph a → Reachable graph b c → Reachable graph a c
+
+/-- Reachable is transitive. -/
+theorem Reachable.trans (h1 : Reachable graph a b) (h2 : Reachable graph b c) :
+    Reachable graph a c := by
+  induction h1 with
+  | single hmem => exact .cons hmem h2
+  | cons hmem _ ih => exact .cons hmem (ih h2)
+
+-- ============================================================
+-- DFS soundness
+-- ============================================================
+
+/-- Extract the visiting-check and neighbor-DFS conditions from a successful
+    `dfsNoCycle` call at fuel `n + 1`. -/
+private theorem dfsNoCycle_succ_extract (graph : List (String × List String)) (n : Nat)
+    (visiting : List String) (node : String)
+    (h : dfsNoCycle graph (n + 1) visiting [] node = true) :
+    visiting.contains node = false ∧
+    ∀ nb ∈ graphNeighbors graph node,
+      dfsNoCycle graph n (node :: visiting) [] nb = true := by
+  unfold dfsNoCycle at h
+  simp only [beq_iff_eq, Nat.succ_ne_zero, ↓reduceIte, List.contains_nil, Bool.false_eq_true] at h
+  split at h
+  · exact absurd h (by simp)
+  · rename_i hnovis
+    refine ⟨by rwa [Bool.not_eq_true] at hnovis, ?_⟩
+    simp only [graphNeighbors] at h ⊢
+    rw [show n + 1 - 1 = n from by omega] at h
+    rw [List.all_eq_true] at h; exact h
+
+/-- DFS soundness: if `dfsNoCycle` returns true starting from `node` with
+    visiting stack `visiting` and empty visited list, then no node in
+    `node :: visiting` is reachable from `node` through the graph. -/
+theorem dfsNoCycle_no_cycle (graph : List (String × List String)) (fuel : Nat)
+    (visiting : List String) (node : String)
+    (h : dfsNoCycle graph fuel visiting [] node = true) :
+    ∀ v ∈ node :: visiting, ¬ Reachable graph node v := by
+  induction fuel generalizing node visiting with
+  | zero => simp [dfsNoCycle] at h
+  | succ n ih =>
+    have ⟨hnovis, hall⟩ := dfsNoCycle_succ_extract graph n visiting node h
+    intro v hv hreach
+    cases hreach with
+    | single hmem_nb =>
+      -- v is a direct neighbor of node, and v ∈ node :: visiting.
+      -- The DFS recursed on v with visiting' = node :: visiting.
+      -- Since v ∈ visiting', if fuel > 0 the DFS would detect v ∈ visiting'
+      -- and return false, contradicting the hypothesis.
+      have hdfs_v := hall v hmem_nb
+      have hvc : (node :: visiting).contains v = true := List.contains_iff_mem.mpr hv
+      cases n with
+      | zero => simp [dfsNoCycle] at hdfs_v
+      | succ m =>
+        have ⟨hnovis', _⟩ := dfsNoCycle_succ_extract graph m (node :: visiting) v hdfs_v
+        rw [hvc] at hnovis'; simp at hnovis'
+    | cons hmem_nb hreach' =>
+      -- b is a neighbor of node, and Reachable graph b v.
+      -- By IH on b (with visiting' = node :: visiting), v is unreachable from b.
+      rename_i b
+      exact absurd hreach'
+        (ih (node :: visiting) b (hall b hmem_nb) v (List.mem_cons_of_mem b hv))
+
+-- ============================================================
+-- Connecting DependsClosure to graph reachability
+-- ============================================================
+
+/-- Helper: `List.find?` on a mapped list of performatives finds the right entry
+    when performative names are unique. -/
+private theorem find_map_nodup (perfs : List PerformativeDef) (names : List String)
+    (pd : PerformativeDef) (hpd : pd ∈ perfs)
+    (hnodup : (perfs.map (·.name)).Nodup) :
+    (perfs.map (fun p => (p.name, referencedPerformatives names p.template))).find?
+      (fun p => p.1 == pd.name) =
+      some (pd.name, referencedPerformatives names pd.template) := by
+  induction perfs with
+  | nil => simp at hpd
+  | cons hd tl ihtl =>
+    simp only [List.map, List.find?_cons, BEq.beq]
+    cases List.mem_cons.mp hpd with
+    | inl heq => subst heq; simp
+    | inr htl =>
+      simp only [List.map] at hnodup
+      rw [List.nodup_cons] at hnodup
+      have hne : hd.name ≠ pd.name := fun heq =>
+        hnodup.1 (heq ▸ List.mem_map_of_mem (f := (·.name)) htl)
+      have : decide (hd.name = pd.name) = false := by simp [hne]
+      rw [this]; exact ihtl htl hnodup.2
+
+/-- If `dependsOn d a b`, names are unique, and `b` is a performative name,
+    then `b ∈ graphNeighbors (buildDepGraph d) a`. -/
+private theorem dependsOn_graphNeighbors (d : Dialect) (a b : String)
+    (hnodup : d.performativeNames.Nodup)
+    (hdep : dependsOn d a b)
+    (hb_perf : b ∈ d.performativeNames) :
+    b ∈ graphNeighbors (buildDepGraph d) a := by
+  obtain ⟨pd, hpd_mem, hpd_name, hcontains⟩ := hdep
+  subst hpd_name
+  simp only [graphNeighbors, buildDepGraph]
+  rw [find_map_nodup d.performatives d.performativeNames pd hpd_mem hnodup]
+  simp only [referencedPerformatives, List.mem_filter]
+  exact ⟨hb_perf, hcontains⟩
+
+/-- The source of any `DependsClosure` step is a performative name. -/
+private theorem dependsClosure_source_perf (d : Dialect) (a b : String)
+    (hcl : DependsClosure d a b) : a ∈ d.performativeNames := by
+  induction hcl with
+  | step hdep =>
+    obtain ⟨pd, hpd_mem, hpd_name, _⟩ := hdep
+    exact hpd_name ▸ List.mem_map_of_mem (f := (·.name)) hpd_mem
+  | trans _ _ ih _ => exact ih
+
+/-- `DependsClosure d a b` implies `Reachable (buildDepGraph d) a b`
+    when performative names are unique and `b` is a performative name. -/
+private theorem dependsClosure_reachable (d : Dialect) (a b : String)
+    (hnodup : d.performativeNames.Nodup)
+    (hb_perf : b ∈ d.performativeNames)
+    (hcl : DependsClosure d a b) :
+    Reachable (buildDepGraph d) a b := by
+  induction hcl with
+  | step hdep =>
+    exact .single (dependsOn_graphNeighbors d _ _ hnodup hdep hb_perf)
+  | trans h1 h2 ih1 ih2 =>
+    exact (ih1 (dependsClosure_source_perf d _ _ h2)).trans (ih2 hb_perf)
+
+-- ============================================================
+-- Main soundness theorem
+-- ============================================================
+
+/-- Computable verifier for mutual recursion: uses the combined `checkNoCycles`. -/
+def verifyR1NoMutualRecursion (d : Dialect) : Bool :=
+  checkNoCycles d
+
+/-- Soundness: if `checkNoCycles` returns true and performative names are unique,
+    there is no mutual recursion.
+
+    The `Nodup` hypothesis is needed because `graphNeighbors` uses `List.find?`
+    which returns the first match; with duplicate names, some dependency edges
+    could be missed in the graph. -/
+theorem r1_mutual_sound (d : Dialect)
+    (hnodup : d.performativeNames.Nodup)
+    (h : checkNoCycles d = true) : ¬ mutualRecursion d := by
+  intro ⟨a, hcl⟩
+  -- a is a performative name (source of the first DependsClosure step)
+  have ha_perf := dependsClosure_source_perf d a a hcl
+  -- DependsClosure d a a implies graph-level reachability
+  have hreach := dependsClosure_reachable d a a hnodup ha_perf hcl
+  -- Extract the DFS check from checkNoCycles
+  simp only [checkNoCycles] at h
+  have ⟨_, hdfs⟩ := Bool.and_eq_true_iff.mp h
+  rw [List.all_eq_true] at hdfs
+  -- DFS was run from a (since a ∈ performativeNames) with visiting = []
+  -- So a ∈ [a] = a :: [], and dfsNoCycle_no_cycle gives ¬ Reachable _ a a
+  exact absurd hreach
+    (dfsNoCycle_no_cycle _ _ [] a (hdfs a ha_perf) a (List.mem_singleton.mpr rfl))
 
 end CBCL
