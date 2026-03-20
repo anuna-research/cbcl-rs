@@ -275,4 +275,33 @@ theorem parse_empty_error : parse "" = .error "unexpected end of input" := by na
 /-- Unmatched close paren produces an error. -/
 theorem parse_unmatched_close : parse ")" = .error "unexpected ')'" := by native_decide
 
+-- ============================================================
+-- Universal well-formedness: every SExpr is well-formed
+-- ============================================================
+
+/-- Every S-expression is well-formed. Since `WellFormedSExpr` accepts all
+    constructors, this is a universal property proved by structural
+    induction on `SExpr` using `SExpr.rec`. -/
+theorem allSExpr_wellFormed : ∀ (e : SExpr), WellFormedSExpr e :=
+  @SExpr.rec
+    (fun e => WellFormedSExpr e)
+    (fun xs => ∀ e, e ∈ xs → WellFormedSExpr e)
+    (fun a => .atom a)
+    (fun xs ih => .list xs ih)
+    (fun _ h => nomatch h)
+    (fun _ _ hx hxs => fun e he =>
+      match List.mem_cons.mp he with
+      | .inl heq => heq ▸ hx
+      | .inr hmem => hxs e hmem)
+
+/-- `parseSExpr` produces well-formed S-expressions whenever it succeeds. -/
+theorem parseSExpr_wellFormed (input : List Char) (fuel : Nat) (e : SExpr) (rest : List Char)
+    (_h : parseSExpr input fuel = .ok e rest) : WellFormedSExpr e :=
+  allSExpr_wellFormed e
+
+/-- `parse` produces well-formed S-expressions whenever it succeeds. -/
+theorem parse_wellFormed (input : String) (e : SExpr)
+    (_h : parse input = .ok e) : WellFormedSExpr e :=
+  allSExpr_wellFormed e
+
 end CBCL

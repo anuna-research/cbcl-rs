@@ -90,6 +90,80 @@ end CBCL
 namespace CBCL
 
 -- ============================================================
+-- Computable cycle detection (DFS on dependency graph)
+-- ============================================================
+
+/-- Get the names of performatives referenced in a template. -/
+def referencedPerformatives (perfNames : List String) (template : SExpr) : List String :=
+  perfNames.filter (fun name => containsSelfReference name template)
+
+/-- Build adjacency list for the dependency graph. -/
+def buildDepGraph (d : Dialect) : List (String × List String) :=
+  let names := d.performativeNames
+  d.performatives.map fun pd => (pd.name, referencedPerformatives names pd.template)
+
+/-- DFS-based cycle detection with visited/visiting sets.
+    Returns `true` if no cycle is reachable from `node`. -/
+def dfsNoCycle (graph : List (String × List String)) (fuel : Nat)
+    (visiting : List String) (visited : List String) (node : String) : Bool :=
+  if fuel == 0 then false  -- conservative: out of fuel → report possible cycle
+  else if visited.contains node then true  -- already fully explored
+  else if visiting.contains node then false  -- back edge → cycle!
+  else
+    let visiting' := node :: visiting
+    let neighbors := match graph.find? (fun p => p.1 == node) with
+      | some (_, ns) => ns
+      | none => []
+    neighbors.all (fun n => dfsNoCycle graph (fuel - 1) visiting' visited n)
+termination_by fuel
+decreasing_by
+  simp_all
+  omega
+
+/-- DFS-only cycle check (used internally by checkNoCycles). -/
+def dfsCheckNoCycles (d : Dialect) : Bool :=
+  let graph := buildDepGraph d
+  let names := d.performativeNames
+  let fuel := names.length * names.length + 1
+  names.all (fun name => dfsNoCycle graph fuel [] [] name)
+
+/-- A direct check: no performative references itself by name. -/
+def checkNoDirectCycles (d : Dialect) : Bool :=
+  d.performatives.all (fun pd => !containsSelfReference pd.name pd.template)
+
+/-- checkNoDirectCycles is sound: if it returns true, no direct self-reference exists. -/
+theorem checkNoDirectCycles_sound (d : Dialect) (h : checkNoDirectCycles d = true) :
+    ∀ pd ∈ d.performatives, containsSelfReference pd.name pd.template = false := by
+  intro pd hpd
+  simp [checkNoDirectCycles] at h
+  have := h pd hpd
+  simpa using this
+
+/-- Combined check: both direct self-reference and DFS cycle detection.
+    The direct check handles the case where `List.find?` might not return
+    the right entry for duplicate performative names; the DFS handles
+    mutual recursion through the dependency graph. -/
+def checkNoCycles (d : Dialect) : Bool :=
+  let graph := buildDepGraph d
+  let names := d.performativeNames
+  let fuel := names.length * names.length + 1
+  checkNoDirectCycles d &&
+    names.all (fun name => dfsNoCycle graph fuel [] [] name)
+
+/-- The base dialect has no cycles. -/
+theorem checkNoCycles_base : checkNoCycles baseDialect = true := by native_decide
+
+/-- The base dialect has no direct cycles. -/
+theorem checkNoDirectCycles_base : checkNoDirectCycles baseDialect = true := by native_decide
+
+/-- Soundness (direct self-reference): if `checkNoCycles` returns true,
+    then no performative directly references itself by name. -/
+theorem checkNoCycles_sound (d : Dialect) (h : checkNoCycles d = true) :
+    ∀ pd ∈ d.performatives, containsSelfReference pd.name pd.template = false := by
+  simp [checkNoCycles] at h
+  exact checkNoDirectCycles_sound d h.1
+
+-- ============================================================
 -- Mutual recursion (dependency cycles)
 -- ============================================================
 
