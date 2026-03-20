@@ -1,0 +1,45 @@
+(define cbcl-crosschain-transfer (cbcl) @interop-wg
+  (:resource-requirements
+    ((max-depth 12)
+     (max-expansion-size 800)
+     (verification-time 40)))
+
+  (extend lock-asset (asset-id source-chain amount lock-id)
+    (tell @source-gateway
+      (lock-command :asset asset-id :chain source-chain
+        :amount amount :lock-id lock-id)
+      :domain crosschain))
+
+  (extend mint-wrapped (asset-id target-chain amount proof)
+    (tell @target-gateway
+      (mint-command :asset asset-id :chain target-chain
+        :amount amount :proof proof)
+      :domain crosschain))
+
+  (extend burn-wrapped (wrapped-id target-chain amount)
+    (tell @target-gateway
+      (burn-command :wrapped wrapped-id :chain target-chain
+        :amount amount)
+      :domain crosschain))
+
+  (extend unlock-asset (lock-id proof)
+    (tell @source-gateway
+      (unlock-command :lock-id lock-id :proof proof)
+      :domain crosschain))
+
+  (extend query-transfer-status (transfer-id)
+    (ask @transfer-coordinator
+      (status-query :transfer-id transfer-id)
+      :domain crosschain))
+
+  (extend establish-trust (gateway-id attestation)
+    (tell @trust-registry
+      (trust-establishment :gateway gateway-id
+        :attestation attestation)
+      :domain crosschain))
+
+  (extend emergency-halt (transfer-id reason)
+    (tell @transfer-coordinator
+      (emergency-halt-command :transfer-id transfer-id
+        :reason reason)
+      :domain crosschain)))

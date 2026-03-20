@@ -1,0 +1,33 @@
+(define cbcl-email (cbcl) @secure-email-systems
+  (:resource-requirements
+    ((max-depth 8)
+     (max-expansion-size 1024)
+     (verification-time 50)))
+
+  (extend read-email (message-id)
+    (ask @email-service
+      (email-read-request :message-id message-id)
+      :domain email))
+
+  (extend search-archive (query max-results)
+    (ask @email-service
+      (archive-search :query query :max-results max-results)
+      :domain email))
+
+  (extend send-reply (original-id recipient body)
+    (tell @email-service
+      (email-reply :in-reply-to original-id
+        :to recipient :body body)
+      :domain email))
+
+  (extend classify-email (message-id category confidence)
+    (tell @email-service
+      (email-classification :message-id message-id
+        :category category :confidence confidence)
+      :domain email))
+
+  (extend report-suspicious (message-id reason)
+    (tell @security-team
+      (suspicious-email-report :message-id message-id
+        :reason reason)
+      :domain email)))

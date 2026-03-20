@@ -1,0 +1,71 @@
+(define precision-agriculture (cbcl) @agricultural-systems-consortium
+  (:resource-requirements
+    ((max-depth 12)
+     (max-expansion-size 2048)
+     (verification-time 100)))
+
+  (extend plant (field crop seed-rate depth spacing)
+    (tell @field-controller
+      (plant-operation :field field :crop crop
+        :seed-rate seed-rate :depth depth :spacing spacing)
+      :domain precision-agriculture))
+
+  (extend irrigate (zone volume duration moisture-target)
+    (tell @irrigation-controller
+      (irrigation-command :zone zone :volume volume
+        :duration duration :moisture-target moisture-target)
+      :domain precision-agriculture))
+
+  (extend harvest (field equipment crop yield-estimate)
+    (tell @harvest-coordinator
+      (harvest-operation :field field :equipment equipment
+        :crop crop :yield-estimate yield-estimate)
+      :domain precision-agriculture))
+
+  (extend fertilize (zone product rate method)
+    (tell @nutrient-controller
+      (fertilize-command :zone zone :product product
+        :rate rate :method method)
+      :domain precision-agriculture))
+
+  (extend spray (zone chemical rate wind-limit)
+    (tell @spray-controller
+      (spray-command :zone zone :chemical chemical
+        :rate rate :wind-limit wind-limit)
+      :domain precision-agriculture))
+
+  (extend report-soil (zone moisture ph nitrogen phosphorus)
+    (tell @analytics
+      (soil-data :zone zone :moisture moisture
+        :ph ph :nitrogen nitrogen :phosphorus phosphorus)
+      :domain precision-agriculture))
+
+  (extend report-weather (station temperature humidity wind rainfall)
+    (tell @analytics
+      (weather-data :station station :temperature temperature
+        :humidity humidity :wind wind :rainfall rainfall)
+      :domain precision-agriculture))
+
+  (extend report-crop-health (field ndvi stress disease)
+    (tell @analytics
+      (crop-health-data :field field :ndvi ndvi
+        :stress stress :disease disease)
+      :domain precision-agriculture))
+
+  (extend reserve-equipment (equipment-id start-time end-time)
+    (ask @equipment-manager
+      (equipment-reservation :id equipment-id
+        :start start-time :end end-time)
+      :domain precision-agriculture))
+
+  (extend crop-alert (field severity description)
+    (tell @alert-system
+      (crop-alert-notification :field field
+        :severity severity :description description)
+      :domain precision-agriculture))
+
+  (extend weather-alert (region severity forecast)
+    (tell @alert-system
+      (weather-alert-notification :region region
+        :severity severity :forecast forecast)
+      :domain precision-agriculture)))

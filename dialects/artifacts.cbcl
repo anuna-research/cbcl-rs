@@ -1,0 +1,47 @@
+(define cbcl-artifacts (cbcl) @mas-infrastructure-wg
+  (:resource-requirements
+    ((max-depth 8)
+     (max-expansion-size 512)
+     (verification-time 20)))
+
+  (extend create-artifact (artifact-id type properties)
+    (tell @artifact-registry
+      (artifact-creation :id artifact-id :type type
+        :properties properties)
+      :domain artifacts))
+
+  (extend observe (artifact-id property)
+    (ask @artifact-registry
+      (observation-request :artifact artifact-id
+        :property property)
+      :domain artifacts))
+
+  (extend act-on (artifact-id operation params)
+    (tell @artifact-registry
+      (action-request :artifact artifact-id
+        :operation operation :params params)
+      :domain artifacts))
+
+  (extend leave-mark (artifact-id mark-type content)
+    (tell @artifact-registry
+      (stigmergic-mark :artifact artifact-id
+        :mark-type mark-type :content content)
+      :domain artifacts))
+
+  (extend read-marks (artifact-id mark-type)
+    (ask @artifact-registry
+      (mark-query :artifact artifact-id
+        :mark-type mark-type)
+      :domain artifacts))
+
+  (extend join-workspace (workspace-id agent-id)
+    (tell @workspace-manager
+      (workspace-join :workspace workspace-id
+        :agent agent-id)
+      :domain artifacts))
+
+  (extend leave-workspace (workspace-id agent-id)
+    (tell @workspace-manager
+      (workspace-leave :workspace workspace-id
+        :agent agent-id)
+      :domain artifacts)))

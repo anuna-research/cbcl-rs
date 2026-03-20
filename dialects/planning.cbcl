@@ -1,0 +1,43 @@
+(define cbcl-planning (cbcl) @planning-coordinator
+  (:resource-requirements
+    ((max-depth 16)
+     (max-expansion-size 1024)
+     (verification-time 50)))
+
+  (extend share-conditional (action preconditions effects)
+    (tell @planning-team
+      (action-conditional :action action
+        :requires preconditions :achieves effects)
+      :domain planning))
+
+  (extend propose-step (step-id action agent)
+    (tell @planner
+      (step-proposal :id step-id :action action :agent agent)
+      :domain planning))
+
+  (extend establish-link (provider consumer condition)
+    (tell @planner
+      (causal-link :provider provider :consumer consumer
+        :condition condition)
+      :domain planning))
+
+  (extend assert-ordering (before after reason)
+    (tell @planner
+      (ordering-constraint :before before :after after
+        :reason reason)
+      :domain planning))
+
+  (extend claim-subgoal (goal agent)
+    (tell @planner
+      (subgoal-claim :goal goal :agent agent)
+      :domain planning))
+
+  (extend request-plan (goal constraints)
+    (ask @planner
+      (plan-request :goal goal :constraints constraints)
+      :domain planning))
+
+  (extend finalize-plan (plan-id)
+    (tell @planner
+      (plan-finalized :id plan-id)
+      :domain planning)))
