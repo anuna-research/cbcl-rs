@@ -1,5 +1,5 @@
 ---
-title: "CBCL: Safe Self-Extending Agent Communication"
+title: "Common Business Communication Language (CBCL): Safe Self-Extending Agent Communication"
 abbrev: "CBCL"
 category: info
 docname: draft-cbcl-00
@@ -77,7 +77,7 @@ informative:
 
 --- abstract
 
-This document specifies CBCL (CBCL-Based Communication Language), a self-extensible agent communication language designed for autonomous multi-agent systems. CBCL provides a minimal core vocabulary of performatives and a formal mechanism for agents to define, exchange, and adopt domain-specific dialect extensions at runtime without requiring centralized coordination. The language uses S-expression syntax and enforces bounded parsing complexity through static resource limits to ensure security and interoperability. This specification defines CBCL message syntax, core semantics, dialect extension mechanisms, and registers the application/cbcl media type.
+This document specifies CBCL (Common Business Communication Language), a self-extensible agent communication language designed for autonomous multi-agent systems. CBCL provides a minimal core vocabulary of performatives and a formal mechanism for agents to define, exchange, and adopt domain-specific dialect extensions at runtime without requiring centralized coordination. The language uses S-expression syntax and enforces bounded parsing complexity through static resource limits to ensure security and interoperability. This specification defines CBCL message syntax, core semantics, dialect extension mechanisms, and registers the application/cbcl media type.
 
 --- middle
 
@@ -96,7 +96,7 @@ Recent work has attempted to address this limitation by using natural language o
 
 This challenge was recognized early by McCarthy {{MCCARTHY-CBCL}}, who proposed a "Common Business Communication Language" that would be "open ended so that as programs improve, programs that can at first only order by stock numbers can later be programmed to inquire about specifications and prices." McCarthy's vision emphasized that effective agent communication requires both a stable foundation and mechanisms for evolutionary growth.
 
-Named in honor of McCarthy's pioneering work, CBCL (CBCL-Based Communication Language) aspires to this vision by making the language self-extensible. Agents can define new domain-specific "dialects" (sets of specialized performatives) and share them with peers as first-class CBCL messages. Because dialect definitions are themselves valid CBCL messages with the same S-expression syntax, an agent can transmit a dialect definition using the same message-passing mechanism it uses for ordinary communication, eliminating the need for a separate meta-language or trusted intermediaries. This approach draws inspiration from Racket's #lang mechanism {{RACKET-LANG}}, which demonstrates how language extensibility can be systematized through first-class language definitions, while adapting these principles for distributed, multi-agent environments.
+Named in honor of McCarthy's pioneering work, CBCL (Common Business Communication Language) aspires to this vision by making the language self-extensible. Agents can define new domain-specific "dialects" (sets of specialized performatives) and share them with peers as first-class CBCL messages. Because dialect definitions are themselves valid CBCL messages with the same S-expression syntax, an agent can transmit a dialect definition using the same message-passing mechanism it uses for ordinary communication, eliminating the need for a separate meta-language or trusted intermediaries. This approach draws inspiration from Racket's #lang mechanism {{RACKET-LANG}}, which demonstrates how language extensibility can be systematized through first-class language definitions, while adapting these principles for distributed, multi-agent environments.
 
 This specification focuses on CBCL as a content type for agent communication, defining message syntax and core semantics while leaving authentication, authorization, and transport-layer security to other specifications.
 
