@@ -35,6 +35,7 @@ pub mod gossip;
 pub mod message;
 pub mod msg_tag;
 pub mod pattern;
+pub mod protocol;
 pub mod r1;
 pub mod r2;
 pub mod r3;
@@ -55,6 +56,7 @@ pub mod prelude {
     pub use crate::message::{
         CorePerformative, Message, MessageParseError, MessageType, Performative, WrapperType,
     };
+    pub use crate::protocol::{CausalViolation, VerificationResult};
     pub use crate::r4::{R4Result, Signer};
     pub use crate::sexpr::{Atom, SExpr};
     pub use crate::shape::{ShapeConstraint, ShapeRule, ShapeViolation, TypeConstraint};
