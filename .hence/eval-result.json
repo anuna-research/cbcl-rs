@@ -3,26 +3,27 @@
   "confidence": 1.0,
   "exit_code": 0,
   "diff_summary": {
-    "files_changed": 3,
-    "insertions": 373,
-    "deletions": 0,
+    "files_changed": 4,
+    "insertions": 682,
+    "deletions": 8,
     "file_list": [
-      "crates/cbcl-core/src/dialect.rs",
+      ".hence/context-manifest.json",
       "crates/cbcl-core/src/lib.rs",
+      "crates/cbcl-core/src/protocol.rs",
       "crates/cbcl-core/src/r5.rs"
     ],
-    "dirty_files": 1
+    "dirty_files": 0
   },
   "learnings": [
     {
-      "key": "task-shape-validation-changes",
-      "content": "Modified 3 files (+373, -0): crates/cbcl-core/src/dialect.rs, crates/cbcl-core/src/lib.rs, crates/cbcl-core/src/r5.rs",
+      "key": "task-protocol-validation-changes",
+      "content": "Modified 4 files (+682, -8): .hence/context-manifest.json, crates/cbcl-core/src/lib.rs, crates/cbcl-core/src/protocol.rs, crates/cbcl-core/src/r5.rs",
       "memory_type": "episodic",
       "confidence": 0.8
     }
   ],
-  "branch_name": "hence/shape-validation-v1",
-  "evaluated_at": "2026-03-24T13:41:56Z",
+  "branch_name": "hence/protocol-validation-v1",
+  "evaluated_at": "2026-03-24T13:47:27Z",
   "checks_passed": 0,
   "checks_failed": 0
 }
