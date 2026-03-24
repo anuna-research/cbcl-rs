@@ -8,6 +8,7 @@
 use alloc::string::String;
 use alloc::vec::Vec;
 use cbcl_core::dialect::{Dialect, PerformativeDef, ResourceBounds};
+use cbcl_core::protocol::CausalProtocol;
 use cbcl_core::sexpr::{Atom, SExpr};
 use cbcl_core::shape::ShapeConstraint;
 
@@ -67,6 +68,7 @@ pub fn parse_dialect(sexpr: &SExpr) -> Result<Dialect, String> {
     let mut signature: Option<Vec<u8>> = None;
     let mut hash: Option<String> = None;
     let mut protocol: Option<String> = None;
+    let mut causal_protocol: Option<CausalProtocol> = None;
     let mut shapes: Vec<ShapeConstraint> = Vec::new();
 
     for clause in &items[4..] {
@@ -78,6 +80,7 @@ pub fn parse_dialect(sexpr: &SExpr) -> Result<Dialect, String> {
             &mut signature,
             &mut hash,
             &mut protocol,
+            &mut causal_protocol,
             &mut shapes,
         )?;
     }
@@ -92,6 +95,7 @@ pub fn parse_dialect(sexpr: &SExpr) -> Result<Dialect, String> {
         signature,
         hash,
         protocol,
+        causal_protocol,
         shapes,
     })
 }
@@ -150,6 +154,7 @@ fn parse_clause(
     signature: &mut Option<Vec<u8>>,
     hash: &mut Option<String>,
     protocol: &mut Option<String>,
+    causal_protocol: &mut Option<CausalProtocol>,
     shapes: &mut Vec<ShapeConstraint>,
 ) -> Result<(), String> {
     let items = match clause {
@@ -209,6 +214,14 @@ fn parse_clause(
             params,
             template,
         });
+        return Ok(());
+    }
+
+    // Check for 'protocol' clause (REQ-200, REQ-201)
+    if items[0].is_symbol("protocol") {
+        let cp = crate::protocol_parser::parse_protocol(clause)
+            .map_err(|e| alloc::format!("protocol parse error: {e}"))?;
+        *causal_protocol = Some(cp);
         return Ok(());
     }
 

@@ -744,7 +744,7 @@ mod tests {
             examples: Vec::new(),
             signature: None,
             hash: None,
-            protocol: None, shapes: Vec::new(),
+            protocol: None, causal_protocol: None, shapes: Vec::new(),
         }
     }
 
@@ -987,7 +987,7 @@ mod tests {
             examples: Vec::new(),
             signature: None,
             hash: None,
-            protocol: None, shapes: Vec::new(),
+            protocol: None, causal_protocol: None, shapes: Vec::new(),
         };
         let result = net.receive_gossip("alice", &bad);
         assert!(result.is_err());
@@ -1011,7 +1011,7 @@ mod tests {
             examples: Vec::new(),
             signature: None,
             hash: None,
-            protocol: None, shapes: Vec::new(),
+            protocol: None, causal_protocol: None, shapes: Vec::new(),
         };
         let result = net.receive_gossip("alice", &bad);
         assert!(result.is_err());

@@ -387,7 +387,7 @@ mod tests {
             examples: Vec::new(),
             signature: None,
             hash: None,
-            protocol: None, shapes: Vec::new(),
+            protocol: None, causal_protocol: None, shapes: Vec::new(),
         })
         .unwrap();
         reg
@@ -418,7 +418,7 @@ mod tests {
             examples: Vec::new(),
             signature: None,
             hash: None,
-            protocol: None, shapes: Vec::new(),
+            protocol: None, causal_protocol: None, shapes: Vec::new(),
         })
         .unwrap();
         reg
@@ -861,6 +861,7 @@ mod tests {
             signature: None,
             hash: None,
             protocol: None,
+            causal_protocol: None,
             shapes: vec![ShapeConstraint {
                 performative: String::from("ship"),
                 rules: vec![
@@ -963,6 +964,7 @@ mod tests {
             signature: None,
             hash: None,
             protocol: None,
+            causal_protocol: None,
             shapes: vec![
                 // First shape: require :package string
                 ShapeConstraint {
@@ -1026,6 +1028,7 @@ mod tests {
             signature: None,
             hash: None,
             protocol: None,
+            causal_protocol: None,
             shapes: vec![ShapeConstraint {
                 performative: String::from("nest"),
                 rules: vec![ShapeRule::MaxDepth(1)],
