@@ -36,6 +36,7 @@ pub mod gossip;
 pub mod message;
 pub mod msg_tag;
 pub mod pattern;
+pub mod policy;
 pub mod protocol;
 pub mod r1;
 pub mod r2;
@@ -67,5 +68,9 @@ pub mod prelude {
     pub use crate::r4::{R4Result, Signer};
     pub use crate::sexpr::{Atom, SExpr};
     pub use crate::shape::{ShapeConstraint, ShapeRule, ShapeViolation, TypeConstraint};
+    pub use crate::policy::{
+        apply_policy, DropReason, PendingEntry, PendingQueue, PendingReason, PolicyOutcome,
+        UnknownPredecessorPolicy,
+    };
     pub use crate::store::{ContentHash, HashIndex, MessageStore, ThreadId, ThreadedMessageStore};
 }
