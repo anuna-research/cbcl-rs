@@ -18,6 +18,6 @@ pub mod shape_parser;
 pub use dialect_parser::{parse_dialect, parse_meta_define};
 pub use message_parser::parse_message;
 pub use parser::{parse, ParseError};
-pub use pipeline::{run_pipeline, PipelineResult};
+pub use pipeline::{run_pipeline, run_pipeline_full, PipelineContext, PipelineResult, ValidationError};
 pub use protocol_parser::{parse_protocol, ProtocolParseError};
 pub use shape_parser::parse_shape;

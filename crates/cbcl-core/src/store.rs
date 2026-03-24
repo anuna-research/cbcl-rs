@@ -23,10 +23,12 @@ use hashbrown::{HashMap, HashSet};
 
 /// Content-addressed hash identifying a message (SHA-256 hex string).
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ContentHash(pub String);
 
 /// Thread identifier scoping causal chains (ADR-008).
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ThreadId(pub String);
 
 /// Thread-scoped hash index for O(1) message lookup (REQ-309).
