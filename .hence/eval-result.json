@@ -3,24 +3,25 @@
   "confidence": 1.0,
   "exit_code": 0,
   "diff_summary": {
-    "files_changed": 1,
-    "insertions": 696,
-    "deletions": 0,
+    "files_changed": 2,
+    "insertions": 971,
+    "deletions": 5,
     "file_list": [
-      "crates/cbcl-core/tests/eventual_consistency_tests.rs"
+      ".hence/context-manifest.json",
+      "crates/cbcl-core/tests/monotonicity_tests.rs"
     ],
-    "dirty_files": 1
+    "dirty_files": 0
   },
   "learnings": [
     {
-      "key": "task-eventual-tests-changes",
-      "content": "Modified 1 files (+696, -0): crates/cbcl-core/tests/eventual_consistency_tests.rs",
+      "key": "task-monotonicity-tests-changes",
+      "content": "Modified 2 files (+971, -5): .hence/context-manifest.json, crates/cbcl-core/tests/monotonicity_tests.rs",
       "memory_type": "episodic",
       "confidence": 0.8
     }
   ],
-  "branch_name": "hence/eventual-tests-v1",
-  "evaluated_at": "2026-03-24T14:25:18Z",
+  "branch_name": "hence/monotonicity-tests-v1",
+  "evaluated_at": "2026-03-24T14:31:41Z",
   "checks_passed": 0,
   "checks_failed": 0
 }
