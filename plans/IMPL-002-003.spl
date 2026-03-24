@@ -1,0 +1,434 @@
+;; ================================================================
+;; Implementation plan for SPEC-002 (Structural Contracts) and
+;; SPEC-003 (Verification Lattice).
+;;
+;; Organised into 7 phases with strict dependency ordering.
+;; Tasks map 1:1 to requirements where possible.
+;;
+;; Cross-cutting constraints (not individual tasks):
+;;   NFR-205: All new modules #![forbid(unsafe_code)]
+;;   NFR-206: All new modules no_std + alloc only
+;;   NFR-204/NFR-302: Zero mutable state under Reject policy
+;; These apply to every task's acceptance criteria implicitly.
+;; ================================================================
+
+(meta plan
+  (id "IMPL-002-003")
+  (title "Structural Contracts + Verification Lattice")
+  (version "2.0.0")
+  (status "active")
+  (created "2026-03-24")
+  (updated "2026-03-24")
+  (author "agent:architect")
+  (spec "SPEC-002, SPEC-003")
+  (description "Implement causal protocol declarations, shape constraints, three-valued verification lattice, message store infrastructure, blame attribution, and pipeline integration for cbcl-rs. Covers REQ-200 through REQ-314, NFR-200 through NFR-304."))
+
+;; ----------------------------------------------------------------
+;; Agents
+;; ----------------------------------------------------------------
+
+(given agent-claude-available)
+
+;; ================================================================
+;; PHASE 1: Foundation Types (no internal dependencies)
+;; ================================================================
+
+;; --- Task: Protocol Data Types ---
+(given task-protocol-types)
+(given no-deps-protocol-types)
+(meta task-protocol-types
+  (description "Define CausalProtocol, NodeRef (Any/All), StepDecl types in cbcl-core. REQ-200 data model. NodeRef uses BTreeSet<String> for both Any and All variants. StepDecl has performative, predecessors (Vec<NodeRef>), successors (Vec<NodeRef>). CausalViolation error enum for verification failures. New file: crates/cbcl-core/src/protocol.rs. #![forbid(unsafe_code)], no_std + alloc.")
+  (acceptance "Types compile, derive Debug/Clone/PartialEq. Unit tests for construction. CON-200 types satisfied. NFR-205, NFR-206."))
+
+;; --- Task: Verification Result Type ---
+;; Depends on protocol-types because Violation wraps CausalViolation
+(given task-verification-result)
+(meta task-verification-result
+  (description "Define VerificationResult enum {Unknown, Valid, Violation(CausalViolation)} in cbcl-core/src/protocol.rs. Implement meet() for (all ...) conjunction and join() for (any ...) disjunction per REQ-303 truth tables. Implement is_resolved(), is_stable(), PartialOrd. REQ-302, REQ-303.")
+  (acceptance "All 18 cases of 3x3 meet and join tables pass (TEST-303). PartialOrd: Unknown < Valid, Unknown < Violation, Valid and Violation incomparable (TEST-302). CON-301 satisfied."))
+
+;; --- Task: Protocol Parser ---
+(given task-protocol-parser)
+(meta task-protocol-parser
+  (description "Implement parse_protocol(sexpr) -> Result<CausalProtocol, ProtocolParseError> in cbcl-parser. Parse (protocol (then ...)+) with (any ...) and (all ...) node-refs. Desugar variadic (then a b c) to pairwise edges. REQ-201 grammar. New file: crates/cbcl-parser/src/protocol_parser.rs. Also integrate into dialect_parser.rs: when a (protocol ...) clause is encountered during dialect parsing, dispatch to parse_protocol.")
+  (acceptance "Parses all 5 protocol examples from REQ-200 (compaction, document ops, request-response, scatter-gather, two-phase commit). Error on malformed input. dialect_parser calls protocol_parser for (protocol ...) clauses. CON-201 satisfied. TEST-201."))
+
+;; --- Task: Shape Types + Parser ---
+(given task-shape)
+(given no-deps-shape)
+(meta task-shape
+  (description "Define ShapeConstraint types (require, optional, max-depth, type-constraint) in cbcl-core/src/shape.rs. Implement parse_shape(sexpr) in cbcl-parser/src/shape_parser.rs. Integrate into dialect_parser.rs for (shape ...) clause dispatch. REQ-220, REQ-221. New files. #![forbid(unsafe_code)], no_std + alloc.")
+  (acceptance "Parses both shape examples from REQ-221 (track-shipment, propose-step). Rejects malformed shapes. dialect_parser calls shape_parser for (shape ...) clauses. CON-203, CON-204 satisfied. TEST-221."))
+
+;; --- Task: Caused-By Extraction ---
+(given task-caused-by)
+(given no-deps-caused-by)
+(meta task-caused-by
+  (description "Extract :caused-by keyword parameter from parsed messages. Define CausedBy enum {Begin, Single(String), Multiple(Vec<String>)}. Handle single hash (atom), list of hashes, and 'begin' string. Add canonical ordering of :caused-by lists (sort lexicographically before hashing). REQ-202.")
+  (acceptance ":caused-by extracted correctly for begin, single hash, and list of hashes. Canonical sort applied for Multiple variant. Round-trip: extract -> canonical -> hash is deterministic. TEST-202."))
+
+;; --- Task: Hash Index ---
+(given task-hash-index)
+(given no-deps-hash-index)
+(meta task-hash-index
+  (description "Implement HashIndex: HashMap<ContentHash, (ThreadId, usize)> with O(1) insert, lookup, contains, rebuild. Thread-scoped: lookup enforces thread isolation (ADR-008). New file: crates/cbcl-core/src/store.rs. REQ-309. Memory: <= 64 bytes per entry (NFR-303). #![forbid(unsafe_code)], no_std + alloc.")
+  (acceptance "10,000 messages across 10 threads: all lookups correct. Thread isolation: hash in T1 not returned for T2 query. Rebuild from store produces identical index. Benchmark: lookup <= 50 ns. CON-303 satisfied. TEST-309."))
+
+;; Readiness rules — Phase 1
+(normally r-ready-protocol-types
+  (and task-protocol-types no-deps-protocol-types)
+  ready-protocol-types)
+
+(normally r-ready-verification-result
+  (and task-verification-result completed-protocol-types)
+  ready-verification-result)
+
+(normally r-ready-shape
+  (and task-shape no-deps-shape)
+  ready-shape)
+
+(normally r-ready-caused-by
+  (and task-caused-by no-deps-caused-by)
+  ready-caused-by)
+
+(normally r-ready-hash-index
+  (and task-hash-index no-deps-hash-index)
+  ready-hash-index)
+
+(normally r-ready-protocol-parser
+  (and task-protocol-parser completed-protocol-types)
+  ready-protocol-parser)
+
+;; ================================================================
+;; PHASE 2: Protocol Validation (depends on types + parser)
+;; ================================================================
+
+;; --- Task: Protocol Well-Formedness (R5) ---
+(given task-protocol-validation)
+(meta task-protocol-validation
+  (description "Implement R5 protocol validation: acyclicity (REQ-204, DFS cycle detection), reachability from begin (REQ-205, DFS/BFS), performative definedness (REQ-206, check against extend clauses), step uniqueness (REQ-207, duplicate detection). All checks run at dialect installation. Add verify_r5() to pipeline. REQ-208. File: crates/cbcl-core/src/protocol.rs methods on CausalProtocol.")
+  (acceptance "Rejects cyclic protocols, unreachable steps, undefined performatives, duplicate steps. Allows loops (request-response pattern where schema-level cycles are permitted but runtime message DAG is acyclic). O(|P|^2) complexity. TEST-204 through TEST-208 pass."))
+
+(normally r-ready-protocol-validation
+  (and task-protocol-validation completed-protocol-parser)
+  ready-protocol-validation)
+
+;; --- Task: Shape Well-Formedness (R5) ---
+(given task-shape-validation)
+(meta task-shape-validation
+  (description "Implement R5 shape validation: performative name matches extend clause, keywords start with ':', type constraints are valid, max-depth within R2 bound, no duplicate require/optional at same depth. REQ-222.")
+  (acceptance "Rejects malformed shapes. Accepts valid shapes. Integrated into verify_r5(). TEST-222."))
+
+(normally r-ready-shape-validation
+  (and task-shape-validation completed-shape)
+  ready-shape-validation)
+
+;; ================================================================
+;; PHASE 3: Message Store Infrastructure
+;; ================================================================
+
+;; --- Task: Message Store ---
+(given task-message-store)
+(meta task-message-store
+  (description "Implement MessageStore trait and concrete ThreadedMessageStore. G-Set CRDT semantics (REQ-300). Append-only with deduplication (REQ-310, dedup overhead <= 50 ns per NFR-304). Uses HashIndex for O(1) lookup. Per-thread storage. Methods: lookup, lookup_in_thread, contains, append (returns false on dup), frontier, causal_closure. Causal ordering as join-semilattice (REQ-301): :caused-by links are covers relation, fan-in is join, causal closure is principal ideal. File: crates/cbcl-core/src/store.rs.")
+  (acceptance "G-Set axioms hold (associativity, commutativity, idempotence of append, TEST-300). Causal semilattice: partial order via :caused-by, fan-in messages are joins, ↓M = ↓H₁ ∪ ↓H₂ ∪ {M} (TEST-301). Deduplication: append same message twice -> store has one copy, second returns false (TEST-310). Frontier computation correct. Causal closure traversal correct. CON-300, CON-302 (MessageStore trait) satisfied."))
+
+(normally r-ready-message-store
+  (and task-message-store completed-hash-index completed-caused-by)
+  ready-message-store)
+
+;; ================================================================
+;; PHASE 4: Verification Logic
+;; ================================================================
+
+;; --- Task: Causal Verification ---
+(given task-causal-verify)
+(meta task-causal-verify
+  (description "Implement verify_causal(msg_performative, caused_by, store, protocol) -> VerificationResult. Three-valued: Unknown (predecessor not in store), Valid (exists with correct type), Violation (exists with wrong type or malformed). Handle Begin, Single, Multiple (fan-in with (all ...)). Stateless, monotone. REQ-203, REQ-304. Thread-scoped: :caused-by must resolve within same :thread (ADR-008). File: crates/cbcl-core/src/protocol.rs.")
+  (acceptance "Single predecessor: Unknown/Valid/Violation all tested (TEST-203). Fan-in: conjunction via meet(). Disjunction: (any ...) predecessor type check via join(). Thread-scoped. O(1) single, O(k) fan-in (NFR-201 <= 100 ns, NFR-300). Monotonicity property test: verify(msg, store) <= verify(msg, store + msg'). CON-202/CON-302 verify_causal satisfied."))
+
+(normally r-ready-causal-verify
+  (and task-causal-verify completed-verification-result completed-protocol-types completed-message-store)
+  ready-causal-verify)
+
+;; --- Task: Shape Checking ---
+(given task-shape-check)
+(meta task-shape-check
+  (description "Implement runtime shape checking on expanded messages. Walk expanded S-expression, verify: all require params present at expected depth, type constraints satisfied, nesting within max-depth, nested rules recursive. Shape composition via conjunction (VPL intersection, REQ-224). DCFL preservation trivially maintained (REQ-225). REQ-223.")
+  (acceptance "Validates correct messages. Rejects messages missing required params, wrong types, excessive depth. Multiple shapes on same performative compose conjunctively. TEST-220 through TEST-225."))
+
+(normally r-ready-shape-check
+  (and task-shape-check completed-shape)
+  ready-shape-check)
+
+;; ================================================================
+;; PHASE 5: Policy, Blame, and Pipeline Integration
+;; ================================================================
+
+;; --- Task: Unknown Predecessor Policy ---
+(given task-unknown-policy)
+(meta task-unknown-policy
+  (description "Implement UnknownPredecessorPolicy enum {Reject, Buffer{max_pending, ttl}}. Implement apply_policy() that maps VerificationResult + Policy -> PolicyOutcome {Accept, Reject, Pending, Buffered}. For Buffer: PendingQueue with per-thread bounded queue (max_pending default 64, NFR-301), TTL expiry, re-evaluation on store growth. REQ-305. Reject policy preserves zero mutable state (NFR-204, NFR-302).")
+  (acceptance "Reject policy: Unknown -> Pending(CausalPending) with :retry-after. Zero mutable state under Reject (NFR-302). Buffer policy: Unknown -> Buffered, predecessor arrives -> re-eval -> Accept. Buffer memory bounded to max_pending * max_message_size (NFR-301). TTL expiry -> CausalTimeout. Buffer full -> oldest evicted. Violation never buffered regardless of policy. TEST-305. CON-302 apply_policy satisfied."))
+
+(normally r-ready-unknown-policy
+  (and task-unknown-policy completed-causal-verify)
+  ready-unknown-policy)
+
+;; --- Task: Blame Attribution ---
+(given task-blame)
+(meta task-blame
+  (description "Implement ViolationError with BlameParty {Sender, DialectAuthor, Installer}, blame_chain (Vec<BlameEntry>), all fields per CON-205. Methods: from_shape_violation, from_causal_violation, from_r5_violation, to_sexpr (valid CBCL error message per REQ-233 grammar), verify_blame (third-party verification). REQ-230, REQ-232, REQ-233. New file: crates/cbcl-core/src/blame.rs. #![forbid(unsafe_code)], no_std + alloc.")
+  (acceptance "Correct blame: shape violation -> sender, causal violation -> sender, R5 violation -> dialect author, skipped R5 -> installer (TEST-230). Blame chain traces dialect lifecycle: author -> propagator -> installer -> sender (TEST-232). to_sexpr produces parseable CBCL error messages conforming to REQ-233 grammar (TEST-233). verify_blame can independently verify blame claims. CON-205 satisfied."))
+
+(normally r-ready-blame
+  (and task-blame completed-causal-verify completed-shape-check)
+  ready-blame)
+
+;; --- Task: Pipeline Integration ---
+(given task-pipeline)
+(meta task-pipeline
+  (description "Extend run_pipeline() in cbcl-parser/src/pipeline.rs to add steps 6a (causal verification) and 6b (shape checking) after expansion. Complete monitoring: no bypass, no partial checks, fail-closed (REQ-231). Integrate R5 into dialect installation path (REQ-208). Include protocol and shape declarations in (meta (teach ...)) messages for gossip propagation (REQ-210). DCFL preservation trivially maintained (REQ-209, REQ-225, REQ-308, TEST-209, TEST-308). CON-206 satisfied.")
+  (acceptance "Pipeline rejects messages that fail causal or shape checks. Pipeline accepts messages that pass all checks. No code path from receive to deliver skips verification. Error at any step produces ViolationError with correct blame. Dialect definitions also fully monitored. (meta (teach ...)) includes protocol and shape clauses. TEST-231, TEST-210."))
+
+(normally r-ready-pipeline
+  (and task-pipeline completed-unknown-policy completed-blame completed-protocol-validation completed-shape-validation)
+  ready-pipeline)
+
+;; --- Task: Observability ---
+(given task-observability)
+(meta task-observability
+  (description "Add blame attribution counter (cbcl_blame_attribution_count with labels {dialect, blamed_party, violation_type}) and violation error size histogram (cbcl_violation_error_size_bytes) behind the tracing feature flag. REQ-234.")
+  (acceptance "Counters increment on violations with correct labels. Histogram tracks error sizes. Feature-gated behind tracing."))
+
+(normally r-ready-observability
+  (and task-observability completed-blame)
+  ready-observability)
+
+;; ================================================================
+;; PHASE 6: Advanced Store Operations
+;; ================================================================
+
+;; --- Task: Causal Closure Transfer ---
+(given task-causal-closure)
+(meta task-causal-closure
+  (description "Implement CausalClosureBundle: extract (DAG traversal to collect principal ideal ↓target), verify (hash integrity + completeness + causal validity), merge (set union with deduplication), to_sexpr (meta (causal-closure ...)). Also covers Tier 2 (partial causal closure) and Tier 3 (full audit) verification paths from REQ-212. REQ-311, REQ-212. File: crates/cbcl-core/src/store.rs.")
+  (acceptance "Extract includes all ancestors, topologically sorted. Verify detects hash mismatch, dangling references, causal violations. Merge applies deduplication. Round-trip: extract -> sexpr -> parse -> verify -> merge into empty store matches original. Tier 3 full audit: recompute all hashes, reconstruct DAG, verify causal validity, verify completeness, identify frontier. CON-304 satisfied. TEST-311, TEST-212."))
+
+(normally r-ready-causal-closure
+  (and task-causal-closure completed-message-store completed-causal-verify)
+  ready-causal-closure)
+
+;; --- Task: Store Reconciliation ---
+(given task-reconciliation)
+(meta task-reconciliation
+  (description "Implement frontier exchange and reconciliation protocol. compute_frontier (leaf messages), diff_frontiers, reconcile (produce causal closure bundles for missing branches). REQ-312. Not a consensus protocol -- produces union of both stores. Efficient: proportional to difference, not store size (same principle as git fetch negotiation). File: crates/cbcl-core/src/store.rs.")
+  (acceptance "Identical stores -> empty diff. One-sided divergence -> correct bundles. Mutual divergence -> bundles in both directions. After merge, stores identical. Only differing branches transferred, not common prefix. CON-305 satisfied. TEST-312."))
+
+(normally r-ready-reconciliation
+  (and task-reconciliation completed-causal-closure)
+  ready-reconciliation)
+
+;; --- Task: Frontier Compaction ---
+(given task-compaction)
+(meta task-compaction
+  (description "Implement checkpoint creation and compaction. Checkpoint: (meta (checkpoint :cut ... :verified-by ... :digest ...)). Compaction removes messages strictly below cut (antichain). Safety: refuse if pending messages reference below-cut messages. Non-monotonic -- requires coordination (checkpoint agreement per ADR-304). REQ-313.")
+  (acceptance "Messages above cut still verify after compaction. Digest matches reconstructed sub-DAG. Compaction refused if pending messages depend on below-cut messages. Agents that never compact function identically. TEST-313."))
+
+(normally r-ready-compaction
+  (and task-compaction completed-message-store completed-unknown-policy)
+  ready-compaction)
+
+;; --- Task: Persistence + Crash Recovery ---
+(given task-persistence)
+(meta task-persistence
+  (description "Implement text-file persistence: append S-expression messages to file (one per line, self-delimiting). Recovery: parse sequentially via Layer 1 DCFL recogniser, compute content hashes using canonical form (not file form), append to store with deduplication, rebuild hash index, reconstruct frontier. Handle truncated writes (parser fails on unbalanced parens, skips). Integrity verification on recovery (recompute hashes, check :caused-by). File compaction after checkpoint via atomic file replacement. Persistence is optional (in-memory valid for ephemeral agents). REQ-314.")
+  (acceptance "Append + crash + recovery -> store matches pre-crash state (minus truncated message). Deduplication handles replay. File is human-readable with cat. Canonical form used for hashing, not file form. TEST-314."))
+
+(normally r-ready-persistence
+  (and task-persistence completed-message-store)
+  ready-persistence)
+
+;; ================================================================
+;; PHASE 7: Property Tests + Benchmarks
+;; ================================================================
+
+;; --- Task: Monotonicity Property Tests ---
+(given task-monotonicity-tests)
+(meta task-monotonicity-tests
+  (description "Property-based tests for the monotonicity guarantee (REQ-211, REQ-304). For random (message, store) pairs: verify(msg, store) <= verify(msg, store + random_msg). Cover single predecessor, (all ...) fan-in, (any ...) disjunction. TEST-304, TEST-211.")
+  (acceptance "1000+ random cases pass. No regression of Valid -> anything_else or Violation -> anything_else under store growth. Covers all three verification modes."))
+
+(normally r-ready-monotonicity-tests
+  (and task-monotonicity-tests completed-causal-verify completed-message-store)
+  ready-monotonicity-tests)
+
+;; --- Task: Eventual Verification Tests ---
+(given task-eventual-tests)
+(meta task-eventual-tests
+  (description "Integration test: deliver a valid protocol trace in random order to Buffer-policy agent. All messages eventually reach Valid. Property-based: for random permutations, all verify as Valid after full delivery. Convergence: two agents receiving same messages in different order reach same results. TEST-307.")
+  (acceptance "100+ random permutations of a 10-message trace all converge to Valid. Two simulated agents with different arrival orders agree on final results."))
+
+(normally r-ready-eventual-tests
+  (and task-eventual-tests completed-unknown-policy completed-message-store)
+  ready-eventual-tests)
+
+;; --- Task: Lattice Position Certificate Tests ---
+(given task-certificate-tests)
+(meta task-certificate-tests
+  (description "Verify Merkle DAG as lattice position certificate (REQ-306). Modify any message in causal closure -> root hash changes. Two agents computing same message hash independently get same result. Canonical :caused-by sort ensures determinism. Fan-in join commits to union of predecessor histories. TEST-306.")
+  (acceptance "Chain of 5 messages: alter message 2 -> message 5 hash changes. Independent hash computation is deterministic. Fan-in: merge message hash commits to ↓H₁ ∪ ↓H₂ ∪ {M}."))
+
+(normally r-ready-certificate-tests
+  (and task-certificate-tests completed-message-store completed-caused-by)
+  ready-certificate-tests)
+
+;; --- Task: Performance Benchmarks ---
+(given task-benchmarks)
+(meta task-benchmarks
+  (description "Criterion benchmarks for all NFRs. Protocol parsing <= 500 ns / 10 steps (NFR-200, TEST-250). Causal verification <= 100 ns / message (NFR-201, TEST-251). Shape parsing <= 300 ns / 8 rules (NFR-202, TEST-252). Shape check <= 200 ns / message (NFR-203, TEST-253). Hash index lookup <= 50 ns (TEST-309). Dedup overhead <= 50 ns (NFR-304, TEST-354). Zero mutable state under Reject (TEST-352). Hash index memory <= 64 bytes/entry (TEST-353). Buffer memory bounded (TEST-351).")
+  (acceptance "All NFR latency bounds met on Apple M-series, release build, median measurement. TEST-250 through TEST-256, TEST-350 through TEST-354."))
+
+(normally r-ready-benchmarks
+  (and task-benchmarks completed-pipeline)
+  ready-benchmarks)
+
+;; ================================================================
+;; Assignment rules — single agent: claude
+;; ================================================================
+
+;; Phase 1
+(normally r-assign-claude-protocol-types
+  (and ready-protocol-types agent-claude-available)
+  assign-to-protocol-types-claude)
+
+(normally r-assign-claude-verification-result
+  (and ready-verification-result agent-claude-available)
+  assign-to-verification-result-claude)
+
+(normally r-assign-claude-protocol-parser
+  (and ready-protocol-parser agent-claude-available)
+  assign-to-protocol-parser-claude)
+
+(normally r-assign-claude-shape
+  (and ready-shape agent-claude-available)
+  assign-to-shape-claude)
+
+(normally r-assign-claude-caused-by
+  (and ready-caused-by agent-claude-available)
+  assign-to-caused-by-claude)
+
+(normally r-assign-claude-hash-index
+  (and ready-hash-index agent-claude-available)
+  assign-to-hash-index-claude)
+
+;; Phase 2
+(normally r-assign-claude-protocol-validation
+  (and ready-protocol-validation agent-claude-available)
+  assign-to-protocol-validation-claude)
+
+(normally r-assign-claude-shape-validation
+  (and ready-shape-validation agent-claude-available)
+  assign-to-shape-validation-claude)
+
+;; Phase 3
+(normally r-assign-claude-message-store
+  (and ready-message-store agent-claude-available)
+  assign-to-message-store-claude)
+
+;; Phase 4
+(normally r-assign-claude-causal-verify
+  (and ready-causal-verify agent-claude-available)
+  assign-to-causal-verify-claude)
+
+(normally r-assign-claude-shape-check
+  (and ready-shape-check agent-claude-available)
+  assign-to-shape-check-claude)
+
+;; Phase 5
+(normally r-assign-claude-unknown-policy
+  (and ready-unknown-policy agent-claude-available)
+  assign-to-unknown-policy-claude)
+
+(normally r-assign-claude-blame
+  (and ready-blame agent-claude-available)
+  assign-to-blame-claude)
+
+(normally r-assign-claude-pipeline
+  (and ready-pipeline agent-claude-available)
+  assign-to-pipeline-claude)
+
+(normally r-assign-claude-observability
+  (and ready-observability agent-claude-available)
+  assign-to-observability-claude)
+
+;; Phase 6
+(normally r-assign-claude-causal-closure
+  (and ready-causal-closure agent-claude-available)
+  assign-to-causal-closure-claude)
+
+(normally r-assign-claude-reconciliation
+  (and ready-reconciliation agent-claude-available)
+  assign-to-reconciliation-claude)
+
+(normally r-assign-claude-compaction
+  (and ready-compaction agent-claude-available)
+  assign-to-compaction-claude)
+
+(normally r-assign-claude-persistence
+  (and ready-persistence agent-claude-available)
+  assign-to-persistence-claude)
+
+;; Phase 7
+(normally r-assign-claude-monotonicity-tests
+  (and ready-monotonicity-tests agent-claude-available)
+  assign-to-monotonicity-tests-claude)
+
+(normally r-assign-claude-eventual-tests
+  (and ready-eventual-tests agent-claude-available)
+  assign-to-eventual-tests-claude)
+
+(normally r-assign-claude-certificate-tests
+  (and ready-certificate-tests agent-claude-available)
+  assign-to-certificate-tests-claude)
+
+(normally r-assign-claude-benchmarks
+  (and ready-benchmarks agent-claude-available)
+  assign-to-benchmarks-claude)
+
+;; ================================================================
+;; Rule metadata
+;; ================================================================
+
+(meta r-ready-verification-result
+  (description "VerificationResult depends on protocol types")
+  (justification "Violation variant wraps CausalViolation which is defined in protocol types"))
+
+(meta r-ready-protocol-parser
+  (description "Protocol parser depends on protocol types being defined first")
+  (justification "Parser returns CausalProtocol which must exist. Also integrates into dialect_parser.rs"))
+
+(meta r-ready-protocol-validation
+  (description "R5 validation depends on having a parsed protocol to validate")
+  (justification "Validation methods operate on CausalProtocol struct"))
+
+(meta r-ready-message-store
+  (description "Store depends on hash index and caused-by extraction")
+  (justification "Store uses HashIndex for O(1) lookup and CausedBy for DAG structure"))
+
+(meta r-ready-causal-verify
+  (description "Causal verification depends on result type, protocol types, and store")
+  (justification "verify_causal reads protocol, queries store, returns VerificationResult"))
+
+(meta r-ready-pipeline
+  (description "Pipeline integration is the capstone -- depends on all verification components")
+  (justification "run_pipeline chains parse -> validate -> R1-R5 -> expand -> causal -> shape. Also handles REQ-210 (teach) and DCFL preservation (REQ-209, REQ-308)"))
+
+(meta r-ready-compaction
+  (description "Compaction depends on message store and unknown policy")
+  (justification "Compaction safety check requires knowing about pending messages (Buffer policy). Does NOT depend on reconciliation -- they are independent features"))
+
+(meta r-ready-causal-closure
+  (description "Causal closure transfer depends on store and verification")
+  (justification "Extract needs DAG traversal (store), verify needs causal checking. Also covers REQ-212 verification tiers"))
+
