@@ -1,12 +1,12 @@
 {
-  "task_id": "protocol-parser",
+  "task_id": "shape-validation",
   "token_budget": 8000,
   "tokens_used": 195,
   "elements_selected": [
     {
       "source": "plan-meta/description",
-      "content": "Implement parse_protocol(sexpr) -> Result<CausalProtocol, ProtocolParseError> in cbcl-parser. Parse (protocol (then ...)+) with (any ...) and (all ...) node-refs. Desugar variadic (then a b c) to pairwise edges. REQ-201 grammar. New file: crates/cbcl-parser/src/protocol_parser.rs. Also integrate into dialect_parser.rs: when a (protocol ...) clause is encountered during dialect parsing, dispatch to parse_protocol.",
-      "token_cost": 104,
+      "content": "Implement R5 shape validation: performative name matches extend clause, keywords start with ':', type constraints are valid, max-depth within R2 bound, no duplicate require/optional at same depth. REQ-222.",
+      "token_cost": 51,
       "priority": "PlanMeta"
     },
     {
@@ -26,8 +26,14 @@
       "content": "Modified 2 files (+443, -0): crates/cbcl-core/src/lib.rs, crates/cbcl-core/src/protocol.rs",
       "token_cost": 22,
       "priority": "AgentMemory"
+    },
+    {
+      "source": "memory/episodic/task-protocol-parser-changes",
+      "content": "Modified 18 files (+620, -39): crates/cbcl-core/benches/core_bench.rs, crates/cbcl-core/src/agent.rs, crates/cbcl-core/src/canonical.rs, crates/cbcl-core/src/dialect.rs, crates/cbcl-core/src/evaluator.rs and 13 more",
+      "token_cost": 53,
+      "priority": "AgentMemory"
     }
   ],
   "elements_excluded": [],
-  "constructed_at": "2026-03-24T13:28:00Z"
+  "constructed_at": "2026-03-24T13:36:56Z"
 }
