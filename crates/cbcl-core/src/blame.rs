@@ -355,6 +355,47 @@ impl ViolationError {
             .iter()
             .any(|e| e.party == BlameParty::DialectAuthor)
     }
+
+    // ----------------------------------------------------------------
+    // Observability (REQ-234)
+    // ----------------------------------------------------------------
+
+    /// Emit tracing events for blame attribution metrics.
+    ///
+    /// Emits two events when the `tracing` feature is enabled:
+    /// - `cbcl_blame_attribution_count` — one event per blame-chain entry,
+    ///   with labels `{dialect, blamed_party, violation_type}`.
+    /// - `cbcl_violation_error_size_bytes` — the serialised S-expression
+    ///   byte length of this error.
+    ///
+    /// This is a no-op when the `tracing` feature is disabled.
+    #[allow(unused_variables)]
+    pub fn record_metrics(&self, dialect: &str) {
+        #[cfg(feature = "tracing")]
+        {
+            // Counter: one event per blame-chain entry.
+            for entry in &self.blame_chain {
+                tracing::event!(
+                    tracing::Level::INFO,
+                    dialect = dialect,
+                    blamed_party = entry.party.as_str(),
+                    violation_type = self.kind.as_str(),
+                    "cbcl_blame_attribution_count"
+                );
+            }
+
+            // Histogram: serialised error size in bytes.
+            let sexpr = self.to_sexpr();
+            let size = alloc::format!("{}", sexpr).len();
+            tracing::event!(
+                tracing::Level::INFO,
+                size_bytes = size,
+                violation_type = self.kind.as_str(),
+                dialect = dialect,
+                "cbcl_violation_error_size_bytes"
+            );
+        }
+    }
 }
 
 // ================================================================
@@ -766,5 +807,43 @@ mod tests {
         let err = ViolationError::from_r5_violation("d", &[String::from("x")]);
         let err2 = err.clone();
         assert_eq!(err, err2);
+    }
+
+    // -- record_metrics (REQ-234) --
+
+    #[test]
+    fn record_metrics_does_not_panic_shape() {
+        let sv = ShapeViolation {
+            rule: String::from("require :x string"),
+            field: Some(String::from(":x")),
+            expected: Some(String::from("string")),
+            found: Some(String::from("number")),
+            detail: String::from(":x expected string, found number"),
+        };
+        let err = ViolationError::from_shape_violation(
+            &sv,
+            Some(String::from("h1")),
+            Some(String::from("t1")),
+            Some(num(42)),
+        );
+        // Should not panic regardless of tracing feature state.
+        err.record_metrics("test-dialect");
+    }
+
+    #[test]
+    fn record_metrics_does_not_panic_causal() {
+        let cv = CausalViolation::MissingCausedBy;
+        let err = ViolationError::from_causal_violation(&cv, None, None);
+        err.record_metrics("test-dialect");
+    }
+
+    #[test]
+    fn record_metrics_does_not_panic_r5() {
+        let err = ViolationError::from_r5_violation(
+            "bad-d",
+            &[String::from("cycle")],
+        );
+        // R5 has two blame-chain entries; both should be emitted.
+        err.record_metrics("bad-d");
     }
 }

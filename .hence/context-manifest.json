@@ -1,12 +1,12 @@
 {
-  "task_id": "pipeline",
+  "task_id": "observability",
   "token_budget": 8000,
-  "tokens_used": 462,
+  "tokens_used": 399,
   "elements_selected": [
     {
       "source": "plan-meta/description",
-      "content": "Extend run_pipeline() in cbcl-parser/src/pipeline.rs to add steps 6a (causal verification) and 6b (shape checking) after expansion. Complete monitoring: no bypass, no partial checks, fail-closed (REQ-231). Integrate R5 into dialect installation path (REQ-208). Include protocol and shape declarations in (meta (teach ...)) messages for gossip propagation (REQ-210). DCFL preservation trivially maintained (REQ-209, REQ-225, REQ-308, TEST-209, TEST-308). CON-206 satisfied.",
-      "token_cost": 118,
+      "content": "Add blame attribution counter (cbcl_blame_attribution_count with labels {dialect, blamed_party, violation_type}) and violation error size histogram (cbcl_violation_error_size_bytes) behind the tracing feature flag. REQ-234.",
+      "token_cost": 55,
       "priority": "PlanMeta"
     },
     {
@@ -71,5 +71,5 @@
     }
   ],
   "elements_excluded": [],
-  "constructed_at": "2026-03-24T15:05:34Z"
+  "constructed_at": "2026-03-24T15:15:33Z"
 }

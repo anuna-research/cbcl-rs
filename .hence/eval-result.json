@@ -3,27 +3,26 @@
   "confidence": 1.0,
   "exit_code": 0,
   "diff_summary": {
-    "files_changed": 4,
-    "insertions": 537,
-    "deletions": 17,
+    "files_changed": 3,
+    "insertions": 86,
+    "deletions": 5,
     "file_list": [
       ".hence/context-manifest.json",
-      "crates/cbcl-core/src/store.rs",
-      "crates/cbcl-parser/src/lib.rs",
+      "crates/cbcl-core/src/blame.rs",
       "crates/cbcl-parser/src/pipeline.rs"
     ],
     "dirty_files": 0
   },
   "learnings": [
     {
-      "key": "task-pipeline-changes",
-      "content": "Modified 4 files (+537, -17): .hence/context-manifest.json, crates/cbcl-core/src/store.rs, crates/cbcl-parser/src/lib.rs, crates/cbcl-parser/src/pipeline.rs",
+      "key": "task-observability-changes",
+      "content": "Modified 3 files (+86, -5): .hence/context-manifest.json, crates/cbcl-core/src/blame.rs, crates/cbcl-parser/src/pipeline.rs",
       "memory_type": "episodic",
       "confidence": 0.8
     }
   ],
-  "branch_name": "hence/pipeline-v1",
-  "evaluated_at": "2026-03-24T15:15:27Z",
+  "branch_name": "hence/observability-v1",
+  "evaluated_at": "2026-03-24T15:20:03Z",
   "checks_passed": 0,
   "checks_failed": 0
 }
