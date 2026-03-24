@@ -29,6 +29,13 @@ prior-art:
   - Dimoulas, Tobin-Hochstadt & Felleisen 2012 (complete monitors for behavioral contracts)
   - Demers et al. 1987 (epidemic dissemination)
   - Girard 1987 (linear logic)
+  - Castellani/Dezani-Ciancaglini/Giannini 2024 (event structure semantics for multiparty sessions — causal structures over state machines)
+  - Sanjuan/Poyhtari/Teixeira/Psaras 2020 (Merkle-CRDTs — Merkle-DAGs meet CRDTs, content-addressed causal ordering)
+  - Kuper 2015 (LVars — lattice-based deterministic parallelism, monotonic writes, threshold reads)
+  - Meiklejohn & Van Roy 2015 (Lasp — lattice-based coordination-free programming with CRDTs)
+  - Neykova/Bocchi/Yoshida 2017 (decentralised runtime monitoring of multiparty sessions — DFA-based, the baseline SPEC-002 departs from)
+  - Neykova & Yoshida 2014/2017 (multiparty session actors — session types for the actor model)
+  - Tse 2017 (validating session protocols — LangSec workshop, DFA-based session validation)
   - Waites 2026, Plumbing (Leith Document Company) — contemporary convergent work
 repository: https://codeberg.org/anuna/cbcl-rs
 ---
@@ -44,7 +51,7 @@ This specification adds **structural contracts** to CBCL dialect definitions. A 
 - **Protocols** constrain the causal structure of message exchanges — which message types may follow which, expressed as dependency declarations rather than state machines.
 - **Shapes** constrain the structure of individual messages — which parameters must be present, their types, and nesting depth.
 
-Both dimensions are **monotonic** in the sense of the CALM theorem (Ameloot, Neven & Van den Bussche 2011): checking a protocol constraint is a positive assertion about immutable causal links between messages; checking a shape constraint is a positive assertion about the structure of an expanded S-expression. Neither requires mutable state, message ordering, or coordination between agents. This is a deliberate departure from SPEC-001, which used DFA-based protocol checking and required message ordering (ADR-004 in that spec).
+Both dimensions are **monotonic** in the sense of the CALM theorem (Ameloot, Neven & Van den Bussche 2011): checking a protocol constraint is a positive assertion about immutable causal links between messages; checking a shape constraint is a positive assertion about the structure of an expanded S-expression. Neither requires mutable state, message ordering, or coordination between agents. This is a deliberate departure from SPEC-001, which used DFA-based protocol checking and required message ordering (ADR-004 in that spec). Protocols support both fan-out (multiple successors) and fan-in (merge/join via `(all ...)` — multiple predecessors verified conjunctively), both of which are monotonic on the append-only message store.
 
 Structural contracts are optional. R1–R4 remain sufficient for safety. Structural contracts add protocol correctness as a separable layer: a SHOULD, not a MUST.
 
@@ -72,14 +79,29 @@ This specification synthesises ideas from several research threads, listed in or
 
 **Contemporary work.** Plumbing (William Waites, Leith Document Company, 2026) independently applies session types to LLM agent coordination, compiling them to barrier chains. We studied Plumbing's protocol documentation and found the convergence confirmatory — both systems arrive at the same primitives from the same theory. The engineering is different: Plumbing compiles to barrier chains for concurrent pipeline execution with linearity enforcement; we verify causal dependency graphs over message-passing with no ordering requirement.
 
+**Event structure semantics for sessions.** Castellani, Dezani-Ciancaglini & Giannini (2024, [*Event Structure Semantics for Multiparty Sessions*](https://arxiv.org/abs/2201.00221)) interpret multiparty session types as flow event structures, which represent causality and concurrency explicitly rather than as sequential state machine transitions. This is the closest theoretical near-miss to SPEC-002's approach — it validates the direction of modelling sessions as causal structures rather than automata. However, event structures are used for semantic analysis (proving type soundness), not for runtime verification, and the paper does not address monotonicity, coordination-freedom, or CRDTs. SPEC-002 takes the causal-structure intuition and makes it operational: the causal graph is the message store itself, and verification is a monotone predicate on it.
+
+**Merkle-CRDTs.** Sanjuan, Poyhtari, Teixeira & Psaras (2020, [*Merkle-CRDTs: Merkle-DAGs meet CRDTs*](https://research.protocol.ai/publications/merkle-crdts-merkle-dags-meet-crdts/psaras2020.pdf)) combine Merkle-DAGs with CRDTs, embedding causal ordering in content-addressed hash links. They note that "Merkle-Clocks already embed ordering and causality information which would otherwise need to travel embedded in the CRDT objects." This is the closest architectural precedent to SPEC-002's message store design — content-addressed, append-only, with causality embedded in hash pointers. The paper addresses data replication convergence, not protocol conformance checking. SPEC-002 applies the same architecture to a different problem: the Merkle DAG is not a replicated data store but a communication trace, and the monotone predicates verify protocol conformance rather than data convergence.
+
+**Lattice-based determinism.** Kuper (2015, [*Lattice-Based Data Structures for Deterministic Parallel and Distributed Programming*](https://users.soe.ucsc.edu/~lkuper/papers/lindsey-kuper-dissertation.pdf), PhD dissertation, Indiana University) introduces LVars — lattice-based data structures with monotonic writes and threshold reads that guarantee deterministic parallelism. The algebraic machinery is close to SPEC-002's: data grows monotonically on a lattice, and observations (threshold reads / verification predicates) are monotone functions. Kuper applies this to deterministic parallel programming; SPEC-002 applies the same structure to protocol verification on an append-only message store.
+
+**Coordination-free programming.** Meiklejohn & Van Roy (2015, [*Lasp: A Language for Distributed, Coordination-Free Programming*](https://dl.acm.org/doi/10.1145/2790449.2790525), PPDP 2015) build a programming model on lattice-typed CRDTs with monotonic operations, achieving coordination-freedom by construction. Lasp provides the programming model that SPEC-002's architecture resembles — monotonic operations on lattice-structured distributed state — but has no concept of protocol types or session verification.
+
+**Runtime monitoring of sessions (the DFA baseline).** Neykova, Bocchi & Yoshida (2017, *Monitoring Networks through Multiparty Session Types*, ICTAC) and Neykova & Yoshida (2014/2017, [*Multiparty Session Actors*](http://mrg.doc.ic.ac.uk/publications/multiparty-session-actors/msa.pdf), COORDINATION/LMCS) represent the state of the art in decentralised session type monitoring. Each endpoint gets a local monitor projected from the global type. These monitors are finite automata that advance through states on each message — decentralised but not coordination-free in the CALM sense. The set of valid next messages changes with each state transition, which is non-monotonic. SPEC-002 departs from this baseline by eliminating stateful monitors entirely: verification is a lookup + type comparison on immutable data, not a state machine transition. This is the specific technical contribution that enables coordination-freedom.
+
+**LangSec and session protocols.** Tse (2017, [*A Framework for Validating Session Protocols*](http://spw17.langsec.org/papers/tse-validating-session-protocols.pdf), LangSec Workshop/IEEE SPW) is the only prior work at the intersection of language-theoretic security and session type validation. The paper presents a Haskell-embedded DSL for specifying protocol state machines and validating message sequences against them. Like Neykova/Yoshida, the approach is DFA-based — state machine checking, not monotonic predicate checking. SPEC-002 shares the LangSec commitment to treating protocol messages as a formal language but replaces the state machine recogniser with monotone causal verification.
+
 ### The novel combination
 
-The individual threads above are well-established. What has not appeared in the literature is their combination for agent communication protocols:
+The individual threads above are well-established. What has not appeared in the literature is their combination for agent communication protocols. A systematic search of the literature reveals a **community gap**: CALM/CRDT researchers (Berkeley — Hellerstein, Alvaro, Conway; Indiana — Kuper; UCLouvain — Meiklejohn) work on data management and deterministic parallelism; session type researchers (Imperial/Oxford — Yoshida, Honda, Carbone; Edinburgh — Wadler, Gay) work on process calculi and type theory. Neither community has crossed into the other's domain. SPEC-002 sits precisely in this gap.
 
-- **CALM + session types**: protocol invariants expressed as causal dependencies are monotonic, therefore coordination-free. Session type theory provides the protocol primitives; CALM provides the coordination-freedom guarantee.
-- **CRDTs + protocol verification**: the message store is a G-Set CRDT; protocol verification is a monotone predicate on the CRDT state. The verification converges without coordination because the underlying data structure does.
-- **I-confluence + agent communication**: Bailis's invariant confluence criterion, originally for database integrity constraints, applies directly to protocol step constraints — "pause-ack must be caused by pause" is I-confluent.
-- **Explicit causality + LangSec**: rather than relying on transport-level causal ordering (vector clocks, causal broadcast), each message carries its own causal reference as a keyword parameter within CBCL's DCFL grammar. The causal structure is self-describing and parseable by the same deterministic pushdown automaton that handles ordinary messages.
+The specific novel combinations:
+
+- **CALM + session types**: protocol invariants expressed as causal dependencies are monotonic, therefore coordination-free. Session type theory provides the protocol primitives; CALM provides the coordination-freedom guarantee. No prior work connects these — Hellerstein's CALM survey (2019) does not mention session types; Yoshida's monitoring work (2017) does not mention monotonicity or coordination-freedom of the checking mechanism.
+- **CRDTs + protocol verification**: the message store is a G-Set CRDT; protocol verification is a monotone predicate on the CRDT state. The verification converges without coordination because the underlying data structure does. Merkle-CRDTs (Sanjuan et al. 2020) provide the closest architectural precedent but apply the structure to data replication, not protocol conformance.
+- **I-confluence + agent communication**: Bailis's invariant confluence criterion, originally for database integrity constraints, applies directly to protocol step constraints — "pause-ack must be caused by pause" is I-confluent. All prior I-confluence work (Bailis 2015, Whittaker & Hellerstein 2019) is restricted to database invariants.
+- **Explicit causality + LangSec**: rather than relying on transport-level causal ordering (vector clocks, causal broadcast), each message carries its own causal reference as a keyword parameter within CBCL's DCFL grammar. The causal structure is self-describing and parseable by the same deterministic pushdown automaton that handles ordinary messages. Tse (2017) is the only prior LangSec + session protocol work, and uses DFA-based checking.
+- **Causal structures over state machines for runtime verification**: Castellani et al. (2024) validate the theoretical direction — sessions modelled as causal event structures rather than sequential automata — but apply it to semantic analysis, not runtime verification. SPEC-002 makes this operational: the causal graph is the message store, verification is a monotone predicate, and the CALM theorem guarantees coordination-freedom.
 
 ### Scope
 
@@ -107,6 +129,8 @@ This specification does **not** cover:
 - Value predicates in shape constraints (e.g., `price > 0`) — requires arithmetic, outside DCFL
 - Multiparty global types — binary causal links only in this version
 
+Note: fan-in (merge/join via `(all ...)`) IS covered by this specification. Fan-in verification is monotonic — a conjunction of positive existence checks on a grow-only store — and does not require coordination (ADR-007).
+
 ### Key Departure from SPEC-001
 
 SPEC-001 encoded protocols as **state machines** (DFA). The current state determined what messages were valid next. This was non-monotonic: state changes, validity changes. ADR-004 acknowledged the ordering problem and deferred Lamport clocks.
@@ -121,8 +145,9 @@ SPEC-002 encodes protocols as **causal dependency declarations**. Each message c
 | Monotonic (CALM) | No | Yes |
 | Coordination-free | No | Yes |
 | Counted sequences | Yes (DFA can count) | No (counting is aggregation, non-monotonic) |
+| Fan-in (merge/join) | No (DFA is single-state) | Yes — `(all ...)` with list-valued `:caused-by` |
 | Unreliable transport | Problematic (reordering causes false violations) | Works — each message is self-describing |
-| Expressiveness | Regular languages | DAGs of causal dependencies |
+| Expressiveness | Regular languages | Merkle DAGs with fan-out and fan-in |
 
 ---
 
@@ -197,23 +222,53 @@ The system SHALL support `(protocol ...)` clauses in dialect definitions that de
   (then begin pause pause-ack get-memory
     memory-dump set-memory set-memory-ack resume))
 
-;; Document operations — choice + loop
+;; Document operations — choice + concurrent fan-out
 (protocol
-  (then begin (read write close))
+  (then begin (any read write close))
   (then read content)
   (then write ack)
-  (then (content ack) (read write close)))
+  (then (any content ack) (any read write close)))
 
 ;; Request-response loop
 (protocol
-  (then (begin response) request response))
+  (then (any begin response) request response))
+
+;; Scatter-gather — concurrent fan-out then fan-in (merge)
+(protocol
+  (then begin (all search-a search-b search-c))
+  (then search-a result-a)
+  (then search-b result-b)
+  (then search-c result-c)
+  (then (all result-a result-b result-c) merge-results))
+
+;; Two-phase commit — coordinator waits for all votes
+(protocol
+  (then begin prepare)
+  (then prepare (any vote-yes vote-no))
+  (then (all vote-yes vote-yes) commit)
+  (then vote-no abort))
 ```
 
-The `then` form is variadic. Arguments are processed pairwise left to right: each argument's performatives may follow the previous argument's performatives. A bare symbol is a single step. A list of symbols denotes alternatives (disjunction). The special symbol `begin` denotes the protocol start — no prior message required.
+The `then` form is variadic. Arguments are processed pairwise left to right: each argument's performatives may follow the previous argument's performatives. A bare symbol is a single step. An `(any ...)` form denotes **alternatives** — disjunction at that step. An `(all ...)` form denotes **conjunction** — all listed items participate. The special symbol `begin` denotes the protocol start — no prior message required.
 
-For the Compaction example, `(then begin pause pause-ack ...)` desugars to the edges: `begin→pause`, `pause→pause-ack`, `pause-ack→get-memory`, etc. For the document operations example, `(then begin (read write close))` desugars to: `begin→read`, `begin→write`, `begin→close`. When both sides are lists, the Cartesian product applies: `(then (content ack) (read write close))` desugars to six edges.
+The semantics of `(any ...)` and `(all ...)` differ by position:
 
-**Rationale:** This replaces SPEC-001's DFA state machine with a dependency graph. The graph is static (declared at installation, never mutated). Each runtime check is a lookup + type comparison — monotonic, stateless, coordination-free. By the CALM theorem, this formulation has a consistent coordination-free distributed implementation.
+| Position | `(any ...)` | `(all ...)` |
+|---|---|---|
+| **Left** (predecessor) | Disjunction: predecessor may be any one of these types. Single `:caused-by` hash. | Conjunction: ALL listed predecessor types must be present. List-valued `:caused-by`. Fan-in. |
+| **Right** (successor) | Choice: one of these may follow. Edges to all listed types. | Concurrent: all of these proceed. Edges to all listed types. Sender SHOULD emit all. |
+
+On the **left** (predecessor) side, both forms are monotonically enforceable:
+- `(any a b)` — "is the predecessor's type in {a, b}?" — set membership on immutable data.
+- `(all a b)` — "are predecessors of types a AND b present?" — conjunction of existence checks on a grow-only store.
+
+On the **right** (successor) side, both forms generate the same edges in the dependency graph. The difference is **intent**: `(any ...)` declares exclusive choice (the sender picks one), `(all ...)` declares concurrent fan-out (the sender emits all). The verifier cannot enforce exclusivity — "at most one successor" requires checking that no sibling response exists, which is non-monotonic (the arrival of one response invalidates another). Exclusivity is a sender obligation, not a verifier-enforceable property. The distinction is still valuable: it communicates the dialect author's design intent and enables static analysis tooling to flag violations.
+
+For the Compaction example, `(then begin pause pause-ack ...)` desugars to the edges: `begin→pause`, `pause→pause-ack`, `pause-ack→get-memory`, etc. For the document operations example, `(then begin (any read write close))` desugars to: `begin→read`, `begin→write`, `begin→close` — the sender chooses one. When both sides use `(any ...)`, the Cartesian product applies: `(then (any content ack) (any read write close))` desugars to six edges.
+
+For the scatter-gather example, `(then begin (all search-a search-b search-c))` means: after `begin`, the sender SHOULD emit all three search messages (concurrent fan-out). The right-side `(all ...)` declares intent; each individual search message's `:caused-by` still points to `begin`. On the left side, `(then (all result-a result-b result-c) merge-results)` means: `merge-results` is valid only when its `:caused-by` parameter lists hashes of all three result messages. The verifier checks that all three hashes resolve to messages of the declared types — a conjunction of monotone predicates on the append-only store.
+
+**Rationale:** This replaces SPEC-001's DFA state machine with a dependency graph. The graph is static (declared at installation, never mutated). Each runtime check is a lookup + type comparison — monotonic, stateless, coordination-free. By the CALM theorem, this formulation has a consistent coordination-free distributed implementation. Fan-in via `(all ...)` is monotonic because a conjunction of positive existence checks on a grow-only store can only transition from false to true, never the reverse (ADR-007).
 
 Trace:
 - TEST-200
@@ -255,9 +310,17 @@ then-decl        = "(" "then" 2*(WS node-ref) ")"
                  ; Minimum 2 arguments.
 
 node-ref         = performative-ref
-                 / "(" 1*(WS performative-ref) ")"
+                 / "(" "any" 2*(WS performative-ref) ")"
+                 / "(" "all" 2*(WS performative-ref) ")"
                  ; Atom = single step in the chain.
-                 ; List = alternatives (disjunction at this step).
+                 ; (any ...) = alternatives (disjunction).
+                 ;   Left side: predecessor may be any one of
+                 ;   these types. Right side: sender chooses one.
+                 ; (all ...) = conjunction.
+                 ;   Left side: all listed predecessor types must
+                 ;   be present (fan-in). Right side: all proceed
+                 ;   concurrently (fan-out). Sender SHOULD emit all.
+                 ; Both require minimum 2 arguments.
 
 performative-ref = "begin" / symbol
                  ; "begin" = protocol start (no prior message).
@@ -266,7 +329,7 @@ performative-ref = "begin" / symbol
                  ; or an installed ancestor (REQ-206).
 ~~~
 
-**Dispatch determinism.** `protocol` is a symbol, distinct from all other dialect-clause head tokens. Within a `protocol-clause`, `then` is the only valid head. Within a `then-decl`, each argument is either a symbol or a parenthesised list of symbols — dispatched by the existing Layer 1 atom/list distinction. LL(1) at every level.
+**Dispatch determinism.** `protocol` is a symbol, distinct from all other dialect-clause head tokens. Within a `protocol-clause`, `then` is the only valid head. Within a `then-decl`, each argument is either a bare symbol, `(any ...)` (disjunction), or `(all ...)` (conjunction). The head keyword (`any` or `all`) deterministically dispatches the interpretation. No bare lists without a head keyword — the head is always required. LL(1) at every level.
 
 Trace:
 - TEST-201
@@ -274,30 +337,38 @@ Trace:
 
 ### REQ-202: The `:caused-by` Message Parameter
 
-Messages participating in a causal protocol SHALL carry a `:caused-by` keyword parameter referencing the causal predecessor. The value is either the string `"begin"` (protocol start) or the content hash of the predecessor message's canonical serialisation (RFC 9804):
+Messages participating in a causal protocol SHALL carry a `:caused-by` keyword parameter referencing one or more causal predecessors. The value is either:
+
+- The string `"begin"` (protocol start — no prior message required).
+- A single content hash of the predecessor message's canonical serialisation (RFC 9804).
+- A list of content hashes (for merge/join messages with multiple causal predecessors).
 
 ```scheme
+;; Single predecessor
 (lang compaction
   (pause "context full" :caused-by "begin"))
 
 (lang compaction
   (pause-ack :caused-by "sha256:7d3e...a1f0"))
 
-(lang compaction
-  (get-memory :caused-by "sha256:b82c...4e9d"))
+;; Multiple predecessors (fan-in / merge)
+(lang search
+  (merge-results :caused-by ("sha256:a1b2...c3d4"
+                              "sha256:e5f6...7890"
+                              "sha256:1a2b...3c4d")))
 ```
 
 A message's identity is the SHA-256 hash of its canonical serialisation. This is content addressing: the identifier is derived from the message content, not assigned by any party. Both sender and receiver compute the same hash independently. No ID authority, no coordination, no possibility of fabrication (would require a hash collision).
 
-The result is a **Merkle DAG** of messages: each `:caused-by` is a hash pointer to its predecessor. The causal chain is cryptographically tamper-evident. Altering any message invalidates all downstream hash references. A third party (e.g., an escrow service) can independently verify the entire interaction history from the messages alone, without having participated in the conversation.
+The result is a **Merkle DAG** of messages: each `:caused-by` is one or more hash pointers to predecessors. The causal graph is cryptographically tamper-evident. Altering any message invalidates all downstream hash references. A third party (e.g., an escrow service) can independently verify the entire interaction history from the messages alone, without having participated in the conversation.
 
-`:caused-by` is syntactically a keyword parameter, already legal in CBCL's grammar (Layer 2). No grammar extension is needed. The parameter is extracted by the protocol checker alongside `:thread`, `:in-reply-to`, and `:sender`. Canonical serialisation for hashing is already implemented in `cbcl-rs` (`canonical.rs`, used for dialect signature verification via RFC 9804).
+`:caused-by` is syntactically a keyword parameter, already legal in CBCL's grammar (Layer 2). No grammar extension is needed. A single hash is an atom; a list of hashes is a parenthesised list — both are valid Layer 1 forms. The parameter is extracted by the protocol checker alongside `:thread`, `:in-reply-to`, and `:sender`. Canonical serialisation for hashing is already implemented in `cbcl-rs` (`canonical.rs`, used for dialect signature verification via RFC 9804).
 
 Content-addressed `:caused-by` is a SHOULD. An implementation MAY use opaque identifiers (e.g., UUIDs) at the cost of requiring additional trust for third-party verification. Content hashing makes verification fully trustless.
 
-**Reserved syntax: list-valued `:caused-by`.** In this version of the specification, `:caused-by` takes exactly one value (an atom). A list value — e.g., `:caused-by ("sha256:..." "sha256:...")` — is **reserved for future use** to support fan-in (merge messages with multiple causal predecessors). Implementations SHALL NOT treat a list-valued `:caused-by` as a parse error. Instead, if a list value is encountered and the implementation does not support multi-predecessor causality, it SHALL reject the message with a well-typed error: `CausalViolation::UnsupportedMultiPredecessor`. This ensures that future protocol versions can introduce merge semantics without requiring grammar changes or breaking existing parsers.
+**Fan-in semantics.** When `:caused-by` is a list of hashes, the message is a **merge message** — it has multiple causal predecessors. The protocol declaration determines which predecessor types are required via `(all ...)` node references (REQ-200). The verifier checks that each hash in the list resolves to a message in the store and that the set of predecessor performative types satisfies the conjunction declared in the protocol. See REQ-203 for the verification procedure.
 
-**Rationale:** Explicit causal references make protocol structure self-describing. Each message declares its own position in the causal graph. Content addressing makes the graph tamper-evident and independently verifiable. This eliminates the need for message ordering, Lamport clocks, mutable per-thread state, or a trusted ID authority. The causal graph is a grow-only Merkle DAG of immutable (hash, performative, caused-by-hash) triples, a content-addressed CRDT.
+**Rationale:** Explicit causal references make protocol structure self-describing. Each message declares its own position in the causal graph. Content addressing makes the graph tamper-evident and independently verifiable. This eliminates the need for message ordering, Lamport clocks, mutable per-thread state, or a trusted ID authority. The causal graph is a grow-only Merkle DAG of immutable (hash, performative, caused-by-hash) triples, a content-addressed CRDT. Fan-in is monotonic: a conjunction of positive existence checks on a grow-only store can only transition from false to true (ADR-007).
 
 Trace:
 - TEST-202
@@ -308,16 +379,24 @@ The system SHALL verify causal dependencies on each incoming message without mut
 
 1. Extract `:caused-by` from the incoming message.
 2. If `:caused-by` is `"begin"`, check that the message's performative has `begin` as a valid predecessor in the protocol declaration.
-3. If `:caused-by` is a message ID, look up the referenced message in the agent's message store (conversation thread history). Check that:
+3. If `:caused-by` is a single message ID (atom), look up the referenced message in the agent's message store (conversation thread history). Check that:
    a. The referenced message exists.
-   b. The referenced message's performative is a valid predecessor for the incoming message's performative, per the protocol declaration.
-4. If any check fails, reject with a well-typed error (see failure modes in Happy Path).
-5. If the dialect has no `(protocol ...)` clause, skip causal verification.
-6. If the message has no `:caused-by` parameter and the dialect has a protocol, the agent MAY reject or skip per policy.
+   b. The referenced message's performative is a valid predecessor for the incoming message's performative, per the protocol declaration (disjunctive predecessor set).
+4. If `:caused-by` is a list of message IDs (fan-in / merge), verify conjunctive predecessor requirements:
+   a. Look up each referenced message in the message store. All must exist.
+   b. Collect the multiset of predecessor performative types.
+   c. Check that the protocol declaration has an `(all ...)` predecessor for the incoming message's performative.
+   d. Check that every performative type required by the `(all ...)` declaration is present in the collected multiset. The `(all ...)` declaration lists the required types; each required type must appear at least once.
+   e. Check that no hash in the list references a performative type that is NOT in the `(all ...)` declaration (no extraneous predecessors).
+5. If any check fails, reject with a well-typed error (see failure modes in Happy Path).
+6. If the dialect has no `(protocol ...)` clause, skip causal verification.
+7. If the message has no `:caused-by` parameter and the dialect has a protocol, the agent MAY reject or skip per policy.
 
 This procedure is **stateless**: it reads the protocol declaration (static, installed at dialect installation) and the message store (append-only, grow-only). It writes nothing. It depends on no ordering. It can be run at any time, in any order, by any agent, and produce the same result.
 
-**Rationale:** Statelessness is the key property. SPEC-001's DFA required `protocol_states: BTreeMap<String, usize>` — mutable state per thread, updated on each message. This specification requires only a read of the message store, which is append-only. By CALM, this is coordination-free.
+**Monotonicity of fan-in verification.** Step 4 is a conjunction of positive existence checks on the append-only store. Each sub-check ("does hash H resolve to a message of type T?") is individually monotone. Their conjunction is monotone: once all predecessors are present with correct types, adding new messages to the store cannot invalidate any of the sub-checks. By CALM, fan-in verification is coordination-free.
+
+**Rationale:** Statelessness is the key property. SPEC-001's DFA required `protocol_states: BTreeMap<String, usize>` — mutable state per thread, updated on each message. This specification requires only a read of the message store, which is append-only. By CALM, this is coordination-free. Fan-in adds O(k) lookups per merge message (where k = number of predecessors) but does not change the coordination-freedom guarantee.
 
 Trace:
 - TEST-203
@@ -408,22 +487,36 @@ Every verification operation introduced by this specification SHALL be monotonic
 
 Formally: if `causal_check(msg, store) = Ok` then `causal_check(msg, store ∪ {new_msg}) = Ok` for all `new_msg`.
 
-**Rationale:** This is the property that makes the system coordination-free. SPEC-001's DFA violated this: receiving message X could advance the DFA state, causing a previously valid message Y to become invalid in the new state. Causal verification does not have this problem — it checks a static predicate on immutable data.
+This holds for both single-predecessor and multi-predecessor (fan-in) verification:
+
+- **Single predecessor:** `verify(msg, store) = Ok` requires predecessor hash H to exist in the store with type T. Adding messages to the store cannot remove H or change its type. `Ok` is stable.
+- **Multi-predecessor (fan-in):** `verify(msg, store) = Ok` requires ALL predecessor hashes H₁...Hₖ to exist in the store with types T₁...Tₖ. Each sub-check is individually monotone (same argument as single). A conjunction of monotone predicates is monotone. `Ok` is stable.
+
+**Rationale:** This is the property that makes the system coordination-free. SPEC-001's DFA violated this: receiving message X could advance the DFA state, causing a previously valid message Y to become invalid in the new state. Causal verification does not have this problem — it checks a static predicate on immutable data. Fan-in adds conjunctive checks but preserves monotonicity because conjunction over monotone predicates is monotone.
 
 Trace:
 - TEST-211
 
-### REQ-212: Thread Topology — Leaves, Fan-Out, and Third-Party Verification
+### REQ-212: Thread Topology — Merkle DAG, Verification Tiers, and Causal Closure
 
-The Merkle DAG defined by `:caused-by` hash pointers (REQ-202) has the following topological properties within a thread:
+Each thread is a **Merkle DAG**: a directed acyclic graph where nodes are messages and edges are `:caused-by` hash pointers (REQ-202). The topology is determined by the interaction pattern:
+
+| Pattern | Fan-out | Fan-in | Topology |
+|---|---|---|---|
+| Pure sequence (e.g., compaction) | No | No | Linked list |
+| Concurrent replies | Yes | No | Tree |
+| Scatter-gather, barriers | Yes | Yes | DAG |
+
+The DAG is not a separate data structure — the messages themselves ARE the DAG. Each message's `:caused-by` field is its adjacency list (back-pointers to parents). The message store is the DAG.
 
 **Definitions.**
 
 - A **root message** is a message whose `:caused-by` value is `"begin"`. Every thread has at least one root.
 - A **leaf message** is a message that is not referenced by any other message's `:caused-by` parameter. Leaves are the open ends of the conversation — the frontier from which new messages may extend.
 - The **frontier** of a thread is the set of all leaf messages. The frontier represents the current actionable state of the interaction.
+- The **causal closure** of a message M is the set of all messages reachable by transitively following `:caused-by` links from M back to root(s). This is the minimal subset of the thread needed to fully verify M's causal history.
 
-**Fan-out (permitted).** Multiple messages MAY reference the same predecessor via `:caused-by`. This produces a branching tree — e.g., two agents independently reply to the same message. Each branch is independently valid. Causal verification (REQ-203) checks each message's predecessor individually; fan-out introduces no new verification burden.
+**Fan-out (branching).** Multiple messages MAY reference the same predecessor via `:caused-by`. This produces branching — e.g., two agents independently reply to the same message. Each branch is independently valid. Causal verification (REQ-203) checks each message's predecessor individually; fan-out introduces no new verification burden.
 
 ```scheme
 ;; Agent A and Agent B both reply to the same pause message:
@@ -431,22 +524,46 @@ The Merkle DAG defined by `:caused-by` hash pointers (REQ-202) has the following
 (lang compaction (pause-ack :caused-by "sha256:7d3e...a1f0" :sender "agent-b"))
 ```
 
-**Fan-in (not permitted).** `:caused-by` takes a single value, not a list. A message has exactly one causal predecessor (or `"begin"`). The concrete message graph within a thread is therefore a **Merkle tree** (a forest of trees rooted at `"begin"` nodes), not a full DAG. This is a deliberate simplification: merge semantics (a message caused by two prior messages) would require defining how to verify against multiple predecessor performatives and would break the monotonicity of single-predecessor lookup.
+**Fan-in (merging).** `:caused-by` accepts a list of hashes, enabling merge messages with multiple causal predecessors. Fan-in is what makes the thread topology a DAG rather than a tree — a message with two or more parents cannot be represented as a tree or linked list. Fan-in requires an `(all ...)` declaration in the protocol (REQ-200) and conjunctive verification of all listed predecessors (REQ-203). Fan-in verification is monotonic: a conjunction of positive existence checks on a grow-only store (ADR-007).
+
+```scheme
+;; Fan-in: merge-results caused by three independent results
+(lang search
+  (merge-results :caused-by ("sha256:a1b2...c3d4"
+                              "sha256:e5f6...7890"
+                              "sha256:1a2b...3c4d")))
+```
 
 **Thread-scoped causality.** The `:caused-by` hash MUST reference a message within the same `:thread`. Cross-thread causal references are invalid — a verifier SHALL reject a message whose `:caused-by` hash resolves to a message in a different thread. Threads are causally independent partitions of the message store.
 
-**Third-party verification procedure.** A verifier who receives a complete set of messages for a thread (e.g., an escrow service, auditor, or dispute resolver) can independently verify the entire interaction:
+#### Verification Tiers
+
+Not all participants need all messages. The monotonicity guarantee (REQ-211) means that once a causal link is verified, it stays verified as the store grows. This enables three verification tiers:
+
+**Tier 1: Incremental (runtime).** To verify an incoming message M, a participant needs only M's direct predecessors — the messages whose hashes appear in M's `:caused-by`. Those predecessors were already verified when they arrived. This is O(1) for single-predecessor messages and O(k) for fan-in with k predecessors. This is the common case for active participants.
+
+**Tier 2: Partial (causal closure).** To verify a message M from scratch (e.g., joining a thread mid-conversation), a participant needs M's **causal closure** — all messages reachable by following `:caused-by` links back to root(s). This is a DAG traversal. The participant does NOT need messages on unrelated branches. For a linked-list topology, the causal closure is the entire prefix. For a DAG, it may be a strict subset of the thread.
+
+**Tier 3: Full (third-party audit).** To verify an entire thread (e.g., escrow, dispute resolution), a verifier needs all messages. The procedure:
 
 1. **Recompute identities.** For each message, compute SHA-256 of the canonical serialisation. The computed hash IS the message identity.
-2. **Reconstruct the tree.** For each message, follow `:caused-by` to its predecessor. The result is a Merkle tree (or forest, if multiple roots).
-3. **Verify causal validity.** For each message, check that its predecessor's performative is valid per the protocol declaration (REQ-203).
-4. **Verify completeness.** The tree is complete if every `:caused-by` hash resolves to a message in the set. Any unresolvable hash indicates a missing message — the thread is incomplete.
+2. **Reconstruct the DAG.** For each message, follow `:caused-by` to its predecessor(s). Single-predecessor messages form edges; multi-predecessor messages form merge nodes.
+3. **Verify causal validity.** For each message, check that its predecessor(s) are valid per the protocol declaration (REQ-203). For merge messages with list-valued `:caused-by`, verify the conjunction of required predecessor types.
+4. **Verify completeness.** The DAG is complete if every `:caused-by` hash resolves to a message in the set. Any unresolvable hash indicates a missing message — the thread is incomplete.
 5. **Identify the frontier.** Leaf messages (unreferenced by any `:caused-by`) are the open ends. The frontier tells the verifier where the interaction stands.
-6. **Detect tampering.** Any alteration to a message changes its hash, breaking all downstream `:caused-by` references. Tampering is structurally detectable without signatures — the tree becomes internally inconsistent.
+6. **Detect tampering.** Any alteration to a message changes its hash, breaking all downstream `:caused-by` references. Tampering is structurally detectable without signatures — the DAG becomes internally inconsistent.
 
 No trust in any participant is required. The verifier needs only the messages themselves and the dialect definition (which contains the protocol declaration). Both are self-describing CBCL S-expressions.
 
-**Rationale:** The message store is a content-addressed Merkle tree partitioned by thread. Leaves define the frontier. Fan-out enables concurrent replies. Fan-in is excluded to preserve single-predecessor monotonic verification. Thread scoping ensures causal graphs are self-contained and independently verifiable. These properties together make the message store a cryptographically tamper-evident, third-party-verifiable record of interaction.
+#### DAG-Aware Operations
+
+The `(all ...)` construct requires DAG-aware operations that go beyond linked-list traversal:
+
+- **Acyclicity verification** at the message level — a message cannot be its own ancestor. For single-predecessor messages this is trivially guaranteed by content addressing (a message's hash depends on its content, so it cannot reference itself). For fan-in, the verifier must additionally ensure that the `:caused-by` list does not introduce a cycle through the merge structure.
+- **Completeness checking** — all hashes in `:caused-by` lists must resolve to messages in the store. For fan-in, ALL listed hashes must resolve, not just one.
+- **Causal closure computation** — given a message M, compute the set of all ancestors by DAG traversal (BFS/DFS following `:caused-by` links). This is a graph operation, not a list walk. Required for Tier 2 verification and for constructing the minimal message subset needed to verify M.
+
+**Rationale:** The message store is a content-addressed Merkle DAG partitioned by thread. The topology is emergent — determined by the interaction pattern, not imposed by the data structure. Sequential protocols produce linked lists. Concurrent protocols produce trees. Protocols with `(all ...)` barriers produce DAGs. The DAG is the general case; lists and trees are special cases. Verification is tiered: active participants verify incrementally (Tier 1), late joiners verify their causal closure (Tier 2), auditors verify everything (Tier 3). All three tiers are monotonic on the append-only store.
 
 Trace:
 - TEST-212
@@ -881,15 +998,25 @@ Shape constraints use VPL tree patterns. See ADR-005 in SPEC-001.
 
 **Rationale:** No new data structure needed. The conversation thread is already a per-thread append-only log indexed by thread ID. Looking up a message by ID within a thread is O(n) in thread length; if performance requires it, an auxiliary hash map from message-ID to (thread, index) can be added without changing the API.
 
-### ADR-007: Merkle Tree (Not Full DAG) — Single-Predecessor Causality
+### ADR-007: Merkle DAG — Multi-Predecessor Causality (Fan-In)
 
 **Context:** `:caused-by` could accept a list of hashes (enabling fan-in / merge messages) or a single hash (restricting to tree topology).
 
-**Decision:** `:caused-by` takes exactly one value. The concrete message graph is a Merkle tree per thread, not a full DAG.
+**Decision:** `:caused-by` accepts either a single value or a list of values. The concrete message graph is a Merkle DAG per thread. Fan-in (merge) is supported via `(all ...)` node references in protocol declarations and list-valued `:caused-by` in messages.
 
-**Rationale:** Fan-in requires defining how to verify against multiple predecessor performatives — the predecessor set in a `step` declaration would need conjunction/disjunction semantics ("all predecessors must be type X" vs "any predecessor may be type X"). This adds combinatorial complexity to verification and breaks the simplicity of single-predecessor lookup. Fan-out (multiple successors of one message) is sufficient for concurrent replies.
+**Rationale:** Fan-in verification is monotonic. Each sub-check — "does predecessor hash H resolve to a message of type T?" — is a monotone predicate on the append-only message store. A conjunction of monotone predicates is monotone: once all predecessors exist and have the correct types, adding more messages to the store cannot invalidate the check. The CALM theorem applies: this has a consistent coordination-free distributed implementation.
 
-**Forward compatibility:** The list-valued `:caused-by` syntax is reserved (REQ-202). A future version of this specification may introduce multi-predecessor causality with explicit merge semantics. Current implementations reject list values with `CausalViolation::UnsupportedMultiPredecessor` rather than treating them as malformed — this ensures the upgrade path does not require parser changes.
+The earlier draft of this ADR rejected fan-in on the grounds that it "breaks the simplicity of single-predecessor lookup" and introduces non-monotonicity. This was incorrect. The verification procedure for multi-predecessor `:caused-by` is:
+
+1. For each hash in the list, look up the message in the store. (O(k) lookups where k = number of predecessors.)
+2. Check that each predecessor's performative is a valid predecessor per the protocol's `(all ...)` declaration.
+3. Check that ALL required predecessor types are present (conjunction).
+
+Step 3 is the key insight: "all of {A, B, C} are present" is a conjunction of positive existence checks on a grow-only store. Once true, it stays true. This is monotonic — not in the trivial sense, but in the CALM-relevant sense: the verification function's output can only transition from `Err` (predecessors not yet present) to `Ok` (all present), never the reverse. Adding messages to the store can only help, never hurt.
+
+The coordination concern is real but misplaced: the *sender* of a merge message must have observed all predecessor messages to know their hashes. But this is equally true for single-predecessor `:caused-by` — the sender must have observed the predecessor to reference its hash. Fan-in means the sender observed k messages instead of 1. The verifier remains stateless and coordination-free.
+
+**Conjunction vs disjunction:** `(all ...)` and `(any ...)` are symmetric constructs with explicit head keywords — no bare lists. `(all ...)` uses conjunction: ALL listed items participate. `(any ...)` uses disjunction: one of the listed items participates. The two compose: `(then (all a b) (any c d))` means "after both a and b have occurred, either c or d may follow." On the right (successor) side, `(then begin (all search-a search-b search-c))` means all three searches proceed concurrently (fan-out), while `(then prepare (any vote-yes vote-no))` means the sender chooses one response. Right-side `(all ...)` exclusivity is a sender obligation — the verifier cannot enforce "at most one" monotonically (see REQ-200).
 
 ### ADR-008: Thread-Scoped Causality
 
@@ -909,10 +1036,21 @@ Shape constraints use VPL tree patterns. See ADR-005 in SPEC-001.
 Interface: cbcl_core::protocol::CausalProtocol
 
 Types:
+  enum NodeRef {
+      Any(BTreeSet<String>),            // disjunction: any one of these types
+                                         // "begin" = protocol start (in Any set)
+      All(BTreeSet<String>),            // conjunction: all of these types
+                                         // Fan-in on left, concurrent fan-out on right
+  }
+
   struct StepDecl {
       performative: String,
-      predecessors: BTreeSet<String>,   // valid predecessor performatives
-                                         // "begin" = protocol start
+      predecessors: Vec<NodeRef>,        // left-side node-refs (enforceable)
+                                         // multiple requirements possible
+                                         // (e.g., reachable via disjunction OR join)
+      successors: Vec<NodeRef>,          // right-side node-refs (declarative intent)
+                                         // Any = choice, All = concurrent
+                                         // populated from desugared then-decl edges
   }
 
   struct CausalProtocol {
@@ -970,24 +1108,35 @@ Verified by:
 ```
 Interface: cbcl_core::protocol::CausalVerifier
 
+Types:
+  enum CausedBy {
+      Begin,
+      Single(String),                    // single predecessor hash
+      Multiple(Vec<String>),             // fan-in: list of predecessor hashes
+  }
+
 Functions:
   fn verify_causal(
       msg_performative: &str,
-      caused_by_id: &str,
+      caused_by: &CausedBy,
       message_store: &dyn MessageStore,
       protocol: &CausalProtocol,
   ) -> Result<(), CausalViolation>
     Pre-conditions: protocol installed, message parsed
     Post-conditions:
-      - Ok: causal link is valid (predecessor exists and has valid type)
+      - Ok: causal link(s) valid (all predecessors exist and have valid types)
       - Err: CausalViolation with detail
     Mutates: nothing
-    Complexity: O(1) amortised (hash map lookup + set membership)
+    Complexity:
+      - Single predecessor: O(1) amortised (hash map lookup + set membership)
+      - Multiple predecessors: O(k) where k = number of predecessors
     Error model:
       CausalViolation::UnknownPredecessor { caused_by }
       CausalViolation::InvalidPredecessor { caused_by, expected, found }
       CausalViolation::MissingCausedBy
-      CausalViolation::UnsupportedMultiPredecessor
+      CausalViolation::IncompleteFanIn { missing_types }
+      CausalViolation::ExtraneousPredecessor { caused_by, found }
+      CausalViolation::FanInWithoutAllDecl { performative }
 
 trait MessageStore {
     fn lookup(&self, msg_id: &str) -> Option<&Message>;
@@ -1180,7 +1329,7 @@ Verified by:
 - `CausalProtocol::is_acyclic()` — DFS on dependency graph, returns bool
 - `CausalProtocol::is_reachable_from_begin()` — BFS/DFS from "begin", returns bool
 - `CausalProtocol::valid_predecessors()` — map lookup, returns option
-- `verify_causal()` — lookup + set membership, returns result (reads message store but does not mutate)
+- `verify_causal()` — lookup(s) + set membership, returns result (reads message store but does not mutate; O(k) for fan-in with k predecessors)
 - `parse_protocol()` — S-expression to CausalProtocol, returns result
 - `parse_shape()` — S-expression to ShapeConstraint, returns result
 - `ShapeConstraint::check()` — tree walk, returns result
@@ -1209,15 +1358,15 @@ Dependencies point inward. `protocol.rs` and `shape.rs` depend only on `alloc` a
 
 ### TEST-200: Causal Protocol Construction
 
-Verify `CausalProtocol` construction, predecessor lookup, and performative enumeration. Cover: Compaction (7 steps), request-response loop (2 steps), document operations with choice (5 steps).
+Verify `CausalProtocol` construction, predecessor lookup, and performative enumeration. Cover: Compaction (7 steps), request-response loop (2 steps), document operations with choice (5 steps), scatter-gather with fan-in via `(all ...)` (7 steps), two-phase commit with fan-in (5 steps).
 
 Trace: REQ-200
 
 ### TEST-201: Protocol Parser Round-Trip
 
-Parse protocol S-expressions. Cover: single predecessor, multiple predecessors (disjunctive), `begin` as predecessor, 1–10 steps.
+Parse protocol S-expressions. Cover: single predecessor, `(any ...)` disjunctive predecessors, `(all ...)` conjunctive predecessors, `begin` as predecessor, right-side `(any ...)` (choice), right-side `(all ...)` (concurrent fan-out), 1–10 steps.
 
-Negative: empty protocol, missing `:after`, unknown head symbol, `:after` with no predecessors.
+Negative: empty protocol, unknown head symbol, `(any ...)` with fewer than 2 arguments, `(all ...)` with fewer than 2 arguments, bare list without `any`/`all` head keyword (parse error — head keyword required).
 
 Technique: Example-based + property-based.
 
@@ -1225,7 +1374,7 @@ Trace: REQ-201
 
 ### TEST-202: `:caused-by` Parameter Extraction
 
-Verify that the message parser extracts `:caused-by` alongside `:thread` and `:sender`. Cover: string values, symbol values, `"begin"`, missing parameter.
+Verify that the message parser extracts `:caused-by` alongside `:thread` and `:sender`. Cover: string values, symbol values, `"begin"`, list values (fan-in with multiple hashes), missing parameter.
 
 Trace: REQ-202
 
@@ -1240,6 +1389,14 @@ Scenario 3 (unknown message): msg ←caused-by→ "nonexistent-id". Rejected.
 Scenario 4 (no protocol): dialect has no `(protocol ...)`. All messages pass.
 
 Scenario 5 (no `:caused-by`): dialect has protocol, message lacks `:caused-by`. Per policy.
+
+Scenario 6 (fan-in valid): merge-results ←caused-by→ (result-a-hash result-b-hash result-c-hash). Protocol declares `(then (all result-a result-b result-c) merge-results)`. All three hashes resolve to correct types. Passes.
+
+Scenario 7 (fan-in incomplete): merge-results ←caused-by→ (result-a-hash result-b-hash). Missing result-c. Rejected with `IncompleteFanIn { missing_types: ["result-c"] }`.
+
+Scenario 8 (fan-in extraneous): merge-results ←caused-by→ (result-a-hash result-b-hash result-c-hash extra-hash). Protocol only expects three. Rejected with `ExtraneousPredecessor`.
+
+Scenario 9 (fan-in without declaration): msg ←caused-by→ (hash-a hash-b). Protocol has no `(all ...)` declaration for msg's performative. Rejected with `FanInWithoutAllDecl`.
 
 Verify: no mutable state changed by any check.
 
@@ -1299,11 +1456,31 @@ Trace: REQ-210
 
 ### TEST-211: Monotonicity Property
 
-For all valid causal checks: `verify_causal(msg, store) = Ok` implies `verify_causal(msg, store ∪ {new}) = Ok` for all `new`.
+For all valid causal checks: `verify_causal(msg, store) = Ok` implies `verify_causal(msg, store ∪ {new}) = Ok` for all `new`. Covers both single-predecessor and multi-predecessor (fan-in) messages. For fan-in: if all k predecessors are present and valid, adding any message to the store preserves validity.
 
 Technique: Property-based.
 
 Trace: REQ-211
+
+### TEST-212: Thread Topology and Verification Tiers
+
+Scenario 1 (linked list): Sequential protocol (compaction). Verify the `:caused-by` chain forms a linked list. Causal closure of the last message equals the entire thread.
+
+Scenario 2 (tree — fan-out): Two agents reply to the same message. Verify both branches are independently valid. Causal closure of a leaf on one branch does NOT include messages from the other branch.
+
+Scenario 3 (DAG — fan-in): Scatter-gather protocol. Three results fan-in to a merge message via `(all ...)`. Verify the merge message's causal closure includes all three result messages and their shared ancestor.
+
+Scenario 4 (Tier 1 — incremental): Active participant receives messages one at a time. Each message is verified using only its direct predecessors (already in store). Verify no DAG traversal is needed for incremental verification.
+
+Scenario 5 (Tier 2 — causal closure): Agent joins thread mid-conversation at message M. Compute causal closure of M. Verify that the closure is sufficient to validate M without the full thread. Verify that messages NOT in the closure are not needed.
+
+Scenario 6 (Tier 3 — full audit): Third-party verifier receives all messages in a thread. Reconstructs DAG. Verifies all causal links. Detects a tampered message (modified content, hash mismatch). Detects an incomplete thread (missing message referenced by `:caused-by`).
+
+Scenario 7 (topology detection): Given a set of messages, classify the thread topology as linked list, tree, or DAG based on fan-out/fan-in presence.
+
+Technique: Example-based + integration testing.
+
+Trace: REQ-212
 
 ### TEST-230: Correct Blame Attribution
 
@@ -1475,7 +1652,7 @@ Histogram: `cbcl_violation_error_size_bytes`. Tracks the serialised size of stru
 |---|---|
 | Causal protocol (pure core) | Property-based (acyclicity, reachability, monotonicity) + mutation testing |
 | Protocol parser | Fuzzing + property-based (roundtrip) |
-| Causal verification | Property-based (monotonicity: adding messages never invalidates) + example-based |
+| Causal verification | Property-based (monotonicity: adding messages never invalidates — covers both single and fan-in) + example-based |
 | Shape constraint (pure core) | Property-based + mutation testing |
 | Shape parser | Fuzzing + property-based (roundtrip) |
 | Runtime shape checking | Example-based + integration testing |
@@ -1484,7 +1661,7 @@ Histogram: `cbcl_violation_error_size_bytes`. Tracks the serialised size of stru
 | Blame chain (REQ-232) | Integration testing (lifecycle scenarios) + property-based (append-only) |
 | Violation error grammar (REQ-233) | Property-based (all generated errors parse as valid CBCL + conform to ABNF) |
 | DCFL preservation | Formal proof (Lean 4) — simpler than SPEC-001 (no automata theory) |
-| Monotonicity (CALM) | Property-based (∀ msg, store, new: Ok(msg,store) → Ok(msg, store∪{new})) |
+| Monotonicity (CALM) | Property-based (∀ msg, store, new: Ok(msg,store) → Ok(msg, store∪{new})) — covers single-predecessor and fan-in (∧ of monotone predicates) |
 | Performance | Criterion benchmarks |
 
 ---
@@ -1526,19 +1703,27 @@ Histogram: `cbcl_violation_error_size_bytes`. Tracks the serialised size of stru
 
 ; --- Layer 4a: Causal protocol ---
 
-protocol-clause  = "(" "protocol" 1*(WS step-decl) ")"
+protocol-clause  = "(" "protocol" 1*(WS then-decl) ")"
 
-step-decl        = "(" "step" WS performative-ref
-                   WS after-clause ")"
+then-decl        = "(" "then" 2*(WS node-ref) ")"
+                 ; Variadic. Pairwise left-to-right: each node-ref
+                 ; may follow the previous. When either side is a
+                 ; list, the Cartesian product of edges applies.
+                 ; Minimum 2 arguments.
 
-performative-ref = symbol
+node-ref         = performative-ref
+                 / "(" "any" 2*(WS performative-ref) ")"
+                 / "(" "all" 2*(WS performative-ref) ")"
+                 ; Atom = single step in the chain.
+                 ; (any ...) = alternatives (disjunction).
+                 ; (all ...) = conjunction.
+                 ; Both require minimum 2 arguments.
 
-after-clause     = ":after" WS predecessor-list
-
-predecessor-list = predecessor
-                 / "(" 1*(WS predecessor) ")"
-
-predecessor      = "begin" / symbol
+performative-ref = "begin" / symbol
+                 ; "begin" = protocol start (no prior message).
+                 ; symbol = performative name.
+                 ; MUST match an extend clause in this dialect
+                 ; or an installed ancestor (REQ-206).
 
 ; --- Layer 4b: Shape constraints ---
 
@@ -1571,8 +1756,8 @@ default-value    = s-expr
 
 | Metric | Protocol (4a) | Shape (4b) | Total |
 |---|---|---|---|
-| New productions | 5 (`protocol-clause`, `step-decl`, `after-clause`, `predecessor-list`, `predecessor`) | 6 (`shape-clause`, `shape-rule`, `require-rule`, `optional-rule`, `max-depth-rule`, `type-constraint`) | 11 |
-| New keywords | 4 (`protocol`, `step`, `:after`, `begin`) | 4 (`shape`, `require`, `optional`, `max-depth`) | 8 |
+| New productions | 4 (`protocol-clause`, `then-decl`, `node-ref`, `performative-ref`) | 6 (`shape-clause`, `shape-rule`, `require-rule`, `optional-rule`, `max-depth-rule`, `type-constraint`) | 10 |
+| New keywords | 4 (`protocol`, `then`, `all`, `begin`) | 4 (`shape`, `require`, `optional`, `max-depth`) | 8 |
 | Modified rules | 1 (`dialect-clause` +2) | 0 | 1 |
 | Layer 1 changes | 0 | 0 | 0 |
 | Parser class impact | None | None | None — LL(1) / DCFL |
@@ -1600,13 +1785,8 @@ default-value    = s-expr
   (extend resume ()
     (tell @agent (control-msg :action "resume")))
   (protocol
-    (follows begin pause)
-    (follows pause pause-ack)
-    (follows pause-ack get-memory)
-    (follows get-memory memory-dump)
-    (follows memory-dump set-memory)
-    (follows set-memory set-memory-ack)
-    (follows set-memory-ack resume))
+    (then begin pause pause-ack get-memory
+      memory-dump set-memory set-memory-ack resume))
   (shape pause
     (require :reason string))
   (shape memory-dump
@@ -1633,4 +1813,82 @@ Usage with `:caused-by`:
 ;;     :caused-by "msg-001"
 ;;     :expected "pause-ack"
 ;;     :found "pause")
+```
+
+### Worked Example: Scatter-Gather with Fan-In
+
+```scheme
+(meta (define parallel-search (cbcl) @coordinator
+  (:resource-requirements
+    ((max-depth 8)
+     (max-expansion-size 2048)
+     (verification-time 200)))
+  (extend dispatch ()
+    (tell @coordinator (control-msg :action "dispatch")))
+  (extend search-a (query)
+    (ask @worker-a query))
+  (extend search-b (query)
+    (ask @worker-b query))
+  (extend search-c (query)
+    (ask @worker-c query))
+  (extend result-a (data)
+    (reply @coordinator data))
+  (extend result-b (data)
+    (reply @coordinator data))
+  (extend result-c (data)
+    (reply @coordinator data))
+  (extend merge-results (combined)
+    (tell @coordinator combined))
+  (protocol
+    (then begin dispatch)
+    (then dispatch (search-a search-b search-c))
+    (then search-a result-a)
+    (then search-b result-b)
+    (then search-c result-c)
+    (then (all result-a result-b result-c) merge-results))
+  (:signature-algorithm "ed25519")))
+```
+
+Usage with fan-in `:caused-by`:
+
+```scheme
+(lang parallel-search (dispatch :caused-by "begin" :thread "t-2"))
+;; → sha256:1111...
+
+(lang parallel-search (search-a "find widgets" :caused-by "sha256:1111..." :thread "t-2"))
+;; → sha256:2222...
+(lang parallel-search (search-b "find widgets" :caused-by "sha256:1111..." :thread "t-2"))
+;; → sha256:3333...
+(lang parallel-search (search-c "find widgets" :caused-by "sha256:1111..." :thread "t-2"))
+;; → sha256:4444...
+
+;; Fan-out: three searches independently caused by the same dispatch.
+;; Each is valid — fan-out is permitted (REQ-212).
+
+(lang parallel-search (result-a (widgets 42) :caused-by "sha256:2222..." :thread "t-2"))
+;; → sha256:5555...
+(lang parallel-search (result-b (widgets 17) :caused-by "sha256:3333..." :thread "t-2"))
+;; → sha256:6666...
+(lang parallel-search (result-c (widgets 8) :caused-by "sha256:4444..." :thread "t-2"))
+;; → sha256:7777...
+
+;; Fan-in: merge-results caused by ALL three results.
+;; :caused-by is a list of hashes — one per required predecessor.
+(lang parallel-search
+  (merge-results (combined 67)
+    :caused-by ("sha256:5555..." "sha256:6666..." "sha256:7777...")
+    :thread "t-2"))
+;; → sha256:8888...
+;; Verifier checks: (all result-a result-b result-c) requires
+;; all three types present. Hash 5555 → result-a ✓,
+;; 6666 → result-b ✓, 7777 → result-c ✓. Passes.
+
+;; Invalid: missing result-c
+(lang parallel-search
+  (merge-results (combined 59)
+    :caused-by ("sha256:5555..." "sha256:6666...")
+    :thread "t-2"))
+;; → (error @sender "causal-violation"
+;;     :detail "incomplete-fan-in"
+;;     :missing ("result-c"))
 ```
