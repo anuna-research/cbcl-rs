@@ -1,12 +1,12 @@
 {
-  "task_id": "blame",
+  "task_id": "reconciliation",
   "token_budget": 8000,
-  "tokens_used": 446,
+  "tokens_used": 437,
   "elements_selected": [
     {
       "source": "plan-meta/description",
-      "content": "Implement ViolationError with BlameParty {Sender, DialectAuthor, Installer}, blame_chain (Vec<BlameEntry>), all fields per CON-205. Methods: from_shape_violation, from_causal_violation, from_r5_violation, to_sexpr (valid CBCL error message per REQ-233 grammar), verify_blame (third-party verification). REQ-230, REQ-232, REQ-233. New file: crates/cbcl-core/src/blame.rs. #![forbid(unsafe_code)], no_std + alloc.",
-      "token_cost": 102,
+      "content": "Implement frontier exchange and reconciliation protocol. compute_frontier (leaf messages), diff_frontiers, reconcile (produce causal closure bundles for missing branches). REQ-312. Not a consensus protocol -- produces union of both stores. Efficient: proportional to difference, not store size (same principle as git fetch negotiation). File: crates/cbcl-core/src/store.rs.",
+      "token_cost": 93,
       "priority": "PlanMeta"
     },
     {
@@ -71,5 +71,5 @@
     }
   ],
   "elements_excluded": [],
-  "constructed_at": "2026-03-24T14:57:07Z"
+  "constructed_at": "2026-03-24T15:03:47Z"
 }
