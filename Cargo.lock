@@ -127,6 +127,7 @@ name = "cbcl-core"
 version = "0.1.0"
 dependencies = [
  "criterion",
+ "hashbrown 0.15.5",
  "proptest",
  "serde",
  "thiserror",
