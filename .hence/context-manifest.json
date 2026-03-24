@@ -1,12 +1,12 @@
 {
-  "task_id": "benchmarks",
+  "task_id": "compaction",
   "token_budget": 8000,
-  "tokens_used": 462,
+  "tokens_used": 425,
   "elements_selected": [
     {
       "source": "plan-meta/description",
-      "content": "Criterion benchmarks for all NFRs. Protocol parsing <= 500 ns / 10 steps (NFR-200, TEST-250). Causal verification <= 100 ns / message (NFR-201, TEST-251). Shape parsing <= 300 ns / 8 rules (NFR-202, TEST-252). Shape check <= 200 ns / message (NFR-203, TEST-253). Hash index lookup <= 50 ns (TEST-309). Dedup overhead <= 50 ns (NFR-304, TEST-354). Zero mutable state under Reject (TEST-352). Hash index memory <= 64 bytes/entry (TEST-353). Buffer memory bounded (TEST-351).",
-      "token_cost": 118,
+      "content": "Implement checkpoint creation and compaction. Checkpoint: (meta (checkpoint :cut ... :verified-by ... :digest ...)). Compaction removes messages strictly below cut (antichain). Safety: refuse if pending messages reference below-cut messages. Non-monotonic -- requires coordination (checkpoint agreement per ADR-304). REQ-313.",
+      "token_cost": 81,
       "priority": "PlanMeta"
     },
     {
@@ -71,5 +71,5 @@
     }
   ],
   "elements_excluded": [],
-  "constructed_at": "2026-03-24T15:20:09Z"
+  "constructed_at": "2026-03-24T15:30:36Z"
 }
