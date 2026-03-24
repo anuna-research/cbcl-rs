@@ -304,17 +304,19 @@ Trace:
 
 Each message's content hash SHALL serve as a **lattice position certificate** — a cryptographic commitment to the message's position in the causal semilattice (REQ-301).
 
-Specifically, because a message's hash is computed over its canonical serialisation which includes its `:caused-by` hashes (SPEC-002 REQ-202), and those hashes in turn commit to their predecessors' content recursively:
+**Prerequisite: deterministic sort.** For the lattice position certificate to be well-defined, the canonical serialisation of list-valued `:caused-by` must be deterministic. SPEC-002 REQ-202 requires that `:caused-by` hashes are sorted in lexicographic (byte-wise ascending) order before computing the content hash. Without this sort, two agents constructing the same logical join (same set of predecessors) would produce different hashes — the lattice identity property (same element → same hash) would break. The sort ensures that `:caused-by` lists are **set-like** in the canonical form: order-independent, determined solely by membership.
+
+Specifically, because a message's hash is computed over its canonical serialisation which includes its sorted `:caused-by` hashes (SPEC-002 REQ-202), and those hashes in turn commit to their predecessors' content recursively:
 
 1. **M's hash commits to ↓M.** The principal ideal ↓M (all messages causally preceding M) is cryptographically fixed by M's hash. Any alteration to any message in ↓M changes that message's hash, which changes its successor's `:caused-by` hash, which propagates up to M.
 
 2. **Two agents holding the same hash agree on causal history.** If agent A and agent B both hold a message with hash H, they necessarily agree on the entire causal closure of that message. They may disagree on messages *outside* the causal closure (different branches of the DAG), but they agree on everything that causally precedes H.
 
-3. **Fan-in joins commit to the union of predecessors' histories.** A merge message M with `:caused-by (H₁ H₂ H₃)` commits to ↓M = ↓H₁ ∪ ↓H₂ ∪ ↓H₃ ∪ {M}. The hash of M is a compact certificate that the sender has observed the union of all three causal histories.
+3. **Fan-in joins commit to the union of predecessors' histories.** A merge message M with `:caused-by (H₁ H₂ H₃)` (sorted) commits to ↓M = ↓H₁ ∪ ↓H₂ ∪ ↓H₃ ∪ {M}. The hash of M is a compact certificate that the sender has observed the union of all three causal histories. Because the hash list is canonically sorted, two agents who observed {H₁, H₂, H₃} in any order produce the same merge message hash.
 
-4. **Verification of lattice position is recursive and local.** To verify that M is at the lattice position it claims, verify: (a) M's hash matches its content, (b) each `:caused-by` hash resolves to a message in the store, (c) each predecessor's hash matches its content (recursively). This is the Tier 3 (full audit) verification from SPEC-002 REQ-212, now understood as lattice position verification.
+4. **Verification of lattice position is recursive and local.** To verify that M is at the lattice position it claims, verify: (a) M's hash matches its content (including sorted `:caused-by`), (b) each `:caused-by` hash resolves to a message in the store, (c) each predecessor's hash matches its content (recursively). This is the Tier 3 (full audit) verification from SPEC-002 REQ-212, now understood as lattice position verification.
 
-**No separate certificate format is needed.** The message itself IS the certificate. The Merkle DAG IS the lattice. The hash IS the position.
+**No separate certificate format is needed.** The message itself IS the certificate. The Merkle DAG IS the lattice. The hash IS the position. The deterministic sort makes the position unique.
 
 Trace:
 - TEST-306
