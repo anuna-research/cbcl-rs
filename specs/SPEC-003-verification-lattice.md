@@ -493,23 +493,35 @@ Trace:
 
 ### REQ-314: Persistence and Crash Recovery
 
-The message store SHALL support durable persistence via a write-ahead log (WAL). The WAL records every append operation. On crash recovery, the store is reconstructed by replaying the WAL.
+The message store SHALL support durable persistence by appending messages to a text file. CBCL messages are S-expressions — self-delimiting, human-readable, and parseable without framing or record separators. The persistence format is the message store written as text.
 
-**WAL format.** Each WAL entry is a serialised message in canonical form (the same serialisation used for content hashing). The WAL is an append-only file — entries are never modified or deleted.
+**File format.** Each accepted message is appended to a file in its human-readable S-expression form (one message per line, though multi-line is valid since S-expressions are self-delimiting via parenthesis balancing). The file is an append-only text log:
+
+```
+(lang compaction (pause "context full" :caused-by "begin" :thread "t1" :sender "@a"))
+(lang compaction (pause-ack :caused-by "sha256:7d3e...a1f0" :thread "t1" :sender "@b"))
+(lang compaction (get-memory :caused-by "sha256:ab12...cd34" :thread "t1" :sender "@a"))
+```
+
+No binary framing, no length prefixes, no record separators. The file is readable with `cat`. Append + fsync is the only write operation.
 
 **Recovery procedure:**
 
-1. Open the WAL file.
-2. Replay each entry: parse the message, compute its content hash, append to the in-memory store with deduplication (REQ-310).
-3. Reconstruct the hash index (REQ-309) from the replayed store.
-4. Reconstruct the frontier by identifying leaf messages (unreferenced by any `:caused-by`).
-5. If the Buffer policy is active, pending messages are lost on crash — they are not persisted in the WAL (they were never accepted into the store). The sender will retransmit or timeout.
+1. Open the file.
+2. Parse S-expressions sequentially from the file (the parser handles self-delimiting — each `(` finds its matching `)` via the existing Layer 1 DCFL recogniser).
+3. For each parsed message: compute content hash, append to the in-memory store with deduplication (REQ-310).
+4. Reconstruct the hash index (REQ-309) from the replayed store.
+5. Reconstruct the frontier by identifying leaf messages.
 
-**Integrity verification.** On recovery, the implementation SHOULD verify the Merkle DAG integrity: for each message, recompute the content hash and check that all `:caused-by` references resolve. This detects WAL corruption (bit flips, truncation). A message with a hash mismatch is discarded; its absence will cause downstream messages to produce `Unknown` results, which is correct (the message is effectively lost).
+Deduplication on replay (REQ-310) handles partial writes: if the agent crashed mid-append and wrote a truncated message, the parser fails on that entry (unbalanced parentheses) and skips it. If the agent crashed after append but before in-memory update, replay re-appends the message — deduplication makes this a no-op.
 
-**WAL compaction.** After a frontier checkpoint (REQ-313), WAL entries for compacted messages MAY be removed by rewriting the WAL with only retained messages. This is equivalent to log compaction in event sourcing systems.
+**Integrity verification.** On recovery, the implementation SHOULD verify the Merkle DAG integrity: for each message, recompute the content hash and check that all `:caused-by` references resolve. A message with a hash mismatch is discarded; downstream messages produce `Unknown` results, which is correct.
 
-**Persistence is optional.** In-memory-only operation (no WAL) is valid for ephemeral agents or testing. The monotonicity and correctness guarantees hold regardless of persistence — they depend on the store lattice, not on durability.
+**Content hashing uses canonical form.** The file stores human-readable S-expressions (for readability and tooling). Content hashing uses the RFC 9804 canonical form (for determinism). These are different serialisations of the same AST. The file is parsed into the AST; the AST is canonically serialised for hashing. The human-readable form in the file is NOT the hash input — the canonical form is. This means the file format can change (whitespace, indentation) without affecting content hashes.
+
+**File compaction.** After a frontier checkpoint (REQ-313), the file MAY be rewritten with only retained messages. This is a new file, not an in-place edit — the old file is replaced atomically.
+
+**Persistence is optional.** In-memory-only operation (no file) is valid for ephemeral agents or testing. The monotonicity and correctness guarantees hold regardless of persistence.
 
 Trace:
 - TEST-314
@@ -1179,7 +1191,7 @@ The Lean proof targets the pure core only — `VerificationResult`, `meet`, `joi
 ### Phase 6: Compaction and Persistence
 
 15. `src/store/checkpoint.rs` — `Checkpoint`, compaction below cut, digest computation.
-16. `src/store/wal.rs` — WAL append, recovery, compaction.
+16. `src/store/persistence.rs` — append-to-file, parse-from-file recovery, file compaction.
 17. Tests (TEST-313, TEST-314).
 
 ### Phase 7: Properties and Benchmarks
