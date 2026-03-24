@@ -221,6 +221,7 @@ pub fn run_pipeline_full<S: MessageStore>(
                                 None,
                                 thread.clone(),
                             );
+                            blame.record_metrics(&d.name);
                             return PipelineResult::ValidationError(
                                 ValidationError::CausalViolation {
                                     violation: cv,
@@ -249,6 +250,7 @@ pub fn run_pipeline_full<S: MessageStore>(
                                 thread.clone(),
                                 Some(eval_result.expanded.clone()),
                             );
+                            blame.record_metrics(&dialect.name);
                             return PipelineResult::ValidationError(
                                 ValidationError::ShapeViolation {
                                     violation: sv,
