@@ -10,6 +10,7 @@ use crate::r1::{r1_violations, verify_r1_dialect};
 use crate::r2::verify_r2;
 use crate::r3::{r3_violations, verify_r3};
 use crate::r4::{check_r4, R4Result, Signer};
+use crate::r5::{r5_violations, verify_r5};
 use crate::sexpr::{Atom, SExpr};
 use crate::shape::ShapeConstraint;
 use alloc::string::String;
@@ -55,6 +56,11 @@ pub enum DialectInstallError {
     },
     /// The dialect's signature failed verification (R4 violation).
     R4Violation { dialect_name: String },
+    /// A shape constraint is malformed (R5 violation).
+    R5Violation {
+        dialect_name: String,
+        shape_errors: Vec<String>,
+    },
 }
 
 impl fmt::Display for DialectInstallError {
@@ -94,6 +100,17 @@ impl fmt::Display for DialectInstallError {
                     f,
                     "R4 violation: dialect '{}' has an invalid signature",
                     dialect_name,
+                )
+            }
+            DialectInstallError::R5Violation {
+                dialect_name,
+                shape_errors,
+            } => {
+                write!(
+                    f,
+                    "R5 violation: dialect '{}' has malformed shape(s): {}",
+                    dialect_name,
+                    shape_errors.join("; ")
                 )
             }
         }
@@ -251,6 +268,12 @@ impl DialectRegistry {
                 dialect_name: d.name,
             });
         }
+        if !verify_r5(&d) {
+            return Err(DialectInstallError::R5Violation {
+                shape_errors: r5_violations(&d),
+                dialect_name: d.name,
+            });
+        }
         #[cfg(feature = "tracing")]
         tracing::event!(
             tracing::Level::INFO,
@@ -290,6 +313,12 @@ impl DialectRegistry {
         if !verify_r3(&d) {
             return Err(DialectInstallError::R3Violation {
                 redefined: r3_violations(&d),
+                dialect_name: d.name,
+            });
+        }
+        if !verify_r5(&d) {
+            return Err(DialectInstallError::R5Violation {
+                shape_errors: r5_violations(&d),
                 dialect_name: d.name,
             });
         }
