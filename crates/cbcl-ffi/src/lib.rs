@@ -128,6 +128,7 @@ fn send_message_impl(agent: &Agent, recipient: &str, content: &str) -> Result<St
         params: Vec::new(),
         thread: None,
         sender: None,
+        caused_by: None,
     };
 
     let result = evaluator::evaluate(&msg, agent.dialect_registry())

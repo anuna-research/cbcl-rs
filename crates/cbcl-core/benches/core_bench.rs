@@ -318,6 +318,7 @@ fn bench_eval(c: &mut Criterion) {
         params: Vec::new(),
         thread: None,
         sender: None,
+        caused_by: None,
     };
     c.bench_function("eval/tell", |b| {
         b.iter(|| evaluator::evaluate(black_box(&tell_msg), black_box(&registry)))
@@ -330,6 +331,7 @@ fn bench_eval(c: &mut Criterion) {
         params: Vec::new(),
         thread: None,
         sender: None,
+        caused_by: None,
     };
     c.bench_function("eval/ask", |b| {
         b.iter(|| evaluator::evaluate(black_box(&ask_msg), black_box(&registry)))
@@ -369,6 +371,7 @@ fn bench_eval(c: &mut Criterion) {
         params: vec![sym("warehouse-A")],
         thread: None,
         sender: None,
+        caused_by: None,
     };
     c.bench_function("eval/custom_performative", |b| {
         b.iter(|| evaluator::evaluate(black_box(&ship_msg), black_box(&custom_registry)))

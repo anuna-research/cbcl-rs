@@ -436,6 +436,7 @@ mod tests {
             params: Vec::new(),
             thread: None,
             sender: None,
+            caused_by: None,
         };
         let result = evaluate(&msg, &reg).unwrap();
         assert_eq!(result.effects.len(), 2);
@@ -465,6 +466,7 @@ mod tests {
             params: Vec::new(),
             thread: None,
             sender: None,
+            caused_by: None,
         };
         let result = evaluate(&msg, &reg).unwrap();
         assert_eq!(result.effects.len(), 1);
@@ -487,6 +489,7 @@ mod tests {
             params: Vec::new(),
             thread: Some(String::from("conv-1")),
             sender: None,
+            caused_by: None,
         };
         let result = evaluate(&msg, &reg).unwrap();
         assert_eq!(result.effects.len(), 1);
@@ -510,6 +513,7 @@ mod tests {
             params: Vec::new(),
             thread: None,
             sender: None,
+            caused_by: None,
         };
         let result = evaluate(&msg, &reg).unwrap();
         assert_eq!(
@@ -530,6 +534,7 @@ mod tests {
             params: Vec::new(),
             thread: None,
             sender: None,
+            caused_by: None,
         };
         let result = evaluate(&msg, &reg).unwrap();
         assert_eq!(result.effects[0], Effect::Acknowledge);
@@ -545,6 +550,7 @@ mod tests {
             params: Vec::new(),
             thread: Some(String::from("conv-2")),
             sender: None,
+            caused_by: None,
         };
         let result = evaluate(&msg, &reg).unwrap();
         assert_eq!(result.effects[0], Effect::CancelConversation);
@@ -561,6 +567,7 @@ mod tests {
             params: Vec::new(),
             thread: None,
             sender: None,
+            caused_by: None,
         };
         let result = evaluate(&msg, &reg).unwrap();
         assert_eq!(result.effects[0], Effect::AnnouncePresence);
@@ -576,6 +583,7 @@ mod tests {
             params: Vec::new(),
             thread: None,
             sender: None,
+            caused_by: None,
         };
         let result = evaluate(&msg, &reg).unwrap();
         assert_eq!(result.effects[0], Effect::AnnounceDeparture);
@@ -591,6 +599,7 @@ mod tests {
             params: Vec::new(),
             thread: None,
             sender: None,
+            caused_by: None,
         };
         let err = evaluate(&msg, &reg).unwrap_err();
         assert!(matches!(err, EvalError::UnknownPerformative(_)));
@@ -608,6 +617,7 @@ mod tests {
             params: vec![SExpr::Atom(Atom::Symbol(String::from("warehouse-A")))],
             thread: None,
             sender: None,
+            caused_by: None,
         };
         let result = evaluate(&msg, &reg).unwrap();
         // Template expands to (effect dispatch-shipment) — a custom effect action
@@ -648,6 +658,7 @@ mod tests {
             params: vec![SExpr::Atom(Atom::Symbol(String::from("depot-B")))],
             thread: Some(String::from("shipment-thread")),
             sender: None,
+            caused_by: None,
         };
         let msg = Message::Dialect {
             dialect_name: String::from("logistics"),
@@ -671,6 +682,7 @@ mod tests {
             params: vec![SExpr::Atom(Atom::Symbol(String::from("dock-C")))],
             thread: None,
             sender: None,
+            caused_by: None,
         };
         let msg = Message::Dialect {
             dialect_name: String::from("logistics"),
@@ -694,6 +706,7 @@ mod tests {
             params: vec![SExpr::Atom(Atom::Symbol(String::from("dock-D")))],
             thread: None,
             sender: None,
+            caused_by: None,
         };
         let msg = Message::Dialect {
             dialect_name: String::from("cbcl-base"),
@@ -714,6 +727,7 @@ mod tests {
             params: Vec::new(),
             thread: None,
             sender: None,
+            caused_by: None,
         };
         let msg = Message::Dialect {
             dialect_name: String::from("nonexistent"),
@@ -735,6 +749,7 @@ mod tests {
             params: Vec::new(),
             thread: None,
             sender: None,
+            caused_by: None,
         };
         let msg = Message::Wrapped {
             wrapper: WrapperType::Envelope,
@@ -764,6 +779,7 @@ mod tests {
             params: Vec::new(),
             thread: Some(String::from("thread-42")),
             sender: None,
+            caused_by: None,
         };
         let result = evaluate(&msg, &reg).unwrap();
         assert_eq!(result.thread, Some(String::from("thread-42")));
@@ -779,6 +795,7 @@ mod tests {
             params: Vec::new(),
             thread: None,
             sender: None,
+            caused_by: None,
         };
         let result = evaluate(&msg, &reg).unwrap();
         assert!(result.thread.is_none());
@@ -892,6 +909,7 @@ mod tests {
             params: vec![SExpr::Atom(Atom::Str(String::from("warehouse-A")))],
             thread: None,
             sender: None,
+            caused_by: None,
         };
         let result = evaluate(&msg, &reg);
         assert!(result.is_ok());
@@ -908,6 +926,7 @@ mod tests {
             params: vec![SExpr::Atom(Atom::Str(String::from("warehouse-A")))],
             thread: None,
             sender: None,
+            caused_by: None,
         };
         let result = evaluate(&msg, &reg);
         match result {
@@ -929,6 +948,7 @@ mod tests {
             params: Vec::new(),
             thread: None,
             sender: None,
+            caused_by: None,
         };
         assert!(evaluate(&msg, &reg).is_ok());
     }
@@ -996,6 +1016,7 @@ mod tests {
             params: vec![SExpr::Atom(Atom::Str(String::from("warehouse-A")))],
             thread: None,
             sender: None,
+            caused_by: None,
         };
         assert!(evaluate(&msg, &reg).is_ok());
     }
@@ -1043,6 +1064,7 @@ mod tests {
             params: vec![],
             thread: None,
             sender: None,
+            caused_by: None,
         };
         let result = evaluate(&msg, &reg);
         match result {
