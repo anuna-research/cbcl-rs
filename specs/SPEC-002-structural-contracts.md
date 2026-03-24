@@ -1000,7 +1000,9 @@ Shape constraints use VPL tree patterns. See ADR-005 in SPEC-001.
 
 **Decision:** The agent's existing `conversation_threads: BTreeMap<String, Vec<Message>>` serves as the message store. It is already append-only (messages are added via `append_to_thread`, never removed). Causal verification reads from this store.
 
-**Rationale:** No new data structure needed. The conversation thread is already a per-thread append-only log indexed by thread ID. Looking up a message by ID within a thread is O(n) in thread length; if performance requires it, an auxiliary hash map from message-ID to (thread, index) can be added without changing the API.
+A per-thread hash index (`HashMap<ContentHash, usize>`) SHALL be maintained alongside the message store, providing O(1) amortised lookup by content hash (SPEC-003 REQ-309). Appending a message whose content hash already exists is a no-op (SPEC-003 REQ-310 — deduplication, required for G-Set CRDT idempotence).
+
+**Rationale:** The conversation thread is a per-thread append-only log. The hash index is mandatory — O(n) linear scan cannot meet the ≤ 100 ns verification latency bound (NFR-201) for threads with more than a few dozen messages. Index overhead is ~64 bytes per message (SPEC-003 NFR-303). Deduplication is required because gossip transports routinely deliver the same message via multiple paths. See SPEC-003 for the full message store specification including causal closure transfer, reconciliation, compaction, and persistence.
 
 ### ADR-007: Merkle DAG — Multi-Predecessor Causality (Fan-In)
 

@@ -349,13 +349,180 @@ Trace:
 
 ---
 
+### REQ-309: Hash Index (O(1) Lookup)
+
+The message store SHALL maintain a hash index providing O(1) amortised lookup from content hash to message. The index is per-thread: `HashMap<ContentHash, &Message>` scoped to a single `:thread`.
+
+SPEC-002 ADR-006 describes hash lookup as O(n) with an optional auxiliary index. This is insufficient. SPEC-002 NFR-201 requires ≤ 100 ns causal verification latency. A linear scan over a thread with thousands of messages cannot meet this bound. The hash index is a MUST, not a MAY.
+
+The index SHALL be updated on every append. It SHALL NOT be updated on any other operation (no deletions, no mutations). The index is a derived structure — it can be reconstructed from the message store by a full scan. Crash recovery MAY reconstruct the index by replaying the store.
+
+**Thread scoping.** The hash index SHALL enforce thread isolation (SPEC-002 ADR-008). A lookup for hash H in thread T SHALL NOT return a message from thread T'. This prevents cross-thread `:caused-by` references from passing verification. Implementations MAY use a global index with thread-membership validation, or per-thread indexes — the observable behaviour is the same.
+
+Trace:
+- TEST-309
+- CON-303
+
+### REQ-310: Deduplication (G-Set Idempotence)
+
+The message store SHALL be idempotent under append: appending a message whose content hash already exists in the store SHALL be a no-op. The store SHALL NOT contain two messages with the same content hash.
+
+This is a direct consequence of G-Set CRDT semantics (REQ-300): the join operation is set union, which is idempotent (A ∪ A = A). Without deduplication, the `Vec<Message>` representation would contain duplicates, violating the set abstraction, wasting memory, and producing incorrect results for operations that iterate over the store (e.g., frontier computation, causal closure).
+
+**Deduplication check.** On append, the implementation SHALL check the hash index (REQ-309) for the incoming message's content hash. If present, the append is skipped. This is O(1) amortised.
+
+**Duplicate delivery is normal.** Over gossip transports (Nostr relays, epidemic dissemination), the same message may be delivered multiple times via different paths. Deduplication ensures that the store's logical state is independent of delivery multiplicity.
+
+Trace:
+- TEST-310
+
+### REQ-311: Causal Closure Transfer
+
+The system SHALL support a `(meta (causal-closure ...))` message format for transferring a verifiable subset of the message store. A causal closure bundle contains the minimal set of messages needed to independently verify a target message.
+
+```scheme
+(meta (causal-closure
+  :target "sha256:e4f5...6789"
+  :thread "thread-42"
+  :messages (
+    (lang compaction (pause "context full" :caused-by "begin"
+      :thread "thread-42" :sender "@agent-a"))
+    (lang compaction (pause-ack :caused-by "sha256:7d3e...a1f0"
+      :thread "thread-42" :sender "@agent-b"))
+    ;; ... all messages in ↓target
+  )))
+```
+
+**Completeness.** The bundle SHALL include every message in the principal ideal ↓target — all messages reachable by following `:caused-by` links from the target back to root(s). A complete bundle is self-verifying: every `:caused-by` hash in the bundle resolves to another message in the bundle (or `"begin"`).
+
+**Verification by recipient.** On receiving a causal closure bundle, the recipient SHALL:
+
+1. Parse each message in the bundle (R1–R4 via existing pipeline).
+2. Recompute the content hash of each message. The computed hash must match the hash used in downstream `:caused-by` references.
+3. Verify completeness: every `:caused-by` hash resolves within the bundle.
+4. Verify causal validity: every message passes causal verification (SPEC-002 REQ-203 / SPEC-003 REQ-304) against the bundle as the message store.
+5. If all checks pass, merge the bundle into the agent's store (set union — REQ-300). Deduplication (REQ-310) handles messages already present.
+
+**Use cases:**
+- **Late joiner.** An agent joining a thread mid-conversation requests the causal closure of the current frontier. The sender constructs the bundle from their store.
+- **Tier 2 verification.** A partial verifier needs only the causal closure of the messages it cares about, not the entire thread.
+- **Escrow / audit.** A third party receives a bundle and verifies the entire interaction history without having participated.
+
+**Bundle authenticity.** The bundle is as trustworthy as the Merkle DAG itself: any alteration to any message changes its hash, invalidating downstream references. No additional signatures on the bundle are needed — the content addressing provides tamper-evidence. However, the bundle does NOT prove that the included messages are the ONLY messages — an adversary could omit branches. Completeness is verifiable within the bundle (no dangling `:caused-by` references) but not across the full thread without access to other sources.
+
+**Monotonicity.** Merging a causal closure bundle into the store is set union — a monotone operation on the store lattice (REQ-300). Verification results can only improve (Unknown → Valid or Unknown → Violation), never regress.
+
+Trace:
+- TEST-311
+- CON-304
+
+### REQ-312: Store Reconciliation (Anti-Entropy)
+
+The system SHALL support a reconciliation protocol for two agents on the same thread to discover and repair discrepancies in their message stores. The protocol uses the Merkle DAG structure for efficient set difference computation.
+
+**Reconciliation procedure:**
+
+1. **Frontier exchange.** Agent A sends its frontier (set of leaf message hashes) to Agent B. Agent B compares with its own frontier.
+
+2. **Divergence detection.** If the frontiers match, the stores agree on the causal structure up to the frontier. If they differ, the agents identify the divergence:
+   - Hashes in A's frontier but not in B's store → A has messages B lacks.
+   - Hashes in B's frontier but not in A's store → B has messages A lacks.
+   - Hashes in both frontiers → agreement on that branch.
+
+3. **Causal closure request.** For each hash that one agent has and the other lacks, the agent with the hash sends the causal closure of that hash (REQ-311). The recipient merges it into their store.
+
+4. **Convergence.** After exchanging causal closures for all frontier discrepancies, both agents have the same store state (set union). By the G-Set CRDT merge property (REQ-300), the merged state is the least upper bound.
+
+**Efficiency.** The reconciliation protocol is proportional to the size of the difference, not the size of the store. If agents agree on most of the DAG and differ on a few branches, only the differing branches are transferred. The Merkle structure enables this: agreement on a hash implies agreement on the entire sub-DAG below it.
+
+**Reconciliation message format:**
+
+```scheme
+;; Step 1: frontier exchange
+(meta (frontier-exchange
+  :thread "thread-42"
+  :frontier ("sha256:a1b2...c3d4" "sha256:e5f6...7890")))
+
+;; Step 3: respond with causal closures for missing hashes
+(meta (causal-closure
+  :target "sha256:a1b2...c3d4"
+  :thread "thread-42"
+  :messages (...)))
+```
+
+**Not a consensus protocol.** Reconciliation produces the union of both agents' stores — it does not resolve conflicts or establish agreement on which messages are "correct." There are no conflicts to resolve: the store is a G-Set (grow-only), and union is the unique merge. Two agents that reconcile will have identical stores and identical verification results for every message (eventual consistency — REQ-307).
+
+Trace:
+- TEST-312
+- CON-305
+
+### REQ-313: Frontier Compaction (Pruning)
+
+The system SHALL support optional compaction of the message store below a **checkpoint** — a signed agreement that a region of the DAG is fully verified and will not be referenced by future messages.
+
+**Checkpoint creation.** A checkpoint is a message declaring that all messages below a specified cut (set of message hashes) are fully verified:
+
+```scheme
+(meta (checkpoint
+  :thread "thread-42"
+  :cut ("sha256:a1b2...c3d4" "sha256:e5f6...7890")
+  :verified-by ("@agent-a" "@agent-b")
+  :digest "sha256:ffee...1122"))
+```
+
+Where:
+- `:cut` is the set of message hashes at the compaction boundary (an antichain in the DAG — no message in the cut is an ancestor of another).
+- `:verified-by` lists the agents agreeing to the checkpoint.
+- `:digest` is the SHA-256 hash of the sorted concatenation of all message hashes below the cut (a commitment to the compacted region).
+
+**Compaction procedure.** After a checkpoint is accepted:
+
+1. Messages strictly below the cut (ancestors of cut messages, excluding the cut messages themselves) MAY be removed from the store.
+2. The checkpoint message is retained in the store as a summary.
+3. The `:digest` field enables verification that a reconstructed sub-DAG matches the compacted region.
+4. Causal verification of messages above the cut continues normally — their `:caused-by` references point to cut messages or later messages, all of which are retained.
+
+**Coordination requirement.** Compaction is inherently non-monotonic: deleting messages from a grow-only set is a retraction. By CALM, this requires coordination. The coordination point is the checkpoint agreement: all parties listed in `:verified-by` must agree before compaction. This is an explicit, bounded coordination event — not a protocol-wide coordination requirement.
+
+**Compaction is optional.** Agents MAY retain the full store indefinitely. The checkpoint mechanism exists for operational reasons (memory, storage) and does not affect correctness — any agent that retains the full store can reconstruct the compacted region and verify the `:digest`.
+
+**Safety property.** Compaction SHALL NOT be performed if any pending message (Buffer policy, REQ-305) has a `:caused-by` reference to a message below the cut. Pending messages must resolve before their predecessors can be compacted.
+
+Trace:
+- TEST-313
+
+### REQ-314: Persistence and Crash Recovery
+
+The message store SHALL support durable persistence via a write-ahead log (WAL). The WAL records every append operation. On crash recovery, the store is reconstructed by replaying the WAL.
+
+**WAL format.** Each WAL entry is a serialised message in canonical form (the same serialisation used for content hashing). The WAL is an append-only file — entries are never modified or deleted.
+
+**Recovery procedure:**
+
+1. Open the WAL file.
+2. Replay each entry: parse the message, compute its content hash, append to the in-memory store with deduplication (REQ-310).
+3. Reconstruct the hash index (REQ-309) from the replayed store.
+4. Reconstruct the frontier by identifying leaf messages (unreferenced by any `:caused-by`).
+5. If the Buffer policy is active, pending messages are lost on crash — they are not persisted in the WAL (they were never accepted into the store). The sender will retransmit or timeout.
+
+**Integrity verification.** On recovery, the implementation SHOULD verify the Merkle DAG integrity: for each message, recompute the content hash and check that all `:caused-by` references resolve. This detects WAL corruption (bit flips, truncation). A message with a hash mismatch is discarded; its absence will cause downstream messages to produce `Unknown` results, which is correct (the message is effectively lost).
+
+**WAL compaction.** After a frontier checkpoint (REQ-313), WAL entries for compacted messages MAY be removed by rewriting the WAL with only retained messages. This is equivalent to log compaction in event sourcing systems.
+
+**Persistence is optional.** In-memory-only operation (no WAL) is valid for ephemeral agents or testing. The monotonicity and correctness guarantees hold regardless of persistence — they depend on the store lattice, not on durability.
+
+Trace:
+- TEST-314
+
+---
+
 ## Non-Functional Requirements
 
 ### NFR-300: Verification Latency (Unchanged)
 
 The three-valued verification result SHALL NOT increase verification latency beyond SPEC-002's bounds: ≤ 100 ns per message for single-predecessor, O(k) for fan-in.
 
-**Rationale:** The only change is the return type (`VerificationResult` instead of `Result<(), CausalViolation>`). The lookup and comparison operations are identical.
+**Rationale:** The only change is the return type (`VerificationResult` instead of `Result<(), CausalViolation>`). The lookup and comparison operations are identical. The O(1) hash index (REQ-309) is required to meet this bound.
 
 Trace:
 - TEST-350
@@ -373,6 +540,20 @@ Agents using the Reject policy (default) SHALL maintain zero bytes of mutable pe
 
 Trace:
 - TEST-352
+
+### NFR-303: Hash Index Memory
+
+The hash index (REQ-309) SHALL use no more than 64 bytes per message entry (hash + pointer). For a thread with N messages, the index overhead is ≤ 64N bytes.
+
+Trace:
+- TEST-353
+
+### NFR-304: Deduplication Overhead
+
+Deduplication (REQ-310) SHALL add ≤ 50 ns to the append operation (one hash index lookup).
+
+Trace:
+- TEST-354
 
 ---
 
@@ -411,6 +592,49 @@ Trace:
 **Decision:** Separate spec (SPEC-003).
 
 **Rationale:** SPEC-002 is an engineering specification — it defines syntax, verification procedures, blame, and the pipeline. SPEC-003 is a mathematical specification — it identifies algebraic structure and proves properties compositionally. Different audiences: SPEC-002 is for implementors; SPEC-003 is for the Lean proof and for researchers evaluating the monotonicity claims. Separation keeps SPEC-002 readable for dialect authors who don't need lattice theory.
+
+### ADR-303: Hash Index as Mandatory
+
+**Context:** SPEC-002 ADR-006 describes O(n) hash lookup with an optional hash map index. SPEC-002 NFR-201 requires ≤ 100 ns verification latency.
+
+**Decision:** The hash index is mandatory (REQ-309). O(n) lookup is not sufficient.
+
+**Trade-offs:**
+
+| Factor | O(n) scan | O(1) hash index |
+|---|---|---|
+| Memory | Zero overhead | ~64 bytes per message |
+| Lookup latency | O(n) — grows with thread length | O(1) amortised |
+| 100 ns bound at 1000 messages | Impossible (~10 µs) | Achievable (~20 ns) |
+| Append cost | O(1) | O(1) amortised (hash insert) |
+| Crash recovery | Nothing to rebuild | Rebuild from store (O(n) one-time) |
+
+**Rationale:** 64 bytes per message is negligible (a thread with 10,000 messages uses ~640 KB of index). The verification latency bound is non-negotiable — it is the only way causal checking stays in the noise relative to parsing.
+
+### ADR-304: Compaction Requires Coordination
+
+**Context:** The message store is a G-Set CRDT (grow-only). Pruning messages is a retraction — a non-monotonic operation. By CALM, non-monotonic operations require coordination.
+
+**Decision:** Compaction (REQ-313) requires explicit coordination: a signed checkpoint agreed by all participating agents. This is an honest acknowledgment that pruning is outside the coordination-free envelope.
+
+**Rationale:** The alternative is unbounded growth, which is operationally unacceptable for long-running agents. The checkpoint mechanism makes the coordination point explicit, bounded, and auditable — rather than hiding it in an implicit garbage collection scheme. Agents that never compact are correct; agents that compact with agreement are correct; agents that compact unilaterally risk breaking downstream verification for others.
+
+### ADR-305: Reconciliation via Frontier Exchange
+
+**Context:** Two agents on the same thread may have different store states due to network partitions, relay failures, or different gossip paths. They need a way to discover and repair discrepancies.
+
+**Decision:** Reconciliation via frontier exchange and causal closure transfer (REQ-312).
+
+**Trade-offs:**
+
+| Factor | Full store exchange | Frontier-based reconciliation |
+|---|---|---|
+| Bandwidth | O(store size) | O(difference size) |
+| Latency | Proportional to full store | Proportional to difference |
+| Privacy | Reveals entire history | Reveals only differing branches |
+| Complexity | Simple | Requires frontier computation and DAG traversal |
+
+**Rationale:** Frontier-based reconciliation is efficient because agreement on a hash implies agreement on the entire sub-DAG below it. This is the same principle Git uses for fetch/push negotiation. The common case (small divergence after a brief partition) transfers very little data.
 
 ---
 
@@ -550,6 +774,14 @@ Functions:
 
 trait MessageStore {
     fn lookup(&self, msg_id: &str) -> Option<&Message>;
+    fn lookup_in_thread(&self, msg_id: &str, thread: &str) -> Option<&Message>;
+    fn contains(&self, msg_id: &str) -> bool;
+    fn append(&mut self, msg: Message) -> bool;
+        // returns false if already present (deduplication)
+    fn frontier(&self, thread: &str) -> Vec<&Message>;
+        // leaf messages — unreferenced by any :caused-by
+    fn causal_closure(&self, msg_id: &str) -> Option<Vec<&Message>>;
+        // ↓M — all messages reachable by following :caused-by from M
 }
 
 Implements:
@@ -557,6 +789,153 @@ Implements:
 
 Verified by:
   TEST-302, TEST-303, TEST-304, TEST-305
+```
+
+### CON-303: Hash Index API
+
+```
+Interface: cbcl_core::store::HashIndex
+
+Types:
+  struct HashIndex {
+      index: HashMap<ContentHash, (ThreadId, usize)>,
+      // hash → (thread, position in thread's message vec)
+  }
+
+Methods:
+  fn insert(&mut self, hash: ContentHash, thread: &str, pos: usize)
+    Post-conditions: index contains mapping for hash
+    Complexity: O(1) amortised
+    Idempotence: inserting the same hash twice is a no-op
+
+  fn lookup(&self, hash: &ContentHash) -> Option<(ThreadId, usize)>
+    Post-conditions: returns thread and position if present
+    Complexity: O(1) amortised
+
+  fn contains(&self, hash: &ContentHash) -> bool
+    Post-conditions: true iff hash is in index
+    Complexity: O(1) amortised
+
+  fn rebuild(store: &MessageStore) -> HashIndex
+    Post-conditions: index contains all hashes in store
+    Complexity: O(N) where N = total messages across all threads
+    Note: used for crash recovery (REQ-314)
+
+Implements:
+  REQ-309
+
+Verified by:
+  TEST-309
+```
+
+### CON-304: Causal Closure Transfer API
+
+```
+Interface: cbcl_core::store::CausalClosureBundle
+
+Types:
+  struct CausalClosureBundle {
+      target: ContentHash,
+      thread: String,
+      messages: Vec<Message>,       // all messages in ↓target, topologically sorted
+  }
+
+Functions:
+  fn extract(
+      target: &ContentHash,
+      store: &dyn MessageStore,
+  ) -> Result<CausalClosureBundle, ClosureError>
+    Pre-conditions: target exists in store
+    Post-conditions:
+      - messages contains every message in ↓target
+      - messages is topologically sorted (predecessors before successors)
+      - every :caused-by hash in the bundle resolves within the bundle
+    Error model:
+      ClosureError::TargetNotFound
+      ClosureError::IncompleteStore { missing_hashes }
+
+  fn verify(bundle: &CausalClosureBundle) -> Result<(), BundleVerificationError>
+    Post-conditions:
+      - Every message's content hash matches its canonical serialisation
+      - Every :caused-by hash resolves within the bundle
+      - Every causal link is valid per the protocol declaration
+    Error model:
+      BundleVerificationError::HashMismatch { message, expected, computed }
+      BundleVerificationError::DanglingReference { caused_by }
+      BundleVerificationError::CausalViolation(CausalViolation)
+
+  fn merge(
+      bundle: &CausalClosureBundle,
+      store: &mut dyn MessageStore,
+  ) -> MergeResult
+    Post-conditions:
+      - All messages in bundle are in store (set union)
+      - Deduplication applied (REQ-310)
+    Returns:
+      MergeResult { added: usize, deduplicated: usize }
+
+  fn to_sexpr(&self) -> SExpr
+    Post-conditions: output is a valid (meta (causal-closure ...)) message
+
+Implements:
+  REQ-311
+
+Verified by:
+  TEST-311
+```
+
+### CON-305: Reconciliation API
+
+```
+Interface: cbcl_core::store::Reconciliation
+
+Types:
+  struct FrontierExchange {
+      thread: String,
+      frontier: Vec<ContentHash>,     // leaf message hashes, sorted
+  }
+
+  struct ReconciliationDiff {
+      i_have_you_lack: Vec<ContentHash>,
+      you_have_i_lack: Vec<ContentHash>,
+  }
+
+Functions:
+  fn compute_frontier(
+      store: &dyn MessageStore,
+      thread: &str,
+  ) -> FrontierExchange
+    Post-conditions:
+      - frontier contains all leaf message hashes in thread
+      - frontier is lexicographically sorted (deterministic)
+    Complexity: O(N) where N = messages in thread
+
+  fn diff_frontiers(
+      local: &FrontierExchange,
+      remote: &FrontierExchange,
+      store: &dyn MessageStore,
+  ) -> ReconciliationDiff
+    Post-conditions:
+      - i_have_you_lack: hashes in local frontier not in remote
+      - you_have_i_lack: hashes in remote frontier not in local store
+    Note: this is an approximation — frontier-level diff, not full
+    store diff. Deeper divergence requires recursive DAG comparison.
+
+  fn reconcile(
+      diff: &ReconciliationDiff,
+      store: &dyn MessageStore,
+  ) -> Vec<CausalClosureBundle>
+    Post-conditions:
+      - One bundle per hash in i_have_you_lack
+      - Each bundle is a causal closure (REQ-311)
+    Note: bundles may overlap (shared ancestors). Recipient
+    handles deduplication on merge (REQ-310).
+
+Implements:
+  REQ-312
+
+Verified by:
+  TEST-312
 ```
 
 ---
@@ -654,6 +1033,80 @@ Verify that `CausalPending` error messages parse correctly via the existing DCFL
 
 Trace: REQ-308
 
+### TEST-309: Hash Index
+
+Verify O(1) hash lookup. Insert 10,000 messages across 10 threads, verify all lookups return correct results. Verify thread isolation: lookup for hash H in thread T1 does not return a message from thread T2 even if H exists in T2. Verify rebuild from store produces identical index. Benchmark: lookup latency ≤ 50 ns.
+
+Trace: REQ-309
+
+### TEST-310: Deduplication
+
+Append the same message twice. Verify store contains exactly one copy. Verify `append()` returns `false` on duplicate. Property-based: for random message sequences with duplicates, store size equals number of unique messages. Verify deduplication works across crash recovery (replay WAL with duplicates).
+
+Trace: REQ-310
+
+### TEST-311: Causal Closure Transfer
+
+Scenario 1 (extract): Build a DAG of 10 messages with fan-out and fan-in. Extract causal closure of a leaf. Verify all ancestors included. Verify topological order (predecessors before successors).
+
+Scenario 2 (verify): Receive a valid bundle. Verify passes. Tamper with one message's content (without updating hash). Verify fails with `HashMismatch`. Remove one message from bundle. Verify fails with `DanglingReference`.
+
+Scenario 3 (merge): Merge bundle into a store that already contains some of the messages. Verify deduplication. Verify new messages appear. Verify verification results improve (Unknown → Valid) for previously pending messages.
+
+Scenario 4 (round-trip): Extract closure, serialise to S-expression, parse, verify, merge into empty store. Verify resulting store matches the original closure.
+
+Trace: REQ-311
+
+### TEST-312: Store Reconciliation
+
+Scenario 1 (identical stores): Two agents with identical stores. Frontier exchange produces empty diff.
+
+Scenario 2 (one-sided divergence): Agent A has messages Agent B lacks. Frontier diff identifies them. Causal closure bundles transferred. After merge, stores are identical.
+
+Scenario 3 (mutual divergence): Both agents have messages the other lacks (different branches). Reconciliation produces bundles in both directions. After mutual merge, stores are identical.
+
+Scenario 4 (deep divergence): Agents diverged many messages ago. Verify that only differing branches are transferred, not the common prefix.
+
+Property-based: for two random subsets of a message DAG, reconciliation produces the union.
+
+Trace: REQ-312
+
+### TEST-313: Frontier Compaction
+
+Scenario 1 (basic compaction): Create checkpoint at a cut. Compact messages below cut. Verify messages above cut still verify correctly. Verify causal closure of messages above cut returns the cut as the "floor."
+
+Scenario 2 (digest verification): Compact, then reconstruct the compacted region from an external source. Verify digest matches.
+
+Scenario 3 (safety): Attempt to compact while pending messages reference messages below the cut. Verify compaction is refused.
+
+Scenario 4 (no compaction): Verify that agents that never compact function identically to agents with the full store.
+
+Trace: REQ-313
+
+### TEST-314: Persistence and Crash Recovery
+
+Scenario 1 (basic recovery): Append 100 messages, write WAL, simulate crash (drop in-memory state), recover from WAL. Verify store matches pre-crash state. Verify hash index is correct. Verify frontier is correct.
+
+Scenario 2 (integrity check): Corrupt one byte in the WAL. Recover. Verify the corrupted message is discarded. Verify downstream messages produce `Unknown` results.
+
+Scenario 3 (WAL compaction): Append 100 messages, compact below a checkpoint, rewrite WAL. Recover from compacted WAL. Verify retained messages are correct.
+
+Scenario 4 (no WAL): Run without persistence. Verify all in-memory operations work correctly. Verify crash loses all state (expected).
+
+Trace: REQ-314
+
+### TEST-353: Hash Index Memory
+
+Verify hash index memory usage ≤ 64 bytes per entry. Insert 10,000 messages, measure total index allocation.
+
+Trace: NFR-303
+
+### TEST-354: Deduplication Overhead
+
+Benchmark append with and without deduplication check. Verify overhead ≤ 50 ns per append.
+
+Trace: NFR-304
+
 ### TEST-350: Verification Latency Unchanged
 
 Benchmark `verify_causal` returning `VerificationResult` vs the previous `Result<(), CausalViolation>`. Median ≤ 100 ns (SPEC-002 NFR-201).
@@ -705,19 +1158,37 @@ The Lean proof targets the pure core only — `VerificationResult`, `meet`, `joi
 4. `src/policy.rs` — `UnknownPredecessorPolicy`, `apply_policy()`, `PolicyOutcome`.
 5. Tests (TEST-304, TEST-305).
 
-### Phase 3: Pipeline Integration
+### Phase 3: Message Store Infrastructure (cbcl-core)
 
-6. Update `run_pipeline()` to use `VerificationResult` and `apply_policy()`.
-7. `CausalPending` error message format.
-8. Tests (TEST-308).
+6. `src/store/hash_index.rs` — `HashIndex`, per-thread O(1) lookup, `rebuild()`.
+7. Update `src/store/mod.rs` — `MessageStore` trait with `append()` (deduplication), `lookup_in_thread()`, `frontier()`, `causal_closure()`.
+8. Tests (TEST-309, TEST-310).
 
-### Phase 4: Properties and Benchmarks
+### Phase 4: Pipeline Integration
 
-9. Property-based tests (TEST-300, TEST-301, TEST-304, TEST-307).
-10. Benchmarks (TEST-350).
+9. Update `run_pipeline()` to use `VerificationResult` and `apply_policy()`.
+10. `CausalPending` error message format.
+11. Tests (TEST-308).
 
-### Phase 5: Lean 4 Proof
+### Phase 5: Causal Closure Transfer and Reconciliation
 
-11. Lean 4 definitions and base case lemma.
-12. Compositional closure lemmas.
-13. Eventual verification theorem.
+12. `src/store/closure.rs` — `CausalClosureBundle`, `extract()`, `verify()`, `merge()`, `to_sexpr()`.
+13. `src/store/reconciliation.rs` — `FrontierExchange`, `diff_frontiers()`, `reconcile()`.
+14. Tests (TEST-311, TEST-312).
+
+### Phase 6: Compaction and Persistence
+
+15. `src/store/checkpoint.rs` — `Checkpoint`, compaction below cut, digest computation.
+16. `src/store/wal.rs` — WAL append, recovery, compaction.
+17. Tests (TEST-313, TEST-314).
+
+### Phase 7: Properties and Benchmarks
+
+18. Property-based tests (TEST-300, TEST-301, TEST-304, TEST-307).
+19. Benchmarks (TEST-350, TEST-353, TEST-354).
+
+### Phase 8: Lean 4 Proof
+
+20. Lean 4 definitions and base case lemma.
+21. Compositional closure lemmas.
+22. Eventual verification theorem.
