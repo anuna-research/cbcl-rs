@@ -3,25 +3,24 @@
   "confidence": 1.0,
   "exit_code": 0,
   "diff_summary": {
-    "files_changed": 2,
-    "insertions": 588,
+    "files_changed": 1,
+    "insertions": 696,
     "deletions": 0,
     "file_list": [
-      "crates/cbcl-core/src/lib.rs",
-      "crates/cbcl-core/src/policy.rs"
+      "crates/cbcl-core/tests/eventual_consistency_tests.rs"
     ],
     "dirty_files": 1
   },
   "learnings": [
     {
-      "key": "task-unknown-policy-changes",
-      "content": "Modified 2 files (+588, -0): crates/cbcl-core/src/lib.rs, crates/cbcl-core/src/policy.rs",
+      "key": "task-eventual-tests-changes",
+      "content": "Modified 1 files (+696, -0): crates/cbcl-core/tests/eventual_consistency_tests.rs",
       "memory_type": "episodic",
       "confidence": 0.8
     }
   ],
-  "branch_name": "hence/unknown-policy-v1",
-  "evaluated_at": "2026-03-24T14:18:20Z",
+  "branch_name": "hence/eventual-tests-v1",
+  "evaluated_at": "2026-03-24T14:25:18Z",
   "checks_passed": 0,
   "checks_failed": 0
 }
