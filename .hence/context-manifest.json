@@ -1,15 +1,21 @@
 {
-  "task_id": "shape",
+  "task_id": "shape-check",
   "token_budget": 8000,
-  "tokens_used": 76,
+  "tokens_used": 138,
   "elements_selected": [
     {
       "source": "plan-meta/description",
-      "content": "Define ShapeConstraint types (require, optional, max-depth, type-constraint) in cbcl-core/src/shape.rs. Implement parse_shape(sexpr) in cbcl-parser/src/shape_parser.rs. Integrate into dialect_parser.rs for (shape ...) clause dispatch. REQ-220, REQ-221. New files. #![forbid(unsafe_code)], no_std + alloc.",
-      "token_cost": 76,
+      "content": "Implement runtime shape checking on expanded messages. Walk expanded S-expression, verify: all require params present at expected depth, type constraints satisfied, nesting within max-depth, nested rules recursive. Shape composition via conjunction (VPL intersection, REQ-224). DCFL preservation trivially maintained (REQ-225). REQ-223.",
+      "token_cost": 84,
       "priority": "PlanMeta"
+    },
+    {
+      "source": "memory/episodic/task-shape-changes",
+      "content": "Modified 18 files (+1174, -38): crates/cbcl-core/benches/core_bench.rs, crates/cbcl-core/src/agent.rs, crates/cbcl-core/src/canonical.rs, crates/cbcl-core/src/dialect.rs, crates/cbcl-core/src/evaluator.rs and 13 more",
+      "token_cost": 54,
+      "priority": "AgentMemory"
     }
   ],
   "elements_excluded": [],
-  "constructed_at": "2026-03-24T13:06:05Z"
+  "constructed_at": "2026-03-24T13:15:33Z"
 }

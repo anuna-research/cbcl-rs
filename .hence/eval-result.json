@@ -3,41 +3,24 @@
   "confidence": 1.0,
   "exit_code": 0,
   "diff_summary": {
-    "files_changed": 18,
-    "insertions": 1174,
-    "deletions": 38,
+    "files_changed": 1,
+    "insertions": 274,
+    "deletions": 0,
     "file_list": [
-      "crates/cbcl-core/benches/core_bench.rs",
-      "crates/cbcl-core/src/agent.rs",
-      "crates/cbcl-core/src/canonical.rs",
-      "crates/cbcl-core/src/dialect.rs",
-      "crates/cbcl-core/src/evaluator.rs",
-      "crates/cbcl-core/src/gossip.rs",
-      "crates/cbcl-core/src/lib.rs",
-      "crates/cbcl-core/src/r1.rs",
-      "crates/cbcl-core/src/r2.rs",
-      "crates/cbcl-core/src/r3.rs",
-      "crates/cbcl-core/src/r4.rs",
-      "crates/cbcl-core/src/shape.rs",
-      "crates/cbcl-core/tests/prop_generators.rs",
-      "crates/cbcl-core/tests/property_tests.rs",
-      "crates/cbcl-parser/src/dialect_parser.rs",
-      "crates/cbcl-parser/src/lib.rs",
-      "crates/cbcl-parser/src/shape_parser.rs",
-      "crates/cbcl-parser/tests/differential.rs"
+      "crates/cbcl-core/src/evaluator.rs"
     ],
     "dirty_files": 1
   },
   "learnings": [
     {
-      "key": "task-shape-changes",
-      "content": "Modified 18 files (+1174, -38): crates/cbcl-core/benches/core_bench.rs, crates/cbcl-core/src/agent.rs, crates/cbcl-core/src/canonical.rs, crates/cbcl-core/src/dialect.rs, crates/cbcl-core/src/evaluator.rs and 13 more",
+      "key": "task-shape-check-changes",
+      "content": "Modified 1 files (+274, -0): crates/cbcl-core/src/evaluator.rs",
       "memory_type": "episodic",
       "confidence": 0.8
     }
   ],
-  "branch_name": "hence/shape-v1",
-  "evaluated_at": "2026-03-24T13:15:27Z",
+  "branch_name": "hence/shape-check-v1",
+  "evaluated_at": "2026-03-24T13:21:27Z",
   "checks_passed": 0,
   "checks_failed": 0
 }
