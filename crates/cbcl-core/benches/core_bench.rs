@@ -45,7 +45,7 @@ fn make_dialect(name: &str, perfs: Vec<PerformativeDef>) -> Dialect {
         examples: vec![],
         signature: None,
         hash: None,
-        protocol: None,
+        protocol: None, shapes: Vec::new(),
     }
 }
 
@@ -74,7 +74,7 @@ fn test_dialect(name: &str) -> Dialect {
         examples: Vec::new(),
         signature: None,
         hash: None,
-        protocol: None,
+        protocol: None, shapes: Vec::new(),
     }
 }
 
@@ -358,7 +358,7 @@ fn bench_eval(c: &mut Criterion) {
             examples: Vec::new(),
             signature: None,
             hash: None,
-            protocol: None,
+            protocol: None, shapes: Vec::new(),
         })
         .unwrap();
 

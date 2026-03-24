@@ -19,6 +19,7 @@
 //! - `template` — Template expansion
 //! - `pattern` — Pattern matching for message dispatch
 //! - `msg_tag` — Deterministic message tagging (DCFL)
+//! - `shape` — Structural shape constraints (REQ-220)
 //! - `gossip` — Epidemic gossip protocol for dialect propagation
 
 #![forbid(unsafe_code)]
@@ -40,6 +41,7 @@ pub mod r3;
 pub mod r4;
 pub mod serializer;
 pub mod sexpr;
+pub mod shape;
 pub mod template;
 
 /// Prelude re-exporting the most-used types.
@@ -55,4 +57,5 @@ pub mod prelude {
     };
     pub use crate::r4::{R4Result, Signer};
     pub use crate::sexpr::{Atom, SExpr};
+    pub use crate::shape::{ShapeConstraint, ShapeRule, ShapeViolation, TypeConstraint};
 }

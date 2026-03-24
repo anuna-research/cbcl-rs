@@ -352,7 +352,7 @@ mod tests {
             examples: Vec::new(),
             signature: None,
             hash: None,
-            protocol: None,
+            protocol: None, shapes: Vec::new(),
         })
         .unwrap();
         reg
@@ -383,7 +383,7 @@ mod tests {
             examples: Vec::new(),
             signature: None,
             hash: None,
-            protocol: None,
+            protocol: None, shapes: Vec::new(),
         })
         .unwrap();
         reg

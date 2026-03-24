@@ -76,7 +76,7 @@ mod tests {
             examples: vec![],
             signature: None,
             hash: None,
-            protocol: None,
+            protocol: None, shapes: Vec::new(),
         }
     }
 

@@ -9,6 +9,7 @@ use alloc::string::String;
 use alloc::vec::Vec;
 use cbcl_core::dialect::{Dialect, PerformativeDef, ResourceBounds};
 use cbcl_core::sexpr::{Atom, SExpr};
+use cbcl_core::shape::ShapeConstraint;
 
 /// Parse a dialect definition from a `(define name extends author clauses...)` form (REQ-045).
 ///
@@ -66,6 +67,7 @@ pub fn parse_dialect(sexpr: &SExpr) -> Result<Dialect, String> {
     let mut signature: Option<Vec<u8>> = None;
     let mut hash: Option<String> = None;
     let mut protocol: Option<String> = None;
+    let mut shapes: Vec<ShapeConstraint> = Vec::new();
 
     for clause in &items[4..] {
         parse_clause(
@@ -76,6 +78,7 @@ pub fn parse_dialect(sexpr: &SExpr) -> Result<Dialect, String> {
             &mut signature,
             &mut hash,
             &mut protocol,
+            &mut shapes,
         )?;
     }
 
@@ -89,6 +92,7 @@ pub fn parse_dialect(sexpr: &SExpr) -> Result<Dialect, String> {
         signature,
         hash,
         protocol,
+        shapes,
     })
 }
 
@@ -146,6 +150,7 @@ fn parse_clause(
     signature: &mut Option<Vec<u8>>,
     hash: &mut Option<String>,
     protocol: &mut Option<String>,
+    shapes: &mut Vec<ShapeConstraint>,
 ) -> Result<(), String> {
     let items = match clause {
         SExpr::List(items) if !items.is_empty() => items,
@@ -204,6 +209,13 @@ fn parse_clause(
             params,
             template,
         });
+        return Ok(());
+    }
+
+    // Check for 'shape' clause (REQ-220, REQ-221)
+    if items[0].is_symbol("shape") {
+        let shape = crate::shape_parser::parse_shape(clause)?;
+        shapes.push(shape);
         return Ok(());
     }
 

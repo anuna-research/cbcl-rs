@@ -10,6 +10,7 @@ use crate::r2::verify_r2;
 use crate::r3::{r3_violations, verify_r3};
 use crate::r4::{check_r4, R4Result, Signer};
 use crate::sexpr::{Atom, SExpr};
+use crate::shape::ShapeConstraint;
 use alloc::string::String;
 use alloc::vec;
 use alloc::vec::Vec;
@@ -123,6 +124,8 @@ pub struct Dialect {
     pub signature: Option<Vec<u8>>,
     pub hash: Option<String>,
     pub protocol: Option<String>,
+    /// Shape constraints for expanded messages (REQ-220).
+    pub shapes: Vec<ShapeConstraint>,
 }
 
 impl Dialect {
@@ -188,6 +191,7 @@ pub fn base_dialect() -> Dialect {
         signature: None,
         hash: None,
         protocol: None,
+        shapes: Vec::new(),
     }
 }
 
@@ -474,7 +478,7 @@ mod tests {
             examples: vec![],
             signature: None,
             hash: None,
-            protocol: Some(String::from("ed25519")),
+            protocol: Some(String::from("ed25519")), shapes: Vec::new(),
         };
         reg.install(planning).unwrap();
         assert_eq!(reg.len(), 2);
@@ -504,7 +508,7 @@ mod tests {
                 examples: vec![],
                 signature: None,
                 hash: None,
-                protocol: None,
+                protocol: None, shapes: Vec::new(),
             })
             .unwrap();
         }
@@ -533,7 +537,7 @@ mod tests {
             examples: vec![],
             signature: None,
             hash: None,
-            protocol: None,
+            protocol: None, shapes: Vec::new(),
         };
         let err = reg.install(bad).unwrap_err();
         match err {
@@ -566,7 +570,7 @@ mod tests {
             examples: vec![],
             signature: None,
             hash: None,
-            protocol: None,
+            protocol: None, shapes: Vec::new(),
         };
         let err = reg.install(bad).unwrap_err();
         match err {
@@ -595,7 +599,7 @@ mod tests {
             examples: vec![],
             signature: None,
             hash: None,
-            protocol: None,
+            protocol: None, shapes: Vec::new(),
         };
         assert!(matches!(
             reg.install(bad),
@@ -638,7 +642,7 @@ mod tests {
                 examples: vec![],
                 signature: None,
                 hash: None,
-                protocol: Some(String::from("ed25519")),
+                protocol: Some(String::from("ed25519")), shapes: Vec::new(),
             })
             .unwrap();
         }
@@ -690,7 +694,7 @@ mod tests {
             examples: vec![],
             signature: None,
             hash: None,
-            protocol: None,
+            protocol: None, shapes: Vec::new(),
         };
         let result = reg.install_with_signer(d, &MockSigner).unwrap();
         assert_eq!(result, R4Result::Unsigned);
@@ -713,7 +717,7 @@ mod tests {
             examples: vec![],
             signature: Some(alloc::vec![0xAA, 0xBB]),
             hash: None,
-            protocol: Some(String::from("ed25519")),
+            protocol: Some(String::from("ed25519")), shapes: Vec::new(),
         };
         let result = reg.install_with_signer(d, &MockSigner).unwrap();
         assert_eq!(result, R4Result::Valid);
@@ -736,7 +740,7 @@ mod tests {
             examples: vec![],
             signature: Some(alloc::vec![0xFF, 0xFF]),
             hash: None,
-            protocol: Some(String::from("ed25519")),
+            protocol: Some(String::from("ed25519")), shapes: Vec::new(),
         };
         let err = reg.install_with_signer(d, &MockSigner).unwrap_err();
         match err {
@@ -770,7 +774,7 @@ mod tests {
             examples: vec![],
             signature: Some(alloc::vec![0xAA, 0xBB]),
             hash: None,
-            protocol: None,
+            protocol: None, shapes: Vec::new(),
         };
         let err = reg.install_with_signer(d, &MockSigner).unwrap_err();
         assert!(matches!(err, DialectInstallError::R3Violation { .. }));
