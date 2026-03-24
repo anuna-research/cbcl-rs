@@ -4,25 +4,25 @@
   "exit_code": 0,
   "diff_summary": {
     "files_changed": 3,
-    "insertions": 787,
-    "deletions": 0,
+    "insertions": 778,
+    "deletions": 5,
     "file_list": [
-      "Cargo.lock",
-      "crates/cbcl-core/Cargo.toml",
-      "crates/cbcl-core/tests/certificate_tests.rs"
+      ".hence/context-manifest.json",
+      "crates/cbcl-core/src/blame.rs",
+      "crates/cbcl-core/src/lib.rs"
     ],
-    "dirty_files": 1
+    "dirty_files": 0
   },
   "learnings": [
     {
-      "key": "task-certificate-tests-changes",
-      "content": "Modified 3 files (+787, -0): Cargo.lock, crates/cbcl-core/Cargo.toml, crates/cbcl-core/tests/certificate_tests.rs",
+      "key": "task-blame-changes",
+      "content": "Modified 3 files (+778, -5): .hence/context-manifest.json, crates/cbcl-core/src/blame.rs, crates/cbcl-core/src/lib.rs",
       "memory_type": "episodic",
       "confidence": 0.8
     }
   ],
-  "branch_name": "hence/certificate-tests-v1",
-  "evaluated_at": "2026-03-24T14:57:01Z",
+  "branch_name": "hence/blame-v1",
+  "evaluated_at": "2026-03-24T15:03:41Z",
   "checks_passed": 0,
   "checks_failed": 0
 }
