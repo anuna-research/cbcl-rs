@@ -1,12 +1,12 @@
 {
-  "task_id": "monotonicity-tests",
+  "task_id": "causal-closure",
   "token_budget": 8000,
-  "tokens_used": 406,
+  "tokens_used": 439,
   "elements_selected": [
     {
       "source": "plan-meta/description",
-      "content": "Property-based tests for the monotonicity guarantee (REQ-211, REQ-304). For random (message, store) pairs: verify(msg, store) <= verify(msg, store + random_msg). Cover single predecessor, (all ...) fan-in, (any ...) disjunction. TEST-304, TEST-211.",
-      "token_cost": 62,
+      "content": "Implement CausalClosureBundle: extract (DAG traversal to collect principal ideal ↓target), verify (hash integrity + completeness + causal validity), merge (set union with deduplication), to_sexpr (meta (causal-closure ...)). Also covers Tier 2 (partial causal closure) and Tier 3 (full audit) verification paths from REQ-212. REQ-311, REQ-212. File: crates/cbcl-core/src/store.rs.",
+      "token_cost": 95,
       "priority": "PlanMeta"
     },
     {
@@ -71,5 +71,5 @@
     }
   ],
   "elements_excluded": [],
-  "constructed_at": "2026-03-24T14:25:25Z"
+  "constructed_at": "2026-03-24T14:31:47Z"
 }

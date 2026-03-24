@@ -6,12 +6,19 @@
 //! The store is a join-semilattice (REQ-300): messages are the elements,
 //! `:caused-by` links form the covers relation (REQ-301), fan-in is join,
 //! and causal closure computes the principal ideal.
+//!
+//! Also provides [`CausalClosureBundle`] for transferring verifiable subsets
+//! of the message store (REQ-311, REQ-212).
 
 #![forbid(unsafe_code)]
 
 use alloc::string::String;
+use alloc::vec;
 use alloc::vec::Vec;
+use core::fmt;
 use crate::message::{CausedBy, Message};
+use crate::protocol::{CausalProtocol, CausalViolation, VerificationResult};
+use crate::sexpr::{Atom, SExpr};
 use hashbrown::{HashMap, HashSet};
 
 /// Content-addressed hash identifying a message (SHA-256 hex string).
@@ -265,6 +272,430 @@ impl MessageStore for ThreadedMessageStore {
         }
 
         result
+    }
+}
+
+// ================================================================
+// Causal Closure Bundle (REQ-311, REQ-212, CON-304)
+// ================================================================
+
+/// Error during causal closure extraction.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum ClosureError {
+    /// Target message not found in the store.
+    TargetNotFound,
+    /// Store is incomplete — some `:caused-by` hashes are missing.
+    IncompleteStore { missing_hashes: Vec<ContentHash> },
+}
+
+impl fmt::Display for ClosureError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::TargetNotFound => write!(f, "target message not found in store"),
+            Self::IncompleteStore { missing_hashes } => {
+                write!(f, "incomplete store, missing hashes: ")?;
+                for (i, h) in missing_hashes.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{}", h.0)?;
+                }
+                Ok(())
+            }
+        }
+    }
+}
+
+/// Error during bundle verification.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum BundleVerificationError {
+    /// A message's content hash does not match its computed hash.
+    HashMismatch {
+        hash: ContentHash,
+        expected: ContentHash,
+        computed: ContentHash,
+    },
+    /// A `:caused-by` hash does not resolve within the bundle.
+    DanglingReference { caused_by: String },
+    /// A causal link violates the protocol declaration.
+    CausalViolation(CausalViolation),
+}
+
+impl fmt::Display for BundleVerificationError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::HashMismatch {
+                hash,
+                expected,
+                computed,
+            } => write!(
+                f,
+                "hash mismatch for {}: expected {}, computed {}",
+                hash.0, expected.0, computed.0
+            ),
+            Self::DanglingReference { caused_by } => {
+                write!(f, "dangling :caused-by reference: {caused_by}")
+            }
+            Self::CausalViolation(v) => write!(f, "causal violation: {v}"),
+        }
+    }
+}
+
+/// Result of merging a bundle into a store.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MergeResult {
+    /// Number of messages newly added to the store.
+    pub added: usize,
+    /// Number of messages already present (deduplicated).
+    pub deduplicated: usize,
+}
+
+/// A transferable, verifiable subset of the message store (REQ-311, CON-304).
+///
+/// Contains the principal ideal ↓target — all messages reachable by following
+/// `:caused-by` links from the target back to root(s). Messages are stored in
+/// topological order (predecessors before successors).
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct CausalClosureBundle {
+    /// The target message this bundle is the causal closure of.
+    pub target: ContentHash,
+    /// The thread this bundle belongs to.
+    pub thread: ThreadId,
+    /// All messages in ↓target, topologically sorted (predecessors first).
+    /// Each entry is `(content_hash, message)`.
+    pub messages: Vec<(ContentHash, Message)>,
+}
+
+impl CausalClosureBundle {
+    /// Extract the causal closure (principal ideal ↓target) from a store (REQ-311).
+    ///
+    /// Performs a DAG traversal following `:caused-by` links from `target` back
+    /// to root(s). The resulting bundle is topologically sorted: every message
+    /// appears after all of its predecessors.
+    pub fn extract<S: MessageStore>(
+        target: &ContentHash,
+        thread: &ThreadId,
+        store: &S,
+    ) -> Result<Self, ClosureError> {
+        // Verify target exists
+        let target_msg = store
+            .lookup_in_thread(target, thread)
+            .ok_or(ClosureError::TargetNotFound)?;
+
+        // Phase 1: DFS to collect all hashes in the closure
+        let mut visited = HashSet::new();
+        let mut stack = vec![target.clone()];
+        let mut hash_to_msg: Vec<(ContentHash, Message)> = Vec::new();
+        let mut missing = Vec::new();
+
+        // We need the target message; clone it here
+        let _ = target_msg; // used only to verify existence above
+
+        while let Some(current) = stack.pop() {
+            if !visited.insert(current.clone()) {
+                continue;
+            }
+
+            let msg = match store.lookup_in_thread(&current, thread) {
+                Some(m) => m,
+                None => {
+                    missing.push(current);
+                    continue;
+                }
+            };
+
+            hash_to_msg.push((current.clone(), msg.clone()));
+
+            // Follow caused-by links
+            if let Some(cb) = msg.caused_by() {
+                match cb {
+                    CausedBy::Begin => {}
+                    CausedBy::Single(h) => {
+                        let ch = ContentHash(h.clone());
+                        if !visited.contains(&ch) {
+                            stack.push(ch);
+                        }
+                    }
+                    CausedBy::Multiple(hs) => {
+                        for h in hs {
+                            let ch = ContentHash(h.clone());
+                            if !visited.contains(&ch) {
+                                stack.push(ch);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if !missing.is_empty() {
+            return Err(ClosureError::IncompleteStore {
+                missing_hashes: missing,
+            });
+        }
+
+        // Phase 2: Topological sort (Kahn's algorithm — predecessors before successors)
+        // Use indices into hash_to_msg to avoid lifetime issues.
+        let hash_to_idx: HashMap<ContentHash, usize> = hash_to_msg
+            .iter()
+            .enumerate()
+            .map(|(i, (h, _))| (h.clone(), i))
+            .collect();
+
+        let n = hash_to_msg.len();
+        let mut in_degree: Vec<usize> = alloc::vec![0; n];
+        let mut successors_map: Vec<Vec<usize>> = (0..n).map(|_| Vec::new()).collect();
+
+        // Build edges: for each message, its caused-by predecessors have an edge TO this message
+        for (idx, (_, m)) in hash_to_msg.iter().enumerate() {
+            if let Some(cb) = m.caused_by() {
+                let pred_hashes: Vec<&str> = match cb {
+                    CausedBy::Begin => vec![],
+                    CausedBy::Single(p) => vec![p.as_str()],
+                    CausedBy::Multiple(ps) => ps.iter().map(|p| p.as_str()).collect(),
+                };
+                for p in pred_hashes {
+                    if let Some(&pred_idx) = hash_to_idx.get(&ContentHash(p.into())) {
+                        successors_map[pred_idx].push(idx);
+                        in_degree[idx] += 1;
+                    }
+                }
+            }
+        }
+
+        // Kahn's: start with nodes having in-degree 0
+        let mut queue: Vec<usize> = (0..n).filter(|&i| in_degree[i] == 0).collect();
+        // Sort by hash for deterministic ordering
+        queue.sort_by(|&a, &b| hash_to_msg[a].0.cmp(&hash_to_msg[b].0));
+
+        let mut sorted_indices: Vec<usize> = Vec::with_capacity(n);
+
+        while let Some(node) = queue.pop() {
+            sorted_indices.push(node);
+            for &succ in &successors_map[node] {
+                in_degree[succ] -= 1;
+                if in_degree[succ] == 0 {
+                    // Insert in sorted position for determinism
+                    let pos = queue.partition_point(|&x| {
+                        hash_to_msg[x].0.cmp(&hash_to_msg[succ].0) == core::cmp::Ordering::Greater
+                    });
+                    queue.insert(pos, succ);
+                }
+            }
+        }
+
+        // Build the sorted messages vec
+        let mut msg_slots: Vec<Option<(ContentHash, Message)>> =
+            hash_to_msg.into_iter().map(Some).collect();
+        let messages: Vec<(ContentHash, Message)> = sorted_indices
+            .into_iter()
+            .filter_map(|i| msg_slots[i].take())
+            .collect();
+
+        Ok(CausalClosureBundle {
+            target: target.clone(),
+            thread: thread.clone(),
+            messages,
+        })
+    }
+
+    /// Verify bundle completeness — all `:caused-by` hashes resolve within the bundle.
+    ///
+    /// This is the Tier 2 verification path (REQ-212): verify that the bundle is
+    /// self-contained. No external store or protocol is needed.
+    pub fn verify_completeness(&self) -> Result<(), Vec<BundleVerificationError>> {
+        let known: HashSet<&str> = self.messages.iter().map(|(h, _)| h.0.as_str()).collect();
+        let mut errors = Vec::new();
+
+        for (_, msg) in &self.messages {
+            if let Some(cb) = msg.caused_by() {
+                let refs: Vec<&str> = match cb {
+                    CausedBy::Begin => vec![],
+                    CausedBy::Single(h) => vec![h.as_str()],
+                    CausedBy::Multiple(hs) => hs.iter().map(|h| h.as_str()).collect(),
+                };
+                for r in refs {
+                    if !known.contains(r) {
+                        errors.push(BundleVerificationError::DanglingReference {
+                            caused_by: r.into(),
+                        });
+                    }
+                }
+            }
+        }
+
+        if errors.is_empty() {
+            Ok(())
+        } else {
+            Err(errors)
+        }
+    }
+
+    /// Verify hash integrity using a caller-supplied hash function.
+    ///
+    /// For each message in the bundle, recomputes the hash from the message content
+    /// and verifies it matches the stored content hash. The hasher function receives
+    /// a reference to a `Message` and should return the computed `ContentHash`
+    /// (typically SHA-256 of the canonical serialisation).
+    pub fn verify_hashes<F>(&self, hasher: F) -> Result<(), Vec<BundleVerificationError>>
+    where
+        F: Fn(&Message) -> ContentHash,
+    {
+        let mut errors = Vec::new();
+
+        for (expected_hash, msg) in &self.messages {
+            let computed = hasher(msg);
+            if &computed != expected_hash {
+                errors.push(BundleVerificationError::HashMismatch {
+                    hash: expected_hash.clone(),
+                    expected: expected_hash.clone(),
+                    computed,
+                });
+            }
+        }
+
+        if errors.is_empty() {
+            Ok(())
+        } else {
+            Err(errors)
+        }
+    }
+
+    /// Verify causal validity against a protocol declaration (Tier 3, REQ-212).
+    ///
+    /// Builds a temporary store from the bundle messages and runs causal
+    /// verification (REQ-203) on each message against the given protocol.
+    pub fn verify_causal(
+        &self,
+        protocol: &CausalProtocol,
+    ) -> Result<(), Vec<BundleVerificationError>> {
+        // Build a temporary store from the bundle
+        let mut temp_store = ThreadedMessageStore::new();
+        for (hash, msg) in &self.messages {
+            temp_store.append(hash.clone(), self.thread.clone(), msg.clone());
+        }
+
+        let mut errors = Vec::new();
+        for (_, msg) in &self.messages {
+            let perf_name = msg
+                .performative()
+                .map(|p| p.name())
+                .unwrap_or("");
+
+            let result = crate::protocol::verify_causal(
+                perf_name,
+                msg.caused_by(),
+                &temp_store,
+                protocol,
+                &self.thread,
+            );
+
+            if let VerificationResult::Violation(v) = result {
+                errors.push(BundleVerificationError::CausalViolation(v));
+            }
+        }
+
+        if errors.is_empty() {
+            Ok(())
+        } else {
+            Err(errors)
+        }
+    }
+
+    /// Full verification: completeness + hash integrity + causal validity (Tier 3, REQ-212).
+    ///
+    /// Combines all three verification checks. The hasher function computes
+    /// content hashes; the protocol is used for causal validity checking.
+    pub fn verify_full<F>(
+        &self,
+        hasher: F,
+        protocol: &CausalProtocol,
+    ) -> Result<(), Vec<BundleVerificationError>>
+    where
+        F: Fn(&Message) -> ContentHash,
+    {
+        let mut all_errors = Vec::new();
+
+        if let Err(mut errs) = self.verify_completeness() {
+            all_errors.append(&mut errs);
+        }
+        if let Err(mut errs) = self.verify_hashes(hasher) {
+            all_errors.append(&mut errs);
+        }
+        if let Err(mut errs) = self.verify_causal(protocol) {
+            all_errors.append(&mut errs);
+        }
+
+        if all_errors.is_empty() {
+            Ok(())
+        } else {
+            Err(all_errors)
+        }
+    }
+
+    /// Merge this bundle into a message store (set union with deduplication, REQ-300).
+    ///
+    /// Messages already present in the store are skipped (REQ-310 deduplication).
+    /// Returns counts of newly added and deduplicated messages.
+    pub fn merge<S: MessageStore>(&self, store: &mut S) -> MergeResult {
+        let mut added = 0;
+        let mut deduplicated = 0;
+
+        for (hash, msg) in &self.messages {
+            if store.append(hash.clone(), self.thread.clone(), msg.clone()) {
+                added += 1;
+            } else {
+                deduplicated += 1;
+            }
+        }
+
+        MergeResult {
+            added,
+            deduplicated,
+        }
+    }
+
+    /// Serialize this bundle to a `(meta (causal-closure ...))` S-expression (REQ-311).
+    pub fn to_sexpr(&self) -> SExpr {
+        let mut inner = vec![
+            SExpr::Atom(Atom::Symbol("causal-closure".into())),
+            SExpr::Atom(Atom::Keyword("target".into())),
+            SExpr::Atom(Atom::Str(self.target.0.clone())),
+            SExpr::Atom(Atom::Keyword("thread".into())),
+            SExpr::Atom(Atom::Str(self.thread.0.clone())),
+            SExpr::Atom(Atom::Keyword("messages".into())),
+        ];
+
+        let msg_list: Vec<SExpr> = self
+            .messages
+            .iter()
+            .map(|(_, msg)| SExpr::from(msg))
+            .collect();
+
+        inner.push(SExpr::List(msg_list));
+
+        SExpr::List(vec![
+            SExpr::Atom(Atom::Symbol("meta".into())),
+            SExpr::List(inner),
+        ])
+    }
+
+    /// Returns the number of messages in the bundle.
+    pub fn len(&self) -> usize {
+        self.messages.len()
+    }
+
+    /// Returns true if the bundle contains no messages.
+    pub fn is_empty(&self) -> bool {
+        self.messages.is_empty()
+    }
+
+    /// Returns the content hashes of all messages in the bundle, in topological order.
+    pub fn hashes(&self) -> Vec<&ContentHash> {
+        self.messages.iter().map(|(h, _)| h).collect()
     }
 }
 
@@ -812,5 +1243,448 @@ mod tests {
         // Causal closure of first message should be just itself
         let cc0 = store.causal_closure(&hash("m0"), &t);
         assert_eq!(cc0.len(), 1);
+    }
+
+    // =========================================================================
+    // CausalClosureBundle tests (TEST-311, TEST-212)
+    // =========================================================================
+
+    // --- extract tests ---
+
+    #[test]
+    fn bundle_extract_single_begin_message() {
+        let mut store = ThreadedMessageStore::new();
+        let t = thread("t1");
+        store.append(hash("h1"), t.clone(), simple_msg("tell", "start", Some(CausedBy::Begin)));
+
+        let bundle = CausalClosureBundle::extract(&hash("h1"), &t, &store).unwrap();
+        assert_eq!(bundle.target, hash("h1"));
+        assert_eq!(bundle.thread, t);
+        assert_eq!(bundle.len(), 1);
+        assert_eq!(bundle.messages[0].0, hash("h1"));
+    }
+
+    #[test]
+    fn bundle_extract_chain_topological_order() {
+        let mut store = ThreadedMessageStore::new();
+        let t = thread("t1");
+        store.append(hash("h1"), t.clone(), simple_msg("tell", "start", Some(CausedBy::Begin)));
+        store.append(hash("h2"), t.clone(), simple_msg("reply", "mid", Some(CausedBy::Single("h1".into()))));
+        store.append(hash("h3"), t.clone(), simple_msg("ok", "end", Some(CausedBy::Single("h2".into()))));
+
+        let bundle = CausalClosureBundle::extract(&hash("h3"), &t, &store).unwrap();
+        assert_eq!(bundle.len(), 3);
+
+        // Topological order: predecessors before successors
+        let hashes: Vec<&ContentHash> = bundle.hashes();
+        let pos_h1 = hashes.iter().position(|h| **h == hash("h1")).unwrap();
+        let pos_h2 = hashes.iter().position(|h| **h == hash("h2")).unwrap();
+        let pos_h3 = hashes.iter().position(|h| **h == hash("h3")).unwrap();
+        assert!(pos_h1 < pos_h2);
+        assert!(pos_h2 < pos_h3);
+    }
+
+    #[test]
+    fn bundle_extract_diamond_dag() {
+        let mut store = ThreadedMessageStore::new();
+        let t = thread("t1");
+        store.append(hash("root"), t.clone(), simple_msg("tell", "start", Some(CausedBy::Begin)));
+        store.append(hash("a"), t.clone(), simple_msg("reply", "a", Some(CausedBy::Single("root".into()))));
+        store.append(hash("b"), t.clone(), simple_msg("reply", "b", Some(CausedBy::Single("root".into()))));
+        store.append(hash("merge"), t.clone(), simple_msg("ok", "done", Some(CausedBy::Multiple(vec!["a".into(), "b".into()]))));
+
+        let bundle = CausalClosureBundle::extract(&hash("merge"), &t, &store).unwrap();
+        assert_eq!(bundle.len(), 4);
+
+        // root must come before a, b; a and b must come before merge
+        let hashes: Vec<&ContentHash> = bundle.hashes();
+        let pos = |h: &str| hashes.iter().position(|x| **x == hash(h)).unwrap();
+        assert!(pos("root") < pos("a"));
+        assert!(pos("root") < pos("b"));
+        assert!(pos("a") < pos("merge"));
+        assert!(pos("b") < pos("merge"));
+    }
+
+    #[test]
+    fn bundle_extract_partial_closure() {
+        // Extract closure of a mid-chain message — should NOT include later messages
+        let mut store = ThreadedMessageStore::new();
+        let t = thread("t1");
+        store.append(hash("h1"), t.clone(), simple_msg("tell", "start", Some(CausedBy::Begin)));
+        store.append(hash("h2"), t.clone(), simple_msg("reply", "mid", Some(CausedBy::Single("h1".into()))));
+        store.append(hash("h3"), t.clone(), simple_msg("ok", "end", Some(CausedBy::Single("h2".into()))));
+
+        let bundle = CausalClosureBundle::extract(&hash("h2"), &t, &store).unwrap();
+        assert_eq!(bundle.len(), 2);
+        let mut sorted_hashes: Vec<ContentHash> = bundle.hashes().into_iter().cloned().collect();
+        sorted_hashes.sort();
+        assert_eq!(sorted_hashes, vec![hash("h1"), hash("h2")]);
+    }
+
+    #[test]
+    fn bundle_extract_target_not_found() {
+        let store = ThreadedMessageStore::new();
+        let result = CausalClosureBundle::extract(&hash("nonexistent"), &thread("t1"), &store);
+        assert_eq!(result, Err(ClosureError::TargetNotFound));
+    }
+
+    #[test]
+    fn bundle_extract_wrong_thread() {
+        let mut store = ThreadedMessageStore::new();
+        store.append(hash("h1"), thread("t1"), simple_msg("tell", "start", Some(CausedBy::Begin)));
+        let result = CausalClosureBundle::extract(&hash("h1"), &thread("t2"), &store);
+        assert_eq!(result, Err(ClosureError::TargetNotFound));
+    }
+
+    // --- verify_completeness tests ---
+
+    #[test]
+    fn bundle_verify_completeness_valid() {
+        let mut store = ThreadedMessageStore::new();
+        let t = thread("t1");
+        store.append(hash("h1"), t.clone(), simple_msg("tell", "start", Some(CausedBy::Begin)));
+        store.append(hash("h2"), t.clone(), simple_msg("reply", "done", Some(CausedBy::Single("h1".into()))));
+
+        let bundle = CausalClosureBundle::extract(&hash("h2"), &t, &store).unwrap();
+        assert!(bundle.verify_completeness().is_ok());
+    }
+
+    #[test]
+    fn bundle_verify_completeness_dangling_reference() {
+        let t = thread("t1");
+        // Manually construct a bundle with a dangling reference
+        let bundle = CausalClosureBundle {
+            target: hash("h2"),
+            thread: t,
+            messages: vec![
+                (hash("h2"), simple_msg("reply", "done", Some(CausedBy::Single("missing".into())))),
+            ],
+        };
+
+        let result = bundle.verify_completeness();
+        assert!(result.is_err());
+        let errors = result.unwrap_err();
+        assert_eq!(errors.len(), 1);
+        assert!(matches!(&errors[0], BundleVerificationError::DanglingReference { caused_by } if caused_by == "missing"));
+    }
+
+    // --- verify_hashes tests ---
+
+    #[test]
+    fn bundle_verify_hashes_matching() {
+        let mut store = ThreadedMessageStore::new();
+        let t = thread("t1");
+        store.append(hash("h1"), t.clone(), simple_msg("tell", "start", Some(CausedBy::Begin)));
+
+        let bundle = CausalClosureBundle::extract(&hash("h1"), &t, &store).unwrap();
+        // Identity hasher — hashes match
+        let result = bundle.verify_hashes(|_| hash("h1"));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn bundle_verify_hashes_mismatch() {
+        let mut store = ThreadedMessageStore::new();
+        let t = thread("t1");
+        store.append(hash("h1"), t.clone(), simple_msg("tell", "start", Some(CausedBy::Begin)));
+
+        let bundle = CausalClosureBundle::extract(&hash("h1"), &t, &store).unwrap();
+        // Hasher that returns wrong hash
+        let result = bundle.verify_hashes(|_| hash("wrong"));
+        assert!(result.is_err());
+        let errors = result.unwrap_err();
+        assert!(matches!(
+            &errors[0],
+            BundleVerificationError::HashMismatch { expected, computed, .. }
+            if expected.0 == "h1" && computed.0 == "wrong"
+        ));
+    }
+
+    // --- verify_causal tests ---
+
+    #[test]
+    fn bundle_verify_causal_no_protocol_steps() {
+        use crate::protocol::CausalProtocol;
+        use alloc::collections::BTreeMap;
+
+        let mut store = ThreadedMessageStore::new();
+        let t = thread("t1");
+        store.append(hash("h1"), t.clone(), simple_msg("tell", "start", Some(CausedBy::Begin)));
+        store.append(hash("h2"), t.clone(), simple_msg("reply", "done", Some(CausedBy::Single("h1".into()))));
+
+        let bundle = CausalClosureBundle::extract(&hash("h2"), &t, &store).unwrap();
+        let empty_protocol = CausalProtocol { steps: BTreeMap::new() };
+        assert!(bundle.verify_causal(&empty_protocol).is_ok());
+    }
+
+    // --- merge tests ---
+
+    #[test]
+    fn bundle_merge_into_empty_store() {
+        let mut source_store = ThreadedMessageStore::new();
+        let t = thread("t1");
+        source_store.append(hash("h1"), t.clone(), simple_msg("tell", "start", Some(CausedBy::Begin)));
+        source_store.append(hash("h2"), t.clone(), simple_msg("reply", "done", Some(CausedBy::Single("h1".into()))));
+
+        let bundle = CausalClosureBundle::extract(&hash("h2"), &t, &source_store).unwrap();
+
+        let mut target_store = ThreadedMessageStore::new();
+        let result = bundle.merge(&mut target_store);
+        assert_eq!(result.added, 2);
+        assert_eq!(result.deduplicated, 0);
+
+        // All messages now in target store
+        assert!(target_store.contains(&hash("h1"), &t));
+        assert!(target_store.contains(&hash("h2"), &t));
+    }
+
+    #[test]
+    fn bundle_merge_deduplication() {
+        let mut store = ThreadedMessageStore::new();
+        let t = thread("t1");
+        store.append(hash("h1"), t.clone(), simple_msg("tell", "start", Some(CausedBy::Begin)));
+        store.append(hash("h2"), t.clone(), simple_msg("reply", "done", Some(CausedBy::Single("h1".into()))));
+
+        let bundle = CausalClosureBundle::extract(&hash("h2"), &t, &store).unwrap();
+
+        // Merge into a store that already has h1
+        let mut target_store = ThreadedMessageStore::new();
+        target_store.append(hash("h1"), t.clone(), simple_msg("tell", "start", Some(CausedBy::Begin)));
+
+        let result = bundle.merge(&mut target_store);
+        assert_eq!(result.added, 1);        // only h2 is new
+        assert_eq!(result.deduplicated, 1); // h1 was deduplicated
+    }
+
+    #[test]
+    fn bundle_merge_all_duplicates() {
+        let mut store = ThreadedMessageStore::new();
+        let t = thread("t1");
+        store.append(hash("h1"), t.clone(), simple_msg("tell", "start", Some(CausedBy::Begin)));
+
+        let bundle = CausalClosureBundle::extract(&hash("h1"), &t, &store).unwrap();
+
+        // Merge into same store
+        let result = bundle.merge(&mut store);
+        assert_eq!(result.added, 0);
+        assert_eq!(result.deduplicated, 1);
+    }
+
+    // --- to_sexpr tests ---
+
+    #[test]
+    fn bundle_to_sexpr_structure() {
+        let mut store = ThreadedMessageStore::new();
+        let t = thread("t1");
+        store.append(hash("h1"), t.clone(), simple_msg("tell", "start", Some(CausedBy::Begin)));
+
+        let bundle = CausalClosureBundle::extract(&hash("h1"), &t, &store).unwrap();
+        let sexpr = bundle.to_sexpr();
+
+        // Should be (meta (causal-closure :target ... :thread ... :messages ...))
+        if let SExpr::List(outer) = &sexpr {
+            assert_eq!(outer.len(), 2);
+            assert_eq!(outer[0], SExpr::Atom(Atom::Symbol("meta".into())));
+            if let SExpr::List(inner) = &outer[1] {
+                assert_eq!(inner[0], SExpr::Atom(Atom::Symbol("causal-closure".into())));
+                assert_eq!(inner[1], SExpr::Atom(Atom::Keyword("target".into())));
+                assert_eq!(inner[2], SExpr::Atom(Atom::Str("h1".into())));
+                assert_eq!(inner[3], SExpr::Atom(Atom::Keyword("thread".into())));
+                assert_eq!(inner[4], SExpr::Atom(Atom::Str("t1".into())));
+                assert_eq!(inner[5], SExpr::Atom(Atom::Keyword("messages".into())));
+                if let SExpr::List(msgs) = &inner[6] {
+                    assert_eq!(msgs.len(), 1); // one message
+                } else {
+                    panic!("expected messages list");
+                }
+            } else {
+                panic!("expected inner list");
+            }
+        } else {
+            panic!("expected outer list");
+        }
+    }
+
+    // --- round-trip tests (extract -> merge -> compare) ---
+
+    #[test]
+    fn bundle_round_trip_extract_merge_matches() {
+        let mut store = ThreadedMessageStore::new();
+        let t = thread("t1");
+        store.append(hash("h1"), t.clone(), simple_msg("tell", "start", Some(CausedBy::Begin)));
+        store.append(hash("h2"), t.clone(), simple_msg("reply", "mid", Some(CausedBy::Single("h1".into()))));
+        store.append(hash("h3"), t.clone(), simple_msg("ok", "end", Some(CausedBy::Single("h2".into()))));
+
+        let bundle = CausalClosureBundle::extract(&hash("h3"), &t, &store).unwrap();
+        assert!(bundle.verify_completeness().is_ok());
+
+        // Merge into empty store
+        let mut target = ThreadedMessageStore::new();
+        let result = bundle.merge(&mut target);
+        assert_eq!(result.added, 3);
+
+        // Target store should have same causal closure
+        let cc = target.causal_closure(&hash("h3"), &t);
+        assert_eq!(cc.len(), 3);
+    }
+
+    #[test]
+    fn bundle_round_trip_diamond() {
+        let mut store = ThreadedMessageStore::new();
+        let t = thread("t1");
+        store.append(hash("root"), t.clone(), simple_msg("tell", "start", Some(CausedBy::Begin)));
+        store.append(hash("a"), t.clone(), simple_msg("reply", "a", Some(CausedBy::Single("root".into()))));
+        store.append(hash("b"), t.clone(), simple_msg("reply", "b", Some(CausedBy::Single("root".into()))));
+        store.append(hash("merge"), t.clone(), simple_msg("ok", "done", Some(CausedBy::Multiple(vec!["a".into(), "b".into()]))));
+
+        let bundle = CausalClosureBundle::extract(&hash("merge"), &t, &store).unwrap();
+        assert!(bundle.verify_completeness().is_ok());
+
+        let mut target = ThreadedMessageStore::new();
+        let result = bundle.merge(&mut target);
+        assert_eq!(result.added, 4);
+
+        // Verify causal closure matches
+        let mut cc = target.causal_closure(&hash("merge"), &t);
+        cc.sort();
+        assert_eq!(cc, vec![hash("a"), hash("b"), hash("merge"), hash("root")]);
+
+        // Verify frontier
+        let f = target.frontier(&t);
+        assert_eq!(f.len(), 1);
+        assert_eq!(f[0], &hash("merge"));
+    }
+
+    // --- Tier 2: partial causal closure verification (REQ-212) ---
+
+    #[test]
+    fn tier2_partial_closure_sufficient_for_target() {
+        // Build a larger thread, extract closure for a mid-point message,
+        // verify the closure is self-contained
+        let mut store = ThreadedMessageStore::new();
+        let t = thread("t1");
+        store.append(hash("h1"), t.clone(), simple_msg("tell", "start", Some(CausedBy::Begin)));
+        store.append(hash("h2"), t.clone(), simple_msg("reply", "a", Some(CausedBy::Single("h1".into()))));
+        store.append(hash("h3"), t.clone(), simple_msg("reply", "b", Some(CausedBy::Single("h2".into()))));
+        // h4 is on a different branch from h1
+        store.append(hash("h4"), t.clone(), simple_msg("reply", "c", Some(CausedBy::Single("h1".into()))));
+
+        // Extract closure of h3 — should include h1, h2, h3 but NOT h4
+        let bundle = CausalClosureBundle::extract(&hash("h3"), &t, &store).unwrap();
+        assert_eq!(bundle.len(), 3);
+        let hashes: Vec<ContentHash> = bundle.hashes().into_iter().cloned().collect();
+        assert!(hashes.contains(&hash("h1")));
+        assert!(hashes.contains(&hash("h2")));
+        assert!(hashes.contains(&hash("h3")));
+        assert!(!hashes.contains(&hash("h4"))); // unrelated branch excluded
+        assert!(bundle.verify_completeness().is_ok());
+    }
+
+    // --- Tier 3: full audit verification (REQ-212) ---
+
+    #[test]
+    fn tier3_full_audit_detects_hash_mismatch() {
+        let t = thread("t1");
+        // Construct a bundle where one message has a wrong hash
+        let bundle = CausalClosureBundle {
+            target: hash("h2"),
+            thread: t,
+            messages: vec![
+                (hash("h1"), simple_msg("tell", "start", Some(CausedBy::Begin))),
+                (hash("h2"), simple_msg("reply", "done", Some(CausedBy::Single("h1".into())))),
+            ],
+        };
+
+        // Hasher that always returns "computed-hash" — will mismatch both
+        let result = bundle.verify_hashes(|_| hash("computed-hash"));
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err().len(), 2);
+    }
+
+    #[test]
+    fn tier3_full_audit_detects_dangling_refs() {
+        let t = thread("t1");
+        let bundle = CausalClosureBundle {
+            target: hash("h2"),
+            thread: t,
+            messages: vec![
+                (hash("h2"), simple_msg("reply", "done", Some(CausedBy::Single("missing".into())))),
+            ],
+        };
+
+        let result = bundle.verify_completeness();
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn tier3_full_audit_all_checks_pass() {
+        let mut store = ThreadedMessageStore::new();
+        let t = thread("t1");
+        store.append(hash("h1"), t.clone(), simple_msg("tell", "start", Some(CausedBy::Begin)));
+        store.append(hash("h2"), t.clone(), simple_msg("reply", "mid", Some(CausedBy::Single("h1".into()))));
+        store.append(hash("h3"), t.clone(), simple_msg("ok", "end", Some(CausedBy::Single("h2".into()))));
+
+        let bundle = CausalClosureBundle::extract(&hash("h3"), &t, &store).unwrap();
+
+        // Identity hasher that maps known hashes
+        let result = bundle.verify_full(
+            |msg| {
+                // Simple identity-like hasher for testing
+                match msg.caused_by() {
+                    Some(CausedBy::Begin) => hash("h1"),
+                    Some(CausedBy::Single(p)) if p == "h1" => hash("h2"),
+                    Some(CausedBy::Single(p)) if p == "h2" => hash("h3"),
+                    _ => hash("unknown"),
+                }
+            },
+            &CausalProtocol { steps: alloc::collections::BTreeMap::new() },
+        );
+        assert!(result.is_ok());
+    }
+
+    // --- len / is_empty ---
+
+    #[test]
+    fn bundle_empty_has_correct_len() {
+        let bundle = CausalClosureBundle {
+            target: hash("h1"),
+            thread: thread("t1"),
+            messages: vec![],
+        };
+        assert!(bundle.is_empty());
+        assert_eq!(bundle.len(), 0);
+    }
+
+    // --- scale test ---
+
+    #[test]
+    fn bundle_extract_100_message_chain() {
+        let mut store = ThreadedMessageStore::new();
+        let t = thread("t1");
+
+        store.append(hash("m0"), t.clone(), simple_msg("tell", "start", Some(CausedBy::Begin)));
+        for i in 1..100 {
+            let h = hash(&alloc::format!("m{}", i));
+            let prev = alloc::format!("m{}", i - 1);
+            store.append(h, t.clone(), simple_msg("reply", "msg", Some(CausedBy::Single(prev))));
+        }
+
+        let bundle = CausalClosureBundle::extract(&hash("m99"), &t, &store).unwrap();
+        assert_eq!(bundle.len(), 100);
+        assert!(bundle.verify_completeness().is_ok());
+
+        // Verify topological order: m0 before m1 before ... before m99
+        let hashes: Vec<&ContentHash> = bundle.hashes();
+        for i in 0..99 {
+            let pos_i = hashes.iter().position(|h| **h == hash(&alloc::format!("m{}", i))).unwrap();
+            let pos_next = hashes.iter().position(|h| **h == hash(&alloc::format!("m{}", i + 1))).unwrap();
+            assert!(pos_i < pos_next, "m{} should come before m{}", i, i + 1);
+        }
+
+        // Round-trip merge
+        let mut target = ThreadedMessageStore::new();
+        let result = bundle.merge(&mut target);
+        assert_eq!(result.added, 100);
+        assert_eq!(result.deduplicated, 0);
     }
 }
