@@ -564,7 +564,7 @@ fn make_test_dialect(name: &str, bounds: ResourceBounds) -> Dialect {
         examples: vec![],
         signature: None,
         hash: None,
-        protocol: None,
+        protocol: None, shapes: Vec::new(),
     }
 }
 
@@ -687,7 +687,7 @@ fn differential_r3_core_preservation() {
                     examples: vec![],
                     signature: None,
                     hash: None,
-                    protocol: None,
+                    protocol: None, shapes: Vec::new(),
                 };
                 assert!(
                     !verify_r3(&d),
@@ -786,6 +786,7 @@ fn differential_r4_signatures() {
                     .get("protocol")
                     .and_then(|v| v.as_str())
                     .map(String::from),
+                shapes: vec![],
             };
 
             let expected = &v["expected"];

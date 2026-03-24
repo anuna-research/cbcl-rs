@@ -505,7 +505,7 @@ mod tests {
             examples: vec![],
             signature: Some(vec![0xAA]),
             hash: Some(String::from("sha256:abc")),
-            protocol: Some(String::from("ed25519")),
+            protocol: Some(String::from("ed25519")), shapes: Vec::new(),
         }
     }
 
@@ -611,7 +611,7 @@ mod tests {
             examples: vec![],
             signature: None,
             hash: None,
-            protocol: None,
+            protocol: None, shapes: Vec::new(),
         };
         let bytes = dialect_canonical_bytes(&d);
         assert!(!bytes.is_empty());
@@ -639,7 +639,7 @@ mod tests {
             examples: vec![SExpr::Atom(Atom::Str("example".into()))],
             signature: Some(vec![0xFF]),
             hash: Some(String::from("sha256:xxx")),
-            protocol: Some(String::from("ed25519")),
+            protocol: Some(String::from("ed25519")), shapes: Vec::new(),
         };
         let bytes = dialect_canonical_bytes(&d);
         let s = core::str::from_utf8(&bytes).unwrap();

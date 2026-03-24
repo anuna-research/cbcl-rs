@@ -236,7 +236,7 @@ mod tests {
             examples: Vec::new(),
             signature: None,
             hash: None,
-            protocol: None,
+            protocol: None, shapes: Vec::new(),
         }
     }
 
@@ -331,7 +331,7 @@ mod tests {
             examples: Vec::new(),
             signature: None,
             hash: None,
-            protocol: None,
+            protocol: None, shapes: Vec::new(),
         };
         assert!(agent.install_dialect(bad).is_err());
         // Still well-formed, still only base dialect
