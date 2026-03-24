@@ -1,12 +1,12 @@
 {
-  "task_id": "verification-result",
+  "task_id": "protocol-parser",
   "token_budget": 8000,
-  "tokens_used": 138,
+  "tokens_used": 195,
   "elements_selected": [
     {
       "source": "plan-meta/description",
-      "content": "Define VerificationResult enum {Unknown, Valid, Violation(CausalViolation)} in cbcl-core/src/protocol.rs. Implement meet() for (all ...) conjunction and join() for (any ...) disjunction per REQ-303 truth tables. Implement is_resolved(), is_stable(), PartialOrd. REQ-302, REQ-303.",
-      "token_cost": 69,
+      "content": "Implement parse_protocol(sexpr) -> Result<CausalProtocol, ProtocolParseError> in cbcl-parser. Parse (protocol (then ...)+) with (any ...) and (all ...) node-refs. Desugar variadic (then a b c) to pairwise edges. REQ-201 grammar. New file: crates/cbcl-parser/src/protocol_parser.rs. Also integrate into dialect_parser.rs: when a (protocol ...) clause is encountered during dialect parsing, dispatch to parse_protocol.",
+      "token_cost": 104,
       "priority": "PlanMeta"
     },
     {
@@ -20,8 +20,14 @@
       "content": "Modified 1 files (+274, -0): crates/cbcl-core/src/evaluator.rs",
       "token_cost": 15,
       "priority": "AgentMemory"
+    },
+    {
+      "source": "memory/episodic/task-verification-result-changes",
+      "content": "Modified 2 files (+443, -0): crates/cbcl-core/src/lib.rs, crates/cbcl-core/src/protocol.rs",
+      "token_cost": 22,
+      "priority": "AgentMemory"
     }
   ],
   "elements_excluded": [],
-  "constructed_at": "2026-03-24T13:23:23Z"
+  "constructed_at": "2026-03-24T13:28:00Z"
 }
