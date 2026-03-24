@@ -1,12 +1,12 @@
 {
-  "task_id": "protocol-validation",
+  "task_id": "hash-index",
   "token_budget": 8000,
-  "tokens_used": 267,
+  "tokens_used": 284,
   "elements_selected": [
     {
       "source": "plan-meta/description",
-      "content": "Implement R5 protocol validation: acyclicity (REQ-204, DFS cycle detection), reachability from begin (REQ-205, DFS/BFS), performative definedness (REQ-206, check against extend clauses), step uniqueness (REQ-207, duplicate detection). All checks run at dialect installation. Add verify_r5() to pipeline. REQ-208. File: crates/cbcl-core/src/protocol.rs methods on CausalProtocol.",
-      "token_cost": 94,
+      "content": "Implement HashIndex: HashMap<ContentHash, (ThreadId, usize)> with O(1) insert, lookup, contains, rebuild. Thread-scoped: lookup enforces thread isolation (ADR-008). New file: crates/cbcl-core/src/store.rs. REQ-309. Memory: <= 64 bytes per entry (NFR-303). #![forbid(unsafe_code)], no_std + alloc.",
+      "token_cost": 74,
       "priority": "PlanMeta"
     },
     {
@@ -38,8 +38,14 @@
       "content": "Modified 3 files (+373, -0): crates/cbcl-core/src/dialect.rs, crates/cbcl-core/src/lib.rs, crates/cbcl-core/src/r5.rs",
       "token_cost": 29,
       "priority": "AgentMemory"
+    },
+    {
+      "source": "memory/episodic/task-protocol-validation-changes",
+      "content": "Modified 4 files (+682, -8): .hence/context-manifest.json, crates/cbcl-core/src/lib.rs, crates/cbcl-core/src/protocol.rs, crates/cbcl-core/src/r5.rs",
+      "token_cost": 37,
+      "priority": "AgentMemory"
     }
   ],
   "elements_excluded": [],
-  "constructed_at": "2026-03-24T13:42:03Z"
+  "constructed_at": "2026-03-24T13:47:33Z"
 }
