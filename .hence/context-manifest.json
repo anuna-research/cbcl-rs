@@ -1,12 +1,12 @@
 {
-  "task_id": "causal-verify",
+  "task_id": "unknown-policy",
   "token_budget": 8000,
-  "tokens_used": 421,
+  "tokens_used": 443,
   "elements_selected": [
     {
       "source": "plan-meta/description",
-      "content": "Implement verify_causal(msg_performative, caused_by, store, protocol) -> VerificationResult. Three-valued: Unknown (predecessor not in store), Valid (exists with correct type), Violation (exists with wrong type or malformed). Handle Begin, Single, Multiple (fan-in with (all ...)). Stateless, monotone. REQ-203, REQ-304. Thread-scoped: :caused-by must resolve within same :thread (ADR-008). File: crates/cbcl-core/src/protocol.rs.",
-      "token_cost": 107,
+      "content": "Implement UnknownPredecessorPolicy enum {Reject, Buffer{max_pending, ttl}}. Implement apply_policy() that maps VerificationResult + Policy -> PolicyOutcome {Accept, Reject, Pending, Buffered}. For Buffer: PendingQueue with per-thread bounded queue (max_pending default 64, NFR-301), TTL expiry, re-evaluation on store growth. REQ-305. Reject policy preserves zero mutable state (NFR-204, NFR-302).",
+      "token_cost": 99,
       "priority": "PlanMeta"
     },
     {
@@ -62,8 +62,14 @@
       "content": "Modified 2 files (+481, -7): crates/cbcl-core/src/lib.rs, crates/cbcl-core/src/store.rs",
       "token_cost": 21,
       "priority": "AgentMemory"
+    },
+    {
+      "source": "memory/episodic/task-causal-verify-changes",
+      "content": "Modified 3 files (+633, -6): .hence/context-manifest.json, crates/cbcl-core/src/lib.rs, crates/cbcl-core/src/protocol.rs",
+      "token_cost": 30,
+      "priority": "AgentMemory"
     }
   ],
   "elements_excluded": [],
-  "constructed_at": "2026-03-24T14:07:02Z"
+  "constructed_at": "2026-03-24T14:12:36Z"
 }
