@@ -159,7 +159,7 @@ mod tests {
             examples: vec![],
             signature: None,
             hash: None,
-            protocol: None, shapes: Vec::new(),
+            protocol: None, causal_protocol: None, shapes: Vec::new(),
         }
     }
 

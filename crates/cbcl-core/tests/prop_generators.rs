@@ -201,7 +201,7 @@ pub fn arb_valid_dialect() -> impl Strategy<Value = Dialect> {
                 examples: Vec::new(),
                 signature: None,
                 hash: None,
-                protocol: None, shapes: Vec::new(),
+                protocol: None, causal_protocol: None, shapes: Vec::new(),
             }
         })
 }
@@ -229,7 +229,7 @@ pub fn arb_r3_violating_dialect() -> impl Strategy<Value = Dialect> {
             examples: Vec::new(),
             signature: None,
             hash: None,
-            protocol: None, shapes: Vec::new(),
+            protocol: None, causal_protocol: None, shapes: Vec::new(),
         })
 }
 

@@ -6,9 +6,66 @@
 
 #![forbid(unsafe_code)]
 
+use alloc::collections::BTreeMap;
+use alloc::collections::BTreeSet;
 use alloc::string::String;
 use alloc::vec::Vec;
 use core::fmt;
+
+// ================================================================
+// Causal Protocol Data Model (REQ-200)
+// ================================================================
+
+/// Reference to one or more performatives in a protocol declaration (REQ-201).
+///
+/// - `Single` — a bare symbol (one performative).
+/// - `Any` — `(any ...)` disjunction (choice / alternatives).
+/// - `All` — `(all ...)` conjunction (fan-in / fan-out).
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum NodeRef {
+    Single(String),
+    Any(BTreeSet<String>),
+    All(BTreeSet<String>),
+}
+
+impl NodeRef {
+    /// Return all performative names referenced by this node-ref.
+    pub fn performatives(&self) -> impl Iterator<Item = &str> {
+        match self {
+            NodeRef::Single(s) => {
+                let v: Vec<&str> = alloc::vec![s.as_str()];
+                v.into_iter()
+            }
+            NodeRef::Any(set) | NodeRef::All(set) => {
+                let v: Vec<&str> = set.iter().map(|s| s.as_str()).collect();
+                v.into_iter()
+            }
+        }
+    }
+}
+
+/// A step in the causal protocol graph (REQ-200).
+///
+/// Aggregates all declared predecessor and successor relationships
+/// for a single performative name.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct StepDecl {
+    pub performative: String,
+    pub predecessors: Vec<NodeRef>,
+    pub successors: Vec<NodeRef>,
+}
+
+/// Parsed causal protocol declaration (REQ-200, REQ-201).
+///
+/// Built from `(protocol (then ...)+)` S-expression syntax.
+/// Stores the dependency graph as a map from performative name to step declaration.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct CausalProtocol {
+    pub steps: BTreeMap<String, StepDecl>,
+}
 
 /// Causal verification failure details (CON-202, SPEC-002).
 #[derive(Debug, Clone, PartialEq, Eq)]

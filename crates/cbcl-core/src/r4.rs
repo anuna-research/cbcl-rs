@@ -148,7 +148,7 @@ mod tests {
             examples: vec![],
             signature: None,
             hash: None,
-            protocol: None, shapes: Vec::new(),
+            protocol: None, causal_protocol: None, shapes: Vec::new(),
         }
     }
 
@@ -286,7 +286,7 @@ mod tests {
             examples: vec![],
             signature: Some(b"sig123".to_vec()),
             hash: Some(String::from("sha256:abcd1234")),
-            protocol: Some(String::from("ed25519")), shapes: Vec::new(),
+            protocol: Some(String::from("ed25519")), causal_protocol: None, shapes: Vec::new(),
         };
         assert_eq!(d.hash.as_deref(), Some("sha256:abcd1234"));
         assert_eq!(d.signature.as_deref(), Some(b"sig123".as_slice()));
