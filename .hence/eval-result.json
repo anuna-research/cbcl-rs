@@ -3,15 +3,25 @@
   "confidence": 1.0,
   "exit_code": 0,
   "diff_summary": {
-    "files_changed": 0,
-    "insertions": 0,
+    "files_changed": 2,
+    "insertions": 443,
     "deletions": 0,
-    "file_list": [],
+    "file_list": [
+      "crates/cbcl-core/src/lib.rs",
+      "crates/cbcl-core/src/protocol.rs"
+    ],
     "dirty_files": 1
   },
-  "learnings": [],
-  "branch_name": "hence/protocol-types-v1",
-  "evaluated_at": "2026-03-24T13:23:17Z",
+  "learnings": [
+    {
+      "key": "task-verification-result-changes",
+      "content": "Modified 2 files (+443, -0): crates/cbcl-core/src/lib.rs, crates/cbcl-core/src/protocol.rs",
+      "memory_type": "episodic",
+      "confidence": 0.8
+    }
+  ],
+  "branch_name": "hence/verification-result-v1",
+  "evaluated_at": "2026-03-24T13:27:54Z",
   "checks_passed": 0,
   "checks_failed": 0
 }

@@ -1,12 +1,12 @@
 {
-  "task_id": "protocol-types",
+  "task_id": "verification-result",
   "token_budget": 8000,
-  "tokens_used": 162,
+  "tokens_used": 138,
   "elements_selected": [
     {
       "source": "plan-meta/description",
-      "content": "Define CausalProtocol, NodeRef (Any/All), StepDecl types in cbcl-core. REQ-200 data model. NodeRef uses BTreeSet<String> for both Any and All variants. StepDecl has performative, predecessors (Vec<NodeRef>), successors (Vec<NodeRef>). CausalViolation error enum for verification failures. New file: crates/cbcl-core/src/protocol.rs. #![forbid(unsafe_code)], no_std + alloc.",
-      "token_cost": 93,
+      "content": "Define VerificationResult enum {Unknown, Valid, Violation(CausalViolation)} in cbcl-core/src/protocol.rs. Implement meet() for (all ...) conjunction and join() for (any ...) disjunction per REQ-303 truth tables. Implement is_resolved(), is_stable(), PartialOrd. REQ-302, REQ-303.",
+      "token_cost": 69,
       "priority": "PlanMeta"
     },
     {
@@ -23,5 +23,5 @@
     }
   ],
   "elements_excluded": [],
-  "constructed_at": "2026-03-24T13:21:33Z"
+  "constructed_at": "2026-03-24T13:23:23Z"
 }
