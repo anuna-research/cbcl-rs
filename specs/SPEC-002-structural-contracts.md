@@ -485,14 +485,16 @@ Trace:
 
 Every verification operation introduced by this specification SHALL be monotonic in the sense of the CALM theorem: adding new messages to the message store SHALL NOT invalidate any previously valid causal link.
 
-Formally: if `causal_check(msg, store) = Ok` then `causal_check(msg, store ∪ {new_msg}) = Ok` for all `new_msg`.
+Formally: if `causal_check(msg, store) = Valid` then `causal_check(msg, store ∪ {new_msg}) = Valid` for all `new_msg`. Symmetrically, if `causal_check(msg, store) = Violation` then `causal_check(msg, store ∪ {new_msg}) = Violation` for all `new_msg`. Both `Valid` and `Violation` are stable (permanent) under store growth. Only `Unknown` (predecessor not yet in store) may change as the store grows.
 
 This holds for both single-predecessor and multi-predecessor (fan-in) verification:
 
-- **Single predecessor:** `verify(msg, store) = Ok` requires predecessor hash H to exist in the store with type T. Adding messages to the store cannot remove H or change its type. `Ok` is stable.
-- **Multi-predecessor (fan-in):** `verify(msg, store) = Ok` requires ALL predecessor hashes H₁...Hₖ to exist in the store with types T₁...Tₖ. Each sub-check is individually monotone (same argument as single). A conjunction of monotone predicates is monotone. `Ok` is stable.
+- **Single predecessor:** `verify(msg, store) = Valid` requires predecessor hash H to exist in the store with type T. Adding messages to the store cannot remove H or change its type. `Valid` is stable. `Violation` is stable by the same argument.
+- **Multi-predecessor (fan-in):** `verify(msg, store) = Valid` requires ALL predecessor hashes H₁...Hₖ to exist in the store with types T₁...Tₖ. Each sub-check is individually monotone (same argument as single). Meet of monotone functions is monotone. `Valid` is stable.
 
-**Rationale:** This is the property that makes the system coordination-free. SPEC-001's DFA violated this: receiving message X could advance the DFA state, causing a previously valid message Y to become invalid in the new state. Causal verification does not have this problem — it checks a static predicate on immutable data. Fan-in adds conjunctive checks but preserves monotonicity because conjunction over monotone predicates is monotone.
+**Algebraic foundation.** The monotonicity guarantee is proved structurally — not by case analysis — in SPEC-003 (Verification Lattice). The message store is a join-semilattice (G-Set CRDT), the verification result is a flat lattice with bottom `Unknown`, and the verification function is a monotone map between them (SPEC-003 REQ-304). Compositional closure (meet for `(all ...)`, join for `(any ...)`) preserves monotonicity automatically. See SPEC-003 for the full algebraic treatment and Lean 4 proof targets.
+
+**Rationale:** This is the property that makes the system coordination-free. SPEC-001's DFA violated this: receiving message X could advance the DFA state, causing a previously valid message Y to become invalid in the new state. Causal verification does not have this problem — it checks a static predicate on immutable data. Fan-in adds conjunctive checks but preserves monotonicity because meet over monotone functions is monotone.
 
 Trace:
 - TEST-211
