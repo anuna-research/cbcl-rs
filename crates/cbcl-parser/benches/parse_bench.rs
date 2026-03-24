@@ -1,6 +1,6 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
-use cbcl_parser::{parse, parse_dialect, parse_message, pipeline};
+use cbcl_parser::{parse, parse_dialect, parse_message, parse_protocol, parse_shape, pipeline};
 
 // ---------------------------------------------------------------------------
 // S-expression parsing benchmarks
@@ -132,6 +132,93 @@ fn bench_parse_dialect(c: &mut Criterion) {
 }
 
 // ---------------------------------------------------------------------------
+// Protocol parsing benchmarks (NFR-200, TEST-250)
+// ---------------------------------------------------------------------------
+
+fn bench_parse_protocol(c: &mut Criterion) {
+    // 10-step linear protocol: begin -> step-1 -> ... -> step-10
+    let protocol_10 = parse(
+        "(protocol \
+           (then begin step-1) \
+           (then step-1 step-2) \
+           (then step-2 step-3) \
+           (then step-3 step-4) \
+           (then step-4 step-5) \
+           (then step-5 step-6) \
+           (then step-6 step-7) \
+           (then step-7 step-8) \
+           (then step-8 step-9) \
+           (then step-9 step-10))",
+    )
+    .unwrap();
+    c.bench_function("parse_protocol/linear_10_steps", |b| {
+        b.iter(|| parse_protocol(black_box(&protocol_10)))
+    });
+
+    // Protocol with fan-in/fan-out using (any ...) and (all ...)
+    let protocol_fanin = parse(
+        "(protocol \
+           (then begin (any step-a step-b step-c)) \
+           (then step-a step-d) \
+           (then step-b step-d) \
+           (then step-c step-d) \
+           (then step-d end))",
+    )
+    .unwrap();
+    c.bench_function("parse_protocol/fanin_5_steps", |b| {
+        b.iter(|| parse_protocol(black_box(&protocol_fanin)))
+    });
+
+    // Minimal 2-step protocol
+    let protocol_min = parse("(protocol (then begin done))").unwrap();
+    c.bench_function("parse_protocol/minimal_2_steps", |b| {
+        b.iter(|| parse_protocol(black_box(&protocol_min)))
+    });
+}
+
+// ---------------------------------------------------------------------------
+// Shape parsing benchmarks (NFR-202, TEST-252)
+// ---------------------------------------------------------------------------
+
+fn bench_parse_shape(c: &mut Criterion) {
+    // Shape with 8 rules
+    let shape_8 = parse(
+        "(shape track-shipment \
+           (require :package string) \
+           (require :route string) \
+           (require :sender symbol) \
+           (optional :priority string \"normal\") \
+           (optional :weight number) \
+           (require :destination string) \
+           (optional :fragile bool) \
+           (max-depth 6))",
+    )
+    .unwrap();
+    c.bench_function("parse_shape/8_rules", |b| {
+        b.iter(|| parse_shape(black_box(&shape_8)))
+    });
+
+    // Shape with nested children
+    let shape_nested = parse(
+        "(shape propose-step \
+           (require :params list \
+             (require :target string) \
+             (require :action symbol)) \
+           (max-depth 4))",
+    )
+    .unwrap();
+    c.bench_function("parse_shape/nested_children", |b| {
+        b.iter(|| parse_shape(black_box(&shape_nested)))
+    });
+
+    // Minimal shape
+    let shape_min = parse("(shape tell (require :content string))").unwrap();
+    c.bench_function("parse_shape/minimal_1_rule", |b| {
+        b.iter(|| parse_shape(black_box(&shape_min)))
+    });
+}
+
+// ---------------------------------------------------------------------------
 // Pipeline end-to-end benchmarks
 // ---------------------------------------------------------------------------
 
@@ -175,6 +262,8 @@ criterion_group!(
     bench_parse_list,
     bench_parse_message,
     bench_parse_dialect,
+    bench_parse_protocol,
+    bench_parse_shape,
     bench_pipeline,
 );
 criterion_main!(benches);
