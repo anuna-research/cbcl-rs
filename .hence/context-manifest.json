@@ -1,12 +1,12 @@
 {
-  "task_id": "unknown-policy",
+  "task_id": "eventual-tests",
   "token_budget": 8000,
-  "tokens_used": 443,
+  "tokens_used": 420,
   "elements_selected": [
     {
       "source": "plan-meta/description",
-      "content": "Implement UnknownPredecessorPolicy enum {Reject, Buffer{max_pending, ttl}}. Implement apply_policy() that maps VerificationResult + Policy -> PolicyOutcome {Accept, Reject, Pending, Buffered}. For Buffer: PendingQueue with per-thread bounded queue (max_pending default 64, NFR-301), TTL expiry, re-evaluation on store growth. REQ-305. Reject policy preserves zero mutable state (NFR-204, NFR-302).",
-      "token_cost": 99,
+      "content": "Integration test: deliver a valid protocol trace in random order to Buffer-policy agent. All messages eventually reach Valid. Property-based: for random permutations, all verify as Valid after full delivery. Convergence: two agents receiving same messages in different order reach same results. TEST-307.",
+      "token_cost": 76,
       "priority": "PlanMeta"
     },
     {
@@ -71,5 +71,5 @@
     }
   ],
   "elements_excluded": [],
-  "constructed_at": "2026-03-24T14:12:36Z"
+  "constructed_at": "2026-03-24T14:18:26Z"
 }
