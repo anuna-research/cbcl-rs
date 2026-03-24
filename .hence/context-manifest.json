@@ -1,0 +1,15 @@
+{
+  "task_id": "shape",
+  "token_budget": 8000,
+  "tokens_used": 76,
+  "elements_selected": [
+    {
+      "source": "plan-meta/description",
+      "content": "Define ShapeConstraint types (require, optional, max-depth, type-constraint) in cbcl-core/src/shape.rs. Implement parse_shape(sexpr) in cbcl-parser/src/shape_parser.rs. Integrate into dialect_parser.rs for (shape ...) clause dispatch. REQ-220, REQ-221. New files. #![forbid(unsafe_code)], no_std + alloc.",
+      "token_cost": 76,
+      "priority": "PlanMeta"
+    }
+  ],
+  "elements_excluded": [],
+  "constructed_at": "2026-03-24T12:53:11Z"
+}
