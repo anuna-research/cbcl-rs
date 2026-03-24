@@ -3,26 +3,25 @@
   "confidence": 1.0,
   "exit_code": 0,
   "diff_summary": {
-    "files_changed": 3,
-    "insertions": 633,
-    "deletions": 6,
+    "files_changed": 2,
+    "insertions": 588,
+    "deletions": 0,
     "file_list": [
-      ".hence/context-manifest.json",
       "crates/cbcl-core/src/lib.rs",
-      "crates/cbcl-core/src/protocol.rs"
+      "crates/cbcl-core/src/policy.rs"
     ],
-    "dirty_files": 0
+    "dirty_files": 1
   },
   "learnings": [
     {
-      "key": "task-causal-verify-changes",
-      "content": "Modified 3 files (+633, -6): .hence/context-manifest.json, crates/cbcl-core/src/lib.rs, crates/cbcl-core/src/protocol.rs",
+      "key": "task-unknown-policy-changes",
+      "content": "Modified 2 files (+588, -0): crates/cbcl-core/src/lib.rs, crates/cbcl-core/src/policy.rs",
       "memory_type": "episodic",
       "confidence": 0.8
     }
   ],
-  "branch_name": "hence/causal-verify-v1",
-  "evaluated_at": "2026-03-24T14:12:30Z",
+  "branch_name": "hence/unknown-policy-v1",
+  "evaluated_at": "2026-03-24T14:18:20Z",
   "checks_passed": 0,
   "checks_failed": 0
 }
