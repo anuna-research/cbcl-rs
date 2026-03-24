@@ -45,6 +45,7 @@ pub mod r5;
 pub mod serializer;
 pub mod sexpr;
 pub mod shape;
+pub mod store;
 pub mod template;
 
 /// Prelude re-exporting the most-used types.
@@ -64,4 +65,5 @@ pub mod prelude {
     pub use crate::r4::{R4Result, Signer};
     pub use crate::sexpr::{Atom, SExpr};
     pub use crate::shape::{ShapeConstraint, ShapeRule, ShapeViolation, TypeConstraint};
+    pub use crate::store::{ContentHash, HashIndex, ThreadId};
 }

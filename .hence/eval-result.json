@@ -4,26 +4,26 @@
   "exit_code": 0,
   "diff_summary": {
     "files_changed": 4,
-    "insertions": 682,
-    "deletions": 8,
+    "insertions": 346,
+    "deletions": 0,
     "file_list": [
-      ".hence/context-manifest.json",
+      "Cargo.lock",
+      "crates/cbcl-core/Cargo.toml",
       "crates/cbcl-core/src/lib.rs",
-      "crates/cbcl-core/src/protocol.rs",
-      "crates/cbcl-core/src/r5.rs"
+      "crates/cbcl-core/src/store.rs"
     ],
-    "dirty_files": 0
+    "dirty_files": 1
   },
   "learnings": [
     {
-      "key": "task-protocol-validation-changes",
-      "content": "Modified 4 files (+682, -8): .hence/context-manifest.json, crates/cbcl-core/src/lib.rs, crates/cbcl-core/src/protocol.rs, crates/cbcl-core/src/r5.rs",
+      "key": "task-hash-index-changes",
+      "content": "Modified 4 files (+346, -0): Cargo.lock, crates/cbcl-core/Cargo.toml, crates/cbcl-core/src/lib.rs, crates/cbcl-core/src/store.rs",
       "memory_type": "episodic",
       "confidence": 0.8
     }
   ],
-  "branch_name": "hence/protocol-validation-v1",
-  "evaluated_at": "2026-03-24T13:47:27Z",
+  "branch_name": "hence/hash-index-v1",
+  "evaluated_at": "2026-03-24T13:52:32Z",
   "checks_passed": 0,
   "checks_failed": 0
 }
