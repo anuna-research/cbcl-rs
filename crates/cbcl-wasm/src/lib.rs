@@ -202,6 +202,7 @@ fn send_message_str(recipient: &str, content: &str) -> Result<String, String> {
         params: Vec::new(),
         thread: None,
         sender: None,
+        caused_by: None,
     };
 
     // Evaluate the message against the base dialect registry

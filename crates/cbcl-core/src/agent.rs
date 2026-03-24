@@ -248,6 +248,7 @@ mod tests {
             params: Vec::new(),
             thread: None,
             sender: None,
+            caused_by: None,
         }
     }
 
@@ -456,6 +457,7 @@ mod tests {
             params: Vec::new(),
             thread: Some(String::from("conv-1")),
             sender: Some(String::from("@alice")),
+            caused_by: None,
         };
         agent.evaluate_and_apply(&msg).unwrap();
         assert_eq!(agent.thread("conv-1").unwrap().len(), 1);

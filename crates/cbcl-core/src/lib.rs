@@ -57,7 +57,8 @@ pub mod prelude {
     pub use crate::evaluator::{Effect, EvalError, EvalResult};
     pub use crate::gossip::{GossipConfig, GossipNetwork, GossipStats, PropagationState, Topology};
     pub use crate::message::{
-        CorePerformative, Message, MessageParseError, MessageType, Performative, WrapperType,
+        CausedBy, CorePerformative, Message, MessageParseError, MessageType, Performative,
+        WrapperType,
     };
     pub use crate::protocol::{
         CausalProtocol, CausalViolation, NodeRef, ProtocolViolation, StepDecl, VerificationResult,

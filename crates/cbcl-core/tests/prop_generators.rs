@@ -294,6 +294,7 @@ pub fn arb_simple_message() -> impl Strategy<Value = Message> {
                 params: Vec::new(),
                 thread,
                 sender,
+                caused_by: None,
             },
         )
 }

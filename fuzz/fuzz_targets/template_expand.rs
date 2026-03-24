@@ -145,6 +145,7 @@ fuzz_target!(|data: &[u8]| {
                 params: args.clone(),
                 thread: None,
                 sender: None,
+                caused_by: None,
             };
             let _ = evaluate(&msg, &registry);
         }
