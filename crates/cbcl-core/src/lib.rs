@@ -7,6 +7,7 @@
 //! # Modules
 //!
 //! - `sexpr` — S-expression data types (Atom, SExpr)
+//! - `blame` — Violation blame attribution (REQ-230, REQ-232, REQ-233, CON-205)
 //! - `message` — Message types and core performatives
 //! - `dialect` — Dialect definitions and resource bounds
 //! - `agent` — Agent with beliefs, dialect registry, message queue, threads
@@ -29,6 +30,7 @@
 extern crate alloc;
 
 pub mod agent;
+pub mod blame;
 pub mod canonical;
 pub mod dialect;
 pub mod evaluator;
@@ -52,6 +54,7 @@ pub mod template;
 /// Prelude re-exporting the most-used types.
 pub mod prelude {
     pub use crate::agent::Agent;
+    pub use crate::blame::{BlameEntry, BlameParty, ViolationError, ViolationKind};
     pub use crate::dialect::{
         Dialect, DialectInstallError, DialectRegistry, PerformativeDef, ResourceBounds,
     };

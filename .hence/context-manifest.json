@@ -1,12 +1,12 @@
 {
-  "task_id": "certificate-tests",
+  "task_id": "blame",
   "token_budget": 8000,
-  "tokens_used": 419,
+  "tokens_used": 446,
   "elements_selected": [
     {
       "source": "plan-meta/description",
-      "content": "Verify Merkle DAG as lattice position certificate (REQ-306). Modify any message in causal closure -> root hash changes. Two agents computing same message hash independently get same result. Canonical :caused-by sort ensures determinism. Fan-in join commits to union of predecessor histories. TEST-306.",
-      "token_cost": 75,
+      "content": "Implement ViolationError with BlameParty {Sender, DialectAuthor, Installer}, blame_chain (Vec<BlameEntry>), all fields per CON-205. Methods: from_shape_violation, from_causal_violation, from_r5_violation, to_sexpr (valid CBCL error message per REQ-233 grammar), verify_blame (third-party verification). REQ-230, REQ-232, REQ-233. New file: crates/cbcl-core/src/blame.rs. #![forbid(unsafe_code)], no_std + alloc.",
+      "token_cost": 102,
       "priority": "PlanMeta"
     },
     {
@@ -71,5 +71,5 @@
     }
   ],
   "elements_excluded": [],
-  "constructed_at": "2026-03-24T14:50:47Z"
+  "constructed_at": "2026-03-24T14:57:07Z"
 }
