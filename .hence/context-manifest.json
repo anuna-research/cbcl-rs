@@ -1,12 +1,12 @@
 {
-  "task_id": "caused-by",
+  "task_id": "message-store",
   "token_budget": 8000,
-  "tokens_used": 312,
+  "tokens_used": 418,
   "elements_selected": [
     {
       "source": "plan-meta/description",
-      "content": "Extract :caused-by keyword parameter from parsed messages. Define CausedBy enum {Begin, Single(String), Multiple(Vec<String>)}. Handle single hash (atom), list of hashes, and 'begin' string. Add canonical ordering of :caused-by lists (sort lexicographically before hashing). REQ-202.",
-      "token_cost": 70,
+      "content": "Implement MessageStore trait and concrete ThreadedMessageStore. G-Set CRDT semantics (REQ-300). Append-only with deduplication (REQ-310, dedup overhead <= 50 ns per NFR-304). Uses HashIndex for O(1) lookup. Per-thread storage. Methods: lookup, lookup_in_thread, contains, append (returns false on dup), frontier, causal_closure. Causal ordering as join-semilattice (REQ-301): :caused-by links are covers relation, fan-in is join, causal closure is principal ideal. File: crates/cbcl-core/src/store.rs.",
+      "token_cost": 125,
       "priority": "PlanMeta"
     },
     {
@@ -50,8 +50,14 @@
       "content": "Modified 4 files (+346, -0): Cargo.lock, crates/cbcl-core/Cargo.toml, crates/cbcl-core/src/lib.rs, crates/cbcl-core/src/store.rs",
       "token_cost": 32,
       "priority": "AgentMemory"
+    },
+    {
+      "source": "memory/episodic/task-caused-by-changes",
+      "content": "Modified 10 files (+386, -6): .hence/context-manifest.json, crates/cbcl-core/benches/core_bench.rs, crates/cbcl-core/src/agent.rs, crates/cbcl-core/src/evaluator.rs, crates/cbcl-core/src/lib.rs and 5 more",
+      "token_cost": 51,
+      "priority": "AgentMemory"
     }
   ],
   "elements_excluded": [],
-  "constructed_at": "2026-03-24T13:52:38Z"
+  "constructed_at": "2026-03-24T14:00:06Z"
 }
