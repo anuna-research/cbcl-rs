@@ -16,6 +16,7 @@
 //! - `r2` — R2: Resource bounds safety constraint
 //! - `r3` — R3: Core preservation safety constraint
 //! - `r4` — R4: Integrity (Signer trait)
+//! - `r5` — R5: Shape well-formedness (REQ-222)
 //! - `template` — Template expansion
 //! - `pattern` — Pattern matching for message dispatch
 //! - `msg_tag` — Deterministic message tagging (DCFL)
@@ -40,6 +41,7 @@ pub mod r1;
 pub mod r2;
 pub mod r3;
 pub mod r4;
+pub mod r5;
 pub mod serializer;
 pub mod sexpr;
 pub mod shape;
