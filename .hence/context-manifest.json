@@ -1,0 +1,15 @@
+{
+  "task_id": "hash-index",
+  "token_budget": 8000,
+  "tokens_used": 74,
+  "elements_selected": [
+    {
+      "source": "plan-meta/description",
+      "content": "Implement HashIndex: HashMap<ContentHash, (ThreadId, usize)> with O(1) insert, lookup, contains, rebuild. Thread-scoped: lookup enforces thread isolation (ADR-008). New file: crates/cbcl-core/src/store.rs. REQ-309. Memory: <= 64 bytes per entry (NFR-303). #![forbid(unsafe_code)], no_std + alloc.",
+      "token_cost": 74,
+      "priority": "PlanMeta"
+    }
+  ],
+  "elements_excluded": [],
+  "constructed_at": "2026-03-24T12:46:23Z"
+}
