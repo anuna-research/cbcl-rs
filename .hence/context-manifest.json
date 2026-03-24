@@ -1,12 +1,12 @@
 {
-  "task_id": "shape-check",
+  "task_id": "protocol-types",
   "token_budget": 8000,
-  "tokens_used": 138,
+  "tokens_used": 162,
   "elements_selected": [
     {
       "source": "plan-meta/description",
-      "content": "Implement runtime shape checking on expanded messages. Walk expanded S-expression, verify: all require params present at expected depth, type constraints satisfied, nesting within max-depth, nested rules recursive. Shape composition via conjunction (VPL intersection, REQ-224). DCFL preservation trivially maintained (REQ-225). REQ-223.",
-      "token_cost": 84,
+      "content": "Define CausalProtocol, NodeRef (Any/All), StepDecl types in cbcl-core. REQ-200 data model. NodeRef uses BTreeSet<String> for both Any and All variants. StepDecl has performative, predecessors (Vec<NodeRef>), successors (Vec<NodeRef>). CausalViolation error enum for verification failures. New file: crates/cbcl-core/src/protocol.rs. #![forbid(unsafe_code)], no_std + alloc.",
+      "token_cost": 93,
       "priority": "PlanMeta"
     },
     {
@@ -14,8 +14,14 @@
       "content": "Modified 18 files (+1174, -38): crates/cbcl-core/benches/core_bench.rs, crates/cbcl-core/src/agent.rs, crates/cbcl-core/src/canonical.rs, crates/cbcl-core/src/dialect.rs, crates/cbcl-core/src/evaluator.rs and 13 more",
       "token_cost": 54,
       "priority": "AgentMemory"
+    },
+    {
+      "source": "memory/episodic/task-shape-check-changes",
+      "content": "Modified 1 files (+274, -0): crates/cbcl-core/src/evaluator.rs",
+      "token_cost": 15,
+      "priority": "AgentMemory"
     }
   ],
   "elements_excluded": [],
-  "constructed_at": "2026-03-24T13:15:33Z"
+  "constructed_at": "2026-03-24T13:21:33Z"
 }
