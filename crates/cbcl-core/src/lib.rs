@@ -66,5 +66,5 @@ pub mod prelude {
     pub use crate::r4::{R4Result, Signer};
     pub use crate::sexpr::{Atom, SExpr};
     pub use crate::shape::{ShapeConstraint, ShapeRule, ShapeViolation, TypeConstraint};
-    pub use crate::store::{ContentHash, HashIndex, ThreadId};
+    pub use crate::store::{ContentHash, HashIndex, MessageStore, ThreadId, ThreadedMessageStore};
 }

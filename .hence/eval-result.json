@@ -3,33 +3,25 @@
   "confidence": 1.0,
   "exit_code": 0,
   "diff_summary": {
-    "files_changed": 10,
-    "insertions": 386,
-    "deletions": 6,
+    "files_changed": 2,
+    "insertions": 481,
+    "deletions": 7,
     "file_list": [
-      ".hence/context-manifest.json",
-      "crates/cbcl-core/benches/core_bench.rs",
-      "crates/cbcl-core/src/agent.rs",
-      "crates/cbcl-core/src/evaluator.rs",
       "crates/cbcl-core/src/lib.rs",
-      "crates/cbcl-core/src/message.rs",
-      "crates/cbcl-core/tests/prop_generators.rs",
-      "crates/cbcl-ffi/src/lib.rs",
-      "crates/cbcl-wasm/src/lib.rs",
-      "fuzz/fuzz_targets/template_expand.rs"
+      "crates/cbcl-core/src/store.rs"
     ],
-    "dirty_files": 0
+    "dirty_files": 1
   },
   "learnings": [
     {
-      "key": "task-caused-by-changes",
-      "content": "Modified 10 files (+386, -6): .hence/context-manifest.json, crates/cbcl-core/benches/core_bench.rs, crates/cbcl-core/src/agent.rs, crates/cbcl-core/src/evaluator.rs, crates/cbcl-core/src/lib.rs and 5 more",
+      "key": "task-message-store-changes",
+      "content": "Modified 2 files (+481, -7): crates/cbcl-core/src/lib.rs, crates/cbcl-core/src/store.rs",
       "memory_type": "episodic",
       "confidence": 0.8
     }
   ],
-  "branch_name": "hence/caused-by-v1",
-  "evaluated_at": "2026-03-24T14:00:00Z",
+  "branch_name": "hence/message-store-v1",
+  "evaluated_at": "2026-03-24T14:06:56Z",
   "checks_passed": 0,
   "checks_failed": 0
 }
