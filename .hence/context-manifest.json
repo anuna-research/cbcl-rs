@@ -1,12 +1,12 @@
 {
-  "task_id": "shape-validation",
+  "task_id": "protocol-validation",
   "token_budget": 8000,
-  "tokens_used": 195,
+  "tokens_used": 267,
   "elements_selected": [
     {
       "source": "plan-meta/description",
-      "content": "Implement R5 shape validation: performative name matches extend clause, keywords start with ':', type constraints are valid, max-depth within R2 bound, no duplicate require/optional at same depth. REQ-222.",
-      "token_cost": 51,
+      "content": "Implement R5 protocol validation: acyclicity (REQ-204, DFS cycle detection), reachability from begin (REQ-205, DFS/BFS), performative definedness (REQ-206, check against extend clauses), step uniqueness (REQ-207, duplicate detection). All checks run at dialect installation. Add verify_r5() to pipeline. REQ-208. File: crates/cbcl-core/src/protocol.rs methods on CausalProtocol.",
+      "token_cost": 94,
       "priority": "PlanMeta"
     },
     {
@@ -32,8 +32,14 @@
       "content": "Modified 18 files (+620, -39): crates/cbcl-core/benches/core_bench.rs, crates/cbcl-core/src/agent.rs, crates/cbcl-core/src/canonical.rs, crates/cbcl-core/src/dialect.rs, crates/cbcl-core/src/evaluator.rs and 13 more",
       "token_cost": 53,
       "priority": "AgentMemory"
+    },
+    {
+      "source": "memory/episodic/task-shape-validation-changes",
+      "content": "Modified 3 files (+373, -0): crates/cbcl-core/src/dialect.rs, crates/cbcl-core/src/lib.rs, crates/cbcl-core/src/r5.rs",
+      "token_cost": 29,
+      "priority": "AgentMemory"
     }
   ],
   "elements_excluded": [],
-  "constructed_at": "2026-03-24T13:36:56Z"
+  "constructed_at": "2026-03-24T13:42:03Z"
 }

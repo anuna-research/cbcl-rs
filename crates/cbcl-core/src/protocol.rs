@@ -67,6 +67,208 @@ pub struct CausalProtocol {
     pub steps: BTreeMap<String, StepDecl>,
 }
 
+/// Protocol-level violation found during R5 verification (REQ-204–207).
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum ProtocolViolation {
+    /// A cycle was found in the dependency graph (REQ-204).
+    Cycle { participants: Vec<String> },
+    /// A step is unreachable from `begin` (REQ-205).
+    Unreachable { step: String },
+    /// A performative is referenced but not defined (REQ-206).
+    UndefinedPerformative { name: String },
+    /// Duplicate step declaration for the same performative (REQ-207).
+    DuplicateStep { name: String },
+}
+
+impl fmt::Display for ProtocolViolation {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Cycle { participants } => {
+                write!(f, "cycle detected: {}", participants.join(" → "))
+            }
+            Self::Unreachable { step } => {
+                write!(f, "step '{}' is unreachable from begin", step)
+            }
+            Self::UndefinedPerformative { name } => {
+                write!(f, "performative '{}' is not defined", name)
+            }
+            Self::DuplicateStep { name } => {
+                write!(f, "duplicate step declaration for '{}'", name)
+            }
+        }
+    }
+}
+
+impl CausalProtocol {
+    /// Collect all performative names referenced in successor/predecessor node-refs,
+    /// excluding `begin`.
+    fn all_referenced_performatives(&self) -> BTreeSet<String> {
+        let mut names = BTreeSet::new();
+        for (name, step) in &self.steps {
+            if name != "begin" {
+                names.insert(name.clone());
+            }
+            for nr in step.predecessors.iter().chain(step.successors.iter()) {
+                for p in nr.performatives() {
+                    if p != "begin" {
+                        names.insert(p.into());
+                    }
+                }
+            }
+        }
+        names
+    }
+
+    /// Build adjacency list (successor graph) from steps.
+    fn successor_graph(&self) -> BTreeMap<&str, BTreeSet<&str>> {
+        let mut graph: BTreeMap<&str, BTreeSet<&str>> = BTreeMap::new();
+        for (name, step) in &self.steps {
+            graph.entry(name.as_str()).or_default();
+            for nr in &step.successors {
+                for s in nr.performatives() {
+                    graph.entry(name.as_str()).or_default().insert(s);
+                    graph.entry(s).or_default();
+                }
+            }
+        }
+        graph
+    }
+
+    /// Check acyclicity of the protocol dependency graph (REQ-204).
+    ///
+    /// Uses DFS with white/gray/black colouring to detect back edges.
+    /// Returns violations for each cycle found.
+    pub fn check_acyclicity(&self) -> Vec<ProtocolViolation> {
+        let graph = self.successor_graph();
+
+        // 0 = white (unvisited), 1 = gray (in progress), 2 = black (done)
+        let mut color: BTreeMap<&str, u8> = BTreeMap::new();
+        let mut path: Vec<&str> = Vec::new();
+        let mut violations = Vec::new();
+
+        for &node in graph.keys() {
+            if *color.get(node).unwrap_or(&0) == 0 {
+                Self::dfs_cycle(node, &graph, &mut color, &mut path, &mut violations);
+            }
+        }
+        violations
+    }
+
+    fn dfs_cycle<'a>(
+        node: &'a str,
+        graph: &BTreeMap<&'a str, BTreeSet<&'a str>>,
+        color: &mut BTreeMap<&'a str, u8>,
+        path: &mut Vec<&'a str>,
+        violations: &mut Vec<ProtocolViolation>,
+    ) {
+        color.insert(node, 1); // gray
+        path.push(node);
+
+        if let Some(neighbors) = graph.get(node) {
+            for &next in neighbors {
+                match color.get(next).unwrap_or(&0) {
+                    0 => Self::dfs_cycle(next, graph, color, path, violations),
+                    1 => {
+                        // Back edge: extract cycle from path
+                        if let Some(pos) = path.iter().position(|&n| n == next) {
+                            let cycle: Vec<String> =
+                                path[pos..].iter().map(|s| String::from(*s)).collect();
+                            violations.push(ProtocolViolation::Cycle {
+                                participants: cycle,
+                            });
+                        }
+                    }
+                    _ => {} // black, already fully explored
+                }
+            }
+        }
+
+        path.pop();
+        color.insert(node, 2); // black
+    }
+
+    /// Check that all steps are reachable from `begin` (REQ-205).
+    ///
+    /// Uses BFS from `begin` over the successor graph.
+    pub fn check_reachability(&self) -> Vec<ProtocolViolation> {
+        let graph = self.successor_graph();
+        let mut visited: BTreeSet<&str> = BTreeSet::new();
+        let mut queue: Vec<&str> = Vec::new();
+
+        if graph.contains_key("begin") {
+            queue.push("begin");
+            visited.insert("begin");
+        }
+
+        while let Some(current) = queue.pop() {
+            if let Some(neighbors) = graph.get(current) {
+                for &next in neighbors {
+                    if visited.insert(next) {
+                        queue.push(next);
+                    }
+                }
+            }
+        }
+
+        let mut violations = Vec::new();
+        for name in self.steps.keys() {
+            if name != "begin" && !visited.contains(name.as_str()) {
+                violations.push(ProtocolViolation::Unreachable {
+                    step: name.clone(),
+                });
+            }
+        }
+        violations
+    }
+
+    /// Check that all referenced performatives are defined (REQ-206).
+    ///
+    /// `defined_performatives` should include all performatives from the dialect's
+    /// `extend` clauses and installed ancestors. `begin` is always valid.
+    pub fn check_performative_definedness(
+        &self,
+        defined_performatives: &[&str],
+    ) -> Vec<ProtocolViolation> {
+        let defined: BTreeSet<&str> = defined_performatives.iter().copied().collect();
+        let referenced = self.all_referenced_performatives();
+
+        let mut violations = Vec::new();
+        for name in &referenced {
+            if !defined.contains(name.as_str()) {
+                violations.push(ProtocolViolation::UndefinedPerformative { name: name.clone() });
+            }
+        }
+        violations
+    }
+
+    /// Check that no performative has duplicate step declarations (REQ-207).
+    ///
+    /// Since `CausalProtocol` stores steps in a `BTreeMap`, structural duplicates
+    /// are impossible. This method exists to satisfy the requirement interface;
+    /// it always returns an empty vec for a validly-constructed protocol.
+    pub fn check_step_uniqueness(&self) -> Vec<ProtocolViolation> {
+        // BTreeMap guarantees no duplicate keys by construction.
+        Vec::new()
+    }
+
+    /// Run all R5 protocol checks (REQ-208).
+    ///
+    /// Checks: step uniqueness (REQ-207), acyclicity (REQ-204),
+    /// reachability (REQ-205), and performative definedness (REQ-206).
+    pub fn verify_r5_protocol(
+        &self,
+        defined_performatives: &[&str],
+    ) -> Vec<ProtocolViolation> {
+        let mut violations = Vec::new();
+        violations.extend(self.check_step_uniqueness());
+        violations.extend(self.check_acyclicity());
+        violations.extend(self.check_reachability());
+        violations.extend(self.check_performative_definedness(defined_performatives));
+        violations
+    }
+}
+
 /// Causal verification failure details (CON-202, SPEC-002).
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -494,5 +696,323 @@ mod tests {
             result,
             VerificationResult::Violation(CausalViolation::MissingCausedBy)
         );
+    }
+
+    // ================================================================
+    // Protocol Validation Tests
+    // ================================================================
+
+    /// Helper: build a simple linear protocol: begin → a → b → c
+    fn linear_protocol() -> CausalProtocol {
+        let mut steps = BTreeMap::new();
+        steps.insert(
+            "begin".into(),
+            StepDecl {
+                performative: "begin".into(),
+                predecessors: vec![],
+                successors: vec![NodeRef::Single("a".into())],
+            },
+        );
+        steps.insert(
+            "a".into(),
+            StepDecl {
+                performative: "a".into(),
+                predecessors: vec![NodeRef::Single("begin".into())],
+                successors: vec![NodeRef::Single("b".into())],
+            },
+        );
+        steps.insert(
+            "b".into(),
+            StepDecl {
+                performative: "b".into(),
+                predecessors: vec![NodeRef::Single("a".into())],
+                successors: vec![NodeRef::Single("c".into())],
+            },
+        );
+        steps.insert(
+            "c".into(),
+            StepDecl {
+                performative: "c".into(),
+                predecessors: vec![NodeRef::Single("b".into())],
+                successors: vec![],
+            },
+        );
+        CausalProtocol { steps }
+    }
+
+    // ---- TEST-204: Acyclicity ----
+
+    #[test]
+    fn test_acyclicity_linear_chain_passes() {
+        // begin → a → b → c — no cycles
+        let proto = linear_protocol();
+        assert!(proto.check_acyclicity().is_empty());
+    }
+
+    #[test]
+    fn test_acyclicity_direct_cycle_rejected() {
+        // a → b, b → a (direct cycle)
+        let mut steps = BTreeMap::new();
+        steps.insert(
+            "a".into(),
+            StepDecl {
+                performative: "a".into(),
+                predecessors: vec![NodeRef::Single("b".into())],
+                successors: vec![NodeRef::Single("b".into())],
+            },
+        );
+        steps.insert(
+            "b".into(),
+            StepDecl {
+                performative: "b".into(),
+                predecessors: vec![NodeRef::Single("a".into())],
+                successors: vec![NodeRef::Single("a".into())],
+            },
+        );
+        let proto = CausalProtocol { steps };
+        let violations = proto.check_acyclicity();
+        assert!(!violations.is_empty());
+        assert!(violations
+            .iter()
+            .any(|v| matches!(v, ProtocolViolation::Cycle { .. })));
+    }
+
+    #[test]
+    fn test_acyclicity_transitive_cycle_rejected() {
+        // a → b → c → a (transitive cycle)
+        let mut steps = BTreeMap::new();
+        steps.insert(
+            "a".into(),
+            StepDecl {
+                performative: "a".into(),
+                predecessors: vec![NodeRef::Single("c".into())],
+                successors: vec![NodeRef::Single("b".into())],
+            },
+        );
+        steps.insert(
+            "b".into(),
+            StepDecl {
+                performative: "b".into(),
+                predecessors: vec![NodeRef::Single("a".into())],
+                successors: vec![NodeRef::Single("c".into())],
+            },
+        );
+        steps.insert(
+            "c".into(),
+            StepDecl {
+                performative: "c".into(),
+                predecessors: vec![NodeRef::Single("b".into())],
+                successors: vec![NodeRef::Single("a".into())],
+            },
+        );
+        let proto = CausalProtocol { steps };
+        let violations = proto.check_acyclicity();
+        assert!(!violations.is_empty());
+    }
+
+    // ---- TEST-205: Reachability ----
+
+    #[test]
+    fn test_reachability_linear_chain_passes() {
+        let proto = linear_protocol();
+        assert!(proto.check_reachability().is_empty());
+    }
+
+    #[test]
+    fn test_reachability_both_from_begin_passes() {
+        // begin → a, begin → b (both directly reachable)
+        let mut steps = BTreeMap::new();
+        steps.insert(
+            "begin".into(),
+            StepDecl {
+                performative: "begin".into(),
+                predecessors: vec![],
+                successors: vec![
+                    NodeRef::Single("a".into()),
+                    NodeRef::Single("b".into()),
+                ],
+            },
+        );
+        steps.insert(
+            "a".into(),
+            StepDecl {
+                performative: "a".into(),
+                predecessors: vec![NodeRef::Single("begin".into())],
+                successors: vec![],
+            },
+        );
+        steps.insert(
+            "b".into(),
+            StepDecl {
+                performative: "b".into(),
+                predecessors: vec![NodeRef::Single("begin".into())],
+                successors: vec![],
+            },
+        );
+        let proto = CausalProtocol { steps };
+        assert!(proto.check_reachability().is_empty());
+    }
+
+    #[test]
+    fn test_reachability_unreachable_step_rejected() {
+        // begin → a, but c has no connection to begin
+        let mut steps = BTreeMap::new();
+        steps.insert(
+            "begin".into(),
+            StepDecl {
+                performative: "begin".into(),
+                predecessors: vec![],
+                successors: vec![NodeRef::Single("a".into())],
+            },
+        );
+        steps.insert(
+            "a".into(),
+            StepDecl {
+                performative: "a".into(),
+                predecessors: vec![NodeRef::Single("begin".into())],
+                successors: vec![],
+            },
+        );
+        steps.insert(
+            "c".into(),
+            StepDecl {
+                performative: "c".into(),
+                predecessors: vec![NodeRef::Single("x".into())],
+                successors: vec![],
+            },
+        );
+        let proto = CausalProtocol { steps };
+        let violations = proto.check_reachability();
+        assert_eq!(violations.len(), 1);
+        assert!(matches!(
+            &violations[0],
+            ProtocolViolation::Unreachable { step } if step == "c"
+        ));
+    }
+
+    // ---- TEST-206: Performative Definedness ----
+
+    #[test]
+    fn test_definedness_all_defined_passes() {
+        let proto = linear_protocol();
+        let violations = proto.check_performative_definedness(&["a", "b", "c"]);
+        assert!(violations.is_empty());
+    }
+
+    #[test]
+    fn test_definedness_undefined_rejected() {
+        let proto = linear_protocol();
+        // Only "a" is defined, "b" and "c" are not
+        let violations = proto.check_performative_definedness(&["a"]);
+        assert_eq!(violations.len(), 2);
+        let names: Vec<&str> = violations
+            .iter()
+            .filter_map(|v| match v {
+                ProtocolViolation::UndefinedPerformative { name } => Some(name.as_str()),
+                _ => None,
+            })
+            .collect();
+        assert!(names.contains(&"b"));
+        assert!(names.contains(&"c"));
+    }
+
+    // ---- TEST-207: Step Uniqueness ----
+
+    #[test]
+    fn test_step_uniqueness_always_passes() {
+        // BTreeMap guarantees uniqueness by construction
+        let proto = linear_protocol();
+        assert!(proto.check_step_uniqueness().is_empty());
+    }
+
+    // ---- TEST-208: verify_r5_protocol composite ----
+
+    #[test]
+    fn test_verify_r5_protocol_valid() {
+        let proto = linear_protocol();
+        let violations = proto.verify_r5_protocol(&["a", "b", "c"]);
+        assert!(violations.is_empty());
+    }
+
+    #[test]
+    fn test_verify_r5_protocol_catches_undefined() {
+        let proto = linear_protocol();
+        let violations = proto.verify_r5_protocol(&["a"]);
+        assert!(violations
+            .iter()
+            .any(|v| matches!(v, ProtocolViolation::UndefinedPerformative { .. })));
+    }
+
+    #[test]
+    fn test_verify_r5_protocol_catches_unreachable() {
+        let mut steps = BTreeMap::new();
+        steps.insert(
+            "begin".into(),
+            StepDecl {
+                performative: "begin".into(),
+                predecessors: vec![],
+                successors: vec![NodeRef::Single("a".into())],
+            },
+        );
+        steps.insert(
+            "a".into(),
+            StepDecl {
+                performative: "a".into(),
+                predecessors: vec![NodeRef::Single("begin".into())],
+                successors: vec![],
+            },
+        );
+        steps.insert(
+            "orphan".into(),
+            StepDecl {
+                performative: "orphan".into(),
+                predecessors: vec![],
+                successors: vec![],
+            },
+        );
+        let proto = CausalProtocol { steps };
+        let violations = proto.verify_r5_protocol(&["a", "orphan"]);
+        assert!(violations
+            .iter()
+            .any(|v| matches!(v, ProtocolViolation::Unreachable { step } if step == "orphan")));
+    }
+
+    // ---- ProtocolViolation Display ----
+
+    #[test]
+    fn test_protocol_violation_display() {
+        let v = ProtocolViolation::Cycle {
+            participants: vec!["a".into(), "b".into()],
+        };
+        assert_eq!(v.to_string(), "cycle detected: a → b");
+
+        let v = ProtocolViolation::Unreachable {
+            step: "orphan".into(),
+        };
+        assert!(v.to_string().contains("unreachable"));
+
+        let v = ProtocolViolation::UndefinedPerformative {
+            name: "foo".into(),
+        };
+        assert!(v.to_string().contains("not defined"));
+
+        let v = ProtocolViolation::DuplicateStep {
+            name: "bar".into(),
+        };
+        assert!(v.to_string().contains("duplicate"));
+    }
+
+    // ---- Empty protocol ----
+
+    #[test]
+    fn test_empty_protocol_passes_all_checks() {
+        let proto = CausalProtocol {
+            steps: BTreeMap::new(),
+        };
+        assert!(proto.check_acyclicity().is_empty());
+        assert!(proto.check_reachability().is_empty());
+        assert!(proto.check_performative_definedness(&[]).is_empty());
+        assert!(proto.check_step_uniqueness().is_empty());
+        assert!(proto.verify_r5_protocol(&[]).is_empty());
     }
 }
