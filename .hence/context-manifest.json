@@ -1,12 +1,12 @@
 {
-  "task_id": "persistence",
+  "task_id": "certificate-tests",
   "token_budget": 8000,
-  "tokens_used": 487,
+  "tokens_used": 419,
   "elements_selected": [
     {
       "source": "plan-meta/description",
-      "content": "Implement text-file persistence: append S-expression messages to file (one per line, self-delimiting). Recovery: parse sequentially via Layer 1 DCFL recogniser, compute content hashes using canonical form (not file form), append to store with deduplication, rebuild hash index, reconstruct frontier. Handle truncated writes (parser fails on unbalanced parens, skips). Integrity verification on recovery (recompute hashes, check :caused-by). File compaction after checkpoint via atomic file replacement. Persistence is optional (in-memory valid for ephemeral agents). REQ-314.",
-      "token_cost": 143,
+      "content": "Verify Merkle DAG as lattice position certificate (REQ-306). Modify any message in causal closure -> root hash changes. Two agents computing same message hash independently get same result. Canonical :caused-by sort ensures determinism. Fan-in join commits to union of predecessor histories. TEST-306.",
+      "token_cost": 75,
       "priority": "PlanMeta"
     },
     {
@@ -71,5 +71,5 @@
     }
   ],
   "elements_excluded": [],
-  "constructed_at": "2026-03-24T14:46:51Z"
+  "constructed_at": "2026-03-24T14:50:47Z"
 }
