@@ -3,26 +3,27 @@
   "confidence": 1.0,
   "exit_code": 0,
   "diff_summary": {
-    "files_changed": 3,
-    "insertions": 86,
-    "deletions": 5,
+    "files_changed": 4,
+    "insertions": 651,
+    "deletions": 13,
     "file_list": [
       ".hence/context-manifest.json",
-      "crates/cbcl-core/src/blame.rs",
-      "crates/cbcl-parser/src/pipeline.rs"
+      "crates/cbcl-core/benches/core_bench.rs",
+      "crates/cbcl-core/tests/nfr_tests.rs",
+      "crates/cbcl-parser/benches/parse_bench.rs"
     ],
     "dirty_files": 0
   },
   "learnings": [
     {
-      "key": "task-observability-changes",
-      "content": "Modified 3 files (+86, -5): .hence/context-manifest.json, crates/cbcl-core/src/blame.rs, crates/cbcl-parser/src/pipeline.rs",
+      "key": "task-benchmarks-changes",
+      "content": "Modified 4 files (+651, -13): .hence/context-manifest.json, crates/cbcl-core/benches/core_bench.rs, crates/cbcl-core/tests/nfr_tests.rs, crates/cbcl-parser/benches/parse_bench.rs",
       "memory_type": "episodic",
       "confidence": 0.8
     }
   ],
-  "branch_name": "hence/observability-v1",
-  "evaluated_at": "2026-03-24T15:20:03Z",
+  "branch_name": "hence/benchmarks-v1",
+  "evaluated_at": "2026-03-24T15:30:30Z",
   "checks_passed": 0,
   "checks_failed": 0
 }

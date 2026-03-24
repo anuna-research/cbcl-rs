@@ -1,13 +1,19 @@
 {
-  "task_id": "observability",
+  "task_id": "benchmarks",
   "token_budget": 8000,
-  "tokens_used": 399,
+  "tokens_used": 462,
   "elements_selected": [
     {
       "source": "plan-meta/description",
-      "content": "Add blame attribution counter (cbcl_blame_attribution_count with labels {dialect, blamed_party, violation_type}) and violation error size histogram (cbcl_violation_error_size_bytes) behind the tracing feature flag. REQ-234.",
-      "token_cost": 55,
+      "content": "Criterion benchmarks for all NFRs. Protocol parsing <= 500 ns / 10 steps (NFR-200, TEST-250). Causal verification <= 100 ns / message (NFR-201, TEST-251). Shape parsing <= 300 ns / 8 rules (NFR-202, TEST-252). Shape check <= 200 ns / message (NFR-203, TEST-253). Hash index lookup <= 50 ns (TEST-309). Dedup overhead <= 50 ns (NFR-304, TEST-354). Zero mutable state under Reject (TEST-352). Hash index memory <= 64 bytes/entry (TEST-353). Buffer memory bounded (TEST-351).",
+      "token_cost": 118,
       "priority": "PlanMeta"
+    },
+    {
+      "source": "memory/episodic/task-observability-changes",
+      "content": "Modified 3 files (+86, -5): .hence/context-manifest.json, crates/cbcl-core/src/blame.rs, crates/cbcl-parser/src/pipeline.rs",
+      "token_cost": 30,
+      "priority": "AgentMemory"
     },
     {
       "source": "memory/episodic/task-shape-changes",
@@ -62,14 +68,8 @@
       "content": "Modified 2 files (+481, -7): crates/cbcl-core/src/lib.rs, crates/cbcl-core/src/store.rs",
       "token_cost": 21,
       "priority": "AgentMemory"
-    },
-    {
-      "source": "memory/episodic/task-causal-verify-changes",
-      "content": "Modified 3 files (+633, -6): .hence/context-manifest.json, crates/cbcl-core/src/lib.rs, crates/cbcl-core/src/protocol.rs",
-      "token_cost": 30,
-      "priority": "AgentMemory"
     }
   ],
   "elements_excluded": [],
-  "constructed_at": "2026-03-24T15:15:33Z"
+  "constructed_at": "2026-03-24T15:20:09Z"
 }
