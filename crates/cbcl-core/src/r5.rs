@@ -14,7 +14,8 @@ use crate::shape::ShapeRule;
 use alloc::string::String;
 use alloc::vec::Vec;
 
-/// Verify R5 for a dialect: all shape constraints are well-formed (REQ-222).
+/// Verify R5 for a dialect: protocol well-formedness (REQ-208) and shape
+/// well-formedness (REQ-222).
 pub fn verify_r5(d: &Dialect) -> bool {
     let pass = r5_violations(d).is_empty();
     #[cfg(feature = "tracing")]
@@ -28,9 +29,20 @@ pub fn verify_r5(d: &Dialect) -> bool {
     pass
 }
 
-/// Return all R5 violations found in a dialect's shape constraints.
+/// Return all R5 violations found in a dialect's protocol and shape constraints.
 pub fn r5_violations(d: &Dialect) -> Vec<String> {
     let mut violations = Vec::new();
+
+    // Protocol validation (REQ-204–208).
+    if let Some(ref proto) = d.causal_protocol {
+        let defined: Vec<&str> = d.performative_names();
+        let proto_violations = proto.verify_r5_protocol(&defined);
+        for v in proto_violations {
+            violations.push(alloc::format!("{}", v));
+        }
+    }
+
+    // Shape validation (REQ-222).
     for shape in &d.shapes {
         // §1: Performative name must match a performative defined in the dialect.
         if !d.defines_performative(&shape.performative) {
@@ -337,6 +349,142 @@ mod tests {
     #[test]
     fn base_dialect_passes_r5() {
         let d = crate::dialect::base_dialect();
+        assert!(verify_r5(&d));
+    }
+
+    // -- TEST-208: R5 protocol validation at installation --
+
+    use crate::protocol::{CausalProtocol, NodeRef, StepDecl};
+    use alloc::collections::BTreeMap;
+
+    fn protocol_dialect(
+        performatives: Vec<&str>,
+        proto: CausalProtocol,
+    ) -> Dialect {
+        Dialect {
+            name: String::from("test-dialect"),
+            extends: vec![String::from("cbcl")],
+            author: None,
+            performatives: performatives
+                .into_iter()
+                .map(|name| PerformativeDef {
+                    name: String::from(name),
+                    params: vec![],
+                    template: SExpr::List(vec![
+                        SExpr::Atom(Atom::Symbol(String::from("effect"))),
+                        SExpr::Atom(Atom::Symbol(String::from(name))),
+                    ]),
+                })
+                .collect(),
+            resources: ResourceBounds {
+                max_depth: 16,
+                max_expansion_size: 1024,
+                verification_time_ms: 50,
+            },
+            examples: vec![],
+            signature: None,
+            hash: None,
+            protocol: None,
+            causal_protocol: Some(proto),
+            shapes: vec![],
+        }
+    }
+
+    #[test]
+    fn valid_protocol_passes_r5() {
+        // begin → a → b (linear, all defined)
+        let mut steps = BTreeMap::new();
+        steps.insert("begin".into(), StepDecl {
+            performative: "begin".into(),
+            predecessors: vec![],
+            successors: vec![NodeRef::Single("a".into())],
+        });
+        steps.insert("a".into(), StepDecl {
+            performative: "a".into(),
+            predecessors: vec![NodeRef::Single("begin".into())],
+            successors: vec![NodeRef::Single("b".into())],
+        });
+        steps.insert("b".into(), StepDecl {
+            performative: "b".into(),
+            predecessors: vec![NodeRef::Single("a".into())],
+            successors: vec![],
+        });
+        let proto = CausalProtocol { steps };
+        let d = protocol_dialect(vec!["a", "b"], proto);
+        assert!(verify_r5(&d));
+    }
+
+    #[test]
+    fn cycle_in_protocol_fails_r5() {
+        // a → b → a (cycle)
+        let mut steps = BTreeMap::new();
+        steps.insert("a".into(), StepDecl {
+            performative: "a".into(),
+            predecessors: vec![NodeRef::Single("b".into())],
+            successors: vec![NodeRef::Single("b".into())],
+        });
+        steps.insert("b".into(), StepDecl {
+            performative: "b".into(),
+            predecessors: vec![NodeRef::Single("a".into())],
+            successors: vec![NodeRef::Single("a".into())],
+        });
+        let proto = CausalProtocol { steps };
+        let d = protocol_dialect(vec!["a", "b"], proto);
+        assert!(!verify_r5(&d));
+        let v = r5_violations(&d);
+        assert!(v.iter().any(|s| s.contains("cycle")));
+    }
+
+    #[test]
+    fn unreachable_step_fails_r5() {
+        let mut steps = BTreeMap::new();
+        steps.insert("begin".into(), StepDecl {
+            performative: "begin".into(),
+            predecessors: vec![],
+            successors: vec![NodeRef::Single("a".into())],
+        });
+        steps.insert("a".into(), StepDecl {
+            performative: "a".into(),
+            predecessors: vec![NodeRef::Single("begin".into())],
+            successors: vec![],
+        });
+        steps.insert("orphan".into(), StepDecl {
+            performative: "orphan".into(),
+            predecessors: vec![],
+            successors: vec![],
+        });
+        let proto = CausalProtocol { steps };
+        let d = protocol_dialect(vec!["a", "orphan"], proto);
+        assert!(!verify_r5(&d));
+        let v = r5_violations(&d);
+        assert!(v.iter().any(|s| s.contains("unreachable")));
+    }
+
+    #[test]
+    fn undefined_performative_fails_r5() {
+        // Protocol references "track-ack" but dialect doesn't define it
+        let mut steps = BTreeMap::new();
+        steps.insert("begin".into(), StepDecl {
+            performative: "begin".into(),
+            predecessors: vec![],
+            successors: vec![NodeRef::Single("track-ack".into())],
+        });
+        steps.insert("track-ack".into(), StepDecl {
+            performative: "track-ack".into(),
+            predecessors: vec![NodeRef::Single("begin".into())],
+            successors: vec![],
+        });
+        let proto = CausalProtocol { steps };
+        // "track-ack" is not in the performatives list
+        let d = protocol_dialect(vec!["something-else"], proto);
+        assert!(!verify_r5(&d));
+        let v = r5_violations(&d);
+        assert!(v.iter().any(|s| s.contains("not defined")));
+    }
+
+    #[test]
+    fn no_protocol_passes_r5() {
+        let d = test_dialect(vec!["propose-step"], vec![]);
         assert!(verify_r5(&d));
     }
 }

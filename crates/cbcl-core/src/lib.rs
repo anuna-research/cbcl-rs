@@ -59,7 +59,7 @@ pub mod prelude {
         CorePerformative, Message, MessageParseError, MessageType, Performative, WrapperType,
     };
     pub use crate::protocol::{
-        CausalProtocol, CausalViolation, NodeRef, StepDecl, VerificationResult,
+        CausalProtocol, CausalViolation, NodeRef, ProtocolViolation, StepDecl, VerificationResult,
     };
     pub use crate::r4::{R4Result, Signer};
     pub use crate::sexpr::{Atom, SExpr};
