@@ -3,25 +3,26 @@
   "confidence": 1.0,
   "exit_code": 0,
   "diff_summary": {
-    "files_changed": 2,
-    "insertions": 481,
-    "deletions": 7,
+    "files_changed": 3,
+    "insertions": 633,
+    "deletions": 6,
     "file_list": [
+      ".hence/context-manifest.json",
       "crates/cbcl-core/src/lib.rs",
-      "crates/cbcl-core/src/store.rs"
+      "crates/cbcl-core/src/protocol.rs"
     ],
-    "dirty_files": 1
+    "dirty_files": 0
   },
   "learnings": [
     {
-      "key": "task-message-store-changes",
-      "content": "Modified 2 files (+481, -7): crates/cbcl-core/src/lib.rs, crates/cbcl-core/src/store.rs",
+      "key": "task-causal-verify-changes",
+      "content": "Modified 3 files (+633, -6): .hence/context-manifest.json, crates/cbcl-core/src/lib.rs, crates/cbcl-core/src/protocol.rs",
       "memory_type": "episodic",
       "confidence": 0.8
     }
   ],
-  "branch_name": "hence/message-store-v1",
-  "evaluated_at": "2026-03-24T14:06:56Z",
+  "branch_name": "hence/causal-verify-v1",
+  "evaluated_at": "2026-03-24T14:12:30Z",
   "checks_passed": 0,
   "checks_failed": 0
 }

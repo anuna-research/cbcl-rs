@@ -12,6 +12,9 @@ use alloc::string::String;
 use alloc::vec::Vec;
 use core::fmt;
 
+use crate::message::CausedBy;
+use crate::store::{ContentHash, MessageStore, ThreadId};
+
 // ================================================================
 // Causal Protocol Data Model (REQ-200)
 // ================================================================
@@ -417,6 +420,179 @@ impl PartialOrd for VerificationResult {
             // Valid and Violation are incomparable
             (VerificationResult::Valid, VerificationResult::Violation(_))
             | (VerificationResult::Violation(_), VerificationResult::Valid) => None,
+        }
+    }
+}
+
+// ================================================================
+// Causal Verification (REQ-203, REQ-304, ADR-008)
+// ================================================================
+
+/// Collect performative names allowed as single-message predecessors.
+///
+/// Gathers names from `Single` and `Any` node-refs (not `All`, which is for fan-in).
+fn allowed_single_predecessors(step: &StepDecl) -> Vec<String> {
+    let mut types = Vec::new();
+    for nr in &step.predecessors {
+        match nr {
+            NodeRef::Single(s) => types.push(s.clone()),
+            NodeRef::Any(set) => types.extend(set.iter().cloned()),
+            NodeRef::All(_) => {} // fan-in handled separately
+        }
+    }
+    types
+}
+
+/// Verify causal consistency of a message against its protocol (REQ-203, REQ-304).
+///
+/// Three-valued result: `Unknown` when a predecessor hash is not yet in the store,
+/// `Valid` when all predecessors resolve and match the protocol, `Violation` when
+/// a predecessor exists but has the wrong type or the causal link is malformed.
+///
+/// Thread-scoped: `:caused-by` hashes resolve only within the same `:thread` (ADR-008).
+/// Stateless and monotone — re-evaluating after store growth can only move from
+/// `Unknown` toward `Valid` or `Violation`, never backwards.
+pub fn verify_causal<S: MessageStore>(
+    msg_performative: &str,
+    caused_by: Option<&CausedBy>,
+    store: &S,
+    protocol: &CausalProtocol,
+    thread: &ThreadId,
+) -> VerificationResult {
+    // Look up the step declaration for this performative
+    let step = match protocol.steps.get(msg_performative) {
+        Some(s) => s,
+        // Performative not declared in protocol — not constrained
+        None => return VerificationResult::Valid,
+    };
+
+    let has_predecessors = !step.predecessors.is_empty();
+
+    match caused_by {
+        // No :caused-by provided
+        None => {
+            if has_predecessors {
+                VerificationResult::Violation(CausalViolation::MissingCausedBy)
+            } else {
+                VerificationResult::Valid
+            }
+        }
+
+        // :caused-by begin — root of a causal chain
+        Some(CausedBy::Begin) => {
+            // "begin" must appear in a Single or Any predecessor ref
+            let begin_allowed = step.predecessors.iter().any(|nr| match nr {
+                NodeRef::Single(s) => s == "begin",
+                NodeRef::Any(set) => set.contains("begin"),
+                NodeRef::All(_) => false, // begin in All doesn't apply to Begin caused-by
+            });
+            if begin_allowed {
+                VerificationResult::Valid
+            } else {
+                let expected = allowed_single_predecessors(step);
+                VerificationResult::Violation(CausalViolation::InvalidPredecessor {
+                    caused_by: "begin".into(),
+                    expected,
+                    found: "begin".into(),
+                })
+            }
+        }
+
+        // :caused-by <hash> — single predecessor
+        Some(CausedBy::Single(hash_str)) => {
+            let content_hash = ContentHash(hash_str.clone());
+            match store.lookup_in_thread(&content_hash, thread) {
+                None => VerificationResult::Unknown,
+                Some(predecessor_msg) => {
+                    let pred_perf = predecessor_msg
+                        .performative()
+                        .map(|p| p.name())
+                        .unwrap_or("");
+
+                    let allowed = allowed_single_predecessors(step);
+                    if allowed.iter().any(|a| a == pred_perf) {
+                        VerificationResult::Valid
+                    } else if allowed.is_empty() && !has_predecessors {
+                        VerificationResult::Violation(CausalViolation::ExtraneousPredecessor {
+                            caused_by: hash_str.clone(),
+                            found: pred_perf.into(),
+                        })
+                    } else {
+                        VerificationResult::Violation(CausalViolation::InvalidPredecessor {
+                            caused_by: hash_str.clone(),
+                            expected: allowed,
+                            found: pred_perf.into(),
+                        })
+                    }
+                }
+            }
+        }
+
+        // :caused-by (h1 h2 ...) — fan-in (multiple predecessors)
+        Some(CausedBy::Multiple(hashes)) => {
+            // Must have an (all ...) predecessor declaration
+            let all_decl = step.predecessors.iter().find_map(|nr| {
+                if let NodeRef::All(set) = nr {
+                    Some(set)
+                } else {
+                    None
+                }
+            });
+
+            let all_set = match all_decl {
+                Some(s) => s,
+                None => {
+                    return VerificationResult::Violation(CausalViolation::FanInWithoutAllDecl {
+                        performative: msg_performative.into(),
+                    });
+                }
+            };
+
+            let mut result = VerificationResult::Valid;
+            let mut found_types = BTreeSet::new();
+
+            for hash_str in hashes {
+                let content_hash = ContentHash(hash_str.clone());
+                match store.lookup_in_thread(&content_hash, thread) {
+                    None => {
+                        result = result.meet(VerificationResult::Unknown);
+                    }
+                    Some(predecessor_msg) => {
+                        let pred_perf = predecessor_msg
+                            .performative()
+                            .map(|p| p.name())
+                            .unwrap_or("");
+
+                        if all_set.contains(pred_perf) {
+                            found_types.insert(String::from(pred_perf));
+                        } else {
+                            result = result.meet(VerificationResult::Violation(
+                                CausalViolation::InvalidPredecessor {
+                                    caused_by: hash_str.clone(),
+                                    expected: all_set.iter().cloned().collect(),
+                                    found: pred_perf.into(),
+                                },
+                            ));
+                        }
+                    }
+                }
+            }
+
+            // Check completeness only when all lookups succeeded
+            if matches!(result, VerificationResult::Valid) {
+                let missing: Vec<String> = all_set
+                    .iter()
+                    .filter(|t| !found_types.contains(*t))
+                    .cloned()
+                    .collect();
+                if !missing.is_empty() {
+                    result = VerificationResult::Violation(CausalViolation::IncompleteFanIn {
+                        missing_types: missing,
+                    });
+                }
+            }
+
+            result
         }
     }
 }
@@ -1014,5 +1190,449 @@ mod tests {
         assert!(proto.check_performative_definedness(&[]).is_empty());
         assert!(proto.check_step_uniqueness().is_empty());
         assert!(proto.verify_r5_protocol(&[]).is_empty());
+    }
+
+    // ================================================================
+    // TEST-203 / TEST-304: verify_causal
+    // ================================================================
+
+    use crate::message::{Message, Performative};
+    use crate::sexpr::{Atom, SExpr};
+    use crate::store::{ContentHash, ThreadId, ThreadedMessageStore, MessageStore};
+
+    fn chash(s: &str) -> ContentHash {
+        ContentHash(s.into())
+    }
+
+    fn tid(s: &str) -> ThreadId {
+        ThreadId(s.into())
+    }
+
+    fn make_msg(perf: &str, caused_by: Option<CausedBy>) -> Message {
+        Message::Simple {
+            performative: Performative::Custom(perf.into()),
+            recipient: None,
+            content: SExpr::Atom(Atom::Str("x".into())),
+            params: alloc::vec![],
+            thread: None,
+            sender: None,
+            caused_by,
+        }
+    }
+
+    /// Protocol: begin → a → b → c
+    fn verification_protocol() -> CausalProtocol {
+        let mut steps = BTreeMap::new();
+        steps.insert(
+            "begin".into(),
+            StepDecl {
+                performative: "begin".into(),
+                predecessors: vec![],
+                successors: vec![NodeRef::Single("a".into())],
+            },
+        );
+        steps.insert(
+            "a".into(),
+            StepDecl {
+                performative: "a".into(),
+                predecessors: vec![NodeRef::Single("begin".into())],
+                successors: vec![NodeRef::Single("b".into())],
+            },
+        );
+        steps.insert(
+            "b".into(),
+            StepDecl {
+                performative: "b".into(),
+                predecessors: vec![NodeRef::Single("a".into())],
+                successors: vec![NodeRef::Single("c".into())],
+            },
+        );
+        steps.insert(
+            "c".into(),
+            StepDecl {
+                performative: "c".into(),
+                predecessors: vec![NodeRef::Single("b".into())],
+                successors: vec![],
+            },
+        );
+        CausalProtocol { steps }
+    }
+
+    /// Protocol with fan-in: begin → x, begin → y, (all x y) → z
+    fn fan_in_protocol() -> CausalProtocol {
+        let mut steps = BTreeMap::new();
+        steps.insert(
+            "begin".into(),
+            StepDecl {
+                performative: "begin".into(),
+                predecessors: vec![],
+                successors: vec![NodeRef::Single("x".into()), NodeRef::Single("y".into())],
+            },
+        );
+        steps.insert(
+            "x".into(),
+            StepDecl {
+                performative: "x".into(),
+                predecessors: vec![NodeRef::Single("begin".into())],
+                successors: vec![],
+            },
+        );
+        steps.insert(
+            "y".into(),
+            StepDecl {
+                performative: "y".into(),
+                predecessors: vec![NodeRef::Single("begin".into())],
+                successors: vec![],
+            },
+        );
+        let mut all_set = BTreeSet::new();
+        all_set.insert("x".into());
+        all_set.insert("y".into());
+        steps.insert(
+            "z".into(),
+            StepDecl {
+                performative: "z".into(),
+                predecessors: vec![NodeRef::All(all_set)],
+                successors: vec![],
+            },
+        );
+        CausalProtocol { steps }
+    }
+
+    // ---- Begin caused-by ----
+
+    #[test]
+    fn verify_begin_valid() {
+        let proto = verification_protocol();
+        let store = ThreadedMessageStore::new();
+        let t = tid("t1");
+        let result = verify_causal("a", Some(&CausedBy::Begin), &store, &proto, &t);
+        assert_eq!(result, VerificationResult::Valid);
+    }
+
+    #[test]
+    fn verify_begin_invalid_not_successor_of_begin() {
+        let proto = verification_protocol();
+        let store = ThreadedMessageStore::new();
+        let t = tid("t1");
+        // "c" requires predecessor "b", not "begin"
+        let result = verify_causal("c", Some(&CausedBy::Begin), &store, &proto, &t);
+        assert!(matches!(
+            result,
+            VerificationResult::Violation(CausalViolation::InvalidPredecessor { .. })
+        ));
+    }
+
+    // ---- Single caused-by ----
+
+    #[test]
+    fn verify_single_valid() {
+        let proto = verification_protocol();
+        let mut store = ThreadedMessageStore::new();
+        let t = tid("t1");
+        // Put an "a" message in the store
+        store.append(chash("h1"), t.clone(), make_msg("a", Some(CausedBy::Begin)));
+        // "b" requires predecessor "a" — h1 is "a" → Valid
+        let result = verify_causal("b", Some(&CausedBy::Single("h1".into())), &store, &proto, &t);
+        assert_eq!(result, VerificationResult::Valid);
+    }
+
+    #[test]
+    fn verify_single_unknown_predecessor_not_in_store() {
+        let proto = verification_protocol();
+        let store = ThreadedMessageStore::new();
+        let t = tid("t1");
+        let result = verify_causal(
+            "b",
+            Some(&CausedBy::Single("missing".into())),
+            &store,
+            &proto,
+            &t,
+        );
+        assert_eq!(result, VerificationResult::Unknown);
+    }
+
+    #[test]
+    fn verify_single_wrong_type() {
+        let proto = verification_protocol();
+        let mut store = ThreadedMessageStore::new();
+        let t = tid("t1");
+        // Put a "c" message in the store
+        store.append(chash("h1"), t.clone(), make_msg("c", Some(CausedBy::Begin)));
+        // "b" requires predecessor "a", but h1 is "c" → Violation
+        let result = verify_causal("b", Some(&CausedBy::Single("h1".into())), &store, &proto, &t);
+        assert!(matches!(
+            result,
+            VerificationResult::Violation(CausalViolation::InvalidPredecessor {
+                found,
+                ..
+            }) if found == "c"
+        ));
+    }
+
+    // ---- Thread isolation (ADR-008) ----
+
+    #[test]
+    fn verify_single_wrong_thread_is_unknown() {
+        let proto = verification_protocol();
+        let mut store = ThreadedMessageStore::new();
+        // Message in thread t1
+        store.append(chash("h1"), tid("t1"), make_msg("a", Some(CausedBy::Begin)));
+        // Verify in thread t2 — h1 is not visible → Unknown
+        let result = verify_causal(
+            "b",
+            Some(&CausedBy::Single("h1".into())),
+            &store,
+            &proto,
+            &tid("t2"),
+        );
+        assert_eq!(result, VerificationResult::Unknown);
+    }
+
+    // ---- Missing caused-by ----
+
+    #[test]
+    fn verify_missing_caused_by_violation() {
+        let proto = verification_protocol();
+        let store = ThreadedMessageStore::new();
+        let t = tid("t1");
+        // "b" has predecessors → requires caused-by
+        let result = verify_causal("b", None, &store, &proto, &t);
+        assert!(matches!(
+            result,
+            VerificationResult::Violation(CausalViolation::MissingCausedBy)
+        ));
+    }
+
+    #[test]
+    fn verify_missing_caused_by_ok_when_no_predecessors() {
+        // "begin" has no predecessors → no caused-by required
+        let proto = verification_protocol();
+        let store = ThreadedMessageStore::new();
+        let t = tid("t1");
+        let result = verify_causal("begin", None, &store, &proto, &t);
+        assert_eq!(result, VerificationResult::Valid);
+    }
+
+    // ---- Performative not in protocol ----
+
+    #[test]
+    fn verify_unknown_performative_is_valid() {
+        let proto = verification_protocol();
+        let store = ThreadedMessageStore::new();
+        let t = tid("t1");
+        let result = verify_causal("not-in-protocol", Some(&CausedBy::Begin), &store, &proto, &t);
+        assert_eq!(result, VerificationResult::Valid);
+    }
+
+    // ---- Fan-in: Multiple caused-by with (all ...) ----
+
+    #[test]
+    fn verify_fan_in_all_valid() {
+        let proto = fan_in_protocol();
+        let mut store = ThreadedMessageStore::new();
+        let t = tid("t1");
+        store.append(chash("hx"), t.clone(), make_msg("x", Some(CausedBy::Begin)));
+        store.append(chash("hy"), t.clone(), make_msg("y", Some(CausedBy::Begin)));
+        let result = verify_causal(
+            "z",
+            Some(&CausedBy::Multiple(alloc::vec!["hx".into(), "hy".into()])),
+            &store,
+            &proto,
+            &t,
+        );
+        assert_eq!(result, VerificationResult::Valid);
+    }
+
+    #[test]
+    fn verify_fan_in_one_unknown() {
+        let proto = fan_in_protocol();
+        let mut store = ThreadedMessageStore::new();
+        let t = tid("t1");
+        store.append(chash("hx"), t.clone(), make_msg("x", Some(CausedBy::Begin)));
+        // hy not in store → Unknown (meet absorbs)
+        let result = verify_causal(
+            "z",
+            Some(&CausedBy::Multiple(alloc::vec!["hx".into(), "hy".into()])),
+            &store,
+            &proto,
+            &t,
+        );
+        assert_eq!(result, VerificationResult::Unknown);
+    }
+
+    #[test]
+    fn verify_fan_in_wrong_type() {
+        let proto = fan_in_protocol();
+        let mut store = ThreadedMessageStore::new();
+        let t = tid("t1");
+        store.append(chash("hx"), t.clone(), make_msg("x", Some(CausedBy::Begin)));
+        // "wrong" is not in the (all x y) set
+        store.append(chash("hw"), t.clone(), make_msg("wrong", Some(CausedBy::Begin)));
+        let result = verify_causal(
+            "z",
+            Some(&CausedBy::Multiple(alloc::vec!["hx".into(), "hw".into()])),
+            &store,
+            &proto,
+            &t,
+        );
+        assert!(matches!(
+            result,
+            VerificationResult::Violation(CausalViolation::InvalidPredecessor { .. })
+        ));
+    }
+
+    #[test]
+    fn verify_fan_in_incomplete() {
+        let proto = fan_in_protocol();
+        let mut store = ThreadedMessageStore::new();
+        let t = tid("t1");
+        // Only one "x" message, but (all x y) requires both x and y types
+        store.append(chash("hx1"), t.clone(), make_msg("x", Some(CausedBy::Begin)));
+        store.append(chash("hx2"), t.clone(), make_msg("x", Some(CausedBy::Begin)));
+        let result = verify_causal(
+            "z",
+            Some(&CausedBy::Multiple(alloc::vec!["hx1".into(), "hx2".into()])),
+            &store,
+            &proto,
+            &t,
+        );
+        assert!(matches!(
+            result,
+            VerificationResult::Violation(CausalViolation::IncompleteFanIn { .. })
+        ));
+    }
+
+    #[test]
+    fn verify_fan_in_without_all_decl() {
+        let proto = verification_protocol();
+        let store = ThreadedMessageStore::new();
+        let t = tid("t1");
+        // "b" has Single("a") predecessor, not All — fan-in not declared
+        let result = verify_causal(
+            "b",
+            Some(&CausedBy::Multiple(alloc::vec!["h1".into(), "h2".into()])),
+            &store,
+            &proto,
+            &t,
+        );
+        assert!(matches!(
+            result,
+            VerificationResult::Violation(CausalViolation::FanInWithoutAllDecl { .. })
+        ));
+    }
+
+    // ---- Monotonicity: Unknown → Valid after store growth ----
+
+    #[test]
+    fn verify_monotone_unknown_to_valid() {
+        let proto = verification_protocol();
+        let mut store = ThreadedMessageStore::new();
+        let t = tid("t1");
+
+        // First check: predecessor not in store → Unknown
+        let r1 = verify_causal("b", Some(&CausedBy::Single("h1".into())), &store, &proto, &t);
+        assert_eq!(r1, VerificationResult::Unknown);
+
+        // Store grows: add the predecessor
+        store.append(chash("h1"), t.clone(), make_msg("a", Some(CausedBy::Begin)));
+
+        // Re-check: now Valid
+        let r2 = verify_causal("b", Some(&CausedBy::Single("h1".into())), &store, &proto, &t);
+        assert_eq!(r2, VerificationResult::Valid);
+    }
+
+    #[test]
+    fn verify_monotone_unknown_to_violation() {
+        let proto = verification_protocol();
+        let mut store = ThreadedMessageStore::new();
+        let t = tid("t1");
+
+        // First check: predecessor not in store → Unknown
+        let r1 = verify_causal("b", Some(&CausedBy::Single("h1".into())), &store, &proto, &t);
+        assert_eq!(r1, VerificationResult::Unknown);
+
+        // Store grows: add predecessor with wrong type
+        store.append(chash("h1"), t.clone(), make_msg("c", Some(CausedBy::Begin)));
+
+        // Re-check: now Violation
+        let r2 = verify_causal("b", Some(&CausedBy::Single("h1".into())), &store, &proto, &t);
+        assert!(matches!(r2, VerificationResult::Violation(_)));
+    }
+
+    // ---- Any predecessor (disjunction) ----
+
+    #[test]
+    fn verify_any_predecessor_either_type_valid() {
+        let mut steps = BTreeMap::new();
+        let mut any_set = BTreeSet::new();
+        any_set.insert("x".into());
+        any_set.insert("y".into());
+        steps.insert(
+            "z".into(),
+            StepDecl {
+                performative: "z".into(),
+                predecessors: vec![NodeRef::Any(any_set)],
+                successors: vec![],
+            },
+        );
+        let proto = CausalProtocol { steps };
+        let mut store = ThreadedMessageStore::new();
+        let t = tid("t1");
+
+        // Predecessor is "x" — matches (any x y) → Valid
+        store.append(chash("hx"), t.clone(), make_msg("x", Some(CausedBy::Begin)));
+        let r = verify_causal("z", Some(&CausedBy::Single("hx".into())), &store, &proto, &t);
+        assert_eq!(r, VerificationResult::Valid);
+
+        // Predecessor is "y" — also matches
+        store.append(chash("hy"), t.clone(), make_msg("y", Some(CausedBy::Begin)));
+        let r = verify_causal("z", Some(&CausedBy::Single("hy".into())), &store, &proto, &t);
+        assert_eq!(r, VerificationResult::Valid);
+    }
+
+    // ---- Extraneous predecessor ----
+
+    #[test]
+    fn verify_extraneous_predecessor() {
+        let mut steps = BTreeMap::new();
+        steps.insert(
+            "root".into(),
+            StepDecl {
+                performative: "root".into(),
+                predecessors: vec![],
+                successors: vec![],
+            },
+        );
+        let proto = CausalProtocol { steps };
+        let mut store = ThreadedMessageStore::new();
+        let t = tid("t1");
+        store.append(chash("h1"), t.clone(), make_msg("x", Some(CausedBy::Begin)));
+        // "root" has no predecessors, but we provide one → ExtraneousPredecessor
+        let result = verify_causal(
+            "root",
+            Some(&CausedBy::Single("h1".into())),
+            &store,
+            &proto,
+            &t,
+        );
+        assert!(matches!(
+            result,
+            VerificationResult::Violation(CausalViolation::ExtraneousPredecessor { .. })
+        ));
+    }
+
+    // ---- Statelessness: same inputs → same outputs ----
+
+    #[test]
+    fn verify_is_stateless() {
+        let proto = verification_protocol();
+        let mut store = ThreadedMessageStore::new();
+        let t = tid("t1");
+        store.append(chash("h1"), t.clone(), make_msg("a", Some(CausedBy::Begin)));
+
+        let r1 = verify_causal("b", Some(&CausedBy::Single("h1".into())), &store, &proto, &t);
+        let r2 = verify_causal("b", Some(&CausedBy::Single("h1".into())), &store, &proto, &t);
+        assert_eq!(r1, r2);
     }
 }
