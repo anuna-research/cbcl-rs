@@ -72,5 +72,8 @@ pub mod prelude {
         apply_policy, DropReason, PendingEntry, PendingQueue, PendingReason, PolicyOutcome,
         UnknownPredecessorPolicy,
     };
-    pub use crate::store::{ContentHash, HashIndex, MessageStore, ThreadId, ThreadedMessageStore};
+    pub use crate::store::{
+        BundleVerificationError, CausalClosureBundle, ClosureError, ContentHash, HashIndex,
+        MergeResult, MessageStore, ThreadId, ThreadedMessageStore,
+    };
 }
