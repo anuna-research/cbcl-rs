@@ -1,12 +1,12 @@
 {
-  "task_id": "message-store",
+  "task_id": "causal-verify",
   "token_budget": 8000,
-  "tokens_used": 418,
+  "tokens_used": 421,
   "elements_selected": [
     {
       "source": "plan-meta/description",
-      "content": "Implement MessageStore trait and concrete ThreadedMessageStore. G-Set CRDT semantics (REQ-300). Append-only with deduplication (REQ-310, dedup overhead <= 50 ns per NFR-304). Uses HashIndex for O(1) lookup. Per-thread storage. Methods: lookup, lookup_in_thread, contains, append (returns false on dup), frontier, causal_closure. Causal ordering as join-semilattice (REQ-301): :caused-by links are covers relation, fan-in is join, causal closure is principal ideal. File: crates/cbcl-core/src/store.rs.",
-      "token_cost": 125,
+      "content": "Implement verify_causal(msg_performative, caused_by, store, protocol) -> VerificationResult. Three-valued: Unknown (predecessor not in store), Valid (exists with correct type), Violation (exists with wrong type or malformed). Handle Begin, Single, Multiple (fan-in with (all ...)). Stateless, monotone. REQ-203, REQ-304. Thread-scoped: :caused-by must resolve within same :thread (ADR-008). File: crates/cbcl-core/src/protocol.rs.",
+      "token_cost": 107,
       "priority": "PlanMeta"
     },
     {
@@ -56,8 +56,14 @@
       "content": "Modified 10 files (+386, -6): .hence/context-manifest.json, crates/cbcl-core/benches/core_bench.rs, crates/cbcl-core/src/agent.rs, crates/cbcl-core/src/evaluator.rs, crates/cbcl-core/src/lib.rs and 5 more",
       "token_cost": 51,
       "priority": "AgentMemory"
+    },
+    {
+      "source": "memory/episodic/task-message-store-changes",
+      "content": "Modified 2 files (+481, -7): crates/cbcl-core/src/lib.rs, crates/cbcl-core/src/store.rs",
+      "token_cost": 21,
+      "priority": "AgentMemory"
     }
   ],
   "elements_excluded": [],
-  "constructed_at": "2026-03-24T14:00:06Z"
+  "constructed_at": "2026-03-24T14:07:02Z"
 }
