@@ -1,12 +1,12 @@
 {
-  "task_id": "eventual-tests",
+  "task_id": "monotonicity-tests",
   "token_budget": 8000,
-  "tokens_used": 420,
+  "tokens_used": 406,
   "elements_selected": [
     {
       "source": "plan-meta/description",
-      "content": "Integration test: deliver a valid protocol trace in random order to Buffer-policy agent. All messages eventually reach Valid. Property-based: for random permutations, all verify as Valid after full delivery. Convergence: two agents receiving same messages in different order reach same results. TEST-307.",
-      "token_cost": 76,
+      "content": "Property-based tests for the monotonicity guarantee (REQ-211, REQ-304). For random (message, store) pairs: verify(msg, store) <= verify(msg, store + random_msg). Cover single predecessor, (all ...) fan-in, (any ...) disjunction. TEST-304, TEST-211.",
+      "token_cost": 62,
       "priority": "PlanMeta"
     },
     {
@@ -71,5 +71,5 @@
     }
   ],
   "elements_excluded": [],
-  "constructed_at": "2026-03-24T14:18:26Z"
+  "constructed_at": "2026-03-24T14:25:25Z"
 }
