@@ -3,10 +3,13 @@ id: BUG-002
 title: "`install_preserves_core` declares `verifyR3 d = true` as a hypothesis but the proof does not use it"
 severity: S3
 priority: P2
-status: new
+status: fixed
 reported-by: agent:claude-opus-4-7
-assigned-to: unassigned
+assigned-to: agent:hugo
+fixed-by: agent:claude-opus-4-7 (Claude Code)
 reported-date: 2026-04-18
+fixed-date: 2026-04-18
+fix-ref: plans/FIX-LEAN-AUDIT.spl (task bug-002)
 component: lean-cbcl/LeanCbcl/R3CorePreservation.lean
 ---
 
@@ -104,9 +107,9 @@ Two coherent resolutions:
 
 **Recommended:** Option A. It (i) makes the Lean theorem match the published paper's prose rather than diverging from it, (ii) makes R3 genuinely load-bearing at the installation boundary, and (iii) composes cleanly with `core_performative_not_in_r3_dialect` (R3CorePreservation.lean:40), which is already the proof of the core invariant. The work is bounded — redefine `Agent.wellFormed`, update `Agent.new_wellFormed` and `Agent.installDialect_preserves_wellFormed`, and rewrite `install_preserves_core` to thread `_hr3` through.
 
-- **Fix:** to be decided per option above
-- **Verified by:** TEST-### to be written — must exhibit that `install_preserves_core` fails (does not type-check) when `verifyR3 d = true` is replaced with a counter-example such as a dialect that defines `tell`. Under Option A this is automatic.
-- **Regression test added:** pending fix
+- **Fix landed (2026-04-18):** Option A. `Agent.wellFormed` now encodes the compound invariant "base dialect is first AND every installed dialect is `Dialect.coreSafe`" where `coreSafe` means either `d.name = "cbcl-base"` or no performative in `d` is a core-performative name. `Agent.installDialect_preserves_wellFormed` now takes `hCore : d.coreSafe`. `install_preserves_core` discharges `hCore` via `r3_no_core_redefinition` using `hr3`, making the R3 verification genuinely load-bearing. A new theorem `install_no_core_redefinition` (R3CorePreservation.lean) witnesses the load-bearing content by proving "no non-base installed dialect defines a core performative" — a conclusion that follows only because `hr3` constrains `d`.
+- **Verified by:** `lake build` (0 errors, 35/35 jobs). Load-bearing property is witnessed structurally by `install_no_core_redefinition`.
+- **Regression test added:** `install_no_core_redefinition` in `R3CorePreservation.lean`.
 
 ## AI Detection Context
 

@@ -3,10 +3,13 @@ id: BUG-001
 title: "`allSExpr_wellFormed` theorem is vacuous — `WellFormedSExpr` predicate admits every `SExpr`"
 severity: S3
 priority: P2
-status: new
+status: fixed
 reported-by: agent:claude-opus-4-7
-assigned-to: unassigned
+assigned-to: agent:hugo
+fixed-by: agent:claude-opus-4-7 (Claude Code)
 reported-date: 2026-04-18
+fixed-date: 2026-04-18
+fix-ref: plans/FIX-LEAN-AUDIT.spl (task bug-001)
 component: lean-cbcl/LeanCbcl/Parser.lean
 ---
 
@@ -97,9 +100,11 @@ Two coherent resolutions exist; the choice is a specification decision, not a pu
 
 **Recommended:** Option B for the parts the parser genuinely guarantees (symbols and keywords), with a `TEST-###` that demonstrates `WellFormedSExpr` rejects at least one specific malformed value. This makes the predicate load-bearing and the theorem non-vacuous.
 
-- **Fix:** to be decided per option above
-- **Verified by:** TEST-### to be written — must exhibit at least one concrete `SExpr` value for which `WellFormedSExpr` fails
-- **Regression test added:** pending fix
+- **Fix landed (2026-04-18):** Option A (pragmatic path). `WellFormedSExpr` in `Parser.lean` was renamed to `IsSExpr`, with an explicit docstring clarifying that it is a structural classifier (identity on inhabitation) and carries no eliminative content; the over-reaching wording was removed. Downstream theorems (`allSExpr_wellFormed`, `parseSExpr_wellFormed`, `parse_wellFormed`, `tokenToAtom_wellFormed`, `readStr_wellFormed`, `WellFormedSExpr.ofAtom`) were renamed in kind. A concrete non-vacuity witness `not_roundTrippable_empty_symbol` was added to `Serializer.lean` showing that the pre-existing stronger structural predicate `RoundTrippable'` refuses `.atom (.symbol "")` (because `SafeSymbol ""` is false). This demonstrates that the codebase does have a genuinely non-vacuous structural-validity predicate — just not the one previously named `WellFormedSExpr`.
+- **Rationale for Option A over Option B:** full Option B would require proving `parseSExpr` emits only `RoundTrippable'` values — a substantial structural-induction proof over the fuel-based mutually recursive parser. Since `RoundTrippable'` already exists and is load-bearing for the round-trip theorems in `Serializer.lean`, the engineering cost of a second parser-output proof was disproportionate to the audit benefit. The honest rename restores truthfulness at minimal cost.
+- **Verified by:** `lake build` (0 errors, 35/35 jobs). Non-vacuity is witnessed by `not_roundTrippable_empty_symbol` (`Serializer.lean`).
+- **Regression test added:** `not_roundTrippable_empty_symbol` in `Serializer.lean`.
+- **Paper prose mismatch (unfixed):** the camera-ready paper's claim at line 323 ("a universal well-formedness theorem (`allSExpr_wellFormed`) additionally proves ... that every SExpr value satisfies the inductive WellFormedSExpr predicate") no longer matches the Lean (the theorem is now `allSExpr_isSExpr` and is explicitly marked as a structural classifier, not a well-formedness check). Noted for the next arXiv revision.
 
 ## AI Detection Context
 

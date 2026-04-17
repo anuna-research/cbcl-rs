@@ -50,12 +50,36 @@ theorem core_performative_not_in_r3_dialect
   rw [heq] at this
   exact absurd hcore (by simp [this])
 
-/-- Installing an R3-verified dialect preserves well-formedness. -/
+/-- Installing an R3-verified dialect preserves well-formedness.
+
+    The R3 verification is load-bearing: `verifyR3 d = true` is the
+    premise that discharges the core-safety side-condition of
+    `Agent.installDialect_preserves_wellFormed`. Replacing `hr3` with
+    `verifyR3 d = false` (or dropping the premise) breaks the proof. -/
 theorem install_preserves_core
     (a : Agent) (d : Dialect)
     (hwf : a.wellFormed)
-    (_hr3 : verifyR3 d = true) :
+    (hr3 : verifyR3 d = true) :
     (a.installDialect d).wellFormed :=
-  Agent.installDialect_preserves_wellFormed a d hwf
+  Agent.installDialect_preserves_wellFormed a d hwf (by
+    by_cases hb : d.name = "cbcl-base"
+    · exact Or.inl hb
+    · exact Or.inr (r3_no_core_redefinition d hb hr3))
+
+/-- Composition consequence: after `install_preserves_core`, no non-base
+    dialect in the resulting agent defines a core performative. This
+    witnesses the load-bearing content of `hr3`: the conclusion follows
+    *only* because `verifyR3` rules out core redefinition in `d`. -/
+theorem install_no_core_redefinition
+    (a : Agent) (d : Dialect)
+    (hwf : a.wellFormed) (hr3 : verifyR3 d = true)
+    (d' : Dialect) (hmem : d' ∈ (a.installDialect d).dialects)
+    (hnb : d'.name ≠ "cbcl-base")
+    (pd : PerformativeDef) (hpd : pd ∈ d'.performatives) :
+    isCorePerformativeName pd.name = false := by
+  obtain ⟨_, hall⟩ := install_preserves_core a d hwf hr3
+  rcases hall d' hmem with heq | hno
+  · exact absurd heq hnb
+  · exact hno pd hpd
 
 end CBCL

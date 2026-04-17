@@ -22,13 +22,25 @@ structure Agent where
 def Agent.new (id : String) : Agent :=
   { id := id, dialects := [baseDialect] }
 
-/-- The well-formedness invariant: base dialect is the first element. -/
+/-- The well-formedness invariant:
+    (i) the base dialect is the first element, AND
+    (ii) every installed dialect is core-safe (no non-base dialect
+    defines a core performative).
+
+    Clause (ii) is what R3-verification enforces at the installation
+    boundary; it is what makes `install_preserves_core` a genuinely
+    load-bearing composition rather than a structural list-cons result. -/
 def Agent.wellFormed (a : Agent) : Prop :=
-  ∃ rest, a.dialects = baseDialect :: rest
+  (∃ rest, a.dialects = baseDialect :: rest) ∧
+  (∀ d ∈ a.dialects, d.coreSafe)
 
 /-- A freshly created agent is well-formed. -/
-theorem Agent.new_wellFormed (id : String) : (Agent.new id).wellFormed :=
-  ⟨[], rfl⟩
+theorem Agent.new_wellFormed (id : String) : (Agent.new id).wellFormed := by
+  refine ⟨⟨[], rfl⟩, ?_⟩
+  intro d hd
+  simp [Agent.new] at hd
+  subst hd
+  exact baseDialect_coreSafe
 
 /-- Look up which dialect provides a performative. -/
 def Agent.findPerformativeDialect (a : Agent) (name : String) : Option Dialect :=
@@ -38,18 +50,26 @@ def Agent.findPerformativeDialect (a : Agent) (name : String) : Option Dialect :
 def Agent.installDialect (a : Agent) (d : Dialect) : Agent :=
   { a with dialects := a.dialects ++ [d] }
 
-/-- Installing a dialect preserves well-formedness. -/
+/-- Installing a core-safe dialect preserves well-formedness. The
+    `hCore` premise is discharged by `r3_no_core_redefinition` for
+    R3-verified dialects — see `install_preserves_core`. -/
 theorem Agent.installDialect_preserves_wellFormed
-    (a : Agent) (d : Dialect) (hwf : a.wellFormed) :
+    (a : Agent) (d : Dialect) (hwf : a.wellFormed) (hCore : d.coreSafe) :
     (a.installDialect d).wellFormed := by
-  obtain ⟨rest, hrfl⟩ := hwf
-  exact ⟨rest ++ [d], by simp [Agent.installDialect, hrfl]⟩
+  obtain ⟨⟨rest, hrfl⟩, hall⟩ := hwf
+  refine ⟨⟨rest ++ [d], ?_⟩, ?_⟩
+  · simp [Agent.installDialect, hrfl]
+  · intro d' hd'
+    simp only [Agent.installDialect, List.mem_append, List.mem_singleton] at hd'
+    rcases hd' with h | h
+    · exact hall d' h
+    · subst h; exact hCore
 
 /-- An agent always has the base dialect after any number of installations. -/
 theorem Agent.always_has_base_dialect
     (a : Agent) (hwf : a.wellFormed) :
     baseDialect ∈ a.dialects := by
-  obtain ⟨rest, hrfl⟩ := hwf
+  obtain ⟨⟨rest, hrfl⟩, _⟩ := hwf
   rw [hrfl]
   exact List.mem_cons_self ..
 

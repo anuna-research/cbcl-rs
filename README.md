@@ -90,12 +90,12 @@ The `lean-cbcl/` directory contains a Lean 4 formalization that machine-checks t
 | `r3.rs` | `R3CorePreservation.lean` | Core performatives cannot be redefined by extension dialects |
 | `template.rs` | `TemplateExpansion.lean` | Expansion terminates within declared resource bounds |
 | `det_parser.rs` | `DetParser.lean` | DPDA agrees with boolean decider (`headCheck_agrees`, `langCheck_agrees`) |
-| `msg_tag.rs` | `DeterministicUnion.lean` | **`decidable_preserved`**, **`dcfl_preserved`**: installing R3-verified dialects preserves DCFL membership |
+| `msg_tag.rs` | `DeterministicUnion.lean` | **`decidable_preserved`**, **`dcfl_preserved`**: installing a fresh-named dialect preserves DCFL membership (under `namesUnique`) |
 | — | `Pipeline.lean` | End-to-end: `pipeline_success_grammar` (success ⟹ `ValidMessageGrammar`) |
 
 ### Headline theorems
 
-- **`decidable_preserved`** / **`dcfl_preserved`**: installing a fresh, R3-verified dialect into a well-formed agent preserves decidability and DCFL membership of the agent's message language.
+- **`decidable_preserved`** / **`dcfl_preserved`**: installing a dialect with a fresh name into an agent with unique dialect names preserves decidability and DCFL membership of the agent's message language. (DCFL is a grammar-union closure property and is independent of R3, which is a semantic constraint on performative names; `install_preserves_core` and `install_no_core_redefinition` in `R3CorePreservation.lean` are the load-bearing R3 composition theorems.)
 - **`agentDetParser_agrees`**: the concrete DPDA agrees with the boolean membership decider on all inputs.
 - **`r1_mutual_sound`** + **`dfsNoCycle_complete`**: the DFS cycle detector is both sound and complete — it returns `true` iff no dependency cycle exists.
 - **`pipeline_success_grammar`**: if the verified pipeline accepts a string, the result satisfies the `ValidMessageGrammar` relation.

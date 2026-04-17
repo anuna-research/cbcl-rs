@@ -135,16 +135,23 @@ where
         | .error msg => .error msg
 
 -- ============================================================
--- Grammar specification
+-- Structural classifier
 -- ============================================================
 
-/-- Well-formed S-expression: every SExpr produced by the parser satisfies this. -/
-inductive WellFormedSExpr : SExpr → Prop where
-  | atom : ∀ a, WellFormedSExpr (.atom a)
-  | list : ∀ xs, (∀ e, e ∈ xs → WellFormedSExpr e) → WellFormedSExpr (.list xs)
+/-- Structural classifier for `SExpr`: every inhabitant of `SExpr`
+    satisfies this predicate by construction (one constructor per
+    `SExpr` shape, no side-conditions). This is the identity predicate
+    on inhabitation — it does *not* encode a non-trivial well-formedness
+    invariant. Parser soundness theorems that need structural content
+    should use `CBCL.RoundTrippable'` (defined in `Serializer.lean`),
+    which requires `SafeSymbol` for symbol atoms and non-empty strings
+    for keywords and is genuinely non-vacuous. -/
+inductive IsSExpr : SExpr → Prop where
+  | atom : ∀ a, IsSExpr (.atom a)
+  | list : ∀ xs, (∀ e, e ∈ xs → IsSExpr e) → IsSExpr (.list xs)
 
-/-- All atoms are well-formed. -/
-theorem WellFormedSExpr.ofAtom (a : Atom) : WellFormedSExpr (.atom a) :=
+/-- All atoms are classified as `IsSExpr`. -/
+theorem IsSExpr.ofAtom (a : Atom) : IsSExpr (.atom a) :=
   .atom a
 
 -- ============================================================
@@ -222,15 +229,15 @@ theorem tokenToAtom_false : tokenToAtom "#f" = .bool false := by
 -- Soundness: parseSExpr only produces well-formed S-expressions
 -- ============================================================
 
-/-- tokenToAtom always produces a well-formed SExpr (as an atom). -/
-theorem tokenToAtom_wellFormed (tok : String) :
-    WellFormedSExpr (.atom (tokenToAtom tok)) :=
+/-- tokenToAtom always produces an `IsSExpr` atom (trivial — every atom is). -/
+theorem tokenToAtom_isSExpr (tok : String) :
+    IsSExpr (.atom (tokenToAtom tok)) :=
   .atom _
 
-/-- readStr produces a well-formed string atom when it succeeds. -/
-theorem readStr_wellFormed (cs : List Char) (s : String) (rest : List Char)
+/-- readStr produces an `IsSExpr` string atom when it succeeds (trivial). -/
+theorem readStr_isSExpr (cs : List Char) (s : String) (rest : List Char)
     (_h : readStr cs = some (s, rest)) :
-    WellFormedSExpr (.atom (.str s)) :=
+    IsSExpr (.atom (.str s)) :=
   .atom _
 
 /-- DecidableEq for Except, needed for native_decide on parse results. -/
@@ -271,16 +278,21 @@ theorem parse_empty_error : parse "" = .error "unexpected end of input" := by na
 theorem parse_unmatched_close : parse ")" = .error "unexpected ')'" := by native_decide
 
 -- ============================================================
--- Universal well-formedness: every SExpr is well-formed
+-- Universal structural classification (vacuous by construction)
 -- ============================================================
 
-/-- Every S-expression is well-formed. Since `WellFormedSExpr` accepts all
-    constructors, this is a universal property proved by structural
-    induction on `SExpr` using `SExpr.rec`. -/
-theorem allSExpr_wellFormed : ∀ (e : SExpr), WellFormedSExpr e :=
+/-- Every S-expression is structurally classified by `IsSExpr`. This is
+    a truism — `IsSExpr` has one constructor per `SExpr` shape with no
+    side-conditions, so it is isomorphic to the constant-`True` predicate
+    on `SExpr`. It carries no eliminative content. Reviewers seeking a
+    non-trivial parser invariant should consult `CBCL.RoundTrippable'`
+    in `Serializer.lean` and its rejection witness
+    `not_roundTrippable_empty_symbol` (which demonstrates that
+    `RoundTrippable'` is genuinely non-vacuous). -/
+theorem allSExpr_isSExpr : ∀ (e : SExpr), IsSExpr e :=
   @SExpr.rec
-    (fun e => WellFormedSExpr e)
-    (fun xs => ∀ e, e ∈ xs → WellFormedSExpr e)
+    (fun e => IsSExpr e)
+    (fun xs => ∀ e, e ∈ xs → IsSExpr e)
     (fun a => .atom a)
     (fun xs ih => .list xs ih)
     (fun _ h => nomatch h)
@@ -289,14 +301,18 @@ theorem allSExpr_wellFormed : ∀ (e : SExpr), WellFormedSExpr e :=
       | .inl heq => heq ▸ hx
       | .inr hmem => hxs e hmem)
 
-/-- `parseSExpr` produces well-formed S-expressions whenever it succeeds. -/
-theorem parseSExpr_wellFormed (input : List Char) (fuel : Nat) (e : SExpr) (rest : List Char)
-    (_h : parseSExpr input fuel = .ok e rest) : WellFormedSExpr e :=
-  allSExpr_wellFormed e
+/-- `parseSExpr` produces an `IsSExpr` result whenever it succeeds. This
+    is a weak invariant — it says nothing beyond "the parser returned an
+    `SExpr`". For a load-bearing grammar-shape invariant, see
+    `MessageParser.parseMessage_sound` which is stated against the
+    genuinely non-trivial `ValidMessageGrammar`. -/
+theorem parseSExpr_isSExpr (input : List Char) (fuel : Nat) (e : SExpr) (rest : List Char)
+    (_h : parseSExpr input fuel = .ok e rest) : IsSExpr e :=
+  allSExpr_isSExpr e
 
-/-- `parse` produces well-formed S-expressions whenever it succeeds. -/
-theorem parse_wellFormed (input : String) (e : SExpr)
-    (_h : parse input = .ok e) : WellFormedSExpr e :=
-  allSExpr_wellFormed e
+/-- `parse` produces an `IsSExpr` result whenever it succeeds (weak invariant). -/
+theorem parse_isSExpr (input : String) (e : SExpr)
+    (_h : parse input = .ok e) : IsSExpr e :=
+  allSExpr_isSExpr e
 
 end CBCL

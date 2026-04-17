@@ -79,6 +79,17 @@ def Dialect.performativeNames (d : Dialect) : List String :=
 def Dialect.definesPerformative (d : Dialect) (name : String) : Bool :=
   d.performatives.any (·.name == name)
 
+/-- A dialect is "core-safe" if it is the base dialect or defines no core
+    performatives. This is the structural property that R3 verification
+    enforces for non-base dialects, and that `Agent.wellFormed` requires
+    for every installed dialect. -/
+def Dialect.coreSafe (d : Dialect) : Prop :=
+  d.name = "cbcl-base" ∨
+  ∀ pd ∈ d.performatives, isCorePerformativeName pd.name = false
+
+/-- The base dialect is trivially core-safe. -/
+theorem baseDialect_coreSafe : baseDialect.coreSafe := Or.inl rfl
+
 /-- Look up a performative definition by name. -/
 def Dialect.findPerformative (d : Dialect) (name : String) : Option PerformativeDef :=
   d.performatives.find? (·.name == name)

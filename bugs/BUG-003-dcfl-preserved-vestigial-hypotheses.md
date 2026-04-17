@@ -3,10 +3,13 @@ id: BUG-003
 title: "`dcfl_preserved` declares `verifyR3` and `wellFormed` as premises but uses neither"
 severity: S2
 priority: P1
-status: new
+status: fixed
 reported-by: agent:claude-opus-4-7
-assigned-to: unassigned
+assigned-to: agent:hugo
+fixed-by: agent:claude-opus-4-7 (Claude Code)
 reported-date: 2026-04-18
+fixed-date: 2026-04-18
+fix-ref: plans/FIX-LEAN-AUDIT.spl (task bug-003)
 component: lean-cbcl/LeanCbcl/DeterministicUnion.lean
 ---
 
@@ -100,9 +103,9 @@ Three coherent resolutions; the first two align with the paper, the third is the
 
 **Recommended:** Option A + Option C. Fix the Lean artefact now (low effort) so the repository is honest in isolation, and schedule the paper prose fix for the next public revision. Do not pursue Option B unless a genuine token-level invariant is discovered that warrants the engineering cost — manufacturing such an invariant retroactively would itself be a specification anti-pattern (§11 of USDD constitutional principles — "Anti-Slop Bias").
 
-- **Fix:** to be decided per options above
-- **Verified by:** TEST-### to be written — must exhibit that the rewritten `dcfl_preserved` type-checks under only `namesUnique` and `hFresh`, and that no spurious premise can be dropped without breaking the proof (i.e. both premises are genuinely load-bearing).
-- **Regression test added:** pending fix
+- **Fix landed (2026-04-18):** Option A. `dcfl_preserved` now has signature `(a : Agent) (d : Dialect) (hnu : a.namesUnique) (hFresh : d.name ∉ a.dialects.map Dialect.name) : IsDCFL ...` — both vestigial premises (`_hwf`, `_hR3`) removed. A docstring explains why R3/wellFormed are not premises: DCFL is a closure property of the grammar union and does not compose through R3's semantic-core constraint. The parallel case `decidable_preserved` (same vestigial-premise pattern, same file, line 758) was fixed in the same commit — all three of its premises (`_hwf`, `_hFresh`, `_hR3`) were dropped since decidability of `agentLanguage` holds for any agent unconditionally. The README (lines 93, 98) was updated to narrow the prose claim to match the Lean theorems.
+- **Verified by:** `lake build` (0 errors, 35/35 jobs). Load-bearing property of remaining premises: `hnu` is consumed by `namesUnique_installDialect`, which consumes `hFresh`.
+- **Paper prose mismatch (unfixed):** the camera-ready paper's claim at line 398 ("installing a fresh R3-verified dialect preserves DCFL membership") is no longer supported by the Lean artefact. The paper is published, so this is noted for the next arXiv revision / extended-version paper (Option C of the original resolution).
 
 ## AI Detection Context
 
