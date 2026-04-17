@@ -1,6 +1,6 @@
 ---
 id: BUG-003
-title: "`dcfl_preserved` declares `verifyR3` and `wellFormed` as premises but uses neither; also declared as `def` rather than `theorem`"
+title: "`dcfl_preserved` declares `verifyR3` and `wellFormed` as premises but uses neither"
 severity: S2
 priority: P1
 status: new
@@ -10,7 +10,9 @@ reported-date: 2026-04-18
 component: lean-cbcl/LeanCbcl/DeterministicUnion.lean
 ---
 
-# BUG-003: `dcfl_preserved` declares `verifyR3` and `wellFormed` as premises but uses neither; also declared as `def` rather than `theorem`
+# BUG-003: `dcfl_preserved` declares `verifyR3` and `wellFormed` as premises but uses neither
+
+> **Revision note (2026-04-18):** an earlier version of this report additionally flagged that the declaration uses `def` rather than `theorem`. That framing was incorrect: `IsDCFL` is defined at `DetParser.lean:62` as a `structure` carrying a `parser : DetParser` field, placing it in `Type` rather than `Prop`. Lean rejects `theorem _ : IsDCFL _` with "type of theorem is not a proposition." The `def` surface form is correct for this return type; only refactoring `IsDCFL` into a `Prop`-only statement would enable `theorem`. The def-vs-theorem framing has been removed from this report; the vestigial-premise finding (the substantive defect) is retained unchanged.
 
 **Severity:** S2 (Major)
 **Priority:** P1
@@ -46,18 +48,14 @@ component: lean-cbcl/LeanCbcl/DeterministicUnion.lean
       agentLanguage_isDCFL (a.installDialect d) (namesUnique_installDialect hnu hFresh)
     ```
 
-3. Observe two separate defects:
-   - **Vestigial hypotheses:** both `_hwf` and `_hR3` are underscore-prefixed, and the right-hand side (`agentLanguage_isDCFL ... (namesUnique_installDialect hnu hFresh)`) consumes only `hnu` and `hFresh`. `_hwf` and `_hR3` are declared but not threaded.
-   - **Declaration form:** the declaration uses `def`, not `theorem`. While `def` producing a term of type `Prop` is accepted by Lean and is logically equivalent, the paper calls this "the final theorem `dcfl_preserved`" (line 398). The surface form does not match the paper's description.
-
+3. Observe the defect: both `_hwf` and `_hR3` are underscore-prefixed, and the right-hand side (`agentLanguage_isDCFL ... (namesUnique_installDialect hnu hFresh)`) consumes only `hnu` and `hFresh`. `_hwf` and `_hR3` are declared but not threaded through the proof.
 4. Try replacing `_hR3 : verifyR3 d = true` with `_hR3 : verifyR3 d = false` and rebuild. Expected: build still succeeds, because the hypothesis is discarded. (Not required for the bug to be valid.)
+
+Note: the declaration uses `def` rather than `theorem`. This is correct and not a defect — the return type `IsDCFL ...` is a `structure` in `Type` (see `DetParser.lean:62`), not a `Prop`, so `theorem` would fail to type-check.
 
 ## Expected Behaviour
 
-For the paper's composition claim ("installing a fresh *R3-verified* dialect preserves DCFL membership") to be mechanized honestly, the Lean declaration should be:
-
-- A `theorem` (matching the paper's nomenclature), and
-- Structured so that either `verifyR3 d = true` is discharged against a `wellFormed` invariant that materially uses R3 (see BUG-002 Option A), or the R3 and `wellFormed` premises are dropped and the paper's prose is narrowed to match what is proved, namely: "installing a fresh dialect (with a name not already installed) into an agent with unique dialect names preserves DCFL membership of the agent's language."
+For the paper's composition claim ("installing a fresh *R3-verified* dialect preserves DCFL membership") to be mechanized honestly, the Lean declaration should be structured so that either `verifyR3 d = true` is discharged against a `wellFormed` invariant that materially uses R3 (see BUG-002 Option A), or the R3 and `wellFormed` premises are dropped and the paper's prose is narrowed to match what is proved, namely: "installing a fresh dialect (with a name not already installed) into an agent with unique dialect names preserves DCFL membership of the agent's language."
 
 The actually-proved claim — conditional on `namesUnique` and `hFresh` — is itself a correct and genuinely load-bearing DCFL closure result. It simply does not compose through R3 or through the current `wellFormed` predicate.
 
@@ -94,7 +92,7 @@ The declaration type-checks and, because `_hwf` and `_hR3` are unused, the resul
 
 Three coherent resolutions; the first two align with the paper, the third is the honest scientific fix:
 
-**Option A — drop vestigial premises; rename the claim.** Change `def` to `theorem`, remove `_hwf` and `_hR3` from the signature, and rename if desired to reflect the actual content: "DCFL preservation under unique names and fresh installation." The Lean artefact becomes honest and strictly stronger than the paper's claim (it does not require R3). The paper's prose at line 398 becomes out-of-sync — note in an erratum or a followup revision.
+**Option A — drop vestigial premises; rename the claim.** Remove `_hwf` and `_hR3` from the signature and rename if desired to reflect the actual content: "DCFL preservation under unique names and fresh installation." The declaration stays a `def` (its return type `IsDCFL` is not a `Prop`); the definition already constructs a `DetParser` plus soundness and completeness proofs, which is the correct form. The Lean artefact becomes honest and strictly stronger than the paper's claim (it does not require R3). The paper's prose at line 398 becomes out-of-sync — note in an erratum or a followup revision.
 
 **Option B — invent a (different) meaningful composition.** If there is a genuine invariant that DCFL preservation should compose with (e.g. a token-level safety invariant preserved by an R-something verification that is *not* R3), refactor the formalisation to expose it and rewrite `dcfl_preserved` to actually use it. This is high-effort and requires the specification work that was skipped in the original formalisation.
 
@@ -110,9 +108,15 @@ Three coherent resolutions; the first two align with the paper, the third is the
 
 - **Detecting model:** Claude Opus 4.7 (1M-context) via Claude Code
 - **Detection method:** adversarial review of the Lean formalisation against the paper's Section 4 DCFL composition claim, cross-referenced with `namesUnique_installDialect` and `agentLanguage_isDCFL`
-- **Confidence:** high — two underscore-prefixed parameters are a definitive marker of unused premises; the right-hand side of the `def` consumes only the two non-underscored premises; `def` vs `theorem` is a textual fact
+- **Confidence:** high — two underscore-prefixed parameters are a definitive marker of unused premises, and the right-hand side of the `def` consumes only the two non-underscored premises
 - **Session context:** `cbcl-paper/plans/lean-audit-findings.md`; hence plan `cbcl-paper/plans/lean-audit-basis-gotchas.spl`
-- **Review tier:** Tier 2 (core business logic — the headline formal-verification claim of the paper) — cross-model review strongly recommended before accepting the chosen resolution, per USDD §Multi-Model Cognitive Diversity; because the defect was discovered in a single-model review session, at least one different-family model should independently review the rewritten theorem
+- **Review tier:** Tier 2 (core business logic — the headline formal-verification claim of the paper) — cross-model review strongly recommended before accepting the chosen resolution, per USDD §Multi-Model Cognitive Diversity; because the defect was discovered in a single-model review session, at least one different-family model should independently review the revised declaration
+
+## Review Log
+
+| Date | Reviewer | Finding | Resolution |
+|------|----------|---------|------------|
+| 2026-04-18 | Cross-model review of initial draft | Reported that the initial draft incorrectly flagged `def` vs `theorem` as a defect and recommended a conversion that cannot type-check, because `IsDCFL` is a `structure` in `Type` (see `DetParser.lean:62`). | The def-vs-theorem framing was removed from the title, steps to reproduce, expected behaviour, resolution Option A, and AI Detection Context. A revision note was added at the top of the report. Severity and priority are unchanged — the substantive defect (vestigial `_hwf` and `_hR3` premises) is retained. |
 
 ## Notes for Triage
 
