@@ -755,12 +755,17 @@ def agentLanguage_isDecidable (a : Agent) : IsDecidable (agentLanguage a) where
   sound := agentLanguage_sound' a
   complete := agentLanguage_complete' a
 
-/-- **Main theorem**: installing a fresh, R3-verified dialect into a well-formed
-    agent preserves the decidability of the agent's language. -/
-def decidable_preserved (a : Agent) (d : Dialect)
-    (_hwf : a.wellFormed)
-    (_hFresh : d.name ∉ a.dialects.map Dialect.name)
-    (_hR3 : verifyR3 d = true) :
+/-- **Main theorem**: installing any dialect preserves the decidability
+    of the agent's language.
+
+    Decidability is a property of the `Bool`-valued decider for
+    `agentLanguage`, which is total on all inputs for any agent. It
+    does not compose through `verifyR3`, `wellFormed`, or dialect-name
+    freshness — those are irrelevant to whether the decider returns a
+    value. The previous formulation of this theorem carried three
+    vestigial premises (`_hwf`, `_hFresh`, `_hR3`) that the proof did
+    not consume; they were removed in the Lean-audit fix session. -/
+def decidable_preserved (a : Agent) (d : Dialect) :
     IsDecidable (agentLanguage (a.installDialect d)) :=
   agentLanguage_isDecidable (a.installDialect d)
 
@@ -1571,11 +1576,23 @@ private theorem namesUnique_installDialect {a : Agent} {d : Dialect}
     simp [List.mem_cons] at hy
     subst hy; intro heq; exact hFresh (heq ▸ hx)
 
+/-- **Main theorem**: installing a dialect with a fresh name into an
+    agent with unique dialect names preserves DCFL membership.
+
+    DCFL is a closure property of the grammar union and depends only on
+    uniqueness of dialect names (for deterministic dispatch) and
+    freshness of the incoming name. Earlier versions of this theorem
+    carried `_hwf : a.wellFormed` and `_hR3 : verifyR3 d = true` as
+    premises; neither was consumed by the proof. They were removed in
+    the Lean-audit fix session because R3 is a semantic-core constraint
+    on performative names, not a structural constraint on grammar
+    tokens — it is at the wrong layer to participate in a DCFL closure
+    proof. See the camera-ready paper's Section 4 for the prose
+    context; the next public revision should narrow the prose claim to
+    match this theorem. -/
 def dcfl_preserved (a : Agent) (d : Dialect)
     (hnu : a.namesUnique)
-    (_hwf : a.wellFormed)
-    (hFresh : d.name ∉ a.dialects.map Dialect.name)
-    (_hR3 : verifyR3 d = true) :
+    (hFresh : d.name ∉ a.dialects.map Dialect.name) :
     IsDCFL (agentLanguage (a.installDialect d)) :=
   agentLanguage_isDCFL (a.installDialect d) (namesUnique_installDialect hnu hFresh)
 

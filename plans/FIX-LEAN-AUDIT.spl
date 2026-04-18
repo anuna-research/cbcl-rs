@@ -1,0 +1,226 @@
+;; ================================================================
+;; Implementation plan for the Lean audit bug fixes
+;; (BUG-001 / BUG-002 / BUG-003 in cbcl-rs/bugs/).
+;;
+;; The three bugs are output of an audit against the LangSec '26
+;; camera-ready paper. Common root-cause pattern: paper prose
+;; implies a load-bearing composition that the Lean proof does not
+;; actually establish (vacuous predicate, vestigial hypothesis).
+;;
+;; Group A (tightly coupled): BUG-002 strengthens Agent.wellFormed
+;; so that install_preserves_core's R3 premise becomes load-bearing.
+;; BUG-003 then drops the (still) non-load-bearing premises from
+;; dcfl_preserved because DCFL preservation is at the wrong layer
+;; for R3.
+;;
+;; Group B (independent): BUG-001 de-vacuifies WellFormedSExpr.
+;; ================================================================
+
+(meta plan
+  (id "FIX-LEAN-AUDIT")
+  (title "Lean audit bug fixes — BUG-001/002/003")
+  (version "1.0.0")
+  (status "active")
+  (created "2026-04-18")
+  (updated "2026-04-18")
+  (author "agent:hugo")
+  (spec "bugs/BUG-001*.md, bugs/BUG-002*.md, bugs/BUG-003*.md")
+  (description "Fix three audit findings against the Lean formalisation: vacuous WellFormedSExpr, vestigial R3 hypothesis in install_preserves_core, vestigial wellFormed+R3 hypotheses in dcfl_preserved (and the parallel case in decidable_preserved). Restore load-bearing composition where possible; narrow to honest claims where not."))
+
+;; ----------------------------------------------------------------
+;; Agents
+;; ----------------------------------------------------------------
+
+(given agent-hugo-available)
+
+;; ================================================================
+;; Phase 1 — BUG-002: strengthen Agent.wellFormed
+;; ================================================================
+
+(given task-bug-002)
+(given no-deps-bug-002)
+(meta task-bug-002
+  (description "Redefine Agent.wellFormed as a conjunction: (i) base dialect is first, AND (ii) every installed dialect is 'core-safe' (is the base dialect, or defines no core performatives). Add Dialect.coreSafe helper predicate. Update Agent.new_wellFormed (baseDialect is trivially core-safe). Update Agent.installDialect_preserves_wellFormed to take a core-safe premise. Rewrite install_preserves_core to discharge core-safe via r3_no_core_redefinition using hr3. Result: verifyR3 becomes load-bearing for install_preserves_core.")
+  (acceptance "lake build passes. install_preserves_core uses hr3 (no underscore prefix). Swapping hr3 : verifyR3 d = true to verifyR3 d = false makes the proof fail."))
+
+(normally r-ready-bug-002
+  (and task-bug-002 no-deps-bug-002)
+  ready-bug-002)
+
+(normally r-assign-hugo-bug-002
+  (and ready-bug-002 agent-hugo-available)
+  assign-to-bug-002-hugo)
+
+;; ================================================================
+;; Phase 2 — BUG-003: drop vestigial premises (depends on 002)
+;; ================================================================
+;;
+;; Depends on BUG-002 only because it's natural to touch the same
+;; wellFormed-related code in sequence. Technically independent.
+
+(given task-bug-003)
+(meta task-bug-003
+  (description "Drop vestigial premises from dcfl_preserved (DeterministicUnion.lean:1574) per Option A: remove _hwf and _hR3. Also fix the parallel case decidable_preserved (:760) — same vestigial-premise pattern, same remedy. Add a comment at each site explaining why R3/wellFormed are *not* premises: DCFL preservation is a closure property of the grammar union and does not compose through R3's semantic-core constraint.")
+  (acceptance "lake build passes. dcfl_preserved signature is {namesUnique, hFresh} only. decidable_preserved drops all three vestigial premises. Paper-prose mismatch (paper line 398) noted in bug report resolution."))
+
+(normally r-ready-bug-003
+  (and task-bug-003 completed-bug-002)
+  ready-bug-003)
+
+(normally r-assign-hugo-bug-003
+  (and ready-bug-003 agent-hugo-available)
+  assign-to-bug-003-hugo)
+
+;; ================================================================
+;; Phase 3 — BUG-001: de-vacuify WellFormedSExpr (independent)
+;; ================================================================
+
+(given task-bug-001)
+(given no-deps-bug-001)
+(meta task-bug-001
+  (description "Strengthen WellFormedSExpr so that at least one inhabitant of SExpr is rejected (Option B). Symbol case: require SafeSymbol; keyword case: require non-empty. Prove parseSExpr-output satisfies the new predicate. If the output-side proof is intractable within scope, fall back to Option A: rename WellFormedSExpr to IsSExpr, delete the trivially-true allSExpr_wellFormed, and add a concrete negative test demonstrating that a stronger predicate (e.g. RoundTrippable') rejects .atom (.symbol \"\"). Either way, add at least one negative-case theorem that witnesses non-vacuity.")
+  (acceptance "lake build passes. Either (Option B) WellFormedSExpr has genuine structural content and parseSExpr_wellFormed discharges it load-bearingly, OR (Option A) the vacuous theorem is removed and a non-trivial structural predicate has a concrete rejection theorem."))
+
+(normally r-ready-bug-001
+  (and task-bug-001 no-deps-bug-001)
+  ready-bug-001)
+
+(normally r-assign-hugo-bug-001
+  (and ready-bug-001 agent-hugo-available)
+  assign-to-bug-001-hugo)
+
+;; ================================================================
+;; Phase 4 — verify build and update bug statuses
+;; ================================================================
+
+(given task-verify-build)
+(meta task-verify-build
+  (description "Run `lake build` in lean-cbcl/ after all three fixes. Ensure zero errors and zero warnings relative to the pre-fix baseline.")
+  (acceptance "lake build: 0 errors, no new warnings."))
+
+(normally r-ready-verify-build
+  (and task-verify-build completed-bug-001 completed-bug-002 completed-bug-003)
+  ready-verify-build)
+
+(normally r-assign-hugo-verify-build
+  (and ready-verify-build agent-hugo-available)
+  assign-to-verify-build-hugo)
+
+(given task-update-bugs)
+(meta task-update-bugs
+  (description "Update BUG-001/002/003 YAML front-matter (status: fixed), add a resolution note with the chosen option and the load-bearing check result.")
+  (acceptance "All three bug files: status: fixed. Resolution section filled with the landed-option summary."))
+
+(normally r-ready-update-bugs
+  (and task-update-bugs completed-verify-build)
+  ready-update-bugs)
+
+(normally r-assign-hugo-update-bugs
+  (and ready-update-bugs agent-hugo-available)
+  assign-to-update-bugs-hugo)
+
+;; ================================================================
+;; Rule metadata
+;; ================================================================
+
+(meta r-ready-bug-003
+  (description "BUG-003 sequenced after BUG-002")
+  (justification "BUG-002 and BUG-003 both touch wellFormed-adjacent code. Sequencing avoids churn; BUG-003 could be done independently but is better done with fresh context from BUG-002."))
+
+(meta r-ready-bug-001
+  (description "BUG-001 is independent and can run in parallel")
+  (justification "Different file (Parser.lean) and different concept (SExpr structural validity) from the Agent/Dialect world of BUG-002/003."))
+
+(meta r-ready-verify-build
+  (description "Capstone build check")
+  (justification "All Lean changes must compose without breaking unrelated downstream proofs."))
+
+(claims agent:hugo
+  :at "2026-04-17T22:04:10Z"
+  (given claim-v1-bug-002)
+  (normally r-cl-state-v1-bug-002 claim-v1-bug-002 state-claimed-v1-bug-002)
+  (normally r-cl-chain-v1-bug-002 state-claimed-v1-bug-002 claimed-bug-002)
+)
+
+;; Propagation rules: failures in 'bug-002' block downstream tasks
+(normally r-propagate-bug-003-from-bug-002-failed failed-bug-002 upstream-blocked-bug-003)
+(normally r-propagate-bug-003-from-bug-002-permanently-failed permanently-failed-bug-002 upstream-blocked-bug-003)
+(normally r-propagate-bug-003-from-bug-002-stale-v1 stale-v1-bug-002 upstream-blocked-bug-003)
+(normally r-propagate-bug-003-from-bug-002-timeout-v1 timeout-v1-bug-002 upstream-blocked-bug-003)
+(normally r-propagate-bug-003-from-bug-002-blocked upstream-blocked-bug-002 upstream-blocked-bug-003)
+(normally r-propagate-verify-build-from-bug-002-failed failed-bug-002 upstream-blocked-verify-build)
+(normally r-propagate-verify-build-from-bug-002-permanently-failed permanently-failed-bug-002 upstream-blocked-verify-build)
+(normally r-propagate-verify-build-from-bug-002-stale-v1 stale-v1-bug-002 upstream-blocked-verify-build)
+(normally r-propagate-verify-build-from-bug-002-timeout-v1 timeout-v1-bug-002 upstream-blocked-verify-build)
+(normally r-propagate-verify-build-from-bug-002-blocked upstream-blocked-bug-002 upstream-blocked-verify-build)
+
+;; Transitive propagation: upstream-blocked cascades through dependency chain
+(normally r-propagate-verify-build-from-bug-003-blocked upstream-blocked-bug-003 upstream-blocked-verify-build)
+(normally r-propagate-update-bugs-from-verify-build-blocked upstream-blocked-verify-build upstream-blocked-update-bugs)
+
+(claims agent:hugo
+  :at "2026-04-17T22:05:49Z"
+  (given completed-bug-002))
+
+(claims agent:hugo
+  :at "2026-04-17T22:05:49Z"
+  (given claim-v1-bug-003)
+  (normally r-cl-state-v1-bug-003 claim-v1-bug-003 state-claimed-v1-bug-003)
+  (normally r-cl-chain-v1-bug-003 state-claimed-v1-bug-003 claimed-bug-003)
+)
+
+;; Propagation rules: failures in 'bug-003' block downstream tasks
+(normally r-propagate-verify-build-from-bug-003-failed failed-bug-003 upstream-blocked-verify-build)
+(normally r-propagate-verify-build-from-bug-003-permanently-failed permanently-failed-bug-003 upstream-blocked-verify-build)
+(normally r-propagate-verify-build-from-bug-003-stale-v1 stale-v1-bug-003 upstream-blocked-verify-build)
+(normally r-propagate-verify-build-from-bug-003-timeout-v1 timeout-v1-bug-003 upstream-blocked-verify-build)
+
+(claims agent:hugo
+  :at "2026-04-17T22:06:41Z"
+  (given completed-bug-003))
+
+(claims agent:hugo
+  :at "2026-04-17T22:06:41Z"
+  (given claim-v1-bug-001)
+  (normally r-cl-state-v1-bug-001 claim-v1-bug-001 state-claimed-v1-bug-001)
+  (normally r-cl-chain-v1-bug-001 state-claimed-v1-bug-001 claimed-bug-001)
+)
+
+;; Propagation rules: failures in 'bug-001' block downstream tasks
+(normally r-propagate-verify-build-from-bug-001-failed failed-bug-001 upstream-blocked-verify-build)
+(normally r-propagate-verify-build-from-bug-001-permanently-failed permanently-failed-bug-001 upstream-blocked-verify-build)
+(normally r-propagate-verify-build-from-bug-001-stale-v1 stale-v1-bug-001 upstream-blocked-verify-build)
+(normally r-propagate-verify-build-from-bug-001-timeout-v1 timeout-v1-bug-001 upstream-blocked-verify-build)
+(normally r-propagate-verify-build-from-bug-001-blocked upstream-blocked-bug-001 upstream-blocked-verify-build)
+
+(claims agent:hugo
+  :at "2026-04-17T22:09:27Z"
+  (given completed-bug-001))
+
+(claims agent:hugo
+  :at "2026-04-17T22:09:27Z"
+  (given claim-v1-verify-build)
+  (normally r-cl-state-v1-verify-build claim-v1-verify-build state-claimed-v1-verify-build)
+  (normally r-cl-chain-v1-verify-build state-claimed-v1-verify-build claimed-verify-build)
+)
+
+;; Propagation rules: failures in 'verify-build' block downstream tasks
+(normally r-propagate-update-bugs-from-verify-build-failed failed-verify-build upstream-blocked-update-bugs)
+(normally r-propagate-update-bugs-from-verify-build-permanently-failed permanently-failed-verify-build upstream-blocked-update-bugs)
+(normally r-propagate-update-bugs-from-verify-build-stale-v1 stale-v1-verify-build upstream-blocked-update-bugs)
+(normally r-propagate-update-bugs-from-verify-build-timeout-v1 timeout-v1-verify-build upstream-blocked-update-bugs)
+
+(claims agent:hugo
+  :at "2026-04-17T22:09:27Z"
+  (given completed-verify-build))
+
+(claims agent:hugo
+  :at "2026-04-17T22:09:27Z"
+  (given claim-v1-update-bugs)
+  (normally r-cl-state-v1-update-bugs claim-v1-update-bugs state-claimed-v1-update-bugs)
+  (normally r-cl-chain-v1-update-bugs state-claimed-v1-update-bugs claimed-update-bugs)
+)
+
+(claims agent:hugo
+  :at "2026-04-17T22:10:22Z"
+  (given completed-update-bugs))

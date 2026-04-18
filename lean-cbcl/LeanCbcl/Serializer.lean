@@ -154,6 +154,26 @@ theorem not_safeSymbol_number : ¬SafeSymbol "42" := by native_decide
 theorem not_safeSymbol_paren : ¬SafeSymbol "a(b" := by native_decide
 
 -- ============================================================
+-- Non-vacuity witness for RoundTrippable'
+-- ============================================================
+
+/-- Rejection witness: `RoundTrippable'` is genuinely non-vacuous.
+    The empty-string symbol is an inhabitant of `SExpr` that the
+    predicate refuses to admit, because its `symbol` constructor
+    requires `SafeSymbol s` and the empty string fails `SafeSymbol`.
+
+    This theorem is the load-bearing answer to "does the codebase have
+    a structural-validity predicate that rules out at least one
+    malformed `SExpr`?" — yes, `RoundTrippable'` does. (The
+    structurally-trivial classifier `IsSExpr` in `Parser.lean` does
+    not; see its docstring.) -/
+theorem not_roundTrippable_empty_symbol :
+    ¬ RoundTrippable' (.atom (.symbol "")) := by
+  intro h
+  cases h with
+  | symbol hs => exact not_safeSymbol_empty hs
+
+-- ============================================================
 -- Round-trip tests for RoundTrippable' examples
 -- ============================================================
 
