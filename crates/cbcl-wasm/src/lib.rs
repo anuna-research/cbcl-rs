@@ -282,6 +282,108 @@ mod wasm_bindgen_api {
 }
 
 // ---------------------------------------------------------------------------
+// C-ABI exports for wasmtime / non-JS hosts (wasm32, no bindgen)
+//
+// Pattern: caller allocates input via cbcl_alloc, writes bytes, calls a
+// cbcl_* function which writes its result to a process-global buffer, then
+// the caller reads the result via cbcl_result_ptr/len and frees input with
+// cbcl_free.  Single-threaded WASM execution makes the global buffer safe.
+// ---------------------------------------------------------------------------
+
+#[cfg(all(target_arch = "wasm32", not(feature = "bindgen")))]
+mod c_abi {
+    use super::*;
+
+    static mut RESULT_BUF: Vec<u8> = Vec::new();
+
+    // Memory helpers --------------------------------------------------------
+
+    /// Allocate `size` bytes in WASM linear memory; returns the pointer.
+    #[no_mangle]
+    pub unsafe extern "C" fn cbcl_alloc(size: usize) -> *mut u8 {
+        let mut v: Vec<u8> = Vec::with_capacity(size);
+        let ptr = v.as_mut_ptr();
+        core::mem::forget(v);
+        ptr
+    }
+
+    /// Free `size` bytes previously allocated with cbcl_alloc.
+    #[no_mangle]
+    pub unsafe extern "C" fn cbcl_free(ptr: *mut u8, size: usize) {
+        drop(Vec::from_raw_parts(ptr, size, size));
+    }
+
+    /// Pointer to the result written by the last cbcl_* call.
+    #[no_mangle]
+    pub unsafe extern "C" fn cbcl_result_ptr() -> *const u8 {
+        RESULT_BUF.as_ptr()
+    }
+
+    /// Length of the result written by the last cbcl_* call.
+    #[no_mangle]
+    pub unsafe extern "C" fn cbcl_result_len() -> usize {
+        RESULT_BUF.len()
+    }
+
+    // Parse / pipeline / dialect -------------------------------------------
+
+    /// Parse a CBCL S-expression and return its canonical message form.
+    ///
+    /// Returns 0 on success, 1 on error.  Read result via cbcl_result_ptr/len.
+    #[no_mangle]
+    pub unsafe extern "C" fn cbcl_parse_message(ptr: *const u8, len: usize) -> i32 {
+        let input = core::slice::from_raw_parts(ptr, len);
+        match parse_message_bytes(input) {
+            Ok(out) => {
+                RESULT_BUF = out;
+                0
+            }
+            Err(err) => {
+                RESULT_BUF = err;
+                1
+            }
+        }
+    }
+
+    /// Run the full CBCL verification pipeline (parse + R1-R4 checks).
+    ///
+    /// Returns 0 on success, 1 on error.  Read result via cbcl_result_ptr/len.
+    #[no_mangle]
+    pub unsafe extern "C" fn cbcl_run_pipeline(ptr: *const u8, len: usize) -> i32 {
+        let input = core::slice::from_raw_parts(ptr, len);
+        match run_pipeline_bytes(input) {
+            Ok(out) => {
+                RESULT_BUF = out;
+                0
+            }
+            Err(err) => {
+                RESULT_BUF = err;
+                1
+            }
+        }
+    }
+
+    /// Verify a dialect definition against R1/R2/R3 rules.
+    ///
+    /// Input: UTF-8 bytes of a `(define ...)` S-expression.
+    /// Returns 0 on success ("ok" in result buf), 1 on error.
+    #[no_mangle]
+    pub unsafe extern "C" fn cbcl_verify_dialect(ptr: *const u8, len: usize) -> i32 {
+        let input = core::slice::from_raw_parts(ptr, len);
+        match verify_dialect_bytes(input) {
+            Ok(out) => {
+                RESULT_BUF = out;
+                0
+            }
+            Err(err) => {
+                RESULT_BUF = err;
+                1
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
