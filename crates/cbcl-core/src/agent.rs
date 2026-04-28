@@ -50,6 +50,22 @@ pub struct Agent {
     pending_queue: PendingQueue,
 }
 
+/// Walk through `Wrapped`/`Dialect` envelopes to the innermost
+/// `Message::Simple`. Returns `None` if no Simple is found (e.g. a `Meta`
+/// message). Mirrors the helper in the parser pipeline so wrappers cannot
+/// be used to bypass causal/shape verification at the agent layer.
+fn innermost_simple(message: &Message) -> Option<&Message> {
+    let mut cur = message;
+    loop {
+        match cur {
+            Message::Simple { .. } => return Some(cur),
+            Message::Wrapped { content, .. } => cur = content,
+            Message::Dialect { inner, .. } => cur = inner,
+            Message::Meta { .. } => return None,
+        }
+    }
+}
+
 /// Outcome of [`Agent::evaluate_and_apply`] (REQ-231 fail-closed contract).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AgentOutcome {
@@ -282,17 +298,23 @@ impl Agent {
 
     /// Run causal verification + policy mapping for a message.
     ///
-    /// Returns `None` if causal verification doesn't apply (non-simple message,
-    /// no performative, no protocol owning the performative).
+    /// Returns `None` if causal verification doesn't apply (non-simple
+    /// payload, no performative, no protocol owning the performative).
+    ///
+    /// Wrappers (`envelope`/`signed`/`with-limits`/`lang`) are traversed to
+    /// the innermost Simple before we decide; otherwise a sender could hide
+    /// a protocol-violating message inside a wrapper to bypass verification.
     fn causal_verdict(&self, msg: &Message) -> Option<PolicyOutcome> {
-        let (caused_by, thread) = match msg {
+        let inner = innermost_simple(msg)?;
+        let (caused_by, thread, perf) = match inner {
             Message::Simple {
-                caused_by, thread, ..
-            } => (caused_by.as_ref(), thread.as_ref()),
+                caused_by,
+                thread,
+                performative,
+                ..
+            } => (caused_by.as_ref(), thread.as_ref(), performative),
             _ => return None,
         };
-
-        let perf = msg.performative()?;
         let perf_name = match perf {
             Performative::Core(_) | Performative::Custom(_) => perf.name(),
         };
@@ -307,17 +329,25 @@ impl Agent {
     }
 
     /// Enqueue a message in the pending queue under the Buffer policy.
+    ///
+    /// Buffers the original (possibly wrapped) message, but uses the
+    /// innermost Simple's caused_by/thread/performative for re-evaluation
+    /// keys so wrapped pending messages are handled identically to bare ones.
     fn buffer_pending(&mut self, msg: &Message) {
-        let (caused_by, thread) = match msg {
-            Message::Simple {
-                caused_by, thread, ..
-            } => (caused_by.clone(), thread.clone()),
-            _ => return,
-        };
-        let Some(perf) = msg.performative() else {
+        let Some(inner) = innermost_simple(msg) else {
             return;
         };
-        let thread_id = ThreadId(thread.unwrap_or_else(|| String::from("default")));
+        let Message::Simple {
+            caused_by,
+            thread,
+            performative,
+            ..
+        } = inner
+        else {
+            return;
+        };
+        let thread_id =
+            ThreadId(thread.clone().unwrap_or_else(|| String::from("default")));
 
         // The agent does not synthesize content hashes; store an empty hash for
         // the buffered entry. Callers that re-evaluate will look up by
@@ -326,8 +356,8 @@ impl Agent {
             hash: ContentHash(String::new()),
             message: msg.clone(),
             thread: thread_id,
-            performative: String::from(perf.name()),
-            caused_by,
+            performative: String::from(performative.name()),
+            caused_by: caused_by.clone(),
             inserted_at: 0,
         };
         self.pending_queue.enqueue(entry);
@@ -786,6 +816,54 @@ mod tests {
         match outcome {
             AgentOutcome::Applied(_) => {}
             other => panic!("expected Applied, got {other:?}"),
+        }
+    }
+
+    // -- PR feedback P1: wrappers must not bypass agent causal verification. --
+
+    fn ack_simple_with_missing_predecessor() -> Message {
+        Message::Simple {
+            performative: Performative::Custom(String::from("ack")),
+            recipient: None,
+            content: SExpr::Atom(Atom::Str(String::from("done"))),
+            params: Vec::new(),
+            thread: None,
+            sender: None,
+            caused_by: Some(crate::message::CausedBy::Single(String::from("missing"))),
+        }
+    }
+
+    #[test]
+    fn agent_wrapped_message_does_not_bypass_causal() {
+        let mut agent = Agent::new("@alice");
+        agent.install_dialect(ack_dialect_with_protocol()).unwrap();
+        // Wrap the violating ack in an envelope.
+        let wrapped = Message::Wrapped {
+            wrapper: crate::message::WrapperType::Envelope,
+            params: vec![
+                SExpr::Atom(Atom::Keyword(String::from("from"))),
+                SExpr::Atom(Atom::Symbol(String::from("@alice"))),
+            ],
+            content: alloc::boxed::Box::new(ack_simple_with_missing_predecessor()),
+        };
+        match agent.evaluate_and_apply(&wrapped) {
+            AgentOutcome::Pending(_) => {}
+            other => panic!("expected wrapper to surface inner Pending, got {other:?}"),
+        }
+        assert!(agent.beliefs().is_empty(), "wrapped reject should not apply effects");
+    }
+
+    #[test]
+    fn agent_lang_scoped_message_does_not_bypass_causal() {
+        let mut agent = Agent::new("@alice");
+        agent.install_dialect(ack_dialect_with_protocol()).unwrap();
+        let scoped = Message::Dialect {
+            dialect_name: String::from("ack-dialect"),
+            inner: alloc::boxed::Box::new(ack_simple_with_missing_predecessor()),
+        };
+        match agent.evaluate_and_apply(&scoped) {
+            AgentOutcome::Pending(_) => {}
+            other => panic!("expected lang-scoped wrapper to surface inner Pending, got {other:?}"),
         }
     }
 }
