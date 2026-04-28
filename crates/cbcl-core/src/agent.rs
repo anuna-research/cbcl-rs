@@ -14,7 +14,7 @@ use crate::dialect::{Dialect, DialectInstallError, DialectRegistry};
 use crate::evaluator::{Effect, EvalError, EvalResult};
 use crate::message::Message;
 use crate::policy::{
-    apply_policy, PendingEntry, PendingQueue, PendingReason, PolicyOutcome,
+    apply_policy, DropReason, PendingEntry, PendingQueue, PendingReason, PolicyOutcome,
     UnknownPredecessorPolicy,
 };
 use crate::protocol::{verify_causal, CausalViolation, VerificationResult};
@@ -255,7 +255,18 @@ impl Agent {
     /// 4. On `Unknown` + `Reject` policy: return [`AgentOutcome::Pending`].
     /// 5. On `Unknown` + `Buffer` policy: enqueue in the pending queue and
     ///    return [`AgentOutcome::Buffered`]; the message is *not* applied.
+    ///
+    /// Buffered entries are timestamped with [`u64::MAX`], so [`Self::expire`]
+    /// will never drain them. Callers that want TTL-based eviction should use
+    /// [`Self::evaluate_and_apply_at`] with the current time in seconds.
     pub fn evaluate_and_apply(&mut self, msg: &Message) -> AgentOutcome {
+        self.evaluate_and_apply_at(msg, u64::MAX)
+    }
+
+    /// Like [`Self::evaluate_and_apply`] but stamps any newly-buffered entry
+    /// with the supplied `now` (seconds since epoch). Pass the value the
+    /// caller is willing to compare against in a future [`Self::expire`].
+    pub fn evaluate_and_apply_at(&mut self, msg: &Message, now: u64) -> AgentOutcome {
         // Step 1: causal verification (only meaningful for Simple messages with a
         // performative whose owning dialect declares a causal protocol).
         if let Some(verdict) = self.causal_verdict(msg) {
@@ -264,7 +275,7 @@ impl Agent {
                 PolicyOutcome::Reject(cv) => return AgentOutcome::CausalReject(cv),
                 PolicyOutcome::Pending(reason) => return AgentOutcome::Pending(reason),
                 PolicyOutcome::Buffered => {
-                    self.buffer_pending(msg);
+                    self.buffer_pending(msg, now);
                     return AgentOutcome::Buffered;
                 }
             }
@@ -352,7 +363,10 @@ impl Agent {
     /// Buffers the original (possibly wrapped) message, but uses the
     /// innermost Simple's caused_by/thread/performative for re-evaluation
     /// keys so wrapped pending messages are handled identically to bare ones.
-    fn buffer_pending(&mut self, msg: &Message) {
+    /// `now` (seconds since epoch) is stamped onto the entry for use by
+    /// [`Self::expire`]; callers that don't need TTL semantics can pass
+    /// `u64::MAX` to opt out.
+    fn buffer_pending(&mut self, msg: &Message, now: u64) {
         let Some(inner) = msg.innermost_simple() else {
             return;
         };
@@ -377,9 +391,19 @@ impl Agent {
             thread: thread_id,
             performative: String::from(performative.name()),
             caused_by: caused_by.clone(),
-            inserted_at: 0,
+            inserted_at: now,
         };
         self.pending_queue.enqueue(entry);
+    }
+
+    /// Drop buffered entries whose TTL has elapsed at `now` (seconds since
+    /// epoch). Returns the dropped entries with [`DropReason::CausalTimeout`].
+    ///
+    /// Entries buffered via [`Self::evaluate_and_apply`] are stamped with
+    /// `u64::MAX` and therefore never expire — only entries inserted via
+    /// [`Self::evaluate_and_apply_at`] are subject to TTL.
+    pub fn expire(&mut self, now: u64) -> Vec<(PendingEntry, DropReason)> {
+        self.pending_queue.expire(now)
     }
 
     /// Re-evaluate buffered messages against the (possibly grown) message store.
@@ -429,10 +453,18 @@ impl Agent {
 
     /// Dequeue the next message, evaluate it, and apply effects.
     ///
-    /// Returns `None` if the queue is empty.
+    /// Returns `None` if the queue is empty. Buffered entries inherit the
+    /// `u64::MAX` timestamp from [`Self::evaluate_and_apply`]; use
+    /// [`Self::step_at`] when TTL semantics are required.
     pub fn step(&mut self) -> Option<AgentOutcome> {
         let msg = self.dequeue_message()?;
         Some(self.evaluate_and_apply(&msg))
+    }
+
+    /// Like [`Self::step`] but stamps any newly-buffered entry with `now`.
+    pub fn step_at(&mut self, now: u64) -> Option<AgentOutcome> {
+        let msg = self.dequeue_message()?;
+        Some(self.evaluate_and_apply_at(&msg, now))
     }
 }
 
@@ -1046,5 +1078,52 @@ mod tests {
             "unrelated protocol should not flush pending entry, got {resolved:?}"
         );
         assert_eq!(agent.pending_len(), 1);
+    }
+
+    // -- PR feedback (low): default-buffered entries don't insta-expire --
+
+    #[test]
+    fn agent_default_buffered_entries_never_expire() {
+        let mut agent = Agent::with_policy("@alice", UnknownPredecessorPolicy::buffer(60));
+        agent.install_dialect(ack_dialect_with_protocol()).unwrap();
+
+        // Buffer via the no-clock entry point; entry should be stamped with
+        // u64::MAX so even the largest reasonable `now` does not expire it.
+        match agent.evaluate_and_apply(&ack_with_caused_by("missing")) {
+            AgentOutcome::Buffered => {}
+            other => panic!("expected Buffered, got {other:?}"),
+        }
+        assert_eq!(agent.pending_len(), 1);
+
+        let dropped = agent.expire(u64::MAX / 2);
+        assert!(
+            dropped.is_empty(),
+            "default-buffered entry must not expire, got {dropped:?}"
+        );
+        assert_eq!(agent.pending_len(), 1);
+    }
+
+    #[test]
+    fn agent_evaluate_and_apply_at_respects_ttl() {
+        let mut agent = Agent::with_policy("@alice", UnknownPredecessorPolicy::buffer(10));
+        agent.install_dialect(ack_dialect_with_protocol()).unwrap();
+
+        // Buffer at t=100; TTL=10s so it expires at t=110.
+        match agent.evaluate_and_apply_at(&ack_with_caused_by("missing"), 100) {
+            AgentOutcome::Buffered => {}
+            other => panic!("expected Buffered, got {other:?}"),
+        }
+        assert_eq!(agent.pending_len(), 1);
+
+        // At t=109, nothing has expired yet.
+        let dropped = agent.expire(109);
+        assert!(dropped.is_empty(), "TTL not yet elapsed, got {dropped:?}");
+        assert_eq!(agent.pending_len(), 1);
+
+        // At t=110 the entry expires.
+        let dropped = agent.expire(110);
+        assert_eq!(dropped.len(), 1);
+        assert_eq!(dropped[0].1, DropReason::CausalTimeout);
+        assert_eq!(agent.pending_len(), 0);
     }
 }
