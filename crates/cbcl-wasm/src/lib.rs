@@ -58,14 +58,17 @@ fn panic(_info: &core::panic::PanicInfo) -> ! {
 }
 
 use alloc::format;
-use alloc::string::String;
+use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use cbcl_core::agent::Agent;
+use cbcl_core::blame::ViolationError;
 use cbcl_core::dialect::DialectRegistry;
 use cbcl_core::evaluator;
 use cbcl_core::message::{CorePerformative, Message, Performative};
+use cbcl_core::protocol::{verify_causal, VerificationResult};
 use cbcl_core::serializer::serialize;
 use cbcl_core::sexpr::{Atom, SExpr};
+use cbcl_core::store::{ThreadId, ThreadedMessageStore};
 use cbcl_parser::parser;
 
 // ---------------------------------------------------------------------------
@@ -125,6 +128,34 @@ pub fn verify_dialect_bytes(input: &[u8]) -> Result<Vec<u8>, Vec<u8>> {
         .map_err(|e| e.into_bytes())
 }
 
+/// Verify an expanded message against a dialect's shape constraints (REQ-220, REQ-223).
+///
+/// Input frame: `(verify-shape <dialect> <performative-symbol> <expanded-message>)`.
+/// Returns "ok" if no shape constraint targets the performative or every matching
+/// constraint passes; otherwise returns the canonical REQ-233 blame S-expression.
+pub fn verify_message_shape_bytes(input: &[u8]) -> Result<Vec<u8>, Vec<u8>> {
+    let input_str =
+        core::str::from_utf8(input).map_err(|e| format!("invalid UTF-8: {e}").into_bytes())?;
+    verify_message_shape_str(input_str)
+        .map(|s| s.into_bytes())
+        .map_err(|e| e.into_bytes())
+}
+
+/// Verify a message's causal predecessor against a dialect's protocol (REQ-203, REQ-304).
+///
+/// Input frame: `(verify-protocol <dialect> <thread-id> <message>)`.
+/// Returns "ok" on `Valid`; the canonical REQ-233 blame S-expression on `Violation`;
+/// or `(pending :reason "unknown-predecessor")` on `Unknown`. Callers needing
+/// predecessor lookup must populate state out-of-band; this entry point operates
+/// against an empty per-call message store.
+pub fn verify_protocol_bytes(input: &[u8]) -> Result<Vec<u8>, Vec<u8>> {
+    let input_str =
+        core::str::from_utf8(input).map_err(|e| format!("invalid UTF-8: {e}").into_bytes())?;
+    verify_protocol_str(input_str)
+        .map(|s| s.into_bytes())
+        .map_err(|e| e.into_bytes())
+}
+
 /// Create a new agent with the given ID and base dialect.
 ///
 /// Returns the agent's ID as confirmation (the agent is well-formed with base dialect installed).
@@ -173,6 +204,121 @@ fn verify_dialect_str(input: &str) -> Result<String, String> {
         .map_err(|e| format!("verification failed: {e}"))?;
 
     Ok(String::from("ok"))
+}
+
+/// Verify a runtime message against a dialect's shape constraints.
+fn verify_message_shape_str(input: &str) -> Result<String, String> {
+    let frame = parser::parse(input).map_err(|e| format!("parse error: {e}"))?;
+    let items = match &frame {
+        SExpr::List(items) => items,
+        _ => return Err(String::from(
+            "expected (verify-shape <dialect> <performative> <message>)",
+        )),
+    };
+    if items.len() != 4 || !matches!(&items[0], SExpr::Atom(Atom::Symbol(s)) if s == "verify-shape")
+    {
+        return Err(String::from(
+            "expected (verify-shape <dialect> <performative> <message>)",
+        ));
+    }
+    let performative = match &items[2] {
+        SExpr::Atom(Atom::Symbol(s)) => s.clone(),
+        _ => return Err(String::from("performative must be a symbol")),
+    };
+    let dialect_sexpr = &items[1];
+    let message_sexpr = &items[3];
+
+    let dialect = cbcl_parser::parse_dialect(dialect_sexpr)
+        .map_err(|e| format!("dialect parse error: {e}"))?;
+
+    // Composition by conjunction (REQ-224): every matching shape must pass.
+    for shape in &dialect.shapes {
+        if shape.performative != performative {
+            continue;
+        }
+        if let Err(violation) = shape.check(message_sexpr) {
+            let blame = ViolationError::from_shape_violation(
+                &violation,
+                None,
+                None,
+                Some(message_sexpr.clone()),
+            )
+            .with_dialect_context(
+                &dialect.name,
+                dialect.author.as_deref(),
+                dialect.hash.as_deref(),
+                Some(&performative),
+            );
+            return Err(serialize(&blame.to_sexpr()));
+        }
+    }
+    Ok(String::from("ok"))
+}
+
+/// Verify a single message's causal predecessor against a dialect's protocol.
+fn verify_protocol_str(input: &str) -> Result<String, String> {
+    let frame = parser::parse(input).map_err(|e| format!("parse error: {e}"))?;
+    let items = match &frame {
+        SExpr::List(items) => items,
+        _ => return Err(String::from(
+            "expected (verify-protocol <dialect> <thread-id> <message>)",
+        )),
+    };
+    if items.len() != 4
+        || !matches!(&items[0], SExpr::Atom(Atom::Symbol(s)) if s == "verify-protocol")
+    {
+        return Err(String::from(
+            "expected (verify-protocol <dialect> <thread-id> <message>)",
+        ));
+    }
+    let thread_id = match &items[2] {
+        SExpr::Atom(Atom::Str(s)) => s.clone(),
+        SExpr::Atom(Atom::Symbol(s)) => s.clone(),
+        _ => return Err(String::from("thread-id must be a string or symbol")),
+    };
+    let dialect_sexpr = &items[1];
+    let message_sexpr = &items[3];
+
+    let dialect = cbcl_parser::parse_dialect(dialect_sexpr)
+        .map_err(|e| format!("dialect parse error: {e}"))?;
+
+    let proto = match &dialect.causal_protocol {
+        Some(p) => p,
+        None => return Ok(String::from("ok")),
+    };
+
+    let message = cbcl_parser::parse_message(message_sexpr)
+        .map_err(|e| format!("message parse error: {e}"))?;
+    let inner = message
+        .innermost_simple()
+        .ok_or_else(|| String::from("expected a simple message at the innermost layer"))?;
+    let perf = inner
+        .performative()
+        .ok_or_else(|| String::from("message has no performative"))?
+        .name()
+        .to_string();
+    let caused_by = inner.caused_by();
+
+    let store = ThreadedMessageStore::new();
+    let thread = ThreadId(thread_id);
+    let result = verify_causal(&perf, caused_by, &store, proto, &thread);
+
+    match result {
+        VerificationResult::Valid => Ok(String::from("ok")),
+        VerificationResult::Violation(cv) => {
+            let blame = ViolationError::from_causal_violation(&cv, None, Some(thread.0.clone()))
+                .with_dialect_context(
+                    &dialect.name,
+                    dialect.author.as_deref(),
+                    dialect.hash.as_deref(),
+                    Some(&perf),
+                );
+            Err(serialize(&blame.to_sexpr()))
+        }
+        VerificationResult::Unknown => {
+            Err(String::from("(pending :reason \"unknown-predecessor\")"))
+        }
+    }
 }
 
 /// Create a new agent with the given ID and base dialect.
@@ -268,6 +414,24 @@ mod wasm_bindgen_api {
     #[wasm_bindgen]
     pub fn verify_dialect(input: &str) -> Result<String, String> {
         verify_dialect_str(input)
+    }
+
+    /// Verify an expanded message against a dialect's shape constraints.
+    ///
+    /// Input: `(verify-shape <dialect> <performative> <message>)` S-expression.
+    /// Returns "ok" or a REQ-233 blame S-expression as the error description.
+    #[wasm_bindgen]
+    pub fn verify_message_shape(input: &str) -> Result<String, String> {
+        verify_message_shape_str(input)
+    }
+
+    /// Verify a message's causal predecessor against a dialect's protocol.
+    ///
+    /// Input: `(verify-protocol <dialect> <thread-id> <message>)` S-expression.
+    /// Returns "ok" / blame S-expression / `(pending :reason ...)`.
+    #[wasm_bindgen]
+    pub fn verify_protocol(input: &str) -> Result<String, String> {
+        verify_protocol_str(input)
     }
 
     /// Create a new CBCL agent with the given ID and base dialect installed.
@@ -381,6 +545,44 @@ mod c_abi {
     pub unsafe extern "C" fn cbcl_verify_dialect(ptr: *const u8, len: usize) -> i32 {
         let input = core::slice::from_raw_parts(ptr, len);
         match verify_dialect_bytes(input) {
+            Ok(out) => {
+                RESULT_BUF = out;
+                0
+            }
+            Err(err) => {
+                RESULT_BUF = err;
+                1
+            }
+        }
+    }
+
+    /// Verify an expanded message against a dialect's shape constraints.
+    ///
+    /// Input: UTF-8 bytes of `(verify-shape <dialect> <performative> <message>)`.
+    /// Returns 0 on success ("ok" in result buf), 1 on error (REQ-233 blame).
+    #[no_mangle]
+    pub unsafe extern "C" fn cbcl_verify_message_shape(ptr: *const u8, len: usize) -> i32 {
+        let input = core::slice::from_raw_parts(ptr, len);
+        match verify_message_shape_bytes(input) {
+            Ok(out) => {
+                RESULT_BUF = out;
+                0
+            }
+            Err(err) => {
+                RESULT_BUF = err;
+                1
+            }
+        }
+    }
+
+    /// Verify a message's causal predecessor against a dialect's protocol.
+    ///
+    /// Input: UTF-8 bytes of `(verify-protocol <dialect> <thread-id> <message>)`.
+    /// Returns 0 on success ("ok" in result buf), 1 on error or pending result.
+    #[no_mangle]
+    pub unsafe extern "C" fn cbcl_verify_protocol(ptr: *const u8, len: usize) -> i32 {
+        let input = core::slice::from_raw_parts(ptr, len);
+        match verify_protocol_bytes(input) {
             Ok(out) => {
                 RESULT_BUF = out;
                 0
@@ -595,5 +797,127 @@ mod tests {
     fn send_message_bytes_invalid_utf8() {
         let result = send_message_bytes(&[0xFF], b"hello");
         assert!(result.is_err());
+    }
+
+    // -- verify_message_shape --
+
+    const SHAPE_DIALECT: &str = "(define greet-d (cbcl) @author \
+        (extend greet (name) (effect greet-action)) \
+        (shape greet (require :name string)))";
+
+    #[test]
+    fn verify_message_shape_passes_when_required_field_present() {
+        let frame = format!(
+            "(verify-shape {SHAPE_DIALECT} greet (greet-action :name \"alice\"))"
+        );
+        let result = verify_message_shape_str(&frame);
+        assert_eq!(result.as_deref(), Ok("ok"));
+    }
+
+    #[test]
+    fn verify_message_shape_fails_on_wrong_type() {
+        let frame = format!(
+            "(verify-shape {SHAPE_DIALECT} greet (greet-action :name 42))"
+        );
+        let result = verify_message_shape_str(&frame);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        // REQ-233 blame form starts with `(error`.
+        assert!(err.starts_with("(error"), "expected blame S-expr, got: {err}");
+        assert!(err.contains("shape-violation"), "expected shape kind in blame: {err}");
+        assert!(err.contains(":field"), "expected :field in blame: {err}");
+    }
+
+    #[test]
+    fn verify_message_shape_ok_when_no_constraint_targets_performative() {
+        let dialect = "(define greet-d (cbcl) @author \
+            (extend greet (name) (effect greet-action)))";
+        let frame = format!("(verify-shape {dialect} greet (greet-action :name 42))");
+        // No shape constraint targets `greet`, so the check is vacuously satisfied.
+        assert_eq!(verify_message_shape_str(&frame).as_deref(), Ok("ok"));
+    }
+
+    #[test]
+    fn verify_message_shape_rejects_malformed_frame() {
+        // Missing the message argument.
+        let result = verify_message_shape_str("(verify-shape (define x (cbcl) @a) greet)");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn verify_message_shape_bytes_passes() {
+        let frame = format!(
+            "(verify-shape {SHAPE_DIALECT} greet (greet-action :name \"alice\"))"
+        );
+        let result = verify_message_shape_bytes(frame.as_bytes());
+        assert!(result.is_ok());
+    }
+
+    // -- verify_protocol --
+
+    const PROTOCOL_DIALECT: &str = "(define greet-d (cbcl) @author \
+        (extend greet (name) (effect greet-action)) \
+        (protocol (then begin greet)))";
+
+    #[test]
+    fn verify_protocol_ok_with_caused_by_begin() {
+        let frame = format!(
+            "(verify-protocol {PROTOCOL_DIALECT} \"t1\" (greet :caused-by begin))"
+        );
+        let result = verify_protocol_str(&frame);
+        assert_eq!(result.as_deref(), Ok("ok"));
+    }
+
+    #[test]
+    fn verify_protocol_violation_when_caused_by_missing() {
+        // Protocol declares greet must follow `begin`, so a greet with no
+        // :caused-by is a MissingCausedBy violation.
+        let frame = format!(
+            "(verify-protocol {PROTOCOL_DIALECT} \"t1\" (greet :name \"a\"))"
+        );
+        let result = verify_protocol_str(&frame);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.starts_with("(error"), "expected blame S-expr, got: {err}");
+        assert!(err.contains("causal-violation"), "expected causal kind: {err}");
+    }
+
+    #[test]
+    fn verify_protocol_unknown_when_predecessor_not_in_store() {
+        // Hash provided as a string literal so the parser keeps `sha256:...`
+        // as a single atom rather than tokenising on `:`.
+        let frame = format!(
+            "(verify-protocol {PROTOCOL_DIALECT} \"t1\" \
+             (greet :caused-by \"sha256:nonexistent\"))"
+        );
+        let result = verify_protocol_str(&frame);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.contains("pending"), "expected pending result, got: {err}");
+        assert!(err.contains("unknown-predecessor"), "expected reason: {err}");
+    }
+
+    #[test]
+    fn verify_protocol_ok_when_dialect_has_no_protocol() {
+        let dialect = "(define plain-d (cbcl) @author \
+            (extend greet (name) (effect greet-action)))";
+        let frame = format!("(verify-protocol {dialect} \"t1\" (greet :caused-by begin))");
+        // No protocol → vacuously valid.
+        assert_eq!(verify_protocol_str(&frame).as_deref(), Ok("ok"));
+    }
+
+    #[test]
+    fn verify_protocol_rejects_malformed_frame() {
+        let result = verify_protocol_str("(verify-protocol (define x (cbcl) @a))");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn verify_protocol_bytes_passes() {
+        let frame = format!(
+            "(verify-protocol {PROTOCOL_DIALECT} \"t1\" (greet :caused-by begin))"
+        );
+        let result = verify_protocol_bytes(frame.as_bytes());
+        assert!(result.is_ok());
     }
 }
