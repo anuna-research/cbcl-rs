@@ -53,7 +53,7 @@ pub mod template;
 
 /// Prelude re-exporting the most-used types.
 pub mod prelude {
-    pub use crate::agent::Agent;
+    pub use crate::agent::{Agent, AgentOutcome};
     pub use crate::blame::{BlameEntry, BlameParty, ViolationError, ViolationKind};
     pub use crate::dialect::{
         Dialect, DialectInstallError, DialectRegistry, PerformativeDef, ResourceBounds,

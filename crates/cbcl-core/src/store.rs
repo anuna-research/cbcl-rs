@@ -38,6 +38,7 @@ pub struct ThreadId(pub String);
 /// a lookup for hash H in thread T returns `None` if H belongs to thread T'.
 ///
 /// Memory budget: <= 64 bytes per entry (NFR-303).
+#[derive(Debug, Clone)]
 pub struct HashIndex {
     map: HashMap<ContentHash, (ThreadId, usize)>,
 }
@@ -152,6 +153,7 @@ pub trait MessageStore {
 ///
 /// Uses [`HashIndex`] for O(1) lookup (REQ-309) and deduplication (REQ-310).
 /// Maintains a frontier set per thread for efficient leaf queries.
+#[derive(Debug, Clone)]
 pub struct ThreadedMessageStore {
     /// Per-thread message storage: `ThreadId -> Vec<(ContentHash, Message)>`.
     threads: HashMap<ThreadId, Vec<(ContentHash, Message)>>,

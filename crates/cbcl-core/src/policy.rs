@@ -136,7 +136,7 @@ pub struct PendingEntry {
 /// Each thread has an independent bounded queue with `max_pending` capacity (NFR-301).
 /// Entries expire after `ttl` seconds. When a thread's queue is full the oldest entry
 /// is evicted. Re-evaluation happens when the caller signals store growth.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct PendingQueue {
     /// Maximum entries per thread.
     max_pending: usize,
