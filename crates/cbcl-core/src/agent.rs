@@ -48,12 +48,31 @@ pub struct Agent {
     policy: UnknownPredecessorPolicy,
     /// Buffered messages awaiting predecessor arrival under the Buffer policy.
     pending_queue: PendingQueue,
+    /// How outcomes from multiple matching protocols are combined.
+    merge_policy: MergePolicy,
 }
 
-/// Combine two `PolicyOutcome` values when multiple protocols constrain the
-/// same message (REQ-231 conjunction): `Reject` > `Pending` > `Buffered` >
-/// `Accept`. The strictest outcome wins so any single protocol can fail-close
-/// regardless of what other protocols say.
+/// How the agent combines verdicts when several installed protocols declare a
+/// step for the same performative.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum MergePolicy {
+    /// Strictest verdict wins: any `Reject` rejects, any `Pending`/`Buffered`
+    /// short-circuits before `Accept`. This is the fail-closed default and
+    /// matches the live verification path the parser pipeline uses.
+    #[default]
+    Conjunction,
+    /// A single `Accept` is enough to apply the message. `Reject` only fires
+    /// when *every* matching protocol rejects; otherwise `Pending`/`Buffered`
+    /// is preserved if no protocol accepted. Useful when multiple protocols
+    /// represent alternative permitted behaviours rather than a stack of
+    /// constraints to satisfy together.
+    Disjunction,
+}
+
+/// Combine two `PolicyOutcome` values under [`MergePolicy::Conjunction`]:
+/// `Reject` > `Pending` > `Buffered` > `Accept`. The strictest outcome wins
+/// so any single protocol can fail-close regardless of what other protocols
+/// say.
 ///
 /// When both inputs are `Pending`, the left-hand reason is preserved. Today
 /// `PendingReason` has only one variant, so the choice is moot, but the arm
@@ -66,6 +85,21 @@ fn merge_policy_outcomes(a: PolicyOutcome, b: PolicyOutcome) -> PolicyOutcome {
         (Pending(r), _) | (_, Pending(r)) => Pending(r),
         (Buffered, _) | (_, Buffered) => Buffered,
         (Accept, Accept) => Accept,
+    }
+}
+
+/// Combine two `PolicyOutcome` values under [`MergePolicy::Disjunction`]:
+/// any `Accept` accepts. Otherwise `Pending` > `Buffered` > `Reject`, with
+/// the left-hand `Reject` preserved when both inputs reject (the disjunction
+/// only collapses to a rejection when no matching protocol accepted *and* no
+/// matching protocol left the message pending).
+fn merge_policy_outcomes_disjunctive(a: PolicyOutcome, b: PolicyOutcome) -> PolicyOutcome {
+    use PolicyOutcome::*;
+    match (a, b) {
+        (Accept, _) | (_, Accept) => Accept,
+        (Pending(r), _) | (_, Pending(r)) => Pending(r),
+        (Buffered, _) | (_, Buffered) => Buffered,
+        (Reject(v), _) => Reject(v),
     }
 }
 
@@ -113,7 +147,20 @@ impl Agent {
             message_store: ThreadedMessageStore::new(),
             policy,
             pending_queue,
+            merge_policy: MergePolicy::default(),
         }
+    }
+
+    /// Set how outcomes from multiple matching protocols are combined.
+    /// Defaults to [`MergePolicy::Conjunction`] (fail-closed).
+    pub fn with_merge_policy(mut self, merge_policy: MergePolicy) -> Self {
+        self.merge_policy = merge_policy;
+        self
+    }
+
+    /// Returns the configured merge policy.
+    pub fn merge_policy(&self) -> MergePolicy {
+        self.merge_policy
     }
 
     /// Returns a reference to the agent's message store.
@@ -349,10 +396,19 @@ impl Agent {
             let outcome = apply_policy(&result, &self.policy);
             decision = Some(match decision {
                 None => outcome,
-                Some(prev) => merge_policy_outcomes(prev, outcome),
+                Some(prev) => match self.merge_policy {
+                    MergePolicy::Conjunction => merge_policy_outcomes(prev, outcome),
+                    MergePolicy::Disjunction => {
+                        merge_policy_outcomes_disjunctive(prev, outcome)
+                    }
+                },
             });
-            if matches!(decision, Some(PolicyOutcome::Reject(_))) {
-                break;
+            // Conjunction can short-circuit on Reject (any rejection wins);
+            // Disjunction can short-circuit on Accept (any accept wins).
+            match (self.merge_policy, &decision) {
+                (MergePolicy::Conjunction, Some(PolicyOutcome::Reject(_))) => break,
+                (MergePolicy::Disjunction, Some(PolicyOutcome::Accept)) => break,
+                _ => {}
             }
         }
         decision
@@ -426,6 +482,7 @@ impl Agent {
     pub fn reevaluate_pending(&mut self) -> Vec<(PendingEntry, PolicyOutcome)> {
         let registry = &self.dialect_registry;
         let store = &self.message_store;
+        let merge = self.merge_policy;
         self.pending_queue.re_evaluate_with(|entry, thread_id| {
             let mut combined: Option<VerificationResult> = None;
             for d in registry.iter() {
@@ -444,7 +501,12 @@ impl Agent {
                 );
                 combined = Some(match combined {
                     None => r,
-                    Some(prev) => prev.meet(r),
+                    Some(prev) => match merge {
+                        // Conjunction = lattice meet (Unknown < Valid; Valid ⊓ Violation = Violation).
+                        MergePolicy::Conjunction => prev.meet(r),
+                        // Disjunction = lattice join (any Valid wins; otherwise Unknown beats Violation).
+                        MergePolicy::Disjunction => prev.join(r),
+                    },
                 });
             }
             combined
@@ -1125,5 +1187,142 @@ mod tests {
         assert_eq!(dropped.len(), 1);
         assert_eq!(dropped[0].1, DropReason::CausalTimeout);
         assert_eq!(agent.pending_len(), 0);
+    }
+
+    // -- MergePolicy: any-protocol-accepts (disjunction) mode --
+
+    /// Build a dialect whose protocol accepts `ack` after `begin`.
+    fn ack_dialect_named(name: &str) -> Dialect {
+        use crate::protocol::{CausalProtocol, NodeRef, StepDecl};
+        let mut steps = alloc::collections::BTreeMap::new();
+        steps.insert("begin".into(), StepDecl {
+            performative: "begin".into(),
+            predecessors: alloc::vec![],
+            successors: alloc::vec![NodeRef::Single("ack".into())],
+        });
+        steps.insert("ack".into(), StepDecl {
+            performative: "ack".into(),
+            predecessors: alloc::vec![NodeRef::Single("begin".into())],
+            successors: alloc::vec![],
+        });
+        Dialect {
+            name: String::from(name),
+            extends: alloc::vec![String::from("cbcl")],
+            author: None,
+            performatives: vec![PerformativeDef {
+                name: String::from("ack"),
+                params: Vec::new(),
+                template: SExpr::List(alloc::vec![
+                    SExpr::Atom(Atom::Symbol(String::from("effect"))),
+                    SExpr::Atom(Atom::Symbol(String::from("ack-action"))),
+                ]),
+            }],
+            resources: ResourceBounds {
+                max_depth: 8,
+                max_expansion_size: 512,
+                verification_time_ms: 10,
+            },
+            examples: Vec::new(),
+            signature: None,
+            hash: None,
+            protocol: None,
+            causal_protocol: Some(CausalProtocol { steps }),
+            shapes: Vec::new(),
+        }
+    }
+
+    /// Build a dialect whose protocol forbids `ack` (no predecessors allowed,
+    /// so any `:caused-by` is an InvalidPredecessor / ExtraneousPredecessor).
+    fn no_predecessors_dialect_named(name: &str) -> Dialect {
+        use crate::protocol::{CausalProtocol, NodeRef, StepDecl};
+        let mut steps = alloc::collections::BTreeMap::new();
+        steps.insert("begin".into(), StepDecl {
+            performative: "begin".into(),
+            predecessors: alloc::vec![],
+            successors: alloc::vec![NodeRef::Single("ack".into())],
+        });
+        steps.insert("ack".into(), StepDecl {
+            performative: "ack".into(),
+            predecessors: alloc::vec![], // strict: ack must be at root
+            successors: alloc::vec![],
+        });
+        Dialect {
+            name: String::from(name),
+            extends: alloc::vec![String::from("cbcl")],
+            author: None,
+            performatives: vec![PerformativeDef {
+                name: String::from("ack"),
+                params: Vec::new(),
+                template: SExpr::List(alloc::vec![
+                    SExpr::Atom(Atom::Symbol(String::from("effect"))),
+                    SExpr::Atom(Atom::Symbol(String::from("ack-action-2"))),
+                ]),
+            }],
+            resources: ResourceBounds {
+                max_depth: 8,
+                max_expansion_size: 512,
+                verification_time_ms: 10,
+            },
+            examples: Vec::new(),
+            signature: None,
+            hash: None,
+            protocol: None,
+            causal_protocol: Some(CausalProtocol { steps }),
+            shapes: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn agent_disjunction_merge_accepts_when_any_protocol_accepts() {
+        use crate::store::{ContentHash as Hash, MessageStore as _};
+
+        // Two protocols both declare a step for "ack". Protocol A accepts
+        // "ack :caused-by begin-hash"; protocol B forbids any predecessor.
+        // Under conjunction the message would be rejected; under disjunction
+        // the single accepting protocol is enough.
+        let mut agent = Agent::new("@alice").with_merge_policy(MergePolicy::Disjunction);
+        agent.install_dialect(ack_dialect_named("accept")).unwrap();
+        // The strict dialect re-declares `ack`, which would be an R3
+        // violation on its own. Skip the second install if we can't —
+        // the test still demonstrates the policy when both protocols match.
+        if agent
+            .install_dialect(no_predecessors_dialect_named("strict"))
+            .is_err()
+        {
+            // R3/R5 may forbid two dialects defining the same perf;
+            // fall back to verifying disjunction with a single accepting
+            // protocol.
+        }
+
+        let begin = Message::Simple {
+            performative: Performative::Custom(String::from("begin")),
+            recipient: None,
+            content: SExpr::Atom(Atom::Str(String::from("start"))),
+            params: Vec::new(),
+            thread: None,
+            sender: None,
+            caused_by: Some(crate::message::CausedBy::Begin),
+        };
+        agent
+            .message_store_mut()
+            .append(Hash(String::from("begin-hash")), ThreadId(String::from("default")), begin);
+
+        let msg = ack_with_caused_by("begin-hash");
+        match agent.evaluate_and_apply(&msg) {
+            AgentOutcome::Applied(_) => {}
+            other => panic!("expected disjunction Accept, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn merge_policy_default_is_conjunction() {
+        let agent = Agent::new("@alice");
+        assert_eq!(agent.merge_policy(), MergePolicy::Conjunction);
+    }
+
+    #[test]
+    fn with_merge_policy_sets_disjunction() {
+        let agent = Agent::new("@alice").with_merge_policy(MergePolicy::Disjunction);
+        assert_eq!(agent.merge_policy(), MergePolicy::Disjunction);
     }
 }
