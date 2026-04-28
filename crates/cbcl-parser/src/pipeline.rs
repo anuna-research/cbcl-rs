@@ -222,13 +222,19 @@ pub fn run_pipeline_full<S: MessageStore>(
     // Causal verification runs before evaluation so a causal failure cannot be
     // masked by a downstream shape error, and so callers always see the most
     // specific violation first (REQ-231 fail-closed ordering).
-    if let Message::Simple {
-        ref caused_by,
-        ref thread,
+    //
+    // Wrapped (`envelope`/`signed`/`with-limits`) and dialect-scoped (`lang`)
+    // messages defer to their innermost Simple payload so wrappers cannot be
+    // used to bypass causal/shape verification.
+    let inner_simple = innermost_simple(&message);
+    if let Some(Message::Simple {
+        caused_by,
+        thread,
+        performative,
         ..
-    } = message
+    }) = inner_simple
     {
-        let performative = message.performative();
+        let performative = Some(performative);
 
         // Step 6a: Causal verification (REQ-231).
         //
@@ -340,6 +346,21 @@ pub fn run_pipeline_full<S: MessageStore>(
 /// Both `(meta (define ...))` and `(meta (teach ...))` carry dialect definitions
 /// that must pass R1–R5 before acceptance. The teach form includes protocol and
 /// shape declarations for gossip propagation.
+/// Walk through `Wrapped` and `Dialect` envelopes to the innermost
+/// `Message::Simple`, returning `None` if no Simple is found (e.g. a `Meta`
+/// message or a wrapper that nests another non-Simple message).
+fn innermost_simple(message: &Message) -> Option<&Message> {
+    let mut cur = message;
+    loop {
+        match cur {
+            Message::Simple { .. } => return Some(cur),
+            Message::Wrapped { content, .. } => cur = content,
+            Message::Dialect { inner, .. } => cur = inner,
+            Message::Meta { .. } => return None,
+        }
+    }
+}
+
 fn validate_meta_dialect(
     message: &Message,
     registry: Option<&DialectRegistry>,
@@ -1087,6 +1108,44 @@ mod tests {
             matches!(result, PipelineResult::Success(_)),
             "expected meta-define with registry ancestor to pass, got {:?}",
             result
+        );
+    }
+
+    // -- PR feedback P1: wrapped/dialect-scoped messages must verify their
+    // innermost simple payload, not bypass causal/shape checks. --
+
+    #[test]
+    fn full_pipeline_envelope_wrapping_does_not_bypass_causal() {
+        let registry = ack_dialect_registry();
+        let store = ThreadedMessageStore::new();
+        let ctx = PipelineContext::new(&registry, &store);
+
+        // Wrap a protocol-violating ack inside an envelope. Without the
+        // wrapper-traversal fix this returned Success.
+        let result = run_pipeline_full(
+            "(envelope (:from @alice) (ack \"done\" :caused-by \"missing\"))",
+            &ctx,
+        );
+        assert!(
+            !matches!(result, PipelineResult::Success(_)),
+            "expected wrapper not to bypass verification, got Success: {result:?}"
+        );
+    }
+
+    #[test]
+    fn full_pipeline_lang_scoped_message_does_not_bypass_causal() {
+        let registry = ack_dialect_registry();
+        let store = ThreadedMessageStore::new();
+        let ctx = PipelineContext::new(&registry, &store);
+
+        // (lang ack-dialect (ack "done" :caused-by "missing"))
+        let result = run_pipeline_full(
+            "(lang ack-dialect (ack \"done\" :caused-by \"missing\"))",
+            &ctx,
+        );
+        assert!(
+            !matches!(result, PipelineResult::Success(_)),
+            "expected dialect-scoped wrapper not to bypass verification, got Success: {result:?}"
         );
     }
 }
