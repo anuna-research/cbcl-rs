@@ -7,6 +7,7 @@
 //! # Modules
 //!
 //! - `sexpr` — S-expression data types (Atom, SExpr)
+//! - `blame` — Violation blame attribution (REQ-230, REQ-232, REQ-233, CON-205)
 //! - `message` — Message types and core performatives
 //! - `dialect` — Dialect definitions and resource bounds
 //! - `agent` — Agent with beliefs, dialect registry, message queue, threads
@@ -16,9 +17,11 @@
 //! - `r2` — R2: Resource bounds safety constraint
 //! - `r3` — R3: Core preservation safety constraint
 //! - `r4` — R4: Integrity (Signer trait)
+//! - `r5` — R5: Shape well-formedness (REQ-222)
 //! - `template` — Template expansion
 //! - `pattern` — Pattern matching for message dispatch
 //! - `msg_tag` — Deterministic message tagging (DCFL)
+//! - `shape` — Structural shape constraints (REQ-220)
 //! - `gossip` — Epidemic gossip protocol for dialect propagation
 
 #![forbid(unsafe_code)]
@@ -27,6 +30,7 @@
 extern crate alloc;
 
 pub mod agent;
+pub mod blame;
 pub mod canonical;
 pub mod dialect;
 pub mod evaluator;
@@ -34,25 +38,49 @@ pub mod gossip;
 pub mod message;
 pub mod msg_tag;
 pub mod pattern;
+pub mod policy;
+pub mod protocol;
 pub mod r1;
 pub mod r2;
 pub mod r3;
 pub mod r4;
+pub mod r5;
 pub mod serializer;
 pub mod sexpr;
+pub mod clock;
+pub mod shape;
+pub mod store;
 pub mod template;
 
 /// Prelude re-exporting the most-used types.
 pub mod prelude {
-    pub use crate::agent::Agent;
+    pub use crate::agent::{Agent, AgentOutcome, MergePolicy};
+    pub use crate::blame::{BlameEntry, BlameParty, ViolationError, ViolationKind};
+    pub use crate::clock::{Clock, NoClock};
+    #[cfg(feature = "std")]
+    pub use crate::clock::SystemClock;
     pub use crate::dialect::{
         Dialect, DialectInstallError, DialectRegistry, PerformativeDef, ResourceBounds,
     };
     pub use crate::evaluator::{Effect, EvalError, EvalResult};
     pub use crate::gossip::{GossipConfig, GossipNetwork, GossipStats, PropagationState, Topology};
     pub use crate::message::{
-        CorePerformative, Message, MessageParseError, MessageType, Performative, WrapperType,
+        CausedBy, CorePerformative, Message, MessageParseError, MessageType, Performative,
+        WrapperType,
+    };
+    pub use crate::protocol::{
+        verify_causal, CausalProtocol, CausalViolation, NodeRef, ProtocolViolation, StepDecl,
+        VerificationResult,
     };
     pub use crate::r4::{R4Result, Signer};
     pub use crate::sexpr::{Atom, SExpr};
+    pub use crate::shape::{ShapeConstraint, ShapeRule, ShapeViolation, TypeConstraint};
+    pub use crate::policy::{
+        apply_policy, DropReason, PendingEntry, PendingQueue, PendingReason, PolicyOutcome,
+        UnknownPredecessorPolicy,
+    };
+    pub use crate::store::{
+        BundleVerificationError, CausalClosureBundle, ClosureError, ContentHash, HashIndex,
+        MergeResult, MessageStore, ThreadId, ThreadedMessageStore,
+    };
 }

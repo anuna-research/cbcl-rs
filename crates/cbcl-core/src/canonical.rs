@@ -38,9 +38,28 @@
 #![forbid(unsafe_code)]
 
 use crate::dialect::Dialect;
+use crate::protocol::{CausalProtocol, NodeRef, StepDecl};
 use crate::sexpr::{Atom, SExpr};
+use crate::shape::{ShapeConstraint, ShapeRule, TypeConstraint};
 use alloc::string::String;
 use alloc::vec::Vec;
+
+/// Version of the canonical signing form encoded in this module.
+///
+/// Bump this when the encoding produced by [`to_signable_sexpr`] changes
+/// for any input dialect. Existing signatures are produced over a specific
+/// version's bytes; a bump means a re-sign is required for verifying
+/// implementations to interop. The version is informational — it is not
+/// itself part of the signed body — but mismatched versions across CBCL
+/// implementations should fail loudly at integration time.
+///
+/// History:
+/// - `1` (initial): name, extends, author, performatives, resources,
+///   examples.
+/// - `2` (current): adds `(causal-protocol …)` and `(shapes …)`
+///   segments, gated on presence so dialects that omit both fields
+///   produce v1-identical bytes (legacy signatures keep verifying).
+pub const CANONICAL_FORM_VERSION: u32 = 2;
 
 // ---------------------------------------------------------------------------
 // Atom-to-octet-string mapping
@@ -158,11 +177,19 @@ fn decimal_no_leading_zeros(n: usize) -> String {
 ///   (author <author>?)
 ///   (performatives (perf <name> (params <p>*) <template>)*)
 ///   (resources <max-depth> <max-expansion-size> <verification-time-ms>)
-///   (examples <example>*))
+///   (examples <example>*)
+///   (causal-protocol <step>+)?      ; only when d.causal_protocol is Some
+///   (shapes <shape>+)?              ; only when d.shapes is non-empty
 /// ```
 ///
 /// Performative order is preserved — different orderings produce different
 /// signable S-expressions (r4-002).
+///
+/// `causal_protocol` and `shapes` are *only* appended when present so a
+/// dialect that omits them produces the same canonical bytes as before
+/// these fields existed — existing signatures over such dialects keep
+/// verifying. Dialects that *do* declare a protocol or shapes get those
+/// fields fully bound by the signature.
 pub fn to_signable_sexpr(d: &Dialect) -> SExpr {
     use alloc::vec;
 
@@ -214,7 +241,173 @@ pub fn to_signable_sexpr(d: &Dialect) -> SExpr {
     examples_list.extend(d.examples.clone());
     top.push(SExpr::List(examples_list));
 
+    // causal-protocol (REQ-200/201) — only when present (backward-compat).
+    if let Some(ref proto) = d.causal_protocol {
+        top.push(protocol_to_sexpr(proto));
+    }
+
+    // shapes (REQ-220) — only when non-empty (backward-compat).
+    if !d.shapes.is_empty() {
+        top.push(shapes_to_sexpr(&d.shapes));
+    }
+
     SExpr::List(top)
+}
+
+/// Encode a `CausalProtocol` deterministically. Steps come from a `BTreeMap`
+/// so iteration is sorted by performative name.
+///
+/// **Note on `Some(empty)` vs `None`.** A dialect with
+/// `causal_protocol: Some(CausalProtocol { steps: BTreeMap::new() })`
+/// emits `(causal-protocol)` here, while `None` emits nothing at all.
+/// These two states are semantically equivalent ("no causal constraints")
+/// but produce distinct canonical bytes. The encoding stays faithful to the
+/// data structure; if a downstream "normalize Some(empty) → None" rewrite
+/// is ever introduced, it would break signatures over dialects that the
+/// parser had constructed in the `Some(empty)` shape, so the normalization
+/// must happen *before* the dialect is signed.
+fn protocol_to_sexpr(p: &CausalProtocol) -> SExpr {
+    use alloc::vec;
+    let mut items = vec![SExpr::Atom(Atom::Symbol(String::from("causal-protocol")))];
+    for step in p.steps.values() {
+        items.push(step_to_sexpr(step));
+    }
+    SExpr::List(items)
+}
+
+fn step_to_sexpr(s: &StepDecl) -> SExpr {
+    use alloc::vec;
+    let mut preds = vec![SExpr::Atom(Atom::Symbol(String::from("predecessors")))];
+    for nr in &s.predecessors {
+        preds.push(node_ref_to_sexpr(nr));
+    }
+    let mut succs = vec![SExpr::Atom(Atom::Symbol(String::from("successors")))];
+    for nr in &s.successors {
+        succs.push(node_ref_to_sexpr(nr));
+    }
+    SExpr::List(vec![
+        SExpr::Atom(Atom::Symbol(String::from("step"))),
+        SExpr::Atom(Atom::Str(s.performative.clone())),
+        SExpr::List(preds),
+        SExpr::List(succs),
+    ])
+}
+
+fn node_ref_to_sexpr(nr: &NodeRef) -> SExpr {
+    use alloc::vec;
+    match nr {
+        NodeRef::Single(s) => SExpr::List(vec![
+            SExpr::Atom(Atom::Symbol(String::from("single"))),
+            SExpr::Atom(Atom::Str(s.clone())),
+        ]),
+        NodeRef::Any(set) => {
+            let mut v = vec![SExpr::Atom(Atom::Symbol(String::from("any")))];
+            for s in set {
+                v.push(SExpr::Atom(Atom::Str(s.clone())));
+            }
+            SExpr::List(v)
+        }
+        NodeRef::All(set) => {
+            let mut v = vec![SExpr::Atom(Atom::Symbol(String::from("all")))];
+            for s in set {
+                v.push(SExpr::Atom(Atom::Str(s.clone())));
+            }
+            SExpr::List(v)
+        }
+    }
+}
+
+/// Encode a slice of `ShapeConstraint`s deterministically, preserving the
+/// order in which they were declared (REQ-220 — multiple constraints on the
+/// same performative compose by conjunction, but order is part of the
+/// signed body so re-ordering yields different bytes).
+fn shapes_to_sexpr(shapes: &[ShapeConstraint]) -> SExpr {
+    use alloc::vec;
+    let mut items = vec![SExpr::Atom(Atom::Symbol(String::from("shapes")))];
+    for s in shapes {
+        items.push(shape_to_sexpr(s));
+    }
+    SExpr::List(items)
+}
+
+fn shape_to_sexpr(s: &ShapeConstraint) -> SExpr {
+    use alloc::vec;
+    let mut v = vec![
+        SExpr::Atom(Atom::Symbol(String::from("shape"))),
+        SExpr::Atom(Atom::Str(s.performative.clone())),
+    ];
+    for r in &s.rules {
+        v.push(shape_rule_to_sexpr(r));
+    }
+    SExpr::List(v)
+}
+
+fn shape_rule_to_sexpr(r: &ShapeRule) -> SExpr {
+    use alloc::vec;
+    match r {
+        ShapeRule::Require {
+            keyword,
+            type_constraint,
+            children,
+        } => {
+            let mut v = vec![
+                SExpr::Atom(Atom::Symbol(String::from("require"))),
+                SExpr::Atom(Atom::Str(keyword.clone())),
+                type_constraint_to_sexpr(type_constraint),
+            ];
+            for c in children {
+                v.push(shape_rule_to_sexpr(c));
+            }
+            SExpr::List(v)
+        }
+        ShapeRule::Optional {
+            keyword,
+            type_constraint,
+            default,
+            children,
+        } => {
+            let mut v = vec![
+                SExpr::Atom(Atom::Symbol(String::from("optional"))),
+                SExpr::Atom(Atom::Str(keyword.clone())),
+                type_constraint_to_sexpr(type_constraint),
+                default_to_sexpr(default),
+            ];
+            for c in children {
+                v.push(shape_rule_to_sexpr(c));
+            }
+            SExpr::List(v)
+        }
+        ShapeRule::MaxDepth(n) => SExpr::List(vec![
+            SExpr::Atom(Atom::Symbol(String::from("max-depth"))),
+            SExpr::Atom(Atom::Num(*n as i64)),
+        ]),
+    }
+}
+
+fn type_constraint_to_sexpr(tc: &Option<TypeConstraint>) -> SExpr {
+    use alloc::vec;
+    let mut v = vec![SExpr::Atom(Atom::Symbol(String::from("type")))];
+    if let Some(t) = tc {
+        let name = match t {
+            TypeConstraint::String => "string",
+            TypeConstraint::Number => "number",
+            TypeConstraint::Bool => "bool",
+            TypeConstraint::Symbol => "symbol",
+            TypeConstraint::Keyword => "keyword",
+            TypeConstraint::List => "list",
+        };
+        v.push(SExpr::Atom(Atom::Symbol(String::from(name))));
+    }
+    SExpr::List(v)
+}
+
+fn default_to_sexpr(d: &Option<SExpr>) -> SExpr {
+    use alloc::vec;
+    let mut v = vec![SExpr::Atom(Atom::Symbol(String::from("default")))];
+    if let Some(e) = d {
+        v.push(e.clone());
+    }
+    SExpr::List(v)
 }
 
 /// Compute the canonical bytes for signing a dialect.
@@ -505,7 +698,7 @@ mod tests {
             examples: vec![],
             signature: Some(vec![0xAA]),
             hash: Some(String::from("sha256:abc")),
-            protocol: Some(String::from("ed25519")),
+            protocol: Some(String::from("ed25519")), causal_protocol: None, shapes: Vec::new(),
         }
     }
 
@@ -611,7 +804,7 @@ mod tests {
             examples: vec![],
             signature: None,
             hash: None,
-            protocol: None,
+            protocol: None, causal_protocol: None, shapes: Vec::new(),
         };
         let bytes = dialect_canonical_bytes(&d);
         assert!(!bytes.is_empty());
@@ -639,7 +832,7 @@ mod tests {
             examples: vec![SExpr::Atom(Atom::Str("example".into()))],
             signature: Some(vec![0xFF]),
             hash: Some(String::from("sha256:xxx")),
-            protocol: Some(String::from("ed25519")),
+            protocol: Some(String::from("ed25519")), causal_protocol: None, shapes: Vec::new(),
         };
         let bytes = dialect_canonical_bytes(&d);
         let s = core::str::from_utf8(&bytes).unwrap();
@@ -678,6 +871,294 @@ mod tests {
         let d1 = test_dialect("alpha");
         let d2 = test_dialect("beta");
         assert_ne!(dialect_canonical_bytes(&d1), dialect_canonical_bytes(&d2));
+    }
+
+    // -- causal_protocol / shapes binding (PR feedback) --
+
+    /// Backwards compatibility: a dialect with `causal_protocol: None` and
+    /// empty `shapes` must produce identical canonical bytes after the
+    /// signing form was extended — existing signatures keep verifying.
+    #[test]
+    fn signable_omits_causal_protocol_and_shapes_when_absent() {
+        let d = test_dialect("legacy");
+        let bytes = dialect_canonical_bytes(&d);
+        let s = core::str::from_utf8(&bytes).unwrap();
+        assert!(
+            !s.contains("causal-protocol"),
+            "absent causal_protocol must not appear in canonical bytes: {s}"
+        );
+        assert!(
+            !s.contains("shapes"),
+            "absent shapes must not appear in canonical bytes: {s}"
+        );
+    }
+
+    #[test]
+    fn signable_includes_causal_protocol_when_present() {
+        use crate::protocol::{CausalProtocol, NodeRef, StepDecl};
+        use alloc::collections::BTreeMap;
+        let mut steps = BTreeMap::new();
+        steps.insert("begin".into(), StepDecl {
+            performative: "begin".into(),
+            predecessors: vec![],
+            successors: vec![NodeRef::Single("ack".into())],
+        });
+        steps.insert("ack".into(), StepDecl {
+            performative: "ack".into(),
+            predecessors: vec![NodeRef::Single("begin".into())],
+            successors: vec![],
+        });
+        let mut d = test_dialect("with-protocol");
+        d.causal_protocol = Some(CausalProtocol { steps });
+        let bytes = dialect_canonical_bytes(&d);
+        let s = core::str::from_utf8(&bytes).unwrap();
+        assert!(s.contains("causal-protocol"));
+        assert!(s.contains("step"));
+        assert!(s.contains("begin"));
+        assert!(s.contains("ack"));
+    }
+
+    #[test]
+    fn signable_includes_shapes_when_non_empty() {
+        use crate::shape::{ShapeConstraint, ShapeRule, TypeConstraint};
+        let mut d = test_dialect("with-shapes");
+        d.shapes = vec![ShapeConstraint {
+            performative: "act".into(),
+            rules: vec![ShapeRule::Require {
+                keyword: "target".into(),
+                type_constraint: Some(TypeConstraint::String),
+                children: vec![],
+            }],
+        }];
+        let bytes = dialect_canonical_bytes(&d);
+        let s = core::str::from_utf8(&bytes).unwrap();
+        assert!(s.contains("shapes"));
+        assert!(s.contains("require"));
+        assert!(s.contains("target"));
+    }
+
+    #[test]
+    fn signable_changes_when_causal_protocol_changes() {
+        use crate::protocol::{CausalProtocol, NodeRef, StepDecl};
+        use alloc::collections::BTreeMap;
+        fn dialect_with_pred(name: &str) -> Dialect {
+            let mut steps = BTreeMap::new();
+            steps.insert("begin".into(), StepDecl {
+                performative: "begin".into(),
+                predecessors: vec![],
+                successors: vec![NodeRef::Single("ack".into())],
+            });
+            steps.insert("ack".into(), StepDecl {
+                performative: "ack".into(),
+                predecessors: vec![NodeRef::Single(name.into())],
+                successors: vec![],
+            });
+            let mut d = test_dialect("p");
+            d.causal_protocol = Some(CausalProtocol { steps });
+            d
+        }
+        let a = dialect_canonical_bytes(&dialect_with_pred("begin"));
+        let b = dialect_canonical_bytes(&dialect_with_pred("other"));
+        assert_ne!(a, b, "mutating a step's predecessor must change canonical bytes");
+    }
+
+    #[test]
+    fn signable_changes_when_shapes_change() {
+        use crate::shape::{ShapeConstraint, ShapeRule, TypeConstraint};
+        let mut d1 = test_dialect("s");
+        d1.shapes = vec![ShapeConstraint {
+            performative: "act".into(),
+            rules: vec![ShapeRule::Require {
+                keyword: "target".into(),
+                type_constraint: Some(TypeConstraint::String),
+                children: vec![],
+            }],
+        }];
+        let mut d2 = d1.clone();
+        if let Some(s) = d2.shapes.first_mut() {
+            s.rules.push(ShapeRule::Require {
+                keyword: "priority".into(),
+                type_constraint: Some(TypeConstraint::Number),
+                children: vec![],
+            });
+        }
+        assert_ne!(
+            dialect_canonical_bytes(&d1),
+            dialect_canonical_bytes(&d2),
+            "adding a shape rule must change canonical bytes"
+        );
+    }
+
+    // -- Snapshot / golden-bytes guard --------------------------------------
+    //
+    // These tests pin the *exact* canonical encoding of two carefully-chosen
+    // dialects so accidental changes to atom tagging, child ordering, or
+    // segment shape break a test instead of silently breaking interop or
+    // existing signatures.
+    //
+    // If you legitimately change the canonical form (and bump
+    // CANONICAL_FORM_VERSION), update the snapshot strings below to match
+    // and call out the change in the version history doc-comment.
+
+    /// Helper: build a fully-populated v1-shaped dialect (no protocol or
+    /// shapes). The bytes here MUST match what was produced before
+    /// `(causal-protocol …)` and `(shapes …)` were appended — this is
+    /// the backwards-compatibility contract that keeps legacy signatures
+    /// verifying.
+    fn snapshot_legacy_dialect() -> Dialect {
+        Dialect {
+            name: String::from("legacy"),
+            extends: vec![String::from("cbcl")],
+            author: Some(String::from("@authority")),
+            performatives: vec![PerformativeDef {
+                name: String::from("act"),
+                params: vec![SExpr::Atom(Atom::Symbol("x".into()))],
+                template: SExpr::Atom(Atom::Symbol("do".into())),
+            }],
+            resources: ResourceBounds {
+                max_depth: 8,
+                max_expansion_size: 512,
+                verification_time_ms: 10,
+            },
+            examples: vec![],
+            signature: None,
+            hash: None,
+            protocol: None,
+            causal_protocol: None,
+            shapes: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn snapshot_legacy_dialect_canonical_bytes() {
+        let bytes = dialect_canonical_bytes(&snapshot_legacy_dialect());
+        let s = core::str::from_utf8(&bytes).expect("canonical bytes are UTF-8 today");
+        // Snapshot. If this fails the encoding has changed; investigate
+        // whether it's deliberate (and bump CANONICAL_FORM_VERSION) or
+        // accidental.
+        let expected =
+            "(8:Sdialect7:Qlegacy(8:Sextends5:Qcbcl)(7:Sauthor11:Q@authority)\
+             (14:Sperformatives(5:Sperf4:Qact(7:Sparams2:Sx)3:Sdo))\
+             (10:Sresources2:N84:N5123:N10)(9:Sexamples))";
+        // Strip whitespace from the literal — the actual bytes have none.
+        let expected: String = expected.chars().filter(|c| !c.is_whitespace()).collect();
+        assert_eq!(s, expected, "legacy canonical bytes drifted");
+    }
+
+    #[test]
+    fn snapshot_dialect_with_protocol_and_shapes() {
+        use crate::protocol::{CausalProtocol, NodeRef, StepDecl};
+        use crate::shape::{ShapeConstraint, ShapeRule, TypeConstraint};
+        use alloc::collections::BTreeMap;
+
+        let mut steps = BTreeMap::new();
+        steps.insert(
+            "begin".into(),
+            StepDecl {
+                performative: "begin".into(),
+                predecessors: vec![],
+                successors: vec![NodeRef::Single("act".into())],
+            },
+        );
+        steps.insert(
+            "act".into(),
+            StepDecl {
+                performative: "act".into(),
+                predecessors: vec![NodeRef::Single("begin".into())],
+                successors: vec![],
+            },
+        );
+
+        let mut d = snapshot_legacy_dialect();
+        d.causal_protocol = Some(CausalProtocol { steps });
+        d.shapes = vec![ShapeConstraint {
+            performative: "act".into(),
+            rules: vec![ShapeRule::Require {
+                keyword: "target".into(),
+                type_constraint: Some(TypeConstraint::String),
+                children: vec![],
+            }],
+        }];
+
+        let bytes = dialect_canonical_bytes(&d);
+        let s = core::str::from_utf8(&bytes).expect("canonical bytes are UTF-8 today");
+        // Note: BTreeMap::values() iterates sorted by key, so `act` appears
+        // before `begin` despite the insertion order above.
+        let expected =
+            "(8:Sdialect7:Qlegacy(8:Sextends5:Qcbcl)(7:Sauthor11:Q@authority)\
+             (14:Sperformatives(5:Sperf4:Qact(7:Sparams2:Sx)3:Sdo))\
+             (10:Sresources2:N84:N5123:N10)(9:Sexamples)\
+             (16:Scausal-protocol\
+             (5:Sstep4:Qact(13:Spredecessors(7:Ssingle6:Qbegin))(11:Ssuccessors))\
+             (5:Sstep6:Qbegin(13:Spredecessors)(11:Ssuccessors(7:Ssingle4:Qact))))\
+             (7:Sshapes(6:Sshape4:Qact(8:Srequire7:Qtarget(5:Stype7:Sstring)))))";
+        let expected: String = expected.chars().filter(|c| !c.is_whitespace()).collect();
+        assert_eq!(s, expected, "v2 canonical bytes drifted");
+    }
+
+    #[test]
+    fn nested_shape_children_appear_in_canonical_bytes() {
+        use crate::shape::{ShapeConstraint, ShapeRule, TypeConstraint};
+
+        // Require :params (list) containing :step (string) containing
+        // :id (number).
+        let mut d = test_dialect("nested");
+        d.shapes = vec![ShapeConstraint {
+            performative: "act".into(),
+            rules: vec![ShapeRule::Require {
+                keyword: "params".into(),
+                type_constraint: Some(TypeConstraint::List),
+                children: vec![ShapeRule::Require {
+                    keyword: "step".into(),
+                    type_constraint: Some(TypeConstraint::String),
+                    children: vec![ShapeRule::Optional {
+                        keyword: "id".into(),
+                        type_constraint: Some(TypeConstraint::Number),
+                        default: None,
+                        children: vec![],
+                    }],
+                }],
+            }],
+        }];
+
+        let bytes = dialect_canonical_bytes(&d);
+        let s = core::str::from_utf8(&bytes).unwrap();
+
+        // Each nested keyword/type and the surrounding rule symbols must
+        // all be present, exercising the recursive `shape_rule_to_sexpr`.
+        for needle in [
+            "shapes", "shape", "require", "params", "list", "step", "string",
+            "optional", "id", "number",
+        ] {
+            assert!(
+                s.contains(needle),
+                "missing `{needle}` in nested-shape canonical encoding: {s}"
+            );
+        }
+
+        // Add a sibling Optional with a default and verify the bytes change.
+        let mut d2 = d.clone();
+        if let Some(shape) = d2.shapes.first_mut() {
+            if let Some(ShapeRule::Require { children, .. }) = shape.rules.first_mut() {
+                children.push(ShapeRule::Optional {
+                    keyword: "tag".into(),
+                    type_constraint: None,
+                    default: Some(SExpr::Atom(Atom::Str("none".into()))),
+                    children: vec![],
+                });
+            }
+        }
+        assert_ne!(
+            dialect_canonical_bytes(&d),
+            dialect_canonical_bytes(&d2),
+            "adding a sibling shape rule must change canonical bytes"
+        );
+    }
+
+    #[test]
+    fn canonical_form_version_is_two() {
+        // Pin the version constant so changes are deliberate.
+        assert_eq!(CANONICAL_FORM_VERSION, 2);
     }
 
     // ====================================================================

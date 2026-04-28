@@ -5,11 +5,14 @@
 
 #![forbid(unsafe_code)]
 
+use crate::protocol::CausalProtocol;
 use crate::r1::{r1_violations, verify_r1_dialect};
 use crate::r2::verify_r2;
 use crate::r3::{r3_violations, verify_r3};
 use crate::r4::{check_r4, R4Result, Signer};
+use crate::r5::{r5_violations_with_ancestors, verify_r5_with_ancestors};
 use crate::sexpr::{Atom, SExpr};
+use crate::shape::ShapeConstraint;
 use alloc::string::String;
 use alloc::vec;
 use alloc::vec::Vec;
@@ -53,6 +56,11 @@ pub enum DialectInstallError {
     },
     /// The dialect's signature failed verification (R4 violation).
     R4Violation { dialect_name: String },
+    /// A shape constraint is malformed (R5 violation).
+    R5Violation {
+        dialect_name: String,
+        shape_errors: Vec<String>,
+    },
 }
 
 impl fmt::Display for DialectInstallError {
@@ -94,6 +102,17 @@ impl fmt::Display for DialectInstallError {
                     dialect_name,
                 )
             }
+            DialectInstallError::R5Violation {
+                dialect_name,
+                shape_errors,
+            } => {
+                write!(
+                    f,
+                    "R5 violation: dialect '{}' has malformed shape(s): {}",
+                    dialect_name,
+                    shape_errors.join("; ")
+                )
+            }
         }
     }
 }
@@ -123,6 +142,10 @@ pub struct Dialect {
     pub signature: Option<Vec<u8>>,
     pub hash: Option<String>,
     pub protocol: Option<String>,
+    /// Causal protocol declaration (REQ-200, REQ-201).
+    pub causal_protocol: Option<CausalProtocol>,
+    /// Shape constraints for expanded messages (REQ-220).
+    pub shapes: Vec<ShapeConstraint>,
 }
 
 impl Dialect {
@@ -188,6 +211,8 @@ pub fn base_dialect() -> Dialect {
         signature: None,
         hash: None,
         protocol: None,
+        causal_protocol: None,
+        shapes: Vec::new(),
     }
 }
 
@@ -243,6 +268,13 @@ impl DialectRegistry {
                 dialect_name: d.name,
             });
         }
+        let ancestors = self.resolve_ancestors(&d);
+        if !verify_r5_with_ancestors(&d, &ancestors) {
+            return Err(DialectInstallError::R5Violation {
+                shape_errors: r5_violations_with_ancestors(&d, &ancestors),
+                dialect_name: d.name,
+            });
+        }
         #[cfg(feature = "tracing")]
         tracing::event!(
             tracing::Level::INFO,
@@ -251,6 +283,24 @@ impl DialectRegistry {
         );
         self.dialects.push(d);
         Ok(())
+    }
+
+    /// Resolve `d.extends` to currently-installed ancestor dialects (REQ-206).
+    ///
+    /// Names that do not match an installed dialect are silently skipped —
+    /// install-time R5 will only credit performatives from ancestors that the
+    /// registry actually knows about. The shorthand `cbcl` is aliased to the
+    /// canonical base dialect name `cbcl-base` since dialect literals
+    /// commonly write `(extends cbcl)` while the registry stores the base
+    /// under its full name.
+    fn resolve_ancestors<'a>(&'a self, d: &Dialect) -> Vec<&'a Dialect> {
+        d.extends
+            .iter()
+            .filter_map(|name| {
+                let resolved = if name == "cbcl" { "cbcl-base" } else { name.as_str() };
+                self.find_by_name(resolved)
+            })
+            .collect()
     }
 
     /// Install a dialect after verifying R1–R4 (REQ-034, REQ-060–062, REQ-070, REQ-080, REQ-090–091).
@@ -285,7 +335,17 @@ impl DialectRegistry {
                 dialect_name: d.name,
             });
         }
+        let ancestors = self.resolve_ancestors(&d);
+        if !verify_r5_with_ancestors(&d, &ancestors) {
+            return Err(DialectInstallError::R5Violation {
+                shape_errors: r5_violations_with_ancestors(&d, &ancestors),
+                dialect_name: d.name,
+            });
+        }
         // R4 check: invalid signatures are rejected; unsigned is accepted.
+        // The canonical signing form (`canonical::to_signable_sexpr`) covers
+        // every semantics-relevant field, including `causal_protocol` and
+        // `shapes`, so a Valid signature binds runtime acceptance.
         let r4 = check_r4(&d, signer);
         if r4 == R4Result::Invalid {
             return Err(DialectInstallError::R4Violation {
@@ -355,6 +415,7 @@ impl Default for DialectRegistry {
         Self::new()
     }
 }
+
 
 impl<'a> IntoIterator for &'a DialectRegistry {
     type Item = &'a Dialect;
@@ -474,7 +535,7 @@ mod tests {
             examples: vec![],
             signature: None,
             hash: None,
-            protocol: Some(String::from("ed25519")),
+            protocol: Some(String::from("ed25519")), causal_protocol: None, shapes: Vec::new(),
         };
         reg.install(planning).unwrap();
         assert_eq!(reg.len(), 2);
@@ -504,7 +565,7 @@ mod tests {
                 examples: vec![],
                 signature: None,
                 hash: None,
-                protocol: None,
+                protocol: None, causal_protocol: None, shapes: Vec::new(),
             })
             .unwrap();
         }
@@ -533,7 +594,7 @@ mod tests {
             examples: vec![],
             signature: None,
             hash: None,
-            protocol: None,
+            protocol: None, causal_protocol: None, shapes: Vec::new(),
         };
         let err = reg.install(bad).unwrap_err();
         match err {
@@ -566,7 +627,7 @@ mod tests {
             examples: vec![],
             signature: None,
             hash: None,
-            protocol: None,
+            protocol: None, causal_protocol: None, shapes: Vec::new(),
         };
         let err = reg.install(bad).unwrap_err();
         match err {
@@ -595,7 +656,7 @@ mod tests {
             examples: vec![],
             signature: None,
             hash: None,
-            protocol: None,
+            protocol: None, causal_protocol: None, shapes: Vec::new(),
         };
         assert!(matches!(
             reg.install(bad),
@@ -638,7 +699,7 @@ mod tests {
                 examples: vec![],
                 signature: None,
                 hash: None,
-                protocol: Some(String::from("ed25519")),
+                protocol: Some(String::from("ed25519")), causal_protocol: None, shapes: Vec::new(),
             })
             .unwrap();
         }
@@ -690,7 +751,7 @@ mod tests {
             examples: vec![],
             signature: None,
             hash: None,
-            protocol: None,
+            protocol: None, causal_protocol: None, shapes: Vec::new(),
         };
         let result = reg.install_with_signer(d, &MockSigner).unwrap();
         assert_eq!(result, R4Result::Unsigned);
@@ -713,7 +774,7 @@ mod tests {
             examples: vec![],
             signature: Some(alloc::vec![0xAA, 0xBB]),
             hash: None,
-            protocol: Some(String::from("ed25519")),
+            protocol: Some(String::from("ed25519")), causal_protocol: None, shapes: Vec::new(),
         };
         let result = reg.install_with_signer(d, &MockSigner).unwrap();
         assert_eq!(result, R4Result::Valid);
@@ -736,7 +797,7 @@ mod tests {
             examples: vec![],
             signature: Some(alloc::vec![0xFF, 0xFF]),
             hash: None,
-            protocol: Some(String::from("ed25519")),
+            protocol: Some(String::from("ed25519")), causal_protocol: None, shapes: Vec::new(),
         };
         let err = reg.install_with_signer(d, &MockSigner).unwrap_err();
         match err {
@@ -770,7 +831,7 @@ mod tests {
             examples: vec![],
             signature: Some(alloc::vec![0xAA, 0xBB]),
             hash: None,
-            protocol: None,
+            protocol: None, causal_protocol: None, shapes: Vec::new(),
         };
         let err = reg.install_with_signer(d, &MockSigner).unwrap_err();
         assert!(matches!(err, DialectInstallError::R3Violation { .. }));
@@ -784,5 +845,193 @@ mod tests {
         let msg = alloc::format!("{}", err);
         assert!(msg.contains("R4 violation"));
         assert!(msg.contains("bad"));
+    }
+
+    // -- R4 binds causal_protocol/shapes via canonical signing form --
+
+    /// A signer whose verifier accepts only signatures produced by `sign(d)`
+    /// over `dialect_canonical_bytes(d)` — useful for confirming that
+    /// mutating bound fields invalidates the signature.
+    struct CanonicalSigner;
+
+    impl Signer for CanonicalSigner {
+        fn sign(&self, data: &[u8]) -> Vec<u8> {
+            // Trivial reversible "signature": a hash of the bytes.
+            let mut sum: u32 = 0x9e3779b9;
+            for &b in data {
+                sum = sum.wrapping_mul(33).wrapping_add(b as u32);
+            }
+            sum.to_le_bytes().to_vec()
+        }
+        fn verify(&self, data: &[u8], sig: &[u8]) -> bool {
+            self.sign(data) == sig
+        }
+    }
+
+    fn signed_dialect_with_protocol_and_shapes() -> Dialect {
+        use crate::protocol::{CausalProtocol, NodeRef, StepDecl};
+        use crate::shape::{ShapeConstraint, ShapeRule, TypeConstraint};
+        let mut steps = alloc::collections::BTreeMap::new();
+        steps.insert("begin".into(), StepDecl {
+            performative: "begin".into(),
+            predecessors: vec![],
+            successors: vec![NodeRef::Single("greet".into())],
+        });
+        steps.insert("greet".into(), StepDecl {
+            performative: "greet".into(),
+            predecessors: vec![NodeRef::Single("begin".into())],
+            successors: vec![],
+        });
+        Dialect {
+            name: String::from("bound-by-signature"),
+            extends: vec![String::from("cbcl")],
+            author: None,
+            performatives: vec![PerformativeDef {
+                name: String::from("greet"),
+                params: vec![],
+                template: SExpr::List(vec![
+                    SExpr::Atom(Atom::Symbol(String::from("effect"))),
+                    SExpr::Atom(Atom::Symbol(String::from("greet-action"))),
+                ]),
+            }],
+            resources: ResourceBounds {
+                max_depth: 8,
+                max_expansion_size: 512,
+                verification_time_ms: 10,
+            },
+            examples: vec![],
+            signature: None,
+            hash: None,
+            protocol: None,
+            causal_protocol: Some(CausalProtocol { steps }),
+            shapes: vec![ShapeConstraint {
+                performative: String::from("greet"),
+                rules: vec![ShapeRule::Require {
+                    keyword: String::from("target"),
+                    type_constraint: Some(TypeConstraint::String),
+                    children: vec![],
+                }],
+            }],
+        }
+    }
+
+    #[test]
+    fn signed_dialect_with_causal_protocol_now_installs() {
+        // What used to be rejected as a stopgap should now install: the
+        // canonical signing form covers causal_protocol.
+        let mut d = signed_dialect_with_protocol_and_shapes();
+        d.shapes = Vec::new(); // protocol-only case
+        let bytes = crate::canonical::dialect_canonical_bytes(&d);
+        d.signature = Some(CanonicalSigner.sign(&bytes));
+
+        let mut reg = DialectRegistry::new();
+        let result = reg.install_with_signer(d, &CanonicalSigner).unwrap();
+        assert_eq!(result, R4Result::Valid);
+    }
+
+    #[test]
+    fn signed_dialect_with_shapes_now_installs() {
+        let mut d = signed_dialect_with_protocol_and_shapes();
+        d.causal_protocol = None; // shapes-only case
+        let bytes = crate::canonical::dialect_canonical_bytes(&d);
+        d.signature = Some(CanonicalSigner.sign(&bytes));
+
+        let mut reg = DialectRegistry::new();
+        let result = reg.install_with_signer(d, &CanonicalSigner).unwrap();
+        assert_eq!(result, R4Result::Valid);
+    }
+
+    #[test]
+    fn mutating_causal_protocol_invalidates_existing_signature() {
+        use crate::protocol::{NodeRef, StepDecl};
+        // Sign a dialect, then mutate its causal_protocol without re-signing.
+        // The previously-valid signature must no longer verify.
+        let original = signed_dialect_with_protocol_and_shapes();
+        let bytes = crate::canonical::dialect_canonical_bytes(&original);
+        let sig = CanonicalSigner.sign(&bytes);
+
+        let mut tampered = original;
+        tampered.signature = Some(sig);
+        // Replace the protocol's `greet` step with a different predecessor.
+        if let Some(ref mut p) = tampered.causal_protocol {
+            p.steps.insert("greet".into(), StepDecl {
+                performative: "greet".into(),
+                predecessors: vec![NodeRef::Single("ok".into())],
+                successors: vec![],
+            });
+        }
+
+        let mut reg = DialectRegistry::new();
+        let err = reg.install_with_signer(tampered, &CanonicalSigner).unwrap_err();
+        assert!(
+            matches!(err, DialectInstallError::R4Violation { .. }),
+            "expected R4 violation after causal_protocol tamper, got {err:?}"
+        );
+    }
+
+    #[test]
+    fn mutating_shapes_invalidates_existing_signature() {
+        use crate::shape::{ShapeRule, TypeConstraint};
+        let original = signed_dialect_with_protocol_and_shapes();
+        let bytes = crate::canonical::dialect_canonical_bytes(&original);
+        let sig = CanonicalSigner.sign(&bytes);
+
+        let mut tampered = original;
+        tampered.signature = Some(sig);
+        // Add a new rule to the existing shape.
+        if let Some(shape) = tampered.shapes.first_mut() {
+            shape.rules.push(ShapeRule::Require {
+                keyword: String::from("priority"),
+                type_constraint: Some(TypeConstraint::Number),
+                children: vec![],
+            });
+        }
+
+        let mut reg = DialectRegistry::new();
+        let err = reg.install_with_signer(tampered, &CanonicalSigner).unwrap_err();
+        assert!(
+            matches!(err, DialectInstallError::R4Violation { .. }),
+            "expected R4 violation after shapes tamper, got {err:?}"
+        );
+    }
+
+    // -- "cbcl" extends shorthand resolves to base (PR feedback P2) --
+
+    #[test]
+    fn cbcl_shorthand_extends_resolves_to_base_at_install() {
+        use crate::protocol::{CausalProtocol, NodeRef, StepDecl};
+        let mut reg = DialectRegistry::new();
+        // Child dialect extends "cbcl" (shorthand for cbcl-base) and its
+        // protocol references the inherited core performative `ok`. Without
+        // the alias, install would reject this as undefined.
+        let mut steps = alloc::collections::BTreeMap::new();
+        steps.insert("begin".into(), StepDecl {
+            performative: "begin".into(),
+            predecessors: vec![],
+            successors: vec![NodeRef::Single("ok".into())],
+        });
+        steps.insert("ok".into(), StepDecl {
+            performative: "ok".into(),
+            predecessors: vec![NodeRef::Single("begin".into())],
+            successors: vec![],
+        });
+        let d = Dialect {
+            name: String::from("uses-ok"),
+            extends: vec![String::from("cbcl")],
+            author: None,
+            performatives: vec![],
+            resources: ResourceBounds {
+                max_depth: 8,
+                max_expansion_size: 512,
+                verification_time_ms: 10,
+            },
+            examples: vec![],
+            signature: None,
+            hash: None,
+            protocol: None,
+            causal_protocol: Some(CausalProtocol { steps }),
+            shapes: Vec::new(),
+        };
+        reg.install(d).expect("dialect extending cbcl should install");
     }
 }

@@ -1,6 +1,40 @@
 # CBCL
 
-Rust implementation of **CBCL** (Common Business Communication Language) — a self-extensible, formally verified agent communication language.
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+[![Rust: 1.75+](https://img.shields.io/badge/rust-1.75%2B-orange.svg)](rust-toolchain.toml)
+[![Lean 4](https://img.shields.io/badge/lean-4-purple.svg)](lean-cbcl/)
+[![Sorries: 0](https://img.shields.io/badge/sorries-0-brightgreen.svg)](lean-cbcl/)
+[![no_std](https://img.shields.io/badge/no__std-%2B%20alloc-lightgrey.svg)](#architecture)
+[![WASM](https://img.shields.io/badge/wasm32-unknown--unknown-654FF0.svg)](crates/cbcl-wasm)
+[![LangSec '26](https://img.shields.io/badge/LangSec-'26-8a2be2.svg)](https://arxiv.org/abs/2604.14512)
+[![arXiv](https://img.shields.io/badge/arXiv-2604.14512-b31b1b.svg)](https://arxiv.org/abs/2604.14512)
+
+Rust implementation of **CBCL** (Common Business Communication Language) — a self-extensible, formally verified agent communication language. The core occupies the deterministic context-free (DCFL) sweet spot between fixed-vocabulary ACLs and unbounded JSON / natural-language protocols, so safety properties remain decidable as agents define new dialects at runtime.
+
+## Quick Start
+
+```bash
+# Run tests (837 tests across the workspace)
+cargo test --workspace
+
+# Parse a message
+cargo run -p cbcl-cli -- parse '(tell agent-b "hello")'
+
+# Verify a dialect
+cargo run -p cbcl-cli -- verify dialect.scm
+
+# Run benchmarks
+cargo bench --workspace
+
+# Build for WASM
+cargo build --target wasm32-unknown-unknown -p cbcl-wasm
+```
+
+For the Lean 4 proofs:
+
+```bash
+cd lean-cbcl && lake build
+```
 
 ## The Problem
 
@@ -32,18 +66,17 @@ The key insight is *homoiconic self-extension*: dialect definitions are themselv
 
 Named after McCarthy's 1982 proposal for a "Common Business Communication Language" that would be "open ended so that as programs improve, programs that can at first only order by stock numbers can later be programmed to inquire about specifications and prices."
 
-Forthcoming paper for the 2026 LangSec workshop with full theoretical framework and proofs, and the initial [Scheme implementation](https://github.com/anuna-research/cbcl) for the original prototype.
+Full theoretical framework and proofs are in the LangSec '26 paper, available as a preprint: [arXiv:2604.14512](https://arxiv.org/abs/2604.14512). The original prototype is the [Scheme implementation](https://github.com/anuna-research/cbcl).
 
 ## Features
 
-- S-expression parser with O(n) time complexity and fuel-bounded recursion
-- Full CBCL message grammar: core performatives, dialects, templates
-- Safety constraints R1 (no recursion), R2 (resource bounds), R3 (core preservation), R4 (integrity)
-- Deterministic message tagging preserving DCFL properties
-- `no_std` + `alloc` compatible pure core
-- WASM target (`wasm32-unknown-unknown`) via `wasm-bindgen`
-- C FFI via `cbindgen`
-- CLI tool for parsing, verification, agent REPL, and gossip simulation
+- **Linear-time parser.** S-expression parser with O(n) time complexity and fuel-bounded recursion.
+- **Full message grammar.** Core performatives, dialects, templates — all parsed by one DPDA.
+- **Verified safety constraints.** R1 (no recursion), R2 (resource bounds), R3 (core preservation), R4 (integrity), each machine-checked in Lean 4.
+- **Deterministic message tagging** preserving DCFL properties under dialect union.
+- **Embedded-friendly.** `no_std + alloc` compatible pure core; `#![forbid(unsafe_code)]`.
+- **Polyglot bindings.** WASM target (`wasm32-unknown-unknown`) via `wasm-bindgen`; C FFI via `cbindgen`.
+- **CLI tooling.** Parsing, verification, agent REPL, gossip simulation.
 
 ## Workspace
 
@@ -55,25 +88,6 @@ Forthcoming paper for the 2026 LangSec workshop with full theoretical framework 
 | `cbcl-wasm` | Shell | WebAssembly bindings |
 | `cbcl-ffi` | Shell | C FFI bindings |
 | `lean-cbcl` | Proofs | Lean 4 formal verification of core algorithms |
-
-## Quick Start
-
-```bash
-# Run tests (453 tests)
-cargo test --workspace
-
-# Parse a message
-cargo run -p cbcl-cli -- parse '(tell agent-b "hello")'
-
-# Verify a dialect
-cargo run -p cbcl-cli -- verify dialect.scm
-
-# Run benchmarks
-cargo bench --workspace
-
-# Build for WASM
-cargo build --target wasm32-unknown-unknown -p cbcl-wasm
-```
 
 ## Formal Verification
 
@@ -108,13 +122,33 @@ Strict **purity boundary**: the core crates are deterministic, `no_std + alloc`,
 
 ## Testing
 
-- **Unit tests**: 263 in cbcl-core, 92 in cbcl-parser
-- **Property tests**: 37 proptest suites covering 8 USDD verification properties
-- **Differential tests**: 21 integration tests comparing Rust vs Lean on 156 test vectors
+- **Unit tests**: 584 in cbcl-core, 139 in cbcl-parser, 26 in cbcl-wasm, 14 in cbcl-ffi
+- **Property tests**: 37 proptest cases (31 in cbcl-core, 6 in cbcl-parser) covering USDD verification properties
+- **Differential tests**: 21 integration tests comparing Rust vs Lean on shared test vectors
+- **Eventual-consistency / NFR tests**: 12 + 4 integration tests in cbcl-core
 - **Fuzz targets**: libFuzzer harnesses for parser trust boundary
-- **Mutation testing**: cargo-mutants config targeting 7 critical-path modules (90% kill rate threshold)
-- **Benchmarks**: 44 Criterion benchmarks for parser, constraints, template expansion, gossip
+- **Mutation testing**: cargo-mutants config targeting critical-path modules (90% kill rate threshold)
+- **Benchmarks**: Criterion benchmarks for parser, constraints, template expansion, gossip
+
+## Contributing
+
+Bug reports live under [`bugs/`](bugs/) (Markdown with YAML frontmatter; severity S1-S4, priority P0-P2). Plans live under [`plans/`](plans/). Architecture decisions are recorded in `.hence/`. Before opening a PR, please run `cargo test --workspace` and, for changes touching verified modules, `lake build` from `lean-cbcl/`.
 
 ## License
 
 Apache-2.0. See [LICENSE](LICENSE).
+
+## Citation
+
+```bibtex
+@misc{cbcl2026,
+  title         = {CBCL: Safe Self-Extending Agent Communication},
+  author        = {O'Connor, Hugo},
+  year          = {2026},
+  eprint        = {2604.14512},
+  archivePrefix = {arXiv},
+  primaryClass  = {cs.CR},
+  url           = {https://arxiv.org/abs/2604.14512},
+  note          = {LangSec '26}
+}
+```

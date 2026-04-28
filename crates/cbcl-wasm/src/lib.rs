@@ -96,6 +96,11 @@ pub fn run_pipeline_bytes(input: &[u8]) -> Result<Vec<u8>, Vec<u8>> {
         cbcl_parser::PipelineResult::ValidationError(e) => {
             Err(format!("validation error: {e}").into_bytes())
         }
+        // run_pipeline (lightweight) skips causal verification.
+        cbcl_parser::PipelineResult::Pending { .. }
+        | cbcl_parser::PipelineResult::Buffered { .. } => {
+            Err("validation error: unexpected pending result".to_string().into_bytes())
+        }
     }
 }
 
@@ -202,6 +207,7 @@ fn send_message_str(recipient: &str, content: &str) -> Result<String, String> {
         params: Vec::new(),
         thread: None,
         sender: None,
+        caused_by: None,
     };
 
     // Evaluate the message against the base dialect registry
@@ -237,6 +243,10 @@ mod wasm_bindgen_api {
             cbcl_parser::PipelineResult::ParseError(e) => Err(format!("parse error: {e}")),
             cbcl_parser::PipelineResult::ValidationError(e) => {
                 Err(format!("validation error: {e}"))
+            }
+            cbcl_parser::PipelineResult::Pending { .. }
+            | cbcl_parser::PipelineResult::Buffered { .. } => {
+                Err("validation error: unexpected pending result".to_string())
             }
         }
     }

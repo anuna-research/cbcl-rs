@@ -3,12 +3,18 @@ use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use cbcl_core::dialect::{Dialect, DialectRegistry, PerformativeDef, ResourceBounds};
 use cbcl_core::evaluator;
 use cbcl_core::gossip::{GossipConfig, GossipNetwork, Topology};
-use cbcl_core::message::{CorePerformative, Message, Performative};
+use cbcl_core::message::{CausedBy, CorePerformative, Message, Performative};
 use cbcl_core::msg_tag;
+use cbcl_core::policy::{apply_policy, UnknownPredecessorPolicy};
+use cbcl_core::protocol::{
+    verify_causal, CausalProtocol, NodeRef, StepDecl, VerificationResult,
+};
 use cbcl_core::r1;
 use cbcl_core::r2::{self, ResourceState};
 use cbcl_core::r3;
 use cbcl_core::sexpr::{Atom, SExpr};
+use cbcl_core::shape::{ShapeConstraint, ShapeRule, TypeConstraint};
+use cbcl_core::store::{ContentHash, HashIndex, MessageStore, ThreadId, ThreadedMessageStore};
 use cbcl_core::template;
 
 // ---------------------------------------------------------------------------
@@ -45,7 +51,7 @@ fn make_dialect(name: &str, perfs: Vec<PerformativeDef>) -> Dialect {
         examples: vec![],
         signature: None,
         hash: None,
-        protocol: None,
+        protocol: None, causal_protocol: None, shapes: Vec::new(),
     }
 }
 
@@ -74,7 +80,7 @@ fn test_dialect(name: &str) -> Dialect {
         examples: Vec::new(),
         signature: None,
         hash: None,
-        protocol: None,
+        protocol: None, causal_protocol: None, shapes: Vec::new(),
     }
 }
 
@@ -318,6 +324,7 @@ fn bench_eval(c: &mut Criterion) {
         params: Vec::new(),
         thread: None,
         sender: None,
+        caused_by: None,
     };
     c.bench_function("eval/tell", |b| {
         b.iter(|| evaluator::evaluate(black_box(&tell_msg), black_box(&registry)))
@@ -330,6 +337,7 @@ fn bench_eval(c: &mut Criterion) {
         params: Vec::new(),
         thread: None,
         sender: None,
+        caused_by: None,
     };
     c.bench_function("eval/ask", |b| {
         b.iter(|| evaluator::evaluate(black_box(&ask_msg), black_box(&registry)))
@@ -358,7 +366,7 @@ fn bench_eval(c: &mut Criterion) {
             examples: Vec::new(),
             signature: None,
             hash: None,
-            protocol: None,
+            protocol: None, causal_protocol: None, shapes: Vec::new(),
         })
         .unwrap();
 
@@ -369,6 +377,7 @@ fn bench_eval(c: &mut Criterion) {
         params: vec![sym("warehouse-A")],
         thread: None,
         sender: None,
+        caused_by: None,
     };
     c.bench_function("eval/custom_performative", |b| {
         b.iter(|| evaluator::evaluate(black_box(&ship_msg), black_box(&custom_registry)))
@@ -447,6 +456,378 @@ fn bench_gossip(c: &mut Criterion) {
 }
 
 // ---------------------------------------------------------------------------
+// Causal verification benchmarks (NFR-201, TEST-251)
+// ---------------------------------------------------------------------------
+
+fn bench_causal_verification(c: &mut Criterion) {
+    // Build a 10-step linear protocol: begin -> step-1 -> step-2 -> ... -> step-10
+    let mut steps = std::collections::BTreeMap::new();
+    steps.insert(
+        String::from("begin"),
+        StepDecl {
+            performative: String::from("begin"),
+            predecessors: vec![],
+            successors: vec![NodeRef::Single(String::from("step-1"))],
+        },
+    );
+    for i in 1..=10 {
+        let name = format!("step-{}", i);
+        let pred = if i == 1 {
+            String::from("begin")
+        } else {
+            format!("step-{}", i - 1)
+        };
+        let succ = if i < 10 {
+            vec![NodeRef::Single(format!("step-{}", i + 1))]
+        } else {
+            vec![]
+        };
+        steps.insert(
+            name.clone(),
+            StepDecl {
+                performative: name,
+                predecessors: vec![NodeRef::Single(pred)],
+                successors: succ,
+            },
+        );
+    }
+    let protocol = CausalProtocol { steps };
+
+    // Populate a store with messages for all steps
+    let mut store = ThreadedMessageStore::new();
+    let thread = ThreadId(String::from("bench-thread"));
+    for i in 1..=10 {
+        let hash = ContentHash(format!("hash-{}", i));
+        let caused = if i == 1 {
+            Some(CausedBy::Begin)
+        } else {
+            Some(CausedBy::Single(format!("hash-{}", i - 1)))
+        };
+        let msg = Message::Simple {
+            performative: Performative::Custom(format!("step-{}", i)),
+            recipient: None,
+            content: str_expr("payload"),
+            params: vec![],
+            thread: Some(String::from("bench-thread")),
+            sender: None,
+            caused_by: caused,
+        };
+        store.append(hash, thread.clone(), msg);
+    }
+
+    // Benchmark: verify a message with a known predecessor (Valid path)
+    let caused_by = CausedBy::Single(String::from("hash-5"));
+    c.bench_function("causal/verify_single_valid", |b| {
+        b.iter(|| {
+            verify_causal(
+                black_box("step-6"),
+                black_box(Some(&caused_by)),
+                black_box(&store),
+                black_box(&protocol),
+                black_box(&thread),
+            )
+        })
+    });
+
+    // Benchmark: verify begin message (no predecessors)
+    c.bench_function("causal/verify_begin", |b| {
+        b.iter(|| {
+            verify_causal(
+                black_box("step-1"),
+                black_box(Some(&CausedBy::Begin)),
+                black_box(&store),
+                black_box(&protocol),
+                black_box(&thread),
+            )
+        })
+    });
+
+    // Benchmark: verify message with unknown predecessor (Unknown path)
+    let unknown_caused = CausedBy::Single(String::from("hash-unknown"));
+    c.bench_function("causal/verify_unknown_predecessor", |b| {
+        b.iter(|| {
+            verify_causal(
+                black_box("step-3"),
+                black_box(Some(&unknown_caused)),
+                black_box(&store),
+                black_box(&protocol),
+                black_box(&thread),
+            )
+        })
+    });
+}
+
+// ---------------------------------------------------------------------------
+// Shape check benchmarks (NFR-203, TEST-253)
+// ---------------------------------------------------------------------------
+
+fn bench_shape_check(c: &mut Criterion) {
+    // Build a shape constraint with 8 rules (matching NFR-202 scale)
+    let shape = ShapeConstraint {
+        performative: String::from("track-shipment"),
+        rules: vec![
+            ShapeRule::Require {
+                keyword: String::from("package"),
+                type_constraint: Some(TypeConstraint::String),
+                children: vec![],
+            },
+            ShapeRule::Require {
+                keyword: String::from("route"),
+                type_constraint: Some(TypeConstraint::String),
+                children: vec![],
+            },
+            ShapeRule::Require {
+                keyword: String::from("sender"),
+                type_constraint: Some(TypeConstraint::Symbol),
+                children: vec![],
+            },
+            ShapeRule::Optional {
+                keyword: String::from("priority"),
+                type_constraint: Some(TypeConstraint::String),
+                default: Some(str_expr("normal")),
+                children: vec![],
+            },
+            ShapeRule::Optional {
+                keyword: String::from("weight"),
+                type_constraint: Some(TypeConstraint::Number),
+                default: None,
+                children: vec![],
+            },
+            ShapeRule::Require {
+                keyword: String::from("destination"),
+                type_constraint: Some(TypeConstraint::String),
+                children: vec![],
+            },
+            ShapeRule::Optional {
+                keyword: String::from("fragile"),
+                type_constraint: Some(TypeConstraint::Bool),
+                default: None,
+                children: vec![],
+            },
+            ShapeRule::MaxDepth(6),
+        ],
+    };
+
+    // Message that satisfies the shape
+    let msg = SExpr::List(vec![
+        sym("track-shipment"),
+        SExpr::Atom(Atom::Keyword(String::from("package"))),
+        str_expr("PKG-42"),
+        SExpr::Atom(Atom::Keyword(String::from("route"))),
+        str_expr("A-B"),
+        SExpr::Atom(Atom::Keyword(String::from("sender"))),
+        sym("@alice"),
+        SExpr::Atom(Atom::Keyword(String::from("priority"))),
+        str_expr("express"),
+        SExpr::Atom(Atom::Keyword(String::from("destination"))),
+        str_expr("warehouse-B"),
+        SExpr::Atom(Atom::Keyword(String::from("fragile"))),
+        SExpr::Atom(Atom::Bool(true)),
+    ]);
+
+    c.bench_function("shape/check_8_rules_pass", |b| {
+        b.iter(|| shape.check(black_box(&msg)))
+    });
+
+    // Message that fails (missing required field)
+    let msg_fail = SExpr::List(vec![
+        sym("track-shipment"),
+        SExpr::Atom(Atom::Keyword(String::from("package"))),
+        str_expr("PKG-42"),
+        // missing :route, :sender, :destination
+    ]);
+    c.bench_function("shape/check_8_rules_fail", |b| {
+        b.iter(|| shape.check(black_box(&msg_fail)))
+    });
+
+    // Nested shape with children rules
+    let nested_shape = ShapeConstraint {
+        performative: String::from("propose-step"),
+        rules: vec![
+            ShapeRule::Require {
+                keyword: String::from("params"),
+                type_constraint: Some(TypeConstraint::List),
+                children: vec![
+                    ShapeRule::Require {
+                        keyword: String::from("target"),
+                        type_constraint: Some(TypeConstraint::String),
+                        children: vec![],
+                    },
+                    ShapeRule::Require {
+                        keyword: String::from("action"),
+                        type_constraint: Some(TypeConstraint::Symbol),
+                        children: vec![],
+                    },
+                ],
+            },
+            ShapeRule::MaxDepth(4),
+        ],
+    };
+    let nested_msg = SExpr::List(vec![
+        sym("propose-step"),
+        SExpr::Atom(Atom::Keyword(String::from("params"))),
+        SExpr::List(vec![
+            SExpr::Atom(Atom::Keyword(String::from("target"))),
+            str_expr("server-1"),
+            SExpr::Atom(Atom::Keyword(String::from("action"))),
+            sym("deploy"),
+        ]),
+    ]);
+    c.bench_function("shape/check_nested_children", |b| {
+        b.iter(|| nested_shape.check(black_box(&nested_msg)))
+    });
+}
+
+// ---------------------------------------------------------------------------
+// Hash index benchmarks (TEST-309)
+// ---------------------------------------------------------------------------
+
+fn bench_hash_index(c: &mut Criterion) {
+    // Pre-populate an index with 1000 entries
+    let mut index = HashIndex::with_capacity(1000);
+    let thread = ThreadId(String::from("thread-1"));
+    for i in 0..1000 {
+        index.insert(
+            ContentHash(format!("hash-{}", i)),
+            thread.clone(),
+            i,
+        );
+    }
+
+    // Benchmark lookup of an existing key
+    let lookup_hash = ContentHash(String::from("hash-500"));
+    c.bench_function("hash_index/lookup_hit", |b| {
+        b.iter(|| index.lookup(black_box(&lookup_hash), black_box(&thread)))
+    });
+
+    // Benchmark lookup of a missing key
+    let missing_hash = ContentHash(String::from("hash-nonexistent"));
+    c.bench_function("hash_index/lookup_miss", |b| {
+        b.iter(|| index.lookup(black_box(&missing_hash), black_box(&thread)))
+    });
+
+    // Benchmark lookup with wrong thread (thread isolation)
+    let wrong_thread = ThreadId(String::from("thread-other"));
+    c.bench_function("hash_index/lookup_wrong_thread", |b| {
+        b.iter(|| index.lookup(black_box(&lookup_hash), black_box(&wrong_thread)))
+    });
+
+    // Benchmark insert (new entry)
+    c.bench_function("hash_index/insert_new", |b| {
+        let mut idx = HashIndex::with_capacity(1);
+        let t = ThreadId(String::from("t"));
+        b.iter(|| {
+            idx = HashIndex::with_capacity(1);
+            idx.insert(
+                black_box(ContentHash(String::from("new-hash"))),
+                black_box(t.clone()),
+                black_box(0),
+            )
+        })
+    });
+}
+
+// ---------------------------------------------------------------------------
+// Dedup overhead benchmarks (NFR-304, TEST-354)
+// ---------------------------------------------------------------------------
+
+fn bench_dedup(c: &mut Criterion) {
+    let thread = ThreadId(String::from("dedup-thread"));
+    let msg = Message::Simple {
+        performative: Performative::Core(CorePerformative::Tell),
+        recipient: Some(String::from("@bob")),
+        content: str_expr("hello"),
+        params: vec![],
+        thread: Some(String::from("dedup-thread")),
+        sender: None,
+        caused_by: None,
+    };
+
+    // Benchmark: append a duplicate (should return false quickly)
+    c.bench_function("dedup/append_duplicate", |b| {
+        b.iter_batched(
+            || {
+                let mut store = ThreadedMessageStore::new();
+                store.append(
+                    ContentHash(String::from("dup-hash")),
+                    thread.clone(),
+                    msg.clone(),
+                );
+                store
+            },
+            |mut store| {
+                black_box(store.append(
+                    ContentHash(String::from("dup-hash")),
+                    thread.clone(),
+                    msg.clone(),
+                ))
+            },
+            criterion::BatchSize::SmallInput,
+        )
+    });
+
+    // Benchmark: append a new message (non-duplicate)
+    c.bench_function("dedup/append_new", |b| {
+        let mut counter = 0u64;
+        b.iter(|| {
+            let mut store = ThreadedMessageStore::new();
+            counter += 1;
+            black_box(store.append(
+                ContentHash(format!("unique-{}", counter)),
+                thread.clone(),
+                msg.clone(),
+            ))
+        })
+    });
+
+    // Benchmark: dedup in a store with 1000 existing entries
+    c.bench_function("dedup/append_duplicate_1000_entries", |b| {
+        b.iter_batched(
+            || {
+                let mut store = ThreadedMessageStore::new();
+                for i in 0..1000 {
+                    store.append(
+                        ContentHash(format!("msg-{}", i)),
+                        thread.clone(),
+                        msg.clone(),
+                    );
+                }
+                store
+            },
+            |mut store| {
+                black_box(store.append(
+                    ContentHash(String::from("msg-500")),
+                    thread.clone(),
+                    msg.clone(),
+                ))
+            },
+            criterion::BatchSize::SmallInput,
+        )
+    });
+}
+
+// ---------------------------------------------------------------------------
+// Policy benchmarks (TEST-352: zero mutable state under Reject)
+// ---------------------------------------------------------------------------
+
+fn bench_policy(c: &mut Criterion) {
+    let reject = UnknownPredecessorPolicy::Reject;
+
+    c.bench_function("policy/reject_valid", |b| {
+        b.iter(|| apply_policy(black_box(&VerificationResult::Valid), black_box(&reject)))
+    });
+
+    c.bench_function("policy/reject_unknown", |b| {
+        b.iter(|| apply_policy(black_box(&VerificationResult::Unknown), black_box(&reject)))
+    });
+
+    let buffer = UnknownPredecessorPolicy::buffer(300);
+    c.bench_function("policy/buffer_unknown", |b| {
+        b.iter(|| apply_policy(black_box(&VerificationResult::Unknown), black_box(&buffer)))
+    });
+}
+
+// ---------------------------------------------------------------------------
 // Criterion groups
 // ---------------------------------------------------------------------------
 
@@ -459,5 +840,10 @@ criterion_group!(
     bench_msg_tag,
     bench_eval,
     bench_gossip,
+    bench_causal_verification,
+    bench_shape_check,
+    bench_hash_index,
+    bench_dedup,
+    bench_policy,
 );
 criterion_main!(benches);

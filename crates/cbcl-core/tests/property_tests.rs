@@ -216,7 +216,7 @@ proptest! {
             examples: Vec::new(),
             signature: None,
             hash: None,
-            protocol: None,
+            protocol: None, causal_protocol: None, shapes: Vec::new(),
         };
         prop_assert!(verify_r2(&d));
         prop_assert!(bounds.is_valid());
@@ -234,7 +234,7 @@ proptest! {
             examples: Vec::new(),
             signature: None,
             hash: None,
-            protocol: None,
+            protocol: None, causal_protocol: None, shapes: Vec::new(),
         };
         prop_assert!(!verify_r2(&d));
         prop_assert!(!bounds.is_valid());
@@ -332,7 +332,7 @@ proptest! {
             examples: Vec::new(),
             signature: None,
             hash: None,
-            protocol: None,
+            protocol: None, causal_protocol: None, shapes: Vec::new(),
         };
 
         let announced = net.announce_dialect(dialect, "agent-0");
@@ -387,7 +387,7 @@ proptest! {
             examples: Vec::new(),
             signature: None,
             hash: None,
-            protocol: None,
+            protocol: None, causal_protocol: None, shapes: Vec::new(),
         };
 
         let result = net.simulate_propagation(dialect, "agent-0");
@@ -427,7 +427,7 @@ proptest! {
             examples: Vec::new(),
             signature: None,
             hash: None,
-            protocol: None,
+            protocol: None, causal_protocol: None, shapes: Vec::new(),
         };
 
         let result = net.simulate_propagation(dialect, "agent-0");
@@ -506,7 +506,7 @@ proptest! {
             examples: Vec::new(),
             signature: None,
             hash: None,
-            protocol: None,
+            protocol: None, causal_protocol: None, shapes: Vec::new(),
         };
         let result = reg.install(d);
         prop_assert!(result.is_err());

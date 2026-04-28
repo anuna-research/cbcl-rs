@@ -13,7 +13,7 @@ version = "0.1.0"
 edition = "2021"
 rust-version = "1.75.0"
 license = "Apache-2.0"
-repository = "https://github.com/hyperifyio/cbcl"
+repository = "https://codeberg.org/anuna/cbcl-rs"
 
 [workspace.dependencies]
 cbcl-core = { path = "crates/cbcl-core", default-features = false }

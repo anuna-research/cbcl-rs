@@ -128,6 +128,13 @@ fn cmd_parse(input: Option<String>, sexpr_mode: bool) -> i32 {
                 eprintln!("validation error: {e}");
                 1
             }
+            // run_pipeline (lightweight) skips causal verification, so these
+            // policy-driven outcomes are unreachable here. Use run_pipeline_full
+            // with a configured PipelineContext to surface them.
+            PipelineResult::Pending { .. } | PipelineResult::Buffered { .. } => {
+                eprintln!("validation error: unexpected pending result from lightweight pipeline");
+                1
+            }
         }
     }
 }
@@ -291,7 +298,7 @@ fn cmd_agent(id: String) -> i32 {
                 // Try to parse and evaluate a message
                 match run_pipeline(line) {
                     PipelineResult::Success(msg) => match agent.evaluate_and_apply(&msg) {
-                        Ok(result) => {
+                        cbcl_core::agent::AgentOutcome::Applied(result) => {
                             println!("  expanded: {}", serialize(&result.expanded));
                             for effect in &result.effects {
                                 println!("  effect: {:?}", effect);
@@ -300,10 +307,27 @@ fn cmd_agent(id: String) -> i32 {
                                 println!("  thread: {thread}");
                             }
                         }
-                        Err(e) => eprintln!("  eval error: {e}"),
+                        cbcl_core::agent::AgentOutcome::CausalReject(cv) => {
+                            eprintln!("  causal reject: {cv}");
+                        }
+                        cbcl_core::agent::AgentOutcome::Pending(reason) => {
+                            eprintln!("  pending: {reason:?}");
+                        }
+                        cbcl_core::agent::AgentOutcome::Buffered => {
+                            eprintln!("  buffered (waiting for predecessor)");
+                        }
+                        cbcl_core::agent::AgentOutcome::EvalError(e) => {
+                            eprintln!("  eval error: {e}");
+                        }
                     },
                     PipelineResult::ParseError(e) => eprintln!("  parse error: {e}"),
                     PipelineResult::ValidationError(e) => eprintln!("  validation error: {e}"),
+                    PipelineResult::Pending { reason, .. } => {
+                        eprintln!("  pending: {:?}", reason);
+                    }
+                    PipelineResult::Buffered { .. } => {
+                        eprintln!("  buffered (waiting for predecessor)");
+                    }
                 }
             }
         }

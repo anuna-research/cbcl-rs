@@ -11,6 +11,26 @@ use alloc::vec;
 use alloc::vec::Vec;
 use core::fmt;
 
+/// Causal predecessor reference for a message (REQ-202).
+///
+/// Encodes the `:caused-by` keyword parameter:
+/// - `Begin` — this message starts a new causal chain (`:caused-by "begin"`)
+/// - `Single(hash)` — single predecessor (`:caused-by <hash>`)
+/// - `Multiple(hashes)` — multiple predecessors (`:caused-by (<h1> <h2> ...)`)
+///
+/// For the `Multiple` variant, hashes are stored in canonical (sorted) order
+/// to ensure deterministic hashing.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum CausedBy {
+    /// This message begins a new causal chain.
+    Begin,
+    /// Single causal predecessor, identified by content hash.
+    Single(String),
+    /// Multiple causal predecessors, sorted lexicographically for canonical ordering.
+    Multiple(Vec<String>),
+}
+
 /// The 8 core performatives (REQ-010).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -152,6 +172,7 @@ pub enum Message {
         params: Vec<SExpr>,
         thread: Option<String>,
         sender: Option<String>,
+        caused_by: Option<CausedBy>,
     },
     /// Meta message: `(meta <dialect_def>)`
     Meta { dialect_def: SExpr },
@@ -229,6 +250,17 @@ impl Message {
         }
     }
 
+    /// Returns the caused-by reference if this is a Simple message with one.
+    pub fn caused_by(&self) -> Option<&CausedBy> {
+        match self {
+            Message::Simple {
+                caused_by: Some(cb),
+                ..
+            } => Some(cb),
+            _ => None,
+        }
+    }
+
     /// Returns the dialect definition if this is a Meta message.
     pub fn dialect_def(&self) -> Option<&SExpr> {
         match self {
@@ -251,6 +283,22 @@ impl Message {
             Message::Dialect { inner, .. } => Some(inner),
             Message::Wrapped { content, .. } => Some(content),
             _ => None,
+        }
+    }
+
+    /// Walk through `Wrapped` and `Dialect` envelopes to the innermost
+    /// `Message::Simple`. Returns `None` if no Simple is found (e.g. a `Meta`
+    /// message). Used by the parser pipeline and the agent to ensure
+    /// wrappers cannot be used to bypass causal/shape verification.
+    pub fn innermost_simple(&self) -> Option<&Message> {
+        let mut cur = self;
+        loop {
+            match cur {
+                Message::Simple { .. } => return Some(cur),
+                Message::Wrapped { content, .. } => cur = content,
+                Message::Dialect { inner, .. } => cur = inner,
+                Message::Meta { .. } => return None,
+            }
         }
     }
 
@@ -277,6 +325,7 @@ impl From<Message> for SExpr {
                 params,
                 thread,
                 sender,
+                caused_by,
             } => {
                 let mut items = vec![SExpr::Atom(Atom::Symbol(String::from(performative.name())))];
                 if let Some(r) = recipient {
@@ -291,6 +340,24 @@ impl From<Message> for SExpr {
                 if let Some(s) = sender {
                     items.push(SExpr::Atom(Atom::Keyword(String::from("sender"))));
                     items.push(SExpr::Atom(Atom::Str(s)));
+                }
+                if let Some(cb) = caused_by {
+                    items.push(SExpr::Atom(Atom::Keyword(String::from("caused-by"))));
+                    match cb {
+                        CausedBy::Begin => {
+                            items.push(SExpr::Atom(Atom::Symbol(String::from("begin"))));
+                        }
+                        CausedBy::Single(h) => {
+                            items.push(SExpr::Atom(Atom::Symbol(h)));
+                        }
+                        CausedBy::Multiple(hs) => {
+                            let hash_exprs = hs
+                                .iter()
+                                .map(|h| SExpr::Atom(Atom::Symbol(h.clone())))
+                                .collect();
+                            items.push(SExpr::List(hash_exprs));
+                        }
+                    }
                 }
                 SExpr::List(items)
             }
@@ -431,6 +498,7 @@ fn parse_simple(head: &str, tail: &[SExpr]) -> Result<Message, MessageParseError
     let mut content = None;
     let mut thread = None;
     let mut sender_val = None;
+    let mut caused_by = None;
     let mut params = Vec::new();
     let mut i = 0;
 
@@ -458,6 +526,8 @@ fn parse_simple(head: &str, tail: &[SExpr]) -> Result<Message, MessageParseError
                     thread = Some(extract_string_or_symbol(val));
                 } else if k == "sender" {
                     sender_val = Some(extract_string_or_symbol(val));
+                } else if k == "caused-by" {
+                    caused_by = Some(parse_caused_by(val)?);
                 } else {
                     params.push(tail[i].clone());
                     params.push(val.clone());
@@ -482,7 +552,49 @@ fn parse_simple(head: &str, tail: &[SExpr]) -> Result<Message, MessageParseError
         params,
         thread,
         sender: sender_val,
+        caused_by,
     })
+}
+
+/// Parse the value of a `:caused-by` keyword parameter.
+///
+/// Accepts three forms:
+/// - `"begin"` or `begin` symbol → `CausedBy::Begin`
+/// - Single atom (hash) → `CausedBy::Single(hash)`
+/// - List of atoms (hashes) → `CausedBy::Multiple(sorted_hashes)`
+fn parse_caused_by(val: &SExpr) -> Result<CausedBy, MessageParseError> {
+    match val {
+        SExpr::Atom(Atom::Symbol(s)) if s == "begin" => Ok(CausedBy::Begin),
+        SExpr::Atom(Atom::Str(s)) if s == "begin" => Ok(CausedBy::Begin),
+        SExpr::Atom(Atom::Symbol(s)) => Ok(CausedBy::Single(s.clone())),
+        SExpr::Atom(Atom::Str(s)) => Ok(CausedBy::Single(s.clone())),
+        SExpr::List(items) => {
+            if items.is_empty() {
+                return Err(MessageParseError(String::from(
+                    ":caused-by list must not be empty",
+                )));
+            }
+            let mut hashes = Vec::with_capacity(items.len());
+            for item in items {
+                match item {
+                    SExpr::Atom(Atom::Symbol(s)) | SExpr::Atom(Atom::Str(s)) => {
+                        hashes.push(s.clone());
+                    }
+                    _ => {
+                        return Err(MessageParseError(String::from(
+                            ":caused-by list elements must be symbols or strings",
+                        )));
+                    }
+                }
+            }
+            // Canonical ordering: sort lexicographically (REQ-202)
+            hashes.sort();
+            Ok(CausedBy::Multiple(hashes))
+        }
+        _ => Err(MessageParseError(String::from(
+            ":caused-by value must be a symbol, string, or list of hashes",
+        ))),
+    }
 }
 
 fn extract_string_or_symbol(sexpr: &SExpr) -> String {
@@ -552,6 +664,7 @@ mod tests {
             params: vec![],
             thread: None,
             sender: None,
+            caused_by: None,
         };
         assert_eq!(simple.message_type(), MessageType::Simple);
 
@@ -585,6 +698,7 @@ mod tests {
             params: vec![],
             thread: Some("conv-1".into()),
             sender: Some("@alice".into()),
+            caused_by: None,
         };
         assert_eq!(msg.performative().unwrap().name(), "tell");
         assert_eq!(msg.recipient(), Some("@bob"));
@@ -618,6 +732,7 @@ mod tests {
             params: vec![],
             thread: None,
             sender: None,
+            caused_by: None,
         };
         let msg = Message::Dialect {
             dialect_name: "logistics".into(),
@@ -636,6 +751,7 @@ mod tests {
             params: vec![],
             thread: None,
             sender: None,
+            caused_by: None,
         };
         let msg = Message::Wrapped {
             wrapper: WrapperType::Signed,
@@ -808,6 +924,7 @@ mod tests {
             params: vec![],
             thread: None,
             sender: None,
+            caused_by: None,
         };
         let sexpr = SExpr::from(msg);
         assert_eq!(sexpr.to_string(), "(tell @bob \"hello\")");
@@ -822,6 +939,7 @@ mod tests {
             params: vec![],
             thread: Some("conv-17".into()),
             sender: None,
+            caused_by: None,
         };
         let sexpr = SExpr::from(msg);
         assert_eq!(sexpr.to_string(), "(reply \"done\" :thread \"conv-17\")");
@@ -847,6 +965,7 @@ mod tests {
                 params: vec![],
                 thread: None,
                 sender: None,
+                caused_by: None,
             }),
         };
         let sexpr = SExpr::from(msg);
@@ -868,6 +987,7 @@ mod tests {
                 params: vec![],
                 thread: None,
                 sender: None,
+                caused_by: None,
             }),
         };
         let sexpr = SExpr::from(msg);
@@ -930,5 +1050,243 @@ mod tests {
             msg.performative(),
             Some(&Performative::Custom(String::from("propose-step")))
         );
+    }
+
+    // -- CausedBy (REQ-202, TEST-202) --
+
+    #[test]
+    fn caused_by_begin_symbol() {
+        let sexpr = list(vec![
+            sym("tell"),
+            str_expr("hello"),
+            kw("caused-by"),
+            sym("begin"),
+        ]);
+        let msg = Message::try_from(&sexpr).unwrap();
+        assert_eq!(msg.caused_by(), Some(&CausedBy::Begin));
+    }
+
+    #[test]
+    fn caused_by_begin_string() {
+        let sexpr = list(vec![
+            sym("tell"),
+            str_expr("hello"),
+            kw("caused-by"),
+            str_expr("begin"),
+        ]);
+        let msg = Message::try_from(&sexpr).unwrap();
+        assert_eq!(msg.caused_by(), Some(&CausedBy::Begin));
+    }
+
+    #[test]
+    fn caused_by_single_hash() {
+        let sexpr = list(vec![
+            sym("reply"),
+            str_expr("done"),
+            kw("caused-by"),
+            sym("sha256:abc123"),
+        ]);
+        let msg = Message::try_from(&sexpr).unwrap();
+        assert_eq!(
+            msg.caused_by(),
+            Some(&CausedBy::Single(String::from("sha256:abc123")))
+        );
+    }
+
+    #[test]
+    fn caused_by_single_hash_string() {
+        let sexpr = list(vec![
+            sym("reply"),
+            str_expr("done"),
+            kw("caused-by"),
+            str_expr("sha256:abc123"),
+        ]);
+        let msg = Message::try_from(&sexpr).unwrap();
+        assert_eq!(
+            msg.caused_by(),
+            Some(&CausedBy::Single(String::from("sha256:abc123")))
+        );
+    }
+
+    #[test]
+    fn caused_by_multiple_hashes() {
+        let sexpr = list(vec![
+            sym("ok"),
+            str_expr("ack"),
+            kw("caused-by"),
+            list(vec![sym("sha256:bbb"), sym("sha256:aaa")]),
+        ]);
+        let msg = Message::try_from(&sexpr).unwrap();
+        // Multiple hashes are sorted lexicographically
+        assert_eq!(
+            msg.caused_by(),
+            Some(&CausedBy::Multiple(vec![
+                String::from("sha256:aaa"),
+                String::from("sha256:bbb"),
+            ]))
+        );
+    }
+
+    #[test]
+    fn caused_by_multiple_canonical_sort() {
+        // Verify that different input orderings produce the same canonical form
+        let sexpr1 = list(vec![
+            sym("ok"),
+            str_expr("ack"),
+            kw("caused-by"),
+            list(vec![sym("c"), sym("a"), sym("b")]),
+        ]);
+        let sexpr2 = list(vec![
+            sym("ok"),
+            str_expr("ack"),
+            kw("caused-by"),
+            list(vec![sym("b"), sym("c"), sym("a")]),
+        ]);
+        let msg1 = Message::try_from(&sexpr1).unwrap();
+        let msg2 = Message::try_from(&sexpr2).unwrap();
+        assert_eq!(msg1.caused_by(), msg2.caused_by());
+        assert_eq!(
+            msg1.caused_by(),
+            Some(&CausedBy::Multiple(vec![
+                String::from("a"),
+                String::from("b"),
+                String::from("c"),
+            ]))
+        );
+    }
+
+    #[test]
+    fn caused_by_none_when_absent() {
+        let sexpr = list(vec![sym("tell"), str_expr("hello")]);
+        let msg = Message::try_from(&sexpr).unwrap();
+        assert!(msg.caused_by().is_none());
+    }
+
+    #[test]
+    fn caused_by_empty_list_error() {
+        let sexpr = list(vec![
+            sym("tell"),
+            str_expr("hello"),
+            kw("caused-by"),
+            list(vec![]),
+        ]);
+        assert!(Message::try_from(&sexpr).is_err());
+    }
+
+    #[test]
+    fn caused_by_invalid_type_error() {
+        let sexpr = list(vec![
+            sym("tell"),
+            str_expr("hello"),
+            kw("caused-by"),
+            SExpr::Atom(Atom::Num(42)),
+        ]);
+        assert!(Message::try_from(&sexpr).is_err());
+    }
+
+    #[test]
+    fn caused_by_roundtrip_begin() {
+        let original = list(vec![
+            sym("tell"),
+            str_expr("hello"),
+            kw("caused-by"),
+            sym("begin"),
+        ]);
+        let msg = Message::try_from(&original).unwrap();
+        let back = SExpr::from(msg);
+        assert_eq!(back, original);
+    }
+
+    #[test]
+    fn caused_by_roundtrip_single() {
+        let original = list(vec![
+            sym("reply"),
+            str_expr("done"),
+            kw("caused-by"),
+            sym("sha256:abc"),
+        ]);
+        let msg = Message::try_from(&original).unwrap();
+        let back = SExpr::from(msg);
+        assert_eq!(back, original);
+    }
+
+    #[test]
+    fn caused_by_roundtrip_multiple_sorted() {
+        // Input already sorted → roundtrip exact match
+        let original = list(vec![
+            sym("ok"),
+            str_expr("ack"),
+            kw("caused-by"),
+            list(vec![sym("aaa"), sym("bbb"), sym("ccc")]),
+        ]);
+        let msg = Message::try_from(&original).unwrap();
+        let back = SExpr::from(msg);
+        assert_eq!(back, original);
+    }
+
+    #[test]
+    fn caused_by_roundtrip_multiple_canonicalized() {
+        // Input unsorted → extract canonicalizes → roundtrip produces sorted form
+        let input = list(vec![
+            sym("ok"),
+            str_expr("ack"),
+            kw("caused-by"),
+            list(vec![sym("ccc"), sym("aaa"), sym("bbb")]),
+        ]);
+        let msg = Message::try_from(&input).unwrap();
+        let back = SExpr::from(msg);
+        let expected = list(vec![
+            sym("ok"),
+            str_expr("ack"),
+            kw("caused-by"),
+            list(vec![sym("aaa"), sym("bbb"), sym("ccc")]),
+        ]);
+        assert_eq!(back, expected);
+    }
+
+    #[test]
+    fn caused_by_with_thread_and_sender() {
+        let sexpr = list(vec![
+            sym("tell"),
+            sym("@bob"),
+            str_expr("hello"),
+            kw("thread"),
+            sym("conv-1"),
+            kw("sender"),
+            sym("@alice"),
+            kw("caused-by"),
+            sym("sha256:xyz"),
+        ]);
+        let msg = Message::try_from(&sexpr).unwrap();
+        assert_eq!(msg.thread(), Some("conv-1"));
+        assert_eq!(msg.sender(), Some("@alice"));
+        assert_eq!(
+            msg.caused_by(),
+            Some(&CausedBy::Single(String::from("sha256:xyz")))
+        );
+    }
+
+    #[test]
+    fn caused_by_extract_hash_deterministic() {
+        // REQ-202: extract → canonical → hash is deterministic
+        use crate::canonical::canonical_encode;
+
+        let sexpr1 = list(vec![
+            sym("ok"),
+            str_expr("ack"),
+            kw("caused-by"),
+            list(vec![sym("z"), sym("a"), sym("m")]),
+        ]);
+        let sexpr2 = list(vec![
+            sym("ok"),
+            str_expr("ack"),
+            kw("caused-by"),
+            list(vec![sym("m"), sym("z"), sym("a")]),
+        ]);
+        let msg1 = Message::try_from(&sexpr1).unwrap();
+        let msg2 = Message::try_from(&sexpr2).unwrap();
+        let bytes1 = canonical_encode(&SExpr::from(msg1));
+        let bytes2 = canonical_encode(&SExpr::from(msg2));
+        assert_eq!(bytes1, bytes2, "canonical encoding must be deterministic after sorting");
     }
 }

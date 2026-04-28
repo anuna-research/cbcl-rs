@@ -1,0 +1,75 @@
+{
+  "task_id": "compaction",
+  "token_budget": 8000,
+  "tokens_used": 425,
+  "elements_selected": [
+    {
+      "source": "plan-meta/description",
+      "content": "Implement checkpoint creation and compaction. Checkpoint: (meta (checkpoint :cut ... :verified-by ... :digest ...)). Compaction removes messages strictly below cut (antichain). Safety: refuse if pending messages reference below-cut messages. Non-monotonic -- requires coordination (checkpoint agreement per ADR-304). REQ-313.",
+      "token_cost": 81,
+      "priority": "PlanMeta"
+    },
+    {
+      "source": "memory/episodic/task-observability-changes",
+      "content": "Modified 3 files (+86, -5): .hence/context-manifest.json, crates/cbcl-core/src/blame.rs, crates/cbcl-parser/src/pipeline.rs",
+      "token_cost": 30,
+      "priority": "AgentMemory"
+    },
+    {
+      "source": "memory/episodic/task-shape-changes",
+      "content": "Modified 18 files (+1174, -38): crates/cbcl-core/benches/core_bench.rs, crates/cbcl-core/src/agent.rs, crates/cbcl-core/src/canonical.rs, crates/cbcl-core/src/dialect.rs, crates/cbcl-core/src/evaluator.rs and 13 more",
+      "token_cost": 54,
+      "priority": "AgentMemory"
+    },
+    {
+      "source": "memory/episodic/task-shape-check-changes",
+      "content": "Modified 1 files (+274, -0): crates/cbcl-core/src/evaluator.rs",
+      "token_cost": 15,
+      "priority": "AgentMemory"
+    },
+    {
+      "source": "memory/episodic/task-verification-result-changes",
+      "content": "Modified 2 files (+443, -0): crates/cbcl-core/src/lib.rs, crates/cbcl-core/src/protocol.rs",
+      "token_cost": 22,
+      "priority": "AgentMemory"
+    },
+    {
+      "source": "memory/episodic/task-protocol-parser-changes",
+      "content": "Modified 18 files (+620, -39): crates/cbcl-core/benches/core_bench.rs, crates/cbcl-core/src/agent.rs, crates/cbcl-core/src/canonical.rs, crates/cbcl-core/src/dialect.rs, crates/cbcl-core/src/evaluator.rs and 13 more",
+      "token_cost": 53,
+      "priority": "AgentMemory"
+    },
+    {
+      "source": "memory/episodic/task-shape-validation-changes",
+      "content": "Modified 3 files (+373, -0): crates/cbcl-core/src/dialect.rs, crates/cbcl-core/src/lib.rs, crates/cbcl-core/src/r5.rs",
+      "token_cost": 29,
+      "priority": "AgentMemory"
+    },
+    {
+      "source": "memory/episodic/task-protocol-validation-changes",
+      "content": "Modified 4 files (+682, -8): .hence/context-manifest.json, crates/cbcl-core/src/lib.rs, crates/cbcl-core/src/protocol.rs, crates/cbcl-core/src/r5.rs",
+      "token_cost": 37,
+      "priority": "AgentMemory"
+    },
+    {
+      "source": "memory/episodic/task-hash-index-changes",
+      "content": "Modified 4 files (+346, -0): Cargo.lock, crates/cbcl-core/Cargo.toml, crates/cbcl-core/src/lib.rs, crates/cbcl-core/src/store.rs",
+      "token_cost": 32,
+      "priority": "AgentMemory"
+    },
+    {
+      "source": "memory/episodic/task-caused-by-changes",
+      "content": "Modified 10 files (+386, -6): .hence/context-manifest.json, crates/cbcl-core/benches/core_bench.rs, crates/cbcl-core/src/agent.rs, crates/cbcl-core/src/evaluator.rs, crates/cbcl-core/src/lib.rs and 5 more",
+      "token_cost": 51,
+      "priority": "AgentMemory"
+    },
+    {
+      "source": "memory/episodic/task-message-store-changes",
+      "content": "Modified 2 files (+481, -7): crates/cbcl-core/src/lib.rs, crates/cbcl-core/src/store.rs",
+      "token_cost": 21,
+      "priority": "AgentMemory"
+    }
+  ],
+  "elements_excluded": [],
+  "constructed_at": "2026-03-24T15:30:36Z"
+}

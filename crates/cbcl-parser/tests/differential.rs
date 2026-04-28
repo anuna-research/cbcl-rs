@@ -131,8 +131,7 @@ fn differential_simple_messages() {
         if is_success(v) {
             let msg = match result {
                 PipelineResult::Success(m) => m,
-                PipelineResult::ParseError(e) => panic!("[{id}] parse error: {e}"),
-                PipelineResult::ValidationError(e) => panic!("[{id}] validation error: {e}"),
+                other => panic!("[{id}] expected success, got: {other:?}"),
             };
 
             let expected = &v["expected"]["value"];
@@ -564,7 +563,7 @@ fn make_test_dialect(name: &str, bounds: ResourceBounds) -> Dialect {
         examples: vec![],
         signature: None,
         hash: None,
-        protocol: None,
+        protocol: None, causal_protocol: None, shapes: Vec::new(),
     }
 }
 
@@ -687,7 +686,7 @@ fn differential_r3_core_preservation() {
                     examples: vec![],
                     signature: None,
                     hash: None,
-                    protocol: None,
+                    protocol: None, causal_protocol: None, shapes: Vec::new(),
                 };
                 assert!(
                     !verify_r3(&d),
@@ -786,6 +785,8 @@ fn differential_r4_signatures() {
                     .get("protocol")
                     .and_then(|v| v.as_str())
                     .map(String::from),
+                causal_protocol: None,
+                shapes: vec![],
             };
 
             let expected = &v["expected"];

@@ -21,6 +21,7 @@ use crate::dialect::{Dialect, DialectRegistry};
 use crate::message::{Message, MessageType, Performative};
 use crate::r2::ResourceState;
 use crate::sexpr::{Atom, SExpr};
+use crate::shape::ShapeViolation;
 use crate::template::expand_template;
 
 // ---------------------------------------------------------------------------
@@ -81,6 +82,8 @@ pub enum EvalError {
     UnknownDialect(String),
     /// The message is malformed.
     MalformedMessage(String),
+    /// The expanded message violates a shape constraint (REQ-223).
+    ShapeViolation(ShapeViolation),
 }
 
 impl fmt::Display for EvalError {
@@ -100,6 +103,9 @@ impl fmt::Display for EvalError {
             }
             EvalError::MalformedMessage(msg) => {
                 write!(f, "malformed message: {msg}")
+            }
+            EvalError::ShapeViolation(v) => {
+                write!(f, "{v}")
             }
         }
     }
@@ -128,20 +134,35 @@ pub struct EvalResult {
 ///
 /// This is a pure function: it inspects the message, expands templates using
 /// the registry, and returns the resulting effects without mutating any state.
+/// Performs shape checking inline; for a no-shape variant (used by callers
+/// that run shape validation separately with richer blame), see
+/// [`evaluate_without_shape_check`].
 pub fn evaluate(msg: &Message, registry: &DialectRegistry) -> Result<EvalResult, EvalError> {
-    evaluate_with_scope(msg, registry, None)
+    evaluate_with_scope(msg, registry, None, /*check_shape=*/ true)
+}
+
+/// Evaluate a message without performing shape validation.
+///
+/// Used by callers (e.g. the pipeline) that run their own shape check step
+/// against the expanded form so they can attach richer blame evidence.
+pub fn evaluate_without_shape_check(
+    msg: &Message,
+    registry: &DialectRegistry,
+) -> Result<EvalResult, EvalError> {
+    evaluate_with_scope(msg, registry, None, /*check_shape=*/ false)
 }
 
 fn evaluate_with_scope(
     msg: &Message,
     registry: &DialectRegistry,
     scope: Option<&Dialect>,
+    check_shape: bool,
 ) -> Result<EvalResult, EvalError> {
     match msg.message_type() {
-        MessageType::Simple => evaluate_simple(msg, registry, scope),
+        MessageType::Simple => evaluate_simple(msg, registry, scope, check_shape),
         MessageType::Meta => evaluate_meta(msg),
-        MessageType::Dialect => evaluate_dialect(msg, registry),
-        MessageType::Wrapped => evaluate_wrapped(msg, registry, scope),
+        MessageType::Dialect => evaluate_dialect(msg, registry, check_shape),
+        MessageType::Wrapped => evaluate_wrapped(msg, registry, scope, check_shape),
     }
 }
 
@@ -150,6 +171,7 @@ fn evaluate_simple(
     msg: &Message,
     registry: &DialectRegistry,
     scope: Option<&Dialect>,
+    check_shape: bool,
 ) -> Result<EvalResult, EvalError> {
     let performative = msg
         .performative()
@@ -179,6 +201,13 @@ fn evaluate_simple(
         expand_template(def, &args, &mut rs).ok_or_else(|| EvalError::TemplateExpansionFailed {
             performative: String::from(perf_name),
         })?;
+
+    // Shape checking on expanded message (REQ-223, REQ-224).
+    // All shape constraints matching the performative compose via conjunction:
+    // every matching constraint must pass.
+    if check_shape {
+        check_shapes(perf_name, &expanded, registry)?;
+    }
 
     // Interpret the expanded form into concrete effects.
     let recipient = msg.recipient().map(String::from);
@@ -211,7 +240,11 @@ fn evaluate_meta(msg: &Message) -> Result<EvalResult, EvalError> {
 }
 
 /// Evaluate a dialect-scoped message: resolve dialect, then evaluate inner message.
-fn evaluate_dialect(msg: &Message, registry: &DialectRegistry) -> Result<EvalResult, EvalError> {
+fn evaluate_dialect(
+    msg: &Message,
+    registry: &DialectRegistry,
+    check_shape: bool,
+) -> Result<EvalResult, EvalError> {
     let dialect_name = msg
         .dialect_name()
         .ok_or_else(|| EvalError::MalformedMessage(String::from("dialect message missing name")))?;
@@ -225,7 +258,7 @@ fn evaluate_dialect(msg: &Message, registry: &DialectRegistry) -> Result<EvalRes
         EvalError::MalformedMessage(String::from("dialect message missing inner"))
     })?;
 
-    evaluate_with_scope(inner, registry, Some(dialect))
+    evaluate_with_scope(inner, registry, Some(dialect), check_shape)
 }
 
 /// Evaluate a wrapped message: unwrap and evaluate the inner message.
@@ -233,12 +266,13 @@ fn evaluate_wrapped(
     msg: &Message,
     registry: &DialectRegistry,
     scope: Option<&Dialect>,
+    check_shape: bool,
 ) -> Result<EvalResult, EvalError> {
     let inner = msg.inner_message().ok_or_else(|| {
         EvalError::MalformedMessage(String::from("wrapped message missing inner"))
     })?;
 
-    evaluate_with_scope(inner, registry, scope)
+    evaluate_with_scope(inner, registry, scope, check_shape)
 }
 
 fn resolve_performative_dialect<'a>(
@@ -256,6 +290,30 @@ fn resolve_performative_dialect<'a>(
     }
 
     registry.find_performative_dialect(performative.name())
+}
+
+// ---------------------------------------------------------------------------
+// Shape checking (REQ-223, REQ-224)
+// ---------------------------------------------------------------------------
+
+/// Check all shape constraints for a performative across all installed dialects.
+///
+/// Multiple constraints compose via conjunction (REQ-224): every matching
+/// constraint must pass. This is a VPL tree-walking operation and trivially
+/// preserves DCFL membership (REQ-225).
+fn check_shapes(
+    performative: &str,
+    expanded: &SExpr,
+    registry: &DialectRegistry,
+) -> Result<(), EvalError> {
+    for dialect in registry.iter() {
+        for shape in &dialect.shapes {
+            if shape.performative == performative {
+                shape.check(expanded).map_err(EvalError::ShapeViolation)?;
+            }
+        }
+    }
+    Ok(())
 }
 
 // ---------------------------------------------------------------------------
@@ -352,7 +410,7 @@ mod tests {
             examples: Vec::new(),
             signature: None,
             hash: None,
-            protocol: None,
+            protocol: None, causal_protocol: None, shapes: Vec::new(),
         })
         .unwrap();
         reg
@@ -383,7 +441,7 @@ mod tests {
             examples: Vec::new(),
             signature: None,
             hash: None,
-            protocol: None,
+            protocol: None, causal_protocol: None, shapes: Vec::new(),
         })
         .unwrap();
         reg
@@ -401,6 +459,7 @@ mod tests {
             params: Vec::new(),
             thread: None,
             sender: None,
+            caused_by: None,
         };
         let result = evaluate(&msg, &reg).unwrap();
         assert_eq!(result.effects.len(), 2);
@@ -430,6 +489,7 @@ mod tests {
             params: Vec::new(),
             thread: None,
             sender: None,
+            caused_by: None,
         };
         let result = evaluate(&msg, &reg).unwrap();
         assert_eq!(result.effects.len(), 1);
@@ -452,6 +512,7 @@ mod tests {
             params: Vec::new(),
             thread: Some(String::from("conv-1")),
             sender: None,
+            caused_by: None,
         };
         let result = evaluate(&msg, &reg).unwrap();
         assert_eq!(result.effects.len(), 1);
@@ -475,6 +536,7 @@ mod tests {
             params: Vec::new(),
             thread: None,
             sender: None,
+            caused_by: None,
         };
         let result = evaluate(&msg, &reg).unwrap();
         assert_eq!(
@@ -495,6 +557,7 @@ mod tests {
             params: Vec::new(),
             thread: None,
             sender: None,
+            caused_by: None,
         };
         let result = evaluate(&msg, &reg).unwrap();
         assert_eq!(result.effects[0], Effect::Acknowledge);
@@ -510,6 +573,7 @@ mod tests {
             params: Vec::new(),
             thread: Some(String::from("conv-2")),
             sender: None,
+            caused_by: None,
         };
         let result = evaluate(&msg, &reg).unwrap();
         assert_eq!(result.effects[0], Effect::CancelConversation);
@@ -526,6 +590,7 @@ mod tests {
             params: Vec::new(),
             thread: None,
             sender: None,
+            caused_by: None,
         };
         let result = evaluate(&msg, &reg).unwrap();
         assert_eq!(result.effects[0], Effect::AnnouncePresence);
@@ -541,6 +606,7 @@ mod tests {
             params: Vec::new(),
             thread: None,
             sender: None,
+            caused_by: None,
         };
         let result = evaluate(&msg, &reg).unwrap();
         assert_eq!(result.effects[0], Effect::AnnounceDeparture);
@@ -556,6 +622,7 @@ mod tests {
             params: Vec::new(),
             thread: None,
             sender: None,
+            caused_by: None,
         };
         let err = evaluate(&msg, &reg).unwrap_err();
         assert!(matches!(err, EvalError::UnknownPerformative(_)));
@@ -573,6 +640,7 @@ mod tests {
             params: vec![SExpr::Atom(Atom::Symbol(String::from("warehouse-A")))],
             thread: None,
             sender: None,
+            caused_by: None,
         };
         let result = evaluate(&msg, &reg).unwrap();
         // Template expands to (effect dispatch-shipment) — a custom effect action
@@ -613,6 +681,7 @@ mod tests {
             params: vec![SExpr::Atom(Atom::Symbol(String::from("depot-B")))],
             thread: Some(String::from("shipment-thread")),
             sender: None,
+            caused_by: None,
         };
         let msg = Message::Dialect {
             dialect_name: String::from("logistics"),
@@ -636,6 +705,7 @@ mod tests {
             params: vec![SExpr::Atom(Atom::Symbol(String::from("dock-C")))],
             thread: None,
             sender: None,
+            caused_by: None,
         };
         let msg = Message::Dialect {
             dialect_name: String::from("logistics"),
@@ -659,6 +729,7 @@ mod tests {
             params: vec![SExpr::Atom(Atom::Symbol(String::from("dock-D")))],
             thread: None,
             sender: None,
+            caused_by: None,
         };
         let msg = Message::Dialect {
             dialect_name: String::from("cbcl-base"),
@@ -679,6 +750,7 @@ mod tests {
             params: Vec::new(),
             thread: None,
             sender: None,
+            caused_by: None,
         };
         let msg = Message::Dialect {
             dialect_name: String::from("nonexistent"),
@@ -700,6 +772,7 @@ mod tests {
             params: Vec::new(),
             thread: None,
             sender: None,
+            caused_by: None,
         };
         let msg = Message::Wrapped {
             wrapper: WrapperType::Envelope,
@@ -729,6 +802,7 @@ mod tests {
             params: Vec::new(),
             thread: Some(String::from("thread-42")),
             sender: None,
+            caused_by: None,
         };
         let result = evaluate(&msg, &reg).unwrap();
         assert_eq!(result.thread, Some(String::from("thread-42")));
@@ -744,6 +818,7 @@ mod tests {
             params: Vec::new(),
             thread: None,
             sender: None,
+            caused_by: None,
         };
         let result = evaluate(&msg, &reg).unwrap();
         assert!(result.thread.is_none());
@@ -789,5 +864,252 @@ mod tests {
     fn extract_effect_action_atom() {
         let expr: SExpr = "hello".parse().unwrap();
         assert_eq!(extract_effect_action(&expr), None);
+    }
+
+    // -- Shape checking integration (REQ-223, REQ-224, REQ-225) --
+
+    use crate::shape::{ShapeConstraint, ShapeRule, TypeConstraint};
+
+    fn make_registry_with_shape() -> DialectRegistry {
+        let mut reg = DialectRegistry::new();
+        // Template: (ship-effect :package <pkg> :dest <dst>)
+        // Params bind: pkg = args[0], dst = args[1]
+        reg.install(Dialect {
+            name: String::from("logistics"),
+            extends: vec![String::from("cbcl")],
+            author: None,
+            performatives: vec![PerformativeDef {
+                name: String::from("ship"),
+                params: vec![
+                    SExpr::Atom(Atom::Symbol(String::from("pkg"))),
+                    SExpr::Atom(Atom::Symbol(String::from("dst"))),
+                ],
+                template: SExpr::List(vec![
+                    SExpr::Atom(Atom::Symbol(String::from("ship-effect"))),
+                    SExpr::Atom(Atom::Keyword(String::from("package"))),
+                    SExpr::Atom(Atom::Symbol(String::from("pkg"))),
+                    SExpr::Atom(Atom::Keyword(String::from("dest"))),
+                    SExpr::Atom(Atom::Symbol(String::from("dst"))),
+                ]),
+            }],
+            resources: ResourceBounds {
+                max_depth: 8,
+                max_expansion_size: 512,
+                verification_time_ms: 10,
+            },
+            examples: Vec::new(),
+            signature: None,
+            hash: None,
+            protocol: None,
+            causal_protocol: None,
+            shapes: vec![ShapeConstraint {
+                performative: String::from("ship"),
+                rules: vec![
+                    ShapeRule::Require {
+                        keyword: String::from("package"),
+                        type_constraint: Some(TypeConstraint::String),
+                        children: vec![],
+                    },
+                    ShapeRule::Require {
+                        keyword: String::from("dest"),
+                        type_constraint: Some(TypeConstraint::String),
+                        children: vec![],
+                    },
+                ],
+            }],
+        })
+        .unwrap();
+        reg
+    }
+
+    #[test]
+    fn shape_check_passes_when_satisfied() {
+        let reg = make_registry_with_shape();
+        let msg = Message::Simple {
+            performative: Performative::Custom(String::from("ship")),
+            recipient: None,
+            content: SExpr::Atom(Atom::Str(String::from("PKG-1"))),
+            params: vec![SExpr::Atom(Atom::Str(String::from("warehouse-A")))],
+            thread: None,
+            sender: None,
+            caused_by: None,
+        };
+        let result = evaluate(&msg, &reg);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn shape_check_fails_when_type_mismatch() {
+        let reg = make_registry_with_shape();
+        // Pass a number where string is expected for :package
+        let msg = Message::Simple {
+            performative: Performative::Custom(String::from("ship")),
+            recipient: None,
+            content: SExpr::Atom(Atom::Num(42)),
+            params: vec![SExpr::Atom(Atom::Str(String::from("warehouse-A")))],
+            thread: None,
+            sender: None,
+            caused_by: None,
+        };
+        let result = evaluate(&msg, &reg);
+        match result {
+            Err(EvalError::ShapeViolation(v)) => {
+                assert!(v.detail.contains(":package"));
+            }
+            other => panic!("expected ShapeViolation, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn shape_check_no_shapes_passes() {
+        // Base dialect has no shapes — core performatives should pass
+        let reg = make_registry();
+        let msg = Message::Simple {
+            performative: Performative::Core(CorePerformative::Tell),
+            recipient: Some(String::from("@bob")),
+            content: SExpr::Atom(Atom::Str(String::from("hello"))),
+            params: Vec::new(),
+            thread: None,
+            sender: None,
+            caused_by: None,
+        };
+        assert!(evaluate(&msg, &reg).is_ok());
+    }
+
+    #[test]
+    fn shape_conjunction_both_must_pass() {
+        // Two shape constraints on same performative compose via conjunction (REQ-224)
+        let mut reg = DialectRegistry::new();
+        reg.install(Dialect {
+            name: String::from("logistics"),
+            extends: vec![String::from("cbcl")],
+            author: None,
+            performatives: vec![PerformativeDef {
+                name: String::from("ship"),
+                params: vec![
+                    SExpr::Atom(Atom::Symbol(String::from("pkg"))),
+                    SExpr::Atom(Atom::Symbol(String::from("dst"))),
+                ],
+                template: SExpr::List(vec![
+                    SExpr::Atom(Atom::Symbol(String::from("ship-effect"))),
+                    SExpr::Atom(Atom::Keyword(String::from("package"))),
+                    SExpr::Atom(Atom::Symbol(String::from("pkg"))),
+                    SExpr::Atom(Atom::Keyword(String::from("dest"))),
+                    SExpr::Atom(Atom::Symbol(String::from("dst"))),
+                ]),
+            }],
+            resources: ResourceBounds {
+                max_depth: 8,
+                max_expansion_size: 512,
+                verification_time_ms: 10,
+            },
+            examples: Vec::new(),
+            signature: None,
+            hash: None,
+            protocol: None,
+            causal_protocol: None,
+            shapes: vec![
+                // First shape: require :package string
+                ShapeConstraint {
+                    performative: String::from("ship"),
+                    rules: vec![ShapeRule::Require {
+                        keyword: String::from("package"),
+                        type_constraint: Some(TypeConstraint::String),
+                        children: vec![],
+                    }],
+                },
+                // Second shape: require :dest string
+                ShapeConstraint {
+                    performative: String::from("ship"),
+                    rules: vec![ShapeRule::Require {
+                        keyword: String::from("dest"),
+                        type_constraint: Some(TypeConstraint::String),
+                        children: vec![],
+                    }],
+                },
+            ],
+        })
+        .unwrap();
+
+        // Message that satisfies both shapes
+        let msg = Message::Simple {
+            performative: Performative::Custom(String::from("ship")),
+            recipient: None,
+            content: SExpr::Atom(Atom::Str(String::from("PKG-1"))),
+            params: vec![SExpr::Atom(Atom::Str(String::from("warehouse-A")))],
+            thread: None,
+            sender: None,
+            caused_by: None,
+        };
+        assert!(evaluate(&msg, &reg).is_ok());
+    }
+
+    #[test]
+    fn shape_check_max_depth() {
+        let mut reg = DialectRegistry::new();
+        reg.install(Dialect {
+            name: String::from("shallow"),
+            extends: vec![String::from("cbcl")],
+            author: None,
+            performatives: vec![PerformativeDef {
+                name: String::from("nest"),
+                params: vec![],
+                // Template that expands to deeply nested structure
+                template: SExpr::List(vec![
+                    SExpr::Atom(Atom::Symbol(String::from("nested"))),
+                    SExpr::List(vec![
+                        SExpr::Atom(Atom::Symbol(String::from("deep"))),
+                        SExpr::List(vec![SExpr::Atom(Atom::Symbol(String::from("deeper")))]),
+                    ]),
+                ]),
+            }],
+            resources: ResourceBounds {
+                max_depth: 8,
+                max_expansion_size: 512,
+                verification_time_ms: 10,
+            },
+            examples: Vec::new(),
+            signature: None,
+            hash: None,
+            protocol: None,
+            causal_protocol: None,
+            shapes: vec![ShapeConstraint {
+                performative: String::from("nest"),
+                rules: vec![ShapeRule::MaxDepth(1)],
+            }],
+        })
+        .unwrap();
+
+        let msg = Message::Simple {
+            performative: Performative::Custom(String::from("nest")),
+            recipient: None,
+            content: SExpr::List(Vec::new()),
+            params: vec![],
+            thread: None,
+            sender: None,
+            caused_by: None,
+        };
+        let result = evaluate(&msg, &reg);
+        match result {
+            Err(EvalError::ShapeViolation(v)) => {
+                assert!(v.detail.contains("exceeds"));
+            }
+            other => panic!("expected ShapeViolation for max-depth, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn shape_violation_display() {
+        let v = ShapeViolation {
+            rule: String::from("require :x"),
+            field: Some(String::from(":x")),
+            expected: Some(String::from("present")),
+            found: Some(String::from("missing")),
+            detail: String::from("required parameter :x is missing"),
+        };
+        let err = EvalError::ShapeViolation(v);
+        let msg = alloc::format!("{err}");
+        assert!(msg.contains("shape violation"));
+        assert!(msg.contains(":x"));
     }
 }
