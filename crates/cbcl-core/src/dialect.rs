@@ -10,7 +10,7 @@ use crate::r1::{r1_violations, verify_r1_dialect};
 use crate::r2::verify_r2;
 use crate::r3::{r3_violations, verify_r3};
 use crate::r4::{check_r4, R4Result, Signer};
-use crate::r5::{r5_violations, verify_r5};
+use crate::r5::{r5_violations_with_ancestors, verify_r5_with_ancestors};
 use crate::sexpr::{Atom, SExpr};
 use crate::shape::ShapeConstraint;
 use alloc::string::String;
@@ -268,9 +268,10 @@ impl DialectRegistry {
                 dialect_name: d.name,
             });
         }
-        if !verify_r5(&d) {
+        let ancestors = self.resolve_ancestors(&d);
+        if !verify_r5_with_ancestors(&d, &ancestors) {
             return Err(DialectInstallError::R5Violation {
-                shape_errors: r5_violations(&d),
+                shape_errors: r5_violations_with_ancestors(&d, &ancestors),
                 dialect_name: d.name,
             });
         }
@@ -282,6 +283,18 @@ impl DialectRegistry {
         );
         self.dialects.push(d);
         Ok(())
+    }
+
+    /// Resolve `d.extends` to currently-installed ancestor dialects (REQ-206).
+    ///
+    /// Names that do not match an installed dialect are silently skipped —
+    /// install-time R5 will only credit performatives from ancestors that the
+    /// registry actually knows about.
+    fn resolve_ancestors<'a>(&'a self, d: &Dialect) -> Vec<&'a Dialect> {
+        d.extends
+            .iter()
+            .filter_map(|name| self.find_by_name(name))
+            .collect()
     }
 
     /// Install a dialect after verifying R1–R4 (REQ-034, REQ-060–062, REQ-070, REQ-080, REQ-090–091).
@@ -316,9 +329,10 @@ impl DialectRegistry {
                 dialect_name: d.name,
             });
         }
-        if !verify_r5(&d) {
+        let ancestors = self.resolve_ancestors(&d);
+        if !verify_r5_with_ancestors(&d, &ancestors) {
             return Err(DialectInstallError::R5Violation {
-                shape_errors: r5_violations(&d),
+                shape_errors: r5_violations_with_ancestors(&d, &ancestors),
                 dialect_name: d.name,
             });
         }

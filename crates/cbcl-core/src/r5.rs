@@ -16,8 +16,18 @@ use alloc::vec::Vec;
 
 /// Verify R5 for a dialect: protocol well-formedness (REQ-208) and shape
 /// well-formedness (REQ-222).
+///
+/// Equivalent to [`verify_r5_with_ancestors`] with no ancestors. Use the
+/// `_with_ancestors` variant when validating a dialect against an existing
+/// registry so that inherited performatives are recognised by the protocol
+/// definedness check (REQ-206).
 pub fn verify_r5(d: &Dialect) -> bool {
-    let pass = r5_violations(d).is_empty();
+    verify_r5_with_ancestors(d, &[])
+}
+
+/// Verify R5 for a dialect, including performatives inherited from ancestors.
+pub fn verify_r5_with_ancestors(d: &Dialect, ancestors: &[&Dialect]) -> bool {
+    let pass = r5_violations_with_ancestors(d, ancestors).is_empty();
     #[cfg(feature = "tracing")]
     tracing::event!(
         tracing::Level::INFO,
@@ -30,12 +40,27 @@ pub fn verify_r5(d: &Dialect) -> bool {
 }
 
 /// Return all R5 violations found in a dialect's protocol and shape constraints.
+///
+/// Equivalent to [`r5_violations_with_ancestors`] with no ancestors. Protocols
+/// that reference performatives inherited from `extends` parents will be
+/// flagged as undefined; pass installed ancestors via the `_with_ancestors`
+/// variant to avoid that.
 pub fn r5_violations(d: &Dialect) -> Vec<String> {
+    r5_violations_with_ancestors(d, &[])
+}
+
+/// Return all R5 violations, treating performatives defined in any of
+/// `ancestors` as additional defined performatives for protocol definedness
+/// (REQ-206).
+pub fn r5_violations_with_ancestors(d: &Dialect, ancestors: &[&Dialect]) -> Vec<String> {
     let mut violations = Vec::new();
 
     // Protocol validation (REQ-204–208).
     if let Some(ref proto) = d.causal_protocol {
-        let defined: Vec<&str> = d.performative_names();
+        let mut defined: Vec<&str> = d.performative_names();
+        for a in ancestors {
+            defined.extend(a.performative_names());
+        }
         let proto_violations = proto.verify_r5_protocol(&defined);
         for v in proto_violations {
             violations.push(alloc::format!("{}", v));
@@ -486,5 +511,37 @@ mod tests {
     fn no_protocol_passes_r5() {
         let d = test_dialect(vec!["propose-step"], vec![]);
         assert!(verify_r5(&d));
+    }
+
+    // -- REQ-206: ancestor-aware protocol definedness --
+
+    #[test]
+    fn protocol_ref_to_ancestor_performative_passes_with_ancestors() {
+        // Dialect defines "ack"; protocol references "ok" inherited from base.
+        let mut steps = BTreeMap::new();
+        steps.insert("begin".into(), StepDecl {
+            performative: "begin".into(),
+            predecessors: vec![],
+            successors: vec![NodeRef::Single("ack".into())],
+        });
+        steps.insert("ack".into(), StepDecl {
+            performative: "ack".into(),
+            predecessors: vec![NodeRef::Single("begin".into())],
+            successors: vec![NodeRef::Single("ok".into())],
+        });
+        steps.insert("ok".into(), StepDecl {
+            performative: "ok".into(),
+            predecessors: vec![NodeRef::Single("ack".into())],
+            successors: vec![],
+        });
+        let proto = CausalProtocol { steps };
+        let d = protocol_dialect(vec!["ack"], proto);
+
+        // Without ancestors: "ok" is undefined.
+        assert!(!verify_r5(&d));
+
+        // With base as an ancestor: "ok" is recognised.
+        let base = crate::dialect::base_dialect();
+        assert!(verify_r5_with_ancestors(&d, &[&base]));
     }
 }

@@ -326,7 +326,23 @@ fn validate_define_dialect(dialect_def: &SExpr) -> Result<(), ValidationError> {
     }
 
     // R5: shape + protocol well-formedness (REQ-208, REQ-222).
-    let r5_errors = r5::r5_violations(&dialect);
+    //
+    // At parse time there is no registry, so we credit the base dialect for
+    // any `extends` entry that names it (the dialect literal might use either
+    // "cbcl" or "cbcl-base"). Dialects that extend other named parents must be
+    // re-validated at install time via `DialectRegistry::install`, where the
+    // registry resolves the full ancestor chain (REQ-206).
+    let base = cbcl_core::dialect::base_dialect();
+    let extends_base = dialect
+        .extends
+        .iter()
+        .any(|name| name == "cbcl" || name == &base.name);
+    let ancestors: alloc::vec::Vec<&cbcl_core::dialect::Dialect> = if extends_base {
+        alloc::vec![&base]
+    } else {
+        alloc::vec![]
+    };
+    let r5_errors = r5::r5_violations_with_ancestors(&dialect, &ancestors);
     if !r5_errors.is_empty() {
         return Err(ValidationError::R5Violation { errors: r5_errors });
     }
