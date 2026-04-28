@@ -343,20 +343,11 @@ impl DialectRegistry {
             });
         }
         // R4 check: invalid signatures are rejected; unsigned is accepted.
-        //
-        // The canonical signing form (`canonical::to_signable_sexpr`) does not
-        // yet cover `causal_protocol` or `shapes`. These fields now drive
-        // runtime acceptance, so a Valid signature over the rest of the
-        // dialect would not bind their semantics. Until the signing form is
-        // extended, reject signed dialects that carry these fields rather
-        // than silently accept a signature with under-specified coverage.
+        // The canonical signing form (`canonical::to_signable_sexpr`) covers
+        // every semantics-relevant field, including `causal_protocol` and
+        // `shapes`, so a Valid signature binds runtime acceptance.
         let r4 = check_r4(&d, signer);
         if r4 == R4Result::Invalid {
-            return Err(DialectInstallError::R4Violation {
-                dialect_name: d.name,
-            });
-        }
-        if r4 == R4Result::Valid && !signature_covers_runtime_fields(&d) {
             return Err(DialectInstallError::R4Violation {
                 dialect_name: d.name,
             });
@@ -425,17 +416,6 @@ impl Default for DialectRegistry {
     }
 }
 
-/// Whether the dialect's R4 signing form covers every field that drives
-/// runtime acceptance.
-///
-/// `canonical::to_signable_sexpr` does not currently encode
-/// `causal_protocol` or `shapes`, so a Valid signature on a dialect that
-/// declares either field would leave those semantics unbound by the
-/// signature. Treat such dialects as having an inadequate signature until
-/// the canonical form is extended.
-fn signature_covers_runtime_fields(d: &Dialect) -> bool {
-    d.causal_protocol.is_none() && d.shapes.is_empty()
-}
 
 impl<'a> IntoIterator for &'a DialectRegistry {
     type Item = &'a Dialect;
@@ -867,25 +847,43 @@ mod tests {
         assert!(msg.contains("bad"));
     }
 
-    // -- R4 must bind causal_protocol/shapes (PR feedback P1) --
+    // -- R4 binds causal_protocol/shapes via canonical signing form --
 
-    #[test]
-    fn signed_dialect_with_causal_protocol_rejected_until_signing_form_extended() {
+    /// A signer whose verifier accepts only signatures produced by `sign(d)`
+    /// over `dialect_canonical_bytes(d)` — useful for confirming that
+    /// mutating bound fields invalidates the signature.
+    struct CanonicalSigner;
+
+    impl Signer for CanonicalSigner {
+        fn sign(&self, data: &[u8]) -> Vec<u8> {
+            // Trivial reversible "signature": a hash of the bytes.
+            let mut sum: u32 = 0x9e3779b9;
+            for &b in data {
+                sum = sum.wrapping_mul(33).wrapping_add(b as u32);
+            }
+            sum.to_le_bytes().to_vec()
+        }
+        fn verify(&self, data: &[u8], sig: &[u8]) -> bool {
+            self.sign(data) == sig
+        }
+    }
+
+    fn signed_dialect_with_protocol_and_shapes() -> Dialect {
         use crate::protocol::{CausalProtocol, NodeRef, StepDecl};
-        let mut reg = DialectRegistry::new();
+        use crate::shape::{ShapeConstraint, ShapeRule, TypeConstraint};
         let mut steps = alloc::collections::BTreeMap::new();
-        steps.insert("greet".into(), StepDecl {
-            performative: "greet".into(),
-            predecessors: vec![NodeRef::Single("begin".into())],
-            successors: vec![],
-        });
         steps.insert("begin".into(), StepDecl {
             performative: "begin".into(),
             predecessors: vec![],
             successors: vec![NodeRef::Single("greet".into())],
         });
-        let d = Dialect {
-            name: String::from("signed-with-protocol"),
+        steps.insert("greet".into(), StepDecl {
+            performative: "greet".into(),
+            predecessors: vec![NodeRef::Single("begin".into())],
+            successors: vec![],
+        });
+        Dialect {
+            name: String::from("bound-by-signature"),
             extends: vec![String::from("cbcl")],
             author: None,
             performatives: vec![PerformativeDef {
@@ -902,45 +900,10 @@ mod tests {
                 verification_time_ms: 10,
             },
             examples: vec![],
-            signature: Some(alloc::vec![0xAA, 0xBB]),
+            signature: None,
             hash: None,
             protocol: None,
             causal_protocol: Some(CausalProtocol { steps }),
-            shapes: Vec::new(),
-        };
-        let err = reg.install_with_signer(d, &MockSigner).unwrap_err();
-        assert!(
-            matches!(err, DialectInstallError::R4Violation { .. }),
-            "expected R4 violation for signed dialect with causal_protocol"
-        );
-    }
-
-    #[test]
-    fn signed_dialect_with_shapes_rejected_until_signing_form_extended() {
-        use crate::shape::{ShapeConstraint, ShapeRule, TypeConstraint};
-        let mut reg = DialectRegistry::new();
-        let d = Dialect {
-            name: String::from("signed-with-shapes"),
-            extends: vec![String::from("cbcl")],
-            author: None,
-            performatives: vec![PerformativeDef {
-                name: String::from("greet"),
-                params: vec![],
-                template: SExpr::List(vec![
-                    SExpr::Atom(Atom::Symbol(String::from("effect"))),
-                    SExpr::Atom(Atom::Symbol(String::from("greet-action"))),
-                ]),
-            }],
-            resources: ResourceBounds {
-                max_depth: 8,
-                max_expansion_size: 512,
-                verification_time_ms: 10,
-            },
-            examples: vec![],
-            signature: Some(alloc::vec![0xAA, 0xBB]),
-            hash: None,
-            protocol: None,
-            causal_protocol: None,
             shapes: vec![ShapeConstraint {
                 performative: String::from("greet"),
                 rules: vec![ShapeRule::Require {
@@ -949,11 +912,86 @@ mod tests {
                     children: vec![],
                 }],
             }],
-        };
-        let err = reg.install_with_signer(d, &MockSigner).unwrap_err();
+        }
+    }
+
+    #[test]
+    fn signed_dialect_with_causal_protocol_now_installs() {
+        // What used to be rejected as a stopgap should now install: the
+        // canonical signing form covers causal_protocol.
+        let mut d = signed_dialect_with_protocol_and_shapes();
+        d.shapes = Vec::new(); // protocol-only case
+        let bytes = crate::canonical::dialect_canonical_bytes(&d);
+        d.signature = Some(CanonicalSigner.sign(&bytes));
+
+        let mut reg = DialectRegistry::new();
+        let result = reg.install_with_signer(d, &CanonicalSigner).unwrap();
+        assert_eq!(result, R4Result::Valid);
+    }
+
+    #[test]
+    fn signed_dialect_with_shapes_now_installs() {
+        let mut d = signed_dialect_with_protocol_and_shapes();
+        d.causal_protocol = None; // shapes-only case
+        let bytes = crate::canonical::dialect_canonical_bytes(&d);
+        d.signature = Some(CanonicalSigner.sign(&bytes));
+
+        let mut reg = DialectRegistry::new();
+        let result = reg.install_with_signer(d, &CanonicalSigner).unwrap();
+        assert_eq!(result, R4Result::Valid);
+    }
+
+    #[test]
+    fn mutating_causal_protocol_invalidates_existing_signature() {
+        use crate::protocol::{NodeRef, StepDecl};
+        // Sign a dialect, then mutate its causal_protocol without re-signing.
+        // The previously-valid signature must no longer verify.
+        let original = signed_dialect_with_protocol_and_shapes();
+        let bytes = crate::canonical::dialect_canonical_bytes(&original);
+        let sig = CanonicalSigner.sign(&bytes);
+
+        let mut tampered = original;
+        tampered.signature = Some(sig);
+        // Replace the protocol's `greet` step with a different predecessor.
+        if let Some(ref mut p) = tampered.causal_protocol {
+            p.steps.insert("greet".into(), StepDecl {
+                performative: "greet".into(),
+                predecessors: vec![NodeRef::Single("ok".into())],
+                successors: vec![],
+            });
+        }
+
+        let mut reg = DialectRegistry::new();
+        let err = reg.install_with_signer(tampered, &CanonicalSigner).unwrap_err();
         assert!(
             matches!(err, DialectInstallError::R4Violation { .. }),
-            "expected R4 violation for signed dialect with shapes"
+            "expected R4 violation after causal_protocol tamper, got {err:?}"
+        );
+    }
+
+    #[test]
+    fn mutating_shapes_invalidates_existing_signature() {
+        use crate::shape::{ShapeRule, TypeConstraint};
+        let original = signed_dialect_with_protocol_and_shapes();
+        let bytes = crate::canonical::dialect_canonical_bytes(&original);
+        let sig = CanonicalSigner.sign(&bytes);
+
+        let mut tampered = original;
+        tampered.signature = Some(sig);
+        // Add a new rule to the existing shape.
+        if let Some(shape) = tampered.shapes.first_mut() {
+            shape.rules.push(ShapeRule::Require {
+                keyword: String::from("priority"),
+                type_constraint: Some(TypeConstraint::Number),
+                children: vec![],
+            });
+        }
+
+        let mut reg = DialectRegistry::new();
+        let err = reg.install_with_signer(tampered, &CanonicalSigner).unwrap_err();
+        assert!(
+            matches!(err, DialectInstallError::R4Violation { .. }),
+            "expected R4 violation after shapes tamper, got {err:?}"
         );
     }
 
