@@ -72,6 +72,14 @@ pub enum MergePolicy {
     /// is preserved if no protocol accepted. Useful when multiple protocols
     /// represent alternative permitted behaviours rather than a stack of
     /// constraints to satisfy together.
+    ///
+    /// **Security surface.** Disjunction widens trust: with mixed-trust
+    /// dialects, an attacker who can install one permissive protocol can
+    /// override another protocol's rejection. Only opt in when every
+    /// installable dialect is trusted to the same level — typically when
+    /// they originated from the same authority or were verified by R4.
+    /// The pipeline (`run_pipeline_full`) is conjunction-only and remains
+    /// the right entry point for receive-side fail-closed enforcement.
     Disjunction,
 }
 
@@ -106,6 +114,36 @@ fn merge_policy_outcomes_disjunctive(a: PolicyOutcome, b: PolicyOutcome) -> Poli
         (Pending(r), _) | (_, Pending(r)) => Pending(r),
         (Buffered, _) | (_, Buffered) => Buffered,
         (Reject(v), _) => Reject(v),
+    }
+}
+
+/// Combine two `VerificationResult`s under "any-accept" disjunction
+/// semantics, in lock-step with [`merge_policy_outcomes_disjunctive`].
+///
+/// This is *not* the same as [`VerificationResult::join`]: `join` is the
+/// information-theoretic LUB used for `(any ...)` fan-in inside a single
+/// protocol, where a definitive `Violation` outranks an undecided
+/// `Unknown`. Across multiple matching protocols under disjunction, an
+/// `Unknown` from one protocol must be preserved over a `Violation` from
+/// another — the Unknown protocol might still resolve to `Valid` once its
+/// predecessor arrives, and a single `Valid` is enough to accept the
+/// message. Collapsing to `Violation` would prematurely flush such entries
+/// from the pending queue.
+///
+/// Truth table (commutative):
+/// - `Valid ⊔ _ = Valid`           (any accept wins)
+/// - `Unknown ⊔ Violation = Unknown` (preserve hope)
+/// - `Unknown ⊔ Unknown = Unknown`
+/// - `Violation ⊔ Violation = Violation`  (only when no protocol could accept)
+fn merge_disjunctive_result(
+    a: VerificationResult,
+    b: VerificationResult,
+) -> VerificationResult {
+    use VerificationResult::*;
+    match (a, b) {
+        (Valid, _) | (_, Valid) => Valid,
+        (Unknown, _) | (_, Unknown) => Unknown,
+        (Violation(v), _) => Violation(v),
     }
 }
 
@@ -526,8 +564,10 @@ impl Agent {
                     Some(prev) => match merge {
                         // Conjunction = lattice meet (Unknown < Valid; Valid ⊓ Violation = Violation).
                         MergePolicy::Conjunction => prev.meet(r),
-                        // Disjunction = lattice join (any Valid wins; otherwise Unknown beats Violation).
-                        MergePolicy::Disjunction => prev.join(r),
+                        // Disjunction = "any-accept" merge (Valid wins; Unknown
+                        // outranks Violation so a still-pending protocol can
+                        // resolve later — see `merge_disjunctive_result`).
+                        MergePolicy::Disjunction => merge_disjunctive_result(prev, r),
                     },
                 });
             }
@@ -1212,18 +1252,24 @@ mod tests {
     }
 
     // -- MergePolicy: any-protocol-accepts (disjunction) mode --
+    //
+    // Two installed dialects both declare protocol steps for the inherited
+    // core performative `ok` — neither *defines* `ok` (R3 forbids that) but
+    // each constrains it differently. This is the canonical "two protocols
+    // matching the same perf" shape we proved supported in earlier review
+    // rounds; it's what makes a discriminating disjunction test possible.
 
-    /// Build a dialect whose protocol accepts `ack` after `begin`.
-    fn ack_dialect_named(name: &str) -> Dialect {
+    /// Single-predecessor protocol on `ok`: accepts `(ok :caused-by begin)`.
+    fn single_pred_ok_dialect(name: &str) -> Dialect {
         use crate::protocol::{CausalProtocol, NodeRef, StepDecl};
         let mut steps = alloc::collections::BTreeMap::new();
         steps.insert("begin".into(), StepDecl {
             performative: "begin".into(),
             predecessors: alloc::vec![],
-            successors: alloc::vec![NodeRef::Single("ack".into())],
+            successors: alloc::vec![NodeRef::Single("ok".into())],
         });
-        steps.insert("ack".into(), StepDecl {
-            performative: "ack".into(),
+        steps.insert("ok".into(), StepDecl {
+            performative: "ok".into(),
             predecessors: alloc::vec![NodeRef::Single("begin".into())],
             successors: alloc::vec![],
         });
@@ -1231,14 +1277,7 @@ mod tests {
             name: String::from(name),
             extends: alloc::vec![String::from("cbcl")],
             author: None,
-            performatives: vec![PerformativeDef {
-                name: String::from("ack"),
-                params: Vec::new(),
-                template: SExpr::List(alloc::vec![
-                    SExpr::Atom(Atom::Symbol(String::from("effect"))),
-                    SExpr::Atom(Atom::Symbol(String::from("ack-action"))),
-                ]),
-            }],
+            performatives: alloc::vec![],
             resources: ResourceBounds {
                 max_depth: 8,
                 max_expansion_size: 512,
@@ -1253,33 +1292,26 @@ mod tests {
         }
     }
 
-    /// Build a dialect whose protocol forbids `ack` (no predecessors allowed,
-    /// so any `:caused-by` is an InvalidPredecessor / ExtraneousPredecessor).
-    fn no_predecessors_dialect_named(name: &str) -> Dialect {
+    /// Strict protocol on `ok`: rejects any `:caused-by` (no predecessors).
+    fn strict_no_pred_ok_dialect(name: &str) -> Dialect {
         use crate::protocol::{CausalProtocol, NodeRef, StepDecl};
         let mut steps = alloc::collections::BTreeMap::new();
+        // begin step needed for reachability (R5).
         steps.insert("begin".into(), StepDecl {
             performative: "begin".into(),
             predecessors: alloc::vec![],
-            successors: alloc::vec![NodeRef::Single("ack".into())],
+            successors: alloc::vec![NodeRef::Single("ok".into())],
         });
-        steps.insert("ack".into(), StepDecl {
-            performative: "ack".into(),
-            predecessors: alloc::vec![], // strict: ack must be at root
+        steps.insert("ok".into(), StepDecl {
+            performative: "ok".into(),
+            predecessors: alloc::vec![], // no predecessors permitted
             successors: alloc::vec![],
         });
         Dialect {
             name: String::from(name),
             extends: alloc::vec![String::from("cbcl")],
             author: None,
-            performatives: vec![PerformativeDef {
-                name: String::from("ack"),
-                params: Vec::new(),
-                template: SExpr::List(alloc::vec![
-                    SExpr::Atom(Atom::Symbol(String::from("effect"))),
-                    SExpr::Atom(Atom::Symbol(String::from("ack-action-2"))),
-                ]),
-            }],
+            performatives: alloc::vec![],
             resources: ResourceBounds {
                 max_depth: 8,
                 max_expansion_size: 512,
@@ -1294,46 +1326,213 @@ mod tests {
         }
     }
 
+    /// Fan-in protocol on `ok`: requires `(all p1 p2)` — two custom perfs.
+    fn fan_in_ok_dialect(name: &str) -> Dialect {
+        use crate::protocol::{CausalProtocol, NodeRef, StepDecl};
+        let mut all_set = alloc::collections::BTreeSet::new();
+        all_set.insert(String::from("p1"));
+        all_set.insert(String::from("p2"));
+
+        let mut steps = alloc::collections::BTreeMap::new();
+        steps.insert("begin".into(), StepDecl {
+            performative: "begin".into(),
+            predecessors: alloc::vec![],
+            successors: alloc::vec![
+                NodeRef::Single("p1".into()),
+                NodeRef::Single("p2".into()),
+            ],
+        });
+        steps.insert("p1".into(), StepDecl {
+            performative: "p1".into(),
+            predecessors: alloc::vec![NodeRef::Single("begin".into())],
+            successors: alloc::vec![NodeRef::Single("ok".into())],
+        });
+        steps.insert("p2".into(), StepDecl {
+            performative: "p2".into(),
+            predecessors: alloc::vec![NodeRef::Single("begin".into())],
+            successors: alloc::vec![NodeRef::Single("ok".into())],
+        });
+        steps.insert("ok".into(), StepDecl {
+            performative: "ok".into(),
+            predecessors: alloc::vec![NodeRef::All(all_set)],
+            successors: alloc::vec![],
+        });
+        Dialect {
+            name: String::from(name),
+            extends: alloc::vec![String::from("cbcl")],
+            author: None,
+            performatives: vec![
+                PerformativeDef {
+                    name: String::from("p1"),
+                    params: Vec::new(),
+                    template: SExpr::List(alloc::vec![
+                        SExpr::Atom(Atom::Symbol(String::from("effect"))),
+                        SExpr::Atom(Atom::Symbol(String::from("p1-action"))),
+                    ]),
+                },
+                PerformativeDef {
+                    name: String::from("p2"),
+                    params: Vec::new(),
+                    template: SExpr::List(alloc::vec![
+                        SExpr::Atom(Atom::Symbol(String::from("effect"))),
+                        SExpr::Atom(Atom::Symbol(String::from("p2-action"))),
+                    ]),
+                },
+            ],
+            resources: ResourceBounds {
+                max_depth: 8,
+                max_expansion_size: 512,
+                verification_time_ms: 10,
+            },
+            examples: Vec::new(),
+            signature: None,
+            hash: None,
+            protocol: None,
+            causal_protocol: Some(CausalProtocol { steps }),
+            shapes: Vec::new(),
+        }
+    }
+
+    fn core_ok_with_caused_by(caused_by: crate::message::CausedBy) -> Message {
+        Message::Simple {
+            performative: Performative::Core(CorePerformative::Ok),
+            recipient: None,
+            content: SExpr::List(Vec::new()),
+            params: Vec::new(),
+            thread: None,
+            sender: None,
+            caused_by: Some(caused_by),
+        }
+    }
+
     #[test]
-    fn agent_disjunction_merge_accepts_when_any_protocol_accepts() {
+    fn agent_disjunction_accepts_when_one_protocol_accepts_other_rejects() {
         use crate::store::{ContentHash as Hash, MessageStore as _};
 
-        // Two protocols both declare a step for "ack". Protocol A accepts
-        // "ack :caused-by begin-hash"; protocol B forbids any predecessor.
-        // Under conjunction the message would be rejected; under disjunction
-        // the single accepting protocol is enough.
+        // Two protocols both fire on `ok`:
+        //   single_pred: requires `begin` predecessor → Valid given begin in store
+        //   strict:      requires no predecessor      → Violation (extraneous)
         let mut agent = Agent::new("@alice").with_merge_policy(MergePolicy::Disjunction);
-        agent.install_dialect(ack_dialect_named("accept")).unwrap();
-        // The strict dialect re-declares `ack`, which would be an R3
-        // violation on its own. Skip the second install if we can't —
-        // the test still demonstrates the policy when both protocols match.
-        if agent
-            .install_dialect(no_predecessors_dialect_named("strict"))
-            .is_err()
-        {
-            // R3/R5 may forbid two dialects defining the same perf;
-            // fall back to verifying disjunction with a single accepting
-            // protocol.
-        }
+        agent
+            .install_dialect(single_pred_ok_dialect("accept-after-begin"))
+            .expect("single_pred dialect must install");
+        agent
+            .install_dialect(strict_no_pred_ok_dialect("strict-no-pred"))
+            .expect("strict dialect must install");
 
-        let begin = Message::Simple {
+        // Insert a `begin` (any non-ok core performative is fine — its
+        // performative name just needs to match what single_pred allows as
+        // the predecessor type for `ok`).
+        let begin_msg = Message::Simple {
             performative: Performative::Custom(String::from("begin")),
             recipient: None,
-            content: SExpr::Atom(Atom::Str(String::from("start"))),
+            content: SExpr::List(Vec::new()),
             params: Vec::new(),
             thread: None,
             sender: None,
             caused_by: Some(crate::message::CausedBy::Begin),
         };
-        agent
-            .message_store_mut()
-            .append(Hash(String::from("begin-hash")), ThreadId(String::from("default")), begin);
+        agent.message_store_mut().append(
+            Hash(String::from("begin-hash")),
+            ThreadId(String::from("default")),
+            begin_msg,
+        );
 
-        let msg = ack_with_caused_by("begin-hash");
+        let msg = core_ok_with_caused_by(crate::message::CausedBy::Single(String::from(
+            "begin-hash",
+        )));
         match agent.evaluate_and_apply(&msg) {
             AgentOutcome::Applied(_) => {}
-            other => panic!("expected disjunction Accept, got {other:?}"),
+            other => panic!(
+                "expected disjunction Accept (one protocol accepts, one rejects), got {other:?}"
+            ),
         }
+    }
+
+    #[test]
+    fn agent_conjunction_rejects_same_setup_disjunction_accepts() {
+        use crate::store::{ContentHash as Hash, MessageStore as _};
+
+        // Same fixture as above but with conjunction: the strict protocol's
+        // Violation is enough to reject.
+        let mut agent = Agent::new("@alice"); // default Conjunction
+        agent
+            .install_dialect(single_pred_ok_dialect("accept-after-begin"))
+            .unwrap();
+        agent
+            .install_dialect(strict_no_pred_ok_dialect("strict-no-pred"))
+            .unwrap();
+
+        let begin_msg = Message::Simple {
+            performative: Performative::Custom(String::from("begin")),
+            recipient: None,
+            content: SExpr::List(Vec::new()),
+            params: Vec::new(),
+            thread: None,
+            sender: None,
+            caused_by: Some(crate::message::CausedBy::Begin),
+        };
+        agent.message_store_mut().append(
+            Hash(String::from("begin-hash")),
+            ThreadId(String::from("default")),
+            begin_msg,
+        );
+
+        let msg = core_ok_with_caused_by(crate::message::CausedBy::Single(String::from(
+            "begin-hash",
+        )));
+        match agent.evaluate_and_apply(&msg) {
+            AgentOutcome::CausalReject(_) => {}
+            other => panic!("expected conjunction CausalReject, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn agent_disjunction_reevaluate_keeps_buffered_when_one_protocol_unknown() {
+        // Reproduces the (Unknown, Violation) inconsistency that
+        // `merge_disjunctive_result` fixes.
+        //
+        // fan_in protocol: ok requires `(all p1 p2)` — Multiple-friendly.
+        // single_pred  : ok requires single `begin` — *not* Multiple-friendly,
+        //                so a Multiple `:caused-by` triggers
+        //                Violation(FanInWithoutAllDecl) without any store
+        //                lookup, regardless of whether the hashes are known.
+        //
+        // Send `(ok :caused-by (h1 h2))` with store empty:
+        //   fan_in     → Unknown (h1, h2 missing from store)
+        //   single_pred → Violation (FanInWithoutAllDecl)
+        //
+        // Live disjunction path: merge_policy_outcomes_disjunctive
+        //   (Buffered, Reject) = Buffered ✓
+        //
+        // Re-evaluate path BEFORE fix: prev.join(r) used
+        //   Unknown.join(Violation) = Violation → Reject — flushed entry.
+        // Re-evaluate path AFTER  fix: merge_disjunctive_result
+        //   (Unknown, Violation) = Unknown → still Unknown → kept buffered.
+        let mut agent = Agent::with_policy("@alice", UnknownPredecessorPolicy::buffer(60))
+            .with_merge_policy(MergePolicy::Disjunction);
+        agent.install_dialect(fan_in_ok_dialect("fan-in")).unwrap();
+        agent
+            .install_dialect(single_pred_ok_dialect("single-pred"))
+            .unwrap();
+
+        let msg = core_ok_with_caused_by(crate::message::CausedBy::Multiple(alloc::vec![
+            String::from("h1"),
+            String::from("h2"),
+        ]));
+        match agent.evaluate_and_apply(&msg) {
+            AgentOutcome::Buffered => {}
+            other => panic!("expected Buffered live, got {other:?}"),
+        }
+        assert_eq!(agent.pending_len(), 1);
+
+        let resolved = agent.reevaluate_pending();
+        assert!(
+            resolved.is_empty(),
+            "disjunction must not flush still-pending entry across an \
+             unrelated Violation, got {resolved:?}"
+        );
+        assert_eq!(agent.pending_len(), 1);
     }
 
     #[test]
@@ -1346,6 +1545,55 @@ mod tests {
     fn with_merge_policy_sets_disjunction() {
         let agent = Agent::new("@alice").with_merge_policy(MergePolicy::Disjunction);
         assert_eq!(agent.merge_policy(), MergePolicy::Disjunction);
+    }
+
+    // Direct truth-table tests of the disjunction VerificationResult merge.
+    // These pin the (Unknown, Violation) → Unknown semantic that
+    // `merge_disjunctive_result` introduces vs. the existing `join`
+    // (Unknown.join(Violation) = Violation).
+
+    fn vr_violation() -> VerificationResult {
+        VerificationResult::Violation(crate::protocol::CausalViolation::MissingCausedBy)
+    }
+
+    #[test]
+    fn merge_disjunctive_result_valid_absorbs() {
+        assert!(matches!(
+            merge_disjunctive_result(VerificationResult::Valid, VerificationResult::Unknown),
+            VerificationResult::Valid
+        ));
+        assert!(matches!(
+            merge_disjunctive_result(VerificationResult::Unknown, VerificationResult::Valid),
+            VerificationResult::Valid
+        ));
+        assert!(matches!(
+            merge_disjunctive_result(VerificationResult::Valid, vr_violation()),
+            VerificationResult::Valid
+        ));
+        assert!(matches!(
+            merge_disjunctive_result(vr_violation(), VerificationResult::Valid),
+            VerificationResult::Valid
+        ));
+    }
+
+    #[test]
+    fn merge_disjunctive_result_unknown_outranks_violation() {
+        assert!(matches!(
+            merge_disjunctive_result(VerificationResult::Unknown, vr_violation()),
+            VerificationResult::Unknown
+        ));
+        assert!(matches!(
+            merge_disjunctive_result(vr_violation(), VerificationResult::Unknown),
+            VerificationResult::Unknown
+        ));
+    }
+
+    #[test]
+    fn merge_disjunctive_result_violation_only_when_no_hope() {
+        assert!(matches!(
+            merge_disjunctive_result(vr_violation(), vr_violation()),
+            VerificationResult::Violation(_)
+        ));
     }
 
     // -- Clock injection --
