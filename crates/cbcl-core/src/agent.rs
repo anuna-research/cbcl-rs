@@ -515,9 +515,19 @@ impl Agent {
     /// Drop buffered entries whose TTL has elapsed at `now` (seconds since
     /// epoch). Returns the dropped entries with [`DropReason::CausalTimeout`].
     ///
-    /// Entries buffered via [`Self::evaluate_and_apply`] are stamped with
-    /// `u64::MAX` and therefore never expire — only entries inserted via
-    /// [`Self::evaluate_and_apply_at`] are subject to TTL.
+    /// Entries stamped with `u64::MAX` (the default when the agent is
+    /// constructed without a clock and [`Self::evaluate_and_apply`] is used)
+    /// never expire. To get TTL behaviour, either inject a real clock via
+    /// [`Self::with_clock`] or pass an explicit timestamp via
+    /// [`Self::evaluate_and_apply_at`] / [`Self::step_at`].
+    ///
+    /// **Eviction is pull-based.** The agent does not call `expire` on its
+    /// own — the embedder is responsible for invoking it on a schedule that
+    /// matches the configured TTL (e.g. once per second, once per minute).
+    /// Without that, expired entries linger in the queue until the next
+    /// caller-driven invocation, holding memory but not causing
+    /// correctness issues. A future revision could opt-in to expire-on-each
+    /// `evaluate_and_apply` if it becomes a footgun in practice.
     pub fn expire(&mut self, now: u64) -> Vec<(PendingEntry, DropReason)> {
         self.pending_queue.expire(now)
     }
@@ -1606,6 +1616,17 @@ mod tests {
         }
     }
 
+    /// A clock that increments on each `now()` call, useful for tests that
+    /// want to observe Arc-shared mutability across cloned agents.
+    #[derive(Debug)]
+    struct TickingClock(core::sync::atomic::AtomicU64);
+    impl crate::clock::Clock for TickingClock {
+        fn now(&self) -> u64 {
+            self.0
+                .fetch_add(1, core::sync::atomic::Ordering::Relaxed)
+        }
+    }
+
     #[test]
     fn agent_uses_injected_clock_for_buffer_timestamps() {
         let mut agent = Agent::with_policy("@alice", UnknownPredecessorPolicy::buffer(10))
@@ -1625,5 +1646,24 @@ mod tests {
         let dropped = agent.expire(110);
         assert_eq!(dropped.len(), 1);
         assert_eq!(dropped[0].1, DropReason::CausalTimeout);
+    }
+
+    #[test]
+    fn agent_clone_shares_clock_via_arc() {
+        // Cloning an agent shares the Arc<dyn Clock> rather than duplicating
+        // it. A clock with interior mutability (here an AtomicU64) advances
+        // for both clones — proving they share state, not that the clone
+        // captured a snapshot.
+        let agent_a = Agent::new("@alice").with_clock(TickingClock(
+            core::sync::atomic::AtomicU64::new(0),
+        ));
+        let agent_b = agent_a.clone();
+        // Each call to either agent's clock increments the shared counter.
+        let t0 = agent_a.clock.now();
+        let t1 = agent_b.clock.now();
+        let t2 = agent_a.clock.now();
+        assert_eq!(t0, 0);
+        assert_eq!(t1, 1);
+        assert_eq!(t2, 2);
     }
 }

@@ -51,11 +51,17 @@ pub struct SystemClock;
 
 #[cfg(feature = "std")]
 impl Clock for SystemClock {
+    /// Returns seconds since `UNIX_EPOCH`. If the system clock is set to a
+    /// time *before* `UNIX_EPOCH` (effectively impossible on a sane host
+    /// but a `Result::Err` on `duration_since`), falls back to
+    /// [`u64::MAX`] — the same value [`NoClock`] uses — so a misbehaving
+    /// clock errs toward "don't expire anything" rather than the
+    /// alternative of "expire everything immediately".
     fn now(&self) -> u64 {
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_secs())
-            .unwrap_or(0)
+            .unwrap_or(u64::MAX)
     }
 }
 
