@@ -337,8 +337,20 @@ impl DialectRegistry {
             });
         }
         // R4 check: invalid signatures are rejected; unsigned is accepted.
+        //
+        // The canonical signing form (`canonical::to_signable_sexpr`) does not
+        // yet cover `causal_protocol` or `shapes`. These fields now drive
+        // runtime acceptance, so a Valid signature over the rest of the
+        // dialect would not bind their semantics. Until the signing form is
+        // extended, reject signed dialects that carry these fields rather
+        // than silently accept a signature with under-specified coverage.
         let r4 = check_r4(&d, signer);
         if r4 == R4Result::Invalid {
+            return Err(DialectInstallError::R4Violation {
+                dialect_name: d.name,
+            });
+        }
+        if r4 == R4Result::Valid && !signature_covers_runtime_fields(&d) {
             return Err(DialectInstallError::R4Violation {
                 dialect_name: d.name,
             });
@@ -405,6 +417,18 @@ impl Default for DialectRegistry {
     fn default() -> Self {
         Self::new()
     }
+}
+
+/// Whether the dialect's R4 signing form covers every field that drives
+/// runtime acceptance.
+///
+/// `canonical::to_signable_sexpr` does not currently encode
+/// `causal_protocol` or `shapes`, so a Valid signature on a dialect that
+/// declares either field would leave those semantics unbound by the
+/// signature. Treat such dialects as having an inadequate signature until
+/// the canonical form is extended.
+fn signature_covers_runtime_fields(d: &Dialect) -> bool {
+    d.causal_protocol.is_none() && d.shapes.is_empty()
 }
 
 impl<'a> IntoIterator for &'a DialectRegistry {
@@ -835,5 +859,95 @@ mod tests {
         let msg = alloc::format!("{}", err);
         assert!(msg.contains("R4 violation"));
         assert!(msg.contains("bad"));
+    }
+
+    // -- R4 must bind causal_protocol/shapes (PR feedback P1) --
+
+    #[test]
+    fn signed_dialect_with_causal_protocol_rejected_until_signing_form_extended() {
+        use crate::protocol::{CausalProtocol, NodeRef, StepDecl};
+        let mut reg = DialectRegistry::new();
+        let mut steps = alloc::collections::BTreeMap::new();
+        steps.insert("greet".into(), StepDecl {
+            performative: "greet".into(),
+            predecessors: vec![NodeRef::Single("begin".into())],
+            successors: vec![],
+        });
+        steps.insert("begin".into(), StepDecl {
+            performative: "begin".into(),
+            predecessors: vec![],
+            successors: vec![NodeRef::Single("greet".into())],
+        });
+        let d = Dialect {
+            name: String::from("signed-with-protocol"),
+            extends: vec![String::from("cbcl")],
+            author: None,
+            performatives: vec![PerformativeDef {
+                name: String::from("greet"),
+                params: vec![],
+                template: SExpr::List(vec![
+                    SExpr::Atom(Atom::Symbol(String::from("effect"))),
+                    SExpr::Atom(Atom::Symbol(String::from("greet-action"))),
+                ]),
+            }],
+            resources: ResourceBounds {
+                max_depth: 8,
+                max_expansion_size: 512,
+                verification_time_ms: 10,
+            },
+            examples: vec![],
+            signature: Some(alloc::vec![0xAA, 0xBB]),
+            hash: None,
+            protocol: None,
+            causal_protocol: Some(CausalProtocol { steps }),
+            shapes: Vec::new(),
+        };
+        let err = reg.install_with_signer(d, &MockSigner).unwrap_err();
+        assert!(
+            matches!(err, DialectInstallError::R4Violation { .. }),
+            "expected R4 violation for signed dialect with causal_protocol"
+        );
+    }
+
+    #[test]
+    fn signed_dialect_with_shapes_rejected_until_signing_form_extended() {
+        use crate::shape::{ShapeConstraint, ShapeRule, TypeConstraint};
+        let mut reg = DialectRegistry::new();
+        let d = Dialect {
+            name: String::from("signed-with-shapes"),
+            extends: vec![String::from("cbcl")],
+            author: None,
+            performatives: vec![PerformativeDef {
+                name: String::from("greet"),
+                params: vec![],
+                template: SExpr::List(vec![
+                    SExpr::Atom(Atom::Symbol(String::from("effect"))),
+                    SExpr::Atom(Atom::Symbol(String::from("greet-action"))),
+                ]),
+            }],
+            resources: ResourceBounds {
+                max_depth: 8,
+                max_expansion_size: 512,
+                verification_time_ms: 10,
+            },
+            examples: vec![],
+            signature: Some(alloc::vec![0xAA, 0xBB]),
+            hash: None,
+            protocol: None,
+            causal_protocol: None,
+            shapes: vec![ShapeConstraint {
+                performative: String::from("greet"),
+                rules: vec![ShapeRule::Require {
+                    keyword: String::from("target"),
+                    type_constraint: Some(TypeConstraint::String),
+                    children: vec![],
+                }],
+            }],
+        };
+        let err = reg.install_with_signer(d, &MockSigner).unwrap_err();
+        assert!(
+            matches!(err, DialectInstallError::R4Violation { .. }),
+            "expected R4 violation for signed dialect with shapes"
+        );
     }
 }
