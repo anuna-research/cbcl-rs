@@ -289,11 +289,17 @@ impl DialectRegistry {
     ///
     /// Names that do not match an installed dialect are silently skipped —
     /// install-time R5 will only credit performatives from ancestors that the
-    /// registry actually knows about.
+    /// registry actually knows about. The shorthand `cbcl` is aliased to the
+    /// canonical base dialect name `cbcl-base` since dialect literals
+    /// commonly write `(extends cbcl)` while the registry stores the base
+    /// under its full name.
     fn resolve_ancestors<'a>(&'a self, d: &Dialect) -> Vec<&'a Dialect> {
         d.extends
             .iter()
-            .filter_map(|name| self.find_by_name(name))
+            .filter_map(|name| {
+                let resolved = if name == "cbcl" { "cbcl-base" } else { name.as_str() };
+                self.find_by_name(resolved)
+            })
             .collect()
     }
 
@@ -949,5 +955,45 @@ mod tests {
             matches!(err, DialectInstallError::R4Violation { .. }),
             "expected R4 violation for signed dialect with shapes"
         );
+    }
+
+    // -- "cbcl" extends shorthand resolves to base (PR feedback P2) --
+
+    #[test]
+    fn cbcl_shorthand_extends_resolves_to_base_at_install() {
+        use crate::protocol::{CausalProtocol, NodeRef, StepDecl};
+        let mut reg = DialectRegistry::new();
+        // Child dialect extends "cbcl" (shorthand for cbcl-base) and its
+        // protocol references the inherited core performative `ok`. Without
+        // the alias, install would reject this as undefined.
+        let mut steps = alloc::collections::BTreeMap::new();
+        steps.insert("begin".into(), StepDecl {
+            performative: "begin".into(),
+            predecessors: vec![],
+            successors: vec![NodeRef::Single("ok".into())],
+        });
+        steps.insert("ok".into(), StepDecl {
+            performative: "ok".into(),
+            predecessors: vec![NodeRef::Single("begin".into())],
+            successors: vec![],
+        });
+        let d = Dialect {
+            name: String::from("uses-ok"),
+            extends: vec![String::from("cbcl")],
+            author: None,
+            performatives: vec![],
+            resources: ResourceBounds {
+                max_depth: 8,
+                max_expansion_size: 512,
+                verification_time_ms: 10,
+            },
+            examples: vec![],
+            signature: None,
+            hash: None,
+            protocol: None,
+            causal_protocol: Some(CausalProtocol { steps }),
+            shapes: Vec::new(),
+        };
+        reg.install(d).expect("dialect extending cbcl should install");
     }
 }
