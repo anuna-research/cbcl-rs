@@ -54,10 +54,15 @@ pub struct Agent {
 /// same message (REQ-231 conjunction): `Reject` > `Pending` > `Buffered` >
 /// `Accept`. The strictest outcome wins so any single protocol can fail-close
 /// regardless of what other protocols say.
+///
+/// When both inputs are `Pending`, the left-hand reason is preserved. Today
+/// `PendingReason` has only one variant, so the choice is moot, but the arm
+/// is explicit so that adding new reasons doesn't silently drop one of them.
 fn merge_policy_outcomes(a: PolicyOutcome, b: PolicyOutcome) -> PolicyOutcome {
     use PolicyOutcome::*;
     match (a, b) {
         (Reject(v), _) | (_, Reject(v)) => Reject(v),
+        (Pending(left), Pending(_right)) => Pending(left),
         (Pending(r), _) | (_, Pending(r)) => Pending(r),
         (Buffered, _) | (_, Buffered) => Buffered,
         (Accept, Accept) => Accept,
