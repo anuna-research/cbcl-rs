@@ -19,7 +19,7 @@ use alloc::vec::Vec;
 use cbcl_core::blame::ViolationError;
 use cbcl_core::dialect::{Dialect, DialectRegistry};
 use cbcl_core::evaluator::{evaluate_without_shape_check, EvalError};
-use cbcl_core::message::{Message, Performative};
+use cbcl_core::message::Message;
 use cbcl_core::policy::{apply_policy, PendingReason, PolicyOutcome, UnknownPredecessorPolicy};
 use cbcl_core::protocol::CausalViolation;
 use cbcl_core::r1;
@@ -229,54 +229,62 @@ pub fn run_pipeline_full<S: MessageStore>(
         let performative = message.performative();
 
         // Step 6a: Causal verification (REQ-231).
+        //
+        // A child dialect can declare a protocol step for a performative
+        // inherited from a parent (including core performatives like `ok`),
+        // so it is *not* sufficient to find the dialect that *defines* the
+        // performative. Instead iterate every installed dialect: any whose
+        // `causal_protocol` declares a step for `perf_name` participates in
+        // verification, and constraints compose by conjunction (any
+        // rejection rejects the message).
         if let Some(perf) = performative {
             let perf_name = perf.name();
-            let dialect = match &perf {
-                Performative::Core(_) => ctx.registry.find_performative_dialect(perf_name),
-                Performative::Custom(_) => ctx.registry.find_performative_dialect(perf_name),
-            };
+            let thread_id = ThreadId(
+                thread
+                    .clone()
+                    .unwrap_or_else(|| String::from("default")),
+            );
 
-            if let Some(d) = dialect {
-                if let Some(ref proto) = d.causal_protocol {
-                    let thread_id = ThreadId(
-                        thread
-                            .clone()
-                            .unwrap_or_else(|| String::from("default")),
-                    );
+            for d in ctx.registry.iter() {
+                let Some(ref proto) = d.causal_protocol else {
+                    continue;
+                };
+                if !proto.steps.contains_key(perf_name) {
+                    continue;
+                }
 
-                    let result = cbcl_core::protocol::verify_causal(
-                        perf_name,
-                        caused_by.as_ref(),
-                        ctx.store,
-                        proto,
-                        &thread_id,
-                    );
+                let result = cbcl_core::protocol::verify_causal(
+                    perf_name,
+                    caused_by.as_ref(),
+                    ctx.store,
+                    proto,
+                    &thread_id,
+                );
 
-                    match apply_policy(&result, &ctx.policy) {
-                        PolicyOutcome::Accept => {}
-                        PolicyOutcome::Reject(cv) => {
-                            let blame = ViolationError::from_causal_violation(
-                                &cv,
-                                None,
-                                thread.clone(),
-                            );
-                            blame.record_metrics(&d.name);
-                            return PipelineResult::ValidationError(
-                                ValidationError::CausalViolation {
-                                    violation: cv,
-                                    blame,
-                                },
-                            );
-                        }
-                        PolicyOutcome::Pending(reason) => {
-                            return PipelineResult::Pending {
-                                message,
-                                reason,
-                            };
-                        }
-                        PolicyOutcome::Buffered => {
-                            return PipelineResult::Buffered { message };
-                        }
+                match apply_policy(&result, &ctx.policy) {
+                    PolicyOutcome::Accept => {}
+                    PolicyOutcome::Reject(cv) => {
+                        let blame = ViolationError::from_causal_violation(
+                            &cv,
+                            None,
+                            thread.clone(),
+                        );
+                        blame.record_metrics(&d.name);
+                        return PipelineResult::ValidationError(
+                            ValidationError::CausalViolation {
+                                violation: cv,
+                                blame,
+                            },
+                        );
+                    }
+                    PolicyOutcome::Pending(reason) => {
+                        return PipelineResult::Pending {
+                            message,
+                            reason,
+                        };
+                    }
+                    PolicyOutcome::Buffered => {
+                        return PipelineResult::Buffered { message };
                     }
                 }
             }
@@ -451,7 +459,7 @@ fn eval_error_to_validation(err: EvalError, thread: Option<String>) -> Validatio
 mod tests {
     use super::*;
     use cbcl_core::dialect::{DialectRegistry, PerformativeDef, ResourceBounds};
-    use cbcl_core::message::{CausedBy, MessageType};
+    use cbcl_core::message::{CausedBy, MessageType, Performative};
     use cbcl_core::protocol::{CausalProtocol, NodeRef, StepDecl};
     use cbcl_core::sexpr::Atom;
     use cbcl_core::shape::{ShapeConstraint, ShapeRule, TypeConstraint};
@@ -948,6 +956,65 @@ mod tests {
                 PipelineResult::ValidationError(ValidationError::CausalViolation { .. })
             ),
             "expected CausalViolation to take precedence, got {:?}",
+            result
+        );
+    }
+
+    // -- PR feedback P2: child dialect protocols on inherited performatives
+    // (e.g. core `ok`) must be enforced. The dialect that *defines* `ok` is
+    // `cbcl-base` (no protocol); the one that constrains it is the child. --
+
+    #[test]
+    fn full_pipeline_child_protocol_on_core_perf_is_enforced() {
+        let mut registry = DialectRegistry::new();
+        let mut steps = BTreeMap::new();
+        steps.insert(
+            "begin".into(),
+            StepDecl {
+                performative: "begin".into(),
+                predecessors: alloc::vec![],
+                successors: alloc::vec![NodeRef::Single("ok".into())],
+            },
+        );
+        steps.insert(
+            "ok".into(),
+            StepDecl {
+                performative: "ok".into(),
+                predecessors: alloc::vec![NodeRef::Single("begin".into())],
+                successors: alloc::vec![],
+            },
+        );
+        registry
+            .install(cbcl_core::dialect::Dialect {
+                name: String::from("ok-protocol"),
+                extends: alloc::vec![String::from("cbcl")],
+                author: None,
+                performatives: alloc::vec![], // no own perfs; constrains base `ok`
+                resources: ResourceBounds {
+                    max_depth: 8,
+                    max_expansion_size: 512,
+                    verification_time_ms: 10,
+                },
+                examples: alloc::vec![],
+                signature: None,
+                hash: None,
+                protocol: None,
+                causal_protocol: Some(CausalProtocol { steps }),
+                shapes: alloc::vec![],
+            })
+            .unwrap();
+
+        let store = ThreadedMessageStore::new();
+        let ctx = PipelineContext::new(&registry, &store);
+
+        // `(ok)` with no :caused-by — protocol requires "begin" as predecessor.
+        let result = run_pipeline_full("(ok)", &ctx);
+        assert!(
+            matches!(
+                result,
+                PipelineResult::ValidationError(ValidationError::CausalViolation { .. })
+            ),
+            "expected child protocol on core `ok` to fire, got {:?}",
             result
         );
     }
