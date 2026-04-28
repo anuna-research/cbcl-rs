@@ -47,6 +47,7 @@ pub mod r4;
 pub mod r5;
 pub mod serializer;
 pub mod sexpr;
+pub mod clock;
 pub mod shape;
 pub mod store;
 pub mod template;
@@ -55,6 +56,9 @@ pub mod template;
 pub mod prelude {
     pub use crate::agent::{Agent, AgentOutcome, MergePolicy};
     pub use crate::blame::{BlameEntry, BlameParty, ViolationError, ViolationKind};
+    pub use crate::clock::{Clock, NoClock};
+    #[cfg(feature = "std")]
+    pub use crate::clock::SystemClock;
     pub use crate::dialect::{
         Dialect, DialectInstallError, DialectRegistry, PerformativeDef, ResourceBounds,
     };

@@ -8,8 +8,10 @@
 
 use alloc::collections::{BTreeMap, BTreeSet, VecDeque};
 use alloc::string::String;
+use alloc::sync::Arc;
 use alloc::vec::Vec;
 
+use crate::clock::{Clock, NoClock};
 use crate::dialect::{Dialect, DialectInstallError, DialectRegistry};
 use crate::evaluator::{Effect, EvalError, EvalResult};
 use crate::message::Message;
@@ -50,6 +52,10 @@ pub struct Agent {
     pending_queue: PendingQueue,
     /// How outcomes from multiple matching protocols are combined.
     merge_policy: MergePolicy,
+    /// Time source for buffered-entry timestamps and TTL expiry. Defaults to
+    /// [`NoClock`], which yields `u64::MAX` so entries never expire — opt
+    /// into TTL by injecting a real clock via [`Agent::with_clock`].
+    clock: Arc<dyn Clock>,
 }
 
 /// How the agent combines verdicts when several installed protocols declare a
@@ -148,6 +154,7 @@ impl Agent {
             policy,
             pending_queue,
             merge_policy: MergePolicy::default(),
+            clock: Arc::new(NoClock),
         }
     }
 
@@ -161,6 +168,17 @@ impl Agent {
     /// Returns the configured merge policy.
     pub fn merge_policy(&self) -> MergePolicy {
         self.merge_policy
+    }
+
+    /// Inject a [`Clock`] for buffered-entry timestamps and TTL expiry.
+    ///
+    /// Without this, the agent uses [`NoClock`] which stamps every buffered
+    /// entry with `u64::MAX`, so TTL never fires. Pass [`crate::clock::SystemClock`]
+    /// (with the `std` feature) to use real time, or any custom `Clock`
+    /// implementation — useful for deterministic tests.
+    pub fn with_clock<C: Clock + 'static>(mut self, clock: C) -> Self {
+        self.clock = Arc::new(clock);
+        self
     }
 
     /// Returns a reference to the agent's message store.
@@ -303,16 +321,20 @@ impl Agent {
     /// 5. On `Unknown` + `Buffer` policy: enqueue in the pending queue and
     ///    return [`AgentOutcome::Buffered`]; the message is *not* applied.
     ///
-    /// Buffered entries are timestamped with [`u64::MAX`], so [`Self::expire`]
-    /// will never drain them. Callers that want TTL-based eviction should use
-    /// [`Self::evaluate_and_apply_at`] with the current time in seconds.
+    /// Buffered entries are timestamped via the injected [`Clock`]. With the
+    /// default [`NoClock`] this is `u64::MAX`, so [`Self::expire`] will never
+    /// drain them. Inject a real clock via [`Self::with_clock`] (or call
+    /// [`Self::evaluate_and_apply_at`] for an explicit one-off override) to
+    /// enable TTL-based eviction.
     pub fn evaluate_and_apply(&mut self, msg: &Message) -> AgentOutcome {
-        self.evaluate_and_apply_at(msg, u64::MAX)
+        let now = self.clock.now();
+        self.evaluate_and_apply_at(msg, now)
     }
 
     /// Like [`Self::evaluate_and_apply`] but stamps any newly-buffered entry
-    /// with the supplied `now` (seconds since epoch). Pass the value the
-    /// caller is willing to compare against in a future [`Self::expire`].
+    /// with the supplied `now` (seconds since epoch), bypassing the injected
+    /// clock. Useful for tests or when the caller wants per-message control
+    /// over the timestamp.
     pub fn evaluate_and_apply_at(&mut self, msg: &Message, now: u64) -> AgentOutcome {
         // Step 1: causal verification (only meaningful for Simple messages with a
         // performative whose owning dialect declares a causal protocol).
@@ -1324,5 +1346,36 @@ mod tests {
     fn with_merge_policy_sets_disjunction() {
         let agent = Agent::new("@alice").with_merge_policy(MergePolicy::Disjunction);
         assert_eq!(agent.merge_policy(), MergePolicy::Disjunction);
+    }
+
+    // -- Clock injection --
+
+    #[derive(Debug)]
+    struct FixedClock(u64);
+    impl crate::clock::Clock for FixedClock {
+        fn now(&self) -> u64 {
+            self.0
+        }
+    }
+
+    #[test]
+    fn agent_uses_injected_clock_for_buffer_timestamps() {
+        let mut agent = Agent::with_policy("@alice", UnknownPredecessorPolicy::buffer(10))
+            .with_clock(FixedClock(100));
+        agent.install_dialect(ack_dialect_with_protocol()).unwrap();
+
+        // The agent now consults FixedClock(100) automatically — no _at
+        // call needed. Buffer at clock=100; TTL=10 → expires at 110.
+        match agent.evaluate_and_apply(&ack_with_caused_by("missing")) {
+            AgentOutcome::Buffered => {}
+            other => panic!("expected Buffered, got {other:?}"),
+        }
+
+        let dropped = agent.expire(109);
+        assert!(dropped.is_empty(), "TTL not yet elapsed: {dropped:?}");
+
+        let dropped = agent.expire(110);
+        assert_eq!(dropped.len(), 1);
+        assert_eq!(dropped[0].1, DropReason::CausalTimeout);
     }
 }
