@@ -20,7 +20,8 @@ use cbcl_core::blame::ViolationError;
 use cbcl_core::dialect::{Dialect, DialectRegistry};
 use cbcl_core::evaluator::{evaluate_without_shape_check, EvalError};
 use cbcl_core::message::{Message, Performative};
-use cbcl_core::protocol::{CausalViolation, VerificationResult};
+use cbcl_core::policy::{apply_policy, PendingReason, PolicyOutcome, UnknownPredecessorPolicy};
+use cbcl_core::protocol::CausalViolation;
 use cbcl_core::r1;
 use cbcl_core::r3;
 use cbcl_core::r5;
@@ -103,15 +104,57 @@ pub enum PipelineResult {
     Success(Message),
     ParseError(ParseError),
     ValidationError(ValidationError),
+    /// Causal predecessor not yet in the local store (REQ-305).
+    ///
+    /// Returned only under [`UnknownPredecessorPolicy::Reject`]. Senders may
+    /// retry once the predecessor arrives. The pipeline does not buffer; under
+    /// [`UnknownPredecessorPolicy::Buffer`] callers receive [`PipelineResult::Buffered`]
+    /// and are responsible for enqueuing the message into a `PendingQueue`.
+    Pending {
+        message: Message,
+        reason: PendingReason,
+    },
+    /// Causal predecessor unknown; caller should buffer for re-evaluation
+    /// (REQ-305 Buffer policy).
+    Buffered { message: Message },
 }
 
 /// Runtime context for the full pipeline (REQ-231).
 ///
 /// Provides the dialect registry and message store needed for causal
-/// verification (step 6a) and shape checking (step 6b).
+/// verification (step 6a) and shape checking (step 6b), plus the policy that
+/// governs how `VerificationResult::Unknown` is handled (REQ-305).
 pub struct PipelineContext<'a, S: MessageStore> {
     pub registry: &'a DialectRegistry,
     pub store: &'a S,
+    /// Policy applied when a `:caused-by` hash is not yet present in the
+    /// store. Defaults to [`UnknownPredecessorPolicy::Reject`] when callers
+    /// use the [`PipelineContext::new`] constructor.
+    pub policy: UnknownPredecessorPolicy,
+}
+
+impl<'a, S: MessageStore> PipelineContext<'a, S> {
+    /// Create a context with the default `Reject` policy.
+    pub fn new(registry: &'a DialectRegistry, store: &'a S) -> Self {
+        Self {
+            registry,
+            store,
+            policy: UnknownPredecessorPolicy::default(),
+        }
+    }
+
+    /// Create a context with an explicit policy.
+    pub fn with_policy(
+        registry: &'a DialectRegistry,
+        store: &'a S,
+        policy: UnknownPredecessorPolicy,
+    ) -> Self {
+        Self {
+            registry,
+            store,
+            policy,
+        }
+    }
 }
 
 /// Run the lightweight verified pipeline (REQ-110).
@@ -209,8 +252,9 @@ pub fn run_pipeline_full<S: MessageStore>(
                         &thread_id,
                     );
 
-                    match result {
-                        VerificationResult::Violation(cv) => {
+                    match apply_policy(&result, &ctx.policy) {
+                        PolicyOutcome::Accept => {}
+                        PolicyOutcome::Reject(cv) => {
                             let blame = ViolationError::from_causal_violation(
                                 &cv,
                                 None,
@@ -224,8 +268,15 @@ pub fn run_pipeline_full<S: MessageStore>(
                                 },
                             );
                         }
-                        // Valid or Unknown — proceed (Unknown is not a rejection per lattice semantics).
-                        _ => {}
+                        PolicyOutcome::Pending(reason) => {
+                            return PipelineResult::Pending {
+                                message,
+                                reason,
+                            };
+                        }
+                        PolicyOutcome::Buffered => {
+                            return PipelineResult::Buffered { message };
+                        }
                     }
                 }
             }
@@ -520,10 +571,7 @@ mod tests {
     fn full_pipeline_simple_message_passes() {
         let registry = DialectRegistry::new();
         let store = ThreadedMessageStore::new();
-        let ctx = PipelineContext {
-            registry: &registry,
-            store: &store,
-        };
+        let ctx = PipelineContext::new(&registry, &store);
         let result = run_pipeline_full("(tell \"hello\")", &ctx);
         assert!(matches!(result, PipelineResult::Success(_)));
     }
@@ -577,10 +625,7 @@ mod tests {
             .unwrap();
 
         let store = ThreadedMessageStore::new();
-        let ctx = PipelineContext {
-            registry: &registry,
-            store: &store,
-        };
+        let ctx = PipelineContext::new(&registry, &store);
 
         // Send "greet" without :caused-by — protocol requires begin as predecessor.
         let result = run_pipeline_full("(greet \"hi\")", &ctx);
@@ -631,10 +676,7 @@ mod tests {
             .unwrap();
 
         let store = ThreadedMessageStore::new();
-        let ctx = PipelineContext {
-            registry: &registry,
-            store: &store,
-        };
+        let ctx = PipelineContext::new(&registry, &store);
 
         // "propose" without :target — shape requires it.
         let result = run_pipeline_full("(propose \"idea\")", &ctx);
@@ -705,10 +747,7 @@ mod tests {
             make_simple_msg("begin", Some(CausedBy::Begin)),
         );
 
-        let ctx = PipelineContext {
-            registry: &registry,
-            store: &store,
-        };
+        let ctx = PipelineContext::new(&registry, &store);
 
         // "ack" with :caused-by pointing to the begin message.
         let result = run_pipeline_full("(ack \"done\" :caused-by \"abc123\")", &ctx);
@@ -723,10 +762,7 @@ mod tests {
     fn full_pipeline_meta_define_still_validated() {
         let registry = DialectRegistry::new();
         let store = ThreadedMessageStore::new();
-        let ctx = PipelineContext {
-            registry: &registry,
-            store: &store,
-        };
+        let ctx = PipelineContext::new(&registry, &store);
         // R3 violation via full pipeline
         let result = run_pipeline_full(
             "(meta (define bad (cbcl) @author (extend tell () x)))",
@@ -742,10 +778,7 @@ mod tests {
     fn full_pipeline_teach_validated() {
         let registry = DialectRegistry::new();
         let store = ThreadedMessageStore::new();
-        let ctx = PipelineContext {
-            registry: &registry,
-            store: &store,
-        };
+        let ctx = PipelineContext::new(&registry, &store);
         let result = run_pipeline_full(
             "(meta (teach @bob (define bad (cbcl) @author (extend tell () x))))",
             &ctx,
@@ -754,6 +787,94 @@ mod tests {
             result,
             PipelineResult::ValidationError(ValidationError::R3CoreOverride { .. })
         ));
+    }
+
+    // -- REQ-305 / REQ-231: Unknown predecessor must not slip through --
+
+    fn ack_dialect_registry() -> DialectRegistry {
+        let mut registry = DialectRegistry::new();
+        let mut steps = BTreeMap::new();
+        steps.insert(
+            "begin".into(),
+            StepDecl {
+                performative: "begin".into(),
+                predecessors: alloc::vec![],
+                successors: alloc::vec![NodeRef::Single("ack".into())],
+            },
+        );
+        steps.insert(
+            "ack".into(),
+            StepDecl {
+                performative: "ack".into(),
+                predecessors: alloc::vec![NodeRef::Single("begin".into())],
+                successors: alloc::vec![],
+            },
+        );
+        let proto = CausalProtocol { steps };
+
+        registry
+            .install(cbcl_core::dialect::Dialect {
+                name: String::from("ack-dialect"),
+                extends: alloc::vec![String::from("cbcl")],
+                author: None,
+                performatives: alloc::vec![PerformativeDef {
+                    name: String::from("ack"),
+                    params: alloc::vec![],
+                    template: effect_template("ack-action"),
+                }],
+                resources: ResourceBounds {
+                    max_depth: 8,
+                    max_expansion_size: 512,
+                    verification_time_ms: 10,
+                },
+                examples: alloc::vec![],
+                signature: None,
+                hash: None,
+                protocol: None,
+                causal_protocol: Some(proto),
+                shapes: alloc::vec![],
+            })
+            .unwrap();
+        registry
+    }
+
+    #[test]
+    fn full_pipeline_unknown_predecessor_rejects_under_default_policy() {
+        let registry = ack_dialect_registry();
+        let store = ThreadedMessageStore::new(); // empty — predecessor absent
+        let ctx = PipelineContext::new(&registry, &store);
+
+        // ack with :caused-by referencing a hash not in the store.
+        let result = run_pipeline_full("(ack \"done\" :caused-by \"missing-hash\")", &ctx);
+        assert!(
+            matches!(
+                result,
+                PipelineResult::Pending {
+                    reason: cbcl_core::policy::PendingReason::CausalPending,
+                    ..
+                }
+            ),
+            "expected Pending under default Reject policy, got {:?}",
+            result
+        );
+    }
+
+    #[test]
+    fn full_pipeline_unknown_predecessor_buffers_under_buffer_policy() {
+        let registry = ack_dialect_registry();
+        let store = ThreadedMessageStore::new();
+        let ctx = PipelineContext::with_policy(
+            &registry,
+            &store,
+            cbcl_core::policy::UnknownPredecessorPolicy::buffer(60),
+        );
+
+        let result = run_pipeline_full("(ack \"done\" :caused-by \"missing-hash\")", &ctx);
+        assert!(
+            matches!(result, PipelineResult::Buffered { .. }),
+            "expected Buffered under Buffer policy, got {:?}",
+            result
+        );
     }
 
     // -- REQ-231: Pipeline orders causal before shape so a causal violation
@@ -816,10 +937,7 @@ mod tests {
             .unwrap();
 
         let store = ThreadedMessageStore::new();
-        let ctx = PipelineContext {
-            registry: &registry,
-            store: &store,
-        };
+        let ctx = PipelineContext::new(&registry, &store);
 
         // ack with no :caused-by AND no :target — both causal and shape would fail.
         // We must see CausalViolation, not ShapeViolation, because causal is checked first.

@@ -128,6 +128,13 @@ fn cmd_parse(input: Option<String>, sexpr_mode: bool) -> i32 {
                 eprintln!("validation error: {e}");
                 1
             }
+            // run_pipeline (lightweight) skips causal verification, so these
+            // policy-driven outcomes are unreachable here. Use run_pipeline_full
+            // with a configured PipelineContext to surface them.
+            PipelineResult::Pending { .. } | PipelineResult::Buffered { .. } => {
+                eprintln!("validation error: unexpected pending result from lightweight pipeline");
+                1
+            }
         }
     }
 }
@@ -304,6 +311,12 @@ fn cmd_agent(id: String) -> i32 {
                     },
                     PipelineResult::ParseError(e) => eprintln!("  parse error: {e}"),
                     PipelineResult::ValidationError(e) => eprintln!("  validation error: {e}"),
+                    PipelineResult::Pending { reason, .. } => {
+                        eprintln!("  pending: {:?}", reason);
+                    }
+                    PipelineResult::Buffered { .. } => {
+                        eprintln!("  buffered (waiting for predecessor)");
+                    }
                 }
             }
         }
