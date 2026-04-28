@@ -134,20 +134,35 @@ pub struct EvalResult {
 ///
 /// This is a pure function: it inspects the message, expands templates using
 /// the registry, and returns the resulting effects without mutating any state.
+/// Performs shape checking inline; for a no-shape variant (used by callers
+/// that run shape validation separately with richer blame), see
+/// [`evaluate_without_shape_check`].
 pub fn evaluate(msg: &Message, registry: &DialectRegistry) -> Result<EvalResult, EvalError> {
-    evaluate_with_scope(msg, registry, None)
+    evaluate_with_scope(msg, registry, None, /*check_shape=*/ true)
+}
+
+/// Evaluate a message without performing shape validation.
+///
+/// Used by callers (e.g. the pipeline) that run their own shape check step
+/// against the expanded form so they can attach richer blame evidence.
+pub fn evaluate_without_shape_check(
+    msg: &Message,
+    registry: &DialectRegistry,
+) -> Result<EvalResult, EvalError> {
+    evaluate_with_scope(msg, registry, None, /*check_shape=*/ false)
 }
 
 fn evaluate_with_scope(
     msg: &Message,
     registry: &DialectRegistry,
     scope: Option<&Dialect>,
+    check_shape: bool,
 ) -> Result<EvalResult, EvalError> {
     match msg.message_type() {
-        MessageType::Simple => evaluate_simple(msg, registry, scope),
+        MessageType::Simple => evaluate_simple(msg, registry, scope, check_shape),
         MessageType::Meta => evaluate_meta(msg),
-        MessageType::Dialect => evaluate_dialect(msg, registry),
-        MessageType::Wrapped => evaluate_wrapped(msg, registry, scope),
+        MessageType::Dialect => evaluate_dialect(msg, registry, check_shape),
+        MessageType::Wrapped => evaluate_wrapped(msg, registry, scope, check_shape),
     }
 }
 
@@ -156,6 +171,7 @@ fn evaluate_simple(
     msg: &Message,
     registry: &DialectRegistry,
     scope: Option<&Dialect>,
+    check_shape: bool,
 ) -> Result<EvalResult, EvalError> {
     let performative = msg
         .performative()
@@ -189,7 +205,9 @@ fn evaluate_simple(
     // Shape checking on expanded message (REQ-223, REQ-224).
     // All shape constraints matching the performative compose via conjunction:
     // every matching constraint must pass.
-    check_shapes(perf_name, &expanded, registry)?;
+    if check_shape {
+        check_shapes(perf_name, &expanded, registry)?;
+    }
 
     // Interpret the expanded form into concrete effects.
     let recipient = msg.recipient().map(String::from);
@@ -222,7 +240,11 @@ fn evaluate_meta(msg: &Message) -> Result<EvalResult, EvalError> {
 }
 
 /// Evaluate a dialect-scoped message: resolve dialect, then evaluate inner message.
-fn evaluate_dialect(msg: &Message, registry: &DialectRegistry) -> Result<EvalResult, EvalError> {
+fn evaluate_dialect(
+    msg: &Message,
+    registry: &DialectRegistry,
+    check_shape: bool,
+) -> Result<EvalResult, EvalError> {
     let dialect_name = msg
         .dialect_name()
         .ok_or_else(|| EvalError::MalformedMessage(String::from("dialect message missing name")))?;
@@ -236,7 +258,7 @@ fn evaluate_dialect(msg: &Message, registry: &DialectRegistry) -> Result<EvalRes
         EvalError::MalformedMessage(String::from("dialect message missing inner"))
     })?;
 
-    evaluate_with_scope(inner, registry, Some(dialect))
+    evaluate_with_scope(inner, registry, Some(dialect), check_shape)
 }
 
 /// Evaluate a wrapped message: unwrap and evaluate the inner message.
@@ -244,12 +266,13 @@ fn evaluate_wrapped(
     msg: &Message,
     registry: &DialectRegistry,
     scope: Option<&Dialect>,
+    check_shape: bool,
 ) -> Result<EvalResult, EvalError> {
     let inner = msg.inner_message().ok_or_else(|| {
         EvalError::MalformedMessage(String::from("wrapped message missing inner"))
     })?;
 
-    evaluate_with_scope(inner, registry, scope)
+    evaluate_with_scope(inner, registry, scope, check_shape)
 }
 
 fn resolve_performative_dialect<'a>(

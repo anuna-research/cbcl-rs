@@ -18,7 +18,7 @@ use alloc::string::String;
 use alloc::vec::Vec;
 use cbcl_core::blame::ViolationError;
 use cbcl_core::dialect::{Dialect, DialectRegistry};
-use cbcl_core::evaluator::{evaluate, EvalError};
+use cbcl_core::evaluator::{evaluate_without_shape_check, EvalError};
 use cbcl_core::message::{Message, Performative};
 use cbcl_core::protocol::{CausalViolation, VerificationResult};
 use cbcl_core::r1;
@@ -172,7 +172,11 @@ pub fn run_pipeline_full<S: MessageStore>(
         return PipelineResult::ValidationError(err);
     }
 
-    // Steps 4–6: For simple messages, evaluate (expand) + causal verify + shape check.
+    // Steps 4–6: For simple messages, causal verify (6a) → evaluate (4) → shape check (6b).
+    //
+    // Causal verification runs before evaluation so a causal failure cannot be
+    // masked by a downstream shape error, and so callers always see the most
+    // specific violation first (REQ-231 fail-closed ordering).
     if let Message::Simple {
         ref caused_by,
         ref thread,
@@ -181,18 +185,9 @@ pub fn run_pipeline_full<S: MessageStore>(
     {
         let performative = message.performative();
 
-        // Step 4: Evaluate (template expansion).
-        let eval_result = match evaluate(&message, ctx.registry) {
-            Ok(r) => r,
-            Err(eval_err) => {
-                return PipelineResult::ValidationError(eval_error_to_validation(eval_err))
-            }
-        };
-
         // Step 6a: Causal verification (REQ-231).
         if let Some(perf) = performative {
             let perf_name = perf.name();
-            // Find the dialect that defines this performative to get its protocol.
             let dialect = match &perf {
                 Performative::Core(_) => ctx.registry.find_performative_dialect(perf_name),
                 Performative::Custom(_) => ctx.registry.find_performative_dialect(perf_name),
@@ -235,6 +230,18 @@ pub fn run_pipeline_full<S: MessageStore>(
                 }
             }
         }
+
+        // Step 4: Evaluate (template expansion). Shape checking is deferred to
+        // step 6b so blame can include the expanded form.
+        let eval_result = match evaluate_without_shape_check(&message, ctx.registry) {
+            Ok(r) => r,
+            Err(eval_err) => {
+                return PipelineResult::ValidationError(eval_error_to_validation(
+                    eval_err,
+                    thread.clone(),
+                ))
+            }
+        };
 
         // Step 6b: Shape checking on expanded message (REQ-223, REQ-224, REQ-231).
         // Compose via conjunction: every matching shape constraint must pass.
@@ -365,7 +372,11 @@ fn invalid_resource_bound(dialect: &Dialect) -> Option<(&'static str, u32)> {
 }
 
 /// Map evaluator errors to pipeline validation errors.
-fn eval_error_to_validation(err: EvalError) -> ValidationError {
+///
+/// `thread` is the originating message's thread, threaded through so blame
+/// records carry it even when the evaluator surfaces a violation before the
+/// pipeline reaches its dedicated shape-check step (REQ-231).
+fn eval_error_to_validation(err: EvalError, thread: Option<String>) -> ValidationError {
     match err {
         EvalError::UnknownPerformative(name) => ValidationError::MalformedMessage {
             reason: alloc::format!("unknown performative: {name}"),
@@ -376,8 +387,7 @@ fn eval_error_to_validation(err: EvalError) -> ValidationError {
         },
         EvalError::MalformedMessage(reason) => ValidationError::MalformedMessage { reason },
         EvalError::ShapeViolation(sv) => {
-            let blame =
-                ViolationError::from_shape_violation(&sv, None, None, None);
+            let blame = ViolationError::from_shape_violation(&sv, None, thread, None);
             ValidationError::ShapeViolation {
                 violation: sv,
                 blame,
@@ -744,5 +754,83 @@ mod tests {
             result,
             PipelineResult::ValidationError(ValidationError::R3CoreOverride { .. })
         ));
+    }
+
+    // -- REQ-231: Pipeline orders causal before shape so a causal violation
+    // is not masked by an inline shape failure (was: shape ran inside evaluate
+    // before causal verification). --
+
+    #[test]
+    fn full_pipeline_causal_violation_takes_precedence_over_shape() {
+        let mut registry = DialectRegistry::new();
+
+        // Protocol requires "begin" before "ack". Shape requires :target string.
+        let mut steps = BTreeMap::new();
+        steps.insert(
+            "begin".into(),
+            StepDecl {
+                performative: "begin".into(),
+                predecessors: alloc::vec![],
+                successors: alloc::vec![NodeRef::Single("ack".into())],
+            },
+        );
+        steps.insert(
+            "ack".into(),
+            StepDecl {
+                performative: "ack".into(),
+                predecessors: alloc::vec![NodeRef::Single("begin".into())],
+                successors: alloc::vec![],
+            },
+        );
+        let proto = CausalProtocol { steps };
+
+        registry
+            .install(cbcl_core::dialect::Dialect {
+                name: String::from("ack-with-shape"),
+                extends: alloc::vec![String::from("cbcl")],
+                author: None,
+                performatives: alloc::vec![PerformativeDef {
+                    name: String::from("ack"),
+                    params: alloc::vec![],
+                    template: effect_template("ack-action"),
+                }],
+                resources: ResourceBounds {
+                    max_depth: 8,
+                    max_expansion_size: 512,
+                    verification_time_ms: 10,
+                },
+                examples: alloc::vec![],
+                signature: None,
+                hash: None,
+                protocol: None,
+                causal_protocol: Some(proto),
+                shapes: alloc::vec![ShapeConstraint {
+                    performative: String::from("ack"),
+                    rules: alloc::vec![ShapeRule::Require {
+                        keyword: String::from("target"),
+                        type_constraint: Some(TypeConstraint::String),
+                        children: alloc::vec![],
+                    }],
+                }],
+            })
+            .unwrap();
+
+        let store = ThreadedMessageStore::new();
+        let ctx = PipelineContext {
+            registry: &registry,
+            store: &store,
+        };
+
+        // ack with no :caused-by AND no :target — both causal and shape would fail.
+        // We must see CausalViolation, not ShapeViolation, because causal is checked first.
+        let result = run_pipeline_full("(ack \"done\")", &ctx);
+        assert!(
+            matches!(
+                result,
+                PipelineResult::ValidationError(ValidationError::CausalViolation { .. })
+            ),
+            "expected CausalViolation to take precedence, got {:?}",
+            result
+        );
     }
 }
