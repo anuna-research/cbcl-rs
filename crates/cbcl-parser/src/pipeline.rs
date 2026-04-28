@@ -178,7 +178,7 @@ pub fn run_pipeline(input: &str) -> PipelineResult {
     };
 
     // For meta define/teach messages, validate the dialect definition (REQ-208, REQ-210).
-    if let Err(err) = validate_meta_dialect(&message) {
+    if let Err(err) = validate_meta_dialect(&message, None) {
         return PipelineResult::ValidationError(err);
     }
 
@@ -211,7 +211,9 @@ pub fn run_pipeline_full<S: MessageStore>(
     };
 
     // Step 3: For meta define/teach messages, validate R1–R5 (REQ-208, REQ-210).
-    if let Err(err) = validate_meta_dialect(&message) {
+    // Pass the runtime registry so child dialects extending non-base parents
+    // are resolved correctly during R5 protocol-definedness (REQ-206).
+    if let Err(err) = validate_meta_dialect(&message, Some(ctx.registry)) {
         return PipelineResult::ValidationError(err);
     }
 
@@ -338,7 +340,10 @@ pub fn run_pipeline_full<S: MessageStore>(
 /// Both `(meta (define ...))` and `(meta (teach ...))` carry dialect definitions
 /// that must pass R1–R5 before acceptance. The teach form includes protocol and
 /// shape declarations for gossip propagation.
-fn validate_meta_dialect(message: &Message) -> Result<(), ValidationError> {
+fn validate_meta_dialect(
+    message: &Message,
+    registry: Option<&DialectRegistry>,
+) -> Result<(), ValidationError> {
     if let Message::Meta { ref dialect_def } = message {
         if let SExpr::List(items) = dialect_def {
             if items.is_empty() {
@@ -347,7 +352,7 @@ fn validate_meta_dialect(message: &Message) -> Result<(), ValidationError> {
 
             // (meta (define ...)) — direct dialect definition
             if items[0].is_symbol("define") {
-                return validate_define_dialect(dialect_def);
+                return validate_define_dialect(dialect_def, registry);
             }
 
             // (meta (teach <recipient> <define-form>)) — gossip propagation (REQ-210).
@@ -358,7 +363,7 @@ fn validate_meta_dialect(message: &Message) -> Result<(), ValidationError> {
                 for item in items.iter().skip(1) {
                     if let SExpr::List(inner_items) = item {
                         if !inner_items.is_empty() && inner_items[0].is_symbol("define") {
-                            return validate_define_dialect(item);
+                            return validate_define_dialect(item, registry);
                         }
                     }
                 }
@@ -369,7 +374,10 @@ fn validate_meta_dialect(message: &Message) -> Result<(), ValidationError> {
     Ok(())
 }
 
-fn validate_define_dialect(dialect_def: &SExpr) -> Result<(), ValidationError> {
+fn validate_define_dialect(
+    dialect_def: &SExpr,
+    registry: Option<&DialectRegistry>,
+) -> Result<(), ValidationError> {
     let dialect = crate::dialect_parser::parse_dialect(dialect_def)
         .map_err(|reason| ValidationError::MalformedDialect { reason })?;
 
@@ -393,21 +401,36 @@ fn validate_define_dialect(dialect_def: &SExpr) -> Result<(), ValidationError> {
 
     // R5: shape + protocol well-formedness (REQ-208, REQ-222).
     //
-    // At parse time there is no registry, so we credit the base dialect for
-    // any `extends` entry that names it (the dialect literal might use either
-    // "cbcl" or "cbcl-base"). Dialects that extend other named parents must be
-    // re-validated at install time via `DialectRegistry::install`, where the
-    // registry resolves the full ancestor chain (REQ-206).
+    // When a registry is available (full pipeline), resolve every `extends`
+    // entry against the installed dialects so child protocols can reference
+    // ancestor performatives without false-rejecting (REQ-206). Without a
+    // registry (lightweight pipeline) we still credit the base dialect for
+    // shorthand `cbcl` / canonical `cbcl-base` so most real definitions keep
+    // working. Other named parents we cannot resolve here — install-time R5
+    // re-checks definedness against the actual ancestor chain.
     let base = cbcl_core::dialect::base_dialect();
-    let extends_base = dialect
-        .extends
-        .iter()
-        .any(|name| name == "cbcl" || name == &base.name);
-    let ancestors: alloc::vec::Vec<&cbcl_core::dialect::Dialect> = if extends_base {
-        alloc::vec![&base]
-    } else {
-        alloc::vec![]
-    };
+    let mut ancestors: alloc::vec::Vec<&cbcl_core::dialect::Dialect> = alloc::vec![];
+    let mut credited_base = false;
+    if let Some(reg) = registry {
+        for name in &dialect.extends {
+            let resolved = if name == "cbcl" { "cbcl-base" } else { name.as_str() };
+            if let Some(parent) = reg.find_by_name(resolved) {
+                ancestors.push(parent);
+                if resolved == base.name {
+                    credited_base = true;
+                }
+            }
+        }
+    }
+    if !credited_base {
+        let extends_base = dialect
+            .extends
+            .iter()
+            .any(|name| name == "cbcl" || name == &base.name);
+        if extends_base {
+            ancestors.push(&base);
+        }
+    }
     let r5_errors = r5::r5_violations_with_ancestors(&dialect, &ancestors);
     if !r5_errors.is_empty() {
         return Err(ValidationError::R5Violation { errors: r5_errors });
@@ -1015,6 +1038,54 @@ mod tests {
                 PipelineResult::ValidationError(ValidationError::CausalViolation { .. })
             ),
             "expected child protocol on core `ok` to fire, got {:?}",
+            result
+        );
+    }
+
+    // -- PR feedback P2: meta-validation must use registry ancestors so a
+    // child dialect extending a non-base installed parent isn't rejected. --
+
+    #[test]
+    fn full_pipeline_meta_define_credits_non_base_parent_via_registry() {
+        let mut registry = DialectRegistry::new();
+        // First install a parent dialect that defines `notify`.
+        registry
+            .install(cbcl_core::dialect::Dialect {
+                name: String::from("parent-dialect"),
+                extends: alloc::vec![String::from("cbcl")],
+                author: None,
+                performatives: alloc::vec![PerformativeDef {
+                    name: String::from("notify"),
+                    params: alloc::vec![],
+                    template: effect_template("notify-action"),
+                }],
+                resources: ResourceBounds {
+                    max_depth: 8,
+                    max_expansion_size: 512,
+                    verification_time_ms: 10,
+                },
+                examples: alloc::vec![],
+                signature: None,
+                hash: None,
+                protocol: None,
+                causal_protocol: None,
+                shapes: alloc::vec![],
+            })
+            .unwrap();
+
+        let store = ThreadedMessageStore::new();
+        let ctx = PipelineContext::new(&registry, &store);
+
+        // Child meta define references parent's `notify` from its protocol.
+        // Without registry-aware meta validation, this fails as undefined at
+        // parse time even though install would accept it.
+        let input = "\
+            (meta (define child-dialect (parent-dialect) @author \
+              (protocol (then begin notify))))";
+        let result = run_pipeline_full(input, &ctx);
+        assert!(
+            matches!(result, PipelineResult::Success(_)),
+            "expected meta-define with registry ancestor to pass, got {:?}",
             result
         );
     }
