@@ -12,7 +12,7 @@ use alloc::vec::Vec;
 
 use crate::dialect::{Dialect, DialectInstallError, DialectRegistry};
 use crate::evaluator::{Effect, EvalError, EvalResult};
-use crate::message::{Message, Performative};
+use crate::message::Message;
 use crate::policy::{
     apply_policy, PendingEntry, PendingQueue, PendingReason, PolicyOutcome,
     UnknownPredecessorPolicy,
@@ -63,6 +63,20 @@ fn innermost_simple(message: &Message) -> Option<&Message> {
             Message::Dialect { inner, .. } => cur = inner,
             Message::Meta { .. } => return None,
         }
+    }
+}
+
+/// Combine two `PolicyOutcome` values when multiple protocols constrain the
+/// same message (REQ-231 conjunction): `Reject` > `Pending` > `Buffered` >
+/// `Accept`. The strictest outcome wins so any single protocol can fail-close
+/// regardless of what other protocols say.
+fn merge_policy_outcomes(a: PolicyOutcome, b: PolicyOutcome) -> PolicyOutcome {
+    use PolicyOutcome::*;
+    match (a, b) {
+        (Reject(v), _) | (_, Reject(v)) => Reject(v),
+        (Pending(r), _) | (_, Pending(r)) => Pending(r),
+        (Buffered, _) | (_, Buffered) => Buffered,
+        (Accept, Accept) => Accept,
     }
 }
 
@@ -298,34 +312,50 @@ impl Agent {
 
     /// Run causal verification + policy mapping for a message.
     ///
-    /// Returns `None` if causal verification doesn't apply (non-simple
-    /// payload, no performative, no protocol owning the performative).
+    /// Returns `None` when no installed protocol constrains the message —
+    /// the innermost payload is not Simple, or no installed dialect declares
+    /// a protocol step for its performative.
     ///
-    /// Wrappers (`envelope`/`signed`/`with-limits`/`lang`) are traversed to
-    /// the innermost Simple before we decide; otherwise a sender could hide
-    /// a protocol-violating message inside a wrapper to bypass verification.
+    /// Multiple installed dialects may declare protocols for the same
+    /// performative (notably child dialects constraining a base/inherited
+    /// performative such as `ok`); constraints compose by conjunction so any
+    /// rejection short-circuits, with `Pending`/`Buffered` outranking
+    /// `Accept`. This mirrors the full pipeline's step 6a.
     fn causal_verdict(&self, msg: &Message) -> Option<PolicyOutcome> {
         let inner = innermost_simple(msg)?;
-        let (caused_by, thread, perf) = match inner {
+        let (caused_by, thread, perf_name) = match inner {
             Message::Simple {
                 caused_by,
                 thread,
                 performative,
                 ..
-            } => (caused_by.as_ref(), thread.as_ref(), performative),
+            } => (caused_by.as_ref(), thread.as_ref(), performative.name()),
             _ => return None,
         };
-        let perf_name = match perf {
-            Performative::Core(_) | Performative::Custom(_) => perf.name(),
-        };
-
-        let dialect = self.dialect_registry.find_performative_dialect(perf_name)?;
-        let proto = dialect.causal_protocol.as_ref()?;
 
         let thread_id =
             ThreadId(thread.cloned().unwrap_or_else(|| String::from("default")));
-        let result = verify_causal(perf_name, caused_by, &self.message_store, proto, &thread_id);
-        Some(apply_policy(&result, &self.policy))
+
+        let mut decision: Option<PolicyOutcome> = None;
+        for d in self.dialect_registry.iter() {
+            let Some(ref proto) = d.causal_protocol else {
+                continue;
+            };
+            if !proto.steps.contains_key(perf_name) {
+                continue;
+            }
+            let result =
+                verify_causal(perf_name, caused_by, &self.message_store, proto, &thread_id);
+            let outcome = apply_policy(&result, &self.policy);
+            decision = Some(match decision {
+                None => outcome,
+                Some(prev) => merge_policy_outcomes(prev, outcome),
+            });
+            if matches!(decision, Some(PolicyOutcome::Reject(_))) {
+                break;
+            }
+        }
+        decision
     }
 
     /// Enqueue a message in the pending queue under the Buffer policy.
@@ -864,6 +894,68 @@ mod tests {
         match agent.evaluate_and_apply(&scoped) {
             AgentOutcome::Pending(_) => {}
             other => panic!("expected lang-scoped wrapper to surface inner Pending, got {other:?}"),
+        }
+    }
+
+    // -- PR feedback P1: child protocols on inherited (core) performatives. --
+
+    fn ok_protocol_dialect() -> Dialect {
+        use crate::protocol::{CausalProtocol, NodeRef, StepDecl};
+        let mut steps = alloc::collections::BTreeMap::new();
+        steps.insert(
+            "begin".into(),
+            StepDecl {
+                performative: "begin".into(),
+                predecessors: alloc::vec![],
+                successors: alloc::vec![NodeRef::Single("ok".into())],
+            },
+        );
+        steps.insert(
+            "ok".into(),
+            StepDecl {
+                performative: "ok".into(),
+                predecessors: alloc::vec![NodeRef::Single("begin".into())],
+                successors: alloc::vec![],
+            },
+        );
+        Dialect {
+            name: String::from("ok-protocol"),
+            extends: alloc::vec![String::from("cbcl")],
+            author: None,
+            performatives: alloc::vec![],
+            resources: ResourceBounds {
+                max_depth: 8,
+                max_expansion_size: 512,
+                verification_time_ms: 10,
+            },
+            examples: alloc::vec![],
+            signature: None,
+            hash: None,
+            protocol: None,
+            causal_protocol: Some(CausalProtocol { steps }),
+            shapes: alloc::vec![],
+        }
+    }
+
+    #[test]
+    fn agent_enforces_child_protocol_on_core_performative() {
+        let mut agent = Agent::new("@alice");
+        agent.install_dialect(ok_protocol_dialect()).unwrap();
+        // (ok) with no :caused-by — child protocol requires "begin".
+        let msg = Message::Simple {
+            performative: Performative::Core(CorePerformative::Ok),
+            recipient: None,
+            content: SExpr::List(Vec::new()),
+            params: Vec::new(),
+            thread: None,
+            sender: None,
+            caused_by: None,
+        };
+        match agent.evaluate_and_apply(&msg) {
+            AgentOutcome::CausalReject(crate::protocol::CausalViolation::MissingCausedBy) => {}
+            other => panic!(
+                "expected child protocol on core `ok` to reject MissingCausedBy, got {other:?}"
+            ),
         }
     }
 }
