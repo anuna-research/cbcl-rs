@@ -276,6 +276,12 @@ pub fn run_pipeline_full<S: MessageStore>(
                             &cv,
                             None,
                             thread.clone(),
+                        )
+                        .with_dialect_context(
+                            &d.name,
+                            d.author.as_deref(),
+                            d.hash.as_deref(),
+                            Some(perf_name),
                         );
                         blame.record_metrics(&d.name);
                         return PipelineResult::ValidationError(
@@ -323,6 +329,12 @@ pub fn run_pipeline_full<S: MessageStore>(
                                 None,
                                 thread.clone(),
                                 Some(eval_result.expanded.clone()),
+                            )
+                            .with_dialect_context(
+                                &dialect.name,
+                                dialect.author.as_deref(),
+                                dialect.hash.as_deref(),
+                                Some(perf_name),
                             );
                             blame.record_metrics(&dialect.name);
                             return PipelineResult::ValidationError(

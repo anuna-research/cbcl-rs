@@ -103,6 +103,17 @@ impl fmt::Display for ProtocolViolation {
     }
 }
 
+fn has_duplicate(refs: &[NodeRef]) -> bool {
+    for i in 0..refs.len() {
+        for j in (i + 1)..refs.len() {
+            if refs[i] == refs[j] {
+                return true;
+            }
+        }
+    }
+    false
+}
+
 impl CausalProtocol {
     /// Collect all performative names referenced in successor/predecessor node-refs,
     /// excluding `begin`.
@@ -247,12 +258,21 @@ impl CausalProtocol {
 
     /// Check that no performative has duplicate step declarations (REQ-207).
     ///
-    /// Since `CausalProtocol` stores steps in a `BTreeMap`, structural duplicates
-    /// are impossible. This method exists to satisfy the requirement interface;
-    /// it always returns an empty vec for a validly-constructed protocol.
+    /// `CausalProtocol::steps` is keyed by performative name, so step *names*
+    /// cannot collide structurally. The remaining hazard is that the
+    /// `(then …)` parser accumulates predecessor/successor `NodeRef` entries
+    /// across clauses by `push`, so a duplicated `(then …)` clause produces a
+    /// duplicated edge — equivalent to two `(step a :after begin)` declarations
+    /// in the spec's surface form. We flag any `StepDecl` whose predecessor
+    /// or successor list contains repeats.
     pub fn check_step_uniqueness(&self) -> Vec<ProtocolViolation> {
-        // BTreeMap guarantees no duplicate keys by construction.
-        Vec::new()
+        let mut violations = Vec::new();
+        for (name, step) in &self.steps {
+            if has_duplicate(&step.predecessors) || has_duplicate(&step.successors) {
+                violations.push(ProtocolViolation::DuplicateStep { name: name.clone() });
+            }
+        }
+        violations
     }
 
     /// Run all R5 protocol checks (REQ-208).
@@ -1095,9 +1115,66 @@ mod tests {
     // ---- TEST-207: Step Uniqueness ----
 
     #[test]
-    fn test_step_uniqueness_always_passes() {
-        // BTreeMap guarantees uniqueness by construction
+    fn test_step_uniqueness_clean_protocol_passes() {
         let proto = linear_protocol();
+        assert!(proto.check_step_uniqueness().is_empty());
+    }
+
+    #[test]
+    fn test_step_uniqueness_detects_duplicate_successor() {
+        // Equivalent to `(then begin a) (then begin a)` — duplicate edge.
+        let mut steps = BTreeMap::new();
+        steps.insert(
+            "begin".into(),
+            StepDecl {
+                performative: "begin".into(),
+                predecessors: vec![],
+                successors: vec![
+                    NodeRef::Single("a".into()),
+                    NodeRef::Single("a".into()),
+                ],
+            },
+        );
+        steps.insert(
+            "a".into(),
+            StepDecl {
+                performative: "a".into(),
+                predecessors: vec![
+                    NodeRef::Single("begin".into()),
+                    NodeRef::Single("begin".into()),
+                ],
+                successors: vec![],
+            },
+        );
+        let proto = CausalProtocol { steps };
+        let violations = proto.check_step_uniqueness();
+        let names: BTreeSet<&str> = violations
+            .iter()
+            .filter_map(|v| match v {
+                ProtocolViolation::DuplicateStep { name } => Some(name.as_str()),
+                _ => None,
+            })
+            .collect();
+        assert!(names.contains("begin"));
+        assert!(names.contains("a"));
+    }
+
+    #[test]
+    fn test_step_uniqueness_distinct_edges_pass() {
+        // `(then begin a) (then x a)` — fan-in, NOT a duplicate.
+        let mut steps = BTreeMap::new();
+        steps.insert(
+            "a".into(),
+            StepDecl {
+                performative: "a".into(),
+                predecessors: vec![
+                    NodeRef::Single("begin".into()),
+                    NodeRef::Single("x".into()),
+                ],
+                successors: vec![],
+            },
+        );
+        let proto = CausalProtocol { steps };
         assert!(proto.check_step_uniqueness().is_empty());
     }
 

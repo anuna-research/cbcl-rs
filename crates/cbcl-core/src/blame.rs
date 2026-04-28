@@ -68,12 +68,22 @@ pub enum ViolationKind {
 }
 
 impl ViolationKind {
-    /// Symbol name used in S-expression serialisation.
+    /// Short symbol name (used for tracing labels and `Display`).
     pub fn as_str(&self) -> &'static str {
         match self {
             ViolationKind::Shape => "shape",
             ViolationKind::Causal => "causal",
             ViolationKind::R5 => "r5",
+        }
+    }
+
+    /// Quoted-string form used as the positional violation-type element in the
+    /// REQ-233 ABNF (`"shape-violation"` / `"causal-violation"` / `"r5-violation"`).
+    pub fn as_violation_type(&self) -> &'static str {
+        match self {
+            ViolationKind::Shape => "shape-violation",
+            ViolationKind::Causal => "causal-violation",
+            ViolationKind::R5 => "r5-violation",
         }
     }
 }
@@ -137,12 +147,40 @@ pub struct ViolationError {
     pub kind: ViolationKind,
     /// Ordered chain of blame entries (CON-205).
     pub blame_chain: Vec<BlameEntry>,
-    /// Content hash of the offending message, if applicable.
-    pub message_hash: Option<String>,
-    /// Thread in which the violation occurred.
-    pub thread_id: Option<String>,
     /// Human-readable description of the violation.
     pub detail: String,
+
+    // -- REQ-233 ABNF fields --
+    /// The party the error is addressed to (e.g. `@sender`). Positional in the
+    /// ABNF; `None` emits `@unknown` as a placeholder.
+    pub recipient: Option<String>,
+    /// Dialect name.
+    pub dialect: Option<String>,
+    /// Dialect author identity (e.g. Ed25519 key ref).
+    pub dialect_author: Option<String>,
+    /// Hash of the dialect definition.
+    pub dialect_hash: Option<String>,
+    /// Performative under which the violation occurred.
+    pub performative: Option<String>,
+    /// Identity of the agent that performed the check.
+    pub verifier: Option<String>,
+    /// Hash of the offending message.
+    pub message_hash: Option<String>,
+    /// Predecessor hash (for causal violations).
+    pub caused_by: Option<String>,
+    /// Shape rule text (for shape violations).
+    pub rule: Option<String>,
+    /// Field/keyword that failed (for shape violations).
+    pub field: Option<String>,
+    /// Expected type (for shape violations).
+    pub expected: Option<String>,
+    /// Found type (for shape violations).
+    pub found: Option<String>,
+
+    /// Thread in which the violation occurred. Retained for internal use
+    /// (metrics, callers that want to correlate with their own thread state)
+    /// but **not** emitted by `to_sexpr` — `:thread` is not in the REQ-233 ABNF.
+    pub thread_id: Option<String>,
 }
 
 impl fmt::Display for ViolationError {
@@ -156,10 +194,76 @@ impl fmt::Display for ViolationError {
 // ----------------------------------------------------------------
 
 impl ViolationError {
+    /// Build an empty error with a given kind. Use the `with_*` builders or
+    /// `from_*` constructors to populate it.
+    fn new(kind: ViolationKind, detail: String, blame_chain: Vec<BlameEntry>) -> Self {
+        ViolationError {
+            kind,
+            blame_chain,
+            detail,
+            recipient: None,
+            dialect: None,
+            dialect_author: None,
+            dialect_hash: None,
+            performative: None,
+            verifier: None,
+            message_hash: None,
+            caused_by: None,
+            rule: None,
+            field: None,
+            expected: None,
+            found: None,
+            thread_id: None,
+        }
+    }
+
+    /// Set the recipient (the party the error is addressed to).
+    pub fn with_recipient(mut self, recipient: impl Into<String>) -> Self {
+        self.recipient = Some(recipient.into());
+        self
+    }
+
+    /// Set the verifier (the agent that performed the check).
+    pub fn with_verifier(mut self, verifier: impl Into<String>) -> Self {
+        self.verifier = Some(verifier.into());
+        self
+    }
+
+    /// Populate dialect-related fields (`:dialect`, `:dialect-author`,
+    /// `:dialect-hash`) from a `Dialect`. Also stamps `:performative` if given.
+    pub fn with_dialect_context(
+        mut self,
+        dialect_name: &str,
+        dialect_author: Option<&str>,
+        dialect_hash: Option<&str>,
+        performative: Option<&str>,
+    ) -> Self {
+        self.dialect = Some(String::from(dialect_name));
+        self.dialect_author = dialect_author.map(String::from);
+        self.dialect_hash = dialect_hash.map(String::from);
+        if let Some(p) = performative {
+            self.performative = Some(String::from(p));
+        }
+        self
+    }
+
+    /// Set the message hash.
+    pub fn with_message_hash(mut self, hash: impl Into<String>) -> Self {
+        self.message_hash = Some(hash.into());
+        self
+    }
+
+    /// Set the thread id (kept for internal use; not emitted in the wire form).
+    pub fn with_thread_id(mut self, thread: impl Into<String>) -> Self {
+        self.thread_id = Some(thread.into());
+        self
+    }
+
     /// Create a `ViolationError` from a `ShapeViolation` (REQ-230).
     ///
     /// Shape violations blame the **Sender** (who sent a message that does not
     /// conform to the declared shape) with the violating S-expression as evidence.
+    /// Populates `:rule`, `:field`, `:expected`, `:found` from the violation.
     pub fn from_shape_violation(
         violation: &ShapeViolation,
         message_hash: Option<String>,
@@ -171,40 +275,87 @@ impl ViolationError {
             violation.rule,
             violation.detail
         );
-        ViolationError {
-            kind: ViolationKind::Shape,
-            blame_chain: alloc::vec![BlameEntry {
+        let mut err = Self::new(
+            ViolationKind::Shape,
+            alloc::format!("{}", violation),
+            alloc::vec![BlameEntry {
                 party: BlameParty::Sender,
                 reason,
                 evidence,
             }],
-            message_hash,
-            thread_id,
-            detail: alloc::format!("{}", violation),
-        }
+        );
+        err.message_hash = message_hash;
+        err.thread_id = thread_id;
+        err.rule = Some(violation.rule.clone());
+        err.field = violation.field.clone();
+        err.expected = violation.expected.clone();
+        err.found = violation.found.clone();
+        err
     }
 
     /// Create a `ViolationError` from a `CausalViolation` (REQ-230).
     ///
     /// Causal violations blame the **Sender** (who sent a message with invalid
-    /// causal predecessors).
+    /// causal predecessors). Populates `:caused-by` from the violation when
+    /// the variant carries a predecessor hash.
     pub fn from_causal_violation(
         violation: &CausalViolation,
         message_hash: Option<String>,
         thread_id: Option<String>,
     ) -> Self {
         let reason = alloc::format!("{}", violation);
-        ViolationError {
-            kind: ViolationKind::Causal,
-            blame_chain: alloc::vec![BlameEntry {
+        let mut err = Self::new(
+            ViolationKind::Causal,
+            reason.clone(),
+            alloc::vec![BlameEntry {
                 party: BlameParty::Sender,
-                reason: reason.clone(),
+                reason,
                 evidence: None,
             }],
-            message_hash,
-            thread_id,
-            detail: reason,
-        }
+        );
+        err.message_hash = message_hash;
+        err.thread_id = thread_id;
+        err.caused_by = match violation {
+            CausalViolation::UnknownPredecessor { caused_by } => Some(caused_by.clone()),
+            CausalViolation::InvalidPredecessor { caused_by, .. } => Some(caused_by.clone()),
+            _ => None,
+        };
+        err
+    }
+
+    /// Create a `ViolationError` for an *unsatisfiable* shape constraint (REQ-230).
+    ///
+    /// Per the SPEC-002 blame table, a shape that no valid message can satisfy
+    /// is the dialect author's fault, not the sender's. This constructor exists
+    /// for callers that detect unsatisfiability (e.g. at install time via
+    /// witness/example-based R5 checks, or at first runtime failure when no
+    /// sender could plausibly conform). It does *not* run a detector itself —
+    /// callers must determine unsatisfiability and supply the rationale.
+    pub fn from_unsatisfiable_shape(
+        dialect_name: &str,
+        constraint_summary: &str,
+        rationale: &str,
+    ) -> Self {
+        let detail = alloc::format!(
+            "dialect '{}' contains an unsatisfiable shape constraint: {}",
+            dialect_name,
+            constraint_summary
+        );
+        let reason = alloc::format!(
+            "shape constraint cannot be satisfied by any message: {}",
+            rationale
+        );
+        let mut err = Self::new(
+            ViolationKind::Shape,
+            detail,
+            alloc::vec![BlameEntry {
+                party: BlameParty::DialectAuthor,
+                reason,
+                evidence: None,
+            }],
+        );
+        err.dialect = Some(String::from(dialect_name));
+        err
     }
 
     /// Create a `ViolationError` from R5 well-formedness violations (REQ-230).
@@ -232,9 +383,10 @@ impl ViolationError {
             dialect_name
         );
 
-        ViolationError {
-            kind: ViolationKind::R5,
-            blame_chain: alloc::vec![
+        let mut err = Self::new(
+            ViolationKind::R5,
+            detail,
+            alloc::vec![
                 BlameEntry {
                     party: BlameParty::DialectAuthor,
                     reason: author_reason,
@@ -246,48 +398,101 @@ impl ViolationError {
                     evidence: None,
                 },
             ],
-            message_hash: None,
-            thread_id: None,
-            detail,
-        }
+        );
+        err.dialect = Some(String::from(dialect_name));
+        err
     }
 
     // ----------------------------------------------------------------
     // Serialisation (REQ-233)
     // ----------------------------------------------------------------
 
-    /// Serialise as a valid CBCL error S-expression (REQ-233).
+    /// Serialise as a CBCL error S-expression (REQ-233).
     ///
+    /// Emits the SPEC-002 ABNF form:
     /// ```text
-    /// (error :kind shape
-    ///        :detail "shape violation: ..."
-    ///        :message-hash "abc123"
-    ///        :thread "t1"
-    ///        :blame-chain
-    ///          ((blame :party sender :reason "..." :evidence (...))))
+    /// (error <recipient> "shape-violation"
+    ///        :dialect <name> :dialect-author <key> :dialect-hash <hash>
+    ///        :performative <perf> :rule <rule>
+    ///        :field <field> :expected <type> :found <type>
+    ///        :detail <text>
+    ///        :blamed sender :verifier <key>
+    ///        :message-hash <hash> :caused-by <hash>
+    ///        :blame-chain (...))
     /// ```
+    ///
+    /// Recipient is positional and falls back to `@unknown` if unset. Optional
+    /// fields are omitted when their value is `None`. `:thread` is *not*
+    /// emitted: it isn't in the ABNF (`thread_id` is retained on the struct
+    /// for internal use).
     pub fn to_sexpr(&self) -> SExpr {
         let mut items: Vec<SExpr> = Vec::new();
         items.push(SExpr::Atom(Atom::Symbol(String::from("error"))));
 
-        // :kind
-        items.push(SExpr::Atom(Atom::Keyword(String::from("kind"))));
-        items.push(SExpr::Atom(Atom::Symbol(String::from(self.kind.as_str()))));
+        // 1. recipient (positional)
+        let recipient = self
+            .recipient
+            .clone()
+            .unwrap_or_else(|| String::from("@unknown"));
+        items.push(SExpr::Atom(Atom::Symbol(recipient)));
 
-        // :detail
-        items.push(SExpr::Atom(Atom::Keyword(String::from("detail"))));
-        items.push(SExpr::Atom(Atom::Str(self.detail.clone())));
+        // 2. violation type (positional, quoted string)
+        items.push(SExpr::Atom(Atom::Str(String::from(
+            self.kind.as_violation_type(),
+        ))));
 
-        // :message-hash (optional)
-        if let Some(ref hash) = self.message_hash {
-            items.push(SExpr::Atom(Atom::Keyword(String::from("message-hash"))));
-            items.push(SExpr::Atom(Atom::Str(hash.clone())));
+        // 3+. keyword fields
+        let push_str_kv = |items: &mut Vec<SExpr>, key: &str, val: &str| {
+            items.push(SExpr::Atom(Atom::Keyword(String::from(key))));
+            items.push(SExpr::Atom(Atom::Str(String::from(val))));
+        };
+
+        if let Some(ref v) = self.dialect {
+            push_str_kv(&mut items, "dialect", v);
+        }
+        if let Some(ref v) = self.dialect_author {
+            push_str_kv(&mut items, "dialect-author", v);
+        }
+        if let Some(ref v) = self.dialect_hash {
+            push_str_kv(&mut items, "dialect-hash", v);
+        }
+        if let Some(ref v) = self.performative {
+            push_str_kv(&mut items, "performative", v);
+        }
+        if let Some(ref v) = self.rule {
+            push_str_kv(&mut items, "rule", v);
+        }
+        if let Some(ref v) = self.field {
+            // :field is a keyword in the ABNF (e.g. `:route`).
+            items.push(SExpr::Atom(Atom::Keyword(String::from("field"))));
+            // Strip a leading ':' from the field name so we emit a bare keyword atom.
+            let stripped = v.strip_prefix(':').unwrap_or(v.as_str());
+            items.push(SExpr::Atom(Atom::Keyword(String::from(stripped))));
+        }
+        if let Some(ref v) = self.expected {
+            push_str_kv(&mut items, "expected", v);
+        }
+        if let Some(ref v) = self.found {
+            push_str_kv(&mut items, "found", v);
         }
 
-        // :thread (optional)
-        if let Some(ref thread) = self.thread_id {
-            items.push(SExpr::Atom(Atom::Keyword(String::from("thread"))));
-            items.push(SExpr::Atom(Atom::Str(thread.clone())));
+        // :detail (always present)
+        push_str_kv(&mut items, "detail", &self.detail);
+
+        // :blamed (derived from the first blame_chain entry)
+        if let Some(first) = self.blame_chain.first() {
+            items.push(SExpr::Atom(Atom::Keyword(String::from("blamed"))));
+            items.push(SExpr::Atom(Atom::Symbol(String::from(first.party.as_str()))));
+        }
+
+        if let Some(ref v) = self.verifier {
+            push_str_kv(&mut items, "verifier", v);
+        }
+        if let Some(ref v) = self.message_hash {
+            push_str_kv(&mut items, "message-hash", v);
+        }
+        if let Some(ref v) = self.caused_by {
+            push_str_kv(&mut items, "caused-by", v);
         }
 
         // :blame-chain
@@ -579,6 +784,25 @@ mod tests {
         assert!(err.detail.contains("2 R5 violation(s)"));
     }
 
+    // -- from_unsatisfiable_shape --
+
+    #[test]
+    fn from_unsatisfiable_shape_blames_dialect_author() {
+        let err = ViolationError::from_unsatisfiable_shape(
+            "logistics",
+            "require :route string AND require :route number",
+            "no value can satisfy both type constraints simultaneously",
+        );
+        assert_eq!(err.kind, ViolationKind::Shape);
+        assert_eq!(err.blame_chain.len(), 1);
+        assert_eq!(err.blame_chain[0].party, BlameParty::DialectAuthor);
+        assert!(err.blame_chain[0].evidence.is_none());
+        assert!(err.detail.contains("logistics"));
+        assert!(err.detail.contains("unsatisfiable"));
+        assert!(err.message_hash.is_none());
+        assert!(err.thread_id.is_none());
+    }
+
     // -- to_sexpr (REQ-233) --
 
     #[test]
@@ -599,17 +823,19 @@ mod tests {
         let sexpr = err.to_sexpr();
         let s = alloc::format!("{}", sexpr);
 
-        // Must start with (error ...)
-        assert!(s.starts_with("(error "));
-        assert!(s.contains(":kind"));
-        assert!(s.contains("shape"));
+        // Must start with (error <recipient> "shape-violation" ...)
+        assert!(s.starts_with("(error @unknown \"shape-violation\""));
         assert!(s.contains(":detail"));
         assert!(s.contains(":message-hash"));
         assert!(s.contains("\"h1\""));
-        assert!(s.contains(":thread"));
-        assert!(s.contains("\"t1\""));
+        // :thread is intentionally NOT in the wire form (REQ-233 ABNF).
+        assert!(!s.contains(":thread"));
         assert!(s.contains(":blame-chain"));
         assert!(s.contains("(blame "));
+        // Shape-derived fields are populated.
+        assert!(s.contains(":rule"));
+        assert!(s.contains(":expected"));
+        assert!(s.contains(":found"));
     }
 
     #[test]
@@ -619,11 +845,11 @@ mod tests {
         let sexpr = err.to_sexpr();
         let s = alloc::format!("{}", sexpr);
 
-        assert!(s.starts_with("(error "));
-        assert!(s.contains(":kind"));
-        assert!(s.contains("causal"));
+        assert!(s.starts_with("(error @unknown \"causal-violation\""));
         assert!(!s.contains(":message-hash"));
         assert!(!s.contains(":thread"));
+        // :kind is no longer in the wire form (REQ-233).
+        assert!(!s.contains(":kind"));
     }
 
     #[test]
@@ -641,6 +867,66 @@ mod tests {
         // Two blame entries: dialect-author and installer
         let blame_count = s.matches("(blame ").count();
         assert_eq!(blame_count, 2);
+    }
+
+    /// REQ-233 ABNF conformance: positional recipient + quoted violation type +
+    /// every spec keyword field plumbed through.
+    #[test]
+    fn to_sexpr_matches_req233_abnf() {
+        let sv = ShapeViolation {
+            rule: String::from("require :route string"),
+            field: Some(String::from(":route")),
+            expected: Some(String::from("string")),
+            found: Some(String::from("number")),
+            detail: String::from(":route expected string, found number"),
+        };
+        let err = ViolationError::from_shape_violation(
+            &sv,
+            Some(String::from("sha256:msg")),
+            None,
+            None,
+        )
+        .with_recipient("@sender")
+        .with_verifier("@receiver")
+        .with_dialect_context(
+            "logistics",
+            Some("@consortium"),
+            Some("sha256:abc"),
+            Some("track-shipment"),
+        );
+        let s = alloc::format!("{}", err.to_sexpr());
+
+        // Spec ABNF (SPEC-002 REQ-233):
+        assert!(s.starts_with("(error @sender \"shape-violation\""));
+        assert!(s.contains(":dialect "), "missing :dialect");
+        assert!(s.contains(":dialect-author "), "missing :dialect-author");
+        assert!(s.contains(":dialect-hash "), "missing :dialect-hash");
+        assert!(s.contains(":performative "), "missing :performative");
+        assert!(s.contains(":rule "), "missing :rule");
+        assert!(s.contains(":field "), "missing :field");
+        assert!(s.contains(":expected "), "missing :expected");
+        assert!(s.contains(":found "), "missing :found");
+        assert!(s.contains(":blamed sender"), "missing :blamed positional");
+        assert!(s.contains(":verifier "), "missing :verifier");
+        assert!(s.contains(":message-hash "), "missing :message-hash");
+        assert!(!s.contains(":kind"), "spec form has no :kind keyword");
+        assert!(!s.contains(":thread"), "spec form has no :thread keyword");
+    }
+
+    /// REQ-233: causal-violation form populates `:caused-by` from the violation.
+    #[test]
+    fn to_sexpr_causal_includes_caused_by() {
+        let cv = CausalViolation::UnknownPredecessor {
+            caused_by: String::from("sha256:pred"),
+        };
+        let err = ViolationError::from_causal_violation(&cv, None, None)
+            .with_recipient("@sender")
+            .with_dialect_context("d", None, None, Some("ack"));
+        let s = alloc::format!("{}", err.to_sexpr());
+        assert!(s.starts_with("(error @sender \"causal-violation\""));
+        assert!(s.contains(":caused-by"));
+        assert!(s.contains("\"sha256:pred\""));
+        assert!(s.contains(":blamed sender"));
     }
 
     // -- ViolationError::display --
@@ -761,35 +1047,25 @@ mod tests {
 
     #[test]
     fn verify_blame_r5_without_author_returns_false() {
-        // Manually constructed with only Installer — should fail verification
-        let err = ViolationError {
-            kind: ViolationKind::R5,
-            blame_chain: vec![BlameEntry {
-                party: BlameParty::Installer,
-                reason: String::from("installed bad dialect"),
-                evidence: None,
-            }],
-            message_hash: None,
-            thread_id: None,
-            detail: String::from("test"),
-        };
+        // Start from a real R5 error then overwrite the chain with only Installer.
+        let mut err = ViolationError::from_r5_violation("d", &[String::from("x")]);
+        err.blame_chain = vec![BlameEntry {
+            party: BlameParty::Installer,
+            reason: String::from("installed bad dialect"),
+            evidence: None,
+        }];
         assert!(!err.verify_blame(None));
     }
 
     #[test]
     fn verify_blame_causal_without_sender_returns_false() {
-        // Manually constructed with wrong party — should fail verification
-        let err = ViolationError {
-            kind: ViolationKind::Causal,
-            blame_chain: vec![BlameEntry {
-                party: BlameParty::DialectAuthor,
-                reason: String::from("wrong party"),
-                evidence: None,
-            }],
-            message_hash: None,
-            thread_id: None,
-            detail: String::from("test"),
-        };
+        let cv = CausalViolation::MissingCausedBy;
+        let mut err = ViolationError::from_causal_violation(&cv, None, None);
+        err.blame_chain = vec![BlameEntry {
+            party: BlameParty::DialectAuthor,
+            reason: String::from("wrong party"),
+            evidence: None,
+        }];
         assert!(!err.verify_blame(None));
     }
 
