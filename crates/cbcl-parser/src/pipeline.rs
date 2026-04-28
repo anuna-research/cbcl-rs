@@ -226,7 +226,7 @@ pub fn run_pipeline_full<S: MessageStore>(
     // Wrapped (`envelope`/`signed`/`with-limits`) and dialect-scoped (`lang`)
     // messages defer to their innermost Simple payload so wrappers cannot be
     // used to bypass causal/shape verification.
-    let inner_simple = innermost_simple(&message);
+    let inner_simple = message.innermost_simple();
     if let Some(Message::Simple {
         caused_by,
         thread,
@@ -346,21 +346,6 @@ pub fn run_pipeline_full<S: MessageStore>(
 /// Both `(meta (define ...))` and `(meta (teach ...))` carry dialect definitions
 /// that must pass R1–R5 before acceptance. The teach form includes protocol and
 /// shape declarations for gossip propagation.
-/// Walk through `Wrapped` and `Dialect` envelopes to the innermost
-/// `Message::Simple`, returning `None` if no Simple is found (e.g. a `Meta`
-/// message or a wrapper that nests another non-Simple message).
-fn innermost_simple(message: &Message) -> Option<&Message> {
-    let mut cur = message;
-    loop {
-        match cur {
-            Message::Simple { .. } => return Some(cur),
-            Message::Wrapped { content, .. } => cur = content,
-            Message::Dialect { inner, .. } => cur = inner,
-            Message::Meta { .. } => return None,
-        }
-    }
-}
-
 fn validate_meta_dialect(
     message: &Message,
     registry: Option<&DialectRegistry>,

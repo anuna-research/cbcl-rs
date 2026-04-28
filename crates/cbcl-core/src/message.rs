@@ -286,6 +286,22 @@ impl Message {
         }
     }
 
+    /// Walk through `Wrapped` and `Dialect` envelopes to the innermost
+    /// `Message::Simple`. Returns `None` if no Simple is found (e.g. a `Meta`
+    /// message). Used by the parser pipeline and the agent to ensure
+    /// wrappers cannot be used to bypass causal/shape verification.
+    pub fn innermost_simple(&self) -> Option<&Message> {
+        let mut cur = self;
+        loop {
+            match cur {
+                Message::Simple { .. } => return Some(cur),
+                Message::Wrapped { content, .. } => cur = content,
+                Message::Dialect { inner, .. } => cur = inner,
+                Message::Meta { .. } => return None,
+            }
+        }
+    }
+
     /// Returns the wrapper type if this is a Wrapped message.
     pub fn wrapper_type(&self) -> Option<WrapperType> {
         match self {

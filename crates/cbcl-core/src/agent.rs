@@ -50,22 +50,6 @@ pub struct Agent {
     pending_queue: PendingQueue,
 }
 
-/// Walk through `Wrapped`/`Dialect` envelopes to the innermost
-/// `Message::Simple`. Returns `None` if no Simple is found (e.g. a `Meta`
-/// message). Mirrors the helper in the parser pipeline so wrappers cannot
-/// be used to bypass causal/shape verification at the agent layer.
-fn innermost_simple(message: &Message) -> Option<&Message> {
-    let mut cur = message;
-    loop {
-        match cur {
-            Message::Simple { .. } => return Some(cur),
-            Message::Wrapped { content, .. } => cur = content,
-            Message::Dialect { inner, .. } => cur = inner,
-            Message::Meta { .. } => return None,
-        }
-    }
-}
-
 /// Combine two `PolicyOutcome` values when multiple protocols constrain the
 /// same message (REQ-231 conjunction): `Reject` > `Pending` > `Buffered` >
 /// `Accept`. The strictest outcome wins so any single protocol can fail-close
@@ -322,7 +306,7 @@ impl Agent {
     /// rejection short-circuits, with `Pending`/`Buffered` outranking
     /// `Accept`. This mirrors the full pipeline's step 6a.
     fn causal_verdict(&self, msg: &Message) -> Option<PolicyOutcome> {
-        let inner = innermost_simple(msg)?;
+        let inner = msg.innermost_simple()?;
         let (caused_by, thread, perf_name) = match inner {
             Message::Simple {
                 caused_by,
@@ -364,7 +348,7 @@ impl Agent {
     /// innermost Simple's caused_by/thread/performative for re-evaluation
     /// keys so wrapped pending messages are handled identically to bare ones.
     fn buffer_pending(&mut self, msg: &Message) {
-        let Some(inner) = innermost_simple(msg) else {
+        let Some(inner) = msg.innermost_simple() else {
             return;
         };
         let Message::Simple {
