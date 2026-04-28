@@ -14,7 +14,7 @@ Rust implementation of **CBCL** (Common Business Communication Language) — a s
 ## Quick Start
 
 ```bash
-# Run tests (453 tests)
+# Run tests (837 tests across the workspace)
 cargo test --workspace
 
 # Parse a message
@@ -122,12 +122,13 @@ Strict **purity boundary**: the core crates are deterministic, `no_std + alloc`,
 
 ## Testing
 
-- **Unit tests**: 263 in cbcl-core, 92 in cbcl-parser
-- **Property tests**: 37 proptest suites covering 8 USDD verification properties
-- **Differential tests**: 21 integration tests comparing Rust vs Lean on 156 test vectors
+- **Unit tests**: 584 in cbcl-core, 139 in cbcl-parser, 26 in cbcl-wasm, 14 in cbcl-ffi
+- **Property tests**: 37 proptest cases (31 in cbcl-core, 6 in cbcl-parser) covering USDD verification properties
+- **Differential tests**: 21 integration tests comparing Rust vs Lean on shared test vectors
+- **Eventual-consistency / NFR tests**: 12 + 4 integration tests in cbcl-core
 - **Fuzz targets**: libFuzzer harnesses for parser trust boundary
-- **Mutation testing**: cargo-mutants config targeting 7 critical-path modules (90% kill rate threshold)
-- **Benchmarks**: 44 Criterion benchmarks for parser, constraints, template expansion, gossip
+- **Mutation testing**: cargo-mutants config targeting critical-path modules (90% kill rate threshold)
+- **Benchmarks**: Criterion benchmarks for parser, constraints, template expansion, gossip
 
 ## Contributing
 
