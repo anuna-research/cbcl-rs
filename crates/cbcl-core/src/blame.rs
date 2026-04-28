@@ -929,6 +929,151 @@ mod tests {
         assert!(s.contains(":blamed sender"));
     }
 
+    /// REQ-233: `InvalidPredecessor` populates `:caused-by` with the bad
+    /// predecessor hash (the variant has different field shape from
+    /// `UnknownPredecessor`, so test it separately).
+    #[test]
+    fn to_sexpr_causal_invalid_predecessor_includes_caused_by() {
+        let cv = CausalViolation::InvalidPredecessor {
+            caused_by: String::from("sha256:bad"),
+            expected: alloc::vec![String::from("pause")],
+            found: String::from("ack"),
+        };
+        let err = ViolationError::from_causal_violation(&cv, None, None);
+        assert_eq!(err.caused_by.as_deref(), Some("sha256:bad"));
+        let s = alloc::format!("{}", err.to_sexpr());
+        assert!(s.contains(":caused-by"));
+        assert!(s.contains("\"sha256:bad\""));
+    }
+
+    /// REQ-230 + REQ-233: unsatisfiable shape blames DialectAuthor *and*
+    /// the wire form reflects the attribution.
+    #[test]
+    fn to_sexpr_unsatisfiable_shape_blames_dialect_author() {
+        let err = ViolationError::from_unsatisfiable_shape(
+            "logistics",
+            "string AND number",
+            "no value satisfies both",
+        );
+        let s = alloc::format!("{}", err.to_sexpr());
+        assert!(s.starts_with("(error @unknown \"shape-violation\""));
+        assert!(s.contains(":blamed dialect-author"));
+        assert!(s.contains(":dialect "));
+        assert!(s.contains("\"logistics\""));
+    }
+
+    /// REQ-233: R5 emission carries dialect, blames dialect-author first,
+    /// and emits `r5-violation` (not `"r5"`).
+    #[test]
+    fn to_sexpr_r5_violation_matches_abnf() {
+        let err = ViolationError::from_r5_violation(
+            "broken",
+            &alloc::vec![String::from("cycle: a → b → a")],
+        )
+        .with_recipient("@installer");
+        let s = alloc::format!("{}", err.to_sexpr());
+        assert!(s.starts_with("(error @installer \"r5-violation\""));
+        assert!(s.contains(":dialect "));
+        assert!(s.contains("\"broken\""));
+        assert!(s.contains(":blamed dialect-author"));
+        // Two blame entries: dialect-author and installer.
+        assert_eq!(s.matches("(blame ").count(), 2);
+    }
+
+    /// `:field` is emitted as a keyword atom (e.g. `:route`), not a string.
+    /// A leading colon on the input is stripped to avoid `::route`.
+    #[test]
+    fn to_sexpr_field_emits_keyword_atom() {
+        let sv = ShapeViolation {
+            rule: String::from("require :route string"),
+            field: Some(String::from(":route")),
+            expected: None,
+            found: None,
+            detail: String::from("test"),
+        };
+        let err = ViolationError::from_shape_violation(&sv, None, None, None);
+        let sexpr = err.to_sexpr();
+
+        // Walk the items and find the :field keyword and the value following it.
+        let items = match sexpr {
+            SExpr::List(items) => items,
+            _ => panic!("error must be a list"),
+        };
+        let mut idx = None;
+        for (i, item) in items.iter().enumerate() {
+            if matches!(item, SExpr::Atom(Atom::Keyword(k)) if k == "field") {
+                idx = Some(i);
+                break;
+            }
+        }
+        let i = idx.expect(":field keyword must be present");
+        let value = &items[i + 1];
+        // Value must be a Keyword atom with the colon stripped.
+        match value {
+            SExpr::Atom(Atom::Keyword(k)) => assert_eq!(k, "route"),
+            other => panic!(":field value must be a Keyword atom, got {other:?}"),
+        }
+    }
+
+    // -- builders --
+
+    #[test]
+    fn with_recipient_sets_recipient() {
+        let cv = CausalViolation::MissingCausedBy;
+        let err = ViolationError::from_causal_violation(&cv, None, None)
+            .with_recipient("@alice");
+        assert_eq!(err.recipient.as_deref(), Some("@alice"));
+    }
+
+    #[test]
+    fn with_verifier_sets_verifier() {
+        let cv = CausalViolation::MissingCausedBy;
+        let err = ViolationError::from_causal_violation(&cv, None, None)
+            .with_verifier("@bob");
+        assert_eq!(err.verifier.as_deref(), Some("@bob"));
+    }
+
+    #[test]
+    fn with_message_hash_sets_message_hash() {
+        let cv = CausalViolation::MissingCausedBy;
+        let err = ViolationError::from_causal_violation(&cv, None, None)
+            .with_message_hash("sha256:msg");
+        assert_eq!(err.message_hash.as_deref(), Some("sha256:msg"));
+    }
+
+    #[test]
+    fn with_thread_id_sets_thread_id_but_does_not_emit() {
+        let cv = CausalViolation::MissingCausedBy;
+        let err = ViolationError::from_causal_violation(&cv, None, None)
+            .with_thread_id("t-7");
+        assert_eq!(err.thread_id.as_deref(), Some("t-7"));
+        let s = alloc::format!("{}", err.to_sexpr());
+        assert!(!s.contains(":thread"));
+        assert!(!s.contains("t-7"));
+    }
+
+    #[test]
+    fn with_dialect_context_sets_all_fields() {
+        let cv = CausalViolation::MissingCausedBy;
+        let err = ViolationError::from_causal_violation(&cv, None, None)
+            .with_dialect_context("d", Some("@a"), Some("h"), Some("p"));
+        assert_eq!(err.dialect.as_deref(), Some("d"));
+        assert_eq!(err.dialect_author.as_deref(), Some("@a"));
+        assert_eq!(err.dialect_hash.as_deref(), Some("h"));
+        assert_eq!(err.performative.as_deref(), Some("p"));
+    }
+
+    #[test]
+    fn with_dialect_context_handles_optional_fields() {
+        let cv = CausalViolation::MissingCausedBy;
+        let err = ViolationError::from_causal_violation(&cv, None, None)
+            .with_dialect_context("d", None, None, None);
+        assert_eq!(err.dialect.as_deref(), Some("d"));
+        assert_eq!(err.dialect_author, None);
+        assert_eq!(err.dialect_hash, None);
+        assert_eq!(err.performative, None);
+    }
+
     // -- ViolationError::display --
 
     #[test]
