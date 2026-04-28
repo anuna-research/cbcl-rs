@@ -17,7 +17,7 @@ use crate::policy::{
     apply_policy, PendingEntry, PendingQueue, PendingReason, PolicyOutcome,
     UnknownPredecessorPolicy,
 };
-use crate::protocol::{verify_causal, CausalViolation};
+use crate::protocol::{verify_causal, CausalViolation, VerificationResult};
 use crate::sexpr::SExpr;
 use crate::store::{ContentHash, ThreadId, ThreadedMessageStore};
 
@@ -395,23 +395,47 @@ impl Agent {
 
     /// Re-evaluate buffered messages against the (possibly grown) message store.
     ///
-    /// Returns the entries that now resolve to either `Accept` or `Reject`. The
-    /// caller is responsible for re-applying accepted messages — the agent does
-    /// not auto-apply them, since [`Agent::evaluate_and_apply`] mutates state
-    /// and the caller may want explicit control over re-entry.
+    /// Returns the entries that now resolve to either `Accept` or `Reject`.
+    /// Entries whose performative isn't constrained by any installed
+    /// protocol stay buffered (rather than being spuriously accepted by an
+    /// unrelated protocol — `verify_causal` returns `Valid` for performatives
+    /// outside a protocol's step set, so iterating naively over every
+    /// installed protocol would flush entries that are still waiting on
+    /// their real predecessor).
+    ///
+    /// When multiple protocols constrain the same performative, results
+    /// compose by conjunction (any rejection rejects, any `Unknown` keeps
+    /// pending) — the same semantics as the live verification path.
+    ///
+    /// The caller is responsible for re-applying accepted messages; the
+    /// agent does not auto-apply them, since [`Agent::evaluate_and_apply`]
+    /// mutates state and the caller may want explicit control over re-entry.
     pub fn reevaluate_pending(&mut self) -> Vec<(PendingEntry, PolicyOutcome)> {
-        // Collect all installed dialects' protocols and re-evaluate each entry
-        // against the protocol owning its performative. We can't pre-compute a
-        // single protocol since different entries may target different dialects.
-        let mut resolved = Vec::new();
-        for dialect in self.dialect_registry.iter() {
-            let Some(ref proto) = dialect.causal_protocol else {
-                continue;
-            };
-            let mut more = self.pending_queue.re_evaluate(&self.message_store, proto);
-            resolved.append(&mut more);
-        }
-        resolved
+        let registry = &self.dialect_registry;
+        let store = &self.message_store;
+        self.pending_queue.re_evaluate_with(|entry, thread_id| {
+            let mut combined: Option<VerificationResult> = None;
+            for d in registry.iter() {
+                let Some(ref proto) = d.causal_protocol else {
+                    continue;
+                };
+                if !proto.steps.contains_key(entry.performative.as_str()) {
+                    continue;
+                }
+                let r = verify_causal(
+                    &entry.performative,
+                    entry.caused_by.as_ref(),
+                    store,
+                    proto,
+                    thread_id,
+                );
+                combined = Some(match combined {
+                    None => r,
+                    Some(prev) => prev.meet(r),
+                });
+            }
+            combined
+        })
     }
 
     /// Dequeue the next message, evaluate it, and apply effects.
@@ -957,5 +981,81 @@ mod tests {
                 "expected child protocol on core `ok` to reject MissingCausedBy, got {other:?}"
             ),
         }
+    }
+
+    // -- PR feedback P2: reevaluate_pending must not flush via unrelated protocol. --
+
+    #[test]
+    fn agent_reevaluate_does_not_accept_via_unrelated_protocol() {
+        use crate::protocol::{CausalProtocol, NodeRef, StepDecl};
+
+        let mut agent = Agent::with_policy("@alice", UnknownPredecessorPolicy::buffer(60));
+        // Protocol A constrains "ack" (caller will buffer an "ack").
+        agent.install_dialect(ack_dialect_with_protocol()).unwrap();
+        // Protocol B constrains an unrelated performative "ping" — its mere
+        // presence used to flush every pending entry as Accept because
+        // verify_causal returned Valid for performatives outside its steps.
+        let mut steps = alloc::collections::BTreeMap::new();
+        steps.insert(
+            "begin".into(),
+            StepDecl {
+                performative: "begin".into(),
+                predecessors: alloc::vec![],
+                successors: alloc::vec![NodeRef::Single("ping".into())],
+            },
+        );
+        steps.insert(
+            "ping".into(),
+            StepDecl {
+                performative: "ping".into(),
+                predecessors: alloc::vec![NodeRef::Single("begin".into())],
+                successors: alloc::vec![],
+            },
+        );
+        agent
+            .install_dialect(Dialect {
+                name: String::from("ping-dialect"),
+                extends: alloc::vec![String::from("cbcl")],
+                author: None,
+                performatives: alloc::vec![PerformativeDef {
+                    name: String::from("ping"),
+                    params: Vec::new(),
+                    template: SExpr::List(alloc::vec![
+                        SExpr::Atom(Atom::Symbol(String::from("effect"))),
+                        SExpr::Atom(Atom::Symbol(String::from("ping-action"))),
+                    ]),
+                }],
+                resources: ResourceBounds {
+                    max_depth: 8,
+                    max_expansion_size: 512,
+                    verification_time_ms: 10,
+                },
+                examples: Vec::new(),
+                signature: None,
+                hash: None,
+                protocol: None,
+                causal_protocol: Some(CausalProtocol { steps }),
+                shapes: Vec::new(),
+            })
+            .unwrap();
+
+        // Buffer an ack with a missing predecessor.
+        let msg = ack_with_caused_by("missing");
+        match agent.evaluate_and_apply(&msg) {
+            AgentOutcome::Buffered => {}
+            other => panic!("expected Buffered, got {other:?}"),
+        }
+        assert_eq!(agent.pending_len(), 1);
+
+        // Re-evaluate without adding the predecessor. Only the ack-dialect's
+        // protocol matches the entry; its verdict is Unknown so the entry
+        // stays buffered. The unrelated ping-dialect protocol must not flush
+        // it as Accept.
+        let resolved = agent.reevaluate_pending();
+        assert!(
+            resolved.is_empty(),
+            "unrelated protocol should not flush pending entry, got {resolved:?}"
+        );
+        assert_eq!(agent.pending_len(), 1);
     }
 }

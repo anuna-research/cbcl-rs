@@ -202,33 +202,61 @@ impl PendingQueue {
     ///
     /// Returns entries that now resolve to `Accept` or `Reject`. Entries still
     /// `Unknown` remain in the queue.
+    ///
+    /// **Caution**: this method evaluates every entry against the supplied
+    /// `protocol`, regardless of whether the protocol declares a step for the
+    /// entry's performative. Since [`verify_causal`] returns `Valid` for
+    /// performatives the protocol does not constrain, calling this with an
+    /// unrelated protocol will incorrectly flush entries that are still
+    /// waiting on their real predecessor. Callers with multiple protocols
+    /// should prefer [`PendingQueue::re_evaluate_with`], which lets the
+    /// caller decide per entry.
     pub fn re_evaluate<S: MessageStore>(
         &mut self,
         store: &S,
         protocol: &CausalProtocol,
     ) -> Vec<(PendingEntry, PolicyOutcome)> {
+        self.re_evaluate_with(|entry, thread_id| {
+            Some(verify_causal(
+                &entry.performative,
+                entry.caused_by.as_ref(),
+                store,
+                protocol,
+                thread_id,
+            ))
+        })
+    }
+
+    /// Re-evaluate pending entries with caller-supplied verification.
+    ///
+    /// For each entry, the closure returns `Some(VerificationResult)` to
+    /// resolve the entry (or keep it pending on `Unknown`), or `None` to
+    /// indicate "no applicable protocol — leave the entry untouched". This
+    /// lets callers compose multiple protocols and skip entries that no
+    /// installed protocol constrains, avoiding the spurious-`Accept` hazard
+    /// described on [`Self::re_evaluate`].
+    pub fn re_evaluate_with<F>(
+        &mut self,
+        mut decide: F,
+    ) -> Vec<(PendingEntry, PolicyOutcome)>
+    where
+        F: FnMut(&PendingEntry, &ThreadId) -> Option<VerificationResult>,
+    {
         let mut resolved = Vec::new();
 
         for (thread_id, queue) in self.queues.iter_mut() {
             let mut i = 0;
             while i < queue.len() {
                 let entry = &queue[i];
-                let result = verify_causal(
-                    &entry.performative,
-                    entry.caused_by.as_ref(),
-                    store,
-                    protocol,
-                    thread_id,
-                );
-                match result {
-                    VerificationResult::Unknown => {
+                match decide(entry, thread_id) {
+                    None | Some(VerificationResult::Unknown) => {
                         i += 1; // still pending
                     }
-                    VerificationResult::Valid => {
+                    Some(VerificationResult::Valid) => {
                         let entry = queue.remove(i).unwrap();
                         resolved.push((entry, PolicyOutcome::Accept));
                     }
-                    VerificationResult::Violation(v) => {
+                    Some(VerificationResult::Violation(v)) => {
                         let entry = queue.remove(i).unwrap();
                         resolved.push((entry, PolicyOutcome::Reject(v)));
                     }
