@@ -6,7 +6,8 @@
 [![Sorries: 0](https://img.shields.io/badge/sorries-0-brightgreen.svg)](lean-cbcl/)
 [![no_std](https://img.shields.io/badge/no__std-%2B%20alloc-lightgrey.svg)](#architecture)
 [![WASM](https://img.shields.io/badge/wasm32-unknown--unknown-654FF0.svg)](crates/cbcl-wasm)
-[![LangSec '26](https://img.shields.io/badge/LangSec-'26-8a2be2.svg)](#)
+[![LangSec '26](https://img.shields.io/badge/LangSec-'26-8a2be2.svg)](https://arxiv.org/abs/2604.14512)
+[![arXiv](https://img.shields.io/badge/arXiv-2604.14512-b31b1b.svg)](https://arxiv.org/abs/2604.14512)
 
 Rust implementation of **CBCL** (Common Business Communication Language) — a self-extensible, formally verified agent communication language. The core occupies the deterministic context-free (DCFL) sweet spot between fixed-vocabulary ACLs and unbounded JSON / natural-language protocols, so safety properties remain decidable as agents define new dialects at runtime.
 
@@ -65,7 +66,7 @@ The key insight is *homoiconic self-extension*: dialect definitions are themselv
 
 Named after McCarthy's 1982 proposal for a "Common Business Communication Language" that would be "open ended so that as programs improve, programs that can at first only order by stock numbers can later be programmed to inquire about specifications and prices."
 
-Forthcoming paper for the 2026 LangSec workshop with full theoretical framework and proofs, and the initial [Scheme implementation](https://github.com/anuna-research/cbcl) for the original prototype.
+Full theoretical framework and proofs are in the LangSec '26 paper, available as a preprint: [arXiv:2604.14512](https://arxiv.org/abs/2604.14512). The original prototype is the [Scheme implementation](https://github.com/anuna-research/cbcl).
 
 ## Features
 
@@ -135,3 +136,18 @@ Bug reports live under [`bugs/`](bugs/) (Markdown with YAML frontmatter; severit
 ## License
 
 Apache-2.0. See [LICENSE](LICENSE).
+
+## Citation
+
+```bibtex
+@misc{cbcl2026,
+  title         = {CBCL: Safe Self-Extending Agent Communication},
+  author        = {O'Connor, Hugo},
+  year          = {2026},
+  eprint        = {2604.14512},
+  archivePrefix = {arXiv},
+  primaryClass  = {cs.CR},
+  url           = {https://arxiv.org/abs/2604.14512},
+  note          = {LangSec '26}
+}
+```
