@@ -162,9 +162,16 @@ pub fn verify_message_shape_bytes(input: &[u8]) -> Result<Vec<u8>, Vec<u8>> {
 /// The optional `history` block populates a per-call `ThreadedMessageStore` so
 /// hash-linked predecessors (`:caused-by sha256:...`) resolve under the supplied
 /// `<thread-id>`; without it only `:caused-by begin` and protocol-unconstrained
-/// messages can succeed. Returns "ok" on `Valid`; the canonical REQ-233 blame
-/// S-expression on `Violation`; or `(pending :reason "unknown-predecessor")` on
-/// `Unknown`.
+/// messages can succeed.
+///
+/// Thread isolation (ADR-008): the frame `<thread-id>` is the *default* causal
+/// scope. If `<message>` or any history predecessor carries an explicit
+/// `:thread` field that disagrees with `<thread-id>`, the frame is rejected —
+/// otherwise a caller could verify a message against predecessors from a
+/// different thread.
+///
+/// Returns "ok" on `Valid`; the canonical REQ-233 blame S-expression on
+/// `Violation`; or `(pending :reason "unknown-predecessor")` on `Unknown`.
 pub fn verify_protocol_bytes(input: &[u8]) -> Result<Vec<u8>, Vec<u8>> {
     let input_str =
         core::str::from_utf8(input).map_err(|e| format!("invalid UTF-8: {e}").into_bytes())?;
@@ -341,6 +348,11 @@ fn verify_message_shape_str(input: &str) -> Result<String, String> {
 /// wrapper would surface as an empty performative and produce a spurious
 /// `InvalidPredecessor` violation. This matches `verify_protocol_str`'s own
 /// handling of the message under verification.
+///
+/// If a predecessor's innermost Simple carries an explicit `:thread`, it must
+/// match the frame thread — otherwise the frame thread would silently relocate
+/// the predecessor into a different causal scope, defeating
+/// `ThreadedMessageStore`'s thread isolation (ADR-008).
 fn load_history_into_store(
     hist: &SExpr,
     thread: &ThreadId,
@@ -374,9 +386,16 @@ fn load_history_into_store(
             .innermost_simple()
             .ok_or_else(|| String::from(
                 "history predecessor must contain a simple message at its innermost layer",
-            ))?
-            .clone();
-        store.append(ContentHash(hash_str), thread.clone(), inner);
+            ))?;
+        if let Some(t) = inner.thread() {
+            if t != thread.0 {
+                return Err(format!(
+                    "history predecessor :thread {t:?} does not match frame thread {:?}",
+                    thread.0
+                ));
+            }
+        }
+        store.append(ContentHash(hash_str), thread.clone(), inner.clone());
     }
     Ok(())
 }
@@ -424,6 +443,20 @@ fn verify_protocol_str(input: &str) -> Result<String, String> {
         .name()
         .to_string();
     let caused_by = inner.caused_by();
+
+    // The message's own `:thread` (if present) is authoritative for the causal
+    // scope. The frame thread is only a default for messages that omit it; if
+    // both are present and disagree, reject — otherwise the wrapper would
+    // verify the message's predecessors against a different thread than the
+    // one it claims to belong to, defeating ThreadedMessageStore's thread
+    // isolation (ADR-008).
+    if let Some(t) = inner.thread() {
+        if t != thread_id {
+            return Err(format!(
+                "message :thread {t:?} does not match frame thread {thread_id:?}"
+            ));
+        }
+    }
 
     let thread = ThreadId(thread_id);
     let mut store = ThreadedMessageStore::new();
@@ -1339,6 +1372,56 @@ mod tests {
             err.contains("innermost"),
             "expected innermost-simple error, got: {err}"
         );
+    }
+
+    #[test]
+    fn verify_protocol_rejects_message_with_disagreeing_thread() {
+        // Message claims `:thread "t2"` but frame thread is "t1". Without
+        // this check the wrapper would silently relocate the message into t1
+        // and verify it against t1 predecessors, defeating thread isolation.
+        let frame = format!(
+            "(verify-protocol {QUERY_DIALECT} \"t1\" \
+             (respond :a \"ok\" :thread \"t2\" :caused-by \"h1\") \
+             (history (\"h1\" (query :q \"hi\" :caused-by begin))))"
+        );
+        let result = verify_protocol_str(&frame);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(
+            err.contains("does not match frame thread"),
+            "expected thread-mismatch rejection, got: {err}"
+        );
+    }
+
+    #[test]
+    fn verify_protocol_rejects_history_entry_with_disagreeing_thread() {
+        // History predecessor carries `:thread "t2"` while frame is "t1".
+        // The wrapper must refuse to insert it under t1 — otherwise a
+        // frame could pull a t2 predecessor into t1's causal scope.
+        let frame = format!(
+            "(verify-protocol {QUERY_DIALECT} \"t1\" \
+             (respond :a \"ok\" :caused-by \"h1\") \
+             (history (\"h1\" (query :q \"hi\" :thread \"t2\" :caused-by begin))))"
+        );
+        let result = verify_protocol_str(&frame);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(
+            err.contains("does not match frame thread"),
+            "expected thread-mismatch rejection, got: {err}"
+        );
+    }
+
+    #[test]
+    fn verify_protocol_accepts_matching_explicit_threads() {
+        // Both message and history predecessor explicitly set `:thread "t1"`
+        // matching the frame — verification proceeds normally.
+        let frame = format!(
+            "(verify-protocol {QUERY_DIALECT} \"t1\" \
+             (respond :a \"ok\" :thread \"t1\" :caused-by \"h1\") \
+             (history (\"h1\" (query :q \"hi\" :thread \"t1\" :caused-by begin))))"
+        );
+        assert_eq!(verify_protocol_str(&frame).as_deref(), Ok("ok"));
     }
 
     #[test]
