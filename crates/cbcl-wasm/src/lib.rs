@@ -131,6 +131,11 @@ pub fn verify_dialect_bytes(input: &[u8]) -> Result<Vec<u8>, Vec<u8>> {
 /// Verify an expanded message against a dialect's shape constraints (REQ-220, REQ-223).
 ///
 /// Input frame: `(verify-shape <dialect> <performative-symbol> <expanded-message>)`.
+/// The dialect is parsed *and installed* (running the same R1/R2/R3/R5 checks
+/// as `cbcl_verify_dialect`) before any shape is applied, so an ill-formed
+/// dialect — e.g. a shape targeting an undefined performative or a max-depth
+/// exceeding the dialect's R2 bound — fails fast instead of producing a
+/// misleading verification result.
 /// Returns "ok" if no shape constraint targets the performative or every matching
 /// constraint passes; otherwise returns the canonical REQ-233 blame S-expression.
 pub fn verify_message_shape_bytes(input: &[u8]) -> Result<Vec<u8>, Vec<u8>> {
@@ -144,6 +149,10 @@ pub fn verify_message_shape_bytes(input: &[u8]) -> Result<Vec<u8>, Vec<u8>> {
 /// Verify a message's causal predecessor against a dialect's protocol (REQ-203, REQ-304).
 ///
 /// Input frame: `(verify-protocol <dialect> <thread-id> <message> [(history (<hash> <msg>) ...)])`.
+/// The dialect is parsed *and installed* (running the same R1/R2/R3/R5 checks
+/// as `cbcl_verify_dialect`) before its protocol is honoured, so an ill-formed
+/// protocol — e.g. one referencing an undefined predecessor performative —
+/// fails fast instead of being driven to "ok" by a matching history entry.
 /// The optional `history` block populates a per-call `ThreadedMessageStore` so
 /// hash-linked predecessors (`:caused-by sha256:...`) resolve under the supplied
 /// `<thread-id>`; without it only `:caused-by begin` and protocol-unconstrained
@@ -208,6 +217,28 @@ fn verify_dialect_str(input: &str) -> Result<String, String> {
     Ok(String::from("ok"))
 }
 
+/// Parse a dialect S-expression and install it into a fresh registry, running
+/// the same R1/R2/R3/R5 checks that `cbcl_verify_dialect` performs. Returns the
+/// owning registry plus the installed dialect's name; callers retrieve the
+/// validated `&Dialect` via `registry.find_by_name(&name)`.
+///
+/// Both runtime verifiers (shape, protocol) must reuse this so that callers
+/// cannot bypass install-time well-formedness — e.g. shapes that target an
+/// undefined performative, or protocols referencing undefined predecessors —
+/// to get a spurious "ok" or a misleading violation.
+fn parse_and_install_dialect(
+    dialect_sexpr: &SExpr,
+) -> Result<(DialectRegistry, String), String> {
+    let dialect = cbcl_parser::parse_dialect(dialect_sexpr)
+        .map_err(|e| format!("dialect parse error: {e}"))?;
+    let name = dialect.name.clone();
+    let mut registry = DialectRegistry::new();
+    registry
+        .install(dialect)
+        .map_err(|e| format!("dialect verification failed: {e}"))?;
+    Ok((registry, name))
+}
+
 /// Verify a runtime message against a dialect's shape constraints.
 fn verify_message_shape_str(input: &str) -> Result<String, String> {
     let frame = parser::parse(input).map_err(|e| format!("parse error: {e}"))?;
@@ -230,8 +261,10 @@ fn verify_message_shape_str(input: &str) -> Result<String, String> {
     let dialect_sexpr = &items[1];
     let message_sexpr = &items[3];
 
-    let dialect = cbcl_parser::parse_dialect(dialect_sexpr)
-        .map_err(|e| format!("dialect parse error: {e}"))?;
+    let (registry, dialect_name) = parse_and_install_dialect(dialect_sexpr)?;
+    let dialect = registry
+        .find_by_name(&dialect_name)
+        .ok_or_else(|| String::from("internal: just-installed dialect not found"))?;
 
     // Composition by conjunction (REQ-224): every matching shape must pass.
     for shape in &dialect.shapes {
@@ -330,8 +363,10 @@ fn verify_protocol_str(input: &str) -> Result<String, String> {
     let message_sexpr = &items[3];
     let history_sexpr = items.get(4);
 
-    let dialect = cbcl_parser::parse_dialect(dialect_sexpr)
-        .map_err(|e| format!("dialect parse error: {e}"))?;
+    let (registry, dialect_name) = parse_and_install_dialect(dialect_sexpr)?;
+    let dialect = registry
+        .find_by_name(&dialect_name)
+        .ok_or_else(|| String::from("internal: just-installed dialect not found"))?;
 
     let proto = match &dialect.causal_protocol {
         Some(p) => p,
@@ -910,6 +945,27 @@ mod tests {
     }
 
     #[test]
+    fn verify_message_shape_rejects_dialect_failing_r5() {
+        // Shape targets a performative that isn't declared anywhere in the
+        // dialect or its ancestors. R5 must reject this at install time;
+        // otherwise the wrapper would happily apply the (now misleading)
+        // constraint or skip it as "no matching shape".
+        let dialect = "(define bad-d (cbcl) @author \
+            (extend greet (name) (effect greet-action)) \
+            (shape never-declared (require :name string)))";
+        let frame = format!(
+            "(verify-shape {dialect} never-declared (never-declared :name \"a\"))"
+        );
+        let result = verify_message_shape_str(&frame);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(
+            err.contains("dialect verification failed"),
+            "expected R5 install rejection, got: {err}"
+        );
+    }
+
+    #[test]
     fn verify_message_shape_bytes_passes() {
         let frame = format!(
             "(verify-shape {SHAPE_DIALECT} greet (greet-action :name \"alice\"))"
@@ -990,19 +1046,21 @@ mod tests {
 
     // Two non-`begin` steps so hash-linked predecessors are required to verify
     // the second one.
-    const CONVO_DIALECT: &str = "(define convo-d (cbcl) @author \
-        (extend ask (q) (effect ask-action)) \
-        (extend reply (a) (effect reply-action)) \
-        (protocol (then begin ask) (then ask reply)))";
+    // Uses non-core performative names (`query` / `respond`) so the dialect
+    // passes R3; `ask` and `reply` are reserved core performatives.
+    const QUERY_DIALECT: &str = "(define convo-d (cbcl) @author \
+        (extend query (q) (effect query-action)) \
+        (extend respond (a) (effect respond-action)) \
+        (protocol (then begin query) (then query respond)))";
 
     #[test]
     fn verify_protocol_resolves_hash_predecessor_from_history() {
-        // Predecessor `ask` is supplied via history under hash "h1".
+        // Predecessor `query` is supplied via history under hash "h1".
         // verify_causal must resolve the :caused-by reference and return Valid.
         let frame = format!(
-            "(verify-protocol {CONVO_DIALECT} \"t1\" \
-             (reply :a \"ok\" :caused-by \"h1\") \
-             (history (\"h1\" (ask :q \"hi\" :caused-by begin))))"
+            "(verify-protocol {QUERY_DIALECT} \"t1\" \
+             (respond :a \"ok\" :caused-by \"h1\") \
+             (history (\"h1\" (query :q \"hi\" :caused-by begin))))"
         );
         let result = verify_protocol_str(&frame);
         assert_eq!(
@@ -1014,13 +1072,13 @@ mod tests {
 
     #[test]
     fn verify_protocol_violation_when_history_predecessor_has_wrong_type() {
-        // History supplies a `reply` under "h1", but protocol requires `ask`
-        // before `reply`. Should produce an InvalidPredecessor violation, not
-        // pending.
+        // History supplies a `respond` under "h1", but protocol requires
+        // `query` before `respond`. Should produce an InvalidPredecessor
+        // violation, not pending.
         let frame = format!(
-            "(verify-protocol {CONVO_DIALECT} \"t1\" \
-             (reply :a \"ok\" :caused-by \"h1\") \
-             (history (\"h1\" (reply :a \"earlier\" :caused-by begin))))"
+            "(verify-protocol {QUERY_DIALECT} \"t1\" \
+             (respond :a \"ok\" :caused-by \"h1\") \
+             (history (\"h1\" (respond :a \"earlier\" :caused-by begin))))"
         );
         let result = verify_protocol_str(&frame);
         assert!(result.is_err());
@@ -1035,8 +1093,8 @@ mod tests {
         // History does not contain "h1", so the predecessor is genuinely
         // unknown and the result should be pending.
         let frame = format!(
-            "(verify-protocol {CONVO_DIALECT} \"t1\" \
-             (reply :a \"ok\" :caused-by \"h1\") \
+            "(verify-protocol {QUERY_DIALECT} \"t1\" \
+             (respond :a \"ok\" :caused-by \"h1\") \
              (history))"
         );
         let result = verify_protocol_str(&frame);
@@ -1047,21 +1105,43 @@ mod tests {
     }
 
     #[test]
+    fn verify_protocol_rejects_dialect_failing_r5() {
+        // Protocol references a predecessor (`unknown-perf`) that the dialect
+        // never declares. R5 must reject this at install time so a matching
+        // history entry cannot drive verify_causal to "ok".
+        let dialect = "(define bad-proto (cbcl) @author \
+            (extend respond (a) (effect respond-action)) \
+            (protocol (then unknown-perf respond)))";
+        let frame = format!(
+            "(verify-protocol {dialect} \"t1\" \
+             (respond :a \"x\" :caused-by \"h1\") \
+             (history (\"h1\" (unknown-perf :caused-by begin))))"
+        );
+        let result = verify_protocol_str(&frame);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(
+            err.contains("dialect verification failed"),
+            "expected R5 install rejection, got: {err}"
+        );
+    }
+
+    #[test]
     fn verify_protocol_unwraps_wrapped_history_predecessor() {
-        // Predecessor is an `envelope`-wrapped `ask`. verify_causal reads
+        // Predecessor is an `envelope`-wrapped `query`. verify_causal reads
         // performatives directly, so the wrapper must be unwrapped at insert
         // time or the predecessor surfaces as an empty performative and
         // produces a false InvalidPredecessor violation.
         let frame = format!(
-            "(verify-protocol {CONVO_DIALECT} \"t1\" \
-             (reply :a \"ok\" :caused-by \"h1\") \
-             (history (\"h1\" (envelope :from @alice (ask :q \"hi\" :caused-by begin)))))"
+            "(verify-protocol {QUERY_DIALECT} \"t1\" \
+             (respond :a \"ok\" :caused-by \"h1\") \
+             (history (\"h1\" (envelope :from @alice (query :q \"hi\" :caused-by begin)))))"
         );
         let result = verify_protocol_str(&frame);
         assert_eq!(
             result.as_deref(),
             Ok("ok"),
-            "expected wrapped predecessor to unwrap to `ask`, got: {result:?}"
+            "expected wrapped predecessor to unwrap to `query`, got: {result:?}"
         );
     }
 
@@ -1070,8 +1150,8 @@ mod tests {
         // A bare `(meta ...)` history entry has no innermost Simple; we
         // surface that as a parse error instead of silently dropping it.
         let frame = format!(
-            "(verify-protocol {CONVO_DIALECT} \"t1\" \
-             (reply :a \"ok\" :caused-by \"h1\") \
+            "(verify-protocol {QUERY_DIALECT} \"t1\" \
+             (respond :a \"ok\" :caused-by \"h1\") \
              (history (\"h1\" (meta (define x (cbcl) @a)))))"
         );
         let result = verify_protocol_str(&frame);
@@ -1087,16 +1167,16 @@ mod tests {
     fn verify_protocol_rejects_malformed_history_block() {
         // Missing the `history` head symbol.
         let frame = format!(
-            "(verify-protocol {CONVO_DIALECT} \"t1\" \
-             (reply :a \"ok\" :caused-by \"h1\") \
-             ((\"h1\" (ask :q \"hi\" :caused-by begin))))"
+            "(verify-protocol {QUERY_DIALECT} \"t1\" \
+             (respond :a \"ok\" :caused-by \"h1\") \
+             ((\"h1\" (query :q \"hi\" :caused-by begin))))"
         );
         let result = verify_protocol_str(&frame);
         assert!(result.is_err());
         // History entry that isn't a (hash msg) pair.
         let frame = format!(
-            "(verify-protocol {CONVO_DIALECT} \"t1\" \
-             (reply :a \"ok\" :caused-by \"h1\") \
+            "(verify-protocol {QUERY_DIALECT} \"t1\" \
+             (respond :a \"ok\" :caused-by \"h1\") \
              (history \"just-a-hash\"))"
         );
         let result = verify_protocol_str(&frame);
