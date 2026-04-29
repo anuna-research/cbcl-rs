@@ -219,24 +219,32 @@ fn verify_dialect_str(input: &str) -> Result<String, String> {
 
 /// Parse a dialect S-expression and install it into a fresh registry, running
 /// the same R1/R2/R3/R5 checks that `cbcl_verify_dialect` performs. Returns the
-/// owning registry plus the installed dialect's name; callers retrieve the
-/// validated `&Dialect` via `registry.find_by_name(&name)`.
+/// owning registry plus the index of the just-installed dialect; callers
+/// retrieve the validated `&Dialect` via `registry.get(index)`.
 ///
 /// Both runtime verifiers (shape, protocol) must reuse this so that callers
 /// cannot bypass install-time well-formedness — e.g. shapes that target an
 /// undefined performative, or protocols referencing undefined predecessors —
 /// to get a spurious "ok" or a misleading violation.
+///
+/// We deliberately return an index, not the dialect name: a fresh
+/// `DialectRegistry` is preloaded with `cbcl-base`, and `find_by_name` returns
+/// the first match. If the supplied dialect happens to be named `cbcl-base`,
+/// looking up by name would resolve to the preloaded base — silently dropping
+/// the supplied dialect's shapes and protocol — and constraint violations
+/// would slip through as "ok". `install` always pushes the new dialect at the
+/// end, so its index is `registry.len() - 1`.
 fn parse_and_install_dialect(
     dialect_sexpr: &SExpr,
-) -> Result<(DialectRegistry, String), String> {
+) -> Result<(DialectRegistry, usize), String> {
     let dialect = cbcl_parser::parse_dialect(dialect_sexpr)
         .map_err(|e| format!("dialect parse error: {e}"))?;
-    let name = dialect.name.clone();
     let mut registry = DialectRegistry::new();
     registry
         .install(dialect)
         .map_err(|e| format!("dialect verification failed: {e}"))?;
-    Ok((registry, name))
+    let installed_idx = registry.len() - 1;
+    Ok((registry, installed_idx))
 }
 
 /// Verify a runtime message against a dialect's shape constraints.
@@ -261,9 +269,9 @@ fn verify_message_shape_str(input: &str) -> Result<String, String> {
     let dialect_sexpr = &items[1];
     let message_sexpr = &items[3];
 
-    let (registry, dialect_name) = parse_and_install_dialect(dialect_sexpr)?;
+    let (registry, dialect_idx) = parse_and_install_dialect(dialect_sexpr)?;
     let dialect = registry
-        .find_by_name(&dialect_name)
+        .get(dialect_idx)
         .ok_or_else(|| String::from("internal: just-installed dialect not found"))?;
 
     // Composition by conjunction (REQ-224): every matching shape must pass.
@@ -363,16 +371,15 @@ fn verify_protocol_str(input: &str) -> Result<String, String> {
     let message_sexpr = &items[3];
     let history_sexpr = items.get(4);
 
-    let (registry, dialect_name) = parse_and_install_dialect(dialect_sexpr)?;
+    let (registry, dialect_idx) = parse_and_install_dialect(dialect_sexpr)?;
     let dialect = registry
-        .find_by_name(&dialect_name)
+        .get(dialect_idx)
         .ok_or_else(|| String::from("internal: just-installed dialect not found"))?;
 
-    let proto = match &dialect.causal_protocol {
-        Some(p) => p,
-        None => return Ok(String::from("ok")),
-    };
-
+    // Always parse the message and history before consulting the protocol so
+    // that callers using this export as a fail-closed verifier cannot smuggle a
+    // malformed message past it whenever the supplied dialect happens to have
+    // no protocol declared.
     let message = cbcl_parser::parse_message(message_sexpr)
         .map_err(|e| format!("message parse error: {e}"))?;
     let inner = message
@@ -395,6 +402,11 @@ fn verify_protocol_str(input: &str) -> Result<String, String> {
     if let Some(hist) = history_sexpr {
         load_history_into_store(hist, &thread, &mut store)?;
     }
+
+    let proto = match &dialect.causal_protocol {
+        Some(p) => p,
+        None => return Ok(String::from("ok")),
+    };
 
     let result = verify_causal(&perf, caused_by, &store, proto, &thread);
 
@@ -945,6 +957,25 @@ mod tests {
     }
 
     #[test]
+    fn verify_message_shape_uses_supplied_dialect_when_named_cbcl_base() {
+        // A fresh DialectRegistry preloads `cbcl-base`. If the just-installed
+        // dialect is also named `cbcl-base`, looking it up by name would
+        // resolve the preloaded one instead — silently dropping the supplied
+        // shapes and letting violations through as "ok". The wrapper must use
+        // the just-installed dialect so the type-mismatch shape fires.
+        let dialect = "(define cbcl-base (cbcl) @author \
+            (extend greet (name) (effect greet-action)) \
+            (shape greet (require :name string)))";
+        let frame = format!(
+            "(verify-shape {dialect} greet (greet-action :name 42))"
+        );
+        let result = verify_message_shape_str(&frame);
+        assert!(result.is_err(), "expected shape violation, got: {result:?}");
+        let err = result.unwrap_err();
+        assert!(err.contains("shape-violation"), "expected shape blame: {err}");
+    }
+
+    #[test]
     fn verify_message_shape_rejects_dialect_failing_r5() {
         // Shape targets a performative that isn't declared anywhere in the
         // dialect or its ancestors. R5 must reject this at install time;
@@ -1102,6 +1133,39 @@ mod tests {
         let err = result.unwrap_err();
         assert!(err.contains("pending"), "expected pending, got: {err}");
         assert!(err.contains("unknown-predecessor"), "expected reason: {err}");
+    }
+
+    #[test]
+    fn verify_protocol_uses_supplied_dialect_when_named_cbcl_base() {
+        // Same name-collision risk as the shape variant above: a `cbcl-base`
+        // dialect's protocol must take precedence over the preloaded base
+        // (which has no protocol at all).
+        let dialect = "(define cbcl-base (cbcl) @author \
+            (extend greet (name) (effect greet-action)) \
+            (protocol (then begin greet)))";
+        let frame = format!(
+            "(verify-protocol {dialect} \"t1\" (greet :name \"a\"))"
+        );
+        // Without the fix, lookup resolves the preloaded protocol-less base
+        // and returns "ok"; with the fix the supplied protocol fires a
+        // MissingCausedBy violation.
+        let result = verify_protocol_str(&frame);
+        assert!(result.is_err(), "expected causal violation, got: {result:?}");
+        let err = result.unwrap_err();
+        assert!(err.contains("causal-violation"), "expected causal blame: {err}");
+    }
+
+    #[test]
+    fn verify_protocol_rejects_malformed_message_when_no_protocol() {
+        // No-protocol fast path must not skip message validation: a frame
+        // with a malformed message body should error even when the dialect
+        // declares no protocol, otherwise hosts using this as a fail-closed
+        // verifier would accept arbitrary input whenever no protocol exists.
+        let dialect = "(define plain-d (cbcl) @author \
+            (extend greet (name) (effect greet-action)))";
+        let frame = format!("(verify-protocol {dialect} \"t1\" not-a-message)");
+        let result = verify_protocol_str(&frame);
+        assert!(result.is_err(), "expected message parse rejection, got: {result:?}");
     }
 
     #[test]
