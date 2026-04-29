@@ -62,7 +62,7 @@ use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use cbcl_core::agent::Agent;
 use cbcl_core::blame::ViolationError;
-use cbcl_core::canonical::dialect_canonical_bytes;
+use cbcl_core::canonical::{canonical_encode, dialect_canonical_bytes};
 use cbcl_core::dialect::DialectRegistry;
 use cbcl_core::evaluator;
 use cbcl_core::message::{CorePerformative, Message, Performative};
@@ -171,7 +171,10 @@ pub fn verify_message_shape_bytes(input: &[u8]) -> Result<Vec<u8>, Vec<u8>> {
 /// The optional `history` block populates a per-call `ThreadedMessageStore` so
 /// hash-linked predecessors (`:caused-by sha256:...`) resolve under the supplied
 /// `<thread-id>`; without it only `:caused-by begin` and protocol-unconstrained
-/// messages can succeed.
+/// messages can succeed. Each `<hash>` in `history` must equal the canonical
+/// content hash (`sha256:<hex>`) of its paired predecessor message — caller-
+/// supplied hashes that don't match are rejected, so a fabricated `:caused-by`
+/// cannot be satisfied by an unrelated history entry.
 ///
 /// Thread isolation (ADR-008): the frame `<thread-id>` is the *default* causal
 /// scope. If `<message>` or any history predecessor carries an explicit
@@ -331,6 +334,16 @@ fn hex_encode(bytes: &[u8]) -> String {
     out
 }
 
+/// Compute the canonical content hash of a message in the form
+/// `sha256:<lowercase-hex>`, matching the format the rest of the codebase
+/// uses for `:caused-by` references and dialect `:hash` fields. Hashes the
+/// canonical encoding of `SExpr::from(msg)`.
+fn compute_canonical_message_hash(msg: &cbcl_core::message::Message) -> String {
+    let sexpr: SExpr = msg.into();
+    let bytes = canonical_encode(&sexpr);
+    format!("sha256:{}", hex_encode(Sha256::digest(&bytes).as_slice()))
+}
+
 /// Verify a runtime message against a dialect's shape constraints.
 fn verify_message_shape_str(input: &str) -> Result<String, String> {
     let frame = parser::parse(input).map_err(|e| format!("parse error: {e}"))?;
@@ -397,6 +410,13 @@ fn verify_message_shape_str(input: &str) -> Result<String, String> {
 /// match the frame thread — otherwise the frame thread would silently relocate
 /// the predecessor into a different causal scope, defeating
 /// `ThreadedMessageStore`'s thread isolation (ADR-008).
+///
+/// The caller-supplied `<hash>` for each entry must equal the canonical
+/// content hash of the inner Simple (`sha256:<lowercase-hex>`). Without this
+/// binding, a frame could pair a fabricated `:caused-by "X"` with a
+/// `(history ("X" <unrelated-msg>))` and have `verify_causal` return Valid
+/// against arbitrary content — defeating the content-addressed causal
+/// verification this wrapper exposes.
 fn load_history_into_store(
     hist: &SExpr,
     thread: &ThreadId,
@@ -438,6 +458,18 @@ fn load_history_into_store(
                     thread.0
                 ));
             }
+        }
+        // Content-addressed integrity: the hash supplied by the caller must
+        // be the canonical content hash of the predecessor message. Without
+        // this check a frame can pair `:caused-by "fake"` with
+        // `(history ("fake" <msg>))` and trick `verify_causal` into
+        // returning Valid even though "fake" is not derived from <msg>.
+        let computed = compute_canonical_message_hash(inner);
+        if hash_str != computed {
+            return Err(format!(
+                "history entry hash {hash_str:?} does not match canonical content \
+                 hash {computed:?} of the supplied predecessor"
+            ));
         }
         store.append(ContentHash(hash_str), thread.clone(), inner.clone());
     }
@@ -1189,10 +1221,12 @@ mod tests {
             (define child-d (parent-d) @author \
                 (extend ack () (effect ack-action)) \
                 (protocol (then begin notify) (then notify ack))))";
+        let pred = "(notify :msg \"hi\" :caused-by begin)";
+        let h = predecessor_hash(pred);
         let frame = format!(
             "(verify-protocol {chain} \"t1\" \
-             (ack :caused-by \"h1\") \
-             (history (\"h1\" (notify :msg \"hi\" :caused-by begin))))"
+             (ack :caused-by \"{h}\") \
+             (history (\"{h}\" {pred})))"
         );
         assert_eq!(verify_protocol_str(&frame).as_deref(), Ok("ok"));
     }
@@ -1336,14 +1370,27 @@ mod tests {
         (extend respond (a) (effect respond-action)) \
         (protocol (then begin query) (then query respond)))";
 
+    /// Test helper: parse a predecessor message S-expression and return its
+    /// canonical content hash in `sha256:<hex>` form, matching what
+    /// `load_history_into_store` recomputes and binds against the
+    /// caller-supplied hash.
+    fn predecessor_hash(msg_str: &str) -> String {
+        let parsed = cbcl_parser::parse_message(&parser::parse(msg_str).unwrap()).unwrap();
+        let inner = parsed.innermost_simple().unwrap();
+        compute_canonical_message_hash(inner)
+    }
+
     #[test]
     fn verify_protocol_resolves_hash_predecessor_from_history() {
-        // Predecessor `query` is supplied via history under hash "h1".
-        // verify_causal must resolve the :caused-by reference and return Valid.
+        // Predecessor `query` is supplied via history under its canonical
+        // content hash. verify_causal must resolve the :caused-by reference
+        // and return Valid.
+        let pred = "(query :q \"hi\" :caused-by begin)";
+        let h = predecessor_hash(pred);
         let frame = format!(
             "(verify-protocol {QUERY_DIALECT} \"t1\" \
-             (respond :a \"ok\" :caused-by \"h1\") \
-             (history (\"h1\" (query :q \"hi\" :caused-by begin))))"
+             (respond :a \"ok\" :caused-by \"{h}\") \
+             (history (\"{h}\" {pred})))"
         );
         let result = verify_protocol_str(&frame);
         assert_eq!(
@@ -1355,13 +1402,15 @@ mod tests {
 
     #[test]
     fn verify_protocol_violation_when_history_predecessor_has_wrong_type() {
-        // History supplies a `respond` under "h1", but protocol requires
-        // `query` before `respond`. Should produce an InvalidPredecessor
-        // violation, not pending.
+        // History supplies a `respond` under its canonical hash, but the
+        // protocol requires `query` before `respond`. Should produce an
+        // InvalidPredecessor violation, not pending.
+        let pred = "(respond :a \"earlier\" :caused-by begin)";
+        let h = predecessor_hash(pred);
         let frame = format!(
             "(verify-protocol {QUERY_DIALECT} \"t1\" \
-             (respond :a \"ok\" :caused-by \"h1\") \
-             (history (\"h1\" (respond :a \"earlier\" :caused-by begin))))"
+             (respond :a \"ok\" :caused-by \"{h}\") \
+             (history (\"{h}\" {pred})))"
         );
         let result = verify_protocol_str(&frame);
         assert!(result.is_err());
@@ -1369,6 +1418,26 @@ mod tests {
         assert!(err.starts_with("(error"), "expected blame S-expr, got: {err}");
         assert!(err.contains("causal-violation"), "expected causal kind: {err}");
         assert!(!err.contains("pending"), "expected violation, not pending: {err}");
+    }
+
+    #[test]
+    fn verify_protocol_rejects_history_entry_with_fabricated_hash() {
+        // Caller supplies a hash that is NOT the canonical content hash of
+        // the message — the wrapper must reject this so a fabricated
+        // `:caused-by "fake"` paired with `(history ("fake" <msg>))` cannot
+        // satisfy verify_causal.
+        let frame = format!(
+            "(verify-protocol {QUERY_DIALECT} \"t1\" \
+             (respond :a \"ok\" :caused-by \"sha256:deadbeef\") \
+             (history (\"sha256:deadbeef\" (query :q \"hi\" :caused-by begin))))"
+        );
+        let result = verify_protocol_str(&frame);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(
+            err.contains("does not match canonical content hash"),
+            "expected hash-mismatch rejection, got: {err}"
+        );
     }
 
     #[test]
@@ -1447,11 +1516,16 @@ mod tests {
         // Predecessor is an `envelope`-wrapped `query`. verify_causal reads
         // performatives directly, so the wrapper must be unwrapped at insert
         // time or the predecessor surfaces as an empty performative and
-        // produces a false InvalidPredecessor violation.
+        // produces a false InvalidPredecessor violation. The hash is bound
+        // against the *innermost* simple, since that's what the store ends
+        // up holding.
+        let inner_pred = "(query :q \"hi\" :caused-by begin)";
+        let wrapped_pred = format!("(envelope :from @alice {inner_pred})");
+        let h = predecessor_hash(&wrapped_pred);
         let frame = format!(
             "(verify-protocol {QUERY_DIALECT} \"t1\" \
-             (respond :a \"ok\" :caused-by \"h1\") \
-             (history (\"h1\" (envelope :from @alice (query :q \"hi\" :caused-by begin)))))"
+             (respond :a \"ok\" :caused-by \"{h}\") \
+             (history (\"{h}\" {wrapped_pred})))"
         );
         let result = verify_protocol_str(&frame);
         assert_eq!(
@@ -1521,10 +1595,12 @@ mod tests {
     fn verify_protocol_accepts_matching_explicit_threads() {
         // Both message and history predecessor explicitly set `:thread "t1"`
         // matching the frame — verification proceeds normally.
+        let pred = "(query :q \"hi\" :thread \"t1\" :caused-by begin)";
+        let h = predecessor_hash(pred);
         let frame = format!(
             "(verify-protocol {QUERY_DIALECT} \"t1\" \
-             (respond :a \"ok\" :thread \"t1\" :caused-by \"h1\") \
-             (history (\"h1\" (query :q \"hi\" :thread \"t1\" :caused-by begin))))"
+             (respond :a \"ok\" :thread \"t1\" :caused-by \"{h}\") \
+             (history (\"{h}\" {pred})))"
         );
         assert_eq!(verify_protocol_str(&frame).as_deref(), Ok("ok"));
     }
