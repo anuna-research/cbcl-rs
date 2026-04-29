@@ -1,0 +1,37 @@
+[package]
+name = "cbcl-erl"
+description = "CBCL Erlang/BEAM NIF bindings via rustler"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = ["std"]
+std = ["cbcl-core/std", "cbcl-parser/std"]
+# Direct `dep:tracing` is required: this crate calls `tracing::event!`
+# from its own panic-guarded NIF wrappers (SPEC-009 OBS-002), so the
+# transitive `cbcl-core/tracing` flag alone is not sufficient.
+tracing = ["dep:tracing", "cbcl-core/tracing", "cbcl-parser/tracing"]
+
+[dependencies]
+cbcl-core = { workspace = true, default-features = false }
+cbcl-parser = { workspace = true, default-features = false }
+tracing = { workspace = true, optional = true }
+# rustler 0.36 chosen over the spec-suggested 0.34: it is the current stable
+# series on crates.io that does not require a local Erlang/OTP install at
+# compile time (rustler vendors the NIF headers since ~0.30). 0.37 is also
+# available; 0.36 is preferred as the most-deployed line at the time of
+# scaffolding. If a future task needs the bleeding edge, bump to 0.37.
+rustler = { version = "0.36", default-features = false, features = ["nif_version_2_15"] }
+
+[dev-dependencies]
+# Dev-only: drives the SPEC-009 REQ-006 / TEST-006 conformance gate in
+# `tests/conformance.rs` against the JSON vectors under
+# `test-vectors/messages/`. Not pulled into the cdylib.
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

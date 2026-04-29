@@ -165,3 +165,175 @@
 (meta r-assign-panic-guard
   (description "Panic-to-error wrapper touches all three NIFs.")
   (justification "Single-agent serialised after the NIFs land — ensures uniform wrapping rather than three drifting implementations."))
+
+(claims agent:scaffolder
+  :at "2026-04-29T04:29:51Z"
+  (given claim-v1-scaffold)
+  (normally r-cl-state-v1-scaffold claim-v1-scaffold state-claimed-v1-scaffold)
+  (normally r-cl-chain-v1-scaffold state-claimed-v1-scaffold claimed-scaffold)
+)
+
+;; Propagation rules: failures in 'scaffold' block downstream tasks
+(normally r-propagate-encoding-from-scaffold-failed failed-scaffold upstream-blocked-encoding)
+(normally r-propagate-encoding-from-scaffold-permanently-failed permanently-failed-scaffold upstream-blocked-encoding)
+(normally r-propagate-encoding-from-scaffold-stale-v1 stale-v1-scaffold upstream-blocked-encoding)
+(normally r-propagate-encoding-from-scaffold-timeout-v1 timeout-v1-scaffold upstream-blocked-encoding)
+(normally r-propagate-encoding-from-scaffold-blocked upstream-blocked-scaffold upstream-blocked-encoding)
+(normally r-propagate-verify-dialect-from-scaffold-failed failed-scaffold upstream-blocked-verify-dialect)
+(normally r-propagate-verify-dialect-from-scaffold-permanently-failed permanently-failed-scaffold upstream-blocked-verify-dialect)
+(normally r-propagate-verify-dialect-from-scaffold-stale-v1 stale-v1-scaffold upstream-blocked-verify-dialect)
+(normally r-propagate-verify-dialect-from-scaffold-timeout-v1 timeout-v1-scaffold upstream-blocked-verify-dialect)
+(normally r-propagate-verify-dialect-from-scaffold-blocked upstream-blocked-scaffold upstream-blocked-verify-dialect)
+(normally r-propagate-version-obs-from-scaffold-failed failed-scaffold upstream-blocked-version-obs)
+(normally r-propagate-version-obs-from-scaffold-permanently-failed permanently-failed-scaffold upstream-blocked-version-obs)
+(normally r-propagate-version-obs-from-scaffold-stale-v1 stale-v1-scaffold upstream-blocked-version-obs)
+(normally r-propagate-version-obs-from-scaffold-timeout-v1 timeout-v1-scaffold upstream-blocked-version-obs)
+(normally r-propagate-version-obs-from-scaffold-blocked upstream-blocked-scaffold upstream-blocked-version-obs)
+
+;; Transitive propagation: upstream-blocked cascades through dependency chain
+(normally r-propagate-parse-msg-from-encoding-blocked upstream-blocked-encoding upstream-blocked-parse-msg)
+(normally r-propagate-parse-msg-lax-from-encoding-blocked upstream-blocked-encoding upstream-blocked-parse-msg-lax)
+(normally r-propagate-panic-guard-from-verify-dialect-blocked upstream-blocked-verify-dialect upstream-blocked-panic-guard)
+(normally r-propagate-tests-from-version-obs-blocked upstream-blocked-version-obs upstream-blocked-tests)
+(normally r-propagate-panic-guard-from-parse-msg-blocked upstream-blocked-parse-msg upstream-blocked-panic-guard)
+(normally r-propagate-panic-guard-from-parse-msg-lax-blocked upstream-blocked-parse-msg-lax upstream-blocked-panic-guard)
+(normally r-propagate-tests-from-panic-guard-blocked upstream-blocked-panic-guard upstream-blocked-tests)
+(normally r-propagate-conformance-from-tests-blocked upstream-blocked-tests upstream-blocked-conformance)
+
+(claims agent:scaffolder
+  :at "2026-04-29T04:32:04Z"
+  (given completed-scaffold))
+
+(claims agent:impler
+  :at "2026-04-29T04:32:28Z"
+  (given claim-v1-encoding)
+  (normally r-cl-state-v1-encoding claim-v1-encoding state-claimed-v1-encoding)
+  (normally r-cl-chain-v1-encoding state-claimed-v1-encoding claimed-encoding)
+)
+
+;; Propagation rules: failures in 'encoding' block downstream tasks
+(normally r-propagate-parse-msg-from-encoding-failed failed-encoding upstream-blocked-parse-msg)
+(normally r-propagate-parse-msg-from-encoding-permanently-failed permanently-failed-encoding upstream-blocked-parse-msg)
+(normally r-propagate-parse-msg-from-encoding-stale-v1 stale-v1-encoding upstream-blocked-parse-msg)
+(normally r-propagate-parse-msg-from-encoding-timeout-v1 timeout-v1-encoding upstream-blocked-parse-msg)
+(normally r-propagate-parse-msg-lax-from-encoding-failed failed-encoding upstream-blocked-parse-msg-lax)
+(normally r-propagate-parse-msg-lax-from-encoding-permanently-failed permanently-failed-encoding upstream-blocked-parse-msg-lax)
+(normally r-propagate-parse-msg-lax-from-encoding-stale-v1 stale-v1-encoding upstream-blocked-parse-msg-lax)
+(normally r-propagate-parse-msg-lax-from-encoding-timeout-v1 timeout-v1-encoding upstream-blocked-parse-msg-lax)
+
+(claims agent:impler
+  :at "2026-04-29T04:32:28Z"
+  (given claim-v1-verify-dialect)
+  (normally r-cl-state-v1-verify-dialect claim-v1-verify-dialect state-claimed-v1-verify-dialect)
+  (normally r-cl-chain-v1-verify-dialect state-claimed-v1-verify-dialect claimed-verify-dialect)
+)
+
+;; Propagation rules: failures in 'verify-dialect' block downstream tasks
+(normally r-propagate-panic-guard-from-verify-dialect-failed failed-verify-dialect upstream-blocked-panic-guard)
+(normally r-propagate-panic-guard-from-verify-dialect-permanently-failed permanently-failed-verify-dialect upstream-blocked-panic-guard)
+(normally r-propagate-panic-guard-from-verify-dialect-stale-v1 stale-v1-verify-dialect upstream-blocked-panic-guard)
+(normally r-propagate-panic-guard-from-verify-dialect-timeout-v1 timeout-v1-verify-dialect upstream-blocked-panic-guard)
+
+(claims agent:impler
+  :at "2026-04-29T04:32:28Z"
+  (given claim-v1-version-obs)
+  (normally r-cl-state-v1-version-obs claim-v1-version-obs state-claimed-v1-version-obs)
+  (normally r-cl-chain-v1-version-obs state-claimed-v1-version-obs claimed-version-obs)
+)
+
+;; Propagation rules: failures in 'version-obs' block downstream tasks
+(normally r-propagate-tests-from-version-obs-failed failed-version-obs upstream-blocked-tests)
+(normally r-propagate-tests-from-version-obs-permanently-failed permanently-failed-version-obs upstream-blocked-tests)
+(normally r-propagate-tests-from-version-obs-stale-v1 stale-v1-version-obs upstream-blocked-tests)
+(normally r-propagate-tests-from-version-obs-timeout-v1 timeout-v1-version-obs upstream-blocked-tests)
+
+(claims agent:impler
+  :at "2026-04-29T04:40:48Z"
+  (given completed-encoding))
+
+(claims agent:impler
+  :at "2026-04-29T04:40:48Z"
+  (given completed-verify-dialect))
+
+(claims agent:impler
+  :at "2026-04-29T04:40:48Z"
+  (given completed-version-obs))
+
+(claims agent:impler
+  :at "2026-04-29T04:40:54Z"
+  (given claim-v1-parse-msg)
+  (normally r-cl-state-v1-parse-msg claim-v1-parse-msg state-claimed-v1-parse-msg)
+  (normally r-cl-chain-v1-parse-msg state-claimed-v1-parse-msg claimed-parse-msg)
+)
+
+;; Propagation rules: failures in 'parse-msg' block downstream tasks
+(normally r-propagate-panic-guard-from-parse-msg-failed failed-parse-msg upstream-blocked-panic-guard)
+(normally r-propagate-panic-guard-from-parse-msg-permanently-failed permanently-failed-parse-msg upstream-blocked-panic-guard)
+(normally r-propagate-panic-guard-from-parse-msg-stale-v1 stale-v1-parse-msg upstream-blocked-panic-guard)
+(normally r-propagate-panic-guard-from-parse-msg-timeout-v1 timeout-v1-parse-msg upstream-blocked-panic-guard)
+
+(claims agent:impler
+  :at "2026-04-29T04:40:54Z"
+  (given claim-v1-parse-msg-lax)
+  (normally r-cl-state-v1-parse-msg-lax claim-v1-parse-msg-lax state-claimed-v1-parse-msg-lax)
+  (normally r-cl-chain-v1-parse-msg-lax state-claimed-v1-parse-msg-lax claimed-parse-msg-lax)
+)
+
+;; Propagation rules: failures in 'parse-msg-lax' block downstream tasks
+(normally r-propagate-panic-guard-from-parse-msg-lax-failed failed-parse-msg-lax upstream-blocked-panic-guard)
+(normally r-propagate-panic-guard-from-parse-msg-lax-permanently-failed permanently-failed-parse-msg-lax upstream-blocked-panic-guard)
+(normally r-propagate-panic-guard-from-parse-msg-lax-stale-v1 stale-v1-parse-msg-lax upstream-blocked-panic-guard)
+(normally r-propagate-panic-guard-from-parse-msg-lax-timeout-v1 timeout-v1-parse-msg-lax upstream-blocked-panic-guard)
+
+(claims agent:impler
+  :at "2026-04-29T04:45:26Z"
+  (given completed-parse-msg))
+
+(claims agent:impler
+  :at "2026-04-29T04:45:26Z"
+  (given completed-parse-msg-lax))
+
+(claims agent:impler
+  :at "2026-04-29T04:45:31Z"
+  (given claim-v1-panic-guard)
+  (normally r-cl-state-v1-panic-guard claim-v1-panic-guard state-claimed-v1-panic-guard)
+  (normally r-cl-chain-v1-panic-guard state-claimed-v1-panic-guard claimed-panic-guard)
+)
+
+;; Propagation rules: failures in 'panic-guard' block downstream tasks
+(normally r-propagate-tests-from-panic-guard-failed failed-panic-guard upstream-blocked-tests)
+(normally r-propagate-tests-from-panic-guard-permanently-failed permanently-failed-panic-guard upstream-blocked-tests)
+(normally r-propagate-tests-from-panic-guard-stale-v1 stale-v1-panic-guard upstream-blocked-tests)
+(normally r-propagate-tests-from-panic-guard-timeout-v1 timeout-v1-panic-guard upstream-blocked-tests)
+
+(claims agent:impler
+  :at "2026-04-29T04:48:44Z"
+  (given completed-panic-guard))
+
+(claims agent:tester
+  :at "2026-04-29T04:48:51Z"
+  (given claim-v1-tests)
+  (normally r-cl-state-v1-tests claim-v1-tests state-claimed-v1-tests)
+  (normally r-cl-chain-v1-tests state-claimed-v1-tests claimed-tests)
+)
+
+;; Propagation rules: failures in 'tests' block downstream tasks
+(normally r-propagate-conformance-from-tests-failed failed-tests upstream-blocked-conformance)
+(normally r-propagate-conformance-from-tests-permanently-failed permanently-failed-tests upstream-blocked-conformance)
+(normally r-propagate-conformance-from-tests-stale-v1 stale-v1-tests upstream-blocked-conformance)
+(normally r-propagate-conformance-from-tests-timeout-v1 timeout-v1-tests upstream-blocked-conformance)
+
+(claims agent:tester
+  :at "2026-04-29T04:52:20Z"
+  (given completed-tests))
+
+(claims agent:tester
+  :at "2026-04-29T04:52:24Z"
+  (given claim-v1-conformance)
+  (normally r-cl-state-v1-conformance claim-v1-conformance state-claimed-v1-conformance)
+  (normally r-cl-chain-v1-conformance state-claimed-v1-conformance claimed-conformance)
+)
+
+(claims agent:tester
+  :at "2026-04-29T04:55:46Z"
+  (given completed-conformance))
