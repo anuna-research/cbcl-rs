@@ -141,11 +141,14 @@ pub fn verify_dialect_bytes(input: &[u8]) -> Result<Vec<u8>, Vec<u8>> {
 /// Input frame: `(verify-shape <dialect> <performative-symbol> <expanded-message>)`.
 /// The `<dialect>` slot accepts either a bare `(define ...)` form or a
 /// `(dialects (define <ancestor>) ... (define <leaf>))` chain when the leaf
-/// extends a non-base parent — the leaf's shapes are then applied. The
-/// dialect (or chain) is parsed *and installed* (running the same R1/R2/R3/R5
-/// checks as `cbcl_verify_dialect`) before any shape is applied, so an
-/// ill-formed dialect — e.g. a shape targeting an undefined performative or
-/// a max-depth exceeding the dialect's R2 bound — fails fast instead of
+/// extends a non-base parent. Shape constraints declared by *any* dialect in
+/// the supplied chain are applied (composition by conjunction, REQ-224),
+/// matching the full pipeline — so a shape declared on a parent dialect
+/// still fires for messages targeting a parent performative. The dialect (or
+/// chain) is parsed *and installed* (running the same R1/R2/R3/R5 checks as
+/// `cbcl_verify_dialect`) before any shape is applied, so an ill-formed
+/// dialect — e.g. a shape targeting an undefined performative or a
+/// max-depth exceeding the dialect's R2 bound — fails fast instead of
 /// producing a misleading verification result.
 /// Returns "ok" if no shape constraint targets the performative or every matching
 /// constraint passes; otherwise returns the canonical REQ-233 blame S-expression.
@@ -162,12 +165,15 @@ pub fn verify_message_shape_bytes(input: &[u8]) -> Result<Vec<u8>, Vec<u8>> {
 /// Input frame: `(verify-protocol <dialect> <thread-id> <message> [(history (<hash> <msg>) ...)])`.
 /// The `<dialect>` slot accepts either a bare `(define ...)` form or a
 /// `(dialects (define <ancestor>) ... (define <leaf>))` chain when the leaf
-/// extends a non-base parent — the leaf's protocol is then applied. The
-/// dialect (or chain) is parsed *and installed* (running the same R1/R2/R3/R5
-/// checks as `cbcl_verify_dialect`) before its protocol is honoured, so an
-/// ill-formed protocol — e.g. one referencing an undefined predecessor
-/// performative — fails fast instead of being driven to "ok" by a matching
-/// history entry.
+/// extends a non-base parent. Protocols declared by *any* dialect in the
+/// supplied chain are honoured and combined via lattice meet, matching the
+/// full pipeline — so a parent dialect's `(then begin greet)` still
+/// constrains a `greet` message even if the leaf has no protocol or no step
+/// for `greet`. The dialect (or chain) is parsed *and installed* (running
+/// the same R1/R2/R3/R5 checks as `cbcl_verify_dialect`) before any protocol
+/// is honoured, so an ill-formed protocol — e.g. one referencing an
+/// undefined predecessor performative — fails fast instead of being driven
+/// to "ok" by a matching history entry.
 /// The optional `history` block populates a per-call `ThreadedMessageStore` so
 /// hash-linked predecessors (`:caused-by sha256:...`) resolve under the supplied
 /// `<thread-id>`; without it only `:caused-by begin` and protocol-unconstrained
@@ -366,30 +372,34 @@ fn verify_message_shape_str(input: &str) -> Result<String, String> {
     let dialect_sexpr = &items[1];
     let message_sexpr = &items[3];
 
-    let (registry, dialect_idx) = parse_and_install_dialect(dialect_sexpr)?;
-    let dialect = registry
-        .get(dialect_idx)
-        .ok_or_else(|| String::from("internal: just-installed dialect not found"))?;
+    let (registry, _leaf_idx) = parse_and_install_dialect(dialect_sexpr)?;
 
-    // Composition by conjunction (REQ-224): every matching shape must pass.
-    for shape in &dialect.shapes {
-        if shape.performative != performative {
-            continue;
-        }
-        if let Err(violation) = shape.check(message_sexpr) {
-            let blame = ViolationError::from_shape_violation(
-                &violation,
-                None,
-                None,
-                Some(message_sexpr.clone()),
-            )
-            .with_dialect_context(
-                &dialect.name,
-                dialect.author.as_deref(),
-                dialect.hash.as_deref(),
-                Some(&performative),
-            );
-            return Err(serialize(&blame.to_sexpr()));
+    // Composition by conjunction (REQ-224): every matching shape across the
+    // whole installed registry must pass. Iterating all installed dialects
+    // (not just the leaf) matches the full pipeline's behaviour, so a shape
+    // declared on a parent dialect supplied via the `(dialects ...)` chain
+    // form still fires for messages that target the parent's performative.
+    // Blame attribution follows the dialect that owns the failing shape.
+    for d in registry.iter() {
+        for shape in &d.shapes {
+            if shape.performative != performative {
+                continue;
+            }
+            if let Err(violation) = shape.check(message_sexpr) {
+                let blame = ViolationError::from_shape_violation(
+                    &violation,
+                    None,
+                    None,
+                    Some(message_sexpr.clone()),
+                )
+                .with_dialect_context(
+                    &d.name,
+                    d.author.as_deref(),
+                    d.hash.as_deref(),
+                    Some(&performative),
+                );
+                return Err(serialize(&blame.to_sexpr()));
+            }
         }
     }
     Ok(String::from("ok"))
@@ -499,10 +509,7 @@ fn verify_protocol_str(input: &str) -> Result<String, String> {
     let message_sexpr = &items[3];
     let history_sexpr = items.get(4);
 
-    let (registry, dialect_idx) = parse_and_install_dialect(dialect_sexpr)?;
-    let dialect = registry
-        .get(dialect_idx)
-        .ok_or_else(|| String::from("internal: just-installed dialect not found"))?;
+    let (registry, _leaf_idx) = parse_and_install_dialect(dialect_sexpr)?;
 
     // Always parse the message and history before consulting the protocol so
     // that callers using this export as a fail-closed verifier cannot smuggle a
@@ -545,21 +552,38 @@ fn verify_protocol_str(input: &str) -> Result<String, String> {
         load_history_into_store(hist, &thread, &mut store)?;
     }
 
-    let proto = match &dialect.causal_protocol {
-        Some(p) => p,
-        None => return Ok(String::from("ok")),
-    };
+    // Combine matching protocols across every installed dialect, mirroring
+    // the full pipeline. A protocol declared on a parent dialect supplied
+    // via the `(dialects ...)` chain form must still constrain messages
+    // that target a parent performative, even if the leaf has no protocol
+    // (or no step for `perf`). Folding via `VerificationResult::meet`
+    // gives the right semantics: any Violation absorbs, any Unknown lifts
+    // the result to Unknown, otherwise Valid.
+    let mut combined = VerificationResult::Valid;
+    let mut blame_dialect: Option<&cbcl_core::dialect::Dialect> = None;
+    for d in registry.iter() {
+        let Some(proto) = &d.causal_protocol else {
+            continue;
+        };
+        let r = verify_causal(&perf, caused_by, &store, proto, &thread);
+        // Record the dialect that produced the first Violation we see, so
+        // blame attribution points at the actual constraint owner. `meet`
+        // is absorbing on Violation, so the first one fixes the result.
+        if blame_dialect.is_none() && matches!(r, VerificationResult::Violation(_)) {
+            blame_dialect = Some(d);
+        }
+        combined = combined.meet(r);
+    }
 
-    let result = verify_causal(&perf, caused_by, &store, proto, &thread);
-
-    match result {
+    match combined {
         VerificationResult::Valid => Ok(String::from("ok")),
         VerificationResult::Violation(cv) => {
+            let d = blame_dialect.expect("violation must have an attributing dialect");
             let blame = ViolationError::from_causal_violation(&cv, None, Some(thread.0.clone()))
                 .with_dialect_context(
-                    &dialect.name,
-                    dialect.author.as_deref(),
-                    dialect.hash.as_deref(),
+                    &d.name,
+                    d.author.as_deref(),
+                    d.hash.as_deref(),
                     Some(&perf),
                 );
             Err(serialize(&blame.to_sexpr()))
@@ -1243,6 +1267,32 @@ mod tests {
     }
 
     #[test]
+    fn verify_message_shape_applies_parent_constraint_via_dialects_chain() {
+        // Parent declares `greet` performative AND a shape requiring :name
+        // string. Child extends parent. The chain form must apply parent's
+        // shape — otherwise a message that violates the parent's constraint
+        // would slip through as "ok" under the child.
+        let chain = "(dialects \
+            (define p-d (cbcl) @author \
+                (extend greet (name) (effect greet-action)) \
+                (shape greet (require :name string))) \
+            (define c-d (p-d) @author))";
+        let frame = format!(
+            "(verify-shape {chain} greet (greet-action :name 42))"
+        );
+        let result = verify_message_shape_str(&frame);
+        assert!(result.is_err(), "expected parent-shape rejection, got: {result:?}");
+        let err = result.unwrap_err();
+        assert!(err.contains("shape-violation"), "expected shape blame: {err}");
+        // Blame must attribute to the parent (the actual constraint owner),
+        // not the leaf.
+        assert!(
+            err.contains("p-d"),
+            "expected blame to attribute to parent dialect, got: {err}"
+        );
+    }
+
+    #[test]
     fn verify_message_shape_uses_supplied_dialect_when_named_cbcl_base() {
         // A fresh DialectRegistry preloads `cbcl-base`. If the just-installed
         // dialect is also named `cbcl-base`, looking it up by name would
@@ -1508,6 +1558,31 @@ mod tests {
         assert!(
             err.contains("dialect verification failed"),
             "expected R5 install rejection, got: {err}"
+        );
+    }
+
+    #[test]
+    fn verify_protocol_applies_parent_protocol_via_dialects_chain() {
+        // Parent's protocol says `greet` must follow `begin`. Child extends
+        // parent and declares no protocol of its own. A `greet` message
+        // without `:caused-by` must still be rejected: parent's protocol
+        // applies even though the leaf has no step for `greet`.
+        let chain = "(dialects \
+            (define p-d (cbcl) @author \
+                (extend greet (name) (effect greet-action)) \
+                (protocol (then begin greet))) \
+            (define c-d (p-d) @author))";
+        let frame = format!(
+            "(verify-protocol {chain} \"t1\" (greet :name \"a\"))"
+        );
+        let result = verify_protocol_str(&frame);
+        assert!(result.is_err(), "expected parent-protocol rejection, got: {result:?}");
+        let err = result.unwrap_err();
+        assert!(err.contains("causal-violation"), "expected causal blame: {err}");
+        // Blame attributes to the parent that owns the protocol.
+        assert!(
+            err.contains("p-d"),
+            "expected blame to attribute to parent dialect, got: {err}"
         );
     }
 
