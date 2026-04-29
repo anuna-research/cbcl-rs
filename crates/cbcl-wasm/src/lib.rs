@@ -260,6 +260,13 @@ fn verify_message_shape_str(input: &str) -> Result<String, String> {
 /// Parse a `(history (<hash> <msg>) ...)` block and append each entry to `store`
 /// under `thread`, so subsequent `verify_causal` lookups can resolve `:caused-by`
 /// hashes against the supplied predecessor messages.
+///
+/// Wrapped (`envelope` / `signed` / `with-limits`) and dialect-tagged
+/// predecessors are unwrapped to their innermost `Simple` before being stored:
+/// `verify_causal` reads the predecessor's performative directly, so storing a
+/// wrapper would surface as an empty performative and produce a spurious
+/// `InvalidPredecessor` violation. This matches `verify_protocol_str`'s own
+/// handling of the message under verification.
 fn load_history_into_store(
     hist: &SExpr,
     thread: &ThreadId,
@@ -289,7 +296,13 @@ fn load_history_into_store(
         };
         let pred_msg = cbcl_parser::parse_message(&pair[1])
             .map_err(|e| format!("history message parse error: {e}"))?;
-        store.append(ContentHash(hash_str), thread.clone(), pred_msg);
+        let inner = pred_msg
+            .innermost_simple()
+            .ok_or_else(|| String::from(
+                "history predecessor must contain a simple message at its innermost layer",
+            ))?
+            .clone();
+        store.append(ContentHash(hash_str), thread.clone(), inner);
     }
     Ok(())
 }
@@ -1031,6 +1044,43 @@ mod tests {
         let err = result.unwrap_err();
         assert!(err.contains("pending"), "expected pending, got: {err}");
         assert!(err.contains("unknown-predecessor"), "expected reason: {err}");
+    }
+
+    #[test]
+    fn verify_protocol_unwraps_wrapped_history_predecessor() {
+        // Predecessor is an `envelope`-wrapped `ask`. verify_causal reads
+        // performatives directly, so the wrapper must be unwrapped at insert
+        // time or the predecessor surfaces as an empty performative and
+        // produces a false InvalidPredecessor violation.
+        let frame = format!(
+            "(verify-protocol {CONVO_DIALECT} \"t1\" \
+             (reply :a \"ok\" :caused-by \"h1\") \
+             (history (\"h1\" (envelope :from @alice (ask :q \"hi\" :caused-by begin)))))"
+        );
+        let result = verify_protocol_str(&frame);
+        assert_eq!(
+            result.as_deref(),
+            Ok("ok"),
+            "expected wrapped predecessor to unwrap to `ask`, got: {result:?}"
+        );
+    }
+
+    #[test]
+    fn verify_protocol_rejects_history_predecessor_without_simple_inner() {
+        // A bare `(meta ...)` history entry has no innermost Simple; we
+        // surface that as a parse error instead of silently dropping it.
+        let frame = format!(
+            "(verify-protocol {CONVO_DIALECT} \"t1\" \
+             (reply :a \"ok\" :caused-by \"h1\") \
+             (history (\"h1\" (meta (define x (cbcl) @a)))))"
+        );
+        let result = verify_protocol_str(&frame);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(
+            err.contains("innermost"),
+            "expected innermost-simple error, got: {err}"
+        );
     }
 
     #[test]
