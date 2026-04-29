@@ -125,10 +125,14 @@ pub fn parse_message<'a>(env: Env<'a>, bytes: Binary<'a>) -> Term<'a> {
                     (atom::ok(), term).encode(env)
                 }
                 Err(rustler::Error::Term(boxed)) => {
-                    // encode_message produced a tagged term like
-                    // `{message_error, <<"non-simple message at innermost layer">>}`.
-                    // The boxed payload is `Box<dyn Encoder>`, opaque in Rust;
-                    // we round-trip via the env to extract the description.
+                    // Defensive: `encode_message` no longer rejects any
+                    // current Message variant (Simple/Wrapped/Dialect/Meta
+                    // are all handled losslessly), but if a future variant
+                    // is added without an encoder arm, the encoder may
+                    // return a tagged tuple like `{message_error, <<"...">>}`.
+                    // The boxed payload is `Box<dyn Encoder>`, opaque in
+                    // Rust; we round-trip via the env to extract the
+                    // description.
                     tracing_hooks::exit_err(span, "message_error");
                     let desc = describe_boxed_encoder(env, boxed);
                     err(env, CATEGORY_MESSAGE_ERROR, &desc)

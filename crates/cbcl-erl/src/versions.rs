@@ -10,6 +10,8 @@
 use rustler::types::tuple::make_tuple;
 use rustler::{Env, NewBinary, Term};
 
+use crate::tracing_hooks;
+
 /// Workspace git SHA at the time `cbcl-erl` was built (or `"unknown"` for
 /// source-tarball / shallow-clone builds). Populated by `build.rs`.
 pub const CBCL_RS_GIT_REVISION: &str = env!("CBCL_RS_GIT_REVISION");
@@ -33,10 +35,15 @@ pub fn versions(env: Env<'_>) -> Term<'_> {
     // and keeps the "every NIF entrypoint goes through `catch`" invariant
     // mechanical to verify (see SPEC-009 ADR-001).
     crate::panic_guard::catch(env, || {
+        // `versions/0` takes no input bytes, so the span's `input_size`
+        // is 0. There are no error paths — only `exit_ok` is reachable.
+        let span = tracing_hooks::enter("versions", 0);
         let git = make_binary(env, CBCL_RS_GIT_REVISION.as_bytes());
         let core = make_binary(env, CBCL_CORE_VERSION.as_bytes());
         let erl = make_binary(env, CBCL_ERL_VERSION.as_bytes());
-        make_tuple(env, &[git, core, erl])
+        let tuple = make_tuple(env, &[git, core, erl]);
+        tracing_hooks::exit_ok(span);
+        tuple
     })
 }
 

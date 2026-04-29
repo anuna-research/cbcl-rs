@@ -17,14 +17,15 @@
 //!   - REQ-005 panic containment → `panic_guard::catch_pure` smoke tests.
 //!   - OBS-001 versions sanity   → version constants are non-empty.
 //!   - Strict ↔ lax parity       → identical `Message` for Simple inputs.
-//!   - Lax-only path             → Meta-only input yields `LaxResult::Raw`.
+//!   - Strict/lax Meta parity    → both helpers parse Meta to `Message::Meta`
+//!     (the encoder now produces a `:type => meta` map for that variant).
 //!   - Round-trip property       → parse → serialize → re-parse → equal.
 
 use cbcl_core::message::Message;
 use cbcl_core::sexpr::SExpr;
 use cbcl_core::serializer;
 use cbcl_erl::{
-    parse_message_lax_pure, parse_message_pure, verify_dialect_pure, LaxResult,
+    parse_message_lax_pure, parse_message_pure, verify_dialect_pure,
     CBCL_CORE_VERSION, CBCL_ERL_VERSION, CBCL_RS_GIT_REVISION,
 };
 use cbcl_erl::panic_guard::catch_pure;
@@ -171,63 +172,35 @@ fn strict_and_lax_agree_on_simple_messages() {
             .unwrap_or_else(|e| panic!("strict parse failed for {input}: {e:?}"));
         let lax = parse_message_lax_pure(input.as_bytes())
             .unwrap_or_else(|e| panic!("lax parse failed for {input}: {e}"));
-        match lax {
-            LaxResult::Simple(lax_msg) => {
-                assert_eq!(
-                    strict, lax_msg,
-                    "strict/lax message mismatch for input: {input}"
-                );
-            }
-            LaxResult::Raw(_) => {
-                panic!("expected Simple from lax for input {input}, got Raw")
-            }
-        }
+        assert_eq!(
+            strict, lax,
+            "strict/lax message mismatch for input: {input}"
+        );
     }
 }
 
 // ---------------------------------------------------------------------------
-// Lax-only path: Meta-only input is rejected by strict, accepted by lax.
+// Strict/lax parity on Meta: both helpers parse the Meta variant cleanly;
+// the encoder produces a `:type => meta` map (lossless), so neither path
+// rejects. Earlier drafts diverged here (strict's encoder rejected with
+// `non-simple message at innermost layer`, lax fell back to a raw-bytes
+// stopgap); since `encoding::encode_message` now handles every Message
+// variant losslessly, lax has nothing left to add and behaves as an alias
+// of strict for v0.1.0. See parse_message_lax.rs module docs.
 // ---------------------------------------------------------------------------
 
 #[test]
-fn lax_accepts_meta_when_strict_rejects() {
+fn strict_and_lax_agree_on_meta_messages() {
     let input: &[u8] = b"(meta (define test-d (cbcl) @author))";
 
-    // Strict path rejects: `encode_message` requires an innermost Simple
-    // layer, but a bare Meta has none. The pure helper accepts the parse
-    // (no encoder runs) — so the strict-side lax-only assertion is that
-    // `parse_message_pure` SUCCEEDS but the result has no Simple layer.
-    // The `message error: ...` rejection happens later in the encoder
-    // (only reachable from the BEAM-side wrapper). To still exercise the
-    // strict-rejection contract end-to-end at the helper level, we use a
-    // Meta input that the encoder would reject; the visible signal here
-    // is `innermost_simple().is_none()`.
-    let strict_msg = parse_message_pure(input)
+    let strict = parse_message_pure(input)
         .expect("Meta parses cleanly through parse_message_pure");
-    assert!(
-        strict_msg.innermost_simple().is_none(),
-        "Meta should have no innermost Simple layer (which is what makes the \
-         BEAM-side encoder reject it)"
-    );
+    let lax = parse_message_lax_pure(input)
+        .expect("Meta parses cleanly through parse_message_lax_pure");
 
-    // Lax path: returns `Raw(canonical-bytes)`, and those bytes must be
-    // re-parseable as a valid `SExpr` describing the same Meta message.
-    let lax = parse_message_lax_pure(input).expect("lax accepts meta");
-    let raw_bytes = match lax {
-        LaxResult::Raw(b) => b,
-        LaxResult::Simple(_) => panic!("expected Raw for Meta input, got Simple"),
-    };
-    assert!(!raw_bytes.is_empty(), "raw bytes must be non-empty");
-
-    let raw_str = core::str::from_utf8(&raw_bytes)
-        .expect("canonical raw bytes must be UTF-8");
-    let reparsed = cbcl_parser::parse(raw_str)
-        .expect("canonical raw bytes must be re-parseable as SExpr");
-    // Sanity: the round-trip must still describe a non-Simple message.
-    let remsg = cbcl_parser::parse_message(&reparsed)
-        .expect("re-parsed SExpr must classify as a Message");
+    assert_eq!(strict, lax, "strict/lax should agree on Meta input");
     assert!(
-        remsg.innermost_simple().is_none(),
-        "Meta round-trip should still lack a Simple layer"
+        strict.innermost_simple().is_none(),
+        "Meta has no innermost Simple layer (encoder uses the meta map shape)"
     );
 }

@@ -22,6 +22,8 @@ use cbcl_parser::{parse, parse_dialect};
 use rustler::types::atom;
 use rustler::{Binary, Encoder, Env, OwnedBinary, Term};
 
+use crate::tracing_hooks;
+
 /// Build an Erlang binary from an owned Rust `String`. We allocate an
 /// `OwnedBinary` of the exact size, copy the bytes in, then transfer
 /// ownership to the NIF env via `Binary::from_owned`. `OwnedBinary::new`
@@ -83,9 +85,29 @@ pub fn verify_dialect<'a>(env: Env<'a>, bytes: Binary<'a>) -> Term<'a> {
     // the parser / dialect installer becomes `{error, <<"panic: ...">>}`
     // instead of crashing the BEAM scheduler (ADR-001).
     let input = bytes.as_slice();
-    crate::panic_guard::catch(env, || match verify_dialect_pure(input) {
-        Ok(()) => atom::ok().encode(env),
-        Err(msg) => err(env, msg),
+    crate::panic_guard::catch(env, || {
+        let span = tracing_hooks::enter("verify_dialect", input.len());
+        match verify_dialect_pure(input) {
+            Ok(()) => {
+                tracing_hooks::exit_ok(span);
+                atom::ok().encode(env)
+            }
+            Err(msg) => {
+                // Map free-form reason prefix to the static category strings
+                // tracing_hooks::exit_err expects (mirrors parse_message.rs).
+                let cat_static: &'static str = if msg == "invalid utf-8" {
+                    "invalid_utf8"
+                } else if msg.starts_with("dialect error") {
+                    "dialect_error"
+                } else if msg.starts_with("verification failed") {
+                    "verification_failed"
+                } else {
+                    "unknown"
+                };
+                tracing_hooks::exit_err(span, cat_static);
+                err(env, msg)
+            }
+        }
     })
 }
 

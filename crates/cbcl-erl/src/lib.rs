@@ -31,7 +31,7 @@ mod versions;
 mod tracing_hooks;
 
 pub use parse_message::parse_message_pure;
-pub use parse_message_lax::{parse_message_lax_pure, LaxResult};
+pub use parse_message_lax::parse_message_lax_pure;
 pub use verify_dialect::verify_dialect_pure;
 pub use versions::{CBCL_CORE_VERSION, CBCL_ERL_VERSION, CBCL_RS_GIT_REVISION};
 
