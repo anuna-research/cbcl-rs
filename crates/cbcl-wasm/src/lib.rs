@@ -68,7 +68,7 @@ use cbcl_core::message::{CorePerformative, Message, Performative};
 use cbcl_core::protocol::{verify_causal, VerificationResult};
 use cbcl_core::serializer::serialize;
 use cbcl_core::sexpr::{Atom, SExpr};
-use cbcl_core::store::{ThreadId, ThreadedMessageStore};
+use cbcl_core::store::{ContentHash, MessageStore, ThreadId, ThreadedMessageStore};
 use cbcl_parser::parser;
 
 // ---------------------------------------------------------------------------
@@ -143,11 +143,13 @@ pub fn verify_message_shape_bytes(input: &[u8]) -> Result<Vec<u8>, Vec<u8>> {
 
 /// Verify a message's causal predecessor against a dialect's protocol (REQ-203, REQ-304).
 ///
-/// Input frame: `(verify-protocol <dialect> <thread-id> <message>)`.
-/// Returns "ok" on `Valid`; the canonical REQ-233 blame S-expression on `Violation`;
-/// or `(pending :reason "unknown-predecessor")` on `Unknown`. Callers needing
-/// predecessor lookup must populate state out-of-band; this entry point operates
-/// against an empty per-call message store.
+/// Input frame: `(verify-protocol <dialect> <thread-id> <message> [(history (<hash> <msg>) ...)])`.
+/// The optional `history` block populates a per-call `ThreadedMessageStore` so
+/// hash-linked predecessors (`:caused-by sha256:...`) resolve under the supplied
+/// `<thread-id>`; without it only `:caused-by begin` and protocol-unconstrained
+/// messages can succeed. Returns "ok" on `Valid`; the canonical REQ-233 blame
+/// S-expression on `Violation`; or `(pending :reason "unknown-predecessor")` on
+/// `Unknown`.
 pub fn verify_protocol_bytes(input: &[u8]) -> Result<Vec<u8>, Vec<u8>> {
     let input_str =
         core::str::from_utf8(input).map_err(|e| format!("invalid UTF-8: {e}").into_bytes())?;
@@ -255,21 +257,56 @@ fn verify_message_shape_str(input: &str) -> Result<String, String> {
     Ok(String::from("ok"))
 }
 
+/// Parse a `(history (<hash> <msg>) ...)` block and append each entry to `store`
+/// under `thread`, so subsequent `verify_causal` lookups can resolve `:caused-by`
+/// hashes against the supplied predecessor messages.
+fn load_history_into_store(
+    hist: &SExpr,
+    thread: &ThreadId,
+    store: &mut ThreadedMessageStore,
+) -> Result<(), String> {
+    let entries = match hist {
+        SExpr::List(xs) => xs,
+        _ => return Err(String::from(
+            "history must be a list: (history (<hash> <msg>) ...)",
+        )),
+    };
+    if entries.is_empty()
+        || !matches!(&entries[0], SExpr::Atom(Atom::Symbol(s)) if s == "history")
+    {
+        return Err(String::from("history must start with the symbol `history`"));
+    }
+    for entry in &entries[1..] {
+        let pair = match entry {
+            SExpr::List(xs) if xs.len() == 2 => xs,
+            _ => return Err(String::from("history entry must be (<hash> <message>)")),
+        };
+        let hash_str = match &pair[0] {
+            SExpr::Atom(Atom::Str(s)) | SExpr::Atom(Atom::Symbol(s)) => s.clone(),
+            _ => return Err(String::from(
+                "history entry hash must be a string or symbol",
+            )),
+        };
+        let pred_msg = cbcl_parser::parse_message(&pair[1])
+            .map_err(|e| format!("history message parse error: {e}"))?;
+        store.append(ContentHash(hash_str), thread.clone(), pred_msg);
+    }
+    Ok(())
+}
+
 /// Verify a single message's causal predecessor against a dialect's protocol.
 fn verify_protocol_str(input: &str) -> Result<String, String> {
+    const FRAME_SHAPE: &str =
+        "expected (verify-protocol <dialect> <thread-id> <message> [(history (<hash> <msg>) ...)])";
     let frame = parser::parse(input).map_err(|e| format!("parse error: {e}"))?;
     let items = match &frame {
         SExpr::List(items) => items,
-        _ => return Err(String::from(
-            "expected (verify-protocol <dialect> <thread-id> <message>)",
-        )),
+        _ => return Err(String::from(FRAME_SHAPE)),
     };
-    if items.len() != 4
+    if !(items.len() == 4 || items.len() == 5)
         || !matches!(&items[0], SExpr::Atom(Atom::Symbol(s)) if s == "verify-protocol")
     {
-        return Err(String::from(
-            "expected (verify-protocol <dialect> <thread-id> <message>)",
-        ));
+        return Err(String::from(FRAME_SHAPE));
     }
     let thread_id = match &items[2] {
         SExpr::Atom(Atom::Str(s)) => s.clone(),
@@ -278,6 +315,7 @@ fn verify_protocol_str(input: &str) -> Result<String, String> {
     };
     let dialect_sexpr = &items[1];
     let message_sexpr = &items[3];
+    let history_sexpr = items.get(4);
 
     let dialect = cbcl_parser::parse_dialect(dialect_sexpr)
         .map_err(|e| format!("dialect parse error: {e}"))?;
@@ -299,8 +337,17 @@ fn verify_protocol_str(input: &str) -> Result<String, String> {
         .to_string();
     let caused_by = inner.caused_by();
 
-    let store = ThreadedMessageStore::new();
     let thread = ThreadId(thread_id);
+    let mut store = ThreadedMessageStore::new();
+
+    // Optional 5th arg: (history (<hash> <msg>) ...). The caller supplies the
+    // canonical hash for each predecessor message — verify_causal looks up
+    // `:caused-by` hashes through the MessageStore, so without this the wrapper
+    // can only resolve `:caused-by begin` messages.
+    if let Some(hist) = history_sexpr {
+        load_history_into_store(hist, &thread, &mut store)?;
+    }
+
     let result = verify_causal(&perf, caused_by, &store, proto, &thread);
 
     match result {
@@ -427,7 +474,9 @@ mod wasm_bindgen_api {
 
     /// Verify a message's causal predecessor against a dialect's protocol.
     ///
-    /// Input: `(verify-protocol <dialect> <thread-id> <message>)` S-expression.
+    /// Input: `(verify-protocol <dialect> <thread-id> <message> [(history (<hash> <msg>) ...)])`
+    /// S-expression. The optional history populates a per-call message store so
+    /// `:caused-by` hashes resolve to known predecessors.
     /// Returns "ok" / blame S-expression / `(pending :reason ...)`.
     #[wasm_bindgen]
     pub fn verify_protocol(input: &str) -> Result<String, String> {
@@ -577,7 +626,10 @@ mod c_abi {
 
     /// Verify a message's causal predecessor against a dialect's protocol.
     ///
-    /// Input: UTF-8 bytes of `(verify-protocol <dialect> <thread-id> <message>)`.
+    /// Input: UTF-8 bytes of
+    /// `(verify-protocol <dialect> <thread-id> <message> [(history (<hash> <msg>) ...)])`.
+    /// The optional history block populates a per-call message store so
+    /// `:caused-by` hashes resolve to the supplied predecessors.
     /// Returns 0 on success ("ok" in result buf), 1 on error or pending result.
     #[no_mangle]
     pub unsafe extern "C" fn cbcl_verify_protocol(ptr: *const u8, len: usize) -> i32 {
@@ -919,5 +971,85 @@ mod tests {
         );
         let result = verify_protocol_bytes(frame.as_bytes());
         assert!(result.is_ok());
+    }
+
+    // -- verify_protocol with history block (hash-linked predecessors) --
+
+    // Two non-`begin` steps so hash-linked predecessors are required to verify
+    // the second one.
+    const CONVO_DIALECT: &str = "(define convo-d (cbcl) @author \
+        (extend ask (q) (effect ask-action)) \
+        (extend reply (a) (effect reply-action)) \
+        (protocol (then begin ask) (then ask reply)))";
+
+    #[test]
+    fn verify_protocol_resolves_hash_predecessor_from_history() {
+        // Predecessor `ask` is supplied via history under hash "h1".
+        // verify_causal must resolve the :caused-by reference and return Valid.
+        let frame = format!(
+            "(verify-protocol {CONVO_DIALECT} \"t1\" \
+             (reply :a \"ok\" :caused-by \"h1\") \
+             (history (\"h1\" (ask :q \"hi\" :caused-by begin))))"
+        );
+        let result = verify_protocol_str(&frame);
+        assert_eq!(
+            result.as_deref(),
+            Ok("ok"),
+            "expected hash-linked predecessor to resolve, got: {result:?}"
+        );
+    }
+
+    #[test]
+    fn verify_protocol_violation_when_history_predecessor_has_wrong_type() {
+        // History supplies a `reply` under "h1", but protocol requires `ask`
+        // before `reply`. Should produce an InvalidPredecessor violation, not
+        // pending.
+        let frame = format!(
+            "(verify-protocol {CONVO_DIALECT} \"t1\" \
+             (reply :a \"ok\" :caused-by \"h1\") \
+             (history (\"h1\" (reply :a \"earlier\" :caused-by begin))))"
+        );
+        let result = verify_protocol_str(&frame);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.starts_with("(error"), "expected blame S-expr, got: {err}");
+        assert!(err.contains("causal-violation"), "expected causal kind: {err}");
+        assert!(!err.contains("pending"), "expected violation, not pending: {err}");
+    }
+
+    #[test]
+    fn verify_protocol_pending_when_history_omits_predecessor() {
+        // History does not contain "h1", so the predecessor is genuinely
+        // unknown and the result should be pending.
+        let frame = format!(
+            "(verify-protocol {CONVO_DIALECT} \"t1\" \
+             (reply :a \"ok\" :caused-by \"h1\") \
+             (history))"
+        );
+        let result = verify_protocol_str(&frame);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.contains("pending"), "expected pending, got: {err}");
+        assert!(err.contains("unknown-predecessor"), "expected reason: {err}");
+    }
+
+    #[test]
+    fn verify_protocol_rejects_malformed_history_block() {
+        // Missing the `history` head symbol.
+        let frame = format!(
+            "(verify-protocol {CONVO_DIALECT} \"t1\" \
+             (reply :a \"ok\" :caused-by \"h1\") \
+             ((\"h1\" (ask :q \"hi\" :caused-by begin))))"
+        );
+        let result = verify_protocol_str(&frame);
+        assert!(result.is_err());
+        // History entry that isn't a (hash msg) pair.
+        let frame = format!(
+            "(verify-protocol {CONVO_DIALECT} \"t1\" \
+             (reply :a \"ok\" :caused-by \"h1\") \
+             (history \"just-a-hash\"))"
+        );
+        let result = verify_protocol_str(&frame);
+        assert!(result.is_err());
     }
 }
