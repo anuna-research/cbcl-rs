@@ -123,11 +123,13 @@ pub fn parse_message_bytes(input: &[u8]) -> Result<Vec<u8>, Vec<u8>> {
 /// Input: UTF-8 bytes of a `(define ...)` S-expression, or a
 /// `(dialects (define <ancestor>) ... (define <leaf>))` chain to install
 /// non-base ancestors before the leaf so R5 can resolve parent performatives.
-/// Returns "ok" on success or error description on failure. If a dialect in
-/// the chain declares a `(:hash "sha256:...")` field, the wrapper recomputes
-/// the canonical hash and rejects on mismatch — so a frame cannot install a
-/// dialect with a fabricated hash that downstream callers might later treat
-/// as authoritative.
+/// Returns "ok" only if *every* dialect in the chain installs cleanly; any
+/// failure (R1–R5 violation, parse error, or `:hash` mismatch on any link)
+/// short-circuits with an error. If a dialect in the chain declares a
+/// `(:hash "sha256:...")` field, the wrapper recomputes the canonical hash
+/// and rejects on mismatch — so a frame cannot install a dialect with a
+/// fabricated hash that downstream callers might later treat as
+/// authoritative.
 pub fn verify_dialect_bytes(input: &[u8]) -> Result<Vec<u8>, Vec<u8>> {
     let input_str =
         core::str::from_utf8(input).map_err(|e| format!("invalid UTF-8: {e}").into_bytes())?;
@@ -151,7 +153,8 @@ pub fn verify_dialect_bytes(input: &[u8]) -> Result<Vec<u8>, Vec<u8>> {
 /// max-depth exceeding the dialect's R2 bound — fails fast instead of
 /// producing a misleading verification result.
 /// Returns "ok" if no shape constraint targets the performative or every matching
-/// constraint passes; otherwise returns the canonical REQ-233 blame S-expression.
+/// constraint passes; otherwise returns the canonical REQ-233 blame S-expression
+/// for the *first* failing shape encountered (registry order).
 pub fn verify_message_shape_bytes(input: &[u8]) -> Result<Vec<u8>, Vec<u8>> {
     let input_str =
         core::str::from_utf8(input).map_err(|e| format!("invalid UTF-8: {e}").into_bytes())?;
@@ -187,6 +190,12 @@ pub fn verify_message_shape_bytes(input: &[u8]) -> Result<Vec<u8>, Vec<u8>> {
 /// `:thread` field that disagrees with `<thread-id>`, the frame is rejected —
 /// otherwise a caller could verify a message against predecessors from a
 /// different thread.
+///
+/// Verification depth: this checks only the *immediate* predecessor of
+/// `<message>` against the protocol — it does not transitively verify that
+/// every history entry's own `:caused-by` chain resolves cleanly. Hosts that
+/// need a verdict on a full causal closure must walk it themselves and call
+/// this export per message.
 ///
 /// Returns "ok" on `Valid`; the canonical REQ-233 blame S-expression on
 /// `Violation`; or `(pending :reason "unknown-predecessor")` on `Unknown`.
@@ -244,9 +253,9 @@ fn verify_dialect_str(input: &str) -> Result<String, String> {
 /// Parse a dialect S-expression (or a `(dialects <ancestor>* <leaf>)` chain)
 /// and install each into a fresh registry, running the same R1/R2/R3/R5 checks
 /// — and `:hash` consistency — that `cbcl_verify_dialect` performs. Returns
-/// the owning registry plus the index of the *last* installed dialect (the
-/// "leaf" / subject of any subsequent shape or protocol check); callers
-/// retrieve it via `registry.get(index)`.
+/// the populated registry; the runtime verifiers (shape, protocol) iterate
+/// it whole rather than picking out a single "subject" dialect, so they
+/// honour constraints declared by *any* installed dialect.
 ///
 /// The `(dialects ...)` form lets callers supply ancestor dialects so that
 /// R5's resolve-ancestors-by-name pass (`DialectRegistry::resolve_ancestors`)
@@ -261,17 +270,7 @@ fn verify_dialect_str(input: &str) -> Result<String, String> {
 /// bypass install-time well-formedness — e.g. shapes that target an
 /// undefined performative, or protocols referencing undefined predecessors —
 /// to get a spurious "ok" or a misleading violation.
-///
-/// We deliberately return an index, not the dialect name: a fresh
-/// `DialectRegistry` is preloaded with `cbcl-base`, and `find_by_name` returns
-/// the first match. If the supplied leaf happens to be named `cbcl-base`,
-/// looking up by name would resolve to the preloaded base — silently dropping
-/// the supplied dialect's shapes and protocol — and constraint violations
-/// would slip through as "ok". `install` always pushes at the end, so the
-/// leaf's index is `registry.len() - 1` after the loop.
-fn parse_and_install_dialect(
-    dialect_sexpr: &SExpr,
-) -> Result<(DialectRegistry, usize), String> {
+fn parse_and_install_dialect(dialect_sexpr: &SExpr) -> Result<DialectRegistry, String> {
     // Accept either a bare `(define ...)` (back-compat) or a
     // `(dialects <define-ancestor>* <define-leaf>)` chain.
     let dialect_forms: alloc::vec::Vec<&SExpr> = match dialect_sexpr {
@@ -292,14 +291,12 @@ fn parse_and_install_dialect(
     };
 
     let mut registry = DialectRegistry::new();
-    let mut last_idx = 0;
     for form in &dialect_forms {
         let dialect = cbcl_parser::parse_dialect(form)
             .map_err(|e| format!("dialect parse error: {e}"))?;
         registry
             .install(dialect)
             .map_err(|e| format!("dialect verification failed: {e}"))?;
-        last_idx = registry.len() - 1;
 
         // If the dialect declares a `:hash`, verify it matches the actual
         // canonical hash of the (just-installed) dialect. The wrapper surfaces
@@ -308,8 +305,9 @@ fn parse_and_install_dialect(
         // dialect signed a verdict. Apply to every link in the chain, not
         // just the leaf — a tampered ancestor :hash would otherwise propagate
         // through R5 into the leaf's verification context.
+        let installed_idx = registry.len() - 1;
         let installed = registry
-            .get(last_idx)
+            .get(installed_idx)
             .ok_or_else(|| String::from("internal: just-installed dialect not found"))?;
         if let Some(claimed) = &installed.hash {
             let computed = format!(
@@ -325,7 +323,7 @@ fn parse_and_install_dialect(
         }
     }
 
-    Ok((registry, last_idx))
+    Ok(registry)
 }
 
 /// Lowercase hex-encode bytes. Local helper to avoid a `hex` crate dep on the
@@ -356,13 +354,13 @@ fn verify_message_shape_str(input: &str) -> Result<String, String> {
     let items = match &frame {
         SExpr::List(items) => items,
         _ => return Err(String::from(
-            "expected (verify-shape <dialect> <performative> <message>)",
+            "expected (verify-shape <dialect-or-chain> <performative> <message>)",
         )),
     };
     if items.len() != 4 || !matches!(&items[0], SExpr::Atom(Atom::Symbol(s)) if s == "verify-shape")
     {
         return Err(String::from(
-            "expected (verify-shape <dialect> <performative> <message>)",
+            "expected (verify-shape <dialect-or-chain> <performative> <message>)",
         ));
     }
     let performative = match &items[2] {
@@ -372,7 +370,7 @@ fn verify_message_shape_str(input: &str) -> Result<String, String> {
     let dialect_sexpr = &items[1];
     let message_sexpr = &items[3];
 
-    let (registry, _leaf_idx) = parse_and_install_dialect(dialect_sexpr)?;
+    let registry = parse_and_install_dialect(dialect_sexpr)?;
 
     // Composition by conjunction (REQ-224): every matching shape across the
     // whole installed registry must pass. Iterating all installed dialects
@@ -489,7 +487,7 @@ fn load_history_into_store(
 /// Verify a single message's causal predecessor against a dialect's protocol.
 fn verify_protocol_str(input: &str) -> Result<String, String> {
     const FRAME_SHAPE: &str =
-        "expected (verify-protocol <dialect> <thread-id> <message> [(history (<hash> <msg>) ...)])";
+        "expected (verify-protocol <dialect-or-chain> <thread-id> <message> [(history (<hash> <msg>) ...)])";
     let frame = parser::parse(input).map_err(|e| format!("parse error: {e}"))?;
     let items = match &frame {
         SExpr::List(items) => items,
@@ -509,7 +507,7 @@ fn verify_protocol_str(input: &str) -> Result<String, String> {
     let message_sexpr = &items[3];
     let history_sexpr = items.get(4);
 
-    let (registry, _leaf_idx) = parse_and_install_dialect(dialect_sexpr)?;
+    let registry = parse_and_install_dialect(dialect_sexpr)?;
 
     // Always parse the message and history before consulting the protocol so
     // that callers using this export as a fail-closed verifier cannot smuggle a
@@ -556,42 +554,43 @@ fn verify_protocol_str(input: &str) -> Result<String, String> {
     // the full pipeline. A protocol declared on a parent dialect supplied
     // via the `(dialects ...)` chain form must still constrain messages
     // that target a parent performative, even if the leaf has no protocol
-    // (or no step for `perf`). Folding via `VerificationResult::meet`
-    // gives the right semantics: any Violation absorbs, any Unknown lifts
-    // the result to Unknown, otherwise Valid.
-    let mut combined = VerificationResult::Valid;
-    let mut blame_dialect: Option<&cbcl_core::dialect::Dialect> = None;
+    // (or no step for `perf`). Semantics mirror `VerificationResult::meet`:
+    // any Violation absorbs (first wins for blame attribution), any
+    // Unknown lifts the result to pending, otherwise Valid. We track
+    // first-violation as `(CausalViolation, &Dialect)` so the dialect
+    // pairing is type-state — no separate `Option` to risk going out of
+    // sync with the result.
+    let mut first_violation: Option<(cbcl_core::protocol::CausalViolation, &cbcl_core::dialect::Dialect)> = None;
+    let mut saw_unknown = false;
     for d in registry.iter() {
         let Some(proto) = &d.causal_protocol else {
             continue;
         };
-        let r = verify_causal(&perf, caused_by, &store, proto, &thread);
-        // Record the dialect that produced the first Violation we see, so
-        // blame attribution points at the actual constraint owner. `meet`
-        // is absorbing on Violation, so the first one fixes the result.
-        if blame_dialect.is_none() && matches!(r, VerificationResult::Violation(_)) {
-            blame_dialect = Some(d);
+        match verify_causal(&perf, caused_by, &store, proto, &thread) {
+            VerificationResult::Valid => {}
+            VerificationResult::Unknown => saw_unknown = true,
+            VerificationResult::Violation(cv) => {
+                if first_violation.is_none() {
+                    first_violation = Some((cv, d));
+                }
+            }
         }
-        combined = combined.meet(r);
     }
 
-    match combined {
-        VerificationResult::Valid => Ok(String::from("ok")),
-        VerificationResult::Violation(cv) => {
-            let d = blame_dialect.expect("violation must have an attributing dialect");
-            let blame = ViolationError::from_causal_violation(&cv, None, Some(thread.0.clone()))
-                .with_dialect_context(
-                    &d.name,
-                    d.author.as_deref(),
-                    d.hash.as_deref(),
-                    Some(&perf),
-                );
-            Err(serialize(&blame.to_sexpr()))
-        }
-        VerificationResult::Unknown => {
-            Err(String::from("(pending :reason \"unknown-predecessor\")"))
-        }
+    if let Some((cv, d)) = first_violation {
+        let blame = ViolationError::from_causal_violation(&cv, None, Some(thread.0.clone()))
+            .with_dialect_context(
+                &d.name,
+                d.author.as_deref(),
+                d.hash.as_deref(),
+                Some(&perf),
+            );
+        return Err(serialize(&blame.to_sexpr()));
     }
+    if saw_unknown {
+        return Err(String::from("(pending :reason \"unknown-predecessor\")"));
+    }
+    Ok(String::from("ok"))
 }
 
 /// Create a new agent with the given ID and base dialect.
