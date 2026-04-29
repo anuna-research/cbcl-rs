@@ -120,12 +120,14 @@ pub fn parse_message_bytes(input: &[u8]) -> Result<Vec<u8>, Vec<u8>> {
 
 /// Verify a dialect definition (parse + R1/R2/R3/R5 checks + `:hash` consistency).
 ///
-/// Input: UTF-8 bytes of a `(define ...)` S-expression.
-/// Returns "ok" on success or error description on failure. If the dialect
-/// declares a `(:hash "sha256:...")` field, the wrapper recomputes the
-/// canonical hash and rejects the dialect on mismatch — so a frame cannot
-/// install a dialect with a fabricated hash that downstream callers might
-/// later treat as authoritative.
+/// Input: UTF-8 bytes of a `(define ...)` S-expression, or a
+/// `(dialects (define <ancestor>) ... (define <leaf>))` chain to install
+/// non-base ancestors before the leaf so R5 can resolve parent performatives.
+/// Returns "ok" on success or error description on failure. If a dialect in
+/// the chain declares a `(:hash "sha256:...")` field, the wrapper recomputes
+/// the canonical hash and rejects on mismatch — so a frame cannot install a
+/// dialect with a fabricated hash that downstream callers might later treat
+/// as authoritative.
 pub fn verify_dialect_bytes(input: &[u8]) -> Result<Vec<u8>, Vec<u8>> {
     let input_str =
         core::str::from_utf8(input).map_err(|e| format!("invalid UTF-8: {e}").into_bytes())?;
@@ -137,11 +139,14 @@ pub fn verify_dialect_bytes(input: &[u8]) -> Result<Vec<u8>, Vec<u8>> {
 /// Verify an expanded message against a dialect's shape constraints (REQ-220, REQ-223).
 ///
 /// Input frame: `(verify-shape <dialect> <performative-symbol> <expanded-message>)`.
-/// The dialect is parsed *and installed* (running the same R1/R2/R3/R5 checks
-/// as `cbcl_verify_dialect`) before any shape is applied, so an ill-formed
-/// dialect — e.g. a shape targeting an undefined performative or a max-depth
-/// exceeding the dialect's R2 bound — fails fast instead of producing a
-/// misleading verification result.
+/// The `<dialect>` slot accepts either a bare `(define ...)` form or a
+/// `(dialects (define <ancestor>) ... (define <leaf>))` chain when the leaf
+/// extends a non-base parent — the leaf's shapes are then applied. The
+/// dialect (or chain) is parsed *and installed* (running the same R1/R2/R3/R5
+/// checks as `cbcl_verify_dialect`) before any shape is applied, so an
+/// ill-formed dialect — e.g. a shape targeting an undefined performative or
+/// a max-depth exceeding the dialect's R2 bound — fails fast instead of
+/// producing a misleading verification result.
 /// Returns "ok" if no shape constraint targets the performative or every matching
 /// constraint passes; otherwise returns the canonical REQ-233 blame S-expression.
 pub fn verify_message_shape_bytes(input: &[u8]) -> Result<Vec<u8>, Vec<u8>> {
@@ -155,10 +160,14 @@ pub fn verify_message_shape_bytes(input: &[u8]) -> Result<Vec<u8>, Vec<u8>> {
 /// Verify a message's causal predecessor against a dialect's protocol (REQ-203, REQ-304).
 ///
 /// Input frame: `(verify-protocol <dialect> <thread-id> <message> [(history (<hash> <msg>) ...)])`.
-/// The dialect is parsed *and installed* (running the same R1/R2/R3/R5 checks
-/// as `cbcl_verify_dialect`) before its protocol is honoured, so an ill-formed
-/// protocol — e.g. one referencing an undefined predecessor performative —
-/// fails fast instead of being driven to "ok" by a matching history entry.
+/// The `<dialect>` slot accepts either a bare `(define ...)` form or a
+/// `(dialects (define <ancestor>) ... (define <leaf>))` chain when the leaf
+/// extends a non-base parent — the leaf's protocol is then applied. The
+/// dialect (or chain) is parsed *and installed* (running the same R1/R2/R3/R5
+/// checks as `cbcl_verify_dialect`) before its protocol is honoured, so an
+/// ill-formed protocol — e.g. one referencing an undefined predecessor
+/// performative — fails fast instead of being driven to "ok" by a matching
+/// history entry.
 /// The optional `history` block populates a per-call `ThreadedMessageStore` so
 /// hash-linked predecessors (`:caused-by sha256:...`) resolve under the supplied
 /// `<thread-id>`; without it only `:caused-by begin` and protocol-unconstrained
@@ -223,56 +232,91 @@ fn verify_dialect_str(input: &str) -> Result<String, String> {
     Ok(String::from("ok"))
 }
 
-/// Parse a dialect S-expression and install it into a fresh registry, running
-/// the same R1/R2/R3/R5 checks that `cbcl_verify_dialect` performs. Returns the
-/// owning registry plus the index of the just-installed dialect; callers
-/// retrieve the validated `&Dialect` via `registry.get(index)`.
+/// Parse a dialect S-expression (or a `(dialects <ancestor>* <leaf>)` chain)
+/// and install each into a fresh registry, running the same R1/R2/R3/R5 checks
+/// — and `:hash` consistency — that `cbcl_verify_dialect` performs. Returns
+/// the owning registry plus the index of the *last* installed dialect (the
+/// "leaf" / subject of any subsequent shape or protocol check); callers
+/// retrieve it via `registry.get(index)`.
 ///
-/// Both runtime verifiers (shape, protocol) must reuse this so that callers
-/// cannot bypass install-time well-formedness — e.g. shapes that target an
+/// The `(dialects ...)` form lets callers supply ancestor dialects so that
+/// R5's resolve-ancestors-by-name pass (`DialectRegistry::resolve_ancestors`)
+/// can find non-base parents. Without this, a child dialect like
+/// `(define child-d (parent-d) ... (protocol (then notify ack)))` would be
+/// rejected by R5 here because `parent-d` is not in the fresh registry, even
+/// though the rest of the pipeline accepts it once `parent-d` is installed.
+/// Order matters: ancestors must precede the leaf so each `install` call
+/// sees its parents already present.
+///
+/// Both runtime verifiers (shape, protocol) reuse this so callers cannot
+/// bypass install-time well-formedness — e.g. shapes that target an
 /// undefined performative, or protocols referencing undefined predecessors —
 /// to get a spurious "ok" or a misleading violation.
 ///
 /// We deliberately return an index, not the dialect name: a fresh
 /// `DialectRegistry` is preloaded with `cbcl-base`, and `find_by_name` returns
-/// the first match. If the supplied dialect happens to be named `cbcl-base`,
+/// the first match. If the supplied leaf happens to be named `cbcl-base`,
 /// looking up by name would resolve to the preloaded base — silently dropping
 /// the supplied dialect's shapes and protocol — and constraint violations
-/// would slip through as "ok". `install` always pushes the new dialect at the
-/// end, so its index is `registry.len() - 1`.
+/// would slip through as "ok". `install` always pushes at the end, so the
+/// leaf's index is `registry.len() - 1` after the loop.
 fn parse_and_install_dialect(
     dialect_sexpr: &SExpr,
 ) -> Result<(DialectRegistry, usize), String> {
-    let dialect = cbcl_parser::parse_dialect(dialect_sexpr)
-        .map_err(|e| format!("dialect parse error: {e}"))?;
-    let mut registry = DialectRegistry::new();
-    registry
-        .install(dialect)
-        .map_err(|e| format!("dialect verification failed: {e}"))?;
-    let installed_idx = registry.len() - 1;
+    // Accept either a bare `(define ...)` (back-compat) or a
+    // `(dialects <define-ancestor>* <define-leaf>)` chain.
+    let dialect_forms: alloc::vec::Vec<&SExpr> = match dialect_sexpr {
+        SExpr::List(xs)
+            if matches!(
+                xs.first(),
+                Some(SExpr::Atom(Atom::Symbol(s))) if s == "dialects"
+            ) =>
+        {
+            if xs.len() < 2 {
+                return Err(String::from(
+                    "(dialects ...) must contain at least one (define ...) form",
+                ));
+            }
+            xs[1..].iter().collect()
+        }
+        _ => alloc::vec![dialect_sexpr],
+    };
 
-    // If the dialect declares a `:hash`, verify it matches the actual canonical
-    // hash of the (just-installed) dialect. The wrapper surfaces this hash in
-    // REQ-233 blame attribution via `with_dialect_context`, so trusting an
-    // unchecked claim would let a frame mislabel which dialect signed a
-    // verdict. Bare claim → reject before any verification result is produced.
-    let installed = registry
-        .get(installed_idx)
-        .ok_or_else(|| String::from("internal: just-installed dialect not found"))?;
-    if let Some(claimed) = &installed.hash {
-        let computed = format!(
-            "sha256:{}",
-            hex_encode(Sha256::digest(dialect_canonical_bytes(installed)).as_slice())
-        );
-        if claimed != &computed {
-            return Err(format!(
-                "dialect verification failed: declared :hash {claimed} \
-                 does not match canonical hash {computed}"
-            ));
+    let mut registry = DialectRegistry::new();
+    let mut last_idx = 0;
+    for form in &dialect_forms {
+        let dialect = cbcl_parser::parse_dialect(form)
+            .map_err(|e| format!("dialect parse error: {e}"))?;
+        registry
+            .install(dialect)
+            .map_err(|e| format!("dialect verification failed: {e}"))?;
+        last_idx = registry.len() - 1;
+
+        // If the dialect declares a `:hash`, verify it matches the actual
+        // canonical hash of the (just-installed) dialect. The wrapper surfaces
+        // this hash in REQ-233 blame attribution via `with_dialect_context`,
+        // so trusting an unchecked claim would let a frame mislabel which
+        // dialect signed a verdict. Apply to every link in the chain, not
+        // just the leaf — a tampered ancestor :hash would otherwise propagate
+        // through R5 into the leaf's verification context.
+        let installed = registry
+            .get(last_idx)
+            .ok_or_else(|| String::from("internal: just-installed dialect not found"))?;
+        if let Some(claimed) = &installed.hash {
+            let computed = format!(
+                "sha256:{}",
+                hex_encode(Sha256::digest(dialect_canonical_bytes(installed)).as_slice())
+            );
+            if claimed != &computed {
+                return Err(format!(
+                    "dialect verification failed: declared :hash {claimed} \
+                     does not match canonical hash {computed}"
+                ));
+            }
         }
     }
 
-    Ok((registry, installed_idx))
+    Ok((registry, last_idx))
 }
 
 /// Lowercase hex-encode bytes. Local helper to avoid a `hex` crate dep on the
@@ -1101,6 +1145,67 @@ mod tests {
             "(verify-shape {dialect_with_hash} greet (greet-action :name \"a\"))"
         );
         assert_eq!(verify_message_shape_str(&frame).as_deref(), Ok("ok"));
+    }
+
+    #[test]
+    fn verify_dialect_accepts_child_with_installed_parent_via_dialects_chain() {
+        // Child references parent's `notify` performative in its protocol.
+        // Without the parent in the registry R5 rejects `notify` as
+        // undefined; the (dialects parent child) chain installs parent first
+        // so R5 of the child sees notify.
+        let chain = "(dialects \
+            (define parent-d (cbcl) @author \
+                (extend notify (msg) (effect notify-action))) \
+            (define child-d (parent-d) @author \
+                (extend ack () (effect ack-action)) \
+                (protocol (then begin notify) (then notify ack))))";
+        assert_eq!(verify_dialect_str(chain).as_deref(), Ok("ok"));
+    }
+
+    #[test]
+    fn verify_dialect_rejects_child_when_parent_not_supplied() {
+        // Same child but supplied bare — R5 rejects because notify isn't
+        // resolvable.
+        let child_only = "(define child-d (parent-d) @author \
+            (extend ack () (effect ack-action)) \
+            (protocol (then notify ack)))";
+        let result = verify_dialect_str(child_only);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(
+            err.contains("dialect verification failed"),
+            "expected R5 rejection without parent installed, got: {err}"
+        );
+    }
+
+    #[test]
+    fn verify_protocol_accepts_child_protocol_via_dialects_chain() {
+        // Child protocol references parent's notify; chain form lets the
+        // protocol verifier install parent first, then run R5 + verify_causal
+        // against the child.
+        let chain = "(dialects \
+            (define parent-d (cbcl) @author \
+                (extend notify (msg) (effect notify-action))) \
+            (define child-d (parent-d) @author \
+                (extend ack () (effect ack-action)) \
+                (protocol (then begin notify) (then notify ack))))";
+        let frame = format!(
+            "(verify-protocol {chain} \"t1\" \
+             (ack :caused-by \"h1\") \
+             (history (\"h1\" (notify :msg \"hi\" :caused-by begin))))"
+        );
+        assert_eq!(verify_protocol_str(&frame).as_deref(), Ok("ok"));
+    }
+
+    #[test]
+    fn parse_and_install_dialect_rejects_empty_dialects_chain() {
+        let result = verify_dialect_str("(dialects)");
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(
+            err.contains("at least one"),
+            "expected empty-chain rejection, got: {err}"
+        );
     }
 
     #[test]
