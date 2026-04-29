@@ -29,7 +29,7 @@
 //!  , performative := atom() | {custom, binary()}
 //!  , recipient    := binary() | undefined
 //!  , content      := sexpr_term()
-//!  , params       := #{binary() => sexpr_term()}     %% see CON-001 deviation below
+//!  , params       := params_map()                    %% see CON-001 deviation below
 //!  , thread       := binary() | undefined
 //!  , sender       := binary() | undefined
 //!  , caused_by    := undefined | begin | [binary()]
@@ -41,7 +41,7 @@
 //! ```text
 //! #{ type    := wrapped
 //!  , wrapper := envelope | signed | with_limits     %% closed enum, atom-safe
-//!  , params  := #{binary() => sexpr_term()}
+//!  , params  := params_map()
 //!  , inner   := message_map()
 //!  }
 //! ```
@@ -63,26 +63,30 @@
 //!  }
 //! ```
 //!
-//! ## CON-001 v0.1.0 deviation: param keys are binaries
+//! ## CON-001 v0.1.0 deviations on `params`
 //!
-//! CON-001 originally specifies `params` as `#{atom() => sexpr_term()}`.
-//! v0.1.0 deviates: param keys are encoded as **binaries** (`binary()`),
-//! NOT atoms. Rationale:
+//! CON-001 originally specifies `params` as `#{atom() => sexpr_term()}`
+//! — a single keyword-only map. v0.1.0 deviates on TWO axes:
 //!
-//! - BEAM atoms are not garbage-collected. The atom table is a fixed-size
-//!   global resource and exhausting it crashes the entire VM.
+//! ### 1. Binary keys, not atoms
+//!
+//! Keyword-pair keys are encoded as **binaries** (`binary()`), NOT atoms.
+//!
+//! - BEAM atoms are not garbage-collected. The atom table is a
+//!   fixed-size global resource; exhausting it crashes the entire VM.
 //! - Param names are user-supplied data crossing the trust boundary.
-//!   Allowing untrusted input to mint new atoms is a textbook atom-table
-//!   exhaustion DoS — exactly the trust-boundary risk REQ-005 / ADR-001
+//!   Allowing untrusted input to mint new atoms is a textbook
+//!   atom-table exhaustion DoS — exactly the risk REQ-005 / ADR-001
 //!   are built to mitigate.
 //!
 //! BEAM-side consumers must pattern-match params with binary keys:
 //!
 //! ```erlang
 //! %% v0.1.0 (correct):
-//! #{<<"thread">> := T} = Params,
+//! #{keyword := #{<<"thread">> := T}} = Params,
 //! %% NOT:
-//! #{thread := T} = Params.   %% wrong — keys are binaries
+//! #{thread := T} = Params.   %% wrong — keys are binaries, and the
+//!                            %% map is now nested under `keyword`
 //! ```
 //!
 //! The same rationale applies to the `:dialect` field: the dialect name
@@ -90,9 +94,39 @@
 //! `:wrapper` field IS an atom because `WrapperType` is a closed enum
 //! of three values (`envelope` / `signed` / `with_limits`).
 //!
-//! This deviation is a v0.1.0 hardening. It MAY be lifted if a future
-//! SPEC-009 amendment introduces an atom-allowlist scheme that bounds
-//! the set of permitted param keys at the trust boundary.
+//! ### 2. `params_map()` shape — keyword AND positional preserved
+//!
+//! ```text
+//! params_map() ::=
+//!   #{ keyword    := #{binary() => sexpr_term()}
+//!    , positional := [sexpr_term()]
+//!    }
+//! ```
+//!
+//! `cbcl-parser` produces a flat `Vec<SExpr>` of params that can mix
+//! `:keyword value` pairs with positional entries:
+//!
+//! - `(envelope :from @alice :to @bob …)` — purely keyword.
+//! - `(signed "sig-blob" …)` — purely positional (the signature).
+//! - `(propose-step "step1" :priority high "step2")` — mixed.
+//!
+//! An earlier draft of cbcl-erl pulled out only the keyword pairs and
+//! silently dropped positionals, breaking REQ-002 for `signed` wrappers
+//! and custom Simple messages. The 2-key `params_map()` is lossless:
+//! either submap may be empty, both may be populated, and order is
+//! preserved within `positional` (the `keyword` submap is unordered as
+//! Erlang maps are).
+//!
+//! BEAM-side consumers access either view without re-parsing:
+//!
+//! ```erlang
+//! #{keyword := K, positional := P} = Params,
+//! %% K is #{<<"priority">> => Term, ...}
+//! %% P is [Term1, Term2, ...]
+//! ```
+//!
+//! Both deviations are v0.1.0 hardenings. They MAY be revisited if a
+//! future SPEC-009 amendment refines the params taxonomy.
 //!
 //! # `caused_by` encoding (extension to CON-001)
 //!
@@ -334,41 +368,73 @@ fn undefined_atom(env: Env<'_>) -> ErlAtom {
     ErlAtom::from_str(env, "undefined").expect("'undefined' is ASCII")
 }
 
-/// Walk the flat `params: Vec<SExpr>` (alternating `:keyword` /
-/// value items, REQ-013) into a list of `(key, value)` pairs. The
-/// parser already validates `Simple` parameter pairing, but we are
-/// defensive at the encoding boundary so we never panic on malformed
-/// data — non-keyword entries and dangling keywords are dropped.
-pub(crate) fn pair_keyword_params(params: &[SExpr]) -> Vec<(String, &SExpr)> {
-    let mut out = Vec::new();
+/// Walk the flat `params: Vec<SExpr>` and split it into keyword pairs
+/// and positional entries, preserving order within each kind.
+///
+/// `cbcl-parser` produces this flat list for both `Simple` messages
+/// (custom performatives may carry positional args alongside `:keyword`
+/// pairs) and `Wrapped` messages (`(signed "sig" (tell …))` stores the
+/// signature as a positional, `(envelope :from … :to … (…))` stores the
+/// addresses as keyword pairs). An earlier draft kept only the keyword
+/// pairs and silently dropped positionals — that broke REQ-002
+/// ("preserve the semantics of `cbcl_parser::parse_message`") for
+/// `signed` wrappers and custom Simple messages with positional args.
+///
+/// A dangling keyword at the end of the list (e.g. `[:alone]`) is
+/// surfaced as a positional entry rather than dropped — the parser
+/// shouldn't produce one, but the encoder is defensive at the trust
+/// boundary so malformed inputs round-trip losslessly.
+pub(crate) fn split_params(params: &[SExpr]) -> (Vec<(String, &SExpr)>, Vec<&SExpr>) {
+    let mut keyword = Vec::new();
+    let mut positional = Vec::new();
     let mut i = 0;
     while i < params.len() {
         match &params[i] {
             SExpr::Atom(Atom::Keyword(k)) if i + 1 < params.len() => {
-                out.push((k.clone(), &params[i + 1]));
+                keyword.push((k.clone(), &params[i + 1]));
                 i += 2;
             }
-            _ => i += 1,
+            entry => {
+                positional.push(entry);
+                i += 1;
+            }
         }
     }
-    out
+    (keyword, positional)
 }
 
 fn encode_params<'a>(env: Env<'a>, params: &[SExpr]) -> NifResult<Term<'a>> {
-    let pairs = pair_keyword_params(params);
-    let mut keys: Vec<Term<'a>> = Vec::with_capacity(pairs.len());
-    let mut values: Vec<Term<'a>> = Vec::with_capacity(pairs.len());
-    for (k, v) in pairs {
+    // CON-001 v0.1.0 deviation #2: `params` is a 2-key map, NOT a flat
+    // `#{atom() => sexpr_term()}`. The spec's keyword-only shape silently
+    // dropped positional entries (signatures on `signed` wrappers, extra
+    // args on custom Simple messages); the new shape preserves both:
+    //
+    //   #{ keyword    => #{<<"k">> => sexpr_term(), …}
+    //    , positional => [sexpr_term(), …]
+    //    }
+    //
+    // Either submap may be empty. BEAM-side consumers pattern-match
+    // `#{keyword := K, positional := P}` to access both views.
+    let (kw_pairs, pos_entries) = split_params(params);
+
+    let mut kw_keys: Vec<Term<'a>> = Vec::with_capacity(kw_pairs.len());
+    let mut kw_values: Vec<Term<'a>> = Vec::with_capacity(kw_pairs.len());
+    for (k, v) in kw_pairs {
         // v0.1.0 deviation from CON-001 (`#{atom() => sexpr_term()}`):
         // user-supplied keyword names are encoded as BINARIES, not atoms.
         // BEAM atoms are not garbage-collected; allowing untrusted input
         // to mint new atoms is an atom-table exhaustion DoS — exactly
         // the trust-boundary risk REQ-005 / ADR-001 is built to mitigate.
-        // BEAM-side consumers pattern-match `#{<<"thread">> := T}`.
-        keys.push(k.as_str().encode(env));
-        values.push(encode_sexpr(env, v));
+        kw_keys.push(k.as_str().encode(env));
+        kw_values.push(encode_sexpr(env, v));
     }
-    Term::map_from_term_arrays(env, &keys, &values)
+    let kw_map = Term::map_from_term_arrays(env, &kw_keys, &kw_values)?;
+
+    let pos_terms: Vec<Term<'a>> =
+        pos_entries.iter().map(|e| encode_sexpr(env, e)).collect();
+    let pos_list = pos_terms.encode(env);
+
+    make_map(env, &[("keyword", kw_map), ("positional", pos_list)])
 }
 
 fn encode_caused_by<'a>(env: Env<'a>, cb: Option<&CausedBy>) -> Term<'a> {
@@ -486,28 +552,59 @@ mod tests {
     }
 
     #[test]
-    fn pair_keyword_params_pairs_alternating_kwargs() {
+    fn split_params_pairs_alternating_kwargs_and_no_positional() {
         // (... :timeout 30 :priority high)
         let params = vec![kw("timeout"), num(30), kw("priority"), sym("high")];
-        let pairs = pair_keyword_params(&params);
-        assert_eq!(pairs.len(), 2);
-        assert_eq!(pairs[0].0, "timeout");
-        assert_eq!(pairs[0].1, &num(30));
-        assert_eq!(pairs[1].0, "priority");
-        assert_eq!(pairs[1].1, &sym("high"));
+        let (kw_pairs, positional) = split_params(&params);
+        assert_eq!(kw_pairs.len(), 2);
+        assert_eq!(kw_pairs[0].0, "timeout");
+        assert_eq!(kw_pairs[0].1, &num(30));
+        assert_eq!(kw_pairs[1].0, "priority");
+        assert_eq!(kw_pairs[1].1, &sym("high"));
+        assert!(positional.is_empty());
     }
 
     #[test]
-    fn pair_keyword_params_drops_dangling_and_non_keyword() {
-        // Parser shouldn't produce these, but the encoder is defensive.
-        let dangling = vec![kw("alone")]; // keyword without value
-        assert!(pair_keyword_params(&dangling).is_empty());
+    fn split_params_preserves_signed_wrapper_signature() {
+        // Regression for the silent-data-loss bug: `(signed "sig" (tell …))`
+        // stores the signature as a positional wrapper param. The encoder
+        // MUST surface it, not drop it.
+        let params = vec![str_e("sig-blob")];
+        let (kw_pairs, positional) = split_params(&params);
+        assert!(kw_pairs.is_empty());
+        assert_eq!(positional.len(), 1);
+        assert_eq!(positional[0], &str_e("sig-blob"));
+    }
 
+    #[test]
+    fn split_params_preserves_custom_message_positionals_alongside_keywords() {
+        // (propose-step "step1" :priority high "step2")
+        let params = vec![str_e("step1"), kw("priority"), sym("high"), str_e("step2")];
+        let (kw_pairs, positional) = split_params(&params);
+        assert_eq!(kw_pairs.len(), 1);
+        assert_eq!(kw_pairs[0].0, "priority");
+        assert_eq!(kw_pairs[0].1, &sym("high"));
+        assert_eq!(positional, vec![&str_e("step1"), &str_e("step2")]);
+    }
+
+    #[test]
+    fn split_params_dangling_keyword_becomes_positional() {
+        // Parser shouldn't produce a bare keyword at the end, but the
+        // encoder is defensive — surface it as a positional rather than
+        // silently drop it.
+        let dangling = vec![kw("alone")];
+        let (kw_pairs, positional) = split_params(&dangling);
+        assert!(kw_pairs.is_empty());
+        assert_eq!(positional.len(), 1);
+        assert_eq!(positional[0], &kw("alone"));
+
+        // Mixed: leading positional + valid keyword pair.
         let leading_value = vec![num(7), kw("k"), num(8)];
-        let pairs = pair_keyword_params(&leading_value);
-        assert_eq!(pairs.len(), 1);
-        assert_eq!(pairs[0].0, "k");
-        assert_eq!(pairs[0].1, &num(8));
+        let (kw_pairs, positional) = split_params(&leading_value);
+        assert_eq!(kw_pairs.len(), 1);
+        assert_eq!(kw_pairs[0].0, "k");
+        assert_eq!(kw_pairs[0].1, &num(8));
+        assert_eq!(positional, vec![&num(7)]);
     }
 
     #[test]
@@ -816,12 +913,16 @@ mod tests {
             let wrapper = t.map_get(wrapper_key).unwrap();
             assert_eq!(wrapper.atom_to_string().unwrap(), "envelope");
 
+            // params is the 2-key params_map() — keyword + positional.
             let params_key = ErlAtom::from_str(env, "params").unwrap().to_term(env);
             let params = t.map_get(params_key).expect("params present");
             assert!(params.is_map());
-            // BINARY key (atom-DoS fix), NOT atom.
+
+            let kw_key = ErlAtom::from_str(env, "keyword").unwrap().to_term(env);
+            let keyword_map = params.map_get(kw_key).expect("keyword submap present");
+            assert!(keyword_map.is_map());
             let bin_key = "from".encode(env);
-            let v = params.map_get(bin_key).expect("binary key <<\"from\">>");
+            let v = keyword_map.map_get(bin_key).expect("binary key <<\"from\">>");
             // value is {symbol, <<"@alice">>}
             let (tag, name): (ErlAtom, String) = v.decode().expect("tagged tuple");
             assert_eq!(tag.to_term(env).atom_to_string().unwrap(), "symbol");
@@ -829,9 +930,15 @@ mod tests {
             // And confirm an atom key would NOT match (atom-DoS regression).
             let atom_key = ErlAtom::from_str(env, "from").unwrap().to_term(env);
             assert!(
-                params.map_get(atom_key).is_err(),
+                keyword_map.map_get(atom_key).is_err(),
                 "atom keys must not be present (atom-DoS fix)"
             );
+
+            let pos_key = ErlAtom::from_str(env, "positional").unwrap().to_term(env);
+            let positional = params.map_get(pos_key).expect("positional present");
+            assert!(positional.is_list());
+            let pv: Vec<Term> = positional.decode().expect("positional list");
+            assert!(pv.is_empty(), "envelope has no positional args");
 
             let inner_key = ErlAtom::from_str(env, "inner").unwrap().to_term(env);
             let inner = t.map_get(inner_key).expect("inner present");
@@ -1024,18 +1131,96 @@ mod tests {
             let params = t.map_get(params_key).expect("params present");
             assert!(params.is_map());
 
+            // params is the 2-key params_map() — drill into `keyword`.
+            let kw_key = ErlAtom::from_str(env, "keyword").unwrap().to_term(env);
+            let keyword_map = params.map_get(kw_key).expect("keyword submap present");
+
             // BINARY key succeeds.
             let bin_key = "timeout".encode(env);
-            let v = params.map_get(bin_key).expect("binary key works");
+            let v = keyword_map.map_get(bin_key).expect("binary key works");
             assert_eq!(v.decode::<i64>().unwrap(), 30);
 
             // ATOM key FAILS — the regression check.
             let atom_key = ErlAtom::from_str(env, "timeout").unwrap().to_term(env);
             assert!(
-                params.map_get(atom_key).is_err(),
+                keyword_map.map_get(atom_key).is_err(),
                 "atom-keyed lookup must fail; param keys are binaries to \
                  prevent atom-table exhaustion DoS"
             );
+        });
+    }
+
+    #[test]
+    #[ignore = "requires BEAM host (enif_alloc_env); see module docs"]
+    fn signed_wrapper_preserves_positional_signature() {
+        // Regression for the silent-data-loss bug: `(signed "sig" (tell …))`
+        // stores "sig" as a positional wrapper param. The encoder must
+        // surface it via params.positional, not drop it.
+        OwnedEnv::new().run(|env| {
+            let inner = simple_msg(Performative::Core(CorePerformative::Tell));
+            let signed = Message::Wrapped {
+                wrapper: WrapperType::Signed,
+                params: vec![str_e("sig-blob")],
+                content: Box::new(inner),
+            };
+            let t = encode_message(env, &signed).expect("encode ok");
+
+            let params_key = ErlAtom::from_str(env, "params").unwrap().to_term(env);
+            let params = t.map_get(params_key).expect("params present");
+
+            let kw_key = ErlAtom::from_str(env, "keyword").unwrap().to_term(env);
+            let keyword_map = params.map_get(kw_key).expect("keyword submap present");
+            // No keyword pairs.
+            // (Erlang has no map.size primitive on Term here; we just probe
+            // for the absence of the would-be key.)
+            let probe = "from".encode(env);
+            assert!(keyword_map.map_get(probe).is_err());
+
+            let pos_key = ErlAtom::from_str(env, "positional").unwrap().to_term(env);
+            let positional = params.map_get(pos_key).expect("positional present");
+            let pv: Vec<String> = positional.decode().expect("list of binaries");
+            assert_eq!(pv, vec!["sig-blob".to_string()]);
+        });
+    }
+
+    #[test]
+    #[ignore = "requires BEAM host (enif_alloc_env); see module docs"]
+    fn custom_simple_preserves_mixed_keyword_and_positional() {
+        // (propose-step @bob "step1" :priority high "step2")
+        OwnedEnv::new().run(|env| {
+            let m = Message::Simple {
+                performative: Performative::Custom("propose-step".into()),
+                recipient: Some("@bob".into()),
+                content: str_e("payload"),
+                params: vec![
+                    str_e("step1"),
+                    kw("priority"),
+                    sym("high"),
+                    str_e("step2"),
+                ],
+                thread: None,
+                sender: None,
+                caused_by: None,
+            };
+            let t = encode_message(env, &m).expect("encode ok");
+            let params_key = ErlAtom::from_str(env, "params").unwrap().to_term(env);
+            let params = t.map_get(params_key).expect("params present");
+
+            let kw_key = ErlAtom::from_str(env, "keyword").unwrap().to_term(env);
+            let keyword_map = params.map_get(kw_key).expect("keyword submap present");
+            let priority_v = keyword_map
+                .map_get("priority".encode(env))
+                .expect("priority key present");
+            let (tag, name): (ErlAtom, String) =
+                priority_v.decode().expect("tagged symbol tuple");
+            assert_eq!(tag.to_term(env).atom_to_string().unwrap(), "symbol");
+            assert_eq!(name, "high");
+
+            let pos_key = ErlAtom::from_str(env, "positional").unwrap().to_term(env);
+            let positional = params.map_get(pos_key).expect("positional present");
+            // step1 and step2 — both bare binaries.
+            let pv: Vec<String> = positional.decode().expect("list of binaries");
+            assert_eq!(pv, vec!["step1".to_string(), "step2".to_string()]);
         });
     }
 }
