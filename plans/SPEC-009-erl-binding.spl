@@ -1,0 +1,167 @@
+;; ----------------------------------------------------------------------
+;; Plan: implement SPEC-009 (cbcl-erl Erlang/NIF binding) on a new branch.
+;;
+;; The spec is `draft` — §12 normally gates on cross-model + human review
+;; before implementation. Driver is the cbcl-rs maintainer; proceeding
+;; with documented v0.1.0 defaults for the §11 open questions:
+;;   1. Scheduler safety: regular NIF for v0.1.0; benchmark hook later.
+;;   2. Error categorisation: 5 prefixes from CON-001 verbatim.
+;;   3. cbcl-csexp co-binding: out of scope.
+;;   4. SPEC-010 ownership: not yet drafted; honour the SPEC-009 hooks.
+;;   5. Cross-binding conformance harness (TEST-007): out of scope for v0.1.
+;;
+;; NFR-001 (binary size <= 8 MB) and NFR-002 (10^9 fuzz inputs) are CI
+;; gates, not first-cut implementation work; tracked outside this plan.
+;; ----------------------------------------------------------------------
+
+(meta plan
+  (id "IMPL-009")
+  (title "cbcl-erl Erlang NIF binding (SPEC-009 v0.1.0)")
+  (version "0.1.0")
+  (status "active")
+  (created "2026-04-29")
+  (author "agent:hugo")
+  (spec "SPEC-009")
+  (description "Implement cbcl-erl per SPEC-009 v0.1.0: parse_message/1, parse_message_lax/1, verify_dialect/1 as a Rustler NIF returning native Erlang terms, with REQ-005 panic-to-error guard, OBS-001 version constants, and conformance against test-vectors/."))
+
+;; ----------------------------------------------------------------------
+;; Agents
+;; ----------------------------------------------------------------------
+
+(given agent-hugo-available)         ;; coordinator (this session)
+(given agent-scaffolder-available)     ;; Plan-style subagent for crate layout
+(given agent-impler-available)         ;; general-purpose implementation agent
+(given agent-tester-available)         ;; general-purpose test + conformance agent
+
+;; ----------------------------------------------------------------------
+;; Tasks
+;; ----------------------------------------------------------------------
+
+(given task-scaffold)
+(given task-encoding)
+(given task-parse-msg)
+(given task-parse-msg-lax)
+(given task-verify-dialect)
+(given task-panic-guard)
+(given task-version-obs)
+(given task-tests)
+(given task-conformance)
+
+(meta task-scaffold
+  (description "Create crates/cbcl-erl with [package], crate-type=cdylib+rlib, workspace dep on cbcl-core/cbcl-parser, rustler dep, #![forbid(unsafe_code)] in src/lib.rs, and register as a workspace member in /Users/anuna-01/Code/cbcl-rs/Cargo.toml.")
+  (acceptance "cargo check -p cbcl-erl compiles; workspace cargo check clean; crate exports an empty rustler::init! with module name cbcl_erl."))
+
+(meta task-encoding
+  (description "Implement encoders converting cbcl_core::message::Message and cbcl_core::sexpr::SExpr to rustler::Term per CON-001: atoms for Performative/CorePerformative, atom-keyed map for Message, list of binaries for caused_by, undefined for absent optional fields. Internal helpers, no public NIF exports yet.")
+  (acceptance "Encoder unit tests pass on a representative SExpr matrix; tests round-trip the produced terms via rustler in a test driver."))
+
+(meta task-parse-msg
+  (description "Expose parse_message/1 NIF taking a binary, returning {ok, Message} | {error, Reason}. Map cbcl_parser::parser::parse + parse_message errors to the CON-001 error prefixes (parse error: / message error: / invalid utf-8). Implements REQ-002.")
+  (acceptance "Unit tests cover: parse ok roundtrip; non-UTF-8 -> invalid utf-8; parse error prefix; message error prefix."))
+
+(meta task-parse-msg-lax
+  (description "Expose parse_message_lax/1 NIF, mirroring parse_message/1 but calling cbcl-parser's lax-mode entrypoint. Implements REQ-003. If cbcl-parser does not yet have a public lax entrypoint, surface it via the closest available API (e.g. PipelineResult variants) and document the choice in a code comment.")
+  (acceptance "Tests cover at least one input that strict rejects but lax accepts."))
+
+(meta task-verify-dialect
+  (description "Expose verify_dialect/1 NIF: take a binary dialect definition, return ok | {error, Reason} matching CON-002. Use the existing parse_dialect + DialectRegistry::install path. Error prefixes: dialect error: / verification failed:. Implements REQ-004.")
+  (acceptance "Tests cover: ok valid dialect; dialect error: parse failure; verification failed: R3 violation (e.g. redefining tell)."))
+
+(meta task-panic-guard
+  (description "Wrap every NIF export in std::panic::catch_unwind so any panic in cbcl-core / cbcl-parser surfaces as {error, panic: ...} rather than crashing the BEAM scheduler. Implements REQ-005. Register the wrapper as a small macro or helper to keep all three exports consistent.")
+  (acceptance "A test that injects a panic via a deliberately-broken input (or a unit test of the wrapper alone) returns {error, panic: ...} and does not abort the test process."))
+
+(meta task-version-obs
+  (description "Implement OBS-001: export compile-time constants CBCL_RS_GIT_REVISION (from build.rs git rev-parse HEAD, falling back to env CBCL_RS_GIT_REVISION at build time, then unknown), CBCL_CORE_VERSION (env! CARGO_PKG_VERSION of cbcl-core), CBCL_ERL_VERSION (env! CARGO_PKG_VERSION), and an Erlang accessor versions/0 returning a 3-tuple. Gate OBS-002 tracing feature on entry/exit events for each NIF, fields = input size + outcome category.")
+  (acceptance "versions/0 returns the three binaries; with --features tracing a test asserts a tracing event fires per call."))
+
+(meta task-tests
+  (description "Add cbcl-erl integration test suite: roundtrip property (parse -> encode -> re-parse -> equal); error-category coverage; REQ-005 panic containment; OBS-001 versions/0 sanity. Tests live under crates/cbcl-erl/tests/ as Rust integration tests using rustler's term-roundtrip helpers; no live BEAM required.")
+  (acceptance "cargo test -p cbcl-erl green; tests cover every CON-001 error prefix at least once."))
+
+(meta task-conformance
+  (description "Wire test-vectors/ as a conformance gate: a Rust integration test that walks every JSON case in test-vectors/messages and asserts parse_message/1 ok-or-error parity with the expected outcome. Implements REQ-006 / TEST-006 for v0.1.0 (the SPEC-010 schema is deferred; today's JSON layout is sufficient per ADR-004).")
+  (acceptance "Conformance test green; test count matches |test-vectors/messages|; diff between cbcl-erl outcome and expected outcome is empty."))
+
+;; ----------------------------------------------------------------------
+;; Readiness rules — task graph
+;; ----------------------------------------------------------------------
+
+(normally r-ready-scaffold
+  task-scaffold
+  ready-scaffold)
+
+(normally r-ready-encoding
+  (and task-encoding completed-scaffold)
+  ready-encoding)
+
+(normally r-ready-parse-msg
+  (and task-parse-msg completed-encoding)
+  ready-parse-msg)
+(normally r-ready-parse-msg-lax
+  (and task-parse-msg-lax completed-encoding)
+  ready-parse-msg-lax)
+
+(normally r-ready-verify-dialect
+  (and task-verify-dialect completed-scaffold)
+  ready-verify-dialect)
+
+(normally r-ready-version-obs
+  (and task-version-obs completed-scaffold)
+  ready-version-obs)
+
+(normally r-ready-panic-guard
+  (and task-panic-guard
+       completed-parse-msg
+       completed-parse-msg-lax
+       completed-verify-dialect)
+  ready-panic-guard)
+
+(normally r-ready-tests
+  (and task-tests completed-panic-guard completed-version-obs)
+  ready-tests)
+
+(normally r-ready-conformance
+  (and task-conformance completed-tests)
+  ready-conformance)
+
+;; ----------------------------------------------------------------------
+;; Assignment rules
+;; ----------------------------------------------------------------------
+
+(normally r-assign-scaffold
+  (and ready-scaffold agent-scaffolder-available)
+  assign-to-scaffold-scaffolder)
+
+(normally r-assign-encoding
+  (and ready-encoding agent-impler-available)
+  assign-to-encoding-impler)
+(normally r-assign-parse-msg
+  (and ready-parse-msg agent-impler-available)
+  assign-to-parse-msg-impler)
+(normally r-assign-parse-msg-lax
+  (and ready-parse-msg-lax agent-impler-available)
+  assign-to-parse-msg-lax-impler)
+(normally r-assign-verify-dialect
+  (and ready-verify-dialect agent-impler-available)
+  assign-to-verify-dialect-impler)
+(normally r-assign-version-obs
+  (and ready-version-obs agent-impler-available)
+  assign-to-version-obs-impler)
+(normally r-assign-panic-guard
+  (and ready-panic-guard agent-impler-available)
+  assign-to-panic-guard-impler)
+
+(normally r-assign-tests
+  (and ready-tests agent-tester-available)
+  assign-to-tests-tester)
+(normally r-assign-conformance
+  (and ready-conformance agent-tester-available)
+  assign-to-conformance-tester)
+
+(meta r-assign-scaffold
+  (description "Crate layout + workspace integration is design work.")
+  (justification "Plan-style agent better at structural decisions."))
+(meta r-assign-panic-guard
+  (description "Panic-to-error wrapper touches all three NIFs.")
+  (justification "Single-agent serialised after the NIFs land — ensures uniform wrapping rather than three drifting implementations."))
