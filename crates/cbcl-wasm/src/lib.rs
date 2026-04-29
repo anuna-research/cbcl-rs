@@ -118,10 +118,14 @@ pub fn parse_message_bytes(input: &[u8]) -> Result<Vec<u8>, Vec<u8>> {
         .map_err(|e| e.into_bytes())
 }
 
-/// Verify a dialect definition (parse + R1/R2/R3 checks).
+/// Verify a dialect definition (parse + R1/R2/R3/R5 checks + `:hash` consistency).
 ///
 /// Input: UTF-8 bytes of a `(define ...)` S-expression.
-/// Returns "ok" on success or error description on failure.
+/// Returns "ok" on success or error description on failure. If the dialect
+/// declares a `(:hash "sha256:...")` field, the wrapper recomputes the
+/// canonical hash and rejects the dialect on mismatch — so a frame cannot
+/// install a dialect with a fabricated hash that downstream callers might
+/// later treat as authoritative.
 pub fn verify_dialect_bytes(input: &[u8]) -> Result<Vec<u8>, Vec<u8>> {
     let input_str =
         core::str::from_utf8(input).map_err(|e| format!("invalid UTF-8: {e}").into_bytes())?;
@@ -204,18 +208,11 @@ fn parse_message_str(input: &str) -> Result<String, String> {
     Ok(serialize(&msg_sexpr))
 }
 
-/// Verify a dialect definition against R1/R2/R3 rules.
+/// Verify a dialect definition against R1/R2/R3/R5 rules and (when declared)
+/// confirm its `:hash` matches the canonical hash of its content.
 fn verify_dialect_str(input: &str) -> Result<String, String> {
     let sexpr = parser::parse(input).map_err(|e| format!("parse error: {e}"))?;
-    let dialect =
-        cbcl_parser::parse_dialect(&sexpr).map_err(|e| format!("dialect parse error: {e}"))?;
-
-    // Verify by attempting to install into a fresh registry (checks R1/R2/R3)
-    let mut registry = DialectRegistry::new();
-    registry
-        .install(dialect)
-        .map_err(|e| format!("verification failed: {e}"))?;
-
+    parse_and_install_dialect(&sexpr)?;
     Ok(String::from("ok"))
 }
 
@@ -872,6 +869,43 @@ mod tests {
         let result = verify_dialect_str(input);
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("verification failed"));
+    }
+
+    #[test]
+    fn verify_dialect_rejects_mismatched_claimed_hash() {
+        // `cbcl_verify_dialect` must close the same hash gap as the runtime
+        // shape/protocol endpoints — a fabricated `:hash` would otherwise
+        // install fine and propagate downstream.
+        let dialect = "(define h-d (cbcl) @author \
+            (:hash \"sha256:0000000000000000000000000000000000000000000000000000000000000000\") \
+            (extend greet (name) (effect greet-action)))";
+        let result = verify_dialect_str(dialect);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(
+            err.contains("does not match canonical hash"),
+            "expected hash-mismatch rejection, got: {err}"
+        );
+    }
+
+    #[test]
+    fn verify_dialect_accepts_matching_claimed_hash() {
+        let dialect_no_hash = "(define h-d (cbcl) @author \
+            (extend greet (name) (effect greet-action)))";
+        let parsed = cbcl_parser::parse_dialect(
+            &parser::parse(dialect_no_hash).unwrap(),
+        )
+        .unwrap();
+        let computed = format!(
+            "sha256:{}",
+            hex_encode(Sha256::digest(dialect_canonical_bytes(&parsed)).as_slice())
+        );
+        let dialect_with_hash = format!(
+            "(define h-d (cbcl) @author \
+             (:hash \"{computed}\") \
+             (extend greet (name) (effect greet-action)))"
+        );
+        assert_eq!(verify_dialect_str(&dialect_with_hash).as_deref(), Ok("ok"));
     }
 
     #[test]
