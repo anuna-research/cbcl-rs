@@ -19,4 +19,5 @@ tracing = ["cbcl-core/tracing", "cbcl-parser/tracing"]
 [dependencies]
 cbcl-core = { workspace = true, default-features = false }
 cbcl-parser = { workspace = true, default-features = false }
+sha2 = { version = "0.10", default-features = false }
 wasm-bindgen = { version = "0.2", optional = true }

@@ -62,6 +62,7 @@ use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use cbcl_core::agent::Agent;
 use cbcl_core::blame::ViolationError;
+use cbcl_core::canonical::dialect_canonical_bytes;
 use cbcl_core::dialect::DialectRegistry;
 use cbcl_core::evaluator;
 use cbcl_core::message::{CorePerformative, Message, Performative};
@@ -70,6 +71,7 @@ use cbcl_core::serializer::serialize;
 use cbcl_core::sexpr::{Atom, SExpr};
 use cbcl_core::store::{ContentHash, MessageStore, ThreadId, ThreadedMessageStore};
 use cbcl_parser::parser;
+use sha2::{Digest, Sha256};
 
 // ---------------------------------------------------------------------------
 // Pure WASM byte-level API (always available)
@@ -244,7 +246,41 @@ fn parse_and_install_dialect(
         .install(dialect)
         .map_err(|e| format!("dialect verification failed: {e}"))?;
     let installed_idx = registry.len() - 1;
+
+    // If the dialect declares a `:hash`, verify it matches the actual canonical
+    // hash of the (just-installed) dialect. The wrapper surfaces this hash in
+    // REQ-233 blame attribution via `with_dialect_context`, so trusting an
+    // unchecked claim would let a frame mislabel which dialect signed a
+    // verdict. Bare claim → reject before any verification result is produced.
+    let installed = registry
+        .get(installed_idx)
+        .ok_or_else(|| String::from("internal: just-installed dialect not found"))?;
+    if let Some(claimed) = &installed.hash {
+        let computed = format!(
+            "sha256:{}",
+            hex_encode(Sha256::digest(dialect_canonical_bytes(installed)).as_slice())
+        );
+        if claimed != &computed {
+            return Err(format!(
+                "dialect verification failed: declared :hash {claimed} \
+                 does not match canonical hash {computed}"
+            ));
+        }
+    }
+
     Ok((registry, installed_idx))
+}
+
+/// Lowercase hex-encode bytes. Local helper to avoid a `hex` crate dep on the
+/// wasm32 build path.
+fn hex_encode(bytes: &[u8]) -> String {
+    const HEX: &[u8; 16] = b"0123456789abcdef";
+    let mut out = String::with_capacity(bytes.len() * 2);
+    for b in bytes {
+        out.push(HEX[(b >> 4) as usize] as char);
+        out.push(HEX[(b & 0x0f) as usize] as char);
+    }
+    out
 }
 
 /// Verify a runtime message against a dialect's shape constraints.
@@ -954,6 +990,50 @@ mod tests {
         // Missing the message argument.
         let result = verify_message_shape_str("(verify-shape (define x (cbcl) @a) greet)");
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn parse_and_install_dialect_rejects_mismatched_claimed_hash() {
+        // Frame supplies a bogus :hash. parse_and_install must reject before
+        // any verification result is produced, otherwise REQ-233 blame would
+        // attribute verdicts to a hash the dialect never actually had.
+        let dialect = "(define h-d (cbcl) @author \
+            (:hash \"sha256:0000000000000000000000000000000000000000000000000000000000000000\") \
+            (extend greet (name) (effect greet-action)))";
+        let frame = format!("(verify-shape {dialect} greet (greet-action :name \"a\"))");
+        let result = verify_message_shape_str(&frame);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(
+            err.contains("does not match canonical hash"),
+            "expected hash-mismatch rejection, got: {err}"
+        );
+    }
+
+    #[test]
+    fn parse_and_install_dialect_accepts_matching_claimed_hash() {
+        // Compute the canonical hash of a dialect, embed it as :hash, and
+        // confirm the wrapper accepts it. Sanity-checks that the helper agrees
+        // with `dialect_canonical_bytes` + SHA-256 + `sha256:<hex>` formatting.
+        let dialect_no_hash = "(define h-d (cbcl) @author \
+            (extend greet (name) (effect greet-action)))";
+        let parsed = cbcl_parser::parse_dialect(
+            &parser::parse(dialect_no_hash).unwrap(),
+        )
+        .unwrap();
+        let computed = format!(
+            "sha256:{}",
+            hex_encode(Sha256::digest(dialect_canonical_bytes(&parsed)).as_slice())
+        );
+        let dialect_with_hash = format!(
+            "(define h-d (cbcl) @author \
+             (:hash \"{computed}\") \
+             (extend greet (name) (effect greet-action)))"
+        );
+        let frame = format!(
+            "(verify-shape {dialect_with_hash} greet (greet-action :name \"a\"))"
+        );
+        assert_eq!(verify_message_shape_str(&frame).as_deref(), Ok("ok"));
     }
 
     #[test]
