@@ -29,6 +29,13 @@
 
 extern crate alloc;
 
+/// Crate version, taken from `Cargo.toml` at compile time.
+///
+/// Re-exported by downstream bindings (e.g. `cbcl-erl`'s `versions/0` NIF —
+/// SPEC-009 OBS-001) so callers can identify the exact `cbcl-core` build the
+/// runtime was linked against without parsing the workspace manifest.
+pub const VERSION: &str = env!("CARGO_PKG_VERSION");
+
 pub mod agent;
 pub mod blame;
 pub mod canonical;
