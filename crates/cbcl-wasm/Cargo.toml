@@ -22,9 +22,13 @@ cbcl-parser = { workspace = true, default-features = false }
 sha2 = { version = "0.10", default-features = false }
 wasm-bindgen = { version = "0.2", optional = true }
 
-# Explicit allocator for `wasm32-unknown-unknown` cdylib without std. The
-# previous WasmAlloc shim recursed into compiler-internal `__rust_alloc`
-# externs which are not provided for cdylib targets — leaving the .wasm
-# with unresolved imports that crashed any non-JS host.
-[target.'cfg(all(target_arch = "wasm32", not(target_os = "wasi")))'.dependencies]
+# Explicit allocator for any `wasm32` cdylib without std. The previous
+# WasmAlloc shim recursed into compiler-internal `__rust_alloc` externs
+# which are not provided for cdylib targets — leaving the .wasm with
+# unresolved imports that crashed any non-JS host. The cfg here matches
+# the source-side `cfg(all(target_arch = "wasm32", not(feature = "std"),
+# not(feature = "bindgen")))` everywhere Cargo can express it (Cargo
+# target cfgs cannot reference features), so wasm32-wasip1 no_std builds
+# can resolve `dlmalloc::GlobalDlmalloc` too.
+[target.'cfg(target_arch = "wasm32")'.dependencies]
 dlmalloc = { version = "0.2", features = ["global"] }
