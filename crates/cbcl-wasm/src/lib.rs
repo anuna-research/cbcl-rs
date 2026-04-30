@@ -18,38 +18,15 @@ extern crate alloc;
 // no_std wasm32 requirements: allocator + panic handler
 // ---------------------------------------------------------------------------
 
-// When targeting wasm32 without std, provide a global allocator and panic handler.
-// unsafe is required only here for the FFI allocator boundary (ADR-004).
+// `wasm32-unknown-unknown` cdylib + `no_std` + `extern crate alloc` needs an
+// explicit global allocator. We use `dlmalloc::GlobalDlmalloc` because Rust's
+// compiler no longer auto-links one for cdylib targets. The previous
+// hand-rolled `WasmAlloc` declared external `__rust_alloc` / `__rust_dealloc`
+// symbols that were never generated for cdylib, leaving unresolved wasm
+// imports.
 #[cfg(all(target_arch = "wasm32", not(feature = "std"), not(feature = "bindgen")))]
-mod wasm_alloc {
-    use core::alloc::{GlobalAlloc, Layout};
-
-    struct WasmAlloc;
-
-    // SAFETY: This delegates to the wasm32 dlmalloc implementation provided by
-    // the compiler's built-in allocator shim. Required for cdylib crates that
-    // use alloc without std.
-    unsafe impl GlobalAlloc for WasmAlloc {
-        unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-            // SAFETY: dlmalloc is linked by default on wasm32 targets.
-            extern "C" {
-                fn __rust_alloc(size: usize, align: usize) -> *mut u8;
-            }
-            unsafe { __rust_alloc(layout.size(), layout.align()) }
-        }
-
-        unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
-            // SAFETY: ptr was allocated by the matching __rust_alloc.
-            extern "C" {
-                fn __rust_dealloc(ptr: *mut u8, size: usize, align: usize);
-            }
-            unsafe { __rust_dealloc(ptr, layout.size(), layout.align()) }
-        }
-    }
-
-    #[global_allocator]
-    static ALLOC: WasmAlloc = WasmAlloc;
-}
+#[global_allocator]
+static ALLOC: dlmalloc::GlobalDlmalloc = dlmalloc::GlobalDlmalloc;
 
 #[cfg(all(target_arch = "wasm32", not(feature = "std"), not(feature = "bindgen")))]
 #[panic_handler]

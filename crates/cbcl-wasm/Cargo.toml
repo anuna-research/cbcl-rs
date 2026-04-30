@@ -21,3 +21,10 @@ cbcl-core = { workspace = true, default-features = false }
 cbcl-parser = { workspace = true, default-features = false }
 sha2 = { version = "0.10", default-features = false }
 wasm-bindgen = { version = "0.2", optional = true }
+
+# Explicit allocator for `wasm32-unknown-unknown` cdylib without std. The
+# previous WasmAlloc shim recursed into compiler-internal `__rust_alloc`
+# externs which are not provided for cdylib targets — leaving the .wasm
+# with unresolved imports that crashed any non-JS host.
+[target.'cfg(all(target_arch = "wasm32", not(target_os = "wasi")))'.dependencies]
+dlmalloc = { version = "0.2", features = ["global"] }
