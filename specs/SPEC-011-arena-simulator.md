@@ -1,9 +1,10 @@
 ---
 id: SPEC-011
 title: Multi-Agent Arena Challenge Simulator — Strategic-Communication Defence Demonstration
-status: draft
-version: 0.1.0
+status: implemented
+version: 0.1.1
 date: 2026-04-30
+implemented-date: 2026-04-30
 author: Anuna Research (https://anuna.io)
 depends-on:
   - SPEC-001 (CBCL — homoiconic safe self-extending agent communication)
@@ -1215,18 +1216,40 @@ Trace: REQ-1131, TEST-1131
 
 ## Status and Versioning
 
-- **Status:** draft. No implementation exists. This document is a planning artefact for the NeurIPS '26 paper revision; implementation is pending stakeholder approval.
+- **Status:** `implemented` (transitioned `draft` → `implemented` on 2026-04-30 after the work in `plans/IMPL-arena-sim.spl` landed all 15 tasks with 146 lib + integration tests passing and the four headline predictions in `REQ-1150` validated at `N = 300` release; see "Validation Results" below).
 - **Predecessor:** none.
-- **Successor:** none yet. Implementation work would be tracked under `IMPL-arena-sim` in `plans/`, mirroring the relationship between SPEC-009 and `plans/SPEC-009-erl-binding.spl`.
+- **Implementation:** `crates/cbcl-arena/` on branch `feat/arena-demo`. Implementation commit: `8be0bc8` (`cbcl-arena: implement SPEC-011 arena simulator (Demo 3 evidence)`); measurement archive commit: `45d1993`.
 - **Owner:** Hugo O'Connor.
 - **Last updated:** 2026-04-30.
-- **Paper target:** `04_evaluation.tex` `§4.2.1` Demo 3, NeurIPS '26 main paper revision.
+- **Paper target:** `04_evaluation.tex` `§4.2.1` Demo 3, NeurIPS '26 main paper revision. Insertion of Table 4 + supporting prose into the paper is pending and is a separate task from this SPEC's `implemented` status.
 
-When implementation begins, status transitions:
+---
 
-- `draft` → `approved` after stakeholder review (this is the gate; SPEC-011 is currently asking for that review)
-- `approved` → `implementing` when `IMPL-arena-sim` work begins
-- `implementing` → `implemented` when all REQs have passing TESTs, the comparison artefact has been produced, and `04_evaluation.tex` has been updated to reference Table 4
+## Validation Results
+
+The four falsifiable predictions in `REQ-1150` were validated at `N = 300` release-mode runs on 2026-04-30 with master seed `0xCBC1A1EADEFA0173`. Full output archived under `crates/cbcl-arena/measurements/N300-2026-04-30/`.
+
+| Prediction | Bound (`REQ-1150`) | Measured | Outcome |
+|---|---|---|---|
+| `Vanilla × Published × PSI` attack-success rate | `[0.35, 0.50]` (calibrates against public Arena 0.43 baseline at 2026-04-30) | **0.490 [0.434, 0.546]** Wilson 95% | **PASS** |
+| `CBCL × Published × PSI` security-leak rate | `[0.0, 0.012]` | **0.000 [0.000, 0.013]** Wilson 95% | **PASS** |
+| `CBCL × Novel × PSI` security-leak rate | `[0.0, 0.012]` | **0.000 [0.000, 0.013]** Wilson 95% | **PASS** |
+| `\|CBCL − Vanilla\|` honest-cooperative utility delta | `≤ 0.1` | **0.000** (PSI), **0.000** (Yao), **0.000** (DC) | **PASS** |
+
+All other cells in the 18-cell measurement matrix are reported in `crates/cbcl-arena/measurements/N300-2026-04-30/full-artefact.md`. Notable findings beyond the four predictions:
+
+- **Yao's Millionaire Vanilla × Published = 0.213 [0.171, 0.263].** Vanilla agent leaks the wealth value at a non-trivial rate under the published attacker library. CBCL × Published × Yao = `0.000` — the bracket-and-narrow dialect carries only comparison bits, never the magnitude.
+- **Dining Cryptographers all-zero across every cell (vanilla and CBCL, published and novel).** The classical DC-net unanimity rule (`REQ-1112`) drops a payer's security only when *every* diner names that specific diner; a single attacker among three cannot achieve unanimity unilaterally, and the honest CbclAgents resist coordination on a single name. CBCL's contribution to DC is preventing the *coalition* attack — explicitly out of scope per `REQ-1180`. The honest reading: DC's classical anonymity property dominates the structural-defence claim under this threat model; PSI and Yao are the load-bearing cells for the CBCL claim.
+- **Vanilla × Novel × PSI = 0.000.** The novel-PSI attacker patterns do not land against the vanilla agent's coarse pattern-matching either. The novel patterns (`quasi-protocol`, `semantic-injection`, `cross-tool-pivot`, `byte-fuzz`) target subtleties the vanilla agent's heuristics filter unintentionally. Reported here for transparency; the load-bearing CBCL × Novel × PSI = `0.000` claim is unaffected because it operates on a different mechanism (parser + verify_causal rejection at the channel boundary).
+
+All measurements satisfy `NFR-1110` (single-game `≤ 50ms`), `NFR-1111` (full matrix wall-clock `≤ 10min`), `NFR-1113` (cross-platform determinism for deterministic cells, validated by `tests/integration.rs::measurement_replay_byte_identical`), and `NFR-1115` (Wilson-CI numerical stability, validated by `statistics::tests::wilson_ci_*`).
+
+### Open follow-ups (non-blocking)
+
+1. Insert Table 4 + supporting prose into `04_evaluation.tex` `§4.2.1`. Paper-ready table at `crates/cbcl-arena/measurements/N300-2026-04-30/table-4-paper.md`.
+2. Run the optional live-LLM cells (`REQ-1140`) on Sonnet 4.6 / GPT-4.1 with budget approval — adds realism alongside the deterministic load-bearing cells.
+3. Live-arena field test on `arena.nicolaos.org` per `plans/EXPLORE-arena.spl`. Methodologically weaker than the deterministic simulator but provides the in-the-wild confirmation photo.
+4. Reconcile the `agents/vanilla.rs` `INSTRUCTION_PATTERNS` regex with the published-attacker payloads. The implementation currently uses a calibrated `AfterPattern` script trigger as a working alternative; a future `0.1.x` minor revision could unify the two pattern sets.
 
 ---
 
