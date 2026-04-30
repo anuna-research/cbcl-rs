@@ -52,7 +52,7 @@ fn sha256_hex(bytes: &[u8]) -> String {
     let mut s = String::with_capacity(digest.len() * 2);
     for b in digest.iter() {
         use std::fmt::Write;
-        write!(s, "{:02x}", b).unwrap();
+        write!(s, "{b:02x}").unwrap();
     }
     s
 }
@@ -126,8 +126,7 @@ fn single_game_latency_psi() {
     );
     assert!(
         p <= Duration::from_millis(50),
-        "PSI single-game p95 latency {:?} exceeds 50 ms budget (NFR-1110)",
-        p
+        "PSI single-game p95 latency {p:?} exceeds 50 ms budget (NFR-1110)"
     );
 }
 
@@ -148,8 +147,7 @@ fn single_game_latency_millionaire() {
     );
     assert!(
         p <= Duration::from_millis(50),
-        "Yao single-game p95 latency {:?} exceeds 50 ms budget (NFR-1110)",
-        p
+        "Yao single-game p95 latency {p:?} exceeds 50 ms budget (NFR-1110)"
     );
 }
 
@@ -170,8 +168,7 @@ fn single_game_latency_dining() {
     );
     assert!(
         p <= Duration::from_millis(50),
-        "DC single-game p95 latency {:?} exceeds 50 ms budget (NFR-1110)",
-        p
+        "DC single-game p95 latency {p:?} exceeds 50 ms budget (NFR-1110)"
     );
 }
 
@@ -370,22 +367,19 @@ fn end_to_end_smoke_emits_artefact() {
     for ch_label in ["PSI", "MILLIONAIRE", "DINING"] {
         assert!(
             text.contains(ch_label),
-            "Table 4 missing challenge column label: {}",
-            ch_label
+            "Table 4 missing challenge column label: {ch_label}"
         );
     }
     for ag_label in ["CBCL", "Vanilla"] {
         assert!(
             text.contains(ag_label),
-            "Table 4 missing agent label: {}",
-            ag_label
+            "Table 4 missing agent label: {ag_label}"
         );
     }
     for cat_label in ["Honest", "Published", "Novel"] {
         assert!(
             text.contains(cat_label),
-            "Table 4 missing attacker category label: {}",
-            cat_label
+            "Table 4 missing attacker category label: {cat_label}"
         );
     }
     // Section headers.
