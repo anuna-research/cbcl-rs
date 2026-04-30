@@ -4,6 +4,7 @@ use std::io::{self, BufRead, Read, Write};
 
 use cbcl_core::gossip::{GossipConfig, GossipNetwork, Topology};
 use cbcl_core::prelude::*;
+use cbcl_core::protocol::ProtocolViolation;
 use cbcl_core::serializer::serialize;
 use cbcl_core::{r1, r2, r3};
 use cbcl_parser::{parse, parse_dialect, run_pipeline, PipelineResult};
@@ -26,7 +27,8 @@ enum Command {
         #[arg(long)]
         sexpr: bool,
     },
-    /// Verify a dialect definition against R1/R2/R3 safety constraints
+    /// Verify a dialect definition against R1/R2/R3 (and R5, if the
+    /// dialect contains a (protocol ...) clause) safety constraints
     Verify {
         /// Input dialect definition (reads from stdin if omitted)
         input: Option<String>,
@@ -191,12 +193,32 @@ fn cmd_verify(input: Option<String>) -> i32 {
         }
     }
 
+    // R5: Causal protocol — only if a (protocol ...) clause is present.
+    let mut checks = String::from("R1, R2, R3");
+    let protocol_step_count = if let Some(proto) = dialect.causal_protocol.as_ref() {
+        let perf_names: Vec<&str> = dialect
+            .performatives
+            .iter()
+            .map(|p| p.name.as_str())
+            .collect();
+        for v in proto.verify_r5_protocol(&perf_names) {
+            violations.push(format!("R5: {}", format_protocol_violation(&v)));
+        }
+        checks.push_str(", R5");
+        Some(proto.steps.len())
+    } else {
+        None
+    };
+
     if violations.is_empty() {
         println!(
-            "dialect '{}' passed all safety checks (R1, R2, R3)",
+            "dialect '{}' passed all safety checks ({checks})",
             dialect.name
         );
         println!("  performatives: {}", dialect.performatives.len());
+        if let Some(steps) = protocol_step_count {
+            println!("  protocol steps: {steps}");
+        }
         println!(
             "  resource bounds: depth={}, expansion={}, time={}ms",
             dialect.resources.max_depth,
@@ -210,6 +232,23 @@ fn cmd_verify(input: Option<String>) -> i32 {
             eprintln!("  - {v}");
         }
         1
+    }
+}
+
+fn format_protocol_violation(v: &ProtocolViolation) -> String {
+    match v {
+        ProtocolViolation::Cycle { participants } => {
+            format!("cycle in protocol graph: {}", participants.join(" → "))
+        }
+        ProtocolViolation::Unreachable { step } => {
+            format!("step '{step}' is unreachable from begin")
+        }
+        ProtocolViolation::UndefinedPerformative { name } => {
+            format!("protocol references undefined performative '{name}'")
+        }
+        ProtocolViolation::DuplicateStep { name } => {
+            format!("duplicate protocol step for '{name}'")
+        }
     }
 }
 

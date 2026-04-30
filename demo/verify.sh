@@ -16,7 +16,7 @@ cd "$ROOT"
 
 fail=0
 
-echo "== dialects (R1/R2/R3 via cbcl-cli) =="
+echo "== dialects (R1/R2/R3/R5 via cbcl-cli) =="
 for f in "$DEMO"/dialects/*.cbcl; do
   [ -e "$f" ] || continue
   name="$(basename "$f")"
@@ -28,15 +28,6 @@ for f in "$DEMO"/dialects/*.cbcl; do
     fail=1
   fi
 done
-
-echo "== dialects (R5 via integration test) =="
-if cargo test --test arena_demo_dialects -p cbcl-cli -q >/dev/null 2>&1; then
-  printf "  ok   every dialect's (protocol ...) clause passes R5\n"
-else
-  printf "  FAIL R5 integration test\n"
-  cargo test --test arena_demo_dialects -p cbcl-cli -q || true
-  fail=1
-fi
 
 echo "== traces =="
 for f in "$DEMO"/traces/*.scm; do
