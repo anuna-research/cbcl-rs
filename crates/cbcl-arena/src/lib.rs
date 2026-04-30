@@ -40,3 +40,7 @@ pub mod measurement;
 pub mod manifest;
 pub mod artefact;
 pub mod isolation;
+
+// Live-LLM probe (effectful, optional). Not a default dependency of
+// any other module; built only by `examples/glm_psi.rs`.
+pub mod glm;

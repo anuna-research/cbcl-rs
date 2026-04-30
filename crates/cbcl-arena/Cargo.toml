@@ -27,3 +27,7 @@ proptest = "1"
 [[example]]
 name = "cbcl-arena"
 path = "examples/cli.rs"
+
+[[example]]
+name = "glm_psi"
+path = "examples/glm_psi.rs"
