@@ -1,0 +1,94 @@
+;; ----------------------------------------------------------------------
+;; arena-dining — Dining Cryptographers Protocol (DC-net) over CBCL.
+;;
+;; Three diners. The bill has been paid. They want to learn whether
+;; one of them paid (and who, optionally) without that diner having
+;; to identify themself, and without leaking who-paid to outsiders.
+;;
+;; Classical DC-net for n=3:
+;;   - Each pair (i, j) shares a uniform random bit r_{ij} = r_{ji}.
+;;   - Each diner i announces a_i = r_{ij} XOR r_{ik} XOR p_i, where
+;;     p_i = 1 if diner i paid, 0 otherwise.
+;;   - Sum: a_1 ⊕ a_2 ⊕ a_3 = p_1 ⊕ p_2 ⊕ p_3 (pairwise bits cancel).
+;;   - Result is 1 ⇔ exactly one diner paid; 0 ⇔ external paid.
+;;
+;; Anonymity: as long as two diners do not collude, no individual can
+;; determine which other diner paid.
+;;
+;; The three pairwise shares are NAMED distinctly (mask-12, mask-13,
+;; mask-23) so the (all ...) fan-in in the protocol can express the
+;; "all three pairs have committed before any reveal" barrier — see
+;; cbcl-core/src/protocol.rs (NodeRef::All) and the
+;; parse_document_ops_protocol test in protocol_parser.rs which is the
+;; closest existing example of fan-in usage.
+;; ----------------------------------------------------------------------
+
+(define arena-dining (cbcl) @arena-cbcl-demo
+
+  (:resource-requirements
+    ((max-depth 6)
+     (max-expansion-size 512)
+     (verification-time 50)))
+
+  ;; Pairwise mask commitments — one per unordered pair {(1,2),(1,3),(2,3)}.
+  ;; Each pair member computes H(salt || r_{ij}) and posts it; the salt
+  ;; is exchanged out-of-band (or via a separate :ask channel) so the
+  ;; commitment hides the bit until both pair members have committed.
+  (extend dc-mask-12 (commitment)
+    (tell @peers
+      (pair-mask :pair "1-2" :commitment commitment)
+      :domain dining))
+
+  (extend dc-mask-13 (commitment)
+    (tell @peers
+      (pair-mask :pair "1-3" :commitment commitment)
+      :domain dining))
+
+  (extend dc-mask-23 (commitment)
+    (tell @peers
+      (pair-mask :pair "2-3" :commitment commitment)
+      :domain dining))
+
+  ;; Reveal pairwise bit + salt. Each diner verifies H(salt || bit)
+  ;; matches the prior commitment from each pair member; mismatch ⇒
+  ;; abort the round, that diner cheated.
+  (extend dc-reveal-12 (bit salt)
+    (tell @peers
+      (pair-reveal :pair "1-2" :bit bit :salt salt)
+      :domain dining))
+
+  (extend dc-reveal-13 (bit salt)
+    (tell @peers
+      (pair-reveal :pair "1-3" :bit bit :salt salt)
+      :domain dining))
+
+  (extend dc-reveal-23 (bit salt)
+    (tell @peers
+      (pair-reveal :pair "2-3" :bit bit :salt salt)
+      :domain dining))
+
+  ;; Each diner's announcement: a_i = r_{ij} XOR r_{ik} XOR p_i.
+  ;; The triple of announcements sums to whether-anyone-paid.
+  (extend dc-announce (announcement)
+    (tell @peers
+      (announcement :bit announcement)
+      :domain dining))
+
+  ;; Operator-bound guess. Verdict is one of: external, internal,
+  ;; <invite-code>, or unknown — see arena scoring rules.
+  (extend dc-final (verdict)
+    (tell @operator
+      (paid-verdict :verdict verdict)
+      :domain dining))
+
+  ;; Causal protocol with (all ...) fan-in. The DC-net invariant is
+  ;; that NO diner reveals their pairwise bit until ALL three masks
+  ;; are committed (otherwise the late committer can adaptively choose
+  ;; their bit to skew the announcement). The (all ...) predecessor
+  ;; encodes that barrier.
+  (protocol
+    (then begin (any dc-mask-12 dc-mask-13 dc-mask-23))
+    (then (all dc-mask-12 dc-mask-13 dc-mask-23)
+          (any dc-reveal-12 dc-reveal-13 dc-reveal-23))
+    (then (all dc-reveal-12 dc-reveal-13 dc-reveal-23) dc-announce)
+    (then dc-announce dc-final)))

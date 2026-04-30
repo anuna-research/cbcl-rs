@@ -1,0 +1,412 @@
+;; ----------------------------------------------------------------------
+;; Plan: build a /demo folder showing how CBCL addresses the four
+;; arena.nicolaos.org challenges, with one custom dialect per challenge.
+;;
+;; Scope is the *CBCL artefacts*, not the live REST adapter:
+;;
+;;   demo/
+;;     README.md                ;; what, why, how to run
+;;     verify.sh                ;; pipe each dialect into cbcl-cli verify
+;;     dialects/
+;;       psi.cbcl               ;; salt, commit, reveal, claim, final + protocol
+;;       millionaire.cbcl       ;; bracket-and-narrow comparison
+;;       dining.cbcl            ;; DC-net pairwise share + announce
+;;       ultimatum.cbcl         ;; submit-offer/accept/reject/pass
+;;     traces/
+;;       psi-honest.scm
+;;       psi-adversarial.scm    ;; peer attempts secret extraction
+;;       millionaire-honest.scm
+;;       millionaire-adversarial.scm
+;;       dining-honest.scm
+;;       ultimatum-honest.scm
+;;
+;; Acceptance bar for the demo:
+;;   1. Every .cbcl file passes `cbcl-cli verify` (R1+R2+R3).
+;;   2. Every dialect embeds a `(protocol (then ...)+)` clause that
+;;      passes R5 static checks (acyclicity, reachability, definedness,
+;;      uniqueness — invoked through parse_dialect → R5 verification).
+;;   3. Every honest trace parses message-by-message via cbcl-cli parse
+;;      and the operator-bound `*-final` / `*-guess` message is extractable.
+;;   4. Every adversarial trace shows at least one inbound line that the
+;;      grammar rejects at the boundary, and at least one that parses but
+;;      is rejected by causal verification (Violation against the
+;;      embedded protocol).
+;;
+;; This is implementation work, not just exploration. The shell-side
+;; cbcl-arena REST adapter remains out of scope — that's tracked
+;; separately in EXPLORE-arena.spl and gated on this demo landing.
+;; ----------------------------------------------------------------------
+
+(meta plan
+  (id "IMPL-arena-demo")
+  (title "Arena challenges as CBCL: dialects, protocols, sample traces under /demo")
+  (version "0.1.0")
+  (status "active")
+  (created "2026-04-30")
+  (author "agent:hugo")
+  (description "Build /demo/ containing one custom dialect per arena challenge (PSI, Yao's Millionaire, Dining Cryptographers, Ultimatum) plus honest and adversarial sample traces. Each dialect must verify under R1/R2/R3 via cbcl-cli and embed a (protocol ...) clause that passes R5."))
+
+;; ----------------------------------------------------------------------
+;; Agents
+;; ----------------------------------------------------------------------
+
+(given agent-hugo-available)         ;; coordinator + reviewer
+(given agent-impler-available)       ;; the implementing agent (this session)
+
+;; ----------------------------------------------------------------------
+;; Tasks
+;; ----------------------------------------------------------------------
+
+;; Phase 1: scaffolding
+(given task-scaffold)
+
+;; Phase 2: per-challenge dialects (each is dialect + embedded protocol)
+(given task-dialect-psi)
+(given task-dialect-millionaire)
+(given task-dialect-dining)
+(given task-dialect-ultimatum)
+
+;; Phase 3: message traces (one happy-path; an adversarial trace where applicable)
+(given task-trace-psi)
+(given task-trace-millionaire)
+(given task-trace-dining)
+(given task-trace-ultimatum)
+
+;; Phase 4: polish
+(given task-verify-script)
+(given task-readme)
+
+(meta task-scaffold
+  (description "Create demo/ with subfolders dialects/ and traces/. Drop a placeholder demo/README.md and an empty demo/verify.sh that exits 0. Add demo/ to repo (no .gitignore changes needed).")
+  (acceptance "demo/, demo/dialects/, demo/traces/ all exist; verify.sh is executable and exits 0; README.md is non-empty (a stub is fine)."))
+
+(meta task-dialect-psi
+  (description "Author demo/dialects/psi.cbcl. Performatives: psi-salt, psi-commit, psi-reveal, psi-claim, psi-final. Each (extend ...) expands to a core performative (tell/ask/reply). Embed a (protocol (then ...)+) clause: begin → psi-salt → psi-commit → psi-reveal → psi-claim → psi-final, with (any ...) where both sides may go. Resource bounds: depth=6, expansion=1024, time=50. Author tag @arena-cbcl-demo. Keep templates small enough to obviously satisfy R2.")
+  (acceptance "cat demo/dialects/psi.cbcl | cbcl-cli verify exits 0; output reports R1+R2+R3 pass and 5 performatives; the file also parses through parse_dialect with the embedded protocol (manual verification via a unit test or REPL is fine if cbcl-cli does not surface R5)."))
+
+(meta task-dialect-millionaire
+  (description "Author demo/dialects/millionaire.cbcl. Strategy: bracket-and-narrow (cheaper than full Yao). Performatives: yao-bracket (asks 'is your wealth >= k?' as a salted-hash equality test framed over commitments), yao-bracket-reply, yao-narrow (one party commits to a bit answering the bracket), yao-final (the operator-bound richer/equal/poorer guess). Embed a protocol where bracket↔reply pairs may repeat under (any ...) until either side issues yao-final.")
+  (acceptance "cat demo/dialects/millionaire.cbcl | cbcl-cli verify exits 0; the dialect declares ≤6 performatives; protocol clause permits the iteration pattern and reaches yao-final."))
+
+(meta task-dialect-dining
+  (description "Author demo/dialects/dining.cbcl for the 3-party DC-net. Performatives: dc-pair-mask (commitment to a pairwise random bit shared with one other diner), dc-pair-reveal (reveal it after both pair members have committed), dc-announce (the local XOR sum of pairwise bits XOR'd with the I-paid bit), dc-final (the operator-bound guess: external | internal | invite-code | unknown). Protocol: 3 dc-pair-mask must precede 3 dc-pair-reveal must precede 3 dc-announce, then dc-final. Use (all ...) fan-in for the 'all three masks committed' barrier so verify_causal can express it. Note in a code comment that the 3-of-3 fan-in is the cleanest test case for the (all ...) node-ref in cbcl-rs's protocol.rs.")
+  (acceptance "cat demo/dialects/dining.cbcl | cbcl-cli verify exits 0; protocol uses at least one (all ...) fan-in; comment in the file points to the relevant cbcl-core test."))
+
+(meta task-dialect-ultimatum
+  (description "Author demo/dialects/ultimatum.cbcl. Performatives: ult-offer (split a list of integers summing to total), ult-accept, ult-reject, ult-pass, ult-final (operator-bound chosen action). Protocol: begin → (any ult-offer ult-pass), ult-offer → (any ult-accept ult-reject ult-pass), ult-reject → (any ult-offer ult-pass), repeating until ult-final. The dialect's job here is *not* crypto — it's confining the chat channel to a fixed bargaining vocabulary so the strategy LLM cannot be coaxed into prose that leaks the reservation value.")
+  (acceptance "cat demo/dialects/ultimatum.cbcl | cbcl-cli verify exits 0; protocol allows the offer/reject/offer cycle without admitting a cycle in the static R5 check (use (any ...) at branching nodes to keep the graph DAG-shaped after desugar)."))
+
+(meta task-trace-psi
+  (description "Author demo/traces/psi-honest.scm and demo/traces/psi-adversarial.scm. Honest trace: 7-9 messages forming a complete game with two participants (sender invites inv_A and inv_B), small concrete sets, salted-hash commitments, and a final psi-final agreeing on the intersection. Adversarial trace: identical opening, but at message 3 the peer sends (a) an unframed natural-language line that fails to parse, and (b) a syntactically valid (psi-final ...) sent at the wrong protocol step (predecessor mismatch). Each trace file is a sequence of CBCL messages, one per top-level S-expression, with comments showing each side's expected verify_causal verdict.")
+  (acceptance "Every message in each trace parses via cbcl-cli parse without error; comments mark which adversarial messages parse vs which produce a Violation when checked against the dialect's embedded protocol; honest trace ends with a (psi-final ...) message ready to be POSTed to /api/v1/arena/message."))
+
+(meta task-trace-millionaire
+  (description "Author demo/traces/millionaire-honest.scm and demo/traces/millionaire-adversarial.scm. Honest: 6-10 messages running 2-3 bracket rounds before a yao-final. Adversarial: at one bracket-reply point the peer attempts to extract the exact wealth via a free-text injection.")
+  (acceptance "All messages parse; adversarial line is shown failing both grammar and (where it parses) causal checks."))
+
+(meta task-trace-dining
+  (description "Author demo/traces/dining-honest.scm: a 3-player DC-net round. 3× dc-pair-mask → 3× dc-pair-reveal → 3× dc-announce → 3× dc-final, with the operator's guess derivable from the announced XOR sum. Use placeholder hex hashes; the point is to exercise the (all ...) fan-in.")
+  (acceptance "All messages parse; the trace shows at least one dc-announce whose :caused-by names the three dc-pair-reveal predecessors so the (all ...) node-ref has something to bind to."))
+
+(meta task-trace-ultimatum
+  (description "Author demo/traces/ultimatum-honest.scm: two players, three rounds of offers, ending in ult-accept and ult-final. No adversarial counterpart needed — this challenge's value is that prose can't slip into the channel at all.")
+  (acceptance "All messages parse; final state is a successful agreement; total share preserves the operator's declared total."))
+
+(meta task-verify-script
+  (description "Fill in demo/verify.sh: iterate every demo/dialects/*.cbcl through `cbcl-cli verify` (via stdin), iterate every demo/traces/*.scm through `cbcl-cli parse` per top-level form, and exit non-zero on any failure. Should run in <10 seconds locally. Print one summary line per file.")
+  (acceptance "From the repo root, `bash demo/verify.sh` exits 0 with all 4 dialects + all traces green; deliberately corrupting one file (then reverting) makes it exit non-zero with a useful message."))
+
+(meta task-readme
+  (description "Write demo/README.md: 1-paragraph framing (CBCL vs. plain-text chat in the arena), one section per challenge with the dialect's role + scoring intent, a 'How to verify' block pointing at verify.sh, a pointer to plans/EXPLORE-arena.spl for the broader strategy, and a candid 'what's not in this demo' list (the REST adapter, real cryptography, networked play).")
+  (acceptance "README is ≤200 lines; every challenge section names the dialect file and the trace file(s); the limitations section is explicit, not buried."))
+
+;; ----------------------------------------------------------------------
+;; Readiness rules
+;; ----------------------------------------------------------------------
+
+;; Scaffolding has no dependencies.
+(normally r-ready-scaffold
+  task-scaffold
+  ready-scaffold)
+
+;; Each dialect can start as soon as scaffolding is done.
+(normally r-ready-dialect-psi
+  (and task-dialect-psi completed-scaffold)
+  ready-dialect-psi)
+(normally r-ready-dialect-millionaire
+  (and task-dialect-millionaire completed-scaffold)
+  ready-dialect-millionaire)
+(normally r-ready-dialect-dining
+  (and task-dialect-dining completed-scaffold)
+  ready-dialect-dining)
+(normally r-ready-dialect-ultimatum
+  (and task-dialect-ultimatum completed-scaffold)
+  ready-dialect-ultimatum)
+
+;; A trace needs its dialect first — the messages are typed against it.
+(normally r-ready-trace-psi
+  (and task-trace-psi completed-dialect-psi)
+  ready-trace-psi)
+(normally r-ready-trace-millionaire
+  (and task-trace-millionaire completed-dialect-millionaire)
+  ready-trace-millionaire)
+(normally r-ready-trace-dining
+  (and task-trace-dining completed-dialect-dining)
+  ready-trace-dining)
+(normally r-ready-trace-ultimatum
+  (and task-trace-ultimatum completed-dialect-ultimatum)
+  ready-trace-ultimatum)
+
+;; The verify script is meaningful once at least one dialect+trace exists,
+;; but to keep the demo coherent we gate it on all four pairs.
+(normally r-ready-verify
+  (and task-verify-script
+       completed-trace-psi
+       completed-trace-millionaire
+       completed-trace-dining
+       completed-trace-ultimatum)
+  ready-verify-script)
+
+;; README is the synthesis step; needs everything else done so it doesn't lie.
+(normally r-ready-readme
+  (and task-readme completed-verify-script)
+  ready-readme)
+
+;; ----------------------------------------------------------------------
+;; Assignment rules — the impler does the building, hugo reviews via README.
+;; ----------------------------------------------------------------------
+
+(normally r-assign-scaffold
+  (and ready-scaffold agent-impler-available)
+  assign-to-scaffold-impler)
+(normally r-assign-dialect-psi
+  (and ready-dialect-psi agent-impler-available)
+  assign-to-dialect-psi-impler)
+(normally r-assign-dialect-millionaire
+  (and ready-dialect-millionaire agent-impler-available)
+  assign-to-dialect-millionaire-impler)
+(normally r-assign-dialect-dining
+  (and ready-dialect-dining agent-impler-available)
+  assign-to-dialect-dining-impler)
+(normally r-assign-dialect-ultimatum
+  (and ready-dialect-ultimatum agent-impler-available)
+  assign-to-dialect-ultimatum-impler)
+(normally r-assign-trace-psi
+  (and ready-trace-psi agent-impler-available)
+  assign-to-trace-psi-impler)
+(normally r-assign-trace-millionaire
+  (and ready-trace-millionaire agent-impler-available)
+  assign-to-trace-millionaire-impler)
+(normally r-assign-trace-dining
+  (and ready-trace-dining agent-impler-available)
+  assign-to-trace-dining-impler)
+(normally r-assign-trace-ultimatum
+  (and ready-trace-ultimatum agent-impler-available)
+  assign-to-trace-ultimatum-impler)
+(normally r-assign-verify
+  (and ready-verify-script agent-impler-available)
+  assign-to-verify-script-impler)
+(normally r-assign-readme
+  (and ready-readme agent-hugo-available)
+  assign-to-readme-hugo)
+
+(meta r-assign-readme
+  (description "README is the user-visible synthesis; route it to hugo so the framing stays consistent with the broader strategy memo.")
+  (justification "Avoids drift between this README and plans/EXPLORE-arena.spl."))
+
+(claims agent:impler
+  :at "2026-04-30T01:12:55Z"
+  (given claim-v1-scaffold)
+  (normally r-cl-state-v1-scaffold claim-v1-scaffold state-claimed-v1-scaffold)
+  (normally r-cl-chain-v1-scaffold state-claimed-v1-scaffold claimed-scaffold)
+)
+
+;; Propagation rules: failures in 'scaffold' block downstream tasks
+(normally r-propagate-dialect-dining-from-scaffold-failed failed-scaffold upstream-blocked-dialect-dining)
+(normally r-propagate-dialect-dining-from-scaffold-permanently-failed permanently-failed-scaffold upstream-blocked-dialect-dining)
+(normally r-propagate-dialect-dining-from-scaffold-stale-v1 stale-v1-scaffold upstream-blocked-dialect-dining)
+(normally r-propagate-dialect-dining-from-scaffold-timeout-v1 timeout-v1-scaffold upstream-blocked-dialect-dining)
+(normally r-propagate-dialect-dining-from-scaffold-blocked upstream-blocked-scaffold upstream-blocked-dialect-dining)
+(normally r-propagate-dialect-millionaire-from-scaffold-failed failed-scaffold upstream-blocked-dialect-millionaire)
+(normally r-propagate-dialect-millionaire-from-scaffold-permanently-failed permanently-failed-scaffold upstream-blocked-dialect-millionaire)
+(normally r-propagate-dialect-millionaire-from-scaffold-stale-v1 stale-v1-scaffold upstream-blocked-dialect-millionaire)
+(normally r-propagate-dialect-millionaire-from-scaffold-timeout-v1 timeout-v1-scaffold upstream-blocked-dialect-millionaire)
+(normally r-propagate-dialect-millionaire-from-scaffold-blocked upstream-blocked-scaffold upstream-blocked-dialect-millionaire)
+(normally r-propagate-dialect-psi-from-scaffold-failed failed-scaffold upstream-blocked-dialect-psi)
+(normally r-propagate-dialect-psi-from-scaffold-permanently-failed permanently-failed-scaffold upstream-blocked-dialect-psi)
+(normally r-propagate-dialect-psi-from-scaffold-stale-v1 stale-v1-scaffold upstream-blocked-dialect-psi)
+(normally r-propagate-dialect-psi-from-scaffold-timeout-v1 timeout-v1-scaffold upstream-blocked-dialect-psi)
+(normally r-propagate-dialect-psi-from-scaffold-blocked upstream-blocked-scaffold upstream-blocked-dialect-psi)
+(normally r-propagate-dialect-ultimatum-from-scaffold-failed failed-scaffold upstream-blocked-dialect-ultimatum)
+(normally r-propagate-dialect-ultimatum-from-scaffold-permanently-failed permanently-failed-scaffold upstream-blocked-dialect-ultimatum)
+(normally r-propagate-dialect-ultimatum-from-scaffold-stale-v1 stale-v1-scaffold upstream-blocked-dialect-ultimatum)
+(normally r-propagate-dialect-ultimatum-from-scaffold-timeout-v1 timeout-v1-scaffold upstream-blocked-dialect-ultimatum)
+(normally r-propagate-dialect-ultimatum-from-scaffold-blocked upstream-blocked-scaffold upstream-blocked-dialect-ultimatum)
+
+;; Transitive propagation: upstream-blocked cascades through dependency chain
+(normally r-propagate-trace-dining-from-dialect-dining-blocked upstream-blocked-dialect-dining upstream-blocked-trace-dining)
+(normally r-propagate-trace-millionaire-from-dialect-millionaire-blocked upstream-blocked-dialect-millionaire upstream-blocked-trace-millionaire)
+(normally r-propagate-trace-psi-from-dialect-psi-blocked upstream-blocked-dialect-psi upstream-blocked-trace-psi)
+(normally r-propagate-trace-ultimatum-from-dialect-ultimatum-blocked upstream-blocked-dialect-ultimatum upstream-blocked-trace-ultimatum)
+(normally r-propagate-verify-script-from-trace-dining-blocked upstream-blocked-trace-dining upstream-blocked-verify-script)
+(normally r-propagate-verify-script-from-trace-millionaire-blocked upstream-blocked-trace-millionaire upstream-blocked-verify-script)
+(normally r-propagate-verify-script-from-trace-psi-blocked upstream-blocked-trace-psi upstream-blocked-verify-script)
+(normally r-propagate-verify-script-from-trace-ultimatum-blocked upstream-blocked-trace-ultimatum upstream-blocked-verify-script)
+(normally r-propagate-readme-from-verify-script-blocked upstream-blocked-verify-script upstream-blocked-readme)
+
+(claims agent:impler
+  :at "2026-04-30T01:13:37Z"
+  (given completed-scaffold))
+
+(claims agent:impler
+  :at "2026-04-30T01:13:39Z"
+  (given claim-v1-dialect-psi)
+  (normally r-cl-state-v1-dialect-psi claim-v1-dialect-psi state-claimed-v1-dialect-psi)
+  (normally r-cl-chain-v1-dialect-psi state-claimed-v1-dialect-psi claimed-dialect-psi)
+)
+
+;; Propagation rules: failures in 'dialect-psi' block downstream tasks
+(normally r-propagate-trace-psi-from-dialect-psi-failed failed-dialect-psi upstream-blocked-trace-psi)
+(normally r-propagate-trace-psi-from-dialect-psi-permanently-failed permanently-failed-dialect-psi upstream-blocked-trace-psi)
+(normally r-propagate-trace-psi-from-dialect-psi-stale-v1 stale-v1-dialect-psi upstream-blocked-trace-psi)
+(normally r-propagate-trace-psi-from-dialect-psi-timeout-v1 timeout-v1-dialect-psi upstream-blocked-trace-psi)
+
+(claims agent:impler
+  :at "2026-04-30T01:15:49Z"
+  (given completed-dialect-psi))
+
+(claims agent:impler
+  :at "2026-04-30T01:15:49Z"
+  (given claim-v1-dialect-millionaire)
+  (normally r-cl-state-v1-dialect-millionaire claim-v1-dialect-millionaire state-claimed-v1-dialect-millionaire)
+  (normally r-cl-chain-v1-dialect-millionaire state-claimed-v1-dialect-millionaire claimed-dialect-millionaire)
+)
+
+;; Propagation rules: failures in 'dialect-millionaire' block downstream tasks
+(normally r-propagate-trace-millionaire-from-dialect-millionaire-failed failed-dialect-millionaire upstream-blocked-trace-millionaire)
+(normally r-propagate-trace-millionaire-from-dialect-millionaire-permanently-failed permanently-failed-dialect-millionaire upstream-blocked-trace-millionaire)
+(normally r-propagate-trace-millionaire-from-dialect-millionaire-stale-v1 stale-v1-dialect-millionaire upstream-blocked-trace-millionaire)
+(normally r-propagate-trace-millionaire-from-dialect-millionaire-timeout-v1 timeout-v1-dialect-millionaire upstream-blocked-trace-millionaire)
+
+(claims agent:impler
+  :at "2026-04-30T01:16:15Z"
+  (given completed-dialect-millionaire))
+
+(claims agent:impler
+  :at "2026-04-30T01:16:15Z"
+  (given claim-v1-dialect-dining)
+  (normally r-cl-state-v1-dialect-dining claim-v1-dialect-dining state-claimed-v1-dialect-dining)
+  (normally r-cl-chain-v1-dialect-dining state-claimed-v1-dialect-dining claimed-dialect-dining)
+)
+
+;; Propagation rules: failures in 'dialect-dining' block downstream tasks
+(normally r-propagate-trace-dining-from-dialect-dining-failed failed-dialect-dining upstream-blocked-trace-dining)
+(normally r-propagate-trace-dining-from-dialect-dining-permanently-failed permanently-failed-dialect-dining upstream-blocked-trace-dining)
+(normally r-propagate-trace-dining-from-dialect-dining-stale-v1 stale-v1-dialect-dining upstream-blocked-trace-dining)
+(normally r-propagate-trace-dining-from-dialect-dining-timeout-v1 timeout-v1-dialect-dining upstream-blocked-trace-dining)
+
+(claims agent:impler
+  :at "2026-04-30T01:16:44Z"
+  (given completed-dialect-dining))
+
+(claims agent:impler
+  :at "2026-04-30T01:16:44Z"
+  (given claim-v1-dialect-ultimatum)
+  (normally r-cl-state-v1-dialect-ultimatum claim-v1-dialect-ultimatum state-claimed-v1-dialect-ultimatum)
+  (normally r-cl-chain-v1-dialect-ultimatum state-claimed-v1-dialect-ultimatum claimed-dialect-ultimatum)
+)
+
+;; Propagation rules: failures in 'dialect-ultimatum' block downstream tasks
+(normally r-propagate-trace-ultimatum-from-dialect-ultimatum-failed failed-dialect-ultimatum upstream-blocked-trace-ultimatum)
+(normally r-propagate-trace-ultimatum-from-dialect-ultimatum-permanently-failed permanently-failed-dialect-ultimatum upstream-blocked-trace-ultimatum)
+(normally r-propagate-trace-ultimatum-from-dialect-ultimatum-stale-v1 stale-v1-dialect-ultimatum upstream-blocked-trace-ultimatum)
+(normally r-propagate-trace-ultimatum-from-dialect-ultimatum-timeout-v1 timeout-v1-dialect-ultimatum upstream-blocked-trace-ultimatum)
+
+(claims agent:impler
+  :at "2026-04-30T01:18:59Z"
+  (given completed-dialect-ultimatum))
+
+(claims agent:impler
+  :at "2026-04-30T01:18:59Z"
+  (given claim-v1-trace-psi)
+  (normally r-cl-state-v1-trace-psi claim-v1-trace-psi state-claimed-v1-trace-psi)
+  (normally r-cl-chain-v1-trace-psi state-claimed-v1-trace-psi claimed-trace-psi)
+)
+
+;; Propagation rules: failures in 'trace-psi' block downstream tasks
+(normally r-propagate-verify-script-from-trace-psi-failed failed-trace-psi upstream-blocked-verify-script)
+(normally r-propagate-verify-script-from-trace-psi-permanently-failed permanently-failed-trace-psi upstream-blocked-verify-script)
+(normally r-propagate-verify-script-from-trace-psi-stale-v1 stale-v1-trace-psi upstream-blocked-verify-script)
+(normally r-propagate-verify-script-from-trace-psi-timeout-v1 timeout-v1-trace-psi upstream-blocked-verify-script)
+
+(claims agent:impler
+  :at "2026-04-30T01:20:48Z"
+  (given completed-trace-psi))
+
+(claims agent:impler
+  :at "2026-04-30T01:20:48Z"
+  (given claim-v1-trace-millionaire)
+  (normally r-cl-state-v1-trace-millionaire claim-v1-trace-millionaire state-claimed-v1-trace-millionaire)
+  (normally r-cl-chain-v1-trace-millionaire state-claimed-v1-trace-millionaire claimed-trace-millionaire)
+)
+
+;; Propagation rules: failures in 'trace-millionaire' block downstream tasks
+(normally r-propagate-verify-script-from-trace-millionaire-failed failed-trace-millionaire upstream-blocked-verify-script)
+(normally r-propagate-verify-script-from-trace-millionaire-permanently-failed permanently-failed-trace-millionaire upstream-blocked-verify-script)
+(normally r-propagate-verify-script-from-trace-millionaire-stale-v1 stale-v1-trace-millionaire upstream-blocked-verify-script)
+(normally r-propagate-verify-script-from-trace-millionaire-timeout-v1 timeout-v1-trace-millionaire upstream-blocked-verify-script)
+
+(claims agent:impler
+  :at "2026-04-30T01:21:26Z"
+  (given completed-trace-millionaire))
+
+(claims agent:impler
+  :at "2026-04-30T01:21:26Z"
+  (given claim-v1-trace-dining)
+  (normally r-cl-state-v1-trace-dining claim-v1-trace-dining state-claimed-v1-trace-dining)
+  (normally r-cl-chain-v1-trace-dining state-claimed-v1-trace-dining claimed-trace-dining)
+)
+
+;; Propagation rules: failures in 'trace-dining' block downstream tasks
+(normally r-propagate-verify-script-from-trace-dining-failed failed-trace-dining upstream-blocked-verify-script)
+(normally r-propagate-verify-script-from-trace-dining-permanently-failed permanently-failed-trace-dining upstream-blocked-verify-script)
+(normally r-propagate-verify-script-from-trace-dining-stale-v1 stale-v1-trace-dining upstream-blocked-verify-script)
+(normally r-propagate-verify-script-from-trace-dining-timeout-v1 timeout-v1-trace-dining upstream-blocked-verify-script)
+
+(claims agent:impler
+  :at "2026-04-30T01:22:00Z"
+  (given completed-trace-dining))
+
+(claims agent:impler
+  :at "2026-04-30T01:22:00Z"
+  (given claim-v1-trace-ultimatum)
+  (normally r-cl-state-v1-trace-ultimatum claim-v1-trace-ultimatum state-claimed-v1-trace-ultimatum)
+  (normally r-cl-chain-v1-trace-ultimatum state-claimed-v1-trace-ultimatum claimed-trace-ultimatum)
+)
+
+;; Propagation rules: failures in 'trace-ultimatum' block downstream tasks
+(normally r-propagate-verify-script-from-trace-ultimatum-failed failed-trace-ultimatum upstream-blocked-verify-script)
+(normally r-propagate-verify-script-from-trace-ultimatum-permanently-failed permanently-failed-trace-ultimatum upstream-blocked-verify-script)
+(normally r-propagate-verify-script-from-trace-ultimatum-stale-v1 stale-v1-trace-ultimatum upstream-blocked-verify-script)
+(normally r-propagate-verify-script-from-trace-ultimatum-timeout-v1 timeout-v1-trace-ultimatum upstream-blocked-verify-script)
+
+(claims agent:impler
+  :at "2026-04-30T01:22:25Z"
+  (given completed-trace-ultimatum))
+
+(claims agent:impler
+  :at "2026-04-30T01:22:25Z"
+  (given claim-v1-verify-script)
+  (normally r-cl-state-v1-verify-script claim-v1-verify-script state-claimed-v1-verify-script)
+  (normally r-cl-chain-v1-verify-script state-claimed-v1-verify-script claimed-verify-script)
+)
+
+;; Propagation rules: failures in 'verify-script' block downstream tasks
+(normally r-propagate-readme-from-verify-script-failed failed-verify-script upstream-blocked-readme)
+(normally r-propagate-readme-from-verify-script-permanently-failed permanently-failed-verify-script upstream-blocked-readme)
+(normally r-propagate-readme-from-verify-script-stale-v1 stale-v1-verify-script upstream-blocked-readme)
+(normally r-propagate-readme-from-verify-script-timeout-v1 timeout-v1-verify-script upstream-blocked-readme)
+
+(claims agent:impler
+  :at "2026-04-30T01:22:25Z"
+  (given completed-verify-script))

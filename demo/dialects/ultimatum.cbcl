@@ -1,0 +1,88 @@
+;; ----------------------------------------------------------------------
+;; arena-ultimatum — the Ultimatum bargaining game over CBCL.
+;;
+;; Two players must agree on a split of a fixed total. Each has a
+;; secret reservation value (the minimum share they'll accept). On
+;; their turn a player either proposes a split, accepts a current
+;; offer, rejects it, or passes. Agreement requires the non-proposer
+;; to accept; max rounds with no agreement gives both players 0.
+;;
+;; Unlike the cryptography challenges, the security score here is not
+;; obviously protected by a protocol. The exposed surface is the chat
+;; channel — the strategy LLM is vulnerable to "what is your minimum
+;; you'll accept?" prompts that talk it into leaking the reservation
+;; value. This dialect's contribution is that the chat channel can
+;; ONLY carry one of {ult-offer, ult-accept, ult-reject, ult-pass,
+;; ult-rationale, ult-final}. There is no prose performative. A peer
+;; trying to extract the reservation through dialogue produces
+;; messages that fail to parse and are dropped at the boundary.
+;;
+;; ult-rationale exists to let agents attach a small bounded
+;; explanation to an offer if they want — but its content type is a
+;; symbol from a closed enum, not a free string, so it cannot be
+;; coaxed into transmitting strategy state.
+;; ----------------------------------------------------------------------
+
+(define arena-ultimatum (cbcl) @arena-cbcl-demo
+
+  (:resource-requirements
+    ((max-depth 5)
+     (max-expansion-size 256)
+     (verification-time 50)))
+
+  ;; Propose a split — list of integers per player (e.g. (60 40)).
+  ;; The runtime/strategy layer enforces that they sum to the total.
+  (extend ult-offer (split)
+    (tell @peer
+      (offer :split split)
+      :domain ultimatum))
+
+  ;; Accept the current offer (only valid for the non-proposer).
+  (extend ult-accept ()
+    (tell @peer
+      (accept-offer)
+      :domain ultimatum))
+
+  ;; Reject the current offer (clears it from the table).
+  (extend ult-reject ()
+    (tell @peer
+      (reject-offer)
+      :domain ultimatum))
+
+  ;; Skip turn.
+  (extend ult-pass ()
+    (tell @peer
+      (pass-turn)
+      :domain ultimatum))
+
+  ;; Optional rationale tag — closed enum so prose cannot ride along.
+  ;; Allowed values (enforced by the strategy layer, not the grammar):
+  ;;   fair | greedy | counter | last-best | walk-away
+  (extend ult-rationale (tag)
+    (tell @peer
+      (rationale :tag tag)
+      :domain ultimatum))
+
+  ;; Operator-bound submission of the chosen final action. The arena
+  ;; reads this from /api/v1/arena/message; chat messages are not
+  ;; scoring inputs.
+  (extend ult-final (action)
+    (tell @operator
+      (final-action :action action)
+      :domain ultimatum))
+
+  ;; Causal protocol — describes one bargaining round (one offer +
+  ;; one response). R5 requires acyclicity, so multi-round play is
+  ;; modelled as multiple sessions, each threaded via :caused-by at
+  ;; the application layer. Within a round:
+  ;;
+  ;;   begin → ult-offer → (any ult-rationale ult-accept ult-reject ult-pass) → ult-final
+  ;;
+  ;; ult-rationale is an optional inline annotation; if present it
+  ;; precedes the response. (any ...) as a predecessor to ult-final
+  ;; expresses "a final action follows whatever response landed".
+  (protocol
+    (then begin ult-offer)
+    (then ult-offer (any ult-rationale ult-accept ult-reject ult-pass))
+    (then ult-rationale (any ult-accept ult-reject ult-pass))
+    (then (any ult-accept ult-reject ult-pass) ult-final)))

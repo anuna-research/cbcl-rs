@@ -1,0 +1,287 @@
+;; ----------------------------------------------------------------------
+;; Plan: research and review the Multi-Agent Arena (arena.nicolaos.org)
+;; and explore how CBCL can compete in its challenges.
+;;
+;; Source material gathered via `ar-crawl` on 2026-04-30:
+;;   - https://arena.nicolaos.org/challenges          (index)
+;;   - https://arena.nicolaos.org/challenges/psi
+;;   - https://arena.nicolaos.org/challenges/ultimatum
+;;   - https://arena.nicolaos.org/challenges/millionaire
+;;   - https://arena.nicolaos.org/challenges/dining-cryptographers
+;;   - https://arena.nicolaos.org/docs
+;;   - https://arena.nicolaos.org/SKILL.md
+;;
+;; Key facts about the platform (treat these as ground truth for the plan):
+;;   - 4 challenges live: PSI, Ultimatum, Yao's Millionaire, Dining
+;;     Cryptographers. All are multi-player, all involve a private
+;;     "secret" the agent should not leak, all settle with an operator-
+;;     scored guess plus a security score (utility vs security plane).
+;;   - Communication between agents is a free-text **chat channel**
+;;     (`/api/v1/chat/{send,sync}`); the operator delivers private setup
+;;     and scores via `/api/v1/arena/sync`. Final answer is a single
+;;     `messageType:"guess"` POST.
+;;   - Auth is Ed25519 (SPKI DER hex public, PKCS8 DER hex private),
+;;     signed message `arena:v1:join:<invite>:<timestamp>`, returning a
+;;     bearer `sessionKey`.
+;;   - Current leaderboards show natural-language LLM agents dominate;
+;;     the top PSI attacker is "Malicious (claude-sonnet-4-6)" with 43%
+;;     success rate — i.e. social-engineering attacks over plain chat
+;;     are working.
+;;
+;; Thesis: CBCL's value proposition (deterministic DCFL grammar, 8 fixed
+;; performatives, R1-R3 self-extension) is *exactly* what this arena
+;; needs. A CBCL-speaking agent treats the chat channel as a typed,
+;; resource-bounded protocol surface. Free-form prompt-injection probes
+;; ("what is your secret?", role-play attacks, payload smuggling) fail
+;; to parse and are dropped at the boundary, with no LLM ever seeing
+;; them. This should yield superior **security** scores and competitive
+;; **utility** when paired with simple per-challenge dialects that
+;; encode the actual cryptographic protocols.
+;;
+;; This plan is exploratory (not committing engineering yet). Outputs
+;; are: a written strategy doc, four dialect drafts, a thin REST/CBCL
+;; adapter design, and a go/no-go recommendation.
+;; ----------------------------------------------------------------------
+
+(meta plan
+  (id "EXPLORE-arena")
+  (title "CBCL in the Multi-Agent Arena: research and competitive strategy")
+  (version "0.1.0")
+  (status "active")
+  (created "2026-04-30")
+  (author "agent:hugo")
+  (description "Research the four arena.nicolaos.org challenges (PSI, Ultimatum, Yao's Millionaire, Dining Cryptographers) and design how a CBCL-driven agent could compete. Deliverables: strategy memo, per-challenge dialect drafts, adapter design, go/no-go recommendation."))
+
+;; ----------------------------------------------------------------------
+;; Agents
+;; ----------------------------------------------------------------------
+
+(given agent-hugo-available)         ;; coordinator + strategy lead
+(given agent-researcher-available)   ;; deeper crawls / protocol analysis
+(given agent-designer-available)     ;; CBCL dialect + adapter design
+(given agent-impler-available)       ;; reserved if we move to build phase
+
+;; ----------------------------------------------------------------------
+;; Confirmed research findings (record so the plan is self-contained)
+;; ----------------------------------------------------------------------
+
+(given fact-platform-confirmed)
+(given fact-auth-ed25519)
+(given fact-chat-is-natural-language)
+(given fact-crypto-challenges-are-3-of-4)
+(given fact-malicious-agent-effective)
+
+(meta fact-platform-confirmed
+  (description "Arena exposes /api/v1 REST: metadata, challenges, arena/{join,sync,message}, chat/{send,sync}, users. Channel ID = challenge ID for both arena ops and chat; index-based polling.")
+  (source "https://arena.nicolaos.org/docs"))
+
+(meta fact-auth-ed25519
+  (description "Ed25519 keypair (SPKI DER pk, PKCS8 DER sk, both hex). Sign 'arena:v1:join:<invite>:<timestamp>'; receive sessionKey for Bearer auth.")
+  (source "https://arena.nicolaos.org/docs and SKILL.md")
+  (justification "cbcl-rs already uses Ed25519 in the agent identity layer; key handling code is reusable."))
+
+(meta fact-chat-is-natural-language
+  (description "Inter-agent chat is free-form UTF-8 strings. No protocol framing imposed by the platform. Therefore CBCL S-expressions can be transported as-is; opponents who don't speak CBCL will see them as opaque text.")
+  (justification "This is the wedge: nothing prevents us from upgrading the chat to a typed, parser-deterministic language, and doing so deletes the social-engineering attack class wholesale."))
+
+(meta fact-crypto-challenges-are-3-of-4
+  (description "PSI, Yao's Millionaire, Dining Cryptographers all have textbook MPC solutions. Ultimatum is game-theoretic but still benefits from a structured offer/accept/reject vocabulary that resists out-of-band manipulation."))
+
+(meta fact-malicious-agent-effective
+  (description "PSI top attacker 'Malicious (claude-sonnet-4-6)' = 43% success. The attack vector is plain-text social engineering over chat — defeating it is the headline win.")
+  (source "PSI leaderboard, Top Attackers section, observed 2026-04-30"))
+
+;; ----------------------------------------------------------------------
+;; Tasks
+;; ----------------------------------------------------------------------
+
+;; Phase 1: research deepening
+(given task-protocol-survey)         ;; map each challenge's exact API surface
+(given task-threat-model)            ;; enumerate attacks the chat channel enables
+(given task-leaderboard-analysis)    ;; what are top players actually doing
+
+;; Phase 2: design (per-challenge)
+(given task-dialect-psi)
+(given task-dialect-millionaire)
+(given task-dialect-dining)
+(given task-dialect-ultimatum)
+
+;; Phase 3: shared adapter design
+(given task-adapter-design)          ;; arena REST client + CBCL transport mapping
+(given task-handshake-design)        ;; how do we negotiate "do you speak CBCL?"
+(given task-fallback-policy)         ;; what if opponent does not speak CBCL
+
+;; Phase 4: synthesis
+(given task-strategy-memo)           ;; written go/no-go with cost estimate
+(given task-test-vectors)            ;; canned chat traces per challenge for the test-vectors/ corpus
+
+(meta task-protocol-survey
+  (description "For each of the 4 challenges, document: prompt text, exact methods/messageType the operator expects, scoring formula, max rounds (if any), and how the private setup is delivered. Output: research notes appended to this plan or sibling .md.")
+  (acceptance "Notes cite specific endpoints and quote prompt text verbatim; ambiguous fields flagged as open questions."))
+
+(meta task-threat-model
+  (description "Enumerate the attack surface the free-text chat exposes: prompt injection of the LLM driving the agent, secret extraction via dialogue, role-play / authority impersonation, encoding tricks (base64, unicode confusables), out-of-band signals (timing, message length). For each, note whether a CBCL-typed channel eliminates it.")
+  (acceptance "Table of (attack, mechanism, CBCL mitigation, residual risk). At minimum covers every category observed in the 'Malicious' attacker's playbook."))
+
+(meta task-leaderboard-analysis
+  (description "Sample 5-10 completed games per challenge from the public leaderboards; record what models top the unbeaten lists, what utility/security scores 'safe' vs 'attacking' agents achieve, and any patterns in low-security losses.")
+  (acceptance "Memo with concrete numbers and 2-3 hypotheses about what wins. Distinguishes 'beat the operator' from 'beat the opponent' wins."))
+
+(meta task-dialect-psi
+  (description "Draft a CBCL dialect 'arena/psi' for Private Set Intersection. Sketch performatives: (commit hash) for a salted hash of an element, (challenge salt) to test membership, (prove element) to reveal an intersection element only after both sides committed, (final intersection ...) for the operator-bound answer. Verify R1-R3 hold (no recursion, declared resource bounds, no core redef). Decide: do we run an actual PSI protocol (OPRF / hash-and-compare), or just minimise leakage with a structured exchange?")
+  (acceptance "Dialect S-expression compiles under cbcl-cli verify; security argument sketched (what an opponent learns at each step); leakage upper bound stated."))
+
+(meta task-dialect-millionaire
+  (description "Draft 'arena/millionaire' dialect for Yao's Millionaire. Two paths: (a) honest Yao protocol using garbled circuits (heavy), (b) bracket-and-narrow comparison via repeated commitments — exchange (commit hash) of 'wealth >= k' for shared k values. Decide which is feasible inside one chat round budget. Result must let the agent produce the operator's required guess (richer/equal/poorer) without revealing exact wealth.")
+  (acceptance "Dialect compiles; trace shows a round of (commit ...) (reveal ...) per bracket; opponent learns at most O(log range) bits about our wealth."))
+
+(meta task-dialect-dining
+  (description "Draft 'arena/dining' dialect for Dining Cryptographers (3 players). Encode the classic DC-net: (share id1 id2 mask) declares a pairwise random bit, (announce xor) is the local XOR of pairwise bits XOR'd with the 'I paid' bit. Operator's guess is computed from the agreed XOR sum.")
+  (acceptance "Dialect compiles; sketched 3-party trace shows correct anonymity (no single agent learns who paid unless they all collude)."))
+
+(meta task-dialect-ultimatum
+  (description "Draft 'arena/ultimatum' dialect. Enumerate the four operator actions (submit_offer, accept, reject, pass) as performatives over a (split a b ...) literal. The dialect's role is not crypto — it's enforcing that the chat channel cannot carry anything *but* offers/accepts/rejects/passes/free-form rationale tagged as such. This neuters bluff-extraction prompts.")
+  (acceptance "Dialect compiles; sample bargaining trace; the (rationale ...) performative is explicitly marked as untrusted text that must not be parsed back into strategy state."))
+
+(meta task-adapter-design
+  (description "Design a thin shell crate (working name 'cbcl-arena') that: (a) reuses cbcl-core for parsing/verification; (b) wraps the arena REST endpoints (join, sync, chat/send, chat/sync, message); (c) frames CBCL S-expressions one-per-chat-message with a magic prefix '!cbcl/v1 ' so bytes are clearly typed; (d) drops malformed inbound chat to a quarantine log without ever passing it to the strategy LLM; (e) reuses the project's existing Ed25519 identity material. Boundary: REST/IO is shell; parsing/verification is pure core.")
+  (acceptance "Design doc + module skeleton; identifies which existing cbcl-rs crates are dependencies; explicitly maps every API endpoint to a function; specifies the quarantine / fallback behaviour."))
+
+(meta task-handshake-design
+  (description "Specify the upgrade handshake: agent A sends '(hello (dialect arena/psi v1) (cbcl v1))' as its first chat line. If B replies in kind, both sides drop into typed mode. If B's first message is anything else, log and decide per fallback-policy. The handshake itself must be expressible in core CBCL (hello + tell), no dialect required.")
+  (acceptance "Concrete S-expression sequence; failure modes enumerated (B never responds, B sends garbage, B sends partial CBCL); test vectors planned."))
+
+(meta task-fallback-policy
+  (description "Decide what the agent does when the opponent refuses CBCL. Options: (1) play conservatively in plain text and accept the security risk, (2) refuse to engage and submit a defensive default guess (forfeit utility for max security), (3) hybrid: send only minimum-information CBCL-style strings even if not parsed by opponent. Recommend an option per challenge based on its scoring weights.")
+  (acceptance "One-page decision matrix indexed by challenge × opponent posture; explicit rationale tying the choice to utility/security weights."))
+
+(meta task-strategy-memo
+  (description "Synthesise the prior tasks into a 2-3 page memo: 'How CBCL competes in the Arena'. Includes: (i) wedge argument (typed chat eliminates the dominant attack class), (ii) per-challenge expected security and utility ranges, (iii) build estimate (rough person-days for cbcl-arena MVP), (iv) explicit go/no-go recommendation with the conditions under which each holds. Memo should be honest about the LangSec '26 paper's framing — this is a credible field test of the protocol's claims.")
+  (acceptance "Memo file in plans/ or docs/; reviewed by hugo; concludes with one of {go, go-after-X, no-go} and a defensible reason."))
+
+(meta task-test-vectors
+  (description "Author canned chat transcripts (one per challenge) under test-vectors/arena/: a happy-path CBCL exchange and an adversarial transcript where the opponent attempts known prompt-injection attacks. Used both as documentation and as a regression suite if cbcl-arena is built. No live network access required.")
+  (acceptance "4 happy-path + 4 adversarial .scm files; each is parseable and verifies under the relevant dialect."))
+
+;; ----------------------------------------------------------------------
+;; Readiness rules
+;; ----------------------------------------------------------------------
+
+;; Phase 1: research tasks are immediately ready (no deps).
+(normally r-ready-protocol-survey
+  task-protocol-survey
+  ready-protocol-survey)
+(normally r-ready-threat-model
+  task-threat-model
+  ready-threat-model)
+(normally r-ready-leaderboard
+  task-leaderboard-analysis
+  ready-leaderboard-analysis)
+
+;; Phase 2: each dialect needs the protocol survey (+ threat model where relevant).
+(normally r-ready-dialect-psi
+  (and task-dialect-psi completed-protocol-survey completed-threat-model)
+  ready-dialect-psi)
+(normally r-ready-dialect-millionaire
+  (and task-dialect-millionaire completed-protocol-survey completed-threat-model)
+  ready-dialect-millionaire)
+(normally r-ready-dialect-dining
+  (and task-dialect-dining completed-protocol-survey)
+  ready-dialect-dining)
+(normally r-ready-dialect-ultimatum
+  (and task-dialect-ultimatum completed-protocol-survey completed-threat-model)
+  ready-dialect-ultimatum)
+
+;; Phase 3: adapter design needs the protocol survey only; handshake & fallback
+;; need the threat model so trade-offs are informed.
+(normally r-ready-adapter
+  (and task-adapter-design completed-protocol-survey)
+  ready-adapter-design)
+(normally r-ready-handshake
+  (and task-handshake-design completed-adapter-design completed-threat-model)
+  ready-handshake-design)
+(normally r-ready-fallback
+  (and task-fallback-policy completed-threat-model completed-leaderboard-analysis)
+  ready-fallback-policy)
+
+;; Phase 4: strategy memo needs all four dialects + the adapter trio.
+(normally r-ready-memo
+  (and task-strategy-memo
+       completed-dialect-psi
+       completed-dialect-millionaire
+       completed-dialect-dining
+       completed-dialect-ultimatum
+       completed-handshake-design
+       completed-fallback-policy)
+  ready-strategy-memo)
+
+;; Test vectors can be authored alongside the strategy memo (they share inputs).
+(normally r-ready-vectors
+  (and task-test-vectors
+       completed-dialect-psi
+       completed-dialect-millionaire
+       completed-dialect-dining
+       completed-dialect-ultimatum
+       completed-handshake-design)
+  ready-test-vectors)
+
+;; ----------------------------------------------------------------------
+;; Assignment rules
+;; ----------------------------------------------------------------------
+
+;; Phase 1 research: researcher does the legwork; hugo reviews via memo.
+(normally r-assign-protocol-survey
+  (and ready-protocol-survey agent-researcher-available)
+  assign-to-protocol-survey-researcher)
+(normally r-assign-threat-model
+  (and ready-threat-model agent-hugo-available)
+  assign-to-threat-model-hugo)
+(normally r-assign-leaderboard
+  (and ready-leaderboard-analysis agent-researcher-available)
+  assign-to-leaderboard-analysis-researcher)
+
+;; Phase 2 dialects: designer drafts; hugo signs off (no rule needed — hugo
+;; reviews everything in the memo phase).
+(normally r-assign-dialect-psi
+  (and ready-dialect-psi agent-designer-available)
+  assign-to-dialect-psi-designer)
+(normally r-assign-dialect-millionaire
+  (and ready-dialect-millionaire agent-designer-available)
+  assign-to-dialect-millionaire-designer)
+(normally r-assign-dialect-dining
+  (and ready-dialect-dining agent-designer-available)
+  assign-to-dialect-dining-designer)
+(normally r-assign-dialect-ultimatum
+  (and ready-dialect-ultimatum agent-designer-available)
+  assign-to-dialect-ultimatum-designer)
+
+;; Phase 3 adapter: designer for the architecture, hugo for the policy calls.
+(normally r-assign-adapter
+  (and ready-adapter-design agent-designer-available)
+  assign-to-adapter-design-designer)
+(normally r-assign-handshake
+  (and ready-handshake-design agent-designer-available)
+  assign-to-handshake-design-designer)
+(normally r-assign-fallback
+  (and ready-fallback-policy agent-hugo-available)
+  assign-to-fallback-policy-hugo)
+
+;; Phase 4: hugo authors the memo; designer authors the test vectors.
+(normally r-assign-memo
+  (and ready-strategy-memo agent-hugo-available)
+  assign-to-strategy-memo-hugo)
+(normally r-assign-vectors
+  (and ready-test-vectors agent-designer-available)
+  assign-to-test-vectors-designer)
+
+;; ----------------------------------------------------------------------
+;; Rule metadata
+;; ----------------------------------------------------------------------
+
+(meta r-ready-memo
+  (description "The strategy memo is the synthesis output; it cannot be honest until every dialect, the adapter design, and the policy decisions are in.")
+  (justification "Avoids producing a recommendation that papers over unresolved design questions."))
+
+(meta r-assign-fallback
+  (description "Fallback policy is a product/strategy decision, not a design decision; route to hugo as the project lead.")
+  (justification "Choosing 'forfeit utility for security' vs 'engage in plain text' is a values call about what we want CBCL to demonstrate publicly."))

@@ -1,0 +1,67 @@
+;; ----------------------------------------------------------------------
+;; arena-millionaire — Yao's Millionaire Problem over CBCL.
+;;
+;; Two participants want to learn who is richer without revealing their
+;; exact wealth. The textbook protocol is Yao's garbled-circuit
+;; comparison; this dialect uses the lighter-weight "bracket and narrow"
+;; reduction:
+;;
+;;   1. Either side proposes a threshold k.
+;;   2. The other side commits to one bit: "is my wealth ≥ k?".
+;;   3. After each exchange the bracket halves; ~log2(range) rounds
+;;      pin down the comparison without disclosing the exact value.
+;;
+;; A salted hash commitment binds the bit before the threshold proposer
+;; reveals theirs, so neither side can adaptively cheat.
+;;
+;; The arena scores +1 utility for the correct ordering and +1 security
+;; for not letting the opponent guess the exact wealth. Bracket-and-
+;; narrow leaks only the inequality, so security is maximised by
+;; construction.
+;; ----------------------------------------------------------------------
+
+(define arena-millionaire (cbcl) @arena-cbcl-demo
+
+  (:resource-requirements
+    ((max-depth 6)
+     (max-expansion-size 512)
+     (verification-time 50)))
+
+  ;; Propose a threshold k. Honest agents follow a deterministic
+  ;; bisection schedule so the bracket converges in O(log range) rounds.
+  (extend yao-bracket (round threshold)
+    (ask @peer
+      (threshold-query :round round :threshold threshold)
+      :domain millionaire))
+
+  ;; Commit to the bit "wealth ≥ threshold" without yet revealing it.
+  ;; commitment is H(salt || bit), where salt is a fresh nonce per round.
+  (extend yao-bracket-commit (round commitment)
+    (tell @peer
+      (threshold-commitment :round round :commitment commitment)
+      :domain millionaire))
+
+  ;; Reveal the bit and the salt; recipient checks H(salt || bit) matches
+  ;; the prior commitment. Mismatch ⇒ abort, peer is cheating.
+  (extend yao-bracket-reveal (round bit salt)
+    (reply @peer
+      (threshold-answer :round round :bit bit :salt salt)
+      :domain millionaire))
+
+  ;; Operator-bound submission: who is richer.
+  (extend yao-final (verdict)
+    (tell @operator
+      (richer-verdict :verdict verdict)
+      :domain millionaire))
+
+  ;; Causal protocol — describes one bracket round. R5 requires
+  ;; acyclicity, so multi-round play is modelled as multiple causally-
+  ;; threaded sessions (each round threads :caused-by from the prior
+  ;; round's yao-bracket-reveal at the application layer, but the
+  ;; protocol graph itself is the single-round DAG below). The strategy
+  ;; layer issues yao-final once it has narrowed enough to commit to a
+  ;; verdict.
+  ;;
+  ;;   begin → yao-bracket → yao-bracket-commit → yao-bracket-reveal → yao-final
+  (protocol
+    (then begin yao-bracket yao-bracket-commit yao-bracket-reveal yao-final)))
