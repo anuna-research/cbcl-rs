@@ -1,0 +1,13 @@
+    Finished `release` profile [optimized] target(s) in 0.13s
+     Running `target/release/examples/cbcl-arena --n 300 --out /tmp/cbcl-arena/table-4.md`
+cbcl-arena: running measurement matrix (challenges=["psi", "millionaire", "dining"], n_per_cell=300, seed=0xcbc1a1eadefa0173)
+cbcl-arena: wrote full artefact (Table 4 + Scope + Failure Modes) to /tmp/cbcl-arena/table-4.md
+
+cbcl-arena: headline predictions (REQ-1150 / OBS-1110)
+  [PASS] psi-vanilla-published-calibration: rate=0.490 [CI 0.434, 0.546] in [0.35, 0.500]
+  [PASS] psi-cbcl-published-security: rate=0.000 [CI 0.000, 0.013] in [0.00, 0.012]
+  [PASS] psi-cbcl-novel-security: rate=0.000 [CI 0.000, 0.013] in [0.00, 0.012]
+  [PASS] honest-utility-delta-psi: |cbcl-vanilla|=0.000 (cbcl=0.000, vanilla=0.000) <= 0.1
+  [PASS] honest-utility-delta-millionaire: |cbcl-vanilla|=0.000 (cbcl=0.000, vanilla=0.000) <= 0.1
+  [PASS] honest-utility-delta-dining: |cbcl-vanilla|=0.000 (cbcl=0.000, vanilla=0.000) <= 0.1
+started at 2026-04-30T13:40:59+10:00
