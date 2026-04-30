@@ -46,6 +46,7 @@ use rand::RngCore;
 use super::Agent;
 use crate::operator::ChatEvent;
 
+pub mod auction;
 pub mod dining;
 pub mod millionaire;
 pub mod psi;

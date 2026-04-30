@@ -1,0 +1,332 @@
+;; ----------------------------------------------------------------------
+;; Plan: implement SPEC-004 (Sealed-Bid Auction Demo) as Demo~4 of the
+;; NeurIPS '26 evaluation, reusing the cbcl-arena simulator harness
+;; landed by IMPL-arena-sim.
+;;
+;; Calibration target: Pact (Basis Research, 2025) — 2.4% → 45.1%
+;; manipulation lift under one false-claim adversary in NL-chat play.
+;; CBCL prediction: 0% across all three SPEC-004 attacks (A1 false bid
+;; claim, A2 forged commit citation, A3 pre-commit valuation leak).
+;;
+;; This plan transitions SPEC-004 from `draft` → `implemented` and
+;; appends Demo~4 to 04_evaluation.tex's §4.2.1 alongside the existing
+;; Demos 1, 2, 3.
+;;
+;; Dependency layering:
+;;   W1: dialect (auction.cbcl + R1/R2/R3/R5 verify)
+;;   W2: operator + CBCL agent strategy + Vanilla agent script (parallel)
+;;   W3: attackers (depend on operator + agent for the structural-rejection check)
+;;   W4: measurement integration (extend ChallengeKind, register auction
+;;       in the measurement matrix, run N=300 calibration)
+;;   W5: paper integration (Demo~4 block in 04_evaluation.tex)
+;;   W6: SPEC-004 status update (draft → implemented + Validation Results)
+;;
+;; Reuses without modification: cbcl-arena driver, manifest, artefact
+;; emitter, statistics, isolation. The harness machinery generalises;
+;; this plan adds a fourth game on top.
+;; ----------------------------------------------------------------------
+
+(meta plan
+  (id "IMPL-arena-auction")
+  (title "Implement SPEC-004 — sealed-bid auction as Demo 4 of the cbcl-arena simulator")
+  (version "0.1.0")
+  (status "active")
+  (created "2026-04-30")
+  (author "agent:hugo")
+  (spec "SPEC-004")
+  (description "Add a sealed-bid auction operator + dialect + agents + attackers to the cbcl-arena crate, calibrated against Pact (Basis 2025)'s 2.4% → 45.1% NL-chat manipulation result. Implements SPEC-004's three attacks (A1 false bid claim, A2 forged commit citation, A3 pre-commit valuation leak), expects 0% CBCL attack-success, validated at N=300 release. Transitions SPEC-004 status draft → implemented; appends Demo 4 to NeurIPS '26 §4.2.1."))
+
+;; ----------------------------------------------------------------------
+;; Agents
+;; ----------------------------------------------------------------------
+
+(given agent-hugo-available)         ;; coordinator (this session)
+(given agent-impler-available)       ;; subagent class for code work
+
+;; ----------------------------------------------------------------------
+;; Tasks
+;; ----------------------------------------------------------------------
+
+;; W1 — dialect
+(given task-dialect)
+
+;; W2 — operator + agents (parallel after W1)
+(given task-operator)
+(given task-cbcl-agent)
+(given task-vanilla-agent)
+
+;; W3 — attackers (depends on operator + at least the CBCL agent)
+(given task-attackers)
+
+;; W4 — measurement integration
+(given task-measurement)
+
+;; W5 — paper integration
+(given task-paper)
+
+;; W6 — SPEC-004 status update + branch commit
+(given task-spec-update)
+
+(meta task-dialect
+  (description "Author demo/dialects/auction.cbcl per SPEC-004 REQ-410: three performatives (commit, reveal, declare-winner), embedded (protocol (then begin commit reveal declare-winner)), shape rules per CON-410 — commit requires :hash, reveal requires :body :salt :proof-commit, declare-winner requires :winner :winning-bid :proof-commit :proof-reveal. Resource bounds: depth=6, expansion=512, time=50. Author tag @arena-cbcl-demo. Verify via `cbcl-cli verify < demo/dialects/auction.cbcl` (must report R1, R2, R3, R5 pass with 3 performatives, 4 protocol steps).")
+  (acceptance "demo/dialects/auction.cbcl exists; cbcl-cli verify passes with R1+R2+R3+R5; the existing crates/cbcl-cli/tests/arena_demo_dialects.rs picks up the new file and passes (it iterates demo/dialects/*.cbcl)."))
+
+(meta task-operator
+  (description "Implement crates/cbcl-arena/src/operator/auction.rs per SPEC-004 REQ-410..414 + CON-410..414. AuctionOperator { n_bidders: usize, valuation_dist: ValuationDistribution, seed: u64 }. issue_setup samples N valuations on configurable distribution (default uniform [1, 100]). score: per-agent utility (winner gets +1 if their reveal binds to their commit AND their bid is highest; -1 for revealing without binding; 0 otherwise); per-agent security (-1 if a successful manipulation occurred against this agent — defined as: this agent submitted a winning declaration that cited a fabricated/wrong-type proof-commit, OR this agent's valuation appeared in plaintext on the wire before any reveal). Citation verification for :proof-commit and :proof-reveal via runtime store lookup. Reveal-binds-commit invariant (REQ-412) — recomputed canonical hash must equal :hash of cited commit. Add ChallengeKind::Auction variant to common.rs (this is the exception to NFR-1112 — common.rs IS in cbcl-arena, not cbcl-core).")
+  (acceptance "TEST-410-style: 100 hand-rolled (valuations, transcript, guesses) tuples produce expected scores; honest-baseline run (no attacker) yields utility +1 for highest-bidder, security +1 for everyone; A1 false-claim-without-citation produces structural rejection of the message at the operator's score time (utility unchanged, security flagged); A2 forged-citation produces same; A3 pre-commit valuation leak produces security -1 for the leaker. Operator passes a smoke test of `cargo test -p cbcl-arena --lib operator::auction`."))
+
+(meta task-cbcl-agent
+  (description "Implement crates/cbcl-arena/src/agents/cbcl/auction.rs as a per-challenge ChallengeStrategy for the AuctionOperator's setup/guess types. Strategy: receive own valuation in setup; pick a random salt; emit (commit :hash H(valuation, salt)); after seeing N-1 other commits, emit (reveal :body valuation :salt salt :proof-commit own-commit-hash); if designated auctioneer (lowest agent_idx convention), after seeing all reveals emit (declare-winner :winner W :winning-bid B :proof-commit ... :proof-reveal ...). Final guess = the winner's invite/agent-idx for non-auctioneer, the declared-winner for auctioneer.")
+  (acceptance "Honest-vs-honest game with 3 CbclAgents on a fixed seed produces the highest-bidder as winner, all securities +1, all messages parse as CBCL and conform to the auction.cbcl dialect protocol. Quarantine never fires under honest play."))
+
+(meta task-vanilla-agent
+  (description "Extend the existing VanillaAgent with a default auction script. AtStart: emit `i'll bid: {valuation}`. AfterPattern (matching `(?i)\\b(what|how much).*\\bbid\\b`): emit own valuation. AfterPattern (matching SPEC-004 A1's claim shape — `(?i)\\b(second|highest|second-highest)\\s+bid\\s+(was|is)`): emit `agreed` (this is the manipulation hook — vanilla agents accept false claims about others' bids). Final guess: name the highest bid value seen in inbound, or own bid as fallback. Document the script's calibration intent in agents/vanilla/RATIONALE.md (extending the existing file).")
+  (acceptance "Vanilla-vs-vanilla honest play converges on a winner. Vanilla-vs-A1 (false-claim adversary) produces a non-zero rate of vanilla agents agreeing with the false claim — the calibration target."))
+
+(meta task-attackers
+  (description "Implement crates/cbcl-arena/src/attackers/auction.rs with: 1 Honest-cooperative reference. Three Malicious-published patterns from SPEC-004 TM-402 (A1 false-bid-claim, A2 forged-commit-citation, A3 pre-commit-valuation-leak), each cited as `pact-2025-§-N.M` (Pact paper section reference) for source_citation. Plus 4 Malicious-novel patterns (claim-fabrication-with-citation-shape that cites a hash of the wrong type; valuation-prompt-injection variant; bidder-coalition-claim shape; one author-designed) — each documented under crates/cbcl-arena/attackers/novel/auction-<name>.md with originality declaration. Each pattern is deterministic given setup + history + RNG. Patterns implement the existing AttackPattern trait (step()-based per the existing convention).")
+  (acceptance "registry().auction.published.len() >= 3 (the three SPEC-004 attacks); registry().auction.novel.len() >= 4; registry().auction.honest.len() >= 1. Per-novel markdown files exist with originality declarations. 50 trials per Malicious pattern against an honest CbclAgent: every trial produces security +1 for the honest agent (CBCL rejects all). Per-pattern documentation cites Pact's TM-402 mapping where applicable."))
+
+(meta task-measurement
+  (description "Extend MeasurementConfig to include ChallengeKind::Auction. Update the seat-builder logic in measurement.rs to construct auction-specific seats (n_agents=3 for auction, matching DC). Run a calibration probe at N=300 release to verify: Vanilla × A1 (the false-bid-claim attacker) on auction lands within Pact's [0.35, 0.55] range bracketing the published 0.451; CBCL × Published × Auction = 0; CBCL × Novel × Auction = 0. Add the four headline predictions for auction to the CLI's prediction-check output, mirroring the existing PSI checks.")
+  (acceptance "`cargo run --release --example cbcl-arena -- --n 300 --challenges auction` exits 0 with all four auction headline predictions PASS. Full-matrix run including auction completes within NFR-1111's 10-minute budget."))
+
+(meta task-paper
+  (description "Append Demo~4 to 04_evaluation.tex §4.2.1, after the existing Demo~3 block and before §4.3. Structure mirrors Demo~3: setup paragraph (introducing Pact's 45.1% baseline as the calibration target, citing Basis Research 2025), Demo~4 description, Table~5 (\\label{tab:auction-attacks}, 4-row × 3-column matrix: rows are 04-A vanilla published / 04-A-novel vanilla novel / 04-B CBCL published / 04-B-novel CBCL novel; columns are A1 / A2 / A3 attack subcategories; each cell is the attack-success rate with Wilson 95% CI), calibration paragraph, contamination-controlled headline paragraph, two honest-scope paragraphs (one for the structural defence, one explicitly noting CBCL is complementary to Pact's MPC defence rather than competing). NO internal IDs (REQ-/SPEC-/etc.) per the §4.2.1 convention.")
+  (acceptance "/Users/anuna-01/Code/cbcl-neuroips/.../04_evaluation.tex contains the new Demo~4 block; LaTeX compiles to the same point as before (the pre-existing nicefrac.sty error doesn't get worse); grep for REQ-/SPEC-/OBS-/NFR-/TEST-/CON-/TM-/ADR- across all .tex files returns zero matches."))
+
+(meta task-spec-update
+  (description "Move SPEC-004 status from `draft` to `implemented` (version 0.1.0 → 0.1.1, add implemented-date) and append a Validation Results section per the SPEC-011 pattern, listing the four headline predictions with measured Wilson 95% CIs. Commit branch state: a single commit on feat/arena-demo (cbcl-rs) and a single commit on main (cbcl-neuroips) covering the paper edit. Verify cargo test --workspace passes; verify the existing demo/verify.sh passes (it'll pick up auction.cbcl).")
+  (acceptance "specs/SPEC-004-sealed-bid-auction-demo.md status block reads `implemented`; Validation Results section lists the four measured headline rates with Wilson 95% CIs; both repositories have committed work; workspace tests green; demo/verify.sh green; one git log line per repo on the new commits."))
+
+;; ----------------------------------------------------------------------
+;; Readiness rules
+;; ----------------------------------------------------------------------
+
+;; W1
+(normally r-ready-dialect
+  task-dialect
+  ready-dialect)
+
+;; W2 — needs dialect
+(normally r-ready-operator
+  (and task-operator completed-dialect)
+  ready-operator)
+(normally r-ready-cbcl-agent
+  (and task-cbcl-agent completed-dialect)
+  ready-cbcl-agent)
+(normally r-ready-vanilla-agent
+  (and task-vanilla-agent completed-dialect)
+  ready-vanilla-agent)
+
+;; W3 — needs operator + cbcl-agent (for the structural-rejection conformance check)
+(normally r-ready-attackers
+  (and task-attackers completed-operator completed-cbcl-agent)
+  ready-attackers)
+
+;; W4 — needs operator + both agents + attackers
+(normally r-ready-measurement
+  (and task-measurement
+       completed-operator
+       completed-cbcl-agent
+       completed-vanilla-agent
+       completed-attackers)
+  ready-measurement)
+
+;; W5 — paper update needs measured numbers from the calibration run
+(normally r-ready-paper
+  (and task-paper completed-measurement)
+  ready-paper)
+
+;; W6 — spec update is the synthesis step
+(normally r-ready-spec-update
+  (and task-spec-update completed-paper)
+  ready-spec-update)
+
+;; ----------------------------------------------------------------------
+;; Assignment rules
+;; ----------------------------------------------------------------------
+
+(normally r-assign-dialect
+  (and ready-dialect agent-impler-available)
+  assign-to-dialect-impler)
+(normally r-assign-operator
+  (and ready-operator agent-impler-available)
+  assign-to-operator-impler)
+(normally r-assign-cbcl-agent
+  (and ready-cbcl-agent agent-impler-available)
+  assign-to-cbcl-agent-impler)
+(normally r-assign-vanilla-agent
+  (and ready-vanilla-agent agent-impler-available)
+  assign-to-vanilla-agent-impler)
+(normally r-assign-attackers
+  (and ready-attackers agent-impler-available)
+  assign-to-attackers-impler)
+(normally r-assign-measurement
+  (and ready-measurement agent-impler-available)
+  assign-to-measurement-impler)
+(normally r-assign-paper
+  (and ready-paper agent-hugo-available)
+  assign-to-paper-hugo)
+(normally r-assign-spec-update
+  (and ready-spec-update agent-hugo-available)
+  assign-to-spec-update-hugo)
+
+(meta r-assign-paper
+  (description "Paper edit is reviewer-facing prose; route to hugo for tone consistency with the existing §4.2.1 voice and SPEC-/REQ-free convention.")
+  (justification "Avoids reintroducing internal traceability IDs into reviewer prose; the §4.2.1 sweep just removed them all."))
+
+(claims agent:impler
+  :at "2026-04-30T04:19:26Z"
+  (given claim-v1-dialect)
+  (normally r-cl-state-v1-dialect claim-v1-dialect state-claimed-v1-dialect)
+  (normally r-cl-chain-v1-dialect state-claimed-v1-dialect claimed-dialect)
+)
+
+;; Propagation rules: failures in 'dialect' block downstream tasks
+(normally r-propagate-cbcl-agent-from-dialect-failed failed-dialect upstream-blocked-cbcl-agent)
+(normally r-propagate-cbcl-agent-from-dialect-permanently-failed permanently-failed-dialect upstream-blocked-cbcl-agent)
+(normally r-propagate-cbcl-agent-from-dialect-stale-v1 stale-v1-dialect upstream-blocked-cbcl-agent)
+(normally r-propagate-cbcl-agent-from-dialect-timeout-v1 timeout-v1-dialect upstream-blocked-cbcl-agent)
+(normally r-propagate-cbcl-agent-from-dialect-blocked upstream-blocked-dialect upstream-blocked-cbcl-agent)
+(normally r-propagate-operator-from-dialect-failed failed-dialect upstream-blocked-operator)
+(normally r-propagate-operator-from-dialect-permanently-failed permanently-failed-dialect upstream-blocked-operator)
+(normally r-propagate-operator-from-dialect-stale-v1 stale-v1-dialect upstream-blocked-operator)
+(normally r-propagate-operator-from-dialect-timeout-v1 timeout-v1-dialect upstream-blocked-operator)
+(normally r-propagate-operator-from-dialect-blocked upstream-blocked-dialect upstream-blocked-operator)
+(normally r-propagate-vanilla-agent-from-dialect-failed failed-dialect upstream-blocked-vanilla-agent)
+(normally r-propagate-vanilla-agent-from-dialect-permanently-failed permanently-failed-dialect upstream-blocked-vanilla-agent)
+(normally r-propagate-vanilla-agent-from-dialect-stale-v1 stale-v1-dialect upstream-blocked-vanilla-agent)
+(normally r-propagate-vanilla-agent-from-dialect-timeout-v1 timeout-v1-dialect upstream-blocked-vanilla-agent)
+(normally r-propagate-vanilla-agent-from-dialect-blocked upstream-blocked-dialect upstream-blocked-vanilla-agent)
+
+;; Transitive propagation: upstream-blocked cascades through dependency chain
+(normally r-propagate-attackers-from-cbcl-agent-blocked upstream-blocked-cbcl-agent upstream-blocked-attackers)
+(normally r-propagate-measurement-from-cbcl-agent-blocked upstream-blocked-cbcl-agent upstream-blocked-measurement)
+(normally r-propagate-attackers-from-operator-blocked upstream-blocked-operator upstream-blocked-attackers)
+(normally r-propagate-measurement-from-operator-blocked upstream-blocked-operator upstream-blocked-measurement)
+(normally r-propagate-measurement-from-vanilla-agent-blocked upstream-blocked-vanilla-agent upstream-blocked-measurement)
+(normally r-propagate-measurement-from-attackers-blocked upstream-blocked-attackers upstream-blocked-measurement)
+(normally r-propagate-paper-from-measurement-blocked upstream-blocked-measurement upstream-blocked-paper)
+(normally r-propagate-spec-update-from-paper-blocked upstream-blocked-paper upstream-blocked-spec-update)
+
+(claims agent:impler
+  :at "2026-04-30T04:20:16Z"
+  (given completed-dialect))
+
+(claims agent:impler
+  :at "2026-04-30T04:20:16Z"
+  (given claim-v1-operator)
+  (normally r-cl-state-v1-operator claim-v1-operator state-claimed-v1-operator)
+  (normally r-cl-chain-v1-operator state-claimed-v1-operator claimed-operator)
+)
+
+;; Propagation rules: failures in 'operator' block downstream tasks
+(normally r-propagate-attackers-from-operator-failed failed-operator upstream-blocked-attackers)
+(normally r-propagate-attackers-from-operator-permanently-failed permanently-failed-operator upstream-blocked-attackers)
+(normally r-propagate-attackers-from-operator-stale-v1 stale-v1-operator upstream-blocked-attackers)
+(normally r-propagate-attackers-from-operator-timeout-v1 timeout-v1-operator upstream-blocked-attackers)
+(normally r-propagate-measurement-from-operator-failed failed-operator upstream-blocked-measurement)
+(normally r-propagate-measurement-from-operator-permanently-failed permanently-failed-operator upstream-blocked-measurement)
+(normally r-propagate-measurement-from-operator-stale-v1 stale-v1-operator upstream-blocked-measurement)
+(normally r-propagate-measurement-from-operator-timeout-v1 timeout-v1-operator upstream-blocked-measurement)
+
+(claims agent:impler
+  :at "2026-04-30T04:20:16Z"
+  (given claim-v1-cbcl-agent)
+  (normally r-cl-state-v1-cbcl-agent claim-v1-cbcl-agent state-claimed-v1-cbcl-agent)
+  (normally r-cl-chain-v1-cbcl-agent state-claimed-v1-cbcl-agent claimed-cbcl-agent)
+)
+
+;; Propagation rules: failures in 'cbcl-agent' block downstream tasks
+(normally r-propagate-attackers-from-cbcl-agent-failed failed-cbcl-agent upstream-blocked-attackers)
+(normally r-propagate-attackers-from-cbcl-agent-permanently-failed permanently-failed-cbcl-agent upstream-blocked-attackers)
+(normally r-propagate-attackers-from-cbcl-agent-stale-v1 stale-v1-cbcl-agent upstream-blocked-attackers)
+(normally r-propagate-attackers-from-cbcl-agent-timeout-v1 timeout-v1-cbcl-agent upstream-blocked-attackers)
+(normally r-propagate-measurement-from-cbcl-agent-failed failed-cbcl-agent upstream-blocked-measurement)
+(normally r-propagate-measurement-from-cbcl-agent-permanently-failed permanently-failed-cbcl-agent upstream-blocked-measurement)
+(normally r-propagate-measurement-from-cbcl-agent-stale-v1 stale-v1-cbcl-agent upstream-blocked-measurement)
+(normally r-propagate-measurement-from-cbcl-agent-timeout-v1 timeout-v1-cbcl-agent upstream-blocked-measurement)
+
+(claims agent:impler
+  :at "2026-04-30T04:20:16Z"
+  (given claim-v1-vanilla-agent)
+  (normally r-cl-state-v1-vanilla-agent claim-v1-vanilla-agent state-claimed-v1-vanilla-agent)
+  (normally r-cl-chain-v1-vanilla-agent state-claimed-v1-vanilla-agent claimed-vanilla-agent)
+)
+
+;; Propagation rules: failures in 'vanilla-agent' block downstream tasks
+(normally r-propagate-measurement-from-vanilla-agent-failed failed-vanilla-agent upstream-blocked-measurement)
+(normally r-propagate-measurement-from-vanilla-agent-permanently-failed permanently-failed-vanilla-agent upstream-blocked-measurement)
+(normally r-propagate-measurement-from-vanilla-agent-stale-v1 stale-v1-vanilla-agent upstream-blocked-measurement)
+(normally r-propagate-measurement-from-vanilla-agent-timeout-v1 timeout-v1-vanilla-agent upstream-blocked-measurement)
+
+(claims agent:impler
+  :at "2026-04-30T04:31:51Z"
+  (given completed-operator))
+
+(claims agent:impler
+  :at "2026-04-30T04:31:51Z"
+  (given completed-cbcl-agent))
+
+(claims agent:impler
+  :at "2026-04-30T04:31:51Z"
+  (given completed-vanilla-agent))
+
+(claims agent:impler
+  :at "2026-04-30T04:31:51Z"
+  (given claim-v1-attackers)
+  (normally r-cl-state-v1-attackers claim-v1-attackers state-claimed-v1-attackers)
+  (normally r-cl-chain-v1-attackers state-claimed-v1-attackers claimed-attackers)
+)
+
+;; Propagation rules: failures in 'attackers' block downstream tasks
+(normally r-propagate-measurement-from-attackers-failed failed-attackers upstream-blocked-measurement)
+(normally r-propagate-measurement-from-attackers-permanently-failed permanently-failed-attackers upstream-blocked-measurement)
+(normally r-propagate-measurement-from-attackers-stale-v1 stale-v1-attackers upstream-blocked-measurement)
+(normally r-propagate-measurement-from-attackers-timeout-v1 timeout-v1-attackers upstream-blocked-measurement)
+
+(claims agent:impler
+  :at "2026-04-30T04:39:39Z"
+  (given completed-attackers))
+
+(claims agent:impler
+  :at "2026-04-30T04:39:39Z"
+  (given claim-v1-measurement)
+  (normally r-cl-state-v1-measurement claim-v1-measurement state-claimed-v1-measurement)
+  (normally r-cl-chain-v1-measurement state-claimed-v1-measurement claimed-measurement)
+)
+
+;; Propagation rules: failures in 'measurement' block downstream tasks
+(normally r-propagate-paper-from-measurement-failed failed-measurement upstream-blocked-paper)
+(normally r-propagate-paper-from-measurement-permanently-failed permanently-failed-measurement upstream-blocked-paper)
+(normally r-propagate-paper-from-measurement-stale-v1 stale-v1-measurement upstream-blocked-paper)
+(normally r-propagate-paper-from-measurement-timeout-v1 timeout-v1-measurement upstream-blocked-paper)
+
+(claims agent:impler
+  :at "2026-04-30T04:55:55Z"
+  (given completed-measurement))
+
+(claims agent:hugo
+  :at "2026-04-30T04:56:17Z"
+  (given claim-v1-paper)
+  (normally r-cl-state-v1-paper claim-v1-paper state-claimed-v1-paper)
+  (normally r-cl-chain-v1-paper state-claimed-v1-paper claimed-paper)
+)
+
+;; Propagation rules: failures in 'paper' block downstream tasks
+(normally r-propagate-spec-update-from-paper-failed failed-paper upstream-blocked-spec-update)
+(normally r-propagate-spec-update-from-paper-permanently-failed permanently-failed-paper upstream-blocked-spec-update)
+(normally r-propagate-spec-update-from-paper-stale-v1 stale-v1-paper upstream-blocked-spec-update)
+(normally r-propagate-spec-update-from-paper-timeout-v1 timeout-v1-paper upstream-blocked-spec-update)
+
+(claims agent:hugo
+  :at "2026-04-30T04:58:50Z"
+  (given completed-paper))
+
+(claims agent:hugo
+  :at "2026-04-30T04:58:50Z"
+  (given claim-v1-spec-update)
+  (normally r-cl-state-v1-spec-update claim-v1-spec-update state-claimed-v1-spec-update)
+  (normally r-cl-chain-v1-spec-update state-claimed-v1-spec-update claimed-spec-update)
+)

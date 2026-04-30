@@ -1,0 +1,85 @@
+;; ----------------------------------------------------------------------
+;; arena-auction — Sealed-bid auction over CBCL.
+;;
+;; N bidders submit a sealed bid via a `commit` performative carrying a
+;; salted hash of (valuation, salt). After all commits, each bidder
+;; `reveal`s their (valuation, salt) pair; the recipient recomputes
+;; H(valuation, salt) and rejects on mismatch with the prior commitment.
+;; A designated auctioneer (the lowest agent_idx by convention) emits
+;; `declare-winner` carrying citations to the winning bidder's commit
+;; and reveal messages.
+;;
+;; Threat model (per SPEC-004 TM-402):
+;;   - A1: false bid claim (adversary asserts "second-highest bid was X"
+;;         without a :proof-commit citation that resolves in the store).
+;;   - A2: forged commit citation (adversary cites a :proof-commit hash
+;;         that resolves to no actual commit message).
+;;   - A3: pre-commit valuation leak (adversary asks another bidder for
+;;         their valuation via a side-channel performative).
+;;
+;; CBCL's structural defence:
+;;   - The dialect defines NO performative for valuation queries → A3
+;;     is rejected at the dialect-gate stage.
+;;   - The dialect defines NO performative for free-form claims about
+;;     other bidders' state → A1 is rejected at the dialect-gate stage.
+;;   - declare-winner shape rules require :proof-commit and :proof-reveal
+;;     citations that the verifier resolves against the message store →
+;;     A2 produces an Unknown verdict at runtime which the configured
+;;     UnknownPredecessorPolicy rejects or buffers.
+;;
+;; Calibration target: Pact (Basis Research, 2025) — 2.4% → 45.1%
+;; manipulation lift in NL-chat play under one false-claim adversary.
+;; CBCL prediction across all three attacks: 0%.
+;;
+;; Performative names (commit, reveal, declare-winner) and content-form
+;; names (bid-commitment, bid-reveal, winner-declaration) are kept
+;; distinct so R1's recursion check does not flag them as
+;; self-referential — the same naming discipline applied in psi.cbcl,
+;; millionaire.cbcl, and dining.cbcl.
+;; ----------------------------------------------------------------------
+
+(define arena-auction (cbcl) @arena-cbcl-demo
+
+  (:resource-requirements
+    ((max-depth 6)
+     (max-expansion-size 512)
+     (verification-time 50)))
+
+  ;; Sealed-bid commitment: bidder publishes H(valuation, salt) for the
+  ;; auction round. The hash is content-addressed via the same canonical
+  ;; hash function CBCL uses everywhere.
+  (extend commit (hash)
+    (tell @auctioneer
+      (bid-commitment :hash hash)
+      :domain auction))
+
+  ;; Bid reveal: the (valuation, salt) pair that binds the prior commit.
+  ;; Recipients verify H(:body, :salt) == cited commit's :hash, rejecting
+  ;; on mismatch (the reveal-binds-commit invariant — SPEC-004 REQ-412).
+  (extend reveal (body salt proof-commit)
+    (tell @auctioneer
+      (bid-reveal :body body :salt salt :proof-commit proof-commit)
+      :domain auction))
+
+  ;; Auctioneer's final declaration. The :proof-commit and :proof-reveal
+  ;; citations bind the declared winner to specific store messages; an
+  ;; adversary cannot claim a winning bid without naming actual messages
+  ;; (SPEC-004 REQ-411). Citation verification is performed at the
+  ;; operator's score time — the operator looks up each cited hash in
+  ;; the transcript and rejects on absence or wrong type.
+  (extend declare-winner (winner winning-bid proof-commit proof-reveal)
+    (tell @bidders
+      (winner-declaration
+        :winner winner
+        :winning-bid winning-bid
+        :proof-commit proof-commit
+        :proof-reveal proof-reveal)
+      :domain auction))
+
+  ;; Causal protocol — the auction's three phases. R5 verifies the
+  ;; chain is acyclic and every step is reachable from `begin`.
+  ;; Multi-bidder play threads each bidder's commit/reveal in the same
+  ;; session via :thread + :caused-by; the protocol DAG describes the
+  ;; legal predecessor types per performative regardless of bidder.
+  (protocol
+    (then begin commit reveal declare-winner)))

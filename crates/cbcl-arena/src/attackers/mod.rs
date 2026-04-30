@@ -14,6 +14,7 @@
 use rand::RngCore;
 
 use crate::operator::ChatEvent;
+use crate::operator::auction::{AuctionGuess, AuctionSetup};
 use crate::operator::dining::{DiningGuess, DiningSetup};
 use crate::operator::millionaire::{MillionaireGuess, MillionaireSetup};
 use crate::operator::psi::{PsiGuess, PsiSetup};
@@ -21,6 +22,7 @@ use crate::operator::psi::{PsiGuess, PsiSetup};
 pub mod psi;
 pub mod millionaire;
 pub mod dining;
+pub mod auction;
 
 /// Category of an attacker pattern (REQ-1130).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -109,6 +111,16 @@ impl<T> DiningPattern for T where
 {
 }
 
+/// Object-safe per-challenge attacker pattern for Sealed-Bid Auction.
+pub trait AuctionPattern:
+    AttackPattern<Setup = AuctionSetup, Guess = AuctionGuess> + Send
+{
+}
+impl<T> AuctionPattern for T where
+    T: AttackPattern<Setup = AuctionSetup, Guess = AuctionGuess> + Send
+{
+}
+
 /// Per-challenge slot of patterns grouped by category (CON-1130).
 pub struct PerChallenge<T: ?Sized> {
     /// Honest-cooperative reference patterns (typically exactly one).
@@ -135,6 +147,8 @@ pub struct AttackerRegistry {
     pub millionaire: PerChallenge<dyn MillionairePattern>,
     /// Dining Cryptographers attack patterns.
     pub dining: PerChallenge<dyn DiningPattern>,
+    /// Sealed-Bid Auction attack patterns.
+    pub auction: PerChallenge<dyn AuctionPattern>,
 }
 
 /// Construct the full attacker registry. Each per-challenge submodule
@@ -144,5 +158,6 @@ pub fn registry() -> AttackerRegistry {
         psi: psi::registry(),
         millionaire: millionaire::registry(),
         dining: dining::registry(),
+        auction: auction::registry(),
     }
 }

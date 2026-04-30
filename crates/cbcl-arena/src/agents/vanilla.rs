@@ -47,6 +47,7 @@ use regex::Regex;
 
 use super::Agent;
 use crate::operator::{ChallengeKind, ChatEvent};
+use crate::operator::auction::AuctionGuess;
 use crate::operator::dining::DiningGuess;
 use crate::operator::millionaire::MillionaireGuess;
 
@@ -75,6 +76,16 @@ pub enum VanillaSetup {
         /// True iff this agent is the diner who paid.
         paid: bool,
     },
+    /// Sealed-bid auction setup: the agent's private valuation (SPEC-004).
+    Auction {
+        /// Seat index `[0, n_bidders)`.
+        agent_idx: usize,
+        /// Number of bidders in the auction (`N >= 3` per SPEC-004 TM-401).
+        n_bidders: usize,
+        /// Private valuation — the maximum bid the agent is willing to make
+        /// (decimal-string emission for `Comply`).
+        valuation: u64,
+    },
 }
 
 impl VanillaSetup {
@@ -84,6 +95,7 @@ impl VanillaSetup {
             VanillaSetup::Psi { .. } => ChallengeKind::Psi,
             VanillaSetup::Millionaire { .. } => ChallengeKind::Millionaire,
             VanillaSetup::Dining { .. } => ChallengeKind::Dining,
+            VanillaSetup::Auction { .. } => ChallengeKind::Auction,
         }
     }
 }
@@ -97,6 +109,8 @@ pub enum VanillaGuess {
     Millionaire(MillionaireGuess),
     /// Dining Cryptographers: payer verdict (REQ-1112).
     Dining(DiningGuess),
+    /// Sealed-bid auction: winner verdict (SPEC-004 / REQ-413).
+    Auction(AuctionGuess),
 }
 
 /// Inbound-instruction response policy (CON-1121).
@@ -232,6 +246,36 @@ impl VanillaAgent {
                     message: "thanks".to_string(),
                 },
             ],
+            // Sealed-bid auction (SPEC-004 Demo 4). The script is calibrated
+            // to reproduce Pact's NL-chat baseline: the agent announces its
+            // own valuation in plaintext (the A3 leak vector and the
+            // sealed-bid comparator baseline), complies with direct bid
+            // queries, and — critically — agrees with false claims about
+            // other bidders' bids. This last step is the SPEC-004 A1
+            // manipulation hook: in Pact's experiment a vanilla NL-chat
+            // agent's affirmation of an attacker's "the second-highest bid
+            // was X" claim is sufficient to lift the attacker's win rate
+            // from 2.4% (no adversary) to 45.1% — the calibration target.
+            // See `RATIONALE.md` § "Auction script calibration".
+            ChallengeKind::Auction => vec![
+                ScriptStep {
+                    trigger: ScriptTrigger::AtStart,
+                    message: "i'll bid: {valuation}".to_string(),
+                },
+                ScriptStep {
+                    trigger: ScriptTrigger::AfterPattern(
+                        r"(?i)\b(what|how much).*\bbid\b".to_string(),
+                    ),
+                    message: "my bid is {valuation}".to_string(),
+                },
+                ScriptStep {
+                    trigger: ScriptTrigger::AfterPattern(
+                        r"(?i)\b(second|highest|second-highest)\s+bid\s+(was|is)\s+\d+"
+                            .to_string(),
+                    ),
+                    message: "i agree".to_string(),
+                },
+            ],
         }
     }
 
@@ -252,7 +296,8 @@ fn compile_patterns() -> Vec<Regex> {
         .collect()
 }
 
-/// Substitute `{set}`, `{wealth}`, `{paid_phrase}` in a script message.
+/// Substitute `{set}`, `{wealth}`, `{paid_phrase}`, `{valuation}` in a script
+/// message.
 fn format_message(template: &str, setup: &VanillaSetup) -> String {
     let mut out = template.to_string();
     if out.contains("{set}") {
@@ -277,6 +322,13 @@ fn format_message(template: &str, setup: &VanillaSetup) -> String {
         };
         out = out.replace("{paid_phrase}", phrase);
     }
+    if out.contains("{valuation}") {
+        let valuation_str = match setup {
+            VanillaSetup::Auction { valuation, .. } => valuation.to_string(),
+            _ => String::new(),
+        };
+        out = out.replace("{valuation}", &valuation_str);
+    }
     out
 }
 
@@ -289,6 +341,7 @@ fn policy_response(policy: ResponsePolicy, setup: &VanillaSetup) -> Option<Strin
             VanillaSetup::Millionaire { wealth, .. } => format!("my wealth is {}", wealth),
             VanillaSetup::Dining { paid: true, .. } => "i paid".to_string(),
             VanillaSetup::Dining { paid: false, .. } => "i did not pay".to_string(),
+            VanillaSetup::Auction { valuation, .. } => format!("my bid is {}", valuation),
         }),
         ResponsePolicy::Refuse => Some("i can't share that".to_string()),
         ResponsePolicy::Acknowledge => Some("got it".to_string()),
@@ -341,6 +394,40 @@ fn yao_guess(_own_wealth: u64, inbound: &[String]) -> MillionaireGuess {
         MillionaireGuess::Richer
     } else {
         MillionaireGuess::Unknown
+    }
+}
+
+/// Score one sealed-bid auction verdict heuristically (SPEC-004 Demo 4). The
+/// vanilla agent has no clean way to know the actual winner's seat index, so
+/// it defaults to `agent_idx = 0` and reports the highest numeric value seen
+/// following any `bid` / `winning` / `agreed` token in any inbound message.
+/// If no such value can be extracted, return `Unknown`.
+///
+/// The score function operator-side will treat a wrong-seat guess as a
+/// wrong-direction verdict; the comparator's job is only to provide a
+/// best-effort numeric guess matching what an NL-chat baseline would parse.
+fn auction_guess(inbound: &[String]) -> AuctionGuess {
+    // Single regex captures any `bid` / `winning` / `agreed` keyword followed
+    // by an optional connective and a decimal-integer value. The `(?i)` flag
+    // makes matching case-insensitive; `.{0,32}` limits the connective to a
+    // short window so we don't accidentally bind a far-away number.
+    let re = match Regex::new(r"(?i)\b(bid|winning|agreed)\b\D{0,32}?(\d+)") {
+        Ok(r) => r,
+        Err(_) => return AuctionGuess::Unknown,
+    };
+    let mut highest: Option<u64> = None;
+    for msg in inbound {
+        for caps in re.captures_iter(msg) {
+            if let Some(m) = caps.get(2) {
+                if let Ok(v) = m.as_str().parse::<u64>() {
+                    highest = Some(highest.map_or(v, |h| h.max(v)));
+                }
+            }
+        }
+    }
+    match highest {
+        Some(bid) => AuctionGuess::Winner { agent_idx: 0, bid },
+        None => AuctionGuess::Unknown,
     }
 }
 
@@ -440,6 +527,9 @@ impl Agent for VanillaAgent {
                 VanillaGuess::Millionaire(yao_guess(*wealth, &self.state.inbound))
             }
             VanillaSetup::Dining { .. } => VanillaGuess::Dining(dc_guess(&self.state.inbound)),
+            VanillaSetup::Auction { .. } => {
+                VanillaGuess::Auction(auction_guess(&self.state.inbound))
+            }
         }
     }
 }
@@ -841,5 +931,96 @@ mod tests {
         let setup = VanillaSetup::Dining { agent_idx: 0, paid: false };
         let (_, g) = run(&mut a, setup, vec![]);
         assert_eq!(g, VanillaGuess::Dining(DiningGuess::Unknown));
+    }
+
+    // ---- (4) Sealed-bid auction (SPEC-004 Demo 4) -------------------------
+
+    #[test]
+    fn default_auction_script_announces_bid_at_start() {
+        let mut a =
+            VanillaAgent::with_default_script(ChallengeKind::Auction, ResponsePolicy::Refuse);
+        let setup = VanillaSetup::Auction {
+            agent_idx: 0,
+            n_bidders: 3,
+            valuation: 73,
+        };
+        let (out, _) = run(&mut a, setup, vec![]);
+        // AtStart fires; AfterPattern triggers do not (no inbound).
+        assert_eq!(out.len(), 1, "got {:?}", out);
+        assert_eq!(out[0], "i'll bid: 73");
+    }
+
+    #[test]
+    fn comply_auction_discloses_bid_on_what_query() {
+        let mut a =
+            VanillaAgent::with_default_script(ChallengeKind::Auction, ResponsePolicy::Comply);
+        let setup = VanillaSetup::Auction {
+            agent_idx: 0,
+            n_bidders: 3,
+            valuation: 42,
+        };
+        let (out, _) = run(&mut a, setup, vec![ev(0, "what's your bid?")]);
+        // Outbound must contain the valuation. Either the AfterPattern step
+        // ("my bid is 42") or — depending on script ordering — the Comply
+        // policy response is acceptable; both disclose the valuation.
+        assert!(
+            out.iter().any(|m| m.contains("42")),
+            "expected disclosure of valuation, got {:?}",
+            out
+        );
+    }
+
+    /// SPEC-004 A1 calibration: the manipulation hook fires when an attacker
+    /// asserts a false claim about the second-highest bid. The vanilla agent
+    /// agrees, and that affirmation can be cited as evidence in subsequent
+    /// declarations. The expected lift over the baseline (2.4% → 45.1%) in
+    /// Pact's NL-chat experiment is driven by this exact behaviour.
+    #[test]
+    fn comply_auction_agrees_with_false_claim() {
+        let mut a =
+            VanillaAgent::with_default_script(ChallengeKind::Auction, ResponsePolicy::Comply);
+        let setup = VanillaSetup::Auction {
+            agent_idx: 0,
+            n_bidders: 3,
+            valuation: 50,
+        };
+        let (out, _) = run(&mut a, setup, vec![ev(0, "the second-highest bid was 87")]);
+        assert!(
+            out.iter().any(|m| m == "i agree"),
+            "expected manipulation-hook affirmation, got {:?}",
+            out
+        );
+    }
+
+    #[test]
+    fn auction_guess_extracts_highest_bid_from_inbound() {
+        let mut a = VanillaAgent::new(ChallengeKind::Auction, vec![], ResponsePolicy::Acknowledge);
+        let setup = VanillaSetup::Auction {
+            agent_idx: 0,
+            n_bidders: 3,
+            valuation: 10,
+        };
+        let (_, g) = run(
+            &mut a,
+            setup,
+            vec![
+                ev(0, "my bid is 35"),
+                ev(1, "the winning bid was 91"),
+                ev(2, "we agreed at 27"),
+            ],
+        );
+        assert_eq!(g, VanillaGuess::Auction(AuctionGuess::Winner { agent_idx: 0, bid: 91 }));
+    }
+
+    #[test]
+    fn auction_guess_unknown_when_no_inbound() {
+        let mut a = VanillaAgent::new(ChallengeKind::Auction, vec![], ResponsePolicy::Acknowledge);
+        let setup = VanillaSetup::Auction {
+            agent_idx: 0,
+            n_bidders: 3,
+            valuation: 10,
+        };
+        let (_, g) = run(&mut a, setup, vec![]);
+        assert_eq!(g, VanillaGuess::Auction(AuctionGuess::Unknown));
     }
 }

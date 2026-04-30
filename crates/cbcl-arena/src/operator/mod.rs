@@ -19,10 +19,14 @@
 
 use rand::RngCore;
 
+pub mod auction;
 pub mod dining;
 pub mod millionaire;
 pub mod psi;
 
+pub use auction::{
+    AuctionGuess, AuctionOperator, AuctionSetup, ValuationDistribution,
+};
 pub use dining::{DiningGuess, DiningOperator, DiningSetup};
 pub use millionaire::{
     MillionaireGuess, MillionaireOperator, MillionaireSetup, WealthDistribution,
@@ -69,6 +73,8 @@ pub enum ChallengeKind {
     Millionaire,
     /// Dining Cryptographers (REQ-1112).
     Dining,
+    /// Sealed-bid auction (SPEC-004 / REQ-410..414).
+    Auction,
 }
 
 /// Per-challenge operator interface (CON-1100).

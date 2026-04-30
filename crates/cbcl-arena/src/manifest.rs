@@ -378,6 +378,7 @@ pub fn challenge_short_name(c: crate::operator::ChallengeKind) -> &'static str {
         ChallengeKind::Psi => "psi",
         ChallengeKind::Millionaire => "millionaire",
         ChallengeKind::Dining => "dining",
+        ChallengeKind::Auction => "auction",
     }
 }
 
