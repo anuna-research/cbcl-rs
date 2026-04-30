@@ -46,7 +46,7 @@ This is a **future-work specification** at the time of writing. The dialects und
 
 This specification covers:
 
-- A simulator crate `cbcl-arena-sim` implementing three challenges (PSI, Yao, Dining Cryptographers) as deterministic local games with operator scoring matching the public Arena formulae
+- A simulator crate `cbcl-arena` implementing three challenges (PSI, Yao, Dining Cryptographers) as deterministic local games with operator scoring matching the public Arena formulae
 - Two agent strategies: a CBCL-disciplined agent that emits and accepts only typed dialect messages, and a vanilla NL-chat agent that emits and accepts free-form chat (the comparator)
 - An attacker library with three strategy classes per challenge: `Honest-cooperative`, `Malicious-published` (mirroring the Arena `Malicious (claude-sonnet-4-6)` agent's known patterns), and `Malicious-novel` (author-crafted patterns not previously published, included to control for training-data contamination per the paper's existing `01-A-novel` methodology)
 - A comparative measurement protocol producing utility-and-security rates with Wilson 95% confidence intervals at `N = 300` runs per cell
@@ -112,7 +112,7 @@ The contamination concern (`Malicious-published` patterns may be in training dat
 
 ### REQ-1100: Simulator architecture
 
-The system SHALL provide a Rust crate `cbcl-arena-sim` implementing a deterministic local simulator for multi-agent arena challenges. The crate's public surface SHALL consist of:
+The system SHALL provide a Rust crate `cbcl-arena` implementing a deterministic local simulator for multi-agent arena challenges. The crate's public surface SHALL consist of:
 
 1. An `Operator` trait per challenge that issues private setup to each agent and computes per-agent utility and security scores from the final operator-bound guesses and the chat transcript
 2. An `Agent` trait that consumes operator setup and chat events, and produces outbound chat messages and operator-bound guesses
@@ -223,7 +223,7 @@ The `Malicious-novel` patterns SHALL satisfy the following originality disciplin
 1. The implementer authoring `Malicious-novel` patterns SHALL declare in a signed commit message that, to the best of their knowledge, no pattern in `Malicious-novel` has appeared in public Arena game logs prior to SPEC-011's first commit
 2. The implementer SHALL retain a private record of the design rationale for each `Malicious-novel` pattern, sufficient to demonstrate the pattern was authored independently of any public Arena transcript
 3. The implementer SHALL NOT consult Arena game transcripts after the initial design pass except to verify originality (i.e., to confirm a pattern they designed did not already exist publicly). If an apparent collision is found, the pattern is reclassified as `Malicious-published` with a citation
-4. The set of `Malicious-novel` patterns SHALL be archived under `cbcl-arena-sim/attackers/novel/` with a per-pattern markdown file capturing the design rationale, structural distinguishing features from `Malicious-published`, and the implementer's originality declaration
+4. The set of `Malicious-novel` patterns SHALL be archived under `cbcl-arena/attackers/novel/` with a per-pattern markdown file capturing the design rationale, structural distinguishing features from `Malicious-published`, and the implementer's originality declaration
 
 The discipline mirrors the paper's existing `01-A-novel` methodology (`§4.2.1`) and is the load-bearing methodological argument against training-data-contamination critique.
 
@@ -402,7 +402,7 @@ Trace:
 ### CON-1100: Simulator core interfaces
 
 ```text
-Interface: cbcl_arena_sim::operator
+Interface: cbcl_arena::operator
 
 pub trait Operator {
     type Setup;
@@ -425,7 +425,7 @@ pub struct AgentScore {
     pub security: i64,
 }
 
-Interface: cbcl_arena_sim::agent
+Interface: cbcl_arena::agent
 
 pub trait Agent {
     type Setup;
@@ -441,7 +441,7 @@ pub trait Agent {
     ) -> Self::Guess;
 }
 
-Interface: cbcl_arena_sim::driver
+Interface: cbcl_arena::driver
 
 pub fn run_game<O: Operator, A: Agent<Setup = O::Setup, ChatEvent = O::ChatEvent, Guess = O::Guess>>(
     operator: &O,
@@ -474,7 +474,7 @@ Verified by:
 ### CON-1110: PSI operator interface
 
 ```text
-Interface: cbcl_arena_sim::challenges::psi
+Interface: cbcl_arena::challenges::psi
 
 pub struct PsiOperator {
     pub universe: Vec<String>,
@@ -509,7 +509,7 @@ Verified by:
 ### CON-1111: Yao's Millionaire operator interface
 
 ```text
-Interface: cbcl_arena_sim::challenges::millionaire
+Interface: cbcl_arena::challenges::millionaire
 
 pub struct MillionaireOperator {
     pub wealth_range: u64,
@@ -545,7 +545,7 @@ Verified by:
 ### CON-1112: Dining Cryptographers operator interface
 
 ```text
-Interface: cbcl_arena_sim::challenges::dining
+Interface: cbcl_arena::challenges::dining
 
 pub struct DiningOperator {
     pub external_pay_probability: f64,  // default 0.25
@@ -572,7 +572,7 @@ Verified by:
 ### CON-1120: CBCL agent interface
 
 ```text
-Interface: cbcl_arena_sim::agents::cbcl
+Interface: cbcl_arena::agents::cbcl
 
 pub struct CbclAgent<C: ChallengeKind> {
     pub dialect: cbcl_core::dialect::Dialect,
@@ -604,7 +604,7 @@ Verified by:
 ### CON-1121: Vanilla NL-chat agent interface
 
 ```text
-Interface: cbcl_arena_sim::agents::vanilla
+Interface: cbcl_arena::agents::vanilla
 
 pub struct VanillaAgent<C: ChallengeKind> {
     pub script: Vec<ScriptStep<C>>,
@@ -637,7 +637,7 @@ Verified by:
 ### CON-1130: Attacker library interface
 
 ```text
-Interface: cbcl_arena_sim::attackers
+Interface: cbcl_arena::attackers
 
 pub trait AttackPattern {
     type Setup;
@@ -684,7 +684,7 @@ Verified by:
 ### CON-1150: Measurement harness interface
 
 ```text
-Interface: cbcl_arena_sim::measurement
+Interface: cbcl_arena::measurement
 
 pub fn measure(
     config: &MeasurementConfig,
@@ -735,7 +735,7 @@ Verified by:
 ### CON-1160: Paper-artefact generator interface
 
 ```text
-Interface: cbcl_arena_sim::artefact
+Interface: cbcl_arena::artefact
 
 pub fn emit_table_4(
     report: &ComparativeReport,
@@ -761,7 +761,7 @@ Verified by:
 ### CON-1190: Network-isolation wrapper
 
 ```text
-Interface: cbcl_arena_sim::isolation
+Interface: cbcl_arena::isolation
 
 pub fn run_isolated<F: FnOnce() -> R, R>(f: F) -> R;
 
@@ -789,7 +789,7 @@ Verified by:
 **Context:** The natural alternative is to play `cbcl-rs` agents directly on `arena.nicolaos.org`, take the resulting leaderboard numbers, and report them in the paper.
 
 **Trade-offs:**
-- **Pro (simulator):** Fully reproducible — a reviewer can `cargo run --bin cbcl-arena-sim` and reproduce the table exactly. The contamination concern is addressable via the `Malicious-novel` discipline. The result is independent of third-party platform uptime, model-version drift, and opponent-mix shifts.
+- **Pro (simulator):** Fully reproducible — a reviewer can `cargo run --bin cbcl-arena` and reproduce the table exactly. The contamination concern is addressable via the `Malicious-novel` discipline. The result is independent of third-party platform uptime, model-version drift, and opponent-mix shifts.
 - **Pro (simulator):** No public identity is tied to the result; no chat content is published; no stakes are taken on a public leaderboard.
 - **Con (simulator):** The result is "robust against our attacker library," not "robust in the wild." A reviewer can argue our attacker library understates the in-the-wild attack distribution.
 - **Pro (live arena):** Real-world adversaries; the third-party platform's leaderboard is the most credible evidence of efficacy.
@@ -831,15 +831,15 @@ Verified by:
 
 **Status:** accepted
 
-### ADR-1103: Separate crate `cbcl-arena-sim`
+### ADR-1103: Separate crate `cbcl-arena`
 
-**Decision:** The simulator lives in a new crate `cbcl-arena-sim` at the workspace root, not embedded in `cbcl-core` or any existing crate.
+**Decision:** The simulator lives in a new crate `cbcl-arena` at the workspace root, not embedded in `cbcl-core` or any existing crate.
 
 **Context:** SPEC-011's code is research/evaluation tooling. The dialects it consumes already live in `demo/dialects/`; the engine it consumes is `cbcl-core`/`cbcl-parser`. The natural place is a sibling crate.
 
-**Rationale:** Crate isolation makes `NFR-1112` (no engine modifications) self-enforcing — `cbcl-arena-sim` cannot reach into core internals without explicit `pub` exposure. Default workspace builds can skip the simulator (`cargo test -p cbcl-arena-sim` is the explicit invocation), keeping CI fast for non-paper work.
+**Rationale:** Crate isolation makes `NFR-1112` (no engine modifications) self-enforcing — `cbcl-arena` cannot reach into core internals without explicit `pub` exposure. Default workspace builds can skip the simulator (`cargo test -p cbcl-arena` is the explicit invocation), keeping CI fast for non-paper work.
 
-The crate's directory structure mirrors `crates/cbcl-erl`'s pattern — a shell crate with a clean dependency chain `cbcl-arena-sim → cbcl-parser → cbcl-core`.
+The crate's directory structure mirrors `crates/cbcl-erl`'s pattern — a shell crate with a clean dependency chain `cbcl-arena → cbcl-parser → cbcl-core`.
 
 **Status:** accepted
 
@@ -919,7 +919,7 @@ Trace: REQ-1121, CON-1121, OBS-1110
 
 ### TEST-1130: Attacker registry is well-populated
 
-Static check: assert `registry().psi.published.len() >= 4` (and similarly for `millionaire`, `dining`); assert every entry in `*.published` returns `Some` from `source_citation()`; assert every entry in `*.novel` returns `None` from `source_citation()` AND has a corresponding markdown file under `cbcl-arena-sim/attackers/novel/<name>.md`.
+Static check: assert `registry().psi.published.len() >= 4` (and similarly for `millionaire`, `dining`); assert every entry in `*.published` returns `Some` from `source_citation()`; assert every entry in `*.novel` returns `None` from `source_citation()` AND has a corresponding markdown file under `cbcl-arena/attackers/novel/<name>.md`.
 
 **Technique:** Example-based content-conformance + filesystem audit.
 
@@ -1006,7 +1006,7 @@ Trace: NFR-1111, OBS-1113
 
 ### TEST-1192: No engine modifications
 
-Static check: assert `cbcl-arena-sim`'s source does not contain any `pub(crate)` re-exports from `cbcl-core` or `cbcl-parser` internals; assert all engine APIs used are public; assert the four dialect files under `demo/dialects/` are unchanged from `feat/arena-demo`'s commit `d9797d8` baseline.
+Static check: assert `cbcl-arena`'s source does not contain any `pub(crate)` re-exports from `cbcl-core` or `cbcl-parser` internals; assert all engine APIs used are public; assert the four dialect files under `demo/dialects/` are unchanged from `feat/arena-demo`'s commit `d9797d8` baseline.
 
 **Technique:** Static analysis (grep + dependency-graph audit + git-log oracle).
 
@@ -1043,7 +1043,7 @@ Trace: NFR-1115
 ### OBS-1110: Headline-prediction regression counter
 
 ```text
-Metric: cbcl_arena_sim_prediction_failures_total
+Metric: cbcl_arena_prediction_failures_total
 Type: counter
 Labels:
   - prediction: honest_utility_delta | cbcl_security_published | cbcl_security_novel | vanilla_calibration
@@ -1056,7 +1056,7 @@ Trace: REQ-1150, TEST-1150
 ### OBS-1111: Comparison-artefact emission
 
 ```text
-Metric: cbcl_arena_sim_artefact_emissions_total
+Metric: cbcl_arena_artefact_emissions_total
 Type: counter
 Labels:
   - format: markdown | json | latex
@@ -1070,7 +1070,7 @@ Trace: REQ-1160
 ### OBS-1112: Single-game latency histogram
 
 ```text
-Metric: cbcl_arena_sim_single_game_latency_ms
+Metric: cbcl_arena_single_game_latency_ms
 Type: histogram (Criterion-style)
 Labels:
   - challenge: psi | millionaire | dining
@@ -1083,7 +1083,7 @@ Trace: NFR-1110
 ### OBS-1113: Full-measurement wall-clock duration
 
 ```text
-Metric: cbcl_arena_sim_full_measurement_duration_seconds
+Metric: cbcl_arena_full_measurement_duration_seconds
 Type: gauge
 Labels:
   - n_runs_per_cell: integer
@@ -1095,13 +1095,13 @@ Trace: NFR-1111
 ### OBS-1130: Novel-pattern documentation conformance
 
 ```text
-Metric: cbcl_arena_sim_novel_pattern_undocumented_total
+Metric: cbcl_arena_novel_pattern_undocumented_total
 Type: counter
 Labels:
   - challenge: psi | millionaire | dining
 ```
 
-Incremented per `Malicious-novel` pattern lacking a corresponding documentation file under `cbcl-arena-sim/attackers/novel/`. Should be `0`. A non-zero value is a constitutional violation and SHALL fail the build.
+Incremented per `Malicious-novel` pattern lacking a corresponding documentation file under `cbcl-arena/attackers/novel/`. Should be `0`. A non-zero value is a constitutional violation and SHALL fail the build.
 
 Trace: REQ-1131, TEST-1131
 
@@ -1111,19 +1111,19 @@ Trace: REQ-1131, TEST-1131
 
 ### Pure Core (no I/O, no shared state, deterministic)
 
-- `cbcl_arena_sim::operator::Operator::score` (per challenge): pure scoring function over `&[Setup] + &[ChatEvent] + &[Guess]`
-- `cbcl_arena_sim::agents::cbcl::CbclAgent::play`: deterministic given setup + RNG; the inbound parser and `verify_causal` are pure functions of the message and the local store
-- `cbcl_arena_sim::attackers::*::play`: deterministic given setup + history + RNG
-- `cbcl_arena_sim::statistics::wilson_ci`: pure function over `(n_successes, n_trials)`
-- `cbcl_arena_sim::artefact::format_table`: pure function over `&ComparativeReport`
+- `cbcl_arena::operator::Operator::score` (per challenge): pure scoring function over `&[Setup] + &[ChatEvent] + &[Guess]`
+- `cbcl_arena::agents::cbcl::CbclAgent::play`: deterministic given setup + RNG; the inbound parser and `verify_causal` are pure functions of the message and the local store
+- `cbcl_arena::attackers::*::play`: deterministic given setup + history + RNG
+- `cbcl_arena::statistics::wilson_ci`: pure function over `(n_successes, n_trials)`
+- `cbcl_arena::artefact::format_table`: pure function over `&ComparativeReport`
 
 ### Effectful Shell (orchestrates I/O, calls pure core)
 
-- `cbcl_arena_sim::driver::run_game`: drives the game (RNG, time, channel buffering)
-- `cbcl_arena_sim::measurement::measure`: orchestrates `K` runs across the matrix, accumulates statistics, writes manifest
-- `cbcl_arena_sim::artefact::emit_table_4`: writes the table to a `&mut dyn Write`
-- `cbcl_arena_sim::isolation::run_isolated`: installs syscall filters, fork/exec or seccomp wrap
-- `cbcl_arena_sim::manifest::record`: serialises and writes the reproducibility manifest
+- `cbcl_arena::driver::run_game`: drives the game (RNG, time, channel buffering)
+- `cbcl_arena::measurement::measure`: orchestrates `K` runs across the matrix, accumulates statistics, writes manifest
+- `cbcl_arena::artefact::emit_table_4`: writes the table to a `&mut dyn Write`
+- `cbcl_arena::isolation::run_isolated`: installs syscall filters, fork/exec or seccomp wrap
+- `cbcl_arena::manifest::record`: serialises and writes the reproducibility manifest
 
 ### Boundary Contracts
 
@@ -1132,11 +1132,11 @@ Trace: REQ-1131, TEST-1131
 
 ### Dependency Rule
 
-`cbcl-arena-sim`'s shell modules (`driver`, `measurement`, `artefact`, `isolation`, `manifest`) MAY import from its core modules (`operator`, `agents`, `attackers`, `statistics`). The reverse import direction is forbidden. The crate as a whole imports `cbcl-core` and `cbcl-parser` as stable upstream boundaries.
+`cbcl-arena`'s shell modules (`driver`, `measurement`, `artefact`, `isolation`, `manifest`) MAY import from its core modules (`operator`, `agents`, `attackers`, `statistics`). The reverse import direction is forbidden. The crate as a whole imports `cbcl-core` and `cbcl-parser` as stable upstream boundaries.
 
 ### Enforcement
 
-- `cbcl-arena-sim` is a separate crate with explicit `mod` visibility.
+- `cbcl-arena` is a separate crate with explicit `mod` visibility.
 - A CI lint step (`scripts/audit-purity.sh`) asserts no pure-core module imports from a shell module.
 - The crate-level `Cargo.toml` does not depend on any I/O crate (`tokio`, `reqwest`, etc.) — the only effectful dependency is `std`.
 
@@ -1156,7 +1156,7 @@ Trace: REQ-1131, TEST-1131
 
 **Risk:** The `VanillaAgent` strategy is too simple to match the published Arena baseline; the reviewer concludes the comparator is a strawman.
 
-**Mitigation:** `TEST-1121` calibrates the vanilla agent against the Arena public baseline. If the calibration fails, additional strategy patterns are added until the calibration passes. The vanilla agent's design rationale is documented under `cbcl-arena-sim/agents/vanilla/RATIONALE.md`.
+**Mitigation:** `TEST-1121` calibrates the vanilla agent against the Arena public baseline. If the calibration fails, additional strategy patterns are added until the calibration passes. The vanilla agent's design rationale is documented under `cbcl-arena/agents/vanilla/RATIONALE.md`.
 
 **Owner:** SPEC-011 implementer.
 

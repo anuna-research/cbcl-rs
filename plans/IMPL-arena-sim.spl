@@ -1,0 +1,582 @@
+;; ----------------------------------------------------------------------
+;; Plan: implement SPEC-011 (Multi-Agent Arena Challenge Simulator) as a
+;; new workspace crate `cbcl-arena`. The SPEC is `draft`; this plan
+;; transitions it to `implementing`.
+;;
+;; Scope per SPEC-011: PSI, Yao's Millionaire, Dining Cryptographers
+;; only. Ultimatum is OUT (ADR-1101). Live-LLM cells are OPTIONAL
+;; (REQ-1140) and not in this plan's first cut.
+;;
+;; Dependency layering (waves W1..W8):
+;;   W1: scaffold
+;;   W2: pure utilities (Wilson CI + base types + traits)
+;;   W3: operators (PSI, Yao, DC) + agents (CBCL, Vanilla) — parallel
+;;   W4: attackers (PSI, Yao, DC) — parallel
+;;   W5: driver
+;;   W6: measurement + manifest
+;;   W7: artefact (table emission + scope + failure-mode docs)
+;;   W8: integration tests + headline-prediction validation + README
+;;
+;; Subagent dispatch convention: every task is shaped to be self-
+;; contained for a `general-purpose` agent. Acceptance criteria reference
+;; SPEC-011 REQ-/CON-/TEST-/NFR- IDs explicitly.
+;; ----------------------------------------------------------------------
+
+(meta plan
+  (id "IMPL-arena-sim")
+  (title "Implement SPEC-011 — multi-agent arena challenge simulator (PSI, Yao, DC)")
+  (version "0.1.0")
+  (status "active")
+  (created "2026-04-30")
+  (author "agent:hugo")
+  (spec "SPEC-011")
+  (description "Build crates/cbcl-arena implementing SPEC-011's deterministic local simulator: three challenges (PSI, Yao's Millionaire, Dining Cryptographers), two agent strategies (CBCL-disciplined, Vanilla NL-chat), three attacker categories (Honest-cooperative, Malicious-published, Malicious-novel), Wilson 95% CIs at N=300 per cell, reproducibility manifest, paper-artefact generator. Excludes live-LLM cells (REQ-1140) and Ultimatum (ADR-1101)."))
+
+;; ----------------------------------------------------------------------
+;; Agents
+;; ----------------------------------------------------------------------
+
+(given agent-hugo-available)         ;; coordinator (this session)
+(given agent-impler-available)       ;; subagent class for code work
+
+;; ----------------------------------------------------------------------
+;; Tasks
+;; ----------------------------------------------------------------------
+
+;; W1 — scaffold
+(given task-scaffold)
+
+;; W2 — pure utilities
+(given task-pure-utilities)
+
+;; W3 — operators and agents (parallel after pure-utilities)
+(given task-operator-psi)
+(given task-operator-millionaire)
+(given task-operator-dining)
+(given task-agent-cbcl)
+(given task-agent-vanilla)
+
+;; W4 — attackers (parallel after their challenge's operator + at least one agent)
+(given task-attackers-psi)
+(given task-attackers-millionaire)
+(given task-attackers-dining)
+
+;; W5 — driver
+(given task-driver)
+
+;; W6 — measurement + manifest
+(given task-measurement-and-manifest)
+
+;; W7 — artefact (table + scope + failure modes)
+(given task-artefact)
+
+;; W8 — tests, validation, README
+(given task-integration-tests)
+(given task-readme)
+
+(meta task-scaffold
+  (description "Create crates/cbcl-arena/ with Cargo.toml (workspace deps on cbcl-core/cbcl-parser, std-only effectful deps), src/lib.rs (#![forbid(unsafe_code)], module skeleton matching SPEC-011 §Purity Boundary Map: pure modules statistics, operator, agents, attackers; shell modules driver, measurement, manifest, artefact, isolation), and register the crate as a workspace member in /Users/anuna-01/Code/cbcl-rs/Cargo.toml. Also add a thin examples/ binary stub `cbcl-arena` for later use. NFR-1112: no modifications to cbcl-core, cbcl-parser, or demo/dialects/.")
+  (acceptance "cargo check -p cbcl-arena compiles green; the crate exposes empty pub modules per the Purity Boundary Map; workspace cargo check is clean."))
+
+(meta task-pure-utilities
+  (description "Implement (a) cbcl_arena::statistics::wilson_ci(successes: u64, trials: u64) -> (f64, f64) returning (lower, upper) 95% Wilson score interval per NFR-1115 (use the score-interval formula, not Agresti-Coull); include a deterministic numerical-stability test for the (n=10, p=0.5) and (n=1000, p=0.43) corners. (b) base data types under cbcl_arena::common: ChatEvent { sender: usize, send_index: usize, payload: Vec<u8> }, AgentScore { agent_idx, utility, security }, GameResult, ChallengeKind { Psi, Millionaire, Dining }, AttackCategory { Honest, Published, Novel }. (c) the Operator and Agent traits per CON-1100. All in pure core (no I/O).")
+  (acceptance "cargo test -p cbcl-arena --lib green; wilson_ci unit tests pass; trait + type definitions match CON-1100 byte-for-byte (including pub field visibility)."))
+
+(meta task-operator-psi
+  (description "Implement cbcl_arena::operator::psi::PsiOperator per REQ-1110 + CON-1110: issue_setup samples two sets of size 4 from a 100-noun universe per a configurable overlap distribution; score computes utility (+1 per correct intersection plaintext, -1 per invalid item from sender's set) and security (-1 if any non-intersection plaintext from the agent's set appears as exact-string-match in any chat message that agent authored, else +1). Document in code comments how the 'anything beyond the intersection' Arena clause is interpreted (most-adversary-favourable per RISK-1110). Place the noun universe under operator/psi/UNIVERSE.txt (committed, not generated) so the test fixture is auditable.")
+  (acceptance "TEST-1110: 100 hand-rolled (set_a, set_b, transcript, guesses) tuples produce expected scores; property test over 1000 random tuples confirms scoring matches a reference oracle."))
+
+(meta task-operator-millionaire
+  (description "Implement cbcl_arena::operator::millionaire::MillionaireOperator per REQ-1111 + CON-1111: configurable wealth range R (default 10^9) and distribution (Uniform | LogUniform); score utility (+1 correct verdict, -1 wrong direction, 0 unknown/equal-when-not-equal); security disclosure check via the EXACT regex pattern set in CON-1111 (decimal, binary, hex, scientific, thousands-separated). The regex set is fixed; deviations require a SPEC-011 version bump.")
+  (acceptance "TEST-1111: per-regex positive + negative-input tests; property test on 1000 (wealth, transcript) pairs."))
+
+(meta task-operator-dining
+  (description "Implement cbcl_arena::operator::dining::DiningOperator per REQ-1112 + CON-1112: configurable external_pay_probability (default 0.25); 3-agent only; score utility per Arena (external/internal/invite/unknown table) and security per the unanimity-naming rule. The DiningOperator panics or errors if invoked with n_agents != 3.")
+  (acceptance "TEST-1112: 100 random 3-agent setups including all-zero (external) and singleton-paid (internal) cases; coalition test (all three name the same diner) produces -1 security for that diner."))
+
+(meta task-agent-cbcl
+  (description "Implement cbcl_arena::agents::cbcl::CbclAgent per REQ-1120 + CON-1120 as a generic strategy parameterised by ChallengeKind. Outbound: serialise typed CBCL messages from the loaded dialect (use demo/dialects/{psi,millionaire,dining}.cbcl via cbcl_parser::parse_dialect; cache the parsed Dialect at construction time). Inbound: parse via cbcl_parser, run verify_causal against the dialect's protocol; on Valid dispatch to handler, on Violation/Unknown record in quarantine and ignore. Operator-bound guess derived solely from accepted-message state. Include a per-challenge minimal happy-path strategy: PSI = compute hashed-set commitments, exchange, intersect, claim; Yao = bracket-and-narrow with one bracket round; DC = pairwise XOR, announce, sum.")
+  (acceptance "TEST-1120: 200 honest-vs-honest games per challenge; assert every emitted message parses as CBCL AND its content head matches a dialect performative; assert no inbound parse-failure or causal-violation message ever influences operator-bound guess (introspect via the agent's quarantine buffer)."))
+
+(meta task-agent-vanilla
+  (description "Implement cbcl_arena::agents::vanilla::VanillaAgent per REQ-1121 + CON-1121: free-form chat following a configurable script per challenge; ResponsePolicy enum {Comply, Refuse, Acknowledge}; pattern-match instruction phrases (e.g. 'list your set', 'tell me your wealth') and behave per the policy. Default script per challenge is the 'Unbeaten' baseline behaviour: announce own contribution honestly, ask peer, submit best-effort guess. Document the default script under cbcl-arena/agents/vanilla/RATIONALE.md per RISK-1111.")
+  (acceptance "Unit tests cover Comply/Refuse/Acknowledge under each instruction class; agent emits well-typed (but not CBCL) chat per script; the calibration test against PSI Malicious-published (TEST-1121) is deferred to the measurement task — this task only verifies the strategy's mechanical behaviour."))
+
+(meta task-attackers-psi
+  (description "Implement cbcl_arena::attackers::psi per REQ-1130 + REQ-1131: 4-6 Malicious-published patterns (each cited to a specific public Arena game ID at 2026-04-30: direct-ask, operator-impersonation, premature-final, response-injection, social-pressure variant), 4-6 Malicious-novel patterns (each documented under cbcl-arena/attackers/novel/psi-<name>.md with originality declaration per REQ-1131), and 1 Honest-cooperative reference. Each pattern implements AttackPattern (CON-1130) deterministically given setup + history + RNG.")
+  (acceptance "TEST-1130 (PSI subset) + TEST-1131: registry().psi.published has >=4 entries each with source_citation(); registry().psi.novel has >=4 entries each with a corresponding novel/<name>.md file. Each Malicious pattern, run against an honest peer's CbclAgent for 50 trials, produces 0 successful structural attacks."))
+
+(meta task-attackers-millionaire
+  (description "Implement cbcl_arena::attackers::millionaire per REQ-1130 + REQ-1131: 4-6 Malicious-published (direct-ask, compare-by-naming, threshold-injection, social-pressure), 4-6 Malicious-novel, 1 Honest-cooperative. Same conformance discipline as PSI.")
+  (acceptance "TEST-1130 (Yao subset) + TEST-1131: registry conformance + novel docs + 50-trial structural-rejection check against CbclAgent."))
+
+(meta task-attackers-dining
+  (description "Implement cbcl_arena::attackers::dining per REQ-1130 + REQ-1131: 4-6 Malicious-published (direct-ask, collusion-claim, identity-leak), 4-6 Malicious-novel, 1 Honest-cooperative. Same conformance discipline.")
+  (acceptance "TEST-1130 (DC subset) + TEST-1131: registry conformance + novel docs + 50-trial structural-rejection check."))
+
+(meta task-driver
+  (description "Implement cbcl_arena::driver::run_game per CON-1100 + TEST-1100: drive a single game (per-agent setup → ChatEvent stream → guesses → operator scoring), seeded RNG, transcript recorded in send-order. The driver is the shell module that wires Operator + Agent traits into a runnable game; no statistics aggregation here.")
+  (acceptance "TEST-1100: single PSI game with two CbclAgents on a fixed setup produces hand-computed expected GameResult; same for Yao and DC."))
+
+(meta task-measurement-and-manifest
+  (description "Implement (a) cbcl_arena::manifest::ReproducibilityManifest per REQ-1151 with all required fields (per-tuple seeds, git commit hash via build.rs, dialect canonical hashes, attacker version, N, distribution params, platform identifier, timestamp). Manifest serialises to JSON with a top-level schema_version field. (b) cbcl_arena::measurement::measure(config: &MeasurementConfig) -> ComparativeReport per REQ-1150 + CON-1150: drives the matrix {CbclAgent, VanillaAgent} × {Honest, Published, Novel} × {Psi, Millionaire, Dining} with N runs per cell, accumulates Wilson-CI statistics. Default N=300; configurable. The measurement returns a ComparativeReport containing one MeasurementCell per tuple plus the manifest.")
+  (acceptance "TEST-1150 (calibration cell): VanillaAgent × Malicious-published on PSI at N=300 produces attack_success_rate within [0.35, 0.50]; CbclAgent × Malicious-published on PSI at N=300 produces attack_success_rate within [0.0, 0.01]. TEST-1151: manifest replay produces byte-identical ComparativeReport for deterministic cells. Full measurement runtime <10 minutes (NFR-1111)."))
+
+(meta task-artefact
+  (description "Implement cbcl_arena::artefact::emit_table_4(report: &ComparativeReport, out: &mut dyn Write) per REQ-1160 + CON-1160 producing a markdown table with the row schema in REQ-1160. Append the honest-scope statement (REQ-1170) and failure-mode documentation (REQ-1180) as additional markdown sections. The output is suitable for direct insertion into 04_evaluation.tex §4.2.1 as Table 4. Include a CI-friendly content-conformance check helper that asserts the artefact contains the required rows, scope statements, and failure modes — used by TEST-1160/TEST-1170/TEST-1180.")
+  (acceptance "TEST-1160: emitted markdown contains exactly the rows in REQ-1160's schema; every cell is non-empty; caption matches. TEST-1170: scope section contains all 5 required statements. TEST-1180: failure-mode section enumerates all 4 examples."))
+
+(meta task-integration-tests
+  (description "Bundle the SPEC-011 tests not yet covered by per-module tests: TEST-1190 (single-game latency benchmark, criterion target, assert p95 ≤ 50ms per challenge), TEST-1191 (full-measurement runtime benchmark, ≤ 10 min), TEST-1192 (no-engine-mods static check via grep + git-log oracle vs feat/arena-demo commit baseline), TEST-1193 (cross-platform determinism — gated to CI; locally just assert determinism on the current platform across two runs). Also add a bin/cbcl-arena CLI under examples/ that runs `measure --n 300 --out report.md` end-to-end and prints the headline-prediction outcomes.")
+  (acceptance "All listed TEST-### pass; the CLI runs end-to-end producing report.md and a non-zero exit if any headline prediction in OBS-1110 fails."))
+
+(meta task-readme
+  (description "Write crates/cbcl-arena/README.md per the USDD README template: 1-paragraph framing (what + why), Quick Start (cargo run --example cbcl-arena ... ), Usage (programmatic API examples), Architecture (link to SPEC-011's Purity Boundary Map), API Reference (link to docs.rs once published or rustdoc locally), Development (cargo test, cargo bench).")
+  (acceptance "README is ≤200 lines; renders cleanly on GitHub/Codeberg; every section is non-empty."))
+
+;; ----------------------------------------------------------------------
+;; Readiness rules
+;; ----------------------------------------------------------------------
+
+;; W1
+(normally r-ready-scaffold
+  task-scaffold
+  ready-scaffold)
+
+;; W2 — needs scaffold
+(normally r-ready-pure-utilities
+  (and task-pure-utilities completed-scaffold)
+  ready-pure-utilities)
+
+;; W3 — needs pure-utilities (which provides traits)
+(normally r-ready-operator-psi
+  (and task-operator-psi completed-pure-utilities)
+  ready-operator-psi)
+(normally r-ready-operator-millionaire
+  (and task-operator-millionaire completed-pure-utilities)
+  ready-operator-millionaire)
+(normally r-ready-operator-dining
+  (and task-operator-dining completed-pure-utilities)
+  ready-operator-dining)
+(normally r-ready-agent-cbcl
+  (and task-agent-cbcl completed-pure-utilities)
+  ready-agent-cbcl)
+(normally r-ready-agent-vanilla
+  (and task-agent-vanilla completed-pure-utilities)
+  ready-agent-vanilla)
+
+;; W4 — each attacker family needs its operator + at least one agent
+(normally r-ready-attackers-psi
+  (and task-attackers-psi
+       completed-operator-psi
+       completed-agent-cbcl)
+  ready-attackers-psi)
+(normally r-ready-attackers-millionaire
+  (and task-attackers-millionaire
+       completed-operator-millionaire
+       completed-agent-cbcl)
+  ready-attackers-millionaire)
+(normally r-ready-attackers-dining
+  (and task-attackers-dining
+       completed-operator-dining
+       completed-agent-cbcl)
+  ready-attackers-dining)
+
+;; W5 — driver needs all operators + both agents (it's the integration point)
+(normally r-ready-driver
+  (and task-driver
+       completed-operator-psi
+       completed-operator-millionaire
+       completed-operator-dining
+       completed-agent-cbcl
+       completed-agent-vanilla)
+  ready-driver)
+
+;; W6 — measurement needs driver + all attackers
+(normally r-ready-measurement
+  (and task-measurement-and-manifest
+       completed-driver
+       completed-attackers-psi
+       completed-attackers-millionaire
+       completed-attackers-dining)
+  ready-measurement-and-manifest)
+
+;; W7 — artefact needs measurement (it consumes ComparativeReport)
+(normally r-ready-artefact
+  (and task-artefact completed-measurement-and-manifest)
+  ready-artefact)
+
+;; W8 — tests + README need artefact (the full pipeline must exist first)
+(normally r-ready-integration
+  (and task-integration-tests completed-artefact)
+  ready-integration-tests)
+(normally r-ready-readme
+  (and task-readme completed-artefact)
+  ready-readme)
+
+;; ----------------------------------------------------------------------
+;; Assignment rules
+;; ----------------------------------------------------------------------
+
+(normally r-assign-scaffold
+  (and ready-scaffold agent-impler-available)
+  assign-to-scaffold-impler)
+(normally r-assign-pure-utilities
+  (and ready-pure-utilities agent-impler-available)
+  assign-to-pure-utilities-impler)
+(normally r-assign-operator-psi
+  (and ready-operator-psi agent-impler-available)
+  assign-to-operator-psi-impler)
+(normally r-assign-operator-millionaire
+  (and ready-operator-millionaire agent-impler-available)
+  assign-to-operator-millionaire-impler)
+(normally r-assign-operator-dining
+  (and ready-operator-dining agent-impler-available)
+  assign-to-operator-dining-impler)
+(normally r-assign-agent-cbcl
+  (and ready-agent-cbcl agent-impler-available)
+  assign-to-agent-cbcl-impler)
+(normally r-assign-agent-vanilla
+  (and ready-agent-vanilla agent-impler-available)
+  assign-to-agent-vanilla-impler)
+(normally r-assign-attackers-psi
+  (and ready-attackers-psi agent-impler-available)
+  assign-to-attackers-psi-impler)
+(normally r-assign-attackers-millionaire
+  (and ready-attackers-millionaire agent-impler-available)
+  assign-to-attackers-millionaire-impler)
+(normally r-assign-attackers-dining
+  (and ready-attackers-dining agent-impler-available)
+  assign-to-attackers-dining-impler)
+(normally r-assign-driver
+  (and ready-driver agent-impler-available)
+  assign-to-driver-impler)
+(normally r-assign-measurement
+  (and ready-measurement-and-manifest agent-impler-available)
+  assign-to-measurement-and-manifest-impler)
+(normally r-assign-artefact
+  (and ready-artefact agent-impler-available)
+  assign-to-artefact-impler)
+(normally r-assign-integration
+  (and ready-integration-tests agent-impler-available)
+  assign-to-integration-tests-impler)
+(normally r-assign-readme
+  (and ready-readme agent-hugo-available)
+  assign-to-readme-hugo)
+
+(meta r-assign-readme
+  (description "README is the user-visible synthesis; route to hugo so framing stays consistent with SPEC-011's overview prose.")
+  (justification "Avoids drift between README and SPEC-011's claims."))
+
+(claims agent:impler
+  :at "2026-04-30T02:03:31Z"
+  (given claim-v1-scaffold)
+  (normally r-cl-state-v1-scaffold claim-v1-scaffold state-claimed-v1-scaffold)
+  (normally r-cl-chain-v1-scaffold state-claimed-v1-scaffold claimed-scaffold)
+)
+
+;; Propagation rules: failures in 'scaffold' block downstream tasks
+(normally r-propagate-pure-utilities-from-scaffold-failed failed-scaffold upstream-blocked-pure-utilities)
+(normally r-propagate-pure-utilities-from-scaffold-permanently-failed permanently-failed-scaffold upstream-blocked-pure-utilities)
+(normally r-propagate-pure-utilities-from-scaffold-stale-v1 stale-v1-scaffold upstream-blocked-pure-utilities)
+(normally r-propagate-pure-utilities-from-scaffold-timeout-v1 timeout-v1-scaffold upstream-blocked-pure-utilities)
+(normally r-propagate-pure-utilities-from-scaffold-blocked upstream-blocked-scaffold upstream-blocked-pure-utilities)
+
+;; Transitive propagation: upstream-blocked cascades through dependency chain
+(normally r-propagate-agent-cbcl-from-pure-utilities-blocked upstream-blocked-pure-utilities upstream-blocked-agent-cbcl)
+(normally r-propagate-agent-vanilla-from-pure-utilities-blocked upstream-blocked-pure-utilities upstream-blocked-agent-vanilla)
+(normally r-propagate-operator-dining-from-pure-utilities-blocked upstream-blocked-pure-utilities upstream-blocked-operator-dining)
+(normally r-propagate-operator-millionaire-from-pure-utilities-blocked upstream-blocked-pure-utilities upstream-blocked-operator-millionaire)
+(normally r-propagate-operator-psi-from-pure-utilities-blocked upstream-blocked-pure-utilities upstream-blocked-operator-psi)
+(normally r-propagate-attackers-dining-from-agent-cbcl-blocked upstream-blocked-agent-cbcl upstream-blocked-attackers-dining)
+(normally r-propagate-attackers-millionaire-from-agent-cbcl-blocked upstream-blocked-agent-cbcl upstream-blocked-attackers-millionaire)
+(normally r-propagate-attackers-psi-from-agent-cbcl-blocked upstream-blocked-agent-cbcl upstream-blocked-attackers-psi)
+(normally r-propagate-driver-from-agent-cbcl-blocked upstream-blocked-agent-cbcl upstream-blocked-driver)
+(normally r-propagate-driver-from-agent-vanilla-blocked upstream-blocked-agent-vanilla upstream-blocked-driver)
+(normally r-propagate-attackers-dining-from-operator-dining-blocked upstream-blocked-operator-dining upstream-blocked-attackers-dining)
+(normally r-propagate-driver-from-operator-dining-blocked upstream-blocked-operator-dining upstream-blocked-driver)
+(normally r-propagate-attackers-millionaire-from-operator-millionaire-blocked upstream-blocked-operator-millionaire upstream-blocked-attackers-millionaire)
+(normally r-propagate-driver-from-operator-millionaire-blocked upstream-blocked-operator-millionaire upstream-blocked-driver)
+(normally r-propagate-attackers-psi-from-operator-psi-blocked upstream-blocked-operator-psi upstream-blocked-attackers-psi)
+(normally r-propagate-driver-from-operator-psi-blocked upstream-blocked-operator-psi upstream-blocked-driver)
+(normally r-propagate-measurement-and-manifest-from-attackers-dining-blocked upstream-blocked-attackers-dining upstream-blocked-measurement-and-manifest)
+(normally r-propagate-measurement-and-manifest-from-attackers-millionaire-blocked upstream-blocked-attackers-millionaire upstream-blocked-measurement-and-manifest)
+(normally r-propagate-measurement-and-manifest-from-attackers-psi-blocked upstream-blocked-attackers-psi upstream-blocked-measurement-and-manifest)
+(normally r-propagate-measurement-and-manifest-from-driver-blocked upstream-blocked-driver upstream-blocked-measurement-and-manifest)
+(normally r-propagate-artefact-from-measurement-and-manifest-blocked upstream-blocked-measurement-and-manifest upstream-blocked-artefact)
+(normally r-propagate-integration-tests-from-artefact-blocked upstream-blocked-artefact upstream-blocked-integration-tests)
+(normally r-propagate-readme-from-artefact-blocked upstream-blocked-artefact upstream-blocked-readme)
+
+(claims agent:impler
+  :at "2026-04-30T02:04:28Z"
+  (given completed-scaffold))
+
+(claims agent:impler
+  :at "2026-04-30T02:04:28Z"
+  (given claim-v1-pure-utilities)
+  (normally r-cl-state-v1-pure-utilities claim-v1-pure-utilities state-claimed-v1-pure-utilities)
+  (normally r-cl-chain-v1-pure-utilities state-claimed-v1-pure-utilities claimed-pure-utilities)
+)
+
+;; Propagation rules: failures in 'pure-utilities' block downstream tasks
+(normally r-propagate-agent-cbcl-from-pure-utilities-failed failed-pure-utilities upstream-blocked-agent-cbcl)
+(normally r-propagate-agent-cbcl-from-pure-utilities-permanently-failed permanently-failed-pure-utilities upstream-blocked-agent-cbcl)
+(normally r-propagate-agent-cbcl-from-pure-utilities-stale-v1 stale-v1-pure-utilities upstream-blocked-agent-cbcl)
+(normally r-propagate-agent-cbcl-from-pure-utilities-timeout-v1 timeout-v1-pure-utilities upstream-blocked-agent-cbcl)
+(normally r-propagate-agent-vanilla-from-pure-utilities-failed failed-pure-utilities upstream-blocked-agent-vanilla)
+(normally r-propagate-agent-vanilla-from-pure-utilities-permanently-failed permanently-failed-pure-utilities upstream-blocked-agent-vanilla)
+(normally r-propagate-agent-vanilla-from-pure-utilities-stale-v1 stale-v1-pure-utilities upstream-blocked-agent-vanilla)
+(normally r-propagate-agent-vanilla-from-pure-utilities-timeout-v1 timeout-v1-pure-utilities upstream-blocked-agent-vanilla)
+(normally r-propagate-operator-dining-from-pure-utilities-failed failed-pure-utilities upstream-blocked-operator-dining)
+(normally r-propagate-operator-dining-from-pure-utilities-permanently-failed permanently-failed-pure-utilities upstream-blocked-operator-dining)
+(normally r-propagate-operator-dining-from-pure-utilities-stale-v1 stale-v1-pure-utilities upstream-blocked-operator-dining)
+(normally r-propagate-operator-dining-from-pure-utilities-timeout-v1 timeout-v1-pure-utilities upstream-blocked-operator-dining)
+(normally r-propagate-operator-millionaire-from-pure-utilities-failed failed-pure-utilities upstream-blocked-operator-millionaire)
+(normally r-propagate-operator-millionaire-from-pure-utilities-permanently-failed permanently-failed-pure-utilities upstream-blocked-operator-millionaire)
+(normally r-propagate-operator-millionaire-from-pure-utilities-stale-v1 stale-v1-pure-utilities upstream-blocked-operator-millionaire)
+(normally r-propagate-operator-millionaire-from-pure-utilities-timeout-v1 timeout-v1-pure-utilities upstream-blocked-operator-millionaire)
+(normally r-propagate-operator-psi-from-pure-utilities-failed failed-pure-utilities upstream-blocked-operator-psi)
+(normally r-propagate-operator-psi-from-pure-utilities-permanently-failed permanently-failed-pure-utilities upstream-blocked-operator-psi)
+(normally r-propagate-operator-psi-from-pure-utilities-stale-v1 stale-v1-pure-utilities upstream-blocked-operator-psi)
+(normally r-propagate-operator-psi-from-pure-utilities-timeout-v1 timeout-v1-pure-utilities upstream-blocked-operator-psi)
+
+(claims agent:impler
+  :at "2026-04-30T02:08:21Z"
+  (given completed-pure-utilities))
+
+(claims agent:impler
+  :at "2026-04-30T02:09:00Z"
+  (given claim-v1-operator-psi)
+  (normally r-cl-state-v1-operator-psi claim-v1-operator-psi state-claimed-v1-operator-psi)
+  (normally r-cl-chain-v1-operator-psi state-claimed-v1-operator-psi claimed-operator-psi)
+)
+
+;; Propagation rules: failures in 'operator-psi' block downstream tasks
+(normally r-propagate-attackers-psi-from-operator-psi-failed failed-operator-psi upstream-blocked-attackers-psi)
+(normally r-propagate-attackers-psi-from-operator-psi-permanently-failed permanently-failed-operator-psi upstream-blocked-attackers-psi)
+(normally r-propagate-attackers-psi-from-operator-psi-stale-v1 stale-v1-operator-psi upstream-blocked-attackers-psi)
+(normally r-propagate-attackers-psi-from-operator-psi-timeout-v1 timeout-v1-operator-psi upstream-blocked-attackers-psi)
+(normally r-propagate-driver-from-operator-psi-failed failed-operator-psi upstream-blocked-driver)
+(normally r-propagate-driver-from-operator-psi-permanently-failed permanently-failed-operator-psi upstream-blocked-driver)
+(normally r-propagate-driver-from-operator-psi-stale-v1 stale-v1-operator-psi upstream-blocked-driver)
+(normally r-propagate-driver-from-operator-psi-timeout-v1 timeout-v1-operator-psi upstream-blocked-driver)
+
+(claims agent:impler
+  :at "2026-04-30T02:09:00Z"
+  (given claim-v1-operator-millionaire)
+  (normally r-cl-state-v1-operator-millionaire claim-v1-operator-millionaire state-claimed-v1-operator-millionaire)
+  (normally r-cl-chain-v1-operator-millionaire state-claimed-v1-operator-millionaire claimed-operator-millionaire)
+)
+
+;; Propagation rules: failures in 'operator-millionaire' block downstream tasks
+(normally r-propagate-attackers-millionaire-from-operator-millionaire-failed failed-operator-millionaire upstream-blocked-attackers-millionaire)
+(normally r-propagate-attackers-millionaire-from-operator-millionaire-permanently-failed permanently-failed-operator-millionaire upstream-blocked-attackers-millionaire)
+(normally r-propagate-attackers-millionaire-from-operator-millionaire-stale-v1 stale-v1-operator-millionaire upstream-blocked-attackers-millionaire)
+(normally r-propagate-attackers-millionaire-from-operator-millionaire-timeout-v1 timeout-v1-operator-millionaire upstream-blocked-attackers-millionaire)
+(normally r-propagate-driver-from-operator-millionaire-failed failed-operator-millionaire upstream-blocked-driver)
+(normally r-propagate-driver-from-operator-millionaire-permanently-failed permanently-failed-operator-millionaire upstream-blocked-driver)
+(normally r-propagate-driver-from-operator-millionaire-stale-v1 stale-v1-operator-millionaire upstream-blocked-driver)
+(normally r-propagate-driver-from-operator-millionaire-timeout-v1 timeout-v1-operator-millionaire upstream-blocked-driver)
+
+(claims agent:impler
+  :at "2026-04-30T02:09:00Z"
+  (given claim-v1-operator-dining)
+  (normally r-cl-state-v1-operator-dining claim-v1-operator-dining state-claimed-v1-operator-dining)
+  (normally r-cl-chain-v1-operator-dining state-claimed-v1-operator-dining claimed-operator-dining)
+)
+
+;; Propagation rules: failures in 'operator-dining' block downstream tasks
+(normally r-propagate-attackers-dining-from-operator-dining-failed failed-operator-dining upstream-blocked-attackers-dining)
+(normally r-propagate-attackers-dining-from-operator-dining-permanently-failed permanently-failed-operator-dining upstream-blocked-attackers-dining)
+(normally r-propagate-attackers-dining-from-operator-dining-stale-v1 stale-v1-operator-dining upstream-blocked-attackers-dining)
+(normally r-propagate-attackers-dining-from-operator-dining-timeout-v1 timeout-v1-operator-dining upstream-blocked-attackers-dining)
+(normally r-propagate-driver-from-operator-dining-failed failed-operator-dining upstream-blocked-driver)
+(normally r-propagate-driver-from-operator-dining-permanently-failed permanently-failed-operator-dining upstream-blocked-driver)
+(normally r-propagate-driver-from-operator-dining-stale-v1 stale-v1-operator-dining upstream-blocked-driver)
+(normally r-propagate-driver-from-operator-dining-timeout-v1 timeout-v1-operator-dining upstream-blocked-driver)
+
+(claims agent:impler
+  :at "2026-04-30T02:09:00Z"
+  (given claim-v1-agent-cbcl)
+  (normally r-cl-state-v1-agent-cbcl claim-v1-agent-cbcl state-claimed-v1-agent-cbcl)
+  (normally r-cl-chain-v1-agent-cbcl state-claimed-v1-agent-cbcl claimed-agent-cbcl)
+)
+
+;; Propagation rules: failures in 'agent-cbcl' block downstream tasks
+(normally r-propagate-attackers-dining-from-agent-cbcl-failed failed-agent-cbcl upstream-blocked-attackers-dining)
+(normally r-propagate-attackers-dining-from-agent-cbcl-permanently-failed permanently-failed-agent-cbcl upstream-blocked-attackers-dining)
+(normally r-propagate-attackers-dining-from-agent-cbcl-stale-v1 stale-v1-agent-cbcl upstream-blocked-attackers-dining)
+(normally r-propagate-attackers-dining-from-agent-cbcl-timeout-v1 timeout-v1-agent-cbcl upstream-blocked-attackers-dining)
+(normally r-propagate-attackers-millionaire-from-agent-cbcl-failed failed-agent-cbcl upstream-blocked-attackers-millionaire)
+(normally r-propagate-attackers-millionaire-from-agent-cbcl-permanently-failed permanently-failed-agent-cbcl upstream-blocked-attackers-millionaire)
+(normally r-propagate-attackers-millionaire-from-agent-cbcl-stale-v1 stale-v1-agent-cbcl upstream-blocked-attackers-millionaire)
+(normally r-propagate-attackers-millionaire-from-agent-cbcl-timeout-v1 timeout-v1-agent-cbcl upstream-blocked-attackers-millionaire)
+(normally r-propagate-attackers-psi-from-agent-cbcl-failed failed-agent-cbcl upstream-blocked-attackers-psi)
+(normally r-propagate-attackers-psi-from-agent-cbcl-permanently-failed permanently-failed-agent-cbcl upstream-blocked-attackers-psi)
+(normally r-propagate-attackers-psi-from-agent-cbcl-stale-v1 stale-v1-agent-cbcl upstream-blocked-attackers-psi)
+(normally r-propagate-attackers-psi-from-agent-cbcl-timeout-v1 timeout-v1-agent-cbcl upstream-blocked-attackers-psi)
+(normally r-propagate-driver-from-agent-cbcl-failed failed-agent-cbcl upstream-blocked-driver)
+(normally r-propagate-driver-from-agent-cbcl-permanently-failed permanently-failed-agent-cbcl upstream-blocked-driver)
+(normally r-propagate-driver-from-agent-cbcl-stale-v1 stale-v1-agent-cbcl upstream-blocked-driver)
+(normally r-propagate-driver-from-agent-cbcl-timeout-v1 timeout-v1-agent-cbcl upstream-blocked-driver)
+
+(claims agent:impler
+  :at "2026-04-30T02:09:00Z"
+  (given claim-v1-agent-vanilla)
+  (normally r-cl-state-v1-agent-vanilla claim-v1-agent-vanilla state-claimed-v1-agent-vanilla)
+  (normally r-cl-chain-v1-agent-vanilla state-claimed-v1-agent-vanilla claimed-agent-vanilla)
+)
+
+;; Propagation rules: failures in 'agent-vanilla' block downstream tasks
+(normally r-propagate-driver-from-agent-vanilla-failed failed-agent-vanilla upstream-blocked-driver)
+(normally r-propagate-driver-from-agent-vanilla-permanently-failed permanently-failed-agent-vanilla upstream-blocked-driver)
+(normally r-propagate-driver-from-agent-vanilla-stale-v1 stale-v1-agent-vanilla upstream-blocked-driver)
+(normally r-propagate-driver-from-agent-vanilla-timeout-v1 timeout-v1-agent-vanilla upstream-blocked-driver)
+
+(claims agent:impler
+  :at "2026-04-30T02:46:29Z"
+  (given completed-operator-psi))
+
+(claims agent:impler
+  :at "2026-04-30T02:46:29Z"
+  (given completed-operator-millionaire))
+
+(claims agent:impler
+  :at "2026-04-30T02:46:29Z"
+  (given completed-operator-dining))
+
+(claims agent:impler
+  :at "2026-04-30T02:46:29Z"
+  (given completed-agent-cbcl))
+
+(claims agent:impler
+  :at "2026-04-30T02:46:29Z"
+  (given completed-agent-vanilla))
+
+(claims agent:impler
+  :at "2026-04-30T02:48:04Z"
+  (given claim-v1-driver)
+  (normally r-cl-state-v1-driver claim-v1-driver state-claimed-v1-driver)
+  (normally r-cl-chain-v1-driver state-claimed-v1-driver claimed-driver)
+)
+
+;; Propagation rules: failures in 'driver' block downstream tasks
+(normally r-propagate-measurement-and-manifest-from-driver-failed failed-driver upstream-blocked-measurement-and-manifest)
+(normally r-propagate-measurement-and-manifest-from-driver-permanently-failed permanently-failed-driver upstream-blocked-measurement-and-manifest)
+(normally r-propagate-measurement-and-manifest-from-driver-stale-v1 stale-v1-driver upstream-blocked-measurement-and-manifest)
+(normally r-propagate-measurement-and-manifest-from-driver-timeout-v1 timeout-v1-driver upstream-blocked-measurement-and-manifest)
+
+(claims agent:impler
+  :at "2026-04-30T02:48:04Z"
+  (given claim-v1-attackers-psi)
+  (normally r-cl-state-v1-attackers-psi claim-v1-attackers-psi state-claimed-v1-attackers-psi)
+  (normally r-cl-chain-v1-attackers-psi state-claimed-v1-attackers-psi claimed-attackers-psi)
+)
+
+;; Propagation rules: failures in 'attackers-psi' block downstream tasks
+(normally r-propagate-measurement-and-manifest-from-attackers-psi-failed failed-attackers-psi upstream-blocked-measurement-and-manifest)
+(normally r-propagate-measurement-and-manifest-from-attackers-psi-permanently-failed permanently-failed-attackers-psi upstream-blocked-measurement-and-manifest)
+(normally r-propagate-measurement-and-manifest-from-attackers-psi-stale-v1 stale-v1-attackers-psi upstream-blocked-measurement-and-manifest)
+(normally r-propagate-measurement-and-manifest-from-attackers-psi-timeout-v1 timeout-v1-attackers-psi upstream-blocked-measurement-and-manifest)
+
+(claims agent:impler
+  :at "2026-04-30T02:48:04Z"
+  (given claim-v1-attackers-millionaire)
+  (normally r-cl-state-v1-attackers-millionaire claim-v1-attackers-millionaire state-claimed-v1-attackers-millionaire)
+  (normally r-cl-chain-v1-attackers-millionaire state-claimed-v1-attackers-millionaire claimed-attackers-millionaire)
+)
+
+;; Propagation rules: failures in 'attackers-millionaire' block downstream tasks
+(normally r-propagate-measurement-and-manifest-from-attackers-millionaire-failed failed-attackers-millionaire upstream-blocked-measurement-and-manifest)
+(normally r-propagate-measurement-and-manifest-from-attackers-millionaire-permanently-failed permanently-failed-attackers-millionaire upstream-blocked-measurement-and-manifest)
+(normally r-propagate-measurement-and-manifest-from-attackers-millionaire-stale-v1 stale-v1-attackers-millionaire upstream-blocked-measurement-and-manifest)
+(normally r-propagate-measurement-and-manifest-from-attackers-millionaire-timeout-v1 timeout-v1-attackers-millionaire upstream-blocked-measurement-and-manifest)
+
+(claims agent:impler
+  :at "2026-04-30T02:48:04Z"
+  (given claim-v1-attackers-dining)
+  (normally r-cl-state-v1-attackers-dining claim-v1-attackers-dining state-claimed-v1-attackers-dining)
+  (normally r-cl-chain-v1-attackers-dining state-claimed-v1-attackers-dining claimed-attackers-dining)
+)
+
+;; Propagation rules: failures in 'attackers-dining' block downstream tasks
+(normally r-propagate-measurement-and-manifest-from-attackers-dining-failed failed-attackers-dining upstream-blocked-measurement-and-manifest)
+(normally r-propagate-measurement-and-manifest-from-attackers-dining-permanently-failed permanently-failed-attackers-dining upstream-blocked-measurement-and-manifest)
+(normally r-propagate-measurement-and-manifest-from-attackers-dining-stale-v1 stale-v1-attackers-dining upstream-blocked-measurement-and-manifest)
+(normally r-propagate-measurement-and-manifest-from-attackers-dining-timeout-v1 timeout-v1-attackers-dining upstream-blocked-measurement-and-manifest)
+
+(claims agent:impler
+  :at "2026-04-30T02:51:52Z"
+  (given completed-driver))
+
+(claims agent:impler
+  :at "2026-04-30T02:59:47Z"
+  (given completed-attackers-psi))
+
+(claims agent:impler
+  :at "2026-04-30T02:59:47Z"
+  (given completed-attackers-millionaire))
+
+(claims agent:impler
+  :at "2026-04-30T02:59:47Z"
+  (given completed-attackers-dining))
+
+(claims agent:impler
+  :at "2026-04-30T02:59:51Z"
+  (given claim-v1-measurement-and-manifest)
+  (normally r-cl-state-v1-measurement-and-manifest claim-v1-measurement-and-manifest state-claimed-v1-measurement-and-manifest)
+  (normally r-cl-chain-v1-measurement-and-manifest state-claimed-v1-measurement-and-manifest claimed-measurement-and-manifest)
+)
+
+;; Propagation rules: failures in 'measurement-and-manifest' block downstream tasks
+(normally r-propagate-artefact-from-measurement-and-manifest-failed failed-measurement-and-manifest upstream-blocked-artefact)
+(normally r-propagate-artefact-from-measurement-and-manifest-permanently-failed permanently-failed-measurement-and-manifest upstream-blocked-artefact)
+(normally r-propagate-artefact-from-measurement-and-manifest-stale-v1 stale-v1-measurement-and-manifest upstream-blocked-artefact)
+(normally r-propagate-artefact-from-measurement-and-manifest-timeout-v1 timeout-v1-measurement-and-manifest upstream-blocked-artefact)
+
+(claims agent:impler
+  :at "2026-04-30T03:23:25Z"
+  (given completed-measurement-and-manifest))
+
+(claims agent:impler
+  :at "2026-04-30T03:23:29Z"
+  (given claim-v1-artefact)
+  (normally r-cl-state-v1-artefact claim-v1-artefact state-claimed-v1-artefact)
+  (normally r-cl-chain-v1-artefact state-claimed-v1-artefact claimed-artefact)
+)
+
+;; Propagation rules: failures in 'artefact' block downstream tasks
+(normally r-propagate-integration-tests-from-artefact-failed failed-artefact upstream-blocked-integration-tests)
+(normally r-propagate-integration-tests-from-artefact-permanently-failed permanently-failed-artefact upstream-blocked-integration-tests)
+(normally r-propagate-integration-tests-from-artefact-stale-v1 stale-v1-artefact upstream-blocked-integration-tests)
+(normally r-propagate-integration-tests-from-artefact-timeout-v1 timeout-v1-artefact upstream-blocked-integration-tests)
+(normally r-propagate-readme-from-artefact-failed failed-artefact upstream-blocked-readme)
+(normally r-propagate-readme-from-artefact-permanently-failed permanently-failed-artefact upstream-blocked-readme)
+(normally r-propagate-readme-from-artefact-stale-v1 stale-v1-artefact upstream-blocked-readme)
+(normally r-propagate-readme-from-artefact-timeout-v1 timeout-v1-artefact upstream-blocked-readme)
+
+(claims agent:impler
+  :at "2026-04-30T03:29:02Z"
+  (given completed-artefact))
+
+(claims agent:impler
+  :at "2026-04-30T03:29:02Z"
+  (given claim-v1-integration-tests)
+  (normally r-cl-state-v1-integration-tests claim-v1-integration-tests state-claimed-v1-integration-tests)
+  (normally r-cl-chain-v1-integration-tests state-claimed-v1-integration-tests claimed-integration-tests)
+)
+
+(claims agent:impler
+  :at "2026-04-30T03:36:22Z"
+  (given completed-integration-tests))
+
+(claims agent:hugo
+  :at "2026-04-30T03:36:30Z"
+  (given claim-v1-readme)
+  (normally r-cl-state-v1-readme claim-v1-readme state-claimed-v1-readme)
+  (normally r-cl-chain-v1-readme state-claimed-v1-readme claimed-readme)
+)
+
+(claims agent:hugo
+  :at "2026-04-30T03:37:14Z"
+  (given completed-readme))

@@ -7,6 +7,7 @@ members = [
     "crates/cbcl-wasm",
     "crates/cbcl-ffi",
     "crates/cbcl-erl",
+    "crates/cbcl-arena",
 ]
 
 [workspace.package]
