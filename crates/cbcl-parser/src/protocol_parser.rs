@@ -7,7 +7,7 @@
 
 use alloc::collections::BTreeMap;
 use alloc::collections::BTreeSet;
-use alloc::string::String;
+use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use cbcl_core::protocol::{CausalProtocol, NodeRef, StepDecl};
 use cbcl_core::sexpr::{Atom, SExpr};
