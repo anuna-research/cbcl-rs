@@ -46,7 +46,7 @@ pub use adapters::{
     AuctionDisciplinedAdapter, DiningDisciplinedAdapter, PsiDisciplinedAdapter,
     YaoDisciplinedAdapter,
 };
-pub use backends::{ClaudeBackend, OpenAIBackend};
+pub use backends::{ClaudeBackend, CodexBackend, OpenAIBackend};
 pub use seat::DisciplinedSeat;
 
 pub use crate::glm::{
