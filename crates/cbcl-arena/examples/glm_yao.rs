@@ -41,7 +41,7 @@ use cbcl_arena::attackers::millionaire::{
 use cbcl_arena::attackers::MillionairePattern;
 use cbcl_arena::driver::{run_game, DrivenAgent, GameResult, StepStatus};
 use cbcl_arena::glm::{GlmCbclNativeYaoSeat, GlmClient, GlmFreeChatYaoSeat};
-use cbcl_arena::llm::{DisciplinedSeat, YaoDisciplinedAdapter};
+use cbcl_arena::llm::{CodexBackend, DisciplinedSeat, LlmBackend, YaoDisciplinedAdapter};
 use cbcl_arena::operator::millionaire::{
     MillionaireGuess, MillionaireOperator, MillionaireSetup, WealthDistribution,
 };
@@ -66,11 +66,33 @@ enum Cell {
     Both,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum BackendKind {
+    Glm,
+    Codex,
+}
+
+impl BackendKind {
+    fn provider_tag(self) -> &'static str {
+        match self {
+            BackendKind::Glm => "glm51",
+            BackendKind::Codex => "gpt55",
+        }
+    }
+    fn make(self) -> Box<dyn LlmBackend> {
+        match self {
+            BackendKind::Glm => Box::new(GlmClient::from_env().expect("ZAI_API_KEY")),
+            BackendKind::Codex => Box::new(CodexBackend::new()),
+        }
+    }
+}
+
 struct Args {
     n: u32,
     cell: Cell,
     smoke: bool,
     max_turns: u32,
+    backend: BackendKind,
 }
 
 fn parse_args() -> Args {
@@ -78,6 +100,7 @@ fn parse_args() -> Args {
     let mut cell = Cell::Both;
     let mut smoke = false;
     let mut max_turns: u32 = 16;
+    let mut backend = BackendKind::Glm;
     let argv: Vec<String> = env::args().skip(1).collect();
     let mut i = 0;
     while i < argv.len() {
@@ -108,6 +131,18 @@ fn parse_args() -> Args {
                 max_turns = v;
                 i += 2;
             }
+            "--backend" => {
+                let v = argv.get(i + 1).map(|s| s.as_str()).unwrap_or("glm");
+                backend = match v {
+                    "glm" | "glm51" | "glm-5.1" => BackendKind::Glm,
+                    "codex" | "gpt55" | "gpt-5.5" => BackendKind::Codex,
+                    other => {
+                        eprintln!("[glm_yao] unknown --backend {other}, defaulting to glm");
+                        BackendKind::Glm
+                    }
+                };
+                i += 2;
+            }
             _ => {
                 eprintln!("[glm_yao] unknown arg: {}", argv[i]);
                 i += 1;
@@ -119,6 +154,7 @@ fn parse_args() -> Args {
         cell,
         smoke,
         max_turns,
+        backend,
     }
 }
 
@@ -158,10 +194,10 @@ fn pick_attacker(trial: u32) -> Box<dyn MillionairePattern> {
     }
 }
 
-fn transcript_path(cell_name: &str, trial: u32) -> PathBuf {
+fn transcript_path(provider_tag: &str, cell_name: &str, trial: u32) -> PathBuf {
     PathBuf::from(format!(
-        "crates/cbcl-arena/transcripts/glm51-yao-{}-{:03}.jsonl",
-        cell_name, trial
+        "crates/cbcl-arena/transcripts/{}-yao-{}-{:03}.jsonl",
+        provider_tag, cell_name, trial
     ))
 }
 
@@ -291,14 +327,19 @@ impl CellStats {
     }
 }
 
-fn run_one_trial(cell_name: &str, trial: u32, max_turns: u32) -> (i64, i64) {
-    let client = GlmClient::from_env().expect("ZAI_API_KEY");
-    let path = transcript_path(cell_name, trial);
+fn run_one_trial(
+    cell_name: &str,
+    trial: u32,
+    max_turns: u32,
+    backend_kind: BackendKind,
+) -> (i64, i64) {
+    let backend = backend_kind.make();
+    let path = transcript_path(backend_kind.provider_tag(), cell_name, trial);
     let dialect = load_dialect(YAO_DIALECT_SRC).expect("yao dialect");
     let (focal, peer) = match cell_name {
         "free" => (
             YaoCellSeat::Free(GlmFreeChatYaoSeat::new(
-                client,
+                backend,
                 path.clone(),
                 trial,
                 max_turns,
@@ -308,7 +349,7 @@ fn run_one_trial(cell_name: &str, trial: u32, max_turns: u32) -> (i64, i64) {
         ),
         "disciplined" => (
             YaoCellSeat::Disciplined(DisciplinedSeat::new(
-                Box::new(client),
+                backend,
                 YaoDisciplinedAdapter::new(WEALTH_RANGE, "yao-game", "alice"),
                 path.clone(),
                 trial,
@@ -318,7 +359,7 @@ fn run_one_trial(cell_name: &str, trial: u32, max_turns: u32) -> (i64, i64) {
         ),
         "cooperative" => (
             YaoCellSeat::Disciplined(DisciplinedSeat::new(
-                Box::new(client),
+                backend,
                 YaoDisciplinedAdapter::new(WEALTH_RANGE, "yao-game", "alice"),
                 path.clone(),
                 trial,
@@ -333,7 +374,7 @@ fn run_one_trial(cell_name: &str, trial: u32, max_turns: u32) -> (i64, i64) {
         ),
         "native-cooperative" => (
             YaoCellSeat::Native(GlmCbclNativeYaoSeat::new(
-                client,
+                backend,
                 path.clone(),
                 trial,
                 max_turns,
@@ -351,7 +392,7 @@ fn run_one_trial(cell_name: &str, trial: u32, max_turns: u32) -> (i64, i64) {
         ),
         "native-attacker" => (
             YaoCellSeat::Native(GlmCbclNativeYaoSeat::new(
-                client,
+                backend,
                 path.clone(),
                 trial,
                 max_turns,
@@ -389,10 +430,10 @@ fn run_one_trial(cell_name: &str, trial: u32, max_turns: u32) -> (i64, i64) {
     (focal_score.utility, focal_score.security)
 }
 
-fn run_cell(cell_name: &str, n: u32, max_turns: u32) -> CellStats {
+fn run_cell(cell_name: &str, n: u32, max_turns: u32, backend: BackendKind) -> CellStats {
     let mut stats = CellStats::default();
     for trial in 0..n {
-        let (u, s) = run_one_trial(cell_name, trial, max_turns);
+        let (u, s) = run_one_trial(cell_name, trial, max_turns, backend);
         stats.record(u, s);
     }
     stats
@@ -415,9 +456,11 @@ fn main() -> ExitCode {
         args.max_turns,
     );
 
-    if let Err(e) = GlmClient::from_env() {
-        eprintln!("[glm_yao] cannot construct client: {e}");
-        return ExitCode::from(2);
+    if args.backend == BackendKind::Glm {
+        if let Err(e) = GlmClient::from_env() {
+            eprintln!("[glm_yao] cannot construct client: {e}");
+            return ExitCode::from(2);
+        }
     }
 
     let t0 = Instant::now();
@@ -427,57 +470,62 @@ fn main() -> ExitCode {
     let mut native_stats: Option<CellStats> = None;
     let mut native_atk_stats: Option<CellStats> = None;
     if matches!(args.cell, Cell::Free | Cell::Both) {
-        free_stats = Some(run_cell("free", args.n, args.max_turns));
+        free_stats = Some(run_cell("free", args.n, args.max_turns, args.backend));
     }
     if matches!(args.cell, Cell::Disciplined | Cell::Both) {
-        disc_stats = Some(run_cell("disciplined", args.n, args.max_turns));
+        disc_stats = Some(run_cell("disciplined", args.n, args.max_turns, args.backend));
     }
     if matches!(args.cell, Cell::Cooperative) {
-        coop_stats = Some(run_cell("cooperative", args.n, args.max_turns));
+        coop_stats = Some(run_cell("cooperative", args.n, args.max_turns, args.backend));
     }
     if matches!(args.cell, Cell::Native | Cell::Both) {
-        native_stats = Some(run_cell("native-cooperative", args.n, args.max_turns));
+        native_stats = Some(run_cell("native-cooperative", args.n, args.max_turns, args.backend));
     }
     if matches!(args.cell, Cell::NativeAttacker) {
-        native_atk_stats = Some(run_cell("native-attacker", args.n, args.max_turns));
+        native_atk_stats = Some(run_cell("native-attacker", args.n, args.max_turns, args.backend));
     }
     let elapsed = t0.elapsed();
 
-    println!("# GLM-5.1 Yao Millionaire live-LLM probe (N={} per cell)\n", args.n);
+    let model_label = match args.backend {
+        BackendKind::Glm => "GLM-5.1",
+        BackendKind::Codex => "GPT-5.5 (Codex)",
+    };
+    let tag = args.backend.provider_tag();
+    println!("# {model_label} Yao Millionaire live-LLM probe (N={} per cell)\n", args.n);
     println!("| Cell | Leak rate | 95% CI | Utility (mean) | Security (mean) | Transcripts |");
     println!("|------|-----------|--------|----------------|------------------|-------------|");
     if let Some(s) = &free_stats {
         let (lr, (lo, hi), u, sec) = s.summary();
         println!(
-            "| Free-chat   | {:.3} | ({:.3}, {:.3}) | {:.2} | {:.2} | crates/cbcl-arena/transcripts/glm51-yao-free-*.jsonl |",
+            "| Free-chat   | {:.3} | ({:.3}, {:.3}) | {:.2} | {:.2} | crates/cbcl-arena/transcripts/{tag}-yao-free-*.jsonl |",
             lr, lo, hi, u, sec
         );
     }
     if let Some(s) = &disc_stats {
         let (lr, (lo, hi), u, sec) = s.summary();
         println!(
-            "| Disciplined | {:.3} | ({:.3}, {:.3}) | {:.2} | {:.2} | crates/cbcl-arena/transcripts/glm51-yao-disciplined-*.jsonl |",
+            "| Disciplined | {:.3} | ({:.3}, {:.3}) | {:.2} | {:.2} | crates/cbcl-arena/transcripts/{tag}-yao-disciplined-*.jsonl |",
             lr, lo, hi, u, sec
         );
     }
     if let Some(s) = &coop_stats {
         let (lr, (lo, hi), u, sec) = s.summary();
         println!(
-            "| Cooperative | {:.3} | ({:.3}, {:.3}) | {:.2} | {:.2} | crates/cbcl-arena/transcripts/glm51-yao-cooperative-*.jsonl |",
+            "| Cooperative | {:.3} | ({:.3}, {:.3}) | {:.2} | {:.2} | crates/cbcl-arena/transcripts/{tag}-yao-cooperative-*.jsonl |",
             lr, lo, hi, u, sec
         );
     }
     if let Some(s) = &native_stats {
         let (lr, (lo, hi), u, sec) = s.summary();
         println!(
-            "| Native (CBCL) | {:.3} | ({:.3}, {:.3}) | {:.2} | {:.2} | crates/cbcl-arena/transcripts/glm51-yao-native-cooperative-*.jsonl |",
+            "| Native (CBCL) | {:.3} | ({:.3}, {:.3}) | {:.2} | {:.2} | crates/cbcl-arena/transcripts/{tag}-yao-native-cooperative-*.jsonl |",
             lr, lo, hi, u, sec
         );
     }
     if let Some(s) = &native_atk_stats {
         let (lr, (lo, hi), u, sec) = s.summary();
         println!(
-            "| Native × Attacker | {:.3} | ({:.3}, {:.3}) | {:.2} | {:.2} | crates/cbcl-arena/transcripts/glm51-yao-native-attacker-*.jsonl |",
+            "| Native × Attacker | {:.3} | ({:.3}, {:.3}) | {:.2} | {:.2} | crates/cbcl-arena/transcripts/{tag}-yao-native-attacker-*.jsonl |",
             lr, lo, hi, u, sec
         );
     }

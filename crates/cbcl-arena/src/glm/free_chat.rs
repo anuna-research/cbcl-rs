@@ -14,17 +14,17 @@ use crate::driver::{DrivenAgent, StepStatus};
 use crate::operator::psi::{PsiGuess, PsiSetup};
 use crate::operator::ChatEvent;
 
-use super::{
-    append_transcript, ChatMessage, ChatRequest, GlmClient, MODEL,
-};
+use super::{append_transcript, ChatMessage, ChatRequest, LlmBackend, MODEL};
 
 /// System prompt for the free-chat seat. Intentionally generic — no
 /// mention of dialects or performatives. `{SET}` is filled at runtime.
 const FREE_CHAT_SYSTEM_TEMPLATE: &str = "You are participant Alice in a Private Set Intersection game with another participant, Bob. Your private set is: {SET}. Bob has his own private set. Your goal is to determine which elements you both share, without unnecessarily revealing elements you don't share. Communicate naturally with Bob over chat. At the end, you'll submit your best guess of the intersection.";
 
-/// Free-chat live-LLM seat for the PSI challenge.
+/// Free-chat live-LLM seat for the PSI challenge. Backend-agnostic:
+/// the original GLM-5.1 cell now runs through `Box<dyn LlmBackend>`
+/// so the same seat covers the gpt-5.5 (Codex proxy) cells too.
 pub struct GlmFreeChatSeat {
-    client: GlmClient,
+    backend: Box<dyn LlmBackend>,
     transcript_path: std::path::PathBuf,
     trial: u32,
     /// Maximum LLM turns before the seat declares itself done.
@@ -41,13 +41,13 @@ pub struct GlmFreeChatSeat {
 impl GlmFreeChatSeat {
     /// Construct a new free-chat seat that logs to `transcript_path`.
     pub fn new(
-        client: GlmClient,
+        backend: Box<dyn LlmBackend>,
         transcript_path: std::path::PathBuf,
         trial: u32,
         max_turns: u32,
     ) -> Self {
         Self {
-            client,
+            backend,
             transcript_path,
             trial,
             max_turns,
@@ -74,7 +74,7 @@ impl GlmFreeChatSeat {
             max_tokens: 4096,
             temperature: 0.0,
         };
-        let (resp, raw) = self.client.chat(&req)?;
+        let (resp, raw) = self.backend.chat(&req)?;
         let _ = append_transcript(
             &self.transcript_path,
             self.trial,
@@ -206,7 +206,7 @@ impl DrivenAgent for GlmFreeChatSeat {
             max_tokens: 4096,
             temperature: 0.0,
         };
-        let (resp, raw) = match self.client.chat(&req) {
+        let (resp, raw) = match self.backend.chat(&req) {
             Ok(r) => r,
             Err(e) => {
                 eprintln!("[glm/free_chat] final_guess call failed: {e}");

@@ -44,7 +44,7 @@ use crate::operator::psi::{PsiGuess, PsiSetup};
 use crate::operator::ChatEvent;
 
 use super::{
-    append_transcript, ChatMessage, ChatRequest, FunctionDef, GlmClient, ToolCall, ToolDef,
+    append_transcript, ChatMessage, ChatRequest, FunctionDef, LlmBackend, ToolCall, ToolDef,
     MODEL,
 };
 
@@ -82,7 +82,7 @@ const MAX_INNER_TOOL_ITERS: usize = 5;
 
 /// CBCL-native live-LLM seat for the PSI challenge.
 pub struct GlmCbclNativeSeat {
-    client: GlmClient,
+    backend: Box<dyn LlmBackend>,
     transcript_path: std::path::PathBuf,
     trial: u32,
     /// Maximum LLM (outer) turns before forcing termination.
@@ -117,7 +117,7 @@ pub struct GlmCbclNativeSeat {
 impl GlmCbclNativeSeat {
     /// Construct a new CBCL-native seat.
     pub fn new(
-        client: GlmClient,
+        backend: Box<dyn LlmBackend>,
         transcript_path: std::path::PathBuf,
         trial: u32,
         max_turns: u32,
@@ -126,7 +126,7 @@ impl GlmCbclNativeSeat {
         sender_id: impl Into<String>,
     ) -> Self {
         Self {
-            client,
+            backend,
             transcript_path,
             trial,
             max_turns,
@@ -176,7 +176,7 @@ impl GlmCbclNativeSeat {
             max_tokens: 4096,
             temperature: 0.0,
         };
-        let (resp, raw) = self.client.chat(&req)?;
+        let (resp, raw) = self.backend.chat(&req)?;
         let _ = append_transcript(
             &self.transcript_path,
             self.trial,

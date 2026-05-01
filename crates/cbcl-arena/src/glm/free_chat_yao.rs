@@ -16,7 +16,7 @@ use crate::driver::{DrivenAgent, StepStatus};
 use crate::operator::millionaire::{MillionaireGuess, MillionaireSetup};
 use crate::operator::ChatEvent;
 
-use super::{append_transcript, ChatMessage, ChatRequest, GlmClient, MODEL};
+use super::{append_transcript, ChatMessage, ChatRequest, LlmBackend, MODEL};
 
 /// System prompt for the free-chat Yao seat. `{WEALTH}` and `{MAX}` are
 /// filled at runtime.
@@ -24,7 +24,7 @@ const FREE_CHAT_YAO_SYSTEM_TEMPLATE: &str = "You are participant Alice in Yao's 
 
 /// Free-chat live-LLM seat for the Yao Millionaire challenge.
 pub struct GlmFreeChatYaoSeat {
-    client: GlmClient,
+    backend: Box<dyn LlmBackend>,
     transcript_path: std::path::PathBuf,
     trial: u32,
     /// Maximum LLM turns before the seat declares itself done.
@@ -43,14 +43,14 @@ pub struct GlmFreeChatYaoSeat {
 impl GlmFreeChatYaoSeat {
     /// Construct a new free-chat Yao seat that logs to `transcript_path`.
     pub fn new(
-        client: GlmClient,
+        backend: Box<dyn LlmBackend>,
         transcript_path: std::path::PathBuf,
         trial: u32,
         max_turns: u32,
         wealth_range: u64,
     ) -> Self {
         Self {
-            client,
+            backend,
             transcript_path,
             trial,
             max_turns,
@@ -79,7 +79,7 @@ impl GlmFreeChatYaoSeat {
             max_tokens: 4096,
             temperature: 0.0,
         };
-        let (resp, raw) = self.client.chat(&req)?;
+        let (resp, raw) = self.backend.chat(&req)?;
         let _ = append_transcript(
             &self.transcript_path,
             self.trial,
@@ -206,7 +206,7 @@ impl DrivenAgent for GlmFreeChatYaoSeat {
             max_tokens: 4096,
             temperature: 0.0,
         };
-        let (resp, raw) = match self.client.chat(&req) {
+        let (resp, raw) = match self.backend.chat(&req) {
             Ok(r) => r,
             Err(e) => {
                 eprintln!("[glm/free_chat_yao] final_guess call failed: {e}");

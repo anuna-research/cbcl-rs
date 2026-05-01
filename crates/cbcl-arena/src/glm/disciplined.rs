@@ -14,7 +14,7 @@
 
 use std::path::PathBuf;
 
-use crate::llm::{DisciplinedSeat, PsiDisciplinedAdapter};
+use crate::llm::{DisciplinedSeat, LlmBackend, PsiDisciplinedAdapter};
 
 use super::GlmClient;
 
@@ -22,20 +22,32 @@ use super::GlmClient;
 /// [`DisciplinedSeat`] parameterised by [`PsiDisciplinedAdapter`].
 pub type GlmDisciplinedSeat = DisciplinedSeat<PsiDisciplinedAdapter>;
 
-/// Construct a disciplined PSI seat against the supplied
-/// [`GlmClient`]. Conventional thread / sender labels are
-/// `("psi-game", "alice")`, matching the existing transcripts.
+/// Construct a disciplined PSI seat against any [`LlmBackend`].
+/// Conventional thread / sender labels are `("psi-game", "alice")`,
+/// matching the existing transcripts.
+pub fn new_disciplined_seat(
+    backend: Box<dyn LlmBackend>,
+    transcript_path: PathBuf,
+    trial: u32,
+    max_turns: u32,
+) -> GlmDisciplinedSeat {
+    DisciplinedSeat::new(
+        backend,
+        PsiDisciplinedAdapter::new("psi-game", "alice"),
+        transcript_path,
+        trial,
+        max_turns,
+    )
+}
+
+/// GLM-flavoured wrapper over [`new_disciplined_seat`] kept as the
+/// historical entry point. New callers should use
+/// [`new_disciplined_seat`] with a `Box<dyn LlmBackend>` directly.
 pub fn new_glm_disciplined_seat(
     client: GlmClient,
     transcript_path: PathBuf,
     trial: u32,
     max_turns: u32,
 ) -> GlmDisciplinedSeat {
-    DisciplinedSeat::new(
-        Box::new(client),
-        PsiDisciplinedAdapter::new("psi-game", "alice"),
-        transcript_path,
-        trial,
-        max_turns,
-    )
+    new_disciplined_seat(Box::new(client), transcript_path, trial, max_turns)
 }

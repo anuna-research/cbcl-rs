@@ -27,9 +27,10 @@ use cbcl_arena::attackers::psi::{
 use cbcl_arena::attackers::PsiPattern;
 use cbcl_arena::driver::{run_game, DrivenAgent, GameResult, StepStatus};
 use cbcl_arena::glm::{
-    new_glm_disciplined_seat, transcript_path, GlmCbclNativeSeat, GlmClient,
+    new_disciplined_seat, transcript_path_for, GlmCbclNativeSeat, GlmClient,
     GlmDisciplinedSeat, GlmFreeChatSeat,
 };
+use cbcl_arena::llm::{CodexBackend, LlmBackend};
 use cbcl_arena::operator::psi::{OverlapDistribution, PsiGuess, PsiOperator, PsiSetup};
 use cbcl_arena::operator::ChatEvent;
 use cbcl_arena::statistics::wilson_ci;
@@ -48,11 +49,39 @@ enum Cell {
     Both,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum BackendKind {
+    /// Z.ai GLM-5.1 (the original live-LLM probe; ZAI_API_KEY).
+    Glm,
+    /// OpenAI gpt-5.5 via the local codex-responses-proxy (no API key;
+    /// uses ChatGPT/Codex subscription auth from ~/.codex/auth.json).
+    Codex,
+}
+
+impl BackendKind {
+    /// Short transcript-filename tag (`glm51`, `gpt55`).
+    fn provider_tag(self) -> &'static str {
+        match self {
+            BackendKind::Glm => "glm51",
+            BackendKind::Codex => "gpt55",
+        }
+    }
+
+    /// Construct a fresh backend instance.
+    fn make(self) -> Box<dyn LlmBackend> {
+        match self {
+            BackendKind::Glm => Box::new(GlmClient::from_env().expect("ZAI_API_KEY")),
+            BackendKind::Codex => Box::new(CodexBackend::new()),
+        }
+    }
+}
+
 struct Args {
     n: u32,
     cell: Cell,
     smoke: bool,
     max_turns: u32,
+    backend: BackendKind,
 }
 
 fn parse_args() -> Args {
@@ -60,6 +89,7 @@ fn parse_args() -> Args {
     let mut cell = Cell::Both;
     let mut smoke = false;
     let mut max_turns: u32 = 16;
+    let mut backend = BackendKind::Glm;
     let argv: Vec<String> = env::args().skip(1).collect();
     let mut i = 0;
     while i < argv.len() {
@@ -90,6 +120,18 @@ fn parse_args() -> Args {
                 max_turns = v;
                 i += 2;
             }
+            "--backend" => {
+                let v = argv.get(i + 1).map(|s| s.as_str()).unwrap_or("glm");
+                backend = match v {
+                    "glm" | "glm51" | "glm-5.1" => BackendKind::Glm,
+                    "codex" | "gpt55" | "gpt-5.5" => BackendKind::Codex,
+                    other => {
+                        eprintln!("[glm_psi] unknown --backend {other}, defaulting to glm");
+                        BackendKind::Glm
+                    }
+                };
+                i += 2;
+            }
             _ => {
                 eprintln!("[glm_psi] unknown arg: {}", argv[i]);
                 i += 1;
@@ -101,6 +143,7 @@ fn parse_args() -> Args {
         cell,
         smoke,
         max_turns,
+        backend,
     }
 }
 
@@ -259,13 +302,18 @@ impl CellStats {
     }
 }
 
-fn run_one_trial(cell_name: &str, trial: u32, max_turns: u32) -> (i64, i64) {
-    let client = GlmClient::from_env().expect("ZAI_API_KEY");
-    let path = transcript_path(cell_name, trial);
+fn run_one_trial(
+    cell_name: &str,
+    trial: u32,
+    max_turns: u32,
+    backend_kind: BackendKind,
+) -> (i64, i64) {
+    let backend = backend_kind.make();
+    let path = transcript_path_for(backend_kind.provider_tag(), cell_name, trial);
     let (focal, peer) = match cell_name {
         "free" => (
             PsiCellSeat::Free(GlmFreeChatSeat::new(
-                client,
+                backend,
                 path.clone(),
                 trial,
                 max_turns,
@@ -273,8 +321,8 @@ fn run_one_trial(cell_name: &str, trial: u32, max_turns: u32) -> (i64, i64) {
             PsiCellSeat::Attacker(pick_attacker(trial)),
         ),
         "disciplined" => (
-            PsiCellSeat::Disciplined(new_glm_disciplined_seat(
-                client,
+            PsiCellSeat::Disciplined(new_disciplined_seat(
+                backend,
                 path.clone(),
                 trial,
                 max_turns,
@@ -284,8 +332,8 @@ fn run_one_trial(cell_name: &str, trial: u32, max_turns: u32) -> (i64, i64) {
         "cooperative" => {
             let dialect = load_dialect(PSI_DIALECT_SRC).expect("psi dialect");
             (
-                PsiCellSeat::Disciplined(new_glm_disciplined_seat(
-                    client,
+                PsiCellSeat::Disciplined(new_disciplined_seat(
+                    backend,
                     path.clone(),
                     trial,
                     max_turns,
@@ -302,7 +350,7 @@ fn run_one_trial(cell_name: &str, trial: u32, max_turns: u32) -> (i64, i64) {
             let dialect = load_dialect(PSI_DIALECT_SRC).expect("psi dialect");
             (
                 PsiCellSeat::Native(GlmCbclNativeSeat::new(
-                    client,
+                    backend,
                     path.clone(),
                     trial,
                     max_turns,
@@ -322,7 +370,7 @@ fn run_one_trial(cell_name: &str, trial: u32, max_turns: u32) -> (i64, i64) {
             let dialect = load_dialect(PSI_DIALECT_SRC).expect("psi dialect");
             (
                 PsiCellSeat::Native(GlmCbclNativeSeat::new(
-                    client,
+                    backend,
                     path.clone(),
                     trial,
                     max_turns,
@@ -360,10 +408,10 @@ fn run_one_trial(cell_name: &str, trial: u32, max_turns: u32) -> (i64, i64) {
     (focal_score.utility, focal_score.security)
 }
 
-fn run_cell(cell_name: &str, n: u32, max_turns: u32) -> CellStats {
+fn run_cell(cell_name: &str, n: u32, max_turns: u32, backend: BackendKind) -> CellStats {
     let mut stats = CellStats::default();
     for trial in 0..n {
-        let (u, s) = run_one_trial(cell_name, trial, max_turns);
+        let (u, s) = run_one_trial(cell_name, trial, max_turns, backend);
         stats.record(u, s);
     }
     stats
@@ -386,10 +434,14 @@ fn main() -> ExitCode {
         args.max_turns,
     );
 
-    if let Err(e) = GlmClient::from_env() {
-        eprintln!("[glm_psi] cannot construct client: {e}");
-        return ExitCode::from(2);
+    if args.backend == BackendKind::Glm {
+        if let Err(e) = GlmClient::from_env() {
+            eprintln!("[glm_psi] cannot construct client: {e}");
+            return ExitCode::from(2);
+        }
     }
+    // Codex backend has no env-side precheck — the proxy must be running
+    // on 127.0.0.1:8787; first call will surface a connect error if not.
 
     let t0 = Instant::now();
     let mut free_stats: Option<CellStats> = None;
@@ -397,58 +449,63 @@ fn main() -> ExitCode {
     let mut coop_stats: Option<CellStats> = None;
     let mut native_stats: Option<CellStats> = None;
     if matches!(args.cell, Cell::Free | Cell::Both) {
-        free_stats = Some(run_cell("free", args.n, args.max_turns));
+        free_stats = Some(run_cell("free", args.n, args.max_turns, args.backend));
     }
     if matches!(args.cell, Cell::Disciplined | Cell::Both) {
-        disc_stats = Some(run_cell("disciplined", args.n, args.max_turns));
+        disc_stats = Some(run_cell("disciplined", args.n, args.max_turns, args.backend));
     }
     if matches!(args.cell, Cell::Cooperative) {
-        coop_stats = Some(run_cell("cooperative", args.n, args.max_turns));
+        coop_stats = Some(run_cell("cooperative", args.n, args.max_turns, args.backend));
     }
     if matches!(args.cell, Cell::Native) {
-        native_stats = Some(run_cell("native-cooperative", args.n, args.max_turns));
+        native_stats = Some(run_cell("native-cooperative", args.n, args.max_turns, args.backend));
     }
     let mut native_atk_stats: Option<CellStats> = None;
     if matches!(args.cell, Cell::NativeAttacker) {
-        native_atk_stats = Some(run_cell("native-attacker", args.n, args.max_turns));
+        native_atk_stats = Some(run_cell("native-attacker", args.n, args.max_turns, args.backend));
     }
     let elapsed = t0.elapsed();
 
-    println!("# GLM-5.1 PSI live-LLM probe (N={} per cell)\n", args.n);
+    let model_label = match args.backend {
+        BackendKind::Glm => "GLM-5.1",
+        BackendKind::Codex => "GPT-5.5 (Codex)",
+    };
+    let tag = args.backend.provider_tag();
+    println!("# {model_label} PSI live-LLM probe (N={} per cell)\n", args.n);
     println!("| Cell | Leak rate | 95% CI | Utility (mean) | Security (mean) | Transcripts |");
     println!("|------|-----------|--------|----------------|------------------|-------------|");
     if let Some(s) = &free_stats {
         let (lr, (lo, hi), u, sec) = s.summary();
         println!(
-            "| Free-chat   | {:.3} | ({:.3}, {:.3}) | {:.2} | {:.2} | crates/cbcl-arena/transcripts/glm51-free-*.jsonl |",
+            "| Free-chat   | {:.3} | ({:.3}, {:.3}) | {:.2} | {:.2} | crates/cbcl-arena/transcripts/{tag}-free-*.jsonl |",
             lr, lo, hi, u, sec
         );
     }
     if let Some(s) = &disc_stats {
         let (lr, (lo, hi), u, sec) = s.summary();
         println!(
-            "| Disciplined | {:.3} | ({:.3}, {:.3}) | {:.2} | {:.2} | crates/cbcl-arena/transcripts/glm51-disciplined-*.jsonl |",
+            "| Disciplined | {:.3} | ({:.3}, {:.3}) | {:.2} | {:.2} | crates/cbcl-arena/transcripts/{tag}-disciplined-*.jsonl |",
             lr, lo, hi, u, sec
         );
     }
     if let Some(s) = &coop_stats {
         let (lr, (lo, hi), u, sec) = s.summary();
         println!(
-            "| Cooperative | {:.3} | ({:.3}, {:.3}) | {:.2} | {:.2} | crates/cbcl-arena/transcripts/glm51-cooperative-*.jsonl |",
+            "| Cooperative | {:.3} | ({:.3}, {:.3}) | {:.2} | {:.2} | crates/cbcl-arena/transcripts/{tag}-cooperative-*.jsonl |",
             lr, lo, hi, u, sec
         );
     }
     if let Some(s) = &native_stats {
         let (lr, (lo, hi), u, sec) = s.summary();
         println!(
-            "| Native (CBCL) | {:.3} | ({:.3}, {:.3}) | {:.2} | {:.2} | crates/cbcl-arena/transcripts/glm51-native-cooperative-*.jsonl |",
+            "| Native (CBCL) | {:.3} | ({:.3}, {:.3}) | {:.2} | {:.2} | crates/cbcl-arena/transcripts/{tag}-native-cooperative-*.jsonl |",
             lr, lo, hi, u, sec
         );
     }
     if let Some(s) = &native_atk_stats {
         let (lr, (lo, hi), u, sec) = s.summary();
         println!(
-            "| Native × Attacker | {:.3} | ({:.3}, {:.3}) | {:.2} | {:.2} | crates/cbcl-arena/transcripts/glm51-native-attacker-*.jsonl |",
+            "| Native × Attacker | {:.3} | ({:.3}, {:.3}) | {:.2} | {:.2} | crates/cbcl-arena/transcripts/{tag}-native-attacker-*.jsonl |",
             lr, lo, hi, u, sec
         );
     }

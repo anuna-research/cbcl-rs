@@ -43,7 +43,7 @@ pub mod free_chat_yao;
 
 pub use cbcl_native::GlmCbclNativeSeat;
 pub use cbcl_native_yao::GlmCbclNativeYaoSeat;
-pub use disciplined::{new_glm_disciplined_seat, GlmDisciplinedSeat};
+pub use disciplined::{new_disciplined_seat, new_glm_disciplined_seat, GlmDisciplinedSeat};
 pub use free_chat::GlmFreeChatSeat;
 pub use free_chat_yao::GlmFreeChatYaoSeat;
 
@@ -413,9 +413,18 @@ pub fn utc_now_iso() -> String {
 }
 
 /// Path under `crates/cbcl-arena/transcripts/` for a given cell + trial.
+/// Defaults to the historical `glm51-` prefix; new code should use
+/// [`transcript_path_for`] with an explicit provider tag.
 pub fn transcript_path(cell: &str, trial: u32) -> PathBuf {
+    transcript_path_for("glm51", cell, trial)
+}
+
+/// Path under `crates/cbcl-arena/transcripts/` for a given
+/// (provider, cell, trial). The provider tag is the model-version
+/// short name (e.g. `glm51`, `gpt55`) that goes into the filename.
+pub fn transcript_path_for(provider: &str, cell: &str, trial: u32) -> PathBuf {
     PathBuf::from(format!(
-        "crates/cbcl-arena/transcripts/glm51-{}-{:03}.jsonl",
-        cell, trial
+        "crates/cbcl-arena/transcripts/{}-{}-{:03}.jsonl",
+        provider, cell, trial
     ))
 }
