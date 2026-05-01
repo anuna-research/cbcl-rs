@@ -30,7 +30,7 @@ use cbcl_arena::glm::{
     new_disciplined_seat, transcript_path_for, GlmCbclNativeSeat, GlmClient,
     GlmDisciplinedSeat, GlmFreeChatSeat,
 };
-use cbcl_arena::llm::{CodexBackend, LlmBackend};
+use cbcl_arena::llm::{ClaudeBackend, CodexBackend, LlmBackend};
 use cbcl_arena::operator::psi::{OverlapDistribution, PsiGuess, PsiOperator, PsiSetup};
 use cbcl_arena::operator::ChatEvent;
 use cbcl_arena::statistics::wilson_ci;
@@ -56,14 +56,20 @@ enum BackendKind {
     /// OpenAI gpt-5.5 via the local codex-responses-proxy (no API key;
     /// uses ChatGPT/Codex subscription auth from ~/.codex/auth.json).
     Codex,
+    /// Anthropic Claude Haiku 4.5 (cheapest current Anthropic model;
+    /// ANTHROPIC_API_KEY).
+    Haiku,
 }
 
+const HAIKU_MODEL: &str = "claude-haiku-4-5-20251001";
+
 impl BackendKind {
-    /// Short transcript-filename tag (`glm51`, `gpt55`).
+    /// Short transcript-filename tag (`glm51`, `gpt55`, `hk45`).
     fn provider_tag(self) -> &'static str {
         match self {
             BackendKind::Glm => "glm51",
             BackendKind::Codex => "gpt55",
+            BackendKind::Haiku => "hk45",
         }
     }
 
@@ -72,6 +78,11 @@ impl BackendKind {
         match self {
             BackendKind::Glm => Box::new(GlmClient::from_env().expect("ZAI_API_KEY")),
             BackendKind::Codex => Box::new(CodexBackend::new()),
+            BackendKind::Haiku => Box::new(
+                ClaudeBackend::from_env()
+                    .expect("ANTHROPIC_API_KEY")
+                    .with_model(HAIKU_MODEL),
+            ),
         }
     }
 }
@@ -125,6 +136,7 @@ fn parse_args() -> Args {
                 backend = match v {
                     "glm" | "glm51" | "glm-5.1" => BackendKind::Glm,
                     "codex" | "gpt55" | "gpt-5.5" => BackendKind::Codex,
+                    "haiku" | "hk45" | "claude-haiku" => BackendKind::Haiku,
                     other => {
                         eprintln!("[glm_psi] unknown --backend {other}, defaulting to glm");
                         BackendKind::Glm
@@ -469,6 +481,7 @@ fn main() -> ExitCode {
     let model_label = match args.backend {
         BackendKind::Glm => "GLM-5.1",
         BackendKind::Codex => "GPT-5.5 (Codex)",
+        BackendKind::Haiku => "Claude Haiku 4.5",
     };
     let tag = args.backend.provider_tag();
     println!("# {model_label} PSI live-LLM probe (N={} per cell)\n", args.n);

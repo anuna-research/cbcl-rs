@@ -41,7 +41,9 @@ use cbcl_arena::attackers::millionaire::{
 use cbcl_arena::attackers::MillionairePattern;
 use cbcl_arena::driver::{run_game, DrivenAgent, GameResult, StepStatus};
 use cbcl_arena::glm::{GlmCbclNativeYaoSeat, GlmClient, GlmFreeChatYaoSeat};
-use cbcl_arena::llm::{CodexBackend, DisciplinedSeat, LlmBackend, YaoDisciplinedAdapter};
+use cbcl_arena::llm::{
+    ClaudeBackend, CodexBackend, DisciplinedSeat, LlmBackend, YaoDisciplinedAdapter,
+};
 use cbcl_arena::operator::millionaire::{
     MillionaireGuess, MillionaireOperator, MillionaireSetup, WealthDistribution,
 };
@@ -70,19 +72,28 @@ enum Cell {
 enum BackendKind {
     Glm,
     Codex,
+    Haiku,
 }
+
+const HAIKU_MODEL: &str = "claude-haiku-4-5-20251001";
 
 impl BackendKind {
     fn provider_tag(self) -> &'static str {
         match self {
             BackendKind::Glm => "glm51",
             BackendKind::Codex => "gpt55",
+            BackendKind::Haiku => "hk45",
         }
     }
     fn make(self) -> Box<dyn LlmBackend> {
         match self {
             BackendKind::Glm => Box::new(GlmClient::from_env().expect("ZAI_API_KEY")),
             BackendKind::Codex => Box::new(CodexBackend::new()),
+            BackendKind::Haiku => Box::new(
+                ClaudeBackend::from_env()
+                    .expect("ANTHROPIC_API_KEY")
+                    .with_model(HAIKU_MODEL),
+            ),
         }
     }
 }
@@ -136,6 +147,7 @@ fn parse_args() -> Args {
                 backend = match v {
                     "glm" | "glm51" | "glm-5.1" => BackendKind::Glm,
                     "codex" | "gpt55" | "gpt-5.5" => BackendKind::Codex,
+                    "haiku" | "hk45" | "claude-haiku" => BackendKind::Haiku,
                     other => {
                         eprintln!("[glm_yao] unknown --backend {other}, defaulting to glm");
                         BackendKind::Glm
@@ -489,6 +501,7 @@ fn main() -> ExitCode {
     let model_label = match args.backend {
         BackendKind::Glm => "GLM-5.1",
         BackendKind::Codex => "GPT-5.5 (Codex)",
+        BackendKind::Haiku => "Claude Haiku 4.5",
     };
     let tag = args.backend.provider_tag();
     println!("# {model_label} Yao Millionaire live-LLM probe (N={} per cell)\n", args.n);
