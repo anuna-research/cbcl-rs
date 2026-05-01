@@ -2,6 +2,21 @@
 
 **Status:** harness ready; deferred awaiting API budget.
 
+## Full transcript archive
+
+The complete set of per-trial JSONL transcripts (~104 files, 5.0 MB
+uncompressed) for every cell reported in the paper's `tab:arena-glm-psi`
+is mirrored to Cloudflare R2:
+
+  https://files.anuna.io/cbcl-arena/transcripts-2026-05-01.tar.gz
+
+Includes: `glm51-{free,disciplined,cooperative,native-attacker,native-cooperative}-{000..019}.jsonl` plus the partial `live-glm-psi-cooperative-{000..002}.jsonl` from the harness verification. Future
+N=128 reruns will land under `/cbcl-arena/transcripts-{date}.tar.gz`.
+
+The three transcripts cited verbatim from the paper text live under
+`crates/cbcl-arena/transcripts/paper-evidence/` in this repository as a
+frozen reference snapshot.
+
 ## Background
 
 The original PSI live-LLM disciplined cells at N=20 produced overlapping
