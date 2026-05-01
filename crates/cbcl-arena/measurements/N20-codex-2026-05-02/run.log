@@ -1,0 +1,54 @@
+Demo 3 (PSI + Yao) live-LLM cross-provider replication
+======================================================
+
+Backend:    GPT-5.5 via codex-responses-proxy (David-Factor/codex-responses-proxy)
+Endpoint:   http://127.0.0.1:8787/v1/responses
+Auth:       ChatGPT/Codex subscription (~/.codex/auth.json)
+Model:      gpt-5.5
+Temperature: 0.0
+Max-turns:  16 (default)
+N per cell: 20
+Date:       2026-05-02
+
+Reproduce
+---------
+
+Build the proxy from https://github.com/David-Factor/codex-responses-proxy
+(this run used a one-line go.mod tweak `go 1.22` -> `go 1.21` to
+match the locally-installed Go toolchain). Start it:
+
+    /tmp/codex-proxy -addr 127.0.0.1:8787
+
+Run the cells:
+
+    cd ~/Code/cbcl-rs
+    for cell in free disciplined cooperative native-cooperative native-attacker; do
+        cargo run --release -p cbcl-arena --example glm_psi -- \
+            --backend codex --cell $cell --n 20
+    done
+    for cell in free disciplined cooperative native-cooperative native-attacker; do
+        cargo run --release -p cbcl-arena --example glm_yao -- \
+            --backend codex --cell $cell --n 20
+    done
+
+Wall-time totals
+----------------
+
+PSI total wall-time (5 cells × N=20):    2 777 s ≈ 46 min
+Yao total wall-time (5 cells × N=20):    5 333 s ≈ 89 min
+Combined:                                8 110 s ≈ 135 min
+
+Notes
+-----
+
+- Native-CBCL cells dominate wall-time because of the parser-or-
+  quarantine retry loop (each malformed emission is appended to
+  the LLM's chat history as a system message, then retried).
+- The PSI native-cooperative cell on first invocation accidentally
+  ran with --cell native-cooperative which fell through to
+  Cell::Both in the parser; fixed in glm_psi.rs by accepting
+  "native-cooperative" as an alias for Cell::Native, then
+  re-executed explicitly for the missing artefacts.
+- No rate-limit (429) errors observed from the Codex backend
+  across the full sweep. Demo 1 in cbcl-mcp ran concurrently
+  against the same proxy without contention.

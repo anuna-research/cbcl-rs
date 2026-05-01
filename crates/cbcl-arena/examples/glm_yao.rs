@@ -116,7 +116,7 @@ fn parse_args() -> Args {
                     "free" => Cell::Free,
                     "disciplined" => Cell::Disciplined,
                     "cooperative" => Cell::Cooperative,
-                    "native" => Cell::Native,
+                    "native" | "native-cooperative" => Cell::Native,
                     "native-attacker" => Cell::NativeAttacker,
                     _ => Cell::Both,
                 };
