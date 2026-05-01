@@ -35,10 +35,12 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
-pub mod free_chat;
+pub mod cbcl_native;
 pub mod disciplined;
+pub mod free_chat;
 
-pub use disciplined::GlmDisciplinedSeat;
+pub use cbcl_native::GlmCbclNativeSeat;
+pub use disciplined::{new_glm_disciplined_seat, GlmDisciplinedSeat};
 pub use free_chat::GlmFreeChatSeat;
 
 /// Endpoint path (OpenAI-compatible chat-completions).
@@ -217,9 +219,56 @@ pub struct Usage {
     pub total_tokens: u64,
 }
 
-/// Live-LLM client backed by `/usr/bin/curl`.
+/// Provider-neutral live-LLM chat backend.
+///
+/// Object-safe: seats hold `Box<dyn LlmBackend>` so that the active
+/// backend can be selected at runtime (e.g. by a `--backend` CLI flag)
+/// without parameterising every seat type over a backend generic.
+///
+/// All implementations consume the OpenAI-compatible
+/// [`ChatRequest`]/[`ChatResponse`] schema declared in this module.
+/// Providers whose native schema differs (e.g. Anthropic's Messages
+/// API) translate at the impl boundary; callers see a single shape.
+///
+/// ## Contract
+///
+/// - `chat()` returns both the strongly-typed [`ChatResponse`] and the
+///   raw `serde_json::Value` so callers can log the unmolested response
+///   to a transcript.
+/// - Implementations SHOULD retry transient transport/5xx failures at
+///   least once before propagating.
+/// - Implementations MUST NOT log or echo API keys.
+pub trait LlmBackend: Send + Sync {
+    /// Issue one chat-completions call.
+    fn chat(&self, req: &ChatRequest) -> Result<(ChatResponse, serde_json::Value), String>;
+    /// Short stable tag identifying the provider (`"glm"`, `"claude"`,
+    /// `"gpt"`). Used in transcript filenames and summary tables.
+    fn provider_tag(&self) -> &'static str;
+    /// Model identifier (e.g. `"glm-5.1"`, `"claude-sonnet-4-6"`).
+    fn model_id(&self) -> &str;
+}
+
+/// Type-alias spelling preferred by new code. `GlmClient` remains the
+/// historical name (used by [`disciplined`], [`cbcl_native`], and
+/// [`free_chat`]); both refer to the same type.
+pub type GlmBackend = GlmClient;
+
+/// Live-LLM client for Z.ai's GLM-5.1 chat-completions endpoint,
+/// backed by `/usr/bin/curl`.
 pub struct GlmClient {
     api_key: String,
+}
+
+impl LlmBackend for GlmClient {
+    fn chat(&self, req: &ChatRequest) -> Result<(ChatResponse, serde_json::Value), String> {
+        GlmClient::chat(self, req)
+    }
+    fn provider_tag(&self) -> &'static str {
+        "glm"
+    }
+    fn model_id(&self) -> &str {
+        MODEL
+    }
 }
 
 impl GlmClient {

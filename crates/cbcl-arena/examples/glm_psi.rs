@@ -19,15 +19,22 @@ use std::env;
 use std::process::ExitCode;
 use std::time::Instant;
 
+use cbcl_arena::agents::cbcl::psi::PsiCbclStrategy;
+use cbcl_arena::agents::cbcl::{load_dialect, CbclAgent};
 use cbcl_arena::attackers::psi::{
     DirectAsk, OperatorImpersonation, PrematureFinal, ResponseInjection, SocialPressure,
 };
 use cbcl_arena::attackers::PsiPattern;
 use cbcl_arena::driver::{run_game, DrivenAgent, GameResult, StepStatus};
-use cbcl_arena::glm::{transcript_path, GlmClient, GlmDisciplinedSeat, GlmFreeChatSeat};
+use cbcl_arena::glm::{
+    new_glm_disciplined_seat, transcript_path, GlmCbclNativeSeat, GlmClient,
+    GlmDisciplinedSeat, GlmFreeChatSeat,
+};
 use cbcl_arena::operator::psi::{OverlapDistribution, PsiGuess, PsiOperator, PsiSetup};
 use cbcl_arena::operator::ChatEvent;
 use cbcl_arena::statistics::wilson_ci;
+
+const PSI_DIALECT_SRC: &str = include_str!("../../../demo/dialects/psi.cbcl");
 use rand::RngCore;
 use sha2::{Digest, Sha256};
 
@@ -35,6 +42,9 @@ use sha2::{Digest, Sha256};
 enum Cell {
     Free,
     Disciplined,
+    Cooperative,
+    Native,
+    NativeAttacker,
     Both,
 }
 
@@ -64,6 +74,9 @@ fn parse_args() -> Args {
                 cell = match v {
                     "free" => Cell::Free,
                     "disciplined" => Cell::Disciplined,
+                    "cooperative" => Cell::Cooperative,
+                    "native" => Cell::Native,
+                    "native-attacker" => Cell::NativeAttacker,
                     _ => Cell::Both,
                 };
                 i += 2;
@@ -138,7 +151,9 @@ fn pick_attacker(trial: u32) -> Box<dyn PsiPattern> {
 enum PsiCellSeat {
     Free(GlmFreeChatSeat),
     Disciplined(GlmDisciplinedSeat),
+    Native(GlmCbclNativeSeat),
     Attacker(Box<dyn PsiPattern>),
+    Cbcl(CbclAgent<PsiCbclStrategy>),
 }
 
 impl DrivenAgent for PsiCellSeat {
@@ -149,7 +164,12 @@ impl DrivenAgent for PsiCellSeat {
         match self {
             PsiCellSeat::Free(s) => s.ingest_setup(setup),
             PsiCellSeat::Disciplined(s) => s.ingest_setup(setup),
+            PsiCellSeat::Native(s) => s.ingest_setup(setup),
             PsiCellSeat::Attacker(a) => a.ingest_setup(setup),
+            PsiCellSeat::Cbcl(a) => {
+                // PsiCbclStrategy::Setup is Vec<String> (the set itself).
+                cbcl_arena::agents::cbcl::ingest_setup(a, setup.set);
+            }
         }
     }
 
@@ -165,6 +185,7 @@ impl DrivenAgent for PsiCellSeat {
             PsiCellSeat::Disciplined(s) => {
                 s.step(in_channel, out_channel, rng, send_index_seed)
             }
+            PsiCellSeat::Native(s) => s.step(in_channel, out_channel, rng, send_index_seed),
             PsiCellSeat::Attacker(a) => {
                 let mut had_inbound = false;
                 let buf: Vec<ChatEvent> = in_channel
@@ -186,6 +207,13 @@ impl DrivenAgent for PsiCellSeat {
                     is_done: done,
                 }
             }
+            PsiCellSeat::Cbcl(a) => <CbclAgent<PsiCbclStrategy> as DrivenAgent>::step(
+                a,
+                in_channel,
+                out_channel,
+                rng,
+                send_index_seed,
+            ),
         }
     }
 
@@ -193,7 +221,9 @@ impl DrivenAgent for PsiCellSeat {
         match self {
             PsiCellSeat::Free(s) => s.final_guess(),
             PsiCellSeat::Disciplined(s) => s.final_guess(),
+            PsiCellSeat::Native(s) => s.final_guess(),
             PsiCellSeat::Attacker(a) => a.final_guess(),
+            PsiCellSeat::Cbcl(a) => a.final_guess(),
         }
     }
 }
@@ -232,18 +262,80 @@ impl CellStats {
 fn run_one_trial(cell_name: &str, trial: u32, max_turns: u32) -> (i64, i64) {
     let client = GlmClient::from_env().expect("ZAI_API_KEY");
     let path = transcript_path(cell_name, trial);
-    let focal: PsiCellSeat = match cell_name {
-        "free" => PsiCellSeat::Free(GlmFreeChatSeat::new(client, path.clone(), trial, max_turns)),
-        "disciplined" => PsiCellSeat::Disciplined(GlmDisciplinedSeat::new(
-            client,
-            path.clone(),
-            trial,
-            max_turns,
-        )),
+    let (focal, peer) = match cell_name {
+        "free" => (
+            PsiCellSeat::Free(GlmFreeChatSeat::new(
+                client,
+                path.clone(),
+                trial,
+                max_turns,
+            )),
+            PsiCellSeat::Attacker(pick_attacker(trial)),
+        ),
+        "disciplined" => (
+            PsiCellSeat::Disciplined(new_glm_disciplined_seat(
+                client,
+                path.clone(),
+                trial,
+                max_turns,
+            )),
+            PsiCellSeat::Attacker(pick_attacker(trial)),
+        ),
+        "cooperative" => {
+            let dialect = load_dialect(PSI_DIALECT_SRC).expect("psi dialect");
+            (
+                PsiCellSeat::Disciplined(new_glm_disciplined_seat(
+                    client,
+                    path.clone(),
+                    trial,
+                    max_turns,
+                )),
+                PsiCellSeat::Cbcl(CbclAgent::new(
+                    dialect,
+                    PsiCbclStrategy::new(),
+                    "psi-game",
+                    "bob",
+                )),
+            )
+        }
+        "native-cooperative" => {
+            let dialect = load_dialect(PSI_DIALECT_SRC).expect("psi dialect");
+            (
+                PsiCellSeat::Native(GlmCbclNativeSeat::new(
+                    client,
+                    path.clone(),
+                    trial,
+                    max_turns,
+                    dialect.clone(),
+                    "psi-game",
+                    "alice",
+                )),
+                PsiCellSeat::Cbcl(CbclAgent::new(
+                    dialect,
+                    PsiCbclStrategy::new(),
+                    "psi-game",
+                    "bob",
+                )),
+            )
+        }
+        "native-attacker" => {
+            let dialect = load_dialect(PSI_DIALECT_SRC).expect("psi dialect");
+            (
+                PsiCellSeat::Native(GlmCbclNativeSeat::new(
+                    client,
+                    path.clone(),
+                    trial,
+                    max_turns,
+                    dialect,
+                    "psi-game",
+                    "alice",
+                )),
+                PsiCellSeat::Attacker(pick_attacker(trial)),
+            )
+        }
         other => panic!("unknown cell: {other}"),
     };
-    let attacker = PsiCellSeat::Attacker(pick_attacker(trial));
-    let mut seats: Vec<PsiCellSeat> = vec![focal, attacker];
+    let mut seats: Vec<PsiCellSeat> = vec![focal, peer];
     let op = psi_operator();
     let seed = derive_seed(cell_name, trial);
     let result: GameResult<PsiSetup, PsiGuess> = run_game(
@@ -285,6 +377,9 @@ fn main() -> ExitCode {
         match args.cell {
             Cell::Free => "free",
             Cell::Disciplined => "disciplined",
+            Cell::Cooperative => "cooperative",
+            Cell::Native => "native",
+            Cell::NativeAttacker => "native-attacker",
             Cell::Both => "both",
         },
         args.smoke,
@@ -299,11 +394,23 @@ fn main() -> ExitCode {
     let t0 = Instant::now();
     let mut free_stats: Option<CellStats> = None;
     let mut disc_stats: Option<CellStats> = None;
+    let mut coop_stats: Option<CellStats> = None;
+    let mut native_stats: Option<CellStats> = None;
     if matches!(args.cell, Cell::Free | Cell::Both) {
         free_stats = Some(run_cell("free", args.n, args.max_turns));
     }
     if matches!(args.cell, Cell::Disciplined | Cell::Both) {
         disc_stats = Some(run_cell("disciplined", args.n, args.max_turns));
+    }
+    if matches!(args.cell, Cell::Cooperative) {
+        coop_stats = Some(run_cell("cooperative", args.n, args.max_turns));
+    }
+    if matches!(args.cell, Cell::Native) {
+        native_stats = Some(run_cell("native-cooperative", args.n, args.max_turns));
+    }
+    let mut native_atk_stats: Option<CellStats> = None;
+    if matches!(args.cell, Cell::NativeAttacker) {
+        native_atk_stats = Some(run_cell("native-attacker", args.n, args.max_turns));
     }
     let elapsed = t0.elapsed();
 
@@ -321,6 +428,27 @@ fn main() -> ExitCode {
         let (lr, (lo, hi), u, sec) = s.summary();
         println!(
             "| Disciplined | {:.3} | ({:.3}, {:.3}) | {:.2} | {:.2} | crates/cbcl-arena/transcripts/glm51-disciplined-*.jsonl |",
+            lr, lo, hi, u, sec
+        );
+    }
+    if let Some(s) = &coop_stats {
+        let (lr, (lo, hi), u, sec) = s.summary();
+        println!(
+            "| Cooperative | {:.3} | ({:.3}, {:.3}) | {:.2} | {:.2} | crates/cbcl-arena/transcripts/glm51-cooperative-*.jsonl |",
+            lr, lo, hi, u, sec
+        );
+    }
+    if let Some(s) = &native_stats {
+        let (lr, (lo, hi), u, sec) = s.summary();
+        println!(
+            "| Native (CBCL) | {:.3} | ({:.3}, {:.3}) | {:.2} | {:.2} | crates/cbcl-arena/transcripts/glm51-native-cooperative-*.jsonl |",
+            lr, lo, hi, u, sec
+        );
+    }
+    if let Some(s) = &native_atk_stats {
+        let (lr, (lo, hi), u, sec) = s.summary();
+        println!(
+            "| Native × Attacker | {:.3} | ({:.3}, {:.3}) | {:.2} | {:.2} | crates/cbcl-arena/transcripts/glm51-native-attacker-*.jsonl |",
             lr, lo, hi, u, sec
         );
     }

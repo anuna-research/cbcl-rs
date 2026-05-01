@@ -44,3 +44,9 @@ pub mod isolation;
 // Live-LLM probe (effectful, optional). Not a default dependency of
 // any other module; built only by `examples/glm_psi.rs`.
 pub mod glm;
+
+// Provider-neutral live-LLM façade. Currently a re-export shim over
+// `glm`; will become the home of `LlmBackend` impls (Claude, GPT-4.1)
+// and `ProtocolAdapter` trait + per-operator adapters under the
+// trait-extraction refactor.
+pub mod llm;
