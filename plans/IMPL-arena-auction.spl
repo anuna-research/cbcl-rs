@@ -330,3 +330,7 @@
   (normally r-cl-state-v1-spec-update claim-v1-spec-update state-claimed-v1-spec-update)
   (normally r-cl-chain-v1-spec-update state-claimed-v1-spec-update claimed-spec-update)
 )
+
+(claims agent:hugo
+  :at "2026-04-30T05:02:12Z"
+  (given completed-spec-update))

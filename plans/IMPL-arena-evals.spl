@@ -1,0 +1,757 @@
+;; ----------------------------------------------------------------------
+;; Plan: tighten the LangSec '26 cbcl-arena evaluation along seven axes
+;; flagged in eval-review (2026-05-01).
+;;
+;; Load-bearing claims (would tighten or close existing CIs):
+;;   E1. Live-LLM bindings on Yao / Auction / Dining (only PSI is wired).
+;;   E2. Sonnet 4.6 / GPT-4.1 columns of tab:mcp-attacks (currently blank).
+;;   E3. Vanilla configuration sweep — regex-breadth distribution.
+;;   E4. Bump PSI live-LLM N=20 -> 100+ (CIs currently overlap).
+;;
+;; Explicit contract gaps (ZC: pending or design-implied):
+;;   E5. Ultimatum operator + attackers + agent (dialect already shipped).
+;;   E6. Non-stationary attacker library (last-K success bandit).
+;;   E7. Coalition attacks for DC (current 0-row is uninformative under
+;;       single-attacker threat model).
+;;
+;; Outside this plan (cited for clarity):
+;;   - 01-A/D-protocol + 01-A/D-confusion: cbcl-mcp, not arena.
+;;   - Demo 4 corrupt-auctioneer / MPC: standalone piece.
+;;   - R5 Lean mechanisation: lean-cbcl.
+;;   - arena.nicolaos.org field test: integration work.
+;;
+;; Architecture spine. The single highest-leverage refactor is to
+;; decompose the monolithic GLM seats (`glm/disciplined.rs`,
+;; `glm/cbcl_native.rs`) into:
+;;
+;;   - `LlmBackend` trait: the chat() RPC, swappable across providers
+;;     (Z.ai GLM-5.1, Anthropic Claude, OpenAI GPT-4.1).
+;;   - `ProtocolAdapter` trait: per-operator dialect plumbing — system
+;;     prompt template, tool-defs, phase machine, message parsing,
+;;     canonical-form hashing, caused-by resolution.
+;;   - `DisciplinedSeat<P, B>` and `CbclNativeSeat<P, B>`: generic over
+;;     both axes. The current GLM-PSI seat becomes
+;;     DisciplinedSeat<PsiAdapter, GlmBackend>.
+;;
+;; This refactor is the prerequisite for E1 (per-operator adapters) and
+;; E2 (per-backend impls), and once it lands the matrix is just data.
+;;
+;; Dependency layering:
+;;   W1: foundation refactor (trait-llm-backend, trait-protocol-adapter)
+;;   W2: per-operator adapters (psi/yao/auction/dining), parallel after W1
+;;   W3: per-backend impls (claude/gpt), parallel after W1
+;;   W4: live-LLM cells matrix run + transcript emission (after W2 + W3)
+;;   W5: vanilla regex sweep (independent of refactor)
+;;   W6: PSI N=100+ rerun (after W2's psi adapter; budget-bound)
+;;   W7: ultimatum (operator + cbcl-agent + vanilla + attackers + matrix)
+;;   W8: adaptive-attacker library (independent)
+;;   W9: DC coalition attacker (independent)
+;;   W10: paper integration — Demo 3 update + Demo 5 (ultimatum) + tab
+;;        column updates + vanilla-range column
+;; ----------------------------------------------------------------------
+
+(meta plan
+  (id "IMPL-arena-evals")
+  (title "Tighten cbcl-arena evaluation: live-LLM × operators × backends, ultimatum, adaptive + coalition attackers, vanilla sweep, N-bump")
+  (version "0.1.0")
+  (status "active")
+  (created "2026-05-01")
+  (author "agent:hugo")
+  (description "Implement seven evaluation tightenings for the LangSec '26 cbcl-arena artefact: (E1) live-LLM bindings on Yao/Auction/Dining via a generic LlmBackend + ProtocolAdapter refactor; (E2) Claude Sonnet 4.6 + OpenAI GPT-4.1 backends for tab:mcp-attacks columns; (E3) vanilla regex-breadth sweep producing a range column; (E4) PSI live-LLM bump from N=20 to N=100+; (E5) ultimatum operator + attackers + cbcl agent + vanilla agent + measurement-matrix wiring (dialect already ships); (E6) non-stationary (last-K bandit) attacker wrapper; (E7) coalition attacker for DC. Coordinated paper integration in Demo 3 / Demo 5 and tab:mcp-attacks."))
+
+;; ----------------------------------------------------------------------
+;; Agents
+;; ----------------------------------------------------------------------
+
+(given agent-hugo-available)         ;; coordinator (this session)
+(given agent-impler-available)       ;; subagent class for code work
+
+;; ----------------------------------------------------------------------
+;; Tasks
+;; ----------------------------------------------------------------------
+
+;; --- W1: foundation refactor ---
+(given task-trait-llm-backend)
+(given task-trait-protocol-adapter)
+
+;; --- W2: per-operator adapters ---
+(given task-adapter-psi)
+(given task-adapter-yao)
+(given task-adapter-auction)
+(given task-adapter-dining)
+
+;; --- W3: per-backend impls ---
+(given task-backend-claude)
+(given task-backend-gpt)
+
+;; --- W4: live-LLM cells matrix ---
+(given task-live-cells)
+
+;; --- W5: vanilla regex sweep ---
+(given task-vanilla-sweep)
+
+;; --- W6: PSI N-bump ---
+(given task-psi-n100)
+
+;; --- W7: ultimatum ---
+(given task-ultimatum-operator)
+(given task-ultimatum-cbcl-agent)
+(given task-ultimatum-vanilla)
+(given task-ultimatum-attackers)
+(given task-ultimatum-measurement)
+
+;; --- W8: adaptive attackers ---
+(given task-adaptive-attacker)
+
+;; --- W9: DC coalition ---
+(given task-dc-coalition)
+
+;; --- W10: paper integration ---
+(given task-paper)
+
+;; ----------------------------------------------------------------------
+;; Task metadata
+;; ----------------------------------------------------------------------
+
+(meta task-trait-llm-backend
+  (description "Introduce `LlmBackend` trait in crates/cbcl-arena/src/glm.rs (or new src/llm/mod.rs). Surface: `fn chat(&self, req: &ChatRequest) -> Result<(ChatResponse, serde_json::Value), String>`. Existing `GlmClient` becomes `GlmBackend: LlmBackend`. The trait should be object-safe (the seats hold `Box<dyn LlmBackend>` so we don't proliferate generics). Move ENDPOINT/MODEL/CURL_BIN constants behind the impl. Keep ChatRequest/ChatResponse/ChatMessage/ToolDef/ToolCall types provider-neutral; document the OpenAI-compat assumption.")
+  (acceptance "`cargo build -p cbcl-arena` passes; existing glm_psi example still runs against ZAI_API_KEY (smoke-tested via `--smoke`); GlmBackend is exposed via `cbcl_arena::llm::GlmBackend`; LlmBackend trait is object-safe (compile-time check via a `Box<dyn LlmBackend>` in a doctest)."))
+
+(meta task-trait-protocol-adapter
+  (description "Introduce `ProtocolAdapter` trait that captures per-operator dialect plumbing. Surface (sketch): `system_prompt(&self, setup: &Setup) -> String`; `tools(&self) -> Vec<ToolDef>`; `dispatch_tool(&mut self, tc: &ToolCall, ctx: &mut SeatCtx) -> ToolDispatch` (returns Emit { wire_payload, tool_ack } | Hash { ack } | NoOp { ack }); `parse_inbound(&self, payload: &str) -> Option<StructuredInbound>`; `is_done(&self) -> bool`; `final_guess(&self) -> Guess`. Refactor `GlmDisciplinedSeat` into a generic `DisciplinedSeat<A: ProtocolAdapter, B: LlmBackend>` whose only state is { backend, transcript_path, trial, turn, max_turns, history, adapter }. PSI's existing salt/commit/reveal/claim/finalize phase machine + canonical-hashing + caused-by-resolution + leaf-rebuild lives behind `PsiProtocolAdapter`. Same refactor for `GlmCbclNativeSeat` -> `CbclNativeSeat<A, B>` (the native seat asks the LLM to emit raw s-expressions; the adapter only parses-and-validates and resolves `latest`).")
+  (acceptance "DisciplinedSeat<PsiProtocolAdapter, GlmBackend> compiles and reproduces glm51-disciplined-NNN.jsonl byte-for-byte against a fixed trial seed (modulo timestamp differences in the transcript header); same for native; existing example glm_psi.rs continues to pass --smoke."))
+
+(meta task-adapter-psi
+  (description "Extract `PsiProtocolAdapter` from the current `GlmDisciplinedSeat`/`GlmCbclNativeSeat` PSI logic. All PSI-specific code (DISCIPLINED_SYSTEM_TEMPLATE, NATIVE_SYSTEM_TEMPLATE, parse_psi_message, extract_reveal_hashes, protocol_hash, canonical_hash_of, caused_by_for, rebuild_leaves, the six PSI tool defs) moves into src/llm/adapters/psi.rs. The seat is now generic; this task is the parallel-extraction half of `task-trait-protocol-adapter`.")
+  (acceptance "`cargo test -p cbcl-arena --lib` passes; a smoke run of glm_psi --smoke produces semantically equivalent transcripts to before the refactor; PsiProtocolAdapter is the only PSI-aware code outside src/operator/psi.rs."))
+
+(meta task-adapter-yao
+  (description "Author `MillionaireProtocolAdapter` in src/llm/adapters/millionaire.rs. Yao's-Millionaire dialect is documented in demo/dialects/millionaire.cbcl — read the performative set there and mirror it in the adapter. System prompt explains the >/< game; tools should expose the dialect's performatives (likely yao-commit, yao-cipher, yao-reveal, yao-final or similar) plus a hash_element-style cryptographic helper if needed. Inbound parser handles all peer performatives. Phase machine matches the dialect's (then ...) chain. Document hash function choice in the rustdoc.")
+  (acceptance "Smoke test: a YaoCbclStrategy peer plays one game against a DisciplinedSeat<MillionaireProtocolAdapter, GlmBackend> on a fixed trial seed and produces a winner; quarantine never fires under honest play; transcript JSONL is valid; cargo test -p cbcl-arena --lib millionaire passes."))
+
+(meta task-adapter-auction
+  (description "Author `AuctionProtocolAdapter` in src/llm/adapters/auction.rs. Sealed-bid auction (SPEC-004 / demo/dialects/auction.cbcl): three performatives commit / reveal / declare-winner. System template explains the auction game (bid, commit-then-reveal, winner-takes-all). Tool defs match the three performatives plus a hash helper for SHA-256(:hash) commitments. Inbound parser handles peer commits / reveals / declarations. Phase machine matches (then begin commit reveal declare-winner). Auctioneer-vs-bidder roles surface as a SeatRole field on the adapter (lowest agent_idx is auctioneer per the existing AuctionCbclStrategy convention).")
+  (acceptance "Smoke test: a DisciplinedSeat<AuctionProtocolAdapter, GlmBackend> auctioneer + AuctionCbclStrategy bidders complete a 3-bidder game; highest-bidder wins; security +1 across the board; cargo test -p cbcl-arena --lib auction passes."))
+
+(meta task-adapter-dining
+  (description "Author `DiningProtocolAdapter` in src/llm/adapters/dining.rs. DC dialect (demo/dialects/dining.cbcl): performative set + (then ...) chain match the existing DiningCbclStrategy. System prompt explains the cryptographers' dinner (paid bit, pairwise random bits, parity announcement). Tool defs expose dialect performatives plus a parity helper if pairwise-secret hashing is needed. Phase machine + parser straightforward.")
+  (acceptance "DisciplinedSeat<DiningProtocolAdapter, GlmBackend> + DiningCbclStrategy peers complete an honest 3-diner game; verdict matches deterministic baseline; cargo test -p cbcl-arena --lib dining passes."))
+
+(meta task-backend-claude
+  (description "Add `ClaudeBackend` impl of `LlmBackend` in src/llm/backends/claude.rs. Targets Anthropic's Messages API at https://api.anthropic.com/v1/messages, model `claude-sonnet-4-6`. Auth via ANTHROPIC_API_KEY. Translation layer: ChatMessage system->system field (Anthropic separates system from messages); user/assistant->messages array; tool_calls<->Anthropic content-blocks; tool_call_id<->tool_use_id. Use `/usr/bin/curl` to keep with NFR-1112 (no new deps). Reasoning-mode / extended-thinking flag off by default. Retry-once-on-5xx mirroring GlmBackend. Add prompt caching on the system prompt + tool defs (per Anthropic best practice — see `claude-api` skill).")
+  (acceptance "Unit test: ClaudeBackend.chat() against a recorded fixture round-trips correctly; smoke test (gated on ANTHROPIC_API_KEY env var) executes one PSI disciplined trial and produces a non-empty transcript; cargo build -p cbcl-arena passes."))
+
+(meta task-backend-gpt
+  (description "Add `OpenAIBackend` impl of `LlmBackend` in src/llm/backends/openai.rs. Targets OpenAI's chat-completions API at https://api.openai.com/v1/chat/completions, model `gpt-4.1`. Auth via OPENAI_API_KEY. The OpenAI schema is the inverse-source of our existing ChatRequest/ChatResponse types so the translation layer is near-identity; the differences are: (a) `max_completion_tokens` not `max_tokens` for newer models; (b) tool_calls are nested similarly. Retry-once mirror GlmBackend.")
+  (acceptance "Unit test: OpenAIBackend.chat() against a recorded fixture round-trips; smoke test (gated on OPENAI_API_KEY) executes one PSI disciplined trial; cargo build -p cbcl-arena passes."))
+
+(meta task-live-cells
+  (description "Author `examples/live_arena.rs` (or extend examples/glm_psi.rs into a generic harness). CLI surface: `--challenge psi|millionaire|auction|dining` × `--backend glm|claude|gpt` × `--cell free|disciplined|native|cooperative|attacker` × `--n N`. Wires the (challenge, backend, cell) triple to (ProtocolAdapter, LlmBackend, SeatVariant). Emits transcripts under crates/cbcl-arena/transcripts/<backend>-<challenge>-<cell>-NNN.jsonl. Run the matrix at N=20 smoke followed by N=100+ release for the headline cells (PSI disciplined × {glm, claude, gpt}; Yao disciplined × {glm, claude, gpt}; Auction disciplined × {glm, claude, gpt}; Dining disciplined × {glm}). Emit a summary markdown table at the end (Wilson 95 percent CIs).")
+  (acceptance "`cargo run --release --example live_arena -- --challenge psi --backend glm --cell disciplined --n 20` produces transcripts and a summary table reproducing existing PSI numbers within Wilson-CI overlap; the same command with --challenge millionaire / auction / dining produces non-empty transcripts and a summary; one full matrix run is committed to the repo as transcripts/."))
+
+(meta task-vanilla-sweep
+  (description "Add a `regex_breadth: VanillaBreadth { Strict, Default, Permissive, Loose }` knob to VanillaAgent in src/agents/vanilla.rs. Each variant maps to a distinct set of regex patterns of increasing breadth (Strict: literal-only; Default: current behaviour; Permissive: word-boundary loosening; Loose: substring match with case-insensitive flag). Surface a `--vanilla-sweep` flag in the live_arena example (or a new example sweep_vanilla.rs) that runs N trials per breadth × challenge × attacker and reports a *range column* of attack-success rates. Emit results to a JSON file under crates/cbcl-arena/results/vanilla-sweep-NNN.json.")
+  (acceptance "Sweep across {Strict, Default, Permissive, Loose} × PSI × Malicious-published produces a 4-row distribution; the range column (min-max attack-success rate) is non-degenerate; the existing VanillaAgent::default() corresponds to `Default` breadth so prior measurements are unchanged; cargo test -p cbcl-arena --lib vanilla passes; results JSON committed."))
+
+(meta task-psi-n100
+  (description "Run the PSI live-LLM disciplined-cell at N=128 (next power of 2 above 100, divisible by both 4 and 8 to balance attacker rotation) on the GLM backend. Reuse existing transcripts where deterministic seeds match (no rerun cost). Emit Wilson 95 CIs for both 03-G-A and 03-G-B cells; verify the direction is now CI-separated (or report the new overlap if it isn't). Update measurement.rs's per-tuple-seed table to admit N=128 deterministically.")
+  (acceptance "transcripts/glm51-disciplined-{020..127}.jsonl exist; the summary table reports separated Wilson CIs (or, if not separated, an explicit note in the eval-update doc that the magnitude direction remains uncertain); cargo run --release --example live_arena -- --challenge psi --cell disciplined --n 128 exits 0; total wall-time recorded for budget tracking."))
+
+(meta task-ultimatum-operator
+  (description "Implement crates/cbcl-arena/src/operator/ultimatum.rs. UltimatumOperator { proposer_idx: usize, responder_idx: usize, pie_size: u64, seed: u64 }. issue_setup samples per-agent role (proposer vs responder) and per-agent reservation values. score: per-agent utility (proposer's payoff = pie - offer if accepted else 0; responder's payoff = offer if accepted else 0); per-agent security (-1 if a manipulation succeeded — e.g., proposer received responder's reservation value via leak, or responder accepted a sub-reservation offer due to coercion attack). Add ChallengeKind::Ultimatum to common.rs. Reads demo/dialects/ultimatum.cbcl (already shipped) for protocol structure.")
+  (acceptance "TEST-equivalent: hand-rolled (roles, offer, accept-flag) tuples produce expected scores; honest-baseline run yields utility = subgame-perfect-equilibrium offer; cargo test -p cbcl-arena --lib operator::ultimatum passes."))
+
+(meta task-ultimatum-cbcl-agent
+  (description "Implement crates/cbcl-arena/src/agents/cbcl/ultimatum.rs as a per-challenge ChallengeStrategy for UltimatumOperator's setup/guess types. Strategy: proposer emits ultimatum-offer with offer >= responder-reservation-floor (uniformly drawn above floor); responder accepts iff offer >= own_reservation. Final guess: the agreed offer for the proposer; the accept/reject decision for the responder.")
+  (acceptance "Honest CbclAgent vs CbclAgent ultimatum game on a fixed seed produces an accepted offer; quarantine never fires under honest play; cargo test -p cbcl-arena --lib agents::cbcl::ultimatum passes."))
+
+(meta task-ultimatum-vanilla
+  (description "Extend VanillaAgent with VanillaSetup::Ultimatum variant and a default script. Proposer script: at-start emit `i offer: {floor*1.5}` where floor is heuristically guessed; AfterPattern matching `(?i)\\b(reservation|threshold|minimum)\\b`: emit `mine is {own_reservation}` (this is the manipulation hook — vanilla agents leak their reservation when prompted). Responder script: AfterPattern matching `(?i)\\bi offer:?\\s*(\\d+)`: emit `accepted` or `rejected` based on captured offer vs own reservation.")
+  (acceptance "Vanilla-vs-vanilla converges on an offer; vanilla-vs-reservation-extraction-attacker produces a non-zero rate of vanilla agents leaking their reservation; cargo test -p cbcl-arena --lib agents::vanilla passes."))
+
+(meta task-ultimatum-attackers
+  (description "Implement crates/cbcl-arena/src/attackers/ultimatum.rs with: 1 Honest-cooperative reference. 3 Malicious-published patterns (reservation-extraction, ultimatum-coercion, fairness-pressure — each cited from the behavioural-game-theory literature with source_citation). 4 Malicious-novel patterns (forged-counter-offer, role-spoofing, premature-acceptance-claim, one author-designed). Each documented under crates/cbcl-arena/attackers/novel/ultimatum-<name>.md.")
+  (acceptance "registry().ultimatum.published.len() >= 3; .novel.len() >= 4; .honest.len() >= 1; per-novel markdown files exist with originality declarations; 50 trials per Malicious pattern against an honest CbclAgent: every trial produces security +1 for the honest agent."))
+
+(meta task-ultimatum-measurement
+  (description "Extend MeasurementConfig + measurement.rs to include ChallengeKind::Ultimatum. Add UltimatumSeat enum mirroring PsiSeat / MillionaireSeat / DiningSeat. Run a calibration probe at N=300: Vanilla × reservation-extraction reproduces a published baseline (TBD: cite Camerer 2003 chapter on UG behavioural data); CBCL × Published × Ultimatum = 0; CBCL × Novel × Ultimatum = 0.")
+  (acceptance "`cargo run --release --example cli -- --n 300 --challenges ultimatum` exits 0; the four predictions PASS; full-matrix run (psi+yao+dc+auction+ultimatum) completes within NFR-1111's 10-minute budget."))
+
+(meta task-adaptive-attacker
+  (description "Implement an `AdaptiveAttacker<P: AttackPattern>` wrapper in src/attackers/adaptive.rs that maintains a last-K success window over a base library of attackers and re-weights selection by a Beta(1+wins, 1+losses) Thompson-sampling bandit. Surface: `AdaptiveAttacker::new(base: Vec<Box<dyn PsiPattern>>, k: usize, seed: u64)`. The base library defaults to the existing Malicious-published set. Add `--adaptive` flag to the live_arena example. The wrapper's session state is per-trial — the bandit adapts within a single trial across multiple turns, OR across multiple trials within a sweep (configurable via `AdaptiveScope { Trial, Sweep }`).")
+  (acceptance "Adaptive attacker against a CbclAgent produces security +1 across all 50 trials (CBCL still wins); adaptive attacker against a VanillaAgent produces a strictly higher attack-success rate than any single base attacker (the bandit converges on the most-effective base pattern); cargo test -p cbcl-arena --lib attackers::adaptive passes."))
+
+(meta task-dc-coalition
+  (description "Add a `CoalitionAttacker` to src/attackers/dining.rs that models two attackers privately exchanging a shared random bit BEFORE the game starts (this expands DC's threat model — currently single-attacker only). Implementation: a wrapper that constructs two coordinated SeatPairs and shares a pre-game RNG between them so their announced parities can be co-conditioned. Add a CoalitionScope { Pairwise, Triadic } enum. Document the threat-model expansion in src/attackers/dining/COALITION.md (originality declaration: this is a deliberate expansion beyond SPEC-011's stated single-attacker threat model). Wire into measurement.rs as a separate attack-category column (so Demo 3's DC row stops being a 0-row).")
+  (acceptance "Coalition × Vanilla DC produces a non-zero attack-success rate (the unanimity rule no longer defeats two coordinated attackers); Coalition × CBCL produces 0 (the dialect-grammar's pairwise-bit-binding defeats the coalition — this is the load-bearing claim); cargo test -p cbcl-arena --lib attackers::dining::coalition passes."))
+
+(meta task-paper
+  (description "Update the paper artefact under paper/ (or wherever 04_evaluation.tex lives) with: (a) tab:mcp-attacks new columns for Sonnet 4.6 + GPT-4.1 backends across PSI / Yao / Auction; (b) Demo 3 N=128 update for PSI live-LLM CIs; (c) new Demo 5 (Ultimatum) block with calibration paragraph + Table N (4-row × 7-attack matrix); (d) Demo 3 vanilla-sweep range column replacing the single-tuned-vanilla cell; (e) DC coalition row in Demo 3 with expanded threat-model paragraph; (f) adaptive attacker honest-scope paragraph in Demo 3. Per the existing 04_evaluation.tex convention: NO internal IDs (REQ-/SPEC-/OBS-/NFR-/TEST-/CON-/TM-/ADR-).")
+  (acceptance "All four eval-tightening claims (E1-E4) reflected in measured numbers in the paper; ultimatum demo block compiles; tab:mcp-attacks columns populated with non-stub values; grep for REQ-/SPEC-/etc. across .tex files returns zero matches."))
+
+;; ----------------------------------------------------------------------
+;; Readiness rules
+;; ----------------------------------------------------------------------
+
+;; W1 has no upstream task deps
+(normally r-ready-trait-llm-backend
+  task-trait-llm-backend
+  ready-trait-llm-backend)
+(normally r-ready-trait-protocol-adapter
+  task-trait-protocol-adapter
+  ready-trait-protocol-adapter)
+
+;; W2 — adapters need both traits in place
+(normally r-ready-adapter-psi
+  (and task-adapter-psi
+       completed-trait-llm-backend
+       completed-trait-protocol-adapter)
+  ready-adapter-psi)
+(normally r-ready-adapter-yao
+  (and task-adapter-yao
+       completed-trait-llm-backend
+       completed-trait-protocol-adapter)
+  ready-adapter-yao)
+(normally r-ready-adapter-auction
+  (and task-adapter-auction
+       completed-trait-llm-backend
+       completed-trait-protocol-adapter)
+  ready-adapter-auction)
+(normally r-ready-adapter-dining
+  (and task-adapter-dining
+       completed-trait-llm-backend
+       completed-trait-protocol-adapter)
+  ready-adapter-dining)
+
+;; W3 — backends need only LlmBackend trait
+(normally r-ready-backend-claude
+  (and task-backend-claude completed-trait-llm-backend)
+  ready-backend-claude)
+(normally r-ready-backend-gpt
+  (and task-backend-gpt completed-trait-llm-backend)
+  ready-backend-gpt)
+
+;; W4 — live-cells matrix needs all adapters + at least one new backend
+(normally r-ready-live-cells
+  (and task-live-cells
+       completed-adapter-psi
+       completed-adapter-yao
+       completed-adapter-auction
+       completed-adapter-dining
+       completed-backend-claude
+       completed-backend-gpt)
+  ready-live-cells)
+
+;; W5 — vanilla sweep is independent of refactor
+(normally r-ready-vanilla-sweep
+  task-vanilla-sweep
+  ready-vanilla-sweep)
+
+;; W6 — PSI N-bump needs the PSI adapter (so the run is on the new harness)
+(normally r-ready-psi-n100
+  (and task-psi-n100 completed-adapter-psi)
+  ready-psi-n100)
+
+;; W7 — ultimatum: operator first, then agent + vanilla in parallel,
+;; then attackers, then matrix wiring
+(normally r-ready-ultimatum-operator
+  task-ultimatum-operator
+  ready-ultimatum-operator)
+(normally r-ready-ultimatum-cbcl-agent
+  (and task-ultimatum-cbcl-agent completed-ultimatum-operator)
+  ready-ultimatum-cbcl-agent)
+(normally r-ready-ultimatum-vanilla
+  (and task-ultimatum-vanilla completed-ultimatum-operator)
+  ready-ultimatum-vanilla)
+(normally r-ready-ultimatum-attackers
+  (and task-ultimatum-attackers
+       completed-ultimatum-operator
+       completed-ultimatum-cbcl-agent)
+  ready-ultimatum-attackers)
+(normally r-ready-ultimatum-measurement
+  (and task-ultimatum-measurement
+       completed-ultimatum-operator
+       completed-ultimatum-cbcl-agent
+       completed-ultimatum-vanilla
+       completed-ultimatum-attackers)
+  ready-ultimatum-measurement)
+
+;; W8 — adaptive attacker is independent
+(normally r-ready-adaptive-attacker
+  task-adaptive-attacker
+  ready-adaptive-attacker)
+
+;; W9 — DC coalition is independent
+(normally r-ready-dc-coalition
+  task-dc-coalition
+  ready-dc-coalition)
+
+;; W10 — paper integration needs all measurement-producing tasks
+(normally r-ready-paper
+  (and task-paper
+       completed-live-cells
+       completed-vanilla-sweep
+       completed-psi-n100
+       completed-ultimatum-measurement
+       completed-adaptive-attacker
+       completed-dc-coalition)
+  ready-paper)
+
+;; ----------------------------------------------------------------------
+;; Assignment rules
+;; ----------------------------------------------------------------------
+
+(normally r-assign-trait-llm-backend
+  (and ready-trait-llm-backend agent-impler-available)
+  assign-to-trait-llm-backend-impler)
+(normally r-assign-trait-protocol-adapter
+  (and ready-trait-protocol-adapter agent-impler-available)
+  assign-to-trait-protocol-adapter-impler)
+(normally r-assign-adapter-psi
+  (and ready-adapter-psi agent-impler-available)
+  assign-to-adapter-psi-impler)
+(normally r-assign-adapter-yao
+  (and ready-adapter-yao agent-impler-available)
+  assign-to-adapter-yao-impler)
+(normally r-assign-adapter-auction
+  (and ready-adapter-auction agent-impler-available)
+  assign-to-adapter-auction-impler)
+(normally r-assign-adapter-dining
+  (and ready-adapter-dining agent-impler-available)
+  assign-to-adapter-dining-impler)
+(normally r-assign-backend-claude
+  (and ready-backend-claude agent-impler-available)
+  assign-to-backend-claude-impler)
+(normally r-assign-backend-gpt
+  (and ready-backend-gpt agent-impler-available)
+  assign-to-backend-gpt-impler)
+(normally r-assign-live-cells
+  (and ready-live-cells agent-impler-available)
+  assign-to-live-cells-impler)
+(normally r-assign-vanilla-sweep
+  (and ready-vanilla-sweep agent-impler-available)
+  assign-to-vanilla-sweep-impler)
+(normally r-assign-psi-n100
+  (and ready-psi-n100 agent-impler-available)
+  assign-to-psi-n100-impler)
+(normally r-assign-ultimatum-operator
+  (and ready-ultimatum-operator agent-impler-available)
+  assign-to-ultimatum-operator-impler)
+(normally r-assign-ultimatum-cbcl-agent
+  (and ready-ultimatum-cbcl-agent agent-impler-available)
+  assign-to-ultimatum-cbcl-agent-impler)
+(normally r-assign-ultimatum-vanilla
+  (and ready-ultimatum-vanilla agent-impler-available)
+  assign-to-ultimatum-vanilla-impler)
+(normally r-assign-ultimatum-attackers
+  (and ready-ultimatum-attackers agent-impler-available)
+  assign-to-ultimatum-attackers-impler)
+(normally r-assign-ultimatum-measurement
+  (and ready-ultimatum-measurement agent-impler-available)
+  assign-to-ultimatum-measurement-impler)
+(normally r-assign-adaptive-attacker
+  (and ready-adaptive-attacker agent-impler-available)
+  assign-to-adaptive-attacker-impler)
+(normally r-assign-dc-coalition
+  (and ready-dc-coalition agent-impler-available)
+  assign-to-dc-coalition-impler)
+(normally r-assign-paper
+  (and ready-paper agent-hugo-available)
+  assign-to-paper-hugo)
+
+(meta r-assign-paper
+  (description "Paper edit is reviewer-facing prose; route to hugo for tone consistency with the existing §4.2.1 voice and SPEC-/REQ-free convention.")
+  (justification "Same constraint as IMPL-arena-auction's task-paper: avoid reintroducing internal traceability IDs into reviewer prose."))
+
+(claims agent:impler
+  :at "2026-05-01T02:38:03Z"
+  (given claim-v1-trait-llm-backend)
+  (normally r-cl-state-v1-trait-llm-backend claim-v1-trait-llm-backend state-claimed-v1-trait-llm-backend)
+  (normally r-cl-chain-v1-trait-llm-backend state-claimed-v1-trait-llm-backend claimed-trait-llm-backend)
+)
+
+;; Propagation rules: failures in 'trait-llm-backend' block downstream tasks
+(normally r-propagate-adapter-auction-from-trait-llm-backend-failed failed-trait-llm-backend upstream-blocked-adapter-auction)
+(normally r-propagate-adapter-auction-from-trait-llm-backend-permanently-failed permanently-failed-trait-llm-backend upstream-blocked-adapter-auction)
+(normally r-propagate-adapter-auction-from-trait-llm-backend-stale-v1 stale-v1-trait-llm-backend upstream-blocked-adapter-auction)
+(normally r-propagate-adapter-auction-from-trait-llm-backend-timeout-v1 timeout-v1-trait-llm-backend upstream-blocked-adapter-auction)
+(normally r-propagate-adapter-auction-from-trait-llm-backend-blocked upstream-blocked-trait-llm-backend upstream-blocked-adapter-auction)
+(normally r-propagate-adapter-dining-from-trait-llm-backend-failed failed-trait-llm-backend upstream-blocked-adapter-dining)
+(normally r-propagate-adapter-dining-from-trait-llm-backend-permanently-failed permanently-failed-trait-llm-backend upstream-blocked-adapter-dining)
+(normally r-propagate-adapter-dining-from-trait-llm-backend-stale-v1 stale-v1-trait-llm-backend upstream-blocked-adapter-dining)
+(normally r-propagate-adapter-dining-from-trait-llm-backend-timeout-v1 timeout-v1-trait-llm-backend upstream-blocked-adapter-dining)
+(normally r-propagate-adapter-dining-from-trait-llm-backend-blocked upstream-blocked-trait-llm-backend upstream-blocked-adapter-dining)
+(normally r-propagate-adapter-psi-from-trait-llm-backend-failed failed-trait-llm-backend upstream-blocked-adapter-psi)
+(normally r-propagate-adapter-psi-from-trait-llm-backend-permanently-failed permanently-failed-trait-llm-backend upstream-blocked-adapter-psi)
+(normally r-propagate-adapter-psi-from-trait-llm-backend-stale-v1 stale-v1-trait-llm-backend upstream-blocked-adapter-psi)
+(normally r-propagate-adapter-psi-from-trait-llm-backend-timeout-v1 timeout-v1-trait-llm-backend upstream-blocked-adapter-psi)
+(normally r-propagate-adapter-psi-from-trait-llm-backend-blocked upstream-blocked-trait-llm-backend upstream-blocked-adapter-psi)
+(normally r-propagate-adapter-yao-from-trait-llm-backend-failed failed-trait-llm-backend upstream-blocked-adapter-yao)
+(normally r-propagate-adapter-yao-from-trait-llm-backend-permanently-failed permanently-failed-trait-llm-backend upstream-blocked-adapter-yao)
+(normally r-propagate-adapter-yao-from-trait-llm-backend-stale-v1 stale-v1-trait-llm-backend upstream-blocked-adapter-yao)
+(normally r-propagate-adapter-yao-from-trait-llm-backend-timeout-v1 timeout-v1-trait-llm-backend upstream-blocked-adapter-yao)
+(normally r-propagate-adapter-yao-from-trait-llm-backend-blocked upstream-blocked-trait-llm-backend upstream-blocked-adapter-yao)
+(normally r-propagate-backend-claude-from-trait-llm-backend-failed failed-trait-llm-backend upstream-blocked-backend-claude)
+(normally r-propagate-backend-claude-from-trait-llm-backend-permanently-failed permanently-failed-trait-llm-backend upstream-blocked-backend-claude)
+(normally r-propagate-backend-claude-from-trait-llm-backend-stale-v1 stale-v1-trait-llm-backend upstream-blocked-backend-claude)
+(normally r-propagate-backend-claude-from-trait-llm-backend-timeout-v1 timeout-v1-trait-llm-backend upstream-blocked-backend-claude)
+(normally r-propagate-backend-claude-from-trait-llm-backend-blocked upstream-blocked-trait-llm-backend upstream-blocked-backend-claude)
+(normally r-propagate-backend-gpt-from-trait-llm-backend-failed failed-trait-llm-backend upstream-blocked-backend-gpt)
+(normally r-propagate-backend-gpt-from-trait-llm-backend-permanently-failed permanently-failed-trait-llm-backend upstream-blocked-backend-gpt)
+(normally r-propagate-backend-gpt-from-trait-llm-backend-stale-v1 stale-v1-trait-llm-backend upstream-blocked-backend-gpt)
+(normally r-propagate-backend-gpt-from-trait-llm-backend-timeout-v1 timeout-v1-trait-llm-backend upstream-blocked-backend-gpt)
+(normally r-propagate-backend-gpt-from-trait-llm-backend-blocked upstream-blocked-trait-llm-backend upstream-blocked-backend-gpt)
+
+;; Transitive propagation: upstream-blocked cascades through dependency chain
+(normally r-propagate-live-cells-from-adapter-auction-blocked upstream-blocked-adapter-auction upstream-blocked-live-cells)
+(normally r-propagate-live-cells-from-adapter-dining-blocked upstream-blocked-adapter-dining upstream-blocked-live-cells)
+(normally r-propagate-live-cells-from-adapter-psi-blocked upstream-blocked-adapter-psi upstream-blocked-live-cells)
+(normally r-propagate-psi-n100-from-adapter-psi-blocked upstream-blocked-adapter-psi upstream-blocked-psi-n100)
+(normally r-propagate-live-cells-from-adapter-yao-blocked upstream-blocked-adapter-yao upstream-blocked-live-cells)
+(normally r-propagate-live-cells-from-backend-claude-blocked upstream-blocked-backend-claude upstream-blocked-live-cells)
+(normally r-propagate-live-cells-from-backend-gpt-blocked upstream-blocked-backend-gpt upstream-blocked-live-cells)
+(normally r-propagate-paper-from-live-cells-blocked upstream-blocked-live-cells upstream-blocked-paper)
+(normally r-propagate-paper-from-psi-n100-blocked upstream-blocked-psi-n100 upstream-blocked-paper)
+
+(claims agent:impler
+  :at "2026-05-01T02:39:34Z"
+  (given completed-trait-llm-backend))
+
+(claims agent:impler
+  :at "2026-05-01T02:45:05Z"
+  (given claim-v1-trait-protocol-adapter)
+  (normally r-cl-state-v1-trait-protocol-adapter claim-v1-trait-protocol-adapter state-claimed-v1-trait-protocol-adapter)
+  (normally r-cl-chain-v1-trait-protocol-adapter state-claimed-v1-trait-protocol-adapter claimed-trait-protocol-adapter)
+)
+
+;; Propagation rules: failures in 'trait-protocol-adapter' block downstream tasks
+(normally r-propagate-adapter-auction-from-trait-protocol-adapter-failed failed-trait-protocol-adapter upstream-blocked-adapter-auction)
+(normally r-propagate-adapter-auction-from-trait-protocol-adapter-permanently-failed permanently-failed-trait-protocol-adapter upstream-blocked-adapter-auction)
+(normally r-propagate-adapter-auction-from-trait-protocol-adapter-stale-v1 stale-v1-trait-protocol-adapter upstream-blocked-adapter-auction)
+(normally r-propagate-adapter-auction-from-trait-protocol-adapter-timeout-v1 timeout-v1-trait-protocol-adapter upstream-blocked-adapter-auction)
+(normally r-propagate-adapter-auction-from-trait-protocol-adapter-blocked upstream-blocked-trait-protocol-adapter upstream-blocked-adapter-auction)
+(normally r-propagate-adapter-dining-from-trait-protocol-adapter-failed failed-trait-protocol-adapter upstream-blocked-adapter-dining)
+(normally r-propagate-adapter-dining-from-trait-protocol-adapter-permanently-failed permanently-failed-trait-protocol-adapter upstream-blocked-adapter-dining)
+(normally r-propagate-adapter-dining-from-trait-protocol-adapter-stale-v1 stale-v1-trait-protocol-adapter upstream-blocked-adapter-dining)
+(normally r-propagate-adapter-dining-from-trait-protocol-adapter-timeout-v1 timeout-v1-trait-protocol-adapter upstream-blocked-adapter-dining)
+(normally r-propagate-adapter-dining-from-trait-protocol-adapter-blocked upstream-blocked-trait-protocol-adapter upstream-blocked-adapter-dining)
+(normally r-propagate-adapter-psi-from-trait-protocol-adapter-failed failed-trait-protocol-adapter upstream-blocked-adapter-psi)
+(normally r-propagate-adapter-psi-from-trait-protocol-adapter-permanently-failed permanently-failed-trait-protocol-adapter upstream-blocked-adapter-psi)
+(normally r-propagate-adapter-psi-from-trait-protocol-adapter-stale-v1 stale-v1-trait-protocol-adapter upstream-blocked-adapter-psi)
+(normally r-propagate-adapter-psi-from-trait-protocol-adapter-timeout-v1 timeout-v1-trait-protocol-adapter upstream-blocked-adapter-psi)
+(normally r-propagate-adapter-psi-from-trait-protocol-adapter-blocked upstream-blocked-trait-protocol-adapter upstream-blocked-adapter-psi)
+(normally r-propagate-adapter-yao-from-trait-protocol-adapter-failed failed-trait-protocol-adapter upstream-blocked-adapter-yao)
+(normally r-propagate-adapter-yao-from-trait-protocol-adapter-permanently-failed permanently-failed-trait-protocol-adapter upstream-blocked-adapter-yao)
+(normally r-propagate-adapter-yao-from-trait-protocol-adapter-stale-v1 stale-v1-trait-protocol-adapter upstream-blocked-adapter-yao)
+(normally r-propagate-adapter-yao-from-trait-protocol-adapter-timeout-v1 timeout-v1-trait-protocol-adapter upstream-blocked-adapter-yao)
+(normally r-propagate-adapter-yao-from-trait-protocol-adapter-blocked upstream-blocked-trait-protocol-adapter upstream-blocked-adapter-yao)
+
+(claims agent:impler
+  :at "2026-05-01T02:51:13Z"
+  (given completed-trait-protocol-adapter))
+
+(claims agent:impler
+  :at "2026-05-01T02:51:13Z"
+  (given claim-v1-adapter-psi)
+  (normally r-cl-state-v1-adapter-psi claim-v1-adapter-psi state-claimed-v1-adapter-psi)
+  (normally r-cl-chain-v1-adapter-psi state-claimed-v1-adapter-psi claimed-adapter-psi)
+)
+
+;; Propagation rules: failures in 'adapter-psi' block downstream tasks
+(normally r-propagate-live-cells-from-adapter-psi-failed failed-adapter-psi upstream-blocked-live-cells)
+(normally r-propagate-live-cells-from-adapter-psi-permanently-failed permanently-failed-adapter-psi upstream-blocked-live-cells)
+(normally r-propagate-live-cells-from-adapter-psi-stale-v1 stale-v1-adapter-psi upstream-blocked-live-cells)
+(normally r-propagate-live-cells-from-adapter-psi-timeout-v1 timeout-v1-adapter-psi upstream-blocked-live-cells)
+(normally r-propagate-psi-n100-from-adapter-psi-failed failed-adapter-psi upstream-blocked-psi-n100)
+(normally r-propagate-psi-n100-from-adapter-psi-permanently-failed permanently-failed-adapter-psi upstream-blocked-psi-n100)
+(normally r-propagate-psi-n100-from-adapter-psi-stale-v1 stale-v1-adapter-psi upstream-blocked-psi-n100)
+(normally r-propagate-psi-n100-from-adapter-psi-timeout-v1 timeout-v1-adapter-psi upstream-blocked-psi-n100)
+
+(claims agent:impler
+  :at "2026-05-01T02:51:13Z"
+  (given completed-adapter-psi))
+
+(claims agent:impler
+  :at "2026-05-01T03:00:11Z"
+  (given claim-v1-adapter-yao)
+  (normally r-cl-state-v1-adapter-yao claim-v1-adapter-yao state-claimed-v1-adapter-yao)
+  (normally r-cl-chain-v1-adapter-yao state-claimed-v1-adapter-yao claimed-adapter-yao)
+)
+
+;; Propagation rules: failures in 'adapter-yao' block downstream tasks
+(normally r-propagate-live-cells-from-adapter-yao-failed failed-adapter-yao upstream-blocked-live-cells)
+(normally r-propagate-live-cells-from-adapter-yao-permanently-failed permanently-failed-adapter-yao upstream-blocked-live-cells)
+(normally r-propagate-live-cells-from-adapter-yao-stale-v1 stale-v1-adapter-yao upstream-blocked-live-cells)
+(normally r-propagate-live-cells-from-adapter-yao-timeout-v1 timeout-v1-adapter-yao upstream-blocked-live-cells)
+
+(claims agent:impler
+  :at "2026-05-01T03:02:41Z"
+  (given completed-adapter-yao))
+
+(claims agent:impler
+  :at "2026-05-01T03:04:12Z"
+  (given claim-v1-adapter-auction)
+  (normally r-cl-state-v1-adapter-auction claim-v1-adapter-auction state-claimed-v1-adapter-auction)
+  (normally r-cl-chain-v1-adapter-auction state-claimed-v1-adapter-auction claimed-adapter-auction)
+)
+
+;; Propagation rules: failures in 'adapter-auction' block downstream tasks
+(normally r-propagate-live-cells-from-adapter-auction-failed failed-adapter-auction upstream-blocked-live-cells)
+(normally r-propagate-live-cells-from-adapter-auction-permanently-failed permanently-failed-adapter-auction upstream-blocked-live-cells)
+(normally r-propagate-live-cells-from-adapter-auction-stale-v1 stale-v1-adapter-auction upstream-blocked-live-cells)
+(normally r-propagate-live-cells-from-adapter-auction-timeout-v1 timeout-v1-adapter-auction upstream-blocked-live-cells)
+
+(claims agent:impler
+  :at "2026-05-01T03:06:21Z"
+  (given completed-adapter-auction))
+
+(claims agent:impler
+  :at "2026-05-01T03:08:21Z"
+  (given claim-v1-adapter-dining)
+  (normally r-cl-state-v1-adapter-dining claim-v1-adapter-dining state-claimed-v1-adapter-dining)
+  (normally r-cl-chain-v1-adapter-dining state-claimed-v1-adapter-dining claimed-adapter-dining)
+)
+
+;; Propagation rules: failures in 'adapter-dining' block downstream tasks
+(normally r-propagate-live-cells-from-adapter-dining-failed failed-adapter-dining upstream-blocked-live-cells)
+(normally r-propagate-live-cells-from-adapter-dining-permanently-failed permanently-failed-adapter-dining upstream-blocked-live-cells)
+(normally r-propagate-live-cells-from-adapter-dining-stale-v1 stale-v1-adapter-dining upstream-blocked-live-cells)
+(normally r-propagate-live-cells-from-adapter-dining-timeout-v1 timeout-v1-adapter-dining upstream-blocked-live-cells)
+
+(claims agent:impler
+  :at "2026-05-01T03:10:40Z"
+  (given completed-adapter-dining))
+
+(claims agent:impler
+  :at "2026-05-01T03:18:01Z"
+  (given claim-v1-backend-claude)
+  (normally r-cl-state-v1-backend-claude claim-v1-backend-claude state-claimed-v1-backend-claude)
+  (normally r-cl-chain-v1-backend-claude state-claimed-v1-backend-claude claimed-backend-claude)
+)
+
+;; Propagation rules: failures in 'backend-claude' block downstream tasks
+(normally r-propagate-live-cells-from-backend-claude-failed failed-backend-claude upstream-blocked-live-cells)
+(normally r-propagate-live-cells-from-backend-claude-permanently-failed permanently-failed-backend-claude upstream-blocked-live-cells)
+(normally r-propagate-live-cells-from-backend-claude-stale-v1 stale-v1-backend-claude upstream-blocked-live-cells)
+(normally r-propagate-live-cells-from-backend-claude-timeout-v1 timeout-v1-backend-claude upstream-blocked-live-cells)
+
+(claims agent:impler
+  :at "2026-05-01T03:18:01Z"
+  (given claim-v1-backend-gpt)
+  (normally r-cl-state-v1-backend-gpt claim-v1-backend-gpt state-claimed-v1-backend-gpt)
+  (normally r-cl-chain-v1-backend-gpt state-claimed-v1-backend-gpt claimed-backend-gpt)
+)
+
+;; Propagation rules: failures in 'backend-gpt' block downstream tasks
+(normally r-propagate-live-cells-from-backend-gpt-failed failed-backend-gpt upstream-blocked-live-cells)
+(normally r-propagate-live-cells-from-backend-gpt-permanently-failed permanently-failed-backend-gpt upstream-blocked-live-cells)
+(normally r-propagate-live-cells-from-backend-gpt-stale-v1 stale-v1-backend-gpt upstream-blocked-live-cells)
+(normally r-propagate-live-cells-from-backend-gpt-timeout-v1 timeout-v1-backend-gpt upstream-blocked-live-cells)
+
+(claims agent:impler
+  :at "2026-05-01T03:20:26Z"
+  (given completed-backend-claude))
+
+(claims agent:impler
+  :at "2026-05-01T03:20:26Z"
+  (given completed-backend-gpt))
+
+(claims agent:impler
+  :at "2026-05-01T03:48:55Z"
+  (given claim-v1-live-cells)
+  (normally r-cl-state-v1-live-cells claim-v1-live-cells state-claimed-v1-live-cells)
+  (normally r-cl-chain-v1-live-cells state-claimed-v1-live-cells claimed-live-cells)
+)
+
+;; Propagation rules: failures in 'live-cells' block downstream tasks
+(normally r-propagate-paper-from-live-cells-failed failed-live-cells upstream-blocked-paper)
+(normally r-propagate-paper-from-live-cells-permanently-failed permanently-failed-live-cells upstream-blocked-paper)
+(normally r-propagate-paper-from-live-cells-stale-v1 stale-v1-live-cells upstream-blocked-paper)
+(normally r-propagate-paper-from-live-cells-timeout-v1 timeout-v1-live-cells upstream-blocked-paper)
+
+(claims agent:impler
+  :at "2026-05-01T03:51:14Z"
+  (given completed-live-cells))
+
+(claims agent:ed25519:zhT3QZyz
+  :at "2026-05-01T04:13:54Z"
+  (given claim-v1-adaptive-attacker)
+  (normally r-cl-state-v1-adaptive-attacker claim-v1-adaptive-attacker state-claimed-v1-adaptive-attacker)
+  (normally r-cl-chain-v1-adaptive-attacker state-claimed-v1-adaptive-attacker claimed-adaptive-attacker)
+)
+
+;; Propagation rules: failures in 'adaptive-attacker' block downstream tasks
+(normally r-propagate-paper-from-adaptive-attacker-failed failed-adaptive-attacker upstream-blocked-paper)
+(normally r-propagate-paper-from-adaptive-attacker-permanently-failed permanently-failed-adaptive-attacker upstream-blocked-paper)
+(normally r-propagate-paper-from-adaptive-attacker-stale-v1 stale-v1-adaptive-attacker upstream-blocked-paper)
+(normally r-propagate-paper-from-adaptive-attacker-timeout-v1 timeout-v1-adaptive-attacker upstream-blocked-paper)
+(normally r-propagate-paper-from-adaptive-attacker-blocked upstream-blocked-adaptive-attacker upstream-blocked-paper)
+
+(claims agent:impler
+  :at "2026-05-01T04:15:51Z"
+  (given completed-adaptive-attacker))
+
+(claims agent:impler
+  :at "2026-05-01T04:22:33Z"
+  (given claim-v1-dc-coalition)
+  (normally r-cl-state-v1-dc-coalition claim-v1-dc-coalition state-claimed-v1-dc-coalition)
+  (normally r-cl-chain-v1-dc-coalition state-claimed-v1-dc-coalition claimed-dc-coalition)
+)
+
+;; Propagation rules: failures in 'dc-coalition' block downstream tasks
+(normally r-propagate-paper-from-dc-coalition-failed failed-dc-coalition upstream-blocked-paper)
+(normally r-propagate-paper-from-dc-coalition-permanently-failed permanently-failed-dc-coalition upstream-blocked-paper)
+(normally r-propagate-paper-from-dc-coalition-stale-v1 stale-v1-dc-coalition upstream-blocked-paper)
+(normally r-propagate-paper-from-dc-coalition-timeout-v1 timeout-v1-dc-coalition upstream-blocked-paper)
+(normally r-propagate-paper-from-dc-coalition-blocked upstream-blocked-dc-coalition upstream-blocked-paper)
+
+(claims agent:impler
+  :at "2026-05-01T04:22:35Z"
+  (given completed-dc-coalition))
+
+(claims agent:impler
+  :at "2026-05-01T04:28:14Z"
+  (given claim-v1-vanilla-sweep)
+  (normally r-cl-state-v1-vanilla-sweep claim-v1-vanilla-sweep state-claimed-v1-vanilla-sweep)
+  (normally r-cl-chain-v1-vanilla-sweep state-claimed-v1-vanilla-sweep claimed-vanilla-sweep)
+)
+
+;; Propagation rules: failures in 'vanilla-sweep' block downstream tasks
+(normally r-propagate-paper-from-vanilla-sweep-failed failed-vanilla-sweep upstream-blocked-paper)
+(normally r-propagate-paper-from-vanilla-sweep-permanently-failed permanently-failed-vanilla-sweep upstream-blocked-paper)
+(normally r-propagate-paper-from-vanilla-sweep-stale-v1 stale-v1-vanilla-sweep upstream-blocked-paper)
+(normally r-propagate-paper-from-vanilla-sweep-timeout-v1 timeout-v1-vanilla-sweep upstream-blocked-paper)
+(normally r-propagate-paper-from-vanilla-sweep-blocked upstream-blocked-vanilla-sweep upstream-blocked-paper)
+
+(claims agent:impler
+  :at "2026-05-01T04:28:14Z"
+  (given completed-vanilla-sweep))
+
+(claims agent:impler
+  :at "2026-05-01T04:31:56Z"
+  (given claim-v1-ultimatum-operator)
+  (normally r-cl-state-v1-ultimatum-operator claim-v1-ultimatum-operator state-claimed-v1-ultimatum-operator)
+  (normally r-cl-chain-v1-ultimatum-operator state-claimed-v1-ultimatum-operator claimed-ultimatum-operator)
+)
+
+;; Propagation rules: failures in 'ultimatum-operator' block downstream tasks
+(normally r-propagate-ultimatum-attackers-from-ultimatum-operator-failed failed-ultimatum-operator upstream-blocked-ultimatum-attackers)
+(normally r-propagate-ultimatum-attackers-from-ultimatum-operator-permanently-failed permanently-failed-ultimatum-operator upstream-blocked-ultimatum-attackers)
+(normally r-propagate-ultimatum-attackers-from-ultimatum-operator-stale-v1 stale-v1-ultimatum-operator upstream-blocked-ultimatum-attackers)
+(normally r-propagate-ultimatum-attackers-from-ultimatum-operator-timeout-v1 timeout-v1-ultimatum-operator upstream-blocked-ultimatum-attackers)
+(normally r-propagate-ultimatum-attackers-from-ultimatum-operator-blocked upstream-blocked-ultimatum-operator upstream-blocked-ultimatum-attackers)
+(normally r-propagate-ultimatum-cbcl-agent-from-ultimatum-operator-failed failed-ultimatum-operator upstream-blocked-ultimatum-cbcl-agent)
+(normally r-propagate-ultimatum-cbcl-agent-from-ultimatum-operator-permanently-failed permanently-failed-ultimatum-operator upstream-blocked-ultimatum-cbcl-agent)
+(normally r-propagate-ultimatum-cbcl-agent-from-ultimatum-operator-stale-v1 stale-v1-ultimatum-operator upstream-blocked-ultimatum-cbcl-agent)
+(normally r-propagate-ultimatum-cbcl-agent-from-ultimatum-operator-timeout-v1 timeout-v1-ultimatum-operator upstream-blocked-ultimatum-cbcl-agent)
+(normally r-propagate-ultimatum-cbcl-agent-from-ultimatum-operator-blocked upstream-blocked-ultimatum-operator upstream-blocked-ultimatum-cbcl-agent)
+(normally r-propagate-ultimatum-measurement-from-ultimatum-operator-failed failed-ultimatum-operator upstream-blocked-ultimatum-measurement)
+(normally r-propagate-ultimatum-measurement-from-ultimatum-operator-permanently-failed permanently-failed-ultimatum-operator upstream-blocked-ultimatum-measurement)
+(normally r-propagate-ultimatum-measurement-from-ultimatum-operator-stale-v1 stale-v1-ultimatum-operator upstream-blocked-ultimatum-measurement)
+(normally r-propagate-ultimatum-measurement-from-ultimatum-operator-timeout-v1 timeout-v1-ultimatum-operator upstream-blocked-ultimatum-measurement)
+(normally r-propagate-ultimatum-measurement-from-ultimatum-operator-blocked upstream-blocked-ultimatum-operator upstream-blocked-ultimatum-measurement)
+(normally r-propagate-ultimatum-vanilla-from-ultimatum-operator-failed failed-ultimatum-operator upstream-blocked-ultimatum-vanilla)
+(normally r-propagate-ultimatum-vanilla-from-ultimatum-operator-permanently-failed permanently-failed-ultimatum-operator upstream-blocked-ultimatum-vanilla)
+(normally r-propagate-ultimatum-vanilla-from-ultimatum-operator-stale-v1 stale-v1-ultimatum-operator upstream-blocked-ultimatum-vanilla)
+(normally r-propagate-ultimatum-vanilla-from-ultimatum-operator-timeout-v1 timeout-v1-ultimatum-operator upstream-blocked-ultimatum-vanilla)
+(normally r-propagate-ultimatum-vanilla-from-ultimatum-operator-blocked upstream-blocked-ultimatum-operator upstream-blocked-ultimatum-vanilla)
+
+;; Transitive propagation: upstream-blocked cascades through dependency chain
+(normally r-propagate-ultimatum-measurement-from-ultimatum-attackers-blocked upstream-blocked-ultimatum-attackers upstream-blocked-ultimatum-measurement)
+(normally r-propagate-ultimatum-attackers-from-ultimatum-cbcl-agent-blocked upstream-blocked-ultimatum-cbcl-agent upstream-blocked-ultimatum-attackers)
+(normally r-propagate-ultimatum-measurement-from-ultimatum-cbcl-agent-blocked upstream-blocked-ultimatum-cbcl-agent upstream-blocked-ultimatum-measurement)
+(normally r-propagate-paper-from-ultimatum-measurement-blocked upstream-blocked-ultimatum-measurement upstream-blocked-paper)
+(normally r-propagate-ultimatum-measurement-from-ultimatum-vanilla-blocked upstream-blocked-ultimatum-vanilla upstream-blocked-ultimatum-measurement)
+
+(claims agent:impler
+  :at "2026-05-01T04:35:33Z"
+  (given completed-ultimatum-operator))
+
+(claims agent:impler
+  :at "2026-05-01T04:39:49Z"
+  (given claim-v1-ultimatum-cbcl-agent)
+  (normally r-cl-state-v1-ultimatum-cbcl-agent claim-v1-ultimatum-cbcl-agent state-claimed-v1-ultimatum-cbcl-agent)
+  (normally r-cl-chain-v1-ultimatum-cbcl-agent state-claimed-v1-ultimatum-cbcl-agent claimed-ultimatum-cbcl-agent)
+)
+
+;; Propagation rules: failures in 'ultimatum-cbcl-agent' block downstream tasks
+(normally r-propagate-ultimatum-attackers-from-ultimatum-cbcl-agent-failed failed-ultimatum-cbcl-agent upstream-blocked-ultimatum-attackers)
+(normally r-propagate-ultimatum-attackers-from-ultimatum-cbcl-agent-permanently-failed permanently-failed-ultimatum-cbcl-agent upstream-blocked-ultimatum-attackers)
+(normally r-propagate-ultimatum-attackers-from-ultimatum-cbcl-agent-stale-v1 stale-v1-ultimatum-cbcl-agent upstream-blocked-ultimatum-attackers)
+(normally r-propagate-ultimatum-attackers-from-ultimatum-cbcl-agent-timeout-v1 timeout-v1-ultimatum-cbcl-agent upstream-blocked-ultimatum-attackers)
+(normally r-propagate-ultimatum-measurement-from-ultimatum-cbcl-agent-failed failed-ultimatum-cbcl-agent upstream-blocked-ultimatum-measurement)
+(normally r-propagate-ultimatum-measurement-from-ultimatum-cbcl-agent-permanently-failed permanently-failed-ultimatum-cbcl-agent upstream-blocked-ultimatum-measurement)
+(normally r-propagate-ultimatum-measurement-from-ultimatum-cbcl-agent-stale-v1 stale-v1-ultimatum-cbcl-agent upstream-blocked-ultimatum-measurement)
+(normally r-propagate-ultimatum-measurement-from-ultimatum-cbcl-agent-timeout-v1 timeout-v1-ultimatum-cbcl-agent upstream-blocked-ultimatum-measurement)
+
+(claims agent:impler
+  :at "2026-05-01T04:39:58Z"
+  (given claim-v1-ultimatum-vanilla)
+  (normally r-cl-state-v1-ultimatum-vanilla claim-v1-ultimatum-vanilla state-claimed-v1-ultimatum-vanilla)
+  (normally r-cl-chain-v1-ultimatum-vanilla state-claimed-v1-ultimatum-vanilla claimed-ultimatum-vanilla)
+)
+
+;; Propagation rules: failures in 'ultimatum-vanilla' block downstream tasks
+(normally r-propagate-ultimatum-measurement-from-ultimatum-vanilla-failed failed-ultimatum-vanilla upstream-blocked-ultimatum-measurement)
+(normally r-propagate-ultimatum-measurement-from-ultimatum-vanilla-permanently-failed permanently-failed-ultimatum-vanilla upstream-blocked-ultimatum-measurement)
+(normally r-propagate-ultimatum-measurement-from-ultimatum-vanilla-stale-v1 stale-v1-ultimatum-vanilla upstream-blocked-ultimatum-measurement)
+(normally r-propagate-ultimatum-measurement-from-ultimatum-vanilla-timeout-v1 timeout-v1-ultimatum-vanilla upstream-blocked-ultimatum-measurement)
+
+(claims agent:impler
+  :at "2026-05-01T04:42:47Z"
+  (given completed-ultimatum-vanilla))
+
+(claims agent:impler
+  :at "2026-05-01T04:43:05Z"
+  (given completed-ultimatum-cbcl-agent))
+
+(claims agent:impler
+  :at "2026-05-01T04:50:19Z"
+  (given claim-v1-ultimatum-attackers)
+  (normally r-cl-state-v1-ultimatum-attackers claim-v1-ultimatum-attackers state-claimed-v1-ultimatum-attackers)
+  (normally r-cl-chain-v1-ultimatum-attackers state-claimed-v1-ultimatum-attackers claimed-ultimatum-attackers)
+)
+
+;; Propagation rules: failures in 'ultimatum-attackers' block downstream tasks
+(normally r-propagate-ultimatum-measurement-from-ultimatum-attackers-failed failed-ultimatum-attackers upstream-blocked-ultimatum-measurement)
+(normally r-propagate-ultimatum-measurement-from-ultimatum-attackers-permanently-failed permanently-failed-ultimatum-attackers upstream-blocked-ultimatum-measurement)
+(normally r-propagate-ultimatum-measurement-from-ultimatum-attackers-stale-v1 stale-v1-ultimatum-attackers upstream-blocked-ultimatum-measurement)
+(normally r-propagate-ultimatum-measurement-from-ultimatum-attackers-timeout-v1 timeout-v1-ultimatum-attackers upstream-blocked-ultimatum-measurement)
+
+(claims agent:impler
+  :at "2026-05-01T04:53:47Z"
+  (given completed-ultimatum-attackers))
+
+(claims agent:impler
+  :at "2026-05-01T04:54:14Z"
+  (given claim-v1-ultimatum-measurement)
+  (normally r-cl-state-v1-ultimatum-measurement claim-v1-ultimatum-measurement state-claimed-v1-ultimatum-measurement)
+  (normally r-cl-chain-v1-ultimatum-measurement state-claimed-v1-ultimatum-measurement claimed-ultimatum-measurement)
+)
+
+;; Propagation rules: failures in 'ultimatum-measurement' block downstream tasks
+(normally r-propagate-paper-from-ultimatum-measurement-failed failed-ultimatum-measurement upstream-blocked-paper)
+(normally r-propagate-paper-from-ultimatum-measurement-permanently-failed permanently-failed-ultimatum-measurement upstream-blocked-paper)
+(normally r-propagate-paper-from-ultimatum-measurement-stale-v1 stale-v1-ultimatum-measurement upstream-blocked-paper)
+(normally r-propagate-paper-from-ultimatum-measurement-timeout-v1 timeout-v1-ultimatum-measurement upstream-blocked-paper)
+
+(claims agent:impler
+  :at "2026-05-01T05:00:16Z"
+  (given completed-ultimatum-measurement))
+
+(claims agent:impler
+  :at "2026-05-01T05:08:02Z"
+  (given claim-v1-psi-n100)
+  (normally r-cl-state-v1-psi-n100 claim-v1-psi-n100 state-claimed-v1-psi-n100)
+  (normally r-cl-chain-v1-psi-n100 state-claimed-v1-psi-n100 claimed-psi-n100)
+)
+
+;; Propagation rules: failures in 'psi-n100' block downstream tasks
+(normally r-propagate-paper-from-psi-n100-failed failed-psi-n100 upstream-blocked-paper)
+(normally r-propagate-paper-from-psi-n100-permanently-failed permanently-failed-psi-n100 upstream-blocked-paper)
+(normally r-propagate-paper-from-psi-n100-stale-v1 stale-v1-psi-n100 upstream-blocked-paper)
+(normally r-propagate-paper-from-psi-n100-timeout-v1 timeout-v1-psi-n100 upstream-blocked-paper)
+
+(claims agent:impler
+  :at "2026-05-01T05:08:02Z"
+  (given completed-psi-n100))
