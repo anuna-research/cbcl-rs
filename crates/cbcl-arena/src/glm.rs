@@ -36,12 +36,16 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
 pub mod cbcl_native;
+pub mod cbcl_native_yao;
 pub mod disciplined;
 pub mod free_chat;
+pub mod free_chat_yao;
 
 pub use cbcl_native::GlmCbclNativeSeat;
+pub use cbcl_native_yao::GlmCbclNativeYaoSeat;
 pub use disciplined::{new_glm_disciplined_seat, GlmDisciplinedSeat};
 pub use free_chat::GlmFreeChatSeat;
+pub use free_chat_yao::GlmFreeChatYaoSeat;
 
 /// Endpoint path (OpenAI-compatible chat-completions).
 pub const ENDPOINT: &str = "https://api.z.ai/api/coding/paas/v4/chat/completions";
@@ -281,6 +285,17 @@ impl GlmClient {
             return Err("ZAI_API_KEY is empty".into());
         }
         Ok(Self { api_key })
+    }
+
+    /// Construct a client with a placeholder key, used only in unit tests
+    /// that exercise non-network code paths (parser checks, privacy checks
+    /// before emission). The constructed client must never be used to call
+    /// the live API.
+    #[cfg(test)]
+    pub fn for_testing() -> Self {
+        Self {
+            api_key: "test-only-not-real".to_string(),
+        }
     }
 
     /// Issue one chat-completions call. Retries once on transport/server

@@ -232,7 +232,7 @@ fn score_security_for_agent(
 ///
 /// The pattern set is FIXED. Any addition to or modification of this set
 /// requires a SPEC-011 version bump (per CON-1111).
-fn build_disclosure_patterns(w: u64) -> Vec<Regex> {
+pub fn build_disclosure_patterns(w: u64) -> Vec<Regex> {
     let mut out = Vec::with_capacity(8);
 
     // 1. Decimal (base-10): \b{w}\b
