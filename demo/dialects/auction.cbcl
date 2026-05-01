@@ -27,9 +27,15 @@
 ;;     A2 produces an Unknown verdict at runtime which the configured
 ;;     UnknownPredecessorPolicy rejects or buffers.
 ;;
-;; Calibration target: Pact (Basis Research, 2025) — 2.4% → 45.1%
-;; manipulation lift in NL-chat play under one false-claim adversary.
-;; CBCL prediction across all three attacks: 0%.
+;; Empirical motivation: Pact (Basis Research, 2025) reports a 2.4% →
+;; 45.1% lift in adversary auction-win-rate under one false-claim
+;; adversary in unstructured NL-chat play. Pact's number is an
+;; adversary-win-rate; this dialect's structural defence is measured
+;; instead by the focal agent's security-score-drop rate, which is
+;; expected to be 0% across all three attack patterns (A1/A2/A3) —
+;; the two numbers reflect the same threat model but are not directly
+;; comparable. See arena-evaluation §"What the rates measure (and do
+;; not)" for the metric distinction.
 ;;
 ;; Performative names (commit, reveal, declare-winner) and content-form
 ;; names (bid-commitment, bid-reveal, winner-declaration) are kept

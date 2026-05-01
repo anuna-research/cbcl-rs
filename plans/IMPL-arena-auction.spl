@@ -3,10 +3,16 @@
 ;; NeurIPS '26 evaluation, reusing the cbcl-arena simulator harness
 ;; landed by IMPL-arena-sim.
 ;;
-;; Calibration target: Pact (Basis Research, 2025) — 2.4% → 45.1%
-;; manipulation lift under one false-claim adversary in NL-chat play.
-;; CBCL prediction: 0% across all three SPEC-004 attacks (A1 false bid
-;; claim, A2 forged commit citation, A3 pre-commit valuation leak).
+;; Empirical motivation: Pact (Basis Research, 2025) reports a 2.4% →
+;; 45.1% lift in adversary auction-win-rate under one false-claim
+;; adversary in unstructured NL-chat play. The vanilla NL-chat
+;; comparator in this plan is calibrated to reproduce that behavioural
+;; baseline. Pact's number is an adversary-win-rate; CBCL's structural
+;; defence is measured by the focal agent's security-score-drop rate
+;; — expected to be 0% across all three SPEC-004 attacks (A1 false
+;; bid claim, A2 forged commit citation, A3 pre-commit valuation
+;; leak). The two metrics reflect the same threat model but are not
+;; directly comparable.
 ;;
 ;; This plan transitions SPEC-004 from `draft` → `implemented` and
 ;; appends Demo~4 to 04_evaluation.tex's §4.2.1 alongside the existing
