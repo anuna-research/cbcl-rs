@@ -2,3 +2,34 @@
 **/*.rs.bk
 *.swp
 *.swo
+
+# OS metadata
+.DS_Store
+**/.DS_Store
+
+# Editor lockfiles
+.#*
+
+# Claude Code session state
+.claude/
+
+# Other tool session state
+.omm/
+
+# Build caches
+**/.refcache/
+
+# Live-LLM transcript working directory.
+#
+# Per-trial JSONL files written by the live_arena / glm_psi harnesses
+# can total tens of MB and produce diff churn on every measurement
+# rerun. They are NOT tracked in this repo. The full archive (replay-
+# ready bytes for every trial reported in the paper) is mirrored to
+# Cloudflare; see transcripts/RUN_N128.md for the URL.
+#
+# Curated transcripts cited from the paper text by exact filename
+# (the three "Selected transcript moments" excerpts) live under
+# transcripts/paper-evidence/ as a frozen reference snapshot and are
+# tracked here.
+crates/cbcl-arena/transcripts/*.jsonl
+!crates/cbcl-arena/transcripts/paper-evidence/
