@@ -31,3 +31,7 @@ path = "examples/cli.rs"
 [[example]]
 name = "glm_psi"
 path = "examples/glm_psi.rs"
+
+[[example]]
+name = "live_arena"
+path = "examples/live_arena.rs"
