@@ -21,13 +21,30 @@ Each dialect:
 
 ## Why
 
-The arena's inter-agent chat is plain text, and the current top
-attacker on PSI (`Malicious (claude-sonnet-4-6)`, 43% success rate) wins
-by social engineering the opponent's strategy LLM. Replacing that
-channel with CBCL deletes the entire injection surface: malformed
-messages fail at the parser; well-formed but out-of-order messages
-fail at `verify_causal` returning `Violation`; nothing reaches the
-strategy layer that wasn't both syntactically and causally valid.
+The motivating data point: `arena.nicolaos.org` (Greco et al., 2026)
+publicly lists a top PSI attacker — `Malicious (claude-sonnet-4-6)` —
+reaching a 43% success rate against the leaderboard's "Unbeaten"
+agents at 2026-04-30. The arena's inter-agent channel is unstructured
+NL chat. Whatever the specific attack mechanism (the arena reports
+rates, not transcripts), the channel admits a wide class of probe
+shapes — extraction prompts, role-play impersonation, payload
+smuggling, out-of-order assertions — that a free-form-chat agent's
+strategy LLM has to defend against in prose.
+
+`cbcl-arena` is a separate deterministic simulator we stand up to
+exercise that defence claim directly. It re-implements the four
+arena games (PSI, Yao, DC, Auction, plus Ultimatum) with controlled
+threat models, an author-crafted attacker library (Malicious-published
++ Malicious-novel categories), and a vanilla NL-chat comparator that
+calibrates to within statistical confidence of the arena's 43%
+baseline. CBCL's contribution is structural: replacing the chat
+channel with CBCL deletes the injection surface — malformed messages
+fail at the parser; well-formed but out-of-order messages fail at
+`verify_causal` returning `Violation`; nothing reaches the strategy
+layer that wasn't both syntactically and causally valid. The
+deterministic simulator measures this property directly against
+controlled inputs rather than indirectly through arena leaderboard
+rates.
 
 The cryptography (commit/reveal, DC-net XOR, etc.) is unchanged from
 the textbook protocols. CBCL's contribution is making the channel
