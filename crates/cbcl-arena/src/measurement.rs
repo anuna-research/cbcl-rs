@@ -59,17 +59,19 @@ use crate::agents::cbcl::{
     load_dialect,
     millionaire::{MillionaireCbclStrategy, YaoVerdict},
     psi::PsiCbclStrategy,
+    ultimatum::UltimatumCbclStrategy,
     CbclAgent,
 };
 use crate::agents::vanilla::{
-    ResponsePolicy, ScriptStep, ScriptTrigger, VanillaAgent, VanillaGuess, VanillaSetup,
+    ResponsePolicy, ScriptStep, ScriptTrigger, VanillaAgent, VanillaBreadth, VanillaGuess,
+    VanillaSetup,
 };
 use crate::agents::Agent;
 // `Agent` brings the `play` method into scope for VanillaAgent.
 use crate::attackers::{
     auction as auction_atk, dining as dining_atk, millionaire as millionaire_atk,
-    psi as psi_atk, AttackCategory, AuctionPattern, DiningPattern, MillionairePattern,
-    PsiPattern,
+    psi as psi_atk, ultimatum as ultimatum_atk, AttackCategory, AuctionPattern, DiningPattern,
+    MillionairePattern, PsiPattern, UltimatumPattern,
 };
 use crate::driver::{run_game, DrivenAgent, GameResult, StepStatus};
 use crate::manifest::{
@@ -81,6 +83,7 @@ use crate::operator::{
     dining::{DiningGuess, DiningOperator, DiningSetup},
     millionaire::{MillionaireGuess, MillionaireOperator, MillionaireSetup},
     psi::{PsiGuess, PsiOperator, PsiSetup},
+    ultimatum::{UltimatumGuess, UltimatumOperator, UltimatumSetup},
     AgentScore, ChallengeKind, ChatEvent,
 };
 use crate::statistics::wilson_ci;
@@ -102,6 +105,11 @@ pub struct MeasurementConfig {
     pub n_per_cell: usize,
     /// Master seed for deterministic per-tuple seed derivation.
     pub overall_seed: u64,
+    /// Vanilla agent inbound regex breadth. Default
+    /// [`VanillaBreadth::Default`] preserves the SPEC-011 calibration
+    /// target — historical measurements are byte-identical when this is
+    /// left at its default. Override for `IMPL-arena-evals` E3 sweeps.
+    pub vanilla_breadth: VanillaBreadth,
 }
 
 impl MeasurementConfig {
@@ -122,6 +130,7 @@ impl MeasurementConfig {
             ],
             n_per_cell: 300,
             overall_seed,
+            vanilla_breadth: VanillaBreadth::default(),
         }
     }
 }
@@ -185,6 +194,7 @@ pub fn measure(config: &MeasurementConfig) -> ComparativeReport {
                     agent,
                     attacker_category,
                     config.n_per_cell,
+                    config.vanilla_breadth,
                 );
                 cells.push(cell);
             }
@@ -204,6 +214,7 @@ fn run_cell(
     agent: AgentKind,
     attacker_category: AttackCategory,
     n: usize,
+    breadth: VanillaBreadth,
 ) -> MeasurementCell {
     let mut utility_sum: f64 = 0.0;
     let mut security_sum: f64 = 0.0;
@@ -218,7 +229,8 @@ fn run_cell(
         let seed = manifest
             .lookup_seed(ch_id, ag_id, at_id, run_idx as u32)
             .expect("manifest covers full matrix");
-        let focal_score = run_one_game(challenge, agent, attacker_category, run_idx, seed);
+        let focal_score =
+            run_one_game(challenge, agent, attacker_category, run_idx, seed, breadth);
         utility_sum += focal_score.utility as f64;
         security_sum += focal_score.security as f64;
         if focal_score.utility > 0 {
@@ -262,14 +274,20 @@ fn run_one_game(
     attacker_category: AttackCategory,
     run_idx: usize,
     seed: u64,
+    breadth: VanillaBreadth,
 ) -> AgentScore {
     match challenge {
-        ChallengeKind::Psi => run_psi_game(agent, attacker_category, run_idx, seed),
+        ChallengeKind::Psi => run_psi_game(agent, attacker_category, run_idx, seed, breadth),
         ChallengeKind::Millionaire => {
-            run_millionaire_game(agent, attacker_category, run_idx, seed)
+            run_millionaire_game(agent, attacker_category, run_idx, seed, breadth)
         }
-        ChallengeKind::Dining => run_dining_game(agent, attacker_category, run_idx, seed),
-        ChallengeKind::Auction => run_auction_game(agent, attacker_category, run_idx, seed),
+        ChallengeKind::Dining => run_dining_game(agent, attacker_category, run_idx, seed, breadth),
+        ChallengeKind::Auction => {
+            run_auction_game(agent, attacker_category, run_idx, seed, breadth)
+        }
+        ChallengeKind::Ultimatum => {
+            run_ultimatum_game(agent, attacker_category, run_idx, seed, breadth)
+        }
     }
 }
 
@@ -282,16 +300,19 @@ const MILLIONAIRE_DIALECT_SRC: &str =
     include_str!("../../../demo/dialects/millionaire.cbcl");
 const DINING_DIALECT_SRC: &str = include_str!("../../../demo/dialects/dining.cbcl");
 const AUCTION_DIALECT_SRC: &str = include_str!("../../../demo/dialects/auction.cbcl");
+const ULTIMATUM_DIALECT_SRC: &str =
+    include_str!("../../../demo/dialects/ultimatum.cbcl");
 
 fn run_psi_game(
     agent: AgentKind,
     attacker_category: AttackCategory,
     run_idx: usize,
     seed: u64,
+    breadth: VanillaBreadth,
 ) -> AgentScore {
     let op = psi_operator_for_measurement();
     let mut seats: Vec<PsiSeat> = vec![
-        psi_focal_seat(agent),
+        psi_focal_seat(agent, breadth),
         psi_attacker_seat(attacker_category, run_idx),
     ];
     let result = run_game(
@@ -332,7 +353,7 @@ fn psi_operator_for_measurement() -> PsiOperator {
     }
 }
 
-fn psi_focal_seat(agent: AgentKind) -> PsiSeat {
+fn psi_focal_seat(agent: AgentKind, breadth: VanillaBreadth) -> PsiSeat {
     match agent {
         AgentKind::Cbcl => {
             let dialect = load_dialect(PSI_DIALECT_SRC).expect("psi dialect");
@@ -343,7 +364,7 @@ fn psi_focal_seat(agent: AgentKind) -> PsiSeat {
                 "alice",
             ))
         }
-        AgentKind::Vanilla => PsiSeat::Vanilla(VanillaSeat::with_calibrated_psi_script()),
+        AgentKind::Vanilla => PsiSeat::Vanilla(VanillaSeat::with_calibrated_psi_script(breadth)),
     }
 }
 
@@ -458,9 +479,9 @@ struct VanillaSeat {
 }
 
 impl VanillaSeat {
-    fn new(challenge: ChallengeKind, policy: ResponsePolicy) -> Self {
+    fn new(challenge: ChallengeKind, policy: ResponsePolicy, breadth: VanillaBreadth) -> Self {
         Self {
-            agent: VanillaAgent::with_default_script(challenge, policy),
+            agent: VanillaAgent::with_default_script(challenge, policy).with_breadth(breadth),
             setup: None,
             pending_in: Vec::new(),
             last_guess: None,
@@ -510,7 +531,7 @@ impl VanillaSeat {
     /// regex inside `agents/vanilla.rs` cannot leak independently of
     /// our calibrated trigger — the only disclosure path is the
     /// `AfterPattern` rule below.
-    fn with_calibrated_psi_script() -> Self {
+    fn with_calibrated_psi_script(breadth: VanillaBreadth) -> Self {
         // Pattern: any of the request verbs followed (in the same
         // sentence) by the literal word `set`. The `[^.\n]*` cap keeps
         // the match within one sentence so unrelated mentions of `set`
@@ -527,7 +548,8 @@ impl VanillaSeat {
             },
         ];
         Self {
-            agent: VanillaAgent::new(ChallengeKind::Psi, script, ResponsePolicy::Acknowledge),
+            agent: VanillaAgent::new(ChallengeKind::Psi, script, ResponsePolicy::Acknowledge)
+                .with_breadth(breadth),
             setup: None,
             pending_in: Vec::new(),
             last_guess: None,
@@ -560,6 +582,16 @@ impl VanillaSeat {
             agent_idx: setup.agent_idx,
             n_bidders: setup.n_bidders,
             valuation: setup.valuation,
+        });
+    }
+
+    fn ingest_ultimatum(&mut self, setup: UltimatumSetup) {
+        use crate::operator::ultimatum::UltimatumRole;
+        self.setup = Some(VanillaSetup::Ultimatum {
+            agent_idx: setup.agent_idx,
+            is_proposer: matches!(setup.role, UltimatumRole::Proposer),
+            reservation: setup.reservation,
+            total: setup.total,
         });
     }
 
@@ -607,7 +639,7 @@ impl VanillaSeat {
     /// around `0.45-0.55`, which brackets Pact's reported `0.451`. Only
     /// A3 (`pre-commit-valuation-leak`) carries no `bid <digits>` token
     /// to match against and so does not trigger the disclosure.
-    fn with_calibrated_auction_script() -> Self {
+    fn with_calibrated_auction_script(breadth: VanillaBreadth) -> Self {
         // Disclosure regex matches:
         //   - A1 prose ("the second-highest bid was 87",
         //     "highest bid is 95", "second-highest was 73") — fires on
@@ -653,7 +685,8 @@ impl VanillaSeat {
                 ChallengeKind::Auction,
                 script,
                 ResponsePolicy::Acknowledge,
-            ),
+            )
+            .with_breadth(breadth),
             setup: None,
             pending_in: Vec::new(),
             last_guess: None,
@@ -727,6 +760,16 @@ impl VanillaSeat {
         self.step_generic(in_channel, out_channel, rng, send_index_seed)
     }
 
+    fn step_ultimatum(
+        &mut self,
+        in_channel: &mut dyn Iterator<Item = ChatEvent>,
+        out_channel: &mut dyn FnMut(ChatEvent),
+        rng: &mut dyn RngCore,
+        send_index_seed: &mut u64,
+    ) -> StepStatus {
+        self.step_generic(in_channel, out_channel, rng, send_index_seed)
+    }
+
     fn step_dining(
         &mut self,
         in_channel: &mut dyn Iterator<Item = ChatEvent>,
@@ -757,11 +800,12 @@ fn run_millionaire_game(
     attacker_category: AttackCategory,
     run_idx: usize,
     seed: u64,
+    breadth: VanillaBreadth,
 ) -> AgentScore {
     let op = MillionaireOperator::default();
     let wealth_range = op.wealth_range;
     let mut seats: Vec<MillionaireSeat> = vec![
-        millionaire_focal_seat(agent, wealth_range),
+        millionaire_focal_seat(agent, wealth_range, breadth),
         millionaire_attacker_seat(attacker_category, run_idx),
     ];
     let result = run_game(
@@ -774,7 +818,11 @@ fn run_millionaire_game(
     focal_score(&result)
 }
 
-fn millionaire_focal_seat(agent: AgentKind, wealth_range: u64) -> MillionaireSeat {
+fn millionaire_focal_seat(
+    agent: AgentKind,
+    wealth_range: u64,
+    breadth: VanillaBreadth,
+) -> MillionaireSeat {
     match agent {
         AgentKind::Cbcl => {
             let dialect = load_dialect(MILLIONAIRE_DIALECT_SRC).expect("yao dialect");
@@ -788,6 +836,7 @@ fn millionaire_focal_seat(agent: AgentKind, wealth_range: u64) -> MillionaireSea
         AgentKind::Vanilla => MillionaireSeat::Vanilla(VanillaSeat::new(
             ChallengeKind::Millionaire,
             ResponsePolicy::Comply,
+            breadth,
         )),
     }
 }
@@ -900,6 +949,152 @@ impl DrivenAgent for MillionaireSeat {
 }
 
 // =============================================================================
+// Ultimatum cell (`IMPL-arena-evals` E5) — 2 seats: focal proposer, peer.
+//
+// The Ultimatum operator assigns agent_idx 0 to the Proposer and 1 to the
+// Responder; the focal seat is at idx 0 (proposer) and the peer (CBCL or
+// attacker) at idx 1 (responder). Reservation-extraction probes from the
+// peer target the proposer's reservation. The operator's per-agent
+// security check fires `−1` for any seat whose own reservation appears
+// in plaintext on its authored chat events.
+// =============================================================================
+
+fn run_ultimatum_game(
+    agent: AgentKind,
+    attacker_category: AttackCategory,
+    run_idx: usize,
+    seed: u64,
+    breadth: VanillaBreadth,
+) -> AgentScore {
+    let op = UltimatumOperator::default();
+    let mut seats: Vec<UltimatumSeat> = vec![
+        ultimatum_focal_seat(agent, breadth),
+        ultimatum_attacker_seat(attacker_category, run_idx),
+    ];
+    let result = run_game(
+        &op,
+        &mut seats,
+        seed,
+        |s: &UltimatumSetup| *s,
+        |g: &UltimatumGuess| *g,
+    );
+    focal_score(&result)
+}
+
+fn ultimatum_focal_seat(agent: AgentKind, breadth: VanillaBreadth) -> UltimatumSeat {
+    match agent {
+        AgentKind::Cbcl => UltimatumSeat::Cbcl(CbclAgent::new(
+            load_dialect(ULTIMATUM_DIALECT_SRC).expect("ultimatum dialect"),
+            UltimatumCbclStrategy::new(),
+            "ultimatum-game",
+            "alice",
+        )),
+        AgentKind::Vanilla => UltimatumSeat::Vanilla(VanillaSeat::new(
+            ChallengeKind::Ultimatum,
+            ResponsePolicy::Comply,
+            breadth,
+        )),
+    }
+}
+
+fn ultimatum_attacker_seat(
+    attacker_category: AttackCategory,
+    run_idx: usize,
+) -> UltimatumSeat {
+    let r = ultimatum_atk::registry();
+    let pat = pick_pattern_ultimatum(r, attacker_category, run_idx);
+    UltimatumSeat::Attacker(pat)
+}
+
+fn pick_pattern_ultimatum(
+    r: crate::attackers::PerChallenge<dyn UltimatumPattern>,
+    cat: AttackCategory,
+    run_idx: usize,
+) -> Box<dyn UltimatumPattern> {
+    let mut bucket = match cat {
+        AttackCategory::Honest => r.honest,
+        AttackCategory::Published => r.published,
+        AttackCategory::Novel => r.novel,
+    };
+    assert!(!bucket.is_empty(), "ultimatum attacker bucket empty");
+    let i = run_idx % bucket.len();
+    bucket.swap_remove(i)
+}
+
+enum UltimatumSeat {
+    Cbcl(CbclAgent<UltimatumCbclStrategy>),
+    Vanilla(VanillaSeat),
+    Attacker(Box<dyn UltimatumPattern>),
+}
+
+impl DrivenAgent for UltimatumSeat {
+    type Setup = UltimatumSetup;
+    type Guess = UltimatumGuess;
+
+    fn ingest_setup(&mut self, setup: Self::Setup) {
+        match self {
+            UltimatumSeat::Cbcl(a) => crate::agents::cbcl::ingest_setup(a, setup),
+            UltimatumSeat::Vanilla(v) => v.ingest_ultimatum(setup),
+            UltimatumSeat::Attacker(a) => a.ingest_setup(setup),
+        }
+    }
+
+    fn step(
+        &mut self,
+        in_channel: &mut dyn Iterator<Item = ChatEvent>,
+        out_channel: &mut dyn FnMut(ChatEvent),
+        rng: &mut dyn RngCore,
+        send_index_seed: &mut u64,
+    ) -> StepStatus {
+        match self {
+            UltimatumSeat::Cbcl(a) => {
+                let s = CbclAgent::step(a, in_channel, out_channel, rng, send_index_seed);
+                StepStatus {
+                    had_inbound: s.had_inbound,
+                    had_outbound: s.had_outbound,
+                    is_done: s.is_done,
+                }
+            }
+            UltimatumSeat::Vanilla(v) => {
+                v.step_ultimatum(in_channel, out_channel, rng, send_index_seed)
+            }
+            UltimatumSeat::Attacker(a) => {
+                let mut had_inbound = false;
+                let buf: Vec<ChatEvent> = in_channel
+                    .map(|e| {
+                        had_inbound = true;
+                        e
+                    })
+                    .collect();
+                let mut emitted = false;
+                let mut counting_out = |e: ChatEvent| {
+                    emitted = true;
+                    out_channel(e);
+                };
+                let mut iter = buf.into_iter();
+                let done = a.step(&mut iter, &mut counting_out, rng, send_index_seed);
+                StepStatus {
+                    had_inbound,
+                    had_outbound: emitted,
+                    is_done: done,
+                }
+            }
+        }
+    }
+
+    fn final_guess(&self) -> Self::Guess {
+        match self {
+            UltimatumSeat::Cbcl(a) => a.final_guess(),
+            UltimatumSeat::Vanilla(v) => match v.last_guess.clone() {
+                Some(VanillaGuess::Ultimatum(g)) => g,
+                _ => UltimatumGuess::Unknown,
+            },
+            UltimatumSeat::Attacker(a) => a.final_guess(),
+        }
+    }
+}
+
+// =============================================================================
 // Dining cell — 3 seats: focal, attacker, honest CBCL diner.
 // =============================================================================
 
@@ -908,11 +1103,12 @@ fn run_dining_game(
     attacker_category: AttackCategory,
     run_idx: usize,
     seed: u64,
+    breadth: VanillaBreadth,
 ) -> AgentScore {
     let op = DiningOperator::default();
     let dialect = load_dialect(DINING_DIALECT_SRC).expect("dc dialect");
     let mut seats: Vec<DiningSeat> = vec![
-        dining_focal_seat(agent),
+        dining_focal_seat(agent, breadth),
         dining_attacker_seat(attacker_category, run_idx),
         DiningSeat::Cbcl(CbclAgent::new(
             dialect,
@@ -931,7 +1127,7 @@ fn run_dining_game(
     focal_score(&result)
 }
 
-fn dining_focal_seat(agent: AgentKind) -> DiningSeat {
+fn dining_focal_seat(agent: AgentKind, breadth: VanillaBreadth) -> DiningSeat {
     match agent {
         AgentKind::Cbcl => {
             let dialect = load_dialect(DINING_DIALECT_SRC).expect("dc dialect");
@@ -942,9 +1138,11 @@ fn dining_focal_seat(agent: AgentKind) -> DiningSeat {
                 "diner-1",
             ))
         }
-        AgentKind::Vanilla => {
-            DiningSeat::Vanilla(VanillaSeat::new(ChallengeKind::Dining, ResponsePolicy::Comply))
-        }
+        AgentKind::Vanilla => DiningSeat::Vanilla(VanillaSeat::new(
+            ChallengeKind::Dining,
+            ResponsePolicy::Comply,
+            breadth,
+        )),
     }
 }
 
@@ -1073,6 +1271,7 @@ fn run_auction_game(
     attacker_category: AttackCategory,
     run_idx: usize,
     seed: u64,
+    breadth: VanillaBreadth,
 ) -> AgentScore {
     let op = AuctionOperator::default();
     let dialect = load_dialect(AUCTION_DIALECT_SRC).expect("auction dialect");
@@ -1088,7 +1287,7 @@ fn run_auction_game(
             "auction-game",
             "bidder-0",
         )),
-        auction_focal_seat(agent, &dialect),
+        auction_focal_seat(agent, &dialect, breadth),
         auction_attacker_seat(attacker_category, run_idx),
     ];
 
@@ -1102,7 +1301,11 @@ fn run_auction_game(
     focal_score_at(&result, focal_idx)
 }
 
-fn auction_focal_seat(agent: AgentKind, dialect: &cbcl_core::dialect::Dialect) -> AuctionSeat {
+fn auction_focal_seat(
+    agent: AgentKind,
+    dialect: &cbcl_core::dialect::Dialect,
+    breadth: VanillaBreadth,
+) -> AuctionSeat {
     match agent {
         AgentKind::Cbcl => AuctionSeat::Cbcl(CbclAgent::new(
             dialect.clone(),
@@ -1111,7 +1314,7 @@ fn auction_focal_seat(agent: AgentKind, dialect: &cbcl_core::dialect::Dialect) -
             "bidder-1",
         )),
         AgentKind::Vanilla => {
-            AuctionSeat::Vanilla(VanillaSeat::with_calibrated_auction_script())
+            AuctionSeat::Vanilla(VanillaSeat::with_calibrated_auction_script(breadth))
         }
     }
 }
@@ -1256,6 +1459,7 @@ mod tests {
             ],
             n_per_cell: 5,
             overall_seed: 0xdead_beef_dead_beef,
+            vanilla_breadth: VanillaBreadth::default(),
         };
         let m = ReproducibilityManifest::new_with_timestamp(
             &cfg,
@@ -1281,6 +1485,7 @@ mod tests {
             ],
             n_per_cell: 7,
             overall_seed: 42,
+            vanilla_breadth: VanillaBreadth::default(),
         };
         let a = ReproducibilityManifest::new_with_timestamp(
             &cfg,
@@ -1329,6 +1534,7 @@ mod tests {
             ],
             n_per_cell: 5,
             overall_seed: 0x1234_5678_9abc_def0,
+            vanilla_breadth: VanillaBreadth::default(),
         };
         let report = measure(&cfg);
         // 4 challenges × 2 agents × 3 categories = 24 cells.
@@ -1359,6 +1565,7 @@ mod tests {
             categories: vec![AttackCategory::Published],
             n_per_cell: 300,
             overall_seed: 0xa1b2_c3d4_e5f6_7890,
+            vanilla_breadth: VanillaBreadth::default(),
         };
         let report = measure(&cfg);
         assert_eq!(report.cells.len(), 1);
@@ -1391,6 +1598,7 @@ mod tests {
             categories: vec![AttackCategory::Published],
             n_per_cell: 300,
             overall_seed: 0xa1b2_c3d4_e5f6_7891,
+            vanilla_breadth: VanillaBreadth::default(),
         };
         let report = measure(&cfg);
         let cell = &report.cells[0];
@@ -1420,6 +1628,7 @@ mod tests {
             categories: vec![AttackCategory::Novel],
             n_per_cell: 300,
             overall_seed: 0xa1b2_c3d4_e5f6_7892,
+            vanilla_breadth: VanillaBreadth::default(),
         };
         let report = measure(&cfg);
         let cell = &report.cells[0];
@@ -1449,6 +1658,7 @@ mod tests {
             categories: vec![AttackCategory::Published],
             n_per_cell: 300,
             overall_seed: 0xa1b2_c3d4_e5f6_7893,
+            vanilla_breadth: VanillaBreadth::default(),
         };
         let report = measure(&cfg);
         assert_eq!(report.cells.len(), 1);
@@ -1477,6 +1687,7 @@ mod tests {
             categories: vec![AttackCategory::Published],
             n_per_cell: 300,
             overall_seed: 0xa1b2_c3d4_e5f6_7894,
+            vanilla_breadth: VanillaBreadth::default(),
         };
         let report = measure(&cfg);
         let cell = &report.cells[0];
@@ -1502,6 +1713,7 @@ mod tests {
             categories: vec![AttackCategory::Novel],
             n_per_cell: 300,
             overall_seed: 0xa1b2_c3d4_e5f6_7895,
+            vanilla_breadth: VanillaBreadth::default(),
         };
         let report = measure(&cfg);
         let cell = &report.cells[0];
@@ -1529,6 +1741,7 @@ mod tests {
             categories: vec![AttackCategory::Honest],
             n_per_cell: 4,
             overall_seed: 0xface_b00c,
+            vanilla_breadth: VanillaBreadth::default(),
         };
         let report = measure(&cfg);
         assert_eq!(report.cells.len(), 1);
@@ -1549,6 +1762,7 @@ mod tests {
             categories: vec![AttackCategory::Honest, AttackCategory::Published],
             n_per_cell: 30,
             overall_seed: 0x5eed_cafe_dead_beef,
+            vanilla_breadth: VanillaBreadth::default(),
         };
         let r1 = measure(&cfg);
         let r2 = measure(&cfg);

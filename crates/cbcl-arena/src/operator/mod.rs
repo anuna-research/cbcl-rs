@@ -23,6 +23,7 @@ pub mod auction;
 pub mod dining;
 pub mod millionaire;
 pub mod psi;
+pub mod ultimatum;
 
 pub use auction::{
     AuctionGuess, AuctionOperator, AuctionSetup, ValuationDistribution,
@@ -32,6 +33,9 @@ pub use millionaire::{
     MillionaireGuess, MillionaireOperator, MillionaireSetup, WealthDistribution,
 };
 pub use psi::{OverlapDistribution, PsiGuess, PsiOperator, PsiSetup};
+pub use ultimatum::{
+    ReservationDistribution, UltimatumGuess, UltimatumOperator, UltimatumRole, UltimatumSetup,
+};
 
 /// Per-agent score row produced by [`Operator::score`].
 ///
@@ -63,7 +67,7 @@ pub struct ChatEvent {
     pub payload: Vec<u8>,
 }
 
-/// Marker types for the three Arena challenges, used to parameterise generic
+/// Marker types for the Arena challenges, used to parameterise generic
 /// agent strategies (`REQ-1120`, `REQ-1121`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum ChallengeKind {
@@ -75,6 +79,8 @@ pub enum ChallengeKind {
     Dining,
     /// Sealed-bid auction (SPEC-004 / REQ-410..414).
     Auction,
+    /// Ultimatum bargaining game (`IMPL-arena-evals` E5).
+    Ultimatum,
 }
 
 /// Per-challenge operator interface (CON-1100).

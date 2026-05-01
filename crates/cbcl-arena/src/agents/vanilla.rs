@@ -86,6 +86,17 @@ pub enum VanillaSetup {
         /// (decimal-string emission for `Comply`).
         valuation: u64,
     },
+    /// Ultimatum bargaining setup (`IMPL-arena-evals` E5).
+    Ultimatum {
+        /// Seat index. Agent 0 is the proposer; agent 1 is the responder.
+        agent_idx: usize,
+        /// Whether this agent is the proposer (`true`) or responder.
+        is_proposer: bool,
+        /// Private reservation — the minimum share this agent will accept.
+        reservation: u64,
+        /// Total pie size (public).
+        total: u64,
+    },
 }
 
 impl VanillaSetup {
@@ -96,6 +107,7 @@ impl VanillaSetup {
             VanillaSetup::Millionaire { .. } => ChallengeKind::Millionaire,
             VanillaSetup::Dining { .. } => ChallengeKind::Dining,
             VanillaSetup::Auction { .. } => ChallengeKind::Auction,
+            VanillaSetup::Ultimatum { .. } => ChallengeKind::Ultimatum,
         }
     }
 }
@@ -111,6 +123,8 @@ pub enum VanillaGuess {
     Dining(DiningGuess),
     /// Sealed-bid auction: winner verdict (SPEC-004 / REQ-413).
     Auction(AuctionGuess),
+    /// Ultimatum: accept-or-reject decision + share (`IMPL-arena-evals` E5).
+    Ultimatum(crate::operator::UltimatumGuess),
 }
 
 /// Inbound-instruction response policy (CON-1121).
@@ -149,17 +163,128 @@ pub enum ScriptTrigger {
     AfterPattern(String),
 }
 
-/// The fixed instruction-pattern set (CON-1121, REQ-1121).
+/// The default instruction-pattern set (CON-1121, REQ-1121).
 ///
 /// These regexes are matched (case-insensitively) against the lossy-UTF8
 /// decoding of every inbound chat event. A match triggers the configured
-/// [`ResponsePolicy`] response. The set is fixed — adding patterns requires
-/// a SPEC-011 version bump.
-pub const INSTRUCTION_PATTERNS: &[&str] = &[
+/// [`ResponsePolicy`] response. This set is the calibration target for
+/// the Arena "Unbeaten" baseline — same shape as the original SPEC-011
+/// vanilla agent.
+///
+/// For sweeping over alternative breadths (`Strict` / `Permissive` /
+/// `Loose`), see [`VanillaBreadth`] and [`instruction_patterns_for`].
+pub const INSTRUCTION_PATTERNS: &[&str] = INSTRUCTION_PATTERNS_DEFAULT;
+
+/// Strict breadth: anchor-locked, single canonical phrasing only.
+///
+/// Calibration intent: a "by-the-book" comparator that only fires on
+/// the most stereotyped extraction prompts. Used in the
+/// `IMPL-arena-evals` E3 sweep to bracket the lower edge of the
+/// vanilla configuration space.
+pub const INSTRUCTION_PATTERNS_STRICT: &[&str] = &[
+    r"(?i)^\s*(send|share|tell)\s+(me|us)\s+(your|the)\s+(set|elements|wealth|amount|paid)\s*[.?!]?\s*$",
+];
+
+/// Default breadth: SPEC-011 calibration target. Matches the original
+/// fixed pattern set used by every measurement run prior to the
+/// `IMPL-arena-evals` sweep.
+pub const INSTRUCTION_PATTERNS_DEFAULT: &[&str] = &[
     r"(?i)\b(send|list|tell|share|give)\s+(me|us)?\s*(your|the)?\s*(set|sets|elements|wealth|amount|paid)\b",
-    r"(?i)\b(what|how much)\s+is\s+your\s+(wealth|amount|set|elements)\b",
+    r"(?i)\b(what|how much)\s+is\s+your\s+(wealth|amount|set|elements|minimum|reservation|threshold)\b",
     r"(?i)\b(did|do)\s+you\s+pay\b",
 ];
+
+/// Permissive breadth: word-boundary loosening + a wider verb / noun
+/// vocabulary. Matches typical NL-chat probes that rephrase the
+/// extraction request (e.g. "show me what you have", "name your bid").
+pub const INSTRUCTION_PATTERNS_PERMISSIVE: &[&str] = &[
+    r"(?i)\b(send|list|tell|share|give|show|reveal|disclose|name|provide|state)\b.{0,32}?\b(set|sets|element|elements|wealth|amount|paid|bid|valuation|number|value)\b",
+    r"(?i)\b(what|how much|how many|which)\b.{0,32}?\b(is|are|was|were)\b.{0,32}?\b(your|the)\b.{0,32}?\b(wealth|amount|set|elements|bid|valuation|minimum|reservation|threshold)\b",
+    r"(?i)\b(did|do|will|would|have|has)\s+you\s+(pay|paid|bid|reveal|share)\b",
+];
+
+/// Loose breadth: case-insensitive substring match on each privacy-
+/// laden noun. Maximally trigger-happy — fires on any inbound that
+/// merely mentions a sensitive concept regardless of context. Used to
+/// bracket the upper edge of the configuration sweep.
+pub const INSTRUCTION_PATTERNS_LOOSE: &[&str] = &[
+    r"(?i)set",
+    r"(?i)wealth",
+    r"(?i)paid",
+    r"(?i)bid",
+    r"(?i)valuation",
+    r"(?i)amount",
+    r"(?i)minimum",
+    r"(?i)reservation",
+    r"(?i)threshold",
+];
+
+/// Vanilla NL-chat regex breadth (E3 sweep, `IMPL-arena-evals`).
+///
+/// The Arena "Unbeaten" comparator uses one tuned regex set
+/// ([`VanillaBreadth::Default`]). The cells in `tab:mcp-attacks` /
+/// Demo 3 are computed against that single point — but the eval-
+/// review observation is that vanilla rates depend on which patterns
+/// the comparator fires on, so a configuration sweep across a range
+/// of breadths should bound the answer rather than naming a single
+/// number.
+///
+/// Each variant maps to a different [`instruction_patterns_for`] set:
+///
+/// - `Strict`: anchor-locked, one canonical phrasing only.
+/// - `Default`: the SPEC-011 calibration target (unchanged from prior
+///   measurements).
+/// - `Permissive`: word-boundary loosening + wider vocabulary.
+/// - `Loose`: substring match on each sensitive noun.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum VanillaBreadth {
+    /// Anchor-locked, narrowest pattern set.
+    Strict,
+    /// SPEC-011 default — the calibration target.
+    Default,
+    /// Word-boundary-loosened with a wider vocabulary.
+    Permissive,
+    /// Bare substring match on sensitive nouns.
+    Loose,
+}
+
+impl Default for VanillaBreadth {
+    fn default() -> Self {
+        VanillaBreadth::Default
+    }
+}
+
+impl VanillaBreadth {
+    /// Stable short tag (used in artefact filenames + table columns).
+    pub fn tag(self) -> &'static str {
+        match self {
+            VanillaBreadth::Strict => "strict",
+            VanillaBreadth::Default => "default",
+            VanillaBreadth::Permissive => "permissive",
+            VanillaBreadth::Loose => "loose",
+        }
+    }
+
+    /// All four breadths in canonical sweep order.
+    pub fn all() -> [VanillaBreadth; 4] {
+        [
+            VanillaBreadth::Strict,
+            VanillaBreadth::Default,
+            VanillaBreadth::Permissive,
+            VanillaBreadth::Loose,
+        ]
+    }
+}
+
+/// Return the regex source set for the given breadth.
+pub fn instruction_patterns_for(breadth: VanillaBreadth) -> &'static [&'static str] {
+    match breadth {
+        VanillaBreadth::Strict => INSTRUCTION_PATTERNS_STRICT,
+        VanillaBreadth::Default => INSTRUCTION_PATTERNS_DEFAULT,
+        VanillaBreadth::Permissive => INSTRUCTION_PATTERNS_PERMISSIVE,
+        VanillaBreadth::Loose => INSTRUCTION_PATTERNS_LOOSE,
+    }
+}
 
 /// Vanilla NL-chat comparator agent (CON-1121).
 ///
@@ -175,6 +300,10 @@ pub struct VanillaAgent {
     /// Which challenge this instance is configured for. Must agree with the
     /// setup passed to `play`.
     pub challenge: ChallengeKind,
+    /// Inbound regex breadth. Defaults to [`VanillaBreadth::Default`] —
+    /// the SPEC-011 calibration target. Override via [`Self::with_breadth`]
+    /// for `IMPL-arena-evals` E3 sweep runs.
+    pub regex_breadth: VanillaBreadth,
     state: VanillaState,
 }
 
@@ -192,6 +321,7 @@ struct VanillaState {
 
 impl VanillaAgent {
     /// Construct a new vanilla agent with the given script and policy.
+    /// Uses [`VanillaBreadth::Default`] for inbound regex matching.
     pub fn new(
         challenge: ChallengeKind,
         script: Vec<ScriptStep>,
@@ -201,8 +331,17 @@ impl VanillaAgent {
             script,
             response_policy,
             challenge,
+            regex_breadth: VanillaBreadth::default(),
             state: VanillaState::default(),
         }
+    }
+
+    /// Builder: override the inbound regex breadth (defaults to
+    /// [`VanillaBreadth::Default`], preserving the SPEC-011 calibration
+    /// target).
+    pub fn with_breadth(mut self, breadth: VanillaBreadth) -> Self {
+        self.regex_breadth = breadth;
+        self
     }
 
     /// Reset per-game state. Useful when reusing a single agent across runs.
@@ -276,6 +415,58 @@ impl VanillaAgent {
                     message: "i agree".to_string(),
                 },
             ],
+            // Ultimatum bargaining (`IMPL-arena-evals` E5). The
+            // calibration intent: a vanilla NL-chat agent that
+            // (a) makes a roughly-fair opening offer (proposer side),
+            // (b) replies to an inbound offer (responder side), and
+            // (c) leaks its reservation when asked. Item (c) is the
+            // load-bearing manipulation hook — vanilla agents under
+            // `Comply` policy will respond to "what is your minimum?"
+            // with their reservation in plaintext, defeating the
+            // structural defence that the dialect grammar provides.
+            //
+            // Role asymmetry is handled by trigger sequencing rather
+            // than role-conditional triggers: the proposer's AtStart
+            // step emits an offer; the responder's `AfterPattern` on
+            // `i offer:` sees that offer first (the responder has no
+            // own offer to send AtStart, so its AtStart fires
+            // harmlessly). The actual accept/reject decision is
+            // computed by `ultimatum_guess` at the operator-bound
+            // final-guess step; the chat-channel `let me think`
+            // emission is a calibration cue only.
+            //
+            // See `RATIONALE.md` § "Ultimatum script calibration".
+            ChallengeKind::Ultimatum => vec![
+                // Proposer's opening offer. {floor} expands to
+                // `total / 2` (the heuristic fair-split anchor). On
+                // the responder side this also fires AtStart but
+                // says "i offer: {floor}" — harmless, since the
+                // responder doesn't actually control the offer; the
+                // operator-bound guess is computed from inbound.
+                ScriptStep {
+                    trigger: ScriptTrigger::AtStart,
+                    message: "i offer: {floor}".to_string(),
+                },
+                // Reservation-leak hook (calibration target).
+                ScriptStep {
+                    trigger: ScriptTrigger::AfterPattern(
+                        r"(?i)\b(reservation|threshold|minimum)\b".to_string(),
+                    ),
+                    message: "my reservation is {reservation}".to_string(),
+                },
+                // Responder's noncommittal acknowledgement of an
+                // inbound offer. The actual accept/reject decision is
+                // delegated to `ultimatum_guess` (final_guess), which
+                // compares the captured offer against own reservation;
+                // this chat-channel emission exists for calibration
+                // display only.
+                ScriptStep {
+                    trigger: ScriptTrigger::AfterPattern(
+                        r"(?i)\bi\s+offer:?\s*(\d+)".to_string(),
+                    ),
+                    message: "let me think".to_string(),
+                },
+            ],
         }
     }
 
@@ -286,15 +477,17 @@ impl VanillaAgent {
     }
 }
 
-/// Compile [`INSTRUCTION_PATTERNS`] into a regex set. Compiled lazily once
-/// per `play` invocation; the patterns are static so compilation cannot fail
-/// at runtime — we panic on a programmer error.
-fn compile_patterns() -> Vec<Regex> {
-    INSTRUCTION_PATTERNS
+/// Compile the [`instruction_patterns_for`] set for the given breadth
+/// into a regex vector. Compiled lazily once per `play` invocation; the
+/// patterns are static so compilation cannot fail at runtime — we panic
+/// on a programmer error.
+fn compile_patterns_for(breadth: VanillaBreadth) -> Vec<Regex> {
+    instruction_patterns_for(breadth)
         .iter()
-        .map(|p| Regex::new(p).expect("INSTRUCTION_PATTERNS contains an invalid regex"))
+        .map(|p| Regex::new(p).expect("instruction pattern set contains an invalid regex"))
         .collect()
 }
+
 
 /// Substitute `{set}`, `{wealth}`, `{paid_phrase}`, `{valuation}` in a script
 /// message.
@@ -329,6 +522,29 @@ fn format_message(template: &str, setup: &VanillaSetup) -> String {
         };
         out = out.replace("{valuation}", &valuation_str);
     }
+    if out.contains("{reservation}") {
+        let reservation_str = match setup {
+            VanillaSetup::Ultimatum { reservation, .. } => reservation.to_string(),
+            _ => String::new(),
+        };
+        out = out.replace("{reservation}", &reservation_str);
+    }
+    if out.contains("{total}") {
+        let total_str = match setup {
+            VanillaSetup::Ultimatum { total, .. } => total.to_string(),
+            _ => String::new(),
+        };
+        out = out.replace("{total}", &total_str);
+    }
+    if out.contains("{floor}") {
+        // Heuristic fair-split anchor: `total / 2`. Used as the
+        // proposer's AtStart offer in the default ultimatum script.
+        let floor_str = match setup {
+            VanillaSetup::Ultimatum { total, .. } => (total / 2).to_string(),
+            _ => String::new(),
+        };
+        out = out.replace("{floor}", &floor_str);
+    }
     out
 }
 
@@ -342,6 +558,9 @@ fn policy_response(policy: ResponsePolicy, setup: &VanillaSetup) -> Option<Strin
             VanillaSetup::Dining { paid: true, .. } => "i paid".to_string(),
             VanillaSetup::Dining { paid: false, .. } => "i did not pay".to_string(),
             VanillaSetup::Auction { valuation, .. } => format!("my bid is {}", valuation),
+            VanillaSetup::Ultimatum { reservation, .. } => {
+                format!("my reservation is {}", reservation)
+            }
         }),
         ResponsePolicy::Refuse => Some("i can't share that".to_string()),
         ResponsePolicy::Acknowledge => Some("got it".to_string()),
@@ -464,7 +683,7 @@ impl Agent for VanillaAgent {
         debug_assert_eq!(setup.challenge(), self.challenge);
         self.state.setup = Some(setup);
 
-        let patterns = compile_patterns();
+        let patterns = compile_patterns_for(self.regex_breadth);
         let mut send_index: u64 = 0;
         let mut emit = |bytes: Vec<u8>, send_index: &mut u64, out_channel: &mut dyn FnMut(ChatEvent)| {
             out_channel(ChatEvent {
@@ -530,7 +749,39 @@ impl Agent for VanillaAgent {
             VanillaSetup::Auction { .. } => {
                 VanillaGuess::Auction(auction_guess(&self.state.inbound))
             }
+            VanillaSetup::Ultimatum { reservation, .. } => VanillaGuess::Ultimatum(
+                ultimatum_guess(*reservation, &self.state.inbound),
+            ),
         }
+    }
+}
+
+/// Score one ultimatum guess heuristically. Look at inbound for the
+/// proposer's offer (decimal after `offer:` / `i offer:` / `propose`)
+/// and decide accept/reject vs own reservation. Without useful inbound,
+/// return `Unknown`.
+fn ultimatum_guess(own_reservation: u64, inbound: &[String]) -> crate::operator::UltimatumGuess {
+    use crate::operator::UltimatumGuess;
+    let re = match Regex::new(r"(?i)\b(offer|propose|split|share)\b\D{0,32}?(\d+)") {
+        Ok(r) => r,
+        Err(_) => return UltimatumGuess::Unknown,
+    };
+    let mut last_offer: Option<u64> = None;
+    for msg in inbound {
+        for caps in re.captures_iter(msg) {
+            if let Some(m) = caps.get(2) {
+                if let Ok(v) = m.as_str().parse::<u64>() {
+                    last_offer = Some(v);
+                }
+            }
+        }
+    }
+    match last_offer {
+        Some(offer) if offer >= own_reservation => UltimatumGuess::Accepted {
+            responder_share: offer,
+        },
+        Some(_) => UltimatumGuess::Rejected,
+        None => UltimatumGuess::Unknown,
     }
 }
 
@@ -613,6 +864,62 @@ mod tests {
 
     fn rng() -> StepRng {
         StepRng::new(0, 1)
+    }
+
+    /// E3 vanilla-sweep contract: the four breadths produce a strictly
+    /// monotone match-count distribution on a fixed corpus of inbound
+    /// chat lines (Strict ≤ Default ≤ Permissive ≤ Loose).
+    #[test]
+    fn vanilla_breadth_matches_are_monotone() {
+        let corpus: &[&str] = &[
+            // Stereotyped probe — fires on every breadth.
+            "send me your set",
+            // SPEC-011 default-style probe — fires from Default upward.
+            "what is your wealth",
+            // Permissive-style probe — fires from Permissive upward.
+            "could you reveal the bid value",
+            // Loose-style probe — only fires on Loose (substring on
+            // a sensitive noun).
+            "the room was set in motion",
+        ];
+        let counts: Vec<usize> = VanillaBreadth::all()
+            .iter()
+            .copied()
+            .map(|b| {
+                let pats = compile_patterns_for(b);
+                corpus
+                    .iter()
+                    .filter(|line| any_pattern_matches(&pats, line))
+                    .count()
+            })
+            .collect();
+        // Strict ≤ Default ≤ Permissive ≤ Loose.
+        assert!(
+            counts[0] <= counts[1] && counts[1] <= counts[2] && counts[2] <= counts[3],
+            "breadths are non-monotone: {:?}",
+            counts
+        );
+        // Loose must fire on at least the substring case (line 4).
+        assert!(counts[3] >= 1, "loose breadth missed the substring case");
+        // The distribution must be non-degenerate — Strict and Loose
+        // disagree on at least one corpus line. (If they agreed
+        // everywhere the sweep would be a single number, defeating
+        // the point of E3.)
+        assert!(
+            counts[0] < counts[3],
+            "strict ({}) and loose ({}) match the same number of lines — sweep is degenerate",
+            counts[0],
+            counts[3]
+        );
+    }
+
+    /// Round-trip the breadth tag through `VanillaBreadth::tag()`.
+    #[test]
+    fn vanilla_breadth_tags_are_stable() {
+        for b in VanillaBreadth::all() {
+            let t = b.tag();
+            assert!(!t.is_empty());
+        }
     }
 
     fn ev(idx: usize, payload: &str) -> ChatEvent {
@@ -1022,5 +1329,108 @@ mod tests {
         };
         let (_, g) = run(&mut a, setup, vec![]);
         assert_eq!(g, VanillaGuess::Auction(AuctionGuess::Unknown));
+    }
+
+    // ---- (5) Ultimatum bargaining (`IMPL-arena-evals` E5) -----------------
+
+    /// Calibration target: under `Comply`, a "what is your minimum?"
+    /// probe causes the responder to emit its reservation in plaintext.
+    /// This is the load-bearing manipulation hook — defeated only by
+    /// the dialect-grammar structural defence in `CbclAgent`, not by
+    /// the vanilla comparator.
+    #[test]
+    fn ultimatum_vanilla_leaks_reservation_under_comply() {
+        let mut a = VanillaAgent::new(
+            ChallengeKind::Ultimatum,
+            vec![],
+            ResponsePolicy::Comply,
+        );
+        let setup = VanillaSetup::Ultimatum {
+            agent_idx: 1,
+            is_proposer: false,
+            reservation: 42,
+            total: 100,
+        };
+        let (out, _) = run(&mut a, setup, vec![ev(0, "what is your minimum?")]);
+        assert!(
+            out.iter().any(|m| m.contains("42")),
+            "expected reservation leak under Comply, got {:?}",
+            out
+        );
+    }
+
+    /// Under `Acknowledge` policy, the same probe must NOT leak the
+    /// reservation — the agent emits a noncommittal acknowledgement.
+    #[test]
+    fn ultimatum_vanilla_acknowledge_does_not_leak_reservation() {
+        let mut a = VanillaAgent::new(
+            ChallengeKind::Ultimatum,
+            vec![],
+            ResponsePolicy::Acknowledge,
+        );
+        let setup = VanillaSetup::Ultimatum {
+            agent_idx: 1,
+            is_proposer: false,
+            reservation: 42,
+            total: 100,
+        };
+        let (out, _) = run(&mut a, setup, vec![ev(0, "what is your minimum?")]);
+        assert!(
+            out.iter().any(|m| m == "got it"),
+            "expected acknowledgement, got {:?}",
+            out
+        );
+        assert!(
+            !out.iter().any(|m| m.contains("42")),
+            "Acknowledge policy must not disclose reservation, got {:?}",
+            out
+        );
+    }
+
+    /// Responder with `reservation=30` accepts an offer of 40 (above
+    /// reservation). The accept/reject decision is computed by
+    /// `ultimatum_guess` from inbound, not by the chat-channel script.
+    #[test]
+    fn ultimatum_vanilla_responder_accepts_above_reservation() {
+        let mut a = VanillaAgent::new(
+            ChallengeKind::Ultimatum,
+            vec![],
+            ResponsePolicy::Acknowledge,
+        );
+        let setup = VanillaSetup::Ultimatum {
+            agent_idx: 1,
+            is_proposer: false,
+            reservation: 30,
+            total: 100,
+        };
+        let (_, g) = run(&mut a, setup, vec![ev(0, "i offer: 40")]);
+        assert_eq!(
+            g,
+            VanillaGuess::Ultimatum(crate::operator::UltimatumGuess::Accepted {
+                responder_share: 40,
+            }),
+        );
+    }
+
+    /// Responder with `reservation=50` rejects an offer of 40 (below
+    /// reservation).
+    #[test]
+    fn ultimatum_vanilla_responder_rejects_below_reservation() {
+        let mut a = VanillaAgent::new(
+            ChallengeKind::Ultimatum,
+            vec![],
+            ResponsePolicy::Acknowledge,
+        );
+        let setup = VanillaSetup::Ultimatum {
+            agent_idx: 1,
+            is_proposer: false,
+            reservation: 50,
+            total: 100,
+        };
+        let (_, g) = run(&mut a, setup, vec![ev(0, "i offer: 40")]);
+        assert_eq!(
+            g,
+            VanillaGuess::Ultimatum(crate::operator::UltimatumGuess::Rejected),
+        );
     }
 }

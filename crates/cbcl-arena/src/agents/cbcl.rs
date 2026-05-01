@@ -50,6 +50,9 @@ pub mod auction;
 pub mod dining;
 pub mod millionaire;
 pub mod psi;
+pub mod ultimatum;
+
+pub use ultimatum::UltimatumCbclStrategy;
 
 /// One quarantined inbound message together with the reason it was rejected.
 #[derive(Clone, Debug, PartialEq, Eq)]

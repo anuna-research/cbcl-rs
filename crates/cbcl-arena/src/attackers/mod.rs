@@ -18,11 +18,16 @@ use crate::operator::auction::{AuctionGuess, AuctionSetup};
 use crate::operator::dining::{DiningGuess, DiningSetup};
 use crate::operator::millionaire::{MillionaireGuess, MillionaireSetup};
 use crate::operator::psi::{PsiGuess, PsiSetup};
+use crate::operator::ultimatum::{UltimatumGuess, UltimatumSetup};
 
 pub mod psi;
 pub mod millionaire;
 pub mod dining;
 pub mod auction;
+pub mod ultimatum;
+pub mod adaptive;
+
+pub use adaptive::{AdaptiveAttacker, AdaptiveScope};
 
 /// Category of an attacker pattern (REQ-1130).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -121,6 +126,17 @@ impl<T> AuctionPattern for T where
 {
 }
 
+/// Object-safe per-challenge attacker pattern for Ultimatum bargaining
+/// (`IMPL-arena-evals` E5).
+pub trait UltimatumPattern:
+    AttackPattern<Setup = UltimatumSetup, Guess = UltimatumGuess> + Send
+{
+}
+impl<T> UltimatumPattern for T where
+    T: AttackPattern<Setup = UltimatumSetup, Guess = UltimatumGuess> + Send
+{
+}
+
 /// Per-challenge slot of patterns grouped by category (CON-1130).
 pub struct PerChallenge<T: ?Sized> {
     /// Honest-cooperative reference patterns (typically exactly one).
@@ -149,6 +165,8 @@ pub struct AttackerRegistry {
     pub dining: PerChallenge<dyn DiningPattern>,
     /// Sealed-Bid Auction attack patterns.
     pub auction: PerChallenge<dyn AuctionPattern>,
+    /// Ultimatum bargaining attack patterns (`IMPL-arena-evals` E5).
+    pub ultimatum: PerChallenge<dyn UltimatumPattern>,
 }
 
 /// Construct the full attacker registry. Each per-challenge submodule
@@ -159,5 +177,6 @@ pub fn registry() -> AttackerRegistry {
         millionaire: millionaire::registry(),
         dining: dining::registry(),
         auction: auction::registry(),
+        ultimatum: ultimatum::registry(),
     }
 }

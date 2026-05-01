@@ -370,6 +370,7 @@ mod tests {
             ],
             n_per_cell: 5,
             overall_seed: 0x4242_4242_4242_4242,
+            vanilla_breadth: crate::agents::vanilla::VanillaBreadth::default(),
         };
         measure(&cfg)
     }

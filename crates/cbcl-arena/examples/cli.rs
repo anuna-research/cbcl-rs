@@ -67,7 +67,17 @@ fn run(args: &[String]) -> Result<ExitCode, String> {
         ],
         n_per_cell: opts.n,
         overall_seed: opts.seed,
+        vanilla_breadth: opts.vanilla_breadth,
     };
+
+    // E3 vanilla configuration sweep (`IMPL-arena-evals`): when
+    // --vanilla-sweep is set, run the full matrix once per breadth and
+    // emit a min-max range column on attack-success rates per
+    // (challenge, agent, category) cell. The default-breadth column
+    // reproduces the standard SPEC-011 calibration target byte-for-byte.
+    if opts.vanilla_sweep {
+        return run_vanilla_sweep(&cfg).map(|()| ExitCode::SUCCESS);
+    }
 
     eprintln!(
         "cbcl-arena: running measurement matrix \
@@ -137,6 +147,14 @@ struct Opts {
     seed: u64,
     challenges: Vec<ChallengeKind>,
     release_only: bool,
+    /// `IMPL-arena-evals` E3: when set, run the matrix once per
+    /// [`VanillaBreadth`] and emit a min-max range column in addition
+    /// to the per-cell figures. The default-breadth column reproduces
+    /// the SPEC-011 calibration target byte-for-byte.
+    vanilla_sweep: bool,
+    /// Override vanilla regex breadth for a single-shot run (mutually
+    /// exclusive with --vanilla-sweep). Default: `Default`.
+    vanilla_breadth: cbcl_arena::agents::vanilla::VanillaBreadth,
 }
 
 fn parse_args(args: &[String]) -> Result<Opts, String> {
@@ -150,6 +168,8 @@ fn parse_args(args: &[String]) -> Result<Opts, String> {
         ChallengeKind::Auction,
     ];
     let mut release_only = false;
+    let mut vanilla_sweep = false;
+    let mut vanilla_breadth = cbcl_arena::agents::vanilla::VanillaBreadth::default();
 
     let mut it = args.iter().skip(1);
     while let Some(a) = it.next() {
@@ -191,6 +211,26 @@ fn parse_args(args: &[String]) -> Result<Opts, String> {
             "--release-only" => {
                 release_only = true;
             }
+            "--vanilla-sweep" => {
+                vanilla_sweep = true;
+            }
+            "--vanilla-breadth" => {
+                use cbcl_arena::agents::vanilla::VanillaBreadth;
+                let v = it
+                    .next()
+                    .ok_or_else(|| "--vanilla-breadth expects strict|default|permissive|loose".to_string())?;
+                vanilla_breadth = match v.as_str() {
+                    "strict" => VanillaBreadth::Strict,
+                    "default" => VanillaBreadth::Default,
+                    "permissive" => VanillaBreadth::Permissive,
+                    "loose" => VanillaBreadth::Loose,
+                    other => {
+                        return Err(format!(
+                            "--vanilla-breadth: unknown value {other} (want strict|default|permissive|loose)"
+                        ));
+                    }
+                };
+            }
             other => {
                 return Err(format!("unknown argument: {other}"));
             }
@@ -203,6 +243,8 @@ fn parse_args(args: &[String]) -> Result<Opts, String> {
         seed,
         challenges,
         release_only,
+        vanilla_sweep,
+        vanilla_breadth,
     })
 }
 
@@ -229,6 +271,7 @@ fn parse_challenges(s: &str) -> Result<Vec<ChallengeKind>, String> {
             "millionaire" | "yao" => ChallengeKind::Millionaire,
             "dining" | "dc" => ChallengeKind::Dining,
             "auction" | "sealed-bid" => ChallengeKind::Auction,
+            "ultimatum" | "ult" => ChallengeKind::Ultimatum,
             other => return Err(format!("unknown challenge: {other}")),
         };
         if !out.contains(&c) {
@@ -392,6 +435,7 @@ fn headline_lines(report: &ComparativeReport) -> Vec<HeadlineLine> {
         ChallengeKind::Millionaire => 1,
         ChallengeKind::Dining => 2,
         ChallengeKind::Auction => 3,
+        ChallengeKind::Ultimatum => 4,
     });
     challenges_in_report.dedup();
 
@@ -456,5 +500,63 @@ fn short_challenge(c: ChallengeKind) -> &'static str {
         ChallengeKind::Millionaire => "millionaire",
         ChallengeKind::Dining => "dining",
         ChallengeKind::Auction => "auction",
+        ChallengeKind::Ultimatum => "ultimatum",
     }
+}
+
+/// `IMPL-arena-evals` E3: run the matrix once per `VanillaBreadth` and
+/// print a min-max range column on attack-success rate per cell.
+fn run_vanilla_sweep(cfg: &MeasurementConfig) -> Result<(), String> {
+    use cbcl_arena::agents::vanilla::VanillaBreadth;
+    use cbcl_arena::manifest::{agent_short_name, attack_short_name, challenge_short_name};
+
+    let breadths = VanillaBreadth::all();
+    eprintln!(
+        "cbcl-arena: vanilla-sweep over {} breadths × {} cells × N={}",
+        breadths.len(),
+        cfg.challenges.len() * cfg.agents.len() * cfg.categories.len(),
+        cfg.n_per_cell,
+    );
+
+    // (challenge, agent, category) → rate per breadth (in canonical
+    // breadth order: Strict, Default, Permissive, Loose).
+    use std::collections::BTreeMap;
+    type CellKey = (String, String, String);
+    let mut by_cell: BTreeMap<CellKey, [f64; 4]> = BTreeMap::new();
+
+    for (b_idx, &breadth) in breadths.iter().enumerate() {
+        let mut local = cfg.clone();
+        local.vanilla_breadth = breadth;
+        eprintln!("  breadth={} …", breadth.tag());
+        let report = measure(&local);
+        for cell in &report.cells {
+            let key: CellKey = (
+                challenge_short_name(cell.challenge).to_string(),
+                agent_short_name(cell.agent).to_string(),
+                attack_short_name(cell.attacker_category).to_string(),
+            );
+            let entry = by_cell.entry(key).or_insert([f64::NAN; 4]);
+            entry[b_idx] = cell.attack_success_rate;
+        }
+    }
+
+    println!("\n# Vanilla regex-breadth sweep — attack-success rate per cell\n");
+    println!(
+        "| challenge | agent | category | strict | default | permissive | loose | min | max | range |"
+    );
+    println!(
+        "|-----------|-------|----------|--------|---------|------------|-------|-----|-----|-------|"
+    );
+    for (key, rates) in &by_cell {
+        let valid: Vec<f64> = rates.iter().copied().filter(|r| !r.is_nan()).collect();
+        let min = valid.iter().copied().fold(f64::INFINITY, f64::min);
+        let max = valid.iter().copied().fold(f64::NEG_INFINITY, f64::max);
+        let range = max - min;
+        println!(
+            "| {} | {} | {} | {:.3} | {:.3} | {:.3} | {:.3} | {:.3} | {:.3} | {:.3} |",
+            key.0, key.1, key.2, rates[0], rates[1], rates[2], rates[3], min, max, range,
+        );
+    }
+
+    Ok(())
 }

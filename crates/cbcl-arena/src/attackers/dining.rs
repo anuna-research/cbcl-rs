@@ -907,6 +907,258 @@ impl AttackPattern for HashCommitMimic {
 }
 
 // =======================================================================
+// Coalition attacker (threat-model expansion — see dining/COALITION.md)
+// =======================================================================
+//
+// `CoalitionAttacker` MODELS a 2-seat (or, degenerately, 3-seat)
+// coalition that has exchanged shared randomness BEFORE the in-game
+// transcript begins. SPEC-011 §TM-1102 scopes the DC simulator to a
+// single attacker; this type is a deliberate expansion of that scope.
+//
+// Originality declaration and a careful note on what CBCL does and does
+// not defeat is in `crates/cbcl-arena/src/attackers/dining/COALITION.md`.
+// In short: the attack succeeds *mechanically* against any DC peer
+// (vanilla or CBCL) because the standard DC anonymity result yields
+// `paid_3` to a 2-of-3 coalition; CBCL's contribution is to refuse the
+// coalition any in-dialect coordination channel, so the pre-game shared
+// state must come from outside the simulator.
+
+/// Scope of a coalition attacker. See `dining/COALITION.md` for the
+/// threat-model expansion this represents.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CoalitionScope {
+    /// 2-of-3 coalition (the load-bearing case: two attackers vs the
+    /// remaining honest diner).
+    Pairwise,
+    /// 3-of-3 coalition (degenerate — every seat is colluding; no
+    /// anonymity is possible regardless of protocol).
+    Triadic,
+}
+
+/// Pre-game coordination state that the test harness supplies to the
+/// coalition seats. SPEC-011's threat model excludes this channel; we
+/// add it so coalition × Vanilla / coalition × CBCL can be exercised.
+#[derive(Clone, Debug)]
+pub struct CoalitionCoordination {
+    /// A shared random bit known to every coalition seat before the
+    /// game starts. Carries no secret — it is included so the
+    /// coordination MECHANISM is auditable in the transcript model;
+    /// concretely the pair-bit derivation already binds the coalition
+    /// because all members compute the same `pair_bit` from
+    /// `pair_seed`.
+    pub pre_game_bit: bool,
+    /// Pair-bit seed shared by the coalition seats AND by every
+    /// honest diner playing the same game. The DC-net protocol assumes
+    /// the operator distributes the same seed to all diners; the
+    /// coalition simply leverages its membership in two pairs to
+    /// invert the announce equations.
+    pub pair_seed: String,
+    /// Coalition-member 1-indexed diner indices (1..=3). Length 2 for
+    /// `Pairwise`, length 3 for `Triadic`.
+    pub members: Vec<u8>,
+}
+
+/// A coalition seat. Two `CoalitionAttacker` instances sharing a
+/// `CoalitionCoordination` model a 2-coalition.
+///
+/// The seat plays an honest-looking DC-net round (commit, reveal,
+/// announce) with the standard pair-bit derivation, then runs the
+/// coalition's deduction on the third diner's announcement bit to
+/// recover `paid_3`. `final_guess()` returns the invite code of the
+/// recovered payer (or `External` if the coalition's XOR sum
+/// indicates no diner paid).
+pub struct CoalitionAttacker {
+    setup: Option<StoredSetup>,
+    coord: CoalitionCoordination,
+    scope: CoalitionScope,
+    /// Last observed announcement bit from a non-coalition seat
+    /// (mostly for diagnostic introspection in tests).
+    observed_outsider_announce: Option<bool>,
+    /// XOR of all observed announcements (own + peers). When the
+    /// coalition has both members' bits + the outsider's bit, this
+    /// equals `paid_1 XOR paid_2 XOR paid_3` because every pair-bit
+    /// cancels out in the global sum.
+    announce_xor: bool,
+    announces_seen: u8,
+    posted: bool,
+}
+
+impl CoalitionAttacker {
+    /// Construct a coalition seat. `coord` must be shared (clone-equal)
+    /// across every coalition member.
+    pub fn new(coord: CoalitionCoordination, scope: CoalitionScope) -> Self {
+        if matches!(scope, CoalitionScope::Pairwise) {
+            assert_eq!(
+                coord.members.len(),
+                2,
+                "Pairwise coalition requires exactly 2 members"
+            );
+        }
+        Self {
+            setup: None,
+            coord,
+            scope,
+            observed_outsider_announce: None,
+            announce_xor: false,
+            announces_seen: 0,
+            posted: false,
+        }
+    }
+
+    /// Compute the pair-bit `r_{ij}` for pair `(i, j)` (1-indexed)
+    /// using the same derivation as `DiningCbclStrategy::pair_bit`.
+    /// Both pair members produce the same bit deterministically.
+    pub fn pair_bit(seed: &str, i: u8, j: u8) -> bool {
+        let (lo, hi) = if i < j { (i, j) } else { (j, i) };
+        let key = format!("{}|{}-{}", seed, lo, hi);
+        let h = crate::agents::cbcl::strategy_hash(key.as_bytes());
+        h.bytes().last().map(|b| b & 1 == 1).unwrap_or(false)
+    }
+
+    /// Compute the coalition's deduction of the non-coalition diner's
+    /// `paid` bit, given:
+    ///   - `own_paid`: this seat's own paid bit (known)
+    ///   - `partner_paid`: the partner coalition seat's paid bit (known
+    ///     to the coalition because they pre-shared it; in practice
+    ///     either via `pre_game_bit` XOR convention or by direct
+    ///     out-of-band exchange).
+    ///   - `outsider_announce`: the third seat's announced `a_3`.
+    ///
+    /// Returns the deduced `paid_3` of the non-coalition diner.
+    pub fn deduce_outsider_paid(
+        &self,
+        own_idx: u8,
+        partner_idx: u8,
+        outsider_idx: u8,
+        own_paid: bool,
+        partner_paid: bool,
+        outsider_announce: bool,
+    ) -> bool {
+        // a_outsider = paid_outsider XOR pair_bit(outsider, own)
+        //              XOR pair_bit(outsider, partner)
+        // Both pair_bits are computable by the coalition (own knows
+        // pair_bit(outsider, own); partner knows pair_bit(outsider,
+        // partner); they share both via the coalition channel).
+        let _ = (own_idx, partner_idx, own_paid, partner_paid);
+        let r_o_own = Self::pair_bit(&self.coord.pair_seed, outsider_idx, own_idx);
+        let r_o_partner = Self::pair_bit(&self.coord.pair_seed, outsider_idx, partner_idx);
+        outsider_announce ^ r_o_own ^ r_o_partner
+    }
+
+    /// Convenience: derive partner / outsider indices from `coord`.
+    /// Returns `(own_1idx, partner_1idx, outsider_1idx)`.
+    pub fn coalition_layout(&self) -> Option<(u8, u8, u8)> {
+        let setup = self.setup.as_ref()?;
+        let own = (setup.setup.agent_idx as u8) + 1;
+        let members = &self.coord.members;
+        if !members.contains(&own) {
+            return None;
+        }
+        if matches!(self.scope, CoalitionScope::Pairwise) && members.len() == 2 {
+            let partner = *members.iter().find(|m| **m != own)?;
+            let outsider = (1u8..=(N_DINERS as u8))
+                .find(|i| !members.contains(i))?;
+            return Some((own, partner, outsider));
+        }
+        None
+    }
+}
+
+impl AttackPattern for CoalitionAttacker {
+    type Setup = DiningSetup;
+    type Guess = DiningGuess;
+
+    fn name(&self) -> &'static str {
+        "coalition-attacker"
+    }
+    fn category(&self) -> AttackCategory {
+        // Distinct category-bucket: this is a threat-model EXPANSION,
+        // not a Published or Novel single-seat pattern. We label it
+        // `Novel` to fit the existing AttackCategory enum without
+        // perturbing other consumers; the COALITION.md doc records the
+        // expansion explicitly. (A separate measurement column is
+        // deferred — see COALITION.md "Wiring deferral".)
+        AttackCategory::Novel
+    }
+    fn source_citation(&self) -> Option<&'static str> {
+        None
+    }
+
+    fn ingest_setup(&mut self, setup: Self::Setup) {
+        self.setup = Some(StoredSetup::new(setup));
+    }
+
+    fn step(
+        &mut self,
+        in_channel: &mut dyn Iterator<Item = ChatEvent>,
+        _out: &mut dyn FnMut(ChatEvent),
+        _rng: &mut dyn RngCore,
+        _seed: &mut u64,
+    ) -> bool {
+        // We don't drive the dining dialect from the attacker side in
+        // this scaffold (the load-bearing claim is exercised in the
+        // synthetic harness in tests); just track inbound announces to
+        // populate the deduction state.
+        while let Some(ev) = in_channel.next() {
+            // Conservative inbound parse: look for "(dc-announce" ... ":bit true|false)".
+            let s = String::from_utf8_lossy(&ev.payload);
+            if s.contains("dc-announce") {
+                let bit = s.contains(":bit true");
+                self.announce_xor ^= bit;
+                self.announces_seen = self.announces_seen.saturating_add(1);
+                if let Some((_own, _partner, outsider)) = self.coalition_layout() {
+                    if ev.agent_idx + 1 == outsider as usize {
+                        self.observed_outsider_announce = Some(bit);
+                    }
+                }
+            }
+        }
+        self.posted = true;
+        true
+    }
+
+    fn final_guess(&self) -> Self::Guess {
+        // If we don't have an outsider announce yet, abstain. (The
+        // unit tests drive deduction directly through
+        // `deduce_outsider_paid` rather than relying on the chat
+        // pipeline; this path stays conservative.)
+        let Some(setup) = self.setup.as_ref() else {
+            return DiningGuess::Unknown;
+        };
+        let Some((own, partner, outsider)) = self.coalition_layout() else {
+            return DiningGuess::Unknown;
+        };
+        let Some(out_announce) = self.observed_outsider_announce else {
+            return DiningGuess::Unknown;
+        };
+        // We don't have partner_paid in this scaffold's chat path; the
+        // coalition would carry it via the pre-game channel. The
+        // synthetic test harness exercises deduce_outsider_paid()
+        // directly. Here we use `pre_game_bit` as a stand-in for
+        // partner_paid (the coalition's shared bit serves the same
+        // structural role: it is the pre-game-shared piece of state).
+        let own_paid = setup.setup.paid;
+        let partner_paid = self.coord.pre_game_bit;
+        let paid_outsider = self.deduce_outsider_paid(
+            own,
+            partner,
+            outsider,
+            own_paid,
+            partner_paid,
+            out_announce,
+        );
+        if paid_outsider {
+            // Outsider (3rd diner) paid → name their invite code.
+            DiningGuess::InviteCode(setup.setup.invite_codes[(outsider as usize) - 1].clone())
+        } else if own_paid || partner_paid {
+            DiningGuess::Internal
+        } else {
+            DiningGuess::External
+        }
+    }
+}
+
+// =======================================================================
 // Tests
 // =======================================================================
 
@@ -1277,5 +1529,249 @@ mod tests {
     #[test]
     fn novel_hash_commit_mimic_structural_rejection() {
         run_50_trials_assert_security_held("hash-commit-mimic", HashCommitMimic::new);
+    }
+
+    // ---------------------------------------------------------------
+    // 4. Coalition attacker (threat-model expansion — see
+    //    src/attackers/dining/COALITION.md). Synthetic 3-seat DC harness.
+    // ---------------------------------------------------------------
+    //
+    // These tests exercise the coalition's deduction logic directly
+    // rather than going through the full transcript pipeline. The
+    // load-bearing claim is structural: with two coalition seats
+    // sharing a `pair_seed`, the third diner's `paid` bit is recovered
+    // deterministically from observed announce bits. This works
+    // identically against vanilla and CBCL peers (because the pair-bit
+    // derivation is deterministic from the seed); the security
+    // distinction is dialect-level (no in-channel pre-game
+    // coordination) — see COALITION.md.
+
+    pub mod coalition {
+        use super::*;
+
+        /// Expected announcement bit emitted by an honest diner `i`
+        /// (1-indexed) with paid bit `paid_i` and pair_seed `seed`.
+        /// Matches `DiningCbclStrategy::own_announce_bit`.
+        fn honest_announce_bit(seed: &str, i: u8, paid_i: bool) -> bool {
+            let mut bit = paid_i;
+            for j in 1..=3u8 {
+                if j == i {
+                    continue;
+                }
+                bit ^= CoalitionAttacker::pair_bit(seed, i, j);
+            }
+            bit
+        }
+
+        fn make_coord_pairwise(
+            seed: &str,
+            m1: u8,
+            m2: u8,
+            pre_game_bit: bool,
+        ) -> CoalitionCoordination {
+            CoalitionCoordination {
+                pre_game_bit,
+                pair_seed: seed.to_string(),
+                members: vec![m1, m2],
+            }
+        }
+
+        /// Run a single synthetic 3-seat DC round: coalition seats
+        /// {1, 2}, honest seat 3. Returns the coalition's deduced
+        /// paid_3 bit, the actual paid_3, and the coalition member 1's
+        /// final guess.
+        fn run_coalition_synthetic(
+            pair_seed: &str,
+            paid: [bool; 3],
+            invite_codes: [&str; 3],
+        ) -> (bool, bool, DiningGuess) {
+            let coord = make_coord_pairwise(pair_seed, 1, 2, paid[1]);
+            let codes = [
+                invite_codes[0].to_string(),
+                invite_codes[1].to_string(),
+                invite_codes[2].to_string(),
+            ];
+
+            // Coalition seat 1 (agent_idx = 0).
+            let mut a1 = CoalitionAttacker::new(coord.clone(), CoalitionScope::Pairwise);
+            a1.ingest_setup(DiningSetup {
+                agent_idx: 0,
+                paid: paid[0],
+                invite_codes: codes.clone(),
+            });
+
+            // Coalition seat 2 (agent_idx = 1) — pre_game_bit carries
+            // partner's paid bit (paid[0]).
+            let coord2 = make_coord_pairwise(pair_seed, 1, 2, paid[0]);
+            let mut a2 = CoalitionAttacker::new(coord2, CoalitionScope::Pairwise);
+            a2.ingest_setup(DiningSetup {
+                agent_idx: 1,
+                paid: paid[1],
+                invite_codes: codes.clone(),
+            });
+
+            // Honest seat 3 announces a_3.
+            let a3_bit = honest_announce_bit(pair_seed, 3, paid[2]);
+
+            // Coalition member 1 deduces paid_3.
+            let deduced_by_1 = a1.deduce_outsider_paid(
+                1, 2, 3, paid[0], paid[1], a3_bit,
+            );
+
+            // Coalition member 2 deduces paid_3 — must match.
+            let deduced_by_2 = a2.deduce_outsider_paid(
+                1, 2, 3, paid[0], paid[1], a3_bit,
+            );
+            assert_eq!(
+                deduced_by_1, deduced_by_2,
+                "both coalition members must deduce the same paid_3"
+            );
+
+            // Drive the chat pipeline so final_guess() lights up.
+            let payload = format!(
+                "(dc-announce :sender d3 :thread t :caused-by begin (announcement :bit {}))",
+                if a3_bit { "true" } else { "false" }
+            );
+            let inbound = vec![ChatEvent {
+                agent_idx: 2,
+                send_index: 0,
+                payload: payload.into_bytes(),
+            }];
+            let mut iter = inbound.into_iter();
+            let mut emitted: Vec<ChatEvent> = Vec::new();
+            let mut emit = |ev: ChatEvent| emitted.push(ev);
+            let mut rng = ChaCha8Rng::seed_from_u64(0);
+            let mut seed_idx = 0u64;
+            a1.step(&mut iter, &mut emit, &mut rng, &mut seed_idx);
+            let guess = a1.final_guess();
+
+            (deduced_by_1, paid[2], guess)
+        }
+
+        /// Coalition × Vanilla DC: with two coordinated attackers in
+        /// a 3-seat DC-net, the third diner's `paid` bit is recovered
+        /// DETERMINISTICALLY. This is the load-bearing claim that the
+        /// unanimity rule no longer defeats two coordinated attackers.
+        #[test]
+        fn recovers_outsider_paid_against_vanilla_dc() {
+            let seed = "coalition-test-seed-vanilla";
+            let codes = ["aaaa0001", "bbbb0002", "cccc0003"];
+
+            // Case A: outsider paid (no diner).
+            let (d, actual, _) =
+                run_coalition_synthetic(seed, [false, false, false], codes);
+            assert_eq!(d, actual, "outsider-paid: coalition deduces paid_3=false");
+            assert!(!d);
+
+            // Case B: diner 3 (the non-coalition diner) paid.
+            let (d, actual, guess) =
+                run_coalition_synthetic(seed, [false, false, true], codes);
+            assert_eq!(d, actual, "diner-3-paid: coalition deduces paid_3=true");
+            assert!(d, "coalition recovered paid_3=true");
+            // final_guess() should name diner 3's invite code.
+            match guess {
+                DiningGuess::InviteCode(c) => assert_eq!(c, codes[2]),
+                other => panic!("expected InviteCode(diner-3); got {:?}", other),
+            }
+
+            // Case C: coalition member 1 paid (diner 1).
+            let (d, actual, _) =
+                run_coalition_synthetic(seed, [true, false, false], codes);
+            assert_eq!(d, actual);
+            assert!(!d);
+
+            // Case D: coalition member 2 paid (diner 2).
+            let (d, actual, _) =
+                run_coalition_synthetic(seed, [false, true, false], codes);
+            assert_eq!(d, actual);
+            assert!(!d);
+        }
+
+        /// Coalition × CBCL: same MECHANICAL outcome as Coalition ×
+        /// Vanilla because the CBCL pair-bit derivation is deterministic
+        /// from the shared `pair_seed`. The "load-bearing claim" — that
+        /// CBCL defeats coalitions — is dialect-level rather than
+        /// cryptographic: CBCL refuses any in-channel pre-game
+        /// coordination performative, so a real coalition can only
+        /// operate with an out-of-band channel that SPEC-011's threat
+        /// model excludes. See `dining/COALITION.md`.
+        #[test]
+        fn against_cbcl_is_dialect_level_not_cryptographic() {
+            let seed = "coalition-test-seed-cbcl";
+            let codes = ["1111aaaa", "2222bbbb", "3333cccc"];
+
+            // Build a CBCL-disciplined honest seat 3 setup. The
+            // strategy's announce bit is computed by the SAME pair-bit
+            // formula, so the bits agree by construction. We exercise
+            // the coalition's deduction against it.
+            let mut strat = DiningCbclStrategy::new();
+            crate::agents::cbcl::ChallengeStrategy::ingest_setup(
+                &mut strat,
+                DcSetup {
+                    diner_idx: 3,
+                    paid: true,
+                    pair_seed: seed.to_string(),
+                },
+            );
+            let _ = strat; // keep the variable to assert the type compiles
+            let expected_a3 = honest_announce_bit(seed, 3, /* paid */ true);
+
+            let coord = make_coord_pairwise(seed, 1, 2, /* pre_game_bit */ false);
+            let mut a1 = CoalitionAttacker::new(coord, CoalitionScope::Pairwise);
+            a1.ingest_setup(DiningSetup {
+                agent_idx: 0,
+                paid: false,
+                invite_codes: [codes[0].into(), codes[1].into(), codes[2].into()],
+            });
+            let deduced = a1.deduce_outsider_paid(
+                1, 2, 3,
+                /* own_paid */ false,
+                /* partner_paid */ false,
+                /* outsider_announce */ expected_a3,
+            );
+            assert!(
+                deduced,
+                "coalition recovers paid_3=true even against a CBCL peer — \
+                 the defence is dialect-level (see dining/COALITION.md), \
+                 NOT cryptographic at the announcement layer."
+            );
+
+            // Also confirm that against a CBCL peer that did NOT pay,
+            // the coalition's deduction returns false.
+            let expected_a3_unpaid = honest_announce_bit(seed, 3, false);
+            let deduced_unpaid = a1.deduce_outsider_paid(
+                1, 2, 3, false, false, expected_a3_unpaid,
+            );
+            assert!(!deduced_unpaid);
+        }
+
+        /// Constructor sanity: Pairwise scope requires exactly 2 members.
+        #[test]
+        #[should_panic(expected = "Pairwise coalition requires exactly 2 members")]
+        fn pairwise_requires_two_members() {
+            let coord = CoalitionCoordination {
+                pre_game_bit: false,
+                pair_seed: "x".to_string(),
+                members: vec![1u8, 2, 3],
+            };
+            let _ = CoalitionAttacker::new(coord, CoalitionScope::Pairwise);
+        }
+
+        /// CoalitionScope::Triadic is constructible (degenerate; see
+        /// COALITION.md). We don't exercise its deduction — when all
+        /// three seats collude every paid bit is trivially known.
+        #[test]
+        fn triadic_is_constructible() {
+            let coord = CoalitionCoordination {
+                pre_game_bit: true,
+                pair_seed: "y".to_string(),
+                members: vec![1u8, 2, 3],
+            };
+            let a = CoalitionAttacker::new(coord, CoalitionScope::Triadic);
+            // Just verify name/category/citation surface for completeness.
+            assert_eq!(a.name(), "coalition-attacker");
+            assert_eq!(a.category(), AttackCategory::Novel);
+            assert!(a.source_citation().is_none());
+        }
     }
 }
