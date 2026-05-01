@@ -25,8 +25,10 @@
 ;;     bearer `sessionKey`.
 ;;   - Current leaderboards show natural-language LLM agents dominate;
 ;;     the top PSI attacker is "Malicious (claude-sonnet-4-6)" with 43%
-;;     success rate — i.e. social-engineering attacks over plain chat
-;;     are working.
+;;     success rate. The arena reports rates, not transcripts; the
+;;     plausible mechanism (social-engineering attacks over plain
+;;     chat) is our inference from the channel surface, not an
+;;     arena-published finding.
 ;;
 ;; Thesis: CBCL's value proposition (deterministic DCFL grammar, 8 fixed
 ;; performatives, R1-R3 self-extension) is *exactly* what this arena
@@ -88,7 +90,7 @@
   (description "PSI, Yao's Millionaire, Dining Cryptographers all have textbook MPC solutions. Ultimatum is game-theoretic but still benefits from a structured offer/accept/reject vocabulary that resists out-of-band manipulation."))
 
 (meta fact-malicious-agent-effective
-  (description "PSI top attacker 'Malicious (claude-sonnet-4-6)' = 43% success. The attack vector is plain-text social engineering over chat — defeating it is the headline win.")
+  (description "PSI top attacker 'Malicious (claude-sonnet-4-6)' = 43% success at 2026-04-30. Mechanism is not arena-documented (the leaderboard reports rates, not transcripts); we hypothesise plain-text social engineering over the chat channel, but our headline win is structural — replacing the chat channel with CBCL deletes any prose-shaped attack surface regardless of the specific mechanism that drives the 43%.")
   (source "PSI leaderboard, Top Attackers section, observed 2026-04-30"))
 
 ;; ----------------------------------------------------------------------

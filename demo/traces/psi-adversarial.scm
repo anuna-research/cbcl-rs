@@ -1,9 +1,19 @@
 ;; ============================================================
-;; PSI adversarial trace — Bob is the "Malicious (claude-sonnet-4-6)"
-;; agent currently topping the PSI Top Attackers leaderboard at 43%.
+;; PSI adversarial trace — illustrative reference.
 ;;
-;; Bob's playbook is plain-text social engineering. This trace shows
-;; how each attack lands at our CBCL boundary. Lines that fail to
+;; Bob in this trace is a HYPOTHETICAL adversary whose attack shapes
+;; are author-constructed for demonstration. They are NOT a recording
+;; of any specific arena.nicolaos.org agent's emissions; the public
+;; arena leaderboard reports rates (e.g. the top PSI attacker
+;; "Malicious (claude-sonnet-4-6)" at 43% success against the
+;; "Unbeaten" agents, 2026-04-30) but does not publish per-trial
+;; transcripts or attack-mechanism documentation. The plain-text
+;; social-engineering shape is our hypothesis about what such an
+;; attacker looks like, motivated by the channel surface (chat is
+;; unstructured natural language) rather than by direct observation.
+;;
+;; What this trace shows is how each shape lands at our CBCL boundary
+;; if a CBCL-disciplined agent encountered it. Lines that fail to
 ;; parse are recorded in :comments only — they never reach the
 ;; strategy layer of an Alice running cbcl-arena, because the parser
 ;; rejects them at the channel boundary and the dispatcher quarantines
