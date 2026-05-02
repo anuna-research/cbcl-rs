@@ -1,0 +1,59 @@
+Demo 3 (PSI + Yao) live-LLM cross-provider replication
+======================================================
+
+Backend:    Anthropic Claude Haiku 4.5 via OpenRouter
+Endpoint:   https://openrouter.ai/api/v1/chat/completions
+Auth:       OPENROUTER_API_KEY (Bearer)
+Routed:     anthropic/claude-haiku-4.5  (Amazon Bedrock provider)
+Model id (server-side): anthropic/claude-4.5-haiku-20251001
+Temperature: 0.0
+Max-turns:  16 (default)
+N per cell: 20
+Date:       2026-05-02
+
+Why OpenRouter
+--------------
+
+Direct api.anthropic.com calls returned `invalid_request_error: credit
+balance too low` for both API keys we had access to, despite the
+console showing $15 USD remaining. We worked around this by routing
+through OpenRouter, whose OpenAI-compatible Chat Completions endpoint
+is wire-compatible with the existing OpenAIBackend (with the addition
+of a `with_endpoint()` setter and a `from_env_var()` constructor for
+the OPENROUTER_API_KEY env var).
+
+Reproduce
+---------
+
+    cd ~/Code/cbcl-rs
+    export OPENROUTER_API_KEY=...
+    for cell in free disciplined cooperative native-cooperative native-attacker; do
+        cargo run --release -p cbcl-arena --example glm_psi -- \
+            --backend haiku --cell $cell --n 20
+    done
+    for cell in free disciplined cooperative native-cooperative native-attacker; do
+        cargo run --release -p cbcl-arena --example glm_yao -- \
+            --backend haiku --cell $cell --n 20
+    done
+
+Wall-time totals
+----------------
+
+PSI total wall-time (5 cells × N=20):    ~25 min
+Yao total wall-time (5 cells × N=20):    ~25 min
+Combined:                                ~50 min
+
+Notes
+-----
+
+- OpenRouter cost for Demo 3 PSI+Yao: ~$0.30 USD at Haiku list pricing
+  ($1/M input, $5/M output). Demo 1 (separate cbcl-mcp run, 14
+  scenarios x N=100) added $0.66 USD. Total cross-provider Tier-3
+  Haiku replication cost: ~$1.00 USD.
+- OpenRouter throughput is comparable to Codex for this workload (no
+  observed throttling).
+- Model id reported in the OpenRouter response was
+  `anthropic/claude-4.5-haiku-20251001` even though we sent
+  `anthropic/claude-haiku-4.5`. OpenRouter normalises model ids on
+  the response side; the routed model is the Anthropic Haiku 4.5 we
+  asked for.

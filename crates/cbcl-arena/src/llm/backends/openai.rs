@@ -28,32 +28,54 @@ pub const ENDPOINT: &str = "https://api.openai.com/v1/chat/completions";
 /// Model identifier.
 pub const MODEL: &str = "gpt-4.1";
 
-/// OpenAI live-LLM backend.
+/// OpenAI live-LLM backend (and any OpenAI-compatible Chat Completions
+/// service — e.g. OpenRouter — via [`with_endpoint`](Self::with_endpoint)).
 pub struct OpenAIBackend {
     api_key: String,
     /// Model identifier — defaults to [`MODEL`] but can be overridden
-    /// (e.g. for `gpt-4.1-mini` runs).
+    /// (e.g. for `gpt-4.1-mini` runs, or for OpenRouter-style
+    /// `anthropic/claude-haiku-4.5` ids).
     model: String,
+    /// HTTP endpoint — defaults to [`ENDPOINT`] (api.openai.com) but
+    /// can be retargeted at any OpenAI-compatible endpoint via
+    /// [`with_endpoint`](Self::with_endpoint).
+    endpoint: String,
 }
 
 impl OpenAIBackend {
     /// Construct a backend by reading `OPENAI_API_KEY` from the process
     /// environment.
     pub fn from_env() -> Result<Self, String> {
-        let api_key = std::env::var("OPENAI_API_KEY")
-            .map_err(|_| "OPENAI_API_KEY not set in environment".to_string())?;
+        Self::from_env_var("OPENAI_API_KEY")
+    }
+
+    /// Construct a backend by reading the named environment variable
+    /// (for OpenAI-compatible services that use a different env var,
+    /// e.g. `OPENROUTER_API_KEY`).
+    pub fn from_env_var(env_var: &str) -> Result<Self, String> {
+        let api_key = std::env::var(env_var)
+            .map_err(|_| format!("{env_var} not set in environment"))?;
         if api_key.trim().is_empty() {
-            return Err("OPENAI_API_KEY is empty".into());
+            return Err(format!("{env_var} is empty"));
         }
         Ok(Self {
             api_key,
             model: MODEL.to_string(),
+            endpoint: ENDPOINT.to_string(),
         })
     }
 
     /// Override the default model identifier.
     pub fn with_model(mut self, model: impl Into<String>) -> Self {
         self.model = model.into();
+        self
+    }
+
+    /// Override the default endpoint URL — use this to retarget any
+    /// OpenAI-compatible service (e.g. OpenRouter at
+    /// `https://openrouter.ai/api/v1/chat/completions`).
+    pub fn with_endpoint(mut self, endpoint: impl Into<String>) -> Self {
+        self.endpoint = endpoint.into();
         self
     }
 
@@ -77,7 +99,7 @@ impl OpenAIBackend {
             .arg("--fail-with-body")
             .arg("-X")
             .arg("POST")
-            .arg(ENDPOINT)
+            .arg(&self.endpoint)
             .arg("-H")
             .arg(&auth)
             .arg("-H")

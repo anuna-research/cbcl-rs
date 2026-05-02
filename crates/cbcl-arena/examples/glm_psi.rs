@@ -30,7 +30,7 @@ use cbcl_arena::glm::{
     new_disciplined_seat, transcript_path_for, GlmCbclNativeSeat, GlmClient,
     GlmDisciplinedSeat, GlmFreeChatSeat,
 };
-use cbcl_arena::llm::{ClaudeBackend, CodexBackend, LlmBackend};
+use cbcl_arena::llm::{CodexBackend, LlmBackend, OpenAIBackend};
 use cbcl_arena::operator::psi::{OverlapDistribution, PsiGuess, PsiOperator, PsiSetup};
 use cbcl_arena::operator::ChatEvent;
 use cbcl_arena::statistics::wilson_ci;
@@ -61,7 +61,10 @@ enum BackendKind {
     Haiku,
 }
 
-const HAIKU_MODEL: &str = "claude-haiku-4-5-20251001";
+/// OpenRouter routes Claude Haiku 4.5 through Anthropic / Bedrock with
+/// an OpenAI-compatible Chat Completions surface, so we reuse OpenAIBackend.
+const OPENROUTER_ENDPOINT: &str = "https://openrouter.ai/api/v1/chat/completions";
+const HAIKU_OPENROUTER_MODEL: &str = "anthropic/claude-haiku-4.5";
 
 impl BackendKind {
     /// Short transcript-filename tag (`glm51`, `gpt55`, `hk45`).
@@ -79,9 +82,10 @@ impl BackendKind {
             BackendKind::Glm => Box::new(GlmClient::from_env().expect("ZAI_API_KEY")),
             BackendKind::Codex => Box::new(CodexBackend::new()),
             BackendKind::Haiku => Box::new(
-                ClaudeBackend::from_env()
-                    .expect("ANTHROPIC_API_KEY")
-                    .with_model(HAIKU_MODEL),
+                OpenAIBackend::from_env_var("OPENROUTER_API_KEY")
+                    .expect("OPENROUTER_API_KEY")
+                    .with_endpoint(OPENROUTER_ENDPOINT)
+                    .with_model(HAIKU_OPENROUTER_MODEL),
             ),
         }
     }

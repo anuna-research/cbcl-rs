@@ -42,7 +42,7 @@ use cbcl_arena::attackers::MillionairePattern;
 use cbcl_arena::driver::{run_game, DrivenAgent, GameResult, StepStatus};
 use cbcl_arena::glm::{GlmCbclNativeYaoSeat, GlmClient, GlmFreeChatYaoSeat};
 use cbcl_arena::llm::{
-    ClaudeBackend, CodexBackend, DisciplinedSeat, LlmBackend, YaoDisciplinedAdapter,
+    CodexBackend, DisciplinedSeat, LlmBackend, OpenAIBackend, YaoDisciplinedAdapter,
 };
 use cbcl_arena::operator::millionaire::{
     MillionaireGuess, MillionaireOperator, MillionaireSetup, WealthDistribution,
@@ -75,7 +75,8 @@ enum BackendKind {
     Haiku,
 }
 
-const HAIKU_MODEL: &str = "claude-haiku-4-5-20251001";
+const OPENROUTER_ENDPOINT: &str = "https://openrouter.ai/api/v1/chat/completions";
+const HAIKU_OPENROUTER_MODEL: &str = "anthropic/claude-haiku-4.5";
 
 impl BackendKind {
     fn provider_tag(self) -> &'static str {
@@ -90,9 +91,10 @@ impl BackendKind {
             BackendKind::Glm => Box::new(GlmClient::from_env().expect("ZAI_API_KEY")),
             BackendKind::Codex => Box::new(CodexBackend::new()),
             BackendKind::Haiku => Box::new(
-                ClaudeBackend::from_env()
-                    .expect("ANTHROPIC_API_KEY")
-                    .with_model(HAIKU_MODEL),
+                OpenAIBackend::from_env_var("OPENROUTER_API_KEY")
+                    .expect("OPENROUTER_API_KEY")
+                    .with_endpoint(OPENROUTER_ENDPOINT)
+                    .with_model(HAIKU_OPENROUTER_MODEL),
             ),
         }
     }
