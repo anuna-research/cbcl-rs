@@ -1,0 +1,18 @@
+{"synthetic": false,
+ "schemaVersion": "2025-09-10",
+ "outputs": "27315e605de2ac2a.o",
+ "log":
+ [{"message":
+   ".> /Users/anuna-01/.elan/toolchains/leanprover--lean4---v4.27.0/bin/clang -c -o /Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-store-lattice-v1/lean-cbcl/.lake/build/ir/LeanCbcl/R2ResourceBounds.c.o.export /Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-store-lattice-v1/lean-cbcl/.lake/build/ir/LeanCbcl/R2ResourceBounds.c -I /Users/anuna-01/.elan/toolchains/leanprover--lean4---v4.27.0/include -fstack-clash-protection -fwrapv -fvisibility=hidden -Wno-unused-command-line-argument --sysroot /Users/anuna-01/.elan/toolchains/leanprover--lean4---v4.27.0 -nostdinc -isystem /Users/anuna-01/.elan/toolchains/leanprover--lean4---v4.27.0/include/clang -O3 -DNDEBUG -DLEAN_EXPORTING",
+   "level": "trace"}],
+ "inputs":
+ [["LeanCbcl.R2ResourceBounds:c",
+   [["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-store-lattice-v1/lean-cbcl/.lake/build/ir/LeanCbcl/R2ResourceBounds.c",
+     "626b7f248d03e2c4"],
+    ["Lean 4.27.0, commit db93fe1608548721853390a10cd40580fe7d22ae",
+     "9a2be90fd35343e5"]]],
+  ["Lean 4.27.0, commit db93fe1608548721853390a10cd40580fe7d22ae",
+   "9a2be90fd35343e5"],
+  ["traceArgs: #[-O3, -DNDEBUG, -DLEAN_EXPORTING]", "c1efb66122fb2b9a"],
+  ["arm64-apple-darwin24.6.0", "77c16133d139df5a"]],
+ "depHash": "87cc76b3a638b542"}
