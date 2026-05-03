@@ -1,12 +1,12 @@
 {"synthetic": false,
  "schemaVersion": "2025-09-10",
  "outputs":
- {"o": ["95c17fa2dd6c7091.olean"],
-  "i": "f2dd4fa0a425cc21.ilean",
+ {"o": ["8dbf2b06dea577f2.olean"],
+  "i": "3976ccb4e7c6a490.ilean",
   "c": "9cb349d3b90331e4.c"},
  "log":
  [{"message":
-   ".> LEAN_PATH=/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-verify-skeleton-v1/lean-cbcl/.lake/build/lib/lean /Users/anuna-01/.elan/toolchains/leanprover--lean4---v4.27.0/bin/lean /Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-verify-skeleton-v1/lean-cbcl/LeanCbcl/Verify.lean -o /Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-verify-skeleton-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/Verify.olean -i /Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-verify-skeleton-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/Verify.ilean -c /Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-verify-skeleton-v1/lean-cbcl/.lake/build/ir/LeanCbcl/Verify.c --setup /Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-verify-skeleton-v1/lean-cbcl/.lake/build/ir/LeanCbcl/Verify.setup.json --json",
+   ".> LEAN_PATH=/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-verify-fanin-meet-v1/lean-cbcl/.lake/build/lib/lean /Users/anuna-01/.elan/toolchains/leanprover--lean4---v4.27.0/bin/lean /Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-verify-fanin-meet-v1/lean-cbcl/LeanCbcl/Verify.lean -o /Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-verify-fanin-meet-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/Verify.olean -i /Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-verify-fanin-meet-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/Verify.ilean -c /Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-verify-fanin-meet-v1/lean-cbcl/.lake/build/ir/LeanCbcl/Verify.c --setup /Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-verify-fanin-meet-v1/lean-cbcl/.lake/build/ir/LeanCbcl/Verify.setup.json --json",
    "level": "trace"}],
  "inputs":
  [["LeanCbcl.Verify:deps",
@@ -18,7 +18,7 @@
         ["LeanCbcl.Message:importAllArts", "e0d8c6bcd7ca2e07"],
         ["LeanCbcl.Lattice.Result transitive imports (legacy)",
          "00000000000006bb"],
-        ["LeanCbcl.Lattice.Result:importAllArts", "bdaa5e258104a049"],
+        ["LeanCbcl.Lattice.Result:importAllArts", "40d83e0769ea8845"],
         ["LeanCbcl.Lattice.Store transitive imports (legacy)",
          "372c99b1c77e148c"],
         ["LeanCbcl.Lattice.Store:importAllArts", "06a50ecec824f447"]]]]],
@@ -29,8 +29,8 @@
       ["module plugins", "00000000000006bb"]]]]],
   ["Lean 4.27.0, commit db93fe1608548721853390a10cd40580fe7d22ae",
    "9a2be90fd35343e5"],
-  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-verify-skeleton-v1/lean-cbcl/LeanCbcl/Verify.lean",
-   "107e102a4b128545"],
+  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-verify-fanin-meet-v1/lean-cbcl/LeanCbcl/Verify.lean",
+   "d9fa134956b596ee"],
   ["options", "00000000000006bb"],
   ["Module.leanArgs: #[]", "00000000000006bb"]],
- "depHash": "047fcc51bd8417cc"}
+ "depHash": "eb862bab8cf84f29"}
