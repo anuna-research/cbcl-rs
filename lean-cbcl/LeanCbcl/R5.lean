@@ -1,9 +1,9 @@
 import LeanCbcl.R1NoRecursion
 
 /-!
-# R5 Sub-check Soundness — Acyclicity + Reachability + Definedness (REQ-515 / CON-515 / TEST-515)
+# R5 Sub-check Soundness — Acyclicity + Reachability + Definedness + Uniqueness (REQ-515 / CON-515 / TEST-515)
 
-Lean port of three SPEC-002 R5 sub-checks:
+Lean port of four SPEC-002 R5 sub-checks:
 
 * **REQ-204 (acyclicity).** Mirrors Rust
   `crates/cbcl-core/src/protocol.rs::CausalProtocol::check_acyclicity`,
@@ -21,6 +21,12 @@ Lean port of three SPEC-002 R5 sub-checks:
   `ProtocolViolation::UndefinedPerformative` per referenced
   performative absent from the dialect's installed-ancestor closure.
 
+* **REQ-207 (step uniqueness, post-fix).** Mirrors Rust
+  `crates/cbcl-core/src/protocol.rs::CausalProtocol::check_step_uniqueness`,
+  a per-step pass that emits one `ProtocolViolation::DuplicateStep`
+  per `StepDecl` whose predecessor or successor list contains
+  repeats.
+
 Acyclicity and reachability reuse the SPEC-001 graph layer
 (`graphNeighbors`, `Reachable`) and the underlying DFS algorithm
 (`dfsNoCycle`) from `LeanCbcl/R1NoRecursion.lean`. Reachability adds a
@@ -28,8 +34,9 @@ new forward-DFS helper (`dfsReaches`) since the Rust BFS visits
 *forward* (from `begin` outward) whereas R1's DFS searches *for
 cycles*. A forward DFS is equivalent to BFS for soundness — both
 visit exactly the reachable set — and yields a smaller proof against
-the existing `Reachable` inductive. Definedness is purely a
-set-membership check and reduces to `List.filterMap_eq_nil_iff`.
+the existing `Reachable` inductive. Definedness and uniqueness are
+both pure list-membership / `List.Nodup` checks and reduce to
+`List.filterMap_eq_nil_iff`.
 
 ## Theorems
 
@@ -46,8 +53,9 @@ set-membership check and reduces to `List.filterMap_eq_nil_iff`.
   require showing that fuel `n² + 1` suffices for BFS to visit every
   reachable node. Both are open work.
 
-* `check_performative_definedness_iff_all_defined` — full iff (no
-  fuel, no graph traversal), follows directly from
+* `check_performative_definedness_iff_all_defined` /
+  `check_step_uniqueness_iff_no_duplicates` — full iff (no fuel, no
+  graph traversal), each follows directly from
   `List.filterMap_eq_nil_iff`.
 -/
 
@@ -86,14 +94,14 @@ structure ProtocolGraph where
   deriving Repr
 
 /-- Protocol-level violation found during R5 verification (mirrors Rust
-    `ProtocolViolation`). The `cycle`, `unreachable`, and
-    `undefinedPerformative` constructors are used by the REQ-204,
-    REQ-205, and REQ-206 proofs respectively; the `duplicateStep`
-    (REQ-207) violation is introduced by a sibling task. -/
+    `ProtocolViolation`). The `cycle`, `unreachable`,
+    `undefinedPerformative`, and `duplicateStep` constructors are used
+    by the REQ-204, REQ-205, REQ-206, and REQ-207 proofs respectively. -/
 inductive ProtocolViolation where
   | cycle (participants : List String) : ProtocolViolation
   | unreachable (step : String)        : ProtocolViolation
   | undefinedPerformative (name : String) : ProtocolViolation
+  | duplicateStep (name : String)      : ProtocolViolation
   deriving Repr
 
 /-! ## Successor graph + acyclicity check. -/
@@ -404,5 +412,46 @@ theorem check_performative_definedness_iff_all_defined
     · exact hd
     · simp [hd] at hf
   · simp [h n hn]
+
+/-! ## Step-uniqueness check (REQ-207, post-fix) — list `Nodup` + iff. -/
+
+/-- Step-uniqueness check (REQ-207, post-fix) — Lean port of Rust
+    `CausalProtocol::check_step_uniqueness`. Emits one
+    `duplicateStep` violation per `StepDecl` whose predecessor or
+    successor list contains a repeated entry.
+
+    The Rust `CausalProtocol::steps` is keyed by performative name, so
+    the only way for a duplicate to arise is via the surface-form
+    `(then …)` parser appending the same `NodeRef` twice into a
+    step's predecessors/successors. The Lean surface model collapses
+    `NodeRef` to `String`, so duplicate detection reduces to
+    `¬ List.Nodup` on each step's edge lists. -/
+def ProtocolGraph.checkStepUniqueness (p : ProtocolGraph) : List ProtocolViolation :=
+  p.steps.filterMap fun s =>
+    if s.predecessors.Nodup ∧ s.successors.Nodup then none
+    else some (.duplicateStep s.performative)
+
+/-- Property: no `StepDecl` has duplicate predecessors or successors. -/
+def ProtocolGraph.allStepsUnique (p : ProtocolGraph) : Prop :=
+  ∀ s ∈ p.steps, s.predecessors.Nodup ∧ s.successors.Nodup
+
+/-- **CON-515 — `check_step_uniqueness_iff_no_duplicates`
+    (REQ-515 part 4).**
+
+    Full iff: per-step `List.Nodup` membership, no fuel, no graph
+    traversal. Mirrors `check_performative_definedness_iff_all_defined`
+    structurally; reduces to `List.filterMap_eq_nil_iff` plus case
+    analysis on the per-step `Nodup ∧ Nodup` conjunction. -/
+theorem check_step_uniqueness_iff_no_duplicates (p : ProtocolGraph) :
+    p.checkStepUniqueness = [] ↔ p.allStepsUnique := by
+  simp only [ProtocolGraph.checkStepUniqueness,
+             ProtocolGraph.allStepsUnique,
+             List.filterMap_eq_nil_iff]
+  refine ⟨fun h s hs => ?_, fun h s hs => ?_⟩
+  · have hf := h s hs
+    by_cases hu : s.predecessors.Nodup ∧ s.successors.Nodup
+    · exact hu
+    · simp [hu] at hf
+  · simp [h s hs]
 
 end CBCL

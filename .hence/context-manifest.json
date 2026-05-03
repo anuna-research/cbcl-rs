@@ -1,12 +1,12 @@
 {
-  "task_id": "r5-perf-definedness",
+  "task_id": "r5-step-uniqueness",
   "token_budget": 8000,
-  "tokens_used": 451,
+  "tokens_used": 503,
   "elements_selected": [
     {
       "source": "plan-meta/description",
-      "content": "REQ-515 part 3 / CON-515 / TEST-515: prove `theorem check_performative_definedness_iff_all_defined` in R5.lean — the SPEC-002 REQ-206 check returns [] iff every referenced performative appears in the dialect's defined set. Should be the easiest of the four (set membership, no graph traversal).",
-      "token_cost": 74,
+      "content": "REQ-515 part 4 / CON-515 / TEST-515: prove `theorem check_step_uniqueness_iff_no_duplicates` in R5.lean — the post-fix SPEC-002 REQ-207 check returns [] iff no StepDecl has duplicate predecessors or successors. List-based; both directions usually tractable.",
+      "token_cost": 64,
       "priority": "PlanMeta"
     },
     {
@@ -50,8 +50,14 @@
       "content": "Modified 12 files (+675, -120): .hence/context-manifest.json, lean-cbcl/.lake/build/ir/LeanCbcl.setup.json, lean-cbcl/.lake/build/ir/LeanCbcl/R5.c, lean-cbcl/.lake/build/ir/LeanCbcl/R5.c.hash, lean-cbcl/.lake/build/ir/LeanCbcl/R5.setup.json and 7 more",
       "token_cost": 62,
       "priority": "AgentMemory"
+    },
+    {
+      "source": "memory/episodic/task-r5-perf-definedness-changes",
+      "content": "Modified 12 files (+539, -63): .hence/context-manifest.json, lean-cbcl/.lake/build/ir/LeanCbcl.setup.json, lean-cbcl/.lake/build/ir/LeanCbcl/R5.c, lean-cbcl/.lake/build/ir/LeanCbcl/R5.c.hash, lean-cbcl/.lake/build/ir/LeanCbcl/R5.setup.json and 7 more",
+      "token_cost": 62,
+      "priority": "AgentMemory"
     }
   ],
   "elements_excluded": [],
-  "constructed_at": "2026-05-03T01:34:28Z"
+  "constructed_at": "2026-05-03T01:38:05Z"
 }
