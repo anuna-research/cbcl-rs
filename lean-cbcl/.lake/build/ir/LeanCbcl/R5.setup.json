@@ -5,11 +5,11 @@
  "isModule": false,
  "importArts":
  {"LeanCbcl.SExpr":
-  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-r5-reachability-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/SExpr.olean"],
+  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-r5-perf-definedness-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/SExpr.olean"],
   "LeanCbcl.R1NoRecursion":
-  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-r5-reachability-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/R1NoRecursion.olean"],
+  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-r5-perf-definedness-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/R1NoRecursion.olean"],
   "LeanCbcl.Message":
-  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-r5-reachability-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/Message.olean"],
+  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-r5-perf-definedness-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/Message.olean"],
   "LeanCbcl.Dialect":
-  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-r5-reachability-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/Dialect.olean"]},
+  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-r5-perf-definedness-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/Dialect.olean"]},
  "dynlibs": []}
