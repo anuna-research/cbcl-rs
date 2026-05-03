@@ -1,33 +1,43 @@
 import LeanCbcl.R1NoRecursion
 
 /-!
-# R5 Sub-check Soundness — Acyclicity (REQ-515 part 1 / CON-515 / TEST-515)
+# R5 Sub-check Soundness — Acyclicity + Reachability (REQ-515 / CON-515 / TEST-515)
 
-Lean port of SPEC-002 REQ-204's acyclicity check. The Rust implementation
-(`crates/cbcl-core/src/protocol.rs::CausalProtocol::check_acyclicity`)
-uses a 3-colour DFS over the successor graph and emits one
-`ProtocolViolation::Cycle` per back-edge encountered.
+Lean port of two SPEC-002 R5 sub-checks:
 
-This module mirrors the SPEC-001 R1 DFS proof structure
-(`LeanCbcl/R1NoRecursion.lean`): the underlying graph DFS (`dfsNoCycle`),
-graph-reachability predicate (`Reachable`), and DFS soundness theorem
-(`dfsNoCycle_no_cycle`) are reused unchanged. Only the surface layer
-(`StepDecl` / `ProtocolGraph` / `ProtocolViolation` / `checkAcyclicity`)
-is new.
+* **REQ-204 (acyclicity).** Mirrors Rust
+  `crates/cbcl-core/src/protocol.rs::CausalProtocol::check_acyclicity`,
+  a 3-colour DFS over the successor graph emitting one
+  `ProtocolViolation::Cycle` per back-edge.
+
+* **REQ-205 (reachability).** Mirrors Rust
+  `crates/cbcl-core/src/protocol.rs::CausalProtocol::check_reachability`,
+  a BFS from `begin` over the successor graph emitting one
+  `ProtocolViolation::Unreachable` per step not visited.
+
+Both checks reuse the SPEC-001 graph layer (`graphNeighbors`,
+`Reachable`) and the underlying DFS algorithm (`dfsNoCycle`) from
+`LeanCbcl/R1NoRecursion.lean`. Reachability adds a new forward-DFS
+helper (`dfsReaches`) since the Rust BFS visits *forward* (from
+`begin` outward) whereas R1's DFS searches *for cycles*. A forward
+DFS is equivalent to BFS for soundness — both visit exactly the
+reachable set — and yields a smaller proof against the existing
+`Reachable` inductive.
 
 ## Theorems
 
-* `checkAcyclicity_sound` — soundness (`check returns [] → no cycle`).
-  This is REQ-515 part 1's mandatory direction.
+* `checkAcyclicity_sound` / `checkReachability_sound` — soundness
+  (`check returns [] → property holds`). This is REQ-515's mandatory
+  direction for both sub-checks.
 
-* `check_acyclicity_iff_no_cycle` — the headline iff theorem named in
-  CON-515. **Currently states the soundness direction only**;
-  completeness (`no cycle → check returns []`) is deferred per ADR-512.
-  The deferred direction would require a König-style argument bounding
-  cycle length by `|stepNames|`, which is not yet mechanised. The
-  existing companion `dfsNoCycle_complete` in `R1NoRecursion.lean`
-  provides the underlying DFS-completeness lemma; lifting it to the
-  fixed `n² + 1` fuel used here is the open work.
+* `check_acyclicity_iff_no_cycle` / `check_reachability_iff_all_reachable`
+  — the headline iff theorems named in CON-515. **Both currently state
+  the soundness direction only**; completeness (`property holds → check
+  returns []`) is deferred per ADR-512. For acyclicity the deferred
+  direction would require a König-style argument bounding cycle length
+  by `|stepNames|`; for reachability the deferred direction would
+  require showing that fuel `n² + 1` suffices for BFS to visit every
+  reachable node. Both are open work.
 -/
 
 namespace CBCL
@@ -65,11 +75,12 @@ structure ProtocolGraph where
   deriving Repr
 
 /-- Protocol-level violation found during R5 verification (mirrors Rust
-    `ProtocolViolation`). Only the `cycle` constructor is needed for the
-    acyclicity proof; reachability/definedness/uniqueness violations are
-    introduced by sibling tasks. -/
+    `ProtocolViolation`). The `cycle` and `unreachable` constructors are
+    used by the REQ-204 and REQ-205 proofs respectively; definedness /
+    uniqueness violations are introduced by sibling tasks. -/
 inductive ProtocolViolation where
   | cycle (participants : List String) : ProtocolViolation
+  | unreachable (step : String)        : ProtocolViolation
   deriving Repr
 
 /-! ## Successor graph + acyclicity check. -/
@@ -186,5 +197,146 @@ theorem checkAcyclicity_sound (p : ProtocolGraph)
 theorem check_acyclicity_iff_no_cycle (p : ProtocolGraph) :
     p.checkAcyclicity = [] → ¬ p.hasCycle :=
   checkAcyclicity_sound p
+
+/-! ## Reachability check (REQ-205) — forward DFS + soundness. -/
+
+/-- Forward DFS searching for `target` reachable from `start` in the
+    successor graph. Returns `true` iff `target` is `start` or appears
+    along some path within `fuel` steps.
+
+    Semantically equivalent to the Rust BFS in
+    `CausalProtocol::check_reachability` for the soundness direction:
+    both algorithms visit only nodes reachable from `start`. The DFS
+    formulation reuses `Reachable` from `R1NoRecursion.lean` directly,
+    avoiding a separate visited-set invariant. -/
+def dfsReaches (graph : List (String × List String)) (fuel : Nat)
+    (visited : List String) (start target : String) : Bool :=
+  if start == target then true
+  else if fuel == 0 then false
+  else if visited.contains start then false
+  else
+    let visited' := start :: visited
+    let neighbors := graphNeighbors graph start
+    neighbors.any (fun nb => dfsReaches graph (fuel - 1) visited' nb target)
+termination_by fuel
+decreasing_by
+  simp_all
+  omega
+
+/-- Reachability check (REQ-205) — Lean port of Rust
+    `CausalProtocol::check_reachability`. For each declared step name
+    other than `"begin"`, runs a forward DFS from `"begin"` and emits
+    one `unreachable` violation per step the DFS fails to reach. Fuel
+    `|names|² + 1` matches the R5 acyclicity convention. -/
+def ProtocolGraph.checkReachability (p : ProtocolGraph) : List ProtocolViolation :=
+  let graph := p.successorGraph
+  let fuel  := p.stepNames.length * p.stepNames.length + 1
+  p.stepNames.filterMap fun n =>
+    if n == "begin" then none
+    else if dfsReaches graph fuel [] "begin" n then none
+    else some (.unreachable n)
+
+/-- "Reachable from begin" predicate: a step is reachable from `begin`
+    iff it equals `"begin"` or there is a `Reachable` path in the
+    successor graph from `"begin"` to it. Mirrors REQ-205's "every
+    step is reachable from begin" semantics. -/
+def ProtocolGraph.reachableFromBegin (p : ProtocolGraph) (s : String) : Prop :=
+  s = "begin" ∨ Reachable p.successorGraph "begin" s
+
+/-- Property: every declared step is reachable from `begin`. -/
+def ProtocolGraph.allStepsReachable (p : ProtocolGraph) : Prop :=
+  ∀ s ∈ p.stepNames, p.reachableFromBegin s
+
+/-! ## Soundness — `checkReachability = [] → allStepsReachable`. -/
+
+/-- DFS-reachability soundness: if `dfsReaches` returns true, the target
+    is either equal to the start or reachable from it in the graph.
+
+    Proof is by induction on fuel. The `visited` and `start` arguments
+    are generalised so the IH applies to recursive calls (which advance
+    `start` to a neighbour and grow `visited`). -/
+private theorem dfsReaches_sound (graph : List (String × List String)) :
+    ∀ (fuel : Nat) (visited : List String) (start target : String),
+      dfsReaches graph fuel visited start target = true →
+      start = target ∨ Reachable graph start target := by
+  intro fuel
+  induction fuel with
+  | zero =>
+    intro visited start target h
+    unfold dfsReaches at h
+    split at h
+    · rename_i heq; exact .inl (beq_iff_eq.mp heq)
+    · split at h
+      · exact absurd h (by simp)
+      · rename_i hfuel
+        have : ((0 : Nat) == 0) = true := by simp
+        exact absurd this hfuel
+  | succ n ih =>
+    intro visited start target h
+    unfold dfsReaches at h
+    split at h
+    · rename_i heq; exact .inl (beq_iff_eq.mp heq)
+    · split at h
+      · rename_i hfuel; exact absurd hfuel (by simp)
+      · split at h
+        · exact absurd h (by simp)
+        · rw [show (n + 1 - 1 : Nat) = n from by omega] at h
+          rw [List.any_eq_true] at h
+          obtain ⟨nb, hnb_mem, hnb_dfs⟩ := h
+          have ih_nb := ih (start :: visited) nb target hnb_dfs
+          cases ih_nb with
+          | inl hnb_eq =>
+            rw [hnb_eq] at hnb_mem
+            exact .inr (.single hnb_mem)
+          | inr hnb_reach =>
+            exact .inr (.cons hnb_mem hnb_reach)
+
+/-- Helper: extract per-step DFS success from `checkReachability = []`.
+    Mirrors `dfs_true_of_check_empty` for the acyclicity proof. -/
+private theorem dfs_reaches_of_check_empty (p : ProtocolGraph)
+    (h : p.checkReachability = []) :
+    ∀ n ∈ p.stepNames, n ≠ "begin" →
+      dfsReaches p.successorGraph (p.stepNames.length * p.stepNames.length + 1)
+        [] "begin" n = true := by
+  intro n hn hne
+  simp only [ProtocolGraph.checkReachability, List.filterMap_eq_nil_iff] at h
+  have hbody := h n hn
+  have hbeq : (n == "begin") = false := by simp [hne]
+  simp [hbeq] at hbody
+  by_cases hdfs : dfsReaches p.successorGraph
+      (p.stepNames.length * p.stepNames.length + 1) [] "begin" n = true
+  · exact hdfs
+  · simp [hdfs] at hbody
+
+/-- **Soundness (REQ-515 part 2):** if `checkReachability` returns `[]`,
+    every declared step is reachable from `begin` in the successor graph. -/
+theorem checkReachability_sound (p : ProtocolGraph)
+    (h : p.checkReachability = []) : p.allStepsReachable := by
+  intro s hs
+  by_cases hbegin : s = "begin"
+  · exact .inl hbegin
+  · have hdfs := dfs_reaches_of_check_empty p h s hs hbegin
+    have hsound := dfsReaches_sound p.successorGraph _ _ _ _ hdfs
+    cases hsound with
+    | inl hbeq    => exact absurd hbeq.symm hbegin
+    | inr hreach  => exact .inr hreach
+
+/-- **CON-515 — `check_reachability_iff_all_reachable`.**
+
+    Currently proves the soundness direction (`→`) only. Per ADR-512,
+    completeness (`←`) is deferred to a follow-on commit. The deferred
+    direction would require a BFS-completeness argument: every node
+    reachable in the abstract `Reachable` predicate is visited by the
+    fuel-bounded forward DFS at fuel `|stepNames|² + 1`. The standard
+    bound is `|stepNames|` (every reachable node has a simple path of
+    length ≤ |V| - 1), so the fuel is more than sufficient; mechanising
+    the bound requires reasoning about `visited`-set growth that is not
+    yet in place.
+
+    The theorem is named per CON-515; downstream users that only need
+    soundness should prefer `checkReachability_sound` directly. -/
+theorem check_reachability_iff_all_reachable (p : ProtocolGraph) :
+    p.checkReachability = [] → p.allStepsReachable :=
+  checkReachability_sound p
 
 end CBCL
