@@ -1,12 +1,12 @@
 {
-  "task_id": "parity-tests",
+  "task_id": "ci-build",
   "token_budget": 8000,
-  "tokens_used": 717,
+  "tokens_used": 654,
   "elements_selected": [
     {
       "source": "plan-meta/description",
-      "content": "REQ-518 / TEST-518 / ADR-513: add crates/cbcl-core/tests/lean_parity.rs with one proptest per theorem in REQ-510..516 asserting the same property at the value level (1000 cases default). Tests: result lattice axioms, store union associativity/commutativity/idempotence + lookup monotonicity, verify_monotone over generated (Message, Protocol, Store₁ ⊆ Store₂), verify_all_is_meet, verify_eventually_consistent, the four R5 sub-check soundness statements, dcfl_preserved on generated dialect/protocol/shape clauses. Each test references its corresponding Lean theorem in a code comment.",
-      "token_cost": 147,
+      "content": "NFR-510 / TEST-550 / OBS-510: add a CI step that runs `lake build` in lean-cbcl/ on every PR touching lean-cbcl/, specs/SPEC-002-*.md, specs/SPEC-003-*.md, or specs/SPEC-005-*.md. Zero errors and zero `sorry`-warnings for any theorem marked `verified-by: lean` is the gate. The CI step also runs the parity tests from task-parity-tests.",
+      "token_cost": 84,
       "priority": "PlanMeta"
     },
     {
@@ -71,5 +71,5 @@
     }
   ],
   "elements_excluded": [],
-  "constructed_at": "2026-05-03T04:56:00Z"
+  "constructed_at": "2026-05-03T05:06:47Z"
 }

@@ -1,18 +1,28 @@
 name: lean-cbcl
 
-# NFR-510 / NFR-511 / TEST-550 / TEST-551:
+# NFR-510 / NFR-511 / NFR-512 / TEST-518 / TEST-550 / TEST-551 / TEST-552 /
+# OBS-510 / OBS-512:
 #   - run `lake build` to enforce zero errors and zero `sorry` warnings
-#     for any theorem marked `verified-by: lean`;
+#     for any theorem marked `verified-by: lean` (NFR-510 / TEST-550 /
+#     OBS-510);
 #   - run `scripts/check-axioms.sh` to enforce the NFR-511 axiom
-#     allowlist on every CON-510..516 theorem.
+#     allowlist on every CON-510..516 theorem (TEST-551 / OBS-512);
+#   - run the differential parity tests in
+#     `crates/cbcl-core/tests/lean_parity.rs` so a Rust-side regression
+#     against any REQ-510..516 theorem fails the PR (REQ-518 / TEST-518 /
+#     TEST-552 / NFR-512).
 #
-# Re-run on any change to the Lean tree, the SPEC docs the proofs
-# depend on, the audit script, or this workflow itself.
+# Re-run on any change to the Lean tree, the Rust core that the parity
+# tests cross-check, the SPEC docs the proofs depend on, the audit
+# script, or this workflow itself.
 on:
   push:
     branches: [main]
     paths:
       - 'lean-cbcl/**'
+      - 'crates/cbcl-core/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
       - 'specs/SPEC-002-*'
       - 'specs/SPEC-003-*'
       - 'specs/SPEC-005-*'
@@ -21,6 +31,9 @@ on:
   pull_request:
     paths:
       - 'lean-cbcl/**'
+      - 'crates/cbcl-core/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
       - 'specs/SPEC-002-*'
       - 'specs/SPEC-003-*'
       - 'specs/SPEC-005-*'
@@ -51,3 +64,32 @@ jobs:
 
       - name: Axiom audit (NFR-511 / TEST-551 / OBS-512)
         run: scripts/check-axioms.sh
+
+  lean-parity-tests:
+    # REQ-518 / TEST-518 / TEST-552 / NFR-512: the Rust-side property tests
+    # in crates/cbcl-core/tests/lean_parity.rs assert the same property as
+    # each REQ-510..516 Lean theorem at the value level, so a divergence
+    # between the model and the implementation surfaces as a CI failure.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain (stable, per rust-toolchain.toml)
+        run: |
+          rustup show active-toolchain || rustup toolchain install stable --profile minimal
+          rustc --version
+          cargo --version
+
+      - name: Cache cargo registry and target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-lean-parity-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-lean-parity-
+
+      - name: Run Lean parity tests (REQ-518 / TEST-518)
+        run: cargo test -p cbcl-core --test lean_parity --release
