@@ -59,6 +59,7 @@ this single abstraction axiom in addition to the `ContentHash` /
 namespace CBCL
 
 open CBCL.Lattice (Set)
+open scoped CBCL.Lattice
 
 /-! ## `CausedBy` — three causal patterns mirroring Rust `CausedBy`. -/
 
@@ -154,5 +155,30 @@ noncomputable def verify : Message → CausalProtocol → MessageStore → Verif
       ps.foldr (fun p acc => (verify m p S).join acc) .unknown
   | m, .all ps, S =>
       ps.foldr (fun p acc => (verify m p S).meet acc) .valid
+
+/-! ## REQ-513 / CON-513 — fan-in lattice-homomorphism. -/
+
+/-- **REQ-513 / CON-513:** `verify` distributes over `(all ps)` as the
+    `meet`-fold of per-predecessor results, with `⊤ = valid` as the
+    fold seed. This is the structural form that lets eventual
+    consistency (REQ-514) follow via lattice-homomorphism rather than
+    re-induction over the predecessor list.
+
+    Proof: the `.all` arm of `verify` is *literally* the `foldr` on the
+    right-hand side, so `simp only [verify]` fires the auto-generated
+    equational lemma; what remains is the `BoundedLattice` typeclass
+    projection unfolding to `VerificationResult.meet` / `valid` via the
+    SPEC-003 instance (REQ-510), which is `rfl`. The associativity of
+    meet promised in TEST-513's technique note is therefore not invoked
+    at this level — it is recorded by the `BoundedLattice` instance and
+    consumed by the downstream REQ-514 proof, where the fold is rotated
+    to obtain `S₁ ∪ S₂` from `S₁` and `S₂`. -/
+theorem verify_all_is_meet :
+    ∀ (M : Message) (preds : List CausalProtocol) (S : MessageStore),
+      verify M (CausalProtocol.all preds) S
+        = preds.foldr (fun p acc => verify M p S ⊓ acc) ⊤ := by
+  intro M preds S
+  simp only [verify]
+  rfl
 
 end CBCL

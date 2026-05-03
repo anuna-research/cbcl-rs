@@ -70,6 +70,17 @@ class BoundedLattice (α : Type u) where
   top_meet   : ∀ a : α, meet top a = a
   meet_top   : ∀ a : α, meet a top = a
 
+/-- Lattice meet (`⊓`, conjunction). Used in REQ-513
+    (`verify_all_is_meet`) to write the fan-in fold over `(all ...)`
+    predecessors. Scoped to the `Lattice` namespace to avoid colliding
+    with Mathlib's `Inf` once the `task-mathlib-setup` lands. -/
+scoped infixl:69 " ⊓ " => BoundedLattice.meet
+
+/-- Lattice top (`⊤`, the meet identity / `valid`). Used in REQ-513 as
+    the seed of the fan-in fold. Scoped to the `Lattice` namespace
+    (see `⊓` above). -/
+scoped notation "⊤" => BoundedLattice.top
+
 end Lattice
 
 /-! ## `VerificationResult` — the SPEC-003 three-valued verification result. -/
