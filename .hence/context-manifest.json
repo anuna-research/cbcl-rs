@@ -1,15 +1,21 @@
 {
-  "task_id": "verified-by-init",
+  "task_id": "store-lattice",
   "token_budget": 8000,
-  "tokens_used": 116,
+  "tokens_used": 179,
   "elements_selected": [
     {
       "source": "plan-meta/description",
-      "content": "REQ-517 / TEST-517: add `verified-by:` field to every REQ in specs/SPEC-002-structural-contracts.md and specs/SPEC-003-verification-lattice.md with one of: lean | lean-with-sorry | property | example | prose | n/a (multi-value allowed for partial mechanisation). Initial pass: every REQ gets the *current* status (mostly `prose` / `property`). Add a CI-checkable lint script at scripts/check-verified-by.sh that fails if any REQ in those two specs lacks the field.",
-      "token_cost": 116,
+      "content": "REQ-511 / CON-511: create lean-cbcl/LeanCbcl/Lattice/Store.lean with `structure MessageStore` modelling SPEC-003 G-Set (start with `Set Message` per Open Question §3, defer indexed-view to a separate LookupSpec). Prove (a) `JoinSemiLattice` instance with union as join, (b) union associative/commutative/idempotent, (c) `append M S = union {M} S`, (d) `lookup_monotone : S₁ ⊆ S₂ → ∀ h M, lookup h S₁ = some M → lookup h S₂ = some M`. Treat ContentHash injectivity as an assumption per Open Question §2 — document in module header.",
+      "token_cost": 137,
       "priority": "PlanMeta"
+    },
+    {
+      "source": "memory/episodic/task-verified-by-init-changes",
+      "content": "Modified 4 files (+188, -65): .hence/context-manifest.json, scripts/check-verified-by.sh, specs/SPEC-002-structural-contracts.md, specs/SPEC-003-verification-lattice.md",
+      "token_cost": 42,
+      "priority": "AgentMemory"
     }
   ],
   "elements_excluded": [],
-  "constructed_at": "2026-05-03T00:31:00Z"
+  "constructed_at": "2026-05-03T00:35:33Z"
 }
