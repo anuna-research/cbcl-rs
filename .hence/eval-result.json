@@ -4,7 +4,7 @@
   "exit_code": 0,
   "diff_summary": {
     "files_changed": 18,
-    "insertions": 918,
+    "insertions": 1032,
     "deletions": 57,
     "file_list": [
       ".hence/context-manifest.json",
@@ -30,14 +30,14 @@
   },
   "learnings": [
     {
-      "key": "task-verify-fanin-meet-changes",
-      "content": "Modified 18 files (+918, -57): .hence/context-manifest.json, lean-cbcl/.lake/build/ir/LeanCbcl.setup.json, lean-cbcl/.lake/build/ir/LeanCbcl/Lattice/Result.c, lean-cbcl/.lake/build/ir/LeanCbcl/Lattice/Result.c.hash, lean-cbcl/.lake/build/ir/LeanCbcl/Verify.setup.json and 13 more",
+      "key": "task-verify-monotone-changes",
+      "content": "Modified 18 files (+1032, -57): .hence/context-manifest.json, lean-cbcl/.lake/build/ir/LeanCbcl.setup.json, lean-cbcl/.lake/build/ir/LeanCbcl/Lattice/Result.c, lean-cbcl/.lake/build/ir/LeanCbcl/Lattice/Result.c.hash, lean-cbcl/.lake/build/ir/LeanCbcl/Verify.setup.json and 13 more",
       "memory_type": "episodic",
       "confidence": 0.8
     }
   ],
-  "branch_name": "hence/verify-fanin-meet-v1",
-  "evaluated_at": "2026-05-03T01:47:01Z",
+  "branch_name": "hence/verify-monotone-v2",
+  "evaluated_at": "2026-05-03T04:11:43Z",
   "checks_passed": 0,
   "checks_failed": 0
 }
