@@ -1,12 +1,12 @@
 {
-  "task_id": "result-lattice",
+  "task_id": "dcfl-preservation",
   "token_budget": 8000,
-  "tokens_used": 165,
+  "tokens_used": 264,
   "elements_selected": [
     {
       "source": "plan-meta/description",
-      "content": "REQ-510 / CON-510: create lean-cbcl/LeanCbcl/Lattice/Result.lean with `inductive VerificationResult` (unknown | valid | violation) and `BoundedLattice VerificationResult` instance. Discharge each axiom by `decide` over the finite carrier or by case analysis. Prove `result_meet_table` and `result_join_table` matching SPEC-003 REQ-303 truth tables verbatim. ⊥ = unknown.",
-      "token_cost": 93,
+      "content": "REQ-516 / CON-516 / TEST-516: create lean-cbcl/LeanCbcl/DCFLPreservation.lean and prove (i) `dcfl_preserved_under_protocol`: adding `(protocol …)` to a dialect does not extend parser power (REQ-209), and (ii) `dcfl_preserved_under_shape`: same for `(shape …)` (REQ-225). Both reduce to: the clause is a CBCL S-expression parsed by the existing DCFL parser, and `protocol` / `shape` are deterministic dispatch tokens. Conceptually trivial but currently unverified — closes the audit gap flagged on the current branch.",
+      "token_cost": 130,
       "priority": "PlanMeta"
     },
     {
@@ -20,8 +20,14 @@
       "content": "Modified 3 files (+263, -5): .hence/context-manifest.json, lean-cbcl/LeanCbcl.lean, lean-cbcl/LeanCbcl/Lattice/Store.lean",
       "token_cost": 30,
       "priority": "AgentMemory"
+    },
+    {
+      "source": "memory/episodic/task-result-lattice-changes",
+      "content": "Modified 19 files (+950, -35): .hence/context-manifest.json, lean-cbcl/.lake/build/ir/LeanCbcl.c, lean-cbcl/.lake/build/ir/LeanCbcl.c.hash, lean-cbcl/.lake/build/ir/LeanCbcl.setup.json, lean-cbcl/.lake/build/ir/LeanCbcl/Lattice/Result.c and 14 more",
+      "token_cost": 62,
+      "priority": "AgentMemory"
     }
   ],
   "elements_excluded": [],
-  "constructed_at": "2026-05-03T00:43:49Z"
+  "constructed_at": "2026-05-03T00:49:21Z"
 }

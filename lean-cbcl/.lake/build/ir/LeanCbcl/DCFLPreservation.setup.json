@@ -1,0 +1,17 @@
+{"plugins": [],
+ "package": "lean-cbcl",
+ "options": {},
+ "name": "LeanCbcl.DCFLPreservation",
+ "isModule": false,
+ "importArts":
+ {"LeanCbcl.SExpr":
+  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-dcfl-preservation-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/SExpr.olean"],
+  "LeanCbcl.Parser":
+  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-dcfl-preservation-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/Parser.olean"],
+  "LeanCbcl.Message":
+  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-dcfl-preservation-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/Message.olean"],
+  "LeanCbcl.DialectParser":
+  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-dcfl-preservation-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/DialectParser.olean"],
+  "LeanCbcl.Dialect":
+  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-dcfl-preservation-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/Dialect.olean"]},
+ "dynlibs": []}

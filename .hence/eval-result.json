@@ -4,41 +4,41 @@
   "exit_code": 0,
   "diff_summary": {
     "files_changed": 19,
-    "insertions": 950,
-    "deletions": 35,
+    "insertions": 387,
+    "deletions": 36,
     "file_list": [
       ".hence/context-manifest.json",
       "lean-cbcl/.lake/build/ir/LeanCbcl.c",
       "lean-cbcl/.lake/build/ir/LeanCbcl.c.hash",
       "lean-cbcl/.lake/build/ir/LeanCbcl.setup.json",
-      "lean-cbcl/.lake/build/ir/LeanCbcl/Lattice/Result.c",
-      "lean-cbcl/.lake/build/ir/LeanCbcl/Lattice/Result.c.hash",
-      "lean-cbcl/.lake/build/ir/LeanCbcl/Lattice/Result.setup.json",
+      "lean-cbcl/.lake/build/ir/LeanCbcl/DCFLPreservation.c",
+      "lean-cbcl/.lake/build/ir/LeanCbcl/DCFLPreservation.c.hash",
+      "lean-cbcl/.lake/build/ir/LeanCbcl/DCFLPreservation.setup.json",
       "lean-cbcl/.lake/build/lib/lean/LeanCbcl.ilean",
       "lean-cbcl/.lake/build/lib/lean/LeanCbcl.ilean.hash",
       "lean-cbcl/.lake/build/lib/lean/LeanCbcl.olean",
       "lean-cbcl/.lake/build/lib/lean/LeanCbcl.olean.hash",
       "lean-cbcl/.lake/build/lib/lean/LeanCbcl.trace",
-      "lean-cbcl/.lake/build/lib/lean/LeanCbcl/Lattice/Result.ilean",
-      "lean-cbcl/.lake/build/lib/lean/LeanCbcl/Lattice/Result.ilean.hash",
-      "lean-cbcl/.lake/build/lib/lean/LeanCbcl/Lattice/Result.olean",
-      "lean-cbcl/.lake/build/lib/lean/LeanCbcl/Lattice/Result.olean.hash",
-      "lean-cbcl/.lake/build/lib/lean/LeanCbcl/Lattice/Result.trace",
+      "lean-cbcl/.lake/build/lib/lean/LeanCbcl/DCFLPreservation.ilean",
+      "lean-cbcl/.lake/build/lib/lean/LeanCbcl/DCFLPreservation.ilean.hash",
+      "lean-cbcl/.lake/build/lib/lean/LeanCbcl/DCFLPreservation.olean",
+      "lean-cbcl/.lake/build/lib/lean/LeanCbcl/DCFLPreservation.olean.hash",
+      "lean-cbcl/.lake/build/lib/lean/LeanCbcl/DCFLPreservation.trace",
       "lean-cbcl/LeanCbcl.lean",
-      "lean-cbcl/LeanCbcl/Lattice/Result.lean"
+      "lean-cbcl/LeanCbcl/DCFLPreservation.lean"
     ],
     "dirty_files": 0
   },
   "learnings": [
     {
-      "key": "task-result-lattice-changes",
-      "content": "Modified 19 files (+950, -35): .hence/context-manifest.json, lean-cbcl/.lake/build/ir/LeanCbcl.c, lean-cbcl/.lake/build/ir/LeanCbcl.c.hash, lean-cbcl/.lake/build/ir/LeanCbcl.setup.json, lean-cbcl/.lake/build/ir/LeanCbcl/Lattice/Result.c and 14 more",
+      "key": "task-dcfl-preservation-changes",
+      "content": "Modified 19 files (+387, -36): .hence/context-manifest.json, lean-cbcl/.lake/build/ir/LeanCbcl.c, lean-cbcl/.lake/build/ir/LeanCbcl.c.hash, lean-cbcl/.lake/build/ir/LeanCbcl.setup.json, lean-cbcl/.lake/build/ir/LeanCbcl/DCFLPreservation.c and 14 more",
       "memory_type": "episodic",
       "confidence": 0.8
     }
   ],
-  "branch_name": "hence/result-lattice-v1",
-  "evaluated_at": "2026-05-03T00:49:15Z",
+  "branch_name": "hence/dcfl-preservation-v1",
+  "evaluated_at": "2026-05-03T00:53:31Z",
   "checks_passed": 0,
   "checks_failed": 0
 }
