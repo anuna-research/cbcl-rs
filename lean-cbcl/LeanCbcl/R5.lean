@@ -1,9 +1,9 @@
 import LeanCbcl.R1NoRecursion
 
 /-!
-# R5 Sub-check Soundness — Acyclicity + Reachability (REQ-515 / CON-515 / TEST-515)
+# R5 Sub-check Soundness — Acyclicity + Reachability + Definedness (REQ-515 / CON-515 / TEST-515)
 
-Lean port of two SPEC-002 R5 sub-checks:
+Lean port of three SPEC-002 R5 sub-checks:
 
 * **REQ-204 (acyclicity).** Mirrors Rust
   `crates/cbcl-core/src/protocol.rs::CausalProtocol::check_acyclicity`,
@@ -15,20 +15,27 @@ Lean port of two SPEC-002 R5 sub-checks:
   a BFS from `begin` over the successor graph emitting one
   `ProtocolViolation::Unreachable` per step not visited.
 
-Both checks reuse the SPEC-001 graph layer (`graphNeighbors`,
-`Reachable`) and the underlying DFS algorithm (`dfsNoCycle`) from
-`LeanCbcl/R1NoRecursion.lean`. Reachability adds a new forward-DFS
-helper (`dfsReaches`) since the Rust BFS visits *forward* (from
-`begin` outward) whereas R1's DFS searches *for cycles*. A forward
-DFS is equivalent to BFS for soundness — both visit exactly the
-reachable set — and yields a smaller proof against the existing
-`Reachable` inductive.
+* **REQ-206 (performative definedness).** Mirrors Rust
+  `crates/cbcl-core/src/protocol.rs::CausalProtocol::check_performative_definedness`,
+  a set-membership pass that emits one
+  `ProtocolViolation::UndefinedPerformative` per referenced
+  performative absent from the dialect's installed-ancestor closure.
+
+Acyclicity and reachability reuse the SPEC-001 graph layer
+(`graphNeighbors`, `Reachable`) and the underlying DFS algorithm
+(`dfsNoCycle`) from `LeanCbcl/R1NoRecursion.lean`. Reachability adds a
+new forward-DFS helper (`dfsReaches`) since the Rust BFS visits
+*forward* (from `begin` outward) whereas R1's DFS searches *for
+cycles*. A forward DFS is equivalent to BFS for soundness — both
+visit exactly the reachable set — and yields a smaller proof against
+the existing `Reachable` inductive. Definedness is purely a
+set-membership check and reduces to `List.filterMap_eq_nil_iff`.
 
 ## Theorems
 
 * `checkAcyclicity_sound` / `checkReachability_sound` — soundness
   (`check returns [] → property holds`). This is REQ-515's mandatory
-  direction for both sub-checks.
+  direction for both graph sub-checks.
 
 * `check_acyclicity_iff_no_cycle` / `check_reachability_iff_all_reachable`
   — the headline iff theorems named in CON-515. **Both currently state
@@ -38,6 +45,10 @@ reachable set — and yields a smaller proof against the existing
   by `|stepNames|`; for reachability the deferred direction would
   require showing that fuel `n² + 1` suffices for BFS to visit every
   reachable node. Both are open work.
+
+* `check_performative_definedness_iff_all_defined` — full iff (no
+  fuel, no graph traversal), follows directly from
+  `List.filterMap_eq_nil_iff`.
 -/
 
 namespace CBCL
@@ -75,12 +86,14 @@ structure ProtocolGraph where
   deriving Repr
 
 /-- Protocol-level violation found during R5 verification (mirrors Rust
-    `ProtocolViolation`). The `cycle` and `unreachable` constructors are
-    used by the REQ-204 and REQ-205 proofs respectively; definedness /
-    uniqueness violations are introduced by sibling tasks. -/
+    `ProtocolViolation`). The `cycle`, `unreachable`, and
+    `undefinedPerformative` constructors are used by the REQ-204,
+    REQ-205, and REQ-206 proofs respectively; the `duplicateStep`
+    (REQ-207) violation is introduced by a sibling task. -/
 inductive ProtocolViolation where
   | cycle (participants : List String) : ProtocolViolation
   | unreachable (step : String)        : ProtocolViolation
+  | undefinedPerformative (name : String) : ProtocolViolation
   deriving Repr
 
 /-! ## Successor graph + acyclicity check. -/
@@ -338,5 +351,58 @@ theorem checkReachability_sound (p : ProtocolGraph)
 theorem check_reachability_iff_all_reachable (p : ProtocolGraph) :
     p.checkReachability = [] → p.allStepsReachable :=
   checkReachability_sound p
+
+/-! ## Performative-definedness check (REQ-206) — set membership + iff. -/
+
+/-- Performative names referenced by a protocol (mirrors Rust
+    `CausalProtocol::all_referenced_performatives` in
+    `crates/cbcl-core/src/protocol.rs`). Collects each declared step
+    name plus every name appearing in any step's predecessor or
+    successor list, with `"begin"` filtered out (REQ-206 treats
+    `begin` as always defined).
+
+    Rust uses a `BTreeSet` to dedupe; the Lean version returns a plain
+    `List String` since the iff theorem only quantifies over
+    membership, not multiplicity. -/
+def ProtocolGraph.referencedPerformatives (p : ProtocolGraph) : List String :=
+  p.steps.flatMap fun s =>
+    (if s.performative = "begin" then [] else [s.performative]) ++
+    s.predecessors.filter (· ≠ "begin") ++
+    s.successors.filter (· ≠ "begin")
+
+/-- Performative-definedness check (REQ-206) — Lean port of Rust
+    `CausalProtocol::check_performative_definedness`. Returns one
+    `undefinedPerformative` violation per referenced performative not
+    present in the supplied `defined` set (the dialect's
+    installed-ancestor closure). -/
+def ProtocolGraph.checkPerformativeDefinedness
+    (p : ProtocolGraph) (defined : List String) : List ProtocolViolation :=
+  p.referencedPerformatives.filterMap fun n =>
+    if n ∈ defined then none
+    else some (.undefinedPerformative n)
+
+/-- Property: every referenced performative is in the `defined` set. -/
+def ProtocolGraph.allReferencedDefined
+    (p : ProtocolGraph) (defined : List String) : Prop :=
+  ∀ n ∈ p.referencedPerformatives, n ∈ defined
+
+/-- **CON-515 — `check_performative_definedness_iff_all_defined`
+    (REQ-515 part 3).**
+
+    Full iff: pure set membership, no fuel, no graph traversal. Reduces
+    to `List.filterMap_eq_nil_iff` plus case analysis on `n ∈ defined`. -/
+theorem check_performative_definedness_iff_all_defined
+    (p : ProtocolGraph) (defined : List String) :
+    p.checkPerformativeDefinedness defined = [] ↔
+    p.allReferencedDefined defined := by
+  simp only [ProtocolGraph.checkPerformativeDefinedness,
+             ProtocolGraph.allReferencedDefined,
+             List.filterMap_eq_nil_iff]
+  refine ⟨fun h n hn => ?_, fun h n hn => ?_⟩
+  · have hf := h n hn
+    by_cases hd : n ∈ defined
+    · exact hd
+    · simp [hd] at hf
+  · simp [h n hn]
 
 end CBCL

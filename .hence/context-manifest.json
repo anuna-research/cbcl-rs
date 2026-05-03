@@ -1,12 +1,12 @@
 {
-  "task_id": "r5-reachability",
+  "task_id": "r5-perf-definedness",
   "token_budget": 8000,
-  "tokens_used": 380,
+  "tokens_used": 451,
   "elements_selected": [
     {
       "source": "plan-meta/description",
-      "content": "REQ-515 part 2 / CON-515 / TEST-515: prove `theorem check_reachability_iff_all_reachable` in R5.lean — the SPEC-002 REQ-205 check returns [] iff every step is reachable from `begin`. BFS-soundness argument; same soundness-first / completeness-deferred policy.",
-      "token_cost": 65,
+      "content": "REQ-515 part 3 / CON-515 / TEST-515: prove `theorem check_performative_definedness_iff_all_defined` in R5.lean — the SPEC-002 REQ-206 check returns [] iff every referenced performative appears in the dialect's defined set. Should be the easiest of the four (set membership, no graph traversal).",
+      "token_cost": 74,
       "priority": "PlanMeta"
     },
     {
@@ -44,8 +44,14 @@
       "content": "Modified 19 files (+1591, -38): .hence/context-manifest.json, lean-cbcl/.lake/build/ir/LeanCbcl.c, lean-cbcl/.lake/build/ir/LeanCbcl.c.hash, lean-cbcl/.lake/build/ir/LeanCbcl.setup.json, lean-cbcl/.lake/build/ir/LeanCbcl/R5.c and 14 more",
       "token_cost": 59,
       "priority": "AgentMemory"
+    },
+    {
+      "source": "memory/episodic/task-r5-reachability-changes",
+      "content": "Modified 12 files (+675, -120): .hence/context-manifest.json, lean-cbcl/.lake/build/ir/LeanCbcl.setup.json, lean-cbcl/.lake/build/ir/LeanCbcl/R5.c, lean-cbcl/.lake/build/ir/LeanCbcl/R5.c.hash, lean-cbcl/.lake/build/ir/LeanCbcl/R5.setup.json and 7 more",
+      "token_cost": 62,
+      "priority": "AgentMemory"
     }
   ],
   "elements_excluded": [],
-  "constructed_at": "2026-05-03T01:28:43Z"
+  "constructed_at": "2026-05-03T01:34:28Z"
 }
