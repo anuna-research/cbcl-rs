@@ -3,27 +3,26 @@
   "confidence": 1.0,
   "exit_code": 0,
   "diff_summary": {
-    "files_changed": 4,
-    "insertions": 273,
+    "files_changed": 3,
+    "insertions": 934,
     "deletions": 5,
     "file_list": [
-      ".github/workflows/lean.yml",
       ".hence/context-manifest.json",
-      "lean-cbcl/AxiomAudit.lean",
-      "scripts/check-axioms.sh"
+      "crates/cbcl-core/tests/lean_parity.proptest-regressions",
+      "crates/cbcl-core/tests/lean_parity.rs"
     ],
     "dirty_files": 0
   },
   "learnings": [
     {
-      "key": "task-axiom-audit-changes",
-      "content": "Modified 4 files (+273, -5): .github/workflows/lean.yml, .hence/context-manifest.json, lean-cbcl/AxiomAudit.lean, scripts/check-axioms.sh",
+      "key": "task-parity-tests-changes",
+      "content": "Modified 3 files (+934, -5): .hence/context-manifest.json, crates/cbcl-core/tests/lean_parity.proptest-regressions, crates/cbcl-core/tests/lean_parity.rs",
       "memory_type": "episodic",
       "confidence": 0.8
     }
   ],
-  "branch_name": "hence/axiom-audit-v1",
-  "evaluated_at": "2026-05-03T04:55:53Z",
+  "branch_name": "hence/parity-tests-v1",
+  "evaluated_at": "2026-05-03T05:06:41Z",
   "checks_passed": 0,
   "checks_failed": 0
 }
