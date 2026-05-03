@@ -1,0 +1,30 @@
+{"synthetic": false,
+ "schemaVersion": "2025-09-10",
+ "outputs":
+ {"o": ["12e5da5a3871a842.olean"],
+  "i": "200c0193148b7712.ilean",
+  "c": "31fcf0bb1a2eb586.c"},
+ "log":
+ [{"message":
+   ".> LEAN_PATH=/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-store-lattice-v1/lean-cbcl/.lake/build/lib/lean /Users/anuna-01/.elan/toolchains/leanprover--lean4---v4.27.0/bin/lean /Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-store-lattice-v1/lean-cbcl/LeanCbcl/DetParser.lean -o /Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-store-lattice-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/DetParser.olean -i /Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-store-lattice-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/DetParser.ilean -c /Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-store-lattice-v1/lean-cbcl/.lake/build/ir/LeanCbcl/DetParser.c --setup /Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-store-lattice-v1/lean-cbcl/.lake/build/ir/LeanCbcl/DetParser.setup.json --json",
+   "level": "trace"}],
+ "inputs":
+ [["LeanCbcl.DetParser:deps",
+   [["deps",
+     [["«lean-cbcl»/LeanCbcl:extraDep",
+       [["@«lean-cbcl»:extraDep", "00000000000006bb"]]],
+      ["imports",
+       [["LeanCbcl.SExpr transitive imports (legacy)", "00000000000006bb"],
+        ["LeanCbcl.SExpr:importAllArts", "6c638a72099ce47a"]]]]],
+    ["libs",
+     [["import dynlibs", "00000000000006bb"],
+      ["package external libraries", "00000000000006bb"],
+      ["module dynlibs", "00000000000006bb"],
+      ["module plugins", "00000000000006bb"]]]]],
+  ["Lean 4.27.0, commit db93fe1608548721853390a10cd40580fe7d22ae",
+   "9a2be90fd35343e5"],
+  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-store-lattice-v1/lean-cbcl/LeanCbcl/DetParser.lean",
+   "aed7c7908474cb68"],
+  ["options", "00000000000006bb"],
+  ["Module.leanArgs: #[]", "00000000000006bb"]],
+ "depHash": "c1e1162d4b68de0c"}

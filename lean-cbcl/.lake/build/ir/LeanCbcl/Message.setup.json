@@ -1,0 +1,9 @@
+{"plugins": [],
+ "package": "lean-cbcl",
+ "options": {},
+ "name": "LeanCbcl.Message",
+ "isModule": false,
+ "importArts":
+ {"LeanCbcl.SExpr":
+  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-store-lattice-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/SExpr.olean"]},
+ "dynlibs": []}

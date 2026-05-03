@@ -1,0 +1,28 @@
+{"synthetic": false,
+ "schemaVersion": "2025-09-10",
+ "outputs":
+ {"o": ["3520426d6cb06da7.olean"],
+  "i": "12c5366740403590.ilean",
+  "c": "bb52f5fa351ddab6.c"},
+ "log":
+ [{"message":
+   ".> LEAN_PATH=/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-store-lattice-v1/lean-cbcl/.lake/build/lib/lean /Users/anuna-01/.elan/toolchains/leanprover--lean4---v4.27.0/bin/lean /Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-store-lattice-v1/lean-cbcl/LeanCbcl/SExpr.lean -o /Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-store-lattice-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/SExpr.olean -i /Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-store-lattice-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/SExpr.ilean -c /Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-store-lattice-v1/lean-cbcl/.lake/build/ir/LeanCbcl/SExpr.c --setup /Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-store-lattice-v1/lean-cbcl/.lake/build/ir/LeanCbcl/SExpr.setup.json --json",
+   "level": "trace"}],
+ "inputs":
+ [["LeanCbcl.SExpr:deps",
+   [["deps",
+     [["«lean-cbcl»/LeanCbcl:extraDep",
+       [["@«lean-cbcl»:extraDep", "00000000000006bb"]]],
+      ["imports", "00000000000006bb"]]],
+    ["libs",
+     [["import dynlibs", "00000000000006bb"],
+      ["package external libraries", "00000000000006bb"],
+      ["module dynlibs", "00000000000006bb"],
+      ["module plugins", "00000000000006bb"]]]]],
+  ["Lean 4.27.0, commit db93fe1608548721853390a10cd40580fe7d22ae",
+   "9a2be90fd35343e5"],
+  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-store-lattice-v1/lean-cbcl/LeanCbcl/SExpr.lean",
+   "c0e77505f0d33e3a"],
+  ["options", "00000000000006bb"],
+  ["Module.leanArgs: #[]", "00000000000006bb"]],
+ "depHash": "de1a21d766d17b11"}

@@ -1,0 +1,32 @@
+{"synthetic": false,
+ "schemaVersion": "2025-09-10",
+ "outputs":
+ {"o": ["0f2378f5357284f7.olean"],
+  "i": "4577772bf792ae71.ilean",
+  "c": "189918f77e41da3f.c"},
+ "log":
+ [{"message":
+   ".> LEAN_PATH=/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-store-lattice-v1/lean-cbcl/.lake/build/lib/lean /Users/anuna-01/.elan/toolchains/leanprover--lean4---v4.27.0/bin/lean /Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-store-lattice-v1/lean-cbcl/LeanCbcl/R1NoRecursion.lean -o /Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-store-lattice-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/R1NoRecursion.olean -i /Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-store-lattice-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/R1NoRecursion.ilean -c /Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-store-lattice-v1/lean-cbcl/.lake/build/ir/LeanCbcl/R1NoRecursion.c --setup /Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-store-lattice-v1/lean-cbcl/.lake/build/ir/LeanCbcl/R1NoRecursion.setup.json --json",
+   "level": "trace"}],
+ "inputs":
+ [["LeanCbcl.R1NoRecursion:deps",
+   [["deps",
+     [["«lean-cbcl»/LeanCbcl:extraDep",
+       [["@«lean-cbcl»:extraDep", "00000000000006bb"]]],
+      ["imports",
+       [["LeanCbcl.SExpr transitive imports (legacy)", "00000000000006bb"],
+        ["LeanCbcl.SExpr:importAllArts", "6c638a72099ce47a"],
+        ["LeanCbcl.Dialect transitive imports (legacy)", "44934cd28904aebf"],
+        ["LeanCbcl.Dialect:importAllArts", "05608596f59887d3"]]]]],
+    ["libs",
+     [["import dynlibs", "00000000000006bb"],
+      ["package external libraries", "00000000000006bb"],
+      ["module dynlibs", "00000000000006bb"],
+      ["module plugins", "00000000000006bb"]]]]],
+  ["Lean 4.27.0, commit db93fe1608548721853390a10cd40580fe7d22ae",
+   "9a2be90fd35343e5"],
+  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-store-lattice-v1/lean-cbcl/LeanCbcl/R1NoRecursion.lean",
+   "623bc52b72af075a"],
+  ["options", "00000000000006bb"],
+  ["Module.leanArgs: #[]", "00000000000006bb"]],
+ "depHash": "1a989013de66b744"}

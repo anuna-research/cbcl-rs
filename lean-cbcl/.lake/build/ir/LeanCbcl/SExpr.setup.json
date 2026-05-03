@@ -1,0 +1,7 @@
+{"plugins": [],
+ "package": "lean-cbcl",
+ "options": {},
+ "name": "LeanCbcl.SExpr",
+ "isModule": false,
+ "importArts": {},
+ "dynlibs": []}

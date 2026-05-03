@@ -1,0 +1,13 @@
+{"plugins": [],
+ "package": "lean-cbcl",
+ "options": {},
+ "name": "LeanCbcl.R1NoRecursion",
+ "isModule": false,
+ "importArts":
+ {"LeanCbcl.SExpr":
+  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-store-lattice-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/SExpr.olean"],
+  "LeanCbcl.Message":
+  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-store-lattice-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/Message.olean"],
+  "LeanCbcl.Dialect":
+  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-store-lattice-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/Dialect.olean"]},
+ "dynlibs": []}

@@ -1,0 +1,23 @@
+{"plugins": [],
+ "package": "lean-cbcl",
+ "options": {},
+ "name": "LeanCbcl.DeterministicUnion",
+ "isModule": false,
+ "importArts":
+ {"LeanCbcl.SExpr":
+  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-store-lattice-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/SExpr.olean"],
+  "LeanCbcl.R3CorePreservation":
+  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-store-lattice-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/R3CorePreservation.olean"],
+  "LeanCbcl.Parser":
+  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-store-lattice-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/Parser.olean"],
+  "LeanCbcl.MessageParser":
+  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-store-lattice-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/MessageParser.olean"],
+  "LeanCbcl.Message":
+  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-store-lattice-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/Message.olean"],
+  "LeanCbcl.Dialect":
+  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-store-lattice-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/Dialect.olean"],
+  "LeanCbcl.DetParser":
+  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-store-lattice-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/DetParser.olean"],
+  "LeanCbcl.Agent":
+  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-store-lattice-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/Agent.olean"]},
+ "dynlibs": []}
