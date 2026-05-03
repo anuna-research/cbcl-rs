@@ -41,6 +41,7 @@ LEAN_EXPORT uint8_t lp_lean_x2dcbcl_CBCL_dfsReaches___lam__0(lean_object*, lean_
 LEAN_EXPORT lean_object* lp_lean_x2dcbcl_CBCL_ProtocolViolation_cycle_elim___redArg(lean_object*, lean_object*);
 LEAN_EXPORT lean_object* lp_lean_x2dcbcl_CBCL_instReprProtocolViolation_repr___boxed(lean_object*, lean_object*);
 static lean_object* lp_lean_x2dcbcl_CBCL_instReprProtocolViolation_repr___closed__4;
+LEAN_EXPORT lean_object* lp_lean_x2dcbcl_CBCL_ProtocolViolation_duplicateStep_elim(lean_object*, lean_object*, lean_object*, lean_object*);
 LEAN_EXPORT lean_object* lp_lean_x2dcbcl_CBCL_ProtocolViolation_ctorIdx___boxed(lean_object*);
 uint8_t lp_lean_x2dcbcl_CBCL_dfsNoCycle(lean_object*, lean_object*, lean_object*, lean_object*, lean_object*);
 static lean_object* lp_lean_x2dcbcl_CBCL_instReprStepDecl_repr___redArg___closed__4;
@@ -50,6 +51,7 @@ lean_object* lean_string_length(lean_object*);
 LEAN_EXPORT lean_object* lp_lean_x2dcbcl_List_filterMapTR_go___at___00CBCL_ProtocolGraph_checkAcyclicity_spec__0(lean_object*, lean_object*, lean_object*, lean_object*);
 LEAN_EXPORT lean_object* lp_lean_x2dcbcl_CBCL_ProtocolViolation_unreachable_elim(lean_object*, lean_object*, lean_object*, lean_object*);
 LEAN_EXPORT lean_object* lp_lean_x2dcbcl_CBCL_ProtocolGraph_stepNames(lean_object*);
+LEAN_EXPORT lean_object* lp_lean_x2dcbcl_CBCL_ProtocolViolation_duplicateStep_elim___redArg(lean_object*, lean_object*);
 lean_object* l_List_foldl___at___00Array_appendList_spec__0___redArg(lean_object*, lean_object*);
 LEAN_EXPORT lean_object* lp_lean_x2dcbcl_CBCL_ProtocolViolation_ctorElim___boxed(lean_object*, lean_object*, lean_object*, lean_object*, lean_object*);
 static lean_object* lp_lean_x2dcbcl_CBCL_instReprStepDecl_repr___redArg___closed__1;
@@ -58,6 +60,7 @@ static lean_object* lp_lean_x2dcbcl_CBCL_instReprStepDecl_repr___redArg___closed
 static lean_object* lp_lean_x2dcbcl_List_repr___at___00CBCL_instReprProtocolGraph_repr_spec__0___redArg___closed__7;
 static lean_object* lp_lean_x2dcbcl_CBCL_instReprStepDecl_repr___redArg___closed__9;
 LEAN_EXPORT lean_object* lp_lean_x2dcbcl_CBCL_instReprProtocolViolation_repr(lean_object*, lean_object*);
+LEAN_EXPORT lean_object* lp_lean_x2dcbcl_CBCL_ProtocolGraph_checkStepUniqueness(lean_object*);
 LEAN_EXPORT lean_object* lp_lean_x2dcbcl_CBCL_ProtocolViolation_cycle_elim(lean_object*, lean_object*, lean_object*, lean_object*);
 LEAN_EXPORT lean_object* lp_lean_x2dcbcl_CBCL_ProtocolViolation_unreachable_elim___redArg(lean_object*, lean_object*);
 static lean_object* lp_lean_x2dcbcl_CBCL_instReprProtocolGraph_repr___redArg___closed__0;
@@ -66,6 +69,7 @@ LEAN_EXPORT lean_object* lp_lean_x2dcbcl_CBCL_instReprStepDecl_repr(lean_object*
 static lean_object* lp_lean_x2dcbcl_List_filterMapTR_go___at___00CBCL_ProtocolGraph_checkReachability_spec__0___closed__0;
 LEAN_EXPORT lean_object* lp_lean_x2dcbcl_CBCL_ProtocolViolation_ctorElim___redArg(lean_object*, lean_object*);
 lean_object* lean_nat_to_int(lean_object*);
+LEAN_EXPORT lean_object* lp_lean_x2dcbcl_List_filterMapTR_go___at___00CBCL_ProtocolGraph_checkStepUniqueness_spec__0(lean_object*, lean_object*);
 static lean_object* lp_lean_x2dcbcl_CBCL_ProtocolGraph_referencedPerformatives___closed__0;
 LEAN_EXPORT lean_object* lp_lean_x2dcbcl_List_filterTR_loop___at___00CBCL_ProtocolGraph_referencedPerformatives_spec__0___boxed(lean_object*, lean_object*, lean_object*);
 lean_object* lp_lean_x2dcbcl_CBCL_graphNeighbors(lean_object*, lean_object*);
@@ -96,6 +100,7 @@ LEAN_EXPORT lean_object* lp_lean_x2dcbcl_CBCL_instReprStepDecl_repr___redArg(lea
 static lean_object* lp_lean_x2dcbcl_CBCL_instReprProtocolViolation_repr___closed__5;
 static lean_object* lp_lean_x2dcbcl_CBCL_instReprProtocolViolation___closed__0;
 static lean_object* lp_lean_x2dcbcl_List_repr___at___00CBCL_instReprProtocolGraph_repr_spec__0___redArg___closed__5;
+uint8_t l_List_nodupDecidable___redArg(lean_object*, lean_object*);
 LEAN_EXPORT lean_object* lp_lean_x2dcbcl_CBCL_dfsReaches___boxed(lean_object*, lean_object*, lean_object*, lean_object*, lean_object*);
 LEAN_EXPORT lean_object* lp_lean_x2dcbcl_CBCL_instReprProtocolGraph_repr(lean_object*, lean_object*);
 static lean_object* lp_lean_x2dcbcl_CBCL_instReprStepDecl_repr___redArg___closed__8;
@@ -117,6 +122,7 @@ uint8_t lp_lean_x2dcbcl_List_elem___at___00CBCL_isCorePerformativeName_spec__0(l
 static lean_object* lp_lean_x2dcbcl_CBCL_instReprStepDecl_repr___redArg___closed__19;
 static lean_object* lp_lean_x2dcbcl_CBCL_ProtocolGraph_checkAcyclicity___closed__0;
 LEAN_EXPORT lean_object* lp_lean_x2dcbcl_CBCL_ProtocolViolation_undefinedPerformative_elim(lean_object*, lean_object*, lean_object*, lean_object*);
+static lean_object* lp_lean_x2dcbcl_CBCL_instReprProtocolViolation_repr___closed__12;
 static lean_object* lp_lean_x2dcbcl_CBCL_instReprStepDecl_repr___redArg___closed__13;
 static lean_object* lp_lean_x2dcbcl_CBCL_instReprStepDecl_repr___redArg___closed__5;
 static lean_object* lp_lean_x2dcbcl_CBCL_instReprProtocolViolation_repr___closed__10;
@@ -126,6 +132,7 @@ LEAN_EXPORT lean_object* lp_lean_x2dcbcl_List_filterTR_loop___at___00CBCL_Protoc
 static lean_object* lp_lean_x2dcbcl_CBCL_instReprStepDecl_repr___redArg___closed__6;
 static lean_object* lp_lean_x2dcbcl_CBCL_instReprStepDecl_repr___redArg___closed__3;
 LEAN_EXPORT lean_object* lp_lean_x2dcbcl_CBCL_instReprProtocolGraph_repr___boxed(lean_object*, lean_object*);
+static lean_object* lp_lean_x2dcbcl_CBCL_instReprProtocolViolation_repr___closed__11;
 LEAN_EXPORT lean_object* lp_lean_x2dcbcl_CBCL_ProtocolGraph_checkAcyclicity(lean_object*);
 static lean_object* lp_lean_x2dcbcl_List_repr___at___00CBCL_instReprProtocolGraph_repr_spec__0___redArg___closed__3;
 LEAN_EXPORT lean_object* lp_lean_x2dcbcl_CBCL_instReprProtocolViolation;
@@ -135,6 +142,7 @@ lean_object* lean_nat_add(lean_object*, lean_object*);
 lean_object* l_List_repr_x27___at___00Lean_Syntax_instReprPreresolved_repr_spec__0___redArg(lean_object*);
 static lean_object* lp_lean_x2dcbcl_CBCL_instReprProtocolViolation_repr___closed__2;
 lean_object* l_instDecidableEqString___boxed(lean_object*, lean_object*);
+static lean_object* lp_lean_x2dcbcl_CBCL_instReprProtocolViolation_repr___closed__13;
 LEAN_EXPORT lean_object* lp_lean_x2dcbcl_CBCL_ProtocolGraph_referencedPerformatives(lean_object*);
 static lean_object* lp_lean_x2dcbcl_List_repr___at___00CBCL_instReprProtocolGraph_repr_spec__0___redArg___closed__4;
 static lean_object* lp_lean_x2dcbcl_CBCL_instReprStepDecl_repr___redArg___closed__12;
@@ -861,11 +869,17 @@ lean_object* x_3;
 x_3 = lean_unsigned_to_nat(1u);
 return x_3;
 }
-default: 
+case 2:
 {
 lean_object* x_4; 
 x_4 = lean_unsigned_to_nat(2u);
 return x_4;
+}
+default: 
+{
+lean_object* x_5; 
+x_5 = lean_unsigned_to_nat(3u);
+return x_5;
 }
 }
 }
@@ -960,6 +974,22 @@ return x_5;
 }
 }
 LEAN_EXPORT lean_object* lp_lean_x2dcbcl_CBCL_ProtocolViolation_undefinedPerformative_elim___redArg(lean_object* x_1, lean_object* x_2) {
+_start:
+{
+lean_object* x_3; 
+x_3 = lp_lean_x2dcbcl_CBCL_ProtocolViolation_ctorElim___redArg(x_1, x_2);
+return x_3;
+}
+}
+LEAN_EXPORT lean_object* lp_lean_x2dcbcl_CBCL_ProtocolViolation_duplicateStep_elim(lean_object* x_1, lean_object* x_2, lean_object* x_3, lean_object* x_4) {
+_start:
+{
+lean_object* x_5; 
+x_5 = lp_lean_x2dcbcl_CBCL_ProtocolViolation_ctorElim___redArg(x_2, x_4);
+return x_5;
+}
+}
+LEAN_EXPORT lean_object* lp_lean_x2dcbcl_CBCL_ProtocolViolation_duplicateStep_elim___redArg(lean_object* x_1, lean_object* x_2) {
 _start:
 {
 lean_object* x_3; 
@@ -1075,6 +1105,36 @@ lean_ctor_set(x_3, 1, x_1);
 return x_3;
 }
 }
+static lean_object* _init_lp_lean_x2dcbcl_CBCL_instReprProtocolViolation_repr___closed__11() {
+_start:
+{
+lean_object* x_1; 
+x_1 = lean_mk_string_unchecked("CBCL.ProtocolViolation.duplicateStep", 36, 36);
+return x_1;
+}
+}
+static lean_object* _init_lp_lean_x2dcbcl_CBCL_instReprProtocolViolation_repr___closed__12() {
+_start:
+{
+lean_object* x_1; lean_object* x_2; 
+x_1 = lp_lean_x2dcbcl_CBCL_instReprProtocolViolation_repr___closed__11;
+x_2 = lean_alloc_ctor(3, 1, 0);
+lean_ctor_set(x_2, 0, x_1);
+return x_2;
+}
+}
+static lean_object* _init_lp_lean_x2dcbcl_CBCL_instReprProtocolViolation_repr___closed__13() {
+_start:
+{
+lean_object* x_1; lean_object* x_2; lean_object* x_3; 
+x_1 = lean_box(1);
+x_2 = lp_lean_x2dcbcl_CBCL_instReprProtocolViolation_repr___closed__12;
+x_3 = lean_alloc_ctor(5, 2, 0);
+lean_ctor_set(x_3, 0, x_2);
+lean_ctor_set(x_3, 1, x_1);
+return x_3;
+}
+}
 LEAN_EXPORT lean_object* lp_lean_x2dcbcl_CBCL_instReprProtocolViolation_repr(lean_object* x_1, lean_object* x_2) {
 _start:
 {
@@ -1174,7 +1234,7 @@ x_27 = l_Repr_addAppParen(x_26, x_2);
 return x_27;
 }
 }
-default: 
+case 2:
 {
 lean_object* x_33; lean_object* x_34; lean_object* x_35; lean_object* x_45; uint8_t x_46; 
 x_33 = lean_ctor_get(x_1, 0);
@@ -1226,6 +1286,59 @@ lean_ctor_set(x_42, 0, x_40);
 lean_ctor_set_uint8(x_42, sizeof(void*)*1, x_41);
 x_43 = l_Repr_addAppParen(x_42, x_2);
 return x_43;
+}
+}
+default: 
+{
+lean_object* x_49; lean_object* x_50; lean_object* x_51; lean_object* x_61; uint8_t x_62; 
+x_49 = lean_ctor_get(x_1, 0);
+lean_inc_ref(x_49);
+if (lean_is_exclusive(x_1)) {
+ lean_ctor_release(x_1, 0);
+ x_50 = x_1;
+} else {
+ lean_dec_ref(x_1);
+ x_50 = lean_box(0);
+}
+x_61 = lean_unsigned_to_nat(1024u);
+x_62 = lean_nat_dec_le(x_61, x_2);
+if (x_62 == 0)
+{
+lean_object* x_63; 
+x_63 = lp_lean_x2dcbcl_CBCL_instReprProtocolViolation_repr___closed__3;
+x_51 = x_63;
+goto block_60;
+}
+else
+{
+lean_object* x_64; 
+x_64 = lp_lean_x2dcbcl_CBCL_instReprProtocolViolation_repr___closed__4;
+x_51 = x_64;
+goto block_60;
+}
+block_60:
+{
+lean_object* x_52; lean_object* x_53; lean_object* x_54; lean_object* x_55; lean_object* x_56; uint8_t x_57; lean_object* x_58; lean_object* x_59; 
+x_52 = lp_lean_x2dcbcl_CBCL_instReprProtocolViolation_repr___closed__13;
+x_53 = l_String_quote(x_49);
+if (lean_is_scalar(x_50)) {
+ x_54 = lean_alloc_ctor(3, 1, 0);
+} else {
+ x_54 = x_50;
+}
+lean_ctor_set(x_54, 0, x_53);
+x_55 = lean_alloc_ctor(5, 2, 0);
+lean_ctor_set(x_55, 0, x_52);
+lean_ctor_set(x_55, 1, x_54);
+x_56 = lean_alloc_ctor(4, 2, 0);
+lean_ctor_set(x_56, 0, x_51);
+lean_ctor_set(x_56, 1, x_55);
+x_57 = 0;
+x_58 = lean_alloc_ctor(6, 1, 1);
+lean_ctor_set(x_58, 0, x_56);
+lean_ctor_set_uint8(x_58, sizeof(void*)*1, x_57);
+x_59 = l_Repr_addAppParen(x_58, x_2);
+return x_59;
 }
 }
 }
@@ -1969,6 +2082,76 @@ x_5 = lp_lean_x2dcbcl_List_filterMapTR_go___at___00CBCL_ProtocolGraph_checkPerfo
 return x_5;
 }
 }
+LEAN_EXPORT lean_object* lp_lean_x2dcbcl_List_filterMapTR_go___at___00CBCL_ProtocolGraph_checkStepUniqueness_spec__0(lean_object* x_1, lean_object* x_2) {
+_start:
+{
+if (lean_obj_tag(x_1) == 0)
+{
+lean_object* x_3; 
+x_3 = lean_array_to_list(x_2);
+return x_3;
+}
+else
+{
+lean_object* x_4; lean_object* x_5; lean_object* x_6; lean_object* x_7; lean_object* x_8; lean_object* x_13; uint8_t x_14; 
+x_4 = lean_ctor_get(x_1, 0);
+lean_inc(x_4);
+x_5 = lean_ctor_get(x_1, 1);
+lean_inc(x_5);
+lean_dec_ref(x_1);
+x_6 = lean_ctor_get(x_4, 0);
+lean_inc_ref(x_6);
+x_7 = lean_ctor_get(x_4, 1);
+lean_inc(x_7);
+x_8 = lean_ctor_get(x_4, 2);
+lean_inc(x_8);
+lean_dec(x_4);
+x_13 = lean_alloc_closure((void*)(l_instDecidableEqString___boxed), 2, 0);
+lean_inc_ref(x_13);
+x_14 = l_List_nodupDecidable___redArg(x_13, x_7);
+if (x_14 == 0)
+{
+lean_dec_ref(x_13);
+lean_dec(x_8);
+goto block_12;
+}
+else
+{
+uint8_t x_15; 
+x_15 = l_List_nodupDecidable___redArg(x_13, x_8);
+if (x_15 == 0)
+{
+goto block_12;
+}
+else
+{
+lean_dec_ref(x_6);
+x_1 = x_5;
+goto _start;
+}
+}
+block_12:
+{
+lean_object* x_9; lean_object* x_10; 
+x_9 = lean_alloc_ctor(3, 1, 0);
+lean_ctor_set(x_9, 0, x_6);
+x_10 = lean_array_push(x_2, x_9);
+x_1 = x_5;
+x_2 = x_10;
+goto _start;
+}
+}
+}
+}
+LEAN_EXPORT lean_object* lp_lean_x2dcbcl_CBCL_ProtocolGraph_checkStepUniqueness(lean_object* x_1) {
+_start:
+{
+lean_object* x_2; lean_object* x_3; 
+x_2 = lp_lean_x2dcbcl_CBCL_ProtocolGraph_checkAcyclicity___closed__0;
+x_3 = lp_lean_x2dcbcl_List_filterMapTR_go___at___00CBCL_ProtocolGraph_checkStepUniqueness_spec__0(x_1, x_2);
+return x_3;
+}
+}
 lean_object* initialize_Init(uint8_t builtin);
 lean_object* initialize_lean_x2dcbcl_LeanCbcl_R1NoRecursion(uint8_t builtin);
 static bool _G_initialized = false;
@@ -2080,6 +2263,12 @@ lp_lean_x2dcbcl_CBCL_instReprProtocolViolation_repr___closed__9 = _init_lp_lean_
 lean_mark_persistent(lp_lean_x2dcbcl_CBCL_instReprProtocolViolation_repr___closed__9);
 lp_lean_x2dcbcl_CBCL_instReprProtocolViolation_repr___closed__10 = _init_lp_lean_x2dcbcl_CBCL_instReprProtocolViolation_repr___closed__10();
 lean_mark_persistent(lp_lean_x2dcbcl_CBCL_instReprProtocolViolation_repr___closed__10);
+lp_lean_x2dcbcl_CBCL_instReprProtocolViolation_repr___closed__11 = _init_lp_lean_x2dcbcl_CBCL_instReprProtocolViolation_repr___closed__11();
+lean_mark_persistent(lp_lean_x2dcbcl_CBCL_instReprProtocolViolation_repr___closed__11);
+lp_lean_x2dcbcl_CBCL_instReprProtocolViolation_repr___closed__12 = _init_lp_lean_x2dcbcl_CBCL_instReprProtocolViolation_repr___closed__12();
+lean_mark_persistent(lp_lean_x2dcbcl_CBCL_instReprProtocolViolation_repr___closed__12);
+lp_lean_x2dcbcl_CBCL_instReprProtocolViolation_repr___closed__13 = _init_lp_lean_x2dcbcl_CBCL_instReprProtocolViolation_repr___closed__13();
+lean_mark_persistent(lp_lean_x2dcbcl_CBCL_instReprProtocolViolation_repr___closed__13);
 lp_lean_x2dcbcl_CBCL_instReprProtocolViolation___closed__0 = _init_lp_lean_x2dcbcl_CBCL_instReprProtocolViolation___closed__0();
 lean_mark_persistent(lp_lean_x2dcbcl_CBCL_instReprProtocolViolation___closed__0);
 lp_lean_x2dcbcl_CBCL_instReprProtocolViolation = _init_lp_lean_x2dcbcl_CBCL_instReprProtocolViolation();

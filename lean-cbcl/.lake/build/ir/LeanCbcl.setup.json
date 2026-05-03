@@ -5,45 +5,45 @@
  "isModule": false,
  "importArts":
  {"LeanCbcl.Verify":
-  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-r5-perf-definedness-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/Verify.olean"],
+  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-r5-step-uniqueness-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/Verify.olean"],
   "LeanCbcl.TemplateExpansion":
-  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-r5-perf-definedness-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/TemplateExpansion.olean"],
+  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-r5-step-uniqueness-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/TemplateExpansion.olean"],
   "LeanCbcl.Serializer":
-  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-r5-perf-definedness-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/Serializer.olean"],
+  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-r5-step-uniqueness-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/Serializer.olean"],
   "LeanCbcl.SExpr":
-  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-r5-perf-definedness-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/SExpr.olean"],
+  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-r5-step-uniqueness-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/SExpr.olean"],
   "LeanCbcl.R5":
-  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-r5-perf-definedness-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/R5.olean"],
+  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-r5-step-uniqueness-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/R5.olean"],
   "LeanCbcl.R3CorePreservation":
-  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-r5-perf-definedness-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/R3CorePreservation.olean"],
+  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-r5-step-uniqueness-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/R3CorePreservation.olean"],
   "LeanCbcl.R2ResourceBounds":
-  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-r5-perf-definedness-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/R2ResourceBounds.olean"],
+  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-r5-step-uniqueness-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/R2ResourceBounds.olean"],
   "LeanCbcl.R1NoRecursion":
-  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-r5-perf-definedness-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/R1NoRecursion.olean"],
+  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-r5-step-uniqueness-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/R1NoRecursion.olean"],
   "LeanCbcl.Pipeline":
-  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-r5-perf-definedness-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/Pipeline.olean"],
+  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-r5-step-uniqueness-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/Pipeline.olean"],
   "LeanCbcl.PatternMatch":
-  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-r5-perf-definedness-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/PatternMatch.olean"],
+  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-r5-step-uniqueness-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/PatternMatch.olean"],
   "LeanCbcl.Parser":
-  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-r5-perf-definedness-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/Parser.olean"],
+  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-r5-step-uniqueness-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/Parser.olean"],
   "LeanCbcl.MessageParser":
-  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-r5-perf-definedness-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/MessageParser.olean"],
+  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-r5-step-uniqueness-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/MessageParser.olean"],
   "LeanCbcl.Message":
-  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-r5-perf-definedness-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/Message.olean"],
+  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-r5-step-uniqueness-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/Message.olean"],
   "LeanCbcl.Lattice.Store":
-  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-r5-perf-definedness-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/Lattice/Store.olean"],
+  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-r5-step-uniqueness-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/Lattice/Store.olean"],
   "LeanCbcl.Lattice.Result":
-  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-r5-perf-definedness-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/Lattice/Result.olean"],
+  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-r5-step-uniqueness-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/Lattice/Result.olean"],
   "LeanCbcl.DialectParser":
-  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-r5-perf-definedness-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/DialectParser.olean"],
+  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-r5-step-uniqueness-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/DialectParser.olean"],
   "LeanCbcl.Dialect":
-  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-r5-perf-definedness-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/Dialect.olean"],
+  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-r5-step-uniqueness-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/Dialect.olean"],
   "LeanCbcl.DeterministicUnion":
-  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-r5-perf-definedness-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/DeterministicUnion.olean"],
+  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-r5-step-uniqueness-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/DeterministicUnion.olean"],
   "LeanCbcl.DetParser":
-  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-r5-perf-definedness-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/DetParser.olean"],
+  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-r5-step-uniqueness-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/DetParser.olean"],
   "LeanCbcl.DCFLPreservation":
-  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-r5-perf-definedness-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/DCFLPreservation.olean"],
+  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-r5-step-uniqueness-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/DCFLPreservation.olean"],
   "LeanCbcl.Agent":
-  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-r5-perf-definedness-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/Agent.olean"]},
+  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-r5-step-uniqueness-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/Agent.olean"]},
  "dynlibs": []}

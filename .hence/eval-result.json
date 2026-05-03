@@ -4,8 +4,8 @@
   "exit_code": 0,
   "diff_summary": {
     "files_changed": 12,
-    "insertions": 539,
-    "deletions": 63,
+    "insertions": 301,
+    "deletions": 57,
     "file_list": [
       ".hence/context-manifest.json",
       "lean-cbcl/.lake/build/ir/LeanCbcl.setup.json",
@@ -24,14 +24,14 @@
   },
   "learnings": [
     {
-      "key": "task-r5-perf-definedness-changes",
-      "content": "Modified 12 files (+539, -63): .hence/context-manifest.json, lean-cbcl/.lake/build/ir/LeanCbcl.setup.json, lean-cbcl/.lake/build/ir/LeanCbcl/R5.c, lean-cbcl/.lake/build/ir/LeanCbcl/R5.c.hash, lean-cbcl/.lake/build/ir/LeanCbcl/R5.setup.json and 7 more",
+      "key": "task-r5-step-uniqueness-changes",
+      "content": "Modified 12 files (+301, -57): .hence/context-manifest.json, lean-cbcl/.lake/build/ir/LeanCbcl.setup.json, lean-cbcl/.lake/build/ir/LeanCbcl/R5.c, lean-cbcl/.lake/build/ir/LeanCbcl/R5.c.hash, lean-cbcl/.lake/build/ir/LeanCbcl/R5.setup.json and 7 more",
       "memory_type": "episodic",
       "confidence": 0.8
     }
   ],
-  "branch_name": "hence/r5-perf-definedness-v1",
-  "evaluated_at": "2026-05-03T01:37:59Z",
+  "branch_name": "hence/r5-step-uniqueness-v1",
+  "evaluated_at": "2026-05-03T01:41:18Z",
   "checks_passed": 0,
   "checks_failed": 0
 }
