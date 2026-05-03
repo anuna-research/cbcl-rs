@@ -18,7 +18,7 @@ SPECS=(
     "$REPO_ROOT/specs/SPEC-003-verification-lattice.md"
 )
 
-ALLOWED_RE='^(lean|lean-with-sorry|lean \(soundness only\)|property|example|prose|n/a)$'
+ALLOWED_RE='^(lean|lean-with-sorry|lean \\(soundness only\\)|property|example|prose|n/a)$'
 
 missing=0
 bad_value=0

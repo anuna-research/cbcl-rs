@@ -434,7 +434,9 @@ The system SHALL reject protocol declarations containing cycles in the dependenc
 
 Note: loops (repeated request-response) are NOT cycles in the concrete message graph. A request-response loop is declared as `(then (begin response) request response)`. The dependency graph has an edge `response→request`, which looks circular at the *schema* level. But at runtime, each concrete message has a unique ID: `begin → request-1 → response-1 → request-2 → response-2 → ...` is acyclic. The acyclicity check (REQ-204) operates on the *schema* graph and must permit cycles that represent loops — see REQ-204 for the distinction.
 
-verified-by: example
+verified-by: lean (soundness only)
+
+Mechanised in `lean-cbcl/LeanCbcl/R5.lean` as `checkAcyclicity_sound` and `check_acyclicity_iff_no_cycle` (currently soundness `→` only — the completeness `←` direction is deferred per ADR-512, mirroring the existing SPEC-001 R1 DFS proof structure).
 
 Trace:
 - TEST-204
@@ -445,7 +447,9 @@ The system SHALL reject protocol declarations where any step is unreachable from
 
 **Rationale:** An unreachable step can never be validly invoked — its predecessors are not in the protocol, so no message can satisfy its `:after` clause. This catches dead code in protocol declarations.
 
-verified-by: example
+verified-by: lean (soundness only)
+
+Mechanised in `lean-cbcl/LeanCbcl/R5.lean` as `checkReachability_sound` and `check_reachability_iff_all_reachable` (currently soundness `→` only — the completeness `←` direction is deferred per ADR-512).
 
 Trace:
 - TEST-205
@@ -456,7 +460,9 @@ The system SHALL reject a protocol declaration that references a performative na
 
 The special token `begin` is always valid and does not need an `extend` clause.
 
-verified-by: example
+verified-by: lean
+
+Mechanised in `lean-cbcl/LeanCbcl/R5.lean` as `check_performative_definedness_iff_all_defined` (full iff).
 
 Trace:
 - TEST-206
@@ -467,7 +473,9 @@ The system SHALL reject a protocol declaration containing duplicate `step` decla
 
 **Rationale:** Duplicate steps create ambiguous predecessor sets. Each performative has exactly one set of valid predecessors.
 
-verified-by: example
+verified-by: lean
+
+Mechanised in `lean-cbcl/LeanCbcl/R5.lean` as `check_step_uniqueness_iff_no_duplicates` (full iff).
 
 Trace:
 - TEST-207
@@ -503,7 +511,9 @@ The system SHALL preserve DCFL membership when installing a dialect with a causa
 
 DCFL preservation is trivially maintained because the protocol mechanism adds no new parsing capability — it is a post-parse, post-expansion verification predicate on immutable data.
 
-verified-by: prose
+verified-by: lean
+
+Mechanised in `lean-cbcl/LeanCbcl/DCFLPreservation.lean` as `dcfl_preserved_under_protocol` (the `(protocol …)` clause inhabits the existing `IsSExpr` DCFL grammar) and `protocol_dispatch_deterministic` (the `protocol` keyword dispatch is a Lean function).
 
 Trace:
 - TEST-209
@@ -738,7 +748,9 @@ Trace:
 
 Shape checking is a VPL tree-walking operation. VPL ⊂ DCFL. Shape constraints do not extend the grammar. DCFL preservation is maintained.
 
-verified-by: prose
+verified-by: lean
+
+Mechanised in `lean-cbcl/LeanCbcl/DCFLPreservation.lean` as `dcfl_preserved_under_shape` (the `(shape …)` clause inhabits the existing `IsSExpr` DCFL grammar) and `shape_dispatch_deterministic` (the `shape` keyword dispatch is a Lean function).
 
 Trace:
 - TEST-225
