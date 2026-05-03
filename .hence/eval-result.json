@@ -3,33 +3,27 @@
   "confidence": 1.0,
   "exit_code": 0,
   "diff_summary": {
-    "files_changed": 10,
-    "insertions": 75,
-    "deletions": 43,
+    "files_changed": 4,
+    "insertions": 273,
+    "deletions": 5,
     "file_list": [
+      ".github/workflows/lean.yml",
       ".hence/context-manifest.json",
-      "lean-cbcl/.lake/build/ir/LeanCbcl.setup.json",
-      "lean-cbcl/.lake/build/ir/LeanCbcl/Verify.setup.json",
-      "lean-cbcl/.lake/build/lib/lean/LeanCbcl.trace",
-      "lean-cbcl/.lake/build/lib/lean/LeanCbcl/Verify.ilean",
-      "lean-cbcl/.lake/build/lib/lean/LeanCbcl/Verify.ilean.hash",
-      "lean-cbcl/.lake/build/lib/lean/LeanCbcl/Verify.olean",
-      "lean-cbcl/.lake/build/lib/lean/LeanCbcl/Verify.olean.hash",
-      "lean-cbcl/.lake/build/lib/lean/LeanCbcl/Verify.trace",
-      "lean-cbcl/LeanCbcl/Verify.lean"
+      "lean-cbcl/AxiomAudit.lean",
+      "scripts/check-axioms.sh"
     ],
     "dirty_files": 0
   },
   "learnings": [
     {
-      "key": "task-verify-eventual-consistency-changes",
-      "content": "Modified 10 files (+75, -43): .hence/context-manifest.json, lean-cbcl/.lake/build/ir/LeanCbcl.setup.json, lean-cbcl/.lake/build/ir/LeanCbcl/Verify.setup.json, lean-cbcl/.lake/build/lib/lean/LeanCbcl.trace, lean-cbcl/.lake/build/lib/lean/LeanCbcl/Verify.ilean and 5 more",
+      "key": "task-axiom-audit-changes",
+      "content": "Modified 4 files (+273, -5): .github/workflows/lean.yml, .hence/context-manifest.json, lean-cbcl/AxiomAudit.lean, scripts/check-axioms.sh",
       "memory_type": "episodic",
       "confidence": 0.8
     }
   ],
-  "branch_name": "hence/verify-eventual-consistency-v1",
-  "evaluated_at": "2026-05-03T04:50:05Z",
+  "branch_name": "hence/axiom-audit-v1",
+  "evaluated_at": "2026-05-03T04:55:53Z",
   "checks_passed": 0,
   "checks_failed": 0
 }
