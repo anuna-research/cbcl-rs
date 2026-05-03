@@ -1,12 +1,12 @@
 {
-  "task_id": "verify-skeleton",
+  "task_id": "r5-acyclicity",
   "token_budget": 8000,
-  "tokens_used": 343,
+  "tokens_used": 372,
   "elements_selected": [
     {
       "source": "plan-meta/description",
-      "content": "Define the Lean-side model that the verify theorems quantify over: Message, CausalProtocol (Single | Any | All | Begin per Open Question §1 — pick top-level Begin constructor for proof simplicity), and `def verify : Message → CausalProtocol → MessageStore → VerificationResult` mirroring the Rust implementation's match arms. NO theorems yet — this task lands the types + `verify` definition that REQ-512/513/514 prove against. Add a module header noting which Rust file (`crates/cbcl-core/src/verify.rs` or equivalent) the model mirrors and the commit SHA at time of mirroring.",
-      "token_cost": 147,
+      "content": "REQ-515 part 1 / CON-515 / TEST-515: prove `theorem check_acyclicity_iff_no_cycle` in lean-cbcl/LeanCbcl/R5.lean — the Lean port of SPEC-002 REQ-204's check returns [] iff the protocol step graph has no cycle. Soundness direction (`check returns [] → no cycle`) is mandatory; completeness (`no cycle → check returns []`) attempted, deferred per ADR-512 if intractable. Mirror the existing SPEC-001 R1 DFS proof structure (lean-cbcl/LeanCbcl/R1NoRecursion.lean).",
+      "token_cost": 116,
       "priority": "PlanMeta"
     },
     {
@@ -32,8 +32,14 @@
       "content": "Modified 19 files (+387, -36): .hence/context-manifest.json, lean-cbcl/.lake/build/ir/LeanCbcl.c, lean-cbcl/.lake/build/ir/LeanCbcl.c.hash, lean-cbcl/.lake/build/ir/LeanCbcl.setup.json, lean-cbcl/.lake/build/ir/LeanCbcl/DCFLPreservation.c and 14 more",
       "token_cost": 62,
       "priority": "AgentMemory"
+    },
+    {
+      "source": "memory/episodic/task-verify-skeleton-changes",
+      "content": "Modified 19 files (+1019, -38): .hence/context-manifest.json, lean-cbcl/.lake/build/ir/LeanCbcl.c, lean-cbcl/.lake/build/ir/LeanCbcl.c.hash, lean-cbcl/.lake/build/ir/LeanCbcl.setup.json, lean-cbcl/.lake/build/ir/LeanCbcl/Verify.c and 14 more",
+      "token_cost": 60,
+      "priority": "AgentMemory"
     }
   ],
   "elements_excluded": [],
-  "constructed_at": "2026-05-03T00:53:37Z"
+  "constructed_at": "2026-05-03T01:19:54Z"
 }
