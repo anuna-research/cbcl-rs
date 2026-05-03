@@ -1,0 +1,15 @@
+{"plugins": [],
+ "package": "lean-cbcl",
+ "options": {},
+ "name": "LeanCbcl.Verify",
+ "isModule": false,
+ "importArts":
+ {"LeanCbcl.SExpr":
+  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-verify-skeleton-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/SExpr.olean"],
+  "LeanCbcl.Message":
+  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-verify-skeleton-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/Message.olean"],
+  "LeanCbcl.Lattice.Store":
+  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-verify-skeleton-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/Lattice/Store.olean"],
+  "LeanCbcl.Lattice.Result":
+  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-verify-skeleton-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/Lattice/Result.olean"]},
+ "dynlibs": []}
