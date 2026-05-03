@@ -1,0 +1,7 @@
+{"plugins": [],
+ "package": "lean-cbcl",
+ "options": {},
+ "name": "LeanCbcl.Lattice.Result",
+ "isModule": false,
+ "importArts": {},
+ "dynlibs": []}

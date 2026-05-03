@@ -1,12 +1,12 @@
 {"synthetic": false,
  "schemaVersion": "2025-09-10",
  "outputs":
- {"o": ["836d0d10d2d1cae7.olean"],
-  "i": "64b0f0426c432dff.ilean",
-  "c": "29cee1b603a93617.c"},
+ {"o": ["f5d3623a90ce7212.olean"],
+  "i": "fb526cfe57232ad4.ilean",
+  "c": "ead99e5fbfcb1c3b.c"},
  "log":
  [{"message":
-   ".> LEAN_PATH=/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-store-lattice-v1/lean-cbcl/.lake/build/lib/lean /Users/anuna-01/.elan/toolchains/leanprover--lean4---v4.27.0/bin/lean /Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-store-lattice-v1/lean-cbcl/LeanCbcl.lean -o /Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-store-lattice-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl.olean -i /Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-store-lattice-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl.ilean -c /Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-store-lattice-v1/lean-cbcl/.lake/build/ir/LeanCbcl.c --setup /Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-store-lattice-v1/lean-cbcl/.lake/build/ir/LeanCbcl.setup.json --json",
+   ".> LEAN_PATH=/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-result-lattice-v1/lean-cbcl/.lake/build/lib/lean /Users/anuna-01/.elan/toolchains/leanprover--lean4---v4.27.0/bin/lean /Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-result-lattice-v1/lean-cbcl/LeanCbcl.lean -o /Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-result-lattice-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl.olean -i /Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-result-lattice-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl.ilean -c /Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-result-lattice-v1/lean-cbcl/.lake/build/ir/LeanCbcl.c --setup /Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-result-lattice-v1/lean-cbcl/.lake/build/ir/LeanCbcl.setup.json --json",
    "level": "trace"}],
  "inputs":
  [["LeanCbcl:deps",
@@ -56,7 +56,10 @@
         ["LeanCbcl.DeterministicUnion:importAllArts", "a5d29e24c6f5f4fa"],
         ["LeanCbcl.Lattice.Store transitive imports (legacy)",
          "372c99b1c77e148c"],
-        ["LeanCbcl.Lattice.Store:importAllArts", "06a50ecec824f447"]]]]],
+        ["LeanCbcl.Lattice.Store:importAllArts", "06a50ecec824f447"],
+        ["LeanCbcl.Lattice.Result transitive imports (legacy)",
+         "00000000000006bb"],
+        ["LeanCbcl.Lattice.Result:importAllArts", "bdaa5e258104a049"]]]]],
     ["libs",
      [["import dynlibs", "00000000000006bb"],
       ["package external libraries", "00000000000006bb"],
@@ -64,8 +67,8 @@
       ["module plugins", "00000000000006bb"]]]]],
   ["Lean 4.27.0, commit db93fe1608548721853390a10cd40580fe7d22ae",
    "9a2be90fd35343e5"],
-  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-store-lattice-v1/lean-cbcl/LeanCbcl.lean",
-   "6ddbe538cf636786"],
+  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-result-lattice-v1/lean-cbcl/LeanCbcl.lean",
+   "5c4494a62984f435"],
   ["options", "00000000000006bb"],
   ["Module.leanArgs: #[]", "00000000000006bb"]],
- "depHash": "dc72be955433627a"}
+ "depHash": "df5bfef5b05429de"}
