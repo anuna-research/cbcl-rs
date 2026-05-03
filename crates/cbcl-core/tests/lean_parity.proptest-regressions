@@ -1,0 +1,8 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 719373a0ee5defd63f7eee84b6d0326986b1cb11944a5905820372173c740ef4 # shrinks to store_entries = [("h2", "x"), ("h1", "x")], cb_hashes = ["h1"]
+cc ed1776d51dc66ca2106b1c95189174ca3e8ba09b291d31a19ed9e37118bed016 # shrinks to a = [("h-other", "ask", None)], b = [("h-other", "reply", None)], target = "confirm", cb_hash = "h-other"

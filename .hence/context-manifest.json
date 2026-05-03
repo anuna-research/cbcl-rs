@@ -1,12 +1,12 @@
 {
-  "task_id": "axiom-audit",
+  "task_id": "parity-tests",
   "token_budget": 8000,
-  "tokens_used": 641,
+  "tokens_used": 717,
   "elements_selected": [
     {
       "source": "plan-meta/description",
-      "content": "NFR-511 / TEST-551 / OBS-512: add a Lean script (or Makefile target) that runs `#print axioms` on each top-level theorem from CON-510..516 and asserts only Classical.choice / propext / Quot.sound appear. Wire as a CI step alongside `lake build`. Any non-standard axiom is a build-fail.",
-      "token_cost": 71,
+      "content": "REQ-518 / TEST-518 / ADR-513: add crates/cbcl-core/tests/lean_parity.rs with one proptest per theorem in REQ-510..516 asserting the same property at the value level (1000 cases default). Tests: result lattice axioms, store union associativity/commutativity/idempotence + lookup monotonicity, verify_monotone over generated (Message, Protocol, Store₁ ⊆ Store₂), verify_all_is_meet, verify_eventually_consistent, the four R5 sub-check soundness statements, dcfl_preserved on generated dialect/protocol/shape clauses. Each test references its corresponding Lean theorem in a code comment.",
+      "token_cost": 147,
       "priority": "PlanMeta"
     },
     {
@@ -71,5 +71,5 @@
     }
   ],
   "elements_excluded": [],
-  "constructed_at": "2026-05-03T04:50:11Z"
+  "constructed_at": "2026-05-03T04:56:00Z"
 }
