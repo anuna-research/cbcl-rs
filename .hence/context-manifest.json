@@ -1,12 +1,12 @@
 {
-  "task_id": "dcfl-preservation",
+  "task_id": "verify-skeleton",
   "token_budget": 8000,
-  "tokens_used": 264,
+  "tokens_used": 343,
   "elements_selected": [
     {
       "source": "plan-meta/description",
-      "content": "REQ-516 / CON-516 / TEST-516: create lean-cbcl/LeanCbcl/DCFLPreservation.lean and prove (i) `dcfl_preserved_under_protocol`: adding `(protocol …)` to a dialect does not extend parser power (REQ-209), and (ii) `dcfl_preserved_under_shape`: same for `(shape …)` (REQ-225). Both reduce to: the clause is a CBCL S-expression parsed by the existing DCFL parser, and `protocol` / `shape` are deterministic dispatch tokens. Conceptually trivial but currently unverified — closes the audit gap flagged on the current branch.",
-      "token_cost": 130,
+      "content": "Define the Lean-side model that the verify theorems quantify over: Message, CausalProtocol (Single | Any | All | Begin per Open Question §1 — pick top-level Begin constructor for proof simplicity), and `def verify : Message → CausalProtocol → MessageStore → VerificationResult` mirroring the Rust implementation's match arms. NO theorems yet — this task lands the types + `verify` definition that REQ-512/513/514 prove against. Add a module header noting which Rust file (`crates/cbcl-core/src/verify.rs` or equivalent) the model mirrors and the commit SHA at time of mirroring.",
+      "token_cost": 147,
       "priority": "PlanMeta"
     },
     {
@@ -26,8 +26,14 @@
       "content": "Modified 19 files (+950, -35): .hence/context-manifest.json, lean-cbcl/.lake/build/ir/LeanCbcl.c, lean-cbcl/.lake/build/ir/LeanCbcl.c.hash, lean-cbcl/.lake/build/ir/LeanCbcl.setup.json, lean-cbcl/.lake/build/ir/LeanCbcl/Lattice/Result.c and 14 more",
       "token_cost": 62,
       "priority": "AgentMemory"
+    },
+    {
+      "source": "memory/episodic/task-dcfl-preservation-changes",
+      "content": "Modified 19 files (+387, -36): .hence/context-manifest.json, lean-cbcl/.lake/build/ir/LeanCbcl.c, lean-cbcl/.lake/build/ir/LeanCbcl.c.hash, lean-cbcl/.lake/build/ir/LeanCbcl.setup.json, lean-cbcl/.lake/build/ir/LeanCbcl/DCFLPreservation.c and 14 more",
+      "token_cost": 62,
+      "priority": "AgentMemory"
     }
   ],
   "elements_excluded": [],
-  "constructed_at": "2026-05-03T00:49:21Z"
+  "constructed_at": "2026-05-03T00:53:37Z"
 }
