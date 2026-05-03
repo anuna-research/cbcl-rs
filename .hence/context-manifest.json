@@ -1,12 +1,12 @@
 {
-  "task_id": "r5-acyclicity",
+  "task_id": "r5-reachability",
   "token_budget": 8000,
-  "tokens_used": 372,
+  "tokens_used": 380,
   "elements_selected": [
     {
       "source": "plan-meta/description",
-      "content": "REQ-515 part 1 / CON-515 / TEST-515: prove `theorem check_acyclicity_iff_no_cycle` in lean-cbcl/LeanCbcl/R5.lean — the Lean port of SPEC-002 REQ-204's check returns [] iff the protocol step graph has no cycle. Soundness direction (`check returns [] → no cycle`) is mandatory; completeness (`no cycle → check returns []`) attempted, deferred per ADR-512 if intractable. Mirror the existing SPEC-001 R1 DFS proof structure (lean-cbcl/LeanCbcl/R1NoRecursion.lean).",
-      "token_cost": 116,
+      "content": "REQ-515 part 2 / CON-515 / TEST-515: prove `theorem check_reachability_iff_all_reachable` in R5.lean — the SPEC-002 REQ-205 check returns [] iff every step is reachable from `begin`. BFS-soundness argument; same soundness-first / completeness-deferred policy.",
+      "token_cost": 65,
       "priority": "PlanMeta"
     },
     {
@@ -38,8 +38,14 @@
       "content": "Modified 19 files (+1019, -38): .hence/context-manifest.json, lean-cbcl/.lake/build/ir/LeanCbcl.c, lean-cbcl/.lake/build/ir/LeanCbcl.c.hash, lean-cbcl/.lake/build/ir/LeanCbcl.setup.json, lean-cbcl/.lake/build/ir/LeanCbcl/Verify.c and 14 more",
       "token_cost": 60,
       "priority": "AgentMemory"
+    },
+    {
+      "source": "memory/episodic/task-r5-acyclicity-changes",
+      "content": "Modified 19 files (+1591, -38): .hence/context-manifest.json, lean-cbcl/.lake/build/ir/LeanCbcl.c, lean-cbcl/.lake/build/ir/LeanCbcl.c.hash, lean-cbcl/.lake/build/ir/LeanCbcl.setup.json, lean-cbcl/.lake/build/ir/LeanCbcl/R5.c and 14 more",
+      "token_cost": 59,
+      "priority": "AgentMemory"
     }
   ],
   "elements_excluded": [],
-  "constructed_at": "2026-05-03T01:19:54Z"
+  "constructed_at": "2026-05-03T01:28:43Z"
 }
