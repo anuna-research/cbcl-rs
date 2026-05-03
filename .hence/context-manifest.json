@@ -1,12 +1,12 @@
 {
-  "task_id": "verify-skeleton",
+  "task_id": "verify-monotone",
   "token_budget": 8000,
-  "tokens_used": 343,
+  "tokens_used": 355,
   "elements_selected": [
     {
       "source": "plan-meta/description",
-      "content": "Define the Lean-side model that the verify theorems quantify over: Message, CausalProtocol (Single | Any | All | Begin per Open Question §1 — pick top-level Begin constructor for proof simplicity), and `def verify : Message → CausalProtocol → MessageStore → VerificationResult` mirroring the Rust implementation's match arms. NO theorems yet — this task lands the types + `verify` definition that REQ-512/513/514 prove against. Add a module header noting which Rust file (`crates/cbcl-core/src/verify.rs` or equivalent) the model mirrors and the commit SHA at time of mirroring.",
-      "token_cost": 147,
+      "content": "REQ-512 / CON-512 / TEST-512: prove `theorem verify_monotone (M : Message) (P : CausalProtocol) (S₁ S₂ : MessageStore) (h : S₁ ⊆ S₂) : verify M P S₁ ⊑ verify M P S₂` in lean-cbcl/LeanCbcl/Verify.lean. Case analysis over verify's match arms: Single, Any, All, Begin, missing :caused-by, unknown predecessor, invalid predecessor. Appeal to lookup_monotone for the store-growth cases.",
+      "token_cost": 99,
       "priority": "PlanMeta"
     },
     {
@@ -32,8 +32,14 @@
       "content": "Modified 19 files (+387, -36): .hence/context-manifest.json, lean-cbcl/.lake/build/ir/LeanCbcl.c, lean-cbcl/.lake/build/ir/LeanCbcl.c.hash, lean-cbcl/.lake/build/ir/LeanCbcl.setup.json, lean-cbcl/.lake/build/ir/LeanCbcl/DCFLPreservation.c and 14 more",
       "token_cost": 62,
       "priority": "AgentMemory"
+    },
+    {
+      "source": "memory/episodic/task-verify-skeleton-changes",
+      "content": "Modified 19 files (+1019, -38): .hence/context-manifest.json, lean-cbcl/.lake/build/ir/LeanCbcl.c, lean-cbcl/.lake/build/ir/LeanCbcl.c.hash, lean-cbcl/.lake/build/ir/LeanCbcl.setup.json, lean-cbcl/.lake/build/ir/LeanCbcl/Verify.c and 14 more",
+      "token_cost": 60,
+      "priority": "AgentMemory"
     }
   ],
   "elements_excluded": [],
-  "constructed_at": "2026-05-03T00:53:37Z"
+  "constructed_at": "2026-05-03T00:59:42Z"
 }
