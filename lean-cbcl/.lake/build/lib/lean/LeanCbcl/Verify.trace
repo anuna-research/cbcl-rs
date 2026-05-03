@@ -1,12 +1,12 @@
 {"synthetic": false,
  "schemaVersion": "2025-09-10",
  "outputs":
- {"o": ["2d038c7ba5b8cc5d.olean"],
-  "i": "21a668180e2cdd34.ilean",
+ {"o": ["a261bdb9ad04951b.olean"],
+  "i": "90348745fdcf10c3.ilean",
   "c": "9cb349d3b90331e4.c"},
  "log":
  [{"message":
-   ".> LEAN_PATH=/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-verify-monotone-v2/lean-cbcl/.lake/build/lib/lean /Users/anuna-01/.elan/toolchains/leanprover--lean4---v4.27.0/bin/lean /Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-verify-monotone-v2/lean-cbcl/LeanCbcl/Verify.lean -o /Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-verify-monotone-v2/lean-cbcl/.lake/build/lib/lean/LeanCbcl/Verify.olean -i /Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-verify-monotone-v2/lean-cbcl/.lake/build/lib/lean/LeanCbcl/Verify.ilean -c /Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-verify-monotone-v2/lean-cbcl/.lake/build/ir/LeanCbcl/Verify.c --setup /Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-verify-monotone-v2/lean-cbcl/.lake/build/ir/LeanCbcl/Verify.setup.json --json",
+   ".> LEAN_PATH=/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-verify-eventual-consistency-v1/lean-cbcl/.lake/build/lib/lean /Users/anuna-01/.elan/toolchains/leanprover--lean4---v4.27.0/bin/lean /Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-verify-eventual-consistency-v1/lean-cbcl/LeanCbcl/Verify.lean -o /Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-verify-eventual-consistency-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/Verify.olean -i /Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-verify-eventual-consistency-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/Verify.ilean -c /Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-verify-eventual-consistency-v1/lean-cbcl/.lake/build/ir/LeanCbcl/Verify.c --setup /Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-verify-eventual-consistency-v1/lean-cbcl/.lake/build/ir/LeanCbcl/Verify.setup.json --json",
    "level": "trace"}],
  "inputs":
  [["LeanCbcl.Verify:deps",
@@ -29,8 +29,8 @@
       ["module plugins", "00000000000006bb"]]]]],
   ["Lean 4.27.0, commit db93fe1608548721853390a10cd40580fe7d22ae",
    "9a2be90fd35343e5"],
-  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-verify-monotone-v2/lean-cbcl/LeanCbcl/Verify.lean",
-   "88b928acfd81cf4d"],
+  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-verify-eventual-consistency-v1/lean-cbcl/LeanCbcl/Verify.lean",
+   "769d1643c2a1e167"],
   ["options", "00000000000006bb"],
   ["Module.leanArgs: #[]", "00000000000006bb"]],
- "depHash": "f21efff4bb2d834b"}
+ "depHash": "cb35c7b94eae0a70"}

@@ -282,4 +282,36 @@ theorem verify_all_is_meet :
   simp only [verify]
   rfl
 
+/-! ## REQ-514 / CON-514 — eventual consistency under store merge.
+
+    The corollary that ties REQ-512 monotonicity to the SPEC-003 G-Set
+    merge: when two stores are unioned, the join of their per-store
+    verification results sits below the verification result on the
+    merged store. This is the lattice-homomorphism shape of "merging
+    knowledge can only confirm, never overturn" — neither replica's
+    result can disagree with the post-merge result, since the merged
+    store is a superset of each side. -/
+
+/-- **REQ-514 / CON-514:** eventual consistency of `verify` under store
+    union.
+
+    Proof: each side embeds into the union (`S₁ ⊆ S₁ ∪ S₂` and
+    `S₂ ⊆ S₁ ∪ S₂` are definitional `Or.inl` / `Or.inr`), so
+    `verify_monotone` lifts each per-store result up to the union;
+    `join_mono` combines them, and the right-hand side collapses by
+    `join` idempotence on `verify M P (S₁ ∪ S₂)`. -/
+theorem verify_eventually_consistent
+    (M : Message) (P : CausalProtocol) (S₁ S₂ : MessageStore) :
+    (verify M P S₁).join (verify M P S₂) ⊑ verify M P (S₁ ∪ S₂) := by
+  have hSub₁ : S₁ ⊆ (S₁ ∪ S₂ : MessageStore) := fun _ ha => Or.inl ha
+  have hSub₂ : S₂ ⊆ (S₁ ∪ S₂ : MessageStore) := fun _ ha => Or.inr ha
+  have h₁ := verify_monotone M P S₁ (S₁ ∪ S₂) hSub₁
+  have h₂ := verify_monotone M P S₂ (S₁ ∪ S₂) hSub₂
+  have hmono := join_mono h₁ h₂
+  have hidem :
+      (verify M P (S₁ ∪ S₂)).join (verify M P (S₁ ∪ S₂))
+        = verify M P (S₁ ∪ S₂) := by
+    cases verify M P (S₁ ∪ S₂) <;> rfl
+  exact hidem ▸ hmono
+
 end CBCL

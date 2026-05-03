@@ -3,41 +3,33 @@
   "confidence": 1.0,
   "exit_code": 0,
   "diff_summary": {
-    "files_changed": 18,
-    "insertions": 1032,
-    "deletions": 57,
+    "files_changed": 10,
+    "insertions": 75,
+    "deletions": 43,
     "file_list": [
       ".hence/context-manifest.json",
       "lean-cbcl/.lake/build/ir/LeanCbcl.setup.json",
-      "lean-cbcl/.lake/build/ir/LeanCbcl/Lattice/Result.c",
-      "lean-cbcl/.lake/build/ir/LeanCbcl/Lattice/Result.c.hash",
       "lean-cbcl/.lake/build/ir/LeanCbcl/Verify.setup.json",
       "lean-cbcl/.lake/build/lib/lean/LeanCbcl.trace",
-      "lean-cbcl/.lake/build/lib/lean/LeanCbcl/Lattice/Result.ilean",
-      "lean-cbcl/.lake/build/lib/lean/LeanCbcl/Lattice/Result.ilean.hash",
-      "lean-cbcl/.lake/build/lib/lean/LeanCbcl/Lattice/Result.olean",
-      "lean-cbcl/.lake/build/lib/lean/LeanCbcl/Lattice/Result.olean.hash",
-      "lean-cbcl/.lake/build/lib/lean/LeanCbcl/Lattice/Result.trace",
       "lean-cbcl/.lake/build/lib/lean/LeanCbcl/Verify.ilean",
       "lean-cbcl/.lake/build/lib/lean/LeanCbcl/Verify.ilean.hash",
       "lean-cbcl/.lake/build/lib/lean/LeanCbcl/Verify.olean",
       "lean-cbcl/.lake/build/lib/lean/LeanCbcl/Verify.olean.hash",
       "lean-cbcl/.lake/build/lib/lean/LeanCbcl/Verify.trace",
-      "lean-cbcl/LeanCbcl/Lattice/Result.lean",
       "lean-cbcl/LeanCbcl/Verify.lean"
     ],
     "dirty_files": 0
   },
   "learnings": [
     {
-      "key": "task-verify-monotone-changes",
-      "content": "Modified 18 files (+1032, -57): .hence/context-manifest.json, lean-cbcl/.lake/build/ir/LeanCbcl.setup.json, lean-cbcl/.lake/build/ir/LeanCbcl/Lattice/Result.c, lean-cbcl/.lake/build/ir/LeanCbcl/Lattice/Result.c.hash, lean-cbcl/.lake/build/ir/LeanCbcl/Verify.setup.json and 13 more",
+      "key": "task-verify-eventual-consistency-changes",
+      "content": "Modified 10 files (+75, -43): .hence/context-manifest.json, lean-cbcl/.lake/build/ir/LeanCbcl.setup.json, lean-cbcl/.lake/build/ir/LeanCbcl/Verify.setup.json, lean-cbcl/.lake/build/lib/lean/LeanCbcl.trace, lean-cbcl/.lake/build/lib/lean/LeanCbcl/Verify.ilean and 5 more",
       "memory_type": "episodic",
       "confidence": 0.8
     }
   ],
-  "branch_name": "hence/verify-monotone-v2",
-  "evaluated_at": "2026-05-03T04:11:43Z",
+  "branch_name": "hence/verify-eventual-consistency-v1",
+  "evaluated_at": "2026-05-03T04:50:05Z",
   "checks_passed": 0,
   "checks_failed": 0
 }
