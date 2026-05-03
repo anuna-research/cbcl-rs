@@ -334,8 +334,8 @@ Verified by:
 ```text
 File: lean-cbcl/LeanCbcl/R5.lean
 
-theorem check_acyclicity_iff_no_cycle : ...
-theorem check_reachability_iff_all_reachable : ...
+theorem check_acyclicity_implies_no_cycle : ...        -- soundness only (ADR-512)
+theorem check_reachability_implies_all_reachable : ... -- soundness only (ADR-512)
 theorem check_performative_definedness_iff_all_defined : ...
 theorem check_step_uniqueness_iff_no_duplicates : ...
 
@@ -661,8 +661,8 @@ Trace: NFR-511
 | REQ-512 — `verify_monotone` | ✅ complete | `LeanCbcl/Verify.lean` | Discharged across every `verify` match arm. |
 | REQ-513 — fan-in is meet | ✅ complete | `LeanCbcl/Verify.lean` | `verify_all_is_meet` proved. |
 | REQ-514 — eventual consistency | ✅ complete | `LeanCbcl/Verify.lean` | `verify_eventually_consistent`, derived from `verify_monotone` + `join_mono`. |
-| REQ-515 — R5 sub-checks | ⚠️ partial | `LeanCbcl/R5.lean` | Soundness only for `check_acyclicity_iff_no_cycle` (REQ-204) and `check_reachability_iff_all_reachable` (REQ-205); full iff for `check_performative_definedness_iff_all_defined` (REQ-206) and `check_step_uniqueness_iff_no_duplicates` (REQ-207). Completeness for REQ-204/205 deferred per ADR-512. |
-| REQ-516 — DCFL preservation | ✅ complete | `LeanCbcl/DCFLPreservation.lean` | `dcfl_preserved_under_protocol` (REQ-209), `dcfl_preserved_under_shape` (REQ-225), plus `*_dispatch_deterministic` companions. |
+| REQ-515 — R5 sub-checks | ⚠️ partial | `LeanCbcl/R5.lean` | Soundness only for `check_acyclicity_implies_no_cycle` (REQ-204) and `check_reachability_implies_all_reachable` (REQ-205); full iff for `check_performative_definedness_iff_all_defined` (REQ-206) and `check_step_uniqueness_iff_no_duplicates` (REQ-207). Completeness for REQ-204/205 deferred per ADR-512. |
+| REQ-516 — DCFL preservation | ⚠️ placeholder | `LeanCbcl/DCFLPreservation.lean` | `dcfl_preserved_under_protocol` (REQ-209), `dcfl_preserved_under_shape` (REQ-225), plus `*_dispatch_deterministic` companions. Theorems are well-typed but reduce to `allSExpr_isSExpr _` / `rfl` — they close the audit checkbox without constituting a substantive grammar-closure proof. SPEC-002 REQ-209/225 carry `verified-by: lean (placeholder)` accordingly. |
 | REQ-517 — `verified-by` annotations | ✅ complete | `scripts/check-verified-by.sh` | Every REQ in SPEC-002 / SPEC-003 carries a `verified-by:` field; lint runs in CI. |
 | REQ-518 — differential parity | ✅ complete | `crates/cbcl-core/tests/` | TEST-518 parity tests pair each Lean theorem with a Rust property test. |
 

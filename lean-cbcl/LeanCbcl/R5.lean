@@ -44,10 +44,12 @@ both pure list-membership / `List.Nodup` checks and reduce to
   (`check returns [] → property holds`). This is REQ-515's mandatory
   direction for both graph sub-checks.
 
-* `check_acyclicity_iff_no_cycle` / `check_reachability_iff_all_reachable`
-  — the headline iff theorems named in CON-515. **Both currently state
-  the soundness direction only**; completeness (`property holds → check
-  returns []`) is deferred per ADR-512. For acyclicity the deferred
+* `check_acyclicity_implies_no_cycle` / `check_reachability_implies_all_reachable`
+  — the soundness-only wrappers for the CON-515 theorems. **Both
+  currently state the soundness direction only**; completeness
+  (`property holds → check returns []`) is deferred per ADR-512.
+  Originally named with `_iff_` per CON-515; renamed to `_implies_` so
+  the theorem name matches its statement (one-way implication). For acyclicity the deferred
   direction would require a König-style argument bounding cycle length
   by `|stepNames|`; for reachability the deferred direction would
   require showing that fuel `n² + 1` suffices for BFS to visit every
@@ -204,18 +206,20 @@ theorem checkAcyclicity_sound (p : ProtocolGraph)
     (p.stepNames.length * p.stepNames.length + 1) [] a hdfs
   exact hno a (List.mem_singleton.mpr rfl) hreach
 
-/-- **CON-515 — `check_acyclicity_iff_no_cycle`.**
+/-- **CON-515 — `check_acyclicity_implies_no_cycle`** (soundness only).
 
-    Currently proves the soundness direction (`→`) only. Per ADR-512,
-    completeness (`←`) is deferred to a follow-on commit; the underlying
-    DFS-completeness lemma `dfsNoCycle_complete` in `R1NoRecursion.lean`
-    provides the bound-existential ingredient, but lifting it to the
-    fixed `|names|² + 1` fuel used by `checkAcyclicity` requires a
-    König-style cycle-shortening argument that is not yet mechanised.
+    Per ADR-512, completeness (`←`) is deferred to a follow-on commit;
+    the underlying DFS-completeness lemma `dfsNoCycle_complete` in
+    `R1NoRecursion.lean` provides the bound-existential ingredient, but
+    lifting it to the fixed `|names|² + 1` fuel used by `checkAcyclicity`
+    requires a König-style cycle-shortening argument that is not yet
+    mechanised.
 
-    The theorem is named per CON-515; downstream users that only need
-    soundness should prefer `checkAcyclicity_sound` directly. -/
-theorem check_acyclicity_iff_no_cycle (p : ProtocolGraph) :
+    Originally named `check_acyclicity_iff_no_cycle` per CON-515; renamed
+    to `_implies_` so the theorem's name reflects its statement (one-way
+    implication, not the full `iff`). When completeness lands, the iff
+    can be reintroduced under the original name and this wrapper deleted. -/
+theorem check_acyclicity_implies_no_cycle (p : ProtocolGraph) :
     p.checkAcyclicity = [] → ¬ p.hasCycle :=
   checkAcyclicity_sound p
 
@@ -342,21 +346,23 @@ theorem checkReachability_sound (p : ProtocolGraph)
     | inl hbeq    => exact absurd hbeq.symm hbegin
     | inr hreach  => exact .inr hreach
 
-/-- **CON-515 — `check_reachability_iff_all_reachable`.**
+/-- **CON-515 — `check_reachability_implies_all_reachable`** (soundness only).
 
-    Currently proves the soundness direction (`→`) only. Per ADR-512,
-    completeness (`←`) is deferred to a follow-on commit. The deferred
-    direction would require a BFS-completeness argument: every node
-    reachable in the abstract `Reachable` predicate is visited by the
-    fuel-bounded forward DFS at fuel `|stepNames|² + 1`. The standard
-    bound is `|stepNames|` (every reachable node has a simple path of
-    length ≤ |V| - 1), so the fuel is more than sufficient; mechanising
-    the bound requires reasoning about `visited`-set growth that is not
-    yet in place.
+    Per ADR-512, completeness (`←`) is deferred to a follow-on commit.
+    The deferred direction would require a BFS-completeness argument:
+    every node reachable in the abstract `Reachable` predicate is visited
+    by the fuel-bounded forward DFS at fuel `|stepNames|² + 1`. The
+    standard bound is `|stepNames|` (every reachable node has a simple
+    path of length ≤ |V| - 1), so the fuel is more than sufficient;
+    mechanising the bound requires reasoning about `visited`-set growth
+    that is not yet in place.
 
-    The theorem is named per CON-515; downstream users that only need
-    soundness should prefer `checkReachability_sound` directly. -/
-theorem check_reachability_iff_all_reachable (p : ProtocolGraph) :
+    Originally named `check_reachability_iff_all_reachable` per CON-515;
+    renamed to `_implies_` so the theorem's name reflects its statement
+    (one-way implication, not the full `iff`). When completeness lands,
+    the iff can be reintroduced under the original name and this wrapper
+    deleted. -/
+theorem check_reachability_implies_all_reachable (p : ProtocolGraph) :
     p.checkReachability = [] → p.allStepsReachable :=
   checkReachability_sound p
 

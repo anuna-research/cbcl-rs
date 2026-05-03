@@ -359,7 +359,7 @@ This follows from:
 
 verified-by: lean
 
-Mechanised in `lean-cbcl/LeanCbcl/Verify.lean` as `verify_eventually_consistent : (verify M P S₁).join (verify M P S₂) ⊑ verify M P (S₁ ∪ S₂)`, derived from `verify_monotone` applied to each side of the union and `join_mono` from the result lattice.
+Mechanised in `lean-cbcl/LeanCbcl/Verify.lean` as `verify_eventually_consistent : (verify M P S₁).join (verify M P S₂) ⊑ verify M P (S₁ ∪ S₂)`, derived from `verify_monotone` applied to each side of the union and `join_mono` from the result lattice. **Note on the order.** `⊑` is the "valid-is-sticky" knowledge order from `Lattice/Result.lean` (`a ⊑ b ↔ (a = valid → b = valid)`), not flat equality. The theorem therefore states "if either replica has already verified `valid`, the merged store also verifies `valid`" — a one-sided monotone confluence — rather than "both replicas converge to the same value". The "valid is sticky, unknown/violation are tentative" choice is what makes `meet` and `join` monotone through arbitrary nestings of `(any …)` inside `(all …)`; see the docstring on `VerificationResult.le` for the rationale.
 
 Trace:
 - TEST-307
@@ -368,9 +368,9 @@ Trace:
 
 The verification lattice introduces no new parsing capability. `VerificationResult` is an in-memory enum. The three-valued result and the `Unknown` policy are runtime decisions, not grammar extensions. `CausalPending` error messages use the existing CBCL `(error ...)` grammar. DCFL preservation is maintained trivially.
 
-verified-by: lean
+verified-by: lean (placeholder)
 
-Inherited from `lean-cbcl/LeanCbcl/DCFLPreservation.lean`: the result lattice and `Unknown` policy add no new grammar shape — every CBCL clause carrying verification semantics is still a `SExpr.list`. SPEC-002 REQ-209 (`dcfl_preserved_under_protocol`) covers the dispatch-token argument; the lattice itself is in-memory data and contributes no parser surface.
+Inherited from `lean-cbcl/LeanCbcl/DCFLPreservation.lean` (and shares its caveat — see SPEC-002 REQ-209): the result lattice and `Unknown` policy add no new grammar shape, and the underlying Lean theorems reduce to "the clause is built with `SExpr.list`" rather than a substantive grammar-closure proof.
 
 Trace:
 - TEST-308

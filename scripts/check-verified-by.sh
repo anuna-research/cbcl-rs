@@ -2,9 +2,15 @@
 # REQ-517 / TEST-517: every REQ in SPEC-002 and SPEC-003 must carry a
 # `verified-by:` annotation. Exits non-zero if any REQ block is missing one.
 #
-# Allowed values: lean | lean-with-sorry | property | example | prose | n/a
+# Allowed values: lean | lean-with-sorry | lean (soundness only) |
+#                 lean (placeholder) | property | example | prose | n/a
 # (multiple values may appear comma-separated on a single line for partial
 # mechanisation).
+#
+# `lean (placeholder)` documents claims whose Lean theorem is well-typed
+# but reduces to a tautology — i.e. the proof is real but proves
+# something weaker than the spec text suggests. Use only when paired
+# with an inline note explaining the reduction.
 #
 # Usage: scripts/check-verified-by.sh
 
@@ -18,7 +24,7 @@ SPECS=(
     "$REPO_ROOT/specs/SPEC-003-verification-lattice.md"
 )
 
-ALLOWED_RE='^(lean|lean-with-sorry|lean \\(soundness only\\)|property|example|prose|n/a)$'
+ALLOWED_RE='^(lean|lean-with-sorry|lean \\(soundness only\\)|lean \\(placeholder\\)|property|example|prose|n/a)$'
 
 missing=0
 bad_value=0

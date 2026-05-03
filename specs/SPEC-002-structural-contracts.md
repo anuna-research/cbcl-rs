@@ -436,7 +436,7 @@ Note: loops (repeated request-response) are NOT cycles in the concrete message g
 
 verified-by: lean (soundness only)
 
-Mechanised in `lean-cbcl/LeanCbcl/R5.lean` as `checkAcyclicity_sound` and `check_acyclicity_iff_no_cycle` (currently soundness `→` only — the completeness `←` direction is deferred per ADR-512, mirroring the existing SPEC-001 R1 DFS proof structure).
+Mechanised in `lean-cbcl/LeanCbcl/R5.lean` as `checkAcyclicity_sound` and `check_acyclicity_implies_no_cycle` (currently soundness `→` only — the completeness `←` direction is deferred per ADR-512, mirroring the existing SPEC-001 R1 DFS proof structure).
 
 Trace:
 - TEST-204
@@ -449,7 +449,7 @@ The system SHALL reject protocol declarations where any step is unreachable from
 
 verified-by: lean (soundness only)
 
-Mechanised in `lean-cbcl/LeanCbcl/R5.lean` as `checkReachability_sound` and `check_reachability_iff_all_reachable` (currently soundness `→` only — the completeness `←` direction is deferred per ADR-512).
+Mechanised in `lean-cbcl/LeanCbcl/R5.lean` as `checkReachability_sound` and `check_reachability_implies_all_reachable` (currently soundness `→` only — the completeness `←` direction is deferred per ADR-512).
 
 Trace:
 - TEST-205
@@ -511,9 +511,9 @@ The system SHALL preserve DCFL membership when installing a dialect with a causa
 
 DCFL preservation is trivially maintained because the protocol mechanism adds no new parsing capability — it is a post-parse, post-expansion verification predicate on immutable data.
 
-verified-by: lean
+verified-by: lean (placeholder)
 
-Mechanised in `lean-cbcl/LeanCbcl/DCFLPreservation.lean` as `dcfl_preserved_under_protocol` (the `(protocol …)` clause inhabits the existing `IsSExpr` DCFL grammar) and `protocol_dispatch_deterministic` (the `protocol` keyword dispatch is a Lean function).
+Mechanised in `lean-cbcl/LeanCbcl/DCFLPreservation.lean` as `dcfl_preserved_under_protocol` (the `(protocol …)` clause inhabits the existing `IsSExpr` DCFL grammar) and `protocol_dispatch_deterministic` (the `protocol` keyword dispatch is a Lean function). **Caveat:** both proofs are well-typed but trivially discharged — `dcfl_preserved_under_protocol` reduces to `allSExpr_isSExpr _`, which classifies *every* `SExpr` (not just protocol clauses), and `protocol_dispatch_deterministic` is `f x = f x := rfl`. They close the audit checkbox but do not constitute a substantive DCFL closure proof; that would require a recogniser for the dialect grammar plus a proof that the augmented grammar accepts the same language. Tracked as a follow-up.
 
 Trace:
 - TEST-209
@@ -748,9 +748,9 @@ Trace:
 
 Shape checking is a VPL tree-walking operation. VPL ⊂ DCFL. Shape constraints do not extend the grammar. DCFL preservation is maintained.
 
-verified-by: lean
+verified-by: lean (placeholder)
 
-Mechanised in `lean-cbcl/LeanCbcl/DCFLPreservation.lean` as `dcfl_preserved_under_shape` (the `(shape …)` clause inhabits the existing `IsSExpr` DCFL grammar) and `shape_dispatch_deterministic` (the `shape` keyword dispatch is a Lean function).
+Mechanised in `lean-cbcl/LeanCbcl/DCFLPreservation.lean` as `dcfl_preserved_under_shape` (the `(shape …)` clause inhabits the existing `IsSExpr` DCFL grammar) and `shape_dispatch_deterministic` (the `shape` keyword dispatch is a Lean function). **Caveat:** see REQ-209 — both proofs are well-typed but trivial (`dcfl_preserved_under_shape` reduces to `allSExpr_isSExpr _`, universal over `SExpr`; `shape_dispatch_deterministic` is `f x = f x := rfl`). Audit-checkbox only; a substantive DCFL closure proof is a follow-up.
 
 Trace:
 - TEST-225
