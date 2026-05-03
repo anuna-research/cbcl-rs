@@ -1,12 +1,12 @@
 {
-  "task_id": "verify-monotone",
+  "task_id": "verify-eventual-consistency",
   "token_budget": 8000,
-  "tokens_used": 669,
+  "tokens_used": 660,
   "elements_selected": [
     {
       "source": "plan-meta/description",
-      "content": "REQ-512 / CON-512 / TEST-512: prove `theorem verify_monotone (M : Message) (P : CausalProtocol) (S₁ S₂ : MessageStore) (h : S₁ ⊆ S₂) : verify M P S₁ ⊑ verify M P S₂` in lean-cbcl/LeanCbcl/Verify.lean. Case analysis over verify's match arms: Single, Any, All, Begin, missing :caused-by, unknown predecessor, invalid predecessor. Appeal to lookup_monotone for the store-growth cases.",
-      "token_cost": 99,
+      "content": "REQ-514 / CON-514 / TEST-514: prove `theorem verify_eventually_consistent (M : Message) (P : CausalProtocol) (S₁ S₂ : MessageStore) : verify M P S₁ ⊔ verify M P S₂ ⊑ verify M P (S₁ ∪ S₂)` in Verify.lean. Should be a short proof reducing to verify_monotone applied twice to S₁ ⊆ S₁ ∪ S₂ and S₂ ⊆ S₁ ∪ S₂, then take the join.",
+      "token_cost": 90,
       "priority": "PlanMeta"
     },
     {
@@ -71,5 +71,5 @@
     }
   ],
   "elements_excluded": [],
-  "constructed_at": "2026-05-03T03:47:06Z"
+  "constructed_at": "2026-05-03T04:46:53Z"
 }
