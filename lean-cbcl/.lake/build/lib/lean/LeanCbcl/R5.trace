@@ -1,0 +1,31 @@
+{"synthetic": false,
+ "schemaVersion": "2025-09-10",
+ "outputs":
+ {"o": ["e2bcde02312416f7.olean"],
+  "i": "606a191edb94ac77.ilean",
+  "c": "7d5ba2d2a390c490.c"},
+ "log":
+ [{"message":
+   ".> LEAN_PATH=/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-r5-acyclicity-v1/lean-cbcl/.lake/build/lib/lean /Users/anuna-01/.elan/toolchains/leanprover--lean4---v4.27.0/bin/lean /Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-r5-acyclicity-v1/lean-cbcl/LeanCbcl/R5.lean -o /Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-r5-acyclicity-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/R5.olean -i /Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-r5-acyclicity-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/R5.ilean -c /Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-r5-acyclicity-v1/lean-cbcl/.lake/build/ir/LeanCbcl/R5.c --setup /Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-r5-acyclicity-v1/lean-cbcl/.lake/build/ir/LeanCbcl/R5.setup.json --json",
+   "level": "trace"}],
+ "inputs":
+ [["LeanCbcl.R5:deps",
+   [["deps",
+     [["«lean-cbcl»/LeanCbcl:extraDep",
+       [["@«lean-cbcl»:extraDep", "00000000000006bb"]]],
+      ["imports",
+       [["LeanCbcl.R1NoRecursion transitive imports (legacy)",
+         "d78743a4ba15fd58"],
+        ["LeanCbcl.R1NoRecursion:importAllArts", "f38daf9e6d8f3f01"]]]]],
+    ["libs",
+     [["import dynlibs", "00000000000006bb"],
+      ["package external libraries", "00000000000006bb"],
+      ["module dynlibs", "00000000000006bb"],
+      ["module plugins", "00000000000006bb"]]]]],
+  ["Lean 4.27.0, commit db93fe1608548721853390a10cd40580fe7d22ae",
+   "9a2be90fd35343e5"],
+  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-r5-acyclicity-v1/lean-cbcl/LeanCbcl/R5.lean",
+   "0800ae5abe34ce24"],
+  ["options", "00000000000006bb"],
+  ["Module.leanArgs: #[]", "00000000000006bb"]],
+ "depHash": "4d47e56170a4ed2b"}

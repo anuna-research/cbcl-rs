@@ -1,12 +1,12 @@
 {"synthetic": false,
  "schemaVersion": "2025-09-10",
  "outputs":
- {"o": ["61189ef5217574f9.olean"],
-  "i": "71ed98cb0be64c1c.ilean",
-  "c": "ec37f992231cdf16.c"},
+ {"o": ["ce1e61fd35a3bcc6.olean"],
+  "i": "a7d35143d999788e.ilean",
+  "c": "e5b5060e8b9cf01c.c"},
  "log":
  [{"message":
-   ".> LEAN_PATH=/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-verify-skeleton-v1/lean-cbcl/.lake/build/lib/lean /Users/anuna-01/.elan/toolchains/leanprover--lean4---v4.27.0/bin/lean /Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-verify-skeleton-v1/lean-cbcl/LeanCbcl.lean -o /Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-verify-skeleton-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl.olean -i /Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-verify-skeleton-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl.ilean -c /Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-verify-skeleton-v1/lean-cbcl/.lake/build/ir/LeanCbcl.c --setup /Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-verify-skeleton-v1/lean-cbcl/.lake/build/ir/LeanCbcl.setup.json --json",
+   ".> LEAN_PATH=/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-r5-acyclicity-v1/lean-cbcl/.lake/build/lib/lean /Users/anuna-01/.elan/toolchains/leanprover--lean4---v4.27.0/bin/lean /Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-r5-acyclicity-v1/lean-cbcl/LeanCbcl.lean -o /Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-r5-acyclicity-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl.olean -i /Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-r5-acyclicity-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl.ilean -c /Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-r5-acyclicity-v1/lean-cbcl/.lake/build/ir/LeanCbcl.c --setup /Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-r5-acyclicity-v1/lean-cbcl/.lake/build/ir/LeanCbcl.setup.json --json",
    "level": "trace"}],
  "inputs":
  [["LeanCbcl:deps",
@@ -64,7 +64,9 @@
          "5f43b215bd9d8aec"],
         ["LeanCbcl.DCFLPreservation:importAllArts", "11cb7f619523d95d"],
         ["LeanCbcl.Verify transitive imports (legacy)", "1e0f18b8a39f613e"],
-        ["LeanCbcl.Verify:importAllArts", "5e8d235f14d0d9a3"]]]]],
+        ["LeanCbcl.Verify:importAllArts", "5e8d235f14d0d9a3"],
+        ["LeanCbcl.R5 transitive imports (legacy)", "4188824c52653a44"],
+        ["LeanCbcl.R5:importAllArts", "ad8d5e6f00d2622f"]]]]],
     ["libs",
      [["import dynlibs", "00000000000006bb"],
       ["package external libraries", "00000000000006bb"],
@@ -72,8 +74,8 @@
       ["module plugins", "00000000000006bb"]]]]],
   ["Lean 4.27.0, commit db93fe1608548721853390a10cd40580fe7d22ae",
    "9a2be90fd35343e5"],
-  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-verify-skeleton-v1/lean-cbcl/LeanCbcl.lean",
-   "78ee28fb264e3099"],
+  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-r5-acyclicity-v1/lean-cbcl/LeanCbcl.lean",
+   "876b13bd1dbf27b6"],
   ["options", "00000000000006bb"],
   ["Module.leanArgs: #[]", "00000000000006bb"]],
- "depHash": "acb17080769951a8"}
+ "depHash": "66d6b2c8819fcc1f"}
