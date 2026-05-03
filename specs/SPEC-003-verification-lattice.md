@@ -133,7 +133,9 @@ Each message is identified by the SHA-256 hash of its canonical serialisation (S
 
 **Rationale:** Making the lattice structure explicit enables algebraic reasoning about verification. The G-Set CRDT structure guarantees convergence without coordination (Shapiro et al. 2011). BloomL (Conway et al. 2012) shows that monotonic functions over lattices are automatically eventually consistent — this is the property we exploit.
 
-verified-by: property
+verified-by: lean
+
+Mechanised in `lean-cbcl/LeanCbcl/Lattice/Store.lean`: `MessageStore` is modelled as `Set Message`, with `union_assoc` / `union_comm` / `union_idem` discharging the G-Set semilattice axioms and `lookup_monotone` discharging the join-semilattice ordering on `lookup`. `ContentHash` injectivity is recorded as an explicit axiom in the module header (cf. NFR-511 / TEST-551).
 
 Trace:
 - TEST-300
@@ -233,7 +235,9 @@ The partial-disjunction caveat applies only if a future extension allows disjunc
 
 **Rationale:** Meet for conjunction and join for disjunction are the standard lattice operations. The absorbing elements (Violation for meet, Valid for join) correspond to short-circuit evaluation — a known bad predecessor fails the conjunction immediately, a known good predecessor passes the disjunction immediately.
 
-verified-by: example
+verified-by: lean
+
+Mechanised in `lean-cbcl/LeanCbcl/Lattice/Result.lean`: `result_meet_table` and `result_join_table` reproduce both truth tables verbatim, discharged by exhaustive case analysis on the finite `VerificationResult` carrier; `verify_all_is_meet` in `LeanCbcl/Verify.lean` then ties the meet to fan-in `(all …)`.
 
 Trace:
 - TEST-303
@@ -260,7 +264,9 @@ This property SHALL hold for all verification modes:
 
 This is the **structural monotonicity guarantee** that replaces SPEC-002's ad-hoc case analysis in REQ-211.
 
-verified-by: property
+verified-by: lean
+
+Mechanised in `lean-cbcl/LeanCbcl/Verify.lean` as `verify_monotone : S₁ ⊆ S₂ → verify M P S₁ ⊑ verify M P S₂`, with `verify_all_is_meet` discharging the fan-in lattice-homomorphism shape.
 
 Trace:
 - TEST-304
@@ -351,7 +357,9 @@ This follows from:
 
 **Convergence.** Two agents that eventually receive the same set of messages will reach the same verification results for every message, regardless of the order of arrival. This is eventual consistency of the verification function, following from its monotonicity and the confluence of the store lattice (Conway et al. 2012).
 
-verified-by: property
+verified-by: lean
+
+Mechanised in `lean-cbcl/LeanCbcl/Verify.lean` as `verify_eventually_consistent : (verify M P S₁).join (verify M P S₂) ⊑ verify M P (S₁ ∪ S₂)`, derived from `verify_monotone` applied to each side of the union and `join_mono` from the result lattice.
 
 Trace:
 - TEST-307
@@ -360,7 +368,9 @@ Trace:
 
 The verification lattice introduces no new parsing capability. `VerificationResult` is an in-memory enum. The three-valued result and the `Unknown` policy are runtime decisions, not grammar extensions. `CausalPending` error messages use the existing CBCL `(error ...)` grammar. DCFL preservation is maintained trivially.
 
-verified-by: prose
+verified-by: lean
+
+Inherited from `lean-cbcl/LeanCbcl/DCFLPreservation.lean`: the result lattice and `Unknown` policy add no new grammar shape — every CBCL clause carrying verification semantics is still a `SExpr.list`. SPEC-002 REQ-209 (`dcfl_preserved_under_protocol`) covers the dispatch-token argument; the lattice itself is in-memory data and contributes no parser surface.
 
 Trace:
 - TEST-308

@@ -646,19 +646,31 @@ Trace: NFR-511
 
 ## Status and Versioning
 
-- **Status:** draft. No implementation exists. This document is a planning artefact. Implementation work would be tracked under `IMPL-005` in `plans/`.
+- **Status:** implementing. The IMPL-005 plan delivered the lattice + monotonicity + eventual-consistency theorems, the four R5 sub-check theorems (full iff for REQ-206/207, soundness only for REQ-204/205 per ADR-512), and the DCFL preservation theorems. CI runs `lake build` and the differential parity tests on every commit touching `lean-cbcl/`, SPEC-002, SPEC-003, or SPEC-005.
 - **Predecessor:** none.
 - **Successor:** none yet.
 - **Owner:** Hugo O'Connor.
-- **Last updated:** 2026-04-28.
+- **Last updated:** 2026-05-03.
 
-When implementation begins, status transitions:
+### REQ-510..518 completion (as of IMPL-005 closeout)
 
-- `draft` → `approved` after stakeholder review (decision to commit the 2–4 month budget)
-- `approved` → `implementing` when work begins
-- `implementing` → `implemented` when all of REQ-510 through REQ-518 have `verified-by: lean` annotations and CI passes
+| REQ | Status | Lean artefact | Notes |
+|---|---|---|---|
+| REQ-510 — result lattice | ✅ complete | `LeanCbcl/Lattice/Result.lean` | `BoundedLattice VerificationResult` instance, `result_meet_table` / `result_join_table` truth-table theorems. |
+| REQ-511 — store G-Set | ✅ complete | `LeanCbcl/Lattice/Store.lean` | `union_assoc/comm/idem`, `lookup_monotone`. `ContentHash` injectivity recorded as documented axiom (NFR-511). |
+| REQ-512 — `verify_monotone` | ✅ complete | `LeanCbcl/Verify.lean` | Discharged across every `verify` match arm. |
+| REQ-513 — fan-in is meet | ✅ complete | `LeanCbcl/Verify.lean` | `verify_all_is_meet` proved. |
+| REQ-514 — eventual consistency | ✅ complete | `LeanCbcl/Verify.lean` | `verify_eventually_consistent`, derived from `verify_monotone` + `join_mono`. |
+| REQ-515 — R5 sub-checks | ⚠️ partial | `LeanCbcl/R5.lean` | Soundness only for `check_acyclicity_iff_no_cycle` (REQ-204) and `check_reachability_iff_all_reachable` (REQ-205); full iff for `check_performative_definedness_iff_all_defined` (REQ-206) and `check_step_uniqueness_iff_no_duplicates` (REQ-207). Completeness for REQ-204/205 deferred per ADR-512. |
+| REQ-516 — DCFL preservation | ✅ complete | `LeanCbcl/DCFLPreservation.lean` | `dcfl_preserved_under_protocol` (REQ-209), `dcfl_preserved_under_shape` (REQ-225), plus `*_dispatch_deterministic` companions. |
+| REQ-517 — `verified-by` annotations | ✅ complete | `scripts/check-verified-by.sh` | Every REQ in SPEC-002 / SPEC-003 carries a `verified-by:` field; lint runs in CI. |
+| REQ-518 — differential parity | ✅ complete | `crates/cbcl-core/tests/` | TEST-518 parity tests pair each Lean theorem with a Rust property test. |
 
-Partial completion is acceptable. If the time budget runs out, the spec stays in `implementing` with a clear list of which REQs are mechanised and which are still `prose`.
+Status transitions from here:
+
+- `implementing` → `implemented` once REQ-204 / REQ-205 completeness lands (lifting `dfsNoCycle_complete` / DFS-completeness to the fixed `|names|² + 1` fuel) and the spec-level `verified-by:` for those REQs is upgraded from `lean (soundness only)` to `lean`.
+
+Partial completion is acceptable. The remaining gap is honestly recorded in SPEC-002 REQ-204 / REQ-205 via the `lean (soundness only)` annotation.
 
 ---
 

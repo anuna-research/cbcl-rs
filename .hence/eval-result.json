@@ -3,25 +3,28 @@
   "confidence": 1.0,
   "exit_code": 0,
   "diff_summary": {
-    "files_changed": 2,
-    "insertions": 52,
-    "deletions": 10,
+    "files_changed": 5,
+    "insertions": 58,
+    "deletions": 24,
     "file_list": [
-      ".github/workflows/lean.yml",
-      ".hence/context-manifest.json"
+      ".hence/context-manifest.json",
+      "scripts/check-verified-by.sh",
+      "specs/SPEC-002-structural-contracts.md",
+      "specs/SPEC-003-verification-lattice.md",
+      "specs/SPEC-005-lean-mechanisation.md"
     ],
     "dirty_files": 0
   },
   "learnings": [
     {
-      "key": "task-ci-build-changes",
-      "content": "Modified 2 files (+52, -10): .github/workflows/lean.yml, .hence/context-manifest.json",
+      "key": "task-verified-by-final-changes",
+      "content": "Modified 5 files (+58, -24): .hence/context-manifest.json, scripts/check-verified-by.sh, specs/SPEC-002-structural-contracts.md, specs/SPEC-003-verification-lattice.md, specs/SPEC-005-lean-mechanisation.md",
       "memory_type": "episodic",
       "confidence": 0.8
     }
   ],
-  "branch_name": "hence/ci-build-v1",
-  "evaluated_at": "2026-05-03T05:09:15Z",
+  "branch_name": "hence/verified-by-final-v1",
+  "evaluated_at": "2026-05-03T05:16:18Z",
   "checks_passed": 0,
   "checks_failed": 0
 }
