@@ -658,14 +658,14 @@ proptest! {
 }
 
 // ===========================================================================
-// REQ-515: R5 sub-check soundness.
-// Mirrors `LeanCbcl/R5.lean :: check_acyclicity_implies_no_cycle`,
-// `check_reachability_implies_all_reachable`,
+// REQ-515: R5 sub-check soundness + completeness (full iff).
+// Mirrors `LeanCbcl/R5.lean :: check_acyclicity_iff_no_cycle`,
+// `check_reachability_iff_all_reachable`,
 // `check_performative_definedness_iff_all_defined`, and
 // `check_step_uniqueness_iff_no_duplicates`.
 //
-// Each test asserts the soundness direction (check returns `[]` ⇒ property
-// holds) by generating known-good and known-bad protocols and confirming
+// Each test asserts the soundness or completeness direction at the value
+// level by generating known-good and known-bad protocols and confirming
 // the check's return value classifies them correctly.
 // ===========================================================================
 
@@ -710,7 +710,7 @@ fn arb_cyclic_protocol() -> impl Strategy<Value = CausalProtocol> {
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(1000))]
 
-    /// REQ-515 — `R5.lean :: check_acyclicity_implies_no_cycle` (soundness).
+    /// REQ-515 — `R5.lean :: check_acyclicity_iff_no_cycle` (soundness `→`).
     /// Acyclic-by-construction protocols pass `check_acyclicity`.
     #[test]
     fn req515_acyclicity_sound_on_acyclic(proto in arb_acyclic_protocol()) {
@@ -719,9 +719,8 @@ proptest! {
             "acyclic protocol flagged as cyclic: {:?}", violations);
     }
 
-    /// REQ-515 — extra Rust-side completeness check (the matching Lean
-    /// direction is deferred per ADR-512). Cyclic-by-construction protocols
-    /// are flagged.
+    /// REQ-515 — `R5.lean :: check_acyclicity_iff_no_cycle` (completeness `←`).
+    /// Cyclic-by-construction protocols are flagged.
     #[test]
     fn req515_acyclicity_complete_on_cyclic(proto in arb_cyclic_protocol()) {
         let violations = proto.check_acyclicity();
@@ -729,7 +728,7 @@ proptest! {
             "cyclic protocol not flagged: {:?}", violations);
     }
 
-    /// REQ-515 — `R5.lean :: check_reachability_implies_all_reachable` (soundness).
+    /// REQ-515 — `R5.lean :: check_reachability_iff_all_reachable` (soundness `→`).
     /// In a linear chain `begin → p0 → p1 → ...`, every step is reachable
     /// from `begin`; the check returns `[]`.
     #[test]
@@ -739,8 +738,7 @@ proptest! {
             "fully-reachable protocol flagged: {:?}", violations);
     }
 
-    /// REQ-515 — extra Rust-side completeness check (the matching Lean
-    /// direction is deferred per ADR-512).
+    /// REQ-515 — `R5.lean :: check_reachability_iff_all_reachable` (completeness `←`).
     /// Adding an orphan step that is not reachable from `begin` is flagged.
     #[test]
     fn req515_reachability_complete_on_orphan(orphan_name in "p[a-z]{1,4}") {

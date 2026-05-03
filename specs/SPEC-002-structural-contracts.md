@@ -434,9 +434,9 @@ The system SHALL reject protocol declarations containing cycles in the dependenc
 
 Note: loops (repeated request-response) are NOT cycles in the concrete message graph. A request-response loop is declared as `(then (begin response) request response)`. The dependency graph has an edge `response→request`, which looks circular at the *schema* level. But at runtime, each concrete message has a unique ID: `begin → request-1 → response-1 → request-2 → response-2 → ...` is acyclic. The acyclicity check (REQ-204) operates on the *schema* graph and must permit cycles that represent loops — see REQ-204 for the distinction.
 
-verified-by: lean (soundness only)
+verified-by: lean
 
-Mechanised in `lean-cbcl/LeanCbcl/R5.lean` as `checkAcyclicity_sound` and `check_acyclicity_implies_no_cycle` (currently soundness `→` only — the completeness `←` direction is deferred per ADR-512, mirroring the existing SPEC-001 R1 DFS proof structure).
+Mechanised in `lean-cbcl/LeanCbcl/R5.lean` as `check_acyclicity_iff_no_cycle` (full iff). Soundness is `checkAcyclicity_sound`; completeness is `checkAcyclicity_complete`, by strong induction on the DFS recursion depth — in cycle-free graphs every visiting-set element is a graph key with a back-edge to the current node, so by acyclicity all visiting elements are distinct keys, hence `|visiting| ≤ |stepNames|` and fuel `|stepNames|² + 1 ≥ |stepNames| + 1` is more than sufficient.
 
 Trace:
 - TEST-204
@@ -447,9 +447,9 @@ The system SHALL reject protocol declarations where any step is unreachable from
 
 **Rationale:** An unreachable step can never be validly invoked — its predecessors are not in the protocol, so no message can satisfy its `:after` clause. This catches dead code in protocol declarations.
 
-verified-by: lean (soundness only)
+verified-by: lean
 
-Mechanised in `lean-cbcl/LeanCbcl/R5.lean` as `checkReachability_sound` and `check_reachability_implies_all_reachable` (currently soundness `→` only — the completeness `←` direction is deferred per ADR-512).
+Mechanised in `lean-cbcl/LeanCbcl/R5.lean` as `check_reachability_iff_all_reachable` (full iff). Soundness is `checkReachability_sound`; completeness is `checkReachability_complete`, via path extraction: any `Reachable` proof is converted to an explicit `ReachableViaPath`, simplified to a `Nodup` simple path of length ≤ `|stepNames|`, then `dfsReaches` is shown to follow the simple path step-by-step at fuel `|stepNames|² + 1`.
 
 Trace:
 - TEST-205

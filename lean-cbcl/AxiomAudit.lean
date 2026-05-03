@@ -53,9 +53,9 @@ editing only this file is enough to extend the audit.
 -- CON-514 — `verify` eventual consistency (Verify.lean).
 #print axioms CBCL.verify_eventually_consistent
 
--- CON-515 — R5 sub-check soundness (R5.lean).
-#print axioms CBCL.check_acyclicity_implies_no_cycle
-#print axioms CBCL.check_reachability_implies_all_reachable
+-- CON-515 — R5 sub-check soundness + completeness (R5.lean).
+#print axioms CBCL.check_acyclicity_iff_no_cycle
+#print axioms CBCL.check_reachability_iff_all_reachable
 #print axioms CBCL.check_performative_definedness_iff_all_defined
 #print axioms CBCL.check_step_uniqueness_iff_no_duplicates
 
