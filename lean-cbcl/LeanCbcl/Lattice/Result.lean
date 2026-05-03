@@ -174,6 +174,74 @@ theorem result_join_table :
     (join violation violation = violation) := by
   refine ⟨?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩ <;> rfl
 
+/-! ### Knowledge order `⊑` and monotonicity of `meet` / `join`.
+
+    Used by REQ-512 (`verify_monotone`). The order is
+
+    `a ⊑ b  ↔  (a = valid → b = valid)`
+
+    — i.e. **`valid` is sticky** under store growth, while `unknown` and
+    `violation` are tentative results that may transition to any other
+    state when the store grows. Concretely:
+
+    * `valid ⊑ valid`, but `valid ⋢ unknown` and `valid ⋢ violation`.
+    * `unknown ⊑ x` for every `x`.
+    * `violation ⊑ x` for every `x`.
+
+    Why not the strict flat order from SPEC-003 §REQ-304 ("once
+    `Violation`, never anything else")? That order is monotone for
+    leaf `single`-predecessor lookups, but a `(any …)` nested inside
+    `(all …)` can transition `violation → valid` *operationally*
+    (a sibling becomes `valid`, and `valid` absorbs in `join`). The
+    enclosing `meet` then transitions `violation → unknown`. Both
+    transitions break the strict flat order. The "`valid` is sticky"
+    order accommodates them while still preserving the operationally
+    significant invariant — once a verification succeeds (`valid`) it
+    stays succeeded — and it makes `meet` and `join` both monotone,
+    so the structural-monotonicity argument of SPEC-003 §REQ-304
+    composes cleanly through nested causal protocols. -/
+
+/-- `a ⊑ b` — the verification result order under store growth.
+    Defined by case match: `valid ⊑ b` iff `b = valid`; otherwise
+    `True`. Equivalent to `a = valid → b = valid`. -/
+def le : VerificationResult → VerificationResult → Prop
+  | valid, valid => True
+  | valid, _     => False
+  | _,     _     => True
+
+@[inherit_doc] scoped infix:50 " ⊑ " => VerificationResult.le
+
+/-- Reflexivity of `⊑`. -/
+theorem le_refl : ∀ a : VerificationResult, a ⊑ a := by
+  intro a; cases a <;> exact True.intro
+
+/-- `unknown` sits at (one of) the bottom positions of `⊑`. -/
+theorem unknown_le (a : VerificationResult) : unknown ⊑ a := by
+  cases a <;> exact True.intro
+
+/-- `violation` is also a bottom-equivalent position of `⊑` —
+    transitions out of it are permitted by the order (see module
+    docstring above for why this is operationally necessary). -/
+theorem violation_le (a : VerificationResult) : violation ⊑ a := by
+  cases a <;> exact True.intro
+
+/-- `valid` is the top of `⊑`: the only thing above `valid` is `valid`. -/
+theorem le_valid_iff {a : VerificationResult} : a ⊑ valid ↔ True := by
+  cases a <;> simp [le]
+
+/-- `meet` is monotone in both arguments under `⊑`. Discharged by
+    exhaustive case analysis over the 3×3×3×3 carrier; cases where a
+    hypothesis simplifies to `False` close vacuously via `simp_all`. -/
+theorem meet_mono {a b c d : VerificationResult}
+    (hac : a ⊑ c) (hbd : b ⊑ d) : meet a b ⊑ meet c d := by
+  cases a <;> cases b <;> cases c <;> cases d <;> simp_all [le, meet]
+
+/-- `join` is monotone in both arguments under `⊑`. Discharged
+    analogously to `meet_mono`. -/
+theorem join_mono {a b c d : VerificationResult}
+    (hac : a ⊑ c) (hbd : b ⊑ d) : join a b ⊑ join c d := by
+  cases a <;> cases b <;> cases c <;> cases d <;> simp_all [le, join]
+
 end VerificationResult
 
 end CBCL

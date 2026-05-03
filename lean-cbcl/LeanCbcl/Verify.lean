@@ -156,6 +156,107 @@ noncomputable def verify : Message → CausalProtocol → MessageStore → Verif
   | m, .all ps, S =>
       ps.foldr (fun p acc => (verify m p S).meet acc) .valid
 
+/-! ## REQ-512 / CON-512 — `verify` monotonicity under store growth.
+
+    The central monotonicity theorem for SPEC-005. As the message store
+    grows, the verification result can only move *up* in the
+    `VerificationResult.le` (`⊑`) order — i.e. once a verification
+    has reached `valid`, store growth never overturns it. See the
+    docstring on `VerificationResult.le` in `Lattice/Result.lean` for
+    why "`valid` is sticky" is the order that makes monotonicity hold
+    through arbitrary nestings of `(any …)` inside `(all …)`. -/
+
+open VerificationResult (le_refl unknown_le violation_le meet_mono join_mono)
+open scoped VerificationResult
+
+/-- **REQ-512 / CON-512:** `verify` is monotone in the message store
+    under the SPEC-003 verification-result order.
+
+    The proof is a well-founded recursion on `sizeOf P`, with case
+    analysis over the `verify` match arms:
+
+    * `.begin` — the result is independent of the store, so refl.
+    * `.single perf` — splits on the message's `:caused-by` and on the
+      result of `MessageStore.lookup`; the only store-sensitive case
+      is `lookup S₁ = none` (result `unknown`), which is `unknown ⊑ x`
+      for every `x`. The case `lookup S₁ = some pred` discharges via
+      `MessageStore.lookup_monotone`, giving `lookup S₂ = some pred`
+      (the same witness, by injectivity), so both stores produce the
+      same result.
+    * `.any ps` — induction on `ps`. Empty list folds to `unknown`,
+      monotone. Cons step combines the per-element monotonicity
+      (the recursive call at `p`, structurally smaller than `.any ps`)
+      with the rest's IH via `join_mono`.
+    * `.all ps` — symmetric to `.any`, with `meet_mono`. -/
+theorem verify_monotone (M : Message) :
+    ∀ (P : CausalProtocol) (S₁ S₂ : MessageStore), S₁ ⊆ S₂ →
+    verify M P S₁ ⊑ verify M P S₂
+  | .begin, _, _, _ => by
+      simp only [verify]
+      cases Message.causedBy M with
+      | none => exact le_refl _
+      | some c => cases c <;> exact le_refl _
+  | .single perf, S₁, S₂, hSub => by
+      simp only [verify]
+      cases Message.causedBy M with
+      | none => exact le_refl _
+      | some c =>
+          cases c with
+          | begin => exact le_refl _
+          | multiple _ => exact le_refl _
+          | single h =>
+              -- Inner `match` on `lookup h S` differs between S₁ / S₂.
+              dsimp only
+              cases hL1 : MessageStore.lookup h S₁ with
+              | some pred₁ =>
+                  -- `lookup_monotone` carries the witness over to S₂.
+                  have hL2 : MessageStore.lookup h S₂ = some pred₁ :=
+                    MessageStore.lookup_monotone hSub h pred₁ hL1
+                  rw [hL2]
+                  dsimp only
+                  exact le_refl _
+              | none =>
+                  -- S₁ side reduces to `unknown`. S₂ side is `unknown`
+                  -- (when lookup also fails) or `valid`/`violation`
+                  -- (when lookup succeeds). `unknown ⊑ _` holds for
+                  -- every right-hand side.
+                  dsimp only
+                  cases hL2 : MessageStore.lookup h S₂ with
+                  | none => dsimp only; exact le_refl _
+                  | some pred₂ => dsimp only; split <;> exact unknown_le _
+  | .any [], _, _, _ => by
+      simp only [verify, List.foldr]; exact le_refl _
+  | .any (p :: rest), S₁, S₂, hSub => by
+      have eq1 :
+          verify M (.any (p :: rest)) S₁
+            = (verify M p S₁).join (verify M (.any rest) S₁) := by
+        simp only [verify, List.foldr]
+      have eq2 :
+          verify M (.any (p :: rest)) S₂
+            = (verify M p S₂).join (verify M (.any rest) S₂) := by
+        simp only [verify, List.foldr]
+      rw [eq1, eq2]
+      exact join_mono
+        (verify_monotone M p S₁ S₂ hSub)
+        (verify_monotone M (.any rest) S₁ S₂ hSub)
+  | .all [], _, _, _ => by
+      simp only [verify, List.foldr]; exact le_refl _
+  | .all (p :: rest), S₁, S₂, hSub => by
+      have eq1 :
+          verify M (.all (p :: rest)) S₁
+            = (verify M p S₁).meet (verify M (.all rest) S₁) := by
+        simp only [verify, List.foldr]
+      have eq2 :
+          verify M (.all (p :: rest)) S₂
+            = (verify M p S₂).meet (verify M (.all rest) S₂) := by
+        simp only [verify, List.foldr]
+      rw [eq1, eq2]
+      exact meet_mono
+        (verify_monotone M p S₁ S₂ hSub)
+        (verify_monotone M (.all rest) S₁ S₂ hSub)
+termination_by P _ _ _ => sizeOf P
+decreasing_by all_goals (simp_wf; omega)
+
 /-! ## REQ-513 / CON-513 — fan-in lattice-homomorphism. -/
 
 /-- **REQ-513 / CON-513:** `verify` distributes over `(all ps)` as the

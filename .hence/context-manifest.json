@@ -1,12 +1,12 @@
 {
-  "task_id": "verify-fanin-meet",
+  "task_id": "verify-monotone",
   "token_budget": 8000,
-  "tokens_used": 610,
+  "tokens_used": 669,
   "elements_selected": [
     {
       "source": "plan-meta/description",
-      "content": "REQ-513 / CON-513 / TEST-513: prove `theorem verify_all_is_meet : ∀ M (preds : List Predecessor) S, verify M (CausalProtocol.all preds) S = preds.foldr (fun p acc => verify M p S ⊓ acc) ⊤` in Verify.lean. Induction over predecessor list; appeal to associativity of meet from the BoundedLattice instance (REQ-510). This is the structural form that lets eventual-consistency follow via lattice-homomorphism rather than re-induction.",
-      "token_cost": 109,
+      "content": "REQ-512 / CON-512 / TEST-512: prove `theorem verify_monotone (M : Message) (P : CausalProtocol) (S₁ S₂ : MessageStore) (h : S₁ ⊆ S₂) : verify M P S₁ ⊑ verify M P S₂` in lean-cbcl/LeanCbcl/Verify.lean. Case analysis over verify's match arms: Single, Any, All, Begin, missing :caused-by, unknown predecessor, invalid predecessor. Appeal to lookup_monotone for the store-growth cases.",
+      "token_cost": 99,
       "priority": "PlanMeta"
     },
     {
@@ -62,8 +62,14 @@
       "content": "Modified 12 files (+301, -57): .hence/context-manifest.json, lean-cbcl/.lake/build/ir/LeanCbcl.setup.json, lean-cbcl/.lake/build/ir/LeanCbcl/R5.c, lean-cbcl/.lake/build/ir/LeanCbcl/R5.c.hash, lean-cbcl/.lake/build/ir/LeanCbcl/R5.setup.json and 7 more",
       "token_cost": 62,
       "priority": "AgentMemory"
+    },
+    {
+      "source": "memory/episodic/task-verify-fanin-meet-changes",
+      "content": "Modified 18 files (+918, -57): .hence/context-manifest.json, lean-cbcl/.lake/build/ir/LeanCbcl.setup.json, lean-cbcl/.lake/build/ir/LeanCbcl/Lattice/Result.c, lean-cbcl/.lake/build/ir/LeanCbcl/Lattice/Result.c.hash, lean-cbcl/.lake/build/ir/LeanCbcl/Verify.setup.json and 13 more",
+      "token_cost": 69,
+      "priority": "AgentMemory"
     }
   ],
   "elements_excluded": [],
-  "constructed_at": "2026-05-03T01:41:24Z"
+  "constructed_at": "2026-05-03T03:47:06Z"
 }
