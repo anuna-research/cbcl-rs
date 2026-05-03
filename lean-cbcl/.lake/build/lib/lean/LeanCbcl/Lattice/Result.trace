@@ -1,0 +1,28 @@
+{"synthetic": false,
+ "schemaVersion": "2025-09-10",
+ "outputs":
+ {"o": ["b6c5b23b0768da4d.olean"],
+  "i": "2b23b27098ad1873.ilean",
+  "c": "53d2815d7d2ce4d3.c"},
+ "log":
+ [{"message":
+   ".> LEAN_PATH=/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-result-lattice-v1/lean-cbcl/.lake/build/lib/lean /Users/anuna-01/.elan/toolchains/leanprover--lean4---v4.27.0/bin/lean /Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-result-lattice-v1/lean-cbcl/LeanCbcl/Lattice/Result.lean -o /Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-result-lattice-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/Lattice/Result.olean -i /Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-result-lattice-v1/lean-cbcl/.lake/build/lib/lean/LeanCbcl/Lattice/Result.ilean -c /Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-result-lattice-v1/lean-cbcl/.lake/build/ir/LeanCbcl/Lattice/Result.c --setup /Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-result-lattice-v1/lean-cbcl/.lake/build/ir/LeanCbcl/Lattice/Result.setup.json --json",
+   "level": "trace"}],
+ "inputs":
+ [["LeanCbcl.Lattice.Result:deps",
+   [["deps",
+     [["«lean-cbcl»/LeanCbcl:extraDep",
+       [["@«lean-cbcl»:extraDep", "00000000000006bb"]]],
+      ["imports", "00000000000006bb"]]],
+    ["libs",
+     [["import dynlibs", "00000000000006bb"],
+      ["package external libraries", "00000000000006bb"],
+      ["module dynlibs", "00000000000006bb"],
+      ["module plugins", "00000000000006bb"]]]]],
+  ["Lean 4.27.0, commit db93fe1608548721853390a10cd40580fe7d22ae",
+   "9a2be90fd35343e5"],
+  ["/Users/anuna-01/Code/worktrees/cbcl-rs/IMPL-005-result-lattice-v1/lean-cbcl/LeanCbcl/Lattice/Result.lean",
+   "7ebbc440df78713e"],
+  ["options", "00000000000006bb"],
+  ["Module.leanArgs: #[]", "00000000000006bb"]],
+ "depHash": "593a776ebbc3a48d"}

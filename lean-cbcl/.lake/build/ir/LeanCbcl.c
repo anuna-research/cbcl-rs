@@ -1,6 +1,6 @@
 // Lean compiler output
 // Module: LeanCbcl
-// Imports: public import Init public import LeanCbcl.SExpr public import LeanCbcl.Message public import LeanCbcl.Dialect public import LeanCbcl.Agent public import LeanCbcl.Parser public import LeanCbcl.Serializer public import LeanCbcl.MessageParser public import LeanCbcl.PatternMatch public import LeanCbcl.DialectParser public import LeanCbcl.R1NoRecursion public import LeanCbcl.R2ResourceBounds public import LeanCbcl.R3CorePreservation public import LeanCbcl.Pipeline public import LeanCbcl.TemplateExpansion public import LeanCbcl.DetParser public import LeanCbcl.DeterministicUnion public import LeanCbcl.Lattice.Store
+// Imports: public import Init public import LeanCbcl.SExpr public import LeanCbcl.Message public import LeanCbcl.Dialect public import LeanCbcl.Agent public import LeanCbcl.Parser public import LeanCbcl.Serializer public import LeanCbcl.MessageParser public import LeanCbcl.PatternMatch public import LeanCbcl.DialectParser public import LeanCbcl.R1NoRecursion public import LeanCbcl.R2ResourceBounds public import LeanCbcl.R3CorePreservation public import LeanCbcl.Pipeline public import LeanCbcl.TemplateExpansion public import LeanCbcl.DetParser public import LeanCbcl.DeterministicUnion public import LeanCbcl.Lattice.Store public import LeanCbcl.Lattice.Result
 #include <lean/lean.h>
 #if defined(__clang__)
 #pragma clang diagnostic ignored "-Wunused-parameter"
@@ -31,6 +31,7 @@ lean_object* initialize_lean_x2dcbcl_LeanCbcl_TemplateExpansion(uint8_t builtin)
 lean_object* initialize_lean_x2dcbcl_LeanCbcl_DetParser(uint8_t builtin);
 lean_object* initialize_lean_x2dcbcl_LeanCbcl_DeterministicUnion(uint8_t builtin);
 lean_object* initialize_lean_x2dcbcl_LeanCbcl_Lattice_Store(uint8_t builtin);
+lean_object* initialize_lean_x2dcbcl_LeanCbcl_Lattice_Result(uint8_t builtin);
 static bool _G_initialized = false;
 LEAN_EXPORT lean_object* initialize_lean_x2dcbcl_LeanCbcl(uint8_t builtin) {
 lean_object * res;
@@ -88,6 +89,9 @@ res = initialize_lean_x2dcbcl_LeanCbcl_DeterministicUnion(builtin);
 if (lean_io_result_is_error(res)) return res;
 lean_dec_ref(res);
 res = initialize_lean_x2dcbcl_LeanCbcl_Lattice_Store(builtin);
+if (lean_io_result_is_error(res)) return res;
+lean_dec_ref(res);
+res = initialize_lean_x2dcbcl_LeanCbcl_Lattice_Result(builtin);
 if (lean_io_result_is_error(res)) return res;
 lean_dec_ref(res);
 return lean_io_result_mk_ok(lean_box(0));
