@@ -3,15 +3,27 @@
   "confidence": 1.0,
   "exit_code": 0,
   "diff_summary": {
-    "files_changed": 0,
-    "insertions": 0,
-    "deletions": 0,
-    "file_list": [],
-    "dirty_files": 1
+    "files_changed": 4,
+    "insertions": 188,
+    "deletions": 65,
+    "file_list": [
+      ".hence/context-manifest.json",
+      "scripts/check-verified-by.sh",
+      "specs/SPEC-002-structural-contracts.md",
+      "specs/SPEC-003-verification-lattice.md"
+    ],
+    "dirty_files": 0
   },
-  "learnings": [],
-  "branch_name": "hence/compaction-v1",
-  "evaluated_at": "2026-03-24T15:33:43Z",
+  "learnings": [
+    {
+      "key": "task-verified-by-init-changes",
+      "content": "Modified 4 files (+188, -65): .hence/context-manifest.json, scripts/check-verified-by.sh, specs/SPEC-002-structural-contracts.md, specs/SPEC-003-verification-lattice.md",
+      "memory_type": "episodic",
+      "confidence": 0.8
+    }
+  ],
+  "branch_name": "hence/verified-by-init-v1",
+  "evaluated_at": "2026-05-03T00:35:27Z",
   "checks_passed": 0,
   "checks_failed": 0
 }
