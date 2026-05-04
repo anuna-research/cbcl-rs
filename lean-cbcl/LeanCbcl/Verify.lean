@@ -18,11 +18,34 @@ consistency) can even be *stated* in subsequent tasks.
 ## Open Question §1 — `Begin` as a primitive
 
 SPEC-005 §"Open Questions" §1 asks whether `begin` should be a top-level
-constructor or desugared as `all []` (vacuous fan-in). Per the
-`task-verify-skeleton` brief, we pick the top-level constructor for
-proof simplicity: monotonicity case-analysis is trivial for `begin` (no
-store dependence) and the desugaring complicates the `(all ...)`
-homomorphism statement of REQ-513.
+constructor or desugared as `all []` (vacuous fan-in). We lift `Begin`
+to a top-level constructor because the desugaring `all []` would
+silently drop the message-side `:caused-by` check: under the `meet`
+identity, `verify M (.all []) S = .valid` unconditionally, so a message
+with `:caused-by some_hash` would be accepted against a step that
+should only accept `:caused-by begin`. The two encodings are therefore
+not semantically equivalent; the lifted form is the one that preserves
+the message-side discriminant inside `verify`'s case analysis (and, as
+a side benefit, keeps monotonicity case-analysis trivial for `begin`
+and avoids complicating the `(all ...)` homomorphism statement of
+REQ-513).
+
+### Structural divergence from Rust
+
+Rust does not have a `Begin` variant in `NodeRef` either; instead it
+treats `"begin"` as a magic string appearing inside `NodeRef::Single`
+or `NodeRef::Any` predecessor refs (see `verify_causal`'s
+`CausedBy::Begin` arm in `crates/cbcl-core/src/protocol.rs`). The Lean
+model promotes that magic string to a typed constructor, which is
+cleaner to reason about but means `CausalProtocol.begin` does not
+correspond to any single `NodeRef` variant. The two encodings agree on
+lattice positions (so the parity tests pass) but are not pointwise
+equivalent — in particular, the Lean model cannot represent
+`NodeRef::Any({"begin", "tell"})` as a single primitive; it would be
+encoded as `any [.begin, .single "tell"]`. Mirror-drift could occur if
+the Rust string vocabulary is ever extended (e.g. additional reserved
+keywords beyond `"begin"`); there is no compiler-level link binding the
+two surfaces.
 
 ## Mirrors
 
