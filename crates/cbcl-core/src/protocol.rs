@@ -260,21 +260,23 @@ impl CausalProtocol {
     /// cannot collide structurally. The remaining hazard is the `(then …)`
     /// parser, which accumulates predecessor `NodeRef` entries across
     /// clauses by `push`: every clause that targets the same performative
-    /// pushes another entry, regardless of whether the entries are equal.
-    /// REQ-207 requires that each performative have exactly one set of
-    /// valid predecessors, so we flag any `StepDecl` whose predecessor list
-    /// has more than one entry — both literal duplicates like
-    /// `(then begin a) (then begin a)` and distinct-edge cases like
-    /// `(then begin a) (then b a)` collapse to `predecessors.len() > 1`.
-    /// Fan-in (multiple required predecessors) is expressed as a single
-    /// `NodeRef::All(...)` entry, so legitimate fan-in keeps `len == 1`.
-    /// Successor duplicates are still flagged as a defence-in-depth check
-    /// against programmatically-constructed protocols whose two sides have
+    /// pushes another entry. Distinct-alternative declarations like
+    /// `(then begin a) (then b a)` are *intentional* — `verify_causal`
+    /// reads the resulting `[Single("begin"), Single("b")]` as
+    /// `begin ∨ b` for the predecessor of `a` (see
+    /// `allowed_single_predecessors`), so this shape must pass R5.
+    /// What R5 does forbid is *literal* duplication, e.g. the same
+    /// `(then begin a)` clause written twice, which collapses to
+    /// `[Single("begin"), Single("begin")]` and signals an authoring
+    /// error rather than an alternative. Use `has_duplicate` so only
+    /// equal `NodeRef` entries are rejected. Successor duplicates are
+    /// still flagged as a defence-in-depth check against
+    /// programmatically-constructed protocols whose two sides have
     /// drifted out of sync.
     pub fn check_step_uniqueness(&self) -> Vec<ProtocolViolation> {
         let mut violations = Vec::new();
         for (name, step) in &self.steps {
-            if step.predecessors.len() > 1 || has_duplicate(&step.successors) {
+            if has_duplicate(&step.predecessors) || has_duplicate(&step.successors) {
                 violations.push(ProtocolViolation::DuplicateStep { name: name.clone() });
             }
         }
@@ -1157,23 +1159,46 @@ mod tests {
     }
 
     #[test]
-    fn test_step_uniqueness_rejects_distinct_edges() {
-        // `(then begin a) (then x a)` — REQ-207 forbids declaring `a` in two
-        // separate `(then …)` clauses with different predecessors. The
-        // canonical fan-in form is a single `(then (all begin x) a)` clause,
-        // which collapses to `predecessors = [All({begin, x})]` (len == 1).
+    fn test_step_uniqueness_accepts_distinct_alternatives() {
+        // `(then begin a) (then b a)` — two clauses target `a` with
+        // *different* predecessors. `verify_causal` treats the resulting
+        // `[Single("begin"), Single("b")]` as the alternation `begin ∨ b`
+        // (see `allowed_single_predecessors`), so this protocol shape is
+        // valid and must pass R5. Only literal duplicates among the
+        // predecessor entries should be flagged.
         let mut steps = BTreeMap::new();
         steps.insert(
             "a".into(),
             StepDecl {
                 performative: "a".into(),
-                predecessors: vec![NodeRef::Single("begin".into()), NodeRef::Single("x".into())],
+                predecessors: vec![NodeRef::Single("begin".into()), NodeRef::Single("b".into())],
                 successors: vec![],
             },
         );
         let proto = CausalProtocol { steps };
-        let violations = proto.check_step_uniqueness();
-        assert!(violations
+        assert!(proto.check_step_uniqueness().is_empty());
+    }
+
+    #[test]
+    fn test_step_uniqueness_rejects_literal_duplicate_predecessor() {
+        // Same `NodeRef` entered twice — e.g. `(then begin a)` written
+        // twice — collapses to `[Single("begin"), Single("begin")]` and
+        // is an authoring error, not an alternation. Must be flagged.
+        let mut steps = BTreeMap::new();
+        steps.insert(
+            "a".into(),
+            StepDecl {
+                performative: "a".into(),
+                predecessors: vec![
+                    NodeRef::Single("begin".into()),
+                    NodeRef::Single("begin".into()),
+                ],
+                successors: vec![],
+            },
+        );
+        let proto = CausalProtocol { steps };
+        assert!(proto
+            .check_step_uniqueness()
             .iter()
             .any(|v| matches!(v, ProtocolViolation::DuplicateStep { name } if name == "a")));
     }
