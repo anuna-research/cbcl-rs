@@ -4,6 +4,7 @@
 
 #![forbid(unsafe_code)]
 
+use crate::protocol::BEGIN_KEYWORD;
 use crate::sexpr::{Atom, SExpr};
 use alloc::boxed::Box;
 use alloc::string::String;
@@ -345,7 +346,7 @@ impl From<Message> for SExpr {
                     items.push(SExpr::Atom(Atom::Keyword(String::from("caused-by"))));
                     match cb {
                         CausedBy::Begin => {
-                            items.push(SExpr::Atom(Atom::Symbol(String::from("begin"))));
+                            items.push(SExpr::Atom(Atom::Symbol(String::from(BEGIN_KEYWORD))));
                         }
                         CausedBy::Single(h) => {
                             items.push(SExpr::Atom(Atom::Symbol(h)));
@@ -564,8 +565,8 @@ fn parse_simple(head: &str, tail: &[SExpr]) -> Result<Message, MessageParseError
 /// - List of atoms (hashes) → `CausedBy::Multiple(sorted_hashes)`
 fn parse_caused_by(val: &SExpr) -> Result<CausedBy, MessageParseError> {
     match val {
-        SExpr::Atom(Atom::Symbol(s)) if s == "begin" => Ok(CausedBy::Begin),
-        SExpr::Atom(Atom::Str(s)) if s == "begin" => Ok(CausedBy::Begin),
+        SExpr::Atom(Atom::Symbol(s)) if s == BEGIN_KEYWORD => Ok(CausedBy::Begin),
+        SExpr::Atom(Atom::Str(s)) if s == BEGIN_KEYWORD => Ok(CausedBy::Begin),
         SExpr::Atom(Atom::Symbol(s)) => Ok(CausedBy::Single(s.clone())),
         SExpr::Atom(Atom::Str(s)) => Ok(CausedBy::Single(s.clone())),
         SExpr::List(items) => {
@@ -1287,6 +1288,9 @@ mod tests {
         let msg2 = Message::try_from(&sexpr2).unwrap();
         let bytes1 = canonical_encode(&SExpr::from(msg1));
         let bytes2 = canonical_encode(&SExpr::from(msg2));
-        assert_eq!(bytes1, bytes2, "canonical encoding must be deterministic after sorting");
+        assert_eq!(
+            bytes1, bytes2,
+            "canonical encoding must be deterministic after sorting"
+        );
     }
 }

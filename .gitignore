@@ -2,3 +2,8 @@
 **/*.rs.bk
 *.swp
 *.swo
+
+# Lean / Lake build outputs
+**/.lake/
+*.olean
+*.ilean

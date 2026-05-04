@@ -15,6 +15,16 @@ use core::fmt;
 use crate::message::CausedBy;
 use crate::store::{ContentHash, MessageStore, ThreadId};
 
+/// Reserved keyword strings recognised by `verify_causal` as having
+/// dedicated semantics. Currently the singleton `{"begin"}`, mirroring
+/// `LeanCbcl/Verify.lean::CausalProtocol.begin` as a typed constructor.
+/// Extending this set requires adding a corresponding constructor to the
+/// Lean `CausalProtocol` inductive — otherwise `verify_causal` and the
+/// Lean `verify` will silently disagree at the new keyword's call sites.
+/// The accompanying tripwire test in this module asserts the singleton
+/// invariant; updating it without an ADR is a review-time signal.
+pub const BEGIN_KEYWORD: &str = "begin";
+
 // ================================================================
 // Causal Protocol Data Model (REQ-200)
 // ================================================================
@@ -120,12 +130,12 @@ impl CausalProtocol {
     fn all_referenced_performatives(&self) -> BTreeSet<String> {
         let mut names = BTreeSet::new();
         for (name, step) in &self.steps {
-            if name != "begin" {
+            if name != BEGIN_KEYWORD {
                 names.insert(name.clone());
             }
             for nr in step.predecessors.iter().chain(step.successors.iter()) {
                 for p in nr.performatives() {
-                    if p != "begin" {
+                    if p != BEGIN_KEYWORD {
                         names.insert(p.into());
                     }
                 }
@@ -210,9 +220,9 @@ impl CausalProtocol {
         let mut visited: BTreeSet<&str> = BTreeSet::new();
         let mut queue: Vec<&str> = Vec::new();
 
-        if graph.contains_key("begin") {
-            queue.push("begin");
-            visited.insert("begin");
+        if graph.contains_key(BEGIN_KEYWORD) {
+            queue.push(BEGIN_KEYWORD);
+            visited.insert(BEGIN_KEYWORD);
         }
 
         while let Some(current) = queue.pop() {
@@ -227,10 +237,8 @@ impl CausalProtocol {
 
         let mut violations = Vec::new();
         for name in self.steps.keys() {
-            if name != "begin" && !visited.contains(name.as_str()) {
-                violations.push(ProtocolViolation::Unreachable {
-                    step: name.clone(),
-                });
+            if name != BEGIN_KEYWORD && !visited.contains(name.as_str()) {
+                violations.push(ProtocolViolation::Unreachable { step: name.clone() });
             }
         }
         violations
@@ -259,12 +267,22 @@ impl CausalProtocol {
     /// Check that no performative has duplicate step declarations (REQ-207).
     ///
     /// `CausalProtocol::steps` is keyed by performative name, so step *names*
-    /// cannot collide structurally. The remaining hazard is that the
-    /// `(then …)` parser accumulates predecessor/successor `NodeRef` entries
-    /// across clauses by `push`, so a duplicated `(then …)` clause produces a
-    /// duplicated edge — equivalent to two `(step a :after begin)` declarations
-    /// in the spec's surface form. We flag any `StepDecl` whose predecessor
-    /// or successor list contains repeats.
+    /// cannot collide structurally. The remaining hazard is the `(then …)`
+    /// parser, which accumulates predecessor `NodeRef` entries across
+    /// clauses by `push`: every clause that targets the same performative
+    /// pushes another entry. Distinct-alternative declarations like
+    /// `(then begin a) (then b a)` are *intentional* — `verify_causal`
+    /// reads the resulting `[Single("begin"), Single("b")]` as
+    /// `begin ∨ b` for the predecessor of `a` (see
+    /// `allowed_single_predecessors`), so this shape must pass R5.
+    /// What R5 does forbid is *literal* duplication, e.g. the same
+    /// `(then begin a)` clause written twice, which collapses to
+    /// `[Single("begin"), Single("begin")]` and signals an authoring
+    /// error rather than an alternative. Use `has_duplicate` so only
+    /// equal `NodeRef` entries are rejected. Successor duplicates are
+    /// still flagged as a defence-in-depth check against
+    /// programmatically-constructed protocols whose two sides have
+    /// drifted out of sync.
     pub fn check_step_uniqueness(&self) -> Vec<ProtocolViolation> {
         let mut violations = Vec::new();
         for (name, step) in &self.steps {
@@ -279,10 +297,7 @@ impl CausalProtocol {
     ///
     /// Checks: step uniqueness (REQ-207), acyclicity (REQ-204),
     /// reachability (REQ-205), and performative definedness (REQ-206).
-    pub fn verify_r5_protocol(
-        &self,
-        defined_performatives: &[&str],
-    ) -> Vec<ProtocolViolation> {
+    pub fn verify_r5_protocol(&self, defined_performatives: &[&str]) -> Vec<ProtocolViolation> {
         let mut violations = Vec::new();
         violations.extend(self.check_step_uniqueness());
         violations.extend(self.check_acyclicity());
@@ -500,10 +515,10 @@ pub fn verify_causal<S: MessageStore>(
 
         // :caused-by begin — root of a causal chain
         Some(CausedBy::Begin) => {
-            // "begin" must appear in a Single or Any predecessor ref
+            // BEGIN_KEYWORD must appear in a Single or Any predecessor ref
             let begin_allowed = step.predecessors.iter().any(|nr| match nr {
-                NodeRef::Single(s) => s == "begin",
-                NodeRef::Any(set) => set.contains("begin"),
+                NodeRef::Single(s) => s == BEGIN_KEYWORD,
+                NodeRef::Any(set) => set.contains(BEGIN_KEYWORD),
                 NodeRef::All(_) => false, // begin in All doesn't apply to Begin caused-by
             });
             if begin_allowed {
@@ -511,9 +526,9 @@ pub fn verify_causal<S: MessageStore>(
             } else {
                 let expected = allowed_single_predecessors(step);
                 VerificationResult::Violation(CausalViolation::InvalidPredecessor {
-                    caused_by: "begin".into(),
+                    caused_by: BEGIN_KEYWORD.into(),
                     expected,
-                    found: "begin".into(),
+                    found: BEGIN_KEYWORD.into(),
                 })
             }
         }
@@ -620,6 +635,22 @@ pub fn verify_causal<S: MessageStore>(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // ================================================================
+    // SPEC-005 NFR-512 / Verify.lean parity tripwire
+    // ================================================================
+
+    /// Tripwire: the reserved-keyword vocabulary recognised by
+    /// `verify_causal` is the singleton `{BEGIN_KEYWORD}`. Adding a second
+    /// reserved keyword (e.g. `"end"`, `"fork"`) without extending
+    /// `LeanCbcl/Verify.lean::CausalProtocol` to match would silently
+    /// break the Lean ↔ Rust parity that REQ-512..514 depend on. If this
+    /// test starts failing, the right response is an ADR amendment to
+    /// SPEC-005 §"Open Questions" §1, not a quick patch.
+    #[test]
+    fn test_reserved_keyword_vocabulary_is_singleton() {
+        assert_eq!(BEGIN_KEYWORD, "begin");
+    }
 
     fn violation() -> VerificationResult {
         VerificationResult::Violation(CausalViolation::MissingCausedBy)
@@ -1023,10 +1054,7 @@ mod tests {
             StepDecl {
                 performative: "begin".into(),
                 predecessors: vec![],
-                successors: vec![
-                    NodeRef::Single("a".into()),
-                    NodeRef::Single("b".into()),
-                ],
+                successors: vec![NodeRef::Single("a".into()), NodeRef::Single("b".into())],
             },
         );
         steps.insert(
@@ -1129,10 +1157,7 @@ mod tests {
             StepDecl {
                 performative: "begin".into(),
                 predecessors: vec![],
-                successors: vec![
-                    NodeRef::Single("a".into()),
-                    NodeRef::Single("a".into()),
-                ],
+                successors: vec![NodeRef::Single("a".into()), NodeRef::Single("a".into())],
             },
         );
         steps.insert(
@@ -1160,8 +1185,31 @@ mod tests {
     }
 
     #[test]
-    fn test_step_uniqueness_distinct_edges_pass() {
-        // `(then begin a) (then x a)` — fan-in, NOT a duplicate.
+    fn test_step_uniqueness_accepts_distinct_alternatives() {
+        // `(then begin a) (then b a)` — two clauses target `a` with
+        // *different* predecessors. `verify_causal` treats the resulting
+        // `[Single("begin"), Single("b")]` as the alternation `begin ∨ b`
+        // (see `allowed_single_predecessors`), so this protocol shape is
+        // valid and must pass R5. Only literal duplicates among the
+        // predecessor entries should be flagged.
+        let mut steps = BTreeMap::new();
+        steps.insert(
+            "a".into(),
+            StepDecl {
+                performative: "a".into(),
+                predecessors: vec![NodeRef::Single("begin".into()), NodeRef::Single("b".into())],
+                successors: vec![],
+            },
+        );
+        let proto = CausalProtocol { steps };
+        assert!(proto.check_step_uniqueness().is_empty());
+    }
+
+    #[test]
+    fn test_step_uniqueness_rejects_literal_duplicate_predecessor() {
+        // Same `NodeRef` entered twice — e.g. `(then begin a)` written
+        // twice — collapses to `[Single("begin"), Single("begin")]` and
+        // is an authoring error, not an alternation. Must be flagged.
         let mut steps = BTreeMap::new();
         steps.insert(
             "a".into(),
@@ -1169,8 +1217,54 @@ mod tests {
                 performative: "a".into(),
                 predecessors: vec![
                     NodeRef::Single("begin".into()),
-                    NodeRef::Single("x".into()),
+                    NodeRef::Single("begin".into()),
                 ],
+                successors: vec![],
+            },
+        );
+        let proto = CausalProtocol { steps };
+        assert!(proto
+            .check_step_uniqueness()
+            .iter()
+            .any(|v| matches!(v, ProtocolViolation::DuplicateStep { name } if name == "a")));
+    }
+
+    #[test]
+    fn test_step_uniqueness_rejects_literal_duplicate_successor() {
+        // Defence-in-depth (see protocol.rs `has_duplicate` rationale at the
+        // method docstring): the successor side of `(then …)` is symmetric
+        // with the predecessor side; a literal `NodeRef` repeated in the
+        // successors list is an authoring error, not an alternation, and
+        // must be flagged. This covers the symmetric case to
+        // `test_step_uniqueness_rejects_literal_duplicate_predecessor`.
+        let mut steps = BTreeMap::new();
+        steps.insert(
+            "a".into(),
+            StepDecl {
+                performative: "a".into(),
+                predecessors: vec![NodeRef::Single("begin".into())],
+                successors: vec![NodeRef::Single("b".into()), NodeRef::Single("b".into())],
+            },
+        );
+        let proto = CausalProtocol { steps };
+        assert!(proto
+            .check_step_uniqueness()
+            .iter()
+            .any(|v| matches!(v, ProtocolViolation::DuplicateStep { name } if name == "a")));
+    }
+
+    #[test]
+    fn test_step_uniqueness_accepts_all_fan_in() {
+        // `(then (all begin x) a)` — single predecessor entry, legitimate fan-in.
+        let mut steps = BTreeMap::new();
+        let mut all_set = BTreeSet::new();
+        all_set.insert("begin".into());
+        all_set.insert("x".into());
+        steps.insert(
+            "a".into(),
+            StepDecl {
+                performative: "a".into(),
+                predecessors: vec![NodeRef::All(all_set)],
                 successors: vec![],
             },
         );
@@ -1244,14 +1338,10 @@ mod tests {
         };
         assert!(v.to_string().contains("unreachable"));
 
-        let v = ProtocolViolation::UndefinedPerformative {
-            name: "foo".into(),
-        };
+        let v = ProtocolViolation::UndefinedPerformative { name: "foo".into() };
         assert!(v.to_string().contains("not defined"));
 
-        let v = ProtocolViolation::DuplicateStep {
-            name: "bar".into(),
-        };
+        let v = ProtocolViolation::DuplicateStep { name: "bar".into() };
         assert!(v.to_string().contains("duplicate"));
     }
 
@@ -1275,7 +1365,7 @@ mod tests {
 
     use crate::message::{Message, Performative};
     use crate::sexpr::{Atom, SExpr};
-    use crate::store::{ContentHash, ThreadId, ThreadedMessageStore, MessageStore};
+    use crate::store::{ContentHash, MessageStore, ThreadId, ThreadedMessageStore};
 
     fn chash(s: &str) -> ContentHash {
         ContentHash(s.into())
@@ -1410,7 +1500,13 @@ mod tests {
         // Put an "a" message in the store
         store.append(chash("h1"), t.clone(), make_msg("a", Some(CausedBy::Begin)));
         // "b" requires predecessor "a" — h1 is "a" → Valid
-        let result = verify_causal("b", Some(&CausedBy::Single("h1".into())), &store, &proto, &t);
+        let result = verify_causal(
+            "b",
+            Some(&CausedBy::Single("h1".into())),
+            &store,
+            &proto,
+            &t,
+        );
         assert_eq!(result, VerificationResult::Valid);
     }
 
@@ -1437,7 +1533,13 @@ mod tests {
         // Put a "c" message in the store
         store.append(chash("h1"), t.clone(), make_msg("c", Some(CausedBy::Begin)));
         // "b" requires predecessor "a", but h1 is "c" → Violation
-        let result = verify_causal("b", Some(&CausedBy::Single("h1".into())), &store, &proto, &t);
+        let result = verify_causal(
+            "b",
+            Some(&CausedBy::Single("h1".into())),
+            &store,
+            &proto,
+            &t,
+        );
         assert!(matches!(
             result,
             VerificationResult::Violation(CausalViolation::InvalidPredecessor {
@@ -1498,7 +1600,13 @@ mod tests {
         let proto = verification_protocol();
         let store = ThreadedMessageStore::new();
         let t = tid("t1");
-        let result = verify_causal("not-in-protocol", Some(&CausedBy::Begin), &store, &proto, &t);
+        let result = verify_causal(
+            "not-in-protocol",
+            Some(&CausedBy::Begin),
+            &store,
+            &proto,
+            &t,
+        );
         assert_eq!(result, VerificationResult::Valid);
     }
 
@@ -1545,7 +1653,11 @@ mod tests {
         let t = tid("t1");
         store.append(chash("hx"), t.clone(), make_msg("x", Some(CausedBy::Begin)));
         // "wrong" is not in the (all x y) set
-        store.append(chash("hw"), t.clone(), make_msg("wrong", Some(CausedBy::Begin)));
+        store.append(
+            chash("hw"),
+            t.clone(),
+            make_msg("wrong", Some(CausedBy::Begin)),
+        );
         let result = verify_causal(
             "z",
             Some(&CausedBy::Multiple(alloc::vec!["hx".into(), "hw".into()])),
@@ -1565,8 +1677,16 @@ mod tests {
         let mut store = ThreadedMessageStore::new();
         let t = tid("t1");
         // Only one "x" message, but (all x y) requires both x and y types
-        store.append(chash("hx1"), t.clone(), make_msg("x", Some(CausedBy::Begin)));
-        store.append(chash("hx2"), t.clone(), make_msg("x", Some(CausedBy::Begin)));
+        store.append(
+            chash("hx1"),
+            t.clone(),
+            make_msg("x", Some(CausedBy::Begin)),
+        );
+        store.append(
+            chash("hx2"),
+            t.clone(),
+            make_msg("x", Some(CausedBy::Begin)),
+        );
         let result = verify_causal(
             "z",
             Some(&CausedBy::Multiple(alloc::vec!["hx1".into(), "hx2".into()])),
@@ -1608,14 +1728,26 @@ mod tests {
         let t = tid("t1");
 
         // First check: predecessor not in store → Unknown
-        let r1 = verify_causal("b", Some(&CausedBy::Single("h1".into())), &store, &proto, &t);
+        let r1 = verify_causal(
+            "b",
+            Some(&CausedBy::Single("h1".into())),
+            &store,
+            &proto,
+            &t,
+        );
         assert_eq!(r1, VerificationResult::Unknown);
 
         // Store grows: add the predecessor
         store.append(chash("h1"), t.clone(), make_msg("a", Some(CausedBy::Begin)));
 
         // Re-check: now Valid
-        let r2 = verify_causal("b", Some(&CausedBy::Single("h1".into())), &store, &proto, &t);
+        let r2 = verify_causal(
+            "b",
+            Some(&CausedBy::Single("h1".into())),
+            &store,
+            &proto,
+            &t,
+        );
         assert_eq!(r2, VerificationResult::Valid);
     }
 
@@ -1626,14 +1758,26 @@ mod tests {
         let t = tid("t1");
 
         // First check: predecessor not in store → Unknown
-        let r1 = verify_causal("b", Some(&CausedBy::Single("h1".into())), &store, &proto, &t);
+        let r1 = verify_causal(
+            "b",
+            Some(&CausedBy::Single("h1".into())),
+            &store,
+            &proto,
+            &t,
+        );
         assert_eq!(r1, VerificationResult::Unknown);
 
         // Store grows: add predecessor with wrong type
         store.append(chash("h1"), t.clone(), make_msg("c", Some(CausedBy::Begin)));
 
         // Re-check: now Violation
-        let r2 = verify_causal("b", Some(&CausedBy::Single("h1".into())), &store, &proto, &t);
+        let r2 = verify_causal(
+            "b",
+            Some(&CausedBy::Single("h1".into())),
+            &store,
+            &proto,
+            &t,
+        );
         assert!(matches!(r2, VerificationResult::Violation(_)));
     }
 
@@ -1659,12 +1803,24 @@ mod tests {
 
         // Predecessor is "x" — matches (any x y) → Valid
         store.append(chash("hx"), t.clone(), make_msg("x", Some(CausedBy::Begin)));
-        let r = verify_causal("z", Some(&CausedBy::Single("hx".into())), &store, &proto, &t);
+        let r = verify_causal(
+            "z",
+            Some(&CausedBy::Single("hx".into())),
+            &store,
+            &proto,
+            &t,
+        );
         assert_eq!(r, VerificationResult::Valid);
 
         // Predecessor is "y" — also matches
         store.append(chash("hy"), t.clone(), make_msg("y", Some(CausedBy::Begin)));
-        let r = verify_causal("z", Some(&CausedBy::Single("hy".into())), &store, &proto, &t);
+        let r = verify_causal(
+            "z",
+            Some(&CausedBy::Single("hy".into())),
+            &store,
+            &proto,
+            &t,
+        );
         assert_eq!(r, VerificationResult::Valid);
     }
 
@@ -1708,8 +1864,20 @@ mod tests {
         let t = tid("t1");
         store.append(chash("h1"), t.clone(), make_msg("a", Some(CausedBy::Begin)));
 
-        let r1 = verify_causal("b", Some(&CausedBy::Single("h1".into())), &store, &proto, &t);
-        let r2 = verify_causal("b", Some(&CausedBy::Single("h1".into())), &store, &proto, &t);
+        let r1 = verify_causal(
+            "b",
+            Some(&CausedBy::Single("h1".into())),
+            &store,
+            &proto,
+            &t,
+        );
+        let r2 = verify_causal(
+            "b",
+            Some(&CausedBy::Single("h1".into())),
+            &store,
+            &proto,
+            &t,
+        );
         assert_eq!(r1, r2);
     }
 }

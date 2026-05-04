@@ -39,7 +39,9 @@ impl fmt::Display for ProtocolParseError {
         match self {
             Self::NotAList => write!(f, "protocol declaration must be a list"),
             Self::NotProtocol => write!(f, "expected 'protocol' keyword"),
-            Self::NoThenClauses => write!(f, "protocol must contain at least one (then ...) clause"),
+            Self::NoThenClauses => {
+                write!(f, "protocol must contain at least one (then ...) clause")
+            }
             Self::ThenTooFew => write!(f, "(then ...) requires at least 2 node-refs"),
             Self::ExpectedThen { found } => {
                 write!(f, "expected (then ...) clause, found: {found}")
@@ -77,24 +79,20 @@ pub fn parse_protocol(sexpr: &SExpr) -> Result<CausalProtocol, ProtocolParseErro
         for (pred, succ) in edges {
             // For each performative in the predecessor, record the successor.
             for p in pred.performatives() {
-                let step = steps
-                    .entry(p.into())
-                    .or_insert_with(|| StepDecl {
-                        performative: p.into(),
-                        predecessors: Vec::new(),
-                        successors: Vec::new(),
-                    });
+                let step = steps.entry(p.into()).or_insert_with(|| StepDecl {
+                    performative: p.into(),
+                    predecessors: Vec::new(),
+                    successors: Vec::new(),
+                });
                 step.successors.push(succ.clone());
             }
             // For each performative in the successor, record the predecessor.
             for s in succ.performatives() {
-                let step = steps
-                    .entry(s.into())
-                    .or_insert_with(|| StepDecl {
-                        performative: s.into(),
-                        predecessors: Vec::new(),
-                        successors: Vec::new(),
-                    });
+                let step = steps.entry(s.into()).or_insert_with(|| StepDecl {
+                    performative: s.into(),
+                    predecessors: Vec::new(),
+                    successors: Vec::new(),
+                });
                 step.predecessors.push(pred.clone());
             }
         }
@@ -137,7 +135,10 @@ fn parse_then_clause(sexpr: &SExpr) -> Result<Vec<(NodeRef, NodeRef)>, ProtocolP
     }
 
     // Desugar variadic to pairwise edges.
-    let edges = refs.windows(2).map(|w| (w[0].clone(), w[1].clone())).collect();
+    let edges = refs
+        .windows(2)
+        .map(|w| (w[0].clone(), w[1].clone()))
+        .collect();
     Ok(edges)
 }
 
@@ -159,9 +160,7 @@ fn parse_node_ref(sexpr: &SExpr) -> Result<NodeRef, ProtocolParseError> {
                 "any" | "all" => {
                     let kind = head.to_string();
                     if items.len() < 3 {
-                        return Err(ProtocolParseError::GroupTooFew {
-                            kind: kind.clone(),
-                        });
+                        return Err(ProtocolParseError::GroupTooFew { kind: kind.clone() });
                     }
                     let mut set = BTreeSet::new();
                     for item in &items[1..] {
@@ -233,9 +232,15 @@ mod tests {
         assert!(proto.steps.contains_key("begin"));
         assert!(proto.steps.contains_key("resume"));
         assert_eq!(proto.steps["begin"].successors.len(), 1);
-        assert_eq!(proto.steps["begin"].successors[0], NodeRef::Single("pause".into()));
+        assert_eq!(
+            proto.steps["begin"].successors[0],
+            NodeRef::Single("pause".into())
+        );
         assert_eq!(proto.steps["pause"].predecessors.len(), 1);
-        assert_eq!(proto.steps["pause"].predecessors[0], NodeRef::Single("begin".into()));
+        assert_eq!(
+            proto.steps["pause"].predecessors[0],
+            NodeRef::Single("begin".into())
+        );
         assert_eq!(proto.steps["resume"].predecessors.len(), 1);
         assert!(proto.steps["resume"].successors.is_empty());
     }
@@ -276,9 +281,14 @@ mod tests {
 
         // begin has one successor: (any read write close)
         assert_eq!(proto.steps["begin"].successors.len(), 1);
-        let expected_any: BTreeSet<String> =
-            ["read", "write", "close"].iter().map(|s| String::from(*s)).collect();
-        assert_eq!(proto.steps["begin"].successors[0], NodeRef::Any(expected_any));
+        let expected_any: BTreeSet<String> = ["read", "write", "close"]
+            .iter()
+            .map(|s| String::from(*s))
+            .collect();
+        assert_eq!(
+            proto.steps["begin"].successors[0],
+            NodeRef::Any(expected_any)
+        );
     }
 
     // ================================================================
@@ -407,30 +417,48 @@ mod tests {
 
     #[test]
     fn reject_non_list() {
-        assert_eq!(parse_protocol(&sym("protocol")).unwrap_err(), ProtocolParseError::NotAList);
+        assert_eq!(
+            parse_protocol(&sym("protocol")).unwrap_err(),
+            ProtocolParseError::NotAList
+        );
     }
 
     #[test]
     fn reject_not_protocol() {
-        let sexpr = list(vec![sym("not-protocol"), list(vec![sym("then"), sym("a"), sym("b")])]);
-        assert_eq!(parse_protocol(&sexpr).unwrap_err(), ProtocolParseError::NotProtocol);
+        let sexpr = list(vec![
+            sym("not-protocol"),
+            list(vec![sym("then"), sym("a"), sym("b")]),
+        ]);
+        assert_eq!(
+            parse_protocol(&sexpr).unwrap_err(),
+            ProtocolParseError::NotProtocol
+        );
     }
 
     #[test]
     fn reject_empty_protocol() {
         let sexpr = list(vec![sym("protocol")]);
-        assert_eq!(parse_protocol(&sexpr).unwrap_err(), ProtocolParseError::NoThenClauses);
+        assert_eq!(
+            parse_protocol(&sexpr).unwrap_err(),
+            ProtocolParseError::NoThenClauses
+        );
     }
 
     #[test]
     fn reject_then_too_few() {
         let sexpr = list(vec![sym("protocol"), list(vec![sym("then"), sym("a")])]);
-        assert_eq!(parse_protocol(&sexpr).unwrap_err(), ProtocolParseError::ThenTooFew);
+        assert_eq!(
+            parse_protocol(&sexpr).unwrap_err(),
+            ProtocolParseError::ThenTooFew
+        );
     }
 
     #[test]
     fn reject_non_then_clause() {
-        let sexpr = list(vec![sym("protocol"), list(vec![sym("not-then"), sym("a"), sym("b")])]);
+        let sexpr = list(vec![
+            sym("protocol"),
+            list(vec![sym("not-then"), sym("a"), sym("b")]),
+        ]);
         assert!(matches!(
             parse_protocol(&sexpr).unwrap_err(),
             ProtocolParseError::ExpectedThen { .. }
@@ -441,7 +469,11 @@ mod tests {
     fn reject_any_too_few() {
         let sexpr = list(vec![
             sym("protocol"),
-            list(vec![sym("then"), list(vec![sym("any"), sym("a")]), sym("b")]),
+            list(vec![
+                sym("then"),
+                list(vec![sym("any"), sym("a")]),
+                sym("b"),
+            ]),
         ]);
         assert!(matches!(
             parse_protocol(&sexpr).unwrap_err(),
@@ -453,7 +485,11 @@ mod tests {
     fn reject_all_too_few() {
         let sexpr = list(vec![
             sym("protocol"),
-            list(vec![sym("then"), list(vec![sym("all"), sym("a")]), sym("b")]),
+            list(vec![
+                sym("then"),
+                list(vec![sym("all"), sym("a")]),
+                sym("b"),
+            ]),
         ]);
         assert!(matches!(
             parse_protocol(&sexpr).unwrap_err(),

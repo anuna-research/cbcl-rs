@@ -92,7 +92,11 @@ fn git_revision() -> Option<String> {
         return None;
     }
     let sha = String::from_utf8(output.stdout).ok()?.trim().to_string();
-    if sha.is_empty() { None } else { Some(sha) }
+    if sha.is_empty() {
+        None
+    } else {
+        Some(sha)
+    }
 }
 
 /// Parse `.git/HEAD` and return the ref path it points at, e.g.

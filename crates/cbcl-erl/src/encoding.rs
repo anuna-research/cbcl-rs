@@ -297,10 +297,7 @@ pub(crate) fn encode_message<'a>(env: Env<'a>, m: &Message) -> NifResult<Term<'a
         Message::Meta { dialect_def } => {
             let type_term = meta_atom(env).to_term(env);
             let def_term = encode_sexpr(env, dialect_def);
-            make_map(
-                env,
-                &[("type", type_term), ("dialect_def", def_term)],
-            )
+            make_map(env, &[("type", type_term), ("dialect_def", def_term)])
         }
     }
 }
@@ -317,7 +314,15 @@ fn encode_simple<'a>(env: Env<'a>, m: &Message) -> NifResult<Term<'a>> {
             thread,
             sender,
             caused_by,
-        } => (performative, recipient, content, params, thread, sender, caused_by),
+        } => (
+            performative,
+            recipient,
+            content,
+            params,
+            thread,
+            sender,
+            caused_by,
+        ),
         _ => unreachable!("encode_simple invoked on non-Simple variant"),
     };
 
@@ -430,8 +435,7 @@ fn encode_params<'a>(env: Env<'a>, params: &[SExpr]) -> NifResult<Term<'a>> {
     }
     let kw_map = Term::map_from_term_arrays(env, &kw_keys, &kw_values)?;
 
-    let pos_terms: Vec<Term<'a>> =
-        pos_entries.iter().map(|e| encode_sexpr(env, e)).collect();
+    let pos_terms: Vec<Term<'a>> = pos_entries.iter().map(|e| encode_sexpr(env, e)).collect();
     let pos_list = pos_terms.encode(env);
 
     make_map(env, &[("keyword", kw_map), ("positional", pos_list)])
@@ -646,10 +650,11 @@ mod tests {
     fn caused_by_variants_distinguishable() {
         let none: Option<&CausedBy> = None;
         assert!(none.is_none());
-        assert!(matches!(Some(CausedBy::Begin).as_ref(), Some(CausedBy::Begin)));
-        if let Some(CausedBy::Single(h)) =
-            Some(CausedBy::Single("sha256:abc".into())).as_ref()
-        {
+        assert!(matches!(
+            Some(CausedBy::Begin).as_ref(),
+            Some(CausedBy::Begin)
+        ));
+        if let Some(CausedBy::Single(h)) = Some(CausedBy::Single("sha256:abc".into())).as_ref() {
             assert_eq!(h, "sha256:abc");
         } else {
             panic!("expected Single");
@@ -922,7 +927,9 @@ mod tests {
             let keyword_map = params.map_get(kw_key).expect("keyword submap present");
             assert!(keyword_map.is_map());
             let bin_key = "from".encode(env);
-            let v = keyword_map.map_get(bin_key).expect("binary key <<\"from\">>");
+            let v = keyword_map
+                .map_get(bin_key)
+                .expect("binary key <<\"from\">>");
             // value is {symbol, <<"@alice">>}
             let (tag, name): (ErlAtom, String) = v.decode().expect("tagged tuple");
             assert_eq!(tag.to_term(env).atom_to_string().unwrap(), "symbol");
@@ -970,7 +977,10 @@ mod tests {
 
             let dialect_key = ErlAtom::from_str(env, "dialect").unwrap().to_term(env);
             let name = t.map_get(dialect_key).unwrap();
-            assert!(name.is_binary(), "dialect name must be a binary, not an atom");
+            assert!(
+                name.is_binary(),
+                "dialect name must be a binary, not an atom"
+            );
             let s: String = name.decode().expect("binary->String");
             assert_eq!(s, "logistics");
 
@@ -1004,8 +1014,7 @@ mod tests {
             let v: Vec<Term> = def.decode().expect("list");
             assert_eq!(v.len(), 2);
             // First element: {symbol, <<"define">>}
-            let (tag, name): (ErlAtom, String) =
-                v[0].decode().expect("tagged tuple");
+            let (tag, name): (ErlAtom, String) = v[0].decode().expect("tagged tuple");
             assert_eq!(tag.to_term(env).atom_to_string().unwrap(), "symbol");
             assert_eq!(name, "define");
         });
@@ -1101,8 +1110,7 @@ mod tests {
                     content: Box::new(leaf.clone()),
                 };
                 let t = encode_message(env, &m).expect("encode ok");
-                let wrapper_key =
-                    ErlAtom::from_str(env, "wrapper").unwrap().to_term(env);
+                let wrapper_key = ErlAtom::from_str(env, "wrapper").unwrap().to_term(env);
                 let wrapper = t.map_get(wrapper_key).unwrap();
                 assert!(wrapper.is_atom());
                 assert_eq!(wrapper.atom_to_string().unwrap(), name);
@@ -1192,12 +1200,7 @@ mod tests {
                 performative: Performative::Custom("propose-step".into()),
                 recipient: Some("@bob".into()),
                 content: str_e("payload"),
-                params: vec![
-                    str_e("step1"),
-                    kw("priority"),
-                    sym("high"),
-                    str_e("step2"),
-                ],
+                params: vec![str_e("step1"), kw("priority"), sym("high"), str_e("step2")],
                 thread: None,
                 sender: None,
                 caused_by: None,
@@ -1211,8 +1214,7 @@ mod tests {
             let priority_v = keyword_map
                 .map_get("priority".encode(env))
                 .expect("priority key present");
-            let (tag, name): (ErlAtom, String) =
-                priority_v.decode().expect("tagged symbol tuple");
+            let (tag, name): (ErlAtom, String) = priority_v.decode().expect("tagged symbol tuple");
             assert_eq!(tag.to_term(env).atom_to_string().unwrap(), "symbol");
             assert_eq!(name, "high");
 

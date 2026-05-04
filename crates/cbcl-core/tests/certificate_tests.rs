@@ -58,11 +58,7 @@ fn compute_hash(msg: &Message) -> ContentHash {
 /// Hex-encode bytes (no external dep needed beyond sha2).
 mod hex {
     pub fn encode(bytes: impl AsRef<[u8]>) -> String {
-        bytes
-            .as_ref()
-            .iter()
-            .map(|b| format!("{b:02x}"))
-            .collect()
+        bytes.as_ref().iter().map(|b| format!("{b:02x}")).collect()
     }
 }
 
@@ -79,10 +75,7 @@ fn build_linear_chain(n: usize) -> (ThreadedMessageStore, Vec<ContentHash>) {
 
     for i in 1..n {
         let prev = &hashes[i - 1];
-        let msg = simple_msg(
-            &format!("step-{i}"),
-            Some(CausedBy::Single(prev.0.clone())),
-        );
+        let msg = simple_msg(&format!("step-{i}"), Some(CausedBy::Single(prev.0.clone())));
         let h = compute_hash(&msg);
         store.append(h.clone(), tid.clone(), msg);
         hashes.push(h);
@@ -158,7 +151,10 @@ fn modifying_interior_message_propagates_hash_change() {
         Some(CausedBy::Single(root_b_hash.0.clone())),
     );
     let mid_b_hash = compute_hash(&mid_b);
-    assert_ne!(mid_a_hash, mid_b_hash, "mid hash must change when root hash changes");
+    assert_ne!(
+        mid_a_hash, mid_b_hash,
+        "mid hash must change when root hash changes"
+    );
 
     // tip now points to the new mid hash
     let tip_b = simple_msg_with_content(
@@ -195,16 +191,10 @@ fn causal_closure_differs_after_content_modification() {
     let root = simple_msg_with_content("root", "original", Some(CausedBy::Begin));
     let root_hash = compute_hash(&root);
 
-    let mid = simple_msg(
-        "mid",
-        Some(CausedBy::Single(root_hash.0.clone())),
-    );
+    let mid = simple_msg("mid", Some(CausedBy::Single(root_hash.0.clone())));
     let mid_hash = compute_hash(&mid);
 
-    let tip = simple_msg(
-        "tip",
-        Some(CausedBy::Single(mid_hash.0.clone())),
-    );
+    let tip = simple_msg("tip", Some(CausedBy::Single(mid_hash.0.clone())));
     let tip_hash = compute_hash(&tip);
 
     let mut store_a = ThreadedMessageStore::new();
@@ -219,16 +209,10 @@ fn causal_closure_differs_after_content_modification() {
     let root2 = simple_msg_with_content("root", "TAMPERED", Some(CausedBy::Begin));
     let root2_hash = compute_hash(&root2);
 
-    let mid2 = simple_msg(
-        "mid",
-        Some(CausedBy::Single(root2_hash.0.clone())),
-    );
+    let mid2 = simple_msg("mid", Some(CausedBy::Single(root2_hash.0.clone())));
     let mid2_hash = compute_hash(&mid2);
 
-    let tip2 = simple_msg(
-        "tip",
-        Some(CausedBy::Single(mid2_hash.0.clone())),
-    );
+    let tip2 = simple_msg("tip", Some(CausedBy::Single(mid2_hash.0.clone())));
     let tip2_hash = compute_hash(&tip2);
 
     let mut store_b = ThreadedMessageStore::new();
@@ -344,16 +328,10 @@ fn bundle_verify_hashes_fails_with_wrong_hasher() {
 fn caused_by_multiple_sorted_order_is_deterministic() {
     let hashes_sorted = vec!["aaa".to_string(), "bbb".to_string(), "ccc".to_string()];
 
-    let msg_a = simple_msg(
-        "join",
-        Some(CausedBy::Multiple(hashes_sorted.clone())),
-    );
+    let msg_a = simple_msg("join", Some(CausedBy::Multiple(hashes_sorted.clone())));
 
     // Construct again independently with same sorted order
-    let msg_b = simple_msg(
-        "join",
-        Some(CausedBy::Multiple(hashes_sorted)),
-    );
+    let msg_b = simple_msg("join", Some(CausedBy::Multiple(hashes_sorted)));
 
     assert_eq!(
         compute_hash(&msg_a),

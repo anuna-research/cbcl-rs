@@ -6,9 +6,7 @@ use cbcl_core::gossip::{GossipConfig, GossipNetwork, Topology};
 use cbcl_core::message::{CausedBy, CorePerformative, Message, Performative};
 use cbcl_core::msg_tag;
 use cbcl_core::policy::{apply_policy, UnknownPredecessorPolicy};
-use cbcl_core::protocol::{
-    verify_causal, CausalProtocol, NodeRef, StepDecl, VerificationResult,
-};
+use cbcl_core::protocol::{verify_causal, CausalProtocol, NodeRef, StepDecl, VerificationResult};
 use cbcl_core::r1;
 use cbcl_core::r2::{self, ResourceState};
 use cbcl_core::r3;
@@ -51,7 +49,9 @@ fn make_dialect(name: &str, perfs: Vec<PerformativeDef>) -> Dialect {
         examples: vec![],
         signature: None,
         hash: None,
-        protocol: None, causal_protocol: None, shapes: Vec::new(),
+        protocol: None,
+        causal_protocol: None,
+        shapes: Vec::new(),
     }
 }
 
@@ -80,7 +80,9 @@ fn test_dialect(name: &str) -> Dialect {
         examples: Vec::new(),
         signature: None,
         hash: None,
-        protocol: None, causal_protocol: None, shapes: Vec::new(),
+        protocol: None,
+        causal_protocol: None,
+        shapes: Vec::new(),
     }
 }
 
@@ -366,7 +368,9 @@ fn bench_eval(c: &mut Criterion) {
             examples: Vec::new(),
             signature: None,
             hash: None,
-            protocol: None, causal_protocol: None, shapes: Vec::new(),
+            protocol: None,
+            causal_protocol: None,
+            shapes: Vec::new(),
         })
         .unwrap();
 
@@ -687,11 +691,7 @@ fn bench_hash_index(c: &mut Criterion) {
     let mut index = HashIndex::with_capacity(1000);
     let thread = ThreadId(String::from("thread-1"));
     for i in 0..1000 {
-        index.insert(
-            ContentHash(format!("hash-{}", i)),
-            thread.clone(),
-            i,
-        );
+        index.insert(ContentHash(format!("hash-{}", i)), thread.clone(), i);
     }
 
     // Benchmark lookup of an existing key

@@ -133,6 +133,10 @@ Each message is identified by the SHA-256 hash of its canonical serialisation (S
 
 **Rationale:** Making the lattice structure explicit enables algebraic reasoning about verification. The G-Set CRDT structure guarantees convergence without coordination (Shapiro et al. 2011). BloomL (Conway et al. 2012) shows that monotonic functions over lattices are automatically eventually consistent — this is the property we exploit.
 
+verified-by: lean
+
+Mechanised in `lean-cbcl/LeanCbcl/Lattice/Store.lean`: `MessageStore` is modelled as `Set Message`, with `union_assoc` / `union_comm` / `union_idem` discharging the G-Set semilattice axioms and `lookup_monotone` discharging the join-semilattice ordering on `lookup`. `ContentHash` injectivity is recorded as an explicit axiom in the module header (cf. NFR-511 / TEST-551).
+
 Trace:
 - TEST-300
 - CON-300
@@ -155,6 +159,8 @@ Fan-out (multiple messages referencing the same predecessor) produces incomparab
 **Content hashing as identity.** Each message's hash commits to its content, which includes its `:caused-by` hashes, recursively. Therefore M's hash is a cryptographic commitment to its entire **principal ideal** ↓M = {x ∈ M | x ≤ M} — the set of all messages in M's causal closure. Two agents holding the same hash have, by construction, observed at least the same causal history for that message.
 
 **Rationale:** This is not a new data structure — it is the algebraic name for the Merkle DAG that SPEC-002 already defines. Identifying it as a join-semilattice makes three facts obvious: (1) fan-in is join, (2) causal closure is the principal ideal, (3) the hash is a commitment to lattice position. These are exactly the properties SPEC-002 proves ad hoc in REQ-203, REQ-211, and REQ-212.
+
+verified-by: property
 
 Trace:
 - TEST-301
@@ -185,6 +191,8 @@ The lattice ordering is: `Unknown < Valid` and `Unknown < Violation`. `Valid` an
 - If `check(msg, store) = Unknown`, then `check(msg, store ∪ S)` may be `Unknown`, `Valid`, or `Violation`. The result can only move **up** in the lattice (away from ⊥).
 
 This is exactly the definition of a **monotone function** from the store lattice (REQ-300) to the result lattice: if store₁ ⊆ store₂, then `check(msg, store₁) ≤ check(msg, store₂)`.
+
+verified-by: example
 
 Trace:
 - TEST-302
@@ -227,6 +235,10 @@ The partial-disjunction caveat applies only if a future extension allows disjunc
 
 **Rationale:** Meet for conjunction and join for disjunction are the standard lattice operations. The absorbing elements (Violation for meet, Valid for join) correspond to short-circuit evaluation — a known bad predecessor fails the conjunction immediately, a known good predecessor passes the disjunction immediately.
 
+verified-by: lean
+
+Mechanised in `lean-cbcl/LeanCbcl/Lattice/Result.lean`: `result_meet_table` and `result_join_table` reproduce both truth tables verbatim, discharged by exhaustive case analysis on the finite `VerificationResult` carrier; `verify_all_is_meet` in `LeanCbcl/Verify.lean` then ties the meet to fan-in `(all …)`.
+
 Trace:
 - TEST-303
 
@@ -251,6 +263,10 @@ This property SHALL hold for all verification modes:
 **Consequence.** Any composition of verification checks — nested `(all ...)` within `(any ...)`, multiple shape checks, shape + causal — preserves monotonicity automatically. No per-feature monotonicity proof is needed beyond establishing the base case (single-predecessor lookup is monotone) and the compositional closure (meet and join of monotone functions are monotone).
 
 This is the **structural monotonicity guarantee** that replaces SPEC-002's ad-hoc case analysis in REQ-211.
+
+verified-by: lean
+
+Mechanised in `lean-cbcl/LeanCbcl/Verify.lean` as `verify_monotone : S₁ ⊆ S₂ → verify M P S₁ ⊑ verify M P S₂`, with `verify_all_is_meet` discharging the fan-in lattice-homomorphism shape.
 
 Trace:
 - TEST-304
@@ -296,6 +312,8 @@ Constraints:
 
 **Rationale:** The lattice formalization reveals that SPEC-002's `UnknownPredecessor` error conflated two distinct situations: "the predecessor doesn't exist" (timing) and "the predecessor has the wrong type" (violation). Separating them lets agents operating over unordered transports avoid false positives without compromising the detection of genuine violations. The Buffer policy is opt-in and bounded to prevent DoS; the Reject policy preserves SPEC-002's zero-state guarantee.
 
+verified-by: example
+
 Trace:
 - TEST-305
 - CON-302
@@ -318,6 +336,8 @@ Specifically, because a message's hash is computed over its canonical serialisat
 
 **No separate certificate format is needed.** The message itself IS the certificate. The Merkle DAG IS the lattice. The hash IS the position. The deterministic sort makes the position unique.
 
+verified-by: property
+
 Trace:
 - TEST-306
 
@@ -337,12 +357,20 @@ This follows from:
 
 **Convergence.** Two agents that eventually receive the same set of messages will reach the same verification results for every message, regardless of the order of arrival. This is eventual consistency of the verification function, following from its monotonicity and the confluence of the store lattice (Conway et al. 2012).
 
+verified-by: lean
+
+Mechanised in `lean-cbcl/LeanCbcl/Verify.lean` as `verify_eventually_consistent : (verify M P S₁).join (verify M P S₂) ⊑ verify M P (S₁ ∪ S₂)`, derived from `verify_monotone` applied to each side of the union and `join_mono` from the result lattice. **Note on the order.** `⊑` is the "valid-is-sticky" knowledge order from `Lattice/Result.lean` (`a ⊑ b ↔ (a = valid → b = valid)`), not flat equality. The theorem therefore states "if either replica has already verified `valid`, the merged store also verifies `valid`" — a one-sided monotone confluence — rather than "both replicas converge to the same value". The "valid is sticky, unknown/violation are tentative" choice is what makes `meet` and `join` monotone through arbitrary nestings of `(any …)` inside `(all …)`; see the docstring on `VerificationResult.le` for the rationale.
+
 Trace:
 - TEST-307
 
 ### REQ-308: DCFL Preservation
 
 The verification lattice introduces no new parsing capability. `VerificationResult` is an in-memory enum. The three-valued result and the `Unknown` policy are runtime decisions, not grammar extensions. `CausalPending` error messages use the existing CBCL `(error ...)` grammar. DCFL preservation is maintained trivially.
+
+verified-by: lean (placeholder)
+
+Inherited from `lean-cbcl/LeanCbcl/DCFLPreservation.lean` (and shares its caveat — see SPEC-002 REQ-209): the result lattice and `Unknown` policy add no new grammar shape, and the underlying Lean theorems reduce to "the clause is built with `SExpr.list`" rather than a substantive grammar-closure proof.
 
 Trace:
 - TEST-308
@@ -359,6 +387,8 @@ The index SHALL be updated on every append. It SHALL NOT be updated on any other
 
 **Thread scoping.** The hash index SHALL enforce thread isolation (SPEC-002 ADR-008). A lookup for hash H in thread T SHALL NOT return a message from thread T'. This prevents cross-thread `:caused-by` references from passing verification. Implementations MAY use a global index with thread-membership validation, or per-thread indexes — the observable behaviour is the same.
 
+verified-by: example
+
 Trace:
 - TEST-309
 - CON-303
@@ -372,6 +402,8 @@ This is a direct consequence of G-Set CRDT semantics (REQ-300): the join operati
 **Deduplication check.** On append, the implementation SHALL check the hash index (REQ-309) for the incoming message's content hash. If present, the append is skipped. This is O(1) amortised.
 
 **Duplicate delivery is normal.** Over gossip transports (Nostr relays, epidemic dissemination), the same message may be delivered multiple times via different paths. Deduplication ensures that the store's logical state is independent of delivery multiplicity.
+
+verified-by: property
 
 Trace:
 - TEST-310
@@ -411,6 +443,8 @@ The system SHALL support a `(meta (causal-closure ...))` message format for tran
 **Bundle authenticity.** The bundle is as trustworthy as the Merkle DAG itself: any alteration to any message changes its hash, invalidating downstream references. No additional signatures on the bundle are needed — the content addressing provides tamper-evidence. However, the bundle does NOT prove that the included messages are the ONLY messages — an adversary could omit branches. Completeness is verifiable within the bundle (no dangling `:caused-by` references) but not across the full thread without access to other sources.
 
 **Monotonicity.** Merging a causal closure bundle into the store is set union — a monotone operation on the store lattice (REQ-300). Verification results can only improve (Unknown → Valid or Unknown → Violation), never regress.
+
+verified-by: example
 
 Trace:
 - TEST-311
@@ -452,6 +486,8 @@ The system SHALL support a reconciliation protocol for two agents on the same th
 
 **Not a consensus protocol.** Reconciliation produces the union of both agents' stores — it does not resolve conflicts or establish agreement on which messages are "correct." There are no conflicts to resolve: the store is a G-Set (grow-only), and union is the unique merge. Two agents that reconcile will have identical stores and identical verification results for every message (eventual consistency — REQ-307).
 
+verified-by: property
+
 Trace:
 - TEST-312
 - CON-305
@@ -488,6 +524,8 @@ Where:
 
 **Safety property.** Compaction SHALL NOT be performed if any pending message (Buffer policy, REQ-305) has a `:caused-by` reference to a message below the cut. Pending messages must resolve before their predecessors can be compacted.
 
+verified-by: example
+
 Trace:
 - TEST-313
 
@@ -522,6 +560,8 @@ Deduplication on replay (REQ-310) handles partial writes: if the agent crashed m
 **File compaction.** After a frontier checkpoint (REQ-313), the file MAY be rewritten with only retained messages. This is a new file, not an in-place edit — the old file is replaced atomically.
 
 **Persistence is optional.** In-memory-only operation (no file) is valid for ephemeral agents or testing. The monotonicity and correctness guarantees hold regardless of persistence.
+
+verified-by: example
 
 Trace:
 - TEST-314

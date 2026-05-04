@@ -19,20 +19,15 @@ fn fully_populated_shape_error() -> ViolationError {
         found: Some(String::from("number")),
         detail: String::from(":route expected string, found number"),
     };
-    ViolationError::from_shape_violation(
-        &sv,
-        Some(String::from("sha256:msg")),
-        None,
-        None,
-    )
-    .with_recipient("@sender")
-    .with_verifier("@receiver")
-    .with_dialect_context(
-        "logistics",
-        Some("@consortium"),
-        Some("sha256:abc"),
-        Some("track-shipment"),
-    )
+    ViolationError::from_shape_violation(&sv, Some(String::from("sha256:msg")), None, None)
+        .with_recipient("@sender")
+        .with_verifier("@receiver")
+        .with_dialect_context(
+            "logistics",
+            Some("@consortium"),
+            Some("sha256:abc"),
+            Some("track-shipment"),
+        )
 }
 
 fn populated_causal_error() -> ViolationError {
@@ -44,7 +39,12 @@ fn populated_causal_error() -> ViolationError {
     ViolationError::from_causal_violation(&cv, Some(String::from("sha256:msg")), None)
         .with_recipient("@sender")
         .with_verifier("@receiver")
-        .with_dialect_context("compaction", Some("@author"), Some("sha256:def"), Some("ack"))
+        .with_dialect_context(
+            "compaction",
+            Some("@author"),
+            Some("sha256:def"),
+            Some("ack"),
+        )
 }
 
 fn alloc_vec(items: &[&str]) -> Vec<String> {
@@ -120,10 +120,20 @@ fn shape_violation_grammar_positional_structure() {
     // [3..]: keyword/value pairs (and the final :blame-chain list).
     // Walk pairs and confirm every keyword found is in the ABNF set.
     let allowed_keywords: &[&str] = &[
-        "dialect", "dialect-author", "dialect-hash",
-        "performative", "rule", "field", "expected", "found",
-        "detail", "blamed", "verifier",
-        "message-hash", "caused-by", "blame-chain",
+        "dialect",
+        "dialect-author",
+        "dialect-hash",
+        "performative",
+        "rule",
+        "field",
+        "expected",
+        "found",
+        "detail",
+        "blamed",
+        "verifier",
+        "message-hash",
+        "caused-by",
+        "blame-chain",
     ];
     let mut i = 3;
     while i < items.len() {
