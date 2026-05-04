@@ -139,3 +139,40 @@ fn protocol_referencing_undefined_performative_fails_r5() {
         "unexpected 'R5: pass' on failed verify; stdout=\n{stdout}"
     );
 }
+
+// ---------------------------------------------------------------------------
+// R5 + ancestors: a dialect that extends (cbcl) and whose (protocol …) clause
+// references an inherited core performative (e.g. `ok`) must pass — the CLI
+// has to resolve ancestors against a base-seeded registry the same way
+// `DialectRegistry::install` does, otherwise valid dialects are falsely
+// rejected as referencing an undefined performative.
+// ---------------------------------------------------------------------------
+
+#[test]
+fn protocol_referencing_inherited_core_performative_passes_r5() {
+    let dialect = r#"
+(define cbcl-r5-inherited-ok (cbcl) @test-author
+  (:resource-requirements
+    ((max-depth 8)
+     (max-expansion-size 256)
+     (verification-time 20)))
+
+  (extend step-defined (payload)
+    (tell @sink (carry :payload payload) :domain test))
+
+  (protocol
+    (then begin step-defined)
+    (then step-defined ok)))
+"#;
+
+    let (code, stdout, stderr) = run_verify_on_input(dialect);
+    assert_eq!(
+        code, 0,
+        "expected zero exit when protocol references inherited core performative; \
+         stdout=\n{stdout}\nstderr=\n{stderr}"
+    );
+    assert!(
+        stdout.contains("R5: pass"),
+        "missing 'R5: pass' line; stdout=\n{stdout}"
+    );
+}

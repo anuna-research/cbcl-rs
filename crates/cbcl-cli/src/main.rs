@@ -192,9 +192,14 @@ fn cmd_verify(input: Option<String>) -> i32 {
     }
 
     // R5: Causal protocol + shape coherence (vacuous if dialect declares no
-    // (protocol …) and no (shape …) clauses).
-    if !r5::verify_r5(&dialect) {
-        for v in r5::r5_violations(&dialect) {
+    // (protocol …) and no (shape …) clauses). Resolve ancestors against a
+    // base-only registry so protocols referencing inherited core performatives
+    // (e.g. `ok`) are not falsely flagged as undefined — matches the
+    // ancestor-aware path taken by `DialectRegistry::install`.
+    let registry = DialectRegistry::new();
+    let ancestors = registry.resolve_ancestors(&dialect);
+    if !r5::verify_r5_with_ancestors(&dialect, &ancestors) {
+        for v in r5::r5_violations_with_ancestors(&dialect, &ancestors) {
             violations.push(format!("R5: {v}"));
         }
     }

@@ -1,12 +1,18 @@
 name: lean-cbcl
 
-# NFR-510 / NFR-511 / NFR-512 / TEST-518 / TEST-550 / TEST-551 / TEST-552 /
-# OBS-510 / OBS-512:
-#   - run `lake build` to enforce zero errors and zero `sorry` warnings
-#     for any theorem marked `verified-by: lean` (NFR-510 / TEST-550 /
-#     OBS-510);
+# NFR-510 / NFR-511 / NFR-512 / TEST-517 / TEST-518 / TEST-550 / TEST-551 /
+# TEST-552 / OBS-510 / OBS-512:
+#   - run `lake build` and reject any `sorry` warning in its output to
+#     enforce zero errors and zero `sorry` for theorems marked
+#     `verified-by: lean` (NFR-510 / TEST-550 / OBS-510). Lean only emits
+#     a warning (exit 0) when a declaration uses `sorry`, so the explicit
+#     grep is what makes the gate fatal;
 #   - run `scripts/check-axioms.sh` to enforce the NFR-511 axiom
 #     allowlist on every CON-510..516 theorem (TEST-551 / OBS-512);
+#   - run `scripts/check-verified-by.sh` to enforce REQ-517 / TEST-517:
+#     every REQ in SPEC-002 and SPEC-003 must carry a valid
+#     `verified-by:` annotation. Without this step a PR that drops or
+#     mistypes the line would still pass CI;
 #   - run the differential parity tests in
 #     `crates/cbcl-core/tests/lean_parity.rs` so a Rust-side regression
 #     against any REQ-510..516 theorem fails the PR (REQ-518 / TEST-518 /
@@ -14,7 +20,7 @@ name: lean-cbcl
 #
 # Re-run on any change to the Lean tree, the Rust core that the parity
 # tests cross-check, the SPEC docs the proofs depend on, the audit
-# script, or this workflow itself.
+# scripts, or this workflow itself.
 on:
   push:
     branches: [main]
@@ -27,6 +33,7 @@ on:
       - 'specs/SPEC-003-*'
       - 'specs/SPEC-005-*'
       - 'scripts/check-axioms.sh'
+      - 'scripts/check-verified-by.sh'
       - '.forgejo/workflows/lean.yml'
   pull_request:
     paths:
@@ -38,6 +45,7 @@ on:
       - 'specs/SPEC-003-*'
       - 'specs/SPEC-005-*'
       - 'scripts/check-axioms.sh'
+      - 'scripts/check-verified-by.sh'
       - '.forgejo/workflows/lean.yml'
 
 jobs:
@@ -60,10 +68,23 @@ jobs:
 
       - name: lake build (NFR-510 / TEST-550)
         working-directory: lean-cbcl
-        run: lake build
+        # `sorry` only triggers a Lean warning (exit 0), so a freshly
+        # imported theorem containing `sorry` would otherwise slip past
+        # the build. Capture combined output and fail if any line
+        # mentions a declaration using `sorry`.
+        run: |
+          set -o pipefail
+          lake build 2>&1 | tee build.log
+          if grep -E "(declaration uses 'sorry'|uses sorry)" build.log; then
+            echo "FAIL: lake build emitted a sorry warning (NFR-510)" >&2
+            exit 1
+          fi
 
       - name: Axiom audit (NFR-511 / TEST-551 / OBS-512)
         run: scripts/check-axioms.sh
+
+      - name: verified-by lint (REQ-517 / TEST-517)
+        run: scripts/check-verified-by.sh
 
   lean-parity-tests:
     # REQ-518 / TEST-518 / TEST-552 / NFR-512: the Rust-side property tests

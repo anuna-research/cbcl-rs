@@ -293,7 +293,10 @@ impl DialectRegistry {
     /// canonical base dialect name `cbcl-base` since dialect literals
     /// commonly write `(extends cbcl)` while the registry stores the base
     /// under its full name.
-    fn resolve_ancestors<'a>(&'a self, d: &Dialect) -> Vec<&'a Dialect> {
+    ///
+    /// Public so standalone tooling (e.g. `cbcl verify`) can match install-time
+    /// R5 semantics by feeding the result into [`crate::r5::verify_r5_with_ancestors`].
+    pub fn resolve_ancestors<'a>(&'a self, d: &Dialect) -> Vec<&'a Dialect> {
         d.extends
             .iter()
             .filter_map(|name| {
