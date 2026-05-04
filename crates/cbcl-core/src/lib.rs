@@ -81,7 +81,7 @@ pub mod prelude {
     };
     pub use crate::protocol::{
         verify_causal, CausalProtocol, CausalViolation, NodeRef, ProtocolViolation, StepDecl,
-        VerificationResult,
+        VerificationResult, BEGIN_KEYWORD,
     };
     pub use crate::r4::{R4Result, Signer};
     pub use crate::sexpr::{Atom, SExpr};
