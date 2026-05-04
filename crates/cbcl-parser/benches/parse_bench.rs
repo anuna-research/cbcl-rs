@@ -10,15 +10,11 @@ fn bench_parse_atom(c: &mut Criterion) {
     c.bench_function("parse/atom_symbol", |b| {
         b.iter(|| parse(black_box("hello")))
     });
-    c.bench_function("parse/atom_integer", |b| {
-        b.iter(|| parse(black_box("42")))
-    });
+    c.bench_function("parse/atom_integer", |b| b.iter(|| parse(black_box("42"))));
     c.bench_function("parse/atom_string", |b| {
         b.iter(|| parse(black_box("\"hello world\"")))
     });
-    c.bench_function("parse/atom_bool", |b| {
-        b.iter(|| parse(black_box("#t")))
-    });
+    c.bench_function("parse/atom_bool", |b| b.iter(|| parse(black_box("#t"))));
     c.bench_function("parse/atom_keyword", |b| {
         b.iter(|| parse(black_box(":thread")))
     });
@@ -69,37 +65,33 @@ fn bench_parse_message(c: &mut Criterion) {
         b.iter(|| parse_message(black_box(&simple)))
     });
 
-    let ask = parse("(ask @alice \"What is the status?\" :thread \"conv-17\" :timeout 30)").unwrap();
+    let ask =
+        parse("(ask @alice \"What is the status?\" :thread \"conv-17\" :timeout 30)").unwrap();
     c.bench_function("parse_message/ask_with_keywords", |b| {
         b.iter(|| parse_message(black_box(&ask)))
     });
 
-    let meta =
-        parse("(meta (define test-dialect (cbcl) @author))").unwrap();
+    let meta = parse("(meta (define test-dialect (cbcl) @author))").unwrap();
     c.bench_function("parse_message/meta_define", |b| {
         b.iter(|| parse_message(black_box(&meta)))
     });
 
-    let meta_query =
-        parse("(meta (query (speak? cbcl-planning)))").unwrap();
+    let meta_query = parse("(meta (query (speak? cbcl-planning)))").unwrap();
     c.bench_function("parse_message/meta_query", |b| {
         b.iter(|| parse_message(black_box(&meta_query)))
     });
 
-    let dialect_msg =
-        parse("(lang logistics (tell @system \"PKG-123\"))").unwrap();
+    let dialect_msg = parse("(lang logistics (tell @system \"PKG-123\"))").unwrap();
     c.bench_function("parse_message/dialect", |b| {
         b.iter(|| parse_message(black_box(&dialect_msg)))
     });
 
-    let wrapped =
-        parse("(envelope :from @alice :to @bob (tell @bob \"Hello\"))").unwrap();
+    let wrapped = parse("(envelope :from @alice :to @bob (tell @bob \"Hello\"))").unwrap();
     c.bench_function("parse_message/wrapped_envelope", |b| {
         b.iter(|| parse_message(black_box(&wrapped)))
     });
 
-    let signed =
-        parse("(signed \"base64signature\" (tell @bob \"Verified message\"))").unwrap();
+    let signed = parse("(signed \"base64signature\" (tell @bob \"Verified message\"))").unwrap();
     c.bench_function("parse_message/wrapped_signed", |b| {
         b.iter(|| parse_message(black_box(&signed)))
     });
@@ -110,8 +102,7 @@ fn bench_parse_message(c: &mut Criterion) {
 // ---------------------------------------------------------------------------
 
 fn bench_parse_dialect(c: &mut Criterion) {
-    let minimal =
-        parse("(define test-dialect (cbcl) @test-author)").unwrap();
+    let minimal = parse("(define test-dialect (cbcl) @test-author)").unwrap();
     c.bench_function("parse_dialect/minimal", |b| {
         b.iter(|| parse_dialect(black_box(&minimal)))
     });
@@ -227,18 +218,10 @@ fn bench_pipeline(c: &mut Criterion) {
         b.iter(|| pipeline::run_pipeline(black_box("(tell @bob \"hello\")")))
     });
     c.bench_function("pipeline/meta_define", |b| {
-        b.iter(|| {
-            pipeline::run_pipeline(black_box(
-                "(meta (define test-dialect (cbcl) @author))",
-            ))
-        })
+        b.iter(|| pipeline::run_pipeline(black_box("(meta (define test-dialect (cbcl) @author))")))
     });
     c.bench_function("pipeline/meta_query", |b| {
-        b.iter(|| {
-            pipeline::run_pipeline(black_box(
-                "(meta (query (speak? cbcl-planning)))",
-            ))
-        })
+        b.iter(|| pipeline::run_pipeline(black_box("(meta (query (speak? cbcl-planning)))")))
     });
     c.bench_function("pipeline/custom_performative", |b| {
         b.iter(|| {

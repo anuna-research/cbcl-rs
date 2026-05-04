@@ -5,9 +5,7 @@
 //! TEST-351: Buffer memory bounded
 
 use cbcl_core::message::{CorePerformative, Message, Performative};
-use cbcl_core::policy::{
-    apply_policy, PendingReason, PolicyOutcome, UnknownPredecessorPolicy,
-};
+use cbcl_core::policy::{apply_policy, PendingReason, PolicyOutcome, UnknownPredecessorPolicy};
 use cbcl_core::protocol::VerificationResult;
 use cbcl_core::sexpr::{Atom, SExpr};
 use cbcl_core::store::{ContentHash, HashIndex, MessageStore, ThreadId, ThreadedMessageStore};
@@ -26,7 +24,10 @@ fn reject_policy_zero_mutable_state() {
 
     // Unknown -> Pending (no buffer, no allocation)
     let outcome = apply_policy(&VerificationResult::Unknown, &reject);
-    assert_eq!(outcome, PolicyOutcome::Pending(PendingReason::CausalPending));
+    assert_eq!(
+        outcome,
+        PolicyOutcome::Pending(PendingReason::CausalPending)
+    );
 
     // Valid -> Accept
     let outcome = apply_policy(&VerificationResult::Valid, &reject);

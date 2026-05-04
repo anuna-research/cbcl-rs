@@ -146,8 +146,7 @@ mod tests {
     #[test]
     fn simple_message_returns_simple_message() {
         // Strict-equivalent path: a Simple message parses cleanly.
-        let msg = parse_message_lax_pure(b"(tell @bob \"hi\")")
-            .expect("simple tell parses");
+        let msg = parse_message_lax_pure(b"(tell @bob \"hi\")").expect("simple tell parses");
         assert!(
             msg.innermost_simple().is_some(),
             "expected innermost Simple layer"
@@ -161,8 +160,8 @@ mod tests {
         // so lax should likewise accept the Meta variant — the parser
         // produces a Message::Meta which the encoder will surface
         // losslessly. The earlier `LaxResult::Raw` stopgap is gone.
-        let msg = parse_message_lax_pure(b"(meta (define test-d (cbcl) @author))")
-            .expect("meta parses");
+        let msg =
+            parse_message_lax_pure(b"(meta (define test-d (cbcl) @author))").expect("meta parses");
         assert!(
             msg.innermost_simple().is_none(),
             "Meta has no Simple layer (encoder uses the meta map shape)"
@@ -172,8 +171,8 @@ mod tests {
 
     #[test]
     fn parse_error_surfaces_parse_error_prefix() {
-        let err = parse_message_lax_pure(b"(unclosed")
-            .expect_err("unbalanced parens fail to parse");
+        let err =
+            parse_message_lax_pure(b"(unclosed").expect_err("unbalanced parens fail to parse");
         assert!(
             err.starts_with("parse error: "),
             "expected parse error prefix, got: {err}"
@@ -186,8 +185,7 @@ mod tests {
         // `parse_message` rejects. `(meta)` (zero-arg) is the same input
         // the strict module uses for the message-error category test, so
         // both NIFs share a fixture and stay in lockstep on rejection.
-        let err = parse_message_lax_pure(b"(meta)")
-            .expect_err("zero-arg meta fails message parse");
+        let err = parse_message_lax_pure(b"(meta)").expect_err("zero-arg meta fails message parse");
         assert!(
             err.starts_with("message error: "),
             "expected message error prefix, got: {err}"
@@ -196,8 +194,8 @@ mod tests {
 
     #[test]
     fn invalid_utf8_returns_exact_reason() {
-        let err = parse_message_lax_pure(&[0xFFu8, 0xFE])
-            .expect_err("non-utf-8 bytes are rejected");
+        let err =
+            parse_message_lax_pure(&[0xFFu8, 0xFE]).expect_err("non-utf-8 bytes are rejected");
         assert_eq!(err, "invalid utf-8");
     }
 }

@@ -1287,6 +1287,9 @@ mod tests {
         let msg2 = Message::try_from(&sexpr2).unwrap();
         let bytes1 = canonical_encode(&SExpr::from(msg1));
         let bytes2 = canonical_encode(&SExpr::from(msg2));
-        assert_eq!(bytes1, bytes2, "canonical encoding must be deterministic after sorting");
+        assert_eq!(
+            bytes1, bytes2,
+            "canonical encoding must be deterministic after sorting"
+        );
     }
 }

@@ -297,7 +297,11 @@ impl DialectRegistry {
         d.extends
             .iter()
             .filter_map(|name| {
-                let resolved = if name == "cbcl" { "cbcl-base" } else { name.as_str() };
+                let resolved = if name == "cbcl" {
+                    "cbcl-base"
+                } else {
+                    name.as_str()
+                };
                 self.find_by_name(resolved)
             })
             .collect()
@@ -415,7 +419,6 @@ impl Default for DialectRegistry {
         Self::new()
     }
 }
-
 
 impl<'a> IntoIterator for &'a DialectRegistry {
     type Item = &'a Dialect;
@@ -535,7 +538,9 @@ mod tests {
             examples: vec![],
             signature: None,
             hash: None,
-            protocol: Some(String::from("ed25519")), causal_protocol: None, shapes: Vec::new(),
+            protocol: Some(String::from("ed25519")),
+            causal_protocol: None,
+            shapes: Vec::new(),
         };
         reg.install(planning).unwrap();
         assert_eq!(reg.len(), 2);
@@ -565,7 +570,9 @@ mod tests {
                 examples: vec![],
                 signature: None,
                 hash: None,
-                protocol: None, causal_protocol: None, shapes: Vec::new(),
+                protocol: None,
+                causal_protocol: None,
+                shapes: Vec::new(),
             })
             .unwrap();
         }
@@ -594,7 +601,9 @@ mod tests {
             examples: vec![],
             signature: None,
             hash: None,
-            protocol: None, causal_protocol: None, shapes: Vec::new(),
+            protocol: None,
+            causal_protocol: None,
+            shapes: Vec::new(),
         };
         let err = reg.install(bad).unwrap_err();
         match err {
@@ -627,7 +636,9 @@ mod tests {
             examples: vec![],
             signature: None,
             hash: None,
-            protocol: None, causal_protocol: None, shapes: Vec::new(),
+            protocol: None,
+            causal_protocol: None,
+            shapes: Vec::new(),
         };
         let err = reg.install(bad).unwrap_err();
         match err {
@@ -656,7 +667,9 @@ mod tests {
             examples: vec![],
             signature: None,
             hash: None,
-            protocol: None, causal_protocol: None, shapes: Vec::new(),
+            protocol: None,
+            causal_protocol: None,
+            shapes: Vec::new(),
         };
         assert!(matches!(
             reg.install(bad),
@@ -699,7 +712,9 @@ mod tests {
                 examples: vec![],
                 signature: None,
                 hash: None,
-                protocol: Some(String::from("ed25519")), causal_protocol: None, shapes: Vec::new(),
+                protocol: Some(String::from("ed25519")),
+                causal_protocol: None,
+                shapes: Vec::new(),
             })
             .unwrap();
         }
@@ -751,7 +766,9 @@ mod tests {
             examples: vec![],
             signature: None,
             hash: None,
-            protocol: None, causal_protocol: None, shapes: Vec::new(),
+            protocol: None,
+            causal_protocol: None,
+            shapes: Vec::new(),
         };
         let result = reg.install_with_signer(d, &MockSigner).unwrap();
         assert_eq!(result, R4Result::Unsigned);
@@ -774,7 +791,9 @@ mod tests {
             examples: vec![],
             signature: Some(alloc::vec![0xAA, 0xBB]),
             hash: None,
-            protocol: Some(String::from("ed25519")), causal_protocol: None, shapes: Vec::new(),
+            protocol: Some(String::from("ed25519")),
+            causal_protocol: None,
+            shapes: Vec::new(),
         };
         let result = reg.install_with_signer(d, &MockSigner).unwrap();
         assert_eq!(result, R4Result::Valid);
@@ -797,7 +816,9 @@ mod tests {
             examples: vec![],
             signature: Some(alloc::vec![0xFF, 0xFF]),
             hash: None,
-            protocol: Some(String::from("ed25519")), causal_protocol: None, shapes: Vec::new(),
+            protocol: Some(String::from("ed25519")),
+            causal_protocol: None,
+            shapes: Vec::new(),
         };
         let err = reg.install_with_signer(d, &MockSigner).unwrap_err();
         match err {
@@ -831,7 +852,9 @@ mod tests {
             examples: vec![],
             signature: Some(alloc::vec![0xAA, 0xBB]),
             hash: None,
-            protocol: None, causal_protocol: None, shapes: Vec::new(),
+            protocol: None,
+            causal_protocol: None,
+            shapes: Vec::new(),
         };
         let err = reg.install_with_signer(d, &MockSigner).unwrap_err();
         assert!(matches!(err, DialectInstallError::R3Violation { .. }));
@@ -872,16 +895,22 @@ mod tests {
         use crate::protocol::{CausalProtocol, NodeRef, StepDecl};
         use crate::shape::{ShapeConstraint, ShapeRule, TypeConstraint};
         let mut steps = alloc::collections::BTreeMap::new();
-        steps.insert("begin".into(), StepDecl {
-            performative: "begin".into(),
-            predecessors: vec![],
-            successors: vec![NodeRef::Single("greet".into())],
-        });
-        steps.insert("greet".into(), StepDecl {
-            performative: "greet".into(),
-            predecessors: vec![NodeRef::Single("begin".into())],
-            successors: vec![],
-        });
+        steps.insert(
+            "begin".into(),
+            StepDecl {
+                performative: "begin".into(),
+                predecessors: vec![],
+                successors: vec![NodeRef::Single("greet".into())],
+            },
+        );
+        steps.insert(
+            "greet".into(),
+            StepDecl {
+                performative: "greet".into(),
+                predecessors: vec![NodeRef::Single("begin".into())],
+                successors: vec![],
+            },
+        );
         Dialect {
             name: String::from("bound-by-signature"),
             extends: vec![String::from("cbcl")],
@@ -954,15 +983,20 @@ mod tests {
         tampered.signature = Some(sig);
         // Replace the protocol's `greet` step with a different predecessor.
         if let Some(ref mut p) = tampered.causal_protocol {
-            p.steps.insert("greet".into(), StepDecl {
-                performative: "greet".into(),
-                predecessors: vec![NodeRef::Single("ok".into())],
-                successors: vec![],
-            });
+            p.steps.insert(
+                "greet".into(),
+                StepDecl {
+                    performative: "greet".into(),
+                    predecessors: vec![NodeRef::Single("ok".into())],
+                    successors: vec![],
+                },
+            );
         }
 
         let mut reg = DialectRegistry::new();
-        let err = reg.install_with_signer(tampered, &CanonicalSigner).unwrap_err();
+        let err = reg
+            .install_with_signer(tampered, &CanonicalSigner)
+            .unwrap_err();
         assert!(
             matches!(err, DialectInstallError::R4Violation { .. }),
             "expected R4 violation after causal_protocol tamper, got {err:?}"
@@ -988,7 +1022,9 @@ mod tests {
         }
 
         let mut reg = DialectRegistry::new();
-        let err = reg.install_with_signer(tampered, &CanonicalSigner).unwrap_err();
+        let err = reg
+            .install_with_signer(tampered, &CanonicalSigner)
+            .unwrap_err();
         assert!(
             matches!(err, DialectInstallError::R4Violation { .. }),
             "expected R4 violation after shapes tamper, got {err:?}"
@@ -1005,16 +1041,22 @@ mod tests {
         // protocol references the inherited core performative `ok`. Without
         // the alias, install would reject this as undefined.
         let mut steps = alloc::collections::BTreeMap::new();
-        steps.insert("begin".into(), StepDecl {
-            performative: "begin".into(),
-            predecessors: vec![],
-            successors: vec![NodeRef::Single("ok".into())],
-        });
-        steps.insert("ok".into(), StepDecl {
-            performative: "ok".into(),
-            predecessors: vec![NodeRef::Single("begin".into())],
-            successors: vec![],
-        });
+        steps.insert(
+            "begin".into(),
+            StepDecl {
+                performative: "begin".into(),
+                predecessors: vec![],
+                successors: vec![NodeRef::Single("ok".into())],
+            },
+        );
+        steps.insert(
+            "ok".into(),
+            StepDecl {
+                performative: "ok".into(),
+                predecessors: vec![NodeRef::Single("begin".into())],
+                successors: vec![],
+            },
+        );
         let d = Dialect {
             name: String::from("uses-ok"),
             extends: vec![String::from("cbcl")],
@@ -1032,6 +1074,7 @@ mod tests {
             causal_protocol: Some(CausalProtocol { steps }),
             shapes: Vec::new(),
         };
-        reg.install(d).expect("dialect extending cbcl should install");
+        reg.install(d)
+            .expect("dialect extending cbcl should install");
     }
 }

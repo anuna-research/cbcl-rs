@@ -87,17 +87,16 @@ pub fn r5_violations_with_ancestors(d: &Dialect, ancestors: &[&Dialect]) -> Vec<
             if shape_max_depth > d.resources.max_depth {
                 violations.push(alloc::format!(
                     "shape '{}' max-depth {} exceeds dialect R2 bound {}",
-                    shape.performative, shape_max_depth, d.resources.max_depth
+                    shape.performative,
+                    shape_max_depth,
+                    d.resources.max_depth
                 ));
             }
         }
 
         // §5: No duplicate require/optional keywords at the same depth.
         if let Err(msg) = shape.no_duplicate_keywords() {
-            violations.push(alloc::format!(
-                "shape '{}': {}",
-                shape.performative, msg
-            ));
+            violations.push(alloc::format!("shape '{}': {}", shape.performative, msg));
         }
     }
     violations
@@ -322,7 +321,12 @@ mod tests {
         );
         let v = r5_violations(&d);
         // Should have at least: unknown performative, empty keyword, max-depth exceeds bound
-        assert!(v.len() >= 3, "expected >= 3 violations, got {}: {:?}", v.len(), v);
+        assert!(
+            v.len() >= 3,
+            "expected >= 3 violations, got {}: {:?}",
+            v.len(),
+            v
+        );
     }
 
     #[test]
@@ -382,10 +386,7 @@ mod tests {
     use crate::protocol::{CausalProtocol, NodeRef, StepDecl};
     use alloc::collections::BTreeMap;
 
-    fn protocol_dialect(
-        performatives: Vec<&str>,
-        proto: CausalProtocol,
-    ) -> Dialect {
+    fn protocol_dialect(performatives: Vec<&str>, proto: CausalProtocol) -> Dialect {
         Dialect {
             name: String::from("test-dialect"),
             extends: vec![String::from("cbcl")],
@@ -419,21 +420,30 @@ mod tests {
     fn valid_protocol_passes_r5() {
         // begin → a → b (linear, all defined)
         let mut steps = BTreeMap::new();
-        steps.insert("begin".into(), StepDecl {
-            performative: "begin".into(),
-            predecessors: vec![],
-            successors: vec![NodeRef::Single("a".into())],
-        });
-        steps.insert("a".into(), StepDecl {
-            performative: "a".into(),
-            predecessors: vec![NodeRef::Single("begin".into())],
-            successors: vec![NodeRef::Single("b".into())],
-        });
-        steps.insert("b".into(), StepDecl {
-            performative: "b".into(),
-            predecessors: vec![NodeRef::Single("a".into())],
-            successors: vec![],
-        });
+        steps.insert(
+            "begin".into(),
+            StepDecl {
+                performative: "begin".into(),
+                predecessors: vec![],
+                successors: vec![NodeRef::Single("a".into())],
+            },
+        );
+        steps.insert(
+            "a".into(),
+            StepDecl {
+                performative: "a".into(),
+                predecessors: vec![NodeRef::Single("begin".into())],
+                successors: vec![NodeRef::Single("b".into())],
+            },
+        );
+        steps.insert(
+            "b".into(),
+            StepDecl {
+                performative: "b".into(),
+                predecessors: vec![NodeRef::Single("a".into())],
+                successors: vec![],
+            },
+        );
         let proto = CausalProtocol { steps };
         let d = protocol_dialect(vec!["a", "b"], proto);
         assert!(verify_r5(&d));
@@ -443,16 +453,22 @@ mod tests {
     fn cycle_in_protocol_fails_r5() {
         // a → b → a (cycle)
         let mut steps = BTreeMap::new();
-        steps.insert("a".into(), StepDecl {
-            performative: "a".into(),
-            predecessors: vec![NodeRef::Single("b".into())],
-            successors: vec![NodeRef::Single("b".into())],
-        });
-        steps.insert("b".into(), StepDecl {
-            performative: "b".into(),
-            predecessors: vec![NodeRef::Single("a".into())],
-            successors: vec![NodeRef::Single("a".into())],
-        });
+        steps.insert(
+            "a".into(),
+            StepDecl {
+                performative: "a".into(),
+                predecessors: vec![NodeRef::Single("b".into())],
+                successors: vec![NodeRef::Single("b".into())],
+            },
+        );
+        steps.insert(
+            "b".into(),
+            StepDecl {
+                performative: "b".into(),
+                predecessors: vec![NodeRef::Single("a".into())],
+                successors: vec![NodeRef::Single("a".into())],
+            },
+        );
         let proto = CausalProtocol { steps };
         let d = protocol_dialect(vec!["a", "b"], proto);
         assert!(!verify_r5(&d));
@@ -463,21 +479,30 @@ mod tests {
     #[test]
     fn unreachable_step_fails_r5() {
         let mut steps = BTreeMap::new();
-        steps.insert("begin".into(), StepDecl {
-            performative: "begin".into(),
-            predecessors: vec![],
-            successors: vec![NodeRef::Single("a".into())],
-        });
-        steps.insert("a".into(), StepDecl {
-            performative: "a".into(),
-            predecessors: vec![NodeRef::Single("begin".into())],
-            successors: vec![],
-        });
-        steps.insert("orphan".into(), StepDecl {
-            performative: "orphan".into(),
-            predecessors: vec![],
-            successors: vec![],
-        });
+        steps.insert(
+            "begin".into(),
+            StepDecl {
+                performative: "begin".into(),
+                predecessors: vec![],
+                successors: vec![NodeRef::Single("a".into())],
+            },
+        );
+        steps.insert(
+            "a".into(),
+            StepDecl {
+                performative: "a".into(),
+                predecessors: vec![NodeRef::Single("begin".into())],
+                successors: vec![],
+            },
+        );
+        steps.insert(
+            "orphan".into(),
+            StepDecl {
+                performative: "orphan".into(),
+                predecessors: vec![],
+                successors: vec![],
+            },
+        );
         let proto = CausalProtocol { steps };
         let d = protocol_dialect(vec!["a", "orphan"], proto);
         assert!(!verify_r5(&d));
@@ -489,16 +514,22 @@ mod tests {
     fn undefined_performative_fails_r5() {
         // Protocol references "track-ack" but dialect doesn't define it
         let mut steps = BTreeMap::new();
-        steps.insert("begin".into(), StepDecl {
-            performative: "begin".into(),
-            predecessors: vec![],
-            successors: vec![NodeRef::Single("track-ack".into())],
-        });
-        steps.insert("track-ack".into(), StepDecl {
-            performative: "track-ack".into(),
-            predecessors: vec![NodeRef::Single("begin".into())],
-            successors: vec![],
-        });
+        steps.insert(
+            "begin".into(),
+            StepDecl {
+                performative: "begin".into(),
+                predecessors: vec![],
+                successors: vec![NodeRef::Single("track-ack".into())],
+            },
+        );
+        steps.insert(
+            "track-ack".into(),
+            StepDecl {
+                performative: "track-ack".into(),
+                predecessors: vec![NodeRef::Single("begin".into())],
+                successors: vec![],
+            },
+        );
         let proto = CausalProtocol { steps };
         // "track-ack" is not in the performatives list
         let d = protocol_dialect(vec!["something-else"], proto);
@@ -519,21 +550,30 @@ mod tests {
     fn protocol_ref_to_ancestor_performative_passes_with_ancestors() {
         // Dialect defines "ack"; protocol references "ok" inherited from base.
         let mut steps = BTreeMap::new();
-        steps.insert("begin".into(), StepDecl {
-            performative: "begin".into(),
-            predecessors: vec![],
-            successors: vec![NodeRef::Single("ack".into())],
-        });
-        steps.insert("ack".into(), StepDecl {
-            performative: "ack".into(),
-            predecessors: vec![NodeRef::Single("begin".into())],
-            successors: vec![NodeRef::Single("ok".into())],
-        });
-        steps.insert("ok".into(), StepDecl {
-            performative: "ok".into(),
-            predecessors: vec![NodeRef::Single("ack".into())],
-            successors: vec![],
-        });
+        steps.insert(
+            "begin".into(),
+            StepDecl {
+                performative: "begin".into(),
+                predecessors: vec![],
+                successors: vec![NodeRef::Single("ack".into())],
+            },
+        );
+        steps.insert(
+            "ack".into(),
+            StepDecl {
+                performative: "ack".into(),
+                predecessors: vec![NodeRef::Single("begin".into())],
+                successors: vec![NodeRef::Single("ok".into())],
+            },
+        );
+        steps.insert(
+            "ok".into(),
+            StepDecl {
+                performative: "ok".into(),
+                predecessors: vec![NodeRef::Single("ack".into())],
+                successors: vec![],
+            },
+        );
         let proto = CausalProtocol { steps };
         let d = protocol_dialect(vec!["ack"], proto);
 

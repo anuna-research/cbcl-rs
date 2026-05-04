@@ -39,6 +39,7 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 pub mod agent;
 pub mod blame;
 pub mod canonical;
+pub mod clock;
 pub mod dialect;
 pub mod evaluator;
 pub mod gossip;
@@ -54,7 +55,6 @@ pub mod r4;
 pub mod r5;
 pub mod serializer;
 pub mod sexpr;
-pub mod clock;
 pub mod shape;
 pub mod store;
 pub mod template;
@@ -63,9 +63,9 @@ pub mod template;
 pub mod prelude {
     pub use crate::agent::{Agent, AgentOutcome, MergePolicy};
     pub use crate::blame::{BlameEntry, BlameParty, ViolationError, ViolationKind};
-    pub use crate::clock::{Clock, NoClock};
     #[cfg(feature = "std")]
     pub use crate::clock::SystemClock;
+    pub use crate::clock::{Clock, NoClock};
     pub use crate::dialect::{
         Dialect, DialectInstallError, DialectRegistry, PerformativeDef, ResourceBounds,
     };
@@ -75,6 +75,10 @@ pub mod prelude {
         CausedBy, CorePerformative, Message, MessageParseError, MessageType, Performative,
         WrapperType,
     };
+    pub use crate::policy::{
+        apply_policy, DropReason, PendingEntry, PendingQueue, PendingReason, PolicyOutcome,
+        UnknownPredecessorPolicy,
+    };
     pub use crate::protocol::{
         verify_causal, CausalProtocol, CausalViolation, NodeRef, ProtocolViolation, StepDecl,
         VerificationResult,
@@ -82,10 +86,6 @@ pub mod prelude {
     pub use crate::r4::{R4Result, Signer};
     pub use crate::sexpr::{Atom, SExpr};
     pub use crate::shape::{ShapeConstraint, ShapeRule, ShapeViolation, TypeConstraint};
-    pub use crate::policy::{
-        apply_policy, DropReason, PendingEntry, PendingQueue, PendingReason, PolicyOutcome,
-        UnknownPredecessorPolicy,
-    };
     pub use crate::store::{
         BundleVerificationError, CausalClosureBundle, ClosureError, ContentHash, HashIndex,
         MergeResult, MessageStore, ThreadId, ThreadedMessageStore,

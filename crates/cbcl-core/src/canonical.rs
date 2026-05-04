@@ -450,10 +450,7 @@ mod tests {
 
     #[test]
     fn atom_octets_keyword_with_hyphen() {
-        assert_eq!(
-            atom_to_octets(&Atom::Keyword("my-key".into())),
-            b"Kmy-key"
-        );
+        assert_eq!(atom_to_octets(&Atom::Keyword("my-key".into())), b"Kmy-key");
     }
 
     #[test]
@@ -698,7 +695,9 @@ mod tests {
             examples: vec![],
             signature: Some(vec![0xAA]),
             hash: Some(String::from("sha256:abc")),
-            protocol: Some(String::from("ed25519")), causal_protocol: None, shapes: Vec::new(),
+            protocol: Some(String::from("ed25519")),
+            causal_protocol: None,
+            shapes: Vec::new(),
         }
     }
 
@@ -804,7 +803,9 @@ mod tests {
             examples: vec![],
             signature: None,
             hash: None,
-            protocol: None, causal_protocol: None, shapes: Vec::new(),
+            protocol: None,
+            causal_protocol: None,
+            shapes: Vec::new(),
         };
         let bytes = dialect_canonical_bytes(&d);
         assert!(!bytes.is_empty());
@@ -832,7 +833,9 @@ mod tests {
             examples: vec![SExpr::Atom(Atom::Str("example".into()))],
             signature: Some(vec![0xFF]),
             hash: Some(String::from("sha256:xxx")),
-            protocol: Some(String::from("ed25519")), causal_protocol: None, shapes: Vec::new(),
+            protocol: Some(String::from("ed25519")),
+            causal_protocol: None,
+            shapes: Vec::new(),
         };
         let bytes = dialect_canonical_bytes(&d);
         let s = core::str::from_utf8(&bytes).unwrap();
@@ -898,16 +901,22 @@ mod tests {
         use crate::protocol::{CausalProtocol, NodeRef, StepDecl};
         use alloc::collections::BTreeMap;
         let mut steps = BTreeMap::new();
-        steps.insert("begin".into(), StepDecl {
-            performative: "begin".into(),
-            predecessors: vec![],
-            successors: vec![NodeRef::Single("ack".into())],
-        });
-        steps.insert("ack".into(), StepDecl {
-            performative: "ack".into(),
-            predecessors: vec![NodeRef::Single("begin".into())],
-            successors: vec![],
-        });
+        steps.insert(
+            "begin".into(),
+            StepDecl {
+                performative: "begin".into(),
+                predecessors: vec![],
+                successors: vec![NodeRef::Single("ack".into())],
+            },
+        );
+        steps.insert(
+            "ack".into(),
+            StepDecl {
+                performative: "ack".into(),
+                predecessors: vec![NodeRef::Single("begin".into())],
+                successors: vec![],
+            },
+        );
         let mut d = test_dialect("with-protocol");
         d.causal_protocol = Some(CausalProtocol { steps });
         let bytes = dialect_canonical_bytes(&d);
@@ -943,23 +952,32 @@ mod tests {
         use alloc::collections::BTreeMap;
         fn dialect_with_pred(name: &str) -> Dialect {
             let mut steps = BTreeMap::new();
-            steps.insert("begin".into(), StepDecl {
-                performative: "begin".into(),
-                predecessors: vec![],
-                successors: vec![NodeRef::Single("ack".into())],
-            });
-            steps.insert("ack".into(), StepDecl {
-                performative: "ack".into(),
-                predecessors: vec![NodeRef::Single(name.into())],
-                successors: vec![],
-            });
+            steps.insert(
+                "begin".into(),
+                StepDecl {
+                    performative: "begin".into(),
+                    predecessors: vec![],
+                    successors: vec![NodeRef::Single("ack".into())],
+                },
+            );
+            steps.insert(
+                "ack".into(),
+                StepDecl {
+                    performative: "ack".into(),
+                    predecessors: vec![NodeRef::Single(name.into())],
+                    successors: vec![],
+                },
+            );
             let mut d = test_dialect("p");
             d.causal_protocol = Some(CausalProtocol { steps });
             d
         }
         let a = dialect_canonical_bytes(&dialect_with_pred("begin"));
         let b = dialect_canonical_bytes(&dialect_with_pred("other"));
-        assert_ne!(a, b, "mutating a step's predecessor must change canonical bytes");
+        assert_ne!(
+            a, b,
+            "mutating a step's predecessor must change canonical bytes"
+        );
     }
 
     #[test]
@@ -1036,8 +1054,7 @@ mod tests {
         // Snapshot. If this fails the encoding has changed; investigate
         // whether it's deliberate (and bump CANONICAL_FORM_VERSION) or
         // accidental.
-        let expected =
-            "(8:Sdialect7:Qlegacy(8:Sextends5:Qcbcl)(7:Sauthor11:Q@authority)\
+        let expected = "(8:Sdialect7:Qlegacy(8:Sextends5:Qcbcl)(7:Sauthor11:Q@authority)\
              (14:Sperformatives(5:Sperf4:Qact(7:Sparams2:Sx)3:Sdo))\
              (10:Sresources2:N84:N5123:N10)(9:Sexamples))";
         // Strip whitespace from the literal — the actual bytes have none.
@@ -1084,8 +1101,7 @@ mod tests {
         let s = core::str::from_utf8(&bytes).expect("canonical bytes are UTF-8 today");
         // Note: BTreeMap::values() iterates sorted by key, so `act` appears
         // before `begin` despite the insertion order above.
-        let expected =
-            "(8:Sdialect7:Qlegacy(8:Sextends5:Qcbcl)(7:Sauthor11:Q@authority)\
+        let expected = "(8:Sdialect7:Qlegacy(8:Sextends5:Qcbcl)(7:Sauthor11:Q@authority)\
              (14:Sperformatives(5:Sperf4:Qact(7:Sparams2:Sx)3:Sdo))\
              (10:Sresources2:N84:N5123:N10)(9:Sexamples)\
              (16:Scausal-protocol\
@@ -1127,8 +1143,8 @@ mod tests {
         // Each nested keyword/type and the surrounding rule symbols must
         // all be present, exercising the recursive `shape_rule_to_sexpr`.
         for needle in [
-            "shapes", "shape", "require", "params", "list", "step", "string",
-            "optional", "id", "number",
+            "shapes", "shape", "require", "params", "list", "step", "string", "optional", "id",
+            "number",
         ] {
             assert!(
                 s.contains(needle),
@@ -1190,10 +1206,7 @@ mod tests {
     #[test]
     fn test_vector_atom_num_negative_99() {
         // Num(-99) -> octets "N-99" (4 bytes) -> "4:N-99"
-        assert_eq!(
-            canonical_encode(&SExpr::Atom(Atom::Num(-99))),
-            b"4:N-99"
-        );
+        assert_eq!(canonical_encode(&SExpr::Atom(Atom::Num(-99))), b"4:N-99");
     }
 
     #[test]
@@ -1247,9 +1260,6 @@ mod tests {
     #[test]
     fn test_vector_num_zero() {
         // Num(0) -> octets "N0" (2 bytes) -> "2:N0"
-        assert_eq!(
-            canonical_encode(&SExpr::Atom(Atom::Num(0))),
-            b"2:N0"
-        );
+        assert_eq!(canonical_encode(&SExpr::Atom(Atom::Num(0))), b"2:N0");
     }
 }

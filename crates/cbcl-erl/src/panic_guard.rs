@@ -108,8 +108,7 @@ mod tests {
 
     #[test]
     fn payload_owned_string() {
-        let payload: Box<dyn std::any::Any + Send> =
-            Box::new(String::from("owned-string-panic"));
+        let payload: Box<dyn std::any::Any + Send> = Box::new(String::from("owned-string-panic"));
         assert_eq!(panic_payload_to_string(&payload), "owned-string-panic");
     }
 
@@ -118,7 +117,10 @@ mod tests {
         // Anything other than `&'static str` or `String` lands in the
         // catch-all branch.
         let payload: Box<dyn std::any::Any + Send> = Box::new(42_i32);
-        assert_eq!(panic_payload_to_string(&payload), "non-string panic payload");
+        assert_eq!(
+            panic_payload_to_string(&payload),
+            "non-string panic payload"
+        );
     }
 
     #[test]
@@ -145,8 +147,7 @@ mod tests {
     fn catch_pure_traps_non_string_payload() {
         // `panic_any` lets us emit a non-string payload so we hit the
         // fallback branch of `panic_payload_to_string`.
-        let res: Result<(), String> =
-            catch_pure(|| std::panic::panic_any(123_u64));
+        let res: Result<(), String> = catch_pure(|| std::panic::panic_any(123_u64));
         assert_eq!(res, Err(String::from("non-string panic payload")));
     }
 }

@@ -415,11 +415,7 @@ mod tests {
 
     #[test]
     fn reject_require_without_keyword() {
-        let sexpr = list(vec![
-            sym("shape"),
-            sym("test"),
-            list(vec![sym("require")]),
-        ]);
+        let sexpr = list(vec![sym("shape"), sym("test"), list(vec![sym("require")])]);
         assert!(parse_shape(&sexpr).is_err());
     }
 

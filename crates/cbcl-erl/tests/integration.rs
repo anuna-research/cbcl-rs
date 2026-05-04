@@ -22,13 +22,13 @@
 //!   - Round-trip property       → parse → serialize → re-parse → equal.
 
 use cbcl_core::message::Message;
-use cbcl_core::sexpr::SExpr;
 use cbcl_core::serializer;
-use cbcl_erl::{
-    parse_message_lax_pure, parse_message_pure, verify_dialect_pure,
-    CBCL_CORE_VERSION, CBCL_ERL_VERSION, CBCL_RS_GIT_REVISION,
-};
+use cbcl_core::sexpr::SExpr;
 use cbcl_erl::panic_guard::catch_pure;
+use cbcl_erl::{
+    parse_message_lax_pure, parse_message_pure, verify_dialect_pure, CBCL_CORE_VERSION,
+    CBCL_ERL_VERSION, CBCL_RS_GIT_REVISION,
+};
 
 /// Representative strict-Simple inputs (with at least one wrapper and one
 /// caused-by-begin form). Each must round-trip parse → serialize → parse
@@ -77,7 +77,10 @@ fn strict_invalid_utf8_category() {
 fn strict_parse_error_category() {
     let (cat, desc) = parse_message_pure(b"(unclosed").expect_err("parse");
     assert_eq!(cat, "parse error");
-    assert!(!desc.is_empty(), "expected non-empty parse-error description");
+    assert!(
+        !desc.is_empty(),
+        "expected non-empty parse-error description"
+    );
 }
 
 #[test]
@@ -85,15 +88,18 @@ fn strict_message_error_category() {
     // `(meta)` lexes/parses but is rejected by `parse_message`.
     let (cat, desc) = parse_message_pure(b"(meta)").expect_err("message");
     assert_eq!(cat, "message error");
-    assert!(!desc.is_empty(), "expected non-empty message-error description");
+    assert!(
+        !desc.is_empty(),
+        "expected non-empty message-error description"
+    );
 }
 
 #[test]
 fn dialect_error_category() {
     // `verify_dialect_pure` returns the user-facing reason already prefixed,
     // so we assert against the prefix the NIF wrapper would emit verbatim.
-    let reason = verify_dialect_pure(b"(unclosed")
-        .expect_err("unbalanced parens fail dialect parse");
+    let reason =
+        verify_dialect_pure(b"(unclosed").expect_err("unbalanced parens fail dialect parse");
     assert!(
         reason.starts_with("dialect error: "),
         "expected 'dialect error: ' prefix, got: {reason}"
@@ -115,8 +121,7 @@ fn verification_failed_category() {
 
 #[test]
 fn dialect_invalid_utf8_category() {
-    let reason = verify_dialect_pure(&[0xFFu8, 0xFE])
-        .expect_err("non-utf-8 dialect bytes");
+    let reason = verify_dialect_pure(&[0xFFu8, 0xFE]).expect_err("non-utf-8 dialect bytes");
     assert_eq!(reason, "invalid utf-8");
 }
 
@@ -145,8 +150,7 @@ fn catch_pure_traps_owned_string_panic() {
 
 #[test]
 fn catch_pure_traps_non_string_panic() {
-    let res: Result<(), String> =
-        catch_pure(|| std::panic::panic_any(123_u64));
+    let res: Result<(), String> = catch_pure(|| std::panic::panic_any(123_u64));
     assert_eq!(res, Err(String::from("non-string panic payload")));
 }
 
@@ -156,9 +160,18 @@ fn catch_pure_traps_non_string_panic() {
 
 #[test]
 fn version_constants_are_non_empty() {
-    assert!(!CBCL_RS_GIT_REVISION.is_empty(), "git revision must not be empty");
-    assert!(!CBCL_CORE_VERSION.is_empty(), "cbcl-core version must not be empty");
-    assert!(!CBCL_ERL_VERSION.is_empty(), "cbcl-erl version must not be empty");
+    assert!(
+        !CBCL_RS_GIT_REVISION.is_empty(),
+        "git revision must not be empty"
+    );
+    assert!(
+        !CBCL_CORE_VERSION.is_empty(),
+        "cbcl-core version must not be empty"
+    );
+    assert!(
+        !CBCL_ERL_VERSION.is_empty(),
+        "cbcl-erl version must not be empty"
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -193,10 +206,9 @@ fn strict_and_lax_agree_on_simple_messages() {
 fn strict_and_lax_agree_on_meta_messages() {
     let input: &[u8] = b"(meta (define test-d (cbcl) @author))";
 
-    let strict = parse_message_pure(input)
-        .expect("Meta parses cleanly through parse_message_pure");
-    let lax = parse_message_lax_pure(input)
-        .expect("Meta parses cleanly through parse_message_lax_pure");
+    let strict = parse_message_pure(input).expect("Meta parses cleanly through parse_message_pure");
+    let lax =
+        parse_message_lax_pure(input).expect("Meta parses cleanly through parse_message_lax_pure");
 
     assert_eq!(strict, lax, "strict/lax should agree on Meta input");
     assert!(

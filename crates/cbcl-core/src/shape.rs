@@ -215,9 +215,7 @@ fn check_rule(rule: &ShapeRule, sexpr: &SExpr) -> Result<(), ShapeViolation> {
                     field: None,
                     expected: Some(alloc::format!("<= {max}")),
                     found: Some(alloc::format!("{depth}")),
-                    detail: alloc::format!(
-                        "message depth {depth} exceeds max-depth {max}"
-                    ),
+                    detail: alloc::format!("message depth {depth} exceeds max-depth {max}"),
                 })
             } else {
                 Ok(())
@@ -267,9 +265,7 @@ fn check_duplicate_keywords(rules: &[ShapeRule]) -> Result<(), String> {
                 keyword, children, ..
             } => {
                 if !seen.insert(keyword.clone()) {
-                    return Err(alloc::format!(
-                        "duplicate keyword :{keyword} at same depth"
-                    ));
+                    return Err(alloc::format!("duplicate keyword :{keyword} at same depth"));
                 }
                 check_duplicate_keywords(children)?;
             }
@@ -277,9 +273,7 @@ fn check_duplicate_keywords(rules: &[ShapeRule]) -> Result<(), String> {
                 keyword, children, ..
             } => {
                 if !seen.insert(keyword.clone()) {
-                    return Err(alloc::format!(
-                        "duplicate keyword :{keyword} at same depth"
-                    ));
+                    return Err(alloc::format!("duplicate keyword :{keyword} at same depth"));
                 }
                 check_duplicate_keywords(children)?;
             }
@@ -319,11 +313,23 @@ mod tests {
 
     #[test]
     fn type_constraint_from_str() {
-        assert_eq!(TypeConstraint::from_str("string"), Some(TypeConstraint::String));
-        assert_eq!(TypeConstraint::from_str("number"), Some(TypeConstraint::Number));
+        assert_eq!(
+            TypeConstraint::from_str("string"),
+            Some(TypeConstraint::String)
+        );
+        assert_eq!(
+            TypeConstraint::from_str("number"),
+            Some(TypeConstraint::Number)
+        );
         assert_eq!(TypeConstraint::from_str("bool"), Some(TypeConstraint::Bool));
-        assert_eq!(TypeConstraint::from_str("symbol"), Some(TypeConstraint::Symbol));
-        assert_eq!(TypeConstraint::from_str("keyword"), Some(TypeConstraint::Keyword));
+        assert_eq!(
+            TypeConstraint::from_str("symbol"),
+            Some(TypeConstraint::Symbol)
+        );
+        assert_eq!(
+            TypeConstraint::from_str("keyword"),
+            Some(TypeConstraint::Keyword)
+        );
         assert_eq!(TypeConstraint::from_str("list"), Some(TypeConstraint::List));
         assert_eq!(TypeConstraint::from_str("unknown"), None);
     }
@@ -359,7 +365,11 @@ mod tests {
                 children: vec![],
             }],
         };
-        let msg = list(vec![sym("track-shipment"), kw("package"), str_expr("box-1")]);
+        let msg = list(vec![
+            sym("track-shipment"),
+            kw("package"),
+            str_expr("box-1"),
+        ]);
         assert!(shape.check(&msg).is_ok());
     }
 
@@ -444,7 +454,10 @@ mod tests {
             rules: vec![ShapeRule::MaxDepth(1)],
         };
         // depth 2: (test (nested (deep)))
-        let msg = list(vec![sym("test"), list(vec![sym("nested"), list(vec![sym("deep")])])]);
+        let msg = list(vec![
+            sym("test"),
+            list(vec![sym("nested"), list(vec![sym("deep")])]),
+        ]);
         let err = shape.check(&msg).unwrap_err();
         assert!(err.detail.contains("exceeds"));
     }

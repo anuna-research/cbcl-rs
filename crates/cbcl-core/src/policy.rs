@@ -15,7 +15,7 @@ use alloc::vec::Vec;
 use hashbrown::HashMap;
 
 use crate::message::{CausedBy, Message};
-use crate::protocol::{CausalProtocol, CausalViolation, VerificationResult, verify_causal};
+use crate::protocol::{verify_causal, CausalProtocol, CausalViolation, VerificationResult};
 use crate::store::{ContentHash, MessageStore, ThreadId};
 
 // ---------------------------------------------------------------------------
@@ -235,10 +235,7 @@ impl PendingQueue {
     /// lets callers compose multiple protocols and skip entries that no
     /// installed protocol constrains, avoiding the spurious-`Accept` hazard
     /// described on [`Self::re_evaluate`].
-    pub fn re_evaluate_with<F>(
-        &mut self,
-        mut decide: F,
-    ) -> Vec<(PendingEntry, PolicyOutcome)>
+    pub fn re_evaluate_with<F>(&mut self, mut decide: F) -> Vec<(PendingEntry, PolicyOutcome)>
     where
         F: FnMut(&PendingEntry, &ThreadId) -> Option<VerificationResult>,
     {
@@ -303,7 +300,7 @@ mod tests {
     use crate::message::{CausedBy, Message, Performative};
     use crate::protocol::{CausalProtocol, CausalViolation, NodeRef, StepDecl, VerificationResult};
     use crate::sexpr::{Atom, SExpr};
-    use crate::store::{ContentHash, ThreadId, ThreadedMessageStore, MessageStore};
+    use crate::store::{ContentHash, MessageStore, ThreadId, ThreadedMessageStore};
     use alloc::collections::BTreeMap;
     use alloc::string::ToString;
     use alloc::vec;

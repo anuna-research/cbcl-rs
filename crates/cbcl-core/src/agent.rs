@@ -135,10 +135,7 @@ fn merge_policy_outcomes_disjunctive(a: PolicyOutcome, b: PolicyOutcome) -> Poli
 /// - `Unknown ⊔ Violation = Unknown` (preserve hope)
 /// - `Unknown ⊔ Unknown = Unknown`
 /// - `Violation ⊔ Violation = Violation`  (only when no protocol could accept)
-fn merge_disjunctive_result(
-    a: VerificationResult,
-    b: VerificationResult,
-) -> VerificationResult {
+fn merge_disjunctive_result(a: VerificationResult, b: VerificationResult) -> VerificationResult {
     use VerificationResult::*;
     match (a, b) {
         (Valid, _) | (_, Valid) => Valid,
@@ -440,8 +437,7 @@ impl Agent {
             _ => return None,
         };
 
-        let thread_id =
-            ThreadId(thread.cloned().unwrap_or_else(|| String::from("default")));
+        let thread_id = ThreadId(thread.cloned().unwrap_or_else(|| String::from("default")));
 
         let mut decision: Option<PolicyOutcome> = None;
         for d in self.dialect_registry.iter() {
@@ -458,9 +454,7 @@ impl Agent {
                 None => outcome,
                 Some(prev) => match self.merge_policy {
                     MergePolicy::Conjunction => merge_policy_outcomes(prev, outcome),
-                    MergePolicy::Disjunction => {
-                        merge_policy_outcomes_disjunctive(prev, outcome)
-                    }
+                    MergePolicy::Disjunction => merge_policy_outcomes_disjunctive(prev, outcome),
                 },
             });
             // Conjunction can short-circuit on Reject (any rejection wins);
@@ -495,8 +489,7 @@ impl Agent {
         else {
             return;
         };
-        let thread_id =
-            ThreadId(thread.clone().unwrap_or_else(|| String::from("default")));
+        let thread_id = ThreadId(thread.clone().unwrap_or_else(|| String::from("default")));
 
         // The agent does not synthesize content hashes; store an empty hash for
         // the buffered entry. Callers that re-evaluate will look up by
@@ -631,7 +624,9 @@ mod tests {
             examples: Vec::new(),
             signature: None,
             hash: None,
-            protocol: None, causal_protocol: None, shapes: Vec::new(),
+            protocol: None,
+            causal_protocol: None,
+            shapes: Vec::new(),
         }
     }
 
@@ -727,7 +722,9 @@ mod tests {
             examples: Vec::new(),
             signature: None,
             hash: None,
-            protocol: None, causal_protocol: None, shapes: Vec::new(),
+            protocol: None,
+            causal_protocol: None,
+            shapes: Vec::new(),
         };
         assert!(agent.install_dialect(bad).is_err());
         // Still well-formed, still only base dialect
@@ -1016,9 +1013,11 @@ mod tests {
             sender: None,
             caused_by: Some(crate::message::CausedBy::Begin),
         };
-        agent
-            .message_store_mut()
-            .append(Hash(String::from("begin-hash")), ThreadId(String::from("default")), begin);
+        agent.message_store_mut().append(
+            Hash(String::from("begin-hash")),
+            ThreadId(String::from("default")),
+            begin,
+        );
 
         let msg = ack_with_caused_by("begin-hash");
         let outcome = agent.evaluate_and_apply(&msg);
@@ -1059,7 +1058,10 @@ mod tests {
             AgentOutcome::Pending(_) => {}
             other => panic!("expected wrapper to surface inner Pending, got {other:?}"),
         }
-        assert!(agent.beliefs().is_empty(), "wrapped reject should not apply effects");
+        assert!(
+            agent.beliefs().is_empty(),
+            "wrapped reject should not apply effects"
+        );
     }
 
     #[test]
@@ -1273,16 +1275,22 @@ mod tests {
     fn single_pred_ok_dialect(name: &str) -> Dialect {
         use crate::protocol::{CausalProtocol, NodeRef, StepDecl};
         let mut steps = alloc::collections::BTreeMap::new();
-        steps.insert("begin".into(), StepDecl {
-            performative: "begin".into(),
-            predecessors: alloc::vec![],
-            successors: alloc::vec![NodeRef::Single("ok".into())],
-        });
-        steps.insert("ok".into(), StepDecl {
-            performative: "ok".into(),
-            predecessors: alloc::vec![NodeRef::Single("begin".into())],
-            successors: alloc::vec![],
-        });
+        steps.insert(
+            "begin".into(),
+            StepDecl {
+                performative: "begin".into(),
+                predecessors: alloc::vec![],
+                successors: alloc::vec![NodeRef::Single("ok".into())],
+            },
+        );
+        steps.insert(
+            "ok".into(),
+            StepDecl {
+                performative: "ok".into(),
+                predecessors: alloc::vec![NodeRef::Single("begin".into())],
+                successors: alloc::vec![],
+            },
+        );
         Dialect {
             name: String::from(name),
             extends: alloc::vec![String::from("cbcl")],
@@ -1307,16 +1315,22 @@ mod tests {
         use crate::protocol::{CausalProtocol, NodeRef, StepDecl};
         let mut steps = alloc::collections::BTreeMap::new();
         // begin step needed for reachability (R5).
-        steps.insert("begin".into(), StepDecl {
-            performative: "begin".into(),
-            predecessors: alloc::vec![],
-            successors: alloc::vec![NodeRef::Single("ok".into())],
-        });
-        steps.insert("ok".into(), StepDecl {
-            performative: "ok".into(),
-            predecessors: alloc::vec![], // no predecessors permitted
-            successors: alloc::vec![],
-        });
+        steps.insert(
+            "begin".into(),
+            StepDecl {
+                performative: "begin".into(),
+                predecessors: alloc::vec![],
+                successors: alloc::vec![NodeRef::Single("ok".into())],
+            },
+        );
+        steps.insert(
+            "ok".into(),
+            StepDecl {
+                performative: "ok".into(),
+                predecessors: alloc::vec![], // no predecessors permitted
+                successors: alloc::vec![],
+            },
+        );
         Dialect {
             name: String::from(name),
             extends: alloc::vec![String::from("cbcl")],
@@ -1352,21 +1366,30 @@ mod tests {
                 NodeRef::Single("p2".into()),
             ],
         });
-        steps.insert("p1".into(), StepDecl {
-            performative: "p1".into(),
-            predecessors: alloc::vec![NodeRef::Single("begin".into())],
-            successors: alloc::vec![NodeRef::Single("ok".into())],
-        });
-        steps.insert("p2".into(), StepDecl {
-            performative: "p2".into(),
-            predecessors: alloc::vec![NodeRef::Single("begin".into())],
-            successors: alloc::vec![NodeRef::Single("ok".into())],
-        });
-        steps.insert("ok".into(), StepDecl {
-            performative: "ok".into(),
-            predecessors: alloc::vec![NodeRef::All(all_set)],
-            successors: alloc::vec![],
-        });
+        steps.insert(
+            "p1".into(),
+            StepDecl {
+                performative: "p1".into(),
+                predecessors: alloc::vec![NodeRef::Single("begin".into())],
+                successors: alloc::vec![NodeRef::Single("ok".into())],
+            },
+        );
+        steps.insert(
+            "p2".into(),
+            StepDecl {
+                performative: "p2".into(),
+                predecessors: alloc::vec![NodeRef::Single("begin".into())],
+                successors: alloc::vec![NodeRef::Single("ok".into())],
+            },
+        );
+        steps.insert(
+            "ok".into(),
+            StepDecl {
+                performative: "ok".into(),
+                predecessors: alloc::vec![NodeRef::All(all_set)],
+                successors: alloc::vec![],
+            },
+        );
         Dialect {
             name: String::from(name),
             extends: alloc::vec![String::from("cbcl")],
@@ -1448,9 +1471,8 @@ mod tests {
             begin_msg,
         );
 
-        let msg = core_ok_with_caused_by(crate::message::CausedBy::Single(String::from(
-            "begin-hash",
-        )));
+        let msg =
+            core_ok_with_caused_by(crate::message::CausedBy::Single(String::from("begin-hash")));
         match agent.evaluate_and_apply(&msg) {
             AgentOutcome::Applied(_) => {}
             other => panic!(
@@ -1488,9 +1510,8 @@ mod tests {
             begin_msg,
         );
 
-        let msg = core_ok_with_caused_by(crate::message::CausedBy::Single(String::from(
-            "begin-hash",
-        )));
+        let msg =
+            core_ok_with_caused_by(crate::message::CausedBy::Single(String::from("begin-hash")));
         match agent.evaluate_and_apply(&msg) {
             AgentOutcome::CausalReject(_) => {}
             other => panic!("expected conjunction CausalReject, got {other:?}"),
@@ -1622,8 +1643,7 @@ mod tests {
     struct TickingClock(core::sync::atomic::AtomicU64);
     impl crate::clock::Clock for TickingClock {
         fn now(&self) -> u64 {
-            self.0
-                .fetch_add(1, core::sync::atomic::Ordering::Relaxed)
+            self.0.fetch_add(1, core::sync::atomic::Ordering::Relaxed)
         }
     }
 
@@ -1654,9 +1674,8 @@ mod tests {
         // it. A clock with interior mutability (here an AtomicU64) advances
         // for both clones — proving they share state, not that the clone
         // captured a snapshot.
-        let agent_a = Agent::new("@alice").with_clock(TickingClock(
-            core::sync::atomic::AtomicU64::new(0),
-        ));
+        let agent_a =
+            Agent::new("@alice").with_clock(TickingClock(core::sync::atomic::AtomicU64::new(0)));
         let agent_b = agent_a.clone();
         // Each call to either agent's clock increments the shared counter.
         let t0 = agent_a.clock.now();

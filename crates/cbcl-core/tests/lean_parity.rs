@@ -90,10 +90,14 @@ fn arb_result() -> impl Strategy<Value = VerificationResult> {
     prop_oneof![
         Just(VerificationResult::Unknown),
         Just(VerificationResult::Valid),
-        Just(VerificationResult::Violation(CausalViolation::MissingCausedBy)),
-        Just(VerificationResult::Violation(CausalViolation::UnknownPredecessor {
-            caused_by: "h".into()
-        })),
+        Just(VerificationResult::Violation(
+            CausalViolation::MissingCausedBy
+        )),
+        Just(VerificationResult::Violation(
+            CausalViolation::UnknownPredecessor {
+                caused_by: "h".into()
+            }
+        )),
     ]
 }
 
@@ -206,7 +210,11 @@ fn build_store(entries: &[(String, String, Option<CausedBy>)]) -> ThreadedMessag
     let mut store = ThreadedMessageStore::new();
     let t = tid();
     for (h, perf, cb) in entries {
-        store.append(ContentHash(h.clone()), t.clone(), make_msg(perf, cb.clone()));
+        store.append(
+            ContentHash(h.clone()),
+            t.clone(),
+            make_msg(perf, cb.clone()),
+        );
     }
     store
 }
@@ -672,8 +680,14 @@ proptest! {
 fn step(name: &str, preds: Vec<&str>, succs: Vec<&str>) -> StepDecl {
     StepDecl {
         performative: name.into(),
-        predecessors: preds.iter().map(|s| NodeRef::Single(s.to_string())).collect(),
-        successors: succs.iter().map(|s| NodeRef::Single(s.to_string())).collect(),
+        predecessors: preds
+            .iter()
+            .map(|s| NodeRef::Single(s.to_string()))
+            .collect(),
+        successors: succs
+            .iter()
+            .map(|s| NodeRef::Single(s.to_string()))
+            .collect(),
     }
 }
 
@@ -683,9 +697,16 @@ fn arb_acyclic_protocol() -> impl Strategy<Value = CausalProtocol> {
     prop::collection::vec(0u8..4, 1..6).prop_map(|targets| {
         let names: Vec<String> = (0..targets.len()).map(|i| format!("p{}", i)).collect();
         let mut steps = BTreeMap::new();
-        steps.insert("begin".into(), step("begin", vec![], names.iter().map(|s| s.as_str()).collect()));
+        steps.insert(
+            "begin".into(),
+            step("begin", vec![], names.iter().map(|s| s.as_str()).collect()),
+        );
         for (i, name) in names.iter().enumerate() {
-            let preds: Vec<&str> = if i == 0 { vec!["begin"] } else { vec![names[i - 1].as_str()] };
+            let preds: Vec<&str> = if i == 0 {
+                vec!["begin"]
+            } else {
+                vec![names[i - 1].as_str()]
+            };
             let succs: Vec<&str> = if i + 1 < names.len() {
                 vec![names[i + 1].as_str()]
             } else {
@@ -834,7 +855,8 @@ proptest! {
 
 fn arb_clause_arg() -> impl Strategy<Value = SExpr> {
     let leaf = prop_oneof![
-        prop::string::string_regex("[a-z][a-z0-9_-]{0,4}").unwrap()
+        prop::string::string_regex("[a-z][a-z0-9_-]{0,4}")
+            .unwrap()
             .prop_map(|s| SExpr::Atom(Atom::Symbol(s))),
         any::<i64>().prop_map(|n| SExpr::Atom(Atom::Num(n))),
         any::<bool>().prop_map(|b| SExpr::Atom(Atom::Bool(b))),
