@@ -146,16 +146,33 @@ impl ShapeConstraint {
         self.max_depths().next()
     }
 
-    /// Iterate over every `(max-depth …)` bound declared on this shape.
+    /// Iterate over every `(max-depth …)` bound declared on this shape,
+    /// including bounds nested inside `require`/`optional` rules.
     ///
-    /// A shape may declare more than one `MaxDepth` rule; install-time R5
-    /// (REQ-222 §4) must check every bound against the dialect's R2 limit
-    /// rather than only the first.
-    pub fn max_depths(&self) -> impl Iterator<Item = u32> + '_ {
-        self.rules.iter().filter_map(|r| match r {
-            ShapeRule::MaxDepth(d) => Some(*d),
-            _ => None,
-        })
+    /// A shape may declare more than one `MaxDepth` rule, and the parser
+    /// allows `(max-depth N)` to appear among a parent rule's children
+    /// (e.g. `(require :payload list (max-depth N))`). Install-time R5
+    /// (REQ-222 §4) must check every declared bound against the dialect's
+    /// R2 limit — a top-level-only walk would silently accept oversized
+    /// nested bounds, since at runtime any subtree's depth is bounded by
+    /// the whole message's depth, so `N > R2` is unreachable but still a
+    /// malformed declaration.
+    pub fn max_depths(&self) -> impl Iterator<Item = u32> {
+        let mut out = Vec::new();
+        collect_max_depths(&self.rules, &mut out);
+        out.into_iter()
+    }
+}
+
+/// Pre-order walk over a rule tree, pushing every `MaxDepth` value found.
+fn collect_max_depths(rules: &[ShapeRule], out: &mut Vec<u32>) {
+    for rule in rules {
+        match rule {
+            ShapeRule::MaxDepth(d) => out.push(*d),
+            ShapeRule::Require { children, .. } | ShapeRule::Optional { children, .. } => {
+                collect_max_depths(children, out);
+            }
+        }
     }
 }
 

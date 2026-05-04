@@ -290,6 +290,34 @@ mod tests {
     }
 
     #[test]
+    fn nested_max_depth_exceeding_r2_is_flagged() {
+        // (shape greet (require :payload list (max-depth 100))) — the
+        // nested bound is stored in the `:payload` rule's children, not
+        // at the top level. R5 must still reject N > R2 regardless of
+        // nesting depth, otherwise dialects can smuggle oversized bounds
+        // past install/CLI verification (REQ-222 §4).
+        let d = test_dialect(
+            vec!["greet"],
+            vec![ShapeConstraint {
+                performative: String::from("greet"),
+                rules: vec![ShapeRule::Require {
+                    keyword: String::from("payload"),
+                    type_constraint: Some(TypeConstraint::List),
+                    children: vec![ShapeRule::MaxDepth(100)],
+                }],
+            }],
+        );
+        assert!(!verify_r5(&d));
+        let v = r5_violations(&d);
+        assert!(
+            v.iter()
+                .any(|s| s.contains("max-depth 100") && s.contains("exceeds dialect R2 bound")),
+            "expected the nested max-depth 100 to be flagged: {:?}",
+            v
+        );
+    }
+
+    #[test]
     fn max_depth_at_r2_bound_passes_r5() {
         let d = test_dialect(
             vec!["propose-step"],
