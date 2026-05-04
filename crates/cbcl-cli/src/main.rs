@@ -5,7 +5,7 @@ use std::io::{self, BufRead, Read, Write};
 use cbcl_core::gossip::{GossipConfig, GossipNetwork, Topology};
 use cbcl_core::prelude::*;
 use cbcl_core::serializer::serialize;
-use cbcl_core::{r1, r2, r3};
+use cbcl_core::{r1, r2, r3, r5};
 use cbcl_parser::{parse, parse_dialect, run_pipeline, PipelineResult};
 use clap::{Parser, Subcommand};
 
@@ -26,7 +26,7 @@ enum Command {
         #[arg(long)]
         sexpr: bool,
     },
-    /// Verify a dialect definition against R1/R2/R3 safety constraints
+    /// Verify a dialect definition against R1/R2/R3/R5 safety constraints
     Verify {
         /// Input dialect definition (reads from stdin if omitted)
         input: Option<String>,
@@ -191,9 +191,17 @@ fn cmd_verify(input: Option<String>) -> i32 {
         }
     }
 
+    // R5: Causal protocol + shape coherence (vacuous if dialect declares no
+    // (protocol …) and no (shape …) clauses).
+    if !r5::verify_r5(&dialect) {
+        for v in r5::r5_violations(&dialect) {
+            violations.push(format!("R5: {v}"));
+        }
+    }
+
     if violations.is_empty() {
         println!(
-            "dialect '{}' passed all safety checks (R1, R2, R3)",
+            "dialect '{}' passed all safety checks (R1, R2, R3, R5)",
             dialect.name
         );
         println!("  performatives: {}", dialect.performatives.len());
@@ -203,6 +211,7 @@ fn cmd_verify(input: Option<String>) -> i32 {
             dialect.resources.max_expansion_size,
             dialect.resources.verification_time_ms
         );
+        println!("  R5: pass");
         0
     } else {
         eprintln!("dialect '{}' failed verification:", dialect.name);
