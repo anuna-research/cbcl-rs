@@ -154,7 +154,7 @@ def applyKeywordClause (acc : DialectAccum) (key : String) (vals : List SExpr) :
     | _ => .error "protocol requires exactly one value"
   | _ => .error s!"unknown dialect clause: {key}"
 
-partial def parseDialectClauses (clauses : List SExpr) (acc : DialectAccum) :
+def parseDialectClauses (clauses : List SExpr) (acc : DialectAccum) :
     Except String DialectAccum :=
   match clauses with
   | [] => .ok acc
@@ -176,6 +176,7 @@ partial def parseDialectClauses (clauses : List SExpr) (acc : DialectAccum) :
       | .ok perf => parseDialectClauses rest { acc with performatives := acc.performatives ++ [perf] }
       | .error msg => .error msg
     | _ => .error "unknown dialect clause"
+termination_by clauses.length
 
 def parseDialect (sexpr : SExpr) : Except String Dialect :=
   match sexpr with

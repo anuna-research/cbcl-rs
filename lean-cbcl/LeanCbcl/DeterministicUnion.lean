@@ -1215,8 +1215,6 @@ private theorem langCheckBool_not_lang {s : String} (hs : s ≠ "lang") (dname :
     exact absurd heq.1 hs
   · rfl
 
-set_option maxHeartbeats 1600000
-
 theorem agentDetParser_agrees (a : Agent) (hnu : a.namesUnique) (e : SExpr) :
     (agentDetParser a).run (tokenize e) = agentLanguageDecide a e := by
   rw [agentLanguageDecide_rw]

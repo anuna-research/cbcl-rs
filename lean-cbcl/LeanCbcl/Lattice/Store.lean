@@ -103,12 +103,6 @@ end Lattice
     canonical S-expression encoding. -/
 axiom ContentHash : Type
 
-/-- Existence: `ContentHash` is nonempty. Bookkeeping axiom — Lean
-    needs this to allow `Option ContentHash`-returning functions and
-    classical reasoning about `lookup`. -/
-axiom ContentHash.instNonempty : Nonempty ContentHash
-attribute [instance] ContentHash.instNonempty
-
 /-- The canonical content hash of a message. Mirrors
     `cbcl_core::hash::content_hash` in the Rust implementation. -/
 axiom contentHash : Message → ContentHash

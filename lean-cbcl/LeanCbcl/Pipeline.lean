@@ -129,6 +129,24 @@ theorem runPipeline_msgError (input : String) (sexpr : SExpr)
 -- Pipeline soundness: success implies grammar validity
 -- ============================================================
 
+/-- Helper: once parse, parseMessage, and validation have all succeeded, the
+    only way `runPipeline` can yield `.success msg` is if the parsed message
+    equals `msg`. Every leaf of `runPipeline`'s post-validation `match` returns
+    either `.success msg'` (forcing `msg' = msg`) or a `.validationError`
+    (contradicting `_ = .success msg`). -/
+private theorem pipeline_success_eq_msg
+    {input : String} {sexpr : SExpr} {msg' msg : Message}
+    (hparse : parse input = .ok sexpr)
+    (hmsg : parseMessage sexpr = some msg')
+    (hvalid : (validateMessage msg').isEmpty = true)
+    (h : runPipeline input = .success msg) : msg' = msg := by
+  simp only [runPipeline, hparse, hmsg, hvalid, if_true] at h
+  -- `h` is a deeply nested match/if expression; split it down to leaves and
+  -- dispatch each. A `.success msg'` leaf gives `msg' = msg`; a
+  -- `.validationError _` leaf contradicts `_ = .success msg`.
+  repeat any_goals first | (cases h; rfl) | (split at h)
+  all_goals first | (cases h; rfl) | cases h
+
 /-- If the pipeline succeeds, the parsed SExpr satisfies the message grammar. -/
 theorem pipeline_success_implies_valid (input : String) (msg : Message) :
     runPipeline input = .success msg →
@@ -137,74 +155,17 @@ theorem pipeline_success_implies_valid (input : String) (msg : Message) :
              (validateMessage msg).isEmpty = true := by
   intro h
   cases hparse : parse input with
-  | error errMsg =>
-    simp [runPipeline, hparse] at h
+  | error errMsg => simp [runPipeline, hparse] at h
   | ok sexpr =>
     cases hmsg : parseMessage sexpr with
-    | none =>
-      simp [runPipeline, hparse, hmsg] at h
+    | none => simp [runPipeline, hparse, hmsg] at h
     | some msg' =>
       cases hvalid : (validateMessage msg').isEmpty with
-      | false =>
-        simp [runPipeline, hparse, hmsg, hvalid] at h
+      | false => simp [runPipeline, hparse, hmsg, hvalid] at h
       | true =>
-        cases htype : msg'.type with
-        | metaMsg =>
-          cases hparams : msg'.params with
-          | nil =>
-            simp [runPipeline, hparse, hmsg, hvalid, htype, hparams] at h
-            have heq : msg' = msg := by cases h; rfl
-            exact ⟨sexpr, by simp, heq ▸ hmsg, heq ▸ hvalid⟩
-          | cons defExpr rest =>
-            cases hdef : defExpr with
-            | atom a =>
-              simp [runPipeline, hparse, hmsg, hvalid, htype, hparams, hdef] at h
-              have heq : msg' = msg := by cases h; rfl
-              exact ⟨sexpr, by simp, heq ▸ hmsg, heq ▸ hvalid⟩
-            | list xs =>
-              cases xs with
-              | nil =>
-                simp [runPipeline, hparse, hmsg, hvalid, htype, hparams, hdef] at h
-                have heq : msg' = msg := by cases h; rfl
-                exact ⟨sexpr, by simp, heq ▸ hmsg, heq ▸ hvalid⟩
-              | cons hd tl =>
-                cases hd with
-                | atom a =>
-                  cases a with
-                  | symbol head =>
-                    by_cases hhead : (head == "define" || head == "define-dialect") = true
-                    · cases hpd : parseDialect (SExpr.list (SExpr.atom (Atom.symbol head) :: tl)) with
-                      | error err =>
-                        simp [runPipeline, hparse, hmsg, hvalid, htype, hparams, hdef, hhead, hpd] at h
-                      | ok d =>
-                        by_cases hver : (verifyR1Dialect d && verifyR2 d && verifyR3 d) = true
-                        · simp [runPipeline, hparse, hmsg, hvalid, htype, hparams, hdef, hhead, hpd, hver] at h
-                          have heq : msg' = msg := by cases h; rfl
-                          exact ⟨sexpr, by simp, heq ▸ hmsg, heq ▸ hvalid⟩
-                        · simp [runPipeline, hparse, hmsg, hvalid, htype, hparams, hdef, hhead, hpd, hver] at h
-                    · simp [runPipeline, hparse, hmsg, hvalid, htype, hparams, hdef, hhead] at h
-                      have heq : msg' = msg := by cases h; rfl
-                      exact ⟨sexpr, by simp, heq ▸ hmsg, heq ▸ hvalid⟩
-                  | _ =>
-                    simp [runPipeline, hparse, hmsg, hvalid, htype, hparams, hdef] at h
-                    have heq : msg' = msg := by cases h; rfl
-                    exact ⟨sexpr, by simp, heq ▸ hmsg, heq ▸ hvalid⟩
-                | list _ =>
-                  simp [runPipeline, hparse, hmsg, hvalid, htype, hparams, hdef] at h
-                  have heq : msg' = msg := by cases h; rfl
-                  exact ⟨sexpr, by simp, heq ▸ hmsg, heq ▸ hvalid⟩
-        | simple =>
-          simp [runPipeline, hparse, hmsg, hvalid, htype] at h
-          have heq : msg' = msg := by cases h; rfl
-          exact ⟨sexpr, by simp, heq ▸ hmsg, heq ▸ hvalid⟩
-        | dialect =>
-          simp [runPipeline, hparse, hmsg, hvalid, htype] at h
-          have heq : msg' = msg := by cases h; rfl
-          exact ⟨sexpr, by simp, heq ▸ hmsg, heq ▸ hvalid⟩
-        | wrapped =>
-          simp [runPipeline, hparse, hmsg, hvalid, htype] at h
-          have heq : msg' = msg := by cases h; rfl
-          exact ⟨sexpr, by simp, heq ▸ hmsg, heq ▸ hvalid⟩
+        have heq : msg' = msg := pipeline_success_eq_msg hparse hmsg hvalid h
+        subst heq
+        exact ⟨sexpr, rfl, hmsg, hvalid⟩
 
 /-- Pipeline success implies the message satisfies the grammar relation. -/
 theorem pipeline_success_grammar (input : String) (msg : Message) :
