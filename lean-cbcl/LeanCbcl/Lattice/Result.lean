@@ -22,11 +22,13 @@ SPEC-003 truth tables satisfy.
 
 ## Mathlib
 
-Per SPEC-005 ADR-510, the dedicated `task-mathlib-setup` (IMPL-005) will
-add Mathlib4 as a dependency; at that point this module's local
-`BoundedLattice` typeclass will be replaced by `Mathlib.Order.Lattice` /
-`Mathlib.Order.BoundedOrder` instances. The public theorems exposed here
-(`result_meet_table`, `result_join_table`) will not change.
+Per SPEC-005 ADR-510 (amended `accepted-with-deferral`), this module's
+local `BoundedLattice` typeclass is **retained**, not deferred-then-
+replaced: `VerificationResult` is non-absorbing
+(`unknown ⊓ (unknown ⊔ violation) = violation ≠ unknown`) and its
+knowledge order `⊑` is a preorder rather than a partial order, so
+Mathlib's `Order.Lattice` and `SemilatticeSup`/`SemilatticeInf` types
+do not apply. See the amended ADR for the full finding.
 
 ## Theorems
 

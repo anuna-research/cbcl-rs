@@ -21,12 +21,15 @@ these are the only non-standard axioms introduced by this module — the
 
 ## Mathlib
 
-The dedicated `task-mathlib-setup` (SPEC-005 IMPL-005) will add Mathlib
-as a dependency. Until then, this module supplies inline minimal
-definitions of `Set α := α → Prop` and a `JoinSemiLattice` typeclass
-that mirror the Mathlib API. They will be replaced by the Mathlib
-versions in a follow-up patch; the public theorems exposed here will
-not change.
+Per SPEC-005 ADR-510 (amended `accepted-with-deferral`), this module
+supplies inline minimal definitions of `Set α := α → Prop` and a
+`JoinSemiLattice` typeclass that mirror the Mathlib API. Unlike
+`Lattice/Result.lean`, the `Set`/union story here *would* fit
+Mathlib's `Order.Lattice`, but the build-time cost and version-pinning
+burden of the dependency outweigh the ~80-line saving on the small
+set of lemmas actually consumed. See the amended ADR for the trade-off
+analysis. The public theorems exposed here are unaffected by the
+choice.
 
 ## Theorems
 

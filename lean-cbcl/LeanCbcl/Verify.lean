@@ -57,8 +57,13 @@ exists in the Rust tree — protocol verification lives alongside the
 begin → constant Valid; missing-caused-by → Violation) is preserved
 here.
 
-Pinned commit SHA at time of mirroring: `5a233c692b1dc79241de2678bf00101c9b703c48`
-(parent of `a4de63c`, the commit that landed this skeleton).
+Pinned commit SHA at time of mirroring: `b16bf979fb8e9d1e6dca85b153ec95e7c22a00d7`
+(HEAD of `hence/plan-IMPL-005` at IMPL-005 review-fix closeout). The
+diff against the original `5a233c69` skeleton-landing pin abstracts
+away the Rust-side blame variants enumerated in §"Structural
+divergence from Rust" above; the lattice positions of `verify` agree
+on every match arm, which is the invariant the differential parity
+tests in `crates/cbcl-core/tests/lean_parity.rs` enforce.
 
 ## Abstract Message accessor
 

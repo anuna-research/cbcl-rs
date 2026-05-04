@@ -34,7 +34,7 @@ The headline theorem is the SPEC-003 lattice-homomorphism: **`verify : Store × 
 
 **SPEC-003 prose proofs as the starting point.** The case analysis for monotonicity in SPEC-003 (REQ-304) is the proof skeleton. Mechanisation translates each case into a Lean lemma. The risk is that prose proofs hide load-bearing assumptions; a sympathetic translation will discover them.
 
-**Mathlib lattice infrastructure.** Mathlib4 provides `Order.BoundedLattice`, `Order.Hom.Lattice` (lattice homomorphisms), and finite-set lattice instances. SPEC-005 depends on these rather than re-deriving lattice theory from scratch. ADR-510 records this choice.
+**Mathlib lattice infrastructure.** Mathlib4 provides `Order.BoundedLattice`, `Order.Hom.Lattice` (lattice homomorphisms), and finite-set lattice instances. SPEC-005 originally planned to depend on these rather than re-derive lattice theory from scratch (per ADR-510, accepted). The IMPL-005 mechanisation discovered that `VerificationResult` is non-absorbing and its knowledge order is a preorder rather than a partial order — neither `Lattice` nor `SemilatticeSup`/`SemilatticeInf` apply — so the dependency would not actually pay off for `Lattice/Result.lean`. ADR-510 has been amended to `accepted-with-deferral`; small hand-rolled `BoundedLattice` and `JoinSemiLattice` typeclasses are retained in `Lattice/Result.lean` and `Lattice/Store.lean`.
 
 ### Scope
 
@@ -371,7 +371,7 @@ Verified by:
 
 ### ADR-510: Mathlib4 dependency
 
-**Decision:** Depend on Mathlib4 for `Order.BoundedLattice`, `Order.Hom.Lattice`, and finite-set lattice instances.
+**Decision (original):** Depend on Mathlib4 for `Order.BoundedLattice`, `Order.Hom.Lattice`, and finite-set lattice instances.
 
 **Context:** The SPEC-001 mechanisation is largely Mathlib-free (it can be — R1–R3 are first-order and don't need lattice infrastructure). SPEC-005 needs lattice typeclasses; rebuilding these from scratch would double the proof effort and reproduce well-established Mathlib infrastructure.
 
@@ -381,9 +381,50 @@ Verified by:
 - **Con:** Mathlib is a large dependency. `lake build` runtime increases significantly.
 - **Con:** Mathlib version pinning becomes part of the maintenance surface.
 
-**Rationale:** The marginal proof velocity gain is large enough to justify the dependency. The build-time cost is a developer-experience issue, not a soundness issue.
+**Rationale (original):** The marginal proof velocity gain is large enough to justify the dependency. The build-time cost is a developer-experience issue, not a soundness issue.
 
-**Status:** accepted
+#### Implementation finding (added during IMPL-005 closeout)
+
+The IMPL-005 mechanisation surfaced two structural facts about
+`VerificationResult` that obstruct the originally-planned Mathlib
+adoption — exactly the RISK-511 ("hidden assumptions in prose proofs")
+situation the mechanisation programme is supposed to expose:
+
+1. **`VerificationResult` is non-absorbing.** Concretely,
+   `unknown ⊓ (unknown ⊔ violation) = unknown ⊓ violation = violation
+   ≠ unknown`, so the absorption law `a ⊓ (a ⊔ b) = a` fails.
+   Mathlib's `Order.Lattice` typeclass requires absorption.
+2. **The knowledge order `⊑` is a preorder, not a partial order.**
+   Both `unknown ⊑ violation` and `violation ⊑ unknown` hold (because
+   `a ⊑ b ↔ (a = valid → b = valid)` — see the docstring at
+   `Lattice/Result.lean:177-202` for why "valid is sticky" is the only
+   order under which both `meet` and `join` are monotone, which is
+   what `verify_monotone` needs). Mathlib's `SemilatticeSup` and
+   `SemilatticeInf` require antisymmetry, which fails here.
+
+Together these mean Mathlib can contribute at most a `Preorder`
+instance for `VerificationResult` — no lattice automation, no derived
+lemmas. The hand-rolled `BoundedLattice` typeclass at
+`Lattice/Result.lean:57-71` records exactly the axioms `verify_monotone`
+needs and is ~15 lines.
+
+For `Lattice/Store.lean` the situation is different: `Set Message`
+under subset/union *is* a real Mathlib lattice, and switching would
+save ~80 lines of inline `Set` shim and `union_*` lemma proofs. But
+the build-time cost (per Con #1 above, ~10–30 minutes added to clean
+builds) and the version-pinning maintenance burden (per Con #2 and
+RISK-510) outweigh that saving when amortised over the small number
+of lemmas actually consumed.
+
+**Decision (amended):** Hand-rolled `BoundedLattice` and
+`JoinSemiLattice` typeclasses are retained in `Lattice/Result.lean`
+and `Lattice/Store.lean`. Mathlib4 is *not* added to the lakefile.
+The Mathlib migration is deferred indefinitely; revisit only if the
+value proposition materially changes (e.g. a SPEC evolution that
+makes `VerificationResult` absorbing, or a lattice tactic that
+becomes load-bearing for new proofs).
+
+**Status:** accepted-with-deferral
 
 ### ADR-511: Mirror naming convention with Rust
 
