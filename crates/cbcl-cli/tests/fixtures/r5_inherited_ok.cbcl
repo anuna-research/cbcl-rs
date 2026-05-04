@@ -1,0 +1,22 @@
+; Positive R5 fixture for `verify_cli.rs ::
+;   protocol_referencing_inherited_core_performative_passes_r5`.
+;
+; The protocol's `(then step-defined ok)` references `ok`, which the
+; dialect inherits from its `(cbcl)` ancestor rather than declaring
+; itself. The CLI's R5 wiring must resolve ancestors against a
+; base-seeded registry the same way `DialectRegistry::install` does;
+; otherwise valid dialects extending `(cbcl)` are falsely rejected as
+; referencing an undefined performative.
+
+(define cbcl-r5-inherited-ok (cbcl) @test-author
+  (:resource-requirements
+    ((max-depth 8)
+     (max-expansion-size 256)
+     (verification-time 20)))
+
+  (extend step-defined (payload)
+    (tell @sink (carry :payload payload) :domain test))
+
+  (protocol
+    (then begin step-defined)
+    (then step-defined ok)))

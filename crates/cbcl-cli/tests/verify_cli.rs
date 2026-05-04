@@ -14,6 +14,14 @@ fn dialect_path(name: &str) -> PathBuf {
     manifest.join("..").join("..").join("dialects").join(name)
 }
 
+/// Test-only fixture path under `crates/cbcl-cli/tests/fixtures/`.
+/// Used for synthetic R5-positive and R5-negative dialects that don't
+/// belong in the production `dialects/` directory.
+fn test_fixture_path(name: &str) -> PathBuf {
+    let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    manifest.join("tests").join("fixtures").join(name)
+}
+
 fn run_verify_on_input(input: &str) -> (i32, String, String) {
     use std::io::Write;
     let mut child = cli()
@@ -106,25 +114,14 @@ fn protocol_free_dialects_pass_r5_vacuously() {
 
 #[test]
 fn protocol_referencing_undefined_performative_fails_r5() {
+    // Fixture: tests/fixtures/r5_negative_undefined.cbcl.
     // `step-undefined` is not declared as an `extend`, so the protocol's
     // `(then begin step-undefined)` violates R5 §REQ-206 (performative
     // definedness).
-    let dialect = r#"
-(define cbcl-r5-negative-undefined (cbcl) @test-author
-  (:resource-requirements
-    ((max-depth 8)
-     (max-expansion-size 256)
-     (verification-time 20)))
+    let dialect = std::fs::read_to_string(test_fixture_path("r5_negative_undefined.cbcl"))
+        .expect("read r5_negative_undefined.cbcl");
 
-  (extend step-defined (payload)
-    (tell @sink (carry :payload payload) :domain test))
-
-  (protocol
-    (then begin step-undefined)
-    (then step-undefined step-defined)))
-"#;
-
-    let (code, stdout, stderr) = run_verify_on_input(dialect);
+    let (code, stdout, stderr) = run_verify_on_input(&dialect);
     assert_ne!(
         code, 0,
         "expected non-zero exit on R5 violation; stdout=\n{stdout}\nstderr=\n{stderr}"
@@ -150,22 +147,11 @@ fn protocol_referencing_undefined_performative_fails_r5() {
 
 #[test]
 fn protocol_referencing_inherited_core_performative_passes_r5() {
-    let dialect = r#"
-(define cbcl-r5-inherited-ok (cbcl) @test-author
-  (:resource-requirements
-    ((max-depth 8)
-     (max-expansion-size 256)
-     (verification-time 20)))
+    // Fixture: tests/fixtures/r5_inherited_ok.cbcl.
+    let dialect = std::fs::read_to_string(test_fixture_path("r5_inherited_ok.cbcl"))
+        .expect("read r5_inherited_ok.cbcl");
 
-  (extend step-defined (payload)
-    (tell @sink (carry :payload payload) :domain test))
-
-  (protocol
-    (then begin step-defined)
-    (then step-defined ok)))
-"#;
-
-    let (code, stdout, stderr) = run_verify_on_input(dialect);
+    let (code, stdout, stderr) = run_verify_on_input(&dialect);
     assert_eq!(
         code, 0,
         "expected zero exit when protocol references inherited core performative; \

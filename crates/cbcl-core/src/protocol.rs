@@ -1230,6 +1230,30 @@ mod tests {
     }
 
     #[test]
+    fn test_step_uniqueness_rejects_literal_duplicate_successor() {
+        // Defence-in-depth (see protocol.rs `has_duplicate` rationale at the
+        // method docstring): the successor side of `(then …)` is symmetric
+        // with the predecessor side; a literal `NodeRef` repeated in the
+        // successors list is an authoring error, not an alternation, and
+        // must be flagged. This covers the symmetric case to
+        // `test_step_uniqueness_rejects_literal_duplicate_predecessor`.
+        let mut steps = BTreeMap::new();
+        steps.insert(
+            "a".into(),
+            StepDecl {
+                performative: "a".into(),
+                predecessors: vec![NodeRef::Single("begin".into())],
+                successors: vec![NodeRef::Single("b".into()), NodeRef::Single("b".into())],
+            },
+        );
+        let proto = CausalProtocol { steps };
+        assert!(proto
+            .check_step_uniqueness()
+            .iter()
+            .any(|v| matches!(v, ProtocolViolation::DuplicateStep { name } if name == "a")));
+    }
+
+    #[test]
     fn test_step_uniqueness_accepts_all_fan_in() {
         // `(then (all begin x) a)` — single predecessor entry, legitimate fan-in.
         let mut steps = BTreeMap::new();

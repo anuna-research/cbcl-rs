@@ -537,7 +537,7 @@ mod tests {
             Atom::Num(-1),
             Atom::Symbol("-1".into()),
         ];
-        let octets: Vec<Vec<u8>> = atoms.iter().map(|a| atom_to_octets(a)).collect();
+        let octets: Vec<Vec<u8>> = atoms.iter().map(atom_to_octets).collect();
         // Check each pair for uniqueness
         for i in 0..octets.len() {
             for j in (i + 1)..octets.len() {
