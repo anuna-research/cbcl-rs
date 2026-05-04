@@ -109,7 +109,16 @@ inductive ProtocolViolation where
     performatives as zero-out-degree keys; the Lean check is sound
     without that step (a node that is only referenced as a successor of
     another step but has no declaration of its own cannot be the source
-    of a cycle witness — see `reachable_source_in_stepNames`). -/
+    of a cycle witness — see `reachable_source_in_stepNames`).
+
+    **Drift surface:** the Rust↔Lean correspondence is at the abstract
+    graph level — Rust's `check_acyclicity` materialises this graph via
+    `BTreeSet` (deduplicating); the Lean model uses `List` (one
+    violation entry per occurrence). The iff theorem
+    `check_acyclicity_iff_no_cycle` holds against the Lean model;
+    differential parity covers the value-level bridge via
+    `req515_acyclicity_*` in
+    `crates/cbcl-core/tests/lean_parity.rs`. -/
 def ProtocolGraph.successorGraph (p : ProtocolGraph) : List (String × List String) :=
   p.steps.map (fun s => (s.performative, s.successors))
 
@@ -796,7 +805,16 @@ theorem check_reachability_iff_all_reachable (p : ProtocolGraph) :
 
     Rust uses a `BTreeSet` to dedupe; the Lean version returns a plain
     `List String` since the iff theorem only quantifies over
-    membership, not multiplicity. -/
+    membership, not multiplicity.
+
+    **Drift surface:** Rust's `check_performative_definedness` produces
+    one violation per *distinct* undefined name (BTreeSet dedup); the
+    Lean model produces one violation per *occurrence* (`flatMap` over
+    a List). The iff theorem
+    `check_performative_definedness_iff_all_defined` (REQ-206) holds
+    against the Lean model; differential parity covers the value-level
+    bridge via `req515_definedness_*` in
+    `crates/cbcl-core/tests/lean_parity.rs`. -/
 def ProtocolGraph.referencedPerformatives (p : ProtocolGraph) : List String :=
   p.steps.flatMap fun s =>
     (if s.performative = "begin" then [] else [s.performative]) ++
