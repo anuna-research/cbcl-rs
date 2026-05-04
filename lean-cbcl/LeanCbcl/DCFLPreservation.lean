@@ -27,10 +27,17 @@ the keyword dispatch in `DialectParser.applyKeywordClause` is a function,
 not a non-deterministic choice — i.e. `protocol` and `shape` are
 deterministic dispatch tokens in the SPEC-002 sense.
 
-These theorems are conceptually trivial — there is no DCFL extension to
-disprove — but mechanising them closes the audit gap: the file's
-existence and successful build serve as evidence that the prose claims
-have been formalised.
+The proofs are short by design, not stubs. Both `protocol` and `shape`
+are *post-parse, post-expansion* operations on already-built `SExpr`
+trees — causal verification is a hash-map lookup plus a finite-set
+membership check, and shape checking is a VPL tree-walk. Since
+VPL ⊂ DCFL and tree-walking on a parsed structure introduces no new
+recogniser, closure under either keyword reduces to "the existing
+recogniser already accepts every `SExpr`" (i.e. `allSExpr_isSExpr _`)
+and dispatch determinism reduces to definitional equality (`rfl`). The
+triviality reflects correctness-by-construction: both features were
+placed at the right architectural layer. A longer proof would only be
+needed if `protocol`/`shape` extended the parser, which they do not.
 
 ## Theorems
 
