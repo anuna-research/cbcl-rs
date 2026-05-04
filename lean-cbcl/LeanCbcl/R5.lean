@@ -126,6 +126,18 @@ def ProtocolGraph.successorGraph (p : ProtocolGraph) : List (String × List Stri
 def ProtocolGraph.stepNames (p : ProtocolGraph) : List String :=
   p.steps.map (·.performative)
 
+/-- Linear regression-guard fixture: `begin → a → b → c`. Mirrors the
+    `linear_protocol()` helper used by `crates/cbcl-core/src/protocol.rs`'s
+    R5 sub-check tests. Used by `checkAcyclicity_base` /
+    `checkReachability_base` below to pin runtime behaviour after the
+    REQ-515 fuel-bound was tightened from quadratic to linear. -/
+def baseProtocol : ProtocolGraph :=
+  { steps :=
+      [ { performative := "begin", predecessors := [],        successors := ["a"] }
+      , { performative := "a",     predecessors := ["begin"], successors := ["b"] }
+      , { performative := "b",     predecessors := ["a"],     successors := ["c"] }
+      , { performative := "c",     predecessors := ["b"],     successors := [] } ] }
+
 /-- Acyclicity check (REQ-204) — Lean port of Rust
     `CausalProtocol::check_acyclicity`. Uses the existing fuel-bounded
     `dfsNoCycle` from `R1NoRecursion.lean` rather than the Rust
@@ -141,6 +153,10 @@ def ProtocolGraph.checkAcyclicity (p : ProtocolGraph) : List ProtocolViolation :
   names.filterMap fun n =>
     if dfsNoCycle graph fuel [] [] n then none
     else some (.cycle [n])
+
+/-- Runtime regression guard: `checkAcyclicity` returns `[]` on the linear
+    base protocol under linear DFS fuel (REQ-515 / TEST-515). -/
+theorem checkAcyclicity_base : baseProtocol.checkAcyclicity = [] := by native_decide
 
 /-- Cycle predicate: a protocol has a cycle iff some performative is
     reachable from itself via the successor graph (REQ-204). -/
@@ -409,6 +425,10 @@ def ProtocolGraph.checkReachability (p : ProtocolGraph) : List ProtocolViolation
     if n == "begin" then none
     else if dfsReaches graph fuel [] "begin" n then none
     else some (.unreachable n)
+
+/-- Runtime regression guard: `checkReachability` returns `[]` on the
+    linear base protocol under linear DFS fuel (REQ-515 / TEST-515). -/
+theorem checkReachability_base : baseProtocol.checkReachability = [] := by native_decide
 
 /-- "Reachable from begin" predicate: a step is reachable from `begin`
     iff it equals `"begin"` or there is a `Reachable` path in the
