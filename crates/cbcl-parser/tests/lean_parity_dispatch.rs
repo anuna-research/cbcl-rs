@@ -28,6 +28,7 @@
 
 use cbcl_core::sexpr::{Atom, SExpr};
 use cbcl_parser::dialect_parser::parse_dialect;
+use proptest::prelude::*;
 
 fn sym(s: &str) -> SExpr {
     SExpr::Atom(Atom::Symbol(s.to_string()))
@@ -45,29 +46,48 @@ fn list(items: Vec<SExpr>) -> SExpr {
     SExpr::List(items)
 }
 
-/// REQ-516 — `DCFLPreservation.lean :: protocol_dispatch_specifies`.
-///
-/// `applyKeywordClause acc "protocol" [v]` with `sexprToStringLike? v = some s`
-/// pins the result to `.ok { acc with protocol := some s }`. The Rust
-/// counterpart at `dialect_parser::parse_clause` (line 189) takes a
-/// `(:protocol "ed25519")` clause and writes `Some("ed25519")` into the
-/// dialect's integrity-protocol field — exactly what the Lean theorem
-/// asserts.
-#[test]
-fn req516_protocol_keyword_dispatch_matches_lean() {
-    let definition = list(vec![
+/// Wrap the per-clause `(:protocol val)` in the surrounding `(define …)`
+/// scaffolding so `parse_dialect` accepts it.
+fn dialect_with_protocol_clause(val: SExpr) -> SExpr {
+    list(vec![
         sym("define"),
         sym("test-dialect"),
         list(vec![sym("cbcl")]),
         sym("@author"),
-        list(vec![kw("protocol"), str_expr("ed25519")]),
-    ]);
-    let dialect = parse_dialect(&definition).expect("dialect parses");
-    assert_eq!(
-        dialect.protocol,
-        Some(String::from("ed25519")),
-        "Lean `protocol_dispatch_specifies` predicts integrity-protocol = Some(\"ed25519\")",
-    );
+        list(vec![kw("protocol"), val]),
+    ])
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(64))]
+
+    /// REQ-516 — `DCFLPreservation.lean :: protocol_dispatch_specifies`.
+    ///
+    /// `applyKeywordClause acc "protocol" [v]` with
+    /// `sexprToStringLike? v = some s` pins the result to
+    /// `.ok { acc with protocol := some s }`. The Rust counterpart at
+    /// `dialect_parser::parse_clause` writes `Some(s)` into the dialect's
+    /// integrity-protocol field. This is the universally-quantified
+    /// version of the original single-input pin: the Lean lemma is
+    /// over arbitrary `s`, so the test is too.
+    #[test]
+    fn req516_protocol_keyword_dispatch_matches_lean(
+        s in "[a-z][a-z0-9_-]{0,15}",
+        as_symbol in any::<bool>(),
+    ) {
+        let val = if as_symbol { sym(&s) } else { str_expr(&s) };
+        let definition = dialect_with_protocol_clause(val);
+        let dialect = parse_dialect(&definition).expect("dialect parses");
+        prop_assert_eq!(
+            dialect.protocol.as_deref(),
+            Some(s.as_str()),
+            "Lean `protocol_dispatch_specifies` predicts integrity-protocol = Some({:?}) for \
+             {} input; got {:?}",
+            s,
+            if as_symbol { "symbol" } else { "string" },
+            dialect.protocol,
+        );
+    }
 }
 
 /// REQ-516 — `DCFLPreservation.lean :: shape_dispatch_currently_unwired`.

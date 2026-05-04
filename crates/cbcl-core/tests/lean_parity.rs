@@ -415,7 +415,10 @@ proptest! {
     /// REQ-511 — `Lattice/Store.lean :: lookup_monotone`.
     /// `S₁ ⊆ S₂` ⇒ for every hash `h` and message `M`,
     /// `lookup h S₁ = some M → lookup h S₂ = some M`. We construct `S₂` as
-    /// `S₁ ∪ extras` so subsetting is by construction.
+    /// `S₁ ∪ extras` so subsetting is by construction. The Lean theorem
+    /// asserts identity of the looked-up message (`= some M`, the *same*
+    /// `M`), not just keyset membership — so this test does the same with
+    /// full `Message` equality rather than comparing performative names.
     #[test]
     fn req511_lookup_monotone(
         base in prop::collection::vec(arb_store_entry(), 0..6),
@@ -430,11 +433,9 @@ proptest! {
         for (h, _, _) in &base {
             let ch = ContentHash(h.clone());
             if let Some(m1) = s1.lookup_in_thread(&ch, &t) {
-                let m1_perf = m1.performative().map(|p| p.name().to_string());
                 let m2 = s2.lookup_in_thread(&ch, &t);
                 prop_assert!(m2.is_some(), "S₁ ⊆ S₂ violated: hash {} missing in S₂", h);
-                let m2_perf = m2.unwrap().performative().map(|p| p.name().to_string());
-                prop_assert_eq!(m1_perf, m2_perf,
+                prop_assert_eq!(m1, m2.unwrap(),
                     "lookup_monotone violated: same hash resolves to different messages");
             }
         }
@@ -584,6 +585,12 @@ proptest! {
             1..4,
         ),
     ) {
+        // Note: cb_hashes range is 1..4 (non-empty). The empty list case
+        // is exercised separately by `req513_verify_all_empty_fan_in_pins_residual`
+        // below — Rust's `CausedBy::Multiple(vec![])` triggers the
+        // `IncompleteFanIn` refinement (which has no Lean counterpart),
+        // so it lives outside the proptest body to keep the docstring
+        // contract crisp.
         let proto = fan_in_protocol();
         let t = tid();
         let mut store = ThreadedMessageStore::new();
@@ -655,6 +662,41 @@ fn req513_verify_all_full_coverage_is_valid() {
     let cb = CausedBy::Multiple(vec!["hx".into(), "hy".into()]);
     let r = verify_causal("z", Some(&cb), &store, &proto, &t);
     assert_eq!(pos(&r), Pos::Valid);
+}
+
+/// REQ-513 — empty fan-in `(all ps)` with `CausedBy::Multiple(vec![])`.
+///
+/// Lean's `verify_all_is_meet` (Verify.lean:300) is universally quantified
+/// over `preds : List CausalProtocol` and on `preds = []` reduces to the
+/// meet identity `⊤ = valid`. Rust's `verify_causal`, given an
+/// `(all x y)` step and `CausedBy::Multiple(vec![])`, computes the
+/// per-component meet over the empty list (= `Valid`) and then runs the
+/// completeness side-check, which finds `{x, y}` uncovered and refines
+/// the result to `Violation(IncompleteFanIn { … })`.
+///
+/// This test pins Rust's actual return value as a deterministic
+/// reference, documenting the Lean-vs-Rust gap on the empty case. The
+/// `req513_verify_all_is_meet` proptest above uses `1..4` for `cb_hashes`
+/// to avoid double-encoding this gap inside the property body.
+#[test]
+fn req513_verify_all_empty_fan_in_pins_residual() {
+    let proto = fan_in_protocol();
+    let t = tid();
+    let store = ThreadedMessageStore::new();
+    let cb = CausedBy::Multiple(Vec::new());
+    let r = verify_causal("z", Some(&cb), &store, &proto, &t);
+    // Rust returns Violation; Lean theorem would predict Valid (`⊤`).
+    // The IncompleteFanIn refinement is the documented gap.
+    assert_eq!(pos(&r), Pos::Violation,
+        "Rust's IncompleteFanIn refinement: empty fan-in against (all x y) should be Violation, got {:?}", r);
+    assert!(
+        matches!(
+            r,
+            VerificationResult::Violation(CausalViolation::IncompleteFanIn { .. })
+        ),
+        "expected IncompleteFanIn violation, got {:?}",
+        r
+    );
 }
 
 // ===========================================================================
@@ -742,31 +784,42 @@ fn step(name: &str, preds: Vec<&str>, succs: Vec<&str>) -> StepDecl {
 /// Build a random DAG-shaped protocol whose successor edges go strictly
 /// from earlier to later names — guaranteed acyclic by construction.
 ///
-/// For each non-`begin` vertex `pi` (i ∈ 0..n), pick a non-empty subset
-/// of `{begin, p0, …, p_{i-1}}` as predecessors. The non-emptiness
-/// guarantees every vertex has at least one path back to `begin` (since
-/// `p0`'s only candidate is `begin`, and inductively every later vertex
-/// inherits reachability from its predecessor set), so reachability
-/// soundness still holds. Predecessor entries are constructed from a
-/// boolean mask over candidate indices, so each `NodeRef::Single` value
-/// is structurally distinct — the step-uniqueness invariant is also
-/// preserved by construction.
+/// For each non-`begin` vertex `pi` (i ∈ 0..n), the predecessor set is
+/// constructed from a boolean mask over candidate indices `{begin, p0,
+/// …, p_{i-1}}`. Two adjustments are applied to the mask before use:
+///
+///   1. `mask[0]` (corresponding to `begin`) is **forced true** — this
+///      guarantees every vertex has a direct path back to `begin`, so
+///      reachability soundness holds by construction.
+///   2. For non-first vertices (`i ≥ 1`), if no prior-vertex bit is
+///      selected, `mask[1]` (i.e. `p0`) is forced true — this ensures
+///      the *typical* predecessor list has ≥ 2 entries, so the
+///      proptest shrinker bottoms out at branching DAGs rather than
+///      collapsing failures to `[begin]`-only linear chains. Without
+///      this, every non-first vertex was independently free to shrink
+///      its mask to all-false, which would then snap to `[begin]` and
+///      defeat the "general DAG" claim of this strategy.
+///
+/// Predecessor entries are constructed from the mask, so each
+/// `NodeRef::Single` value is structurally distinct — the
+/// step-uniqueness invariant is also preserved by construction.
 fn arb_acyclic_protocol() -> impl Strategy<Value = CausalProtocol> {
     // Per-vertex strategy: a `Vec<bool>` of length `i + 1` whose `j`-th
     // bit selects index `j as i32 - 1` (so `0` ↦ `begin`, `k` ↦ `p_{k-1}`
-    // for `k ≥ 1`). If the mask comes back all-false, force `begin` in so
-    // the predecessor list is non-empty.
+    // for `k ≥ 1`). See the function docstring for why mask[0] is forced
+    // true and (for i ≥ 1) at least one mask[1..=i] bit is forced true.
     fn vertex_pred_indices(i: usize) -> impl Strategy<Value = Vec<i32>> {
-        prop::collection::vec(any::<bool>(), i + 1).prop_map(move |mask| {
-            let mut chosen: Vec<i32> = mask
-                .iter()
+        prop::collection::vec(any::<bool>(), i + 1).prop_map(move |mut mask| {
+            // (1) Always include `begin`.
+            mask[0] = true;
+            // (2) For non-first vertices, ensure ≥ 1 prior-vertex pick.
+            if i >= 1 && !mask[1..=i].iter().any(|&b| b) {
+                mask[1] = true;
+            }
+            mask.iter()
                 .enumerate()
                 .filter_map(|(j, b)| if *b { Some(j as i32 - 1) } else { None })
-                .collect();
-            if chosen.is_empty() {
-                chosen.push(-1);
-            }
-            chosen
+                .collect()
         })
     }
 
