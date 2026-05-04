@@ -13,20 +13,24 @@ CON-516 (SPEC-005 §Contracts). The companion shell script
 emitted `'<thm>' depends on axioms: [...]` lines, and fails CI if any
 axiom outside the allowlist appears.
 
-Allowlist (kept in sync with the shell script):
+Allowlist (kept in sync with the shell script and with NFR-511 +
+ADR-515 in `specs/SPEC-005-lean-mechanisation.md`):
 
 * `Classical.choice`, `propext`, `Quot.sound` — the standard Lean kernel
-  axioms (NFR-511).
+  axioms permitted by NFR-511 clause 1.
 * `CBCL.ContentHash`, `CBCL.ContentHash.instNonempty`, `CBCL.contentHash`,
-  `CBCL.contentHash_injective` — opaque `ContentHash` carrier and the
-  cryptographic-hash injectivity assumption documented in SPEC-005
-  §"Open Questions" §2 (where NFR-511 is explicitly carved out to allow
-  this assumption). Located in `LeanCbcl/Lattice/Store.lean`.
+  `CBCL.contentHash_injective` — the cryptographic-hash carrier and the
+  injectivity assumption justified by ADR-515. Located in
+  `LeanCbcl/Lattice/Store.lean`.
 * `CBCL.Message.causedBy` — opaque accessor for the `:caused-by` field of
-  the abstract `Message` type. Located in `LeanCbcl/Verify.lean`. The
-  Rust implementation pulls the field from a parsed S-expression; the
-  Lean model treats it as an abstract accessor since `Message` itself is
-  abstract on the verify side.
+  the abstract `Message` type, also justified by ADR-515. Located in
+  `LeanCbcl/Verify.lean`. The Rust implementation pulls the field from a
+  parsed S-expression; the Lean model treats it as an abstract accessor
+  since `Message` itself is abstract on the verify side.
+
+NFR-511 clause 2 admits *only* the five project axioms above. Any further
+project axiom requires an amendment to ADR-515, not merely an allowlist
+edit in the script and this header.
 
 If a future theorem joins CON-510..516, add a `#print axioms` line for it
 below — the shell script discovers theorems from this file's output, so

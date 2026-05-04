@@ -5,16 +5,18 @@
 # `'<thm>' depends on axioms: [...]` lines emitted by `#print axioms`,
 # and asserts only allowlisted axioms appear.
 #
-# Allowlist (kept in sync with the header comment in AxiomAudit.lean):
+# Allowlist (kept in sync with the header comment in AxiomAudit.lean
+# and with NFR-511 + ADR-515 in specs/SPEC-005-lean-mechanisation.md):
 #
 #   * propext, Classical.choice, Quot.sound — the standard Lean kernel
-#     axioms permitted by NFR-511.
+#     axioms permitted by NFR-511 clause 1.
 #   * CBCL.ContentHash, CBCL.ContentHash.instNonempty, CBCL.contentHash,
-#     CBCL.contentHash_injective — opaque ContentHash carrier and the
-#     cryptographic injectivity assumption documented in SPEC-005
-#     §"Open Questions" §2 (the only project-side carve-out).
-#   * CBCL.Message.causedBy — opaque accessor for the `:caused-by` field
-#     of the abstract Message type used on the verify side.
+#     CBCL.contentHash_injective, CBCL.Message.causedBy — the project
+#     axioms enumerated by ADR-515 (cryptographic-hash carrier +
+#     injectivity, and the opaque `:caused-by` accessor on the abstract
+#     Message type). NFR-511 clause 2 admits *only* this set; adding any
+#     further project axiom requires an ADR amendment, not just an
+#     allowlist edit.
 #
 # Any axiom outside this allowlist is a build-fail (e.g. an accidental
 # `axiom foo : True` introduced during proof development).

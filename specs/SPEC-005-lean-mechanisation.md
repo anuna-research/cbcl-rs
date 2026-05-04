@@ -204,13 +204,17 @@ Trace:
 
 ### NFR-511: Axiom discipline
 
-The mechanisation SHALL NOT introduce new axioms beyond Mathlib4's standard set. Every `axiom` declaration is forbidden unless explicitly justified in an ADR. `#print axioms <theorem>` for each theorem in REQ-510 through REQ-516 SHALL produce only standard Lean / Mathlib axioms (`Classical.choice`, `propext`, `Quot.sound`).
+The mechanisation SHALL NOT introduce new axioms beyond Mathlib4's standard set. Every `axiom` declaration is forbidden unless explicitly justified in an ADR. `#print axioms <theorem>` for each theorem in REQ-510 through REQ-516 SHALL produce only:
 
-This is the same discipline applied in the SPEC-001 mechanisation.
+1. The standard Lean / Mathlib kernel axioms (`Classical.choice`, `propext`, `Quot.sound`); and
+2. The project axioms enumerated in ADR-515 (cryptographic-hash injectivity carrier and the abstract `:caused-by` accessor) — no other project axiom is permitted.
+
+This is the same discipline applied in the SPEC-001 mechanisation. The CI gate `scripts/check-axioms.sh` enforces both clauses against `lean-cbcl/AxiomAudit.lean`.
 
 Trace:
 - TEST-551
 - OBS-511
+- ADR-515
 
 ### NFR-512: Proof maintenance cost
 
@@ -419,6 +423,30 @@ Verified by:
 **Context:** The SPEC-001 mechanisation extracts a Lean→native parser binary. The same approach for the verifier is technically feasible but has additional cost: the Lean code needs to be reasonable for extraction (no `decide` over large finite types, careful handling of native types), and the extracted binary needs to be wired into the CBCL pipeline.
 
 **Rationale:** Out of scope for the headline lattice theorem. A separate `SPEC-008-extracted-verifier` (proposed) could pick this up later.
+
+**Status:** accepted
+
+### ADR-515: Carve-out for cryptographic-hash and abstract-message axioms
+
+**Decision:** NFR-511's axiom-discipline contract permits, in addition to the standard Lean kernel axioms (`Classical.choice`, `propext`, `Quot.sound`), the following project axioms — and only these:
+
+| Axiom | Where | Justification |
+|---|---|---|
+| `CBCL.ContentHash` | `LeanCbcl/Lattice/Store.lean` | Opaque carrier for the cryptographic hash space. The Rust implementation uses canonical-form SHA-256; the Lean model treats the carrier as abstract because mechanising SHA-256 is well outside SPEC-005's scope. |
+| `CBCL.ContentHash.instNonempty` | `LeanCbcl/Lattice/Store.lean` | Asserts the hash space is inhabited — required by Mathlib lattice instances. Trivially true for any real hash function. |
+| `CBCL.contentHash` | `LeanCbcl/Lattice/Store.lean` | The opaque hashing function `Message → ContentHash`. Same rationale as the carrier. |
+| `CBCL.contentHash_injective` | `LeanCbcl/Lattice/Store.lean` | Cryptographic-hash injectivity. Not a theorem — a *cryptographic assumption*, the same one the Rust implementation relies on. SPEC-005 §"Open Questions" §2 explicitly anticipated this carve-out. |
+| `CBCL.Message.causedBy` | `LeanCbcl/Verify.lean` | Opaque accessor for the `:caused-by` field of the abstract `Message` type. The Rust implementation extracts this from a parsed S-expression; the Lean model keeps `Message` abstract on the verify side, so the accessor must be opaque. |
+
+**Context:** NFR-511 forbids project-level axioms unless explicitly justified in an ADR. Without this ADR the Lean proofs would either need to mechanise SHA-256 (massively out of scope) or model `Message` and the hash relation concretely (defeating the abstraction the proofs depend on). The Rust implementation makes the same assumptions implicitly; recording them as Lean axioms makes the trust boundary inspectable rather than hidden.
+
+**Trade-offs:**
+- **Pro:** Trust boundary is explicit and auditable via `#print axioms` + `scripts/check-axioms.sh`.
+- **Pro:** Mirrors the Rust implementation's existing assumptions — no new trust delta.
+- **Con:** Departs from the strictest reading of NFR-511 (kernel axioms only).
+- **Con:** Adding any future project axiom requires a follow-on ADR amendment.
+
+**Rationale:** The carve-out is small (5 axioms), each axiom corresponds to a real cryptographic or abstraction-boundary assumption, and the alternative — mechanising SHA-256 or losing the abstraction — has no proportionate benefit. Promoting Open Questions §2 from a deferred note to a binding ADR closes the gap between the documented contract and what the CI gate actually enforces.
 
 **Status:** accepted
 
