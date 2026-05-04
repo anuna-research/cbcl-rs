@@ -82,8 +82,10 @@ pub fn r5_violations_with_ancestors(d: &Dialect, ancestors: &[&Dialect]) -> Vec<
 
         // §3: Type constraints are valid by construction (TypeConstraint enum).
 
-        // §4: max-depth must not exceed the dialect's R2 resource bound.
-        if let Some(shape_max_depth) = shape.max_depth() {
+        // §4: every declared max-depth bound must respect the dialect's R2
+        // resource limit. A shape may declare more than one `(max-depth …)`
+        // rule; checking only the first would let later rules slip through.
+        for shape_max_depth in shape.max_depths() {
             if shape_max_depth > d.resources.max_depth {
                 violations.push(alloc::format!(
                     "shape '{}' max-depth {} exceeds dialect R2 bound {}",
@@ -263,6 +265,28 @@ mod tests {
         assert!(!verify_r5(&d));
         let v = r5_violations(&d);
         assert!(v.iter().any(|s| s.contains("exceeds dialect R2 bound")));
+    }
+
+    #[test]
+    fn later_max_depth_rule_exceeding_r2_is_flagged() {
+        // (shape p (max-depth 4) (max-depth 100)) — the second bound exceeds
+        // the dialect's 16-deep R2 limit. A first-wins check would silently
+        // accept this; R5 must validate every declared bound (REQ-222 §4).
+        let d = test_dialect(
+            vec!["propose-step"],
+            vec![ShapeConstraint {
+                performative: String::from("propose-step"),
+                rules: vec![ShapeRule::MaxDepth(4), ShapeRule::MaxDepth(100)],
+            }],
+        );
+        assert!(!verify_r5(&d));
+        let v = r5_violations(&d);
+        assert!(
+            v.iter()
+                .any(|s| s.contains("max-depth 100") && s.contains("exceeds dialect R2 bound")),
+            "expected the later max-depth 100 to be flagged: {:?}",
+            v
+        );
     }
 
     #[test]

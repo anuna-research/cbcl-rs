@@ -257,16 +257,24 @@ impl CausalProtocol {
     /// Check that no performative has duplicate step declarations (REQ-207).
     ///
     /// `CausalProtocol::steps` is keyed by performative name, so step *names*
-    /// cannot collide structurally. The remaining hazard is that the
-    /// `(then …)` parser accumulates predecessor/successor `NodeRef` entries
-    /// across clauses by `push`, so a duplicated `(then …)` clause produces a
-    /// duplicated edge — equivalent to two `(step a :after begin)` declarations
-    /// in the spec's surface form. We flag any `StepDecl` whose predecessor
-    /// or successor list contains repeats.
+    /// cannot collide structurally. The remaining hazard is the `(then …)`
+    /// parser, which accumulates predecessor `NodeRef` entries across
+    /// clauses by `push`: every clause that targets the same performative
+    /// pushes another entry, regardless of whether the entries are equal.
+    /// REQ-207 requires that each performative have exactly one set of
+    /// valid predecessors, so we flag any `StepDecl` whose predecessor list
+    /// has more than one entry — both literal duplicates like
+    /// `(then begin a) (then begin a)` and distinct-edge cases like
+    /// `(then begin a) (then b a)` collapse to `predecessors.len() > 1`.
+    /// Fan-in (multiple required predecessors) is expressed as a single
+    /// `NodeRef::All(...)` entry, so legitimate fan-in keeps `len == 1`.
+    /// Successor duplicates are still flagged as a defence-in-depth check
+    /// against programmatically-constructed protocols whose two sides have
+    /// drifted out of sync.
     pub fn check_step_uniqueness(&self) -> Vec<ProtocolViolation> {
         let mut violations = Vec::new();
         for (name, step) in &self.steps {
-            if has_duplicate(&step.predecessors) || has_duplicate(&step.successors) {
+            if step.predecessors.len() > 1 || has_duplicate(&step.successors) {
                 violations.push(ProtocolViolation::DuplicateStep { name: name.clone() });
             }
         }
@@ -1149,14 +1157,39 @@ mod tests {
     }
 
     #[test]
-    fn test_step_uniqueness_distinct_edges_pass() {
-        // `(then begin a) (then x a)` — fan-in, NOT a duplicate.
+    fn test_step_uniqueness_rejects_distinct_edges() {
+        // `(then begin a) (then x a)` — REQ-207 forbids declaring `a` in two
+        // separate `(then …)` clauses with different predecessors. The
+        // canonical fan-in form is a single `(then (all begin x) a)` clause,
+        // which collapses to `predecessors = [All({begin, x})]` (len == 1).
         let mut steps = BTreeMap::new();
         steps.insert(
             "a".into(),
             StepDecl {
                 performative: "a".into(),
                 predecessors: vec![NodeRef::Single("begin".into()), NodeRef::Single("x".into())],
+                successors: vec![],
+            },
+        );
+        let proto = CausalProtocol { steps };
+        let violations = proto.check_step_uniqueness();
+        assert!(violations
+            .iter()
+            .any(|v| matches!(v, ProtocolViolation::DuplicateStep { name } if name == "a")));
+    }
+
+    #[test]
+    fn test_step_uniqueness_accepts_all_fan_in() {
+        // `(then (all begin x) a)` — single predecessor entry, legitimate fan-in.
+        let mut steps = BTreeMap::new();
+        let mut all_set = BTreeSet::new();
+        all_set.insert("begin".into());
+        all_set.insert("x".into());
+        steps.insert(
+            "a".into(),
+            StepDecl {
+                performative: "a".into(),
+                predecessors: vec![NodeRef::All(all_set)],
                 successors: vec![],
             },
         );

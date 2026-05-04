@@ -842,35 +842,48 @@ theorem check_performative_definedness_iff_all_defined
     · simp [hd] at hf
   · simp [h n hn]
 
-/-! ## Step-uniqueness check (REQ-207, post-fix) — list `Nodup` + iff. -/
+/-! ## Step-uniqueness check (REQ-207, post-fix) — predecessor cardinality
+    + successor `Nodup` + iff. -/
 
 /-- Step-uniqueness check (REQ-207, post-fix) — Lean port of Rust
     `CausalProtocol::check_step_uniqueness`. Emits one
-    `duplicateStep` violation per `StepDecl` whose predecessor or
-    successor list contains a repeated entry.
+    `duplicateStep` violation per `StepDecl` whose predecessor list
+    has more than one entry, or whose successor list contains a
+    repeated entry.
 
-    The Rust `CausalProtocol::steps` is keyed by performative name, so
-    the only way for a duplicate to arise is via the surface-form
-    `(then …)` parser appending the same `NodeRef` twice into a
-    step's predecessors/successors. The Lean surface model collapses
-    `NodeRef` to `String`, so duplicate detection reduces to
-    `¬ List.Nodup` on each step's edge lists. -/
+    The Rust `CausalProtocol::steps` is keyed by performative name,
+    so the only way for an extra predecessor entry to arise is via
+    the surface-form `(then …)` parser pushing per-clause
+    contributions into the same step. Two clauses targeting the same
+    successor — both literal duplicates like `(then begin a) (then
+    begin a)` and distinct-edge cases like `(then begin a) (then b
+    a)` — collapse to `predecessors.length ≥ 2`, which REQ-207
+    rejects. Legitimate fan-in uses a single `NodeRef.All …` entry
+    (collapsed to one string in this Lean model), so honest fan-in
+    keeps `length = 1`. The Lean model maps every `NodeRef.Single x`
+    to the entry `x`; faithful representation of the multi-name
+    `Any`/`All` constructors is out of scope for the parity tests
+    (`req515_step_uniqueness_*` use `Single` only), and the
+    structured Rust check enforces the property on the full
+    `Vec<NodeRef>` form. -/
 def ProtocolGraph.checkStepUniqueness (p : ProtocolGraph) : List ProtocolViolation :=
   p.steps.filterMap fun s =>
-    if s.predecessors.Nodup ∧ s.successors.Nodup then none
+    if s.predecessors.length ≤ 1 ∧ s.successors.Nodup then none
     else some (.duplicateStep s.performative)
 
-/-- Property: no `StepDecl` has duplicate predecessors or successors. -/
+/-- Property: every `StepDecl` has at most one predecessor entry and
+    no duplicate successors. -/
 def ProtocolGraph.allStepsUnique (p : ProtocolGraph) : Prop :=
-  ∀ s ∈ p.steps, s.predecessors.Nodup ∧ s.successors.Nodup
+  ∀ s ∈ p.steps, s.predecessors.length ≤ 1 ∧ s.successors.Nodup
 
 /-- **CON-515 — `check_step_uniqueness_iff_no_duplicates`
     (REQ-515 part 4).**
 
-    Full iff: per-step `List.Nodup` membership, no fuel, no graph
-    traversal. Mirrors `check_performative_definedness_iff_all_defined`
-    structurally; reduces to `List.filterMap_eq_nil_iff` plus case
-    analysis on the per-step `Nodup ∧ Nodup` conjunction. -/
+    Full iff: per-step cardinality + `List.Nodup` membership, no fuel,
+    no graph traversal. Mirrors
+    `check_performative_definedness_iff_all_defined` structurally;
+    reduces to `List.filterMap_eq_nil_iff` plus case analysis on the
+    per-step `length ≤ 1 ∧ Nodup` conjunction. -/
 theorem check_step_uniqueness_iff_no_duplicates (p : ProtocolGraph) :
     p.checkStepUniqueness = [] ↔ p.allStepsUnique := by
   simp only [ProtocolGraph.checkStepUniqueness,
@@ -878,7 +891,7 @@ theorem check_step_uniqueness_iff_no_duplicates (p : ProtocolGraph) :
              List.filterMap_eq_nil_iff]
   refine ⟨fun h s hs => ?_, fun h s hs => ?_⟩
   · have hf := h s hs
-    by_cases hu : s.predecessors.Nodup ∧ s.successors.Nodup
+    by_cases hu : s.predecessors.length ≤ 1 ∧ s.successors.Nodup
     · exact hu
     · simp [hu] at hf
   · simp [h s hs]

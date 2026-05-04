@@ -27,7 +27,7 @@ on:
       - 'specs/SPEC-003-*'
       - 'specs/SPEC-005-*'
       - 'scripts/check-axioms.sh'
-      - '.github/workflows/lean.yml'
+      - '.forgejo/workflows/lean.yml'
   pull_request:
     paths:
       - 'lean-cbcl/**'
@@ -38,7 +38,7 @@ on:
       - 'specs/SPEC-003-*'
       - 'specs/SPEC-005-*'
       - 'scripts/check-axioms.sh'
-      - '.github/workflows/lean.yml'
+      - '.forgejo/workflows/lean.yml'
 
 jobs:
   lake-build-and-axiom-audit:

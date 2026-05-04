@@ -142,7 +142,7 @@ The system SHALL prove, in Lean, the soundness of each R5 sub-check from SPEC-00
 1. `check_acyclicity` returns `[]` iff the dependency graph has no cycle (REQ-204)
 2. `check_reachability` returns `[]` iff every step is reachable from `begin` (REQ-205)
 3. `check_performative_definedness` returns `[]` iff every referenced performative appears in the defined set (REQ-206)
-4. `check_step_uniqueness` returns `[]` iff no `StepDecl` has duplicate predecessors or successors (REQ-207, post-fix)
+4. `check_step_uniqueness` returns `[]` iff every `StepDecl` has at most one predecessor entry and no duplicate successors (REQ-207, post-fix). Per-clause predecessor pushes from the `(then …)` parser collapse into the same `StepDecl`, so `predecessors.length ≥ 2` indicates two clauses targeting the same successor with different predecessors — exactly the duplicate-step-declaration case REQ-207 rejects.
 
 Each theorem is stated as the iff form (soundness + completeness). Soundness is mandatory; completeness is preferred but acceptable to defer to a follow-on commit if the DFS/BFS variant proves intractable in Lean (the existing SPEC-001 work has a parallel deferred completeness theorem for the R1 DFS).
 
