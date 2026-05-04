@@ -38,8 +38,8 @@ fn run_verify_on_input(input: &str) -> (i32, String, String) {
 }
 
 fn run_verify_on_fixture(name: &str) -> (i32, String, String) {
-    let input = std::fs::read_to_string(dialect_path(name))
-        .unwrap_or_else(|e| panic!("read {name}: {e}"));
+    let input =
+        std::fs::read_to_string(dialect_path(name)).unwrap_or_else(|e| panic!("read {name}: {e}"));
     run_verify_on_input(&input)
 }
 
