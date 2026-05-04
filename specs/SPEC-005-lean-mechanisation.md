@@ -524,6 +524,8 @@ Trace: REQ-517
 
 For each theorem in REQ-510 through REQ-516, an idiomatic Rust property test in `crates/cbcl-core/tests/lean_parity.rs` asserts the same property over generated values, with default `proptest` configuration (1000 cases). The CI step runs the parity test alongside the Lean build.
 
+**Known asymmetry on REQ-513 (`verify_all_is_meet`).** The Rust implementation refines the Lean abstract `Valid` outcome with an `IncompleteFanIn` violation when the predecessor coverage is partial, which surfaces as `Violation` at the value level. The parity test (`req513_verify_all_is_meet`) therefore asserts pointwise equality on the non-`Valid` per-component meet branch and a relaxed membership check (`actual ∈ {Valid, Violation}`) on the `Valid` branch — see the inline comment at `crates/cbcl-core/tests/lean_parity.rs:577–591`. The asymmetry is intentional: closing it would require either lifting `IncompleteFanIn` into the Lean model (out of scope for SPEC-005, which keeps the verifier abstract on the residual-coverage axis) or weakening the Rust verifier (a regression).
+
 **Technique:** Property-based testing.
 
 Trace: REQ-518
@@ -674,7 +676,7 @@ Trace: NFR-511
 
 ## Status and Versioning
 
-- **Status:** implementing. The IMPL-005 plan delivered the lattice + monotonicity + eventual-consistency theorems, the four R5 sub-check theorems (full iff for REQ-206/207, soundness only for REQ-204/205 per ADR-512), and the DCFL preservation theorems. CI runs `lake build` and the differential parity tests on every commit touching `lean-cbcl/`, SPEC-002, SPEC-003, or SPEC-005.
+- **Status:** implemented. The IMPL-005 plan delivered the lattice + monotonicity + eventual-consistency theorems, full iff for all four R5 sub-check theorems (REQ-204/205/206/207), and the DCFL preservation theorems. CI runs `lake build` and the differential parity tests on every commit touching `lean-cbcl/`, SPEC-002, SPEC-003, or SPEC-005.
 - **Predecessor:** none.
 - **Successor:** none yet.
 - **Owner:** Hugo O'Connor.
@@ -690,15 +692,11 @@ Trace: NFR-511
 | REQ-513 — fan-in is meet | ✅ complete | `LeanCbcl/Verify.lean` | `verify_all_is_meet` proved. |
 | REQ-514 — eventual consistency | ✅ complete | `LeanCbcl/Verify.lean` | `verify_eventually_consistent`, derived from `verify_monotone` + `join_mono`. |
 | REQ-515 — R5 sub-checks | ✅ complete | `LeanCbcl/R5.lean` | Full iff for all four sub-checks: `check_acyclicity_iff_no_cycle` (REQ-204), `check_reachability_iff_all_reachable` (REQ-205), `check_performative_definedness_iff_all_defined` (REQ-206), `check_step_uniqueness_iff_no_duplicates` (REQ-207). Completeness for REQ-204/205 uses a König-style cycle bound and explicit-path simplification (`ReachableViaPath` + `reachableViaPath_to_simple`); see the section heads in `R5.lean`. |
-| REQ-516 — DCFL preservation | ✅ complete | `LeanCbcl/DCFLPreservation.lean` | `dcfl_preserved_under_protocol` (REQ-209), `dcfl_preserved_under_shape` (REQ-225), plus `*_dispatch_deterministic` companions. Proofs are short by design: causal verification and shape checking are post-parse predicates over already-built `SExpr` trees (VPL ⊂ DCFL), so closure reduces to `allSExpr_isSExpr _`, and dispatch determinism reduces to `rfl` because `applyKeywordClause` is a Lean function. The triviality reflects correctness-by-construction — both features were placed at the right layer (post-parse semantics, not parser extension). |
+| REQ-516 — DCFL preservation | ✅ complete | `LeanCbcl/DCFLPreservation.lean` | `dcfl_preserved_under_protocol` (REQ-209) and `dcfl_preserved_under_shape` (REQ-225), with `protocol_dispatch_specifies` pinning the wired-branch operational semantics for `protocol` and `shape_dispatch_currently_unwired` documenting that `shape` currently routes to the catch-all error branch. The DCFL closure proofs are short by design: causal verification and shape checking are post-parse predicates over already-built `SExpr` trees (VPL ⊂ DCFL), so closure reduces to `allSExpr_isSExpr _`. The triviality reflects correctness-by-construction — both features were placed at the right layer (post-parse semantics, not parser extension). |
 | REQ-517 — `verified-by` annotations | ✅ complete | `scripts/check-verified-by.sh` | Every REQ in SPEC-002 / SPEC-003 carries a `verified-by:` field; lint runs in CI. |
 | REQ-518 — differential parity | ✅ complete | `crates/cbcl-core/tests/` | TEST-518 parity tests pair each Lean theorem with a Rust property test. |
 
-Status transitions from here:
-
-- `implementing` → `implemented` once REQ-204 / REQ-205 completeness lands (lifting `dfsNoCycle_complete` / DFS-completeness to the fixed `|names|² + 1` fuel) and the spec-level `verified-by:` for those REQs is upgraded from `lean (soundness only)` to `lean`.
-
-Partial completion is acceptable. The remaining gap is honestly recorded in SPEC-002 REQ-204 / REQ-205 via the `lean (soundness only)` annotation.
+All REQ-510..518 entries above are at full `verified-by: lean` (no `(soundness only)` carve-outs remain). Future SPEC-005 work would extend the mechanisation to currently-deferred surfaces (e.g. blame attribution per SPEC-009) rather than reconcile soundness-only gaps inside this spec.
 
 ---
 

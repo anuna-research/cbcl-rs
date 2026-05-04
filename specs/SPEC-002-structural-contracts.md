@@ -513,7 +513,7 @@ DCFL preservation is trivially maintained because the protocol mechanism adds no
 
 verified-by: lean
 
-Mechanised in `lean-cbcl/LeanCbcl/DCFLPreservation.lean` as `dcfl_preserved_under_protocol` (the `(protocol …)` clause inhabits the existing `IsSExpr` DCFL grammar) and `protocol_dispatch_deterministic` (the `protocol` keyword dispatch is a Lean function). The proofs are short by design: causal verification is a post-parse, post-expansion predicate over already-built `SExpr` trees (VPL ⊂ DCFL), so closure under `(protocol …)` reduces to `allSExpr_isSExpr _` — the existing recogniser already accepts every `SExpr`, including this clause shape — and dispatch determinism reduces to `rfl` because `applyKeywordClause` is a Lean function. A longer proof would only be needed if `protocol` extended the parser; it does not.
+Mechanised in `lean-cbcl/LeanCbcl/DCFLPreservation.lean` as `dcfl_preserved_under_protocol` (the `(protocol …)` clause inhabits the existing `IsSExpr` DCFL grammar) and `protocol_dispatch_specifies` (the wired `protocol` branch in `applyKeywordClause` has pinned operational semantics: a single string-like value updates the `protocol` field). The DCFL closure proof is short by design: causal verification is a post-parse, post-expansion predicate over already-built `SExpr` trees (VPL ⊂ DCFL), so closure under `(protocol …)` reduces to `allSExpr_isSExpr _` — the existing recogniser already accepts every `SExpr`, including this clause shape. A longer proof would only be needed if `protocol` extended the parser; it does not.
 
 Trace:
 - TEST-209
@@ -750,7 +750,7 @@ Shape checking is a VPL tree-walking operation. VPL ⊂ DCFL. Shape constraints 
 
 verified-by: lean
 
-Mechanised in `lean-cbcl/LeanCbcl/DCFLPreservation.lean` as `dcfl_preserved_under_shape` (the `(shape …)` clause inhabits the existing `IsSExpr` DCFL grammar) and `shape_dispatch_deterministic` (the `shape` keyword dispatch is a Lean function). The proofs are short by design: shape checking is a VPL tree-walking operation on the parsed `SExpr` (VPL ⊂ DCFL), so closure under `(shape …)` reduces to `allSExpr_isSExpr _` — the existing recogniser already accepts every `SExpr`, including this clause shape — and dispatch determinism reduces to `rfl` because `applyKeywordClause` is a Lean function. The triviality reflects that shape was placed at the right layer (post-parse semantics, not parser extension); a longer proof would only be needed if `shape` extended the grammar, which it does not. See REQ-209 for the same argument applied to causal protocols.
+Mechanised in `lean-cbcl/LeanCbcl/DCFLPreservation.lean` as `dcfl_preserved_under_shape` (the `(shape …)` clause inhabits the existing `IsSExpr` DCFL grammar) and `shape_dispatch_currently_unwired` (the `shape` keyword is not yet wired into `applyKeywordClause` and routes to its catch-all error branch — the DCFL preservation argument does not depend on it being wired, only on `(shape …)` being a well-formed `SExpr`). The DCFL closure proof is short by design: shape checking is a VPL tree-walking operation on the parsed `SExpr` (VPL ⊂ DCFL), so closure under `(shape …)` reduces to `allSExpr_isSExpr _` — the existing recogniser already accepts every `SExpr`, including this clause shape. The triviality reflects that shape was placed at the right layer (post-parse semantics, not parser extension); a longer proof would only be needed if `shape` extended the grammar, which it does not. See REQ-209 for the same argument applied to causal protocols.
 
 Trace:
 - TEST-225

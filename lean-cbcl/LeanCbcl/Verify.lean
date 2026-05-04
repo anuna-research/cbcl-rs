@@ -57,8 +57,8 @@ exists in the Rust tree — protocol verification lives alongside the
 begin → constant Valid; missing-caused-by → Violation) is preserved
 here.
 
-Pinned commit SHA at time of mirroring: `3bde18c5e7b9f790d342aecce871823b35cef8de`
-(branch `hence/verify-skeleton-v1`, parent of this task's first commit).
+Pinned commit SHA at time of mirroring: `5a233c692b1dc79241de2678bf00101c9b703c48`
+(parent of `a4de63c`, the commit that landed this skeleton).
 
 ## Abstract Message accessor
 

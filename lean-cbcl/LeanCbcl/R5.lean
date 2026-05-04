@@ -45,15 +45,11 @@ both pure list-membership / `List.Nodup` checks and reduce to
   direction for both graph sub-checks.
 
 * `check_acyclicity_iff_no_cycle` / `check_reachability_iff_all_reachable`
-  — the headline iff theorems named in CON-515. Both directions are now
+  — the headline iff theorems named in CON-515. Both directions are
   proven: soundness (`check = [] → property`) by DFS soundness from
   `R1NoRecursion.lean`; completeness (`property → check = []`) by a
   König-style argument that bounds DFS recursion depth by the number
-  of graph keys in cycle-free / explicit-path graphs. For acyclicity the deferred
-  direction would require a König-style argument bounding cycle length
-  by `|stepNames|`; for reachability the deferred direction would
-  require showing that fuel `n² + 1` suffices for BFS to visit every
-  reachable node. Both are open work.
+  of graph keys in cycle-free / explicit-path graphs.
 
 * `check_performative_definedness_iff_all_defined` /
   `check_step_uniqueness_iff_no_duplicates` — full iff (no fuel, no
