@@ -6,6 +6,43 @@
 //! that drift between the model and the Rust implementation surfaces as a
 //! property-test failure rather than a silent divergence.
 //!
+//! ## REQ → test → Lean theorem map
+//!
+//! | REQ | Test fn (this file unless noted) | Lean theorem |
+//! |---|---|---|
+//! | REQ-510 | `req510_meet_assoc` | `Lattice/Result.lean :: BoundedLattice.meet_assoc` |
+//! | REQ-510 | `req510_meet_comm` | `Lattice/Result.lean :: BoundedLattice.meet_comm` |
+//! | REQ-510 | `req510_meet_idem` | `Lattice/Result.lean :: BoundedLattice.meet_idem` |
+//! | REQ-510 | `req510_join_assoc` | `Lattice/Result.lean :: BoundedLattice.join_assoc` |
+//! | REQ-510 | `req510_join_comm` | `Lattice/Result.lean :: BoundedLattice.join_comm` |
+//! | REQ-510 | `req510_join_idem` | `Lattice/Result.lean :: BoundedLattice.join_idem` |
+//! | REQ-510 | `req510_join_bot_identity` | `Lattice/Result.lean :: bot_join`, `join_bot` |
+//! | REQ-510 | `req510_meet_top_identity` | `Lattice/Result.lean :: top_meet`, `meet_top` |
+//! | REQ-510 | `req510_truth_tables` | `Lattice/Result.lean :: result_meet_table`, `result_join_table` |
+//! | REQ-511 | `req511_union_comm` | `Lattice/Store.lean :: union_comm` |
+//! | REQ-511 | `req511_union_assoc` | `Lattice/Store.lean :: union_assoc` |
+//! | REQ-511 | `req511_union_idem` | `Lattice/Store.lean :: union_idem` |
+//! | REQ-511 | `req511_lookup_monotone` | `Lattice/Store.lean :: lookup_monotone` |
+//! | REQ-512 | `req512_verify_monotone_single` | `Verify.lean :: verify_monotone` (single arm) |
+//! | REQ-512 | `req512_verify_monotone_all_caused_by_arms` | `Verify.lean :: verify_monotone` (every arm) |
+//! | REQ-513 | `req513_verify_all_is_meet` | `Verify.lean :: verify_all_is_meet` |
+//! | REQ-513 | `req513_verify_all_full_coverage_is_valid` | `Verify.lean :: verify_all_is_meet` (meet-identity case) |
+//! | REQ-514 | `req514_verify_eventually_consistent` | `Verify.lean :: verify_eventually_consistent` |
+//! | REQ-515 | `req515_acyclicity_sound_on_acyclic` | `R5.lean :: check_acyclicity_iff_no_cycle` (→) |
+//! | REQ-515 | `req515_acyclicity_complete_on_cyclic` | `R5.lean :: check_acyclicity_iff_no_cycle` (←) |
+//! | REQ-515 | `req515_reachability_sound` | `R5.lean :: check_reachability_iff_all_reachable` (→) |
+//! | REQ-515 | `req515_reachability_complete_on_orphan` | `R5.lean :: check_reachability_iff_all_reachable` (←) |
+//! | REQ-515 | `req515_definedness_sound` | `R5.lean :: check_performative_definedness_iff_all_defined` (→) |
+//! | REQ-515 | `req515_definedness_complete` | `R5.lean :: check_performative_definedness_iff_all_defined` (←) |
+//! | REQ-515 | `req515_step_uniqueness_sound` | `R5.lean :: check_step_uniqueness_iff_no_duplicates` (→) |
+//! | REQ-515 | `req515_step_uniqueness_complete` | `R5.lean :: check_step_uniqueness_iff_no_duplicates` (←) |
+//! | REQ-516 | `req516_protocol_clause_is_sexpr` | `DCFLPreservation.lean :: protocolClause_isSExpr` |
+//! | REQ-516 | `req516_shape_clause_is_sexpr` | `DCFLPreservation.lean :: shapeClause_isSExpr` |
+//! | REQ-516 | `req516_protocol_dispatch_deterministic` | `DCFLPreservation.lean :: dcfl_preserved_under_protocol` (round-trip) |
+//! | REQ-516 | `req516_shape_dispatch_deterministic` | `DCFLPreservation.lean :: dcfl_preserved_under_shape` (round-trip) |
+//! | REQ-516 | `req516_protocol_keyword_dispatch_matches_lean` *(in `cbcl-parser/tests/lean_parity_dispatch.rs`)* | `DCFLPreservation.lean :: protocol_dispatch_specifies` |
+//! | REQ-516 | `req516_shape_keyword_dispatch_currently_unwired` *(in `cbcl-parser/tests/lean_parity_dispatch.rs`)* | `DCFLPreservation.lean :: shape_dispatch_currently_unwired` |
+//!
 //! See SPEC-005 §"REQ-518: Differential parity with Rust implementation",
 //! §"TEST-518: Differential parity", and §"ADR-513".
 
@@ -591,22 +628,33 @@ proptest! {
         }
     }
 
-    /// REQ-513 — meet identity for the empty fold. With both `x` and `y`
-    /// resolving to correct types, the fan-in returns `Valid` — the
-    /// `meet`-identity (`⊤ = valid`) of the empty residual fold.
-    #[test]
-    fn req513_verify_all_full_coverage_is_valid(_ in 0..32u32) {
-        let proto = fan_in_protocol();
-        let t = tid();
-        let mut store = ThreadedMessageStore::new();
-        store.append(ContentHash("hx".into()), t.clone(),
-            make_msg("x", Some(CausedBy::Begin)));
-        store.append(ContentHash("hy".into()), t.clone(),
-            make_msg("y", Some(CausedBy::Begin)));
-        let cb = CausedBy::Multiple(vec!["hx".into(), "hy".into()]);
-        let r = verify_causal("z", Some(&cb), &store, &proto, &t);
-        prop_assert_eq!(pos(&r), Pos::Valid);
-    }
+}
+
+/// REQ-513 — meet identity for the empty residual fold.
+///
+/// Deterministic: with both `x` and `y` resolving to correct types, the
+/// fan-in returns `Valid` (the `meet`-identity `⊤ = valid`). Pulled out
+/// of the surrounding `proptest!` block because the body has no random
+/// input — running the same fixed assertion 32 times is not a property
+/// test.
+#[test]
+fn req513_verify_all_full_coverage_is_valid() {
+    let proto = fan_in_protocol();
+    let t = tid();
+    let mut store = ThreadedMessageStore::new();
+    store.append(
+        ContentHash("hx".into()),
+        t.clone(),
+        make_msg("x", Some(CausedBy::Begin)),
+    );
+    store.append(
+        ContentHash("hy".into()),
+        t.clone(),
+        make_msg("y", Some(CausedBy::Begin)),
+    );
+    let cb = CausedBy::Multiple(vec!["hx".into(), "hy".into()]);
+    let r = verify_causal("z", Some(&cb), &store, &proto, &t);
+    assert_eq!(pos(&r), Pos::Valid);
 }
 
 // ===========================================================================
@@ -691,31 +739,77 @@ fn step(name: &str, preds: Vec<&str>, succs: Vec<&str>) -> StepDecl {
     }
 }
 
-/// Build a random DAG-shaped protocol whose successor edges go from earlier
-/// to later names — guaranteed acyclic by construction.
+/// Build a random DAG-shaped protocol whose successor edges go strictly
+/// from earlier to later names — guaranteed acyclic by construction.
+///
+/// For each non-`begin` vertex `pi` (i ∈ 0..n), pick a non-empty subset
+/// of `{begin, p0, …, p_{i-1}}` as predecessors. The non-emptiness
+/// guarantees every vertex has at least one path back to `begin` (since
+/// `p0`'s only candidate is `begin`, and inductively every later vertex
+/// inherits reachability from its predecessor set), so reachability
+/// soundness still holds. Predecessor entries are constructed from a
+/// boolean mask over candidate indices, so each `NodeRef::Single` value
+/// is structurally distinct — the step-uniqueness invariant is also
+/// preserved by construction.
 fn arb_acyclic_protocol() -> impl Strategy<Value = CausalProtocol> {
-    prop::collection::vec(0u8..4, 1..6).prop_map(|targets| {
-        let names: Vec<String> = (0..targets.len()).map(|i| format!("p{}", i)).collect();
-        let mut steps = BTreeMap::new();
-        steps.insert(
-            "begin".into(),
-            step("begin", vec![], names.iter().map(|s| s.as_str()).collect()),
-        );
-        for (i, name) in names.iter().enumerate() {
-            let preds: Vec<&str> = if i == 0 {
-                vec!["begin"]
-            } else {
-                vec![names[i - 1].as_str()]
-            };
-            let succs: Vec<&str> = if i + 1 < names.len() {
-                vec![names[i + 1].as_str()]
-            } else {
-                vec![]
-            };
-            steps.insert(name.clone(), step(name, preds, succs));
-        }
-        CausalProtocol { steps }
+    // Per-vertex strategy: a `Vec<bool>` of length `i + 1` whose `j`-th
+    // bit selects index `j as i32 - 1` (so `0` ↦ `begin`, `k` ↦ `p_{k-1}`
+    // for `k ≥ 1`). If the mask comes back all-false, force `begin` in so
+    // the predecessor list is non-empty.
+    fn vertex_pred_indices(i: usize) -> impl Strategy<Value = Vec<i32>> {
+        prop::collection::vec(any::<bool>(), i + 1).prop_map(move |mask| {
+            let mut chosen: Vec<i32> = mask
+                .iter()
+                .enumerate()
+                .filter_map(|(j, b)| if *b { Some(j as i32 - 1) } else { None })
+                .collect();
+            if chosen.is_empty() {
+                chosen.push(-1);
+            }
+            chosen
+        })
+    }
+
+    (1usize..=5).prop_flat_map(|n| {
+        let strategies: Vec<_> = (0..n).map(vertex_pred_indices).collect();
+        strategies.prop_map(move |per_vertex_preds| build_dag(n, per_vertex_preds))
     })
+}
+
+/// Materialise a DAG-shaped `CausalProtocol` from a list of per-vertex
+/// predecessor index lists (where `-1` means `begin`). Successor edges
+/// are derived by transposing the predecessor edges. Used by
+/// `arb_acyclic_protocol`.
+fn build_dag(n: usize, preds: Vec<Vec<i32>>) -> CausalProtocol {
+    let names: Vec<String> = (0..n).map(|i| format!("p{}", i)).collect();
+    let lookup_name = |idx: i32| -> &str {
+        if idx < 0 {
+            "begin"
+        } else {
+            names[idx as usize].as_str()
+        }
+    };
+
+    let mut succs_of_begin: Vec<&str> = Vec::new();
+    let mut succs: Vec<Vec<&str>> = vec![Vec::new(); n];
+    for (child_idx, vertex_preds) in preds.iter().enumerate() {
+        for &p in vertex_preds {
+            let child_name = names[child_idx].as_str();
+            if p < 0 {
+                succs_of_begin.push(child_name);
+            } else {
+                succs[p as usize].push(child_name);
+            }
+        }
+    }
+
+    let mut steps = BTreeMap::new();
+    steps.insert("begin".into(), step("begin", vec![], succs_of_begin));
+    for (i, name) in names.iter().enumerate() {
+        let pred_names: Vec<&str> = preds[i].iter().map(|&p| lookup_name(p)).collect();
+        steps.insert(name.clone(), step(name, pred_names, succs[i].clone()));
+    }
+    CausalProtocol { steps }
 }
 
 /// Build a protocol with a guaranteed direct cycle `a → b → a`.
@@ -750,10 +844,12 @@ proptest! {
     }
 
     /// REQ-515 — `R5.lean :: check_reachability_iff_all_reachable` (soundness `→`).
-    /// In a linear chain `begin → p0 → p1 → ...`, every step is reachable
-    /// from `begin`; the check returns `[]`.
+    /// `arb_acyclic_protocol` produces DAGs in which every non-`begin`
+    /// vertex has at least one ancestor chain back to `begin` (each
+    /// vertex's predecessor set is non-empty within the already-reachable
+    /// prefix), so the check returns `[]`.
     #[test]
-    fn req515_reachability_sound_on_linear(proto in arb_acyclic_protocol()) {
+    fn req515_reachability_sound(proto in arb_acyclic_protocol()) {
         let violations = proto.check_reachability();
         prop_assert!(violations.is_empty(),
             "fully-reachable protocol flagged: {:?}", violations);

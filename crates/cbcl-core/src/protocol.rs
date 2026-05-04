@@ -15,6 +15,16 @@ use core::fmt;
 use crate::message::CausedBy;
 use crate::store::{ContentHash, MessageStore, ThreadId};
 
+/// Reserved keyword strings recognised by `verify_causal` as having
+/// dedicated semantics. Currently the singleton `{"begin"}`, mirroring
+/// `LeanCbcl/Verify.lean::CausalProtocol.begin` as a typed constructor.
+/// Extending this set requires adding a corresponding constructor to the
+/// Lean `CausalProtocol` inductive — otherwise `verify_causal` and the
+/// Lean `verify` will silently disagree at the new keyword's call sites.
+/// The accompanying tripwire test in this module asserts the singleton
+/// invariant; updating it without an ADR is a review-time signal.
+pub const BEGIN_KEYWORD: &str = "begin";
+
 // ================================================================
 // Causal Protocol Data Model (REQ-200)
 // ================================================================
@@ -120,12 +130,12 @@ impl CausalProtocol {
     fn all_referenced_performatives(&self) -> BTreeSet<String> {
         let mut names = BTreeSet::new();
         for (name, step) in &self.steps {
-            if name != "begin" {
+            if name != BEGIN_KEYWORD {
                 names.insert(name.clone());
             }
             for nr in step.predecessors.iter().chain(step.successors.iter()) {
                 for p in nr.performatives() {
-                    if p != "begin" {
+                    if p != BEGIN_KEYWORD {
                         names.insert(p.into());
                     }
                 }
@@ -210,9 +220,9 @@ impl CausalProtocol {
         let mut visited: BTreeSet<&str> = BTreeSet::new();
         let mut queue: Vec<&str> = Vec::new();
 
-        if graph.contains_key("begin") {
-            queue.push("begin");
-            visited.insert("begin");
+        if graph.contains_key(BEGIN_KEYWORD) {
+            queue.push(BEGIN_KEYWORD);
+            visited.insert(BEGIN_KEYWORD);
         }
 
         while let Some(current) = queue.pop() {
@@ -227,7 +237,7 @@ impl CausalProtocol {
 
         let mut violations = Vec::new();
         for name in self.steps.keys() {
-            if name != "begin" && !visited.contains(name.as_str()) {
+            if name != BEGIN_KEYWORD && !visited.contains(name.as_str()) {
                 violations.push(ProtocolViolation::Unreachable { step: name.clone() });
             }
         }
@@ -505,10 +515,10 @@ pub fn verify_causal<S: MessageStore>(
 
         // :caused-by begin — root of a causal chain
         Some(CausedBy::Begin) => {
-            // "begin" must appear in a Single or Any predecessor ref
+            // BEGIN_KEYWORD must appear in a Single or Any predecessor ref
             let begin_allowed = step.predecessors.iter().any(|nr| match nr {
-                NodeRef::Single(s) => s == "begin",
-                NodeRef::Any(set) => set.contains("begin"),
+                NodeRef::Single(s) => s == BEGIN_KEYWORD,
+                NodeRef::Any(set) => set.contains(BEGIN_KEYWORD),
                 NodeRef::All(_) => false, // begin in All doesn't apply to Begin caused-by
             });
             if begin_allowed {
@@ -516,9 +526,9 @@ pub fn verify_causal<S: MessageStore>(
             } else {
                 let expected = allowed_single_predecessors(step);
                 VerificationResult::Violation(CausalViolation::InvalidPredecessor {
-                    caused_by: "begin".into(),
+                    caused_by: BEGIN_KEYWORD.into(),
                     expected,
-                    found: "begin".into(),
+                    found: BEGIN_KEYWORD.into(),
                 })
             }
         }
@@ -625,6 +635,22 @@ pub fn verify_causal<S: MessageStore>(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // ================================================================
+    // SPEC-005 NFR-512 / Verify.lean parity tripwire
+    // ================================================================
+
+    /// Tripwire: the reserved-keyword vocabulary recognised by
+    /// `verify_causal` is the singleton `{BEGIN_KEYWORD}`. Adding a second
+    /// reserved keyword (e.g. `"end"`, `"fork"`) without extending
+    /// `LeanCbcl/Verify.lean::CausalProtocol` to match would silently
+    /// break the Lean ↔ Rust parity that REQ-512..514 depend on. If this
+    /// test starts failing, the right response is an ADR amendment to
+    /// SPEC-005 §"Open Questions" §1, not a quick patch.
+    #[test]
+    fn test_reserved_keyword_vocabulary_is_singleton() {
+        assert_eq!(BEGIN_KEYWORD, "begin");
+    }
 
     fn violation() -> VerificationResult {
         VerificationResult::Violation(CausalViolation::MissingCausedBy)
