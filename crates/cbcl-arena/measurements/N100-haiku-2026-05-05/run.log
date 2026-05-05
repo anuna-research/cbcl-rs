@@ -1,0 +1,50 @@
+Demo 3 N=100 sweep
+Backend:    haiku
+Started:    2026-05-05T09:21:43Z
+Cells:      10 cells × N=100
+Repo HEAD:  6505be4  (feat/arena-demo)
+
+[1/10] psi native — backend haiku, N=100
+    log: crates/cbcl-arena/measurements/N100-haiku-2026-05-05/cell-1-psi-native.log
+    OK  (1848 s)
+
+[2/10] psi native-attacker — backend haiku, N=100
+    log: crates/cbcl-arena/measurements/N100-haiku-2026-05-05/cell-2-psi-native-attacker.log
+    OK  (1322 s)
+
+[3/10] yao native — backend haiku, N=100
+    log: crates/cbcl-arena/measurements/N100-haiku-2026-05-05/cell-3-yao-native.log
+    OK  (1090 s)
+
+[4/10] yao native-attacker — backend haiku, N=100
+    log: crates/cbcl-arena/measurements/N100-haiku-2026-05-05/cell-4-yao-native-attacker.log
+    OK  (1407 s)
+
+[5/10] psi disciplined — backend haiku, N=100
+    log: crates/cbcl-arena/measurements/N100-haiku-2026-05-05/cell-5-psi-disciplined.log
+    OK  (1240 s)
+
+[6/10] psi cooperative — backend haiku, N=100
+    log: crates/cbcl-arena/measurements/N100-haiku-2026-05-05/cell-6-psi-cooperative.log
+    OK  (609 s)
+
+[7/10] psi free — backend haiku, N=100
+    log: crates/cbcl-arena/measurements/N100-haiku-2026-05-05/cell-7-psi-free.log
+    OK  (1104 s)
+
+[8/10] yao disciplined — backend haiku, N=100
+    log: crates/cbcl-arena/measurements/N100-haiku-2026-05-05/cell-8-yao-disciplined.log
+    OK  (546 s)
+
+[9/10] yao cooperative — backend haiku, N=100
+    log: crates/cbcl-arena/measurements/N100-haiku-2026-05-05/cell-9-yao-cooperative.log
+    OK  (545 s)
+
+[10/10] yao free — backend haiku, N=100
+    log: crates/cbcl-arena/measurements/N100-haiku-2026-05-05/cell-10-yao-free.log
+    OK  (1086 s)
+
+Sweep finished: 2026-05-05T12:21:40Z
+Total wall-time: 10797 s (179 min)
+Succeeded: 10 / 10
+Failed:    0
