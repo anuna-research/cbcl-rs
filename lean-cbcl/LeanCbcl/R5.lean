@@ -126,21 +126,37 @@ def ProtocolGraph.successorGraph (p : ProtocolGraph) : List (String × List Stri
 def ProtocolGraph.stepNames (p : ProtocolGraph) : List String :=
   p.steps.map (·.performative)
 
+/-- Linear regression-guard fixture: `begin → a → b → c`. Mirrors the
+    `linear_protocol()` helper used by `crates/cbcl-core/src/protocol.rs`'s
+    R5 sub-check tests. Used by `checkAcyclicity_base` /
+    `checkReachability_base` below to pin runtime behaviour after the
+    REQ-515 fuel-bound was tightened from quadratic to linear. -/
+def baseProtocol : ProtocolGraph :=
+  { steps :=
+      [ { performative := "begin", predecessors := [],        successors := ["a"] }
+      , { performative := "a",     predecessors := ["begin"], successors := ["b"] }
+      , { performative := "b",     predecessors := ["a"],     successors := ["c"] }
+      , { performative := "c",     predecessors := ["b"],     successors := [] } ] }
+
 /-- Acyclicity check (REQ-204) — Lean port of Rust
     `CausalProtocol::check_acyclicity`. Uses the existing fuel-bounded
     `dfsNoCycle` from `R1NoRecursion.lean` rather than the Rust
     white/gray/black colour scheme; both algorithms detect the same
     back-edges and the proof obligations are smaller against the
-    already-proven DFS soundness lemma. Fuel `|names|² + 1` matches the
-    R1 convention. Returns `[]` iff no performative is reachable from
-    itself in the successor graph. -/
+    already-proven DFS soundness lemma. Fuel `|names| + 1` is the linear
+    bound required by `dfsNoCycle_acyclic_returns_true`. Returns `[]` iff
+    no performative is reachable from itself in the successor graph. -/
 def ProtocolGraph.checkAcyclicity (p : ProtocolGraph) : List ProtocolViolation :=
   let graph := p.successorGraph
   let names := p.stepNames
-  let fuel  := names.length * names.length + 1
+  let fuel  := names.length + 1
   names.filterMap fun n =>
     if dfsNoCycle graph fuel [] [] n then none
     else some (.cycle [n])
+
+/-- Runtime regression guard: `checkAcyclicity` returns `[]` on the linear
+    base protocol under linear DFS fuel (REQ-515 / TEST-515). -/
+theorem checkAcyclicity_base : baseProtocol.checkAcyclicity = [] := by native_decide
 
 /-- Cycle predicate: a protocol has a cycle iff some performative is
     reachable from itself via the successor graph (REQ-204). -/
@@ -189,13 +205,13 @@ private theorem reachable_source_in_stepNames (p : ProtocolGraph) {a b : String}
 private theorem dfs_true_of_check_empty (p : ProtocolGraph)
     (h : p.checkAcyclicity = []) :
     ∀ n ∈ p.stepNames,
-      dfsNoCycle p.successorGraph (p.stepNames.length * p.stepNames.length + 1)
+      dfsNoCycle p.successorGraph (p.stepNames.length + 1)
         [] [] n = true := by
   intro n hn
   simp only [ProtocolGraph.checkAcyclicity, List.filterMap_eq_nil_iff] at h
   have := h n hn
   by_cases hdfs : dfsNoCycle p.successorGraph
-      (p.stepNames.length * p.stepNames.length + 1) [] [] n = true
+      (p.stepNames.length + 1) [] [] n = true
   · exact hdfs
   · simp [hdfs] at this
 
@@ -208,7 +224,7 @@ theorem checkAcyclicity_sound (p : ProtocolGraph)
   have ha_perf := reachable_source_in_stepNames p hreach
   have hdfs := dfs_true_of_check_empty p h a ha_perf
   have hno := dfsNoCycle_no_cycle p.successorGraph
-    (p.stepNames.length * p.stepNames.length + 1) [] a hdfs
+    (p.stepNames.length + 1) [] a hdfs
   exact hno a (List.mem_singleton.mpr rfl) hreach
 
 /-! ## Completeness — `¬ hasCycle → checkAcyclicity = []`. -/
@@ -354,17 +370,11 @@ theorem checkAcyclicity_complete (p : ProtocolGraph)
   have h_keys : (p.successorGraph.map Prod.fst) = p.stepNames := by
     simp only [ProtocolGraph.successorGraph, ProtocolGraph.stepNames,
                List.map_map, Function.comp_def]
-  have h_fuel_bound : p.stepNames.length * p.stepNames.length + 1
+  have h_fuel_bound : p.stepNames.length + 1
                         ≥ (p.successorGraph.map Prod.fst).length + 1 := by
-    rw [h_keys]
-    have : p.stepNames.length ≤ p.stepNames.length * p.stepNames.length ∨
-           p.stepNames.length = 0 := by
-      by_cases hz : p.stepNames.length = 0
-      · exact Or.inr hz
-      · exact Or.inl (Nat.le_mul_of_pos_left _ (Nat.pos_of_ne_zero hz))
-    omega
+    rw [h_keys]; exact Nat.le_refl _
   have hdfs := dfsNoCycle_top_level_acyclic p.successorGraph h_acyclic n
-                 (p.stepNames.length * p.stepNames.length + 1) h_fuel_bound
+                 (p.stepNames.length + 1) h_fuel_bound
   simp [hdfs]
 
 /-- **CON-515 — `check_acyclicity_iff_no_cycle`** (full iff).
@@ -407,14 +417,18 @@ decreasing_by
     `CausalProtocol::check_reachability`. For each declared step name
     other than `"begin"`, runs a forward DFS from `"begin"` and emits
     one `unreachable` violation per step the DFS fails to reach. Fuel
-    `|names|² + 1` matches the R5 acyclicity convention. -/
+    `|names| + 1` matches the linear bound used by `checkAcyclicity`. -/
 def ProtocolGraph.checkReachability (p : ProtocolGraph) : List ProtocolViolation :=
   let graph := p.successorGraph
-  let fuel  := p.stepNames.length * p.stepNames.length + 1
+  let fuel  := p.stepNames.length + 1
   p.stepNames.filterMap fun n =>
     if n == "begin" then none
     else if dfsReaches graph fuel [] "begin" n then none
     else some (.unreachable n)
+
+/-- Runtime regression guard: `checkReachability` returns `[]` on the
+    linear base protocol under linear DFS fuel (REQ-515 / TEST-515). -/
+theorem checkReachability_base : baseProtocol.checkReachability = [] := by native_decide
 
 /-- "Reachable from begin" predicate: a step is reachable from `begin`
     iff it equals `"begin"` or there is a `Reachable` path in the
@@ -476,7 +490,7 @@ private theorem dfsReaches_sound (graph : List (String × List String)) :
 private theorem dfs_reaches_of_check_empty (p : ProtocolGraph)
     (h : p.checkReachability = []) :
     ∀ n ∈ p.stepNames, n ≠ "begin" →
-      dfsReaches p.successorGraph (p.stepNames.length * p.stepNames.length + 1)
+      dfsReaches p.successorGraph (p.stepNames.length + 1)
         [] "begin" n = true := by
   intro n hn hne
   simp only [ProtocolGraph.checkReachability, List.filterMap_eq_nil_iff] at h
@@ -484,7 +498,7 @@ private theorem dfs_reaches_of_check_empty (p : ProtocolGraph)
   have hbeq : (n == "begin") = false := by simp [hne]
   simp [hbeq] at hbody
   by_cases hdfs : dfsReaches p.successorGraph
-      (p.stepNames.length * p.stepNames.length + 1) [] "begin" n = true
+      (p.stepNames.length + 1) [] "begin" n = true
   · exact hdfs
   · simp [hdfs] at hbody
 
@@ -770,17 +784,11 @@ theorem checkReachability_complete (p : ProtocolGraph)
     · have h_keys : (p.successorGraph.map Prod.fst) = p.stepNames := by
         simp only [ProtocolGraph.successorGraph, ProtocolGraph.stepNames,
                    List.map_map, Function.comp_def]
-      have h_fuel : p.stepNames.length * p.stepNames.length + 1
+      have h_fuel : p.stepNames.length + 1
                       ≥ (p.successorGraph.map Prod.fst).length + 1 := by
-        rw [h_keys]
-        have : p.stepNames.length ≤ p.stepNames.length * p.stepNames.length ∨
-               p.stepNames.length = 0 := by
-          by_cases hz : p.stepNames.length = 0
-          · exact Or.inr hz
-          · exact Or.inl (Nat.le_mul_of_pos_left _ (Nat.pos_of_ne_zero hz))
-        omega
+        rw [h_keys]; exact Nat.le_refl _
       have hdfs := dfsReaches_complete_top_level p.successorGraph hreach
-                     (p.stepNames.length * p.stepNames.length + 1) h_fuel
+                     (p.stepNames.length + 1) h_fuel
       simp [hbegin, hdfs]
 
 /-- **CON-515 — `check_reachability_iff_all_reachable`** (full iff).

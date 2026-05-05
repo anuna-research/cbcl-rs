@@ -18,19 +18,28 @@ ADR-515 in `specs/SPEC-005-lean-mechanisation.md`):
 
 * `Classical.choice`, `propext`, `Quot.sound` — the standard Lean kernel
   axioms permitted by NFR-511 clause 1.
-* `CBCL.ContentHash`, `CBCL.ContentHash.instNonempty`, `CBCL.contentHash`,
-  `CBCL.contentHash_injective` — the cryptographic-hash carrier and the
-  injectivity assumption justified by ADR-515. Located in
-  `LeanCbcl/Lattice/Store.lean`.
+* `CBCL.ContentHash`, `CBCL.contentHash`, `CBCL.contentHash_injective` —
+  the cryptographic-hash carrier and the injectivity assumption justified
+  by ADR-515. Located in `LeanCbcl/Lattice/Store.lean`.
 * `CBCL.Message.causedBy` — opaque accessor for the `:caused-by` field of
   the abstract `Message` type, also justified by ADR-515. Located in
   `LeanCbcl/Verify.lean`. The Rust implementation pulls the field from a
   parsed S-expression; the Lean model treats it as an abstract accessor
   since `Message` itself is abstract on the verify side.
 
-NFR-511 clause 2 admits *only* the five project axioms above. Any further
+NFR-511 clause 2 admits *only* the four project axioms above. Any further
 project axiom requires an amendment to ADR-515, not merely an allowlist
 edit in the script and this header.
+
+Historical note: an earlier draft also declared
+`CBCL.ContentHash.instNonempty : Nonempty ContentHash` as a bookkeeping
+axiom anticipating `Option ContentHash`-returning helpers. Empirically
+none of CON-510..516 transitively depended on it (the `lookup` proofs
+go via `Classical.choice` directly, not via `Option.choice`/`Inhabited`
+defaults), so the axiom was removed to keep the allowlist minimal. If
+the deferred `LookupSpec` mechanisation needs a `Nonempty ContentHash`
+instance it should be reintroduced together with a `#print axioms` line
+that exercises it.
 
 If a future theorem joins CON-510..516, add a `#print axioms` line for it
 below — the shell script discovers theorems from this file's output, so

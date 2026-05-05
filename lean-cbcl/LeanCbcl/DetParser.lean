@@ -409,22 +409,20 @@ def langDetParser (dname : String) (perfNames : List String) : DetParser where
 @[simp] theorem seven_ne_zero : (7 : Nat) ≠ 0 := by decide
 @[simp] theorem ninetyNine_ne_zero : (99 : Nat) ≠ 0 := by decide
 
-set_option maxHeartbeats 800000
-
+set_option maxHeartbeats 400000 in
 theorem langDetParser_step_state_lt (dname : String) (perfNames : List String)
     (s : Nat) (tok : Token) (top : Option Nat) :
     ((langDetParser dname perfNames).step s tok top).1 < 200 := by
   simp only [langDetParser]
   split <;> simp_all
 
+set_option maxHeartbeats 400000 in
 theorem langDetParser_step_state_ne_zero (dname : String) (perfNames : List String)
     (s : Nat) (tok : Token) (top : Option Nat) :
     ((langDetParser dname perfNames).step s tok top).1 ≠ 0 := by
   simp only [langDetParser]
   split <;> simp_all
 
-
-set_option maxHeartbeats 200000
 
 def langCheckBool (dname : String) (perfNames : List String) (e : SExpr) : Bool :=
   match e with

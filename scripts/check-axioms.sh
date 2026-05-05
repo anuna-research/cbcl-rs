@@ -45,7 +45,6 @@ ALLOWED_AXIOMS=(
     Classical.choice
     Quot.sound
     CBCL.ContentHash
-    CBCL.ContentHash.instNonempty
     CBCL.contentHash
     CBCL.contentHash_injective
     CBCL.Message.causedBy
