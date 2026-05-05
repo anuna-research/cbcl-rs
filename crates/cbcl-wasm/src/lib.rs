@@ -18,38 +18,15 @@ extern crate alloc;
 // no_std wasm32 requirements: allocator + panic handler
 // ---------------------------------------------------------------------------
 
-// When targeting wasm32 without std, provide a global allocator and panic handler.
-// unsafe is required only here for the FFI allocator boundary (ADR-004).
+// `wasm32-unknown-unknown` cdylib + `no_std` + `extern crate alloc` needs an
+// explicit global allocator. We use `dlmalloc::GlobalDlmalloc` because Rust's
+// compiler no longer auto-links one for cdylib targets. The previous
+// hand-rolled `WasmAlloc` declared external `__rust_alloc` / `__rust_dealloc`
+// symbols that were never generated for cdylib, leaving unresolved wasm
+// imports.
 #[cfg(all(target_arch = "wasm32", not(feature = "std"), not(feature = "bindgen")))]
-mod wasm_alloc {
-    use core::alloc::{GlobalAlloc, Layout};
-
-    struct WasmAlloc;
-
-    // SAFETY: This delegates to the wasm32 dlmalloc implementation provided by
-    // the compiler's built-in allocator shim. Required for cdylib crates that
-    // use alloc without std.
-    unsafe impl GlobalAlloc for WasmAlloc {
-        unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-            // SAFETY: dlmalloc is linked by default on wasm32 targets.
-            extern "C" {
-                fn __rust_alloc(size: usize, align: usize) -> *mut u8;
-            }
-            unsafe { __rust_alloc(layout.size(), layout.align()) }
-        }
-
-        unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
-            // SAFETY: ptr was allocated by the matching __rust_alloc.
-            extern "C" {
-                fn __rust_dealloc(ptr: *mut u8, size: usize, align: usize);
-            }
-            unsafe { __rust_dealloc(ptr, layout.size(), layout.align()) }
-        }
-    }
-
-    #[global_allocator]
-    static ALLOC: WasmAlloc = WasmAlloc;
-}
+#[global_allocator]
+static ALLOC: dlmalloc::GlobalDlmalloc = dlmalloc::GlobalDlmalloc;
 
 #[cfg(all(target_arch = "wasm32", not(feature = "std"), not(feature = "bindgen")))]
 #[panic_handler]
@@ -104,7 +81,9 @@ pub fn run_pipeline_bytes(input: &[u8]) -> Result<Vec<u8>, Vec<u8>> {
         // run_pipeline (lightweight) skips causal verification.
         cbcl_parser::PipelineResult::Pending { .. }
         | cbcl_parser::PipelineResult::Buffered { .. } => {
-            Err("validation error: unexpected pending result".to_string().into_bytes())
+            Err("validation error: unexpected pending result"
+                .to_string()
+                .into_bytes())
         }
     }
 }
@@ -292,8 +271,8 @@ fn parse_and_install_dialect(dialect_sexpr: &SExpr) -> Result<DialectRegistry, S
 
     let mut registry = DialectRegistry::new();
     for form in &dialect_forms {
-        let dialect = cbcl_parser::parse_dialect(form)
-            .map_err(|e| format!("dialect parse error: {e}"))?;
+        let dialect =
+            cbcl_parser::parse_dialect(form).map_err(|e| format!("dialect parse error: {e}"))?;
         registry
             .install(dialect)
             .map_err(|e| format!("dialect verification failed: {e}"))?;
@@ -353,9 +332,11 @@ fn verify_message_shape_str(input: &str) -> Result<String, String> {
     let frame = parser::parse(input).map_err(|e| format!("parse error: {e}"))?;
     let items = match &frame {
         SExpr::List(items) => items,
-        _ => return Err(String::from(
-            "expected (verify-shape <dialect-or-chain> <performative> <message>)",
-        )),
+        _ => {
+            return Err(String::from(
+                "expected (verify-shape <dialect-or-chain> <performative> <message>)",
+            ))
+        }
     };
     if items.len() != 4 || !matches!(&items[0], SExpr::Atom(Atom::Symbol(s)) if s == "verify-shape")
     {
@@ -432,12 +413,13 @@ fn load_history_into_store(
 ) -> Result<(), String> {
     let entries = match hist {
         SExpr::List(xs) => xs,
-        _ => return Err(String::from(
-            "history must be a list: (history (<hash> <msg>) ...)",
-        )),
+        _ => {
+            return Err(String::from(
+                "history must be a list: (history (<hash> <msg>) ...)",
+            ))
+        }
     };
-    if entries.is_empty()
-        || !matches!(&entries[0], SExpr::Atom(Atom::Symbol(s)) if s == "history")
+    if entries.is_empty() || !matches!(&entries[0], SExpr::Atom(Atom::Symbol(s)) if s == "history")
     {
         return Err(String::from("history must start with the symbol `history`"));
     }
@@ -448,17 +430,17 @@ fn load_history_into_store(
         };
         let hash_str = match &pair[0] {
             SExpr::Atom(Atom::Str(s)) | SExpr::Atom(Atom::Symbol(s)) => s.clone(),
-            _ => return Err(String::from(
-                "history entry hash must be a string or symbol",
-            )),
+            _ => {
+                return Err(String::from(
+                    "history entry hash must be a string or symbol",
+                ))
+            }
         };
         let pred_msg = cbcl_parser::parse_message(&pair[1])
             .map_err(|e| format!("history message parse error: {e}"))?;
-        let inner = pred_msg
-            .innermost_simple()
-            .ok_or_else(|| String::from(
-                "history predecessor must contain a simple message at its innermost layer",
-            ))?;
+        let inner = pred_msg.innermost_simple().ok_or_else(|| {
+            String::from("history predecessor must contain a simple message at its innermost layer")
+        })?;
         if let Some(t) = inner.thread() {
             if t != thread.0 {
                 return Err(format!(
@@ -560,7 +542,10 @@ fn verify_protocol_str(input: &str) -> Result<String, String> {
     // first-violation as `(CausalViolation, &Dialect)` so the dialect
     // pairing is type-state — no separate `Option` to risk going out of
     // sync with the result.
-    let mut first_violation: Option<(cbcl_core::protocol::CausalViolation, &cbcl_core::dialect::Dialect)> = None;
+    let mut first_violation: Option<(
+        cbcl_core::protocol::CausalViolation,
+        &cbcl_core::dialect::Dialect,
+    )> = None;
     let mut saw_unknown = false;
     for d in registry.iter() {
         let Some(proto) = &d.causal_protocol else {
@@ -579,12 +564,7 @@ fn verify_protocol_str(input: &str) -> Result<String, String> {
 
     if let Some((cv, d)) = first_violation {
         let blame = ViolationError::from_causal_violation(&cv, None, Some(thread.0.clone()))
-            .with_dialect_context(
-                &d.name,
-                d.author.as_deref(),
-                d.hash.as_deref(),
-                Some(&perf),
-            );
+            .with_dialect_context(&d.name, d.author.as_deref(), d.hash.as_deref(), Some(&perf));
         return Err(serialize(&blame.to_sexpr()));
     }
     if saw_unknown {
@@ -1024,10 +1004,7 @@ mod tests {
     fn verify_dialect_accepts_matching_claimed_hash() {
         let dialect_no_hash = "(define h-d (cbcl) @author \
             (extend greet (name) (effect greet-action)))";
-        let parsed = cbcl_parser::parse_dialect(
-            &parser::parse(dialect_no_hash).unwrap(),
-        )
-        .unwrap();
+        let parsed = cbcl_parser::parse_dialect(&parser::parse(dialect_no_hash).unwrap()).unwrap();
         let computed = format!(
             "sha256:{}",
             hex_encode(Sha256::digest(dialect_canonical_bytes(&parsed)).as_slice())
@@ -1121,24 +1098,26 @@ mod tests {
 
     #[test]
     fn verify_message_shape_passes_when_required_field_present() {
-        let frame = format!(
-            "(verify-shape {SHAPE_DIALECT} greet (greet-action :name \"alice\"))"
-        );
+        let frame = format!("(verify-shape {SHAPE_DIALECT} greet (greet-action :name \"alice\"))");
         let result = verify_message_shape_str(&frame);
         assert_eq!(result.as_deref(), Ok("ok"));
     }
 
     #[test]
     fn verify_message_shape_fails_on_wrong_type() {
-        let frame = format!(
-            "(verify-shape {SHAPE_DIALECT} greet (greet-action :name 42))"
-        );
+        let frame = format!("(verify-shape {SHAPE_DIALECT} greet (greet-action :name 42))");
         let result = verify_message_shape_str(&frame);
         assert!(result.is_err());
         let err = result.unwrap_err();
         // REQ-233 blame form starts with `(error`.
-        assert!(err.starts_with("(error"), "expected blame S-expr, got: {err}");
-        assert!(err.contains("shape-violation"), "expected shape kind in blame: {err}");
+        assert!(
+            err.starts_with("(error"),
+            "expected blame S-expr, got: {err}"
+        );
+        assert!(
+            err.contains("shape-violation"),
+            "expected shape kind in blame: {err}"
+        );
         assert!(err.contains(":field"), "expected :field in blame: {err}");
     }
 
@@ -1183,10 +1162,7 @@ mod tests {
         // with `dialect_canonical_bytes` + SHA-256 + `sha256:<hex>` formatting.
         let dialect_no_hash = "(define h-d (cbcl) @author \
             (extend greet (name) (effect greet-action)))";
-        let parsed = cbcl_parser::parse_dialect(
-            &parser::parse(dialect_no_hash).unwrap(),
-        )
-        .unwrap();
+        let parsed = cbcl_parser::parse_dialect(&parser::parse(dialect_no_hash).unwrap()).unwrap();
         let computed = format!(
             "sha256:{}",
             hex_encode(Sha256::digest(dialect_canonical_bytes(&parsed)).as_slice())
@@ -1196,9 +1172,7 @@ mod tests {
              (:hash \"{computed}\") \
              (extend greet (name) (effect greet-action)))"
         );
-        let frame = format!(
-            "(verify-shape {dialect_with_hash} greet (greet-action :name \"a\"))"
-        );
+        let frame = format!("(verify-shape {dialect_with_hash} greet (greet-action :name \"a\"))");
         assert_eq!(verify_message_shape_str(&frame).as_deref(), Ok("ok"));
     }
 
@@ -1276,13 +1250,17 @@ mod tests {
                 (extend greet (name) (effect greet-action)) \
                 (shape greet (require :name string))) \
             (define c-d (p-d) @author))";
-        let frame = format!(
-            "(verify-shape {chain} greet (greet-action :name 42))"
-        );
+        let frame = format!("(verify-shape {chain} greet (greet-action :name 42))");
         let result = verify_message_shape_str(&frame);
-        assert!(result.is_err(), "expected parent-shape rejection, got: {result:?}");
+        assert!(
+            result.is_err(),
+            "expected parent-shape rejection, got: {result:?}"
+        );
         let err = result.unwrap_err();
-        assert!(err.contains("shape-violation"), "expected shape blame: {err}");
+        assert!(
+            err.contains("shape-violation"),
+            "expected shape blame: {err}"
+        );
         // Blame must attribute to the parent (the actual constraint owner),
         // not the leaf.
         assert!(
@@ -1301,13 +1279,14 @@ mod tests {
         let dialect = "(define cbcl-base (cbcl) @author \
             (extend greet (name) (effect greet-action)) \
             (shape greet (require :name string)))";
-        let frame = format!(
-            "(verify-shape {dialect} greet (greet-action :name 42))"
-        );
+        let frame = format!("(verify-shape {dialect} greet (greet-action :name 42))");
         let result = verify_message_shape_str(&frame);
         assert!(result.is_err(), "expected shape violation, got: {result:?}");
         let err = result.unwrap_err();
-        assert!(err.contains("shape-violation"), "expected shape blame: {err}");
+        assert!(
+            err.contains("shape-violation"),
+            "expected shape blame: {err}"
+        );
     }
 
     #[test]
@@ -1319,9 +1298,7 @@ mod tests {
         let dialect = "(define bad-d (cbcl) @author \
             (extend greet (name) (effect greet-action)) \
             (shape never-declared (require :name string)))";
-        let frame = format!(
-            "(verify-shape {dialect} never-declared (never-declared :name \"a\"))"
-        );
+        let frame = format!("(verify-shape {dialect} never-declared (never-declared :name \"a\"))");
         let result = verify_message_shape_str(&frame);
         assert!(result.is_err());
         let err = result.unwrap_err();
@@ -1333,9 +1310,7 @@ mod tests {
 
     #[test]
     fn verify_message_shape_bytes_passes() {
-        let frame = format!(
-            "(verify-shape {SHAPE_DIALECT} greet (greet-action :name \"alice\"))"
-        );
+        let frame = format!("(verify-shape {SHAPE_DIALECT} greet (greet-action :name \"alice\"))");
         let result = verify_message_shape_bytes(frame.as_bytes());
         assert!(result.is_ok());
     }
@@ -1348,9 +1323,7 @@ mod tests {
 
     #[test]
     fn verify_protocol_ok_with_caused_by_begin() {
-        let frame = format!(
-            "(verify-protocol {PROTOCOL_DIALECT} \"t1\" (greet :caused-by begin))"
-        );
+        let frame = format!("(verify-protocol {PROTOCOL_DIALECT} \"t1\" (greet :caused-by begin))");
         let result = verify_protocol_str(&frame);
         assert_eq!(result.as_deref(), Ok("ok"));
     }
@@ -1359,14 +1332,18 @@ mod tests {
     fn verify_protocol_violation_when_caused_by_missing() {
         // Protocol declares greet must follow `begin`, so a greet with no
         // :caused-by is a MissingCausedBy violation.
-        let frame = format!(
-            "(verify-protocol {PROTOCOL_DIALECT} \"t1\" (greet :name \"a\"))"
-        );
+        let frame = format!("(verify-protocol {PROTOCOL_DIALECT} \"t1\" (greet :name \"a\"))");
         let result = verify_protocol_str(&frame);
         assert!(result.is_err());
         let err = result.unwrap_err();
-        assert!(err.starts_with("(error"), "expected blame S-expr, got: {err}");
-        assert!(err.contains("causal-violation"), "expected causal kind: {err}");
+        assert!(
+            err.starts_with("(error"),
+            "expected blame S-expr, got: {err}"
+        );
+        assert!(
+            err.contains("causal-violation"),
+            "expected causal kind: {err}"
+        );
     }
 
     #[test]
@@ -1380,8 +1357,14 @@ mod tests {
         let result = verify_protocol_str(&frame);
         assert!(result.is_err());
         let err = result.unwrap_err();
-        assert!(err.contains("pending"), "expected pending result, got: {err}");
-        assert!(err.contains("unknown-predecessor"), "expected reason: {err}");
+        assert!(
+            err.contains("pending"),
+            "expected pending result, got: {err}"
+        );
+        assert!(
+            err.contains("unknown-predecessor"),
+            "expected reason: {err}"
+        );
     }
 
     #[test]
@@ -1401,9 +1384,7 @@ mod tests {
 
     #[test]
     fn verify_protocol_bytes_passes() {
-        let frame = format!(
-            "(verify-protocol {PROTOCOL_DIALECT} \"t1\" (greet :caused-by begin))"
-        );
+        let frame = format!("(verify-protocol {PROTOCOL_DIALECT} \"t1\" (greet :caused-by begin))");
         let result = verify_protocol_bytes(frame.as_bytes());
         assert!(result.is_ok());
     }
@@ -1464,9 +1445,18 @@ mod tests {
         let result = verify_protocol_str(&frame);
         assert!(result.is_err());
         let err = result.unwrap_err();
-        assert!(err.starts_with("(error"), "expected blame S-expr, got: {err}");
-        assert!(err.contains("causal-violation"), "expected causal kind: {err}");
-        assert!(!err.contains("pending"), "expected violation, not pending: {err}");
+        assert!(
+            err.starts_with("(error"),
+            "expected blame S-expr, got: {err}"
+        );
+        assert!(
+            err.contains("causal-violation"),
+            "expected causal kind: {err}"
+        );
+        assert!(
+            !err.contains("pending"),
+            "expected violation, not pending: {err}"
+        );
     }
 
     #[test]
@@ -1502,7 +1492,10 @@ mod tests {
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.contains("pending"), "expected pending, got: {err}");
-        assert!(err.contains("unknown-predecessor"), "expected reason: {err}");
+        assert!(
+            err.contains("unknown-predecessor"),
+            "expected reason: {err}"
+        );
     }
 
     #[test]
@@ -1513,16 +1506,20 @@ mod tests {
         let dialect = "(define cbcl-base (cbcl) @author \
             (extend greet (name) (effect greet-action)) \
             (protocol (then begin greet)))";
-        let frame = format!(
-            "(verify-protocol {dialect} \"t1\" (greet :name \"a\"))"
-        );
+        let frame = format!("(verify-protocol {dialect} \"t1\" (greet :name \"a\"))");
         // Without the fix, lookup resolves the preloaded protocol-less base
         // and returns "ok"; with the fix the supplied protocol fires a
         // MissingCausedBy violation.
         let result = verify_protocol_str(&frame);
-        assert!(result.is_err(), "expected causal violation, got: {result:?}");
+        assert!(
+            result.is_err(),
+            "expected causal violation, got: {result:?}"
+        );
         let err = result.unwrap_err();
-        assert!(err.contains("causal-violation"), "expected causal blame: {err}");
+        assert!(
+            err.contains("causal-violation"),
+            "expected causal blame: {err}"
+        );
     }
 
     #[test]
@@ -1535,7 +1532,10 @@ mod tests {
             (extend greet (name) (effect greet-action)))";
         let frame = format!("(verify-protocol {dialect} \"t1\" not-a-message)");
         let result = verify_protocol_str(&frame);
-        assert!(result.is_err(), "expected message parse rejection, got: {result:?}");
+        assert!(
+            result.is_err(),
+            "expected message parse rejection, got: {result:?}"
+        );
     }
 
     #[test]
@@ -1571,13 +1571,17 @@ mod tests {
                 (extend greet (name) (effect greet-action)) \
                 (protocol (then begin greet))) \
             (define c-d (p-d) @author))";
-        let frame = format!(
-            "(verify-protocol {chain} \"t1\" (greet :name \"a\"))"
-        );
+        let frame = format!("(verify-protocol {chain} \"t1\" (greet :name \"a\"))");
         let result = verify_protocol_str(&frame);
-        assert!(result.is_err(), "expected parent-protocol rejection, got: {result:?}");
+        assert!(
+            result.is_err(),
+            "expected parent-protocol rejection, got: {result:?}"
+        );
         let err = result.unwrap_err();
-        assert!(err.contains("causal-violation"), "expected causal blame: {err}");
+        assert!(
+            err.contains("causal-violation"),
+            "expected causal blame: {err}"
+        );
         // Blame attributes to the parent that owns the protocol.
         assert!(
             err.contains("p-d"),

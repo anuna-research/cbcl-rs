@@ -12,9 +12,7 @@
 //! - `(any ...)` disjunction (choice protocols)
 
 use cbcl_core::message::{CausedBy, Message, Performative};
-use cbcl_core::protocol::{
-    verify_causal, CausalProtocol, NodeRef, StepDecl, VerificationResult,
-};
+use cbcl_core::protocol::{verify_causal, CausalProtocol, NodeRef, StepDecl, VerificationResult};
 use cbcl_core::sexpr::{Atom, SExpr};
 use cbcl_core::store::{ContentHash, MessageStore, ThreadId, ThreadedMessageStore};
 
@@ -163,7 +161,9 @@ fn diamond_protocol() -> CausalProtocol {
         StepDecl {
             performative: "merge".to_string(),
             predecessors: vec![NodeRef::All(
-                ["ask".to_string(), "notify".to_string()].into_iter().collect(),
+                ["ask".to_string(), "notify".to_string()]
+                    .into_iter()
+                    .collect(),
             )],
             successors: vec![],
         },
@@ -195,7 +195,9 @@ fn choice_protocol() -> CausalProtocol {
         StepDecl {
             performative: "response".to_string(),
             predecessors: vec![NodeRef::Any(
-                ["ask".to_string(), "notify".to_string()].into_iter().collect(),
+                ["ask".to_string(), "notify".to_string()]
+                    .into_iter()
+                    .collect(),
             )],
             successors: vec![],
         },
@@ -831,7 +833,11 @@ fn test_single_unknown_to_valid() {
     assert_eq!(r1, VerificationResult::Unknown);
 
     // Add correct predecessor → Valid
-    store.append(hash("h-ask"), tid.clone(), simple_msg("ask", Some(CausedBy::Begin)));
+    store.append(
+        hash("h-ask"),
+        tid.clone(),
+        simple_msg("ask", Some(CausedBy::Begin)),
+    );
     let r2 = verify_causal("reply", Some(&caused_by), &store, &protocol, &tid);
     assert_eq!(r2, VerificationResult::Valid);
 }
@@ -849,7 +855,11 @@ fn test_single_unknown_to_violation() {
     assert_eq!(r1, VerificationResult::Unknown);
 
     // Add wrong predecessor type → Violation
-    store.append(hash("h-ask"), tid.clone(), simple_msg("confirm", Some(CausedBy::Begin)));
+    store.append(
+        hash("h-ask"),
+        tid.clone(),
+        simple_msg("confirm", Some(CausedBy::Begin)),
+    );
     let r2 = verify_causal("reply", Some(&caused_by), &store, &protocol, &tid);
     assert!(matches!(r2, VerificationResult::Violation(_)));
 }
@@ -867,7 +877,11 @@ fn test_fan_in_unknown_to_valid() {
     assert_eq!(r1, VerificationResult::Unknown);
 
     // Add first predecessor → still Unknown (incomplete)
-    store.append(hash("h-ask"), tid.clone(), simple_msg("ask", Some(CausedBy::Begin)));
+    store.append(
+        hash("h-ask"),
+        tid.clone(),
+        simple_msg("ask", Some(CausedBy::Begin)),
+    );
     let r2 = verify_causal("merge", Some(&caused_by), &store, &protocol, &tid);
     assert_eq!(r2, VerificationResult::Unknown);
 
@@ -875,7 +889,11 @@ fn test_fan_in_unknown_to_valid() {
     assert_monotone(&r1, &r2, "fan-in step 1");
 
     // Add second predecessor → Valid
-    store.append(hash("h-notify"), tid.clone(), simple_msg("notify", Some(CausedBy::Begin)));
+    store.append(
+        hash("h-notify"),
+        tid.clone(),
+        simple_msg("notify", Some(CausedBy::Begin)),
+    );
     let r3 = verify_causal("merge", Some(&caused_by), &store, &protocol, &tid);
     assert_eq!(r3, VerificationResult::Valid);
 
@@ -896,7 +914,11 @@ fn test_disjunction_unknown_to_valid_via_either_branch() {
         let r1 = verify_causal("response", Some(&caused_by), &store, &protocol, &tid);
         assert_eq!(r1, VerificationResult::Unknown);
 
-        store.append(hash("h-ask"), tid.clone(), simple_msg("ask", Some(CausedBy::Begin)));
+        store.append(
+            hash("h-ask"),
+            tid.clone(),
+            simple_msg("ask", Some(CausedBy::Begin)),
+        );
         let r2 = verify_causal("response", Some(&caused_by), &store, &protocol, &tid);
         assert_eq!(r2, VerificationResult::Valid);
         assert_monotone(&r1, &r2, "disjunction via ask");
@@ -910,7 +932,11 @@ fn test_disjunction_unknown_to_valid_via_either_branch() {
         let r1 = verify_causal("response", Some(&caused_by), &store, &protocol, &tid);
         assert_eq!(r1, VerificationResult::Unknown);
 
-        store.append(hash("h-notify"), tid.clone(), simple_msg("notify", Some(CausedBy::Begin)));
+        store.append(
+            hash("h-notify"),
+            tid.clone(),
+            simple_msg("notify", Some(CausedBy::Begin)),
+        );
         let r2 = verify_causal("response", Some(&caused_by), &store, &protocol, &tid);
         assert_eq!(r2, VerificationResult::Valid);
         assert_monotone(&r1, &r2, "disjunction via notify");
@@ -924,7 +950,11 @@ fn test_valid_stable_under_unrelated_additions() {
     let mut store = ThreadedMessageStore::new();
 
     // Set up valid state
-    store.append(hash("h-ask"), tid.clone(), simple_msg("ask", Some(CausedBy::Begin)));
+    store.append(
+        hash("h-ask"),
+        tid.clone(),
+        simple_msg("ask", Some(CausedBy::Begin)),
+    );
     let caused_by = CausedBy::Single("h-ask".to_string());
     let r1 = verify_causal("reply", Some(&caused_by), &store, &protocol, &tid);
     assert_eq!(r1, VerificationResult::Valid);
@@ -937,7 +967,12 @@ fn test_valid_stable_under_unrelated_additions() {
             simple_msg("notify", None),
         );
         let r = verify_causal("reply", Some(&caused_by), &store, &protocol, &tid);
-        assert_eq!(r, VerificationResult::Valid, "stable after unrelated msg {}", i);
+        assert_eq!(
+            r,
+            VerificationResult::Valid,
+            "stable after unrelated msg {}",
+            i
+        );
     }
 }
 
@@ -948,14 +983,22 @@ fn test_violation_stable_under_store_growth() {
     let mut store = ThreadedMessageStore::new();
 
     // Add wrong predecessor type
-    store.append(hash("h-ask"), tid.clone(), simple_msg("confirm", Some(CausedBy::Begin)));
+    store.append(
+        hash("h-ask"),
+        tid.clone(),
+        simple_msg("confirm", Some(CausedBy::Begin)),
+    );
     let caused_by = CausedBy::Single("h-ask".to_string());
     let r1 = verify_causal("reply", Some(&caused_by), &store, &protocol, &tid);
     assert!(matches!(r1, VerificationResult::Violation(_)));
 
     // Add more messages — Violation must persist
     store.append(hash("h-reply"), tid.clone(), simple_msg("reply", None));
-    store.append(hash("h-extra"), tid.clone(), simple_msg("ask", Some(CausedBy::Begin)));
+    store.append(
+        hash("h-extra"),
+        tid.clone(),
+        simple_msg("ask", Some(CausedBy::Begin)),
+    );
 
     let r2 = verify_causal("reply", Some(&caused_by), &store, &protocol, &tid);
     assert!(

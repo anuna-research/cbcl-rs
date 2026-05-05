@@ -1,0 +1,359 @@
+;; ----------------------------------------------------------------------
+;; Plan: implement SPEC-005 — Lean 4 mechanisation of R5 (causal
+;; protocol + shape) verification, raising SPEC-002/003 contracts to
+;; the rigour level of the existing SPEC-001 R1–R3 proofs.
+;;
+;; Headline theorem: verify : Store × Protocol × Message → Result is a
+;; monotone function from the message-store G-Set lattice to the
+;; three-valued bounded lattice {Unknown, Valid, Violation}, with joins
+;; for (all ...) fan-in preserved (REQ-512 + REQ-513 → REQ-514).
+;;
+;; SPEC-005 §Scope: shape-checking semantics beyond DCFL preservation
+;; are explicitly OUT OF SCOPE — only REQ-225 (DCFL preservation under
+;; shape constraints) is mechanised here, alongside REQ-209 (DCFL
+;; preservation under causal protocols).
+;;
+;; Soundness before completeness (ADR-512): for iff-statable theorems
+;; (R5 sub-checks), prove the soundness direction first; mark the REQ
+;; `verified-by: lean (soundness only)` if completeness defers.
+;; ----------------------------------------------------------------------
+
+(meta plan
+  (id "IMPL-005")
+  (title "Lean 4 mechanisation of R5 protocol + shape verification (SPEC-005 v0.1.0)")
+  (version "0.1.0")
+  (status "active")
+  (created "2026-05-03")
+  (author "agent:hugo")
+  (spec "SPEC-005, depends on SPEC-002, SPEC-003")
+  (description "Mechanise SPEC-002 R5 sub-checks and SPEC-003 verification lattice in Lean 4 under lean-cbcl/. Deliver: (a) three-valued result lattice + message-store G-Set lattice typeclass instances; (b) verify monotonicity, fan-in homomorphism, eventual consistency theorems; (c) R5 sub-check soundness theorems (acyclicity, reachability, performative definedness, step uniqueness); (d) DCFL preservation under protocol + shape clauses; (e) verified-by annotations across SPEC-002/003; (f) Rust differential parity tests."))
+
+;; ----------------------------------------------------------------------
+;; Agents — single-operator plan
+;; ----------------------------------------------------------------------
+
+(given agent-claude-available)
+
+;; ----------------------------------------------------------------------
+;; Tasks
+;; ----------------------------------------------------------------------
+
+(given task-mathlib-setup)
+(given task-result-lattice)
+(given task-store-lattice)
+(given task-verify-skeleton)
+(given task-verify-monotone)
+(given task-verify-fanin-meet)
+(given task-verify-eventual-consistency)
+(given task-r5-acyclicity)
+(given task-r5-reachability)
+(given task-r5-perf-definedness)
+(given task-r5-step-uniqueness)
+(given task-dcfl-preservation)
+(given task-verified-by-init)
+(given task-parity-tests)
+(given task-axiom-audit)
+(given task-ci-build)
+(given task-verified-by-final)
+
+;; ----------------------------------------------------------------------
+;; Task metadata
+;; ----------------------------------------------------------------------
+
+(meta task-mathlib-setup
+  (description "ADR-510: add Mathlib4 dependency to lean-cbcl/lakefile.toml (pinned version), update lean-toolchain to a Mathlib-compatible Lean 4 version, run `lake update` and confirm `lake build` still passes for existing SPEC-001 modules. Add a smoke import (e.g. `import Mathlib.Order.BoundedOrder`) in a throwaway scratch module to verify Mathlib resolves.")
+  (acceptance "lake build green; Mathlib version recorded in lakefile.toml; throwaway smoke module imports Mathlib.Order.BoundedOrder without error; CI runtime delta documented in commit message."))
+
+(meta task-result-lattice
+  (description "REQ-510 / CON-510: create lean-cbcl/LeanCbcl/Lattice/Result.lean with `inductive VerificationResult` (unknown | valid | violation) and `BoundedLattice VerificationResult` instance. Discharge each axiom by `decide` over the finite carrier or by case analysis. Prove `result_meet_table` and `result_join_table` matching SPEC-003 REQ-303 truth tables verbatim. ⊥ = unknown.")
+  (acceptance "lake build LeanCbcl.Lattice.Result green with no `sorry`. Truth-table theorems compile. `#print axioms` shows only Classical.choice / propext / Quot.sound."))
+
+(meta task-store-lattice
+  (description "REQ-511 / CON-511: create lean-cbcl/LeanCbcl/Lattice/Store.lean with `structure MessageStore` modelling SPEC-003 G-Set (start with `Set Message` per Open Question §3, defer indexed-view to a separate LookupSpec). Prove (a) `JoinSemiLattice` instance with union as join, (b) union associative/commutative/idempotent, (c) `append M S = union {M} S`, (d) `lookup_monotone : S₁ ⊆ S₂ → ∀ h M, lookup h S₁ = some M → lookup h S₂ = some M`. Treat ContentHash injectivity as an assumption per Open Question §2 — document in module header.")
+  (acceptance "lake build LeanCbcl.Lattice.Store green with no `sorry`. lookup_monotone discharged. Module header records the ContentHash-injectivity assumption."))
+
+(meta task-verify-skeleton
+  (description "Define the Lean-side model that the verify theorems quantify over: Message, CausalProtocol (Single | Any | All | Begin per Open Question §1 — pick top-level Begin constructor for proof simplicity), and `def verify : Message → CausalProtocol → MessageStore → VerificationResult` mirroring the Rust implementation's match arms. NO theorems yet — this task lands the types + `verify` definition that REQ-512/513/514 prove against. Add a module header noting which Rust file (`crates/cbcl-core/src/verify.rs` or equivalent) the model mirrors and the commit SHA at time of mirroring.")
+  (acceptance "lake build LeanCbcl.Verify green; verify is total (every constructor case handled); module header records the Rust source path + SHA."))
+
+(meta task-verify-monotone
+  (description "REQ-512 / CON-512 / TEST-512: prove `theorem verify_monotone (M : Message) (P : CausalProtocol) (S₁ S₂ : MessageStore) (h : S₁ ⊆ S₂) : verify M P S₁ ⊑ verify M P S₂` in lean-cbcl/LeanCbcl/Verify.lean. Case analysis over verify's match arms: Single, Any, All, Begin, missing :caused-by, unknown predecessor, invalid predecessor. Appeal to lookup_monotone for the store-growth cases.")
+  (acceptance "lake build green; `verify_monotone` proved with no `sorry`; every match arm of `verify` covered (verifiable by exhaustivity check on the case analysis)."))
+
+(meta task-verify-fanin-meet
+  (description "REQ-513 / CON-513 / TEST-513: prove `theorem verify_all_is_meet : ∀ M (preds : List Predecessor) S, verify M (CausalProtocol.all preds) S = preds.foldr (fun p acc => verify M p S ⊓ acc) ⊤` in Verify.lean. Induction over predecessor list; appeal to associativity of meet from the BoundedLattice instance (REQ-510). This is the structural form that lets eventual-consistency follow via lattice-homomorphism rather than re-induction.")
+  (acceptance "lake build green; `verify_all_is_meet` proved with no `sorry`."))
+
+(meta task-verify-eventual-consistency
+  (description "REQ-514 / CON-514 / TEST-514: prove `theorem verify_eventually_consistent (M : Message) (P : CausalProtocol) (S₁ S₂ : MessageStore) : verify M P S₁ ⊔ verify M P S₂ ⊑ verify M P (S₁ ∪ S₂)` in Verify.lean. Should be a short proof reducing to verify_monotone applied twice to S₁ ⊆ S₁ ∪ S₂ and S₂ ⊆ S₁ ∪ S₂, then take the join.")
+  (acceptance "lake build green; `verify_eventually_consistent` proved with no `sorry`."))
+
+(meta task-r5-acyclicity
+  (description "REQ-515 part 1 / CON-515 / TEST-515: prove `theorem check_acyclicity_iff_no_cycle` in lean-cbcl/LeanCbcl/R5.lean — the Lean port of SPEC-002 REQ-204's check returns [] iff the protocol step graph has no cycle. Soundness direction (`check returns [] → no cycle`) is mandatory; completeness (`no cycle → check returns []`) attempted, deferred per ADR-512 if intractable. Mirror the existing SPEC-001 R1 DFS proof structure (lean-cbcl/LeanCbcl/R1NoRecursion.lean).")
+  (acceptance "lake build LeanCbcl.R5 green; soundness proved with no `sorry`; if completeness defers, REQ-204 entry in SPEC-002 marked `verified-by: lean (soundness only)` and a `sorry`-marked completeness statement included with TODO."))
+
+(meta task-r5-reachability
+  (description "REQ-515 part 2 / CON-515 / TEST-515: prove `theorem check_reachability_iff_all_reachable` in R5.lean — the SPEC-002 REQ-205 check returns [] iff every step is reachable from `begin`. BFS-soundness argument; same soundness-first / completeness-deferred policy.")
+  (acceptance "lake build green; soundness proved with no `sorry`."))
+
+(meta task-r5-perf-definedness
+  (description "REQ-515 part 3 / CON-515 / TEST-515: prove `theorem check_performative_definedness_iff_all_defined` in R5.lean — the SPEC-002 REQ-206 check returns [] iff every referenced performative appears in the dialect's defined set. Should be the easiest of the four (set membership, no graph traversal).")
+  (acceptance "lake build green; both directions of iff proved (full iff, not soundness-only) with no `sorry`."))
+
+(meta task-r5-step-uniqueness
+  (description "REQ-515 part 4 / CON-515 / TEST-515: prove `theorem check_step_uniqueness_iff_no_duplicates` in R5.lean — the post-fix SPEC-002 REQ-207 check returns [] iff no StepDecl has duplicate predecessors or successors. List-based; both directions usually tractable.")
+  (acceptance "lake build green; full iff proved with no `sorry`."))
+
+(meta task-dcfl-preservation
+  (description "REQ-516 / CON-516 / TEST-516: create lean-cbcl/LeanCbcl/DCFLPreservation.lean and prove (i) `dcfl_preserved_under_protocol`: adding `(protocol …)` to a dialect does not extend parser power (REQ-209), and (ii) `dcfl_preserved_under_shape`: same for `(shape …)` (REQ-225). Both reduce to: the clause is a CBCL S-expression parsed by the existing DCFL parser, and `protocol` / `shape` are deterministic dispatch tokens. Conceptually trivial but currently unverified — closes the audit gap flagged on the current branch.")
+  (acceptance "lake build LeanCbcl.DCFLPreservation green with no `sorry`. Both theorems compile and reduce to the existing DCFL parser theorem."))
+
+(meta task-verified-by-init
+  (description "REQ-517 / TEST-517: add `verified-by:` field to every REQ in specs/SPEC-002-structural-contracts.md and specs/SPEC-003-verification-lattice.md with one of: lean | lean-with-sorry | property | example | prose | n/a (multi-value allowed for partial mechanisation). Initial pass: every REQ gets the *current* status (mostly `prose` / `property`). Add a CI-checkable lint script at scripts/check-verified-by.sh that fails if any REQ in those two specs lacks the field.")
+  (acceptance "Every REQ-2xx and REQ-3xx has a verified-by: line; scripts/check-verified-by.sh exits 0 on the current spec set; running it after deleting one annotation makes it exit non-zero."))
+
+(meta task-parity-tests
+  (description "REQ-518 / TEST-518 / ADR-513: add crates/cbcl-core/tests/lean_parity.rs with one proptest per theorem in REQ-510..516 asserting the same property at the value level (1000 cases default). Tests: result lattice axioms, store union associativity/commutativity/idempotence + lookup monotonicity, verify_monotone over generated (Message, Protocol, Store₁ ⊆ Store₂), verify_all_is_meet, verify_eventually_consistent, the four R5 sub-check soundness statements, dcfl_preserved on generated dialect/protocol/shape clauses. Each test references its corresponding Lean theorem in a code comment.")
+  (acceptance "cargo test -p cbcl-core --test lean_parity green with default proptest config; every theorem in REQ-510..516 has at least one corresponding parity test; test file includes a header table mapping REQ → test name → Lean theorem."))
+
+(meta task-axiom-audit
+  (description "NFR-511 / TEST-551 / OBS-512: add a Lean script (or Makefile target) that runs `#print axioms` on each top-level theorem from CON-510..516 and asserts only Classical.choice / propext / Quot.sound appear. Wire as a CI step alongside `lake build`. Any non-standard axiom is a build-fail.")
+  (acceptance "Script exists, runs locally, and passes against the landed theorems; CI step added; deliberately introducing `axiom foo : True` in a scratch theorem makes the script fail."))
+
+(meta task-ci-build
+  (description "NFR-510 / TEST-550 / OBS-510: add a CI step that runs `lake build` in lean-cbcl/ on every PR touching lean-cbcl/, specs/SPEC-002-*.md, specs/SPEC-003-*.md, or specs/SPEC-005-*.md. Zero errors and zero `sorry`-warnings for any theorem marked `verified-by: lean` is the gate. The CI step also runs the parity tests from task-parity-tests.")
+  (acceptance "CI config (.github/workflows/*.yml or equivalent for codeberg) updated; a deliberately-introduced `sorry` in a `verified-by: lean` theorem fails CI; clean main branch passes CI within the runtime budget noted in the task-mathlib-setup commit."))
+
+(meta task-verified-by-final
+  (description "REQ-517 closeout: revisit the verified-by annotations from task-verified-by-init and update them to reflect what actually landed. Theorems mechanised in this plan: REQ-303/304/307 (lattice + monotonicity + eventual consistency), REQ-204/205/206/207 (R5 sub-checks — `lean` for those with full iff, `lean (soundness only)` for any deferring completeness per ADR-512), REQ-209/225 (DCFL preservation). Anything still `prose` or `property` after this plan ships is honest about the remaining gap.")
+  (acceptance "Annotation table in each spec reconciled with the merged Lean theorems; SPEC-005 status section updated to reflect partial vs full completion of REQ-510..518."))
+
+;; ----------------------------------------------------------------------
+;; Readiness rules — task graph
+;; ----------------------------------------------------------------------
+
+;; Phase 0 — Mathlib bootstrap (gates everything Lean-side)
+(normally r-ready-mathlib-setup
+  task-mathlib-setup
+  ready-mathlib-setup)
+
+;; Phase 1 — Lattice foundations (parallel after mathlib)
+(normally r-ready-result-lattice
+  (and task-result-lattice completed-mathlib-setup)
+  ready-result-lattice)
+
+(normally r-ready-store-lattice
+  (and task-store-lattice completed-mathlib-setup)
+  ready-store-lattice)
+
+;; Phase 2 — verify model (needs both lattices)
+(normally r-ready-verify-skeleton
+  (and task-verify-skeleton completed-result-lattice completed-store-lattice)
+  ready-verify-skeleton)
+
+;; Phase 3 — verify theorems (monotone + fan-in can run in parallel; consistency needs both)
+(normally r-ready-verify-monotone
+  (and task-verify-monotone completed-verify-skeleton)
+  ready-verify-monotone)
+
+(normally r-ready-verify-fanin-meet
+  (and task-verify-fanin-meet completed-verify-skeleton)
+  ready-verify-fanin-meet)
+
+(normally r-ready-verify-eventual-consistency
+  (and task-verify-eventual-consistency
+       completed-verify-monotone
+       completed-verify-fanin-meet)
+  ready-verify-eventual-consistency)
+
+;; Phase 4 — R5 sub-checks (parallel; need verify-skeleton for shared types)
+(normally r-ready-r5-acyclicity
+  (and task-r5-acyclicity completed-verify-skeleton)
+  ready-r5-acyclicity)
+
+(normally r-ready-r5-reachability
+  (and task-r5-reachability completed-verify-skeleton)
+  ready-r5-reachability)
+
+(normally r-ready-r5-perf-definedness
+  (and task-r5-perf-definedness completed-verify-skeleton)
+  ready-r5-perf-definedness)
+
+(normally r-ready-r5-step-uniqueness
+  (and task-r5-step-uniqueness completed-verify-skeleton)
+  ready-r5-step-uniqueness)
+
+;; Phase 5 — DCFL preservation (independent; only needs mathlib + existing SPEC-001 parser theorem)
+(normally r-ready-dcfl-preservation
+  (and task-dcfl-preservation completed-mathlib-setup)
+  ready-dcfl-preservation)
+
+;; Phase 6 — verified-by initial pass (independent; do early to surface the gap-map)
+(normally r-ready-verified-by-init
+  task-verified-by-init
+  ready-verified-by-init)
+
+;; Phase 7 — parity tests (need every Lean theorem landed)
+(normally r-ready-parity-tests
+  (and task-parity-tests
+       completed-result-lattice
+       completed-store-lattice
+       completed-verify-monotone
+       completed-verify-fanin-meet
+       completed-verify-eventual-consistency
+       completed-r5-acyclicity
+       completed-r5-reachability
+       completed-r5-perf-definedness
+       completed-r5-step-uniqueness
+       completed-dcfl-preservation)
+  ready-parity-tests)
+
+;; Phase 8 — axiom + CI gates (need theorems landed; CI also needs parity tests)
+(normally r-ready-axiom-audit
+  (and task-axiom-audit
+       completed-result-lattice
+       completed-store-lattice
+       completed-verify-monotone
+       completed-verify-fanin-meet
+       completed-verify-eventual-consistency
+       completed-r5-acyclicity
+       completed-r5-reachability
+       completed-r5-perf-definedness
+       completed-r5-step-uniqueness
+       completed-dcfl-preservation)
+  ready-axiom-audit)
+
+(normally r-ready-ci-build
+  (and task-ci-build completed-parity-tests completed-axiom-audit)
+  ready-ci-build)
+
+;; Phase 9 — verified-by closeout (needs everything; reconciles annotations with what actually landed)
+(normally r-ready-verified-by-final
+  (and task-verified-by-final
+       completed-verified-by-init
+       completed-ci-build)
+  ready-verified-by-final)
+
+;; ----------------------------------------------------------------------
+;; Assignment rules — single agent
+;; ----------------------------------------------------------------------
+
+(normally r-assign-mathlib-setup
+  (and ready-mathlib-setup agent-claude-available)
+  assign-to-mathlib-setup-claude)
+
+(normally r-assign-result-lattice
+  (and ready-result-lattice agent-claude-available)
+  assign-to-result-lattice-claude)
+
+(normally r-assign-store-lattice
+  (and ready-store-lattice agent-claude-available)
+  assign-to-store-lattice-claude)
+
+(normally r-assign-verify-skeleton
+  (and ready-verify-skeleton agent-claude-available)
+  assign-to-verify-skeleton-claude)
+
+(normally r-assign-verify-monotone
+  (and ready-verify-monotone agent-claude-available)
+  assign-to-verify-monotone-claude)
+
+(normally r-assign-verify-fanin-meet
+  (and ready-verify-fanin-meet agent-claude-available)
+  assign-to-verify-fanin-meet-claude)
+
+(normally r-assign-verify-eventual-consistency
+  (and ready-verify-eventual-consistency agent-claude-available)
+  assign-to-verify-eventual-consistency-claude)
+
+(normally r-assign-r5-acyclicity
+  (and ready-r5-acyclicity agent-claude-available)
+  assign-to-r5-acyclicity-claude)
+
+(normally r-assign-r5-reachability
+  (and ready-r5-reachability agent-claude-available)
+  assign-to-r5-reachability-claude)
+
+(normally r-assign-r5-perf-definedness
+  (and ready-r5-perf-definedness agent-claude-available)
+  assign-to-r5-perf-definedness-claude)
+
+(normally r-assign-r5-step-uniqueness
+  (and ready-r5-step-uniqueness agent-claude-available)
+  assign-to-r5-step-uniqueness-claude)
+
+(normally r-assign-dcfl-preservation
+  (and ready-dcfl-preservation agent-claude-available)
+  assign-to-dcfl-preservation-claude)
+
+(normally r-assign-verified-by-init
+  (and ready-verified-by-init agent-claude-available)
+  assign-to-verified-by-init-claude)
+
+(normally r-assign-parity-tests
+  (and ready-parity-tests agent-claude-available)
+  assign-to-parity-tests-claude)
+
+(normally r-assign-axiom-audit
+  (and ready-axiom-audit agent-claude-available)
+  assign-to-axiom-audit-claude)
+
+(normally r-assign-ci-build
+  (and ready-ci-build agent-claude-available)
+  assign-to-ci-build-claude)
+
+(normally r-assign-verified-by-final
+  (and ready-verified-by-final agent-claude-available)
+  assign-to-verified-by-final-claude)
+
+;; ----------------------------------------------------------------------
+;; Priority — gate the headline theorem path before R5 / DCFL
+;; ----------------------------------------------------------------------
+
+;; The SPEC-005 headline theorem is verify_eventually_consistent (REQ-514).
+;; Run lattice + verify chain ahead of R5 sub-checks and DCFL preservation
+;; so the central proof exists before time is spent on the perimeter.
+(prefer r-assign-result-lattice r-assign-dcfl-preservation)
+(prefer r-assign-store-lattice r-assign-dcfl-preservation)
+(prefer r-assign-verify-monotone r-assign-r5-acyclicity)
+(prefer r-assign-verify-monotone r-assign-r5-reachability)
+(prefer r-assign-verify-monotone r-assign-r5-perf-definedness)
+(prefer r-assign-verify-monotone r-assign-r5-step-uniqueness)
+(prefer r-assign-verify-fanin-meet r-assign-r5-acyclicity)
+(prefer r-assign-verify-eventual-consistency r-assign-r5-acyclicity)
+
+;; Among R5 sub-checks: easiest first, hardest last (matches ADR-512 risk profile).
+(prefer r-assign-r5-perf-definedness r-assign-r5-step-uniqueness)
+(prefer r-assign-r5-step-uniqueness r-assign-r5-reachability)
+(prefer r-assign-r5-reachability r-assign-r5-acyclicity)
+
+;; verified-by-init runs early to expose the current gap map; do it before R5.
+(prefer r-assign-verified-by-init r-assign-r5-acyclicity)
+
+;; ----------------------------------------------------------------------
+;; Rule metadata — the load-bearing reasons
+;; ----------------------------------------------------------------------
+
+(meta r-ready-verify-skeleton
+  (description "verify model gates every verify theorem")
+  (justification "REQ-512/513/514 quantify over `verify`; the Lean definition has to exist before any of the three theorems can even be stated. Mirror the Rust source at a recorded SHA so the parity-tests task has a fixed reference point."))
+
+(meta r-ready-verify-eventual-consistency
+  (description "Eventual consistency follows from monotonicity + fan-in homomorphism")
+  (justification "SPEC-005 REQ-514 and TEST-514 explicitly note the proof is direct from REQ-512 + REQ-513. Sequencing this way avoids re-proving the lattice case analysis a second time."))
+
+(meta r-ready-parity-tests
+  (description "Parity tests gate at the end, not per-theorem")
+  (justification "ADR-513 frames parity tests as a single deliverable that catches Rust↔Lean drift; bundling them avoids per-PR test scaffolding churn and keeps the REQ → test → theorem mapping in one file."))
+
+(meta r-ready-ci-build
+  (description "CI step needs both the parity tests and the axiom audit to be meaningful")
+  (justification "NFR-510 + NFR-511 + REQ-518 all converge on a single CI gate. Wiring CI before parity tests + axiom audit exist would either skip them or fail spuriously."))
+
+(meta r-ready-verified-by-final
+  (description "Closeout reconciles intent (init pass) with reality (what landed)")
+  (justification "Per RISK-514: distinguishing `verified-by: lean` from `verified-by: lean (soundness only)` is the key honesty signal of this plan. Has to come last so the annotations reflect the as-built state."))
+
+(meta r-assign-verify-skeleton
+  (description "verify model needs careful Rust-mirror discipline")
+  (justification "Records the Rust source path + SHA in the module header per task acceptance — this is the anchor that NFR-512 (proof and code in same PR) checks against."))

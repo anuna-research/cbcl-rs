@@ -12,13 +12,13 @@
 
 #![forbid(unsafe_code)]
 
+use crate::message::{CausedBy, Message};
+use crate::protocol::{CausalProtocol, CausalViolation, VerificationResult};
+use crate::sexpr::{Atom, SExpr};
 use alloc::string::String;
 use alloc::vec;
 use alloc::vec::Vec;
 use core::fmt;
-use crate::message::{CausedBy, Message};
-use crate::protocol::{CausalProtocol, CausalViolation, VerificationResult};
-use crate::sexpr::{Atom, SExpr};
 use hashbrown::{HashMap, HashSet};
 
 /// Content-addressed hash identifying a message (SHA-256 hex string).
@@ -78,13 +78,9 @@ impl HashIndex {
     /// Returns `Some(index)` only if the hash exists AND belongs to the given thread.
     /// Returns `None` if the hash is absent or belongs to a different thread.
     pub fn lookup(&self, hash: &ContentHash, thread: &ThreadId) -> Option<usize> {
-        self.map.get(hash).and_then(|(t, idx)| {
-            if t == thread {
-                Some(*idx)
-            } else {
-                None
-            }
-        })
+        self.map
+            .get(hash)
+            .and_then(|(t, idx)| if t == thread { Some(*idx) } else { None })
     }
 
     /// Checks whether a content hash exists in the given thread (ADR-008).
@@ -184,12 +180,16 @@ impl MessageStore for ThreadedMessageStore {
     fn lookup(&self, hash: &ContentHash) -> Option<&Message> {
         // Look up in the global index (ignoring thread isolation)
         let (thread, idx) = self.index.map.get(hash)?;
-        self.threads.get(thread).and_then(|msgs| msgs.get(*idx).map(|(_, m)| m))
+        self.threads
+            .get(thread)
+            .and_then(|msgs| msgs.get(*idx).map(|(_, m)| m))
     }
 
     fn lookup_in_thread(&self, hash: &ContentHash, thread: &ThreadId) -> Option<&Message> {
         let idx = self.index.lookup(hash, thread)?;
-        self.threads.get(thread).and_then(|msgs| msgs.get(idx).map(|(_, m)| m))
+        self.threads
+            .get(thread)
+            .and_then(|msgs| msgs.get(idx).map(|(_, m)| m))
     }
 
     fn contains(&self, hash: &ContentHash, thread: &ThreadId) -> bool {
@@ -584,10 +584,7 @@ impl CausalClosureBundle {
 
         let mut errors = Vec::new();
         for (_, msg) in &self.messages {
-            let perf_name = msg
-                .performative()
-                .map(|p| p.name())
-                .unwrap_or("");
+            let perf_name = msg.performative().map(|p| p.name()).unwrap_or("");
 
             let result = crate::protocol::verify_causal(
                 perf_name,
@@ -927,10 +924,7 @@ mod tests {
         assert_eq!(idx.len(), 10_000);
 
         // Spot check after rebuild
-        assert_eq!(
-            idx.lookup(&hash("t5-m500"), &threads[5]),
-            Some(500)
-        );
+        assert_eq!(idx.lookup(&hash("t5-m500"), &threads[5]), Some(500));
         assert_eq!(idx.lookup(&hash("t5-m500"), &threads[0]), None);
     }
 
@@ -945,7 +939,8 @@ mod tests {
     fn simple_msg(perf: &str, content: &str, caused_by: Option<CausedBy>) -> Message {
         Message::Simple {
             performative: Performative::Core(
-                crate::message::CorePerformative::parse(perf).unwrap_or(crate::message::CorePerformative::Tell),
+                crate::message::CorePerformative::parse(perf)
+                    .unwrap_or(crate::message::CorePerformative::Tell),
             ),
             recipient: None,
             content: SExpr::Atom(Atom::Str(content.to_string())),
@@ -1064,7 +1059,11 @@ mod tests {
     #[test]
     fn frontier_single_begin_message_is_frontier() {
         let mut store = ThreadedMessageStore::new();
-        store.append(hash("h1"), thread("t1"), simple_msg("tell", "start", Some(CausedBy::Begin)));
+        store.append(
+            hash("h1"),
+            thread("t1"),
+            simple_msg("tell", "start", Some(CausedBy::Begin)),
+        );
         let f = store.frontier(&thread("t1"));
         assert_eq!(f.len(), 1);
         assert_eq!(f[0], &hash("h1"));
@@ -1073,8 +1072,16 @@ mod tests {
     #[test]
     fn frontier_chain_only_leaf_is_frontier() {
         let mut store = ThreadedMessageStore::new();
-        store.append(hash("h1"), thread("t1"), simple_msg("tell", "start", Some(CausedBy::Begin)));
-        store.append(hash("h2"), thread("t1"), simple_msg("reply", "ack", Some(CausedBy::Single("h1".into()))));
+        store.append(
+            hash("h1"),
+            thread("t1"),
+            simple_msg("tell", "start", Some(CausedBy::Begin)),
+        );
+        store.append(
+            hash("h2"),
+            thread("t1"),
+            simple_msg("reply", "ack", Some(CausedBy::Single("h1".into()))),
+        );
         let f = store.frontier(&thread("t1"));
         assert_eq!(f.len(), 1);
         assert_eq!(f[0], &hash("h2"));
@@ -1083,9 +1090,21 @@ mod tests {
     #[test]
     fn frontier_branching_two_leaves() {
         let mut store = ThreadedMessageStore::new();
-        store.append(hash("root"), thread("t1"), simple_msg("tell", "start", Some(CausedBy::Begin)));
-        store.append(hash("b1"), thread("t1"), simple_msg("reply", "branch1", Some(CausedBy::Single("root".into()))));
-        store.append(hash("b2"), thread("t1"), simple_msg("reply", "branch2", Some(CausedBy::Single("root".into()))));
+        store.append(
+            hash("root"),
+            thread("t1"),
+            simple_msg("tell", "start", Some(CausedBy::Begin)),
+        );
+        store.append(
+            hash("b1"),
+            thread("t1"),
+            simple_msg("reply", "branch1", Some(CausedBy::Single("root".into()))),
+        );
+        store.append(
+            hash("b2"),
+            thread("t1"),
+            simple_msg("reply", "branch2", Some(CausedBy::Single("root".into()))),
+        );
         let mut f: Vec<_> = store.frontier(&thread("t1")).into_iter().cloned().collect();
         f.sort();
         assert_eq!(f, vec![hash("b1"), hash("b2")]);
@@ -1094,11 +1113,31 @@ mod tests {
     #[test]
     fn frontier_fan_in_merge_removes_predecessors() {
         let mut store = ThreadedMessageStore::new();
-        store.append(hash("root"), thread("t1"), simple_msg("tell", "start", Some(CausedBy::Begin)));
-        store.append(hash("b1"), thread("t1"), simple_msg("reply", "a", Some(CausedBy::Single("root".into()))));
-        store.append(hash("b2"), thread("t1"), simple_msg("reply", "b", Some(CausedBy::Single("root".into()))));
+        store.append(
+            hash("root"),
+            thread("t1"),
+            simple_msg("tell", "start", Some(CausedBy::Begin)),
+        );
+        store.append(
+            hash("b1"),
+            thread("t1"),
+            simple_msg("reply", "a", Some(CausedBy::Single("root".into()))),
+        );
+        store.append(
+            hash("b2"),
+            thread("t1"),
+            simple_msg("reply", "b", Some(CausedBy::Single("root".into()))),
+        );
         // Merge message references both branches
-        store.append(hash("merge"), thread("t1"), simple_msg("ok", "done", Some(CausedBy::Multiple(vec!["b1".into(), "b2".into()]))));
+        store.append(
+            hash("merge"),
+            thread("t1"),
+            simple_msg(
+                "ok",
+                "done",
+                Some(CausedBy::Multiple(vec!["b1".into(), "b2".into()])),
+            ),
+        );
         let f = store.frontier(&thread("t1"));
         assert_eq!(f.len(), 1);
         assert_eq!(f[0], &hash("merge"));
@@ -1107,8 +1146,16 @@ mod tests {
     #[test]
     fn frontier_separate_threads_independent() {
         let mut store = ThreadedMessageStore::new();
-        store.append(hash("h1"), thread("t1"), simple_msg("tell", "a", Some(CausedBy::Begin)));
-        store.append(hash("h2"), thread("t2"), simple_msg("tell", "b", Some(CausedBy::Begin)));
+        store.append(
+            hash("h1"),
+            thread("t1"),
+            simple_msg("tell", "a", Some(CausedBy::Begin)),
+        );
+        store.append(
+            hash("h2"),
+            thread("t2"),
+            simple_msg("tell", "b", Some(CausedBy::Begin)),
+        );
         assert_eq!(store.frontier(&thread("t1")).len(), 1);
         assert_eq!(store.frontier(&thread("t2")).len(), 1);
     }
@@ -1118,7 +1165,11 @@ mod tests {
     #[test]
     fn causal_closure_begin_message_is_singleton() {
         let mut store = ThreadedMessageStore::new();
-        store.append(hash("h1"), thread("t1"), simple_msg("tell", "start", Some(CausedBy::Begin)));
+        store.append(
+            hash("h1"),
+            thread("t1"),
+            simple_msg("tell", "start", Some(CausedBy::Begin)),
+        );
         let cc = store.causal_closure(&hash("h1"), &thread("t1"));
         assert_eq!(cc.len(), 1);
         assert_eq!(cc[0], hash("h1"));
@@ -1127,9 +1178,21 @@ mod tests {
     #[test]
     fn causal_closure_chain_returns_all_ancestors() {
         let mut store = ThreadedMessageStore::new();
-        store.append(hash("h1"), thread("t1"), simple_msg("tell", "start", Some(CausedBy::Begin)));
-        store.append(hash("h2"), thread("t1"), simple_msg("reply", "mid", Some(CausedBy::Single("h1".into()))));
-        store.append(hash("h3"), thread("t1"), simple_msg("ok", "end", Some(CausedBy::Single("h2".into()))));
+        store.append(
+            hash("h1"),
+            thread("t1"),
+            simple_msg("tell", "start", Some(CausedBy::Begin)),
+        );
+        store.append(
+            hash("h2"),
+            thread("t1"),
+            simple_msg("reply", "mid", Some(CausedBy::Single("h1".into()))),
+        );
+        store.append(
+            hash("h3"),
+            thread("t1"),
+            simple_msg("ok", "end", Some(CausedBy::Single("h2".into()))),
+        );
         let mut cc = store.causal_closure(&hash("h3"), &thread("t1"));
         cc.sort();
         assert_eq!(cc, vec![hash("h1"), hash("h2"), hash("h3")]);
@@ -1138,13 +1201,36 @@ mod tests {
     #[test]
     fn causal_closure_fan_in_includes_all_branches() {
         let mut store = ThreadedMessageStore::new();
-        store.append(hash("root"), thread("t1"), simple_msg("tell", "start", Some(CausedBy::Begin)));
-        store.append(hash("b1"), thread("t1"), simple_msg("reply", "a", Some(CausedBy::Single("root".into()))));
-        store.append(hash("b2"), thread("t1"), simple_msg("reply", "b", Some(CausedBy::Single("root".into()))));
-        store.append(hash("merge"), thread("t1"), simple_msg("ok", "done", Some(CausedBy::Multiple(vec!["b1".into(), "b2".into()]))));
+        store.append(
+            hash("root"),
+            thread("t1"),
+            simple_msg("tell", "start", Some(CausedBy::Begin)),
+        );
+        store.append(
+            hash("b1"),
+            thread("t1"),
+            simple_msg("reply", "a", Some(CausedBy::Single("root".into()))),
+        );
+        store.append(
+            hash("b2"),
+            thread("t1"),
+            simple_msg("reply", "b", Some(CausedBy::Single("root".into()))),
+        );
+        store.append(
+            hash("merge"),
+            thread("t1"),
+            simple_msg(
+                "ok",
+                "done",
+                Some(CausedBy::Multiple(vec!["b1".into(), "b2".into()])),
+            ),
+        );
         let mut cc = store.causal_closure(&hash("merge"), &thread("t1"));
         cc.sort();
-        assert_eq!(cc, vec![hash("b1"), hash("b2"), hash("merge"), hash("root")]);
+        assert_eq!(
+            cc,
+            vec![hash("b1"), hash("b2"), hash("merge"), hash("root")]
+        );
     }
 
     #[test]
@@ -1157,7 +1243,11 @@ mod tests {
     #[test]
     fn causal_closure_wrong_thread_returns_empty() {
         let mut store = ThreadedMessageStore::new();
-        store.append(hash("h1"), thread("t1"), simple_msg("tell", "start", Some(CausedBy::Begin)));
+        store.append(
+            hash("h1"),
+            thread("t1"),
+            simple_msg("tell", "start", Some(CausedBy::Begin)),
+        );
         let cc = store.causal_closure(&hash("h1"), &thread("t2"));
         assert!(cc.is_empty());
     }
@@ -1166,10 +1256,30 @@ mod tests {
     fn causal_closure_diamond_no_duplicates() {
         // Diamond: root -> a, root -> b, a + b -> merge
         let mut store = ThreadedMessageStore::new();
-        store.append(hash("root"), thread("t1"), simple_msg("tell", "start", Some(CausedBy::Begin)));
-        store.append(hash("a"), thread("t1"), simple_msg("reply", "a", Some(CausedBy::Single("root".into()))));
-        store.append(hash("b"), thread("t1"), simple_msg("reply", "b", Some(CausedBy::Single("root".into()))));
-        store.append(hash("merge"), thread("t1"), simple_msg("ok", "done", Some(CausedBy::Multiple(vec!["a".into(), "b".into()]))));
+        store.append(
+            hash("root"),
+            thread("t1"),
+            simple_msg("tell", "start", Some(CausedBy::Begin)),
+        );
+        store.append(
+            hash("a"),
+            thread("t1"),
+            simple_msg("reply", "a", Some(CausedBy::Single("root".into()))),
+        );
+        store.append(
+            hash("b"),
+            thread("t1"),
+            simple_msg("reply", "b", Some(CausedBy::Single("root".into()))),
+        );
+        store.append(
+            hash("merge"),
+            thread("t1"),
+            simple_msg(
+                "ok",
+                "done",
+                Some(CausedBy::Multiple(vec!["a".into(), "b".into()])),
+            ),
+        );
         let cc = store.causal_closure(&hash("merge"), &thread("t1"));
         // No duplicates — root appears once even though reachable via both a and b
         assert_eq!(cc.len(), 4);
@@ -1184,9 +1294,17 @@ mod tests {
     #[test]
     fn append_is_monotonic_store_only_grows() {
         let mut store = ThreadedMessageStore::new();
-        store.append(hash("h1"), thread("t1"), simple_msg("tell", "a", Some(CausedBy::Begin)));
+        store.append(
+            hash("h1"),
+            thread("t1"),
+            simple_msg("tell", "a", Some(CausedBy::Begin)),
+        );
         assert!(store.contains(&hash("h1"), &thread("t1")));
-        store.append(hash("h2"), thread("t1"), simple_msg("reply", "b", Some(CausedBy::Single("h1".into()))));
+        store.append(
+            hash("h2"),
+            thread("t1"),
+            simple_msg("reply", "b", Some(CausedBy::Single("h1".into()))),
+        );
         // h1 still present after adding h2
         assert!(store.contains(&hash("h1"), &thread("t1")));
         assert!(store.contains(&hash("h2"), &thread("t1")));
@@ -1259,7 +1377,11 @@ mod tests {
     fn bundle_extract_single_begin_message() {
         let mut store = ThreadedMessageStore::new();
         let t = thread("t1");
-        store.append(hash("h1"), t.clone(), simple_msg("tell", "start", Some(CausedBy::Begin)));
+        store.append(
+            hash("h1"),
+            t.clone(),
+            simple_msg("tell", "start", Some(CausedBy::Begin)),
+        );
 
         let bundle = CausalClosureBundle::extract(&hash("h1"), &t, &store).unwrap();
         assert_eq!(bundle.target, hash("h1"));
@@ -1272,9 +1394,21 @@ mod tests {
     fn bundle_extract_chain_topological_order() {
         let mut store = ThreadedMessageStore::new();
         let t = thread("t1");
-        store.append(hash("h1"), t.clone(), simple_msg("tell", "start", Some(CausedBy::Begin)));
-        store.append(hash("h2"), t.clone(), simple_msg("reply", "mid", Some(CausedBy::Single("h1".into()))));
-        store.append(hash("h3"), t.clone(), simple_msg("ok", "end", Some(CausedBy::Single("h2".into()))));
+        store.append(
+            hash("h1"),
+            t.clone(),
+            simple_msg("tell", "start", Some(CausedBy::Begin)),
+        );
+        store.append(
+            hash("h2"),
+            t.clone(),
+            simple_msg("reply", "mid", Some(CausedBy::Single("h1".into()))),
+        );
+        store.append(
+            hash("h3"),
+            t.clone(),
+            simple_msg("ok", "end", Some(CausedBy::Single("h2".into()))),
+        );
 
         let bundle = CausalClosureBundle::extract(&hash("h3"), &t, &store).unwrap();
         assert_eq!(bundle.len(), 3);
@@ -1292,10 +1426,30 @@ mod tests {
     fn bundle_extract_diamond_dag() {
         let mut store = ThreadedMessageStore::new();
         let t = thread("t1");
-        store.append(hash("root"), t.clone(), simple_msg("tell", "start", Some(CausedBy::Begin)));
-        store.append(hash("a"), t.clone(), simple_msg("reply", "a", Some(CausedBy::Single("root".into()))));
-        store.append(hash("b"), t.clone(), simple_msg("reply", "b", Some(CausedBy::Single("root".into()))));
-        store.append(hash("merge"), t.clone(), simple_msg("ok", "done", Some(CausedBy::Multiple(vec!["a".into(), "b".into()]))));
+        store.append(
+            hash("root"),
+            t.clone(),
+            simple_msg("tell", "start", Some(CausedBy::Begin)),
+        );
+        store.append(
+            hash("a"),
+            t.clone(),
+            simple_msg("reply", "a", Some(CausedBy::Single("root".into()))),
+        );
+        store.append(
+            hash("b"),
+            t.clone(),
+            simple_msg("reply", "b", Some(CausedBy::Single("root".into()))),
+        );
+        store.append(
+            hash("merge"),
+            t.clone(),
+            simple_msg(
+                "ok",
+                "done",
+                Some(CausedBy::Multiple(vec!["a".into(), "b".into()])),
+            ),
+        );
 
         let bundle = CausalClosureBundle::extract(&hash("merge"), &t, &store).unwrap();
         assert_eq!(bundle.len(), 4);
@@ -1314,9 +1468,21 @@ mod tests {
         // Extract closure of a mid-chain message — should NOT include later messages
         let mut store = ThreadedMessageStore::new();
         let t = thread("t1");
-        store.append(hash("h1"), t.clone(), simple_msg("tell", "start", Some(CausedBy::Begin)));
-        store.append(hash("h2"), t.clone(), simple_msg("reply", "mid", Some(CausedBy::Single("h1".into()))));
-        store.append(hash("h3"), t.clone(), simple_msg("ok", "end", Some(CausedBy::Single("h2".into()))));
+        store.append(
+            hash("h1"),
+            t.clone(),
+            simple_msg("tell", "start", Some(CausedBy::Begin)),
+        );
+        store.append(
+            hash("h2"),
+            t.clone(),
+            simple_msg("reply", "mid", Some(CausedBy::Single("h1".into()))),
+        );
+        store.append(
+            hash("h3"),
+            t.clone(),
+            simple_msg("ok", "end", Some(CausedBy::Single("h2".into()))),
+        );
 
         let bundle = CausalClosureBundle::extract(&hash("h2"), &t, &store).unwrap();
         assert_eq!(bundle.len(), 2);
@@ -1335,7 +1501,11 @@ mod tests {
     #[test]
     fn bundle_extract_wrong_thread() {
         let mut store = ThreadedMessageStore::new();
-        store.append(hash("h1"), thread("t1"), simple_msg("tell", "start", Some(CausedBy::Begin)));
+        store.append(
+            hash("h1"),
+            thread("t1"),
+            simple_msg("tell", "start", Some(CausedBy::Begin)),
+        );
         let result = CausalClosureBundle::extract(&hash("h1"), &thread("t2"), &store);
         assert_eq!(result, Err(ClosureError::TargetNotFound));
     }
@@ -1346,8 +1516,16 @@ mod tests {
     fn bundle_verify_completeness_valid() {
         let mut store = ThreadedMessageStore::new();
         let t = thread("t1");
-        store.append(hash("h1"), t.clone(), simple_msg("tell", "start", Some(CausedBy::Begin)));
-        store.append(hash("h2"), t.clone(), simple_msg("reply", "done", Some(CausedBy::Single("h1".into()))));
+        store.append(
+            hash("h1"),
+            t.clone(),
+            simple_msg("tell", "start", Some(CausedBy::Begin)),
+        );
+        store.append(
+            hash("h2"),
+            t.clone(),
+            simple_msg("reply", "done", Some(CausedBy::Single("h1".into()))),
+        );
 
         let bundle = CausalClosureBundle::extract(&hash("h2"), &t, &store).unwrap();
         assert!(bundle.verify_completeness().is_ok());
@@ -1360,16 +1538,19 @@ mod tests {
         let bundle = CausalClosureBundle {
             target: hash("h2"),
             thread: t,
-            messages: vec![
-                (hash("h2"), simple_msg("reply", "done", Some(CausedBy::Single("missing".into())))),
-            ],
+            messages: vec![(
+                hash("h2"),
+                simple_msg("reply", "done", Some(CausedBy::Single("missing".into()))),
+            )],
         };
 
         let result = bundle.verify_completeness();
         assert!(result.is_err());
         let errors = result.unwrap_err();
         assert_eq!(errors.len(), 1);
-        assert!(matches!(&errors[0], BundleVerificationError::DanglingReference { caused_by } if caused_by == "missing"));
+        assert!(
+            matches!(&errors[0], BundleVerificationError::DanglingReference { caused_by } if caused_by == "missing")
+        );
     }
 
     // --- verify_hashes tests ---
@@ -1378,7 +1559,11 @@ mod tests {
     fn bundle_verify_hashes_matching() {
         let mut store = ThreadedMessageStore::new();
         let t = thread("t1");
-        store.append(hash("h1"), t.clone(), simple_msg("tell", "start", Some(CausedBy::Begin)));
+        store.append(
+            hash("h1"),
+            t.clone(),
+            simple_msg("tell", "start", Some(CausedBy::Begin)),
+        );
 
         let bundle = CausalClosureBundle::extract(&hash("h1"), &t, &store).unwrap();
         // Identity hasher — hashes match
@@ -1390,7 +1575,11 @@ mod tests {
     fn bundle_verify_hashes_mismatch() {
         let mut store = ThreadedMessageStore::new();
         let t = thread("t1");
-        store.append(hash("h1"), t.clone(), simple_msg("tell", "start", Some(CausedBy::Begin)));
+        store.append(
+            hash("h1"),
+            t.clone(),
+            simple_msg("tell", "start", Some(CausedBy::Begin)),
+        );
 
         let bundle = CausalClosureBundle::extract(&hash("h1"), &t, &store).unwrap();
         // Hasher that returns wrong hash
@@ -1413,11 +1602,21 @@ mod tests {
 
         let mut store = ThreadedMessageStore::new();
         let t = thread("t1");
-        store.append(hash("h1"), t.clone(), simple_msg("tell", "start", Some(CausedBy::Begin)));
-        store.append(hash("h2"), t.clone(), simple_msg("reply", "done", Some(CausedBy::Single("h1".into()))));
+        store.append(
+            hash("h1"),
+            t.clone(),
+            simple_msg("tell", "start", Some(CausedBy::Begin)),
+        );
+        store.append(
+            hash("h2"),
+            t.clone(),
+            simple_msg("reply", "done", Some(CausedBy::Single("h1".into()))),
+        );
 
         let bundle = CausalClosureBundle::extract(&hash("h2"), &t, &store).unwrap();
-        let empty_protocol = CausalProtocol { steps: BTreeMap::new() };
+        let empty_protocol = CausalProtocol {
+            steps: BTreeMap::new(),
+        };
         assert!(bundle.verify_causal(&empty_protocol).is_ok());
     }
 
@@ -1427,8 +1626,16 @@ mod tests {
     fn bundle_merge_into_empty_store() {
         let mut source_store = ThreadedMessageStore::new();
         let t = thread("t1");
-        source_store.append(hash("h1"), t.clone(), simple_msg("tell", "start", Some(CausedBy::Begin)));
-        source_store.append(hash("h2"), t.clone(), simple_msg("reply", "done", Some(CausedBy::Single("h1".into()))));
+        source_store.append(
+            hash("h1"),
+            t.clone(),
+            simple_msg("tell", "start", Some(CausedBy::Begin)),
+        );
+        source_store.append(
+            hash("h2"),
+            t.clone(),
+            simple_msg("reply", "done", Some(CausedBy::Single("h1".into()))),
+        );
 
         let bundle = CausalClosureBundle::extract(&hash("h2"), &t, &source_store).unwrap();
 
@@ -1446,17 +1653,29 @@ mod tests {
     fn bundle_merge_deduplication() {
         let mut store = ThreadedMessageStore::new();
         let t = thread("t1");
-        store.append(hash("h1"), t.clone(), simple_msg("tell", "start", Some(CausedBy::Begin)));
-        store.append(hash("h2"), t.clone(), simple_msg("reply", "done", Some(CausedBy::Single("h1".into()))));
+        store.append(
+            hash("h1"),
+            t.clone(),
+            simple_msg("tell", "start", Some(CausedBy::Begin)),
+        );
+        store.append(
+            hash("h2"),
+            t.clone(),
+            simple_msg("reply", "done", Some(CausedBy::Single("h1".into()))),
+        );
 
         let bundle = CausalClosureBundle::extract(&hash("h2"), &t, &store).unwrap();
 
         // Merge into a store that already has h1
         let mut target_store = ThreadedMessageStore::new();
-        target_store.append(hash("h1"), t.clone(), simple_msg("tell", "start", Some(CausedBy::Begin)));
+        target_store.append(
+            hash("h1"),
+            t.clone(),
+            simple_msg("tell", "start", Some(CausedBy::Begin)),
+        );
 
         let result = bundle.merge(&mut target_store);
-        assert_eq!(result.added, 1);        // only h2 is new
+        assert_eq!(result.added, 1); // only h2 is new
         assert_eq!(result.deduplicated, 1); // h1 was deduplicated
     }
 
@@ -1464,7 +1683,11 @@ mod tests {
     fn bundle_merge_all_duplicates() {
         let mut store = ThreadedMessageStore::new();
         let t = thread("t1");
-        store.append(hash("h1"), t.clone(), simple_msg("tell", "start", Some(CausedBy::Begin)));
+        store.append(
+            hash("h1"),
+            t.clone(),
+            simple_msg("tell", "start", Some(CausedBy::Begin)),
+        );
 
         let bundle = CausalClosureBundle::extract(&hash("h1"), &t, &store).unwrap();
 
@@ -1480,7 +1703,11 @@ mod tests {
     fn bundle_to_sexpr_structure() {
         let mut store = ThreadedMessageStore::new();
         let t = thread("t1");
-        store.append(hash("h1"), t.clone(), simple_msg("tell", "start", Some(CausedBy::Begin)));
+        store.append(
+            hash("h1"),
+            t.clone(),
+            simple_msg("tell", "start", Some(CausedBy::Begin)),
+        );
 
         let bundle = CausalClosureBundle::extract(&hash("h1"), &t, &store).unwrap();
         let sexpr = bundle.to_sexpr();
@@ -1515,9 +1742,21 @@ mod tests {
     fn bundle_round_trip_extract_merge_matches() {
         let mut store = ThreadedMessageStore::new();
         let t = thread("t1");
-        store.append(hash("h1"), t.clone(), simple_msg("tell", "start", Some(CausedBy::Begin)));
-        store.append(hash("h2"), t.clone(), simple_msg("reply", "mid", Some(CausedBy::Single("h1".into()))));
-        store.append(hash("h3"), t.clone(), simple_msg("ok", "end", Some(CausedBy::Single("h2".into()))));
+        store.append(
+            hash("h1"),
+            t.clone(),
+            simple_msg("tell", "start", Some(CausedBy::Begin)),
+        );
+        store.append(
+            hash("h2"),
+            t.clone(),
+            simple_msg("reply", "mid", Some(CausedBy::Single("h1".into()))),
+        );
+        store.append(
+            hash("h3"),
+            t.clone(),
+            simple_msg("ok", "end", Some(CausedBy::Single("h2".into()))),
+        );
 
         let bundle = CausalClosureBundle::extract(&hash("h3"), &t, &store).unwrap();
         assert!(bundle.verify_completeness().is_ok());
@@ -1536,10 +1775,30 @@ mod tests {
     fn bundle_round_trip_diamond() {
         let mut store = ThreadedMessageStore::new();
         let t = thread("t1");
-        store.append(hash("root"), t.clone(), simple_msg("tell", "start", Some(CausedBy::Begin)));
-        store.append(hash("a"), t.clone(), simple_msg("reply", "a", Some(CausedBy::Single("root".into()))));
-        store.append(hash("b"), t.clone(), simple_msg("reply", "b", Some(CausedBy::Single("root".into()))));
-        store.append(hash("merge"), t.clone(), simple_msg("ok", "done", Some(CausedBy::Multiple(vec!["a".into(), "b".into()]))));
+        store.append(
+            hash("root"),
+            t.clone(),
+            simple_msg("tell", "start", Some(CausedBy::Begin)),
+        );
+        store.append(
+            hash("a"),
+            t.clone(),
+            simple_msg("reply", "a", Some(CausedBy::Single("root".into()))),
+        );
+        store.append(
+            hash("b"),
+            t.clone(),
+            simple_msg("reply", "b", Some(CausedBy::Single("root".into()))),
+        );
+        store.append(
+            hash("merge"),
+            t.clone(),
+            simple_msg(
+                "ok",
+                "done",
+                Some(CausedBy::Multiple(vec!["a".into(), "b".into()])),
+            ),
+        );
 
         let bundle = CausalClosureBundle::extract(&hash("merge"), &t, &store).unwrap();
         assert!(bundle.verify_completeness().is_ok());
@@ -1567,11 +1826,27 @@ mod tests {
         // verify the closure is self-contained
         let mut store = ThreadedMessageStore::new();
         let t = thread("t1");
-        store.append(hash("h1"), t.clone(), simple_msg("tell", "start", Some(CausedBy::Begin)));
-        store.append(hash("h2"), t.clone(), simple_msg("reply", "a", Some(CausedBy::Single("h1".into()))));
-        store.append(hash("h3"), t.clone(), simple_msg("reply", "b", Some(CausedBy::Single("h2".into()))));
+        store.append(
+            hash("h1"),
+            t.clone(),
+            simple_msg("tell", "start", Some(CausedBy::Begin)),
+        );
+        store.append(
+            hash("h2"),
+            t.clone(),
+            simple_msg("reply", "a", Some(CausedBy::Single("h1".into()))),
+        );
+        store.append(
+            hash("h3"),
+            t.clone(),
+            simple_msg("reply", "b", Some(CausedBy::Single("h2".into()))),
+        );
         // h4 is on a different branch from h1
-        store.append(hash("h4"), t.clone(), simple_msg("reply", "c", Some(CausedBy::Single("h1".into()))));
+        store.append(
+            hash("h4"),
+            t.clone(),
+            simple_msg("reply", "c", Some(CausedBy::Single("h1".into()))),
+        );
 
         // Extract closure of h3 — should include h1, h2, h3 but NOT h4
         let bundle = CausalClosureBundle::extract(&hash("h3"), &t, &store).unwrap();
@@ -1594,8 +1869,14 @@ mod tests {
             target: hash("h2"),
             thread: t,
             messages: vec![
-                (hash("h1"), simple_msg("tell", "start", Some(CausedBy::Begin))),
-                (hash("h2"), simple_msg("reply", "done", Some(CausedBy::Single("h1".into())))),
+                (
+                    hash("h1"),
+                    simple_msg("tell", "start", Some(CausedBy::Begin)),
+                ),
+                (
+                    hash("h2"),
+                    simple_msg("reply", "done", Some(CausedBy::Single("h1".into()))),
+                ),
             ],
         };
 
@@ -1611,9 +1892,10 @@ mod tests {
         let bundle = CausalClosureBundle {
             target: hash("h2"),
             thread: t,
-            messages: vec![
-                (hash("h2"), simple_msg("reply", "done", Some(CausedBy::Single("missing".into())))),
-            ],
+            messages: vec![(
+                hash("h2"),
+                simple_msg("reply", "done", Some(CausedBy::Single("missing".into()))),
+            )],
         };
 
         let result = bundle.verify_completeness();
@@ -1624,9 +1906,21 @@ mod tests {
     fn tier3_full_audit_all_checks_pass() {
         let mut store = ThreadedMessageStore::new();
         let t = thread("t1");
-        store.append(hash("h1"), t.clone(), simple_msg("tell", "start", Some(CausedBy::Begin)));
-        store.append(hash("h2"), t.clone(), simple_msg("reply", "mid", Some(CausedBy::Single("h1".into()))));
-        store.append(hash("h3"), t.clone(), simple_msg("ok", "end", Some(CausedBy::Single("h2".into()))));
+        store.append(
+            hash("h1"),
+            t.clone(),
+            simple_msg("tell", "start", Some(CausedBy::Begin)),
+        );
+        store.append(
+            hash("h2"),
+            t.clone(),
+            simple_msg("reply", "mid", Some(CausedBy::Single("h1".into()))),
+        );
+        store.append(
+            hash("h3"),
+            t.clone(),
+            simple_msg("ok", "end", Some(CausedBy::Single("h2".into()))),
+        );
 
         let bundle = CausalClosureBundle::extract(&hash("h3"), &t, &store).unwrap();
 
@@ -1641,7 +1935,9 @@ mod tests {
                     _ => hash("unknown"),
                 }
             },
-            &CausalProtocol { steps: alloc::collections::BTreeMap::new() },
+            &CausalProtocol {
+                steps: alloc::collections::BTreeMap::new(),
+            },
         );
         assert!(result.is_ok());
     }
@@ -1666,11 +1962,19 @@ mod tests {
         let mut store = ThreadedMessageStore::new();
         let t = thread("t1");
 
-        store.append(hash("m0"), t.clone(), simple_msg("tell", "start", Some(CausedBy::Begin)));
+        store.append(
+            hash("m0"),
+            t.clone(),
+            simple_msg("tell", "start", Some(CausedBy::Begin)),
+        );
         for i in 1..100 {
             let h = hash(&alloc::format!("m{}", i));
             let prev = alloc::format!("m{}", i - 1);
-            store.append(h, t.clone(), simple_msg("reply", "msg", Some(CausedBy::Single(prev))));
+            store.append(
+                h,
+                t.clone(),
+                simple_msg("reply", "msg", Some(CausedBy::Single(prev))),
+            );
         }
 
         let bundle = CausalClosureBundle::extract(&hash("m99"), &t, &store).unwrap();
@@ -1680,8 +1984,14 @@ mod tests {
         // Verify topological order: m0 before m1 before ... before m99
         let hashes: Vec<&ContentHash> = bundle.hashes();
         for i in 0..99 {
-            let pos_i = hashes.iter().position(|h| **h == hash(&alloc::format!("m{}", i))).unwrap();
-            let pos_next = hashes.iter().position(|h| **h == hash(&alloc::format!("m{}", i + 1))).unwrap();
+            let pos_i = hashes
+                .iter()
+                .position(|h| **h == hash(&alloc::format!("m{}", i)))
+                .unwrap();
+            let pos_next = hashes
+                .iter()
+                .position(|h| **h == hash(&alloc::format!("m{}", i + 1)))
+                .unwrap();
             assert!(pos_i < pos_next, "m{} should come before m{}", i, i + 1);
         }
 

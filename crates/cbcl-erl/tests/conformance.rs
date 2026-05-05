@@ -79,19 +79,71 @@ const KNOWN_DIVERGENCES: &[(&str, &str, &str)] = &[
     // top-level message forms (every CBCL message is a list, EBNF lines 12+).
     // cbcl-erl's strict pipeline correctly rejects them with "message must be
     // a list". SPEC-008 should split these into a parser-level fixture.
-    ("strings.json", "msg-str-001", "bare string literal — parser-layer fixture, not a message"),
-    ("strings.json", "msg-str-002", "string with escapes — parser-layer fixture"),
-    ("strings.json", "msg-str-003", "string with quotes — parser-layer fixture"),
-    ("strings.json", "msg-str-004", "string with newlines — parser-layer fixture"),
-    ("strings.json", "msg-str-005", "empty string literal — parser-layer fixture"),
-    ("strings.json", "msg-str-006", "bare identifier — parser-layer fixture"),
-    ("strings.json", "msg-str-007", "integer literal — parser-layer fixture"),
-    ("strings.json", "msg-str-008", "boolean #t — parser-layer fixture"),
-    ("strings.json", "msg-str-009", "boolean #f — parser-layer fixture"),
-    ("strings.json", "msg-str-010", "agent-ID atom — parser-layer fixture"),
-    ("strings.json", "msg-str-011", "keyword atom — parser-layer fixture"),
-    ("strings.json", "msg-str-012", "kebab-case identifier — parser-layer fixture"),
-    ("strings.json", "msg-str-013", "snake_case identifier — parser-layer fixture"),
+    (
+        "strings.json",
+        "msg-str-001",
+        "bare string literal — parser-layer fixture, not a message",
+    ),
+    (
+        "strings.json",
+        "msg-str-002",
+        "string with escapes — parser-layer fixture",
+    ),
+    (
+        "strings.json",
+        "msg-str-003",
+        "string with quotes — parser-layer fixture",
+    ),
+    (
+        "strings.json",
+        "msg-str-004",
+        "string with newlines — parser-layer fixture",
+    ),
+    (
+        "strings.json",
+        "msg-str-005",
+        "empty string literal — parser-layer fixture",
+    ),
+    (
+        "strings.json",
+        "msg-str-006",
+        "bare identifier — parser-layer fixture",
+    ),
+    (
+        "strings.json",
+        "msg-str-007",
+        "integer literal — parser-layer fixture",
+    ),
+    (
+        "strings.json",
+        "msg-str-008",
+        "boolean #t — parser-layer fixture",
+    ),
+    (
+        "strings.json",
+        "msg-str-009",
+        "boolean #f — parser-layer fixture",
+    ),
+    (
+        "strings.json",
+        "msg-str-010",
+        "agent-ID atom — parser-layer fixture",
+    ),
+    (
+        "strings.json",
+        "msg-str-011",
+        "keyword atom — parser-layer fixture",
+    ),
+    (
+        "strings.json",
+        "msg-str-012",
+        "kebab-case identifier — parser-layer fixture",
+    ),
+    (
+        "strings.json",
+        "msg-str-013",
+        "snake_case identifier — parser-layer fixture",
+    ),
 ];
 
 /// Hard cap on `KNOWN_DIVERGENCES`: well above the current 16 to absorb
@@ -119,15 +171,10 @@ fn load_all() -> Vec<(String, Vector)> {
     entries.sort();
     let mut out = Vec::new();
     for path in entries {
-        let file = path
-            .file_name()
-            .unwrap()
-            .to_string_lossy()
-            .into_owned();
-        let bytes = fs::read(&path)
-            .unwrap_or_else(|e| panic!("reading {}: {e}", path.display()));
-        let cases: Vec<Vector> = serde_json::from_slice(&bytes)
-            .unwrap_or_else(|e| panic!("parsing {file}: {e}"));
+        let file = path.file_name().unwrap().to_string_lossy().into_owned();
+        let bytes = fs::read(&path).unwrap_or_else(|e| panic!("reading {}: {e}", path.display()));
+        let cases: Vec<Vector> =
+            serde_json::from_slice(&bytes).unwrap_or_else(|e| panic!("parsing {file}: {e}"));
         for v in cases {
             out.push((file.clone(), v));
         }

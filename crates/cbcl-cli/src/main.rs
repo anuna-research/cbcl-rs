@@ -4,9 +4,8 @@ use std::io::{self, BufRead, Read, Write};
 
 use cbcl_core::gossip::{GossipConfig, GossipNetwork, Topology};
 use cbcl_core::prelude::*;
-use cbcl_core::protocol::ProtocolViolation;
 use cbcl_core::serializer::serialize;
-use cbcl_core::{r1, r2, r3};
+use cbcl_core::{r1, r2, r3, r5};
 use cbcl_parser::{parse, parse_dialect, run_pipeline, PipelineResult};
 use clap::{Parser, Subcommand};
 
@@ -27,8 +26,7 @@ enum Command {
         #[arg(long)]
         sexpr: bool,
     },
-    /// Verify a dialect definition against R1/R2/R3 (and R5, if the
-    /// dialect contains a (protocol ...) clause) safety constraints
+    /// Verify a dialect definition against R1/R2/R3/R5 safety constraints
     Verify {
         /// Input dialect definition (reads from stdin if omitted)
         input: Option<String>,
@@ -193,38 +191,32 @@ fn cmd_verify(input: Option<String>) -> i32 {
         }
     }
 
-    // R5: Causal protocol — only if a (protocol ...) clause is present.
-    let mut checks = String::from("R1, R2, R3");
-    let protocol_step_count = if let Some(proto) = dialect.causal_protocol.as_ref() {
-        let perf_names: Vec<&str> = dialect
-            .performatives
-            .iter()
-            .map(|p| p.name.as_str())
-            .collect();
-        for v in proto.verify_r5_protocol(&perf_names) {
-            violations.push(format!("R5: {}", format_protocol_violation(&v)));
+    // R5: Causal protocol + shape coherence (vacuous if dialect declares no
+    // (protocol …) and no (shape …) clauses). Resolve ancestors against a
+    // base-only registry so protocols referencing inherited core performatives
+    // (e.g. `ok`) are not falsely flagged as undefined — matches the
+    // ancestor-aware path taken by `DialectRegistry::install`.
+    let registry = DialectRegistry::new();
+    let ancestors = registry.resolve_ancestors(&dialect);
+    if !r5::verify_r5_with_ancestors(&dialect, &ancestors) {
+        for v in r5::r5_violations_with_ancestors(&dialect, &ancestors) {
+            violations.push(format!("R5: {v}"));
         }
-        checks.push_str(", R5");
-        Some(proto.steps.len())
-    } else {
-        None
-    };
+    }
 
     if violations.is_empty() {
         println!(
-            "dialect '{}' passed all safety checks ({checks})",
+            "dialect '{}' passed all safety checks (R1, R2, R3, R5)",
             dialect.name
         );
         println!("  performatives: {}", dialect.performatives.len());
-        if let Some(steps) = protocol_step_count {
-            println!("  protocol steps: {steps}");
-        }
         println!(
             "  resource bounds: depth={}, expansion={}, time={}ms",
             dialect.resources.max_depth,
             dialect.resources.max_expansion_size,
             dialect.resources.verification_time_ms
         );
+        println!("  R5: pass");
         0
     } else {
         eprintln!("dialect '{}' failed verification:", dialect.name);
@@ -232,23 +224,6 @@ fn cmd_verify(input: Option<String>) -> i32 {
             eprintln!("  - {v}");
         }
         1
-    }
-}
-
-fn format_protocol_violation(v: &ProtocolViolation) -> String {
-    match v {
-        ProtocolViolation::Cycle { participants } => {
-            format!("cycle in protocol graph: {}", participants.join(" → "))
-        }
-        ProtocolViolation::Unreachable { step } => {
-            format!("step '{step}' is unreachable from begin")
-        }
-        ProtocolViolation::UndefinedPerformative { name } => {
-            format!("protocol references undefined performative '{name}'")
-        }
-        ProtocolViolation::DuplicateStep { name } => {
-            format!("duplicate protocol step for '{name}'")
-        }
     }
 }
 

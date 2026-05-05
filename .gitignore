@@ -19,6 +19,11 @@
 # Build caches
 **/.refcache/
 
+# Lean / Lake build outputs
+**/.lake/
+*.olean
+*.ilean
+
 # Live-LLM transcript working directory.
 #
 # Per-trial JSONL files written by the live_arena / glm_psi harnesses

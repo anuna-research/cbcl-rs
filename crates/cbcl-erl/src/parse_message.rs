@@ -52,8 +52,7 @@ const CATEGORY_MESSAGE_ERROR: &str = "message error";
 /// empty (the user-facing reason is the bare category string with no
 /// colon-prefixed description).
 pub fn parse_message_pure(bytes: &[u8]) -> Result<Message, (&'static str, String)> {
-    let input = core::str::from_utf8(bytes)
-        .map_err(|_| (CATEGORY_INVALID_UTF8, String::new()))?;
+    let input = core::str::from_utf8(bytes).map_err(|_| (CATEGORY_INVALID_UTF8, String::new()))?;
     let sexpr = parse(input).map_err(|e| (CATEGORY_PARSE_ERROR, format!("{e}")))?;
     let msg = parser_parse_message(&sexpr).map_err(|e| (CATEGORY_MESSAGE_ERROR, e))?;
     Ok(msg)
@@ -171,8 +170,7 @@ mod tests {
     #[test]
     fn ok_on_valid_simple_tell() {
         // REQ-002: a Simple `(tell @bob "hello")` parses to a Tell.
-        let msg =
-            parse_message_pure(b"(tell @bob \"hello\")").expect("expected Ok");
+        let msg = parse_message_pure(b"(tell @bob \"hello\")").expect("expected Ok");
         match msg {
             Message::Simple {
                 performative,
@@ -180,10 +178,7 @@ mod tests {
                 ref content,
                 ..
             } => {
-                assert_eq!(
-                    performative,
-                    Performative::Core(CorePerformative::Tell)
-                );
+                assert_eq!(performative, Performative::Core(CorePerformative::Tell));
                 assert_eq!(recipient.as_deref(), Some("@bob"));
                 // content should be the bare string atom "hello"
                 match content {
@@ -240,12 +235,10 @@ mod tests {
     #[test]
     fn round_trip_simple_message() {
         // Parse → SExpr → re-parse → equal Message.
-        let original = parse_message_pure(b"(tell @bob \"hello\")")
-            .expect("first parse ok");
+        let original = parse_message_pure(b"(tell @bob \"hello\")").expect("first parse ok");
         let sexpr: SExpr = SExpr::from(&original);
         let serialized = cbcl_core::serializer::serialize(&sexpr);
-        let round_tripped = parse_message_pure(serialized.as_bytes())
-            .expect("re-parse ok");
+        let round_tripped = parse_message_pure(serialized.as_bytes()).expect("re-parse ok");
         assert_eq!(original, round_tripped);
     }
 

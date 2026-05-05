@@ -1,0 +1,452 @@
+;; Plan: Implement fixes for `lean-cbcl` review findings (2026-05-04)
+;; Source: review delivered in conversation on branch
+;;         cleanup/lean-cbcl-review-findings.
+
+(meta plan
+  (id "CBCL-LEAN-REVIEW-2026-05-04")
+  (title "Implement lean-cbcl review fixes")
+  (version "1.0.0")
+  (status "active")
+  (created "2026-05-04")
+  (author "agent:claude")
+  (description "Address 8 review findings (4 medium / 4 low) in lean-cbcl. Build must remain green and AxiomAudit allowlist must be unchanged after every task."))
+
+;; ============================================================
+;; Agents
+;; ============================================================
+
+(given agent-claude-available)
+
+;; ============================================================
+;; Tasks
+;; ============================================================
+
+(given task-simp-literal-cleanup)
+(given task-heartbeat-scope-serializer)
+(given task-heartbeat-scope-detunion)
+(given task-heartbeat-scope-detparser)
+(given task-partial-to-total-dialectparser)
+(given task-pipeline-proof-refactor)
+(given task-r5-fuel-bound-tighten)
+(given task-axiomaudit-instnonempty-check)
+(given task-archive-proof-gaps)
+(given task-gitignore-dsstore)
+(given task-final-build-and-axiom-audit)
+
+;; ============================================================
+;; Task metadata
+;; ============================================================
+
+(meta task-simp-literal-cleanup
+  (description "Remove the 16 trivial @[simp] literal lemmas in DetParser.lean:394-410 (one_lt_200..ninetyNine_ne_zero). They pollute the global simp set with concrete-Nat facts. Either inline `by decide` at the call sites in `langDetParser_step_state_lt`/`langDetParser_step_state_ne_zero` (lines 414-424), or make them `private` and drop the @[simp] attribute.")
+  (acceptance "Lemmas removed or de-@[simp]'d; lake build passes; downstream consumers (theorems below them in DetParser.lean and any depending file) still elaborate.")
+  (file "lean-cbcl/LeanCbcl/DetParser.lean")
+  (priority "medium"))
+
+(meta task-heartbeat-scope-serializer
+  (description "Scope the file-level `set_option maxHeartbeats 3200000` in Serializer.lean:196 to only the theorem(s) that need it (likely `roundtrip_safeSymbol` at line 333). Use `set_option maxHeartbeats 3200000 in theorem ...`. Trivial native_decide tests on lines 347-382 should not inherit the bumped heartbeats.")
+  (acceptance "File-level set_option removed; bump scoped via `... in` to only the theorems that need it; lake build passes.")
+  (file "lean-cbcl/LeanCbcl/Serializer.lean")
+  (priority "medium"))
+
+(meta task-heartbeat-scope-detunion
+  (description "Scope the file-level `set_option maxHeartbeats 1600000` in DeterministicUnion.lean:1218 to only the theorem(s) that need it (likely `agentDetParser_agrees` at line 1220). Use `set_option ... in theorem ...`.")
+  (acceptance "File-level set_option removed; bump scoped via `... in`; lake build passes.")
+  (file "lean-cbcl/LeanCbcl/DeterministicUnion.lean")
+  (priority "medium"))
+
+(meta task-heartbeat-scope-detparser
+  (description "Replace the bump/reset pair `set_option maxHeartbeats 800000`/`200000` at DetParser.lean:412/427 with `set_option maxHeartbeats 800000 in` scoped to the two theorems `langDetParser_step_state_lt`/`langDetParser_step_state_ne_zero`. Remove the reset.")
+  (acceptance "Bump scoped via `... in`; reset line removed; lake build passes.")
+  (file "lean-cbcl/LeanCbcl/DetParser.lean")
+  (priority "medium"))
+
+(meta task-partial-to-total-dialectparser
+  (description "Make `parseDialectClauses` (DialectParser.lean:157) a total well-founded recursive function. The recursion shrinks `clauses` (rest is shorter; rest' is length-1 of rest). Remove `partial`, add `termination_by clauses.length` and a `decreasing_by` proof if needed.")
+  (acceptance "`partial` removed; function compiles as total; downstream `parseDialect`/lake build passes.")
+  (file "lean-cbcl/LeanCbcl/DialectParser.lean")
+  (priority "medium"))
+
+(meta task-pipeline-proof-refactor
+  (description "Refactor Pipeline.lean:132-207 (`pipeline_success_implies_valid`). Extract a private helper that captures the repeated `simp [...]; have heq : msg' = msg := by cases h; rfl; exact ⟨sexpr, by simp, heq ▸ hmsg, heq ▸ hvalid⟩` pattern into a single named lemma. Target: ~50-line LOC reduction with identical theorem statement.")
+  (acceptance "Theorem statement and downstream `pipeline_success_grammar` unchanged; private helper introduced; LOC of the proof body cut by ≥30%; lake build passes.")
+  (file "lean-cbcl/LeanCbcl/Pipeline.lean")
+  (priority "medium"))
+
+(meta task-r5-fuel-bound-tighten
+  (description "Tighten the fuel bound in R5.lean from `names.length * names.length + 1` to `names.length + 1` at lines 140 and 413, IF the proofs of `check_acyclicity_iff_no_cycle` (line 367) and the corresponding reachability proof go through with the tighter bound. Otherwise (if the loose bound is load-bearing) leave the code untouched and add a `-- Fuel bound is intentionally quadratic: …` comment justifying it.")
+  (acceptance "Either: (a) bound tightened to linear and lake build passes, OR (b) bound unchanged and a one-line justification comment added explaining why the quadratic margin is needed. AxiomAudit unchanged.")
+  (file "lean-cbcl/LeanCbcl/R5.lean")
+  (priority "low"))
+
+(meta task-axiomaudit-instnonempty-check
+  (description "Check whether `CBCL.ContentHash.instNonempty` (declared in Lattice/Store.lean:109 and listed in AxiomAudit allowlist line 21) actually appears in the closure of any audited theorem. Run `lake env lean AxiomAudit.lean` and verify. If unused, EITHER (preferred) audit a theorem that should depend on it and add a `#print axioms` line, OR (acceptable) remove it from the allowlist comment in AxiomAudit.lean and explain why no audited theorem depends on the instance.")
+  (acceptance "AxiomAudit.lean accurately reflects which custom axioms are exercised by the audited theorem closure; either the allowlist matches actual usage, or the comment justifies the gap.")
+  (file "lean-cbcl/AxiomAudit.lean")
+  (priority "low"))
+
+(meta task-archive-proof-gaps
+  (description "Move `lean-cbcl/proof-gaps.spl` (a stale plan whose three tasks are all `(given completed-…)`) into the project's plan-archive convention. Per repo convention, plans live under `plans/`; archived plans should follow the existing closed-plan pattern. Inspect `plans/` for a `closed/` or `archive/` subdirectory and move accordingly. If no such convention exists, delete the file.")
+  (acceptance "proof-gaps.spl no longer present in lean-cbcl/; either archived under plans/ following existing convention, or deleted; commit message documents the choice.")
+  (file "lean-cbcl/proof-gaps.spl")
+  (priority "low"))
+
+(meta task-gitignore-dsstore
+  (description "Add `**/.DS_Store` to the repo-root `.gitignore` (which currently only covers `**/.lake/`). Run `git rm --cached` on the existing tracked .DS_Store files (none are currently tracked, but verify) and confirm the untracked ones disappear from `git status`.")
+  (acceptance "`.gitignore` includes `**/.DS_Store`; `git status` shows no .DS_Store entries.")
+  (file ".gitignore")
+  (priority "low"))
+
+(meta task-final-build-and-axiom-audit
+  (description "After all task fixes land, run `lake build` to confirm green, then `lake env lean AxiomAudit.lean` to confirm the audited-axiom set is unchanged from the pre-fix baseline. Standard kernel + 5 custom (`ContentHash`, `contentHash`, `contentHash_injective`, `Message.causedBy`, optionally `instNonempty`) only.")
+  (acceptance "Both commands exit 0; AxiomAudit output diff against the pre-fix baseline shows no unauthorized additions.")
+  (file "lean-cbcl/")
+  (priority "high"))
+
+;; ============================================================
+;; Dependencies
+;; ============================================================
+
+;; The two tasks that touch DetParser.lean must be sequential
+;; (task-simp-literal-cleanup before task-heartbeat-scope-detparser
+;; — the simp removal may shift line numbers).
+(given dep-detparser-order)
+
+(normally r-block-detparser-heartbeat
+  (and task-heartbeat-scope-detparser dep-detparser-order)
+  blocked-heartbeat-scope-detparser-on-simp)
+
+;; The final audit task depends on all fix tasks completing.
+(given dep-final-after-fixes)
+
+(normally r-block-final-audit
+  (and task-final-build-and-axiom-audit dep-final-after-fixes)
+  blocked-final-on-fixes)
+
+;; All other tasks are independent.
+(given no-deps-simp-literal-cleanup)
+(given no-deps-heartbeat-scope-serializer)
+(given no-deps-heartbeat-scope-detunion)
+(given no-deps-partial-to-total-dialectparser)
+(given no-deps-pipeline-proof-refactor)
+(given no-deps-r5-fuel-bound-tighten)
+(given no-deps-axiomaudit-instnonempty-check)
+(given no-deps-archive-proof-gaps)
+(given no-deps-gitignore-dsstore)
+
+;; ============================================================
+;; Readiness
+;; ============================================================
+
+(normally r-ready-simp-literal-cleanup
+  (and task-simp-literal-cleanup no-deps-simp-literal-cleanup)
+  ready-simp-literal-cleanup)
+
+(normally r-ready-heartbeat-scope-serializer
+  (and task-heartbeat-scope-serializer no-deps-heartbeat-scope-serializer)
+  ready-heartbeat-scope-serializer)
+
+(normally r-ready-heartbeat-scope-detunion
+  (and task-heartbeat-scope-detunion no-deps-heartbeat-scope-detunion)
+  ready-heartbeat-scope-detunion)
+
+(normally r-ready-heartbeat-scope-detparser
+  (and task-heartbeat-scope-detparser completed-simp-literal-cleanup)
+  ready-heartbeat-scope-detparser)
+
+(normally r-ready-partial-to-total-dialectparser
+  (and task-partial-to-total-dialectparser no-deps-partial-to-total-dialectparser)
+  ready-partial-to-total-dialectparser)
+
+(normally r-ready-pipeline-proof-refactor
+  (and task-pipeline-proof-refactor no-deps-pipeline-proof-refactor)
+  ready-pipeline-proof-refactor)
+
+(normally r-ready-r5-fuel-bound-tighten
+  (and task-r5-fuel-bound-tighten no-deps-r5-fuel-bound-tighten)
+  ready-r5-fuel-bound-tighten)
+
+(normally r-ready-axiomaudit-instnonempty-check
+  (and task-axiomaudit-instnonempty-check no-deps-axiomaudit-instnonempty-check)
+  ready-axiomaudit-instnonempty-check)
+
+(normally r-ready-archive-proof-gaps
+  (and task-archive-proof-gaps no-deps-archive-proof-gaps)
+  ready-archive-proof-gaps)
+
+(normally r-ready-gitignore-dsstore
+  (and task-gitignore-dsstore no-deps-gitignore-dsstore)
+  ready-gitignore-dsstore)
+
+(normally r-ready-final-build-and-axiom-audit
+  (and task-final-build-and-axiom-audit
+       completed-simp-literal-cleanup
+       completed-heartbeat-scope-serializer
+       completed-heartbeat-scope-detunion
+       completed-heartbeat-scope-detparser
+       completed-partial-to-total-dialectparser
+       completed-pipeline-proof-refactor
+       completed-r5-fuel-bound-tighten
+       completed-axiomaudit-instnonempty-check
+       completed-archive-proof-gaps
+       completed-gitignore-dsstore)
+  ready-final-build-and-axiom-audit)
+
+;; ============================================================
+;; Assignment
+;; ============================================================
+
+(normally r-assign-simp-literal-cleanup
+  (and ready-simp-literal-cleanup agent-claude-available)
+  assign-to-simp-literal-cleanup-claude)
+
+(normally r-assign-heartbeat-scope-serializer
+  (and ready-heartbeat-scope-serializer agent-claude-available)
+  assign-to-heartbeat-scope-serializer-claude)
+
+(normally r-assign-heartbeat-scope-detunion
+  (and ready-heartbeat-scope-detunion agent-claude-available)
+  assign-to-heartbeat-scope-detunion-claude)
+
+(normally r-assign-heartbeat-scope-detparser
+  (and ready-heartbeat-scope-detparser agent-claude-available)
+  assign-to-heartbeat-scope-detparser-claude)
+
+(normally r-assign-partial-to-total-dialectparser
+  (and ready-partial-to-total-dialectparser agent-claude-available)
+  assign-to-partial-to-total-dialectparser-claude)
+
+(normally r-assign-pipeline-proof-refactor
+  (and ready-pipeline-proof-refactor agent-claude-available)
+  assign-to-pipeline-proof-refactor-claude)
+
+(normally r-assign-r5-fuel-bound-tighten
+  (and ready-r5-fuel-bound-tighten agent-claude-available)
+  assign-to-r5-fuel-bound-tighten-claude)
+
+(normally r-assign-axiomaudit-instnonempty-check
+  (and ready-axiomaudit-instnonempty-check agent-claude-available)
+  assign-to-axiomaudit-instnonempty-check-claude)
+
+(normally r-assign-archive-proof-gaps
+  (and ready-archive-proof-gaps agent-claude-available)
+  assign-to-archive-proof-gaps-claude)
+
+(normally r-assign-gitignore-dsstore
+  (and ready-gitignore-dsstore agent-claude-available)
+  assign-to-gitignore-dsstore-claude)
+
+(normally r-assign-final-build-and-axiom-audit
+  (and ready-final-build-and-axiom-audit agent-claude-available)
+  assign-to-final-build-and-axiom-audit-claude)
+
+;; ============================================================
+;; Priority — final audit comes last; otherwise medium > low.
+;; ============================================================
+
+(prefer r-assign-simp-literal-cleanup       r-assign-r5-fuel-bound-tighten)
+(prefer r-assign-heartbeat-scope-serializer r-assign-r5-fuel-bound-tighten)
+(prefer r-assign-heartbeat-scope-detunion   r-assign-r5-fuel-bound-tighten)
+(prefer r-assign-heartbeat-scope-detparser  r-assign-r5-fuel-bound-tighten)
+(prefer r-assign-partial-to-total-dialectparser r-assign-r5-fuel-bound-tighten)
+(prefer r-assign-pipeline-proof-refactor    r-assign-r5-fuel-bound-tighten)
+
+(prefer r-assign-final-build-and-axiom-audit r-assign-simp-literal-cleanup)
+
+(claims agent:claude
+  :at "2026-05-04T11:04:09Z"
+  (given claim-v1-archive-proof-gaps)
+  (normally r-cl-state-v1-archive-proof-gaps claim-v1-archive-proof-gaps state-claimed-v1-archive-proof-gaps)
+  (normally r-cl-chain-v1-archive-proof-gaps state-claimed-v1-archive-proof-gaps claimed-archive-proof-gaps)
+)
+
+;; Propagation rules: failures in 'archive-proof-gaps' block downstream tasks
+(normally r-propagate-final-build-and-axiom-audit-from-archive-proof-gaps-failed failed-archive-proof-gaps upstream-blocked-final-build-and-axiom-audit)
+(normally r-propagate-final-build-and-axiom-audit-from-archive-proof-gaps-permanently-failed permanently-failed-archive-proof-gaps upstream-blocked-final-build-and-axiom-audit)
+(normally r-propagate-final-build-and-axiom-audit-from-archive-proof-gaps-stale-v1 stale-v1-archive-proof-gaps upstream-blocked-final-build-and-axiom-audit)
+(normally r-propagate-final-build-and-axiom-audit-from-archive-proof-gaps-timeout-v1 timeout-v1-archive-proof-gaps upstream-blocked-final-build-and-axiom-audit)
+(normally r-propagate-final-build-and-axiom-audit-from-archive-proof-gaps-blocked upstream-blocked-archive-proof-gaps upstream-blocked-final-build-and-axiom-audit)
+
+(claims agent:claude
+  :at "2026-05-04T11:04:09Z"
+  (given completed-archive-proof-gaps))
+
+(claims agent:claude
+  :at "2026-05-04T11:04:09Z"
+  (given claim-v1-gitignore-dsstore)
+  (normally r-cl-state-v1-gitignore-dsstore claim-v1-gitignore-dsstore state-claimed-v1-gitignore-dsstore)
+  (normally r-cl-chain-v1-gitignore-dsstore state-claimed-v1-gitignore-dsstore claimed-gitignore-dsstore)
+)
+
+;; Propagation rules: failures in 'gitignore-dsstore' block downstream tasks
+(normally r-propagate-final-build-and-axiom-audit-from-gitignore-dsstore-failed failed-gitignore-dsstore upstream-blocked-final-build-and-axiom-audit)
+(normally r-propagate-final-build-and-axiom-audit-from-gitignore-dsstore-permanently-failed permanently-failed-gitignore-dsstore upstream-blocked-final-build-and-axiom-audit)
+(normally r-propagate-final-build-and-axiom-audit-from-gitignore-dsstore-stale-v1 stale-v1-gitignore-dsstore upstream-blocked-final-build-and-axiom-audit)
+(normally r-propagate-final-build-and-axiom-audit-from-gitignore-dsstore-timeout-v1 timeout-v1-gitignore-dsstore upstream-blocked-final-build-and-axiom-audit)
+(normally r-propagate-final-build-and-axiom-audit-from-gitignore-dsstore-blocked upstream-blocked-gitignore-dsstore upstream-blocked-final-build-and-axiom-audit)
+
+(claims agent:claude
+  :at "2026-05-04T11:04:09Z"
+  (given completed-gitignore-dsstore))
+
+(claims agent:claude
+  :at "2026-05-04T11:06:35Z"
+  (given claim-v1-simp-literal-cleanup)
+  (normally r-cl-state-v1-simp-literal-cleanup claim-v1-simp-literal-cleanup state-claimed-v1-simp-literal-cleanup)
+  (normally r-cl-chain-v1-simp-literal-cleanup state-claimed-v1-simp-literal-cleanup claimed-simp-literal-cleanup)
+)
+
+;; Propagation rules: failures in 'simp-literal-cleanup' block downstream tasks
+(normally r-propagate-final-build-and-axiom-audit-from-simp-literal-cleanup-failed failed-simp-literal-cleanup upstream-blocked-final-build-and-axiom-audit)
+(normally r-propagate-final-build-and-axiom-audit-from-simp-literal-cleanup-permanently-failed permanently-failed-simp-literal-cleanup upstream-blocked-final-build-and-axiom-audit)
+(normally r-propagate-final-build-and-axiom-audit-from-simp-literal-cleanup-stale-v1 stale-v1-simp-literal-cleanup upstream-blocked-final-build-and-axiom-audit)
+(normally r-propagate-final-build-and-axiom-audit-from-simp-literal-cleanup-timeout-v1 timeout-v1-simp-literal-cleanup upstream-blocked-final-build-and-axiom-audit)
+(normally r-propagate-final-build-and-axiom-audit-from-simp-literal-cleanup-blocked upstream-blocked-simp-literal-cleanup upstream-blocked-final-build-and-axiom-audit)
+(normally r-propagate-heartbeat-scope-detparser-from-simp-literal-cleanup-failed failed-simp-literal-cleanup upstream-blocked-heartbeat-scope-detparser)
+(normally r-propagate-heartbeat-scope-detparser-from-simp-literal-cleanup-permanently-failed permanently-failed-simp-literal-cleanup upstream-blocked-heartbeat-scope-detparser)
+(normally r-propagate-heartbeat-scope-detparser-from-simp-literal-cleanup-stale-v1 stale-v1-simp-literal-cleanup upstream-blocked-heartbeat-scope-detparser)
+(normally r-propagate-heartbeat-scope-detparser-from-simp-literal-cleanup-timeout-v1 timeout-v1-simp-literal-cleanup upstream-blocked-heartbeat-scope-detparser)
+(normally r-propagate-heartbeat-scope-detparser-from-simp-literal-cleanup-blocked upstream-blocked-simp-literal-cleanup upstream-blocked-heartbeat-scope-detparser)
+
+;; Transitive propagation: upstream-blocked cascades through dependency chain
+(normally r-propagate-final-build-and-axiom-audit-from-heartbeat-scope-detparser-blocked upstream-blocked-heartbeat-scope-detparser upstream-blocked-final-build-and-axiom-audit)
+
+(claims agent:claude
+  :at "2026-05-04T11:06:35Z"
+  (given completed-simp-literal-cleanup))
+
+(claims agent:claude
+  :at "2026-05-04T11:10:22Z"
+  (given claim-v1-heartbeat-scope-serializer)
+  (normally r-cl-state-v1-heartbeat-scope-serializer claim-v1-heartbeat-scope-serializer state-claimed-v1-heartbeat-scope-serializer)
+  (normally r-cl-chain-v1-heartbeat-scope-serializer state-claimed-v1-heartbeat-scope-serializer claimed-heartbeat-scope-serializer)
+)
+
+;; Propagation rules: failures in 'heartbeat-scope-serializer' block downstream tasks
+(normally r-propagate-final-build-and-axiom-audit-from-heartbeat-scope-serializer-failed failed-heartbeat-scope-serializer upstream-blocked-final-build-and-axiom-audit)
+(normally r-propagate-final-build-and-axiom-audit-from-heartbeat-scope-serializer-permanently-failed permanently-failed-heartbeat-scope-serializer upstream-blocked-final-build-and-axiom-audit)
+(normally r-propagate-final-build-and-axiom-audit-from-heartbeat-scope-serializer-stale-v1 stale-v1-heartbeat-scope-serializer upstream-blocked-final-build-and-axiom-audit)
+(normally r-propagate-final-build-and-axiom-audit-from-heartbeat-scope-serializer-timeout-v1 timeout-v1-heartbeat-scope-serializer upstream-blocked-final-build-and-axiom-audit)
+(normally r-propagate-final-build-and-axiom-audit-from-heartbeat-scope-serializer-blocked upstream-blocked-heartbeat-scope-serializer upstream-blocked-final-build-and-axiom-audit)
+
+(claims agent:claude
+  :at "2026-05-04T11:10:22Z"
+  (given completed-heartbeat-scope-serializer))
+
+(claims agent:claude
+  :at "2026-05-04T11:10:41Z"
+  (given claim-v1-heartbeat-scope-detunion)
+  (normally r-cl-state-v1-heartbeat-scope-detunion claim-v1-heartbeat-scope-detunion state-claimed-v1-heartbeat-scope-detunion)
+  (normally r-cl-chain-v1-heartbeat-scope-detunion state-claimed-v1-heartbeat-scope-detunion claimed-heartbeat-scope-detunion)
+)
+
+;; Propagation rules: failures in 'heartbeat-scope-detunion' block downstream tasks
+(normally r-propagate-final-build-and-axiom-audit-from-heartbeat-scope-detunion-failed failed-heartbeat-scope-detunion upstream-blocked-final-build-and-axiom-audit)
+(normally r-propagate-final-build-and-axiom-audit-from-heartbeat-scope-detunion-permanently-failed permanently-failed-heartbeat-scope-detunion upstream-blocked-final-build-and-axiom-audit)
+(normally r-propagate-final-build-and-axiom-audit-from-heartbeat-scope-detunion-stale-v1 stale-v1-heartbeat-scope-detunion upstream-blocked-final-build-and-axiom-audit)
+(normally r-propagate-final-build-and-axiom-audit-from-heartbeat-scope-detunion-timeout-v1 timeout-v1-heartbeat-scope-detunion upstream-blocked-final-build-and-axiom-audit)
+(normally r-propagate-final-build-and-axiom-audit-from-heartbeat-scope-detunion-blocked upstream-blocked-heartbeat-scope-detunion upstream-blocked-final-build-and-axiom-audit)
+
+(claims agent:claude
+  :at "2026-05-04T11:10:41Z"
+  (given completed-heartbeat-scope-detunion))
+
+(claims agent:ed25519:xfRAzZFG
+  :at "2026-05-04T11:10:54Z"
+  (given claim-v1-heartbeat-scope-detparser)
+  (normally r-cl-state-v1-heartbeat-scope-detparser claim-v1-heartbeat-scope-detparser state-claimed-v1-heartbeat-scope-detparser)
+  (normally r-cl-chain-v1-heartbeat-scope-detparser state-claimed-v1-heartbeat-scope-detparser claimed-heartbeat-scope-detparser)
+)
+
+;; Propagation rules: failures in 'heartbeat-scope-detparser' block downstream tasks
+(normally r-propagate-final-build-and-axiom-audit-from-heartbeat-scope-detparser-failed failed-heartbeat-scope-detparser upstream-blocked-final-build-and-axiom-audit)
+(normally r-propagate-final-build-and-axiom-audit-from-heartbeat-scope-detparser-permanently-failed permanently-failed-heartbeat-scope-detparser upstream-blocked-final-build-and-axiom-audit)
+(normally r-propagate-final-build-and-axiom-audit-from-heartbeat-scope-detparser-stale-v1 stale-v1-heartbeat-scope-detparser upstream-blocked-final-build-and-axiom-audit)
+(normally r-propagate-final-build-and-axiom-audit-from-heartbeat-scope-detparser-timeout-v1 timeout-v1-heartbeat-scope-detparser upstream-blocked-final-build-and-axiom-audit)
+
+(claims agent:ed25519:xfRAzZFG
+  :at "2026-05-04T11:10:54Z"
+  (given completed-heartbeat-scope-detparser))
+
+(claims agent:ed25519:xfRAzZFG
+  :at "2026-05-04T11:10:54Z"
+  (given claim-v1-partial-to-total-dialectparser)
+  (normally r-cl-state-v1-partial-to-total-dialectparser claim-v1-partial-to-total-dialectparser state-claimed-v1-partial-to-total-dialectparser)
+  (normally r-cl-chain-v1-partial-to-total-dialectparser state-claimed-v1-partial-to-total-dialectparser claimed-partial-to-total-dialectparser)
+)
+
+;; Propagation rules: failures in 'partial-to-total-dialectparser' block downstream tasks
+(normally r-propagate-final-build-and-axiom-audit-from-partial-to-total-dialectparser-failed failed-partial-to-total-dialectparser upstream-blocked-final-build-and-axiom-audit)
+(normally r-propagate-final-build-and-axiom-audit-from-partial-to-total-dialectparser-permanently-failed permanently-failed-partial-to-total-dialectparser upstream-blocked-final-build-and-axiom-audit)
+(normally r-propagate-final-build-and-axiom-audit-from-partial-to-total-dialectparser-stale-v1 stale-v1-partial-to-total-dialectparser upstream-blocked-final-build-and-axiom-audit)
+(normally r-propagate-final-build-and-axiom-audit-from-partial-to-total-dialectparser-timeout-v1 timeout-v1-partial-to-total-dialectparser upstream-blocked-final-build-and-axiom-audit)
+(normally r-propagate-final-build-and-axiom-audit-from-partial-to-total-dialectparser-blocked upstream-blocked-partial-to-total-dialectparser upstream-blocked-final-build-and-axiom-audit)
+
+(claims agent:ed25519:xfRAzZFG
+  :at "2026-05-04T11:10:54Z"
+  (given completed-partial-to-total-dialectparser))
+
+(claims agent:ed25519:xfRAzZFG
+  :at "2026-05-04T11:10:54Z"
+  (given claim-v1-axiomaudit-instnonempty-check)
+  (normally r-cl-state-v1-axiomaudit-instnonempty-check claim-v1-axiomaudit-instnonempty-check state-claimed-v1-axiomaudit-instnonempty-check)
+  (normally r-cl-chain-v1-axiomaudit-instnonempty-check state-claimed-v1-axiomaudit-instnonempty-check claimed-axiomaudit-instnonempty-check)
+)
+
+;; Propagation rules: failures in 'axiomaudit-instnonempty-check' block downstream tasks
+(normally r-propagate-final-build-and-axiom-audit-from-axiomaudit-instnonempty-check-failed failed-axiomaudit-instnonempty-check upstream-blocked-final-build-and-axiom-audit)
+(normally r-propagate-final-build-and-axiom-audit-from-axiomaudit-instnonempty-check-permanently-failed permanently-failed-axiomaudit-instnonempty-check upstream-blocked-final-build-and-axiom-audit)
+(normally r-propagate-final-build-and-axiom-audit-from-axiomaudit-instnonempty-check-stale-v1 stale-v1-axiomaudit-instnonempty-check upstream-blocked-final-build-and-axiom-audit)
+(normally r-propagate-final-build-and-axiom-audit-from-axiomaudit-instnonempty-check-timeout-v1 timeout-v1-axiomaudit-instnonempty-check upstream-blocked-final-build-and-axiom-audit)
+(normally r-propagate-final-build-and-axiom-audit-from-axiomaudit-instnonempty-check-blocked upstream-blocked-axiomaudit-instnonempty-check upstream-blocked-final-build-and-axiom-audit)
+
+(claims agent:ed25519:xfRAzZFG
+  :at "2026-05-04T11:10:54Z"
+  (given completed-axiomaudit-instnonempty-check))
+
+(claims agent:claude
+  :at "2026-05-04T11:12:52Z"
+  (given claim-v1-pipeline-proof-refactor)
+  (normally r-cl-state-v1-pipeline-proof-refactor claim-v1-pipeline-proof-refactor state-claimed-v1-pipeline-proof-refactor)
+  (normally r-cl-chain-v1-pipeline-proof-refactor state-claimed-v1-pipeline-proof-refactor claimed-pipeline-proof-refactor)
+)
+
+;; Propagation rules: failures in 'pipeline-proof-refactor' block downstream tasks
+(normally r-propagate-final-build-and-axiom-audit-from-pipeline-proof-refactor-failed failed-pipeline-proof-refactor upstream-blocked-final-build-and-axiom-audit)
+(normally r-propagate-final-build-and-axiom-audit-from-pipeline-proof-refactor-permanently-failed permanently-failed-pipeline-proof-refactor upstream-blocked-final-build-and-axiom-audit)
+(normally r-propagate-final-build-and-axiom-audit-from-pipeline-proof-refactor-stale-v1 stale-v1-pipeline-proof-refactor upstream-blocked-final-build-and-axiom-audit)
+(normally r-propagate-final-build-and-axiom-audit-from-pipeline-proof-refactor-timeout-v1 timeout-v1-pipeline-proof-refactor upstream-blocked-final-build-and-axiom-audit)
+(normally r-propagate-final-build-and-axiom-audit-from-pipeline-proof-refactor-blocked upstream-blocked-pipeline-proof-refactor upstream-blocked-final-build-and-axiom-audit)
+
+(claims agent:claude
+  :at "2026-05-04T11:12:52Z"
+  (given completed-pipeline-proof-refactor))
+
+(claims agent:claude
+  :at "2026-05-04T11:13:36Z"
+  (given claim-v1-r5-fuel-bound-tighten)
+  (normally r-cl-state-v1-r5-fuel-bound-tighten claim-v1-r5-fuel-bound-tighten state-claimed-v1-r5-fuel-bound-tighten)
+  (normally r-cl-chain-v1-r5-fuel-bound-tighten state-claimed-v1-r5-fuel-bound-tighten claimed-r5-fuel-bound-tighten)
+)
+
+;; Propagation rules: failures in 'r5-fuel-bound-tighten' block downstream tasks
+(normally r-propagate-final-build-and-axiom-audit-from-r5-fuel-bound-tighten-failed failed-r5-fuel-bound-tighten upstream-blocked-final-build-and-axiom-audit)
+(normally r-propagate-final-build-and-axiom-audit-from-r5-fuel-bound-tighten-permanently-failed permanently-failed-r5-fuel-bound-tighten upstream-blocked-final-build-and-axiom-audit)
+(normally r-propagate-final-build-and-axiom-audit-from-r5-fuel-bound-tighten-stale-v1 stale-v1-r5-fuel-bound-tighten upstream-blocked-final-build-and-axiom-audit)
+(normally r-propagate-final-build-and-axiom-audit-from-r5-fuel-bound-tighten-timeout-v1 timeout-v1-r5-fuel-bound-tighten upstream-blocked-final-build-and-axiom-audit)
+(normally r-propagate-final-build-and-axiom-audit-from-r5-fuel-bound-tighten-blocked upstream-blocked-r5-fuel-bound-tighten upstream-blocked-final-build-and-axiom-audit)
+
+(claims agent:claude
+  :at "2026-05-04T11:13:36Z"
+  (given completed-r5-fuel-bound-tighten))
+
+(claims agent:claude
+  :at "2026-05-04T11:14:57Z"
+  (given claim-v1-final-build-and-axiom-audit)
+  (normally r-cl-state-v1-final-build-and-axiom-audit claim-v1-final-build-and-axiom-audit state-claimed-v1-final-build-and-axiom-audit)
+  (normally r-cl-chain-v1-final-build-and-axiom-audit state-claimed-v1-final-build-and-axiom-audit claimed-final-build-and-axiom-audit)
+)
+
+(claims agent:claude
+  :at "2026-05-04T11:14:57Z"
+  (given completed-final-build-and-axiom-audit))

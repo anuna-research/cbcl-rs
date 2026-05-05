@@ -282,6 +282,8 @@ For the scatter-gather example, `(then begin (all search-a search-b search-c))` 
 
 **Rationale:** This replaces SPEC-001's DFA state machine with a dependency graph. The graph is static (declared at installation, never mutated). Each runtime check is a lookup + type comparison — monotonic, stateless, coordination-free. By the CALM theorem, this formulation has a consistent coordination-free distributed implementation. Fan-in via `(all ...)` is monotonic because a conjunction of positive existence checks on a grow-only store can only transition from false to true, never the reverse (ADR-007).
 
+verified-by: prose
+
 Trace:
 - TEST-200
 - CON-200
@@ -343,6 +345,8 @@ performative-ref = "begin" / symbol
 
 **Dispatch determinism.** `protocol` is a symbol, distinct from all other dialect-clause head tokens. Within a `protocol-clause`, `then` is the only valid head. Within a `then-decl`, each argument is either a bare symbol, `(any ...)` (disjunction), or `(all ...)` (conjunction). The head keyword (`any` or `all`) deterministically dispatches the interpretation. No bare lists without a head keyword — the head is always required. LL(1) at every level.
 
+verified-by: property
+
 Trace:
 - TEST-201
 - CON-201
@@ -384,6 +388,8 @@ Content-addressed `:caused-by` is a SHOULD. An implementation MAY use opaque ide
 
 **Rationale:** Explicit causal references make protocol structure self-describing. Each message declares its own position in the causal graph. Content addressing makes the graph tamper-evident and independently verifiable. This eliminates the need for message ordering, Lamport clocks, mutable per-thread state, or a trusted ID authority. The causal graph is a grow-only Merkle DAG of immutable (hash, performative, caused-by-hash) triples, a content-addressed CRDT. Fan-in is monotonic: a conjunction of positive existence checks on a grow-only store can only transition from false to true (ADR-007).
 
+verified-by: example
+
 Trace:
 - TEST-202
 
@@ -412,6 +418,8 @@ This procedure is **stateless**: it reads the protocol declaration (static, inst
 
 **Rationale:** Statelessness is the key property. SPEC-001's DFA required `protocol_states: BTreeMap<String, usize>` — mutable state per thread, updated on each message. This specification requires only a read of the message store, which is append-only. By CALM, this is coordination-free. Fan-in adds O(k) lookups per merge message (where k = number of predecessors) but does not change the coordination-freedom guarantee.
 
+verified-by: example
+
 Trace:
 - TEST-203
 - CON-202
@@ -426,6 +434,10 @@ The system SHALL reject protocol declarations containing cycles in the dependenc
 
 Note: loops (repeated request-response) are NOT cycles in the concrete message graph. A request-response loop is declared as `(then (begin response) request response)`. The dependency graph has an edge `response→request`, which looks circular at the *schema* level. But at runtime, each concrete message has a unique ID: `begin → request-1 → response-1 → request-2 → response-2 → ...` is acyclic. The acyclicity check (REQ-204) operates on the *schema* graph and must permit cycles that represent loops — see REQ-204 for the distinction.
 
+verified-by: lean
+
+Mechanised in `lean-cbcl/LeanCbcl/R5.lean` as `check_acyclicity_iff_no_cycle` (full iff). Soundness is `checkAcyclicity_sound`; completeness is `checkAcyclicity_complete`, by strong induction on the DFS recursion depth — in cycle-free graphs every visiting-set element is a graph key with a back-edge to the current node, so by acyclicity all visiting elements are distinct keys, hence `|visiting| ≤ |stepNames|` and fuel `|stepNames|² + 1 ≥ |stepNames| + 1` is more than sufficient.
+
 Trace:
 - TEST-204
 
@@ -434,6 +446,10 @@ Trace:
 The system SHALL reject protocol declarations where any step is unreachable from `begin`. Every performative declared in a `step` must be reachable by following predecessor links back to `begin`.
 
 **Rationale:** An unreachable step can never be validly invoked — its predecessors are not in the protocol, so no message can satisfy its `:after` clause. This catches dead code in protocol declarations.
+
+verified-by: lean
+
+Mechanised in `lean-cbcl/LeanCbcl/R5.lean` as `check_reachability_iff_all_reachable` (full iff). Soundness is `checkReachability_sound`; completeness is `checkReachability_complete`, via path extraction: any `Reachable` proof is converted to an explicit `ReachableViaPath`, simplified to a `Nodup` simple path of length ≤ `|stepNames|`, then `dfsReaches` is shown to follow the simple path step-by-step at fuel `|stepNames|² + 1`.
 
 Trace:
 - TEST-205
@@ -444,6 +460,10 @@ The system SHALL reject a protocol declaration that references a performative na
 
 The special token `begin` is always valid and does not need an `extend` clause.
 
+verified-by: lean
+
+Mechanised in `lean-cbcl/LeanCbcl/R5.lean` as `check_performative_definedness_iff_all_defined` (full iff).
+
 Trace:
 - TEST-206
 
@@ -452,6 +472,10 @@ Trace:
 The system SHALL reject a protocol declaration containing duplicate `step` declarations for the same performative.
 
 **Rationale:** Duplicate steps create ambiguous predecessor sets. Each performative has exactly one set of valid predecessors.
+
+verified-by: lean
+
+Mechanised in `lean-cbcl/LeanCbcl/R5.lean` as `check_step_uniqueness_iff_no_duplicates` (full iff).
 
 Trace:
 - TEST-207
@@ -472,6 +496,8 @@ R5 verification for protocols runs in O(|P|²) time where |P| is the number of s
 
 For shape constraints, R5 additionally verifies shape well-formedness (REQ-222).
 
+verified-by: example
+
 Trace:
 - TEST-208
 
@@ -485,12 +511,18 @@ The system SHALL preserve DCFL membership when installing a dialect with a causa
 
 DCFL preservation is trivially maintained because the protocol mechanism adds no new parsing capability — it is a post-parse, post-expansion verification predicate on immutable data.
 
+verified-by: lean (placeholder)
+
+Mechanised in `lean-cbcl/LeanCbcl/DCFLPreservation.lean` as `dcfl_preserved_under_protocol` (the `(protocol …)` clause inhabits the existing `IsSExpr` DCFL grammar) and `protocol_dispatch_specifies` (the wired `protocol` branch in `applyKeywordClause` has pinned operational semantics: a single string-like value updates the `protocol` field). The DCFL closure proof is short by design: causal verification is a post-parse, post-expansion predicate over already-built `SExpr` trees (VPL ⊂ DCFL), so closure under `(protocol …)` reduces to `allSExpr_isSExpr _` — the existing recogniser already accepts every `SExpr`, including this clause shape. The named theorem is therefore a `lean (placeholder)` per the convention established by SPEC-003 REQ-308; the substantive content lives in the companion `protocol_dispatch_specifies` lemma. A longer DCFL-preservation proof would only be needed if `protocol` extended the parser; it does not.
+
 Trace:
 - TEST-209
 
 ### REQ-210: Dialect Transmission of Structural Contracts
 
 The system SHALL include protocol and shape declarations in `(meta (teach ...))` messages. Both are S-expression clauses within the dialect definition, transmitted and verified using existing infrastructure.
+
+verified-by: example
 
 Trace:
 - TEST-210
@@ -509,6 +541,8 @@ This holds for both single-predecessor and multi-predecessor (fan-in) verificati
 **Algebraic foundation.** The monotonicity guarantee is proved structurally — not by case analysis — in SPEC-003 (Verification Lattice). The message store is a join-semilattice (G-Set CRDT), the verification result is a flat lattice with bottom `Unknown`, and the verification function is a monotone map between them (SPEC-003 REQ-304). Compositional closure (meet for `(all ...)`, join for `(any ...)`) preserves monotonicity automatically. See SPEC-003 for the full algebraic treatment and Lean 4 proof targets.
 
 **Rationale:** This is the property that makes the system coordination-free. SPEC-001's DFA violated this: receiving message X could advance the DFA state, causing a previously valid message Y to become invalid in the new state. Causal verification does not have this problem — it checks a static predicate on immutable data. Fan-in adds conjunctive checks but preserves monotonicity because meet over monotone functions is monotone.
+
+verified-by: property
 
 Trace:
 - TEST-211
@@ -581,6 +615,8 @@ The `(all ...)` construct requires DAG-aware operations that go beyond linked-li
 
 **Rationale:** The message store is a content-addressed Merkle DAG partitioned by thread. The topology is emergent — determined by the interaction pattern, not imposed by the data structure. Sequential protocols produce linked lists. Concurrent protocols produce trees. Protocols with `(all ...)` barriers produce DAGs. The DAG is the general case; lists and trees are special cases. Verification is tiered: active participants verify incrementally (Tier 1), late joiners verify their causal closure (Tier 2), auditors verify everything (Tier 3). All three tiers are monotonic on the append-only store.
 
+verified-by: example
+
 Trace:
 - TEST-212
 
@@ -593,6 +629,8 @@ The system SHALL support `(shape ...)` clauses in dialect definitions that decla
 Shape constraints are the second dimension of structural contracts, orthogonal to protocols. Protocols constrain causal structure (which message follows which). Shapes constrain individual message structure (what parameters a message carries).
 
 Shape constraints are monotonic: checking "does parameter `:package` of type `string` exist in this S-expression" is a positive assertion on immutable data.
+
+verified-by: property
 
 Trace:
 - TEST-220
@@ -660,6 +698,8 @@ type-constraint  = "string" / "number" / "bool"
 default-value    = s-expr
 ~~~
 
+verified-by: property
+
 Trace:
 - TEST-221
 - CON-203
@@ -674,6 +714,8 @@ The system SHALL verify each `(shape ...)` clause at installation:
 4. `max-depth` does not exceed the dialect's R2 bound.
 5. No duplicate require/optional for the same keyword at the same depth.
 
+verified-by: example
+
 Trace:
 - TEST-222
 
@@ -687,6 +729,8 @@ The system SHALL verify expanded messages against shape constraints after templa
 
 Shape checking is monotonic: it is a positive assertion about the structure of an immutable S-expression.
 
+verified-by: example
+
 Trace:
 - TEST-223
 - CON-204
@@ -695,12 +739,18 @@ Trace:
 
 Multiple shape constraints on the same performative compose via conjunction. VPL closure under intersection guarantees the conjunction is still VPL ⊂ DCFL.
 
+verified-by: prose
+
 Trace:
 - TEST-224
 
 ### REQ-225: DCFL Preservation Under Shape Constraints
 
 Shape checking is a VPL tree-walking operation. VPL ⊂ DCFL. Shape constraints do not extend the grammar. DCFL preservation is maintained.
+
+verified-by: lean (placeholder)
+
+Mechanised in `lean-cbcl/LeanCbcl/DCFLPreservation.lean` as `dcfl_preserved_under_shape` (the `(shape …)` clause inhabits the existing `IsSExpr` DCFL grammar) and `shape_dispatch_currently_unwired` (the `shape` keyword is not yet wired into `applyKeywordClause` and routes to its catch-all error branch — the DCFL preservation argument does not depend on it being wired, only on `(shape …)` being a well-formed `SExpr`). The DCFL closure proof is short by design: shape checking is a VPL tree-walking operation on the parsed `SExpr` (VPL ⊂ DCFL), so closure under `(shape …)` reduces to `allSExpr_isSExpr _` — the existing recogniser already accepts every `SExpr`, including this clause shape. The named theorem is therefore a `lean (placeholder)` per the convention established by SPEC-003 REQ-308; the substantive content lives in the companion `shape_dispatch_currently_unwired` lemma (which will be replaced by a `shape_dispatch_specifies` analogue once `shape` is wired). A longer DCFL-preservation proof would only be needed if `shape` extended the grammar, which it does not. See REQ-209 for the same argument applied to causal protocols.
 
 Trace:
 - TEST-225
@@ -751,6 +801,8 @@ The combination of `:dialect-hash`, `:message-hash`, and `:verifier` makes the b
 
 In all cases, blame is assigned to the party whose output (message or definition) was the direct input to the failing check.
 
+verified-by: property
+
 Trace:
 - TEST-230
 - CON-205
@@ -795,6 +847,8 @@ No other path to delivery exists.
 
 **Relationship to CBCL's existing pipeline:** The `run_pipeline()` function in `cbcl-rs` already enforces steps 1–5 as a linear chain with early termination on error. REQ-231 extends this to steps 6a and 6b, requiring that structural contract checks are integrated into the same pipeline with the same fail-closed semantics. The pipeline is the single interposition point — CBCL's equivalent of Moore's contract monitor boundary.
 
+verified-by: example
+
 Trace:
 - TEST-231
 - CON-206
@@ -829,6 +883,8 @@ The blame chain is recorded in the violation error:
 The `:blame-chain` is a sequence of (party, action, evidence) triples tracing the dialect from authorship to the violating message. Each entry is independently verifiable: the signature can be checked, the propagation message can be looked up in the message store, and the R5 verification result can be reproduced.
 
 **Monotonicity.** The blame chain is append-only — each lifecycle event adds an entry. It does not modify or retract prior entries. This is monotonic and coordination-free.
+
+verified-by: example
 
 Trace:
 - TEST-232
@@ -884,6 +940,8 @@ blame-kv           = keyword WS s-expr
 
 All fields are keyword parameters — legal in the existing grammar. No Layer 1 or Layer 2 changes. Violation errors are themselves valid CBCL messages, parseable by the same DCFL parser.
 
+verified-by: property
+
 Trace:
 - TEST-233
 - CON-205
@@ -896,6 +954,8 @@ The system SHALL expose blame attribution in observability metrics:
 - Histogram `cbcl_violation_error_size_bytes` tracking the size of structured violation errors.
 
 These metrics enable operators to identify patterns: which dialects produce the most violations, which party is most often blamed, and whether violation errors are growing unreasonably large.
+
+verified-by: n/a
 
 Trace:
 - OBS-206

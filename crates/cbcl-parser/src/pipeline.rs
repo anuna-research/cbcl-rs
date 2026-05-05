@@ -33,13 +33,22 @@ use core::fmt;
 /// Validation errors from the pipeline (ADR-002).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ValidationError {
-    R1RecursivePerformative { performatives: Vec<String> },
-    R2ResourceBoundsInvalid { field: &'static str, value: u32 },
+    R1RecursivePerformative {
+        performatives: Vec<String>,
+    },
+    R2ResourceBoundsInvalid {
+        field: &'static str,
+        value: u32,
+    },
     R2FuelExhausted,
-    R3CoreOverride { performatives: Vec<String> },
+    R3CoreOverride {
+        performatives: Vec<String>,
+    },
     R4SignatureInvalid,
     /// R5 shape/protocol well-formedness violation (REQ-208, REQ-222).
-    R5Violation { errors: Vec<String> },
+    R5Violation {
+        errors: Vec<String>,
+    },
     /// Causal protocol violation (REQ-231, step 6a).
     CausalViolation {
         violation: CausalViolation,
@@ -50,8 +59,12 @@ pub enum ValidationError {
         violation: ShapeViolation,
         blame: ViolationError,
     },
-    MalformedMessage { reason: String },
-    MalformedDialect { reason: String },
+    MalformedMessage {
+        reason: String,
+    },
+    MalformedDialect {
+        reason: String,
+    },
 }
 
 impl fmt::Display for ValidationError {
@@ -116,7 +129,9 @@ pub enum PipelineResult {
     },
     /// Causal predecessor unknown; caller should buffer for re-evaluation
     /// (REQ-305 Buffer policy).
-    Buffered { message: Message },
+    Buffered {
+        message: Message,
+    },
 }
 
 /// Runtime context for the full pipeline (REQ-231).
@@ -247,11 +262,7 @@ pub fn run_pipeline_full<S: MessageStore>(
         // rejection rejects the message).
         if let Some(perf) = performative {
             let perf_name = perf.name();
-            let thread_id = ThreadId(
-                thread
-                    .clone()
-                    .unwrap_or_else(|| String::from("default")),
-            );
+            let thread_id = ThreadId(thread.clone().unwrap_or_else(|| String::from("default")));
 
             for d in ctx.registry.iter() {
                 let Some(ref proto) = d.causal_protocol else {
@@ -272,30 +283,22 @@ pub fn run_pipeline_full<S: MessageStore>(
                 match apply_policy(&result, &ctx.policy) {
                     PolicyOutcome::Accept => {}
                     PolicyOutcome::Reject(cv) => {
-                        let blame = ViolationError::from_causal_violation(
-                            &cv,
-                            None,
-                            thread.clone(),
-                        )
-                        .with_dialect_context(
-                            &d.name,
-                            d.author.as_deref(),
-                            d.hash.as_deref(),
-                            Some(perf_name),
-                        );
+                        let blame =
+                            ViolationError::from_causal_violation(&cv, None, thread.clone())
+                                .with_dialect_context(
+                                    &d.name,
+                                    d.author.as_deref(),
+                                    d.hash.as_deref(),
+                                    Some(perf_name),
+                                );
                         blame.record_metrics(&d.name);
-                        return PipelineResult::ValidationError(
-                            ValidationError::CausalViolation {
-                                violation: cv,
-                                blame,
-                            },
-                        );
+                        return PipelineResult::ValidationError(ValidationError::CausalViolation {
+                            violation: cv,
+                            blame,
+                        });
                     }
                     PolicyOutcome::Pending(reason) => {
-                        return PipelineResult::Pending {
-                            message,
-                            reason,
-                        };
+                        return PipelineResult::Pending { message, reason };
                     }
                     PolicyOutcome::Buffered => {
                         return PipelineResult::Buffered { message };
@@ -431,7 +434,11 @@ fn validate_define_dialect(
     let mut credited_base = false;
     if let Some(reg) = registry {
         for name in &dialect.extends {
-            let resolved = if name == "cbcl" { "cbcl-base" } else { name.as_str() };
+            let resolved = if name == "cbcl" {
+                "cbcl-base"
+            } else {
+                name.as_str()
+            };
             if let Some(parent) = reg.find_by_name(resolved) {
                 ancestors.push(parent);
                 if resolved == base.name {
@@ -499,13 +506,13 @@ fn eval_error_to_validation(err: EvalError, thread: Option<String>) -> Validatio
 #[cfg(test)]
 mod tests {
     use super::*;
+    use alloc::collections::BTreeMap;
     use cbcl_core::dialect::{DialectRegistry, PerformativeDef, ResourceBounds};
     use cbcl_core::message::{CausedBy, MessageType, Performative};
     use cbcl_core::protocol::{CausalProtocol, NodeRef, StepDecl};
     use cbcl_core::sexpr::Atom;
     use cbcl_core::shape::{ShapeConstraint, ShapeRule, TypeConstraint};
-    use cbcl_core::store::{ContentHash, ThreadedMessageStore, ThreadId};
-    use alloc::collections::BTreeMap;
+    use cbcl_core::store::{ContentHash, ThreadId, ThreadedMessageStore};
 
     fn effect_template(action: &str) -> SExpr {
         SExpr::List(alloc::vec![
@@ -609,8 +616,7 @@ mod tests {
 
     #[test]
     fn pipeline_teach_valid_passes() {
-        let result =
-            run_pipeline("(meta (teach @bob (define good-dialect (cbcl) @author)))");
+        let result = run_pipeline("(meta (teach @bob (define good-dialect (cbcl) @author)))");
         assert!(matches!(result, PipelineResult::Success(_)));
     }
 

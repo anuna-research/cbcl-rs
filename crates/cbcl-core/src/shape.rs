@@ -137,12 +137,42 @@ impl ShapeConstraint {
         check_duplicate_keywords(&self.rules)
     }
 
-    /// Return the max-depth bound, if any.
+    /// Return the first declared max-depth bound, if any.
+    ///
+    /// Prefer [`max_depths`](Self::max_depths) when validating every declared
+    /// bound (e.g. the R5 install-time check); this accessor is retained for
+    /// callers that only want a single representative bound.
     pub fn max_depth(&self) -> Option<u32> {
-        self.rules.iter().find_map(|r| match r {
-            ShapeRule::MaxDepth(d) => Some(*d),
-            _ => None,
-        })
+        self.max_depths().next()
+    }
+
+    /// Iterate over every `(max-depth …)` bound declared on this shape,
+    /// including bounds nested inside `require`/`optional` rules.
+    ///
+    /// A shape may declare more than one `MaxDepth` rule, and the parser
+    /// allows `(max-depth N)` to appear among a parent rule's children
+    /// (e.g. `(require :payload list (max-depth N))`). Install-time R5
+    /// (REQ-222 §4) must check every declared bound against the dialect's
+    /// R2 limit — a top-level-only walk would silently accept oversized
+    /// nested bounds, since at runtime any subtree's depth is bounded by
+    /// the whole message's depth, so `N > R2` is unreachable but still a
+    /// malformed declaration.
+    pub fn max_depths(&self) -> impl Iterator<Item = u32> {
+        let mut out = Vec::new();
+        collect_max_depths(&self.rules, &mut out);
+        out.into_iter()
+    }
+}
+
+/// Pre-order walk over a rule tree, pushing every `MaxDepth` value found.
+fn collect_max_depths(rules: &[ShapeRule], out: &mut Vec<u32>) {
+    for rule in rules {
+        match rule {
+            ShapeRule::MaxDepth(d) => out.push(*d),
+            ShapeRule::Require { children, .. } | ShapeRule::Optional { children, .. } => {
+                collect_max_depths(children, out);
+            }
+        }
     }
 }
 
@@ -215,9 +245,7 @@ fn check_rule(rule: &ShapeRule, sexpr: &SExpr) -> Result<(), ShapeViolation> {
                     field: None,
                     expected: Some(alloc::format!("<= {max}")),
                     found: Some(alloc::format!("{depth}")),
-                    detail: alloc::format!(
-                        "message depth {depth} exceeds max-depth {max}"
-                    ),
+                    detail: alloc::format!("message depth {depth} exceeds max-depth {max}"),
                 })
             } else {
                 Ok(())
@@ -258,33 +286,36 @@ fn describe_type(sexpr: &SExpr) -> String {
     }
 }
 
-/// Check for duplicate keywords at the same depth level.
+/// Check for duplicate require/optional keywords within the same parent
+/// scope (REQ-222 §5).
+///
+/// Each `(...)` list in an expanded message has its own keyword namespace
+/// (see `find_keyword_value` and the `Require` arm of `check_rule`, which
+/// recurses children against the matched parent's value). The static check
+/// mirrors that scoping: duplicates are sibling rules under the same
+/// parent, not arbitrary co-depth rules across independent subtrees.
 fn check_duplicate_keywords(rules: &[ShapeRule]) -> Result<(), String> {
-    let mut seen = alloc::collections::BTreeSet::new();
+    walk_keywords(rules, 0)
+}
+
+fn walk_keywords(rules: &[ShapeRule], depth: usize) -> Result<(), String> {
+    let mut seen: alloc::collections::BTreeSet<String> = alloc::collections::BTreeSet::new();
     for rule in rules {
-        match rule {
+        let (keyword, children) = match rule {
             ShapeRule::Require {
                 keyword, children, ..
-            } => {
-                if !seen.insert(keyword.clone()) {
-                    return Err(alloc::format!(
-                        "duplicate keyword :{keyword} at same depth"
-                    ));
-                }
-                check_duplicate_keywords(children)?;
             }
-            ShapeRule::Optional {
+            | ShapeRule::Optional {
                 keyword, children, ..
-            } => {
-                if !seen.insert(keyword.clone()) {
-                    return Err(alloc::format!(
-                        "duplicate keyword :{keyword} at same depth"
-                    ));
-                }
-                check_duplicate_keywords(children)?;
-            }
-            ShapeRule::MaxDepth(_) => {}
+            } => (keyword, children),
+            ShapeRule::MaxDepth(_) => continue,
+        };
+        if !seen.insert(keyword.clone()) {
+            return Err(alloc::format!(
+                "duplicate keyword :{keyword} at depth {depth}"
+            ));
         }
+        walk_keywords(children, depth + 1)?;
     }
     Ok(())
 }
@@ -319,11 +350,23 @@ mod tests {
 
     #[test]
     fn type_constraint_from_str() {
-        assert_eq!(TypeConstraint::from_str("string"), Some(TypeConstraint::String));
-        assert_eq!(TypeConstraint::from_str("number"), Some(TypeConstraint::Number));
+        assert_eq!(
+            TypeConstraint::from_str("string"),
+            Some(TypeConstraint::String)
+        );
+        assert_eq!(
+            TypeConstraint::from_str("number"),
+            Some(TypeConstraint::Number)
+        );
         assert_eq!(TypeConstraint::from_str("bool"), Some(TypeConstraint::Bool));
-        assert_eq!(TypeConstraint::from_str("symbol"), Some(TypeConstraint::Symbol));
-        assert_eq!(TypeConstraint::from_str("keyword"), Some(TypeConstraint::Keyword));
+        assert_eq!(
+            TypeConstraint::from_str("symbol"),
+            Some(TypeConstraint::Symbol)
+        );
+        assert_eq!(
+            TypeConstraint::from_str("keyword"),
+            Some(TypeConstraint::Keyword)
+        );
         assert_eq!(TypeConstraint::from_str("list"), Some(TypeConstraint::List));
         assert_eq!(TypeConstraint::from_str("unknown"), None);
     }
@@ -359,7 +402,11 @@ mod tests {
                 children: vec![],
             }],
         };
-        let msg = list(vec![sym("track-shipment"), kw("package"), str_expr("box-1")]);
+        let msg = list(vec![
+            sym("track-shipment"),
+            kw("package"),
+            str_expr("box-1"),
+        ]);
         assert!(shape.check(&msg).is_ok());
     }
 
@@ -444,7 +491,10 @@ mod tests {
             rules: vec![ShapeRule::MaxDepth(1)],
         };
         // depth 2: (test (nested (deep)))
-        let msg = list(vec![sym("test"), list(vec![sym("nested"), list(vec![sym("deep")])])]);
+        let msg = list(vec![
+            sym("test"),
+            list(vec![sym("nested"), list(vec![sym("deep")])]),
+        ]);
         let err = shape.check(&msg).unwrap_err();
         assert!(err.detail.contains("exceeds"));
     }
@@ -518,6 +568,69 @@ mod tests {
             ],
         };
         assert!(shape.no_duplicate_keywords().is_ok());
+    }
+
+    #[test]
+    fn no_duplicate_keywords_allows_shared_child_under_different_parents() {
+        // Children rules are scoped to the matched parent list at runtime
+        // (see `check_rule` Require branch), so `:x` under `:a` and `:x`
+        // under `:b` live in independent keyword namespaces and must not
+        // be reported as duplicates. Mirrors the pickup/dropoff :id pattern
+        // that motivated this regression.
+        let shape = ShapeConstraint {
+            performative: String::from("test"),
+            rules: vec![
+                ShapeRule::Require {
+                    keyword: String::from("a"),
+                    type_constraint: Some(TypeConstraint::List),
+                    children: vec![ShapeRule::Require {
+                        keyword: String::from("x"),
+                        type_constraint: None,
+                        children: vec![],
+                    }],
+                },
+                ShapeRule::Require {
+                    keyword: String::from("b"),
+                    type_constraint: Some(TypeConstraint::List),
+                    children: vec![ShapeRule::Require {
+                        keyword: String::from("x"),
+                        type_constraint: None,
+                        children: vec![],
+                    }],
+                },
+            ],
+        };
+        assert!(shape.no_duplicate_keywords().is_ok());
+    }
+
+    #[test]
+    fn no_duplicate_keywords_detects_duplicate_within_same_parent() {
+        // Two child rules with the same keyword under the same parent
+        // collide at runtime (they target the same value slot of `:a`),
+        // so R5 must reject this even though the duplicates are nested.
+        let shape = ShapeConstraint {
+            performative: String::from("test"),
+            rules: vec![ShapeRule::Require {
+                keyword: String::from("a"),
+                type_constraint: Some(TypeConstraint::List),
+                children: vec![
+                    ShapeRule::Require {
+                        keyword: String::from("x"),
+                        type_constraint: None,
+                        children: vec![],
+                    },
+                    ShapeRule::Optional {
+                        keyword: String::from("x"),
+                        type_constraint: None,
+                        default: None,
+                        children: vec![],
+                    },
+                ],
+            }],
+        };
+        let err = shape.no_duplicate_keywords().unwrap_err();
+        assert!(err.contains(":x"), "expected :x to be flagged: {err}");
+        assert!(err.contains("depth 1"), "expected depth in error: {err}");
     }
 
     #[test]

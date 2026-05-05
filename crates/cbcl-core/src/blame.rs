@@ -363,10 +363,7 @@ impl ViolationError {
     /// R5 violations blame the **DialectAuthor** (who wrote a dialect with
     /// malformed shapes or protocol) with an additional **Installer** entry
     /// (who installed it without catching the problem).
-    pub fn from_r5_violation(
-        dialect_name: &str,
-        violations: &[String],
-    ) -> Self {
+    pub fn from_r5_violation(dialect_name: &str, violations: &[String]) -> Self {
         let detail = alloc::format!(
             "dialect '{}' has {} R5 violation(s): {}",
             dialect_name,
@@ -374,10 +371,8 @@ impl ViolationError {
             violations.join("; ")
         );
 
-        let author_reason = alloc::format!(
-            "dialect '{}' contains well-formedness errors",
-            dialect_name
-        );
+        let author_reason =
+            alloc::format!("dialect '{}' contains well-formedness errors", dialect_name);
         let installer_reason = alloc::format!(
             "installed dialect '{}' without catching R5 violations",
             dialect_name
@@ -482,7 +477,9 @@ impl ViolationError {
         // :blamed (derived from the first blame_chain entry)
         if let Some(first) = self.blame_chain.first() {
             items.push(SExpr::Atom(Atom::Keyword(String::from("blamed"))));
-            items.push(SExpr::Atom(Atom::Symbol(String::from(first.party.as_str()))));
+            items.push(SExpr::Atom(Atom::Symbol(String::from(
+                first.party.as_str(),
+            ))));
         }
 
         if let Some(ref v) = self.verifier {
@@ -516,15 +513,9 @@ impl ViolationError {
     /// verification is not applicable (wrong kind, no evidence, no constraint).
     pub fn verify_blame(&self, shape_constraint: Option<&ShapeConstraint>) -> bool {
         match self.kind {
-            ViolationKind::Shape => {
-                self.verify_shape_blame(shape_constraint)
-            }
-            ViolationKind::Causal => {
-                self.verify_causal_blame()
-            }
-            ViolationKind::R5 => {
-                self.verify_r5_blame()
-            }
+            ViolationKind::Shape => self.verify_shape_blame(shape_constraint),
+            ViolationKind::Causal => self.verify_causal_blame(),
+            ViolationKind::R5 => self.verify_r5_blame(),
         }
     }
 
@@ -854,10 +845,7 @@ mod tests {
 
     #[test]
     fn to_sexpr_r5_violation() {
-        let err = ViolationError::from_r5_violation(
-            "test-d",
-            &[String::from("cycle found")],
-        );
+        let err = ViolationError::from_r5_violation("test-d", &[String::from("cycle found")]);
         let sexpr = err.to_sexpr();
         let s = alloc::format!("{}", sexpr);
 
@@ -880,20 +868,16 @@ mod tests {
             found: Some(String::from("number")),
             detail: String::from(":route expected string, found number"),
         };
-        let err = ViolationError::from_shape_violation(
-            &sv,
-            Some(String::from("sha256:msg")),
-            None,
-            None,
-        )
-        .with_recipient("@sender")
-        .with_verifier("@receiver")
-        .with_dialect_context(
-            "logistics",
-            Some("@consortium"),
-            Some("sha256:abc"),
-            Some("track-shipment"),
-        );
+        let err =
+            ViolationError::from_shape_violation(&sv, Some(String::from("sha256:msg")), None, None)
+                .with_recipient("@sender")
+                .with_verifier("@receiver")
+                .with_dialect_context(
+                    "logistics",
+                    Some("@consortium"),
+                    Some("sha256:abc"),
+                    Some("track-shipment"),
+                );
         let s = alloc::format!("{}", err.to_sexpr());
 
         // Spec ABNF (SPEC-002 REQ-233):
@@ -1020,32 +1004,29 @@ mod tests {
     #[test]
     fn with_recipient_sets_recipient() {
         let cv = CausalViolation::MissingCausedBy;
-        let err = ViolationError::from_causal_violation(&cv, None, None)
-            .with_recipient("@alice");
+        let err = ViolationError::from_causal_violation(&cv, None, None).with_recipient("@alice");
         assert_eq!(err.recipient.as_deref(), Some("@alice"));
     }
 
     #[test]
     fn with_verifier_sets_verifier() {
         let cv = CausalViolation::MissingCausedBy;
-        let err = ViolationError::from_causal_violation(&cv, None, None)
-            .with_verifier("@bob");
+        let err = ViolationError::from_causal_violation(&cv, None, None).with_verifier("@bob");
         assert_eq!(err.verifier.as_deref(), Some("@bob"));
     }
 
     #[test]
     fn with_message_hash_sets_message_hash() {
         let cv = CausalViolation::MissingCausedBy;
-        let err = ViolationError::from_causal_violation(&cv, None, None)
-            .with_message_hash("sha256:msg");
+        let err =
+            ViolationError::from_causal_violation(&cv, None, None).with_message_hash("sha256:msg");
         assert_eq!(err.message_hash.as_deref(), Some("sha256:msg"));
     }
 
     #[test]
     fn with_thread_id_sets_thread_id_but_does_not_emit() {
         let cv = CausalViolation::MissingCausedBy;
-        let err = ViolationError::from_causal_violation(&cv, None, None)
-            .with_thread_id("t-7");
+        let err = ViolationError::from_causal_violation(&cv, None, None).with_thread_id("t-7");
         assert_eq!(err.thread_id.as_deref(), Some("t-7"));
         let s = alloc::format!("{}", err.to_sexpr());
         assert!(!s.contains(":thread"));
@@ -1055,8 +1036,12 @@ mod tests {
     #[test]
     fn with_dialect_context_sets_all_fields() {
         let cv = CausalViolation::MissingCausedBy;
-        let err = ViolationError::from_causal_violation(&cv, None, None)
-            .with_dialect_context("d", Some("@a"), Some("h"), Some("p"));
+        let err = ViolationError::from_causal_violation(&cv, None, None).with_dialect_context(
+            "d",
+            Some("@a"),
+            Some("h"),
+            Some("p"),
+        );
         assert_eq!(err.dialect.as_deref(), Some("d"));
         assert_eq!(err.dialect_author.as_deref(), Some("@a"));
         assert_eq!(err.dialect_hash.as_deref(), Some("h"));
@@ -1260,10 +1245,7 @@ mod tests {
 
     #[test]
     fn record_metrics_does_not_panic_r5() {
-        let err = ViolationError::from_r5_violation(
-            "bad-d",
-            &[String::from("cycle")],
-        );
+        let err = ViolationError::from_r5_violation("bad-d", &[String::from("cycle")]);
         // R5 has two blame-chain entries; both should be emitted.
         err.record_metrics("bad-d");
     }

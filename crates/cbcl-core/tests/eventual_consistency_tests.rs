@@ -9,9 +9,7 @@ use cbcl_core::message::{CausedBy, Message, Performative};
 use cbcl_core::policy::{
     apply_policy, PendingEntry, PendingQueue, PolicyOutcome, UnknownPredecessorPolicy,
 };
-use cbcl_core::protocol::{
-    verify_causal, CausalProtocol, NodeRef, StepDecl, VerificationResult,
-};
+use cbcl_core::protocol::{verify_causal, CausalProtocol, NodeRef, StepDecl, VerificationResult};
 use cbcl_core::sexpr::{Atom, SExpr};
 use cbcl_core::store::{ContentHash, MessageStore, ThreadId, ThreadedMessageStore};
 
@@ -114,7 +112,9 @@ fn diamond_protocol() -> CausalProtocol {
         StepDecl {
             performative: "merge".to_string(),
             predecessors: vec![NodeRef::All(
-                ["ask".to_string(), "notify".to_string()].into_iter().collect(),
+                ["ask".to_string(), "notify".to_string()]
+                    .into_iter()
+                    .collect(),
             )],
             successors: vec![],
         },
@@ -125,7 +125,11 @@ fn diamond_protocol() -> CausalProtocol {
 /// A valid linear trace: ask(begin) -> reply(ask) -> confirm(reply)
 fn linear_trace() -> Vec<(String, String, Option<CausedBy>)> {
     vec![
-        ("h-ask".to_string(), "ask".to_string(), Some(CausedBy::Begin)),
+        (
+            "h-ask".to_string(),
+            "ask".to_string(),
+            Some(CausedBy::Begin),
+        ),
         (
             "h-reply".to_string(),
             "reply".to_string(),
@@ -142,7 +146,11 @@ fn linear_trace() -> Vec<(String, String, Option<CausedBy>)> {
 /// A valid diamond trace: ask(begin), notify(begin), merge(all ask notify)
 fn diamond_trace() -> Vec<(String, String, Option<CausedBy>)> {
     vec![
-        ("h-ask".to_string(), "ask".to_string(), Some(CausedBy::Begin)),
+        (
+            "h-ask".to_string(),
+            "ask".to_string(),
+            Some(CausedBy::Begin),
+        ),
         (
             "h-notify".to_string(),
             "notify".to_string(),
@@ -582,7 +590,10 @@ fn test_pending_queue_drains_completely_after_all_predecessors_arrive() {
 
     let resolved = pq.re_evaluate(&store, &protocol);
     // reply should resolve
-    assert!(!resolved.is_empty(), "reply should resolve after ask arrives");
+    assert!(
+        !resolved.is_empty(),
+        "reply should resolve after ask arrives"
+    );
     for (entry, outcome) in &resolved {
         if entry.hash == hash("h-reply") {
             assert_eq!(*outcome, PolicyOutcome::Accept);

@@ -42,4 +42,11 @@
     (tell @transfer-coordinator
       (emergency-halt-command :transfer-id transfer-id
         :reason reason)
-      :domain crosschain)))
+      :domain crosschain))
+
+  (protocol
+    (then begin establish-trust)
+    (then establish-trust lock-asset)
+    (then lock-asset mint-wrapped)
+    (then mint-wrapped burn-wrapped)
+    (then burn-wrapped unlock-asset)))

@@ -1,0 +1,20 @@
+; Negative R5 fixture for `verify_cli.rs ::
+;   protocol_referencing_undefined_performative_fails_r5`.
+;
+; `step-undefined` is not declared as an `extend`, so the protocol's
+; `(then begin step-undefined)` violates R5 §REQ-206 (performative
+; definedness). The CLI must reject this with a non-zero exit and an
+; `R5:` violation in stderr.
+
+(define cbcl-r5-negative-undefined (cbcl) @test-author
+  (:resource-requirements
+    ((max-depth 8)
+     (max-expansion-size 256)
+     (verification-time 20)))
+
+  (extend step-defined (payload)
+    (tell @sink (carry :payload payload) :domain test))
+
+  (protocol
+    (then begin step-undefined)
+    (then step-undefined step-defined)))
