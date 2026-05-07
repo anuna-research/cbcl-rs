@@ -59,6 +59,9 @@ enum BackendKind {
     /// Anthropic Claude Haiku 4.5 (cheapest current Anthropic model;
     /// ANTHROPIC_API_KEY).
     Haiku,
+    /// DeepSeek V3.2 via OpenRouter (open-weights frontier-tier;
+    /// OPENROUTER_API_KEY).
+    Deepseek,
 }
 
 /// Codex now talks to OpenAI's public Chat Completions endpoint directly
@@ -71,14 +74,16 @@ const OPENAI_ENDPOINT: &str = "https://api.openai.com/v1/chat/completions";
 const CODEX_MODEL: &str = "gpt-5.5";
 const OPENROUTER_ENDPOINT: &str = "https://openrouter.ai/api/v1/chat/completions";
 const HAIKU_OPENROUTER_MODEL: &str = "anthropic/claude-haiku-4.5";
+const DEEPSEEK_OPENROUTER_MODEL: &str = "deepseek/deepseek-v3.2";
 
 impl BackendKind {
-    /// Short transcript-filename tag (`glm51`, `gpt55`, `hk45`).
+    /// Short transcript-filename tag (`glm51`, `gpt55`, `hk45`, `dsk32`).
     fn provider_tag(self) -> &'static str {
         match self {
             BackendKind::Glm => "glm51",
             BackendKind::Codex => "gpt55",
             BackendKind::Haiku => "hk45",
+            BackendKind::Deepseek => "dsk32",
         }
     }
 
@@ -98,6 +103,12 @@ impl BackendKind {
                     .expect("OPENROUTER_API_KEY")
                     .with_endpoint(OPENROUTER_ENDPOINT)
                     .with_model(HAIKU_OPENROUTER_MODEL),
+            ),
+            BackendKind::Deepseek => Box::new(
+                OpenAIBackend::from_env_var("OPENROUTER_API_KEY")
+                    .expect("OPENROUTER_API_KEY")
+                    .with_endpoint(OPENROUTER_ENDPOINT)
+                    .with_model(DEEPSEEK_OPENROUTER_MODEL),
             ),
         }
     }
@@ -160,6 +171,7 @@ fn parse_args() -> Args {
                     "glm" | "glm51" | "glm-5.1" => BackendKind::Glm,
                     "codex" | "gpt55" | "gpt-5.5" => BackendKind::Codex,
                     "haiku" | "hk45" | "claude-haiku" => BackendKind::Haiku,
+                    "deepseek" | "dsk32" | "deepseek-v3.2" => BackendKind::Deepseek,
                     other => {
                         eprintln!("[glm_psi] unknown --backend {other}, defaulting to glm");
                         BackendKind::Glm
@@ -542,6 +554,7 @@ fn main() -> ExitCode {
         BackendKind::Glm => "GLM-5.1",
         BackendKind::Codex => "GPT-5.5 (Codex)",
         BackendKind::Haiku => "Claude Haiku 4.5",
+        BackendKind::Deepseek => "DeepSeek V3.2",
     };
     let tag = args.backend.provider_tag();
     println!("# {model_label} PSI live-LLM probe (N={} per cell)\n", args.n);
