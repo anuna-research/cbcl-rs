@@ -33,10 +33,11 @@ ROW_LABEL_TO_PROVIDER = {
     "GPT-5.5": "codex",
     "Haiku 4.5": "haiku",
     "DeepSeek V3.2": "deepseek",
+    "Llama 3.3 70B": "llama",
 }
 
 ROW_RE = re.compile(
-    r"(GLM-5\.1|GPT-5\.5|Haiku 4\.5|DeepSeek V3\.2)\s*\n"
+    r"(GLM-5\.1|GPT-5\.5|Haiku 4\.5|DeepSeek V3\.2|Llama 3\.3 70B)\s*\n"
     r"\s*&\s*\\makecell\{([^}]+)\}\s*\n"   # group 1
     r"\s*&\s*\\makecell\{([^}]+)\}\s*\n"   # group 2
     r"\s*&\s*\\makecell\{([^}]+)\}\s*\n"   # group 3
@@ -96,8 +97,8 @@ def main(argv: list[str]) -> int:
     # Parse table
     src = args.table.read_text()
     rows = ROW_RE.findall(src)
-    if len(rows) != 4:
-        print(f"FAIL: expected 4 provider rows in table, found {len(rows)}", file=sys.stderr)
+    if len(rows) != 5:
+        print(f"FAIL: expected 5 provider rows in table, found {len(rows)}", file=sys.stderr)
         return 2
 
     # Determine column ordering from the multicolumn header. The first multicolumn

@@ -72,6 +72,7 @@ enum BackendKind {
     Codex,
     Haiku,
     Deepseek,
+    Llama,
 }
 
 const OPENAI_ENDPOINT: &str = "https://api.openai.com/v1/chat/completions";
@@ -79,6 +80,7 @@ const CODEX_MODEL: &str = "gpt-5.5";
 const OPENROUTER_ENDPOINT: &str = "https://openrouter.ai/api/v1/chat/completions";
 const HAIKU_OPENROUTER_MODEL: &str = "anthropic/claude-haiku-4.5";
 const DEEPSEEK_OPENROUTER_MODEL: &str = "deepseek/deepseek-v3.2";
+const LLAMA_OPENROUTER_MODEL: &str = "meta-llama/llama-3.3-70b-instruct";
 
 impl BackendKind {
     fn provider_tag(self) -> &'static str {
@@ -87,6 +89,7 @@ impl BackendKind {
             BackendKind::Codex => "gpt55",
             BackendKind::Haiku => "hk45",
             BackendKind::Deepseek => "dsk32",
+            BackendKind::Llama => "lm4m",
         }
     }
     fn make(self) -> Box<dyn LlmBackend> {
@@ -110,6 +113,12 @@ impl BackendKind {
                     .expect("OPENROUTER_API_KEY")
                     .with_endpoint(OPENROUTER_ENDPOINT)
                     .with_model(DEEPSEEK_OPENROUTER_MODEL),
+            ),
+            BackendKind::Llama => Box::new(
+                OpenAIBackend::from_env_var("OPENROUTER_API_KEY")
+                    .expect("OPENROUTER_API_KEY")
+                    .with_endpoint(OPENROUTER_ENDPOINT)
+                    .with_model(LLAMA_OPENROUTER_MODEL),
             ),
         }
     }
@@ -173,6 +182,7 @@ fn parse_args() -> Args {
                     "codex" | "gpt55" | "gpt-5.5" => BackendKind::Codex,
                     "haiku" | "hk45" | "claude-haiku" => BackendKind::Haiku,
                     "deepseek" | "dsk32" | "deepseek-v3.2" => BackendKind::Deepseek,
+                    "llama" | "lm4m" | "llama-4" | "meta" => BackendKind::Llama,
                     other => {
                         eprintln!("[glm_yao] unknown --backend {other}, defaulting to glm");
                         BackendKind::Glm
@@ -565,6 +575,7 @@ fn main() -> ExitCode {
         BackendKind::Codex => "GPT-5.5 (Codex)",
         BackendKind::Haiku => "Claude Haiku 4.5",
         BackendKind::Deepseek => "DeepSeek V3.2",
+        BackendKind::Llama => "Llama 3.3 70B",
     };
     let tag = args.backend.provider_tag();
     println!("# {model_label} Yao Millionaire live-LLM probe (N={} per cell)\n", args.n);

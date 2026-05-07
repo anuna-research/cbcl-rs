@@ -65,6 +65,7 @@ PROVIDER_TAG = {
     "codex": "gpt55",
     "haiku": "hk45",
     "deepseek": "dsk32",
+    "llama": "lm4m",
 }
 
 MODEL_LABEL = {
@@ -72,6 +73,7 @@ MODEL_LABEL = {
     "codex": "GPT-5.5",
     "haiku": "Haiku 4.5",
     "deepseek": "DeepSeek V3.2",
+    "llama": "Llama 3.3 70B",
 }
 
 WIRE_FORMAT = {
@@ -79,6 +81,7 @@ WIRE_FORMAT = {
     "codex": "OpenAI public Chat Completions API (gpt-5.5)",
     "haiku": "OpenRouter -> Anthropic (claude-haiku-4.5)",
     "deepseek": "OpenRouter -> DeepSeek (deepseek-v3.2)",
+    "llama": "OpenRouter -> Meta (llama-3.3-70b-instruct)",
 }
 
 TEMPERATURE = {
@@ -86,6 +89,7 @@ TEMPERATURE = {
     "codex": "1 (default; gpt-5.5 rejects T=0)",
     "haiku": "0",
     "deepseek": "0",
+    "llama": "0",
 }
 
 # Threshold for treating a cell log as broken (API-cascade failure).
@@ -101,8 +105,15 @@ TRIAL_LINE_RE = re.compile(
 
 
 def provider_from_path(path: str) -> str:
-    for needle, prov in [("codex", "codex"), ("haiku", "haiku"),
-                         ("deepseek", "deepseek"), ("glm", "glm")]:
+    # Order matters: more specific tokens first (`llama` before `glm` so a
+    # path like `N100-llama-...` doesn't accidentally match a glm rule).
+    for needle, prov in [
+        ("codex", "codex"),
+        ("haiku", "haiku"),
+        ("deepseek", "deepseek"),
+        ("llama", "llama"),
+        ("glm", "glm"),
+    ]:
         if needle in path:
             return prov
     return "unknown"
@@ -208,6 +219,7 @@ def main(argv: list[str]) -> int:
         ("N100-codex-2026-05-07/cell-*-shard*.log", "2026-05-07"),
         ("N100-haiku-2026-05-07/cell-*-shard*.log", "2026-05-07"),
         ("N100-deepseek-2026-05-07/cell-*-shard*.log", "2026-05-07"),
+        ("N100-llama-2026-05-07/cell-*-shard*.log", "2026-05-07"),
     ]
 
     trials: dict[tuple, dict] = {}
