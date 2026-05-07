@@ -37,12 +37,20 @@ ROW_LABEL_TO_PROVIDER = {
 
 ROW_RE = re.compile(
     r"(GLM-5\.1|GPT-5\.5|Haiku 4\.5|DeepSeek V3\.2)\s*\n"
-    r"\s*&\s*\\makecell\{([^}]+)\}\s*\n"   # PSI free
-    r"\s*&\s*\\makecell\{([^}]+)\}\s*\n"   # PSI shim
-    r"\s*&\s*\\makecell\{([^}]+)\}\s*\n"   # PSI native
-    r"\s*&\s*\\makecell\{([^}]+)\}\s*\n"   # Yao free
-    r"\s*&\s*\\makecell\{([^}]+)\}\s*\n"   # Yao shim
-    r"\s*&\s*\\makecell\{([^}]+)\}\s*\\\\"  # Yao native
+    r"\s*&\s*\\makecell\{([^}]+)\}\s*\n"   # group 1
+    r"\s*&\s*\\makecell\{([^}]+)\}\s*\n"   # group 2
+    r"\s*&\s*\\makecell\{([^}]+)\}\s*\n"   # group 3
+    r"\s*&\s*\\makecell\{([^}]+)\}\s*\n"   # group 4
+    r"\s*&\s*\\makecell\{([^}]+)\}\s*\n"   # group 5
+    r"\s*&\s*\\makecell\{([^}]+)\}\s*\\\\"  # group 6
+)
+
+# The first three columns and the last three columns are each assigned to
+# either PSI or Yao based on the multicolumn header line, so column order
+# (PSI-first vs Yao-first) is a presentation choice independent of cell
+# content. Verifier reads the header to figure out which is which.
+HEADER_RE = re.compile(
+    r"\\multicolumn\{3\}\{c\}\{([^}]+)\}"
 )
 
 LEAK_RE = re.compile(r"^\s*([\d.]+)\s*\[\s*([\d.]+)\s*,\s*([\d.]+)\s*\]")
@@ -92,9 +100,34 @@ def main(argv: list[str]) -> int:
         print(f"FAIL: expected 4 provider rows in table, found {len(rows)}", file=sys.stderr)
         return 2
 
+    # Determine column ordering from the multicolumn header. The first multicolumn
+    # spans the first three data columns, the second spans the last three.
+    headers = HEADER_RE.findall(src)
+    if len(headers) != 2:
+        print(f"FAIL: expected 2 multicolumn headers, found {len(headers)}", file=sys.stderr)
+        return 2
+    def header_to_demo(label: str) -> str:
+        if "PSI" in label or "Set Intersection" in label: return "psi"
+        if "Yao" in label or "Millionaire" in label: return "yao"
+        raise ValueError(f"could not classify header '{label}' as PSI or Yao")
+    first_block_demo = header_to_demo(headers[0])
+    second_block_demo = header_to_demo(headers[1])
+    if {first_block_demo, second_block_demo} != {"psi", "yao"}:
+        print(f"FAIL: headers do not cover both demos: {headers}", file=sys.stderr)
+        return 2
+
     failures: list[str] = []
 
-    for label, psi_f, psi_s, psi_n, yao_f, yao_s, yao_n in rows:
+    for label, c1, c2, c3, c4, c5, c6 in rows:
+        # Map the six raw cells to (psi_f, psi_s, psi_n, yao_f, yao_s, yao_n)
+        # using the column ordering announced by the header.
+        first_cells, second_cells = (c1, c2, c3), (c4, c5, c6)
+        if first_block_demo == "psi":
+            psi_f, psi_s, psi_n = first_cells
+            yao_f, yao_s, yao_n = second_cells
+        else:
+            yao_f, yao_s, yao_n = first_cells
+            psi_f, psi_s, psi_n = second_cells
         prov = ROW_LABEL_TO_PROVIDER[label]
 
         cells = [
