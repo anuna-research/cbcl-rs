@@ -41,9 +41,7 @@ use cbcl_arena::attackers::millionaire::{
 use cbcl_arena::attackers::MillionairePattern;
 use cbcl_arena::driver::{run_game, DrivenAgent, GameResult, StepStatus};
 use cbcl_arena::glm::{GlmCbclNativeYaoSeat, GlmClient, GlmFreeChatYaoSeat};
-use cbcl_arena::llm::{
-    CodexBackend, DisciplinedSeat, LlmBackend, OpenAIBackend, YaoDisciplinedAdapter,
-};
+use cbcl_arena::llm::{DisciplinedSeat, LlmBackend, OpenAIBackend, YaoDisciplinedAdapter};
 use cbcl_arena::operator::millionaire::{
     MillionaireGuess, MillionaireOperator, MillionaireSetup, WealthDistribution,
 };
@@ -75,6 +73,8 @@ enum BackendKind {
     Haiku,
 }
 
+const OPENAI_ENDPOINT: &str = "https://api.openai.com/v1/chat/completions";
+const CODEX_MODEL: &str = "gpt-5.5";
 const OPENROUTER_ENDPOINT: &str = "https://openrouter.ai/api/v1/chat/completions";
 const HAIKU_OPENROUTER_MODEL: &str = "anthropic/claude-haiku-4.5";
 
@@ -89,7 +89,13 @@ impl BackendKind {
     fn make(self) -> Box<dyn LlmBackend> {
         match self {
             BackendKind::Glm => Box::new(GlmClient::from_env().expect("ZAI_API_KEY")),
-            BackendKind::Codex => Box::new(CodexBackend::new()),
+            BackendKind::Codex => Box::new(
+                OpenAIBackend::from_env_var("OPENAI_API_KEY")
+                    .expect("OPENAI_API_KEY")
+                    .with_endpoint(OPENAI_ENDPOINT)
+                    .with_model(CODEX_MODEL)
+                    .with_max_completion_tokens(true),
+            ),
             BackendKind::Haiku => Box::new(
                 OpenAIBackend::from_env_var("OPENROUTER_API_KEY")
                     .expect("OPENROUTER_API_KEY")
@@ -106,6 +112,7 @@ struct Args {
     smoke: bool,
     max_turns: u32,
     backend: BackendKind,
+    trial_start: u32,
 }
 
 fn parse_args() -> Args {
@@ -114,6 +121,7 @@ fn parse_args() -> Args {
     let mut smoke = false;
     let mut max_turns: u32 = 16;
     let mut backend = BackendKind::Glm;
+    let mut trial_start: u32 = 0;
     let argv: Vec<String> = env::args().skip(1).collect();
     let mut i = 0;
     while i < argv.len() {
@@ -121,6 +129,11 @@ fn parse_args() -> Args {
             "--n" => {
                 let v = argv.get(i + 1).and_then(|s| s.parse().ok()).unwrap_or(20);
                 n = Some(v);
+                i += 2;
+            }
+            "--trial-start" => {
+                let v = argv.get(i + 1).and_then(|s| s.parse().ok()).unwrap_or(0);
+                trial_start = v;
                 i += 2;
             }
             "--cell" => {
@@ -169,6 +182,7 @@ fn parse_args() -> Args {
         smoke,
         max_turns,
         backend,
+        trial_start,
     }
 }
 
@@ -444,9 +458,15 @@ fn run_one_trial(
     (focal_score.utility, focal_score.security)
 }
 
-fn run_cell(cell_name: &str, n: u32, max_turns: u32, backend: BackendKind) -> CellStats {
+fn run_cell(
+    cell_name: &str,
+    trial_start: u32,
+    n: u32,
+    max_turns: u32,
+    backend: BackendKind,
+) -> CellStats {
     let mut stats = CellStats::default();
-    for trial in 0..n {
+    for trial in trial_start..(trial_start + n) {
         let (u, s) = run_one_trial(cell_name, trial, max_turns, backend);
         stats.record(u, s);
     }
@@ -484,19 +504,49 @@ fn main() -> ExitCode {
     let mut native_stats: Option<CellStats> = None;
     let mut native_atk_stats: Option<CellStats> = None;
     if matches!(args.cell, Cell::Free | Cell::Both) {
-        free_stats = Some(run_cell("free", args.n, args.max_turns, args.backend));
+        free_stats = Some(run_cell(
+            "free",
+            args.trial_start,
+            args.n,
+            args.max_turns,
+            args.backend,
+        ));
     }
     if matches!(args.cell, Cell::Disciplined | Cell::Both) {
-        disc_stats = Some(run_cell("disciplined", args.n, args.max_turns, args.backend));
+        disc_stats = Some(run_cell(
+            "disciplined",
+            args.trial_start,
+            args.n,
+            args.max_turns,
+            args.backend,
+        ));
     }
     if matches!(args.cell, Cell::Cooperative) {
-        coop_stats = Some(run_cell("cooperative", args.n, args.max_turns, args.backend));
+        coop_stats = Some(run_cell(
+            "cooperative",
+            args.trial_start,
+            args.n,
+            args.max_turns,
+            args.backend,
+        ));
     }
     if matches!(args.cell, Cell::Native | Cell::Both) {
-        native_stats = Some(run_cell("native-cooperative", args.n, args.max_turns, args.backend));
+        native_stats = Some(run_cell(
+            "native-cooperative",
+            args.trial_start,
+            args.n,
+            args.max_turns,
+            args.backend,
+        ));
     }
     if matches!(args.cell, Cell::NativeAttacker) {
-        native_atk_stats = Some(run_cell("native-attacker", args.n, args.max_turns, args.backend));
+        native_atk_stats = Some(run_cell(
+            "native-attacker",
+            args.trial_start,
+            args.n,
+            args.max_turns,
+            args.backend,
+        ));
     }
     let elapsed = t0.elapsed();
 

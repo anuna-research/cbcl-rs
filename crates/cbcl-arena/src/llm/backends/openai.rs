@@ -40,6 +40,10 @@ pub struct OpenAIBackend {
     /// can be retargeted at any OpenAI-compatible endpoint via
     /// [`with_endpoint`](Self::with_endpoint).
     endpoint: String,
+    /// Send `max_completion_tokens` instead of `max_tokens` in the
+    /// request body. OpenAI's direct API rejects `max_tokens` for
+    /// gpt-5-class models; OpenRouter accepts both. Defaults to false.
+    use_max_completion_tokens: bool,
 }
 
 impl OpenAIBackend {
@@ -62,6 +66,7 @@ impl OpenAIBackend {
             api_key,
             model: MODEL.to_string(),
             endpoint: ENDPOINT.to_string(),
+            use_max_completion_tokens: false,
         })
     }
 
@@ -79,6 +84,15 @@ impl OpenAIBackend {
         self
     }
 
+    /// Send `max_completion_tokens` instead of `max_tokens` in the
+    /// request body. Required by OpenAI's direct API for gpt-5-class
+    /// models; OpenRouter accepts the legacy field, so this stays off
+    /// for that path.
+    pub fn with_max_completion_tokens(mut self, enabled: bool) -> Self {
+        self.use_max_completion_tokens = enabled;
+        self
+    }
+
     /// Issue one chat-completions call (no retry).
     fn chat_once(
         &self,
@@ -90,8 +104,22 @@ impl OpenAIBackend {
         let mut req_local = req.clone();
         req_local.model = self.model.clone();
 
-        let body = serde_json::to_string(&req_local)
-            .map_err(|e| format!("serialise request: {e}"))?;
+        let body = if self.use_max_completion_tokens {
+            // OpenAI direct rejects `max_tokens` for gpt-5-class models
+            // and only accepts the default temperature (1.0); rewrite
+            // the body before sending.
+            let mut v = serde_json::to_value(&req_local)
+                .map_err(|e| format!("serialise request: {e}"))?;
+            if let Some(obj) = v.as_object_mut() {
+                if let Some(mt) = obj.remove("max_tokens") {
+                    obj.insert("max_completion_tokens".to_string(), mt);
+                }
+                obj.remove("temperature");
+            }
+            serde_json::to_string(&v).map_err(|e| format!("re-serialise request: {e}"))?
+        } else {
+            serde_json::to_string(&req_local).map_err(|e| format!("serialise request: {e}"))?
+        };
 
         let auth = format!("Authorization: Bearer {}", self.api_key);
         let mut child = Command::new(CURL_BIN)
