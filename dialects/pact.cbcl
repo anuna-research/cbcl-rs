@@ -1,0 +1,127 @@
+; cbcl-pact: a CBCL dialect carrying Pact's choreographic and
+; game-theoretic primitives over CBCL's R5 causal-protocol substrate.
+;
+; Companion to:
+;   Gopinathan, Feser, Naim, Tavares & Bingham,
+;   "Pact: A Choreographic Language for Agentic Ecosystems",
+;   2nd Intl. Workshop on Choreographic Programming (CP'26).
+;   https://arxiv.org/abs/2605.03143
+;
+; Pact extends choreographic programming with operations for agent
+; choice and preferences, mapping every protocol to a formal game so
+; designers can reason about decision policies for self-interested
+; participants. This dialect lowers Pact specifications onto CBCL,
+; transporting four kinds of artefact:
+;   - the choreography itself (propose-choreography, at, choose)
+;   - game-theoretic inputs (prefer)
+;   - solver invocation and committed output (request-policy,
+;     commit-policy)
+;   - execution events (observe-outcome, terminate)
+;
+; The (protocol ...) clause is the cbcl-shaped analogue of the Pact
+; lifecycle: a participant cannot commit a policy before declaring
+; preferences and asking the solver, and an outcome cannot be observed
+; before a step is enacted. The bounded-rational solver itself is
+; out-of-scope for the wire format and runs as a separate agent
+; addressed at @pact-solver.
+;
+; Related specs:
+;   specs/SPEC-002-structural-contracts.md  (R5 protocol grammar)
+;   specs/SPEC-004-sealed-bid-auction-demo.md  (Pact comparison demo)
+
+(define cbcl-pact (cbcl) @pact-wg
+  (:resource-requirements
+    ((max-depth 14)
+     (max-expansion-size 1536)
+     (verification-time 60)))
+
+  ; --- choreographic skeleton ---
+
+  ; Distribute a full Pact specification: a list of role identifiers
+  ; and an ordered list of step descriptors. Roles and steps are
+  ; carried as opaque payloads; their detailed shape is a Pact-level
+  ; concern, not a CBCL one.
+  (extend propose-choreography (proto-id roles steps)
+    (tell @pact-coordinator
+      (choreography-spec :id proto-id
+        :roles roles :steps steps)
+      :domain pact))
+
+  ; Attribute one protocol step to a named role. Pact's "at p do x"
+  ; primitive: role p performs action at step step-id of protocol
+  ; proto-id.
+  (extend at (proto-id step-id role action)
+    (tell @pact-coordinator
+      (role-step :proto proto-id :step step-id
+        :role role :action action)
+      :domain pact))
+
+  ; Branching point owned by a role: the role chooses among the
+  ; listed alternatives. Pact's agent.choose() primitive.
+  (extend choose (proto-id step-id role alternatives)
+    (tell @pact-coordinator
+      (branch-point :proto proto-id :step step-id
+        :role role :alternatives alternatives)
+      :domain pact))
+
+  ; --- game-theoretic overlay ---
+
+  ; Declare a utility entry: role assigns the given utility to the
+  ; given outcome. Multiple prefer messages are accumulated by the
+  ; solver into a preference relation. Pact's agent.values() input.
+  (extend prefer (proto-id role outcome utility)
+    (tell @pact-solver
+      (preference-entry :proto proto-id :role role
+        :outcome outcome :utility utility)
+      :domain pact))
+
+  ; Ask the bounded-rational solver for a decision policy for the
+  ; given role under the declared preferences. solver-bound is the
+  ; rationality / search depth the solver should use. The only
+  ; performative typed as an ask in this dialect.
+  (extend request-policy (proto-id role solver-bound)
+    (ask @pact-solver
+      (policy-request :proto proto-id :role role
+        :bound solver-bound)
+      :domain pact))
+
+  ; Participant publishes the policy it commits to following. Carried
+  ; as an opaque payload but signed under R4 like any other CBCL
+  ; message, giving non-repudiable provenance for which policy a role
+  ; bound itself to.
+  (extend commit-policy (proto-id role policy)
+    (tell @pact-coordinator
+      (policy-commitment :proto proto-id :role role
+        :policy policy)
+      :domain pact))
+
+  ; --- execution / closure ---
+
+  ; Record a realised outcome of a step against the choreography.
+  (extend observe-outcome (proto-id step-id outcome)
+    (tell @pact-coordinator
+      (step-outcome :proto proto-id :step step-id
+        :outcome outcome)
+      :domain pact))
+
+  ; Protocol-end marker carrying the final outcome label.
+  (extend terminate (proto-id outcome)
+    (tell @pact-coordinator
+      (protocol-end :proto proto-id :outcome outcome)
+      :domain pact))
+
+  ; --- R5: causal protocol over the lifecycle ---
+  ;
+  ; begin -> propose-choreography -> prefer
+  ; (propose-choreography AND prefer) -> request-policy   ; fan-in
+  ; request-policy -> commit-policy
+  ; commit-policy -> (at OR choose)                       ; fan-out alternatives
+  ; (at OR choose) -> observe-outcome -> terminate
+
+  (protocol
+    (then begin propose-choreography prefer)
+    (then (all propose-choreography prefer) request-policy)
+    (then request-policy commit-policy)
+    (then commit-policy (any at choose))
+    (then (any at choose) observe-outcome)
+    (then observe-outcome terminate)))
