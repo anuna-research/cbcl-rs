@@ -21,12 +21,16 @@
 ; The (protocol ...) clause is the cbcl-shaped analogue of the Pact
 ; lifecycle: a participant cannot commit a policy before declaring
 ; preferences and asking the solver, and an outcome cannot be observed
-; before a step is enacted. The bounded-rational solver itself is
-; out-of-scope for the wire format and runs as a separate agent
-; addressed at @pact-solver.
+; before a step is enacted. The (shape ...) clauses constrain each
+; performative's keyword parameters and types.
+;
+; Note on template structure: shape verification (REQ-220 et seq.) is
+; non-recursive on the expanded message, so dialect-meaningful keyword
+; parameters are surfaced at the top level of every (tell …)/(ask …)
+; rather than buried in an inner content form.
 ;
 ; Related specs:
-;   specs/SPEC-002-structural-contracts.md  (R5 protocol grammar)
+;   specs/SPEC-002-structural-contracts.md  (R5 protocol + shape grammar)
 ;   specs/SPEC-004-sealed-bid-auction-demo.md  (Pact comparison demo)
 
 (define cbcl-pact (cbcl) @pact-wg
@@ -37,31 +41,28 @@
 
   ; --- choreographic skeleton ---
 
-  ; Distribute a full Pact specification: a list of role identifiers
-  ; and an ordered list of step descriptors. Roles and steps are
-  ; carried as opaque payloads; their detailed shape is a Pact-level
-  ; concern, not a CBCL one.
+  ; Distribute a full Pact specification: roles is a list of role
+  ; identifiers, steps is an ordered list of step descriptors. Both
+  ; are carried as opaque payload lists; their internal structure is
+  ; a Pact-level concern, not a CBCL one.
   (extend propose-choreography (proto-id roles steps)
     (tell @pact-coordinator
-      (choreography-spec :id proto-id
-        :roles roles :steps steps)
+      :proto proto-id :roles roles :steps steps
       :domain pact))
 
   ; Attribute one protocol step to a named role. Pact's "at p do x"
-  ; primitive: role p performs action at step step-id of protocol
+  ; primitive: role performs action at step step-id of protocol
   ; proto-id.
   (extend at (proto-id step-id role action)
     (tell @pact-coordinator
-      (role-step :proto proto-id :step step-id
-        :role role :action action)
+      :proto proto-id :step step-id :role role :action action
       :domain pact))
 
   ; Branching point owned by a role: the role chooses among the
   ; listed alternatives. Pact's agent.choose() primitive.
   (extend choose (proto-id step-id role alternatives)
     (tell @pact-coordinator
-      (branch-point :proto proto-id :step step-id
-        :role role :alternatives alternatives)
+      :proto proto-id :step step-id :role role :alternatives alternatives
       :domain pact))
 
   ; --- game-theoretic overlay ---
@@ -71,8 +72,7 @@
   ; solver into a preference relation. Pact's agent.values() input.
   (extend prefer (proto-id role outcome utility)
     (tell @pact-solver
-      (preference-entry :proto proto-id :role role
-        :outcome outcome :utility utility)
+      :proto proto-id :role role :outcome outcome :utility utility
       :domain pact))
 
   ; Ask the bounded-rational solver for a decision policy for the
@@ -81,18 +81,16 @@
   ; performative typed as an ask in this dialect.
   (extend request-policy (proto-id role solver-bound)
     (ask @pact-solver
-      (policy-request :proto proto-id :role role
-        :bound solver-bound)
+      :proto proto-id :role role :bound solver-bound
       :domain pact))
 
-  ; Participant publishes the policy it commits to following. Carried
-  ; as an opaque payload but signed under R4 like any other CBCL
-  ; message, giving non-repudiable provenance for which policy a role
-  ; bound itself to.
+  ; Participant publishes the policy it commits to following. The
+  ; policy is an opaque payload list, signed under R4 like any other
+  ; CBCL message, giving non-repudiable provenance for which policy a
+  ; role bound itself to.
   (extend commit-policy (proto-id role policy)
     (tell @pact-coordinator
-      (policy-commitment :proto proto-id :role role
-        :policy policy)
+      :proto proto-id :role role :policy policy
       :domain pact))
 
   ; --- execution / closure ---
@@ -100,14 +98,13 @@
   ; Record a realised outcome of a step against the choreography.
   (extend observe-outcome (proto-id step-id outcome)
     (tell @pact-coordinator
-      (step-outcome :proto proto-id :step step-id
-        :outcome outcome)
+      :proto proto-id :step step-id :outcome outcome
       :domain pact))
 
   ; Protocol-end marker carrying the final outcome label.
   (extend terminate (proto-id outcome)
     (tell @pact-coordinator
-      (protocol-end :proto proto-id :outcome outcome)
+      :proto proto-id :outcome outcome
       :domain pact))
 
   ; --- R5: causal protocol over the lifecycle ---
@@ -124,7 +121,60 @@
     (then request-policy commit-policy)
     (then commit-policy (any at choose))
     (then (any at choose) observe-outcome)
-    (then observe-outcome terminate)))
+    (then observe-outcome terminate))
+
+  ; --- R5: shapes ---
+  ;
+  ; Each shape pins the keyword parameters every expanded message of
+  ; that performative must carry, with type constraints drawn from
+  ; the six primitives (string / number / bool / symbol / keyword /
+  ; list). Identifiers (proto, step) are strings so they survive
+  ; canonicalisation across hosts; role identifiers are symbols
+  ; matching the role atoms inside (propose-choreography :roles …);
+  ; structured payloads (steps, action, alternatives, outcome,
+  ; policy) are lists.
+
+  (shape propose-choreography
+    (require :proto string)
+    (require :roles list)
+    (require :steps list))
+
+  (shape at
+    (require :proto string)
+    (require :step string)
+    (require :role symbol)
+    (require :action list))
+
+  (shape choose
+    (require :proto string)
+    (require :step string)
+    (require :role symbol)
+    (require :alternatives list))
+
+  (shape prefer
+    (require :proto string)
+    (require :role symbol)
+    (require :outcome list)
+    (require :utility number))
+
+  (shape request-policy
+    (require :proto string)
+    (require :role symbol)
+    (require :bound number))
+
+  (shape commit-policy
+    (require :proto string)
+    (require :role symbol)
+    (require :policy list))
+
+  (shape observe-outcome
+    (require :proto string)
+    (require :step string)
+    (require :outcome list))
+
+  (shape terminate
+    (require :proto string)
+    (require :outcome list)))
 
 ; --- Worked example: single-role trace through the lifecycle ---
 ;
@@ -135,41 +185,42 @@
 ;
 ; Hashes are abbreviated; in practice each :caused-by is a full
 ; sha256 over the canonical S-expression of the cited message
-; (RFC 9804). All seven forms parse under `cbcl-cli parse`.
+; (RFC 9804). All seven invocation forms parse under
+; `cbcl-cli parse` and satisfy the shape clauses above.
 ;
 ; M1  begin -> propose-choreography
-;   (lang pact
+;   (lang cbcl-pact
 ;     (propose-choreography "ult-1"
 ;       (proposer responder)
 ;       ((s1 proposer offer) (s2 responder accept-or-reject))
 ;       :caused-by "begin"))
 ;
 ; M2  propose-choreography -> prefer
-;   (lang pact
+;   (lang cbcl-pact
 ;     (prefer "ult-1" proposer (accepted 70 30) 0.7
 ;       :caused-by "sha256:H1..."))
 ;
 ; M3  fan-in: (all propose-choreography prefer) -> request-policy
-;   (lang pact
+;   (lang cbcl-pact
 ;     (request-policy "ult-1" proposer 3
 ;       :caused-by ("sha256:H1..." "sha256:H2...")))
 ;
 ; M4  request-policy -> commit-policy
-;   (lang pact
+;   (lang cbcl-pact
 ;     (commit-policy "ult-1" proposer (offer 70 30)
 ;       :caused-by "sha256:H3..."))
 ;
 ; M5  commit-policy -> (any at choose)        ; proposer enacts `at`
-;   (lang pact
+;   (lang cbcl-pact
 ;     (at "ult-1" "s1" proposer (offer 70 30)
 ;       :caused-by "sha256:H4..."))
 ;
 ; M6  (any at choose) -> observe-outcome
-;   (lang pact
+;   (lang cbcl-pact
 ;     (observe-outcome "ult-1" "s1" (offered 70 30)
 ;       :caused-by "sha256:H5..."))
 ;
 ; M7  observe-outcome -> terminate
-;   (lang pact
+;   (lang cbcl-pact
 ;     (terminate "ult-1" (accepted 70 30)
 ;       :caused-by "sha256:H6..."))
