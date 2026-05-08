@@ -2,7 +2,7 @@
 id: SPEC-012
 title: Agent Arena — Composable Referee on cbcl-lfe-router with Spindle Game Theories
 status: draft
-version: 0.3.6
+version: 0.3.7
 date: 2026-05-08
 author: Anuna Research (https://anuna.io)
 depends-on:
@@ -20,7 +20,7 @@ prior-art:
   - PROTO-001 (USDD Agent Protocol v1.4.0)
 related:
   - plans/EXTRACT-arena-platform.spl
-  - SPEC-013 (Evolver Agent — `../../agent-arena/specs/SPEC-013-evolver-agent.md`) — first-named consumer of the arena's primitives; runs a GA over `(game …)` definitions
+  - SPEC-013 (Evolver Agent — `../../ar-games/specs/SPEC-013-evolver-agent.md`) — first-named consumer of the arena's primitives; runs a GA over `(game …)` definitions
 revision-history:
   - 0.1.0 (2026-05-06) — hosted-seats with `LlmBackend` / `DisciplinedSeat` inside the platform
   - 0.2.0 (2026-05-06) — referee proxy with custom JSON wire protocol; matchmaking promoted (ADR-1212)
@@ -31,8 +31,9 @@ revision-history:
   - 0.3.4 (2026-05-08) — doc-only: back-reference to SPEC-013 (Evolver Agent), now sketched in the standalone `agent-arena` repo. Updated `target:` line to note the standalone repo exists at `../agent-arena/`.
   - 0.3.5 (2026-05-08) — doc-only: clarifies that the transcript is the world state in flight (the theory derives any cumulative view via fold rules), so emergence-class simulations (à la MiroFish — thousands of agents in a shared platform) fit the arena as a single large-N match without any spec extension; documents `(metric ?name ?value)` as a recognised theory-conclusion shape alongside `(utility …)` / `(security …)` / `(winner …)` in `arena:result`. No new REQ / CON / ADR; widens the spec's *interpretation* without enlarging its *machinery*.
   - 0.3.6 (2026-05-08) — doc-only: makes peer-to-peer messages explicit. The arena sees only frames addressed to its registered capabilities; players may freely use other router capabilities for private channels (DC pairwise flips, coalition talks, sealed bids) outside arena visibility. Private content that must influence scoring follows a commit-reveal pattern. Clarifies `arena:result.transcript_digests` references "frames addressed to arena-subscribed capabilities", not "all inter-participant communication". Threat-model addition: arena makes no claim about non-arena-visible peer communication. No new REQ / CON / ADR.
-repository: standalone — local checkout at `../agent-arena/`; remote TBD on codeberg.org/anuna
-target: standalone repo `agent-arena` (created 2026-05-08; Rust workspace; arena agent + library) plus an optional `agent-arena-cbcl` in-process harness for SPEC-011 byte-parity. SPEC-012 currently lives in this `cbcl-rs/specs/` directory and will move to `agent-arena/specs/` when implementation begins.
+  - 0.3.7 (2026-05-08) — doc-only: standalone repo renamed from `agent-arena` to `ar-games` (matches Anuna Research's `ar-*` namespace; descriptive plural; sits comfortably alongside `ar-crawl`, `cbcl-rs`, `spindle-rust`). Path references updated. Crate names inside the workspace (`agent-arena`, `agent-arena-cbcl`, `evolver`) unchanged.
+repository: standalone — local checkout at `../ar-games/`; remote TBD on codeberg.org/anuna
+target: standalone repo `ar-games` (created 2026-05-08; Rust workspace; arena agent + library) plus an optional `agent-arena-cbcl` crate (in-process harness for SPEC-011 byte-parity). SPEC-012 currently lives in this `cbcl-rs/specs/` directory and will move to `ar-games/specs/` when implementation begins.
 ---
 
 # SPEC-012: Agent Arena — Composable Referee on cbcl-lfe-router with Spindle Game Theories
@@ -44,7 +45,7 @@ target: standalone repo `agent-arena` (created 2026-05-08; Rust workspace; arena
 | Document ID    | SPEC-012                                                             |
 | Title          | Agent Arena — Composable Referee on cbcl-lfe-router with Spindle Game Theories |
 | Status         | draft                                                                |
-| Version        | 0.3.6                                                                |
+| Version        | 0.3.7                                                                |
 | Date           | 2026-05-08                                                           |
 | Author         | Anuna Research                                                       |
 | Audience       | Engineering (composition + game authoring)                           |
@@ -460,7 +461,7 @@ The arena SHALL NOT require any modification to `cbcl-lfe-router-client` (hark).
 ### CON-1200: Repo layout
 
 ```text
-agent-arena/                            # standalone repo
+ar-games/                               # standalone repo
 ├── Cargo.toml
 ├── crates/
 │   ├── agent-arena/                    # the arena agent + library
@@ -1017,10 +1018,10 @@ All workflows below are shown as raw `hark reply` calls (the load-bearing surfac
 
 ## Documentation Plan (Phase 3 deliverables)
 
-- **`agent-arena/README.md`** — Quick Start; Verb Vocabulary summary; Matchmaking primitives; Live registration; Federation; Reference flows shown as raw `hark reply` calls; pointer to optional `arena-cli`.
-- **`agent-arena/crates/agent-arena-cbcl/README.md`** — SPEC-011 reproduction; matrix bypasses the router.
-- **`agent-arena/games/README.md`** — Game-author tutorial: anatomy of a `(game …)` term; SPL keywords (`given`/`always`/`normally`/`except`/`prefer`); seat-role and verb sections; how to run the determinism check; how to register live; pointers to the five built-ins as templates.
-- **`docs/agent-arena/`** — `researcher.md`, `player.md`, `tournament-organiser.md`, `game-author.md`, `stream-consumer.md`.
+- **`ar-games/README.md`** — Quick Start; Verb Vocabulary summary; Matchmaking primitives; Live registration; Federation; Reference flows shown as raw `hark reply` calls; pointer to optional `arena-cli`.
+- **`ar-games/crates/agent-arena-cbcl/README.md`** — SPEC-011 reproduction; matrix bypasses the router.
+- **`ar-games/games/README.md`** — Game-author tutorial: anatomy of a `(game …)` term; SPL keywords (`given`/`always`/`normally`/`except`/`prefer`); seat-role and verb sections; how to run the determinism check; how to register live; pointers to the five built-ins as templates.
+- **`docs/ar-games/`** — `researcher.md`, `player.md`, `tournament-organiser.md`, `game-author.md`, `stream-consumer.md`.
 
 ---
 
@@ -1040,7 +1041,7 @@ Tier-2 artefact. Per PROTO-001:
 |----------------|---------------------------------------------------------------------------|
 | `draft`        | Authoring in progress (current).                                          |
 | `approved`     | Phase-1 quality gates pass; cross-model adversarial review complete; stakeholder sign-off. |
-| `implementing` | Implementation PRs open against the new `agent-arena` repo.               |
+| `implementing` | Implementation PRs open against the `ar-games` repo.                      |
 | `implemented`  | All TESTs green; SPEC-011 parity demonstrated; documentation generated.   |
 
 ---
