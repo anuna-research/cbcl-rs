@@ -125,3 +125,51 @@
     (then commit-policy (any at choose))
     (then (any at choose) observe-outcome)
     (then observe-outcome terminate)))
+
+; --- Worked example: single-role trace through the lifecycle ---
+;
+; A two-party ultimatum coordination viewed from the proposer's
+; chain. The responder follows a parallel chain (their own prefer,
+; request-policy, commit-policy, then a `choose` between accept and
+; reject) referencing the same M1 propose-choreography.
+;
+; Hashes are abbreviated; in practice each :caused-by is a full
+; sha256 over the canonical S-expression of the cited message
+; (RFC 9804). All seven forms parse under `cbcl-cli parse`.
+;
+; M1  begin -> propose-choreography
+;   (lang pact
+;     (propose-choreography "ult-1"
+;       (proposer responder)
+;       ((s1 proposer offer) (s2 responder accept-or-reject))
+;       :caused-by "begin"))
+;
+; M2  propose-choreography -> prefer
+;   (lang pact
+;     (prefer "ult-1" proposer (accepted 70 30) 0.7
+;       :caused-by "sha256:H1..."))
+;
+; M3  fan-in: (all propose-choreography prefer) -> request-policy
+;   (lang pact
+;     (request-policy "ult-1" proposer 3
+;       :caused-by ("sha256:H1..." "sha256:H2...")))
+;
+; M4  request-policy -> commit-policy
+;   (lang pact
+;     (commit-policy "ult-1" proposer (offer 70 30)
+;       :caused-by "sha256:H3..."))
+;
+; M5  commit-policy -> (any at choose)        ; proposer enacts `at`
+;   (lang pact
+;     (at "ult-1" "s1" proposer (offer 70 30)
+;       :caused-by "sha256:H4..."))
+;
+; M6  (any at choose) -> observe-outcome
+;   (lang pact
+;     (observe-outcome "ult-1" "s1" (offered 70 30)
+;       :caused-by "sha256:H5..."))
+;
+; M7  observe-outcome -> terminate
+;   (lang pact
+;     (terminate "ult-1" (accepted 70 30)
+;       :caused-by "sha256:H6..."))
