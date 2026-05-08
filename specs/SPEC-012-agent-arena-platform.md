@@ -2,7 +2,7 @@
 id: SPEC-012
 title: Agent Arena — Composable Referee on cbcl-lfe-router with Spindle Game Theories
 status: draft
-version: 0.3.5
+version: 0.3.6
 date: 2026-05-08
 author: Anuna Research (https://anuna.io)
 depends-on:
@@ -30,6 +30,7 @@ revision-history:
   - 0.3.3 (2026-05-08) — per-match live stream for public matches (REQ-1262, ADR-1228). Spectators are router-mediated subscribers — not an arena role; they sign nothing, post nothing, are pseudonymous to participants and invisible to the arena. Lobby gains `:public bool`; match-start carries it; result records whether the match was spectated.
   - 0.3.4 (2026-05-08) — doc-only: back-reference to SPEC-013 (Evolver Agent), now sketched in the standalone `agent-arena` repo. Updated `target:` line to note the standalone repo exists at `../agent-arena/`.
   - 0.3.5 (2026-05-08) — doc-only: clarifies that the transcript is the world state in flight (the theory derives any cumulative view via fold rules), so emergence-class simulations (à la MiroFish — thousands of agents in a shared platform) fit the arena as a single large-N match without any spec extension; documents `(metric ?name ?value)` as a recognised theory-conclusion shape alongside `(utility …)` / `(security …)` / `(winner …)` in `arena:result`. No new REQ / CON / ADR; widens the spec's *interpretation* without enlarging its *machinery*.
+  - 0.3.6 (2026-05-08) — doc-only: makes peer-to-peer messages explicit. The arena sees only frames addressed to its registered capabilities; players may freely use other router capabilities for private channels (DC pairwise flips, coalition talks, sealed bids) outside arena visibility. Private content that must influence scoring follows a commit-reveal pattern. Clarifies `arena:result.transcript_digests` references "frames addressed to arena-subscribed capabilities", not "all inter-participant communication". Threat-model addition: arena makes no claim about non-arena-visible peer communication. No new REQ / CON / ADR.
 repository: standalone — local checkout at `../agent-arena/`; remote TBD on codeberg.org/anuna
 target: standalone repo `agent-arena` (created 2026-05-08; Rust workspace; arena agent + library) plus an optional `agent-arena-cbcl` in-process harness for SPEC-011 byte-parity. SPEC-012 currently lives in this `cbcl-rs/specs/` directory and will move to `agent-arena/specs/` when implementation begins.
 ---
@@ -43,7 +44,7 @@ target: standalone repo `agent-arena` (created 2026-05-08; Rust workspace; arena
 | Document ID    | SPEC-012                                                             |
 | Title          | Agent Arena — Composable Referee on cbcl-lfe-router with Spindle Game Theories |
 | Status         | draft                                                                |
-| Version        | 0.3.5                                                                |
+| Version        | 0.3.6                                                                |
 | Date           | 2026-05-08                                                           |
 | Author         | Anuna Research                                                       |
 | Audience       | Engineering (composition + game authoring)                           |
@@ -89,6 +90,8 @@ The thesis is **not** a security claim about CBCL; that argument is owned by SPE
 **Substrate-agnostic dialect/game distribution.** The arena commits to (a) publishing every registered `(game …)` body inline on the catalogue stream and (b) serving any registered game by digest via `arena:fetch-game`. *How* clients acquire game definitions — out-of-band fetch from the catalogue, harness-driven download + local install, router-mediated push to subscribed agents — is a substrate concern, specified separately in `cbcl-lfe-router/specs/SPEC-009-dialect-distribution.md`. The natural realization is router-mediated push (announces propagate to subscribed hark daemons; hark caches by digest); the arena spec is agnostic between mechanisms.
 
 **Transcript is the world state; theory is a fold over it.** The arena does not maintain a separate "world state" datum alongside the transcript — for any cumulative view a game might need (a recommendation-feed history, an evolving graph memory, a running tally of votes), the theory derives it as a fold over the recorded frames plus the operator's setup facts. This makes large-N **emergence-class simulations** — thousands of LLM agents in a shared platform with continuous trajectories rather than discrete winners — fit the arena as a single large-N match: declare `(seat-roles ((citizen 100 10000)))`, write fold rules in SPL that compute aggregate `(metric ?name ?value)` conclusions (opinion entropy, viral reach, polarisation, time-to-consensus) at scoring time, and emit them in `arena:result`. The matchmaker's `arena:lobby` (REQ-1234) handles the seat instantiation; SPL handles the derivation; the result frame carries the metric vector. No spec extension is required. What is required is operational evidence — spindle-rust scaling to ~10⁶-fact theories, hark-style identity scaling to thousands of synthetic seats under one operator — both implementation concerns flagged for follow-on work.
+
+**Peer-to-peer messages are first-class — and outside arena visibility.** The arena sees only frames addressed to its registered capabilities (`arena:*` plus the loaded games' verbs). Frames posted to *other* router capabilities (e.g., `chat:whisper`, `coalition:propose`, `dc-pairwise:flip`) are routed by the substrate to their declared recipients without going through the arena. This makes private-channel game patterns first-class without any arena modification: DC pairwise coin flips, coalition negotiation, sealed-bid auctions delivering bids only to the auctioneer, controller-agent supervision of executor agents — all are private peer channels the arena need not see. Private content that must influence scoring follows a **commit-reveal** pattern: peers send the message privately, post a content hash on an arena-subscribed capability, and at game-end re-post the plaintext to the arena for verification and scoring. The arena's `transcript_digests` (REQ-1242) cite only frames addressed to arena-subscribed capabilities — not the full inter-participant communication graph; non-arena-visible messages are, by design, opaque to the arena.
 
 ### Scope
 
@@ -193,6 +196,8 @@ The adversary may NOT:
 - Forge a result-stream or catalogue-stream frame.
 - Cause the arena to load a non-deterministic theory (rejected at submission time).
 - Register games at unbounded rate (per-PlayerId rate limit).
+
+**Peer-to-peer communication is explicitly out of scope of the arena's claims.** Players MAY freely communicate via router capabilities the arena does not subscribe to (`chat:*`, `coalition:*`, custom side-channels). The arena makes no claim about, requires no visibility into, and provides no audit trail for, such communication. Game definitions whose scoring depends on private content use commit-reveal: a content hash on an arena-subscribed capability commits the peers to a specific message; the plaintext is re-posted to the arena at game-end and verified against the hash. Anything outside this pattern is, by design, opaque to the arena and to the arena's scoring; collusion via side channels is therefore part of every arena game's threat model in the same way collusion outside the venue is part of any tournament's threat model. The substrate (router) retains receipts for those side-channel frames under its own visibility scoping; the arena does not consume them.
 
 ### TM-1202: Threat instances
 
@@ -324,7 +329,7 @@ The adversary may NOT:
 
 ### REQ-1242: Per-match record
 
-**Statement:** A finalised match's record SHALL be the union of: (a) the router receipts for every frame in the match, and (b) the arena's signed `arena:result` frame containing the per-seat scores, role assignments, the winner (or null), the seed, the wall-time, the participants' profiles and declarations as of match-start, the `(name, definition_digest)` of the game version played, and the digests of the cited receipts.
+**Statement:** A finalised match's record SHALL be the union of: (a) the router receipts for every frame *addressed to arena-subscribed capabilities* during the match (not the full inter-participant communication graph; peer-to-peer frames on non-arena capabilities are out of scope per the Design Provenance note on peer messages), and (b) the arena's signed `arena:result` frame containing the per-seat scores, role assignments, the winner (or null), the seed, the wall-time, the participants' profiles and declarations as of match-start, the `(name, definition_digest)` of the game version played, and the digests of the cited receipts.
 
 **Acceptance:** `hark replay <result-frame-id>` re-fetches the cited receipts and the cited game definition, runs the embedded theory locally over the recorded transcript, and reproduces the recorded scores byte-for-byte.
 
