@@ -2,7 +2,7 @@
 id: SPEC-012
 title: Agent Arena — Composable Referee on cbcl-lfe-router with Spindle Game Theories
 status: draft
-version: 0.3.4
+version: 0.3.5
 date: 2026-05-08
 author: Anuna Research (https://anuna.io)
 depends-on:
@@ -29,6 +29,7 @@ revision-history:
   - 0.3.2 (2026-05-08) — game = single CBCL term `(game …)` with embedded SPL theory (ADR-1226), collapsing dialect+theory into one digest. Distribution mechanism made substrate-agnostic; router-side push specified separately. NFR-1218 pins "no hark modifications" symmetric with NFR-1212.
   - 0.3.3 (2026-05-08) — per-match live stream for public matches (REQ-1262, ADR-1228). Spectators are router-mediated subscribers — not an arena role; they sign nothing, post nothing, are pseudonymous to participants and invisible to the arena. Lobby gains `:public bool`; match-start carries it; result records whether the match was spectated.
   - 0.3.4 (2026-05-08) — doc-only: back-reference to SPEC-013 (Evolver Agent), now sketched in the standalone `agent-arena` repo. Updated `target:` line to note the standalone repo exists at `../agent-arena/`.
+  - 0.3.5 (2026-05-08) — doc-only: clarifies that the transcript is the world state in flight (the theory derives any cumulative view via fold rules), so emergence-class simulations (à la MiroFish — thousands of agents in a shared platform) fit the arena as a single large-N match without any spec extension; documents `(metric ?name ?value)` as a recognised theory-conclusion shape alongside `(utility …)` / `(security …)` / `(winner …)` in `arena:result`. No new REQ / CON / ADR; widens the spec's *interpretation* without enlarging its *machinery*.
 repository: standalone — local checkout at `../agent-arena/`; remote TBD on codeberg.org/anuna
 target: standalone repo `agent-arena` (created 2026-05-08; Rust workspace; arena agent + library) plus an optional `agent-arena-cbcl` in-process harness for SPEC-011 byte-parity. SPEC-012 currently lives in this `cbcl-rs/specs/` directory and will move to `agent-arena/specs/` when implementation begins.
 ---
@@ -42,7 +43,7 @@ target: standalone repo `agent-arena` (created 2026-05-08; Rust workspace; arena
 | Document ID    | SPEC-012                                                             |
 | Title          | Agent Arena — Composable Referee on cbcl-lfe-router with Spindle Game Theories |
 | Status         | draft                                                                |
-| Version        | 0.3.4                                                                |
+| Version        | 0.3.5                                                                |
 | Date           | 2026-05-08                                                           |
 | Author         | Anuna Research                                                       |
 | Audience       | Engineering (composition + game authoring)                           |
@@ -86,6 +87,8 @@ The thesis is **not** a security claim about CBCL; that argument is owned by SPE
 **Hark as player CLI — generic, no arena coupling.** `hark recv` / `hark reply` is the player-side idiom for talking to *any* router agent and stays exactly that. Arena verbs are CBCL bodies (`(lang arena (seek :game psi …))`) flowing through hark as opaque payloads. NFR-1218 pins this: the arena imposes zero requirements on hark.
 
 **Substrate-agnostic dialect/game distribution.** The arena commits to (a) publishing every registered `(game …)` body inline on the catalogue stream and (b) serving any registered game by digest via `arena:fetch-game`. *How* clients acquire game definitions — out-of-band fetch from the catalogue, harness-driven download + local install, router-mediated push to subscribed agents — is a substrate concern, specified separately in `cbcl-lfe-router/specs/SPEC-009-dialect-distribution.md`. The natural realization is router-mediated push (announces propagate to subscribed hark daemons; hark caches by digest); the arena spec is agnostic between mechanisms.
+
+**Transcript is the world state; theory is a fold over it.** The arena does not maintain a separate "world state" datum alongside the transcript — for any cumulative view a game might need (a recommendation-feed history, an evolving graph memory, a running tally of votes), the theory derives it as a fold over the recorded frames plus the operator's setup facts. This makes large-N **emergence-class simulations** — thousands of LLM agents in a shared platform with continuous trajectories rather than discrete winners — fit the arena as a single large-N match: declare `(seat-roles ((citizen 100 10000)))`, write fold rules in SPL that compute aggregate `(metric ?name ?value)` conclusions (opinion entropy, viral reach, polarisation, time-to-consensus) at scoring time, and emit them in `arena:result`. The matchmaker's `arena:lobby` (REQ-1234) handles the seat instantiation; SPL handles the derivation; the result frame carries the metric vector. No spec extension is required. What is required is operational evidence — spindle-rust scaling to ~10⁶-fact theories, hark-style identity scaling to thousands of synthetic seats under one operator — both implementation concerns flagged for follow-on work.
 
 ### Scope
 
@@ -667,6 +670,8 @@ match_seed(pairing):
   ],
   "transcript_digests": [ "sha256:...", ... ],
   "scores":  [ { "seat": 0, "utility": ..., "security": ... }, ... ],
+  "metrics": [ { "name": "opinion-entropy", "value": 0.42 },
+               { "name": "viral-reach-seed-post", "value": 1247 } ],
   "winner":  null,
   "events":  [ { "kind": "seat-timeout", "seat": 2 } ],
   "wall_time_ms": 12345,
@@ -675,6 +680,17 @@ match_seed(pairing):
   "signature": "<ed25519 by arena's key over canonical(this frame minus signature)>"
 }
 ```
+
+**Recognised theory conclusions and how they map to the result frame:**
+
+- `(utility ?seat ?u)` — per-seat scalar in `scores[].utility`.
+- `(security ?seat ?s)` — per-seat scalar in `scores[].security`.
+- `(winner ?seat)` — top-level `winner` field; `null` if the rule did not fire (draws or non-winner-takes-all games).
+- `(metric ?name ?value)` — appended to top-level `metrics[]`. **Used by emergence-class large-N simulations** that report trajectory measurements (opinion entropy, viral reach, polarisation, time-to-consensus, …) instead of, or alongside, per-seat utility / security. A game's `(theory …)` may emit any number of `(metric …)` conclusions; their `?name` keys are part of the game's published surface.
+- `(blame ?seat ?reason)` — appended to top-level `events[]` for transparency.
+- `(security-scope-note ?text)` — appended to `honest_scope` (per-game qualifier).
+
+The arena emits whatever subset of these the theory derived; missing kinds are simply omitted from the result frame.
 
 **Implements:** REQ-1234, REQ-1242, REQ-1260, REQ-1270, REQ-1295, REQ-1296.
 
