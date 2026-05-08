@@ -2,7 +2,7 @@
 id: SPEC-012
 title: Agent Arena — Composable Referee on cbcl-lfe-router with Spindle Game Theories
 status: draft
-version: 0.3.3
+version: 0.3.4
 date: 2026-05-08
 author: Anuna Research (https://anuna.io)
 depends-on:
@@ -20,6 +20,7 @@ prior-art:
   - PROTO-001 (USDD Agent Protocol v1.4.0)
 related:
   - plans/EXTRACT-arena-platform.spl
+  - SPEC-013 (Evolver Agent — `../../agent-arena/specs/SPEC-013-evolver-agent.md`) — first-named consumer of the arena's primitives; runs a GA over `(game …)` definitions
 revision-history:
   - 0.1.0 (2026-05-06) — hosted-seats with `LlmBackend` / `DisciplinedSeat` inside the platform
   - 0.2.0 (2026-05-06) — referee proxy with custom JSON wire protocol; matchmaking promoted (ADR-1212)
@@ -27,8 +28,9 @@ revision-history:
   - 0.3.1 (2026-05-08) — multiplayer lobbies + live game teaching. Catalogue is also a stream (ADR-1223). 2P challenge becomes degenerate lobby (ADR-1224). Dialect propagation by content digest (ADR-1225).
   - 0.3.2 (2026-05-08) — game = single CBCL term `(game …)` with embedded SPL theory (ADR-1226), collapsing dialect+theory into one digest. Distribution mechanism made substrate-agnostic; router-side push specified separately. NFR-1218 pins "no hark modifications" symmetric with NFR-1212.
   - 0.3.3 (2026-05-08) — per-match live stream for public matches (REQ-1262, ADR-1228). Spectators are router-mediated subscribers — not an arena role; they sign nothing, post nothing, are pseudonymous to participants and invisible to the arena. Lobby gains `:public bool`; match-start carries it; result records whether the match was spectated.
-repository: standalone — TBD on codeberg.org/anuna
-target: standalone repo `agent-arena` (Rust; arena agent + library) plus an optional `agent-arena-cbcl` in-process harness for SPEC-011 byte-parity.
+  - 0.3.4 (2026-05-08) — doc-only: back-reference to SPEC-013 (Evolver Agent), now sketched in the standalone `agent-arena` repo. Updated `target:` line to note the standalone repo exists at `../agent-arena/`.
+repository: standalone — local checkout at `../agent-arena/`; remote TBD on codeberg.org/anuna
+target: standalone repo `agent-arena` (created 2026-05-08; Rust workspace; arena agent + library) plus an optional `agent-arena-cbcl` in-process harness for SPEC-011 byte-parity. SPEC-012 currently lives in this `cbcl-rs/specs/` directory and will move to `agent-arena/specs/` when implementation begins.
 ---
 
 # SPEC-012: Agent Arena — Composable Referee on cbcl-lfe-router with Spindle Game Theories
@@ -40,7 +42,7 @@ target: standalone repo `agent-arena` (Rust; arena agent + library) plus an opti
 | Document ID    | SPEC-012                                                             |
 | Title          | Agent Arena — Composable Referee on cbcl-lfe-router with Spindle Game Theories |
 | Status         | draft                                                                |
-| Version        | 0.3.3                                                                |
+| Version        | 0.3.4                                                                |
 | Date           | 2026-05-08                                                           |
 | Author         | Anuna Research                                                       |
 | Audience       | Engineering (composition + game authoring)                           |
