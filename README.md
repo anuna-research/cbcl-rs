@@ -20,7 +20,7 @@ cargo test --workspace
 # Parse a message
 cargo run -p cbcl-cli -- parse '(tell agent-b "hello")'
 
-# Verify a dialect
+# Verify a dialect (R1, R2, R3, R5)
 cargo run -p cbcl-cli -- verify dialect.scm
 
 # Run benchmarks
@@ -56,11 +56,12 @@ Early ACLs (KQML, FIPA-ACL) had fixed vocabularies that couldn't evolve without 
 
 CBCL occupies the "Goldilocks zone" between these extremes: a minimal core vocabulary (8 performatives) with a formal mechanism for agents to define, exchange, and adopt new domain-specific vocabularies ("dialects") at runtime — without centralized coordination and without escaping the DCFL complexity class.
 
-The key insight is *homoiconic self-extension*: dialect definitions are themselves valid CBCL messages in S-expression syntax, parsed and verified by the same deterministic pushdown automaton used for ordinary communication. Three safety constraints — verified in Lean 4 and enforced at runtime — ensure this self-extension is provably safe:
+The key insight is *homoiconic self-extension*: dialect definitions are themselves valid CBCL messages in S-expression syntax, parsed and verified by the same deterministic pushdown automaton used for ordinary communication. Safety constraints — verified in Lean 4 and enforced at runtime — ensure this self-extension is provably safe:
 
 - **R1 (No Recursion):** Dialect templates are purely declarative pattern-template substitutions. No cyclic dependencies, iteration, or reflection.
 - **R2 (Resource Bounds):** Every dialect declares static resource limits (depth, expansion size, verification time) enforced at both definition time and runtime.
 - **R3 (Core Preservation):** The eight core performatives (`tell`, `ask`, `reply`, `hello`, `bye`, `ok`, `error`, `cancel`) cannot be redefined by any dialect.
+- **R5 (Contract Well-formedness):** Optional `(protocol …)` and `(shape …)` clauses on a dialect — its causal-message contract and per-performative shape contracts — must be acyclic, fully reachable from `begin`, reference only defined performatives (with ancestor closure for `extends`), have no duplicate steps, and respect the dialect's R2 depth bound. All five sub-checks run at install time and are decidable in linear fuel.
 
 **Why DCFL?** It is the minimal complexity class that supports nested structure (agent messages have envelopes wrapping messages, dialects scoping inner messages) while guaranteeing *parser equivalence*: every conformant implementation produces exactly one parse tree for every input. This eliminates parser differential attacks by construction. Regular languages are insufficient for nesting; general CFG introduces ambiguity; anything above DCFL makes validity checking undecidable.
 
@@ -72,7 +73,7 @@ Full theoretical framework and proofs are in the LangSec '26 paper, available as
 
 - **Linear-time parser.** S-expression parser with O(n) time complexity and fuel-bounded recursion.
 - **Full message grammar.** Core performatives, dialects, templates — all parsed by one DPDA.
-- **Verified safety constraints.** R1 (no recursion), R2 (resource bounds), R3 (core preservation), R4 (integrity), each machine-checked in Lean 4.
+- **Verified safety constraints.** R1 (no recursion), R2 (resource bounds), R3 (core preservation), R4 (integrity), R5 (causal-protocol + shape contract well-formedness), each machine-checked in Lean 4.
 - **Deterministic message tagging** preserving DCFL properties under dialect union.
 - **Embedded-friendly.** `no_std + alloc` compatible pure core; `#![forbid(unsafe_code)]`.
 - **Polyglot bindings.** WASM target (`wasm32-unknown-unknown`) via `wasm-bindgen`; C FFI via `cbindgen`.
@@ -91,7 +92,7 @@ Full theoretical framework and proofs are in the LangSec '26 paper, available as
 
 ## Formal Verification
 
-The `lean-cbcl/` directory contains a Lean 4 formalization that machine-checks the core safety properties. Zero sorries, standard axioms only (`propext`, `Classical.choice`, `Quot.sound`), 300+ declarations across 16 files.
+The `lean-cbcl/` directory contains a Lean 4 formalization that machine-checks the core safety properties. Zero sorries, standard axioms only (`propext`, `Classical.choice`, `Quot.sound`), 380+ declarations across 19 files.
 
 | Rust module | Lean file | What is proved |
 |---|---|---|
@@ -102,6 +103,8 @@ The `lean-cbcl/` directory contains a Lean 4 formalization that machine-checks t
 | `r1.rs` | `R1NoRecursion.lean` | DFS cycle detection: **sound** (`true → ¬cycle`) **and complete** (`cycle → false`) |
 | `r2.rs` | `R2ResourceBounds.lean` | Bounded evaluation terminates; depth returns to original level |
 | `r3.rs` | `R3CorePreservation.lean` | Core performatives cannot be redefined by extension dialects |
+| `r5.rs`, `protocol.rs` | `R5.lean` | Causal-protocol + shape contract well-formedness: acyclicity, reachability, performative definedness, step uniqueness — full iff theorems for all four sub-checks |
+| `protocol.rs` (verify_causal) | `Verify.lean`, `Lattice/Result.lean`, `Lattice/Store.lean` | `verify : Message × CausalProtocol × MessageStore → VerificationResult` is monotone in the store, `(all …)` fan-in is the lattice meet, and replica results join coordination-free under store union (G-Set merge) |
 | `template.rs` | `TemplateExpansion.lean` | Expansion terminates within declared resource bounds |
 | `det_parser.rs` | `DetParser.lean` | DPDA agrees with boolean decider (`headCheck_agrees`, `langCheck_agrees`) |
 | `msg_tag.rs` | `DeterministicUnion.lean` | **`decidable_preserved`**, **`dcfl_preserved`**: installing a fresh-named dialect preserves DCFL membership (under `namesUnique`) |
@@ -112,6 +115,8 @@ The `lean-cbcl/` directory contains a Lean 4 formalization that machine-checks t
 - **`decidable_preserved`** / **`dcfl_preserved`**: installing a dialect with a fresh name into an agent with unique dialect names preserves decidability and DCFL membership of the agent's message language. (DCFL is a grammar-union closure property and is independent of R3, which is a semantic constraint on performative names; `install_preserves_core` and `install_no_core_redefinition` in `R3CorePreservation.lean` are the load-bearing R3 composition theorems.)
 - **`agentDetParser_agrees`**: the concrete DPDA agrees with the boolean membership decider on all inputs.
 - **`r1_mutual_sound`** + **`dfsNoCycle_complete`**: the DFS cycle detector is both sound and complete — it returns `true` iff no dependency cycle exists.
+- **`check_acyclicity_iff_no_cycle`** / **`check_reachability_iff_all_reachable`** / **`check_performative_definedness_iff_all_defined`** / **`check_step_uniqueness_iff_no_duplicates`**: each R5 sub-check returns `[]` iff the corresponding contract property holds on the dialect's causal protocol.
+- **`verify_monotone`** / **`verify_all_is_meet`** / **`verify_eventually_consistent`**: causal-protocol verification is a lattice homomorphism — monotone in the message store, `(all …)` fan-in is exactly the meet on the three-valued result lattice (`Valid ⊓ Unknown ⊓ Violation`), and replica verdicts join coordination-free under G-Set store merge (`verify M P S₁ ⊔ verify M P S₂ ⊑ verify M P (S₁ ∪ S₂)`). Merging knowledge can confirm but never overturn a per-replica verdict.
 - **`pipeline_success_grammar`**: if the verified pipeline accepts a string, the result satisfies the `ValidMessageGrammar` relation.
 
 Differential tests (`crates/cbcl-parser/tests/differential.rs`) run both implementations on the same test vectors and assert identical accept/reject verdicts.
@@ -132,7 +137,7 @@ Strict **purity boundary**: the core crates are deterministic, `no_std + alloc`,
 
 ## Contributing
 
-Bug reports live under [`bugs/`](bugs/) (Markdown with YAML frontmatter; severity S1-S4, priority P0-P2). Plans live under [`plans/`](plans/). Architecture decisions are recorded in `.hence/`. Before opening a PR, please run `cargo test --workspace` and, for changes touching verified modules, `lake build` from `lean-cbcl/`.
+Bug reports live under [`bugs/`](bugs/) (Markdown with YAML frontmatter; severity S1-S4, priority P0-P2). Plans live under [`plans/`](plans/). Design specs (SPEC-002 onward) live under [`specs/`](specs/); architecture decisions and the original SPEC-001 are recorded in `.hence/`. Before opening a PR, please run `cargo test --workspace` and, for changes touching verified modules, `lake build` from `lean-cbcl/`.
 
 ## License
 
