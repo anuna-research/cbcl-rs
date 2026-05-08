@@ -9,9 +9,9 @@
 [![LangSec '26](https://img.shields.io/badge/LangSec-'26-8a2be2.svg)](https://arxiv.org/abs/2604.14512)
 [![arXiv](https://img.shields.io/badge/arXiv-2604.14512-b31b1b.svg)](https://arxiv.org/abs/2604.14512)
 
-Rust implementation of **CBCL** (Common Business Communication Language) — a self-extensible, formally verified agent communication language. The core occupies the deterministic context-free (DCFL) sweet spot between fixed-vocabulary ACLs and unbounded JSON / natural-language protocols, so safety properties remain decidable as agents define new dialects at runtime.
+Rust implementation of **CBCL** (Common Business Communication Language), a self-extensible, formally verified agent communication language. The core sits in the deterministic context-free (DCFL) layer between fixed-vocabulary ACLs and unbounded JSON or natural-language protocols, so safety properties remain decidable as agents define new dialects at runtime.
 
-## Quick Start
+## Quick start
 
 ```bash
 # Run tests (837 tests across the workspace)
@@ -36,7 +36,7 @@ For the Lean 4 proofs:
 cd lean-cbcl && lake build
 ```
 
-## The Problem
+## The problem
 
 Language-theoretic security (LangSec) teaches that the computational complexity class of an input language determines the *category* of bugs its parsers can exhibit. Regular languages admit only finite-state bugs; context-free languages add stack-related bugs; Turing-complete inputs make parser correctness undecidable.
 
@@ -52,9 +52,9 @@ Agent communication protocols have moved *up* this hierarchy without acknowledgi
 
 Early ACLs (KQML, FIPA-ACL) had fixed vocabularies that couldn't evolve without out-of-band standardisation. The modern alternative — natural language and unrestricted JSON (MCP, LLM agent frameworks) — provides unlimited extensibility but creates an input language whose computational complexity is effectively unbounded. Determining whether an arbitrary message will cause harmful behaviour requires solving undecidable problems.
 
-## The Solution
+## The solution
 
-CBCL occupies the "Goldilocks zone" between these extremes: a minimal core vocabulary (8 performatives) with a formal mechanism for agents to define, exchange, and adopt new domain-specific vocabularies ("dialects") at runtime — without centralized coordination and without escaping the DCFL complexity class.
+CBCL sits between these extremes: a small core vocabulary (8 performatives) with a formal mechanism for agents to define, exchange, and adopt new domain-specific vocabularies ("dialects") at runtime, without centralised coordination and without escaping the DCFL complexity class.
 
 The key insight is *homoiconic self-extension*: dialect definitions are themselves valid CBCL messages in S-expression syntax, parsed and verified by the same deterministic pushdown automaton used for ordinary communication. Safety constraints — verified in Lean 4 and enforced at runtime — ensure this self-extension is provably safe:
 
@@ -91,9 +91,9 @@ Full theoretical framework and proofs are in the LangSec '26 paper, available as
 | `cbcl-ffi` | Shell | C FFI bindings |
 | `lean-cbcl` | Proofs | Lean 4 formal verification of core algorithms |
 
-## Formal Verification
+## Formal verification
 
-The `lean-cbcl/` directory contains a Lean 4 formalization that machine-checks the core safety properties. Zero sorries, standard axioms only (`propext`, `Classical.choice`, `Quot.sound`), 380+ declarations across 19 files.
+The `lean-cbcl/` directory contains a Lean 4 formalisation that machine-checks the core safety properties. Zero sorries, standard axioms only (`propext`, `Classical.choice`, `Quot.sound`), 380+ declarations across 19 files.
 
 | Rust module | Lean file | What is proved |
 |---|---|---|
