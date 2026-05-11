@@ -3,7 +3,7 @@
 **Date**: 2026-03-18
 **Scope**: USDD Tier 1 adversarial review of R4 integrity constraint implementation
 **Files reviewed**: `crates/cbcl-core/src/r4.rs`, `crates/cbcl-core/src/dialect.rs`, `crates/cbcl-core/src/serializer.rs`
-**Spec references**: IETF draft-cbcl.md §R4 (lines 435–742), SPEC-001.md REQ-090–091
+**Spec references**: IETF draft-cbcl.md §R4 (lines 435–742), `specs/SPEC-001.md` REQ-090–091
 **Reference impl**: `src/cbcl/signature.scm`
 
 ---
