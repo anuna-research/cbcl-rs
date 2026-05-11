@@ -19,7 +19,7 @@ Prerequisites: Rust 1.75+ (the workspace toolchain is pinned in `rust-toolchain.
 git clone https://codeberg.org/anuna/cbcl-rs
 cd cbcl-rs
 
-# Run tests (837 tests across the workspace)
+# Run tests (1034 tests across the workspace)
 cargo test --workspace
 
 # Parse a message
@@ -82,7 +82,7 @@ Full theoretical framework and proofs are in the LangSec '26 paper, available as
 - **Verified safety constraints.** R1 (no recursion), R2 (resource bounds), R3 (core preservation), R4 (integrity), R5 (causal-protocol + shape contract well-formedness), each machine-checked in Lean 4.
 - **Deterministic message tagging** preserving DCFL properties under dialect union.
 - **Embedded-friendly.** `no_std + alloc` compatible pure core; `#![forbid(unsafe_code)]`.
-- **Polyglot bindings.** WASM target (`wasm32-unknown-unknown`) via `wasm-bindgen`; C FFI via `cbindgen`.
+- **Polyglot bindings.** WASM target (`wasm32-unknown-unknown`) via `wasm-bindgen`; C FFI via `cbindgen`; Erlang/BEAM NIF via `rustler`.
 - **CLI tooling.** Parsing, verification, agent REPL, gossip simulation.
 
 ## Workspace
@@ -94,6 +94,7 @@ Full theoretical framework and proofs are in the LangSec '26 paper, available as
 | `cbcl-cli` | Shell | Command-line interface |
 | `cbcl-wasm` | Shell | WebAssembly bindings |
 | `cbcl-ffi` | Shell | C FFI bindings |
+| `cbcl-erl` | Shell | Erlang/BEAM NIF bindings via `rustler` |
 | `lean-cbcl` | Proofs | Lean 4 formal verification of core algorithms |
 
 ## Formal verification
@@ -133,7 +134,7 @@ Strict **purity boundary**: the core crates are deterministic, `no_std + alloc`,
 
 ## Testing
 
-- **Unit tests**: 584 in cbcl-core, 139 in cbcl-parser, 26 in cbcl-wasm, 14 in cbcl-ffi
+- **Unit tests**: 725 in cbcl-core, 178 in cbcl-parser, 62 in cbcl-wasm, 51 in cbcl-erl, 14 in cbcl-ffi, 4 in cbcl-cli
 - **Property tests**: 37 proptest cases (31 in cbcl-core, 6 in cbcl-parser) covering USDD verification properties
 - **Differential tests**: 21 integration tests comparing Rust vs Lean on shared test vectors
 - **Eventual-consistency / NFR tests**: 12 + 4 integration tests in cbcl-core
