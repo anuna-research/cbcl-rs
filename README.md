@@ -97,6 +97,16 @@ Full theoretical framework and proofs are in the LangSec '26 paper, available as
 | `cbcl-erl` | Shell | Erlang/BEAM NIF bindings via `rustler` |
 | `lean-cbcl` | Proofs | Lean 4 formal verification of core algorithms |
 
+## Related projects
+
+- [`cbcl-router`](https://codeberg.org/anuna/cbcl-router) — BEAM/LFE router
+  that uses this crate's parser and R1–R4 validators on every message,
+  dispatching asks from authenticated producers to capability-registered
+  agents.
+- [`hark`](https://codeberg.org/anuna/hark) — Rust CLI and per-user daemon
+  that connects an agent to `cbcl-router`, linking this crate for local parse
+  and R1–R5 validation at the `/send` and `recv` boundaries.
+
 ## Formal verification
 
 The `lean-cbcl/` directory contains a Lean 4 formalisation that machine-checks the core safety properties. Zero sorries, standard axioms only (`propext`, `Classical.choice`, `Quot.sound`), 380+ declarations across 19 files.
