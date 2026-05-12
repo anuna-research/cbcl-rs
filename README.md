@@ -1,4 +1,4 @@
-<img src="https://imagedelivery.net/O-SJhBv1S1zUZFvTxrBOhQ/d7ab3a6c-526d-4c21-5e66-d01dbafff400/smalllogo" alt="CBCL logo" width="350">
+<img src="https://imagedelivery.net/O-SJhBv1S1zUZFvTxrBOhQ/0ab77afb-28f0-44cd-4c8f-ddc2522ca500/smalllogo" alt="CBCL logo" width="350">
 
 # CBCL
 
