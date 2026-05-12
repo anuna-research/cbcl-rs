@@ -1,3 +1,5 @@
+<img src="https://imagedelivery.net/O-SJhBv1S1zUZFvTxrBOhQ/d7ab3a6c-526d-4c21-5e66-d01dbafff400/smalllogo" alt="CBCL logo" width="350">
+
 # CBCL
 
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
