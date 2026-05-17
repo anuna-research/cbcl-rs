@@ -2,7 +2,7 @@
 ; against a remote host agent.
 ;
 ; The dialect exposes a small read-only vocabulary of host queries
-; (ls, cat, pwd, uptime, uname, localtime, git-log, disk-free).
+; (ls, cat, localtime, git-log).
 ; There is no exec, shell, or system performative — anything the
 ; agent can be asked to do over this dialect is enumerated here.
 ; Any message not in this vocabulary is rejected at the recogniser
@@ -39,6 +39,11 @@
      (verification-time 30)))
 
   ; --- requests: each performative is a bounded host query ---
+  ;
+  ; Every performative carries at least one string-valued first
+  ; argument. cbcl-router's dispatcher extracts that string as the
+  ; capability suffix (capability = "<dialect>:<verb>"), so a
+  ; zero-arg performative cannot be routed in the current deploy.
 
   ; List a directory. The host enforces its own path allowlist; the
   ; dialect only commits to the request shape.
@@ -54,26 +59,13 @@
       :path path :bytes-max bytes-max
       :domain cli))
 
-  ; Current working directory of the host process.
-  (extend pwd ()
+  ; Host wall-clock time, returned in the requested format. The
+  ; reply's content carries the resolved ISO-8601 string and the
+  ; host's IANA timezone — the visual punchline when the producer
+  ; in one city asks an agent in another.
+  (extend localtime (format)
     (ask @cli-host
-      :domain cli))
-
-  ; Host uptime (seconds since boot, as reported by /proc/uptime).
-  (extend uptime ()
-    (ask @cli-host
-      :domain cli))
-
-  ; Kernel + os identification (sysname, release, machine).
-  (extend uname ()
-    (ask @cli-host
-      :domain cli))
-
-  ; Host wall-clock time and timezone. The demo's visual punchline:
-  ; the reply's :host-time field carries an offset like +10:00, so
-  ; the audience can see the message reached Sydney.
-  (extend localtime ()
-    (ask @cli-host
+      :format format
       :domain cli))
 
   ; Recent commits from a named repo in the host's known set. repo
@@ -84,27 +76,19 @@
       :repo repo :n n
       :domain cli))
 
-  ; Disk-free summary of the host's primary mounts.
-  (extend disk-free ()
-    (ask @cli-host
-      :domain cli))
-
   ; --- R5: causal protocol over the lifecycle ---
   ;
-  ; begin -> (any of the eight requests) -> ok
+  ; begin -> (any of the four requests) -> ok
   ;
   ; ok is the core CBCL terminator inherited from (cbcl). The agent's
-  ; response to a request is a core (reply <content> :thread ...)
-  ; form whose content is a structured s-expression of stdout, stderr,
-  ; exit-code, and host-time. The dialect does not need to declare a
-  ; reply performative because the reply uses CBCL core, not the
-  ; dialect.
+  ; response is a core (reply <content> :thread ...) form whose content
+  ; is a structured s-expression of stdout, stderr, exit-code, and
+  ; host-time. The dialect does not declare a reply performative
+  ; because the reply uses CBCL core, not the dialect.
 
   (protocol
-    (then begin
-          (any ls cat pwd uptime uname localtime git-log disk-free))
-    (then (any ls cat pwd uptime uname localtime git-log disk-free)
-          ok))
+    (then begin (any ls cat localtime git-log))
+    (then (any ls cat localtime git-log) ok))
 
   ; --- R5: shapes ---
   ;
@@ -114,11 +98,8 @@
   ; list). Paths are strings; counts and byte caps are numbers; the
   ; reply payload is plain structured output.
 
-  ; Shape clauses are declared only for performatives that take
-  ; keyword args. Zero-arg performatives (pwd, uptime, uname,
-  ; localtime, disk-free) have no shape clause — there is nothing
-  ; to require — and R5 REQ-206 still rejects any extra keys.
-  ; Replies use core CBCL (reply ...) and so have no dialect shape.
+  ; Shape clauses pin the keyword params on every expanded message.
+  ; Replies use core CBCL (reply ...) so have no dialect shape.
 
   (shape ls
     (require :path string))
@@ -126,6 +107,9 @@
   (shape cat
     (require :path string)
     (require :bytes-max number))
+
+  (shape localtime
+    (require :format string))
 
   (shape git-log
     (require :repo string)
@@ -150,7 +134,8 @@
 ;
 ; M1  begin -> localtime
 ;   (lang cbcl-cli
-;     (localtime :thread "rcpt-def456" :caused-by "begin"))
+;     (localtime "iso8601"
+;       :thread "rcpt-def456" :caused-by "begin"))
 ;
 ; M2  reply
 ;   (reply (list :stdout "Thu 21 May 2026 13:42:07 AEST"
