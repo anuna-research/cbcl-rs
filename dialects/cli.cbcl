@@ -1,0 +1,177 @@
+; cbcl-cli: a CBCL dialect for typed, bounded command invocation
+; against a remote host agent.
+;
+; The dialect exposes a small read-only vocabulary of host queries
+; (ls, cat, pwd, uptime, uname, localtime, git-log, disk-free).
+; There is no exec, shell, or system performative — anything the
+; agent can be asked to do over this dialect is enumerated here.
+; Any message not in this vocabulary is rejected at the recogniser
+; before reaching the host's executor.
+;
+; The dialect describes the request side only. Replies are core
+; CBCL (reply ...) forms carrying structured content (stdout, stderr,
+; exit-code, host-time). The asymmetry is deliberate: the dialect's
+; job is to bound the attack surface — what an untrusted peer can
+; ask the agent to do. The agent's own outbound is trusted by
+; construction, so its replies do not need a dialect-defined
+; performative.
+;
+; Used in the LangSec 2026 demo to show capability-bounded dispatch
+; through cbcl-router: a producer in San Francisco sends an ask over
+; HTTPS to cbcl-lfe.anuna.io; the router dispatches to the hark
+; agent in Sydney over WSS; the agent runs the bounded command and
+; returns a cli-result. An out-of-dialect form (e.g. (rm-rf ...))
+; returns an R5 violation before the agent ever sees it.
+;
+; Note on template structure: shape verification (REQ-220 et seq.) is
+; non-recursive on the expanded message, so dialect-meaningful
+; keyword parameters are surfaced at the top level of every
+; (ask …) / (tell …) rather than buried in an inner content form.
+;
+; Related specs:
+;   specs/SPEC-002-structural-contracts.md   (R5 protocol + shape grammar)
+;   specs/SPEC-009-dialect-distribution.md   (router-side teach/query)
+
+(define cbcl-cli (cbcl) @anuna-research
+  (:resource-requirements
+    ((max-depth 6)
+     (max-expansion-size 2048)
+     (verification-time 30)))
+
+  ; --- requests: each performative is a bounded host query ---
+
+  ; List a directory. The host enforces its own path allowlist; the
+  ; dialect only commits to the request shape.
+  (extend ls (path)
+    (ask @cli-host
+      :path path
+      :domain cli))
+
+  ; Read a file, capped at bytes-max bytes. The agent rejects paths
+  ; outside its allowlist and truncates oversize reads.
+  (extend cat (path bytes-max)
+    (ask @cli-host
+      :path path :bytes-max bytes-max
+      :domain cli))
+
+  ; Current working directory of the host process.
+  (extend pwd ()
+    (ask @cli-host
+      :domain cli))
+
+  ; Host uptime (seconds since boot, as reported by /proc/uptime).
+  (extend uptime ()
+    (ask @cli-host
+      :domain cli))
+
+  ; Kernel + os identification (sysname, release, machine).
+  (extend uname ()
+    (ask @cli-host
+      :domain cli))
+
+  ; Host wall-clock time and timezone. The demo's visual punchline:
+  ; the reply's :host-time field carries an offset like +10:00, so
+  ; the audience can see the message reached Sydney.
+  (extend localtime ()
+    (ask @cli-host
+      :domain cli))
+
+  ; Recent commits from a named repo in the host's known set. repo
+  ; is a logical name resolved by the agent against its config; n is
+  ; the number of commits to return (host enforces its own ceiling).
+  (extend git-log (repo n)
+    (ask @cli-host
+      :repo repo :n n
+      :domain cli))
+
+  ; Disk-free summary of the host's primary mounts.
+  (extend disk-free ()
+    (ask @cli-host
+      :domain cli))
+
+  ; --- R5: causal protocol over the lifecycle ---
+  ;
+  ; begin -> (any of the eight requests) -> ok
+  ;
+  ; ok is the core CBCL terminator inherited from (cbcl). The agent's
+  ; response to a request is a core (reply <content> :thread ...)
+  ; form whose content is a structured s-expression of stdout, stderr,
+  ; exit-code, and host-time. The dialect does not need to declare a
+  ; reply performative because the reply uses CBCL core, not the
+  ; dialect.
+
+  (protocol
+    (then begin
+          (any ls cat pwd uptime uname localtime git-log disk-free))
+    (then (any ls cat pwd uptime uname localtime git-log disk-free)
+          ok))
+
+  ; --- R5: shapes ---
+  ;
+  ; Each shape pins the keyword parameters every expanded message of
+  ; that performative must carry, with type constraints drawn from
+  ; the six primitives (string / number / bool / symbol / keyword /
+  ; list). Paths are strings; counts and byte caps are numbers; the
+  ; reply payload is plain structured output.
+
+  ; Shape clauses are declared only for performatives that take
+  ; keyword args. Zero-arg performatives (pwd, uptime, uname,
+  ; localtime, disk-free) have no shape clause — there is nothing
+  ; to require — and R5 REQ-206 still rejects any extra keys.
+  ; Replies use core CBCL (reply ...) and so have no dialect shape.
+
+  (shape ls
+    (require :path string))
+
+  (shape cat
+    (require :path string)
+    (require :bytes-max number))
+
+  (shape git-log
+    (require :repo string)
+    (require :n number)))
+
+; --- Worked example: ls round trip from SF -> Singapore -> Sydney ---
+;
+; M1  begin -> ls
+;   (lang cbcl-cli
+;     (ls "/home/hugo/Code"
+;       :thread "rcpt-abc123"
+;       :caused-by "begin"))
+;
+; M2  the agent's reply is core CBCL, not a dialect performative
+;   (reply (list :stdout "cbcl-router\ncbcl-rs\nhark\nlangsec26\n"
+;                :stderr ""
+;                :exit-code 0
+;                :host-time "2026-05-21T13:42:07+10:00")
+;     :thread "rcpt-abc123")
+;
+; --- Worked example: timezone reveal ---
+;
+; M1  begin -> localtime
+;   (lang cbcl-cli
+;     (localtime :thread "rcpt-def456" :caused-by "begin"))
+;
+; M2  reply
+;   (reply (list :stdout "Thu 21 May 2026 13:42:07 AEST"
+;                :stderr ""
+;                :exit-code 0
+;                :host-time "2026-05-21T13:42:07+10:00")
+;     :thread "rcpt-def456")
+;
+; The audience sees "+10:00" in the reply's host-time and Australia
+; in the stdout — the message reached Sydney.
+;
+; --- Worked example: out-of-dialect rejection ---
+;
+; A peer attempts an undeclared form:
+;
+;   (lang cbcl-cli
+;     (rm-rf :path "/etc/passwd" :caused-by "begin"))
+;
+; The recogniser rejects this before any agent sees it. R5
+; REQ-206 (performative definedness) fails: rm-rf is not declared
+; as an extend. cbcl-cli only admits the eight host queries
+; enumerated above. The router returns the typed rejection to the
+; producer; no frame is dispatched; no agent process is ever
+; consulted about whether to run the command.
