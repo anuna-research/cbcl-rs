@@ -131,4 +131,25 @@ $\mathit{Valid}$; and every pooled (\code{(any role[*])}) obligation has at leas
 occupant.
 \end{definition}
 
+\subsection{Local executions}
+Projection lifts from protocols (Def~\ref{def:proj}) to runs.
+
+\begin{definition}[Run projection]
+\label{def:run-proj}
+For a configuration $C$ and role $r$, $\mathrm{project}(C,r)$ is the set of $m\in C$ with
+$\mathrm{from}(m)=r$ or $r\in\mathrm{to}(m)$, with bystanders erased and causal edges
+spliced through the erasure, as in Def~\ref{def:proj}.
+\end{definition}
+
+\begin{definition}[Local validity]
+\label{def:localvalid}
+A local run $L$ is \emph{locally $P$-safe for $r$} iff no $m\in L$ is $\mathit{Violation}$
+under $\mathrm{project}(P,r)$ with store $L$ (Def~\ref{def:rolelocal});
+\emph{locally complete for $r$} iff it additionally discharges every obligation of
+$\mathrm{project}(P,r)$ restricted to $r$ (cf.\ Def~\ref{def:pcomplete}).
+\end{definition}
+
+By Theorem~\ref{thm:equiv}, when $P$ satisfies R6 a locally $P$-safe run carries no
+spurious $\mathit{Unknown}$ for a predecessor $r$ cannot observe.
+
 \end{document}
