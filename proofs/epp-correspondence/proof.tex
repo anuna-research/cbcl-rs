@@ -179,4 +179,25 @@ Closed: for $m\in\mathrm{glue}(F)$, $m\in L_r$ for some $r$; by Coverage every
 $\hbar\in\mathrm{pred}(m)$ resolves to some $m'\in L_r\subseteq\mathrm{glue}(F)$.
 \end{proof}
 
+\begin{lemma}[Spliced--global reconciliation]
+\label{lem:reconcile}
+Let $P$ satisfy R6 and $r$ a role.
+\textup{(i)} For a closed configuration $C$ and $m\in\mathrm{project}(C,r)$, the
+predecessors of $m$ named in $\mathrm{project}(P,r)$ resolve within
+$\mathrm{project}(C,r)$, to the same messages (by hash) as $m$'s $P$-predecessors in $C$
+after splicing erased bystanders.
+\textup{(ii)} For a compatible family $F$ and $m\in L_r$, the spliced predecessors of $m$
+in $\mathrm{project}(P,r)$ resolve, via Coverage, to the same messages in
+$\mathrm{glue}(F)$ that witness $m$'s $P$-predecessors globally.
+\end{lemma}
+\begin{proof}
+By projectability (Def~\ref{def:projectable}, from R6, Def~\ref{def:r6}) every predecessor
+named in $\mathrm{project}(P,r)$ is a performative $r$ sends or receives, hence present in
+the local run whenever its global witness is; splicing (Def~\ref{def:proj},
+Def~\ref{def:run-proj}) composes exactly the erased bystander edges, and content hashes
+identify messages, so the spliced local witness and the global witness coincide.
+\textup{(i)} uses closure of $C$; \textup{(ii)} uses Coverage (Def~\ref{def:compatible})
+for presence and Agreement for hash identity.
+\end{proof}
+
 \end{document}
