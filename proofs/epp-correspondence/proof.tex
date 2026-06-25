@@ -152,4 +152,31 @@ $\mathrm{project}(P,r)$ restricted to $r$ (cf.\ Def~\ref{def:pcomplete}).
 By Theorem~\ref{thm:equiv}, when $P$ satisfies R6 a locally $P$-safe run carries no
 spurious $\mathit{Unknown}$ for a predecessor $r$ cannot observe.
 
+\subsection{Gluing}
+
+\begin{definition}[Family and compatibility]
+\label{def:compatible}
+A \emph{family} $F=\{L_r\}_{r}$ has one local run per role.
+$F$ is \emph{compatible} iff:
+\emph{(Agreement)} messages occurring in two runs with equal hash are identical;
+\emph{(Coverage)} for every $m\in L_r$ and every $r'\in\{\mathrm{from}(m)\}\cup\mathrm{to}(m)$,
+$m\in L_{r'}$, and every $\hbar\in\mathrm{pred}(m)$ resolves to a message present in $L_r$.
+\end{definition}
+
+\begin{definition}[Gluing]
+\label{def:glue}
+$\mathrm{glue}(F)=\bigcup_r L_r$, deduplicated by hash.
+\end{definition}
+
+\begin{lemma}[Glue is well-defined and closed]
+\label{lem:glue-closed}
+For a compatible family $F$, $\mathrm{glue}(F)$ is a configuration and is closed.
+\end{lemma}
+\begin{proof}
+Well-defined: equal-hash messages are identical by Agreement, so the deduplicated union
+is a set of messages.
+Closed: for $m\in\mathrm{glue}(F)$, $m\in L_r$ for some $r$; by Coverage every
+$\hbar\in\mathrm{pred}(m)$ resolves to some $m'\in L_r\subseteq\mathrm{glue}(F)$.
+\end{proof}
+
 \end{document}
