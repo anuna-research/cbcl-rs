@@ -1,0 +1,104 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\newcommand{\code}[1]{\texttt{#1}}
+\newcommand{\caused}{\code{:caused-by}}
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}
+\newtheorem{proposition}{Proposition}
+\newtheorem{lemma}{Lemma}
+\newtheorem{corollary}{Corollary}
+\title{The Endpoint-Projection Correspondence for CBCL\\(standalone proof development)}
+\author{Anuna Research}
+\date{\today}
+\begin{document}
+\maketitle
+
+\section{Preliminaries (recap)}
+\label{sec:prelim}
+We recall, without proof, the CBCL results this development builds on; they are
+established in the paper and the mechanized R1--R5 development.
+
+\begin{definition}[Projection on protocols]
+\label{def:proj}
+$\mathrm{project}(P,r)$ maps a role-annotated protocol $P$ and role $r$ to a local
+protocol whose steps are tagged from $r$'s viewpoint: a performative with
+$\mathrm{from}=r$ is a \emph{Send}, one with $r\in\mathrm{to}$ a \emph{Recv}, and one in
+which $r$ neither sends nor receives a \emph{bystander}, erased with its causal edges
+spliced (transitively closed) through the erasure.
+\end{definition}
+
+\begin{definition}[Projectability]
+\label{def:projectable}
+$P$ is \emph{projectable onto $r$} iff $r$'s local protocol references, as a
+predecessor, only performatives that $r$ itself sends or receives.
+\end{definition}
+
+\begin{definition}[Role-local verification]
+\label{def:rolelocal}
+On an incoming message $m$, the verifier checks role conformance (a signature predicate
+on immutable fields) and runs the causal verifier against $\mathrm{project}(P,r)$ and
+$r$'s store.
+\end{definition}
+
+\begin{definition}[Valid-sticky verdict lattice]
+\label{lat:lattice}
+Verdicts are $\mathit{Unknown}$ (bottom) and the incomparable maximal $\mathit{Valid}$,
+$\mathit{Violation}$ (a flat lattice; no top).
+\code{(all \ldots)} composes by meet, \code{(any \ldots)} by join.
+Under store growth a verdict moves up from $\mathit{Unknown}$; $\mathit{Valid}$ is
+permanent, $\mathit{Violation}$ permanent only once all alternatives of a containing
+\code{(any \ldots)} have resolved.
+\end{definition}
+
+\begin{theorem}[Projectability $\equiv$ local verifiability]
+\label{thm:equiv}
+If $P$ is projectable onto $r$, then verification of any $r$-relevant message over
+$\mathrm{project}(P,r)$ and $r$'s local store never returns $\mathit{Unknown}$ for a
+predecessor $r$ cannot eventually observe.
+\end{theorem}
+
+\begin{proposition}[Monotonicity, valid-sticky]
+\label{prop:mono}
+Role-local verification is monotone into the verdict lattice in the valid-sticky order:
+$\mathit{Valid}$ is stable under store growth; $\mathit{Unknown}$ and $\mathit{Violation}$
+are tentative.
+\end{proposition}
+
+\begin{proposition}[DCFL preservation]
+\label{prop:dcfl}
+Each local protocol's accepted language is regular, hence DCFL; projection adds no
+recogniser.
+\end{proposition}
+
+\begin{definition}[R6 well-formedness]
+\label{def:r6}
+A role-annotated protocol satisfies \emph{R6} iff it is role-complete, chooser-coherent,
+projectable onto every role, every role is reachable from \code{begin}, and every choice
+is decided by a single agent.
+\end{definition}
+
+\section{Formal Model}
+\label{sec:model}
+
+\subsection{Substrate}
+A \emph{message} $m$ carries a content hash $h(m)$, a performative type $\tau(m)$, a
+sender role $\mathrm{from}(m)$, a set of recipient roles $\mathrm{to}(m)$, and a set of
+predecessor hashes $\mathrm{pred}(m)$; all references are thread-scoped.
+A protocol $P$ (satisfying R6, Def~\ref{def:r6}) fixes, per performative, its predecessor
+clauses (\code{(any \ldots)}/\code{(all \ldots)}) and sender/recipient roles.
+
+\begin{definition}[Configuration]
+\label{def:config}
+A \emph{configuration} $C$ is a finite set of messages.
+$C$ is \emph{closed} iff causally down-closed: for every $m\in C$ and
+$\hbar\in\mathrm{pred}(m)$ there is $m'\in C$ with $h(m')=\hbar$.
+\end{definition}
+
+A configuration need not be closed: a dangling predecessor leaves the dependent message
+at $\mathit{Unknown}$, never $\mathit{Violation}$.
+Global executions of interest are closed configurations.
+
+\end{document}
