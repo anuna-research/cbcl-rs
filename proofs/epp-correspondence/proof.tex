@@ -101,4 +101,34 @@ A configuration need not be closed: a dangling predecessor leaves the dependent 
 at $\mathit{Unknown}$, never $\mathit{Violation}$.
 Global executions of interest are closed configurations.
 
+\subsection{Global validity}
+We use two levels: a monotone safety core and a terminal completion predicate.
+
+\begin{definition}[Safety]
+\label{def:psafe}
+A configuration $C$ is \emph{$P$-safe} iff no $m\in C$ has verdict $\mathit{Violation}$
+under $P$ with store $C$; $\mathit{Unknown}$ is tolerated.
+\end{definition}
+
+\begin{proposition}[Safety is subset-closed]
+\label{prop:safe-mono}
+If $C\subseteq C'$ and $C'$ is $P$-safe then $C$ is $P$-safe.
+\end{proposition}
+\begin{proof}
+A $\mathit{Violation}$ depends only on immutable fields of $m$ and on predecessors
+present in the store (Def~\ref{def:rolelocal}); deleting messages can only turn a
+resolved predecessor absent, i.e.\ $\mathit{Valid}/\mathit{Violation}\to\mathit{Unknown}$
+(Def~\ref{lat:lattice}), never create a new $\mathit{Violation}$.
+Hence no $m\in C$ is a $\mathit{Violation}$ under $C$.
+\end{proof}
+
+\begin{definition}[Completion]
+\label{def:pcomplete}
+A closed configuration $C$ is \emph{$P$-complete} iff it is $P$-safe and every obligation
+is discharged: for each taken branch every required performative is present; every indexed
+(\code{(all role[*])}) fan-in whose membership is sealed has all members present and
+$\mathit{Valid}$; and every pooled (\code{(any role[*])}) obligation has at least one
+occupant.
+\end{definition}
+
 \end{document}
