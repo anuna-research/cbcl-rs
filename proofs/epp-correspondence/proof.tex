@@ -38,9 +38,12 @@ predecessor, only performatives that $r$ itself sends or receives.
 
 \begin{definition}[Role-local verification]
 \label{def:rolelocal}
-On an incoming message $m$, the verifier checks role conformance (a signature predicate
-on immutable fields) and runs the causal verifier against $\mathrm{project}(P,r)$ and
-$r$'s store.
+On an incoming message $m$, the verifier checks \emph{role conformance}---a predicate on
+immutable fields requiring $\mathrm{from}(m)$ and $\mathrm{to}(m)$ to match the
+sender/recipient roles $P$ annotates for $\tau(m)$, returning $\mathit{Violation}$ on
+mismatch---and runs the causal verifier against $\mathrm{project}(P,r)$ and $r$'s store.
+Consequently a $P$-safe configuration is \emph{role-conformant}: every message's roles
+match its performative's annotations.
 \end{definition}
 
 \begin{definition}[Valid-sticky verdict lattice]
@@ -132,34 +135,19 @@ occupant.
 \end{definition}
 
 \subsection{Local executions}
-A message $m$ is \emph{$r$-relevant} iff $\mathrm{from}(m)=r$ or $r\in\mathrm{to}(m)$;
-otherwise it is a \emph{bystander} for $r$.
-Projection lifts from protocols (Def~\ref{def:proj}) to runs, rewriting each retained
-message's predecessors to the part $r$ can observe.
-
-\begin{definition}[$r$-observable spliced predecessors]
-\label{def:predr}
-For a configuration $C$, role $r$, and $r$-relevant $m\in C$, $\mathrm{pred}_r(m)$ is the
-set of \emph{nearest $r$-relevant ancestors} of $m$: follow $\mathrm{pred}$ edges from
-$m$, skipping bystanders transitively, and collect the first $r$-relevant message on each
-path.
-The chains are finite (a configuration is finite and acyclic), so $\mathrm{pred}_r$ is
-well-defined.
-\end{definition}
+A message $m$ is \emph{$r$-relevant} iff $\mathrm{from}(m)=r$ or $r\in\mathrm{to}(m)$.
 
 \begin{definition}[Run projection]
 \label{def:run-proj}
-$\mathrm{project}(C,r)$ retains the $r$-relevant messages of $C$, erases bystanders, and
-gives each retained $m$ the predecessor set $\mathrm{pred}_r(m)$ in place of its raw
-$\mathrm{pred}(m)$.
-$\mathrm{project}(P,r)$ performs the matching splice on protocol edges
-(Def~\ref{def:proj}).
+$\mathrm{project}(C,r)$ is the set of $r$-relevant messages of $C$, each \emph{retaining
+its raw} \caused{} (its $\mathrm{pred}$); no predecessor is rewritten.
+$\mathrm{project}(P,r)$ is role $r$'s local protocol (Def~\ref{def:proj}).
 \end{definition}
 
 \begin{definition}[Local validity]
 \label{def:localvalid}
 A local run $L$ is \emph{locally $P$-safe for $r$} iff no $m\in L$ is $\mathit{Violation}$
-under $\mathrm{project}(P,r)$ (over $\mathrm{pred}_r$) with store $L$ (Def~\ref{def:rolelocal});
+under $\mathrm{project}(P,r)$ with store $L$ (Def~\ref{def:rolelocal});
 \emph{locally complete for $r$} iff it additionally discharges every obligation of
 $\mathrm{project}(P,r)$ restricted to $r$ (cf.\ Def~\ref{def:pcomplete}).
 \end{definition}
@@ -177,17 +165,14 @@ $F$ is \emph{compatible} iff:
 \emph{(Coverage)} for every $m\in L_r$:
 \textup{(a)} $m\in L_{r'}$ for every endpoint $r'\in\{\mathrm{from}(m)\}\cup\mathrm{to}(m)$;
 and
-\textup{(b)} every raw predecessor $b$ of $m$ (each $b$ with $h(b)\in\mathrm{pred}(m)$)
-appears in the family, namely in $L_{\mathrm{from}(b)}$.
+\textup{(b)} every \caused{} predecessor of $m$ is itself in $L_r$---each local run is
+\emph{causally closed}.
 \end{definition}
 
 \noindent
-Two consequences follow.
-First, $\mathrm{pred}_r(m)\subseteq L_r$ for $m\in L_r$: each nearest $r$-relevant ancestor
-is reached down a finite bystander chain, along which (b) keeps every link in the family
-and (a) places the $r$-relevant endpoint in $L_r$.
-Second, every raw predecessor reappears in some $L_{\mathrm{from}(b)}$, giving closure of
-$\mathrm{glue}(F)$.
+Coverage(b) is exactly the closure that $\mathrm{project}(C,r)$ enjoys by Local
+resolvability (Lemma~\ref{lem:localres}); requiring it asks no more than that each run be a
+genuine projection.
 
 \begin{definition}[Gluing]
 \label{def:glue}
@@ -201,53 +186,50 @@ For a compatible family $F$, $\mathrm{glue}(F)$ is a configuration and is closed
 \begin{proof}
 Well-defined: equal-hash messages are identical by Agreement, so the deduplicated union
 is a set of messages.
-Closed: for $m\in\mathrm{glue}(F)$, $m\in L_r$ for some $r$; by Coverage(b) every raw
-predecessor $b$ of $m$ lies in $L_{\mathrm{from}(b)}\subseteq\mathrm{glue}(F)$.
+Closed: for $m\in\mathrm{glue}(F)$, $m\in L_r$ for some $r$; by Coverage(b) every
+\caused{} predecessor of $m$ lies in $L_r\subseteq\mathrm{glue}(F)$.
 \end{proof}
 
-\begin{lemma}[Bystander-splice commutation]
-\label{lem:splice}
-Let $C$ be a $P$-safe configuration and $r$ a role.
-For every $r$-relevant $m\in C$, the set $\mathrm{pred}_r(m)$ (computed over $C$'s raw
-$\mathrm{pred}$ edges, Def~\ref{def:predr}) equals, as a set of message hashes, the
-predecessor set named by $\mathrm{project}(P,r)$ for $m$.
+\begin{lemma}[Local resolvability]
+\label{lem:localres}
+Let $C$ be a $P$-safe configuration of a protocol satisfying R6, and $m\in C$.
+For every endpoint $r$ of $m$ (i.e.\ $\mathrm{from}(m)=r$ or $r\in\mathrm{to}(m)$), every
+\caused{} predecessor of $m$ is $r$-relevant, hence lies in $\mathrm{project}(C,r)$.
 \end{lemma}
 \begin{proof}
-Induct on the length of the longest bystander chain below $m$.
-As $C$ is $P$-safe every message conforms to $P$ (Def~\ref{def:psafe},
-Def~\ref{def:rolelocal}), so a message is $r$-relevant iff its performative is
-$r$-relevant: role annotations are carried by the performative.
-\emph{Base.} A raw predecessor $b$ of $m$ that is $r$-relevant: conformance makes
-$\tau(b)$ a legal $P$-predecessor of $\tau(m)$, and $\mathrm{project}(P,r)$ keeps that
-edge (its performative is $r$-relevant), so $b\in\mathrm{pred}_r(m)$ matches the named
-edge.
-\emph{Step.} A raw predecessor $b$ that is a bystander: its performative is a bystander
-for $r$, so $\mathrm{project}(P,r)$ erases it and splices through it
-(Def~\ref{def:proj}); by the induction hypothesis the $\mathrm{pred}_r$-edges through $b$
-equal the $\mathrm{project}(P,r)$-edges through $b$, and composing the splice at $m$ gives
-the claim.
-The two splices---hash-edge ($\mathrm{pred}_r$) and protocol-edge
-($\mathrm{project}(P,r)$)---therefore coincide as sets.
+Let $b$ be a predecessor of $m$ ($h(b)\in\mathrm{pred}(m)$).
+Since $C$ is $P$-safe, $m$ is not a $\mathit{Violation}$, so $\tau(b)$ is a legal
+predecessor type of $\tau(m)$ under $P$.
+As $r$ is an endpoint of $m$, the step for $\tau(m)$ lies in $\mathrm{project}(P,r)$;
+projectability of $P$ onto $r$ (Def~\ref{def:r6}) requires every predecessor it names to be
+a performative $r$ sends or receives, so $r$ is a sender/recipient role of $\tau(b)$.
+Role-conformance of the $P$-safe $C$ (Def~\ref{def:rolelocal}) makes $\mathrm{from}(b)$ and
+$\mathrm{to}(b)$ match $\tau(b)$'s annotations, so $r$ is an endpoint of $b$; thus $b$ is
+$r$-relevant and $b\in\mathrm{project}(C,r)$.
 \end{proof}
 
-\begin{lemma}[Spliced--global reconciliation]
+\begin{lemma}[Reconciliation: verdicts agree]
 \label{lem:reconcile}
-Let $P$ satisfy R6 and $r$ a role.
-\textup{(i)} For a $P$-safe closed configuration $C$ and $m\in\mathrm{project}(C,r)$,
-$\mathrm{pred}_r(m)$ resolves within $\mathrm{project}(C,r)$ and equals the predecessor
-set named by $\mathrm{project}(P,r)$ for $m$.
-\textup{(ii)} For a compatible family $F$ with each $L_r$ locally $P$-safe and $m\in L_r$,
-$\mathrm{pred}_r(m)\subseteq L_r$, and by Agreement its members are the same messages in
-$\mathrm{glue}(F)$ that witness $m$'s $P$-predecessors globally.
+Let $P$ satisfy R6.
+\textup{(i)} For a $P$-safe closed configuration $C$, role $r$, and
+$m\in\mathrm{project}(C,r)$, role-local verification of $m$ over $\mathrm{project}(P,r)$ with
+store $\mathrm{project}(C,r)$ returns the same verdict as verification of $m$ over $P$ with
+store $C$.
+\textup{(ii)} For a compatible family $F$ with each $L_r$ locally $P$-safe, role $r$, and
+$m\in L_r$, verification of $m$ over store $\mathrm{glue}(F)$ returns the same verdict as
+over store $L_r$.
 \end{lemma}
 \begin{proof}
-The set equality with the $\mathrm{project}(P,r)$-named predecessors is
-Lemma~\ref{lem:splice} (using $P$-safety).
-\textup{(i)} Each nearest $r$-relevant ancestor is $r$-relevant, hence retained in
-$\mathrm{project}(C,r)$; closure of $C$ supplies the intermediate raw links.
-\textup{(ii)} $\mathrm{pred}_r(m)\subseteq L_r$ is the first consequence of Coverage
-(Def~\ref{def:compatible}); Agreement identifies these members with the global witnesses
-in $\mathrm{glue}(F)$.
+Verification of $m$ reads only $m$'s immutable fields and the messages named by its
+\caused{} (Def~\ref{def:rolelocal}, Def~\ref{lat:lattice}); role conformance and the
+predecessor-type checks, composed by meet/join for \code{(all \ldots)}/\code{(any \ldots)},
+depend only on those.
+\textup{(i)} By Local resolvability (Lemma~\ref{lem:localres}) every \caused{} predecessor
+of $m$ lies in $\mathrm{project}(C,r)\subseteq C$ with the same hash, so both verifications
+read identical messages and return the same verdict.
+\textup{(ii)} By Coverage(b) every \caused{} predecessor of $m$ lies in
+$L_r\subseteq\mathrm{glue}(F)$, and by Agreement the shared messages are identical, so
+neither store offers $m$ a predecessor the other lacks; the verdicts coincide.
 \end{proof}
 
 \end{document}
