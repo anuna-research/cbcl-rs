@@ -167,7 +167,8 @@ spurious $\mathit{Unknown}$ for a predecessor $r$ cannot observe.
 
 \begin{definition}[Family and compatibility]
 \label{def:compatible}
-A \emph{family} $F=\{L_r\}_{r}$ has one local run per role.
+A \emph{family} $F=\{L_r\}_{r}$ has one local run per role, each $L_r$ a set of
+$r$-relevant messages.
 $F$ is \emph{compatible} iff:
 \emph{(Agreement)} messages occurring in two runs with equal hash are identical; and
 \emph{(Coverage)} for every $m\in L_r$:
@@ -270,5 +271,100 @@ $\mathrm{project}(P,r)$; local completeness of $L_r$ discharges it there, and th
 messages lie in $L_r\subseteq\mathrm{glue}(F)$, with sealed memberships fixed by (Seal).
 Hence $\mathrm{glue}(F)$ is $P$-complete.
 \end{proof}
+
+\section{The correspondence}
+\label{sec:corr}
+
+\begin{theorem}[EPP correspondence]
+\label{thm:epp}
+Let $P$ satisfy R6.
+\begin{enumerate}
+\item[(1)] \emph{Soundness.} If $C$ is a $P$-safe (resp.\ $P$-complete) closed
+configuration, then for every role $r$, $\mathrm{project}(C,r)$ is locally $P$-safe (resp.\
+locally complete) for $r$.
+\item[(2)] \emph{Completeness.} If $F=\{L_r\}$ is a \emph{compatible} family with each
+$L_r$ locally $P$-safe (resp.\ locally complete), then $\mathrm{glue}(F)$ is a $P$-safe
+(resp.\ $P$-complete) closed configuration.
+\item[(3)] \emph{Exactness.} $\mathrm{project}$ and $\mathrm{glue}$ are mutually inverse on
+these objects: $\mathrm{glue}(\{\mathrm{project}(C,r)\}_r)=C$ for $P$-safe closed $C$, and
+$\mathrm{project}(\mathrm{glue}(F),r)=L_r$ for compatible $F$.
+Hence $P$-safe (resp.\ $P$-complete) closed configurations and compatible families of
+locally $P$-safe (resp.\ locally complete) runs are in bijection---the endpoints realise
+\emph{exactly} $P$.
+\end{enumerate}
+\end{theorem}
+
+\begin{proof}[Proof of (1)]
+Let $r$ be a role and $m\in\mathrm{project}(C,r)$.
+By Lemma~\ref{lem:reconcile}(i) the verdict of $m$ over $\mathrm{project}(P,r)$ with store
+$\mathrm{project}(C,r)$ equals its verdict over $P$ with store $C$, which is
+non-$\mathit{Violation}$ since $C$ is $P$-safe; so $\mathrm{project}(C,r)$ is locally
+$P$-safe.
+For the $P$-complete case, local completeness is Lemma~\ref{lem:complete-reconcile}(i).
+\end{proof}
+
+\begin{proof}[Proof of (2)]
+$\mathrm{glue}(F)$ is closed by Lemma~\ref{lem:glue-closed}.
+For $m\in\mathrm{glue}(F)$, $m\in L_r$ for some $r$; by Lemma~\ref{lem:reconcile}(ii) the
+verdict of $m$ over $\mathrm{glue}(F)$ equals its verdict over $L_r$, which is
+non-$\mathit{Violation}$ since $L_r$ is locally $P$-safe; so $\mathrm{glue}(F)$ is $P$-safe.
+For the $P$-complete case, Lemma~\ref{lem:complete-reconcile}(ii).
+\end{proof}
+
+For exactness we record two facts about projections, both immediate from the definitions.
+
+\begin{lemma}[Projection family is compatible]
+\label{lem:proj-compat}
+For a $P$-safe closed configuration $C$, the family $\{\mathrm{project}(C,r)\}_r$ is
+compatible.
+\end{lemma}
+\begin{proof}
+Each $\mathrm{project}(C,r)$ selects $r$-relevant messages of $C$ retaining their hashes, so
+equal-hash messages across projections are the same message of $C$ (Agreement).
+Coverage(a): if $m\in\mathrm{project}(C,r)$ and $r'$ is an endpoint of $m$ then $m$ is
+$r'$-relevant and $m\in C$, so $m\in\mathrm{project}(C,r')$.
+Coverage(b): Lemma~\ref{lem:localres}.
+(Seal): all projections inherit $C$'s single cast.
+\end{proof}
+
+\begin{lemma}[Round-trip]
+\label{lem:roundtrip}
+For a closed configuration $C$, $\mathrm{glue}(\{\mathrm{project}(C,r)\}_r)=C$; and for a
+compatible family $F$, $\mathrm{project}(\mathrm{glue}(F),r)=L_r$ for every role $r$.
+\end{lemma}
+\begin{proof}
+$\supseteq$/$=$ for the first: every $m\in C$ has the endpoint $\mathrm{from}(m)$, so
+$m\in\mathrm{project}(C,\mathrm{from}(m))\subseteq\mathrm{glue}$; conversely each projection
+is a subset of $C$, and dedup by hash returns exactly $C$.
+For the second: $\mathrm{project}(\mathrm{glue}(F),r)$ is the set of $r$-relevant messages
+of $\mathrm{glue}(F)$.
+Any such $m$ lies in some $L_{r'}$ and, being $r$-relevant, in $L_r$ by Coverage(a);
+conversely $L_r\subseteq\mathrm{glue}(F)$ and its messages are $r$-relevant, so they are
+retained by $\mathrm{project}(\cdot,r)$.
+\end{proof}
+
+\begin{proof}[Proof of (3)]
+$\mathrm{glue}(\{\mathrm{project}(C,r)\}_r)=C$ and
+$\mathrm{project}(\mathrm{glue}(F),r)=L_r$ are Lemma~\ref{lem:roundtrip};
+Lemma~\ref{lem:proj-compat} makes the forward image a compatible family, and parts (1)/(2)
+carry validity in both directions, so the two maps are mutually inverse bijections between
+the stated classes.
+\end{proof}
+
+\section{Notes}
+\label{sec:notes}
+This development is standalone; ported into the paper, the recap (\S\ref{sec:prelim}) maps
+onto the existing labelled results and Theorem~\ref{thm:epp} replaces the former conjecture.
+\emph{Causal locality} (R6, Def~\ref{def:r6}) is the multiparty contribution: it is what
+makes every recorded dependency observable to all of a message's endpoints, and the
+implementation already enforces its type-level shadow (projectability, no spurious
+predecessors).
+Multi-recipient messages ($\mathrm{to}(m)$ a set) and multi-occupant roles (pooled/indexed)
+are handled throughout: the verdict-based reconciliation checks the actual
+\code{(any)}/\code{(all)} edges identically locally and globally, so no set-equality
+obligation arises.
+The completeness direction is conditioned on \emph{compatibility} (Def~\ref{def:compatible}),
+a meta-level gluing precondition; making it endpoint-checkable, and mechanizing
+Theorem~\ref{thm:epp} in Lean~4 on top of the R1--R5 development, are the next milestones.
 
 \end{document}
