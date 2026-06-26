@@ -1,237 +1,165 @@
 # Design: Formal Model for the EPP Correspondence Theorem
 
-**Date:** 2026-06-25
+**Date:** 2026-06-25 (revised 2026-06-26, **v2**)
 **Paper:** *Choreography without a Choreographer: Replicated Endpoint Projection*
 **Goal:** Turn Conjecture 1 (the endpoint-projection correspondence) into a proved
-theorem for a results paper. This document fixes the formal model the theorem is
-stated over, the theorem statement, and the proof strategy, before any prose or Lean
-is written.
+theorem for a results paper. This document fixes the formal model the theorem is stated
+over, the theorem statement, and the proof strategy, before any prose or Lean is written.
 
 ## Milestone scope
 
-**Paper-level rigorous proof first; Lean mechanization is the following milestone.**
-Rationale: the proof will shake out the exact R6 / compatibility side-conditions, and
-mechanizing a wrong model is wasted effort. The model is designed to be
-mechanization-friendly (configurations are sets; validity/completion are predicates;
-gluing is union) so the Lean step is a translation, not a redesign.
+**Paper-level rigorous proof first; Lean mechanization is the following milestone.** The
+model is designed to be mechanization-friendly (configurations are sets; validity is a
+predicate; gluing is union) so the Lean step is a translation, not a redesign.
 
 ## Foundational decisions (settled in brainstorming)
 
-1. **Semantic domain = causal configuration (DAG-native).** A run is a down-closed set
-   of messages in the content-addressed causal DAG, not an interleaved trace. Gluing is
-   union-by-hash; the valid-sticky lattice is already monotone over a growing set; best
-   fit for CBCL's store and the existing R5 development.
-2. **Validity is two-level: safety + completion.** Safety is the monotone per-message
-   core (the verifier reaching non-`Violation`); completion is a separate terminal
-   predicate. Mirrors the paper's existing safety (`Violation`) vs. liveness
-   (`Unknown` / vacant role) split.
-3. **Bundle-omission is contained by a compatibility precondition + sealing; R6 is
-   unchanged.** The completeness direction is stated over *compatible* families;
-   sealing turns an omitted fan-in member into a `Violation`/`Unknown`. We do **not**
-   add an observability clause to R6.
-4. **Paper proof first, Lean next** (see Milestone scope).
+1. **Semantic domain = causal configuration (DAG-native).** A run is a down-closed set of
+   messages in the content-addressed causal DAG; gluing is union-by-hash.
+2. **Validity is two-level: safety + completion.** Safety is the monotone per-message core
+   (verifier reaching non-`Violation`); completion is a separate terminal predicate.
+3. **Bundle-omission is contained by a compatibility precondition + sealing; R6 unchanged.**
+4. **Paper proof first, Lean next.**
 
-## Revision 2026-06-26 (post Task-5 review)
+## Revision history (the crux took two iterations — recorded for honesty)
 
-A rigorous review of the load-bearing reconciliation lemma found its proof did not
-close: it conflated the *protocol-level* predecessor splice with the *run-level* (hash)
-splice and never established that they agree, and the original `Coverage` clause was
-inconsistent with bystander erasure. Four fixes, applied throughout the model below
-(**R6 unchanged**):
-
-1. **Conformance hypothesis.** The reconciliation lemma (and soundness) assume a
-   *P-safe* configuration. P-safety already entails per-message role conformance
-   (role-local verification, `def:rolelocal`), and the correspondence theorem only ever
-   applies the lemma to P-safe `C` / families — so this tightens a hypothesis, no new
-   machinery. It is what licenses the key step *a message is r-relevant iff its
-   performative is r-relevant* (role annotations live on performatives; conforming
-   messages inherit them).
-2. **Projection rewrites predecessors.** `project(C, r)` replaces each retained
-   message's raw `pred` with its *r-observable spliced predecessor set* `pred_r` (§4).
-   Local validity and `Coverage` are stated over `pred_r`, making them consistent with
-   bystander erasure (raw `pred` may point at erased bystanders, which a local run does
-   not hold).
-3. **Explicit splice-commutation lemma.** A new lemma (`lem:splice`, by induction on
-   bystander-chain length) establishes the commuting square: following raw `pred` edges
-   through `C` / `glue(F)` and skipping bystanders yields exactly the messages named by
-   the spliced protocol edges of `project(P, r)`. `lem:reconcile` cites it instead of
-   asserting coincidence.
-4. **Fan-in as sets.** Predecessors are sets; the correspondence is set-equality.
-   R6-projectability ensures the fan-in members `r` depends on are r-observable (hence
-   retained), so the local spliced fan-in equals the global one restricted to
-   r-observable members; members `r` never observes are simply absent from
-   `project(P, r)`.
+- **Original.** A load-bearing "reconciliation lemma" whose proof was a *gap*: it
+  conflated the protocol-edge predecessor splice with the run-level (hash-edge) splice and
+  never showed they agree.
+- **v1 attempt — failed.** Introduced `pred_r` (projection *rewrites* each retained
+  message's predecessors to its nearest r-observable ancestors). Rigorous review found this
+  *worse*: rewriting a message's `pred` field per role breaks **Agreement** (the same hash
+  carries different per-role predecessor sets) and raw-`pred` **glue-closure**, and still
+  glossed `(any)` fan-in.
+- **v2 — this version.** Investigation of `cbcl-rs` settled the key fact: `:caused-by` is
+  **sender-chosen** — a content-hash pointer to a concrete predecessor *instance*, checked
+  only for legal predecessor *type*, one direct edge; there is **no** transitive /
+  observability-aware mechanism, and multiparty is **undefined** (R5 is binary-only). A
+  sender can therefore only reference messages **it observes**, and **R6 projectability**
+  guarantees those references are observable to the message's *recipients* too. Hence, in a
+  P-safe run of a projectable protocol, **there are no bystander-mediated dependencies** —
+  every causal edge is directly observable to all its dependents. The reconciliation
+  problem *dissolves*: projection keeps raw `caused-by`, and a **Local-resolvability**
+  lemma (from projectability + conformance) replaces the entire splicing apparatus. `pred_r`
+  is dropped. The paper notes that CBCL's multiparty causal semantics are undefined today
+  and that our projection *defines* them via this observable-reference obligation (which R6
+  already enforces at the type level).
 
 ## The model
 
 ### 1. Substrate
 
-A **message** `m` has: content hash `h(m)`, performative type `τ(m)`, sender role
-`from(m)`, recipient role set `to(m)`, and predecessor-hash set `pred(m)`. All
-references are thread-scoped (ADR-008): every hash in `pred(m)` resolves within the
-same thread. A **protocol** `P` (a role-annotated causal protocol satisfying R6) gives,
-per performative type, its allowed predecessor clauses (`(any …)` / `(all …)`) and its
-sender/recipient role annotations.
-
-*Open modelling points to confirm during write-up:* multi-recipient messages
-(`to(m)` a set) and multi-occupant roles (pooled `(any role[*])` / indexed
-`(all role[*])`) from the cardinality discussion — the definitions below are written to
-accommodate sets but the proofs should be checked against the multi-occupant case.
+A **message** `m` carries a content hash `h(m)`, performative type `τ(m)`, sender role
+`from(m)`, recipient role set `to(m)`, and predecessor-hash set `pred(m)` (its sender-chosen
+`:caused-by`). All references are thread-scoped (ADR-008). A protocol `P` (role-annotated,
+satisfying R6) fixes, per performative, its predecessor clauses (`(any …)`/`(all …)`) and
+its sender/recipient role annotations.
 
 ### 2. Global execution = configuration
 
-A **configuration** `C` is a finite set of messages. `C` is **closed** iff causally
-down-closed: for every `m ∈ C`, every hash in `pred(m)` resolves to some `m' ∈ C`.
-Partial runs need not be closed — a dangling predecessor yields `Unknown`, never
-`Violation`. Global executions of interest are *closed* configurations (complete causal
-histories).
+A **configuration** `C` is a finite set of messages; **closed** iff causally down-closed
+over raw `pred`. A dangling predecessor yields `Unknown`, never `Violation`. Global
+executions of interest are *closed* configurations.
 
 ### 3. Global validity (two-level)
 
-- **Safety.** `C` is *P-safe* iff no `m ∈ C` has verdict `Violation` under `P`
-  (`Unknown` is tolerated). Monotone in the valid-sticky order: a subset of a P-safe
-  configuration is P-safe.
-- **Completion.** A closed `C` is *P-complete* iff it is P-safe and every obligation is
-  discharged: every sealed `(all …)`-fan-in has all members present and `Valid`, and no
-  required step for the taken branches is missing. A terminal snapshot; not monotone, by
-  design.
+- **Safety.** `C` is *P-safe* iff no `m ∈ C` has verdict `Violation` under `P` (`Unknown`
+  tolerated). Subset-closed.
+- **Completion.** A closed `C` is *P-complete* iff P-safe and every obligation is
+  discharged: each taken branch's required performatives present; every sealed
+  `(all role[*])` fan-in has all members present and `Valid`; every pooled `(any role[*])`
+  obligation has ≥1 occupant.
+- **Conformance via safety (tightening of `def:rolelocal`).** Role-local verification
+  checks each message's `from/to` against the sender/recipient roles `P` annotates for its
+  performative, failing to `Violation` on mismatch. So a **P-safe configuration is
+  role-conformant**: every message's roles match its performative's annotations. (This is
+  exactly the role-conformance check present in `cbcl-rs`; the recap states it explicitly so
+  the proof can use it.)
 
-### 4. Local execution = projection of a configuration
+### 4. Local execution = projection
 
-A message `m` is **r-relevant** iff `from(m) = r` or `r ∈ to(m)`; otherwise it is a
-**bystander** for `r`. `project(C, r)` retains the r-relevant messages of `C`, erases
-bystanders, and **rewrites each retained message's predecessors**: define the
-*r-observable spliced predecessor set*
+A message `m` is **r-relevant** iff `from(m) = r` or `r ∈ to(m)`. `project(C, r)` is the set
+of r-relevant messages of `C`, **retaining their raw `caused-by`** (no rewriting).
+`project(P, r)` is role `r`'s local protocol (the paper's Definition of Projection).
 
-> `pred_r(m)` = the set of nearest r-relevant ancestors of `m` under `pred` — i.e.,
-> follow `pred` edges from `m`, skipping bystanders transitively, and collect the first
-> r-relevant message on each path.
-
-The retained message in `project(C, r)` carries `pred_r(m)` in place of its raw
-`pred(m)`. (`project(P, r)` performs the matching rewrite on protocol edges, per the
-paper's Definition of Projection.) Raw `pred(m)` may point at bystanders that the local
-run does not hold; `pred_r` is exactly the part `r` can observe, so local validity and
-`Coverage` (§5) are stated over `pred_r`, not raw `pred`.
-
-- `L` is *locally P-safe for `r`* iff no message in `L` is `Violation` under
-  `project(P, r)` (over `pred_r`) with `r`'s store `= L`.
-- `L` is *locally complete for `r`* analogously (terminal w.r.t. `project(P, r)`).
-
-**Bridge:** `thm:equiv` (projectability ≡ local verifiability) — under R6, `r` never
-gets a spurious `Unknown` for a predecessor it cannot observe.
+- `L` is *locally P-safe for `r`* iff no `m ∈ L` is `Violation` under `project(P, r)` with
+  store `L`.
+- `L` is *locally complete for `r`* analogously.
 
 ### 5. Gluing and compatibility
 
-A **family** `F = {L_r}_{r ∈ roles}` has one local run per role. `F` is **compatible**
-iff:
+A **family** `F = {L_r}` has one local run per role. `F` is **compatible** iff:
 
-- *(Agreement)* any message appearing in two runs (identified by `h`) is identical —
-  immediate from content addressing.
-- *(Coverage)* for every `m ∈ L_r`: **(a)** `m` appears in `L_{r'}` for each endpoint
-  `r' ∈ {from(m)} ∪ to(m)`; and **(b)** every *raw* predecessor of `m` (each `b` with
-  `h(b) ∈ pred(m)`) appears in the family — concretely in `L_{from(b)}` (every message is
-  r-relevant for its own sender, so its sender's run holds it).
+- *(Agreement)* equal-hash messages across runs are identical (immediate from content
+  addressing — and now unproblematic, since projection does not alter messages).
+- *(Coverage)* for every `m ∈ L_r`: **(a)** `m ∈ L_{r'}` for each endpoint
+  `r' ∈ {from(m)} ∪ to(m)`; **(b)** every raw predecessor `b` of `m` (`h(b) ∈ pred(m)`)
+  appears in `L_{from(b)}`.
 
-Two consequences, both used later:
-- **`pred_r ⊆ L_r`** (for local validity over `pred_r`): each member of `pred_r(m)` is a
-  nearest r-relevant ancestor, reached from `m` down a finite bystander chain; iterating
-  (b) keeps every link in the family and (a) puts the r-relevant endpoint into `L_r`. So
-  requiring raw bystander predecessors in `L_r` is *not* needed — `pred_r` membership is
-  derived, consistent with bystander erasure.
-- **Closure of `glue`**: by (b) every raw predecessor reappears in some
-  `L_{from(b)} ⊆ glue(F)`.
-
-`glue(F) = ⋃_r L_r` (deduplicated by hash). Agreement ⇒ `glue` well-defined; Coverage(b)
-⇒ `glue` closed.
+`glue(F) = ⋃_r L_r` (dedup by hash). Agreement ⇒ well-defined; Coverage(b) ⇒ closed (over
+raw `pred`).
 
 ### 6. Theorem (replaces Conjecture 1)
 
 **EPP correspondence.** Let `P` satisfy R6. Then:
 
-1. **Soundness (global → local).** If `C` is a P-safe [resp. P-complete] closed
-   configuration, then for every role `r`, `project(C, r)` is locally P-safe [resp.
-   locally complete] for `r` against `project(P, r)`.
-2. **Completeness (local → global).** If `F = {L_r}` is a *compatible* family with each
-   `L_r` locally P-safe [resp. locally complete], then `glue(F)` is a P-safe [resp.
-   P-complete] closed configuration.
-3. **Exactness (round-trip).** On valid objects, `project` and `glue` are mutually
-   inverse: `glue({project(C, r)}_r) = C` for P-safe closed `C`, and
-   `project(glue(F), r) = L_r` for compatible families `F`. Hence valid global runs and
-   compatible valid local families are in bijection — the endpoints realise *exactly*
-   `P`.
+1. **Soundness.** If `C` is P-safe [resp. P-complete] closed, then each `project(C, r)` is
+   locally P-safe [resp. locally complete] for `r`.
+2. **Completeness.** If `F` is *compatible* with each `L_r` locally P-safe [resp. locally
+   complete], then `glue(F)` is P-safe [resp. P-complete] closed.
+3. **Exactness.** `project` and `glue` are mutually inverse on valid objects, so valid
+   global runs and compatible valid local families are in bijection — the endpoints realise
+   *exactly* `P`.
 
-### 7. Proof strategy
+### 7. Proof strategy (v2)
 
-The chain is: **`lem:splice` (commuting square) → `lem:reconcile` → soundness /
-completeness / exactness.**
+- **Local resolvability (the engine).** *In a P-safe configuration of an R6 protocol, for
+  every message `m` and every endpoint `r` of `m`, all of `m`'s `caused-by` predecessors are
+  r-relevant, hence lie in `project(C, r)`.* Proof: a predecessor `b` has a legal type `T`
+  (P-safety + the predecessor clause); projectability-onto-`r` (R6) ⇒ `r` observes `T`;
+  conformance (P-safety, §3) ⇒ `r ∈ endpoints(b)` ⇒ `b` is r-relevant. **No induction, no
+  bystander chains** — projectability rules bystander-mediated dependencies out.
+- **Reconciliation (verdict-based, now trivial).** For r-relevant `m`, local verification
+  over `project(P, r)` and `L = project(C, r)` reads the *same* `caused-by` edges as global
+  verification and (Local resolvability) resolves them in `L`, so returns the *same* verdict.
+  `(any)`/`(all)` fan-in is handled identically in both views by the verifier checking the
+  actual edge(s) against the clause — **no set-equality obligation**, so no fan-in gap.
+- **Soundness:** each retained `m ∈ project(C, r)` has the same (non-`Violation`) verdict
+  locally as globally (reconciliation); completion carries via sealing preserved under
+  projection.
+- **Completeness:** `glue(F)` closed (`lem:glue-closed`, Coverage(b)); each `m ∈ glue(F)`
+  lies in some `L_r` where it is non-`Violation`, its predecessors present (Coverage) and
+  verdict matched (reconciliation) ⇒ `glue(F)` P-safe. Completion by the sealing
+  contrapositive (an omitted member ⇒ a local undischarged obligation, contradiction).
+- **Exactness:** set algebra — every message has a sender (so ≥1 endpoint), Coverage gives
+  the round-trip.
 
-- **`lem:splice` (bystander-splice commutation, the new engine).** For a *P-safe*
-  configuration `C` and role `r`: for each r-relevant `m`, the r-observable spliced
-  predecessor set `pred_r(m)` computed over `C`'s raw `pred` edges equals (as a set, by
-  hash) the predecessor set named by `project(P, r)` for `m`. *Proof by induction on
-  bystander-chain length.* Base: a raw predecessor `m'` of `m` that is r-relevant —
-  P-safety gives that `m'` conforms to `P`, so `τ(m')` is a legal P-predecessor of
-  `τ(m)` and the edge survives projection. Step: a raw predecessor `b` that is a
-  bystander — P-safety makes `b` conform, so `b` is a bystander *for `r`* exactly when
-  its performative is (role annotations live on performatives); protocol-projection
-  erases that performative and splices through it, and by IH `b`'s `pred_r` matches
-  `project(P, r)`'s spliced edges, so composing the splice at `m` gives the result. This
-  is precisely the step the old proof asserted; the two transitive closures
-  (protocol-edge vs. hash-edge) commute *because conformance ties message-relevance to
-  performative-relevance*.
+### 8. Risk and caveat
 
-- **`lem:reconcile` (now a corollary of `lem:splice`).** (i) For P-safe closed `C` and
-  `m ∈ project(C, r)`, `pred_r(m)` resolves within `project(C, r)` (iterated closure
-  down bystander chains) and matches `project(P, r)` (`lem:splice`). (ii) For a
-  compatible family with each `L_r` locally P-safe, `pred_r(m)` is present in `L_r`
-  (Coverage) and, by Agreement, equals the global witnesses in `glue(F)`.
-
-- **Soundness:** `lem:reconcile`(i) + `thm:equiv`; role conformance is a per-message
-  predicate unaffected by projection; sealing carries through. 
-- **Completeness:**
-  - *Safety* — each `m ∈ glue(F)` lies in some `L_r`; `pred_r(m)` present (Coverage) and
-    conformant (local safety), reconciled to the global predecessors by
-    `lem:reconcile`(ii); `glue` closed by `lem:glue-closed`.
-  - *Completion* — sealing makes any omitted member of a sealed fan-in a local
-    `Violation`/`Unknown`, contradicting local completeness; bundle-omission neutralised.
-- **Fan-in (cardinality).** A named predecessor may be a *set* (`(all …)`/`(any …)`,
-  pooled/indexed roles). R6-projectability ensures the members `r` depends on are
-  r-observable, hence retained; so the local spliced fan-in equals the global one
-  restricted to r-observable members, and `lem:splice`/`lem:reconcile` are stated and
-  proved for predecessor **sets**, not single predecessors.
-- **Exactness:** set algebra on hashes (filter+splice vs. union), mutually inverse given
-  compatibility and closure.
-
-### 8. Risk and honest caveat
-
-Bundle-omission (REQ-311: a causal-closure bundle cannot prove no sibling branch was
-omitted) is contained by **compatibility (Coverage) + sealing**, so **R6 is unchanged**.
-The paper will state plainly that the completeness direction is conditioned on
-*compatibility*, a meta-level gluing precondition that a single endpoint cannot verify
-from its own view (it verifies only its local run). This is a true, clearly-stated limit
-— not a hidden assumption.
+Bundle-omission contained by compatibility (Coverage) + sealing; **R6 unchanged**. The
+completeness direction is conditioned on *compatibility*, a meta-level gluing precondition a
+single endpoint cannot verify alone — stated plainly. New honest framing: **CBCL's
+multiparty causal semantics are undefined today; our projection defines them** by requiring
+each message's `caused-by` reference predecessors observable to all its endpoints — an
+obligation R6 projectability already enforces at the type level.
 
 ## What changes in the paper
 
-- Add a **Formal Model** section (substrate, configuration, two-level validity,
-  projection-on-runs, compatibility, gluing) expanding the current terse setup.
-- Replace **Conjecture 1** with the **EPP correspondence theorem** and its proof: full
-  for soundness; completeness with the compatibility precondition; exactness as the
-  round-trip.
-- Keep the Lean mechanization framed as the next milestone (the current honesty footnote
-  about axioms / post-parse DCFL predicates stays accurate).
+- Add a **Formal Model** section (substrate, configuration, two-level validity, projection,
+  compatibility, gluing) and the **Local-resolvability** lemma.
+- Replace **Conjecture 1** with the **EPP correspondence theorem** + proof.
+- State the observable-reference obligation as part of well-formedness, noting projection
+  *defines* multiparty `caused-by`.
+- Tighten the description of role-local verification to include the role-conformance →
+  `Violation` check (already in `cbcl-rs`).
+- Lean mechanization stays the next milestone.
 
 ## Open obligations carried into write-up / mechanization
 
-- ~~Confirm the completion predicate against multi-occupant (pooled/indexed) roles and
-  multi-recipient messages.~~ Resolved by the §7 fan-in argument (sets +
-  R6-projectability) and `pred_r` over recipient sets.
-- ~~Confirm the spliced-vs-global predecessor reconciliation lemma is stated precisely.~~
-  Resolved: replaced by `lem:splice` (induction on bystander-chain length) with
-  `lem:reconcile` as its corollary (Revision 2026-06-26).
-- Verify, during write-up, that `pred_r` (nearest r-relevant ancestors) is well-defined
-  on cyclic-free DAGs and that the iterated-closure step in `lem:reconcile`(i) terminates
-  (it does: bystander chains are finite in a finite configuration) — make the induction
-  measure explicit in the proof.
-- Decide whether `compatibility` should eventually be made endpoint-checkable (future
-  work; not required for this milestone).
+- The `def:rolelocal` tightening (role mismatch ⇒ `Violation`) must match the `cbcl-rs`
+  conformance check — confirmed present in code; state it precisely when porting.
+- ~~Reconciliation / spliced-vs-global lemma~~ — **resolved**: replaced by Local
+  resolvability (no splicing).
+- ~~Multi-occupant / multi-recipient cardinality~~ — handled: verdict-based reconciliation
+  checks the actual `(any)`/`(all)` edges identically; `to(m)` is a set throughout.
+- Decide whether `compatibility` should be made endpoint-checkable (future work).
