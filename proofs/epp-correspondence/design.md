@@ -18,7 +18,9 @@ predicate; gluing is union) so the Lean step is a translation, not a redesign.
    messages in the content-addressed causal DAG; gluing is union-by-hash.
 2. **Validity is two-level: safety + completion.** Safety is the monotone per-message core
    (verifier reaching non-`Violation`); completion is a separate terminal predicate.
-3. **Bundle-omission is contained by a compatibility precondition + sealing; R6 unchanged.**
+3. **Bundle-omission contained by compatibility + sealing.** (R6 gains a single
+   *causal-locality* clause in v3 — see revision history — the only change to R6; nothing
+   is weakened.)
 4. **Paper proof first, Lean next.**
 
 ## Revision history (the crux took two iterations — recorded for honesty)
@@ -44,6 +46,18 @@ predicate; gluing is union) so the Lean step is a translation, not a redesign.
   is dropped. The paper notes that CBCL's multiparty causal semantics are undefined today
   and that our projection *defines* them via this observable-reference obligation (which R6
   already enforces at the type level).
+- **v3 — causal locality (current).** Rigorous review showed v2's Local-resolvability
+  lemma was *still* false: `def:proj`'s bystander-splice permits a message whose
+  `caused-by` points at a performative that is a **bystander** for one of its endpoints —
+  which projectability (defined *via* splicing) tolerates. The fix is a genuine
+  well-formedness condition, **causal locality**: every endpoint of a performative is also
+  an endpoint of each of its `caused-by` predecessor types. Added as an R6 clause it makes
+  the bystander-splice vacuous, makes Local resolvability provable, and matches the code
+  fact that `caused-by` is one direct sender-chosen edge. **This is arguably a
+  contribution: multiparty CBCL projection requires causal locality.** Also added in v3:
+  the `closed` hypothesis on Local resolvability; a `(Seal)` cast-agreement clause in
+  compatibility; and a completion-reconciliation lemma (sealing/fan-in are *global*, so the
+  safety lemmas do not cover the completion direction).
 
 ## The model
 
@@ -93,11 +107,13 @@ A **family** `F = {L_r}` has one local run per role. `F` is **compatible** iff:
 - *(Agreement)* equal-hash messages across runs are identical (immediate from content
   addressing — and now unproblematic, since projection does not alter messages).
 - *(Coverage)* for every `m ∈ L_r`: **(a)** `m ∈ L_{r'}` for each endpoint
-  `r' ∈ {from(m)} ∪ to(m)`; **(b)** every raw predecessor `b` of `m` (`h(b) ∈ pred(m)`)
-  appears in `L_{from(b)}`.
+  `r' ∈ {from(m)} ∪ to(m)`; **(b)** every `caused-by` predecessor of `m` is itself in
+  `L_r` — i.e. each local run is *causally closed*. (This is exactly the property
+  `project(C, r)` has by Local resolvability, §7, so requiring it of a family asks no more
+  than that each run be a genuine projection.)
 
-`glue(F) = ⋃_r L_r` (dedup by hash). Agreement ⇒ well-defined; Coverage(b) ⇒ closed (over
-raw `pred`).
+`glue(F) = ⋃_r L_r` (dedup by hash). Agreement ⇒ well-defined; Coverage(b) ⇒ closed (each
+`m ∈ glue(F)` lies in some `L_r` with its predecessors in `L_r ⊆ glue(F)`).
 
 ### 6. Theorem (replaces Conjecture 1)
 
@@ -113,12 +129,14 @@ raw `pred`).
 
 ### 7. Proof strategy (v2)
 
-- **Local resolvability (the engine).** *In a P-safe configuration of an R6 protocol, for
-  every message `m` and every endpoint `r` of `m`, all of `m`'s `caused-by` predecessors are
-  r-relevant, hence lie in `project(C, r)`.* Proof: a predecessor `b` has a legal type `T`
-  (P-safety + the predecessor clause); projectability-onto-`r` (R6) ⇒ `r` observes `T`;
-  conformance (P-safety, §3) ⇒ `r ∈ endpoints(b)` ⇒ `b` is r-relevant. **No induction, no
-  bystander chains** — projectability rules bystander-mediated dependencies out.
+- **Local resolvability (the engine).** *In a P-safe **closed** configuration of an R6
+  protocol, for every message `m` and every endpoint `r` of `m`, all of `m`'s `caused-by`
+  predecessors are r-relevant, hence lie in `project(C, r)`.* Proof: `C` closed ⇒ `m`'s
+  verdict is decided, and P-safe ⇒ `m` is `Valid`, so each named predecessor `b` has a legal
+  type `T`; **causal locality** (R6) ⇒ every endpoint of `τ(m)` is an endpoint of `T`, so
+  `r` is an endpoint role of `T`; conformance (P-safety, §3) ⇒ `r ∈ endpoints(b)` ⇒ `b` is
+  r-relevant. **No induction, no bystander chains** — causal locality rules
+  bystander-mediated dependencies out (`def:proj`'s splice is vacuous).
 - **Reconciliation (verdict-based, now trivial).** For r-relevant `m`, local verification
   over `project(P, r)` and `L = project(C, r)` reads the *same* `caused-by` edges as global
   verification and (Local resolvability) resolves them in `L`, so returns the *same* verdict.

@@ -79,8 +79,12 @@ recogniser.
 \begin{definition}[R6 well-formedness]
 \label{def:r6}
 A role-annotated protocol satisfies \emph{R6} iff it is role-complete, chooser-coherent,
-projectable onto every role, every role is reachable from \code{begin}, and every choice
-is decided by a single agent.
+projectable onto every role, \emph{causally local}---every endpoint role of a performative
+$t$ is also an endpoint role of each predecessor type named in $t$'s \caused{} clause---%
+every role is reachable from \code{begin}, and every choice is decided by a single agent.
+(Causal locality is the multiparty addition: it makes every recorded dependency observable
+to all of a message's endpoints, so the bystander-splice in Def~\ref{def:proj} is never
+exercised between an endpoint performative and its predecessors.)
 \end{definition}
 
 \section{Formal Model}
@@ -166,7 +170,8 @@ $F$ is \emph{compatible} iff:
 \textup{(a)} $m\in L_{r'}$ for every endpoint $r'\in\{\mathrm{from}(m)\}\cup\mathrm{to}(m)$;
 and
 \textup{(b)} every \caused{} predecessor of $m$ is itself in $L_r$---each local run is
-\emph{causally closed}.
+\emph{causally closed};
+and \emph{(Seal)} all runs agree on the sealed membership (the cast) of every role.
 \end{definition}
 
 \noindent
@@ -192,17 +197,17 @@ Closed: for $m\in\mathrm{glue}(F)$, $m\in L_r$ for some $r$; by Coverage(b) ever
 
 \begin{lemma}[Local resolvability]
 \label{lem:localres}
-Let $C$ be a $P$-safe configuration of a protocol satisfying R6, and $m\in C$.
+Let $C$ be a $P$-safe \emph{closed} configuration of a protocol satisfying R6, and $m\in C$.
 For every endpoint $r$ of $m$ (i.e.\ $\mathrm{from}(m)=r$ or $r\in\mathrm{to}(m)$), every
 \caused{} predecessor of $m$ is $r$-relevant, hence lies in $\mathrm{project}(C,r)$.
 \end{lemma}
 \begin{proof}
 Let $b$ be a predecessor of $m$ ($h(b)\in\mathrm{pred}(m)$).
-Since $C$ is $P$-safe, $m$ is not a $\mathit{Violation}$, so $\tau(b)$ is a legal
-predecessor type of $\tau(m)$ under $P$.
-As $r$ is an endpoint of $m$, the step for $\tau(m)$ lies in $\mathrm{project}(P,r)$;
-projectability of $P$ onto $r$ (Def~\ref{def:r6}) requires every predecessor it names to be
-a performative $r$ sends or receives, so $r$ is a sender/recipient role of $\tau(b)$.
+Since $C$ is closed, every predecessor of $m$ is present, so $m$'s verdict is decided;
+$P$-safety excludes $\mathit{Violation}$, hence $m$ is $\mathit{Valid}$ and every
+$\tau(b)$ named by $m$'s \caused{} is a legal predecessor type of $\tau(m)$ under $P$.
+By causal locality (R6, Def~\ref{def:r6}), since $r$ is an endpoint of $\tau(m)$, $r$ is an
+endpoint role of $\tau(b)$.
 Role-conformance of the $P$-safe $C$ (Def~\ref{def:rolelocal}) makes $\mathrm{from}(b)$ and
 $\mathrm{to}(b)$ match $\tau(b)$'s annotations, so $r$ is an endpoint of $b$; thus $b$ is
 $r$-relevant and $b\in\mathrm{project}(C,r)$.
@@ -230,6 +235,33 @@ read identical messages and return the same verdict.
 \textup{(ii)} By Coverage(b) every \caused{} predecessor of $m$ lies in
 $L_r\subseteq\mathrm{glue}(F)$, and by Agreement the shared messages are identical, so
 neither store offers $m$ a predecessor the other lacks; the verdicts coincide.
+\end{proof}
+
+\begin{lemma}[Completion reconciliation]
+\label{lem:complete-reconcile}
+Let $P$ satisfy R6.
+\textup{(i)} If $C$ is a $P$-complete closed configuration then each $\mathrm{project}(C,r)$
+is locally complete.
+\textup{(ii)} If $F$ is a compatible family with each $L_r$ locally complete then
+$\mathrm{glue}(F)$ is $P$-complete.
+\end{lemma}
+\begin{proof}
+Every obligation of $\mathrm{project}(P,r)$ is the $r$-restriction of an obligation of $P$,
+and conversely each obligation of $P$ is, for some endpoint role $r$, an obligation of
+$\mathrm{project}(P,r)$; sealed memberships agree across $C$ / the family (Seal).
+\textup{(i)} Safety holds by Lemma~\ref{lem:reconcile}(i).
+A required performative $t$ with endpoint $r$ is present in $C$ (completeness) and
+$r$-relevant, so it lies in $\mathrm{project}(C,r)$ (Lemma~\ref{lem:localres}); a sealed
+\code{(all role[*])} fan-in $r$ participates in has all its members present in $C$ and,
+each being $r$-relevant, in $\mathrm{project}(C,r)$; a pooled \code{(any role[*])} obligation
+keeps its occupant.
+So every obligation of $\mathrm{project}(P,r)$ is discharged.
+\textup{(ii)} $\mathrm{glue}(F)$ is $P$-safe (Lemma~\ref{lem:reconcile}(ii)) and closed
+(Lemma~\ref{lem:glue-closed}).
+For any obligation of $P$, pick an endpoint role $r$ for which it is an obligation of
+$\mathrm{project}(P,r)$; local completeness of $L_r$ discharges it there, and the witnessing
+messages lie in $L_r\subseteq\mathrm{glue}(F)$, with sealed memberships fixed by (Seal).
+Hence $\mathrm{glue}(F)$ is $P$-complete.
 \end{proof}
 
 \end{document}
