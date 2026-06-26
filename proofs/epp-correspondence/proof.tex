@@ -42,6 +42,10 @@ On an incoming message $m$, the verifier checks \emph{role conformance}---a pred
 immutable fields requiring $\mathrm{from}(m)$ and $\mathrm{to}(m)$ to match the
 sender/recipient roles $P$ annotates for $\tau(m)$, returning $\mathit{Violation}$ on
 mismatch---and runs the causal verifier against $\mathrm{project}(P,r)$ and $r$'s store.
+The causal verifier returns $\mathit{Violation}$ for any \caused{} edge whose predecessor
+type is not named in $\tau(m)$'s clause (\emph{no spurious predecessors}, as in the
+reference implementation), so a $\mathit{Valid}$ message carries \emph{only} named, legal
+predecessors.
 Consequently a $P$-safe configuration is \emph{role-conformant}: every message's roles
 match its performative's annotations.
 \end{definition}
@@ -171,7 +175,8 @@ $F$ is \emph{compatible} iff:
 and
 \textup{(b)} every \caused{} predecessor of $m$ is itself in $L_r$---each local run is
 \emph{causally closed};
-and \emph{(Seal)} all runs agree on the sealed membership (the cast) of every role.
+and \emph{(Seal)} all runs agree on the \emph{cast}---the assignment of agents to roles
+fixed at the thread's causal root, including the sealed membership of each indexed role.
 \end{definition}
 
 \noindent
@@ -204,8 +209,10 @@ For every endpoint $r$ of $m$ (i.e.\ $\mathrm{from}(m)=r$ or $r\in\mathrm{to}(m)
 \begin{proof}
 Let $b$ be a predecessor of $m$ ($h(b)\in\mathrm{pred}(m)$).
 Since $C$ is closed, every predecessor of $m$ is present, so $m$'s verdict is decided;
-$P$-safety excludes $\mathit{Violation}$, hence $m$ is $\mathit{Valid}$ and every
-$\tau(b)$ named by $m$'s \caused{} is a legal predecessor type of $\tau(m)$ under $P$.
+$P$-safety excludes $\mathit{Violation}$, hence $m$ is $\mathit{Valid}$.
+By Def~\ref{def:rolelocal} a $\mathit{Valid}$ message has \emph{only} named, legal
+predecessors, so every $\tau(b)$ in $m$'s \caused{} is a predecessor type of $\tau(m)$
+named in its clause.
 By causal locality (R6, Def~\ref{def:r6}), since $r$ is an endpoint of $\tau(m)$, $r$ is an
 endpoint role of $\tau(b)$.
 Role-conformance of the $P$-safe $C$ (Def~\ref{def:rolelocal}) makes $\mathrm{from}(b)$ and
