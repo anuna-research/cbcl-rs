@@ -127,16 +127,22 @@ iff:
 
 - *(Agreement)* any message appearing in two runs (identified by `h`) is identical —
   immediate from content addressing.
-- *(Coverage)* every message `m ∈ L_r` appears in `L_{r'}` for each of its other
-  endpoints `r' ∈ {from(m)} ∪ to(m)`, and every member of `m`'s *r-observable spliced
-  predecessor set* `pred_r(m)` is present in `L_r`. (Stated over `pred_r`, not raw
-  `pred`: a local run holds only r-relevant messages, so requiring raw bystander
-  predecessors in `L_r` would contradict erasure. Bystander predecessors are recovered
-  globally by gluing the runs of the roles that *do* observe them.)
+- *(Coverage)* for every `m ∈ L_r`: **(a)** `m` appears in `L_{r'}` for each endpoint
+  `r' ∈ {from(m)} ∪ to(m)`; and **(b)** every *raw* predecessor of `m` (each `b` with
+  `h(b) ∈ pred(m)`) appears in the family — concretely in `L_{from(b)}` (every message is
+  r-relevant for its own sender, so its sender's run holds it).
 
-`glue(F) = ⋃_r L_r` (deduplicated by hash). Agreement ⇒ `glue` is well-defined;
-Coverage across all roles ⇒ every raw predecessor reappears in some `L_{r'}`, hence
-`glue` is closed.
+Two consequences, both used later:
+- **`pred_r ⊆ L_r`** (for local validity over `pred_r`): each member of `pred_r(m)` is a
+  nearest r-relevant ancestor, reached from `m` down a finite bystander chain; iterating
+  (b) keeps every link in the family and (a) puts the r-relevant endpoint into `L_r`. So
+  requiring raw bystander predecessors in `L_r` is *not* needed — `pred_r` membership is
+  derived, consistent with bystander erasure.
+- **Closure of `glue`**: by (b) every raw predecessor reappears in some
+  `L_{from(b)} ⊆ glue(F)`.
+
+`glue(F) = ⋃_r L_r` (deduplicated by hash). Agreement ⇒ `glue` well-defined; Coverage(b)
+⇒ `glue` closed.
 
 ### 6. Theorem (replaces Conjecture 1)
 
