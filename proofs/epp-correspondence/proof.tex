@@ -54,10 +54,11 @@ match its performative's annotations.
 \label{lat:lattice}
 Verdicts are $\mathit{Unknown}$ (bottom) and the incomparable maximal $\mathit{Valid}$,
 $\mathit{Violation}$ (a flat lattice; no top).
-\code{(all \ldots)} composes by meet, \code{(any \ldots)} by join.
-Under store growth a verdict moves up from $\mathit{Unknown}$; $\mathit{Valid}$ is
-permanent, $\mathit{Violation}$ permanent only once all alternatives of a containing
-\code{(any \ldots)} have resolved.
+A message's verdict is fixed by its own \caused{} predecessors, which are immutable once
+present (content addressing).
+Under store growth a verdict moves up from $\mathit{Unknown}$ to a \emph{permanent}
+$\mathit{Valid}$ or $\mathit{Violation}$; only $\mathit{Unknown}$ (a referenced
+predecessor not yet present) is provisional.
 \end{definition}
 
 \begin{theorem}[Projectability $\equiv$ local verifiability]
@@ -67,11 +68,11 @@ $\mathrm{project}(P,r)$ and $r$'s local store never returns $\mathit{Unknown}$ f
 predecessor $r$ cannot eventually observe.
 \end{theorem}
 
-\begin{proposition}[Monotonicity, valid-sticky]
+\begin{proposition}[Monotonicity]
 \label{prop:mono}
-Role-local verification is monotone into the verdict lattice in the valid-sticky order:
-$\mathit{Valid}$ is stable under store growth; $\mathit{Unknown}$ and $\mathit{Violation}$
-are tentative.
+Role-local verification is monotone into the verdict lattice: $\mathit{Valid}$ and
+$\mathit{Violation}$ are both stable under store growth; only $\mathit{Unknown}$ may
+change (when a referenced predecessor arrives).
 \end{proposition}
 
 \begin{proposition}[DCFL preservation]
