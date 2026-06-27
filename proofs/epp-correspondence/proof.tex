@@ -366,7 +366,10 @@ are handled throughout: the verdict-based reconciliation checks the actual
 \code{(any)}/\code{(all)} edges identically locally and globally, so no set-equality
 obligation arises.
 The completeness direction is conditioned on \emph{compatibility} (Def~\ref{def:compatible}),
-a meta-level gluing precondition; making it endpoint-checkable, and mechanizing
-Theorem~\ref{thm:epp} in Lean~4 on top of the R1--R5 development, are the next milestones.
+a meta-level gluing precondition; making it endpoint-checkable is future work.
+Theorem~\ref{thm:epp} is mechanized in Lean~4 (no \code{sorry}; axioms \code{propext},
+\code{Classical.choice}, \code{Quot.sound}) at the abstract-model level, on top of the
+R1--R5 development; instantiating the clause language and the concrete message types
+remains.
 
 \end{document}
