@@ -37,8 +37,8 @@ def pComplete (O : Obligations P) (C : Cfg Msg) : Prop :=
     projection of a `P`-complete configuration is locally complete. -/
 theorem soundness_completion (O : Obligations P) {C : Cfg Msg}
     (hc : pComplete P O C) (r : Role) : localComplete P O (project P C r) r := by
-  obtain ⟨hsafe, _, hdis⟩ := hc
-  refine ⟨soundness_safety P hsafe r, ?_⟩
+  obtain ⟨hsafe, hcl, hdis⟩ := hc
+  refine ⟨soundness_safety P hcl hsafe r, ?_⟩
   intro w hw
   exact ⟨hdis r w hw, O.reqRel r w hw⟩
 
@@ -64,4 +64,5 @@ theorem epp_correspondence_complete (O : Obligations P) {C : Cfg Msg}
   · intro m; exact glue_project_eq P m
 
 end LeanCbcl.EPP
+
 
