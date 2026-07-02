@@ -2,7 +2,7 @@
 id: SPEC-014
 title: Role Layer — R6 and Coordination-Free Endpoint Projection
 status: draft
-version: 0.2.0
+version: 0.2.1
 date: 2026-07-02
 author: Anuna Research (https://anuna.io)
 depends-on:
@@ -59,7 +59,7 @@ Structure:
 ```
 
 Decisions: [[SPEC-014-role-layer-endpoint-projection#ADR-600]] indexed-role
-concrete syntax `(name *)` · [[SPEC-014-role-layer-endpoint-projection#ADR-601]]
+concrete syntax `(* name)` · [[SPEC-014-role-layer-endpoint-projection#ADR-601]]
 placement in `cbcl-core` modules ·
 [[SPEC-014-role-layer-endpoint-projection#ADR-602]] eager valid-is-sticky
 verdict retained · [[SPEC-014-role-layer-endpoint-projection#ADR-603]] root
@@ -145,7 +145,7 @@ predecessor list when it offers more than one alternative.
 The dialect parser SHALL accept an OPTIONAL `:roles` attribute on a `define`
 form, positioned like the existing `:extends`/`:resources` attributes, whose
 value conforms to [[SPEC-014-role-layer-endpoint-projection#CON-600]] (bare
-symbol = singleton role; `(name *)` = indexed role per
+symbol = singleton role; `(* name)` = indexed role per
 [[SPEC-014-role-layer-endpoint-projection#ADR-600]]).
 Trace: [[SPEC-014-role-layer-endpoint-projection#TEST-600]],
 [[SPEC-014-role-layer-endpoint-projection#CON-600]].
@@ -409,15 +409,22 @@ Trace: `Cargo.toml` diff review.
 
 ## Architecture Decisions
 
-**ADR-600: Indexed-role concrete syntax is `(name *)`.**
+**ADR-600: Indexed-role concrete syntax is `(* name)`.**
 The paper's `bidder[*]` marker is presentation notation: `[` lies outside
 CBCL's fixed symbol alphabet, and admitting it would change the lexical
-grammar R1–R3 police. Rendering the marker as the two-element list
-`(bidder *)` inside the `:roles` attribute stays within the existing
-S-expression lexicon, parses with the existing reader, and keeps the DCFL
-guarantee untouched. Rejected alternatives: `bidder*` as a naming convention
-(invisible to the grammar, collides with legal symbol names); a separate
-`:indexed` attribute (splits one fact across two sites).
+grammar R1–R3 police. The marker is rendered as the two-element form
+`(* bidder)` inside the `:roles` attribute: `*` is already a legal symbol
+(`cbcl-parser` symbol alphabet), the head-position operator matches every
+other CBCL form (`any`, `all`, `then`, `signed`) so the recogniser
+dispatches on the head like the existing `NodeRef` parse, and the prefix
+Kleene star has direct Lisp precedent (Clojure spec's `(s/* pred)`, Racket
+grammar DSLs). Stays within the existing S-expression lexicon and keeps the
+DCFL guarantee untouched. Rejected alternatives: `(bidder *)` (dispatch on
+the second element — anomalous in the codebase); `(indexed bidder)`
+(session-types jargon as surface syntax); `(all bidder)` (overloads the
+`all` head across roles-attr and protocol-clause positions); `bidder*` as a
+naming convention (invisible to the grammar, collides with legal symbol
+names); a separate `:indexed` attribute (splits one fact across two sites).
 
 **ADR-601: Placement — three modules in `cbcl-core`.**
 `role.rs` (role/cast types and SExpr-level parsing), `r6.rs` (installation
@@ -495,7 +502,7 @@ character in the existing lexer).
 ```
 roles-attr     := ":roles" "(" role-decl+ ")"        ; at least one role
 role-decl      := symbol                             ; singleton role
-                | "(" symbol "*" ")"                 ; indexed role (ADR-600)
+                | "(" "*" symbol ")"                 ; indexed role (ADR-600)
 
 from-attr      := ":from" symbol                     ; exactly one sender role
 to-attr        := ":to" recipient-set
@@ -739,6 +746,9 @@ two-party limitation.
 
 ## Changelog
 
+- 0.2.1 (2026-07-02) — stakeholder review: indexed-role marker changed from
+  `(name *)` to head-position `(* name)` (ADR-600 rewritten with the
+  head-dispatch rationale and widened rejected-alternatives list).
 - 0.2.0 (2026-07-02) — adversarial review pass 1: role data threaded onto
   `Dialect`/`PerformativeDef` (REQ-621), recipient sets on messages
   (REQ-622), root typing (REQ-623), signature-bound annotations (REQ-624),
