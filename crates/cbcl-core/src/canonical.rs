@@ -39,6 +39,7 @@
 
 use crate::dialect::Dialect;
 use crate::protocol::{CausalProtocol, NodeRef, StepDecl};
+use crate::role::{RoleAnnotation, RoleCardinality, RoleDecl};
 use crate::sexpr::{Atom, SExpr};
 use crate::shape::{ShapeConstraint, ShapeRule, TypeConstraint};
 use alloc::string::String;
@@ -56,10 +57,15 @@ use alloc::vec::Vec;
 /// History:
 /// - `1` (initial): name, extends, author, performatives, resources,
 ///   examples.
-/// - `2` (current): adds `(causal-protocol …)` and `(shapes …)`
+/// - `2`: adds `(causal-protocol …)` and `(shapes …)`
 ///   segments, gated on presence so dialects that omit both fields
 ///   produce v1-identical bytes (legacy signatures keep verifying).
-pub const CANONICAL_FORM_VERSION: u32 = 2;
+/// - `3` (current): adds the `(roles …)` segment and a per-performative
+///   `(role …)` element (SPEC-014 REQ-624), both gated on presence, so
+///   role-free dialects produce v2-identical bytes and role annotations
+///   cannot be stripped or rewritten in gossip without invalidating the
+///   R4 signature.
+pub const CANONICAL_FORM_VERSION: u32 = 3;
 
 // ---------------------------------------------------------------------------
 // Atom-to-octet-string mapping
@@ -218,13 +224,18 @@ pub fn to_signable_sexpr(d: &Dialect) -> SExpr {
         let mut params_list = vec![SExpr::Atom(Atom::Symbol(String::from("params")))];
         params_list.extend(p.params.clone());
 
-        let perf = SExpr::List(vec![
+        let mut perf_items = vec![
             SExpr::Atom(Atom::Symbol(String::from("perf"))),
             SExpr::Atom(Atom::Str(p.name.clone())),
             SExpr::List(params_list),
             p.template.clone(),
-        ]);
-        perfs.push(perf);
+        ];
+        // role annotation (SPEC-014 REQ-624) — only when present
+        // (backward-compat: unannotated performatives keep v2 bytes).
+        if let Some(ref ann) = p.role {
+            perf_items.push(role_annotation_to_sexpr(ann));
+        }
+        perfs.push(SExpr::List(perf_items));
     }
     top.push(SExpr::List(perfs));
 
@@ -251,7 +262,49 @@ pub fn to_signable_sexpr(d: &Dialect) -> SExpr {
         top.push(shapes_to_sexpr(&d.shapes));
     }
 
+    // roles (SPEC-014 REQ-624) — only when non-empty (backward-compat).
+    if !d.roles.is_empty() {
+        top.push(roles_to_sexpr(&d.roles));
+    }
+
     SExpr::List(top)
+}
+
+/// Encode the declared roles deterministically, preserving declaration
+/// order (order is part of the signed body).
+fn roles_to_sexpr(roles: &[RoleDecl]) -> SExpr {
+    use alloc::vec;
+    let mut items = vec![SExpr::Atom(Atom::Symbol(String::from("roles")))];
+    for r in roles {
+        let card = match r.cardinality {
+            RoleCardinality::Singleton => "singleton",
+            RoleCardinality::Indexed => "indexed",
+        };
+        items.push(SExpr::List(vec![
+            SExpr::Atom(Atom::Symbol(String::from("role-decl"))),
+            SExpr::Atom(Atom::Str(r.name.clone())),
+            SExpr::Atom(Atom::Symbol(String::from(card))),
+        ]));
+    }
+    SExpr::List(items)
+}
+
+/// Encode a per-performative `:from`/`:to` annotation. The recipient set is
+/// a `BTreeSet`, so iteration (and hence the signed byte order) is sorted.
+fn role_annotation_to_sexpr(ann: &RoleAnnotation) -> SExpr {
+    use alloc::vec;
+    let mut to_items = vec![SExpr::Atom(Atom::Symbol(String::from("to")))];
+    for r in &ann.to {
+        to_items.push(SExpr::Atom(Atom::Str(r.clone())));
+    }
+    SExpr::List(vec![
+        SExpr::Atom(Atom::Symbol(String::from("role"))),
+        SExpr::List(vec![
+            SExpr::Atom(Atom::Symbol(String::from("from"))),
+            SExpr::Atom(Atom::Str(ann.from.clone())),
+        ]),
+        SExpr::List(to_items),
+    ])
 }
 
 /// Encode a `CausalProtocol` deterministically. Steps come from a `BTreeMap`
@@ -1183,9 +1236,9 @@ mod tests {
     }
 
     #[test]
-    fn canonical_form_version_is_two() {
+    fn canonical_form_version_is_three() {
         // Pin the version constant so changes are deliberate.
-        assert_eq!(CANONICAL_FORM_VERSION, 2);
+        assert_eq!(CANONICAL_FORM_VERSION, 3);
     }
 
     // ====================================================================
@@ -1272,5 +1325,68 @@ mod tests {
     fn test_vector_num_zero() {
         // Num(0) -> octets "N0" (2 bytes) -> "2:N0"
         assert_eq!(canonical_encode(&SExpr::Atom(Atom::Num(0))), b"2:N0");
+    }
+
+    // ---- SPEC-014 REQ-624: role annotations are signature-bound ----
+
+    #[test]
+    fn role_free_dialect_has_no_roles_segment() {
+        let d = test_dialect("t");
+        let sexpr = to_signable_sexpr(&d);
+        let rendered = alloc::format!("{sexpr}");
+        assert!(!rendered.contains("(roles"));
+        assert!(!rendered.contains("role-decl"));
+    }
+
+    #[test]
+    fn stripping_roles_changes_signable_bytes() {
+        use crate::role::{RoleCardinality, RoleDecl};
+        let mut d = test_dialect("t");
+        let bytes_before = dialect_canonical_bytes(&d);
+        d.roles.push(RoleDecl {
+            name: String::from("server"),
+            cardinality: RoleCardinality::Singleton,
+        });
+        let bytes_with_roles = dialect_canonical_bytes(&d);
+        assert_ne!(bytes_before, bytes_with_roles);
+    }
+
+    #[test]
+    fn stripping_from_to_changes_signable_bytes() {
+        use crate::role::RoleAnnotation;
+        use alloc::collections::BTreeSet;
+        let mut d = test_dialect("t");
+        let bytes_before = dialect_canonical_bytes(&d);
+        let mut to = BTreeSet::new();
+        to.insert(String::from("client"));
+        if let Some(p) = d.performatives.first_mut() {
+            p.role = Some(RoleAnnotation {
+                from: String::from("server"),
+                to,
+            });
+        }
+        let bytes_annotated = dialect_canonical_bytes(&d);
+        assert_ne!(bytes_before, bytes_annotated);
+    }
+
+    #[test]
+    fn recipient_set_order_is_canonical() {
+        use crate::role::RoleAnnotation;
+        use alloc::collections::BTreeSet;
+        let mk = |names: &[&str]| {
+            let mut d = test_dialect("t");
+            let mut to = BTreeSet::new();
+            for n in names {
+                to.insert(String::from(*n));
+            }
+            if let Some(p) = d.performatives.first_mut() {
+                p.role = Some(RoleAnnotation {
+                    from: String::from("server"),
+                    to,
+                });
+            }
+            dialect_canonical_bytes(&d)
+        };
+        assert_eq!(mk(&["a", "b"]), mk(&["b", "a"]));
     }
 }

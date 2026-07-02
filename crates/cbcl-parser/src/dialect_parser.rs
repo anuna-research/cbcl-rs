@@ -9,6 +9,7 @@ use alloc::string::String;
 use alloc::vec::Vec;
 use cbcl_core::dialect::{Dialect, PerformativeDef, ResourceBounds};
 use cbcl_core::protocol::CausalProtocol;
+use cbcl_core::role::{parse_from, parse_recipient_set, parse_roles, RoleAnnotation, RoleDecl};
 use cbcl_core::sexpr::{Atom, SExpr};
 use cbcl_core::shape::ShapeConstraint;
 
@@ -70,6 +71,7 @@ pub fn parse_dialect(sexpr: &SExpr) -> Result<Dialect, String> {
     let mut protocol: Option<String> = None;
     let mut causal_protocol: Option<CausalProtocol> = None;
     let mut shapes: Vec<ShapeConstraint> = Vec::new();
+    let mut roles: Vec<RoleDecl> = Vec::new();
 
     for clause in &items[4..] {
         parse_clause(
@@ -82,11 +84,12 @@ pub fn parse_dialect(sexpr: &SExpr) -> Result<Dialect, String> {
             &mut protocol,
             &mut causal_protocol,
             &mut shapes,
+            &mut roles,
         )?;
     }
 
     Ok(Dialect {
-        roles: Vec::new(),
+        roles,
         name,
         extends,
         author,
@@ -157,6 +160,7 @@ fn parse_clause(
     protocol: &mut Option<String>,
     causal_protocol: &mut Option<CausalProtocol>,
     shapes: &mut Vec<ShapeConstraint>,
+    roles: &mut Vec<RoleDecl>,
 ) -> Result<(), String> {
     let items = match clause {
         SExpr::List(items) if !items.is_empty() => items,
@@ -192,6 +196,13 @@ fn parse_clause(
                     *protocol = Some(extract_string_or_symbol(&items[1]));
                 }
             }
+            // SPEC-014 REQ-600/621: (:roles (name (* name) ...))
+            "roles" => {
+                if items.len() != 2 {
+                    return Err(String::from(":roles takes exactly one value (CON-600)"));
+                }
+                *roles = parse_roles(&items[1]).map_err(|v| alloc::format!("{v}"))?;
+            }
             _ => {
                 return Err(alloc::format!("unknown keyword clause: :{kw}"));
             }
@@ -208,10 +219,61 @@ fn parse_clause(
         }
         let perf_name = extract_symbol(&items[1], "performative name")?;
         let params = extract_param_list(&items[2])?;
-        let template = items[3].clone();
+
+        // SPEC-014 REQ-621/CON-600: optional :from/:to annotations may
+        // appear before or after the template; exactly one template form.
+        let mut template: Option<SExpr> = None;
+        let mut from: Option<String> = None;
+        let mut to = None;
+        let mut rest = items[3..].iter();
+        while let Some(item) = rest.next() {
+            match item {
+                SExpr::Atom(Atom::Keyword(kw)) if kw == "from" => {
+                    let value = rest
+                        .next()
+                        .ok_or_else(|| alloc::format!(":from on '{perf_name}' needs a value"))?;
+                    if from.is_some() {
+                        return Err(alloc::format!("duplicate :from on '{perf_name}'"));
+                    }
+                    from = Some(parse_from(&perf_name, value).map_err(|v| alloc::format!("{v}"))?);
+                }
+                SExpr::Atom(Atom::Keyword(kw)) if kw == "to" => {
+                    let value = rest
+                        .next()
+                        .ok_or_else(|| alloc::format!(":to on '{perf_name}' needs a value"))?;
+                    if to.is_some() {
+                        return Err(alloc::format!("duplicate :to on '{perf_name}'"));
+                    }
+                    to = Some(
+                        parse_recipient_set(&perf_name, value)
+                            .map_err(|v| alloc::format!("{v}"))?,
+                    );
+                }
+                other => {
+                    if template.is_some() {
+                        return Err(alloc::format!(
+                            "extend '{perf_name}' has more than one template form"
+                        ));
+                    }
+                    template = Some(other.clone());
+                }
+            }
+        }
+        let template = template
+            .ok_or_else(|| alloc::format!("extend '{perf_name}' is missing its template"))?;
+        let role = match (from, to) {
+            (Some(from), Some(to)) => Some(RoleAnnotation { from, to }),
+            (None, None) => None,
+            // Fail closed: half an annotation is malformed (CON-600).
+            _ => {
+                return Err(alloc::format!(
+                    "extend '{perf_name}' must carry both :from and :to or neither (CON-600)"
+                ))
+            }
+        };
 
         performatives.push(PerformativeDef {
-            role: None,
+            role,
             name: perf_name,
             params,
             template,
@@ -537,5 +599,93 @@ mod tests {
         assert_eq!(d.performatives[0].name, "greet");
         assert_eq!(d.resources.max_depth, 8);
         assert_eq!(d.protocol, Some(String::from("ed25519")));
+    }
+
+    // ---- SPEC-014 role annotations (REQ-600/621, CON-600) ----
+
+    fn oauth_dialect_src() -> &'static str {
+        "(define oauth (cbcl) @example \
+           (:roles (server client authoriser)) \
+           (extend login (session scope) :from server :to (client authoriser) \
+             (tell @client)) \
+           (extend passwd (session credential) :from client :to (authoriser server) \
+             (tell @authoriser)) \
+           (extend auth (session grant) (tell @server) :from authoriser :to server))"
+    }
+
+    #[test]
+    fn parses_roles_attribute() {
+        let sexpr: SExpr = oauth_dialect_src().parse().unwrap();
+        let d = parse_dialect(&sexpr).unwrap();
+        assert_eq!(d.roles.len(), 3);
+        assert!(d
+            .roles
+            .iter()
+            .all(|r| matches!(r.cardinality, cbcl_core::role::RoleCardinality::Singleton)));
+    }
+
+    #[test]
+    fn parses_indexed_role_marker() {
+        let sexpr: SExpr = "(define auction (cbcl) @a (:roles (auctioneer (* bidder))))"
+            .parse()
+            .unwrap();
+        let d = parse_dialect(&sexpr).unwrap();
+        assert_eq!(d.roles[1].name, "bidder");
+        assert!(matches!(
+            d.roles[1].cardinality,
+            cbcl_core::role::RoleCardinality::Indexed
+        ));
+    }
+
+    #[test]
+    fn parses_from_to_before_and_after_template() {
+        let sexpr: SExpr = oauth_dialect_src().parse().unwrap();
+        let d = parse_dialect(&sexpr).unwrap();
+        let login = d.find_performative("login").unwrap();
+        let ann = login.role.as_ref().unwrap();
+        assert_eq!(ann.from, "server");
+        assert!(ann.to.contains("client") && ann.to.contains("authoriser"));
+        // :from/:to after the template also parses (auth)
+        let auth = d.find_performative("auth").unwrap();
+        assert_eq!(auth.role.as_ref().unwrap().from, "authoriser");
+    }
+
+    #[test]
+    fn rejects_half_annotation() {
+        let sexpr: SExpr = "(define x (cbcl) @a (:roles (r)) (extend p (a) :from r (tell @r)))"
+            .parse()
+            .unwrap();
+        assert!(parse_dialect(&sexpr).is_err());
+    }
+
+    #[test]
+    fn rejects_empty_roles() {
+        let sexpr: SExpr = "(define x (cbcl) @a (:roles ()))".parse().unwrap();
+        assert!(parse_dialect(&sexpr).is_err());
+    }
+
+    #[test]
+    fn rejects_postfix_indexed_marker() {
+        let sexpr: SExpr = "(define x (cbcl) @a (:roles (a (bidder *))))"
+            .parse()
+            .unwrap();
+        assert!(parse_dialect(&sexpr).is_err());
+    }
+
+    #[test]
+    fn empty_to_parses_as_terminal() {
+        let sexpr: SExpr =
+            "(define x (cbcl) @a (:roles (r)) (extend done (v) :from r :to () (tell @r)))"
+                .parse()
+                .unwrap();
+        let d = parse_dialect(&sexpr).unwrap();
+        assert!(d
+            .find_performative("done")
+            .unwrap()
+            .role
+            .as_ref()
+            .unwrap()
+            .to
+            .is_empty());
     }
 }
