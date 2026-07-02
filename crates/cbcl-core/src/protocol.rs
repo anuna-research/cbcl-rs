@@ -327,6 +327,8 @@ pub enum CausalViolation {
     ExtraneousPredecessor { caused_by: String, found: String },
     /// Fan-in without an `(all ...)` declaration for this performative.
     FanInWithoutAllDecl { performative: String },
+    /// Role-layer conformance failure (SPEC-014 REQ-612/613/615/618).
+    RoleConformance { reason: String },
 }
 
 impl fmt::Display for CausalViolation {
@@ -359,6 +361,9 @@ impl fmt::Display for CausalViolation {
             }
             Self::FanInWithoutAllDecl { performative } => {
                 write!(f, "fan-in without (all ...) declaration for {performative}")
+            }
+            Self::RoleConformance { reason } => {
+                write!(f, "role conformance: {reason}")
             }
         }
     }
@@ -539,8 +544,10 @@ pub fn verify_causal<S: MessageStore>(
             match store.lookup_in_thread(&content_hash, thread) {
                 None => VerificationResult::Unknown,
                 Some(predecessor_msg) => {
+                    // Type through wrappers (see the Multiple arm below).
                     let pred_perf = predecessor_msg
-                        .performative()
+                        .innermost_simple()
+                        .and_then(|m| m.performative())
                         .map(|p| p.name())
                         .unwrap_or("");
 
@@ -593,8 +600,13 @@ pub fn verify_causal<S: MessageStore>(
                         result = result.meet(VerificationResult::Unknown);
                     }
                     Some(predecessor_msg) => {
+                        // Read the type through wrappers: the agent stores
+                        // whole (possibly signed) messages, so a wrapped
+                        // predecessor must type as its innermost Simple
+                        // (SPEC-014; pre-existing Simple behaviour unchanged).
                         let pred_perf = predecessor_msg
-                            .performative()
+                            .innermost_simple()
+                            .and_then(|m| m.performative())
                             .map(|p| p.name())
                             .unwrap_or("");
 

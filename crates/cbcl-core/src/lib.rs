@@ -47,6 +47,7 @@ pub mod message;
 pub mod msg_tag;
 pub mod pattern;
 pub mod policy;
+pub mod projection;
 pub mod protocol;
 pub mod r1;
 pub mod r2;
