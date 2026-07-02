@@ -11,7 +11,8 @@ use crate::r2::verify_r2;
 use crate::r3::{r3_violations, verify_r3};
 use crate::r4::{check_r4, R4Result, Signer};
 use crate::r5::{r5_violations_with_ancestors, verify_r5_with_ancestors};
-use crate::role::{RoleAnnotation, RoleDecl};
+use crate::r6::r6_violations;
+use crate::role::{R6Violation as R6ViolationDetail, RoleAnnotation, RoleDecl};
 use crate::sexpr::{Atom, SExpr};
 use crate::shape::ShapeConstraint;
 use alloc::string::String;
@@ -61,6 +62,12 @@ pub enum DialectInstallError {
     R5Violation {
         dialect_name: String,
         shape_errors: Vec<String>,
+    },
+    /// The dialect's role layer is ill-formed (R6 violation, SPEC-014
+    /// REQ-627).
+    R6Violation {
+        dialect_name: String,
+        violations: Vec<R6ViolationDetail>,
     },
 }
 
@@ -113,6 +120,16 @@ impl fmt::Display for DialectInstallError {
                     dialect_name,
                     shape_errors.join("; ")
                 )
+            }
+            DialectInstallError::R6Violation {
+                dialect_name,
+                violations,
+            } => {
+                write!(f, "R6 violation: dialect '{dialect_name}':")?;
+                for v in violations {
+                    write!(f, " {v};")?;
+                }
+                Ok(())
             }
         }
     }
@@ -284,6 +301,15 @@ impl DialectRegistry {
                 dialect_name: d.name,
             });
         }
+        // R6 (SPEC-014 REQ-627): dialect-level role checks; role-free
+        // dialects pass trivially (REQ-607).
+        let r6 = r6_violations(&d);
+        if !r6.is_empty() {
+            return Err(DialectInstallError::R6Violation {
+                violations: r6,
+                dialect_name: d.name,
+            });
+        }
         #[cfg(feature = "tracing")]
         tracing::event!(
             tracing::Level::INFO,
@@ -355,6 +381,15 @@ impl DialectRegistry {
         if !verify_r5_with_ancestors(&d, &ancestors) {
             return Err(DialectInstallError::R5Violation {
                 shape_errors: r5_violations_with_ancestors(&d, &ancestors),
+                dialect_name: d.name,
+            });
+        }
+        // R6 (SPEC-014 REQ-627): dialect-level role checks; role-free
+        // dialects pass trivially (REQ-607).
+        let r6 = r6_violations(&d);
+        if !r6.is_empty() {
+            return Err(DialectInstallError::R6Violation {
+                violations: r6,
                 dialect_name: d.name,
             });
         }
