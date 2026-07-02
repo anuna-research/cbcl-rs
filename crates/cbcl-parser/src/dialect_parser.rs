@@ -86,6 +86,7 @@ pub fn parse_dialect(sexpr: &SExpr) -> Result<Dialect, String> {
     }
 
     Ok(Dialect {
+        roles: Vec::new(),
         name,
         extends,
         author,
@@ -210,6 +211,7 @@ fn parse_clause(
         let template = items[3].clone();
 
         performatives.push(PerformativeDef {
+            role: None,
             name: perf_name,
             params,
             template,

@@ -657,10 +657,12 @@ mod tests {
 
         registry
             .install(cbcl_core::dialect::Dialect {
+                roles: Vec::new(),
                 name: String::from("proto-dialect"),
                 extends: alloc::vec![String::from("cbcl")],
                 author: None,
                 performatives: alloc::vec![PerformativeDef {
+                    role: None,
                     name: String::from("greet"),
                     params: alloc::vec![],
                     template: effect_template("greet-action"),
@@ -701,10 +703,12 @@ mod tests {
         // Install dialect with shape constraint requiring :target string
         registry
             .install(cbcl_core::dialect::Dialect {
+                roles: Vec::new(),
                 name: String::from("shape-dialect"),
                 extends: alloc::vec![String::from("cbcl")],
                 author: None,
                 performatives: alloc::vec![PerformativeDef {
+                    role: None,
                     name: String::from("propose"),
                     params: alloc::vec![],
                     template: effect_template("propose-action"),
@@ -771,10 +775,12 @@ mod tests {
 
         registry
             .install(cbcl_core::dialect::Dialect {
+                roles: Vec::new(),
                 name: String::from("ack-dialect"),
                 extends: alloc::vec![String::from("cbcl")],
                 author: None,
                 performatives: alloc::vec![PerformativeDef {
+                    role: None,
                     name: String::from("ack"),
                     params: alloc::vec![],
                     template: effect_template("ack-action"),
@@ -869,10 +875,12 @@ mod tests {
 
         registry
             .install(cbcl_core::dialect::Dialect {
+                roles: Vec::new(),
                 name: String::from("ack-dialect"),
                 extends: alloc::vec![String::from("cbcl")],
                 author: None,
                 performatives: alloc::vec![PerformativeDef {
+                    role: None,
                     name: String::from("ack"),
                     params: alloc::vec![],
                     template: effect_template("ack-action"),
@@ -962,10 +970,12 @@ mod tests {
 
         registry
             .install(cbcl_core::dialect::Dialect {
+                roles: Vec::new(),
                 name: String::from("ack-with-shape"),
                 extends: alloc::vec![String::from("cbcl")],
                 author: None,
                 performatives: alloc::vec![PerformativeDef {
+                    role: None,
                     name: String::from("ack"),
                     params: alloc::vec![],
                     template: effect_template("ack-action"),
@@ -1033,6 +1043,7 @@ mod tests {
         );
         registry
             .install(cbcl_core::dialect::Dialect {
+                roles: Vec::new(),
                 name: String::from("ok-protocol"),
                 extends: alloc::vec![String::from("cbcl")],
                 author: None,
@@ -1075,10 +1086,12 @@ mod tests {
         // First install a parent dialect that defines `notify`.
         registry
             .install(cbcl_core::dialect::Dialect {
+                roles: Vec::new(),
                 name: String::from("parent-dialect"),
                 extends: alloc::vec![String::from("cbcl")],
                 author: None,
                 performatives: alloc::vec![PerformativeDef {
+                    role: None,
                     name: String::from("notify"),
                     params: alloc::vec![],
                     template: effect_template("notify-action"),

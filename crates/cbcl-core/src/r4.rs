@@ -129,10 +129,12 @@ mod tests {
 
     fn test_dialect(name: &str) -> Dialect {
         Dialect {
+            roles: Vec::new(),
             name: String::from(name),
             extends: vec![],
             author: Some(String::from("@test-authority")),
             performatives: vec![PerformativeDef {
+                role: None,
                 name: String::from("greet"),
                 params: vec![],
                 template: SExpr::List(vec![
@@ -228,11 +230,13 @@ mod tests {
         let mut d1 = test_dialect("test");
         d1.performatives = vec![
             PerformativeDef {
+                role: None,
                 name: String::from("a"),
                 params: vec![],
                 template: SExpr::Atom(Atom::Symbol(String::from("a"))),
             },
             PerformativeDef {
+                role: None,
                 name: String::from("b"),
                 params: vec![],
                 template: SExpr::Atom(Atom::Symbol(String::from("b"))),
@@ -242,11 +246,13 @@ mod tests {
         let mut d2 = test_dialect("test");
         d2.performatives = vec![
             PerformativeDef {
+                role: None,
                 name: String::from("b"),
                 params: vec![],
                 template: SExpr::Atom(Atom::Symbol(String::from("b"))),
             },
             PerformativeDef {
+                role: None,
                 name: String::from("a"),
                 params: vec![],
                 template: SExpr::Atom(Atom::Symbol(String::from("a"))),
@@ -276,6 +282,7 @@ mod tests {
     #[test]
     fn r4_004_integrity_fields_preserved() {
         let d = Dialect {
+            roles: Vec::new(),
             name: String::from("test-integrity-fields"),
             extends: vec![],
             author: None,

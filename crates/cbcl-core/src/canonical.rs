@@ -676,10 +676,12 @@ mod tests {
 
     fn test_dialect(name: &str) -> Dialect {
         Dialect {
+            roles: Vec::new(),
             name: String::from(name),
             extends: vec![],
             author: Some(String::from("@test")),
             performatives: vec![PerformativeDef {
+                role: None,
                 name: String::from("greet"),
                 params: vec![],
                 template: SExpr::List(vec![
@@ -756,11 +758,13 @@ mod tests {
         let mut d1 = test_dialect("test");
         d1.performatives = vec![
             PerformativeDef {
+                role: None,
                 name: String::from("a"),
                 params: vec![],
                 template: SExpr::Atom(Atom::Symbol(String::from("a"))),
             },
             PerformativeDef {
+                role: None,
                 name: String::from("b"),
                 params: vec![],
                 template: SExpr::Atom(Atom::Symbol(String::from("b"))),
@@ -770,11 +774,13 @@ mod tests {
         let mut d2 = test_dialect("test");
         d2.performatives = vec![
             PerformativeDef {
+                role: None,
                 name: String::from("b"),
                 params: vec![],
                 template: SExpr::Atom(Atom::Symbol(String::from("b"))),
             },
             PerformativeDef {
+                role: None,
                 name: String::from("a"),
                 params: vec![],
                 template: SExpr::Atom(Atom::Symbol(String::from("a"))),
@@ -791,6 +797,7 @@ mod tests {
     #[test]
     fn signable_empty_dialect() {
         let d = Dialect {
+            roles: Vec::new(),
             name: String::from("empty"),
             extends: vec![],
             author: None,
@@ -817,10 +824,12 @@ mod tests {
     #[test]
     fn signable_all_optional_fields() {
         let d = Dialect {
+            roles: Vec::new(),
             name: String::from("full"),
             extends: vec![String::from("parent1"), String::from("parent2")],
             author: Some(String::from("@author")),
             performatives: vec![PerformativeDef {
+                role: None,
                 name: String::from("act"),
                 params: vec![SExpr::Atom(Atom::Symbol("x".into()))],
                 template: SExpr::Atom(Atom::Symbol("do-it".into())),
@@ -1025,10 +1034,12 @@ mod tests {
     /// verifying.
     fn snapshot_legacy_dialect() -> Dialect {
         Dialect {
+            roles: Vec::new(),
             name: String::from("legacy"),
             extends: vec![String::from("cbcl")],
             author: Some(String::from("@authority")),
             performatives: vec![PerformativeDef {
+                role: None,
                 name: String::from("act"),
                 params: vec![SExpr::Atom(Atom::Symbol("x".into()))],
                 template: SExpr::Atom(Atom::Symbol("do".into())),

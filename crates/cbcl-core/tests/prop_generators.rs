@@ -128,6 +128,7 @@ pub fn arb_safe_performative_def() -> impl Strategy<Value = PerformativeDef> {
         // Ensure template doesn't contain the performative name as a symbol
         let safe_template = sanitize_template(&name, &template);
         PerformativeDef {
+            role: None,
             name,
             params: Vec::new(),
             template: safe_template,
@@ -159,6 +160,7 @@ pub fn arb_recursive_performative_def() -> impl Strategy<Value = PerformativeDef
             ]),
         ]);
         PerformativeDef {
+            role: None,
             name,
             params: Vec::new(),
             template,
@@ -193,6 +195,7 @@ pub fn arb_valid_dialect() -> impl Strategy<Value = Dialect> {
                 .collect();
 
             Dialect {
+                roles: Vec::new(),
                 name,
                 extends: vec![String::from("cbcl")],
                 author: None,
@@ -216,10 +219,12 @@ pub fn arb_r3_violating_dialect() -> impl Strategy<Value = Dialect> {
         prop::sample::select(CORE_PERFORMATIVE_NAMES),
     )
         .prop_map(|(dialect_name, resources, core_name)| Dialect {
+            roles: Vec::new(),
             name: dialect_name,
             extends: vec![String::from("cbcl")],
             author: None,
             performatives: vec![PerformativeDef {
+                role: None,
                 name: String::from(core_name),
                 params: Vec::new(),
                 template: SExpr::List(vec![

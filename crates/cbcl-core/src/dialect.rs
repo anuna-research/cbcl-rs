@@ -11,6 +11,7 @@ use crate::r2::verify_r2;
 use crate::r3::{r3_violations, verify_r3};
 use crate::r4::{check_r4, R4Result, Signer};
 use crate::r5::{r5_violations_with_ancestors, verify_r5_with_ancestors};
+use crate::role::{RoleAnnotation, RoleDecl};
 use crate::sexpr::{Atom, SExpr};
 use crate::shape::ShapeConstraint;
 use alloc::string::String;
@@ -124,6 +125,9 @@ pub struct PerformativeDef {
     pub name: String,
     pub params: Vec<SExpr>,
     pub template: SExpr,
+    /// `:from`/`:to` role annotation (SPEC-014 REQ-621, CON-600).
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub role: Option<RoleAnnotation>,
 }
 
 /// A CBCL dialect (REQ-022).
@@ -146,6 +150,9 @@ pub struct Dialect {
     pub causal_protocol: Option<CausalProtocol>,
     /// Shape constraints for expanded messages (REQ-220).
     pub shapes: Vec<ShapeConstraint>,
+    /// Declared roles (SPEC-014 REQ-621, CON-600); empty = role-free dialect.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub roles: Vec<RoleDecl>,
 }
 
 impl Dialect {
@@ -191,12 +198,14 @@ const CORE_EFFECT_ACTIONS: [(&str, &str); 8] = [
 /// `Dialect.lean:53–68`.
 pub fn base_dialect() -> Dialect {
     Dialect {
+        roles: Vec::new(),
         name: String::from("cbcl-base"),
         extends: Vec::new(),
         author: Some(String::from("@cbcl-system")),
         performatives: CORE_EFFECT_ACTIONS
             .iter()
             .map(|&(name, action)| PerformativeDef {
+                role: None,
                 name: String::from(name),
                 params: Vec::new(),
                 template: effect_template(action),
@@ -525,10 +534,12 @@ mod tests {
     fn registry_install_appends() {
         let mut reg = DialectRegistry::new();
         let planning = Dialect {
+            roles: Vec::new(),
             name: String::from("cbcl-planning"),
             extends: vec![String::from("cbcl")],
             author: Some(String::from("@planning-authority")),
             performatives: vec![PerformativeDef {
+                role: None,
                 name: String::from("propose-step"),
                 params: vec![],
                 template: effect_template("propose"),
@@ -557,10 +568,12 @@ mod tests {
         // Install two dialects that define the same custom performative.
         for name in &["first", "second"] {
             reg.install(Dialect {
+                roles: Vec::new(),
                 name: String::from(*name),
                 extends: vec![String::from("cbcl")],
                 author: None,
                 performatives: vec![PerformativeDef {
+                    role: None,
                     name: String::from("greet"),
                     params: vec![],
                     template: effect_template("greet-action"),
@@ -588,10 +601,12 @@ mod tests {
     fn registry_install_rejects_r3_violation() {
         let mut reg = DialectRegistry::new();
         let bad = Dialect {
+            roles: Vec::new(),
             name: String::from("bad-dialect"),
             extends: vec![String::from("cbcl")],
             author: None,
             performatives: vec![PerformativeDef {
+                role: None,
                 name: String::from("tell"),
                 params: vec![],
                 template: effect_template("custom-tell"),
@@ -627,6 +642,7 @@ mod tests {
     fn registry_install_rejects_r2_violation() {
         let mut reg = DialectRegistry::new();
         let bad = Dialect {
+            roles: Vec::new(),
             name: String::from("bad-bounds"),
             extends: vec![String::from("cbcl")],
             author: None,
@@ -658,6 +674,7 @@ mod tests {
     fn registry_install_rejects_zero_bounds() {
         let mut reg = DialectRegistry::new();
         let bad = Dialect {
+            roles: Vec::new(),
             name: String::from("zero-depth"),
             extends: vec![],
             author: None,
@@ -703,6 +720,7 @@ mod tests {
             "cbcl-artifacts",
         ] {
             reg.install(Dialect {
+                roles: Vec::new(),
                 name: String::from(*name),
                 extends: vec![String::from("cbcl")],
                 author: None,
@@ -757,6 +775,7 @@ mod tests {
     fn registry_install_with_signer_accepts_unsigned() {
         let mut reg = DialectRegistry::new();
         let d = Dialect {
+            roles: Vec::new(),
             name: String::from("unsigned-dialect"),
             extends: vec![],
             author: None,
@@ -782,6 +801,7 @@ mod tests {
     fn registry_install_with_signer_accepts_valid_signature() {
         let mut reg = DialectRegistry::new();
         let d = Dialect {
+            roles: Vec::new(),
             name: String::from("signed-dialect"),
             extends: vec![],
             author: None,
@@ -807,6 +827,7 @@ mod tests {
     fn registry_install_with_signer_rejects_invalid_signature() {
         let mut reg = DialectRegistry::new();
         let d = Dialect {
+            roles: Vec::new(),
             name: String::from("bad-sig-dialect"),
             extends: vec![],
             author: None,
@@ -839,10 +860,12 @@ mod tests {
         let mut reg = DialectRegistry::new();
         // R3 violation: redefines "tell"
         let d = Dialect {
+            roles: Vec::new(),
             name: String::from("bad-r3"),
             extends: vec![],
             author: None,
             performatives: vec![PerformativeDef {
+                role: None,
                 name: String::from("tell"),
                 params: vec![],
                 template: effect_template("custom-tell"),
@@ -915,10 +938,12 @@ mod tests {
             },
         );
         Dialect {
+            roles: Vec::new(),
             name: String::from("bound-by-signature"),
             extends: vec![String::from("cbcl")],
             author: None,
             performatives: vec![PerformativeDef {
+                role: None,
                 name: String::from("greet"),
                 params: vec![],
                 template: SExpr::List(vec![
@@ -1061,6 +1086,7 @@ mod tests {
             },
         );
         let d = Dialect {
+            roles: Vec::new(),
             name: String::from("uses-ok"),
             extends: vec![String::from("cbcl")],
             author: None,

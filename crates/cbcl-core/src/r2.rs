@@ -380,6 +380,7 @@ mod tests {
         verification_time_ms: u32,
     ) -> crate::dialect::Dialect {
         crate::dialect::Dialect {
+            roles: Vec::new(),
             name: String::from("test-dialect"),
             extends: alloc::vec![],
             author: None,

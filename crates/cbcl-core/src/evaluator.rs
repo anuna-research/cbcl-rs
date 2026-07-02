@@ -388,10 +388,12 @@ mod tests {
     fn make_registry_with_custom() -> DialectRegistry {
         let mut reg = DialectRegistry::new();
         reg.install(Dialect {
+            roles: Vec::new(),
             name: String::from("logistics"),
             extends: vec![String::from("cbcl")],
             author: None,
             performatives: vec![PerformativeDef {
+                role: None,
                 name: String::from("ship"),
                 params: vec![
                     SExpr::Atom(Atom::Symbol(String::from("package"))),
@@ -421,10 +423,12 @@ mod tests {
     fn make_registry_with_duplicate_customs() -> DialectRegistry {
         let mut reg = make_registry_with_custom();
         reg.install(Dialect {
+            roles: Vec::new(),
             name: String::from("warehouse"),
             extends: vec![String::from("cbcl")],
             author: None,
             performatives: vec![PerformativeDef {
+                role: None,
                 name: String::from("ship"),
                 params: vec![
                     SExpr::Atom(Atom::Symbol(String::from("package"))),
@@ -879,10 +883,12 @@ mod tests {
         // Template: (ship-effect :package <pkg> :dest <dst>)
         // Params bind: pkg = args[0], dst = args[1]
         reg.install(Dialect {
+            roles: Vec::new(),
             name: String::from("logistics"),
             extends: vec![String::from("cbcl")],
             author: None,
             performatives: vec![PerformativeDef {
+                role: None,
                 name: String::from("ship"),
                 params: vec![
                     SExpr::Atom(Atom::Symbol(String::from("pkg"))),
@@ -985,10 +991,12 @@ mod tests {
         // Two shape constraints on same performative compose via conjunction (REQ-224)
         let mut reg = DialectRegistry::new();
         reg.install(Dialect {
+            roles: Vec::new(),
             name: String::from("logistics"),
             extends: vec![String::from("cbcl")],
             author: None,
             performatives: vec![PerformativeDef {
+                role: None,
                 name: String::from("ship"),
                 params: vec![
                     SExpr::Atom(Atom::Symbol(String::from("pkg"))),
@@ -1052,10 +1060,12 @@ mod tests {
     fn shape_check_max_depth() {
         let mut reg = DialectRegistry::new();
         reg.install(Dialect {
+            roles: Vec::new(),
             name: String::from("shallow"),
             extends: vec![String::from("cbcl")],
             author: None,
             performatives: vec![PerformativeDef {
+                role: None,
                 name: String::from("nest"),
                 params: vec![],
                 // Template that expands to deeply nested structure

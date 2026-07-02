@@ -151,6 +151,7 @@ mod tests {
 
     fn make_dialect(name: &str, perfs: Vec<PerformativeDef>) -> Dialect {
         Dialect {
+            roles: Vec::new(),
             name: String::from(name),
             extends: vec![String::from("cbcl")],
             author: None,
@@ -167,6 +168,7 @@ mod tests {
 
     fn perf(name: &str, template_str: &str) -> PerformativeDef {
         PerformativeDef {
+            role: None,
             name: String::from(name),
             params: vec![],
             template: SExpr::from_str(template_str).unwrap(),

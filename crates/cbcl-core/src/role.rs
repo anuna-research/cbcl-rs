@@ -87,10 +87,7 @@ impl Cast {
     pub fn admits(&self, role: &str, key: &AgentKey) -> bool {
         match self.singleton.get(role) {
             Some(k) => k == key,
-            None => self
-                .indexed
-                .get(role)
-                .is_some_and(|ks| ks.contains(key)),
+            None => self.indexed.get(role).is_some_and(|ks| ks.contains(key)),
         }
     }
 }
@@ -129,7 +126,10 @@ pub enum R6Violation {
     /// CON-600: malformed `:roles` value.
     MalformedRoles { detail: String },
     /// CON-600: malformed `:from`/`:to` value.
-    MalformedFromTo { performative: String, detail: String },
+    MalformedFromTo {
+        performative: String,
+        detail: String,
+    },
     /// CON-601: malformed `with-roles` bindings.
     MalformedCast { detail: String },
     /// CON-601: a cast binding names a role not declared in `:roles`.
@@ -244,7 +244,9 @@ pub fn parse_roles(roles_value: &SExpr) -> Result<Vec<RoleDecl>, R6Violation> {
                 }
                 _ => {
                     return Err(R6Violation::MalformedRoles {
-                        detail: format!("role declaration must be a symbol or (* name), got {item}"),
+                        detail: format!(
+                            "role declaration must be a symbol or (* name), got {item}"
+                        ),
                     })
                 }
             },
@@ -387,7 +389,8 @@ pub fn parse_cast(bindings: &SExpr, roles: &[RoleDecl]) -> Result<Cast, R6Violat
         }
     }
     for decl in roles {
-        let bound = cast.singleton.contains_key(&decl.name) || cast.indexed.contains_key(&decl.name);
+        let bound =
+            cast.singleton.contains_key(&decl.name) || cast.indexed.contains_key(&decl.name);
         if !bound {
             return Err(R6Violation::MalformedCast {
                 detail: format!("declared role '{}' is not bound by the cast", decl.name),
@@ -555,10 +558,7 @@ mod tests {
     #[test]
     fn cast_negative_singleton_two_keys() {
         assert!(matches!(
-            parse_cast(
-                &sx("((auctioneer @a @b) (bidder @b1))"),
-                &auction_roles()
-            ),
+            parse_cast(&sx("((auctioneer @a @b) (bidder @b1))"), &auction_roles()),
             Err(R6Violation::ArityMismatch { keys: 2, .. })
         ));
     }

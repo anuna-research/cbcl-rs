@@ -605,10 +605,12 @@ mod tests {
 
     fn valid_custom_dialect(name: &str) -> Dialect {
         Dialect {
+            roles: Vec::new(),
             name: String::from(name),
             extends: Vec::new(),
             author: None,
             performatives: vec![PerformativeDef {
+                role: None,
                 name: String::from("custom-action"),
                 params: Vec::new(),
                 template: SExpr::List(alloc::vec![
@@ -706,10 +708,12 @@ mod tests {
     fn install_bad_dialect_rejected() {
         let mut agent = Agent::new("a");
         let bad = Dialect {
+            roles: Vec::new(),
             name: String::from("bad"),
             extends: Vec::new(),
             author: None,
             performatives: vec![PerformativeDef {
+                role: None,
                 name: String::from("tell"), // R3 violation: redefines core
                 params: Vec::new(),
                 template: SExpr::Atom(Atom::Symbol(String::from("x"))),
@@ -915,10 +919,12 @@ mod tests {
         let proto = CausalProtocol { steps };
 
         Dialect {
+            roles: Vec::new(),
             name: String::from("ack-dialect"),
             extends: alloc::vec![String::from("cbcl")],
             author: None,
             performatives: vec![PerformativeDef {
+                role: None,
                 name: String::from("ack"),
                 params: Vec::new(),
                 template: SExpr::List(alloc::vec![
@@ -1100,6 +1106,7 @@ mod tests {
             },
         );
         Dialect {
+            roles: Vec::new(),
             name: String::from("ok-protocol"),
             extends: alloc::vec![String::from("cbcl")],
             author: None,
@@ -1171,10 +1178,12 @@ mod tests {
         );
         agent
             .install_dialect(Dialect {
+                roles: Vec::new(),
                 name: String::from("ping-dialect"),
                 extends: alloc::vec![String::from("cbcl")],
                 author: None,
                 performatives: alloc::vec![PerformativeDef {
+                    role: None,
                     name: String::from("ping"),
                     params: Vec::new(),
                     template: SExpr::List(alloc::vec![
@@ -1292,6 +1301,7 @@ mod tests {
             },
         );
         Dialect {
+            roles: Vec::new(),
             name: String::from(name),
             extends: alloc::vec![String::from("cbcl")],
             author: None,
@@ -1332,6 +1342,7 @@ mod tests {
             },
         );
         Dialect {
+            roles: Vec::new(),
             name: String::from(name),
             extends: alloc::vec![String::from("cbcl")],
             author: None,
@@ -1391,11 +1402,13 @@ mod tests {
             },
         );
         Dialect {
+            roles: Vec::new(),
             name: String::from(name),
             extends: alloc::vec![String::from("cbcl")],
             author: None,
             performatives: vec![
                 PerformativeDef {
+                    role: None,
                     name: String::from("p1"),
                     params: Vec::new(),
                     template: SExpr::List(alloc::vec![
@@ -1404,6 +1417,7 @@ mod tests {
                     ]),
                 },
                 PerformativeDef {
+                    role: None,
                     name: String::from("p2"),
                     params: Vec::new(),
                     template: SExpr::List(alloc::vec![

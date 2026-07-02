@@ -57,6 +57,7 @@ fn make_dialect(name: &str, perfs: Vec<PerformativeDef>) -> Dialect {
 
 fn make_perf(name: &str, template_str: &str) -> PerformativeDef {
     PerformativeDef {
+        role: None,
         name: String::from(name),
         params: vec![],
         template: parse(template_str),
@@ -69,6 +70,7 @@ fn test_dialect(name: &str) -> Dialect {
         extends: Vec::new(),
         author: None,
         performatives: vec![PerformativeDef {
+            role: None,
             name: format!("{}-action", name),
             params: Vec::new(),
             template: SExpr::List(vec![
@@ -224,6 +226,7 @@ fn bench_r3(c: &mut Criterion) {
 
 fn bench_template(c: &mut Criterion) {
     let def = PerformativeDef {
+        role: None,
         name: String::from("greet"),
         params: vec![sym("recipient"), sym("msg")],
         template: parse("(tell recipient msg)"),
@@ -360,6 +363,7 @@ fn bench_eval(c: &mut Criterion) {
             extends: vec![String::from("cbcl")],
             author: None,
             performatives: vec![PerformativeDef {
+                role: None,
                 name: String::from("ship"),
                 params: vec![sym("package"), sym("destination")],
                 template: parse("(effect dispatch-shipment)"),
