@@ -2,7 +2,7 @@
 id: SPEC-014
 title: Role Layer — R6 and Coordination-Free Endpoint Projection
 status: implemented
-version: 0.3.1
+version: 0.3.2
 date: 2026-07-02
 author: Anuna Research (https://anuna.io)
 depends-on:
@@ -422,7 +422,7 @@ grammar DSLs). Stays within the existing S-expression lexicon and keeps the
 DCFL guarantee untouched. Rejected alternatives: `(bidder *)` (dispatch on
 the second element — anomalous in the codebase); `(indexed bidder)`
 (session-types jargon as surface syntax); `(all bidder)` (overloads the
-`all` head across roles-attr and protocol-clause positions); `bidder*` as a
+`all` head across the roles-clause and protocol-clause positions); `bidder*` as a
 naming convention (invisible to the grammar, collides with legal symbol
 names); a separate `:indexed` attribute (splits one fact across two sites).
 
@@ -500,7 +500,9 @@ one symbol token (note `@alice` is a single symbol token — `@` is a symbol
 character in the existing lexer).
 
 ```
-roles-attr     := ":roles" "(" role-decl+ ")"        ; at least one role
+roles-clause   := "(" ":roles" "(" role-decl+ ")" ")" ; wrapped keyword clause,
+                                                     ; like (:resource-requirements …);
+                                                     ; at least one role
 role-decl      := symbol                             ; singleton role
                 | "(" "*" symbol ")"                 ; indexed role (ADR-600)
 
@@ -758,6 +760,15 @@ two-party limitation.
 
 ## Changelog
 
+- 0.3.2 (2026-07-02) — CON-600 grammar correction: the role declaration is a
+  *wrapped* `(:roles (…))` keyword clause (matching the existing
+  `(:resource-requirements …)`), not the unwrapped `:roles (…)` the draft
+  grammar showed — the unwrapped form fails to parse (each `define` clause
+  must be a list). The reference dialect parser already required the wrapped
+  form; this aligns the spec (and the paper's listings) to it. Verified by
+  `crates/cbcl-parser/tests/paper_oauth.rs`, which installs the paper's OAuth
+  fragment end-to-end (as-written → R6-rejected with the three named
+  violations; recipient-widened → installs, R1–R6).
 - 0.3.1 (2026-07-02) — checklist-audit closes. TEST-637 (NFR-600
   operation-count guard) is now implemented over hub protocols of
   |P| ∈ {10, 100, 1000}, backed by an `ops`-tallying `r6_violations_counted`;
