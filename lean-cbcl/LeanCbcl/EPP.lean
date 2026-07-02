@@ -210,6 +210,14 @@ theorem good_glue (F : Family P) {r : Role} {m : Msg} (hr : F.run r m) :
   unfold good
   rw [predTypesPresent_glue P F hr]
 
+/-- Verdict equality between a run and the glued store (validity side). -/
+theorem reconcile_glue (F : Family P) {r : Role} {m : Msg} (hr : F.run r m) :
+    isValid P (F.run r) m ↔ isValid P (glue P F) m := by
+  have hg := good_glue P F hr
+  constructor
+  · intro h; exact ⟨fun p hp => ⟨r, F.covB r m hr p hp⟩, hg ▸ h.2⟩
+  · intro h; exact ⟨fun p hp => F.covB r m hr p hp, hg.symm ▸ h.2⟩
+
 /-- **Completeness** (`thm:epp`(2), safety): gluing a compatible family of locally
     `P`-safe runs yields a `P`-safe, closed configuration. -/
 theorem completeness_safety (F : Family P) (hLS : ∀ r, localSafe P (F.run r)) :
