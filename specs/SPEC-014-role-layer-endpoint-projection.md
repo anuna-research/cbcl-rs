@@ -1,7 +1,7 @@
 ---
 id: SPEC-014
 title: Role Layer — R6 and Coordination-Free Endpoint Projection
-status: draft
+status: approved
 version: 0.2.1
 date: 2026-07-02
 author: Anuna Research (https://anuna.io)

@@ -1,0 +1,205 @@
+;; ----------------------------------------------------------------------
+;; Plan: implement SPEC-014 — role layer (R6) + coordination-free
+;; endpoint projection over the existing R5 causal-protocol machinery.
+;;
+;; Design source: SPEC-014 v0.2.1 (approved) — Rust realisation of the
+;; mechanised Lean EPP development (EPP.lean, EPPCompletion.lean,
+;; Projectability.lean). R5 composition runs against the dialect-level
+;; CausalProtocol (ADR-604); occupant logic lives in the role layer.
+;; Indexed-role marker is (* name) (ADR-600). Verdicts stay in the
+;; deployed valid-is-sticky algebra (ADR-602). Root typing maps the
+;; thread-root hash to the `begin` predecessor type (ADR-603/REQ-623).
+;; ----------------------------------------------------------------------
+
+(meta plan
+  (id "IMPL-014")
+  (title "Role layer: R6 checks, projection, role-local verification (SPEC-014 v0.2.1)")
+  (version "0.1.0")
+  (status "active")
+  (created "2026-07-02")
+  (author "agent:claude")
+  (spec "SPEC-014, depends on SPEC-002, SPEC-003")
+  (description "Deliver crates/cbcl-core modules role.rs, r6.rs, projection.rs plus dialect/message/canonical extensions: role + cast types and parsing (CON-600/601), R6 dialect-level and cast-instantiated checks (REQ-601..608, 627), pure projection (REQ-609/610), role-local verification composed with R5 (REQ-612..620, 623, 626), recipient sets on messages (REQ-622), signature-bound annotations (REQ-624), typed with-roles wrapper (REQ-625), property tests transcribing the Lean theorems (TEST-630..636), OAuth/auction fixtures (TEST-639), fuzz targets (TEST-638)."))
+
+;; ----------------------------------------------------------------------
+;; Task metadata
+;; ----------------------------------------------------------------------
+
+(meta task-role-types
+  (description "REQ-600/611/621-types, CON-600/601: create crates/cbcl-core/src/role.rs with RoleCardinality, RoleDecl, RoleAnnotation, AgentKey, Cast, Endpoint, R6Violation (CON-603 variants), parse_roles (bare symbol = singleton; (* name) = indexed; empty :roles () = MalformedRoles), parse_from_to (bare symbol = singleton set; list = multicast; () = empty), parse_cast (singleton role exactly one key else ArityMismatch; indexed role one+ keys; UnknownRole for undeclared). Tests written first (red gate): positive + negative-input per REQ-600/602-parse/611.")
+  (acceptance "cargo test -p cbcl-core role:: green; tests observed failing before implementation (commit order shows tests first or mutation check later); parse functions reject every malformed shape in CON-600/601 error model; no new deps."))
+
+(meta task-dialect-wiring
+  (description "REQ-621/624: extend Dialect with roles: Vec<RoleDecl> and PerformativeDef with role: Option<RoleAnnotation>; wire :roles and per-extend :from/:to parsing into the dialect parser; extend canonical signable form (new version) and serializer so annotations are signature-bound; round-trip parse -> canonical -> parse preserves annotations.")
+  (acceptance "cargo test -p cbcl-core green incl. new dialect round-trip tests; canonical-form version bump covered by a test asserting stripped :from/:to changes the signable bytes; existing R1-R5 tests untouched and green."))
+
+(meta task-message-recipients
+  (description "REQ-622/625: extend the message layer with recipient sets (bare symbol = singleton, list = multicast, () = empty; canonical sorted serialisation + hashing) and parse (with-roles (…) (signed …)) as a typed wrapper form (not Custom performative) hashed over the whole wrapper S-expression. Preserve backward compatibility for existing single-recipient messages.")
+  (acceptance "cargo test -p cbcl-core green; multicast + empty-recipient messages round-trip parse/serialise/hash deterministically; with-roles parses to the typed wrapper carrying the inner signed message unchanged; existing message tests green."))
+
+(meta task-r6-checker
+  (description "REQ-601..607/627, CON-603: create crates/cbcl-core/src/r6.rs with r6_violations(&Dialect) -> Vec<R6Violation> implementing role-completeness (601, begin excepted, protocol perfs only), undeclared/stray-annotation rejection (602), chooser coherence over ALL disjunctive alternative sets incl. multi-alternative predecessor lists (603), type-level causal locality with begin counting every role (604), role reachability (605), opt-in empty result for role-free dialects (607). Wire into DialectRegistry::install via new DialectInstallError variant (627). Fixtures: paper OAuth fragment rejected as written, accepted after recipient widening; logistics warehouse example rejected.")
+  (acceptance "cargo test -p cbcl-core r6:: green; OAuth-as-written yields NotCausallyLocal{passwd,login,authoriser} among others; widened OAuth passes; install of a violating dialect fails with the R6 variant; O(|P|^2 |R|) structure (no nested store scans)."))
+
+(meta task-r6-instantiated
+  (description "REQ-608: r6_instantiated_violations(&Dialect, &Cast) evaluating (performative, occupant) pairs per ADR-604: for each indexed-role occupant, per-occupant causal locality over the cast-expanded obligations. Fixture: auction with declare-winner :to bidder fails PerOccupantLocalityFailure; declare-winner :to () passes.")
+  (acceptance "cargo test -p cbcl-core green; both auction fixtures behave as specified; function pure and deterministic (BTree iteration only)."))
+
+(meta task-projection
+  (description "REQ-609/610: crates/cbcl-core/src/projection.rs with LocalStep, LocalProtocol, project(&Dialect, &Endpoint, Option<&Cast>) -> LocalProtocol: Send for :from = role, Recv for role in :to, bystanders erased with no predecessor rewriting (raw edges).")
+  (acceptance "cargo test -p cbcl-core projection:: green; OAuth projections match the paper's server/client/authoriser local protocols; erased steps leave predecessor clauses untouched."))
+
+(meta task-role-verify
+  (description "REQ-612/613/615/616/617/619/623/626: verify_causal_for_role(msg, endpoint, dialect, cast, store, thread) = meet(role-conformance, R5 verify_causal on the dialect-level protocol). Role conformance: sender key equals cast binding for the :from role (612; receive-only roles need no ratification, 626); recipient set matches :to under the cast (615). Root typing: caused-by hash resolving to the thread's root wrapper satisfies a begin predecessor declaration (623). Root uniqueness: with-roles wrapper with caused-by != begin, or cast differing from supplied root cast, is Violation (613). Absent predecessor from a vacant role stays Unknown (619).")
+  (acceptance "cargo test -p cbcl-core green; OAuth login-branch trace (h0..h3) verifies at every endpoint incl. out-of-order delivery (h2 before h1 = Unknown then Valid); unrepaired-dialect variant leaves authoriser permanently Unknown; non-nominee send = Violation; second wrapper = Violation."))
+
+(meta task-fanin-occupants
+  (description "REQ-618, REQ-606-runtime, REQ-614: occupant-counted (all …) fan-in — Unknown while any referenced predecessor absent; once resolved, Valid iff present referenced messages include a distinct role-conformant instance from every sealed occupant (sender-key counting against the root cast only), else Violation. Per-member choice instances for indexed choosers.")
+  (acceptance "cargo test -p cbcl-core green; auction fan-in h7: Unknown at 2/3 reveals, Valid at 3/3; a 2-occupant-referenced variant that is fully resolved = Violation; non-member reveal = Violation via conformance; verdict permanent from resolution."))
+
+(meta task-property-tests
+  (description "TEST-630..636: crates/cbcl-core/tests/epp_properties.rs — proptest generators for role-annotated dialects satisfying R6, casts, P-safe closed configurations. Properties: projection determinism (630); EPP soundness (631: project(C,r) locally non-Violation); completeness (632: glue of compatible locally-safe family is safe+closed); exactness round-trip (633: glue∘project = id, project∘glue = id); unknown-means-not-yet-arrived (634); converse straight-line witness rejected by R6 and permanently Unknown when bypassed (635); monotonicity valid-is-sticky + permanence-from-resolution (636). Header table mapping TEST -> Lean theorem.")
+  (acceptance "cargo test -p cbcl-core --test epp_properties green at default proptest cases; every TEST-63x present with its Lean anchor comment; 635 asserts both the R6 rejection and the bypassed permanent Unknown."))
+
+(meta task-fixtures-e2e
+  (description "TEST-639: end-to-end auction fixture (SPEC-004 trace h0..h7 with (* bidder) cast): commits/reveals Valid on referenced-predecessor arrival via root typing; fan-in Unknown->Valid; non-member fourth reveal Violation; project(C, bidder@b1) = {h0,h1,h4}; glue of the four local runs reconstructs C.")
+  (acceptance "cargo test -p cbcl-core --test auction_e2e green; every assertion from TEST-639 present."))
+
+(meta task-fuzz
+  (description "TEST-638: add fuzz targets for parse_roles, parse_cast, and the recipient-set message extension to the existing fuzz/ harness over arbitrary SExpr trees.")
+  (acceptance "cargo fuzz build green; short local runs (60s each) with no panics; targets registered in fuzz/Cargo.toml."))
+
+(meta task-docs-status
+  (description "Phase 3 closeout: module-level rustdoc for role.rs/r6.rs/projection.rs referencing SPEC-014 artefact IDs; update crate README architecture section; set SPEC-014 status to implemented with verified-by annotations reconciled to what landed; zetl check clean.")
+  (acceptance "cargo doc -p cbcl-core green without new warnings; SPEC-014 status: implemented; zetl check --dead-links --fail-on error clean."))
+
+;; ----------------------------------------------------------------------
+;; Facts — tasks exist; one implementing agent
+;; ----------------------------------------------------------------------
+
+(given task-role-types)
+(given task-dialect-wiring)
+(given task-message-recipients)
+(given task-r6-checker)
+(given task-r6-instantiated)
+(given task-projection)
+(given task-role-verify)
+(given task-fanin-occupants)
+(given task-property-tests)
+(given task-fixtures-e2e)
+(given task-fuzz)
+(given task-docs-status)
+(given agent-claude-available)
+
+;; ----------------------------------------------------------------------
+;; Readiness rules — task graph
+;; ----------------------------------------------------------------------
+
+(normally r-ready-role-types
+  task-role-types
+  ready-role-types)
+(meta r-ready-role-types (source "SPEC-014-role-layer-endpoint-projection#REQ-600"))
+
+(normally r-ready-dialect-wiring
+  (and task-dialect-wiring completed-role-types)
+  ready-dialect-wiring)
+
+(normally r-ready-message-recipients
+  (and task-message-recipients completed-role-types)
+  ready-message-recipients)
+
+(normally r-ready-r6-checker
+  (and task-r6-checker completed-dialect-wiring)
+  ready-r6-checker)
+
+(normally r-ready-r6-instantiated
+  (and task-r6-instantiated completed-r6-checker)
+  ready-r6-instantiated)
+
+(normally r-ready-projection
+  (and task-projection completed-dialect-wiring)
+  ready-projection)
+
+(normally r-ready-role-verify
+  (and task-role-verify
+       completed-projection
+       completed-message-recipients
+       completed-r6-checker)
+  ready-role-verify)
+
+(normally r-ready-fanin-occupants
+  (and task-fanin-occupants completed-role-verify)
+  ready-fanin-occupants)
+
+(normally r-ready-property-tests
+  (and task-property-tests
+       completed-role-verify
+       completed-r6-instantiated)
+  ready-property-tests)
+
+(normally r-ready-fixtures-e2e
+  (and task-fixtures-e2e completed-fanin-occupants)
+  ready-fixtures-e2e)
+
+(normally r-ready-fuzz
+  (and task-fuzz completed-message-recipients)
+  ready-fuzz)
+
+(normally r-ready-docs-status
+  (and task-docs-status
+       completed-property-tests
+       completed-fixtures-e2e
+       completed-fuzz)
+  ready-docs-status)
+
+;; ----------------------------------------------------------------------
+;; Assignment rules — surface ready tasks as next actions for the agent
+;; ----------------------------------------------------------------------
+
+(normally r-assign-role-types (and ready-role-types agent-claude-available) assign-to-role-types-claude)
+(normally r-assign-dialect-wiring (and ready-dialect-wiring agent-claude-available) assign-to-dialect-wiring-claude)
+(normally r-assign-message-recipients (and ready-message-recipients agent-claude-available) assign-to-message-recipients-claude)
+(normally r-assign-r6-checker (and ready-r6-checker agent-claude-available) assign-to-r6-checker-claude)
+(normally r-assign-r6-instantiated (and ready-r6-instantiated agent-claude-available) assign-to-r6-instantiated-claude)
+(normally r-assign-projection (and ready-projection agent-claude-available) assign-to-projection-claude)
+(normally r-assign-role-verify (and ready-role-verify agent-claude-available) assign-to-role-verify-claude)
+(normally r-assign-fanin-occupants (and ready-fanin-occupants agent-claude-available) assign-to-fanin-occupants-claude)
+(normally r-assign-property-tests (and ready-property-tests agent-claude-available) assign-to-property-tests-claude)
+(normally r-assign-fixtures-e2e (and ready-fixtures-e2e agent-claude-available) assign-to-fixtures-e2e-claude)
+(normally r-assign-fuzz (and ready-fuzz agent-claude-available) assign-to-fuzz-claude)
+(normally r-assign-docs-status (and ready-docs-status agent-claude-available) assign-to-docs-status-claude)
+
+(claims agent:claude
+  :at "2026-07-02T04:48:46Z"
+  (given claim-v1-role-types)
+  (normally r-cl-state-v1-role-types claim-v1-role-types state-claimed-v1-role-types)
+  (normally r-cl-chain-v1-role-types state-claimed-v1-role-types claimed-role-types)
+)
+
+;; Propagation rules: failures in 'role-types' block downstream tasks
+(normally r-propagate-dialect-wiring-from-role-types-failed failed-role-types upstream-blocked-dialect-wiring)
+(normally r-propagate-dialect-wiring-from-role-types-permanently-failed permanently-failed-role-types upstream-blocked-dialect-wiring)
+(normally r-propagate-dialect-wiring-from-role-types-stale-v1 stale-v1-role-types upstream-blocked-dialect-wiring)
+(normally r-propagate-dialect-wiring-from-role-types-timeout-v1 timeout-v1-role-types upstream-blocked-dialect-wiring)
+(normally r-propagate-dialect-wiring-from-role-types-blocked upstream-blocked-role-types upstream-blocked-dialect-wiring)
+(normally r-propagate-message-recipients-from-role-types-failed failed-role-types upstream-blocked-message-recipients)
+(normally r-propagate-message-recipients-from-role-types-permanently-failed permanently-failed-role-types upstream-blocked-message-recipients)
+(normally r-propagate-message-recipients-from-role-types-stale-v1 stale-v1-role-types upstream-blocked-message-recipients)
+(normally r-propagate-message-recipients-from-role-types-timeout-v1 timeout-v1-role-types upstream-blocked-message-recipients)
+(normally r-propagate-message-recipients-from-role-types-blocked upstream-blocked-role-types upstream-blocked-message-recipients)
+
+;; Transitive propagation: upstream-blocked cascades through dependency chain
+(normally r-propagate-projection-from-dialect-wiring-blocked upstream-blocked-dialect-wiring upstream-blocked-projection)
+(normally r-propagate-r6-checker-from-dialect-wiring-blocked upstream-blocked-dialect-wiring upstream-blocked-r6-checker)
+(normally r-propagate-fuzz-from-message-recipients-blocked upstream-blocked-message-recipients upstream-blocked-fuzz)
+(normally r-propagate-role-verify-from-message-recipients-blocked upstream-blocked-message-recipients upstream-blocked-role-verify)
+(normally r-propagate-role-verify-from-projection-blocked upstream-blocked-projection upstream-blocked-role-verify)
+(normally r-propagate-r6-instantiated-from-r6-checker-blocked upstream-blocked-r6-checker upstream-blocked-r6-instantiated)
+(normally r-propagate-role-verify-from-r6-checker-blocked upstream-blocked-r6-checker upstream-blocked-role-verify)
+(normally r-propagate-docs-status-from-fuzz-blocked upstream-blocked-fuzz upstream-blocked-docs-status)
+(normally r-propagate-fanin-occupants-from-role-verify-blocked upstream-blocked-role-verify upstream-blocked-fanin-occupants)
+(normally r-propagate-property-tests-from-role-verify-blocked upstream-blocked-role-verify upstream-blocked-property-tests)
+(normally r-propagate-property-tests-from-r6-instantiated-blocked upstream-blocked-r6-instantiated upstream-blocked-property-tests)
+(normally r-propagate-fixtures-e2e-from-fanin-occupants-blocked upstream-blocked-fanin-occupants upstream-blocked-fixtures-e2e)
+(normally r-propagate-docs-status-from-property-tests-blocked upstream-blocked-property-tests upstream-blocked-docs-status)
+(normally r-propagate-docs-status-from-fixtures-e2e-blocked upstream-blocked-fixtures-e2e upstream-blocked-docs-status)
