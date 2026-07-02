@@ -249,6 +249,13 @@ fn parse_clause(
                             .map_err(|v| alloc::format!("{v}"))?,
                     );
                 }
+                // Fail closed: an unrecognised keyword is not silently
+                // absorbed as a template (CON-600, LangSec principle 4).
+                SExpr::Atom(Atom::Keyword(kw)) => {
+                    return Err(alloc::format!(
+                        "extend '{perf_name}' has unknown keyword :{kw}"
+                    ));
+                }
                 other => {
                     if template.is_some() {
                         return Err(alloc::format!(

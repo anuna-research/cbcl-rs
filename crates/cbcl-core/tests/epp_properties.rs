@@ -281,7 +281,7 @@ proptest! {
             let store = store_of(&msgs, &local);
             for (h, m) in &msgs {
                 if !local.contains(h) { continue; }
-                let v = verify_causal_for_role(m, &ep(r), &d, &cast, &store, &tid());
+                let v = verify_causal_for_role(m, &ep(r), &d, &cast, &store, &tid(), &ContentHash("m-root".to_string()));
                 prop_assert!(
                     !matches!(v, VerificationResult::Violation(_)),
                     "role {r}, message {h}: {v:?}"
@@ -312,7 +312,7 @@ proptest! {
         // safety of the glued store (TEST-632)
         let store = store_of(&msgs, &glued);
         for (h, m) in &msgs {
-            let v = verify_causal_for_role(m, &ep(0), &d, &cast, &store, &tid());
+            let v = verify_causal_for_role(m, &ep(0), &d, &cast, &store, &tid(), &ContentHash("m-root".to_string()));
             prop_assert!(
                 !matches!(v, VerificationResult::Violation(_)),
                 "glued store, message {h}: {v:?}"
@@ -350,7 +350,7 @@ proptest! {
             let store = store_of(&msgs, &keep);
             for (h, m) in &msgs {
                 if !keep.contains(h) { continue; }
-                let v = verify_causal_for_role(m, &ep(r), &d, &cast, &store, &tid());
+                let v = verify_causal_for_role(m, &ep(r), &d, &cast, &store, &tid(), &ContentHash("m-root".to_string()));
                 if matches!(v, VerificationResult::Unknown) {
                     // the missing predecessor must be r-relevant (in the
                     // full local run) — never a third-party message
@@ -380,7 +380,7 @@ proptest! {
         let full = store_of(&msgs, &all);
         let final_verdicts: Vec<VerificationResult> = msgs
             .iter()
-            .map(|(_, m)| verify_causal_for_role(m, &ep(0), &d, &cast, &full, &tid()))
+            .map(|(_, m)| verify_causal_for_role(m, &ep(0), &d, &cast, &full, &tid(), &ContentHash("m-root".to_string())))
             .collect();
 
         // shuffled insertion order via the random keys
@@ -397,7 +397,7 @@ proptest! {
             let (h, m) = &msgs[idx];
             store.append(ContentHash(h.clone()), tid(), m.clone());
             for (j, (_, mj)) in msgs.iter().enumerate() {
-                let v = verify_causal_for_role(mj, &ep(0), &d, &cast, &store, &tid());
+                let v = verify_causal_for_role(mj, &ep(0), &d, &cast, &store, &tid(), &ContentHash("m-root".to_string()));
                 if seen_valid[j] {
                     prop_assert!(
                         matches!(v, VerificationResult::Valid),
@@ -412,7 +412,7 @@ proptest! {
         }
         // at the full store every verdict equals the reference verdict
         for (j, (_, mj)) in msgs.iter().enumerate() {
-            let v = verify_causal_for_role(mj, &ep(0), &d, &cast, &store, &tid());
+            let v = verify_causal_for_role(mj, &ep(0), &d, &cast, &store, &tid(), &ContentHash("m-root".to_string()));
             prop_assert_eq!(&v, &final_verdicts[j]);
         }
     }
@@ -536,6 +536,7 @@ fn test_635_converse_witness() {
             &cast,
             &store,
             &tid(),
+            &ContentHash("m-root".to_string()),
         );
         assert_eq!(
             v,

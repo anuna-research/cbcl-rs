@@ -1,8 +1,8 @@
 ---
 id: SPEC-014
 title: Role Layer — R6 and Coordination-Free Endpoint Projection
-status: approved
-version: 0.2.1
+status: implemented
+version: 0.3.0
 date: 2026-07-02
 author: Anuna Research (https://anuna.io)
 depends-on:
@@ -598,14 +598,26 @@ pub struct LocalProtocol {
 pub fn project(d: &Dialect, endpoint: &Endpoint, cast: Option<&Cast>) -> LocalProtocol;
 pub fn verify_causal_for_role<S: MessageStore>(
     msg: &Message, endpoint: &Endpoint, d: &Dialect, cast: &Cast,
-    store: &S, thread: &ThreadId,
+    store: &S, thread: &ThreadId, root: &ContentHash,
 ) -> VerificationResult;   // meet(role-conformance, R5 verify_causal) per REQ-617
 ```
 
+`root` is the content hash of the thread's `with-roles` wrapper; the caller
+already holds it (it is where the cast came from). It is load-bearing for
+security, not a convenience: root typing
+([[SPEC-014-role-layer-endpoint-projection#REQ-623]]) maps *only* this exact
+hash to `begin`, so a forged mid-thread `with-roles` wrapper cannot be
+referenced-as-root to smuggle a message in as a first step, and a second
+wrapper distinct from the message stored at `root` is a `Violation`
+([[SPEC-014-role-layer-endpoint-projection#REQ-613]]). Occupancy is ratified
+by an enclosing `signed` wrapper's key alone — never the self-asserted
+`:sender` field ([[SPEC-014-role-layer-endpoint-projection#REQ-612]]).
+
 Behaviour is invariant across calling context; all functions pure given
 their arguments (store access read-only through the existing `MessageStore`
-trait; the caller supplies the thread's root cast — root discovery is a
-caller concern, per [[SPEC-014-role-layer-endpoint-projection#REQ-613]]).
+trait; the caller supplies the thread's root cast and root hash — root
+discovery is a caller concern, per
+[[SPEC-014-role-layer-endpoint-projection#REQ-613]]).
 Implements: [[SPEC-014-role-layer-endpoint-projection#REQ-607]],
 [[SPEC-014-role-layer-endpoint-projection#REQ-608]],
 [[SPEC-014-role-layer-endpoint-projection#REQ-609]],
@@ -746,6 +758,16 @@ two-party limitation.
 
 ## Changelog
 
+- 0.3.0 (2026-07-02) — implemented (Phase 3). Adversarial code review
+  (2 High, confirmed) drove two hardening changes now reflected in CON-602:
+  occupancy is ratified only by an enclosing `signed` wrapper's key, never
+  the unauthenticated `:sender` field (REQ-612); and `verify_causal_for_role`
+  takes the thread's `root` content hash so root typing is scoped to the
+  genuine root (REQ-623) and a forged/duplicate `with-roles` wrapper is a
+  Violation (REQ-613). Also: `reachable_from_begin` reduced to the NFR-600
+  bound; occupant fan-in defers a non-`Multiple` reference to R5 rather than
+  mislabelling it; the dialect parser fails closed on unknown `extend`
+  keywords (CON-600). Status → implemented.
 - 0.2.1 (2026-07-02) — stakeholder review: indexed-role marker changed from
   `(name *)` to head-position `(* name)` (ADR-600 rewritten with the
   head-dispatch rationale and widened rejected-alternatives list).

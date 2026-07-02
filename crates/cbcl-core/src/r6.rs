@@ -316,6 +316,17 @@ pub fn r6_instantiated_violations(d: &Dialect, cast: &crate::role::Cast) -> Vec<
 /// direction (protocols may encode successors, predecessors, or both);
 /// fixpoint iteration, `begin` itself excluded from the result.
 fn reachable_from_begin(cp: &CausalProtocol) -> BTreeSet<String> {
+    // Precompute the forward edge set once (O(|edges|)) rather than
+    // rescanning every step's successors on each fixpoint pass — keeps the
+    // whole check within the NFR-600 O(|P|²·|R|) budget instead of O(|P|³).
+    let mut forward: BTreeSet<(&str, &str)> = BTreeSet::new();
+    for step in cp.steps.values() {
+        for nr in &step.successors {
+            for succ in nr.performatives() {
+                forward.insert((step.performative.as_str(), succ));
+            }
+        }
+    }
     let is_reached = |reachable: &BTreeSet<String>, name: &str| {
         name == BEGIN_KEYWORD || reachable.contains(name)
     };
@@ -330,12 +341,9 @@ fn reachable_from_begin(cp: &CausalProtocol) -> BTreeSet<String> {
                 .predecessors
                 .iter()
                 .any(|nr| nr.performatives().any(|p| is_reached(&reachable, p)));
-            let via_succ = cp.steps.values().any(|s| {
-                is_reached(&reachable, &s.performative)
-                    && s.successors
-                        .iter()
-                        .any(|nr| nr.performatives().any(|p| p == step.performative))
-            });
+            let via_succ = forward
+                .iter()
+                .any(|(from, to)| *to == step.performative && is_reached(&reachable, from));
             if via_pred || via_succ {
                 reachable.insert(step.performative.clone());
                 grew = true;

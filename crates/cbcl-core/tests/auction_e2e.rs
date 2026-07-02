@@ -178,7 +178,15 @@ fn auction_end_to_end() {
         occupant: None,
     };
     for (h, m) in &trace {
-        let v = verify_causal_for_role(m, &auc, &d, &c, &store, &tid());
+        let v = verify_causal_for_role(
+            m,
+            &auc,
+            &d,
+            &c,
+            &store,
+            &tid(),
+            &ContentHash("h0".to_string()),
+        );
         assert_eq!(v, VerificationResult::Valid, "{h} must be Valid");
     }
 
@@ -191,14 +199,30 @@ fn auction_end_to_end() {
     }
     let h7 = &trace.iter().find(|(h, _)| *h == "h7").unwrap().1;
     assert_eq!(
-        verify_causal_for_role(h7, &auc, &d, &c, &partial, &tid()),
+        verify_causal_for_role(
+            h7,
+            &auc,
+            &d,
+            &c,
+            &partial,
+            &tid(),
+            &ContentHash("h0".to_string())
+        ),
         VerificationResult::Unknown
     );
 
     // A fourth reveal from a non-member key is a Violation.
     let intruder = msg("(signed @b4 \"sig\" (reveal @auc 99 :caused-by h3))");
     assert!(matches!(
-        verify_causal_for_role(&intruder, &auc, &d, &c, &store, &tid()),
+        verify_causal_for_role(
+            &intruder,
+            &auc,
+            &d,
+            &c,
+            &store,
+            &tid(),
+            &ContentHash("h0".to_string())
+        ),
         VerificationResult::Violation(CausalViolation::RoleConformance { .. })
     ));
 

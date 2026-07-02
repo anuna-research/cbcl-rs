@@ -85,8 +85,12 @@ pub fn project(d: &Dialect, endpoint: &Endpoint, cast: Option<&Cast>) -> LocalPr
     }
 }
 
-/// The signing key a message is attributed to: the outermost `signed`
-/// wrapper's key parameter, falling back to the innermost `:sender` param.
+/// The key a message is *ratified* under: the key of an enclosing `signed`
+/// wrapper (REQ-612, ratification-by-signature). Deliberately does **not**
+/// fall back to the innermost `:sender` field — that field is a self-asserted,
+/// unauthenticated claim, so trusting it would let an unsigned message occupy
+/// a role (a forgery path). A message with no `signed` wrapper has no
+/// ratifying key and cannot occupy a sender role.
 fn signer_of(msg: &Message) -> Option<&str> {
     let mut cur = msg;
     loop {
@@ -103,8 +107,8 @@ fn signer_of(msg: &Message) -> Option<&str> {
             }
             Message::Wrapped { content, .. } => cur = content,
             Message::Dialect { inner, .. } => cur = inner,
-            Message::Simple { .. } => return cur.sender(),
-            Message::Meta { .. } => return None,
+            // No signed wrapper enclosed this payload: no ratifying key.
+            Message::Simple { .. } | Message::Meta { .. } => return None,
         }
     }
 }
@@ -139,6 +143,7 @@ pub fn verify_causal_for_role<S: MessageStore>(
     cast: &Cast,
     store: &S,
     thread: &ThreadId,
+    root: &ContentHash,
 ) -> VerificationResult {
     let _ = endpoint; // the verdict is endpoint-independent in v1 (exact
                       // conformance); the parameter fixes the caller's view
@@ -146,7 +151,7 @@ pub fn verify_causal_for_role<S: MessageStore>(
     // REQ-613: a with-roles wrapper is legal only as the thread's root,
     // carrying the thread's one cast.
     if msg.wrapper_type() == Some(WrapperType::WithRoles) {
-        return verify_cast_wrapper(msg, d, cast);
+        return verify_cast_wrapper(msg, d, cast, store, thread, root);
     }
 
     let Some(simple) = msg.innermost_simple() else {
@@ -175,7 +180,7 @@ pub fn verify_causal_for_role<S: MessageStore>(
     let caused_by = simple.caused_by().cloned();
     let rewritten = caused_by
         .as_ref()
-        .map(|cb| rewrite_root_references(cb, store, thread));
+        .map(|cb| rewrite_root_references(cb, root));
     let r5 = match &d.causal_protocol {
         Some(protocol) => verify_causal(perf, rewritten.as_ref(), store, protocol, thread),
         None => VerificationResult::Valid,
@@ -187,11 +192,21 @@ pub fn verify_causal_for_role<S: MessageStore>(
     conformance.meet(r5).meet(fanin)
 }
 
-/// REQ-613: verify a `with-roles` wrapper. Its inner message must open the
-/// thread (`:caused-by begin`) and its bindings must denote exactly the
-/// thread's root cast; anything else is a `Violation` (binding is
+/// REQ-613: verify a `with-roles` wrapper. It is legal only as *the*
+/// thread root: the caller-supplied `root` hash must resolve to a
+/// `with-roles` wrapper equal to this one, its inner message must open the
+/// thread (`:caused-by begin`), and its bindings must denote exactly the
+/// thread's root cast. A second/mid-thread wrapper — one whose content
+/// differs from the message stored at `root` — is a `Violation` (binding is
 /// immutable for the life of the thread).
-fn verify_cast_wrapper(msg: &Message, d: &Dialect, cast: &Cast) -> VerificationResult {
+fn verify_cast_wrapper<S: MessageStore>(
+    msg: &Message,
+    d: &Dialect,
+    cast: &Cast,
+    store: &S,
+    thread: &ThreadId,
+    root: &ContentHash,
+) -> VerificationResult {
     let Message::Wrapped {
         params, content, ..
     } = msg
@@ -209,6 +224,17 @@ fn verify_cast_wrapper(msg: &Message, d: &Dialect, cast: &Cast) -> VerificationR
         return role_violation(String::from(
             "with-roles wrapper does not match the thread's root cast (REQ-613)",
         ));
+    }
+    // Root uniqueness (REQ-613): if the store already holds the thread's
+    // root, this wrapper is legal only if it *is* that root message. A
+    // distinct wrapper (a forged or duplicate root) is rejected, which also
+    // stops it being referenced-as-root by a re-parenting attack.
+    if let Some(root_msg) = store.lookup_in_thread(root, thread) {
+        if root_msg != msg {
+            return role_violation(String::from(
+                "a second with-roles wrapper is not the thread root (REQ-613)",
+            ));
+        }
     }
     match content.innermost_simple().and_then(|m| m.caused_by()) {
         Some(CausedBy::Begin) => VerificationResult::Valid,
@@ -250,25 +276,17 @@ fn check_conformance(
     VerificationResult::Valid
 }
 
-/// REQ-623 (root typing): rewrite any `:caused-by` reference that resolves
-/// to the thread's `with-roles` wrapper into the `begin` predecessor type.
-/// Unresolved references are left untouched (R5 keeps them `Unknown`, which
-/// is the correct verdict while the root has not yet arrived).
-fn rewrite_root_references<S: MessageStore>(
-    cb: &CausedBy,
-    store: &S,
-    thread: &ThreadId,
-) -> CausedBy {
-    let is_root = |h: &str| {
-        store
-            .lookup_in_thread(&ContentHash(String::from(h)), thread)
-            .is_some_and(|m| m.wrapper_type() == Some(WrapperType::WithRoles))
-    };
+/// REQ-623 (root typing): rewrite a `:caused-by` reference to the thread's
+/// *genuine* root (the caller-supplied `root` hash) into the `begin`
+/// predecessor type. Scoped to the exact root hash — not "any stored
+/// `with-roles` wrapper" — so a forged mid-thread wrapper cannot be
+/// referenced-as-root to smuggle a message in as a first step. A `Multiple`
+/// is only ever a fan-in over non-root predecessors in v1, so it is left
+/// untouched (mixing the root into a fan-in has no v1 use and would type
+/// inconsistently otherwise).
+fn rewrite_root_references(cb: &CausedBy, root: &ContentHash) -> CausedBy {
     match cb {
-        CausedBy::Single(h) if is_root(h) => CausedBy::Begin,
-        CausedBy::Multiple(hs) if !hs.is_empty() && hs.iter().all(|h| is_root(h.as_str())) => {
-            CausedBy::Begin
-        }
+        CausedBy::Single(h) if h == &root.0 => CausedBy::Begin,
         other => other.clone(),
     }
 }
@@ -317,12 +335,18 @@ fn occupant_fanin<S: MessageStore>(
         return VerificationResult::Valid;
     }
 
-    // Resolve every referenced predecessor; any absence is Unknown.
-    let hashes: Vec<&str> = match caused_by {
-        Some(CausedBy::Single(h)) => alloc::vec![h.as_str()],
-        Some(CausedBy::Multiple(hs)) => hs.iter().map(String::as_str).collect(),
-        _ => Vec::new(),
+    // An occupant fan-in is only meaningful over a `(h1 h2 …)` reference.
+    // With a single or absent `:caused-by`, this is not a well-formed
+    // fan-in message at all — defer to R5, which reports the accurate
+    // `MissingCausedBy`/`InvalidPredecessor`, rather than mislabelling it
+    // as an occupant-coverage failure.
+    let CausedBy::Multiple(hs) = (match caused_by {
+        Some(cb) => cb,
+        None => return VerificationResult::Valid,
+    }) else {
+        return VerificationResult::Valid;
     };
+    let hashes: Vec<&str> = hs.iter().map(String::as_str).collect();
     let mut resolved: Vec<&Message> = Vec::new();
     for h in &hashes {
         match store.lookup_in_thread(&ContentHash(String::from(*h)), thread) {
@@ -366,7 +390,7 @@ mod tests {
     use super::*;
     use crate::dialect::{Dialect, PerformativeDef, ResourceBounds};
     use crate::protocol::StepDecl;
-    use crate::role::{parse_roles, RoleDecl};
+    use crate::role::parse_roles;
     use crate::store::ThreadedMessageStore;
     use alloc::string::ToString;
     use alloc::vec;
@@ -540,7 +564,15 @@ mod tests {
         put(&mut store, "h0", &oauth_h0());
         let h1 = msg("(signed @srv \"sig\" (login (@as @cli) \"n-42\" :caused-by h0))");
         assert_eq!(
-            verify_causal_for_role(&h1, &ep("client"), &d, &cast, &store, &tid()),
+            verify_causal_for_role(
+                &h1,
+                &ep("client"),
+                &d,
+                &cast,
+                &store,
+                &tid(),
+                &ContentHash("h0".to_string())
+            ),
             VerificationResult::Valid
         );
     }
@@ -555,7 +587,15 @@ mod tests {
         put(&mut store, "h0", &oauth_h0());
         let evil = msg("(signed @evil \"sig\" (login (@as @cli) \"n\" :caused-by h0))");
         assert!(matches!(
-            verify_causal_for_role(&evil, &ep("client"), &d, &cast, &store, &tid()),
+            verify_causal_for_role(
+                &evil,
+                &ep("client"),
+                &d,
+                &cast,
+                &store,
+                &tid(),
+                &ContentHash("h0".to_string())
+            ),
             VerificationResult::Violation(CausalViolation::RoleConformance { .. })
         ));
     }
@@ -569,7 +609,15 @@ mod tests {
         // login must go to both client and authoriser under the widened :to
         let narrow = msg("(signed @srv \"sig\" (login @cli \"n\" :caused-by h0))");
         assert!(matches!(
-            verify_causal_for_role(&narrow, &ep("client"), &d, &cast, &store, &tid()),
+            verify_causal_for_role(
+                &narrow,
+                &ep("client"),
+                &d,
+                &cast,
+                &store,
+                &tid(),
+                &ContentHash("h0".to_string())
+            ),
             VerificationResult::Violation(CausalViolation::RoleConformance { .. })
         ));
     }
@@ -587,12 +635,28 @@ mod tests {
         // h2 arrives before h1: Unknown (a message the role will see has
         // not yet arrived), never Violation.
         assert_eq!(
-            verify_causal_for_role(&h2, &ep("authoriser"), &d, &cast, &store, &tid()),
+            verify_causal_for_role(
+                &h2,
+                &ep("authoriser"),
+                &d,
+                &cast,
+                &store,
+                &tid(),
+                &ContentHash("h0".to_string())
+            ),
             VerificationResult::Unknown
         );
         put(&mut store, "h1", &h1);
         assert_eq!(
-            verify_causal_for_role(&h2, &ep("authoriser"), &d, &cast, &store, &tid()),
+            verify_causal_for_role(
+                &h2,
+                &ep("authoriser"),
+                &d,
+                &cast,
+                &store,
+                &tid(),
+                &ContentHash("h0".to_string())
+            ),
             VerificationResult::Valid
         );
     }
@@ -604,7 +668,15 @@ mod tests {
         let store = ThreadedMessageStore::new();
         let auth = msg("(signed @as \"sig\" (auth @srv \"tok\" :caused-by h-never))");
         assert_eq!(
-            verify_causal_for_role(&auth, &ep("server"), &d, &cast, &store, &tid()),
+            verify_causal_for_role(
+                &auth,
+                &ep("server"),
+                &d,
+                &cast,
+                &store,
+                &tid(),
+                &ContentHash("h0".to_string())
+            ),
             VerificationResult::Unknown
         );
     }
@@ -618,7 +690,15 @@ mod tests {
         let store = ThreadedMessageStore::new();
         let second = msg("(with-roles ((server @evil) (client @cli) (authoriser @as)) (signed @evil \"sig\" (hello :caused-by begin)))");
         assert!(matches!(
-            verify_causal_for_role(&second, &ep("client"), &d, &cast, &store, &tid()),
+            verify_causal_for_role(
+                &second,
+                &ep("client"),
+                &d,
+                &cast,
+                &store,
+                &tid(),
+                &ContentHash("h0".to_string())
+            ),
             VerificationResult::Violation(CausalViolation::RoleConformance { .. })
         ));
     }
@@ -630,9 +710,108 @@ mod tests {
         let store = ThreadedMessageStore::new();
         let late = msg("(with-roles ((server @srv) (client @cli) (authoriser @as)) (signed @srv \"sig\" (hello :caused-by h0)))");
         assert!(matches!(
-            verify_causal_for_role(&late, &ep("client"), &d, &cast, &store, &tid()),
+            verify_causal_for_role(
+                &late,
+                &ep("client"),
+                &d,
+                &cast,
+                &store,
+                &tid(),
+                &ContentHash("h0".to_string())
+            ),
             VerificationResult::Violation(CausalViolation::RoleConformance { .. })
         ));
+    }
+
+    // ---- Forgery regressions (adversarial review, HIGH findings) ----
+
+    #[test]
+    fn unsigned_sender_field_cannot_occupy_a_role() {
+        // An unsigned message self-asserting :sender must NOT ratify a role
+        // (ratification is by signature, REQ-612).
+        let d = oauth();
+        let cast = oauth_cast(&d);
+        let mut store = ThreadedMessageStore::new();
+        put(&mut store, "h0", &oauth_h0());
+        let forged = msg("(login (@as @cli) \"n\" :sender @srv :caused-by h0)");
+        assert!(matches!(
+            verify_causal_for_role(
+                &forged,
+                &ep("client"),
+                &d,
+                &cast,
+                &store,
+                &tid(),
+                &ContentHash("h0".to_string())
+            ),
+            VerificationResult::Violation(CausalViolation::RoleConformance { .. })
+        ));
+    }
+
+    #[test]
+    fn forged_second_root_wrapper_is_rejected() {
+        // A second with-roles wrapper (distinct from the stored root) is a
+        // Violation, and cannot be referenced-as-root (REQ-613).
+        let d = oauth();
+        let cast = oauth_cast(&d);
+        let mut store = ThreadedMessageStore::new();
+        put(&mut store, "h0", &oauth_h0());
+        let second = msg("(with-roles ((server @srv) (client @cli) (authoriser @as)) (signed @cli \"sig\" (hello :caused-by begin)))");
+        put(&mut store, "h9", &second);
+        // The forged wrapper itself is a Violation (not the thread root).
+        assert!(matches!(
+            verify_causal_for_role(
+                &second,
+                &ep("client"),
+                &d,
+                &cast,
+                &store,
+                &tid(),
+                &ContentHash("h0".to_string())
+            ),
+            VerificationResult::Violation(CausalViolation::RoleConformance { .. })
+        ));
+        // A message re-parented onto the forged wrapper does NOT verify as a
+        // first step: h9 is not the root, so its type (hello) is an illegal
+        // predecessor of login.
+        let reparented = msg("(signed @srv \"sig\" (login (@as @cli) \"n\" :caused-by h9))");
+        assert!(matches!(
+            verify_causal_for_role(
+                &reparented,
+                &ep("client"),
+                &d,
+                &cast,
+                &store,
+                &tid(),
+                &ContentHash("h0".to_string())
+            ),
+            VerificationResult::Violation(_)
+        ));
+    }
+
+    #[test]
+    fn receive_only_role_needs_no_signature_to_be_addressed() {
+        // REQ-626: a message addressed to a nominated receive-only role is
+        // conformant without any ratifying signature from that role — the
+        // recipient never signs. Here `client` is a pure recipient of login.
+        let d = oauth();
+        let cast = oauth_cast(&d);
+        let mut store = ThreadedMessageStore::new();
+        put(&mut store, "h0", &oauth_h0());
+        let login = msg("(signed @srv \"sig\" (login (@as @cli) \"n-42\" :caused-by h0))");
+        // client is addressed but contributes no signature; still Valid.
+        assert_eq!(
+            verify_causal_for_role(
+                &login,
+                &ep("client"),
+                &d,
+                &cast,
+                &store,
+                &tid(),
+                &ContentHash("h0".to_string())
+            ),
+            VerificationResult::Valid
+        );
     }
 
     #[test]
@@ -641,7 +820,15 @@ mod tests {
         let cast = oauth_cast(&d);
         let store = ThreadedMessageStore::new();
         assert_eq!(
-            verify_causal_for_role(&oauth_h0(), &ep("client"), &d, &cast, &store, &tid()),
+            verify_causal_for_role(
+                &oauth_h0(),
+                &ep("client"),
+                &d,
+                &cast,
+                &store,
+                &tid(),
+                &ContentHash("h0".to_string())
+            ),
             VerificationResult::Valid
         );
     }
@@ -728,7 +915,15 @@ mod tests {
         let h7 = msg("(signed @auc \"sig\" (declare-winner \"b3\" :caused-by (h4 h5 h6)))");
         // h6 absent: Unknown
         assert_eq!(
-            verify_causal_for_role(&h7, &ep("auctioneer"), &d, &cast, &store, &tid()),
+            verify_causal_for_role(
+                &h7,
+                &ep("auctioneer"),
+                &d,
+                &cast,
+                &store,
+                &tid(),
+                &ContentHash("h0".to_string())
+            ),
             VerificationResult::Unknown
         );
         put(
@@ -742,7 +937,15 @@ mod tests {
             &msg("(signed @b3 \"sig\" (reveal @auc 55 :caused-by h3))"),
         );
         assert_eq!(
-            verify_causal_for_role(&h7, &ep("auctioneer"), &d, &cast, &store, &tid()),
+            verify_causal_for_role(
+                &h7,
+                &ep("auctioneer"),
+                &d,
+                &cast,
+                &store,
+                &tid(),
+                &ContentHash("h0".to_string())
+            ),
             VerificationResult::Valid
         );
     }
@@ -756,7 +959,15 @@ mod tests {
         let store = auction_store();
         let h7 = msg("(signed @auc \"sig\" (declare-winner \"b1\" :caused-by (h4 h5)))");
         assert!(matches!(
-            verify_causal_for_role(&h7, &ep("auctioneer"), &d, &cast, &store, &tid()),
+            verify_causal_for_role(
+                &h7,
+                &ep("auctioneer"),
+                &d,
+                &cast,
+                &store,
+                &tid(),
+                &ContentHash("h0".to_string())
+            ),
             VerificationResult::Violation(CausalViolation::RoleConformance { .. })
         ));
     }
@@ -774,7 +985,15 @@ mod tests {
         );
         let h7 = msg("(signed @auc \"sig\" (declare-winner \"b1\" :caused-by (h4 h5 hx)))");
         assert!(matches!(
-            verify_causal_for_role(&h7, &ep("auctioneer"), &d, &cast, &store, &tid()),
+            verify_causal_for_role(
+                &h7,
+                &ep("auctioneer"),
+                &d,
+                &cast,
+                &store,
+                &tid(),
+                &ContentHash("h0".to_string())
+            ),
             VerificationResult::Violation(CausalViolation::RoleConformance { .. })
         ));
     }
@@ -797,14 +1016,30 @@ mod tests {
                 .unwrap()
                 .clone();
             assert_eq!(
-                verify_causal_for_role(&m, &ep(role), &d, &cast, &store, &tid()),
+                verify_causal_for_role(
+                    &m,
+                    &ep(role),
+                    &d,
+                    &cast,
+                    &store,
+                    &tid(),
+                    &ContentHash("h0".to_string())
+                ),
                 VerificationResult::Valid,
                 "{h} should be Valid"
             );
         }
         let h7 = msg("(signed @auc \"sig\" (declare-winner \"b3\" :caused-by (h4 h5 h6)))");
         assert_eq!(
-            verify_causal_for_role(&h7, &ep("auctioneer"), &d, &cast, &store, &tid()),
+            verify_causal_for_role(
+                &h7,
+                &ep("auctioneer"),
+                &d,
+                &cast,
+                &store,
+                &tid(),
+                &ContentHash("h0".to_string())
+            ),
             VerificationResult::Valid
         );
     }
