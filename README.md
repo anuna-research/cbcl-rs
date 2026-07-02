@@ -82,6 +82,7 @@ Full theoretical framework and proofs are in the LangSec '26 paper, available as
 - **Linear-time parser.** S-expression parser with O(n) time complexity and fuel-bounded recursion.
 - **Full message grammar.** Core performatives, dialects, and templates, all parsed by one DPDA.
 - **Verified safety constraints.** R1 (no recursion), R2 (resource bounds), R3 (core preservation), R4 (integrity), R5 (causal-protocol + shape contract well-formedness), each machine-checked in Lean 4.
+- **Multiparty roles (R6).** Opt-in role layer over R5: `:roles`/`:from`/`:to` annotations, installation-time R6 checks, coordination-free endpoint projection, and role-local verification composed with the R5 verifier — no central compiler or ordered transport ([SPEC-014](specs/SPEC-014-role-layer-endpoint-projection.md); modules `role`, `r6`, `projection`; correspondence theorems mechanised in `lean-cbcl`).
 - **Deterministic message tagging** preserving DCFL properties under dialect union.
 - **Embedded-friendly.** `no_std + alloc` compatible pure core; `#![forbid(unsafe_code)]`.
 - **Polyglot bindings.** WASM target (`wasm32-unknown-unknown`) via `wasm-bindgen`; C FFI via `cbindgen`; Erlang/BEAM NIF via `rustler`.
