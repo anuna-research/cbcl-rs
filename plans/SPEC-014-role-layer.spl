@@ -203,3 +203,7 @@
 (normally r-propagate-fixtures-e2e-from-fanin-occupants-blocked upstream-blocked-fanin-occupants upstream-blocked-fixtures-e2e)
 (normally r-propagate-docs-status-from-property-tests-blocked upstream-blocked-property-tests upstream-blocked-docs-status)
 (normally r-propagate-docs-status-from-fixtures-e2e-blocked upstream-blocked-fixtures-e2e upstream-blocked-docs-status)
+
+(claims agent:claude
+  :at "2026-07-02T04:54:09Z"
+  (given completed-role-types))
