@@ -40,6 +40,11 @@ name = "template_expand"
 path = "fuzz_targets/template_expand.rs"
 doc = false
 
+[[bin]]
+name = "role_layer"
+path = "fuzz_targets/role_layer.rs"
+doc = false
+
 # Prevent this from interfering with workspace lints
 [profile.release]
 opt-level = 3
