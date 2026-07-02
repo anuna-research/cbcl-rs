@@ -41,6 +41,7 @@ fn valid_bounds() -> ResourceBounds {
 
 fn make_dialect(name: &str, perfs: Vec<PerformativeDef>) -> Dialect {
     Dialect {
+        roles: Vec::new(),
         name: String::from(name),
         extends: vec![String::from("cbcl")],
         author: None,
@@ -66,6 +67,7 @@ fn make_perf(name: &str, template_str: &str) -> PerformativeDef {
 
 fn test_dialect(name: &str) -> Dialect {
     Dialect {
+        roles: Vec::new(),
         name: String::from(name),
         extends: Vec::new(),
         author: None,
@@ -359,6 +361,7 @@ fn bench_eval(c: &mut Criterion) {
     let mut custom_registry = DialectRegistry::new();
     custom_registry
         .install(Dialect {
+            roles: Vec::new(),
             name: String::from("logistics"),
             extends: vec![String::from("cbcl")],
             author: None,

@@ -213,8 +213,12 @@ fn verify_cast_wrapper<S: MessageStore>(
     else {
         unreachable!("guarded by wrapper_type");
     };
-    let Some(bindings) = params.first() else {
-        return role_violation(String::from("with-roles wrapper has no bindings"));
+    // Exact arity (CON-601): the wrapper is `(with-roles (<bindings>)
+    // <signed-form>)` — exactly one param (the bindings list), no more.
+    let [bindings] = params.as_slice() else {
+        return role_violation(String::from(
+            "with-roles wrapper must carry exactly one bindings list (CON-601)",
+        ));
     };
     let parsed = match parse_cast(bindings, &d.roles) {
         Ok(c) => c,
@@ -223,6 +227,21 @@ fn verify_cast_wrapper<S: MessageStore>(
     if &parsed != cast {
         return role_violation(String::from(
             "with-roles wrapper does not match the thread's root cast (REQ-613)",
+        ));
+    }
+    // The payload MUST be the existing `signed` form (CON-601): the cast is
+    // ratified by the initiator's signature, so an unsigned root is not a
+    // valid nomination. Reject anything whose immediate content is not a
+    // signed wrapper before accepting the cast (REQ-611).
+    if !matches!(
+        content.as_ref(),
+        Message::Wrapped {
+            wrapper: WrapperType::Signed,
+            ..
+        }
+    ) {
+        return role_violation(String::from(
+            "with-roles payload must be a signed message (CON-601)",
         ));
     }
     // Root uniqueness (REQ-613): if the store already holds the thread's
@@ -831,6 +850,50 @@ mod tests {
             ),
             VerificationResult::Valid
         );
+    }
+
+    #[test]
+    fn unsigned_root_payload_is_rejected() {
+        // CON-601: the with-roles payload must be the signed form. An
+        // unsigned inner message, even with the right cast and caused-by
+        // begin, is not a valid nomination.
+        let d = oauth();
+        let cast = oauth_cast(&d);
+        let store = ThreadedMessageStore::new();
+        let unsigned = msg("(with-roles ((server @srv) (client @cli) (authoriser @as)) (hello :thread \"conv\" :caused-by begin))");
+        assert!(matches!(
+            verify_causal_for_role(
+                &unsigned,
+                &ep("client"),
+                &d,
+                &cast,
+                &store,
+                &tid(),
+                &ContentHash("h0".to_string())
+            ),
+            VerificationResult::Violation(CausalViolation::RoleConformance { .. })
+        ));
+    }
+
+    #[test]
+    fn root_wrapper_with_extra_params_is_rejected() {
+        // CON-601 exact arity: exactly one bindings list.
+        let d = oauth();
+        let cast = oauth_cast(&d);
+        let store = ThreadedMessageStore::new();
+        let extra = msg("(with-roles ((server @srv) (client @cli) (authoriser @as)) junk (signed @srv \"sig\" (hello :caused-by begin)))");
+        assert!(matches!(
+            verify_causal_for_role(
+                &extra,
+                &ep("client"),
+                &d,
+                &cast,
+                &store,
+                &tid(),
+                &ContentHash("h0".to_string())
+            ),
+            VerificationResult::Violation(CausalViolation::RoleConformance { .. })
+        ));
     }
 
     // ---- REQ-618 / TEST-618: occupant-counted fan-in (auction) ----

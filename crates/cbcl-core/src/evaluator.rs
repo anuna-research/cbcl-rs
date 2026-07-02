@@ -209,10 +209,12 @@ fn evaluate_simple(
         check_shapes(perf_name, &expanded, registry)?;
     }
 
-    // Interpret the expanded form into concrete effects.
-    let recipient = msg.recipient().map(String::from);
+    // Interpret the expanded form into concrete effects. A message may now
+    // carry a *set* of recipients (SPEC-014 REQ-622); send effects fan out
+    // over the set so a multicast is not silently narrowed to one or none.
+    let recipients: Vec<String> = msg.recipient_set().into_iter().map(String::from).collect();
     let content = msg.content().cloned().unwrap_or(SExpr::List(Vec::new()));
-    let effects = interpret_effects(&expanded, recipient, content, performative);
+    let effects = interpret_effects(&expanded, recipients, content, performative);
 
     Ok(EvalResult {
         expanded,
@@ -326,25 +328,50 @@ fn check_shapes(
 /// templates may expand to arbitrary S-expressions, which become `Custom` effects.
 fn interpret_effects(
     expanded: &SExpr,
-    recipient: Option<String>,
+    recipients: Vec<String>,
     content: SExpr,
     _performative: &Performative,
 ) -> Vec<Effect> {
+    // One `Option<String>` recipient per addressed target; an empty set
+    // yields a single `None` (unaddressed) effect, preserving the
+    // pre-SPEC-014 no-recipient behaviour. A multicast fans out into one
+    // send effect per recipient (canonical sorted order via `recipient_set`).
+    let targets: Vec<Option<String>> = if recipients.is_empty() {
+        vec![None]
+    } else {
+        recipients.into_iter().map(Some).collect()
+    };
+
     // Check for (effect <action>) form.
     if let Some(action) = extract_effect_action(expanded) {
         return match action.as_str() {
             "send-message" => {
-                // A tell also stores the content as a belief for the receiver.
-                vec![
-                    Effect::SendMessage {
+                // A tell sends to each recipient and stores the content as a
+                // belief once (the belief is about the content, not a target).
+                let mut effects: Vec<Effect> = targets
+                    .into_iter()
+                    .map(|recipient| Effect::SendMessage {
                         recipient,
                         content: content.clone(),
-                    },
-                    Effect::StoreBelief(content),
-                ]
+                    })
+                    .collect();
+                effects.push(Effect::StoreBelief(content));
+                effects
             }
-            "send-query" => vec![Effect::SendQuery { recipient, content }],
-            "send-reply" => vec![Effect::SendReply { recipient, content }],
+            "send-query" => targets
+                .into_iter()
+                .map(|recipient| Effect::SendQuery {
+                    recipient,
+                    content: content.clone(),
+                })
+                .collect(),
+            "send-reply" => targets
+                .into_iter()
+                .map(|recipient| Effect::SendReply {
+                    recipient,
+                    content: content.clone(),
+                })
+                .collect(),
             "signal-error" => vec![Effect::SignalError { content }],
             "acknowledge" => vec![Effect::Acknowledge],
             "cancel-conversation" => vec![Effect::CancelConversation],
@@ -485,6 +512,46 @@ mod tests {
         // Expanded form is (effect send-message)
         assert!(result.expanded.is_symbol("effect") == false);
         assert!(extract_effect_action(&result.expanded) == Some(String::from("send-message")));
+    }
+
+    #[test]
+    fn eval_multicast_tell_fans_out_to_every_recipient() {
+        // SPEC-014 REQ-622: a recipient set must not be silently dropped.
+        let reg = make_registry();
+        let msg = Message::try_from(
+            &"(tell (@a @b) \"hi\")"
+                .parse::<crate::sexpr::SExpr>()
+                .unwrap(),
+        )
+        .unwrap();
+        let result = evaluate(&msg, &reg).unwrap();
+        // one SendMessage per recipient (canonical sorted) + one StoreBelief
+        let sends: Vec<&Effect> = result
+            .effects
+            .iter()
+            .filter(|e| matches!(e, Effect::SendMessage { .. }))
+            .collect();
+        assert_eq!(sends.len(), 2, "multicast fans out to both recipients");
+        let recipients: alloc::collections::BTreeSet<String> = result
+            .effects
+            .iter()
+            .filter_map(|e| match e {
+                Effect::SendMessage {
+                    recipient: Some(r), ..
+                } => Some(r.clone()),
+                _ => None,
+            })
+            .collect();
+        assert!(recipients.contains("@a") && recipients.contains("@b"));
+        assert_eq!(
+            result
+                .effects
+                .iter()
+                .filter(|e| matches!(e, Effect::StoreBelief(_)))
+                .count(),
+            1,
+            "content stored as a belief once"
+        );
     }
 
     #[test]
