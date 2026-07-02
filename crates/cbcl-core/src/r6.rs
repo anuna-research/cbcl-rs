@@ -56,6 +56,18 @@ fn push_unique(violations: &mut Vec<R6Violation>, v: R6Violation) {
 /// performatives (the declared predecessor relation) and the role set, and
 /// each atomic check is a lookup in the dialect's finite tables (NFR-600).
 pub fn r6_violations(d: &Dialect) -> Vec<R6Violation> {
+    let mut ops = 0u64;
+    r6_violations_counted(d, &mut ops)
+}
+
+/// As [`r6_violations`], additionally tallying into `ops` the atomic table
+/// lookups performed in the two load-bearing nested loops (causal locality
+/// and reachability), which dominate the O(|P|² · |R|) budget. Used by the
+/// NFR-600 operation-count guard (TEST-637) to catch an accidental
+/// regression to a worse complexity class — there is one code path, so the
+/// count cannot drift from what production runs.
+#[doc(hidden)]
+pub fn r6_violations_counted(d: &Dialect, ops: &mut u64) -> Vec<R6Violation> {
     let mut violations: Vec<R6Violation> = Vec::new();
 
     // Annotation table: performative name → annotation.
@@ -205,6 +217,7 @@ pub fn r6_violations(d: &Dialect) -> Vec<R6Violation> {
                 };
                 let p_endpoints = endpoints(p_ann);
                 for role in &t_endpoints {
+                    *ops += 1; // atomic causal-locality membership test
                     if !p_endpoints.contains(role) {
                         push_unique(
                             &mut violations,
@@ -222,9 +235,10 @@ pub fn r6_violations(d: &Dialect) -> Vec<R6Violation> {
 
     // REQ-605 role reachability: every declared role is an endpoint of some
     // performative reachable from begin.
-    let reachable = reachable_from_begin(cp);
+    let reachable = reachable_from_begin(cp, ops);
     for role in &d.roles {
         let covered = reachable.iter().any(|name| {
+            *ops += 1; // atomic reachability coverage test
             annotations
                 .get(name.as_str())
                 .is_some_and(|ann| endpoints(ann).contains(role.name.as_str()))
@@ -314,43 +328,41 @@ pub fn r6_instantiated_violations(d: &Dialect, cast: &crate::role::Cast) -> Vec<
 
 /// Performatives reachable from `begin`, following either recorded edge
 /// direction (protocols may encode successors, predecessors, or both);
-/// fixpoint iteration, `begin` itself excluded from the result.
-fn reachable_from_begin(cp: &CausalProtocol) -> BTreeSet<String> {
-    // Precompute the forward edge set once (O(|edges|)) rather than
-    // rescanning every step's successors on each fixpoint pass — keeps the
-    // whole check within the NFR-600 O(|P|²·|R|) budget instead of O(|P|³).
-    let mut forward: BTreeSet<(&str, &str)> = BTreeSet::new();
+/// `begin` itself excluded from the result.
+///
+/// A worklist BFS over a forward adjacency map built once, so the whole
+/// traversal is O(|P| + |edges|) — comfortably within the NFR-600
+/// O(|P|²·|R|) budget and free of the fixpoint rescans that risked a worse
+/// class. Each edge is relaxed at most once; `ops` tallies those
+/// relaxations for the TEST-637 guard.
+fn reachable_from_begin(cp: &CausalProtocol, ops: &mut u64) -> BTreeSet<String> {
+    // Forward adjacency: an edge a → b whenever b lists a as a predecessor,
+    // or a lists b as a successor (both encodings collapse to the same
+    // happened-before direction).
+    let mut adj: BTreeMap<&str, BTreeSet<&str>> = BTreeMap::new();
     for step in cp.steps.values() {
+        let name = step.performative.as_str();
         for nr in &step.successors {
             for succ in nr.performatives() {
-                forward.insert((step.performative.as_str(), succ));
+                adj.entry(name).or_default().insert(succ);
+            }
+        }
+        for nr in &step.predecessors {
+            for pred in nr.performatives() {
+                adj.entry(pred).or_default().insert(name);
             }
         }
     }
-    let is_reached = |reachable: &BTreeSet<String>, name: &str| {
-        name == BEGIN_KEYWORD || reachable.contains(name)
-    };
     let mut reachable: BTreeSet<String> = BTreeSet::new();
-    loop {
-        let mut grew = false;
-        for step in cp.steps.values() {
-            if step.performative == BEGIN_KEYWORD || reachable.contains(&step.performative) {
-                continue;
+    let mut frontier: Vec<&str> = alloc::vec![BEGIN_KEYWORD];
+    while let Some(name) = frontier.pop() {
+        if let Some(succs) = adj.get(name) {
+            for &succ in succs {
+                *ops += 1; // one relaxation per edge
+                if succ != BEGIN_KEYWORD && reachable.insert(String::from(succ)) {
+                    frontier.push(succ);
+                }
             }
-            let via_pred = step
-                .predecessors
-                .iter()
-                .any(|nr| nr.performatives().any(|p| is_reached(&reachable, p)));
-            let via_succ = forward
-                .iter()
-                .any(|(from, to)| *to == step.performative && is_reached(&reachable, from));
-            if via_pred || via_succ {
-                reachable.insert(step.performative.clone());
-                grew = true;
-            }
-        }
-        if !grew {
-            break;
         }
     }
     reachable

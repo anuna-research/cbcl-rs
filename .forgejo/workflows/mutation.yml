@@ -1,0 +1,59 @@
+name: mutation-testing
+
+# USDD Phase 3 gate: mutation testing is mandatory for AI-synthesised
+# specifications (the SPEC-014 role layer among them). `cargo-mutants`
+# corrupts each critical-path module and checks that the test suite kills
+# the mutant; a surviving mutant is a tautological gap in the tests. The
+# kill-rate threshold (90%) and the mutated file set live in
+# `scripts/run-mutation-tests.sh` and `mutants.toml`.
+#
+# Runs on PRs that touch the mutated crates or the mutation config, and on
+# a weekly schedule so drift in the suite's discriminating power is caught
+# even without a source change. Mutation runs are slow, so this is a
+# separate workflow from the fast per-push checks.
+on:
+  pull_request:
+    paths:
+      - 'crates/cbcl-core/**'
+      - 'crates/cbcl-parser/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'mutants.toml'
+      - 'scripts/run-mutation-tests.sh'
+      - '.forgejo/workflows/mutation.yml'
+  schedule:
+    # Mondays 04:00 UTC.
+    - cron: '0 4 * * 1'
+
+jobs:
+  mutation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain (stable, per rust-toolchain.toml)
+        run: |
+          rustup show active-toolchain || rustup toolchain install stable --profile minimal
+          rustc --version
+          cargo --version
+
+      - name: Cache cargo registry and target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-mutants-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-mutants-
+
+      - name: Install cargo-mutants
+        run: |
+          if ! command -v cargo-mutants >/dev/null 2>&1; then
+            cargo install cargo-mutants --locked
+          fi
+          cargo mutants --version
+
+      - name: Run mutation testing (≥ 90% kill rate required)
+        run: scripts/run-mutation-tests.sh

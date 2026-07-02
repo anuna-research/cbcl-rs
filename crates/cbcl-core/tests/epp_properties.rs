@@ -22,7 +22,7 @@ use cbcl_core::dialect::{Dialect, PerformativeDef, ResourceBounds};
 use cbcl_core::message::Message;
 use cbcl_core::projection::{project, verify_causal_for_role, LocalProtocol};
 use cbcl_core::protocol::{CausalProtocol, NodeRef, StepDecl, VerificationResult};
-use cbcl_core::r6::r6_violations;
+use cbcl_core::r6::{r6_violations, r6_violations_counted};
 use cbcl_core::role::{parse_cast, parse_roles, Cast, Endpoint};
 use cbcl_core::sexpr::SExpr;
 use cbcl_core::store::{ContentHash, MessageStore, ThreadId, ThreadedMessageStore};
@@ -415,6 +415,96 @@ proptest! {
             let v = verify_causal_for_role(mj, &ep(0), &d, &cast, &store, &tid(), &ContentHash("m-root".to_string()));
             prop_assert_eq!(&v, &final_verdicts[j]);
         }
+    }
+}
+
+/// TEST-637 (NFR-600 operation-count guard): the R6 checker's atomic table
+/// lookups stay within `c · |P|² · |R|` over protocols of |P| ∈ {10, 100,
+/// 1000}. A falsifiable structural bound — a regression to a worse
+/// complexity class (e.g. the O(|P|³) reachability that a prior revision
+/// shipped) blows past it — not a wall-clock timing assertion.
+#[test]
+fn test_637_operation_count_within_bound() {
+    /// A hub protocol of `n` chained steps over two roles (`a` sends, `hub`
+    /// receives), R6-clean by construction: every step shares endpoints
+    /// `{a, hub}`, so causal locality and reachability both hold.
+    fn hub_protocol(n: usize) -> Dialect {
+        let mut perfs = Vec::new();
+        let mut steps: BTreeMap<String, StepDecl> = BTreeMap::new();
+        steps.insert(
+            "begin".to_string(),
+            StepDecl {
+                performative: "begin".to_string(),
+                predecessors: vec![],
+                successors: vec![NodeRef::Single("p0".to_string())],
+            },
+        );
+        for i in 0..n {
+            let name = format!("p{i}");
+            perfs.push(PerformativeDef {
+                name: name.clone(),
+                params: Vec::new(),
+                template: "t".parse::<SExpr>().unwrap(),
+                role: Some(cbcl_core::role::RoleAnnotation {
+                    from: "a".to_string(),
+                    to: ["hub".to_string()].into_iter().collect(),
+                }),
+            });
+            let pred = if i == 0 {
+                "begin".to_string()
+            } else {
+                format!("p{}", i - 1)
+            };
+            let succs = if i + 1 < n {
+                vec![NodeRef::Single(format!("p{}", i + 1))]
+            } else {
+                vec![]
+            };
+            steps.insert(
+                name.clone(),
+                StepDecl {
+                    performative: name,
+                    predecessors: vec![NodeRef::Single(pred)],
+                    successors: succs,
+                },
+            );
+        }
+        Dialect {
+            roles: parse_roles(&"(a hub)".parse::<SExpr>().unwrap()).unwrap(),
+            name: "hub".to_string(),
+            extends: Vec::new(),
+            author: None,
+            performatives: perfs,
+            resources: ResourceBounds {
+                max_depth: 8,
+                max_expansion_size: 512,
+                verification_time_ms: 10,
+            },
+            examples: Vec::new(),
+            signature: None,
+            hash: None,
+            protocol: None,
+            causal_protocol: Some(CausalProtocol { steps }),
+            shapes: Vec::new(),
+        }
+    }
+
+    // c chosen to admit the true O(|P|·|R|) cost with headroom while still
+    // catching any super-quadratic regression (which exceeds it by orders
+    // of magnitude at |P| = 1000).
+    const C: u64 = 10;
+    for n in [10usize, 100, 1000] {
+        let d = hub_protocol(n);
+        let mut ops = 0u64;
+        let violations = r6_violations_counted(&d, &mut ops);
+        assert!(violations.is_empty(), "hub protocol must be R6-clean");
+        let roles = d.roles.len() as u64;
+        let p = (n as u64) + 1; // + begin
+        let bound = C * p * p * roles;
+        assert!(
+            ops <= bound,
+            "|P|={p}: {ops} atomic ops exceeds {C}·|P|²·|R| = {bound}"
+        );
     }
 }
 

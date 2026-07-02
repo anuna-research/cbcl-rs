@@ -657,6 +657,32 @@ mod tests {
         assert_eq!(auth.role.as_ref().unwrap().from, "authoriser");
     }
 
+    /// TEST-621 (REQ-621): the parser populates the role data on the
+    /// `Dialect` value itself — `Dialect.roles` and `PerformativeDef.role` —
+    /// so `r6_violations`/`project` are functions of the `Dialect` alone.
+    #[test]
+    fn test_621_role_data_lands_on_dialect_types() {
+        let sexpr: SExpr = oauth_dialect_src().parse().unwrap();
+        let d = parse_dialect(&sexpr).unwrap();
+        // Dialect carries the declared roles.
+        let role_names: alloc::vec::Vec<&str> = d.roles.iter().map(|r| r.name.as_str()).collect();
+        assert_eq!(role_names, ["server", "client", "authoriser"]);
+        // Every protocol performative carries its annotation.
+        for name in ["login", "passwd", "auth"] {
+            assert!(
+                d.find_performative(name).unwrap().role.is_some(),
+                "{name} should carry a role annotation"
+            );
+        }
+        // A role-free dialect carries neither.
+        let plain: SExpr = "(define plain (cbcl) @a (extend p (x) (tell @x)))"
+            .parse()
+            .unwrap();
+        let pd = parse_dialect(&plain).unwrap();
+        assert!(pd.roles.is_empty());
+        assert!(pd.find_performative("p").unwrap().role.is_none());
+    }
+
     #[test]
     fn rejects_half_annotation() {
         let sexpr: SExpr = "(define x (cbcl) @a (:roles (r)) (extend p (a) :from r (tell @r)))"

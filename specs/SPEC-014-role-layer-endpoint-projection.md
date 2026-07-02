@@ -2,7 +2,7 @@
 id: SPEC-014
 title: Role Layer — R6 and Coordination-Free Endpoint Projection
 status: implemented
-version: 0.3.0
+version: 0.3.1
 date: 2026-07-02
 author: Anuna Research (https://anuna.io)
 depends-on:
@@ -758,6 +758,15 @@ two-party limitation.
 
 ## Changelog
 
+- 0.3.1 (2026-07-02) — checklist-audit closes. TEST-637 (NFR-600
+  operation-count guard) is now implemented over hub protocols of
+  |P| ∈ {10, 100, 1000}, backed by an `ops`-tallying `r6_violations_counted`;
+  `reachable_from_begin` rewritten as a worklist BFS (O(|P|+|edges|)) so the
+  guard is meaningful. TEST-621 added as an explicit labelled test. The role
+  layer's three modules (`role`, `r6`, `projection`) added to the
+  mutation-testing scope (`mutants.toml`, `scripts/run-mutation-tests.sh`)
+  with a `.forgejo` CI workflow enforcing the 90% kill-rate gate the USDD
+  protocol mandates for AI-synthesised specs.
 - 0.3.0 (2026-07-02) — implemented (Phase 3). Adversarial code review
   (2 High, confirmed) drove two hardening changes now reflected in CON-602:
   occupancy is ratified only by an enclosing `signed` wrapper's key, never

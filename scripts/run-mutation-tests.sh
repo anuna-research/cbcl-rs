@@ -32,6 +32,9 @@ CRITICAL_FILES=(
     "crates/cbcl-core/src/template.rs"
     "crates/cbcl-core/src/msg_tag.rs"
     "crates/cbcl-core/src/evaluator.rs"
+    "crates/cbcl-core/src/role.rs"
+    "crates/cbcl-core/src/r6.rs"
+    "crates/cbcl-core/src/projection.rs"
 )
 
 FILE_FLAGS=()
