@@ -186,8 +186,10 @@ pub fn r6_violations_counted(d: &Dialect, ops: &mut u64) -> Vec<R6Violation> {
             }
         }
         // Multi-entry predecessor lists are alternatives too (the deployed
-        // verifier treats [Single(a), Single(b)] as a ∨ b).
-        if step.predecessors.len() > 1 {
+        // verifier treats [Single(a), Single(b)] as a ∨ b). Threshold at the
+        // meaningful boundary (≥ 2 entries) so an off-by-one mutation is
+        // observable to the two-entry coherence test.
+        if step.predecessors.len() >= 2 {
             let mut alts: Vec<&str> = Vec::new();
             for nr in &step.predecessors {
                 alts.extend(node_ref_names(nr));
@@ -576,6 +578,29 @@ mod tests {
     }
 
     #[test]
+    fn three_member_incoherent_choice_rejected() {
+        // A choice of *three* alternatives with mixed senders must still be
+        // caught — exercises the `named.len() < 2` guard boundary above 2.
+        let d = dialect(
+            &[("a", S), ("b", S)],
+            vec![
+                perf("x", "a", &["b"]),
+                perf("y", "a", &["b"]),
+                perf("z", "b", &["a"]),
+            ],
+            vec![
+                step("begin", vec![], vec![any(&["x", "y", "z"])]),
+                step("x", vec![single("begin")], vec![]),
+                step("y", vec![single("begin")], vec![]),
+                step("z", vec![single("begin")], vec![]),
+            ],
+        );
+        assert!(r6_violations(&d)
+            .iter()
+            .any(|v| matches!(v, R6Violation::ChooserIncoherent { .. })));
+    }
+
+    #[test]
     fn multi_entry_predecessor_alternatives_are_a_choice() {
         // [Single(x), Single(y)] is x ∨ y for the deployed verifier: same
         // coherence obligation as (any x y).
@@ -755,11 +780,41 @@ mod tests {
         .unwrap()
     }
 
+    fn two_bidder_cast() -> crate::role::Cast {
+        use crate::role::{parse_cast, parse_roles};
+        let roles = parse_roles(&"(auctioneer (* bidder))".parse::<SExpr>().unwrap()).unwrap();
+        parse_cast(
+            &"((auctioneer @auc) (bidder @b1 @b2))"
+                .parse::<SExpr>()
+                .unwrap(),
+            &roles,
+        )
+        .unwrap()
+    }
+
     #[test]
     fn auction_terminal_declare_winner_passes_both_levels() {
         let d = auction(&[], &["auctioneer"]);
         assert_eq!(r6_violations(&d), Vec::new());
         assert_eq!(r6_instantiated_violations(&d, &bidders_cast()), Vec::new());
+    }
+
+    #[test]
+    fn per_occupant_locality_fires_at_the_two_occupant_boundary() {
+        // The `occupants.len() < 2` guard must admit exactly-two-occupant
+        // casts: with two bidders, declare-winner :to bidder still fails
+        // per-occupant locality for each.
+        let d = auction(&["bidder"], &["auctioneer"]);
+        let violations = r6_instantiated_violations(&d, &two_bidder_cast());
+        for k in ["@b1", "@b2"] {
+            assert!(
+                violations.contains(&R6Violation::PerOccupantLocalityFailure {
+                    performative: "declare-winner".to_string(),
+                    occupant: k.to_string(),
+                }),
+                "occupant {k} must be flagged at the 2-occupant boundary"
+            );
+        }
     }
 
     #[test]

@@ -207,3 +207,131 @@
 (claims agent:claude
   :at "2026-07-02T04:54:09Z"
   (given completed-role-types))
+
+(claims agent:claude
+  :at "2026-07-02T04:54:20Z"
+  (given claim-v1-dialect-wiring)
+  (normally r-cl-state-v1-dialect-wiring claim-v1-dialect-wiring state-claimed-v1-dialect-wiring)
+  (normally r-cl-chain-v1-dialect-wiring state-claimed-v1-dialect-wiring claimed-dialect-wiring)
+)
+
+;; Propagation rules: failures in 'dialect-wiring' block downstream tasks
+(normally r-propagate-projection-from-dialect-wiring-failed failed-dialect-wiring upstream-blocked-projection)
+(normally r-propagate-projection-from-dialect-wiring-permanently-failed permanently-failed-dialect-wiring upstream-blocked-projection)
+(normally r-propagate-projection-from-dialect-wiring-stale-v1 stale-v1-dialect-wiring upstream-blocked-projection)
+(normally r-propagate-projection-from-dialect-wiring-timeout-v1 timeout-v1-dialect-wiring upstream-blocked-projection)
+(normally r-propagate-r6-checker-from-dialect-wiring-failed failed-dialect-wiring upstream-blocked-r6-checker)
+(normally r-propagate-r6-checker-from-dialect-wiring-permanently-failed permanently-failed-dialect-wiring upstream-blocked-r6-checker)
+(normally r-propagate-r6-checker-from-dialect-wiring-stale-v1 stale-v1-dialect-wiring upstream-blocked-r6-checker)
+(normally r-propagate-r6-checker-from-dialect-wiring-timeout-v1 timeout-v1-dialect-wiring upstream-blocked-r6-checker)
+
+(claims agent:claude
+  :at "2026-07-02T05:05:27Z"
+  (given completed-dialect-wiring))
+
+(claims agent:claude
+  :at "2026-07-02T05:05:27Z"
+  (given claim-v1-message-recipients)
+  (normally r-cl-state-v1-message-recipients claim-v1-message-recipients state-claimed-v1-message-recipients)
+  (normally r-cl-chain-v1-message-recipients state-claimed-v1-message-recipients claimed-message-recipients)
+)
+
+;; Propagation rules: failures in 'message-recipients' block downstream tasks
+(normally r-propagate-fuzz-from-message-recipients-failed failed-message-recipients upstream-blocked-fuzz)
+(normally r-propagate-fuzz-from-message-recipients-permanently-failed permanently-failed-message-recipients upstream-blocked-fuzz)
+(normally r-propagate-fuzz-from-message-recipients-stale-v1 stale-v1-message-recipients upstream-blocked-fuzz)
+(normally r-propagate-fuzz-from-message-recipients-timeout-v1 timeout-v1-message-recipients upstream-blocked-fuzz)
+(normally r-propagate-role-verify-from-message-recipients-failed failed-message-recipients upstream-blocked-role-verify)
+(normally r-propagate-role-verify-from-message-recipients-permanently-failed permanently-failed-message-recipients upstream-blocked-role-verify)
+(normally r-propagate-role-verify-from-message-recipients-stale-v1 stale-v1-message-recipients upstream-blocked-role-verify)
+(normally r-propagate-role-verify-from-message-recipients-timeout-v1 timeout-v1-message-recipients upstream-blocked-role-verify)
+
+(claims agent:claude
+  :at "2026-07-02T05:10:55Z"
+  (given completed-message-recipients))
+
+(claims agent:claude
+  :at "2026-07-02T05:10:55Z"
+  (given claim-v1-r6-checker)
+  (normally r-cl-state-v1-r6-checker claim-v1-r6-checker state-claimed-v1-r6-checker)
+  (normally r-cl-chain-v1-r6-checker state-claimed-v1-r6-checker claimed-r6-checker)
+)
+
+;; Propagation rules: failures in 'r6-checker' block downstream tasks
+(normally r-propagate-r6-instantiated-from-r6-checker-failed failed-r6-checker upstream-blocked-r6-instantiated)
+(normally r-propagate-r6-instantiated-from-r6-checker-permanently-failed permanently-failed-r6-checker upstream-blocked-r6-instantiated)
+(normally r-propagate-r6-instantiated-from-r6-checker-stale-v1 stale-v1-r6-checker upstream-blocked-r6-instantiated)
+(normally r-propagate-r6-instantiated-from-r6-checker-timeout-v1 timeout-v1-r6-checker upstream-blocked-r6-instantiated)
+(normally r-propagate-role-verify-from-r6-checker-failed failed-r6-checker upstream-blocked-role-verify)
+(normally r-propagate-role-verify-from-r6-checker-permanently-failed permanently-failed-r6-checker upstream-blocked-role-verify)
+(normally r-propagate-role-verify-from-r6-checker-stale-v1 stale-v1-r6-checker upstream-blocked-role-verify)
+(normally r-propagate-role-verify-from-r6-checker-timeout-v1 timeout-v1-r6-checker upstream-blocked-role-verify)
+
+(claims agent:claude
+  :at "2026-07-02T05:17:58Z"
+  (given completed-r6-checker))
+
+(claims agent:claude
+  :at "2026-07-02T05:17:58Z"
+  (given completed-r6-instantiated))
+
+(claims agent:claude
+  :at "2026-07-02T05:17:58Z"
+  (given claim-v1-projection)
+  (normally r-cl-state-v1-projection claim-v1-projection state-claimed-v1-projection)
+  (normally r-cl-chain-v1-projection state-claimed-v1-projection claimed-projection)
+)
+
+;; Propagation rules: failures in 'projection' block downstream tasks
+(normally r-propagate-role-verify-from-projection-failed failed-projection upstream-blocked-role-verify)
+(normally r-propagate-role-verify-from-projection-permanently-failed permanently-failed-projection upstream-blocked-role-verify)
+(normally r-propagate-role-verify-from-projection-stale-v1 stale-v1-projection upstream-blocked-role-verify)
+(normally r-propagate-role-verify-from-projection-timeout-v1 timeout-v1-projection upstream-blocked-role-verify)
+
+(claims agent:claude
+  :at "2026-07-02T05:26:37Z"
+  (given completed-projection))
+
+(claims agent:claude
+  :at "2026-07-02T05:26:37Z"
+  (given completed-role-verify))
+
+(claims agent:claude
+  :at "2026-07-02T05:26:37Z"
+  (given completed-fanin-occupants))
+
+(claims agent:claude
+  :at "2026-07-02T05:26:37Z"
+  (given claim-v1-property-tests)
+  (normally r-cl-state-v1-property-tests claim-v1-property-tests state-claimed-v1-property-tests)
+  (normally r-cl-chain-v1-property-tests state-claimed-v1-property-tests claimed-property-tests)
+)
+
+;; Propagation rules: failures in 'property-tests' block downstream tasks
+(normally r-propagate-docs-status-from-property-tests-failed failed-property-tests upstream-blocked-docs-status)
+(normally r-propagate-docs-status-from-property-tests-permanently-failed permanently-failed-property-tests upstream-blocked-docs-status)
+(normally r-propagate-docs-status-from-property-tests-stale-v1 stale-v1-property-tests upstream-blocked-docs-status)
+(normally r-propagate-docs-status-from-property-tests-timeout-v1 timeout-v1-property-tests upstream-blocked-docs-status)
+
+(claims agent:claude
+  :at "2026-07-02T05:30:26Z"
+  (given completed-property-tests))
+
+(claims agent:claude
+  :at "2026-07-02T05:30:26Z"
+  (given completed-fixtures-e2e))
+
+(claims agent:claude
+  :at "2026-07-02T05:30:26Z"
+  (given completed-fuzz))
+
+(claims agent:claude
+  :at "2026-07-02T05:30:26Z"
+  (given claim-v1-docs-status)
+  (normally r-cl-state-v1-docs-status claim-v1-docs-status state-claimed-v1-docs-status)
+  (normally r-cl-chain-v1-docs-status state-claimed-v1-docs-status claimed-docs-status)
+)
+
+(claims agent:claude
+  :at "2026-07-02T05:49:32Z"
+  (given completed-docs-status))

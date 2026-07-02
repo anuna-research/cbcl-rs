@@ -11,3 +11,5 @@
 # macOS metadata
 **/.DS_Store
 /fuzz/target
+/mutants.out
+/.mut-tmp

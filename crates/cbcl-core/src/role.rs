@@ -73,16 +73,6 @@ pub struct Cast {
 }
 
 impl Cast {
-    /// The key(s) bound to `role`, if any.
-    pub fn keys_for(&self, role: &str) -> Option<BTreeSet<&AgentKey>> {
-        if let Some(k) = self.singleton.get(role) {
-            let mut s = BTreeSet::new();
-            s.insert(k);
-            return Some(s);
-        }
-        self.indexed.get(role).map(|ks| ks.iter().collect())
-    }
-
     /// Whether `key` may occupy `role` under this cast.
     pub fn admits(&self, role: &str, key: &AgentKey) -> bool {
         match self.singleton.get(role) {
@@ -408,6 +398,30 @@ mod tests {
 
     fn sx(s: &str) -> SExpr {
         s.parse().expect("test fixture parses")
+    }
+
+    // ---- R6Violation Display (CON-603: violations are Display-formatted
+    // like ProtocolViolation, carrying the names needed to locate the
+    // defect) ----
+
+    #[test]
+    fn violation_display_carries_locating_names() {
+        use alloc::string::ToString as _;
+        let v = R6Violation::NotCausallyLocal {
+            performative: "dispatch".to_string(),
+            predecessor: "accept".to_string(),
+            role: "warehouse".to_string(),
+        };
+        let s = alloc::format!("{v}");
+        assert!(s.contains("dispatch") && s.contains("accept") && s.contains("warehouse"));
+        assert!(s.contains("REQ-604"));
+
+        let a = R6Violation::ArityMismatch {
+            role: "auctioneer".to_string(),
+            keys: 2,
+        };
+        let s = alloc::format!("{a}");
+        assert!(s.contains("auctioneer") && s.contains('2') && s.contains("CON-601"));
     }
 
     fn auction_roles() -> Vec<RoleDecl> {

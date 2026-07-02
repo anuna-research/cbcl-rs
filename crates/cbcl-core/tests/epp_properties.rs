@@ -500,6 +500,24 @@ fn test_637_operation_count_within_bound() {
         assert!(violations.is_empty(), "hub protocol must be R6-clean");
         let roles = d.roles.len() as u64;
         let p = (n as u64) + 1; // + begin
+
+        // Lower bound: the check performs a *linear* amount of work over the
+        // hub protocol — exactly 3 atomic ops per step (2 causal-locality
+        // membership tests + 1 forward-edge relaxation), deterministic. The
+        // lower bound is what makes the counter meaningful: a mutation that
+        // stops the counter incrementing (e.g. `+= 1` → `*= 1`, which pins
+        // it at 0) drops below it and is caught, instead of trivially
+        // satisfying an upper bound alone.
+        let expected = 3 * (n as u64);
+        assert!(
+            ops >= expected,
+            "|P|={p}: {ops} atomic ops is below the linear floor {expected} \
+             — the operation counter is not tracking work"
+        );
+
+        // Upper bound (NFR-600): the count stays within c·|P|²·|R|. A
+        // regression to a worse complexity class (e.g. the O(|P|³)
+        // reachability a prior revision shipped) blows past it.
         let bound = C * p * p * roles;
         assert!(
             ops <= bound,

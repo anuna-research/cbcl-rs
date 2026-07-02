@@ -26,7 +26,7 @@ use crate::message::{CausedBy, Message, WrapperType};
 use crate::protocol::{
     verify_causal, CausalProtocol, CausalViolation, NodeRef, VerificationResult,
 };
-use crate::role::{parse_cast, AgentKey, Cast, Endpoint, RoleAnnotation, RoleCardinality};
+use crate::role::{parse_cast, AgentKey, Cast, Endpoint, RoleAnnotation};
 use crate::sexpr::{Atom, SExpr};
 use crate::store::{ContentHash, MessageStore, ThreadId};
 use alloc::collections::{BTreeMap, BTreeSet};
@@ -339,14 +339,11 @@ fn occupant_fanin<S: MessageStore>(
             let Some(p_ann) = d.find_performative(pred).and_then(|p| p.role.as_ref()) else {
                 continue;
             };
-            let indexed = d
-                .roles
-                .iter()
-                .any(|r| r.name == p_ann.from && matches!(r.cardinality, RoleCardinality::Indexed));
-            if indexed {
-                if let Some(occupants) = cast.indexed.get(&p_ann.from) {
-                    counted.push((pred.as_str(), occupants));
-                }
+            // The cast holds a sealed membership only for indexed roles, so a
+            // `Some` here already means `p_ann.from` is an indexed sender — no
+            // separate cardinality check against `d.roles` is needed.
+            if let Some(occupants) = cast.indexed.get(&p_ann.from) {
+                counted.push((pred.as_str(), occupants));
             }
         }
     }
