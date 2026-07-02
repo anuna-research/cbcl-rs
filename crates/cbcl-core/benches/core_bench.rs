@@ -324,7 +324,7 @@ fn bench_eval(c: &mut Criterion) {
 
     let tell_msg = Message::Simple {
         performative: Performative::Core(CorePerformative::Tell),
-        recipient: Some(String::from("@bob")),
+        recipient: Some("@bob".into()),
         content: str_expr("hello"),
         params: Vec::new(),
         thread: None,
@@ -337,7 +337,7 @@ fn bench_eval(c: &mut Criterion) {
 
     let ask_msg = Message::Simple {
         performative: Performative::Core(CorePerformative::Ask),
-        recipient: Some(String::from("@alice")),
+        recipient: Some("@alice".into()),
         content: str_expr("what time?"),
         params: Vec::new(),
         thread: None,
@@ -739,7 +739,7 @@ fn bench_dedup(c: &mut Criterion) {
     let thread = ThreadId(String::from("dedup-thread"));
     let msg = Message::Simple {
         performative: Performative::Core(CorePerformative::Tell),
-        recipient: Some(String::from("@bob")),
+        recipient: Some("@bob".into()),
         content: str_expr("hello"),
         params: vec![],
         thread: Some(String::from("dedup-thread")),

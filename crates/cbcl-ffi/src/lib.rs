@@ -123,7 +123,7 @@ fn send_message_impl(agent: &Agent, recipient: &str, content: &str) -> Result<St
 
     let msg = Message::Simple {
         performative: Performative::Core(CorePerformative::Tell),
-        recipient: Some(recipient_sym),
+        recipient: Some(recipient_sym.into()),
         content: content_expr,
         params: Vec::new(),
         thread: None,

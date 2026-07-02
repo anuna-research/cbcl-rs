@@ -110,6 +110,56 @@ impl Performative {
     }
 }
 
+/// Recipient position of a Simple message (SPEC-014 REQ-622).
+///
+/// A bare `@key` symbol is a single recipient (the pre-SPEC-014 form,
+/// byte-identical on re-serialisation); a non-empty list of `@key` symbols
+/// is a multicast, serialised in canonical (sorted) order. A performative
+/// whose `:to` annotation is the empty set simply carries no recipient
+/// position.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum Recipients {
+    /// Single recipient: `(perf @r …)`.
+    One(String),
+    /// Multicast: `(perf (@r1 @r2) …)`; canonical order via `BTreeSet`.
+    Set(alloc::collections::BTreeSet<String>),
+}
+
+impl Recipients {
+    /// The single recipient, if this is the `One` form.
+    pub fn as_single(&self) -> Option<&str> {
+        match self {
+            Recipients::One(r) => Some(r.as_str()),
+            Recipients::Set(_) => None,
+        }
+    }
+
+    /// All recipients as a normalized sorted set.
+    pub fn as_set(&self) -> alloc::collections::BTreeSet<&str> {
+        match self {
+            Recipients::One(r) => {
+                let mut s = alloc::collections::BTreeSet::new();
+                s.insert(r.as_str());
+                s
+            }
+            Recipients::Set(rs) => rs.iter().map(|r| r.as_str()).collect(),
+        }
+    }
+}
+
+impl From<String> for Recipients {
+    fn from(r: String) -> Self {
+        Recipients::One(r)
+    }
+}
+
+impl From<&str> for Recipients {
+    fn from(r: &str) -> Self {
+        Recipients::One(String::from(r))
+    }
+}
+
 /// Message type classification (REQ-012).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -122,13 +172,19 @@ pub enum MessageType {
 
 /// Wrapper type for wrapped messages (REQ-012).
 ///
-/// Three wrapper forms: `envelope`, `signed`, `with-limits`.
+/// Four wrapper forms: `envelope`, `signed`, `with-limits`, and the
+/// cast-bearing `with-roles` thread root (SPEC-014 REQ-625).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum WrapperType {
     Envelope,
     Signed,
     WithLimits,
+    /// `(with-roles (<bindings>) <signed-message>)` — the cast nomination
+    /// wrapper at a thread's causal root (SPEC-014 REQ-611/625, CON-601).
+    /// The bindings list travels in `params`; the inner signed message is
+    /// carried unchanged.
+    WithRoles,
 }
 
 impl WrapperType {
@@ -138,6 +194,7 @@ impl WrapperType {
             WrapperType::Envelope => "envelope",
             WrapperType::Signed => "signed",
             WrapperType::WithLimits => "with-limits",
+            WrapperType::WithRoles => "with-roles",
         }
     }
 
@@ -147,6 +204,7 @@ impl WrapperType {
             "envelope" => Some(WrapperType::Envelope),
             "signed" => Some(WrapperType::Signed),
             "with-limits" => Some(WrapperType::WithLimits),
+            "with-roles" => Some(WrapperType::WithRoles),
             _ => None,
         }
     }
@@ -168,7 +226,7 @@ pub enum Message {
     /// Simple message: `(performative [recipient] content [:key val ...])`
     Simple {
         performative: Performative,
-        recipient: Option<String>,
+        recipient: Option<Recipients>,
         content: SExpr,
         params: Vec<SExpr>,
         thread: Option<String>,
@@ -213,13 +271,24 @@ impl Message {
         }
     }
 
-    /// Returns the recipient if this is a Simple message with one.
+    /// Returns the recipient if this is a Simple message with exactly one.
     pub fn recipient(&self) -> Option<&str> {
         match self {
             Message::Simple {
                 recipient: Some(r), ..
-            } => Some(r.as_str()),
+            } => r.as_single(),
             _ => None,
+        }
+    }
+
+    /// Returns all recipients of a Simple message as a normalized set
+    /// (empty when the recipient position is absent) — SPEC-014 REQ-622.
+    pub fn recipient_set(&self) -> alloc::collections::BTreeSet<&str> {
+        match self {
+            Message::Simple {
+                recipient: Some(r), ..
+            } => r.as_set(),
+            _ => alloc::collections::BTreeSet::new(),
         }
     }
 
@@ -329,8 +398,18 @@ impl From<Message> for SExpr {
                 caused_by,
             } => {
                 let mut items = vec![SExpr::Atom(Atom::Symbol(String::from(performative.name())))];
-                if let Some(r) = recipient {
-                    items.push(SExpr::Atom(Atom::Symbol(r)));
+                match recipient {
+                    Some(Recipients::One(r)) => {
+                        items.push(SExpr::Atom(Atom::Symbol(r)));
+                    }
+                    Some(Recipients::Set(rs)) => {
+                        items.push(SExpr::List(
+                            rs.into_iter()
+                                .map(|r| SExpr::Atom(Atom::Symbol(r)))
+                                .collect(),
+                        ));
+                    }
+                    None => {}
                 }
                 items.push(content);
                 items.extend(params);
@@ -503,13 +582,32 @@ fn parse_simple(head: &str, tail: &[SExpr]) -> Result<Message, MessageParseError
     let mut params = Vec::new();
     let mut i = 0;
 
-    // Check for @-prefixed recipient as the first arg.
+    // Check for a recipient as the first arg: an @-prefixed symbol
+    // (single) or a non-empty list of @-prefixed symbols (multicast,
+    // SPEC-014 REQ-622). An empty list stays content (pre-SPEC-014 form).
     if i < tail.len() {
-        if let SExpr::Atom(Atom::Symbol(s)) = &tail[i] {
-            if s.starts_with('@') {
-                recipient = Some(s.clone());
+        match &tail[i] {
+            SExpr::Atom(Atom::Symbol(s)) if s.starts_with('@') => {
+                recipient = Some(Recipients::One(s.clone()));
                 i += 1;
             }
+            SExpr::List(items)
+                if !items.is_empty()
+                    && items.iter().all(
+                        |it| matches!(it, SExpr::Atom(Atom::Symbol(s)) if s.starts_with('@')),
+                    ) =>
+            {
+                let set: alloc::collections::BTreeSet<String> = items
+                    .iter()
+                    .map(|it| match it {
+                        SExpr::Atom(Atom::Symbol(s)) => s.clone(),
+                        _ => unreachable!("guarded by the match arm"),
+                    })
+                    .collect();
+                recipient = Some(Recipients::Set(set));
+                i += 1;
+            }
+            _ => {}
         }
     }
 
@@ -1292,5 +1390,100 @@ mod tests {
             bytes1, bytes2,
             "canonical encoding must be deterministic after sorting"
         );
+    }
+
+    // ---- SPEC-014 REQ-622: recipient sets ----
+
+    #[test]
+    fn multicast_recipient_parses_and_roundtrips() {
+        let sexpr: SExpr = "(login (@cli @as) \"n-42\" :caused-by h0)".parse().unwrap();
+        let msg = Message::try_from(&sexpr).unwrap();
+        let set = msg.recipient_set();
+        assert_eq!(set.len(), 2);
+        assert!(set.contains("@cli") && set.contains("@as"));
+        // round-trip: serialise and re-parse preserves the set
+        let back = SExpr::from(&msg);
+        let msg2 = Message::try_from(&back).unwrap();
+        assert_eq!(msg, msg2);
+    }
+
+    #[test]
+    fn multicast_serialisation_is_canonical_sorted() {
+        let a: SExpr = "(login (@b @a) \"x\")".parse().unwrap();
+        let b: SExpr = "(login (@a @b) \"x\")".parse().unwrap();
+        let ma = Message::try_from(&a).unwrap();
+        let mb = Message::try_from(&b).unwrap();
+        assert_eq!(SExpr::from(&ma), SExpr::from(&mb));
+    }
+
+    #[test]
+    fn single_recipient_form_is_unchanged() {
+        let sexpr: SExpr = "(tell @bob \"hi\")".parse().unwrap();
+        let msg = Message::try_from(&sexpr).unwrap();
+        assert_eq!(msg.recipient(), Some("@bob"));
+        assert_eq!(SExpr::from(&msg), sexpr);
+    }
+
+    #[test]
+    fn empty_list_stays_content_not_recipient() {
+        let sexpr: SExpr = "(tell () :thread \"t\")".parse().unwrap();
+        let msg = Message::try_from(&sexpr).unwrap();
+        assert!(msg.recipient_set().is_empty());
+        assert_eq!(msg.content(), Some(&SExpr::List(Vec::new())));
+    }
+
+    #[test]
+    fn non_recipient_list_stays_content() {
+        let sexpr: SExpr = "(tell (a b) \"x\")".parse().unwrap();
+        let msg = Message::try_from(&sexpr).unwrap();
+        assert!(msg.recipient_set().is_empty());
+    }
+
+    // ---- SPEC-014 REQ-625: with-roles typed wrapper ----
+
+    #[test]
+    fn with_roles_parses_as_typed_wrapper() {
+        let sexpr: SExpr =
+            "(with-roles ((auctioneer @auc) (bidder @b1 @b2)) (signed @auc \"sig\" (hello :thread \"conv-7\" :caused-by begin)))"
+                .parse()
+                .unwrap();
+        let msg = Message::try_from(&sexpr).unwrap();
+        let Message::Wrapped {
+            wrapper,
+            params,
+            content,
+        } = &msg
+        else {
+            panic!("with-roles must parse as Wrapped, got {msg:?}");
+        };
+        assert_eq!(*wrapper, WrapperType::WithRoles);
+        assert_eq!(params.len(), 1, "bindings list travels in params");
+        // inner signed message carried unchanged
+        let Message::Wrapped {
+            wrapper: inner_w, ..
+        } = content.as_ref()
+        else {
+            panic!("inner must be the signed wrapper");
+        };
+        assert_eq!(*inner_w, WrapperType::Signed);
+        // round-trip
+        let back = SExpr::from(&msg);
+        assert_eq!(Message::try_from(&back).unwrap(), msg);
+    }
+
+    #[test]
+    fn with_roles_bindings_parse_into_cast() {
+        use crate::role::{parse_cast, parse_roles};
+        let sexpr: SExpr =
+            "(with-roles ((auctioneer @auc) (bidder @b1 @b2)) (signed @auc \"sig\" (hello :caused-by begin)))"
+                .parse()
+                .unwrap();
+        let msg = Message::try_from(&sexpr).unwrap();
+        let Message::Wrapped { params, .. } = &msg else {
+            unreachable!()
+        };
+        let roles = parse_roles(&"(auctioneer (* bidder))".parse().unwrap()).unwrap();
+        let cast = parse_cast(&params[0], &roles).unwrap();
+        assert_eq!(cast.indexed.get("bidder").unwrap().len(), 2);
     }
 }

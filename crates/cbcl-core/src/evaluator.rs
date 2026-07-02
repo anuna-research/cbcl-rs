@@ -462,7 +462,7 @@ mod tests {
         let reg = make_registry();
         let msg = Message::Simple {
             performative: Performative::Core(CorePerformative::Tell),
-            recipient: Some(String::from("@bob")),
+            recipient: Some("@bob".into()),
             content: SExpr::Atom(Atom::Str(String::from("hello"))),
             params: Vec::new(),
             thread: None,
@@ -474,7 +474,7 @@ mod tests {
         assert_eq!(
             result.effects[0],
             Effect::SendMessage {
-                recipient: Some(String::from("@bob")),
+                recipient: Some("@bob".into()),
                 content: SExpr::Atom(Atom::Str(String::from("hello"))),
             }
         );
@@ -492,7 +492,7 @@ mod tests {
         let reg = make_registry();
         let msg = Message::Simple {
             performative: Performative::Core(CorePerformative::Ask),
-            recipient: Some(String::from("@alice")),
+            recipient: Some("@alice".into()),
             content: SExpr::Atom(Atom::Str(String::from("what time?"))),
             params: Vec::new(),
             thread: None,
@@ -504,7 +504,7 @@ mod tests {
         assert_eq!(
             result.effects[0],
             Effect::SendQuery {
-                recipient: Some(String::from("@alice")),
+                recipient: Some("@alice".into()),
                 content: SExpr::Atom(Atom::Str(String::from("what time?"))),
             }
         );
@@ -775,7 +775,7 @@ mod tests {
         let reg = make_registry();
         let inner = Message::Simple {
             performative: Performative::Core(CorePerformative::Tell),
-            recipient: Some(String::from("@bob")),
+            recipient: Some("@bob".into()),
             content: SExpr::Atom(Atom::Str(String::from("secret"))),
             params: Vec::new(),
             thread: None,
@@ -805,7 +805,7 @@ mod tests {
         let reg = make_registry();
         let msg = Message::Simple {
             performative: Performative::Core(CorePerformative::Tell),
-            recipient: Some(String::from("@bob")),
+            recipient: Some("@bob".into()),
             content: SExpr::Atom(Atom::Str(String::from("hi"))),
             params: Vec::new(),
             thread: Some(String::from("thread-42")),
@@ -976,7 +976,7 @@ mod tests {
         let reg = make_registry();
         let msg = Message::Simple {
             performative: Performative::Core(CorePerformative::Tell),
-            recipient: Some(String::from("@bob")),
+            recipient: Some("@bob".into()),
             content: SExpr::Atom(Atom::Str(String::from("hello"))),
             params: Vec::new(),
             thread: None,

@@ -855,7 +855,7 @@ mod tests {
         let mut agent = Agent::new("@alice");
         let msg = Message::Simple {
             performative: Performative::Core(CorePerformative::Tell),
-            recipient: Some(String::from("@bob")),
+            recipient: Some("@bob".into()),
             content: SExpr::Atom(Atom::Str(String::from("hello"))),
             params: Vec::new(),
             thread: Some(String::from("conv-1")),

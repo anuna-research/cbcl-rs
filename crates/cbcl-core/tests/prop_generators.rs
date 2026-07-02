@@ -298,7 +298,7 @@ pub fn arb_simple_message() -> impl Strategy<Value = Message> {
         .prop_map(
             |(performative, recipient, content, thread, sender)| Message::Simple {
                 performative,
-                recipient,
+                recipient: recipient.map(cbcl_core::message::Recipients::One),
                 content,
                 params: Vec::new(),
                 thread,

@@ -600,7 +600,7 @@ fn send_message_str(recipient: &str, content: &str) -> Result<String, String> {
 
     let msg = Message::Simple {
         performative: Performative::Core(CorePerformative::Tell),
-        recipient: Some(recipient_sym),
+        recipient: Some(recipient_sym.into()),
         content: content_expr,
         params: Vec::new(),
         thread: None,

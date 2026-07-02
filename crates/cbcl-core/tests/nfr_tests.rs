@@ -115,7 +115,7 @@ fn buffer_memory_bounded_by_dedup() {
 
     let msg = Message::Simple {
         performative: Performative::Core(CorePerformative::Tell),
-        recipient: Some(String::from("@bob")),
+        recipient: Some("@bob".into()),
         content: str_expr("hello"),
         params: vec![],
         thread: Some(String::from("bounded-thread")),
