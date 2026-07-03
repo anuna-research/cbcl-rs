@@ -13,3 +13,5 @@
 /fuzz/target
 /mutants.out
 /.mut-tmp
+/fuzz/corpus
+/fuzz/artifacts

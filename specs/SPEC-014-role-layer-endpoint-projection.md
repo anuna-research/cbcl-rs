@@ -2,7 +2,7 @@
 id: SPEC-014
 title: Role Layer — R6 and Coordination-Free Endpoint Projection
 status: implemented
-version: 0.3.2
+version: 0.3.3
 date: 2026-07-02
 author: Anuna Research (https://anuna.io)
 depends-on:
@@ -760,6 +760,12 @@ two-party limitation.
 
 ## Changelog
 
+- 0.3.3 (2026-07-03) — TEST-638 executed (was compiling-only). `cargo-fuzz`
+  run over the role-layer parse surface, clean: `role_layer` 3.15M execs,
+  `dialect_parser` 4.23M, `message_parser` 2.26M (≈ 9.6M inputs total), zero
+  crashes, zero panics, zero artifacts. Covers `parse_roles`/`parse_cast`,
+  the `(:roles …)`/`:from`/`:to` clause parsing, recipient sets, and the
+  `with-roles` wrapper.
 - 0.3.2 (2026-07-02) — CON-600 grammar correction: the role declaration is a
   *wrapped* `(:roles (…))` keyword clause (matching the existing
   `(:resource-requirements …)`), not the unwrapped `:roles (…)` the draft
