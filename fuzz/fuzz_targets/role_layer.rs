@@ -26,9 +26,18 @@ fuzz_target!(|data: &[u8]| {
     let _ = parse_cast(&sexpr, &roles);
     // Message layer: recipient sets and the with-roles wrapper.
     if let Ok(msg) = Message::try_from(&sexpr) {
-        // Round-trip must stay total on accepted messages.
+        // Round-trip oracle (TEST-638): serialising a parsed message must
+        // yield output that re-parses to an *equal* message, i.e.
+        // parse ∘ serialise = identity. This catches serializer/parser
+        // divergence (a lost field, a canonicalisation mismatch, a form the
+        // serializer emits but the parser rejects) — not merely a crash.
         let back = cbcl_core::sexpr::SExpr::from(&msg);
-        let _ = Message::try_from(&back);
+        let reparsed = Message::try_from(&back)
+            .expect("serialising a parsed message must yield re-parseable output");
+        assert_eq!(
+            msg, reparsed,
+            "message round-trip must be the identity: parse(serialise(m)) == m"
+        );
         let _ = msg.recipient_set();
     }
 });

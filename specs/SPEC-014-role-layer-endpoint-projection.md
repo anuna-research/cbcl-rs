@@ -2,7 +2,7 @@
 id: SPEC-014
 title: Role Layer — R6 and Coordination-Free Endpoint Projection
 status: implemented
-version: 0.3.3
+version: 0.3.4
 date: 2026-07-02
 author: Anuna Research (https://anuna.io)
 depends-on:
@@ -760,6 +760,17 @@ two-party limitation.
 
 ## Changelog
 
+- 0.3.4 (2026-07-03) — round-trip oracle added to the `role_layer` fuzz
+  target (`parse(serialise(m)) == m`), which found and fixed a base
+  message-grammar ambiguity: an *address group* — a bare `@x` or an all-`@`
+  list `(@a @b)` — was accepted in the positional content slot, where it
+  collides with the recipient / recipient-set syntax and breaks round-trip
+  (a content address re-parses as the recipient). The parser now rejects an
+  address group as content (it belongs in the recipient slot or a keyword
+  value; nested addresses in a mixed list like `(introduce @bob)`, and `@`
+  inside strings, remain fine). This makes `@` sigil-disciplined, removes a
+  recipient/content parser-differential, and makes serialise ∘ parse
+  injective. Confirmed by 4.6M fuzz inputs, zero round-trip failures.
 - 0.3.3 (2026-07-03) — TEST-638 executed (was compiling-only). `cargo-fuzz`
   run over the role-layer parse surface, clean: `role_layer` 3.15M execs,
   `dialect_parser` 4.23M, `message_parser` 2.26M (≈ 9.6M inputs total), zero

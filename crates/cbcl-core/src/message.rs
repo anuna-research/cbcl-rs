@@ -568,6 +568,25 @@ fn parse_wrapped(wrapper: WrapperType, tail: &[SExpr]) -> Result<Message, Messag
     }
 }
 
+/// Whether an S-expression is a single address token (`@key`).
+fn is_address(s: &SExpr) -> bool {
+    matches!(s, SExpr::Atom(Atom::Symbol(sym)) if sym.starts_with('@'))
+}
+
+/// Whether an S-expression is an *address group*: a single address `@x` or a
+/// non-empty list of addresses `(@a @b)`. These are exactly the forms the
+/// recipient position accepts, so they are forbidden as positional content
+/// (which is what keeps `@` sigil-disciplined and serialise ∘ parse injective).
+/// A mixed list like `(introduce @bob)` is not an address group — it is
+/// ordinary content with a nested address.
+fn is_address_group(s: &SExpr) -> bool {
+    match s {
+        SExpr::Atom(Atom::Symbol(sym)) => sym.starts_with('@'),
+        SExpr::List(items) => !items.is_empty() && items.iter().all(is_address),
+        _ => false,
+    }
+}
+
 fn parse_simple(head: &str, tail: &[SExpr]) -> Result<Message, MessageParseError> {
     let performative = match CorePerformative::parse(head) {
         Some(cp) => Performative::Core(cp),
@@ -591,12 +610,7 @@ fn parse_simple(head: &str, tail: &[SExpr]) -> Result<Message, MessageParseError
                 recipient = Some(Recipients::One(s.clone()));
                 i += 1;
             }
-            SExpr::List(items)
-                if !items.is_empty()
-                    && items.iter().all(
-                        |it| matches!(it, SExpr::Atom(Atom::Symbol(s)) if s.starts_with('@')),
-                    ) =>
-            {
+            SExpr::List(items) if !items.is_empty() && items.iter().all(is_address) => {
                 let set: alloc::collections::BTreeSet<String> = items
                     .iter()
                     .map(|it| match it {
@@ -632,6 +646,20 @@ fn parse_simple(head: &str, tail: &[SExpr]) -> Result<Message, MessageParseError
                     params.push(val.clone());
                 }
                 i += 2;
+            }
+            // An address group — a bare `@x` or an all-`@` list `(@a @b)` —
+            // is not data. These are exactly the forms the recipient parser
+            // accepts above, so admitting them as content would overload the
+            // surface syntax and break serialise ∘ parse (a content address
+            // group re-parses as the recipient). Reject them in the positional
+            // slot; addresses belong in the recipient slot or a keyword value.
+            // A *mixed* list (e.g. `(introduce @bob)`) is ordinary content —
+            // nested addresses are fine — as are `@`-runs inside a string.
+            positional if is_address_group(positional) => {
+                return Err(MessageParseError(alloc::format!(
+                    "address(es) '{positional}' in content position; addresses \
+                     go in the recipient slot or a keyword value"
+                )));
             }
             _ => {
                 if content.is_none() {
@@ -1437,6 +1465,62 @@ mod tests {
         let sexpr: SExpr = "(tell (a b) \"x\")".parse().unwrap();
         let msg = Message::try_from(&sexpr).unwrap();
         assert!(msg.recipient_set().is_empty());
+    }
+
+    // ---- Addresses are sigil-disciplined: a bare `@`-symbol is an address,
+    // never positional content. Found by the role_layer round-trip fuzzer. ----
+
+    fn parses(src: &str) -> bool {
+        let sexpr: SExpr = src.parse().unwrap();
+        Message::try_from(&sexpr).is_ok()
+    }
+
+    fn round_trips(src: &str) {
+        let sexpr: SExpr = src.parse().unwrap();
+        let msg = Message::try_from(&sexpr).unwrap();
+        let back = SExpr::from(&msg);
+        let msg2 = Message::try_from(&back).unwrap();
+        assert_eq!(msg, msg2, "round-trip must be identity for {src}");
+    }
+
+    #[test]
+    fn address_group_in_content_position_is_rejected() {
+        // Bare address after keyword params, no recipient (fuzzer find #1).
+        assert!(!parses("(tell :session \"foo\" @key)"));
+        // A second bare address after the recipient.
+        assert!(!parses("(reply @alice @bob)"));
+        // A bare address in a positional param slot (after content).
+        assert!(!parses("(tell @client \"msg\" @extra)"));
+        // An all-`@` *list* in the content position collides with the
+        // recipient set form `(@a @b)` (fuzzer find #2).
+        assert!(!parses("(tell :kw \"v\" (@a @b))"));
+        assert!(!parses("(reply @dest (@a @b))"));
+        // ...but the same list *leading* is a legitimate recipient set.
+        assert!(parses("(tell (@@@))"));
+        assert!(parses("(tell (@a @b) \"content\")"));
+    }
+
+    #[test]
+    fn addresses_in_content_are_fine_when_tagged_or_wrapped() {
+        // Keyword value.
+        assert!(parses("(tell @client :ref @bob :action \"review\")"));
+        round_trips("(tell @client :ref @bob :action \"review\")");
+        // Nested inside a structured (list) content.
+        assert!(parses("(tell @client (introduce @bob))"));
+        round_trips("(tell @client (introduce @bob))");
+        // Inside a string literal — just text, not an address token.
+        assert!(parses("(tell @client \"ping @bob\")"));
+        round_trips("(tell @client \"ping @bob\")");
+        // Multicast recipient set + string content (the paper's OAuth trace).
+        assert!(parses("(login (@cli @as) \"n-42\" \"profile\")"));
+        round_trips("(login (@cli @as) \"n-42\" \"profile\")");
+    }
+
+    #[test]
+    fn two_recipients_must_use_the_set_form() {
+        // The nudge: `(@a @b)` is unambiguous; `@a @b` is not (and is rejected).
+        assert!(parses("(reply (@alice @bob) \"ok\")"));
+        assert!(!parses("(reply @alice @bob \"ok\")"));
     }
 
     // ---- SPEC-014 REQ-625: with-roles typed wrapper ----
