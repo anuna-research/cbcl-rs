@@ -2,8 +2,8 @@
 id: SPEC-003
 title: Verification Lattice — Algebraic Foundations for Causal Protocol Checking
 status: draft
-version: 0.1.0
-date: 2026-03-24
+version: 0.2.0
+date: 2026-07-03
 author: Anuna Research (https://anuna.io)
 depends-on: SPEC-002 (structural contracts — causal protocols and shapes)
 prior-art:
@@ -27,7 +27,7 @@ SPEC-002 introduces causal protocol verification and proves it monotonic by case
 
 This specification provides the **algebraic foundation** underneath SPEC-002. It identifies the lattice structures implicit in the message store, the verification result, and the `:caused-by` Merkle DAG, and formalises the relationships between them. The payoff is threefold:
 
-1. **Monotonicity becomes structural, not per-feature.** If the verification function is a lattice homomorphism, every composition of it is automatically monotone. No case analysis needed per requirement.
+1. **Monotonicity becomes structural, not per-feature.** If the verification function is a monotone map from the store semilattice to the verdict poset, every composition of it is automatically monotone. No case analysis needed per requirement.
 2. **Three-valued verification.** The current two-valued result (`Ok` / `Err`) conflates "predecessor not yet received" with "predecessor has wrong type." The lattice gives a principled three-valued result: `Unknown` (⊥), `Valid`, `Violation`. This is the correct distinction for unordered transports.
 3. **The Merkle DAG IS the lattice.** The message store's `:caused-by` links are not an ad-hoc parameter — they are the covers relation of a join-semilattice. Content hashes are lattice element identities. Fan-in via `(all ...)` is lattice join. Causal closure is the principal ideal. This unification means the data structure, the protocol semantics, and the verification algebra are the same object viewed from three angles.
 
@@ -39,14 +39,26 @@ This specification provides the **algebraic foundation** underneath SPEC-002. It
 
 **Merkle-CRDTs.** Sanjuan, Poyhtari, Teixeira & Psaras (2020, [*Merkle-CRDTs: Merkle-DAGs meet CRDTs*](https://research.protocol.ai/publications/merkle-crdts-merkle-dags-meet-crdts/psaras2020.pdf)) observe that "Merkle-Clocks already embed ordering and causality information." SPEC-003 formalises this observation: the `:caused-by` Merkle DAG is a join-semilattice where each message's hash commits to its entire causal history (principal ideal).
 
+### Terminology: three structures, one word
+
+Earlier drafts of this specification used "lattice" for every order-theoretic structure in sight. The mechanisation (SPEC-005, [[SPEC-005-lean-mechanisation]]) exposed that three *different* structures are in play, only one of which is anything like a lattice. To keep the requirements precise, this spec now distinguishes:
+
+1. **The store join-semilattice** (REQ-300). Sets of immutable messages under union, ordered by inclusion. A genuine (bounded, join-)semilattice — the G-Set CRDT.
+
+2. **The verdict poset** (REQ-302). The *order* on `{Unknown, Valid, Violation}` used for stability and monotonicity: `Unknown` below both terminal verdicts, `Valid` and `Violation` incomparable. This is a flat poset (discrete order with bottom). It is **not** a lattice: `Valid ⊔ Violation` does not exist in this order.
+
+3. **The verdict bisemilattice** (REQ-303). The *operations* `⊓` (conjunction, for `(all ...)`) and `⊔` (disjunction, for `(any ...)`). Each is associative, commutative, and idempotent with an identity (`Valid` for `⊓`, `Unknown` for `⊔`) — but they are the min/max of two *different* total orders (`⊓` of the truth order `Violation < Unknown < Valid`; `⊔` of the commitment order `Unknown < Violation < Valid`), so the absorption laws fail (`Unknown ⊓ (Unknown ⊔ Violation) = Violation ≠ Unknown`) and no single lattice order underlies both. Two semilattice structures on one carrier without absorption is a **bisemilattice**; with the two identities, a **bounded bisemilattice**. The Lean typeclass is accordingly named `BoundedBisemilattice` (see SPEC-005 ADR-510).
+
+The spec's title keeps "Verification Lattice" as an umbrella for this family of structures; individual requirements below use the precise term for the structure they constrain. Where a requirement needs only monotonicity and terminal-verdict stability, the verdict poset (2) is the operative structure; where it computes fan-in/fan-out folds, the bisemilattice operations (3) are.
+
 ### Scope
 
 This specification covers:
 
-- The lattice structure of the message store, the verification result, and the `:caused-by` DAG
+- The order-theoretic structure of the message store, the verification result, and the `:caused-by` DAG
 - The three-valued verification result (`Unknown`, `Valid`, `Violation`)
 - The agent policy for handling `Unknown` results (reject vs buffer)
-- The lattice homomorphism property relating message store growth to verification result stability
+- The monotone-map property relating message store growth to verification result stability
 - Lean 4 formalisation targets
 
 This specification does **not** cover:
@@ -147,7 +159,7 @@ The `:caused-by` Merkle DAG within each thread SHALL be formalised as a **join-s
 
 - **Elements**: Messages within the thread, plus a distinguished bottom element `begin`.
 - **Ordering**: Causal precedence. Message A ≤ message B if A is in B's causal closure (reachable by following `:caused-by` links from B back to A).
-- **Join**: For two messages A and B, their join A ⊔ B is the earliest message that has both A and B in its causal closure. If no such message exists yet, the join is **undefined** (the messages are on incomparable branches — the lattice is a partial order, not total).
+- **Join**: For two messages A and B, their join A ⊔ B is the earliest message that has both A and B in its causal closure. If no such message exists yet, the join is **undefined** (the messages are on incomparable branches). Strictly, (M, ≤) is therefore a *poset with bottom whose joins are partial*: a join for {A, B} exists exactly when some fan-in message naming both has been appended. We keep the semilattice vocabulary for the fan-in intuition — every `(all ...)` merge message *is* the join of its predecessors — but no requirement below assumes joins exist for arbitrary pairs.
 - **Bottom**: `begin` — causally precedes everything.
 
 The `:caused-by` links are the **covers relation** of this semilattice:
@@ -182,15 +194,15 @@ Where:
 - **Valid** — The predecessor hash resolves to a message with the correct performative type per the protocol declaration.
 - **Violation** — The predecessor hash resolves to a message with an incorrect performative type, or the hash is malformed, or the protocol declaration forbids this causal link.
 
-The lattice ordering is: `Unknown < Valid` and `Unknown < Violation`. `Valid` and `Violation` are incomparable (a check cannot be both valid and a violation). This is a **flat lattice** (also called a discrete order with bottom): ⊥ is below everything, all other elements are incomparable.
+The ordering is: `Unknown < Valid` and `Unknown < Violation`. `Valid` and `Violation` are incomparable (a check cannot be both valid and a violation). This is a **flat poset** (a discrete order with bottom — the flat domain of three-valued logic). It is *not* a lattice: `Valid` and `Violation` have no common upper bound, so binary joins do not exist in this order. Everything this spec derives from REQ-302 uses only the order and the stability of the two terminal verdicts; the `⊓`/`⊔` *operations* live in REQ-303 and are a separate structure (see the terminology note in the Overview).
 
 **Stability property.** Both `Valid` and `Violation` are **stable** (permanent) under store growth:
 
 - If `check(msg, store) = Valid`, then `check(msg, store ∪ S) = Valid` for all S. The predecessor hash exists and has the correct type; adding messages cannot remove a hash or change its type.
 - If `check(msg, store) = Violation`, then `check(msg, store ∪ S) = Violation` for all S. Same reasoning — the predecessor exists with the wrong type, and that fact is immutable.
-- If `check(msg, store) = Unknown`, then `check(msg, store ∪ S)` may be `Unknown`, `Valid`, or `Violation`. The result can only move **up** in the lattice (away from ⊥).
+- If `check(msg, store) = Unknown`, then `check(msg, store ∪ S)` may be `Unknown`, `Valid`, or `Violation`. The result can only move **up** in the poset (away from ⊥).
 
-This is exactly the definition of a **monotone function** from the store lattice (REQ-300) to the result lattice: if store₁ ⊆ store₂, then `check(msg, store₁) ≤ check(msg, store₂)`.
+This is exactly the definition of a **monotone function** from the store join-semilattice (REQ-300) to the verdict poset: if store₁ ⊆ store₂, then `check(msg, store₁) ≤ check(msg, store₂)`.
 
 verified-by: example
 
@@ -198,9 +210,9 @@ Trace:
 - TEST-302
 - CON-301
 
-### REQ-303: Conjunction and Disjunction on the Result Lattice
+### REQ-303: Conjunction and Disjunction — the Result Bisemilattice
 
-For fan-in verification with `(all ...)`, the overall result SHALL be the **meet** (greatest lower bound) of sub-results:
+For fan-in verification with `(all ...)`, the overall result SHALL be the **meet** `⊓` of sub-results — the minimum in the *truth order* `Violation < Unknown < Valid`:
 
 | ⊓ | Unknown | Valid | Violation |
 |---|---------|-------|-----------|
@@ -214,7 +226,7 @@ Rules:
 - `Violation ⊓ anything = Violation` — one bad predecessor poisons the conjunction (Violation is absorbing for meet).
 - `Unknown ⊓ Valid = Unknown` — can't confirm the conjunction until all sub-checks resolve.
 
-For disjunctive predecessors with `(any ...)`, the overall result SHALL be the **join** (least upper bound) of sub-results:
+For disjunctive predecessors with `(any ...)`, the overall result SHALL be the **join** `⊔` of sub-results — the maximum in the *commitment order* `Unknown < Violation < Valid`:
 
 | ⊔ | Unknown | Valid | Violation |
 |---|---------|-------|-----------|
@@ -233,18 +245,18 @@ In practice, for `(any ...)` on the predecessor side, the agent has a single `:c
 
 The partial-disjunction caveat applies only if a future extension allows disjunctive `:caused-by` (multiple hashes where any one suffices). This is not part of SPEC-002 or SPEC-003 but the algebra is recorded here for completeness.
 
-**Rationale:** Meet for conjunction and join for disjunction are the standard lattice operations. The absorbing elements (Violation for meet, Valid for join) correspond to short-circuit evaluation — a known bad predecessor fails the conjunction immediately, a known good predecessor passes the disjunction immediately.
+**Rationale:** Each operation is individually a bona-fide semilattice operation — associative, commutative, idempotent, with an identity (`Valid` for `⊓`, `Unknown` for `⊔`). But they are the min/max of two *different* total orders, so together they do **not** form a lattice: the absorption laws fail (`Unknown ⊓ (Unknown ⊔ Violation) = Unknown ⊓ Violation = Violation ≠ Unknown`), and neither operation computes bounds in REQ-302's flat order (the flat-order greatest lower bound of `Valid` and `Violation` is `Unknown`, whereas `Valid ⊓ Violation = Violation`). The correct name for the pair `(⊓, ⊔)` with its two identities is a **bounded bisemilattice** (see the terminology note in the Overview). The absorbing elements (Violation for meet, Valid for join) correspond to short-circuit evaluation — a known bad predecessor fails the conjunction immediately, a known good predecessor passes the disjunction immediately.
 
 verified-by: lean
 
-Mechanised in `lean-cbcl/LeanCbcl/Lattice/Result.lean`: `result_meet_table` and `result_join_table` reproduce both truth tables verbatim, discharged by exhaustive case analysis on the finite `VerificationResult` carrier; `verify_all_is_meet` in `LeanCbcl/Verify.lean` then ties the meet to fan-in `(all …)`.
+Mechanised in `lean-cbcl/LeanCbcl/Lattice/Result.lean`: `result_meet_table` and `result_join_table` reproduce both truth tables verbatim, discharged by exhaustive case analysis on the finite `VerificationResult` carrier; `verify_all_is_meet` in `LeanCbcl/Verify.lean` then ties the meet to fan-in `(all …)`. The typeclass recording these axioms is `BoundedBisemilattice` (renamed from `BoundedLattice` on 2026-07-03; absorption is deliberately absent from its axioms — see SPEC-005 ADR-510).
 
 Trace:
 - TEST-303
 
-### REQ-304: Verification as Lattice Homomorphism
+### REQ-304: Verification as a Monotone Map
 
-The causal verification function SHALL be a **monotone function** (order-preserving map) from the message store lattice (REQ-300) to the verification result lattice (REQ-302):
+The causal verification function SHALL be a **monotone function** (order-preserving map) from the message store join-semilattice (REQ-300) to the verdict poset (REQ-302):
 
 ```
 verify: (Message × Store) → VerificationResult
@@ -266,7 +278,7 @@ This is the **structural monotonicity guarantee** that replaces SPEC-002's ad-ho
 
 verified-by: lean
 
-Mechanised in `lean-cbcl/LeanCbcl/Verify.lean` as `verify_monotone : S₁ ⊆ S₂ → verify M P S₁ ⊑ verify M P S₂`, with `verify_all_is_meet` discharging the fan-in lattice-homomorphism shape.
+Mechanised in `lean-cbcl/LeanCbcl/Verify.lean` as `verify_monotone : S₁ ⊆ S₂ → verify M P S₁ ⊑ verify M P S₂`, with `verify_all_is_meet` discharging the fan-in meet-fold shape (a meet-semilattice homomorphism; there is no full lattice homomorphism to preserve — see REQ-303).
 
 Trace:
 - TEST-304
@@ -359,7 +371,7 @@ This follows from:
 
 verified-by: lean
 
-Mechanised in `lean-cbcl/LeanCbcl/Verify.lean` as `verify_eventually_consistent : (verify M P S₁).join (verify M P S₂) ⊑ verify M P (S₁ ∪ S₂)`, derived from `verify_monotone` applied to each side of the union and `join_mono` from the result lattice. **Note on the order.** `⊑` is the "valid-is-sticky" knowledge order from `Lattice/Result.lean` (`a ⊑ b ↔ (a = valid → b = valid)`), not flat equality. The theorem therefore states "if either replica has already verified `valid`, the merged store also verifies `valid`" — a one-sided monotone confluence — rather than "both replicas converge to the same value". The "valid is sticky, unknown/violation are tentative" choice is what makes `meet` and `join` monotone through arbitrary nestings of `(any …)` inside `(all …)`; see the docstring on `VerificationResult.le` for the rationale.
+Mechanised in `lean-cbcl/LeanCbcl/Verify.lean` as `verify_eventually_consistent : (verify M P S₁).join (verify M P S₂) ⊑ verify M P (S₁ ∪ S₂)`, derived from `verify_monotone` applied to each side of the union and `join_mono` from the result bisemilattice. **Note on the order.** `⊑` is the "valid-is-sticky" knowledge order from `Lattice/Result.lean` (`a ⊑ b ↔ (a = valid → b = valid)`), not flat equality. The theorem therefore states "if either replica has already verified `valid`, the merged store also verifies `valid`" — a one-sided monotone confluence — rather than "both replicas converge to the same value". The "valid is sticky, unknown/violation are tentative" choice is what makes `meet` and `join` monotone through arbitrary nestings of `(any …)` inside `(all …)`; see the docstring on `VerificationResult.le` for the rationale.
 
 Trace:
 - TEST-307
@@ -625,7 +637,7 @@ Trace:
 | False positives on unordered transports | Yes — timing errors look like violations | No — timing produces `Unknown`, violations produce `Violation` |
 | Zero mutable state | Always | Only under Reject policy |
 | Blame correctness | May blame sender for timing | Only blames sender for genuine violations |
-| Lean proof structure | Ad-hoc per-requirement | Lattice homomorphism — compositional |
+| Lean proof structure | Ad-hoc per-requirement | Monotone-map composition — structural |
 
 **Rationale:** The false positive problem is real. CBCL operates over Nostr relays where message ordering is not guaranteed. Blaming a sender for a timing artifact violates the blame correctness requirement (SPEC-002 REQ-230). The three-valued result is the minimal fix: one new value (`Unknown`) that correctly represents the epistemic state.
 
@@ -996,8 +1008,8 @@ Verified by:
 
 ### Pure Core (no I/O, no shared state, deterministic)
 
-- `VerificationResult::meet()` — lattice meet, returns result
-- `VerificationResult::join()` — lattice join, returns result
+- `VerificationResult::meet()` — bisemilattice meet (⊓), returns result
+- `VerificationResult::join()` — bisemilattice join (⊔), returns result
 - `VerificationResult::is_resolved()` — threshold test, returns bool
 - `verify_causal()` — lookup(s) + set membership, returns VerificationResult (reads message store but does not mutate)
 
@@ -1181,7 +1193,9 @@ Trace: NFR-302
 
 ## Lean 4 Formalisation Targets
 
-The lattice formalization is designed to support a Lean 4 mechanised proof. The proof structure:
+*(This section predates the mechanisation and is retained as the original plan. [[SPEC-005-lean-mechanisation]] records what was actually built: a `BoundedBisemilattice` typeclass for the verdict operations and a "valid-is-sticky" preorder `⊑` for monotonicity — see SPEC-005 ADR-510 for why Mathlib's lattice hierarchy does not apply.)*
+
+The formalization is designed to support a Lean 4 mechanised proof. The proof structure:
 
 1. **Define the lattice types.** `StoreLattice` as `Finset Message` with `⊆` and `∪`. `VerificationResult` as an inductive type with an `Ord` instance.
 

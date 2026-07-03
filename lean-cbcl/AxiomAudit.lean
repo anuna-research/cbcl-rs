@@ -46,7 +46,7 @@ below — the shell script discovers theorems from this file's output, so
 editing only this file is enough to extend the audit.
 -/
 
--- CON-510 — Three-valued result lattice (Lattice/Result.lean).
+-- CON-510 — Three-valued result bisemilattice (Lattice/Result.lean).
 #print axioms CBCL.VerificationResult.result_meet_table
 #print axioms CBCL.VerificationResult.result_join_table
 

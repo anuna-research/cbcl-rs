@@ -2,8 +2,8 @@
 id: SPEC-005
 title: Lean Mechanisation of Causal Protocols and Verification Lattice
 status: draft
-version: 0.1.0
-date: 2026-04-28
+version: 0.1.1
+date: 2026-07-03
 author: Anuna Research (https://anuna.io)
 depends-on:
   - SPEC-001 (CBCL — homoiconic safe self-extending agent communication, R1–R3 mechanised)
@@ -22,11 +22,11 @@ repository: https://codeberg.org/anuna/cbcl-rs
 
 ## Overview
 
-SPEC-001 mechanises CBCL's R1–R3 safety properties in Lean 4 and extracts a verified parser binary. SPEC-002 and SPEC-003 introduce the next layer of behavioural contracts — causal protocol verification, the three-valued result lattice, monotonicity under store growth, and eventual consistency — and prove these properties **informally**, in markdown prose, with property-based and example-based tests in Rust providing empirical evidence.
+SPEC-001 mechanises CBCL's R1–R3 safety properties in Lean 4 and extracts a verified parser binary. SPEC-002 and SPEC-003 introduce the next layer of behavioural contracts — causal protocol verification, the three-valued result bisemilattice, monotonicity under store growth, and eventual consistency — and prove these properties **informally**, in markdown prose, with property-based and example-based tests in Rust providing empirical evidence.
 
 This specification defines the Lean 4 mechanisation work that elevates the SPEC-002 and SPEC-003 contracts to the same rigour level as SPEC-001. It is a **planning document** — the work it describes is deferred. Its purpose is to make the verification gap visible at requirement granularity, scope the mechanisation effort honestly, and provide a concrete file-by-file plan that future implementers can execute against.
 
-The headline theorem is the SPEC-003 lattice-homomorphism: **`verify : Store × Protocol × Message → Result` is a monotone function from the message-store G-Set lattice to the three-valued bounded lattice `{Unknown, Valid, Violation}`, and joins for `(all ...)` fan-in are preserved.** Mechanising this single theorem closes the largest informal gap in the cbcl-rs theorem inventory.
+The headline theorem is the SPEC-003 monotone-map property: **`verify : Store × Protocol × Message → Result` is a monotone function from the message-store G-Set semilattice to the three-valued result carrier `{Unknown, Valid, Violation}`, and `(all ...)` fan-in distributes as a meet-fold** (SPEC-003 REQ-303/REQ-304 — the result carrier is a *bounded bisemilattice*, not a lattice; see SPEC-003's terminology note). Mechanising this single theorem closes the largest informal gap in the cbcl-rs theorem inventory.
 
 ### Design Provenance
 
@@ -34,14 +34,14 @@ The headline theorem is the SPEC-003 lattice-homomorphism: **`verify : Store × 
 
 **SPEC-003 prose proofs as the starting point.** The case analysis for monotonicity in SPEC-003 (REQ-304) is the proof skeleton. Mechanisation translates each case into a Lean lemma. The risk is that prose proofs hide load-bearing assumptions; a sympathetic translation will discover them.
 
-**Mathlib lattice infrastructure.** Mathlib4 provides `Order.BoundedLattice`, `Order.Hom.Lattice` (lattice homomorphisms), and finite-set lattice instances. SPEC-005 originally planned to depend on these rather than re-derive lattice theory from scratch (per ADR-510, accepted). The IMPL-005 mechanisation discovered that `VerificationResult` is non-absorbing and its knowledge order is a preorder rather than a partial order — neither `Lattice` nor `SemilatticeSup`/`SemilatticeInf` apply — so the dependency would not actually pay off for `Lattice/Result.lean`. ADR-510 has been amended to `accepted-with-deferral`; small hand-rolled `BoundedLattice` and `JoinSemiLattice` typeclasses are retained in `Lattice/Result.lean` and `Lattice/Store.lean`.
+**Mathlib lattice infrastructure.** Mathlib4 provides `Order.BoundedLattice`, `Order.Hom.Lattice` (lattice homomorphisms), and finite-set lattice instances. SPEC-005 originally planned to depend on these rather than re-derive lattice theory from scratch (per ADR-510, accepted). The IMPL-005 mechanisation discovered that `VerificationResult` is non-absorbing and its knowledge order is a preorder rather than a partial order — neither `Lattice` nor `SemilatticeSup`/`SemilatticeInf` apply — so the dependency would not actually pay off for `Lattice/Result.lean`. ADR-510 has been amended to `accepted-with-deferral`; small hand-rolled `BoundedBisemilattice` (renamed from `BoundedLattice` on 2026-07-03 to reflect the missing absorption) and `JoinSemiLattice` typeclasses are retained in `Lattice/Result.lean` and `Lattice/Store.lean`.
 
 ### Scope
 
 This specification covers:
 
-- Lean 4 formalisation of the message-store G-Set lattice, the three-valued result lattice, and the lattice-homomorphism property of `verify`
-- Mechanisation of the meet/join truth tables in REQ-303 as bounded-lattice instances
+- Lean 4 formalisation of the message-store G-Set semilattice, the three-valued result bisemilattice, and the monotone-map property of `verify`
+- Mechanisation of the meet/join truth tables in REQ-303 as a bounded-bisemilattice instance
 - Mechanisation of monotonicity (REQ-304) and eventual consistency (REQ-307)
 - Mechanisation of the SPEC-002 R5 sub-checks (acyclicity, reachability, definedness, step-uniqueness) at a level of rigour matching the existing R1 proof
 - Mechanisation of REQ-209 and REQ-225 (DCFL preservation under causal protocols and shape constraints)
@@ -59,15 +59,15 @@ This specification does **not** cover:
 
 ## Functional Requirements
 
-### REQ-510: Three-valued result lattice formalisation
+### REQ-510: Three-valued result bisemilattice formalisation
 
-The system SHALL define a Lean type `VerificationResult` with constructors `Unknown`, `Valid`, `Violation` and SHALL prove it forms a `BoundedLattice` (or equivalent Mathlib4 typeclass instance) with:
+The system SHALL define a Lean type `VerificationResult` with constructors `Unknown`, `Valid`, `Violation` and SHALL prove it forms a `BoundedBisemilattice` (a hand-rolled typeclass — Mathlib4's `Lattice` hierarchy does not apply, per the amended ADR-510) with:
 
-- `⊥ = Unknown`
-- meet `⊓` (`Conjunction`) and join `⊔` (`Disjunction`) instances matching the truth tables in SPEC-003 REQ-303
-- the algebraic axioms of a bounded lattice (associativity, commutativity, absorption, identity, idempotence)
+- `⊥ = Unknown` (identity of `⊔`) and `⊤ = Valid` (identity of `⊓`)
+- meet `⊓` (`Conjunction`) and join `⊔` (`Disjunction`) operations matching the truth tables in SPEC-003 REQ-303
+- the algebraic axioms of a bounded bisemilattice: associativity, commutativity, and idempotence for each of `⊓` and `⊔`, plus the two identity laws. Absorption is deliberately **not** required — it fails on the REQ-303 truth tables (`Unknown ⊓ (Unknown ⊔ Violation) = Violation ≠ Unknown`), which is precisely why the carrier is a bisemilattice rather than a lattice (SPEC-003 terminology note).
 
-The mechanisation MUST discharge each lattice axiom with an explicit case-by-case proof or by `decide` (the result type is finite).
+The mechanisation MUST discharge each axiom with an explicit case-by-case proof or by `decide` (the result type is finite).
 
 Trace:
 - TEST-510
@@ -234,7 +234,7 @@ Trace:
 
 ## Contracts
 
-### CON-510: Three-valued result lattice module
+### CON-510: Three-valued result bisemilattice module
 
 ```text
 File: lean-cbcl/LeanCbcl/Lattice/Result.lean
@@ -246,7 +246,7 @@ inductive VerificationResult where
   | valid
   | violation : CausalViolation → VerificationResult
 
-instance : BoundedLattice VerificationResult := ...
+instance : BoundedBisemilattice VerificationResult := ...
 
 theorem result_meet_table : ...
 theorem result_join_table : ...
@@ -396,17 +396,20 @@ situation the mechanisation programme is supposed to expose:
    Mathlib's `Order.Lattice` typeclass requires absorption.
 2. **The knowledge order `⊑` is a preorder, not a partial order.**
    Both `unknown ⊑ violation` and `violation ⊑ unknown` hold (because
-   `a ⊑ b ↔ (a = valid → b = valid)` — see the docstring at
-   `Lattice/Result.lean:177-202` for why "valid is sticky" is the only
+   `a ⊑ b ↔ (a = valid → b = valid)` — see the docstring on
+   `VerificationResult.le` in `Lattice/Result.lean` for why "valid is sticky" is the only
    order under which both `meet` and `join` are monotone, which is
    what `verify_monotone` needs). Mathlib's `SemilatticeSup` and
    `SemilatticeInf` require antisymmetry, which fails here.
 
 Together these mean Mathlib can contribute at most a `Preorder`
 instance for `VerificationResult` — no lattice automation, no derived
-lemmas. The hand-rolled `BoundedLattice` typeclass at
-`Lattice/Result.lean:57-71` records exactly the axioms `verify_monotone`
-needs and is ~15 lines.
+lemmas. The hand-rolled typeclass in `Lattice/Result.lean` records
+exactly the axioms `verify_monotone` needs and is ~15 lines. It was
+renamed `BoundedLattice` → `BoundedBisemilattice` on 2026-07-03: with
+absorption absent and the two induced semilattice orders disagreeing,
+"bounded bisemilattice" is the standard name for the structure the
+axioms actually describe, and the old name overclaimed.
 
 For `Lattice/Store.lean` the situation is different: `Set Message`
 under subset/union *is* a real Mathlib lattice, and switching would
@@ -416,7 +419,7 @@ builds) and the version-pinning maintenance burden (per Con #2 and
 RISK-510) outweigh that saving when amortised over the small number
 of lemmas actually consumed.
 
-**Decision (amended):** Hand-rolled `BoundedLattice` and
+**Decision (amended):** Hand-rolled `BoundedBisemilattice` and
 `JoinSemiLattice` typeclasses are retained in `Lattice/Result.lean`
 and `Lattice/Store.lean`. Mathlib4 is *not* added to the lakefile.
 The Mathlib migration is deferred indefinitely; revisit only if the
@@ -727,7 +730,7 @@ Trace: NFR-511
 
 | REQ | Status | Lean artefact | Notes |
 |---|---|---|---|
-| REQ-510 — result lattice | ✅ complete | `LeanCbcl/Lattice/Result.lean` | `BoundedLattice VerificationResult` instance, `result_meet_table` / `result_join_table` truth-table theorems. |
+| REQ-510 — result bisemilattice | ✅ complete | `LeanCbcl/Lattice/Result.lean` | `BoundedBisemilattice VerificationResult` instance, `result_meet_table` / `result_join_table` truth-table theorems. |
 | REQ-511 — store G-Set | ✅ complete | `LeanCbcl/Lattice/Store.lean` | `union_assoc/comm/idem`, `lookup_monotone`. `ContentHash` injectivity recorded as documented axiom (NFR-511). |
 | REQ-512 — `verify_monotone` | ✅ complete | `LeanCbcl/Verify.lean` | Discharged across every `verify` match arm. |
 | REQ-513 — fan-in is meet | ✅ complete | `LeanCbcl/Verify.lean` | `verify_all_is_meet` proved. |

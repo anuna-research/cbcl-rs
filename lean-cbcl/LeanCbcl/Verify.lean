@@ -295,11 +295,11 @@ decreasing_by all_goals (simp_wf; omega)
 
     Proof: the `.all` arm of `verify` is *literally* the `foldr` on the
     right-hand side, so `simp only [verify]` fires the auto-generated
-    equational lemma; what remains is the `BoundedLattice` typeclass
+    equational lemma; what remains is the `BoundedBisemilattice` typeclass
     projection unfolding to `VerificationResult.meet` / `valid` via the
     SPEC-003 instance (REQ-510), which is `rfl`. The associativity of
     meet promised in TEST-513's technique note is therefore not invoked
-    at this level — it is recorded by the `BoundedLattice` instance and
+    at this level — it is recorded by the `BoundedBisemilattice` instance and
     consumed by the downstream REQ-514 proof, where the fold is rotated
     to obtain `S₁ ∪ S₂` from `S₁` and `S₂`. -/
 theorem verify_all_is_meet :
