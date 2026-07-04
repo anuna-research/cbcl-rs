@@ -132,3 +132,60 @@
 (claims agent:claude
   :at "2026-07-04T04:15:52Z"
   (given completed-req315-gate))
+
+(claims agent:claude
+  :at "2026-07-04T04:25:12Z"
+  (given claim-v1-dialect-hashing)
+  (normally r-cl-state-v1-dialect-hashing claim-v1-dialect-hashing state-claimed-v1-dialect-hashing)
+  (normally r-cl-chain-v1-dialect-hashing state-claimed-v1-dialect-hashing claimed-dialect-hashing)
+)
+
+;; Propagation rules: failures in 'dialect-hashing' block downstream tasks
+(normally r-propagate-req628-pin-from-dialect-hashing-failed failed-dialect-hashing upstream-blocked-req628-pin)
+(normally r-propagate-req628-pin-from-dialect-hashing-permanently-failed permanently-failed-dialect-hashing upstream-blocked-req628-pin)
+(normally r-propagate-req628-pin-from-dialect-hashing-stale-v1 stale-v1-dialect-hashing upstream-blocked-req628-pin)
+(normally r-propagate-req628-pin-from-dialect-hashing-timeout-v1 timeout-v1-dialect-hashing upstream-blocked-req628-pin)
+
+(claims agent:claude
+  :at "2026-07-04T04:25:12Z"
+  (given claim-v1-spec015-review)
+  (normally r-cl-state-v1-spec015-review claim-v1-spec015-review state-claimed-v1-spec015-review)
+  (normally r-cl-chain-v1-spec015-review state-claimed-v1-spec015-review claimed-spec015-review)
+)
+
+;; Propagation rules: failures in 'spec015-review' block downstream tasks
+(normally r-propagate-equivocation-from-spec015-review-failed failed-spec015-review upstream-blocked-equivocation)
+(normally r-propagate-equivocation-from-spec015-review-permanently-failed permanently-failed-spec015-review upstream-blocked-equivocation)
+(normally r-propagate-equivocation-from-spec015-review-stale-v1 stale-v1-spec015-review upstream-blocked-equivocation)
+(normally r-propagate-equivocation-from-spec015-review-timeout-v1 timeout-v1-spec015-review upstream-blocked-equivocation)
+(normally r-propagate-equivocation-from-spec015-review-blocked upstream-blocked-spec015-review upstream-blocked-equivocation)
+(normally r-propagate-r4v2-attestation-from-spec015-review-failed failed-spec015-review upstream-blocked-r4v2-attestation)
+(normally r-propagate-r4v2-attestation-from-spec015-review-permanently-failed permanently-failed-spec015-review upstream-blocked-r4v2-attestation)
+(normally r-propagate-r4v2-attestation-from-spec015-review-stale-v1 stale-v1-spec015-review upstream-blocked-r4v2-attestation)
+(normally r-propagate-r4v2-attestation-from-spec015-review-timeout-v1 timeout-v1-spec015-review upstream-blocked-r4v2-attestation)
+(normally r-propagate-r4v2-attestation-from-spec015-review-blocked upstream-blocked-spec015-review upstream-blocked-r4v2-attestation)
+(normally r-propagate-repeat-unroll-from-spec015-review-failed failed-spec015-review upstream-blocked-repeat-unroll)
+(normally r-propagate-repeat-unroll-from-spec015-review-permanently-failed permanently-failed-spec015-review upstream-blocked-repeat-unroll)
+(normally r-propagate-repeat-unroll-from-spec015-review-stale-v1 stale-v1-spec015-review upstream-blocked-repeat-unroll)
+(normally r-propagate-repeat-unroll-from-spec015-review-timeout-v1 timeout-v1-spec015-review upstream-blocked-repeat-unroll)
+(normally r-propagate-repeat-unroll-from-spec015-review-blocked upstream-blocked-spec015-review upstream-blocked-repeat-unroll)
+
+;; Transitive propagation: upstream-blocked cascades through dependency chain
+(normally r-propagate-envelopes-from-r4v2-attestation-blocked upstream-blocked-r4v2-attestation upstream-blocked-envelopes)
+(normally r-propagate-derive-routing-from-envelopes-blocked upstream-blocked-envelopes upstream-blocked-derive-routing)
+
+(claims agent:claude
+  :at "2026-07-04T04:49:33Z"
+  (given verified-canonical-serializer-reused))
+
+(claims agent:claude
+  :at "2026-07-04T04:49:33Z"
+  (given completed-dialect-hashing))
+
+(claims agent:claude
+  :at "2026-07-04T05:00:01Z"
+  (given adr700-signed-off-amended))
+
+(claims agent:claude
+  :at "2026-07-04T05:00:01Z"
+  (given completed-spec015-review))

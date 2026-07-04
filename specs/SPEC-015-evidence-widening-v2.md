@@ -1,8 +1,8 @@
 ---
 id: SPEC-015
 title: Role Layer v2 — Redacted Delivery, Bounded Repetition, Equivocation Accountability
-status: draft
-version: 0.1.0
+status: approved
+version: 0.1.3
 date: 2026-07-04
 author: Anuna Research (https://anuna.io)
 depends-on:
@@ -42,10 +42,10 @@ changing **none** of the abstract model's theorems:
    not the message. Role-local verification reads a predecessor's hash,
    performative type, endpoints, and signature — never its payload
    ([[SPEC-014-role-layer-endpoint-projection#REQ-615]]–[[SPEC-014-role-layer-endpoint-projection#REQ-617]]).
-   A constant-size, payload-free **redacted envelope** satisfies a widened
-   recipient's verification needs at safety level, collapsing the disclosure
-   column of the corpus table and shrinking $O(n^2)$ payload fan-out to
-   $O(n^2)$ constant-size headers. This is also the concrete realisation
+   A payload-free **redacted envelope** (its size independent of the payload
+   it redacts) satisfies a widened recipient's verification needs at safety
+   level, collapsing the disclosure column of the corpus table and shrinking
+   $O(n^2)$ payload fan-out to $O(n^2)$ payload-free headers. This is also the concrete realisation
    path for the deferred splicing regime: "verify a dependency never
    received" becomes "received in redacted form".
 2. **Bounded repetition** ([[#REQ-704]]): a `(repeat k …)` protocol form,
@@ -88,19 +88,28 @@ Corpus verdicts this spec responds to (machine-checked by
 **REQ-700: Redacted envelope.**
 The message layer SHALL define a *redacted envelope*: a derivative of a
 signed message carrying exactly its content hash, performative name, sender
-key, recipient set, signature material, and `:caused-by` list — and no
-payload fields. Producing an envelope from a message SHALL be a pure
+key, recipient set, thread identifier, signature material, and `:caused-by`
+list — and no payload fields. Producing an envelope from a message SHALL be a pure
 function; the envelope SHALL identify (by content hash) the same message it
 redacts.
 Trace: [[#TEST-700]], grammar [[#CON-700]].
 
 **REQ-701: Envelope verifiability without payload.**
-An envelope SHALL be verifiable from its own fields alone: a holder SHALL be
-able to check that the signature binds the named sender key to the named
-content hash without possessing the payload. R4 v2 SHALL therefore sign the
-canonical bytes of a domain-tagged attestation naming the content hash
-([[#ADR-700]]), reconstructible from the hash alone; this is the single
-change to the signing discipline this spec requires.
+An envelope SHALL be verifiable from its own fields alone, and every field
+the verifier reads SHALL be authenticated: R4 v2 SHALL sign the canonical
+bytes of a domain-tagged attestation committing to the signature suite, the
+content hash, **and the header** — performative name, sender key, recipient
+set, thread, `:caused-by` list ([[#ADR-700]]; review finding 1: binding the
+hash alone leaves the header forgeable from gossiped (hash, signature)
+pairs).
+Both verifier classes reconstruct the identical preimage: an envelope holder
+from the envelope's fields, a full-message holder from the message and its
+computed hash.
+Messages and envelopes SHALL carry an explicit discipline marker
+distinguishing v2-attested from legacy v1 full-bytes signatures; a v1
+signature SHALL NOT satisfy any envelope path (fail closed), and a
+discipline mismatch SHALL be a typed rejection, never a failed guess
+(review finding 6).
 Trace: [[#TEST-701]].
 
 **REQ-702: Safety-level verification over envelopes.**
@@ -110,6 +119,11 @@ predecessor type ([[SPEC-014-role-layer-endpoint-projection#REQ-616]]), role
 conformance of the *citing* message, and resolution. A message whose
 predecessors are present only as envelopes SHALL resolve to the same
 safety verdict it would with full predecessors.
+The verifier SHALL read an envelope's header fields only as authenticated by
+its attestation ([[#REQ-701]]), and the store SHALL place an envelope in the
+thread its authenticated thread field names — cross-thread injection of a
+genuine envelope is thereby a signature failure, not a policy question
+(review findings 1, 7).
 Trace: [[#TEST-702]].
 
 **REQ-703: Completion requires content.**
@@ -155,10 +169,20 @@ reject the dialect; instead the installer SHALL compute the
 (the paper's ``fails one level up'' rule), terminating because the protocol
 DAG and role set are finite — and install the dialect with the resulting
 per-performative envelope-routing table. Payload recipient sets
-(`:to`) SHALL be unchanged; R6 SHALL then hold for the widened reading; and
-the derivation SHALL be a pure function of the dialect (and cast, for the
-instantiated level), so every agent derives identical routes — the
-replicated-choreographer property extended from projection to repair.
+(`:to`) SHALL be unchanged.
+Per review finding 3, derivation is two-level, mirroring R6 itself: the
+installer derives the dialect-level closure at install, and the
+per-occupant closure for an indexed role is derived at thread open as a
+pure function of dialect and sealed cast (it cannot exist earlier — those
+routes are $O(n^2)$ in a cast fixed only then); each level is deterministic,
+so every agent derives identical routes — the replicated-choreographer
+property extended from projection to repair.
+The widened reading is made precise: an envelope recipient counts as an
+endpoint role of the predecessor *for R6(vi) observability*, and projection
+SHALL emit for each derived route an \emph{ExpectEnvelope} step (a
+Recv-analogue carrying no payload obligation), so a widened role's local
+protocol tells its verifier to await the envelope; Send/Recv steps and
+payload delivery are untouched.
 Corpus consequence: the seven R6(vi)-failing protocols of
 [[SPEC-014-role-layer-endpoint-projection#TEST-640]] install under `derive`
 with exactly the table's delivery counts as derived header routes and
@@ -178,6 +202,16 @@ against R2's declared bounds
 honest; no runtime construct is added, every protocol remains a finite DAG,
 and [[SPEC-003-verification-lattice#REQ-308]] (DCFL preservation) is
 unaffected.
+Per review finding 5, expansion mechanics are normative: synthesised
+per-copy names SHALL live in a namespace the parser cannot produce for user
+symbols (index separator outside the legal symbol alphabet), so collision
+with declared performatives is impossible by construction — the hazard
+[[SPEC-014-role-layer-endpoint-projection#ADR-604]] avoided; each copy
+inherits the base performative's role annotation, R3 protection applying to
+the base name; and iteration seams are structural — a body ending in a
+choice seams as `(any …)` over the alternatives' copy-instances, one ending
+in a fan-in seams on the fan-in's copy-instance, chooser coherence holding
+per copy.
 Trace: [[#TEST-704]], grammar [[#CON-701]], decision [[#ADR-701]].
 
 ### Equivocation accountability
@@ -185,7 +219,8 @@ Trace: [[#TEST-704]], grammar [[#CON-701]], decision [[#ADR-701]].
 **REQ-705: Equivocation predicate.**
 The store SHALL expose a monotone predicate `equivocation(key, thread)`
 holding iff the store contains two distinct messages, both signed by `key`
-in `thread`, that are (a) messages of two distinct alternatives of one
+(canonical identity, [[#REQ-708]] — spelling aliases MUST NOT evade the
+predicate) in `thread`, that are (a) messages of two distinct alternatives of one
 choice point whose chooser role `key` occupies (*choice* equivocation), or
 (b) two distinct discharges of the same obligation instance — same
 performative and occupant slot, different content hash (*obligation*
@@ -197,9 +232,15 @@ Trace: [[#TEST-705]].
 **REQ-706: Transferable proof object.**
 The layer SHALL define an equivocation *proof*: the pair of offending
 signed messages (or their envelopes, per [[#REQ-701]]). Verifying a proof
-SHALL require only the pair and the dialect — no store, no third-party
-testimony — and SHALL be exposed as a pure function returning the convicted
-key or a typed rejection.
+SHALL require only the pair and the *pinned* dialect — the proof object
+names the governing dialect's content hash
+([[SPEC-014-role-layer-endpoint-projection#REQ-628]]) and verification
+SHALL be against a dialect matching it, never a same-named substitute
+(review finding 2) — with no store and no third-party testimony, exposed
+as a pure function returning the convicted key or a typed rejection.
+Envelope members carry their authenticated header and thread
+([[#REQ-701]]), so relabelling a genuine message into a fake conflict fails
+at the signature.
 Trace: [[#TEST-706]].
 
 **REQ-708: Signature-suite agility.**
@@ -214,6 +255,12 @@ repair). Two keys identical in bytes but differing in suite are distinct
 identities. This is the affordance for post-quantum or deployment-specific
 schemes and for [[did:crdt]]-style typed identifiers; adding a suite is a
 registry entry plus a dispatch arm, not a discipline version bump.
+Key identity SHALL be canonical before any equality: an omitted suite
+marker normalises to `ed25519` at parse, and equality is over the
+(suite, key bytes) pair, never the surface spelling — `@alice` and
+`@ed25519:alice` are one identity, so spelling aliases can neither evade
+the equivocation predicate ([[#REQ-705]]) nor spuriously fail cast
+conformance (review finding 4).
 Trace: [[#TEST-708]].
 
 **REQ-707: Choice-transparency lint (optional).**
@@ -227,11 +274,19 @@ Trace: [[#TEST-707]].
 
 ## Architecture Decisions
 
-**ADR-700: Sign a canonical attestation naming the content hash.**
-*Decision*: R4 v2 signatures are computed over the RFC 9804 canonical bytes
-of a constant-size, domain-tagged attestation naming the message's content
-hash — e.g. `(cbcl-attest-v2 sha256:…)` — rather than over the full
-canonical message bytes.
+**ADR-700: Sign a canonical attestation binding the header to the hash.**
+*Decision (amended at adversarial review; human sign-off 2026-07-04)*:
+R4 v2 signatures are computed over the RFC 9804 canonical bytes of a
+domain-tagged attestation committing to the suite, the content hash, and
+the message header:
+`(cbcl-attest-v2 <suite> sha256:H <perf> <from> (<to>…) <thread> [<caused-by>])`
+— rather than over the full canonical message bytes.
+The original preimage named only suite and hash; the review showed that
+leaves every header field a redacted verifier reads unauthenticated,
+forgeable by any gossip relay holding a genuine (hash, signature) pair.
+The attestation now says not ``I vouch for this content hash'' but ``I
+vouch for this message: this type, from me, to these roles, in this
+thread, citing these hashes, with this content hash.''
 *Why not sign the full canonical message*: [[Ed25519]] verification takes
 the message itself as input (its internal hash runs over the signed bytes),
 so a signature over full canonical bytes is unverifiable from a redacted
@@ -310,14 +365,19 @@ lattice.
 ### CON-700: Redacted envelope grammar
 
 ```
-envelope   := "(" "envelope" hash perf-name "(" key ")" "(" key* ")" sig
-                  [":caused-by" caused-ref] ")"
-hash       := "sha256:" hex64
-perf-name  := symbol
-key        := "@" [suite ":"] symbol   ; suite omitted = ed25519 (REQ-708)
-suite      := symbol                   ; registered signature-suite name
-sig        := string          ; R4 v2 signature over the attestation (ADR-700)
-caused-ref := hash | "(" hash+ ")" | "begin"
+envelope    := "(" "envelope" hash perf-name "(" key ")" "(" key* ")"
+                   thread sig [":caused-by" caused-ref] ")"
+attestation := "(" "cbcl-attest-v2" suite hash perf-name key
+                   "(" key* ")" thread [caused-ref] ")"
+                                 ; the signing preimage (ADR-700) — never
+                                 ; transmitted; reconstructed by verifiers
+hash        := "sha256:" hex64
+perf-name   := symbol
+thread      := string | symbol
+key         := "@" [suite ":"] symbol  ; omitted suite normalises to ed25519
+suite       := symbol                  ; registered signature-suite name
+sig         := string         ; R4 v2 signature over the attestation
+caused-ref  := hash | "(" hash+ ")" | "begin"
 ```
 
 Full recognition before any semantic action; an envelope whose `hash` fails
@@ -329,7 +389,9 @@ field SHALL be rejected, never repaired
 
 ```
 repeat-form := "(" "repeat" nat protocol-step+ ")"
-nat         := [1-9][0-9]*
+nat         := integer atom, positive, no leading zero
+                 ; a post-parse predicate on the recognised atom, per the
+                 ; CON-600 convention — not a lexical rule
 ```
 
 `repeat` nests inside `(protocol …)` only; nested `repeat` multiplies
@@ -339,13 +401,17 @@ at install.
 ### CON-702: Equivocation proof object
 
 ```
-equiv-proof := "(" "equivocation" key thread member member ")"
+equiv-proof := "(" "equivocation" key thread dialect-hash member member ")"
+dialect-hash := hash
 member      := signed-message | envelope
 ```
 
-Verification: both members parse; both signatures verify under `key`; both
-carry `thread`; and the pair satisfies clause (a) or (b) of [[#REQ-705]]
-against the installed dialect. Anything else is a typed rejection.
+Verification: both members parse; both signatures verify under `key`
+(canonical identity); both carry `thread` (an envelope member's thread is
+its authenticated field, CON-700); the named dialect hash matches the
+verifier's installed dialect; and the pair satisfies clause (a) or (b) of
+[[#REQ-705]] against that pinned dialect. Anything else is a typed
+rejection.
 
 ## Test Specifications
 
@@ -370,7 +436,10 @@ not-yet-complete; supplying full members completes it.
 **TEST-704: Repeat expansion.** `(repeat 3 x y)` expands to the 6-step
 chain; R1 accepts (no template recursion); an expansion exceeding declared
 R2 bounds is rejected at install; R5/R6 verdicts over the expanded protocol
-match a hand-unrolled equivalent.
+match a hand-unrolled equivalent; a user dialect declaring a symbol
+lexically resembling a synthesised copy name still installs (no collision,
+by namespace construction); bodies ending in `(any …)` and `(all …)`
+expand with the specified seam edges and stay chooser-coherent per copy.
 
 **TEST-705: Equivocation predicate.** Both forms (choice, obligation)
 flip the predicate; adding messages never unflips it; verdicts of both
@@ -399,7 +468,9 @@ recipients (transitive closure included: warehouse derivation covers
 derivation covers `commit`, not just `reveal`); derivation is idempotent
 and identical across independent installs; payload `:to` sets are
 byte-identical before and after; under the default `reject` the v1
-verdicts of TEST-640 are unchanged.
+verdicts of TEST-640 are unchanged; indexed-role routes appear only in the
+thread-open derivation (never the install-time table); and projection of a
+derived dialect emits an ExpectEnvelope step for every route.
 
 ## Traceability
 
@@ -418,6 +489,23 @@ verdicts of TEST-640 are unchanged.
 
 ## Changelog
 
+- 0.1.3 (2026-07-04) — adversarial review (fresh context, PROTO-001
+  principles 11–12) returned two blockers, four majors, two minors, two
+  editorial; all accepted, amendments applied; ADR-700 amended and signed
+  off by the author; status → approved. Load-bearing change: the
+  attestation preimage now commits to the envelope header (performative,
+  sender, recipients, thread, `:caused-by`) alongside suite and hash —
+  binding the hash alone left every header field forgeable from gossiped
+  (hash, signature) pairs and made equivocation proofs a framing tool.
+  Also: explicit v1/v2 discipline marker (fail closed on envelope paths);
+  proof objects pin the dialect hash; derivation split into install-time
+  (dialect-level) and thread-open (per-occupant) with ExpectEnvelope
+  projection steps; repeat-expansion naming confined to a non-user
+  namespace with structural seams; canonical key identity over
+  (suite, bytes); envelope grammar gains thread + attestation productions;
+  `nat` restated as a post-parse predicate. Deferred with rationale:
+  finding 9 (move REQ-708 out of the equivocation section) — placement
+  churn deferred to the next structural edit.
 - 0.1.2 (2026-07-04) — projected-table review before implementation.
   REQ-709/ADR-704: `(:causal-locality derive)` turns R6(vi) from rejection
   into compilation — the installer derives the envelope-widening closure as
