@@ -171,6 +171,20 @@ testimony — and SHALL be exposed as a pure function returning the convicted
 key or a typed rejection.
 Trace: [[#TEST-706]].
 
+**REQ-708: Signature-suite agility.**
+Key material SHALL carry an algorithm identifier as part of key identity
+(with [[Ed25519]] the v2 default and the unmarked legacy reading), the
+attestation preimage SHALL name the suite ([[#ADR-700]]), and verification
+SHALL dispatch on the identified suite. A signature, envelope, or cast
+binding naming a suite the verifier does not implement SHALL yield a typed
+rejection — never a skipped check, never a fallback guess
+([[SPEC-002-structural-contracts|LangSec discipline]]: reject, don't
+repair). Two keys identical in bytes but differing in suite are distinct
+identities. This is the affordance for post-quantum or deployment-specific
+schemes and for [[did:crdt]]-style typed identifiers; adding a suite is a
+registry entry plus a dispatch arm, not a discipline version bump.
+Trace: [[#TEST-708]].
+
 **REQ-707: Choice-transparency lint (optional).**
 The R6 checker MAY, behind an opt-in flag, warn when the alternatives of a
 choice point share no common recipient role other than the chooser: under
@@ -208,6 +222,13 @@ stronger than, everything else — no new weakest link.
 envelopes — hearsay, re-opens the spoofing surface; (b) countersigned
 attestations by prior recipients — introduces a trust topology and message
 growth. *Consequence*: one audited change in the R4 path.
+*Algorithm agility*: the attestation names its signature suite —
+`(cbcl-attest-v2 ed25519 sha256:…)` — mirroring the hash's existing
+self-describing `sha256:` prefix, so the signed statement binds scheme,
+hash algorithm, and content in one place and a signature can never be
+re-interpreted under a different suite ([[#REQ-708]]). The `-v2` version
+tag governs the *discipline* (what is signed); the suite field governs the
+*algorithm* (how); they vary independently.
 
 **ADR-701: Unrolling over μ-types.**
 *Decision*: repetition enters as install-time macro-expansion
@@ -247,8 +268,9 @@ envelope   := "(" "envelope" hash perf-name "(" key ")" "(" key* ")" sig
                   [":caused-by" caused-ref] ")"
 hash       := "sha256:" hex64
 perf-name  := symbol
-key        := "@" symbol
-sig        := string          ; R4 signature over the content digest (ADR-700)
+key        := "@" [suite ":"] symbol   ; suite omitted = ed25519 (REQ-708)
+suite      := symbol                   ; registered signature-suite name
+sig        := string          ; R4 v2 signature over the attestation (ADR-700)
 caused-ref := hash | "(" hash+ ")" | "begin"
 ```
 
@@ -316,6 +338,12 @@ with the typed error.
 recipient `client`) is lint-clean; a variant with disjoint branch
 recipients warns; the flag off suppresses the lint.
 
+**TEST-708: Suite agility.** An envelope naming an unimplemented suite
+yields the typed rejection (not a pass, not a panic); the same key bytes
+under two suites are distinct identities (cast conformance fails across
+them); an ed25519 signature verifies only against an attestation naming
+`ed25519`, never one naming another suite over the same hash.
+
 ## Traceability
 
 | Requirement | Tests | Decision |
@@ -328,9 +356,17 @@ recipients warns; the flag off suppresses the lint.
 | [[#REQ-705]] | [[#TEST-705]] | [[#ADR-703]] |
 | [[#REQ-706]] | [[#TEST-706]] | [[#ADR-703]] |
 | [[#REQ-707]] | [[#TEST-707]] | [[#ADR-703]] |
+| [[#REQ-708]] | [[#TEST-708]] | [[#ADR-700]] |
 
 ## Changelog
 
+- 0.1.1 (2026-07-04) — ADR-700 refined per review dialogue: the signing
+  preimage is a canonical, domain-tagged attestation naming the content
+  hash (not the full message bytes, which envelopes cannot verify; not a
+  bare digest, which invites cross-protocol substitution), with the
+  no-new-assumption security accounting recorded. REQ-708 added: signature
+  -suite agility — suite named in key identity and attestation preimage,
+  unknown suites a typed rejection, Ed25519 the unmarked default.
 - 0.1.0 (2026-07-04) — initial draft from the corpus-study findings
   ([[SPEC-014-role-layer-endpoint-projection#TEST-640]]) and the EPP paper's
   adversary/equivocation analysis. Three features: redacted delivery,
