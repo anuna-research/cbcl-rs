@@ -23,6 +23,8 @@
 //! - `msg_tag` — Deterministic message tagging (DCFL)
 //! - `shape` — Structural shape constraints (REQ-220)
 //! - `gossip` — Epidemic gossip protocol for dialect propagation
+//! - `keyid` — Canonical suite-typed key identity (SPEC-015 REQ-708)
+//! - `attest` — R4 v2 attestation signing discipline (SPEC-015 REQ-701, ADR-700)
 
 #![forbid(unsafe_code)]
 #![cfg_attr(not(feature = "std"), no_std)]
@@ -37,12 +39,14 @@ extern crate alloc;
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub mod agent;
+pub mod attest;
 pub mod blame;
 pub mod canonical;
 pub mod clock;
 pub mod dialect;
 pub mod evaluator;
 pub mod gossip;
+pub mod keyid;
 pub mod message;
 pub mod msg_tag;
 pub mod pattern;
