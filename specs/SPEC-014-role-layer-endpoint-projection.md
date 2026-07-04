@@ -2,8 +2,8 @@
 id: SPEC-014
 title: Role Layer — R6 and Coordination-Free Endpoint Projection
 status: implemented
-version: 0.3.4
-date: 2026-07-02
+version: 0.4.0
+date: 2026-07-04
 author: Anuna Research (https://anuna.io)
 depends-on:
   - SPEC-002 (structural contracts — causal protocols, R5 verifier)
@@ -242,6 +242,29 @@ send or receive (e.g. `declare-winner :to bidder` naming every occupant's
 ([[SPEC-014-role-layer-endpoint-projection#ADR-604]]).
 Trace: [[SPEC-014-role-layer-endpoint-projection#TEST-608]].
 
+**BUG-640: Instantiated check under-enforces REQ-608 (open).**
+`r6_instantiated_violations` iterates only `NodeRef::All` predecessor
+references, on the rationale that a `Single`/`Any` reference from an
+indexed-role performative is the sender's own instance. That rationale
+covers the *sender* but not co-occupant *recipients*: with
+`reveal :to (auctioneer bidder)` and `commit :to auctioneer`, occupant
+`bidder[i]` is an endpoint of `reveal_j` whose cited `commit_j` it never
+receives — a per-occupant locality violation under
+[[SPEC-014-role-layer-endpoint-projection#REQ-608]]'s own wording, accepted
+by the deployed check (pinned today by the
+`recipient_widened_reveal_repairs_per_occupant_locality` test, whose
+expectation is part of the bug). Surfaced by the EPP paper's corpus study
+([[SPEC-014-role-layer-endpoint-projection#TEST-640]]) and recorded in the
+paper's Limitations. Root cause: the skip-arm conflates "reference is
+per-occupant" with "reference is observed by every occupant recipient".
+Repair: range the per-occupant check over all reference forms whenever the
+indexed role appears in the *recipient set* of the citing performative;
+update the mis-pinning test to widen `commit` as the paper's repair does.
+Regression: [[SPEC-014-role-layer-endpoint-projection#TEST-641]].
+Note: [[SPEC-015-evidence-widening-v2|SPEC-015]]'s redacted envelopes make
+the then-correctly-demanded `commit` widening deliverable without payload
+disclosure.
+
 ### Projection
 
 **REQ-609: Projection function.**
@@ -276,6 +299,21 @@ and is the `h₀` every first step names), carrying the inner signed message
 unchanged.
 Trace: [[SPEC-014-role-layer-endpoint-projection#TEST-625]],
 [[SPEC-014-role-layer-endpoint-projection#TEST-638]].
+
+**REQ-628: Dialect pinned at the root (accepted, unimplemented).**
+The `with-roles` wrapper SHALL name the content hash of the dialect that
+governs the thread, and role-local verification SHALL verify a thread's
+messages only against a dialect whose hash matches its root's pin,
+returning a typed violation on mismatch. Motivation: today the protocol is
+resolved by *name* against each verifier's registry, so two agents holding
+divergent same-named dialects verify one thread against different
+protocols — the EPP correspondence is quantified over a single protocol,
+and that quantification is presently a deployment obligation rather than a
+checked invariant (EPP paper, Limitations). This extends
+[[SPEC-014-role-layer-endpoint-projection#CON-601]] with one optional-then-
+mandatory field (`:dialect sha256:…`); casts without the pin SHALL warn in
+a transition release and reject thereafter.
+Trace: [[SPEC-014-role-layer-endpoint-projection#TEST-642]].
 
 **REQ-612: Occupancy by nomination plus signature.**
 Role conformance SHALL attribute a Send step for singleton role `r` to a
@@ -739,6 +777,31 @@ with a non-member key `Violation`,
 `project(C, bidder@b1) = {h₀, h₁, h₄}`, and gluing the four local runs
 reconstructs the global trace.
 
+**TEST-640: Corpus study (implemented: `paper_corpus.rs`).**
+Seven literature protocols (request–response, logistics, logistics +
+warehouse, two-buyer, three-stage pipeline, three-party ring, two-phase
+commit with three explicit participants) encoded in concrete CBCL syntax;
+exact `NotCausallyLocal` sets pinned as written and each recipient-widened
+repair passing. These verdicts are the EPP paper's corpus table (OAuth
+pinned by `paper_oauth.rs`; the indexed auction by the TEST-608 block).
+A checker change that moves any verdict fails this test and staled the
+paper's table.
+
+**TEST-641: BUG-640 regression (pending the fix).**
+With `commit :to auctioneer` and `reveal :to (auctioneer bidder)`,
+`r6_instantiated_violations` over a two-plus-occupant cast SHALL report a
+per-occupant locality failure for every bidder (the `reveal_j` →
+`commit_j` citation unobserved by `bidder[i≠j]`); the full-prefix widening
+(`commit` and `reveal` both `:to (auctioneer bidder)`) SHALL report none.
+Supersedes the expectation of
+`recipient_widened_reveal_repairs_per_occupant_locality`.
+
+**TEST-642: Dialect pin (pending REQ-628).**
+A wrapper carrying `:dialect` with the installed dialect's hash verifies;
+a wrapper whose pin mismatches the verifier's same-named dialect yields the
+typed violation on every message of the thread; an unpinned wrapper warns
+(transition) then rejects.
+
 ## Traceability
 
 | REQ | CON | TEST | Anchor |
@@ -752,6 +815,8 @@ reconstructs the global trace.
 | REQ-615–617, 622–623 | CON-602 | TEST-615–617, 622–623, 631–633 | Lean `conformant`, `noSpurious`, `good` |
 | REQ-618 | CON-602 | TEST-618, 639 | paper §binding/auction (extension beyond the mechanised model) |
 | REQ-619–620 | CON-602 | TEST-619–620, 634, 636 | Lean `isUnknown`, `valid_stable`; deployed order ADR-602 |
+| REQ-608 (BUG-640) | CON-602 | TEST-640, 641 | EPP paper corpus table + Limitations (checker gap) |
+| REQ-628 | CON-601 | TEST-642 | EPP paper Limitations (dialect-agreement gap); SPEC-015 context |
 
 Intent anchors: the EPP paper (design source, not implementation oracle);
 [[SPEC-004-sealed-bid-auction-demo|SPEC-004]]'s open question "where does
@@ -760,6 +825,16 @@ two-party limitation.
 
 ## Changelog
 
+- 0.4.0 (2026-07-04) — corpus-study findings folded in. TEST-640
+  registered (implemented as `crates/cbcl-parser/tests/paper_corpus.rs`,
+  12 tests green). BUG-640 opened: the instantiated R6 check ranges only
+  over fan-in references and accepts the reveal-only auction widening that
+  REQ-608's wording (and the paper's per-occupant analysis) rejects;
+  TEST-641 specifies the regression. REQ-628 accepted: the cast wrapper
+  pins the governing dialect's content hash (TEST-642), closing the
+  divergent-registry hole the paper's Limitations records. Companion
+  v2 direction (redacted delivery, bounded repetition, equivocation
+  accountability) drafted as [[SPEC-015-evidence-widening-v2|SPEC-015]].
 - 0.3.4 (2026-07-03) — round-trip oracle added to the `role_layer` fuzz
   target (`parse(serialise(m)) == m`), which found and fixed a base
   message-grammar ambiguity: an *address group* — a bare `@x` or an all-`@`

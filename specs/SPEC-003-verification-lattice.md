@@ -2,8 +2,8 @@
 id: SPEC-003
 title: Verification Lattice — Algebraic Foundations for Causal Protocol Checking
 status: draft
-version: 0.2.0
-date: 2026-07-03
+version: 0.3.0
+date: 2026-07-04
 author: Anuna Research (https://anuna.io)
 depends-on: SPEC-002 (structural contracts — causal protocols and shapes)
 prior-art:
@@ -577,6 +577,37 @@ verified-by: example
 
 Trace:
 - TEST-314
+
+---
+
+### REQ-315: Resolution-Gated Rejection
+
+`apply_policy` SHALL map a `Violation` to `Reject` only when the message is
+*resolved* — every hash its `:caused-by` names present in the store. A
+provisional `Violation` (some named predecessor absent) SHALL be treated as
+the policy treats `Unknown` (return `CausalPending` under Reject policy;
+enqueue under Buffer policy), because under a disjunctive `(any …)` clause
+an eagerly-evaluated `Violation` can be superseded by `Valid` once the
+dangling reference resolves — the deployed lattice's monotonicity is
+valid-is-sticky, not violation-is-sticky, before resolution.
+
+**Motivation (EPP paper, Limitations; corpus review 2026-07-04).** Today
+`Violation → Reject` is unconditional and a first-pass `Reject` is dropped,
+not buffered, so two endpoints receiving the same messages in different
+orders can diverge permanently in *action* — one dropped a message the
+other, having buffered to resolution, accepted as `Valid` — while never
+disagreeing on a resolved verdict. Action convergence requires acting only
+on verdicts that are stable under store growth: `Valid` (sticky) and
+*resolved* `Violation` (permanent from resolution).
+
+**Scope.** This gates the *policy* layer only; the verifier's eager clause
+algebra and its valid-is-sticky monotonicity
+([[SPEC-003-verification-lattice#REQ-304]]) are unchanged.
+
+verified-by: test
+
+Trace:
+- TEST-355
 
 ---
 
@@ -1170,6 +1201,19 @@ Trace: NFR-303
 Benchmark append with and without deduplication check. Verify overhead ≤ 50 ns per append.
 
 Trace: NFR-304
+
+### TEST-355: Resolution-Gated Rejection
+
+A message naming two hashes under an `(any …)` clause, one resolving to a
+wrong-typed predecessor and one absent from the store, is NOT rejected:
+under Reject policy the agent returns `CausalPending`; under Buffer policy
+it is enqueued. When the absent hash arrives with the legal type, the
+message verifies `Valid` and is accepted. When it arrives wrong-typed (the
+message is now resolved), the `Violation` maps to `Reject`. Property test:
+for any arrival order of the predecessors, the final accept/reject action
+is identical across agents (action convergence).
+
+Trace: REQ-315
 
 ### TEST-350: Verification Latency Unchanged
 
