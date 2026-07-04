@@ -1,0 +1,122 @@
+;; IMPL-015: implement SPEC-014 v0.4.0 fixes and SPEC-015 v0.1.1 features.
+(meta plan
+  (id "IMPL-015")
+  (title "Evidence widening v2: gap fixes, envelopes, repeat, equivocation")
+  (version "1.0.0")
+  (status "active")
+  (created "2026-07-04")
+  (author "agent:claude")
+  (spec "SPEC-014 v0.4.0, SPEC-003 v0.3.0, SPEC-015 v0.1.1")
+  (description "Phase A: the two fully-specified gap fixes (BUG-640 per-occupant checker, REQ-315 resolution-gated rejection). Phase B: REQ-628 dialect pin (needs install-time dialect hashing). Phase C: SPEC-015 features - R4v2 attestation signing with suite agility (blocks envelopes), redacted envelopes, (repeat k) unrolling, equivocation predicate and proof object. SPEC-015 requires adversarial review before Phase C starts."))
+
+(given agent-claude-available)
+
+;; Phase A
+(given task-fix-bug640)
+(given task-req315-gate)
+(given no-deps-fix-bug640)
+(given no-deps-req315-gate)
+;; Phase B
+(given task-dialect-hashing)
+(given task-req628-pin)
+;; Phase C (gated on spec review)
+(given task-spec015-review)
+(given no-deps-spec015-review)
+(given task-r4v2-attestation)
+(given task-envelopes)
+(given task-repeat-unroll)
+(given task-equivocation)
+
+(meta task-fix-bug640
+  (description "Extend r6_instantiated_violations to Single/Any refs when the indexed role is in the citing performative's recipient set; parameterize the auction test helper's commit_to; replace the mis-pinning widening test")
+  (acceptance "TEST-641 pair green: reveal-only widening flagged per occupant; full-prefix widening clean; all existing TEST-608 block tests unchanged"))
+(meta task-req315-gate
+  (description "Gate Violation->Reject on resolution in the agent path: provisional Violations (absent caused-by hash) follow the Unknown path")
+  (acceptance "TEST-355 green incl. arrival-order action-convergence property; no existing test regresses except expectations that encoded the ungated bug"))
+(meta task-dialect-hashing
+  (description "Compute and store each dialect's RFC 9804 canonical content hash at install (Dialect::hash currently always None)")
+  (acceptance "Registry exposes hash for every installed dialect; hash stable across reinstall; blame paths keep working"))
+(meta task-req628-pin
+  (description "Parse optional :dialect sha256:... in with-roles per CON-601 extension; carry on Cast; verify thread messages only against matching dialect; warn-when-absent transition")
+  (acceptance "TEST-642 green: pinned-match verifies, pinned-mismatch typed violation on every thread message, unpinned warns"))
+(meta task-spec015-review
+  (description "Adversarial review of SPEC-015 v0.1.1 in a fresh context: spec + paper_corpus.rs only, mandate to find defects (PROTO-001 principles 11-12); human sign-off on ADR-700 signing change")
+  (acceptance "Review findings triaged; ADR-700 confirmed or amended by human"))
+(meta task-r4v2-attestation
+  (description "R4 v2: sign canonical bytes of (cbcl-attest-v2 <suite> sha256:...); suite-typed keys (REQ-708); unknown suite = typed rejection; v1/v2 coexistence via the discipline tag")
+  (acceptance "TEST-701 and TEST-708 green; v1 signatures still verify under legacy path"))
+(meta task-envelopes
+  (description "Redacted envelope type + CON-700 grammar + store acceptance + safety-level verification over envelopes (REQ-700..703)")
+  (acceptance "TEST-700, 702, 703 green: corpus re-run under envelope widening keeps every R6 verdict with zero payload disclosure; fan-in completion still demands content"))
+(meta task-repeat-unroll
+  (description "(repeat k step...) install-time macro-expansion counted against R2 bounds (REQ-704, CON-701)")
+  (acceptance "TEST-704 green: expansion matches hand-unrolled equivalent; over-budget expansion rejected at install"))
+(meta task-equivocation
+  (description "Monotone equivocation(key, thread) predicate + transferable proof object + optional choice-transparency lint (REQ-705..707)")
+  (acceptance "TEST-705..707 green; verdicts of both pair members remain Valid"))
+(given task-derive-routing)
+(meta task-derive-routing
+  (description "(:causal-locality derive): installer computes the envelope-widening closure as a pure function; reject stays default (REQ-709, ADR-704)")
+  (acceptance "TEST-709 green: all seven corpus failures install under derive with routes equal to the hand-widened repairs, transitive closure included, payload :to sets unchanged, v1 verdicts unchanged under reject"))
+
+;; Readiness
+(normally r-ready-fix-bug640 (and task-fix-bug640 no-deps-fix-bug640) ready-fix-bug640)
+(normally r-ready-req315-gate (and task-req315-gate no-deps-req315-gate) ready-req315-gate)
+(normally r-ready-dialect-hashing (and task-dialect-hashing completed-fix-bug640 completed-req315-gate) ready-dialect-hashing)
+(normally r-ready-req628-pin (and task-req628-pin completed-dialect-hashing) ready-req628-pin)
+(normally r-ready-spec015-review (and task-spec015-review no-deps-spec015-review) ready-spec015-review)
+(normally r-ready-r4v2-attestation (and task-r4v2-attestation completed-spec015-review) ready-r4v2-attestation)
+(normally r-ready-envelopes (and task-envelopes completed-r4v2-attestation) ready-envelopes)
+(normally r-ready-repeat-unroll (and task-repeat-unroll completed-spec015-review) ready-repeat-unroll)
+(normally r-ready-equivocation (and task-equivocation completed-spec015-review) ready-equivocation)
+(normally r-ready-derive-routing (and task-derive-routing completed-envelopes) ready-derive-routing)
+(normally r-assign-derive-routing (and ready-derive-routing agent-claude-available) assign-to-derive-routing-claude)
+
+;; Assignment
+(normally r-assign-fix-bug640 (and ready-fix-bug640 agent-claude-available) assign-to-fix-bug640-claude)
+(normally r-assign-req315-gate (and ready-req315-gate agent-claude-available) assign-to-req315-gate-claude)
+(normally r-assign-dialect-hashing (and ready-dialect-hashing agent-claude-available) assign-to-dialect-hashing-claude)
+(normally r-assign-req628-pin (and ready-req628-pin agent-claude-available) assign-to-req628-pin-claude)
+(normally r-assign-spec015-review (and ready-spec015-review agent-claude-available) assign-to-spec015-review-claude)
+(normally r-assign-r4v2-attestation (and ready-r4v2-attestation agent-claude-available) assign-to-r4v2-attestation-claude)
+(normally r-assign-envelopes (and ready-envelopes agent-claude-available) assign-to-envelopes-claude)
+(normally r-assign-repeat-unroll (and ready-repeat-unroll agent-claude-available) assign-to-repeat-unroll-claude)
+(normally r-assign-equivocation (and ready-equivocation agent-claude-available) assign-to-equivocation-claude)
+
+(meta r-ready-envelopes
+  (description "Envelopes require the R4 v2 attestation discipline")
+  (justification "REQ-701: envelope verifiability presupposes signatures over the hash-naming attestation (ADR-700)"))
+(meta r-ready-r4v2-attestation
+  (description "Signing-discipline change gated on spec review")
+  (justification "PROTO-001 principles 11-12: SPEC-015 was authored this session and must be adversarially reviewed before its deepest change is built"))
+
+(claims agent:claude
+  :at "2026-07-04T03:33:58Z"
+  (given claim-v1-fix-bug640)
+  (normally r-cl-state-v1-fix-bug640 claim-v1-fix-bug640 state-claimed-v1-fix-bug640)
+  (normally r-cl-chain-v1-fix-bug640 state-claimed-v1-fix-bug640 claimed-fix-bug640)
+)
+
+;; Propagation rules: failures in 'fix-bug640' block downstream tasks
+(normally r-propagate-dialect-hashing-from-fix-bug640-failed failed-fix-bug640 upstream-blocked-dialect-hashing)
+(normally r-propagate-dialect-hashing-from-fix-bug640-permanently-failed permanently-failed-fix-bug640 upstream-blocked-dialect-hashing)
+(normally r-propagate-dialect-hashing-from-fix-bug640-stale-v1 stale-v1-fix-bug640 upstream-blocked-dialect-hashing)
+(normally r-propagate-dialect-hashing-from-fix-bug640-timeout-v1 timeout-v1-fix-bug640 upstream-blocked-dialect-hashing)
+(normally r-propagate-dialect-hashing-from-fix-bug640-blocked upstream-blocked-fix-bug640 upstream-blocked-dialect-hashing)
+
+;; Transitive propagation: upstream-blocked cascades through dependency chain
+(normally r-propagate-req628-pin-from-dialect-hashing-blocked upstream-blocked-dialect-hashing upstream-blocked-req628-pin)
+
+(claims agent:claude
+  :at "2026-07-04T03:33:58Z"
+  (given claim-v1-req315-gate)
+  (normally r-cl-state-v1-req315-gate claim-v1-req315-gate state-claimed-v1-req315-gate)
+  (normally r-cl-chain-v1-req315-gate state-claimed-v1-req315-gate claimed-req315-gate)
+)
+
+;; Propagation rules: failures in 'req315-gate' block downstream tasks
+(normally r-propagate-dialect-hashing-from-req315-gate-failed failed-req315-gate upstream-blocked-dialect-hashing)
+(normally r-propagate-dialect-hashing-from-req315-gate-permanently-failed permanently-failed-req315-gate upstream-blocked-dialect-hashing)
+(normally r-propagate-dialect-hashing-from-req315-gate-stale-v1 stale-v1-req315-gate upstream-blocked-dialect-hashing)
+(normally r-propagate-dialect-hashing-from-req315-gate-timeout-v1 timeout-v1-req315-gate upstream-blocked-dialect-hashing)
+(normally r-propagate-dialect-hashing-from-req315-gate-blocked upstream-blocked-req315-gate upstream-blocked-dialect-hashing)
