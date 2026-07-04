@@ -25,7 +25,7 @@
 #![forbid(unsafe_code)]
 
 use crate::dialect::Dialect;
-use crate::protocol::{CausalProtocol, NodeRef, BEGIN_KEYWORD};
+use crate::protocol::{repeat_base_name, CausalProtocol, NodeRef, BEGIN_KEYWORD};
 use crate::role::{R6Violation, RoleAnnotation};
 use alloc::collections::{BTreeMap, BTreeSet};
 use alloc::string::String;
@@ -135,24 +135,34 @@ pub fn r6_violations_counted(d: &Dialect, ops: &mut u64) -> Vec<R6Violation> {
     };
 
     // REQ-601 role-completeness: every protocol performative (begin
-    // excepted) carries an annotation.
+    // excepted) carries an annotation. A `(repeat k …)` copy such as
+    // `x#2` inherits the base performative's annotation (SPEC-015
+    // REQ-704), so the lookup — and the reported name, deduplicated
+    // across copies — is the base name.
     for name in cp.steps.keys() {
         if name == BEGIN_KEYWORD {
             continue;
         }
-        if !annotations.contains_key(name.as_str()) {
+        let base = repeat_base_name(name);
+        if !annotations.contains_key(base) {
             push_unique(
                 &mut violations,
                 R6Violation::MissingFromTo {
-                    performative: name.clone(),
+                    performative: String::from(base),
                 },
             );
         }
     }
 
     // Sender of a performative, if annotated; `begin` has no sender.
-    let sender =
-        |name: &str| -> Option<&str> { annotations.get(name).map(|ann| ann.from.as_str()) };
+    // Copy names resolve to the base annotation (per-copy inheritance),
+    // so chooser coherence holds per copy exactly when it holds for the
+    // base alternatives.
+    let sender = |name: &str| -> Option<&str> {
+        annotations
+            .get(repeat_base_name(name))
+            .map(|ann| ann.from.as_str())
+    };
 
     // REQ-603 chooser coherence, over every disjunctive alternative set:
     // (a) every `(any …)` member set, wherever it appears; (b) a step's
@@ -205,7 +215,7 @@ pub fn r6_violations_counted(d: &Dialect, ops: &mut u64) -> Vec<R6Violation> {
         if step.performative == BEGIN_KEYWORD {
             continue;
         }
-        let Some(t_ann) = annotations.get(step.performative.as_str()) else {
+        let Some(t_ann) = annotations.get(repeat_base_name(&step.performative)) else {
             continue; // REQ-601 already flagged
         };
         let t_endpoints = endpoints(t_ann);
@@ -214,7 +224,7 @@ pub fn r6_violations_counted(d: &Dialect, ops: &mut u64) -> Vec<R6Violation> {
                 if pred == BEGIN_KEYWORD {
                     continue; // root convention: begin covers every role
                 }
-                let Some(p_ann) = annotations.get(pred) else {
+                let Some(p_ann) = annotations.get(repeat_base_name(pred)) else {
                     continue; // REQ-601 already flagged
                 };
                 let p_endpoints = endpoints(p_ann);
@@ -242,7 +252,7 @@ pub fn r6_violations_counted(d: &Dialect, ops: &mut u64) -> Vec<R6Violation> {
         let covered = reachable.iter().any(|name| {
             *ops += 1; // atomic reachability coverage test
             annotations
-                .get(name.as_str())
+                .get(repeat_base_name(name))
                 .is_some_and(|ann| endpoints(ann).contains(role.name.as_str()))
         });
         if !covered {
@@ -300,7 +310,7 @@ pub fn r6_instantiated_violations(d: &Dialect, cast: &crate::role::Cast) -> Vec<
             continue; // a lone occupant observes its own instances
         }
         for step in cp.steps.values() {
-            let Some(t_ann) = annotations.get(step.performative.as_str()) else {
+            let Some(t_ann) = annotations.get(repeat_base_name(&step.performative)) else {
                 continue;
             };
             if !endpoints(t_ann).contains(role.name.as_str()) {
@@ -323,7 +333,7 @@ pub fn r6_instantiated_violations(d: &Dialect, cast: &crate::role::Cast) -> Vec<
                     continue;
                 }
                 for pred in node_ref_names(nr) {
-                    let Some(p_ann) = annotations.get(pred) else {
+                    let Some(p_ann) = annotations.get(repeat_base_name(pred)) else {
                         continue;
                     };
                     let spanning = p_ann.from == role.name;

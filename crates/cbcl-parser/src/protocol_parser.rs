@@ -1,7 +1,27 @@
-//! Causal protocol parser (REQ-201).
+//! Causal protocol parser (REQ-201, SPEC-015 REQ-704).
 //!
 //! Parses `(protocol (then ...)+)` S-expressions into `CausalProtocol`.
 //! Desugars variadic `(then a b c)` to pairwise edges: a→b, b→c.
+//!
+//! ## Bounded repetition (SPEC-015 REQ-704, CON-701)
+//!
+//! A `(repeat <k> <step>…)` form may appear in step position inside a
+//! `(then …)` chain (and nowhere else); `<k>` is a `nat` (post-parse
+//! predicate: positive integer atom) and each `<step>` is a node-ref or a
+//! nested `repeat`. The form macro-expands **once, at parse** into `k`
+//! sequential copies of its body spliced into the enclosing chain, so the
+//! ordinary pairwise-edge desugaring chains the copies by `:caused-by`
+//! type references and R1–R3, R5, R6 run over the *expanded* protocol.
+//!
+//! Synthesised copy names live in a non-user namespace: copy `i` of step
+//! `x` is `x#i`, and `'#'` ([`cbcl_core::protocol::REPEAT_SEPARATOR`]) is
+//! outside the legal symbol alphabet (`parser::is_symbol_char`; it
+//! introduces `#t`/`#f`), so collision with any user-declared performative
+//! is impossible by construction. Iteration seams are structural: a body
+//! ending in `(any a b)` seams as `(any a#i b#i) → first-of-copy-i+1`
+//! (the choice over the alternatives' copy-instances), one ending in
+//! `(all …)` seams on the fan-in's copy-instance; nested `repeat`
+//! multiplies bounds and suffixes again (`x#1#2`).
 
 #![forbid(unsafe_code)]
 
@@ -9,9 +29,17 @@ use alloc::collections::BTreeMap;
 use alloc::collections::BTreeSet;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
-use cbcl_core::protocol::{CausalProtocol, NodeRef, StepDecl};
+use cbcl_core::protocol::{CausalProtocol, NodeRef, StepDecl, BEGIN_KEYWORD, REPEAT_SEPARATOR};
 use cbcl_core::sexpr::{Atom, SExpr};
 use core::fmt;
+
+/// Absolute ceiling on `(repeat …)` macro-expansion, equal to the largest
+/// `max-expansion-size` any valid dialect may declare (R2,
+/// `ResourceBounds::is_valid` caps it at 8192). An expansion beyond this
+/// can never install, so the parser rejects it *before materialising it*
+/// (typed, fail closed); the dialect's own declared budget is enforced
+/// separately at install (SPEC-015 REQ-704).
+const REPEAT_EXPANSION_CEILING: u64 = 8192;
 
 /// Errors from parsing a `(protocol ...)` declaration.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -32,6 +60,18 @@ pub enum ProtocolParseError {
     GroupTooFew { kind: String },
     /// `(any ...)` or `(all ...)` contains a non-symbol argument.
     GroupNonSymbol { kind: String },
+    /// `(repeat ...)` count is not a `nat` (CON-701): a positive integer
+    /// atom. Zero, negatives, and non-integer atoms are all rejected.
+    RepeatCountNotNat { found: String },
+    /// `(repeat ...)` has no protocol-steps in its body (CON-701 requires
+    /// `protocol-step+`).
+    RepeatEmptyBody,
+    /// `(repeat ...)` body references `begin`; the protocol root is a
+    /// keyword, not a repeatable step.
+    RepeatContainsBegin,
+    /// `(repeat ...)` expansion (nested repeats multiply) exceeds the
+    /// absolute R2 ceiling — rejected before materialisation.
+    RepeatBudgetExceeded { steps: u64 },
 }
 
 impl fmt::Display for ProtocolParseError {
@@ -52,6 +92,25 @@ impl fmt::Display for ProtocolParseError {
             }
             Self::GroupNonSymbol { kind } => {
                 write!(f, "({kind} ...) arguments must be symbols")
+            }
+            Self::RepeatCountNotNat { found } => {
+                write!(
+                    f,
+                    "(repeat ...) count must be a positive integer (CON-701 nat), found: {found}"
+                )
+            }
+            Self::RepeatEmptyBody => {
+                write!(f, "(repeat ...) requires at least one protocol-step")
+            }
+            Self::RepeatContainsBegin => {
+                write!(f, "(repeat ...) body must not reference 'begin'")
+            }
+            Self::RepeatBudgetExceeded { steps } => {
+                write!(
+                    f,
+                    "(repeat ...) expands to {steps} step instances, exceeding the \
+                     R2 expansion ceiling {REPEAT_EXPANSION_CEILING}"
+                )
             }
         }
     }
@@ -74,8 +133,14 @@ pub fn parse_protocol(sexpr: &SExpr) -> Result<CausalProtocol, ProtocolParseErro
 
     let mut steps: BTreeMap<String, StepDecl> = BTreeMap::new();
 
+    // One expansion budget for the whole protocol: every step instance a
+    // `(repeat …)` form materialises is charged against the absolute R2
+    // ceiling, so the parser's output size stays bounded by construction
+    // (SPEC-015 REQ-704).
+    let mut expansion_used: u64 = 0;
+
     for clause in &items[1..] {
-        let edges = parse_then_clause(clause)?;
+        let edges = parse_then_clause(clause, &mut expansion_used)?;
         for (pred, succ) in edges {
             // For each performative in the predecessor, record the successor.
             for p in pred.performatives() {
@@ -101,10 +166,17 @@ pub fn parse_protocol(sexpr: &SExpr) -> Result<CausalProtocol, ProtocolParseErro
     Ok(CausalProtocol { steps })
 }
 
-/// Parse a `(then node-ref node-ref ...)` clause and return pairwise edges.
+/// Parse a `(then protocol-step ...)` clause and return pairwise edges.
 ///
 /// Variadic: `(then a b c)` desugars to edges `[(a, b), (b, c)]`.
-fn parse_then_clause(sexpr: &SExpr) -> Result<Vec<(NodeRef, NodeRef)>, ProtocolParseError> {
+/// A `(repeat k …)` form in step position (SPEC-015 REQ-704) is
+/// macro-expanded here — its copies splice into the chain, so the
+/// pairwise desugaring produces both the intra-copy edges and the
+/// structural seam edges between consecutive copies.
+fn parse_then_clause(
+    sexpr: &SExpr,
+    expansion_used: &mut u64,
+) -> Result<Vec<(NodeRef, NodeRef)>, ProtocolParseError> {
     let items = match sexpr {
         SExpr::List(items) if !items.is_empty() => items,
         SExpr::List(_) => {
@@ -125,10 +197,14 @@ fn parse_then_clause(sexpr: &SExpr) -> Result<Vec<(NodeRef, NodeRef)>, ProtocolP
         });
     }
 
-    let refs: Vec<NodeRef> = items[1..]
-        .iter()
-        .map(parse_node_ref)
-        .collect::<Result<_, _>>()?;
+    let mut refs: Vec<NodeRef> = Vec::new();
+    for item in &items[1..] {
+        if is_repeat_form(item) {
+            expand_repeat(item, &mut refs, expansion_used)?;
+        } else {
+            refs.push(parse_node_ref(item)?);
+        }
+    }
 
     if refs.len() < 2 {
         return Err(ProtocolParseError::ThenTooFew);
@@ -142,10 +218,136 @@ fn parse_then_clause(sexpr: &SExpr) -> Result<Vec<(NodeRef, NodeRef)>, ProtocolP
     Ok(edges)
 }
 
+/// Is this S-expression a `(repeat …)` form?
+fn is_repeat_form(sexpr: &SExpr) -> bool {
+    matches!(sexpr, SExpr::List(items) if !items.is_empty() && items[0].is_symbol("repeat"))
+}
+
+/// CON-701 `nat`: a post-parse predicate on the recognised atom — the
+/// atom must be an integer and positive. The S-expression lexer
+/// recognises integer text into a canonical `i64` atom (a leading-zero
+/// spelling does not survive recognition as a distinct atom), so the
+/// predicate here is positivity on the recognised integer; zero,
+/// negatives, symbols, strings, and lists are all typed rejections.
+fn parse_nat(sexpr: &SExpr) -> Result<u64, ProtocolParseError> {
+    match sexpr {
+        SExpr::Atom(Atom::Num(n)) if *n >= 1 => Ok(*n as u64),
+        other => Err(ProtocolParseError::RepeatCountNotNat {
+            found: alloc::format!("{other}"),
+        }),
+    }
+}
+
+/// Charge `n` synthesised step instances against the protocol-wide
+/// expansion budget; over the ceiling is a typed rejection *before*
+/// anything is materialised.
+fn charge_expansion(used: &mut u64, n: u64) -> Result<(), ProtocolParseError> {
+    let total = used.saturating_add(n);
+    if total > REPEAT_EXPANSION_CEILING {
+        return Err(ProtocolParseError::RepeatBudgetExceeded { steps: total });
+    }
+    *used = total;
+    Ok(())
+}
+
+/// Suffix every performative name in a node-ref with the copy index,
+/// producing the copy-instance in the non-user `#` namespace:
+/// `x` → `x#i`, `(any a b)` → `(any a#i b#i)`, `(all p q)` → `(all p#i q#i)`.
+fn suffix_node_ref(nr: &NodeRef, index: u64) -> NodeRef {
+    let suffix = |s: &String| alloc::format!("{s}{REPEAT_SEPARATOR}{index}");
+    match nr {
+        NodeRef::Single(s) => NodeRef::Single(suffix(s)),
+        NodeRef::Any(set) => NodeRef::Any(set.iter().map(suffix).collect()),
+        NodeRef::All(set) => NodeRef::All(set.iter().map(suffix).collect()),
+    }
+}
+
+/// Macro-expand a `(repeat <k> <step>…)` form (SPEC-015 REQ-704, CON-701)
+/// into `k` sequential copies of its body, appended to `out` so the
+/// enclosing `(then …)` chain's pairwise desugaring wires the copies
+/// together. Seams are structural: whatever node-ref ends the body —
+/// single, `(any …)` choice, or `(all …)` fan-in — its copy-instance is
+/// the predecessor of the next copy's first step.
+///
+/// Nested `repeat` expands innermost-first (its instances are suffixed
+/// again by the outer form) and multiplies the charged budget.
+fn expand_repeat(
+    sexpr: &SExpr,
+    out: &mut Vec<NodeRef>,
+    used: &mut u64,
+) -> Result<(), ProtocolParseError> {
+    let items = match sexpr {
+        SExpr::List(items) if !items.is_empty() && items[0].is_symbol("repeat") => items,
+        _ => {
+            return Err(ProtocolParseError::InvalidNodeRef {
+                detail: alloc::format!("{sexpr}"),
+            })
+        }
+    };
+    if items.len() < 2 {
+        return Err(ProtocolParseError::RepeatCountNotNat {
+            found: "<missing>".into(),
+        });
+    }
+    let k = parse_nat(&items[1])?;
+    if items.len() < 3 {
+        return Err(ProtocolParseError::RepeatEmptyBody);
+    }
+
+    // Parse the body: node-refs or nested repeat forms. Each materialised
+    // instance is charged as it is produced.
+    let mut body: Vec<NodeRef> = Vec::new();
+    for step in &items[2..] {
+        if is_repeat_form(step) {
+            expand_repeat(step, &mut body, used)?;
+        } else {
+            let nr = parse_node_ref(step)?;
+            if nr.performatives().any(|p| p == BEGIN_KEYWORD) {
+                return Err(ProtocolParseError::RepeatContainsBegin);
+            }
+            charge_expansion(used, 1)?;
+            body.push(nr);
+        }
+    }
+
+    // The body's own instances were charged while parsing; the remaining
+    // k−1 copies are charged multiplicatively (nested repeat therefore
+    // multiplies bounds), before materialisation.
+    let extra = (k - 1)
+        .checked_mul(body.len() as u64)
+        .ok_or(ProtocolParseError::RepeatBudgetExceeded { steps: u64::MAX })?;
+    charge_expansion(used, extra)?;
+
+    for i in 1..=k {
+        out.extend(body.iter().map(|nr| suffix_node_ref(nr, i)));
+    }
+    Ok(())
+}
+
+/// Reject a symbol that trespasses on the synthesised-copy namespace.
+///
+/// The text parser can never produce a symbol containing
+/// [`REPEAT_SEPARATOR`] (`'#'` is outside `is_symbol_char`), so this only
+/// fires for programmatically built S-expression trees — kept fail-closed
+/// so the non-user namespace stays non-user on every input path.
+fn check_user_symbol(s: &str) -> Result<(), ProtocolParseError> {
+    if s.contains(REPEAT_SEPARATOR) {
+        return Err(ProtocolParseError::InvalidNodeRef {
+            detail: alloc::format!(
+                "'{s}' contains '{REPEAT_SEPARATOR}', reserved for synthesised repeat copies"
+            ),
+        });
+    }
+    Ok(())
+}
+
 /// Parse a node-ref: bare symbol, `(any ...)`, or `(all ...)`.
 fn parse_node_ref(sexpr: &SExpr) -> Result<NodeRef, ProtocolParseError> {
     match sexpr {
-        SExpr::Atom(Atom::Symbol(s)) => Ok(NodeRef::Single(s.clone())),
+        SExpr::Atom(Atom::Symbol(s)) => {
+            check_user_symbol(s)?;
+            Ok(NodeRef::Single(s.clone()))
+        }
         SExpr::List(items) if !items.is_empty() => {
             let head = match &items[0] {
                 SExpr::Atom(Atom::Symbol(s)) => s.as_str(),
@@ -166,6 +368,7 @@ fn parse_node_ref(sexpr: &SExpr) -> Result<NodeRef, ProtocolParseError> {
                     for item in &items[1..] {
                         match item {
                             SExpr::Atom(Atom::Symbol(s)) => {
+                                check_user_symbol(s)?;
                                 set.insert(s.clone());
                             }
                             _ => {

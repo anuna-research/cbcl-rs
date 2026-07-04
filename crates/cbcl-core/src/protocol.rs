@@ -25,6 +25,38 @@ use crate::store::{ContentHash, MessageStore, ThreadId};
 /// invariant; updating it without an ADR is a review-time signal.
 pub const BEGIN_KEYWORD: &str = "begin";
 
+/// Index separator for names synthesised by `(repeat k …)` macro-expansion
+/// (SPEC-015 REQ-704, CON-701).
+///
+/// `'#'` is *outside* the parser's legal symbol alphabet: in
+/// `cbcl-parser::parser::is_symbol_char` the accepted characters are ASCII
+/// alphanumerics plus `_ - . / ! ? + * < > = @`, and `'#'` instead
+/// introduces the boolean literals `#t`/`#f`. A user-declared performative
+/// name therefore can never contain `'#'`, so a synthesised copy name like
+/// `x#2` cannot collide with any declared performative — impossible by
+/// construction, not by convention (the hazard SPEC-014 ADR-604 avoided).
+pub const REPEAT_SEPARATOR: char = '#';
+
+/// Resolve a (possibly synthesised) protocol step name to its base
+/// performative name (SPEC-015 REQ-704).
+///
+/// `x#2` → `x`; nested-repeat names strip every index: `x#1#3` → `x`;
+/// a plain user name is returned unchanged. Because `#` is outside the
+/// user symbol alphabet ([`REPEAT_SEPARATOR`]), this resolution is exact:
+/// everything before the first separator is the declared base name.
+///
+/// This is how each expanded copy *inherits the base performative's
+/// definition and role annotation*: R5 definedness and the R6 annotation
+/// table look a copy up under its base name, while R3 core-name protection
+/// continues to apply to the base name (copies are never declared
+/// performatives).
+pub fn repeat_base_name(name: &str) -> &str {
+    match name.find(REPEAT_SEPARATOR) {
+        Some(idx) => &name[..idx],
+        None => name,
+    }
+}
+
 // ================================================================
 // Causal Protocol Data Model (REQ-200)
 // ================================================================
@@ -255,13 +287,35 @@ impl CausalProtocol {
         let defined: BTreeSet<&str> = defined_performatives.iter().copied().collect();
         let referenced = self.all_referenced_performatives();
 
+        // A `(repeat k …)` copy such as `x#2` is defined iff its base
+        // performative `x` is (SPEC-015 REQ-704: per-copy inheritance).
+        // Flag each undefined *base* name once, not once per copy.
+        let mut flagged: BTreeSet<&str> = BTreeSet::new();
         let mut violations = Vec::new();
         for name in &referenced {
-            if !defined.contains(name.as_str()) {
-                violations.push(ProtocolViolation::UndefinedPerformative { name: name.clone() });
+            let base = repeat_base_name(name);
+            if !defined.contains(base) && flagged.insert(base) {
+                violations.push(ProtocolViolation::UndefinedPerformative {
+                    name: String::from(base),
+                });
             }
         }
         violations
+    }
+
+    /// Number of protocol steps that count against R2's declared expansion
+    /// budget at install (SPEC-015 REQ-704): every named step — including
+    /// `(repeat k …)` copies, which are already materialised in `steps` by
+    /// the time a `CausalProtocol` exists — except the `begin` root, which
+    /// is a keyword, not an expansion product. A hand-unrolled equivalent
+    /// protocol counts identically, which is what keeps `k` honest.
+    pub fn expansion_size(&self) -> u32 {
+        let n = self
+            .steps
+            .keys()
+            .filter(|name| name.as_str() != BEGIN_KEYWORD)
+            .count();
+        u32::try_from(n).unwrap_or(u32::MAX)
     }
 
     /// Check that no performative has duplicate step declarations (REQ-207).

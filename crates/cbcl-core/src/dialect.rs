@@ -51,6 +51,17 @@ pub enum DialectInstallError {
     },
     /// The dialect's resource bounds are invalid (R2 violation).
     R2Violation { dialect_name: String },
+    /// The protocol's expanded step count — after `(repeat k …)`
+    /// macro-expansion (SPEC-015 REQ-704) — is not within the dialect's
+    /// declared R2 expansion budget. This is what keeps `k` honest:
+    /// repetition is priced in R2's existing declared-bounds currency.
+    R2ProtocolBudgetExceeded {
+        dialect_name: String,
+        /// Post-expansion protocol step count (`begin` excluded).
+        expanded_steps: u32,
+        /// The dialect's declared `max-expansion-size` bound.
+        budget: u32,
+    },
     /// The dialect redefines one or more core performatives (R3 violation).
     R3Violation {
         dialect_name: String,
@@ -90,6 +101,18 @@ impl fmt::Display for DialectInstallError {
                     f,
                     "R2 violation: dialect '{}' has invalid resource bounds",
                     dialect_name,
+                )
+            }
+            DialectInstallError::R2ProtocolBudgetExceeded {
+                dialect_name,
+                expanded_steps,
+                budget,
+            } => {
+                write!(
+                    f,
+                    "R2 violation: dialect '{}' protocol expands to {} steps, \
+                     exceeding the declared expansion budget {}",
+                    dialect_name, expanded_steps, budget,
                 )
             }
             DialectInstallError::R3Violation {
@@ -296,6 +319,7 @@ impl DialectRegistry {
                 dialect_name: d.name,
             });
         }
+        Self::check_protocol_expansion_budget(&d)?;
         if !verify_r3(&d) {
             return Err(DialectInstallError::R3Violation {
                 redefined: r3_violations(&d),
@@ -346,6 +370,29 @@ impl DialectRegistry {
         if d.hash.is_none() {
             d.hash = Some(crate::canonical::dialect_hash(d));
         }
+    }
+
+    /// SPEC-015 REQ-704: the protocol's expanded step count counts against
+    /// R2's declared expansion budget. By install time, `(repeat k …)`
+    /// forms are already macro-expanded into the `CausalProtocol` (the
+    /// parser expands once at parse), so the count here *is* the expanded
+    /// size; a hand-unrolled equivalent protocol is priced identically.
+    ///
+    /// Uses R2's strict-`<` idiom (`ResourceState::add_expansion` in
+    /// `R2ResourceBounds.lean:43–47`): a count at or above the declared
+    /// bound is a typed rejection.
+    fn check_protocol_expansion_budget(d: &Dialect) -> Result<(), DialectInstallError> {
+        if let Some(cp) = &d.causal_protocol {
+            let expanded_steps = cp.expansion_size();
+            if expanded_steps >= d.resources.max_expansion_size {
+                return Err(DialectInstallError::R2ProtocolBudgetExceeded {
+                    dialect_name: d.name.clone(),
+                    expanded_steps,
+                    budget: d.resources.max_expansion_size,
+                });
+            }
+        }
+        Ok(())
     }
 
     /// Resolve `d.extends` to currently-installed ancestor dialects (REQ-206).
@@ -399,6 +446,7 @@ impl DialectRegistry {
                 dialect_name: d.name,
             });
         }
+        Self::check_protocol_expansion_budget(&d)?;
         if !verify_r3(&d) {
             return Err(DialectInstallError::R3Violation {
                 redefined: r3_violations(&d),
