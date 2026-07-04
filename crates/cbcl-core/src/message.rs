@@ -1570,4 +1570,28 @@ mod tests {
         let cast = parse_cast(&params[0], &roles).unwrap();
         assert_eq!(cast.indexed.get("bidder").unwrap().len(), 2);
     }
+
+    #[test]
+    fn with_roles_dialect_pin_parses_into_cast() {
+        // SPEC-014 REQ-628: the optional `:dialect sha256:<hex64>` field
+        // travels in the wrapper params and lands on `Cast::dialect_pin`.
+        use crate::role::{parse_roles, parse_wrapper_cast};
+        let pin = alloc::format!("sha256:{}", "a".repeat(64));
+        let sexpr: SExpr = alloc::format!(
+            "(with-roles ((auctioneer @auc) (bidder @b1 @b2)) :dialect {pin} (signed @auc \"sig\" (hello :caused-by begin)))"
+        )
+        .parse()
+        .unwrap();
+        let msg = Message::try_from(&sexpr).unwrap();
+        let Message::Wrapped { params, .. } = &msg else {
+            unreachable!()
+        };
+        assert_eq!(params.len(), 3, "bindings + :dialect keyword + pin");
+        let roles = parse_roles(&"(auctioneer (* bidder))".parse().unwrap()).unwrap();
+        let cast = parse_wrapper_cast(params, &roles).unwrap();
+        assert_eq!(cast.dialect_pin.as_deref(), Some(pin.as_str()));
+        // round-trip preserves the pin
+        let back = SExpr::from(&msg);
+        assert_eq!(Message::try_from(&back).unwrap(), msg);
+    }
 }

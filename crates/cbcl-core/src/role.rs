@@ -70,6 +70,12 @@ pub struct AgentKey(pub String);
 pub struct Cast {
     pub singleton: BTreeMap<String, AgentKey>,
     pub indexed: BTreeMap<String, BTreeSet<AgentKey>>,
+    /// REQ-628: the `sha256:<hex64>` content hash of the dialect that
+    /// governs the thread, from the wrapper's optional `:dialect` field.
+    /// `None` for an unpinned root (accepted during the spec's
+    /// warn-then-reject transition window).
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub dialect_pin: Option<String>,
 }
 
 impl Cast {
@@ -131,6 +137,9 @@ pub enum R6Violation {
         performative: String,
         occupant: String,
     },
+    /// REQ-628: the root's `:dialect` pin differs from the installed
+    /// dialect's content hash.
+    DialectPinMismatch { pinned: String, installed: String },
 }
 
 impl fmt::Display for R6Violation {
@@ -191,6 +200,10 @@ impl fmt::Display for R6Violation {
             } => write!(
                 f,
                 "R6 violation: '{performative}' fails per-occupant causal locality at occupant '{occupant}' (REQ-608)"
+            ),
+            R6Violation::DialectPinMismatch { pinned, installed } => write!(
+                f,
+                "R6 violation: root pins dialect '{pinned}' but the installed dialect hashes to '{installed}' (REQ-628)"
             ),
         }
     }
@@ -322,6 +335,7 @@ pub fn parse_cast(bindings: &SExpr, roles: &[RoleDecl]) -> Result<Cast, R6Violat
     let mut cast = Cast {
         singleton: BTreeMap::new(),
         indexed: BTreeMap::new(),
+        dialect_pin: None,
     };
     for item in items {
         let SExpr::List(binding) = item else {
@@ -387,6 +401,61 @@ pub fn parse_cast(bindings: &SExpr, roles: &[RoleDecl]) -> Result<Cast, R6Violat
             });
         }
     }
+    Ok(cast)
+}
+
+/// Length of the lowercase-hex digest in a `sha256:<hex64>` pin (REQ-628).
+const PIN_HEX_LEN: usize = 64;
+
+/// Parse the value of a `with-roles` `:dialect` field (REQ-628): exactly
+/// the symbol `sha256:<lowercase-hex64>`, the form [`Dialect::hash`] takes
+/// at install. Fail closed (LangSec principle 4): a bad prefix, a wrong
+/// digest length, or a non-hex character is rejected, never repaired.
+///
+/// [`Dialect::hash`]: crate::dialect::Dialect::hash
+pub fn parse_dialect_pin(value: &SExpr) -> Result<String, R6Violation> {
+    let SExpr::Atom(Atom::Symbol(pin)) = value else {
+        return Err(R6Violation::MalformedCast {
+            detail: format!(":dialect value must be a sha256:<hex64> symbol, got {value}"),
+        });
+    };
+    let Some(hex) = pin.strip_prefix("sha256:") else {
+        return Err(R6Violation::MalformedCast {
+            detail: format!(":dialect value must start with 'sha256:', got '{pin}'"),
+        });
+    };
+    if hex.len() != PIN_HEX_LEN || !hex.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f')) {
+        return Err(R6Violation::MalformedCast {
+            detail: format!(
+                ":dialect digest must be exactly {PIN_HEX_LEN} lowercase hex characters, got '{hex}'"
+            ),
+        });
+    }
+    Ok(pin.clone())
+}
+
+/// Parse a `with-roles` wrapper's parameter list into a [`Cast`] (CON-601,
+/// REQ-628): the bindings list, optionally followed by
+/// `:dialect sha256:<hex64>` in that fixed position. Any other shape —
+/// extra fields, a misplaced pin, an unknown keyword — is rejected, never
+/// repaired (LangSec principle 4).
+pub fn parse_wrapper_cast(params: &[SExpr], roles: &[RoleDecl]) -> Result<Cast, R6Violation> {
+    let (bindings, pin) = match params {
+        [bindings] => (bindings, None),
+        [bindings, SExpr::Atom(Atom::Keyword(k)), value] if k == "dialect" => {
+            (bindings, Some(parse_dialect_pin(value)?))
+        }
+        _ => {
+            return Err(R6Violation::MalformedCast {
+                detail: String::from(
+                    "with-roles wrapper must carry exactly one bindings list, \
+                     optionally followed by :dialect sha256:<hex64> (CON-601, REQ-628)",
+                ),
+            })
+        }
+    };
+    let mut cast = parse_cast(bindings, roles)?;
+    cast.dialect_pin = pin;
     Ok(cast)
 }
 
@@ -619,6 +688,107 @@ mod tests {
     fn cast_negative_non_list_binding() {
         assert!(matches!(
             parse_cast(&sx("(auctioneer @auc)"), &auction_roles()),
+            Err(R6Violation::MalformedCast { .. })
+        ));
+    }
+
+    // ---- parse_wrapper_cast / parse_dialect_pin (REQ-628, TEST-642) ----
+
+    fn hex64(c: char) -> String {
+        core::iter::repeat(c).take(64).collect()
+    }
+
+    #[test]
+    fn wrapper_cast_without_pin_has_none() {
+        let cast =
+            parse_wrapper_cast(&[sx("((auctioneer @auc) (bidder @b1))")], &auction_roles())
+                .unwrap();
+        assert_eq!(cast.dialect_pin, None);
+    }
+
+    #[test]
+    fn wrapper_cast_with_wellformed_pin_carries_it() {
+        let pin = alloc::format!("sha256:{}", hex64('a'));
+        let cast = parse_wrapper_cast(
+            &[
+                sx("((auctioneer @auc) (bidder @b1))"),
+                sx(":dialect"),
+                sx(&pin),
+            ],
+            &auction_roles(),
+        )
+        .unwrap();
+        assert_eq!(cast.dialect_pin.as_deref(), Some(pin.as_str()));
+    }
+
+    #[test]
+    fn pin_negative_bad_prefix() {
+        assert!(matches!(
+            parse_dialect_pin(&sx(&alloc::format!("md5:{}", hex64('a')))),
+            Err(R6Violation::MalformedCast { .. })
+        ));
+    }
+
+    #[test]
+    fn pin_negative_wrong_length() {
+        assert!(matches!(
+            parse_dialect_pin(&sx("sha256:abc")),
+            Err(R6Violation::MalformedCast { .. })
+        ));
+        assert!(matches!(
+            parse_dialect_pin(&sx(&alloc::format!("sha256:{}a", hex64('a')))),
+            Err(R6Violation::MalformedCast { .. })
+        ));
+    }
+
+    #[test]
+    fn pin_negative_non_hex_digits() {
+        // 'g' is outside the hex alphabet; 'A' is uppercase — both rejected,
+        // never case-folded or repaired (LangSec principle 4).
+        assert!(matches!(
+            parse_dialect_pin(&sx(&alloc::format!("sha256:{}", hex64('g')))),
+            Err(R6Violation::MalformedCast { .. })
+        ));
+        assert!(matches!(
+            parse_dialect_pin(&sx(&alloc::format!("sha256:{}", hex64('A')))),
+            Err(R6Violation::MalformedCast { .. })
+        ));
+    }
+
+    #[test]
+    fn pin_negative_non_symbol_value() {
+        assert!(matches!(
+            parse_dialect_pin(&sx("(sha256 x)")),
+            Err(R6Violation::MalformedCast { .. })
+        ));
+    }
+
+    #[test]
+    fn wrapper_cast_negative_extra_fields() {
+        let pin = alloc::format!("sha256:{}", hex64('a'));
+        // Trailing garbage after the pin.
+        assert!(matches!(
+            parse_wrapper_cast(
+                &[
+                    sx("((auctioneer @auc) (bidder @b1))"),
+                    sx(":dialect"),
+                    sx(&pin),
+                    sx("junk"),
+                ],
+                &auction_roles(),
+            ),
+            Err(R6Violation::MalformedCast { .. })
+        ));
+        // Unknown keyword field in the pin position.
+        assert!(matches!(
+            parse_wrapper_cast(
+                &[
+                    sx("((auctioneer @auc) (bidder @b1))"),
+                    sx(":lang"),
+                    sx(&pin),
+                ],
+                &auction_roles(),
+            ),
             Err(R6Violation::MalformedCast { .. })
         ));
     }

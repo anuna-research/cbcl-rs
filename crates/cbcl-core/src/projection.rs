@@ -26,7 +26,7 @@ use crate::message::{CausedBy, Message, WrapperType};
 use crate::protocol::{
     verify_causal, CausalProtocol, CausalViolation, NodeRef, VerificationResult,
 };
-use crate::role::{parse_cast, AgentKey, Cast, Endpoint, RoleAnnotation};
+use crate::role::{parse_wrapper_cast, AgentKey, Cast, Endpoint, R6Violation, RoleAnnotation};
 use crate::sexpr::{Atom, SExpr};
 use crate::store::{ContentHash, MessageStore, ThreadId};
 use alloc::collections::{BTreeMap, BTreeSet};
@@ -133,9 +133,10 @@ fn expected_recipient_keys<'a>(ann: &RoleAnnotation, cast: &'a Cast) -> BTreeSet
     keys
 }
 
-/// Role-local verification (REQ-612..620, 623, 626; CON-602): the lattice
-/// meet of role conformance, the unchanged R5 predecessor check against
-/// the dialect-level protocol, and the occupant-counted fan-in.
+/// Role-local verification (REQ-612..620, 623, 626, 628; CON-602): the
+/// lattice meet of role conformance, the unchanged R5 predecessor check
+/// against the dialect-level protocol, and the occupant-counted fan-in,
+/// gated by the root's dialect pin when one is present.
 pub fn verify_causal_for_role<S: MessageStore>(
     msg: &Message,
     endpoint: &Endpoint,
@@ -147,6 +148,29 @@ pub fn verify_causal_for_role<S: MessageStore>(
 ) -> VerificationResult {
     let _ = endpoint; // the verdict is endpoint-independent in v1 (exact
                       // conformance); the parameter fixes the caller's view
+
+    // REQ-628: dialect pin. When the thread's root cast pins the governing
+    // dialect's content hash and the verifier's installed dialect carries
+    // its hash (DialectRegistry::install populates it), the two must agree —
+    // otherwise this verifier would check the thread against a different
+    // protocol than the root named, so every message of the thread is a
+    // Violation. An unpinned cast (`dialect_pin: None`) is accepted as-is:
+    // the spec's transition plan is warn-then-reject, and the verdict
+    // lattice (Unknown/Valid/Violation) has no warning level to carry the
+    // "warn" half, so this release accepts silently.
+    // SIMPLIFY: when the transition window closes, reject `None` pins here
+    // (and surface a warning signal in the interim if one is added).
+    if let (Some(pinned), Some(installed)) = (cast.dialect_pin.as_deref(), d.hash.as_deref()) {
+        if pinned != installed {
+            return role_violation(format!(
+                "{}",
+                R6Violation::DialectPinMismatch {
+                    pinned: String::from(pinned),
+                    installed: String::from(installed),
+                }
+            ));
+        }
+    }
 
     // REQ-613: a with-roles wrapper is legal only as the thread's root,
     // carrying the thread's one cast.
@@ -213,14 +237,11 @@ fn verify_cast_wrapper<S: MessageStore>(
     else {
         unreachable!("guarded by wrapper_type");
     };
-    // Exact arity (CON-601): the wrapper is `(with-roles (<bindings>)
-    // <signed-form>)` — exactly one param (the bindings list), no more.
-    let [bindings] = params.as_slice() else {
-        return role_violation(String::from(
-            "with-roles wrapper must carry exactly one bindings list (CON-601)",
-        ));
-    };
-    let parsed = match parse_cast(bindings, &d.roles) {
+    // Exact shape (CON-601, REQ-628): the wrapper is `(with-roles
+    // (<bindings>) [:dialect sha256:<hex64>] <signed-form>)` — the bindings
+    // list, then at most the optional dialect pin, no more. A malformed pin
+    // is a parse rejection, never repaired (LangSec principle 4).
+    let parsed = match parse_wrapper_cast(params, &d.roles) {
         Ok(c) => c,
         Err(v) => return role_violation(format!("{v}")),
     };
@@ -406,7 +427,7 @@ mod tests {
     use super::*;
     use crate::dialect::{Dialect, PerformativeDef, ResourceBounds};
     use crate::protocol::StepDecl;
-    use crate::role::parse_roles;
+    use crate::role::{parse_cast, parse_roles};
     use crate::store::ThreadedMessageStore;
     use alloc::string::ToString;
     use alloc::vec;
@@ -891,6 +912,162 @@ mod tests {
             ),
             VerificationResult::Violation(CausalViolation::RoleConformance { .. })
         ));
+    }
+
+    // ---- REQ-628 / TEST-642: dialect pin ----
+
+    /// The OAuth dialect with its canonical content hash populated, as
+    /// `DialectRegistry::install` would leave it (`ensure_hash`).
+    fn hashed_oauth() -> Dialect {
+        let mut d = oauth();
+        d.hash = Some(crate::canonical::dialect_hash(&d));
+        d
+    }
+
+    fn pinned_h0(pin: &str) -> Message {
+        msg(&format!(
+            "(with-roles ((server @srv) (client @cli) (authoriser @as)) :dialect {pin} (signed @srv \"sig\" (hello :thread \"conv\" :caused-by begin)))"
+        ))
+    }
+
+    /// The thread's root cast as the wrapper nominates it, pin included.
+    fn pinned_cast(d: &Dialect, root: &Message) -> Cast {
+        let Message::Wrapped { params, .. } = root else {
+            panic!("root fixture is a wrapper");
+        };
+        parse_wrapper_cast(params, &d.roles).unwrap()
+    }
+
+    #[test]
+    fn pinned_root_matching_installed_hash_verifies() {
+        let d = hashed_oauth();
+        let pin = d.hash.clone().unwrap();
+        let root = pinned_h0(&pin);
+        let cast = pinned_cast(&d, &root);
+        let mut store = ThreadedMessageStore::new();
+        put(&mut store, "h0", &root);
+        // The pinned wrapper itself verifies …
+        assert_eq!(
+            verify_causal_for_role(
+                &root,
+                &ep("client"),
+                &d,
+                &cast,
+                &store,
+                &tid(),
+                &ContentHash("h0".to_string())
+            ),
+            VerificationResult::Valid
+        );
+        // … and so does a first step of the pinned thread.
+        let h1 = msg("(signed @srv \"sig\" (login (@as @cli) \"n-42\" :caused-by h0))");
+        assert_eq!(
+            verify_causal_for_role(
+                &h1,
+                &ep("client"),
+                &d,
+                &cast,
+                &store,
+                &tid(),
+                &ContentHash("h0".to_string())
+            ),
+            VerificationResult::Valid
+        );
+    }
+
+    #[test]
+    fn pin_mismatch_is_a_typed_violation_for_every_thread_message() {
+        // The root pins a different (same-named, divergent) dialect than
+        // the verifier installed: the typed REQ-628 violation fires for the
+        // wrapper and for every subsequent message of the thread.
+        let d = hashed_oauth();
+        let stale = format!("sha256:{}", "0".repeat(64));
+        let root = pinned_h0(&stale);
+        let cast = pinned_cast(&d, &root);
+        let mut store = ThreadedMessageStore::new();
+        put(&mut store, "h0", &root);
+        let h1 = msg("(signed @srv \"sig\" (login (@as @cli) \"n-42\" :caused-by h0))");
+        for m in [&root, &h1] {
+            match verify_causal_for_role(
+                m,
+                &ep("client"),
+                &d,
+                &cast,
+                &store,
+                &tid(),
+                &ContentHash("h0".to_string()),
+            ) {
+                VerificationResult::Violation(CausalViolation::RoleConformance { reason }) => {
+                    assert!(
+                        reason.contains("REQ-628"),
+                        "expected the typed pin violation, got: {reason}"
+                    );
+                }
+                other => panic!("expected the REQ-628 violation, got {other:?}"),
+            }
+        }
+    }
+
+    #[test]
+    fn unpinned_root_still_verifies_during_transition() {
+        // REQ-628 transition (warn-then-reject): an unpinned wrapper is
+        // accepted as today, even when the installed dialect carries its
+        // hash — see the REQ-628 comment in `verify_causal_for_role`.
+        let d = hashed_oauth();
+        let cast = oauth_cast(&d);
+        let mut store = ThreadedMessageStore::new();
+        put(&mut store, "h0", &oauth_h0());
+        assert_eq!(
+            verify_causal_for_role(
+                &oauth_h0(),
+                &ep("client"),
+                &d,
+                &cast,
+                &store,
+                &tid(),
+                &ContentHash("h0".to_string())
+            ),
+            VerificationResult::Valid
+        );
+        let h1 = msg("(signed @srv \"sig\" (login (@as @cli) \"n-42\" :caused-by h0))");
+        assert_eq!(
+            verify_causal_for_role(
+                &h1,
+                &ep("client"),
+                &d,
+                &cast,
+                &store,
+                &tid(),
+                &ContentHash("h0".to_string())
+            ),
+            VerificationResult::Valid
+        );
+    }
+
+    #[test]
+    fn malformed_pin_on_root_is_rejected() {
+        // LangSec: a malformed `:dialect` value (bad prefix, wrong length)
+        // is a parse rejection surfaced as a Violation, never repaired.
+        let d = hashed_oauth();
+        let cast = oauth_cast(&d);
+        let store = ThreadedMessageStore::new();
+        for bad in [
+            "(with-roles ((server @srv) (client @cli) (authoriser @as)) :dialect sha256:abc (signed @srv \"sig\" (hello :caused-by begin)))",
+            "(with-roles ((server @srv) (client @cli) (authoriser @as)) :dialect md5:0000 (signed @srv \"sig\" (hello :caused-by begin)))",
+        ] {
+            assert!(matches!(
+                verify_causal_for_role(
+                    &msg(bad),
+                    &ep("client"),
+                    &d,
+                    &cast,
+                    &store,
+                    &tid(),
+                    &ContentHash("h0".to_string())
+                ),
+                VerificationResult::Violation(CausalViolation::RoleConformance { .. })
+            ));
+        }
     }
 
     // ---- REQ-618 / TEST-618: occupant-counted fan-in (auction) ----
