@@ -161,6 +161,14 @@ pub struct Dialect {
     pub resources: ResourceBounds,
     pub examples: Vec<SExpr>,
     pub signature: Option<Vec<u8>>,
+    /// Canonical content hash, `sha256:<lowercase-hex64>` over
+    /// [`crate::canonical::dialect_canonical_bytes`] (SPEC-014 REQ-628).
+    ///
+    /// Invariant: every dialect installed into a [`DialectRegistry`] has
+    /// `Some(..)` — installation computes the hash when this is `None`.
+    /// A pre-declared hash (e.g. a `:hash` clause in dialect source) is
+    /// preserved verbatim so wrappers can compare the claim against the
+    /// computed value and reject mismatches.
     pub hash: Option<String>,
     pub protocol: Option<String>,
     /// Causal protocol declaration (REQ-200, REQ-201).
@@ -276,7 +284,7 @@ impl DialectRegistry {
     /// with the R1 precondition from `R1NoRecursion.lean:38–40`,
     /// the R2 precondition from `R2ResourceBounds.lean:59–63`,
     /// and the R3 precondition from `R3CorePreservation.lean:57`.
-    pub fn install(&mut self, d: Dialect) -> Result<(), DialectInstallError> {
+    pub fn install(&mut self, mut d: Dialect) -> Result<(), DialectInstallError> {
         if !verify_r1_dialect(&d) {
             return Err(DialectInstallError::R1Violation {
                 recursive: r1_violations(&d),
@@ -310,6 +318,7 @@ impl DialectRegistry {
                 dialect_name: d.name,
             });
         }
+        Self::ensure_hash(&mut d);
         #[cfg(feature = "tracing")]
         tracing::event!(
             tracing::Level::INFO,
@@ -318,6 +327,25 @@ impl DialectRegistry {
         );
         self.dialects.push(d);
         Ok(())
+    }
+
+    /// Populate `d.hash` with the canonical content hash when absent
+    /// (SPEC-014 REQ-628: every installed dialect carries `Some(hash)`).
+    ///
+    /// A pre-declared hash is left untouched: overwriting it would defeat
+    /// wrappers that compare the declared claim against the computed value
+    /// after install (e.g. the wasm bindings' `:hash` verification).
+    ///
+    /// SIMPLIFY: only *installed* dialects are hashed — the base dialect
+    /// seeded by `DialectRegistry::new()` keeps `hash: None` because
+    /// `is_well_formed()` (and callers) compare `dialects[0]` against
+    /// `base_dialect()` by equality. Upgrade path: make `base_dialect()`
+    /// itself return `hash: Some(dialect_hash(..))` and update the golden
+    /// expectations that pin its serialized form.
+    fn ensure_hash(d: &mut Dialect) {
+        if d.hash.is_none() {
+            d.hash = Some(crate::canonical::dialect_hash(d));
+        }
     }
 
     /// Resolve `d.extends` to currently-installed ancestor dialects (REQ-206).
@@ -356,7 +384,7 @@ impl DialectRegistry {
     /// dialect was signed or unsigned.
     pub fn install_with_signer(
         &mut self,
-        d: Dialect,
+        mut d: Dialect,
         signer: &dyn Signer,
     ) -> Result<R4Result, DialectInstallError> {
         // R1–R3 checks (same as install)
@@ -403,6 +431,10 @@ impl DialectRegistry {
                 dialect_name: d.name,
             });
         }
+        // The hash is over the signable form, which excludes integrity
+        // fields, so populating it after the R4 check cannot invalidate
+        // the just-verified signature.
+        Self::ensure_hash(&mut d);
         #[cfg(feature = "tracing")]
         tracing::event!(
             tracing::Level::INFO,
@@ -1140,5 +1172,119 @@ mod tests {
         };
         reg.install(d)
             .expect("dialect extending cbcl should install");
+    }
+
+    // ---- install-time content hashing (SPEC-014 REQ-628) ----
+
+    fn hashless_dialect(name: &str) -> Dialect {
+        Dialect {
+            roles: Vec::new(),
+            name: String::from(name),
+            extends: vec![String::from("cbcl")],
+            author: Some(String::from("@hash-tests")),
+            performatives: vec![PerformativeDef {
+                role: None,
+                name: String::from("greet"),
+                params: vec![],
+                template: effect_template("greet-action"),
+            }],
+            resources: ResourceBounds {
+                max_depth: 8,
+                max_expansion_size: 512,
+                verification_time_ms: 10,
+            },
+            examples: vec![],
+            signature: None,
+            hash: None,
+            protocol: None,
+            causal_protocol: None,
+            shapes: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn install_populates_canonical_hash() {
+        let d = hashless_dialect("hashed");
+        let expected = crate::canonical::dialect_hash(&d);
+        let mut reg = DialectRegistry::new();
+        reg.install(d).unwrap();
+        let installed = reg.find_by_name("hashed").unwrap();
+        let h = installed.hash.as_deref().expect("install must set hash");
+        assert_eq!(h, expected);
+        let hex = h.strip_prefix("sha256:").expect("sha256: prefix");
+        assert_eq!(hex.len(), 64);
+        assert!(hex
+            .chars()
+            .all(|c| c.is_ascii_digit() || ('a'..='f').contains(&c)));
+    }
+
+    #[test]
+    fn install_hash_is_stable_across_registries() {
+        let mut reg1 = DialectRegistry::new();
+        let mut reg2 = DialectRegistry::new();
+        reg1.install(hashless_dialect("stable")).unwrap();
+        reg2.install(hashless_dialect("stable")).unwrap();
+        assert_eq!(
+            reg1.find_by_name("stable").unwrap().hash,
+            reg2.find_by_name("stable").unwrap().hash
+        );
+    }
+
+    #[test]
+    fn install_hash_changes_when_performative_renamed() {
+        let mut renamed = hashless_dialect("same-name");
+        renamed.performatives[0].name = String::from("salute");
+        let mut reg1 = DialectRegistry::new();
+        let mut reg2 = DialectRegistry::new();
+        reg1.install(hashless_dialect("same-name")).unwrap();
+        reg2.install(renamed).unwrap();
+        assert_ne!(
+            reg1.find_by_name("same-name").unwrap().hash,
+            reg2.find_by_name("same-name").unwrap().hash,
+            "renaming a performative must change the installed hash"
+        );
+    }
+
+    #[test]
+    fn install_preserves_declared_hash() {
+        // A declared :hash claim is kept verbatim so wrappers can compare it
+        // against the computed value and reject mismatches.
+        let mut d = hashless_dialect("claimed");
+        d.hash = Some(String::from("sha256:abcd1234"));
+        let mut reg = DialectRegistry::new();
+        reg.install(d).unwrap();
+        assert_eq!(
+            reg.find_by_name("claimed").unwrap().hash.as_deref(),
+            Some("sha256:abcd1234")
+        );
+    }
+
+    #[test]
+    fn install_with_signer_populates_canonical_hash() {
+        let d = hashless_dialect("signer-hashed");
+        let expected = crate::canonical::dialect_hash(&d);
+        let mut reg = DialectRegistry::new();
+        reg.install_with_signer(d, &MockSigner).unwrap();
+        assert_eq!(
+            reg.find_by_name("signer-hashed").unwrap().hash.as_deref(),
+            Some(expected.as_str())
+        );
+    }
+
+    #[test]
+    fn install_hash_of_signed_dialect_keeps_signature_valid() {
+        // Populating `hash` post-R4 must not perturb the signable bytes:
+        // sign, install, and confirm both hash presence and R4Result::Valid.
+        let mut d = hashless_dialect("signed-and-hashed");
+        d.protocol = Some(String::from("ed25519"));
+        d.signature = Some(CanonicalSigner.sign(&crate::canonical::dialect_canonical_bytes(&d)));
+        let mut reg = DialectRegistry::new();
+        let r4 = reg.install_with_signer(d, &CanonicalSigner).unwrap();
+        assert_eq!(r4, R4Result::Valid);
+        assert!(reg
+            .find_by_name("signed-and-hashed")
+            .unwrap()
+            .hash
+            .is_some());
     }
 }

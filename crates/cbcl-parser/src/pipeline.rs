@@ -1164,4 +1164,124 @@ mod tests {
             "expected dialect-scoped wrapper not to bypass verification, got Success: {result:?}"
         );
     }
+
+    // -- Install-time dialect content hashing (SPEC-014 REQ-628) --
+
+    /// Parse dialect source text and install it into a fresh registry,
+    /// returning the installed dialect's hash.
+    fn parse_install_hash(source: &str) -> String {
+        let sexpr = parser::parse(source).expect("dialect source parses");
+        let d = crate::dialect_parser::parse_dialect(&sexpr).expect("dialect extracts");
+        assert!(d.hash.is_none(), "source declares no :hash");
+        let mut registry = DialectRegistry::new();
+        registry.install(d).expect("dialect installs");
+        registry
+            .get(1)
+            .expect("installed at index 1")
+            .hash
+            .clone()
+            .expect("install populates hash")
+    }
+
+    #[test]
+    fn parsed_dialect_hash_populated_after_install() {
+        let h = parse_install_hash(
+            "(define greeting-dialect (cbcl) @author (extend greet () (effect greet-action)))",
+        );
+        let hex = h.strip_prefix("sha256:").expect("sha256: prefix");
+        assert_eq!(hex.len(), 64);
+        assert!(hex
+            .chars()
+            .all(|c| c.is_ascii_digit() || ('a'..='f').contains(&c)));
+    }
+
+    #[test]
+    fn parsed_dialect_hash_stable_under_reformatting() {
+        // Same dialect, different whitespace/formatting: the hash is over
+        // the RFC 9804 canonical form, so formatting cannot change it.
+        let compact =
+            "(define greeting-dialect (cbcl) @author (extend greet () (effect greet-action)))";
+        let sprawling = "(define greeting-dialect\n    (cbcl)\n    @author\n    (extend greet\n        ()\n        (effect    greet-action)))\n";
+        assert_eq!(
+            parse_install_hash(compact),
+            parse_install_hash(sprawling),
+            "reformatted-but-equal source must yield the identical hash"
+        );
+    }
+
+    #[test]
+    fn parsed_dialect_hash_changes_when_performative_renamed() {
+        let original =
+            "(define greeting-dialect (cbcl) @author (extend greet () (effect greet-action)))";
+        let renamed =
+            "(define greeting-dialect (cbcl) @author (extend salute () (effect greet-action)))";
+        assert_ne!(
+            parse_install_hash(original),
+            parse_install_hash(renamed),
+            "renaming a performative must change the hash"
+        );
+    }
+
+    #[test]
+    fn blame_carries_installed_dialect_hash() {
+        // With install-time hashing, shape-violation blame must now carry
+        // `:dialect-hash` (previously None for unhashed dialects), and the
+        // rest of the blame output is unchanged.
+        let mut registry = DialectRegistry::new();
+        registry
+            .install(cbcl_core::dialect::Dialect {
+                roles: Vec::new(),
+                name: String::from("shape-dialect"),
+                extends: alloc::vec![String::from("cbcl")],
+                author: Some(String::from("@shape-author")),
+                performatives: alloc::vec![PerformativeDef {
+                    role: None,
+                    name: String::from("propose"),
+                    params: alloc::vec![],
+                    template: effect_template("propose-action"),
+                }],
+                resources: ResourceBounds {
+                    max_depth: 8,
+                    max_expansion_size: 512,
+                    verification_time_ms: 10,
+                },
+                examples: alloc::vec![],
+                signature: None,
+                hash: None,
+                protocol: None,
+                causal_protocol: None,
+                shapes: alloc::vec![ShapeConstraint {
+                    performative: String::from("propose"),
+                    rules: alloc::vec![ShapeRule::Require {
+                        keyword: String::from("target"),
+                        type_constraint: Some(TypeConstraint::String),
+                        children: alloc::vec![],
+                    }],
+                }],
+            })
+            .unwrap();
+        let installed_hash = registry
+            .find_by_name("shape-dialect")
+            .unwrap()
+            .hash
+            .clone()
+            .expect("install populates hash");
+
+        let store = ThreadedMessageStore::new();
+        let ctx = PipelineContext::new(&registry, &store);
+        let result = run_pipeline_full("(propose \"idea\")", &ctx);
+        let PipelineResult::ValidationError(ValidationError::ShapeViolation { blame, .. }) =
+            result
+        else {
+            panic!("expected shape violation, got {result:?}");
+        };
+        assert_eq!(blame.dialect_hash.as_deref(), Some(installed_hash.as_str()));
+        assert_eq!(blame.dialect.as_deref(), Some("shape-dialect"));
+        assert_eq!(blame.performative.as_deref(), Some("propose"));
+        let rendered = alloc::format!("{}", blame.to_sexpr());
+        assert!(
+            rendered.contains("dialect-hash") && rendered.contains(&installed_hash),
+            "blame wire form must carry the installed dialect hash: {rendered}"
+        );
+    }
 }

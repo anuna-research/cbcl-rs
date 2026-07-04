@@ -471,6 +471,28 @@ pub fn dialect_canonical_bytes(d: &Dialect) -> Vec<u8> {
     canonical_encode(&to_signable_sexpr(d))
 }
 
+/// Compute a dialect's canonical content hash: `sha256:<lowercase-hex64>`
+/// over [`dialect_canonical_bytes`] (SPEC-014 REQ-628).
+///
+/// This follows the same discipline as message content hashing (SPEC-003
+/// REQ-314): the hash input is the RFC 9804 canonical serialization, never
+/// the human-readable form, so whitespace/formatting differences in dialect
+/// source cannot change the hash while any semantic change does. Integrity
+/// fields (`signature`, `hash`, `protocol`) are excluded from the signable
+/// form, so populating `Dialect::hash` with this value does not perturb it.
+pub fn dialect_hash(d: &Dialect) -> String {
+    use sha2::{Digest, Sha256};
+    let digest = Sha256::digest(dialect_canonical_bytes(d));
+    const HEX: &[u8; 16] = b"0123456789abcdef";
+    let mut out = String::with_capacity(7 + 64);
+    out.push_str("sha256:");
+    for b in digest {
+        out.push(HEX[(b >> 4) as usize] as char);
+        out.push(HEX[(b & 0x0f) as usize] as char);
+    }
+    out
+}
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -1367,6 +1389,43 @@ mod tests {
         }
         let bytes_annotated = dialect_canonical_bytes(&d);
         assert_ne!(bytes_before, bytes_annotated);
+    }
+
+    // ---- dialect content hash (SPEC-014 REQ-628) ----
+
+    #[test]
+    fn dialect_hash_has_sha256_hex64_form() {
+        let h = dialect_hash(&test_dialect("t"));
+        let hex = h.strip_prefix("sha256:").expect("sha256: prefix");
+        assert_eq!(hex.len(), 64);
+        assert!(hex
+            .chars()
+            .all(|c| c.is_ascii_digit() || ('a'..='f').contains(&c)));
+    }
+
+    #[test]
+    fn dialect_hash_is_deterministic() {
+        assert_eq!(dialect_hash(&test_dialect("t")), dialect_hash(&test_dialect("t")));
+    }
+
+    #[test]
+    fn dialect_hash_ignores_integrity_fields() {
+        // signature/hash/protocol are excluded from the signable form, so
+        // stamping the computed hash back onto the dialect is a fixpoint.
+        let d1 = test_dialect("t");
+        let mut d2 = test_dialect("t");
+        d2.signature = None;
+        d2.hash = Some(dialect_hash(&d1));
+        d2.protocol = None;
+        assert_eq!(dialect_hash(&d1), dialect_hash(&d2));
+    }
+
+    #[test]
+    fn dialect_hash_changes_on_content_change() {
+        let d1 = test_dialect("t");
+        let mut d2 = test_dialect("t");
+        d2.performatives[0].name = String::from("salute");
+        assert_ne!(dialect_hash(&d1), dialect_hash(&d2));
     }
 
     #[test]

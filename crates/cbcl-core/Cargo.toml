@@ -19,11 +19,12 @@ serde = { version = "1", default-features = false, features = ["derive", "alloc"
 hashbrown = { version = "0.15", default-features = false, features = ["default-hasher", "inline-more"] }
 thiserror = { version = "2", default-features = false, optional = true }
 tracing = { workspace = true, optional = true }
+# Install-time dialect content hashing (SPEC-014 REQ-628); no_std-compatible.
+sha2 = { version = "0.10", default-features = false }
 
 [dev-dependencies]
 proptest = "1"
 criterion.workspace = true
-sha2 = "0.10"
 
 [[bench]]
 name = "core_bench"
