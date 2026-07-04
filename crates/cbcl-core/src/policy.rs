@@ -6,7 +6,12 @@
 //! - **Buffer** — enqueues the message in a bounded, per-thread [`PendingQueue`] with TTL expiry
 //!   and re-evaluation on store growth (NFR-301, max_pending default 64).
 //!
-//! `Violation` results are *never* buffered regardless of policy.
+//! `Violation` results are *never* buffered regardless of policy. Per
+//! SPEC-003 REQ-315 (resolution-gated rejection), a `Violation` should only
+//! reach [`apply_policy`] once the message is *resolved* — every hash its
+//! `:caused-by` names present in the store; the agent layer downgrades a
+//! provisional `Violation` to `Unknown` before applying policy (see
+//! `Agent::causal_verdict`).
 
 #![forbid(unsafe_code)]
 
@@ -94,6 +99,13 @@ pub enum PolicyOutcome {
 ///
 /// This function is pure: it does not mutate any state. Under the `Buffer` policy
 /// the caller is responsible for actually inserting the message into a [`PendingQueue`].
+///
+/// `Violation` maps to `Reject` unconditionally, so per SPEC-003 REQ-315 the
+/// caller must apply the resolution gate first — a provisional `Violation`
+/// (some named `:caused-by` hash absent from the store) can be superseded by
+/// `Valid` at resolution under an `(any …)` clause, and must be handed in as
+/// `Unknown` so action waits for resolution. A resolved `Violation` still
+/// maps to `Reject`.
 pub fn apply_policy(
     result: &VerificationResult,
     policy: &UnknownPredecessorPolicy,

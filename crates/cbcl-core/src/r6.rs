@@ -262,14 +262,20 @@ pub fn r6_violations_counted(d: &Dialect, ops: &mut u64) -> Vec<R6Violation> {
 /// REQ-608), run once at thread open.
 ///
 /// Evaluates `(performative, occupant)` pairs per ADR-604 without
-/// materialising occupant copies. The failure pattern is an
-/// *occupant-spanning* reference: a performative `t` of which an indexed
-/// role is an endpoint, naming an `(all …)` fan-in over a predecessor `p`
-/// *sent by that same indexed role*. Instance `(t, k)` then names every
-/// occupant's `(p, j)`, but occupant `k` observes `(p, j)` for `j ≠ k` only
-/// when the indexed role is among `p`'s recipients — otherwise `k` is an
-/// endpoint of a message whose predecessor instances it never holds (the
-/// auction's `declare-winner :to bidder` naming all reveals).
+/// materialising occupant copies. The failure pattern is a reference to a
+/// predecessor `p` *sent by the indexed role* that some occupant endpoint
+/// of the citing performative `t` never holds:
+///
+/// - an `(all …)` fan-in names every occupant's `(p, j)`, but occupant `k`
+///   observes `(p, j)` for `j ≠ k` only when the indexed role is among
+///   `p`'s recipients — otherwise `k` is an endpoint of a message whose
+///   predecessor instances it never holds (the auction's
+///   `declare-winner :to bidder` naming all reveals);
+/// - a `Single`/`Any` reference is per-occupant — instance `(t, k)` cites
+///   the sender's own `(p, k)` — so the *sender* is always covered, but a
+///   co-occupant *recipient* of `t` is not (BUG-640): with
+///   `reveal :to (auctioneer bidder)` and `commit :to auctioneer`,
+///   bidder[i] receives reveal_j citing commit_j, which it never holds.
 ///
 /// Pure and deterministic: `BTreeMap`/`BTreeSet` iteration only (NFR-601).
 pub fn r6_instantiated_violations(d: &Dialect, cast: &crate::role::Cast) -> Vec<R6Violation> {
@@ -301,11 +307,23 @@ pub fn r6_instantiated_violations(d: &Dialect, cast: &crate::role::Cast) -> Vec<
                 continue;
             }
             for nr in &step.predecessors {
-                let NodeRef::All(preds) = nr else {
-                    continue; // Single/Any: per-occupant instance reference
-                };
-                for pred in preds {
-                    let Some(p_ann) = annotations.get(pred.as_str()) else {
+                // An `(all …)` fan-in itself spans occupants, so any
+                // occupant endpoint of `t` is exposed. A `Single`/`Any`
+                // reference is the sender's own instance — the sender is
+                // fine — so only co-occupant *recipients* of `t` can be
+                // left citing an instance they never held (BUG-640): with
+                // `reveal :to (auctioneer bidder)` and
+                // `commit :to auctioneer`, bidder[i] receives reveal_j
+                // citing commit_j, which it never holds. Skip the
+                // per-occupant instance forms unless the indexed role is
+                // among the citing performative's recipients.
+                if matches!(nr, NodeRef::Single(_) | NodeRef::Any(_))
+                    && !t_ann.to.contains(&role.name)
+                {
+                    continue;
+                }
+                for pred in node_ref_names(nr) {
+                    let Some(p_ann) = annotations.get(pred) else {
                         continue;
                     };
                     let spanning = p_ann.from == role.name;
@@ -751,11 +769,11 @@ mod tests {
 
     /// The SPEC-004 auction: indexed bidder, commit → reveal chains, and a
     /// declare-winner fan-in over all reveals.
-    fn auction(winner_to: &[&str], reveal_to: &[&str]) -> Dialect {
+    fn auction(winner_to: &[&str], reveal_to: &[&str], commit_to: &[&str]) -> Dialect {
         dialect(
             &[("auctioneer", S), ("bidder", RoleCardinality::Indexed)],
             vec![
-                perf("commit", "bidder", &["auctioneer"]),
+                perf("commit", "bidder", commit_to),
                 perf("reveal", "bidder", reveal_to),
                 perf("declare-winner", "auctioneer", winner_to),
             ],
@@ -794,7 +812,7 @@ mod tests {
 
     #[test]
     fn auction_terminal_declare_winner_passes_both_levels() {
-        let d = auction(&[], &["auctioneer"]);
+        let d = auction(&[], &["auctioneer"], &["auctioneer"]);
         assert_eq!(r6_violations(&d), Vec::new());
         assert_eq!(r6_instantiated_violations(&d, &bidders_cast()), Vec::new());
     }
@@ -804,7 +822,7 @@ mod tests {
         // The `occupants.len() < 2` guard must admit exactly-two-occupant
         // casts: with two bidders, declare-winner :to bidder still fails
         // per-occupant locality for each.
-        let d = auction(&["bidder"], &["auctioneer"]);
+        let d = auction(&["bidder"], &["auctioneer"], &["auctioneer"]);
         let violations = r6_instantiated_violations(&d, &two_bidder_cast());
         for k in ["@b1", "@b2"] {
             assert!(
@@ -822,7 +840,7 @@ mod tests {
         // The paper's exact subtlety: :to bidder passes the dialect-level
         // check (bidder IS an endpoint role of reveal) yet leaves bidder k
         // an endpoint of a message naming bidder j's reveal.
-        let d = auction(&["bidder"], &["auctioneer"]);
+        let d = auction(&["bidder"], &["auctioneer"], &["auctioneer"]);
         assert_eq!(r6_violations(&d), Vec::new());
         let violations = r6_instantiated_violations(&d, &bidders_cast());
         for k in ["@b1", "@b2", "@b3"] {
@@ -836,10 +854,36 @@ mod tests {
     }
 
     #[test]
-    fn recipient_widened_reveal_repairs_per_occupant_locality() {
-        // The paper's repair: reveal :to (auctioneer bidder) — every bid
-        // structurally disclosed, acceptable under commit–reveal.
-        let d = auction(&["bidder"], &["auctioneer", "bidder"]);
+    fn reveal_widened_without_commit_fails_per_occupant_locality() {
+        // BUG-640 / TEST-641(a): widening reveal alone is *not* a repair —
+        // bidder[i] now *receives* reveal_j citing commit_j, which it never
+        // holds (commit still :to auctioneer only). Type-level R6 passes;
+        // the per-occupant check must flag every bidder occupant.
+        let d = auction(&["bidder"], &["auctioneer", "bidder"], &["auctioneer"]);
+        assert_eq!(r6_violations(&d), Vec::new());
+        let violations = r6_instantiated_violations(&d, &bidders_cast());
+        for k in ["@b1", "@b2", "@b3"] {
+            assert!(
+                violations.contains(&R6Violation::PerOccupantLocalityFailure {
+                    performative: "reveal".to_string(),
+                    occupant: k.to_string(),
+                }),
+                "occupant {k} receives a reveal citing a commit it never holds"
+            );
+        }
+    }
+
+    #[test]
+    fn full_prefix_widening_repairs_per_occupant_locality() {
+        // BUG-640 / TEST-641(b): the actual repair widens the whole
+        // commit → reveal prefix — commit and reveal both
+        // :to (auctioneer bidder) — so every occupant holds every cited
+        // instance. Clean at both the dialect and instantiated level.
+        let d = auction(
+            &["bidder"],
+            &["auctioneer", "bidder"],
+            &["auctioneer", "bidder"],
+        );
         assert_eq!(r6_violations(&d), Vec::new());
         assert_eq!(r6_instantiated_violations(&d, &bidders_cast()), Vec::new());
     }
@@ -847,7 +891,7 @@ mod tests {
     #[test]
     fn lone_occupant_passes_per_occupant_locality() {
         use crate::role::{parse_cast, parse_roles};
-        let d = auction(&["bidder"], &["auctioneer"]);
+        let d = auction(&["bidder"], &["auctioneer"], &["auctioneer"]);
         let roles = parse_roles(&"(auctioneer (* bidder))".parse::<SExpr>().unwrap()).unwrap();
         let cast = parse_cast(
             &"((auctioneer @auc) (bidder @only))"
