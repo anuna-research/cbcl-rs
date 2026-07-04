@@ -196,6 +196,7 @@ pub fn arb_valid_dialect() -> impl Strategy<Value = Dialect> {
 
             Dialect {
                 roles: Vec::new(),
+                causal_locality: Default::default(),
                 name,
                 extends: vec![String::from("cbcl")],
                 author: None,
@@ -220,6 +221,7 @@ pub fn arb_r3_violating_dialect() -> impl Strategy<Value = Dialect> {
     )
         .prop_map(|(dialect_name, resources, core_name)| Dialect {
             roles: Vec::new(),
+            causal_locality: Default::default(),
             name: dialect_name,
             extends: vec![String::from("cbcl")],
             author: None,

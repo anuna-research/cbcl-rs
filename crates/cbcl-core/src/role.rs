@@ -97,6 +97,55 @@ pub struct Endpoint {
     pub occupant: Option<AgentKey>,
 }
 
+/// How the installer treats R6(vi) causal-locality failures (SPEC-015
+/// REQ-709, ADR-704): the dialect's `(:causal-locality derive|reject)`
+/// declaration. The default is [`CausalLocality::Reject`] — the v1
+/// behaviour, bit-for-bit.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum CausalLocality {
+    /// R6(vi) failures reject the dialect at install (v1 semantics).
+    #[default]
+    Reject,
+    /// R6(vi) stops being a rejection condition and becomes a compilation
+    /// step: the installer derives the envelope-widening closure and
+    /// records it here. The table is *derived*, never authored — the
+    /// parser always produces an empty table, and
+    /// `DialectRegistry::install` replaces it with the closure.
+    Derive(EnvelopeRoutes),
+}
+
+/// Dialect-level envelope-routing table (SPEC-015 REQ-709): protocol
+/// performative (step name) → the roles that receive its redacted envelope.
+///
+/// An envelope recipient counts as an endpoint role of the performative
+/// *for R6(vi) observability only*: payload `:to` sets are untouched, and
+/// projection emits an ExpectEnvelope step (never Send/Recv) per route.
+/// Derived at install as a pure, deterministic fixpoint of the dialect
+/// alone — every agent derives identical routes.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct EnvelopeRoutes(pub BTreeMap<String, BTreeSet<String>>);
+
+impl EnvelopeRoutes {
+    /// Whether `role` is an envelope recipient of `performative`.
+    pub fn routes_to(&self, performative: &str, role: &str) -> bool {
+        self.0.get(performative).is_some_and(|s| s.contains(role))
+    }
+}
+
+/// Per-occupant envelope-routing table (SPEC-015 REQ-709), the thread-open
+/// half of the two-level derivation: performative → the sealed occupant
+/// keys that receive redacted envelopes of its instances.
+///
+/// It cannot exist earlier than thread open — these routes are O(n²) in a
+/// cast fixed only then — and it is a pure function of the dialect and the
+/// sealed cast, so every agent derives identical routes. Indexed-role
+/// routes appear only here, never in the install-time table.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct OccupantEnvelopeRoutes(pub BTreeMap<String, BTreeSet<AgentKey>>);
+
 /// R6 violation (CON-603): one variant per rejectable condition, each
 /// carrying the names needed to locate the defect.
 #[derive(Debug, Clone, PartialEq, Eq)]

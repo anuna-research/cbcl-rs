@@ -26,7 +26,10 @@
 
 use crate::dialect::Dialect;
 use crate::protocol::{repeat_base_name, CausalProtocol, NodeRef, BEGIN_KEYWORD};
-use crate::role::{R6Violation, RoleAnnotation};
+use crate::role::{
+    AgentKey, Cast, CausalLocality, EnvelopeRoutes, OccupantEnvelopeRoutes, R6Violation,
+    RoleAnnotation,
+};
 use alloc::collections::{BTreeMap, BTreeSet};
 use alloc::string::String;
 use alloc::vec::Vec;
@@ -356,6 +359,188 @@ pub fn r6_instantiated_violations(d: &Dialect, cast: &crate::role::Cast) -> Vec<
     violations
 }
 
+// ---------------------------------------------------------------------------
+// SPEC-015 REQ-709: causal locality as compilation — derived envelope routes
+// ---------------------------------------------------------------------------
+
+/// Dialect-level envelope-widening closure (SPEC-015 REQ-709, ADR-704):
+/// the install-time half of the two-level derivation.
+///
+/// The R6(vi) violations are the worklist: for every
+/// `NotCausallyLocal {t, pred, r}` found under the *widened reading* —
+/// an envelope recipient counts as an endpoint role of its performative
+/// for R6(vi) observability only — add `r` as an envelope recipient of
+/// `pred`, and re-check until no violation remains. Because a new route
+/// makes its recipient an (observability) endpoint of `pred`, the check
+/// then "fails one level up" at `pred`'s own predecessors, so the closure
+/// is transitive up the causal chain (warehouse ⇒ `track-shipment`, not
+/// just the deciding `accept`).
+///
+/// Pure, deterministic (`BTreeMap`/`BTreeSet` iteration only), and
+/// terminating: each pass either adds a `(performative, role)` pair to the
+/// table — a subset of the finite protocol-DAG × role-set product — or is
+/// the last, so at most |P|·|R| passes run. Payload `:to` sets are never
+/// touched.
+pub fn derive_envelope_routes(d: &Dialect) -> EnvelopeRoutes {
+    let mut routes: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
+    let Some(cp) = &d.causal_protocol else {
+        return EnvelopeRoutes(routes);
+    };
+    let annotations: BTreeMap<&str, &RoleAnnotation> = d
+        .performatives
+        .iter()
+        .filter_map(|p| p.role.as_ref().map(|ann| (p.name.as_str(), ann)))
+        .collect();
+
+    loop {
+        // Scan under the current widened reading, collecting the frontier;
+        // apply it afterwards so the pass reads one consistent table.
+        let mut frontier: Vec<(String, String)> = Vec::new();
+        for step in cp.steps.values() {
+            if step.performative == BEGIN_KEYWORD {
+                continue;
+            }
+            let Some(t_ann) = annotations.get(repeat_base_name(&step.performative)) else {
+                continue; // REQ-601's finding; residual violations reject
+            };
+            // Widened endpoints of t: declared endpoints ∪ derived routes.
+            let mut t_endpoints = endpoints(t_ann);
+            if let Some(extra) = routes.get(step.performative.as_str()) {
+                t_endpoints.extend(extra.iter().map(String::as_str));
+            }
+            for nr in &step.predecessors {
+                for pred in node_ref_names(nr) {
+                    if pred == BEGIN_KEYWORD {
+                        continue; // root convention: begin covers every role
+                    }
+                    let Some(p_ann) = annotations.get(repeat_base_name(pred)) else {
+                        continue;
+                    };
+                    let p_endpoints = endpoints(p_ann);
+                    for role in &t_endpoints {
+                        let covered = p_endpoints.contains(role)
+                            || routes.get(pred).is_some_and(|s| s.contains(*role));
+                        if !covered {
+                            frontier.push((String::from(pred), String::from(*role)));
+                        }
+                    }
+                }
+            }
+        }
+        let mut changed = false;
+        for (pred, role) in frontier {
+            changed |= routes.entry(pred).or_default().insert(role);
+        }
+        if !changed {
+            return EnvelopeRoutes(routes);
+        }
+    }
+}
+
+/// Per-occupant envelope-widening closure (SPEC-015 REQ-709): the
+/// thread-open half of the two-level derivation, mirroring
+/// [`r6_instantiated_violations`] exactly as [`derive_envelope_routes`]
+/// mirrors the dialect-level clause (vi).
+///
+/// A pure function of the dialect and the sealed cast — it cannot exist
+/// earlier, because these routes are O(n²) in a cast fixed only at thread
+/// open — and deterministic, so every agent derives identical routes.
+/// The per-occupant failure pattern (a co-occupant holding an instance
+/// that cites a predecessor instance it never received, BUG-640) is the
+/// worklist: when instances of `pred`, sent by the indexed role, are not
+/// observed by every sealed occupant, every occupant becomes an envelope
+/// recipient of `pred`'s instances, iterated up the causal chain (the
+/// announcing auction's derivation covers `commit`, not just `reveal`).
+///
+/// The dialect-level table recorded at install participates in the widened
+/// reading; routes derived *here* are keyed by occupant and never enter
+/// the install-time table.
+pub fn derive_occupant_envelope_routes(d: &Dialect, cast: &Cast) -> OccupantEnvelopeRoutes {
+    let mut routes: BTreeMap<String, BTreeSet<AgentKey>> = BTreeMap::new();
+    let Some(cp) = &d.causal_protocol else {
+        return OccupantEnvelopeRoutes(routes);
+    };
+    let empty = EnvelopeRoutes::default();
+    let install_routes: &EnvelopeRoutes = match &d.causal_locality {
+        CausalLocality::Derive(table) => table,
+        CausalLocality::Reject => &empty,
+    };
+    let annotations: BTreeMap<&str, &RoleAnnotation> = d
+        .performatives
+        .iter()
+        .filter_map(|p| p.role.as_ref().map(|ann| (p.name.as_str(), ann)))
+        .collect();
+
+    for role in &d.roles {
+        if !matches!(role.cardinality, crate::role::RoleCardinality::Indexed) {
+            continue;
+        }
+        let Some(occupants) = cast.indexed.get(&role.name) else {
+            continue; // parse_cast requires totality; nothing to derive here
+        };
+        if occupants.len() < 2 {
+            continue; // a lone occupant observes its own instances
+        }
+        loop {
+            let mut frontier: Vec<&str> = Vec::new();
+            for step in cp.steps.values() {
+                let t_name = step.performative.as_str();
+                let Some(t_ann) = annotations.get(repeat_base_name(t_name)) else {
+                    continue;
+                };
+                // Widened exposure: the indexed role is an (observability)
+                // endpoint of t when declared, routed at the dialect level,
+                // or routed per-occupant by an earlier pass.
+                let occ_routed =
+                    |name: &str| routes.get(name).is_some_and(|s| occupants.is_subset(s));
+                let exposed = endpoints(t_ann).contains(role.name.as_str())
+                    || install_routes.routes_to(t_name, &role.name)
+                    || occ_routed(t_name);
+                if !exposed {
+                    continue;
+                }
+                for nr in &step.predecessors {
+                    // As in `r6_instantiated_violations`: a `Single`/`Any`
+                    // reference is the sender's own instance, so only a
+                    // co-occupant *recipient* of t is left citing an
+                    // instance it never held — where "recipient" now
+                    // includes envelope recipients (widened reading).
+                    if matches!(nr, NodeRef::Single(_) | NodeRef::Any(_))
+                        && !t_ann.to.contains(&role.name)
+                        && !install_routes.routes_to(t_name, &role.name)
+                        && !occ_routed(t_name)
+                    {
+                        continue;
+                    }
+                    for pred in node_ref_names(nr) {
+                        let Some(p_ann) = annotations.get(repeat_base_name(pred)) else {
+                            continue;
+                        };
+                        let spanning = p_ann.from == role.name;
+                        let observed_by_all = p_ann.to.contains(&role.name)
+                            || install_routes.routes_to(pred, &role.name)
+                            || occ_routed(pred);
+                        if spanning && !observed_by_all {
+                            frontier.push(pred);
+                        }
+                    }
+                }
+            }
+            let mut changed = false;
+            for pred in frontier {
+                let entry = routes.entry(String::from(pred)).or_default();
+                for k in occupants {
+                    changed |= entry.insert(k.clone());
+                }
+            }
+            if !changed {
+                break;
+            }
+        }
+    }
+    OccupantEnvelopeRoutes(routes)
+}
+
 /// Performatives reachable from `begin`, following either recorded edge
 /// direction (protocols may encode successors, predecessors, or both);
 /// `begin` itself excluded from the result.
@@ -452,6 +637,7 @@ mod tests {
                     cardinality: *c,
                 })
                 .collect(),
+            causal_locality: Default::default(),
             name: "test".to_string(),
             extends: Vec::new(),
             author: None,
@@ -535,11 +721,10 @@ mod tests {
         assert_eq!(r6_violations(&oauth(true)), Vec::new());
     }
 
-    #[test]
-    fn warehouse_fails_causal_locality() {
-        // Paper §projection: dispatch (warehouse→shipper) caused by accept
-        // (tracking-svc→shipper): warehouse never sees accept.
-        let d = dialect(
+    /// Paper §projection: dispatch (warehouse→shipper) caused by accept
+    /// (tracking-svc→shipper): warehouse never sees accept.
+    fn warehouse() -> Dialect {
+        dialect(
             &[("shipper", S), ("tracking-svc", S), ("warehouse", S)],
             vec![
                 perf("track-shipment", "shipper", &["tracking-svc"]),
@@ -562,7 +747,12 @@ mod tests {
                 step("reject", vec![single("track-shipment")], vec![]),
                 step("dispatch", vec![single("accept")], vec![]),
             ],
-        );
+        )
+    }
+
+    #[test]
+    fn warehouse_fails_causal_locality() {
+        let d = warehouse();
         let violations = r6_violations(&d);
         assert!(violations.contains(&R6Violation::NotCausallyLocal {
             performative: "dispatch".to_string(),
@@ -911,5 +1101,244 @@ mod tests {
         )
         .unwrap();
         assert_eq!(r6_instantiated_violations(&d, &cast), Vec::new());
+    }
+
+    // ---- SPEC-015 REQ-709 / TEST-709: derived envelope routing ----
+
+    fn table(pairs: &[(&str, &[&str])]) -> EnvelopeRoutes {
+        EnvelopeRoutes(
+            pairs
+                .iter()
+                .map(|(p, rs)| {
+                    (
+                        (*p).to_string(),
+                        rs.iter().map(|r| (*r).to_string()).collect(),
+                    )
+                })
+                .collect(),
+        )
+    }
+
+    fn deriving(mut d: Dialect) -> Dialect {
+        d.causal_locality = CausalLocality::Derive(EnvelopeRoutes::default());
+        d
+    }
+
+    fn recorded_routes(d: &Dialect) -> &EnvelopeRoutes {
+        match &d.causal_locality {
+            CausalLocality::Derive(t) => t,
+            CausalLocality::Reject => panic!("expected a deriving dialect"),
+        }
+    }
+
+    #[test]
+    fn oauth_derivation_matches_the_hand_widened_repair() {
+        // The oauth(true) repair widens login/abort to authoriser and
+        // passwd to server — exactly these, read as envelope recipients.
+        assert_eq!(
+            derive_envelope_routes(&oauth(false)),
+            table(&[
+                ("login", &["authoriser"]),
+                ("abort", &["authoriser"]),
+                ("passwd", &["server"]),
+            ])
+        );
+    }
+
+    #[test]
+    fn warehouse_derivation_is_transitive_up_the_chain() {
+        // The violation names only (dispatch, accept, warehouse); the
+        // closure must also cover accept's own predecessor — warehouse ⇒
+        // track-shipment too, the paper's "fails one level up" rule. The
+        // undecided `reject` branch is NOT routed: no violation involves it.
+        assert_eq!(
+            derive_envelope_routes(&warehouse()),
+            table(&[
+                ("accept", &["warehouse"]),
+                ("track-shipment", &["warehouse"]),
+            ])
+        );
+    }
+
+    #[test]
+    fn clean_dialect_derives_an_empty_table() {
+        assert_eq!(derive_envelope_routes(&oauth(true)), EnvelopeRoutes::default());
+    }
+
+    #[test]
+    fn derivation_is_idempotent_and_identical_across_installs() {
+        use crate::dialect::DialectRegistry;
+        let first = derive_envelope_routes(&oauth(false));
+        // Idempotent: deriving from a dialect already carrying the table
+        // yields the same table (the recorded table is never an input).
+        let mut carrying = oauth(false);
+        carrying.causal_locality = CausalLocality::Derive(first.clone());
+        assert_eq!(derive_envelope_routes(&carrying), first);
+        // Identical across independent installs.
+        let mut reg1 = DialectRegistry::new();
+        let mut reg2 = DialectRegistry::new();
+        reg1.install(deriving(oauth(false))).unwrap();
+        reg2.install(deriving(oauth(false))).unwrap();
+        assert_eq!(
+            recorded_routes(reg1.find_by_name("test").unwrap()),
+            recorded_routes(reg2.find_by_name("test").unwrap()),
+        );
+        assert_eq!(recorded_routes(reg1.find_by_name("test").unwrap()), &first);
+    }
+
+    #[test]
+    fn install_accepts_a_deriving_r6vi_failing_dialect_and_records_routes() {
+        use crate::dialect::DialectRegistry;
+        // The same dialect that install_rejects_r6_violating_dialect pins
+        // as a rejection under the default mode.
+        let mut reg = DialectRegistry::new();
+        reg.install(deriving(oauth(false)))
+            .expect("derive mode must install the R6(vi)-failing fragment");
+        let installed = reg.find_by_name("test").unwrap();
+        assert_eq!(
+            recorded_routes(installed),
+            &table(&[
+                ("login", &["authoriser"]),
+                ("abort", &["authoriser"]),
+                ("passwd", &["server"]),
+            ])
+        );
+    }
+
+    #[test]
+    fn derive_leaves_payload_to_sets_byte_identical() {
+        use crate::dialect::DialectRegistry;
+        let d = deriving(oauth(false));
+        let before = d.performatives.clone();
+        let mut reg = DialectRegistry::new();
+        reg.install(d).unwrap();
+        // Payload :to sets (and every other performative byte) unchanged:
+        // the closure adds envelope routes only (REQ-709).
+        assert_eq!(reg.find_by_name("test").unwrap().performatives, before);
+    }
+
+    #[test]
+    fn derive_does_not_absorb_non_locality_violations() {
+        use crate::dialect::{DialectInstallError, DialectRegistry};
+        // oauth(false) plus an unreachable role: under derive the R6(vi)
+        // findings compile away, but the UnreachableRole must still reject.
+        let mut d = deriving(oauth(false));
+        d.roles.push(crate::role::RoleDecl {
+            name: "lurker".to_string(),
+            cardinality: S,
+        });
+        let mut reg = DialectRegistry::new();
+        let err = reg.install(d).unwrap_err();
+        let DialectInstallError::R6Violation { violations, .. } = err else {
+            panic!("expected R6Violation, got {err}");
+        };
+        assert_eq!(
+            violations,
+            vec![R6Violation::UnreachableRole {
+                role: "lurker".to_string()
+            }],
+            "only the residual (non-vi) violation is reported under derive"
+        );
+    }
+
+    /// As [`auction`], with R5-installable successor edges (the shared
+    /// fixture's `reveal → (all reveal)` self-successor and the
+    /// terminal-only declare-winner are fine for the R6 unit tests but
+    /// fail R5's successor-graph acyclicity/reachability at install).
+    fn installable_auction(winner_to: &[&str]) -> Dialect {
+        dialect(
+            &[("auctioneer", S), ("bidder", RoleCardinality::Indexed)],
+            vec![
+                perf("commit", "bidder", &["auctioneer"]),
+                perf("reveal", "bidder", &["auctioneer"]),
+                perf("declare-winner", "auctioneer", winner_to),
+            ],
+            vec![
+                step("begin", vec![], vec![single("commit")]),
+                step("commit", vec![single("begin")], vec![single("reveal")]),
+                step(
+                    "reveal",
+                    vec![single("commit")],
+                    vec![single("declare-winner")],
+                ),
+                step("declare-winner", vec![all_of(&["reveal"])], vec![]),
+            ],
+        )
+    }
+
+    /// The announcing auction (declare-winner :to bidder): dialect-level
+    /// R6 passes, so the install-time table is empty — indexed-role routes
+    /// appear only in the thread-open derivation (TEST-709), which covers
+    /// the whole widened prefix: commit, not just reveal.
+    #[test]
+    fn announcing_auction_routes_appear_only_at_thread_open() {
+        use crate::dialect::DialectRegistry;
+        let d = deriving(installable_auction(&["bidder"]));
+        let mut reg = DialectRegistry::new();
+        reg.install(d).unwrap();
+        let installed = reg.find_by_name("test").unwrap();
+        // Install-time table: empty — never the indexed-role routes.
+        assert_eq!(recorded_routes(installed), &EnvelopeRoutes::default());
+        // Thread-open derivation: every sealed occupant becomes an
+        // envelope recipient of reveal AND its predecessor commit.
+        let occ = derive_occupant_envelope_routes(installed, &bidders_cast());
+        let everyone: BTreeSet<crate::role::AgentKey> = ["@b1", "@b2", "@b3"]
+            .iter()
+            .map(|k| crate::role::AgentKey(k.to_string()))
+            .collect();
+        let expected = OccupantEnvelopeRoutes(
+            [
+                ("commit".to_string(), everyone.clone()),
+                ("reveal".to_string(), everyone),
+            ]
+            .into_iter()
+            .collect(),
+        );
+        assert_eq!(occ, expected);
+        // Deterministic: identical across independent derivations.
+        assert_eq!(
+            derive_occupant_envelope_routes(installed, &bidders_cast()),
+            expected
+        );
+    }
+
+    #[test]
+    fn lone_occupant_thread_open_derivation_is_empty() {
+        use crate::role::{parse_cast, parse_roles};
+        let d = deriving(auction(&["bidder"], &["auctioneer"], &["auctioneer"]));
+        let roles = parse_roles(&"(auctioneer (* bidder))".parse::<SExpr>().unwrap()).unwrap();
+        let cast = parse_cast(
+            &"((auctioneer @auc) (bidder @only))"
+                .parse::<SExpr>()
+                .unwrap(),
+            &roles,
+        )
+        .unwrap();
+        assert_eq!(
+            derive_occupant_envelope_routes(&d, &cast),
+            OccupantEnvelopeRoutes::default()
+        );
+    }
+
+    #[test]
+    fn bug640_reveal_widening_derivation_covers_commit() {
+        // BUG-640's non-repair (reveal :to (auctioneer bidder), commit
+        // :to auctioneer only) fails per-occupant locality; under derive
+        // the thread-open closure routes commit's envelopes to every
+        // occupant — the actual repair, derived.
+        let d = deriving(auction(
+            &["bidder"],
+            &["auctioneer", "bidder"],
+            &["auctioneer"],
+        ));
+        let occ = derive_occupant_envelope_routes(&d, &bidders_cast());
+        let everyone: BTreeSet<crate::role::AgentKey> = ["@b1", "@b2", "@b3"]
+            .iter()
+            .map(|k| crate::role::AgentKey(k.to_string()))
+            .collect();
+        assert_eq!(
+            occ,
+            OccupantEnvelopeRoutes([("commit".to_string(), everyone)].into_iter().collect())
+        );
     }
 }

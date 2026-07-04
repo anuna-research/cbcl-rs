@@ -9,7 +9,10 @@ use alloc::string::String;
 use alloc::vec::Vec;
 use cbcl_core::dialect::{Dialect, PerformativeDef, ResourceBounds};
 use cbcl_core::protocol::CausalProtocol;
-use cbcl_core::role::{parse_from, parse_recipient_set, parse_roles, RoleAnnotation, RoleDecl};
+use cbcl_core::role::{
+    parse_from, parse_recipient_set, parse_roles, CausalLocality, EnvelopeRoutes, RoleAnnotation,
+    RoleDecl,
+};
 use cbcl_core::sexpr::{Atom, SExpr};
 use cbcl_core::shape::ShapeConstraint;
 
@@ -72,6 +75,7 @@ pub fn parse_dialect(sexpr: &SExpr) -> Result<Dialect, String> {
     let mut causal_protocol: Option<CausalProtocol> = None;
     let mut shapes: Vec<ShapeConstraint> = Vec::new();
     let mut roles: Vec<RoleDecl> = Vec::new();
+    let mut causal_locality = CausalLocality::Reject;
 
     for clause in &items[4..] {
         parse_clause(
@@ -85,11 +89,13 @@ pub fn parse_dialect(sexpr: &SExpr) -> Result<Dialect, String> {
             &mut causal_protocol,
             &mut shapes,
             &mut roles,
+            &mut causal_locality,
         )?;
     }
 
     Ok(Dialect {
         roles,
+        causal_locality,
         name,
         extends,
         author,
@@ -161,6 +167,7 @@ fn parse_clause(
     causal_protocol: &mut Option<CausalProtocol>,
     shapes: &mut Vec<ShapeConstraint>,
     roles: &mut Vec<RoleDecl>,
+    causal_locality: &mut CausalLocality,
 ) -> Result<(), String> {
     let items = match clause {
         SExpr::List(items) if !items.is_empty() => items,
@@ -202,6 +209,28 @@ fn parse_clause(
                     return Err(String::from(":roles takes exactly one value (CON-600)"));
                 }
                 *roles = parse_roles(&items[1]).map_err(|v| alloc::format!("{v}"))?;
+            }
+            // SPEC-015 REQ-709: (:causal-locality derive|reject); the
+            // routing table is derived at install, never authored, so the
+            // parser always records an empty table under `derive`. Fail
+            // closed: any other value is rejected, never repaired.
+            "causal-locality" => {
+                if items.len() != 2 {
+                    return Err(String::from(
+                        ":causal-locality takes exactly one value (REQ-709)",
+                    ));
+                }
+                *causal_locality = match &items[1] {
+                    SExpr::Atom(Atom::Symbol(mode)) if mode == "derive" => {
+                        CausalLocality::Derive(EnvelopeRoutes::default())
+                    }
+                    SExpr::Atom(Atom::Symbol(mode)) if mode == "reject" => CausalLocality::Reject,
+                    other => {
+                        return Err(alloc::format!(
+                            ":causal-locality must be derive or reject, got {other} (REQ-709)"
+                        ))
+                    }
+                };
             }
             _ => {
                 return Err(alloc::format!("unknown keyword clause: :{kw}"));
@@ -703,6 +732,48 @@ mod tests {
             .parse()
             .unwrap();
         assert!(parse_dialect(&sexpr).is_err());
+    }
+
+    // ---- SPEC-015 REQ-709: (:causal-locality derive|reject) ----
+
+    #[test]
+    fn parses_causal_locality_derive_with_empty_table() {
+        let sexpr: SExpr = "(define x (cbcl) @a (:causal-locality derive))"
+            .parse()
+            .unwrap();
+        let d = parse_dialect(&sexpr).unwrap();
+        // The table is derived at install, never authored: the parser
+        // always records an empty table under `derive`.
+        assert_eq!(
+            d.causal_locality,
+            CausalLocality::Derive(EnvelopeRoutes::default())
+        );
+    }
+
+    #[test]
+    fn causal_locality_defaults_to_reject_and_parses_explicit_reject() {
+        let d = parse_dialect(&make_minimal_dialect()).unwrap();
+        assert_eq!(d.causal_locality, CausalLocality::Reject);
+        let sexpr: SExpr = "(define x (cbcl) @a (:causal-locality reject))"
+            .parse()
+            .unwrap();
+        let d = parse_dialect(&sexpr).unwrap();
+        assert_eq!(d.causal_locality, CausalLocality::Reject);
+    }
+
+    #[test]
+    fn rejects_malformed_causal_locality() {
+        // Fail closed (LangSec principle 4): unknown mode, wrong arity,
+        // and non-symbol values are rejected, never repaired.
+        for bad in [
+            "(define x (cbcl) @a (:causal-locality maybe))",
+            "(define x (cbcl) @a (:causal-locality))",
+            "(define x (cbcl) @a (:causal-locality derive reject))",
+            "(define x (cbcl) @a (:causal-locality \"derive\"))",
+        ] {
+            let sexpr: SExpr = bad.parse().unwrap();
+            assert!(parse_dialect(&sexpr).is_err(), "must reject: {bad}");
+        }
     }
 
     #[test]

@@ -52,6 +52,19 @@ pub struct LocalProtocol {
     /// Performative name → step kind; bystander performatives are erased
     /// (absent).
     pub steps: BTreeMap<String, LocalStep>,
+    /// ExpectEnvelope steps (SPEC-015 REQ-709): the performatives whose
+    /// *redacted envelopes* this endpoint awaits under a
+    /// `(:causal-locality derive)` dialect — a Recv-analogue carrying no
+    /// payload obligation, one per derived route naming this endpoint.
+    ///
+    /// A separate step set, not a [`LocalStep`] variant in `steps`: a
+    /// per-occupant endpoint of an indexed role can hold *both* Send (its
+    /// own instance) and ExpectEnvelope (its co-occupants' instances) for
+    /// one performative type, which a single-valued step map cannot
+    /// express. Send/Recv steps and payload delivery are untouched; empty
+    /// under `reject` (the v1 reading, bit-for-bit).
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub expect_envelopes: BTreeSet<String>,
     /// The dialect-level protocol the R5 composition verifies against
     /// (ADR-604); shared verbatim across all endpoints.
     pub protocol: Option<CausalProtocol>,
@@ -64,11 +77,12 @@ pub struct LocalProtocol {
 /// with no predecessor reference rewritten (the splice is vacuous under
 /// R6(vi)).
 ///
-/// `cast` is accepted for per-occupant instantiation (CON-602); in v1 the
-/// step set is identical across an indexed role's occupants, so it is
-/// unused beyond the signature contract.
+/// `cast` is accepted for per-occupant instantiation (CON-602). The
+/// Send/Recv step set is identical across an indexed role's occupants;
+/// under a `(:causal-locality derive)` dialect the cast additionally
+/// drives the thread-open half of the envelope-route derivation (SPEC-015
+/// REQ-709), whose ExpectEnvelope steps *are* occupant-dependent.
 pub fn project(d: &Dialect, endpoint: &Endpoint, cast: Option<&Cast>) -> LocalProtocol {
-    let _ = cast;
     let mut steps: BTreeMap<String, LocalStep> = BTreeMap::new();
     for p in &d.performatives {
         if let Some(ann) = &p.role {
@@ -79,8 +93,33 @@ pub fn project(d: &Dialect, endpoint: &Endpoint, cast: Option<&Cast>) -> LocalPr
             }
         }
     }
+    // ExpectEnvelope steps (REQ-709): one per derived route naming this
+    // endpoint. Under the default `reject` this set is empty and the
+    // projection is the v1 function bit-for-bit.
+    let mut expect_envelopes: BTreeSet<String> = BTreeSet::new();
+    if let crate::role::CausalLocality::Derive(table) = &d.causal_locality {
+        // Install-time (dialect-level) routes: role-addressed.
+        for (perf, roles) in &table.0 {
+            if roles.contains(&endpoint.role) {
+                expect_envelopes.insert(perf.clone());
+            }
+        }
+        // Thread-open (per-occupant) routes: derived here as a pure
+        // function of dialect and sealed cast — the same table every
+        // agent computes (REQ-709) — and read for this endpoint's
+        // occupant.
+        if let (Some(cast), Some(occupant)) = (cast, &endpoint.occupant) {
+            let occ = crate::r6::derive_occupant_envelope_routes(d, cast);
+            for (perf, keys) in &occ.0 {
+                if keys.contains(occupant) {
+                    expect_envelopes.insert(perf.clone());
+                }
+            }
+        }
+    }
     LocalProtocol {
         steps,
+        expect_envelopes,
         protocol: d.causal_protocol.clone(),
     }
 }
@@ -483,6 +522,7 @@ mod tests {
     ) -> Dialect {
         Dialect {
             roles: parse_roles(&roles_src.parse::<SExpr>().unwrap()).unwrap(),
+            causal_locality: Default::default(),
             name: "test".to_string(),
             extends: Vec::new(),
             author: None,
@@ -598,6 +638,120 @@ mod tests {
             project(&d, &ep("client"), None),
             project(&d, &ep("client"), None)
         );
+    }
+
+    // ---- SPEC-015 REQ-709 / TEST-709: ExpectEnvelope steps ----
+
+    /// The paper's OAuth fragment *as written* (R6(vi)-failing), with the
+    /// dialect-level closure recorded as `DialectRegistry::install` would
+    /// under `(:causal-locality derive)`.
+    fn derived_oauth() -> Dialect {
+        let mut d = dialect(
+            "(server client authoriser)",
+            vec![
+                perf("login", "server", &["client"]),
+                perf("abort", "server", &["client"]),
+                perf("passwd", "client", &["authoriser"]),
+                perf("auth", "authoriser", &["server"]),
+                perf("quit", "client", &["authoriser"]),
+            ],
+            vec![
+                step("begin", vec![], vec![any(&["login", "abort"])]),
+                step("login", vec![single("begin")], vec![single("passwd")]),
+                step("abort", vec![single("begin")], vec![single("quit")]),
+                step("passwd", vec![single("login")], vec![single("auth")]),
+                step("auth", vec![single("passwd")], vec![]),
+                step("quit", vec![single("abort")], vec![]),
+            ],
+        );
+        d.causal_locality =
+            crate::role::CausalLocality::Derive(crate::r6::derive_envelope_routes(&d));
+        d
+    }
+
+    #[test]
+    fn reject_mode_projection_has_no_envelope_steps() {
+        // The v1 reading, bit-for-bit: under the default `reject` no
+        // ExpectEnvelope step exists for any endpoint.
+        let d = oauth();
+        for role in ["server", "client", "authoriser"] {
+            assert!(project(&d, &ep(role), None).expect_envelopes.is_empty());
+        }
+    }
+
+    #[test]
+    fn derived_projection_emits_expect_envelope_per_route() {
+        let d = derived_oauth();
+        // Routes: login ⇒ authoriser, abort ⇒ authoriser, passwd ⇒ server.
+        let authoriser = project(&d, &ep("authoriser"), None);
+        let expected: BTreeSet<String> =
+            ["login", "abort"].iter().map(|s| s.to_string()).collect();
+        assert_eq!(authoriser.expect_envelopes, expected);
+        let server = project(&d, &ep("server"), None);
+        let expected: BTreeSet<String> = ["passwd"].iter().map(|s| s.to_string()).collect();
+        assert_eq!(server.expect_envelopes, expected);
+        // client is on no derived route.
+        assert!(project(&d, &ep("client"), None).expect_envelopes.is_empty());
+    }
+
+    #[test]
+    fn expect_envelope_leaves_send_recv_steps_untouched() {
+        // The Send/Recv step map of the derived dialect equals the
+        // unwidened v1 projection — payload delivery is untouched.
+        let d = derived_oauth();
+        let mut v1 = d.clone();
+        v1.causal_locality = crate::role::CausalLocality::Reject;
+        for role in ["server", "client", "authoriser"] {
+            assert_eq!(
+                project(&d, &ep(role), None).steps,
+                project(&v1, &ep(role), None).steps,
+            );
+        }
+    }
+
+    #[test]
+    fn per_occupant_expect_envelope_steps_come_from_the_sealed_cast() {
+        // The announcing auction: declare-winner :to bidder passes
+        // dialect-level R6(vi), so the install table is empty and the
+        // ExpectEnvelope steps exist only for occupant endpoints under a
+        // sealed cast (thread open) — covering the widened prefix
+        // (commit), not just reveal.
+        let mut d = dialect(
+            "(auctioneer (* bidder))",
+            vec![
+                perf("commit", "bidder", &["auctioneer"]),
+                perf("reveal", "bidder", &["auctioneer"]),
+                perf("declare-winner", "auctioneer", &["bidder"]),
+            ],
+            vec![
+                step("begin", vec![], vec![single("commit")]),
+                step("commit", vec![single("begin")], vec![single("reveal")]),
+                step("reveal", vec![single("commit")], vec![]),
+                step("declare-winner", vec![all_of(&["reveal"])], vec![]),
+            ],
+        );
+        d.causal_locality =
+            crate::role::CausalLocality::Derive(crate::r6::derive_envelope_routes(&d));
+        let cast = auction_cast(&d);
+
+        // Occupant endpoint at thread open: awaits co-occupant envelopes
+        // of reveal AND commit — while still *sending* its own instances.
+        let b1 = Endpoint {
+            role: "bidder".to_string(),
+            occupant: Some(AgentKey("@b1".to_string())),
+        };
+        let local = project(&d, &b1, Some(&cast));
+        let expected: BTreeSet<String> =
+            ["commit", "reveal"].iter().map(|s| s.to_string()).collect();
+        assert_eq!(local.expect_envelopes, expected);
+        assert_eq!(local.steps.get("commit"), Some(&LocalStep::Send));
+        assert_eq!(local.steps.get("reveal"), Some(&LocalStep::Send));
+
+        // Without a cast (before thread open) the per-occupant routes
+        // cannot exist yet; the auctioneer is on no route either way.
+        assert!(project(&d, &b1, None).expect_envelopes.is_empty());
+        let auc = project(&d, &ep("auctioneer"), Some(&cast));
+        assert!(auc.expect_envelopes.is_empty());
     }
 
     // ---- REQ-623 / TEST-623: root typing ----

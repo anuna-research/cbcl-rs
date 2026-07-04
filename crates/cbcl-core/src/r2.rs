@@ -381,6 +381,7 @@ mod tests {
     ) -> crate::dialect::Dialect {
         crate::dialect::Dialect {
             roles: Vec::new(),
+            causal_locality: Default::default(),
             name: String::from("test-dialect"),
             extends: alloc::vec![],
             author: None,

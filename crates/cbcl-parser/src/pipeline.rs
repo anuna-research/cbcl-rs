@@ -658,6 +658,7 @@ mod tests {
         registry
             .install(cbcl_core::dialect::Dialect {
                 roles: Vec::new(),
+                causal_locality: Default::default(),
                 name: String::from("proto-dialect"),
                 extends: alloc::vec![String::from("cbcl")],
                 author: None,
@@ -704,6 +705,7 @@ mod tests {
         registry
             .install(cbcl_core::dialect::Dialect {
                 roles: Vec::new(),
+                causal_locality: Default::default(),
                 name: String::from("shape-dialect"),
                 extends: alloc::vec![String::from("cbcl")],
                 author: None,
@@ -776,6 +778,7 @@ mod tests {
         registry
             .install(cbcl_core::dialect::Dialect {
                 roles: Vec::new(),
+                causal_locality: Default::default(),
                 name: String::from("ack-dialect"),
                 extends: alloc::vec![String::from("cbcl")],
                 author: None,
@@ -876,6 +879,7 @@ mod tests {
         registry
             .install(cbcl_core::dialect::Dialect {
                 roles: Vec::new(),
+                causal_locality: Default::default(),
                 name: String::from("ack-dialect"),
                 extends: alloc::vec![String::from("cbcl")],
                 author: None,
@@ -971,6 +975,7 @@ mod tests {
         registry
             .install(cbcl_core::dialect::Dialect {
                 roles: Vec::new(),
+                causal_locality: Default::default(),
                 name: String::from("ack-with-shape"),
                 extends: alloc::vec![String::from("cbcl")],
                 author: None,
@@ -1044,6 +1049,7 @@ mod tests {
         registry
             .install(cbcl_core::dialect::Dialect {
                 roles: Vec::new(),
+                causal_locality: Default::default(),
                 name: String::from("ok-protocol"),
                 extends: alloc::vec![String::from("cbcl")],
                 author: None,
@@ -1087,6 +1093,7 @@ mod tests {
         registry
             .install(cbcl_core::dialect::Dialect {
                 roles: Vec::new(),
+                causal_locality: Default::default(),
                 name: String::from("parent-dialect"),
                 extends: alloc::vec![String::from("cbcl")],
                 author: None,
@@ -1231,6 +1238,7 @@ mod tests {
         registry
             .install(cbcl_core::dialect::Dialect {
                 roles: Vec::new(),
+                causal_locality: Default::default(),
                 name: String::from("shape-dialect"),
                 extends: alloc::vec![String::from("cbcl")],
                 author: Some(String::from("@shape-author")),

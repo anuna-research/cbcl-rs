@@ -60,12 +60,20 @@ use alloc::vec::Vec;
 /// - `2`: adds `(causal-protocol …)` and `(shapes …)`
 ///   segments, gated on presence so dialects that omit both fields
 ///   produce v1-identical bytes (legacy signatures keep verifying).
-/// - `3` (current): adds the `(roles …)` segment and a per-performative
+/// - `3`: adds the `(roles …)` segment and a per-performative
 ///   `(role …)` element (SPEC-014 REQ-624), both gated on presence, so
 ///   role-free dialects produce v2-identical bytes and role annotations
 ///   cannot be stripped or rewritten in gossip without invalidating the
 ///   R4 signature.
-pub const CANONICAL_FORM_VERSION: u32 = 3;
+/// - `4` (current): adds the `(causal-locality derive)` segment (SPEC-015
+///   REQ-709), gated on the non-default mode, so `reject`-mode dialects
+///   produce v3-identical bytes. Only the declared *mode* is signed — the
+///   derived envelope-routing table is install-derived, deterministic from
+///   the signed body, and therefore excluded like `hash` itself. Binding
+///   the mode is load-bearing: without it a relay could flip a signed
+///   `reject` dialect to `derive`, silently enlarging delivery obligations
+///   under an intact signature.
+pub const CANONICAL_FORM_VERSION: u32 = 4;
 
 // ---------------------------------------------------------------------------
 // Atom-to-octet-string mapping
@@ -265,6 +273,18 @@ pub fn to_signable_sexpr(d: &Dialect) -> SExpr {
     // roles (SPEC-014 REQ-624) — only when non-empty (backward-compat).
     if !d.roles.is_empty() {
         top.push(roles_to_sexpr(&d.roles));
+    }
+
+    // causal-locality mode (SPEC-015 REQ-709) — only under the non-default
+    // `derive` (backward-compat: reject-mode dialects keep v3 bytes). The
+    // derived routing table is deliberately excluded: it is a deterministic
+    // function of the signed body, recomputed at install, so signing the
+    // mode alone binds the semantics without freezing the derivation.
+    if matches!(d.causal_locality, crate::role::CausalLocality::Derive(_)) {
+        top.push(SExpr::List(vec![
+            SExpr::Atom(Atom::Symbol(String::from("causal-locality"))),
+            SExpr::Atom(Atom::Symbol(String::from("derive"))),
+        ]));
     }
 
     SExpr::List(top)
@@ -752,6 +772,7 @@ mod tests {
     fn test_dialect(name: &str) -> Dialect {
         Dialect {
             roles: Vec::new(),
+            causal_locality: Default::default(),
             name: String::from(name),
             extends: vec![],
             author: Some(String::from("@test")),
@@ -873,6 +894,7 @@ mod tests {
     fn signable_empty_dialect() {
         let d = Dialect {
             roles: Vec::new(),
+            causal_locality: Default::default(),
             name: String::from("empty"),
             extends: vec![],
             author: None,
@@ -900,6 +922,7 @@ mod tests {
     fn signable_all_optional_fields() {
         let d = Dialect {
             roles: Vec::new(),
+            causal_locality: Default::default(),
             name: String::from("full"),
             extends: vec![String::from("parent1"), String::from("parent2")],
             author: Some(String::from("@author")),
@@ -1110,6 +1133,7 @@ mod tests {
     fn snapshot_legacy_dialect() -> Dialect {
         Dialect {
             roles: Vec::new(),
+            causal_locality: Default::default(),
             name: String::from("legacy"),
             extends: vec![String::from("cbcl")],
             author: Some(String::from("@authority")),
@@ -1258,9 +1282,53 @@ mod tests {
     }
 
     #[test]
-    fn canonical_form_version_is_three() {
+    fn canonical_form_version_is_four() {
         // Pin the version constant so changes are deliberate.
-        assert_eq!(CANONICAL_FORM_VERSION, 3);
+        assert_eq!(CANONICAL_FORM_VERSION, 4);
+    }
+
+    // ---- SPEC-015 REQ-709: causal-locality mode is signature-bound ----
+
+    #[test]
+    fn reject_mode_dialect_keeps_v3_bytes() {
+        // The default mode adds nothing: reject-mode dialects (including
+        // every pre-v4 dialect) produce byte-identical canonical output.
+        let d = test_dialect("t");
+        let s = alloc::string::String::from_utf8(dialect_canonical_bytes(&d)).unwrap();
+        assert!(
+            !s.contains("causal-locality"),
+            "reject mode must not appear in canonical bytes: {s}"
+        );
+    }
+
+    #[test]
+    fn flipping_to_derive_changes_signable_bytes() {
+        use crate::role::{CausalLocality, EnvelopeRoutes};
+        let d1 = test_dialect("t");
+        let mut d2 = test_dialect("t");
+        d2.causal_locality = CausalLocality::Derive(EnvelopeRoutes::default());
+        assert_ne!(
+            dialect_canonical_bytes(&d1),
+            dialect_canonical_bytes(&d2),
+            "the derive mode must be signature-bound (REQ-709)"
+        );
+    }
+
+    #[test]
+    fn derived_routes_do_not_affect_signable_bytes() {
+        use crate::role::{CausalLocality, EnvelopeRoutes};
+        use alloc::collections::{BTreeMap, BTreeSet};
+        // Recording the install-derived table must not perturb the signed
+        // form — the R4 check precedes derivation recording at install.
+        let mut d1 = test_dialect("t");
+        d1.causal_locality = CausalLocality::Derive(EnvelopeRoutes::default());
+        let mut d2 = test_dialect("t");
+        let mut routes = BTreeMap::new();
+        let mut to = BTreeSet::new();
+        to.insert(String::from("warehouse"));
+        routes.insert(String::from("accept"), to);
+        d2.causal_locality = CausalLocality::Derive(EnvelopeRoutes(routes));
+        assert_eq!(dialect_canonical_bytes(&d1), dialect_canonical_bytes(&d2));
     }
 
     // ====================================================================

@@ -256,3 +256,199 @@ fn two_pc_fails_per_participant_at_decision() {
 fn two_pc_widened_votes_pass() {
     assert_violations(&parse(&two_pc(true)), vec![]);
 }
+
+// --- TEST-709: derived envelope routing (SPEC-015 REQ-709, ADR-704) ----------
+//
+// Under `(:causal-locality derive)` every R6(vi)-failing corpus dialect
+// installs, and its derived routes equal the hand-widened repair pinned
+// above, read as *envelope* recipients — transitive closure included
+// (warehouse ⇒ track-shipment too). Payload `:to` sets are byte-identical
+// before and after; under the default `reject` the TEST-640 verdicts above
+// are unchanged (those tests parse the same sources and stay pinned).
+// The indexed-role (auction) half of TEST-709 — routes appearing only in
+// the thread-open derivation, never the install table — lives with the
+// TEST-608 auction fixtures in `cbcl-core/src/r6.rs`
+// (`announcing_auction_routes_appear_only_at_thread_open`), because the
+// auction's single-member `(all reveal)` fan-in is a struct-level encoding
+// the surface grammar's two-member group rule cannot spell.
+
+use cbcl_core::canonical::canonical_encode;
+use cbcl_core::dialect::{Dialect, DialectRegistry};
+use cbcl_core::projection::project;
+use cbcl_core::r6::derive_envelope_routes;
+use cbcl_core::role::{CausalLocality, Endpoint, EnvelopeRoutes};
+use std::collections::BTreeMap;
+
+/// The corpus source with `(:causal-locality derive)` declared.
+fn deriving(src: &str) -> String {
+    src.replacen("(:roles", "(:causal-locality derive)\n           (:roles", 1)
+}
+
+/// Parse and install under `derive`, returning the installed dialect.
+fn install_deriving(src: &str) -> Dialect {
+    let d = parse(&deriving(src));
+    let name = d.name.clone();
+    let mut reg = DialectRegistry::new();
+    reg.install(d)
+        .expect("R6(vi)-failing corpus dialect must install under derive");
+    reg.find_by_name(&name).unwrap().clone()
+}
+
+fn table(pairs: &[(&str, &[&str])]) -> EnvelopeRoutes {
+    EnvelopeRoutes(
+        pairs
+            .iter()
+            .map(|(p, rs)| {
+                (
+                    (*p).to_string(),
+                    rs.iter().map(|r| (*r).to_string()).collect(),
+                )
+            })
+            .collect(),
+    )
+}
+
+fn recorded_routes(d: &Dialect) -> &EnvelopeRoutes {
+    match &d.causal_locality {
+        CausalLocality::Derive(t) => t,
+        CausalLocality::Reject => panic!("expected a deriving dialect"),
+    }
+}
+
+/// Every R6(vi)-failing corpus dialect of this file with its expected
+/// derived table — the hand-widened repairs above, as envelope recipients.
+fn failing_corpus() -> Vec<(String, EnvelopeRoutes)> {
+    vec![
+        (
+            logistics(true),
+            // Transitive: warehouse ⇒ track-shipment too, not just the
+            // deciding branch (accept); the untaken `reject` branch is on
+            // no violation and gets no route.
+            table(&[("accept", &["warehouse"]), ("track-shipment", &["warehouse"])]),
+        ),
+        (
+            two_buyer(false),
+            table(&[("title", &["buyer2"]), ("share", &["seller"])]),
+        ),
+        (pipeline(false), table(&[("produce", &["sink"])])),
+        (
+            ring(false),
+            table(&[("fwd1", &["c"]), ("fwd2", &["a"])]),
+        ),
+        (
+            two_pc(false),
+            table(&[
+                ("vote1", &["p2", "p3"]),
+                ("vote2", &["p1", "p3"]),
+                ("vote3", &["p1", "p2"]),
+            ]),
+        ),
+    ]
+}
+
+#[test]
+fn test_709_failing_corpus_installs_under_derive_with_the_widened_routes() {
+    for (src, expected) in failing_corpus() {
+        let d = install_deriving(&src);
+        assert_eq!(
+            recorded_routes(&d),
+            &expected,
+            "derived routes for '{}' must equal the hand-widened repair",
+            d.name
+        );
+    }
+}
+
+#[test]
+fn test_709_derivation_is_idempotent_and_identical_across_installs() {
+    for (src, _) in failing_corpus() {
+        let d1 = install_deriving(&src);
+        let d2 = install_deriving(&src);
+        assert_eq!(
+            recorded_routes(&d1),
+            recorded_routes(&d2),
+            "independent installs of '{}' must derive identical routes",
+            d1.name
+        );
+        // Idempotent: re-deriving from the installed dialect (table
+        // recorded) reproduces the recorded table exactly.
+        assert_eq!(&derive_envelope_routes(&d1), recorded_routes(&d1));
+    }
+}
+
+#[test]
+fn test_709_payload_to_sets_are_byte_identical() {
+    for (src, _) in failing_corpus() {
+        let parsed = parse(&deriving(&src));
+        let annotation_bytes = |d: &Dialect| -> BTreeMap<String, Vec<u8>> {
+            d.performatives
+                .iter()
+                .map(|p| {
+                    let ann = p.role.as_ref().expect("corpus performatives are annotated");
+                    let mut to: Vec<_> = ann.to.iter().cloned().collect();
+                    to.sort();
+                    let sexpr: cbcl_core::sexpr::SExpr =
+                        format!("({} ({}))", ann.from, to.join(" ")).parse().unwrap();
+                    (p.name.clone(), canonical_encode(&sexpr))
+                })
+                .collect()
+        };
+        let before = annotation_bytes(&parsed);
+        let installed = install_deriving(&src);
+        assert_eq!(
+            annotation_bytes(&installed),
+            before,
+            "payload :from/:to bytes of '{}' must be untouched by derivation",
+            installed.name
+        );
+    }
+}
+
+#[test]
+fn test_709_default_reject_keeps_v1_verdicts_and_rejects_install() {
+    use cbcl_core::dialect::DialectInstallError;
+    // The pinned TEST-640 verdict tests above already re-check the exact
+    // violation sets under the default; here: the sources parse to
+    // `Reject` and still fail install with the R6 rejection, v1 semantics.
+    for (src, _) in failing_corpus() {
+        let d = parse(&src);
+        assert_eq!(d.causal_locality, CausalLocality::Reject);
+        let mut reg = DialectRegistry::new();
+        let err = reg.install(d).unwrap_err();
+        assert!(
+            matches!(err, DialectInstallError::R6Violation { .. }),
+            "expected the v1 R6 rejection, got: {err}"
+        );
+    }
+}
+
+#[test]
+fn test_709_projection_emits_expect_envelope_for_every_route() {
+    for (src, expected) in failing_corpus() {
+        let d = install_deriving(&src);
+        for (perf, roles) in &expected.0 {
+            for role in roles {
+                let local = project(
+                    &d,
+                    &Endpoint {
+                        role: role.clone(),
+                        occupant: None,
+                    },
+                    None,
+                );
+                assert!(
+                    local.expect_envelopes.contains(perf),
+                    "'{}': projection for '{role}' must expect the envelope of '{perf}'",
+                    d.name
+                );
+                // ExpectEnvelope is a Recv-analogue, not a Recv: the route
+                // role stays a payload bystander of the performative.
+                assert!(
+                    !local.steps.contains_key(perf),
+                    "'{}': '{role}' must hold no Send/Recv step for '{perf}'",
+                    d.name
+                );
+            }
+        }
+    }
+}

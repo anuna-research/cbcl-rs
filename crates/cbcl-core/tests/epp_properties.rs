@@ -95,6 +95,7 @@ impl ChainProtocol {
             );
         }
         Dialect {
+            causal_locality: Default::default(),
             roles: parse_roles(
                 &format!("({})", ROLE_NAMES[..self.n_roles].join(" "))
                     .parse::<SExpr>()
@@ -470,6 +471,7 @@ fn test_637_operation_count_within_bound() {
             );
         }
         Dialect {
+            causal_locality: Default::default(),
             roles: parse_roles(&"(a hub)".parse::<SExpr>().unwrap()).unwrap(),
             name: "hub".to_string(),
             extends: Vec::new(),
@@ -561,6 +563,7 @@ fn test_635_converse_witness() {
             },
         );
         Dialect {
+            causal_locality: Default::default(),
             roles: parse_roles(&"(ra rb rc)".parse::<SExpr>().unwrap()).unwrap(),
             name: "witness".to_string(),
             extends: Vec::new(),

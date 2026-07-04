@@ -56,6 +56,7 @@ fn auction_dialect() -> Dialect {
         ),
     );
     Dialect {
+        causal_locality: Default::default(),
         roles: parse_roles(&"(auctioneer (* bidder))".parse::<SExpr>().unwrap()).unwrap(),
         name: "auction".into(),
         extends: Vec::new(),

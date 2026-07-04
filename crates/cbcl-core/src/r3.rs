@@ -58,6 +58,7 @@ mod tests {
     fn test_dialect_with(perf_names: &[&str]) -> Dialect {
         Dialect {
             roles: Vec::new(),
+            causal_locality: Default::default(),
             name: String::from("test-dialect"),
             extends: vec![String::from("cbcl")],
             author: None,
