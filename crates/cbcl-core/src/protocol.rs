@@ -522,6 +522,42 @@ impl PartialOrd for VerificationResult {
 // Causal Verification (REQ-203, REQ-304, ADR-008)
 // ================================================================
 
+/// Resolve the performative type of a `:caused-by` reference: from the
+/// full message when the store holds one, else from a redacted envelope's
+/// *authenticated* header (SPEC-015 REQ-702).
+///
+/// This is the safety-level seam of redacted delivery: presence,
+/// predecessor type, and resolution read exactly the fields an envelope
+/// carries (hash, type, endpoints, signature), so a widened recipient
+/// holding only the envelope reaches the same safety verdict it would
+/// with the full predecessor. A full message, when present, wins — the
+/// two name the same content hash, so they are the same message.
+///
+/// The completion-level occupant fan-in (`projection::verify_causal_for_role`,
+/// REQ-618) deliberately does *not* use this seam: fan-in membership
+/// ("present and Valid") still demands full messages (REQ-703).
+fn predecessor_type<'a, S: MessageStore>(
+    store: &'a S,
+    hash: &ContentHash,
+    thread: &ThreadId,
+) -> Option<&'a str> {
+    if let Some(predecessor_msg) = store.lookup_in_thread(hash, thread) {
+        // Type through wrappers: the agent stores whole (possibly signed)
+        // messages, so a wrapped predecessor must type as its innermost
+        // Simple (SPEC-014; pre-existing Simple behaviour unchanged).
+        return Some(
+            predecessor_msg
+                .innermost_simple()
+                .and_then(|m| m.performative())
+                .map(|p| p.name())
+                .unwrap_or(""),
+        );
+    }
+    store
+        .envelope_in_thread(hash, thread)
+        .map(|e| e.performative())
+}
+
 /// Collect performative names allowed as single-message predecessors.
 ///
 /// Gathers names from `Single` and `Any` node-refs (not `All`, which is for fan-in).
@@ -595,16 +631,9 @@ pub fn verify_causal<S: MessageStore>(
         // :caused-by <hash> — single predecessor
         Some(CausedBy::Single(hash_str)) => {
             let content_hash = ContentHash(hash_str.clone());
-            match store.lookup_in_thread(&content_hash, thread) {
+            match predecessor_type(store, &content_hash, thread) {
                 None => VerificationResult::Unknown,
-                Some(predecessor_msg) => {
-                    // Type through wrappers (see the Multiple arm below).
-                    let pred_perf = predecessor_msg
-                        .innermost_simple()
-                        .and_then(|m| m.performative())
-                        .map(|p| p.name())
-                        .unwrap_or("");
-
+                Some(pred_perf) => {
                     let allowed = allowed_single_predecessors(step);
                     if allowed.iter().any(|a| a == pred_perf) {
                         VerificationResult::Valid
@@ -649,21 +678,11 @@ pub fn verify_causal<S: MessageStore>(
 
             for hash_str in hashes {
                 let content_hash = ContentHash(hash_str.clone());
-                match store.lookup_in_thread(&content_hash, thread) {
+                match predecessor_type(store, &content_hash, thread) {
                     None => {
                         result = result.meet(VerificationResult::Unknown);
                     }
-                    Some(predecessor_msg) => {
-                        // Read the type through wrappers: the agent stores
-                        // whole (possibly signed) messages, so a wrapped
-                        // predecessor must type as its innermost Simple
-                        // (SPEC-014; pre-existing Simple behaviour unchanged).
-                        let pred_perf = predecessor_msg
-                            .innermost_simple()
-                            .and_then(|m| m.performative())
-                            .map(|p| p.name())
-                            .unwrap_or("");
-
+                    Some(pred_perf) => {
                         if all_set.contains(pred_perf) {
                             found_types.insert(String::from(pred_perf));
                         } else {
@@ -1945,5 +1964,182 @@ mod tests {
             &t,
         );
         assert_eq!(r1, r2);
+    }
+
+    // ================================================================
+    // SPEC-015 REQ-702: safety-level verification over envelopes
+    // ================================================================
+
+    use crate::attest::{sign_attestation_v2, AttestationHeader};
+    use crate::envelope::RedactedEnvelope;
+    use crate::keyid::KeyId;
+    use crate::r4::Signer;
+
+    /// Data-dependent test signer (as in `attest.rs`): sig = SHA-256(secret
+    /// ‖ data), so tampering with any authenticated field kills it.
+    struct TestSigner {
+        secret: &'static [u8],
+    }
+
+    impl Signer for TestSigner {
+        fn sign(&self, data: &[u8]) -> Vec<u8> {
+            use sha2::{Digest, Sha256};
+            let mut h = Sha256::new();
+            h.update(self.secret);
+            h.update(data);
+            h.finalize().to_vec()
+        }
+        fn verify(&self, data: &[u8], sig: &[u8]) -> bool {
+            self.sign(data) == sig
+        }
+    }
+
+    const SIGNER: TestSigner = TestSigner { secret: b"alice" };
+
+    fn signed_env(hash: &str, perf: &str, thread_name: &str) -> RedactedEnvelope {
+        let mut to = BTreeSet::new();
+        to.insert(KeyId::parse("@bob").unwrap());
+        let header = AttestationHeader {
+            content_hash: hash.into(),
+            performative: perf.into(),
+            from: KeyId::parse("@alice").unwrap(),
+            to,
+            thread: thread_name.into(),
+            caused_by: Some(CausedBy::Begin),
+        };
+        let signature = sign_attestation_v2(&SIGNER, &header).unwrap();
+        RedactedEnvelope { header, signature }
+    }
+
+    /// REQ-702: a `:caused-by` reference resolves through an envelope —
+    /// Unknown before it arrives, then the same safety verdict a full
+    /// predecessor would give (here Valid), read from the authenticated
+    /// performative type.
+    #[test]
+    fn single_reference_resolves_through_an_envelope() {
+        let proto = verification_protocol();
+        let mut store = ThreadedMessageStore::new();
+        let t = tid("t1");
+        let msg_b = ("b", Some(CausedBy::Single("h1".into())));
+
+        // Nothing yet: Unknown.
+        assert_eq!(
+            verify_causal(msg_b.0, msg_b.1.as_ref(), &store, &proto, &t),
+            VerificationResult::Unknown
+        );
+
+        // Envelope of the predecessor `a` arrives: resolves Valid.
+        store
+            .append_envelope(signed_env("h1", "a", "t1"), &SIGNER)
+            .unwrap();
+        assert_eq!(
+            verify_causal(msg_b.0, msg_b.1.as_ref(), &store, &proto, &t),
+            VerificationResult::Valid
+        );
+
+        // Same verdict as with the full predecessor.
+        let mut full_store = ThreadedMessageStore::new();
+        full_store.append(chash("h1"), t.clone(), make_msg("a", Some(CausedBy::Begin)));
+        assert_eq!(
+            verify_causal(msg_b.0, msg_b.1.as_ref(), &store, &proto, &t),
+            verify_causal(msg_b.0, msg_b.1.as_ref(), &full_store, &proto, &t),
+        );
+    }
+
+    /// REQ-702: predecessor *type* checks read the envelope's
+    /// authenticated performative — a wrong-typed envelope resolves to
+    /// the same typed Violation a wrong-typed full message would.
+    #[test]
+    fn envelope_with_wrong_type_is_the_typed_violation() {
+        let proto = verification_protocol();
+        let mut store = ThreadedMessageStore::new();
+        let t = tid("t1");
+        store
+            .append_envelope(signed_env("h1", "c", "t1"), &SIGNER)
+            .unwrap();
+        assert_eq!(
+            verify_causal(
+                "b",
+                Some(&CausedBy::Single("h1".into())),
+                &store,
+                &proto,
+                &t
+            ),
+            VerificationResult::Violation(CausalViolation::InvalidPredecessor {
+                caused_by: "h1".into(),
+                expected: vec!["a".into()],
+                found: "c".into(),
+            })
+        );
+    }
+
+    /// REQ-702: an envelope satisfies references only in its
+    /// authenticated thread — it is invisible from any other thread.
+    #[test]
+    fn envelope_is_scoped_to_its_authenticated_thread() {
+        let proto = verification_protocol();
+        let mut store = ThreadedMessageStore::new();
+        store
+            .append_envelope(signed_env("h1", "a", "t1"), &SIGNER)
+            .unwrap();
+        assert_eq!(
+            verify_causal(
+                "b",
+                Some(&CausedBy::Single("h1".into())),
+                &store,
+                &proto,
+                &tid("t2")
+            ),
+            VerificationResult::Unknown
+        );
+    }
+
+    /// A full message and its envelope name the same content hash; when
+    /// both are present the full message is read (they agree by content
+    /// addressing, so this is a preference, not a semantic difference).
+    #[test]
+    fn full_message_shadows_its_own_envelope() {
+        let proto = verification_protocol();
+        let mut store = ThreadedMessageStore::new();
+        let t = tid("t1");
+        store
+            .append_envelope(signed_env("h1", "a", "t1"), &SIGNER)
+            .unwrap();
+        store.append(chash("h1"), t.clone(), make_msg("a", Some(CausedBy::Begin)));
+        assert_eq!(
+            verify_causal(
+                "b",
+                Some(&CausedBy::Single("h1".into())),
+                &store,
+                &proto,
+                &t
+            ),
+            VerificationResult::Valid
+        );
+    }
+
+    /// REQ-702 over the R5 fan-in *type* check: envelope members resolve
+    /// the `(all …)` type completeness (safety level). The completion
+    /// boundary (REQ-703) is enforced one layer up, in the role layer's
+    /// occupant fan-in — see `projection.rs`.
+    #[test]
+    fn fan_in_type_check_resolves_through_envelopes() {
+        let proto = fan_in_protocol();
+        let mut store = ThreadedMessageStore::new();
+        let t = tid("t1");
+        // x arrives in full; y only as an envelope.
+        store.append(chash("hx"), t.clone(), make_msg("x", Some(CausedBy::Begin)));
+        let z = CausedBy::Multiple(vec!["hx".into(), "hy".into()]);
+        assert_eq!(
+            verify_causal("z", Some(&z), &store, &proto, &t),
+            VerificationResult::Unknown
+        );
+        store
+            .append_envelope(signed_env("hy", "y", "t1"), &SIGNER)
+            .unwrap();
+        assert_eq!(
+            verify_causal("z", Some(&z), &store, &proto, &t),
+            VerificationResult::Valid
+        );
     }
 }

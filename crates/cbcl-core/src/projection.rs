@@ -388,6 +388,15 @@ fn occupant_fanin<S: MessageStore>(
     for h in &hashes {
         match store.lookup_in_thread(&ContentHash(String::from(*h)), thread) {
             Some(m) => resolved.push(m),
+            // SPEC-015 REQ-703: completion requires content. Only full
+            // messages enter `resolved` — a member present solely as a
+            // redacted envelope (`store.envelope_in_thread`) is deliberately
+            // NOT consulted here, because fan-in membership is "present and
+            // Valid" and full validity includes payload grammaticality. The
+            // decider's verdict stays Unknown (not-yet-complete) until the
+            // full members arrive, which is monotone-safe; the envelope
+            // satisfies only the safety-level type checks of R5
+            // (`protocol::predecessor_type`, REQ-702).
             None => return VerificationResult::Unknown,
         }
     }
@@ -1279,5 +1288,134 @@ mod tests {
             ),
             VerificationResult::Valid
         );
+    }
+
+    // ---- SPEC-015 TEST-703: completion still requires content ----
+
+    use crate::attest::{sign_attestation_v2, AttestationHeader};
+    use crate::envelope::RedactedEnvelope;
+    use crate::keyid::KeyId;
+    use crate::r4::Signer;
+
+    /// Data-dependent test signer (as in `attest.rs`); distinct secrets
+    /// model the distinct bidder keys.
+    struct TestSigner {
+        secret: &'static str,
+    }
+
+    impl Signer for TestSigner {
+        fn sign(&self, data: &[u8]) -> Vec<u8> {
+            use sha2::{Digest, Sha256};
+            let mut h = Sha256::new();
+            h.update(self.secret.as_bytes());
+            h.update(data);
+            h.finalize().to_vec()
+        }
+        fn verify(&self, data: &[u8], sig: &[u8]) -> bool {
+            self.sign(data) == sig
+        }
+    }
+
+    /// A signed reveal envelope for bidder `b` (SPEC-015 REQ-700/701):
+    /// authenticated header only — no bid value anywhere.
+    fn reveal_envelope(bidder: &str, content_hash: &str, commit_hash: &str) -> RedactedEnvelope {
+        let mut to = BTreeSet::new();
+        to.insert(KeyId::parse("@auc").unwrap());
+        let header = AttestationHeader {
+            content_hash: content_hash.to_string(),
+            performative: String::from("reveal"),
+            from: KeyId::parse(bidder).unwrap(),
+            to,
+            thread: String::from("conv"),
+            caused_by: Some(crate::message::CausedBy::Single(String::from(commit_hash))),
+        };
+        let signer = TestSigner {
+            secret: match bidder {
+                "@b1" => "b1",
+                "@b2" => "b2",
+                _ => "b3",
+            },
+        };
+        let signature = sign_attestation_v2(&signer, &header).unwrap();
+        RedactedEnvelope { header, signature }
+    }
+
+    /// TEST-703: a fan-in decider whose member reveals are present only as
+    /// envelopes reports the fan-in not-yet-complete (Unknown); supplying
+    /// the full members completes it (Valid). Meanwhile the *safety-level*
+    /// R5 check resolves from the very same envelopes (REQ-702) — the
+    /// REQ-703 boundary is exactly the completion-level occupant fan-in.
+    #[test]
+    fn test_703_envelope_only_members_leave_the_fanin_incomplete() {
+        let d = auction();
+        let cast = auction_cast(&d);
+        // Root and full commits; reveals arrive only as redacted envelopes.
+        let mut store = ThreadedMessageStore::new();
+        put(&mut store, "h0", &msg("(with-roles ((auctioneer @auc) (bidder @b1 @b2 @b3)) (signed @auc \"sig\" (hello :thread \"conv\" :caused-by begin)))"));
+        for (i, b) in ["@b1", "@b2", "@b3"].iter().enumerate() {
+            let hc = alloc::format!("h{}", i + 1);
+            put(
+                &mut store,
+                &hc,
+                &msg(&alloc::format!(
+                    "(signed {b} \"sig\" (commit @auc \"c\" :caused-by h0))"
+                )),
+            );
+            let hr = alloc::format!("h{}", i + 4);
+            let signer = TestSigner {
+                secret: match *b {
+                    "@b1" => "b1",
+                    "@b2" => "b2",
+                    _ => "b3",
+                },
+            };
+            store
+                .append_envelope(reveal_envelope(b, &hr, &hc), &signer)
+                .unwrap();
+        }
+
+        let h7 = msg("(signed @auc \"sig\" (declare-winner \"b3\" :caused-by (h4 h5 h6)))");
+
+        // Safety level (REQ-702): the R5 type check over the fan-in
+        // resolves from the envelopes' authenticated types.
+        let simple = h7.innermost_simple().unwrap();
+        assert_eq!(
+            crate::protocol::verify_causal(
+                "declare-winner",
+                simple.caused_by(),
+                &store,
+                d.causal_protocol.as_ref().unwrap(),
+                &tid(),
+            ),
+            VerificationResult::Valid
+        );
+
+        // Completion level (REQ-703): the occupant fan-in still demands
+        // full messages — envelope-only members are not-yet-complete.
+        let decide = |store: &ThreadedMessageStore| {
+            verify_causal_for_role(
+                &h7,
+                &ep("auctioneer"),
+                &d,
+                &cast,
+                store,
+                &tid(),
+                &ContentHash("h0".to_string()),
+            )
+        };
+        assert_eq!(decide(&store), VerificationResult::Unknown);
+
+        // Supplying the full members completes the fan-in.
+        for (i, b) in ["@b1", "@b2", "@b3"].iter().enumerate() {
+            put(
+                &mut store,
+                &alloc::format!("h{}", i + 4),
+                &msg(&alloc::format!(
+                    "(signed {b} \"sig\" (reveal @auc 42 :caused-by h{}))",
+                    i + 1
+                )),
+            );
+        }
+        assert_eq!(decide(&store), VerificationResult::Valid);
     }
 }

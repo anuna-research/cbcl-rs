@@ -297,15 +297,13 @@ pub enum ProofMember {
         message: Message,
         signature: Vec<u8>,
     },
-    /// A redacted envelope member (CON-702 `member := … | envelope`).
-    // SIMPLIFY: gated on the redacted-envelopes task (REQ-700..REQ-703).
-    // The envelope type does not exist in this crate yet, so this arm
-    // carries no payload and verification rejects it with the typed
-    // [`EquivocationProofError::EnvelopeMemberUnimplemented`] — fail
-    // closed, never a guess. When envelopes land, replace this with
-    // `Envelope(<envelope type>)` and verify from the envelope's
-    // authenticated header (its thread is its authenticated field).
-    Envelope,
+    /// A redacted envelope member (CON-702 `member := … | envelope`;
+    /// REQ-706). The envelope carries its authenticated header and thread
+    /// (REQ-701), so verification runs over exactly the same attestation
+    /// preimage as the full-message arm — relabelling a genuine message
+    /// into a fake conflict fails at the signature either way, and the
+    /// proof discloses no payload for the envelope member (NFR-701).
+    Envelope(crate::envelope::RedactedEnvelope),
 }
 
 /// The transferable proof object (REQ-706, CON-702):
@@ -365,9 +363,6 @@ impl fmt::Display for MemberDefect {
 /// repair). `member` is the 0-based index of the offending member.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum EquivocationProofError {
-    /// The member is an envelope; envelope members are gated on the
-    /// redacted-envelopes task (see [`ProofMember::Envelope`]).
-    EnvelopeMemberUnimplemented { member: usize },
     /// The verifier's dialect carries no content hash, so the pin cannot
     /// be checked (fail closed).
     DialectUnhashed,
@@ -394,9 +389,6 @@ pub enum EquivocationProofError {
 impl fmt::Display for EquivocationProofError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::EnvelopeMemberUnimplemented { member } => {
-                write!(f, "member {member}: envelope proof members not yet implemented")
-            }
             Self::DialectUnhashed => {
                 f.write_str("verifier's dialect carries no content hash; cannot check the pin")
             }
@@ -471,18 +463,21 @@ fn check_member(
     proof: &EquivocationProof,
     signer: &dyn Signer,
 ) -> Result<CheckedMember, EquivocationProofError> {
-    let (message, signature) = match member {
-        ProofMember::SignedMessage { message, signature } => (message, signature),
-        ProofMember::Envelope => {
-            return Err(EquivocationProofError::EnvelopeMemberUnimplemented { member: index })
+    // Both member classes reconstruct the same attestation header shape
+    // (REQ-701): a full message from its fields and computed content hash,
+    // an envelope from its own authenticated header.
+    let (header, signature): (AttestationHeader, &[u8]) = match member {
+        ProofMember::SignedMessage { message, signature } => {
+            let header = attestation_header_for(message).map_err(|defect| {
+                EquivocationProofError::MalformedMember {
+                    member: index,
+                    defect,
+                }
+            })?;
+            (header, signature)
         }
+        ProofMember::Envelope(envelope) => (envelope.header.clone(), &envelope.signature),
     };
-    let header = attestation_header_for(message).map_err(|defect| {
-        EquivocationProofError::MalformedMember {
-            member: index,
-            defect,
-        }
-    })?;
     // Canonical key identity (REQ-708): alias spellings of the accused key
     // are one identity; a different identity is a typed mismatch.
     if header.from != proof.key {
@@ -1175,18 +1170,96 @@ mod tests {
         );
     }
 
+    // ---- REQ-706 + REQ-700..701: envelope proof members ----
+
+    fn envelope_member(m: Message, signer: &dyn Signer) -> ProofMember {
+        let header = attestation_header_for(&m).unwrap();
+        let signature = sign_attestation_v2(signer, &header).unwrap();
+        ProofMember::Envelope(crate::envelope::redact(&m, signature).unwrap())
+    }
+
     #[test]
-    fn envelope_member_is_typed_unimplemented_rejection() {
+    fn envelope_member_convicts_without_payload() {
+        // The second member travels as a redacted envelope: the proof
+        // still verifies from the pair and the pinned dialect alone, and
+        // the envelope member discloses no payload field.
         let d = choice_dialect();
         let mut proof = proof_over(
             &d,
             msg("offer", "@alice", "t1", "a"),
             msg("refuse", "@alice", "t1", "b"),
         );
-        proof.second = ProofMember::Envelope;
+        proof.second = envelope_member(msg("refuse", "@alice", "t1", "payload-b"), &ALICE_SIGNER);
+        if let ProofMember::Envelope(env) = &proof.second {
+            assert!(
+                !env.to_sexpr().to_string().contains("payload-b"),
+                "envelope member must disclose no payload field (NFR-701)"
+            );
+        }
         assert_eq!(
             verify_equivocation_proof(&proof, &d, &ALICE_SIGNER),
-            Err(EquivocationProofError::EnvelopeMemberUnimplemented { member: 1 })
+            Ok(alice())
+        );
+    }
+
+    #[test]
+    fn all_envelope_pair_convicts() {
+        let d = choice_dialect();
+        let mut proof = proof_over(
+            &d,
+            msg("offer", "@alice", "t1", "a"),
+            msg("offer", "@alice", "t1", "b"),
+        );
+        proof.first = envelope_member(msg("offer", "@alice", "t1", "a"), &ALICE_SIGNER);
+        proof.second = envelope_member(msg("offer", "@alice", "t1", "b"), &ALICE_SIGNER);
+        assert_eq!(
+            verify_equivocation_proof(&proof, &d, &ALICE_SIGNER),
+            Ok(alice())
+        );
+    }
+
+    #[test]
+    fn relabelled_envelope_member_fails_at_the_signature() {
+        // An envelope's thread is its authenticated field (REQ-701):
+        // rewriting it to frame a cross-thread conflict changes the
+        // attestation preimage, so the forgery dies at the signature —
+        // never at a repairable policy check.
+        let d = choice_dialect();
+        let mut proof = proof_over(
+            &d,
+            msg("offer", "@alice", "t1", "a"),
+            msg("refuse", "@alice", "t2", "b"), // genuinely from thread t2
+        );
+        let ProofMember::SignedMessage { message, .. } = proof.second.clone() else {
+            unreachable!()
+        };
+        let mut env = match envelope_member(message, &ALICE_SIGNER) {
+            ProofMember::Envelope(env) => env,
+            _ => unreachable!(),
+        };
+        env.header.thread = "t1".to_string(); // relabel into the conflict
+        proof.second = ProofMember::Envelope(env);
+        assert_eq!(
+            verify_equivocation_proof(&proof, &d, &ALICE_SIGNER),
+            Err(EquivocationProofError::Signature {
+                member: 1,
+                error: AttestError::InvalidSignature,
+            })
+        );
+    }
+
+    #[test]
+    fn envelope_member_by_another_key_is_a_key_mismatch() {
+        let d = choice_dialect();
+        let mut proof = proof_over(
+            &d,
+            msg("offer", "@alice", "t1", "a"),
+            msg("refuse", "@alice", "t1", "b"),
+        );
+        proof.second = envelope_member(msg("refuse", "@bob", "t1", "b"), &BOB_SIGNER);
+        assert_eq!(
+            verify_equivocation_proof(&proof, &d, &ALICE_SIGNER),
+            Err(EquivocationProofError::KeyMismatch { member: 1 })
         );
     }
 

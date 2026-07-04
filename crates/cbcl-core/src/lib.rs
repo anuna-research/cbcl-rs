@@ -25,6 +25,7 @@
 //! - `gossip` — Epidemic gossip protocol for dialect propagation
 //! - `keyid` — Canonical suite-typed key identity (SPEC-015 REQ-708)
 //! - `attest` — R4 v2 attestation signing discipline (SPEC-015 REQ-701, ADR-700)
+//! - `envelope` — Redacted envelopes: payload-free evidence widening (SPEC-015 REQ-700..703)
 //! - `equivocation` — Equivocation accountability: predicate, proof object, lint (SPEC-015 REQ-705..707)
 
 #![forbid(unsafe_code)]
@@ -45,6 +46,7 @@ pub mod blame;
 pub mod canonical;
 pub mod clock;
 pub mod dialect;
+pub mod envelope;
 pub mod equivocation;
 pub mod evaluator;
 pub mod gossip;
@@ -78,6 +80,7 @@ pub mod prelude {
     pub use crate::dialect::{
         Dialect, DialectInstallError, DialectRegistry, PerformativeDef, ResourceBounds,
     };
+    pub use crate::envelope::{parse_envelope, redact, EnvelopeParseError, RedactedEnvelope};
     pub use crate::evaluator::{Effect, EvalError, EvalResult};
     pub use crate::gossip::{GossipConfig, GossipNetwork, GossipStats, PropagationState, Topology};
     pub use crate::message::{
