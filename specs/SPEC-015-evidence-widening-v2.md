@@ -97,10 +97,10 @@ Trace: [[#TEST-700]], grammar [[#CON-700]].
 **REQ-701: Envelope verifiability without payload.**
 An envelope SHALL be verifiable from its own fields alone: a holder SHALL be
 able to check that the signature binds the named sender key to the named
-content hash without possessing the payload. If R4's current signature is
-computed over serialised message bytes rather than over the content digest,
-R4 v2 SHALL sign the digest ([[#ADR-700]]); this is the single change to the
-signing discipline this spec requires.
+content hash without possessing the payload. R4 v2 SHALL therefore sign the
+canonical bytes of a domain-tagged attestation naming the content hash
+([[#ADR-700]]), reconstructible from the hash alone; this is the single
+change to the signing discipline this spec requires.
 Trace: [[#TEST-701]].
 
 **REQ-702: Safety-level verification over envelopes.**
@@ -182,15 +182,32 @@ Trace: [[#TEST-707]].
 
 ## Architecture Decisions
 
-**ADR-700: Sign the digest.**
-*Decision*: envelope verifiability ([[#REQ-701]]) is obtained by making R4
-signatures bind the content digest rather than raw serialised bytes.
-*Alternatives*: (a) sign raw bytes and accept unverifiable envelopes —
-rejected, an unverifiable envelope is hearsay and re-opens the spoofing
-surface; (b) countersigned attestations by prior recipients — rejected,
-introduces a trust topology and message-size growth. *Consequence*: one
-audited change in the R4 path; hash-then-sign is the standard [[Ed25519]]
-deployment shape.
+**ADR-700: Sign a canonical attestation naming the content hash.**
+*Decision*: R4 v2 signatures are computed over the RFC 9804 canonical bytes
+of a constant-size, domain-tagged attestation naming the message's content
+hash — e.g. `(cbcl-attest-v2 sha256:…)` — rather than over the full
+canonical message bytes.
+*Why not sign the full canonical message*: [[Ed25519]] verification takes
+the message itself as input (its internal hash runs over the signed bytes),
+so a signature over full canonical bytes is unverifiable from a redacted
+envelope, defeating [[#REQ-701]] — the envelope holder would hold hearsay.
+*Why not sign a bare digest*: signing unstructured 32-byte strings invites
+cross-protocol substitution; the domain-tagged canonical attestation gives
+the signature a single unambiguous meaning ("this key vouches for the
+CBCL message with this content hash") and remains reconstructible by any
+holder of the hash alone.
+*Security accounting*: signing an attestation over the hash forfeits
+Ed25519's collision resilience — signature security now reduces to
+[[SHA-256]] collision resistance. In CBCL this introduces **no new
+assumption**: content addressing, every `:caused-by` link, cast
+tamper-evidence, and the Lean development's hash-injectivity axiom already
+rest on exactly that; a collision forger can already rewrite causal history
+without forging a signature. The signature becomes as strong as, and no
+stronger than, everything else — no new weakest link.
+*Alternatives rejected*: (a) sign full bytes and accept unverifiable
+envelopes — hearsay, re-opens the spoofing surface; (b) countersigned
+attestations by prior recipients — introduces a trust topology and message
+growth. *Consequence*: one audited change in the R4 path.
 
 **ADR-701: Unrolling over μ-types.**
 *Decision*: repetition enters as install-time macro-expansion
