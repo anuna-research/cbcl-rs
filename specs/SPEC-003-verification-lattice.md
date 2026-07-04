@@ -604,10 +604,27 @@ on verdicts that are stable under store growth: `Valid` (sticky) and
 algebra and its valid-is-sticky monotonicity
 ([[SPEC-003-verification-lattice#REQ-304]]) are unchanged.
 
+**Implementation note (2026-07-04).** The gate is implemented in the agent
+path (`causal_verdict`, `reevaluate_pending`). While implementing
+TEST-355 a model–implementation divergence surfaced: `verify_causal`'s
+`Multiple` arm evaluates only the `(all …)` meet; a multi-hash
+`:caused-by` against an `(any …)` clause is `FanInWithoutAllDecl`
+regardless of store contents, so in the deployed verifier no `Violation`
+ever flips to `Valid` and TEST-355's legal-type-resolution branch is
+unreachable (pinned by
+`resolution_with_legal_type_still_rejects_multi_hash_any_reference`).
+The Lean model (`Verify.lean`) folds `(any …)` with join. Open decision:
+implement the join in Rust, or spec multi-hash any-citation as a
+structural violation and narrow the Lean model — the LangSec instinct
+favours the structural rejection (a conformant message names exactly one
+branch); the gate is then defence-in-depth that becomes load-bearing the
+moment any join path lands. The same ungated `Violation→Reject` also
+survives in `cbcl-parser/src/pipeline.rs` (untracked by this REQ).
+
 verified-by: test
 
 Trace:
-- TEST-355
+- TEST-355 (Accept branch pending the open decision above)
 
 ---
 

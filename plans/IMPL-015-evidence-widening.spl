@@ -120,3 +120,15 @@
 (normally r-propagate-dialect-hashing-from-req315-gate-stale-v1 stale-v1-req315-gate upstream-blocked-dialect-hashing)
 (normally r-propagate-dialect-hashing-from-req315-gate-timeout-v1 timeout-v1-req315-gate upstream-blocked-dialect-hashing)
 (normally r-propagate-dialect-hashing-from-req315-gate-blocked upstream-blocked-req315-gate upstream-blocked-dialect-hashing)
+
+(claims agent:claude
+  :at "2026-07-04T04:15:52Z"
+  (given discovered-no-any-join-in-verify-causal))
+
+(claims agent:claude
+  :at "2026-07-04T04:15:52Z"
+  (given completed-fix-bug640))
+
+(claims agent:claude
+  :at "2026-07-04T04:15:52Z"
+  (given completed-req315-gate))
