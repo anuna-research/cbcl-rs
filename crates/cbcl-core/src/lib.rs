@@ -25,6 +25,7 @@
 //! - `gossip` — Epidemic gossip protocol for dialect propagation
 //! - `keyid` — Canonical suite-typed key identity (SPEC-015 REQ-708)
 //! - `attest` — R4 v2 attestation signing discipline (SPEC-015 REQ-701, ADR-700)
+//! - `equivocation` — Equivocation accountability: predicate, proof object, lint (SPEC-015 REQ-705..707)
 
 #![forbid(unsafe_code)]
 #![cfg_attr(not(feature = "std"), no_std)]
@@ -44,6 +45,7 @@ pub mod blame;
 pub mod canonical;
 pub mod clock;
 pub mod dialect;
+pub mod equivocation;
 pub mod evaluator;
 pub mod gossip;
 pub mod keyid;
