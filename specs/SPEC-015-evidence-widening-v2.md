@@ -134,6 +134,37 @@ particular the corpus repairs for two-buyer (share), 2PC (votes), OAuth
 (passwd), and the announcing auction (bids) SHALL be expressible with zero
 payload disclosure to the widened recipients.
 
+**NFR-702: Metadata exposure bounded and stated.**
+An envelope SHALL reveal exactly its declared fields — content hash,
+performative name, sender key, recipient set, signature, `:caused-by`
+references — and nothing else; and every consumer-facing statement of this
+layer's guarantees (docs, the EPP paper's table) SHALL describe envelope
+disclosure as *metadata-only*, never as *none*: performative type, speaker,
+audience, and causal position are traffic-analysis-grade information (the
+warehouse learning the branch is the knowledge-of-choice being delivered —
+usually the point, occasionally the leak). Conversation-shape
+confidentiality is a transport concern, explicitly out of scope here.
+
+**REQ-709: Derived envelope routing (causal locality as compilation).**
+A dialect MAY declare `(:causal-locality derive)` (default: `reject`, the
+v1 behaviour). Under `derive`, an R6(vi) failure at either level SHALL NOT
+reject the dialect; instead the installer SHALL compute the
+\emph{envelope-widening closure} — for every violation
+`NotCausallyLocal {t, pred, r}` (or per-occupant equivalent), add `r` as an
+*envelope recipient* of `pred`, iterated to a fixpoint up the causal chain
+(the paper's ``fails one level up'' rule), terminating because the protocol
+DAG and role set are finite — and install the dialect with the resulting
+per-performative envelope-routing table. Payload recipient sets
+(`:to`) SHALL be unchanged; R6 SHALL then hold for the widened reading; and
+the derivation SHALL be a pure function of the dialect (and cast, for the
+instantiated level), so every agent derives identical routes — the
+replicated-choreographer property extended from projection to repair.
+Corpus consequence: the seven R6(vi)-failing protocols of
+[[SPEC-014-role-layer-endpoint-projection#TEST-640]] install under `derive`
+with exactly the table's delivery counts as derived header routes and
+metadata-only disclosure ([[#NFR-702]]).
+Trace: [[#TEST-709]], decision [[#ADR-704]].
+
 ### Bounded repetition
 
 **REQ-704: `(repeat k …)` protocol form.**
@@ -251,6 +282,21 @@ splicing regime's goal (verify a dependency never received in full) without
 rewritten predecessor views — raw hashes still verify, so
 [[SPEC-014-role-layer-endpoint-projection#REQ-610]] stands.
 
+**ADR-704: Derive, don't reject — but opt in.**
+*Decision*: under `(:causal-locality derive)` ([[#REQ-709]]), R6(vi) stops
+being a rejection condition and becomes a compilation step deriving
+envelope routes; the default remains `reject`.
+*Rationale*: with envelope widening costing constant-size headers and
+metadata-only disclosure, rejection's remaining justification is thin —
+five classically-unremarkable corpus protocols fail v1's check for want of
+routing the substrate can now derive itself, purely and identically at
+every endpoint.
+*Why opt-in*: derivation silently enlarges delivery obligations and
+metadata audiences; a dialect author should accept that consciously, and
+`reject` preserves v1 semantics bit-for-bit. *Ceiling*: `derive` MAY become
+the default in a later version after field experience; recorded here so
+the flip is a documented decision, not drift.
+
 **ADR-703: Detection, not exclusion.**
 *Decision*: equivocation is detected and attributed, never excluded by
 verdict. *Rationale*: exclusion requires reading arrival order or revoking
@@ -344,6 +390,17 @@ under two suites are distinct identities (cast conformance fails across
 them); an ed25519 signature verifies only against an attestation naming
 `ed25519`, never one naming another suite over the same hash.
 
+**TEST-709: Derivation closure.** Under `(:causal-locality derive)`, every
+R6(vi)-failing corpus dialect installs; its derived envelope routes equal
+the hand-widened repair of
+[[SPEC-014-role-layer-endpoint-projection#TEST-640]] read as envelope
+recipients (transitive closure included: warehouse derivation covers
+`track-shipment`, not just the deciding branch; announcing-auction
+derivation covers `commit`, not just `reveal`); derivation is idempotent
+and identical across independent installs; payload `:to` sets are
+byte-identical before and after; under the default `reject` the v1
+verdicts of TEST-640 are unchanged.
+
 ## Traceability
 
 | Requirement | Tests | Decision |
@@ -357,9 +414,20 @@ them); an ed25519 signature verifies only against an attestation naming
 | [[#REQ-706]] | [[#TEST-706]] | [[#ADR-703]] |
 | [[#REQ-707]] | [[#TEST-707]] | [[#ADR-703]] |
 | [[#REQ-708]] | [[#TEST-708]] | [[#ADR-700]] |
+| [[#REQ-709]] | [[#TEST-709]] | [[#ADR-704]] |
 
 ## Changelog
 
+- 0.1.2 (2026-07-04) — projected-table review before implementation.
+  REQ-709/ADR-704: `(:causal-locality derive)` turns R6(vi) from rejection
+  into compilation — the installer derives the envelope-widening closure as
+  a pure function, so the corpus's seven failures install with the table's
+  delivery counts as derived header routes (opt-in; `reject` stays the
+  default). NFR-702: envelope disclosure is stated as metadata-only, never
+  ``none'' — type, speaker, audience, and causal position remain visible,
+  which is usually the knowledge-of-choice being delivered and occasionally
+  the leak. TEST-709 pins the closure (transitive: warehouse ⇒
+  track-shipment; announcing auction ⇒ commit).
 - 0.1.1 (2026-07-04) — ADR-700 refined per review dialogue: the signing
   preimage is a canonical, domain-tagged attestation naming the content
   hash (not the full message bytes, which envelopes cannot verify; not a
