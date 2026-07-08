@@ -66,6 +66,7 @@ pub mod r6;
 pub mod role;
 pub mod serializer;
 pub mod sexpr;
+pub mod splice;
 pub mod shape;
 pub mod store;
 pub mod template;
