@@ -1,0 +1,86 @@
+;; IMPL-016: the splicing regime (R6') — inference-splicing correspondence.
+(meta plan
+  (id "IMPL-016")
+  (title "Splicing regime: correspondence under partial observation")
+  (version "1.0.0")
+  (status "active")
+  (created "2026-07-08")
+  (author "agent:claude")
+  (spec "EPP paper deferred splicing regime; the deeper theorem three reviews asked for")
+  (description "Relax R6(vi) causal locality to splice-coherence (interval type-forcing + choice-recovery: merge OR hash-pinned). Prove the spliced correspondence: local soundness under partial observation (a role verifies a dependency it holds only as a hash-commitment), gluing, v1 as the degenerate case. The novelty is the hash-pinned choice disjunct: splice-coherence strictly weaker than classical mergeability. DE-RISK GATES THE PROOF: verify the condition is inhabited beyond R6(vi), strictly weaker than merge, and a decidable install check, BEFORE any Lean mechanization."))
+
+(given agent-claude-available)
+
+;; Phase 0 — de-risk (gates everything)
+(given task-derisk)
+(given no-deps-derisk)
+;; Phase 1 — spec (gated on GO)
+(given task-spec)
+;; Phase 2 — mechanization
+(given task-lean-defs)
+(given task-lean-soundness)
+(given task-lean-gluing)
+;; Phase 3 — paper
+(given task-paper)
+
+(meta task-derisk
+  (description "Against the real Lean model (Projectability/EPP/Verify.lean) and the Rust corpus (paper_corpus.rs): (1) define splice-coherence precisely as a static, checkable predicate — interval type-forcing + choice-recovery (merge OR hash-pinned); (2) implement a splice_coherence checker in cbcl-core (analogue of r6_violations) and RUN it over the corpus + new dialects; (3) confirm it is inhabited beyond R6(vi) — find a protocol/role splice-coherent but not causally-local (predicted: OAuth authoriser via the hash-pinned disjunct); (4) construct a SEPARATING example: splice-coherent AND NOT classically mergeable (branch-dependent behavior with hash-pinned branch); (5) argue decidability of the install check. Output a GO/NO-GO with evidence.")
+  (acceptance "A checker that runs over the corpus with recorded verdicts; at least one splice-coherent-but-not-causally-local witness; a concrete splice-coherent-but-not-mergeable protocol with the argument; decidability sketch; explicit GO or NO-GO. NO-GO if the condition collapses to R6(vi) in practice or is not decidable."))
+(meta task-spec
+  (description "SPEC-016: the splicing regime — R6' (R6 with (vi) relaxed to splice-coherence), spliced projection, spliced verification over hash-commitments, the checker as install-time gate. LangSec-conformant.")
+  (acceptance "Spec authored with the de-risk definitions as normative; regime lattice (R6(vi) / envelope / inference) stated; decidable install check specified"))
+(meta task-lean-defs
+  (description "Lean: spliced projection project*, spliced verification verify*, splice-coherence predicate — extending EPP.lean's model, reusing project/glue/Family")
+  (acceptance "Compiles, no sorry; v1 project = project* under R6(vi) proved as a sanity lemma"))
+(meta task-lean-soundness
+  (description "Lean: local soundness — verify*(m,r,project*(C,r)) = verify(m,C) for P-safe closed C under splice-coherence. The hard part: interval type-forcing kills spurious accept, choice-recovery kills the stall")
+  (acceptance "Theorem proved, no sorry, standard axioms only"))
+(meta task-lean-gluing
+  (description "Lean: gluing (project*/glue* mutually inverse, by sender-holds-own-message) and v1 as the degenerate case (splice-coherence -> R6(vi) specializes to Theorem 2)")
+  (acceptance "Both theorems proved, no sorry; the regime lattice is a corollary chain"))
+(meta task-paper
+  (description "Integrate as a numbered theorem in the extended version; reframe the projection section as a regime lattice (observe-all / headers / inference); state the strictly-weaker-than-merge separating result; conference gets a compact statement")
+  (acceptance "Both build; conference 10pp; the reviewer W2 'hard problem sidestepped' objection directly answered in text"))
+
+;; Readiness — de-risk gates the proof
+(normally r-ready-derisk (and task-derisk no-deps-derisk) ready-derisk)
+(normally r-ready-spec (and task-spec go-derisk) ready-spec)
+(normally r-ready-lean-defs (and task-lean-defs completed-spec) ready-lean-defs)
+(normally r-ready-lean-soundness (and task-lean-soundness completed-lean-defs) ready-lean-soundness)
+(normally r-ready-lean-gluing (and task-lean-gluing completed-lean-defs) ready-lean-gluing)
+(normally r-ready-paper (and task-paper completed-lean-soundness completed-lean-gluing) ready-paper)
+
+;; Assignment
+(normally r-assign-derisk (and ready-derisk agent-claude-available) assign-to-derisk-claude)
+(normally r-assign-spec (and ready-spec agent-claude-available) assign-to-spec-claude)
+(normally r-assign-lean-defs (and ready-lean-defs agent-claude-available) assign-to-lean-defs-claude)
+(normally r-assign-lean-soundness (and ready-lean-soundness agent-claude-available) assign-to-lean-soundness-claude)
+(normally r-assign-lean-gluing (and ready-lean-gluing agent-claude-available) assign-to-lean-gluing-claude)
+(normally r-assign-paper (and ready-paper agent-claude-available) assign-to-paper-claude)
+
+(meta r-ready-spec
+  (description "The proof pipeline is gated on the de-risk verdict")
+  (justification "Splice-coherence must be shown inhabited-beyond-R6(vi), strictly-weaker-than-merge, and decidable before any Lean weeks are spent; go-derisk is asserted only on GO"))
+
+(claims agent:claude
+  :at "2026-07-08T13:44:27Z"
+  (given claim-v1-derisk)
+  (normally r-cl-state-v1-derisk claim-v1-derisk state-claimed-v1-derisk)
+  (normally r-cl-chain-v1-derisk state-claimed-v1-derisk claimed-derisk)
+)
+
+(claims agent:claude
+  :at "2026-07-08T14:07:17Z"
+  (given nogo-inference-splicing-hash-type-opacity))
+
+(claims agent:claude
+  :at "2026-07-08T14:07:17Z"
+  (given pivot-to-necessity-and-minimality-result))
+
+(claims agent:claude
+  :at "2026-07-08T14:07:17Z"
+  (given completed-derisk))
+
+(claims agent:claude
+  :at "2026-07-08T14:23:51Z"
+  (given spec016-authored))
