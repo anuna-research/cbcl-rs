@@ -1,4 +1,5 @@
 import LeanCbcl.SExpr
+import Batteries.Tactic.Lint  -- provides the `@[nolint …]` attribute
 
 /-!
 # Verified S-Expression Parser
@@ -122,6 +123,8 @@ def parseAll (input : String) : Except String (List SExpr) :=
   let fuel := chars.length * 4 + 1
   go chars [] fuel
 where
+  /-- Fuel-bounded worker: repeatedly skip whitespace and parse one
+      S-expression, accumulating results until the input is exhausted. -/
   go (cs : List Char) (acc : List SExpr) (fuel : Nat) : Except String (List SExpr) :=
     match fuel with
     | 0 => .ok acc.reverse
@@ -235,6 +238,11 @@ theorem tokenToAtom_isSExpr (tok : String) :
   .atom _
 
 /-- readStr produces an `IsSExpr` string atom when it succeeds (trivial). -/
+-- `_h` (the success hypothesis) is unused: `IsSExpr (.atom _)` holds for any
+-- atom, so the result is unconditional. The hypothesis is kept to state the
+-- intended soundness shape ("when `readStr` succeeds, the atom is well-formed");
+-- removing it would change the theorem's statement, not merely its proof.
+@[nolint unusedArguments]
 theorem readStr_isSExpr (cs : List Char) (s : String) (rest : List Char)
     (_h : readStr cs = some (s, rest)) :
     IsSExpr (.atom (.str s)) :=
@@ -306,11 +314,18 @@ theorem allSExpr_isSExpr : ∀ (e : SExpr), IsSExpr e :=
     `SExpr`". For a load-bearing grammar-shape invariant, see
     `MessageParser.parseMessage_sound` which is stated against the
     genuinely non-trivial `ValidMessageGrammar`. -/
+-- `_h` is unused: `allSExpr_isSExpr` gives `IsSExpr e` for every `e`. The
+-- success hypothesis is retained to state the parser-soundness shape; deleting
+-- it would change the statement (to the bare truism `∀ e, IsSExpr e`).
+@[nolint unusedArguments]
 theorem parseSExpr_isSExpr (input : List Char) (fuel : Nat) (e : SExpr) (rest : List Char)
     (_h : parseSExpr input fuel = .ok e rest) : IsSExpr e :=
   allSExpr_isSExpr e
 
 /-- `parse` produces an `IsSExpr` result whenever it succeeds (weak invariant). -/
+-- `_h` unused for the same reason as `parseSExpr_isSExpr`: kept for statement
+-- shape, not deleted.
+@[nolint unusedArguments]
 theorem parse_isSExpr (input : String) (e : SExpr)
     (_h : parse input = .ok e) : IsSExpr e :=
   allSExpr_isSExpr e

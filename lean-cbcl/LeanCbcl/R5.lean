@@ -1,4 +1,5 @@
 import LeanCbcl.R1NoRecursion
+import Batteries.Tactic.Lint  -- provides the `@[nolint …]` attribute
 
 /-!
 # R5 Sub-check Soundness — Acyclicity + Reachability + Definedness + Uniqueness (REQ-515 / CON-515 / TEST-515)
@@ -70,10 +71,17 @@ namespace CBCL
     underlying performative-name reference set matters, so the Lean
     surface model collapses both to `List String`. -/
 structure StepDecl where
+  /-- The performative this protocol step is keyed by. -/
   performative : String
+  /-- Performative names that must causally precede this step. -/
   predecessors : List String
+  /-- Performative names that may causally follow this step. -/
   successors   : List String
   deriving Repr
+
+-- Derived-`Repr` precedence argument unused (records are never parenthesised).
+-- False positive on generated code; suppressed on the derived instance.
+attribute [nolint unusedArguments] instReprStepDecl.repr
 
 /-- Parsed causal protocol declaration (mirrors Rust `CausalProtocol`).
     The Rust `BTreeMap<String, StepDecl>` is rendered here as a plain
@@ -88,8 +96,13 @@ structure StepDecl where
     separate concepts despite both Rust files reusing the
     `CausalProtocol` name. -/
 structure ProtocolGraph where
+  /-- The protocol's step declarations (one per performative). -/
   steps : List StepDecl
   deriving Repr
+
+-- Derived-`Repr` precedence argument unused (records are never parenthesised).
+-- False positive on generated code; suppressed on the derived instance.
+attribute [nolint unusedArguments] instReprProtocolGraph.repr
 
 /-- Protocol-level violation found during R5 verification (mirrors Rust
     `ProtocolViolation`). The `cycle`, `unreachable`,

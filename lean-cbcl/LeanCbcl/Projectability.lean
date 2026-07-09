@@ -90,13 +90,24 @@ each `…D` notion is *definitionally* the corresponding `EPP` notion. -/
 
 /-- The raw data of a `Proto`, without the R6(vi) proof obligation. -/
 structure ProtoData (Role Perf Msg : Type) where
+  /-- The performative (message type) carried by each message. -/
   perf      : Msg → Perf
+  /-- The role that sends a given message. -/
   sender    : Msg → Role
+  /-- Whether a role is a recipient of a given message. -/
   recip     : Msg → Role → Prop
+  /-- The `caused-by` predecessor relation on messages: `predRel m p` says `p` is a
+      predecessor of `m`. -/
   predRel   : Msg → Msg → Prop
+  /-- The declared sender role of a performative. -/
   psender   : Perf → Role
+  /-- Whether a role is a declared recipient of a performative. -/
   precip    : Perf → Role → Prop
+  /-- The legal-predecessor relation on performatives: `legalPred t t'` says a
+      message of type `t` may be caused by a predecessor of type `t'`. -/
   legalPred : Perf → Perf → Prop
+  /-- The type clause of a performative, as a predicate over the set of predecessor
+      performative types present. -/
   clause    : Perf → (Perf → Prop) → Prop
 
 namespace ProtoData
@@ -125,21 +136,40 @@ def toProto (h : D.causalLocality) : Proto Role Perf Msg where
 /- The `EPP` semantics, verbatim, over `ProtoData` (definitional copies;
    see the bridge lemmas below). -/
 
+/-- `r` is an endpoint of message `m`: it either sends or receives `m`. -/
 def endpointD (m : Msg) (r : Role) : Prop := D.sender m = r ∨ D.recip m r
+/-- `m` is resolved in store `S`: every predecessor of `m` is present in `S`. -/
 def resolvedD (S : Cfg Msg) (m : Msg) : Prop := ∀ p, D.predRel m p → S p
+/-- The predicate on performatives holding of `t` exactly when some predecessor of
+    `m` present in `S` has type `t`. -/
 def predTypesPresentD (S : Cfg Msg) (m : Msg) : Perf → Prop :=
   fun t => ∃ p, D.predRel m p ∧ S p ∧ D.perf p = t
+/-- `m` conforms to its performative: its actual sender and recipients match the
+    declared sender and recipients of `m`'s performative type. -/
 def conformantD (m : Msg) : Prop :=
   D.sender m = D.psender (D.perf m) ∧ (∀ r, D.recip m r ↔ D.precip (D.perf m) r)
+/-- `m` has no spurious predecessors: every predecessor's type is a legal
+    predecessor of `m`'s type. -/
 def noSpuriousD (m : Msg) : Prop :=
   ∀ p, D.predRel m p → D.legalPred (D.perf m) (D.perf p)
+/-- `m` is good in store `S`: it is conformant, has no spurious predecessors, and
+    its performative's clause holds of the predecessor types present in `S`. -/
 def goodD (S : Cfg Msg) (m : Msg) : Prop :=
   conformantD D m ∧ noSpuriousD D m ∧ D.clause (D.perf m) (predTypesPresentD D S m)
+/-- `m`'s verdict is `Unknown` in `S`: `m` is not resolved (a predecessor is
+    missing). -/
 def isUnknownD (S : Cfg Msg) (m : Msg) : Prop := ¬ resolvedD D S m
+/-- `m`'s verdict is `Valid` in `S`: `m` is resolved and good. -/
 def isValidD (S : Cfg Msg) (m : Msg) : Prop := resolvedD D S m ∧ goodD D S m
+/-- `m`'s verdict is `Violation` in `S`: `m` is resolved but not good. -/
 def isViolationD (S : Cfg Msg) (m : Msg) : Prop := resolvedD D S m ∧ ¬ goodD D S m
+/-- `C` is predecessor-closed: whenever a message is in `C`, so are all its
+    predecessors. -/
 def closedCfgD (C : Cfg Msg) : Prop := ∀ m, C m → ∀ p, D.predRel m p → C p
+/-- `C` is `P`-safe: no message occurring in `C` is a violation there. -/
 def pSafeD (C : Cfg Msg) : Prop := ∀ m, C m → ¬ isViolationD D C m
+/-- Projection of `C` onto role `r`: the messages of `C` for which `r` is an
+    endpoint. -/
 def projectD (C : Cfg Msg) (r : Role) : Cfg Msg := fun m => C m ∧ endpointD D m r
 
 /-! Bridge lemmas: under `toProto`, every `…D` notion coincides *definitionally*
@@ -197,8 +227,13 @@ can reach, `py`'s verdict is `Unknown` for want of `px`. No choice point is
 involved, so the "(a)/(b) choice-point" reading of Definition 6 is vacuous here
 while local verifiability still fails — the counterexample of review item M1. -/
 
+/-- The three roles of the counterexample: `rA`, `rB`, `rC`. -/
 inductive XRole | rA | rB | rC
+/-- The two performatives of the counterexample: `px` (`rA → rB`) and `py`
+    (`rC → rB`). -/
 inductive XPerf | px | py
+/-- The two messages of the counterexample: `mx` of type `px` and `my` of type
+    `py`. -/
 inductive XMsg  | mx | my
 
 /-- The protocol data: `mx : rA → rB` of type `px`; `my : rC → rB` of type `py`,

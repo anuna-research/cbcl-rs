@@ -30,13 +30,22 @@ inductive Verdict where
     (this is where `(any)` = "some named type present", `(all)` = "all named types
     present" live). -/
 structure Proto (Role Perf Msg : Type) where
+  /-- The performative (message type) of a message. -/
   perf      : Msg → Perf
+  /-- The sender role of a message. -/
   sender    : Msg → Role
+  /-- `recip m r`: role `r` is a recipient of message `m`. -/
   recip     : Msg → Role → Prop
+  /-- `predRel m p`: `p` is a `:caused-by` predecessor of `m`. -/
   predRel   : Msg → Msg → Prop
+  /-- The protocol-declared sender role of a performative. -/
   psender   : Perf → Role
+  /-- `precip t r`: role `r` is a protocol-declared recipient of performative `t`. -/
   precip    : Perf → Role → Prop
+  /-- `legalPred t t'`: performative `t'` is a legal predecessor type for `t`. -/
   legalPred : Perf → Perf → Prop
+  /-- `clause t present`: the protocol's predecessor clause for performative `t`, evaluated
+      against the set `present` of predecessor types currently available. -/
   clause    : Perf → (Perf → Prop) → Prop
   /-- R6 clause (vi): causal locality (type level). -/
   causalLocal : ∀ (t t' : Perf) (r : Role),
@@ -68,7 +77,9 @@ def good (S : Cfg Msg) (m : Msg) : Prop :=
 
 /-- The three verdicts as predicates (they partition: classically exactly one holds). -/
 def isUnknown   (S : Cfg Msg) (m : Msg) : Prop := ¬ resolved P S m
+/-- `m` is `Valid` in store `S`: every referenced predecessor is present and `m` is `good`. -/
 def isValid     (S : Cfg Msg) (m : Msg) : Prop := resolved P S m ∧ good P S m
+/-- `m` is a `Violation` in store `S`: every referenced predecessor is present but `m` is not `good`. -/
 def isViolation (S : Cfg Msg) (m : Msg) : Prop := resolved P S m ∧ ¬ good P S m
 
 /-- Causally down-closed configuration. -/
@@ -183,6 +194,7 @@ theorem soundness_safety {C : Cfg Msg} (hcl : closedCfg P C) (hsafe : pSafe P C)
 
 /-- A compatible family of local runs. -/
 structure Family (P : Proto Role Perf Msg) where
+  /-- `run r` is role `r`'s local run (store). -/
   run  : Role → Cfg Msg
   rel  : ∀ r m, run r m → endpoint P m r
   covA : ∀ r r' m, run r m → endpoint P m r' → run r' m

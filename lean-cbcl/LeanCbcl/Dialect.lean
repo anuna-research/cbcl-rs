@@ -1,5 +1,6 @@
 import LeanCbcl.SExpr
 import LeanCbcl.Message
+import Batteries.Tactic.Lint  -- provides the `@[nolint …]` attribute
 
 /-!
 # CBCL Dialect System
@@ -16,32 +17,59 @@ namespace CBCL
     Mirrors the resource alist: max-depth, max-expansion-size, verification-time.
     All three fields are REQUIRED by R2 verification. -/
 structure ResourceBounds where
+  /-- Maximum template-expansion nesting depth permitted (R2). -/
   maxDepth         : Nat
+  /-- Maximum total expansion size permitted (R2). -/
   maxExpansionSize : Nat
+  /-- Maximum verification time budget, in milliseconds (R2). -/
   verificationTime : Nat  -- milliseconds
   deriving Repr, BEq, DecidableEq, Inhabited
+
+-- The `deriving Repr` handler emits a `reprPrec` that ignores its precedence
+-- argument (records are never parenthesised), so `unusedArguments` flags the
+-- auto-generated `.repr`. This is a false positive on generated code, suppressed
+-- on the derived instance rather than altering it.
+attribute [nolint unusedArguments] instReprResourceBounds.repr
 
 /-- A performative definition maps a name to a template expansion.
     In the Scheme implementation, core performatives use lambdas while
     extension performatives use declarative templates (literal, cond, sequence). -/
 structure PerformativeDef where
+  /-- The performative's name (its head symbol). -/
   name     : String
+  /-- Formal parameters bound in the template. -/
   params   : List SExpr
+  /-- The expansion template this performative rewrites to. -/
   template : SExpr
   deriving Repr, BEq, Inhabited
 
+-- Derived-`Repr` precedence argument unused (see note above). False positive.
+attribute [nolint unusedArguments] instReprPerformativeDef.repr
+
 /-- A CBCL dialect. Mirrors `<cbcl-dialect>` record. -/
 structure Dialect where
+  /-- The dialect's unique name. -/
   name           : String
+  /-- Names of parent dialects this one extends. -/
   extends_       : List String  -- parent dialect names
+  /-- The dialect's author/owner. -/
   author         : String
+  /-- Performative definitions introduced by this dialect. -/
   performatives  : List PerformativeDef
+  /-- Resource bounds enforced for this dialect (R2). -/
   resources      : ResourceBounds
+  /-- Example messages illustrating the dialect. -/
   examples       : List SExpr    := []
+  /-- Optional cryptographic signature over the dialect definition. -/
   signature      : Option String := none
+  /-- Optional content hash of the dialect definition. -/
   hash           : Option String := none
+  /-- Optional protocol name/identifier the dialect follows. -/
   protocol       : Option String := none
   deriving Repr, Inhabited
+
+-- Derived-`Repr` precedence argument unused (see note above). False positive.
+attribute [nolint unusedArguments] instReprDialect.repr
 
 /-- The base dialect's resource bounds: max-depth=8, max-expansion=512, verification-time=10ms -/
 def baseResourceBounds : ResourceBounds :=
@@ -103,10 +131,12 @@ theorem baseDialect_defines_all_core :
   rcases hmem with h | h | h | h | h | h | h | h <;>
     (subst h; native_decide)
 
-/-- R2 static upper bounds: system-wide maximums.
-    No dialect may declare bounds exceeding these. -/
+/-- R2 static upper bound on expansion depth: the system-wide maximum
+    `max-depth` any dialect may declare. -/
 def maxAllowedDepth : Nat := 64
+/-- R2 static upper bound on total expansion size, system-wide. -/
 def maxAllowedExpansionSize : Nat := 8192
+/-- R2 static upper bound on verification time (ms), system-wide. -/
 def maxAllowedVerificationTime : Nat := 1000
 
 /-- A resource bounds declaration is valid if all fields are within system limits. -/

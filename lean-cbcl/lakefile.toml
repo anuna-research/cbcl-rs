@@ -2,6 +2,11 @@ name = "lean-cbcl"
 version = "0.1.0"
 defaultTargets = ["LeanCbcl", "cbcl-parse"]
 
+[[require]]
+name = "batteries"
+git = "https://github.com/leanprover-community/batteries"
+rev = "v4.27.0"
+
 [[lean_lib]]
 name = "LeanCbcl"
 

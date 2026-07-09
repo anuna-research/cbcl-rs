@@ -59,6 +59,8 @@ open VerificationResult
     `VerificationResult.le` (`Result.lean`), which is only a preorder
     (`unknown ⊑ violation` and `violation ⊑ unknown` both hold there, so
     that order is not antisymmetric). -/
+/-- The knowledge order: `unknown` below both `valid` and `violation`,
+    which are incomparable. A genuine partial order on `VerificationResult`. -/
 def kle : VerificationResult → VerificationResult → Prop
   | unknown,   _         => True
   | valid,     valid     => True
@@ -105,6 +107,8 @@ theorem knowledge_order_distinct_from_sticky :
     NOTE (NOT the eager meet): `kmeet ≠ VerificationResult.meet`; see
     `eager_meet_ne_kmeet`. `kmeet valid violation = unknown`, whereas the
     deployed Kleene conjunction `meet valid violation = violation`. -/
+/-- The consensus meet: the greatest lower bound in the knowledge order
+    `kle` — agreeing verdicts are kept, disagreement collapses to `unknown`. -/
 def kmeet : VerificationResult → VerificationResult → VerificationResult
   | unknown,   _         => unknown
   | _,         unknown   => unknown

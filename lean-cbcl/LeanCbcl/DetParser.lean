@@ -15,6 +15,8 @@ namespace CBCL
 -- Section 1: Token type
 -- ============================================================
 
+/-- A lexical token of the S-expression stream: parentheses plus one
+    constructor per atom kind (symbol, string, number, boolean, keyword). -/
 inductive Token where
   | lparen | rparen
   | sym : String → Token
@@ -28,6 +30,8 @@ inductive Token where
 -- Section 2: tokenize
 -- ============================================================
 
+/-- Flatten an S-expression into its token stream, left to right: atoms
+    become a single token, lists are wrapped in `lparen … rparen`. -/
 def tokenize : SExpr → List Token
   | .atom (.symbol s)  => [.sym s]
   | .atom (.str s)     => [.str s]
@@ -40,17 +44,27 @@ def tokenize : SExpr → List Token
 -- Section 3: DetParser structure
 -- ============================================================
 
+/-- A deterministic pushdown automaton over `Token`s: a `state × stack`
+    transition, an acceptance test, and initial state/stack. -/
 structure DetParser where
+  /-- Transition: from the current state, input token, and top-of-stack
+      symbol, produce the next state and the symbols to push. -/
   step : Nat → Token → Option Nat → Nat × List Nat
+  /-- Acceptance predicate on the final state and stack. -/
   accept : Nat → List Nat → Bool
+  /-- Initial control state (default `0`). -/
   initState : Nat := 0
+  /-- Initial stack (default bottom marker `[0]`). -/
   initStack : List Nat := [0]
 
+/-- Run one transition step: consult `step` on the top-of-stack symbol,
+    then replace that top symbol with the pushed symbols. -/
 def DetParser.runStep (p : DetParser) (config : Nat × List Nat) (tok : Token) : Nat × List Nat :=
   let (state, stack) := config
   let (state', pushSyms) := p.step state tok stack.head?
   (state', pushSyms ++ stack.drop 1)
 
+/-- Run the automaton over a whole token stream and report acceptance. -/
 def DetParser.run (p : DetParser) (tokens : List Token) : Bool :=
   let final := tokens.foldl p.runStep (p.initState, p.initStack)
   p.accept final.1 final.2
@@ -59,16 +73,27 @@ def DetParser.run (p : DetParser) (tokens : List Token) : Bool :=
 -- Section 4: IsDCFL and IsDecidable
 -- ============================================================
 
+/-- Witness that a language `L` of S-expressions is a deterministic
+    context-free language: a `DetParser` that accepts exactly `L`. -/
 structure IsDCFL (L : SExpr → Prop) where
+  /-- The deterministic pushdown automaton recognising `L`. -/
   parser : DetParser
+  /-- Soundness: every accepted expression is in `L`. -/
   sound : ∀ e, parser.run (tokenize e) = true → L e
+  /-- Completeness: every expression in `L` is accepted. -/
   complete : ∀ e, L e → parser.run (tokenize e) = true
 
+/-- Witness that a language `L` is decidable: a Boolean decision procedure
+    that agrees with `L` in both directions. -/
 structure IsDecidable (L : SExpr → Prop) where
+  /-- The Boolean decision procedure. -/
   decide_ : SExpr → Bool
+  /-- Soundness: a `true` verdict implies membership. -/
   sound : ∀ e, decide_ e = true → L e
+  /-- Completeness: membership implies a `true` verdict. -/
   complete : ∀ e, L e → decide_ e = true
 
+/-- Every DCFL is decidable: run its automaton as the decision procedure. -/
 def IsDCFL.toDecidable {L : SExpr → Prop} (h : IsDCFL L) : IsDecidable L where
   decide_ := fun e => h.parser.run (tokenize e)
   sound := h.sound
@@ -98,6 +123,8 @@ theorem tokenize_list_last (xs : List SExpr) :
 -- Section 6: headCheckDetParser
 -- ============================================================
 
+/-- DPDA accepting exactly the S-expressions `(h …)` whose head symbol `h`
+    is one of `heads`: a well-balanced list with an allowed head symbol. -/
 def headCheckDetParser (heads : List String) : DetParser where
   step := fun state tok top =>
     match state, tok, top with
@@ -113,6 +140,8 @@ def headCheckDetParser (heads : List String) : DetParser where
     | 3, [0] => true
     | _, _   => false
 
+/-- Boolean reference validator for `headCheckDetParser`: `true` iff `e`
+    is a list whose first element is a symbol in `heads`. -/
 def headCheckBool (heads : List String) (e : SExpr) : Bool :=
   match e with
   | .list (.atom (.symbol s) :: _) => heads.contains s
@@ -177,7 +206,10 @@ private theorem hc_step_false_99 (heads : List String) (tok : Token) (stack : Li
 -- Section 9: headCheck process_sexpr (structural induction via SExpr.rec)
 -- ============================================================
 
-def headCheck_process_aux (heads : List String) :
+/-- In accepting state `2`, processing a whole (balanced) sub-expression
+    returns to state `2` with the stack unchanged — the key invariant that
+    lets `headCheckDetParser` skip over argument sub-lists. -/
+theorem headCheck_process_aux (heads : List String) :
     (e : SExpr) → ∀ (stack : List Nat), stack ≠ [] →
       List.foldl (headCheckDetParser heads).runStep (2, stack) (tokenize e) = (2, stack) :=
   @SExpr.rec
@@ -324,6 +356,9 @@ theorem headCheck_agrees (heads : List String) (e : SExpr) :
 -- Section 11: langDetParser
 -- ============================================================
 
+/-- DPDA accepting exactly the lang-wrapped messages
+    `(lang <dname> (<perf> …))` whose dialect name is `dname` and whose
+    inner performative head is one of `perfNames`. -/
 def langDetParser (dname : String) (perfNames : List String) : DetParser where
   step := fun state tok top =>
     match state, tok, top with
@@ -367,27 +402,31 @@ def langDetParser (dname : String) (perfNames : List String) : DetParser where
     ((if a ∈ perfNames then (5, [2]) else (99, [])).1 : Nat) ≠ 0 := by
   by_cases h : a ∈ perfNames <;> simp [h]
 
-@[simp] theorem lang_step_lang_lt (a : String) :
+-- The `==`/`contains` forms below are redundant as simp lemmas — simp
+-- already discharges these goals via their `=`/`mem` counterparts above
+-- plus `beq_iff_eq`/`List.contains_eq_mem` (flagged by the `simpNF`
+-- linter), so they are kept as named lemmas without the `@[simp]` tag.
+theorem lang_step_lang_lt (a : String) :
     ((if a == "lang" then (2, [1]) else (99, [])).1 : Nat) < 200 := by
   by_cases h : a == "lang" <;> simp [h]
 
-@[simp] theorem lang_step_lang_ne_zero (a : String) :
+theorem lang_step_lang_ne_zero (a : String) :
     ((if a == "lang" then (2, [1]) else (99, [])).1 : Nat) ≠ 0 := by
   by_cases h : a == "lang" <;> simp [h]
 
-@[simp] theorem lang_step_dname_lt (a dname : String) :
+theorem lang_step_dname_lt (a dname : String) :
     ((if a == dname then (3, [1]) else (99, [])).1 : Nat) < 200 := by
   by_cases h : a == dname <;> simp [h]
 
-@[simp] theorem lang_step_dname_ne_zero (a dname : String) :
+theorem lang_step_dname_ne_zero (a dname : String) :
     ((if a == dname then (3, [1]) else (99, [])).1 : Nat) ≠ 0 := by
   by_cases h : a == dname <;> simp [h]
 
-@[simp] theorem lang_step_perf_lt (a : String) (perfNames : List String) :
+theorem lang_step_perf_lt (a : String) (perfNames : List String) :
     ((if perfNames.contains a then (5, [2]) else (99, [])).1 : Nat) < 200 := by
   cases h : perfNames.contains a <;> simp
 
-@[simp] theorem lang_step_perf_ne_zero (a : String) (perfNames : List String) :
+theorem lang_step_perf_ne_zero (a : String) (perfNames : List String) :
     ((if perfNames.contains a then (5, [2]) else (99, [])).1 : Nat) ≠ 0 := by
   cases h : perfNames.contains a <;> simp
 
@@ -400,7 +439,9 @@ def langDetParser (dname : String) (perfNames : List String) : DetParser where
 @[simp] theorem seven_lt_200 : (7 : Nat) < 200 := by decide
 @[simp] theorem ninetyNine_lt_200 : (99 : Nat) < 200 := by decide
 
-@[simp] theorem one_ne_zero : (1 : Nat) ≠ 0 := by decide
+-- `one_ne_zero` is redundant as a simp lemma (simp proves `(1:Nat) ≠ 0`
+-- via `Nat.succ_ne_self`); flagged by `simpNF`, so the `@[simp]` is dropped.
+theorem one_ne_zero : (1 : Nat) ≠ 0 := by decide
 @[simp] theorem two_ne_zero : (2 : Nat) ≠ 0 := by decide
 @[simp] theorem three_ne_zero : (3 : Nat) ≠ 0 := by decide
 @[simp] theorem four_ne_zero : (4 : Nat) ≠ 0 := by decide
@@ -424,6 +465,8 @@ theorem langDetParser_step_state_ne_zero (dname : String) (perfNames : List Stri
   split <;> simp_all
 
 
+/-- Boolean reference validator for `langDetParser`: `true` iff `e` is
+    `(lang <dn> (<perf> …))` with `dn = dname` and `perf ∈ perfNames`. -/
 def langCheckBool (dname : String) (perfNames : List String) (e : SExpr) : Bool :=
   match e with
   | .list [.atom (.symbol "lang"), .atom (.symbol dn), .list (.atom (.symbol perf) :: _)] =>
@@ -509,7 +552,10 @@ private theorem lang6_foldl_pair (dn : String) (pn : List String) (tok : Token) 
 -- Section 13: lang process_sexpr (structural induction)
 -- ============================================================
 
-def lang_process_aux (dn : String) (pn : List String) :
+/-- In accepting state `5`, processing a whole (balanced) sub-expression
+    returns to state `5` with the stack unchanged — the analogue of
+    `headCheck_process_aux` for the lang-wrapped automaton. -/
+theorem lang_process_aux (dn : String) (pn : List String) :
     (e : SExpr) → ∀ (stack : List Nat), stack ≠ [] →
       List.foldl (langDetParser dn pn).runStep (5, stack) (tokenize e) = (5, stack) :=
   @SExpr.rec

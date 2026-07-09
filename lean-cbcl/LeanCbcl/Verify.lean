@@ -139,6 +139,8 @@ def Performative.toName : Performative → String
     carry a structured `:caused-by` field; concrete extraction from
     `params` is deferred to the parser-side mechanisation. See module
     docstring above. -/
+/-- Abstract accessor axiom for the `:caused-by` field of a `Message`; returns
+    `none` when absent. Opaque because `Message` carries no structured field. -/
 axiom Message.causedBy : Message → Option CausedBy
 
 /-! ## `verify` — the function REQ-512/513/514 quantify over. -/

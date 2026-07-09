@@ -89,10 +89,17 @@ namespace Lattice
     not a lattice (see `Lattice/NotALattice.lean`,
     `eager_absorption_fails`, and the module docstring). Mathlib is not
     imported (ADR-510). -/
+/-- The eager verdict algebra: two idempotent-commutative-associative
+    operations `meet`/`join` with identities `top`/`bot` — a bounded
+    bisemilattice (deliberately *not* a lattice; absorption fails). -/
 class BoundedBisemilattice (α : Type u) where
+  /-- The meet operation `⊓` (eager verdict conjunction). -/
   meet       : α → α → α
+  /-- The join operation `⊔` (eager verdict disjunction). -/
   join       : α → α → α
+  /-- The bottom element (two-sided identity of `join`). -/
   bot        : α
+  /-- The top element (two-sided identity of `meet`). -/
   top        : α
   meet_assoc : ∀ a b c : α, meet (meet a b) c = meet a (meet b c)
   meet_comm  : ∀ a b : α, meet a b = meet b a

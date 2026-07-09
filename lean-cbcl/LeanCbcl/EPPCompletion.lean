@@ -16,6 +16,7 @@ namespace LeanCbcl.EPP
     obligations; every required witness is `r`-relevant. A single shared `O` is the (Seal)
     clause (agreement on the cast / sealed memberships). -/
 structure Obligations {Role Perf Msg : Type} (P : Proto Role Perf Msg) where
+  /-- `req r w`: message `w` is a required witness for role `r`'s local obligations. -/
   req    : Role → Msg → Prop
   reqRel : ∀ r w, req r w → endpoint P w r
 

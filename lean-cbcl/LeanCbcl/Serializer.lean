@@ -26,6 +26,7 @@ def serialize : SExpr → String
   | .atom (.keyword s) => ":" ++ s
   | .list xs => "(" ++ serializeList xs ++ ")"
 where
+  /-- Serialize the elements of a list, joining them with single spaces. -/
   serializeList : List SExpr → String
     | [] => ""
     | [x] => serialize x

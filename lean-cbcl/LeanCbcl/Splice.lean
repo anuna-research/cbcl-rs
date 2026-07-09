@@ -55,6 +55,7 @@
   `propext, Classical.choice, Quot.sound`.
 -/
 import LeanCbcl.Projectability
+import Batteries.Tactic.Lint  -- provides the `@[nolint …]` attribute
 
 namespace LeanCbcl.Splice
 
@@ -83,19 +84,34 @@ bystander's type.) -/
 
 namespace Example
 
+/-- The two roles of the worked splice example: recipient `rR` and observer `rO`. -/
 inductive SRole | rR | rO
+/-- The three performative/message types: the message `tM`, its demanded
+    predecessor `tG`, and the bystander type `tB`. -/
 inductive SPerf | tM | tG | tB
+/-- The two concrete messages: `m` (the message under scrutiny) and `b`
+    (its cited predecessor / bystander). -/
 inductive SMsg  | m  | b
 
 /-- Shared fields (identical in both worlds). `m : rR → ·` of type `tM`, cited by the
     bystander `b : rO → ·`; the clause of `tM` demands a present predecessor of type
     `tG`. -/
 def sSender  : SMsg → SRole            | .m => .rR | .b => .rO
+/-- The recipient relation of the example: empty (no message has a recipient here). -/
+@[nolint unusedArguments]  -- empty relation (constant `False`); the message/role
+                           -- arguments are the relation's domain, unused by design.
 def sRecip   : SMsg → SRole → Prop   := fun _ _ => False
+/-- Predecessor relation: `m` cites `b` (`x = m ∧ y = b`). -/
 def sPredRel : SMsg → SMsg → Prop    := fun x y => x = .m ∧ y = .b
+/-- The sender role attached to each performative type. -/
 def sPsender : SPerf → SRole           | .tM => .rR | .tG => .rO | .tB => .rO
+/-- The predicate-recipient relation on performative types: empty by design. -/
+@[nolint unusedArguments]  -- empty relation (constant `False`); the perf/role
+                           -- arguments are the relation's domain, unused by design.
 def sPrecip  : SPerf → SRole → Prop  := fun _ _ => False
+/-- Legal-predecessor relation on types: `tM` legally demands `tG`. -/
 def sLegal   : SPerf → SPerf → Prop  := fun t t' => t = .tM ∧ t' = .tG
+/-- Conformance clause: type `tM` requires a present predecessor of type `tG`. -/
 def sClause  : SPerf → (SPerf → Prop) → Prop := fun t present => t = .tM → present .tG
 
 /-- The ONLY differing field: `b`'s type. World 1 gives `b` the expected type `tG`. -/
@@ -213,6 +229,13 @@ is equally short and stated below. -/
 
 /-- **Necessity.** Missing the preimage `b` (a cited predecessor) forces `Unknown`:
     for any store `L ⊆ project C r`, if `b ∉ L` then `m`'s verdict is `Unknown`. -/
+-- `_hL` (the store is reachable, `L ⊆ project C r`) is retained to state
+-- necessity in the same frame as the sufficiency counterpart below and is
+-- part of the axiom-audited statement (see AxiomAudit / #print axioms). The
+-- proof establishes the stronger fact that a missing preimage forces
+-- `Unknown` for *any* store, so `_hL` is unused — kept for statement scope,
+-- not deleted (deleting it would change the audited theorem's statement).
+@[nolint unusedArguments]
 theorem resolution_requires_preimage
     {Role Perf Msg : Type} {D : ProtoData Role Perf Msg}
     {C : Cfg Msg} {r : Role} {m b : Msg} (hpb : D.predRel m b)

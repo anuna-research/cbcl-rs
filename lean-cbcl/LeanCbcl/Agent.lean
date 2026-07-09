@@ -14,7 +14,9 @@ namespace CBCL
 
 /-- Agent state. Mirrors `<cbcl-agent>` record. -/
 structure Agent where
+  /-- The agent's unique identifier string. -/
   id            : String
+  /-- The dialects installed on this agent; `baseDialect` is the first element. -/
   dialects      : List Dialect
   deriving Inhabited
 

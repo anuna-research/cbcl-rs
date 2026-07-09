@@ -1,5 +1,6 @@
 import LeanCbcl.SExpr
 import LeanCbcl.Dialect
+import Batteries.Tactic.Lint  -- provides the `@[nolint …]` attribute
 
 /-!
 # R2 Constraint: Resource Bounds
@@ -18,11 +19,19 @@ namespace CBCL
 
 /-- Runtime resource tracking state. Mirrors `<resource-context>`. -/
 structure ResourceState where
+  /-- Current nesting depth reached during expansion. -/
   currentDepth  : Nat
+  /-- Accumulated expansion size so far. -/
   expansionSize : Nat
+  /-- Depth budget (upper bound on `currentDepth`). -/
   maxDepth      : Nat
+  /-- Size budget (upper bound on `expansionSize`). -/
   maxExpSize    : Nat
   deriving Repr, BEq, DecidableEq, Inhabited
+
+-- Derived-`Repr` precedence argument unused (records are never parenthesised).
+-- False positive on generated code; suppressed on the derived instance.
+attribute [nolint unusedArguments] instReprResourceState.repr
 
 /-- A resource state is within bounds. -/
 def ResourceState.withinBounds (rs : ResourceState) : Prop :=
@@ -97,6 +106,8 @@ def boundedEvalFull (fuel : Nat) (expr : SExpr) (rs : ResourceState) :
           | none => none
           | some (children, rs''') => some (.list children, rs'''.exitDepth)
 where
+  /-- Evaluate a list of child expressions left to right, threading the
+      resource state and short-circuiting to `none` on the first overflow. -/
   evalChildren (fuel : Nat) (children : List SExpr) (rs : ResourceState) :
       Option (List SExpr × ResourceState) :=
     match children with

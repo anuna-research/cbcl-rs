@@ -28,6 +28,8 @@ namespace CBCL
 -- Section 1: Tag type and tag function
 -- ============================================================
 
+/-- Classification tag for an SExpr message, keyed on its head symbol: a core
+performative, `meta`, a wrapper head, a `lang` dialect name, or a simple head. -/
 inductive MsgTag where
   | core    : CorePerformative → MsgTag
   | metaT   : MsgTag
@@ -36,6 +38,8 @@ inductive MsgTag where
   | simple  : String → MsgTag
   deriving BEq, DecidableEq, Repr
 
+/-- Maps a head symbol to its `CorePerformative`, or `none` if it is not one of the eight
+core performatives (`tell`, `ask`, `reply`, `error`, `ok`, `cancel`, `hello`, `bye`). -/
 def stringToCorePerformative : String → Option CorePerformative
   | "tell"   => some .tell
   | "ask"    => some .ask
@@ -47,6 +51,8 @@ def stringToCorePerformative : String → Option CorePerformative
   | "bye"    => some .bye
   | _        => none
 
+/-- Computes the `MsgTag` of an SExpr from its head symbol, returning `none` for atoms
+and lists not headed by a symbol. -/
 def msgTag : SExpr → Option MsgTag
   | .list (.atom (.symbol head) :: rest) =>
     match stringToCorePerformative head with
@@ -97,6 +103,7 @@ theorem msgTag_nil : msgTag (.list []) = none := by
 -- Section 3: Reserved token sets and disjointness
 -- ============================================================
 
+/-- Head symbols reserved by the core protocol: `meta`, the three wrapper heads, and `lang`. -/
 def reservedHeads : List String :=
   ["meta", "envelope", "signed", "with-limits", "lang"]
 
@@ -123,8 +130,11 @@ def listGet? {α : Type} : List α → Nat → Option α
 
 def langOffset : Nat := 200
 
+/-- Per-dialect stride separating successive dialects' encoded lang-subparser states. -/
 def langStride : Nat := 200
 
+/-- Encodes a dialect index `idx` and its lang-subparser state `s` into a single `Nat`
+parser state (`langOffset + idx * langStride + s`). -/
 def langState (idx : Nat) (s : Nat) : Nat :=
   langOffset + idx * langStride + s
 
@@ -138,6 +148,8 @@ theorem langState_ne_one (idx s : Nat) : langState idx s ≠ 1 := by
   have hgt : 1 < langState idx s := Nat.lt_of_lt_of_le hlt hge
   exact Nat.ne_of_gt hgt
 
+/-- Inverse of `langState`: recovers `(dialect index, subparser state)` from an encoded
+state, or `none` when the state is below `langOffset`. -/
 def decodeLangState (s : Nat) : Option (Nat × Nat) :=
   if _ : langOffset ≤ s then
     let t := s - langOffset
@@ -274,8 +286,10 @@ theorem msgTag_lang_concrete (dname : String) (inner : SExpr) :
 -- Section 4: Tagged predicate and sublanguages
 -- ============================================================
 
+/-- Proposition holding exactly when `e`'s computed `msgTag` equals `some t`. -/
 def Tagged (t : MsgTag) (e : SExpr) : Prop := msgTag e = some t
 
+/-- The head-symbol string naming each `CorePerformative`. -/
 def corePerformativeName : CorePerformative → String
   | .tell   => "tell"
   | .ask    => "ask"
@@ -286,6 +300,7 @@ def corePerformativeName : CorePerformative → String
   | .hello  => "hello"
   | .bye    => "bye"
 
+/-- The head-symbol string naming a `Performative`: the core name, or the custom name. -/
 def performativeName : Performative → String
   | .core .tell   => "tell"
   | .core .ask    => "ask"
@@ -297,22 +312,28 @@ def performativeName : Performative → String
   | .core .bye    => "bye"
   | .custom name  => name
 
+/-- `e` is a list whose head symbol is a core performative name. -/
 def coreLanguage (e : SExpr) : Prop :=
   ∃ cp args, e = .list (.atom (.symbol (corePerformativeName cp)) :: args)
 
+/-- `e` is a list whose head symbol is `meta`. -/
 def metaLanguage (e : SExpr) : Prop :=
   ∃ args, e = .list (.atom (.symbol "meta") :: args)
 
+/-- `e` is a list whose head symbol is a wrapper head (`envelope`, `signed`, or `with-limits`). -/
 def wrappedLanguage (e : SExpr) : Prop :=
   ∃ w args, (w = "envelope" ∨ w = "signed" ∨ w = "with-limits") ∧
     e = .list (.atom (.symbol w) :: args)
 
+/-- `e` is a `lang`-tagged message naming dialect `d` and carrying an inner performative
+listed in `d.performativeNames`. -/
 def langLanguage (d : Dialect) (e : SExpr) : Prop :=
   ∃ perf args,
     e = .list [.atom (.symbol "lang"), .atom (.symbol d.name),
       .list (.atom (.symbol perf) :: args)] ∧
     perf ∈ d.performativeNames
 
+/-- True when some dialect installed in `a` defines the performative `name`. -/
 def Agent.acceptsPerf (a : Agent) (name : String) : Bool :=
   a.dialects.any (·.definesPerformative name)
 
@@ -320,6 +341,8 @@ def Agent.acceptsPerf (a : Agent) (name : String) : Bool :=
 def Agent.namesUnique (a : Agent) : Prop :=
   (a.dialects.map Dialect.name).Nodup
 
+/-- `e` is accepted by agent `a`: a core, meta, or wrapped message, or a `lang` message
+for one of `a`'s installed dialects. -/
 def agentLanguage (a : Agent) (e : SExpr) : Prop :=
   coreLanguage e ∨ metaLanguage e ∨ wrappedLanguage e ∨
   (∃ d ∈ a.dialects, langLanguage d e)
@@ -555,6 +578,7 @@ private theorem coreLanguage_complete (e : SExpr)
   obtain ⟨cp, args, rfl⟩ := h
   cases cp <;> simp [headCheckBool, corePerformativeName, corePerformativeNames, List.contains, List.elem]
 
+/-- `coreLanguage` is decidable, with `headCheckBool corePerformativeNames` as the decider. -/
 def coreLanguage_decidable : IsDecidable coreLanguage where
   decide_ := headCheckBool corePerformativeNames
   sound := coreLanguage_sound
@@ -583,6 +607,7 @@ private theorem metaLanguage_complete (e : SExpr) (h : metaLanguage e) :
   obtain ⟨args, rfl⟩ := h
   simp [headCheckBool, List.contains, List.elem]
 
+/-- `metaLanguage` is decidable, with `headCheckBool ["meta"]` as the decider. -/
 def metaLanguage_decidable : IsDecidable metaLanguage where
   decide_ := headCheckBool ["meta"]
   sound := metaLanguage_sound
@@ -617,6 +642,7 @@ private theorem wrappedLanguage_complete (e : SExpr) (h : wrappedLanguage e) :
     | inl h => subst h; simp [headCheckBool, List.contains, List.elem]
     | inr h => subst h; simp [headCheckBool, List.contains, List.elem]
 
+/-- `wrappedLanguage` is decidable, with `headCheckBool` over the wrapper heads as the decider. -/
 def wrappedLanguage_decidable : IsDecidable wrappedLanguage where
   decide_ := headCheckBool ["envelope", "signed", "with-limits"]
   sound := wrappedLanguage_sound
@@ -641,6 +667,7 @@ private theorem langLanguage_complete (d : Dialect) (e : SExpr)
     List.elem_eq_true_of_mem hmem
   simpa [langLanguageBool, langCheckBool] using hcontains
 
+/-- `langLanguage d` is decidable, with `langLanguageBool d` as the decider. -/
 def langLanguage_decidable (d : Dialect) : IsDecidable (langLanguage d) where
   decide_ := langLanguageBool d
   sound := langLanguage_sound d
@@ -678,6 +705,10 @@ def langLanguage_isDCFL (d : Dialect) : IsDCFL (langLanguage d) where
 -- ============================================================
 
 /-- The union of two decidable languages is decidable. -/
+-- `_hne`/`_ht1`/`_ht2` record the disjoint-tag precondition of the Section 7
+-- tagged-union construction; the decidability proof (a Boolean `||`) does not
+-- need them, so they are kept for interface documentation, not deleted.
+@[nolint unusedArguments]
 def decidable_union_tagged (L1 L2 : SExpr → Prop) (t1 t2 : MsgTag)
     (_hne : t1 ≠ t2)
     (h1 : IsDecidable L1) (h2 : IsDecidable L2)
@@ -1551,6 +1582,7 @@ theorem agentDetParser_agrees (a : Agent) (hnu : a.namesUnique) (e : SExpr) :
 -- Section 11: IsDCFL instance and DCFL preservation
 -- ============================================================
 
+/-- Given unique dialect names, `agentLanguage a` is a DCFL, recognized by `agentDetParser a`. -/
 def agentLanguage_isDCFL (a : Agent) (hnu : a.namesUnique) : IsDCFL (agentLanguage a) where
   parser := agentDetParser a
   sound := fun e h => by
