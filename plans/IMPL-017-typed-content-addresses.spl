@@ -1,0 +1,108 @@
+;; IMPL-017: typed content addresses — Merkle-over-fields, field-openings.
+(meta plan
+  (id "IMPL-017")
+  (title "Typed content addresses: verifiable selective disclosure")
+  (version "1.0.0")
+  (status "active")
+  (created "2026-07-09")
+  (author "agent:claude")
+  (spec "the substrate change: hash(m) = Merkle root over m's fields, so any field (notably the performative type) opens with a proof verifiable against the address alone")
+  (description "Pre-release substrate change. Move content-addressing from flat H(canonical-bytes) to a canonical Merkle commitment over a message's fields, enabling authenticated selective disclosure (field-openings). Subsumes the SPEC-015 envelope attestation, gives minimal-disclosure verifiable hearsay (any relay can produce a self-authenticating type-opening), and operationalises the paper's form/content split as a primitive. HIGH novelty + HIGH risk (touches the most foundational object) => governed experiment (spike) BEFORE spec and migration."))
+
+(given agent-claude-available)
+
+;; Phase 0 — architecture spike (gates the migration)
+(given task-spike)
+(given no-deps-spike)
+;; Phase 1 — spec (gated on GO)
+(given task-spec)
+;; Phase 2 — migration (staged)
+(given task-migrate-hash)
+(given task-migrate-store)
+(given task-subsume-envelope)
+(given task-lean)
+;; Phase 3 — paper
+(given task-paper)
+
+(meta task-spike
+  (description "Design + prototype the typed-address primitive and enumerate the migration. (1) Concrete field schema for a CBCL message (openable leaves: performative/type, from, to, caused-by, payload; fixed canonical order) and a DETERMINISTIC canonical Merkle tree composing with the existing RFC 9804 per-field canonicalisation; root = content address; signature over the root (sign-the-digest, SPEC-015 ADR-700 style). (2) Prototype module: typed_root(msg), open(msg, field)->proof, verify_opening(root, field, value, proof); tests for determinism, opening soundness (tampered fails), payload-not-revealed. (3) SUBSUMPTION: show field-openings provide everything the SPEC-015 envelope safety-level checks (REQ-702) needed — type/from/to/caused-by openable, role-conformance via opening the sig field and verifying against root — i.e. the envelope re-expresses as openings. (4) Migration surface map: per-module blast radius (canonical.rs, store, R2 canonical form, the Lean hash abstraction, which tests, did:crdt, wire format). (5) GO/NO-GO on a clean migration with a staged plan.")
+  (acceptance "Prototype in-tree, tests green; deterministic canonical tree demonstrated; opening soundness + payload-sealed proven by test; a concrete subsumption argument that envelopes = openings for safety-level checks; a per-module migration map; explicit GO/NO-GO. NO-GO if the canonical tree cannot be made deterministic/collision-safe, or the migration blast radius is unbounded."))
+(meta task-spec
+  (description "SPEC-017: typed content addresses — field schema, canonical Merkle construction, field-opening + verification, sign-the-root, the envelope-subsumption, form/content selective disclosure. Necessity theorem cited as why openings are the optimal tag.")
+  (acceptance "Spec authored from the spike findings; LangSec-conformant (full recognition of openings); supersedes SPEC-015's separate-envelope attestation where subsumed"))
+(meta task-migrate-hash
+  (description "Replace flat content hashing with the typed Merkle root across canonical.rs and callers; keep sha256:<root> wire form")
+  (acceptance "All content addresses are Merkle roots; determinism + integrity tests green; existing hash-dependent tests updated"))
+(meta task-migrate-store
+  (description "Store keys on Merkle roots; field-opening delivery and verification wired into role-local verification (openings satisfy safety-level checks, REQ-702 re-expressed)")
+  (acceptance "Corpus + auction verify via openings with payload sealed; envelope tests re-expressed or retired"))
+(meta task-subsume-envelope
+  (description "Retire or re-express SPEC-015 envelope attestation as field-openings; derive mode routes deliver openings; equivocation proofs use openings")
+  (acceptance "SPEC-015 mechanisms re-expressed; no capability lost; tests green"))
+(meta task-lean
+  (description "Lean: model field-openings; theorem that openings suffice for safety-level verification; confirm the EPP correspondence and necessity theorem survive the substrate change (abstract model unchanged; add the openings-suffice result)")
+  (acceptance "Compiles, no sorry; necessity theorem restated as 'the tag may be a field-opening'; standard axioms"))
+(meta task-paper
+  (description "Turn the flat-hash description into typed content addresses; present field-openings as the optimal delivery tag realising form/content selective disclosure; the necessity theorem now reads 'deliver the opening'; conference compact")
+  (acceptance "Both build; conference 10pp; the form/content split shown as a cryptographic primitive, envelope narrative subsumed"))
+
+;; Readiness — spike gates the migration
+(normally r-ready-spike (and task-spike no-deps-spike) ready-spike)
+(normally r-ready-spec (and task-spec go-spike) ready-spec)
+(normally r-ready-migrate-hash (and task-migrate-hash completed-spec) ready-migrate-hash)
+(normally r-ready-migrate-store (and task-migrate-store completed-migrate-hash) ready-migrate-store)
+(normally r-ready-subsume-envelope (and task-subsume-envelope completed-migrate-store) ready-subsume-envelope)
+(normally r-ready-lean (and task-lean completed-migrate-store) ready-lean)
+(normally r-ready-paper (and task-paper completed-subsume-envelope completed-lean) ready-paper)
+
+;; Assignment
+(normally r-assign-spike (and ready-spike agent-claude-available) assign-to-spike-claude)
+(normally r-assign-spec (and ready-spec agent-claude-available) assign-to-spec-claude)
+(normally r-assign-migrate-hash (and ready-migrate-hash agent-claude-available) assign-to-migrate-hash-claude)
+(normally r-assign-migrate-store (and ready-migrate-store agent-claude-available) assign-to-migrate-store-claude)
+(normally r-assign-subsume-envelope (and ready-subsume-envelope agent-claude-available) assign-to-subsume-envelope-claude)
+(normally r-assign-lean (and ready-lean agent-claude-available) assign-to-lean-claude)
+(normally r-assign-paper (and ready-paper agent-claude-available) assign-to-paper-claude)
+
+(meta r-ready-spec
+  (description "The migration is gated on the spike's GO verdict")
+  (justification "A content-addressing change is the largest-blast-radius edit in the system; validate a clean, deterministic, envelope-subsuming design before migrating. go-spike asserted only on GO."))
+
+(claims agent:claude
+  :at "2026-07-09T00:43:01Z"
+  (given claim-v1-spike)
+  (normally r-cl-state-v1-spike claim-v1-spike state-claimed-v1-spike)
+  (normally r-cl-chain-v1-spike state-claimed-v1-spike claimed-spike)
+)
+
+(claims agent:claude
+  :at "2026-07-09T00:52:36Z"
+  (given go-spike-merkle-clean-deterministic-subsumes-partial))
+
+(claims agent:claude
+  :at "2026-07-09T00:52:36Z"
+  (given completed-spike))
+
+(claims agent:claude
+  :at "2026-07-09T00:57:33Z"
+  (given completed-spec))
+
+(claims agent:claude
+  :at "2026-07-09T00:57:33Z"
+  (given claim-v1-migrate-hash)
+  (normally r-cl-state-v1-migrate-hash claim-v1-migrate-hash state-claimed-v1-migrate-hash)
+  (normally r-cl-chain-v1-migrate-hash state-claimed-v1-migrate-hash claimed-migrate-hash)
+)
+
+;; Propagation rules: failures in 'migrate-hash' block downstream tasks
+(normally r-propagate-migrate-store-from-migrate-hash-failed failed-migrate-hash upstream-blocked-migrate-store)
+(normally r-propagate-migrate-store-from-migrate-hash-permanently-failed permanently-failed-migrate-hash upstream-blocked-migrate-store)
+(normally r-propagate-migrate-store-from-migrate-hash-stale-v1 stale-v1-migrate-hash upstream-blocked-migrate-store)
+(normally r-propagate-migrate-store-from-migrate-hash-timeout-v1 timeout-v1-migrate-hash upstream-blocked-migrate-store)
+(normally r-propagate-migrate-store-from-migrate-hash-blocked upstream-blocked-migrate-hash upstream-blocked-migrate-store)
+
+;; Transitive propagation: upstream-blocked cascades through dependency chain
+(normally r-propagate-lean-from-migrate-store-blocked upstream-blocked-migrate-store upstream-blocked-lean)
+(normally r-propagate-subsume-envelope-from-migrate-store-blocked upstream-blocked-migrate-store upstream-blocked-subsume-envelope)
+(normally r-propagate-paper-from-lean-blocked upstream-blocked-lean upstream-blocked-paper)
+(normally r-propagate-paper-from-subsume-envelope-blocked upstream-blocked-subsume-envelope upstream-blocked-paper)
