@@ -247,6 +247,100 @@ theorem spliced_pred_permanently_unknown
     ∀ L : Cfg Msg, (∀ z, L z → D.projectD C r z) → D.isUnknownD L m :=
   permanently_unknown_of_nonlocal_pred hpb hbr
 
+/-! ## 2b. Type-openings suffice for the safety verdict (sufficiency, SPEC-017 grain)
+
+§2's necessity result (`resolution_requires_preimage`) says a cited predecessor must be
+*delivered* — present in the store — or the verdict is permanently `Unknown`. This
+section is its sufficiency companion at the SPEC-017 grain: it pins down *what* a delivery
+must carry. The safety verdict reads the store through exactly two channels — `resolvedD`
+(which cited predecessors are present) and `predTypesPresentD` (their *types*) — and
+NOTHING ELSE about a message. In `goodD` the store `S` occurs solely inside
+`predTypesPresentD`; `conformantD`/`noSpuriousD` are store-independent. Hence a delivered
+type-tag authenticating "a predecessor of type `t` is present" (a SPEC-017 *opening* — a
+type-tag, not the full Merkle-addressed message) yields the identical `Valid`/`Violation`
+verdict to holding the full message. Necessity fixes *that* a tag must arrive; the results
+below fix *which* tag is optimal — the type-opening: deliver exactly the type, no more
+(full content is verdict-irrelevant), no less (a bare hash is type-opaque, §1). -/
+
+/-- **Safety reads types only (good-ness level).** The `good`/`¬good` split — i.e. the
+    `Valid` vs `Violation` distinction among resolved messages — depends on the store ONLY
+    through the predecessor *types* present. Two stores presenting `m` the same predecessor
+    types assign `m` the same `goodD`. Immediate by construction: `S` occurs in `goodD`
+    solely inside `predTypesPresentD` (`conformantD`/`noSpuriousD` are store-independent). -/
+theorem safety_reads_types_only
+    {Role Perf Msg : Type} {D : ProtoData Role Perf Msg}
+    {S S' : Cfg Msg} {m : Msg}
+    (h : D.predTypesPresentD S m = D.predTypesPresentD S' m) :
+    D.goodD S m = D.goodD S' m := by
+  unfold ProtoData.goodD; rw [h]
+
+/-- **Safety verdict reads types only.** Two stores that both resolve `m` and present `m`
+    the same predecessor types assign `m` the same safety verdict — identical `isValid`
+    and identical `isViolation`. (The only store-dependence beyond `predTypesPresentD` is
+    `resolvedD`, which the hypotheses fix on both sides.) -/
+theorem verdict_reads_types_only
+    {Role Perf Msg : Type} {D : ProtoData Role Perf Msg}
+    {S S' : Cfg Msg} {m : Msg}
+    (hres : D.resolvedD S m) (hres' : D.resolvedD S' m)
+    (h : D.predTypesPresentD S m = D.predTypesPresentD S' m) :
+    (D.isValidD S m ↔ D.isValidD S' m) ∧ (D.isViolationD S m ↔ D.isViolationD S' m) := by
+  have hg := safety_reads_types_only (D := D) (m := m) h
+  refine ⟨?_, ?_⟩
+  · unfold ProtoData.isValidD; rw [hg]
+    exact ⟨fun x => ⟨hres', x.2⟩, fun x => ⟨hres, x.2⟩⟩
+  · unfold ProtoData.isViolationD; rw [hg]
+    exact ⟨fun x => ⟨hres', x.2⟩, fun x => ⟨hres, x.2⟩⟩
+
+/-- **Openings suffice.** Model a SPEC-017 *type-opening* delivery abstractly: an opening
+    store `Sopen` delivers each cited predecessor's PRESENCE and TYPE — it resolves `m` and
+    presents `m` the same predecessor types as the full-message store `Sfull` — while
+    carrying no other message content. Then `m`'s safety verdict is IDENTICAL under the
+    opening delivery and under the full-message delivery.
+
+    This is the sufficiency counterpart of §2's `resolution_requires_preimage`: necessity
+    says *some* tag must arrive at the predecessor's hash; `openings_suffice` says a
+    delivered TYPE-tag is enough — the type-opening is the optimal SPEC-017 tag for the
+    SAFETY-level verdict. -/
+theorem openings_suffice
+    {Role Perf Msg : Type} {D : ProtoData Role Perf Msg}
+    {Sfull Sopen : Cfg Msg} {m : Msg}
+    (hres_full : D.resolvedD Sfull m) (hres_open : D.resolvedD Sopen m)
+    (htypes : D.predTypesPresentD Sopen m = D.predTypesPresentD Sfull m) :
+    (D.isValidD Sopen m ↔ D.isValidD Sfull m) ∧
+    (D.isViolationD Sopen m ↔ D.isViolationD Sfull m) :=
+  verdict_reads_types_only hres_open hres_full htypes
+
+/-- The minimal *opening-only* store: it delivers exactly `m`'s cited predecessors — each
+    as a type-authenticating opening — and NOTHING else (no non-predecessor message, no
+    full content). -/
+def openStore {Role Perf Msg : Type} (D : ProtoData Role Perf Msg) (m : Msg) : Cfg Msg :=
+  fun z => D.predRel m z
+
+/-- The opening-only store resolves `m` (its openings ARE exactly the cited predecessors). -/
+theorem openStore_resolves {Role Perf Msg : Type} (D : ProtoData Role Perf Msg) (m : Msg) :
+    D.resolvedD (openStore D m) m := fun _ hp => hp
+
+/-- The opening-only store presents `m` the same predecessor types as ANY store `Sfull`
+    that resolves `m` (in particular the full run). -/
+theorem openStore_types_eq {Role Perf Msg : Type} (D : ProtoData Role Perf Msg) (m : Msg)
+    {Sfull : Cfg Msg} (hfull : D.resolvedD Sfull m) :
+    D.predTypesPresentD (openStore D m) m = D.predTypesPresentD Sfull m := by
+  funext t; apply propext
+  exact ⟨fun ⟨p, hpr, _, he⟩ => ⟨p, hpr, hfull p hpr, he⟩,
+         fun ⟨p, hpr, _, he⟩ => ⟨p, hpr, hpr, he⟩⟩
+
+/-- **Openings suffice (concrete).** Over the lean opening-only store — which holds ONLY
+    the cited predecessors' type-openings — `m` gets the same safety verdict as over any
+    full-message store `Sfull` resolving `m`. Holding the full messages buys no verdict
+    information beyond the type-openings; the type-opening is exactly what §2's necessity
+    demands be delivered, and nothing more is needed. -/
+theorem openings_suffice_concrete
+    {Role Perf Msg : Type} {D : ProtoData Role Perf Msg}
+    {Sfull : Cfg Msg} {m : Msg} (hfull : D.resolvedD Sfull m) :
+    (D.isValidD (openStore D m) m ↔ D.isValidD Sfull m) ∧
+    (D.isViolationD (openStore D m) m ↔ D.isViolationD Sfull m) :=
+  verdict_reads_types_only (openStore_resolves D m) hfull (openStore_types_eq D m hfull)
+
 /-! ## 3. The weakest sound coordination-free condition (framing)
 
 `predsLocal D C r` — "every `r`-relevant message's `:caused-by` predecessors are all
@@ -314,5 +408,9 @@ theorem weakest_sound_condition
 #print axioms resolution_requires_preimage
 #print axioms spliced_pred_permanently_unknown
 #print axioms weakest_sound_condition
+#print axioms safety_reads_types_only
+#print axioms verdict_reads_types_only
+#print axioms openings_suffice
+#print axioms openings_suffice_concrete
 
 end LeanCbcl.Splice
