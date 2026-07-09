@@ -39,7 +39,7 @@ use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use cbcl_core::agent::Agent;
 use cbcl_core::blame::ViolationError;
-use cbcl_core::canonical::{canonical_encode, dialect_canonical_bytes};
+use cbcl_core::canonical::dialect_canonical_bytes;
 use cbcl_core::dialect::DialectRegistry;
 use cbcl_core::evaluator;
 use cbcl_core::message::{CorePerformative, Message, Performative};
@@ -319,12 +319,16 @@ fn hex_encode(bytes: &[u8]) -> String {
 
 /// Compute the canonical content hash of a message in the form
 /// `sha256:<lowercase-hex>`, matching the format the rest of the codebase
-/// uses for `:caused-by` references and dialect `:hash` fields. Hashes the
-/// canonical encoding of `SExpr::from(msg)`.
+/// uses for `:caused-by` references and dialect `:hash` fields.
+///
+/// SPEC-017 Stage 1 (hub flip): delegates to the shared content-address hub,
+/// the typed Merkle root over the message's fields
+/// (`cbcl_core::typed_addr::typed_root`), so the wasm binding and the core
+/// (`equivocation::message_content_hash`) can never disagree on a message's
+/// address. Return shape unchanged (`sha256:<hex64>`); only the digest value
+/// differs from the older flat `sha256:H(canonical-bytes)`.
 fn compute_canonical_message_hash(msg: &cbcl_core::message::Message) -> String {
-    let sexpr: SExpr = msg.into();
-    let bytes = canonical_encode(&sexpr);
-    format!("sha256:{}", hex_encode(Sha256::digest(&bytes).as_slice()))
+    cbcl_core::typed_addr::typed_root(msg)
 }
 
 /// Verify a runtime message against a dialect's shape constraints.

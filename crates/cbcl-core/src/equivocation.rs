@@ -46,14 +46,12 @@
 #![forbid(unsafe_code)]
 
 use crate::attest::{verify_attestation_v2, AttestError, AttestationHeader};
-use crate::canonical::canonical_encode;
 use crate::dialect::Dialect;
 use crate::keyid::{KeyId, KeyIdError};
 use crate::message::Message;
 use crate::protocol::{CausalProtocol, NodeRef, BEGIN_KEYWORD};
 use crate::r4::Signer;
 use crate::role::RoleAnnotation;
-use crate::sexpr::SExpr;
 use crate::store::{ContentHash, MessageStore, ThreadId};
 use alloc::collections::{BTreeMap, BTreeSet};
 use alloc::string::String;
@@ -64,23 +62,21 @@ use core::fmt;
 // Shared: content hashing and choice-point extraction
 // ---------------------------------------------------------------------------
 
-/// Canonical content hash of a message: `sha256:<lowercase-hex64>` over the
-/// RFC 9804 canonical encoding of its S-expression form — the same
-/// discipline as `:caused-by` references, dialect `:hash` fields
-/// (`crate::canonical::dialect_hash`), and the wasm binding's message
-/// hashing (SPEC-003 REQ-314).
+/// Canonical content hash of a message: `sha256:<lowercase-hex64>`, the
+/// single content-address hub for every content-addressed message (attestation
+/// headers, envelope redaction, equivocation, `:caused-by` references, and the
+/// wasm binding's message hashing, SPEC-003 REQ-314).
+///
+/// SPEC-017 Stage 1 (hub flip): this is the canonical **typed Merkle root**
+/// over the message's fields ([`crate::typed_addr::typed_root`]), not the older
+/// flat `sha256:H(canonical-bytes)`. The return shape is unchanged
+/// (`sha256:<hex64>`, a drop-in content address) and the root is deterministic
+/// and injective under SHA-256 collision resistance exactly as the flat hash
+/// was, so every property that held of the flat hash (determinism,
+/// content-sensitivity, opaque injectivity — the Lean `contentHash_injective`
+/// assumption) holds unchanged; only the concrete digest *value* differs.
 pub fn message_content_hash(msg: &Message) -> String {
-    use sha2::{Digest, Sha256};
-    let sexpr: SExpr = msg.into();
-    let digest = Sha256::digest(canonical_encode(&sexpr));
-    const HEX: &[u8; 16] = b"0123456789abcdef";
-    let mut out = String::with_capacity(7 + 64);
-    out.push_str("sha256:");
-    for b in digest {
-        out.push(HEX[(b >> 4) as usize] as char);
-        out.push(HEX[(b & 0x0f) as usize] as char);
-    }
-    out
+    crate::typed_addr::typed_root(msg)
 }
 
 /// The `(any …)` choice points of a protocol: each distinct `NodeRef::Any`
@@ -670,7 +666,7 @@ mod tests {
     use crate::message::{CausedBy, Performative, Recipients};
     use crate::protocol::{verify_causal, StepDecl, VerificationResult};
     use crate::role::{RoleCardinality, RoleDecl};
-    use crate::sexpr::Atom;
+    use crate::sexpr::{Atom, SExpr};
     use crate::store::ThreadedMessageStore;
     use alloc::string::ToString;
     use alloc::vec;

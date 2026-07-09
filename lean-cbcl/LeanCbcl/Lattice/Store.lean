@@ -99,8 +99,11 @@ end Lattice
 
 /-! ## ContentHash — opaque, with injective `contentHash` (Open Question §2). -/
 
-/-- Opaque canonical-form content hash. Real CBCL: SHA-256 of the
-    canonical S-expression encoding. -/
+/-- Opaque canonical-form content hash. Real CBCL: the typed Merkle root
+    over the message's canonical field encodings (SPEC-017), rendered
+    `sha256:<hex>`. The model needs only that it is opaque and injective;
+    the concrete construction (flat SHA-256 vs. Merkle-over-fields) is
+    immaterial here. -/
 axiom ContentHash : Type
 
 /-- The canonical content hash of a message. Mirrors
