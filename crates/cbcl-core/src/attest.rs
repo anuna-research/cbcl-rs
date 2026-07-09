@@ -22,6 +22,21 @@
 //! the mismatch is the typed [`AttestError::DisciplineMismatch`], fail
 //! closed (REQ-701, review finding 6).
 //!
+//! The v3 discipline (SPEC-017 REQ-812, Stage 2) signs a domain-tagged,
+//! suite-named commitment to the *typed Merkle root* alone:
+//!
+//! ```text
+//! (cbcl-attest-v3 <suite> <root>)
+//! ```
+//!
+//! After the Stage 1 hub-flip the content address *is* that root, and the
+//! root commits every header field as an authenticated leaf — so one
+//! root-signature authenticates all fields at once, and v3 verification
+//! needs only `(suite, root, sig)`, no header. v1, v2 and v3 coexist under
+//! the same [`SignatureDiscipline`] marker and [`verify_with_discipline`]
+//! dispatch; every cross-version presentation is the same typed fail-closed
+//! rejection. Stage 3 migrates `envelope.rs` to v3; v2 retirement is later.
+//!
 //! Canonical encoding is `canonical.rs`'s — this module builds the
 //! attestation `SExpr` and defers all byte production to
 //! [`canonical_encode`]; there is exactly one canonicalizer.
@@ -43,6 +58,20 @@ use core::fmt;
 /// version tag governs the *discipline* (what is signed); the suite field
 /// governs the *algorithm* (how); they vary independently.
 pub const ATTEST_DOMAIN_TAG: &str = "cbcl-attest-v2";
+
+/// Domain tag heading every v3 attestation preimage (SPEC-017 REQ-812,
+/// Stage 2). v3 signs a domain-tagged, suite-named commitment to the *typed
+/// Merkle root* (`typed_addr::typed_root`) rather than an unrolled header.
+///
+/// After the Stage 1 hub-flip the content address *is* that root, and the
+/// root already commits every field (performative, from, to, caused-by,
+/// thread, payload) as an authenticated leaf. So a v3 signature over
+/// `(cbcl-attest-v3 <suite> <root>)` authenticates all fields at once; each
+/// header field is recovered as a field-opening against the same root
+/// (Stage 3), so v3 verification needs *only* `(suite, root, sig)` — no
+/// header. The `-v3` tag governs the discipline; the suite field governs the
+/// algorithm; both retain ADR-700's cross-protocol-substitution resistance.
+pub const ATTEST_V3_DOMAIN_TAG: &str = "cbcl-attest-v3";
 
 /// The authenticated header a v2 signature commits to, alongside the
 /// content hash (REQ-700/REQ-701).
@@ -116,6 +145,33 @@ pub fn attestation_preimage(h: &AttestationHeader) -> Vec<u8> {
     canonical_encode(&attestation_sexpr(h))
 }
 
+/// Build the v3 attestation S-expression: a domain-tagged, suite-named
+/// commitment to the typed Merkle root (SPEC-017 REQ-812).
+///
+/// ```text
+/// (cbcl-attest-v3 <suite> <root>)
+/// ```
+///
+/// The suite is named explicitly (REQ-708): a v3 signature can never be
+/// re-interpreted under a different suite, and the two paths (sign, verify)
+/// reconstruct identical bytes from `(suite, root)` alone. `root` is the
+/// `sha256:<hex64>` rendering of the typed root, carried verbatim as a
+/// symbol atom — the same spelling `typed_addr::typed_root` produces.
+pub fn attestation_v3_sexpr(suite: &SignatureSuite, root: &str) -> SExpr {
+    use alloc::vec;
+    SExpr::List(vec![
+        SExpr::Atom(Atom::Symbol(String::from(ATTEST_V3_DOMAIN_TAG))),
+        SExpr::Atom(Atom::Symbol(String::from(suite.as_str()))),
+        SExpr::Atom(Atom::Symbol(String::from(root))),
+    ])
+}
+
+/// The RFC 9804 canonical bytes of the v3 attestation — the sole input to
+/// v3 signing and verification (SPEC-017 REQ-812). No header is involved.
+pub fn attestation_v3_preimage(suite: &SignatureSuite, root: &str) -> Vec<u8> {
+    canonical_encode(&attestation_v3_sexpr(suite, root))
+}
+
 /// Explicit signing-discipline discriminator carried by messages and
 /// envelopes (REQ-701): verification *dispatches* on it, never guesses.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -125,6 +181,9 @@ pub enum SignatureDiscipline {
     V1Full,
     /// v2: signature over the attestation preimage (ADR-700).
     V2Attested,
+    /// v3: signature over the typed-root commitment preimage
+    /// `(cbcl-attest-v3 <suite> <root>)` (SPEC-017 REQ-812).
+    V3Root,
 }
 
 impl SignatureDiscipline {
@@ -133,6 +192,7 @@ impl SignatureDiscipline {
         match self {
             SignatureDiscipline::V1Full => "v1",
             SignatureDiscipline::V2Attested => ATTEST_DOMAIN_TAG,
+            SignatureDiscipline::V3Root => ATTEST_V3_DOMAIN_TAG,
         }
     }
 
@@ -142,6 +202,7 @@ impl SignatureDiscipline {
         match s {
             "v1" => Ok(SignatureDiscipline::V1Full),
             ATTEST_DOMAIN_TAG => Ok(SignatureDiscipline::V2Attested),
+            ATTEST_V3_DOMAIN_TAG => Ok(SignatureDiscipline::V3Root),
             other => Err(AttestError::UnknownDiscipline(String::from(other))),
         }
     }
@@ -245,6 +306,53 @@ pub fn verify_attestation_v2(
     }
 }
 
+/// Sign the v3 typed-root attestation (SPEC-017 REQ-812).
+///
+/// `signer` embodies the private key whose suite is `suite`; `root` is the
+/// typed content-address root (`sha256:<hex64>`). The signature covers the
+/// domain-tagged, suite-named commitment `(cbcl-attest-v3 <suite> <root>)`
+/// and nothing else — because the root already commits every field, this one
+/// signature authenticates the whole message (header fields recoverable as
+/// field-openings against the same root, Stage 3).
+///
+/// Suite dispatch is a typed rejection for unimplemented suites (REQ-708):
+/// reject, don't repair, never skip.
+pub fn sign_attestation_v3(
+    suite: &SignatureSuite,
+    root: &str,
+    signer: &dyn Signer,
+) -> Result<Vec<u8>, AttestError> {
+    match suite {
+        SignatureSuite::Ed25519 => Ok(signer.sign(&attestation_v3_preimage(suite, root))),
+        SignatureSuite::Other(s) => Err(AttestError::UnknownSuite(s.clone())),
+    }
+}
+
+/// Verify a v3 signature from `(suite, root, sig)` alone — no header, no
+/// payload (SPEC-017 REQ-812).
+///
+/// Order of checks: suite dispatch (typed rejection for unimplemented
+/// suites, REQ-708), then cryptographic verification over the reconstructed
+/// commitment. A tampered root, a wrong suite, or a wrong signing key each
+/// fail closed: the root and suite are committed in the preimage, so any
+/// change moves the bytes and kills the signature (an unimplemented suite is
+/// rejected before any crypto work).
+pub fn verify_attestation_v3(
+    suite: &SignatureSuite,
+    root: &str,
+    sig: &[u8],
+    signer: &dyn Signer,
+) -> Result<(), AttestError> {
+    if let SignatureSuite::Other(s) = suite {
+        return Err(AttestError::UnknownSuite(s.clone()));
+    }
+    if signer.verify(&attestation_v3_preimage(suite, root), sig) {
+        Ok(())
+    } else {
+        Err(AttestError::InvalidSignature)
+    }
+}
+
 /// What a verification call holds: the discriminated counterpart to
 /// [`SignatureDiscipline`].
 #[derive(Debug, Clone, Copy)]
@@ -256,6 +364,11 @@ pub enum SigningInput<'a> {
         key: &'a KeyId,
         header: &'a AttestationHeader,
     },
+    /// Suite + typed root (v3 discipline; header-free and payload-free).
+    V3Root {
+        suite: &'a SignatureSuite,
+        root: &'a str,
+    },
 }
 
 impl SigningInput<'_> {
@@ -264,6 +377,7 @@ impl SigningInput<'_> {
         match self {
             SigningInput::V1Full(_) => SignatureDiscipline::V1Full,
             SigningInput::V2Attested { .. } => SignatureDiscipline::V2Attested,
+            SigningInput::V3Root { .. } => SignatureDiscipline::V3Root,
         }
     }
 }
@@ -291,6 +405,9 @@ pub fn verify_with_discipline(
         }
         (SignatureDiscipline::V2Attested, SigningInput::V2Attested { key, header }) => {
             verify_attestation_v2(signer, key, header, sig)
+        }
+        (SignatureDiscipline::V3Root, SigningInput::V3Root { suite, root }) => {
+            verify_attestation_v3(suite, root, sig, signer)
         }
         (marker, input) => Err(AttestError::DisciplineMismatch {
             marker,
@@ -575,12 +692,16 @@ mod tests {
 
     #[test]
     fn discipline_marker_roundtrip_and_unknown_rejection() {
-        for d in [SignatureDiscipline::V1Full, SignatureDiscipline::V2Attested] {
+        for d in [
+            SignatureDiscipline::V1Full,
+            SignatureDiscipline::V2Attested,
+            SignatureDiscipline::V3Root,
+        ] {
             assert_eq!(SignatureDiscipline::parse(d.as_str()), Ok(d));
         }
         assert_eq!(
-            SignatureDiscipline::parse("v3-guess"),
-            Err(AttestError::UnknownDiscipline("v3-guess".to_string()))
+            SignatureDiscipline::parse("v4-guess"),
+            Err(AttestError::UnknownDiscipline("v4-guess".to_string()))
         );
     }
 
@@ -615,6 +736,149 @@ mod tests {
         assert_eq!(
             verify_attestation_v2(&ALICE, &key("@pq-frodo:alice"), &resuited, &sig),
             Err(AttestError::UnknownSuite("pq-frodo".to_string()))
+        );
+    }
+
+    // ---- SPEC-017 REQ-812 Stage 2: v3 sign-the-root discipline ----
+
+    const ROOT: &str = "sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
+
+    #[test]
+    fn v3_preimage_is_domain_tagged_and_names_the_suite() {
+        let bytes = attestation_v3_preimage(&SignatureSuite::Ed25519, ROOT);
+        let s = core::str::from_utf8(&bytes).unwrap();
+        // "cbcl-attest-v3" (14 chars) + 'S' tag = 15 octets, at the head.
+        assert!(s.starts_with("(15:Scbcl-attest-v3"), "got: {s}");
+        assert!(s.contains("8:Sed25519"), "suite must be committed: {s}");
+        // The root rides verbatim; no header field appears.
+        assert!(s.contains(ROOT), "root must be committed: {s}");
+    }
+
+    /// TEST-812: verification needs ONLY (suite, root, sig) — no header, no
+    /// payload exists anywhere in this test.
+    #[test]
+    fn v3_verify_succeeds_from_suite_and_root_alone() {
+        let sig = sign_attestation_v3(&SignatureSuite::Ed25519, ROOT, &ALICE).unwrap();
+        assert_eq!(
+            verify_attestation_v3(&SignatureSuite::Ed25519, ROOT, &sig, &ALICE),
+            Ok(())
+        );
+    }
+
+    #[test]
+    fn v3_tampered_root_fails() {
+        let sig = sign_attestation_v3(&SignatureSuite::Ed25519, ROOT, &ALICE).unwrap();
+        let other = "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
+        assert_eq!(
+            verify_attestation_v3(&SignatureSuite::Ed25519, other, &sig, &ALICE),
+            Err(AttestError::InvalidSignature)
+        );
+    }
+
+    #[test]
+    fn v3_wrong_key_fails() {
+        let sig = sign_attestation_v3(&SignatureSuite::Ed25519, ROOT, &ALICE).unwrap();
+        // BOB is a distinct signing key; the signature does not carry over.
+        assert_eq!(
+            verify_attestation_v3(&SignatureSuite::Ed25519, ROOT, &sig, &BOB),
+            Err(AttestError::InvalidSignature)
+        );
+    }
+
+    /// TEST-708 for v3: an unimplemented suite is a typed rejection on both
+    /// sign and verify — reject, don't repair, never skip (REQ-708).
+    #[test]
+    fn v3_unknown_suite_is_typed_rejection() {
+        let pq = SignatureSuite::parse("pq-frodo");
+        let err = AttestError::UnknownSuite("pq-frodo".to_string());
+        assert_eq!(sign_attestation_v3(&pq, ROOT, &ALICE), Err(err.clone()));
+        assert_eq!(
+            verify_attestation_v3(&pq, ROOT, b"sig", &ALICE),
+            Err(err)
+        );
+    }
+
+    /// keyid canonical suite identity respected: the suite is committed into
+    /// the preimage, so an ed25519 signature can never be replayed under a
+    /// differently-named suite — the bytes differ.
+    #[test]
+    fn v3_suite_is_committed_to_preimage() {
+        let ed = attestation_v3_preimage(&SignatureSuite::Ed25519, ROOT);
+        let pq = attestation_v3_preimage(&SignatureSuite::parse("pq-frodo"), ROOT);
+        assert_ne!(ed, pq, "suite must be part of the committed bytes");
+    }
+
+    #[test]
+    fn v3_path_dispatches_through_discipline() {
+        let sig = sign_attestation_v3(&SignatureSuite::Ed25519, ROOT, &ALICE).unwrap();
+        let suite = SignatureSuite::Ed25519;
+        assert_eq!(
+            verify_with_discipline(
+                SignatureDiscipline::V3Root,
+                &SigningInput::V3Root { suite: &suite, root: ROOT },
+                &ALICE,
+                &sig
+            ),
+            Ok(())
+        );
+    }
+
+    /// REQ-701/REQ-812 fail-closed, both directions: a v2 signature presented
+    /// to a v3 verification call (and vice versa) is the typed mismatch — no
+    /// guess is attempted, even if some interpretation might pass.
+    #[test]
+    fn v2_signature_never_satisfies_v3_call() {
+        let h = header();
+        let v2_sig = sign_attestation_v2(&ALICE, &h).unwrap();
+        let suite = SignatureSuite::Ed25519;
+        assert_eq!(
+            verify_with_discipline(
+                SignatureDiscipline::V2Attested,
+                &SigningInput::V3Root { suite: &suite, root: ROOT },
+                &ALICE,
+                &v2_sig
+            ),
+            Err(AttestError::DisciplineMismatch {
+                marker: SignatureDiscipline::V2Attested,
+                input: SignatureDiscipline::V3Root,
+            })
+        );
+    }
+
+    #[test]
+    fn v3_signature_never_satisfies_v2_call() {
+        let h = header();
+        let k = key("@alice");
+        let v3_sig = sign_attestation_v3(&SignatureSuite::Ed25519, ROOT, &ALICE).unwrap();
+        assert_eq!(
+            verify_with_discipline(
+                SignatureDiscipline::V3Root,
+                &SigningInput::V2Attested { key: &k, header: &h },
+                &ALICE,
+                &v3_sig
+            ),
+            Err(AttestError::DisciplineMismatch {
+                marker: SignatureDiscipline::V3Root,
+                input: SignatureDiscipline::V2Attested,
+            })
+        );
+    }
+
+    /// v3 also fails closed against the legacy v1 full-bytes discipline.
+    #[test]
+    fn v3_signature_never_satisfies_v1_call() {
+        let v3_sig = sign_attestation_v3(&SignatureSuite::Ed25519, ROOT, &ALICE).unwrap();
+        assert_eq!(
+            verify_with_discipline(
+                SignatureDiscipline::V3Root,
+                &SigningInput::V1Full(b"(full-message-bytes)"),
+                &ALICE,
+                &v3_sig
+            ),
+            Err(AttestError::DisciplineMismatch {
+                marker: SignatureDiscipline::V3Root,
+                input: SignatureDiscipline::V1Full,
+            })
         );
     }
 }
