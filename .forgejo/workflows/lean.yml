@@ -7,6 +7,8 @@ name: lean-cbcl
 #     `verified-by: lean` (NFR-510 / TEST-550 / OBS-510). Lean only emits
 #     a warning (exit 0) when a declaration uses `sorry`, so the explicit
 #     grep is what makes the gate fatal;
+#   - run `lake exe runLinter LeanCbcl` (batteries env-linter) so the
+#     library stays lint-clean (docstrings, unused args, simpNF, etc.);
 #   - run `scripts/check-axioms.sh` to enforce the NFR-511 axiom
 #     allowlist on every CON-510..516 theorem (TEST-551 / OBS-512);
 #   - run `scripts/check-verified-by.sh` to enforce REQ-517 / TEST-517:
@@ -79,6 +81,16 @@ jobs:
             echo "FAIL: lake build emitted a sorry warning (NFR-510)" >&2
             exit 1
           fi
+
+      - name: Batteries env-linter (keep LeanCbcl lint-clean)
+        working-directory: lean-cbcl
+        # `lake exe runLinter` (from the batteries dependency) exits
+        # non-zero on any finding — missing docstrings, unused arguments,
+        # simp-normal-form issues, def/lemma confusion, etc. The library
+        # is lint-clean at HEAD; this gate keeps it so. Suppressions must
+        # be explicit `@[nolint <linter>]` with an in-source justification
+        # (never silence a real issue to make the gate green).
+        run: lake exe runLinter LeanCbcl
 
       - name: Axiom audit (NFR-511 / TEST-551 / OBS-512)
         run: scripts/check-axioms.sh
