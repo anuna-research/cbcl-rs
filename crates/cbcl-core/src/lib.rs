@@ -70,6 +70,7 @@ pub mod splice;
 pub mod shape;
 pub mod store;
 pub mod template;
+pub mod typed_addr;
 
 /// Prelude re-exporting the most-used types.
 pub mod prelude {
