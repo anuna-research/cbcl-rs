@@ -34,7 +34,7 @@ The headline theorem is the SPEC-003 monotone-map property: **`verify : Store ×
 
 **SPEC-003 prose proofs as the starting point.** The case analysis for monotonicity in SPEC-003 (REQ-304) is the proof skeleton. Mechanisation translates each case into a Lean lemma. The risk is that prose proofs hide load-bearing assumptions; a sympathetic translation will discover them.
 
-**Mathlib lattice infrastructure.** Mathlib4 provides `Order.BoundedLattice`, `Order.Hom.Lattice` (lattice homomorphisms), and finite-set lattice instances. SPEC-005 originally planned to depend on these rather than re-derive lattice theory from scratch (per ADR-510, accepted). The IMPL-005 mechanisation discovered that `VerificationResult` is non-absorbing and its knowledge order is a preorder rather than a partial order — neither `Lattice` nor `SemilatticeSup`/`SemilatticeInf` apply — so the dependency would not actually pay off for `Lattice/Result.lean`. ADR-510 has been amended to `accepted-with-deferral`; small hand-rolled `BoundedBisemilattice` (renamed from `BoundedLattice` on 2026-07-03 to reflect the missing absorption) and `JoinSemiLattice` typeclasses are retained in `Lattice/Result.lean` and `Lattice/Store.lean`.
+**`VerificationResult` is not a lattice — a spec correction, not a library quirk.** SPEC-003/SPEC-005 originally required proving `VerificationResult` a **bounded lattice**. That requirement is *mathematically impossible*, and the correct response (per [[SPEC-005-lean-mechanisation#RISK-511]]) is to amend the spec to the true structure, not to work around it Lean-side. The truth: under the natural knowledge order (`Unknown ⊥`; `Valid`, `Violation` incomparable and maximal), `VerificationResult` is a **bounded meet-semilattice** — `Valid ⊔ Violation` has *no* least upper bound, so it is not a lattice — and Mathlib's `SemilatticeInf` + `OrderBot` genuinely *do* apply to this order. The deployed eager verifier additionally defines a `join` (for `(any ...)`) and, to make both operations monotone in a single order, works in a *valid-is-sticky preorder* under which absorption fails (`Unknown ⊓ (Unknown ⊔ Violation) = Violation ≠ Unknown`), giving a **bisemilattice** — also not a lattice. Either way, "bounded lattice" was an overclaim. (An earlier IMPL-005 closeout mis-recorded this as a *Mathlib incompatibility* under ADR-510 and introduced a hand-rolled `BoundedBisemilattice` typeclass with the lattice laws "deliberately omitted"; the honesty defect — burying a false-theorem correction as a dependency decision, and asserting `SemilatticeInf` "does not apply" when it applies to the resolved-first order — was flagged in external review and is corrected here and in the amended ADR-510.) The store, separately, *is* a genuine lattice (`Set Message` under ⊆/∪).
 
 ### Scope
 
@@ -61,13 +61,12 @@ This specification does **not** cover:
 
 ### REQ-510: Three-valued result bisemilattice formalisation
 
-The system SHALL define a Lean type `VerificationResult` with constructors `Unknown`, `Valid`, `Violation` and SHALL prove it forms a `BoundedBisemilattice` (a hand-rolled typeclass — Mathlib4's `Lattice` hierarchy does not apply, per the amended ADR-510) with:
+The system SHALL define a Lean type `VerificationResult` with constructors `Unknown`, `Valid`, `Violation`. `VerificationResult` is **not a bounded lattice** (this REQ originally required proving it one; that was mathematically impossible — see the amended [[SPEC-005-lean-mechanisation#ADR-510]] and [[SPEC-005-lean-mechanisation#RISK-511]]). The mechanisation SHALL instead prove the two structures that are actually true:
 
-- `⊥ = Unknown` (identity of `⊔`) and `⊤ = Valid` (identity of `⊓`)
-- meet `⊓` (`Conjunction`) and join `⊔` (`Disjunction`) operations matching the truth tables in SPEC-003 REQ-303
-- the algebraic axioms of a bounded bisemilattice: associativity, commutativity, and idempotence for each of `⊓` and `⊔`, plus the two identity laws. Absorption is deliberately **not** required — it fails on the REQ-303 truth tables (`Unknown ⊓ (Unknown ⊔ Violation) = Violation ≠ Unknown`), which is precisely why the carrier is a bisemilattice rather than a lattice (SPEC-003 terminology note).
+1. **Meet-semilattice (knowledge order).** Under the knowledge order (`Unknown ⊥`; `Valid`, `Violation` incomparable and maximal), the greatest lower bound is the **consensus meet** `kmeet` (`kmeet Valid Violation = Unknown`), with bottom `Unknown` — a bounded meet-semilattice, checkable against Mathlib's `SemilatticeInf` + `OrderBot`. Note this GLB is a **distinct operation from the deployed eager conjunction** `meet ⊓` (the Kleene min used by `verify` for `(all ...)`), which gives `meet Valid Violation = Violation ≠ Unknown` and is therefore *not* the knowledge-order GLB. The mechanisation SHALL prove `kmeet` is the GLB, SHALL machine-check that the eager `meet` differs from it, AND SHALL prove `VerificationResult` is **not** a lattice by exhibiting that `Valid` and `Violation` have no common upper bound (so `Valid ⊔ Violation` has no least upper bound). Mechanised in `Lattice/NotALattice.lean` (`kmeet_is_glb`, `eager_meet_ne_kmeet`, `no_join_of_terminals`, `not_a_lattice`).
+2. **Bisemilattice (deployed eager algebra).** `meet ⊓` and `join ⊔` (`Disjunction`) each match the SPEC-003 REQ-303 truth tables and are each associative, commutative, idempotent, with `⊥ = Unknown` the `⊔`-identity and `⊤ = Valid` the `⊓`-identity. Absorption is **absent** (`Unknown ⊓ (Unknown ⊔ Violation) = Violation ≠ Unknown`), so the two operations induce two different orders — a bisemilattice, which the spec SHALL label as such and SHALL NOT call a lattice.
 
-The mechanisation MUST discharge each axiom with an explicit case-by-case proof or by `decide` (the result type is finite).
+The hand-rolled typeclass, if retained, SHALL be named to reflect the true structure and SHALL NOT be presented as a lattice with laws "omitted." The mechanisation MUST discharge each axiom with an explicit case-by-case proof or by `decide` (the result type is finite).
 
 Trace:
 - TEST-510
@@ -385,26 +384,45 @@ Verified by:
 
 #### Implementation finding (added during IMPL-005 closeout)
 
-The IMPL-005 mechanisation surfaced two structural facts about
-`VerificationResult` that obstruct the originally-planned Mathlib
-adoption — exactly the RISK-511 ("hidden assumptions in prose proofs")
-situation the mechanisation programme is supposed to expose:
+**Correction (2026-07-09, after external review).** The IMPL-005 closeout
+recorded the finding below as a reason *not to adopt Mathlib*, framed as a
+library incompatibility. That framing was itself a defect: the real headline
+is that **[[SPEC-005-lean-mechanisation#REQ-510]] required proving a theorem
+that is false** — `VerificationResult` is not a bounded lattice — and
+[[SPEC-005-lean-mechanisation#RISK-511]] (whose stated mitigation is "treat
+each surfaced assumption as a SPEC amendment, not a Lean-side workaround")
+therefore **materialised and was not honoured**: a hand-rolled
+`BoundedBisemilattice` typeclass with the lattice laws "deliberately omitted"
+was introduced instead of correcting the spec. The correct structures are
+now recorded in the amended REQ-510. The finding, stated precisely:
 
-1. **`VerificationResult` is non-absorbing.** Concretely,
-   `unknown ⊓ (unknown ⊔ violation) = unknown ⊓ violation = violation
-   ≠ unknown`, so the absorption law `a ⊓ (a ⊔ b) = a` fails.
-   Mathlib's `Order.Lattice` typeclass requires absorption.
-2. **The knowledge order `⊑` is a preorder, not a partial order.**
-   Both `unknown ⊑ violation` and `violation ⊑ unknown` hold (because
-   `a ⊑ b ↔ (a = valid → b = valid)` — see the docstring on
-   `VerificationResult.le` in `Lattice/Result.lean` for why "valid is sticky" is the only
-   order under which both `meet` and `join` are monotone, which is
-   what `verify_monotone` needs). Mathlib's `SemilatticeSup` and
-   `SemilatticeInf` require antisymmetry, which fails here.
+1. **`VerificationResult` is not a lattice — no join of the terminals.**
+   Under the knowledge order (`Unknown ⊥`; `Valid`, `Violation` incomparable
+   maximal), `Valid` and `Violation` have no common upper bound, so
+   `Valid ⊔ Violation` has no least upper bound. This order *is* a genuine
+   partial order and a bounded meet-semilattice — its GLB being the
+   **consensus meet** `kmeet` (`Valid ∧ Violation = Unknown`), a *distinct*
+   operation from the deployed eager Kleene conjunction (`Valid ∧ Violation =
+   Violation`) — so Mathlib's `SemilatticeInf` + `OrderBot` **do apply** to
+   `(kle, kmeet, Unknown)` (the earlier claim that `SemilatticeInf` "does not
+   apply" was an overclaim; it referred only to the preorder in point 2). A
+   lattice additionally needs the join, which is absent; hence not a lattice.
+   All machine-checked in `Lattice/NotALattice.lean`, including
+   `eager_meet_ne_kmeet` guarding the eager-vs-consensus distinction.
+2. **The deployed eager algebra uses a valid-is-sticky *preorder*, giving a
+   bisemilattice.** To make both `meet` (for `(all ...)`) and `join` (for
+   `(any ...)`) monotone in a *single* order, the verifier works in the
+   preorder `a ⊑ b ↔ (a = valid → b = valid)` (both `unknown ⊑ violation` and
+   `violation ⊑ unknown` hold — not antisymmetric). Under it absorption fails
+   (`unknown ⊓ (unknown ⊔ violation) = violation ≠ unknown`), so the two
+   operations induce two different orders: a bisemilattice, also not a
+   lattice. This is the structure `verify_monotone` needs, and it is what the
+   local typeclass should honestly record — as a bisemilattice, never as a
+   lattice with laws removed.
 
-Together these mean Mathlib can contribute at most a `Preorder`
-instance for `VerificationResult` — no lattice automation, no derived
-lemmas. The hand-rolled typeclass in `Lattice/Result.lean` records
+Together these mean the object is a meet-semilattice (resolved-first) / a
+bisemilattice (eager algebra), never a lattice; the store, separately, is a
+real Mathlib lattice. The hand-rolled typeclass in `Lattice/Result.lean` records
 exactly the axioms `verify_monotone` needs and is ~15 lines. It was
 renamed `BoundedLattice` → `BoundedBisemilattice` on 2026-07-03: with
 absorption absent and the two induced semilattice orders disagreeing,
@@ -666,6 +684,8 @@ Trace: NFR-511
 **Risk:** The SPEC-003 prose proofs may rely on assumptions that are false in the Lean model — e.g. that the protocol graph is finite, that `:caused-by` is well-founded, that messages have unique hashes. Mechanisation will surface these.
 
 **Mitigation:** Treat each surfaced assumption as a SPEC-002 / SPEC-003 amendment, not a Lean-side workaround. The amendment process is the value of mechanisation, not a cost.
+
+**Status: MATERIALISED (2026-07-09), initially mis-handled, now corrected.** SPEC-003/REQ-510 required proving `VerificationResult` a *bounded lattice*, which is mathematically impossible (the terminal verdicts have no join; see amended [[SPEC-005-lean-mechanisation#ADR-510]]). The IMPL-005 closeout did **not** follow this mitigation: instead of amending the spec, it introduced a hand-rolled `BoundedBisemilattice` typeclass with the lattice laws "deliberately omitted" and recorded the impossibility as a *Mathlib incompatibility* under ADR-510 — the exact fudge this risk exists to prevent. The defect was caught in external review, not by the tooling. It is corrected in REQ-510 and ADR-510: the spec now requires proving only the true structures (meet-semilattice / bisemilattice), and proving explicitly that the object is *not* a lattice. This entry stands as a worked example of the risk and of why an external reviewer, not the mechanisation alone, closed it.
 
 **Owner:** SPEC-005 implementer + SPEC-002/003 maintainers.
 

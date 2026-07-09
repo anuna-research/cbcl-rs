@@ -27,6 +27,7 @@ import LeanCbcl.DetParser
 import LeanCbcl.DeterministicUnion
 import LeanCbcl.Lattice.Store
 import LeanCbcl.Lattice.Result
+import LeanCbcl.Lattice.NotALattice
 import LeanCbcl.DCFLPreservation
 import LeanCbcl.Verify
 import LeanCbcl.R5

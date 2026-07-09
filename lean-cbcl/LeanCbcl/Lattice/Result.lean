@@ -15,23 +15,45 @@ identity for `meet` (greatest element under conjunction). Note that this
 is the *operational* structure used for CBCL verification — a **bounded
 bisemilattice**, not a lattice: the meet and join obey associativity,
 commutativity, and idempotence — and bottom / top are identities of join
-/ meet respectively — but absorption in the classical lattice sense is
-**not** required by SPEC-003 (Violation is absorbing for meet, Valid is
+/ meet respectively — but absorption in the classical lattice sense
+**fails** for this algebra (Violation is absorbing for meet, Valid is
 absorbing for join, in opposite directions), so the two induced
 semilattice orders disagree and no single lattice order underlies both
-operations.
+operations. (Under the separate resolved-first knowledge order the type
+is a bounded meet-semilattice — see the "Order-theoretic structure"
+section below and `Lattice/NotALattice.lean`.)
 The `BoundedBisemilattice` typeclass below records exactly the axioms that the
 SPEC-003 truth tables satisfy.
 
-## Mathlib
+## Order-theoretic structure — never a lattice (REQ-510 / ADR-510 / RISK-511)
 
-Per SPEC-005 ADR-510 (amended `accepted-with-deferral`), this module's
-local `BoundedBisemilattice` typeclass is **retained**, not deferred-then-
-replaced: `VerificationResult` is non-absorbing
-(`unknown ⊓ (unknown ⊔ violation) = violation ≠ unknown`) and its
-knowledge order `⊑` is a preorder rather than a partial order, so
-Mathlib's `Order.Lattice` and `SemilatticeSup`/`SemilatticeInf` types
-do not apply. See the amended ADR for the full finding.
+`VerificationResult` is **not a lattice**. This is a spec correction
+(SPEC-005 REQ-510 / ADR-510 / RISK-511), not a Mathlib quirk. There are
+two honest readings, both machine-checked in `Lattice/NotALattice.lean`:
+
+* **Bounded meet-semilattice (resolved-first knowledge order).** Under
+  the knowledge order `kle` (`unknown ⊥`; `valid`, `violation`
+  incomparable and maximal) every pair has a greatest lower bound — the
+  *consensus meet* `kmeet` — with bottom `unknown` (`kmeet_is_glb`,
+  `unknown_kle`). This order + GLB *does* match the shape of Mathlib's
+  `SemilatticeInf` + `OrderBot`; we do not import Mathlib (ADR-510). It
+  is **not** a lattice: `valid ⊔ violation` has no least upper bound
+  (`no_join_of_terminals` / `not_a_lattice`). NOTE: the GLB `kmeet` is a
+  *distinct* operation from the eager `meet` below —
+  `kmeet valid violation = unknown` but `meet valid violation =
+  violation` (`eager_meet_ne_kmeet`); the deployed conjunction is the
+  Kleene min, not the knowledge-order GLB.
+
+* **Bisemilattice (deployed eager algebra).** The `meet`/`join` defined
+  in this file (used by `verify`) are each bona-fide semilattice
+  operations, but their induced orders disagree and absorption fails
+  (`unknown ⊓ (unknown ⊔ violation) = violation ≠ unknown`,
+  `eager_absorption_fails`), so under the valid-is-sticky preorder `le`
+  they form a **bisemilattice** — also **not** a lattice.
+
+The earlier claim that Mathlib's `SemilatticeInf` "does not apply" was an
+overclaim — it applies to the knowledge order — and is removed here. See
+the amended ADR-510 / RISK-511 for the full finding.
 
 ## Theorems
 
@@ -51,16 +73,22 @@ do not apply. See the amended ADR for the full finding.
 namespace CBCL
 namespace Lattice
 
-/-! ## Local `BoundedBisemilattice` typeclass — a deliberately weaker
-    sibling of `Mathlib.Order.Lattice` + `Mathlib.Order.BoundedOrder`
-    (absorption omitted, so the carrier is a bisemilattice, not a
-    lattice).
+/-! ## Local `BoundedBisemilattice` typeclass — the eager verdict algebra.
 
-    The typeclass records the algebraic axioms that the SPEC-003 REQ-303
-    truth tables satisfy: `meet` and `join` are each associative,
-    commutative, and idempotent; `bot` is the two-sided identity of
-    `join`; `top` is the two-sided identity of `meet`. Absorption is
-    deliberately omitted — see the module docstring above. -/
+    This typeclass names the deployed *eager verdict algebra* (SPEC-003
+    REQ-303): exactly the axioms the two truth tables satisfy — `meet`
+    and `join` each associative, commutative, and idempotent; `bot` the
+    two-sided identity of `join`; `top` the two-sided identity of `meet`.
+    These are the genuine, complete axioms of a **bounded
+    bisemilattice**; it is a self-standing algebraic interface, not a
+    weakened copy of any Mathlib lattice class with a law struck out.
+
+    Absorption is not an axiom here because it is *false* for this
+    algebra (`unknown ⊓ (unknown ⊔ violation) = violation ≠ unknown`) —
+    that failure is precisely what makes the carrier a bisemilattice and
+    not a lattice (see `Lattice/NotALattice.lean`,
+    `eager_absorption_fails`, and the module docstring). Mathlib is not
+    imported (ADR-510). -/
 class BoundedBisemilattice (α : Type u) where
   meet       : α → α → α
   join       : α → α → α
