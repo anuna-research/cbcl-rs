@@ -13,8 +13,9 @@
 #![forbid(unsafe_code)]
 
 use crate::attest::AttestError;
-use crate::envelope::RedactedEnvelope;
+use crate::envelope::{verify_opened, OpenedEnvelope, OpenedError, RedactedEnvelope};
 use crate::message::{CausedBy, Message};
+use crate::typed_addr::FieldId;
 use crate::protocol::{CausalProtocol, CausalViolation, VerificationResult};
 use crate::r4::Signer;
 use crate::sexpr::{Atom, SExpr};
@@ -167,6 +168,29 @@ pub trait MessageStore {
         let _ = (hash, thread);
         None
     }
+
+    /// Look up an opened envelope by the typed content root of the message
+    /// it opens, scoped to the envelope's *authenticated* Thread opening
+    /// (SPEC-017 REQ-813).
+    ///
+    /// The Stage-3 native-openings counterpart of [`Self::envelope_in_thread`]:
+    /// `protocol::verify_causal` falls back to it for the safety-level
+    /// predecessor type when a `:caused-by` reference has no full message,
+    /// reading only the envelope's authenticated Performative opening. The
+    /// completion-level occupant fan-in (`projection.rs`, REQ-703) never
+    /// consults it — that boundary is preserved exactly as for redacted
+    /// envelopes.
+    ///
+    /// Default: no opened shelf (stores that never accept opened envelopes
+    /// keep their exact behaviour).
+    fn opened_in_thread(
+        &self,
+        hash: &ContentHash,
+        thread: &ThreadId,
+    ) -> Option<&OpenedEnvelope> {
+        let _ = (hash, thread);
+        None
+    }
 }
 
 /// Per-thread append-only message store with G-Set CRDT semantics (REQ-300).
@@ -186,6 +210,12 @@ pub struct ThreadedMessageStore {
     /// authenticated thread field, checked at lookup — an envelope can
     /// never be filed under a thread its signature does not vouch for.
     envelopes: HashMap<ContentHash, RedactedEnvelope>,
+    /// Opened-envelope shelf (SPEC-017 REQ-813), keyed by the typed content
+    /// root of the opened message. Thread placement is the envelope's
+    /// authenticated Thread opening, checked at lookup — as for the redacted
+    /// shelf, an opened envelope can never be filed under a thread its
+    /// signature and opening do not vouch for.
+    opened: HashMap<ContentHash, OpenedEnvelope>,
 }
 
 impl ThreadedMessageStore {
@@ -196,6 +226,7 @@ impl ThreadedMessageStore {
             index: HashIndex::new(),
             referenced: HashMap::new(),
             envelopes: HashMap::new(),
+            opened: HashMap::new(),
         }
     }
 
@@ -221,6 +252,42 @@ impl ThreadedMessageStore {
             .envelopes
             .entry(ContentHash(envelope.header.content_hash.clone()))
         {
+            Entry::Vacant(e) => {
+                e.insert(envelope);
+                Ok(true)
+            }
+            Entry::Occupied(_) => Ok(false),
+        }
+    }
+
+    /// Accept an opened envelope (SPEC-017 REQ-813).
+    ///
+    /// Verifies the v3 root-signature and every field-opening from the
+    /// envelope's own fields first (`signer` embodies verification for the
+    /// sender key), then shelves it under its typed root, placed in the
+    /// thread its *authenticated* Thread opening names. As with
+    /// [`Self::append_envelope`] there is deliberately no thread parameter,
+    /// so cross-thread injection of a genuine envelope is a signature/opening
+    /// failure at the source, not a policy question; an envelope that does
+    /// not open its Thread leaf cannot be placed (fail closed).
+    ///
+    /// Returns `Ok(true)` if newly shelved, `Ok(false)` if an opened
+    /// envelope for this root is already present (G-Set dedup).
+    pub fn append_opened(
+        &mut self,
+        envelope: OpenedEnvelope,
+        signer: &dyn Signer,
+    ) -> Result<bool, OpenedError> {
+        verify_opened(&envelope, signer)?;
+        // Thread placement is by an *authenticated* opening; an envelope
+        // whose Thread leaf is not opened has no place to go.
+        if envelope.thread().is_none() {
+            return Err(OpenedError::MissingField {
+                field: FieldId::Thread,
+            });
+        }
+        use hashbrown::hash_map::Entry;
+        match self.opened.entry(ContentHash(envelope.root.clone())) {
             Entry::Vacant(e) => {
                 e.insert(envelope);
                 Ok(true)
@@ -348,6 +415,18 @@ impl MessageStore for ThreadedMessageStore {
         self.envelopes
             .get(hash)
             .filter(|e| e.header.thread == thread.0)
+    }
+
+    fn opened_in_thread(
+        &self,
+        hash: &ContentHash,
+        thread: &ThreadId,
+    ) -> Option<&OpenedEnvelope> {
+        // Thread scoping is by the envelope's authenticated Thread opening
+        // (REQ-813): the shelf holds no caller-chosen thread to compare.
+        self.opened
+            .get(hash)
+            .filter(|e| e.thread() == Some(thread.0.as_str()))
     }
 }
 
@@ -2183,5 +2262,82 @@ mod tests {
         assert!(NullStore
             .envelope_in_thread(&hash("h1"), &thread("t1"))
             .is_none());
+        // The opened-shelf lookup is likewise a default-None (SPEC-017).
+        assert!(NullStore
+            .opened_in_thread(&hash("h1"), &thread("t1"))
+            .is_none());
+    }
+
+    // =========================================================================
+    // SPEC-017 REQ-813: opened-envelope shelf (append_opened / opened_in_thread)
+    // =========================================================================
+
+    use crate::envelope::{build_opened, OpenedError, HEADER_FIELDS};
+    use crate::keyid::SignatureSuite;
+    // `Performative` is already imported by the test module above.
+    use crate::message::Recipients;
+    use crate::typed_addr::{typed_root, FieldId};
+
+    /// A predecessor message typed `perf`, sender `@alice`, thread
+    /// `thread_name`; returns its opened envelope and its typed root.
+    fn opened(perf: &str, thread_name: &str) -> (crate::envelope::OpenedEnvelope, String) {
+        let mut to = alloc::collections::BTreeSet::new();
+        to.insert("@bob".to_string());
+        let m = Message::Simple {
+            performative: Performative::Custom(perf.into()),
+            recipient: Some(Recipients::Set(to)),
+            content: SExpr::Atom(Atom::Str("secret".into())),
+            params: Vec::new(),
+            thread: Some(thread_name.into()),
+            sender: Some("@alice".into()),
+            caused_by: Some(CausedBy::Begin),
+        };
+        let root = typed_root(&m);
+        let env = build_opened(&m, &HEADER_FIELDS, &SignatureSuite::Ed25519, &SIGNER).unwrap();
+        (env, root)
+    }
+
+    /// REQ-813: acceptance places an opened envelope in the thread its
+    /// *authenticated* Thread opening names — no caller-chosen thread.
+    #[test]
+    fn opened_envelope_is_placed_by_its_authenticated_thread() {
+        let mut store = ThreadedMessageStore::new();
+        let (env, root) = opened("offer", "t1");
+        assert_eq!(store.append_opened(env, &SIGNER), Ok(true));
+        assert!(store.opened_in_thread(&hash(&root), &thread("t1")).is_some());
+        // Invisible from any other thread, and no phantom full message.
+        assert!(store.opened_in_thread(&hash(&root), &thread("t2")).is_none());
+        assert!(store.lookup_in_thread(&hash(&root), &thread("t1")).is_none());
+    }
+
+    /// REQ-813: relabelling the Thread opening to inject into another thread
+    /// makes that opening fail against the signed root — the envelope is
+    /// never stored (fail closed at the signature/opening, not a policy).
+    #[test]
+    fn relabelled_opened_envelope_is_a_signature_failure_and_not_stored() {
+        let mut store = ThreadedMessageStore::new();
+        let (mut env, root) = opened("offer", "t1");
+        for op in &mut env.openings {
+            if op.field == FieldId::Thread {
+                op.value = SExpr::List(vec![SExpr::Atom(Atom::Str("t2".to_string()))]);
+            }
+        }
+        assert_eq!(
+            store.append_opened(env, &SIGNER),
+            Err(OpenedError::OpeningFailed {
+                field: FieldId::Thread
+            })
+        );
+        assert!(store.opened_in_thread(&hash(&root), &thread("t1")).is_none());
+        assert!(store.opened_in_thread(&hash(&root), &thread("t2")).is_none());
+    }
+
+    #[test]
+    fn opened_shelf_deduplicates_by_root() {
+        let mut store = ThreadedMessageStore::new();
+        let (env1, _) = opened("offer", "t1");
+        let (env2, _) = opened("offer", "t1");
+        assert_eq!(store.append_opened(env1, &SIGNER), Ok(true));
+        assert_eq!(store.append_opened(env2, &SIGNER), Ok(false));
     }
 }

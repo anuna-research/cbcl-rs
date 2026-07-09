@@ -122,6 +122,7 @@ const NODE_PREFIX: u8 = 0x01;
 
 /// The openable fields of a message, in fixed canonical order.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum FieldId {
     /// Performative / message type (leaf 0).
     Performative = 0,
@@ -163,6 +164,7 @@ impl FieldId {
 
 /// Which side a sibling sits on when folding an opening path.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Side {
     /// Sibling is the left child: `parent = H(sibling, current)`.
     Left,
@@ -176,6 +178,7 @@ pub enum Side {
 /// an opening is constant-size in the payload — the SPEC-015 NFR-700 property,
 /// preserved.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Opening {
     /// Which field this opens.
     pub field: FieldId,

@@ -47,6 +47,7 @@
 
 use crate::attest::{verify_attestation_v2, AttestError, AttestationHeader};
 use crate::dialect::Dialect;
+use crate::envelope::{verify_opened, OpenedError};
 use crate::keyid::{KeyId, KeyIdError};
 use crate::message::Message;
 use crate::protocol::{CausalProtocol, NodeRef, BEGIN_KEYWORD};
@@ -300,6 +301,16 @@ pub enum ProofMember {
     /// into a fake conflict fails at the signature either way, and the
     /// proof discloses no payload for the envelope member (NFR-701).
     Envelope(crate::envelope::RedactedEnvelope),
+    /// An opened-envelope member (SPEC-017 REQ-813): the typed root, its v3
+    /// root-signature, and the header-field openings. Verification runs
+    /// [`crate::envelope::verify_opened`] — the v3 root-signature plus each
+    /// opening against that signed root — so the (performative, sender,
+    /// thread, content root) the predicate needs are read from authenticated
+    /// openings, at zero payload disclosure (NFR-701). Relabelling a genuine
+    /// message into a fake conflict fails at the opening or the signature,
+    /// exactly as the full-message and redacted-envelope arms do; the proof
+    /// stays pure and dialect-pinned.
+    OpenedEnvelope(crate::envelope::OpenedEnvelope),
 }
 
 /// The transferable proof object (REQ-706, CON-702):
@@ -459,9 +470,12 @@ fn check_member(
     proof: &EquivocationProof,
     signer: &dyn Signer,
 ) -> Result<CheckedMember, EquivocationProofError> {
-    // Both member classes reconstruct the same attestation header shape
-    // (REQ-701): a full message from its fields and computed content hash,
-    // an envelope from its own authenticated header.
+    // The three member classes all yield the same (performative, sender,
+    // thread, content hash) the predicate needs. The two v2 classes
+    // reconstruct an attestation header (REQ-701): a full message from its
+    // fields and computed content hash, a redacted envelope from its own
+    // authenticated header. The opened-envelope class (REQ-813) instead
+    // authenticates native field-openings against the signed typed root.
     let (header, signature): (AttestationHeader, &[u8]) = match member {
         ProofMember::SignedMessage { message, signature } => {
             let header = attestation_header_for(message).map_err(|defect| {
@@ -473,6 +487,9 @@ fn check_member(
             (header, signature)
         }
         ProofMember::Envelope(envelope) => (envelope.header.clone(), &envelope.signature),
+        ProofMember::OpenedEnvelope(env) => {
+            return check_opened_member(env, index, proof, signer);
+        }
     };
     // Canonical key identity (REQ-708): alias spellings of the accused key
     // are one identity; a different identity is a typed mismatch.
@@ -495,6 +512,66 @@ fn check_member(
     Ok(CheckedMember {
         performative: header.performative,
         content_hash: header.content_hash,
+    })
+}
+
+/// Structural + cryptographic check of an opened-envelope member (REQ-813),
+/// in the same order as [`check_member`]'s v2 arms: canonical key identity,
+/// then thread, then signature. The key/thread reads are of the *claimed*
+/// openings; both are then re-authenticated (with the performative and the
+/// root) by [`verify_opened`], so a forger cannot slip a wrong value past —
+/// relabelling a genuine message into a fake conflict changes an opening (or
+/// the root) and dies at the signature check, never at a repairable policy
+/// check. No payload is an input (NFR-701).
+fn check_opened_member(
+    env: &crate::envelope::OpenedEnvelope,
+    index: usize,
+    proof: &EquivocationProof,
+    signer: &dyn Signer,
+) -> Result<CheckedMember, EquivocationProofError> {
+    let from_spelling =
+        env.from_spelling()
+            .ok_or(EquivocationProofError::MalformedMember {
+                member: index,
+                defect: MemberDefect::MissingSender,
+            })?;
+    let from = KeyId::parse(from_spelling).map_err(|e| {
+        EquivocationProofError::MalformedMember {
+            member: index,
+            defect: MemberDefect::SenderSpelling(e),
+        }
+    })?;
+    if from != proof.key {
+        return Err(EquivocationProofError::KeyMismatch { member: index });
+    }
+    let thread = env.thread().ok_or(EquivocationProofError::MalformedMember {
+        member: index,
+        defect: MemberDefect::MissingThread,
+    })?;
+    if thread != proof.thread {
+        return Err(EquivocationProofError::ThreadMismatch { member: index });
+    }
+    // Authenticate: the v3 root-signature plus every opening against that
+    // signed root (REQ-813). An opening-level forgery maps to the same
+    // fail-closed Signature rejection the v2 arms produce.
+    verify_opened(env, signer).map_err(|error| EquivocationProofError::Signature {
+        member: index,
+        error: match error {
+            OpenedError::Attestation(a) => a,
+            OpenedError::OpeningFailed { .. } | OpenedError::MissingField { .. } => {
+                AttestError::InvalidSignature
+            }
+        },
+    })?;
+    let performative = env
+        .performative()
+        .ok_or(EquivocationProofError::MalformedMember {
+            member: index,
+            defect: MemberDefect::NotSimple,
+        })?;
+    Ok(CheckedMember {
+        performative: String::from(performative),
+        content_hash: String::from(env.content_hash()),
     })
 }
 
@@ -1283,6 +1360,127 @@ mod tests {
                 member: 0,
                 defect: MemberDefect::MissingSender,
             })
+        );
+    }
+
+    // ---- REQ-813: opened-envelope proof members ----
+
+    use crate::envelope::{build_opened, HEADER_FIELDS};
+    use crate::keyid::SignatureSuite;
+    use crate::typed_addr::FieldId;
+
+    fn opened_member(m: Message, signer: &dyn Signer) -> ProofMember {
+        ProofMember::OpenedEnvelope(
+            build_opened(&m, &HEADER_FIELDS, &SignatureSuite::Ed25519, signer).unwrap(),
+        )
+    }
+
+    #[test]
+    fn opened_member_convicts_without_payload() {
+        // The second member travels as an opened envelope (header openings
+        // only): the proof verifies from the pair and the pinned dialect
+        // alone, and the opened member discloses no payload field (NFR-701).
+        let d = choice_dialect();
+        let mut proof = proof_over(
+            &d,
+            msg("offer", "@alice", "t1", "a"),
+            msg("refuse", "@alice", "t1", "b"),
+        );
+        proof.second = opened_member(msg("refuse", "@alice", "t1", "payload-b"), &ALICE_SIGNER);
+        if let ProofMember::OpenedEnvelope(env) = &proof.second {
+            assert!(env.opening(FieldId::Payload).is_none());
+            for op in &env.openings {
+                let bytes = crate::canonical::canonical_encode(&op.value);
+                let s = core::str::from_utf8(&bytes).unwrap();
+                assert!(!s.contains("payload-b"), "payload leaked via {:?}", op.field);
+            }
+        }
+        assert_eq!(
+            verify_equivocation_proof(&proof, &d, &ALICE_SIGNER),
+            Ok(alice())
+        );
+    }
+
+    #[test]
+    fn all_opened_pair_convicts() {
+        let d = choice_dialect();
+        let mut proof = proof_over(
+            &d,
+            msg("offer", "@alice", "t1", "a"),
+            msg("offer", "@alice", "t1", "b"),
+        );
+        proof.first = opened_member(msg("offer", "@alice", "t1", "a"), &ALICE_SIGNER);
+        proof.second = opened_member(msg("offer", "@alice", "t1", "b"), &ALICE_SIGNER);
+        assert_eq!(
+            verify_equivocation_proof(&proof, &d, &ALICE_SIGNER),
+            Ok(alice())
+        );
+    }
+
+    #[test]
+    fn relabelled_opened_member_fails_at_the_signature() {
+        // An opened envelope's thread is an authenticated opening (REQ-813):
+        // rewriting it to frame a cross-thread conflict makes that opening
+        // fail against the signed root, so the forgery dies at the signature
+        // check — never at a repairable policy check.
+        let d = choice_dialect();
+        let mut proof = proof_over(
+            &d,
+            msg("offer", "@alice", "t1", "a"),
+            msg("refuse", "@alice", "t2", "b"), // genuinely from thread t2
+        );
+        let mut env = match opened_member(msg("refuse", "@alice", "t2", "b"), &ALICE_SIGNER) {
+            ProofMember::OpenedEnvelope(env) => env,
+            _ => unreachable!(),
+        };
+        // Relabel the Thread opening into the conflict thread.
+        for op in &mut env.openings {
+            if op.field == FieldId::Thread {
+                op.value = crate::sexpr::SExpr::List(alloc::vec![crate::sexpr::SExpr::Atom(
+                    crate::sexpr::Atom::Str("t1".to_string())
+                )]);
+            }
+        }
+        proof.second = ProofMember::OpenedEnvelope(env);
+        assert_eq!(
+            verify_equivocation_proof(&proof, &d, &ALICE_SIGNER),
+            Err(EquivocationProofError::Signature {
+                member: 1,
+                error: AttestError::InvalidSignature,
+            })
+        );
+    }
+
+    #[test]
+    fn opened_member_by_another_key_is_a_key_mismatch() {
+        let d = choice_dialect();
+        let mut proof = proof_over(
+            &d,
+            msg("offer", "@alice", "t1", "a"),
+            msg("refuse", "@alice", "t1", "b"),
+        );
+        proof.second = opened_member(msg("refuse", "@bob", "t1", "b"), &BOB_SIGNER);
+        assert_eq!(
+            verify_equivocation_proof(&proof, &d, &ALICE_SIGNER),
+            Err(EquivocationProofError::KeyMismatch { member: 1 })
+        );
+    }
+
+    /// A mixed pair — one redacted envelope, one opened envelope — still
+    /// convicts: the arms interoperate through the shared `CheckedMember`.
+    #[test]
+    fn mixed_redacted_and_opened_pair_convicts() {
+        let d = choice_dialect();
+        let mut proof = proof_over(
+            &d,
+            msg("offer", "@alice", "t1", "a"),
+            msg("refuse", "@alice", "t1", "b"),
+        );
+        proof.first = envelope_member(msg("offer", "@alice", "t1", "a"), &ALICE_SIGNER);
+        proof.second = opened_member(msg("refuse", "@alice", "t1", "b"), &ALICE_SIGNER);
+        assert_eq!(
+            verify_equivocation_proof(&proof, &d, &ALICE_SIGNER),
+            Ok(alice())
         );
     }
 

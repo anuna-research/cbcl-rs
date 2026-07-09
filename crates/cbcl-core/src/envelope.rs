@@ -51,15 +51,16 @@
 #![forbid(unsafe_code)]
 
 use crate::attest::{
-    verify_attestation_v2, AttestError, AttestationHeader, SignatureDiscipline, SigningInput,
-    verify_with_discipline,
+    sign_attestation_v3, verify_attestation_v2, verify_attestation_v3, AttestError,
+    AttestationHeader, SignatureDiscipline, SigningInput, verify_with_discipline,
 };
 use crate::equivocation::{attestation_header_for, MemberDefect};
-use crate::keyid::{KeyId, KeyIdError};
+use crate::keyid::{KeyId, KeyIdError, SignatureSuite};
 use crate::message::{CausedBy, Message};
 use crate::protocol::BEGIN_KEYWORD;
 use crate::r4::Signer;
 use crate::sexpr::{Atom, SExpr};
+use crate::typed_addr::{self, FieldId, Opening};
 use alloc::collections::BTreeSet;
 use alloc::string::String;
 use alloc::vec::Vec;
@@ -422,6 +423,203 @@ pub fn parse_envelope(
         },
         signature,
     })
+}
+
+// ---------------------------------------------------------------------------
+// SPEC-017 REQ-813 Stage 3: opened envelopes — native field-openings
+// ---------------------------------------------------------------------------
+
+/// The SPEC-015 envelope header fields (leaves 0–4), in canonical order.
+///
+/// Opening exactly these reproduces a redacted envelope's disclosure —
+/// performative, from, to, `:caused-by`, thread — while leaf 5 (payload)
+/// stays sealed (NFR-701). This is the field set redacted delivery opens.
+pub const HEADER_FIELDS: [FieldId; 5] = [
+    FieldId::Performative,
+    FieldId::From,
+    FieldId::To,
+    FieldId::CausedBy,
+    FieldId::Thread,
+];
+
+/// An **opened envelope** (SPEC-017 REQ-813): the typed content address
+/// (`root`), a v3 root-signature over it, and a set of authenticated
+/// field-openings against that root.
+///
+/// This is the Stage-3 successor to [`RedactedEnvelope`]. Where a redacted
+/// envelope *reconstructs* a header and re-binds it with a v2 attestation,
+/// an opened envelope carries each header field as a self-authenticating
+/// [`Opening`] of the *same* Merkle root the single v3 signature vouches for
+/// ([`crate::attest::sign_attestation_v3`]): the header authentication is
+/// now the content address's own read-out, not a separate signed object.
+///
+/// Redacted delivery opens leaves 0–4 (the [`HEADER_FIELDS`]) and seals
+/// leaf 5, so a widened recipient learns the predecessor's type, endpoints,
+/// causal position and thread at zero payload disclosure (NFR-701). Opening
+/// the payload leaf as well is the full-content path a completion decider
+/// needs ([[SPEC-015 REQ-703]]); an opened envelope built for redacted
+/// delivery deliberately omits it, preserving the safety/completion boundary.
+///
+/// Constant size: each opening is a fixed ≤3-sibling path (NFR-700), so the
+/// envelope is bounded by the header-field count, independent of the
+/// redacted payload.
+///
+/// Trust: `root`, `suite`, and the opening *values* are claims until
+/// [`verify_opened`] succeeds; after that, the v3 signature vouches for the
+/// root and every opening authenticates a field value against it. Any party
+/// can forward a genuine opened envelope; only the signer can *produce* one
+/// (the v3 signature needs the private key), and forging any field fails
+/// [`verify_opened`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct OpenedEnvelope {
+    /// The typed Merkle root — the message's content address
+    /// (`sha256:<hex64>`), which the v3 signature commits to.
+    pub root: String,
+    /// Signature suite named in the v3 attestation preimage (REQ-708): a v3
+    /// signature can never be re-read under a different suite.
+    pub suite: SignatureSuite,
+    /// v3 root-signature over `(cbcl-attest-v3 <suite> <root>)` (REQ-812).
+    pub signature: Vec<u8>,
+    /// Authenticated field-openings against `root`. For redacted delivery
+    /// these are the [`HEADER_FIELDS`]; the payload leaf is absent.
+    pub openings: Vec<Opening>,
+}
+
+impl OpenedEnvelope {
+    /// The content address the v3 signature vouches for (`sha256:<hex64>`).
+    pub fn content_hash(&self) -> &str {
+        &self.root
+    }
+
+    /// The opening for `field`, if this envelope discloses it.
+    pub fn opening(&self, field: FieldId) -> Option<&Opening> {
+        self.openings.iter().find(|o| o.field == field)
+    }
+
+    /// Authenticated performative type, from the Performative opening
+    /// (leaf 0). `None` if that leaf is not opened or is malformed.
+    pub fn performative(&self) -> Option<&str> {
+        match &self.opening(FieldId::Performative)?.value {
+            SExpr::Atom(Atom::Symbol(s)) => Some(s.as_str()),
+            _ => None,
+        }
+    }
+
+    /// Authenticated thread identifier, from the Thread opening (leaf 4).
+    pub fn thread(&self) -> Option<&str> {
+        opt_leaf_str(&self.opening(FieldId::Thread)?.value)
+    }
+
+    /// Authenticated sender spelling, from the From opening (leaf 1).
+    pub fn from_spelling(&self) -> Option<&str> {
+        opt_leaf_str(&self.opening(FieldId::From)?.value)
+    }
+
+    /// Authenticated recipient spellings, from the To opening (leaf 2).
+    pub fn to_spellings(&self) -> Option<Vec<&str>> {
+        match &self.opening(FieldId::To)?.value {
+            SExpr::List(items) => items
+                .iter()
+                .map(|i| match i {
+                    SExpr::Atom(Atom::Symbol(s)) => Some(s.as_str()),
+                    _ => None,
+                })
+                .collect(),
+            _ => None,
+        }
+    }
+}
+
+/// Read an `opt`-wrapped leaf value (`typed_addr::field_sexpr`'s `Some(v) →
+/// (v)`, `None → ()`): `(s)` → `Some(s)`, `()` → `None`.
+fn opt_leaf_str(v: &SExpr) -> Option<&str> {
+    match v {
+        SExpr::List(items) if items.len() == 1 => match &items[0] {
+            SExpr::Atom(Atom::Str(s)) | SExpr::Atom(Atom::Symbol(s)) => Some(s.as_str()),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+/// Typed rejection for [`verify_opened`] — fail closed, LangSec discipline
+/// (reject, never repair; never a skipped check).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum OpenedError {
+    /// The v3 root-signature did not verify: a tampered root, a wrong suite,
+    /// an unimplemented suite, or a wrong signing key (fail closed).
+    Attestation(AttestError),
+    /// A field-opening did not authenticate against the signed root — a
+    /// forged or corrupted field value, path, or side.
+    OpeningFailed { field: FieldId },
+    /// A required header field was not disclosed by this envelope.
+    MissingField { field: FieldId },
+}
+
+impl fmt::Display for OpenedError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Attestation(e) => write!(f, "opened-envelope root-signature invalid: {e}"),
+            Self::OpeningFailed { field } => {
+                write!(f, "opened-envelope field {field:?} fails to open against the root")
+            }
+            Self::MissingField { field } => {
+                write!(f, "opened-envelope does not disclose field {field:?}")
+            }
+        }
+    }
+}
+
+/// Build an opened envelope for `msg` (REQ-813): sign its typed root under
+/// the v3 discipline and open exactly `fields` against that root.
+///
+/// `fields` selects which leaves to disclose — redacted delivery passes
+/// [`HEADER_FIELDS`] (payload sealed); a full-content path additionally
+/// passes [`FieldId::Payload`]. Only the holder of the signing key can
+/// produce one (the v3 signature); any relay can forward the result.
+///
+/// Suite dispatch is a typed rejection for unimplemented suites (REQ-708),
+/// inherited from [`sign_attestation_v3`].
+pub fn build_opened(
+    msg: &Message,
+    fields: &[FieldId],
+    suite: &SignatureSuite,
+    signer: &dyn Signer,
+) -> Result<OpenedEnvelope, AttestError> {
+    let root = typed_addr::typed_root(msg);
+    let signature = sign_attestation_v3(suite, &root, signer)?;
+    let openings = fields.iter().map(|&f| typed_addr::open(msg, f)).collect();
+    Ok(OpenedEnvelope {
+        root,
+        suite: suite.clone(),
+        signature,
+        openings,
+    })
+}
+
+/// Verify an opened envelope (REQ-813), in two steps and fail-closed:
+///
+/// 1. the v3 root-signature via [`verify_attestation_v3`] — this
+///    authenticates `root` under the sender's key (`signer` embodies that
+///    key's verification, the R4 convention);
+/// 2. every field-opening against that now-signed root via
+///    [`typed_addr::verify_opening`].
+///
+/// Order is load-bearing: the signature authenticates the root first, so a
+/// passing opening then proves its value under a root the sender vouched
+/// for. A relay that only forwards a genuine envelope passes; a forger who
+/// edits any field (value, path, or side) fails at step 2, and one who
+/// edits the root fails at step 1 — no payload is ever an input (NFR-701).
+pub fn verify_opened(env: &OpenedEnvelope, signer: &dyn Signer) -> Result<(), OpenedError> {
+    verify_attestation_v3(&env.suite, &env.root, &env.signature, signer)
+        .map_err(OpenedError::Attestation)?;
+    for op in &env.openings {
+        if !typed_addr::verify_opening(&env.root, op.field, &op.value, op) {
+            return Err(OpenedError::OpeningFailed { field: op.field });
+        }
+    }
+    Ok(())
 }
 
 // ---------------------------------------------------------------------------
@@ -834,6 +1032,167 @@ mod tests {
             e_small.to_sexpr().byte_size(),
             e_large.to_sexpr().byte_size(),
             "envelope size must not scale with the payload"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // SPEC-017 REQ-813 Stage 3: opened envelopes (native field-openings)
+    // -----------------------------------------------------------------------
+
+    use crate::keyid::SignatureSuite;
+    use crate::typed_addr::{self, FieldId};
+
+    fn opened(m: &Message, signer: &dyn Signer) -> OpenedEnvelope {
+        build_opened(m, &HEADER_FIELDS, &SignatureSuite::Ed25519, signer).unwrap()
+    }
+
+    /// REQ-813: the opened header set verifies — the v3 root-signature plus
+    /// every header opening against that signed root — and the disclosed
+    /// values read back as the message's authenticated fields.
+    #[test]
+    fn opened_header_verifies_and_reads_back() {
+        let m = sample_message(Some(CausedBy::Single(hash64('b'))));
+        let env = opened(&m, &ALICE);
+        assert_eq!(verify_opened(&env, &ALICE), Ok(()));
+        assert_eq!(env.performative(), Some("reveal-bid"));
+        assert_eq!(env.thread(), Some("conv-7"));
+        assert_eq!(env.from_spelling(), Some("@alice"));
+        assert_eq!(env.content_hash(), message_content_hash(&m));
+        let to = env.to_spellings().unwrap();
+        assert!(to.contains(&"@bob") && to.contains(&"@carol"));
+    }
+
+    /// A relay that is not the signer can forward a genuine opened envelope:
+    /// forwarding is a pure copy, and it still verifies under the sender's
+    /// key. (Producing one needs the signing key; forwarding does not.)
+    #[test]
+    fn relay_can_forward_a_genuine_opened_envelope() {
+        let m = sample_message(None);
+        let env = opened(&m, &ALICE);
+        // The relay (BOB) holds no signing key for alice; it merely relays.
+        let forwarded = env.clone();
+        // Any holder verifies against alice's public verification (ALICE).
+        assert_eq!(verify_opened(&forwarded, &ALICE), Ok(()));
+    }
+
+    /// Relay-unforgeability (REQ-813): forging any opened field value fails
+    /// `verify_opening` against the signed root — the forger cannot mint a
+    /// matching opening without re-rooting, and the v3 signature is over the
+    /// genuine root.
+    #[test]
+    fn forging_an_opened_field_fails_verification() {
+        let m = sample_message(None);
+        let genuine = opened(&m, &ALICE);
+
+        // Forge the performative: swap in a different type's opening value.
+        let mut forged = genuine.clone();
+        for op in &mut forged.openings {
+            if op.field == FieldId::Performative {
+                op.value = SExpr::Atom(Atom::Symbol("commit-bid".to_string()));
+            }
+        }
+        assert_eq!(
+            verify_opened(&forged, &ALICE),
+            Err(OpenedError::OpeningFailed {
+                field: FieldId::Performative
+            })
+        );
+
+        // Forge the To set by lifting a genuine opening from a *widened*
+        // message: it reconstructs a different root, so it fails here.
+        let mut widened_to = alloc::collections::BTreeSet::new();
+        widened_to.insert("@bob".to_string());
+        widened_to.insert("@carol".to_string());
+        widened_to.insert("@mallory".to_string());
+        let widened = Message::Simple {
+            performative: Performative::Custom("reveal-bid".to_string()),
+            recipient: Some(Recipients::Set(widened_to)),
+            content: SExpr::Atom(Atom::Str("the secret payload".to_string())),
+            params: Vec::new(),
+            thread: Some("conv-7".to_string()),
+            sender: Some("@alice".to_string()),
+            caused_by: None,
+        };
+        let mut forged2 = genuine.clone();
+        for op in &mut forged2.openings {
+            if op.field == FieldId::To {
+                *op = typed_addr::open(&widened, FieldId::To);
+            }
+        }
+        assert_eq!(
+            verify_opened(&forged2, &ALICE),
+            Err(OpenedError::OpeningFailed { field: FieldId::To })
+        );
+    }
+
+    /// A tampered root fails at the v3 signature (step 1), before any
+    /// opening is even considered.
+    #[test]
+    fn tampered_root_fails_at_the_signature() {
+        let m = sample_message(None);
+        let mut env = opened(&m, &ALICE);
+        env.root = "sha256:0000000000000000000000000000000000000000000000000000000000000000".to_string();
+        assert_eq!(
+            verify_opened(&env, &ALICE),
+            Err(OpenedError::Attestation(AttestError::InvalidSignature))
+        );
+    }
+
+    /// A different key's verifier cannot validate the v3 signature.
+    #[test]
+    fn wrong_signer_fails_the_opened_envelope() {
+        let m = sample_message(None);
+        let env = opened(&m, &ALICE);
+        assert_eq!(
+            verify_opened(&env, &BOB),
+            Err(OpenedError::Attestation(AttestError::InvalidSignature))
+        );
+    }
+
+    /// NFR-701: the redacted opened envelope carries no payload field — no
+    /// opening is the Payload leaf, and no disclosed value carries the
+    /// payload bytes. The performative (metadata) stays visible (NFR-702).
+    #[test]
+    fn opened_header_seals_the_payload() {
+        let m = sample_message(None); // content: "the secret payload"
+        let env = opened(&m, &ALICE);
+        assert!(
+            env.opening(FieldId::Payload).is_none(),
+            "redacted delivery must not open the payload leaf"
+        );
+        for op in &env.openings {
+            let bytes = crate::canonical::canonical_encode(&op.value);
+            let s = core::str::from_utf8(&bytes).unwrap();
+            assert!(
+                !s.contains("the secret payload"),
+                "payload leaked via {:?}",
+                op.field
+            );
+        }
+    }
+
+    /// The full-content path opens the Payload leaf too — authenticated
+    /// disclosure of the payload itself (the REQ-703 completion input),
+    /// not a separate mechanism.
+    #[test]
+    fn opened_full_content_reveals_the_payload_leaf() {
+        let m = sample_message(None);
+        let mut fields = HEADER_FIELDS.to_vec();
+        fields.push(FieldId::Payload);
+        let env = build_opened(&m, &fields, &SignatureSuite::Ed25519, &ALICE).unwrap();
+        assert_eq!(verify_opened(&env, &ALICE), Ok(()));
+        let payload = env.opening(FieldId::Payload).expect("payload opened");
+        assert!(format!("{}", payload.value).contains("the secret payload"));
+    }
+
+    /// REQ-708: an unimplemented suite is a typed rejection on build.
+    #[test]
+    fn opened_unknown_suite_is_typed_rejection() {
+        let m = sample_message(None);
+        let pq = SignatureSuite::parse("pq-frodo");
+        assert_eq!(
+            build_opened(&m, &HEADER_FIELDS, &pq, &ALICE),
+            Err(AttestError::UnknownSuite("pq-frodo".to_string()))
         );
     }
 }

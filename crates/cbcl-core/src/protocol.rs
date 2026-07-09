@@ -524,18 +524,25 @@ impl PartialOrd for VerificationResult {
 
 /// Resolve the performative type of a `:caused-by` reference: from the
 /// full message when the store holds one, else from a redacted envelope's
-/// *authenticated* header (SPEC-015 REQ-702).
+/// *authenticated* header, else from an opened envelope's *authenticated*
+/// Performative opening (SPEC-015 REQ-702; SPEC-017 REQ-813).
 ///
 /// This is the safety-level seam of redacted delivery: presence,
 /// predecessor type, and resolution read exactly the fields an envelope
 /// carries (hash, type, endpoints, signature), so a widened recipient
-/// holding only the envelope reaches the same safety verdict it would
-/// with the full predecessor. A full message, when present, wins — the
-/// two name the same content hash, so they are the same message.
+/// holding only the envelope — redacted *or* opened — reaches the same
+/// safety verdict it would with the full predecessor. An opened envelope's
+/// type comes from its Performative opening, verified against the signed
+/// typed root the address commits to; its endpoints (from/to openings) are
+/// available for role-conformance the same way, at zero payload disclosure.
+/// A full message, when present, wins — the two name the same content root,
+/// so they are the same message.
 ///
 /// The completion-level occupant fan-in (`projection::verify_causal_for_role`,
 /// REQ-618) deliberately does *not* use this seam: fan-in membership
-/// ("present and Valid") still demands full messages (REQ-703).
+/// ("present and Valid") still demands full messages (REQ-703). An opened
+/// envelope, which seals leaf 5, therefore satisfies the safety checks here
+/// but never the completion check there — the SPEC-015 boundary, preserved.
 fn predecessor_type<'a, S: MessageStore>(
     store: &'a S,
     hash: &ContentHash,
@@ -553,9 +560,12 @@ fn predecessor_type<'a, S: MessageStore>(
                 .unwrap_or(""),
         );
     }
+    if let Some(e) = store.envelope_in_thread(hash, thread) {
+        return Some(e.performative());
+    }
     store
-        .envelope_in_thread(hash, thread)
-        .map(|e| e.performative())
+        .opened_in_thread(hash, thread)
+        .and_then(|e| e.performative())
 }
 
 /// Collect performative names allowed as single-message predecessors.
@@ -2137,6 +2147,120 @@ mod tests {
         store
             .append_envelope(signed_env("hy", "y", "t1"), &SIGNER)
             .unwrap();
+        assert_eq!(
+            verify_causal("z", Some(&z), &store, &proto, &t),
+            VerificationResult::Valid
+        );
+    }
+
+    // ================================================================
+    // SPEC-017 REQ-813 Stage 3: safety-level verification over OPENED
+    // envelopes (native field-openings against the signed typed root)
+    // ================================================================
+
+    use crate::envelope::{build_opened, OpenedEnvelope, HEADER_FIELDS};
+    use crate::keyid::SignatureSuite;
+    use crate::message::Recipients;
+
+    /// A predecessor message typed `perf`, sender `@alice`, thread
+    /// `thread_name`, and its opened envelope (header fields, payload sealed)
+    /// plus the typed root that a citing `:caused-by` must name.
+    fn opened_pred(perf: &str, thread_name: &str) -> (OpenedEnvelope, String) {
+        let mut to = BTreeSet::new();
+        to.insert("@bob".to_string());
+        let m = Message::Simple {
+            performative: Performative::Custom(perf.into()),
+            recipient: Some(Recipients::Set(to)),
+            content: SExpr::Atom(Atom::Str("secret-payload".into())),
+            params: alloc::vec![],
+            thread: Some(thread_name.into()),
+            sender: Some("@alice".into()),
+            caused_by: Some(CausedBy::Begin),
+        };
+        let root = crate::typed_addr::typed_root(&m);
+        let env = build_opened(&m, &HEADER_FIELDS, &SignatureSuite::Ed25519, &SIGNER).unwrap();
+        (env, root)
+    }
+
+    /// REQ-813: a `:caused-by` reference resolves through an opened
+    /// envelope — Unknown before it arrives, then the same safety verdict a
+    /// full predecessor gives (Valid), read from the authenticated
+    /// Performative opening, at zero payload disclosure.
+    #[test]
+    fn single_reference_resolves_through_an_opened_envelope() {
+        let proto = verification_protocol();
+        let mut store = ThreadedMessageStore::new();
+        let t = tid("t1");
+        let (env, root) = opened_pred("a", "t1");
+        let cb = CausedBy::Single(root);
+
+        assert_eq!(
+            verify_causal("b", Some(&cb), &store, &proto, &t),
+            VerificationResult::Unknown
+        );
+        store.append_opened(env, &SIGNER).unwrap();
+        assert_eq!(
+            verify_causal("b", Some(&cb), &store, &proto, &t),
+            VerificationResult::Valid
+        );
+    }
+
+    /// REQ-813: a wrong-typed opened envelope resolves to the same typed
+    /// Violation a wrong-typed full message would (predecessor-type check
+    /// reads the authenticated Performative opening).
+    #[test]
+    fn opened_envelope_with_wrong_type_is_the_typed_violation() {
+        let proto = verification_protocol();
+        let mut store = ThreadedMessageStore::new();
+        let t = tid("t1");
+        let (env, root) = opened_pred("c", "t1"); // 'b' requires 'a', not 'c'
+        store.append_opened(env, &SIGNER).unwrap();
+        assert_eq!(
+            verify_causal("b", Some(&CausedBy::Single(root.clone())), &store, &proto, &t),
+            VerificationResult::Violation(CausalViolation::InvalidPredecessor {
+                caused_by: root,
+                expected: vec!["a".into()],
+                found: "c".into(),
+            })
+        );
+    }
+
+    /// REQ-813: an opened envelope satisfies references only in its
+    /// authenticated thread (its Thread opening) — invisible elsewhere.
+    #[test]
+    fn opened_envelope_is_scoped_to_its_authenticated_thread() {
+        let proto = verification_protocol();
+        let mut store = ThreadedMessageStore::new();
+        let (env, root) = opened_pred("a", "t1");
+        store.append_opened(env, &SIGNER).unwrap();
+        assert_eq!(
+            verify_causal("b", Some(&CausedBy::Single(root)), &store, &proto, &tid("t2")),
+            VerificationResult::Unknown
+        );
+    }
+
+    /// REQ-813 over the R5 fan-in *type* check: opened-envelope members
+    /// resolve the `(all …)` type completeness (safety level). The
+    /// completion boundary (REQ-703) is enforced one layer up in the role
+    /// layer's occupant fan-in (`projection.rs`), which never consults the
+    /// opened shelf — an opened envelope seals leaf 5 and so can satisfy
+    /// safety here but never completion there.
+    #[test]
+    fn fan_in_type_check_resolves_through_opened_envelopes() {
+        let proto = fan_in_protocol();
+        let mut store = ThreadedMessageStore::new();
+        let t = tid("t1");
+        let (env_x, root_x) = opened_pred("x", "t1");
+        let (env_y, root_y) = opened_pred("y", "t1");
+        let z = CausedBy::Multiple(vec![root_x.clone(), root_y.clone()]);
+
+        store.append_opened(env_x, &SIGNER).unwrap();
+        assert_eq!(
+            verify_causal("z", Some(&z), &store, &proto, &t),
+            VerificationResult::Unknown,
+            "one member still missing"
+        );
+        store.append_opened(env_y, &SIGNER).unwrap();
         assert_eq!(
             verify_causal("z", Some(&z), &store, &proto, &t),
             VerificationResult::Valid
