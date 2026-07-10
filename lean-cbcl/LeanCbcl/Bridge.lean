@@ -54,7 +54,10 @@ structure Schedule (P : Proto Role Perf Msg) (C : Cfg Msg) (r : Role) where
   store   : Nat → Cfg Msg
   /-- Stores are append-only: `store n ⊆ store (n+1)`. -/
   mono    : ∀ n m, store n m → store (n + 1) m
-  /-- Every store is a sub-store of the ideal projection: `store n ⊆ project P C r`. -/
+  /-- Every store is a sub-store of the ideal projection: `store n ⊆ project P C r`.
+      This is part of what "conformant execution" means — the endpoint never holds a
+      message outside its projection, so misdelivered or fabricated messages are outside
+      the bridge's scope by definition. -/
   bounded : ∀ n m, store n m → project P C r m
   /-- Eventual delivery: every `r`-relevant message of `C` arrives at some finite time. -/
   exhaust : ∀ m, project P C r m → ∃ n, store n m

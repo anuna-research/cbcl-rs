@@ -3,12 +3,20 @@ import LeanCbcl.Lattice.Store
 import LeanCbcl.Verify
 import LeanCbcl.R5
 import LeanCbcl.DCFLPreservation
+import LeanCbcl.EPPCompletion
+import LeanCbcl.ProtocolProjection
+import LeanCbcl.Splice
+import LeanCbcl.Bridge
 
 /-!
 # Axiom audit — NFR-511 / TEST-551 / OBS-512
 
 `#print axioms` for each top-level theorem named in CON-510 through
-CON-516 (SPEC-005 §Contracts). The companion shell script
+CON-516 (SPEC-005 §Contracts), plus the SPEC-014 EPP-correspondence
+family (`EPP.lean`, `EPPCompletion.lean`, `Projectability.lean`,
+`ProtocolProjection.lean`, `Splice.lean`, `Bridge.lean`), whose axiom
+claim in `proofs/epp-correspondence/proof.tex` §Notes ("propext,
+Classical.choice, Quot.sound only") is enforced here. The companion shell script
 `scripts/check-axioms.sh` runs this file via `lake env lean`, parses the
 emitted `'<thm>' depends on axioms: [...]` lines, and fails CI if any
 axiom outside the allowlist appears.
@@ -75,3 +83,35 @@ editing only this file is enough to extend the audit.
 -- CON-516 — DCFL preservation (DCFLPreservation.lean).
 #print axioms CBCL.DCFLPreservation.dcfl_preserved_under_protocol
 #print axioms CBCL.DCFLPreservation.dcfl_preserved_under_shape
+
+-- EPP correspondence, safety + completion levels (EPP.lean, EPPCompletion.lean).
+-- `proof.tex` §Notes claims "no sorry; axioms propext, Classical.choice, Quot.sound"
+-- for these; this audit enforces that claim in CI (SPEC-014).
+#print axioms LeanCbcl.EPP.epp_correspondence
+#print axioms LeanCbcl.EPP.soundness_safety
+#print axioms LeanCbcl.EPP.completeness_safety
+#print axioms LeanCbcl.EPP.reconcile_global
+#print axioms LeanCbcl.EPP.valid_stable
+#print axioms LeanCbcl.EPP.violation_stable
+#print axioms LeanCbcl.EPP.epp_correspondence_complete
+
+-- Theorem 1: projectability ≡ local verifiability (Projectability.lean).
+#print axioms LeanCbcl.Projectability.projectability_iff_local_verifiability
+#print axioms LeanCbcl.Projectability.causal_locality_necessary
+
+-- Protocol-projection agreement interface (ProtocolProjection.lean).
+#print axioms LeanCbcl.ProtoProjection.verdict_agree
+#print axioms LeanCbcl.ProtoProjection.local_protocol_verification_agrees
+
+-- Splicing necessity / type-opacity / openings (Splice.lean).
+#print axioms LeanCbcl.Splice.type_opacity_indistinguishability
+#print axioms LeanCbcl.Splice.resolution_requires_preimage
+#print axioms LeanCbcl.Splice.spliced_pred_permanently_unknown
+#print axioms LeanCbcl.Splice.weakest_sound_condition
+#print axioms LeanCbcl.Splice.openings_suffice
+#print axioms LeanCbcl.Splice.openings_suffice_concrete
+
+-- Temporal bridge (Bridge.lean).
+#print axioms LeanCbcl.Bridge.bridge_stability
+#print axioms LeanCbcl.Bridge.bridge_compatibility
+#print axioms LeanCbcl.Bridge.temporal_bridge

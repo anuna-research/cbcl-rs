@@ -34,5 +34,6 @@ import LeanCbcl.R5
 import LeanCbcl.EPP
 import LeanCbcl.EPPCompletion
 import LeanCbcl.Projectability
+import LeanCbcl.ProtocolProjection
 import LeanCbcl.Splice
 import LeanCbcl.Bridge

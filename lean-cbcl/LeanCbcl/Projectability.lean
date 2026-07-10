@@ -301,7 +301,11 @@ end Counterexample
     requires): there is a protocol violating causal locality, with a closed
     *safe* global run, a role `r`, and an `r`-relevant message occurring in the
     run whose verdict is `Unknown` in every local store `r` can reach —
-    permanently `Unknown`. -/
+    permanently `Unknown`. The existential form is not a weakness: the
+    per-protocol converse ("EVERY non-causally-local protocol has such a run")
+    is false in general, since a violating `legalPred` edge need not be
+    exercisable by any run — e.g. over an empty or impoverished `Msg` type
+    there may be no message to exhibit. -/
 theorem causal_locality_necessary :
     ∃ (Role Perf Msg : Type) (D : ProtoData Role Perf Msg)
       (C : Cfg Msg) (r : Role) (m : Msg),

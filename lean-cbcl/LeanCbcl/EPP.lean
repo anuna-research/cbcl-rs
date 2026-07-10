@@ -13,6 +13,30 @@
   reconciliation lemmas establish genuine *verdict equality* (all three of
   Unknown/Valid/Violation agree) between the global store and a projection / gluing, from
   which soundness, completeness, and exactness follow.
+
+  Scope notes (read before citing):
+
+  * PROTOCOL projection (`proof.tex` Def. 1: bystander erasure + causal-edge splicing) is
+    not defined here; every lemma evaluates both sides against the same `P` and projects
+    only the STORE. The protocol side enters through an agreement interface: any projected
+    protocol that agrees with `P` on `r`-endpoint performatives assigns `r`-relevant
+    messages identical verdicts (`AgreesOnRole` / `local_protocol_verification_agrees`,
+    `LeanCbcl/ProtocolProjection.lean`). Causal locality is what makes the paper's
+    concrete splice satisfy that agreement (the splice is never exercised at an
+    `r`-endpoint performative); that last identification is argued in `proof.tex`, not
+    mechanized — mechanizing it would need a concrete clause syntax.
+  * Verdicts are RESOLVED-FIRST: no terminal verdict while any referenced predecessor is
+    missing, so a non-conformant message with an absent predecessor is `Unknown`, not
+    `Violation`. The deployed verifier evaluates eagerly (valid-is-sticky) and may emit a
+    provisional `Violation` later superseded by `Valid`; the two semantics coincide from
+    resolution onward (SPEC-014, ADR-602). In particular `violation_stable` is a theorem
+    of the resolved-first model only.
+  * On the reconciliation lemmas' domain (closed + `P`-safe) every present message is in
+    fact `Valid` (`valid_of_safe_closed`), so the Unknown/Violation components of the
+    verdict-equality triples relate propositions that are both false there; their force is
+    that resolvedness and goodness transfer, which is what soundness consumes. Genuinely
+    three-valued statements over PARTIAL stores live in `Bridge.bridge_stability` and
+    `Projectability.unknown_means_not_yet_arrived`.
 -/
 
 namespace LeanCbcl.EPP
@@ -28,7 +52,13 @@ inductive Verdict where
     `m`. `clause t present` is the protocol's predecessor clause for performative `t`
     evaluated against the set `present` of predecessor types currently available
     (this is where `(any)` = "some named type present", `(all)` = "all named types
-    present" live). -/
+    present" live).
+
+    Model slack, intentional: `legalPred` and `clause` are independent data — nothing
+    requires a clause to read only legal predecessor types. This is harmless because the
+    clause is only ever evaluated on the types of `m`'s actual predecessors, and
+    `noSpurious` constrains those to legal types; a protocol whose clause demands an
+    illegal type merely makes every message of that performative unsatisfiable. -/
 structure Proto (Role Perf Msg : Type) where
   /-- The performative (message type) of a message. -/
   perf      : Msg → Perf
@@ -126,6 +156,13 @@ theorem good_of_safe_closed {C : Cfg Msg} (hcl : closedCfg P C) (hsafe : pSafe P
   have hres : resolved P C m := fun p hp => hcl m hm p hp
   exact (Classical.em (good P C m)).elim id (fun hg => absurd ⟨hres, hg⟩ (hsafe m hm))
 
+/-- In a `P`-safe closed configuration every present message is `Valid` — presence implies
+    validity on the correspondence's domain. (Same statement for a locally safe, causally
+    closed run: instantiate `C` with the run.) -/
+theorem valid_of_safe_closed {C : Cfg Msg} (hcl : closedCfg P C) (hsafe : pSafe P C)
+    {m : Msg} (hm : C m) : isValid P C m :=
+  ⟨fun p hp => hcl m hm p hp, good_of_safe_closed P hcl hsafe hm⟩
+
 /-- **Local resolvability** (`lem:localres`): every `caused-by` predecessor of `m` is
     `r`-relevant, hence in `project C r`, for each endpoint `r` of `m`. -/
 theorem localres {C : Cfg Msg} (hcl : closedCfg P C) (hsafe : pSafe P C)
@@ -173,7 +210,10 @@ theorem resolved_proj {C : Cfg Msg} (hcl : closedCfg P C) (hsafe : pSafe P C)
 
 /-- **Reconciliation (verdict equality)** (`lem:reconcile`(i)): the global and the
     projected store assign `m` the *same* verdict -- all three of Unknown / Valid /
-    Violation agree. -/
+    Violation agree. NB: on this domain (closed + safe) every present message is `Valid`
+    (`valid_of_safe_closed`), so the Unknown and Violation equivalences relate false
+    propositions; the lemma's content is the transfer of resolvedness and goodness, which
+    is exactly what `soundness_safety` consumes. -/
 theorem reconcile_global {C : Cfg Msg} (hcl : closedCfg P C) (hsafe : pSafe P C)
     {r : Role} {m : Msg} (hm : project P C r m) :
     (isUnknown P (project P C r) m ↔ isUnknown P C m) ∧
@@ -263,15 +303,19 @@ def projFamily {C : Cfg Msg} (hcl : closedCfg P C) (hsafe : pSafe P C) : Family 
   covA := fun _ _ _ hm hep => ⟨hm.1, hep⟩
   covB := fun _ _ hm p hp => localres P hcl hsafe hm.1 hm.2 p hp
 
-/-- **EPP correspondence** (safety level): soundness, completeness, round-trip. -/
+/-- **EPP correspondence** (safety level): soundness, completeness, and *both* round-trip
+    identities of `thm:epp`(3) — `glue ∘ project = id` on configurations and
+    `project ∘ glue = id` on compatible families. -/
 theorem epp_correspondence {C : Cfg Msg} (hcl : closedCfg P C) (hsafe : pSafe P C) :
     (∀ r, localSafe P (project P C r)) ∧
     (pSafe P (glue P (projFamily P hcl hsafe)) ∧
        closedCfg P (glue P (projFamily P hcl hsafe))) ∧
-    (∀ m, glue P (projFamily P hcl hsafe) m ↔ C m) := by
-  refine ⟨fun r => soundness_safety P hcl hsafe r, ?_, ?_⟩
+    (∀ m, glue P (projFamily P hcl hsafe) m ↔ C m) ∧
+    (∀ (F : Family P) (r : Role) (m : Msg), project P (glue P F) r m ↔ F.run r m) := by
+  refine ⟨fun r => soundness_safety P hcl hsafe r, ?_, ?_, ?_⟩
   · exact completeness_safety P (projFamily P hcl hsafe)
       (fun r => soundness_safety P hcl hsafe r)
   · intro m; exact glue_project_eq P m
+  · intro F r m; exact project_glue_eq P F r m
 
 end LeanCbcl.EPP

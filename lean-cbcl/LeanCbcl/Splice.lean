@@ -68,9 +68,10 @@ Two worlds that role `r` cannot tell apart — `r` holds the same messages and t
 same set of `:caused-by` hash-commitments (`predRel`) in both — yet an `r`-relevant
 message `m` receives DIFFERENT global verdicts, `Valid` vs `Violation`, because the
 worlds differ ONLY in the TYPE (`perf`) of an unheld predecessor `b` that occupies
-the same causal position (same hash citation). Conclusion: no function of
-(`r`'s held messages + the bare hashes they cite) computes `m`'s verdict —
-content-addressing does not confer branch/type recovery.
+the same causal position (same hash citation). Conclusion: no function of `r`'s full
+observation (its held messages, those messages' types — `heldTypes` — and the bare
+hashes they cite) computes `m`'s verdict — content-addressing does not confer
+branch/type recovery.
 
 The two worlds are two `ProtoData` differing only in the `perf` field at `b`. This
 faithfully models "same hash, different preimage type": the `:caused-by` citation
@@ -182,14 +183,39 @@ theorem held_types_agree :
 
 end Example
 
+/-- Role `r`'s *typed observation* of a run: the relation holding of `(z, t)` exactly when
+    `r` holds `z` and `z`'s performative is `t`. Together with the held-message set and
+    the cited hashes (`predRel`), this is everything `r` observes — unheld messages
+    contribute nothing (in particular not their types). -/
+def heldTypes {Role Perf Msg : Type} (D : ProtoData Role Perf Msg) (C : Cfg Msg)
+    (r : Role) : Msg → Perf → Prop :=
+  fun z t => D.projectD C r z ∧ D.perf z = t
+
+namespace Example
+
+/-- The full typed observation of `rR` — held messages *with their types* — is identical
+    across the two worlds (pointwise: unheld messages are in neither relation, and the
+    single held message `m` has type `tM` in both). -/
+theorem heldTypes_eq : heldTypes D₁ Cfull .rR = heldTypes D₂ Cfull .rR := by
+  funext z t
+  apply propext
+  constructor
+  · intro ⟨hz, ht⟩
+    exact ⟨hz, (held_types_agree z hz) ▸ ht⟩
+  · intro ⟨hz, ht⟩
+    exact ⟨hz, (held_types_agree z hz).symm ▸ ht⟩
+
+end Example
+
 open Example in
 /-- **Type-opacity indistinguishability.** There are two worlds `D₁, D₂` that role `r`
     cannot distinguish — identical held messages (`projectD` equal), identical
-    `:caused-by` hash-commitments (`predRel` equal), identical held-message types —
-    differing ONLY in the type (`perf`) of the unheld predecessor `b` (same hash
-    citation), such that `m` is `Valid` in world 1 (a closed `P`-safe run) and a
-    `Violation` in world 2. Consequently NO function of `r`'s observation
-    (its held messages + the bare hashes they cite) computes `m`'s verdict:
+    `:caused-by` hash-commitments (`predRel` equal), identical typed observation
+    (`heldTypes` equal: held messages *with their performatives*) — differing ONLY in the
+    type (`perf`) of the unheld predecessor `b` (same hash citation), such that `m` is
+    `Valid` in world 1 (a closed `P`-safe run) and a `Violation` in world 2.
+    Consequently NO function of `r`'s full observation — its held messages, those
+    messages' types, and the bare hashes they cite — computes `m`'s verdict:
     content-addressing does not confer branch/type recovery. -/
 theorem type_opacity_indistinguishability :
     ∃ (Role Perf Msg : Type) (D₁ D₂ : ProtoData Role Perf Msg)
@@ -197,25 +223,30 @@ theorem type_opacity_indistinguishability :
       -- `r`'s observation is identical across the two worlds:
       D₁.projectD C r = D₂.projectD C r ∧                     -- same held messages
       D₁.predRel = D₂.predRel ∧                               -- same `:caused-by` hashes
-      (∀ z, D₁.projectD C r z → D₁.perf z = D₂.perf z) ∧      -- same held-message types
+      heldTypes D₁ C r = heldTypes D₂ C r ∧                   -- same typed observation
       -- they differ only in the TYPE of the unheld predecessor `b`:
       D₁.predRel m b ∧ ¬ D₁.endpointD b r ∧ D₁.perf b ≠ D₂.perf b ∧
       -- world 1 is a closed `P`-safe run in which `m` is `Valid`:
       D₁.closedCfgD C ∧ D₁.pSafeD C ∧ D₁.isValidD C m ∧
       -- world 2 differs only in `b`'s type; there `m` is a `Violation`:
       D₂.closedCfgD C ∧ D₂.isViolationD C m ∧
-      -- CONCLUSION: no decider from (held messages + cited hashes) computes the verdict:
-      ¬ ∃ f : (Msg → Prop) → (Msg → Msg → Prop) → Msg → Verdict,
-          (D₁.isValidD C m     → f (D₁.projectD C r) D₁.predRel m = Verdict.valid) ∧
-          (D₂.isViolationD C m → f (D₂.projectD C r) D₂.predRel m = Verdict.violation) :=
+      -- CONCLUSION: no decider from `r`'s full observation (held messages + their
+      -- types + cited hashes) computes the verdict:
+      ¬ ∃ f : (Msg → Prop) → (Msg → Perf → Prop) → (Msg → Msg → Prop) → Msg → Verdict,
+          (D₁.isValidD C m →
+            f (D₁.projectD C r) (heldTypes D₁ C r) D₁.predRel m = Verdict.valid) ∧
+          (D₂.isViolationD C m →
+            f (D₂.projectD C r) (heldTypes D₂ C r) D₂.predRel m = Verdict.violation) :=
   ⟨SRole, SPerf, SMsg, D₁, D₂, Cfull, .rR, .m, .b,
-   rfl, rfl, held_types_agree,
+   rfl, rfl, heldTypes_eq,
    ⟨rfl, rfl⟩, b_unheld, (fun h => SPerf.noConfusion h),
    closed_D₁, safe_D₁, m_valid_D₁,
    closed_D₂, m_violation_D₂,
    by
      rintro ⟨f, h1, h2⟩
-     exact Verdict.noConfusion ((h1 m_valid_D₁).symm.trans (h2 m_violation_D₂))⟩
+     have h1' := h1 m_valid_D₁
+     rw [heldTypes_eq] at h1'
+     exact Verdict.noConfusion (h1'.symm.trans (h2 m_violation_D₂))⟩
 
 /-! ## 2. Resolution requires the preimage (necessity)
 
