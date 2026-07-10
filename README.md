@@ -11,7 +11,7 @@
 [![LangSec '26](https://img.shields.io/badge/LangSec-'26-8a2be2.svg)](https://arxiv.org/abs/2604.14512)
 [![arXiv](https://img.shields.io/badge/arXiv-2604.14512-b31b1b.svg)](https://arxiv.org/abs/2604.14512)
 
-Rust implementation of **CBCL** (Common Business Communication Language): a safely extensible agent communication language with formal guarantees. CBCL restricts agent messages to the deterministic context-free (DCFL) language class, so message validity stays decidable as agents define new dialects at runtime. Safety under extension rests on five invariants: three structural (R1–R3), one cryptographic (R4), and one for optional message contracts (R5), all enforced by the same parser that handles ordinary communication.
+Rust implementation of **CBCL** (Common Business Communication Language): a safely extensible agent communication language with formal guarantees. CBCL restricts agent messages to the deterministic context-free (DCFL) language class, so message validity stays decidable as agents define new dialects at runtime. Safety under extension rests on six invariants: three structural (R1–R3), one cryptographic (R4), one for optional message contracts (R5), and one for the opt-in multiparty role layer (R6), all enforced by the same parser that handles ordinary communication.
 
 ## Quick start
 
@@ -70,6 +70,7 @@ The key insight is *homoiconic self-extension*: dialect definitions are themselv
 - **R3 (Core Preservation):** The eight core performatives (`tell`, `ask`, `reply`, `hello`, `bye`, `ok`, `error`, `cancel`) cannot be redefined by any dialect.
 - **R4 (Integrity):** Dialects carry an Ed25519-style signature over their canonical byte encoding (`Signer` trait); install accepts `Valid` and `Unsigned` (with warning) and rejects `Invalid`, so a dialect's authorship and bit-exact contents can be checked before any further safety constraint runs.
 - **R5 (Contract Well-formedness):** Optional `(protocol …)` and `(shape …)` clauses on a dialect (its causal-message contract and per-performative shape contracts) must be acyclic, fully reachable from `begin`, reference only defined performatives (with ancestor closure for `extends`), have no duplicate steps, and respect the dialect's R2 depth bound. All five sub-checks run at install time and terminate in time linear in the dialect's size.
+- **R6 (Multiparty Well-formedness):** When a dialect's protocol carries `:roles`/`:from`/`:to` annotations, it must be role-complete, chooser-coherent, projectable onto every role, *causally local* (every endpoint role of a performative is an endpoint of each predecessor type its `:caused-by` clause names), reachable for every role, and single-decider at every choice. Checked at install time in O(|P|² · |R|) table lookups; causal locality is what makes coordination-free role-local verification agree with a whole-conversation verifier (the endpoint-projection correspondence, mechanised in `lean-cbcl` — see [Formal verification](#formal-verification)).
 
 **Why DCFL?** It is the minimal complexity class that supports nested structure (agent messages have envelopes wrapping messages, dialects scoping inner messages) while guaranteeing *parser equivalence*: every conformant implementation produces exactly one parse tree for every input. This eliminates parser differential attacks by construction. Regular languages are insufficient for nesting; general CFG introduces ambiguity; anything above DCFL makes validity checking undecidable.
 
@@ -92,7 +93,7 @@ Full theoretical framework and proofs are in the LangSec '26 paper, available as
 
 | Crate | Zone | Description |
 |-------|------|-------------|
-| `cbcl-core` | Pure | Types, constraints (R1-R4), template expansion, gossip, evaluator |
+| `cbcl-core` | Pure | Types, constraints (R1–R6), role layer + endpoint projection, template expansion, gossip, evaluator |
 | `cbcl-parser` | Pure | S-expression and message parser, pipeline |
 | `cbcl-cli` | Shell | Command-line interface |
 | `cbcl-wasm` | Shell | WebAssembly bindings |
@@ -112,7 +113,7 @@ Full theoretical framework and proofs are in the LangSec '26 paper, available as
 
 ## Formal verification
 
-The `lean-cbcl/` directory contains a Lean 4 formalisation that machine-checks the core safety properties. Zero sorries, standard axioms only (`propext`, `Classical.choice`, `Quot.sound`), 500+ declarations across 27 files.
+The `lean-cbcl/` directory contains a Lean 4 formalisation that machine-checks the core safety properties. Zero sorries, standard axioms only (`propext`, `Classical.choice`, `Quot.sound`), 500+ declarations across 31 files. R1–R5 checkers are verified directly against their contracts; for R6 the mechanisation covers the *semantic* guarantees the checks purchase — the endpoint-projection correspondence, projectability ≡ local verifiability, the splicing/type-opacity analysis, and the temporal bridge (rows below) — while the R6 table checks themselves are exercised by property tests mirroring the Lean model ([SPEC-014](specs/SPEC-014-role-layer-endpoint-projection.md)).
 
 | Rust module | Lean file | What is proved |
 |---|---|---|
