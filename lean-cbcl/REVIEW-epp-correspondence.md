@@ -227,6 +227,46 @@ them up automatically per its header).
   statement" trades statement strength for framing symmetry, which is the kind of thing a
   reviewer will ask about.
 
+## Addendum: fresh-context review of `R6DCFLPreservation.lean` (2026-07-10)
+
+After the R6 DCFL mechanisation landed, an independent fresh-context review
+(adversarial brief: vacuity, semantic fidelity to `verify_causal`, projection fidelity,
+syntax-half honesty, proof hygiene) found the Lean development itself sound — proofs
+correct, axiom-clean, the state-collapse regularity argument genuine, REG ⊆ DCFL
+legitimate — but confirmed three fidelity defects and two honesty gaps, all remediated
+in the same session:
+
+1. **Clause semantics inverted (severe, fixed).** `preds` were read conjunctively
+   ("all must hold"); `verify_causal` reads the `Single`/`Any` pool disjunctively —
+   `protocol.rs` documents `[Single a, Single b]` as `a ∨ b` — with `All` consulted
+   only by the fan-in citation route (first `(all …)` decl only). `justified` now
+   follows the verifier route by route (root / literal-`begin` / pooled single
+   citation / fan-in), with `ex_pool_is_disjunctive` pinning the doc's own example.
+2. **Unknown modelled as permanent death (fixed).** The old acceptance rejected
+   out-of-order arrival outright, contradicting the valid-sticky lattice
+   (`out_of_order_is_unknown_then_valid`). Now two languages: `CausalTrace`
+   (arrival-order) and `StoreTrace` (order-free, "every message eventually Valid" —
+   the deployed accepted language), with `causalTrace_storeTrace` embedding the first
+   in the second and `ex_out_of_order_store` witnessing strictness.
+3. **Undeclared performatives (fixed).** Were never enabled; `verify_causal` treats
+   them as unconstrained (`Valid`). Now `enabled` returns `true` on a `find?` miss,
+   and the finite carrier is the *relevant*-name universe (declared names plus every
+   clause-mentioned name) since undeclared-but-cited names can justify a pool member.
+4. **`projection_adds_no_recogniser` overstated (reworded).** It is `rfl` by
+   construction and would hold for any step-list transformation; the docstring, README
+   and `proof.tex` now say so, point at the regularity instances as the substantive
+   local statements, and note the ADR-604 divergence (the shipped composition verifies
+   against the global protocol; the step-filtered projection is the paper's object).
+5. **Syntax half (fixed + reworded).** `rolesClause` now transcribes CON-600's
+   inner-list, ≥1-decl shape; all `IsSExpr` theorems are labelled typechecking-level
+   (`IsSExpr` is universal — they pin constructors, not the CON-600 shape, which is
+   `role.rs` + property tests).
+
+Also disclosed in the file header: duplicate step names are inexpressible in Rust
+(`BTreeMap`) and first-match-shadowed here; `begin` is an ordinary name plus the
+store-free literal-citation route. Gates after remediation: build green, 0 sorries,
+50 theorems audited, standard axioms only.
+
 ## Verification performed
 
 - `lake build` — success (63 jobs), zero sorries (`lean4-skills-sorry-analyzer`, 30 files).

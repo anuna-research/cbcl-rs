@@ -93,7 +93,12 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.R6DCFLPreservation.causalTrace_iff_run
 #print axioms CBCL.R6DCFLPreservation.causalTrace_regular
 #print axioms CBCL.R6DCFLPreservation.causalTrace_isTraceDCFL
+#print axioms CBCL.R6DCFLPreservation.storeTrace_iff_run
+#print axioms CBCL.R6DCFLPreservation.storeTrace_regular
+#print axioms CBCL.R6DCFLPreservation.storeTrace_isTraceDCFL
+#print axioms CBCL.R6DCFLPreservation.causalTrace_storeTrace
 #print axioms CBCL.R6DCFLPreservation.localTrace_regular
+#print axioms CBCL.R6DCFLPreservation.localStoreTrace_regular
 #print axioms CBCL.R6DCFLPreservation.localTrace_isTraceDCFL
 #print axioms CBCL.R6DCFLPreservation.projection_adds_no_recogniser
 

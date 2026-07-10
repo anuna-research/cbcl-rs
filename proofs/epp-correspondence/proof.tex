@@ -94,14 +94,23 @@ recogniser.
 
 \noindent\emph{Remark (mechanization).}
 Proposition~\ref{prop:dcfl} is mechanized at the safety level in the raw-edge regime
-(\code{R6DCFLPreservation.lean}): the causal trace language of a role-annotated protocol
-is recognized exactly by an explicit finite automaton whose states are the sublists of
-the protocol's declared performative names plus a dead state
-(\code{causalTrace\_regular}); regular~$\subseteq$~DCFL is formal
-(\code{IsRegular.toTraceDCFL} wraps the automaton as a stack-untouched deterministic
-pushdown machine); and ``projection adds no recogniser'' is a definitional equality —
-the local protocol's recognizer \emph{is} the same builder applied to the projected
-step list (\code{projection\_adds\_no\_recogniser}).
+(\code{R6DCFLPreservation.lean}), with the deployed verifier's clause semantics
+(disjunctive \code{Single}/\code{Any} pool, first-\code{(all \ldots)} fan-in,
+undeclared performatives unconstrained). Two trace languages are proved regular, each
+recognized exactly by an explicit finite automaton over the canonical seen-set
+(sublists of the protocol's relevant names): the \emph{causal-order} arrival language
+(\code{causalTrace\_regular}), and the order-free \emph{store} language
+(\code{storeTrace\_regular}) — the language the valid-sticky verdicts
+(Def.~\ref{lat:lattice}) actually accept, since out-of-order arrival is
+$\mathit{Unknown}$ then $\mathit{Valid}$ and acceptance is ``every message eventually
+$\mathit{Valid}$''. \code{causalTrace\_storeTrace} embeds the former in the latter.
+Regular~$\subseteq$~DCFL is formal (\code{IsRegular.toTraceDCFL} wraps the automaton as
+a stack-untouched deterministic pushdown machine). ``Projection adds no recogniser'' is
+recorded as a definitional equality — the local protocol's recognizer \emph{is} the
+same builder applied to the projected step list
+(\code{projection\_adds\_no\_recogniser}); its content is that the protocol class is
+closed under projection, and the substantive local statement is the regularity
+instance at the projected protocol.
 
 \begin{definition}[R6 well-formedness]
 \label{def:r6}
