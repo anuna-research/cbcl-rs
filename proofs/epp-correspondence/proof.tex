@@ -92,6 +92,17 @@ Each local protocol's accepted language is regular, hence DCFL; projection adds 
 recogniser.
 \end{proposition}
 
+\noindent\emph{Remark (mechanization).}
+Proposition~\ref{prop:dcfl} is mechanized at the safety level in the raw-edge regime
+(\code{R6DCFLPreservation.lean}): the causal trace language of a role-annotated protocol
+is recognized exactly by an explicit finite automaton whose states are the sublists of
+the protocol's declared performative names plus a dead state
+(\code{causalTrace\_regular}); regular~$\subseteq$~DCFL is formal
+(\code{IsRegular.toTraceDCFL} wraps the automaton as a stack-untouched deterministic
+pushdown machine); and ``projection adds no recogniser'' is a definitional equality —
+the local protocol's recognizer \emph{is} the same builder applied to the projected
+step list (\code{projection\_adds\_no\_recogniser}).
+
 \begin{definition}[R6 well-formedness]
 \label{def:r6}
 A role-annotated protocol satisfies \emph{R6} iff it is role-complete, chooser-coherent,

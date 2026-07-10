@@ -3,6 +3,7 @@ import LeanCbcl.Lattice.Store
 import LeanCbcl.Verify
 import LeanCbcl.R5
 import LeanCbcl.DCFLPreservation
+import LeanCbcl.R6DCFLPreservation
 import LeanCbcl.EPPCompletion
 import LeanCbcl.ProtocolProjection
 import LeanCbcl.Splice
@@ -83,6 +84,18 @@ editing only this file is enough to extend the audit.
 -- CON-516 — DCFL preservation (DCFLPreservation.lean).
 #print axioms CBCL.DCFLPreservation.dcfl_preserved_under_protocol
 #print axioms CBCL.DCFLPreservation.dcfl_preserved_under_shape
+
+-- DCFL preservation at R6: role syntax + trace regularity (R6DCFLPreservation.lean;
+-- `proof.tex` Prop. dcfl, SPEC-014 ADR-600/CON-600).
+#print axioms CBCL.R6DCFLPreservation.dcfl_preserved_under_roles
+#print axioms CBCL.R6DCFLPreservation.dcfl_preserved_under_with_roles
+#print axioms CBCL.R6DCFLPreservation.roles_dispatch_currently_unwired
+#print axioms CBCL.R6DCFLPreservation.causalTrace_iff_run
+#print axioms CBCL.R6DCFLPreservation.causalTrace_regular
+#print axioms CBCL.R6DCFLPreservation.causalTrace_isTraceDCFL
+#print axioms CBCL.R6DCFLPreservation.localTrace_regular
+#print axioms CBCL.R6DCFLPreservation.localTrace_isTraceDCFL
+#print axioms CBCL.R6DCFLPreservation.projection_adds_no_recogniser
 
 -- EPP correspondence, safety + completion levels (EPP.lean, EPPCompletion.lean).
 -- `proof.tex` §Notes claims "no sorry; axioms propext, Classical.choice, Quot.sound"

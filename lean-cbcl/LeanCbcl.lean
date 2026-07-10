@@ -29,6 +29,7 @@ import LeanCbcl.Lattice.Store
 import LeanCbcl.Lattice.Result
 import LeanCbcl.Lattice.NotALattice
 import LeanCbcl.DCFLPreservation
+import LeanCbcl.R6DCFLPreservation
 import LeanCbcl.Verify
 import LeanCbcl.R5
 import LeanCbcl.EPP
