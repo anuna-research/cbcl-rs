@@ -13,6 +13,13 @@ std = []
 serde = ["dep:serde"]
 thiserror = ["dep:thiserror"]
 tracing = ["dep:tracing"]
+# SPEC-024 mls-ds/v1 crypto-boundary PROOF ARTIFACT (draft gate). Non-default
+# on purpose: enabling it pulls a real strict Ed25519 verifier (ed25519-dalek
+# v2) and compiles `mod mls_ds`. Left off, cbcl-core builds byte-identically
+# to before this branch — the no_std/WASM/NIF dependents that pin
+# `default-features = false` are entirely unaffected. Run the proof with
+# `cargo test -p cbcl-core --features mls-ds-proof`.
+mls-ds-proof = ["std", "dep:ed25519-dalek"]
 
 [dependencies]
 serde = { version = "1", default-features = false, features = ["derive", "alloc"], optional = true }
@@ -21,6 +28,13 @@ thiserror = { version = "2", default-features = false, optional = true }
 tracing = { workspace = true, optional = true }
 # Install-time dialect content hashing (SPEC-014 REQ-628); no_std-compatible.
 sha2 = { version = "0.10", default-features = false }
+# SPEC-024 REQ-141 pinned STRICT Ed25519 profile for the mls-ds/v1 crypto
+# boundary proof. Optional + non-default: only compiled under `mls-ds-proof`.
+# Default features (incl. `std`) are wanted here — the DEFAULT build's
+# `check_scalar` uses `Scalar::from_canonical_bytes` (full `S < L` rejection),
+# which is exactly the REQ-141 canonical-S stance; `legacy_compatibility`
+# (the lax top-3-bits check) stays OFF.
+ed25519-dalek = { version = "2", optional = true }
 
 [dev-dependencies]
 proptest = "1"

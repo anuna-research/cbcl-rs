@@ -52,6 +52,12 @@ pub mod evaluator;
 pub mod gossip;
 pub mod keyid;
 pub mod message;
+/// SPEC-024 `mls-ds/v1` crypto-boundary PROOF ARTIFACT (CON-002/003/011,
+/// REQ-141). Gated behind the non-default `mls-ds-proof` feature because it
+/// depends on a real strict Ed25519 verifier; see `mls_ds.rs` for the honest
+/// real-vs-stub inventory.
+#[cfg(feature = "mls-ds-proof")]
+pub mod mls_ds;
 pub mod msg_tag;
 pub mod pattern;
 pub mod policy;
