@@ -15,6 +15,14 @@ default = ["std"]
 std = ["cbcl-core/std", "cbcl-parser/std"]
 bindgen = ["dep:wasm-bindgen"]
 tracing = ["cbcl-core/tracing", "cbcl-parser/tracing"]
+# SPEC-024 REQ-142 / TEST-018 cross-runtime parity — the MEANINGFUL cross-target
+# leg. Exposes the mls-ds/v1 verdict vector-runner as a pure byte export (and,
+# with `bindgen`, a JS export). Pulls `cbcl-core/mls-ds-proof`, which forces
+# `std` + a real strict Ed25519 verifier (ed25519-dalek v2). Verification needs
+# no RNG, so getrandom is never linked and this DOES build for
+# wasm32-unknown-unknown (proven). Non-default: the production wasm surface is
+# unchanged unless switched on.
+mls-ds-proof = ["cbcl-core/mls-ds-proof"]
 
 [dependencies]
 cbcl-core = { workspace = true, default-features = false }
@@ -32,3 +40,8 @@ wasm-bindgen = { version = "0.2", optional = true }
 # can resolve `dlmalloc::GlobalDlmalloc` too.
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 dlmalloc = { version = "0.2", features = ["global"] }
+
+[dev-dependencies]
+# SPEC-024 REQ-142 wasm32 parity harness: `wasm-pack test --node` drives the
+# `#[wasm_bindgen_test]` corpus case in `tests/mls_ds_parity.rs`.
+wasm-bindgen-test = "0.3"

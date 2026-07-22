@@ -17,6 +17,12 @@ std = ["cbcl-core/std", "cbcl-parser/std"]
 # from its own panic-guarded NIF wrappers (SPEC-009 OBS-002), so the
 # transitive `cbcl-core/tracing` flag alone is not sufficient.
 tracing = ["dep:tracing", "cbcl-core/tracing", "cbcl-parser/tracing"]
+# SPEC-024 REQ-142 / TEST-018 cross-runtime parity: expose the mls-ds/v1
+# verdict vector-runner as a NIF (`mls_ds_run_verify_vector/1`) + a `*_pure`
+# helper. Pulls `cbcl-core/mls-ds-proof` (real strict Ed25519). Non-default:
+# the production NIF surface is unchanged unless this is switched on. The NIF is
+# a NATIVE compile, so it proves the binding + serialization boundary.
+mls-ds-proof = ["cbcl-core/mls-ds-proof"]
 
 [dependencies]
 cbcl-core = { workspace = true, default-features = false }

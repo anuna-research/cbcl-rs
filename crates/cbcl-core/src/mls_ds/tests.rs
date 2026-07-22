@@ -1392,3 +1392,190 @@ fn dialect_hash_is_stable_and_populated() {
     // Deterministic across builds.
     assert_eq!(mls_ds_dialect().hash, mls_ds_dialect().hash);
 }
+
+// ===========================================================================
+// REQ-142 / TEST-018 — cross-runtime verdict-serialization corpus (NATIVE
+// BASELINE). This case records the expected per-vector bytes and pins the
+// whole-corpus digest; the NIF and wasm32 tests assert against the SAME pin.
+// ===========================================================================
+
+/// The pinned native baseline digest — the single source of truth lives in the
+/// non-test [`corpus`] module so the NIF and wasm32 parity tests reference the
+/// exact same constant.
+use super::corpus::NATIVE_CORPUS_DIGEST_HEX as CORPUS_DIGEST_HEX;
+
+/// The expected decoded verdict SExpr text for each corpus vector, by label —
+/// the human-legible "recorded expected bytes" the gate references. Asserting
+/// on the parsed verdict (not raw canonical bytes) keeps the record readable
+/// while `CORPUS_DIGEST_HEX` pins the exact byte image.
+fn expected_verdict_text(label: &str) -> &'static str {
+    match label {
+        "req-valid-commit-submit" => "(mls-ds-verdict-v1 request valid commit-submit ...)",
+        "req-valid-commit-add-submit" => "(mls-ds-verdict-v1 request valid commit-add-submit ...)",
+        "req-valid-next-record" => "(mls-ds-verdict-v1 request valid next-record ...)",
+        "req-wrong-dialect-pin" => "(mls-ds-verdict-v1 request violation wrong-dialect-pin)",
+        "req-not-addressee" => "(mls-ds-verdict-v1 request violation not-addressee)",
+        "req-wrong-root-signer" => "(mls-ds-verdict-v1 request violation wrong-signer)",
+        "req-bad-source-signature" => "(mls-ds-verdict-v1 request violation bad-source-signature)",
+        "req-add-unauthorized" => "(mls-ds-verdict-v1 request violation add-unauthorized)",
+        "req-root-window" => "(mls-ds-verdict-v1 request violation root-window)",
+        "req-sidecar-tamper" => "(mls-ds-verdict-v1 request violation sidecar)",
+        "req-strict-ed25519-malleated-request-sig" => {
+            "(mls-ds-verdict-v1 request violation wrong-signer)"
+        }
+        "recognize-reserved-mls-control" => {
+            "(mls-ds-verdict-v1 request recognize-violation reserved-mls-control)"
+        }
+        "recognize-resource-excess" => {
+            "(mls-ds-verdict-v1 request recognize-violation resource-excess)"
+        }
+        "resp-valid-record-admitted" => "(mls-ds-verdict-v1 response valid record-admitted ...)",
+        "resp-valid-at-head" => "(mls-ds-verdict-v1 response valid at-head ...)",
+        "resp-causality" => "(mls-ds-verdict-v1 response violation causality)",
+        "resp-member-signed-wrong-signer" => "(mls-ds-verdict-v1 response violation wrong-signer)",
+        "direct-unknown-request" => "(mls-ds-verdict-v1 request unknown (...))",
+        "direct-unknown-response" => "(mls-ds-verdict-v1 response unknown (...))",
+        _ => "UNKNOWN-LABEL",
+    }
+}
+
+/// The verdict, reduced to `(head side outcome kind|code)` — drops the volatile
+/// content-hash / hash-set tails so the expectation table stays stable.
+fn verdict_shape(bytes: &[u8]) -> String {
+    let text = core::str::from_utf8(bytes).expect("verdict is utf-8");
+    // canonical_encode emits `<len>:<atom>` netstrings; re-parse is overkill —
+    // decode the canonical form back to an SExpr for a readable shape.
+    let sexpr = decode_canonical(bytes).unwrap_or_else(|| panic!("decode {text}"));
+    match &sexpr {
+        SExpr::List(items) => {
+            let head: Vec<String> = items
+                .iter()
+                .take(4)
+                .map(|it| match it {
+                    SExpr::Atom(Atom::Symbol(s)) => s.clone(),
+                    SExpr::Atom(Atom::Str(_)) => String::from("..."),
+                    SExpr::List(_) => String::from("(...)"),
+                    other => format!("{other:?}"),
+                })
+                .collect();
+            // Valid carries (head side outcome kind hash); collapse the hash to `...`.
+            let outcome = items.get(2).and_then(|s| match s {
+                SExpr::Atom(Atom::Symbol(x)) => Some(x.as_str()),
+                _ => None,
+            });
+            let mut parts = head;
+            match outcome {
+                Some("valid") => {
+                    parts.truncate(4);
+                    parts.push(String::from("..."));
+                    format!("({})", parts.join(" "))
+                }
+                Some("unknown") => format!("({} {} {} (...))", parts[0], parts[1], parts[2]),
+                _ => format!("({})", parts.join(" ")),
+            }
+        }
+        _ => text.to_string(),
+    }
+}
+
+/// A tiny decoder for the RFC 9804 canonical form `<len>:<octets>` / `(`…`)`
+/// that `canonical_encode` produces — enough to render a verdict's shape.
+fn decode_canonical(bytes: &[u8]) -> Option<SExpr> {
+    fn go(b: &[u8], i: &mut usize) -> Option<SExpr> {
+        if *i >= b.len() {
+            return None;
+        }
+        if b[*i] == b'(' {
+            *i += 1;
+            let mut items = Vec::new();
+            while *i < b.len() && b[*i] != b')' {
+                items.push(go(b, i)?);
+            }
+            if *i >= b.len() {
+                return None;
+            }
+            *i += 1; // ')'
+            Some(SExpr::List(items))
+        } else {
+            let mut len = 0usize;
+            while *i < b.len() && b[*i].is_ascii_digit() {
+                len = len * 10 + (b[*i] - b'0') as usize;
+                *i += 1;
+            }
+            if *i >= b.len() || b[*i] != b':' {
+                return None;
+            }
+            *i += 1;
+            if len == 0 {
+                return None;
+            }
+            // Octets are `<tag><payload>`: S=Symbol K=Keyword Q=Str N=Num B=Bool.
+            let tag = b[*i];
+            let payload = core::str::from_utf8(&b[*i + 1..*i + len]).ok()?;
+            *i += len;
+            let s = payload.to_string();
+            Some(match tag {
+                b'S' => SExpr::Atom(Atom::Symbol(s)),
+                b'K' => SExpr::Atom(Atom::Keyword(s)),
+                b'Q' => SExpr::Atom(Atom::Str(s)),
+                b'N' => SExpr::Atom(Atom::Num(s.parse().ok()?)),
+                b'B' => SExpr::Atom(Atom::Bool(payload == "t")),
+                _ => return None,
+            })
+        }
+    }
+    let mut i = 0;
+    go(bytes, &mut i)
+}
+
+#[test]
+fn req142_corpus_is_byte_stable_and_digest_pinned() {
+    let vectors = corpus::labelled_vectors();
+    assert!(
+        (10..=25).contains(&vectors.len()),
+        "corpus size {} outside the ~10-15 target band",
+        vectors.len()
+    );
+
+    // 1. Every vector's verdict shape matches the recorded expectation.
+    for (label, input) in &vectors {
+        let out = run_verify_vector(input);
+        let shape = verdict_shape(&out);
+        let expected = expected_verdict_text(label);
+        assert_eq!(
+            shape, expected,
+            "vector {label}: verdict shape drifted (out={} bytes)",
+            out.len()
+        );
+    }
+
+    // 2. The whole-corpus digest is byte-identical to the pinned baseline.
+    let blobs: alloc::vec::Vec<_> = vectors.iter().map(|(_, v)| v.clone()).collect();
+    let digest = corpus_digest_hex(&blobs);
+    // Emit the evidence line (visible under `--nocapture`).
+    #[cfg(feature = "std")]
+    std::eprintln!("REQ-142 native corpus digest = {digest} ({} vectors)", blobs.len());
+    assert_eq!(
+        digest, CORPUS_DIGEST_HEX,
+        "native corpus digest moved — update the pin in all three parity tests"
+    );
+}
+
+#[test]
+fn req142_runner_is_total_on_garbage() {
+    // The runner never panics and always yields a canonical verdict.
+    for junk in [
+        &b""[..],
+        &b"not an s-expr"[..],
+        &[0xff, 0xfe][..],
+        b"(mls-ds-verify-vector-v1 (nope))",
+        b"(wrong-envelope (request))",
+        b"(mls-ds-verify-vector-v1 (request \"x\"))",
+    ] {
+        let out = run_verify_vector(junk);
+        assert!(!out.is_empty(), "runner produced empty output for {junk:?}");
+        // Must decode as a verdict list headed by the verdict tag.
+        let s = decode_canonical(&out).expect("verdict decodes");
+        assert_eq!(head_sym(&s), Some("mls-ds-verdict-v1"));
+    }
+}

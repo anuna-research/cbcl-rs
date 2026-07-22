@@ -2123,6 +2123,452 @@ fn parse_message(s: &SExpr) -> Option<Message> {
 }
 
 // ===========================================================================
+// REQ-142 / CON-003 / TEST-018 — deterministic verdict SERIALIZATION and the
+// cross-runtime VECTOR RUNNER
+// ===========================================================================
+//
+// `run_verify_vector` is the single entry point the cross-target parity gate
+// drives: a `&[u8]` in, canonical verdict bytes out. It decodes a
+// self-describing vector, runs the CON-003 role-verification boundary
+// (`verify_mls_ds_request` / `verify_mls_ds_response`, via the CON-011
+// recognizer), and serializes the verdict to canonical RFC 9804 bytes with the
+// crate's own `canonical_encode`. Because the ONLY sink is `canonical_encode`
+// over a fixed S-expression shape — no floats, `usize` widths only ever
+// stringified as small decimals, `i64` fields, portable SHA-256 / Ed25519 —
+// the output is byte-identical on every compile target (native, the cbcl-erl
+// NIF, and wasm32). That byte-identity is the REQ-142 / CON-003 "serialized
+// verdict vector" the release gate requires.
+//
+// ## Vector wire format (self-describing, a canonical CBCL S-expression)
+//
+// Top:      `(mls-ds-verify-vector-v1 <clause>)`
+//
+// Request clause (recognize + `verify_mls_ds_request` + serialize):
+//   `(request <exp-dialect-hash:str> <ds-key-id:str> <admitted-client-key-id:str>
+//             <outer-signer-key-id:str> <session-id:str> <frame-id:num>
+//             <outer-room:str> <wall-time-ms:num> <payload-b64:str>)`
+//   where `<payload-b64>` is the unpadded base64url of the serialized request
+//   bundle TEXT, and the three key-ids are canonical `@`+43-base64url spellings.
+//
+// Response clause (reproduce the VTC from the embedded request, then recognize
+// + `verify_mls_ds_response` + serialize):
+//   `(response <request-clause> <resp-session-id:str> <resp-frame-id:num>
+//              <resp-outer-room:str> <resp-outer-signer-key-id:str>
+//              <resp-payload-b64:str>)`
+//
+// Direct clause (serialize a literal verdict — the ONLY way to exercise the
+// `Unknown` outcome, which the v1 boundary never returns from `verify_*`: it
+// collapses a residual role-layer `Unknown` to `Violation(missing-evidence)`
+// per CON-003's singleton-transaction rule, so `Unknown` is proven purely at
+// the serialization boundary):
+//   `(direct <side:sym request|response> unknown (<content-hash:str> …))`
+//   `(direct <side:sym request|response> violation <code:sym>)`
+//
+// ## Verdict wire format (the serialized output, canonical_encode'd)
+//
+//   Valid:     `(mls-ds-verdict-v1 <side> valid <kind:sym> <content-hash:str>)`
+//   Unknown:   `(mls-ds-verdict-v1 <side> unknown (<content-hash:str> …))`
+//   Violation: `(mls-ds-verdict-v1 <side> violation <code:sym>)`
+//   Recognizer short-circuit (payload is not the expected bundle):
+//     `(mls-ds-verdict-v1 <side> recognize-violation <code:sym>)`  (a CON-011
+//        recognizer `Violation`, e.g. reserved-mls-control / resource-excess)
+//     `(mls-ds-verdict-v1 <side> recognize <non-mls|wrong-bundle>)`
+//   Vector envelope error: `(mls-ds-verdict-v1 vector-error <reason:sym>)`
+//   Response with no reproducible VTC: `(mls-ds-verdict-v1 response vtc-unavailable)`
+
+/// Canonical, stable wire token for a violation / recognition [`Code`].
+pub fn code_symbol(code: &Code) -> &'static str {
+    match code {
+        Code::Malformed => "malformed",
+        Code::ReservedMlsControl => "reserved-mls-control",
+        Code::ResourceExcess => "resource-excess",
+        Code::WrongDialectPin => "wrong-dialect-pin",
+        Code::WrongSigner => "wrong-signer",
+        Code::NotAddressee => "not-addressee",
+        Code::BadSourceSignature => "bad-source-signature",
+        Code::AddUnauthorized => "add-unauthorized",
+        Code::Causality => "causality",
+        Code::RootWindow => "root-window",
+        Code::ThreadReuse => "thread-reuse",
+        Code::MissingEvidence => "missing-evidence",
+        Code::Sidecar => "sidecar",
+        Code::AuthorityRoom => "authority-room",
+    }
+}
+
+fn typed_request_kind(t: &TypedRequest) -> &str {
+    match t {
+        TypedRequest::NextRecord { .. } => "next-record",
+        TypedRequest::CommitSubmit { .. } => "commit-submit",
+        TypedRequest::CommitAddSubmit { .. } => "commit-add-submit",
+        TypedRequest::Other { kind } => kind,
+    }
+}
+
+fn typed_response_kind(t: &TypedResponse) -> &str {
+    match t {
+        TypedResponse::RecordAdmitted { .. } => "record-admitted",
+        TypedResponse::DsRejected { .. } => "ds-rejected",
+        TypedResponse::AtHead { .. } => "at-head",
+        TypedResponse::Other { kind } => kind,
+    }
+}
+
+fn verdict_sexpr(side: &str, outcome: &str, tail: Vec<SExpr>) -> SExpr {
+    let mut items = vec![sym("mls-ds-verdict-v1"), sym(side), sym(outcome)];
+    items.extend(tail);
+    SExpr::List(items)
+}
+
+fn hash_set_sexpr(set: &BTreeSet<ContentHash>) -> SExpr {
+    // BTreeSet iterates in sorted order → deterministic on every target.
+    SExpr::List(set.iter().map(|ContentHash(h)| qstr(h)).collect())
+}
+
+/// Serialize a [`RequestVerdict`] to canonical RFC 9804 bytes (REQ-142).
+pub fn serialize_request_verdict(v: &RequestVerdict) -> Vec<u8> {
+    let s = match v {
+        RequestVerdict::Valid(t, ContentHash(h), _vtc) => {
+            verdict_sexpr("request", "valid", vec![sym(typed_request_kind(t)), qstr(h)])
+        }
+        RequestVerdict::Unknown(set) => {
+            verdict_sexpr("request", "unknown", vec![hash_set_sexpr(set)])
+        }
+        RequestVerdict::Violation(code) => {
+            verdict_sexpr("request", "violation", vec![sym(code_symbol(code))])
+        }
+    };
+    canonical_encode(&s)
+}
+
+/// Serialize a [`ResponseVerdict`] to canonical RFC 9804 bytes (REQ-142).
+pub fn serialize_response_verdict(v: &ResponseVerdict) -> Vec<u8> {
+    let s = match v {
+        ResponseVerdict::Valid(t, ContentHash(h)) => verdict_sexpr(
+            "response",
+            "valid",
+            vec![sym(typed_response_kind(t)), qstr(h)],
+        ),
+        ResponseVerdict::Unknown(set) => {
+            verdict_sexpr("response", "unknown", vec![hash_set_sexpr(set)])
+        }
+        ResponseVerdict::Violation(code) => {
+            verdict_sexpr("response", "violation", vec![sym(code_symbol(code))])
+        }
+    };
+    canonical_encode(&s)
+}
+
+fn vector_error(reason: &str) -> Vec<u8> {
+    canonical_encode(&SExpr::List(vec![
+        sym("mls-ds-verdict-v1"),
+        sym("vector-error"),
+        sym(reason),
+    ]))
+}
+
+/// Serialize a CON-011 recognizer short-circuit (the payload was not the
+/// expected bundle, so the role-verification boundary was never entered).
+fn recognizer_verdict(side: &str, class: &OuterClass) -> Vec<u8> {
+    let s = match class {
+        OuterClass::Violation(code) => {
+            verdict_sexpr(side, "recognize-violation", vec![sym(code_symbol(code))])
+        }
+        OuterClass::NonMls(_) => verdict_sexpr(side, "recognize", vec![sym("non-mls")]),
+        OuterClass::Request(_) => verdict_sexpr(side, "recognize", vec![sym("wrong-bundle")]),
+        OuterClass::Response(_) => verdict_sexpr(side, "recognize", vec![sym("wrong-bundle")]),
+    };
+    canonical_encode(&s)
+}
+
+/// Fields decoded from a `(request …)` vector clause.
+struct RequestVectorCtx {
+    exp_dialect_hash: String,
+    ds_key: [u8; 32],
+    client_key: [u8; 32],
+    outer_signer: [u8; 32],
+    env: EnvelopeContext,
+    wall_time_ms: i64,
+    payload: Vec<u8>,
+}
+
+/// Decode a `(request …)` clause into its context + raw payload bytes.
+fn decode_request_clause(items: &[SExpr]) -> Option<RequestVectorCtx> {
+    // (request exp-hash ds client outer session frame room wall payload-b64)
+    if items.len() != 10 || as_sym(&items[0])? != "request" {
+        return None;
+    }
+    let exp_dialect_hash = as_str(&items[1])?.to_string();
+    let ds_key = recognize_key_id(as_str(&items[2])?)?;
+    let client_key = recognize_key_id(as_str(&items[3])?)?;
+    let outer_signer = recognize_key_id(as_str(&items[4])?)?;
+    let session_id = as_str(&items[5])?.to_string();
+    let frame_id = as_num(&items[6])?;
+    let outer_room = as_str(&items[7])?.to_string();
+    let wall_time_ms = as_num(&items[8])?;
+    let payload = b64url_decode(as_str(&items[9])?)?;
+    Some(RequestVectorCtx {
+        exp_dialect_hash,
+        ds_key,
+        client_key,
+        outer_signer,
+        env: EnvelopeContext {
+            session_id,
+            frame_id,
+            outer_room,
+        },
+        wall_time_ms,
+        payload,
+    })
+}
+
+fn run_request_clause(clause: &SExpr) -> Vec<u8> {
+    let items = match as_list(clause) {
+        Some(v) => v,
+        None => return vector_error("bad-request-clause"),
+    };
+    let ctx = match decode_request_clause(items) {
+        Some(c) => c,
+        None => return vector_error("bad-request-clause"),
+    };
+    let class = recognize_dispatch_verified_outer(&ctx.payload);
+    let ast = match &class {
+        OuterClass::Request(a) => a,
+        other => return recognizer_verdict("request", other),
+    };
+    let dialect = mls_ds_dialect();
+    let verdict = verify_mls_ds_request(
+        &dialect,
+        &ctx.exp_dialect_hash,
+        &ctx.ds_key,
+        &ctx.client_key,
+        &ctx.outer_signer,
+        &ctx.env,
+        ctx.wall_time_ms,
+        ast,
+    );
+    serialize_request_verdict(&verdict)
+}
+
+fn run_response_clause(clause: &SExpr) -> Vec<u8> {
+    let items = match as_list(clause) {
+        Some(v) if v.len() == 7 && as_sym(&v[0]) == Some("response") => v,
+        _ => return vector_error("bad-response-clause"),
+    };
+    // 1. Reproduce the VTC by running the embedded request clause.
+    let req_items = match as_list(&items[1]) {
+        Some(v) => v,
+        None => return vector_error("bad-response-request"),
+    };
+    let req_ctx = match decode_request_clause(req_items) {
+        Some(c) => c,
+        None => return vector_error("bad-response-request"),
+    };
+    let dialect = mls_ds_dialect();
+    let req_ast = match recognize_dispatch_verified_outer(&req_ctx.payload) {
+        OuterClass::Request(a) => a,
+        _ => return vector_error("response-request-not-a-bundle"),
+    };
+    let vtc = match verify_mls_ds_request(
+        &dialect,
+        &req_ctx.exp_dialect_hash,
+        &req_ctx.ds_key,
+        &req_ctx.client_key,
+        &req_ctx.outer_signer,
+        &req_ctx.env,
+        req_ctx.wall_time_ms,
+        &req_ast,
+    ) {
+        RequestVerdict::Valid(_, _, vtc) => vtc,
+        _ => {
+            return canonical_encode(&SExpr::List(vec![
+                sym("mls-ds-verdict-v1"),
+                sym("response"),
+                sym("vtc-unavailable"),
+            ]))
+        }
+    };
+    // 2. Decode the response context.
+    let resp_session = match as_str(&items[2]) {
+        Some(s) => s.to_string(),
+        None => return vector_error("bad-response-clause"),
+    };
+    let resp_frame = match as_num(&items[3]) {
+        Some(n) => n,
+        None => return vector_error("bad-response-clause"),
+    };
+    let resp_room = match as_str(&items[4]) {
+        Some(s) => s.to_string(),
+        None => return vector_error("bad-response-clause"),
+    };
+    let resp_outer_signer = match as_str(&items[5]).and_then(recognize_key_id) {
+        Some(k) => k,
+        None => return vector_error("bad-response-clause"),
+    };
+    let resp_payload = match as_str(&items[6]).and_then(b64url_decode) {
+        Some(p) => p,
+        None => return vector_error("bad-response-clause"),
+    };
+    let resp_env = EnvelopeContext {
+        session_id: resp_session,
+        frame_id: resp_frame,
+        outer_room: resp_room,
+    };
+    let class = recognize_dispatch_verified_outer(&resp_payload);
+    let resp_ast = match &class {
+        OuterClass::Response(a) => a,
+        other => return recognizer_verdict("response", other),
+    };
+    // expected_ds_key is the VTC's DS key (the pinned DS for this thread).
+    let verdict = verify_mls_ds_response(
+        &dialect,
+        &req_ctx.exp_dialect_hash,
+        &vtc.ds_key,
+        &resp_outer_signer,
+        &resp_env,
+        &vtc,
+        resp_ast,
+    );
+    serialize_response_verdict(&verdict)
+}
+
+fn run_direct_clause(clause: &SExpr) -> Vec<u8> {
+    let items = match as_list(clause) {
+        Some(v) if v.len() >= 3 && as_sym(&v[0]) == Some("direct") => v,
+        _ => return vector_error("bad-direct-clause"),
+    };
+    let side = match as_sym(&items[1]) {
+        Some(s @ ("request" | "response")) => s,
+        _ => return vector_error("bad-direct-side"),
+    };
+    match as_sym(&items[2]) {
+        Some("unknown") => {
+            let list = match items.get(3).and_then(as_list) {
+                Some(l) => l,
+                None => return vector_error("bad-direct-unknown"),
+            };
+            let mut set = BTreeSet::new();
+            for h in list {
+                match as_str(h) {
+                    Some(s) => {
+                        set.insert(ContentHash(s.to_string()));
+                    }
+                    None => return vector_error("bad-direct-unknown"),
+                }
+            }
+            if side == "request" {
+                serialize_request_verdict(&RequestVerdict::Unknown(set))
+            } else {
+                serialize_response_verdict(&ResponseVerdict::Unknown(set))
+            }
+        }
+        Some("violation") => {
+            let code = match items.get(3).and_then(as_sym).and_then(symbol_code) {
+                Some(c) => c,
+                None => return vector_error("bad-direct-violation"),
+            };
+            if side == "request" {
+                serialize_request_verdict(&RequestVerdict::Violation(code))
+            } else {
+                serialize_response_verdict(&ResponseVerdict::Violation(code))
+            }
+        }
+        _ => vector_error("bad-direct-outcome"),
+    }
+}
+
+/// Inverse of [`code_symbol`] (for `direct` violation vectors).
+fn symbol_code(s: &str) -> Option<Code> {
+    Some(match s {
+        "malformed" => Code::Malformed,
+        "reserved-mls-control" => Code::ReservedMlsControl,
+        "resource-excess" => Code::ResourceExcess,
+        "wrong-dialect-pin" => Code::WrongDialectPin,
+        "wrong-signer" => Code::WrongSigner,
+        "not-addressee" => Code::NotAddressee,
+        "bad-source-signature" => Code::BadSourceSignature,
+        "add-unauthorized" => Code::AddUnauthorized,
+        "causality" => Code::Causality,
+        "root-window" => Code::RootWindow,
+        "thread-reuse" => Code::ThreadReuse,
+        "missing-evidence" => Code::MissingEvidence,
+        "sidecar" => Code::Sidecar,
+        "authority-room" => Code::AuthorityRoom,
+        _ => return None,
+    })
+}
+
+/// REQ-142 / CON-003 / TEST-018 cross-runtime VECTOR RUNNER.
+///
+/// Decodes a self-describing verify vector, runs the CON-003 role-verification
+/// boundary, and serializes the verdict to canonical RFC 9804 bytes. The output
+/// is byte-identical across native, NIF, and wasm32 compile targets — that is
+/// the property the release gate proves. Total and deterministic: every
+/// malformed input maps to a fixed `vector-error` verdict, never a panic.
+pub fn run_verify_vector(input: &[u8]) -> Vec<u8> {
+    let text = match core::str::from_utf8(input) {
+        Ok(t) => t,
+        Err(_) => return vector_error("bad-vector-utf8"),
+    };
+    let sexpr = match text.parse::<SExpr>() {
+        Ok(s) => s,
+        Err(_) => return vector_error("bad-vector-parse"),
+    };
+    let items = match as_list(&sexpr) {
+        Some(v) if v.len() == 2 && as_sym(&v[0]) == Some("mls-ds-verify-vector-v1") => v,
+        _ => return vector_error("bad-vector-envelope"),
+    };
+    match head_sym(&items[1]) {
+        Some("request") => run_request_clause(&items[1]),
+        Some("response") => run_response_clause(&items[1]),
+        Some("direct") => run_direct_clause(&items[1]),
+        _ => vector_error("bad-vector-clause"),
+    }
+}
+
+/// SHA-256 fingerprint over a sequence of already-computed verdict outputs:
+/// for each verdict, absorb its 8-byte little-endian length followed by its
+/// bytes. A single differing byte in ANY verdict changes this digest, so a
+/// matching digest across targets is proof of per-vector byte-identity
+/// (REQ-142). Cross-target tests pass their OWN target-produced outputs here.
+pub fn digest_verdicts(outputs: &[Vec<u8>]) -> [u8; 32] {
+    let mut h = Sha256::new();
+    for out in outputs {
+        h.update((out.len() as u64).to_le_bytes());
+        h.update(out);
+    }
+    let d = h.finalize();
+    let mut out = [0u8; 32];
+    out.copy_from_slice(&d);
+    out
+}
+
+/// [`digest_verdicts`] rendered as lowercase hex (a compact cross-target token).
+pub fn digest_verdicts_hex(outputs: &[Vec<u8>]) -> String {
+    let mut s = String::new();
+    push_hex(&mut s, &digest_verdicts(outputs));
+    s
+}
+
+/// Run every input through [`run_verify_vector`], then fingerprint the outputs.
+/// The convenience path for the native baseline.
+pub fn corpus_digest(vectors: &[Vec<u8>]) -> [u8; 32] {
+    let outputs: Vec<Vec<u8>> = vectors.iter().map(|v| run_verify_vector(v)).collect();
+    digest_verdicts(&outputs)
+}
+
+/// `corpus_digest` rendered as lowercase hex.
+pub fn corpus_digest_hex(vectors: &[Vec<u8>]) -> String {
+    let mut s = String::new();
+    push_hex(&mut s, &corpus_digest(vectors));
+    s
+}
+
+/// The deterministic REQ-142 corpus (built with real Ed25519 keys/signatures).
+/// Re-exported here so every compile target builds byte-identical inputs.
+pub mod corpus;
+
+// ===========================================================================
 // Tests
 // ===========================================================================
 

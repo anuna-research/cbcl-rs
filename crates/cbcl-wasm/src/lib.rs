@@ -209,6 +209,35 @@ pub fn send_message_bytes(recipient: &[u8], content: &[u8]) -> Result<Vec<u8>, V
 }
 
 // ---------------------------------------------------------------------------
+// SPEC-024 REQ-142 / TEST-018 — mls-ds/v1 verdict vector-runner (pure byte API)
+// ---------------------------------------------------------------------------
+//
+// This is the MEANINGFUL cross-target leg of the REQ-142 gate: the SAME
+// `cbcl_core::mls_ds::run_verify_vector` compiled to wasm32 must emit
+// byte-identical canonical verdicts to the native and NIF paths. Exposed as a
+// pure byte export (always on under `mls-ds-proof`); a `bindgen` JS wrapper is
+// added in `wasm_bindgen_api` below.
+
+/// Run one self-describing mls-ds/v1 verify vector; returns the canonical
+/// RFC 9804 verdict bytes. Total (never panics).
+#[cfg(feature = "mls-ds-proof")]
+pub fn mls_ds_run_verify_vector_bytes(input: &[u8]) -> Vec<u8> {
+    cbcl_core::mls_ds::run_verify_vector(input)
+}
+
+/// Build the REQ-142 corpus, run every vector through the wasm32 runner, and
+/// return the corpus digest as hex — the compact token compared to the pinned
+/// native baseline (`corpus::NATIVE_CORPUS_DIGEST_HEX`).
+#[cfg(feature = "mls-ds-proof")]
+pub fn mls_ds_corpus_digest_hex() -> String {
+    let outputs: Vec<Vec<u8>> = cbcl_core::mls_ds::corpus::corpus_input_vectors()
+        .iter()
+        .map(|v| cbcl_core::mls_ds::run_verify_vector(v))
+        .collect();
+    cbcl_core::mls_ds::digest_verdicts_hex(&outputs)
+}
+
+// ---------------------------------------------------------------------------
 // Shared string-level implementation (used by both tiers)
 // ---------------------------------------------------------------------------
 
@@ -710,6 +739,22 @@ mod wasm_bindgen_api {
     #[wasm_bindgen]
     pub fn send_message(recipient: &str, content: &str) -> Result<String, String> {
         send_message_str(recipient, content)
+    }
+
+    /// SPEC-024 REQ-142 — run one mls-ds/v1 verify vector over the JS boundary;
+    /// returns the canonical verdict bytes (`Uint8Array`).
+    #[cfg(feature = "mls-ds-proof")]
+    #[wasm_bindgen]
+    pub fn mls_ds_run_verify_vector(input: &[u8]) -> Vec<u8> {
+        super::mls_ds_run_verify_vector_bytes(input)
+    }
+
+    /// SPEC-024 REQ-142 — the wasm32 corpus digest hex, for a JS host to compare
+    /// against the pinned native baseline.
+    #[cfg(feature = "mls-ds-proof")]
+    #[wasm_bindgen]
+    pub fn mls_ds_corpus_digest_hex() -> String {
+        super::mls_ds_corpus_digest_hex()
     }
 }
 

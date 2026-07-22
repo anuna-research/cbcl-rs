@@ -25,6 +25,13 @@ pub mod parse_message_lax;
 pub mod verify_dialect;
 mod versions;
 
+// SPEC-024 REQ-142 / TEST-018 cross-runtime parity: the mls-ds/v1 verdict
+// vector-runner NIF. Gated behind the non-default `mls-ds-proof` feature (real
+// strict Ed25519). rustler 0.36 auto-discovers the `#[nif]` via inventory, so
+// no `init!` change is needed.
+#[cfg(feature = "mls-ds-proof")]
+pub mod mls_ds_vector;
+
 // Helpers consumed by the panic-guard NIF wrapping task (SPEC-009 OBS-002);
 // included now so the surface is ready when those wrappers land.
 #[allow(dead_code)]
@@ -34,6 +41,9 @@ pub use parse_message::parse_message_pure;
 pub use parse_message_lax::parse_message_lax_pure;
 pub use verify_dialect::verify_dialect_pure;
 pub use versions::{CBCL_CORE_VERSION, CBCL_ERL_VERSION, CBCL_RS_GIT_REVISION};
+
+#[cfg(feature = "mls-ds-proof")]
+pub use mls_ds_vector::run_verify_vector_pure;
 
 rustler::init!("cbcl_erl");
 
