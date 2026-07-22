@@ -16,20 +16,43 @@ use core::fmt;
 ///
 /// Encodes the `:caused-by` keyword parameter:
 /// - `Begin` — this message starts a new causal chain (`:caused-by "begin"`)
-/// - `Single(hash)` — single predecessor (`:caused-by <hash>`)
-/// - `Multiple(hashes)` — multiple predecessors (`:caused-by (<h1> <h2> ...)`)
+/// - `Single(hash)` — single predecessor, hash written **bare**
+///   (`:caused-by <hash>`)
+/// - `SingleQuoted(hash)` — single predecessor, hash written **double-quoted**
+///   (`:caused-by "<hash>"`)
+/// - `Multiple(hashes)` — multiple predecessors, all written bare
+///   (`:caused-by (<h1> <h2> ...)`)
+/// - `MultipleQuoted(hashes)` — multiple predecessors, all double-quoted
+///   (`:caused-by ("<h1>" "<h2>" ...)`)
 ///
-/// For the `Multiple` variant, hashes are stored in canonical (sorted) order
-/// to ensure deterministic hashing.
+/// `SingleQuoted`/`MultipleQuoted` denote the **same causal link** as their
+/// bare counterparts; the distinct variant records only the wire *spelling*
+/// so that `serialise ∘ parse` is byte-for-byte. This is required by
+/// mls-ds/v1, whose predecessor hashes take the quoted form
+/// `hash = DQUOTE "sha256:" 64hex DQUOTE` (SPEC-024). Value-level consumers
+/// (causal verification, frontier/closure walks) treat the quoted and bare
+/// variants identically via `Single(h) | SingleQuoted(h)` or-patterns; only
+/// the S-expression serialisers distinguish them (bare → `Atom::Symbol`,
+/// quoted → `Atom::Str`).
+///
+/// For the `Multiple`/`MultipleQuoted` variants, hashes are stored in
+/// canonical (sorted) order to ensure deterministic hashing.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum CausedBy {
     /// This message begins a new causal chain.
     Begin,
-    /// Single causal predecessor, identified by content hash.
+    /// Single causal predecessor, content hash written bare.
     Single(String),
-    /// Multiple causal predecessors, sorted lexicographically for canonical ordering.
+    /// Single causal predecessor, content hash written double-quoted
+    /// (mls-ds/v1 `hash = DQUOTE "sha256:" 64hex DQUOTE`).
+    SingleQuoted(String),
+    /// Multiple causal predecessors written bare, sorted lexicographically
+    /// for canonical ordering.
     Multiple(Vec<String>),
+    /// Multiple causal predecessors written double-quoted, sorted
+    /// lexicographically for canonical ordering.
+    MultipleQuoted(Vec<String>),
 }
 
 /// The 8 core performatives (REQ-010).
@@ -430,10 +453,20 @@ impl From<Message> for SExpr {
                         CausedBy::Single(h) => {
                             items.push(SExpr::Atom(Atom::Symbol(h)));
                         }
+                        CausedBy::SingleQuoted(h) => {
+                            items.push(SExpr::Atom(Atom::Str(h)));
+                        }
                         CausedBy::Multiple(hs) => {
                             let hash_exprs = hs
                                 .iter()
                                 .map(|h| SExpr::Atom(Atom::Symbol(h.clone())))
+                                .collect();
+                            items.push(SExpr::List(hash_exprs));
+                        }
+                        CausedBy::MultipleQuoted(hs) => {
+                            let hash_exprs = hs
+                                .iter()
+                                .map(|h| SExpr::Atom(Atom::Str(h.clone())))
                                 .collect();
                             items.push(SExpr::List(hash_exprs));
                         }
@@ -685,16 +718,25 @@ fn parse_simple(head: &str, tail: &[SExpr]) -> Result<Message, MessageParseError
 
 /// Parse the value of a `:caused-by` keyword parameter.
 ///
-/// Accepts three forms:
+/// Accepts the forms:
 /// - `"begin"` or `begin` symbol → `CausedBy::Begin`
-/// - Single atom (hash) → `CausedBy::Single(hash)`
-/// - List of atoms (hashes) → `CausedBy::Multiple(sorted_hashes)`
+/// - bare single atom (hash) → `CausedBy::Single(hash)`
+/// - quoted single atom (`"hash"`) → `CausedBy::SingleQuoted(hash)`
+/// - list of bare atoms → `CausedBy::Multiple(sorted_hashes)`
+/// - list whose atoms are **all** quoted → `CausedBy::MultipleQuoted(sorted)`
+///
+/// The quoted variants preserve the mls-ds/v1 wire spelling
+/// (`hash = DQUOTE "sha256:" 64hex DQUOTE`, SPEC-024) so that a quoted
+/// `:caused-by` re-serialises byte-for-byte. A bare token always parses to a
+/// bare variant, so bare inputs re-serialise bare. A list mixing quoted and
+/// bare tokens is treated as bare (the quoted spelling is only preserved when
+/// uniform, which is the only shape the protocol emits).
 fn parse_caused_by(val: &SExpr) -> Result<CausedBy, MessageParseError> {
     match val {
         SExpr::Atom(Atom::Symbol(s)) if s == BEGIN_KEYWORD => Ok(CausedBy::Begin),
         SExpr::Atom(Atom::Str(s)) if s == BEGIN_KEYWORD => Ok(CausedBy::Begin),
         SExpr::Atom(Atom::Symbol(s)) => Ok(CausedBy::Single(s.clone())),
-        SExpr::Atom(Atom::Str(s)) => Ok(CausedBy::Single(s.clone())),
+        SExpr::Atom(Atom::Str(s)) => Ok(CausedBy::SingleQuoted(s.clone())),
         SExpr::List(items) => {
             if items.is_empty() {
                 return Err(MessageParseError(String::from(
@@ -702,9 +744,14 @@ fn parse_caused_by(val: &SExpr) -> Result<CausedBy, MessageParseError> {
                 )));
             }
             let mut hashes = Vec::with_capacity(items.len());
+            let mut all_quoted = true;
             for item in items {
                 match item {
-                    SExpr::Atom(Atom::Symbol(s)) | SExpr::Atom(Atom::Str(s)) => {
+                    SExpr::Atom(Atom::Symbol(s)) => {
+                        all_quoted = false;
+                        hashes.push(s.clone());
+                    }
+                    SExpr::Atom(Atom::Str(s)) => {
                         hashes.push(s.clone());
                     }
                     _ => {
@@ -716,7 +763,11 @@ fn parse_caused_by(val: &SExpr) -> Result<CausedBy, MessageParseError> {
             }
             // Canonical ordering: sort lexicographically (REQ-202)
             hashes.sort();
-            Ok(CausedBy::Multiple(hashes))
+            if all_quoted {
+                Ok(CausedBy::MultipleQuoted(hashes))
+            } else {
+                Ok(CausedBy::Multiple(hashes))
+            }
         }
         _ => Err(MessageParseError(String::from(
             ":caused-by value must be a symbol, string, or list of hashes",
@@ -1222,6 +1273,11 @@ mod tests {
 
     #[test]
     fn caused_by_single_hash_string() {
+        // A DQUOTE-quoted `:caused-by "sha256:…"` — the mls-ds/v1 hash
+        // spelling — parses to the *quoted* variant, recording the wire
+        // spelling. (Before the Defect A fix this collapsed to the bare
+        // `Single` variant, silently discarding the quoting; that behaviour
+        // was the bug, so this assertion is updated to the fixed behaviour.)
         let sexpr = list(vec![
             sym("reply"),
             str_expr("done"),
@@ -1231,8 +1287,75 @@ mod tests {
         let msg = Message::try_from(&sexpr).unwrap();
         assert_eq!(
             msg.caused_by(),
-            Some(&CausedBy::Single(String::from("sha256:abc123")))
+            Some(&CausedBy::SingleQuoted(String::from("sha256:abc123")))
         );
+    }
+
+    // -- Defect A (SPEC-024 mls-ds/v1): quoted `:caused-by` hashes must
+    //    round-trip byte-for-byte; bare hashes must stay bare --
+
+    /// mls-ds/v1 `hash = DQUOTE "sha256:" 64hex DQUOTE`: a quoted single
+    /// predecessor serialises back with the quoted spelling, byte-for-byte,
+    /// and reparses to an equal value.
+    #[test]
+    fn quoted_single_caused_by_roundtrips_byte_for_byte() {
+        use core::str::FromStr;
+        let hash = alloc::format!("sha256:{}", "a".repeat(64));
+        let wire = alloc::format!("(reply \"done\" :caused-by \"{hash}\")");
+
+        let original = SExpr::from_str(&wire).unwrap();
+        let msg = Message::try_from(&original).unwrap();
+        // Quoting is recorded in the value.
+        assert_eq!(msg.caused_by(), Some(&CausedBy::SingleQuoted(hash.clone())));
+
+        // Serialise back: the quoted spelling survives byte-for-byte.
+        let back = SExpr::from(msg);
+        assert_eq!(back.to_string(), wire);
+        assert!(back.to_string().contains(&alloc::format!("\"{hash}\"")));
+
+        // Reparse to an equal value (serialise ∘ parse is a fixed point).
+        let reparsed = Message::try_from(&back).unwrap();
+        assert_eq!(reparsed, Message::try_from(&original).unwrap());
+        assert_eq!(reparsed.caused_by(), Some(&CausedBy::SingleQuoted(hash)));
+    }
+
+    /// A bare single predecessor stays bare on round-trip (no quotes added).
+    #[test]
+    fn bare_single_caused_by_stays_bare() {
+        use core::str::FromStr;
+        let hash = alloc::format!("sha256:{}", "b".repeat(64));
+        let wire = alloc::format!("(reply \"done\" :caused-by {hash})");
+
+        let original = SExpr::from_str(&wire).unwrap();
+        let msg = Message::try_from(&original).unwrap();
+        assert_eq!(msg.caused_by(), Some(&CausedBy::Single(hash.clone())));
+
+        let back = SExpr::from(msg);
+        assert_eq!(back.to_string(), wire);
+        // No double-quotes were introduced around the bare hash.
+        assert!(!back.to_string().contains(&alloc::format!("\"{hash}\"")));
+    }
+
+    /// A fan-in of all-quoted predecessors round-trips quoted, byte-for-byte,
+    /// in canonical (sorted) order.
+    #[test]
+    fn quoted_multiple_caused_by_roundtrips_byte_for_byte() {
+        use core::str::FromStr;
+        let h1 = alloc::format!("sha256:{}", "a".repeat(64)); // sorts first
+        let h2 = alloc::format!("sha256:{}", "c".repeat(64));
+        let wire = alloc::format!("(ok \"ack\" :caused-by (\"{h1}\" \"{h2}\"))");
+
+        let original = SExpr::from_str(&wire).unwrap();
+        let msg = Message::try_from(&original).unwrap();
+        assert_eq!(
+            msg.caused_by(),
+            Some(&CausedBy::MultipleQuoted(vec![h1.clone(), h2.clone()]))
+        );
+
+        let back = SExpr::from(msg);
+        assert_eq!(back.to_string(), wire);
+        let reparsed = Message::try_from(&back).unwrap();
+        assert_eq!(reparsed, Message::try_from(&original).unwrap());
     }
 
     #[test]

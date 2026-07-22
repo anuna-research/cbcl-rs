@@ -456,16 +456,26 @@ pub fn parse_cast(bindings: &SExpr, roles: &[RoleDecl]) -> Result<Cast, R6Violat
 /// Length of the lowercase-hex digest in a `sha256:<hex64>` pin (REQ-628).
 const PIN_HEX_LEN: usize = 64;
 
-/// Parse the value of a `with-roles` `:dialect` field (REQ-628): exactly
-/// the symbol `sha256:<lowercase-hex64>`, the form [`Dialect::hash`] takes
-/// at install. Fail closed (LangSec principle 4): a bad prefix, a wrong
-/// digest length, or a non-hex character is rejected, never repaired.
+/// Parse the value of a `with-roles` `:dialect` field (REQ-628): the pin
+/// `sha256:<lowercase-hex64>`, the form [`Dialect::hash`] takes at install.
+///
+/// Accepts the pin written **bare** (`Atom::Symbol`, e.g.
+/// `:dialect sha256:aa…`) or **double-quoted** (`Atom::Str`, e.g.
+/// `:dialect "sha256:aa…"`). mls-ds/v1 (SPEC-024) pins the governing
+/// dialect with the quoted spelling; both spellings denote the same pin and
+/// yield the same `String` value. This admits the quoted *string* token
+/// specifically — it is **not** a broadening of symbol lexing (`:` never
+/// becomes a symbol character), so it is not an implicit repair. Fail closed
+/// (LangSec principle 4): a bad prefix, a wrong digest length, or a non-hex
+/// character is rejected, never repaired.
 ///
 /// [`Dialect::hash`]: crate::dialect::Dialect::hash
 pub fn parse_dialect_pin(value: &SExpr) -> Result<String, R6Violation> {
-    let SExpr::Atom(Atom::Symbol(pin)) = value else {
+    let (SExpr::Atom(Atom::Symbol(pin)) | SExpr::Atom(Atom::Str(pin))) = value else {
         return Err(R6Violation::MalformedCast {
-            detail: format!(":dialect value must be a sha256:<hex64> symbol, got {value}"),
+            detail: format!(
+                ":dialect value must be a sha256:<hex64> pin (bare or quoted), got {value}"
+            ),
         });
     };
     let Some(hex) = pin.strip_prefix("sha256:") else {
@@ -768,6 +778,87 @@ mod tests {
         )
         .unwrap();
         assert_eq!(cast.dialect_pin.as_deref(), Some(pin.as_str()));
+    }
+
+    // ---- Defect B (SPEC-024 mls-ds/v1): the `:dialect` pin may be written
+    //      double-quoted; the quoted string form is accepted specifically,
+    //      yields the same pin value as bare, and round-trips its spelling ----
+
+    /// The quoted `:dialect "sha256:…"` spelling parses to the same pin value
+    /// as the bare `sha256:…` symbol form (mls-ds/v1 pins quoted).
+    #[test]
+    fn pin_quoted_string_accepted_same_as_bare() {
+        let pin = alloc::format!("sha256:{}", hex64('a'));
+        let bare = parse_dialect_pin(&sx(&pin)).unwrap();
+        let quoted = parse_dialect_pin(&sx(&alloc::format!("\"{pin}\""))).unwrap();
+        assert_eq!(bare, pin);
+        assert_eq!(quoted, pin);
+        assert_eq!(bare, quoted);
+    }
+
+    /// Quoting does not relax validation: a quoted-but-malformed pin (bad
+    /// prefix, wrong length, non-hex/uppercase) is still fail-closed.
+    #[test]
+    fn pin_quoted_but_malformed_still_rejected() {
+        assert!(matches!(
+            parse_dialect_pin(&sx("\"sha256:abc\"")),
+            Err(R6Violation::MalformedCast { .. })
+        ));
+        assert!(matches!(
+            parse_dialect_pin(&sx(&alloc::format!("\"md5:{}\"", hex64('a')))),
+            Err(R6Violation::MalformedCast { .. })
+        ));
+        assert!(matches!(
+            parse_dialect_pin(&sx(&alloc::format!("\"sha256:{}\"", hex64('A')))),
+            Err(R6Violation::MalformedCast { .. })
+        ));
+    }
+
+    /// A `with-roles` wrapper whose `:dialect` pin is quoted parses to the
+    /// same [`Cast`] (same `dialect_pin`) as the bare spelling.
+    #[test]
+    fn wrapper_cast_with_quoted_pin_matches_bare() {
+        let pin = alloc::format!("sha256:{}", hex64('a'));
+        let bare = parse_wrapper_cast(
+            &[
+                sx("((auctioneer @auc) (bidder @b1))"),
+                sx(":dialect"),
+                sx(&pin),
+            ],
+            &auction_roles(),
+        )
+        .unwrap();
+        let quoted = parse_wrapper_cast(
+            &[
+                sx("((auctioneer @auc) (bidder @b1))"),
+                sx(":dialect"),
+                sx(&alloc::format!("\"{pin}\"")),
+            ],
+            &auction_roles(),
+        )
+        .unwrap();
+        assert_eq!(quoted.dialect_pin.as_deref(), Some(pin.as_str()));
+        assert_eq!(quoted, bare);
+    }
+
+    /// A `with-roles` wrapper message carrying a quoted `:dialect` pin
+    /// re-serialises with the quoted spelling preserved byte-for-byte (the
+    /// wrapper's raw params ride verbatim through `Message::Wrapped`).
+    #[test]
+    fn wrapper_with_quoted_pin_roundtrips_preserving_spelling() {
+        use crate::message::Message;
+        let pin = alloc::format!("sha256:{}", hex64('a'));
+        let wire = alloc::format!(
+            "(with-roles ((auctioneer @auc) (bidder @b1)) :dialect \"{pin}\" \
+             (signed (tell @b1 \"hi\")))"
+        );
+        let original = sx(&wire);
+        let msg = Message::try_from(&original).unwrap();
+        let back = SExpr::from(msg);
+        assert_eq!(back.to_string(), wire);
+        assert!(back
+            .to_string()
+            .contains(&alloc::format!(":dialect \"{pin}\"")));
     }
 
     #[test]

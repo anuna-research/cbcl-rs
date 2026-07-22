@@ -262,9 +262,15 @@ fn caused_by_sexpr(cb: &CausedBy) -> SExpr {
     match cb {
         CausedBy::Begin => SExpr::Atom(Atom::Symbol(String::from(BEGIN_KEYWORD))),
         CausedBy::Single(h) => SExpr::Atom(Atom::Symbol(h.clone())),
+        CausedBy::SingleQuoted(h) => SExpr::Atom(Atom::Str(h.clone())),
         CausedBy::Multiple(hs) => SExpr::List(
             hs.iter()
                 .map(|h| SExpr::Atom(Atom::Symbol(h.clone())))
+                .collect(),
+        ),
+        CausedBy::MultipleQuoted(hs) => SExpr::List(
+            hs.iter()
+                .map(|h| SExpr::Atom(Atom::Str(h.clone())))
                 .collect(),
         ),
     }

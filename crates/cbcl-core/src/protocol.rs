@@ -638,8 +638,9 @@ pub fn verify_causal<S: MessageStore>(
             }
         }
 
-        // :caused-by <hash> — single predecessor
-        Some(CausedBy::Single(hash_str)) => {
+        // :caused-by <hash> — single predecessor (bare or quoted spelling;
+        // the causal link is identical, only the wire spelling differs)
+        Some(CausedBy::Single(hash_str)) | Some(CausedBy::SingleQuoted(hash_str)) => {
             let content_hash = ContentHash(hash_str.clone());
             match predecessor_type(store, &content_hash, thread) {
                 None => VerificationResult::Unknown,
@@ -663,8 +664,9 @@ pub fn verify_causal<S: MessageStore>(
             }
         }
 
-        // :caused-by (h1 h2 ...) — fan-in (multiple predecessors)
-        Some(CausedBy::Multiple(hashes)) => {
+        // :caused-by (h1 h2 ...) — fan-in (multiple predecessors), bare or
+        // quoted spelling
+        Some(CausedBy::Multiple(hashes)) | Some(CausedBy::MultipleQuoted(hashes)) => {
             // Must have an (all ...) predecessor declaration
             let all_decl = step.predecessors.iter().find_map(|nr| {
                 if let NodeRef::All(set) = nr {

@@ -336,10 +336,10 @@ impl MessageStore for ThreadedMessageStore {
             let refs = self.referenced.entry(thread.clone()).or_default();
             match cb {
                 CausedBy::Begin => {}
-                CausedBy::Single(h) => {
+                CausedBy::Single(h) | CausedBy::SingleQuoted(h) => {
                     refs.insert(ContentHash(h.clone()));
                 }
-                CausedBy::Multiple(hs) => {
+                CausedBy::Multiple(hs) | CausedBy::MultipleQuoted(hs) => {
                     for h in hs {
                         refs.insert(ContentHash(h.clone()));
                     }
@@ -383,13 +383,13 @@ impl MessageStore for ThreadedMessageStore {
                 if let Some(cb) = msg.caused_by() {
                     match cb {
                         CausedBy::Begin => {}
-                        CausedBy::Single(h) => {
+                        CausedBy::Single(h) | CausedBy::SingleQuoted(h) => {
                             let ch = ContentHash(h.clone());
                             if !visited.contains(&ch) {
                                 stack.push(ch);
                             }
                         }
-                        CausedBy::Multiple(hs) => {
+                        CausedBy::Multiple(hs) | CausedBy::MultipleQuoted(hs) => {
                             for h in hs {
                                 let ch = ContentHash(h.clone());
                                 if !visited.contains(&ch) {
@@ -568,13 +568,13 @@ impl CausalClosureBundle {
             if let Some(cb) = msg.caused_by() {
                 match cb {
                     CausedBy::Begin => {}
-                    CausedBy::Single(h) => {
+                    CausedBy::Single(h) | CausedBy::SingleQuoted(h) => {
                         let ch = ContentHash(h.clone());
                         if !visited.contains(&ch) {
                             stack.push(ch);
                         }
                     }
-                    CausedBy::Multiple(hs) => {
+                    CausedBy::Multiple(hs) | CausedBy::MultipleQuoted(hs) => {
                         for h in hs {
                             let ch = ContentHash(h.clone());
                             if !visited.contains(&ch) {
@@ -609,8 +609,10 @@ impl CausalClosureBundle {
             if let Some(cb) = m.caused_by() {
                 let pred_hashes: Vec<&str> = match cb {
                     CausedBy::Begin => vec![],
-                    CausedBy::Single(p) => vec![p.as_str()],
-                    CausedBy::Multiple(ps) => ps.iter().map(|p| p.as_str()).collect(),
+                    CausedBy::Single(p) | CausedBy::SingleQuoted(p) => vec![p.as_str()],
+                    CausedBy::Multiple(ps) | CausedBy::MultipleQuoted(ps) => {
+                        ps.iter().map(|p| p.as_str()).collect()
+                    }
                 };
                 for p in pred_hashes {
                     if let Some(&pred_idx) = hash_to_idx.get(&ContentHash(p.into())) {
@@ -669,8 +671,10 @@ impl CausalClosureBundle {
             if let Some(cb) = msg.caused_by() {
                 let refs: Vec<&str> = match cb {
                     CausedBy::Begin => vec![],
-                    CausedBy::Single(h) => vec![h.as_str()],
-                    CausedBy::Multiple(hs) => hs.iter().map(|h| h.as_str()).collect(),
+                    CausedBy::Single(h) | CausedBy::SingleQuoted(h) => vec![h.as_str()],
+                    CausedBy::Multiple(hs) | CausedBy::MultipleQuoted(hs) => {
+                        hs.iter().map(|h| h.as_str()).collect()
+                    }
                 };
                 for r in refs {
                     if !known.contains(r) {

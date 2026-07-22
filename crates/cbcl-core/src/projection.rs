@@ -365,7 +365,7 @@ fn check_conformance(
 /// inconsistently otherwise).
 fn rewrite_root_references(cb: &CausedBy, root: &ContentHash) -> CausedBy {
     match cb {
-        CausedBy::Single(h) if h == &root.0 => CausedBy::Begin,
+        CausedBy::Single(h) | CausedBy::SingleQuoted(h) if h == &root.0 => CausedBy::Begin,
         other => other.clone(),
     }
 }
@@ -416,7 +416,7 @@ fn occupant_fanin<S: MessageStore>(
     // fan-in message at all — defer to R5, which reports the accurate
     // `MissingCausedBy`/`InvalidPredecessor`, rather than mislabelling it
     // as an occupant-coverage failure.
-    let CausedBy::Multiple(hs) = (match caused_by {
+    let (CausedBy::Multiple(hs) | CausedBy::MultipleQuoted(hs)) = (match caused_by {
         Some(cb) => cb,
         None => return VerificationResult::Valid,
     }) else {

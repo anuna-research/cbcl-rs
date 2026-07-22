@@ -155,8 +155,10 @@ fn caused_by_resolved(
 ) -> bool {
     match caused_by {
         None | Some(CausedBy::Begin) => true,
-        Some(CausedBy::Single(h)) => store.contains(&ContentHash(h.clone()), thread),
-        Some(CausedBy::Multiple(hs)) => hs
+        Some(CausedBy::Single(h)) | Some(CausedBy::SingleQuoted(h)) => {
+            store.contains(&ContentHash(h.clone()), thread)
+        }
+        Some(CausedBy::Multiple(hs)) | Some(CausedBy::MultipleQuoted(hs)) => hs
             .iter()
             .all(|h| store.contains(&ContentHash(h.clone()), thread)),
     }

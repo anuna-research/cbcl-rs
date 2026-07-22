@@ -166,10 +166,17 @@ impl RedactedEnvelope {
             items.push(match cb {
                 CausedBy::Begin => SExpr::Atom(Atom::Symbol(String::from(BEGIN_KEYWORD))),
                 CausedBy::Single(hash) => SExpr::Atom(Atom::Symbol(hash.clone())),
+                CausedBy::SingleQuoted(hash) => SExpr::Atom(Atom::Str(hash.clone())),
                 CausedBy::Multiple(hashes) => SExpr::List(
                     hashes
                         .iter()
                         .map(|hash| SExpr::Atom(Atom::Symbol(hash.clone())))
+                        .collect(),
+                ),
+                CausedBy::MultipleQuoted(hashes) => SExpr::List(
+                    hashes
+                        .iter()
+                        .map(|hash| SExpr::Atom(Atom::Str(hash.clone())))
                         .collect(),
                 ),
             });

@@ -460,11 +460,11 @@ fn encode_caused_by<'a>(env: Env<'a>, cb: Option<&CausedBy>) -> Term<'a> {
         Some(CausedBy::Begin) => ErlAtom::from_str(env, "begin")
             .expect("'begin' is ASCII")
             .to_term(env),
-        Some(CausedBy::Single(h)) => {
+        Some(CausedBy::Single(h)) | Some(CausedBy::SingleQuoted(h)) => {
             let v: Vec<Term<'a>> = vec![h.as_str().encode(env)];
             v.encode(env)
         }
-        Some(CausedBy::Multiple(hs)) => {
+        Some(CausedBy::Multiple(hs)) | Some(CausedBy::MultipleQuoted(hs)) => {
             let v: Vec<Term<'a>> = hs.iter().map(|h| h.as_str().encode(env)).collect();
             v.encode(env)
         }

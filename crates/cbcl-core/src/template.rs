@@ -130,6 +130,28 @@ fn eval_template(
         }
     };
     *rs = rs.add_expansion(size)?;
+
+    // R2 depth accounting (REQ-071). `enter_depth` above charges one level
+    // per template-recursion step, but a *substituted* argument subtree is
+    // spliced into the output by `substitute_expr`/`substitute_atom` without
+    // being walked level-by-level, so its own nesting is never charged. A
+    // deeply nested argument could therefore blow past the dialect's
+    // `max-depth` unchecked. Charge the ACTUAL post-substitution output AST
+    // depth here — measured with the same `SExpr::depth()` used everywhere
+    // else — so the effective output depth is what is bounded. For a
+    // sequence each element is an independent output message, so the deepest
+    // message governs. Reject when the output nests strictly deeper than
+    // `max_depth` (accept `depth <= max_depth`): this is the R2 boundary the
+    // mls-ds/v1 profile relies on — a depth-`max_depth` expansion is legal,
+    // a deeper one is an R2 resource violation.
+    let output_depth = match &result {
+        ExpandedTemplate::Single(expr) => expr.depth(),
+        ExpandedTemplate::Sequence(exprs) => exprs.iter().map(|e| e.depth()).max().unwrap_or(0),
+    };
+    if output_depth as u32 > rs.max_depth {
+        return None;
+    }
+
     Some(result)
 }
 
@@ -717,5 +739,144 @@ mod tests {
         let mut rs = ResourceState::new(8, 512);
         let result = expand_template(&def, &args, &mut rs).unwrap();
         assert_eq!(result, parse("(tell @bob \"hey\")"));
+    }
+
+    // ---------------------------------------------------------------------------
+    // Defect C (SPEC-024 mls-ds/v1): the ACTUAL post-substitution output depth
+    // must be charged against `max-depth` (R2). A substituted argument subtree
+    // that nests deeper than `max-depth` is an R2 resource violation; an output
+    // whose depth is `<= max_depth` is accepted.
+    // ---------------------------------------------------------------------------
+
+    /// A left-nested list of exactly `depth` levels (`depth == 0` → an atom).
+    fn nested(depth: usize) -> SExpr {
+        if depth == 0 {
+            SExpr::Atom(Atom::Num(0))
+        } else {
+            SExpr::List(alloc::vec![
+                SExpr::Atom(Atom::Symbol("x".into())),
+                nested(depth - 1),
+            ])
+        }
+    }
+
+    /// Like [`nested`] but the bottom leaf is a `leaf_bytes`-long string, to
+    /// model a deep-*and*-large output (the mls-ds/v1 8 kB Add).
+    fn nested_sized(depth: usize, leaf_bytes: usize) -> SExpr {
+        if depth == 0 {
+            SExpr::Atom(Atom::Str("a".repeat(leaf_bytes)))
+        } else {
+            SExpr::List(alloc::vec![
+                SExpr::Atom(Atom::Symbol("x".into())),
+                nested_sized(depth - 1, leaf_bytes),
+            ])
+        }
+    }
+
+    #[test]
+    fn nested_helper_has_expected_depth() {
+        assert_eq!(nested(0).depth(), 0);
+        assert_eq!(nested(1).depth(), 1);
+        assert_eq!(nested(9).depth(), 9);
+        assert_eq!(nested_sized(9, 100).depth(), 9);
+    }
+
+    /// The depth of a *substituted* argument subtree is charged: wrapping a
+    /// deep argument one level deep produces `1 + arg_depth`, and an argument
+    /// deep enough to exceed `max_depth` is rejected — where before the fix it
+    /// was accepted (only the template-recursion level was charged).
+    #[test]
+    fn substituted_subtree_depth_is_charged() {
+        let template = parse("(commit payload)");
+        let big = 1_000_000; // keep byte-size from being the limiting factor
+
+        // arg depth 6 → output depth 7 ≤ max_depth 8 → accepted.
+        let mut ok = ResourceState::new(8, big);
+        let fit = bindings_from(&[("payload", nested(6))]);
+        let out = expand_template_with_bindings(&template, &fit, &mut ok).unwrap();
+        assert_eq!(
+            out,
+            ExpandedTemplate::Single(SExpr::List(alloc::vec![
+                SExpr::Atom(Atom::Symbol("commit".into())),
+                nested(6),
+            ]))
+        );
+        match &out {
+            ExpandedTemplate::Single(e) => assert_eq!(e.depth(), 7),
+            _ => panic!("expected single"),
+        }
+
+        // arg depth 20 → output depth 21 ≫ max_depth 8 → R2 resource violation.
+        let mut bad = ResourceState::new(8, big);
+        let deep = bindings_from(&[("payload", nested(20))]);
+        assert!(expand_template_with_bindings(&template, &deep, &mut bad).is_none());
+    }
+
+    /// mls-ds/v1 profile (max-depth 9): a depth-9 output is accepted, a
+    /// depth-11 output is rejected. (The task's named boundary.)
+    #[test]
+    fn mls_ds_depth9_accepted_depth11_rejected() {
+        let template = parse("payload");
+        let big = 1_000_000;
+
+        let mut rs9 = ResourceState::new(9, big);
+        let d9 = bindings_from(&[("payload", nested(9))]);
+        let out = expand_template_with_bindings(&template, &d9, &mut rs9).unwrap();
+        assert_eq!(out, ExpandedTemplate::Single(nested(9)));
+
+        let mut rs11 = ResourceState::new(9, big);
+        let d11 = bindings_from(&[("payload", nested(11))]);
+        assert!(expand_template_with_bindings(&template, &d11, &mut rs11).is_none());
+    }
+
+    /// Lock the boundary: an output of depth exactly `max_depth` is accepted
+    /// (`depth <= max_depth`), depth `max_depth + 1` is rejected. This matches
+    /// the acceptance "a legitimate depth-9 expansion under a max-depth-9
+    /// dialect is still accepted" (i.e. the boundary is ≤, not strict <).
+    #[test]
+    fn output_depth_boundary_is_leq_max_depth() {
+        let template = parse("payload");
+        let big = 1_000_000;
+        for md in [4u32, 9, 16] {
+            let mut rs_ok = ResourceState::new(md, big);
+            let b_ok = bindings_from(&[("payload", nested(md as usize))]);
+            assert!(
+                expand_template_with_bindings(&template, &b_ok, &mut rs_ok).is_some(),
+                "output depth {md} under max_depth {md} must be accepted"
+            );
+
+            let mut rs_bad = ResourceState::new(md, big);
+            let b_bad = bindings_from(&[("payload", nested(md as usize + 1))]);
+            assert!(
+                expand_template_with_bindings(&template, &b_bad, &mut rs_bad).is_none(),
+                "output depth {}+1 under max_depth {md} must be rejected",
+                md
+            );
+        }
+    }
+
+    /// The mls-ds/v1 known-good Add (depth 9, ~8 kB) does NOT regress: a
+    /// depth-9, ~8 kB output is accepted under a max-depth-9 / generous-size
+    /// budget; a depth-11 output of the same size class is still rejected on
+    /// depth alone. (The depth fix must not disturb byte-size accounting.)
+    #[test]
+    fn mls_ds_known_good_add_depth9_8kb_not_regressed() {
+        let template = parse("payload");
+        let size_budget = 16_384; // > 8 kB, as the mls-ds profile allows
+
+        let add = nested_sized(9, 8_050); // depth 9, ~8 kB
+        assert_eq!(add.depth(), 9);
+        assert!(add.byte_size() >= 8_000 && (add.byte_size() as u32) < size_budget);
+        let mut rs = ResourceState::new(9, size_budget);
+        let b = bindings_from(&[("payload", add.clone())]);
+        assert_eq!(
+            expand_template_with_bindings(&template, &b, &mut rs),
+            Some(ExpandedTemplate::Single(add))
+        );
+
+        // Same size class but depth 11 → rejected purely on output depth.
+        let mut rs2 = ResourceState::new(9, size_budget);
+        let deep = bindings_from(&[("payload", nested_sized(11, 8_050))]);
+        assert!(expand_template_with_bindings(&template, &deep, &mut rs2).is_none());
     }
 }
