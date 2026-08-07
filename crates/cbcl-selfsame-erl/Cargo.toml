@@ -1,0 +1,22 @@
+[package]
+name = "cbcl-selfsame-erl"
+description = "Selfsame Path-B Erlang/BEAM verifier binding via rustler"
+version.workspace = true
+edition.workspace = true
+# The linked Selfsame pure core declares Rust 1.85.  Keep that requirement
+# local to this optional NIF instead of falsely raising the parser workspace's
+# published MSRV.
+rust-version = "1.85"
+license.workspace = true
+repository.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+# This intentionally lives in a separate cdylib from cbcl-erl.  Linking the
+# Selfsame graph into the established parser NIF makes that NIF unloadable on
+# macOS; separating them preserves the canonical parser boundary while still
+# giving BEAM one typed route into Selfsame's single CON-206 implementation.
+selfsame-app-identity = { path = "../../../selfsame/crates/selfsame-app-identity" }
+rustler = { version = "0.36", default-features = false, features = ["nif_version_2_15"] }
