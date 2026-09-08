@@ -149,8 +149,7 @@ impl<'d> Analyzer<'d> {
         if name == BEGIN_KEYWORD {
             return true;
         }
-        self.endpoints_of(name)
-            .is_some_and(|e| e.contains(r))
+        self.endpoints_of(name).is_some_and(|e| e.contains(r))
     }
 
     /// r-relevant steps forward-reachable from `from` (its onward closure).
@@ -185,8 +184,8 @@ impl<'d> Analyzer<'d> {
                 if !self.relevant(name, r) || *name == BEGIN_KEYWORD {
                     continue;
                 }
-                let cites_c_single = prs.len() == 1
-                    && matches!(&prs[0], NodeRef::Single(x) if x == c);
+                let cites_c_single =
+                    prs.len() == 1 && matches!(&prs[0], NodeRef::Single(x) if x == c);
                 if cites_c_single && witnesses.insert(name) {
                     found = Some(*name);
                     break;
@@ -307,9 +306,7 @@ pub fn analyze(d: &Dialect) -> (Vec<SpliceFailure>, Vec<DischargedEdge>) {
             }
             for nr in *prs {
                 let (members, forced): (Vec<&str>, bool) = match nr {
-                    NodeRef::Single(_) | NodeRef::All(_) => {
-                        (nr.performatives().collect(), true)
-                    }
+                    NodeRef::Single(_) | NodeRef::All(_) => (nr.performatives().collect(), true),
                     NodeRef::Any(set) => {
                         let bys: Vec<&str> = set
                             .iter()
@@ -336,7 +333,9 @@ pub fn analyze(d: &Dialect) -> (Vec<SpliceFailure>, Vec<DischargedEdge>) {
                     }
                 } else {
                     // m's own predecessor is an unobserved choice
-                    let NodeRef::Any(set) = nr else { unreachable!() };
+                    let NodeRef::Any(set) = nr else {
+                        unreachable!()
+                    };
                     let branches: BTreeSet<String> = set
                         .iter()
                         .filter(|x| x.as_str() != BEGIN_KEYWORD && !a.relevant(x, r))
@@ -546,9 +545,9 @@ mod tests {
         assert_eq!(failures, Vec::new(), "hash-pin dialect must be coherent");
         // report's (any hi lo) predecessor onto w is discharged by HashPinned,
         // not Merge (the branches reach distinct r-relevant seehi/seelo).
-        assert!(edges.iter().any(|e| e.role == "w"
-            && e.message == "report"
-            && e.how == Discharge::HashPinned));
+        assert!(edges
+            .iter()
+            .any(|e| e.role == "w" && e.message == "report" && e.how == Discharge::HashPinned));
         assert!(!edges
             .iter()
             .any(|e| e.role == "w" && e.message == "report" && e.how == Discharge::Merge));
@@ -612,8 +611,9 @@ mod tests {
         );
         let (failures, _) = analyze(&d);
         assert!(
-            failures.iter().any(|f| f.message == "mark"
-                && f.reason == SpliceReason::UnrecoverableChoice),
+            failures
+                .iter()
+                .any(|f| f.message == "mark" && f.reason == SpliceReason::UnrecoverableChoice),
             "mark's unmergeable, unpinned choice must fail splice-coherence for w"
         );
     }
@@ -641,7 +641,11 @@ mod tests {
                 step("hi", vec![single("begin")], vec![single("ack")]),
                 step("lo", vec![single("begin")], vec![single("ack")]),
                 // ack: same label both branches, predecessor is the merge point.
-                step("ack", vec![any(&["hi", "lo"])], vec![any(&["donehi", "donelo"])]),
+                step(
+                    "ack",
+                    vec![any(&["hi", "lo"])],
+                    vec![any(&["donehi", "donelo"])],
+                ),
                 // w's SENDS cite hi/lo by Single edges — structurally forced…
                 step("donehi", vec![single("hi")], vec![]),
                 step("donelo", vec![single("lo")], vec![]),
@@ -659,9 +663,9 @@ mod tests {
         // marked TypeForced. Net: the structural check finds w splice-coherent
         // on the SEND citations, exposing the unsoundness.
         let (failures, edges) = analyze(&d);
-        let sends_forced = edges.iter().any(|e| {
-            e.role == "w" && e.message == "donehi" && e.how == Discharge::TypeForced
-        });
+        let sends_forced = edges
+            .iter()
+            .any(|e| e.role == "w" && e.message == "donehi" && e.how == Discharge::TypeForced);
         assert!(
             sends_forced,
             "structural check marks w's branch-dependent SEND citation type-forced"

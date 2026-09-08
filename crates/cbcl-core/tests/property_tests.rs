@@ -53,11 +53,16 @@ proptest! {
     /// For Simple messages: `Message::try_from(&SExpr::from(msg)) == msg`.
     #[test]
     fn prop_simple_message_roundtrip(msg in arb_simple_message()) {
+        let msg = if msg.performative().is_some_and(|p| !p.is_core()) {
+            Message::Dialect { dialect_name: "test".into(), inner: Box::new(msg) }
+        } else { msg };
         let sexpr = SExpr::from(msg.clone());
         let parsed = Message::try_from(&sexpr);
         prop_assert!(parsed.is_ok(), "failed to parse message sexpr: {:?}", sexpr);
         let parsed = parsed.unwrap();
-        // Compare structurally
+        // Compare the simple message fields through the scope wrapper.
+        let parsed = parsed.innermost_simple().unwrap();
+        let msg = msg.innermost_simple().unwrap();
         prop_assert_eq!(parsed.message_type(), msg.message_type());
         prop_assert_eq!(parsed.performative(), msg.performative());
         prop_assert_eq!(parsed.recipient(), msg.recipient());

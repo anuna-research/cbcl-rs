@@ -102,13 +102,13 @@ fn tid() -> ThreadId {
 fn trace() -> Vec<(&'static str, Message)> {
     vec![
         ("h0", msg("(with-roles ((auctioneer @auc) (bidder @b1 @b2 @b3)) (signed @auc \"sig\" (hello :thread \"conv-7\" :caused-by begin)))")),
-        ("h1", msg("(signed @b1 \"sig\" (commit @auc \"sha256:9f\" :caused-by h0))")),
-        ("h2", msg("(signed @b2 \"sig\" (commit @auc \"sha256:3a\" :caused-by h0))")),
-        ("h3", msg("(signed @b3 \"sig\" (commit @auc \"sha256:c7\" :caused-by h0))")),
-        ("h4", msg("(signed @b1 \"sig\" (reveal @auc 42 :caused-by h1))")),
-        ("h5", msg("(signed @b2 \"sig\" (reveal @auc 17 :caused-by h2))")),
-        ("h6", msg("(signed @b3 \"sig\" (reveal @auc 55 :caused-by h3))")),
-        ("h7", msg("(signed @auc \"sig\" (declare-winner \"b3\" :caused-by (h4 h5 h6)))")),
+        ("h1", msg("(signed @b1 \"sig\" (lang auction (commit @auc \"sha256:9f\" :caused-by h0)))")),
+        ("h2", msg("(signed @b2 \"sig\" (lang auction (commit @auc \"sha256:3a\" :caused-by h0)))")),
+        ("h3", msg("(signed @b3 \"sig\" (lang auction (commit @auc \"sha256:c7\" :caused-by h0)))")),
+        ("h4", msg("(signed @b1 \"sig\" (lang auction (reveal @auc 42 :caused-by h1)))")),
+        ("h5", msg("(signed @b2 \"sig\" (lang auction (reveal @auc 17 :caused-by h2)))")),
+        ("h6", msg("(signed @b3 \"sig\" (lang auction (reveal @auc 55 :caused-by h3)))")),
+        ("h7", msg("(signed @auc \"sig\" (lang auction (declare-winner \"b3\" :caused-by (h4 h5 h6))))")),
     ]
 }
 
@@ -213,7 +213,7 @@ fn auction_end_to_end() {
     );
 
     // A fourth reveal from a non-member key is a Violation.
-    let intruder = msg("(signed @b4 \"sig\" (reveal @auc 99 :caused-by h3))");
+    let intruder = msg("(signed @b4 \"sig\" (lang auction (reveal @auc 99 :caused-by h3)))");
     assert!(matches!(
         verify_causal_for_role(
             &intruder,

@@ -51,8 +51,8 @@
 #![forbid(unsafe_code)]
 
 use crate::attest::{
-    sign_attestation_v3, verify_attestation_v2, verify_attestation_v3, AttestError,
-    AttestationHeader, SignatureDiscipline, SigningInput, verify_with_discipline,
+    sign_attestation_v3, verify_attestation_v2, verify_attestation_v3, verify_with_discipline,
+    AttestError, AttestationHeader, SignatureDiscipline, SigningInput,
 };
 use crate::equivocation::{attestation_header_for, MemberDefect};
 use crate::keyid::{KeyId, KeyIdError, SignatureSuite};
@@ -153,8 +153,7 @@ impl RedactedEnvelope {
             SExpr::Atom(Atom::Symbol(h.performative.clone())),
             SExpr::List(vec![SExpr::Atom(Atom::Symbol(h.from.canonical_spelling()))]),
             SExpr::List(
-                h.to
-                    .iter()
+                h.to.iter()
                     .map(|k| SExpr::Atom(Atom::Symbol(k.canonical_spelling())))
                     .collect(),
             ),
@@ -242,7 +241,10 @@ impl fmt::Display for EnvelopeParseError {
             Self::MalformedKey(e) => write!(f, "envelope key is malformed: {e}"),
             Self::MalformedToList => f.write_str("envelope recipients are not a list of keys"),
             Self::RecipientBoundExceeded { count, max } => {
-                write!(f, "envelope recipient set of {count} exceeds the bound {max}")
+                write!(
+                    f,
+                    "envelope recipient set of {count} exceeds the bound {max}"
+                )
             }
             Self::MalformedThread => f.write_str("envelope thread is not a string or symbol"),
             Self::MalformedSignature => {
@@ -262,7 +264,12 @@ impl fmt::Display for EnvelopeParseError {
 /// lowercase hex digits.
 pub fn is_content_hash(s: &str) -> bool {
     match s.strip_prefix("sha256:") {
-        Some(hex) => hex.len() == 64 && hex.bytes().all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase()),
+        Some(hex) => {
+            hex.len() == 64
+                && hex
+                    .bytes()
+                    .all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase())
+        }
         None => false,
     }
 }
@@ -396,9 +403,7 @@ pub fn parse_envelope(
     };
     // sig := string (lowercase hex of the v2 signature bytes)
     let signature = match &items[6] {
-        SExpr::Atom(Atom::Str(s)) => {
-            hex_decode(s).ok_or(EnvelopeParseError::MalformedSignature)?
-        }
+        SExpr::Atom(Atom::Str(s)) => hex_decode(s).ok_or(EnvelopeParseError::MalformedSignature)?,
         _ => return Err(EnvelopeParseError::MalformedSignature),
     };
     // optional [":caused-by" caused-ref]; any other trailing field rejected
@@ -562,7 +567,10 @@ impl fmt::Display for OpenedError {
         match self {
             Self::Attestation(e) => write!(f, "opened-envelope root-signature invalid: {e}"),
             Self::OpeningFailed { field } => {
-                write!(f, "opened-envelope field {field:?} fails to open against the root")
+                write!(
+                    f,
+                    "opened-envelope field {field:?} fails to open against the root"
+                )
             }
             Self::MissingField { field } => {
                 write!(f, "opened-envelope does not disclose field {field:?}")
@@ -724,11 +732,11 @@ mod tests {
         use proptest::test_runner::TestRunner;
 
         let strategy = (
-            "[a-z][a-z0-9-]{0,12}",                       // performative
-            "[a-z][a-z0-9]{0,8}",                         // sender name
+            "[a-z][a-z0-9-]{0,12}",                                  // performative
+            "[a-z][a-z0-9]{0,8}",                                    // sender name
             prop::collection::btree_set("[a-z][a-z0-9]{0,8}", 0..4), // recipients
-            "[a-z0-9-]{1,12}",                            // thread
-            "[ -~]{0,24}",                                // payload text
+            "[a-z0-9-]{1,12}",                                       // thread
+            "[ -~]{0,24}",                                           // payload text
             prop_oneof![
                 Just(None),
                 Just(Some(CausedBy::Begin)),
@@ -747,34 +755,37 @@ mod tests {
 
         let mut runner = TestRunner::default();
         runner
-            .run(&strategy, |(perf, sender, to, thread, payload, caused_by)| {
-                let recipient = if to.is_empty() {
-                    None
-                } else {
-                    Some(Recipients::Set(
-                        to.iter().map(|r| format!("@{r}")).collect(),
-                    ))
-                };
-                let m = Message::Simple {
-                    performative: Performative::Custom(perf),
-                    recipient,
-                    content: SExpr::Atom(Atom::Str(payload)),
-                    params: Vec::new(),
-                    thread: Some(thread),
-                    sender: Some(format!("@{sender}")),
-                    caused_by,
-                };
-                let env = signed_envelope(&m, &ALICE);
-                // Same content hash as the message it redacts (REQ-700).
-                let expected_hash = message_content_hash(&m);
-                prop_assert_eq!(env.content_hash(), expected_hash.as_str());
-                // Verifies from its own fields alone (REQ-701).
-                prop_assert_eq!(env.verify(&ALICE), Ok(()));
-                // CON-700 serialise ∘ parse is identity.
-                let reparsed = parse_envelope(&env.to_sexpr(), 8).unwrap();
-                prop_assert_eq!(&reparsed, &env);
-                Ok(())
-            })
+            .run(
+                &strategy,
+                |(perf, sender, to, thread, payload, caused_by)| {
+                    let recipient = if to.is_empty() {
+                        None
+                    } else {
+                        Some(Recipients::Set(
+                            to.iter().map(|r| format!("@{r}")).collect(),
+                        ))
+                    };
+                    let m = Message::Simple {
+                        performative: Performative::Custom(perf),
+                        recipient,
+                        content: SExpr::Atom(Atom::Str(payload)),
+                        params: Vec::new(),
+                        thread: Some(thread),
+                        sender: Some(format!("@{sender}")),
+                        caused_by,
+                    };
+                    let env = signed_envelope(&m, &ALICE);
+                    // Same content hash as the message it redacts (REQ-700).
+                    let expected_hash = message_content_hash(&m);
+                    prop_assert_eq!(env.content_hash(), expected_hash.as_str());
+                    // Verifies from its own fields alone (REQ-701).
+                    prop_assert_eq!(env.verify(&ALICE), Ok(()));
+                    // CON-700 serialise ∘ parse is identity.
+                    let reparsed = parse_envelope(&env.to_sexpr(), 8).unwrap();
+                    prop_assert_eq!(&reparsed, &env);
+                    Ok(())
+                },
+            )
             .unwrap();
     }
 
@@ -787,7 +798,10 @@ mod tests {
         // The payload exists nowhere in the envelope: its serialisation
         // does not contain the message's content (NFR-701).
         let wire = env.to_sexpr().to_string();
-        assert!(!wire.contains("the secret payload"), "payload leaked: {wire}");
+        assert!(
+            !wire.contains("the secret payload"),
+            "payload leaked: {wire}"
+        );
         assert_eq!(env.verify(&ALICE), Ok(()));
     }
 
@@ -923,10 +937,10 @@ mod tests {
     #[test]
     fn malformed_hash_is_rejected_never_repaired() {
         for bad in [
-            "sha256:abc",                                       // short
-            "md5:0000",                                         // wrong algo
-            &format!("sha256:{}", "A".repeat(64)),              // uppercase
-            &format!("sha256:{}", "g".repeat(64)),              // non-hex
+            "sha256:abc",                          // short
+            "md5:0000",                            // wrong algo
+            &format!("sha256:{}", "A".repeat(64)), // uppercase
+            &format!("sha256:{}", "g".repeat(64)), // non-hex
         ] {
             let mut items = valid_items();
             items[1] = SExpr::Atom(Atom::Symbol(bad.to_string()));
@@ -1131,7 +1145,8 @@ mod tests {
     fn tampered_root_fails_at_the_signature() {
         let m = sample_message(None);
         let mut env = opened(&m, &ALICE);
-        env.root = "sha256:0000000000000000000000000000000000000000000000000000000000000000".to_string();
+        env.root =
+            "sha256:0000000000000000000000000000000000000000000000000000000000000000".to_string();
         assert_eq!(
             verify_opened(&env, &ALICE),
             Err(OpenedError::Attestation(AttestError::InvalidSignature))

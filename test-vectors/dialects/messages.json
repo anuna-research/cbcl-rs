@@ -2,7 +2,7 @@
   {
     "id": "dial-msg-001",
     "description": "Planning dialect: share-conditional performative",
-    "input": "(share-conditional pickup box-location box-in-hand)",
+    "input": "(lang cbcl-planning (share-conditional pickup box-location box-in-hand))",
     "dialect": "cbcl-planning",
     "expected": {
       "type": "success",
@@ -13,7 +13,7 @@
   {
     "id": "dial-msg-002",
     "description": "Planning dialect: propose-step performative",
-    "input": "(propose-step step1 pickup box-in-hand)",
+    "input": "(lang cbcl-planning (propose-step step1 pickup box-in-hand))",
     "dialect": "cbcl-planning",
     "expected": {
       "type": "success",
@@ -24,7 +24,7 @@
   {
     "id": "dial-msg-003",
     "description": "Agriculture dialect: plant performative",
-    "input": "(plant \"field-test\" \"corn\" \"30000\" \"2-in\" \"30-in\")",
+    "input": "(lang precision-agriculture (plant \"field-test\" \"corn\" \"30000\" \"2-in\" \"30-in\"))",
     "dialect": "precision-agriculture",
     "expected": {
       "type": "success",
@@ -35,7 +35,7 @@
   {
     "id": "dial-msg-004",
     "description": "Agriculture dialect: irrigate performative",
-    "input": "(irrigate \"zone-1\" \"500-gal\" \"30-min\" \"20-pct\")",
+    "input": "(lang precision-agriculture (irrigate \"zone-1\" \"500-gal\" \"30-min\" \"20-pct\"))",
     "dialect": "precision-agriculture",
     "expected": {
       "type": "success",
@@ -46,7 +46,7 @@
   {
     "id": "dial-msg-005",
     "description": "Agriculture dialect: harvest performative",
-    "input": "(harvest \"field-1\" \"combine-01\" \"wheat\" \"180-bu-ac\")",
+    "input": "(lang precision-agriculture (harvest \"field-1\" \"combine-01\" \"wheat\" \"180-bu-ac\"))",
     "dialect": "precision-agriculture",
     "expected": {
       "type": "success",
@@ -57,7 +57,7 @@
   {
     "id": "dial-msg-006",
     "description": "Agriculture dialect: report-soil sensor data",
-    "input": "(report-soil \"sensor-1\" \"field-1-z1\" \"25-pct\" \"70-F\" \"6.5\" \"N:med,P:high,K:low\")",
+    "input": "(lang precision-agriculture (report-soil \"sensor-1\" \"field-1-z1\" \"25-pct\" \"70-F\" \"6.5\" \"N:med,P:high,K:low\"))",
     "dialect": "precision-agriculture",
     "expected": {
       "type": "success",
@@ -68,7 +68,7 @@
   {
     "id": "dial-msg-007",
     "description": "Agriculture dialect: weather-alert with affected zones",
-    "input": "(weather-alert \"frost\" \"high\" \"2024-04-15T02:00\" \"4-hrs\" (\"zone-1\" \"zone-2\"))",
+    "input": "(lang precision-agriculture (weather-alert \"frost\" \"high\" \"2024-04-15T02:00\" \"4-hrs\" (\"zone-1\" \"zone-2\")))",
     "dialect": "precision-agriculture",
     "expected": {
       "type": "success",
@@ -79,7 +79,7 @@
   {
     "id": "dial-msg-008",
     "description": "Agriculture dialect: equipment-emergency alert",
-    "input": "(equipment-emergency \"harvester-1\" \"hydraulic-fail\" \"field-5\" \"high\")",
+    "input": "(lang precision-agriculture (equipment-emergency \"harvester-1\" \"hydraulic-fail\" \"field-5\" \"high\"))",
     "dialect": "precision-agriculture",
     "expected": {
       "type": "success",
@@ -90,7 +90,7 @@
   {
     "id": "dial-msg-009",
     "description": "Agriculture dialect: yield-forecast",
-    "input": "(yield-forecast \"field-1\" \"corn\" \"190-bu-ac\" \"high\" \"2024-09-15\")",
+    "input": "(lang precision-agriculture (yield-forecast \"field-1\" \"corn\" \"190-bu-ac\" \"high\" \"2024-09-15\"))",
     "dialect": "precision-agriculture",
     "expected": {
       "type": "success",
@@ -101,7 +101,7 @@
   {
     "id": "dial-msg-010",
     "description": "Agriculture dialect: reserve-equipment",
-    "input": "(reserve-equipment \"tractor-1\" \"planting\" \"2024-04-20T08:00\" \"6-hrs\")",
+    "input": "(lang precision-agriculture (reserve-equipment \"tractor-1\" \"planting\" \"2024-04-20T08:00\" \"6-hrs\"))",
     "dialect": "precision-agriculture",
     "expected": {
       "type": "success",

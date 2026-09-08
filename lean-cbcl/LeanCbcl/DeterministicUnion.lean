@@ -822,19 +822,24 @@ theorem msgTag_simple_msg (head : String) (args : List SExpr)
   have h3 : (head == "lang") = false := by simp [hne_lang]
   simp [h1, h2, h3]
 
-theorem tag_lang_implies_dialect_parse (dname : String) (inner : SExpr) (rest : List SExpr) :
+-- A lang tag classifies the message, but acceptance also checks its inner scope.
+theorem tag_lang_implies_dialect_parse (dname : String) (inner : SExpr) (rest : List SExpr)
+    (hscope : langScoped
+      ((SExpr.list (.atom (.symbol "lang") :: .atom (.symbol dname) :: inner :: rest)).size + 1)
+      false (.list (.atom (.symbol "lang") :: .atom (.symbol dname) :: inner :: rest)) = true) :
     ∃ msg, parseMessage (.list (.atom (.symbol "lang") :: .atom (.symbol dname) :: inner :: rest))
            = some msg ∧
            msg.type = MessageType.dialect :=
   ⟨{ type := .dialect
     , performative := .custom "lang"
     , params := .atom (.symbol dname) :: inner :: rest },
-   by simp [parseMessage], rfl⟩
+   by simp [parseMessage, hscope, parseMessageShape], rfl⟩
 
 theorem msgTag_consistent_core (head : String) (cp : CorePerformative) (args : List SExpr) (msg : Message)
     (htag : msgTag (.list (.atom (.symbol head) :: args)) = some (MsgTag.core cp))
     (hparse : parseMessage (.list (.atom (.symbol head) :: args)) = some msg) :
     msg.type = MessageType.simple := by
+  have hparse := parseMessageShape_complete _ _ (parseMessage_sound _ _ hparse).2
   have hne_meta : head ≠ "meta" := by
     intro heq; subst heq; simp [msgTag, stringToCorePerformative] at htag
   have hne_lang : head ≠ "lang" := by
@@ -846,7 +851,7 @@ theorem msgTag_consistent_core (head : String) (cp : CorePerformative) (args : L
     intro heq; subst heq; simp [msgTag, stringToCorePerformative] at htag
   have hne_wl : head ≠ "with-limits" := by
     intro heq; subst heq; simp [msgTag, stringToCorePerformative] at htag
-  simp only [parseMessage] at hparse
+  simp only [parseMessageShape] at hparse
   have h1 : (head == "meta") = false := by simp [hne_meta]
   have h2 : (head == "lang") = false := by simp [hne_lang]
   have h3 : (head == "envelope" || head == "signed" || head == "with-limits") = false := by
@@ -857,25 +862,29 @@ theorem msgTag_consistent_core (head : String) (cp : CorePerformative) (args : L
 theorem msgTag_consistent_meta (args : List SExpr) (msg : Message)
     (hparse : parseMessage (.list (.atom (.symbol "meta") :: args)) = some msg) :
     msg.type = MessageType.metaMsg := by
-  simp [parseMessage] at hparse
+  have hparse := parseMessageShape_complete _ _ (parseMessage_sound _ _ hparse).2
+  simp [parseMessageShape] at hparse
   cases hparse; rfl
 
 theorem msgTag_consistent_wrapped (head : String) (args : List SExpr) (msg : Message)
     (hwrap : head = "envelope" ∨ head = "signed" ∨ head = "with-limits")
     (hparse : parseMessage (.list (.atom (.symbol head) :: args)) = some msg) :
     msg.type = MessageType.wrapped := by
-  rcases hwrap with rfl | rfl | rfl <;> simp [parseMessage] at hparse <;> cases hparse <;> rfl
+  have hparse := parseMessageShape_complete _ _ (parseMessage_sound _ _ hparse).2
+  rcases hwrap with rfl | rfl | rfl <;> simp [parseMessageShape] at hparse <;> cases hparse <;> rfl
 
 theorem msgTag_consistent_lang (dname : String) (rest : List SExpr) (msg : Message)
     (hparse : parseMessage (.list (.atom (.symbol "lang") :: .atom (.symbol dname) :: rest)) = some msg) :
     msg.type = MessageType.dialect := by
-  simp [parseMessage] at hparse
+  have hparse := parseMessageShape_complete _ _ (parseMessage_sound _ _ hparse).2
+  simp [parseMessageShape] at hparse
   cases hparse; rfl
 
 theorem msgTag_consistent_simple (head : String) (args : List SExpr) (msg : Message)
     (htag : msgTag (.list (.atom (.symbol head) :: args)) = some (MsgTag.simple head))
     (hparse : parseMessage (.list (.atom (.symbol head) :: args)) = some msg) :
     msg.type = MessageType.simple := by
+  have hparse := parseMessageShape_complete _ _ (parseMessage_sound _ _ hparse).2
   have hne_meta : head ≠ "meta" := by
     intro heq; subst heq; simp [msgTag, stringToCorePerformative] at htag
   have hne_env : head ≠ "envelope" := by
@@ -887,7 +896,7 @@ theorem msgTag_consistent_simple (head : String) (args : List SExpr) (msg : Mess
   have hne_lang : head ≠ "lang" := by
     intro heq; subst heq; simp [msgTag, stringToCorePerformative] at htag
     split at htag <;> simp at htag
-  simp only [parseMessage] at hparse
+  simp only [parseMessageShape] at hparse
   have h1 : (head == "meta") = false := by simp [hne_meta]
   have h2 : (head == "lang") = false := by simp [hne_lang]
   have h3 : (head == "envelope" || head == "signed" || head == "with-limits") = false := by

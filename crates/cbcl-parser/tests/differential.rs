@@ -467,12 +467,16 @@ fn differential_dialect_messages() {
                 other => panic!("[{id}] expected success, got: {other:?}"),
             };
 
-            let expected = &v["expected"]["value"];
+            let expected = &v["expected"];
 
             // Verify performative name
             if let Some(perf) = expected["performative"].as_str() {
                 assert_eq!(
-                    msg.performative().unwrap().name(),
+                    msg.innermost_simple()
+                        .unwrap()
+                        .performative()
+                        .unwrap()
+                        .name(),
                     perf,
                     "[{id}] performative mismatch"
                 );

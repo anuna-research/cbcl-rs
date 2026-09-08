@@ -1222,12 +1222,10 @@ mod tests {
             (define child-d (parent-d) @author \
                 (extend ack () (effect ack-action)) \
                 (protocol (then begin notify) (then notify ack))))";
-        let pred = "(notify :msg \"hi\" :caused-by begin)";
+        let pred = "(lang parent-d (notify :msg \"hi\" :caused-by begin))";
         let h = predecessor_hash(pred);
         let frame = format!(
-            "(verify-protocol {chain} \"t1\" \
-             (ack :caused-by \"{h}\") \
-             (history (\"{h}\" {pred})))"
+            "(verify-protocol {chain} \"t1\" (lang child-d (ack :caused-by \"{h}\")) (history (\"{h}\" {pred})))"
         );
         assert_eq!(verify_protocol_str(&frame).as_deref(), Ok("ok"));
     }
@@ -1327,7 +1325,9 @@ mod tests {
 
     #[test]
     fn verify_protocol_ok_with_caused_by_begin() {
-        let frame = format!("(verify-protocol {PROTOCOL_DIALECT} \"t1\" (greet :caused-by begin))");
+        let frame = format!(
+            "(verify-protocol {PROTOCOL_DIALECT} \"t1\" (lang greet-d (greet :caused-by begin)))"
+        );
         let result = verify_protocol_str(&frame);
         assert_eq!(result.as_deref(), Ok("ok"));
     }
@@ -1336,7 +1336,9 @@ mod tests {
     fn verify_protocol_violation_when_caused_by_missing() {
         // Protocol declares greet must follow `begin`, so a greet with no
         // :caused-by is a MissingCausedBy violation.
-        let frame = format!("(verify-protocol {PROTOCOL_DIALECT} \"t1\" (greet :name \"a\"))");
+        let frame = format!(
+            "(verify-protocol {PROTOCOL_DIALECT} \"t1\" (lang greet-d (greet :name \"a\")))"
+        );
         let result = verify_protocol_str(&frame);
         assert!(result.is_err());
         let err = result.unwrap_err();
@@ -1355,8 +1357,7 @@ mod tests {
         // Hash provided as a string literal so the parser keeps `sha256:...`
         // as a single atom rather than tokenising on `:`.
         let frame = format!(
-            "(verify-protocol {PROTOCOL_DIALECT} \"t1\" \
-             (greet :caused-by \"sha256:nonexistent\"))"
+            "(verify-protocol {PROTOCOL_DIALECT} \"t1\" (lang greet-d (greet :caused-by \"sha256:nonexistent\")))"
         );
         let result = verify_protocol_str(&frame);
         assert!(result.is_err());
@@ -1375,7 +1376,8 @@ mod tests {
     fn verify_protocol_ok_when_dialect_has_no_protocol() {
         let dialect = "(define plain-d (cbcl) @author \
             (extend greet (name) (effect greet-action)))";
-        let frame = format!("(verify-protocol {dialect} \"t1\" (greet :caused-by begin))");
+        let frame =
+            format!("(verify-protocol {dialect} \"t1\" (lang plain-d (greet :caused-by begin)))");
         // No protocol → vacuously valid.
         assert_eq!(verify_protocol_str(&frame).as_deref(), Ok("ok"));
     }
@@ -1388,7 +1390,9 @@ mod tests {
 
     #[test]
     fn verify_protocol_bytes_passes() {
-        let frame = format!("(verify-protocol {PROTOCOL_DIALECT} \"t1\" (greet :caused-by begin))");
+        let frame = format!(
+            "(verify-protocol {PROTOCOL_DIALECT} \"t1\" (lang greet-d (greet :caused-by begin)))"
+        );
         let result = verify_protocol_bytes(frame.as_bytes());
         assert!(result.is_ok());
     }
@@ -1419,12 +1423,10 @@ mod tests {
         // Predecessor `query` is supplied via history under its canonical
         // content hash. verify_causal must resolve the :caused-by reference
         // and return Valid.
-        let pred = "(query :q \"hi\" :caused-by begin)";
+        let pred = "(lang convo-d (query :q \"hi\" :caused-by begin))";
         let h = predecessor_hash(pred);
         let frame = format!(
-            "(verify-protocol {QUERY_DIALECT} \"t1\" \
-             (respond :a \"ok\" :caused-by \"{h}\") \
-             (history (\"{h}\" {pred})))"
+            "(verify-protocol {QUERY_DIALECT} \"t1\" (lang convo-d (respond :a \"ok\" :caused-by \"{h}\")) (history (\"{h}\" {pred})))"
         );
         let result = verify_protocol_str(&frame);
         assert_eq!(
@@ -1439,12 +1441,10 @@ mod tests {
         // History supplies a `respond` under its canonical hash, but the
         // protocol requires `query` before `respond`. Should produce an
         // InvalidPredecessor violation, not pending.
-        let pred = "(respond :a \"earlier\" :caused-by begin)";
+        let pred = "(lang convo-d (respond :a \"earlier\" :caused-by begin))";
         let h = predecessor_hash(pred);
         let frame = format!(
-            "(verify-protocol {QUERY_DIALECT} \"t1\" \
-             (respond :a \"ok\" :caused-by \"{h}\") \
-             (history (\"{h}\" {pred})))"
+            "(verify-protocol {QUERY_DIALECT} \"t1\" (lang convo-d (respond :a \"ok\" :caused-by \"{h}\")) (history (\"{h}\" {pred})))"
         );
         let result = verify_protocol_str(&frame);
         assert!(result.is_err());
@@ -1470,9 +1470,7 @@ mod tests {
         // `:caused-by "fake"` paired with `(history ("fake" <msg>))` cannot
         // satisfy verify_causal.
         let frame = format!(
-            "(verify-protocol {QUERY_DIALECT} \"t1\" \
-             (respond :a \"ok\" :caused-by \"sha256:deadbeef\") \
-             (history (\"sha256:deadbeef\" (query :q \"hi\" :caused-by begin))))"
+            "(verify-protocol {QUERY_DIALECT} \"t1\" (lang convo-d (respond :a \"ok\" :caused-by \"sha256:deadbeef\")) (history (\"sha256:deadbeef\" (lang convo-d (query :q \"hi\" :caused-by begin)))))"
         );
         let result = verify_protocol_str(&frame);
         assert!(result.is_err());
@@ -1488,9 +1486,7 @@ mod tests {
         // History does not contain "h1", so the predecessor is genuinely
         // unknown and the result should be pending.
         let frame = format!(
-            "(verify-protocol {QUERY_DIALECT} \"t1\" \
-             (respond :a \"ok\" :caused-by \"h1\") \
-             (history))"
+            "(verify-protocol {QUERY_DIALECT} \"t1\" (lang convo-d (respond :a \"ok\" :caused-by \"h1\")) (history))"
         );
         let result = verify_protocol_str(&frame);
         assert!(result.is_err());
@@ -1510,7 +1506,8 @@ mod tests {
         let dialect = "(define cbcl-base (cbcl) @author \
             (extend greet (name) (effect greet-action)) \
             (protocol (then begin greet)))";
-        let frame = format!("(verify-protocol {dialect} \"t1\" (greet :name \"a\"))");
+        let frame =
+            format!("(verify-protocol {dialect} \"t1\" (lang cbcl-base (greet :name \"a\")))");
         // Without the fix, lookup resolves the preloaded protocol-less base
         // and returns "ok"; with the fix the supplied protocol fires a
         // MissingCausedBy violation.
@@ -1551,9 +1548,7 @@ mod tests {
             (extend respond (a) (effect respond-action)) \
             (protocol (then unknown-perf respond)))";
         let frame = format!(
-            "(verify-protocol {dialect} \"t1\" \
-             (respond :a \"x\" :caused-by \"h1\") \
-             (history (\"h1\" (unknown-perf :caused-by begin))))"
+            "(verify-protocol {dialect} \"t1\" (lang convo-d (respond :a \"x\" :caused-by \"h1\")) (history (\"h1\" (unknown-perf :caused-by begin))))"
         );
         let result = verify_protocol_str(&frame);
         assert!(result.is_err());
@@ -1575,7 +1570,7 @@ mod tests {
                 (extend greet (name) (effect greet-action)) \
                 (protocol (then begin greet))) \
             (define c-d (p-d) @author))";
-        let frame = format!("(verify-protocol {chain} \"t1\" (greet :name \"a\"))");
+        let frame = format!("(verify-protocol {chain} \"t1\" (lang p-d (greet :name \"a\")))");
         let result = verify_protocol_str(&frame);
         assert!(
             result.is_err(),
@@ -1601,13 +1596,11 @@ mod tests {
         // produces a false InvalidPredecessor violation. The hash is bound
         // against the *innermost* simple, since that's what the store ends
         // up holding.
-        let inner_pred = "(query :q \"hi\" :caused-by begin)";
+        let inner_pred = "(lang convo-d (query :q \"hi\" :caused-by begin))";
         let wrapped_pred = format!("(envelope :from @alice {inner_pred})");
         let h = predecessor_hash(&wrapped_pred);
         let frame = format!(
-            "(verify-protocol {QUERY_DIALECT} \"t1\" \
-             (respond :a \"ok\" :caused-by \"{h}\") \
-             (history (\"{h}\" {wrapped_pred})))"
+            "(verify-protocol {QUERY_DIALECT} \"t1\" (lang convo-d (respond :a \"ok\" :caused-by \"{h}\")) (history (\"{h}\" {wrapped_pred})))"
         );
         let result = verify_protocol_str(&frame);
         assert_eq!(
@@ -1622,9 +1615,7 @@ mod tests {
         // A bare `(meta ...)` history entry has no innermost Simple; we
         // surface that as a parse error instead of silently dropping it.
         let frame = format!(
-            "(verify-protocol {QUERY_DIALECT} \"t1\" \
-             (respond :a \"ok\" :caused-by \"h1\") \
-             (history (\"h1\" (meta (define x (cbcl) @a)))))"
+            "(verify-protocol {QUERY_DIALECT} \"t1\" (lang convo-d (respond :a \"ok\" :caused-by \"h1\")) (history (\"h1\" (meta (define x (cbcl) @a)))))"
         );
         let result = verify_protocol_str(&frame);
         assert!(result.is_err());
@@ -1641,9 +1632,7 @@ mod tests {
         // this check the wrapper would silently relocate the message into t1
         // and verify it against t1 predecessors, defeating thread isolation.
         let frame = format!(
-            "(verify-protocol {QUERY_DIALECT} \"t1\" \
-             (respond :a \"ok\" :thread \"t2\" :caused-by \"h1\") \
-             (history (\"h1\" (query :q \"hi\" :caused-by begin))))"
+            "(verify-protocol {QUERY_DIALECT} \"t1\" (lang convo-d (respond :a \"ok\" :thread \"t2\" :caused-by \"h1\")) (history (\"h1\" (lang convo-d (query :q \"hi\" :caused-by begin)))))"
         );
         let result = verify_protocol_str(&frame);
         assert!(result.is_err());
@@ -1660,9 +1649,7 @@ mod tests {
         // The wrapper must refuse to insert it under t1 — otherwise a
         // frame could pull a t2 predecessor into t1's causal scope.
         let frame = format!(
-            "(verify-protocol {QUERY_DIALECT} \"t1\" \
-             (respond :a \"ok\" :caused-by \"h1\") \
-             (history (\"h1\" (query :q \"hi\" :thread \"t2\" :caused-by begin))))"
+            "(verify-protocol {QUERY_DIALECT} \"t1\" (lang convo-d (respond :a \"ok\" :caused-by \"h1\")) (history (\"h1\" (lang convo-d (query :q \"hi\" :thread \"t2\" :caused-by begin)))))"
         );
         let result = verify_protocol_str(&frame);
         assert!(result.is_err());
@@ -1677,12 +1664,10 @@ mod tests {
     fn verify_protocol_accepts_matching_explicit_threads() {
         // Both message and history predecessor explicitly set `:thread "t1"`
         // matching the frame — verification proceeds normally.
-        let pred = "(query :q \"hi\" :thread \"t1\" :caused-by begin)";
+        let pred = "(lang convo-d (query :q \"hi\" :thread \"t1\" :caused-by begin))";
         let h = predecessor_hash(pred);
         let frame = format!(
-            "(verify-protocol {QUERY_DIALECT} \"t1\" \
-             (respond :a \"ok\" :thread \"t1\" :caused-by \"{h}\") \
-             (history (\"{h}\" {pred})))"
+            "(verify-protocol {QUERY_DIALECT} \"t1\" (lang convo-d (respond :a \"ok\" :thread \"t1\" :caused-by \"{h}\")) (history (\"{h}\" {pred})))"
         );
         assert_eq!(verify_protocol_str(&frame).as_deref(), Ok("ok"));
     }
@@ -1691,17 +1676,13 @@ mod tests {
     fn verify_protocol_rejects_malformed_history_block() {
         // Missing the `history` head symbol.
         let frame = format!(
-            "(verify-protocol {QUERY_DIALECT} \"t1\" \
-             (respond :a \"ok\" :caused-by \"h1\") \
-             ((\"h1\" (query :q \"hi\" :caused-by begin))))"
+            "(verify-protocol {QUERY_DIALECT} \"t1\" (lang convo-d (respond :a \"ok\" :caused-by \"h1\")) ((\"h1\" (lang convo-d (query :q \"hi\" :caused-by begin)))))"
         );
         let result = verify_protocol_str(&frame);
         assert!(result.is_err());
         // History entry that isn't a (hash msg) pair.
         let frame = format!(
-            "(verify-protocol {QUERY_DIALECT} \"t1\" \
-             (respond :a \"ok\" :caused-by \"h1\") \
-             (history \"just-a-hash\"))"
+            "(verify-protocol {QUERY_DIALECT} \"t1\" (lang convo-d (respond :a \"ok\" :caused-by \"h1\")) (history \"just-a-hash\"))"
         );
         let result = verify_protocol_str(&frame);
         assert!(result.is_err());

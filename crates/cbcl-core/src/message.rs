@@ -491,29 +491,60 @@ impl TryFrom<&SExpr> for Message {
     type Error = MessageParseError;
 
     fn try_from(sexpr: &SExpr) -> Result<Self, Self::Error> {
-        let items = match sexpr {
-            SExpr::List(items) if !items.is_empty() => items,
-            SExpr::List(_) => return Err(MessageParseError(String::from("empty message"))),
-            _ => return Err(MessageParseError(String::from("message must be a list"))),
-        };
+        parse_message_scoped(sexpr, LangScope::Unscoped)
+    }
+}
 
-        let head = match &items[0] {
-            SExpr::Atom(Atom::Symbol(s)) => s.as_str(),
-            _ => {
-                return Err(MessageParseError(String::from(
-                    "message head must be a symbol",
-                )))
-            }
-        };
+/// Whether the message being recognised sits inside a `(lang …)` wrapper
+/// (REQ-033).
+///
+/// This is the only context a *custom* performative may appear in. The `lang`
+/// tag plus the dialect name is the deterministic dispatch token that selects
+/// which dialect's subgrammar applies; without it the head symbol alone would
+/// have to select it, and which dialect that names is a property of the
+/// receiver's installed set rather than of the message. Two agents holding
+/// different dialects would then read the same bytes differently, which is the
+/// parser-equivalence failure the whole design exists to exclude.
+///
+/// Because dispatch goes through `lang`, two dialects defining the same
+/// performative name is not a conflict at all — the wrapper says which one is
+/// meant. That coexistence is the feature the scoping rule buys.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum LangScope {
+    /// No enclosing `(lang …)`: only core performatives may head a message.
+    Unscoped,
+    /// Inside a `(lang <dialect> …)`, possibly through wrappers.
+    Scoped,
+}
 
-        match head {
-            "meta" => parse_meta(&items[1..]),
-            "lang" => parse_dialect_msg(&items[1..]),
-            w if WrapperType::parse(w).is_some() => {
-                parse_wrapped(WrapperType::parse(w).unwrap(), &items[1..])
-            }
-            _ => parse_simple(head, &items[1..]),
+/// Recognise a message, tracking whether a `(lang …)` wrapper encloses it.
+///
+/// Wrappers propagate the scope they were found in, so
+/// `(lang d (signed "…" (offer …)))` recognises `offer` as scoped, while
+/// `(signed "…" (offer …))` does not.
+fn parse_message_scoped(sexpr: &SExpr, scope: LangScope) -> Result<Message, MessageParseError> {
+    let items = match sexpr {
+        SExpr::List(items) if !items.is_empty() => items,
+        SExpr::List(_) => return Err(MessageParseError(String::from("empty message"))),
+        _ => return Err(MessageParseError(String::from("message must be a list"))),
+    };
+
+    let head = match &items[0] {
+        SExpr::Atom(Atom::Symbol(s)) => s.as_str(),
+        _ => {
+            return Err(MessageParseError(String::from(
+                "message head must be a symbol",
+            )))
         }
+    };
+
+    match head {
+        "meta" => parse_meta(&items[1..]),
+        "lang" => parse_dialect_msg(&items[1..]),
+        w if WrapperType::parse(w).is_some() => {
+            parse_wrapped(WrapperType::parse(w).unwrap(), &items[1..], scope)
+        }
+        _ => parse_simple(head, &items[1..], scope),
     }
 }
 
@@ -542,19 +573,27 @@ fn parse_dialect_msg(tail: &[SExpr]) -> Result<Message, MessageParseError> {
             )))
         }
     };
-    let inner = Message::try_from(&tail[1])?;
+    // Entering a `lang` wrapper is what puts the inner message in scope: the
+    // dialect name is now fixed by the message itself (REQ-033).
+    let inner = parse_message_scoped(&tail[1], LangScope::Scoped)?;
     Ok(Message::Dialect {
         dialect_name,
         inner: Box::new(inner),
     })
 }
 
-fn parse_wrapped(wrapper: WrapperType, tail: &[SExpr]) -> Result<Message, MessageParseError> {
+fn parse_wrapped(
+    wrapper: WrapperType,
+    tail: &[SExpr],
+    scope: LangScope,
+) -> Result<Message, MessageParseError> {
     // The last list element is the inner message; everything before it is params.
     let inner_idx = tail.iter().rposition(|item| matches!(item, SExpr::List(_)));
     match inner_idx {
         Some(idx) => {
-            let inner = Message::try_from(&tail[idx])?;
+            // A wrapper neither establishes nor discards a lang scope; it
+            // carries through whatever it was found in.
+            let inner = parse_message_scoped(&tail[idx], scope)?;
             let params = tail[..idx].to_vec();
             Ok(Message::Wrapped {
                 wrapper,
@@ -587,9 +626,24 @@ fn is_address_group(s: &SExpr) -> bool {
     }
 }
 
-fn parse_simple(head: &str, tail: &[SExpr]) -> Result<Message, MessageParseError> {
+fn parse_simple(
+    head: &str,
+    tail: &[SExpr],
+    scope: LangScope,
+) -> Result<Message, MessageParseError> {
     let performative = match CorePerformative::parse(head) {
         Some(cp) => Performative::Core(cp),
+        // A custom performative outside a `(lang …)` wrapper has no
+        // deterministic dispatch: nothing in the message says which dialect
+        // defines it. Reject rather than resolve against the installed set
+        // (REQ-033) — see `LangScope`.
+        None if scope == LangScope::Unscoped => {
+            return Err(MessageParseError(alloc::format!(
+                "'{head}' is not a core performative; a dialect performative must be \
+                 invoked inside (lang <dialect> ...) so the message names the dialect \
+                 that defines it"
+            )))
+        }
         None => Performative::Custom(String::from(head)),
     };
 
@@ -1172,9 +1226,11 @@ mod tests {
     #[test]
     fn custom_performative() {
         let sexpr = list(vec![sym("propose-step"), sym("s1"), sym("pickup")]);
+        assert!(Message::try_from(&sexpr).is_err());
+        let sexpr = list(vec![sym("lang"), sym("cbcl-planning"), sexpr]);
         let msg = Message::try_from(&sexpr).unwrap();
         assert_eq!(
-            msg.performative(),
+            msg.innermost_simple().unwrap().performative(),
             Some(&Performative::Custom(String::from("propose-step")))
         );
     }
@@ -1424,9 +1480,11 @@ mod tests {
 
     #[test]
     fn multicast_recipient_parses_and_roundtrips() {
-        let sexpr: SExpr = "(login (@cli @as) \"n-42\" :caused-by h0)".parse().unwrap();
+        let sexpr: SExpr = "(lang oauth (login (@cli @as) \"n-42\" :caused-by h0))"
+            .parse()
+            .unwrap();
         let msg = Message::try_from(&sexpr).unwrap();
-        let set = msg.recipient_set();
+        let set = msg.innermost_simple().unwrap().recipient_set();
         assert_eq!(set.len(), 2);
         assert!(set.contains("@cli") && set.contains("@as"));
         // round-trip: serialise and re-parse preserves the set
@@ -1437,8 +1495,8 @@ mod tests {
 
     #[test]
     fn multicast_serialisation_is_canonical_sorted() {
-        let a: SExpr = "(login (@b @a) \"x\")".parse().unwrap();
-        let b: SExpr = "(login (@a @b) \"x\")".parse().unwrap();
+        let a: SExpr = "(lang oauth (login (@b @a) \"x\"))".parse().unwrap();
+        let b: SExpr = "(lang oauth (login (@a @b) \"x\"))".parse().unwrap();
         let ma = Message::try_from(&a).unwrap();
         let mb = Message::try_from(&b).unwrap();
         assert_eq!(SExpr::from(&ma), SExpr::from(&mb));
@@ -1512,8 +1570,10 @@ mod tests {
         assert!(parses("(tell @client \"ping @bob\")"));
         round_trips("(tell @client \"ping @bob\")");
         // Multicast recipient set + string content (the paper's OAuth trace).
-        assert!(parses("(login (@cli @as) \"n-42\" \"profile\")"));
-        round_trips("(login (@cli @as) \"n-42\" \"profile\")");
+        assert!(parses(
+            "(lang oauth (login (@cli @as) \"n-42\" \"profile\"))"
+        ));
+        round_trips("(lang oauth (login (@cli @as) \"n-42\" \"profile\"))");
     }
 
     #[test]

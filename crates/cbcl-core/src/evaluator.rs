@@ -76,6 +76,12 @@ pub enum Effect {
 pub enum EvalError {
     /// The performative is not defined in any installed dialect.
     UnknownPerformative(String),
+    /// A custom performative was invoked outside any `(lang …)` wrapper, so
+    /// the message does not name the dialect that defines it (REQ-033).
+    ///
+    /// Normally unreachable from parsed input — the recogniser rejects the
+    /// form — so this fires for messages built programmatically.
+    UnscopedDialectPerformative(String),
     /// Template expansion failed (e.g. resource bounds exceeded, no matching cond branch).
     TemplateExpansionFailed { performative: String },
     /// The named dialect is not installed.
@@ -91,6 +97,13 @@ impl fmt::Display for EvalError {
         match self {
             EvalError::UnknownPerformative(name) => {
                 write!(f, "unknown performative: {name}")
+            }
+            EvalError::UnscopedDialectPerformative(name) => {
+                write!(
+                    f,
+                    "dialect performative '{name}' invoked outside (lang <dialect> ...); \
+                     the message must name the dialect that defines it"
+                )
             }
             EvalError::TemplateExpansionFailed { performative } => {
                 write!(
@@ -179,8 +192,7 @@ fn evaluate_simple(
 
     let perf_name = performative.name();
 
-    let dialect = resolve_performative_dialect(performative, registry, scope)
-        .ok_or_else(|| EvalError::UnknownPerformative(String::from(perf_name)))?;
+    let dialect = resolve_performative_dialect(performative, registry, scope)?;
 
     let def = dialect
         .find_performative(perf_name)
@@ -277,21 +289,43 @@ fn evaluate_wrapped(
     evaluate_with_scope(inner, registry, scope, check_shape)
 }
 
+/// Resolve the dialect that defines `performative` (REQ-033).
+///
+/// A **custom** performative is resolved *only* against the dialect named by
+/// its enclosing `(lang …)` wrapper. There is deliberately no fallback to the
+/// registry: the dialect is chosen by the message, never by the receiver's
+/// installed set, so the same bytes expand identically on every agent that
+/// holds the named dialect. This is also what lets two dialects define the
+/// same performative name without conflict — the wrapper disambiguates.
+///
+/// A **core** performative is resolved against the base dialect, which R3
+/// guarantees is its only definer.
+///
+/// The unscoped-custom case is rejected by the recogniser before evaluation
+/// (`message.rs`, `LangScope`); it is re-checked here so that programmatically
+/// constructed messages, which never passed through the parser, cannot bypass
+/// the rule.
 fn resolve_performative_dialect<'a>(
     performative: &Performative,
     registry: &'a DialectRegistry,
     scope: Option<&'a Dialect>,
-) -> Option<&'a Dialect> {
+) -> Result<&'a Dialect, EvalError> {
+    let name = performative.name();
+
     if !performative.is_core() {
-        if let Some(dialect) = scope {
-            if dialect.defines_performative(performative.name()) {
-                return Some(dialect);
-            }
-            return None;
-        }
+        let Some(dialect) = scope else {
+            return Err(EvalError::UnscopedDialectPerformative(String::from(name)));
+        };
+        return if dialect.defines_performative(name) {
+            Ok(dialect)
+        } else {
+            Err(EvalError::UnknownPerformative(String::from(name)))
+        };
     }
 
-    registry.find_performative_dialect(performative.name())
+    registry
+        .base_definer_of(name)
+        .ok_or_else(|| EvalError::UnknownPerformative(String::from(name)))
 }
 
 // ---------------------------------------------------------------------------
@@ -701,6 +735,10 @@ mod tests {
             sender: None,
             caused_by: None,
         };
+        let msg = Message::Dialect {
+            dialect_name: String::from("cbcl-base"),
+            inner: alloc::boxed::Box::new(msg),
+        };
         let err = evaluate(&msg, &reg).unwrap_err();
         assert!(matches!(err, EvalError::UnknownPerformative(_)));
     }
@@ -718,6 +756,10 @@ mod tests {
             thread: None,
             sender: None,
             caused_by: None,
+        };
+        let msg = Message::Dialect {
+            dialect_name: String::from("logistics"),
+            inner: alloc::boxed::Box::new(msg),
         };
         let result = evaluate(&msg, &reg).unwrap();
         // Template expands to (effect dispatch-shipment) — a custom effect action
@@ -815,6 +857,88 @@ mod tests {
 
         let err = evaluate(&msg, &reg).unwrap_err();
         assert!(matches!(err, EvalError::UnknownPerformative(_)));
+    }
+
+    /// Build an unscoped invocation of the duplicated `ship` performative.
+    fn unscoped_ship() -> Message {
+        Message::Simple {
+            performative: Performative::Custom(String::from("ship")),
+            recipient: None,
+            content: SExpr::Atom(Atom::Str(String::from("PKG-789"))),
+            params: vec![SExpr::Atom(Atom::Symbol(String::from("dock-C")))],
+            thread: None,
+            sender: None,
+            caused_by: None,
+        }
+    }
+
+    /// REQ-033: the same unscoped invocation is refused whatever the
+    /// registry holds — the message never names a dialect, so no installed
+    /// set can supply one.
+    #[test]
+    fn eval_unscoped_custom_performative_is_rejected() {
+        for reg in [
+            make_registry_with_custom(),
+            make_registry_with_duplicate_customs(),
+        ] {
+            match evaluate(&unscoped_ship(), &reg).unwrap_err() {
+                EvalError::UnscopedDialectPerformative(name) => assert_eq!(name, "ship"),
+                other => panic!("expected UnscopedDialectPerformative, got {other:?}"),
+            }
+        }
+    }
+
+    /// Scoping is how a dialect performative is invoked at all — and two
+    /// dialects defining one name is fine, because the wrapper chooses.
+    #[test]
+    fn eval_scoping_resolves_an_otherwise_ambiguous_performative() {
+        let reg = make_registry_with_duplicate_customs();
+        for name in ["logistics", "warehouse"] {
+            let msg = Message::Dialect {
+                dialect_name: String::from(name),
+                inner: Box::new(unscoped_ship()),
+            };
+            assert!(
+                evaluate(&msg, &reg).is_ok(),
+                "scoped invocation to '{name}' must resolve"
+            );
+        }
+    }
+
+    #[test]
+    fn scoped_resolution_preserves_wrapper_scope_and_install_order() {
+        let forward = make_registry_with_duplicate_customs();
+        let mut reverse = DialectRegistry::new();
+        for name in ["warehouse", "logistics"] {
+            reverse
+                .install(forward.find_by_name(name).unwrap().clone())
+                .unwrap();
+        }
+        for input in [
+            "(lang logistics (ship parcel dock))",
+            "(lang logistics (signed signature (ship parcel dock)))",
+            "(signed signature (lang logistics (ship parcel dock)))",
+            "(lang warehouse (lang logistics (ship parcel dock)))",
+        ] {
+            let msg = Message::try_from(&input.parse::<SExpr>().unwrap()).unwrap();
+            let a = evaluate(&msg, &forward).unwrap();
+            let b = evaluate(&msg, &reverse).unwrap();
+            assert_eq!(a.expanded, b.expanded, "{input}");
+            assert_eq!(
+                extract_effect_action(&a.expanded).as_deref(),
+                Some("dispatch-shipment")
+            );
+        }
+        let msg = Message::try_from(
+            &"(lang logistics (tell @bob parcel))"
+                .parse::<SExpr>()
+                .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(
+            extract_effect_action(&evaluate(&msg, &reverse).unwrap().expanded).as_deref(),
+            Some("send-message")
+        );
     }
 
     #[test]
@@ -1014,6 +1138,10 @@ mod tests {
             sender: None,
             caused_by: None,
         };
+        let msg = Message::Dialect {
+            dialect_name: String::from("logistics"),
+            inner: alloc::boxed::Box::new(msg),
+        };
         let result = evaluate(&msg, &reg);
         assert!(result.is_ok());
     }
@@ -1030,6 +1158,10 @@ mod tests {
             thread: None,
             sender: None,
             caused_by: None,
+        };
+        let msg = Message::Dialect {
+            dialect_name: String::from("logistics"),
+            inner: alloc::boxed::Box::new(msg),
         };
         let result = evaluate(&msg, &reg);
         match result {
@@ -1124,6 +1256,10 @@ mod tests {
             sender: None,
             caused_by: None,
         };
+        let msg = Message::Dialect {
+            dialect_name: String::from("logistics"),
+            inner: alloc::boxed::Box::new(msg),
+        };
         assert!(evaluate(&msg, &reg).is_ok());
     }
 
@@ -1174,6 +1310,10 @@ mod tests {
             thread: None,
             sender: None,
             caused_by: None,
+        };
+        let msg = Message::Dialect {
+            dialect_name: String::from("shallow"),
+            inner: alloc::boxed::Box::new(msg),
         };
         let result = evaluate(&msg, &reg);
         match result {

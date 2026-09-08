@@ -4,7 +4,7 @@
     "description": "Empty parameters handled gracefully",
     "input": {
       "dialect": "precision-agriculture",
-      "message": "(equipment-status \"eq-1\" \"unknown\" \"unknown\" #f #f)"
+      "message": "(lang precision-agriculture (equipment-status \"eq-1\" \"unknown\" \"unknown\" #f #f))"
     },
     "expected": {
       "type": "success",
@@ -17,7 +17,7 @@
     "description": "Nested data structures in message parameters",
     "input": {
       "dialect": "precision-agriculture",
-      "message": "(path-coordinate \"t1\" (:lat 40.71 :lon -74.00 :elevation 100) (:lat 40.72 :lon -74.01 :elevation 105) ((:type \"tree\" :lat 40.715 :lon -74.005) (:type \"rock\" :lat 40.716 :lon -74.006)))"
+      "message": "(lang precision-agriculture (path-coordinate \"t1\" (:lat 40.71 :lon -74.00 :elevation 100) (:lat 40.72 :lon -74.01 :elevation 105) ((:type \"tree\" :lat 40.715 :lon -74.005) (:type \"rock\" :lat 40.716 :lon -74.006))))"
     },
     "expected": {
       "type": "success",

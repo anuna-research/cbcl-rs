@@ -488,6 +488,15 @@ fn eval_error_to_validation(err: EvalError, thread: Option<String>) -> Validatio
         EvalError::UnknownPerformative(name) => ValidationError::MalformedMessage {
             reason: alloc::format!("unknown performative: {name}"),
         },
+        // REQ-033: a dialect performative must name its dialect. The
+        // recogniser rejects the unscoped form, so this path is reached only
+        // by programmatically constructed messages.
+        EvalError::UnscopedDialectPerformative(name) => ValidationError::MalformedMessage {
+            reason: alloc::format!(
+                "dialect performative '{name}' invoked outside (lang <dialect> ...); \
+                 the message must name the dialect that defines it"
+            ),
+        },
         EvalError::TemplateExpansionFailed { performative: _ } => ValidationError::R2FuelExhausted,
         EvalError::UnknownDialect(name) => ValidationError::MalformedMessage {
             reason: alloc::format!("unknown dialect: {name}"),
@@ -572,7 +581,9 @@ mod tests {
 
     #[test]
     fn pipeline_custom_performative() {
-        let result = run_pipeline("(share-conditional pickup box-location box-in-hand)");
+        let result = run_pipeline(
+            "(lang cbcl-planning (share-conditional pickup box-location box-in-hand))",
+        );
         assert!(matches!(result, PipelineResult::Success(_)));
     }
 
@@ -686,7 +697,7 @@ mod tests {
         let ctx = PipelineContext::new(&registry, &store);
 
         // Send "greet" without :caused-by — protocol requires begin as predecessor.
-        let result = run_pipeline_full("(greet \"hi\")", &ctx);
+        let result = run_pipeline_full("(lang proto-dialect (greet \"hi\"))", &ctx);
         assert!(
             matches!(
                 result,
@@ -740,7 +751,7 @@ mod tests {
         let ctx = PipelineContext::new(&registry, &store);
 
         // "propose" without :target — shape requires it.
-        let result = run_pipeline_full("(propose \"idea\")", &ctx);
+        let result = run_pipeline_full("(lang shape-dialect (propose \"idea\"))", &ctx);
         assert!(
             matches!(
                 result,
@@ -814,7 +825,10 @@ mod tests {
         let ctx = PipelineContext::new(&registry, &store);
 
         // "ack" with :caused-by pointing to the begin message.
-        let result = run_pipeline_full("(ack \"done\" :caused-by \"abc123\")", &ctx);
+        let result = run_pipeline_full(
+            "(lang ack-dialect (ack \"done\" :caused-by \"abc123\"))",
+            &ctx,
+        );
         assert!(
             matches!(result, PipelineResult::Success(_)),
             "expected success, got {:?}",
@@ -912,7 +926,10 @@ mod tests {
         let ctx = PipelineContext::new(&registry, &store);
 
         // ack with :caused-by referencing a hash not in the store.
-        let result = run_pipeline_full("(ack \"done\" :caused-by \"missing-hash\")", &ctx);
+        let result = run_pipeline_full(
+            "(lang ack-dialect (ack \"done\" :caused-by \"missing-hash\"))",
+            &ctx,
+        );
         assert!(
             matches!(
                 result,
@@ -936,7 +953,10 @@ mod tests {
             cbcl_core::policy::UnknownPredecessorPolicy::buffer(60),
         );
 
-        let result = run_pipeline_full("(ack \"done\" :caused-by \"missing-hash\")", &ctx);
+        let result = run_pipeline_full(
+            "(lang ack-dialect (ack \"done\" :caused-by \"missing-hash\"))",
+            &ctx,
+        );
         assert!(
             matches!(result, PipelineResult::Buffered { .. }),
             "expected Buffered under Buffer policy, got {:?}",
@@ -1011,7 +1031,7 @@ mod tests {
 
         // ack with no :caused-by AND no :target — both causal and shape would fail.
         // We must see CausalViolation, not ShapeViolation, because causal is checked first.
-        let result = run_pipeline_full("(ack \"done\")", &ctx);
+        let result = run_pipeline_full("(lang ack-with-shape (ack \"done\"))", &ctx);
         assert!(
             matches!(
                 result,
@@ -1163,7 +1183,7 @@ mod tests {
 
         // (lang ack-dialect (ack "done" :caused-by "missing"))
         let result = run_pipeline_full(
-            "(lang ack-dialect (ack \"done\" :caused-by \"missing\"))",
+            "(lang ack-dialect (lang ack-dialect (ack \"done\" :caused-by \"missing\")))",
             &ctx,
         );
         assert!(
@@ -1277,9 +1297,8 @@ mod tests {
 
         let store = ThreadedMessageStore::new();
         let ctx = PipelineContext::new(&registry, &store);
-        let result = run_pipeline_full("(propose \"idea\")", &ctx);
-        let PipelineResult::ValidationError(ValidationError::ShapeViolation { blame, .. }) =
-            result
+        let result = run_pipeline_full("(lang shape-dialect (propose \"idea\"))", &ctx);
+        let PipelineResult::ValidationError(ValidationError::ShapeViolation { blame, .. }) = result
         else {
             panic!("expected shape violation, got {result:?}");
         };

@@ -208,10 +208,10 @@ pub fn field_sexpr(msg: &Message, id: FieldId) -> SExpr {
             caused_by,
             ..
         } => match id {
-            FieldId::Performative => {
-                SExpr::Atom(Atom::Symbol(String::from(performative.name())))
-            }
-            FieldId::From => opt(sender.as_deref().map(|s| SExpr::Atom(Atom::Str(String::from(s))))),
+            FieldId::Performative => SExpr::Atom(Atom::Symbol(String::from(performative.name()))),
+            FieldId::From => opt(sender
+                .as_deref()
+                .map(|s| SExpr::Atom(Atom::Str(String::from(s))))),
             FieldId::To => {
                 // recipient_set() is a BTreeSet<&str>: canonical sorted order,
                 // so insertion order cannot change the leaf (order-insensitive).
@@ -223,9 +223,9 @@ pub fn field_sexpr(msg: &Message, id: FieldId) -> SExpr {
                 SExpr::List(items)
             }
             FieldId::CausedBy => opt(caused_by.as_ref().map(caused_by_sexpr)),
-            FieldId::Thread => {
-                opt(thread.as_deref().map(|t| SExpr::Atom(Atom::Str(String::from(t)))))
-            }
+            FieldId::Thread => opt(thread
+                .as_deref()
+                .map(|t| SExpr::Atom(Atom::Str(String::from(t))))),
             FieldId::Payload => {
                 let mut items = vec![content.clone()];
                 items.extend(params.clone());
@@ -364,10 +364,26 @@ pub fn open(msg: &Message, field: FieldId) -> Opening {
     // Fixed tree shape ⇒ hard-coded, auditable paths. Each entry is the
     // sibling hash and the side the *sibling* sits on.
     let path: Vec<([u8; 32], Side)> = match field {
-        FieldId::Performative => vec![(t.l[1], Side::Right), (t.n1, Side::Right), (t.n2, Side::Right)],
-        FieldId::From => vec![(t.l[0], Side::Left), (t.n1, Side::Right), (t.n2, Side::Right)],
-        FieldId::To => vec![(t.l[3], Side::Right), (t.n0, Side::Left), (t.n2, Side::Right)],
-        FieldId::CausedBy => vec![(t.l[2], Side::Left), (t.n0, Side::Left), (t.n2, Side::Right)],
+        FieldId::Performative => vec![
+            (t.l[1], Side::Right),
+            (t.n1, Side::Right),
+            (t.n2, Side::Right),
+        ],
+        FieldId::From => vec![
+            (t.l[0], Side::Left),
+            (t.n1, Side::Right),
+            (t.n2, Side::Right),
+        ],
+        FieldId::To => vec![
+            (t.l[3], Side::Right),
+            (t.n0, Side::Left),
+            (t.n2, Side::Right),
+        ],
+        FieldId::CausedBy => vec![
+            (t.l[2], Side::Left),
+            (t.n0, Side::Left),
+            (t.n2, Side::Right),
+        ],
         FieldId::Thread => vec![(t.l[5], Side::Right), (t.m0, Side::Left)],
         FieldId::Payload => vec![(t.l[4], Side::Left), (t.m0, Side::Left)],
     };
@@ -442,7 +458,9 @@ mod tests {
         let r = typed_root(&sample("x"));
         let hex = r.strip_prefix("sha256:").expect("prefix");
         assert_eq!(hex.len(), 64);
-        assert!(hex.chars().all(|c| c.is_ascii_digit() || ('a'..='f').contains(&c)));
+        assert!(hex
+            .chars()
+            .all(|c| c.is_ascii_digit() || ('a'..='f').contains(&c)));
     }
 
     #[test]
@@ -468,7 +486,10 @@ mod tests {
                 ])),
             }
         };
-        assert_eq!(typed_root(&mk(&["@carol", "@bob"])), typed_root(&mk(&["@bob", "@carol"])));
+        assert_eq!(
+            typed_root(&mk(&["@carol", "@bob"])),
+            typed_root(&mk(&["@bob", "@carol"]))
+        );
     }
 
     #[test]
@@ -526,11 +547,21 @@ mod tests {
         let mut op = open(&m, FieldId::Performative);
         // Corrupt one sibling hash.
         op.path[0].0[0] ^= 0xff;
-        assert!(!verify_opening(&root, FieldId::Performative, &field_sexpr(&m, FieldId::Performative), &op));
+        assert!(!verify_opening(
+            &root,
+            FieldId::Performative,
+            &field_sexpr(&m, FieldId::Performative),
+            &op
+        ));
         // Flip a side.
         let mut op2 = open(&m, FieldId::Performative);
         op2.path[0].1 = Side::Left;
-        assert!(!verify_opening(&root, FieldId::Performative, &field_sexpr(&m, FieldId::Performative), &op2));
+        assert!(!verify_opening(
+            &root,
+            FieldId::Performative,
+            &field_sexpr(&m, FieldId::Performative),
+            &op2
+        ));
     }
 
     #[test]
@@ -538,7 +569,12 @@ mod tests {
         let m = sample("secret");
         let other_root = typed_root(&sample("other"));
         let op = open(&m, FieldId::From);
-        assert!(!verify_opening(&other_root, FieldId::From, &field_sexpr(&m, FieldId::From), &op));
+        assert!(!verify_opening(
+            &other_root,
+            FieldId::From,
+            &field_sexpr(&m, FieldId::From),
+            &op
+        ));
     }
 
     #[test]
@@ -547,7 +583,12 @@ mod tests {
         let root = typed_root(&m);
         let op = open(&m, FieldId::From);
         // Present a From-opening under the Performative id.
-        assert!(!verify_opening(&root, FieldId::Performative, &field_sexpr(&m, FieldId::From), &op));
+        assert!(!verify_opening(
+            &root,
+            FieldId::Performative,
+            &field_sexpr(&m, FieldId::From),
+            &op
+        ));
     }
 
     // ---- payload not revealed ----
@@ -563,7 +604,10 @@ mod tests {
         let value_bytes = canonical_encode(&op.value);
         let value_str = core::str::from_utf8(&value_bytes).unwrap();
         assert!(value_str.contains("reveal-bid"), "type must be revealed");
-        assert!(!value_str.contains("TOP-SECRET-BID-4200"), "payload leaked into value");
+        assert!(
+            !value_str.contains("TOP-SECRET-BID-4200"),
+            "payload leaked into value"
+        );
 
         // ...and the sibling path carries only 32-byte hashes, never the
         // payload bytes.
@@ -626,21 +670,56 @@ mod tests {
         assert_eq!(env.root_sig, sign_root(b"alice", &env.root));
 
         // (a) predecessor TYPE (REQ-702 / REQ-616): open the performative.
-        assert!(verify_opening(&env.root, FieldId::Performative, &env.performative.value, &env.performative));
+        assert!(verify_opening(
+            &env.root,
+            FieldId::Performative,
+            &env.performative.value,
+            &env.performative
+        ));
         // (b) role conformance of the citing message (from / to): open both.
-        assert!(verify_opening(&env.root, FieldId::From, &env.from.value, &env.from));
-        assert!(verify_opening(&env.root, FieldId::To, &env.to.value, &env.to));
+        assert!(verify_opening(
+            &env.root,
+            FieldId::From,
+            &env.from.value,
+            &env.from
+        ));
+        assert!(verify_opening(
+            &env.root,
+            FieldId::To,
+            &env.to.value,
+            &env.to
+        ));
         // (c) resolution of the :caused-by reference: open caused-by.
-        assert!(verify_opening(&env.root, FieldId::CausedBy, &env.caused_by.value, &env.caused_by));
+        assert!(verify_opening(
+            &env.root,
+            FieldId::CausedBy,
+            &env.caused_by.value,
+            &env.caused_by
+        ));
         // (d) thread placement (REQ-702: authenticated thread field): open thread.
-        assert!(verify_opening(&env.root, FieldId::Thread, &env.thread.value, &env.thread));
+        assert!(verify_opening(
+            &env.root,
+            FieldId::Thread,
+            &env.thread.value,
+            &env.thread
+        ));
 
         // NFR-701: no payload disclosure — nothing in the opened envelope
         // carries the payload bytes.
-        for op in [&env.performative, &env.from, &env.to, &env.caused_by, &env.thread] {
+        for op in [
+            &env.performative,
+            &env.from,
+            &env.to,
+            &env.caused_by,
+            &env.thread,
+        ] {
             let bytes = canonical_encode(&op.value);
             let s = core::str::from_utf8(&bytes).unwrap();
-            assert!(!s.contains("the secret payload"), "payload leaked via {:?}", op.field);
+            assert!(
+                !s.contains("the secret payload"),
+                "payload leaked via {:?}",
+                op.field
+            );
         }
     }
 
@@ -671,7 +750,12 @@ mod tests {
         };
         let forged_to = open(&forged_msg, FieldId::To);
         // Presented against the genuine signed root, the forged opening fails.
-        assert!(!verify_opening(&env.root, FieldId::To, &forged_to.value, &forged_to));
+        assert!(!verify_opening(
+            &env.root,
+            FieldId::To,
+            &forged_to.value,
+            &forged_to
+        ));
         // And the forged message's own root is not the signed one, so the
         // signature does not carry over.
         assert_ne!(typed_root(&forged_msg), env.root);
@@ -686,8 +770,16 @@ mod tests {
         let m = sample("the actual content");
         let root = typed_root(&m);
         let payload = open(&m, FieldId::Payload);
-        assert!(verify_opening(&root, FieldId::Payload, &payload.value, &payload));
+        assert!(verify_opening(
+            &root,
+            FieldId::Payload,
+            &payload.value,
+            &payload
+        ));
         let s = alloc::format!("{}", payload.value);
-        assert!(s.contains("the actual content"), "payload opening reveals content");
+        assert!(
+            s.contains("the actual content"),
+            "payload opening reveals content"
+        );
     }
 }

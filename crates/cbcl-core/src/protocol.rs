@@ -2216,7 +2216,13 @@ mod tests {
         let (env, root) = opened_pred("c", "t1"); // 'b' requires 'a', not 'c'
         store.append_opened(env, &SIGNER).unwrap();
         assert_eq!(
-            verify_causal("b", Some(&CausedBy::Single(root.clone())), &store, &proto, &t),
+            verify_causal(
+                "b",
+                Some(&CausedBy::Single(root.clone())),
+                &store,
+                &proto,
+                &t
+            ),
             VerificationResult::Violation(CausalViolation::InvalidPredecessor {
                 caused_by: root,
                 expected: vec!["a".into()],
@@ -2234,7 +2240,13 @@ mod tests {
         let (env, root) = opened_pred("a", "t1");
         store.append_opened(env, &SIGNER).unwrap();
         assert_eq!(
-            verify_causal("b", Some(&CausedBy::Single(root)), &store, &proto, &tid("t2")),
+            verify_causal(
+                "b",
+                Some(&CausedBy::Single(root)),
+                &store,
+                &proto,
+                &tid("t2")
+            ),
             VerificationResult::Unknown
         );
     }

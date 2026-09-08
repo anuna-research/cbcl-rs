@@ -684,8 +684,7 @@ mod tests {
         let d = derived_oauth();
         // Routes: login ⇒ authoriser, abort ⇒ authoriser, passwd ⇒ server.
         let authoriser = project(&d, &ep("authoriser"), None);
-        let expected: BTreeSet<String> =
-            ["login", "abort"].iter().map(|s| s.to_string()).collect();
+        let expected: BTreeSet<String> = ["login", "abort"].iter().map(|s| s.to_string()).collect();
         assert_eq!(authoriser.expect_envelopes, expected);
         let server = project(&d, &ep("server"), None);
         let expected: BTreeSet<String> = ["passwd"].iter().map(|s| s.to_string()).collect();
@@ -762,7 +761,7 @@ mod tests {
         let cast = oauth_cast(&d);
         let mut store = ThreadedMessageStore::new();
         put(&mut store, "h0", &oauth_h0());
-        let h1 = msg("(signed @srv \"sig\" (login (@as @cli) \"n-42\" :caused-by h0))");
+        let h1 = msg("(signed @srv \"sig\" (lang test (login (@as @cli) \"n-42\" :caused-by h0)))");
         assert_eq!(
             verify_causal_for_role(
                 &h1,
@@ -785,7 +784,7 @@ mod tests {
         let cast = oauth_cast(&d);
         let mut store = ThreadedMessageStore::new();
         put(&mut store, "h0", &oauth_h0());
-        let evil = msg("(signed @evil \"sig\" (login (@as @cli) \"n\" :caused-by h0))");
+        let evil = msg("(signed @evil \"sig\" (lang test (login (@as @cli) \"n\" :caused-by h0)))");
         assert!(matches!(
             verify_causal_for_role(
                 &evil,
@@ -807,7 +806,7 @@ mod tests {
         let mut store = ThreadedMessageStore::new();
         put(&mut store, "h0", &oauth_h0());
         // login must go to both client and authoriser under the widened :to
-        let narrow = msg("(signed @srv \"sig\" (login @cli \"n\" :caused-by h0))");
+        let narrow = msg("(signed @srv \"sig\" (lang test (login @cli \"n\" :caused-by h0)))");
         assert!(matches!(
             verify_causal_for_role(
                 &narrow,
@@ -830,8 +829,9 @@ mod tests {
         let cast = oauth_cast(&d);
         let mut store = ThreadedMessageStore::new();
         put(&mut store, "h0", &oauth_h0());
-        let h1 = msg("(signed @srv \"sig\" (login (@as @cli) \"n-42\" :caused-by h0))");
-        let h2 = msg("(signed @cli \"sig\" (passwd (@as @srv) \"cred\" :caused-by h1))");
+        let h1 = msg("(signed @srv \"sig\" (lang test (login (@as @cli) \"n-42\" :caused-by h0)))");
+        let h2 =
+            msg("(signed @cli \"sig\" (lang test (passwd (@as @srv) \"cred\" :caused-by h1)))");
         // h2 arrives before h1: Unknown (a message the role will see has
         // not yet arrived), never Violation.
         assert_eq!(
@@ -866,7 +866,7 @@ mod tests {
         let d = oauth();
         let cast = oauth_cast(&d);
         let store = ThreadedMessageStore::new();
-        let auth = msg("(signed @as \"sig\" (auth @srv \"tok\" :caused-by h-never))");
+        let auth = msg("(signed @as \"sig\" (lang test (auth @srv \"tok\" :caused-by h-never)))");
         assert_eq!(
             verify_causal_for_role(
                 &auth,
@@ -933,7 +933,7 @@ mod tests {
         let cast = oauth_cast(&d);
         let mut store = ThreadedMessageStore::new();
         put(&mut store, "h0", &oauth_h0());
-        let forged = msg("(login (@as @cli) \"n\" :sender @srv :caused-by h0)");
+        let forged = msg("(lang test (login (@as @cli) \"n\" :sender @srv :caused-by h0))");
         assert!(matches!(
             verify_causal_for_role(
                 &forged,
@@ -974,7 +974,8 @@ mod tests {
         // A message re-parented onto the forged wrapper does NOT verify as a
         // first step: h9 is not the root, so its type (hello) is an illegal
         // predecessor of login.
-        let reparented = msg("(signed @srv \"sig\" (login (@as @cli) \"n\" :caused-by h9))");
+        let reparented =
+            msg("(signed @srv \"sig\" (lang test (login (@as @cli) \"n\" :caused-by h9)))");
         assert!(matches!(
             verify_causal_for_role(
                 &reparented,
@@ -998,7 +999,8 @@ mod tests {
         let cast = oauth_cast(&d);
         let mut store = ThreadedMessageStore::new();
         put(&mut store, "h0", &oauth_h0());
-        let login = msg("(signed @srv \"sig\" (login (@as @cli) \"n-42\" :caused-by h0))");
+        let login =
+            msg("(signed @srv \"sig\" (lang test (login (@as @cli) \"n-42\" :caused-by h0)))");
         // client is addressed but contributes no signature; still Valid.
         assert_eq!(
             verify_causal_for_role(
@@ -1123,7 +1125,7 @@ mod tests {
             VerificationResult::Valid
         );
         // … and so does a first step of the pinned thread.
-        let h1 = msg("(signed @srv \"sig\" (login (@as @cli) \"n-42\" :caused-by h0))");
+        let h1 = msg("(signed @srv \"sig\" (lang test (login (@as @cli) \"n-42\" :caused-by h0)))");
         assert_eq!(
             verify_causal_for_role(
                 &h1,
@@ -1149,7 +1151,7 @@ mod tests {
         let cast = pinned_cast(&d, &root);
         let mut store = ThreadedMessageStore::new();
         put(&mut store, "h0", &root);
-        let h1 = msg("(signed @srv \"sig\" (login (@as @cli) \"n-42\" :caused-by h0))");
+        let h1 = msg("(signed @srv \"sig\" (lang test (login (@as @cli) \"n-42\" :caused-by h0)))");
         for m in [&root, &h1] {
             match verify_causal_for_role(
                 m,
@@ -1192,7 +1194,7 @@ mod tests {
             ),
             VerificationResult::Valid
         );
-        let h1 = msg("(signed @srv \"sig\" (login (@as @cli) \"n-42\" :caused-by h0))");
+        let h1 = msg("(signed @srv \"sig\" (lang test (login (@as @cli) \"n-42\" :caused-by h0)))");
         assert_eq!(
             verify_causal_for_role(
                 &h1,
@@ -1272,14 +1274,14 @@ mod tests {
                 &mut store,
                 &hc,
                 &msg(&alloc::format!(
-                    "(signed {b} \"sig\" (commit @auc \"c\" :caused-by h0))"
+                    "(signed {b} \"sig\" (lang test (commit @auc \"c\" :caused-by h0)))"
                 )),
             );
             put(
                 &mut store,
                 &hr,
                 &msg(&alloc::format!(
-                    "(signed {b} \"sig\" (reveal @auc 42 :caused-by {hc}))"
+                    "(signed {b} \"sig\" (lang test (reveal @auc 42 :caused-by {hc})))"
                 )),
             );
         }
@@ -1295,24 +1297,25 @@ mod tests {
         put(
             &mut store,
             "h1",
-            &msg("(signed @b1 \"sig\" (commit @auc \"c\" :caused-by h0))"),
+            &msg("(signed @b1 \"sig\" (lang test (commit @auc \"c\" :caused-by h0)))"),
         );
         put(
             &mut store,
             "h2",
-            &msg("(signed @b2 \"sig\" (commit @auc \"c\" :caused-by h0))"),
+            &msg("(signed @b2 \"sig\" (lang test (commit @auc \"c\" :caused-by h0)))"),
         );
         put(
             &mut store,
             "h4",
-            &msg("(signed @b1 \"sig\" (reveal @auc 42 :caused-by h1))"),
+            &msg("(signed @b1 \"sig\" (lang test (reveal @auc 42 :caused-by h1)))"),
         );
         put(
             &mut store,
             "h5",
-            &msg("(signed @b2 \"sig\" (reveal @auc 17 :caused-by h2))"),
+            &msg("(signed @b2 \"sig\" (lang test (reveal @auc 17 :caused-by h2)))"),
         );
-        let h7 = msg("(signed @auc \"sig\" (declare-winner \"b3\" :caused-by (h4 h5 h6)))");
+        let h7 =
+            msg("(signed @auc \"sig\" (lang test (declare-winner \"b3\" :caused-by (h4 h5 h6))))");
         // h6 absent: Unknown
         assert_eq!(
             verify_causal_for_role(
@@ -1329,12 +1332,12 @@ mod tests {
         put(
             &mut store,
             "h3",
-            &msg("(signed @b3 \"sig\" (commit @auc \"c\" :caused-by h0))"),
+            &msg("(signed @b3 \"sig\" (lang test (commit @auc \"c\" :caused-by h0)))"),
         );
         put(
             &mut store,
             "h6",
-            &msg("(signed @b3 \"sig\" (reveal @auc 55 :caused-by h3))"),
+            &msg("(signed @b3 \"sig\" (lang test (reveal @auc 55 :caused-by h3)))"),
         );
         assert_eq!(
             verify_causal_for_role(
@@ -1357,7 +1360,8 @@ mod tests {
         let d = auction();
         let cast = auction_cast(&d);
         let store = auction_store();
-        let h7 = msg("(signed @auc \"sig\" (declare-winner \"b1\" :caused-by (h4 h5)))");
+        let h7 =
+            msg("(signed @auc \"sig\" (lang test (declare-winner \"b1\" :caused-by (h4 h5))))");
         assert!(matches!(
             verify_causal_for_role(
                 &h7,
@@ -1381,9 +1385,10 @@ mod tests {
         put(
             &mut store,
             "hx",
-            &msg("(signed @b4 \"sig\" (reveal @auc 99 :caused-by h3))"),
+            &msg("(signed @b4 \"sig\" (lang test (reveal @auc 99 :caused-by h3)))"),
         );
-        let h7 = msg("(signed @auc \"sig\" (declare-winner \"b1\" :caused-by (h4 h5 hx)))");
+        let h7 =
+            msg("(signed @auc \"sig\" (lang test (declare-winner \"b1\" :caused-by (h4 h5 hx))))");
         assert!(matches!(
             verify_causal_for_role(
                 &h7,
@@ -1429,7 +1434,8 @@ mod tests {
                 "{h} should be Valid"
             );
         }
-        let h7 = msg("(signed @auc \"sig\" (declare-winner \"b3\" :caused-by (h4 h5 h6)))");
+        let h7 =
+            msg("(signed @auc \"sig\" (lang test (declare-winner \"b3\" :caused-by (h4 h5 h6))))");
         assert_eq!(
             verify_causal_for_role(
                 &h7,
@@ -1512,7 +1518,7 @@ mod tests {
                 &mut store,
                 &hc,
                 &msg(&alloc::format!(
-                    "(signed {b} \"sig\" (commit @auc \"c\" :caused-by h0))"
+                    "(signed {b} \"sig\" (lang test (commit @auc \"c\" :caused-by h0)))"
                 )),
             );
             let hr = alloc::format!("h{}", i + 4);
@@ -1528,7 +1534,8 @@ mod tests {
                 .unwrap();
         }
 
-        let h7 = msg("(signed @auc \"sig\" (declare-winner \"b3\" :caused-by (h4 h5 h6)))");
+        let h7 =
+            msg("(signed @auc \"sig\" (lang test (declare-winner \"b3\" :caused-by (h4 h5 h6))))");
 
         // Safety level (REQ-702): the R5 type check over the fan-in
         // resolves from the envelopes' authenticated types.
@@ -1565,7 +1572,7 @@ mod tests {
                 &mut store,
                 &alloc::format!("h{}", i + 4),
                 &msg(&alloc::format!(
-                    "(signed {b} \"sig\" (reveal @auc 42 :caused-by h{}))",
+                    "(signed {b} \"sig\" (lang test (reveal @auc 42 :caused-by h{})))",
                     i + 1
                 )),
             );

@@ -66,17 +66,51 @@ mod tests {
 
     #[test]
     fn parse_custom_performative() {
-        let msg = list(vec![sym("propose-step"), sym("s1"), sym("pickup")]);
+        let inner = list(vec![sym("propose-step"), sym("s1"), sym("pickup")]);
+        assert!(parse_message(&inner).is_err());
+        let msg = list(vec![sym("lang"), sym("cbcl-planning"), inner]);
         let m = parse_message(&msg).unwrap();
-        assert_eq!(m.message_type(), MessageType::Simple);
+        assert_eq!(m.message_type(), MessageType::Dialect);
         assert_eq!(
-            m.performative(),
+            m.innermost_simple().unwrap().performative(),
             Some(&Performative::Custom(String::from("propose-step")))
         );
         // s1 is content, pickup is param
-        assert_eq!(m.content(), Some(&sym("s1")));
-        if let Message::Simple { params, .. } = &m {
+        assert_eq!(m.innermost_simple().unwrap().content(), Some(&sym("s1")));
+        if let Some(Message::Simple { params, .. }) = m.inner_message() {
             assert_eq!(params.len(), 1);
+        }
+    }
+
+    #[test]
+    fn custom_performatives_require_lang_through_wrappers() {
+        for input in [
+            "(ship parcel)",
+            "(signed signature (ship parcel))",
+            "(with-limits () (signed signature (ship parcel)))",
+            "(envelope :from @alice (ship parcel))",
+        ] {
+            let sexpr = crate::parse(input).unwrap();
+            assert!(parse_message(&sexpr).is_err(), "must reject {input}");
+            assert!(Message::try_from(&sexpr).is_err());
+        }
+        for input in [
+            "(lang logistics (ship parcel))",
+            "(lang logistics (signed signature (ship parcel)))",
+            "(signed signature (lang logistics (ship parcel)))",
+            "(lang outer (with-limits () (lang logistics (ship parcel))))",
+        ] {
+            let sexpr = crate::parse(input).unwrap();
+            let msg = parse_message(&sexpr).expect(input);
+            assert_eq!(
+                msg.innermost_simple()
+                    .unwrap()
+                    .performative()
+                    .unwrap()
+                    .name(),
+                "ship"
+            );
+            assert_eq!(parse_message(&SExpr::from(&msg)).unwrap(), msg);
         }
     }
 
@@ -168,15 +202,15 @@ mod tests {
 
     #[test]
     fn parse_from_text() {
-        let input = "(share-conditional pickup box-location box-in-hand)";
+        let input = "(lang cbcl-planning (share-conditional pickup box-location box-in-hand))";
         let sexpr = crate::parser::parse(input).unwrap();
         let m = parse_message(&sexpr).unwrap();
         assert_eq!(
-            m.performative(),
+            m.innermost_simple().unwrap().performative(),
             Some(&Performative::Custom(String::from("share-conditional")))
         );
         // pickup is content, box-location and box-in-hand are params
-        if let Message::Simple { params, .. } = &m {
+        if let Some(Message::Simple { params, .. }) = m.inner_message() {
             assert_eq!(params.len(), 2);
         }
     }
@@ -184,24 +218,25 @@ mod tests {
     #[test]
     fn parse_test_vector_messages() {
         // dial-msg-001
-        let input = "(share-conditional pickup box-location box-in-hand)";
+        let input = "(lang cbcl-planning (share-conditional pickup box-location box-in-hand))";
         let sexpr = crate::parser::parse(input).unwrap();
         let m = parse_message(&sexpr).unwrap();
         assert_eq!(
-            m.performative(),
+            m.innermost_simple().unwrap().performative(),
             Some(&Performative::Custom("share-conditional".into()))
         );
 
         // dial-msg-003
-        let input = "(plant \"field-test\" \"corn\" \"30000\" \"2-in\" \"30-in\")";
+        let input =
+            "(lang agriculture (plant \"field-test\" \"corn\" \"30000\" \"2-in\" \"30-in\"))";
         let sexpr = crate::parser::parse(input).unwrap();
         let m = parse_message(&sexpr).unwrap();
         assert_eq!(
-            m.performative(),
+            m.innermost_simple().unwrap().performative(),
             Some(&Performative::Custom("plant".into()))
         );
         // "field-test" is content, rest are params
-        if let Message::Simple { params, .. } = &m {
+        if let Some(Message::Simple { params, .. }) = m.inner_message() {
             assert_eq!(params.len(), 4);
         }
     }

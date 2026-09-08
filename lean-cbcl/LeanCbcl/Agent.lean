@@ -50,9 +50,38 @@ theorem Agent.new_wellFormed (id : String) : (Agent.new id).wellFormed := by
   intro d hd
   exact absurd hd (List.not_mem_nil)
 
-/-- Look up which dialect provides a performative. -/
-def Agent.findPerformativeDialect (a : Agent) (name : String) : Option Dialect :=
-  a.dialects.reverse.find? (·.definesPerformative name)
+/-- The base dialect is the only definer used for core dispatch (REQ-033). -/
+def Agent.baseDefinerOf (a : Agent) (name : String) : Option Dialect :=
+  a.dialects.head?.filter (·.definesPerformative name)
+
+/-- Resolve against the base dialect for core names, or the dialect already
+    selected by the enclosing lang wrapper for custom names. An absent scope
+    always rejects a custom name; there is no installed-set fallback. -/
+def Agent.resolvePerformative (a : Agent) (name : String)
+    (scope : Option Dialect) : Option Dialect :=
+  if isCorePerformativeName name then a.baseDefinerOf name
+  else scope.filter (·.definesPerformative name)
+
+/-- Custom names without a lang scope never resolve. -/
+theorem resolvePerformative_unscoped_custom (a : Agent) (name : String)
+    (h : isCorePerformativeName name = false) :
+    a.resolvePerformative name none = none := by
+  simp [Agent.resolvePerformative, h]
+
+/-- Once the wrapper selects a dialect, custom dispatch is independent of
+    all other installed dialects, including their installation order. -/
+theorem resolvePerformative_scoped_custom (a b : Agent) (name : String)
+    (scope : Option Dialect) (h : isCorePerformativeName name = false) :
+    a.resolvePerformative name scope = b.resolvePerformative name scope := by
+  simp [Agent.resolvePerformative, h]
+
+/-- A selected dialect that does not define the custom name cannot fall back
+    to another installed dialect. -/
+theorem resolvePerformative_no_fallback (a : Agent) (name : String) (d : Dialect)
+    (hc : isCorePerformativeName name = false)
+    (hd : d.definesPerformative name = false) :
+    a.resolvePerformative name (some d) = none := by
+  simp [Agent.resolvePerformative, hc, hd]
 
 /-- Install a dialect into the agent's dialect list. -/
 def Agent.installDialect (a : Agent) (d : Dialect) : Agent :=

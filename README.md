@@ -21,7 +21,7 @@ Prerequisites: Rust 1.75+ (the workspace toolchain is pinned in `rust-toolchain.
 git clone https://codeberg.org/anuna/cbcl-rs
 cd cbcl-rs
 
-# Run tests (1034 tests across the workspace)
+# Run tests (1356 passing tests across 32 suites; 19 ignored)
 cargo test --workspace
 
 # Parse a message
@@ -113,7 +113,7 @@ Full theoretical framework and proofs are in the LangSec '26 paper, available as
 
 ## Formal verification
 
-The `lean-cbcl/` directory contains a Lean 4 formalisation that machine-checks the core safety properties. Zero sorries, standard axioms only (`propext`, `Classical.choice`, `Quot.sound`), 500+ declarations across 32 files. R1–R5 checkers are verified directly against their contracts; for R6 the mechanisation covers the *semantic* guarantees the checks purchase — the endpoint-projection correspondence, projectability ≡ local verifiability, the splicing/type-opacity analysis, the temporal bridge, and DCFL preservation (role syntax adds no grammar; protocol trace languages are regular, and projection adds no recogniser) — while the R6 table checks themselves are exercised by property tests mirroring the Lean model ([SPEC-014](specs/SPEC-014-role-layer-endpoint-projection.md)).
+The `lean-cbcl/` directory contains a Lean 4 formalisation that machine-checks the core safety properties. Zero sorries, standard axioms only (`propext`, `Classical.choice`, `Quot.sound`). R1–R5 checkers are verified directly against their contracts; for R6 the mechanisation covers the *semantic* guarantees the checks purchase — the endpoint-projection correspondence, projectability ≡ local verifiability, the splicing/type-opacity analysis, the temporal bridge, and DCFL preservation (role syntax adds no grammar; protocol trace languages are regular, and projection adds no recogniser) — while the R6 table checks themselves are exercised by property tests mirroring the Lean model ([SPEC-014](specs/SPEC-014-role-layer-endpoint-projection.md)).
 
 | Rust module | Lean file | What is proved |
 |---|---|---|
@@ -131,6 +131,7 @@ The `lean-cbcl/` directory contains a Lean 4 formalisation that machine-checks t
 | `protocol.rs` (verify_causal) | `Bridge.lean` | Conformant executions — monotone delivery schedules accumulating a closed configuration — embed into the correspondence (`temporal_bridge`) |
 | `role.rs`, `projection.rs`, `protocol.rs` (verify_causal) | `R6DCFLPreservation.lean` | DCFL preservation at R6. Syntax half (typechecking-level): the role-annotation surface forms inhabit the existing S-expression grammar. Trace half, with `verify_causal`'s clause semantics (disjunctive `Single`/`Any` pool, first-`(all …)` fan-in, undeclared performatives unconstrained): both the causal-order trace language (`causalTrace_regular`) and the deployed order-free acceptance — valid-sticky verdicts, every message eventually `Valid` (`storeTrace_regular`) — are regular, hence trace-DCFL, with `causalTrace_storeTrace` embedding the former in the latter and the projected protocol recognised by the same builder |
 | `protocol.rs` (verdict) | `Lattice/NotALattice.lean` | The three-valued verdict is a bounded meet-semilattice under the knowledge order (GLB is the consensus meet, `Valid ⊓ Violation = Unknown`) and a bisemilattice for the deployed eager operators (absorption fails) — provably **not** a lattice (`not_a_lattice`, `no_join_of_terminals`, `kmeet_is_glb`, `eager_absorption_fails`) |
+| `dialect.rs` (`base_definer_of`), `evaluator.rs` | `Agent.lean` | Custom names require a lang scope (`resolvePerformative_unscoped_custom`); scoped resolution is independent of other installed dialects (`resolvePerformative_scoped_custom`) and has no fallback (`resolvePerformative_no_fallback`) |
 | `template.rs` | `TemplateExpansion.lean` | Expansion terminates within declared resource bounds |
 | `det_parser.rs` | `DetParser.lean` | DPDA agrees with boolean decider (`headCheck_agrees`, `langCheck_agrees`) |
 | `msg_tag.rs` | `DeterministicUnion.lean` | **`decidable_preserved`**, **`dcfl_preserved`**: installing a fresh-named dialect preserves DCFL membership (under `namesUnique`) |
@@ -149,6 +150,7 @@ The `lean-cbcl/` directory contains a Lean 4 formalisation that machine-checks t
 - **`causalTrace_regular`** / **`storeTrace_regular`**: the paper's DCFL-preservation proposition, mechanised with the deployed verifier's clause semantics (`verify_causal`'s disjunctive `Single`/`Any` pool and first-`(all …)` fan-in). Two trace languages, both recognised exactly by explicit finite automata over the canonical seen-set (the verifier's unbounded consumed-name list provably collapses onto sublists of the protocol's relevant names): the causal-order arrival language, and the order-free *store* language — which is the language the deployed valid-sticky verdicts actually accept (out-of-order arrival is `Unknown` then `Valid`, so acceptance is "every message eventually `Valid`"). `causalTrace_storeTrace` embeds the first in the second; regular ⊆ DCFL is formal (the automaton wrapped as a stack-untouched DPDA); and the projected protocol's recogniser is the same builder applied to the projected steps (`projection_adds_no_recogniser` — definitional by construction; the substantive local statement is the regularity instance). Role-local verification needs no machine class beyond what the global protocol already has.
 - **`not_a_lattice`** / **`kmeet_is_glb`** / **`eager_absorption_fails`**: the three-valued verdict is a bounded meet-semilattice under the knowledge order — its GLB is the consensus meet (`Valid ⊓ Violation = Unknown` under that order) — while the deployed eager operators form a bisemilattice in which absorption fails. The two terminal verdicts have no join, so the verdict is provably **not** a lattice; the store, separately, is.
 - **`openings_suffice`**: the safety verdict factors through predecessor presence and predecessor *types* only (`safety_reads_types_only`), so a delivery carrying exactly a predecessor's type yields the identical verdict to holding the full message. This is what licenses the typed field-opening (Merkle-over-fields, `typed_addr.rs`): selective disclosure is sufficient for role-local safety without revealing the rest of the message. (The Merkle construction itself lives in Rust; the Lean model proves the factoring, not the hashing.)
+- **`resolvePerformative_scoped_custom`**: a custom performative resolves only against the dialect selected by its `(lang …)` wrapper. Other installed dialects cannot redirect it. `resolvePerformative_unscoped_custom` rejects custom names without a scope, and `resolvePerformative_no_fallback` rejects names absent from the selected dialect.
 - **`pipeline_success_grammar`**: if the verified pipeline accepts a string, the result satisfies the `ValidMessageGrammar` relation.
 
 Differential tests (`crates/cbcl-parser/tests/differential.rs`) run both implementations on the same test vectors and assert identical accept/reject verdicts.
@@ -159,7 +161,7 @@ Strict **purity boundary**: the core crates are deterministic, `no_std + alloc`,
 
 ## Testing
 
-- **Unit tests**: 725 in cbcl-core, 178 in cbcl-parser, 62 in cbcl-wasm, 51 in cbcl-erl, 14 in cbcl-ffi, 4 in cbcl-cli
+- **Unit tests**: 862 in cbcl-core, 155 in cbcl-parser, 62 in cbcl-wasm, 36 in cbcl-erl (19 further ignored), 14 in cbcl-ffi; 4 CLI integration tests
 - **Property tests**: 37 proptest cases (31 in cbcl-core, 6 in cbcl-parser) covering USDD verification properties
 - **Differential tests**: 21 integration tests comparing Rust vs Lean on shared test vectors
 - **Eventual-consistency / NFR tests**: 12 + 4 integration tests in cbcl-core

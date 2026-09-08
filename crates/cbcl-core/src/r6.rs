@@ -1162,7 +1162,10 @@ mod tests {
 
     #[test]
     fn clean_dialect_derives_an_empty_table() {
-        assert_eq!(derive_envelope_routes(&oauth(true)), EnvelopeRoutes::default());
+        assert_eq!(
+            derive_envelope_routes(&oauth(true)),
+            EnvelopeRoutes::default()
+        );
     }
 
     #[test]

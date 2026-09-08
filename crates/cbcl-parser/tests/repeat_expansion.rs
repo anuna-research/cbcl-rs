@@ -128,9 +128,12 @@ fn undefined_base_performative_is_flagged_once_by_r5() {
     let err = install(src).unwrap_err();
     match err {
         DialectInstallError::R5Violation { shape_errors, .. } => {
-            let about_y: Vec<&String> =
-                shape_errors.iter().filter(|e| e.contains("'y'")).collect();
-            assert_eq!(about_y.len(), 1, "one violation for base 'y': {shape_errors:?}");
+            let about_y: Vec<&String> = shape_errors.iter().filter(|e| e.contains("'y'")).collect();
+            assert_eq!(
+                about_y.len(),
+                1,
+                "one violation for base 'y': {shape_errors:?}"
+            );
         }
         other => panic!("expected R5Violation, got: {other}"),
     }
@@ -281,13 +284,8 @@ fn body_ending_in_any_seams_over_the_alternatives_copy_instances() {
     let sexpr = parse("(protocol (then begin (repeat 2 x (any a b)) done))").unwrap();
     let proto = parse_protocol(&sexpr).unwrap();
 
-    let any_copy = |i: u64| {
-        NodeRef::Any(
-            [format!("a#{i}"), format!("b#{i}")]
-                .into_iter()
-                .collect(),
-        )
-    };
+    let any_copy =
+        |i: u64| NodeRef::Any([format!("a#{i}"), format!("b#{i}")].into_iter().collect());
     // Copy 1's choice is the predecessor of copy 2's first step (the seam),
     // and copy 2's choice is the predecessor of the following step.
     assert_eq!(proto.steps["x#2"].predecessors, vec![any_copy(1)]);
@@ -302,13 +300,8 @@ fn body_ending_in_all_seams_on_the_fan_ins_copy_instance() {
     let sexpr = parse("(protocol (then begin (repeat 2 x (all p q)) done))").unwrap();
     let proto = parse_protocol(&sexpr).unwrap();
 
-    let all_copy = |i: u64| {
-        NodeRef::All(
-            [format!("p#{i}"), format!("q#{i}")]
-                .into_iter()
-                .collect(),
-        )
-    };
+    let all_copy =
+        |i: u64| NodeRef::All([format!("p#{i}"), format!("q#{i}")].into_iter().collect());
     assert_eq!(proto.steps["x#2"].predecessors, vec![all_copy(1)]);
     assert_eq!(proto.steps["done"].predecessors, vec![all_copy(2)]);
 }

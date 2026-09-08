@@ -1,21 +1,31 @@
 (* ================================================================== *)
-(* CBCL — Conversational Business Communication Language               *)
+(* CBCL — Common Business Communication Language                       *)
 (* EBNF Grammar (extracted from cbcl-rs canonical implementation)      *)
 (*                                                                     *)
 (* Parser class: DCFL (Deterministic Context-Free Language)            *)
 (* Time complexity: O(n), no backtracking, fuel-bounded recursion      *)
-(* Reference: crates/cbcl-parser/src/parser.rs                         *)
-(*            crates/cbcl-core/src/message.rs (TryFrom<&SExpr>)        *)
-(*            crates/cbcl-parser/src/dialect_parser.rs                  *)
-(*            lean-cbcl/LeanCbcl/Parser.lean (formal model)            *)
+(*                                                                     *)
+(* Reference: crates/cbcl-parser/src/parser.rs          (layer 1)      *)
+(*            crates/cbcl-core/src/message.rs           (layer 2)      *)
+(*            crates/cbcl-parser/src/dialect_parser.rs  (layer 3)      *)
+(*            crates/cbcl-parser/src/protocol_parser.rs (contracts)    *)
+(*            crates/cbcl-parser/src/shape_parser.rs    (contracts)    *)
+(*            lean-cbcl/LeanCbcl/Parser.lean            (formal model) *)
+(*                                                                     *)
+(* The normative prose specification is IETF/draft-oconnor-cbcl.md.    *)
+(* Where this file and the draft disagree, the draft is authoritative; *)
+(* where either disagrees with the sources above, they are.            *)
 (* ================================================================== *)
 
 
 (* ================================================================== *)
 (* Layer 1: S-expression syntax                                        *)
+(*                                                                     *)
+(* Input MUST be well-formed UTF-8. A complete input is exactly one    *)
+(* S-expression; trailing non-whitespace content is an error.          *)
 (* ================================================================== *)
 
-sexpr           = ws , expression , ws ;
+input           = ws , expression , ws ;
 
 expression      = list
                 | string
@@ -30,19 +40,29 @@ list            = "(" , { ws , expression } , ws , ")" ;
 
 symbol          = symbol-char , { symbol-char } ;
 
+(* NOTE: ':' , ';' , '#' , '&' , '[' , ']' and '\' are NOT symbol      *)
+(* characters. A content hash "sha256:<hex64>" therefore cannot be a   *)
+(* symbol and must be written as a string. See bugs/BUG-006.           *)
 symbol-char     = letter | digit
                 | "_" | "-" | "." | "/" | "!" | "?"
                 | "+" | "*" | "<" | ">" | "=" | "@" ;
 
+(* A token starting with a digit, or with '-' followed by a digit, is  *)
+(* lexed as a maximal run of [-0-9] and must then parse as i64.        *)
+(* So "1-2" and "--3" are errors, not symbols; "-", "-a", "->" are     *)
+(* symbols, because '-' is not followed by a digit.                    *)
 number          = [ "-" ] , digit , { digit } ;              (* i64 *)
 
 string          = '"' , { string-char | escape } , '"' ;
 
-string-char     = ? any Unicode character except '"' and '\' ? ;
+string-char     = ? any Unicode scalar value except '"' and '\' ? ;
 
+(* Any other escape is a typed rejection, never preserved literally. *)
 escape          = "\" , ( '"' | "\" | "n" | "r" | "t" ) ;
 
-boolean         = "#t" | "#f" ;
+boolean         = ( "#t" | "#f" ) , ? followed by a delimiter ? ;
+                  (* the delimiter check is specified but not yet
+                     enforced by the reference parser — see BUG-005 *)
 
 keyword         = ":" , symbol-char , { symbol-char } ;
 
@@ -50,9 +70,10 @@ keyword         = ":" , symbol-char , { symbol-char } ;
 
 ws              = { ws-char | comment } ;
 
-ws-char         = " " | "\t" | "\n" | "\r" ;
+ws-char         = " " | "\t" | "\n" | "\r" | "\f" ;
 
-comment         = ";" , { ? any character except '\n' ? } , "\n" ;
+comment         = ";" , { ? any character except '\n' ? } , [ "\n" ] ;
+                  (* end of input also terminates a comment *)
 
 letter          = ? ASCII A-Z, a-z ? ;
 
@@ -63,12 +84,16 @@ digit           = ? ASCII 0-9 ? ;
 (* Layer 2: CBCL message grammar                                       *)
 (*                                                                     *)
 (* Dispatch is deterministic by head symbol (msgTag in Lean):          *)
-(*   "meta"        → meta-message                                      *)
-(*   "lang"        → dialect-message      (HeadAndSecond tag)          *)
-(*   "envelope"    → wrapped-message                                   *)
-(*   "signed"      → wrapped-message                                   *)
-(*   "with-limits" → wrapped-message                                   *)
-(*   otherwise     → simple-message                                    *)
+(*   "meta"        -> meta-message                                     *)
+(*   "lang"        -> dialect-message      (HeadAndSecond tag)         *)
+(*   "envelope"    -> wrapped-message                                  *)
+(*   "signed"      -> wrapped-message                                  *)
+(*   "with-limits" -> wrapped-message                                  *)
+(*   "with-roles"  -> wrapped-message                                  *)
+(*   otherwise     -> simple-message                                   *)
+(*                                                                     *)
+(* The head MUST be a symbol; an empty list or a non-symbol head is    *)
+(* rejected.                                                           *)
 (* ================================================================== *)
 
 message         = simple-message
@@ -78,71 +103,122 @@ message         = simple-message
 
 
 (* -- Simple message ------------------------------------------------ *)
-(* (performative [@recipient] content [:key value ...])                *)
+(* (performative [recipients] [content] [:key value ...])              *)
 
-simple-message  = "(" , performative , [ ws , recipient ]
-                      , ws , content
-                      , { ws , param }
-                      , ")" ;
+simple-message  = "(" , core-performative , message-tail , ")" ;
 
-performative    = core-performative | custom-performative ;
+custom-message  = "(" , custom-performative , message-tail , ")" ;
+
+message-tail    = [ ws , recipients ]
+                      , [ ws , content ]
+                      , { ws , param } ;
+
+(* Only the scoped productions admit custom-message. Wrappers carry  *)
+(* that context through; a nested lang selects its own dialect.      *)
+scoped-message  = simple-message | custom-message | meta-message
+                | dialect-message | scoped-wrapped-message ;
 
 core-performative
                 = "tell" | "ask" | "reply" | "error"
                 | "ok"   | "cancel" | "hello" | "bye" ;
 
 custom-performative
-                = symbol ;           (* any symbol not in core set *)
+                = symbol ;    (* excludes reserved heads and core names;
+                                 requires an enclosing (lang ...) *)
 
-recipient       = "@" , symbol-char , { symbol-char } ;
-                  (* parsed as a symbol starting with '@' *)
+(* Recognised only in the position immediately after the performative. *)
+recipients      = address | address-group ;
+
+address         = "@" , symbol-char , { symbol-char } ;
+
+address-group   = "(" , address , { ws , address } , ")" ;   (* non-empty;
+                     serialised in ascending lexicographic order *)
 
 content         = expression ;
+                  (* MUST NOT be an address or an address-group *)
 
-param           = keyword-param | expression ;
+param           = keyword-param | positional-param ;
 
-keyword-param   = keyword , ws , expression ;
-                  (* :thread and :sender are extracted; others retained *)
+positional-param = expression ;
+                  (* MUST NOT be an address or an address-group *)
+
+keyword-param   = reserved-param | user-param ;
+
+user-param      = keyword , ws , expression ;
+
+(* -- Reserved keyword parameters ----------------------------------- *)
+(* Lifted out of the parameter list into structured message fields.    *)
+
+reserved-param  = ":thread" , ws , ( string | symbol )
+                | ":sender" , ws , ( string | symbol )
+                | ":caused-by" , ws , caused-by-value ;
+
+caused-by-value = begin-ref | hash-ref | hash-list ;
+
+begin-ref       = "begin" | '"begin"' ;
+
+hash-ref        = string | symbol ;    (* a content address; in practice
+                                          a string, since ':' is not a
+                                          symbol-char *)
+
+hash-list       = "(" , hash-ref , { ws , hash-ref } , ")" ;  (* non-empty;
+                     stored in ascending lexicographic order *)
 
 
 (* -- Meta message -------------------------------------------------- *)
-(* (meta <operation>)                                                  *)
+(* (meta <operation>) — trailing elements are currently ignored        *)
 
-meta-message    = "(" , "meta" , ws , meta-operation , ")" ;
+meta-message    = "(" , "meta" , ws , meta-operation
+                      , { ws , expression } , ")" ;
 
-meta-operation  = meta-query | meta-define | expression ;
+meta-operation  = meta-query | meta-teach | dialect-definition
+                | expression ;
 
 meta-query      = "(" , "query" , ws , expression , ")" ;
 
-meta-define     = dialect-definition ;
+meta-teach      = "(" , "teach" , ws , address , ws , expression , ")" ;
 
 
 (* -- Dialect-scoped message ---------------------------------------- *)
 (* (lang <dialect-name> <inner-message>)                               *)
 
 dialect-message = "(" , "lang" , ws , dialect-name
-                      , ws , message , ")" ;
+                      , ws , scoped-message
+                      , { ws , expression } , ")" ;
 
 dialect-name    = symbol ;
 
 
 (* -- Wrapped message ----------------------------------------------- *)
 (* (wrapper-type <params...> <inner-message>)                          *)
+(* The inner message is the LAST list-valued element; everything       *)
+(* before it is a wrapper parameter. Atoms after it are ignored.       *)
 
 wrapped-message = "(" , wrapper-type
                       , { ws , wrapper-param }
-                      , ws , message , ")" ;
+                      , ws , message
+                      , { ws , atom } , ")" ;
 
-wrapper-type    = "envelope" | "signed" | "with-limits" ;
+scoped-wrapped-message = "(" , wrapper-type
+                      , { ws , wrapper-param }
+                      , ws , scoped-message
+                      , { ws , atom } , ")" ;
+
+wrapper-type    = "envelope" | "signed" | "with-limits" | "with-roles" ;
 
 wrapper-param   = expression ;
-                  (* everything before the last list element *)
+
+(* with-roles carries the thread cast (SPEC-014 CON-601, REQ-628):     *)
+(*   (with-roles (<binding>+) [:dialect <pin>] <inner-message>)        *)
+(*   binding = "(" role-name , key , { key } , ")"                     *)
+(* A singleton role takes exactly one key; an indexed role one or more.*)
 
 
 (* ================================================================== *)
 (* Layer 3: Dialect definition grammar                                 *)
 (*                                                                     *)
-(* Entered via (meta (define ...)) or standalone (define ...) form.     *)
+(* Entered via (meta (define ...)), (meta (teach @peer ...)), or a      *)
+(* standalone (define ...) form.                                       *)
 (* Reference: crates/cbcl-parser/src/dialect_parser.rs                 *)
 (* ================================================================== *)
 
@@ -155,28 +231,62 @@ dialect-definition
 
 extends-list    = "(" , { ws , symbol } , ")" ;
 
-author          = symbol | string ;
-                  (* conventionally "@name" *)
+author          = symbol | string ;      (* conventionally "@name" *)
 
+(* An unrecognised keyword clause is a typed rejection, never ignored. *)
 dialect-clause  = extend-clause
+                | protocol-clause
+                | shape-clause
                 | resource-clause
                 | examples-clause
                 | signature-clause
                 | hash-clause
-                | protocol-clause ;
+                | sig-algorithm-clause
+                | roles-clause
+                | causal-locality-clause ;
 
 (* -- Performative extension ---------------------------------------- *)
+(* Exactly one template form. :from/:to may appear before or after it, *)
+(* and must both be present or both absent.                            *)
 
-extend-clause   = "(" , "extend" , ws , symbol
+extend-clause   = "(" , "extend" , ws , perf-name
                       , ws , param-list
-                      , ws , template
+                      , ( ws , extend-item ) , { ws , extend-item }
                       , ")" ;
 
-param-list      = "(" , { ws , expression } , ")" ;
+extend-item     = role-from | role-to | template ;
+
+role-from       = ":from" , ws , role-name ;
+role-to         = ":to"   , ws , ( role-name | role-set ) ;
+role-set        = "(" , { ws , role-name } , ")" ;   (* may be empty *)
+
+perf-name       = symbol ;
+role-name       = symbol ;
+
+param-list      = "(" , { ws , symbol } , ")" ;
+                  (* bound POSITIONALLY; there is no &key marker —
+                     '&' is not a symbol-char. An unbound parameter
+                     survives into the expansion as a bare symbol. *)
 
 template        = expression ;
 
+(* -- Template language (crates/cbcl-core/src/template.rs) ----------- *)
+(* Special forms are recognised ONLY in head position of the template  *)
+(* itself, or as elements of a sequence template. Nested occurrences   *)
+(* are copied verbatim.                                                *)
+(*                                                                     *)
+(*   (literal <expr>)                                                  *)
+(*   (cond (<test> <body>) ... (else <body>))                          *)
+(*   <sequence>  = a list whose every element is a literal/cond form   *)
+(*   otherwise   = plain substitution of parameter symbols             *)
+(*                                                                     *)
+(*   test = "(" "=" var value ")"                                      *)
+(*        | "(" "member" var "(" value* ")" ")"                        *)
+(*        | "(" "type?" var type-name ")"                              *)
+
 (* -- Resource requirements ----------------------------------------- *)
+(* System limits: 1..64 depth, 1..8192 expansion, 1..1000 ms.          *)
+(* Defaults when omitted: 16 / 1024 / 50.                              *)
 
 resource-clause = "(" , ":resource-requirements" , ws , resource-alist , ")" ;
 
@@ -192,18 +302,82 @@ resource-key    = "max-depth"
 
 examples-clause = "(" , ":examples" , { ws , expression } , ")" ;
 
-signature-clause= "(" , ( ":signature" | ":signed" ) , ws , expression , ")" ;
+signature-clause= "(" , ( ":signature" | ":signed" ) , ws ,
+                        ( string | symbol ) , ")" ;
 
 hash-clause     = "(" , ":hash" , ws , ( string | symbol ) , ")" ;
 
-protocol-clause = "(" , ":protocol" , ws , ( string | symbol ) , ")" ;
+(* NOTE: the KEYWORD form names the SIGNATURE ALGORITHM, e.g.          *)
+(* (:protocol "ed25519"). It is unrelated to the SYMBOL-headed         *)
+(* (protocol (then ...)) causal-protocol clause below. Dispatch is on  *)
+(* whether the clause head is a keyword or a symbol.                   *)
+sig-algorithm-clause
+                = "(" , ":protocol" , ws , ( string | symbol ) , ")" ;
+
+(* -- Role layer (SPEC-014, R6) -------------------------------------- *)
+
+roles-clause    = "(" , ":roles" , ws , role-decl-list , ")" ;
+
+role-decl-list  = "(" , role-decl , { ws , role-decl } , ")" ;
+
+role-decl       = role-name                       (* singleton role *)
+                | "(" , "*" , ws , role-name , ")" ;   (* indexed role *)
+
+causal-locality-clause
+                = "(" , ":causal-locality" , ws ,
+                        ( "derive" | "reject" ) , ")" ;   (* default: reject *)
 
 
 (* ================================================================== *)
-(* Defaults                                                            *)
-(*                                                                     *)
-(* When omitted from a dialect definition:                             *)
-(*   max-depth           = 16                                          *)
-(*   max-expansion-size  = 1024                                        *)
-(*   verification-time   = 50 (ms)                                     *)
+(* Contracts (SPEC-002, R5)                                            *)
 (* ================================================================== *)
+
+(* -- Causal protocol ------------------------------------------------ *)
+(* A DAG over performative types rooted at `begin`. (then a b c)       *)
+(* desugars to the pairwise edges a->b, b->c.                          *)
+
+protocol-clause = "(" , "protocol" , ( ws , then-clause ) ,
+                        { ws , then-clause } , ")" ;
+
+then-clause     = "(" , "then" , ( ws , protocol-step ) ,
+                        ( ws , protocol-step ) ,
+                        { ws , protocol-step } , ")" ;
+
+protocol-step   = node-ref | repeat-form ;
+
+(* any/all take TWO OR MORE members. *)
+node-ref        = perf-name
+                | "(" , "any" , ws , perf-name ,
+                        ( ws , perf-name ) , { ws , perf-name } , ")"
+                | "(" , "all" , ws , perf-name ,
+                        ( ws , perf-name ) , { ws , perf-name } , ")" ;
+
+(* Macro-expanded once, at parse, into k copies of the body. Copy i of
+   step x is named "x#i"; '#' is outside symbol-char, so a synthesised
+   name can never collide with a user-declared performative. *)
+repeat-form     = "(" , "repeat" , ws , positive-number ,
+                        ( ws , protocol-step ) ,
+                        { ws , protocol-step } , ")" ;
+
+positive-number = digit , { digit } ;      (* must be > 0 *)
+
+(* -- Shape constraints ---------------------------------------------- *)
+(* Checked against the EXPANDED message, non-recursively.              *)
+
+shape-clause    = "(" , "shape" , ws , perf-name ,
+                        ( ws , shape-rule ) , { ws , shape-rule } , ")" ;
+
+shape-rule      = require-rule | optional-rule | depth-rule ;
+
+require-rule    = "(" , "require" , ws , keyword , [ ws , type-name ] ,
+                        { ws , shape-rule } , ")" ;
+
+optional-rule   = "(" , "optional" , ws , keyword , [ ws , type-name ] ,
+                        [ ws , default-value ] , { ws , shape-rule } , ")" ;
+
+depth-rule      = "(" , "max-depth" , ws , number , ")" ;
+
+type-name       = "string" | "number" | "bool"
+                | "symbol" | "keyword" | "list" ;
+
+default-value   = expression ;

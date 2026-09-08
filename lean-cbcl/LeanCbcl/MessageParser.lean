@@ -37,7 +37,7 @@ def toPerformative (s : String) : Performative :=
 
 /-- Classify and parse a CBCL message from an S-expression.
     Mirrors `parse-cbcl-message` from cbcl.scm lines 288-330. -/
-def parseMessage : SExpr → Option Message
+def parseMessageShape : SExpr → Option Message
   -- Simple message: (performative args...)
   | .list (.atom (.symbol perf) :: args) =>
     if perf == "meta" then
@@ -90,42 +90,30 @@ def validateMessage (msg : Message) : List String :=
 def Message.isValid (msg : Message) : Bool :=
   (validateMessage msg).isEmpty
 
-/-- Full pipeline: string → validated CBCL message. -/
-def parseAndValidate (input : String) : Except String Message :=
-  match parse input with
-  | .error msg => .error s!"parse error: {msg}"
-  | .ok sexpr =>
-    match parseMessage sexpr with
-    | none => .error "not a valid CBCL message structure"
-    | some msg =>
-      let errors := validateMessage msg
-      if errors.isEmpty then .ok msg
-      else .error s!"validation errors: {errors}"
-
 -- ============================================================
 -- Message grammar specification
 -- ============================================================
 
 /-- The CBCL message grammar as a relation between S-expressions and Messages.
-    An SExpr matches the grammar if parseMessage would produce the corresponding Message. -/
-inductive ValidMessageGrammar : SExpr → Message → Prop where
+    An SExpr matches the grammar if parseMessageShape would produce the corresponding Message. -/
+inductive ValidMessageShape : SExpr → Message → Prop where
   | simple : ∀ perf args,
       perf ≠ "meta" → perf ≠ "lang" →
       perf ≠ "envelope" → perf ≠ "signed" → perf ≠ "with-limits" →
-      ValidMessageGrammar
+      ValidMessageShape
         (.list (.atom (.symbol perf) :: args))
         { type := .simple, performative := toPerformative perf, params := args }
   | metaMsg : ∀ args,
-      ValidMessageGrammar
+      ValidMessageShape
         (.list (.atom (.symbol "meta") :: args))
         { type := .metaMsg, performative := .core .tell, params := args }
   | dialect : ∀ dialectName rest,
-      ValidMessageGrammar
+      ValidMessageShape
         (.list (.atom (.symbol "lang") :: dialectName :: rest))
         { type := .dialect, performative := .custom "lang", params := dialectName :: rest }
   | wrapped : ∀ perf args,
       (perf = "envelope" ∨ perf = "signed" ∨ perf = "with-limits") →
-      ValidMessageGrammar
+      ValidMessageShape
         (.list (.atom (.symbol perf) :: args))
         { type := .wrapped, performative := .custom perf, params := args }
 
@@ -133,13 +121,13 @@ inductive ValidMessageGrammar : SExpr → Message → Prop where
 -- Completeness: grammar-valid SExprs are always accepted
 -- ============================================================
 
-/-- Completeness: if an SExpr satisfies the grammar, parseMessage accepts it. -/
-theorem parseMessage_complete (sexpr : SExpr) (msg : Message) :
-    ValidMessageGrammar sexpr msg → parseMessage sexpr = some msg := by
+/-- Completeness: if an SExpr satisfies the grammar, parseMessageShape accepts it. -/
+theorem parseMessageShape_complete (sexpr : SExpr) (msg : Message) :
+    ValidMessageShape sexpr msg → parseMessageShape sexpr = some msg := by
   intro h
   cases h with
   | simple perf args hne_meta hne_lang hne_env hne_signed hne_wl =>
-    simp only [parseMessage]
+    simp only [parseMessageShape]
     have h1 : (perf == "meta") = false := by simp [hne_meta]
     have h2 : (perf == "lang") = false := by simp [hne_lang]
     have h3 : (perf == "envelope") = false := by simp [hne_env]
@@ -147,31 +135,31 @@ theorem parseMessage_complete (sexpr : SExpr) (msg : Message) :
     have h5 : (perf == "with-limits") = false := by simp [hne_wl]
     simp [h1, h2, h3, h4, h5]
   | metaMsg args =>
-    simp [parseMessage]
+    simp [parseMessageShape]
   | dialect dialectName rest =>
-    simp [parseMessage]
+    simp [parseMessageShape]
   | wrapped perf args hwrap =>
-    simp only [parseMessage]
+    simp only [parseMessageShape]
     rcases hwrap with rfl | rfl | rfl <;> simp
 
 -- ============================================================
--- Soundness: parseMessage output always satisfies the grammar
+-- Soundness: parseMessageShape output always satisfies the grammar
 -- ============================================================
 
-/-- Soundness: if parseMessage succeeds, the result satisfies the grammar. -/
-theorem parseMessage_sound (sexpr : SExpr) (msg : Message) :
-    parseMessage sexpr = some msg → ValidMessageGrammar sexpr msg := by
+/-- Soundness: if parseMessageShape succeeds, the result satisfies the grammar. -/
+theorem parseMessageShape_sound (sexpr : SExpr) (msg : Message) :
+    parseMessageShape sexpr = some msg → ValidMessageShape sexpr msg := by
   intro h
   match sexpr with
-  | .atom _ => simp [parseMessage] at h
-  | .list [] => simp [parseMessage] at h
-  | .list (.atom (.num _) :: _) => simp [parseMessage] at h
-  | .list (.atom (.str _) :: _) => simp [parseMessage] at h
-  | .list (.atom (.bool _) :: _) => simp [parseMessage] at h
-  | .list (.atom (.keyword _) :: _) => simp [parseMessage] at h
-  | .list (.list _ :: _) => simp [parseMessage] at h
+  | .atom _ => simp [parseMessageShape] at h
+  | .list [] => simp [parseMessageShape] at h
+  | .list (.atom (.num _) :: _) => simp [parseMessageShape] at h
+  | .list (.atom (.str _) :: _) => simp [parseMessageShape] at h
+  | .list (.atom (.bool _) :: _) => simp [parseMessageShape] at h
+  | .list (.atom (.keyword _) :: _) => simp [parseMessageShape] at h
+  | .list (.list _ :: _) => simp [parseMessageShape] at h
   | .list (.atom (.symbol perf) :: args) =>
-    simp only [parseMessage] at h
+    simp only [parseMessageShape] at h
     by_cases hmeta : perf = "meta"
     · subst hmeta; simp at h; exact h ▸ .metaMsg args
     · by_cases hlang : perf = "lang"
@@ -210,36 +198,36 @@ theorem toPerformative_custom_is_custom (s : String) (h : isCorePerformativeName
     (toPerformative s).isCore = false := by
   simp [toPerformative, h, Performative.isCore]
 
-/-- parseMessage returns none for non-list SExprs. -/
-theorem parseMessage_atom_none (a : Atom) : parseMessage (.atom a) = none := by
-  simp [parseMessage]
+/-- parseMessageShape returns none for non-list SExprs. -/
+theorem parseMessageShape_atom_none (a : Atom) : parseMessageShape (.atom a) = none := by
+  simp [parseMessageShape]
 
-/-- parseMessage returns none for empty lists. -/
-theorem parseMessage_empty_none : parseMessage (.list []) = none := by
-  simp [parseMessage]
+/-- parseMessageShape returns none for empty lists. -/
+theorem parseMessageShape_empty_none : parseMessageShape (.list []) = none := by
+  simp [parseMessageShape]
 
 /-- Parsing a tell message produces a simple message. -/
 theorem parse_tell_is_simple :
-    parseMessage (.list [.atom (.symbol "tell"), .atom (.symbol "alice"), .atom (.symbol "hi")])
+    parseMessageShape (.list [.atom (.symbol "tell"), .atom (.symbol "alice"), .atom (.symbol "hi")])
     = some { type := .simple
            , performative := .core .tell
            , params := [.atom (.symbol "alice"), .atom (.symbol "hi")]
            , thread := none
            , sender := none } := by
-  simp [parseMessage, toPerformative, isCorePerformativeName, corePerformativeNames, List.contains, List.elem]
+  simp [parseMessageShape, toPerformative, isCorePerformativeName, corePerformativeNames, List.contains, List.elem]
 
 /-- Parsing a meta message produces a meta message type. -/
 theorem parse_meta_is_meta :
-    (parseMessage (.list [.atom (.symbol "meta"), .list [.atom (.symbol "define"), .atom (.symbol "my-dialect")]])).isSome = true := by
+    (parseMessageShape (.list [.atom (.symbol "meta"), .list [.atom (.symbol "define"), .atom (.symbol "my-dialect")]])).isSome = true := by
   native_decide
 
-/-- parseMessage preserves the message type invariant: simple messages have simple type. -/
-theorem parseMessage_simple_type (perf : String) (args : List SExpr) (msg : Message)
+/-- parseMessageShape preserves the message type invariant: simple messages have simple type. -/
+theorem parseMessageShape_simple_type (perf : String) (args : List SExpr) (msg : Message)
     (hne_meta : perf ≠ "meta") (hne_lang : perf ≠ "lang")
     (hne_env : perf ≠ "envelope") (hne_signed : perf ≠ "signed") (hne_wl : perf ≠ "with-limits")
-    (h : parseMessage (.list (.atom (.symbol perf) :: args)) = some msg) :
+    (h : parseMessageShape (.list (.atom (.symbol perf) :: args)) = some msg) :
     msg.type = .simple := by
-  have hg := parseMessage_sound _ _ h
+  have hg := parseMessageShape_sound _ _ h
   cases hg with
   | simple _ _ _ _ _ _ _ => rfl
   | metaMsg _ => exact absurd rfl hne_meta
@@ -249,5 +237,58 @@ theorem parseMessage_simple_type (perf : String) (args : List SExpr) (msg : Mess
     · exact absurd rfl hne_env
     · exact absurd rfl hne_signed
     · exact absurd rfl hne_wl
+
+/-- Check lang scope along the message path. Meta payloads are data, and
+    ordinary wrappers preserve scope while lang establishes a new scope.
+    Fuel bounds traversal; the caller supplies more than the tree's size. -/
+def langScoped : Nat → Bool → SExpr → Bool
+  | 0, _, _ => false
+  | fuel + 1, inScope, .list (.atom (.symbol head) :: args) =>
+    if head == "meta" then true
+    else if head == "lang" then
+      match args with
+      | .atom (.symbol _) :: inner :: _ => langScoped fuel true inner
+      | _ => false
+    else if head == "envelope" || head == "signed" ||
+            head == "with-limits" || head == "with-roles" then
+      match args.reverse.find? (fun e => match e with | .list _ => true | _ => false) with
+      | some inner => langScoped fuel inScope inner
+      | none => false
+    else inScope || isCorePerformativeName head
+  | _, _, _ => false
+
+/-- Public recognition requires both the structural grammar and lang scope. -/
+def parseMessage (sexpr : SExpr) : Option Message :=
+  if langScoped (sexpr.size + 1) false sexpr then parseMessageShape sexpr else none
+
+/-- The accepted grammar includes the mandatory custom-performative scope. -/
+def ValidMessageGrammar (sexpr : SExpr) (msg : Message) : Prop :=
+  langScoped (sexpr.size + 1) false sexpr = true ∧ ValidMessageShape sexpr msg
+
+theorem parseMessage_complete (sexpr : SExpr) (msg : Message) :
+    ValidMessageGrammar sexpr msg → parseMessage sexpr = some msg := by
+  rintro ⟨hs, hg⟩
+  simp [parseMessage, hs, parseMessageShape_complete sexpr msg hg]
+
+theorem parseMessage_sound (sexpr : SExpr) (msg : Message) :
+    parseMessage sexpr = some msg → ValidMessageGrammar sexpr msg := by
+  intro h
+  unfold parseMessage at h
+  split at h
+  · rename_i hs
+    exact ⟨hs, parseMessageShape_sound sexpr msg h⟩
+  · simp at h
+
+/-- Full pipeline: string → validated CBCL message. -/
+def parseAndValidate (input : String) : Except String Message :=
+  match parse input with
+  | .error msg => .error s!"parse error: {msg}"
+  | .ok sexpr =>
+    match parseMessage sexpr with
+    | none => .error "not a valid CBCL message structure"
+    | some msg =>
+      let errors := validateMessage msg
+      if errors.isEmpty then .ok msg
+      else .error s!"validation errors: {errors}"
 
 end CBCL

@@ -37,12 +37,19 @@ use cbcl_parser::parse_dialect;
 // ---------------------------------------------------------------------------
 
 fn parse(src: &str) -> cbcl_core::dialect::Dialect {
-    let sexpr: SExpr = src.parse().expect("corpus dialect must parse as an S-expression");
+    let sexpr: SExpr = src
+        .parse()
+        .expect("corpus dialect must parse as an S-expression");
     parse_dialect(&sexpr).expect("corpus dialect must parse as a dialect")
 }
 
 fn msg(src: &str) -> Message {
-    Message::try_from(&src.parse::<SExpr>().unwrap()).unwrap()
+    // The cryptographic APIs below operate on the recognized simple body.
+    Message::try_from(&src.parse::<SExpr>().unwrap())
+        .unwrap()
+        .innermost_simple()
+        .unwrap()
+        .clone()
 }
 
 fn tid(s: &str) -> ThreadId {
@@ -126,7 +133,7 @@ fn pipeline_widened_with_openings_same_verdicts_zero_disclosure() {
 
     let src_signer = TestSigner { secret: b"source" };
     let produce = msg(
-        "(produce (@ker @snk) \"chunk-payload-7\" :thread \"run-1\" :sender @src :caused-by begin)",
+        "(lang pipeline (produce (@ker @snk) \"chunk-payload-7\" :thread \"run-1\" :sender @src :caused-by begin))",
     );
 
     // kernel — the payload recipient — holds the full message.
@@ -136,16 +143,25 @@ fn pipeline_widened_with_openings_same_verdicts_zero_disclosure() {
     // sink — the widened recipient — holds only the opened envelope.
     let mut sink = ThreadedMessageStore::new();
     let forward = msg(&format!(
-        "(forward @snk \"chunk-payload-7\" :thread \"run-1\" :sender @ker :caused-by {h_prod})"
+        "(lang pipeline (forward @snk \"chunk-payload-7\" :thread \"run-1\" :sender @ker :caused-by {h_prod}))"
     ));
     let verdict = |store: &ThreadedMessageStore| {
-        verify_causal("forward", forward.caused_by(), store, cp, &tid("run-1"))
+        verify_causal(
+            "forward",
+            forward.innermost_simple().unwrap().caused_by(),
+            store,
+            cp,
+            &tid("run-1"),
+        )
     };
 
     assert_eq!(verdict(&sink), VerificationResult::Unknown);
 
     let (root, env) = deliver_opened(&mut sink, &produce, &src_signer);
-    assert_eq!(root, h_prod, "the opened envelope names the redacted message's root");
+    assert_eq!(
+        root, h_prod,
+        "the opened envelope names the redacted message's root"
+    );
 
     // Same R5 safety verdict as the full-message holder (REQ-813).
     assert_eq!(verdict(&sink), VerificationResult::Valid);
@@ -189,26 +205,33 @@ fn two_buyer_widened_with_openings_same_verdicts_zero_disclosure() {
     let b1_signer = TestSigner { secret: b"buyer1" };
 
     let title = msg(&format!(
-        "(title (@b2 @slr) \"war-and-peace\" :thread \"{t}\" :sender @b1 :caused-by begin)"
+        "(lang twobuyer (title (@b2 @slr) \"war-and-peace\" :thread \"{t}\" :sender @b1 :caused-by begin))"
     ));
     let h_title = message_content_hash(&title);
     let quote = msg(&format!(
-        "(quote (@b1 @b2) 3999 :thread \"{t}\" :sender @slr :caused-by {h_title})"
+        "(lang twobuyer (quote (@b1 @b2) 3999 :thread \"{t}\" :sender @slr :caused-by {h_title}))"
     ));
     let h_quote = message_content_hash(&quote);
     let share = msg(&format!(
-        "(share (@b2 @slr) \"amount-1250\" :thread \"{t}\" :sender @b1 :caused-by {h_quote})"
+        "(lang twobuyer (share (@b2 @slr) \"amount-1250\" :thread \"{t}\" :sender @b1 :caused-by {h_quote}))"
     ));
     let h_share = message_content_hash(&share);
     let buy = msg(&format!(
-        "(buy @slr \"ship-to-coruscant\" :thread \"{t}\" :sender @b2 :caused-by {h_share})"
+        "(lang twobuyer (buy @slr \"ship-to-coruscant\" :thread \"{t}\" :sender @b2 :caused-by {h_share}))"
     ));
 
     // buyer2's local store: quote in full (buyer2 is a payload recipient),
     // the *title* only as an opened envelope.
     let mut buyer2 = ThreadedMessageStore::new();
-    let quote_verdict =
-        |store: &ThreadedMessageStore| verify_causal("quote", quote.caused_by(), store, cp, &tid(t));
+    let quote_verdict = |store: &ThreadedMessageStore| {
+        verify_causal(
+            "quote",
+            quote.innermost_simple().unwrap().caused_by(),
+            store,
+            cp,
+            &tid(t),
+        )
+    };
     assert_eq!(quote_verdict(&buyer2), VerificationResult::Unknown);
     let (_, title_env) = deliver_opened(&mut buyer2, &title, &b1_signer);
     assert_eq!(quote_verdict(&buyer2), VerificationResult::Valid);
@@ -217,8 +240,15 @@ fn two_buyer_widened_with_openings_same_verdicts_zero_disclosure() {
     // The seller's store: buyer2's decision cites the share, which the
     // seller receives only as an opened envelope — the amount stays private.
     let mut seller = ThreadedMessageStore::new();
-    let buy_verdict =
-        |store: &ThreadedMessageStore| verify_causal("buy", buy.caused_by(), store, cp, &tid(t));
+    let buy_verdict = |store: &ThreadedMessageStore| {
+        verify_causal(
+            "buy",
+            buy.innermost_simple().unwrap().caused_by(),
+            store,
+            cp,
+            &tid(t),
+        )
+    };
     assert_eq!(buy_verdict(&seller), VerificationResult::Unknown);
     let (_, share_env) = deliver_opened(&mut seller, &share, &b1_signer);
     assert_eq!(buy_verdict(&seller), VerificationResult::Valid);
@@ -267,12 +297,12 @@ fn two_pc_widened_with_opened_votes_same_verdicts_zero_disclosure() {
     let p3_signer = TestSigner { secret: b"p3" };
 
     let prepare = msg(&format!(
-        "(prepare (@p1 @p2 @p3) \"txn-payload\" :thread \"{t}\" :sender @coord :caused-by begin)"
+        "(lang twopc (prepare (@p1 @p2 @p3) \"txn-payload\" :thread \"{t}\" :sender @coord :caused-by begin))"
     ));
     let h_prep = message_content_hash(&prepare);
     let vote = |n: u32, sender: &str, secret_ballot: &str| {
         msg(&format!(
-            "(vote{n} (@coord @p1 @p2 @p3) \"{secret_ballot}\" :thread \"{t}\" :sender {sender} :caused-by {h_prep})"
+            "(lang twopc (vote{n} (@coord @p1 @p2 @p3) \"{secret_ballot}\" :thread \"{t}\" :sender {sender} :caused-by {h_prep}))"
         ))
     };
     let vote1 = vote(1, "@p1", "ballot-p1-yes");
@@ -284,7 +314,7 @@ fn two_pc_widened_with_opened_votes_same_verdicts_zero_disclosure() {
         message_content_hash(&vote3),
     );
     let decision = msg(&format!(
-        "(decision (@p1 @p2 @p3) \"abort\" :thread \"{t}\" :sender @coord :caused-by ({h1} {h2} {h3}))"
+        "(lang twopc (decision (@p1 @p2 @p3) \"abort\" :thread \"{t}\" :sender @coord :caused-by ({h1} {h2} {h3})))"
     ));
 
     // p1's store: prepare (full), its own vote1 (full), the *other* votes
@@ -293,12 +323,22 @@ fn two_pc_widened_with_opened_votes_same_verdicts_zero_disclosure() {
     deliver_full(&mut p1, t, &prepare);
     deliver_full(&mut p1, t, &vote1);
     let verdict = |store: &ThreadedMessageStore| {
-        verify_causal("decision", decision.caused_by(), store, cp, &tid(t))
+        verify_causal(
+            "decision",
+            decision.innermost_simple().unwrap().caused_by(),
+            store,
+            cp,
+            &tid(t),
+        )
     };
     assert_eq!(verdict(&p1), VerificationResult::Unknown);
 
     let (_, e2) = deliver_opened(&mut p1, &vote2, &p2_signer);
-    assert_eq!(verdict(&p1), VerificationResult::Unknown, "one member still missing");
+    assert_eq!(
+        verdict(&p1),
+        VerificationResult::Unknown,
+        "one member still missing"
+    );
     let (_, e3) = deliver_opened(&mut p1, &vote3, &p3_signer);
 
     // All members evidenced: the `(all …)` type check resolves (REQ-813)…

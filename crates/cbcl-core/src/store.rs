@@ -15,10 +15,10 @@
 use crate::attest::AttestError;
 use crate::envelope::{verify_opened, OpenedEnvelope, OpenedError, RedactedEnvelope};
 use crate::message::{CausedBy, Message};
-use crate::typed_addr::FieldId;
 use crate::protocol::{CausalProtocol, CausalViolation, VerificationResult};
 use crate::r4::Signer;
 use crate::sexpr::{Atom, SExpr};
+use crate::typed_addr::FieldId;
 use alloc::string::String;
 use alloc::vec;
 use alloc::vec::Vec;
@@ -183,11 +183,7 @@ pub trait MessageStore {
     ///
     /// Default: no opened shelf (stores that never accept opened envelopes
     /// keep their exact behaviour).
-    fn opened_in_thread(
-        &self,
-        hash: &ContentHash,
-        thread: &ThreadId,
-    ) -> Option<&OpenedEnvelope> {
+    fn opened_in_thread(&self, hash: &ContentHash, thread: &ThreadId) -> Option<&OpenedEnvelope> {
         let _ = (hash, thread);
         None
     }
@@ -417,11 +413,7 @@ impl MessageStore for ThreadedMessageStore {
             .filter(|e| e.header.thread == thread.0)
     }
 
-    fn opened_in_thread(
-        &self,
-        hash: &ContentHash,
-        thread: &ThreadId,
-    ) -> Option<&OpenedEnvelope> {
+    fn opened_in_thread(&self, hash: &ContentHash, thread: &ThreadId) -> Option<&OpenedEnvelope> {
         // Thread scoping is by the envelope's authenticated Thread opening
         // (REQ-813): the shelf holds no caller-chosen thread to compare.
         self.opened
@@ -2202,10 +2194,17 @@ mod tests {
     #[test]
     fn envelope_is_placed_by_its_authenticated_thread() {
         let mut store = ThreadedMessageStore::new();
-        assert_eq!(store.append_envelope(env("h1", "offer", "t1"), &SIGNER), Ok(true));
-        assert!(store.envelope_in_thread(&hash("h1"), &thread("t1")).is_some());
+        assert_eq!(
+            store.append_envelope(env("h1", "offer", "t1"), &SIGNER),
+            Ok(true)
+        );
+        assert!(store
+            .envelope_in_thread(&hash("h1"), &thread("t1"))
+            .is_some());
         // Invisible from any other thread.
-        assert!(store.envelope_in_thread(&hash("h1"), &thread("t2")).is_none());
+        assert!(store
+            .envelope_in_thread(&hash("h1"), &thread("t2"))
+            .is_none());
         // …and the message paths are untouched: no phantom full message.
         assert!(store.lookup_in_thread(&hash("h1"), &thread("t1")).is_none());
         assert!(!store.contains(&hash("h1"), &thread("t1")));
@@ -2223,15 +2222,25 @@ mod tests {
             store.append_envelope(e, &SIGNER),
             Err(crate::attest::AttestError::InvalidSignature)
         );
-        assert!(store.envelope_in_thread(&hash("h1"), &thread("t1")).is_none());
-        assert!(store.envelope_in_thread(&hash("h1"), &thread("t2")).is_none());
+        assert!(store
+            .envelope_in_thread(&hash("h1"), &thread("t1"))
+            .is_none());
+        assert!(store
+            .envelope_in_thread(&hash("h1"), &thread("t2"))
+            .is_none());
     }
 
     #[test]
     fn envelope_shelf_deduplicates_by_content_hash() {
         let mut store = ThreadedMessageStore::new();
-        assert_eq!(store.append_envelope(env("h1", "offer", "t1"), &SIGNER), Ok(true));
-        assert_eq!(store.append_envelope(env("h1", "offer", "t1"), &SIGNER), Ok(false));
+        assert_eq!(
+            store.append_envelope(env("h1", "offer", "t1"), &SIGNER),
+            Ok(true)
+        );
+        assert_eq!(
+            store.append_envelope(env("h1", "offer", "t1"), &SIGNER),
+            Ok(false)
+        );
     }
 
     /// The trait's default lookup returns `None`: a pre-SPEC-015 store
@@ -2304,10 +2313,16 @@ mod tests {
         let mut store = ThreadedMessageStore::new();
         let (env, root) = opened("offer", "t1");
         assert_eq!(store.append_opened(env, &SIGNER), Ok(true));
-        assert!(store.opened_in_thread(&hash(&root), &thread("t1")).is_some());
+        assert!(store
+            .opened_in_thread(&hash(&root), &thread("t1"))
+            .is_some());
         // Invisible from any other thread, and no phantom full message.
-        assert!(store.opened_in_thread(&hash(&root), &thread("t2")).is_none());
-        assert!(store.lookup_in_thread(&hash(&root), &thread("t1")).is_none());
+        assert!(store
+            .opened_in_thread(&hash(&root), &thread("t2"))
+            .is_none());
+        assert!(store
+            .lookup_in_thread(&hash(&root), &thread("t1"))
+            .is_none());
     }
 
     /// REQ-813: relabelling the Thread opening to inject into another thread
@@ -2328,8 +2343,12 @@ mod tests {
                 field: FieldId::Thread
             })
         );
-        assert!(store.opened_in_thread(&hash(&root), &thread("t1")).is_none());
-        assert!(store.opened_in_thread(&hash(&root), &thread("t2")).is_none());
+        assert!(store
+            .opened_in_thread(&hash(&root), &thread("t1"))
+            .is_none());
+        assert!(store
+            .opened_in_thread(&hash(&root), &thread("t2"))
+            .is_none());
     }
 
     #[test]

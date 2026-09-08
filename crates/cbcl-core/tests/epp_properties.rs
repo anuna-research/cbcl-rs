@@ -167,7 +167,7 @@ impl ChainProtocol {
                 format!("m{}", i - 1)
             };
             let src = format!(
-                "(signed {sender_key} \"sig\" ({} {recipient_part}\"x\" :caused-by {pred}))",
+                "(signed {sender_key} \"sig\" (lang chain ({} {recipient_part}\"x\" :caused-by {pred})))",
                 Self::perf_name(i)
             );
             msgs.push((
@@ -624,7 +624,7 @@ fn test_635_converse_witness() {
     )
     .unwrap();
     let my = Message::try_from(
-        &"(signed @c \"sig\" (y @b \"v\" :caused-by mx))"
+        &"(signed @c \"sig\" (lang witness (y @b \"v\" :caused-by mx)))"
             .parse::<SExpr>()
             .unwrap(),
     )

@@ -1473,7 +1473,10 @@ mod tests {
 
     #[test]
     fn dialect_hash_is_deterministic() {
-        assert_eq!(dialect_hash(&test_dialect("t")), dialect_hash(&test_dialect("t")));
+        assert_eq!(
+            dialect_hash(&test_dialect("t")),
+            dialect_hash(&test_dialect("t"))
+        );
     }
 
     #[test]

@@ -12,7 +12,7 @@
 use cbcl_core::r6::r6_violations;
 use cbcl_core::role::R6Violation;
 use cbcl_core::sexpr::SExpr;
-use cbcl_core::splice::{non_coherent_roles, analyze, Discharge};
+use cbcl_core::splice::{analyze, non_coherent_roles, Discharge};
 use cbcl_parser::parse_dialect;
 
 fn parse(src: &str) -> cbcl_core::dialect::Dialect {

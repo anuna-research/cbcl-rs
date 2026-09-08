@@ -12,10 +12,10 @@
   {
     "id": "msg-canon-002",
     "description": "Keyword arguments sorted into canonical order",
-    "input": "(extend book-venue (venue date capacity :refundable #t :deposit 500))",
+    "input": "(lang booking (extend book-venue (venue date capacity :refundable #t :deposit 500)))",
     "expected": {
       "type": "success",
-      "value": "(extend book-venue (venue date capacity :deposit 500 :refundable #t))"
+      "value": "(lang booking (extend book-venue (venue date capacity :deposit 500 :refundable #t)))"
     },
     "note": "Keywords sorted alphabetically: :deposit before :refundable",
     "source": "tests/simple-tests.scm:canonicalize"

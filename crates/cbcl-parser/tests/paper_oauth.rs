@@ -10,8 +10,8 @@
 //! it).
 
 use cbcl_core::dialect::{DialectInstallError, DialectRegistry};
-use cbcl_core::r6::{r6_violations, r6_instantiated_violations};
-use cbcl_core::role::{parse_cast, R6Violation, RoleCardinality};
+use cbcl_core::r6::r6_violations;
+use cbcl_core::role::R6Violation;
 use cbcl_core::sexpr::SExpr;
 use cbcl_parser::parse_dialect;
 
@@ -19,7 +19,11 @@ use cbcl_parser::parse_dialect;
 /// (§6.1): `login`/`abort` gain `authoriser`, `passwd` gains `server`.
 fn oauth_src(widened: bool) -> String {
     let (login_to, abort_to, passwd_to) = if widened {
-        ("(client authoriser)", "(client authoriser)", "(authoriser server)")
+        (
+            "(client authoriser)",
+            "(client authoriser)",
+            "(authoriser server)",
+        )
     } else {
         ("client", "client", "authoriser")
     };
@@ -50,7 +54,9 @@ fn oauth_src(widened: bool) -> String {
 }
 
 fn parse(src: &str) -> cbcl_core::dialect::Dialect {
-    let sexpr: SExpr = src.parse().expect("OAuth dialect must parse as an S-expression");
+    let sexpr: SExpr = src
+        .parse()
+        .expect("OAuth dialect must parse as an S-expression");
     parse_dialect(&sexpr).expect("OAuth dialect must parse as a dialect")
 }
 
@@ -60,7 +66,15 @@ fn as_written_parses_and_passes_r1_r5_but_fails_r6() {
 
     // The role layer parsed the annotations onto the dialect value.
     assert_eq!(d.roles.len(), 3);
-    assert_eq!(d.find_performative("login").unwrap().role.as_ref().unwrap().from, "server");
+    assert_eq!(
+        d.find_performative("login")
+            .unwrap()
+            .role
+            .as_ref()
+            .unwrap()
+            .from,
+        "server"
+    );
 
     // R6 rejects it for causal locality, naming exactly the three hand-offs
     // the paper calls out (§6.1): passwd/login/authoriser, auth/passwd/server,
@@ -96,5 +110,6 @@ fn recipient_widened_repair_installs_cleanly() {
     let d = parse(&oauth_src(true));
     assert_eq!(r6_violations(&d), Vec::new());
     let mut reg = DialectRegistry::new();
-    reg.install(d).expect("the widened OAuth dialect installs (R1–R6 pass)");
+    reg.install(d)
+        .expect("the widened OAuth dialect installs (R1–R6 pass)");
 }

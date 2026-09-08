@@ -295,12 +295,14 @@ impl Agent {
         &self.dialect_registry
     }
 
-    /// Search dialects in reverse order for one that defines the given
-    /// performative (REQ-033).
+    /// Every installed dialect defining `name`, in installation order
+    /// (REQ-033).
     ///
-    /// Delegates to `DialectRegistry::find_performative_dialect`.
-    pub fn find_performative_dialect(&self, name: &str) -> Option<&Dialect> {
-        self.dialect_registry.find_performative_dialect(name)
+    /// Introspection only. Dispatch never uses it: a custom performative is
+    /// resolved against the dialect named by its `(lang …)` wrapper, so more
+    /// than one result here is normal rather than a conflict.
+    pub fn dialects_defining<'a>(&'a self, name: &'a str) -> impl Iterator<Item = &'a Dialect> {
+        self.dialect_registry.dialects_defining(name)
     }
 
     /// Install a dialect after verifying R1, R2, and R3 (REQ-034).
@@ -743,18 +745,29 @@ mod tests {
     }
 
     #[test]
-    fn find_performative_dialect_finds_core() {
-        let agent = Agent::new("a");
-        let d = agent.find_performative_dialect("tell").unwrap();
-        assert_eq!(d.name, "cbcl-base");
-    }
-
-    #[test]
-    fn find_performative_dialect_finds_custom() {
+    fn dialects_defining_finds_custom() {
         let mut agent = Agent::new("a");
         agent.install_dialect(valid_custom_dialect("ext")).unwrap();
-        let d = agent.find_performative_dialect("custom-action").unwrap();
-        assert_eq!(d.name, "ext");
+        let names: Vec<&str> = agent
+            .dialects_defining("custom-action")
+            .map(|d| d.name.as_str())
+            .collect();
+        assert_eq!(names, vec!["ext"]);
+    }
+
+    /// REQ-033: two dialects defining one performative name is legitimate —
+    /// the `(lang …)` wrapper says which is meant — so introspection reports
+    /// both rather than treating the second as a conflict.
+    #[test]
+    fn dialects_defining_reports_every_definer() {
+        let mut agent = Agent::new("a");
+        agent.install_dialect(valid_custom_dialect("ext")).unwrap();
+        agent.install_dialect(valid_custom_dialect("ext2")).unwrap();
+        let names: Vec<&str> = agent
+            .dialects_defining("custom-action")
+            .map(|d| d.name.as_str())
+            .collect();
+        assert_eq!(names, vec!["ext", "ext2"]);
     }
 
     #[test]
@@ -1002,14 +1015,17 @@ mod tests {
     }
 
     fn ack_with_caused_by(hash: &str) -> Message {
-        Message::Simple {
-            performative: Performative::Custom(String::from("ack")),
-            recipient: None,
-            content: SExpr::Atom(Atom::Str(String::from("done"))),
-            params: Vec::new(),
-            thread: None,
-            sender: None,
-            caused_by: Some(crate::message::CausedBy::Single(String::from(hash))),
+        Message::Dialect {
+            dialect_name: String::from("ack-dialect"),
+            inner: alloc::boxed::Box::new(Message::Simple {
+                performative: Performative::Custom(String::from("ack")),
+                recipient: None,
+                content: SExpr::Atom(Atom::Str(String::from("done"))),
+                params: Vec::new(),
+                thread: None,
+                sender: None,
+                caused_by: Some(crate::message::CausedBy::Single(String::from(hash))),
+            }),
         }
     }
 
@@ -1102,10 +1118,7 @@ mod tests {
             StepDecl {
                 performative: "begin".into(),
                 predecessors: alloc::vec![],
-                successors: alloc::vec![
-                    NodeRef::Single("x".into()),
-                    NodeRef::Single("y".into()),
-                ],
+                successors: alloc::vec![NodeRef::Single("x".into()), NodeRef::Single("y".into()),],
             },
         );
         steps.insert(
@@ -1305,9 +1318,9 @@ mod tests {
         }
         append_pred(&mut agent, "h-absent", "x"); // legal type
         match agent.evaluate_and_apply(&m) {
-            AgentOutcome::CausalReject(
-                crate::protocol::CausalViolation::FanInWithoutAllDecl { .. },
-            ) => {}
+            AgentOutcome::CausalReject(crate::protocol::CausalViolation::FanInWithoutAllDecl {
+                ..
+            }) => {}
             other => panic!("expected CausalReject(FanInWithoutAllDecl), got {other:?}"),
         }
     }

@@ -177,12 +177,7 @@ fn thread_messages<S: MessageStore>(store: &S, thread: &ThreadId) -> Vec<(Conten
     }
     hashes
         .into_iter()
-        .filter_map(|h| {
-            store
-                .lookup_in_thread(&h, thread)
-                .cloned()
-                .map(|m| (h, m))
-        })
+        .filter_map(|h| store.lookup_in_thread(&h, thread).cloned().map(|m| (h, m)))
         .collect()
 }
 
@@ -529,25 +524,26 @@ fn check_opened_member(
     proof: &EquivocationProof,
     signer: &dyn Signer,
 ) -> Result<CheckedMember, EquivocationProofError> {
-    let from_spelling =
-        env.from_spelling()
-            .ok_or(EquivocationProofError::MalformedMember {
-                member: index,
-                defect: MemberDefect::MissingSender,
-            })?;
-    let from = KeyId::parse(from_spelling).map_err(|e| {
-        EquivocationProofError::MalformedMember {
+    let from_spelling = env
+        .from_spelling()
+        .ok_or(EquivocationProofError::MalformedMember {
+            member: index,
+            defect: MemberDefect::MissingSender,
+        })?;
+    let from =
+        KeyId::parse(from_spelling).map_err(|e| EquivocationProofError::MalformedMember {
             member: index,
             defect: MemberDefect::SenderSpelling(e),
-        }
-    })?;
+        })?;
     if from != proof.key {
         return Err(EquivocationProofError::KeyMismatch { member: index });
     }
-    let thread = env.thread().ok_or(EquivocationProofError::MalformedMember {
-        member: index,
-        defect: MemberDefect::MissingThread,
-    })?;
+    let thread = env
+        .thread()
+        .ok_or(EquivocationProofError::MalformedMember {
+            member: index,
+            defect: MemberDefect::MissingThread,
+        })?;
     if thread != proof.thread {
         return Err(EquivocationProofError::ThreadMismatch { member: index });
     }
@@ -986,9 +982,7 @@ mod tests {
         store.append(hash("h1"), thread("t1"), msg("offer", "@alice", "t1", "a"));
         store.append(hash("h2"), thread("t1"), msg("refuse", "@bob", "t1", "b"));
         assert!(equivocation(&alice(), &thread("t1"), &store, &d).is_none());
-        assert!(
-            equivocation(&KeyId::parse("@bob").unwrap(), &thread("t1"), &store, &d).is_none()
-        );
+        assert!(equivocation(&KeyId::parse("@bob").unwrap(), &thread("t1"), &store, &d).is_none());
     }
 
     #[test]
@@ -1166,7 +1160,8 @@ mod tests {
             msg("offer", "@alice", "t1", "a"),
             msg("refuse", "@alice", "t1", "b"),
         );
-        proof.dialect_hash = "sha256:0000000000000000000000000000000000000000000000000000000000000000".to_string();
+        proof.dialect_hash =
+            "sha256:0000000000000000000000000000000000000000000000000000000000000000".to_string();
         assert!(matches!(
             verify_equivocation_proof(&proof, &d, &ALICE_SIGNER),
             Err(EquivocationProofError::DialectHashMismatch { .. })
@@ -1392,7 +1387,11 @@ mod tests {
             for op in &env.openings {
                 let bytes = crate::canonical::canonical_encode(&op.value);
                 let s = core::str::from_utf8(&bytes).unwrap();
-                assert!(!s.contains("payload-b"), "payload leaked via {:?}", op.field);
+                assert!(
+                    !s.contains("payload-b"),
+                    "payload leaked via {:?}",
+                    op.field
+                );
             }
         }
         assert_eq!(

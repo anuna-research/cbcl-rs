@@ -749,9 +749,8 @@ mod tests {
 
     #[test]
     fn wrapper_cast_without_pin_has_none() {
-        let cast =
-            parse_wrapper_cast(&[sx("((auctioneer @auc) (bidder @b1))")], &auction_roles())
-                .unwrap();
+        let cast = parse_wrapper_cast(&[sx("((auctioneer @auc) (bidder @b1))")], &auction_roles())
+            .unwrap();
         assert_eq!(cast.dialect_pin, None);
     }
 

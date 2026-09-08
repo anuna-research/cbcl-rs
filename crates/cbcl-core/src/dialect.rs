@@ -553,15 +553,33 @@ impl DialectRegistry {
         self.dialects.iter().find(|d| d.name == name)
     }
 
-    /// Search dialects in reverse order for one that defines the given
-    /// performative (REQ-033).
+    /// The base dialect, if it defines `name` (REQ-033).
     ///
-    /// Matches `Agent.findPerformativeDialect` in `Agent.lean:34–35`.
-    pub fn find_performative_dialect(&self, name: &str) -> Option<&Dialect> {
+    /// This is the *only* name-based lookup dispatch performs, and it is
+    /// confined to the base dialect because R3 guarantees the eight core
+    /// performatives have exactly one definer. A custom performative is never
+    /// looked up this way: it is resolved against the dialect its `(lang …)`
+    /// wrapper names, so which definition applies is fixed by the message
+    /// rather than by the installed set. That is what allows two dialects to
+    /// define the same performative name without conflict.
+    ///
+    /// Matches `Agent.baseDefinerOf` in `Agent.lean`.
+    pub fn base_definer_of(&self, name: &str) -> Option<&Dialect> {
+        self.dialects
+            .first()
+            .filter(|d| d.defines_performative(name))
+    }
+
+    /// Every installed dialect defining `name`, in installation order.
+    ///
+    /// Introspection only — capability queries, diagnostics, tooling. It is
+    /// deliberately not a dispatch path: several dialects may legitimately
+    /// define one name, and choosing between them is the `(lang …)` wrapper's
+    /// job, not the registry's.
+    pub fn dialects_defining<'a>(&'a self, name: &'a str) -> impl Iterator<Item = &'a Dialect> {
         self.dialects
             .iter()
-            .rev()
-            .find(|d| d.defines_performative(name))
+            .filter(move |d| d.defines_performative(name))
     }
 
     /// Iterate over all installed dialects in order.
@@ -712,40 +730,62 @@ mod tests {
         assert_eq!(reg.get(1).unwrap().name, "cbcl-planning");
     }
 
-    #[test]
-    fn registry_find_performative_dialect_reverse_order() {
-        let mut reg = DialectRegistry::new();
-        // Install two dialects that define the same custom performative.
-        for name in &["first", "second"] {
-            reg.install(Dialect {
-                roles: Vec::new(),
-                causal_locality: Default::default(),
-                name: String::from(*name),
-                extends: vec![String::from("cbcl")],
-                author: None,
-                performatives: vec![PerformativeDef {
-                    role: None,
-                    name: String::from("greet"),
-                    params: vec![],
-                    template: effect_template("greet-action"),
-                }],
-                resources: ResourceBounds {
-                    max_depth: 8,
-                    max_expansion_size: 512,
-                    verification_time_ms: 10,
-                },
-                examples: vec![],
-                signature: None,
-                hash: None,
-                protocol: None,
-                causal_protocol: None,
-                shapes: Vec::new(),
-            })
-            .unwrap();
+    /// A dialect defining a single custom performative `greet`.
+    fn greeter(name: &str) -> Dialect {
+        Dialect {
+            roles: Vec::new(),
+            causal_locality: Default::default(),
+            name: String::from(name),
+            extends: vec![String::from("cbcl")],
+            author: None,
+            performatives: vec![PerformativeDef {
+                role: None,
+                name: String::from("greet"),
+                params: vec![],
+                template: effect_template("greet-action"),
+            }],
+            resources: ResourceBounds {
+                max_depth: 8,
+                max_expansion_size: 512,
+                verification_time_ms: 10,
+            },
+            examples: vec![],
+            signature: None,
+            hash: None,
+            protocol: None,
+            causal_protocol: None,
+            shapes: Vec::new(),
         }
-        // Reverse-order search should find the later dialect first.
-        let found = reg.find_performative_dialect("greet").unwrap();
-        assert_eq!(found.name, "second");
+    }
+
+    #[test]
+    fn base_definer_of_finds_core_performatives() {
+        let reg = DialectRegistry::new();
+        assert_eq!(reg.base_definer_of("tell").unwrap().name, "cbcl-base");
+    }
+
+    /// REQ-033: core dispatch consults the base dialect only, so installing
+    /// dialects can never change what a core performative means.
+    #[test]
+    fn base_definer_of_ignores_installed_dialects() {
+        let mut reg = DialectRegistry::new();
+        reg.install(greeter("first")).unwrap();
+        assert!(reg.base_definer_of("greet").is_none());
+    }
+
+    /// REQ-033: two dialects defining one performative name is legitimate.
+    /// The `(lang …)` wrapper chooses between them, so the registry reports
+    /// both instead of picking or rejecting.
+    #[test]
+    fn dialects_defining_reports_every_definer_in_install_order() {
+        let mut reg = DialectRegistry::new();
+        reg.install(greeter("first")).unwrap();
+        reg.install(greeter("second")).unwrap();
+        let names: Vec<&str> = reg
+            .dialects_defining("greet")
+            .map(|d| d.name.as_str())
+            .collect();
+        assert_eq!(names, vec!["first", "second"]);
     }
 
     #[test]

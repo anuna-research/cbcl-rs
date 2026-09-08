@@ -115,8 +115,7 @@ pub fn attestation_sexpr(h: &AttestationHeader) -> SExpr {
         SExpr::Atom(Atom::Symbol(h.performative.clone())),
         SExpr::Atom(Atom::Symbol(h.from.canonical_spelling())),
         SExpr::List(
-            h.to
-                .iter()
+            h.to.iter()
                 .map(|k| SExpr::Atom(Atom::Symbol(k.canonical_spelling())))
                 .collect(),
         ),
@@ -486,7 +485,10 @@ mod tests {
     #[test]
     fn preimage_is_deterministic_across_reconstruction() {
         // Both verifier classes rebuild the identical preimage (REQ-701).
-        assert_eq!(attestation_preimage(&header()), attestation_preimage(&header()));
+        assert_eq!(
+            attestation_preimage(&header()),
+            attestation_preimage(&header())
+        );
     }
 
     /// TEST-708 adjunct: alias spellings of one identity reconstruct
@@ -495,7 +497,10 @@ mod tests {
     fn alias_key_spellings_reconstruct_identical_preimage() {
         let mut explicit = header();
         explicit.from = key("@ed25519:alice");
-        assert_eq!(attestation_preimage(&header()), attestation_preimage(&explicit));
+        assert_eq!(
+            attestation_preimage(&header()),
+            attestation_preimage(&explicit)
+        );
     }
 
     #[test]
@@ -530,7 +535,10 @@ mod tests {
         let sig = sign_attestation_v2(&ALICE, &h).unwrap();
         // No payload exists anywhere in this test — header fields and the
         // content hash are the only verification inputs (REQ-701).
-        assert_eq!(verify_attestation_v2(&ALICE, &key("@alice"), &h, &sig), Ok(()));
+        assert_eq!(
+            verify_attestation_v2(&ALICE, &key("@alice"), &h, &sig),
+            Ok(())
+        );
     }
 
     #[test]
@@ -557,9 +565,8 @@ mod tests {
         let h = header();
         let sig = sign_attestation_v2(&ALICE, &h).unwrap();
         let mut tampered = h.clone();
-        tampered.content_hash = String::from(
-            "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
-        );
+        tampered.content_hash =
+            String::from("sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc");
         assert_eq!(
             verify_attestation_v2(&ALICE, &key("@alice"), &tampered, &sig),
             Err(AttestError::InvalidSignature)
@@ -641,7 +648,10 @@ mod tests {
         assert_eq!(
             verify_with_discipline(
                 SignatureDiscipline::V2Attested,
-                &SigningInput::V2Attested { key: &k, header: &h },
+                &SigningInput::V2Attested {
+                    key: &k,
+                    header: &h
+                },
                 &ALICE,
                 &sig
             ),
@@ -661,7 +671,10 @@ mod tests {
         assert_eq!(
             verify_with_discipline(
                 SignatureDiscipline::V1Full,
-                &SigningInput::V2Attested { key: &k, header: &h },
+                &SigningInput::V2Attested {
+                    key: &k,
+                    header: &h
+                },
                 &ALICE,
                 &v1_sig
             ),
@@ -792,10 +805,7 @@ mod tests {
         let pq = SignatureSuite::parse("pq-frodo");
         let err = AttestError::UnknownSuite("pq-frodo".to_string());
         assert_eq!(sign_attestation_v3(&pq, ROOT, &ALICE), Err(err.clone()));
-        assert_eq!(
-            verify_attestation_v3(&pq, ROOT, b"sig", &ALICE),
-            Err(err)
-        );
+        assert_eq!(verify_attestation_v3(&pq, ROOT, b"sig", &ALICE), Err(err));
     }
 
     /// keyid canonical suite identity respected: the suite is committed into
@@ -815,7 +825,10 @@ mod tests {
         assert_eq!(
             verify_with_discipline(
                 SignatureDiscipline::V3Root,
-                &SigningInput::V3Root { suite: &suite, root: ROOT },
+                &SigningInput::V3Root {
+                    suite: &suite,
+                    root: ROOT
+                },
                 &ALICE,
                 &sig
             ),
@@ -834,7 +847,10 @@ mod tests {
         assert_eq!(
             verify_with_discipline(
                 SignatureDiscipline::V2Attested,
-                &SigningInput::V3Root { suite: &suite, root: ROOT },
+                &SigningInput::V3Root {
+                    suite: &suite,
+                    root: ROOT
+                },
                 &ALICE,
                 &v2_sig
             ),
@@ -853,7 +869,10 @@ mod tests {
         assert_eq!(
             verify_with_discipline(
                 SignatureDiscipline::V3Root,
-                &SigningInput::V2Attested { key: &k, header: &h },
+                &SigningInput::V2Attested {
+                    key: &k,
+                    header: &h
+                },
                 &ALICE,
                 &v3_sig
             ),

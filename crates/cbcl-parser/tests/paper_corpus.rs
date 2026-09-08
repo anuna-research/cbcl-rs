@@ -19,7 +19,9 @@ use cbcl_core::sexpr::SExpr;
 use cbcl_parser::parse_dialect;
 
 fn parse(src: &str) -> cbcl_core::dialect::Dialect {
-    let sexpr: SExpr = src.parse().expect("corpus dialect must parse as an S-expression");
+    let sexpr: SExpr = src
+        .parse()
+        .expect("corpus dialect must parse as an S-expression");
     parse_dialect(&sexpr).expect("corpus dialect must parse as a dialect")
 }
 
@@ -100,8 +102,14 @@ fn warehouse_extension_fails_exactly_at_dispatch() {
 fn warehouse_widened_passes() {
     // Repair (a) of §4: route the decision and its causal prefix to warehouse.
     let widened = logistics(true)
-        .replace(":from shipper :to tracking-svc", ":from shipper :to (tracking-svc warehouse)")
-        .replace(":from tracking-svc :to shipper", ":from tracking-svc :to (shipper warehouse)");
+        .replace(
+            ":from shipper :to tracking-svc",
+            ":from shipper :to (tracking-svc warehouse)",
+        )
+        .replace(
+            ":from tracking-svc :to shipper",
+            ":from tracking-svc :to (shipper warehouse)",
+        );
     assert_violations(&parse(&widened), vec![]);
 }
 
@@ -171,7 +179,10 @@ fn pipeline(widened: bool) -> String {
 fn pipeline_fails_straight_line() {
     // No choice anywhere: the canonical straight-line failure of the paper's
     // \"choice points do not suffice\" remark.
-    assert_violations(&parse(&pipeline(false)), vec![ncl("forward", "produce", "sink")]);
+    assert_violations(
+        &parse(&pipeline(false)),
+        vec![ncl("forward", "produce", "sink")],
+    );
 }
 
 #[test]
@@ -182,7 +193,11 @@ fn pipeline_widened_passes() {
 // --- three-party ring (folklore) ----------------------------------------------
 
 fn ring(widened: bool) -> String {
-    let (f1_to, f2_to) = if widened { ("(b c)", "(c a)") } else { ("b", "c") };
+    let (f1_to, f2_to) = if widened {
+        ("(b c)", "(c a)")
+    } else {
+        ("b", "c")
+    };
     format!(
         "(define ring (cbcl) @corpus
            (:roles (a b c))
@@ -212,7 +227,11 @@ fn ring_widened_passes() {
 // --- two-phase commit (Gray), 3 explicit participants -------------------------
 
 fn two_pc(widened: bool) -> String {
-    let vote_to = if widened { "(coordinator p1 p2 p3)" } else { "coordinator" };
+    let vote_to = if widened {
+        "(coordinator p1 p2 p3)"
+    } else {
+        "coordinator"
+    };
     format!(
         "(define twopc (cbcl) @corpus
            (:roles (coordinator p1 p2 p3))
@@ -281,7 +300,11 @@ use std::collections::BTreeMap;
 
 /// The corpus source with `(:causal-locality derive)` declared.
 fn deriving(src: &str) -> String {
-    src.replacen("(:roles", "(:causal-locality derive)\n           (:roles", 1)
+    src.replacen(
+        "(:roles",
+        "(:causal-locality derive)\n           (:roles",
+        1,
+    )
 }
 
 /// Parse and install under `derive`, returning the installed dialect.
@@ -324,17 +347,17 @@ fn failing_corpus() -> Vec<(String, EnvelopeRoutes)> {
             // Transitive: warehouse ⇒ track-shipment too, not just the
             // deciding branch (accept); the untaken `reject` branch is on
             // no violation and gets no route.
-            table(&[("accept", &["warehouse"]), ("track-shipment", &["warehouse"])]),
+            table(&[
+                ("accept", &["warehouse"]),
+                ("track-shipment", &["warehouse"]),
+            ]),
         ),
         (
             two_buyer(false),
             table(&[("title", &["buyer2"]), ("share", &["seller"])]),
         ),
         (pipeline(false), table(&[("produce", &["sink"])])),
-        (
-            ring(false),
-            table(&[("fwd1", &["c"]), ("fwd2", &["a"])]),
-        ),
+        (ring(false), table(&[("fwd1", &["c"]), ("fwd2", &["a"])])),
         (
             two_pc(false),
             table(&[
@@ -388,7 +411,9 @@ fn test_709_payload_to_sets_are_byte_identical() {
                     let mut to: Vec<_> = ann.to.iter().cloned().collect();
                     to.sort();
                     let sexpr: cbcl_core::sexpr::SExpr =
-                        format!("({} ({}))", ann.from, to.join(" ")).parse().unwrap();
+                        format!("({} ({}))", ann.from, to.join(" "))
+                            .parse()
+                            .unwrap();
                     (p.name.clone(), canonical_encode(&sexpr))
                 })
                 .collect()
