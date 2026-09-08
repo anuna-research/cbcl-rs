@@ -20,6 +20,8 @@ on:
       - 'Cargo.lock'
       - 'mutants.toml'
       - 'scripts/run-mutation-tests.sh'
+      - 'scripts/check-mutation-results.py'
+      - 'scripts/test-mutation-gate.py'
       - 'scripts/ci-install-rust.sh'
       - '.forgejo/workflows/mutation.yml'
   schedule:
@@ -31,6 +33,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Test mutation threshold gate
+        run: python3 scripts/test-mutation-gate.py
 
       - name: Install Rust toolchain (stable, per rust-toolchain.toml)
         run: bash scripts/ci-install-rust.sh

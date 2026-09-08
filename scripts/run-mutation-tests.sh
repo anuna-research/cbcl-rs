@@ -8,6 +8,7 @@
 set -euo pipefail
 
 KILL_RATE_THRESHOLD=90
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
 # ---------- pre-flight ---------
 
@@ -21,6 +22,8 @@ if ! command -v cargo-mutants &>/dev/null; then
     echo "  cargo binstall cargo-mutants"
     exit 1
 fi
+
+command -v python3 >/dev/null || { echo "ERROR: python3 is required to read mutation results." >&2; exit 1; }
 
 # ---------- build arguments ----------
 
@@ -54,56 +57,32 @@ echo "Targeting packages: cbcl-core, cbcl-parser"
 echo "Critical-path modules: ${#CRITICAL_FILES[@]} files"
 echo ""
 
+# A fresh directory prevents a failed run from reusing an earlier result.
+# Retain artifacts for inspection; cargo-mutants puts its own logs here too.
+MUTATION_OUTPUT=$(mktemp -d "${TMPDIR:-/tmp}/cbcl-mutants.XXXXXX")
+echo "Mutation artifacts: $MUTATION_OUTPUT/mutants.out"
+MUTATION_STATUS=0
 cargo mutants \
     --in-place \
+    --output "$MUTATION_OUTPUT" \
     --package cbcl-core \
     --package cbcl-parser \
     "${FILE_FLAGS[@]}" \
-    "${EXTRA_ARGS[@]}" \
-    2>&1 | tee /tmp/cbcl-mutants-output.txt
+    "${EXTRA_ARGS[@]}" || MUTATION_STATUS=$?
 
 # If we only listed mutants, exit early.
 if [[ "${1:-}" == "--list" ]]; then
-    exit 0
+    exit "$MUTATION_STATUS"
 fi
 
-# ---------- parse results ----------
+# 2 = missed mutants; 3 = mutant timeouts. Both are scored by our policy.
+# All other failures (including baseline failure, interrupts and tool errors)
+# must remain failures, regardless of any partial output.
+case "$MUTATION_STATUS" in
+    0|2|3) ;;
+    *) echo "FAIL: cargo-mutants exited with status $MUTATION_STATUS." >&2
+       exit "$MUTATION_STATUS" ;;
+esac
 
-OUTPUT=/tmp/cbcl-mutants-output.txt
-
-CAUGHT=$(grep -cE '(CAUGHT|caught)' "$OUTPUT" 2>/dev/null || echo 0)
-MISSED=$(grep -cE '(MISSED|missed)' "$OUTPUT" 2>/dev/null || echo 0)
-TIMEOUT=$(grep -cE '(TIMEOUT|timeout)' "$OUTPUT" 2>/dev/null || echo 0)
-UNVIABLE=$(grep -cE '(UNVIABLE|unviable)' "$OUTPUT" 2>/dev/null || echo 0)
-
-TOTAL=$((CAUGHT + MISSED + TIMEOUT))
-
-if [[ "$TOTAL" -eq 0 ]]; then
-    echo ""
-    echo "WARNING: No mutants were generated or results could not be parsed."
-    echo "Check the output above for details."
-    exit 1
-fi
-
-# Timeouts count as caught (the test suite did detect the mutant).
-KILLED=$((CAUGHT + TIMEOUT))
-KILL_RATE=$(( (KILLED * 100) / TOTAL ))
-
-echo ""
-echo "=== Mutation Testing Results ==="
-echo "  Caught:   $CAUGHT"
-echo "  Timeout:  $TIMEOUT"
-echo "  Missed:   $MISSED"
-echo "  Unviable: $UNVIABLE"
-echo "  Total:    $TOTAL"
-echo "  Kill rate: ${KILL_RATE}%  (threshold: ${KILL_RATE_THRESHOLD}%)"
-echo ""
-
-if [[ "$KILL_RATE" -lt "$KILL_RATE_THRESHOLD" ]]; then
-    echo "FAIL: Kill rate ${KILL_RATE}% is below the ${KILL_RATE_THRESHOLD}% threshold."
-    echo "Review missed mutants in mutants.out/ to identify gaps in test coverage."
-    exit 1
-else
-    echo "PASS: Kill rate ${KILL_RATE}% meets the ${KILL_RATE_THRESHOLD}% threshold."
-    exit 0
-fi
+python3 "$SCRIPT_DIR/check-mutation-results.py" \
+    "$MUTATION_OUTPUT/mutants.out" "$KILL_RATE_THRESHOLD"
