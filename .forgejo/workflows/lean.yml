@@ -36,6 +36,7 @@ on:
       - 'specs/SPEC-005-*'
       - 'scripts/check-axioms.sh'
       - 'scripts/check-verified-by.sh'
+      - 'scripts/ci-install-rust.sh'
       - '.forgejo/workflows/lean.yml'
   pull_request:
     paths:
@@ -48,6 +49,7 @@ on:
       - 'specs/SPEC-005-*'
       - 'scripts/check-axioms.sh'
       - 'scripts/check-verified-by.sh'
+      - 'scripts/ci-install-rust.sh'
       - '.forgejo/workflows/lean.yml'
 
 jobs:
@@ -108,10 +110,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install Rust toolchain (stable, per rust-toolchain.toml)
-        run: |
-          rustup show active-toolchain || rustup toolchain install stable --profile minimal
-          rustc --version
-          cargo --version
+        run: bash scripts/ci-install-rust.sh
 
       - name: Cache cargo registry and target
         uses: actions/cache@v4

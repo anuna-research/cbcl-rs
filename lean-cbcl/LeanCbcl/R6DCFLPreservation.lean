@@ -173,12 +173,16 @@ theorem dcfl_preserved_under_roles (decl : SExpr) (decls : List SExpr) :
   allSExpr_isSExpr _
 
 /-- `:from` attribute pairs are ordinary S-expressions (typechecking-level). -/
-theorem fromAttr_isSExpr (role : String) : ∀ e ∈ fromAttr role, IsSExpr e :=
-  fun e _ => allSExpr_isSExpr e
+theorem fromAttr_isSExpr (role : String) : ∀ e ∈ fromAttr role, IsSExpr e := by
+  intro e he
+  simp only [fromAttr, List.mem_cons, List.not_mem_nil, or_false] at he
+  rcases he with rfl | rfl <;> exact allSExpr_isSExpr _
 
 /-- `:to` attribute pairs are ordinary S-expressions (typechecking-level). -/
-theorem toAttr_isSExpr (roles : List String) : ∀ e ∈ toAttr roles, IsSExpr e :=
-  fun e _ => allSExpr_isSExpr e
+theorem toAttr_isSExpr (roles : List String) : ∀ e ∈ toAttr roles, IsSExpr e := by
+  intro e he
+  simp only [toAttr, List.mem_cons, List.not_mem_nil, or_false] at he
+  rcases he with rfl | rfl <;> exact allSExpr_isSExpr _
 
 /-- The `(with-roles …)` wrapper inhabits the existing grammar
     (typechecking-level). -/
@@ -399,6 +403,10 @@ structure RoleStep where
       disjunctively across citation routes by `justified`. -/
   preds : List PredClause
   deriving BEq, DecidableEq, Repr
+
+-- The derived record printer does not use precedence; suppress only this
+-- generated argument, as for the other record Repr instances in the model.
+attribute [nolint unusedArguments] instReprRoleStep.repr
 
 /-- A role-annotated protocol: a finite list of steps. (Rust's
     `CausalProtocol.steps` is a `BTreeMap`, so duplicate names are

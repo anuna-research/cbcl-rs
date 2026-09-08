@@ -621,7 +621,7 @@ branch); the gate is then defence-in-depth that becomes load-bearing the
 moment any join path lands. The same ungated `Violation→Reject` also
 survives in `cbcl-parser/src/pipeline.rs` (untracked by this REQ).
 
-verified-by: test
+verified-by: example
 
 Trace:
 - TEST-355 (Accept branch pending the open decision above)
