@@ -8,7 +8,9 @@ open CBCL.InstalledSyntax.Tests
 set_option maxRecDepth 4096
 set_option maxHeartbeats 800000
 
+/-- Expose numeric token codes for concrete lexical regression tests. -/
 def codes (s : String) := ((lexer env).lex (encode s)).map (List.map Fin.val)
+/-- Expected singleton output for an atom-class code. -/
 def atom (n : Nat) := some [n+2]
 
 example : codes "9223372036854775807" = atom 0 := by decide

@@ -20,6 +20,7 @@ def dcfl_preserved (a : Agent) (d : Dialect) :
     IsRealtimeDCFL (tokenLanguage (a.installDialect d).dialects) :=
   environmentDCFL (a.installDialect d).dialects
 
+/-- Install a finite list of dialects by repeated append. -/
 def installMany (a : Agent) (ds : List Dialect) : Agent := ds.foldl Agent.installDialect a
 
 theorem installMany_dialects (a : Agent) (ds : List Dialect) :
@@ -53,9 +54,12 @@ theorem AcceptedInstalls.result {accept : Agent → Dialect → Prop}
 
 /-- This quantifies over every policy, including stricter real installation gates. -/
 def accepted_installations_dcfl {accept : Agent → Dialect → Prop}
-    {a b : Agent} {ds : List Dialect} (_h : AcceptedInstalls accept a ds b) :
-    IsRealtimeDCFL (tokenLanguage b.dialects) := environmentDCFL b.dialects
+    {a b : Agent} {ds : List Dialect} (h : AcceptedInstalls accept a ds b) :
+    IsRealtimeDCFL (tokenLanguage b.dialects) := by
+  rw [h.result]
+  exact environmentDCFL (installMany a ds).dialects
 
+/-- Token-language certificate for a newly created agent. -/
 def base_dcfl (id : String) : IsRealtimeDCFL (tokenLanguage (Agent.new id).dialects) :=
   environmentDCFL (Agent.new id).dialects
 
@@ -103,8 +107,10 @@ theorem pipeline_verified_fresh (a : Agent) (d : Dialect) (source : String)
       · cases h; assumption
       · cases h
 
+/-- Finite sequences of verified installations with fresh dialect names. -/
 abbrev VerifiedFreshInstalls := AcceptedInstalls VerifiedFresh
 
+/-- Token-language certificate after a verified fresh installation sequence. -/
 def verified_fresh_installations_dcfl {a b : Agent} {ds : List Dialect}
     (h : VerifiedFreshInstalls a ds b) : IsRealtimeDCFL (tokenLanguage b.dialects) :=
   accepted_installations_dcfl h

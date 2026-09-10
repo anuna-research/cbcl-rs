@@ -4,15 +4,20 @@ import LeanCbcl.FiniteForest
 SPEC-018. A decoder/encoder retraction is required, not merely a size claim. -/
 namespace CBCL.FormalLanguage
 
+/-- A finite representation with a decoder that retracts the encoder. -/
 structure FiniteCodec (α : Type) where
+  /-- Number of available representation codes. -/
   size : Nat
   positive : 0 < size
+  /-- Encode a value as a bounded natural number. -/
   encode : α → Fin size
+  /-- Interpret every representation code as a value. -/
   decode : Fin size → α
   decode_encode : ∀ x, decode (encode x) = x
 
 namespace FiniteCodec
 
+/-- Transport a finite representation along a retraction. -/
 def retract (c : FiniteCodec β) (pack : α → β) (unpack : β → α)
     (h : ∀ x, unpack (pack x) = x) : FiniteCodec α where
   size := c.size
@@ -21,6 +26,7 @@ def retract (c : FiniteCodec β) (pack : α → β) (unpack : β → α)
   decode x := unpack (c.decode x)
   decode_encode x := by rw [c.decode_encode, h]
 
+/-- Identity representation for a nonempty finite interval. -/
 def fin (n : Nat) : FiniteCodec (Fin (n+1)) where
   size := n+1
   positive := Nat.zero_lt_succ n
@@ -28,6 +34,7 @@ def fin (n : Nat) : FiniteCodec (Fin (n+1)) where
   decode := id
   decode_encode _ := rfl
 
+/-- Two-code representation of Boolean values. -/
 def bool : FiniteCodec Bool where
   size := 2
   positive := by decide
@@ -35,6 +42,7 @@ def bool : FiniteCodec Bool where
   decode i := i.val == 1
   decode_encode b := by cases b <;> rfl
 
+/-- Singleton representation of the unit type. -/
 def unit : FiniteCodec Unit where
   size := 1
   positive := by decide
@@ -42,6 +50,7 @@ def unit : FiniteCodec Unit where
   decode _ := ()
   decode_encode x := by cases x; rfl
 
+/-- Represent a pair by mixed-radix encoding of its components. -/
 def product (a : FiniteCodec α) (b : FiniteCodec β) : FiniteCodec (α × β) where
   size := a.size * b.size
   positive := Nat.mul_pos a.positive b.positive
@@ -62,6 +71,7 @@ def product (a : FiniteCodec α) (b : FiniteCodec β) : FiniteCodec (α × β) w
     · exact (congrArg a.decode (Fin.ext h₁)).trans (a.decode_encode x.1)
     · exact (congrArg b.decode (Fin.ext h₂)).trans (b.decode_encode x.2)
 
+/-- Represent functions on a finite domain by their finite vector of values. -/
 def functions (c : FiniteCodec α) : (n : Nat) → FiniteCodec (Fin n → α)
   | 0 => unit.retract (fun _ => ()) (fun _ i => Fin.elim0 i) (by
       intro f; funext i; exact Fin.elim0 i)

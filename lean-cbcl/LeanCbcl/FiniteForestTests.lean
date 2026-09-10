@@ -30,6 +30,7 @@ theorem arbitrary_list (xs : List (SyntaxTree 1)) :
   have h := oneList.accepts_encoding [.node xs]
   simpa [ForestAlgebra.foldForest, ForestAlgebra.foldTree, oneList] using h
 
+/-- Finite recogniser witness for the recursive test algebra. -/
 def certificate : IsRealtimeDCFL oneList.language := oneList.isRealtimeDCFL
 
 end CBCL.FormalLanguage.ForestTests

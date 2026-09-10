@@ -49,8 +49,11 @@ The spec follows first-character dispatch for `--3` (a symbol), despite a
 contradictory draft example. UTF-8 byte decoding, runtime conformance, expansion
 costs, and causal validity remain separate obligations.
 
-Run `lake build` here to check the library and grammar examples, and
-`lake env lean DCFLInstallationAudit.lean` for the exported axiom audit. The new
+Run `lake build` and `lake exe runLinter LeanCbcl` here to check the library,
+grammar examples, and Batteries lint gate. Run
+`lake env lean DCFLInstallationAudit.lean` for the exported DCFL axiom audit.
+From the repository root, also run `scripts/check-axioms.sh` and
+`scripts/check-verified-by.sh` to match the remaining Lean CI gates. The new
 capstones use only `propext`, `Classical.choice`, and `Quot.sound`. Grammar tests
 use kernel `decide`; the arbitrary-nesting property is proved by induction.
 

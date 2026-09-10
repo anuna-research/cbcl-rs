@@ -14,19 +14,27 @@ CON-1801); that instance must prove that its summaries implement admission.
 
 namespace CBCL.FormalLanguage
 
+/-- Finite summaries of sibling forests, with atom and nested-list updates. -/
 structure ForestAlgebra (atoms summaries : Nat) where
+  /-- Summary of an empty sibling forest. -/
   empty : Fin summaries
+  /-- Append an atom to a sibling summary. -/
   atom : Fin summaries → Fin atoms → Fin summaries
+  /-- Append a completed child-list summary to its parent summary. -/
   list : Fin summaries → Fin summaries → Fin summaries
+  /-- Accept a completed top-level forest summary. -/
   accept : Fin summaries → Bool
 
 namespace ForestAlgebra
 
+/-- Encode a summary together with whether it is inside a list. -/
 def control {n : Nat} (inside : Bool) (x : Fin n) : Fin (n + n) :=
   if inside then Fin.natAdd n x else Fin.castAdd n x
 
+/-- Extract the forest summary from either control-state region. -/
 def summary {n : Nat} : Fin (n + n) → Fin n := Fin.addCases id id
 
+/-- Replace the summary while preserving the root/inside region. -/
 def replace {n : Nat} (s : Fin (n + n)) (x : Fin n) : Fin (n + n) :=
   Fin.addCases (fun _ => control false x) (fun _ => control true x) s
 
@@ -68,10 +76,10 @@ def machine (A : ForestAlgebra k n) : DPDA (k + 1 + 1) (n + n) (n + n + 1) where
 @[simp] theorem machine_close (A : ForestAlgebra k n) (b : Bool) (x y : Fin n)
     (rest : List (Fin (n+n+1))) :
     A.machine.step (some (control true y, (control b x).succ :: rest))
-      (Fin.succ (0 : Fin (k+1))) =
+      (1 : Fin (k+2)) =
       some (control b (A.list x y), rest) := by
   dsimp only [DPDA.step, machine, Bind.bind, Option.bind]
-  simp only [Fin.cases_succ, Fin.cases_zero]
+  simp only [Fin.cases_succ]
   simp only [control, ↓reduceIte, Fin.addCases_right]
   change some (replace (control b x) (A.list (summary (control b x)) y), [] ++ rest) = _
   simp only [summary_control, replace_control, List.nil_append]
@@ -80,7 +88,8 @@ def machine (A : ForestAlgebra k n) : DPDA (k + 1 + 1) (n + n) (n + n + 1) where
 @[simp] theorem machine_close_root (A : ForestAlgebra k n) (x : Fin n)
     (top : Fin (n+n+1)) (rest : List (Fin (n+n+1))) :
     A.machine.step (some (control false x, top :: rest))
-      (Fin.succ (0 : Fin (k+1))) = none := by
+      (1 : Fin (k+2)) = none := by
+  change A.machine.step (some (control false x, top :: rest)) (Fin.succ 0) = none
   dsimp only [DPDA.step, machine, Bind.bind, Option.bind]
   simp only [Fin.cases_succ, Fin.cases_zero, control, Bool.false_eq_true,
     ↓reduceIte, Fin.addCases_left]
@@ -94,10 +103,12 @@ inductive SyntaxTree (k : Nat) where
 
 namespace SyntaxTree
 
+/-- Encode a tree using open, close, and shifted atom tokens. -/
 def encode : SyntaxTree k → List (Fin (k+1+1))
   | .atom a => [a.succ.succ]
   | .node xs => [0] ++ (xs.map encode).flatten ++ [Fin.succ 0]
 
+/-- Concatenate the encodings of a sibling forest. -/
 def encodeForest (xs : List (SyntaxTree k)) : List (Fin (k+1+1)) :=
   (xs.map encode).flatten
 
@@ -115,8 +126,10 @@ end SyntaxTree
 namespace ForestDecoder
 open SyntaxTree
 
+/-- Current sibling trees and the stack of suspended parent forests. -/
 abbrev Configuration (k : Nat) := List (SyntaxTree k) × List (List (SyntaxTree k))
 
+/-- Reconstruct the consumed token prefix from a decoder configuration. -/
 def encodedPrefix : Configuration k → List (Fin (k+1+1))
   | (xs, []) => encodeForest xs
   | (xs, parent :: rest) => encodedPrefix (parent, rest) ++ [0] ++ encodeForest xs
@@ -137,6 +150,7 @@ def step (c : Option (Configuration k)) (t : Fin (k+1+1)) : Option (Configuratio
          | parent :: rest => some (parent ++ [.node xs], rest))
         (fun a => some (xs ++ [.atom a], stack)) t') t
 
+/-- Decode a word from an optional configuration, preserving failure. -/
 def run (c : Option (Configuration k)) (w : List (Fin (k+1+1))) :
     Option (Configuration k) := w.foldl step c
 
@@ -220,9 +234,11 @@ namespace ForestAlgebra
 open SyntaxTree
 
 mutual
+ /-- Evaluate one tree in a preceding sibling summary. -/
  def foldTree (A : ForestAlgebra k n) (s : Fin n) : SyntaxTree k → Fin n
    | .atom a => A.atom s a
    | .node xs => A.list s (A.foldForest xs A.empty)
+ /-- Evaluate sibling trees from left to right. -/
  def foldForest (A : ForestAlgebra k n) : List (SyntaxTree k) → Fin n → Fin n
    | [], s => s
    | x :: xs, s => A.foldForest xs (A.foldTree s x)
@@ -240,6 +256,7 @@ end
 @[simp] theorem foldForest_single (A : ForestAlgebra k n) (x : SyntaxTree k) (s : Fin n) :
     A.foldForest [x] s = A.foldTree s x := rfl
 
+/-- Encode suspended parent summaries above the permanent bottom symbol. -/
 def stackSummary (A : ForestAlgebra k n) : List (List (SyntaxTree k)) → List (Fin (n+n+1))
   | [] => [0]
   | parent :: rest => (control (!rest.isEmpty) (A.foldForest parent A.empty)).succ ::
@@ -248,9 +265,11 @@ def stackSummary (A : ForestAlgebra k n) : List (List (SyntaxTree k)) → List (
  theorem stackSummary_ne_nil (A : ForestAlgebra k n) (stack : List (List (SyntaxTree k))) :
     A.stackSummary stack ≠ [] := by cases stack <;> simp [stackSummary]
 
+/-- Map a concrete decoder configuration to finite summaries and stack symbols. -/
 def abstract (A : ForestAlgebra k n) (c : ForestDecoder.Configuration k) : A.machine.Configuration :=
   (control (!c.2.isEmpty) (A.foldForest c.1 A.empty), A.stackSummary c.2)
 
+/-- Lift configuration abstraction through optional failure. -/
 def abstractOption (A : ForestAlgebra k n) (c : Option (ForestDecoder.Configuration k)) :
     Option A.machine.Configuration := c.map A.abstract
 
@@ -271,15 +290,16 @@ def abstractOption (A : ForestAlgebra k n) (c : Option (ForestDecoder.Configurat
     | succ t =>
       induction t using Fin.cases with
       | zero =>
+        simp only [ForestDecoder.step, Fin.cases_succ, Fin.cases_zero]
         cases stack with
         | nil =>
-          simp only [ForestDecoder.step, Fin.cases_succ, Fin.cases_zero, abstractOption,
+          simp only [abstractOption,
             Option.map_none, Option.map_some, abstract, List.isEmpty_nil, Bool.not_true,
-            stackSummary, machine_close_root]
+            stackSummary, Fin.succ_zero_eq_one, machine_close_root]
         | cons parent rest =>
-          simp only [ForestDecoder.step, Fin.cases_succ, Fin.cases_zero, abstractOption,
+          simp only [abstractOption,
             Option.map_some, abstract, List.isEmpty_cons, Bool.not_false, stackSummary,
-            machine_close, foldForest_append, foldForest_single, foldTree]
+            Fin.succ_zero_eq_one, machine_close, foldForest_append, foldForest_single, foldTree]
       | succ a =>
         obtain ⟨top, rest, hs⟩ := List.exists_cons_of_ne_nil (A.stackSummary_ne_nil stack)
         simp only [ForestDecoder.step, Fin.cases_succ, abstractOption, Option.map_some,

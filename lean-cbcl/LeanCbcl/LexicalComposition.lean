@@ -6,32 +6,44 @@ delimiter lookahead. Atom transitions preserve the stack, so the product is
 a real-time DPDA without epsilon transitions or an external end marker. -/
 namespace CBCL.FormalLanguage
 
+/-- Optional completed atom followed by a delimiter code: none, open, or close. -/
 abbrev Lexeme (k : Nat) := Option (Fin k) × Fin 3
 
+/-- Encode zero or one atom using the forest token alphabet. -/
 def atomTokens (a : Option (Fin k)) : List (Fin (k+1+1)) :=
   match a with | none => [] | some a => [a.succ.succ]
 
+/-- Decode a delimiter code into an optional structural token. -/
 def delimiter (d : Fin 3) : Option (Fin (k+1+1)) :=
   if d == 1 then some 0 else if d == 2 then some (Fin.succ 0) else none
 
+/-- Emit the atom tokens before the optional structural delimiter. -/
 def emit (e : Lexeme k) : List (Fin (k+1+1)) := atomTokens e.1 ++ (delimiter e.2).toList
 
+/-- Deterministic lexer interface with finite-state representation supplied separately. -/
 structure FiniteLexer (alphabet atoms : Nat) (σ : Type) where
+  /-- Lexical state before any input is consumed. -/
   initial : σ
+  /-- Consume one input letter and emit a bounded lexeme, or reject. -/
   step : σ → Fin alphabet → Option (σ × Lexeme atoms)
+  /-- Finish the final lexical state, optionally emitting one pending atom. -/
   finish : σ → Option (Option (Fin atoms))
 
 namespace FiniteLexer
 
+/-- Consume one letter while accumulating the emitted token word. -/
 def accumulate (L : FiniteLexer a k σ) (c : Option (σ × List (Fin (k+1+1)))) (t : Fin a) :=
   c.bind fun (s, w) => (L.step s t).map fun (s', e) => (s', w ++ emit e)
 
+/-- Scan the full input, retaining lexical state and emitted tokens. -/
 def scan (L : FiniteLexer a k σ) (w : List (Fin a)) :=
   w.foldl L.accumulate (some (L.initial, []))
 
+/-- Scan and finish, rejecting lexical failure or an incomplete final token. -/
 def lex (L : FiniteLexer a k σ) (w : List (Fin a)) : Option (List (Fin (k+1+1))) :=
   (L.scan w).bind fun (s, tokens) => (L.finish s).map fun a => tokens ++ atomTokens a
 
+/-- Raw inputs lexing to words in the supplied forest language. -/
 def language (L : FiniteLexer a k σ) (A : ForestAlgebra k n) (w : List (Fin a)) : Prop :=
   ∃ tokens, L.lex w = some tokens ∧ A.language tokens
 
@@ -39,9 +51,11 @@ end FiniteLexer
 
 namespace ForestAlgebra
 
+/-- Update finite parser control for an optional atom without changing the stack. -/
 def afterAtom (A : ForestAlgebra k n) (s : Fin (n+n)) (a : Option (Fin k)) :=
   match a with | none => s | some a => replace s (A.atom (summary s) a)
 
+/-- Fuse an optional atom and delimiter into one stack-top rewrite. -/
 def advance (A : ForestAlgebra k n) (s : Fin (n+n)) (top : Fin (n+n+1)) (e : Lexeme k) :=
   match delimiter e.2 with
   | none => some (A.afterAtom s e.1, [top])
@@ -61,6 +75,7 @@ end ForestAlgebra
 
 namespace FiniteLexer
 
+/-- Finite representation of the lexer/parser control-state pair. -/
 def controlCodec (C : FiniteCodec σ) (A : ForestAlgebra k n) : FiniteCodec (σ × Fin (n+n)) :=
   C.product {
     size := n+n
@@ -69,6 +84,7 @@ def controlCodec (C : FiniteCodec σ) (A : ForestAlgebra k n) : FiniteCodec (σ 
     decode := id
     decode_encode := fun _ => rfl }
 
+/-- Compose finite lexical control with the forest DPDA in real time. -/
 def product (L : FiniteLexer a k σ) (C : FiniteCodec σ) (A : ForestAlgebra k n) :
     DPDA a (controlCodec C A).size (n+n+1) where
   initialState := (controlCodec C A).encode (L.initial, A.machine.initialState)
@@ -83,11 +99,13 @@ def product (L : FiniteLexer a k σ) (C : FiniteCodec σ) (A : ForestAlgebra k n
     | none => false
     | some a => A.machine.finalState (A.afterAtom s a)
 
+/-- Abstract a lexical state and concrete forest decoder into product configuration. -/
 def pack (C : FiniteCodec σ) (A : ForestAlgebra k n)
     (c : Option (σ × ForestDecoder.Configuration k)) :
     Option (Fin (controlCodec C A).size × List (Fin (n+n+1))) :=
   c.map fun (l, d) => ((controlCodec C A).encode (l, (A.abstract d).1), (A.abstract d).2)
 
+/-- Consume one raw letter using the concrete forest decoder for emitted tokens. -/
 def referenceStep (L : FiniteLexer a k σ) (c : Option (σ × ForestDecoder.Configuration k)) (t : Fin a) :=
   c.bind fun (l, d) => (L.step l t).bind fun (l', e) =>
     (ForestDecoder.run (some d) (emit e)).map fun d' => (l', d')
@@ -119,6 +137,7 @@ theorem product_step (L : FiniteLexer a k σ) (C : FiniteCodec σ) (A : ForestAl
         simp [hr, ha, ForestAlgebra.abstractOption, ForestAlgebra.abstract, Option.map] at h ⊢
       simp [h.1, h.2]
 
+/-- Decode accumulated lexical tokens into a concrete forest configuration. -/
 def decodeAccum (c : Option (σ × List (Fin (k+1+1)))) :
     Option (σ × ForestDecoder.Configuration k) :=
   c.bind fun (l, w) => (ForestDecoder.run (some ([], [])) w).map fun d => (l, d)
@@ -190,6 +209,7 @@ theorem product_accepts (L : FiniteLexer a k σ) (C : FiniteCodec σ) (A : Fores
           (controlCodec C A).decode_encode]
       exact (atom_finish A tokens d hd _).symm
 
+ /-- Certify the raw language with the finite real-time product machine. -/
  def isRealtimeDCFL (L : FiniteLexer a k σ) (C : FiniteCodec σ) (A : ForestAlgebra k n) :
     IsRealtimeDCFL (L.language A) where
   stateSize := (controlCodec C A).size

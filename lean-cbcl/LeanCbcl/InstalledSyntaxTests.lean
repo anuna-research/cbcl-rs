@@ -3,13 +3,19 @@ import LeanCbcl.InstalledDCFL
 /-! SPEC-018 TEST-1801 / TEST-1802: concrete grammar and installation evidence. -/
 namespace CBCL.InstalledSyntax.Tests
 
+/-- Construct a dialect declaring one custom performative for tests. -/
 def dialect (name perf : String) : Dialect :=
   { baseDialect with name := name, performatives := [⟨perf, [], .list [.sym "tell"]⟩] }
 
+/-- Test environment with distinct scopes and a shared custom performative name. -/
 def env := [baseDialect, dialect "d" "ship", dialect "e" "stop", dialect "f" "ship"]
+/-- Build a message list from its head symbol and arguments. -/
 def msg (h : String) (args : List SExpr := []) : SExpr := .list (.sym h :: args)
+/-- Wrap a message in an explicit dialect scope. -/
 def lang (d : String) (e : SExpr) : SExpr := msg "lang" [.sym d, e]
+/-- Wrap a message with a signature argument. -/
 def signed (e : SExpr) : SExpr := msg "signed" [.sym "signature", e]
+/-- Construct a keyword atom for argument tests. -/
 def kw (k : String) : SExpr := .atom (.keyword k)
 
 example : admitted env (msg "tell") := by decide
@@ -46,6 +52,7 @@ theorem signed_scope (ds : List Dialect) (scope : Fin (ds.length+1)) (xs : List 
     admittedAt ds scope (.list [.sym "signed", .list xs]) ↔ admittedAt ds scope (.list xs) := by
   rfl
 
+/-- Add any number of recursive signed wrappers around a sibling list. -/
 def nest : Nat → List SExpr → List SExpr
   | 0, xs => xs
   | n+1, xs => [.sym "signed", .list (nest n xs)]
@@ -61,6 +68,7 @@ example : ((Agent.new "agent").dialects.map Dialect.name).Nodup := by decide
 example : (dialect "d" "ship").name ∉ (Agent.new "agent").dialects.map Dialect.name := by decide
 example : ¬ (baseDialect.name ∉ (Agent.new "agent").dialects.map Dialect.name) := by decide
 
+/-- Installation certificate for two fresh dialects sharing a performative name. -/
 def installed_certificate := dcfl_preserved_many (Agent.new "agent")
   [dialect "d" "ship", dialect "f" "ship"]
 

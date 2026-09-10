@@ -1,4 +1,5 @@
 import LeanCbcl.SExpr
+import Batteries.Tactic.Lint
 
 /-!
 # Finite deterministic pushdown automata
@@ -18,14 +19,20 @@ namespace CBCL.FormalLanguage
 /-- A real-time DPDA, a restricted standard DPDA sufficient for visibly
     delimited syntax. Sizes parameterise a machine, never the input length. -/
 structure DPDA (alphabetSize stateSize stackSize : Nat) where
+  /-- Consume one input symbol and replace the stack top, or reject. -/
   transition : Fin stateSize → Fin alphabetSize → Fin stackSize →
     Option (Fin stateSize × List (Fin stackSize))
+  /-- Control state before any input is consumed. -/
   initialState : Fin stateSize
+  /-- The sole initial stack symbol. -/
   initialSymbol : Fin stackSize
+  /-- Acceptance predicate on the final control state. -/
   finalState : Fin stateSize → Bool
 
 namespace DPDA
 
+/-- Control state and stack for this machine; stack head is the top. -/
+@[nolint unusedArguments] -- Keeps M.Configuration notation; only the carrier sizes determine this type.
 abbrev Configuration (_M : DPDA a q g) := Fin q × List (Fin g)
 
 /-- A failed computation stays failed, including on subsequent input. -/
@@ -36,12 +43,15 @@ def step (M : DPDA a q g) (c : Option M.Configuration) (t : Fin a) :
   let (next, push) ← M.transition state t top
   pure (next, push ++ rest)
 
+/-- Consume a word from an optional configuration, preserving failure. -/
 def runFrom (M : DPDA a q g) (c : Option M.Configuration) (w : List (Fin a)) :
     Option M.Configuration := w.foldl M.step c
 
+/-- Initial control state paired with the singleton initial stack. -/
 def initial (M : DPDA a q g) : M.Configuration :=
   (M.initialState, [M.initialSymbol])
 
+/-- Accept exactly when complete consumption ends in an accepting control state. -/
 def accepts (M : DPDA a q g) (w : List (Fin a)) : Bool :=
   match M.runFrom (some M.initial) w with
   | none => false
@@ -94,13 +104,17 @@ end DPDA
 /-- A finite real-time DPDA recognising exactly a language of arbitrary words.
     This stronger certificate does not accept an AST-only correctness argument. -/
 structure IsRealtimeDCFL {alphabetSize : Nat} (L : List (Fin alphabetSize) → Prop) where
+  /-- Number of finite control states in the witness. -/
   stateSize : Nat
+  /-- Number of finite stack symbols in the witness. -/
   stackSize : Nat
+  /-- The concrete finite real-time pushdown recogniser. -/
   machine : DPDA alphabetSize stateSize stackSize
   correct : ∀ w, machine.accepts w = true ↔ L w
 
 namespace IsRealtimeDCFL
 
+/-- Decide membership by executing the certified recogniser. -/
 def decide {L : List (Fin a) → Prop} (h : IsRealtimeDCFL L) (w : List (Fin a)) : Bool :=
   h.machine.accepts w
 
