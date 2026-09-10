@@ -1,3 +1,5 @@
+> Historical review: theorem names below describe the reviewed snapshot. The 2026-09-10 follow-up renamed `projectability_iff_local_verifiability` to `projectability_sufficiency_and_counterexample`, `causal_locality_necessary` to `nonlocal_protocol_counterexample`, and `weakest_sound_condition` to `decidesAll_iff_predsLocal`. `Bridge.eventually_present_valid` now adds finite-time resolution with explicit finite predecessor support. See `outputs/endpoint-projection-review-2026-09-10.md` for the later review.
+
 # Review: endpoint-projection proofs in `lean-cbcl`
 
 **Date:** 2026-07-10 · **Scope:** `EPP.lean`, `EPPCompletion.lean`, `Projectability.lean`,

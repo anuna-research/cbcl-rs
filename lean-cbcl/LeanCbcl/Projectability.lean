@@ -1,5 +1,5 @@
 /-
-  Projectability ≡ local verifiability — mechanization of the paper's Theorem 1
+  Causal locality suffices for local verifiability — mechanization of Theorem 1
   (`thm:equiv`), restated per the review (M1/M2) with causal locality (R6(vi)) as
   the definition of projectability.
 
@@ -21,16 +21,16 @@
     (ii) `projectable_eventual_resolution`: at the full local store every
         `r`-relevant verdict is decided (`Valid` or `Violation`, never `Unknown`)
         and *equals* the global verdict.
-  * CONVERSE (not projectable ⇒ not locally verifiable): stated over `ProtoData`
+  * COUNTEREXAMPLE (local verifiability can fail without causal locality): stated over `ProtoData`
     (the fields of `Proto` minus the causal-locality proof obligation, with
     definitional bridge lemmas certifying the semantics is unchanged), since a
     protocol violating R6(vi) cannot be a `Proto` at all.
-    `causal_locality_necessary` exhibits a protocol, a closed *safe* global run,
+    `nonlocal_protocol_counterexample` exhibits a protocol, a closed *safe* global run,
     a role `r` and an `r`-relevant message whose verdict is `Unknown` in *every*
     local store `r` can ever reach: the review's straight-line example
     (`x : A → B`, `y : C → B`, protocol `(then begin x y)`; role `C` must justify
     `y` by the third-party message `x` it never holds).
-  * `projectability_iff_local_verifiability` packages both directions.
+  * `projectability_sufficiency_and_counterexample` packages universal sufficiency and an existential counterexample; it is not a per-protocol iff.
 -/
 import LeanCbcl.EPP
 
@@ -297,16 +297,10 @@ theorem my_permanently_unknown :
 
 end Counterexample
 
-/-- **Theorem 1, converse** (`thm:equiv`, existentially quantified as the review
-    requires): there is a protocol violating causal locality, with a closed
-    *safe* global run, a role `r`, and an `r`-relevant message occurring in the
-    run whose verdict is `Unknown` in every local store `r` can reach —
-    permanently `Unknown`. The existential form is not a weakness: the
-    per-protocol converse ("EVERY non-causally-local protocol has such a run")
-    is false in general, since a violating `legalPred` edge need not be
-    exercisable by any run — e.g. over an empty or impoverished `Msg` type
-    there may be no message to exhibit. -/
-theorem causal_locality_necessary :
+/-- A nonlocal protocol with a closed safe global run and a permanently Unknown
+    local message. This is an existential counterexample, not a per-protocol
+    necessity theorem: a nonlocal legal edge may be unrealizable in any safe run. -/
+theorem nonlocal_protocol_counterexample :
     ∃ (Role Perf Msg : Type) (D : ProtoData Role Perf Msg)
       (C : Cfg Msg) (r : Role) (m : Msg),
       ¬ D.causalLocality ∧
@@ -320,13 +314,9 @@ theorem causal_locality_necessary :
    trivial, Or.inl rfl,
    Counterexample.my_permanently_unknown⟩
 
-/-- **Theorem 1 (Projectability ≡ local verifiability), both directions.**
-    Forward: for *every* causally local protocol, role, closed safe run, and
-    `r`-relevant message, the verdict at `r`'s eventual local store is decided
-    and equals the global verdict. Converse: absent causal locality this fails —
-    witnessed by a protocol, closed safe run, role, and `r`-relevant message
-    whose verdict is `Unknown` at every reachable local store of `r`. -/
-theorem projectability_iff_local_verifiability :
+/-- Universal sufficiency of causal locality, paired with an explicit failure
+    example without locality. No per-protocol converse is asserted. -/
+theorem projectability_sufficiency_and_counterexample :
     (∀ (Role Perf Msg : Type) (D : ProtoData Role Perf Msg),
       D.causalLocality →
       ∀ C : Cfg Msg, D.closedCfgD C → D.pSafeD C →
@@ -344,12 +334,12 @@ theorem projectability_iff_local_verifiability :
       ∀ L : Cfg Msg, (∀ z, L z → D.projectD C r z) → D.isUnknownD L m) :=
   ⟨fun _ _ _ _ h _ hcl hsafe _ _ hm =>
      locally_verifiable_of_causalLocality h hcl hsafe hm,
-   causal_locality_necessary⟩
+   nonlocal_protocol_counterexample⟩
 
 /-! Axiom audit (informational output when this file is compiled). -/
 #print axioms unknown_means_not_yet_arrived
 #print axioms projectable_eventual_resolution
-#print axioms causal_locality_necessary
-#print axioms projectability_iff_local_verifiability
+#print axioms nonlocal_protocol_counterexample
+#print axioms projectability_sufficiency_and_counterexample
 
 end LeanCbcl.Projectability

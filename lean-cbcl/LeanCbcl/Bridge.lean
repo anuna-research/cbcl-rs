@@ -4,8 +4,9 @@
   Three referees asked for the same missing piece: the run-level EPP correspondence
   (`EPP.lean`: `P`-safe closed global configurations ≅ compatible families of local runs)
   is stated over *ideal* local stores (the full projections), while a running endpoint
-  only ever holds a *finite prefix* of its projection, delivered in some order. This file
-  closes that gap with a temporal statement connecting eventual delivery to compatibility.
+  holds a partial projection, delivered in some order. Predicate stores need not be
+  finite. Limit correspondence requires exhaustion; finite-time resolution additionally
+  requires finite predecessor support, as in `eventually_present_valid`.
 
   * A `Schedule P C r` is a delivery schedule for role `r` against a global configuration
     `C`: a monotone (append-only) chain of local stores `store : Nat → Cfg Msg` with
@@ -14,7 +15,7 @@
     causal-delivery assumption is made.
 
   * `bridge_stability`: along any schedule, resolved verdicts are stable and truthful.
-    If a message's verdict over the finite store `store n` is resolved (`Valid` or
+    If a message's verdict over `store n` is resolved (`Valid` or
     `Violation` under the resolved-first three-valued semantics of `EPP.lean`), then that
     same verdict already holds (i) at every later time `n' ≥ n` (no retraction along the
     execution), (ii) at the limit store `⋃ n, store n`, (iii) at the ideal projection
@@ -32,10 +33,10 @@
     into that limit (hence into the Theorem-2 bijection), and the limit family glues to
     `C` with both round-trip identities. Executions → compatible family → `C`.
 
-  Everything is reused from `EPP.lean` (`valid_stable`, `violation_stable`,
+  The limit and stability arguments reuse results from `EPP.lean` (`valid_stable`, `violation_stable`,
   `reconcile_global`, `soundness_safety`, `projFamily`, `glue_project_eq`,
-  `project_glue_eq`); the only new definitions are `Schedule`, its `≤`-monotone closure
-  `store_le`, and its pointwise limit `Schedule.limit`. No new axioms.
+  `project_glue_eq`); finite-time resolution uses a finite list covering the cited predecessors and
+  a maximum-arrival-time argument. No new axioms.
 -/
 import LeanCbcl.EPP
 
@@ -76,7 +77,7 @@ theorem store_le (L : Schedule P C r) {n n' : Nat} (h : n ≤ n')
 /-- The limit store of a schedule: `⋃ n, store n` (as a predicate). -/
 def limit (L : Schedule P C r) : Cfg Msg := fun m => ∃ n, L.store n m
 
-/-- Every finite store embeds in the limit. -/
+/-- Every time-indexed store embeds in the limit. -/
 theorem store_le_limit (L : Schedule P C r) (n : Nat) :
     ∀ m, L.store n m → L.limit m := fun _ hm => ⟨n, hm⟩
 
@@ -91,14 +92,66 @@ theorem limit_eq (L : Schedule P C r) : L.limit = project P C r := by
     exact L.bounded n m hn
   · exact L.exhaust m
 
+/-- Every finite list of eventually delivered messages is held together from
+    some finite time onward. No finiteness of the entire store is required. -/
+theorem eventually_holds_list (L : Schedule P C r) (xs : List Msg)
+    (hx : ∀ x, x ∈ xs → project P C r x) :
+    ∃ n, ∀ n', n ≤ n' → ∀ x, x ∈ xs → L.store n' x := by
+  induction xs with
+  | nil => exact ⟨0, by simp⟩
+  | cons x xs ih =>
+    obtain ⟨nx, hnx⟩ := L.exhaust x (hx x (by simp))
+    obtain ⟨ns, hns⟩ := ih (fun y hy => hx y (by simp [hy]))
+    refine ⟨max nx ns, ?_⟩
+    intro n hn y hy
+    rcases List.mem_cons.mp hy with he | ht
+    · subst y
+      exact L.store_le (Nat.le_trans (Nat.le_max_left _ _) hn) hnx
+    · exact hns n (Nat.le_trans (Nat.le_max_right _ _) hn) y ht
+
 end Schedule
 
 variable (P : Proto Role Perf Msg)
 
+/-- A message has finite predecessor support when a finite list covers every
+    citation. The list may contain duplicates; no decidable message equality is needed. -/
+def FinitePredecessors (m : Msg) : Prop :=
+  ∃ xs : List Msg, ∀ p, P.predRel m p → p ∈ xs
+
+/-- In a safe closed run, a relevant message with finitely many cited predecessors
+    is eventually present and Valid at every later time. This strengthens limit
+    correspondence to finite-time resolution under an explicit finiteness hypothesis. -/
+theorem eventually_present_valid {C : Cfg Msg}
+    (hcl : closedCfg P C) (hsafe : pSafe P C) {r : Role}
+    (L : Schedule P C r) {m : Msg} (hm : project P C r m)
+    (hfinite : FinitePredecessors P m) :
+    ∃ n, ∀ n', n ≤ n' → L.store n' m ∧ isValid P (L.store n') m := by
+  classical
+  obtain ⟨xs, hxs⟩ := hfinite
+  let needed := xs.filter (fun p => P.predRel m p)
+  have hneeded : ∀ p, p ∈ needed → project P C r p := by
+    intro p hp
+    exact localres P hcl hsafe hm.1 hm.2 p (by simpa using (List.mem_filter.mp hp).2)
+  obtain ⟨n, hn⟩ := L.eventually_holds_list (m :: needed) (by
+    intro p hp
+    rcases List.mem_cons.mp hp with he | ht
+    · simpa [he] using hm
+    · exact hneeded p ht)
+  refine ⟨n, ?_⟩
+  intro n' hnn
+  have hres : resolved P (L.store n') m := by
+    intro p hp
+    exact hn n' hnn p (List.mem_cons.mpr (Or.inr
+      (List.mem_filter.mpr ⟨hxs p hp, by simpa using hp⟩)))
+  have hgood := good_of_safe_closed P hcl hsafe hm.1
+  have heq := predTypesPresent_mono P (fun p hp => (L.bounded n' p hp).1) hres
+  refine ⟨hn n' hnn m (by simp), hres, hgood.1, hgood.2.1, ?_⟩
+  rw [heq]
+  exact hgood.2.2
+
 /-- **Theorem (bridge, stability): resolved verdicts along a schedule are stable and
     truthful.** Let `C` be `P`-safe and closed, `L` a delivery schedule for role `r`,
-    and `m` a message held by `r` at time `n`. If `m`'s verdict over the finite store
-    `L.store n` is resolved — `Valid` or `Violation` under the resolved-first semantics
+    and `m` a message held by `r` at time `n`. If `m`'s verdict over `L.store n` is resolved — `Valid` or `Violation` under the resolved-first semantics
     — then the *same* verdict holds at every later time, at the limit store, at the
     ideal projection, and (via `reconcile_global`) globally over `C`. A locally
     resolved verdict at any finite time is already the limit verdict: no retraction
@@ -195,7 +248,61 @@ theorem temporal_bridge {C : Cfg Msg} (hcl : closedCfg P C) (hsafe : pSafe P C)
   intro r n m hm
   exact bridge_stability P hcl hsafe (L r) hm
 
+/-! A counterexample showing why exhaustion alone does not imply finite-time
+resolution: message zero cites every positive natural-number message. -/
+namespace InfinitePredecessorsExample
+
+/-- A one-role protocol whose message zero cites every positive message. -/
+def proto : Proto Unit Unit Nat where
+  perf := fun _ => ()
+  sender := fun _ => ()
+  recip := fun _ _ => False
+  predRel := fun m p => m = 0 ∧ 0 < p
+  psender := fun _ => ()
+  precip := fun _ _ => False
+  legalPred := fun _ _ => True
+  clause := fun _ _ => True
+  causalLocal := fun _ _ _ _ hr => hr
+
+/-- The infinite global store. -/
+def full : Cfg Nat := fun _ => True
+
+/-- Deliver message k at time k; every time-indexed store is a finite prefix. -/
+def delivery : Schedule proto full () where
+  store := fun n m => m ≤ n
+  mono := fun _ _ hm => Nat.le_trans hm (Nat.le_succ _)
+  bounded := fun _ _ _ => ⟨trivial, Or.inl rfl⟩
+  exhaust := fun m _ => ⟨m, Nat.le_refl m⟩
+
+/-- All predecessors are in the global store. -/
+theorem full_closed : closedCfg proto full := fun _ _ _ _ => trivial
+
+/-- The infinite run is safe; missing local predecessors are knowledge gaps. -/
+theorem full_safe : pSafe proto full := by
+  intro m _ hv
+  exact hv.2 ⟨⟨rfl, fun _ => Iff.rfl⟩, fun _ _ => trivial, trivial⟩
+
+/-- The dependent message is present but Unknown at every finite time. -/
+theorem always_unknown (n : Nat) :
+    delivery.store n 0 ∧ isUnknown proto (delivery.store n) 0 := by
+  refine ⟨Nat.zero_le n, ?_⟩
+  intro hres
+  have h := hres (n + 1) ⟨rfl, Nat.zero_lt_succ n⟩
+  exact Nat.not_succ_le_self n h
+
+/-- Exhaustion and a safe closed run do not supply finite predecessor support. -/
+theorem not_finite_predecessors : ¬ FinitePredecessors proto 0 := by
+  intro hf
+  obtain ⟨n, hn⟩ := eventually_present_valid proto full_closed full_safe delivery
+    ⟨trivial, Or.inl rfl⟩ hf
+  exact (always_unknown n).2 (hn n (Nat.le_refl n)).2.1
+
+end InfinitePredecessorsExample
+
 /-! Axiom audit (informational output when this file is compiled). -/
+#print axioms InfinitePredecessorsExample.always_unknown
+#print axioms InfinitePredecessorsExample.not_finite_predecessors
+#print axioms eventually_present_valid
 #print axioms bridge_stability
 #print axioms bridge_compatibility
 #print axioms temporal_bridge

@@ -72,7 +72,7 @@ $\mathit{Valid}$ or $\mathit{Violation}$; only $\mathit{Unknown}$ (a referenced
 predecessor not yet present) is provisional.
 \end{definition}
 
-\begin{theorem}[Projectability $\equiv$ local verifiability]
+\begin{theorem}[Projectability implies local verifiability]
 \label{thm:equiv}
 If $P$ is projectable onto $r$, then verification of any $r$-relevant message over
 $\mathrm{project}(P,r)$ and $r$'s local store never returns $\mathit{Unknown}$ for a
@@ -400,23 +400,39 @@ The completeness direction is conditioned on \emph{compatibility} (Def~\ref{def:
 a meta-level gluing precondition; making it endpoint-checkable is future work.
 Theorem~\ref{thm:epp} is mechanized in Lean~4 (no \code{sorry}; axioms \code{propext},
 \code{Classical.choice}, \code{Quot.sound}, enforced in CI by the project axiom audit) at
-the abstract-model level, on top of the R1--R5 development; instantiating the clause
-language and the concrete message types remains.
+the abstract-model level, on top of the R1--R5 development. Concrete clause tables
+are now instantiated; deployed message and eager-verifier refinement remains.
 Two mechanization notes.
 First, the mechanization projects the \emph{store} and verifies both sides against the
 global $P$; the protocol side of Def~\ref{def:proj} enters through an agreement
 interface (\code{AgreesOnRole}, \code{ProtocolProjection.lean}): any projected protocol
 that agrees with $P$ on $r$-endpoint performatives assigns $r$-relevant messages
-identical verdicts (\code{local\_protocol\_verification\_agrees}), and causal locality
-(R6, Def~\ref{def:r6}) is exactly what makes the bystander-erasure/splice of
-Def~\ref{def:proj} leave $r$-endpoint performatives untouched and hence satisfy the
-interface; mechanizing the splice itself would require a concrete clause syntax, which
-the abstract model deliberately omits.
+identical verdicts (\code{local\_protocol\_verification\_agrees}).
+\code{ConcreteProjection.lean} now supplies Single/Any/All clause syntax and
+interprets legal predecessor types from those clauses. It proves agreement for
+Rust's raw-table copy and for a filtered view retaining the shared begin root.
+The theorem \code{concrete\_verification\_agrees} additionally connects the
+concrete Send/Recv map to the abstract local store, assuming consistent duplicate
+annotations, shared-root visibility, causal locality, safety and closure. Annotation
+consistency is an explicit premise, not an established installation guarantee.
+A live Rust-to-Lean kernel comparison checks the transcription boundary, not the
+Rust compiler. Clause evaluation remains parametric; generalized nonlocal splicing,
+envelope derivation and delivery, and authenticated message interpretation are separate
+obligations.
 Second, obligations (Def~\ref{def:pcomplete}) are mechanized as witness-\emph{sets}
 discharged by any single present-and-$\mathit{Valid}$ member, so pooled
 \code{(any role[*])} obligations are genuinely disjunctive (different local runs may
 discharge one via different occupants); requiring $\mathit{Valid}$ rather than bare
 presence for plain required performatives is vacuous on the correspondence's domain,
 where presence implies validity (\code{valid\_of\_safe\_closed}).
+
+The temporal bridge separates limit correspondence from finite-time resolution.
+A schedule assumes append-only delivery and exhaustion of the role's projection;
+its time-indexed stores need not be finite. The theorem
+\code{eventually\_present\_valid} additionally assumes a finite list covering the
+message's predecessors. Under safety and closure, taking a maximum of the arrival
+times of the message and those predecessors yields a finite time from which the
+message is present and Valid. The mechanized infinite-predecessor example shows why
+exhaustion alone does not imply finite-time resolution.
 
 \end{document}

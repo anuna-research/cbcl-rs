@@ -1,33 +1,14 @@
 /-
-  Protocol projection as an agreement interface — closing the `proof.tex` Def-1 gap.
+  Protocol verification transfer through an explicit agreement interface.
 
-  The paper's role-local verifier runs against the PROJECTED protocol `project(P,r)`
-  (Def. 1: bystander performatives erased, causal edges spliced transitively through the
-  erasure), while `EPP.lean` evaluates both sides of every reconciliation against the same
-  global `P`. This file mechanizes the missing step at the interface level:
-
-  * `AgreesOnRole D Q r` says protocol `Q` agrees with `D` on everything the verdict of an
-    `r`-relevant message can read: all message fields, and the protocol fields (`psender`,
-    `precip`, `legalPred`, `clause`) at every `r`-ENDPOINT performative. This is exactly
-    the specification the paper's `project(P,r)` meets when `D` is causally local: the
-    splice rewrites a performative's clause only when the clause names a bystander type,
-    and causal locality says an `r`-endpoint performative's clause never does — so the
-    erasure/splice leaves every `r`-endpoint performative untouched. (That the concrete
-    splice satisfies `AgreesOnRole` is argued in `proof.tex`; mechanizing the splice
-    itself would require a concrete clause syntax, which this abstract model deliberately
-    lacks. `agreesOnRole_refl` records the trivial instance `Q := D`.)
-
-  * `verdict_agree`: under `AgreesOnRole`, `D` and `Q` assign identical verdicts (all
-    three of Unknown / Valid / Violation) to any message whose performative is an
-    `r`-endpoint type, in ANY store. Conformant `r`-relevant messages qualify
-    (`typeEndpoint_of_conformant`).
-
-  * `local_protocol_verification_agrees` (headline): for a causally local `D`, a safe
-    closed global run `C`, and any projected protocol `Q` agreeing with `D` at `r`:
-    verification of an `r`-relevant message by the LOCAL verifier — protocol `Q`, store
-    `Q.projectD C r` — decides, and its `Valid`/`Violation` verdicts coincide with the
-    GLOBAL verifier's (protocol `D`, store `C`). This is `proof.tex` Def. 3 + Lemma
-    reconcile(i) with the projected protocol restored to the statement.
+  `AgreesOnRole` assumes equality of message fields and relevant protocol fields.
+  These hypotheses suffice to transfer all verdict predicates. This module does not
+  define a concrete protocol erasure/splice or prove it satisfies the interface.
+  Causal locality constrains legalPred, while clause is independent abstract data;
+  identifying a concrete projection requires clause syntax, its interpretation,
+  and a proof relating clause references to legalPred. Locality alone does not
+  discharge clause_iff in this abstract model. ConcreteProjection.lean supplies the
+  concrete syntax and discharges this interface for raw-copy and filtered views.
 -/
 import LeanCbcl.Projectability
 
@@ -43,12 +24,9 @@ variable {Role Perf Msg : Type}
 def typeEndpoint (D : ProtoData Role Perf Msg) (t : Perf) (r : Role) : Prop :=
   D.psender t = r ∨ D.precip t r
 
-/-- `Q` agrees with `D` at role `r`: identical message fields, and identical protocol
-    fields at every `r`-endpoint performative. A projected protocol `project(D, r)` in
-    the sense of `proof.tex` Def. 1 satisfies this precisely when the bystander
-    erasure/splice never touches an `r`-endpoint performative — which is what causal
-    locality guarantees. Fields of NON-`r`-endpoint performatives are unconstrained:
-    those are the erased bystanders. -/
+/-- Identical message fields and protocol fields at every D-endpoint type for r.
+    Fields at other types are unconstrained. Satisfaction by a concrete projection
+    is discharged for specific views in ConcreteProjection.lean. -/
 structure AgreesOnRole (D Q : ProtoData Role Perf Msg) (r : Role) : Prop where
   perf_eq     : ∀ m, Q.perf m = D.perf m
   sender_eq   : ∀ m, Q.sender m = D.sender m
@@ -130,7 +108,7 @@ theorem verdict_agree (h : AgreesOnRole D Q r) {m : Msg}
 /-- **Local verification over the projected protocol agrees with global verification**
     (`proof.tex` Def. 3 + Lemma reconcile(i), with the projected protocol in the
     statement). Let `D` be causally local, `C` a `P`-safe closed global run, and `Q` any
-    protocol agreeing with `D` at `r` (e.g. the paper's `project(D, r)`). Then for every
+    protocol agreeing with `D` at `r` (with agreement supplied explicitly). Then for every
     `r`-relevant `m`, the LOCAL verifier — protocol `Q`, store `Q.projectD C r` — decides
     (never `Unknown`), and its `Valid` / `Violation` verdicts are exactly the GLOBAL
     verifier's (protocol `D`, store `C`). -/

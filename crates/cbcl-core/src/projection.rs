@@ -601,6 +601,22 @@ mod tests {
     // ---- REQ-609/610 / TEST-609/610/630: projection ----
 
     #[test]
+    fn only_exact_single_root_reference_is_typed_as_begin() {
+        let root = ContentHash("root".into());
+        assert_eq!(
+            rewrite_root_references(&CausedBy::Single("root".into()), &root),
+            CausedBy::Begin
+        );
+        for reference in [
+            CausedBy::Begin,
+            CausedBy::Single("other".into()),
+            CausedBy::Multiple(vec!["root".into(), "other".into()]),
+        ] {
+            assert_eq!(rewrite_root_references(&reference, &root), reference);
+        }
+    }
+
+    #[test]
     fn oauth_projections_match_the_paper() {
         let d = oauth();
         let server = project(&d, &ep("server"), None);

@@ -36,6 +36,7 @@ import LeanCbcl.EPP
 import LeanCbcl.EPPCompletion
 import LeanCbcl.Projectability
 import LeanCbcl.ProtocolProjection
+import LeanCbcl.ConcreteProjection
 import LeanCbcl.Splice
 import LeanCbcl.Bridge
 import LeanCbcl.FiniteDPDA

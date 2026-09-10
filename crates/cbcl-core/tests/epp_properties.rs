@@ -8,7 +8,7 @@
 //! | TEST-632 EPP completeness | `completeness_safety`, EPP.lean |
 //! | TEST-633 exactness round-trip | `glue_project_eq` / `project_glue_eq`, EPP.lean |
 //! | TEST-634 unknown-means-not-yet-arrived | `unknown_means_not_yet_arrived`, Projectability.lean |
-//! | TEST-635 converse witness | `causal_locality_necessary`, Projectability.lean |
+//! | TEST-635 converse witness | `nonlocal_protocol_counterexample`, Projectability.lean |
 //! | TEST-636 monotonicity | `valid_stable`, EPP.lean; deployed valid-is-sticky order (ADR-602) |
 //!
 //! Generator scope: linear (chain) protocols over 2–4 singleton roles with
@@ -528,7 +528,7 @@ fn test_637_operation_count_within_bound() {
     }
 }
 
-/// TEST-635 (Lean `causal_locality_necessary`): the straight-line converse
+/// TEST-635 (Lean `nonlocal_protocol_counterexample`): the straight-line converse
 /// witness — x : A → B, y : C → B, protocol (then begin x y). R6 rejects
 /// it; bypassing R6, y's verdict at role C is Unknown in every local store
 /// C can reach (C never holds x).

@@ -21,10 +21,10 @@
     only the STORE. The protocol side enters through an agreement interface: any projected
     protocol that agrees with `P` on `r`-endpoint performatives assigns `r`-relevant
     messages identical verdicts (`AgreesOnRole` / `local_protocol_verification_agrees`,
-    `LeanCbcl/ProtocolProjection.lean`). Causal locality is what makes the paper's
-    concrete splice satisfy that agreement (the splice is never exercised at an
-    `r`-endpoint performative); that last identification is argued in `proof.tex`, not
-    mechanized — mechanizing it would need a concrete clause syntax.
+    `LeanCbcl/ProtocolProjection.lean`). `ConcreteProjection.lean` discharges this
+    interface for the Rust-shaped raw-table copy and a root-preserving filtered view,
+    and connects concrete Send/Recv store selection under consistent annotations.
+    Generalized nonlocal splicing and deployed message/verifier refinement remain open.
   * Verdicts are RESOLVED-FIRST: no terminal verdict while any referenced predecessor is
     missing, so a non-conformant message with an absent predecessor is `Unknown`, not
     `Violation`. The deployed verifier evaluates eagerly (valid-is-sticky) and may emit a

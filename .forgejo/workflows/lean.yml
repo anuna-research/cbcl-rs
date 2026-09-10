@@ -34,6 +34,8 @@ on:
       - 'specs/SPEC-002-*'
       - 'specs/SPEC-003-*'
       - 'specs/SPEC-005-*'
+      - 'specs/SPEC-014-*'
+      - 'proofs/epp-correspondence/**'
       - 'scripts/check-axioms.sh'
       - 'scripts/check-verified-by.sh'
       - 'scripts/ci-install-rust.sh'
@@ -47,6 +49,8 @@ on:
       - 'specs/SPEC-002-*'
       - 'specs/SPEC-003-*'
       - 'specs/SPEC-005-*'
+      - 'specs/SPEC-014-*'
+      - 'proofs/epp-correspondence/**'
       - 'scripts/check-axioms.sh'
       - 'scripts/check-verified-by.sh'
       - 'scripts/ci-install-rust.sh'
@@ -83,6 +87,12 @@ jobs:
             echo "FAIL: lake build emitted a sorry warning (NFR-510)" >&2
             exit 1
           fi
+
+      - name: Install Rust for live projection refinement
+        run: bash scripts/ci-install-rust.sh
+
+      - name: Compare real Rust projection with kernel-reduced Lean
+        run: cargo test -p cbcl-core --test projection_refinement -- --ignored
 
       - name: Batteries env-linter (keep LeanCbcl lint-clean)
         working-directory: lean-cbcl

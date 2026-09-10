@@ -2,11 +2,11 @@
 id: SPEC-017
 title: Typed Content Addresses — Merkle-over-Fields and Authenticated Selective Disclosure
 status: draft
-version: 0.1.0
-date: 2026-07-09
+version: 0.1.1
+date: 2026-09-10
 author: Anuna Research (https://anuna.io)
 depends-on:
-  - SPEC-016 (splicing boundary — the necessity theorem openings do not escape)
+  - SPEC-016 (abstract splicing boundary and concrete refinement obligations)
   - SPEC-015 (redacted envelopes — the header-authentication this re-expresses)
   - SPEC-014 (role layer — R6(vi), safety-level checks, redacted evidence)
   - SPEC-003 (verification lattice — three-valued result, resolution)
@@ -31,13 +31,11 @@ all capitals.
 
 CBCL's content address is today a flat digest: `sha256:H(canonical-bytes)`
 over a whole message
-([[crates/cbcl-core/src/equivocation.rs|message_content_hash]]). It is
-*type-opaque* — a role holding only a message's bare `:caused-by` citation
-learns nothing about the cited predecessor's performative type, the fact
-that makes inference-splicing provably impossible
-([[SPEC-016-splicing-boundary#REQ-800]]). The flat digest commits to the
-message atomically: you either hold the whole thing or you hold an opaque
-32 bytes.
+([[crates/cbcl-core/src/equivocation.rs|message_content_hash]]). The supported verifier does not resolve a bare citation without predecessor
+evidence ([[SPEC-016-splicing-boundary#REQ-800]]). The abstract observation theorem
+does not establish cryptographic impossibility of recovering information from a
+hash. The flat digest commits to the message as a whole; it has no field-opening
+format in this construction.
 
 This spec moves the content address from that flat digest to a **canonical
 Merkle commitment over the message's fields**. The address becomes the root
@@ -61,24 +59,18 @@ operationalises the paper's *form/content split* as a substrate primitive —
 the performative (form) opens; the payload (content) seals — rather than as
 an envelope derivative.
 
-Openings do not escape the necessity result. [[SPEC-016-splicing-boundary#REQ-800]]
-proves a role cannot recover a predecessor's verdict from a bare hash; the
-only sound remedy is to deliver the predecessor's *type-tagged* form. A
-field-opening **is** a type-tagged form: it still delivers a tag (the
-performative leaf, authenticated). What it adds is that this tag is the
-*optimal* one — **self-authenticating** (verifiable against the root with no
-signature over the header and no trusted relay), **minimal-disclosure** (the
-type without the payload, the SPEC-015 [[SPEC-015-evidence-widening-v2#NFR-701]]
-zero-payload property preserved), and **relay-producible** (any holder of the
-message can mint an opening; the author need not pre-commit an envelope). The
-tag is still delivered — the necessity theorem stands — but it is delivered in
-its cheapest sound form.
+A field-opening delivers a type-tagged form of predecessor evidence. It is
+verifiable against a trusted root, can omit the payload, and can be produced by a
+holder of the message. These are construction goals, not a Lean optimality theorem
+over all possible evidence schemes. [[SPEC-016-splicing-boundary#REQ-802]] sets the
+scope of the abstract observation and resolution results.
 
-What does not change: the abstract Lean model treats `contentHash` as an
-opaque injective function; a Merkle root over canonical fields is exactly
-that (deterministic, injective under [[SHA-256]] collision resistance), so
-the mechanised development is untouched by construction (Stage-migration note,
-[[#REQ-813]] and the migration section).
+The Lean semantic factoring result assumes equal predecessor types and resolution
+in the compared stores. A separate refinement proof must connect authenticated
+concrete openings to those assumptions. Keeping an abstract `contentHash` interface
+unchanged does not prove this connection. Collision resistance is a computational
+assumption, not mathematical injectivity of a fixed-size digest on all messages.
+The migration contract remains in [[SPEC-017-typed-content-addresses#REQ-813]].
 
 ## Context
 
@@ -87,7 +79,7 @@ the mechanised development is untouched by construction (Stage-migration note,
 | Content address | flat `sha256:H(canonical-bytes)`, type-opaque | Merkle root over six fields; any field opens against the root |
 | Header authentication (SPEC-015 envelope) | attestation names header fields ([[SPEC-015-evidence-widening-v2#REQ-701]]) | header fields are leaves of the address; a field-opening authenticates against the root |
 | Selective disclosure | envelope redacts payload, discloses header ([[SPEC-015-evidence-widening-v2#NFR-701]]) | open header leaves 0–4, seal payload leaf 5 — same disclosure, self-authenticating |
-| Splicing remedy ([[SPEC-016-splicing-boundary#REQ-801]]) | deliver type-tagged envelope | deliver a field-opening — the *optimal* type-tag |
+| Splicing remedy ([[SPEC-016-splicing-boundary#REQ-801]]) | deliver type-tagged envelope | deliver a field-opening — concrete refinement remains required |
 
 The construction is validated and standalone in
 [[crates/cbcl-core/src/typed_addr.rs]] (Stage 0 of the migration below,
@@ -128,9 +120,10 @@ canonical field encodings; `canonical_encode` is deterministic and
 set-order-insensitive — recipients a `BTreeSet`, `:caused-by` sorted) and
 **collision-safe**: two messages sharing a root require either a [[SHA-256]]
 collision or equal canonical encodings of every leaf, i.e. equal messages.
-This is the *same* assumption the flat hash and the Lean development's
-`contentHash_injective` axiom already rest on — **no new weakest link**
-([[SPEC-015-evidence-widening-v2#ADR-700]]'s security accounting).
+The abstract `contentHash_injective` axiom idealizes collision avoidance;
+computational collision resistance does not establish literal injectivity.
+The concrete construction requires separate security and refinement arguments
+([[SPEC-015-evidence-widening-v2#ADR-700]]).
 Non-`Simple` messages SHALL be handled totally (never panic): the whole
 message rides in the payload leaf, other leaves empty, so a root always
 exists (schema refinement for `Wrapped`/`Dialect`/`Meta` is future work).
@@ -196,9 +189,10 @@ payload grammaticality) SHALL be satisfied by opening the **payload leaf**
 (leaf 5) — authenticated disclosure of the payload itself, not a separate
 mechanism; the two-tier reading (headers for safety, full content for fan-in
 deciders) is preserved.
-The abstract Lean model SHALL remain untouched: it consumes `contentHash` as
-an opaque injective function, which the Merkle root is, so no theorem of the
-mechanisation is disturbed by this change.
+The abstract Lean model SHALL retain its existing `contentHash` interface.
+Its injectivity is an abstract assumption. Preserving that interface preserves
+the abstract theorem statements, but does not prove that a concrete Merkle root
+or authenticated opening satisfies them; that refinement remains outstanding.
 Trace: [[#TEST-816]], decision [[#ADR-811]].
 
 ## Architecture Decisions
@@ -353,9 +347,9 @@ commit af75648):
   native field-openings ([[#REQ-811]], [[#REQ-813]]); the envelope's
   header-authentication is now the address's own readout.
 
-Throughout, the abstract Lean model is **untouched** — it consumes an opaque
-injective `contentHash`, and a canonical Merkle root over fields is exactly
-that.
+Throughout, the abstract Lean interface remains unchanged. The concrete
+Merkle implementation still needs a refinement argument; its fixed-size root
+is not a mathematically injective function on all messages.
 
 ## Traceability
 
@@ -368,6 +362,10 @@ that.
 
 ## Changelog
 
+- 0.1.1 (2026-09-10) — qualify references to the abstract splicing results
+  under [[SPEC-016-splicing-boundary#REQ-802]]; concrete authenticated-opening
+  refinement remains unproved. Runtime construction requirements are unchanged.
+
 - 0.1.0 (2026-07-09) — initial draft, transcribed from the validated IMPL-017
   spike ([[crates/cbcl-core/src/typed_addr.rs]], commit af75648, GO verdict).
   Content address moves from flat `H(canonical-bytes)` to a canonical
@@ -375,7 +373,7 @@ that.
   selective disclosure (field-openings verifiable against the address alone,
   payload sealed). Subsumes the SPEC-015 envelope's header-authentication
   (PARTIAL — [[#ADR-811]]: the tree commits *what*, the attestation discipline
-  is retained in the root-signature). Openings are the *optimal* tag under the
+  is retained in the root-signature). The original revision described openings as the *optimal* tag under the
   [[SPEC-016-splicing-boundary#REQ-800]] necessity result — self-authenticating,
   minimal-disclosure, relay-producible — not an escape from it. Staged
   migration: Stage 0 done; Stages 1–3 (hub flip, sign-the-root v3, native

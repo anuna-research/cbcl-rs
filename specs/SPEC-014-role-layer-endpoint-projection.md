@@ -2,7 +2,7 @@
 id: SPEC-014
 title: Role Layer — R6 and Coordination-Free Endpoint Projection
 status: implemented
-version: 0.4.0
+version: 0.4.1
 date: 2026-07-04
 author: Anuna Research (https://anuna.io)
 depends-on:
@@ -270,16 +270,18 @@ disclosure.
 **REQ-609: Projection function.**
 `project` SHALL be a pure function from a role-annotated dialect and an
 endpoint to a local protocol in which a performative whose `:from` role is
-the endpoint's role is a Send step, one whose `:to` set contains it is a
-Recv step, and one in which it is no endpoint is erased without rewriting
+the endpoint's role is a Send step; otherwise, one whose `:to` set contains it is a
+Recv step (Send takes precedence for self-addressing), and one in which it is no endpoint is erased without rewriting
 any predecessor reference (the splice is vacuous under R6 vi).
 Trace: [[SPEC-014-role-layer-endpoint-projection#TEST-609]],
 [[SPEC-014-role-layer-endpoint-projection#TEST-630]].
 
 **REQ-610: Raw-edge run projection.**
 Role-local verification SHALL evaluate each message against the verifier's
-local store using the message's raw `:caused-by` hashes, without
-constructing any rewritten predecessor view.
+local store using the message's raw `:caused-by` hashes. The sole root-typing
+exception is an exact single reference to the sealed thread root, interpreted as
+`begin` per REQ-623; other single references and all multiple references remain
+unchanged. No bystander predecessor view is constructed.
 Trace: [[SPEC-014-role-layer-endpoint-projection#TEST-610]].
 
 ### Cast binding
@@ -602,6 +604,15 @@ Verified by: [[SPEC-014-role-layer-endpoint-projection#TEST-611]],
 
 ### CON-602: Rust API surface
 
+Send takes precedence over Recv for a self-addressed performative. The concrete
+projection proof models last relevant insertion for duplicate names. Connecting
+that map to first-declaration annotation lookup requires
+`AnnotationsConsistent`, with a proved Boolean checker; installation has not been
+shown to enforce this premise. The correspondence also assumes shared-root
+visibility, causal locality, safe closed stores and complete payload delivery.
+Envelope-route derivation, authentication and deployed eager-verifier refinement
+are not supplied by this transformation proof.
+
 ```rust
 // role.rs
 pub enum RoleCardinality { Singleton, Indexed }
@@ -723,7 +734,11 @@ model):
 **TEST-630: Projection determinism.**
 ∀ dialect, endpoint, cast: two independent `project` calls yield equal
 `LocalProtocol`s; serialisation roundtrip stable.
-(Paper, Prop. Determinism — paper-only; no Lean anchor.)
+Lean `ConcreteProjection.project` is a pure function; `project_steps` and
+`project_protocol` characterize its output. The live `projection_refinement`
+Rust/Lean test covers 144 fixtures, including R6-clean rooted chains, duplicates,
+self-addressing, absent annotations, and envelope gating. These compare values;
+serialisation roundtrip coverage remains a separate outstanding test obligation.
 
 **TEST-631: EPP soundness.**
 ∀ generated P-safe closed configuration C, endpoint r: every message of
@@ -748,7 +763,7 @@ r-relevant. (Lean: `unknown_means_not_yet_arrived`, `Projectability.lean`.)
 The straight-line counterexample (`x : A → B`, `y : C → B`,
 `(then begin x y)`) is rejected by `r6_violations`, and — bypassing R6 — the
 verdict of `y` at role C is `Unknown` in every reachable local store.
-(Lean: `causal_locality_necessary`, `Projectability.lean`.)
+(Lean: `nonlocal_protocol_counterexample`, `Projectability.lean`.)
 
 **TEST-636: Monotonicity.**
 ∀ store S ⊆ S′: `Valid` at S implies `Valid` at S′; and once all referenced
@@ -810,7 +825,7 @@ typed violation on every message of the thread; an unpinned wrapper warns
 | REQ-603, 605–607, 627 | CON-602, CON-603 | TEST-603, 605–607 | paper Def. R6 (clauses ii, iv, v — unmechanised) |
 | REQ-604 | CON-603 | TEST-604, 635 | Lean `Proto.causalLocal` (vi); `Projectability.lean` both directions |
 | REQ-608 | CON-602 | TEST-608 | paper §auction (per-occupant instantiation footnote; beyond mechanised model) |
-| REQ-609–610 | CON-602 | TEST-609–610, 630 | Lean `project` (raw edges); determinism paper-only |
+| REQ-609–610 | CON-602 | TEST-609–610, 630 | Lean `ConcreteProjection.project_steps`, `project_protocol`, `concrete_verification_agrees`; live Rust/Lean comparison; root-typing regression |
 | REQ-611–614, 625–626 | CON-601 | TEST-611–614, 625–626 | paper §binding (cast is model data in Lean, not a theorem) |
 | REQ-615–617, 622–623 | CON-602 | TEST-615–617, 622–623, 631–633 | Lean `conformant`, `noSpurious`, `good` |
 | REQ-618 | CON-602 | TEST-618, 639 | paper §binding/auction (extension beyond the mechanised model) |

@@ -6,6 +6,7 @@ import LeanCbcl.DCFLPreservation
 import LeanCbcl.R6DCFLPreservation
 import LeanCbcl.EPPCompletion
 import LeanCbcl.ProtocolProjection
+import LeanCbcl.ConcreteProjection
 import LeanCbcl.Splice
 import LeanCbcl.Bridge
 
@@ -15,7 +16,7 @@ import LeanCbcl.Bridge
 `#print axioms` for each top-level theorem named in CON-510 through
 CON-516 (SPEC-005 §Contracts), plus the SPEC-014 EPP-correspondence
 family (`EPP.lean`, `EPPCompletion.lean`, `Projectability.lean`,
-`ProtocolProjection.lean`, `Splice.lean`, `Bridge.lean`), whose axiom
+`ProtocolProjection.lean`, `ConcreteProjection.lean`, `Splice.lean`, `Bridge.lean`), whose axiom
 claim in `proofs/epp-correspondence/proof.tex` §Notes ("propext,
 Classical.choice, Quot.sound only") is enforced here. The companion shell script
 `scripts/check-axioms.sh` runs this file via `lake env lean`, parses the
@@ -113,9 +114,9 @@ editing only this file is enough to extend the audit.
 #print axioms LeanCbcl.EPP.violation_stable
 #print axioms LeanCbcl.EPP.epp_correspondence_complete
 
--- Theorem 1: projectability ≡ local verifiability (Projectability.lean).
-#print axioms LeanCbcl.Projectability.projectability_iff_local_verifiability
-#print axioms LeanCbcl.Projectability.causal_locality_necessary
+-- Theorem 1: causal-locality sufficiency and a nonlocal counterexample (Projectability.lean).
+#print axioms LeanCbcl.Projectability.projectability_sufficiency_and_counterexample
+#print axioms LeanCbcl.Projectability.nonlocal_protocol_counterexample
 
 -- Protocol-projection agreement interface (ProtocolProjection.lean).
 #print axioms LeanCbcl.ProtoProjection.verdict_agree
@@ -125,7 +126,7 @@ editing only this file is enough to extend the audit.
 #print axioms LeanCbcl.Splice.type_opacity_indistinguishability
 #print axioms LeanCbcl.Splice.resolution_requires_preimage
 #print axioms LeanCbcl.Splice.spliced_pred_permanently_unknown
-#print axioms LeanCbcl.Splice.weakest_sound_condition
+#print axioms LeanCbcl.Splice.decidesAll_iff_predsLocal
 #print axioms LeanCbcl.Splice.openings_suffice
 #print axioms LeanCbcl.Splice.openings_suffice_concrete
 
@@ -133,3 +134,28 @@ editing only this file is enough to extend the audit.
 #print axioms LeanCbcl.Bridge.bridge_stability
 #print axioms LeanCbcl.Bridge.bridge_compatibility
 #print axioms LeanCbcl.Bridge.temporal_bridge
+
+#print axioms LeanCbcl.Bridge.eventually_present_valid
+#print axioms LeanCbcl.Bridge.InfinitePredecessorsExample.not_finite_predecessors
+
+-- Concrete raw-edge projection and the paper's filtered view.
+#print axioms LeanCbcl.ConcreteProjection.runSteps_refines
+#print axioms LeanCbcl.ConcreteProjection.project_steps
+#print axioms LeanCbcl.ConcreteProjection.project_protocol
+#print axioms LeanCbcl.ConcreteProjection.project_agrees
+#print axioms LeanCbcl.ConcreteProjection.projected_verification_agrees
+#print axioms LeanCbcl.ConcreteProjection.lookup_restrict
+#print axioms LeanCbcl.ConcreteProjection.roleView_agrees
+#print axioms LeanCbcl.ConcreteProjection.roleView_verification_agrees
+#print axioms LeanCbcl.ConcreteProjection.retained_predecessor
+#print axioms LeanCbcl.ConcreteProjection.specifiedStep_isSome
+#print axioms LeanCbcl.ConcreteProjection.specifiedStep_of_agreement
+#print axioms LeanCbcl.ConcreteProjection.roleView_begin
+#print axioms LeanCbcl.ConcreteProjection.RootedExample.projected_valid
+
+#print axioms LeanCbcl.ConcreteProjection.checkAnnotationsConsistent_iff
+#print axioms LeanCbcl.ConcreteProjection.specifiedStep_matches_annotation
+#print axioms LeanCbcl.ConcreteProjection.concreteStore_eq_project
+#print axioms LeanCbcl.ConcreteProjection.concrete_verification_agrees
+#print axioms LeanCbcl.ConcreteProjection.RootedExample.concrete_valid
+#print axioms LeanCbcl.ConcreteProjection.RootedExample.bystander_erased
