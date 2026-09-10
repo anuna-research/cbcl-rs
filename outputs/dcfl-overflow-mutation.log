@@ -1,0 +1,6 @@
+/private/tmp/dcfl-lexical-mutations-z8n7q_6u/overflow.lean:266:51: error: Tactic `decide` proved that the proposition
+  codes "9223372036854775808" = none
+is false
+/private/tmp/dcfl-lexical-mutations-z8n7q_6u/overflow.lean:342:63: error: Tactic `decide` proved that the proposition
+  check env "(tell 9223372036854775808)" = false
+is false

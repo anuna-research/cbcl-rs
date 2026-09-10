@@ -1,0 +1,4 @@
+exit_code: 1
+/private/tmp/dcfl-scope-mutant.lean:308:82: error: Tactic `decide` proved that the proposition
+  ¬CBCL.InstalledSyntaxMutant.admitted env (lang "d" (msg "stop"))
+is false

@@ -73,8 +73,11 @@ def DetParser.run (p : DetParser) (tokens : List Token) : Bool :=
 -- Section 4: IsDCFL and IsDecidable
 -- ============================================================
 
-/-- Witness that a language `L` of S-expressions is a deterministic
-    context-free language: a `DetParser` that accepts exactly `L`. -/
+/-- Legacy AST-tokenisation certificate for `DetParser`. This interface does
+    not enforce finite control/stack alphabets or correctness on malformed
+    words, so it alone does not certify standard DCFL membership. The standard
+    finite-machine certificate is `FormalLanguage.IsRealtimeDCFL`; recursive
+    installed-message results are in `InstalledSyntax.environmentDCFL`. -/
 structure IsDCFL (L : SExpr → Prop) where
   /-- The deterministic pushdown automaton recognising `L`. -/
   parser : DetParser

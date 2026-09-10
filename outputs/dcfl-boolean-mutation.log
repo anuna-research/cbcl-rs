@@ -1,0 +1,9 @@
+/private/tmp/dcfl-lexical-mutations-z8n7q_6u/boolean.lean:277:37: error: Tactic `decide` proved that the proposition
+  codes "#true" = none
+is false
+/private/tmp/dcfl-lexical-mutations-z8n7q_6u/boolean.lean:278:35: error: Tactic `decide` proved that the proposition
+  codes "#tx" = none
+is false
+/private/tmp/dcfl-lexical-mutations-z8n7q_6u/boolean.lean:343:47: error: Tactic `decide` proved that the proposition
+  check env "(tell #tx)" = false
+is false

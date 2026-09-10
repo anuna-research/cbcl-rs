@@ -38,3 +38,8 @@ import LeanCbcl.Projectability
 import LeanCbcl.ProtocolProjection
 import LeanCbcl.Splice
 import LeanCbcl.Bridge
+import LeanCbcl.FiniteDPDA
+import LeanCbcl.FiniteForest
+import LeanCbcl.FiniteForestTests
+import LeanCbcl.InstalledSyntaxTests
+import LeanCbcl.InstalledLexerTests

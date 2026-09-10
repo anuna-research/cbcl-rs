@@ -1,0 +1,174 @@
+{
+  "dead_links": [
+    {
+      "source": "BUG-005-two-sexpr-recognisers-disagree",
+      "line": 33,
+      "target": "BUG-006",
+      "predicate": null
+    },
+    {
+      "source": "BUG-005-two-sexpr-recognisers-disagree",
+      "line": 150,
+      "target": "BUG-006",
+      "predicate": null
+    },
+    {
+      "source": "BUG-006-envelope-wire-form-unparseable-by-the-real-parser",
+      "line": 30,
+      "target": "BUG-005",
+      "predicate": null
+    },
+    {
+      "source": "BUG-006-envelope-wire-form-unparseable-by-the-real-parser",
+      "line": 168,
+      "target": "BUG-005",
+      "predicate": null
+    },
+    {
+      "source": "BUG-006-envelope-wire-form-unparseable-by-the-real-parser",
+      "line": 173,
+      "target": "BUG-005",
+      "predicate": null
+    },
+    {
+      "source": "BUG-006-envelope-wire-form-unparseable-by-the-real-parser",
+      "line": 179,
+      "target": "BUG-005",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-015-evidence-widening-v2",
+      "line": 55,
+      "target": "DCFL",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-015-evidence-widening-v2",
+      "line": 59,
+      "target": "CALM",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-015-evidence-widening-v2",
+      "line": 248,
+      "target": "Ed25519",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-015-evidence-widening-v2",
+      "line": 256,
+      "target": "did:crdt",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-015-evidence-widening-v2",
+      "line": 290,
+      "target": "Ed25519",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-015-evidence-widening-v2",
+      "line": 301,
+      "target": "SHA-256",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-015-evidence-widening-v2",
+      "line": 359,
+      "target": "CALM",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-016-splicing-boundary",
+      "line": 39,
+      "target": "PROTO-001",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-017-typed-content-addresses",
+      "line": 34,
+      "target": "crates/cbcl-core/src/equivocation.rs",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-017-typed-content-addresses",
+      "line": 79,
+      "target": "SHA-256",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-017-typed-content-addresses",
+      "line": 93,
+      "target": "crates/cbcl-core/src/typed_addr.rs",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-017-typed-content-addresses",
+      "line": 111,
+      "target": "crates/cbcl-core/src/canonical.rs",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-017-typed-content-addresses",
+      "line": 129,
+      "target": "SHA-256",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-017-typed-content-addresses",
+      "line": 149,
+      "target": "SHA-256",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-017-typed-content-addresses",
+      "line": 214,
+      "target": "SHA-256",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-017-typed-content-addresses",
+      "line": 296,
+      "target": "crates/cbcl-core/src/typed_addr.rs",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-017-typed-content-addresses",
+      "line": 343,
+      "target": "crates/cbcl-core/src/typed_addr.rs",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-017-typed-content-addresses",
+      "line": 372,
+      "target": "crates/cbcl-core/src/typed_addr.rs",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-018-dcfl-installation",
+      "line": 270,
+      "target": "crates/cbcl-core/src/message.rs",
+      "predicate": null
+    }
+  ],
+  "orphans": [],
+  "syntax_errors": [],
+  "spl_diagnostics": [],
+  "drift_diagnostics": [],
+  "predicate_lints": [],
+  "summary": {
+    "dead_links": 25,
+    "orphans": 0,
+    "syntax_errors": 0,
+    "spl_errors": 0,
+    "drift_warnings": 0,
+    "drift_info": 0,
+    "total_spl_blocks": 11,
+    "drifted_blocks_warning": 0,
+    "drifted_blocks_info": 0,
+    "explicitly_grounded_facts": 0,
+    "broken_groundings": 0,
+    "predicate_errors": 0,
+    "predicate_warnings": 0
+  }
+}

@@ -1,0 +1,3 @@
+/private/tmp/dcfl-lexical-mutations-z8n7q_6u/escape.lean:291:39: error: Tactic `decide` proved that the proposition
+  codes "\"\\q\"" = none
+is false
