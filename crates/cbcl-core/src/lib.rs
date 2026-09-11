@@ -40,10 +40,12 @@ extern crate alloc;
 /// runtime was linked against without parsing the workspace manifest.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
+pub mod admission;
 pub mod agent;
 pub mod attest;
 pub mod blame;
 pub mod canonical;
+mod causal_kernel;
 pub mod clock;
 pub mod dialect;
 pub mod envelope;
@@ -74,6 +76,9 @@ pub mod typed_addr;
 
 /// Prelude re-exporting the most-used types.
 pub mod prelude {
+    pub use crate::admission::{
+        AdmissionError, AdmissionEvent, AdmissionGate, AdmissionMonitor, AdmissionState,
+    };
     pub use crate::agent::{Agent, AgentOutcome, MergePolicy};
     pub use crate::blame::{BlameEntry, BlameParty, ViolationError, ViolationKind};
     #[cfg(feature = "std")]

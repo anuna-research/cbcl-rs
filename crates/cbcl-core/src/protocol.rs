@@ -12,6 +12,7 @@ use alloc::string::String;
 use alloc::vec::Vec;
 use core::fmt;
 
+use crate::causal_kernel::{self as kernel, Decision, FanIn, Lookup};
 use crate::message::CausedBy;
 use crate::store::{ContentHash, MessageStore, ThreadId};
 
@@ -590,8 +591,10 @@ fn allowed_single_predecessors(step: &StepDecl) -> Vec<String> {
 /// a predecessor exists but has the wrong type or the causal link is malformed.
 ///
 /// Thread-scoped: `:caused-by` hashes resolve only within the same `:thread` (ADR-008).
-/// Stateless and monotone — re-evaluating after store growth can only move from
-/// `Unknown` toward `Valid` or `Violation`, never backwards.
+/// Stateless and valid-sticky. Wrong evidence dominates missing evidence in fan-in.
+/// The admission monitor applies a separate resolved-first guard before this verifier.
+/// Decisions use `causal_kernel`; lookups, membership, coverage and diagnostics
+/// remain adapters whose Rust-to-Lean correspondence is a separate obligation.
 pub fn verify_causal<S: MessageStore>(
     msg_performative: &str,
     caused_by: Option<&CausedBy>,
@@ -599,130 +602,130 @@ pub fn verify_causal<S: MessageStore>(
     protocol: &CausalProtocol,
     thread: &ThreadId,
 ) -> VerificationResult {
-    // Look up the step declaration for this performative
     let step = match protocol.steps.get(msg_performative) {
         Some(s) => s,
-        // Performative not declared in protocol — not constrained
+        // Legacy unconstrained route; strict admission excludes it.
         None => return VerificationResult::Valid,
     };
-
     let has_predecessors = !step.predecessors.is_empty();
 
     match caused_by {
-        // No :caused-by provided
-        None => {
-            if has_predecessors {
+        None => match kernel::absent(has_predecessors) {
+            Decision::Valid => VerificationResult::Valid,
+            Decision::MissingCausedBy => {
                 VerificationResult::Violation(CausalViolation::MissingCausedBy)
-            } else {
-                VerificationResult::Valid
             }
-        }
-
-        // :caused-by begin — root of a causal chain
+            _ => unreachable!("absent decision"),
+        },
         Some(CausedBy::Begin) => {
-            // BEGIN_KEYWORD must appear in a Single or Any predecessor ref
             let begin_allowed = step.predecessors.iter().any(|nr| match nr {
                 NodeRef::Single(s) => s == BEGIN_KEYWORD,
                 NodeRef::Any(set) => set.contains(BEGIN_KEYWORD),
-                NodeRef::All(_) => false, // begin in All doesn't apply to Begin caused-by
+                NodeRef::All(_) => false,
             });
-            if begin_allowed {
-                VerificationResult::Valid
-            } else {
-                let expected = allowed_single_predecessors(step);
-                VerificationResult::Violation(CausalViolation::InvalidPredecessor {
-                    caused_by: BEGIN_KEYWORD.into(),
-                    expected,
-                    found: BEGIN_KEYWORD.into(),
-                })
+            match kernel::literal_begin(begin_allowed) {
+                Decision::Valid => VerificationResult::Valid,
+                Decision::InvalidPredecessor => {
+                    VerificationResult::Violation(CausalViolation::InvalidPredecessor {
+                        caused_by: BEGIN_KEYWORD.into(),
+                        expected: allowed_single_predecessors(step),
+                        found: BEGIN_KEYWORD.into(),
+                    })
+                }
+                _ => unreachable!("literal-begin decision"),
             }
         }
-
-        // :caused-by <hash> — single predecessor
         Some(CausedBy::Single(hash_str)) => {
             let content_hash = ContentHash(hash_str.clone());
-            match predecessor_type(store, &content_hash, thread) {
-                None => VerificationResult::Unknown,
-                Some(pred_perf) => {
-                    let allowed = allowed_single_predecessors(step);
-                    if allowed.iter().any(|a| a == pred_perf) {
-                        VerificationResult::Valid
-                    } else if allowed.is_empty() && !has_predecessors {
-                        VerificationResult::Violation(CausalViolation::ExtraneousPredecessor {
-                            caused_by: hash_str.clone(),
-                            found: pred_perf.into(),
-                        })
-                    } else {
-                        VerificationResult::Violation(CausalViolation::InvalidPredecessor {
-                            caused_by: hash_str.clone(),
-                            expected: allowed,
-                            found: pred_perf.into(),
-                        })
-                    }
+            let pred_perf = predecessor_type(store, &content_hash, thread);
+            // Preserve the missing-lookup fast path and diagnostics ordering.
+            let allowed = if pred_perf.is_some() {
+                allowed_single_predecessors(step)
+            } else {
+                Vec::new()
+            };
+            let lookup = match pred_perf {
+                None => Lookup::Missing,
+                Some(p) if allowed.iter().any(|a| a == p) => Lookup::Allowed,
+                Some(_) => Lookup::Wrong,
+            };
+            match kernel::single(has_predecessors, lookup) {
+                Decision::Valid => VerificationResult::Valid,
+                Decision::Unknown => VerificationResult::Unknown,
+                Decision::ExtraneousPredecessor => {
+                    VerificationResult::Violation(CausalViolation::ExtraneousPredecessor {
+                        caused_by: hash_str.clone(),
+                        found: pred_perf.expect("wrong lookup has a type").into(),
+                    })
                 }
+                Decision::InvalidPredecessor => {
+                    VerificationResult::Violation(CausalViolation::InvalidPredecessor {
+                        caused_by: hash_str.clone(),
+                        expected: allowed,
+                        found: pred_perf.expect("wrong lookup has a type").into(),
+                    })
+                }
+                _ => unreachable!("single decision"),
             }
         }
-
-        // :caused-by (h1 h2 ...) — fan-in (multiple predecessors)
         Some(CausedBy::Multiple(hashes)) => {
-            // Must have an (all ...) predecessor declaration
-            let all_decl = step.predecessors.iter().find_map(|nr| {
-                if let NodeRef::All(set) = nr {
-                    Some(set)
-                } else {
-                    None
-                }
+            // Preserve FIRST-All selection, including empty and later clauses.
+            let all_decl = step.predecessors.iter().find_map(|nr| match nr {
+                NodeRef::All(set) => Some(set),
+                _ => None,
             });
-
-            let all_set = match all_decl {
-                Some(s) => s,
-                None => {
-                    return VerificationResult::Violation(CausalViolation::FanInWithoutAllDecl {
-                        performative: msg_performative.into(),
-                    });
-                }
-            };
-
-            let mut result = VerificationResult::Valid;
+            let mut state = FanIn::Clear;
             let mut found_types = BTreeSet::new();
-
-            for hash_str in hashes {
-                let content_hash = ContentHash(hash_str.clone());
-                match predecessor_type(store, &content_hash, thread) {
-                    None => {
-                        result = result.meet(VerificationResult::Unknown);
-                    }
-                    Some(pred_perf) => {
-                        if all_set.contains(pred_perf) {
+            let mut first_error = None;
+            let mut missing = Vec::new();
+            if let Some(all_set) = all_decl {
+                for hash_str in hashes {
+                    let content_hash = ContentHash(hash_str.clone());
+                    let lookup = match predecessor_type(store, &content_hash, thread) {
+                        None => Lookup::Missing,
+                        Some(pred_perf) if all_set.contains(pred_perf) => {
                             found_types.insert(String::from(pred_perf));
-                        } else {
-                            result = result.meet(VerificationResult::Violation(
-                                CausalViolation::InvalidPredecessor {
+                            Lookup::Allowed
+                        }
+                        Some(pred_perf) => {
+                            if first_error.is_none() {
+                                first_error = Some(CausalViolation::InvalidPredecessor {
                                     caused_by: hash_str.clone(),
                                     expected: all_set.iter().cloned().collect(),
                                     found: pred_perf.into(),
-                                },
-                            ));
+                                });
+                            }
+                            Lookup::Wrong
                         }
-                    }
+                    };
+                    state = kernel::observe(state, lookup);
+                }
+                if matches!(state, FanIn::Clear) {
+                    missing = all_set
+                        .iter()
+                        .filter(|t| !found_types.contains(*t))
+                        .cloned()
+                        .collect();
                 }
             }
-
-            // Check completeness only when all lookups succeeded
-            if matches!(result, VerificationResult::Valid) {
-                let missing: Vec<String> = all_set
-                    .iter()
-                    .filter(|t| !found_types.contains(*t))
-                    .cloned()
-                    .collect();
-                if !missing.is_empty() {
-                    result = VerificationResult::Violation(CausalViolation::IncompleteFanIn {
+            match kernel::finish(all_decl.is_some(), state, missing.is_empty()) {
+                Decision::Valid => VerificationResult::Valid,
+                Decision::Unknown => VerificationResult::Unknown,
+                Decision::InvalidPredecessor => VerificationResult::Violation(
+                    first_error.expect("wrong fan-in has a diagnostic"),
+                ),
+                Decision::IncompleteFanIn => {
+                    VerificationResult::Violation(CausalViolation::IncompleteFanIn {
                         missing_types: missing,
-                    });
+                    })
                 }
+                Decision::FanInWithoutAllDecl => {
+                    VerificationResult::Violation(CausalViolation::FanInWithoutAllDecl {
+                        performative: msg_performative.into(),
+                    })
+                }
+                _ => unreachable!("fan-in decision"),
             }
-
-            result
         }
     }
 }
