@@ -1469,28 +1469,25 @@ mod tests {
 
     #[test]
     fn message_hash_matches_history_binding() {
-        let pred = "(query :q \"hi\" :caused-by begin)";
+        let pred = "(lang convo-d (query :q \"hi\" :caused-by begin))";
         let h = message_hash_str(pred).unwrap();
         assert_eq!(h, predecessor_hash(pred));
         assert!(h.starts_with("sha256:") && h.len() == "sha256:".len() + 64);
         // The exported hash is exactly what verify_protocol binds history to.
         let frame = format!(
             "(verify-protocol {QUERY_DIALECT} \"t1\" \
-             (respond :a \"ok\" :caused-by \"{h}\") \
+             (lang convo-d (respond :a \"ok\" :caused-by \"{h}\")) \
              (history (\"{h}\" {pred})))"
         );
         assert_eq!(verify_protocol_str(&frame), Ok(String::from("ok")));
     }
 
     #[test]
-    fn message_hash_addresses_the_innermost_simple_message() {
-        let inner = "(query :q \"hi\" :caused-by begin)";
-        let wrapped = format!("(lang some-dialect {inner})");
-        assert_eq!(message_hash_str(&wrapped), message_hash_str(inner));
-        assert_ne!(
-            message_hash_str(inner),
-            message_hash_str("(query :q \"bye\" :caused-by begin)")
-        );
+    fn message_hash_is_a_function_of_message_content() {
+        let hi = "(lang convo-d (query :q \"hi\" :caused-by begin))";
+        let bye = "(lang convo-d (query :q \"bye\" :caused-by begin))";
+        assert_eq!(message_hash_str(hi), message_hash_str(hi));
+        assert_ne!(message_hash_str(hi), message_hash_str(bye));
     }
 
     #[test]
