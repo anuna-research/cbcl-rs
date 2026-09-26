@@ -97,6 +97,22 @@ pub fn parse_message_bytes(input: &[u8]) -> Result<Vec<u8>, Vec<u8>> {
         .map_err(|e| e.into_bytes())
 }
 
+/// Compute a message's canonical content hash (`sha256:<hex>`).
+///
+/// Input: UTF-8 bytes of a message S-expression; wrapped (`lang`, `envelope`,
+/// `signed`, `with-limits`) messages are addressed by their innermost simple
+/// message. This is the hash `verify_protocol`'s `history` entries and
+/// `:caused-by` references must carry, so a host whose own transport
+/// addresses differ can still name predecessors in CBCL's terms without
+/// reimplementing the typed content address.
+pub fn message_hash_bytes(input: &[u8]) -> Result<Vec<u8>, Vec<u8>> {
+    let input_str =
+        core::str::from_utf8(input).map_err(|e| format!("invalid UTF-8: {e}").into_bytes())?;
+    message_hash_str(input_str)
+        .map(|s| s.into_bytes())
+        .map_err(|e| e.into_bytes())
+}
+
 /// Verify a dialect definition (parse + R1/R2/R3/R5 checks + `:hash` consistency).
 ///
 /// Input: UTF-8 bytes of a `(define ...)` S-expression, or a
@@ -219,6 +235,17 @@ fn parse_message_str(input: &str) -> Result<String, String> {
     // Serialize the message back to canonical S-expression form
     let msg_sexpr: SExpr = msg.into();
     Ok(serialize(&msg_sexpr))
+}
+
+/// Parse a message and return the canonical content hash of its innermost
+/// simple message, as `load_history_into_store` computes it.
+fn message_hash_str(input: &str) -> Result<String, String> {
+    let sexpr = parser::parse(input).map_err(|e| format!("parse error: {e}"))?;
+    let msg = cbcl_parser::parse_message(&sexpr).map_err(|e| format!("message error: {e}"))?;
+    let inner = msg
+        .innermost_simple()
+        .ok_or_else(|| String::from("expected a simple message at the innermost layer"))?;
+    Ok(compute_canonical_message_hash(inner))
 }
 
 /// Verify a dialect definition against R1/R2/R3/R5 rules and (when declared)
@@ -661,6 +688,13 @@ mod wasm_bindgen_api {
         parse_message_str(input)
     }
 
+    /// Canonical content hash (`sha256:<hex>`) of a message's innermost simple
+    /// message: the address `verify_protocol` history entries must carry.
+    #[wasm_bindgen]
+    pub fn message_hash(input: &str) -> Result<String, String> {
+        message_hash_str(input)
+    }
+
     /// Parse and verify a dialect definition against R1/R2/R3 rules.
     ///
     /// Input: `(define dialect-name (extends...) @author ...)` S-expression.
@@ -822,6 +856,25 @@ mod c_abi {
     pub unsafe extern "C" fn cbcl_verify_message_shape(ptr: *const u8, len: usize) -> i32 {
         let input = core::slice::from_raw_parts(ptr, len);
         match verify_message_shape_bytes(input) {
+            Ok(out) => {
+                RESULT_BUF = out;
+                0
+            }
+            Err(err) => {
+                RESULT_BUF = err;
+                1
+            }
+        }
+    }
+
+    /// Canonical content hash of a message's innermost simple message.
+    ///
+    /// Input: UTF-8 bytes of a message S-expression.
+    /// Returns 0 on success (`sha256:<hex>` in result buf), 1 on error.
+    #[no_mangle]
+    pub unsafe extern "C" fn cbcl_message_hash(ptr: *const u8, len: usize) -> i32 {
+        let input = core::slice::from_raw_parts(ptr, len);
+        match message_hash_bytes(input) {
             Ok(out) => {
                 RESULT_BUF = out;
                 0
@@ -1416,6 +1469,35 @@ mod tests {
         let parsed = cbcl_parser::parse_message(&parser::parse(msg_str).unwrap()).unwrap();
         let inner = parsed.innermost_simple().unwrap();
         compute_canonical_message_hash(inner)
+    }
+
+    #[test]
+    fn message_hash_matches_history_binding() {
+        let pred = "(lang convo-d (query :q \"hi\" :caused-by begin))";
+        let h = message_hash_str(pred).unwrap();
+        assert_eq!(h, predecessor_hash(pred));
+        assert!(h.starts_with("sha256:") && h.len() == "sha256:".len() + 64);
+        // The exported hash is exactly what verify_protocol binds history to.
+        let frame = format!(
+            "(verify-protocol {QUERY_DIALECT} \"t1\" \
+             (lang convo-d (respond :a \"ok\" :caused-by \"{h}\")) \
+             (history (\"{h}\" {pred})))"
+        );
+        assert_eq!(verify_protocol_str(&frame), Ok(String::from("ok")));
+    }
+
+    #[test]
+    fn message_hash_is_a_function_of_message_content() {
+        let hi = "(lang convo-d (query :q \"hi\" :caused-by begin))";
+        let bye = "(lang convo-d (query :q \"bye\" :caused-by begin))";
+        assert_eq!(message_hash_str(hi), message_hash_str(hi));
+        assert_ne!(message_hash_str(hi), message_hash_str(bye));
+    }
+
+    #[test]
+    fn message_hash_rejects_malformed_input() {
+        assert!(message_hash_str("(unbalanced").is_err());
+        assert!(message_hash_bytes(&[0xff, 0xfe]).is_err());
     }
 
     #[test]
