@@ -2,7 +2,7 @@
 id: SPEC-019
 title: State Layer — R7 State Rules and the Intent Binder
 status: draft
-version: 0.3.5
+version: 0.3.6
 date: 2026-09-27
 author: Anuna Research (https://anuna.io) — drafted with Claude Fable 5.1
 owner: CBCL maintainer
@@ -529,9 +529,14 @@ ignores a re-delivered act); `acts_mono`, `count_mono`, `has_mono`,
 type), `intend_replaces_current` (`:replaces` names exactly the current
 writes of the key), `intend_supersedes` (those writes are not current once
 the act is accepted), `intend_current_after` (the act itself is current).
-Not modelled: scalar-list values, `histogram` over per-key maps (only
-per-signer), domains beyond a `filter`, and the R5/R6 verifier itself,
-which `intend_pred_valid` characterises as an admitted-type predecessor.
+Also proved: `histogramPerKey_setEq` (the per-key histogram is a set
+function); `allowedOf_setEq` and `actsDom_setEq` (a domain's list, read
+from the opener as a scalar list `Val.list`, and the acts it admits are set
+functions; both are conjuncts of `fold_perm_invariant`); `actsDom_excluded`
+and `excluded_not_mem` (accepting an act outside the domain changes no rule
+over its verb, and the act is in no rule's table; ADR-1909). Not modelled:
+the R5/R6 verifier itself, which `intend_pred_valid` characterises as an
+admitted-type predecessor.
 The Rust/Lean correspondence is checked by the corpus, not proved.
 Trace: [[SPEC-019-state-rules#TEST-1940]]–[[SPEC-019-state-rules#TEST-1946]].
 
@@ -788,6 +793,12 @@ order; update cbcl-aamas §6 and §7.
 <details>
 <summary>Revision history</summary>
 
+- 0.3.6 (2026-09-28) — REQ-1930 gaps closed: `State.lean` adds `Val.list`,
+  `histogramPerKey`, and the explicit domain filter `actsDom`, with
+  `histogramPerKey_setEq`, `allowedOf_setEq`, `actsDom_setEq`,
+  `actsDom_excluded`, `excluded_not_mem` (standard axioms; audited);
+  `state::fold` deduplicates by address; TEST-1940–1946 as property tests
+  in `crates/cbcl-core/tests/state_properties.rs`.
 - 0.3.5 (2026-09-27) — REQ-1932 complete: the seven exports moved into
   `cbcl_parser::state_exports` as the one implementation; `cbcl-wasm`
   delegates; `cbcl-erl` gains `fold/1` … `dialect_hash/1` (SPEC-009

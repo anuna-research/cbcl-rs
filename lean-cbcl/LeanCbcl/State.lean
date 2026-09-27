@@ -29,7 +29,12 @@ correspondence is checked by the conformance corpus
 
 * `fold_perm_invariant` / `fold_dedup_invariant` — R7: every rule is a
   function of the accepted set: invariant under permutation
-  (`SetEq`) and under duplicate delivery (the store's `insert`).
+  (`SetEq`) and under duplicate delivery (the store's `insert`);
+  `histogramPerKey_setEq` and `actsDom_setEq` are the per-key histogram
+  and the domain filter, folded into the conjunction.
+* `actsDom_excluded` / `excluded_not_mem` — a domain is a fold filter
+  (ADR-1909): an act outside the opener's list is accepted and
+  contributes to no rule.
 * `acts_mono`, `size_mono`, `has_mono`, `exists_mono` — monotone rules.
 * `mem_current_iff`, `replaced_never_current`, `unnamed_is_current` —
   the register characterisation (a replaced write never wins; an
@@ -45,13 +50,27 @@ correspondence is checked by the conformance corpus
 namespace CBCL
 namespace State
 
-/-- A state-bearing field value (SPEC-019 R.3). Scalar lists are omitted
-from the model; they affect no theorem below. -/
-inductive Val where
+/-- A scalar: the element type of a scalar list (SPEC-019 R.3). -/
+inductive Scalar where
   | str (s : String)
   | int (n : Int)
   | bool (b : Bool)
   deriving DecidableEq, Repr
+
+/-- A state-bearing field value (SPEC-019 R.3): a scalar, or a scalar list
+such as the opener's `:options`, over which a `domain` entry filters. -/
+inductive Val where
+  | str (s : String)
+  | int (n : Int)
+  | bool (b : Bool)
+  | list (xs : List Scalar)
+  deriving DecidableEq, Repr
+
+/-- A scalar as a field value, for membership of a key in a scalar list. -/
+def Scalar.toVal : Scalar → Val
+  | .str s => .str s
+  | .int n => .int n
+  | .bool b => .bool b
 
 /-- An accepted act as the fold sees it (SPEC-019 Reference, "act"). -/
 structure Act where
@@ -157,8 +176,8 @@ theorem perm_of_setEq {A B : List Act} (hA : NodupAddr A) (hB : NodupAddr B) (h 
 
 /-! ## The kernel (SPEC-019 R.2) -/
 
-/-- `acts v`: the accepted acts of a verb. (Domain filters are modelled as
-a further `filter` and are covered by `SetEq.filter`.) -/
+/-- `acts v`: the accepted acts of a verb. Under a `domain` entry the
+rules over `v` read `actsDom` instead, a further filter of this list. -/
 def acts (v : String) (A : List Act) : List Act := A.filter (fun a => a.verb == v)
 
 /-- The key of a write: the value of the key field, or a constant when unkeyed. -/
@@ -248,6 +267,40 @@ counted as the acts that top their own signer's group. -/
 def histogramPerSigner (v k : String) (A : List Act) (x : Val) : Nat :=
   ((acts v A).filter (fun a =>
       isTop ((acts v A).filter (fun b => b.signer == a.signer)) a && a.get k == some x)).length
+
+/-- `histogram` over `latest-per-key`: the number of keys whose latest value is `x`,
+counted as the acts that top their own key's group. An act without the key
+field belongs to no group, as the implementation's `group_by_key` drops it. -/
+def histogramPerKey (v kk k : String) (A : List Act) (x : Val) : Nat :=
+  ((acts v A).filter (fun a =>
+      (a.get kk).isSome && isTop ((acts v A).filter (fun b => b.get kk == a.get kk)) a
+        && a.get k == some x)).length
+
+/-! ## Domains (SPEC-019 R.2 `domain`, ADR-1909) -/
+
+/-- The list a `(domain v k F)` entry reads: the opener's `F`, a scalar list
+selected by `last ov F`, or nothing. -/
+def allowedOf (ov F : String) (A : List Act) : List Val :=
+  match last ov F A with
+  | some (Val.list xs) => xs.map Scalar.toVal
+  | _ => []
+
+/-- Whether an act's `k` is an element of the allowed list. An act without
+the field is outside every domain. -/
+def inDomain (k : String) (allowed : List Val) (a : Act) : Bool :=
+  match a.get k with
+  | some x => allowed.contains x
+  | none => false
+
+/-- `acts v` under `(domain v k F)`: the acts of `v` whose `k` is in the
+opener's `F`. Every rule over `v` reads this list in place of `acts v`
+(R.2); the excluded act stays accepted and contributes nothing. -/
+def actsDom (v k ov F : String) (A : List Act) : List Act :=
+  (acts v A).filter (inDomain k (allowedOf ov F A))
+
+theorem NodupAddr.actsDom {A : List Act} (h : NodupAddr A) (v k ov F : String) :
+    NodupAddr (actsDom v k ov F A) :=
+  (h.acts v).filter _
 
 /-! ## R7: every rule is a set function (REQ-1915) -/
 
@@ -357,11 +410,36 @@ theorem sumField_setEq {T U : List Act} (hT : NodupAddr T) (hU : NodupAddr U) (h
     (k : String) : sumField k T = sumField k U :=
   (perm_of_setEq hT hU h).foldl_eq' (fun _ _ _ _ z => by simp only [Int.add_right_comm]) 0
 
+/-- `histogram` over `latest-per-key` is a set function (`histogramPerKey_setEq`). -/
+theorem histogramPerKey_setEq {A B : List Act} (hA : NodupAddr A) (hB : NodupAddr B)
+    (h : SetEq A B) (v kk k : String) (x : Val) :
+    histogramPerKey v kk k A x = histogramPerKey v kk k B x := by
+  have hav : SetEq (acts v A) (acts v B) := acts_setEq h v
+  have nA : NodupAddr (acts v A) := hA.filter _
+  have nB : NodupAddr (acts v B) := hB.filter _
+  apply size_setEq (nA.filter _) (nB.filter _)
+  intro a
+  simp only [List.mem_filter]
+  rw [hav a, isTop_setEq (hav.filter (fun b => b.get kk == a.get kk)) a]
+
+/-- The domain list is a set function: it is a `last` over the opener. -/
+theorem allowedOf_setEq {A B : List Act} (hA : NodupAddr A) (hB : NodupAddr B) (h : SetEq A B)
+    (ov F : String) : allowedOf ov F A = allowedOf ov F B := by
+  simp only [allowedOf, last, pick_setEq (hA.acts ov) (hB.acts ov) (acts_setEq h ov) F]
+
+/-- **Domains are fold filters** (ADR-1909, `actsDom_setEq`): the filtered
+`acts` is a set function of the accepted acts, so every rule over it is. -/
+theorem actsDom_setEq {A B : List Act} (hA : NodupAddr A) (hB : NodupAddr B) (h : SetEq A B)
+    (v k ov F : String) : SetEq (actsDom v k ov F A) (actsDom v k ov F B) := by
+  simp only [actsDom, allowedOf_setEq hA hB h ov F]
+  exact (acts_setEq h v).filter _
+
 /-- **R7, permutation invariance** (REQ-1915, `fold_perm_invariant`): every
 rule of the sugar table is a set function of the accepted acts. Stated
 per rule; the fold is their tuple. -/
 theorem fold_perm_invariant {A B : List Act} (hA : NodupAddr A) (hB : NodupAddr B)
-    (h : SetEq A B) (v kk k add rem inc dec : String) (d : Option String) (s : String) (x y : Val) :
+    (h : SetEq A B) (v kk k add rem inc dec ov F : String) (d : Option String) (s : String)
+    (x y : Val) :
     last v k A = last v k B ∧
     latestPerSigner v k A s = latestPerSigner v k B s ∧
     latestPerKey v kk k A x = latestPerKey v kk k B x ∧
@@ -373,11 +451,13 @@ theorem fold_perm_invariant {A B : List Act} (hA : NodupAddr A) (hB : NodupAddr 
     registerPerKey v kk k d A x = registerPerKey v kk k d B x ∧
     observedSet add rem k A x = observedSet add rem k B x ∧
     counter inc dec k A = counter inc dec k B ∧
-    histogramPerSigner v k A x = histogramPerSigner v k B x := by
+    histogramPerSigner v k A x = histogramPerSigner v k B x ∧
+    histogramPerKey v kk k A x = histogramPerKey v kk k B x ∧
+    SetEq (actsDom v kk ov F A) (actsDom v kk ov F B) := by
   have hav : ∀ v, SetEq (acts v A) (acts v B) := fun v => acts_setEq h v
   have nA : ∀ v, NodupAddr (acts v A) := fun v => hA.filter _
   have nB : ∀ v, NodupAddr (acts v B) := fun v => hB.filter _
-  refine ⟨?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩
+  refine ⟨?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩
   · exact pick_setEq (nA v) (nB v) (hav v) k
   · exact pick_setEq ((nA v).filter _) ((nB v).filter _) ((hav v).filter _) k
   · exact pick_setEq ((nA v).filter _) ((nB v).filter _) ((hav v).filter _) k
@@ -395,6 +475,8 @@ theorem fold_perm_invariant {A B : List Act} (hA : NodupAddr A) (hB : NodupAddr 
     intro a
     simp only [List.mem_filter]
     rw [(hav v) a, isTop_setEq ((hav v).filter (fun b => b.signer == a.signer)) a]
+  · exact histogramPerKey_setEq hA hB h v kk k x
+  · exact actsDom_setEq hA hB h v kk ov F
 
 /-- The store's insertion: a re-delivered act is the same act (REQ-1920). -/
 def insertAct (a : Act) (A : List Act) : List Act := if a ∈ A then A else a :: A
@@ -417,6 +499,35 @@ inserting an already-accepted act changes no rule, since `insertAct`
 leaves the list unchanged. -/
 theorem fold_dedup_invariant {A : List Act} {a : Act} (ha : a ∈ A) : insertAct a A = A := by
   simp [insertAct, ha]
+
+/-- **An excluded act contributes nothing** (ADR-1909, `actsDom_excluded`):
+accepting an act of `v` whose `k` is outside the domain leaves the filtered
+`acts` unchanged, so every rule over `v` is unchanged. `v` is not the opener
+verb, which R7 forbids a domain to filter, so the domain list is unchanged
+too. -/
+theorem actsDom_excluded {A : List Act} {a : Act} {v k ov F : String}
+    (hv : a.verb = v) (hne : v ≠ ov)
+    (hout : inDomain k (allowedOf ov F A) a = false) :
+    actsDom v k ov F (insertAct a A) = actsDom v k ov F A := by
+  by_cases ha : a ∈ A
+  · simp [insertAct, ha]
+  · have hins : insertAct a A = a :: A := by simp [insertAct, ha]
+    have hov : acts ov (a :: A) = acts ov A := by
+      simp [acts, hv, hne]
+    have hallowed : allowedOf ov F (a :: A) = allowedOf ov F A := by
+      simp only [allowedOf, last, hov]
+    have hacts : acts v (a :: A) = a :: acts v A := by
+      simp [acts, hv]
+    rw [hins, actsDom, hallowed, hacts]
+    simp [actsDom, hout]
+
+/-- An excluded act is in no rule's table. -/
+theorem excluded_not_mem {A : List Act} {a : Act} {v k ov F : String}
+    (hout : inDomain k (allowedOf ov F A) a = false) : a ∉ actsDom v k ov F A := by
+  intro h
+  have := (List.mem_filter.1 h).2
+  rw [hout] at this
+  exact Bool.false_ne_true this
 
 /-! ## Monotone rules (REQ-1917, `acts_mono` etc.) -/
 

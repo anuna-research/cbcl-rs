@@ -180,3 +180,9 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.State.intend_replaces_current
 #print axioms CBCL.State.intend_supersedes
 #print axioms CBCL.State.intend_current_after
+-- Scalar lists, the per-key histogram, and the domain filter (SPEC-019 ADR-1909).
+#print axioms CBCL.State.histogramPerKey_setEq
+#print axioms CBCL.State.allowedOf_setEq
+#print axioms CBCL.State.actsDom_setEq
+#print axioms CBCL.State.actsDom_excluded
+#print axioms CBCL.State.excluded_not_mem
