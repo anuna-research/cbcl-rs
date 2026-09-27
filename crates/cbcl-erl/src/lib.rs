@@ -2,7 +2,9 @@
 //! cbcl-erl: Erlang/BEAM NIF binding for CBCL — see SPEC-009.
 //!
 //! Currently exported NIFs: `verify_dialect/1`, `versions/0` (SPEC-009
-//! OBS-001), `parse_message/1`, `parse_message_lax/1`. The BEAM
+//! OBS-001), `parse_message/1`, `parse_message_lax/1`, and the SPEC-019
+//! state layer: `fold/1`, `intend/1`, `verify_state_shape/1`,
+//! `state_schema/1`, `may_send/1`, `frontier/1`, `dialect_hash/1`. The BEAM
 //! module name is `cbcl_erl`, loaded from `libcbcl_erl.{so,dylib}`. NIFs are
 //! added per task; rustler 0.36 auto-discovers them via inventory so `init!`
 //! only needs the BEAM module name.
@@ -22,6 +24,7 @@ mod encoding;
 pub mod panic_guard;
 pub mod parse_message;
 pub mod parse_message_lax;
+pub mod state;
 pub mod verify_dialect;
 mod versions;
 
@@ -32,6 +35,10 @@ mod tracing_hooks;
 
 pub use parse_message::parse_message_pure;
 pub use parse_message_lax::parse_message_lax_pure;
+pub use state::{
+    dialect_hash_pure, fold_pure, frontier_pure, intend_pure, may_send_pure, state_schema_pure,
+    verify_state_shape_pure,
+};
 pub use verify_dialect::verify_dialect_pure;
 pub use versions::{CBCL_CORE_VERSION, CBCL_ERL_VERSION, CBCL_RS_GIT_REVISION};
 

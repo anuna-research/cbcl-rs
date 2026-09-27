@@ -39,7 +39,6 @@ use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use cbcl_core::agent::Agent;
 use cbcl_core::blame::ViolationError;
-use cbcl_core::canonical::dialect_canonical_bytes;
 use cbcl_core::dialect::DialectRegistry;
 use cbcl_core::evaluator;
 use cbcl_core::message::{CorePerformative, Message, Performative};
@@ -48,7 +47,6 @@ use cbcl_core::serializer::serialize;
 use cbcl_core::sexpr::{Atom, SExpr};
 use cbcl_core::store::{ContentHash, MessageStore, ThreadId, ThreadedMessageStore};
 use cbcl_parser::parser;
-use sha2::{Digest, Sha256};
 
 // ---------------------------------------------------------------------------
 // Pure WASM byte-level API (always available)
@@ -257,91 +255,11 @@ fn verify_dialect_str(input: &str) -> Result<String, String> {
 }
 
 /// Parse a dialect S-expression (or a `(dialects <ancestor>* <leaf>)` chain)
-/// and install each into a fresh registry, running the same R1/R2/R3/R5 checks
-/// — and `:hash` consistency — that `cbcl_verify_dialect` performs. Returns
-/// the populated registry; the runtime verifiers (shape, protocol) iterate
-/// it whole rather than picking out a single "subject" dialect, so they
-/// honour constraints declared by *any* installed dialect.
-///
-/// The `(dialects ...)` form lets callers supply ancestor dialects so that
-/// R5's resolve-ancestors-by-name pass (`DialectRegistry::resolve_ancestors`)
-/// can find non-base parents. Without this, a child dialect like
-/// `(define child-d (parent-d) ... (protocol (then notify ack)))` would be
-/// rejected by R5 here because `parent-d` is not in the fresh registry, even
-/// though the rest of the pipeline accepts it once `parent-d` is installed.
-/// Order matters: ancestors must precede the leaf so each `install` call
-/// sees its parents already present.
-///
-/// Both runtime verifiers (shape, protocol) reuse this so callers cannot
-/// bypass install-time well-formedness — e.g. shapes that target an
-/// undefined performative, or protocols referencing undefined predecessors —
-/// to get a spurious "ok" or a misleading violation.
+/// and install each into a fresh registry, running the same R1–R7 checks and
+/// `:hash` consistency that `cbcl_verify_dialect` performs. One implementation
+/// for every binding: `cbcl_parser::state_exports::parse_and_install_dialect`.
 fn parse_and_install_dialect(dialect_sexpr: &SExpr) -> Result<DialectRegistry, String> {
-    // Accept either a bare `(define ...)` (back-compat) or a
-    // `(dialects <define-ancestor>* <define-leaf>)` chain.
-    let dialect_forms: alloc::vec::Vec<&SExpr> = match dialect_sexpr {
-        SExpr::List(xs)
-            if matches!(
-                xs.first(),
-                Some(SExpr::Atom(Atom::Symbol(s))) if s == "dialects"
-            ) =>
-        {
-            if xs.len() < 2 {
-                return Err(String::from(
-                    "(dialects ...) must contain at least one (define ...) form",
-                ));
-            }
-            xs[1..].iter().collect()
-        }
-        _ => alloc::vec![dialect_sexpr],
-    };
-
-    let mut registry = DialectRegistry::new();
-    for form in &dialect_forms {
-        let dialect =
-            cbcl_parser::parse_dialect(form).map_err(|e| format!("dialect parse error: {e}"))?;
-        registry
-            .install(dialect)
-            .map_err(|e| format!("dialect verification failed: {e}"))?;
-
-        // If the dialect declares a `:hash`, verify it matches the actual
-        // canonical hash of the (just-installed) dialect. The wrapper surfaces
-        // this hash in REQ-233 blame attribution via `with_dialect_context`,
-        // so trusting an unchecked claim would let a frame mislabel which
-        // dialect signed a verdict. Apply to every link in the chain, not
-        // just the leaf — a tampered ancestor :hash would otherwise propagate
-        // through R5 into the leaf's verification context.
-        let installed_idx = registry.len() - 1;
-        let installed = registry
-            .get(installed_idx)
-            .ok_or_else(|| String::from("internal: just-installed dialect not found"))?;
-        if let Some(claimed) = &installed.hash {
-            let computed = format!(
-                "sha256:{}",
-                hex_encode(Sha256::digest(dialect_canonical_bytes(installed)).as_slice())
-            );
-            if claimed != &computed {
-                return Err(format!(
-                    "dialect verification failed: declared :hash {claimed} \
-                     does not match canonical hash {computed}"
-                ));
-            }
-        }
-    }
-
-    Ok(registry)
-}
-
-/// Lowercase hex-encode bytes. Local helper to avoid a `hex` crate dep on the
-/// wasm32 build path.
-fn hex_encode(bytes: &[u8]) -> String {
-    const HEX: &[u8; 16] = b"0123456789abcdef";
-    let mut out = String::with_capacity(bytes.len() * 2);
-    for b in bytes {
-        out.push(HEX[(b >> 4) as usize] as char);
-        out.push(HEX[(b & 0x0f) as usize] as char);
-    }
-    out
+    cbcl_parser::state_exports::parse_and_install_dialect(dialect_sexpr)
 }
 
 /// Compute the canonical content hash of a message in the form
@@ -413,197 +331,8 @@ pub fn dialect_hash_bytes(input: &[u8]) -> Result<Vec<u8>, Vec<u8>> {
         .map_err(|e| e.into_bytes())
 }
 
-mod state_layer {
-    use super::*;
-    use cbcl_core::intend::{intend, may_send, render_reject, Instance};
-    use cbcl_core::role::AgentKey;
-    use cbcl_core::state::{fold, frontier, render_json, render_schema, state_schema, Act, Value};
-
-    fn leaf(registry: &DialectRegistry) -> Result<cbcl_core::dialect::Dialect, String> {
-        registry
-            .iter()
-            .last()
-            .cloned()
-            .ok_or_else(|| String::from("no dialect installed"))
-    }
-
-    fn atom_text(s: &SExpr, what: &str) -> Result<String, String> {
-        match s {
-            SExpr::Atom(Atom::Str(x)) | SExpr::Atom(Atom::Symbol(x)) => Ok(x.clone()),
-            other => Err(format!("{what} must be a string or symbol, got {other}")),
-        }
-    }
-
-    fn parse_frame(input: &str, head: &str) -> Result<alloc::vec::Vec<SExpr>, String> {
-        let sexpr = parser::parse(input).map_err(|e| format!("parse error: {e}"))?;
-        match sexpr {
-            SExpr::List(items) if matches!(items.first(), Some(SExpr::Atom(Atom::Symbol(s))) if s == head) => {
-                Ok(items[1..].to_vec())
-            }
-            _ => Err(format!("expected ({head} …)")),
-        }
-    }
-
-    fn parse_acts(sexpr: &SExpr) -> Result<alloc::vec::Vec<Act>, String> {
-        let items = match sexpr {
-            SExpr::List(items) if matches!(items.first(), Some(SExpr::Atom(Atom::Symbol(s))) if s == "acts") => {
-                &items[1..]
-            }
-            _ => return Err(String::from("expected (acts (<signer> <message>) …)")),
-        };
-        let mut acts = alloc::vec::Vec::new();
-        for entry in items {
-            let SExpr::List(pair) = entry else {
-                return Err(String::from("an act entry is (<signer> <message>)"));
-            };
-            if pair.len() != 2 {
-                return Err(String::from("an act entry is (<signer> <message>)"));
-            }
-            let signer = atom_text(&pair[0], "signer")?;
-            let message = cbcl_parser::parse_message(&pair[1])
-                .map_err(|e| format!("message parse error: {e}"))?;
-            acts.push(Act::from_message(message, &signer)?);
-        }
-        Ok(acts)
-    }
-
-    type InstanceFrame = (
-        cbcl_core::dialect::Dialect,
-        ThreadId,
-        alloc::vec::Vec<Act>,
-        alloc::vec::Vec<SExpr>,
-    );
-
-    fn instance_frame(input: &str, head: &str) -> Result<InstanceFrame, String> {
-        let items = parse_frame(input, head)?;
-        if items.len() < 3 {
-            return Err(format!("expected ({head} <dialect> <thread> (acts …) …)"));
-        }
-        let registry = parse_and_install_dialect(&items[0])?;
-        let dialect = leaf(&registry)?;
-        let thread = ThreadId(atom_text(&items[1], "thread")?);
-        let acts = parse_acts(&items[2])?;
-        Ok((dialect, thread, acts, items[3..].to_vec()))
-    }
-
-    pub fn fold_str(input: &str) -> Result<String, String> {
-        let (d, _thread, acts, _) = instance_frame(input, "fold")?;
-        let clause = d
-            .state
-            .as_ref()
-            .ok_or_else(|| String::from("dialect has no state clause"))?;
-        Ok(render_json(&fold(
-            clause,
-            d.causal_protocol.as_ref(),
-            &acts,
-        )))
-    }
-
-    pub fn intend_str(input: &str) -> Result<String, String> {
-        let (d, thread, acts, rest) = instance_frame(input, "intend")?;
-        if rest.len() != 3 {
-            return Err(String::from(
-                "expected (intend <dialect> <thread> (acts …) <signer> <verb> (:k v …))",
-            ));
-        }
-        let signer = AgentKey(atom_text(&rest[0], "signer")?);
-        let verb = atom_text(&rest[1], "verb")?;
-        let mut fields = alloc::collections::BTreeMap::new();
-        let SExpr::List(kv) = &rest[2] else {
-            return Err(String::from(
-                "fields must be a list of :keyword value pairs",
-            ));
-        };
-        let mut i = 0;
-        while i + 1 < kv.len() {
-            if let SExpr::Atom(Atom::Keyword(k)) = &kv[i] {
-                fields.insert(k.clone(), kv[i + 1].clone());
-            }
-            i += 2;
-        }
-        let inst = Instance::new(&d, thread, &acts)?;
-        match intend(&inst, &signer, &verb, fields) {
-            Ok(m) => Ok(cbcl_core::intend::canonical_text(&m)),
-            Err(r) => Err(render_reject(&r)),
-        }
-    }
-
-    pub fn verify_state_shape_str(input: &str) -> Result<String, String> {
-        let items = parse_frame(input, "verify-state-shape")?;
-        if items.len() != 2 {
-            return Err(String::from(
-                "expected (verify-state-shape <dialect> <message>)",
-            ));
-        }
-        let registry = parse_and_install_dialect(&items[0])?;
-        let d = leaf(&registry)?;
-        let message = cbcl_parser::parse_message(&items[1])
-            .map_err(|e| format!("message parse error: {e}"))?;
-        match cbcl_core::r7::verify_state_shape(&d, &message) {
-            Ok(()) => Ok(String::from("ok")),
-            Err(v) => {
-                let blame =
-                    ViolationError::from_shape_violation(&v, None, None, Some(items[1].clone()))
-                        .with_dialect_context(
-                            &d.name,
-                            d.author.as_deref(),
-                            d.hash.as_deref(),
-                            None,
-                        );
-                Err(serialize(&blame.to_sexpr()))
-            }
-        }
-    }
-
-    pub fn state_schema_str(input: &str) -> Result<String, String> {
-        let items = parse_frame(input, "state-schema")?;
-        if items.len() != 1 {
-            return Err(String::from("expected (state-schema <dialect>)"));
-        }
-        let registry = parse_and_install_dialect(&items[0])?;
-        let d = leaf(&registry)?;
-        let clause = d
-            .state
-            .as_ref()
-            .ok_or_else(|| String::from("dialect has no state clause"))?;
-        Ok(render_schema(&state_schema(clause, &d.shapes)))
-    }
-
-    pub fn may_send_str(input: &str) -> Result<String, String> {
-        let (d, thread, acts, rest) = instance_frame(input, "may-send")?;
-        if rest.len() != 1 {
-            return Err(String::from(
-                "expected (may-send <dialect> <thread> (acts …) <signer>)",
-            ));
-        }
-        let signer = AgentKey(atom_text(&rest[0], "signer")?);
-        let inst = Instance::new(&d, thread, &acts)?;
-        let verbs = may_send(&inst, &signer);
-        Ok(Value::Set(verbs.into_iter().map(Value::Str).collect()).render())
-    }
-
-    pub fn frontier_str(input: &str) -> Result<String, String> {
-        let (d, thread, acts, _) = instance_frame(input, "frontier")?;
-        let inst = Instance::new(&d, thread, &acts)?;
-        let instance = match inst.instance_id() {
-            Some(a) => Value::Str(String::from(a)),
-            None => Value::Absent,
-        };
-        let f = Value::List(frontier(&acts).into_iter().map(Value::Str).collect());
-        Ok(format!(
-            "{{\"instance\":{},\"frontier\":{}}}",
-            instance.render(),
-            f.render()
-        ))
-    }
-
-    pub fn dialect_hash_str(input: &str) -> Result<String, String> {
-        let sexpr = parser::parse(input).map_err(|e| format!("parse error: {e}"))?;
-        let d =
-            cbcl_parser::parse_dialect(&sexpr).map_err(|e| format!("dialect parse error: {e}"))?;
-        Ok(cbcl_core::canonical::dialect_name(&d))
-    }
-}
+/// The state-layer frames are one implementation shared by every binding.
+use cbcl_parser::state_exports as state_layer;
 
 /// Verify a runtime message against a dialect's shape constraints.
 fn verify_message_shape_str(input: &str) -> Result<String, String> {
@@ -1346,10 +1075,7 @@ mod tests {
         let dialect_no_hash = "(define h-d (cbcl) @author \
             (extend greet (name) (effect greet-action)))";
         let parsed = cbcl_parser::parse_dialect(&parser::parse(dialect_no_hash).unwrap()).unwrap();
-        let computed = format!(
-            "sha256:{}",
-            hex_encode(Sha256::digest(dialect_canonical_bytes(&parsed)).as_slice())
-        );
+        let computed = cbcl_core::canonical::dialect_hash(&parsed);
         let dialect_with_hash = format!(
             "(define h-d (cbcl) @author \
              (:hash \"{computed}\") \
@@ -1504,10 +1230,7 @@ mod tests {
         let dialect_no_hash = "(define h-d (cbcl) @author \
             (extend greet (name) (effect greet-action)))";
         let parsed = cbcl_parser::parse_dialect(&parser::parse(dialect_no_hash).unwrap()).unwrap();
-        let computed = format!(
-            "sha256:{}",
-            hex_encode(Sha256::digest(dialect_canonical_bytes(&parsed)).as_slice())
-        );
+        let computed = cbcl_core::canonical::dialect_hash(&parsed);
         let dialect_with_hash = format!(
             "(define h-d (cbcl) @author \
              (:hash \"{computed}\") \

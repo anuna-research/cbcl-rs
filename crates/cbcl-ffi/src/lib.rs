@@ -7,6 +7,9 @@
 //! - `cbcl_agent_send` — construct a tell message, evaluate via agent
 //! - `cbcl_agent_free` — free an agent handle
 //! - `cbcl_string_free` — free a result string
+//! - SPEC-019 state layer (R.7), one S-expression frame in, text out:
+//!   `cbcl_fold`, `cbcl_intend`, `cbcl_verify_state_shape`, `cbcl_state_schema`,
+//!   `cbcl_may_send`, `cbcl_frontier`, `cbcl_dialect_hash`
 
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
@@ -137,6 +140,24 @@ fn send_message_impl(agent: &Agent, recipient: &str, content: &str) -> Result<St
     Ok(serialize(&result.expanded))
 }
 
+/// Run one shared state-layer export over a C string (SPEC-019 R.7). The
+/// semantics live in `cbcl_parser::state_exports`; this adds only the C
+/// boundary.
+///
+/// # Safety
+///
+/// `input` must be a valid null-terminated UTF-8 C string.
+unsafe fn state_export(input: *const c_char, f: fn(&str) -> Result<String, String>) -> CbclResult {
+    let input_str = match unsafe { c_to_str(input) } {
+        Ok(s) => s,
+        Err(r) => return r,
+    };
+    match f(input_str) {
+        Ok(s) => CbclResult::ok(s),
+        Err(e) => CbclResult::err(e),
+    }
+}
+
 // ---------------------------------------------------------------------------
 // C FFI exports
 // ---------------------------------------------------------------------------
@@ -179,6 +200,96 @@ pub unsafe extern "C" fn cbcl_verify_dialect(input: *const c_char) -> CbclResult
         Ok(s) => CbclResult::ok(s),
         Err(e) => CbclResult::err(e),
     }
+}
+
+/// Fold a thread's accepted acts into its state (SPEC-019 R.7).
+///
+/// Input frame: `(fold <dialect> <thread> (acts (<signer> <message>) …))`.
+/// Returns the state as canonical JSON. Free with `cbcl_string_free`.
+///
+/// # Safety
+///
+/// `input` must be a valid null-terminated UTF-8 C string.
+#[no_mangle]
+pub unsafe extern "C" fn cbcl_fold(input: *const c_char) -> CbclResult {
+    state_export(input, cbcl_parser::state_exports::fold_str)
+}
+
+/// Complete an intent into the canonical act to sign (SPEC-019 R.5).
+///
+/// Input frame: `(intend <dialect> <thread> (acts …) <signer> <verb> (:k v …))`.
+/// Returns the act's wire text; a rejection is an error whose data is JSON
+/// `{"reject": kind, "reason": text}`. Free with `cbcl_string_free`.
+///
+/// # Safety
+///
+/// `input` must be a valid null-terminated UTF-8 C string.
+#[no_mangle]
+pub unsafe extern "C" fn cbcl_intend(input: *const c_char) -> CbclResult {
+    state_export(input, cbcl_parser::state_exports::intend_str)
+}
+
+/// Check a message against a dialect's state shape (SPEC-019 R.4).
+///
+/// Input frame: `(verify-state-shape <dialect> <message>)`. Returns "ok", or
+/// an error carrying the blame S-expression. Free with `cbcl_string_free`.
+///
+/// # Safety
+///
+/// `input` must be a valid null-terminated UTF-8 C string.
+#[no_mangle]
+pub unsafe extern "C" fn cbcl_verify_state_shape(input: *const c_char) -> CbclResult {
+    state_export(input, cbcl_parser::state_exports::verify_state_shape_str)
+}
+
+/// The type of every state field of a dialect (SPEC-019 R.7).
+///
+/// Input frame: `(state-schema <dialect>)`. Returns JSON. Free with `cbcl_string_free`.
+///
+/// # Safety
+///
+/// `input` must be a valid null-terminated UTF-8 C string.
+#[no_mangle]
+pub unsafe extern "C" fn cbcl_state_schema(input: *const c_char) -> CbclResult {
+    state_export(input, cbcl_parser::state_exports::state_schema_str)
+}
+
+/// The verbs a signer may emit on an instance (SPEC-019 R.7).
+///
+/// Input frame: `(may-send <dialect> <thread> (acts …) <signer>)`. Returns a
+/// JSON array. Free with `cbcl_string_free`.
+///
+/// # Safety
+///
+/// `input` must be a valid null-terminated UTF-8 C string.
+#[no_mangle]
+pub unsafe extern "C" fn cbcl_may_send(input: *const c_char) -> CbclResult {
+    state_export(input, cbcl_parser::state_exports::may_send_str)
+}
+
+/// The instance's identity and frontier (SPEC-019 R.7).
+///
+/// Input frame: `(frontier <dialect> <thread> (acts …))`. Returns JSON
+/// `{"instance": …, "frontier": […]}`. Free with `cbcl_string_free`.
+///
+/// # Safety
+///
+/// `input` must be a valid null-terminated UTF-8 C string.
+#[no_mangle]
+pub unsafe extern "C" fn cbcl_frontier(input: *const c_char) -> CbclResult {
+    state_export(input, cbcl_parser::state_exports::frontier_str)
+}
+
+/// A dialect's self-address `sha256-<hex>` (SPEC-019 R.6).
+///
+/// Input: a `(define …)`. Free with `cbcl_string_free`.
+///
+/// # Safety
+///
+/// `input` must be a valid null-terminated UTF-8 C string.
+#[no_mangle]
+pub unsafe extern "C" fn cbcl_dialect_hash(input: *const c_char) -> CbclResult {
+    state_export(input, cbcl_parser::state_exports::dialect_hash_str)
 }
 
 /// Create a new CBCL agent with the given ID and base dialect installed.
@@ -427,5 +538,81 @@ mod tests {
             cbcl_string_free(result.data);
             cbcl_agent_free(agent);
         };
+    }
+
+    // -- SPEC-019 state layer --
+
+    const LUNCH: &str = "(define lunch-vote (cbcl) @anuna \
+      (:resource-requirements ((max-depth 12) (max-expansion-size 2048) (verification-time 200))) \
+      (extend propose (to question options) (tell to :question question :options options)) \
+      (extend vote (to choice) (tell to :choice choice)) \
+      (shape propose (require :question string) (require :options list)) \
+      (shape vote (require :choice string)) \
+      (protocol (then begin propose) (then propose vote)) \
+      (state (question (last propose :question)) (options (last propose :options)) \
+             (domain vote :choice options) (ballots (latest-per-signer vote :choice)) \
+             (tally (histogram ballots))))";
+
+    fn take(result: CbclResult) -> (i32, String) {
+        let data = unsafe { CStr::from_ptr(result.data) }
+            .to_str()
+            .unwrap()
+            .to_string();
+        unsafe { cbcl_string_free(result.data) };
+        (result.error, data)
+    }
+
+    #[test]
+    fn state_layer_exports_round_trip() {
+        let opener = "(lang lunch-vote (propose @lunch :question \"Lunch?\" :options (\"Pizza\" \"Sushi\") :caused-by begin :thread \"v1\" :from @aria))";
+        let acts = format!("(acts (@aria {opener}))");
+        let (e, s) =
+            take(unsafe { cbcl_fold(cstr(&format!("(fold {LUNCH} \"v1\" {acts})")).as_ptr()) });
+        assert_eq!((e, s.as_str()), (0, "{\"question\":\"Lunch?\",\"options\":[\"Pizza\",\"Sushi\"],\"ballots\":{},\"tally\":{}}"));
+        let (e, s) = take(unsafe {
+            cbcl_intend(
+                cstr(&format!(
+                    "(intend {LUNCH} \"v1\" {acts} @bo vote (:choice \"Sushi\"))"
+                ))
+                .as_ptr(),
+            )
+        });
+        assert_eq!(e, 0);
+        assert!(s.starts_with("(lang lunch-vote (vote @lunch"), "{s}");
+        let (e, s) = take(unsafe {
+            cbcl_intend(
+                cstr(&format!(
+                    "(intend {LUNCH} \"v1\" {acts} @bo vote (:choice \"Tacos\"))"
+                ))
+                .as_ptr(),
+            )
+        });
+        assert_ne!(e, 0);
+        assert!(s.starts_with("{\"reject\":\"domain\""), "{s}");
+        let (e, s) =
+            take(unsafe { cbcl_state_schema(cstr(&format!("(state-schema {LUNCH})")).as_ptr()) });
+        assert!(
+            e == 0 && s.contains("\"tally\":{\"type\":\"histogram\""),
+            "{s}"
+        );
+        let (e, s) = take(unsafe {
+            cbcl_may_send(cstr(&format!("(may-send {LUNCH} \"v1\" {acts} @bo)")).as_ptr())
+        });
+        assert_eq!((e, s.as_str()), (0, "[\"vote\"]"));
+        let (e, s) = take(unsafe {
+            cbcl_frontier(cstr(&format!("(frontier {LUNCH} \"v1\" {acts})")).as_ptr())
+        });
+        assert!(e == 0 && s.starts_with("{\"instance\":\"sha256-"), "{s}");
+        let (e, s) = take(unsafe { cbcl_dialect_hash(cstr(LUNCH).as_ptr()) });
+        assert!(
+            e == 0 && s.starts_with("sha256-") && s.len() == 7 + 64,
+            "{s}"
+        );
+        let (e, s) = take(unsafe {
+            cbcl_verify_state_shape(cstr(&format!("(verify-state-shape {LUNCH} (lang lunch-vote (vote @lunch :choice \"x\" :extra 1 :caused-by begin :thread \"v1\" :from @bo)))")).as_ptr())
+        });
+        assert!(e != 0 && s.contains("closed"), "{s}");
+        let (e, _) = take(unsafe { cbcl_fold(ptr::null()) });
+        assert_ne!(e, 0);
     }
 }

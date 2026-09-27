@@ -59,6 +59,89 @@ struct CbclResult cbcl_parse_message(const char *input);
 struct CbclResult cbcl_verify_dialect(const char *input);
 
 /**
+ * Fold a thread's accepted acts into its state (SPEC-019 R.7).
+ *
+ * Input frame: `(fold <dialect> <thread> (acts (<signer> <message>) …))`.
+ * Returns the state as canonical JSON. Free with `cbcl_string_free`.
+ *
+ * # Safety
+ *
+ * `input` must be a valid null-terminated UTF-8 C string.
+ */
+struct CbclResult cbcl_fold(const char *input);
+
+/**
+ * Complete an intent into the canonical act to sign (SPEC-019 R.5).
+ *
+ * Input frame: `(intend <dialect> <thread> (acts …) <signer> <verb> (:k v …))`.
+ * Returns the act's wire text; a rejection is an error whose data is JSON
+ * `{"reject": kind, "reason": text}`. Free with `cbcl_string_free`.
+ *
+ * # Safety
+ *
+ * `input` must be a valid null-terminated UTF-8 C string.
+ */
+struct CbclResult cbcl_intend(const char *input);
+
+/**
+ * Check a message against a dialect's state shape (SPEC-019 R.4).
+ *
+ * Input frame: `(verify-state-shape <dialect> <message>)`. Returns "ok", or
+ * an error carrying the blame S-expression. Free with `cbcl_string_free`.
+ *
+ * # Safety
+ *
+ * `input` must be a valid null-terminated UTF-8 C string.
+ */
+struct CbclResult cbcl_verify_state_shape(const char *input);
+
+/**
+ * The type of every state field of a dialect (SPEC-019 R.7).
+ *
+ * Input frame: `(state-schema <dialect>)`. Returns JSON. Free with `cbcl_string_free`.
+ *
+ * # Safety
+ *
+ * `input` must be a valid null-terminated UTF-8 C string.
+ */
+struct CbclResult cbcl_state_schema(const char *input);
+
+/**
+ * The verbs a signer may emit on an instance (SPEC-019 R.7).
+ *
+ * Input frame: `(may-send <dialect> <thread> (acts …) <signer>)`. Returns a
+ * JSON array. Free with `cbcl_string_free`.
+ *
+ * # Safety
+ *
+ * `input` must be a valid null-terminated UTF-8 C string.
+ */
+struct CbclResult cbcl_may_send(const char *input);
+
+/**
+ * The instance's identity and frontier (SPEC-019 R.7).
+ *
+ * Input frame: `(frontier <dialect> <thread> (acts …))`. Returns JSON
+ * `{"instance": …, "frontier": […]}`. Free with `cbcl_string_free`.
+ *
+ * # Safety
+ *
+ * `input` must be a valid null-terminated UTF-8 C string.
+ */
+struct CbclResult cbcl_frontier(const char *input);
+
+/**
+ * A dialect's self-address `sha256-<hex>` (SPEC-019 R.6).
+ *
+ * Input: a `(define …)`. Free with `cbcl_string_free`.
+ *
+ * # Safety
+ *
+ * `input` must be a valid null-terminated UTF-8 C string.
+ */
+struct CbclResult cbcl_dialect_hash(const char *input);
+
+/**
  * Create a new CBCL agent with the given ID and base dialect installed.
  *
  * Returns an opaque handle. The caller must free it with `cbcl_agent_free`.

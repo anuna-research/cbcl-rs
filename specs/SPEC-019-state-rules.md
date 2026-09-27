@@ -2,7 +2,7 @@
 id: SPEC-019
 title: State Layer — R7 State Rules and the Intent Binder
 status: draft
-version: 0.3.4
+version: 0.3.5
 date: 2026-09-27
 author: Anuna Research (https://anuna.io) — drafted with Claude Fable 5.1
 owner: CBCL maintainer
@@ -545,7 +545,11 @@ obtains every judgement from the exports inherits conformance.
 Trace: [[SPEC-019-state-rules#TEST-1931]].
 
 **REQ-1932: Exports.** Per R.7, through `cbcl-wasm`, `cbcl-erl`, and
-`cbcl-ffi` under [[SPEC-010-binding-conformance|SPEC-010]].
+`cbcl-ffi` under [[SPEC-010-binding-conformance|SPEC-010]]. The frames are
+one implementation, `cbcl_parser::state_exports`; a binding adds term
+translation and crash containment and no semantics, so the corpus test on
+the shared frames is the conformance gate for all three
+([[SPEC-009-erlang-binding#CON-003]] for the NIFs).
 Trace: [[SPEC-019-state-rules#TEST-1932]].
 
 ## Non-Functional Requirements
@@ -784,6 +788,11 @@ order; update cbcl-aamas §6 and §7.
 <details>
 <summary>Revision history</summary>
 
+- 0.3.5 (2026-09-27) — REQ-1932 complete: the seven exports moved into
+  `cbcl_parser::state_exports` as the one implementation; `cbcl-wasm`
+  delegates; `cbcl-erl` gains `fold/1` … `dialect_hash/1` (SPEC-009
+  CON-003); `cbcl-ffi` gains `cbcl_fold` … `cbcl_dialect_hash` with the
+  regenerated `cbcl.h`; the corpus drives the shared frames.
 - 0.3.4 (2026-09-27) — Phase 3: `LeanCbcl/State.lean` discharges
   REQ-1930 (16 theorems, standard axioms only, listed in `AxiomAudit.lean`);
   REQ-1930 restated to say what the model is and what it leaves out.
@@ -798,7 +807,7 @@ order; update cbcl-aamas §6 and §7.
   frames; map keys render strings raw. Implemented in `cbcl-core`
   (`state.rs`, `r7.rs`, `intend.rs`), `cbcl-parser` (`state_parser.rs`),
   `cbcl-wasm`, `cbcl-cli`, with the corpus in `test-vectors/state/` and
-  its runner; Erlang and FFI bindings pending.
+  its runner.
 - 0.3.1 (2026-09-27) — renamed: "state rules" replaces "transition
   combinators" in the title and file name ("projection" was rejected as
   colliding with endpoint projection); the Orientation says plainly that
