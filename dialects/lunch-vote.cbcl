@@ -1,0 +1,49 @@
+; lunch-vote: a poll dialect exercising an opener-drawn domain, a
+; per-signer register, and a histogram over it (SPEC-019).
+;
+; A signer may vote many times; only the vote with the greatest content
+; address counts (SPEC-019 ADR-1902: there is no "later"). The tally counts
+; one vote per signer because it reads the `ballots` field, a map with one
+; entry per signer (R.2).
+;
+; `(domain vote :choice options)` says a vote whose :choice is not in the
+; opener's :options contributes nothing to any field, and the binder
+; refuses to build one. Admission still accepts it: admission never reads
+; history (ADR-1909). `options` is projected so that a presentation can
+; render the choices; a presentation sees state and nothing else (REQ-1929).
+;
+; `to` is the recipient set, bound by the binder from the opener (R.5).
+
+(define lunch-vote (cbcl) @anuna
+  (:resource-requirements
+    ((max-depth 12)
+     (max-expansion-size 2048)
+     (verification-time 200)))
+
+  (:state-bounds
+    (max-string 280)
+    (max-list 24))
+
+  (extend propose (to question options)
+    (tell to :question question :options options))
+
+  (extend vote (to choice)
+    (tell to :choice choice))
+
+  (shape propose
+    (require :question string)
+    (require :options list))
+
+  (shape vote
+    (require :choice string))
+
+  (protocol
+    (then begin propose)
+    (then propose vote))
+
+  (state
+    (question (last propose :question))
+    (options  (last propose :options))
+    (domain vote :choice options)
+    (ballots  (latest-per-signer vote :choice))
+    (tally    (histogram ballots))))

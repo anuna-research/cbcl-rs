@@ -1,0 +1,103 @@
+; checklist: the three-layer object dialect of SPEC-019 (state rules).
+;
+; Layer 1, R5 shape + protocol: which acts exist and what may follow what.
+; Layer 2, R6 roles (optional): who may send and receive each act.
+; Layer 3, R7 state: how an accepted act moves each field of the instance.
+;
+; This is the checklist the cbcl-bus object SDK authors as a JSON contract
+; (cbcl-bus SPEC-085 CON-001), written as one dialect. The name shown is
+; illustrative; a deployed copy is named object-<dialect_hash of its body>
+; (SPEC-019 R.6).
+;
+; `to` is the recipient set. The binder fills it from the accepted opener,
+; or from the cast under R6, never from the caller (SPEC-019 R.5). What a
+; consumer calls it, a room, a channel, a group, is the consumer's business.
+;
+; Nothing here declares `:replaces`. Installation adds `(require :replaces
+; list)` to `check` and `drop` because the state clause names them as a
+; register's writer and delete verb (SPEC-019 R.1, ADR-1901). The binder
+; fills it; a caller may never set it; no rule reads it.
+;
+; Related specs:
+;   specs/SPEC-019-state-rules.md   (R7 clause, binder, corpus)
+;   specs/SPEC-002-structural-contracts.md (R5 protocol + shape grammar)
+;   specs/SPEC-014-role-layer-endpoint-projection.md (R6 roles)
+
+(define checklist (cbcl) @anuna
+  (:resource-requirements
+    ((max-depth 16)
+     (max-expansion-size 4096)
+     (verification-time 1000)))
+
+  (:roles (owner (* member)))
+
+  ; The opener: creates an instance in a fresh thread.
+  (extend open (to title) :from owner :to (owner member)
+    (tell to :title title))
+
+  ; A write to the register keyed by :item.
+  (extend check (to item done) :from member :to (owner member)
+    (tell to :item item :done done))
+
+  ; The register's delete verb: exactly the key.
+  (extend drop (to item) :from owner :to (owner member)
+    (tell to :item item))
+
+  ; --- R5: shapes (closed by implication of the state clause) ---
+  (shape open
+    (require :title string))
+  (shape check
+    (require :item string)
+    (require :done bool))
+  (shape drop
+    (require :item string))
+
+  ; --- R5: causal protocol; repeatable acts each follow the opener ---
+  (protocol
+    (then begin open)
+    (then open check)
+    (then open drop))
+
+  ; --- R7: state ---
+  ; title: one value, greatest content address wins (uncontested).
+  ; items: per :item key, one current :done value; a write is current
+  ;        until a later write or drop of the same key names it in
+  ;        :replaces; concurrent writes resolve by content address.
+  (state
+    (title (last open :title))
+    (items (register-per-key check :item :done drop))))
+
+; --- Worked trace (addresses abbreviated) ---
+;
+; Because the dialect declares roles, the thread's root is a with-roles
+; wrapper carrying the cast (SPEC-014 CON-601), and every act's recipient
+; set is its :to roles resolved through that cast (SPEC-019 R.5 step 3).
+;
+; M0  teach — the author distributes the dialect, R4-signed (R.6):
+;   (meta (teach (define object-<hash> ...)))
+;
+; M1  root: cast + opener      by @aria (owner); cast: owner=@aria, member={@bo @cy}
+;   (with-roles ((owner @aria) (member @bo @cy)) :dialect sha256:<hash>
+;     (signed <sig>
+;       (lang object-<hash> (open (@aria @bo @cy) :title "Launch tasks"
+;         :caused-by begin :thread "list-1" :from @aria))))
+;
+; M2  open -> check            by @bo (member); no current write for "venue"
+;   (lang object-<hash> (check (@aria @bo @cy) :item "venue" :done #f :replaces ()
+;     :caused-by sha256-<M1> :thread "list-1" :from @bo))
+;
+; M3  open -> check            by @bo; the binder fills :replaces (M2)
+;   (lang object-<hash> (check (@aria @bo @cy) :item "venue" :done #t :replaces (sha256-<M2>)
+;     :caused-by sha256-<M1> :thread "list-1" :from @bo))
+;
+; M4  open -> drop             by @aria (owner); fills :replaces (M3)
+;   (lang object-<hash> (drop (@aria @bo @cy) :item "venue" :replaces (sha256-<M3>)
+;     :caused-by sha256-<M1> :thread "list-1" :from @aria))
+;
+; A `drop` intent from @bo is rejected by the binder before signing: drop
+; is :from owner and the cast binds owner to @aria alone (Role(owner)).
+;
+; State after {M1, M2, M3}:  {"title": "Launch tasks", "items": {"venue": true}}
+; State after {M1, M2, M3, M4}: {"title": "Launch tasks", "items": {}}
+; State after {M1, M3, M4} (M2 not yet delivered): identical to the line
+; above, and unchanged when M2 arrives (SPEC-019 R7).
