@@ -4,6 +4,7 @@ import LeanCbcl.Verify
 import LeanCbcl.R5
 import LeanCbcl.DCFLPreservation
 import LeanCbcl.R6DCFLPreservation
+import LeanCbcl.State
 import LeanCbcl.EPPCompletion
 import LeanCbcl.ProtocolProjection
 import LeanCbcl.ConcreteProjection
@@ -159,3 +160,23 @@ editing only this file is enough to extend the audit.
 #print axioms LeanCbcl.ConcreteProjection.concrete_verification_agrees
 #print axioms LeanCbcl.ConcreteProjection.RootedExample.concrete_valid
 #print axioms LeanCbcl.ConcreteProjection.RootedExample.bystander_erased
+
+-- State layer, R7 (SPEC-019 REQ-1930; State.lean). Every rule is a set
+-- function of the accepted acts; registers characterised; sums once per
+-- address; the binder's predecessor, :replaces, and supersession are sound.
+#print axioms CBCL.State.fold_perm_invariant
+#print axioms CBCL.State.fold_dedup_invariant
+#print axioms CBCL.State.pickAct_setEq
+#print axioms CBCL.State.acts_mono
+#print axioms CBCL.State.count_mono
+#print axioms CBCL.State.has_mono
+#print axioms CBCL.State.exists_mono
+#print axioms CBCL.State.mem_current_iff
+#print axioms CBCL.State.replaced_never_current
+#print axioms CBCL.State.unnamed_is_current
+#print axioms CBCL.State.registerPerKey_from_current
+#print axioms CBCL.State.sumField_insert
+#print axioms CBCL.State.intend_pred_valid
+#print axioms CBCL.State.intend_replaces_current
+#print axioms CBCL.State.intend_supersedes
+#print axioms CBCL.State.intend_current_after

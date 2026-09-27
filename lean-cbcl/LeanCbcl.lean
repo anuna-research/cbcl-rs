@@ -44,3 +44,4 @@ import LeanCbcl.FiniteForest
 import LeanCbcl.FiniteForestTests
 import LeanCbcl.InstalledSyntaxTests
 import LeanCbcl.InstalledLexerTests
+import LeanCbcl.State

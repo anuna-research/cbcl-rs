@@ -2,7 +2,7 @@
 id: SPEC-019
 title: State Layer — R7 State Rules and the Intent Binder
 status: draft
-version: 0.3.3
+version: 0.3.4
 date: 2026-09-27
 author: Anuna Research (https://anuna.io) — drafted with Claude Fable 5.1
 owner: CBCL maintainer
@@ -121,9 +121,11 @@ Cross-repository naming: cbcl-bus also has a `SPEC-019`
 here are numbered 19xx.
 
 Open:
-- No Lean theorem about this layer exists. [[SPEC-019-state-rules#REQ-1930]]
-  lists the obligations; until discharged, claims say "specified and
-  corpus-validated" ([[SPEC-018-dcfl-installation#REQ-1806]]).
+- The kernel and the binder are mechanised in `lean-cbcl/LeanCbcl/State.lean`
+  ([[SPEC-019-state-rules#REQ-1930]]); the Rust/Lean correspondence is
+  evidence from the corpus, not a theorem, so claims say "mechanised
+  kernel, corpus-validated implementation"
+  ([[SPEC-018-dcfl-installation#REQ-1806]]).
 - The corpus of cbcl-bus SPEC-085 CON-005 does not exist yet
   ([[SPEC-019-state-rules#REQ-1931]]).
 - Shipped views and blobs (cbcl-bus SPEC-019 CON-001 `:views`, CON-004
@@ -512,11 +514,25 @@ a value displayed projects it. Trace: [[SPEC-019-state-rules#TEST-1929]], [[SPEC
 
 ### Proof, conformance, exports
 
-**REQ-1930: Lean obligations.** `LeanCbcl/State.lean` SHALL model acts as a
-`Finset` and prove, in order: `fold_perm_invariant`, `fold_dedup_invariant`;
-`acts_mono`, `size_mono`, `distinct_mono`; `mem_current_iff`,
-`replaced_never_picked`; `sum_once_per_address`; `intend_sound`. Until then,
-documents citing this layer say "specified and corpus-validated".
+**REQ-1930: Lean obligations.** `LeanCbcl/State.lean` models the accepted
+set as a `List Act` under the store invariant `NodupAddr` (no two acts share
+an address) with set-extensional equality `SetEq`, addresses as `Nat` (an
+order-preserving image of the hex form), and collections as characteristic
+functions. Proved, with only the standard axioms: `fold_perm_invariant`
+(every rule of the sugar table is a set function; `pickAct_setEq` is the
+order-by-address core), `fold_dedup_invariant` (the store's `insertAct`
+ignores a re-delivered act); `acts_mono`, `count_mono`, `has_mono`,
+`exists_mono` under store growth (`Sublist`); `mem_current_iff`,
+`replaced_never_current`, `unnamed_is_current`, `registerPerKey_from_current`;
+`sumField_insert` (once per address); and for the binder
+`intend_pred_valid` (the predecessor is an accepted act of an admitted
+type), `intend_replaces_current` (`:replaces` names exactly the current
+writes of the key), `intend_supersedes` (those writes are not current once
+the act is accepted), `intend_current_after` (the act itself is current).
+Not modelled: scalar-list values, `histogram` over per-key maps (only
+per-signer), domains beyond a `filter`, and the R5/R6 verifier itself,
+which `intend_pred_valid` characterises as an admitted-type predecessor.
+The Rust/Lean correspondence is checked by the corpus, not proved.
 Trace: [[SPEC-019-state-rules#TEST-1940]]–[[SPEC-019-state-rules#TEST-1946]].
 
 **REQ-1931: One corpus.** The corpus of cbcl-bus SPEC-085 CON-005, amended
@@ -753,7 +769,7 @@ order; update cbcl-aamas §6 and §7.
 | 1915–1920 | 1901, 1902 | 1915–1920, 1940–1945 | cbcl-bus SPEC-019 CON-003, REQ-024/029/030; `projection.js`; Baquero 2017; Kleppmann 2018 |
 | 1921–1926 | 1903, 1905 | 1921–1926, 1946 | cbcl-bus SPEC-019 CON-002; `emit.js`; AAMAS §6.4 |
 | 1927–1929 | 1903 | 1927–1929 | SPEC-014 REQ-628; cbcl-bus SPEC-085 REQ-002, ADR-003; SPEC-019-bus ADR-009 |
-| 1930–1932 | 1903, 1904 | 1931, 1932, 1940–1946 | Gomes 2017; OpSets; SPEC-018 REQ-1806; SPEC-010 |
+| 1930–1932 | 1903, 1904 | 1931, 1932, 1940–1946 | `LeanCbcl/State.lean`; Gomes 2017; OpSets; SPEC-018 REQ-1806; SPEC-010 |
 
 ## Reading Paths
 
@@ -768,6 +784,9 @@ order; update cbcl-aamas §6 and §7.
 <details>
 <summary>Revision history</summary>
 
+- 0.3.4 (2026-09-27) — Phase 3: `LeanCbcl/State.lean` discharges
+  REQ-1930 (16 theorems, standard axioms only, listed in `AxiomAudit.lean`);
+  REQ-1930 restated to say what the model is and what it leaves out.
 - 0.3.3 (2026-09-27) — the self-address prefix is `sha256-`, the wire
   spelling of every content address; `object-` was the first consumer's
   vocabulary.
