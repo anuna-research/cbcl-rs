@@ -6,7 +6,7 @@
 %% name on macOS (scripts/install-mac-nif.sh), compiles and loads
 %% erlang/cbcl_erl.erl with CBCL_ERL_NIF pointing at the build, and calls
 %% every NIF: versions/0, verify_dialect/1, parse_message/1,
-%% parse_message_lax/1 and the seven SPEC-019 state NIFs, each once with a
+%% parse_message_lax/1 and the eight SPEC-019 state NIFs, each once with a
 %% valid frame built from dialects/lunch-vote.cbcl and once with a
 %% malformed one, asserting the {ok, Bin} / {error, Bin} shapes.
 %%
@@ -123,6 +123,9 @@ checks(Lunch) ->
              ":caused-by begin :thread \"v1\" :from @bo))">>,
     BadVote = <<"(lang lunch-vote (vote @lunch :choice \"Sushi\" :extra 1 "
                 ":caused-by begin :thread \"v1\" :from @bo))">>,
+    Orphan = <<"(lang lunch-vote (vote @lunch :choice \"Sushi\" :caused-by "
+               "sha256-ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff "
+               ":thread \"v1\" :from @bo))">>,
     [
      {"versions/0",
       fun() -> cbcl_erl:versions() end,
@@ -196,6 +199,15 @@ checks(Lunch) ->
       fun({ok, <<"sha256-", Hex:64/binary>>}) -> hex(Hex); (_) -> false end},
      {"dialect_hash/1 malformed",
       fun() -> cbcl_erl:dialect_hash(<<"(nope)">>) end,
+      fun err/1},
+     {"admit/1 holds an orphan pending",
+      fun() -> cbcl_erl:admit(Frame(<<"admit">>, <<" (@bo ", Orphan/binary, ")">>)) end,
+      fun({ok, <<"{\"verdict\":\"pending\"}">>}) -> true; (_) -> false end},
+     {"admit/1 rejects an undeclared field",
+      fun() -> cbcl_erl:admit(Frame(<<"admit">>, <<" (@bo ", BadVote/binary, ")">>)) end,
+      fun({ok, <<"{\"verdict\":\"rejected\"", _/binary>>}) -> true; (_) -> false end},
+     {"admit/1 malformed",
+      fun() -> cbcl_erl:admit(<<"(admit">>) end,
       fun err/1},
      {"invalid utf-8 is a reason, not a crash",
       fun() -> cbcl_erl:fold(<<255, 254>>) end,

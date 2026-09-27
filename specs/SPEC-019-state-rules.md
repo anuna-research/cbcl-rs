@@ -2,7 +2,7 @@
 id: SPEC-019
 title: State Layer — R7 State Rules and the Intent Binder
 status: draft
-version: 0.3.6
+version: 0.3.7
 date: 2026-09-27
 author: Anuna Research (https://anuna.io) — drafted with Claude Fable 5.1
 owner: CBCL maintainer
@@ -333,6 +333,7 @@ may_send(dialect, instance, signer)     → [verb]                 step 1 of int
 instance(instance)                      → address of the accepted opener
 frontier(instance)                      → sorted addresses no accepted act names in :caused-by
 dialect_hash(define_text)               → sha256-<hex>
+admit(dialect, instance, message)       → accepted | pending | rejected(reason)   R.4 + R5 + R6 against acc(t)
 ```
 
 At the boundary the exports take S-expression frames like every other
@@ -340,7 +341,13 @@ export and return canonical JSON: `(fold <dialect> <thread> (acts (<signer>
 <message>) …))`, `(intend <dialect> <thread> (acts …) <signer> <verb> (:k
 v …))`, `(verify-state-shape <dialect> <message>)`, `(state-schema
 <dialect>)`, `(may-send <dialect> <thread> (acts …) <signer>)`,
-`(frontier <dialect> <thread> (acts …))`, and `dialect_hash(<define text>)`.
+`(frontier <dialect> <thread> (acts …))`, `(admit <dialect> <thread> (acts …)
+(<signer> <message>))`, and `dialect_hash(<define text>)`. `admit` is the
+consumer's admission, one message against the accepted set: the shape stage
+(R5 shape, R.4 state shape) alone, then the causal stage (R5 protocol, R6 role
+conformance under the thread's cast), `pending` while a predecessor is
+missing; a consumer retries pending messages as its accepted set grows, and
+the corpus runner is this same function.
 Each act entry is the complete received message with its authenticated
 signer; the cast is read from the root among the acts and never supplied.
 
@@ -793,6 +800,11 @@ order; update cbcl-aamas §6 and §7.
 <details>
 <summary>Revision history</summary>
 
+- 0.3.7 (2026-09-28) — R.7 gains `admit`, the consumer's admission of one
+  message against the accepted set (shape stage, then R5/R6 causal stage,
+  `pending` while a predecessor is missing), exported by wasm, NIF, and FFI
+  and used by the corpus runner, so a consumer's accepted set is the
+  corpus's by construction.
 - 0.3.6 (2026-09-28) — REQ-1930 gaps closed: `State.lean` adds `Val.list`,
   `histogramPerKey`, and the explicit domain filter `actsDom`, with
   `histogramPerKey_setEq`, `allowedOf_setEq`, `actsDom_setEq`,

@@ -142,6 +142,19 @@ struct CbclResult cbcl_frontier(const char *input);
 struct CbclResult cbcl_dialect_hash(const char *input);
 
 /**
+ * Admit one message against a thread's accepted set (SPEC-019 R.4, R5, R6).
+ *
+ * Input frame: `(admit <dialect> <thread> (acts …) (<signer> <message>))`.
+ * Returns JSON `{"verdict":"accepted"|"pending"|"rejected"[,"reason":…]}`.
+ * Free with `cbcl_string_free`.
+ *
+ * # Safety
+ *
+ * `input` must be a valid null-terminated UTF-8 C string.
+ */
+struct CbclResult cbcl_admit(const char *input);
+
+/**
  * Create a new CBCL agent with the given ID and base dialect installed.
  *
  * Returns an opaque handle. The caller must free it with `cbcl_agent_free`.

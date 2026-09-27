@@ -722,6 +722,12 @@ mod wasm_bindgen_api {
     pub fn dialect_hash(input: &str) -> Result<String, String> {
         state_layer::dialect_hash_str(input)
     }
+    /// SPEC-019 R.4/R5/R6: `(admit <dialect> <thread> (acts …) (<signer> <message>))` →
+    /// `{"verdict":"accepted"|"pending"|"rejected"[,"reason"]}` against the accepted set.
+    #[wasm_bindgen]
+    pub fn admit(input: &str) -> Result<String, String> {
+        state_layer::admit_str(input)
+    }
 
     #[wasm_bindgen]
     pub fn verify_message_shape(input: &str) -> Result<String, String> {

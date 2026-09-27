@@ -25,6 +25,7 @@
 %%     may_send/1           :: binary() -> {ok, binary()} | {error, binary()}
 %%     frontier/1           :: binary() -> {ok, binary()} | {error, binary()}
 %%     dialect_hash/1       :: binary() -> {ok, binary()} | {error, binary()}
+%%     admit/1              :: binary() -> {ok, binary()} | {error, binary()}
 %%
 %% All bodies below are stubs: when the NIF loads via on_load they are
 %% replaced atomically by the rustler-emitted natives. If load_nif fails
@@ -48,7 +49,8 @@
          state_schema/1,
          may_send/1,
          frontier/1,
-         dialect_hash/1]).
+         dialect_hash/1,
+         admit/1]).
 
 -on_load(init/0).
 
@@ -76,3 +78,4 @@ state_schema(_Frame)       -> erlang:nif_error(nif_not_loaded).
 may_send(_Frame)           -> erlang:nif_error(nif_not_loaded).
 frontier(_Frame)           -> erlang:nif_error(nif_not_loaded).
 dialect_hash(_Define)      -> erlang:nif_error(nif_not_loaded).
+admit(_Frame)              -> erlang:nif_error(nif_not_loaded).

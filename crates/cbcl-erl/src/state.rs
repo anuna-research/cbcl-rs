@@ -1,13 +1,13 @@
 //! NIFs for the SPEC-019 state layer (R.7): `fold/1`, `intend/1`,
 //! `verify_state_shape/1`, `state_schema/1`, `may_send/1`, `frontier/1`,
-//! `dialect_hash/1`.
+//! `dialect_hash/1`, `admit/1`.
 //!
 //! Each takes one `binary()` holding the export's S-expression frame (see
 //! `cbcl_parser::state_exports`) and returns `{ok, Result :: binary()} |
 //! {error, Reason :: binary()}`. Results are the shared implementation's
 //! bytes verbatim: JSON for `fold`, `state_schema`, `may_send`, `frontier`;
 //! the canonical act text for `intend`; `<<"ok">>` for `verify_state_shape`;
-//! `sha256-<hex>` for `dialect_hash`. A rejected intent is `{error, JSON}`
+//! `sha256-<hex>` for `dialect_hash`; `{"verdict":…}` JSON for `admit`. A rejected intent is `{error, JSON}`
 //! with `{"reject": kind, "reason": text}`, and a state-shape violation is
 //! `{error, BlameSExpr}`.
 //!
@@ -66,6 +66,10 @@ pub fn frontier_pure(bytes: &[u8]) -> Result<String, String> {
 /// Env-free core of `dialect_hash/1`.
 pub fn dialect_hash_pure(bytes: &[u8]) -> Result<String, String> {
     state_exports::dialect_hash_str(utf8(bytes)?)
+}
+/// Env-free core of `admit/1`.
+pub fn admit_pure(bytes: &[u8]) -> Result<String, String> {
+    state_exports::admit_str(utf8(bytes)?)
 }
 
 /// Encode a pure result as `{ok, Bin} | {error, Bin}` under the panic guard.
@@ -142,6 +146,11 @@ pub fn dialect_hash<'a>(env: Env<'a>, bytes: Binary<'a>) -> Term<'a> {
     run(env, "dialect_hash", bytes.as_slice(), dialect_hash_pure)
 }
 
+#[rustler::nif]
+pub fn admit<'a>(env: Env<'a>, bytes: Binary<'a>) -> Term<'a> {
+    run(env, "admit", bytes.as_slice(), admit_pure)
+}
+
 #[cfg(test)]
 mod tests {
     //! Tests target the env-free `*_pure` helpers (see `verify_dialect.rs`
@@ -194,6 +203,13 @@ mod tests {
         assert_eq!(verbs, "[\"vote\"]");
         let fr = frontier_pure(format!("(frontier {LUNCH} \"v1\" {acts})").as_bytes()).unwrap();
         assert!(fr.starts_with("{\"instance\":\"sha256-"), "{fr}");
+        let root = fr.split('"').nth(3).unwrap().to_string();
+        let vote = format!("(lang lunch-vote (vote @lunch :choice \"Sushi\" :caused-by {root} :thread \"v1\" :from @bo))");
+        let admitted = admit_pure(format!("(admit {LUNCH} \"v1\" {acts} (@bo {vote}))").as_bytes()).unwrap();
+        assert_eq!(admitted, "{\"verdict\":\"accepted\"}");
+        let orphan = "(lang lunch-vote (vote @lunch :choice \"Sushi\" :caused-by sha256-ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff :thread \"v1\" :from @bo))";
+        let pending = admit_pure(format!("(admit {LUNCH} \"v1\" {acts} (@bo {orphan}))").as_bytes()).unwrap();
+        assert_eq!(pending, "{\"verdict\":\"pending\"}");
     }
 
     #[test]

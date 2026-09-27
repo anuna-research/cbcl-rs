@@ -12,13 +12,11 @@
 
 use cbcl_core::dialect::Dialect;
 use cbcl_core::intend::{intend, Instance};
-use cbcl_core::projection::verify_causal_for_role;
-use cbcl_core::protocol::{verify_causal, VerificationResult};
-use cbcl_core::r7::verify_state_shape;
 use cbcl_core::role::AgentKey;
 use cbcl_core::sexpr::{Atom, SExpr};
 use cbcl_core::state::{fold, render_json, Act};
-use cbcl_core::store::{ContentHash, MessageStore, ThreadId, ThreadedMessageStore};
+use cbcl_core::store::ThreadId;
+use cbcl_parser::state_exports::{self, Admission};
 use cbcl_parser::{parse, parse_dialect, parse_message};
 use serde_json::{json, Map, Value};
 use std::collections::BTreeMap;
@@ -48,33 +46,22 @@ enum Verdict {
     Pending,
 }
 
-/// Admission as a consumer runs it: shape (R5 + R7) once, then the causal
-/// verdict against the accepted set, retried as the set grows.
+/// Admission as a consumer runs it: the shared `state_exports::admit` per
+/// message, retried while pending as the accepted set grows.
 fn admit(
     d: &Dialect,
     thread: &ThreadId,
     messages: &[(String, String)],
 ) -> (Vec<(String, Verdict)>, Vec<Act>) {
-    let protocol = d.causal_protocol.as_ref().expect("protocol");
-    let mut acts: Vec<Option<Act>> = Vec::new();
+    let mut acts: Vec<Act> = Vec::new();
     let mut verdicts: Vec<Verdict> = Vec::new();
     let mut addresses: Vec<String> = Vec::new();
     for (canonical, signer) in messages {
         let message = parse_message(&parse(canonical).unwrap()).unwrap();
         let act = Act::from_message(message, signer).unwrap();
         addresses.push(act.address.clone());
-        let shape_ok = verify_state_shape(d, &act.message).is_ok()
-            && d.shapes
-                .iter()
-                .filter(|s| s.performative == act.verb)
-                .all(|s| s.check(&SExpr::from(act.simple())).is_ok());
-        if shape_ok {
-            acts.push(Some(act));
-            verdicts.push(Verdict::Pending);
-        } else {
-            acts.push(None);
-            verdicts.push(Verdict::Rejected);
-        }
+        acts.push(act);
+        verdicts.push(Verdict::Pending);
     }
     let mut accepted: Vec<Act> = Vec::new();
     loop {
@@ -83,74 +70,20 @@ fn admit(
             if verdicts[i] != Verdict::Pending {
                 continue;
             }
-            let act = acts[i].as_ref().unwrap();
-            let inst = Instance::new(d, thread.clone(), &accepted).unwrap();
-            let mut store: ThreadedMessageStore = inst.store();
-            store.append(
-                ContentHash(act.address.clone()),
-                thread.clone(),
-                act.message.clone(),
-            );
-            let verdict = match (&inst.cast, inst.root) {
-                (Some(cast), Some(root)) => verify_causal_for_role(
-                    &act.message,
-                    &cbcl_core::role::Endpoint {
-                        role: String::new(),
-                        occupant: Some(AgentKey(act.signer.clone())),
-                    },
-                    d,
-                    cast,
-                    &store,
-                    thread,
-                    &ContentHash(root.address.clone()),
-                ),
-                (None, _) if d.roles.is_empty() => verify_causal(
-                    &act.verb,
-                    act.simple().caused_by(),
-                    &store,
-                    protocol,
-                    thread,
-                ),
-                _ => {
-                    // A role-declaring dialect with no accepted root yet: only
-                    // the root itself can be judged.
-                    if act.predecessors.is_empty() {
-                        match cbcl_core::intend::cast_of(&act.message, d) {
-                            Ok(cast) => verify_causal_for_role(
-                                &act.message,
-                                &cbcl_core::role::Endpoint {
-                                    role: String::new(),
-                                    occupant: Some(AgentKey(act.signer.clone())),
-                                },
-                                d,
-                                &cast,
-                                &store,
-                                thread,
-                                &ContentHash(act.address.clone()),
-                            ),
-                            Err(_) => VerificationResult::Violation(
-                                cbcl_core::protocol::CausalViolation::MissingCausedBy,
-                            ),
-                        }
-                    } else {
-                        VerificationResult::Unknown
-                    }
-                }
-            };
-            match verdict {
-                VerificationResult::Valid => {
+            match state_exports::admit(d, thread, &accepted, &acts[i]) {
+                Admission::Accepted => {
                     verdicts[i] = Verdict::Accepted;
                     // A re-delivered act is the same act (REQ-1920).
-                    if !accepted.iter().any(|a| a.address == act.address) {
-                        accepted.push(act.clone());
+                    if !accepted.iter().any(|a| a.address == acts[i].address) {
+                        accepted.push(acts[i].clone());
                     }
                     progressed = true;
                 }
-                VerificationResult::Violation(_) => {
+                Admission::Rejected(_) => {
                     verdicts[i] = Verdict::Rejected;
                     progressed = true;
                 }
-                VerificationResult::Unknown => {}
+                Admission::Pending => {}
             }
         }
         if !progressed {

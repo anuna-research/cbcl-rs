@@ -13,6 +13,7 @@
 //! (state-schema       <dialect>)                                               → schema JSON
 //! (may-send           <dialect> <thread> (acts …) <signer>)                    → JSON array of verbs
 //! (frontier           <dialect> <thread> (acts …))                             → {"instance","frontier"}
+//! (admit              <dialect> <thread> (acts …) (<signer> <message>))        → {"verdict":…}
 //! (define …)                                                                   → sha256-<hex>   (dialect_hash)
 //! ```
 //!
@@ -31,12 +32,14 @@ use alloc::vec::Vec;
 use cbcl_core::blame::ViolationError;
 use cbcl_core::canonical::{dialect_hash, dialect_name};
 use cbcl_core::dialect::{Dialect, DialectRegistry};
-use cbcl_core::intend::{canonical_text, intend, may_send, render_reject, Instance};
-use cbcl_core::role::AgentKey;
+use cbcl_core::intend::{canonical_text, cast_of, intend, may_send, render_reject, Instance};
+use cbcl_core::projection::verify_causal_for_role;
+use cbcl_core::protocol::{verify_causal, VerificationResult};
+use cbcl_core::role::{AgentKey, Endpoint};
 use cbcl_core::serializer::serialize;
 use cbcl_core::sexpr::{Atom, SExpr};
 use cbcl_core::state::{fold, frontier, render_json, render_schema, state_schema, Act, Value};
-use cbcl_core::store::ThreadId;
+use cbcl_core::store::{ContentHash, MessageStore, ThreadId};
 
 /// Parse a dialect S-expression, or a `(dialects <ancestor>* <leaf>)` chain,
 /// and install each into a fresh registry through the full R1–R7 pipeline,
@@ -262,6 +265,120 @@ pub fn frontier_str(input: &str) -> Result<String, String> {
         instance.render(),
         f.render()
     ))
+}
+
+/// One message's admission verdict against an accepted set.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Admission {
+    /// Shape-valid and causally valid against the accepted set.
+    Accepted,
+    /// Shape-valid; a predecessor it names is not yet accepted (retry as the
+    /// set grows).
+    Pending,
+    /// Blamed on the sender, with the reason.
+    Rejected(String),
+}
+
+/// Admission as a consumer runs it (SPEC-019 R.4; SPEC-002 R5; SPEC-014 R6):
+/// the shape stage judges the message alone (R5 shape, R7 state shape); the
+/// causal stage judges it against the accepted set of its thread, under the
+/// cast when the thread has an accepted root, and is `Pending` while a
+/// predecessor is missing. `accepted` is the accepted set so far; the caller
+/// retries `Pending` messages as it grows. One implementation for every
+/// binding and for the corpus runner, so the accepted set a consumer folds is
+/// the one the corpus expects.
+pub fn admit(d: &Dialect, thread: &ThreadId, accepted: &[Act], act: &Act) -> Admission {
+    let Some(protocol) = d.causal_protocol.as_ref() else {
+        return Admission::Rejected(String::from("dialect has no protocol clause"));
+    };
+    if let Err(v) = cbcl_core::r7::verify_state_shape(d, &act.message) {
+        return Admission::Rejected(format!("state shape: {v}"));
+    }
+    for shape in d.shapes.iter().filter(|s| s.performative == act.verb) {
+        if let Err(v) = shape.check(&SExpr::from(act.simple())) {
+            return Admission::Rejected(format!("shape: {v}"));
+        }
+    }
+    let inst = match Instance::new(d, thread.clone(), accepted) {
+        Ok(i) => i,
+        Err(e) => return Admission::Rejected(e),
+    };
+    let mut store = inst.store();
+    store.append(
+        ContentHash(act.address.clone()),
+        thread.clone(),
+        act.message.clone(),
+    );
+    let endpoint = Endpoint {
+        role: String::new(),
+        occupant: Some(AgentKey(act.signer.clone())),
+    };
+    let verdict = match (&inst.cast, inst.root) {
+        (Some(cast), Some(root)) => verify_causal_for_role(
+            &act.message,
+            &endpoint,
+            d,
+            cast,
+            &store,
+            thread,
+            &ContentHash(root.address.clone()),
+        ),
+        _ if d.roles.is_empty() => verify_causal(
+            &act.verb,
+            act.simple().caused_by(),
+            &store,
+            protocol,
+            thread,
+        ),
+        // A role-declaring dialect with no accepted root yet: only the root
+        // itself, which carries its own cast, can be judged.
+        _ if act.predecessors.is_empty() => match cast_of(&act.message, d) {
+            Ok(cast) => verify_causal_for_role(
+                &act.message,
+                &endpoint,
+                d,
+                &cast,
+                &store,
+                thread,
+                &ContentHash(act.address.clone()),
+            ),
+            Err(e) => return Admission::Rejected(format!("root: {e}")),
+        },
+        _ => VerificationResult::Unknown,
+    };
+    match verdict {
+        VerificationResult::Valid => Admission::Accepted,
+        VerificationResult::Unknown => Admission::Pending,
+        VerificationResult::Violation(v) => Admission::Rejected(format!("{v}")),
+    }
+}
+
+/// `(admit <dialect> <thread> (acts …) (<signer> <message>))` → JSON
+/// `{"verdict":"accepted"}`, `{"verdict":"pending"}`, or
+/// `{"verdict":"rejected","reason":…}`. The acts are the accepted set so far.
+pub fn admit_str(input: &str) -> Result<String, String> {
+    let (d, thread, accepted, rest) = instance_frame(input, "admit")?;
+    if rest.len() != 1 {
+        return Err(String::from(
+            "expected (admit <dialect> <thread> (acts …) (<signer> <message>))",
+        ));
+    }
+    let one = SExpr::List(alloc::vec![
+        SExpr::Atom(Atom::Symbol(String::from("acts"))),
+        rest[0].clone(),
+    ]);
+    let mut acts = parse_acts(&one)?;
+    let act = acts
+        .pop()
+        .ok_or_else(|| String::from("expected (<signer> <message>)"))?;
+    Ok(match admit(&d, &thread, &accepted, &act) {
+        Admission::Accepted => String::from("{\"verdict\":\"accepted\"}"),
+        Admission::Pending => String::from("{\"verdict\":\"pending\"}"),
+        Admission::Rejected(reason) => format!(
+            "{{\"verdict\":\"rejected\",\"reason\":{}}}",
+            Value::Str(reason).render()
+        ),
+    })
 }
 
 /// A `(define …)` → its self-addressed name `sha256-<hex>` (SPEC-019 R.6).

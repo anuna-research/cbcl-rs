@@ -35,9 +35,9 @@ once your packaging is wired up.
 `rustler::init!("cbcl_erl")` whose `-on_load` stubs are replaced by the
 natives when `erlang:load_nif/2` succeeds and raise `nif_not_loaded`
 otherwise. It exports `versions/0`, `verify_dialect/1`, `parse_message/1`,
-`parse_message_lax/1`, and the seven SPEC-019 state NIFs (`fold/1`,
+`parse_message_lax/1`, and the eight SPEC-019 state NIFs (`fold/1`,
 `intend/1`, `verify_state_shape/1`, `state_schema/1`, `may_send/1`,
-`frontier/1`, `dialect_hash/1`), each `binary() -> {ok, Bin} | {error, Bin}`.
+`frontier/1`, `dialect_hash/1`, `admit/1`), each `binary() -> {ok, Bin} | {error, Bin}`.
 The loader reads `CBCL_ERL_NIF` (the library path without its extension)
 and falls back to `priv/libcbcl_erl`; a host such as cbcl-bus copies the
 module beside its own sources and points `init/0` at its `priv`.

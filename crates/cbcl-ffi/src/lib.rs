@@ -9,7 +9,7 @@
 //! - `cbcl_string_free` — free a result string
 //! - SPEC-019 state layer (R.7), one S-expression frame in, text out:
 //!   `cbcl_fold`, `cbcl_intend`, `cbcl_verify_state_shape`, `cbcl_state_schema`,
-//!   `cbcl_may_send`, `cbcl_frontier`, `cbcl_dialect_hash`
+//!   `cbcl_may_send`, `cbcl_frontier`, `cbcl_dialect_hash`, `cbcl_admit`
 
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
@@ -290,6 +290,20 @@ pub unsafe extern "C" fn cbcl_frontier(input: *const c_char) -> CbclResult {
 #[no_mangle]
 pub unsafe extern "C" fn cbcl_dialect_hash(input: *const c_char) -> CbclResult {
     state_export(input, cbcl_parser::state_exports::dialect_hash_str)
+}
+
+/// Admit one message against a thread's accepted set (SPEC-019 R.4, R5, R6).
+///
+/// Input frame: `(admit <dialect> <thread> (acts …) (<signer> <message>))`.
+/// Returns JSON `{"verdict":"accepted"|"pending"|"rejected"[,"reason":…]}`.
+/// Free with `cbcl_string_free`.
+///
+/// # Safety
+///
+/// `input` must be a valid null-terminated UTF-8 C string.
+#[no_mangle]
+pub unsafe extern "C" fn cbcl_admit(input: *const c_char) -> CbclResult {
+    state_export(input, cbcl_parser::state_exports::admit_str)
 }
 
 /// Create a new CBCL agent with the given ID and base dialect installed.
