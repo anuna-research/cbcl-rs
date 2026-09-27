@@ -69,6 +69,12 @@ pub enum DialectInstallError {
     },
     /// The dialect's signature failed verification (R4 violation).
     R4Violation { dialect_name: String },
+    /// The state clause is ill-formed or the self-address is wrong (R7,
+    /// SPEC-019 REQ-1910).
+    R7Violation {
+        dialect_name: String,
+        violations: Vec<crate::r7::R7Violation>,
+    },
     /// A shape constraint is malformed (R5 violation).
     R5Violation {
         dialect_name: String,
@@ -154,6 +160,16 @@ impl fmt::Display for DialectInstallError {
                 }
                 Ok(())
             }
+            DialectInstallError::R7Violation {
+                dialect_name,
+                violations,
+            } => {
+                write!(f, "R7 violation: dialect '{dialect_name}':")?;
+                for v in violations {
+                    write!(f, " {v};")?;
+                }
+                Ok(())
+            }
         }
     }
 }
@@ -207,6 +223,12 @@ pub struct Dialect {
     /// preserves v1 semantics bit-for-bit.
     #[cfg_attr(feature = "serde", serde(default))]
     pub causal_locality: CausalLocality,
+    /// `(state …)` clause (SPEC-019 REQ-1902); `None` = no state layer.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub state: Option<crate::state::StateClause>,
+    /// `(:state-bounds …)` (SPEC-019 REQ-1904); `None` = the defaults.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub state_bounds: Option<crate::state::StateBounds>,
 }
 
 impl Dialect {
@@ -252,6 +274,8 @@ const CORE_EFFECT_ACTIONS: [(&str, &str); 8] = [
 /// `Dialect.lean:53–68`.
 pub fn base_dialect() -> Dialect {
     Dialect {
+        state: None,
+        state_bounds: None,
         causal_locality: CausalLocality::Reject,
         roles: Vec::new(),
         name: String::from("cbcl-base"),
@@ -345,6 +369,15 @@ impl DialectRegistry {
         // `(:causal-locality derive)`, R6(vi) findings compile into the
         // envelope-routing table instead of rejecting.
         Self::apply_r6(&mut d)?;
+        // R7 (SPEC-019 REQ-1910): state-clause well-formedness and the
+        // self-addressed name; dialects with neither clause pass trivially.
+        let r7 = crate::r7::r7_violations(&d);
+        if !r7.is_empty() {
+            return Err(DialectInstallError::R7Violation {
+                dialect_name: d.name,
+                violations: r7,
+            });
+        }
         Self::ensure_hash(&mut d);
         #[cfg(feature = "tracing")]
         tracing::event!(
@@ -702,6 +735,8 @@ mod tests {
         let mut reg = DialectRegistry::new();
         let planning = Dialect {
             roles: Vec::new(),
+            state: None,
+            state_bounds: None,
             causal_locality: Default::default(),
             name: String::from("cbcl-planning"),
             extends: vec![String::from("cbcl")],
@@ -734,6 +769,8 @@ mod tests {
     fn greeter(name: &str) -> Dialect {
         Dialect {
             roles: Vec::new(),
+            state: None,
+            state_bounds: None,
             causal_locality: Default::default(),
             name: String::from(name),
             extends: vec![String::from("cbcl")],
@@ -793,6 +830,8 @@ mod tests {
         let mut reg = DialectRegistry::new();
         let bad = Dialect {
             roles: Vec::new(),
+            state: None,
+            state_bounds: None,
             causal_locality: Default::default(),
             name: String::from("bad-dialect"),
             extends: vec![String::from("cbcl")],
@@ -835,6 +874,8 @@ mod tests {
         let mut reg = DialectRegistry::new();
         let bad = Dialect {
             roles: Vec::new(),
+            state: None,
+            state_bounds: None,
             causal_locality: Default::default(),
             name: String::from("bad-bounds"),
             extends: vec![String::from("cbcl")],
@@ -868,6 +909,8 @@ mod tests {
         let mut reg = DialectRegistry::new();
         let bad = Dialect {
             roles: Vec::new(),
+            state: None,
+            state_bounds: None,
             causal_locality: Default::default(),
             name: String::from("zero-depth"),
             extends: vec![],
@@ -915,6 +958,8 @@ mod tests {
         ] {
             reg.install(Dialect {
                 roles: Vec::new(),
+                state: None,
+                state_bounds: None,
                 causal_locality: Default::default(),
                 name: String::from(*name),
                 extends: vec![String::from("cbcl")],
@@ -971,6 +1016,8 @@ mod tests {
         let mut reg = DialectRegistry::new();
         let d = Dialect {
             roles: Vec::new(),
+            state: None,
+            state_bounds: None,
             causal_locality: Default::default(),
             name: String::from("unsigned-dialect"),
             extends: vec![],
@@ -998,6 +1045,8 @@ mod tests {
         let mut reg = DialectRegistry::new();
         let d = Dialect {
             roles: Vec::new(),
+            state: None,
+            state_bounds: None,
             causal_locality: Default::default(),
             name: String::from("signed-dialect"),
             extends: vec![],
@@ -1025,6 +1074,8 @@ mod tests {
         let mut reg = DialectRegistry::new();
         let d = Dialect {
             roles: Vec::new(),
+            state: None,
+            state_bounds: None,
             causal_locality: Default::default(),
             name: String::from("bad-sig-dialect"),
             extends: vec![],
@@ -1059,6 +1110,8 @@ mod tests {
         // R3 violation: redefines "tell"
         let d = Dialect {
             roles: Vec::new(),
+            state: None,
+            state_bounds: None,
             causal_locality: Default::default(),
             name: String::from("bad-r3"),
             extends: vec![],
@@ -1138,6 +1191,8 @@ mod tests {
         );
         Dialect {
             roles: Vec::new(),
+            state: None,
+            state_bounds: None,
             causal_locality: Default::default(),
             name: String::from("bound-by-signature"),
             extends: vec![String::from("cbcl")],
@@ -1287,6 +1342,8 @@ mod tests {
         );
         let d = Dialect {
             roles: Vec::new(),
+            state: None,
+            state_bounds: None,
             causal_locality: Default::default(),
             name: String::from("uses-ok"),
             extends: vec![String::from("cbcl")],
@@ -1313,6 +1370,8 @@ mod tests {
     fn hashless_dialect(name: &str) -> Dialect {
         Dialect {
             roles: Vec::new(),
+            state: None,
+            state_bounds: None,
             causal_locality: Default::default(),
             name: String::from(name),
             extends: vec![String::from("cbcl")],

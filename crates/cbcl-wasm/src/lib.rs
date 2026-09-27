@@ -358,6 +358,253 @@ fn compute_canonical_message_hash(msg: &cbcl_core::message::Message) -> String {
     cbcl_core::typed_addr::typed_root(msg)
 }
 
+// ---------------------------------------------------------------------------
+// SPEC-019 state layer exports (R.7). Frames are S-expressions, like every
+// other export; state, schema, and rejections come back as canonical JSON.
+// ---------------------------------------------------------------------------
+
+/// `(fold <dialect-or-chain> <thread> (acts (<signer> <message>) …))` → state JSON.
+pub fn fold_bytes(input: &[u8]) -> Result<Vec<u8>, Vec<u8>> {
+    let s = core::str::from_utf8(input).map_err(|e| format!("invalid UTF-8: {e}").into_bytes())?;
+    state_layer::fold_str(s)
+        .map(|s| s.into_bytes())
+        .map_err(|e| e.into_bytes())
+}
+/// `(intend <dialect-or-chain> <thread> (acts …) <signer> <verb> (:k v …))` → canonical act.
+pub fn intend_bytes(input: &[u8]) -> Result<Vec<u8>, Vec<u8>> {
+    let s = core::str::from_utf8(input).map_err(|e| format!("invalid UTF-8: {e}").into_bytes())?;
+    state_layer::intend_str(s)
+        .map(|s| s.into_bytes())
+        .map_err(|e| e.into_bytes())
+}
+/// `(verify-state-shape <dialect-or-chain> <message>)` → "ok".
+pub fn verify_state_shape_bytes(input: &[u8]) -> Result<Vec<u8>, Vec<u8>> {
+    let s = core::str::from_utf8(input).map_err(|e| format!("invalid UTF-8: {e}").into_bytes())?;
+    state_layer::verify_state_shape_str(s)
+        .map(|s| s.into_bytes())
+        .map_err(|e| e.into_bytes())
+}
+/// `(state-schema <dialect-or-chain>)` → schema JSON.
+pub fn state_schema_bytes(input: &[u8]) -> Result<Vec<u8>, Vec<u8>> {
+    let s = core::str::from_utf8(input).map_err(|e| format!("invalid UTF-8: {e}").into_bytes())?;
+    state_layer::state_schema_str(s)
+        .map(|s| s.into_bytes())
+        .map_err(|e| e.into_bytes())
+}
+/// `(may-send <dialect-or-chain> <thread> (acts …) <signer>)` → JSON array of verbs.
+pub fn may_send_bytes(input: &[u8]) -> Result<Vec<u8>, Vec<u8>> {
+    let s = core::str::from_utf8(input).map_err(|e| format!("invalid UTF-8: {e}").into_bytes())?;
+    state_layer::may_send_str(s)
+        .map(|s| s.into_bytes())
+        .map_err(|e| e.into_bytes())
+}
+/// `(frontier <dialect-or-chain> <thread> (acts …))` → `{"instance":…,"frontier":[…]}`.
+pub fn frontier_bytes(input: &[u8]) -> Result<Vec<u8>, Vec<u8>> {
+    let s = core::str::from_utf8(input).map_err(|e| format!("invalid UTF-8: {e}").into_bytes())?;
+    state_layer::frontier_str(s)
+        .map(|s| s.into_bytes())
+        .map_err(|e| e.into_bytes())
+}
+/// A `(define …)` → its self-addressed name `object-<hex>`.
+pub fn dialect_hash_bytes(input: &[u8]) -> Result<Vec<u8>, Vec<u8>> {
+    let s = core::str::from_utf8(input).map_err(|e| format!("invalid UTF-8: {e}").into_bytes())?;
+    state_layer::dialect_hash_str(s)
+        .map(|s| s.into_bytes())
+        .map_err(|e| e.into_bytes())
+}
+
+mod state_layer {
+    use super::*;
+    use cbcl_core::intend::{intend, may_send, render_reject, Instance};
+    use cbcl_core::role::AgentKey;
+    use cbcl_core::state::{fold, frontier, render_json, render_schema, state_schema, Act, Value};
+
+    fn leaf(registry: &DialectRegistry) -> Result<cbcl_core::dialect::Dialect, String> {
+        registry
+            .iter()
+            .last()
+            .cloned()
+            .ok_or_else(|| String::from("no dialect installed"))
+    }
+
+    fn atom_text(s: &SExpr, what: &str) -> Result<String, String> {
+        match s {
+            SExpr::Atom(Atom::Str(x)) | SExpr::Atom(Atom::Symbol(x)) => Ok(x.clone()),
+            other => Err(format!("{what} must be a string or symbol, got {other}")),
+        }
+    }
+
+    fn parse_frame(input: &str, head: &str) -> Result<alloc::vec::Vec<SExpr>, String> {
+        let sexpr = parser::parse(input).map_err(|e| format!("parse error: {e}"))?;
+        match sexpr {
+            SExpr::List(items) if matches!(items.first(), Some(SExpr::Atom(Atom::Symbol(s))) if s == head) => {
+                Ok(items[1..].to_vec())
+            }
+            _ => Err(format!("expected ({head} …)")),
+        }
+    }
+
+    fn parse_acts(sexpr: &SExpr) -> Result<alloc::vec::Vec<Act>, String> {
+        let items = match sexpr {
+            SExpr::List(items) if matches!(items.first(), Some(SExpr::Atom(Atom::Symbol(s))) if s == "acts") => {
+                &items[1..]
+            }
+            _ => return Err(String::from("expected (acts (<signer> <message>) …)")),
+        };
+        let mut acts = alloc::vec::Vec::new();
+        for entry in items {
+            let SExpr::List(pair) = entry else {
+                return Err(String::from("an act entry is (<signer> <message>)"));
+            };
+            if pair.len() != 2 {
+                return Err(String::from("an act entry is (<signer> <message>)"));
+            }
+            let signer = atom_text(&pair[0], "signer")?;
+            let message = cbcl_parser::parse_message(&pair[1])
+                .map_err(|e| format!("message parse error: {e}"))?;
+            acts.push(Act::from_message(message, &signer)?);
+        }
+        Ok(acts)
+    }
+
+    type InstanceFrame = (
+        cbcl_core::dialect::Dialect,
+        ThreadId,
+        alloc::vec::Vec<Act>,
+        alloc::vec::Vec<SExpr>,
+    );
+
+    fn instance_frame(input: &str, head: &str) -> Result<InstanceFrame, String> {
+        let items = parse_frame(input, head)?;
+        if items.len() < 3 {
+            return Err(format!("expected ({head} <dialect> <thread> (acts …) …)"));
+        }
+        let registry = parse_and_install_dialect(&items[0])?;
+        let dialect = leaf(&registry)?;
+        let thread = ThreadId(atom_text(&items[1], "thread")?);
+        let acts = parse_acts(&items[2])?;
+        Ok((dialect, thread, acts, items[3..].to_vec()))
+    }
+
+    pub fn fold_str(input: &str) -> Result<String, String> {
+        let (d, _thread, acts, _) = instance_frame(input, "fold")?;
+        let clause = d
+            .state
+            .as_ref()
+            .ok_or_else(|| String::from("dialect has no state clause"))?;
+        Ok(render_json(&fold(
+            clause,
+            d.causal_protocol.as_ref(),
+            &acts,
+        )))
+    }
+
+    pub fn intend_str(input: &str) -> Result<String, String> {
+        let (d, thread, acts, rest) = instance_frame(input, "intend")?;
+        if rest.len() != 3 {
+            return Err(String::from(
+                "expected (intend <dialect> <thread> (acts …) <signer> <verb> (:k v …))",
+            ));
+        }
+        let signer = AgentKey(atom_text(&rest[0], "signer")?);
+        let verb = atom_text(&rest[1], "verb")?;
+        let mut fields = alloc::collections::BTreeMap::new();
+        let SExpr::List(kv) = &rest[2] else {
+            return Err(String::from(
+                "fields must be a list of :keyword value pairs",
+            ));
+        };
+        let mut i = 0;
+        while i + 1 < kv.len() {
+            if let SExpr::Atom(Atom::Keyword(k)) = &kv[i] {
+                fields.insert(k.clone(), kv[i + 1].clone());
+            }
+            i += 2;
+        }
+        let inst = Instance::new(&d, thread, &acts)?;
+        match intend(&inst, &signer, &verb, fields) {
+            Ok(m) => Ok(cbcl_core::intend::canonical_text(&m)),
+            Err(r) => Err(render_reject(&r)),
+        }
+    }
+
+    pub fn verify_state_shape_str(input: &str) -> Result<String, String> {
+        let items = parse_frame(input, "verify-state-shape")?;
+        if items.len() != 2 {
+            return Err(String::from(
+                "expected (verify-state-shape <dialect> <message>)",
+            ));
+        }
+        let registry = parse_and_install_dialect(&items[0])?;
+        let d = leaf(&registry)?;
+        let message = cbcl_parser::parse_message(&items[1])
+            .map_err(|e| format!("message parse error: {e}"))?;
+        match cbcl_core::r7::verify_state_shape(&d, &message) {
+            Ok(()) => Ok(String::from("ok")),
+            Err(v) => {
+                let blame =
+                    ViolationError::from_shape_violation(&v, None, None, Some(items[1].clone()))
+                        .with_dialect_context(
+                            &d.name,
+                            d.author.as_deref(),
+                            d.hash.as_deref(),
+                            None,
+                        );
+                Err(serialize(&blame.to_sexpr()))
+            }
+        }
+    }
+
+    pub fn state_schema_str(input: &str) -> Result<String, String> {
+        let items = parse_frame(input, "state-schema")?;
+        if items.len() != 1 {
+            return Err(String::from("expected (state-schema <dialect>)"));
+        }
+        let registry = parse_and_install_dialect(&items[0])?;
+        let d = leaf(&registry)?;
+        let clause = d
+            .state
+            .as_ref()
+            .ok_or_else(|| String::from("dialect has no state clause"))?;
+        Ok(render_schema(&state_schema(clause, &d.shapes)))
+    }
+
+    pub fn may_send_str(input: &str) -> Result<String, String> {
+        let (d, thread, acts, rest) = instance_frame(input, "may-send")?;
+        if rest.len() != 1 {
+            return Err(String::from(
+                "expected (may-send <dialect> <thread> (acts …) <signer>)",
+            ));
+        }
+        let signer = AgentKey(atom_text(&rest[0], "signer")?);
+        let inst = Instance::new(&d, thread, &acts)?;
+        let verbs = may_send(&inst, &signer);
+        Ok(Value::Set(verbs.into_iter().map(Value::Str).collect()).render())
+    }
+
+    pub fn frontier_str(input: &str) -> Result<String, String> {
+        let (d, thread, acts, _) = instance_frame(input, "frontier")?;
+        let inst = Instance::new(&d, thread, &acts)?;
+        let instance = match inst.instance_id() {
+            Some(a) => Value::Str(String::from(a)),
+            None => Value::Absent,
+        };
+        let f = Value::List(frontier(&acts).into_iter().map(Value::Str).collect());
+        Ok(format!(
+            "{{\"instance\":{},\"frontier\":{}}}",
+            instance.render(),
+            f.render()
+        ))
+    }
+
+    pub fn dialect_hash_str(input: &str) -> Result<String, String> {
+        let sexpr = parser::parse(input).map_err(|e| format!("parse error: {e}"))?;
+        let d =
+            cbcl_parser::parse_dialect(&sexpr).map_err(|e| format!("dialect parse error: {e}"))?;
+        Ok(cbcl_core::canonical::dialect_name(&d))
+    }
+}
+
 /// Verify a runtime message against a dialect's shape constraints.
 fn verify_message_shape_str(input: &str) -> Result<String, String> {
     let frame = parser::parse(input).map_err(|e| format!("parse error: {e}"))?;
@@ -710,6 +957,43 @@ mod wasm_bindgen_api {
     ///
     /// Input: `(verify-shape <dialect> <performative> <message>)` S-expression.
     /// Returns "ok" or a REQ-233 blame S-expression as the error description.
+    /// SPEC-019 R.7: `(fold <dialect> <thread> (acts (<signer> <message>) …))` → state JSON.
+    #[wasm_bindgen]
+    pub fn fold(input: &str) -> Result<String, String> {
+        state_layer::fold_str(input)
+    }
+    /// SPEC-019 R.7: `(intend <dialect> <thread> (acts …) <signer> <verb> (:k v …))` → the
+    /// canonical act to sign, or a JSON rejection.
+    #[wasm_bindgen]
+    pub fn intend(input: &str) -> Result<String, String> {
+        state_layer::intend_str(input)
+    }
+    /// SPEC-019 R.4: `(verify-state-shape <dialect> <message>)` → "ok".
+    #[wasm_bindgen]
+    pub fn verify_state_shape(input: &str) -> Result<String, String> {
+        state_layer::verify_state_shape_str(input)
+    }
+    /// SPEC-019 R.7: `(state-schema <dialect>)` → schema JSON.
+    #[wasm_bindgen]
+    pub fn state_schema(input: &str) -> Result<String, String> {
+        state_layer::state_schema_str(input)
+    }
+    /// SPEC-019 R.7: `(may-send <dialect> <thread> (acts …) <signer>)` → JSON array.
+    #[wasm_bindgen]
+    pub fn may_send(input: &str) -> Result<String, String> {
+        state_layer::may_send_str(input)
+    }
+    /// SPEC-019 R.7: `(frontier <dialect> <thread> (acts …))` → `{"instance","frontier"}`.
+    #[wasm_bindgen]
+    pub fn frontier(input: &str) -> Result<String, String> {
+        state_layer::frontier_str(input)
+    }
+    /// SPEC-019 R.6: a `(define …)` → its self-addressed name `object-<hex>`.
+    #[wasm_bindgen]
+    pub fn dialect_hash(input: &str) -> Result<String, String> {
+        state_layer::dialect_hash_str(input)
+    }
+
     #[wasm_bindgen]
     pub fn verify_message_shape(input: &str) -> Result<String, String> {
         verify_message_shape_str(input)

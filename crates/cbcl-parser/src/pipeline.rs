@@ -669,6 +669,8 @@ mod tests {
         registry
             .install(cbcl_core::dialect::Dialect {
                 roles: Vec::new(),
+                state: None,
+                state_bounds: None,
                 causal_locality: Default::default(),
                 name: String::from("proto-dialect"),
                 extends: alloc::vec![String::from("cbcl")],
@@ -716,6 +718,8 @@ mod tests {
         registry
             .install(cbcl_core::dialect::Dialect {
                 roles: Vec::new(),
+                state: None,
+                state_bounds: None,
                 causal_locality: Default::default(),
                 name: String::from("shape-dialect"),
                 extends: alloc::vec![String::from("cbcl")],
@@ -789,6 +793,8 @@ mod tests {
         registry
             .install(cbcl_core::dialect::Dialect {
                 roles: Vec::new(),
+                state: None,
+                state_bounds: None,
                 causal_locality: Default::default(),
                 name: String::from("ack-dialect"),
                 extends: alloc::vec![String::from("cbcl")],
@@ -893,6 +899,8 @@ mod tests {
         registry
             .install(cbcl_core::dialect::Dialect {
                 roles: Vec::new(),
+                state: None,
+                state_bounds: None,
                 causal_locality: Default::default(),
                 name: String::from("ack-dialect"),
                 extends: alloc::vec![String::from("cbcl")],
@@ -995,6 +1003,8 @@ mod tests {
         registry
             .install(cbcl_core::dialect::Dialect {
                 roles: Vec::new(),
+                state: None,
+                state_bounds: None,
                 causal_locality: Default::default(),
                 name: String::from("ack-with-shape"),
                 extends: alloc::vec![String::from("cbcl")],
@@ -1069,6 +1079,8 @@ mod tests {
         registry
             .install(cbcl_core::dialect::Dialect {
                 roles: Vec::new(),
+                state: None,
+                state_bounds: None,
                 causal_locality: Default::default(),
                 name: String::from("ok-protocol"),
                 extends: alloc::vec![String::from("cbcl")],
@@ -1113,6 +1125,8 @@ mod tests {
         registry
             .install(cbcl_core::dialect::Dialect {
                 roles: Vec::new(),
+                state: None,
+                state_bounds: None,
                 causal_locality: Default::default(),
                 name: String::from("parent-dialect"),
                 extends: alloc::vec![String::from("cbcl")],
@@ -1258,6 +1272,8 @@ mod tests {
         registry
             .install(cbcl_core::dialect::Dialect {
                 roles: Vec::new(),
+                state: None,
+                state_bounds: None,
                 causal_locality: Default::default(),
                 name: String::from("shape-dialect"),
                 extends: alloc::vec![String::from("cbcl")],

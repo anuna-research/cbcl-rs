@@ -660,6 +660,8 @@ mod tests {
     fn valid_custom_dialect(name: &str) -> Dialect {
         Dialect {
             roles: Vec::new(),
+            state: None,
+            state_bounds: None,
             causal_locality: Default::default(),
             name: String::from(name),
             extends: Vec::new(),
@@ -775,6 +777,8 @@ mod tests {
         let mut agent = Agent::new("a");
         let bad = Dialect {
             roles: Vec::new(),
+            state: None,
+            state_bounds: None,
             causal_locality: Default::default(),
             name: String::from("bad"),
             extends: Vec::new(),
@@ -987,6 +991,8 @@ mod tests {
 
         Dialect {
             roles: Vec::new(),
+            state: None,
+            state_bounds: None,
             causal_locality: Default::default(),
             name: String::from("ack-dialect"),
             extends: alloc::vec![String::from("cbcl")],
@@ -1156,6 +1162,8 @@ mod tests {
         };
         Dialect {
             roles: Vec::new(),
+            state: None,
+            state_bounds: None,
             causal_locality: Default::default(),
             name: String::from("any-xy"),
             extends: alloc::vec![String::from("cbcl")],
@@ -1399,6 +1407,8 @@ mod tests {
         );
         Dialect {
             roles: Vec::new(),
+            state: None,
+            state_bounds: None,
             causal_locality: Default::default(),
             name: String::from("ok-protocol"),
             extends: alloc::vec![String::from("cbcl")],
@@ -1472,6 +1482,8 @@ mod tests {
         agent
             .install_dialect(Dialect {
                 roles: Vec::new(),
+                state: None,
+                state_bounds: None,
                 causal_locality: Default::default(),
                 name: String::from("ping-dialect"),
                 extends: alloc::vec![String::from("cbcl")],
@@ -1596,6 +1608,8 @@ mod tests {
         );
         Dialect {
             roles: Vec::new(),
+            state: None,
+            state_bounds: None,
             causal_locality: Default::default(),
             name: String::from(name),
             extends: alloc::vec![String::from("cbcl")],
@@ -1638,6 +1652,8 @@ mod tests {
         );
         Dialect {
             roles: Vec::new(),
+            state: None,
+            state_bounds: None,
             causal_locality: Default::default(),
             name: String::from(name),
             extends: alloc::vec![String::from("cbcl")],
@@ -1699,6 +1715,8 @@ mod tests {
         );
         Dialect {
             roles: Vec::new(),
+            state: None,
+            state_bounds: None,
             causal_locality: Default::default(),
             name: String::from(name),
             extends: alloc::vec![String::from("cbcl")],

@@ -130,6 +130,8 @@ mod tests {
     fn test_dialect(name: &str) -> Dialect {
         Dialect {
             roles: Vec::new(),
+            state: None,
+            state_bounds: None,
             causal_locality: Default::default(),
             name: String::from(name),
             extends: vec![],
@@ -284,6 +286,8 @@ mod tests {
     fn r4_004_integrity_fields_preserved() {
         let d = Dialect {
             roles: Vec::new(),
+            state: None,
+            state_bounds: None,
             causal_locality: Default::default(),
             name: String::from("test-integrity-fields"),
             extends: vec![],

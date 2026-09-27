@@ -152,6 +152,8 @@ mod tests {
     fn make_dialect(name: &str, perfs: Vec<PerformativeDef>) -> Dialect {
         Dialect {
             roles: Vec::new(),
+            state: None,
+            state_bounds: None,
             causal_locality: Default::default(),
             name: String::from(name),
             extends: vec![String::from("cbcl")],

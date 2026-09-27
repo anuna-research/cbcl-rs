@@ -560,6 +560,8 @@ fn differential_r1_no_recursion() {
 fn make_test_dialect(name: &str, bounds: ResourceBounds) -> Dialect {
     Dialect {
         roles: Vec::new(),
+        state: None,
+        state_bounds: None,
         causal_locality: Default::default(),
         name: name.to_string(),
         extends: vec![],
@@ -679,6 +681,8 @@ fn differential_r3_core_preservation() {
             if expected_core {
                 let d = Dialect {
                     roles: Vec::new(),
+                    state: None,
+                    state_bounds: None,
                     causal_locality: Default::default(),
                     name: "test-r3".to_string(),
                     extends: vec![],
@@ -780,6 +784,8 @@ fn differential_r4_signatures() {
         if let Some(hash) = input.get("hash") {
             let d = Dialect {
                 roles: Vec::new(),
+                state: None,
+                state_bounds: None,
                 causal_locality: Default::default(),
                 name: input["dialect_name"].as_str().unwrap_or("test").to_string(),
                 extends: vec![],

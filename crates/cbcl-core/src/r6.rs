@@ -637,6 +637,8 @@ mod tests {
                     cardinality: *c,
                 })
                 .collect(),
+            state: None,
+            state_bounds: None,
             causal_locality: Default::default(),
             name: "test".to_string(),
             extends: Vec::new(),

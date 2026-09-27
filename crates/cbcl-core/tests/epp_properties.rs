@@ -95,6 +95,8 @@ impl ChainProtocol {
             );
         }
         Dialect {
+            state: None,
+            state_bounds: None,
             causal_locality: Default::default(),
             roles: parse_roles(
                 &format!("({})", ROLE_NAMES[..self.n_roles].join(" "))
@@ -471,6 +473,8 @@ fn test_637_operation_count_within_bound() {
             );
         }
         Dialect {
+            state: None,
+            state_bounds: None,
             causal_locality: Default::default(),
             roles: parse_roles(&"(a hub)".parse::<SExpr>().unwrap()).unwrap(),
             name: "hub".to_string(),
@@ -563,6 +567,8 @@ fn test_635_converse_witness() {
             },
         );
         Dialect {
+            state: None,
+            state_bounds: None,
             causal_locality: Default::default(),
             roles: parse_roles(&"(ra rb rc)".parse::<SExpr>().unwrap()).unwrap(),
             name: "witness".to_string(),

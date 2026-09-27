@@ -72,6 +72,8 @@ fn dialect() -> Dialect {
         extends: vec![],
         author: None,
         roles: parse_roles(&"(a b c)".parse().unwrap()).unwrap(),
+        state: None,
+        state_bounds: None,
         causal_locality: Default::default(),
         performatives: nodes
             .iter()

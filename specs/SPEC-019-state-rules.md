@@ -2,7 +2,7 @@
 id: SPEC-019
 title: State Layer — R7 State Rules and the Intent Binder
 status: draft
-version: 0.3.1
+version: 0.3.2
 date: 2026-09-27
 author: Anuna Research (https://anuna.io) — drafted with Claude Fable 5.1
 owner: CBCL maintainer
@@ -249,8 +249,9 @@ State  := [(field, Value)]                                  in clause order
 
 Canonical JSON: `Absent → null`; `Str → JSON string` (RFC 8259 §7 shortest
 escapes, lowercase hex); `Int → decimal`; `Bool → true|false`; `Set → array`
-sorted by the UTF-8 bytes of each element's rendering; `Map → object`, keys
-being the scalars' renderings as JSON strings, sorted the same way; `Pair →
+sorted by the UTF-8 bytes of each element's rendering; `Map → object`, a
+string key as itself and a number or boolean key as its rendering (a key
+field has one declared type, so no collision), sorted by UTF-8 bytes; `Pair →
 {"by": signer, "value": scalar}`; `State → object` in clause order. Two
 states are equal iff their renderings are byte-equal. Numbers are CBCL
 integers (`i64` in a field, exact and unbounded as a total).
@@ -262,13 +263,19 @@ shape's declared fields plus `:caused-by :thread :from :to`; strings ≤
 `max-string` bytes, lists ≤ `max-list` scalar elements, numbers ≤
 `max-number` in magnitude, for every field a rule or domain names;
 `:replaces`, when present, a list of ≤ `max-list` distinct `sha256-<64hex>`
-symbols that need not resolve. Any failure is a `Violation` blamed on the
+symbols that need not resolve. (Addresses are spelled `sha256-<hex>` on the
+wire because the lexer reads `:` as the start of a keyword; the digest is
+`message_content_hash`'s, whose textual form uses a colon.) Any failure is a `Violation` blamed on the
 sender. No rule here reads history.
 
 ### R.5 The binder
 
 `intend(instance, signer, verb, fields)`, pure, where `instance` = dialect,
-thread, `acc(t)`, opener, cast.
+thread, `acc(t)`, opener, and under R6 the root and its cast. The root is
+the cast-bearing `with-roles` wrapper around a `hello` that opens the
+thread ([[SPEC-014-role-layer-endpoint-projection#REQ-611]]); it is typed
+as `begin` (REQ-623) and the opener follows it. Role-free, there is no root
+and the opener's predecessor is `begin`.
 
 ```
 1 admit    verb is a non-opener performative of the dialect; fields carry no routing keyword,
@@ -283,8 +290,10 @@ thread, `acc(t)`, opener, cast.
 5 caused-by C = { m ∈ acc(t) : m.v ∈ allowed(verb) }; C = ∅ → begin if allowed else reject;
            Own = { m ∈ C : m.s = signer } ≠ ∅ → greatest-address own act no own act names;
            else greatest-address member of C; under (all p₁…pₙ) once per pᵢ in declared order
-6 build    expand the template; append :caused-by :thread :from; wrap (lang <name> …);
-           canonicalise; address := message_content_hash
+6 build    the act in keyword form: (verb <recipients> :field value … [:replaces (…)] :from signer
+           :thread t :caused-by …), wrapped in (lang <name> …); canonicalise; address := the
+           wire spelling of message_content_hash. Templates are the dialect's declared effect
+           and are not expanded on this path; a state-bearing act is its keyword form.
 7 verify   R.4 state shape, R5 shape, R5 causal, R6 role, against acc(t) ∪ {act}  → else reject
 out        the canonical act (to be signed by the host), or reject(reason); no side effect
 ```
@@ -296,9 +305,14 @@ run.
 
 ### R.6 Identity and distribution
 
-A state-bearing dialect's hash is `dialect_hash` over its canonical body,
-which excludes the name, signature, and hash fields. Its name is `object-`
-followed by the hash's lowercase hex; installation rejects any other name.
+A dialect's identity is `dialect_body_hash`: SHA-256 over its canonical
+form with the name slot empty (the signature and hash fields are excluded
+as before). Its *self-address* is `object-` followed by that hash's
+lowercase hex. A name beginning with `object-` claims to be a self-address
+and installation rejects it unless it is; an author-chosen name is a
+pointer and is left alone. A consumer that needs content-addressed
+identity (the object SDK) names dialects by self-address, which
+`dialect_hash` exports.
 The dialect is distributed as an R4-signed `(meta (teach (define …)))` to
 the recipient set of the instances it governs; an opener identifies it by
 the `lang` wrapper's name and by nothing else. Every address in `:caused-by`,
@@ -317,9 +331,14 @@ frontier(instance)                      → sorted addresses no accepted act nam
 dialect_hash(define_text)               → object-<hex>
 ```
 
-`instance` at the boundary is `{thread, acts}`; the opener's entry carries
-the root wrapper text so the export derives the cast (a supplied cast is
-rejected).
+At the boundary the exports take S-expression frames like every other
+export and return canonical JSON: `(fold <dialect> <thread> (acts (<signer>
+<message>) …))`, `(intend <dialect> <thread> (acts …) <signer> <verb> (:k
+v …))`, `(verify-state-shape <dialect> <message>)`, `(state-schema
+<dialect>)`, `(may-send <dialect> <thread> (acts …) <signer>)`,
+`(frontier <dialect> <thread> (acts …))`, and `dialect_hash(<define text>)`.
+Each act entry is the complete received message with its authenticated
+signer; the cast is read from the root among the acts and never supplied.
 
 ## Context
 
@@ -747,6 +766,15 @@ order; update cbcl-aamas §6 and §7.
 <details>
 <summary>Revision history</summary>
 
+- 0.3.2 (2026-09-27) — implementation-driven corrections: under R6 the
+  root is the cast-bearing `hello` and the opener follows it (SPEC-014
+  REQ-611/623); wire addresses are `sha256-<hex>`; a state-bearing act is
+  its keyword form, not a template expansion; only a claimed `object-`
+  name is checked against the self-address; exports take S-expression
+  frames; map keys render strings raw. Implemented in `cbcl-core`
+  (`state.rs`, `r7.rs`, `intend.rs`), `cbcl-parser` (`state_parser.rs`),
+  `cbcl-wasm`, `cbcl-cli`, with the corpus in `test-vectors/state/` and
+  its runner; Erlang and FFI bindings pending.
 - 0.3.1 (2026-09-27) — renamed: "state rules" replaces "transition
   combinators" in the title and file name ("projection" was rejected as
   colliding with endpoint projection); the Orientation says plainly that

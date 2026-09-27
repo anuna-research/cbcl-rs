@@ -726,6 +726,8 @@ mod tests {
     fn test_dialect(name: &str) -> Dialect {
         Dialect {
             roles: Vec::new(),
+            state: None,
+            state_bounds: None,
             causal_locality: Default::default(),
             name: String::from(name),
             extends: Vec::new(),
@@ -977,6 +979,8 @@ mod tests {
         net.add_agent("alice");
         let bad = Dialect {
             roles: Vec::new(),
+            state: None,
+            state_bounds: None,
             causal_locality: Default::default(),
             name: String::from("bad"),
             extends: Vec::new(),
@@ -1010,6 +1014,8 @@ mod tests {
         net.add_agent("alice");
         let bad = Dialect {
             roles: Vec::new(),
+            state: None,
+            state_bounds: None,
             causal_locality: Default::default(),
             name: String::from("bad-bounds"),
             extends: Vec::new(),

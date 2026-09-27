@@ -15,6 +15,7 @@ use cbcl_core::role::{
 };
 use cbcl_core::sexpr::{Atom, SExpr};
 use cbcl_core::shape::ShapeConstraint;
+use cbcl_core::state::{StateBounds, StateClause, RESERVED_REPLACES};
 
 /// Parse a dialect definition from a `(define name extends author clauses...)` form (REQ-045).
 ///
@@ -76,6 +77,8 @@ pub fn parse_dialect(sexpr: &SExpr) -> Result<Dialect, String> {
     let mut shapes: Vec<ShapeConstraint> = Vec::new();
     let mut roles: Vec<RoleDecl> = Vec::new();
     let mut causal_locality = CausalLocality::Reject;
+    let mut state: Option<StateClause> = None;
+    let mut state_bounds: Option<StateBounds> = None;
 
     for clause in &items[4..] {
         parse_clause(
@@ -90,12 +93,32 @@ pub fn parse_dialect(sexpr: &SExpr) -> Result<Dialect, String> {
             &mut shapes,
             &mut roles,
             &mut causal_locality,
+            &mut state,
+            &mut state_bounds,
         )?;
     }
 
-    Ok(Dialect {
+    // SPEC-019 ADR-1901: `:replaces` is reserved. An author never declares
+    // it; the compiler inserts it where the state clause implies it.
+    if state.is_some() {
+        for shape in &shapes {
+            let declares = shape.rules.iter().any(|r| matches!(r,
+                cbcl_core::shape::ShapeRule::Require { keyword, .. }
+                | cbcl_core::shape::ShapeRule::Optional { keyword, .. } if keyword == RESERVED_REPLACES));
+            if declares {
+                return Err(alloc::format!(
+                    "shape '{}' declares :replaces, which is reserved and inserted by the compiler (SPEC-019 REQ-1907)",
+                    shape.performative
+                ));
+            }
+        }
+    }
+
+    let mut d = Dialect {
         roles,
         causal_locality,
+        state,
+        state_bounds,
         name,
         extends,
         author,
@@ -107,7 +130,9 @@ pub fn parse_dialect(sexpr: &SExpr) -> Result<Dialect, String> {
         protocol,
         causal_protocol,
         shapes,
-    })
+    };
+    cbcl_core::r7::insert_replaces(&mut d);
+    Ok(d)
 }
 
 /// Parse a dialect from `(meta (define ...))` form.
@@ -156,6 +181,7 @@ fn extract_author(sexpr: &SExpr) -> Result<Option<String>, String> {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn parse_clause(
     clause: &SExpr,
     performatives: &mut Vec<PerformativeDef>,
@@ -168,6 +194,8 @@ fn parse_clause(
     shapes: &mut Vec<ShapeConstraint>,
     roles: &mut Vec<RoleDecl>,
     causal_locality: &mut CausalLocality,
+    state: &mut Option<StateClause>,
+    state_bounds: &mut Option<StateBounds>,
 ) -> Result<(), String> {
     let items = match clause {
         SExpr::List(items) if !items.is_empty() => items,
@@ -232,10 +260,26 @@ fn parse_clause(
                     }
                 };
             }
+            // SPEC-019 R.1: (:state-bounds (max-… n) …)
+            "state-bounds" => {
+                if state_bounds.is_some() {
+                    return Err(String::from("duplicate :state-bounds clause"));
+                }
+                *state_bounds = Some(crate::state_parser::parse_state_bounds(clause)?);
+            }
             _ => {
                 return Err(alloc::format!("unknown keyword clause: :{kw}"));
             }
         }
+        return Ok(());
+    }
+
+    // Check for 'state' clause (SPEC-019 R.1)
+    if items[0].is_symbol("state") {
+        if state.is_some() {
+            return Err(String::from("duplicate state clause"));
+        }
+        *state = Some(crate::state_parser::parse_state(clause)?);
         return Ok(());
     }
 

@@ -450,6 +450,8 @@ mod tests {
         let mut reg = DialectRegistry::new();
         reg.install(Dialect {
             roles: Vec::new(),
+            state: None,
+            state_bounds: None,
             causal_locality: Default::default(),
             name: String::from("logistics"),
             extends: vec![String::from("cbcl")],
@@ -486,6 +488,8 @@ mod tests {
         let mut reg = make_registry_with_custom();
         reg.install(Dialect {
             roles: Vec::new(),
+            state: None,
+            state_bounds: None,
             causal_locality: Default::default(),
             name: String::from("warehouse"),
             extends: vec![String::from("cbcl")],
@@ -1077,6 +1081,8 @@ mod tests {
         // Params bind: pkg = args[0], dst = args[1]
         reg.install(Dialect {
             roles: Vec::new(),
+            state: None,
+            state_bounds: None,
             causal_locality: Default::default(),
             name: String::from("logistics"),
             extends: vec![String::from("cbcl")],
@@ -1194,6 +1200,8 @@ mod tests {
         let mut reg = DialectRegistry::new();
         reg.install(Dialect {
             roles: Vec::new(),
+            state: None,
+            state_bounds: None,
             causal_locality: Default::default(),
             name: String::from("logistics"),
             extends: vec![String::from("cbcl")],
@@ -1268,6 +1276,8 @@ mod tests {
         let mut reg = DialectRegistry::new();
         reg.install(Dialect {
             roles: Vec::new(),
+            state: None,
+            state_bounds: None,
             causal_locality: Default::default(),
             name: String::from("shallow"),
             extends: vec![String::from("cbcl")],

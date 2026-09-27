@@ -159,6 +159,8 @@ fn fixture(seed: usize) -> (Dialect, Endpoint, Option<Cast>) {
             name: "r0".into(),
             cardinality: RoleCardinality::Indexed,
         }],
+        state: None,
+        state_bounds: None,
         causal_locality: if seed % 2 == 0 {
             CausalLocality::Reject
         } else {

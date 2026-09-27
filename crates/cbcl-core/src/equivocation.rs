@@ -794,6 +794,8 @@ mod tests {
                     cardinality: RoleCardinality::Singleton,
                 })
                 .collect(),
+            state: None,
+            state_bounds: None,
             causal_locality: Default::default(),
             name: "equiv-test".to_string(),
             extends: Vec::new(),

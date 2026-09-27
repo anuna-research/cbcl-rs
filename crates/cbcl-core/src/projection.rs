@@ -522,6 +522,8 @@ mod tests {
     ) -> Dialect {
         Dialect {
             roles: parse_roles(&roles_src.parse::<SExpr>().unwrap()).unwrap(),
+            state: None,
+            state_bounds: None,
             causal_locality: Default::default(),
             name: "test".to_string(),
             extends: Vec::new(),

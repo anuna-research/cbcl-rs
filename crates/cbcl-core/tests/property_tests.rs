@@ -212,7 +212,7 @@ proptest! {
     /// Valid resource bounds always pass R2 verification.
     #[test]
     fn prop_valid_bounds_pass_r2(bounds in arb_valid_resource_bounds()) {
-        let d = Dialect { roles: Vec::new(), causal_locality: Default::default(),
+        let d = Dialect { roles: Vec::new(), causal_locality: Default::default(), state: None, state_bounds: None,
             name: String::from("test"),
             extends: Vec::new(),
             author: None,
@@ -230,7 +230,7 @@ proptest! {
     /// Invalid resource bounds always fail R2 verification.
     #[test]
     fn prop_invalid_bounds_fail_r2(bounds in arb_invalid_resource_bounds()) {
-        let d = Dialect { roles: Vec::new(), causal_locality: Default::default(),
+        let d = Dialect { roles: Vec::new(), causal_locality: Default::default(), state: None, state_bounds: None,
             name: String::from("test"),
             extends: Vec::new(),
             author: None,
@@ -317,7 +317,7 @@ proptest! {
         }
 
         // Create a valid dialect for propagation
-        let dialect = Dialect { roles: Vec::new(), causal_locality: Default::default(),
+        let dialect = Dialect { roles: Vec::new(), causal_locality: Default::default(), state: None, state_bounds: None,
             name: String::from("prop-test-dialect"),
             extends: Vec::new(),
             author: None,
@@ -379,7 +379,7 @@ proptest! {
             net.add_agent(format!("agent-{}", i));
         }
 
-        let dialect = Dialect { roles: Vec::new(), causal_locality: Default::default(),
+        let dialect = Dialect { roles: Vec::new(), causal_locality: Default::default(), state: None, state_bounds: None,
             name: String::from("fast-dialect"),
             extends: Vec::new(),
             author: None,
@@ -419,7 +419,7 @@ proptest! {
             net.add_agent(format!("agent-{}", i));
         }
 
-        let dialect = Dialect { roles: Vec::new(), causal_locality: Default::default(),
+        let dialect = Dialect { roles: Vec::new(), causal_locality: Default::default(), state: None, state_bounds: None,
             name: String::from("zero-dialect"),
             extends: Vec::new(),
             author: None,
@@ -502,7 +502,7 @@ proptest! {
     #[test]
     fn prop_r2_violation_rejected(bounds in arb_invalid_resource_bounds()) {
         let mut reg = DialectRegistry::new();
-        let d = Dialect { roles: Vec::new(), causal_locality: Default::default(),
+        let d = Dialect { roles: Vec::new(), causal_locality: Default::default(), state: None, state_bounds: None,
             name: String::from("bad-bounds"),
             extends: Vec::new(),
             author: None,

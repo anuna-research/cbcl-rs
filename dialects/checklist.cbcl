@@ -76,28 +76,31 @@
 ; M0  teach — the author distributes the dialect, R4-signed (R.6):
 ;   (meta (teach (define object-<hash> ...)))
 ;
-; M1  root: cast + opener      by @aria (owner); cast: owner=@aria, member={@bo @cy}
+; M0  root: the cast           by @aria; cast: owner=@aria, member={@bo @cy}
 ;   (with-roles ((owner @aria) (member @bo @cy)) :dialect sha256:<hash>
-;     (signed <sig>
-;       (lang object-<hash> (open (@aria @bo @cy) :title "Launch tasks"
-;         :caused-by begin :thread "list-1" :from @aria))))
+;     (signed @aria (hello :thread "list-1" :caused-by begin)))
+;   The root is typed as `begin` (SPEC-014 REQ-623); the opener follows it.
+;
+; M1  root -> open             by @aria (owner)
+;   (signed @aria (lang object-<hash> (open (@aria @bo @cy) :title "Launch tasks"
+;     :caused-by sha256-<M0> :thread "list-1" :from @aria)))
 ;
 ; M2  open -> check            by @bo (member); no current write for "venue"
-;   (lang object-<hash> (check (@aria @bo @cy) :item "venue" :done #f :replaces ()
-;     :caused-by sha256-<M1> :thread "list-1" :from @bo))
+;   (signed @bo (lang object-<hash> (check (@aria @bo @cy) :item "venue" :done #f :replaces ()
+;     :caused-by sha256-<M1> :thread "list-1" :from @bo)))
 ;
 ; M3  open -> check            by @bo; the binder fills :replaces (M2)
-;   (lang object-<hash> (check (@aria @bo @cy) :item "venue" :done #t :replaces (sha256-<M2>)
-;     :caused-by sha256-<M1> :thread "list-1" :from @bo))
+;   (signed @bo (lang object-<hash> (check (@aria @bo @cy) :item "venue" :done #t :replaces (sha256-<M2>)
+;     :caused-by sha256-<M1> :thread "list-1" :from @bo)))
 ;
 ; M4  open -> drop             by @aria (owner); fills :replaces (M3)
-;   (lang object-<hash> (drop (@aria @bo @cy) :item "venue" :replaces (sha256-<M3>)
-;     :caused-by sha256-<M1> :thread "list-1" :from @aria))
+;   (signed @aria (lang object-<hash> (drop (@aria @bo @cy) :item "venue" :replaces (sha256-<M3>)
+;     :caused-by sha256-<M1> :thread "list-1" :from @aria)))
 ;
 ; A `drop` intent from @bo is rejected by the binder before signing: drop
 ; is :from owner and the cast binds owner to @aria alone (Role(owner)).
 ;
-; State after {M1, M2, M3}:  {"title": "Launch tasks", "items": {"venue": true}}
-; State after {M1, M2, M3, M4}: {"title": "Launch tasks", "items": {}}
-; State after {M1, M3, M4} (M2 not yet delivered): identical to the line
+; State after {M0, M1, M2, M3}:  {"title": "Launch tasks", "items": {"venue": true}}
+; State after {M0..M4}:           {"title": "Launch tasks", "items": {}}
+; State after {M0, M1, M3, M4} (M2 not yet delivered): identical to the line
 ; above, and unchanged when M2 arrives (SPEC-019 R7).

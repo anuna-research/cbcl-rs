@@ -73,7 +73,11 @@ use alloc::vec::Vec;
 ///   the mode is load-bearing: without it a relay could flip a signed
 ///   `reject` dialect to `derive`, silently enlarging delivery obligations
 ///   under an intact signature.
-pub const CANONICAL_FORM_VERSION: u32 = 4;
+/// - `5` (current): adds the `(state …)` and `(state-bounds …)` segments
+///   (SPEC-019 REQ-1903), gated on presence, so dialects without a state
+///   layer produce v4-identical bytes. The fold is signature-bound: it
+///   cannot be stripped or rewritten in gossip under an intact signature.
+pub const CANONICAL_FORM_VERSION: u32 = 5;
 
 // ---------------------------------------------------------------------------
 // Atom-to-octet-string mapping
@@ -287,7 +291,114 @@ pub fn to_signable_sexpr(d: &Dialect) -> SExpr {
         ]));
     }
 
+    // state (SPEC-019 REQ-1903) — only when present (backward-compat).
+    if let Some(ref clause) = d.state {
+        top.push(state_to_sexpr(clause));
+    }
+    if let Some(ref b) = d.state_bounds {
+        top.push(SExpr::List(vec![
+            SExpr::Atom(Atom::Symbol(String::from("state-bounds"))),
+            SExpr::Atom(Atom::Num(b.max_string as i64)),
+            SExpr::Atom(Atom::Num(b.max_list as i64)),
+            SExpr::Atom(Atom::Num(b.max_number)),
+            SExpr::Atom(Atom::Num(b.max_fields as i64)),
+        ]));
+    }
+
     SExpr::List(top)
+}
+
+/// Encode the state clause deterministically, in clause order (order is
+/// part of the signed body: later fields may reference earlier ones).
+fn state_to_sexpr(clause: &crate::state::StateClause) -> SExpr {
+    use crate::state::{Entry, Rule};
+    use alloc::vec;
+    let s = |x: &str| SExpr::Atom(Atom::Str(String::from(x)));
+    let sym = |x: &str| SExpr::Atom(Atom::Symbol(String::from(x)));
+    let mut items = vec![sym("state")];
+    for e in &clause.entries {
+        match e {
+            Entry::Domain { verb, key, field } => {
+                items.push(SExpr::List(vec![sym("domain"), s(verb), s(key), s(field)]));
+            }
+            Entry::Field { name, rule } => {
+                let mut r = vec![sym(rule.head())];
+                match rule {
+                    Rule::Last { verb, key }
+                    | Rule::LatestPerSigner { verb, key }
+                    | Rule::Events { verb, key }
+                    | Rule::SetUnion { verb, key }
+                    | Rule::Values { verb, key } => {
+                        r.push(s(verb));
+                        r.push(s(key));
+                    }
+                    Rule::LatestPerKey { verb, key, value } => {
+                        r.push(s(verb));
+                        r.push(s(key));
+                        r.push(s(value));
+                    }
+                    Rule::Exists { verb } | Rule::Count { verb } => r.push(s(verb)),
+                    Rule::ValuesPerKey {
+                        verb,
+                        key,
+                        value,
+                        delete,
+                    }
+                    | Rule::RegisterPerKey {
+                        verb,
+                        key,
+                        value,
+                        delete,
+                    } => {
+                        r.push(s(verb));
+                        r.push(s(key));
+                        r.push(s(value));
+                        if let Some(d) = delete {
+                            r.push(s(d));
+                        }
+                    }
+                    Rule::ObservedSet { add, remove, key } => {
+                        r.push(s(add));
+                        r.push(s(remove));
+                        r.push(s(key));
+                    }
+                    Rule::Counter { inc, dec, key } => {
+                        r.push(s(inc));
+                        r.push(s(dec));
+                        r.push(s(key));
+                    }
+                    Rule::Histogram { field } | Rule::Sum { field } => r.push(s(field)),
+                }
+                items.push(SExpr::List(vec![sym("field"), s(name), SExpr::List(r)]));
+            }
+        }
+    }
+    SExpr::List(items)
+}
+
+/// The hash of a dialect's *body*: its canonical form with the name slot
+/// empty (SPEC-019 R.6, ADR-1903). Lowercase hex, no prefix. A name is a
+/// pointer; the body hash never sees it.
+pub fn dialect_body_hash(d: &Dialect) -> String {
+    use sha2::{Digest, Sha256};
+    let mut body = d.clone();
+    body.name = String::new();
+    let digest = Sha256::digest(dialect_canonical_bytes(&body));
+    const HEX: &[u8; 16] = b"0123456789abcdef";
+    let mut out = String::with_capacity(64);
+    for b in digest {
+        out.push(HEX[(b >> 4) as usize] as char);
+        out.push(HEX[(b & 0x0f) as usize] as char);
+    }
+    out
+}
+
+/// The name a self-addressed dialect must carry: `object-` plus its body
+/// hash (SPEC-019 REQ-1927).
+pub fn dialect_name(d: &Dialect) -> String {
+    let mut out = String::from(crate::r7::OBJECT_PREFIX);
+    out.push_str(&dialect_body_hash(d));
+    out
 }
 
 /// Encode the declared roles deterministically, preserving declaration
@@ -772,6 +883,8 @@ mod tests {
     fn test_dialect(name: &str) -> Dialect {
         Dialect {
             roles: Vec::new(),
+            state: None,
+            state_bounds: None,
             causal_locality: Default::default(),
             name: String::from(name),
             extends: vec![],
@@ -894,6 +1007,8 @@ mod tests {
     fn signable_empty_dialect() {
         let d = Dialect {
             roles: Vec::new(),
+            state: None,
+            state_bounds: None,
             causal_locality: Default::default(),
             name: String::from("empty"),
             extends: vec![],
@@ -922,6 +1037,8 @@ mod tests {
     fn signable_all_optional_fields() {
         let d = Dialect {
             roles: Vec::new(),
+            state: None,
+            state_bounds: None,
             causal_locality: Default::default(),
             name: String::from("full"),
             extends: vec![String::from("parent1"), String::from("parent2")],
@@ -1133,6 +1250,8 @@ mod tests {
     fn snapshot_legacy_dialect() -> Dialect {
         Dialect {
             roles: Vec::new(),
+            state: None,
+            state_bounds: None,
             causal_locality: Default::default(),
             name: String::from("legacy"),
             extends: vec![String::from("cbcl")],
@@ -1282,9 +1401,9 @@ mod tests {
     }
 
     #[test]
-    fn canonical_form_version_is_four() {
+    fn canonical_form_version_is_five() {
         // Pin the version constant so changes are deliberate.
-        assert_eq!(CANONICAL_FORM_VERSION, 4);
+        assert_eq!(CANONICAL_FORM_VERSION, 5);
     }
 
     // ---- SPEC-015 REQ-709: causal-locality mode is signature-bound ----

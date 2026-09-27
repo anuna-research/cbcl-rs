@@ -56,6 +56,8 @@ fn auction_dialect() -> Dialect {
         ),
     );
     Dialect {
+        state: None,
+        state_bounds: None,
         causal_locality: Default::default(),
         roles: parse_roles(&"(auctioneer (* bidder))".parse::<SExpr>().unwrap()).unwrap(),
         name: "auction".into(),

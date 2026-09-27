@@ -14,6 +14,7 @@ pub mod parser;
 pub mod pipeline;
 pub mod protocol_parser;
 pub mod shape_parser;
+pub mod state_parser;
 
 pub use dialect_parser::{parse_dialect, parse_meta_define};
 pub use message_parser::parse_message;
@@ -23,3 +24,4 @@ pub use pipeline::{
 };
 pub use protocol_parser::{parse_protocol, ProtocolParseError};
 pub use shape_parser::parse_shape;
+pub use state_parser::{parse_state, parse_state_bounds};
