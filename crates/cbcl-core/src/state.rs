@@ -635,9 +635,22 @@ pub fn render_json(state: &[(String, Value)]) -> String {
 // ---------------------------------------------------------------------------
 
 struct Kernel<'a> {
-    acts: &'a [Act],
+    /// The accepted set: one act per address, in slice order.
+    acts: Vec<&'a Act>,
     /// Domain filters resolved against the opener: `(verb, key) → allowed`.
     domains: Vec<(String, String, Vec<Value>)>,
+}
+
+/// The accepted set as a slice presents it: one act per content address,
+/// first occurrence kept. A store keyed by address never holds two, so
+/// this is the identity on a store's contents; on an arbitrary slice it
+/// is what makes `fold` a set function of the slice itself (SPEC-019 R7,
+/// REQ-1930 `fold_dedup_invariant`).
+fn dedup_by_address(acts: &[Act]) -> Vec<&Act> {
+    let mut seen: BTreeSet<&str> = BTreeSet::new();
+    acts.iter()
+        .filter(|a| seen.insert(a.address.as_str()))
+        .collect()
 }
 
 impl<'a> Kernel<'a> {
@@ -649,6 +662,7 @@ impl<'a> Kernel<'a> {
     fn acts(&self, verb: &str) -> Vec<&'a Act> {
         self.acts
             .iter()
+            .copied()
             .filter(|a| a.verb == verb)
             .filter(|a| {
                 self.domains.iter().all(|(v, key, allowed)| {
@@ -859,8 +873,9 @@ pub fn fold(
 ) -> Vec<(String, Value)> {
     // Domains read a list-valued field defined over the opener only, so
     // resolve them first with no domain in force.
+    let set = dedup_by_address(acts);
     let bare = Kernel {
-        acts,
+        acts: set.clone(),
         domains: Vec::new(),
     };
     let mut domains = Vec::new();
@@ -876,7 +891,7 @@ pub fn fold(
         domains.push((String::from(verb), String::from(key), allowed));
     }
     let _ = protocol;
-    let kernel = Kernel { acts, domains };
+    let kernel = Kernel { acts: set, domains };
     let mut done: Vec<(String, Value)> = Vec::new();
     for (name, rule) in clause.fields() {
         let v = kernel.eval(rule, &done);

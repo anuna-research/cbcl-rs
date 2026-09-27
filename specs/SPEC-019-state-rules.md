@@ -737,7 +737,7 @@ one rule changes the name.
 a vector from a live session of two independent consumers is included;
 mutating `pick` to the least address turns a vector red.
 
-Property tests (proptest; the pure core is the executable twin of the model):
+Property tests (proptest, `crates/cbcl-core/tests/state_properties.rs`; the pure core is the executable twin of the model, and each test names the State.lean theorem it mirrors):
 **TEST-1940** permutation and duplication invariance of `fold`;
 **TEST-1941** monotonicity of `acts`, `size`, `distinct`, `events`;
 **TEST-1942** `mem_current_iff`; **TEST-1943** a replaced write is never
