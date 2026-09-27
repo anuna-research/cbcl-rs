@@ -124,7 +124,7 @@ fn install_accepts_author_name_and_checks_claimed_self_address() {
         .expect("author-named state dialect installs");
 
     let name = dialect_name(&d);
-    assert!(name.starts_with("object-") && name.len() == 7 + 64);
+    assert!(name.starts_with("sha256-") && name.len() == 7 + 64);
     let mut renamed = d.clone();
     renamed.name = name.clone();
     let mut reg = DialectRegistry::new();
@@ -132,7 +132,7 @@ fn install_accepts_author_name_and_checks_claimed_self_address() {
         .expect("self-addressed dialect installs");
 
     let mut wrong = d.clone();
-    wrong.name = format!("object-{}", "0".repeat(64));
+    wrong.name = format!("sha256-{}", "0".repeat(64));
     let mut reg = DialectRegistry::new();
     match reg.install(wrong) {
         Err(DialectInstallError::R7Violation { violations, .. }) => {

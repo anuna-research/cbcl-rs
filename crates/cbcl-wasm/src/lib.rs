@@ -405,7 +405,7 @@ pub fn frontier_bytes(input: &[u8]) -> Result<Vec<u8>, Vec<u8>> {
         .map(|s| s.into_bytes())
         .map_err(|e| e.into_bytes())
 }
-/// A `(define …)` → its self-addressed name `object-<hex>`.
+/// A `(define …)` → its self-addressed name `sha256-<hex>`.
 pub fn dialect_hash_bytes(input: &[u8]) -> Result<Vec<u8>, Vec<u8>> {
     let s = core::str::from_utf8(input).map_err(|e| format!("invalid UTF-8: {e}").into_bytes())?;
     state_layer::dialect_hash_str(s)
@@ -988,7 +988,7 @@ mod wasm_bindgen_api {
     pub fn frontier(input: &str) -> Result<String, String> {
         state_layer::frontier_str(input)
     }
-    /// SPEC-019 R.6: a `(define …)` → its self-addressed name `object-<hex>`.
+    /// SPEC-019 R.6: a `(define …)` → its self-addressed name `sha256-<hex>`.
     #[wasm_bindgen]
     pub fn dialect_hash(input: &str) -> Result<String, String> {
         state_layer::dialect_hash_str(input)

@@ -2,7 +2,7 @@
 id: SPEC-019
 title: State Layer — R7 State Rules and the Intent Binder
 status: draft
-version: 0.3.2
+version: 0.3.3
 date: 2026-09-27
 author: Anuna Research (https://anuna.io) — drafted with Claude Fable 5.1
 owner: CBCL maintainer
@@ -307,8 +307,10 @@ run.
 
 A dialect's identity is `dialect_body_hash`: SHA-256 over its canonical
 form with the name slot empty (the signature and hash fields are excluded
-as before). Its *self-address* is `object-` followed by that hash's
-lowercase hex. A name beginning with `object-` claims to be a self-address
+as before). Its *self-address* is `sha256-` followed by that hash's
+lowercase hex: the same spelling as every content address on the wire, so
+`(lang sha256-… …)` names a dialect as `:caused-by sha256-…` names an act.
+A name beginning with `sha256-` claims to be a self-address
 and installation rejects it unless it is; an author-chosen name is a
 pointer and is left alone. A consumer that needs content-addressed
 identity (the object SDK) names dialects by self-address, which
@@ -328,7 +330,7 @@ state_schema(dialect)                   → [(field, type)]        type derived 
 may_send(dialect, instance, signer)     → [verb]                 step 1 of intend, without an intent
 instance(instance)                      → address of the accepted opener
 frontier(instance)                      → sorted addresses no accepted act names in :caused-by
-dialect_hash(define_text)               → object-<hex>
+dialect_hash(define_text)               → sha256-<hex>
 ```
 
 At the boundary the exports take S-expression frames like every other
@@ -655,7 +657,7 @@ pub enum Reject { UnknownVerb, Opener, Forge(String), Role(String), Domain(Strin
 pub fn intend(inst: &Instance, signer: &AgentKey, verb: &str, fields: BTreeMap<String, SExpr>) -> Result<Message, Reject>;
 pub fn may_send(inst: &Instance, signer: &AgentKey) -> Vec<String>;
 pub fn roles_of(cast: &Cast, signer: &AgentKey) -> Vec<String>;
-// canonical.rs: dialect_hash excludes the name; dialect_name(d) = "object-" + hex
+// canonical.rs: dialect_body_hash excludes the name; dialect_name(d) = "sha256-" + hex
 ```
 
 `Dialect` gains `state`, `state_bounds`; `DialectInstallError` gains `R7`.
@@ -707,7 +709,7 @@ rejects `Role(owner)`; a role-free dialect binds `to` from the opener.
 address order and succeeds; after acceptance, the next write names the
 remaining 6; `drop` on an absent key rejects `NothingToDelete`.
 
-**TEST-1927.** Renaming a dialect to `object-<dialect_hash>` installs;
+**TEST-1927.** Renaming a dialect to `sha256-<body hash>` installs;
 any other name for a state-bearing dialect is rejected before R1; changing
 one rule changes the name.
 
@@ -766,10 +768,13 @@ order; update cbcl-aamas §6 and §7.
 <details>
 <summary>Revision history</summary>
 
+- 0.3.3 (2026-09-27) — the self-address prefix is `sha256-`, the wire
+  spelling of every content address; `object-` was the first consumer's
+  vocabulary.
 - 0.3.2 (2026-09-27) — implementation-driven corrections: under R6 the
   root is the cast-bearing `hello` and the opener follows it (SPEC-014
   REQ-611/623); wire addresses are `sha256-<hex>`; a state-bearing act is
-  its keyword form, not a template expansion; only a claimed `object-`
+  its keyword form, not a template expansion; only a claimed `sha256-`
   name is checked against the self-address; exports take S-expression
   frames; map keys render strings raw. Implemented in `cbcl-core`
   (`state.rs`, `r7.rs`, `intend.rs`), `cbcl-parser` (`state_parser.rs`),

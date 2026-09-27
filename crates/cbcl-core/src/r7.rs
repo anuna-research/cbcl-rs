@@ -18,8 +18,9 @@ use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use core::fmt;
 
-/// The prefix of a self-addressed dialect name (SPEC-019 R.6).
-pub const OBJECT_PREFIX: &str = "object-";
+/// The prefix of a self-addressed dialect name (SPEC-019 R.6): the same
+/// spelling as every content address on the wire.
+pub const SELF_ADDRESS_PREFIX: &str = "sha256-";
 
 /// An R7 installation violation (SPEC-019 CON-1905).
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -150,7 +151,7 @@ pub fn r7_violations(d: &Dialect) -> Vec<R7Violation> {
         }
     }
     let Some(clause) = d.state.as_ref() else {
-        if d.name.starts_with(OBJECT_PREFIX) {
+        if d.name.starts_with(SELF_ADDRESS_PREFIX) {
             check_name(d, &mut out);
         }
         return out;
@@ -436,7 +437,7 @@ pub fn r7_violations(d: &Dialect) -> Vec<R7Violation> {
     // author-chosen name is a pointer and is left alone; identity is the
     // body hash either way (ADR-1903), and a consumer that needs
     // content-addressed names uses `canonical::dialect_name`.
-    if d.name.starts_with(OBJECT_PREFIX) {
+    if d.name.starts_with(SELF_ADDRESS_PREFIX) {
         check_name(d, &mut out);
     }
     out

@@ -393,10 +393,10 @@ pub fn dialect_body_hash(d: &Dialect) -> String {
     out
 }
 
-/// The name a self-addressed dialect must carry: `object-` plus its body
-/// hash (SPEC-019 REQ-1927).
+/// The name a self-addressed dialect carries: `sha256-` plus its body
+/// hash (SPEC-019 REQ-1927), spelled like every other content address.
 pub fn dialect_name(d: &Dialect) -> String {
-    let mut out = String::from(crate::r7::OBJECT_PREFIX);
+    let mut out = String::from(crate::r7::SELF_ADDRESS_PREFIX);
     out.push_str(&dialect_body_hash(d));
     out
 }
