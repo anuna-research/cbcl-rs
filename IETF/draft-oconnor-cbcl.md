@@ -668,6 +668,7 @@ extends-list = "(" *( WS symbol ) ")"
 author       = symbol / string
 
 dialect-clause = extend-clause / protocol-clause / shape-clause
+               / state-clause / state-bounds-clause
                / resource-clause / examples-clause
                / signature-clause / hash-clause
                / sig-algorithm-clause / roles-clause
@@ -786,6 +787,9 @@ A dialect definition uses positional arguments followed by optional clauses:
 - **:resource-requirements** (OPTIONAL): resource limits as an association list
 - **:roles**, **:causal-locality** (OPTIONAL): role layer ({{roles}})
 - **protocol**, **shape** (OPTIONAL): contracts ({{contracts}})
+- **state**, **:state-bounds** (OPTIONAL): state rules ({{state}}); a state
+  clause requires a protocol with exactly one opener and a shape for every
+  keyword it reads
 - **:examples** (OPTIONAL): S-expressions illustrating intended expansion
 - **:signature**, **:hash**, **:protocol** (OPTIONAL): integrity fields
 
@@ -896,10 +900,10 @@ signature is present and invalid. Signature verification MUST precede every
 other safety check, so that authorship and bit-exact contents are established
 before any further work is done on attacker-supplied input.
 
-### R5 and R6
+### R5, R6, and R7
 
 R5 (contract well-formedness) is specified in {{r5}}; R6 (multiparty
-well-formedness) in {{r6}}.
+well-formedness) in {{r6}}; R7 (state well-formedness) in {{state}}.
 
 ## Expansion Semantics {#expansion}
 
@@ -1113,7 +1117,9 @@ The receiving agent MAY reject the dialect based on:
 A dialect MAY declare, alongside its performatives, two kinds of contract: a
 **causal protocol** constraining the order in which its performatives may occur,
 and **shape constraints** on the parameters each expanded message must carry.
-Both are optional; a dialect declaring neither is governed by R1-R4 alone.
+Both are optional; a dialect declaring neither is governed by R1-R4 alone. A
+third, optional layer, **state rules** ({{state}}), gives accepted messages a
+transition semantics and requires both contracts for the performatives it reads.
 
 Contracts extend CBCL's syntactic safety toward protocol correctness while
 remaining within DCFL and requiring no coordination between participants.
@@ -1224,6 +1230,86 @@ The verdict has three properties that matter operationally:
   opposite conclusions have no common refinement. The message *store* is a
   join-semilattice under union; the verdict is a bounded meet-semilattice only.
   Implementations MUST NOT assume a join exists on verdicts.
+
+## State Rules {#state}
+
+A dialect MAY declare a `state` clause naming the fields of an instance's state
+and, for each, one rule from a closed vocabulary that says how accepted
+messages of a given performative move the field. An *instance* is one thread;
+its *opener* is the one performative whose predecessor is `begin`. The state of
+an instance is a function of the set of accepted messages of its thread and of
+nothing else.
+
+~~~ abnf
+state-clause   = "(" "state" 1*( WS state-entry ) ")"
+state-entry    = "(" field WS rule ")"
+               / "(" "domain" WS perf-name WS keyword WS field ")"
+field          = symbol            ; [a-z][a-z0-9-]{0,47}, unique in the clause
+
+rule           = "(" "last"              WS perf-name WS keyword ")"
+               / "(" "latest-per-signer" WS perf-name WS keyword ")"
+               / "(" "latest-per-key"    WS perf-name WS keyword WS keyword ")"
+               / "(" "exists"            WS perf-name ")"
+               / "(" "count"             WS perf-name ")"
+               / "(" "events"            WS perf-name WS keyword ")"
+               / "(" "set-union"         WS perf-name WS keyword ")"
+               / "(" "values"            WS perf-name WS keyword ")"
+               / "(" "values-per-key"    WS perf-name WS keyword WS keyword
+                                         [ WS perf-name ] ")"
+               / "(" "register-per-key"  WS perf-name WS keyword WS keyword
+                                         [ WS perf-name ] ")"
+               / "(" "observed-set"      WS perf-name WS perf-name WS keyword ")"
+               / "(" "counter"           WS perf-name WS perf-name WS keyword ")"
+               / "(" "histogram"         WS field ")"
+               / "(" "sum"               WS field ")"
+
+state-bounds-clause = "(" ":state-bounds" *( WS state-bound ) ")"
+state-bound    = "(" ( "max-string" / "max-list" / "max-number"
+                     / "max-fields" ) WS number ")"
+~~~
+
+Every rule is defined over two selections and five reductions. `acts v` is the
+set of accepted messages of performative `v` in the thread, minus those a
+`domain` entry excludes; `current v k d` is the subset of `acts v` that no
+accepted message of `v`, or of the delete performative `d`, names in its
+`:replaces` field for the same key `k`. A reduction picks the message of
+greatest content address, counts a set, tests membership of a value, collects
+distinct values, or sums an integer field. No rule consults a clock, a
+timestamp, or causal depth: the only order is the content address.
+
+`:replaces` is a reserved keyword of type `list` that installation adds to the
+shape of every performative a `values`, `values-per-key`, `register-per-key`, or
+`observed-set` rule names as a writer, delete, or remove performative. An author
+MUST NOT declare it, a rule MUST NOT read it, and a sending host fills it with
+the content addresses of the current writes for the message's key. A message
+that carries `:replaces` is thereby a replacement of those writes; a write no
+accepted message names stays current whatever else is accepted.
+
+A `domain` entry names a `string` keyword of a performative and a list-valued
+field defined by a rule over the opener only. An accepted message whose keyword
+value is not an element of that list is accepted but contributes to no field;
+admission never reads history.
+
+**R7 - State Well-Formedness.** When a dialect declares a `state` clause,
+installation MUST verify that every performative a rule names is defined by the
+dialect; that every keyword a rule reads is a required keyword of that
+performative's shape, with a scalar type where the rule requires a scalar
+(`number` for `counter` and `sum`); that the dialect declares a protocol with
+exactly one opener; that `histogram` and `sum` name a map-valued field defined
+earlier in the clause; that no author-declared shape carries `:replaces`; and
+that a delete performative carries exactly its key. A dialect failing any check
+MUST NOT be installed. A `:state-bounds` clause MAY tighten, and MUST NOT
+loosen, the default bounds on the strings (2048 octets), lists (64 elements),
+numbers (10^12), and keyword count (32) of a state-bearing message; a message
+exceeding a bound is a shape violation blamed on the sender.
+
+Because every rule is a function of the accepted set, the state of an instance
+is independent of arrival order and of duplicate delivery, and two participants
+holding the same accepted messages compute the same state without coordination.
+A dialect's identity, for the purpose of naming it by content address, is the
+hash of its canonical form with the name slot empty, spelled `sha256-` followed
+by the lowercase hexadecimal digest; a name beginning with `sha256-` claims to
+be that self-address and installation MUST reject it unless it is.
 
 # Multiparty Role Layer {#roles}
 
