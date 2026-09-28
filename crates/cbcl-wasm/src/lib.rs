@@ -281,6 +281,53 @@ fn compute_canonical_message_hash(msg: &cbcl_core::message::Message) -> String {
 // other export; state, schema, and rejections come back as canonical JSON.
 // ---------------------------------------------------------------------------
 
+/// `(admit <dialect> <thread> (acts …) (<signer> <message>))` →
+/// `{"verdict":"accepted"|"pending"|"rejected"[,"reason"]}` (SPEC-019 R.4/R5/R6).
+pub fn admit_bytes(input: &[u8]) -> Result<Vec<u8>, Vec<u8>> {
+    let s = core::str::from_utf8(input).map_err(|e| format!("invalid UTF-8: {e}").into_bytes())?;
+    state_layer::admit_str(s)
+        .map(|s| s.into_bytes())
+        .map_err(|e| e.into_bytes())
+}
+/// One S-expression → the parser's tree as JSON (lists, `{"str":…}`, atom text).
+pub fn read_bytes(input: &[u8]) -> Result<Vec<u8>, Vec<u8>> {
+    let s = core::str::from_utf8(input).map_err(|e| format!("invalid UTF-8: {e}").into_bytes())?;
+    cbcl_parser::read_str(s)
+        .map(|s| s.into_bytes())
+        .map_err(|e| e.into_bytes())
+}
+/// The canonical `(define …)` a dialect text, `(meta (define …))`, or teach frame carries.
+#[cfg(feature = "std")]
+pub fn define_text_bytes(input: &[u8]) -> Result<Vec<u8>, Vec<u8>> {
+    let s = core::str::from_utf8(input).map_err(|e| format!("invalid UTF-8: {e}").into_bytes())?;
+    cbcl_parser::define_text_str(s)
+        .map(|s| s.into_bytes())
+        .map_err(|e| e.into_bytes())
+}
+/// A dialect's description (name, author, opener, verbs, roles, state rules, …) as JSON.
+#[cfg(feature = "std")]
+pub fn describe_dialect_bytes(input: &[u8]) -> Result<Vec<u8>, Vec<u8>> {
+    let s = core::str::from_utf8(input).map_err(|e| format!("invalid UTF-8: {e}").into_bytes())?;
+    cbcl_parser::describe_dialect_str(s)
+        .map(|s| s.into_bytes())
+        .map_err(|e| e.into_bytes())
+}
+/// An act's wire text → `{dialect, address, verb, recipients, fields, thread, from, causedBy}`.
+#[cfg(feature = "std")]
+pub fn read_act_bytes(input: &[u8]) -> Result<Vec<u8>, Vec<u8>> {
+    let s = core::str::from_utf8(input).map_err(|e| format!("invalid UTF-8: {e}").into_bytes())?;
+    cbcl_parser::read_act_str(s)
+        .map(|s| s.into_bytes())
+        .map_err(|e| e.into_bytes())
+}
+/// SPEC-087: a JSON contract → `{"name","label","dialect"}`, installed through R1–R7.
+#[cfg(feature = "std")]
+pub fn compile_contract_bytes(input: &[u8]) -> Result<Vec<u8>, Vec<u8>> {
+    let s = core::str::from_utf8(input).map_err(|e| format!("invalid UTF-8: {e}").into_bytes())?;
+    cbcl_parser::compile_contract_str(s)
+        .map(|s| s.into_bytes())
+        .map_err(|e| e.into_bytes())
+}
 /// `(fold <dialect-or-chain> <thread> (acts (<signer> <message>) …))` → state JSON.
 pub fn fold_bytes(input: &[u8]) -> Result<Vec<u8>, Vec<u8>> {
     let s = core::str::from_utf8(input).map_err(|e| format!("invalid UTF-8: {e}").into_bytes())?;
@@ -912,6 +959,32 @@ mod c_abi {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // -- native state-layer and reading exports (the same functions the
+    // bindgen block exposes to browsers; hosts that link natively call these) --
+
+    #[test]
+    fn native_bytes_exports_match_the_bindgen_surface() {
+        let checklist = include_str!("../../../dialects/checklist.cbcl");
+        let name = String::from_utf8(dialect_hash_bytes(checklist.as_bytes()).unwrap()).unwrap();
+        let tree = String::from_utf8(read_bytes(b"(open @a :x \"y\")").unwrap()).unwrap();
+        assert_eq!(tree, r#"["open","@a",":x",{"str":"y"}]"#);
+        assert!(read_bytes(b"(open").is_err());
+        let define = String::from_utf8(define_text_bytes(checklist.as_bytes()).unwrap()).unwrap();
+        assert!(define.starts_with("(define "));
+        let described = String::from_utf8(describe_dialect_bytes(checklist.as_bytes()).unwrap()).unwrap();
+        assert!(described.contains("\"opener\":\"open\""), "{described}");
+        let contract = br#"{"version":3,"kind":"contract","name":"one","verbs":{"open":{"after":["begin"],"fields":{"title":"string"}}},"state":{"title":["last","open","title"]}}"#;
+        let compiled = String::from_utf8(compile_contract_bytes(contract).unwrap()).unwrap();
+        assert!(compiled.contains("\"label\":\"one\""));
+        assert!(compile_contract_bytes(b"{").is_err());
+        let act = format!("(lang {name} (open @o :thread \"t\" :from @o :caused-by begin :title \"T\"))");
+        let read = String::from_utf8(read_act_bytes(act.as_bytes()).unwrap()).unwrap();
+        assert!(read.contains("\"verb\":\"open\""));
+        let admitted = format!("(admit {name} \"t\" (acts) (@o {act}))");
+        let verdict = String::from_utf8(admit_bytes(admitted.as_bytes()).unwrap()).unwrap();
+        assert!(verdict.contains("\"verdict\":\""), "{verdict}");
+    }
 
     // -- parse_bytes --
 
