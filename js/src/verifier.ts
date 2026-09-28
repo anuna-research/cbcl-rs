@@ -27,16 +27,27 @@ if (underNode) {
 
 /** Initialise the verifier (idempotent). Resolves when every export may be called. */
 export function ready(): Promise<void> {
-  if (loaded) return Promise.resolve();
+  if (probe()) return Promise.resolve();
   pending ??= init({ module_or_path: new URL('./cbcl_wasm_bg.wasm', import.meta.url) }).then(() => { loaded = true; });
   return pending;
 }
 
-/** Whether the verifier is initialised. */
-export function isReady(): boolean { return loaded; }
+// The wasm module is a singleton shared with any host that initialised it
+// through its own `init` of the same module (a chat page, a test harness), so
+// readiness is the module's state, not this module's flag: an export throws a
+// TypeError until the module is initialised and a string reason afterwards.
+function probe(): boolean {
+  if (loaded) return true;
+  try { wasmParse('(probe)'); } catch (error) { if (error instanceof TypeError) return false; }
+  loaded = true;
+  return true;
+}
+
+/** Whether the verifier is initialised, by this module or by the host. */
+export function isReady(): boolean { return probe(); }
 
 function guard(): void {
-  if (!loaded) throw new Error('CBCL verifier is not initialised; await ready() first.');
+  if (!probe()) throw new Error('CBCL verifier is not initialised; await ready() first.');
 }
 
 // The wasm reports a refusal by throwing its reason (a blame S-expression, a
