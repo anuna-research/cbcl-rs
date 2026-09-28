@@ -336,59 +336,7 @@ use cbcl_parser::state_exports as state_layer;
 
 /// Verify a runtime message against a dialect's shape constraints.
 fn verify_message_shape_str(input: &str) -> Result<String, String> {
-    let frame = parser::parse(input).map_err(|e| format!("parse error: {e}"))?;
-    let items = match &frame {
-        SExpr::List(items) => items,
-        _ => {
-            return Err(String::from(
-                "expected (verify-shape <dialect-or-chain> <performative> <message>)",
-            ))
-        }
-    };
-    if items.len() != 4 || !matches!(&items[0], SExpr::Atom(Atom::Symbol(s)) if s == "verify-shape")
-    {
-        return Err(String::from(
-            "expected (verify-shape <dialect-or-chain> <performative> <message>)",
-        ));
-    }
-    let performative = match &items[2] {
-        SExpr::Atom(Atom::Symbol(s)) => s.clone(),
-        _ => return Err(String::from("performative must be a symbol")),
-    };
-    let dialect_sexpr = &items[1];
-    let message_sexpr = &items[3];
-
-    let registry = parse_and_install_dialect(dialect_sexpr)?;
-
-    // Composition by conjunction (REQ-224): every matching shape across the
-    // whole installed registry must pass. Iterating all installed dialects
-    // (not just the leaf) matches the full pipeline's behaviour, so a shape
-    // declared on a parent dialect supplied via the `(dialects ...)` chain
-    // form still fires for messages that target the parent's performative.
-    // Blame attribution follows the dialect that owns the failing shape.
-    for d in registry.iter() {
-        for shape in &d.shapes {
-            if shape.performative != performative {
-                continue;
-            }
-            if let Err(violation) = shape.check(message_sexpr) {
-                let blame = ViolationError::from_shape_violation(
-                    &violation,
-                    None,
-                    None,
-                    Some(message_sexpr.clone()),
-                )
-                .with_dialect_context(
-                    &d.name,
-                    d.author.as_deref(),
-                    d.hash.as_deref(),
-                    Some(&performative),
-                );
-                return Err(serialize(&blame.to_sexpr()));
-            }
-        }
-    }
-    Ok(String::from("ok"))
+    cbcl_parser::verify_message_shape_str(input)
 }
 
 /// Parse a `(history (<hash> <msg>) ...)` block and append each entry to `store`

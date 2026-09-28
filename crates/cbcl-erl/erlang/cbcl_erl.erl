@@ -10,6 +10,9 @@
 %%     parse_message/1      :: binary() -> {ok, message()} | {error, binary()}
 %%     parse_message_lax/1  :: binary() -> {ok, message()} | {error, binary()}
 %%     verify_dialect/1     :: binary() -> ok | {error, binary()}
+%%     verify_message_shape/1 :: binary() -> {ok, <<"ok">>} | {error, Blame :: binary()}
+%%       frame (verify-shape <dialect> <performative> <message>); the browser's
+%%       wasm verdict, so a hub never re-encodes the shape grammar (cbcl-rs #14)
 %%     versions/0           :: () -> {CbclRsGitRevision :: binary(),
 %%                                    CbclCoreVersion   :: binary(),
 %%                                    CbclErlVersion    :: binary()}
@@ -44,6 +47,7 @@
 -export([parse_message/1,
          parse_message_lax/1,
          verify_dialect/1,
+         verify_message_shape/1,
          versions/0,
          fold/1,
          intend/1,
@@ -73,6 +77,7 @@ priv_dir() ->
 parse_message(_Bytes)      -> erlang:nif_error(nif_not_loaded).
 parse_message_lax(_Bytes)  -> erlang:nif_error(nif_not_loaded).
 verify_dialect(_Bytes)     -> erlang:nif_error(nif_not_loaded).
+verify_message_shape(_Frame) -> erlang:nif_error(nif_not_loaded).
 versions()                 -> erlang:nif_error(nif_not_loaded).
 fold(_Frame)               -> erlang:nif_error(nif_not_loaded).
 intend(_Frame)             -> erlang:nif_error(nif_not_loaded).

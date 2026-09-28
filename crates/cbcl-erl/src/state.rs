@@ -75,6 +75,13 @@ pub fn admit_pure(bytes: &[u8]) -> Result<String, String> {
 pub fn read_pure(bytes: &[u8]) -> Result<String, String> {
     cbcl_parser::read_str(utf8(bytes)?)
 }
+/// Env-free core of `verify_message_shape/1` (SPEC-009 CON-002; cbcl-rs #14):
+/// `(verify-shape <dialect> <performative> <message>)` → `"ok"`, or `Err`
+/// with the REQ-233 blame S-expression, the same verdict the browser's wasm
+/// gives, so a hub never re-encodes a shape grammar in its own language.
+pub fn verify_message_shape_pure(bytes: &[u8]) -> Result<String, String> {
+    cbcl_parser::verify_message_shape_str(utf8(bytes)?)
+}
 
 /// Encode a pure result as `{ok, Bin} | {error, Bin}` under the panic guard.
 #[allow(clippy::let_unit_value)]
@@ -160,6 +167,11 @@ pub fn read<'a>(env: Env<'a>, bytes: Binary<'a>) -> Term<'a> {
     run(env, "read", bytes.as_slice(), read_pure)
 }
 
+#[rustler::nif]
+pub fn verify_message_shape<'a>(env: Env<'a>, bytes: Binary<'a>) -> Term<'a> {
+    run(env, "verify_message_shape", bytes.as_slice(), verify_message_shape_pure)
+}
+
 #[cfg(test)]
 mod tests {
     //! Tests target the env-free `*_pure` helpers (see `verify_dialect.rs`
@@ -219,6 +231,12 @@ mod tests {
         let orphan = "(lang lunch-vote (vote @lunch :choice \"Sushi\" :caused-by sha256-ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff :thread \"v1\" :from @bo))";
         let pending = admit_pure(format!("(admit {LUNCH} \"v1\" {acts} (@bo {orphan}))").as_bytes()).unwrap();
         assert_eq!(pending, "{\"verdict\":\"pending\"}");
+        assert_eq!(
+            verify_message_shape_pure(format!("(verify-shape {LUNCH} vote (vote @lunch :choice \"Sushi\"))").as_bytes()).unwrap(),
+            "ok"
+        );
+        let blame = verify_message_shape_pure(format!("(verify-shape {LUNCH} vote (vote @lunch :choice 3))").as_bytes()).unwrap_err();
+        assert!(blame.contains("choice"), "{blame}");
     }
 
     #[test]
