@@ -966,7 +966,7 @@ mod tests {
     #[test]
     fn native_bytes_exports_match_the_bindgen_surface() {
         let checklist = include_str!("../../../dialects/checklist.cbcl");
-        let name = String::from_utf8(dialect_hash_bytes(checklist.as_bytes()).unwrap()).unwrap();
+        assert!(dialect_hash_bytes(checklist.as_bytes()).is_ok());
         let tree = String::from_utf8(read_bytes(b"(open @a :x \"y\")").unwrap()).unwrap();
         assert_eq!(tree, r#"["open","@a",":x",{"str":"y"}]"#);
         assert!(read_bytes(b"(open").is_err());
@@ -978,10 +978,11 @@ mod tests {
         let compiled = String::from_utf8(compile_contract_bytes(contract).unwrap()).unwrap();
         assert!(compiled.contains("\"label\":\"one\""));
         assert!(compile_contract_bytes(b"{").is_err());
-        let act = format!("(lang {name} (open @o :thread \"t\" :from @o :caused-by begin :title \"T\"))");
+        let declared = define.split_whitespace().nth(1).unwrap();
+        let act = format!("(lang {declared} (open @o :thread \"t\" :from @o :caused-by begin :title \"T\"))");
         let read = String::from_utf8(read_act_bytes(act.as_bytes()).unwrap()).unwrap();
         assert!(read.contains("\"verb\":\"open\""));
-        let admitted = format!("(admit {name} \"t\" (acts) (@o {act}))");
+        let admitted = format!("(admit {define} \"t\" (acts) (@o {act}))");
         let verdict = String::from_utf8(admit_bytes(admitted.as_bytes()).unwrap()).unwrap();
         assert!(verdict.contains("\"verdict\":\""), "{verdict}");
     }
