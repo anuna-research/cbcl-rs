@@ -1,35 +1,16 @@
 //! NIF: `parse_message_lax/1` — see SPEC-009 §REQ-003 (lax variant).
 //!
-//! # v0.1.0 status: behavioural alias of `parse_message/1`
+//! # Lax semantics
 //!
-//! REQ-003 mandates that this NIF exist as a distinct export. `cbcl-parser`
-//! does not yet expose a separate lax-mode message parser — its public
-//! surface is `parse`, `parse_message`, `run_pipeline`, and
-//! `run_pipeline_full`, none of which differ in strict-vs-lax behaviour at
-//! the message level. Earlier drafts of cbcl-erl tried to invent a
-//! relaxation by collapsing non-Simple inputs to `{ok, {raw, <<bytes>>}}`,
-//! but `encoding::encode_message` now encodes every `Message` variant
-//! losslessly (Simple / Wrapped / Dialect / Meta) — so any divergence from
-//! strict would make lax *less* informative than strict, which is the
-//! opposite of REQ-003's intent.
-//!
-//! For v0.1.0 this NIF is therefore a behavioural alias of
-//! `parse_message/1`: same return shape, same error categories. SPEC-009
-//! §11 lists the open questions that block a meaningful divergence:
-//!
-//!   1. **Scheduler safety strategy** — whether the binding runs on dirty
-//!      schedulers, uses time-budgeted reductions, or is fundamentally a
-//!      best-effort entrypoint. The lax variant in particular invites
-//!      inputs that exercise heavier code paths.
-//!   2. **Error categorisation granularity** — today errors are loose
-//!      strings (`"parse error: ..."`, etc.). A real lax mode needs
-//!      principled categorisation so callers can tell "rejected by
-//!      strict, accepted by lax" from "rejected by both" without
-//!      string-matching.
-//!
-//! Until those land, BEAM consumers can call either NIF interchangeably.
-//! The export is kept distinct so a future amendment can grow real lax
-//! semantics without breaking consumer call sites.
+//! Identical to `parse_message/1` except for one case: a custom performative
+//! outside a `(lang …)` wrapper, which strict refuses under the scoping rule
+//! (a bare head names no dialect), lax accepts as a bare
+//! `Performative::Custom`. That is the shape of the chat hub's control frames
+//! (`adddialect`, `fetchdialect`, `addagent`, …): the hub dispatches them by
+//! head name itself and gates them with a performative allow-list, so the
+//! dispatch the scoping rule exists to make deterministic is the hub's own.
+//! Content messages go through `parse_message/1`, where the rule stands.
+//! Error categories and reason strings are otherwise the strict NIF's.
 //!
 //! Return shape:
 //!
@@ -39,7 +20,7 @@
 //! ```
 
 use cbcl_core::message::Message;
-use cbcl_parser::{parse, parse_message};
+use cbcl_parser::{parse, parse_message_lax};
 use rustler::types::atom;
 use rustler::types::atom::Atom as ErlAtom;
 use rustler::{Binary, Encoder, Env, OwnedBinary, Term};
@@ -47,15 +28,15 @@ use rustler::{Binary, Encoder, Env, OwnedBinary, Term};
 use crate::encoding;
 use crate::tracing_hooks;
 
-/// Pure-Rust core of `parse_message_lax/1`. Identical to
-/// `parse_message_pure` for v0.1.0; see module docs for the rationale.
+/// Pure-Rust core of `parse_message_lax/1`: strict recognition, plus a bare
+/// custom head accepted (see module docs).
 /// Reason strings (`"parse error: ..."`, `"message error: ..."`,
 /// `"invalid utf-8"`) match the strict NIF byte-for-byte so callers that
 /// already pattern-match on strict reasons keep working.
 pub fn parse_message_lax_pure(bytes: &[u8]) -> Result<Message, String> {
     let input = core::str::from_utf8(bytes).map_err(|_| String::from("invalid utf-8"))?;
     let sexpr = parse(input).map_err(|e| format!("parse error: {e}"))?;
-    parse_message(&sexpr).map_err(|e| format!("message error: {e}"))
+    parse_message_lax(&sexpr).map_err(|e| format!("message error: {e}"))
 }
 
 /// Build an Erlang binary from a byte slice. Mirrors the helper in
@@ -142,6 +123,18 @@ mod tests {
     //! env-free `parse_message_lax_pure` instead; the wrapper is glue.
 
     use super::*;
+
+    #[test]
+    fn a_bare_control_performative_is_accepted_by_lax_and_refused_by_strict() {
+        let frame = b"(adddialect @general :name probe :def \"(define probe (cbcl) @a)\" :from @alice)";
+        assert!(crate::parse_message_pure(frame).is_err());
+        let msg = parse_message_lax_pure(frame).unwrap();
+        assert!(matches!(msg, Message::Simple { .. }));
+        assert_eq!(
+            msg.performative(),
+            Some(&cbcl_core::message::Performative::Custom("adddialect".into()))
+        );
+    }
 
     #[test]
     fn simple_message_returns_simple_message() {

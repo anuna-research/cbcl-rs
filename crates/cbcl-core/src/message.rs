@@ -253,6 +253,20 @@ pub enum Message {
 // ---------------------------------------------------------------------------
 
 impl Message {
+    /// Recognise a message as [`TryFrom<&SExpr>`] does, except that a custom
+    /// performative outside a `(lang …)` wrapper is accepted as a bare
+    /// `Performative::Custom` instead of being refused under the scoping rule.
+    ///
+    /// For hosts that dispatch such a frame by its head name themselves and
+    /// accept only the names they know — the chat hub's control plane
+    /// (`adddialect`, `fetchdialect`, `addagent`, …), which its lax parser
+    /// gates with a performative allow-list. Content messages go through
+    /// `TryFrom`, where the scoping rule stands: nothing in a bare custom head
+    /// says which dialect defines it.
+    pub fn parse_lax(sexpr: &SExpr) -> Result<Self, MessageParseError> {
+        parse_message_scoped(sexpr, LangScope::Lax)
+    }
+
     /// Returns the message type classification.
     pub fn message_type(&self) -> MessageType {
         match self {
@@ -515,6 +529,11 @@ enum LangScope {
     Unscoped,
     /// Inside a `(lang <dialect> …)`, possibly through wrappers.
     Scoped,
+    /// No enclosing `(lang …)`, but the caller dispatches a bare custom head
+    /// by name itself and asked for it ([`Message::parse_lax`]): a control
+    /// frame of a host whose control plane predates the scoping rule. Never a
+    /// content message.
+    Lax,
 }
 
 /// Recognise a message, tracking whether a `(lang …)` wrapper encloses it.

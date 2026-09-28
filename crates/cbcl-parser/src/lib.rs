@@ -28,7 +28,7 @@ pub use contract::compile_contract_str;
 #[cfg(feature = "std")]
 pub use describe::{define_text_str, describe_dialect_str, read_act_str};
 pub use dialect_parser::{parse_dialect, parse_meta_define};
-pub use message_parser::parse_message;
+pub use message_parser::{parse_message, parse_message_lax};
 pub use parser::{parse, ParseError};
 pub use pipeline::{
     run_pipeline, run_pipeline_full, PipelineContext, PipelineResult, ValidationError,

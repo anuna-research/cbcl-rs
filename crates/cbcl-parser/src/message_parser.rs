@@ -20,6 +20,13 @@ pub fn parse_message(sexpr: &SExpr) -> Result<Message, String> {
     Message::try_from(sexpr).map_err(|e| e.0)
 }
 
+/// Lax recognition: as [`parse_message`], except that a bare custom
+/// performative outside `(lang …)` is accepted (see [`Message::parse_lax`]).
+/// For a host's own control frames, dispatched by head name; never content.
+pub fn parse_message_lax(sexpr: &SExpr) -> Result<Message, String> {
+    Message::parse_lax(sexpr).map_err(|e| e.0)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -80,6 +87,21 @@ mod tests {
         if let Some(Message::Simple { params, .. }) = m.inner_message() {
             assert_eq!(params.len(), 1);
         }
+    }
+
+    #[test]
+    fn lax_recognition_accepts_a_bare_custom_head_for_a_hosts_control_frame() {
+        // The chat hub dispatches its control frames by head name and gates
+        // them with an allow-list; strict refuses them, lax names the head.
+        let sexpr = crate::parse("(adddialect @general :name probe :def \"(define probe (cbcl) @a)\" :from @alice)").unwrap();
+        assert!(parse_message(&sexpr).is_err());
+        let m = parse_message_lax(&sexpr).unwrap();
+        assert_eq!(m.performative(), Some(&Performative::Custom("adddialect".into())));
+        // Lax changes nothing else: a core performative and a scoped one read the same.
+        let core = crate::parse("(tell @bob \"hi\")").unwrap();
+        assert_eq!(parse_message_lax(&core).unwrap(), parse_message(&core).unwrap());
+        let scoped = crate::parse("(lang d (ship parcel))").unwrap();
+        assert_eq!(parse_message_lax(&scoped).unwrap(), parse_message(&scoped).unwrap());
     }
 
     #[test]
