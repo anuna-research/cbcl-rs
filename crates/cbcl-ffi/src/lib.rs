@@ -11,6 +11,7 @@
 //!   `cbcl_fold`, `cbcl_intend`, `cbcl_verify_state_shape`, `cbcl_state_schema`,
 //!   `cbcl_may_send`, `cbcl_frontier`, `cbcl_dialect_hash`, `cbcl_admit`
 //! - `cbcl_read` — the parser's tree of one S-expression as JSON
+//! - `cbcl_compile_contract` — SPEC-087: a JSON contract → its self-addressed dialect
 
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
@@ -318,6 +319,19 @@ pub unsafe extern "C" fn cbcl_admit(input: *const c_char) -> CbclResult {
 #[no_mangle]
 pub unsafe extern "C" fn cbcl_read(input: *const c_char) -> CbclResult {
     state_export(input, cbcl_parser::read_str)
+}
+
+/// SPEC-087: compile a JSON authoring contract to its dialect, named by
+/// self-address and installed through R1–R7. Returns JSON
+/// `{"name","label","dialect"}`; a rejection is the recognition or blame
+/// reason. Free with `cbcl_string_free`.
+///
+/// # Safety
+///
+/// `input` must be a valid null-terminated UTF-8 C string.
+#[no_mangle]
+pub unsafe extern "C" fn cbcl_compile_contract(input: *const c_char) -> CbclResult {
+    state_export(input, cbcl_parser::compile_contract_str)
 }
 
 /// Create a new CBCL agent with the given ID and base dialect installed.

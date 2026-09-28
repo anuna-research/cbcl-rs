@@ -677,6 +677,12 @@ mod wasm_bindgen_api {
     pub fn read(input: &str) -> Result<String, String> {
         cbcl_parser::read_str(input)
     }
+    /// SPEC-087: a JSON contract → `{"name","label","dialect"}`, the dialect named by
+    /// its self-address and installed through R1–R7, or a reason.
+    #[wasm_bindgen]
+    pub fn compile_contract(input: &str) -> Result<String, String> {
+        cbcl_parser::compile_contract_str(input)
+    }
     /// SPEC-019 R.4/R5/R6: `(admit <dialect> <thread> (acts …) (<signer> <message>))` →
     /// `{"verdict":"accepted"|"pending"|"rejected"[,"reason"]}` against the accepted set.
     #[wasm_bindgen]

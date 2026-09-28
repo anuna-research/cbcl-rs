@@ -9,13 +9,17 @@ repository.workspace = true
 
 [features]
 default = ["std"]
-std = ["cbcl-core/std"]
+# The JSON contract compiler (SPEC-087) needs serde_json's preserve_order,
+# which needs std; every binding builds with std, the no_std core does not.
+std = ["cbcl-core/std", "dep:serde_json", "serde_json/preserve_order"]
 serde = ["cbcl-core/serde"]
 tracing = ["dep:tracing", "cbcl-core/tracing"]
 
 [dependencies]
 cbcl-core.workspace = true
 tracing = { workspace = true, optional = true }
+# SPEC-087: the JSON authoring contract. `alloc` mode keeps the crate no_std.
+serde_json = { version = "1", default-features = false, features = ["alloc"], optional = true }
 
 [dev-dependencies]
 proptest = "1"

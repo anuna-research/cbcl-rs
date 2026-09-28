@@ -75,6 +75,11 @@ pub fn admit_pure(bytes: &[u8]) -> Result<String, String> {
 pub fn read_pure(bytes: &[u8]) -> Result<String, String> {
     cbcl_parser::read_str(utf8(bytes)?)
 }
+/// Env-free core of `compile_contract/1` (SPEC-087): a JSON contract →
+/// `{"name","label","dialect"}` JSON, or the recognition or R1–R7 reason.
+pub fn compile_contract_pure(bytes: &[u8]) -> Result<String, String> {
+    cbcl_parser::compile_contract_str(utf8(bytes)?)
+}
 /// Env-free core of `verify_message_shape/1` (SPEC-009 CON-002; cbcl-rs #14):
 /// `(verify-shape <dialect> <performative> <message>)` → `"ok"`, or `Err`
 /// with the REQ-233 blame S-expression, the same verdict the browser's wasm
@@ -103,7 +108,7 @@ fn run<'a>(
                     "invalid_utf8"
                 } else if msg.starts_with("parse error") || msg.starts_with("expected (") {
                     "frame_error"
-                } else if msg.starts_with("dialect") {
+                } else if msg.starts_with("dialect") || msg.starts_with("contract:") {
                     "dialect_error"
                 } else if msg.starts_with("{\"reject\"") {
                     "intent_rejected"
@@ -165,6 +170,11 @@ pub fn admit<'a>(env: Env<'a>, bytes: Binary<'a>) -> Term<'a> {
 #[rustler::nif]
 pub fn read<'a>(env: Env<'a>, bytes: Binary<'a>) -> Term<'a> {
     run(env, "read", bytes.as_slice(), read_pure)
+}
+
+#[rustler::nif]
+pub fn compile_contract<'a>(env: Env<'a>, bytes: Binary<'a>) -> Term<'a> {
+    run(env, "compile_contract", bytes.as_slice(), compile_contract_pure)
 }
 
 #[rustler::nif]

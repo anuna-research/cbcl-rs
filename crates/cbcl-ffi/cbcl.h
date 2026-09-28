@@ -167,6 +167,18 @@ struct CbclResult cbcl_admit(const char *input);
 struct CbclResult cbcl_read(const char *input);
 
 /**
+ * SPEC-087: compile a JSON authoring contract to its dialect, named by
+ * self-address and installed through R1–R7. Returns JSON
+ * `{"name","label","dialect"}`; a rejection is the recognition or blame
+ * reason. Free with `cbcl_string_free`.
+ *
+ * # Safety
+ *
+ * `input` must be a valid null-terminated UTF-8 C string.
+ */
+struct CbclResult cbcl_compile_contract(const char *input);
+
+/**
  * Create a new CBCL agent with the given ID and base dialect installed.
  *
  * Returns an opaque handle. The caller must free it with `cbcl_agent_free`.

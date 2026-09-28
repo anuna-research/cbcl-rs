@@ -12,6 +12,8 @@ pub mod dialect_parser;
 pub mod message_parser;
 pub mod parser;
 pub mod pipeline;
+#[cfg(feature = "std")]
+pub mod contract;
 pub mod protocol_parser;
 pub mod read;
 pub mod shape_exports;
@@ -19,6 +21,8 @@ pub mod shape_parser;
 pub mod state_exports;
 pub mod state_parser;
 
+#[cfg(feature = "std")]
+pub use contract::compile_contract_str;
 pub use dialect_parser::{parse_dialect, parse_meta_define};
 pub use message_parser::parse_message;
 pub use parser::{parse, ParseError};
