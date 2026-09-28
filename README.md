@@ -21,7 +21,7 @@ Prerequisites: Rust 1.75+ (the workspace toolchain is pinned in `rust-toolchain.
 git clone https://codeberg.org/anuna/cbcl-rs
 cd cbcl-rs
 
-# Run tests (1356 passing tests across 32 suites; 19 ignored)
+# Run tests (1404 passing tests across 40 suites; 23 ignored)
 cargo test --workspace
 
 # Parse a message
@@ -174,8 +174,9 @@ Strict **purity boundary**: the core crates are deterministic, `no_std + alloc`,
 
 ## Testing
 
-- **Unit tests**: 862 in cbcl-core, 155 in cbcl-parser, 62 in cbcl-wasm, 36 in cbcl-erl (19 further ignored), 14 in cbcl-ffi; 4 CLI integration tests
-- **Property tests**: 37 proptest cases (31 in cbcl-core, 6 in cbcl-parser) covering USDD verification properties
+- **Unit tests**: 867 in cbcl-core, 160 in cbcl-parser, 65 in cbcl-wasm, 39 in cbcl-erl (19 further ignored), 15 in cbcl-ffi; 4 CLI integration tests
+- **Property tests**: 43 proptest cases (37 in cbcl-core, of which 6 mirror the State.lean theorems, 6 in cbcl-parser) covering USDD verification properties
+- **Conformance corpus**: `test-vectors/state/` replayed forward, reversed, and duplicated by the parser runner and by every binding (`crates/cbcl-parser/tests/state_exports.rs`); a BEAM smoke test (`crates/cbcl-erl/scripts/smoke.escript`, 30 checks) loads the NIF and calls every export
 - **Differential tests**: 21 integration tests comparing Rust vs Lean on shared test vectors
 - **Eventual-consistency / NFR tests**: 12 + 4 integration tests in cbcl-core
 - **Fuzz targets**: libFuzzer harnesses for parser trust boundary
