@@ -13,6 +13,7 @@ pub mod message_parser;
 pub mod parser;
 pub mod pipeline;
 pub mod protocol_parser;
+pub mod read;
 pub mod shape_parser;
 pub mod state_exports;
 pub mod state_parser;
@@ -24,6 +25,7 @@ pub use pipeline::{
     run_pipeline, run_pipeline_full, PipelineContext, PipelineResult, ValidationError,
 };
 pub use protocol_parser::{parse_protocol, ProtocolParseError};
+pub use read::read_str;
 pub use shape_parser::parse_shape;
 pub use state_exports::parse_and_install_dialect;
 pub use state_parser::{parse_state, parse_state_bounds};

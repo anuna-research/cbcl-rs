@@ -26,6 +26,8 @@
 %%     frontier/1           :: binary() -> {ok, binary()} | {error, binary()}
 %%     dialect_hash/1       :: binary() -> {ok, binary()} | {error, binary()}
 %%     admit/1              :: binary() -> {ok, binary()} | {error, binary()}
+%%   Reading (SPEC-013 REQ-018, one parser): the tree of one S-expression as JSON.
+%%     read/1               :: binary() -> {ok, binary()} | {error, binary()}
 %%
 %% All bodies below are stubs: when the NIF loads via on_load they are
 %% replaced atomically by the rustler-emitted natives. If load_nif fails
@@ -50,7 +52,8 @@
          may_send/1,
          frontier/1,
          dialect_hash/1,
-         admit/1]).
+         admit/1,
+         read/1]).
 
 -on_load(init/0).
 
@@ -79,3 +82,4 @@ may_send(_Frame)           -> erlang:nif_error(nif_not_loaded).
 frontier(_Frame)           -> erlang:nif_error(nif_not_loaded).
 dialect_hash(_Define)      -> erlang:nif_error(nif_not_loaded).
 admit(_Frame)              -> erlang:nif_error(nif_not_loaded).
+read(_Bytes)               -> erlang:nif_error(nif_not_loaded).

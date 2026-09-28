@@ -155,6 +155,18 @@ struct CbclResult cbcl_dialect_hash(const char *input);
 struct CbclResult cbcl_admit(const char *input);
 
 /**
+ * The parser's tree of one S-expression as JSON: lists as arrays, quoted
+ * strings as `{"str":…}`, every other atom as its text. A host reads a
+ * frame through this rather than a reader of its own (SPEC-013 REQ-018).
+ * Free with `cbcl_string_free`.
+ *
+ * # Safety
+ *
+ * `input` must be a valid null-terminated UTF-8 C string.
+ */
+struct CbclResult cbcl_read(const char *input);
+
+/**
  * Create a new CBCL agent with the given ID and base dialect installed.
  *
  * Returns an opaque handle. The caller must free it with `cbcl_agent_free`.

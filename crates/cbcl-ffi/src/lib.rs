@@ -10,6 +10,7 @@
 //! - SPEC-019 state layer (R.7), one S-expression frame in, text out:
 //!   `cbcl_fold`, `cbcl_intend`, `cbcl_verify_state_shape`, `cbcl_state_schema`,
 //!   `cbcl_may_send`, `cbcl_frontier`, `cbcl_dialect_hash`, `cbcl_admit`
+//! - `cbcl_read` — the parser's tree of one S-expression as JSON
 
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
@@ -304,6 +305,19 @@ pub unsafe extern "C" fn cbcl_dialect_hash(input: *const c_char) -> CbclResult {
 #[no_mangle]
 pub unsafe extern "C" fn cbcl_admit(input: *const c_char) -> CbclResult {
     state_export(input, cbcl_parser::state_exports::admit_str)
+}
+
+/// The parser's tree of one S-expression as JSON: lists as arrays, quoted
+/// strings as `{"str":…}`, every other atom as its text. A host reads a
+/// frame through this rather than a reader of its own (SPEC-013 REQ-018).
+/// Free with `cbcl_string_free`.
+///
+/// # Safety
+///
+/// `input` must be a valid null-terminated UTF-8 C string.
+#[no_mangle]
+pub unsafe extern "C" fn cbcl_read(input: *const c_char) -> CbclResult {
+    state_export(input, cbcl_parser::read_str)
 }
 
 /// Create a new CBCL agent with the given ID and base dialect installed.

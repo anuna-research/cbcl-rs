@@ -209,6 +209,12 @@ checks(Lunch) ->
      {"admit/1 malformed",
       fun() -> cbcl_erl:admit(<<"(admit">>) end,
       fun err/1},
+     {"read/1 returns the parser's tree",
+      fun() -> cbcl_erl:read(<<"(tell @bo \"hi\" :n 3)">>) end,
+      fun({ok, <<"[\"tell\",\"@bo\",{\"str\":\"hi\"},\":n\",\"3\"]">>}) -> true; (_) -> false end},
+     {"read/1 malformed",
+      fun() -> cbcl_erl:read(<<"(tell">>) end,
+      fun err/1},
      {"invalid utf-8 is a reason, not a crash",
       fun() -> cbcl_erl:fold(<<255, 254>>) end,
       fun({error, <<"invalid utf-8">>}) -> true; (_) -> false end}

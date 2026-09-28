@@ -722,6 +722,13 @@ mod wasm_bindgen_api {
     pub fn dialect_hash(input: &str) -> Result<String, String> {
         state_layer::dialect_hash_str(input)
     }
+    /// The parser's tree for one S-expression as JSON (lists as arrays, quoted
+    /// strings as `{"str":…}`, every other atom as its text), so a host reads a
+    /// frame through this parser instead of one of its own (SPEC-013 REQ-018).
+    #[wasm_bindgen]
+    pub fn read(input: &str) -> Result<String, String> {
+        cbcl_parser::read_str(input)
+    }
     /// SPEC-019 R.4/R5/R6: `(admit <dialect> <thread> (acts …) (<signer> <message>))` →
     /// `{"verdict":"accepted"|"pending"|"rejected"[,"reason"]}` against the accepted set.
     #[wasm_bindgen]

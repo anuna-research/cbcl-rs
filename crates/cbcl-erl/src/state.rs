@@ -71,6 +71,10 @@ pub fn dialect_hash_pure(bytes: &[u8]) -> Result<String, String> {
 pub fn admit_pure(bytes: &[u8]) -> Result<String, String> {
     state_exports::admit_str(utf8(bytes)?)
 }
+/// Env-free core of `read/1`: the parser's tree as JSON.
+pub fn read_pure(bytes: &[u8]) -> Result<String, String> {
+    cbcl_parser::read_str(utf8(bytes)?)
+}
 
 /// Encode a pure result as `{ok, Bin} | {error, Bin}` under the panic guard.
 #[allow(clippy::let_unit_value)]
@@ -149,6 +153,11 @@ pub fn dialect_hash<'a>(env: Env<'a>, bytes: Binary<'a>) -> Term<'a> {
 #[rustler::nif]
 pub fn admit<'a>(env: Env<'a>, bytes: Binary<'a>) -> Term<'a> {
     run(env, "admit", bytes.as_slice(), admit_pure)
+}
+
+#[rustler::nif]
+pub fn read<'a>(env: Env<'a>, bytes: Binary<'a>) -> Term<'a> {
+    run(env, "read", bytes.as_slice(), read_pure)
 }
 
 #[cfg(test)]
