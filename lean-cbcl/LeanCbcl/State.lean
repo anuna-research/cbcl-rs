@@ -76,13 +76,17 @@ def Scalar.toVal : Scalar → Val
 structure Act where
   /-- Content address, as an order-preserving image of the 64-hex form. -/
   addr : Nat
+  /-- The performative the act performs. -/
   verb : String
+  /-- The authenticated signer. -/
   signer : String
+  /-- The addresses of the act's causal predecessors (`:caused-by`). -/
   preds : List Nat
+  /-- The keyword fields, in order. -/
   fields : List (String × Val)
   /-- The reserved bookkeeping field (SPEC-019 ADR-1901). -/
   replaces : List Nat
-  deriving DecidableEq, Repr
+  deriving DecidableEq
 
 /-- The value of a keyword field. -/
 def Act.get (a : Act) (k : String) : Option Val := List.lookup k a.fields
@@ -232,25 +236,34 @@ def sumField (k : String) (T : List Act) : Int := T.foldl (fun acc a => acc + am
 
 /-! ## Sugar (the author-facing rules, SPEC-019 R.2 table) -/
 
+/-- `last v :k`: one value across everyone, chosen by greatest address (SPEC-019 R.2). -/
 def last (v k : String) (A : List Act) : Option Val := pick k (acts v A)
 
+/-- `latest-per-signer v :k`: the signer `s`'s own latest value. -/
 def latestPerSigner (v k : String) (A : List Act) (s : String) : Option Val :=
   pick k ((acts v A).filter (fun a => a.signer == s))
 
+/-- `latest-per-key v :kk :k`: the latest value under key `x`, by address. -/
 def latestPerKey (v kk k : String) (A : List Act) (x : Val) : Option Val :=
   pick k ((acts v A).filter (fun a => a.get kk == some x))
 
+/-- `exists v`: whether any accepted act of `v` exists. -/
 def existsRule (v : String) (A : List Act) : Bool := !(acts v A).isEmpty
 
+/-- `count v`: the number of distinct accepted acts of `v`. -/
 def count (v : String) (A : List Act) : Nat := size (acts v A)
 
+/-- `set-union v :k`: membership in the union of every `k` value; additions only. -/
 def setUnion (v k : String) (A : List Act) (x : Val) : Bool := has k (acts v A) x
 
+/-- `values v :k`: membership in the multi-value register (values no later write replaced). -/
 def values (v k : String) (A : List Act) (x : Val) : Bool := has k (current v none none A) x
 
+/-- `values-per-key v :kk :k [d]`: membership in the register under key `x`, every current value kept. -/
 def valuesPerKey (v kk k : String) (d : Option String) (A : List Act) (x y : Val) : Bool :=
   has k ((current v (some kk) d A).filter (fun a => a.get kk == some x)) y
 
+/-- `register-per-key v :kk :k [d]`: the one current value under key `x`, by address. -/
 def registerPerKey (v kk k : String) (d : Option String) (A : List Act) (x : Val) : Option Val :=
   pick k ((current v (some kk) d A).filter (fun a => a.get kk == some x))
 
@@ -259,6 +272,7 @@ def registerPerKey (v kk k : String) (d : Option String) (A : List Act) (x : Val
 def observedSet (add rem k : String) (A : List Act) (x : Val) : Bool :=
   has k (current add (some k) (some rem) A) x
 
+/-- `counter inc dec :k`: increments minus decrements. -/
 def counter (inc dec k : String) (A : List Act) : Int :=
   sumField k (acts inc A) - sumField k (acts dec A)
 
@@ -621,6 +635,7 @@ theorem sumField_insert (k : String) (a : Act) (A : List Act) :
 
 /-- The predecessor performatives a protocol admits for a verb (one alternative set). -/
 structure Protocol where
+  /-- The verbs an accepted predecessor of `verb` may carry. -/
   allowed : String → List String
 
 /-- The accepted acts whose verb the protocol admits as a predecessor of `verb`. -/
