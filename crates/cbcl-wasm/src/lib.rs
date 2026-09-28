@@ -677,6 +677,22 @@ mod wasm_bindgen_api {
     pub fn read(input: &str) -> Result<String, String> {
         cbcl_parser::read_str(input)
     }
+    /// The canonical `(define …)` a dialect text, `(meta (define …))`, or teach frame carries.
+    #[wasm_bindgen]
+    pub fn define_text(input: &str) -> Result<String, String> {
+        cbcl_parser::define_text_str(input)
+    }
+    /// A dialect's description as JSON: opener, verbs (fields, predecessors, roles),
+    /// roles, state rules, domains, bounds; from the installed structures.
+    #[wasm_bindgen]
+    pub fn describe_dialect(input: &str) -> Result<String, String> {
+        cbcl_parser::describe_dialect_str(input)
+    }
+    /// An act's wire text → `{dialect, address, verb, recipients, fields, thread, from, causedBy}`.
+    #[wasm_bindgen]
+    pub fn read_act(input: &str) -> Result<String, String> {
+        cbcl_parser::read_act_str(input)
+    }
     /// SPEC-087: a JSON contract → `{"name","label","dialect"}`, the dialect named by
     /// its self-address and installed through R1–R7, or a reason.
     #[wasm_bindgen]

@@ -80,6 +80,18 @@ pub fn read_pure(bytes: &[u8]) -> Result<String, String> {
 pub fn compile_contract_pure(bytes: &[u8]) -> Result<String, String> {
     cbcl_parser::compile_contract_str(utf8(bytes)?)
 }
+/// Env-free core of `define_text/1`: the canonical `(define …)` a frame carries.
+pub fn define_text_pure(bytes: &[u8]) -> Result<String, String> {
+    cbcl_parser::define_text_str(utf8(bytes)?)
+}
+/// Env-free core of `describe_dialect/1`: a dialect's description as JSON.
+pub fn describe_dialect_pure(bytes: &[u8]) -> Result<String, String> {
+    cbcl_parser::describe_dialect_str(utf8(bytes)?)
+}
+/// Env-free core of `read_act/1`: an act's routing and fields as JSON.
+pub fn read_act_pure(bytes: &[u8]) -> Result<String, String> {
+    cbcl_parser::read_act_str(utf8(bytes)?)
+}
 /// Env-free core of `verify_message_shape/1` (SPEC-009 CON-002; cbcl-rs #14):
 /// `(verify-shape <dialect> <performative> <message>)` → `"ok"`, or `Err`
 /// with the REQ-233 blame S-expression, the same verdict the browser's wasm
@@ -170,6 +182,21 @@ pub fn admit<'a>(env: Env<'a>, bytes: Binary<'a>) -> Term<'a> {
 #[rustler::nif]
 pub fn read<'a>(env: Env<'a>, bytes: Binary<'a>) -> Term<'a> {
     run(env, "read", bytes.as_slice(), read_pure)
+}
+
+#[rustler::nif]
+pub fn define_text<'a>(env: Env<'a>, bytes: Binary<'a>) -> Term<'a> {
+    run(env, "define_text", bytes.as_slice(), define_text_pure)
+}
+
+#[rustler::nif]
+pub fn describe_dialect<'a>(env: Env<'a>, bytes: Binary<'a>) -> Term<'a> {
+    run(env, "describe_dialect", bytes.as_slice(), describe_dialect_pure)
+}
+
+#[rustler::nif]
+pub fn read_act<'a>(env: Env<'a>, bytes: Binary<'a>) -> Term<'a> {
+    run(env, "read_act", bytes.as_slice(), read_act_pure)
 }
 
 #[rustler::nif]

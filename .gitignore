@@ -15,3 +15,9 @@
 /.mut-tmp
 /fuzz/corpus
 /fuzz/artifacts
+
+# JavaScript package (js/): generated wasm, dependencies, build output
+/js/src/cbcl_wasm*
+/js/node_modules/
+/js/dist/
+/js/LICENSE

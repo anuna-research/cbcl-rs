@@ -31,6 +31,13 @@
 %%     admit/1              :: binary() -> {ok, binary()} | {error, binary()}
 %%     compile_contract/1   :: binary() -> {ok, binary()} | {error, binary()}
 %%       SPEC-087: a JSON contract → {"name","label","dialect"} JSON
+%%   Reading (SPEC-013 REQ-018, one reader): no host re-encodes the grammar.
+%%     define_text/1        :: binary() -> {ok, binary()} | {error, binary()}
+%%       the canonical (define …) a dialect text, (meta (define …)) or teach frame carries
+%%     describe_dialect/1   :: binary() -> {ok, binary()} | {error, binary()}
+%%       a dialect's opener, verbs, roles, state rules, domains, bounds as JSON
+%%     read_act/1           :: binary() -> {ok, binary()} | {error, binary()}
+%%       an act's dialect, address, verb, recipients, fields and routing as JSON
 %%   Reading (SPEC-013 REQ-018, one parser): the tree of one S-expression as JSON.
 %%     read/1               :: binary() -> {ok, binary()} | {error, binary()}
 %%
@@ -60,6 +67,9 @@
          dialect_hash/1,
          admit/1,
          compile_contract/1,
+         define_text/1,
+         describe_dialect/1,
+         read_act/1,
          read/1]).
 
 -on_load(init/0).
@@ -91,4 +101,7 @@ frontier(_Frame)           -> erlang:nif_error(nif_not_loaded).
 dialect_hash(_Define)      -> erlang:nif_error(nif_not_loaded).
 admit(_Frame)              -> erlang:nif_error(nif_not_loaded).
 compile_contract(_Json)    -> erlang:nif_error(nif_not_loaded).
+define_text(_Bytes)        -> erlang:nif_error(nif_not_loaded).
+describe_dialect(_Bytes)   -> erlang:nif_error(nif_not_loaded).
+read_act(_Bytes)           -> erlang:nif_error(nif_not_loaded).
 read(_Bytes)               -> erlang:nif_error(nif_not_loaded).

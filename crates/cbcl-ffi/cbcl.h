@@ -179,6 +179,36 @@ struct CbclResult cbcl_read(const char *input);
 struct CbclResult cbcl_compile_contract(const char *input);
 
 /**
+ * The canonical `(define …)` a dialect text, `(meta (define …))`, or teach
+ * frame carries. Free with `cbcl_string_free`.
+ *
+ * # Safety
+ *
+ * `input` must be a valid null-terminated UTF-8 C string.
+ */
+struct CbclResult cbcl_define_text(const char *input);
+
+/**
+ * A dialect's description as JSON (opener, verbs, roles, state rules,
+ * domains, bounds). Free with `cbcl_string_free`.
+ *
+ * # Safety
+ *
+ * `input` must be a valid null-terminated UTF-8 C string.
+ */
+struct CbclResult cbcl_describe_dialect(const char *input);
+
+/**
+ * An act's wire text → `{dialect, address, verb, recipients, fields, thread,
+ * from, causedBy}` as JSON. Free with `cbcl_string_free`.
+ *
+ * # Safety
+ *
+ * `input` must be a valid null-terminated UTF-8 C string.
+ */
+struct CbclResult cbcl_read_act(const char *input);
+
+/**
  * Create a new CBCL agent with the given ID and base dialect installed.
  *
  * Returns an opaque handle. The caller must free it with `cbcl_agent_free`.

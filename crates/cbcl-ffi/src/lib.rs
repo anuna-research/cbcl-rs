@@ -12,6 +12,7 @@
 //!   `cbcl_may_send`, `cbcl_frontier`, `cbcl_dialect_hash`, `cbcl_admit`
 //! - `cbcl_read` — the parser's tree of one S-expression as JSON
 //! - `cbcl_compile_contract` — SPEC-087: a JSON contract → its self-addressed dialect
+//! - `cbcl_define_text`, `cbcl_describe_dialect`, `cbcl_read_act` — reads for hosts
 
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
@@ -332,6 +333,39 @@ pub unsafe extern "C" fn cbcl_read(input: *const c_char) -> CbclResult {
 #[no_mangle]
 pub unsafe extern "C" fn cbcl_compile_contract(input: *const c_char) -> CbclResult {
     state_export(input, cbcl_parser::compile_contract_str)
+}
+
+/// The canonical `(define …)` a dialect text, `(meta (define …))`, or teach
+/// frame carries. Free with `cbcl_string_free`.
+///
+/// # Safety
+///
+/// `input` must be a valid null-terminated UTF-8 C string.
+#[no_mangle]
+pub unsafe extern "C" fn cbcl_define_text(input: *const c_char) -> CbclResult {
+    state_export(input, cbcl_parser::define_text_str)
+}
+
+/// A dialect's description as JSON (opener, verbs, roles, state rules,
+/// domains, bounds). Free with `cbcl_string_free`.
+///
+/// # Safety
+///
+/// `input` must be a valid null-terminated UTF-8 C string.
+#[no_mangle]
+pub unsafe extern "C" fn cbcl_describe_dialect(input: *const c_char) -> CbclResult {
+    state_export(input, cbcl_parser::describe_dialect_str)
+}
+
+/// An act's wire text → `{dialect, address, verb, recipients, fields, thread,
+/// from, causedBy}` as JSON. Free with `cbcl_string_free`.
+///
+/// # Safety
+///
+/// `input` must be a valid null-terminated UTF-8 C string.
+#[no_mangle]
+pub unsafe extern "C" fn cbcl_read_act(input: *const c_char) -> CbclResult {
+    state_export(input, cbcl_parser::read_act_str)
 }
 
 /// Create a new CBCL agent with the given ID and base dialect installed.

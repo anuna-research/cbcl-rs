@@ -40,8 +40,8 @@ pub use parse_message::parse_message_pure;
 pub use parse_message_lax::parse_message_lax_pure;
 pub use state::{
     admit_pure, dialect_hash_pure, fold_pure, frontier_pure, intend_pure, may_send_pure,
-    compile_contract_pure, read_pure, state_schema_pure, verify_message_shape_pure,
-    verify_state_shape_pure,
+    compile_contract_pure, define_text_pure, describe_dialect_pure, read_act_pure, read_pure,
+    state_schema_pure, verify_message_shape_pure, verify_state_shape_pure,
 };
 pub use verify_dialect::verify_dialect_pure;
 pub use versions::{CBCL_CORE_VERSION, CBCL_ERL_VERSION, CBCL_RS_GIT_REVISION};
