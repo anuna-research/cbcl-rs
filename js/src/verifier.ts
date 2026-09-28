@@ -41,33 +41,36 @@ function guard(): void {
 
 // The wasm reports a refusal by throwing its reason (a blame S-expression, a
 // JSON rejection, or plain text).
+function reason(error: unknown): string { return String((error as Error)?.message ?? error); }
 function outcome(call: () => string): { ok: true; result: string } | { ok: false; result: string } {
-  try { return { ok: true, result: call() }; } catch (error) { return { ok: false, result: String((error as Error)?.message ?? error) }; }
+  try { return { ok: true, result: call() }; } catch (error) { return { ok: false, result: reason(error) }; }
+}
+// The wasm throws a bare string; callers get an Error whose message is the reason.
+function refusal<T>(call: () => T): T {
+  guard();
+  try { return call(); } catch (error) { throw new Error(reason(error)); }
 }
 
 /** An S-expression tree as the parser reads it: lists as arrays, quoted strings as `{str}`, other atoms as their text. */
 export type Tree = string | { str: string } | Tree[];
 
 /** The parser's tree of one S-expression (comments allowed). Throws on a parse error. */
-export function read(text: string): Tree {
-  guard();
-  return JSON.parse(wasmRead(text)) as Tree;
-}
+export function read(text: string): Tree { return refusal(() => JSON.parse(wasmRead(text)) as Tree); }
 
 /** An S-expression's canonical serialisation. */
-export function parse(text: string): string { guard(); return wasmParse(text); }
+export function parse(text: string): string { return refusal(() => wasmParse(text)); }
 
 /** A message's canonical form. Throws with the parser's reason. */
-export function parseMessage(text: string): string { guard(); return parse_message(text); }
+export function parseMessage(text: string): string { return refusal(() => parse_message(text)); }
 
 /** CBCL's canonical content address of a message (`sha256:<hex>`). */
-export function messageHash(message: string): string { guard(); return message_hash(message); }
+export function messageHash(message: string): string { return refusal(() => message_hash(message)); }
 
 /** The same digest as the wire spells it in `:caused-by` and `:replaces` (`sha256-<hex>`). */
 export function wireAddress(message: string): string { return messageHash(message).replace(/^sha256:/, 'sha256-'); }
 
 /** A dialect's self-address `sha256-<hex>` (SPEC-019 R.6): the hash of its body, name excluded. */
-export function dialectHash(define: string): string { guard(); return dialect_hash(define); }
+export function dialectHash(define: string): string { return refusal(() => dialect_hash(define)); }
 
 /** Install a dialect through R1–R7; throws with cbcl-rs's reason when it is refused. */
 export function verifyDialect(define: string): void {
@@ -114,7 +117,7 @@ export type StateValue = null | string | number | boolean | StateValue[] | { [ke
 export type State = Record<string, StateValue>;
 
 /** `(fold <dialect> <thread> (acts …))` → the state. */
-export function foldState(frame: string): State { guard(); return JSON.parse(fold(frame)) as State; }
+export function foldState(frame: string): State { return refusal(() => JSON.parse(fold(frame)) as State); }
 
 export type IntendResult = { ok: true; canonical: string } | { ok: false; reject: string; reason: string };
 
@@ -147,7 +150,7 @@ export function stateSchema(frame: string): Record<string, { type: string; [k: s
 }
 
 /** `(may-send <dialect> <thread> (acts …) <signer>)` → the verbs the signer may emit now. */
-export function maySend(frame: string): string[] { guard(); return JSON.parse(may_send(frame)) as string[]; }
+export function maySend(frame: string): string[] { return refusal(() => JSON.parse(may_send(frame)) as string[]); }
 
 /** `(frontier <dialect> <thread> (acts …))` → the accepted opener's address and the frontier. */
 export function frontierOf(frame: string): { instance: string | null; frontier: string[] } {
@@ -158,7 +161,7 @@ export function frontierOf(frame: string): { instance: string | null; frontier: 
 export interface CompiledContract { name: string; label: string; dialect: string }
 
 /** The canonical `(define …)` a dialect text, `(meta (define …))`, or teach frame carries. Throws when there is none. */
-export function defineText(input: string): string { guard(); return define_text(input); }
+export function defineText(input: string): string { return refusal(() => define_text(input)); }
 
 /** A rule of the state clause as JSON spells it: `[op, arg…]`. */
 export type Rule = [string, ...string[]];
@@ -178,7 +181,7 @@ export interface DialectInfo {
 }
 
 /** A dialect text, `(meta (define …))`, or teach frame → its description. Throws with the parser's reason. */
-export function describeDialect(input: string): DialectInfo { guard(); return JSON.parse(describe_dialect(input)) as DialectInfo; }
+export function describeDialect(input: string): DialectInfo { return refusal(() => JSON.parse(describe_dialect(input)) as DialectInfo); }
 
 /** A field value as an act carries it. */
 export type FieldValue = string | number | boolean | FieldValue[];
@@ -198,10 +201,9 @@ export interface ActInfo {
 }
 
 /** An act's wire text → its dialect, address, verb, recipients, fields, and routing. Throws with the parser's reason. */
-export function readAct(text: string): ActInfo { guard(); return JSON.parse(read_act(text)) as ActInfo; }
+export function readAct(text: string): ActInfo { return refusal(() => JSON.parse(read_act(text)) as ActInfo); }
 
 /** SPEC-087: a JSON contract → its dialect, named by self-address and installed through R1–R7. Throws with the reason. */
 export function compileContract(json: string): CompiledContract {
-  guard();
-  return JSON.parse(compile_contract(json)) as CompiledContract;
+  return refusal(() => JSON.parse(compile_contract(json)) as CompiledContract);
 }

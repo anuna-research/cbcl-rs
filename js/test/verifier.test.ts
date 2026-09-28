@@ -77,3 +77,9 @@ test('SPEC-087 TEST-001: the contract compile is cbcl-rs and names the authored 
   assert.ok(out.dialect.startsWith(`(define ${out.name} (cbcl) @anuna`));
   assert.throws(() => compileContract('{"version":2}'), /contract:/);
 });
+
+test('a refusal is thrown as an Error carrying cbcl-rs\'s reason', () => {
+  assert.throws(() => readAct('(open'), (error: unknown) => error instanceof Error && /unexpected|unterminated|EOF|end/i.test(error.message));
+  assert.throws(() => compileContract('{"version":3,"kind":"contract","name":"x","verbs":{"open":{"after":["begin"],"fields":{}},"a":{"after":["a"],"fields":{}}},"state":{"n":["count","open"]}}'),
+    (error: unknown) => error instanceof Error && /R5.*cycle/.test(error.message));
+});
