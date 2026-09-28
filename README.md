@@ -89,7 +89,7 @@ Full theoretical framework and proofs are in the LangSec '26 paper, available as
 - **State layer (R7).** Opt-in `(state …)` and `(:state-bounds …)` clauses; a fold (`fold`) and an intent binder (`intend`) in the core, exported to every host with `admit` (the consumer's admission of a message against the accepted set), `may_send`, `frontier`, `state_schema`, and `dialect_hash` (a dialect's self-address); a conformance corpus in `test-vectors/state/` that every binding replays ([SPEC-019](specs/SPEC-019-state-rules.md); modules `state`, `r7`, `intend`; `State.lean`).
 - **Deterministic message tagging** preserving DCFL properties under dialect union.
 - **Embedded-friendly.** `no_std + alloc` compatible pure core; `#![forbid(unsafe_code)]`.
-- **Polyglot bindings.** WASM target (`wasm32-unknown-unknown`) via `wasm-bindgen`; C FFI via `cbindgen`; Erlang/BEAM NIF via `rustler`. Every binding wraps the same functions with no semantics of its own: parsing, `verify_dialect`, `verify_message_shape`, `verify_protocol`, `message_hash`, `read` (the parser's tree, so a host never re-parses a frame), and the state-layer exports.
+- **Polyglot bindings.** WASM target (`wasm32-unknown-unknown`) via `wasm-bindgen`; C FFI via `cbindgen`; Erlang/BEAM NIF via `rustler`; and [`js/`](js/README.md), the `cbcl` package for JavaScript and TypeScript (typed wrappers over the wasm, plus `cbcl/object`, the JSON-authored object runtime), which contains no parser and no interpreter of its own. Every binding wraps the same functions with no semantics of its own: parsing, `verify_dialect`, `verify_message_shape`, `verify_protocol`, `message_hash`, `read` (the parser's tree, so a host never re-parses a frame), and the state-layer exports.
 - **CLI tooling.** Parsing, verification, agent REPL, gossip simulation.
 
 ## Workspace
@@ -102,6 +102,7 @@ Full theoretical framework and proofs are in the LangSec '26 paper, available as
 | `cbcl-wasm` | Shell | WebAssembly bindings |
 | `cbcl-ffi` | Shell | C FFI bindings |
 | `cbcl-erl` | Shell | Erlang/BEAM NIF bindings via `rustler` |
+| `js/` | Shell | `cbcl`: the verifier for JavaScript/TypeScript over the wasm build, and `cbcl/object` |
 | `lean-cbcl` | Proofs | Lean 4 formal verification of core algorithms |
 
 ## Related projects
