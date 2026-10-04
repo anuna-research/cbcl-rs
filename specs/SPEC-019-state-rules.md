@@ -2,8 +2,8 @@
 id: SPEC-019
 title: State Layer — R7 State Rules and the Intent Binder
 status: draft
-version: 0.3.7
-date: 2026-09-27
+version: 0.3.8
+date: 2026-10-05
 author: Anuna Research (https://anuna.io) — drafted with Claude Fable 5.1
 owner: CBCL maintainer
 depends-on:
@@ -106,7 +106,7 @@ Load-bearing: [[SPEC-019-state-rules#REQ-1915]] R7 ·
 Controls:
 - A dialect whose state clause fails well-formedness is not installed →
   [[SPEC-019-state-rules#REQ-1905]]–[[SPEC-019-state-rules#REQ-1910]].
-- Admission reads one message and never reads history or state →
+- Admission's shape stage reads one message; no stage reads state →
   [[SPEC-019-state-rules#REQ-1914]], [[SPEC-019-state-rules#ADR-1909]].
 - A caller never supplies `:replaces`, a recipient, a role, or routing; the
   binder fills them and rejects a supplied one as a forge →
@@ -449,10 +449,17 @@ are bounded only by R2 and transport. Trace: [[SPEC-019-state-rules#TEST-1912]].
 
 **REQ-1913: `:replaces` carries addresses.** Per R.4. Trace: [[SPEC-019-state-rules#TEST-1913]].
 
-**REQ-1914: Admission never reads history.** The R7 state-shape check
+**REQ-1914: Admission never reads state.** The R7 state-shape check
 SHALL run in the shape stage, after authentication and before
-`verify_causal`, and SHALL depend on the message alone. Domains are not
-checked at admission ([[SPEC-019-state-rules#ADR-1909]]).
+`verify_causal`, and SHALL depend on the message alone. The causal stage
+reads the accepted set only for its causal structure (predecessors, the
+root and its cast). No stage SHALL read a value the fold computes, so a
+verdict is a function of the dialect's static footprint, the message, and
+that structure. Domains are not checked at admission
+([[SPEC-019-state-rules#ADR-1909]]). This keeps acceptance in the regular
+trace languages of SPEC-014 (`storeTrace_regular`): no counter or data
+comparison a rule computes can reach a verdict, and no verdict changes when
+a concurrent act moves a field.
 Trace: [[SPEC-019-state-rules#TEST-1914]].
 
 ### Semantics
@@ -733,6 +740,23 @@ checklist's `check` and `drop` shapes require `:replaces list`.
 `:options` is accepted, absent from `ballots` and `tally`, and refused by
 `intend` with `Domain(choice)`.
 
+**TEST-1914.** (`crates/cbcl-parser/tests/admission_state_free.rs`.) Each
+corpus dialect has a *footprint twin*: every rule swapped for a sibling over
+the same verbs and fields with the same `:replaces` verbs (`last` →
+`latest-per-signer` → `set-union`, `register-per-key` ↔ `values-per-key`,
+`exists` ↔ `count`, `counter` with `inc`/`dec` exchanged, `latest-per-key`
+with key and value exchanged), and each domain dropped where its field stays
+read; a change is kept only if the twin installs (R7) with an equal
+footprint (state-bearing verbs, `:replaces` verbs, data fields). The twin's
+fold differs; `admit` gives every message the same verdict under both,
+against every prefix of the accepted set and (proptest) any subset in any
+order. Negative-output: an admission that enforces domains by reading the
+fold, the pre-ADR-1909 behaviour, fails the check on `lunch-vote-domain`. A
+static scan asserts that `admit`, `verify_state_shape`, `cast_of`,
+`Instance`, and the R5/R6 verifier modules call no fold, binder, or schema
+function. The twin covers the rule kinds the corpus uses; a vector that
+adds a kind extends both the corpus and the sibling table.
+
 **TEST-1922.** Cast owner=@aria, member={@bo,@cy}: `intend` for `check` from
 @bo binds `to (@aria @bo @cy)` and `caused-by` M1; for `drop` from @bo
 rejects `Role(owner)`; a role-free dialect binds `to` from the opener.
@@ -800,6 +824,13 @@ order; update cbcl-aamas §6 and §7.
 <details>
 <summary>Revision history</summary>
 
+- 0.3.8 (2026-10-05) — REQ-1914 states what admission may read: the
+  message in the shape stage, the accepted set's causal structure in the
+  causal stage, and no value the fold computes; it was titled "never reads
+  history", which the causal stage necessarily does. TEST-1914, previously a
+  trace link with no test, is specified and implemented: footprint twins of
+  the corpus dialects, a domain-enforcing mutant that must fail, and a
+  static scan of the admission functions. No wire or semantic change.
 - 0.3.7 (2026-09-28) — R.7 gains `admit`, the consumer's admission of one
   message against the accepted set (shape stage, then R5/R6 causal stage,
   `pending` while a predecessor is missing), exported by wasm, NIF, and FFI
