@@ -5,6 +5,7 @@ import LeanCbcl.R5
 import LeanCbcl.DCFLPreservation
 import LeanCbcl.R6DCFLPreservation
 import LeanCbcl.State
+import LeanCbcl.AdmissionStratification
 import LeanCbcl.EPPCompletion
 import LeanCbcl.ProtocolProjection
 import LeanCbcl.ConcreteProjection
@@ -186,3 +187,18 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.State.actsDom_setEq
 #print axioms CBCL.State.actsDom_excluded
 #print axioms CBCL.State.excluded_not_mem
+-- Admission never reads state (SPEC-019 REQ-1914, ADR-1909;
+-- AdmissionStratification.lean): stratification, regularity of the R7 store
+-- language, and the two necessity results.
+#print axioms CBCL.AdmissionStratification.admit_skeleton_invariant
+#print axioms CBCL.AdmissionStratification.admit_ignores_data
+#print axioms CBCL.AdmissionStratification.fold_reads_data
+#print axioms CBCL.AdmissionStratification.storeAccepts_iff
+#print axioms CBCL.AdmissionStratification.localStoreTrace_iff_run
+#print axioms CBCL.AdmissionStratification.localStoreTrace_regular
+#print axioms CBCL.AdmissionStratification.r7Store_regular
+#print axioms CBCL.AdmissionStratification.r7Store_isTraceDCFL
+#print axioms CBCL.AdmissionStratification.r7Admission_sticky
+#print axioms CBCL.AdmissionStratification.pigeonhole
+#print axioms CBCL.AdmissionStratification.countGated_not_regular
+#print axioms CBCL.AdmissionStratification.domain_feedback_not_sticky

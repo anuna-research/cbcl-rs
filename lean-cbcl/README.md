@@ -49,6 +49,16 @@ The spec follows first-character dispatch for `--3` (a symbol), despite a
 contradictory draft example. UTF-8 byte decoding, runtime conformance, expansion
 costs, and causal validity remain separate obligations.
 
+`AdmissionStratification` connects the state layer (`State`) to the R6 store
+language: an admission that reads one act and the accepted set's skeletons
+gives verdicts no state rule can move (`admit_ignores_data`), and its store
+language is regular, hence trace-DCFL (`r7Store_isTraceDCFL`). Feeding one
+`count` rule back into acceptance leaves the regular class
+(`countGated_not_regular`); enforcing a domain at admission breaks
+valid-stickiness (`domain_feedback_not_sticky`). The Rust `admit` is checked
+against this form by `crates/cbcl-parser/tests/admission_state_free.rs`, not
+proved equivalent.
+
 Run `lake build` and `lake exe runLinter LeanCbcl` here to check the library,
 grammar examples, and Batteries lint gate. Run
 `lake env lean DCFLInstallationAudit.lean` for the exported DCFL axiom audit.

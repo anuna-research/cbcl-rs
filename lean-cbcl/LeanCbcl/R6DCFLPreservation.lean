@@ -548,7 +548,7 @@ private theorem justified_mono {preds : List PredClause} {f g : String → Bool}
       rw [hfd] at hfan
       exact all_mono (fun x _ => h x) hfan
 
-private theorem enabled_mono {P : RoleProtocol} {f g : String → Bool}
+theorem enabled_mono {P : RoleProtocol} {f g : String → Bool}
     (h : ∀ x, f x = true → g x = true) {t : String}
     (ht : enabled P f t = true) : enabled P g t = true := by
   unfold enabled at ht ⊢

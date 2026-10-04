@@ -2,7 +2,7 @@
 id: SPEC-019
 title: State Layer — R7 State Rules and the Intent Binder
 status: draft
-version: 0.3.8
+version: 0.3.9
 date: 2026-10-05
 author: Anuna Research (https://anuna.io) — drafted with Claude Fable 5.1
 owner: CBCL maintainer
@@ -548,9 +548,24 @@ function); `allowedOf_setEq` and `actsDom_setEq` (a domain's list, read
 from the opener as a scalar list `Val.list`, and the acts it admits are set
 functions; both are conjuncts of `fold_perm_invariant`); `actsDom_excluded`
 and `excluded_not_mem` (accepting an act outside the domain changes no rule
-over its verb, and the act is in no rule's table; ADR-1909). Not modelled:
-the R5/R6 verifier itself, which `intend_pred_valid` characterises as an
-admitted-type predecessor.
+over its verb, and the act is in no rule's table; ADR-1909). Not modelled in
+`State.lean`: the R5/R6 verifier itself, which `intend_pred_valid`
+characterises as an admitted-type predecessor.
+`LeanCbcl/AdmissionStratification.lean` models admission as a shape stage
+over one act and a causal stage over the accepted set's skeletons (address,
+verb, signer, predecessors) and proves, for REQ-1914: `admit_ignores_data`
+(rewriting every accepted act's fields and `:replaces`, all any rule reads,
+moves no verdict; `fold_reads_data` shows a rule it does move);
+`storeAccepts_iff` and `localStoreTrace_regular` (with R6's name-level
+causal stage, the stores admission accepts are a regular language for any
+message-local shape stage, hence `r7Store_isTraceDCFL`, extending SPEC-014's
+`storeTrace_regular`); `r7Admission_sticky` (an accepted verdict survives
+store growth). Necessity: `countGated_not_regular` (an admission gated on
+one `count` rule recognises a language no finite automaton does) and
+`domain_feedback_not_sticky` (a domain enforced at admission accepts a vote,
+then rejects it when a concurrent opener arrives). Stratification alone does
+not give regularity, since a causal stage could count verbs; regularity
+rests on the causal stage reading names by membership, as R6's does.
 The Rust/Lean correspondence is checked by the corpus, not proved.
 Trace: [[SPEC-019-state-rules#TEST-1940]]–[[SPEC-019-state-rules#TEST-1946]].
 
@@ -755,7 +770,9 @@ fold, the pre-ADR-1909 behaviour, fails the check on `lunch-vote-domain`. A
 static scan asserts that `admit`, `verify_state_shape`, `cast_of`,
 `Instance`, and the R5/R6 verifier modules call no fold, binder, or schema
 function. The twin covers the rule kinds the corpus uses; a vector that
-adds a kind extends both the corpus and the sibling table.
+adds a kind extends both the corpus and the sibling table. The Lean side
+(REQ-1930, `AdmissionStratification.lean`) proves the property for the
+model; this test checks that the Rust `admit` has the model's form.
 
 **TEST-1922.** Cast owner=@aria, member={@bo,@cy}: `intend` for `check` from
 @bo binds `to (@aria @bo @cy)` and `caused-by` M1; for `drop` from @bo
@@ -824,6 +841,12 @@ order; update cbcl-aamas §6 and §7.
 <details>
 <summary>Revision history</summary>
 
+- 0.3.9 (2026-10-05) — REQ-1930 gains the admission obligations, mechanised
+  in `LeanCbcl/AdmissionStratification.lean`: stratification
+  (`admit_ignores_data`), regularity of the R7 store language
+  (`localStoreTrace_regular`, `r7Store_isTraceDCFL`), stickiness, and two
+  necessity results (`countGated_not_regular`, `domain_feedback_not_sticky`).
+  No wire or semantic change.
 - 0.3.8 (2026-10-05) — REQ-1914 states what admission may read: the
   message in the shape stage, the accepted set's causal structure in the
   causal stage, and no value the fold computes; it was titled "never reads
