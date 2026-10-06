@@ -6,6 +6,7 @@ import LeanCbcl.DCFLPreservation
 import LeanCbcl.R6DCFLPreservation
 import LeanCbcl.State
 import LeanCbcl.AdmissionStratification
+import LeanCbcl.StateRefinement
 import LeanCbcl.EPPCompletion
 import LeanCbcl.ProtocolProjection
 import LeanCbcl.ConcreteProjection
@@ -213,3 +214,30 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.State.intendOwn_crossSigner
 #print axioms CBCL.State.intendOwn_pred_valid
 #print axioms CBCL.State.intendOwn_current_after
+
+-- State execution refinement (SPEC-019 CON-1906; TEST-1954–1958).
+#print axioms CBCL.StateRefinement.initial_wellFormed
+#print axioms CBCL.StateRefinement.step_wellFormed
+#print axioms CBCL.StateRefinement.reachable_wellFormed
+#print axioms CBCL.StateRefinement.accepted_authenticated
+#print axioms CBCL.StateRefinement.new_accepted_received
+#print axioms CBCL.StateRefinement.accepted_address_conflict_impossible
+#print axioms CBCL.StateRefinement.accept_requires_pending
+#print axioms CBCL.StateRefinement.internal_preserves_accepted
+#print axioms CBCL.StateRefinement.step_simulation
+#print axioms CBCL.StateRefinement.reachable_simulation
+#print axioms CBCL.StateRefinement.behavior_reachable
+#print axioms CBCL.StateRefinement.behavior_refinement
+#print axioms CBCL.StateRefinement.fresh_acceptance_effect
+#print axioms CBCL.StateRefinement.Examples.false_business_cannot_simulate
+#print axioms CBCL.StateRefinement.counter_insert_effect
+#print axioms CBCL.StateRefinement.counter_simulation
+#print axioms CBCL.StateRefinement.counter_behavior_refinement
+#print axioms CBCL.StateRefinement.Examples.out_of_order_reachable
+#print axioms CBCL.StateRefinement.Examples.out_of_order_balance
+#print axioms CBCL.StateRefinement.Examples.duplicate_does_not_count
+#print axioms CBCL.StateRefinement.Examples.decrement_not_addition
+#print axioms CBCL.StateRefinement.Examples.receipt_not_acceptance
+#print axioms CBCL.StateRefinement.Examples.absent_candidate_cannot_accept
+#print axioms CBCL.StateRefinement.Examples.missing_predecessor_cannot_accept
+#print axioms CBCL.StateRefinement.Examples.conflicting_history_not_reachable

@@ -112,6 +112,7 @@ Load-bearing: [[SPEC-019-state-rules#REQ-1915]] R7 ·
 [[SPEC-019-state-rules#REQ-1931]] one corpus.
 
 Controls:
+- Refinement claims exclude Rust equivalence, authentication correctness, liveness, and universal business refinement → [[SPEC-019-state-rules#REQ-1938]].
 - A signer cannot supersede another signer’s ballot → [[SPEC-019-state-rules#REQ-1933]].
 - A dialect whose state clause fails well-formedness is not installed →
   [[SPEC-019-state-rules#REQ-1905]]–[[SPEC-019-state-rules#REQ-1910]].
@@ -546,6 +547,84 @@ never given the acts, the store, or the opener. A dialect author who wants
 a value displayed projects it. Trace: [[SPEC-019-state-rules#TEST-1929]], [[SPEC-019-state-rules#ADR-1907]].
 
 ### Proof, conformance, exports
+
+### State-machine refinement
+
+Failure mode: set invariance establishes equal observations of equal histories, but does not establish legal business transitions during execution.
+The [[state-refinement]] proof closes this gap for a pinned thread and dialect, with an independently defined counter instance.
+Reviewers read [[SPEC-019-state-rules#ADR-1913]]; implementers read [[SPEC-019-state-rules#CON-1906]] and its tests.
+Consumers use the counter theorem as a worked proof, then discharge the acceptance obligation for their own business machines.
+
+**REQ-1935: Execution discipline.** The Lean execution model SHALL preserve unique accepted addresses and acceptance only from received, pending candidates.
+Trace: [[SPEC-019-state-rules#CON-1906]], [[SPEC-019-state-rules#TEST-1954]], [[SPEC-019-state-rules#TEST-1957]].
+
+**REQ-1936: Forward simulation.** Given independently supplied initialization and acceptance obligations, every concrete step SHALL map to its business action or stuttering.
+The mapping reads only the accepted history; the dialect and immutable admission context remain fixed throughout each behavior.
+Trace: [[SPEC-019-state-rules#CON-1906]], [[SPEC-019-state-rules#TEST-1955]].
+
+**REQ-1937: Counter instance.** The counter fold SHALL refine independently defined labelled increment and decrement operations, starting at zero.
+Distinct verbs select addition or subtraction; other verbs leave the balance unchanged.
+Duplicate acceptance leaves the balance unchanged, including nonzero amounts.
+Amounts are integers; this theorem promises neither nonnegative balances nor nonnegative amounts.
+Trace: [[SPEC-019-state-rules#CON-1906]], [[SPEC-019-state-rules#TEST-1956]], [[SPEC-019-state-rules#TEST-1958]].
+
+**REQ-1938: Claim boundary.** Documentation SHALL NOT present this model proof as Rust equivalence, authentication correctness, liveness, or refinement of every business dialect.
+Trace: [[SPEC-019-state-rules#TEST-1959]].
+
+#### CON-1906: Execution-to-business simulation
+
+Interface: `LeanCbcl/StateRefinement.lean`, typed `State.Act` inputs; no new wire grammar or external-input recogniser.
+Preconditions: fixed admission function and immutable authentication predicate; initial empty history; address-consistent received acts; distinct counter verbs.
+Postconditions: reachable histories preserve address uniqueness; internal steps preserve observations; accepted acts satisfy the supplied business transition obligation.
+The abstract specification supplies `initial` and `next` independently of the concrete step relation.
+The generic theorem takes separate initialization and acceptance-effect proofs; the counter instance discharges both using arithmetic lemmas.
+Fresh acceptance requires a business transition proof; only reapplication may bypass it as stuttering.
+Error model: malformed or unauthenticated acts have no receive transition; address-conflicting candidates have no fresh receive transition.
+Rejected and pending candidates remain outside accepted history.
+Infinite behaviors retain stuttering explicitly, including behaviors that stutter forever; no fairness assumption or termination claim applies.
+Purity boundary: the proof consumes typed acts and an authentication premise; parsing, cryptography, transport, and Rust execution remain outside it.
+Implements: [[SPEC-019-state-rules#REQ-1935]], [[SPEC-019-state-rules#REQ-1936]], [[SPEC-019-state-rules#REQ-1937]].
+Verified by: [[SPEC-019-state-rules#TEST-1954]], [[SPEC-019-state-rules#TEST-1955]], [[SPEC-019-state-rules#TEST-1956]].
+Negative and scope coverage: [[SPEC-019-state-rules#TEST-1957]], [[SPEC-019-state-rules#TEST-1958]], [[SPEC-019-state-rules#TEST-1959]].
+
+#### ADR-1913: Compose an execution model with an independent counter specification
+
+The existing set-invariance theorems describe snapshots; the requested Lamport comparison requires a theorem about execution steps.
+The proof reuses `AdmissionStratification.Admission`, `State.insertAct`, and the existing counter reduction.
+A small execution relation supplies receipt, pending scheduling, rejection, acceptance, duplicate delivery, and idle steps.
+The generic simulation contract separates business obligations from execution bookkeeping.
+The worked business machine defines addition and subtraction directly, without referencing `fold` or concrete execution states.
+This settles at the composition rung, followed by minimum new execution and simulation definitions.
+Whole-history counters provide a compact independent instance; phase-gated voting requires additional business obligations beyond existing R7 invariance.
+Open, owner CBCL maintainer: Rust/model equivalence, deployed authentication, dynamically changing dialects, other business instances, and fairness-dependent progress.
+Trace: [[SPEC-019-state-rules#REQ-1936]], [[SPEC-019-state-rules#REQ-1937]], [[SPEC-019-state-rules#REQ-1938]].
+
+#### Refinement tests
+
+All tests are core and run through Lean's kernel, the library build, and the axiom audit.
+The proof-specific evidence lives in `outputs/state-refinement-verification.md`.
+
+**TEST-1954: Execution invariants.** Prove reachable accepted histories have unique addresses and contain only authenticated, received acts.
+Validates: [[SPEC-019-state-rules#REQ-1935]].
+
+**TEST-1955: Simulation and behaviors.** Prove initial-state mapping, step simulation, finite reachability, and pointwise infinite behavior mapping with stuttering.
+Prove a constant observation cannot simulate a business machine forbidding every accepted effect.
+Validates: [[SPEC-019-state-rules#REQ-1936]].
+
+**TEST-1956: Independent arithmetic.** Prove counter acceptance effects for arbitrary amounts and accepted histories, then instantiate the generic behavior theorem.
+Validates: [[SPEC-019-state-rules#REQ-1937]].
+
+**TEST-1957: Prohibited acceptance.** Prove absent candidates and conflicting accepted addresses cannot enter the accepted set.
+Validates: [[SPEC-019-state-rules#REQ-1935]].
+
+**TEST-1958: Wrong outputs.** Reject double-counting duplicate acts, decrement sign reversal, and receipt changing the displayed balance.
+Run a deliberate sign mutation and require the arithmetic regression theorem to fail.
+Validates: [[SPEC-019-state-rules#REQ-1937]].
+
+**TEST-1959: Scope and claims.** Independently review theorem assumptions and documented boundaries.
+Inspect the changed-path diff for only Lean, specification, plan, concept, README, and evidence changes.
+Record the reviewer identity, findings, claim-boundary search, and changed paths in the verification evidence.
+Validates: [[SPEC-019-state-rules#REQ-1938]].
 
 **REQ-1930: Lean obligations.** `LeanCbcl/State.lean` models the accepted
 set as a `List Act` under the store invariant `NodupAddr` (no two acts share

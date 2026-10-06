@@ -59,6 +59,21 @@ valid-stickiness (`domain_feedback_not_sticky`). The Rust `admit` is checked
 against this form by `crates/cbcl-parser/tests/admission_state_free.rs`, not
 proved equivalent.
 
+`StateRefinement` supplies a typed execution machine for a fixed thread,
+dialect, admission function, and immutable authentication premise.
+`behavior_refinement` maps its behaviors into an independently supplied business
+machine, with explicit initialization and acceptance-effect obligations.
+Internal steps preserve accepted history; reachable histories have unique
+addresses and contain only received, authenticated acts.
+`counter_behavior_refinement` discharges those obligations for the existing
+counter fold using independently defined labelled integer addition and subtraction.
+Examples cover child-before-parent delivery, blocked acceptance, duplicate
+insensitivity, and conflicting addresses.
+Infinite behaviors retain stuttering, including infinite waiting.
+This proves model-level safety; Rust equivalence, deployed authentication,
+fairness, and other business instances remain separate obligations.
+Contract and claim boundary: [[SPEC-019-state-rules#CON-1906]].
+
 Run `lake build` and `lake exe runLinter LeanCbcl` here to check the library,
 grammar examples, and Batteries lint gate. Run
 `lake env lean DCFLInstallationAudit.lean` for the exported DCFL axiom audit.

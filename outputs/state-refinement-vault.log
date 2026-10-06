@@ -1,0 +1,174 @@
+{
+  "dead_links": [
+    {
+      "source": "BUG-005-two-sexpr-recognisers-disagree",
+      "line": 33,
+      "target": "BUG-006",
+      "predicate": null
+    },
+    {
+      "source": "BUG-005-two-sexpr-recognisers-disagree",
+      "line": 150,
+      "target": "BUG-006",
+      "predicate": null
+    },
+    {
+      "source": "BUG-006-envelope-wire-form-unparseable-by-the-real-parser",
+      "line": 30,
+      "target": "BUG-005",
+      "predicate": null
+    },
+    {
+      "source": "BUG-006-envelope-wire-form-unparseable-by-the-real-parser",
+      "line": 168,
+      "target": "BUG-005",
+      "predicate": null
+    },
+    {
+      "source": "BUG-006-envelope-wire-form-unparseable-by-the-real-parser",
+      "line": 173,
+      "target": "BUG-005",
+      "predicate": null
+    },
+    {
+      "source": "BUG-006-envelope-wire-form-unparseable-by-the-real-parser",
+      "line": 179,
+      "target": "BUG-005",
+      "predicate": null
+    },
+    {
+      "source": "causal-locality",
+      "line": 17,
+      "target": "SPEC-014-role-layer-endpoint-projection",
+      "predicate": null
+    },
+    {
+      "source": "endpoint-projection",
+      "line": 15,
+      "target": "SPEC-014-role-layer-endpoint-projection",
+      "predicate": null
+    },
+    {
+      "source": "role-cast",
+      "line": 17,
+      "target": "SPEC-014-role-layer-endpoint-projection",
+      "predicate": null
+    },
+    {
+      "source": "role-cast",
+      "line": 18,
+      "target": "SPEC-004-sealed-bid-auction-demo",
+      "predicate": null
+    },
+    {
+      "source": "README",
+      "line": 4,
+      "target": "SPEC-018-dcfl-installation",
+      "predicate": null
+    },
+    {
+      "source": "README",
+      "line": 75,
+      "target": "SPEC-019-state-rules",
+      "predicate": null
+    },
+    {
+      "source": "dcfl-foundation-evidence-2026-09-10",
+      "line": 4,
+      "target": "SPEC-018-dcfl-installation",
+      "predicate": null
+    },
+    {
+      "source": "dcfl-foundation-evidence-2026-09-10",
+      "line": 5,
+      "target": "SPEC-018-dcfl-installation",
+      "predicate": null
+    },
+    {
+      "source": "dcfl-foundation-evidence-2026-09-10",
+      "line": 48,
+      "target": "SPEC-018-dcfl-installation",
+      "predicate": null
+    },
+    {
+      "source": "dcfl-installation-evidence-2026-09-10",
+      "line": 4,
+      "target": "SPEC-018-dcfl-installation",
+      "predicate": null
+    },
+    {
+      "source": "dcfl-installation-evidence-2026-09-10",
+      "line": 7,
+      "target": "SPEC-018-dcfl-installation",
+      "predicate": null
+    },
+    {
+      "source": "dcfl-raw-installation-evidence-2026-09-10",
+      "line": 3,
+      "target": "SPEC-018-dcfl-installation",
+      "predicate": null
+    },
+    {
+      "source": "endpoint-projection-implementation-2026-09-10",
+      "line": 13,
+      "target": "../specs/SPEC-016-splicing-boundary",
+      "predicate": null
+    },
+    {
+      "source": "endpoint-projection-implementation-2026-09-10",
+      "line": 13,
+      "target": "../specs/SPEC-017-typed-content-addresses",
+      "predicate": null
+    },
+    {
+      "source": "cross-model-review",
+      "line": 5,
+      "target": "SPEC-019-state-rules",
+      "predicate": null
+    },
+    {
+      "source": "cross-model-review",
+      "line": 5,
+      "target": "SPEC-019-state-rules",
+      "predicate": null
+    },
+    {
+      "source": "cross-model-review",
+      "line": 5,
+      "target": "SPEC-019-state-rules",
+      "predicate": null
+    },
+    {
+      "source": "cross-model-review",
+      "line": 5,
+      "target": "SPEC-019-state-rules",
+      "predicate": null
+    },
+    {
+      "source": "cross-model-review",
+      "line": 5,
+      "target": "SPEC-019-state-rules",
+      "predicate": null
+    }
+  ],
+  "orphans": [],
+  "syntax_errors": [],
+  "spl_diagnostics": [],
+  "drift_diagnostics": [],
+  "predicate_lints": [],
+  "summary": {
+    "dead_links": 25,
+    "orphans": 0,
+    "syntax_errors": 0,
+    "spl_errors": 0,
+    "drift_warnings": 0,
+    "drift_info": 0,
+    "total_spl_blocks": 13,
+    "drifted_blocks_warning": 0,
+    "drifted_blocks_info": 0,
+    "explicitly_grounded_facts": 0,
+    "broken_groundings": 0,
+    "predicate_errors": 0,
+    "predicate_warnings": 0
+  }
+}

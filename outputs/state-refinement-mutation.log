@@ -1,0 +1,13 @@
+/tmp/cbcl-refinement-mutation.MOww9j/StateRefinement.lean:290:37: error: Type mismatch: After simplification, term
+  effect
+ has type
+  counter inc dec key (insertAct a s.accepted) = counter inc dec key s.accepted + -amount key a
+but is expected to have type
+  counter inc dec key (insertAct a s.accepted) = counter inc dec key s.accepted + amount key a
+/tmp/cbcl-refinement-mutation.MOww9j/StateRefinement.lean:378:2: error: Tactic `decide` proved that the proposition
+  ¬{ init := fun x => x = 0,
+          next := fun a x y =>
+            a.verb = "inc" ∧ y = x + amount "amount" a ∨
+              a.verb = "dec" ∧ y = x + amount "amount" a ∨ a.verb ≠ "inc" ∧ a.verb ≠ "dec" ∧ y = x }.next
+      dec3 7 10
+is false

@@ -1,0 +1,23 @@
+; IMPL-020: State execution refinement. One local Elephant steward records
+; independent review sessions as evidence; they are not distinct P2P signers.
+; Ledger: execution + simulation + counter → verification → independent review.
+(predicate task-description ((id symbol) (text symbol)) (kind state))
+(predicate task-acceptance ((id symbol) (text symbol)) (kind state))
+(given (task refinement-proof))
+(given (task-description refinement-proof "Prove execution invariants, forward simulation and independent counter refinement"))
+(given (task-acceptance refinement-proof "TEST-1954 through TEST-1957: Lean kernel accepts execution, simulation and counter theorems"))
+(given (no-deps refinement-proof))
+(normally r-ready-refinement-proof (and (task refinement-proof) (no-deps refinement-proof)) (ready refinement-proof))
+(meta r-ready-refinement-proof (source "SPEC-019-state-rules#REQ-1936"))
+(given (task refinement-checks))
+(given (task-description refinement-checks "Run library, lint, axiom and sign-mutation checks"))
+(given (task-acceptance refinement-checks "TEST-1954 through TEST-1958: build and axiom checks pass and sign mutation fails"))
+(normally r-ready-refinement-checks (and (task refinement-checks) (completed refinement-proof)) (ready refinement-checks))
+(meta r-ready-refinement-checks (source "SPEC-019-state-rules#TEST-1958"))
+(given (task refinement-review))
+(given (task-description refinement-review "Independently review specification, proofs and claim boundaries"))
+(given (task-acceptance refinement-review "TEST-1959: independent review finds no unresolved blocking defects"))
+(normally r-ready-refinement-review (and (task refinement-review) (completed refinement-checks)) (ready refinement-review))
+(meta r-ready-refinement-review (source "SPEC-019-state-rules#REQ-1938"))
+(normally r-refinement-complete (and (completed refinement-proof) (completed refinement-checks) (completed refinement-review)) (completed state-refinement))
+(meta r-refinement-complete (source "SPEC-019-state-rules#CON-1906"))
