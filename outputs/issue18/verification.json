@@ -170,5 +170,14 @@
       "lake build": "rebase-lean.log",
       "bash scripts/check-axioms.sh": "rebase-axioms.log"
     }
+  },
+  "ci_followup": {
+    "failure": "Lean environment linter rejected unused binder-success hypothesis on intendOwn_crossSigner. The initial local checks omitted this CI step.",
+    "fix": "Remove unused hypothesis and unrelated implicit bind parameters; proof now protects cross-signer writes under any insertion.",
+    "checks": {
+      "lake build": "ci-fix-lean-build.log",
+      "lake exe runLinter LeanCbcl": "ci-fix-env-linter.log",
+      "bash scripts/check-axioms.sh": "ci-fix-axioms.log"
+    }
   }
 }

@@ -1,0 +1,48 @@
+ℹ [31/87] Replayed LeanCbcl.R6DCFLPreservation
+info: LeanCbcl/R6DCFLPreservation.lean:977:0: 'CBCL.R6DCFLPreservation.dcfl_preserved_under_roles' depends on axioms: [propext]
+info: LeanCbcl/R6DCFLPreservation.lean:978:0: 'CBCL.R6DCFLPreservation.roles_dispatch_currently_unwired' depends on axioms: [propext]
+info: LeanCbcl/R6DCFLPreservation.lean:979:0: 'CBCL.R6DCFLPreservation.causalTrace_iff_run' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: LeanCbcl/R6DCFLPreservation.lean:980:0: 'CBCL.R6DCFLPreservation.causalTrace_regular' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: LeanCbcl/R6DCFLPreservation.lean:981:0: 'CBCL.R6DCFLPreservation.causalTrace_isTraceDCFL' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: LeanCbcl/R6DCFLPreservation.lean:982:0: 'CBCL.R6DCFLPreservation.storeTrace_iff_run' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: LeanCbcl/R6DCFLPreservation.lean:983:0: 'CBCL.R6DCFLPreservation.storeTrace_regular' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: LeanCbcl/R6DCFLPreservation.lean:984:0: 'CBCL.R6DCFLPreservation.storeTrace_isTraceDCFL' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: LeanCbcl/R6DCFLPreservation.lean:985:0: 'CBCL.R6DCFLPreservation.causalTrace_storeTrace' depends on axioms: [propext, Quot.sound]
+info: LeanCbcl/R6DCFLPreservation.lean:986:0: 'CBCL.R6DCFLPreservation.localTrace_regular' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: LeanCbcl/R6DCFLPreservation.lean:987:0: 'CBCL.R6DCFLPreservation.localStoreTrace_regular' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: LeanCbcl/R6DCFLPreservation.lean:988:0: 'CBCL.R6DCFLPreservation.projection_adds_no_recogniser' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: LeanCbcl/R6DCFLPreservation.lean:989:0: 'CBCL.R6DCFLPreservation.ex_pool_is_disjunctive' depends on axioms: [propext]
+info: LeanCbcl/R6DCFLPreservation.lean:990:0: 'CBCL.R6DCFLPreservation.ex_out_of_order_store' depends on axioms: [propext]
+info: LeanCbcl/R6DCFLPreservation.lean:991:0: 'CBCL.R6DCFLPreservation.ex_local_permanently_stuck' depends on axioms: [propext]
+ℹ [36/87] Replayed LeanCbcl.Projectability
+info: LeanCbcl/Projectability.lean:340:0: 'LeanCbcl.Projectability.unknown_means_not_yet_arrived' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: LeanCbcl/Projectability.lean:341:0: 'LeanCbcl.Projectability.projectable_eventual_resolution' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: LeanCbcl/Projectability.lean:342:0: 'LeanCbcl.Projectability.nonlocal_protocol_counterexample' does not depend on any axioms
+info: LeanCbcl/Projectability.lean:343:0: 'LeanCbcl.Projectability.projectability_sufficiency_and_counterexample' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+ℹ [37/87] Replayed LeanCbcl.ProtocolProjection
+info: LeanCbcl/ProtocolProjection.lean:140:0: 'LeanCbcl.ProtoProjection.verdict_agree' depends on axioms: [propext, Quot.sound]
+info: LeanCbcl/ProtocolProjection.lean:141:0: 'LeanCbcl.ProtoProjection.local_protocol_verification_agrees' depends on axioms: [propext, Classical.choice, Quot.sound]
+ℹ [39/87] Replayed LeanCbcl.Splice
+info: LeanCbcl/Splice.lean:297:0: 'LeanCbcl.Splice.type_opacity_indistinguishability' depends on axioms: [propext, Quot.sound]
+info: LeanCbcl/Splice.lean:298:0: 'LeanCbcl.Splice.resolution_requires_preimage' does not depend on any axioms
+info: LeanCbcl/Splice.lean:299:0: 'LeanCbcl.Splice.spliced_pred_permanently_unknown' does not depend on any axioms
+info: LeanCbcl/Splice.lean:300:0: 'LeanCbcl.Splice.decidesAll_iff_predsLocal' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: LeanCbcl/Splice.lean:301:0: 'LeanCbcl.Splice.safety_reads_types_only' does not depend on any axioms
+info: LeanCbcl/Splice.lean:302:0: 'LeanCbcl.Splice.verdict_reads_types_only' does not depend on any axioms
+info: LeanCbcl/Splice.lean:303:0: 'LeanCbcl.Splice.openings_suffice' does not depend on any axioms
+info: LeanCbcl/Splice.lean:304:0: 'LeanCbcl.Splice.openings_suffice_concrete' depends on axioms: [propext, Quot.sound]
+ℹ [40/87] Replayed LeanCbcl.Bridge
+info: LeanCbcl/Bridge.lean:303:0: 'LeanCbcl.Bridge.InfinitePredecessorsExample.always_unknown' does not depend on any axioms
+info: LeanCbcl/Bridge.lean:304:0: 'LeanCbcl.Bridge.InfinitePredecessorsExample.not_finite_predecessors' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+info: LeanCbcl/Bridge.lean:305:0: 'LeanCbcl.Bridge.eventually_present_valid' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: LeanCbcl/Bridge.lean:306:0: 'LeanCbcl.Bridge.bridge_stability' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: LeanCbcl/Bridge.lean:307:0: 'LeanCbcl.Bridge.bridge_compatibility' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: LeanCbcl/Bridge.lean:308:0: 'LeanCbcl.Bridge.temporal_bridge' depends on axioms: [propext, Classical.choice, Quot.sound]
+✔ [84/87] Built LeanCbcl.State (5.3s)
+✔ [85/87] Built LeanCbcl.AdmissionStratification (879ms)
+✔ [86/87] Built LeanCbcl (630ms)
+Build completed successfully (87 jobs).

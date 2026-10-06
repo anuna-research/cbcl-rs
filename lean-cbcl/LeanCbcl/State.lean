@@ -880,10 +880,8 @@ theorem intendOwn_supersedes {P : Protocol} {v : String} {A : List Act}
   · exact hs.symm
   · exact (intendOwn_replaces_current h w.addr).2 ⟨w, hw, hs, rfl⟩
 
-/-- A successful signer binding cannot retire another signer's current write. -/
-theorem intendOwn_crossSigner {P : Protocol} {v : String} {A : List Act}
-    {signer : String} {fields : List (String × Val)} {fresh : Nat} {m w : Act}
-    (_h : intendOwn P v A signer fields fresh = some m)
+/-- Inserting an act cannot retire another signer's current write, regardless of binding. -/
+theorem intendOwn_crossSigner {v : String} {A : List Act} {m w : Act}
     (hw : w ∈ currentOwn v A) (hne : m.signer ≠ w.signer) :
     w ∈ currentOwn v (insertAct m A) :=
   (currentOwn_setEq (insertAct_setEq m A) v w).2 (currentOwn_crossSigner hw hne)
