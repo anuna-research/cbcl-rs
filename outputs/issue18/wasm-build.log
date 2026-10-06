@@ -1,0 +1,39 @@
+
+> cbcl@0.1.0 build:wasm
+> bash scripts/build-wasm.sh
+
+   Compiling version_check v0.9.5
+   Compiling typenum v1.19.0
+   Compiling wasm-bindgen-shared v0.2.114
+   Compiling proc-macro2 v1.0.106
+   Compiling unicode-ident v1.0.24
+   Compiling quote v1.0.45
+   Compiling rustversion v1.0.22
+   Compiling cfg-if v1.0.4
+   Compiling zmij v1.0.21
+   Compiling serde_core v1.0.228
+   Compiling equivalent v1.0.2
+   Compiling hashbrown v0.16.1
+   Compiling serde_json v1.0.149
+   Compiling generic-array v0.14.7
+   Compiling foldhash v0.1.5
+   Compiling bumpalo v3.20.2
+   Compiling hashbrown v0.15.5
+   Compiling indexmap v2.13.0
+   Compiling itoa v1.0.17
+   Compiling memchr v2.8.0
+   Compiling once_cell v1.21.4
+   Compiling dlmalloc v0.2.13
+   Compiling syn v2.0.117
+   Compiling wasm-bindgen v0.2.114
+   Compiling wasm-bindgen-macro-support v0.2.114
+   Compiling crypto-common v0.1.7
+   Compiling block-buffer v0.10.4
+   Compiling digest v0.10.7
+   Compiling sha2 v0.10.9
+   Compiling cbcl-core v0.1.0 (/Users/anuna-01/Code/cbcl-rs/crates/cbcl-core)
+   Compiling wasm-bindgen-macro v0.2.114
+   Compiling cbcl-parser v0.1.0 (/Users/anuna-01/Code/cbcl-rs/crates/cbcl-parser)
+   Compiling cbcl-wasm v0.1.0 (/Users/anuna-01/Code/cbcl-rs/crates/cbcl-wasm)
+    Finished `release` profile [optimized] target(s) in 10.69s
+build-wasm: /Users/anuna-01/Code/cbcl-rs/js/src/cbcl_wasm (e5189d4)

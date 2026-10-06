@@ -1,0 +1,16 @@
+{
+  "lowercase_bcp14": 0,
+  "perfect_tense": 0,
+  "progressive_passive": 0,
+  "deprecated_term": 0,
+  "sentence_over_limit": 43,
+  "trailing_condition": 0,
+  "errors": 0,
+  "warnings": 43,
+  "total": 43,
+  "sentences": 273,
+  "words": 4068,
+  "longest": 109,
+  "limit": 25,
+  "mode": "descriptive"
+}

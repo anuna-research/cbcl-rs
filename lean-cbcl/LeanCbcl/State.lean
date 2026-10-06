@@ -5,7 +5,7 @@ import Batteries.Data.List.Lemmas
 # SPEC-019 State Layer — R7 (REQ-1930)
 
 Model of the state layer of `specs/SPEC-019-state-rules.md`: accepted acts,
-the kernel of two selections (`acts`, `current`) and reductions (`pick`,
+the kernel selections (`acts`, `current`, `currentOwn`) and reductions (`pick`,
 `size`, `has`, `sumField`), the author-facing rules as sugar over the
 kernel, and the intent binder.
 
@@ -210,6 +210,40 @@ theorem NodupAddr.current {A : List Act} (h : NodupAddr A) (v : String) (k d : O
     NodupAddr (current v k d A) :=
   (h.acts v).filter _
 
+/-- Signer register selection: only a same-verb, same-signer write can retire a write.
+`A` is the rule's admitted source list, after any domain filtering. -/
+def currentOwn (v : String) (A : List Act) : List Act :=
+  (acts v A).filter (fun w => !(acts v A).any (fun r =>
+    r.signer == w.signer && r.replaces.contains w.addr))
+
+theorem NodupAddr.currentOwn {A : List Act} (h : NodupAddr A) (v : String) :
+    NodupAddr (currentOwn v A) := (h.acts v).filter _
+
+theorem mem_currentOwn_iff {v : String} {A : List Act} {w : Act} :
+    w ∈ currentOwn v A ↔
+      w ∈ acts v A ∧ ∀ r ∈ acts v A, r.signer = w.signer → w.addr ∉ r.replaces := by
+  simp only [currentOwn, List.mem_filter, Bool.not_eq_true', List.any_eq_false,
+    Bool.and_eq_true, beq_iff_eq, List.contains_iff_mem, not_and]
+
+/-- Naming another signer's address has no effect on its currency. -/
+theorem currentOwn_crossSigner {v : String} {A : List Act} {w r : Act}
+    (hw : w ∈ currentOwn v A) (hne : r.signer ≠ w.signer) :
+    w ∈ currentOwn v (r :: A) := by
+  apply mem_currentOwn_iff.2
+  refine ⟨?_, ?_⟩
+  · exact List.mem_filter.2 ⟨List.mem_cons_of_mem _ (List.mem_filter.1 (mem_currentOwn_iff.1 hw).1).1,
+      (List.mem_filter.1 (mem_currentOwn_iff.1 hw).1).2⟩
+  · intro q hq hs
+    rcases List.mem_cons.1 (List.mem_filter.1 hq).1 with hqr | hqA
+    · subst q; exact absurd hs hne
+    · exact (mem_currentOwn_iff.1 hw).2 q (List.mem_filter.2 ⟨hqA, (List.mem_filter.1 hq).2⟩) hs
+
+theorem currentOwn_replaced {v : String} {A : List Act} {w r : Act}
+    (hr : r ∈ acts v A) (hs : r.signer = w.signer) (hn : w.addr ∈ r.replaces) :
+    w ∉ currentOwn v A := by
+  intro hw
+  exact (mem_currentOwn_iff.1 hw).2 r hr hs hn
+
 /-- Whether `a` has the greatest address in `T`. -/
 def isTop (T : List Act) (a : Act) : Bool := T.all (fun b => decide (b.addr ≤ a.addr))
 
@@ -239,9 +273,9 @@ def sumField (k : String) (T : List Act) : Int := T.foldl (fun acc a => acc + am
 /-- `last v :k`: one value across everyone, chosen by greatest address (SPEC-019 R.2). -/
 def last (v k : String) (A : List Act) : Option Val := pick k (acts v A)
 
-/-- `latest-per-signer v :k`: the signer `s`'s own latest value. -/
+/-- `latest-per-signer v :k`: pick among the signer's current writes. -/
 def latestPerSigner (v k : String) (A : List Act) (s : String) : Option Val :=
-  pick k ((acts v A).filter (fun a => a.signer == s))
+  pick k ((currentOwn v A).filter (fun a => a.signer == s))
 
 /-- `latest-per-key v :kk :k`: the latest value under key `x`, by address. -/
 def latestPerKey (v kk k : String) (A : List Act) (x : Val) : Option Val :=
@@ -279,8 +313,8 @@ def counter (inc dec k : String) (A : List Act) : Int :=
 /-- `histogram` over `latest-per-signer`: the number of signers whose latest value is `x`,
 counted as the acts that top their own signer's group. -/
 def histogramPerSigner (v k : String) (A : List Act) (x : Val) : Nat :=
-  ((acts v A).filter (fun a =>
-      isTop ((acts v A).filter (fun b => b.signer == a.signer)) a && a.get k == some x)).length
+  ((currentOwn v A).filter (fun a =>
+      isTop ((currentOwn v A).filter (fun b => b.signer == a.signer)) a && a.get k == some x)).length
 
 /-- `histogram` over `latest-per-key`: the number of keys whose latest value is `x`,
 counted as the acts that top their own key's group. An act without the key
@@ -320,6 +354,12 @@ theorem NodupAddr.actsDom {A : List Act} (h : NodupAddr A) (v k ov F : String) :
 
 theorem acts_setEq {A B : List Act} (h : SetEq A B) (v : String) : SetEq (acts v A) (acts v B) :=
   h.filter _
+
+theorem currentOwn_setEq {A B : List Act} (h : SetEq A B) (v : String) :
+    SetEq (currentOwn v A) (currentOwn v B) := by
+  intro a
+  simp only [currentOwn, List.mem_filter, any_setEq (acts_setEq h v)]
+  rw [(acts_setEq h v) a]
 
 theorem replacers_setEq {A B : List Act} (h : SetEq A B) (v : String) (d : Option String) :
     SetEq (replacers v d A) (replacers v d B) := by
@@ -473,7 +513,8 @@ theorem fold_perm_invariant {A B : List Act} (hA : NodupAddr A) (hB : NodupAddr 
   have nB : ∀ v, NodupAddr (acts v B) := fun v => hB.filter _
   refine ⟨?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩
   · exact pick_setEq (nA v) (nB v) (hav v) k
-  · exact pick_setEq ((nA v).filter _) ((nB v).filter _) ((hav v).filter _) k
+  · exact pick_setEq ((hA.currentOwn v).filter _) ((hB.currentOwn v).filter _)
+      ((currentOwn_setEq h v).filter _) k
   · exact pick_setEq ((nA v).filter _) ((nB v).filter _) ((hav v).filter _) k
   · simp only [existsRule, isEmpty_setEq (hav v)]
   · exact size_setEq (nA v) (nB v) (hav v)
@@ -485,10 +526,11 @@ theorem fold_perm_invariant {A B : List Act} (hA : NodupAddr A) (hB : NodupAddr 
   · exact has_setEq (current_setEq h add (some k) (some rem)) k x
   · simp only [counter, sumField_setEq (nA inc) (nB inc) (hav inc) k,
       sumField_setEq (nA dec) (nB dec) (hav dec) k]
-  · apply size_setEq ((nA v).filter _) ((nB v).filter _)
+  · apply size_setEq ((hA.currentOwn v).filter _) ((hB.currentOwn v).filter _)
     intro a
     simp only [List.mem_filter]
-    rw [(hav v) a, isTop_setEq ((hav v).filter (fun b => b.signer == a.signer)) a]
+    rw [(currentOwn_setEq h v) a,
+      isTop_setEq ((currentOwn_setEq h v).filter (fun b => b.signer == a.signer)) a]
   · exact histogramPerKey_setEq hA hB h v kk k x
   · exact actsDom_setEq hA hB h v kk ov F
 
@@ -798,6 +840,86 @@ theorem intend_current_after {P : Protocol} {v : String} {kk d : Option String} 
             simp only [acts, List.mem_filter] at hr ⊢
             exact ⟨hrA, hr.2⟩
       exact unnamed r hr_rep
+
+/-- Signer-register binding, separate from the keyed-register binder.
+This abstract binder is unbounded: it names every own current write.
+Rust sorts addresses and truncates to `max-list`; that finite-prefix policy
+is checked by the corpus, not proved by these unbounded binder theorems.
+`A` is the admitted source list after any domain filtering. -/
+def bindOwnReplaces (v : String) (A : List Act) (signer : String) : List Nat :=
+  ((currentOwn v A).filter (fun w => w.signer == signer)).map Act.addr
+
+/-- The same predecessor policy, with signer-owned replacement targets. -/
+def intendOwn (P : Protocol) (v : String) (A : List Act) (signer : String)
+    (fields : List (String × Val)) (fresh : Nat) : Option Act :=
+  (choosePred P A signer v).map fun p =>
+    { addr := fresh, verb := v, signer := signer, preds := [p.addr], fields := fields,
+      replaces := bindOwnReplaces v A signer }
+
+theorem intendOwn_replaces_current {P : Protocol} {v : String} {A : List Act}
+    {signer : String} {fields : List (String × Val)} {fresh : Nat} {m : Act}
+    (h : intendOwn P v A signer fields fresh = some m) (x : Nat) :
+    x ∈ m.replaces ↔ ∃ w ∈ currentOwn v A, w.signer = m.signer ∧ w.addr = x := by
+  simp only [intendOwn, Option.map_eq_some_iff] at h
+  obtain ⟨p, _, rfl⟩ := h
+  simp only [bindOwnReplaces, List.mem_map, List.mem_filter, beq_iff_eq]
+  constructor
+  · rintro ⟨w, ⟨hw, hs⟩, hx⟩; exact ⟨w, hw, hs, hx⟩
+  · rintro ⟨w, hw, hs, hx⟩; exact ⟨w, ⟨hw, hs⟩, hx⟩
+
+theorem intendOwn_supersedes {P : Protocol} {v : String} {A : List Act}
+    {signer : String} {fields : List (String × Val)} {fresh : Nat} {m w : Act}
+    (h : intendOwn P v A signer fields fresh = some m)
+    (hw : w ∈ currentOwn v A) (hs : w.signer = m.signer) :
+    w ∉ currentOwn v (insertAct m A) := by
+  have hv : m.verb = v := by
+    simp only [intendOwn, Option.map_eq_some_iff] at h
+    obtain ⟨p, _, rfl⟩ := h; rfl
+  apply currentOwn_replaced
+  · exact List.mem_filter.2 ⟨(insertAct_setEq m A m).2 List.mem_cons_self, by simp [hv]⟩
+  · exact hs.symm
+  · exact (intendOwn_replaces_current h w.addr).2 ⟨w, hw, hs, rfl⟩
+
+/-- A successful signer binding cannot retire another signer's current write. -/
+theorem intendOwn_crossSigner {P : Protocol} {v : String} {A : List Act}
+    {signer : String} {fields : List (String × Val)} {fresh : Nat} {m w : Act}
+    (_h : intendOwn P v A signer fields fresh = some m)
+    (hw : w ∈ currentOwn v A) (hne : m.signer ≠ w.signer) :
+    w ∈ currentOwn v (insertAct m A) :=
+  (currentOwn_setEq (insertAct_setEq m A) v w).2 (currentOwn_crossSigner hw hne)
+
+/-- A successful signer binding selects an accepted, admitted predecessor. -/
+theorem intendOwn_pred_valid {P : Protocol} {v : String} {A : List Act}
+    {signer : String} {fields : List (String × Val)} {fresh : Nat} {m : Act}
+    (h : intendOwn P v A signer fields fresh = some m) :
+    ∃ p ∈ A, m.preds = [p.addr] ∧ p.verb ∈ P.allowed v := by
+  simp only [intendOwn, Option.map_eq_some_iff] at h
+  obtain ⟨p, hp, rfl⟩ := h
+  obtain ⟨hpA, hv⟩ := choosePred_mem hp
+  exact ⟨p, hpA, rfl, hv⟩
+
+/-- The new own write is current when its address is fresh and previously unnamed. -/
+theorem intendOwn_current_after {P : Protocol} {v : String} {A : List Act}
+    {signer : String} {fields : List (String × Val)} {fresh : Nat} {m : Act}
+    (h : intendOwn P v A signer fields fresh = some m)
+    (hfresh : ∀ w ∈ A, w.addr ≠ fresh)
+    (unnamed : ∀ r ∈ acts v A, fresh ∉ r.replaces) :
+    m ∈ currentOwn v (insertAct m A) := by
+  have hm : m.verb = v ∧ m.addr = fresh ∧ m.replaces = bindOwnReplaces v A signer := by
+    simp only [intendOwn, Option.map_eq_some_iff] at h
+    obtain ⟨p, _, rfl⟩ := h; exact ⟨rfl, rfl, rfl⟩
+  apply mem_currentOwn_iff.2
+  refine ⟨List.mem_filter.2 ⟨(insertAct_setEq m A m).2 List.mem_cons_self, by simp [hm.1]⟩, ?_⟩
+  intro r hr _
+  rcases List.mem_cons.1 ((insertAct_setEq m A r).1 (List.mem_filter.1 hr).1) with hmr | hrA
+  · subst r
+    rw [hm.2.1, hm.2.2]
+    intro hnamed
+    obtain ⟨w, hw, ha⟩ := List.mem_map.1 hnamed
+    have hwA : w ∈ A := (List.mem_filter.1 (mem_currentOwn_iff.1 (List.mem_filter.1 hw).1).1).1
+    exact hfresh w hwA ha
+  · rw [hm.2.1]
+    exact unnamed r (List.mem_filter.2 ⟨hrA, (List.mem_filter.1 hr).2⟩)
 
 end State
 end CBCL

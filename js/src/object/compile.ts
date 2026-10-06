@@ -41,6 +41,7 @@ export interface Contract {
 /** Authoring sugar: `c.last('open', 'title')` is `['last', 'open', 'title']`. */
 export const c = Object.freeze({
   last: (verb: string, field: string): Rule => ['last', verb, field],
+  /** Replace observed writes of the same signer; concurrent writes tie-break by content address. */
   latestPerSigner: (verb: string, field: string): Rule => ['latestPerSigner', verb, field],
   latestPerKey: (verb: string, key: string, field: string): Rule => ['latestPerKey', verb, key, field],
   exists: (verb: string): Rule => ['exists', verb],

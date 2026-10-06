@@ -152,3 +152,27 @@ fn frames_reproduce_every_vector() {
         }
     }
 }
+
+/// TEST-1951: exported admission and shape frames preserve signer bookkeeping.
+#[test]
+fn signer_replaces_shape_is_exported() {
+    let contract = std::fs::read_to_string(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../dialects/lunch-vote.cbcl"
+    ))
+    .unwrap();
+    let missing =
+        "(lang lunch-vote (vote @room :choice \"Pizza\" :caused-by begin :thread \"v1\" :from @a))";
+    let result = cbcl_parser::state_exports::verify_state_shape_str(&format!(
+        "(verify-state-shape {contract} {missing})"
+    ));
+    assert!(
+        result.is_err(),
+        "latest-per-signer requires replacement bookkeeping"
+    );
+    let empty = missing.replace(":choice \"Pizza\"", ":choice \"Pizza\" :replaces ()");
+    assert!(cbcl_parser::state_exports::verify_state_shape_str(&format!(
+        "(verify-state-shape {contract} {empty})"
+    ))
+    .is_ok());
+}

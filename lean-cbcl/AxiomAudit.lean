@@ -202,3 +202,14 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.AdmissionStratification.pigeonhole
 #print axioms CBCL.AdmissionStratification.countGated_not_regular
 #print axioms CBCL.AdmissionStratification.domain_feedback_not_sticky
+
+-- Signer-owned register selection and binding (issue 18; TEST-1953).
+#print axioms CBCL.State.currentOwn_setEq
+#print axioms CBCL.State.mem_currentOwn_iff
+#print axioms CBCL.State.currentOwn_crossSigner
+#print axioms CBCL.State.currentOwn_replaced
+#print axioms CBCL.State.intendOwn_replaces_current
+#print axioms CBCL.State.intendOwn_supersedes
+#print axioms CBCL.State.intendOwn_crossSigner
+#print axioms CBCL.State.intendOwn_pred_valid
+#print axioms CBCL.State.intendOwn_current_after

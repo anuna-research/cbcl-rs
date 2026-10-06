@@ -2,8 +2,8 @@
 id: SPEC-019
 title: State Layer — R7 State Rules and the Intent Binder
 status: draft
-version: 0.3.9
-date: 2026-10-05
+version: 1.0.0
+date: 2026-10-06
 author: Anuna Research (https://anuna.io) — drafted with Claude Fable 5.1
 owner: CBCL maintainer
 depends-on:
@@ -39,14 +39,22 @@ the same acts compute the same state with no clock, no server, and no
 consensus. The rules behave like familiar replicated types (a register
 that keeps concurrent writes, an add-wins set) but nobody holds such a
 type; the names are borrowed for their observable behaviour.
-The rules desugar to a kernel of two selections and five reductions. The fold
+For `latest-per-signer`, observation means membership in the binder's accepted set.
+The binder names all current, domain-admitted writes of the same verb and signer in `:replaces`, including losing concurrent candidates.
+Sequential writes therefore supersede observed own writes; the field returns one value per signer.
+Among concurrent surviving writes, the greatest content address wins.
+Cross-signer references contribute no supersession; the referring act still contributes its own value if admitted and in-domain.
+Domain-excluded acts contribute neither values nor replacement references.
+Superseded domain-admitted acts still supply replacement references.
+Replacement applies whenever a domain-admitted write names another accepted same-verb, same-signer write, including after out-of-order delivery.
+The rules desugar to selections and five reductions. The fold
 and the intent binder are pure functions in `cbcl-core`, exported to every
 host as the parser already is. The invariant added is **R7**: for every
 installed dialect, each state field is a total, order-independent,
 duplicate-insensitive function of the thread's accepted acts, and the
 binder's choices are functions of that set and the intent.
 
-Metaphor: a ledger with a fixed set of column rules. Anyone may append a
+Metaphor: a ledger with a fixed set of column rules. Any member appends a
 signed entry; nobody edits one. Each column's rule says how an accepted entry
 moves that column, and the rules commute, so the totals are the same in any
 reading order. The clerk who fills in the bookkeeping (which earlier entries
@@ -78,7 +86,7 @@ browser, or any deployment. cbcl-bus (with hark as its agent host) is the
 first consumer and the source of the semantics adopted here; it appears in
 Context, in ADRs as evidence, in Migration, and nowhere in a requirement.
 
-Decisions: [[SPEC-019-state-rules#ADR-1900]] a kernel of two
+Decisions: [[SPEC-019-state-rules#ADR-1900]] a kernel of
 selections and five reductions; the fourteen author-facing names are sugar ·
 [[SPEC-019-state-rules#ADR-1901]] supersession rides one reserved
 field, `:replaces`, inserted by the compiler ·
@@ -104,6 +112,7 @@ Load-bearing: [[SPEC-019-state-rules#REQ-1915]] R7 ·
 [[SPEC-019-state-rules#REQ-1931]] one corpus.
 
 Controls:
+- A signer cannot supersede another signer’s ballot → [[SPEC-019-state-rules#REQ-1933]].
 - A dialect whose state clause fails well-formedness is not installed →
   [[SPEC-019-state-rules#REQ-1905]]–[[SPEC-019-state-rules#REQ-1910]].
 - Admission's shape stage reads one message; no stage reads state →
@@ -126,7 +135,7 @@ Open:
   evidence from the corpus, not a theorem, so claims say "mechanised
   kernel, corpus-validated implementation"
   ([[SPEC-018-dcfl-installation#REQ-1806]]).
-- The corpus of cbcl-bus SPEC-085 CON-005 does not exist yet
+- The corpus is pinned by `test-vectors/state/VERSION`
   ([[SPEC-019-state-rules#REQ-1931]]).
 - Shipped views and blobs (cbcl-bus SPEC-019 CON-001 `:views`, CON-004
   `(blob …)`) are unspecified here and [[SPEC-019-state-rules#REQ-1911]]
@@ -146,7 +155,7 @@ accepted revision. Changes to the kernel, the sugar table, the ordering
 rule, or the binding rules break every installed state-bearing dialect and
 MUST bump this document's major version and the corpus version together.
 Tool output and the reference interpreter are evidence, not authority. No
-amendment may present an unproved property as proved.
+amendment SHALL present an unproved property as proved.
 
 ## Reference
 
@@ -189,13 +198,13 @@ bound          := "(" "max-string" n ")" | "(" "max-list" n ")" | "(" "max-numbe
 ```
 
 `:replaces` is a reserved keyword, typed `list`, that the compiler adds to
-the shape of every verb named as a writer or delete verb of `values`,
+the shape of every writer of `latest-per-signer`. It also adds the field to writers and delete verbs of `values`,
 `values-per-key`, `register-per-key`, or as the remove verb of
-`observed-set`. An author never declares it and no rule may read it.
+`observed-set`. An author SHALL NOT declare it; no rule reads it as data.
 
 ### R.2 Kernel
 
-Two selections over `acc(t)`, five reductions over a table of acts.
+Selections over `acc(t)`, five reductions over a table of acts.
 
 ```
 acts v                    = { m ∈ acc(t) : m.v = v }, minus acts excluded by a domain entry for v
@@ -203,6 +212,9 @@ current v kk d            = { w ∈ acts v : (key w, w.a) ∉ replaced }
                             where key w = f_w(kk) (a constant when kk is absent)
                                   replaced = { (key r, x) : r ∈ acts v ∪ acts d, x ∈ f_r(:replaces) }
                                   acts d = ∅ when d is absent
+
+current-by-signer v       = { w ∈ acts v : (w.s, w.a) ∉ replaced-by-signer }
+                            where replaced-by-signer = { (r.s, x) : r ∈ acts v, x ∈ f_r(:replaces) }
 
 pick T k                  = f_m(k) for the m ∈ T with greatest address; absent if T = ∅
 group T g                 = { x ↦ { m ∈ T : g(m) = x } }          g is `signer` or a key field
@@ -215,7 +227,7 @@ Sugar (the author-facing names are defined by this table and nothing else):
 
 ```
 last v k                  = pick (acts v) k
-latest-per-signer v k     = map (T ↦ pick T k) (group (acts v) signer)
+latest-per-signer v k     = map (T ↦ pick T k) (group (current-by-signer v) signer)
 latest-per-key v kk k     = map (T ↦ pick T k) (group (acts v) kk)
 exists v                  = size (acts v) > 0
 count v                   = size (acts v)
@@ -239,7 +251,7 @@ proves them): every kernel function is invariant under permutation and
 duplication of `acc(t)`; `acts`, `size`, `distinct`, and `events` are
 monotone in `acc(t)`; a write named in some accepted `:replaces` for its
 key is never picked from `current`; a write no accepted act names is in
-`current` whatever else is accepted (add-wins); `sum` contributes once per
+`current` whatever else is accepted (add-wins); signer selection removes a write only when a same-signer act names it; `sum` contributes once per
 address.
 
 ### R.3 Values and rendering
@@ -289,6 +301,8 @@ and the opener's predecessor is `begin`.
 4 replaces for each register/removal the verb writes or deletes: the addresses of the current
            writes for the intent's key (or value), plus current deletions for a writer with a
            delete verb, sorted, the first max-list of them; a delete verb with no current write → reject
+           for latest-per-signer: the signer’s own current-by-signer writes of this verb,
+           sorted and distinct, bounded by max-list; an empty list is included on the first write; union targets when one verb feeds several replacement rules
 5 caused-by C = { m ∈ acc(t) : m.v ∈ allowed(verb) }; C = ∅ → begin if allowed else reject;
            Own = { m ∈ C : m.s = signer } ≠ ∅ → greatest-address own act no own act names;
            else greatest-address member of C; under (all p₁…pₙ) once per pᵢ in declared order
@@ -336,18 +350,23 @@ dialect_hash(define_text)               → sha256-<hex>
 admit(dialect, instance, message)       → accepted | pending | rejected(reason)   R.4 + R5 + R6 against acc(t)
 ```
 
-At the boundary the exports take S-expression frames like every other
-export and return canonical JSON: `(fold <dialect> <thread> (acts (<signer>
-<message>) …))`, `(intend <dialect> <thread> (acts …) <signer> <verb> (:k
-v …))`, `(verify-state-shape <dialect> <message>)`, `(state-schema
-<dialect>)`, `(may-send <dialect> <thread> (acts …) <signer>)`,
-`(frontier <dialect> <thread> (acts …))`, `(admit <dialect> <thread> (acts …)
-(<signer> <message>))`, and `dialect_hash(<define text>)`. `admit` is the
-consumer's admission, one message against the accepted set: the shape stage
-(R5 shape, R.4 state shape) alone, then the causal stage (R5 protocol, R6 role
-conformance under the thread's cast), `pending` while a predecessor is
-missing; a consumer retries pending messages as its accepted set grows, and
-the corpus runner is this same function.
+At the boundary the exports take S-expression frames and return canonical JSON:
+
+```text
+(fold <dialect> <thread> (acts (<signer> <message>) …))
+(intend <dialect> <thread> (acts …) <signer> <verb> (:k v …))
+(verify-state-shape <dialect> <message>)
+(state-schema <dialect>)
+(may-send <dialect> <thread> (acts …) <signer>)
+(frontier <dialect> <thread> (acts …))
+(admit <dialect> <thread> (acts …) (<signer> <message>))
+dialect_hash(<define text>)
+```
+
+`admit` checks one message against the accepted set.
+It checks R5 and R.4 shapes first, then R5 causal and R6 role conformance under the thread's cast.
+A missing predecessor yields `pending`.
+Consumers retry pending messages as the accepted set grows; the corpus runner uses this same function.
 Each act entry is the complete received message with its authenticated
 signer; the cast is read from the root among the acts and never supplied.
 
@@ -567,7 +586,12 @@ then rejects it when a concurrent opener arrives). Stratification alone does
 not give regularity, since a causal stage could count verbs; regularity
 rests on the causal stage reading names by membership, as R6's does.
 The Rust/Lean correspondence is checked by the corpus, not proved.
-Trace: [[SPEC-019-state-rules#TEST-1940]]–[[SPEC-019-state-rules#TEST-1946]].
+The signer model proves `currentOwn_setEq`, signer-scoped membership, supersession, and cross-signer noninterference.
+`intendOwn` proves own-current replacement targets, predecessor validity, supersession, and fresh-write currency.
+Its input list is domain-prefiltered; the binder abstraction omits Rust’s sorted, bounded address prefix.
+The conformance corpus and targeted Rust tests check that finite policy.
+Trace: [[SPEC-019-state-rules#TEST-1953]].
+Trace: [[SPEC-019-state-rules#TEST-1940]]–[[SPEC-019-state-rules#TEST-1946]], [[SPEC-019-state-rules#TEST-1953]].
 
 **REQ-1931: One corpus.** The corpus of cbcl-bus SPEC-085 CON-005, amended
 per [[SPEC-019-state-rules#CON-1904]], SHALL be the oracle. cbcl-rs
@@ -586,6 +610,55 @@ the shared frames is the conformance gate for all three
 ([[SPEC-009-erlang-binding#CON-003]] for the NIFs).
 Trace: [[SPEC-019-state-rules#TEST-1932]].
 
+## Signer register amendment — issue 18
+
+The failure is semantic: two sequential votes share an opener predecessor, so address order discards an observed edit.
+The maintainer's task instruction authorises this amendment through [[SPEC-019-state-rules#Amendment Channels]].
+
+### REQ-1933: Observed signer writes supersede
+
+`latest-per-signer` SHALL select only `current-by-signer` writes before grouping and picking.
+Only a same-verb, same-signer, domain-admitted act naming an address in `:replaces` supersedes that write.
+Cross-signer and cross-verb references SHALL NOT remove it.
+Concurrent surviving writes still use [[SPEC-019-state-rules#REQ-1916]].
+Trace: [[SPEC-019-state-rules#TEST-1951]], [[SPEC-019-state-rules#ADR-1912]].
+
+### REQ-1934: Binder supplies signer bookkeeping
+
+The compiler SHALL insert the reserved list field for `latest-per-signer` writers.
+The binder SHALL include the signer's own current writes, including concurrent losing writes, in sorted distinct replacement targets within `max-list`.
+When one verb feeds several replacement rules, targets are their sorted distinct union, truncated after union.
+The first write SHALL carry an empty list.
+Existing forge rejection and domain filtering remain binding.
+Trace: [[SPEC-019-state-rules#TEST-1952]], [[SPEC-019-state-rules#ADR-1912]].
+
+### ADR-1912: Reuse reserved replacement addresses with signer scope
+
+The existing reserved field carries observed supersession without changing R5 acyclicity or adding clocks.
+The authenticated signer supplies the register key; payload fields cannot impersonate another signer.
+The kernel reuses replacement-address selection with signer comparison, while keyed-register semantics remain unchanged.
+The maintainer selected `latest-per-signer` only.
+`last` retains its existing address-order semantics.
+
+### TEST-1951: Signer fold regression (core)
+
+Validates: [[SPEC-019-state-rules#REQ-1933]], [[SPEC-019-state-rules#REQ-1915]].
+Verify a lower-address observed edit wins, concurrent writes use greatest address, and an observed edit replaces all concurrent own writes.
+Verify cross-signer, cross-verb, and domain-excluded replacers leave the targeted ballot unchanged.
+Verify identical state under permutation and duplication, using real canonical messages in the conformance corpus.
+
+### TEST-1952: Signer binder regression (core)
+
+Validates: [[SPEC-019-state-rules#REQ-1934]], [[SPEC-019-state-rules#REQ-1926]].
+Verify first-write empty bookkeeping, sorted bounded own replacements, other-signer exclusion, and supplied-field forge rejection.
+Verify compiler shape insertion, exports, and the JavaScript authoring path.
+
+### TEST-1953: Signer model correspondence (core)
+
+Validates: [[SPEC-019-state-rules#REQ-1930]], [[SPEC-019-state-rules#REQ-1933]], [[SPEC-019-state-rules#REQ-1934]].
+Build the signer selection and binder proofs without new axioms.
+Audit new theorem axioms and retain set-extensional fold invariance.
+
 ## Non-Functional Requirements
 
 **NFR-1900:** `fold` runs in `O(F · n log n)` for `F` fields and `n` acts;
@@ -599,7 +672,7 @@ wasm32, aarch64, and x86_64 for every vector.
 
 ### ADR-1900: A kernel with sugar, not fourteen primitives
 Fourteen author-facing names were each a commutativity proof owed forever.
-They are compositions of two selections (`acts`, `current`) and five
+They compose `acts`, `current`, `current-by-signer`, and five
 reductions; `observed-set` turned out to be `current` keyed by value. The
 names stay for authors and are defined by the table in R.2; proofs and
 typing live on the kernel. Rejected: author-supplied code (unverifiable),
@@ -841,6 +914,7 @@ order; update cbcl-aamas §6 and §7.
 <details>
 <summary>Revision history</summary>
 
+- 1.0.0 (2026-10-06) — issue 18: signer-scoped observed supersession for `latest-per-signer`; corpus version bumped.
 - 0.3.9 (2026-10-05) — REQ-1930 gains the admission obligations, mechanised
   in `LeanCbcl/AdmissionStratification.lean`: stratification
   (`admit_ignores_data`), regularity of the R7 store language

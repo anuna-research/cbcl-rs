@@ -99,10 +99,7 @@ fn clause() -> StateClause {
                     value: s("done"),
                 },
             ),
-            field_entry(
-                "any-check",
-                Rule::Exists { verb: s("check") },
-            ),
+            field_entry("any-check", Rule::Exists { verb: s("check") }),
             field_entry(
                 "tags",
                 Rule::ObservedSet {
@@ -133,7 +130,12 @@ fn clause() -> StateClause {
                     key: s("amount"),
                 },
             ),
-            field_entry("total", Rule::Sum { field: s("credits") }),
+            field_entry(
+                "total",
+                Rule::Sum {
+                    field: s("credits"),
+                },
+            ),
             field_entry(
                 "balance",
                 Rule::Counter {
@@ -266,7 +268,10 @@ fn build(raws: &[Raw]) -> Vec<Act> {
         let same_key = |verbs: &[&str], key: &str, value: &str| -> Vec<&Act> {
             acts.iter()
                 .filter(|a| verbs.contains(&a.verb.as_str()))
-                .filter(|a| render_field(a, key).as_deref() == Some(&Value::Str(String::from(value)).render()))
+                .filter(|a| {
+                    render_field(a, key).as_deref()
+                        == Some(&Value::Str(String::from(value)).render())
+                })
                 .collect()
         };
         let act = match &raw.spec {
@@ -326,7 +331,9 @@ fn build(raws: &[Raw]) -> Vec<Act> {
                 &[],
                 &[("amount", num(*amount)), ("op", str_(op))],
             ),
-            Spec::Vote { choice } => mk_act(&addr, "vote", signer, &[], &[("choice", str_(choice))]),
+            Spec::Vote { choice } => {
+                mk_act(&addr, "vote", signer, &[], &[("choice", str_(choice))])
+            }
         };
         acts.push(act);
     }
@@ -379,7 +386,12 @@ fn entries(v: &Value) -> BTreeMap<String, String> {
 /// `current writer key delete`: the writes of `writer` that no accepted
 /// write or deletion of the same key names in `:replaces`. First
 /// occurrence per address, as the store would hold it.
-fn current_writes<'a>(acts: &'a [Act], writer: &str, key: &str, delete: Option<&str>) -> Vec<&'a Act> {
+fn current_writes<'a>(
+    acts: &'a [Act],
+    writer: &str,
+    key: &str,
+    delete: Option<&str>,
+) -> Vec<&'a Act> {
     let mut seen: BTreeSet<&str> = BTreeSet::new();
     let set: Vec<&Act> = acts
         .iter()
@@ -632,8 +644,14 @@ fn step(verb: &str, preds: &[&str], succs: &[&str]) -> (String, StepDecl) {
         String::from(verb),
         StepDecl {
             performative: String::from(verb),
-            predecessors: preds.iter().map(|p| NodeRef::Single(String::from(*p))).collect(),
-            successors: succs.iter().map(|p| NodeRef::Single(String::from(*p))).collect(),
+            predecessors: preds
+                .iter()
+                .map(|p| NodeRef::Single(String::from(*p)))
+                .collect(),
+            successors: succs
+                .iter()
+                .map(|p| NodeRef::Single(String::from(*p)))
+                .collect(),
         },
     )
 }
@@ -733,7 +751,9 @@ fn checklist() -> Dialect {
 fn opener(d: &Dialect) -> Act {
     let inner = Message::Simple {
         performative: Performative::Custom(String::from("open")),
-        recipient: Some(Recipients::Set(SIGNERS.iter().map(|s| String::from(*s)).collect())),
+        recipient: Some(Recipients::Set(
+            SIGNERS.iter().map(|s| String::from(*s)).collect(),
+        )),
         content: SExpr::List(Vec::new()),
         params: vec![kw("title"), str_("Launch"), kw("from"), sym("@a")],
         thread: Some(String::from(THREAD)),
@@ -896,4 +916,346 @@ proptest! {
             }
         }
     }
+}
+
+// TEST-1951/1952: SPEC-019 REQ-1933/1934 signer-scoped registers.
+fn signer_clause() -> StateClause {
+    StateClause {
+        entries: vec![field_entry(
+            "ballots",
+            Rule::LatestPerSigner {
+                verb: "check".into(),
+                key: "item".into(),
+            },
+        )],
+    }
+}
+
+fn signer_write(n: u64, signer: &str, value: &str, replaces: &[String]) -> Act {
+    mk_act(
+        &format!("sha256-{n:064x}"),
+        "check",
+        signer,
+        &[],
+        &[
+            ("item", str_(value)),
+            (RESERVED_REPLACES, addr_list(replaces)),
+        ],
+    )
+}
+
+#[test]
+fn signer_observed_edit_and_ownership() {
+    let old = signer_write(90, "@a", "old", &[]);
+    let concurrent = signer_write(80, "@a", "concurrent", &[]);
+    let other = signer_write(100, "@b", "other", &[old.address.clone()]);
+    let edit = signer_write(
+        1,
+        "@a",
+        "edit",
+        &[old.address.clone(), concurrent.address.clone()],
+    );
+    let clause = signer_clause();
+    let before = fold(
+        &clause,
+        None,
+        &[old.clone(), concurrent.clone(), other.clone()],
+    );
+    assert_eq!(entries(&before[0].1).get("\"@a\""), Some(&"\"old\"".into()));
+    let expected = "{\"ballots\":{\"@a\":\"edit\",\"@b\":\"other\"}}";
+    let acts = vec![old, concurrent, other, edit];
+    assert_eq!(render_json(&fold(&clause, None, &acts)), expected);
+    let mut permuted = acts.clone();
+    permuted.reverse();
+    permuted.extend(acts);
+    assert_eq!(render_json(&fold(&clause, None, &permuted)), expected);
+}
+
+#[test]
+fn signer_domain_and_verb_guards() {
+    let old = signer_write(90, "@a", "allowed", &[]);
+    let excluded = signer_write(1, "@a", "excluded", &[old.address.clone()]);
+    let mut wrong_verb = signer_write(2, "@a", "allowed", &[old.address.clone()]);
+    wrong_verb.verb = "other".into();
+    let open = mk_act(
+        "sha256-open",
+        "open",
+        "@a",
+        &[],
+        &[("options", SExpr::List(vec![str_("allowed")]))],
+    );
+    let mut clause = signer_clause();
+    clause.entries.insert(
+        0,
+        field_entry(
+            "options",
+            Rule::Last {
+                verb: "open".into(),
+                key: "options".into(),
+            },
+        ),
+    );
+    clause.entries.push(Entry::Domain {
+        verb: "check".into(),
+        key: "item".into(),
+        field: "options".into(),
+    });
+    let p = checklist().causal_protocol.unwrap();
+    let state = fold(&clause, Some(&p), &[open, old, excluded, wrong_verb]);
+    assert_eq!(
+        entries(&state[1].1).get("\"@a\""),
+        Some(&"\"allowed\"".into())
+    );
+}
+
+#[test]
+fn signer_binder_first_concurrent_sorted_bounded_and_forge() {
+    let mut d = checklist();
+    d.state = Some(signer_clause());
+    for shape in &mut d.shapes {
+        shape.rules.retain(
+            |r| !matches!(r, ShapeRule::Require { keyword, .. } if keyword == RESERVED_REPLACES),
+        );
+    }
+    insert_replaces(&mut d);
+    assert!(r7_violations(&d).is_empty(), "{:?}", r7_violations(&d));
+    let op = opener(&d);
+    let fields = || {
+        [
+            ("item".into(), str_("edit")),
+            ("done".into(), boolean(true)),
+        ]
+        .into_iter()
+        .collect()
+    };
+    let bind = |acts: &[Act], fields| {
+        intend(
+            &Instance::new(&d, ThreadId(THREAD.into()), acts).unwrap(),
+            &AgentKey("@a".into()),
+            "check",
+            fields,
+        )
+    };
+    let first = Act::from_message(bind(&[op.clone()], fields()).unwrap(), "@a").unwrap();
+    assert_eq!(
+        first.fields.get(RESERVED_REPLACES),
+        Some(&SExpr::List(vec![]))
+    );
+    verify_state_shape(&d, &first.message).unwrap();
+    assert!(replaces_of(&first).is_empty());
+    let high = signer_write(90, "@a", "old", &[]);
+    let low = signer_write(80, "@a", "concurrent", &[]);
+    let other = signer_write(100, "@b", "other", &[]);
+    let acts = vec![
+        op.clone(),
+        high.clone(),
+        low.clone(),
+        other.clone(),
+        high.clone(),
+    ];
+    let edit = Act::from_message(bind(&acts, fields()).unwrap(), "@a").unwrap();
+    assert_eq!(
+        replaces_of(&edit),
+        vec![low.address.clone(), high.address.clone()]
+    );
+    let mut forged = fields();
+    forged.insert(
+        RESERVED_REPLACES.into(),
+        addr_list(&[other.address.clone()]),
+    );
+    assert_eq!(
+        bind(&acts, forged),
+        Err(Reject::Forge(RESERVED_REPLACES.into()))
+    );
+    d.state_bounds = Some(cbcl_core::state::StateBounds {
+        max_list: 1,
+        ..Default::default()
+    });
+    let inst = Instance::new(&d, ThreadId(THREAD.into()), &acts).unwrap();
+    let bounded = Act::from_message(
+        intend(&inst, &AgentKey("@a".into()), "check", fields()).unwrap(),
+        "@a",
+    )
+    .unwrap();
+    assert_eq!(replaces_of(&bounded), vec![low.address]);
+}
+
+proptest! {
+    #[test]
+    fn signer_register_permutation_and_duplicate_property(a in 2u64..1000, b in 1000u64..2000, reverse in any::<bool>()) {
+        let old = signer_write(a, "@a", "old", &[]);
+        let concurrent = signer_write(b, "@a", "concurrent", &[]);
+        let edit = signer_write(1, "@a", "edit", &[old.address.clone(), concurrent.address.clone()]);
+        let mut acts = vec![old, concurrent, edit];
+        if reverse { acts.reverse(); }
+        acts.extend(acts.clone());
+        prop_assert_eq!(render_json(&fold(&signer_clause(), None, &acts)), "{\"ballots\":{\"@a\":\"edit\"}}");
+    }
+}
+
+#[test]
+fn signer_canonical_lower_address_edit_always_wins() {
+    let mut d = checklist();
+    d.state.as_mut().unwrap().entries.push(field_entry(
+        "ballots",
+        Rule::LatestPerSigner {
+            verb: "check".into(),
+            key: "done".into(),
+        },
+    ));
+    insert_replaces(&mut d);
+    let op = opener(&d);
+    let mut lower_found = false;
+    for n in 0..128 {
+        let fields = |done| {
+            [
+                ("item".into(), str_(&format!("item-{n}"))),
+                ("done".into(), boolean(done)),
+            ]
+            .into_iter()
+            .collect()
+        };
+        let old = Act::from_message(
+            intend(
+                &Instance::new(&d, ThreadId(THREAD.into()), &[op.clone()]).unwrap(),
+                &AgentKey("@a".into()),
+                "check",
+                fields(false),
+            )
+            .unwrap(),
+            "@a",
+        )
+        .unwrap();
+        let acts = vec![op.clone(), old.clone()];
+        let edit = Act::from_message(
+            intend(
+                &Instance::new(&d, ThreadId(THREAD.into()), &acts).unwrap(),
+                &AgentKey("@a".into()),
+                "check",
+                fields(true),
+            )
+            .unwrap(),
+            "@a",
+        )
+        .unwrap();
+        if edit.address < old.address {
+            lower_found = true;
+            assert!(replaces_of(&edit).contains(&old.address));
+            let state = fold(
+                d.state.as_ref().unwrap(),
+                d.causal_protocol.as_ref(),
+                &[op.clone(), old, edit],
+            );
+            assert_eq!(entries(&state[2].1).get("\"@a\""), Some(&"true".into()));
+            break;
+        }
+    }
+    assert!(
+        lower_found,
+        "canonical regression must exercise a lower-address successor"
+    );
+}
+
+#[test]
+fn signer_binder_uses_domain_admitted_current_writes() {
+    let mut d = checklist();
+    d.shapes
+        .iter_mut()
+        .find(|s| s.performative == "open")
+        .unwrap()
+        .rules = vec![require("title", TypeConstraint::List)];
+    d.state.as_mut().unwrap().entries.push(field_entry(
+        "ballots",
+        Rule::LatestPerSigner {
+            verb: "check".into(),
+            key: "item".into(),
+        },
+    ));
+    d.state.as_mut().unwrap().entries.push(Entry::Domain {
+        verb: "check".into(),
+        key: "item".into(),
+        field: "title".into(),
+    });
+    let mut op = opener(&d);
+    op.fields
+        .insert("title".into(), SExpr::List(vec![str_("allowed")]));
+    let old = signer_write(90, "@a", "allowed", &[]);
+    let invalid = signer_write(1, "@a", "excluded", &[old.address.clone()]);
+    let acts = vec![op, old.clone(), invalid];
+    let inst = Instance::new(&d, ThreadId(THREAD.into()), &acts).unwrap();
+    let fields = [
+        ("item".into(), str_("allowed")),
+        ("done".into(), boolean(true)),
+    ]
+    .into_iter()
+    .collect();
+    let edit = Act::from_message(
+        intend(&inst, &AgentKey("@a".into()), "check", fields).unwrap(),
+        "@a",
+    )
+    .unwrap();
+    assert_eq!(replaces_of(&edit), vec![old.address]);
+}
+
+#[test]
+fn signer_string_addresses_and_last_retains_address_order() {
+    let old = signer_write(90, "@a", "old", &[]);
+    let mut edit = signer_write(1, "@a", "edit", &[]);
+    edit.fields.insert(
+        RESERVED_REPLACES.into(),
+        SExpr::List(vec![str_(&old.address)]),
+    );
+    let mut clause = signer_clause();
+    clause.entries.push(field_entry(
+        "last",
+        Rule::Last {
+            verb: "check".into(),
+            key: "item".into(),
+        },
+    ));
+    let state = fold(&clause, None, &[old, edit]);
+    assert_eq!(entries(&state[0].1).get("\"@a\""), Some(&"\"edit\"".into()));
+    assert_eq!(state[1].1, Value::Str("old".into()));
+}
+
+#[test]
+fn signer_binder_mixed_rule_union_remains_sorted_and_bounded() {
+    let mut d = checklist();
+    d.state.as_mut().unwrap().entries.push(field_entry(
+        "ballots",
+        Rule::LatestPerSigner {
+            verb: "check".into(),
+            key: "done".into(),
+        },
+    ));
+    d.state_bounds = Some(cbcl_core::state::StateBounds {
+        max_list: 2,
+        ..Default::default()
+    });
+    let op = opener(&d);
+    let own_elsewhere = signer_write(30, "@a", "other", &[]);
+    let own_same = signer_write(40, "@a", "same", &[]);
+    let other_same = signer_write(20, "@b", "same", &[]);
+    let acts = vec![op, own_elsewhere.clone(), own_same, other_same.clone()];
+    let fields = [
+        ("item".into(), str_("same")),
+        ("done".into(), boolean(true)),
+    ]
+    .into_iter()
+    .collect();
+    let edit = Act::from_message(
+        intend(
+            &Instance::new(&d, ThreadId(THREAD.into()), &acts).unwrap(),
+            &AgentKey("@a".into()),
+            "check",
+            fields,
+        )
+        .unwrap(),
+        "@a",
+    )
+    .unwrap();
+    assert_eq!(
+        replaces_of(&edit),
+        vec![other_same.address, own_elsewhere.address]
+    );
 }

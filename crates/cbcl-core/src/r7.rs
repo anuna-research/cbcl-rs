@@ -78,7 +78,8 @@ fn shape_has_replaces(shapes: &[ShapeConstraint], verb: &str) -> bool {
 }
 
 /// Insert `(require :replaces list)` into the shape of every verb the
-/// clause names as a writer, delete, or remove verb (ADR-1901). Called by
+/// clause names as a register writer, signer writer, delete, or remove verb
+/// (ADR-1901, REQ-1934). Called by
 /// the parser after all clauses are read. Idempotent.
 pub fn insert_replaces(d: &mut Dialect) {
     let Some(clause) = d.state.as_ref() else {
@@ -532,6 +533,15 @@ pub fn verify_state_shape(d: &Dialect, msg: &Message) -> Result<(), ShapeViolati
             continue;
         };
         check_bounds(&verb, key, value, &bounds)?;
+    }
+
+    // Compiler-owned bookkeeping is required on every replacement writer.
+    if clause.replaces_verbs().contains(verb.as_str()) && !fields.contains_key(RESERVED_REPLACES) {
+        return Err(violation(
+            "replaces",
+            Some(RESERVED_REPLACES),
+            String::from("missing required :replaces list"),
+        ));
     }
 
     // `:replaces`: a list of at most max-list distinct addresses.

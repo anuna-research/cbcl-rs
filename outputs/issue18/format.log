@@ -1,0 +1,859 @@
+Diff in /Users/anuna-01/Code/cbcl-rs/crates/cbcl-erl/src/lib.rs:39:
+ pub use parse_message::parse_message_pure;
+ pub use parse_message_lax::parse_message_lax_pure;
+ pub use state::{
+[31m-    admit_pure, dialect_hash_pure, fold_pure, frontier_pure, intend_pure, may_send_pure,
+(B[m[31m-    compile_contract_pure, define_text_pure, describe_dialect_pure, read_act_pure, read_pure,
+(B[m[32m+    admit_pure, compile_contract_pure, define_text_pure, describe_dialect_pure, dialect_hash_pure,
+(B[m[32m+    fold_pure, frontier_pure, intend_pure, may_send_pure, read_act_pure, read_pure,
+(B[m     state_schema_pure, verify_message_shape_pure, verify_state_shape_pure,
+ };
+ pub use verify_dialect::verify_dialect_pure;
+Diff in /Users/anuna-01/Code/cbcl-rs/crates/cbcl-erl/src/parse_message_lax.rs:126:
+ 
+     #[test]
+     fn a_bare_control_performative_is_accepted_by_lax_and_refused_by_strict() {
+[31m-        let frame = b"(adddialect @general :name probe :def \"(define probe (cbcl) @a)\" :from @alice)";
+(B[m[32m+        let frame =
+(B[m[32m+            b"(adddialect @general :name probe :def \"(define probe (cbcl) @a)\" :from @alice)";
+(B[m         assert!(crate::parse_message_pure(frame).is_err());
+         let msg = parse_message_lax_pure(frame).unwrap();
+         assert!(matches!(msg, Message::Simple { .. }));
+Diff in /Users/anuna-01/Code/cbcl-rs/crates/cbcl-erl/src/parse_message_lax.rs:133:
+         assert_eq!(
+             msg.performative(),
+[31m-            Some(&cbcl_core::message::Performative::Custom("adddialect".into()))
+(B[m[32m+            Some(&cbcl_core::message::Performative::Custom(
+(B[m[32m+                "adddialect".into()
+(B[m[32m+            ))
+(B[m         );
+     }
+ 
+Diff in /Users/anuna-01/Code/cbcl-rs/crates/cbcl-erl/src/state.rs:191:
+ 
+ #[rustler::nif]
+ pub fn describe_dialect<'a>(env: Env<'a>, bytes: Binary<'a>) -> Term<'a> {
+[31m-    run(env, "describe_dialect", bytes.as_slice(), describe_dialect_pure)
+(B[m[32m+    run(
+(B[m[32m+        env,
+(B[m[32m+        "describe_dialect",
+(B[m[32m+        bytes.as_slice(),
+(B[m[32m+        describe_dialect_pure,
+(B[m[32m+    )
+(B[m }
+ 
+ #[rustler::nif]
+Diff in /Users/anuna-01/Code/cbcl-rs/crates/cbcl-erl/src/state.rs:201:
+ 
+ #[rustler::nif]
+ pub fn compile_contract<'a>(env: Env<'a>, bytes: Binary<'a>) -> Term<'a> {
+[31m-    run(env, "compile_contract", bytes.as_slice(), compile_contract_pure)
+(B[m[32m+    run(
+(B[m[32m+        env,
+(B[m[32m+        "compile_contract",
+(B[m[32m+        bytes.as_slice(),
+(B[m[32m+        compile_contract_pure,
+(B[m[32m+    )
+(B[m }
+ 
+ #[rustler::nif]
+Diff in /Users/anuna-01/Code/cbcl-rs/crates/cbcl-erl/src/state.rs:208:
+ pub fn verify_message_shape<'a>(env: Env<'a>, bytes: Binary<'a>) -> Term<'a> {
+[31m-    run(env, "verify_message_shape", bytes.as_slice(), verify_message_shape_pure)
+(B[m[32m+    run(
+(B[m[32m+        env,
+(B[m[32m+        "verify_message_shape",
+(B[m[32m+        bytes.as_slice(),
+(B[m[32m+        verify_message_shape_pure,
+(B[m[32m+    )
+(B[m }
+ 
+ #[cfg(test)]
+Diff in /Users/anuna-01/Code/cbcl-rs/crates/cbcl-erl/src/state.rs:263:
+         assert!(fr.starts_with("{\"instance\":\"sha256-"), "{fr}");
+         let root = fr.split('"').nth(3).unwrap().to_string();
+         let vote = format!("(lang lunch-vote (vote @lunch :choice \"Sushi\" :caused-by {root} :thread \"v1\" :from @bo))");
+[31m-        let admitted = admit_pure(format!("(admit {LUNCH} \"v1\" {acts} (@bo {vote}))").as_bytes()).unwrap();
+(B[m[32m+        let admitted =
+(B[m[32m+            admit_pure(format!("(admit {LUNCH} \"v1\" {acts} (@bo {vote}))").as_bytes()).unwrap();
+(B[m         assert_eq!(admitted, "{\"verdict\":\"accepted\"}");
+         let orphan = "(lang lunch-vote (vote @lunch :choice \"Sushi\" :caused-by sha256-ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff :thread \"v1\" :from @bo))";
+[31m-        let pending = admit_pure(format!("(admit {LUNCH} \"v1\" {acts} (@bo {orphan}))").as_bytes()).unwrap();
+(B[m[32m+        let pending =
+(B[m[32m+            admit_pure(format!("(admit {LUNCH} \"v1\" {acts} (@bo {orphan}))").as_bytes()).unwrap();
+(B[m         assert_eq!(pending, "{\"verdict\":\"pending\"}");
+         assert_eq!(
+[31m-            verify_message_shape_pure(format!("(verify-shape {LUNCH} vote (vote @lunch :choice \"Sushi\"))").as_bytes()).unwrap(),
+(B[m[32m+            verify_message_shape_pure(
+(B[m[32m+                format!("(verify-shape {LUNCH} vote (vote @lunch :choice \"Sushi\"))").as_bytes()
+(B[m[32m+            )
+(B[m[32m+            .unwrap(),
+(B[m             "ok"
+         );
+[31m-        let blame = verify_message_shape_pure(format!("(verify-shape {LUNCH} vote (vote @lunch :choice 3))").as_bytes()).unwrap_err();
+(B[m[32m+        let blame = verify_message_shape_pure(
+(B[m[32m+            format!("(verify-shape {LUNCH} vote (vote @lunch :choice 3))").as_bytes(),
+(B[m[32m+        )
+(B[m[32m+        .unwrap_err();
+(B[m         assert!(blame.contains("choice"), "{blame}");
+     }
+ 
+Diff in /Users/anuna-01/Code/cbcl-rs/crates/cbcl-parser/src/contract.rs:25:
+ pub const MAX_CONTRACT_BYTES: usize = 16384;
+ 
+ /// The eight core performatives plus `lang`, never a contract verb.
+[31m-const CORE: &[&str] = &["tell", "ask", "reply", "error", "ok", "cancel", "hello", "bye", "lang"];
+(B[m[32m+const CORE: &[&str] = &[
+(B[m[32m+    "tell", "ask", "reply", "error", "ok", "cancel", "hello", "bye", "lang",
+(B[m[32m+];
+(B[m /// Keywords the binder owns; never a field name.
+ const ROUTING: &[&str] = &[
+[31m-    "from", "thread", "dialect", "caused-by", "to", "sender", "replaces", "audience", "sig", "key",
+(B[m[32m+    "from",
+(B[m[32m+    "thread",
+(B[m[32m+    "dialect",
+(B[m[32m+    "caused-by",
+(B[m[32m+    "to",
+(B[m[32m+    "sender",
+(B[m[32m+    "replaces",
+(B[m[32m+    "audience",
+(B[m[32m+    "sig",
+(B[m[32m+    "key",
+(B[m     "signing-key",
+ ];
+ const RESERVED_NAMES: &[&str] = &["begin", "constructor", "prototype", "__proto__"];
+Diff in /Users/anuna-01/Code/cbcl-rs/crates/cbcl-parser/src/contract.rs:57:
+ /// dialect head and the shape of their arguments.
+ const RULES: &[(&str, &str, &[Arg])] = &[
+     ("last", "last", &[Arg::Verb, Arg::Key]),
+[31m-    ("latestPerSigner", "latest-per-signer", &[Arg::Verb, Arg::Key]),
+(B[m[31m-    ("latestPerKey", "latest-per-key", &[Arg::Verb, Arg::Key, Arg::Key]),
+(B[m[32m+    (
+(B[m[32m+        "latestPerSigner",
+(B[m[32m+        "latest-per-signer",
+(B[m[32m+        &[Arg::Verb, Arg::Key],
+(B[m[32m+    ),
+(B[m[32m+    (
+(B[m[32m+        "latestPerKey",
+(B[m[32m+        "latest-per-key",
+(B[m[32m+        &[Arg::Verb, Arg::Key, Arg::Key],
+(B[m[32m+    ),
+(B[m     ("exists", "exists", &[Arg::Verb]),
+     ("count", "count", &[Arg::Verb]),
+     ("events", "events", &[Arg::Verb, Arg::Key]),
+Diff in /Users/anuna-01/Code/cbcl-rs/crates/cbcl-parser/src/contract.rs:65:
+     ("setUnion", "set-union", &[Arg::Verb, Arg::Key]),
+     ("values", "values", &[Arg::Verb, Arg::Key]),
+[31m-    ("valuesPerKey", "values-per-key", &[Arg::Verb, Arg::Key, Arg::Key, Arg::OptVerb]),
+(B[m[31m-    ("registerPerKey", "register-per-key", &[Arg::Verb, Arg::Key, Arg::Key, Arg::OptVerb]),
+(B[m[31m-    ("observedSet", "observed-set", &[Arg::Verb, Arg::Verb, Arg::Key]),
+(B[m[32m+    (
+(B[m[32m+        "valuesPerKey",
+(B[m[32m+        "values-per-key",
+(B[m[32m+        &[Arg::Verb, Arg::Key, Arg::Key, Arg::OptVerb],
+(B[m[32m+    ),
+(B[m[32m+    (
+(B[m[32m+        "registerPerKey",
+(B[m[32m+        "register-per-key",
+(B[m[32m+        &[Arg::Verb, Arg::Key, Arg::Key, Arg::OptVerb],
+(B[m[32m+    ),
+(B[m[32m+    (
+(B[m[32m+        "observedSet",
+(B[m[32m+        "observed-set",
+(B[m[32m+        &[Arg::Verb, Arg::Verb, Arg::Key],
+(B[m[32m+    ),
+(B[m     ("counter", "counter", &[Arg::Verb, Arg::Verb, Arg::Key]),
+     ("histogram", "histogram", &[Arg::Field]),
+     ("sum", "sum", &[Arg::Field]),
+Diff in /Users/anuna-01/Code/cbcl-rs/crates/cbcl-parser/src/contract.rs:81:
+     let ok_head = matches!(chars.next(), Some(c) if c.is_ascii_lowercase());
+     ok_head
+         && s.len() <= 48
+[31m-        && s.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
+(B[m[32m+        && s.chars()
+(B[m[32m+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
+(B[m         && !ROUTING.contains(&s)
+         && !RESERVED_NAMES.contains(&s)
+ }
+Diff in /Users/anuna-01/Code/cbcl-rs/crates/cbcl-parser/src/contract.rs:90:
+     s.len() >= 2
+         && s.len() <= 64
+         && s.starts_with('@')
+[31m-        && s[1..].chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '.' | '-'))
+(B[m[32m+        && s[1..]
+(B[m[32m+            .chars()
+(B[m[32m+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '.' | '-'))
+(B[m }
+ 
+ fn record<'a>(
+Diff in /Users/anuna-01/Code/cbcl-rs/crates/cbcl-parser/src/contract.rs:148:
+         &["author", "requirements", "bounds", "roles"],
+         "contract",
+     )?;
+[31m-    if top["version"].as_u64() != Some(CONTRACT_VERSION) || top["kind"].as_str() != Some("contract") {
+(B[m[32m+    if top["version"].as_u64() != Some(CONTRACT_VERSION) || top["kind"].as_str() != Some("contract")
+(B[m[32m+    {
+(B[m         return err("unsupported contract version");
+     }
+     let name = top["name"].as_str().filter(|n| identifier(n));
+Diff in /Users/anuna-01/Code/cbcl-rs/crates/cbcl-parser/src/contract.rs:155:
+[31m-    let Some(name) = name else { return err("invalid contract name") };
+(B[m[32m+    let Some(name) = name else {
+(B[m[32m+        return err("invalid contract name");
+(B[m[32m+    };
+(B[m     let author = match top.get("author") {
+         None => "@object",
+         Some(a) => match a.as_str() {
+Diff in /Users/anuna-01/Code/cbcl-rs/crates/cbcl-parser/src/contract.rs:162:
+     };
+     let mut resources = Vec::new();
+     if let Some(r) = top.get("requirements") {
+[31m-        let map = record(r, &[], &RESOURCE_KEYS.iter().map(|k| k.0).collect::<Vec<_>>(), "requirements")?;
+(B[m[32m+        let map = record(
+(B[m[32m+            r,
+(B[m[32m+            &[],
+(B[m[32m+            &RESOURCE_KEYS.iter().map(|k| k.0).collect::<Vec<_>>(),
+(B[m[32m+            "requirements",
+(B[m[32m+        )?;
+(B[m         for (json_key, cbcl_key, _) in RESOURCE_KEYS {
+             if let Some(v) = map.get(*json_key) {
+                 resources.push((*cbcl_key, positive_int(v, json_key)?));
+Diff in /Users/anuna-01/Code/cbcl-rs/crates/cbcl-parser/src/contract.rs:171:
+     }
+     let mut bounds = Vec::new();
+     if let Some(b) = top.get("bounds") {
+[31m-        let map = record(b, &[], &BOUND_KEYS.iter().map(|k| k.0).collect::<Vec<_>>(), "bounds")?;
+(B[m[32m+        let map = record(
+(B[m[32m+            b,
+(B[m[32m+            &[],
+(B[m[32m+            &BOUND_KEYS.iter().map(|k| k.0).collect::<Vec<_>>(),
+(B[m[32m+            "bounds",
+(B[m[32m+        )?;
+(B[m         // Emit in declaration order.
+         for (key, value) in map {
+             let cbcl = BOUND_KEYS.iter().find(|k| k.0 == key).map(|k| k.1).unwrap();
+Diff in /Users/anuna-01/Code/cbcl-rs/crates/cbcl-parser/src/contract.rs:180:
+     }
+     let mut roles = Vec::new();
+     if let Some(r) = top.get("roles") {
+[31m-        let Some(map) = r.as_object() else { return err("roles must be a record") };
+(B[m[32m+        let Some(map) = r.as_object() else {
+(B[m[32m+            return err("roles must be a record");
+(B[m[32m+        };
+(B[m         if map.is_empty() || map.len() > 16 {
+             return err("a contract declares between 1 and 16 roles");
+         }
+Diff in /Users/anuna-01/Code/cbcl-rs/crates/cbcl-parser/src/contract.rs:197:
+         }
+     }
+     let has_roles = !roles.is_empty();
+[31m-    let Some(verb_map) = top["verbs"].as_object() else { return err("verbs must be a record") };
+(B[m[32m+    let Some(verb_map) = top["verbs"].as_object() else {
+(B[m[32m+        return err("verbs must be a record");
+(B[m[32m+    };
+(B[m     if verb_map.is_empty() || verb_map.len() > 16 {
+         return err("a contract declares between 1 and 16 verbs");
+     }
+Diff in /Users/anuna-01/Code/cbcl-rs/crates/cbcl-parser/src/contract.rs:209:
+         }
+         let optional: &[&str] = if has_roles { &["from", "to"] } else { &[] };
+         let map = record(rule, &["after", "fields"], optional, verb)?;
+[31m-        let Some(after) = map["after"].as_array() else { return err(format!("invalid predecessors of {verb}")) };
+(B[m[32m+        let Some(after) = map["after"].as_array() else {
+(B[m[32m+            return err(format!("invalid predecessors of {verb}"));
+(B[m[32m+        };
+(B[m         if after.is_empty() || after.len() > 16 {
+             return err(format!("invalid predecessors of {verb}"));
+         }
+Diff in /Users/anuna-01/Code/cbcl-rs/crates/cbcl-parser/src/contract.rs:227:
+             }
+             openers += 1;
+         }
+[31m-        let Some(field_map) = map["fields"].as_object() else { return err(format!("invalid fields of {verb}")) };
+(B[m[32m+        let Some(field_map) = map["fields"].as_object() else {
+(B[m[32m+            return err(format!("invalid fields of {verb}"));
+(B[m[32m+        };
+(B[m         if field_map.len() > 16 {
+             return err(format!("too many fields on {verb}"));
+         }
+Diff in /Users/anuna-01/Code/cbcl-rs/crates/cbcl-parser/src/contract.rs:243:
+                 Json::Object(_) => {
+                     let m = record(ty, &["enumOf"], &[], field)?;
+                     match m["enumOf"].as_str() {
+[31m-                        Some(target) if identifier(target) => fields.push((field.as_str(), "string", Some(target))),
+(B[m[32m+                        Some(target) if identifier(target) => {
+(B[m[32m+                            fields.push((field.as_str(), "string", Some(target)))
+(B[m[32m+                        }
+(B[m                         _ => return err("invalid domain"),
+                     }
+                 }
+Diff in /Users/anuna-01/Code/cbcl-rs/crates/cbcl-parser/src/contract.rs:270:
+         } else {
+             (None, Vec::new())
+         };
+[31m-        verbs.push(Verb { name: verb.as_str(), after: preds, fields, from, to });
+(B[m[32m+        verbs.push(Verb {
+(B[m[32m+            name: verb.as_str(),
+(B[m[32m+            after: preds,
+(B[m[32m+            fields,
+(B[m[32m+            from,
+(B[m[32m+            to,
+(B[m[32m+        });
+(B[m     }
+     if openers != 1 {
+         return err("exactly one opener required");
+Diff in /Users/anuna-01/Code/cbcl-rs/crates/cbcl-parser/src/contract.rs:277:
+     }
+[31m-    let Some(state_map) = top["state"].as_object() else { return err("state must be a record") };
+(B[m[32m+    let Some(state_map) = top["state"].as_object() else {
+(B[m[32m+        return err("state must be a record");
+(B[m[32m+    };
+(B[m     if state_map.is_empty() || state_map.len() > 32 {
+         return err("a state declares between 1 and 32 fields");
+     }
+Diff in /Users/anuna-01/Code/cbcl-rs/crates/cbcl-parser/src/contract.rs:284:
+         if !identifier(field) {
+             return err(format!("invalid state field {field}"));
+         }
+[31m-        let Some(items) = expr.as_array() else { return err(format!("unknown rule for {field}")) };
+(B[m[31m-        let Some(op) = items.first().and_then(Json::as_str) else { return err(format!("unknown rule for {field}")) };
+(B[m[32m+        let Some(items) = expr.as_array() else {
+(B[m[32m+            return err(format!("unknown rule for {field}"));
+(B[m[32m+        };
+(B[m[32m+        let Some(op) = items.first().and_then(Json::as_str) else {
+(B[m[32m+            return err(format!("unknown rule for {field}"));
+(B[m[32m+        };
+(B[m         let Some((_, head, shape)) = RULES.iter().find(|r| r.0 == op) else {
+             return err(format!("unknown rule for {field}"));
+         };
+Diff in /Users/anuna-01/Code/cbcl-rs/crates/cbcl-parser/src/contract.rs:312:
+             }
+         }
+     }
+[31m-    Ok(Contract { name, author, resources, bounds, roles, verbs, state })
+(B[m[32m+    Ok(Contract {
+(B[m[32m+        name,
+(B[m[32m+        author,
+(B[m[32m+        resources,
+(B[m[32m+        bounds,
+(B[m[32m+        roles,
+(B[m[32m+        verbs,
+(B[m[32m+        state,
+(B[m[32m+    })
+(B[m }
+ 
+ /// The dialect text of a recognised contract, named `name` (SPEC-087 CON-001).
+Diff in /Users/anuna-01/Code/cbcl-rs/crates/cbcl-parser/src/contract.rs:322:
+     let resources: Vec<String> = RESOURCE_KEYS
+         .iter()
+         .map(|(_, key, default)| {
+[31m-            let value = c.resources.iter().find(|(k, _)| k == key).map(|(_, v)| *v).unwrap_or(*default);
+(B[m[32m+            let value = c
+(B[m[32m+                .resources
+(B[m[32m+                .iter()
+(B[m[32m+                .find(|(k, _)| k == key)
+(B[m[32m+                .map(|(_, v)| *v)
+(B[m[32m+                .unwrap_or(*default);
+(B[m             format!("({key} {value})")
+         })
+         .collect();
+Diff in /Users/anuna-01/Code/cbcl-rs/crates/cbcl-parser/src/contract.rs:329:
+[31m-    out.push_str(&format!("  (:resource-requirements ({}))\n", resources.join(" ")));
+(B[m[32m+    out.push_str(&format!(
+(B[m[32m+        "  (:resource-requirements ({}))\n",
+(B[m[32m+        resources.join(" ")
+(B[m[32m+    ));
+(B[m     if !c.bounds.is_empty() {
+         let bounds: Vec<String> = c.bounds.iter().map(|(k, v)| format!("({k} {v})")).collect();
+         out.push_str(&format!("  (:state-bounds {})\n", bounds.join(" ")));
+Diff in /Users/anuna-01/Code/cbcl-rs/crates/cbcl-parser/src/contract.rs:335:
+         let roles: Vec<String> = c
+             .roles
+             .iter()
+[31m-            .map(|(r, indexed)| if *indexed { format!("(* {r})") } else { r.to_string() })
+(B[m[32m+            .map(|(r, indexed)| {
+(B[m[32m+                if *indexed {
+(B[m[32m+                    format!("(* {r})")
+(B[m[32m+                } else {
+(B[m[32m+                    r.to_string()
+(B[m[32m+                }
+(B[m[32m+            })
+(B[m             .collect();
+         out.push_str(&format!("  (:roles ({}))\n", roles.join(" ")));
+     }
+Diff in /Users/anuna-01/Code/cbcl-rs/crates/cbcl-parser/src/contract.rs:345:
+             Some(from) => format!(" :from {from} :to ({})", v.to.join(" ")),
+             None => String::new(),
+         };
+[31m-        let template: String = v.fields.iter().map(|f| format!(" :{} {}", f.0, f.0)).collect();
+(B[m[31m-        let param_list = if params.is_empty() { String::new() } else { format!(" {}", params.join(" ")) };
+(B[m[31m-        out.push_str(&format!("  (extend {} (to{param_list}){annotation} (tell to{template}))\n", v.name));
+(B[m[32m+        let template: String = v
+(B[m[32m+            .fields
+(B[m[32m+            .iter()
+(B[m[32m+            .map(|f| format!(" :{} {}", f.0, f.0))
+(B[m[32m+            .collect();
+(B[m[32m+        let param_list = if params.is_empty() {
+(B[m[32m+            String::new()
+(B[m[32m+        } else {
+(B[m[32m+            format!(" {}", params.join(" "))
+(B[m[32m+        };
+(B[m[32m+        out.push_str(&format!(
+(B[m[32m+            "  (extend {} (to{param_list}){annotation} (tell to{template}))\n",
+(B[m[32m+            v.name
+(B[m[32m+        ));
+(B[m     }
+     for v in &c.verbs {
+         if v.fields.is_empty() {
+Diff in /Users/anuna-01/Code/cbcl-rs/crates/cbcl-parser/src/contract.rs:354:
+             continue;
+         }
+[31m-        let rules: String = v.fields.iter().map(|(f, t, _)| format!(" (require :{f} {t})")).collect();
+(B[m[32m+        let rules: String = v
+(B[m[32m+            .fields
+(B[m[32m+            .iter()
+(B[m[32m+            .map(|(f, t, _)| format!(" (require :{f} {t})"))
+(B[m[32m+            .collect();
+(B[m         out.push_str(&format!("  (shape {}{rules})\n", v.name));
+     }
+     let steps: String = c
+Diff in /Users/anuna-01/Code/cbcl-rs/crates/cbcl-parser/src/contract.rs:360:
+         .verbs
+         .iter()
+         .map(|v| {
+[31m-            let pred = if v.after.len() == 1 { v.after[0].to_string() } else { format!("(any {})", v.after.join(" ")) };
+(B[m[32m+            let pred = if v.after.len() == 1 {
+(B[m[32m+                v.after[0].to_string()
+(B[m[32m+            } else {
+(B[m[32m+                format!("(any {})", v.after.join(" "))
+(B[m[32m+            };
+(B[m             format!(" (then {pred} {})", v.name)
+         })
+         .collect();
+Diff in /Users/anuna-01/Code/cbcl-rs/crates/cbcl-parser/src/contract.rs:401:
+     if input.len() > MAX_CONTRACT_BYTES {
+         return err("contract exceeds 16 KiB");
+     }
+[31m-    let json: Json = serde_json::from_str(input).map_err(|e| format!("contract: invalid JSON: {e}"))?;
+(B[m[32m+    let json: Json =
+(B[m[32m+        serde_json::from_str(input).map_err(|e| format!("contract: invalid JSON: {e}"))?;
+(B[m     let contract = recognize(&json)?;
+     let draft = emit(&contract, contract.name);
+[31m-    let parsed = crate::parser::parse(&draft).map_err(|e| format!("contract: emitted dialect does not parse: {e}"))?;
+(B[m[31m-    let dialect = crate::parse_dialect(&parsed).map_err(|e| format!("contract: emitted dialect is malformed: {e}"))?;
+(B[m[32m+    let parsed = crate::parser::parse(&draft)
+(B[m[32m+        .map_err(|e| format!("contract: emitted dialect does not parse: {e}"))?;
+(B[m[32m+    let dialect = crate::parse_dialect(&parsed)
+(B[m[32m+        .map_err(|e| format!("contract: emitted dialect is malformed: {e}"))?;
+(B[m     let name = dialect_name(&dialect);
+     let text = emit(&contract, &name);
+[31m-    let sexpr = crate::parser::parse(&text).map_err(|e| format!("contract: emitted dialect does not parse: {e}"))?;
+(B[m[32m+    let sexpr = crate::parser::parse(&text)
+(B[m[32m+        .map_err(|e| format!("contract: emitted dialect does not parse: {e}"))?;
+(B[m     crate::state_exports::parse_and_install_dialect(&sexpr)?;
+     Ok(format!(
+         "{{\"name\":{},\"label\":{},\"dialect\":{}}}",
+Diff in /Users/anuna-01/Code/cbcl-rs/crates/cbcl-parser/src/describe.rs:34:
+     let mut current = &form;
+     loop {
+         let SExpr::List(items) = current else {
+[31m-            return Err(String::from("expected a (define …), (meta (define …)) or (meta (teach (define …))) form"));
+(B[m[32m+            return Err(String::from(
+(B[m[32m+                "expected a (define …), (meta (define …)) or (meta (teach (define …))) form",
+(B[m[32m+            ));
+(B[m         };
+         match items.first().and_then(symbol) {
+             Some("define") => return Ok(current.clone()),
+Diff in /Users/anuna-01/Code/cbcl-rs/crates/cbcl-parser/src/describe.rs:41:
+             Some("meta") | Some("teach") if items.len() >= 2 => current = &items[1],
+[31m-            _ => return Err(String::from("expected a (define …), (meta (define …)) or (meta (teach (define …))) form")),
+(B[m[32m+            _ => {
+(B[m[32m+                return Err(String::from(
+(B[m[32m+                    "expected a (define …), (meta (define …)) or (meta (teach (define …))) form",
+(B[m[32m+                ))
+(B[m[32m+            }
+(B[m         }
+     }
+ }
+Diff in /Users/anuna-01/Code/cbcl-rs/crates/cbcl-parser/src/describe.rs:70:
+         Rule::Events { verb, key } => ("events", alloc::vec![verb, key]),
+         Rule::SetUnion { verb, key } => ("setUnion", alloc::vec![verb, key]),
+         Rule::Values { verb, key } => ("values", alloc::vec![verb, key]),
+[31m-        Rule::ValuesPerKey { verb, key, value, delete } => {
+(B[m[32m+        Rule::ValuesPerKey {
+(B[m[32m+            verb,
+(B[m[32m+            key,
+(B[m[32m+            value,
+(B[m[32m+            delete,
+(B[m[32m+        } => {
+(B[m             let mut v = alloc::vec![verb.as_str(), key, value];
+[31m-            if let Some(d) = delete { v.push(d); }
+(B[m[32m+            if let Some(d) = delete {
+(B[m[32m+                v.push(d);
+(B[m[32m+            }
+(B[m             ("valuesPerKey", v)
+         }
+[31m-        Rule::RegisterPerKey { verb, key, value, delete } => {
+(B[m[32m+        Rule::RegisterPerKey {
+(B[m[32m+            verb,
+(B[m[32m+            key,
+(B[m[32m+            value,
+(B[m[32m+            delete,
+(B[m[32m+        } => {
+(B[m             let mut v = alloc::vec![verb.as_str(), key, value];
+[31m-            if let Some(d) = delete { v.push(d); }
+(B[m[32m+            if let Some(d) = delete {
+(B[m[32m+                v.push(d);
+(B[m[32m+            }
+(B[m             ("registerPerKey", v)
+         }
+         Rule::ObservedSet { add, remove, key } => ("observedSet", alloc::vec![add, remove, key]),
+Diff in /Users/anuna-01/Code/cbcl-rs/crates/cbcl-parser/src/describe.rs:98:
+         let mut fields = Map::new();
+         for shape in d.shapes.iter().filter(|s| s.performative == p.name) {
+             for rule in &shape.rules {
+[31m-                if let ShapeRule::Require { keyword, type_constraint, .. } = rule {
+(B[m[32m+                if let ShapeRule::Require {
+(B[m[32m+                    keyword,
+(B[m[32m+                    type_constraint,
+(B[m[32m+                    ..
+(B[m[32m+                } = rule
+(B[m[32m+                {
+(B[m                     if keyword == RESERVED_REPLACES {
+                         continue;
+                     }
+Diff in /Users/anuna-01/Code/cbcl-rs/crates/cbcl-parser/src/describe.rs:158:
+         }
+     }
+     let bounds = match &d.state_bounds {
+[31m-        Some(b) => json!({ "max-string": b.max_string, "max-list": b.max_list, "max-number": b.max_number, "max-fields": b.max_fields }),
+(B[m[32m+        Some(b) => {
+(B[m[32m+            json!({ "max-string": b.max_string, "max-list": b.max_list, "max-number": b.max_number, "max-fields": b.max_fields })
+(B[m[32m+        }
+(B[m         None => json!({}),
+     };
+     json!({
+Diff in /Users/anuna-01/Code/cbcl-rs/crates/cbcl-parser/src/describe.rs:193:
+ /// data fields (routing excluded), and routing, as JSON.
+ pub fn read_act_str(input: &str) -> Result<String, String> {
+     let form = crate::parser::parse(input).map_err(|e| alloc::format!("parse error: {e}"))?;
+[31m-    let message = crate::parse_message(&form).map_err(|e| alloc::format!("message parse error: {e}"))?;
+(B[m[32m+    let message =
+(B[m[32m+        crate::parse_message(&form).map_err(|e| alloc::format!("message parse error: {e}"))?;
+(B[m     let dialect = dialect_of(&message).map(|s| s.to_string());
+     let act = Act::from_message(message, "")?;
+     let simple = act.simple();
+Diff in /Users/anuna-01/Code/cbcl-rs/crates/cbcl-parser/src/describe.rs:203:
+             let mut i = 0;
+             while i + 1 < params.len() {
+                 if matches!(&params[i], SExpr::Atom(Atom::Keyword(k)) if k == "from") {
+[31m-                    found = symbol(&params[i + 1]).map(|s| s.to_string()).or_else(|| match &params[i + 1] {
+(B[m[31m-                        SExpr::Atom(Atom::Str(s)) => Some(s.clone()),
+(B[m[31m-                        _ => None,
+(B[m[31m-                    });
+(B[m[32m+                    found = symbol(&params[i + 1])
+(B[m[32m+                        .map(|s| s.to_string())
+(B[m[32m+                        .or_else(|| match &params[i + 1] {
+(B[m[32m+                            SExpr::Atom(Atom::Str(s)) => Some(s.clone()),
+(B[m[32m+                            _ => None,
+(B[m[32m+                        });
+(B[m                 }
+                 i += 2;
+             }
+Diff in /Users/anuna-01/Code/cbcl-rs/crates/cbcl-parser/src/describe.rs:246:
+     fn define_text_unwraps_meta_and_teach() {
+         let bare = define_text_str(D).unwrap();
+         assert!(bare.starts_with("(define d (cbcl) @a"));
+[31m-        assert_eq!(define_text_str(&alloc::format!("; c\n(meta {D})")).unwrap(), bare);
+(B[m[31m-        assert_eq!(define_text_str(&alloc::format!("(meta (teach {D}))")).unwrap(), bare);
+(B[m[32m+        assert_eq!(
+(B[m[32m+            define_text_str(&alloc::format!("; c\n(meta {D})")).unwrap(),
+(B[m[32m+            bare
+(B[m[32m+        );
+(B[m[32m+        assert_eq!(
+(B[m[32m+            define_text_str(&alloc::format!("(meta (teach {D}))")).unwrap(),
+(B[m[32m+            bare
+(B[m[32m+        );
+(B[m         assert!(define_text_str("(tell @a \"x\")").is_err());
+     }
+ 
+Diff in /Users/anuna-01/Code/cbcl-rs/crates/cbcl-parser/src/describe.rs:257:
+         assert_eq!(v["opener"], "open");
+         assert_eq!(v["verbs"]["vote"]["fields"]["choice"], "string");
+         assert_eq!(v["verbs"]["vote"]["after"], json!(["open"]));
+[31m-        assert_eq!(v["state"]["ballots"], json!(["latestPerSigner", "vote", "choice"]));
+(B[m[32m+        assert_eq!(
+(B[m[32m+            v["state"]["ballots"],
+(B[m[32m+            json!(["latestPerSigner", "vote", "choice"])
+(B[m[32m+        );
+(B[m         assert_eq!(v["roles"], json!({}));
+     }
+ 
+Diff in /Users/anuna-01/Code/cbcl-rs/crates/cbcl-parser/src/lib.rs:8:
+ 
+ extern crate alloc;
+ 
+[31m-pub mod dialect_parser;
+(B[m[31m-pub mod message_parser;
+(B[m[31m-pub mod parser;
+(B[m[31m-pub mod pipeline;
+(B[m #[cfg(feature = "std")]
+ pub mod contract;
+ #[cfg(feature = "std")]
+Diff in /Users/anuna-01/Code/cbcl-rs/crates/cbcl-parser/src/lib.rs:18:
+ pub mod describe;
+[32m+pub mod dialect_parser;
+(B[m[32m+pub mod message_parser;
+(B[m[32m+pub mod parser;
+(B[m[32m+pub mod pipeline;
+(B[m pub mod protocol_parser;
+ pub mod read;
+ pub mod shape_exports;
+Diff in /Users/anuna-01/Code/cbcl-rs/crates/cbcl-parser/src/message_parser.rs:93:
+     fn lax_recognition_accepts_a_bare_custom_head_for_a_hosts_control_frame() {
+         // The chat hub dispatches its control frames by head name and gates
+         // them with an allow-list; strict refuses them, lax names the head.
+[31m-        let sexpr = crate::parse("(adddialect @general :name probe :def \"(define probe (cbcl) @a)\" :from @alice)").unwrap();
+(B[m[32m+        let sexpr = crate::parse(
+(B[m[32m+            "(adddialect @general :name probe :def \"(define probe (cbcl) @a)\" :from @alice)",
+(B[m[32m+        )
+(B[m[32m+        .unwrap();
+(B[m         assert!(parse_message(&sexpr).is_err());
+         let m = parse_message_lax(&sexpr).unwrap();
+[31m-        assert_eq!(m.performative(), Some(&Performative::Custom("adddialect".into())));
+(B[m[32m+        assert_eq!(
+(B[m[32m+            m.performative(),
+(B[m[32m+            Some(&Performative::Custom("adddialect".into()))
+(B[m[32m+        );
+(B[m         // Lax changes nothing else: a core performative and a scoped one read the same.
+         let core = crate::parse("(tell @bob \"hi\")").unwrap();
+[31m-        assert_eq!(parse_message_lax(&core).unwrap(), parse_message(&core).unwrap());
+(B[m[32m+        assert_eq!(
+(B[m[32m+            parse_message_lax(&core).unwrap(),
+(B[m[32m+            parse_message(&core).unwrap()
+(B[m[32m+        );
+(B[m         let scoped = crate::parse("(lang d (ship parcel))").unwrap();
+[31m-        assert_eq!(parse_message_lax(&scoped).unwrap(), parse_message(&scoped).unwrap());
+(B[m[32m+        assert_eq!(
+(B[m[32m+            parse_message_lax(&scoped).unwrap(),
+(B[m[32m+            parse_message(&scoped).unwrap()
+(B[m[32m+        );
+(B[m     }
+ 
+     #[test]
+Diff in /Users/anuna-01/Code/cbcl-rs/crates/cbcl-parser/src/shape_exports.rs:76:
+     Ok(String::from("ok"))
+ }
+ 
+[31m-
+(B[m #[cfg(test)]
+ mod tests {
+     use super::*;
+Diff in /Users/anuna-01/Code/cbcl-rs/crates/cbcl-parser/src/shape_exports.rs:85:
+ 
+     #[test]
+     fn shape_verdicts() {
+[31m-        assert_eq!(verify_message_shape_str(&format!("(verify-shape {D} vote (vote @r :choice \"x\"))")).unwrap(), "ok");
+(B[m[31m-        let blame = verify_message_shape_str(&format!("(verify-shape {D} vote (vote @r :choice 1))")).unwrap_err();
+(B[m[32m+        assert_eq!(
+(B[m[32m+            verify_message_shape_str(&format!("(verify-shape {D} vote (vote @r :choice \"x\"))"))
+(B[m[32m+                .unwrap(),
+(B[m[32m+            "ok"
+(B[m[32m+        );
+(B[m[32m+        let blame =
+(B[m[32m+            verify_message_shape_str(&format!("(verify-shape {D} vote (vote @r :choice 1))"))
+(B[m[32m+                .unwrap_err();
+(B[m         assert!(blame.contains("choice"), "{blame}");
+         assert!(verify_message_shape_str(&format!("(verify-shape {D} vote (vote @r))")).is_err());
+         // No shape targets the performative: nothing to violate.
+Diff in /Users/anuna-01/Code/cbcl-rs/crates/cbcl-parser/src/shape_exports.rs:93:
+[31m-        assert_eq!(verify_message_shape_str(&format!("(verify-shape {D} other (other @r))")).unwrap(), "ok");
+(B[m[31m-        assert!(verify_message_shape_str("(verify-shape").unwrap_err().starts_with("parse error"));
+(B[m[32m+        assert_eq!(
+(B[m[32m+            verify_message_shape_str(&format!("(verify-shape {D} other (other @r))")).unwrap(),
+(B[m[32m+            "ok"
+(B[m[32m+        );
+(B[m[32m+        assert!(verify_message_shape_str("(verify-shape")
+(B[m[32m+            .unwrap_err()
+(B[m[32m+            .starts_with("parse error"));
+(B[m     }
+ }
+ 
+Diff in /Users/anuna-01/Code/cbcl-rs/crates/cbcl-parser/tests/contract_parity.rs:40:
+ 
+ #[test]
+ fn checklist_and_lunch_vote_compile_to_the_authored_dialects() {
+[31m-    for (contract, file) in [(checklist(), "checklist.cbcl"), (lunch_vote(), "lunch-vote.cbcl")] {
+(B[m[32m+    for (contract, file) in [
+(B[m[32m+        (checklist(), "checklist.cbcl"),
+(B[m[32m+        (lunch_vote(), "lunch-vote.cbcl"),
+(B[m[32m+    ] {
+(B[m         let out = compiled(&contract);
+         assert_eq!(out["name"], authored(file), "{file}");
+         assert_eq!(out["label"], contract["name"]);
+Diff in /Users/anuna-01/Code/cbcl-rs/crates/cbcl-parser/tests/contract_parity.rs:47:
+         let text = out["dialect"].as_str().unwrap();
+[31m-        assert!(text.starts_with(&format!("(define {} (cbcl) @anuna", out["name"].as_str().unwrap())));
+(B[m[31m-        assert_eq!(dialect_name(&parse_dialect(&parse(text).unwrap()).unwrap()), out["name"]);
+(B[m[32m+        assert!(text.starts_with(&format!(
+(B[m[32m+            "(define {} (cbcl) @anuna",
+(B[m[32m+            out["name"].as_str().unwrap()
+(B[m[32m+        )));
+(B[m[32m+        assert_eq!(
+(B[m[32m+            dialect_name(&parse_dialect(&parse(text).unwrap()).unwrap()),
+(B[m[32m+            out["name"]
+(B[m[32m+        );
+(B[m     }
+ }
+ 
+Diff in /Users/anuna-01/Code/cbcl-rs/crates/cbcl-parser/tests/contract_parity.rs:60:
+     smaller["state"] = json!({"title":["last","open","title"]});
+     assert_ne!(compiled(&smaller)["name"], a["name"]);
+     let text = a["dialect"].as_str().unwrap();
+[31m-    assert!(text.contains("(state (title (last open :title)) (items (register-per-key check :item :done drop)))"));
+(B[m[32m+    assert!(text.contains(
+(B[m[32m+        "(state (title (last open :title)) (items (register-per-key check :item :done drop)))"
+(B[m[32m+    ));
+(B[m     assert!(text.contains("(:roles (owner (* member)))"));
+     assert!(text.contains("(extend check (to item done) :from member :to (owner member) (tell to :item item :done done))"));
+[31m-    assert!(!text.contains("replaces"), "the compiler in cbcl-core, not the contract, inserts :replaces");
+(B[m[32m+    assert!(
+(B[m[32m+        !text.contains("replaces"),
+(B[m[32m+        "the compiler in cbcl-core, not the contract, inserts :replaces"
+(B[m[32m+    );
+(B[m     let lunch = compiled(&lunch_vote());
+     let text = lunch["dialect"].as_str().unwrap();
+[31m-    assert!(text.contains("(options (last propose :options)) (domain vote :choice options) (ballots"));
+(B[m[32m+    assert!(
+(B[m[32m+        text.contains("(options (last propose :options)) (domain vote :choice options) (ballots")
+(B[m[32m+    );
+(B[m     assert!(text.contains("(:state-bounds (max-string 280) (max-list 24))"));
+     assert!(text.contains("(shape vote (require :choice string))"));
+ }
+Diff in /Users/anuna-01/Code/cbcl-rs/crates/cbcl-parser/tests/contract_parity.rs:75:
+ fn recognition_and_verification_refuse_malformed_contracts() {
+     let mutations: Vec<(&str, Box<dyn Fn(&mut Value)>)> = vec![
+         ("unknown key", Box::new(|d| d["code"] = json!("alert(1)"))),
+[31m-        ("executable rule", Box::new(|d| d["state"]["items"] = json!(["eval", "alert(1)"]))),
+(B[m[31m-        ("routing field", Box::new(|d| d["verbs"]["check"]["fields"]["from"] = json!("string"))),
+(B[m[31m-        ("reserved replaces", Box::new(|d| d["verbs"]["check"]["fields"]["replaces"] = json!("list"))),
+(B[m[31m-        ("core verb", Box::new(|d| d["verbs"]["tell"] = json!({"after":["open"],"fields":{},"from":"owner","to":["owner"]}))),
+(B[m[31m-        ("opener follows check", Box::new(|d| d["verbs"]["open"]["after"] = json!(["check"]))),
+(B[m[31m-        ("unknown predecessor", Box::new(|d| d["verbs"]["check"]["after"] = json!(["missing"]))),
+(B[m[31m-        ("nested histogram", Box::new(|d| d["state"]["tally"] = json!(["histogram", ["latestPerSigner", "check", "done"]]))),
+(B[m[31m-        ("arity", Box::new(|d| d["state"]["items"] = json!(["registerPerKey", "check", "item"]))),
+(B[m[31m-        ("domain to nowhere", Box::new(|d| d["verbs"]["check"]["fields"]["item"] = json!({"enumOf":"nowhere"}))),
+(B[m[31m-        ("role kind", Box::new(|d| d["roles"] = json!({"owner":"one"}))),
+(B[m[31m-        ("missing annotation", Box::new(|d| { d["verbs"]["check"].as_object_mut().unwrap().remove("from"); })),
+(B[m[32m+        (
+(B[m[32m+            "executable rule",
+(B[m[32m+            Box::new(|d| d["state"]["items"] = json!(["eval", "alert(1)"])),
+(B[m[32m+        ),
+(B[m[32m+        (
+(B[m[32m+            "routing field",
+(B[m[32m+            Box::new(|d| d["verbs"]["check"]["fields"]["from"] = json!("string")),
+(B[m[32m+        ),
+(B[m[32m+        (
+(B[m[32m+            "reserved replaces",
+(B[m[32m+            Box::new(|d| d["verbs"]["check"]["fields"]["replaces"] = json!("list")),
+(B[m[32m+        ),
+(B[m[32m+        (
+(B[m[32m+            "core verb",
+(B[m[32m+            Box::new(|d| {
+(B[m[32m+                d["verbs"]["tell"] =
+(B[m[32m+                    json!({"after":["open"],"fields":{},"from":"owner","to":["owner"]})
+(B[m[32m+            }),
+(B[m[32m+        ),
+(B[m[32m+        (
+(B[m[32m+            "opener follows check",
+(B[m[32m+            Box::new(|d| d["verbs"]["open"]["after"] = json!(["check"])),
+(B[m[32m+        ),
+(B[m[32m+        (
+(B[m[32m+            "unknown predecessor",
+(B[m[32m+            Box::new(|d| d["verbs"]["check"]["after"] = json!(["missing"])),
+(B[m[32m+        ),
+(B[m[32m+        (
+(B[m[32m+            "nested histogram",
+(B[m[32m+            Box::new(|d| {
+(B[m[32m+                d["state"]["tally"] = json!(["histogram", ["latestPerSigner", "check", "done"]])
+(B[m[32m+            }),
+(B[m[32m+        ),
+(B[m[32m+        (
+(B[m[32m+            "arity",
+(B[m[32m+            Box::new(|d| d["state"]["items"] = json!(["registerPerKey", "check", "item"])),
+(B[m[32m+        ),
+(B[m[32m+        (
+(B[m[32m+            "domain to nowhere",
+(B[m[32m+            Box::new(|d| d["verbs"]["check"]["fields"]["item"] = json!({"enumOf":"nowhere"})),
+(B[m[32m+        ),
+(B[m[32m+        (
+(B[m[32m+            "role kind",
+(B[m[32m+            Box::new(|d| d["roles"] = json!({"owner":"one"})),
+(B[m[32m+        ),
+(B[m[32m+        (
+(B[m[32m+            "missing annotation",
+(B[m[32m+            Box::new(|d| {
+(B[m[32m+                d["verbs"]["check"].as_object_mut().unwrap().remove("from");
+(B[m[32m+            }),
+(B[m[32m+        ),
+(B[m         ("version", Box::new(|d| d["version"] = json!(2))),
+         // cbcl-rs R5/R7 blame, not recognition:
+[31m-        ("cycle", Box::new(|d| d["verbs"]["check"]["after"] = json!(["open", "check"]))),
+(B[m[31m-        ("histogram over a scalar", Box::new(|d| d["state"]["tally"] = json!(["histogram", "title"]))),
+(B[m[31m-        ("delete verb is the opener", Box::new(|d| d["state"]["items"] = json!(["registerPerKey", "check", "item", "done", "open"]))),
+(B[m[32m+        (
+(B[m[32m+            "cycle",
+(B[m[32m+            Box::new(|d| d["verbs"]["check"]["after"] = json!(["open", "check"])),
+(B[m[32m+        ),
+(B[m[32m+        (
+(B[m[32m+            "histogram over a scalar",
+(B[m[32m+            Box::new(|d| d["state"]["tally"] = json!(["histogram", "title"])),
+(B[m[32m+        ),
+(B[m[32m+        (
+(B[m[32m+            "delete verb is the opener",
+(B[m[32m+            Box::new(|d| {
+(B[m[32m+                d["state"]["items"] = json!(["registerPerKey", "check", "item", "done", "open"])
+(B[m[32m+            }),
+(B[m[32m+        ),
+(B[m     ];
+     for (why, mutate) in mutations {
+         let mut d = checklist();
+Diff in /Users/anuna-01/Code/cbcl-rs/crates/cbcl-parser/tests/contract_parity.rs:97:
+         mutate(&mut d);
+[31m-        assert!(compile_contract_str(&d.to_string()).is_err(), "{why} should be refused");
+(B[m[32m+        assert!(
+(B[m[32m+            compile_contract_str(&d.to_string()).is_err(),
+(B[m[32m+            "{why} should be refused"
+(B[m[32m+        );
+(B[m     }
+[31m-    assert!(compile_contract_str("{").unwrap_err().starts_with("contract:"));
+(B[m[31m-    assert!(compile_contract_str(&"x".repeat(20000)).unwrap_err().contains("16 KiB"));
+(B[m[32m+    assert!(compile_contract_str("{")
+(B[m[32m+        .unwrap_err()
+(B[m[32m+        .starts_with("contract:"));
+(B[m[32m+    assert!(compile_contract_str(&"x".repeat(20000))
+(B[m[32m+        .unwrap_err()
+(B[m[32m+        .contains("16 KiB"));
+(B[m }
+ 
+Diff in /Users/anuna-01/Code/cbcl-rs/crates/cbcl-wasm/src/lib.rs:972:
+         assert!(read_bytes(b"(open").is_err());
+         let define = String::from_utf8(define_text_bytes(checklist.as_bytes()).unwrap()).unwrap();
+         assert!(define.starts_with("(define "));
+[31m-        let described = String::from_utf8(describe_dialect_bytes(checklist.as_bytes()).unwrap()).unwrap();
+(B[m[32m+        let described =
+(B[m[32m+            String::from_utf8(describe_dialect_bytes(checklist.as_bytes()).unwrap()).unwrap();
+(B[m         assert!(described.contains("\"opener\":\"open\""), "{described}");
+         let contract = br#"{"version":3,"kind":"contract","name":"one","verbs":{"open":{"after":["begin"],"fields":{"title":"string"}}},"state":{"title":["last","open","title"]}}"#;
+         let compiled = String::from_utf8(compile_contract_bytes(contract).unwrap()).unwrap();
+Diff in /Users/anuna-01/Code/cbcl-rs/crates/cbcl-wasm/src/lib.rs:979:
+         assert!(compiled.contains("\"label\":\"one\""));
+         assert!(compile_contract_bytes(b"{").is_err());
+         let declared = define.split_whitespace().nth(1).unwrap();
+[31m-        let act = format!("(lang {declared} (open @o :thread \"t\" :from @o :caused-by begin :title \"T\"))");
+(B[m[32m+        let act = format!(
+(B[m[32m+            "(lang {declared} (open @o :thread \"t\" :from @o :caused-by begin :title \"T\"))"
+(B[m[32m+        );
+(B[m         let read = String::from_utf8(read_act_bytes(act.as_bytes()).unwrap()).unwrap();
+         assert!(read.contains("\"verb\":\"open\""));
+         let admitted = format!("(admit {define} \"t\" (acts) (@o {act}))");

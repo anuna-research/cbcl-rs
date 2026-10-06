@@ -1,0 +1,16 @@
+Explanation for +d completed(issue18)
+This was proven using defeasible rules and was not defeated by any conflicting rule.
+
+Derivation:
+  1. "completed(issue18)" was derived defeasibly
+     Using defeasible rule: r-issue18-complete
+     Prerequisites:
+       1. "completed(issue18-core)" was established as a fact
+          Using fact: f67
+       1. "completed(issue18-surfaces)" was established as a fact
+          Using fact: f68
+       1. "completed(issue18-lean)" was established as a fact
+          Using fact: f65
+       1. "completed(issue18-review)" was established as a fact
+          Using fact: f69
+

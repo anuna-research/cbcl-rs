@@ -54,7 +54,7 @@ await agent.act('lunch-1', 'vote', { choice: 'Sushi' });   // cbcl-rs binds, the
 agent.read('lunch-1');                                       // the fold
 ```
 
-Rules are the fourteen of SPEC-019 R.1 (`last`, `latestPerSigner`, `latestPerKey`, `exists`, `count`, `events`, `setUnion`, `values`, `valuesPerKey`, `registerPerKey`, `observedSet`, `counter`, `histogram(field)`, `sum(field)`); optional `author`, `requirements`, `bounds`, and `roles` with `from`/`to` per verb. Registers carry replacement in a reserved `:replaces` field that cbcl-rs inserts and the binder fills. An intent supplies a verb and its data fields only; a routing keyword is refused as a forge.
+Rules are the fourteen of SPEC-019 R.1 (`last`, `latestPerSigner`, `latestPerKey`, `exists`, `count`, `events`, `setUnion`, `values`, `valuesPerKey`, `registerPerKey`, `observedSet`, `counter`, `histogram(field)`, `sum(field)`); optional `author`, `requirements`, `bounds`, and `roles` with `from`/`to` per verb. Registers and `latestPerSigner` writers carry replacement in a reserved `:replaces` field that cbcl-rs inserts and the binder fills. For `latestPerSigner`, an edit replaces the current writes of its signer; concurrent unseen writes survive and the greatest content address breaks ties. Another signer cannot replace those writes. `last` continues to select the greatest content address. An intent supplies a verb and its data fields only; a routing keyword is refused as a forge.
 
 `poll.read(records)` folds without a transport; `poll.verdicts(records)` says which are accepted, pending, or rejected; `createRuntime(dialectText)` is the runtime for any dialect text, including one learned from a room.
 

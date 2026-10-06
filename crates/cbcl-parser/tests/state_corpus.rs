@@ -209,6 +209,11 @@ fn run_vector(path: &PathBuf) {
 #[test]
 fn every_vector_passes_forward_reversed_and_duplicated() {
     let dir = corpus_dir();
+    assert_eq!(
+        std::fs::read_to_string(dir.join("VERSION")).unwrap().trim(),
+        "1.0.0",
+        "state corpus version is pinned"
+    );
     let mut paths: Vec<PathBuf> = std::fs::read_dir(&dir)
         .unwrap_or_else(|e| panic!("{}: {e}", dir.display()))
         .filter_map(|e| e.ok().map(|e| e.path()))

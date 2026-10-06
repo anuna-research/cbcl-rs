@@ -1,0 +1,236 @@
+
+> cbcl@0.1.0 test
+> node --experimental-strip-types --test test/*.test.ts
+
+(node:46707) ExperimentalWarning: Type Stripping is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+TAP version 13
+# (node:46710) ExperimentalWarning: Type Stripping is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: corpus checklist-roles.json: verdicts, state, and intents match cbcl-rs
+ok 1 - corpus checklist-roles.json: verdicts, state, and intents match cbcl-rs
+  ---
+  duration_ms: 160.101709
+  ...
+# Subtest: corpus lunch-vote-domain.json: verdicts, state, and intents match cbcl-rs
+not ok 2 - corpus lunch-vote-domain.json: verdicts, state, and intents match cbcl-rs
+  ---
+  duration_ms: 15.759583
+  location: '/Users/anuna-01/Code/cbcl-rs/js/test/corpus.test.ts:21:3'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+      {
+        'sha256-0cec4be111c4f1eab4770ff67149dcc4a653f1d1c0a9f4436d404b5ced219d18': 'rejected',
+    +   'sha256-4bdbd776171d4c2dca279a877dd8aa2a46c1698cf0f687d774c10f3e340e33f7': 'rejected',
+    -   'sha256-4bdbd776171d4c2dca279a877dd8aa2a46c1698cf0f687d774c10f3e340e33f7': 'accepted',
+        'sha256-5baf2223ddfaeb4fada57b5edd42129d80c7c26b111b6263c2f60f212b118dd5': 'accepted',
+    +   'sha256-bdc8c94baf921a7e8467d89dc8ae24da7769e2c2b727ef777cd3c7d9ec4e1f48': 'rejected',
+    +   'sha256-f5b62d0d66e52db10796891a8307647742acf2c628b2579f74477aaca732b034': 'rejected',
+    +   'sha256-ff20390b7d2f62013a1313307d2040ac6cb4e517aaceea81e4aa812766c57358': 'rejected'
+    -   'sha256-bdc8c94baf921a7e8467d89dc8ae24da7769e2c2b727ef777cd3c7d9ec4e1f48': 'accepted',
+    -   'sha256-f5b62d0d66e52db10796891a8307647742acf2c628b2579f74477aaca732b034': 'accepted',
+    -   'sha256-ff20390b7d2f62013a1313307d2040ac6cb4e517aaceea81e4aa812766c57358': 'accepted'
+      }
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    sha256-0cec4be111c4f1eab4770ff67149dcc4a653f1d1c0a9f4436d404b5ced219d18: 'rejected'
+    sha256-4bdbd776171d4c2dca279a877dd8aa2a46c1698cf0f687d774c10f3e340e33f7: 'accepted'
+    sha256-5baf2223ddfaeb4fada57b5edd42129d80c7c26b111b6263c2f60f212b118dd5: 'accepted'
+    sha256-bdc8c94baf921a7e8467d89dc8ae24da7769e2c2b727ef777cd3c7d9ec4e1f48: 'accepted'
+    sha256-f5b62d0d66e52db10796891a8307647742acf2c628b2579f74477aaca732b034: 'accepted'
+    sha256-ff20390b7d2f62013a1313307d2040ac6cb4e517aaceea81e4aa812766c57358: 'accepted'
+  actual:
+    sha256-5baf2223ddfaeb4fada57b5edd42129d80c7c26b111b6263c2f60f212b118dd5: 'accepted'
+    sha256-4bdbd776171d4c2dca279a877dd8aa2a46c1698cf0f687d774c10f3e340e33f7: 'rejected'
+    sha256-f5b62d0d66e52db10796891a8307647742acf2c628b2579f74477aaca732b034: 'rejected'
+    sha256-ff20390b7d2f62013a1313307d2040ac6cb4e517aaceea81e4aa812766c57358: 'rejected'
+    sha256-bdc8c94baf921a7e8467d89dc8ae24da7769e2c2b727ef777cd3c7d9ec4e1f48: 'rejected'
+    sha256-0cec4be111c4f1eab4770ff67149dcc4a653f1d1c0a9f4436d404b5ced219d18: 'rejected'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/anuna-01/Code/cbcl-rs/js/test/corpus.test.ts:27:12)
+    async Test.run (node:internal/test_runner/test:935:9)
+    async Test.processPendingSubtests (node:internal/test_runner/test:633:7)
+  ...
+# Subtest: corpus signer-supersession.json: verdicts, state, and intents match cbcl-rs
+not ok 3 - corpus signer-supersession.json: verdicts, state, and intents match cbcl-rs
+  ---
+  duration_ms: 3.755166
+  location: '/Users/anuna-01/Code/cbcl-rs/js/test/corpus.test.ts:21:3'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+      {
+    +   'sha256-50ea5db206c7660582f1945b8624eb08f290a76ba737540371d47d66ebcbc56a': 'rejected',
+    +   'sha256-7b448dbd6586709f85aa895600692c988a694ca3a7a9294db7023d291f138b8b': 'rejected',
+    +   'sha256-cf26a2e92af06090dbbb4f4c1da99b9ce9dadf92800b1fa38dbf78b17359395f': 'rejected',
+    +   'sha256-ed411b6c465b3f6a873b0eca2e4265305c5f516a23b756be1a9d57d85c70cbd8': 'rejected',
+    +   'sha256-f1a2f06a6b19489d839141a087a7983a03cbbef99f60f368c6bbc7db6ea87d40': 'rejected',
+    -   'sha256-50ea5db206c7660582f1945b8624eb08f290a76ba737540371d47d66ebcbc56a': 'accepted',
+    -   'sha256-7b448dbd6586709f85aa895600692c988a694ca3a7a9294db7023d291f138b8b': 'accepted',
+    -   'sha256-cf26a2e92af06090dbbb4f4c1da99b9ce9dadf92800b1fa38dbf78b17359395f': 'accepted',
+    -   'sha256-ed411b6c465b3f6a873b0eca2e4265305c5f516a23b756be1a9d57d85c70cbd8': 'accepted',
+    -   'sha256-f1a2f06a6b19489d839141a087a7983a03cbbef99f60f368c6bbc7db6ea87d40': 'accepted',
+        'sha256-fe3baedf97239bd0eafd18cc17a5e2b9c472ad53ed73b353acccca071db3f972': 'accepted'
+      }
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    sha256-fe3baedf97239bd0eafd18cc17a5e2b9c472ad53ed73b353acccca071db3f972: 'accepted'
+    sha256-ed411b6c465b3f6a873b0eca2e4265305c5f516a23b756be1a9d57d85c70cbd8: 'accepted'
+    sha256-7b448dbd6586709f85aa895600692c988a694ca3a7a9294db7023d291f138b8b: 'accepted'
+    sha256-f1a2f06a6b19489d839141a087a7983a03cbbef99f60f368c6bbc7db6ea87d40: 'accepted'
+    sha256-cf26a2e92af06090dbbb4f4c1da99b9ce9dadf92800b1fa38dbf78b17359395f: 'accepted'
+    sha256-50ea5db206c7660582f1945b8624eb08f290a76ba737540371d47d66ebcbc56a: 'accepted'
+  actual:
+    sha256-fe3baedf97239bd0eafd18cc17a5e2b9c472ad53ed73b353acccca071db3f972: 'accepted'
+    sha256-ed411b6c465b3f6a873b0eca2e4265305c5f516a23b756be1a9d57d85c70cbd8: 'rejected'
+    sha256-7b448dbd6586709f85aa895600692c988a694ca3a7a9294db7023d291f138b8b: 'rejected'
+    sha256-f1a2f06a6b19489d839141a087a7983a03cbbef99f60f368c6bbc7db6ea87d40: 'rejected'
+    sha256-cf26a2e92af06090dbbb4f4c1da99b9ce9dadf92800b1fa38dbf78b17359395f: 'rejected'
+    sha256-50ea5db206c7660582f1945b8624eb08f290a76ba737540371d47d66ebcbc56a: 'rejected'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/anuna-01/Code/cbcl-rs/js/test/corpus.test.ts:27:12)
+    async Test.run (node:internal/test_runner/test:935:9)
+    async Test.processPendingSubtests (node:internal/test_runner/test:633:7)
+  ...
+# Subtest: corpus tags-and-balance.json: verdicts, state, and intents match cbcl-rs
+ok 4 - corpus tags-and-balance.json: verdicts, state, and intents match cbcl-rs
+  ---
+  duration_ms: 62.947792
+  ...
+# Subtest: the corpus is present
+ok 5 - the corpus is present
+  ---
+  duration_ms: 0.187166
+  ...
+# Subtest: the state corpus version is pinned
+ok 6 - the state corpus version is pinned
+  ---
+  duration_ms: 7.107416
+  ...
+# (node:46711) ExperimentalWarning: Type Stripping is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: a contract compiles to a self-addressed dialect the verifier accepts
+ok 7 - a contract compiles to a self-addressed dialect the verifier accepts
+  ---
+  duration_ms: 41.01525
+  ...
+# Subtest: the opener is verified; the fold is order-independent and duplicate-insensitive
+ok 8 - the opener is verified; the fold is order-independent and duplicate-insensitive
+  ---
+  duration_ms: 36.100542
+  ...
+# Subtest: the broker refuses core performatives, unknown verbs, the opener, and forged routing
+ok 9 - the broker refuses core performatives, unknown verbs, the opener, and forged routing
+  ---
+  duration_ms: 11.287417
+  ...
+# Subtest: domains: the binder refuses an out-of-opener choice; a received one contributes nothing
+not ok 10 - domains: the binder refuses an out-of-opener choice; a received one contributes nothing
+  ---
+  duration_ms: 8.241541
+  location: '/Users/anuna-01/Code/cbcl-rs/js/test/object.test.ts:93:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + 'rejected'
+    - 'accepted'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'accepted'
+  actual: 'rejected'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/anuna-01/Code/cbcl-rs/js/test/object.test.ts:103:10)
+    async Test.run (node:internal/test_runner/test:935:9)
+    async Test.processPendingSubtests (node:internal/test_runner/test:633:7)
+  ...
+# Subtest: registers: replacements bind to the intent key, a peer write is concurrent, delete names current writes
+ok 11 - registers: replacements bind to the intent key, a peer write is concurrent, delete names current writes
+  ---
+  duration_ms: 23.786416
+  ...
+# Subtest: every rule head folds; sums move once per address; observed removals name live additions
+ok 12 - every rule head folds; sums move once per address; observed removals name live additions
+  ---
+  duration_ms: 91.150417
+  ...
+# Subtest: cbcl-rs judges every received act; unknown predecessors wait
+ok 13 - cbcl-rs judges every received act; unknown predecessors wait
+  ---
+  duration_ms: 6.818792
+  ...
+# Subtest: latestPerSigner edits replace observed own votes and preserve other signers
+not ok 14 - latestPerSigner edits replace observed own votes and preserve other signers
+  ---
+  duration_ms: 13.357041
+  location: '/Users/anuna-01/Code/cbcl-rs/js/test/object.test.ts:170:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    
+    undefined !== []
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/anuna-01/Code/cbcl-rs/js/test/object.test.ts:178:10)
+    async Test.run (node:internal/test_runner/test:935:9)
+    async Test.processPendingSubtests (node:internal/test_runner/test:633:7)
+  ...
+# (node:46712) ExperimentalWarning: Type Stripping is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: the verifier initialises synchronously under node
+ok 15 - the verifier initialises synchronously under node
+  ---
+  duration_ms: 0.405333
+  ...
+# Subtest: read is the parser: comments, escapes, and malformed input
+ok 16 - read is the parser: comments, escapes, and malformed input
+  ---
+  duration_ms: 6.233834
+  ...
+# Subtest: canonical form, addresses, and the self-address
+ok 17 - canonical form, addresses, and the self-address
+  ---
+  duration_ms: 10.567792
+  ...
+# Subtest: shape, state shape, and protocol verdicts are cbcl-rs blame
+ok 18 - shape, state shape, and protocol verdicts are cbcl-rs blame
+  ---
+  duration_ms: 20.501084
+  ...
+# Subtest: SPEC-087 TEST-001: the contract compile is cbcl-rs and names the authored dialects
+ok 19 - SPEC-087 TEST-001: the contract compile is cbcl-rs and names the authored dialects
+  ---
+  duration_ms: 20.435291
+  ...
+# Subtest: a refusal is thrown as an Error carrying cbcl-rs's reason
+ok 20 - a refusal is thrown as an Error carrying cbcl-rs's reason
+  ---
+  duration_ms: 0.390083
+  ...
+1..20
+# tests 20
+# suites 0
+# pass 16
+# fail 4
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 540.705292

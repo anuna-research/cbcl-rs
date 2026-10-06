@@ -1,0 +1,24 @@
+   Compiling cbcl-core v0.1.0 (/Users/anuna-01/Code/cbcl-rs/crates/cbcl-core)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.99s
+     Running tests/state_properties.rs (target/debug/deps/state_properties-09d94f36b4358228)
+
+running 1 test
+test signer_observed_edit_and_ownership ... FAILED
+
+failures:
+
+---- signer_observed_edit_and_ownership stdout ----
+
+thread 'signer_observed_edit_and_ownership' (3285463) panicked at crates/cbcl-core/tests/state_properties.rs:964:5:
+assertion `left == right` failed
+  left: Some("\"concurrent\"")
+ right: Some("\"old\"")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    signer_observed_edit_and_ownership
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 13 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p cbcl-core --test state_properties`

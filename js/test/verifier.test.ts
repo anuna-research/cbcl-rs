@@ -46,18 +46,18 @@ test('canonical form, addresses, and the self-address', () => {
 });
 
 test('shape, state shape, and protocol verdicts are cbcl-rs blame', () => {
-  assert.deepEqual(verifyShape(LUNCH, 'vote', '(vote @lunch :choice "x")'), { ok: true });
-  const bad = verifyShape(LUNCH, 'vote', '(vote @lunch :choice 1)');
+  assert.deepEqual(verifyShape(LUNCH, 'vote', '(vote @lunch :choice "x" :replaces ())'), { ok: true });
+  const bad = verifyShape(LUNCH, 'vote', '(vote @lunch :choice 1 :replaces ())');
   assert.equal(bad.ok, false); assert.match((bad as { reason: string }).reason, /choice/);
-  assert.equal(verifyStateShape(LUNCH, '(lang lunch-vote (vote @lunch :choice "x" :extra 1 :caused-by begin :thread "v" :from @b))').ok, false);
+  assert.equal(verifyStateShape(LUNCH, '(lang lunch-vote (vote @lunch :choice "x" :replaces () :extra 1 :caused-by begin :thread "v" :from @b))').ok, false);
   const opener = '(lang lunch-vote (propose @lunch :question "Q" :options ("a") :caused-by begin :thread "v" :from @a))';
   assert.equal(verifyProtocol(LUNCH, 'v', opener), 'Valid');
   // verify-protocol predates the state layer: it keys history by the canonical
   // `sha256:` hash, quoted in :caused-by because the lexer reads `:` as a keyword.
-  const vote = `(lang lunch-vote (vote @lunch :choice "a" :caused-by ${JSON.stringify(messageHash(opener))} :thread "v" :from @b))`;
+  const vote = `(lang lunch-vote (vote @lunch :choice "a" :replaces () :caused-by ${JSON.stringify(messageHash(opener))} :thread "v" :from @b))`;
   assert.equal(verifyProtocol(LUNCH, 'v', vote, [[messageHash(opener), opener]]), 'Valid');
   assert.equal(verifyProtocol(LUNCH, 'v', vote), 'Unknown');
-  assert.equal(verifyProtocol(LUNCH, 'v', `(lang lunch-vote (vote @lunch :choice "a" :caused-by begin :thread "v" :from @b))`), 'Violation');
+  assert.equal(verifyProtocol(LUNCH, 'v', `(lang lunch-vote (vote @lunch :choice "a" :replaces () :caused-by begin :thread "v" :from @b))`), 'Violation');
 });
 
 test('SPEC-087 TEST-001: the contract compile is cbcl-rs and names the authored dialects', async () => {

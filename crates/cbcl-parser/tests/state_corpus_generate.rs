@@ -115,18 +115,11 @@ fn generate_lunch_vote_domain() {
     let n = "lunch-vote";
     let p = format!("(lang {n} (propose @lunch :question \"Lunch?\" :options (\"Pizza\" \"Sushi\") :caused-by begin :thread \"v1\" :from @aria))");
     let a = address(&p);
-    let v1 = format!(
-        "(lang {n} (vote @lunch :choice \"Pizza\" :caused-by {a} :thread \"v1\" :from @bo))"
-    );
-    let v2 = format!(
-        "(lang {n} (vote @lunch :choice \"Sushi\" :caused-by {a} :thread \"v1\" :from @bo))"
-    );
-    let v3 = format!(
-        "(lang {n} (vote @lunch :choice \"Tacos\" :caused-by {a} :thread \"v1\" :from @cy))"
-    );
-    let v4 = format!(
-        "(lang {n} (vote @lunch :choice \"Pizza\" :caused-by {a} :thread \"v1\" :from @dan))"
-    );
+    let v1 = format!("(lang {n} (vote @lunch :choice \"Pizza\" :replaces () :caused-by {a} :thread \"v1\" :from @bo))");
+    let a1 = address(&v1);
+    let v2 = format!("(lang {n} (vote @lunch :choice \"Sushi\" :replaces ({a1}) :caused-by {a} :thread \"v1\" :from @bo))");
+    let v3 = format!("(lang {n} (vote @lunch :choice \"Tacos\" :replaces () :caused-by {a} :thread \"v1\" :from @cy))");
+    let v4 = format!("(lang {n} (vote @lunch :choice \"Pizza\" :replaces () :caused-by {a} :thread \"v1\" :from @dan))");
     let long_q = "q".repeat(281);
     let too_long = format!("(lang {n} (propose @lunch :question \"{long_q}\" :options (\"a\") :caused-by begin :thread \"v1\" :from @eve))");
     let messages = [
@@ -227,6 +220,60 @@ fn generate_tags_and_balance() {
                 {"signer": "@d", "verb": "remove", "fields": {"tag": "urgent"}},
                 {"signer": "@d", "verb": "remove", "fields": {"tag": "gone"}},
                 {"signer": "@d", "verb": "credit", "fields": {"amount": 5, "op": "c3"}}
+            ]
+        }),
+    );
+}
+
+/// TEST-1951/1952: sequential supersession wins even with a lower CID;
+/// unseen same-signer writes survive and another signer cannot erase them.
+#[test]
+#[ignore]
+fn generate_signer_supersession() {
+    let contract = "(define signer-register (cbcl) @anuna
+      (:resource-requirements ((max-depth 12) (max-expansion-size 2048) (verification-time 200)))
+      (extend open (to title) (tell to :title title))
+      (extend write (to value op) (tell to :value value :op op))
+      (shape open (require :title string))
+      (shape write (require :value string) (require :op number))
+      (protocol (then begin open) (then open write))
+      (state (title (last open :title)) (entries (latest-per-signer write :value)) (all (events write :value))))";
+    let root = "(lang signer-register (open @room :title \"Register\" :caused-by begin :thread \"s1\" :from @owner))";
+    let predecessor = address(root);
+    let write_act = |signer: &str, value: &str, replaces: &str, op: usize| {
+        format!(
+        "(lang signer-register (write @room :value {value:?} :op {op} :replaces ({replaces}) :caused-by {predecessor} :thread \"s1\" :from {signer}))"
+    )
+    };
+    let first = write_act("@a", "old", "", 0);
+    let first_cid = address(&first);
+    let second = (1..10000)
+        .map(|op| write_act("@a", "new", &first_cid, op))
+        .find(|m| address(m) < first_cid)
+        .expect("lower-address sequential edit");
+    assert!(address(&second) < first_cid);
+    let concurrent_a = write_act("@b", "left", "", 0);
+    let concurrent_b = write_act("@b", "right", "", 1);
+    let target = address(&concurrent_a);
+    let hostile = write_act("@c", "hostile", &target, 0);
+    let messages = [
+        (root, "@owner"),
+        (&first, "@a"),
+        (&second, "@a"),
+        (&concurrent_a, "@b"),
+        (&concurrent_b, "@b"),
+        (&hostile, "@c"),
+    ];
+    write(
+        "signer-supersession",
+        json!({
+            "id": "signer-supersession", "version": "1.0.0", "thread": "s1", "contract": contract,
+            "covers": ["latest-per-signer", "lower-address-sequential-edit", "concurrent-same-signer", "cross-signer-replacement", "events-preserve-history", "intend"],
+            "messages": messages.iter().map(|(m,s)| json!({"canonical":m,"signer":s})).collect::<Vec<_>>(),
+            "intents": [
+                {"signer":"@a","verb":"write","fields":{"value":"third","op":10001}},
+                {"signer":"@b","verb":"write","fields":{"value":"merged","op":10002}},
+                {"signer":"@new","verb":"write","fields":{"value":"first","op":10003}}
             ]
         }),
     );

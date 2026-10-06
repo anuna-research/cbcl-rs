@@ -214,10 +214,12 @@ impl Rule {
     }
 
     /// The verbs whose shape must carry the reserved `:replaces` field:
-    /// writers and delete verbs of registers, remove verbs of observed sets.
+    /// writers and delete verbs of registers, signer writers, and observed-set removals.
     pub fn replaces_verbs(&self) -> Vec<&str> {
         match self {
-            Rule::Values { verb, .. } => alloc::vec![verb.as_str()],
+            Rule::Values { verb, .. } | Rule::LatestPerSigner { verb, .. } => {
+                alloc::vec![verb.as_str()]
+            }
             Rule::ValuesPerKey { verb, delete, .. } | Rule::RegisterPerKey { verb, delete, .. } => {
                 let mut v = alloc::vec![verb.as_str()];
                 if let Some(d) = delete {
@@ -653,6 +655,39 @@ fn dedup_by_address(acts: &[Act]) -> Vec<&Act> {
         .collect()
 }
 
+/// The signer's live writes, using the fold's accepted set and domains.
+/// SPEC-019 REQ-1933/1934: supersession requires the same verb and signer.
+pub(crate) fn current_by_signer<'a>(
+    clause: &StateClause,
+    acts: &'a [Act],
+    verb: &str,
+) -> Vec<&'a Act> {
+    kernel_for(clause, acts).current_by_signer(verb)
+}
+
+fn kernel_for<'a>(clause: &StateClause, acts: &'a [Act]) -> Kernel<'a> {
+    // Domains read a list-valued field defined over the opener only, so
+    // resolve them first with no domain in force.
+    let set = dedup_by_address(acts);
+    let bare = Kernel {
+        acts: set.clone(),
+        domains: Vec::new(),
+    };
+    let mut domains = Vec::new();
+    for (verb, key, field) in clause.domains() {
+        let allowed = match clause.rule_of(field) {
+            Some(rule) => match bare.eval(rule, &[]) {
+                Value::List(items) => items,
+                Value::Set(items) => items,
+                _ => Vec::new(),
+            },
+            None => Vec::new(),
+        };
+        domains.push((String::from(verb), String::from(key), allowed));
+    }
+    Kernel { acts: set, domains }
+}
+
 impl<'a> Kernel<'a> {
     fn field(&self, act: &Act, key: &str) -> Option<Value> {
         act.fields.get(key).map(Value::from_sexpr)
@@ -712,6 +747,27 @@ impl<'a> Kernel<'a> {
             .collect()
     }
 
+    /// Current writes under signer-owned replacement addresses.
+    fn current_by_signer(&self, verb: &str) -> Vec<&'a Act> {
+        let writes = self.acts(verb);
+        let mut replaced: BTreeSet<(&str, &str)> = BTreeSet::new();
+        for r in &writes {
+            if let Some(SExpr::List(items)) = r.fields.get(RESERVED_REPLACES) {
+                for item in items {
+                    if let SExpr::Atom(Atom::Symbol(address)) | SExpr::Atom(Atom::Str(address)) =
+                        item
+                    {
+                        replaced.insert((r.signer.as_str(), address.as_str()));
+                    }
+                }
+            }
+        }
+        writes
+            .into_iter()
+            .filter(|w| !replaced.contains(&(w.signer.as_str(), w.address.as_str())))
+            .collect()
+    }
+
     /// `pick T k`: the value of `k` on the greatest-address act.
     fn pick(&self, table: &[&Act], key: &str) -> Value {
         table
@@ -765,7 +821,7 @@ impl<'a> Kernel<'a> {
         match rule {
             Rule::Last { verb, key } => self.pick(&self.acts(verb), key),
             Rule::LatestPerSigner { verb, key } => Value::Map(
-                self.group_by_signer(&self.acts(verb))
+                self.group_by_signer(&self.current_by_signer(verb))
                     .into_iter()
                     .map(|(s, t)| (Value::Str(s), self.pick(&t, key)))
                     .collect(),
@@ -871,27 +927,8 @@ pub fn fold(
     protocol: Option<&CausalProtocol>,
     acts: &[Act],
 ) -> Vec<(String, Value)> {
-    // Domains read a list-valued field defined over the opener only, so
-    // resolve them first with no domain in force.
-    let set = dedup_by_address(acts);
-    let bare = Kernel {
-        acts: set.clone(),
-        domains: Vec::new(),
-    };
-    let mut domains = Vec::new();
-    for (verb, key, field) in clause.domains() {
-        let allowed = match clause.rule_of(field) {
-            Some(rule) => match bare.eval(rule, &[]) {
-                Value::List(items) => items,
-                Value::Set(items) => items,
-                _ => Vec::new(),
-            },
-            None => Vec::new(),
-        };
-        domains.push((String::from(verb), String::from(key), allowed));
-    }
     let _ = protocol;
-    let kernel = Kernel { acts: set, domains };
+    let kernel = kernel_for(clause, acts);
     let mut done: Vec<(String, Value)> = Vec::new();
     for (name, rule) in clause.fields() {
         let v = kernel.eval(rule, &done);

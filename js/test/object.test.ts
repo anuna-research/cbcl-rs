@@ -98,7 +98,7 @@ test('domains: the binder refuses an out-of-opener choice; a received one contri
   const outside = await agent.act('v1', 'vote', { choice: 'outside' });
   assert.equal(outside.ok, false); assert.match((outside as { reason: string }).reason, /domain/); assert.equal(h.sent.length, 0);
   assert.equal((await agent.act('v1', 'vote', { choice: 'yes' })).ok, true);
-  const stray = actRecord(`(lang ${object.name} (vote @general :choice "elsewhere" :caused-by ${root.cid} :thread "v1" :from @stranger))`, '@stranger');
+  const stray = actRecord(`(lang ${object.name} (vote @general :choice "elsewhere" :replaces () :caused-by ${root.cid} :thread "v1" :from @stranger))`, '@stranger');
   store.append(stray);
   assert.equal(object.verdicts(store.messages('v1'), 'v1').get(stray.cid), 'accepted');
   assert.deepEqual(agent.read('v1').tally, { yes: 1 });
@@ -163,4 +163,32 @@ test('cbcl-rs judges every received act; unknown predecessors wait', async () =>
   assert.equal(verdict(check(':item "Ship" :done #t :note "x" :replaces ()')), 'rejected');
   assert.equal(verdict(check(':item "Ship" :done #t :replaces ()', 'sha256-' + 'f'.repeat(64))), 'pending');
   assert.equal(wireAddress(root.canonical), root.cid);
+});
+
+
+// SPEC-019 TEST-1951/1952: binder and fold agree on signer replacement.
+test('latestPerSigner edits replace observed own votes and preserve other signers', async () => {
+  const object = await defineContract(lunchVote);
+  const { store, root } = opened(object, 'v1', { question: 'Lunch?', options: ['yes', 'no', 'maybe'] });
+  const a = object.agent(host('@a', store));
+  const b = object.agent(host('@b', store));
+  const first = await a.act('v1', 'vote', { choice: 'yes' });
+  const peer = await b.act('v1', 'vote', { choice: 'yes' });
+  assert.ok(first.ok && peer.ok);
+  assert.deepEqual(readAct(peer.canonical).fields.replaces, []);
+  const second = await a.act('v1', 'vote', { choice: 'no' });
+  assert.ok(second.ok);
+  assert.deepEqual(readAct(second.canonical).fields.replaces, [first.cid]);
+  assert.deepEqual(a.read('v1').ballots, { '@a': 'no', '@b': 'yes' });
+  const hostile = actRecord(`(lang ${object.name} (vote @general :choice "no" :replaces (${peer.cid}) :caused-by ${root.cid} :thread "v1" :from @c))`, '@c');
+  store.append(hostile);
+  assert.deepEqual(a.read('v1').ballots, { '@a': 'no', '@b': 'yes', '@c': 'no' });
+  const concurrent = remote(object, root, 'vote', { choice: 'maybe' }, '@a', 'v1');
+  store.append(concurrent);
+  const merged = await a.act('v1', 'vote', { choice: 'no' });
+  assert.ok(merged.ok);
+  assert.deepEqual(readAct(merged.canonical).fields.replaces, [second.cid, concurrent.cid].sort());
+  const messages = store.messages('v1');
+  assert.deepEqual(object.read(messages.slice().reverse()), object.read(messages));
+  assert.deepEqual(object.read([...messages, ...messages]), object.read(messages));
 });

@@ -119,11 +119,11 @@ checks(Lunch) ->
                 <<"(", Head/binary, " ", Lunch/binary, " \"v1\" ",
                   Acts/binary, Tail/binary, ")">>
             end,
-    Vote = <<"(lang lunch-vote (vote @lunch :choice \"Sushi\" "
+    Vote = <<"(lang lunch-vote (vote @lunch :choice \"Sushi\" :replaces () "
              ":caused-by begin :thread \"v1\" :from @bo))">>,
-    BadVote = <<"(lang lunch-vote (vote @lunch :choice \"Sushi\" :extra 1 "
+    BadVote = <<"(lang lunch-vote (vote @lunch :choice \"Sushi\" :replaces () :extra 1 "
                 ":caused-by begin :thread \"v1\" :from @bo))">>,
-    Orphan = <<"(lang lunch-vote (vote @lunch :choice \"Sushi\" :caused-by "
+    Orphan = <<"(lang lunch-vote (vote @lunch :choice \"Sushi\" :replaces () :caused-by "
                "sha256-ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff "
                ":thread \"v1\" :from @bo))">>,
     [
@@ -210,7 +210,7 @@ checks(Lunch) ->
       fun() -> cbcl_erl:admit(<<"(admit">>) end,
       fun err/1},
      {"verify_message_shape/1 accepts a well-shaped vote",
-      fun() -> cbcl_erl:verify_message_shape(<<"(verify-shape ", Lunch/binary, " vote (vote @lunch :choice \"Sushi\"))">>) end,
+      fun() -> cbcl_erl:verify_message_shape(<<"(verify-shape ", Lunch/binary, " vote (vote @lunch :choice \"Sushi\" :replaces ()))">>) end,
       fun({ok, <<"ok">>}) -> true; (_) -> false end},
      {"verify_message_shape/1 blames an ill-typed field",
       fun() -> cbcl_erl:verify_message_shape(<<"(verify-shape ", Lunch/binary, " vote (vote @lunch :choice 3))">>) end,

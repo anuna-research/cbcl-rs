@@ -39,3 +39,8 @@ for (const name of vectors) {
 }
 
 test('the corpus is present', () => { assert.ok(vectors.length >= 3, vectors.join(', ')); });
+
+// SPEC-019 REQ-1934: semantic corpus revisions are explicit.
+test('the state corpus version is pinned', async () => {
+  assert.equal((await readFile(new URL('VERSION', dir), 'utf8')).trim(), '1.0.0');
+});

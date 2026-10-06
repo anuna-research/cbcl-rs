@@ -1,0 +1,174 @@
+{
+  "objective": "Address cbcl-rs issue 18; user selected latest-per-signer only",
+  "scope": [
+    "latest-per-signer fold and binder",
+    "compiler-owned replaces shape",
+    "Rust and shared export regressions",
+    "canonical corpus and major version",
+    "JavaScript authoring and Erlang fixtures",
+    "Lean model and axiom audit",
+    "SPEC-019 and user documentation"
+  ],
+  "coordination": {
+    "theory": "spec-019-state-rules",
+    "plan": "plans/IMPL-019-signer-register.spl",
+    "mode": "Local independent subagent sessions; coordination facts signed by existing steward, no independent P2P signer claim"
+  },
+  "gates": [
+    {
+      "gate": "Requirement-targeted red regressions",
+      "result": "pass",
+      "mechanism": "cargo tests before implementation / npm test before WASM rebuild",
+      "evidence": [
+        "core-red.log",
+        "surfaces-red.log",
+        "js-red.log"
+      ]
+    },
+    {
+      "gate": "Signer and domain guard mutation discrimination",
+      "result": "pass",
+      "mechanism": "Deliberate ownership and domain guard changes then restored signer tests",
+      "evidence": [
+        "core-mutation-owner.log",
+        "core-mutation-domain.log",
+        "core-restored-green.log"
+      ]
+    },
+    {
+      "gate": "Full Rust workspace",
+      "result": "pass",
+      "mechanism": "cargo test --workspace",
+      "evidence": [
+        "workspace-tests.log"
+      ]
+    },
+    {
+      "gate": "no_std core",
+      "result": "pass",
+      "mechanism": "cargo check -p cbcl-core --no-default-features",
+      "evidence": [
+        "no-std.log"
+      ]
+    },
+    {
+      "gate": "Canonical corpus and shared exports",
+      "result": "pass",
+      "mechanism": "cargo test -p cbcl-parser --test state_corpus --test state_exports --test state_layer",
+      "evidence": [
+        "surfaces-green.log"
+      ]
+    },
+    {
+      "gate": "JavaScript against rebuilt matching WASM",
+      "result": "pass",
+      "mechanism": "npm run build:wasm; npm run check; npm test",
+      "evidence": [
+        "wasm-build.log",
+        "js-check.log",
+        "js-green.log"
+      ]
+    },
+    {
+      "gate": "Real Erlang NIF smoke",
+      "result": "pass",
+      "mechanism": "crates/cbcl-erl/scripts/smoke.escript",
+      "evidence": [
+        "beam-smoke.log"
+      ]
+    },
+    {
+      "gate": "Lean proofs and axiom discipline",
+      "result": "pass",
+      "mechanism": "lake build; bash scripts/check-axioms.sh",
+      "evidence": [
+        "lean-final-build.log",
+        "lean-axioms.log"
+      ]
+    },
+    {
+      "gate": "Fresh context adversarial review",
+      "result": "pass",
+      "mechanism": "Independent subagent source review and signer regression rerun",
+      "evidence": [
+        "adversarial-review.md"
+      ]
+    },
+    {
+      "gate": "Orientation comprehension",
+      "result": "pass",
+      "mechanism": "Fresh-context Claude Fable 5.1 orientation-only review after repairs",
+      "evidence": [
+        "comprehension-review-oauth.json",
+        "comprehension-review-v2.json",
+        "comprehension-review-final.json"
+      ]
+    },
+    {
+      "gate": "Cross-model review",
+      "result": "pass",
+      "mechanism": "Independent gpt-6-astra model override via collaboration.spawn_agent",
+      "evidence": [
+        "cross-model-review.md"
+      ],
+      "note": "Requested reviewer model override recorded by orchestration call; exact runtime self-identification unavailable. No model-family diversity or human approval claim."
+    },
+    {
+      "gate": "Whole-repository formatting",
+      "result": "fail",
+      "mechanism": "cargo fmt --all -- --check",
+      "evidence": [
+        "format.log"
+      ],
+      "note": "Pre-existing formatting drift in unrelated code; changed core/parser files pass rustfmt. Erlang fixture source also contains pre-existing formatting drift."
+    },
+    {
+      "gate": "Changed Rust semantic source formatting",
+      "result": "pass",
+      "mechanism": "rustfmt --check --edition 2021 touched files excluding existing Erlang formatting drift",
+      "evidence": [
+        "change-format.log"
+      ]
+    },
+    {
+      "gate": "Wikilink traceability",
+      "result": "pass",
+      "mechanism": "NO_COLOR=true zetl -d specs check --dead-links --fail-on error; compare baseline links",
+      "evidence": [
+        "zetl-baseline.json",
+        "zetl-final.json"
+      ],
+      "note": "No new dead links. Existing dead links and long prose warnings retained."
+    },
+    {
+      "gate": "Maintainer review before merge/release",
+      "result": "unverified",
+      "owner": "CBCL maintainer",
+      "mechanism": "Review concrete implementation and evidence",
+      "evidence": [
+        "verification.json"
+      ],
+      "note": "No merge or release requested/performed; code task and formal release approval are distinct."
+    }
+  ],
+  "completion_audit": {
+    "REQ-1933": "state.rs current_by_signer filters domain-admitted same-verb replacers keyed by authenticated signer and address; TEST-1951 + corpus + core mutations + independent reviews pass",
+    "REQ-1934": "Rule::replaces_verbs triggers shape insertion; intend computes own-current sorted bounded union; TEST-1952 + shared exports + JS + Erlang pass",
+    "TEST-1951": "lower-CID sequential winner, concurrency, cross-signer/cross-verb/domain filtering, permutation and duplication exercised; Last retention tested",
+    "TEST-1952": "required empty first-write bookkeeping, forge rejection, concurrent losing-write targets, own-signer scope and mixed bounded union tested",
+    "TEST-1953": "currentOwn/intentOwn set-extensional and signer proofs compiled, audited without new axioms; domain prefilter and unbounded abstraction disclosed",
+    "Compatibility": "SPEC major and state corpus VERSION both 1.0.0; latest-per-signer dialect identities change; old histories require old runtime; Last unchanged",
+    "Coordination": "Executable SPL tasks/provenance in IMPL-019; Elephant promises fulfilled for core, surfaces, Lean; review acceptance recorded after reports",
+    "Deliverable": "Local reviewable implementation, tests, corpus, proofs, docs and evidence; no publish, merge or external message requested",
+    "State": "Implementation and independent AI verification complete in current worktree. Maintainer merge/release review is outstanding; SPEC-019 retains its pre-existing draft lifecycle status because this issue does not certify its entire historical scope."
+  },
+  "push_integration": {
+    "upstream": "567af4e",
+    "resolution": "Rebased onto remote admission-state-free tests and Lean stratification proofs; retained both audit blocks and changelog entries, with signer version 1.0.0.",
+    "validation": {
+      "cargo test --workspace": "rebase-tests.log",
+      "lake build": "rebase-lean.log",
+      "bash scripts/check-axioms.sh": "rebase-axioms.log"
+    }
+  }
+}

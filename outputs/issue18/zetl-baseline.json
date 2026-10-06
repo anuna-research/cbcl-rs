@@ -1,0 +1,180 @@
+{
+  "dead_links": [
+    {
+      "source": "SPEC-014-role-layer-endpoint-projection",
+      "line": 33,
+      "target": "endpoint-projection",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-014-role-layer-endpoint-projection",
+      "line": 116,
+      "target": "role-cast",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-014-role-layer-endpoint-projection",
+      "line": 118,
+      "target": "causal-locality",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-015-evidence-widening-v2",
+      "line": 55,
+      "target": "DCFL",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-015-evidence-widening-v2",
+      "line": 59,
+      "target": "CALM",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-015-evidence-widening-v2",
+      "line": 248,
+      "target": "Ed25519",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-015-evidence-widening-v2",
+      "line": 256,
+      "target": "did:crdt",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-015-evidence-widening-v2",
+      "line": 290,
+      "target": "Ed25519",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-015-evidence-widening-v2",
+      "line": 301,
+      "target": "SHA-256",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-015-evidence-widening-v2",
+      "line": 359,
+      "target": "CALM",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-017-typed-content-addresses",
+      "line": 34,
+      "target": "crates/cbcl-core/src/equivocation.rs",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-017-typed-content-addresses",
+      "line": 85,
+      "target": "crates/cbcl-core/src/typed_addr.rs",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-017-typed-content-addresses",
+      "line": 103,
+      "target": "crates/cbcl-core/src/canonical.rs",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-017-typed-content-addresses",
+      "line": 121,
+      "target": "SHA-256",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-017-typed-content-addresses",
+      "line": 142,
+      "target": "SHA-256",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-017-typed-content-addresses",
+      "line": 208,
+      "target": "SHA-256",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-017-typed-content-addresses",
+      "line": 290,
+      "target": "crates/cbcl-core/src/typed_addr.rs",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-017-typed-content-addresses",
+      "line": 337,
+      "target": "crates/cbcl-core/src/typed_addr.rs",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-017-typed-content-addresses",
+      "line": 370,
+      "target": "crates/cbcl-core/src/typed_addr.rs",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-018-dcfl-installation",
+      "line": 50,
+      "target": "dcfl-raw-installation-evidence-2026-09-10",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-018-dcfl-installation",
+      "line": 178,
+      "target": "IETF/draft-oconnor-cbcl",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-018-dcfl-installation",
+      "line": 270,
+      "target": "IETF/draft-oconnor-cbcl",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-018-dcfl-installation",
+      "line": 270,
+      "target": "crates/cbcl-core/src/message.rs",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-018-dcfl-installation",
+      "line": 286,
+      "target": "dcfl-foundation-evidence-2026-09-10",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-018-dcfl-installation",
+      "line": 288,
+      "target": "dcfl-installation-evidence-2026-09-10",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-018-dcfl-installation",
+      "line": 290,
+      "target": "dcfl-raw-installation-evidence-2026-09-10",
+      "predicate": null
+    }
+  ],
+  "orphans": [],
+  "syntax_errors": [],
+  "spl_diagnostics": [],
+  "drift_diagnostics": [],
+  "predicate_lints": [],
+  "summary": {
+    "dead_links": 26,
+    "orphans": 0,
+    "syntax_errors": 0,
+    "spl_errors": 0,
+    "drift_warnings": 0,
+    "drift_info": 0,
+    "total_spl_blocks": 0,
+    "drifted_blocks_warning": 0,
+    "drifted_blocks_info": 0,
+    "explicitly_grounded_facts": 0,
+    "broken_groundings": 0,
+    "predicate_errors": 0,
+    "predicate_warnings": 0
+  }
+}

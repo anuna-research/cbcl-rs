@@ -1,0 +1,49 @@
+   Compiling cbcl-core v0.1.0 (/Users/anuna-01/Code/cbcl-rs/crates/cbcl-core)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.79s
+     Running tests/state_properties.rs (target/debug/deps/state_properties-09d94f36b4358228)
+
+running 4 tests
+test signer_domain_and_verb_guards ... ok
+test signer_observed_edit_and_ownership ... FAILED
+test signer_binder_first_concurrent_sorted_bounded_and_forge ... FAILED
+test signer_register_permutation_and_duplicate_property ... FAILED
+
+failures:
+
+---- signer_observed_edit_and_ownership stdout ----
+
+thread 'signer_observed_edit_and_ownership' (3262153) panicked at crates/cbcl-core/tests/state_properties.rs:924:5:
+assertion `left == right` failed
+  left: "{\"ballots\":{\"@a\":\"old\",\"@b\":\"other\"}}"
+ right: "{\"ballots\":{\"@a\":\"edit\",\"@b\":\"other\"}}"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- signer_binder_first_concurrent_sorted_bounded_and_forge stdout ----
+
+thread 'signer_binder_first_concurrent_sorted_bounded_and_forge' (3262151) panicked at crates/cbcl-core/tests/state_properties.rs:967:5:
+assertion `left == right` failed
+  left: []
+ right: ["sha256-0000000000000000000000000000000000000000000000000000000000000050", "sha256-000000000000000000000000000000000000000000000000000000000000005a"]
+
+---- signer_register_permutation_and_duplicate_property stdout ----
+proptest: FileFailurePersistence::SourceParallel set, but failed to find lib.rs or main.rs
+
+thread 'signer_register_permutation_and_duplicate_property' (3262154) panicked at crates/cbcl-core/tests/state_properties.rs:977:1:
+Test failed: assertion failed: `(left == right)` 
+  left: `"{\"ballots\":{\"@a\":\"concurrent\"}}"`,
+ right: `"{\"ballots\":{\"@a\":\"edit\"}}"` at crates/cbcl-core/tests/state_properties.rs:986.
+minimal failing input: a = 2, b = 1000, reverse = false
+	successes: 0
+	local rejects: 0
+	global rejects: 0
+
+
+
+failures:
+    signer_binder_first_concurrent_sorted_bounded_and_forge
+    signer_observed_edit_and_ownership
+    signer_register_permutation_and_duplicate_property
+
+test result: FAILED. 1 passed; 3 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `-p cbcl-core --test state_properties`

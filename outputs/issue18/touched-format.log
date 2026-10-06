@@ -1,0 +1,70 @@
+Diff in /Users/anuna-01/Code/cbcl-rs/crates/cbcl-erl/src/state.rs:191:
+ 
+ #[rustler::nif]
+ pub fn describe_dialect<'a>(env: Env<'a>, bytes: Binary<'a>) -> Term<'a> {
+[31m-    run(env, "describe_dialect", bytes.as_slice(), describe_dialect_pure)
+(B[m[32m+    run(
+(B[m[32m+        env,
+(B[m[32m+        "describe_dialect",
+(B[m[32m+        bytes.as_slice(),
+(B[m[32m+        describe_dialect_pure,
+(B[m[32m+    )
+(B[m }
+ 
+ #[rustler::nif]
+Diff in /Users/anuna-01/Code/cbcl-rs/crates/cbcl-erl/src/state.rs:201:
+ 
+ #[rustler::nif]
+ pub fn compile_contract<'a>(env: Env<'a>, bytes: Binary<'a>) -> Term<'a> {
+[31m-    run(env, "compile_contract", bytes.as_slice(), compile_contract_pure)
+(B[m[32m+    run(
+(B[m[32m+        env,
+(B[m[32m+        "compile_contract",
+(B[m[32m+        bytes.as_slice(),
+(B[m[32m+        compile_contract_pure,
+(B[m[32m+    )
+(B[m }
+ 
+ #[rustler::nif]
+Diff in /Users/anuna-01/Code/cbcl-rs/crates/cbcl-erl/src/state.rs:208:
+ pub fn verify_message_shape<'a>(env: Env<'a>, bytes: Binary<'a>) -> Term<'a> {
+[31m-    run(env, "verify_message_shape", bytes.as_slice(), verify_message_shape_pure)
+(B[m[32m+    run(
+(B[m[32m+        env,
+(B[m[32m+        "verify_message_shape",
+(B[m[32m+        bytes.as_slice(),
+(B[m[32m+        verify_message_shape_pure,
+(B[m[32m+    )
+(B[m }
+ 
+ #[cfg(test)]
+Diff in /Users/anuna-01/Code/cbcl-rs/crates/cbcl-erl/src/state.rs:263:
+         assert!(fr.starts_with("{\"instance\":\"sha256-"), "{fr}");
+         let root = fr.split('"').nth(3).unwrap().to_string();
+         let vote = format!("(lang lunch-vote (vote @lunch :choice \"Sushi\" :replaces () :caused-by {root} :thread \"v1\" :from @bo))");
+[31m-        let admitted = admit_pure(format!("(admit {LUNCH} \"v1\" {acts} (@bo {vote}))").as_bytes()).unwrap();
+(B[m[32m+        let admitted =
+(B[m[32m+            admit_pure(format!("(admit {LUNCH} \"v1\" {acts} (@bo {vote}))").as_bytes()).unwrap();
+(B[m         assert_eq!(admitted, "{\"verdict\":\"accepted\"}");
+         let orphan = "(lang lunch-vote (vote @lunch :choice \"Sushi\" :replaces () :caused-by sha256-ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff :thread \"v1\" :from @bo))";
+[31m-        let pending = admit_pure(format!("(admit {LUNCH} \"v1\" {acts} (@bo {orphan}))").as_bytes()).unwrap();
+(B[m[32m+        let pending =
+(B[m[32m+            admit_pure(format!("(admit {LUNCH} \"v1\" {acts} (@bo {orphan}))").as_bytes()).unwrap();
+(B[m         assert_eq!(pending, "{\"verdict\":\"pending\"}");
+         assert_eq!(
+[31m-            verify_message_shape_pure(format!("(verify-shape {LUNCH} vote (vote @lunch :choice \"Sushi\" :replaces ()))").as_bytes()).unwrap(),
+(B[m[32m+            verify_message_shape_pure(
+(B[m[32m+                format!("(verify-shape {LUNCH} vote (vote @lunch :choice \"Sushi\" :replaces ()))")
+(B[m[32m+                    .as_bytes()
+(B[m[32m+            )
+(B[m[32m+            .unwrap(),
+(B[m             "ok"
+         );
+[31m-        let blame = verify_message_shape_pure(format!("(verify-shape {LUNCH} vote (vote @lunch :choice 3))").as_bytes()).unwrap_err();
+(B[m[32m+        let blame = verify_message_shape_pure(
+(B[m[32m+            format!("(verify-shape {LUNCH} vote (vote @lunch :choice 3))").as_bytes(),
+(B[m[32m+        )
+(B[m[32m+        .unwrap_err();
+(B[m         assert!(blame.contains("choice"), "{blame}");
+     }
+ 

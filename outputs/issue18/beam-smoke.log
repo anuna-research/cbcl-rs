@@ -1,0 +1,73 @@
+== cargo build -p cbcl-erl --release
+   Compiling typenum v1.19.0
+   Compiling libc v0.2.183
+   Compiling cfg-if v1.0.4
+   Compiling hashbrown v0.16.1
+   Compiling serde_core v1.0.228
+   Compiling zmij v1.0.21
+   Compiling generic-array v0.14.7
+   Compiling regex-lite v0.1.9
+   Compiling foldhash v0.1.5
+   Compiling equivalent v1.0.2
+   Compiling syn v2.0.117
+   Compiling serde_json v1.0.149
+   Compiling indexmap v2.13.0
+   Compiling hashbrown v0.15.5
+   Compiling rustler v0.36.2
+   Compiling inventory v0.3.24
+   Compiling memchr v2.8.0
+   Compiling heck v0.5.0
+   Compiling itoa v1.0.17
+   Compiling libloading v0.8.9
+   Compiling cbcl-erl v0.1.0 (/Users/anuna-01/Code/cbcl-rs/crates/cbcl-erl)
+   Compiling block-buffer v0.10.4
+   Compiling crypto-common v0.1.7
+   Compiling digest v0.10.7
+   Compiling rustler_codegen v0.36.2
+   Compiling cpufeatures v0.2.17
+   Compiling sha2 v0.10.9
+   Compiling cbcl-core v0.1.0 (/Users/anuna-01/Code/cbcl-rs/crates/cbcl-core)
+   Compiling cbcl-parser v0.1.0 (/Users/anuna-01/Code/cbcl-rs/crates/cbcl-parser)
+warning: cbcl-erl@0.1.0: cbcl-erl: macOS produces libcbcl_erl.dylib but erlang:load_nif/2 expects libcbcl_erl.so — run crates/cbcl-erl/scripts/install-mac-nif.sh after build, or set CBCL_ERL_SUPPRESS_MACOS_WARNING=1 to silence.
+    Finished `release` profile [optimized] target(s) in 4.97s
+== install-mac-nif.sh release
+install-mac-nif.sh: /Users/anuna-01/Code/cbcl-rs/target/release/libcbcl_erl.so (copy)
+== compile and load /Users/anuna-01/Code/cbcl-rs/crates/cbcl-erl/erlang/cbcl_erl.erl
+ok    versions/0
+ok    verify_dialect/1 accepts lunch-vote
+ok    verify_dialect/1 rejects garbage
+ok    parse_message/1
+ok    parse_message/1 rejects garbage
+ok    parse_message_lax/1
+ok    fold/1
+ok    fold/1 malformed
+ok    intend/1
+ok    intend/1 rejects an out-of-domain choice
+ok    intend/1 malformed
+ok    verify_state_shape/1
+ok    verify_state_shape/1 blames an undeclared field
+ok    verify_state_shape/1 malformed
+ok    state_schema/1
+ok    state_schema/1 malformed
+ok    may_send/1
+ok    may_send/1 malformed
+ok    frontier/1
+ok    frontier/1 malformed
+ok    dialect_hash/1
+ok    dialect_hash/1 malformed
+ok    admit/1 holds an orphan pending
+ok    admit/1 rejects an undeclared field
+ok    admit/1 malformed
+ok    verify_message_shape/1 accepts a well-shaped vote
+ok    verify_message_shape/1 blames an ill-typed field
+ok    compile_contract/1 compiles a contract to a self-addressed dialect
+ok    compile_contract/1 refuses a malformed contract
+ok    define_text/1 unwraps a teach frame
+ok    describe_dialect/1 names the opener
+ok    read_act/1 reads routing and fields
+ok    read_act/1 malformed
+ok    read/1 returns the parser's tree
+ok    read/1 malformed
+ok    invalid utf-8 is a reason, not a crash
+
+36 checks, 0 failed

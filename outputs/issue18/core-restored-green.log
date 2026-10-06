@@ -1,0 +1,16 @@
+   Compiling cbcl-core v0.1.0 (/Users/anuna-01/Code/cbcl-rs/crates/cbcl-core)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 8.61s
+     Running tests/state_properties.rs (target/debug/deps/state_properties-09d94f36b4358228)
+
+running 8 tests
+test signer_string_addresses_and_last_retains_address_order ... ok
+test signer_observed_edit_and_ownership ... ok
+test signer_canonical_lower_address_edit_always_wins ... ok
+test signer_binder_mixed_rule_union_remains_sorted_and_bounded ... ok
+test signer_domain_and_verb_guards ... ok
+test signer_binder_uses_domain_admitted_current_writes ... ok
+test signer_binder_first_concurrent_sorted_bounded_and_forge ... ok
+test signer_register_permutation_and_duplicate_property ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.06s
+

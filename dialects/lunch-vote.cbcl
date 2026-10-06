@@ -1,10 +1,13 @@
 ; lunch-vote: a poll dialect exercising an opener-drawn domain, a
 ; per-signer register, and a histogram over it (SPEC-019).
 ;
-; A signer may vote many times; only the vote with the greatest content
-; address counts (SPEC-019 ADR-1902: there is no "later"). The tally counts
-; one vote per signer because it reads the `ballots` field, a map with one
-; entry per signer (R.2).
+; A signer may vote many times. The binder fills :replaces with the signer's
+; current votes, so an observed edit supersedes those votes even when its
+; content address is lower. Unseen concurrent votes survive; the greatest
+; address breaks that tie. Replacement never erases another signer's vote.
+; The tally counts one vote per signer from the `ballots` map (R.2).
+; Installation adds the reserved :replaces list to vote's shape; an author
+; never declares it, and an intent never supplies it.
 ;
 ; `(domain vote :choice options)` says a vote whose :choice is not in the
 ; opener's :options contributes nothing to any field, and the binder

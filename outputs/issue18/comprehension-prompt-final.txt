@@ -1,0 +1,122 @@
+Fresh-context comprehension review. Use only this Orientation. Do not read files or implementation. Predict lower-address sequential signer edit; concurrent same-signer writes; cross-signer replacement; domain-excluded replacement; superseded replacements. Locate governing REQ. Report pass/fail and only blocking ambiguities for these cases.
+
+
+Intent: give a CBCL dialect a `(state …)` clause that says what its accepted
+acts amount to. Each state field is one *state rule* from a closed
+vocabulary: a query over the thread's accepted acts, recomputed, never
+merged. (Not "projection": that word belongs to endpoint projection,
+[[SPEC-014-role-layer-endpoint-projection|SPEC-014]].) The only replicated object is the set of accepted acts, which
+converges by union; every rule is a set function of it, so replicas holding
+the same acts compute the same state with no clock, no server, and no
+consensus. The rules behave like familiar replicated types (a register
+that keeps concurrent writes, an add-wins set) but nobody holds such a
+type; the names are borrowed for their observable behaviour.
+For `latest-per-signer`, observation means membership in the binder's accepted set.
+The binder names all current, domain-admitted writes of the same verb and signer in `:replaces`, including losing concurrent candidates.
+Sequential writes therefore supersede observed own writes; the field returns one value per signer.
+Among concurrent surviving writes, the greatest content address wins.
+Cross-signer references contribute no supersession; the referring act still contributes its own value if admitted and in-domain.
+Domain-excluded acts contribute neither values nor replacement references.
+Superseded domain-admitted acts still supply replacement references.
+Replacement applies whenever a domain-admitted write names another accepted same-verb, same-signer write, including after out-of-order delivery.
+The rules desugar to selections and five reductions. The fold
+and the intent binder are pure functions in `cbcl-core`, exported to every
+host as the parser already is. The invariant added is **R7**: for every
+installed dialect, each state field is a total, order-independent,
+duplicate-insensitive function of the thread's accepted acts, and the
+binder's choices are functions of that set and the intent.
+
+Metaphor: a ledger with a fixed set of column rules. Any member appends a
+signed entry; nobody edits one. Each column's rule says how an accepted entry
+moves that column, and the rules commute, so the totals are the same in any
+reading order. The clerk who fills in the bookkeeping (which earlier entries
+this one supersedes) follows a rule everyone knows, so two clerks given the
+same ledger write the same entry.
+
+Structure:
+
+```
+ dialect (one signed artefact)                        replica (any host)
+┌───────────────────────────────┐   install       ┌──────────────────────────────┐
+│ extend / shape       R1–R3,R5 │ ─────────────▶  │ auth ─▶ shape (R5 + R7) ─▶   │
+│ protocol             R5       │ r7_violations   │ causal (R5, projected R6)    │
+│ :roles :from :to     R6       │                 └──────────────┬───────────────┘
+│ state                R7       │                                │ acc(t): a set
+│ :state-bounds                 │                                ▼
+└───────────────────────────────┘                 ┌──────────────────────────────┐
+                                                  │ fold(clause, acc)   = State  │
+   ┌────────────────────┐ verb + data fields      │ intend(instance, signer, …)  │
+   │ any caller         │ ──────────────────────▶ │       = canonical act        │
+   │ (view, agent, CLI) │ ◀──── act to sign ────── │         or a reject          │
+   └────────────────────┘                         └──────────────────────────────┘
+   arrows point inward → the fold and the binder read the accepted set, never the transport
+```
+
+Consumers: the language's units are dialects, threads, acts, signers,
+recipient sets, and stores. Nothing normative here names a room, a hub, a
+browser, or any deployment. cbcl-bus (with hark as its agent host) is the
+first consumer and the source of the semantics adopted here; it appears in
+Context, in ADRs as evidence, in Migration, and nowhere in a requirement.
+
+Decisions: [[SPEC-019-state-rules#ADR-1900]] a kernel of
+selections and five reductions; the fourteen author-facing names are sugar ·
+[[SPEC-019-state-rules#ADR-1901]] supersession rides one reserved
+field, `:replaces`, inserted by the compiler ·
+[[SPEC-019-state-rules#ADR-1902]] one total order, the content
+address · [[SPEC-019-state-rules#ADR-1903]] identity is the hash of
+the body; the name is derived from it ·
+[[SPEC-019-state-rules#ADR-1904]] integers ·
+[[SPEC-019-state-rules#ADR-1905]] one content address ·
+[[SPEC-019-state-rules#ADR-1906]] the binder is pure and in the core ·
+[[SPEC-019-state-rules#ADR-1907]] presentation is a separate package
+with its own specification · [[SPEC-019-state-rules#ADR-1908]] the
+definition travels as an R4-signed `teach` ·
+[[SPEC-019-state-rules#ADR-1909]] domains are fold filters; admission
+never reads history · [[SPEC-019-state-rules#ADR-1910]] the JSON
+authoring SDK stays and consumes the core ·
+[[SPEC-019-state-rules#ADR-1911]] one bounds clause.
+
+Load-bearing: [[SPEC-019-state-rules#REQ-1915]] R7 ·
+[[SPEC-019-state-rules#REQ-1917]] kernel semantics ·
+[[SPEC-019-state-rules#REQ-1907]] `:replaces` is bookkeeping ·
+[[SPEC-019-state-rules#REQ-1922]] deterministic binding ·
+[[SPEC-019-state-rules#REQ-1926]] binder soundness ·
+[[SPEC-019-state-rules#REQ-1931]] one corpus.
+
+Controls:
+- A signer cannot supersede another signer’s ballot → [[SPEC-019-state-rules#REQ-1933]].
+- A dialect whose state clause fails well-formedness is not installed →
+  [[SPEC-019-state-rules#REQ-1905]]–[[SPEC-019-state-rules#REQ-1910]].
+- Admission reads one message and never reads history or state →
+  [[SPEC-019-state-rules#REQ-1914]], [[SPEC-019-state-rules#ADR-1909]].
+- A caller never supplies `:replaces`, a recipient, a role, or routing; the
+  binder fills them and rejects a supplied one as a forge →
+  [[SPEC-019-state-rules#REQ-1921]]–[[SPEC-019-state-rules#REQ-1925]].
+- A rejected intent never reaches the wire →
+  [[SPEC-019-state-rules#REQ-1926]].
+- Selection by address converges; it is not fair. Contested decisions are a
+  protocol matter (a role's grant) → [[SPEC-019-state-rules#REQ-1916]].
+
+Cross-repository naming: cbcl-bus also has a `SPEC-019`
+(`SPEC-019-hypermedia-objects`); it is always cited by full stem. Artefacts
+here are numbered 19xx.
+
+Open:
+- The kernel and the binder are mechanised in `lean-cbcl/LeanCbcl/State.lean`
+  ([[SPEC-019-state-rules#REQ-1930]]); the Rust/Lean correspondence is
+  evidence from the corpus, not a theorem, so claims say "mechanised
+  kernel, corpus-validated implementation"
+  ([[SPEC-018-dcfl-installation#REQ-1806]]).
+- The corpus is pinned by `test-vectors/state/VERSION`
+  ([[SPEC-019-state-rules#REQ-1931]]).
+- Shipped views and blobs (cbcl-bus SPEC-019 CON-001 `:views`, CON-004
+  `(blob …)`) are unspecified here and [[SPEC-019-state-rules#REQ-1911]]
+  rejects a state-bearing act carrying `:views`. Owner: CBCL maintainer.
+- The first consumer's built-in dialects (`dialects.js`) use self-chaining
+  protocols and `authorityLast`; they are re-authored with registers and
+  roles or retired. Owner: cbcl-bus maintainer.
+
+Detail: the [[SPEC-019-state-rules#Reference]] is the normative core
+in two pages; everything after it is commentary, requirements with trace,
+and tests.
+

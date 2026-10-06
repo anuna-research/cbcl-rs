@@ -1,0 +1,30 @@
+    Blocking waiting for file lock on build directory
+   Compiling hashbrown v0.16.1
+   Compiling equivalent v1.0.2
+   Compiling serde_json v1.0.149
+   Compiling cbcl-core v0.1.0 (/Users/anuna-01/Code/cbcl-rs/crates/cbcl-core)
+   Compiling indexmap v2.13.0
+   Compiling tinytemplate v1.2.1
+   Compiling criterion v0.5.1
+   Compiling cbcl-parser v0.1.0 (/Users/anuna-01/Code/cbcl-rs/crates/cbcl-parser)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.34s
+     Running tests/state_layer.rs (target/debug/deps/state_layer-d09de681f3bb7c86)
+
+running 1 test
+test signer_writer_requires_replaces_but_last_does_not ... FAILED
+
+failures:
+
+---- signer_writer_requires_replaces_but_last_does_not stdout ----
+
+thread 'signer_writer_requires_replaces_but_last_does_not' (3262962) panicked at crates/cbcl-parser/tests/state_layer.rs:439:5:
+assertion failed: cbcl_core::r7::declared_keywords(&d.shapes, "vote").contains("replaces")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    signer_writer_requires_replaces_but_last_does_not
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 11 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p cbcl-parser --test state_layer`

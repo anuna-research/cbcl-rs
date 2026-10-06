@@ -354,6 +354,24 @@ pub fn intend(
     let bounds = bounds_of(d);
     let mut replaces: Option<Vec<String>> = None;
     for (_, rule) in clause.fields() {
+        if let Rule::LatestPerSigner { verb: writer, .. } = rule {
+            if writer == verb {
+                let mut addrs: Vec<String> =
+                    crate::state::current_by_signer(clause, inst.acts, writer)
+                        .into_iter()
+                        .filter(|a| a.signer == signer.0)
+                        .map(|a| a.address.clone())
+                        .collect();
+                addrs.sort();
+                addrs.dedup();
+                let existing = replaces.get_or_insert_with(Vec::new);
+                existing.extend(addrs);
+                existing.sort();
+                existing.dedup();
+                existing.truncate(bounds.max_list as usize);
+            }
+            continue;
+        }
         let binding = match rule {
             Rule::Values { verb: w, .. } if w == verb => Some((w.as_str(), None, None, false)),
             Rule::ValuesPerKey {

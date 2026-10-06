@@ -1,0 +1,125 @@
+{
+  "id": "signer-supersession",
+  "version": "1.0.0",
+  "thread": "s1",
+  "contract": "(define signer-register (cbcl) @anuna\n      (:resource-requirements ((max-depth 12) (max-expansion-size 2048) (verification-time 200)))\n      (extend open (to title) (tell to :title title))\n      (extend write (to value op) (tell to :value value :op op))\n      (shape open (require :title string))\n      (shape write (require :value string) (require :op number))\n      (protocol (then begin open) (then open write))\n      (state (title (last open :title)) (entries (latest-per-signer write :value)) (all (events write :value))))",
+  "covers": [
+    "latest-per-signer",
+    "lower-address-sequential-edit",
+    "concurrent-same-signer",
+    "cross-signer-replacement",
+    "events-preserve-history",
+    "intend"
+  ],
+  "messages": [
+    {
+      "canonical": "(lang signer-register (open @room :title \"Register\" :caused-by begin :thread \"s1\" :from @owner))",
+      "signer": "@owner"
+    },
+    {
+      "canonical": "(lang signer-register (write @room :value \"old\" :op 0 :replaces () :caused-by sha256-fe3baedf97239bd0eafd18cc17a5e2b9c472ad53ed73b353acccca071db3f972 :thread \"s1\" :from @a))",
+      "signer": "@a"
+    },
+    {
+      "canonical": "(lang signer-register (write @room :value \"new\" :op 1 :replaces (sha256-ed411b6c465b3f6a873b0eca2e4265305c5f516a23b756be1a9d57d85c70cbd8) :caused-by sha256-fe3baedf97239bd0eafd18cc17a5e2b9c472ad53ed73b353acccca071db3f972 :thread \"s1\" :from @a))",
+      "signer": "@a"
+    },
+    {
+      "canonical": "(lang signer-register (write @room :value \"left\" :op 0 :replaces () :caused-by sha256-fe3baedf97239bd0eafd18cc17a5e2b9c472ad53ed73b353acccca071db3f972 :thread \"s1\" :from @b))",
+      "signer": "@b"
+    },
+    {
+      "canonical": "(lang signer-register (write @room :value \"right\" :op 1 :replaces () :caused-by sha256-fe3baedf97239bd0eafd18cc17a5e2b9c472ad53ed73b353acccca071db3f972 :thread \"s1\" :from @b))",
+      "signer": "@b"
+    },
+    {
+      "canonical": "(lang signer-register (write @room :value \"hostile\" :op 0 :replaces (sha256-f1a2f06a6b19489d839141a087a7983a03cbbef99f60f368c6bbc7db6ea87d40) :caused-by sha256-fe3baedf97239bd0eafd18cc17a5e2b9c472ad53ed73b353acccca071db3f972 :thread \"s1\" :from @c))",
+      "signer": "@c"
+    }
+  ],
+  "intents": [
+    {
+      "signer": "@a",
+      "verb": "write",
+      "fields": {
+        "value": "third",
+        "op": 10001
+      }
+    },
+    {
+      "signer": "@b",
+      "verb": "write",
+      "fields": {
+        "value": "merged",
+        "op": 10002
+      }
+    },
+    {
+      "signer": "@new",
+      "verb": "write",
+      "fields": {
+        "value": "first",
+        "op": 10003
+      }
+    }
+  ],
+  "expect": {
+    "addresses": [
+      "sha256-fe3baedf97239bd0eafd18cc17a5e2b9c472ad53ed73b353acccca071db3f972",
+      "sha256-ed411b6c465b3f6a873b0eca2e4265305c5f516a23b756be1a9d57d85c70cbd8",
+      "sha256-7b448dbd6586709f85aa895600692c988a694ca3a7a9294db7023d291f138b8b",
+      "sha256-f1a2f06a6b19489d839141a087a7983a03cbbef99f60f368c6bbc7db6ea87d40",
+      "sha256-cf26a2e92af06090dbbb4f4c1da99b9ce9dadf92800b1fa38dbf78b17359395f",
+      "sha256-50ea5db206c7660582f1945b8624eb08f290a76ba737540371d47d66ebcbc56a"
+    ],
+    "verdicts": {
+      "sha256-fe3baedf97239bd0eafd18cc17a5e2b9c472ad53ed73b353acccca071db3f972": "accepted",
+      "sha256-ed411b6c465b3f6a873b0eca2e4265305c5f516a23b756be1a9d57d85c70cbd8": "accepted",
+      "sha256-7b448dbd6586709f85aa895600692c988a694ca3a7a9294db7023d291f138b8b": "accepted",
+      "sha256-f1a2f06a6b19489d839141a087a7983a03cbbef99f60f368c6bbc7db6ea87d40": "accepted",
+      "sha256-cf26a2e92af06090dbbb4f4c1da99b9ce9dadf92800b1fa38dbf78b17359395f": "accepted",
+      "sha256-50ea5db206c7660582f1945b8624eb08f290a76ba737540371d47d66ebcbc56a": "accepted"
+    },
+    "state": {
+      "title": "Register",
+      "entries": {
+        "@a": "new",
+        "@b": "left",
+        "@c": "hostile"
+      },
+      "all": {
+        "sha256-50ea5db206c7660582f1945b8624eb08f290a76ba737540371d47d66ebcbc56a": {
+          "by": "@c",
+          "value": "hostile"
+        },
+        "sha256-7b448dbd6586709f85aa895600692c988a694ca3a7a9294db7023d291f138b8b": {
+          "by": "@a",
+          "value": "new"
+        },
+        "sha256-cf26a2e92af06090dbbb4f4c1da99b9ce9dadf92800b1fa38dbf78b17359395f": {
+          "by": "@b",
+          "value": "right"
+        },
+        "sha256-ed411b6c465b3f6a873b0eca2e4265305c5f516a23b756be1a9d57d85c70cbd8": {
+          "by": "@a",
+          "value": "old"
+        },
+        "sha256-f1a2f06a6b19489d839141a087a7983a03cbbef99f60f368c6bbc7db6ea87d40": {
+          "by": "@b",
+          "value": "left"
+        }
+      }
+    },
+    "intents": [
+      {
+        "canonical": "(lang signer-register (write @room () :op 10001 :value \"third\" :replaces (sha256-7b448dbd6586709f85aa895600692c988a694ca3a7a9294db7023d291f138b8b) :from @a :thread \"s1\" :caused-by sha256-fe3baedf97239bd0eafd18cc17a5e2b9c472ad53ed73b353acccca071db3f972))"
+      },
+      {
+        "canonical": "(lang signer-register (write @room () :op 10002 :value \"merged\" :replaces (sha256-cf26a2e92af06090dbbb4f4c1da99b9ce9dadf92800b1fa38dbf78b17359395f sha256-f1a2f06a6b19489d839141a087a7983a03cbbef99f60f368c6bbc7db6ea87d40) :from @b :thread \"s1\" :caused-by sha256-fe3baedf97239bd0eafd18cc17a5e2b9c472ad53ed73b353acccca071db3f972))"
+      },
+      {
+        "canonical": "(lang signer-register (write @room () :op 10003 :value \"first\" :replaces () :from @new :thread \"s1\" :caused-by sha256-fe3baedf97239bd0eafd18cc17a5e2b9c472ad53ed73b353acccca071db3f972))"
+      }
+    ]
+  }
+}

@@ -1,0 +1,12 @@
+   Compiling cbcl-parser v0.1.0 (/Users/anuna-01/Code/cbcl-rs/crates/cbcl-parser)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.53s
+     Running tests/state_corpus_generate.rs (target/debug/deps/state_corpus_generate-6d4b5e3380e2f358)
+
+running 4 tests
+test generate_tags_and_balance ... ok
+test generate_lunch_vote_domain ... ok
+test generate_signer_supersession ... ok
+test generate_checklist_with_roles ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

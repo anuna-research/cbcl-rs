@@ -1,0 +1,122 @@
+
+> cbcl@0.1.0 test
+> node --experimental-strip-types --test test/*.test.ts
+
+(node:50212) ExperimentalWarning: Type Stripping is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+TAP version 13
+# (node:50218) ExperimentalWarning: Type Stripping is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: corpus checklist-roles.json: verdicts, state, and intents match cbcl-rs
+ok 1 - corpus checklist-roles.json: verdicts, state, and intents match cbcl-rs
+  ---
+  duration_ms: 34.807667
+  ...
+# Subtest: corpus lunch-vote-domain.json: verdicts, state, and intents match cbcl-rs
+ok 2 - corpus lunch-vote-domain.json: verdicts, state, and intents match cbcl-rs
+  ---
+  duration_ms: 7.719667
+  ...
+# Subtest: corpus signer-supersession.json: verdicts, state, and intents match cbcl-rs
+ok 3 - corpus signer-supersession.json: verdicts, state, and intents match cbcl-rs
+  ---
+  duration_ms: 7.955875
+  ...
+# Subtest: corpus tags-and-balance.json: verdicts, state, and intents match cbcl-rs
+ok 4 - corpus tags-and-balance.json: verdicts, state, and intents match cbcl-rs
+  ---
+  duration_ms: 15.845209
+  ...
+# Subtest: the corpus is present
+ok 5 - the corpus is present
+  ---
+  duration_ms: 0.129875
+  ...
+# Subtest: the state corpus version is pinned
+ok 6 - the state corpus version is pinned
+  ---
+  duration_ms: 0.703208
+  ...
+# (node:50219) ExperimentalWarning: Type Stripping is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: a contract compiles to a self-addressed dialect the verifier accepts
+ok 7 - a contract compiles to a self-addressed dialect the verifier accepts
+  ---
+  duration_ms: 8.439917
+  ...
+# Subtest: the opener is verified; the fold is order-independent and duplicate-insensitive
+ok 8 - the opener is verified; the fold is order-independent and duplicate-insensitive
+  ---
+  duration_ms: 6.858708
+  ...
+# Subtest: the broker refuses core performatives, unknown verbs, the opener, and forged routing
+ok 9 - the broker refuses core performatives, unknown verbs, the opener, and forged routing
+  ---
+  duration_ms: 2.722417
+  ...
+# Subtest: domains: the binder refuses an out-of-opener choice; a received one contributes nothing
+ok 10 - domains: the binder refuses an out-of-opener choice; a received one contributes nothing
+  ---
+  duration_ms: 3.040333
+  ...
+# Subtest: registers: replacements bind to the intent key, a peer write is concurrent, delete names current writes
+ok 11 - registers: replacements bind to the intent key, a peer write is concurrent, delete names current writes
+  ---
+  duration_ms: 7.443375
+  ...
+# Subtest: every rule head folds; sums move once per address; observed removals name live additions
+ok 12 - every rule head folds; sums move once per address; observed removals name live additions
+  ---
+  duration_ms: 10.115791
+  ...
+# Subtest: cbcl-rs judges every received act; unknown predecessors wait
+ok 13 - cbcl-rs judges every received act; unknown predecessors wait
+  ---
+  duration_ms: 2.206375
+  ...
+# Subtest: latestPerSigner edits replace observed own votes and preserve other signers
+ok 14 - latestPerSigner edits replace observed own votes and preserve other signers
+  ---
+  duration_ms: 5.215708
+  ...
+# (node:50220) ExperimentalWarning: Type Stripping is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: the verifier initialises synchronously under node
+ok 15 - the verifier initialises synchronously under node
+  ---
+  duration_ms: 0.401584
+  ...
+# Subtest: read is the parser: comments, escapes, and malformed input
+ok 16 - read is the parser: comments, escapes, and malformed input
+  ---
+  duration_ms: 4.183416
+  ...
+# Subtest: canonical form, addresses, and the self-address
+ok 17 - canonical form, addresses, and the self-address
+  ---
+  duration_ms: 2.455
+  ...
+# Subtest: shape, state shape, and protocol verdicts are cbcl-rs blame
+ok 18 - shape, state shape, and protocol verdicts are cbcl-rs blame
+  ---
+  duration_ms: 2.456708
+  ...
+# Subtest: SPEC-087 TEST-001: the contract compile is cbcl-rs and names the authored dialects
+ok 19 - SPEC-087 TEST-001: the contract compile is cbcl-rs and names the authored dialects
+  ---
+  duration_ms: 7.175625
+  ...
+# Subtest: a refusal is thrown as an Error carrying cbcl-rs's reason
+ok 20 - a refusal is thrown as an Error carrying cbcl-rs's reason
+  ---
+  duration_ms: 0.278667
+  ...
+1..20
+# tests 20
+# suites 0
+# pass 20
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 162.833958

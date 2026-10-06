@@ -1,0 +1,3 @@
+artefacts   REQ=11 NFR=1 CON=7 TEST=6 ADR=4 SPEC=9 
+gate rows   0  (pass=0 fail=0 unverified=0)
+wikilinks   105  (anchored=103)

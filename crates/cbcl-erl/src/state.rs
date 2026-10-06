@@ -262,14 +262,14 @@ mod tests {
         let fr = frontier_pure(format!("(frontier {LUNCH} \"v1\" {acts})").as_bytes()).unwrap();
         assert!(fr.starts_with("{\"instance\":\"sha256-"), "{fr}");
         let root = fr.split('"').nth(3).unwrap().to_string();
-        let vote = format!("(lang lunch-vote (vote @lunch :choice \"Sushi\" :caused-by {root} :thread \"v1\" :from @bo))");
+        let vote = format!("(lang lunch-vote (vote @lunch :choice \"Sushi\" :replaces () :caused-by {root} :thread \"v1\" :from @bo))");
         let admitted = admit_pure(format!("(admit {LUNCH} \"v1\" {acts} (@bo {vote}))").as_bytes()).unwrap();
         assert_eq!(admitted, "{\"verdict\":\"accepted\"}");
-        let orphan = "(lang lunch-vote (vote @lunch :choice \"Sushi\" :caused-by sha256-ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff :thread \"v1\" :from @bo))";
+        let orphan = "(lang lunch-vote (vote @lunch :choice \"Sushi\" :replaces () :caused-by sha256-ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff :thread \"v1\" :from @bo))";
         let pending = admit_pure(format!("(admit {LUNCH} \"v1\" {acts} (@bo {orphan}))").as_bytes()).unwrap();
         assert_eq!(pending, "{\"verdict\":\"pending\"}");
         assert_eq!(
-            verify_message_shape_pure(format!("(verify-shape {LUNCH} vote (vote @lunch :choice \"Sushi\"))").as_bytes()).unwrap(),
+            verify_message_shape_pure(format!("(verify-shape {LUNCH} vote (vote @lunch :choice \"Sushi\" :replaces ()))").as_bytes()).unwrap(),
             "ok"
         );
         let blame = verify_message_shape_pure(format!("(verify-shape {LUNCH} vote (vote @lunch :choice 3))").as_bytes()).unwrap_err();

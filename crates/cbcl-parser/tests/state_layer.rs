@@ -385,13 +385,13 @@ fn lunch_vote_domain_filters_in_the_fold_and_refuses_in_the_binder() {
     let a = p.address.clone();
     let v1 = act(
         &format!(
-            "(lang {n} (vote @lunch :choice \"Pizza\" :caused-by {a} :thread \"v1\" :from @bo))"
+            "(lang {n} (vote @lunch :choice \"Pizza\" :replaces () :caused-by {a} :thread \"v1\" :from @bo))"
         ),
         "@bo",
     );
     let v2 = act(
         &format!(
-            "(lang {n} (vote @lunch :choice \"Tacos\" :caused-by {a} :thread \"v1\" :from @cy))"
+            "(lang {n} (vote @lunch :choice \"Tacos\" :replaces () :caused-by {a} :thread \"v1\" :from @cy))"
         ),
         "@cy",
     );
@@ -430,4 +430,16 @@ fn bounds_clause_is_enforced_at_receipt() {
         .unwrap_err()
         .detail
         .contains("max-string 280"));
+}
+
+/// TEST-1951: installation adds reserved bookkeeping to signer writers.
+#[test]
+fn signer_writer_requires_replaces_but_last_does_not() {
+    let d = dialect(&lunch_vote_source());
+    assert!(cbcl_core::r7::declared_keywords(&d.shapes, "vote").contains("replaces"));
+    assert!(!cbcl_core::r7::declared_keywords(&d.shapes, "propose").contains("replaces"));
+    let missing = msg("(lang lunch-vote (vote @room :choice \"Pizza\" :from @bo :thread \"v1\" :caused-by begin))");
+    assert!(verify_state_shape(&d, &missing).is_err());
+    let present = msg("(lang lunch-vote (vote @room :choice \"Pizza\" :replaces () :from @bo :thread \"v1\" :caused-by begin))");
+    assert!(verify_state_shape(&d, &present).is_ok());
 }
