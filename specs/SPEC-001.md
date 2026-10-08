@@ -80,9 +80,20 @@ trait), GUI, IDE tooling, specific dialect implementations beyond
 | REQ-040  | The crate SHALL provide `parse(input: &str) -> Result<SExpr, ParseError>` implementing a recursive-descent S-expression parser with O(n) time complexity in input length. |
 | REQ-041  | The parser SHALL recognize atoms: symbols (`[a-zA-Z][a-zA-Z0-9_-]*`), strings (double-quoted with `\n`, `\r`, `\t`, `\\`, `\"` escapes), integers (`-?[0-9]+`), booleans (`#t`, `#f`), and keywords (`:[a-zA-Z][a-zA-Z0-9_-]*`). |
 | REQ-042  | The parser SHALL recognize S-expression lists as `(` whitespace-separated elements `)`. |
-| REQ-043  | The parser SHALL reject input that exceeds a configurable fuel limit (default: input byte length), preventing unbounded stack growth. |
+| REQ-043  | The parser SHALL reject input that exceeds a configurable fuel limit (default: input byte length), bounding parse work by input length. Fuel does not bound stack depth: one octet of `(` buys one level of recursion, so the stack is bounded by [[SPEC-001#REQ-046]]. |
 | REQ-044  | The crate SHALL provide `parse_message(sexpr: &SExpr) -> Option<Message>` matching the semantics of `CBCL.parseMessage` in `MessageParser.lean`. |
 | REQ-045  | The crate SHALL provide `parse_dialect(sexpr: &SExpr) -> Result<Dialect, String>` matching the semantics of `CBCL.parseDialect` in `DialectParser.lean`. |
+| REQ-046  | The parser SHALL refuse any input whose list nesting exceeds `MAX_NESTING_DEPTH` = 256 with `ParseError::NestingTooDeep { offset, limit: 256 }`, where `offset` is the byte offset of the `(` that would open level 257, displayed as `at byte <offset>: list nesting exceeds limit 256`. The refusal is an ordinary `Err`: the parser SHALL NOT recurse past the limit, panic, abort, or trap, and a refusal SHALL leave the calling process or WASM instance usable for the next input. The limit is enforced once, in `parse_with_fuel`, through which every text entry point (`parse`, the pipeline, `read`, the dialect, state, shape and object exports, and the WASM, Erlang and C bindings) reaches a tree. Inputs nested at most 256 deep parse, and serialise canonically, exactly as without the limit. See §3.5.1. |
+
+#### 3.5.1 Nesting limit
+
+The list is the only recursive form in the Layer 1 grammar (`docs/cbcl-grammar.ebnf`): there is no quote, quasiquote, datum comment, vector, or other collection syntax, and strings and `;` comments are scanned iteratively. So list depth is exactly the parser's recursion depth, and it bounds the recursion of every consumer that walks the resulting tree (message recognition, serialisation, JSON reading, `Debug`, drop). Parentheses inside strings and comments are data and do not count.
+
+The bound of 256 is chosen against the reproduced failure in [[BUG-007-parser-nesting-stack-overflow]]: before the limit, a balanced frame of depth 3000 (6 KB) overflowed WebKit 26's stack through the browser WASM build, depth 7000 overflowed Chromium 145 and poisoned the instance for every later call, and a 1,000,000-level frame killed a BEAM node through the NIF. 256 leaves more than ten times margin below the WebKit failure. It is 64 times the deepest frame in the dialect corpus, 4, and four times the largest `max-depth` a dialect may declare for expansion, 64 ([[SPEC-001#REQ-024]]). Measured at depth 256, the deepest native consumer needs 64–128 KiB of stack in a release build. Evidence: [[parser-nesting-limit-evidence-2026-10-08]].
+
+The limit is fixed, not configurable, so that every conformant reader accepts the same language. The Lean model in `Parser.lean` does not carry it yet. Rust–Lean parity (§8, acceptance criterion 7) therefore holds only for inputs nested at most 256 deep.
+
+Open: mirror the limit in `lean-cbcl/LeanCbcl/Parser.lean` and add a depth-257 differential vector. Owner: the Lean mechanisation maintainer ([[SPEC-005-lean-mechanisation]]).
 
 ### 3.6  Serializer Module
 
@@ -248,6 +259,7 @@ trait), GUI, IDE tooling, specific dialect implementations beyond
 | `Dialect.lean`            | REQ-020–025  |              | CON-001–002  |
 | `Agent.lean`              | REQ-030–034  | NFR-031      | CON-001      |
 | `Parser.lean`             | REQ-040–043  | NFR-001, 004 | CON-001      |
+| (none yet; see §3.5.1)    | REQ-046      |              | CON-001, 020 |
 | `MessageParser.lean`      | REQ-044      | NFR-002      | CON-001      |
 | `DialectParser.lean`      | REQ-045      | NFR-003      | CON-001      |
 | `Serializer.lean`         | REQ-050      |              | CON-001      |

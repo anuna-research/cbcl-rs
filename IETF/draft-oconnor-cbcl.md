@@ -369,18 +369,31 @@ scanner. Three of its rules are not expressible in ABNF alone and are normative:
 Escape sequences other than the five listed MUST be rejected. Implementations
 MUST NOT repair an unrecognized escape by preserving it literally.
 
-### Resource Bounding of Recognition
+### Resource Bounding of Recognition {#recognition-bounds}
 
 A conformant recognizer MUST bound its own recursion. The reference
 implementation carries a *fuel* budget: one unit is consumed per S-expression
 node entered, and the default budget is the input length in octets (minimum 1).
 Because every node consumes at least one input octet, this budget can only be
 exhausted by input that is already invalid, and recognition is O(n) in the input
-length with recursion depth bounded by it.
+length.
+
+Fuel bounds work, not stack. One octet of `(` buys one level of nesting, so a
+budget proportional to the input still admits nesting proportional to the
+input. A 6 KB frame of balanced parentheses exhausts the call stack of a
+browser WebAssembly engine, and an exhausted stack there can leave the module
+instance unusable for every later call. A conformant recognizer therefore MUST
+also refuse any input whose list nesting exceeds 256. The top-level list has
+depth 1, and only list parentheses count: a parenthesis inside a string or a
+comment is data. The refusal is an ordinary recognition error and SHOULD report
+the octet offset of the `(` that would open the 257th level. A recognizer MUST
+accept every otherwise-valid input nested 256 deep or less. The limit is fixed,
+not configurable, so that all conformant recognizers accept the same language.
 
 Implementations MAY use any equivalent mechanism (an explicit stack, an explicit
-depth counter) provided recognition terminates on every input and never consumes
-unbounded stack.
+depth counter) provided recognition terminates on every input, never consumes
+unbounded stack, and accepts exactly the inputs nested within the limit.
+Applications that walk a recognized tree recursively inherit the same bound.
 
 ## Layer 2: Message Grammar {#core-grammar}
 
@@ -1773,7 +1786,9 @@ This preservation ensures:
   table lookups for the role checks
 
 - **Bounded Complexity**: resource exhaustion attacks are prevented through
-  static limits declared in dialect definitions
+  static limits declared in dialect definitions, and through the fixed nesting
+  limit on recognition ({{recognition-bounds}}), which bounds the stack of the
+  recognizer and of every consumer that walks a recognized tree
 
 - **Structural Isolation**: message structure is syntactically distinct from
   content, preventing injection attacks

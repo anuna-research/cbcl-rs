@@ -1,0 +1,67 @@
+✖ the raw glue refuses past the limit with a string, repeatedly, and keeps working (2.043209ms)
+✖ depth N-1 and N are read; N+1 is refused at the first parenthesis past the limit (0.49925ms)
+✖ the typed wrappers carry the parser reason and the instance stays usable (0.4265ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 0
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 188.270083
+
+✖ failing tests:
+
+test at test/depth.test.ts:23:1
+✖ the raw glue refuses past the limit with a string, repeatedly, and keeps working (2.043209ms)
+  AssertionError [ERR_ASSERTION]: expected a refusal
+      at thrown (file:///private/tmp/cbcl-base/js/test/depth.test.ts:20:10)
+      at TestContext.<anonymous> (file:///private/tmp/cbcl-base/js/test/depth.test.ts:29:23)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1118:25)
+      at Test.start (node:internal/test_runner/test:1015:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:358:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at test/depth.test.ts:38:1
+✖ depth N-1 and N are read; N+1 is refused at the first parenthesis past the limit (0.49925ms)
+  AssertionError [ERR_ASSERTION]: Missing expected exception.
+      at TestContext.<anonymous> (file:///private/tmp/cbcl-base/js/test/depth.test.ts:41:10)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1118:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:787:18)
+      at Test.postRun (node:internal/test_runner/test:1247:19)
+      at Test.run (node:internal/test_runner/test:1175:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: { message: 'at byte 256: list nesting exceeds limit 256' },
+    operator: 'throws',
+    diff: 'simple'
+  }
+
+test at test/depth.test.ts:49:1
+✖ the typed wrappers carry the parser reason and the instance stays usable (0.4265ms)
+  AssertionError [ERR_ASSERTION]: expected a refusal
+      at thrown (file:///private/tmp/cbcl-base/js/test/depth.test.ts:20:10)
+      at TestContext.<anonymous> (file:///private/tmp/cbcl-base/js/test/depth.test.ts:52:21)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1118:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:787:18)
+      at Test.postRun (node:internal/test_runner/test:1247:19)
+      at Test.run (node:internal/test_runner/test:1175:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }

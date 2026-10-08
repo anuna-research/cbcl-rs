@@ -1,0 +1,11 @@
+✔ the raw glue refuses past the limit with a string, repeatedly, and keeps working (9.97275ms)
+✔ depth N-1 and N are read; N+1 is refused at the first parenthesis past the limit (1.232667ms)
+✔ the typed wrappers carry the parser reason and the instance stays usable (0.745334ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 199.8585

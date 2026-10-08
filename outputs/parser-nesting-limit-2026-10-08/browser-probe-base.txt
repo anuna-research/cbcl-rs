@@ -1,0 +1,68 @@
+# glue: /tmp/cbcl-base/js/src
+== chromium 145.0.7632.6 | Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/145.0.0.0 Safari/537.36
+PASS parse_message depth    255 (521 B) | #1 ok | #2 ok | benign after -> ok
+PASS read          depth    255 (521 B) | #1 ok | #2 ok | benign after -> ok
+PASS parse         depth    255 (521 B) | #1 ok | #2 ok | benign after -> ok
+PASS parse_message depth    256 (523 B) | #1 ok | #2 ok | benign after -> ok
+PASS read          depth    256 (523 B) | #1 ok | #2 ok | benign after -> ok
+PASS parse         depth    256 (523 B) | #1 ok | #2 ok | benign after -> ok
+FAIL parse_message depth    257 (525 B) | #1 ok | #2 ok | benign after -> ok
+FAIL read          depth    257 (525 B) | #1 ok | #2 ok | benign after -> ok
+FAIL parse         depth    257 (525 B) | #1 ok | #2 ok | benign after -> ok
+FAIL parse_message depth   3000 (6011 B) | #1 ok | #2 ok | benign after -> ok
+FAIL read          depth   3000 (6011 B) | #1 ok | #2 ok | benign after -> ok
+FAIL parse         depth   3000 (6011 B) | #1 ok | #2 ok | benign after -> ok
+FAIL parse_message depth   7000 (14011 B) | #1 RangeError: Maximum call stack size exceeded | #2 RuntimeError: memory access out of bounds | benign after -> RuntimeError: memory access out of bounds
+FAIL read          depth   7000 (14011 B) | #1 RangeError: Maximum call stack size exceeded | #2 RuntimeError: memory access out of bounds | benign after -> RuntimeError: memory access out of bounds
+FAIL parse         depth   7000 (14011 B) | #1 RangeError: Maximum call stack size exceeded | #2 RuntimeError: memory access out of bounds | benign after -> RuntimeError: memory access out of bounds
+FAIL parse_message depth  20000 (40011 B) | #1 RangeError: Maximum call stack size exceeded | #2 RuntimeError: memory access out of bounds | benign after -> RuntimeError: memory access out of bounds
+FAIL read          depth  20000 (40011 B) | #1 RangeError: Maximum call stack size exceeded | #2 RuntimeError: memory access out of bounds | benign after -> RuntimeError: memory access out of bounds
+FAIL parse         depth  20000 (40011 B) | #1 RangeError: Maximum call stack size exceeded | #2 RuntimeError: memory access out of bounds | benign after -> RuntimeError: memory access out of bounds
+FAIL parse_message depth 100000 (200011 B) | #1 RangeError: Maximum call stack size exceeded | #2 RuntimeError: memory access out of bounds | benign after -> RuntimeError: memory access out of bounds
+FAIL read          depth 100000 (200011 B) | #1 RangeError: Maximum call stack size exceeded | #2 RuntimeError: memory access out of bounds | benign after -> RuntimeError: memory access out of bounds
+FAIL parse         depth 100000 (200011 B) | #1 RangeError: Maximum call stack size exceeded | #2 RuntimeError: memory access out of bounds | benign after -> RuntimeError: memory access out of bounds
+== firefox 155.0 | Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:155.0) Gecko/20100101 Firefox/155.0
+PASS parse_message depth    255 (521 B) | #1 ok | #2 ok | benign after -> ok
+PASS read          depth    255 (521 B) | #1 ok | #2 ok | benign after -> ok
+PASS parse         depth    255 (521 B) | #1 ok | #2 ok | benign after -> ok
+PASS parse_message depth    256 (523 B) | #1 ok | #2 ok | benign after -> ok
+PASS read          depth    256 (523 B) | #1 ok | #2 ok | benign after -> ok
+PASS parse         depth    256 (523 B) | #1 ok | #2 ok | benign after -> ok
+FAIL parse_message depth    257 (525 B) | #1 ok | #2 ok | benign after -> ok
+FAIL read          depth    257 (525 B) | #1 ok | #2 ok | benign after -> ok
+FAIL parse         depth    257 (525 B) | #1 ok | #2 ok | benign after -> ok
+FAIL parse_message depth   3000 (6011 B) | #1 ok | #2 ok | benign after -> ok
+FAIL read          depth   3000 (6011 B) | #1 ok | #2 ok | benign after -> ok
+FAIL parse         depth   3000 (6011 B) | #1 ok | #2 ok | benign after -> ok
+FAIL parse_message depth   7000 (14011 B) | #1 InternalError: too much recursion | #2 InternalError: too much recursion | benign after -> ok
+FAIL read          depth   7000 (14011 B) | #1 InternalError: too much recursion | #2 InternalError: too much recursion | benign after -> ok
+FAIL parse         depth   7000 (14011 B) | #1 InternalError: too much recursion | #2 InternalError: too much recursion | benign after -> ok
+FAIL parse_message depth  20000 (40011 B) | #1 InternalError: too much recursion | #2 RuntimeError: index out of bounds | benign after -> RuntimeError: index out of bounds
+FAIL read          depth  20000 (40011 B) | #1 InternalError: too much recursion | #2 RuntimeError: index out of bounds | benign after -> RuntimeError: index out of bounds
+FAIL parse         depth  20000 (40011 B) | #1 InternalError: too much recursion | #2 RuntimeError: index out of bounds | benign after -> RuntimeError: index out of bounds
+FAIL parse_message depth 100000 (200011 B) | #1 InternalError: too much recursion | #2 RuntimeError: index out of bounds | benign after -> RuntimeError: index out of bounds
+FAIL read          depth 100000 (200011 B) | #1 InternalError: too much recursion | #2 RuntimeError: index out of bounds | benign after -> RuntimeError: index out of bounds
+FAIL parse         depth 100000 (200011 B) | #1 InternalError: too much recursion | #2 RuntimeError: index out of bounds | benign after -> RuntimeError: index out of bounds
+== webkit 26.0 | Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Safari/605.1.15
+PASS parse_message depth    255 (521 B) | #1 ok | #2 ok | benign after -> ok
+PASS read          depth    255 (521 B) | #1 ok | #2 ok | benign after -> ok
+PASS parse         depth    255 (521 B) | #1 ok | #2 ok | benign after -> ok
+PASS parse_message depth    256 (523 B) | #1 ok | #2 ok | benign after -> ok
+PASS read          depth    256 (523 B) | #1 ok | #2 ok | benign after -> ok
+PASS parse         depth    256 (523 B) | #1 ok | #2 ok | benign after -> ok
+FAIL parse_message depth    257 (525 B) | #1 ok | #2 ok | benign after -> ok
+FAIL read          depth    257 (525 B) | #1 ok | #2 ok | benign after -> ok
+FAIL parse         depth    257 (525 B) | #1 ok | #2 ok | benign after -> ok
+FAIL parse_message depth   3000 (6011 B) | #1 RangeError: Maximum call stack size exceeded. | #2 RangeError: Maximum call stack size exceeded. | benign after -> ok
+FAIL read          depth   3000 (6011 B) | #1 ok | #2 RangeError: Maximum call stack size exceeded. | benign after -> ok
+FAIL parse         depth   3000 (6011 B) | #1 ok | #2 RangeError: Maximum call stack size exceeded. | benign after -> ok
+FAIL parse_message depth   7000 (14011 B) | #1 RangeError: Maximum call stack size exceeded. | #2 RangeError: Maximum call stack size exceeded. | benign after -> ok
+FAIL read          depth   7000 (14011 B) | #1 RangeError: Maximum call stack size exceeded. | #2 RangeError: Maximum call stack size exceeded. | benign after -> ok
+FAIL parse         depth   7000 (14011 B) | #1 RangeError: Maximum call stack size exceeded. | #2 RangeError: Maximum call stack size exceeded. | benign after -> ok
+FAIL parse_message depth  20000 (40011 B) | #1 RangeError: Maximum call stack size exceeded. | #2 RangeError: Maximum call stack size exceeded. | benign after -> ok
+FAIL read          depth  20000 (40011 B) | #1 RangeError: Maximum call stack size exceeded. | #2 RangeError: Maximum call stack size exceeded. | benign after -> ok
+FAIL parse         depth  20000 (40011 B) | #1 RangeError: Maximum call stack size exceeded. | #2 RangeError: Maximum call stack size exceeded. | benign after -> ok
+FAIL parse_message depth 100000 (200011 B) | #1 RangeError: Maximum call stack size exceeded. | #2 RangeError: Maximum call stack size exceeded. | benign after -> ok
+FAIL read          depth 100000 (200011 B) | #1 RangeError: Maximum call stack size exceeded. | #2 RangeError: Maximum call stack size exceeded. | benign after -> ok
+FAIL parse         depth 100000 (200011 B) | #1 RangeError: Maximum call stack size exceeded. | #2 RangeError: Maximum call stack size exceeded. | benign after -> ok
+# 45 failed

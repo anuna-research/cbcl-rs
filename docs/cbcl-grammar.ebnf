@@ -4,6 +4,8 @@
 (*                                                                     *)
 (* Parser class: DCFL (Deterministic Context-Free Language)            *)
 (* Time complexity: O(n), no backtracking, fuel-bounded recursion      *)
+(* Nesting limit: a list nested deeper than 256 is refused (SPEC-001   *)
+(*   REQ-046); `list` is the only recursive production below.          *)
 (*                                                                     *)
 (* Reference: crates/cbcl-parser/src/parser.rs          (layer 1)      *)
 (*            crates/cbcl-core/src/message.rs           (layer 2)      *)

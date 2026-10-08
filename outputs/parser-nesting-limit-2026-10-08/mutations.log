@@ -1,0 +1,38 @@
+### M1-remove-check
+-        if self.depth == MAX_NESTING_DEPTH {
+-            return Err(ParseError::NestingTooDeep {
+-                offset: self.pos,
+-                limit: MAX_NESTING_DEPTH,
+-            });
+-        }
+thread '<unknown>' (1098156) has overflowed its stack
+  process didn't exit successfully: `<worktree>/target/debug/deps/nesting_limit-5f0e780ab1d6d684` (signal: 6, SIGABRT: process abort signal)
+cargo exit=101
+### M2-no-decrement
+-        self.depth -= 1;
+test sibling_lists_do_not_accumulate_depth ... FAILED
+test result: FAILED. 11 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+cargo exit=101
+### M3-off-by-one
+-        if self.depth == MAX_NESTING_DEPTH {
++        if self.depth > MAX_NESTING_DEPTH {
+test a_refusal_leaves_the_parser_usable ... FAILED
+test far_over_the_limit_is_refused_on_a_small_stack ... FAILED
+test depth_n_plus_1_is_refused_at_the_opening_parenthesis ... FAILED
+test every_text_entry_point_refuses_through_the_shared_parser ... FAILED
+test the_offset_is_the_byte_of_the_first_parenthesis_past_the_limit ... FAILED
+test every_list_level_counts_whatever_separates_the_parentheses ... FAILED
+test result: FAILED. 6 passed; 6 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+cargo exit=101
+### M4-raise-limit-to-4096
+-pub const MAX_NESTING_DEPTH: usize = 256;
++pub const MAX_NESTING_DEPTH: usize = 4096;
+thread 'every_text_entry_point_refuses_through_the_shared_parser' (1099251) has overflowed its stack
+  process didn't exit successfully: `<worktree>/target/debug/deps/nesting_limit-5f0e780ab1d6d684` (signal: 6, SIGABRT: process abort signal)
+cargo exit=101
+### M5-count-only-top-level
+-        self.depth += 1;
++        self.depth = 1;
+thread '<unknown>' (1099593) has overflowed its stack
+  process didn't exit successfully: `<worktree>/target/debug/deps/nesting_limit-5f0e780ab1d6d684` (signal: 6, SIGABRT: process abort signal)
+cargo exit=101
