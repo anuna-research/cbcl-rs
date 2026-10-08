@@ -8,7 +8,8 @@
 %% every NIF: versions/0, verify_dialect/1, parse_message/1,
 %% parse_message_lax/1 and the eight SPEC-019 state NIFs, each once with a
 %% valid frame built from dialects/lunch-vote.cbcl and once with a
-%% malformed one, asserting the {ok, Bin} / {error, Bin} shapes.
+%% malformed one, asserting the {ok, Bin} / {error, Bin} shapes; and the
+%% REQ-046 nesting limit: refusals past it leave the node working.
 %%
 %% Usage:
 %%   crates/cbcl-erl/scripts/smoke.escript            # release profile
@@ -239,10 +240,38 @@ checks(Lunch) ->
      {"read/1 malformed",
       fun() -> cbcl_erl:read(<<"(tell">>) end,
       fun err/1},
+     %% SPEC-001 REQ-046 (BUG-007): an over-deep frame is an ordinary
+     %% refusal, not a node crash, and the same node keeps working.
+     {"read/1 accepts nesting at the limit (256)",
+      fun() -> cbcl_erl:read(nest(256)) end,
+      fun ok/1},
+     {"read/1 refuses nesting past the limit",
+      fun() -> cbcl_erl:read(nest(257)) end,
+      fun({error, <<"parse error: at byte 256: list nesting exceeds limit 256">>}) -> true;
+         (_) -> false end},
+     {"parse_message/1 refuses 1,000,000 levels, twice",
+      fun() -> Deep = <<"(tell @room ", (binary:copy(<<"(">>, 1000000))/binary>>,
+               {cbcl_erl:parse_message(Deep), cbcl_erl:parse_message(Deep)} end,
+      fun({{error, <<"parse error: at byte 267: list nesting exceeds limit 256">>}, Same}) ->
+              Same =:= {error, <<"parse error: at byte 267: list nesting exceeds limit 256">>};
+         (_) -> false end},
+     {"parse_message/1 encodes a frame at the limit",
+      fun() -> cbcl_erl:parse_message(<<"(tell @room ", (nest(255))/binary, ")">>) end,
+      fun ok/1},
+     {"parse_message_lax/1 refuses past the limit",
+      fun() -> cbcl_erl:parse_message_lax(<<"(tell @room ", (nest(256))/binary, ")">>) end,
+      fun err/1},
+     {"parse_message/1 still works after the refusals",
+      fun() -> cbcl_erl:parse_message(<<"(tell @bo \"hi\")">>) end,
+      fun ok/1},
      {"invalid utf-8 is a reason, not a crash",
       fun() -> cbcl_erl:fold(<<255, 254>>) end,
       fun({error, <<"invalid utf-8">>}) -> true; (_) -> false end}
     ].
+
+%% `Depth` nested empty lists.
+nest(Depth) ->
+    <<(binary:copy(<<"(">>, Depth))/binary, (binary:copy(<<")">>, Depth))/binary>>.
 
 ok({ok, Bin}) when is_binary(Bin) -> true;
 ok({ok, _}) -> true;   % parse_message returns a term, not a binary
