@@ -987,6 +987,50 @@ mod tests {
         assert!(verdict.contains("\"verdict\":\""), "{verdict}");
     }
 
+    // -- REQ-046 nesting limit: every byte export refuses an over-deep frame
+    // with the parser's ordinary error, and the same instance then reads a
+    // valid frame (BUG-007: an unbounded overflow poisoned the browser
+    // instance for every later call) --
+
+    #[test]
+    fn over_deep_frames_are_refused_and_the_instance_stays_usable() {
+        use cbcl_parser::parser::MAX_NESTING_DEPTH as N;
+        let frame = |depth: usize| {
+            format!("(tell @room {}{})", "(".repeat(depth - 1), ")".repeat(depth - 1)).into_bytes()
+        };
+        let (at, over) = (frame(N), frame(N + 1));
+        let far = format!("(tell @room {}", "(".repeat(1_000_000)).into_bytes();
+        let reason = format!("at byte {}: list nesting exceeds limit {N}", 12 + N - 1);
+        type Export = fn(&[u8]) -> Result<Vec<u8>, Vec<u8>>;
+        let exports: [(&str, Export); 9] = [
+            ("parse", parse_bytes),
+            ("read", read_bytes),
+            ("parse_message", parse_message_bytes),
+            ("run_pipeline", run_pipeline_bytes),
+            ("message_hash", message_hash_bytes),
+            ("verify_dialect", verify_dialect_bytes),
+            ("read_act", read_act_bytes),
+            ("fold", fold_bytes),
+            ("admit", admit_bytes),
+        ];
+        for (name, export) in exports {
+            for _ in 0..3 {
+                for input in [&over, &far] {
+                    let err = String::from_utf8(export(input).expect_err(name)).unwrap();
+                    assert!(err.contains(&reason), "{name}: {err}");
+                }
+                assert!(read_bytes(&at).is_ok(), "{name}: read at the limit after a refusal");
+                assert_eq!(
+                    parse_message_bytes(b"(tell @room \"hi\")").unwrap(),
+                    b"(tell @room \"hi\")",
+                    "{name}: a benign frame after a refusal"
+                );
+            }
+        }
+        assert_eq!(parse_bytes(&at).unwrap(), at);
+        assert!(parse_message_bytes(&at).is_ok());
+    }
+
     // -- parse_bytes --
 
     #[test]
