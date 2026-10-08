@@ -10,6 +10,16 @@ use alloc::vec::Vec;
 use cbcl_core::sexpr::{Atom, SExpr};
 use core::fmt;
 
+/// The deepest list nesting the parser accepts (REQ-046).
+///
+/// The list is the grammar's only recursive form, and each level costs the
+/// parser (and every consumer that walks the tree) stack. Fuel (REQ-043)
+/// bounds work by input length, which is not a stack bound: before this
+/// limit a 6 KB frame of balanced parentheses overflowed WebKit's WASM stack
+/// at depth 3000, poisoning the instance (BUG-007). 256 keeps more than ten
+/// times margin below that and is 64 times the deepest corpus frame.
+pub const MAX_NESTING_DEPTH: usize = 256;
+
 /// Parser errors with source location (ADR-002).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ParseError {
@@ -31,6 +41,12 @@ pub enum ParseError {
     },
     IntegerOverflow {
         offset: usize,
+    },
+    /// A `(` at `offset` would open a list nested deeper than `limit`
+    /// (REQ-046).
+    NestingTooDeep {
+        offset: usize,
+        limit: usize,
     },
 }
 
@@ -64,6 +80,9 @@ impl fmt::Display for ParseError {
             }
             ParseError::IntegerOverflow { offset } => {
                 write!(f, "at byte {offset}: integer overflow")
+            }
+            ParseError::NestingTooDeep { offset, limit } => {
+                write!(f, "at byte {offset}: list nesting exceeds limit {limit}")
             }
         }
     }
@@ -102,6 +121,8 @@ struct ParserState<'a> {
     input: &'a str,
     pos: usize,
     fuel: usize,
+    /// Lists open on the current path; `parse_list` is the only recursion.
+    depth: usize,
 }
 
 impl<'a> ParserState<'a> {
@@ -110,6 +131,7 @@ impl<'a> ParserState<'a> {
             input,
             pos: 0,
             fuel: fuel.unwrap_or(input.len().max(1)),
+            depth: 0,
         }
     }
 
@@ -167,6 +189,19 @@ impl<'a> ParserState<'a> {
     }
 
     fn parse_list(&mut self) -> Result<SExpr, ParseError> {
+        if self.depth == MAX_NESTING_DEPTH {
+            return Err(ParseError::NestingTooDeep {
+                offset: self.pos,
+                limit: MAX_NESTING_DEPTH,
+            });
+        }
+        self.depth += 1;
+        let list = self.parse_list_items();
+        self.depth -= 1;
+        list
+    }
+
+    fn parse_list_items(&mut self) -> Result<SExpr, ParseError> {
         self.advance(); // consume '('
         let mut items = Vec::new();
         loop {
