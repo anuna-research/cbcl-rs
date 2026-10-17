@@ -12,7 +12,7 @@ depends-on:
 refines:
   - SPEC-014 REQ-608, REQ-612, REQ-614, REQ-615, REQ-618, REQ-619, and the immutable-binding clause of REQ-613
 prior-art:
-  - elephant theory cap-epp-lit (48 sources, 120 findings, 13 adopted options; evidence digest in Appendix A)
+  - elephant theory cap-epp-lit (48 sources, 122 findings, 13 adopted options; evidence digest in Appendix A)
   - specs/SPEC-014-role-layer-endpoint-projection.md
 repository: https://codeberg.org/anuna/cbcl-rs
 ---
@@ -66,22 +66,24 @@ Terms used below:
 - **Position**: one role binding, such as "commander, as first given to
   @dana". Root positions come from the cast; `share` and `appoint` grants
   create more. A position persists; the key holding it changes.
-- **Seat**: a key's authority to send some acts of one role. Each seat belongs to a position. `share` and `appoint` grants create new positions; a facet is its own seat inside its delegator's position. The word is coined here.
+- **Seat**: a key's authority to send some acts of one role. Each seat belongs to a position. `share` and `appoint` grants create new positions; a facet is its own seat inside its delegator's position: its acts name the facet grant with `:under` and count as the delegator's position. The word is coined here.
 - **Modes of grant**: `facet` lets a key send listed acts *as* the
   delegator's seat. `share` adds a co-occupant of an indexed role. `transfer`
   hands a seat to another key once that key accepts. `appoint` adds an
   occupant to another indexed role that the dialect allows. `facet`, `share`
   and `appoint` take effect at the grant; only `transfer` waits for an accept.
 - **Dynamic role**: a role that allows `share` or that some role appoints
-  into.
+  into. **Fixed role**: any other role; its positions are the root positions.
+- **Arbiter**: an optional key named in the root cast. It signs numbered
+  **epochs**, each listing the removals it newly covers.
 - **`:under`**: the field by which an act names the seat it relies on.
 - **Redelegate bit**: a grant flag that lets the holder grant further.
 - **Concurrent**: two messages, neither in the other's authority past.
-- **Bound**: an optional last epoch for a seat (`:until`).
-- **[[round-anchor|Round anchor]]**: for an occupant-counted fan-in, the act that every
-  counted act cites as its protocol predecessor; the root when they cite the
-  root. **Round membership**: the positions live in the seat state of the
-  anchor's authority past.
+- **Bound**: an optional last epoch for a seat (`:until`), arbiter threads only.
+- **[[round-anchor|Round anchor]]**: the message a fan-in names with `:anchor`; each
+  counted act walks back to it through its own position's acts. **Round
+  membership**: the positions of the counted role that exist in the anchor's
+  authority past and are not emptied there (full definitions in Terminology).
 - **R5**: the existing protocol-order check of SPEC-002.
 
 How a verdict is reached:
@@ -93,17 +95,17 @@ How a verdict is reached:
 - **Admission verdict.** SPEC-014's three-valued result, `Unknown`, `Valid` or
   `Violation`; "admitted" below means `Valid`. It uses the seat state of the
   act's *authority past*: every in-thread message reachable through its
-  `:caused-by`, `:under` and `:seen` links
+  `:caused-by`, `:under`, `:seen` and `:anchor` links
   ([[SPEC-020-capability-seats#Terminology]]). An act is admitted when its named seat is live there
   and covers the act. A removal binds acts whose authority past contains it.
   An act that omits a removal is still admitted; this is the honest-sender
   limit. Two conflicting terminations of one seat leave its position with no
   holder at admission.
 - **Counted fan-in.** An `(all …)` over an indexed role counts the round
-  membership; for a fixed role that is the root positions. A seat granted
-  after the anchor is admitted and not counted; it joins a round with a
-  later anchor. A resign or revoke of a counted position stands in for that
-  position's act when the fan-in cites it in `:seen`.
+  membership; for a fixed role that is the root positions. A position
+  created after the anchor is outside the round: its acts are admitted, and
+  a fan-in that cites one is `Violation`. A member position with no act in
+  the fan-in is met by a removal that emptied it, cited in `:seen`.
 - **Finality verdict, arbiter threads only.** `Pending` until an epoch
   covers the act, then `Final` or `Void`. The arbiter signs numbered
   epochs. Each epoch lists every admitted removal it newly covers, accepts included, in an order the arbiter chooses that respects the authority order. Finality folds the epochs: add new grants, then apply the
@@ -139,8 +141,7 @@ honest senders only ·
 thread ·
 [[SPEC-020-capability-seats#ADR-2013]] conflicting terminations leave no
 holder at admission ·
-[[SPEC-020-capability-seats#ADR-2014]] a removal discharges the removed
-position's act ·
+[[SPEC-020-capability-seats#ADR-2014]] an emptied position counts as met ·
 [[SPEC-020-capability-seats#ADR-2015]] liveness is claimed against named
 fairness; deadlock-freedom is tested, liveness is not proved
 
@@ -159,7 +160,7 @@ Controls, policy and admission:
 - [[SPEC-020-capability-seats#REQ-2008]] a facet grant names its acts, all from the dialect's facet list.
 - [[SPEC-020-capability-seats#REQ-2003]] a facet list excludes a singleton role's choice acts.
 - [[SPEC-020-capability-seats#REQ-2011]] chains longer than 8 grants are rejected.
-- [[SPEC-020-capability-seats#REQ-2004]] `share` and `:appoint` target indexed roles only.
+- [[SPEC-020-capability-seats#REQ-2004]] `share` and `appoint` target indexed roles only.
 - [[SPEC-020-capability-seats#REQ-2005]] a dynamic role feeds occupant-counted fan-in only through an anchored round.
 
 Controls, finality and recovery:
@@ -171,9 +172,9 @@ Controls, finality and recovery:
 - [[SPEC-020-capability-seats#REQ-2031]] reseat requires an arbiter and a declared, acyclic, sending recovery role.
 
 Controls, rounds and liveness:
-- [[SPEC-020-capability-seats#REQ-2046]] a fan-in counts the positions live at its round anchor; a seat granted later waits for a later round.
-- [[SPEC-020-capability-seats#REQ-2047]] a resign or revoke stands in for the removed position's act in a fan-in that holds it.
-- [[SPEC-020-capability-seats#REQ-2048]] a share or appoint grant keeps one act at every Send step, or it is rejected.
+- [[SPEC-020-capability-seats#REQ-2046]] a fan-in names its anchor; it counts the positions present at the anchor, and a position created later is outside the round.
+- [[SPEC-020-capability-seats#REQ-2047]] a removal that empties a member position stands in for its act when the fan-in holds no act of it.
+- [[SPEC-020-capability-seats#REQ-2048]] a grant that yields a principal seat keeps one act at every Send step, or it is rejected.
 - [[SPEC-020-capability-seats#NFR-2003]] liveness claims hold under named delivery and arbiter fairness, and no further.
 
 The three Controls lists together exceed the Miller cap of seven. The split
@@ -187,7 +188,7 @@ authority-traces-to-root and finality stability (owner: HOC) · consent
 co-signatures on grants (owner: HOC) · splitting policy and finality into two
 specs (owner: HOC) · arbiter liveness: an arbiter that never covers an act leaves it `Pending` (owner: HOC) · round-3 review minor findings m2, m3 and m4 (retried accepts, reseat ordering, grant `Final` then removed), recorded in the review file (owner: HOC) · cbcl-bus wiring: hub as arbiter, delivery of authority
 pasts and to facet holders, MLS Add/Remove from seat events (owner: cbcl-bus,
-spec unwritten) · a `rotate` mode that keeps a holder's child seats when it moves its own seat to a new key (owner: HOC) · balancedness as an installation check once recursion enters the protocol grammar (owner: HOC) · liveness over infinite traces in Lean, after the Rocq method (f-session-26) (owner: HOC).
+spec unwritten) · a `rotate` mode that keeps a holder's child seats when it moves its own seat to a new key (owner: HOC) · balancedness as an installation check if a future grammar adds blocking receives or recursion (owner: HOC) · the deployed REQ-608 checker's gap on the BUG-640 shape, which TEST-2053 inherits (owner: HOC) · a vacant singleton position stalls every act that cites it; no discharge exists for singletons (owner: HOC) · liveness over infinite traces in Lean, after the Rocq method (f-session-26) (owner: HOC).
 
 Detail: [[SPEC-020-capability-seats#Context]] (failure modes and evidence) →
 [[SPEC-020-capability-seats#Requirements]] →
@@ -229,9 +230,10 @@ follow. Each requirement below traces to one of them.
   resets, published as CVE-2025-49090 (f-conv-12, f-conv-14, f-conv-17,
   f-conv-18). cbcl-bus already forbids tie-breaks between concurrent MLS
   commits.
-- **FM-6 Stuck round.** A position that owes an act leaves the thread by
-  resign or revoke. No fan-in that counts it can ever be `Valid`, so the
-  thread never closes. SPEC-014 names a vacant role as a liveness gap and
+- **FM-6 Stuck round.** A position counted by a fan-in loses its seat by
+  resign, revoke or cascade. No fan-in over that round can ever be `Valid`,
+  so the thread never closes. A vacant singleton position stalls every act
+  that cites it the same way; that case stays a limit (Open). SPEC-014 names a vacant role as a liveness gap and
   bounds nothing ([[SPEC-014-role-layer-endpoint-projection#REQ-619]]).
   Session calculi forbid leaving before the local type ends
   (f-session-27), which a stolen key never respects.
@@ -312,7 +314,7 @@ below.
   it replaces. A granted seat takes the attributes its grant states.
 - **Dynamic role**: a role that declares `share` or that an `:appoint`
   clause names.
-- **Authority links** of a message: its `:caused-by`, `:under` and `:seen` targets. A meta act adds its `:grant` target and hash-form `:seat`. An epoch adds its `:prev` and `:order` entries. This list is canonical; every other mention defers to it.
+- **Authority links** of a message: its `:caused-by`, `:under`, `:seen` and `:anchor` targets. A meta act adds its `:grant` target and hash-form `:seat`. An epoch adds its `:prev` and `:order` entries. This list is canonical; every other mention defers to it.
 - **Authority past `A(m)`**: the in-thread messages reachable from `m`
   through authority links, `m` excluded.
 - **Arbiter**: an OPTIONAL key named in the root cast that signs epochs.
@@ -323,17 +325,22 @@ below.
 - **Honest sender**: a sender whose act has, in its authority past, every
   removal it has received. The protocol cannot check this property; ADR-2011
   explains why it matters.
-- **Round anchor** of an occupant-counted fan-in: the one message that every
-  counted act it references cites in `:caused-by` as protocol predecessor.
-  The root is the anchor when the counted acts cite the root.
-- **Round membership**: the positions of the counted role whose principal
-  seat is live in `seat_state` over the meta acts of `A(anchor)`.
-- **Discharge**: an admitted `resign` or `revoke` of a position's principal
-  seat, standing in for that position's act in a fan-in.
-- **Delivery fairness**: every admitted message eventually reaches the store
-  of every recipient. **Arbiter fairness**: every admitted message in an
-  arbiter thread is eventually in some epoch's batch. Both are assumptions
-  about the environment, never checked by the verifier.
+- **Round anchor** of an occupant-counted fan-in: the message its `:anchor`
+  names, or the thread root when `:anchor` is absent. **Anchor walk** of a
+  counted act: follow its single protocol predecessor while that predecessor
+  is an act of the same position. The walk ends at the first other message.
+- **Round membership**: the positions of the counted role that are root
+  positions or created by a grant in `A(anchor)`. Positions emptied in
+  `A(anchor)` are excluded.
+- **Emptied position**, in a set of admitted meta acts: a position whose
+  every principal seat is removed in the seat state. Its terminations
+  contain no accept. Resign, revoke, reseat of an ancestor and cascades
+  empty a position; accepts move or contest it. **Discharge**: the removals
+  that empty a member position, standing in for its act in a fan-in.
+- **Delivery fairness**: every message of the thread eventually reaches the
+  store of every recipient. **Arbiter fairness**: every message of an
+  arbiter thread is eventually in the batch of an admitted epoch. Both are
+  assumptions about the environment, never checked by the verifier.
 
 ## Requirements
 
@@ -379,11 +386,14 @@ Trace: [[SPEC-020-capability-seats#TEST-2004]]. Rationale:
 
 **REQ-2005: Dynamic roles feed fan-in only through an anchored round.**
 Consider an occupant-counted `(all …)` fan-in
-([[SPEC-014-role-layer-endpoint-projection#REQ-618]]) whose predecessor role
-is dynamic. WHEN its counted performative follows an `(all …)` step, the
-installation check SHALL reject the dialect. Such acts cite several predecessors
-and have no single round anchor. A counted performative that follows one
-act, or the root, is accepted.
+([[SPEC-014-role-layer-endpoint-projection#REQ-618]]) whose predecessor role is dynamic. The installation
+check SHALL walk the counted performative back through the protocol: while
+its predecessor is one performative of the counted role, step to it. The
+walk SHALL end at one performative of a singleton role, or at the root.
+A step meets a stop when it reaches an `(all …)`, a multi-alternative
+predecessor list, or a performative of another indexed role. WHEN that
+happens, the check SHALL reject the dialect with `DynamicRoleInFanIn`. The auction's `reveal`, which follows the
+bidder's own `commit` after the auctioneer's `open`, passes.
 Trace: [[SPEC-020-capability-seats#TEST-2005]]. Rationale:
 [[SPEC-020-capability-seats#ADR-2006]].
 
@@ -613,53 +623,66 @@ SPEC-014 root convention
 **REQ-2041: Fan-in counts round membership.**
 For an occupant-counted `(all …)` fan-in over an indexed role, the system
 SHALL count the positions in the round membership of REQ-2046. A
-predecessor act satisfies the position of its designated seat.
+referenced act satisfies the position of its designated seat. A referenced
+act of the counted performative from a position outside the round makes the
+fan-in `Violation` with `PositionOutsideRound`, as
+[[SPEC-014-role-layer-endpoint-projection#REQ-618]] treats a non-member.
 Acceptance: a facet act satisfies its delegator's position. After a
 transfer, the new holder's act satisfies the old position. One position never
-counts twice. An act from a position outside the round is admitted and not
-counted.
+counts twice.
 Trace: [[SPEC-020-capability-seats#TEST-2047]]. Refines
 [[SPEC-014-role-layer-endpoint-projection#REQ-618]]. Rationale:
 [[SPEC-020-capability-seats#ADR-2006]].
 
 **REQ-2046: Round anchor and membership.**
-The system SHALL resolve the round anchor of an occupant-counted fan-in from
-the counted acts the fan-in references. The anchor is the one message each
-of them cites as protocol predecessor. WHEN those acts cite different
-predecessors, the fan-in SHALL be `Violation` with `MixedRounds`. The round
-membership SHALL be the positions of the counted role with a live principal
-seat in `seat_state` over the meta acts of `A(anchor)`. A position whose
-creating grant is outside `A(anchor)` is outside the round. The anchor is
-resolved once, from content, and never from a later state.
+A fan-in over a dynamic role SHALL name its anchor with `:anchor`. The
+anchor SHALL be an in-thread message in the fan-in's authority past. For
+each referenced act of the counted performative, the system SHALL run the
+anchor walk (Terminology). WHEN a walk ends at a message other than the
+anchor, the fan-in SHALL be `Violation` with `MixedRounds`. The round
+membership SHALL be computed from the seat state over the meta acts of
+`A(anchor)` (Terminology). A fan-in with no referenced counted act is
+`Valid` only when every member position is discharged. The anchor is
+resolved once, from content, and never from a later state. A fan-in over a
+fixed role omits `:anchor`, and its membership is the root positions.
 Acceptance: with the root as anchor, the membership equals the root
 positions of the role, which is the v0.4.0 behaviour.
 Trace: [[SPEC-020-capability-seats#TEST-2051]]. Failure mode: FM-1. Refines
 [[SPEC-014-role-layer-endpoint-projection#REQ-618]]. Rationale:
-[[SPEC-020-capability-seats#ADR-2006]].
+[[SPEC-020-capability-seats#ADR-2006]], [[SPEC-020-capability-seats#ADR-2003]].
 
-**REQ-2047: A removal discharges the removed position's act.**
-Consider a position in a round membership with no act among the fan-in's
-referenced predecessors. The system SHALL accept in its place an admitted
-`resign` or `revoke` of the position's principal seat. The fan-in's authority
-past SHALL contain that removal. An accepted transfer or a reseat discharges
-nothing: the position persists and its successor seat acts. Fan-in is the
-only construct that waits on a position; every other R5 check is monotone.
-Acceptance: a fan-in that references every other position's act and the
-resign is `Valid`. Without the resign, no fan-in over that round is `Valid`.
+**REQ-2047: An emptied position counts as met.**
+Consider a member position with no act of its own, for this round, in the
+fan-in's authority past. The system SHALL count it as met when the fan-in's
+authority past empties it (Terminology). WHEN an act of that position for
+this round is in the fan-in's authority past, the removals SHALL NOT stand
+in for it. A contested position (REQ-2037) is a member that only an act
+under one of its issued seats, or a later discharge, satisfies. An accepted
+transfer empties nothing: the successor seat acts for the position.
+Acceptance: a fan-in that references every other position's act and cites
+the resign in `:seen` is `Valid`. Without the resign, no fan-in over that
+round is `Valid`. A revoke of a share's parent discharges the share.
+Limit: a collector that omits a position's act and cites its removal is
+the honest-sender limit of ADR-2011; the omitted act stays in the log.
 Trace: [[SPEC-020-capability-seats#TEST-2052]],
 [[SPEC-020-capability-seats#TEST-2054]]. Failure mode: FM-6. Rationale:
 [[SPEC-020-capability-seats#ADR-2014]].
 
-**REQ-2048: A granted position can meet its projection.**
-WHEN the system admits a `share` or `appoint` grant, it SHALL check the
-grant's act set against the role's local protocol (SPEC-014 `project`). The
-act set SHALL keep at least one performative of every Send step. Otherwise it SHALL reject
-the grant with `UnliveGrant`. A `facet` grant is exempt, because its
-delegator's seat covers the position. The system SHALL also run the SPEC-014
-per-occupant locality check
-([[SPEC-014-role-layer-endpoint-projection#REQ-608]]) for the new position
-at grant admission.
-Trace: [[SPEC-020-capability-seats#TEST-2053]]. Failure mode: FM-6.
+**REQ-2048: A principal seat can meet its projection.**
+A *Send step* of a role is a maximal set of its Send performatives
+([[SPEC-014-role-layer-endpoint-projection#CON-602]]) that are alternatives of one choice
+([[SPEC-014-role-layer-endpoint-projection#REQ-603]]). A Send performative in no choice is a step by itself.
+Consider a `share`, `appoint` or `transfer` grant. At admission, the system
+SHALL check the grant's act set against the Send steps of the granted role. The
+act set SHALL keep at least one performative of every Send step. Otherwise
+it SHALL reject the grant with `UnliveGrant`. A `facet` grant is exempt,
+because its delegator's seat covers the position. For a `share` or
+`appoint`, the system SHALL also run
+[[SPEC-014-role-layer-endpoint-projection#REQ-608]]. Its cast is the root cast, the live principal
+positions of `A(grant)`, and the new position. A failure is
+`NotCausallyLocal`, carrying the `R6Violation`.
+Trace: [[SPEC-020-capability-seats#TEST-2053]]. Failure mode: FM-6. Refines
+[[SPEC-014-role-layer-endpoint-projection#REQ-608]].
 Rationale: [[SPEC-020-capability-seats#ADR-2015]] (f-session-25).
 
 ### Admission verdict
@@ -730,6 +753,9 @@ a finality verdict for each message `m`. For an act with `E(m) = k`:
 - `Void` when the designated seat is not issued in `F_k`;
 - `Void` when an entry applied in epochs 1 to `k` removed the seat or a chain link, and that entry's authority past lacks `m`;
 - `Void` when the seat's bound is an epoch numbered below `k`;
+- for a fan-in, `Void(EntryVoid)` when a referenced counted act is `Void`
+  in epochs 1 to `k`. The same when a discharge its count relied on is
+  `Void`. A member seat whose bound passed before `k` counts as discharged;
 - `Final` otherwise.
 A grant is `Final` when step 1 of its covering epoch adds it, and `Void`
 otherwise. A removal is `Final` when applied and `Void` when marked void.
@@ -816,15 +842,16 @@ Trace: CI matrix; `Cargo.toml` diff review.
 
 **NFR-2003: Liveness under named fairness.**
 The seat layer SHALL satisfy three claims, each under the named assumption:
-- Under delivery fairness, a message whose referenced predecessors are
-  admitted leaves `Unknown` once they arrive. No verdict waits on a message
-  outside the referenced predecessors.
+- Under delivery fairness, a message leaves `Unknown` once its authority
+  past, and its anchor's authority past, are present. No verdict waits on a
+  message outside those two sets.
 - Under delivery fairness, a round in which every member position has an
-  act or a discharge admits a `Valid` fan-in.
+  act or is emptied admits a `Valid` fan-in.
 - Under delivery and arbiter fairness, every `Pending` finality becomes
   `Final`, `Void` or `Frozen`.
-Liveness beyond these claims is not proved. Balancedness holds for every v1
-protocol, since each is a finite DAG.
+Liveness beyond these claims is not proved. Balancedness (f-session-24) does
+not bear on them: no CBCL endpoint blocks on a receive, so a role absent
+from a branch waits on nothing.
 Trace: [[SPEC-020-capability-seats#TEST-2054]],
 [[SPEC-020-capability-seats#TEST-2055]]. Failure mode: FM-6. Rationale:
 [[SPEC-020-capability-seats#ADR-2015]].
@@ -961,10 +988,10 @@ Fallback arbiters (f-conv-20) remain Open.
 
 **ADR-2006: Fan-in counts the positions live at the round anchor.**
 Decision. An occupant-counted `(all …)` counts the positions of its role
-that hold a live principal seat in the seat state of the round anchor's
-authority past. The anchor is the protocol predecessor the counted acts
-cite. A dynamic role feeds fan-in only when its counted performative has
-one predecessor step.
+present in the round anchor's authority past and not emptied there. The
+fan-in names its anchor, and each counted act walks back to it through its
+own position's acts. A dynamic role feeds fan-in only when that walk is
+single-valued at installation.
 Evidence. Dynamic Multirole Session Types makes send polls and receive
 polls agree by locking the registry around each block with a two-phase
 commit. Late joiners wait for the next block (f-session-02, f-session-28).
@@ -975,14 +1002,18 @@ message (REQ-2021), so the receive poll is already written down.
 Rejected. *Root positions only* (v0.4.0): sound and needless; it excluded
 every shared position from every count. *Count over `A(fan-in message)`*:
 the collector controls the set. *Count over the finalised membership*: no
-admission without an arbiter. *A declared `opens-round` performative*:
-grammar for a fact the causal links already carry.
-Consequence. A seat granted after the anchor is admitted and not counted;
-it joins a round with a later anchor. The opener chooses its past and can
+admission without an arbiter. *Infer the anchor as the counted acts'
+common predecessor*: undefined when each occupant cites its own earlier
+act. The auction's `reveal` cites its `commit` that way. Undefined too when every
+member is discharged. Naming it follows ADR-2003.
+Consequence. A position created after the anchor is outside the round; its
+acts are admitted, and a later anchor counts it. Facet and moved seats act
+for positions that exist already, so they count. The opener chooses its past and can
 delay seeing a grant, never un-see one; that is the honest-sender limit of
 ADR-2011, visible in the log. The SPEC-014 per-occupant locality check
 ([[SPEC-014-role-layer-endpoint-projection#REQ-608]]) runs for each new
-position at grant admission (REQ-2048). cbcl-bus can refuse to relay an
+position at grant admission (REQ-2048). v0.4.0 needed no such check, since
+no granted position ever appeared in a fan-in reference. cbcl-bus can refuse to relay an
 opener that omits a grant the hub delivered to that sender; that is relay
 policy, outside this spec.
 
@@ -1081,23 +1112,29 @@ Limit. Without an arbiter, a thief holding the old key can contest a
 rotation and leave the position empty. The remedy is a successor thread,
 consistent with ADR-2011.
 
-**ADR-2014: A removal discharges the removed position's act.**
-Decision. A resign or revoke of a position's principal seat stands in for
-that position's act in any fan-in whose authority past holds the removal.
-Accepted transfers and reseats keep the position, and the successor acts.
+**ADR-2014: An emptied position counts as met.**
+Decision. The removals that empty a member position stand in for its act.
+The fan-in's authority past holds them and no act of that position for the
+round. Accepted transfers and reseats keep the position, and the
+successor acts. Expiry empties a position in the finality fold only.
 Evidence. Dynamic Multirole Session Types lets a participant leave only when
 its local type is `end` or at `unlock` (f-session-27). Otherwise a counting
 participant waits for ever. A removal in CBCL cannot wait: a revoke answers
-a stolen key (FM-4). Fan-in is the only R5 construct that waits on a
-position; everything else is monotone (SPEC-002 ADR-007).
+a stolen key (FM-4). Occupant-counted fan-in is the one R5 construct that
+waits on several positions at once. A single citation of a vacant
+singleton waits too, and stays a limit (Open).
 Rejected. *Leave only at a safe point*: a thief holds the key, and no
 protocol state is safe. *Obligations pass to the delegator*: the parent
-then speaks for the child, the ambient authority FM-2 removes. *Stuck
-round*: SPEC-014's vacant role, now bounded instead.
-Consequence. A discharged position counts as met. A revoke used to skip a
-position's act is within the revoker's authority (REQ-2040), since it also
-removes the position from every later round. The deadlock-freedom test
-TEST-2054 rests on this rule.
+then speaks for the child, the ambient authority FM-2 removes. *Only
+resign and revoke of the seat itself*: a revoked parent empties every share
+under it by cascade, the commonest removal path. *Require the removal to
+hold the anchor*: a removal concurrent with the opener then sticks the
+round again.
+Consequence. A collector that omits a position's act and cites its removal
+is within ADR-2011's honest-sender limit. The act stays in the log, and a
+later fan-in that holds it is `Violation`. A contested position stays a
+member, so a stolen key cannot empty a round by double transfer. The
+deadlock-freedom test TEST-2054 rests on this rule.
 
 **ADR-2015: Liveness is claimed against named fairness; deadlock-freedom
 is tested, liveness is not proved.**
@@ -1109,14 +1146,16 @@ liveness, defines liveness only under a fairness assumption, and needs
 balanced global types (f-session-23, f-session-24). It covers environments
 associated by subtyping, which is how facets and narrowed positions relate
 to the projection (f-session-25). The liveness proof is about 14K lines of
-Rocq for a synchronous, static system (f-session-26).
+Rocq for a synchronous, static system (f-session-26). DMst, which adds
+participants by protocol call, defines liveness as no stuck participant and
+notes that only receives get stuck (f-session-31).
 Rejected. *No liveness statement*: SPEC-014 REQ-619 names a vacant role as
 liveness and bounds nothing. *Mechanised liveness now*: out of proportion
 for a draft whose seat functions have no executable model yet.
-Consequence. A v1 protocol is a finite DAG (SPEC-014 scope), so
-balancedness holds on every path. Recursion, when added, makes balancedness
-an installation check; recorded in Open. REQ-2048 is the subtyping
-condition, stated per grant.
+Consequence. Balancedness guards a process that blocks on a receive; no
+CBCL endpoint does, so a v1 protocol needs no such check. It returns as an
+installation check if a future grammar adds blocking receives or recursion
+(Open). REQ-2048 is the subtyping condition, stated per grant.
 
 ## Contracts
 
@@ -1176,13 +1215,14 @@ epoch         := "(" "epoch" recipients ":n" nat ":prev" (hash | "none")
 designation   := hash                                ; a grant, accept or reseat hash
                | "(" "root" symbol [key] ")"         ; a root position; key REQUIRED when ambiguous
 thread-attrs  := ":caused-by" causes [":seen" "(" hash+ ")"] ":thread" string ":sender" key
-act-authority := [":under" designation] [":seen" "(" hash+ ")"]   ; on a dialect act
+act-authority := [":under" designation] [":seen" "(" hash+ ")"] [":anchor" hash]   ; on a dialect act
 ```
 
 Each bracketed element has one fixed position, shown above. That order is
 the canonical form for hashing, so each value has exactly one serialisation.
 `:seen` appears once per message: in `thread-attrs` on a meta act, and in
-`act-authority` on a dialect act, placed after `:caused-by`. `recipients`,
+`act-authority` on a dialect act, placed after `:caused-by`. `:anchor` appears
+only on an occupant-counted fan-in over a dynamic role (REQ-2046). `recipients`,
 `hash`, `key`, `causes` and `string` are the SPEC-014 and R5 productions.
 `nat` is a decimal numeral without sign. `:acts` omitted means the parent seat's act set, or all of the role's acts for `appoint`. A facet grant never omits it (REQ-2008). `:redelegate` omitted means `#f`. `:replaces`
 names the original root key of the position. A revoke's `:under` names the
@@ -1242,10 +1282,11 @@ pub fn authority_past<S: MessageStore>(msg: &Message, thread: &ThreadId, store: 
     -> Result<AuthorityPast, Unresolved>;
 pub fn seat_state(d: &Dialect, root: &Cast, meta_acts: &BTreeSet<ContentHash>, store: &impl MessageStore)
     -> SeatState;
-pub fn round_anchor<S: MessageStore>(fan_in: &Message, d: &Dialect, store: &S)
-    -> Result<ContentHash, CapViolation>;                 // the root hash when the counted acts cite the root
+pub fn anchor_walk<S: MessageStore>(act: &Message, d: &Dialect, root: &ContentHash, thread: &ThreadId, store: &S)
+    -> Result<ContentHash, Unresolved>;                   // ends at the root hash or another position's message
 pub fn round_membership(d: &Dialect, root: &Cast, anchor_past: &AuthorityPast, role: &str, store: &impl MessageStore)
-    -> BTreeSet<Position>;
+    -> BTreeSet<Position>;                                // members minus emptied positions
+pub fn send_steps(d: &Dialect, role: &str) -> Vec<BTreeSet<String>>;   // REQ-2048
 pub fn epoch_fold(d: &Dialect, root: &Cast, epochs: &[ContentHash], store: &impl MessageStore)
     -> Result<Vec<SeatState>, EquivocationEvidence>;
 pub fn verify_with_capabilities<S: MessageStore>(
@@ -1278,6 +1319,7 @@ and cast errors reuse the SPEC-014 `R6Violation` variants `MalformedCast` and
 | `ShareOnSingleton` | REQ-2004 |
 | `DynamicRoleInFanIn` | REQ-2005 |
 | `MixedRounds` | REQ-2046 |
+| `PositionOutsideRound` | REQ-2041 |
 | `RecoveryRoleInvalid` | REQ-2038 |
 | `ReservedName` | REQ-2043 |
 | `MalformedMetaAct` | CON-2001 grammar |
@@ -1289,6 +1331,7 @@ and cast errors reuse the SPEC-014 `R6Violation` variants `MalformedCast` and
 | `RedelegateNotPermitted` | REQ-2010 |
 | `ChainTooLong` | REQ-2011 |
 | `UnliveGrant` | REQ-2048 |
+| `NotCausallyLocal` | REQ-2048 (carries the `R6Violation`) |
 | `UntilWithoutArbiter` | REQ-2012 |
 | `ActNotCovered` | REQ-2013 |
 | `SeatRoleMismatch` | REQ-2013 |
@@ -1311,7 +1354,7 @@ Each variant carries the names needed to locate the defect.
 ### Pure Core (no I/O, no shared state, deterministic)
 - `role.rs`: policy parsing, cast extension parsing
 - `capability.rs`: meta-act parsing, authority past, `seat_state`,
-  `epoch_fold`, `round_anchor`, `round_membership`, designation, finality computation
+  `epoch_fold`, `anchor_walk`, `round_membership`, `send_steps`, designation, finality computation
 - `projection.rs`: `project` unchanged; `verify_with_capabilities` composes it
 
 ### Effectful Shell (orchestrates I/O, calls pure core)
@@ -1340,6 +1383,10 @@ are:
   :recover-by observer :appoint (responder)`, where `resolve` is a choice act;
 - `responder`, indexed: `:delegate (share redelegate (facet finding))`;
 - `observer`, indexed, fixed, with a Send step `note`.
+Its protocol: `request :from commander`, then `report :from responder`
+(predecessor `request`), then `close :from commander` over `(all report)`.
+`finding`, `propose-fix` and `assign` are further responder and commander
+sends. `resolve` is a commander choice.
 
 **Core** (writable in one sitting with the existing test harness): every
 example test below.
@@ -1553,39 +1600,51 @@ share. Its issuer's upstream can revoke it.
 **TEST-2047: Fan-in counts positions.** In a dialect with indexed `bidder`
 counted by `(all bidder)`, a facet act satisfies its delegator's position.
 A transferred seat's act satisfies the original position. Two acts from one
-position count once. An act from a position shared in after the anchor is
-admitted and not counted.
+position count once. A `close` that references an act from a position shared
+in after the anchor is `PositionOutsideRound`.
 
-**TEST-2051: Round anchor.** In the incident thread, @dana's `request` is the
-anchor. @eli shares responder to @diag after the request. A `close` that
-references the root responders' `report` acts is `Valid` without @diag. A
-`report` by @diag is admitted. A `close` referencing reports that cite two
-different requests yields `MixedRounds`. With `report` directly after the
-root, membership equals the root positions.
+**TEST-2051: Round anchor.** @eli shares responder to @diag before @dana's
+`request`, and the share is in `A(request)`. A `close :anchor request`
+without @diag's `report` is `Violation`; with it, `Valid`. In a second
+thread the share follows the request: `close` is `Valid` without @diag, and
+a `close` that references @diag's `report` is `PositionOutsideRound`. A
+`close` whose referenced reports walk to two different requests yields
+`MixedRounds`. A `close` with no `:anchor` over a fixed role counts the
+root positions. In the auction, each `reveal` walks through its own
+`commit` to `open`, and `declare-winner :anchor open` is `Valid`.
 
 **TEST-2052: Discharge.** Root responder @eli resigns after the request. A
-`close` referencing the other reports and @eli's resign is `Valid`. Without
-the resign it is `Violation`. @cy's revoke of @eli's seat yields
-`LacksAuthorityToRemove` and discharges nothing. After an accepted transfer
-of @eli's seat to @fay, only @fay's `report` satisfies the position.
+`close` referencing the other reports and citing the resign in `:seen` is
+`Valid`. Without the resign it is `Violation`. When @eli's `report` is also
+in the close's authority past, the resign stands in for nothing. @cy's
+revoke of a shared seat yields `LacksAuthorityToRemove` and discharges
+nothing. Revoking the share's parent discharges the share. After an
+accepted transfer of @eli's seat to @fay, @fay's `report` satisfies the
+position. An @eli act whose authority past holds the accept is `Violation`. Three resigns and a `close` that references no report, citing
+all three, is `Valid`. In an arbiter thread, a `close` whose cited resign is
+`Void` in its covering epoch is `Void(EntryVoid)`.
 
-**TEST-2053: Unlive grant.** A `share` of responder with `:acts (finding)`,
-where `report` is the only performative of a responder Send step, yields
-`UnliveGrant`. With `:acts (finding report)` it is admitted. A `facet` with
-`:acts (finding)` is admitted. A share whose new position fails the
-SPEC-014 locality check is rejected with that check's violation.
+**TEST-2053: Unlive grant.** Responder's Send steps are `{report}` and
+`{finding, propose-fix}`. A `share` with `:acts (finding)` yields
+`UnliveGrant`; with `:acts (finding report)` it is admitted. A `transfer` of
+commander with `:acts (assign)` yields `UnliveGrant`. A `facet` with
+`:acts (finding)` is admitted. A share whose new position fails
+[[SPEC-014-role-layer-endpoint-projection#REQ-608]] on the [[SPEC-014-role-layer-endpoint-projection#TEST-641]] shape yields `NotCausallyLocal`.
 
-**TEST-2054: Deadlock-freedom.** Core, scripted: the incident thread with
-one share, one resign and one revoke, delivered in every order. Every
-message with admitted referenced predecessors leaves `Unknown`, and a
-`close` over the final membership is `Valid`. Depth, property: random
-grants, removals and acts under a scheduler that delivers every message.
-No thread ends with an `Unknown` whose referenced predecessors are present.
+**TEST-2054: Deadlock-freedom.** Core, scripted: @dana's `request` is the
+anchor; then @eli shares to @diag, @fay resigns, and @eli's share is
+revoked, delivered in every order. A `close :anchor request` is `Valid`
+only when its authority past holds @fay's resign and the acts of the
+remaining members; @diag's position is outside the round. Depth, property:
+random grants, removals and acts under a scheduler that delivers every
+message. No thread ends with an `Unknown` whose authority past and anchor
+past are present.
 
-**TEST-2055: Liveness claims.** In an arbiter thread where every message is
-in some epoch's batch, no finality stays `Pending`. In a thread without an
-arbiter, every finality is `NotApplicable`. A message whose referenced
-predecessor arrives last leaves `Unknown` on that arrival.
+**TEST-2055: Liveness claims.** A `finding :under G1` with G1 arriving
+last is `Unknown` until then and `Valid` after. A `close` whose anchor's
+authority past is incomplete is `Unknown` until it completes. In an arbiter
+thread where every message is in an admitted epoch's batch, no finality
+stays `Pending`, including messages whose admission is `Violation`.
 
 **TEST-2040: Narrowing property (depth).** Take random chains within one role. The reduced seat's act set is the intersection of every link. Its mode and its bound are the minimum over the chain.
 
@@ -1614,9 +1673,9 @@ CON-2001 with a round-trip oracle: `parse(serialise(x)) == x`.
 |-----|-----|------|--------------|----------|
 | REQ-2000–2003, 2043 | CON-2000, CON-2003 | TEST-2000–2003, 2043b, 2045 | FM-1 | ADR-2000, ADR-2007 |
 | REQ-2004, 2039 | CON-2000, CON-2002 | TEST-2004, 2039 | FM-1 | ADR-2002, ADR-2007 |
-| REQ-2005, 2041, 2046 | CON-2000, CON-2002 | TEST-2005, 2047, 2051 | FM-1 | ADR-2006 |
+| REQ-2005, 2041, 2046 | CON-2000, CON-2001, CON-2002, CON-2003 | TEST-2005, 2047, 2051 | FM-1 | ADR-2006 |
 | REQ-2047 | CON-2002 | TEST-2052, 2054 | FM-6 | ADR-2014 |
-| REQ-2048 | CON-2002 | TEST-2053 | FM-6 | ADR-2015 |
+| REQ-2048 | CON-2002, CON-2003 | TEST-2053 | FM-6 | ADR-2015 |
 | NFR-2003 | CON-2002 | TEST-2054, 2055 | FM-6 | ADR-2015 |
 | REQ-2038, 2031 | CON-2000, CON-2002 | TEST-2038, 2031 | FM-4 | ADR-2009 |
 | REQ-2006 | CON-2001 | TEST-2006 | FM-1, FM-3 | ADR-2005 |
@@ -1717,14 +1776,18 @@ Full citations with URLs are in the theory's `source-doc` facts.
 - 0.5.0 (2026-10-18) — normative. Two further session-type sources read in
   full (Deniélou and Yoshida §5; Keskin, Yoshida and van Glabbeek, ITP
   2026). Changes:
-  - round anchors and round membership (REQ-2046); dynamic roles feed
-    fan-in through anchored rounds (REQ-2005, REQ-2041, ADR-2006 rewritten)
-  - a removal discharges the removed position's act (REQ-2047, ADR-2014)
-  - granted positions keep one act per Send step (REQ-2048)
+  - round anchors named by `:anchor`, anchor walks and round membership
+    (REQ-2046); dynamic roles feed fan-in through anchored rounds (REQ-2005,
+    REQ-2041, ADR-2006 rewritten). TEST-2005's share-auction case now
+    installs. REQ-2041 counts round membership instead of root positions
+  - an emptied position counts as met (REQ-2047, ADR-2014); finality
+    re-checks counted acts and discharges (REQ-2025)
+  - principal seats keep one act per Send step; REQ-608 at grant (REQ-2048)
   - named fairness and liveness claims (NFR-2003, ADR-2015); FM-6
   - `seat` recorded as a coined term; rotate mode, balancedness and Lean
     liveness added to Open
-  - unreviewed: v0.4.0's round-3 fixes and this version's additions
+  - fourth adversarial review (2 blockers, 15 major, 10 minor) applied in
+    this version; v0.4.0's round-3 fixes remain unreviewed
 
 - 0.4.0 (2026-10-17) — normative. Third adversarial review (4 blockers, 9
   major, 9 minor) and third comprehension gate (passed). Changes:
