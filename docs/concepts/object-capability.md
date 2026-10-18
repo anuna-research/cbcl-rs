@@ -8,5 +8,5 @@ subset of operations, and a chain of such grants can be revoked at any link.
 
 CBCL adopts the certificate form of the idea. Grants are signed messages in
 the thread's log, and each act names the grant it relies on. See
-[[capability-seat]], [[confused-deputy]] and
+[[capability-seat]], [[warrant]], [[confused-deputy]] and
 [[SPEC-020-capability-seats]].

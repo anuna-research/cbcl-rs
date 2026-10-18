@@ -1,23 +1,18 @@
 # Capability seat
 
-The authority to send a set of acts in one role of a thread, held by one
-key. A seat is a [[object-capability|capability]]: it is issued, narrowed
-and withdrawn by signed meta acts in the thread's log. A *root seat* comes
-from the [[role-cast|cast]] on the thread's root. A *granted seat* comes from
-a `grant` that names the seat it derives from.
+One binding of a role in a thread, which keeps its identity while the key
+holding it changes. A *root seat* comes from the [[role-cast|cast]] on the
+thread's root; a `share` or `appoint` grant creates a further seat. The
+authority to act in a seat is a [[warrant|warrant]], a signed
+[[object-capability|capability]] in the thread's log. A seat is *live* while
+its terminal warrant is live, *emptied* when a resign, revoke or cascade
+ended it, and *contested* when equals issued two warrants for it.
 
-Within one role, a seat never authorises more than the seat it derives
-from; an appointment into another role starts that role's act set instead,
-bounded by the appointer's right to appoint. An act made under
-a granted seat names that seat with `:under`, so the verifier checks one
-chain and never searches. The roles themselves, and their
-[[endpoint-projection|projection]], do not change when seats change hands.
+The roles themselves, and their [[endpoint-projection|projection]], do not
+change when seats change hands. A counted fan-in counts seats, not keys, so
+a hand-over mid-round changes nothing the fan-in sees.
 
 Specified in [[SPEC-020-capability-seats]], which refines the fixed cast of
-[[SPEC-014-role-layer-endpoint-projection]].
-
-The word *seat* is coined by SPEC-020; it is not a term of art. The nearest
-established notions are a participant occupying a role in dynamic multirole
-session types (Deniélou and Yoshida, 2011) and a capability for a role in
-object-capability systems. A seat is kept apart from its *position*, the
-role binding that persists while the key holding it changes.
+[[SPEC-014-role-layer-endpoint-projection]]. The word carries its everyday
+sense: a seat on a board is taken over, and the board is unchanged. Earlier
+drafts said *position*; SPEC-020 ADR-2016 records the change.
