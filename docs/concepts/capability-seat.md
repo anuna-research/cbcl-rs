@@ -6,7 +6,9 @@ and withdrawn by signed meta acts in the thread's log. A *root seat* comes
 from the [[role-cast|cast]] on the thread's root. A *granted seat* comes from
 a `grant` that names the seat it derives from.
 
-A seat never authorises more than the seat it derives from. An act made under
+Within one role, a seat never authorises more than the seat it derives
+from; an appointment into another role starts that role's act set instead,
+bounded by the appointer's right to appoint. An act made under
 a granted seat names that seat with `:under`, so the verifier checks one
 chain and never searches. The roles themselves, and their
 [[endpoint-projection|projection]], do not change when seats change hands.
