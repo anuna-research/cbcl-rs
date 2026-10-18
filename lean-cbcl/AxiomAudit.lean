@@ -12,6 +12,8 @@ import LeanCbcl.ProtocolProjection
 import LeanCbcl.ConcreteProjection
 import LeanCbcl.Splice
 import LeanCbcl.Bridge
+import LeanCbcl.Seats
+import LeanCbcl.SeatsAdmission
 
 /-!
 # Axiom audit — NFR-511 / TEST-551 / OBS-512
@@ -140,6 +142,29 @@ editing only this file is enough to extend the audit.
 
 #print axioms LeanCbcl.Bridge.eventually_present_valid
 #print axioms LeanCbcl.Bridge.InfinitePredecessorsExample.not_finite_predecessors
+
+-- SPEC-020 capability seats: warrant state, seat status, admission, anchor walk
+-- (Seats.lean, SeatsAdmission.lean). The spec cites these by name (REQ-2017, REQ-2024,
+-- REQ-2034, REQ-2037, REQ-2046, REQ-2047, Terminology).
+#print axioms LeanCbcl.Seats.successor_unique
+#print axioms LeanCbcl.Seats.removed_mono
+#print axioms LeanCbcl.Seats.live_parent
+#print axioms LeanCbcl.Seats.live_of_superset
+#print axioms LeanCbcl.Seats.status_trichotomy
+#print axioms LeanCbcl.Seats.reseat_dominates
+#print axioms LeanCbcl.Seats.kill_blocks_accept
+#print axioms LeanCbcl.Seats.two_accepts_contest
+#print axioms LeanCbcl.Seats.live_empty
+#print axioms LeanCbcl.Seats.terminal_unique
+#print axioms LeanCbcl.Seats.terminal_of_live
+#print axioms LeanCbcl.Seats.seat_status_trichotomy
+#print axioms LeanCbcl.Seats.member_of_contested
+#print axioms LeanCbcl.Seats.member_of_live
+#print axioms LeanCbcl.Seats.Admission.valid_stable
+#print axioms LeanCbcl.Seats.Admission.violation_stable
+#print axioms LeanCbcl.Seats.Admission.conservative
+#print axioms LeanCbcl.Seats.AnchorWalk.walk_stops
+#print axioms LeanCbcl.Seats.AnchorWalk.walk_back
 
 -- Concrete raw-edge projection and the paper's filtered view.
 #print axioms LeanCbcl.ConcreteProjection.runSteps_refines

@@ -35,6 +35,7 @@ import LeanCbcl.R5
 import LeanCbcl.EPP
 import LeanCbcl.EPPCompletion
 import LeanCbcl.Seats
+import LeanCbcl.SeatsAdmission
 import LeanCbcl.Projectability
 import LeanCbcl.ProtocolProjection
 import LeanCbcl.ConcreteProjection

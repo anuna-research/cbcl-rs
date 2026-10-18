@@ -2,7 +2,7 @@
 id: SPEC-020
 title: Capability Seats — Delegable Authority for Role-Based Endpoint Projection
 status: draft
-version: 0.7.0
+version: 0.7.1
 date: 2026-10-18
 author: Anuna Research (https://anuna.io)
 depends-on:
@@ -14,7 +14,9 @@ refines:
 prior-art:
   - elephant theory cap-epp-lit (52 sources, 127 findings, 13 adopted options; evidence digest in Appendix A)
   - specs/SPEC-014-role-layer-endpoint-projection.md
-  - lean-cbcl/LeanCbcl/Seats.lean (warrant-state model, safety level)
+    - lean-cbcl/LeanCbcl/Seats.lean (warrant-state model, safety level)
+  - lean-cbcl/LeanCbcl/SeatsAdmission.lean (admission verdict, conservative extension, anchor walk)
+
 repository: https://codeberg.org/anuna/cbcl-rs
 ---
 
@@ -220,9 +222,11 @@ into three groups is the decomposition this version makes.
 
 Open: threshold (k-of-n) recovery and pre-rotation (owner: HOC) · a Rust
 `warrant_state` mirroring `LeanCbcl/Seats.lean` with property tests, before
-implementation (owner: HOC) · Lean obligations beyond `Seats.lean`: admission
-monotonicity over the full verdict, conservative extension, anchor-walk
-termination (owner: HOC) · consent co-signatures on grants (owner: HOC) ·
+implementation (owner: HOC) · Lean obligations beyond `Seats.lean` and
+`SeatsAdmission.lean`: admission of the meta acts themselves (REQ-2007 to
+REQ-2012), discharge arithmetic (REQ-2047), `MixedRounds` (REQ-2046), and
+that every seat has a terminal warrant, which needs a finite meta-act set
+(owner: HOC) · consent co-signatures on grants (owner: HOC) ·
 bounded grants without an orderer, such as a proxy scoped to one round
 (owner: HOC) · cross-round finality as an OPTIONAL extension for deployments
 that want a sequencer; v0.5.0 holds the withdrawn design (owner: HOC) · two
@@ -399,11 +403,14 @@ and each ADR cites the findings it rests on. The main conclusions are below.
 - **Authority past `A(m)`**: the in-thread messages reachable from `m`
   through authority links, `m` excluded.
 - **Terminal warrant** of a seat, in `S`: an issued principal warrant of the
-  seat with no issued successor. A seat has at most one.
+  seat with no issued successor. A seat has at most one
+  (`Seats.terminal_unique`).
 - **Seat status**, in `S`: *live* when its terminal warrant is live.
   *Contested* when its terminal warrant is terminated, has no successor, and
   no resign or revoke terminated it. *Emptied* when its terminal warrant is
-  removed and the seat is not contested. Cascade removal empties.
+  removed and the seat is not contested. Cascade removal empties. A seat
+  with a terminal warrant has exactly one status
+  (`Seats.seat_status_trichotomy`).
   **Discharge**: the removals in a fan-in's authority past that empty a
   member seat, standing in for its act.
 - **Honest sender**: a sender whose act has, in its authority past, every
@@ -780,8 +787,9 @@ the one the counted performative's static walk ends at, or the thread root
 when the walk ends at the root. Otherwise the fan-in is `Violation` with
 `AnchorInvalid`. This check runs whether or not the fan-in references any
 counted act. For each referenced act of the counted performative, the system
-SHALL run the anchor walk (Terminology). WHEN a walk ends at a message other
-than the anchor, the fan-in SHALL be `Violation` with `MixedRounds`. The
+SHALL run the anchor walk (Terminology). WHEN a walk ends at a message other than the anchor, the fan-in SHALL be
+`Violation` with `MixedRounds`. The walk terminates and ends at the first
+other message (`Seats.AnchorWalk.walk_stops`, `Seats.AnchorWalk.walk_back`). The
 round membership SHALL be computed from the warrant state over the meta acts of
 `A(anchor)` (Terminology). The anchor is resolved once, from content, and
 never from a later state. A fan-in over a role that is not dynamic omits
@@ -800,9 +808,10 @@ and performative, in the fan-in's authority past. The system SHALL count it
 as met when the seat is emptied (Terminology) in the warrant state of the
 fan-in's authority past. WHEN a referenced act of that seat for this
 round is present, the removals SHALL NOT stand in for it. A contested
-seat is a member that only a referenced act of its own satisfies; such
-an act's own authority past predates the contest. An accepted transfer
-empties nothing: the successor warrant acts for the seat.
+seat is a member that only a referenced act of its own satisfies
+(`Seats.member_of_contested`). Such an act's own authority past predates
+the contest. An accepted transfer empties nothing: the
+successor warrant acts for the seat (`Seats.member_of_live`).
 Acceptance: a fan-in that references every other seat's act and whose
 authority past holds the resign is `Valid`. Without the resign, no fan-in
 over that round is `Valid`. A revoke of a share's parent discharges the
@@ -873,8 +882,8 @@ senders). Rationale: [[SPEC-020-capability-seats#ADR-2011]].
 
 **REQ-2024: Admission monotonicity.**
 The admission verdict SHALL be monotone in the valid-is-sticky order of
-[[SPEC-014-role-layer-endpoint-projection#REQ-620]]. Store growth never
-changes `Valid`. The verdict is permanent once `A(m)` is present.
+[[SPEC-014-role-layer-endpoint-projection#REQ-620]]. Store growth never changes `Valid`. The verdict is permanent once `A(m)` is
+present (`Seats.Admission.valid_stable`, `Seats.Admission.violation_stable`).
 Trace: [[SPEC-020-capability-seats#TEST-2024]].
 
 ### Recovery
@@ -905,6 +914,8 @@ thread. WHEN all hold, the system SHALL return the SPEC-014
 `verify_causal_for_role` verdict as the admission verdict.
 Trace: [[SPEC-020-capability-seats#TEST-2034]] (differential, the full
 SPEC-014 fixture corpus). This protects SPEC-014's Lean correspondence.
+`Seats.Admission.conservative` proves the three verdicts equal to SPEC-014's
+on every causally closed store, from `Seats.live_empty`.
 
 **REQ-2035: Policy-bearing dialects are opt-in, with an observe mode.**
 The installer SHALL reject a dialect that carries any policy clause unless
@@ -1892,8 +1903,8 @@ equal.
 |-----|-----|------|--------------|----------|
 | REQ-2000–2003, 2043 | CON-2000, CON-2003 | TEST-2000–2003, 2043b, 2045 | FM-1 | ADR-2000, ADR-2007 |
 | REQ-2004, 2039 | CON-2000, CON-2002 | TEST-2004, 2039 | FM-1 | ADR-2002, ADR-2007 |
-| REQ-2005, 2041, 2046, 2049 | CON-2000, CON-2001, CON-2002, CON-2003 | TEST-2005, 2047, 2051, 2056 | FM-1, FM-6 | ADR-2006 |
-| REQ-2047 | CON-2002 | TEST-2052, 2054 | FM-6 | ADR-2014 |
+| REQ-2005, 2041, 2046, 2049 | CON-2000, CON-2001, CON-2002, CON-2003 | TEST-2005, 2047, 2051, 2056 | FM-1, FM-6 | ADR-2006, SeatsAdmission.lean |
+| REQ-2047 | CON-2002 | TEST-2052, 2054 | FM-6 | ADR-2014, Seats.lean |
 | REQ-2048 | CON-2002, CON-2003 | TEST-2053, 2057 | FM-6 | ADR-2015 |
 | NFR-2003 | CON-2002 | TEST-2054, 2055 | FM-6 | ADR-2015 |
 | REQ-2038, 2031 | CON-2000, CON-2002 | TEST-2038, 2031 | FM-4 | ADR-2009 |
@@ -1903,8 +1914,8 @@ equal.
 | REQ-2013–2016 | CON-2001, CON-2002 | TEST-2013–2016 | FM-2 | ADR-2003 |
 | REQ-2017–2021, 2032, 2040 | CON-2002 | TEST-2017–2021, 2032, 2033, 2046, 2041 | FM-1, FM-4 | ADR-2000, ADR-2007, ADR-2008, Seats.lean |
 | REQ-2037, 2045 | CON-2002 | TEST-2037, 2048, 2049, 2050 | FM-4, FM-5 | ADR-2005, ADR-2013, Seats.lean |
-| REQ-2022–2024 | CON-2002, CON-2003 | TEST-2022–2024, 2041, 2044 | FM-3 | ADR-2004, ADR-2011 |
-| REQ-2034 | CON-2002 | TEST-2034 | — | SPEC-014 Lean correspondence |
+| REQ-2022–2024 | CON-2002, CON-2003 | TEST-2022–2024, 2041, 2044 | FM-3 | ADR-2004, ADR-2011, SeatsAdmission.lean |
+| REQ-2034 | CON-2002 | TEST-2034 | — | SPEC-014 Lean correspondence, SeatsAdmission.lean |
 | REQ-2035 | CON-2002 | TEST-2035, 2058 | — | enable path |
 
 Withdrawn in 0.6.0, never reused: REQ-2012, REQ-2025 through REQ-2030,
@@ -1995,7 +2006,17 @@ Full citations with URLs are in the theory's `source-doc` facts.
 ## Changelog
 
 <details>
-<summary>Revision history — 0.1.0 → 0.7.0</summary>
+<summary>Revision history — 0.1.0 → 0.7.1</summary>
+
+- 0.7.1 (2026-10-18) — normative. Lean only; no rule changed. `Seats.lean`
+  adds `WellFormed`, the seat chain (`inSeat`, `reach`) and the theorems
+  `terminal_unique`, `terminal_of_live`, `seat_status_trichotomy`,
+  `member_of_contested`, `member_of_live` and `live_empty`. New
+  `SeatsAdmission.lean` mechanises REQ-2024 (`valid_stable`,
+  `violation_stable`), REQ-2034 (`conservative`) and the anchor walk
+  (`walk_stops`, `walk_back`). The axiom audit now prints all nineteen
+  SPEC-020 theorems; each uses the standard axioms only. Open drops the
+  three discharged Lean obligations and names the four that remain.
 
 - 0.7.0 (2026-10-18) — normative. Vocabulary only; no semantics changed
   (ADR-2016, new). *Position* is now *seat*; *seat* is now *warrant*;
