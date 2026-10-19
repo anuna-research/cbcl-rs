@@ -716,7 +716,7 @@ mod tests {
     }
 
     // -----------------------------------------------------------------------
-    // Deterministic msg_tag dispatch (mirrors Lean msgTag)
+    // Message tags agree with parser dispatch.
     // -----------------------------------------------------------------------
 
     #[test]

@@ -1,6 +1,7 @@
 //! Deterministic message tagging (DCFL).
 //!
-//! Mirrors `DeterministicUnion.lean` from the Lean 4 proof library.
+//! Classifies message heads for pattern dispatch. Language recognition is
+//! formalised separately by the finite-machine grammar in `lean-cbcl`.
 
 #![forbid(unsafe_code)]
 

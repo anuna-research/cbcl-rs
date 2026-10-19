@@ -13,8 +13,11 @@ namespace CBCL.FormalLanguage
 
 /-- A finite-state monitor over the parser's input alphabet. -/
 structure Monitor (alphabetSize stateSize : Nat) where
+  /-- Control state before any input is consumed. -/
   initial : Fin stateSize
+  /-- Consume one input symbol and update finite monitor control. -/
   transition : Fin stateSize → Fin alphabetSize → Fin stateSize
+  /-- Acceptance after complete input consumption. -/
   finalState : Fin stateSize → Bool
 
 namespace Monitor

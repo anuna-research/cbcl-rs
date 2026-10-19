@@ -30,8 +30,8 @@ relation's finite sequences. Rust's additional admission gates are not modelled
 as equivalent; the unconditional finite-environment theorem also covers any
 finite environments selected by stricter policies.
 
-These results use the standard finite-machine certificate. The older
-`CBCL.IsDCFL` and `CBCL.dcfl_preserved` interfaces remain legacy shallow results.
+These results use `FormalLanguage.IsRealtimeDCFL`, the finite-machine
+certificate for languages of arbitrary words.
 
 `InstalledSyntax.Raw.environmentDCFL` adds a concrete finite lexer and proves
 DCFL membership for the declared raw language. Its input alphabet densely

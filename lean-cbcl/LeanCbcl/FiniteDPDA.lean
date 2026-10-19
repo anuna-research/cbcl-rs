@@ -11,7 +11,8 @@ absent transition rejects; acceptance inspects only the final control state.
 There are no epsilon transitions or host-language whole-stack predicates.
 
 This is the machine contract of SPEC-018 CON-1800. It does not by itself
-certify the recursive CBCL language or the existing `DetParser` interface.
+certify the recursive CBCL language; `InstalledSyntax` and `InstalledLexer`
+instantiate it with the token and raw-character grammars.
 -/
 
 namespace CBCL.FormalLanguage

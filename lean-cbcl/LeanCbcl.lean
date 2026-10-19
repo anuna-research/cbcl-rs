@@ -23,8 +23,6 @@ import LeanCbcl.R2ResourceBounds
 import LeanCbcl.R3CorePreservation
 import LeanCbcl.Pipeline
 import LeanCbcl.TemplateExpansion
-import LeanCbcl.DetParser
-import LeanCbcl.DeterministicUnion
 import LeanCbcl.Lattice.Store
 import LeanCbcl.Lattice.Result
 import LeanCbcl.Lattice.NotALattice

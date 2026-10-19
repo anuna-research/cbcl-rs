@@ -76,10 +76,10 @@ clause), because justification reads the past only through membership of relevan
 names. Finiteness is explicit and self-contained (no mathlib): `FinDFA` carries a
 finite state list with a start-membership proof and transition closure.
 **Hence DCFL** is formal (`IsRegular.toTraceDCFL`): the automaton wrapped as a
-deterministic pushdown machine (`TracePDA`, the alphabet-generic sibling of
-`DetParser`) that never touches its stack. (The repo's `IsDCFL` is over S-expression
-*message syntax*; protocol traces are a different alphabet, hence the trace-level
-witness.)
+deterministic pushdown machine (`TracePDA`) that never touches its stack.
+Protocol traces use an act/name alphabet rather than the finite token and
+Unicode-scalar alphabets of `FormalLanguage.IsRealtimeDCFL`, hence the
+separate trace-level witness.
 
 ### Projection — and what `projection_adds_no_recogniser` does and does not say
 
@@ -238,8 +238,7 @@ theorem FinDFA.foldl_mem {α σ : Type} (M : FinDFA α σ) (w : List α)
   | cons a rest ih => exact ih (M.closed s hs a)
 
 /-- Witness that a trace language `L` is regular: a finite automaton
-    recognising exactly `L` (the `IsDCFL` pattern, one level down the
-    Chomsky hierarchy). -/
+    recognising exactly `L`, with soundness and completeness. -/
 structure IsRegular (α σ : Type) (L : List α → Prop) where
   /-- The recognising finite automaton. -/
   M : FinDFA α σ
@@ -250,15 +249,15 @@ structure IsRegular (α σ : Type) (L : List α → Prop) where
 
 /-! ## Half 2, §2 — Trace-level DPDAs and regular ⊆ DCFL
 
-`DetParser.DetParser` is `Token`-specific; `TracePDA` is its alphabet-generic
-sibling, with the finiteness of control states and stack alphabet explicit.
+`TracePDA` is alphabet-generic, with the finiteness of control states and
+stack alphabet explicit.
 `IsRegular.toTraceDCFL` is the textbook inclusion REG ⊆ DCFL, made formal:
 wrap the finite automaton as a pushdown machine that never touches its
 stack. -/
 
 /-- A deterministic pushdown machine over alphabet `α`, control states `σ`,
-    stack symbols `γ`, with explicit finite carriers for both. Transition and
-    acceptance mirror `DetParser` (replace-top semantics). -/
+    stack symbols `γ`, with explicit finite carriers for both and replace-top
+    transition semantics. The regular-language embedding below ignores the stack. -/
 structure TracePDA (α σ γ : Type) where
   /-- Transition: state, input, top-of-stack ↦ new state and symbols pushed. -/
   step : σ → α → Option γ → σ × List γ
@@ -282,7 +281,7 @@ structure TracePDA (α σ γ : Type) where
   push_sub : ∀ s ∈ states, ∀ (a : α) (g : Option γ), ∀ x ∈ (step s a g).2, x ∈ stackAlphabet
 
 /-- One transition: consult `step` on the top of stack, replace the top with
-    the pushed symbols (as in `DetParser.runStep`). -/
+    the pushed symbols. -/
 def TracePDA.runStep {α σ γ : Type} (p : TracePDA α σ γ)
     (cfg : σ × List γ) (a : α) : σ × List γ :=
   let (s', push) := p.step cfg.1 a cfg.2.head?
@@ -294,7 +293,7 @@ def TracePDA.run {α σ γ : Type} (p : TracePDA α σ γ) (w : List α) : Bool 
   p.accept final.1 final.2
 
 /-- Witness that a trace language is a DCFL: a `TracePDA` recognising exactly
-    it (`IsDCFL`, at the trace alphabet). -/
+    it over the trace alphabet. -/
 structure IsTraceDCFL (α σ γ : Type) (L : List α → Prop) where
   /-- The recognising deterministic pushdown machine. -/
   pda : TracePDA α σ γ
