@@ -7,6 +7,8 @@ import LeanCbcl.R6DCFLPreservation
 import LeanCbcl.State
 import LeanCbcl.AdmissionStratification
 import LeanCbcl.StateRefinement
+import LeanCbcl.MonitoredDCFL
+
 import LeanCbcl.EPPCompletion
 import LeanCbcl.ProtocolProjection
 import LeanCbcl.ConcreteProjection
@@ -282,3 +284,11 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.State.protocolProgress_bound
 #print axioms CBCL.State.protocolProgress_monotone
 #print axioms CBCL.StateProgress.progress_competing
+-- Finite-state restrictions: all-word product correspondence and installation.
+#print axioms CBCL.FormalLanguage.Monitor.product_step
+#print axioms CBCL.FormalLanguage.Monitor.product_run
+#print axioms CBCL.FormalLanguage.Monitor.product_accepts
+#print axioms CBCL.FormalLanguage.IsRealtimeDCFL.restrict
+#print axioms CBCL.InstalledSyntax.Raw.monitored_dcfl_preserved_many
+#print axioms CBCL.InstalledSyntax.Raw.monitored_accepted_installations_dcfl
+#print axioms CBCL.InstalledSyntax.Raw.monitored_check_correct
