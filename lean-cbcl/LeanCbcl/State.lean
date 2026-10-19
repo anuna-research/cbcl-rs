@@ -7,7 +7,8 @@ import Batteries.Data.List.Lemmas
 Model of the state layer of `specs/SPEC-019-state-rules.md`: accepted acts,
 the kernel selections (`acts`, `current`, `currentOwn`) and reductions (`pick`,
 `size`, `has`, `sumField`), the author-facing rules as sugar over the
-kernel, and the intent binder.
+kernel, and the intent binder. The protocol-position selection and maximum
+reduction for `progress` are modelled separately in `StateProgress.lean`.
 
 ## Model
 
@@ -34,7 +35,8 @@ correspondence is checked by the conformance corpus
   and the domain filter, folded into the conjunction.
 * `actsDom_excluded` / `excluded_not_mem` — a domain is a fold filter
   (ADR-1909): an act outside the opener's list is accepted and
-  contributes to no rule.
+  contributes to no data rule. Protocol progress separately observes
+  accepted causal metadata.
 * `acts_mono`, `size_mono`, `has_mono`, `exists_mono` — monotone rules.
 * `mem_current_iff`, `replaced_never_current`, `unnamed_is_current` —
   the register characterisation (a replaced write never wins; an
@@ -489,8 +491,8 @@ theorem actsDom_setEq {A B : List Act} (hA : NodupAddr A) (hB : NodupAddr B) (h 
   exact (acts_setEq h v).filter _
 
 /-- **R7, permutation invariance** (REQ-1915, `fold_perm_invariant`): every
-rule of the sugar table is a set function of the accepted acts. Stated
-per rule; the fold is their tuple. -/
+data rule below is a set function of the accepted acts. Stated
+per rule; protocol progress is separately proved in StateProgress.lean. -/
 theorem fold_perm_invariant {A B : List Act} (hA : NodupAddr A) (hB : NodupAddr B)
     (h : SetEq A B) (v kk k add rem inc dec ov F : String) (d : Option String) (s : String)
     (x y : Val) :

@@ -2,8 +2,8 @@
 id: SPEC-019
 title: State Layer — R7 State Rules and the Intent Binder
 status: draft
-version: 1.0.0
-date: 2026-10-06
+version: 1.1.0
+date: 2026-10-19
 author: Anuna Research (https://anuna.io) — drafted with Claude Fable 5.1
 owner: CBCL maintainer
 depends-on:
@@ -47,7 +47,7 @@ Cross-signer references contribute no supersession; the referring act still cont
 Domain-excluded acts contribute neither values nor replacement references.
 Superseded domain-admitted acts still supply replacement references.
 Replacement applies whenever a domain-admitted write names another accepted same-verb, same-signer write, including after out-of-order delivery.
-The rules desugar to selections and five reductions. The fold
+The rules desugar to fixed selections and reductions; protocol progress adds an established-position selection and maximum reduction. The fold
 and the intent binder are pure functions in `cbcl-core`, exported to every
 host as the parser already is. The invariant added is **R7**: for every
 installed dialect, each state field is a total, order-independent,
@@ -87,7 +87,7 @@ first consumer and the source of the semantics adopted here; it appears in
 Context, in ADRs as evidence, in Migration, and nowhere in a requirement.
 
 Decisions: [[SPEC-019-state-rules#ADR-1900]] a kernel of
-selections and five reductions; the fourteen author-facing names are sugar ·
+fixed selections and reductions; the fifteen author-facing names are sugar ·
 [[SPEC-019-state-rules#ADR-1901]] supersession rides one reserved
 field, `:replaces`, inserted by the compiler ·
 [[SPEC-019-state-rules#ADR-1902]] one total order, the content
@@ -183,6 +183,7 @@ rule           := "(" "last"              verb key ")"
                 | "(" "latest-per-key"    verb key key ")"          ; key-field value-field
                 | "(" "exists"            verb ")"
                 | "(" "count"             verb ")"
+                | "(" "progress"          verb ")"                 ; maximum established protocol occurrence
                 | "(" "events"            verb key ")"
                 | "(" "set-union"         verb key ")"
                 | "(" "values"            verb key ")"
@@ -205,7 +206,16 @@ the shape of every writer of `latest-per-signer`. It also adds the field to writ
 
 ### R.2 Kernel
 
-Selections over `acc(t)`, five reductions over a table of acts.
+`(progress verb)` is integer-valued and defaults to zero. R7 SHALL reject
+missing or incomparable occurrences of the selected verb in the expanded
+protocol. It observes the maximum established occurrence rank, not message
+cardinality; concurrent messages at one occurrence do not inflate the rank.
+Causal position is derived independently of the state fold, using same-thread
+accepted evidence. Data-domain filters do not hide protocol progress, and
+acceptance SHALL NOT consult the result. See [protocol progress](../docs/concepts/protocol-progress.md)
+for the Lean proof and finite Rust/model correspondence boundary.
+
+Selections over `acc(t)` and fixed reductions over acts or established protocol positions. The protocol-position selection and maximum reduction extend the original data kernel.
 
 ```
 acts v                    = { m ∈ acc(t) : m.v = v }, minus acts excluded by a domain entry for v
@@ -220,6 +230,10 @@ current-by-signer v       = { w ∈ acts v : (w.s, w.a) ∉ replaced-by-signer }
 pick T k                  = f_m(k) for the m ∈ T with greatest address; absent if T = ∅
 group T g                 = { x ↦ { m ∈ T : g(m) = x } }          g is `signer` or a key field
 distinct T k              = the set { f_m(k) : m ∈ T }, sorted
+positions P v             = { i : an accepted act of v inhabits occurrence i of v in expanded P }
+                            ranks 1..N require all occurrences of v to be causally ordered
+                            reads all accepted causal evidence, without application-data domain filters
+maximum I                 = max ({0} ∪ I)
 size T                    = |T|
 sum T k                   = Σ_{m ∈ T} f_m(k)                       exact integer
 ```
@@ -232,6 +246,7 @@ latest-per-signer v k     = map (T ↦ pick T k) (group (current-by-signer v) si
 latest-per-key v kk k     = map (T ↦ pick T k) (group (acts v) kk)
 exists v                  = size (acts v) > 0
 count v                   = size (acts v)
+progress v                = maximum (positions P v)
 events v k                = { m.a ↦ (m.s, f_m(k)) : m ∈ acts v }
 set-union v k             = distinct (acts v) k
 values v k                = distinct (current v ∅ ∅) k
@@ -407,7 +422,7 @@ is normative, the requirement fixes the obligation and its trace.
 `(state …)` clause and an OPTIONAL `(:state-bounds …)` clause per R.1, at
 most one of each. Trace: [[SPEC-019-state-rules#TEST-1900]], [[SPEC-019-state-rules#CON-1900]].
 
-**REQ-1901: Closed vocabulary.** The rule heads are exactly the fourteen
+**REQ-1901: Closed vocabulary.** The rule heads are exactly the fifteen
 of R.1 plus `domain`; any other head is a parse violation. The vocabulary
 changes only with a new version of this document and of the corpus.
 Trace: [[SPEC-019-state-rules#TEST-1901]].
@@ -841,7 +856,7 @@ Verified by TEST-1915–1917, 1940–1944, 1931.
 // state.rs
 pub struct StateClause { pub entries: Vec<Entry> }
 pub enum Entry { Field(String, Rule), Domain { verb: String, key: String, field: String } }
-pub enum Rule { /* the fourteen of R.1 */ }
+pub enum Rule { /* the fifteen of R.1 */ }
 pub struct StateBounds { pub max_string: u32, pub max_list: u32, pub max_number: i64, pub max_fields: u32 }
 pub struct Act { pub address: ContentHash, pub verb: String, pub signer: AgentKey,
     pub predecessors: Vec<ContentHash>, pub fields: BTreeMap<String, SExpr> }
@@ -993,6 +1008,7 @@ order; update cbcl-aamas §6 and §7.
 <details>
 <summary>Revision history</summary>
 
+- 1.1.0 (2026-10-19) — add `(progress verb)`, ordered-position installation checks, causal-position maximum reduction, Lean invariants and live Rust/model comparisons; add the progress-fork corpus vector and bump its version. Existing data-rule semantics are unchanged.
 - 1.0.0 (2026-10-06) — issue 18: signer-scoped observed supersession for `latest-per-signer`; corpus version bumped.
 - 0.3.9 (2026-10-05) — REQ-1930 gains the admission obligations, mechanised
   in `LeanCbcl/AdmissionStratification.lean`: stratification

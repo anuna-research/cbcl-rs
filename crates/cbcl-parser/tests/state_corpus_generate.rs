@@ -278,3 +278,39 @@ fn generate_signer_supersession() {
         }),
     );
 }
+
+#[test]
+#[ignore]
+fn generate_progress_fork() {
+    let contract="(define progress-fork (cbcl) @anuna (extend tick (to) (tell to)) (protocol (then begin (repeat 2 tick))) (state (number (progress tick)) (messages (count tick))))";
+    let make = |cb: &str, signer: &str| {
+        format!("(lang progress-fork (tick @room {cb} :thread \"progress-1\" :from {signer}))")
+    };
+    let a = make(":caused-by begin", "@a");
+    let a_id = address(&a);
+    let b = make(&format!(":caused-by {a_id}"), "@b");
+    let b_id = address(&b);
+    let c = make(&format!(":caused-by {a_id}"), "@c");
+    let late = make(&format!(":caused-by {b_id}"), "@a");
+    let missing = make(&format!(":caused-by sha256-{}", "f".repeat(64)), "@b");
+    let absent = make("", "@c");
+    let messages = [
+        (&a, "@a", "accepted"),
+        (&b, "@b", "accepted"),
+        (&c, "@c", "accepted"),
+        (&late, "@a", "rejected"),
+        (&missing, "@b", "pending"),
+        (&absent, "@c", "rejected"),
+        (&b, "@b", "accepted"),
+    ];
+    let addresses: Vec<String> = messages.iter().map(|(wire, _, _)| address(wire)).collect();
+    let verdicts: serde_json::Map<String, Value> = messages
+        .iter()
+        .zip(&addresses)
+        .map(|((_, _, verdict), cid)| (cid.clone(), json!(verdict)))
+        .collect();
+    write(
+        "progress-fork",
+        json!({"id":"progress-fork","version":"1.1.0","thread":"progress-1","contract":contract,"covers":["progress","repeat","concurrent-branches","duplicate-delivery","missing-ancestry","repeat-bound"],"messages":messages.iter().map(|(canonical,signer,_)|json!({"canonical":canonical,"signer":signer})).collect::<Vec<_>>(),"expect":{"addresses":addresses,"verdicts":verdicts,"state":{"number":2,"messages":3},"intents":[]}}),
+    );
+}

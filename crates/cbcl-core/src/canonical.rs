@@ -337,7 +337,9 @@ fn state_to_sexpr(clause: &crate::state::StateClause) -> SExpr {
                         r.push(s(key));
                         r.push(s(value));
                     }
-                    Rule::Exists { verb } | Rule::Count { verb } => r.push(s(verb)),
+                    Rule::Exists { verb } | Rule::Count { verb } | Rule::Progress { verb } => {
+                        r.push(s(verb))
+                    }
                     Rule::ValuesPerKey {
                         verb,
                         key,

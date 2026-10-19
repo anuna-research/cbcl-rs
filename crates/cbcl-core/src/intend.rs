@@ -219,7 +219,12 @@ pub fn may_send(inst: &Instance, signer: &AgentKey) -> Vec<String> {
     let opener_name = crate::state::opener_verb(protocol).map(String::from);
     let mut out = Vec::new();
     for p in &inst.dialect.performatives {
-        if Some(&p.name) == opener_name.as_ref() {
+        if Some(&p.name) == opener_name.as_ref()
+            && !protocol.steps.keys().any(|n| {
+                n.contains(crate::protocol::REPEAT_SEPARATOR)
+                    && crate::protocol::repeat_base_name(n) == p.name
+            })
+        {
             continue;
         }
         if role_gate(inst, signer, &p.name).is_err() {
@@ -252,10 +257,23 @@ fn role_gate(inst: &Instance, signer: &AgentKey, verb: &str) -> Result<(), Rejec
 /// Choose the predecessor for one required type set (step 5): the signer's
 /// own tip among candidates, else the greatest address.
 fn choose_predecessor(inst: &Instance, signer: &str, allowed: &BTreeSet<&str>) -> Option<String> {
+    choose_typed_predecessor(inst, signer, allowed, None)
+}
+fn choose_typed_predecessor(
+    inst: &Instance,
+    signer: &str,
+    allowed: &BTreeSet<&str>,
+    resolution: Option<&crate::repeat::Resolution<'_, ThreadedMessageStore>>,
+) -> Option<String> {
     let candidates: Vec<&Act> = inst
         .acts
         .iter()
-        .filter(|a| allowed.contains(a.verb.as_str()))
+        .filter(|a| match resolution {
+            Some(r) => allowed
+                .iter()
+                .any(|name| matches!(r.at(&a.address, name), VerificationResult::Valid)),
+            None => allowed.contains(a.verb.as_str()),
+        })
         .collect();
     if candidates.is_empty() {
         return None;
@@ -287,8 +305,97 @@ fn choose_predecessor(inst: &Instance, signer: &str, allowed: &BTreeSet<&str>) -
         .map(|a| a.address.clone())
 }
 
-/// `intend` (SPEC-019 R.5): complete a verb and its data fields into a
-/// canonical act for the host to sign, or reject.
+// Resolve expanded predecessor types from accepted causal evidence. For a
+// repeated verb, skip already occupied copies and prefer the furthest ready
+// position. This authoring policy does not reject concurrent peer branches.
+fn repeat_cause(inst: &Instance, signer: &str, verb: &str) -> Result<CausedBy, Reject> {
+    let protocol = inst
+        .dialect
+        .causal_protocol
+        .as_ref()
+        .ok_or(Reject::NoPredecessor)?;
+    let store = inst.store();
+    let root = inst.root.map(|a| ContentHash(a.address.clone()));
+    let resolution = crate::repeat::Resolution::new(
+        &store,
+        protocol,
+        &inst.thread,
+        root.as_ref(),
+        inst.acts.iter().map(|a| a.address.clone()),
+    );
+    for name in resolution.order.iter().rev() {
+        if crate::protocol::repeat_base_name(name) != verb {
+            continue;
+        }
+        if protocol.steps.keys().any(|n| {
+            n.contains(crate::protocol::REPEAT_SEPARATOR)
+                && crate::protocol::repeat_base_name(n) == verb
+        }) && inst
+            .acts
+            .iter()
+            .any(|a| matches!(resolution.at(&a.address, name), VerificationResult::Valid))
+        {
+            continue;
+        }
+        for node in &protocol.steps[*name].predecessors {
+            let names: BTreeSet<&str> = node.performatives().collect();
+            if names.contains(BEGIN_KEYWORD) {
+                continue;
+            }
+            if matches!(node, NodeRef::All(_)) {
+                let chosen: Option<Vec<String>> = names
+                    .iter()
+                    .map(|n| {
+                        let occupants = inst
+                            .dialect
+                            .find_performative(crate::protocol::repeat_base_name(n))
+                            .and_then(|p| p.role.as_ref())
+                            .and_then(|ann| inst.cast.as_ref()?.indexed.get(&ann.from));
+                        if let Some(occupants) = occupants {
+                            occupants
+                                .iter()
+                                .map(|who| {
+                                    inst.acts
+                                        .iter()
+                                        .filter(|a| {
+                                            a.signer == who.0
+                                                && matches!(
+                                                    resolution.at(&a.address, n),
+                                                    VerificationResult::Valid
+                                                )
+                                        })
+                                        .max_by(|a, b| a.address.cmp(&b.address))
+                                        .map(|a| a.address.clone())
+                                })
+                                .collect::<Option<Vec<_>>>()
+                        } else {
+                            choose_typed_predecessor(
+                                inst,
+                                signer,
+                                &[*n].into_iter().collect(),
+                                Some(&resolution),
+                            )
+                            .map(|h| alloc::vec![h])
+                        }
+                    })
+                    .collect::<Option<Vec<_>>>()
+                    .map(|groups| groups.into_iter().flatten().collect());
+                if let Some(mut hs) = chosen.filter(|hs| !hs.is_empty()) {
+                    hs.sort();
+                    hs.dedup();
+                    return Ok(CausedBy::Multiple(hs));
+                }
+            } else if let Some(hash) =
+                choose_typed_predecessor(inst, signer, &names, Some(&resolution))
+            {
+                return Ok(CausedBy::Single(hash));
+            }
+        }
+    }
+    Err(Reject::NoPredecessor)
+}
+
+/// Complete a verb and its data fields into a canonical act for the host to sign.
 pub fn intend(
     inst: &Instance,
     signer: &AgentKey,
@@ -308,7 +415,12 @@ pub fn intend(
     if d.find_performative(verb).is_none() {
         return Err(Reject::UnknownVerb);
     }
-    if crate::state::opener_verb(protocol) == Some(verb) {
+    if crate::state::opener_verb(protocol) == Some(verb)
+        && !protocol.steps.keys().any(|n| {
+            n.contains(crate::protocol::REPEAT_SEPARATOR)
+                && crate::protocol::repeat_base_name(n) == verb
+        })
+    {
         return Err(Reject::Opener);
     }
     for k in fields.keys() {
@@ -453,7 +565,9 @@ pub fn intend(
 
     // 5 caused-by
     let steps = allowed_predecessors(d, verb);
-    let caused_by = if steps.is_empty() {
+    let caused_by = if crate::repeat::has_repeat(protocol) {
+        repeat_cause(inst, &signer.0, verb)?
+    } else if steps.is_empty() {
         return Err(Reject::NoPredecessor);
     } else {
         let mut chosen: Vec<String> = Vec::new();

@@ -70,6 +70,7 @@ pub mod r4;
 pub mod r5;
 pub mod r6;
 pub mod r7;
+mod repeat;
 pub mod role;
 pub mod serializer;
 pub mod sexpr;

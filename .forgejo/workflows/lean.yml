@@ -29,12 +29,15 @@ on:
     paths:
       - 'lean-cbcl/**'
       - 'crates/cbcl-core/**'
+      - 'crates/cbcl-parser/**'
       - 'Cargo.toml'
       - 'Cargo.lock'
       - 'specs/SPEC-002-*'
       - 'specs/SPEC-003-*'
       - 'specs/SPEC-005-*'
       - 'specs/SPEC-014-*'
+      - 'specs/SPEC-015-*'
+      - 'specs/SPEC-019-*'
       - 'proofs/epp-correspondence/**'
       - 'scripts/check-axioms.sh'
       - 'scripts/check-verified-by.sh'
@@ -44,12 +47,15 @@ on:
     paths:
       - 'lean-cbcl/**'
       - 'crates/cbcl-core/**'
+      - 'crates/cbcl-parser/**'
       - 'Cargo.toml'
       - 'Cargo.lock'
       - 'specs/SPEC-002-*'
       - 'specs/SPEC-003-*'
       - 'specs/SPEC-005-*'
       - 'specs/SPEC-014-*'
+      - 'specs/SPEC-015-*'
+      - 'specs/SPEC-019-*'
       - 'proofs/epp-correspondence/**'
       - 'scripts/check-axioms.sh'
       - 'scripts/check-verified-by.sh'
@@ -93,6 +99,12 @@ jobs:
 
       - name: Compare real Rust projection with kernel-reduced Lean
         run: cargo test -p cbcl-core --test projection_refinement -- --ignored
+
+      - name: Compare native repeat verdicts with kernel-reduced Lean
+        run: cargo test -p cbcl-parser --test repeat_execution -- --include-ignored
+
+      - name: Compare native progress state with kernel-reduced Lean
+        run: cargo test -p cbcl-parser --test state_progress -- --include-ignored
 
       - name: Batteries env-linter (keep LeanCbcl lint-clean)
         working-directory: lean-cbcl

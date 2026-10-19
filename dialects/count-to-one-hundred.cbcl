@@ -1,0 +1,6 @@
+; Concurrent ticks may occupy the same position. Derive the maximum protocol
+; position, not the number of messages, so the displayed number stays in 0..100.
+(define count-to-one-hundred (cbcl) @anuna
+  (extend tick (to) (tell to))
+  (protocol (then begin (repeat 100 tick)))
+  (state (number (progress tick))))

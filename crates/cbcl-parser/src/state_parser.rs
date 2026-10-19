@@ -89,6 +89,10 @@ pub fn parse_rule(sexpr: &SExpr) -> Result<Rule, String> {
             arity(1)?;
             Rule::Count { verb: verb(0)? }
         }
+        "progress" => {
+            arity(1)?;
+            Rule::Progress { verb: verb(0)? }
+        }
         "events" => {
             arity(2)?;
             Rule::Events {

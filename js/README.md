@@ -54,7 +54,7 @@ await agent.act('lunch-1', 'vote', { choice: 'Sushi' });   // cbcl-rs binds, the
 agent.read('lunch-1');                                       // the fold
 ```
 
-Rules are the fourteen of SPEC-019 R.1 (`last`, `latestPerSigner`, `latestPerKey`, `exists`, `count`, `events`, `setUnion`, `values`, `valuesPerKey`, `registerPerKey`, `observedSet`, `counter`, `histogram(field)`, `sum(field)`); optional `author`, `requirements`, `bounds`, and `roles` with `from`/`to` per verb. Registers and `latestPerSigner` writers carry replacement in a reserved `:replaces` field that cbcl-rs inserts and the binder fills. For `latestPerSigner`, an edit replaces the current writes of its signer; concurrent unseen writes survive and the greatest content address breaks ties. Another signer cannot replace those writes. `last` continues to select the greatest content address. An intent supplies a verb and its data fields only; a routing keyword is refused as a forge.
+Rules are the fifteen of SPEC-019 R.1 (`last`, `latestPerSigner`, `latestPerKey`, `exists`, `count`, `progress`, `events`, `setUnion`, `values`, `valuesPerKey`, `registerPerKey`, `observedSet`, `counter`, `histogram(field)`, `sum(field)`); optional `author`, `requirements`, `bounds`, and `roles` with `from`/`to` per verb. Registers and `latestPerSigner` writers carry replacement in a reserved `:replaces` field that cbcl-rs inserts and the binder fills. For `latestPerSigner`, an edit replaces the current writes of its signer; concurrent unseen writes survive and the greatest content address breaks ties. Another signer cannot replace those writes. `last` continues to select the greatest content address. An intent supplies a verb and its data fields only; a routing keyword is refused as a forge.
 
 `poll.read(records)` folds without a transport; `poll.verdicts(records)` says which are accepted, pending, or rejected; `createRuntime(dialectText)` is the runtime for any dialect text, including one learned from a room.
 
@@ -69,3 +69,5 @@ npm run build        # dist/: ES modules, .d.ts, the wasm, LICENSE
 `test/corpus.test.ts` reproduces every vector of the cbcl-rs conformance corpus (`test-vectors/state`); `test/verifier.test.ts` proves the contract compile names `dialects/checklist.cbcl` by hash.
 
 Apache-2.0, as cbcl-rs.
+
+`c.progress('tick')` compiles to `(progress tick)`: the maximum established protocol occurrence, defaulting to zero. Competing ticks at the same occurrence do not inflate it. Installation rejects missing or incomparable occurrences. This reads causal metadata over accepted acts independently of application-data domain filters. See [protocol progress](../docs/concepts/protocol-progress.md) for semantics and the Lean proof boundary.

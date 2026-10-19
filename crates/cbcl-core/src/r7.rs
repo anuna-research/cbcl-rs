@@ -233,6 +233,13 @@ pub fn r7_violations(d: &Dialect) -> Vec<R7Violation> {
         clause.fields().map(|(n, r)| (String::from(n), r)).collect();
     for (name, rule) in &field_types {
         match rule {
+            Rule::Progress { verb } => {
+                if let Some(protocol) = &d.causal_protocol {
+                    if let Err(reason) = crate::repeat::position_chain(protocol, verb) {
+                        out.push(R7Violation::Typing(reason));
+                    }
+                }
+            }
             Rule::LatestPerKey { verb, key, .. }
             | Rule::ValuesPerKey { verb, key, .. }
             | Rule::RegisterPerKey { verb, key, .. } => {

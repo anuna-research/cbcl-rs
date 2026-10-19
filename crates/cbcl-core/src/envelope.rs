@@ -511,6 +511,16 @@ impl OpenedEnvelope {
         }
     }
 
+    /// Authenticated causal reference, distinguishing a sealed/malformed leaf
+    /// (`None`) from an authenticated absence (`Some(None)`).
+    pub(crate) fn causal_reference(&self) -> Option<Option<CausedBy>> {
+        match &self.opening(FieldId::CausedBy)?.value {
+            SExpr::List(items) if items.is_empty() => Some(None),
+            SExpr::List(items) if items.len() == 1 => parse_caused_ref(&items[0]).ok().map(Some),
+            _ => None,
+        }
+    }
+
     /// Authenticated thread identifier, from the Thread opening (leaf 4).
     pub fn thread(&self) -> Option<&str> {
         opt_leaf_str(&self.opening(FieldId::Thread)?.value)

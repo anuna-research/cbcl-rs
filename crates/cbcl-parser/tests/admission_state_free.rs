@@ -136,6 +136,7 @@ fn sibling(rule: &Rule) -> Option<Rule> {
         },
         Rule::Exists { verb } => Rule::Count { verb },
         Rule::Count { verb } => Rule::Exists { verb },
+        Rule::Progress { verb } => Rule::Count { verb },
         Rule::Counter { inc, dec, key } => Rule::Counter {
             inc: dec,
             dec: inc,

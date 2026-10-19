@@ -20,7 +20,7 @@ export const ROUTING_KEYWORDS: ReadonlySet<string> = new Set(['from', 'thread', 
 
 export type FieldType = 'string' | 'number' | 'bool' | 'list';
 export type FieldSpec = FieldType | { enumOf: string };
-export type RuleOp = 'last' | 'latestPerSigner' | 'latestPerKey' | 'exists' | 'count' | 'events' | 'setUnion'
+export type RuleOp = 'last' | 'latestPerSigner' | 'latestPerKey' | 'exists' | 'count' | 'progress' | 'events' | 'setUnion'
   | 'values' | 'valuesPerKey' | 'registerPerKey' | 'observedSet' | 'counter' | 'histogram' | 'sum';
 
 export interface VerbSpec { after: string[]; fields: Record<string, FieldSpec>; from?: string; to?: string[] }
@@ -46,6 +46,7 @@ export const c = Object.freeze({
   latestPerKey: (verb: string, key: string, field: string): Rule => ['latestPerKey', verb, key, field],
   exists: (verb: string): Rule => ['exists', verb],
   count: (verb: string): Rule => ['count', verb],
+  progress: (verb: string): Rule => ['progress', verb],
   events: (verb: string, field: string): Rule => ['events', verb, field],
   setUnion: (verb: string, field: string): Rule => ['setUnion', verb, field],
   values: (verb: string, field: string): Rule => ['values', verb, field],

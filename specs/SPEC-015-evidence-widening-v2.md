@@ -191,6 +191,15 @@ Trace: [[#TEST-709]], decision [[#ADR-704]].
 
 ### Bounded repetition
 
+Runtime clarification: indexed copy names are internal to the expanded DAG;
+wire messages retain the base performative. The runtime SHALL establish a
+copy position from same-thread causal ancestry rather than treating an
+unindexed lookup miss as an unconstrained step. Missing position evidence
+remains Unknown; missing causal references and successors beyond the final
+copy are Violations. The bound is on causal positions, not on the total
+number of concurrent messages. See [bounded repeat execution](../docs/concepts/bounded-repeat.md)
+for the implementation and proof boundary.
+
 **REQ-704: `(repeat k …)` protocol form.**
 The protocol grammar SHALL admit `(repeat <k> <step>…)` with `<k>` a
 positive integer literal; at dialect install the form SHALL macro-expand to

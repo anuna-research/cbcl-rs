@@ -12,6 +12,8 @@ import LeanCbcl.ProtocolProjection
 import LeanCbcl.ConcreteProjection
 import LeanCbcl.Splice
 import LeanCbcl.Bridge
+import LeanCbcl.Repeat
+import LeanCbcl.StateProgress
 
 /-!
 # Axiom audit — NFR-511 / TEST-551 / OBS-512
@@ -241,3 +243,42 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateRefinement.Examples.absent_candidate_cannot_accept
 #print axioms CBCL.StateRefinement.Examples.missing_predecessor_cannot_accept
 #print axioms CBCL.StateRefinement.Examples.conflicting_history_not_reachable
+
+-- Bounded repeat expansion and causal positions (SPEC-015 REQ-704).
+#print axioms CBCL.Repeat.copy_base
+#print axioms CBCL.Repeat.copy_injective
+#print axioms CBCL.Repeat.expand_length
+#print axioms CBCL.Repeat.copy_all
+#print axioms CBCL.Repeat.copy_any
+#print axioms CBCL.Repeat.at_bounds
+#print axioms CBCL.Repeat.no_position_101
+#print axioms CBCL.Repeat.resolve_sound
+#print axioms CBCL.Repeat.resolve_complete
+#print axioms CBCL.Repeat.at_monotone
+#print axioms CBCL.Repeat.resolve_stable
+#print axioms CBCL.Repeat.absent_invalid
+#print axioms CBCL.Repeat.missing_unknown
+#print axioms CBCL.Repeat.copyNode_wireNames
+#print axioms CBCL.Repeat.mem_expand
+#print axioms CBCL.Repeat.copy_not_plain
+#print axioms CBCL.Repeat.at_expanded_member
+
+-- Protocol progress state selection and maximum reduction.
+#print axioms CBCL.StateProgress.maximum_le
+#print axioms CBCL.StateProgress.le_maximum
+#print axioms CBCL.StateProgress.maximum_setEq
+#print axioms CBCL.StateProgress.progress_empty
+#print axioms CBCL.StateProgress.position_bound
+#print axioms CBCL.StateProgress.progress_bound
+#print axioms CBCL.StateProgress.progress_setEq
+#print axioms CBCL.StateProgress.progress_perm
+#print axioms CBCL.StateProgress.progress_duplicate
+#print axioms CBCL.StateProgress.position_monotone
+#print axioms CBCL.StateProgress.progress_monotone
+#print axioms CBCL.StateProgress.progress_at_bound_stable
+#print axioms CBCL.StateProgress.progress_append
+#print axioms CBCL.State.protocolProgress_setEq
+#print axioms CBCL.State.protocolProgress_duplicate
+#print axioms CBCL.State.protocolProgress_bound
+#print axioms CBCL.State.protocolProgress_monotone
+#print axioms CBCL.StateProgress.progress_competing

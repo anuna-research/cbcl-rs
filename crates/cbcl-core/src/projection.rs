@@ -245,12 +245,20 @@ pub fn verify_causal_for_role<S: MessageStore>(
         .as_ref()
         .map(|cb| rewrite_root_references(cb, root));
     let r5 = match &d.causal_protocol {
+        Some(protocol) if crate::repeat::has_repeat(protocol) => crate::repeat::verify(
+            perf,
+            caused_by.as_ref(),
+            store,
+            protocol,
+            thread,
+            Some(root),
+        ),
         Some(protocol) => verify_causal(perf, rewritten.as_ref(), store, protocol, thread),
         None => VerificationResult::Valid,
     };
 
     // (ii+) Occupant-counted fan-in (REQ-618) — the one extension over R5.
-    let fanin = occupant_fanin(perf, caused_by.as_ref(), d, cast, store, thread);
+    let fanin = repeat_occupant_fanin(perf, caused_by.as_ref(), d, cast, store, thread, root);
 
     conformance.meet(r5).meet(fanin)
 }
@@ -370,6 +378,48 @@ fn rewrite_root_references(cb: &CausedBy, root: &ContentHash) -> CausedBy {
     }
 }
 
+// Copy positions and indexed-role coverage must agree on the SAME candidate.
+fn repeat_occupant_fanin<S: MessageStore>(
+    perf: &str,
+    caused_by: Option<&CausedBy>,
+    d: &Dialect,
+    cast: &Cast,
+    store: &S,
+    thread: &ThreadId,
+    root: &ContentHash,
+) -> VerificationResult {
+    let Some(cp) = d
+        .causal_protocol
+        .as_ref()
+        .filter(|p| crate::repeat::has_repeat(p))
+    else {
+        return occupant_fanin(perf, caused_by, d, cast, store, thread, None);
+    };
+    let hashes = match caused_by {
+        Some(CausedBy::Single(h)) => alloc::vec![h.clone()],
+        Some(CausedBy::Multiple(hs)) => hs.clone(),
+        _ => Vec::new(),
+    };
+    let resolution = crate::repeat::Resolution::new(store, cp, thread, Some(root), hashes);
+    let mut result = None;
+    for (name, step) in &cp.steps {
+        if crate::protocol::repeat_base_name(name) != perf
+            || !matches!(resolution.step(step, caused_by), VerificationResult::Valid)
+        {
+            continue;
+        }
+        let value = occupant_fanin(name, caused_by, d, cast, store, thread, Some(&resolution));
+        match value {
+            VerificationResult::Valid => return value,
+            VerificationResult::Unknown => result = Some(value),
+            _ if !matches!(result, Some(VerificationResult::Unknown)) => result = Some(value),
+            _ => {}
+        }
+    }
+    // No causally valid candidate: R5 already supplies Unknown or Violation.
+    result.unwrap_or(VerificationResult::Valid)
+}
+
 /// REQ-618: occupant-counted `(all …)` fan-in. While any referenced
 /// predecessor is absent the verdict is `Unknown` (R5 reports the same);
 /// once all references resolve, the present referenced instances of each
@@ -383,6 +433,7 @@ fn occupant_fanin<S: MessageStore>(
     cast: &Cast,
     store: &S,
     thread: &ThreadId,
+    resolution: Option<&crate::repeat::Resolution<'_, S>>,
 ) -> VerificationResult {
     let Some(cp) = &d.causal_protocol else {
         return VerificationResult::Valid;
@@ -396,7 +447,10 @@ fn occupant_fanin<S: MessageStore>(
     for nr in &step.predecessors {
         let NodeRef::All(preds) = nr else { continue };
         for pred in preds {
-            let Some(p_ann) = d.find_performative(pred).and_then(|p| p.role.as_ref()) else {
+            let Some(p_ann) = d
+                .find_performative(crate::protocol::repeat_base_name(pred))
+                .and_then(|p| p.role.as_ref())
+            else {
                 continue;
             };
             // The cast holds a sealed membership only for indexed roles, so a
@@ -423,10 +477,10 @@ fn occupant_fanin<S: MessageStore>(
         return VerificationResult::Valid;
     };
     let hashes: Vec<&str> = hs.iter().map(String::as_str).collect();
-    let mut resolved: Vec<&Message> = Vec::new();
+    let mut resolved: Vec<(&str, &Message)> = Vec::new();
     for h in &hashes {
         match store.lookup_in_thread(&ContentHash(String::from(*h)), thread) {
-            Some(m) => resolved.push(m),
+            Some(m) => resolved.push((h, m)),
             // SPEC-015 REQ-703: completion requires content. Only full
             // messages enter `resolved` — a member present solely as a
             // redacted envelope (`store.envelope_in_thread`) is deliberately
@@ -442,11 +496,14 @@ fn occupant_fanin<S: MessageStore>(
 
     for (pred_type, occupants) in counted {
         let mut senders: BTreeSet<&str> = BTreeSet::new();
-        for m in &resolved {
+        for (hash, m) in &resolved {
             let Some(simple) = m.innermost_simple() else {
                 continue;
             };
-            if simple.performative().map(|p| p.name()) != Some(pred_type) {
+            if match resolution {
+                Some(r) => !matches!(r.at(hash, pred_type), VerificationResult::Valid),
+                None => simple.performative().map(|p| p.name()) != Some(pred_type),
+            } {
                 continue;
             }
             if let Some(k) = signer_of(m) {

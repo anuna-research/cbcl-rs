@@ -53,7 +53,7 @@ enum Arg {
     OptVerb,
 }
 
-/// The fourteen rule heads (SPEC-019 R.1) as JSON spells them, with the
+/// The state rule heads (SPEC-019 R.1) as JSON spells them, with the
 /// dialect head and the shape of their arguments.
 const RULES: &[(&str, &str, &[Arg])] = &[
     ("last", "last", &[Arg::Verb, Arg::Key]),
@@ -61,6 +61,7 @@ const RULES: &[(&str, &str, &[Arg])] = &[
     ("latestPerKey", "latest-per-key", &[Arg::Verb, Arg::Key, Arg::Key]),
     ("exists", "exists", &[Arg::Verb]),
     ("count", "count", &[Arg::Verb]),
+    ("progress", "progress", &[Arg::Verb]),
     ("events", "events", &[Arg::Verb, Arg::Key]),
     ("setUnion", "set-union", &[Arg::Verb, Arg::Key]),
     ("values", "values", &[Arg::Verb, Arg::Key]),

@@ -544,7 +544,7 @@ impl PartialOrd for VerificationResult {
 /// ("present and Valid") still demands full messages (REQ-703). An opened
 /// envelope, which seals leaf 5, therefore satisfies the safety checks here
 /// but never the completion check there — the SPEC-015 boundary, preserved.
-fn predecessor_type<'a, S: MessageStore>(
+pub(crate) fn predecessor_type<'a, S: MessageStore>(
     store: &'a S,
     hash: &ContentHash,
     thread: &ThreadId,
@@ -572,7 +572,7 @@ fn predecessor_type<'a, S: MessageStore>(
 /// Collect performative names allowed as single-message predecessors.
 ///
 /// Gathers names from `Single` and `Any` node-refs (not `All`, which is for fan-in).
-fn allowed_single_predecessors(step: &StepDecl) -> Vec<String> {
+pub(crate) fn allowed_single_predecessors(step: &StepDecl) -> Vec<String> {
     let mut types = Vec::new();
     for nr in &step.predecessors {
         match nr {
@@ -602,6 +602,9 @@ pub fn verify_causal<S: MessageStore>(
     protocol: &CausalProtocol,
     thread: &ThreadId,
 ) -> VerificationResult {
+    if crate::repeat::has_repeat(protocol) {
+        return crate::repeat::verify(msg_performative, caused_by, store, protocol, thread, None);
+    }
     let step = match protocol.steps.get(msg_performative) {
         Some(s) => s,
         // Legacy unconstrained route; strict admission excludes it.

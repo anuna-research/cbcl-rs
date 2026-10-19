@@ -131,18 +131,16 @@ impl<G: AdmissionGate> AdmissionMonitor<G> {
         {
             return Err(context("dialect fails R5/R6 or step-name consistency"));
         }
-        // Require direct annotations for every runtime step (including unrolled
-        // steps); do not rely on differing duplicate/base-name lookup policies.
+        // Expanded copies inherit the installed base performative annotation.
+        // The wire keeps that base name; causal ancestry establishes the copy.
         if protocol.steps.keys().any(|name| {
             name != BEGIN_KEYWORD
                 && dialect
-                    .find_performative(name)
+                    .find_performative(crate::protocol::repeat_base_name(name))
                     .and_then(|p| p.role.as_ref())
                     .is_none()
         }) {
-            return Err(context(
-                "every protocol step needs a direct role annotation",
-            ));
+            return Err(context("every protocol step needs a base role annotation"));
         }
         let Message::Wrapped {
             wrapper: WrapperType::WithRoles,
@@ -413,7 +411,8 @@ impl<G: AdmissionGate> AdmissionMonitor<G> {
             .as_ref()
             .expect("protocol checked")
             .steps
-            .contains_key(perf)
+            .keys()
+            .any(|name| crate::protocol::repeat_base_name(name) == perf)
             || perf == BEGIN_KEYWORD
         {
             return Err(error("performative is not a protocol step"));

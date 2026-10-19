@@ -47,3 +47,7 @@ import LeanCbcl.InstalledLexerTests
 import LeanCbcl.State
 import LeanCbcl.AdmissionStratification
 import LeanCbcl.StateRefinement
+
+import LeanCbcl.Repeat
+
+import LeanCbcl.StateProgress

@@ -1,5 +1,5 @@
-//! State layer (SPEC-019 R.1–R.3): the `(state …)` clause, the kernel of two
-//! selections and five reductions, the fold, the value model, and the
+//! State layer (SPEC-019 R.1–R.3): the `(state …)` clause, fixed kernel
+//! selections and reductions (including protocol-position maximum), the fold, and the
 //! canonical JSON rendering.
 //!
 //! Every function here is a pure set function of a thread's accepted acts:
@@ -75,6 +75,10 @@ pub enum Rule {
     Count {
         verb: String,
     },
+    /// Greatest established position of a verb in its ordered protocol chain.
+    Progress {
+        verb: String,
+    },
     Events {
         verb: String,
         key: String,
@@ -126,6 +130,7 @@ impl Rule {
             Rule::LatestPerKey { .. } => "latest-per-key",
             Rule::Exists { .. } => "exists",
             Rule::Count { .. } => "count",
+            Rule::Progress { .. } => "progress",
             Rule::Events { .. } => "events",
             Rule::SetUnion { .. } => "set-union",
             Rule::Values { .. } => "values",
@@ -146,6 +151,7 @@ impl Rule {
             | Rule::LatestPerKey { verb, .. }
             | Rule::Exists { verb }
             | Rule::Count { verb }
+            | Rule::Progress { verb }
             | Rule::Events { verb, .. }
             | Rule::SetUnion { verb, .. }
             | Rule::Values { verb, .. } => alloc::vec![verb.as_str()],
@@ -208,6 +214,7 @@ impl Rule {
             }
             Rule::Exists { .. }
             | Rule::Count { .. }
+            | Rule::Progress { .. }
             | Rule::Histogram { .. }
             | Rule::Sum { .. } => Vec::new(),
         }
@@ -329,7 +336,7 @@ pub fn opener_verb(protocol: &CausalProtocol) -> Option<&str> {
             if found.is_some() {
                 return None;
             }
-            found = Some(name.as_str());
+            found = Some(crate::protocol::repeat_base_name(name));
         }
     }
     found
@@ -443,8 +450,21 @@ pub fn keyword_fields(simple: &Message) -> BTreeMap<String, SExpr> {
 /// address is a deterministic tie-break, never a semantic one.
 pub fn opener<'a>(protocol: &CausalProtocol, acts: &'a [Act]) -> Option<&'a Act> {
     let verb = opener_verb(protocol)?;
+    let repeated = protocol.steps.keys().any(|name| {
+        name.contains(crate::protocol::REPEAT_SEPARATOR)
+            && crate::protocol::repeat_base_name(name) == verb
+    });
+    let root = root(acts);
     acts.iter()
-        .filter(|a| a.verb == verb)
+        .filter(|a| {
+            a.verb == verb
+                && (!repeated
+                    || matches!(
+                        a.simple().caused_by(),
+                        Some(crate::message::CausedBy::Begin)
+                    )
+                    || root.is_some_and(|r| a.predecessors == alloc::vec![r.address.clone()]))
+        })
         .min_by(|a, b| a.address.cmp(&b.address))
 }
 
@@ -676,7 +696,7 @@ fn kernel_for<'a>(clause: &StateClause, acts: &'a [Act]) -> Kernel<'a> {
     let mut domains = Vec::new();
     for (verb, key, field) in clause.domains() {
         let allowed = match clause.rule_of(field) {
-            Some(rule) => match bare.eval(rule, &[]) {
+            Some(rule) => match bare.eval(rule, &[], None) {
                 Value::List(items) => items,
                 Value::Set(items) => items,
                 _ => Vec::new(),
@@ -817,7 +837,12 @@ impl<'a> Kernel<'a> {
     }
 
     /// One rule, by the sugar table of R.2.
-    fn eval(&self, rule: &Rule, done: &[(String, Value)]) -> Value {
+    fn eval(
+        &self,
+        rule: &Rule,
+        done: &[(String, Value)],
+        protocol: Option<&CausalProtocol>,
+    ) -> Value {
         match rule {
             Rule::Last { verb, key } => self.pick(&self.acts(verb), key),
             Rule::LatestPerSigner { verb, key } => Value::Map(
@@ -834,6 +859,12 @@ impl<'a> Kernel<'a> {
             ),
             Rule::Exists { verb } => Value::Bool(!self.acts(verb).is_empty()),
             Rule::Count { verb } => Value::Int(self.acts(verb).len() as i128),
+            Rule::Progress { verb } => {
+                let positions = protocol
+                    .map(|p| crate::repeat::accepted_positions(p, verb, &self.acts))
+                    .unwrap_or_default();
+                Value::Int(positions.into_iter().max().unwrap_or(0) as i128)
+            }
             Rule::Events { verb, key } => {
                 let mut entries: Vec<(Value, Value)> = self
                     .acts(verb)
@@ -927,11 +958,10 @@ pub fn fold(
     protocol: Option<&CausalProtocol>,
     acts: &[Act],
 ) -> Vec<(String, Value)> {
-    let _ = protocol;
     let kernel = kernel_for(clause, acts);
     let mut done: Vec<(String, Value)> = Vec::new();
     for (name, rule) in clause.fields() {
-        let v = kernel.eval(rule, &done);
+        let v = kernel.eval(rule, &done, protocol);
         done.push((String::from(name), v));
     }
     done
@@ -1073,7 +1103,10 @@ pub fn state_schema(
                 alloc::boxed::Box::new(StateType::OptScalar(scalar(verb, value))),
             ),
             Rule::Exists { .. } => StateType::Bool,
-            Rule::Count { .. } | Rule::Counter { .. } | Rule::Sum { .. } => StateType::Int,
+            Rule::Count { .. }
+            | Rule::Progress { .. }
+            | Rule::Counter { .. }
+            | Rule::Sum { .. } => StateType::Int,
             Rule::Events { verb, key } => StateType::Events(scalar(verb, key)),
             Rule::SetUnion { verb, key } | Rule::Values { verb, key } => {
                 StateType::Set(scalar(verb, key))

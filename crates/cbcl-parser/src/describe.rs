@@ -67,6 +67,7 @@ fn rule_json(rule: &Rule) -> Json {
         Rule::LatestPerKey { verb, key, value } => ("latestPerKey", alloc::vec![verb, key, value]),
         Rule::Exists { verb } => ("exists", alloc::vec![verb]),
         Rule::Count { verb } => ("count", alloc::vec![verb]),
+        Rule::Progress { verb } => ("progress", alloc::vec![verb]),
         Rule::Events { verb, key } => ("events", alloc::vec![verb, key]),
         Rule::SetUnion { verb, key } => ("setUnion", alloc::vec![verb, key]),
         Rule::Values { verb, key } => ("values", alloc::vec![verb, key]),
