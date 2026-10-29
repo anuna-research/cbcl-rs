@@ -1,0 +1,96 @@
+[
+  {
+    "check": "parser-state-regression",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "cbcl-parser",
+      "--test",
+      "state_corpus",
+      "--test",
+      "state_exports",
+      "--test",
+      "state_layer",
+      "--test",
+      "state_progress",
+      "--test",
+      "admission_state_free"
+    ],
+    "exit_code": 0
+  },
+  {
+    "check": "core-state-regression",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "cbcl-core",
+      "state::"
+    ],
+    "exit_code": 0
+  },
+  {
+    "check": "core-state-properties",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "cbcl-core",
+      "--test",
+      "state_properties"
+    ],
+    "exit_code": 0
+  },
+  {
+    "check": "prototype-tests",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "cbcl-state-proof",
+      "--",
+      "--test-threads=1"
+    ],
+    "exit_code": 0
+  },
+  {
+    "check": "format",
+    "command": [
+      "cargo",
+      "fmt",
+      "-p",
+      "cbcl-state-proof",
+      "--",
+      "--check"
+    ],
+    "exit_code": 0
+  },
+  {
+    "check": "clippy",
+    "command": [
+      "cargo",
+      "clippy",
+      "-p",
+      "cbcl-state-proof",
+      "--all-targets",
+      "--no-deps",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "exit_code": 0
+  },
+  {
+    "check": "example",
+    "command": [
+      "cargo",
+      "run",
+      "-p",
+      "cbcl-state-proof",
+      "--example",
+      "checkpoint"
+    ],
+    "exit_code": 0
+  }
+]

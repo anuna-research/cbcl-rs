@@ -1,0 +1,3 @@
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.06s
+     Running `target/debug/examples/checkpoint`
+{"candidates":3,"compile_ms":7,"prover_setup_ms":3822,"verifier_setup_ms":3740,"prove_ms":2139,"cached_verify_ms":94,"transcript_bytes":3616,"package_bytes":13629,"state":{"title":"Register","entries":{"@a":"new"},"all":{"sha256-7b448dbd6586709f85aa895600692c988a694ca3a7a9294db7023d291f138b8b":{"by":"@a","value":"new"},"sha256-ed411b6c465b3f6a873b0eca2e4265305c5f516a23b756be1a9d57d85c70cbd8":{"by":"@a","value":"old"}}},"tampered_state_rejected":true,"signature_verification":"external host precondition"}

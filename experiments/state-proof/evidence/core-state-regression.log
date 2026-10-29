@@ -1,0 +1,98 @@
+   Compiling serde_json v1.0.149
+   Compiling cbcl-core v0.1.0 (/private/tmp/cbcl-halo2-state-checkpoints/crates/cbcl-core)
+   Compiling tinytemplate v1.2.1
+   Compiling criterion v0.5.1
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 8.89s
+     Running unittests src/lib.rs (target/debug/deps/cbcl_core-dc21011bc9fa97c9)
+
+running 4 tests
+test state::tests::json_escaping_is_minimal_and_lowercase ... ok
+test state::tests::frontier_and_opener ... ok
+test state::tests::histogram_over_per_signer_and_domain_filter ... ok
+test state::tests::register_replaced_never_wins_and_delete_removes_key ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 863 filtered out; finished in 0.01s
+
+     Running tests/admission_tests.rs (target/debug/deps/admission_tests-eeaf2a30893e5082)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 11 filtered out; finished in 0.00s
+
+     Running tests/auction_e2e.rs (target/debug/deps/auction_e2e-84b0941eb35bc733)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/causal_kernel_parity.rs (target/debug/deps/causal_kernel_parity-5d3b1a202c98dd29)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/certificate_tests.rs (target/debug/deps/certificate_tests-adfa783342020e5f)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 20 filtered out; finished in 0.00s
+
+     Running tests/epp_properties.rs (target/debug/deps/epp_properties-56ad4f1cc6c1d24c)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 0.00s
+
+     Running tests/eventual_consistency_tests.rs (target/debug/deps/eventual_consistency_tests-060e7cfd33647b86)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.00s
+
+     Running tests/lean_parity.rs (target/debug/deps/lean_parity-084c9881b870e068)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 31 filtered out; finished in 0.00s
+
+     Running tests/monotonicity_tests.rs (target/debug/deps/monotonicity_tests-252f458d16532a84)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 20 filtered out; finished in 0.00s
+
+     Running tests/nfr_tests.rs (target/debug/deps/nfr_tests-c0e183c4de137fd6)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.00s
+
+     Running tests/projection_refinement.rs (target/debug/deps/projection_refinement-1261611c922cbc16)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/prop_generators.rs (target/debug/deps/prop_generators-88af09e178feb0df)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/property_tests.rs (target/debug/deps/property_tests-52720a858cda64e2)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 31 filtered out; finished in 0.00s
+
+     Running tests/state_properties.rs (target/debug/deps/state_properties-7587fc703f888959)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.00s
+
+     Running tests/template_and_tag_boundaries.rs (target/debug/deps/template_and_tag_boundaries-f2a39f4bfe495e9b)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.00s

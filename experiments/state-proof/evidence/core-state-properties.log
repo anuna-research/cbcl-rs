@@ -1,0 +1,20 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.10s
+     Running tests/state_properties.rs (target/debug/deps/state_properties-7587fc703f888959)
+
+running 14 tests
+test signer_binder_mixed_rule_union_remains_sorted_and_bounded ... ok
+test signer_binder_first_concurrent_sorted_bounded_and_forge ... ok
+test signer_binder_uses_domain_admitted_current_writes ... ok
+test signer_domain_and_verb_guards ... ok
+test signer_canonical_lower_address_edit_always_wins ... ok
+test signer_observed_edit_and_ownership ... ok
+test signer_string_addresses_and_last_retains_address_order ... ok
+test signer_register_permutation_and_duplicate_property ... ok
+test prop_monotone_rules_under_append ... ok
+test prop_register_equals_current_oracle ... ok
+test prop_replaced_never_wins_and_unnamed_is_current ... ok
+test prop_sum_once_per_address ... ok
+test prop_fold_permutation_and_duplication_invariant ... ok
+test prop_intend_sound ... ok
+
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.08s

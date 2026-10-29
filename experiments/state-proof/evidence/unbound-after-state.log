@@ -1,0 +1,22 @@
+   Compiling cbcl-state-proof v0.1.0 (/private/tmp/cbcl-halo2-state-checkpoints/crates/cbcl-state-proof)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.43s
+     Running unittests src/lib.rs (target/debug/deps/cbcl_state_proof-39663258af11b5f9)
+
+running 1 test
+test tests::every_public_limb_is_constrained_without_the_host_precheck ... FAILED
+
+failures:
+
+---- tests::every_public_limb_is_constrained_without_the_host_precheck stdout ----
+
+thread 'tests::every_public_limb_is_constrained_without_the_host_precheck' (4092400) panicked at crates/cbcl-state-proof/src/tests.rs:172:9:
+public limb 8
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    tests::every_public_limb_is_constrained_without_the_host_precheck
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 11 filtered out; finished in 0.12s
+
+error: test failed, to rerun pass `-p cbcl-state-proof --lib`

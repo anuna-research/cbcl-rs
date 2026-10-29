@@ -1,0 +1,25 @@
+   Compiling cbcl-state-proof v0.1.0 (/private/tmp/cbcl-halo2-state-checkpoints/crates/cbcl-state-proof)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.09s
+     Running unittests src/lib.rs (target/debug/deps/cbcl_state_proof-39663258af11b5f9)
+
+running 12 tests
+test tests::actual_proof_roundtrip_tampering_and_independent_verifier ... ok
+test tests::candidate_and_parser_limits_fail_closed ... ok
+test tests::canonical_whitespace_and_unknown_candidates ... ok
+test tests::complete_native_corpus_snapshots_match_recorded_results ... ok
+test tests::every_public_limb_is_constrained_without_the_host_precheck ... ok
+test tests::grow_only_and_exact_delta_are_circuit_obligations ... ok
+test tests::invalid_shape_sender_thread_and_dialect_are_constrained ... ok
+test tests::native_fold_and_replacement_match_for_every_valid_subset ... ok
+test tests::pending_message_cannot_enter_committed_set_even_when_precheck_is_bypassed ... ok
+test tests::previous_context_relation_is_enforced_independently_of_snapshot_and_growth_checks ... ok
+test tests::register_deletion_preserves_history_and_unseen_concurrent_write ... ok
+test tests::reordered_candidates_and_child_before_opener_use_the_same_relation ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 14.58s
+
+   Doc-tests cbcl_state_proof
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
