@@ -1,0 +1,12 @@
+AssertionError [ERR_ASSERTION]: Missing expected rejection: merge omitted right contribution
+    at async rejection (/private/tmp/cbcl-halo2-state-checkpoints/experiments/recursive-state-proof/experiment.ts:51:3)
+    at async constraints (/private/tmp/cbcl-halo2-state-checkpoints/experiments/recursive-state-proof/experiment.ts:66:3)
+    at async <anonymous> (/private/tmp/cbcl-halo2-state-checkpoints/experiments/recursive-state-proof/experiment.ts:154:3) {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: undefined,
+  expected: undefined,
+  operator: 'rejects',
+  diff: 'simple'
+}
+{"status":"failed","mode":"constraints-only"}

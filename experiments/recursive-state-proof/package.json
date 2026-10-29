@@ -1,0 +1,25 @@
+{
+  "name": "cbcl-recursive-state-proof-experiment",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "oracle": "cargo build --manifest-path ../../Cargo.toml -p cbcl-state-proof --example recursive_oracle",
+    "check": "tsc --noEmit",
+    "pretest": "npm run oracle",
+    "test": "tsx experiment.ts --constraints-only && tsx additional-checks.ts",
+    "preprove": "npm run oracle",
+    "prove": "python3 run-proof.py"
+  },
+  "dependencies": {
+    "o1js": "2.2.0"
+  },
+  "devDependencies": {
+    "tsx": "4.19.2",
+    "typescript": "5.7.3",
+    "@types/node": "22.10.6"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

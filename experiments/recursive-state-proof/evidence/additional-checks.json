@@ -1,0 +1,12 @@
+{
+  "status": "passed",
+  "mode": "constraints-only",
+  "results": [
+    "union exceeding capacity cannot silently omit the fifth record",
+    "merge public left commitment cannot be changed",
+    "merge public right commitment cannot be changed",
+    "merge public kind commitment cannot be changed",
+    "merge public operation commitment cannot be changed",
+    "control: locally consistent fabricated parent requires cryptographic recursion to reject"
+  ]
+}

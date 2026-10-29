@@ -1,0 +1,68 @@
+[
+  {
+    "check": "typescript",
+    "command": [
+      "npm",
+      "run",
+      "check"
+    ],
+    "exit_code": 0
+  },
+  {
+    "check": "constraints-and-native-oracle",
+    "command": [
+      "npm",
+      "test"
+    ],
+    "exit_code": 0
+  },
+  {
+    "check": "rust-format",
+    "command": [
+      "cargo",
+      "fmt",
+      "--manifest-path",
+      "../../Cargo.toml",
+      "-p",
+      "cbcl-state-proof",
+      "--",
+      "--check"
+    ],
+    "exit_code": 0
+  },
+  {
+    "check": "rust-clippy",
+    "command": [
+      "cargo",
+      "clippy",
+      "--manifest-path",
+      "../../Cargo.toml",
+      "-p",
+      "cbcl-state-proof",
+      "--all-targets",
+      "--no-deps",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "exit_code": 0
+  },
+  {
+    "check": "real-recursive-proofs",
+    "command": [
+      "python3",
+      "run-proof.py"
+    ],
+    "exit_code": 0,
+    "source": "run-status.json and real-proofs.json; existing completed run, not repeated"
+  },
+  {
+    "check": "arithmetic-mutations",
+    "command": [
+      "python3",
+      "mutate.py"
+    ],
+    "exit_code": 0,
+    "source": "mutations.json and named assertion logs; existing completed run"
+  }
+]

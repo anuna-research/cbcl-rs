@@ -1,0 +1,14 @@
+[
+  {
+    "mutant": "unbound-parent",
+    "test": "append public parent root binding",
+    "exit_code": 1,
+    "killed": true
+  },
+  {
+    "mutant": "dropped-right-input",
+    "test": "merge omitted right contribution",
+    "exit_code": 1,
+    "killed": true
+  }
+]

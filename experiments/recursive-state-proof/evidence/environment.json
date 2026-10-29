@@ -1,0 +1,10 @@
+{
+  "platform": "macOS-26.5-arm64-arm-64bit",
+  "node": "v25.6.1",
+  "rustc": "rustc 1.95.0 (59807616e 2026-04-14)",
+  "o1js": "2.2.0",
+  "workers": 1,
+  "capacity": 4,
+  "base_commit": "7f1db98c95e57284a18b03bd6cc82f87e302f3b5",
+  "date": "2026-10-29T13:23:25.797Z"
+}
