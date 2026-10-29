@@ -1,0 +1,14 @@
+{
+  "append": {
+    "rows": 3046,
+    "digest": "b70d6828f388860bbba16ea5d73f8426"
+  },
+  "base": {
+    "rows": 292,
+    "digest": "151859deafa7a79369e0626a76b99094"
+  },
+  "merge": {
+    "rows": 4318,
+    "digest": "1b61e1b7c9c49978c85c58da93e6aad5"
+  }
+}

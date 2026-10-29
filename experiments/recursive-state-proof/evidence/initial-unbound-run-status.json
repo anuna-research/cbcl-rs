@@ -1,0 +1,8 @@
+{
+  "exit_code": -15,
+  "limit_reason": null,
+  "seconds": 121.04,
+  "peak_observed_tree_rss_bytes": 1240055808,
+  "minimum_observed_free_bytes": 12684677120,
+  "manual_stop_reason": "Stopped compilation after review found public statement did not bind expected parent heads or added operation; corrected before restarting."
+}

@@ -1,0 +1,255 @@
+{
+  "mode": "real-proofs",
+  "stages": [
+    {
+      "stage": "compile",
+      "ms": 156361,
+      "rss": 1403830272
+    },
+    {
+      "stage": "base",
+      "ms": 32958,
+      "rss": 657801216
+    },
+    {
+      "stage": "shared-ancestor",
+      "ms": 42503,
+      "rss": 483409920
+    },
+    {
+      "stage": "left-fork",
+      "ms": 42016,
+      "rss": 1217429504
+    },
+    {
+      "stage": "right-fork",
+      "ms": 41928,
+      "rss": 1100627968
+    },
+    {
+      "stage": "merge-shared-ancestor",
+      "ms": 58187,
+      "rss": 918487040
+    },
+    {
+      "stage": "idempotent-self-merge",
+      "ms": 57339,
+      "rss": 1967767552
+    },
+    {
+      "stage": "idempotent-duplicate-append",
+      "ms": 41784,
+      "rss": 1296728064
+    },
+    {
+      "stage": "receiver-verifies-serialized-proof-0",
+      "ms": 2134,
+      "rss": 1344618496
+    },
+    {
+      "stage": "receiver-verifies-serialized-proof-1",
+      "ms": 2068,
+      "rss": 1348911104
+    },
+    {
+      "stage": "receiver-verifies-serialized-proof-2",
+      "ms": 2099,
+      "rss": 1358315520
+    },
+    {
+      "stage": "receiver-verifies-serialized-proof-3",
+      "ms": 2070,
+      "rss": 1359101952
+    },
+    {
+      "stage": "receiver-verifies-serialized-proof-4",
+      "ms": 2073,
+      "rss": 1368145920
+    },
+    {
+      "stage": "receiver-verifies-serialized-proof-5",
+      "ms": 2072,
+      "rss": 1377058816
+    },
+    {
+      "stage": "receiver-verifies-serialized-proof-6",
+      "ms": 2058,
+      "rss": 1377648640
+    }
+  ],
+  "constraints": [
+    "valid append, duplicate append, fork union, self merge",
+    "invalid signature",
+    "signature bound to object",
+    "predecessor belongs to another object",
+    "snapshot differs from predecessor commitment",
+    "append omitted previous record",
+    "append omitted new record",
+    "append injected unrelated record",
+    "merge omitted right contribution",
+    "merge omitted shared ancestor",
+    "merge injected unrelated record",
+    "append public parent root binding",
+    "append public operation binding",
+    "append public method kind binding",
+    "zero contribution",
+    "duplicate noncanonical set entries",
+    "noncanonical absent record",
+    "capacity overflow rejected before proving",
+    "serialized final total tampering rejected by real verifier",
+    "valid unrelated merge/old branch rejected for expected member heads"
+  ],
+  "native": [
+    {
+      "records": [],
+      "count": 0,
+      "total": 0
+    },
+    {
+      "records": [
+        {
+          "nonce": 1,
+          "amount": 5,
+          "author": false
+        }
+      ],
+      "count": 1,
+      "total": 5
+    },
+    {
+      "records": [
+        {
+          "nonce": 1,
+          "amount": 5,
+          "author": false
+        },
+        {
+          "nonce": 1,
+          "amount": 7,
+          "author": true
+        }
+      ],
+      "count": 2,
+      "total": 12
+    },
+    {
+      "records": [
+        {
+          "nonce": 1,
+          "amount": 5,
+          "author": false
+        },
+        {
+          "nonce": 2,
+          "amount": 3,
+          "author": false
+        }
+      ],
+      "count": 2,
+      "total": 8
+    },
+    {
+      "records": [
+        {
+          "nonce": 1,
+          "amount": 5,
+          "author": false
+        },
+        {
+          "nonce": 1,
+          "amount": 7,
+          "author": true
+        },
+        {
+          "nonce": 2,
+          "amount": 3,
+          "author": false
+        }
+      ],
+      "count": 3,
+      "total": 15
+    },
+    {
+      "records": [
+        {
+          "nonce": 1,
+          "amount": 5,
+          "author": false
+        },
+        {
+          "nonce": 1,
+          "amount": 7,
+          "author": true
+        },
+        {
+          "nonce": 2,
+          "amount": 3,
+          "author": false
+        },
+        {
+          "nonce": 1,
+          "amount": 5,
+          "author": false
+        }
+      ],
+      "count": 3,
+      "total": 15
+    }
+  ],
+  "recursionNegativeError": "Error: Constraint unsatisfied (unreduced):\n\nall: File \"src/mina/src/lib/snarky/src/base/utils.ml\", line 395, characters 6-162\nprevs_verified\n\nConstraint:\n((basic(Equal(Add(Constant 1)(Scale 28948022309329048855892746252171976963363056481941560715954676764349967630336(Add(Constant 1)(Scale 28948022309329048855892746252171976963363056481941560715954676764349967630336(Var 174263)))))(Constant 1)))(annotation()))\nData:\nEqual 0 1",
+  "recursionNegativeStatus": "rejected-during-proving",
+  "final": {
+    "count": 3,
+    "total": 15,
+    "proofSizes": [
+      {
+        "index": 0,
+        "proofBytes": 25743,
+        "jsonBytes": 34575
+      },
+      {
+        "index": 1,
+        "proofBytes": 26842,
+        "jsonBytes": 36194
+      },
+      {
+        "index": 2,
+        "proofBytes": 26842,
+        "jsonBytes": 36195
+      },
+      {
+        "index": 3,
+        "proofBytes": 26842,
+        "jsonBytes": 36194
+      },
+      {
+        "index": 4,
+        "proofBytes": 27939,
+        "jsonBytes": 37656
+      },
+      {
+        "index": 5,
+        "proofBytes": 27939,
+        "jsonBytes": 37656
+      },
+      {
+        "index": 6,
+        "proofBytes": 26842,
+        "jsonBytes": 36196
+      }
+    ],
+    "oneVerificationKey": "26476887010038309311863792841320890133035716765694849361187578281098366064150",
+    "expectedStatement": {
+      "object": "21999583264911058776880741977336151251432868557994271604078444584053243283832",
+      "kind": "2",
+      "left": "24338107726296890432575677611708177254110419082417620680329769982805560318839",
+      "right": "19412788600448895495411110161328192424215829579599047559116541945191314555180",
+      "operation": "0"
+    },
+    "object": "21999583264911058776880741977336151251432868557994271604078444584053243283832"
+  },
+  "status": "passed",
+  "date": "2026-10-29T13:23:25.797Z",
+  "node": "v25.6.1",
+  "peakRssBytes": 2051129344
+}

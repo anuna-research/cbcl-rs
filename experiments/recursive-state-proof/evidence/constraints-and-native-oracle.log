@@ -1,0 +1,15 @@
+
+> cbcl-recursive-state-proof-experiment@0.0.0 pretest
+> npm run oracle
+
+
+> cbcl-recursive-state-proof-experiment@0.0.0 oracle
+> cargo build --manifest-path ../../Cargo.toml -p cbcl-state-proof --example recursive_oracle
+
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.21s
+
+> cbcl-recursive-state-proof-experiment@0.0.0 test
+> tsx experiment.ts --constraints-only && tsx additional-checks.ts
+
+{"status":"passed","mode":"constraints-only"}
+{"status":"passed","checks":["union exceeding capacity cannot silently omit the fifth record","merge public left commitment cannot be changed","merge public right commitment cannot be changed","merge public kind commitment cannot be changed","merge public operation commitment cannot be changed","control: locally consistent fabricated parent requires cryptographic recursion to reject"]}

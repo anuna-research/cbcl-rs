@@ -77,3 +77,8 @@ admission/fold parity, conflict/replacement metadata, and the external signer
 authentication boundary. Recursive composition or accumulation would be a
 separate experiment. The current public-candidate universe and keys do not
 extend across arbitrary future history.
+
+The subsequent [recursive experiment](../recursive-state-proof/RESULTS.md)
+records real recursive base, append and exact-union proofs, with explicit public
+parent/operation binding. Its different workload and backend are not a direct
+performance comparison with this bounded relation prototype.

@@ -126,3 +126,8 @@ The experiment scope is recorded in `experiments/state-proof/BRIEF.md`; observed
 results and review limitations are recorded in `experiments/state-proof/RESULTS.md`.
 This is an experimental cryptographic artefact, not independently audited or
 approved for production use.
+
+A subsequent [recursive experiment](../../experiments/recursive-state-proof/README.md)
+uses real o1js predecessor-proof verification over arbitrary bounded contribution
+sets. It tests exact fork/merge union and public expected-head binding; it is
+separate from this Halo2 relation prototype.

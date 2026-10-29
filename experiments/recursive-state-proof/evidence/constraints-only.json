@@ -1,0 +1,125 @@
+{
+  "mode": "constraints-only",
+  "stages": [],
+  "constraints": [
+    "valid append, duplicate append, fork union, self merge",
+    "invalid signature",
+    "signature bound to object",
+    "predecessor belongs to another object",
+    "snapshot differs from predecessor commitment",
+    "append omitted previous record",
+    "append omitted new record",
+    "append injected unrelated record",
+    "merge omitted right contribution",
+    "merge omitted shared ancestor",
+    "merge injected unrelated record",
+    "append public parent root binding",
+    "append public operation binding",
+    "append public method kind binding",
+    "zero contribution",
+    "duplicate noncanonical set entries",
+    "noncanonical absent record",
+    "capacity overflow rejected before proving"
+  ],
+  "native": [
+    {
+      "records": [],
+      "count": 0,
+      "total": 0
+    },
+    {
+      "records": [
+        {
+          "nonce": 1,
+          "amount": 5,
+          "author": false
+        }
+      ],
+      "count": 1,
+      "total": 5
+    },
+    {
+      "records": [
+        {
+          "nonce": 1,
+          "amount": 5,
+          "author": false
+        },
+        {
+          "nonce": 1,
+          "amount": 7,
+          "author": true
+        }
+      ],
+      "count": 2,
+      "total": 12
+    },
+    {
+      "records": [
+        {
+          "nonce": 1,
+          "amount": 5,
+          "author": false
+        },
+        {
+          "nonce": 2,
+          "amount": 3,
+          "author": false
+        }
+      ],
+      "count": 2,
+      "total": 8
+    },
+    {
+      "records": [
+        {
+          "nonce": 1,
+          "amount": 5,
+          "author": false
+        },
+        {
+          "nonce": 1,
+          "amount": 7,
+          "author": true
+        },
+        {
+          "nonce": 2,
+          "amount": 3,
+          "author": false
+        }
+      ],
+      "count": 3,
+      "total": 15
+    },
+    {
+      "records": [
+        {
+          "nonce": 1,
+          "amount": 5,
+          "author": false
+        },
+        {
+          "nonce": 1,
+          "amount": 7,
+          "author": true
+        },
+        {
+          "nonce": 2,
+          "amount": 3,
+          "author": false
+        },
+        {
+          "nonce": 1,
+          "amount": 5,
+          "author": false
+        }
+      ],
+      "count": 3,
+      "total": 15
+    }
+  ],
+  "status": "passed",
+  "date": "2026-10-29T13:28:58.032Z",
+  "node": "v25.6.1",
+  "peakRssBytes": 607240192
+}
