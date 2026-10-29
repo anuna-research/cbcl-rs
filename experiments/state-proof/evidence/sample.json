@@ -1,0 +1,33 @@
+{
+  "candidates": 3,
+  "compile_ms": 7,
+  "prover_setup_ms": 3822,
+  "verifier_setup_ms": 3740,
+  "prove_ms": 2139,
+  "cached_verify_ms": 94,
+  "transcript_bytes": 3616,
+  "package_bytes": 13629,
+  "state": {
+    "title": "Register",
+    "entries": {
+      "@a": "new"
+    },
+    "all": {
+      "sha256-7b448dbd6586709f85aa895600692c988a694ca3a7a9294db7023d291f138b8b": {
+        "by": "@a",
+        "value": "new"
+      },
+      "sha256-ed411b6c465b3f6a873b0eca2e4265305c5f516a23b756be1a9d57d85c70cbd8": {
+        "by": "@a",
+        "value": "old"
+      }
+    }
+  },
+  "tampered_state_rejected": true,
+  "signature_verification": "external host precondition",
+  "build": "dev, unoptimized",
+  "rayon_threads": 2,
+  "platform": "macOS-26.5-arm64-arm-64bit",
+  "rustc": "rustc 1.95.0 (59807616e 2026-04-14)",
+  "base_revision": "c9093e86597cf6f1b10d0ed9bc3713dda3c88843"
+}

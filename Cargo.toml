@@ -8,6 +8,7 @@ members = [
     "crates/cbcl-ffi",
     "crates/cbcl-erl",
     "tools/quorum-e2e",
+    "crates/cbcl-state-proof",
 ]
 
 [workspace.package]
