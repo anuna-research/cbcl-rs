@@ -1,0 +1,30 @@
+'CBCL.ConsensusFree.CollectiveActors.execute_erases' depends on axioms: [propext, Quot.sound]
+'CBCL.ConsensusFree.CollectiveActors.run_erases' depends on axioms: [propext, Quot.sound]
+'CBCL.ConsensusFree.CollectiveActors.control_step' depends on axioms: [propext, Quot.sound]
+'CBCL.ConsensusFree.CollectiveActors.admitted_run' depends on axioms: [propext, Classical.choice, Quot.sound]
+'CBCL.ConsensusFree.CollectiveActors.infinite_refinement' depends on axioms: [propext, Classical.choice, Quot.sound]
+'CBCL.ConsensusFree.CollectiveActors.cancel_quorum_has_original_request' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'CBCL.ConsensusFree.CollectiveActors.checkpoint_quorum_has_eligible_request' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'CBCL.ConsensusFree.CollectiveActors.operation_quorum_has_authorized_actor' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'CBCL.ConsensusFree.CollectiveActors.finality_has_authorized_actor' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'CBCL.ConsensusFree.CollectiveActors.minted_finality_checks_issuer' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'CBCL.ConsensusFree.CollectiveActors.declared_cap_bound' depends on axioms: [propext, Quot.sound]
+'CBCL.ConsensusFree.CollectiveActors.declared_ceiling' depends on axioms: [propext, Classical.choice, Quot.sound]
+'CBCL.ConsensusFree.CollectiveActors.released_cannot_finalize' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'CBCL.ConsensusFree.CollectiveActors.receipt_run_mono' depends on axioms: [propext, Quot.sound]
+'CBCL.ConsensusFree.CollectiveActors.honest_successor_choice_persists' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'CBCL.ConsensusFree.CollectiveActors.recover_control' depends on axioms: [propext, Classical.choice, Quot.sound]

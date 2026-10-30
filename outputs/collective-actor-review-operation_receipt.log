@@ -1,0 +1,33 @@
+/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/collective-actor-review-rk21u2br/collective_actor_review_operation_receipt.lean:147:10: warning: unused variable `tx`
+
+Note: This linter can be disabled with `set_option linter.unusedVariables false`
+/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/collective-actor-review-rk21u2br/collective_actor_review_operation_receipt.lean:147:13: warning: unused variable `w`
+
+Note: This linter can be disabled with `set_option linter.unusedVariables false`
+/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/collective-actor-review-rk21u2br/collective_actor_review_operation_receipt.lean:147:35: warning: unused variable `tx`
+
+Note: This linter can be disabled with `set_option linter.unusedVariables false`
+/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/collective-actor-review-rk21u2br/collective_actor_review_operation_receipt.lean:147:38: warning: unused variable `w`
+
+Note: This linter can be disabled with `set_option linter.unusedVariables false`
+/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/collective-actor-review-rk21u2br/collective_actor_review_operation_receipt.lean:147:56: warning: unused variable `tx`
+
+Note: This linter can be disabled with `set_option linter.unusedVariables false`
+/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/collective-actor-review-rk21u2br/collective_actor_review_operation_receipt.lean:147:59: warning: unused variable `w`
+
+Note: This linter can be disabled with `set_option linter.unusedVariables false`
+/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/collective-actor-review-rk21u2br/collective_actor_review_operation_receipt.lean:147:71: warning: unused variable `tx`
+
+Note: This linter can be disabled with `set_option linter.unusedVariables false`
+/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/collective-actor-review-rk21u2br/collective_actor_review_operation_receipt.lean:147:74: warning: unused variable `w`
+
+Note: This linter can be disabled with `set_option linter.unusedVariables false`
+/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/collective-actor-review-rk21u2br/collective_actor_review_operation_receipt.lean:218:100: error: Tactic `decide` proved that the proposition
+  (CollectiveActors.execute ctx committee start (Event.protocol (Command.sign 0 0))).snd.core.signatures 0 0 = false
+is false
+/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/collective-actor-review-rk21u2br/collective_actor_review_operation_receipt.lean:234:119: error: Tactic `decide` proved that the proposition
+  (CollectiveActors.run ctx committee start
+              [Event.deliver 0 (cancel 0), Event.protocol (Command.sign 0 0)]).snd.core.signatures
+      0 0 =
+    false
+is false

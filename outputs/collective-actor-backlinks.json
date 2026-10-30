@@ -1,0 +1,69 @@
+{
+  "page": "SPEC-028-collective-actor-refinement",
+  "depth": 1,
+  "backlinks": [
+    {
+      "source": "SPEC-028-collective-actor-refinement",
+      "target": "SPEC-028-collective-actor-refinement",
+      "line": 142,
+      "alias": null,
+      "is_embed": false,
+      "context": null,
+      "hop": 1
+    },
+    {
+      "source": "SPEC-028-collective-actor-refinement",
+      "target": "SPEC-028-collective-actor-refinement",
+      "line": 141,
+      "alias": null,
+      "is_embed": false,
+      "context": null,
+      "hop": 1
+    },
+    {
+      "source": "SPEC-028-collective-actor-refinement",
+      "target": "SPEC-028-collective-actor-refinement",
+      "line": 83,
+      "alias": null,
+      "is_embed": false,
+      "context": null,
+      "hop": 1
+    },
+    {
+      "source": "SPEC-028-collective-actor-refinement",
+      "target": "SPEC-028-collective-actor-refinement",
+      "line": 74,
+      "alias": null,
+      "is_embed": false,
+      "context": null,
+      "hop": 1
+    },
+    {
+      "source": "SPEC-028-collective-actor-refinement",
+      "target": "SPEC-028-collective-actor-refinement",
+      "line": 58,
+      "alias": null,
+      "is_embed": false,
+      "context": null,
+      "hop": 1
+    },
+    {
+      "source": "SPEC-028-collective-actor-refinement",
+      "target": "SPEC-028-collective-actor-refinement",
+      "line": 57,
+      "alias": null,
+      "is_embed": false,
+      "context": null,
+      "hop": 1
+    },
+    {
+      "source": "SPEC-028-collective-actor-refinement",
+      "target": "SPEC-028-collective-actor-refinement",
+      "line": 56,
+      "alias": null,
+      "is_embed": false,
+      "context": null,
+      "hop": 1
+    }
+  ]
+}

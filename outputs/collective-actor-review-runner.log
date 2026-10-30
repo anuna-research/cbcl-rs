@@ -1,0 +1,51 @@
+baseline 0 
+checkpoint_receipt 1 s linter can be disabled with `set_option linter.unusedVariables false`
+/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/collective-actor-review-rk21u2br/collective_actor_review_checkpoint_receipt.lean:245:108: error: Tactic `decide` proved that the proposition
+  (CollectiveActors.run ctx committee start (sealRoot ++ [Event.protocol (Command.endorse 0 0)])).snd.core.votes 0 0 =
+    false
+is false
+
+operation_receipt 1 core.signatures 0 0 = false
+is false
+/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/collective-actor-review-rk21u2br/collective_actor_review_operation_receipt.lean:234:119: error: Tactic `decide` proved that the proposition
+  (CollectiveActors.run ctx committee start
+              [Event.deliver 0 (cancel 0), Event.protocol (Command.sign 0 0)]).snd.core.signatures
+      0 0 =
+    false
+is false
+
+cancel_receipt 1 /var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/collective-actor-review-rk21u2br/collective_actor_review_cancel_receipt.lean:233:112: error: Tactic `decide` proved that the proposition
+  (CollectiveActors.run ctx committee start
+              [Event.deliver 0 (op 0), Event.protocol (Command.fence 0 0)]).snd.core.fences
+      0 0 =
+    false
+is false
+
+cancel_signer 1 /var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/collective-actor-review-rk21u2br/collective_actor_review_cancel_signer.lean:222:71: error: Tactic `decide` proved that the proposition
+  verify ctx (canonical ctx (Payload.cancellation 0) 2) = false
+is false
+
+instance 1 /var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/collective-actor-review-rk21u2br/collective_actor_review_instance.lean:221:63: error: Tactic `decide` proved that the proposition
+  verify ctx { domain := 8, signer := Identity.actor 1, payload := Payload.operation 0 } = false
+is false
+
+checkpoint_role 1 /var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/collective-actor-review-rk21u2br/collective_actor_review_checkpoint_role.lean:223:69: error: Tactic `decide` proved that the proposition
+  verify ctx (canonical ctx (Payload.checkpoint 0) 0) = false
+is false
+
+genesis_cap 1 
+      { domain := __src.domain, policy := __src.policy, authenticated := __src.authenticated, opener := __src.opener,
+        floor := __src.floor, ceiling := some 89, initialRights := __src.initialRights, manifests := __src.manifests,
+        epoch := __src.epoch, actor := __src.actor, isMint := __src.isMint, amount := __src.amount })
+      (canonical ctx Payload.genesis 0) =
+    false
+is false
+
+payload_signature 1 __src.policy, authenticated := fun x x_1 p => p == Payload.operation 0,
+        opener := __src.opener, floor := __src.floor, ceiling := __src.ceiling, initialRights := __src.initialRights,
+        manifests := __src.manifests, epoch := __src.epoch, actor := __src.actor, isMint := __src.isMint,
+        amount := __src.amount })
+      (canonical ctx (Payload.cancellation 0) 1) =
+    false
+is false
+

@@ -1,0 +1,3 @@
+/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/collective-actor-review-rk21u2br/collective_actor_review_cancel_signer.lean:222:71: error: Tactic `decide` proved that the proposition
+  verify ctx (canonical ctx (Payload.cancellation 0) 2) = false
+is false

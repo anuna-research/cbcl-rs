@@ -183,3 +183,21 @@ and `ownership: collective`. Final-set digests and unknown completeness retain t
 existing meaning. Collective checkpoint accounting and journals use the same pool
 scope across all actors. No multi-parent merge, consensus fallback or unconditional
 progress is implied. See [[SPEC-027-collective-bounded-counters]].
+
+## Explicit collective Lean protocol
+
+[[SPEC-028-collective-actor-refinement]] formalizes signed request admission,
+concrete cast/role checks, per-validator receipts and shared-pool execution in
+`LeanCbcl/ConsensusFree/CollectiveProtocol.lean`. Cancellation quorum provenance
+names the original transaction actor; checkpoint quorum provenance names an
+eligible authenticated proposer. Receipt/rejection steps erase to stuttering in
+the existing resource protocol. General proofs cover finite and infinite safety,
+funded refinement, declared floor/ceiling, retained successor choices and safe release.
+
+Run `lake env lean --run CollectiveActorAudit.lean` from `lean-cbcl` for the
+kernel-checked traces and axiom audit. `CollectiveActorAdversarialReview.lean`
+contains independently authored checks. Ideal signatures and fixed identifiers
+binding complete immutable payloads are assumptions. Parser/crypto correctness,
+physical durability and formal Rust correspondence remain outside this proof.
+Abstract event-log replay is distinct from the Rust journal serialization, and
+this system model does not establish complete/latest client balance reads.
