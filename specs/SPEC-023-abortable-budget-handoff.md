@@ -1,14 +1,18 @@
 ---
 id: SPEC-023
 title: Abortable Handoff for Concurrent Resource Checkpoints
-version: 0.1.0
-status: symbolic-prototype-scoped-proof
-last-updated: 2026-10-30
+version: 0.2.0
+status: historical-consensus-research
+last-updated: 2026-10-31
 ---
 
 # Abortable Handoff for Concurrent Resource Checkpoints
 
 ## Orientation
+
+Historical experiment: its abstract consensus fallback is not selected for the
+user's consensus-free design. [[SPEC-025-consensus-free-refinement]] implements the
+current independent-budget profile. This document preserves the earlier research.
 
 Intent: recover from split checkpoint votes without forgetting finalized effects or
 old payments that can still obtain certificates. Metaphor: hand the next protocol

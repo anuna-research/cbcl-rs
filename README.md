@@ -90,6 +90,11 @@ serialization are explicit premises.
 A separate [abortable handoff experiment](outputs/abortable-handoff-prototype.md)
 models recovery from split checkpoint votes while preserving delayed certificates.
 Its consensus service is abstract; full asynchronous verification remains open.
+That fallback is historical research. The current
+[consensus-free model](outputs/consensus-free-refinement.md) retains independent
+validator budgets, derives full protocol-model safety refinement, and adds safe
+cancellation-backed reclamation. It has no consensus service or serialized
+reservation ledger; production Rust/network correspondence remains separate.
 
 ## Features
 

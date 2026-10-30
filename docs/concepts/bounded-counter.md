@@ -143,3 +143,11 @@ handoff experiment. Its abstract consensus service can supersede split prepare
 votes while preserving potentially activated successors. Neither experiment enables
 a runtime certification profile or reclaims abandoned reservations. See
 [[abortable-handoff-prototype]] for checks and proof boundaries.
+
+The selected consensus-free model is [[SPEC-025-consensus-free-refinement]]. It
+retains independent signing budgets and derives cross-epoch resource safety and
+funded asynchronous refinement. Cancellation-backed local release and cumulative
+checkpoint refunds preserve safety against late certificates. It uses no consensus
+service or global reservation ledger; split votes can stall. The earlier
+[[SPEC-023-abortable-budget-handoff]] consensus fallback is historical research.
+See [[consensus-free-refinement]] for executable checks and exact proof boundaries.

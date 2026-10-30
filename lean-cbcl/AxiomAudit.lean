@@ -1,3 +1,4 @@
+import LeanCbcl.ConsensusFree
 import LeanCbcl.AbortableHandoff
 import LeanCbcl.SealedCheckpoint
 import LeanCbcl.ValidatorBudgetRefutation
@@ -345,3 +346,98 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.AbortableHandoff.prepare_unique
 #print axioms CBCL.AbortableHandoff.reachable_activation_preserved
 #print axioms CBCL.AbortableHandoff.recovery_preserves_activation
+
+#print axioms CBCL.ConsensusFree.isum_congr
+#print axioms CBCL.ConsensusFree.isum_nonneg
+#print axioms CBCL.ConsensusFree.isum_member
+#print axioms CBCL.ConsensusFree.isum_update
+#print axioms CBCL.ConsensusFree.finRange_unique
+#print axioms CBCL.ConsensusFree.isum_add
+#print axioms CBCL.ConsensusFree.isum_sub
+#print axioms CBCL.ConsensusFree.isum_append
+
+#print axioms CBCL.ConsensusFree.static_facts
+#print axioms CBCL.ConsensusFree.known_extension
+#print axioms CBCL.ConsensusFree.known_unique
+#print axioms CBCL.ConsensusFree.manifest_persistent
+#print axioms CBCL.ConsensusFree.slot_known
+#print axioms CBCL.ConsensusFree.certificate_same_slot
+#print axioms CBCL.ConsensusFree.record_extension
+#print axioms CBCL.ConsensusFree.step_archive_extension
+#print axioms CBCL.ConsensusFree.record_slot_cases
+#print axioms CBCL.ConsensusFree.record_frontier_mono
+#print axioms CBCL.ConsensusFree.record_catalogue
+#print axioms CBCL.ConsensusFree.catalogue_transport
+#print axioms CBCL.ConsensusFree.step_catalogue
+
+#print axioms CBCL.ConsensusFree.step_capacity
+#print axioms CBCL.ConsensusFree.sumOn_filter
+#print axioms CBCL.ConsensusFree.certified_bound
+#print axioms CBCL.ConsensusFree.epoch_final_consumption
+
+
+
+#print axioms CBCL.ConsensusFree.old_operation_held
+#print axioms CBCL.ConsensusFree.known_refund_cancel
+#print axioms CBCL.ConsensusFree.known_credit_final
+#print axioms CBCL.ConsensusFree.isum_cast
+#print axioms CBCL.ConsensusFree.marked_cast
+#print axioms CBCL.ConsensusFree.held_net_identity
+#print axioms CBCL.ConsensusFree.epoch_books
+#print axioms CBCL.ConsensusFree.manifest_credit_bounded
+#print axioms CBCL.ConsensusFree.final_cost_partition
+#print axioms CBCL.ConsensusFree.resource_nonnegative
+
+#print axioms CBCL.ConsensusFree.Currency.rights_ne_headroom
+#print axioms CBCL.ConsensusFree.Currency.rights_injective
+#print axioms CBCL.ConsensusFree.Currency.headroom_injective
+#print axioms CBCL.ConsensusFree.Currency.atoms_disjoint
+#print axioms CBCL.ConsensusFree.Currency.cost_local
+#print axioms CBCL.ConsensusFree.Currency.vectors_disjoint
+#print axioms CBCL.ConsensusFree.Currency.mint_requires_issuer
+#print axioms CBCL.ConsensusFree.Currency.headroom_requires_cap
+#print axioms CBCL.ConsensusFree.Currency.atom_total
+#print axioms CBCL.ConsensusFree.Currency.capped_conservation
+#print axioms CBCL.ConsensusFree.Currency.business_conservation
+#print axioms CBCL.ConsensusFree.Currency.business_run_conservation
+#print axioms CBCL.ConsensusFree.Currency.total_split
+#print axioms CBCL.ConsensusFree.Currency.currency_floor
+#print axioms CBCL.ConsensusFree.Currency.currency_ceiling
+
+#print axioms CBCL.ConsensusFree.step_evidence
+#print axioms CBCL.ConsensusFree.step_locals
+
+#print axioms CBCL.ConsensusFree.perform_sound
+#print axioms CBCL.ConsensusFree.execute_sound
+#print axioms CBCL.ConsensusFree.run_trace
+#print axioms CBCL.ConsensusFree.trace_invariant
+#print axioms CBCL.ConsensusFree.step_simulation
+#print axioms CBCL.ConsensusFree.trace_simulation
+#print axioms CBCL.ConsensusFree.full_async_refinement
+#print axioms CBCL.ConsensusFree.all_schedules_nonnegative
+#print axioms CBCL.ConsensusFree.trace_journals
+#print axioms CBCL.ConsensusFree.released_never_finalizes
+#print axioms CBCL.ConsensusFree.infinite_async_refinement
+
+#print axioms CBCL.ConsensusFree.two_mono
+#print axioms CBCL.ConsensusFree.quorum_mono
+#print axioms CBCL.ConsensusFree.quorum_has_core
+#print axioms CBCL.ConsensusFree.step_journals
+#print axioms CBCL.ConsensusFree.step_sealed_stable
+#print axioms CBCL.ConsensusFree.reporter_persistent
+#print axioms CBCL.ConsensusFree.final_cancel_exclusive
+#print axioms CBCL.ConsensusFree.final_operation
+#print axioms CBCL.ConsensusFree.operation_known
+#print axioms CBCL.ConsensusFree.checkpoint_unique
+
+#print axioms CBCL.ConsensusFree.effect_final_other
+#print axioms CBCL.ConsensusFree.effect_final_mono
+#print axioms CBCL.ConsensusFree.newly_final_data
+#print axioms CBCL.ConsensusFree.final_rows_new
+#print axioms CBCL.ConsensusFree.final_rows_same
+#print axioms CBCL.ConsensusFree.step_observed
+#print axioms CBCL.ConsensusFree.quorum_empty
+#print axioms CBCL.ConsensusFree.sumOn_zero
+#print axioms CBCL.ConsensusFree.isum_zero
+#print axioms CBCL.ConsensusFree.initial_invariant
+#print axioms CBCL.ConsensusFree.step_invariant

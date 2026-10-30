@@ -61,3 +61,6 @@ import LeanCbcl.ValidatorBudgetRefutation
 import LeanCbcl.SealedCheckpoint
 
 import LeanCbcl.AbortableHandoff
+
+import LeanCbcl.ConsensusFree
+import LeanCbcl.ConsensusFree.Tests

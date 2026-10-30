@@ -1,5 +1,8 @@
 # Abortable checkpoint handoff experiment
 
+Historical research: the consensus fallback is not selected. See
+[[SPEC-025-consensus-free-refinement]] for the consensus-free profile.
+
 [[SPEC-023-abortable-budget-handoff]] adds a separate symbolic profile for switching
 from concurrent checkpoints to an abstract recovery agreement service. The original
 unsafe renewal and sealed-checkpoint models remain unchanged.

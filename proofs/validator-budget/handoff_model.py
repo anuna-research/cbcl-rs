@@ -1,5 +1,6 @@
 """SPEC-023 abortable handoff experiment; consensus is an explicit trusted oracle.
 
+Historical research only: not selected for the consensus-free design (SPEC-025).
 This is a separate profile, not an implementation of Abstract or network BFT.
 No cancellation: old operation certificates remain valid after switching.
 """

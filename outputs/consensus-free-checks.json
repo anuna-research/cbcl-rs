@@ -1,0 +1,122 @@
+{
+  "build": "\u2139 [2/16] Replayed LeanCbcl.BoundedCounter\ninfo: LeanCbcl/BoundedCounter.lean:106:0: 'CBCL.BoundedCounter.increment_conserves' depends on axioms: [propext, Quot.sound]\ninfo: LeanCbcl/BoundedCounter.lean:107:0: 'CBCL.BoundedCounter.decrement_conserves' depends on axioms: [propext, Quot.sound]\ninfo: LeanCbcl/BoundedCounter.lean:108:0: 'CBCL.BoundedCounter.transfer_conserves' depends on axioms: [propext, Classical.choice, Quot.sound]\ninfo: LeanCbcl/BoundedCounter.lean:109:0: 'CBCL.BoundedCounter.transfer_headroom_conserves' depends on axioms: [propext, Quot.sound]\ninfo: LeanCbcl/BoundedCounter.lean:110:0: 'CBCL.BoundedCounter.both_bounds' depends on axioms: [propext, Quot.sound]\n\u2139 [3/16] Replayed LeanCbcl.ValidatorBudget\ninfo: LeanCbcl/ValidatorBudget.lean:380:0: 'CBCL.ValidatorBudget.certified_consumption_bound' depends on axioms: [propext, Quot.sound]\ninfo: LeanCbcl/ValidatorBudget.lean:381:0: 'CBCL.ValidatorBudget.both_consumption_bounds' depends on axioms: [propext, Quot.sound]\ninfo: LeanCbcl/ValidatorBudget.lean:382:0: 'CBCL.ValidatorBudget.fixed_checkpoint_bounds' depends on axioms: [propext, Classical.choice, Quot.sound]\ninfo: LeanCbcl/ValidatorBudget.lean:383:0: 'CBCL.ValidatorBudget.certified_batch_bounds' depends on axioms: [propext, Classical.choice, Quot.sound]\ninfo: LeanCbcl/ValidatorBudget.lean:384:0: 'CBCL.ValidatorBudget.reconciliation_preserves_exposure' depends on axioms: [propext, Quot.sound]\ninfo: LeanCbcl/ValidatorBudget.lean:385:0: 'CBCL.ValidatorBudget.finality_excludes_no_commit' depends on axioms: [propext, Quot.sound]\ninfo: LeanCbcl/ValidatorBudget.lean:386:0: 'CBCL.ValidatorBudget.receipt_monotone' depends on axioms: [propext, Quot.sound]\nBuild completed successfully (16 jobs).\n",
+  "executable_regressions": {
+    "passed": 39,
+    "result": "pass",
+    "scope": "consensus-free independent budget and checkpoint regressions"
+  },
+  "independent_checks": "Independent review checks passed: 8\n",
+  "no_oracle_checks": {
+    "signing_uses_local_inputs": true,
+    "registration_has_no_selection_guard": true,
+    "no_reservation_or_decision_command": true,
+    "boundary": "structural checks supplement independent review; not a general program-analysis proof"
+  },
+  "isolated_baseline": {
+    "compiled_modules": [
+      "Core",
+      "Journals",
+      "Archive",
+      "Evidence",
+      "Capacity",
+      "Observation",
+      "Coverage",
+      "Execution",
+      "Currency",
+      "Tests"
+    ]
+  },
+  "mutations": {
+    "ignore-local-budget": {
+      "caught": true,
+      "failed_module": "Capacity",
+      "compiled_dependencies": [
+        "Core",
+        "Journals",
+        "Archive",
+        "Evidence"
+      ],
+      "evidence": "/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-cf-proof-qzlebqwr/LeanCbcl/ConsensusFree/Capacity.lean:18:25: error: Function expected at\n  (allowed hv).right.right.right.right\nbut this term has type\n  True\n\nNote: Expected a function because this term is being applied to the argument\n  d\n"
+    },
+    "sign-after-seal": {
+      "caught": true,
+      "failed_module": "Journals",
+      "compiled_dependencies": [
+        "Core"
+      ],
+      "evidence": "/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-cf-proof-3rubxu96/LeanCbcl/ConsensusFree/Journals.lean:84:8: error: unsolved goals\ncase pos\nA T P R f : Nat\nc : Config A T P R f\ns : State A T P R\ne : Epoch A P\nw : Nat\nhw : w \u2208 c.committee.core\nfrozen : s.sealed e w = true\ntx : Fin T\ncontext : c.opEpoch tx = e\nmember : Member c w\nfresh : s.signatures tx w = false\nallowed : SignAllowed c s tx w\nopenEpoch : True\n\u22a2 (signed s tx w).signatures tx w = s.signatures tx w\n/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-cf-proof-3rubxu96/LeanCbcl/ConsensusFree/Journals.lean:86:16: warning: This simp argument is unused:\n  context\n\nHint: Omit it from the simp argument list.\n  simp [c\u0335o\u0335n\u0335t\u0335e\u0335x\u0335t\u0335,\u0335 \u0335frozen] at openEpoch\n\nNote: This linter can be disabled with `set_option linter.unusedSimpArgs false`\n/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-cf-proof-3rubxu96/LeanCbcl/ConsensusFree/Journals.lean:86:25: warning: This simp argument is unused:\n  frozen\n\nHint: Omit it from the simp argument list.\n  simp [context,\u0335 \u0335f\u0335r\u0335o\u0335z\u0335e\u0335n\u0335] at openEpoch\n\nNote: This linter can be disabled with `set_option linter.unusedSimpArgs false`\n"
+    },
+    "release-without-cancellation": {
+      "caught": true,
+      "failed_module": "Evidence",
+      "compiled_dependencies": [
+        "Core",
+        "Journals",
+        "Archive"
+      ],
+      "evidence": "/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-cf-proof-rieg74xs/LeanCbcl/ConsensusFree/Evidence.lean:68:19: error: Type mismatch\n  certificate\nhas type\n  True\nbut is expected to have type\n  cancelCert c (release s tx w) tx = true\n"
+    },
+    "overwrite-checkpoint-choice": {
+      "caught": true,
+      "failed_module": "Evidence",
+      "compiled_dependencies": [
+        "Core",
+        "Journals",
+        "Archive"
+      ],
+      "evidence": "/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-cf-proof-8uplw9xj/LeanCbcl/ConsensusFree/Evidence.lean:86:20: error(lean.unknownIdentifier): Unknown identifier `empty`\n/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-cf-proof-8uplw9xj/LeanCbcl/ConsensusFree/Evidence.lean:87:14: error: No goals to be solved\n"
+    },
+    "forget-parent-obligations": {
+      "caught": true,
+      "failed_module": "Archive",
+      "compiled_dependencies": [
+        "Core",
+        "Journals"
+      ],
+      "evidence": "/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-cf-proof-q51c0f9l/LeanCbcl/ConsensusFree/Archive.lean:26:21: error: Application type mismatch: The argument\n  hh\nhas type\n  True\nbut is expected to have type\n  \u2200 (tx : Fin T), held c (c.checkpoints p).parent tx = true \u2192 (c.checkpoints p).held tx = true\nin the application\n  StaticFacts.mk ha ho hd hh\n"
+    },
+    "speculative-funding-credit": {
+      "caught": true,
+      "failed_module": "Archive",
+      "compiled_dependencies": [
+        "Core",
+        "Journals"
+      ],
+      "evidence": "/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-cf-proof-b99607hl/LeanCbcl/ConsensusFree/Archive.lean:48:62: error: Application type mismatch: The argument\n  credits tx credited\nhas type\n  True\nbut is expected to have type\n  quorum c (s.effects tx) = true\nin the application\n  quorum_mono c (s.effects tx) (t.effects tx) ((step_journals step).effects tx) (credits tx credited)\n"
+    },
+    "double-manifest-refund": {
+      "caught": true,
+      "failed_module": "Archive",
+      "compiled_dependencies": [
+        "Core",
+        "Journals"
+      ],
+      "evidence": "/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-cf-proof-kjffpo7n/LeanCbcl/ConsensusFree/Archive.lean:26:45: error: Application type mismatch: The argument\n  hb\nhas type\n  \u2200 (d : Fin R),\n    c.resourceOwner d = (c.checkpoints p).owner \u2192\n      \u2191((c.checkpoints p).allocation d) =\n        ((\u2191(c.initial d) +\n              isum (List.finRange T) fun tx => if (c.checkpoints p).credited tx = true then \u2191(c.credit tx d) else 0) -\n            isum (List.finRange T) fun tx => if (c.checkpoints p).held tx = true then \u2191(c.cost tx d) else 0) +\n          2 * isum (List.finRange T) fun tx => if (c.checkpoints p).refunded tx = true then \u2191(c.cost tx d) else 0\nbut is expected to have type\n  \u2200 (d : Fin R),\n    c.resourceOwner d = (c.checkpoints p).owner \u2192\n      \u2191((c.checkpoints p).allocation d) =\n        ((\u2191(c.initial d) +\n              isum (List.finRange T) fun tx => if (c.checkpoints p).credited tx = true then \u2191(c.credit tx d) else 0) -\n            isum (List.finRange T) fun tx => if (c.checkpoints p).held tx = true then \u2191(c.cost tx d) else 0) +\n          isum (List.finRange T) fun tx => if (c.checkpoints p).refunded tx = true then \u2191(c.cost tx d) else 0\nin the application\n  { authorized := ha, parent_owner := ho, parent_depth := hd, inherit_held := hh, inherit_refunded := hr,\n    inherit_credited := hc, refund_held := hs, held_context := hx, off_source := hz, books := hb }\n"
+    },
+    "record-without-certificate": {
+      "caught": true,
+      "failed_module": "Execution",
+      "compiled_dependencies": [
+        "Core",
+        "Journals",
+        "Archive",
+        "Evidence",
+        "Capacity",
+        "Observation",
+        "Coverage"
+      ],
+      "evidence": "/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-cf-proof-h0peuhzg/LeanCbcl/ConsensusFree/Execution.lean:88:66: error: Application type mismatch: The argument\n  guard.right.left\nhas type\n  True\nbut is expected to have type\n  checkpointCert c s p = true\nin the application\n  Step.record s p w guard.left guard.right.left\n"
+    },
+    "effects-after-fence": {
+      "caught": true,
+      "failed_module": "Evidence",
+      "compiled_dependencies": [
+        "Core",
+        "Journals",
+        "Archive"
+      ],
+      "evidence": "/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-cf-proof-7x5p9wcr/LeanCbcl/ConsensusFree/Evidence.lean:134:12: error: unsolved goals\ncase pos\nA T P R f : Nat\nc : Config A T P R f\ns : State A T P R\nh : Evidence c s\nlocalState : Locals c s\ncat : Catalogue c s\ntx : Fin T\nw : Nat\nmember : Member c w\nallowed : EffectAllowed c s tx w\narchive : ArchiveExtension s (effect c s tx w)\njournals : JournalExtension s (effect c s tx w)\nhv : w \u2208 c.committee.core\neffectVote : (emit s tx w).effects tx w = true\nfenceVote : s.fences tx w = true\nnoFence : True\n\u22a2 False\n/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-cf-proof-7x5p9wcr/LeanCbcl/ConsensusFree/Evidence.lean:134:67: warning: This simp argument is unused:\n  noFence\n\nHint: Omit it from the simp argument list.\n  simp [emit,\u0335 \u0335n\u0335o\u0335F\u0335e\u0335n\u0335c\u0335e\u0335] at fenceVote\n\nNote: This linter can be disabled with `set_option linter.unusedSimpArgs false`\n"
+    }
+  },
+  "scope": "consensus-free independent budgets, sealed checkpoints, cancellation and typed currency; full declared protocol-model safety refinement; no cryptographic/Rust/storage correspondence"
+}
