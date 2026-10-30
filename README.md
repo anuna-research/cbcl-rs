@@ -87,6 +87,10 @@ and the [coin dialect](dialects/example-coin.cbcl). Resource authorization remai
 separate from protocol admission; host authentication and durable account
 serialization are explicit premises.
 
+A separate [abortable handoff experiment](outputs/abortable-handoff-prototype.md)
+models recovery from split checkpoint votes while preserving delayed certificates.
+Its consensus service is abstract; full asynchronous verification remains open.
+
 ## Features
 
 - **Linear-time parser.** S-expression parser with O(n) time complexity and fuel-bounded recursion.

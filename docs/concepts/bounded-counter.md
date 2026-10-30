@@ -135,3 +135,11 @@ The candidate validator-budget model's asynchronous safety is now refuted by
 [[SPEC-021-validator-budget-model#BUG-2100]]. Its partial renewal rule can finalize
 more rights than exist. This finding does not change the implemented host-gated
 escrow primitive; it blocks promotion of the proposed certification profile.
+
+[[SPEC-022-sealed-budget-checkpoints]] tests a conservative repair that seals old
+signing journals and carries possible late certificates as obligations.
+[[SPEC-023-abortable-budget-handoff]] adds a separate prepare/activation and recovery
+handoff experiment. Its abstract consensus service can supersede split prepare
+votes while preserving potentially activated successors. Neither experiment enables
+a runtime certification profile or reclaims abandoned reservations. See
+[[abortable-handoff-prototype]] for checks and proof boundaries.

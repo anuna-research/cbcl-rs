@@ -1,3 +1,4 @@
+import LeanCbcl.AbortableHandoff
 import LeanCbcl.SealedCheckpoint
 import LeanCbcl.ValidatorBudgetRefutation
 import LeanCbcl.ValidatorBudget
@@ -335,3 +336,12 @@ editing only this file is enough to extend the audit.
 
 #print axioms CBCL.SealedCheckpoint.disjoint_vote_bound
 #print axioms CBCL.SealedCheckpoint.honest_intersection
+
+#print axioms CBCL.AbortableHandoff.step_snapshot
+#print axioms CBCL.AbortableHandoff.reachable_snapshot
+#print axioms CBCL.AbortableHandoff.stopped_step
+#print axioms CBCL.AbortableHandoff.stopped_reach
+#print axioms CBCL.AbortableHandoff.activation_preserved_in_handoff
+#print axioms CBCL.AbortableHandoff.prepare_unique
+#print axioms CBCL.AbortableHandoff.reachable_activation_preserved
+#print axioms CBCL.AbortableHandoff.recovery_preserves_activation

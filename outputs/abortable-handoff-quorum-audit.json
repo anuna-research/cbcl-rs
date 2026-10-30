@@ -1,0 +1,7 @@
+{
+  "activation_abort_schedules": 2754,
+  "distinct_prepare_schedules": 108,
+  "late_delivery_quorums": 3,
+  "result": "pass",
+  "boundary": "finite schedule audit; consensus oracle and Python/Lean refinement unproved"
+}

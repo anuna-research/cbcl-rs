@@ -1,0 +1,31 @@
+{
+  "baseline": "................\n----------------------------------------------------------------------\nRan 16 tests in 0.010s\n\nOK\n",
+  "mutants": {
+    "omit-prepare-evidence": {
+      "caught": true,
+      "evidence": "F\n======================================================================\nFAIL: test_hidden_activation_certificate_preserved (test_handoff_model.HandoffTests)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/private/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-handoff-mutant-ibqqvqpx/test_handoff_model.py\", line 81, in test_hidden_activation_certificate_preserved\n    self.assertTrue(any(r.prepared == b[0].id for r in reports))\nAssertionError: False is not true\n\n----------------------------------------------------------------------\nRan 1 test in 0.001s\n\nFAILED (failures=1)\n"
+    },
+    "activate-after-abort": {
+      "caught": true,
+      "evidence": "F\n======================================================================\nFAIL: test_abort_stops_activation_prepare_and_operation (test_handoff_model.HandoffTests)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/private/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-handoff-mutant-bxo701st/test_handoff_model.py\", line 113, in test_abort_stops_activation_prepare_and_operation\n    m.activate_checkpoint(2, a)\nAssertionError: Rejected not raised\n\n----------------------------------------------------------------------\nRan 1 test in 0.001s\n\nFAILED (failures=1)\n"
+    },
+    "ignore-pinned-successor": {
+      "caught": true,
+      "evidence": "F\n======================================================================\nFAIL: test_hidden_activation_certificate_preserved (test_handoff_model.HandoffTests)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/private/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-handoff-mutant-_7uckf3_/test_handoff_model.py\", line 83, in test_hidden_activation_certificate_preserved\n    m.decide_recovery(reports, a)\nAssertionError: Rejected not raised\n\n----------------------------------------------------------------------\nRan 1 test in 0.001s\n\nFAILED (failures=1)\n"
+    },
+    "reset-replayed-journal": {
+      "caught": true,
+      "evidence": "F\n======================================================================\nFAIL: test_recovery_replay_after_spending (test_handoff_model.HandoffTests)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/private/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-handoff-mutant-223cs50k/test_handoff_model.py\", line 165, in test_recovery_replay_after_spending\n    self.assertEqual(m.local[0][0].rights, before)\nAssertionError: 60 != 45\n\n----------------------------------------------------------------------\nRan 1 test in 0.001s\n\nFAILED (failures=1)\n"
+    },
+    "install-prepare-only": {
+      "caught": true,
+      "evidence": "F\n======================================================================\nFAIL: test_one_phase_install_is_disabled (test_handoff_model.HandoffTests)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/private/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-handoff-mutant-3lho6fzz/test_handoff_model.py\", line 126, in test_one_phase_install_is_disabled\n    m.install_checkpoint(0, a)\nAssertionError: Rejected not raised\n\n----------------------------------------------------------------------\nRan 1 test in 0.001s\n\nFAILED (failures=1)\n"
+    }
+  },
+  "boundary": "recovery agreement is a trusted abstract oracle, not implemented BFT",
+  "lean_mutation": {
+    "mutation": "allow fresh activation after abort",
+    "caught": true,
+    "evidence": "/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-handoff-lean-j5e0mm8b/AbortableHandoff.lean:42:31: error: unsolved goals\ncase activate\ns : Node\nvalid : SnapshotValid s\ncp : Nat\nopenPhase : True\nonce : s.activated = none \u2228 s.activated = some cp\nops : Nat \u2192 Bool\nchoice : Option Nat\nexported :\n  { signed := s.signed, activated := some cp, stopped := s.stopped, exported := s.exported }.exported =\n    some (ops, choice)\nold : s.stopped = true \u2227 s.signed = ops \u2227 s.activated = choice\n\u22a2 { signed := s.signed, activated := some cp, stopped := s.stopped, exported := s.exported }.stopped = true \u2227\n    { signed := s.signed, activated := some cp, stopped := s.stopped, exported := s.exported }.signed = ops \u2227\n      { signed := s.signed, activated := some cp, stopped := s.stopped, exported := s.exported }.activated = choice\n/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-handoff-lean-j5e0mm8b/AbortableHandoff.lean:45:12: warning: This simp argument is unused:\n  openPhase\n\nHint: Omit it from the simp argument list.\n  simp [\u0335o\u0335p\u0335e\u0335n\u0335P\u0335h\u0335a\u0335s\u0335e\u0335]\u0335 \u0335at old\n\nNote: This linter can be disabled with `set_option linter.unusedSimpArgs false`\n/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-handoff-lean-j5e0mm8b/AbortableHandoff.lean:64:34: error: `simp` made no progress\n"
+  }
+}
