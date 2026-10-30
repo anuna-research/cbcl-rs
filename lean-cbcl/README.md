@@ -92,9 +92,23 @@ resource vectors, finite/infinite funded refinement and safe cancellation releas
 The interpreter is a model harness over verified certificate evidence, not the
 Rust wire protocol. Infinite traces range over a fixed finite catalogue; funded
 refinement requires disjoint debit/credit per coordinate. It does not guarantee
-progress under contention. Rust remains on its existing single-parent handoff.
+progress under contention. Rust offers a separate opt-in DAG handoff under [[SPEC-030-rust-multi-parent-refinement]].
 Contract: [[SPEC-029-multi-parent-counter-model]]. Evidence: [[multi-parent-evidence]].
 
 Run `lake env lean --run MultiParentAudit.lean` here and
 `python3 proofs/validator-budget/check_multi_parent_mutations.py` from the repository
 root for executable branch joins and isolated guard mutation checks.
+
+
+`MultiParentRustOracle.lean` supplies the shared Rust transition oracle and proves
+`apiPerform_sound`, `oracle_run` and `oracle_safe`. Its API adapter requires source
+metadata for honest transaction registration, an own signature before release,
+and treats already-durable signing/adoption retries as stuttering. The abstract
+protocol is unchanged. The generated catalogue/traces exercise production Rust
+APIs and compare projected state after every command, with journal recovery.
+These synchronized traces plus separate delayed-delivery tests establish tested
+correspondence, not universal source equivalence or network refinement.
+
+Run `python3 proofs/validator-budget/check_rust_multi_parent.py` from repository
+root to regenerate the reference in memory and check the committed fixture.
+Use `--write` only after inspecting an intentional oracle change.

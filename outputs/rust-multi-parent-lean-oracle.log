@@ -1,0 +1,2 @@
+'CBCL.ConsensusFree.MultiParent.RustOracle.apiPerform_sound' depends on axioms: [propext, Quot.sound]
+'CBCL.ConsensusFree.MultiParent.RustOracle.oracle_safe' depends on axioms: [propext, Classical.choice, Quot.sound]

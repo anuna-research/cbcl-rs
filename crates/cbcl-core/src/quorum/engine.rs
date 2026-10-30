@@ -20,6 +20,8 @@ struct State {
     certificates: BTreeMap<(VoteKind, String), Certificate>,
     proposals: BTreeMap<String, Proposal>,
     checkpoints: BTreeMap<String, Checkpoint>,
+    versions: BTreeMap<String, DagVersion>,
+    visited: BTreeSet<String>,
     signed: BTreeSet<String>,
     effects: BTreeSet<String>,
     fences: BTreeSet<String>,
@@ -57,7 +59,9 @@ impl Replica {
         journal.append(&context.id, validator, None, &Event::Initialize)?;
         let mut state = State::default();
         for a in context.initial.keys() {
-            state.active.insert(a.clone(), context.root_epoch(a)?);
+            let root = context.root_epoch(a)?;
+            state.visited.insert(root.clone());
+            state.active.insert(a.clone(), root);
         }
         Ok(Self {
             context,
@@ -85,7 +89,9 @@ impl Replica {
         }
         let mut state = State::default();
         for a in context.initial.keys() {
-            state.active.insert(a.clone(), context.root_epoch(a)?);
+            let root = context.root_epoch(a)?;
+            state.visited.insert(root.clone());
+            state.active.insert(a.clone(), root);
         }
         let mut r = Self {
             context,
@@ -159,6 +165,9 @@ impl Replica {
         self.state.certificates.contains_key(&(kind, id.into()))
     }
     fn epoch(&self, id: &str) -> Result<Manifest> {
+        if let Some(v) = self.state.versions.get(id) {
+            return Ok(v.manifest.books());
+        }
         if let Some(c) = self.state.checkpoints.get(id) {
             return Ok(c.proposal.manifest.clone());
         }
@@ -508,9 +517,183 @@ impl Replica {
         }
         Ok(())
     }
+    fn check_version_manifest(&self, m: &VersionManifest) -> Result<()> {
+        if m.account != COLLECTIVE_POOL
+            || m.parents.is_empty()
+            || m.parents.len() > self.limits.checkpoints.saturating_add(1)
+            || m.held.len() > self.limits.operations
+            || m.refunded.len() > self.limits.operations
+            || m.credited.len() > self.limits.operations
+        {
+            return Err("invalid DAG pool, parent set or size limit".into());
+        }
+        for id in &m.parents {
+            let parent = self.epoch(id)?;
+            if parent.account != m.account
+                || parent.depth >= m.rank
+                || !parent.held.is_subset(&m.held)
+                || !parent.refunded.is_subset(&m.refunded)
+                || !parent.credited.is_subset(&m.credited)
+            {
+                return Err("DAG parent rank or inherited sets mismatch".into());
+            }
+        }
+        for id in &m.held {
+            if self.epoch(&self.op(id)?.epoch)?.depth >= m.rank {
+                return Err("held transaction must precede DAG version rank".into());
+            }
+        }
+        if self.allocation(&m.books())? != m.allocation {
+            return Err("DAG version allocation mismatch".into());
+        }
+        Ok(())
+    }
+    fn check_version<A: Authentication>(&self, v: &DagVersion, auth: &A) -> Result<()> {
+        self.check_version_manifest(&v.manifest)?;
+        if !self
+            .context
+            .checkpoint_actor(&v.manifest.account, &v.authorization.signer)
+        {
+            return Err("unauthorized DAG version actor".into());
+        }
+        self.verify_vote(
+            &v.authorization,
+            VoteKind::VersionRequest,
+            &v.manifest.id(&self.context.id),
+            &v.authorization.signer,
+            auth,
+        )
+    }
+    /// Validated metadata for relay; no synthetic certificates or winner selection.
+    pub fn version(&self, id: &str) -> Option<&DagVersion> {
+        self.state.versions.get(id)
+    }
+    /// Complete immutable local history, including released and zero-cost IDs.
+    pub fn version_snapshot(&self) -> Result<VersionSnapshot> {
+        if self.context.handoff != Handoff::MultiParent {
+            return Err("not a multi-parent context".into());
+        }
+        let root = self.context.root_epoch(COLLECTIVE_POOL)?;
+        let mut known: BTreeSet<_> = self.state.versions.keys().cloned().collect();
+        known.insert(root);
+        Ok(VersionSnapshot {
+            active: self.active_epoch(COLLECTIVE_POOL)?.into(),
+            known,
+            visited: self.state.visited.clone(),
+            signed: self.state.signed.clone(),
+            released: self.state.released.clone(),
+            effects: self.state.effects.clone(),
+            fences: self.state.fences.clone(),
+        })
+    }
+    /// Compute unique cumulative books. The caller externally authorizes the
+    /// result; receipt verifies all prerequisites independently.
+    pub fn draft_version(
+        &self,
+        parents: &BTreeSet<String>,
+        held: &BTreeSet<String>,
+        refunds: &BTreeSet<String>,
+        credits: &BTreeSet<String>,
+    ) -> Result<VersionManifest> {
+        if self.context.handoff != Handoff::MultiParent
+            || parents.is_empty()
+            || parents.len() > self.limits.checkpoints.saturating_add(1)
+            || held.len() > self.limits.operations
+            || refunds.len() > self.limits.operations
+            || credits.len() > self.limits.operations
+        {
+            return Err("invalid DAG draft context or limits".into());
+        }
+        let mut m = VersionManifest {
+            account: COLLECTIVE_POOL.into(),
+            parents: parents.clone(),
+            rank: 0,
+            held: held.clone(),
+            refunded: refunds.clone(),
+            credited: credits.clone(),
+            allocation: Resources::default(),
+        };
+        for id in parents {
+            let p = self.epoch(id)?;
+            m.rank = m.rank.max(p.depth);
+            m.held.extend(p.held);
+            m.refunded.extend(p.refunded);
+            m.credited.extend(p.credited);
+        }
+        if m.held.len() > self.limits.operations
+            || m.refunded.len() > self.limits.operations
+            || m.credited.len() > self.limits.operations
+        {
+            return Err("cumulative DAG sets exceed limits".into());
+        }
+        for id in &m.held {
+            m.rank = m.rank.max(self.epoch(&self.op(id)?.epoch)?.depth);
+        }
+        m.rank = m.rank.checked_add(1).ok_or("DAG rank overflow")?;
+        m.allocation = self.allocation(&m.books())?;
+        self.check_version_manifest(&m)?;
+        Ok(m)
+    }
+    pub fn receive_version<J: Journal, A: Authentication>(
+        &mut self,
+        version: DagVersion,
+        journal: &mut J,
+        auth: &A,
+    ) -> Result<()> {
+        self.commit(Event::Version(version), journal, auth)
+    }
+    pub fn adopt_version<J: Journal, A: Authentication>(
+        &mut self,
+        id: &str,
+        journal: &mut J,
+        auth: &A,
+    ) -> Result<()> {
+        self.commit(Event::AdoptVersion(id.into()), journal, auth)
+    }
     fn apply<A: Authentication>(&mut self, event: &Event, auth: &A) -> Result<()> {
+        let legacy = matches!(
+            event,
+            Event::Seal(_)
+                | Event::Proposal(_)
+                | Event::Endorse(_)
+                | Event::Checkpoint(_)
+                | Event::Install(_)
+        );
+        let dag = matches!(event, Event::Version(_) | Event::AdoptVersion(_));
+        if (legacy && self.context.handoff != Handoff::SingleParent)
+            || (dag && self.context.handoff != Handoff::MultiParent)
+        {
+            return Err("handoff protocol/context mismatch".into());
+        }
         match event {
             Event::Initialize => return Err("duplicate initialization".into()),
+            Event::Version(v) => {
+                self.check_version(v, auth)?;
+                let id = v.manifest.id(&self.context.id);
+                if !self.state.versions.contains_key(&id)
+                    && self.state.versions.len() >= self.limits.checkpoints
+                {
+                    return Err("version limit reached; evidence retained".into());
+                }
+                self.state.versions.entry(id).or_insert_with(|| v.clone());
+            }
+            Event::AdoptVersion(id) => {
+                let v = self.state.versions.get(id).ok_or("unknown DAG version")?;
+                let m = &v.manifest;
+                let current = self.state.active.get(&m.account).ok_or("unknown pool")?;
+                if current == id {
+                    return Ok(());
+                }
+                if !m.parents.contains(current) {
+                    return Err("adoption must follow a direct active parent".into());
+                }
+                // Includes every old version, released reservation and zero-cost ID.
+                if !self.state.signed.is_subset(&m.held) {
+                    return Err("DAG version omits historical signature".into());
+                }
+                self.state.active.insert(m.account.clone(), id.clone());
+                self.state.visited.insert(id.clone());
+            }
             Event::Candidate(a) => {
                 let op = self.operation(a)?;
                 if !auth.authenticate_act(a) {
@@ -734,6 +917,9 @@ impl Replica {
         refunds: &BTreeSet<String>,
         credits: &BTreeSet<String>,
     ) -> Result<Manifest> {
+        if self.context.handoff != Handoff::SingleParent {
+            return Err("legacy checkpoint draft in multi-parent context".into());
+        }
         if reports.len() > self.context.committee.validators.len()
             || refunds.len() > self.limits.operations
             || credits.len() > self.limits.operations

@@ -50,6 +50,12 @@ pub trait Journal {
         event: &Event,
     ) -> Result<()>;
 }
+/// The handoff protocol is pinned in the authenticated context identity.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Handoff {
+    SingleParent,
+    MultiParent,
+}
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum VoteKind {
@@ -60,6 +66,7 @@ pub enum VoteKind {
     Checkpoint,
     CancelRequest,
     CheckpointRequest,
+    VersionRequest,
 }
 impl VoteKind {
     fn tag(self) -> &'static str {
@@ -71,6 +78,7 @@ impl VoteKind {
             Self::Checkpoint => "checkpoint",
             Self::CancelRequest => "owner-cancel",
             Self::CheckpointRequest => "owner-checkpoint",
+            Self::VersionRequest => "owner-dag-version",
         }
     }
 }
@@ -213,6 +221,67 @@ pub struct Checkpoint {
     pub proposal: Proposal,
     pub certificate: Certificate,
 }
+/// A candidate DAG node. All fields are bound by its semantic identity.
+/// Rank is a local well-founded label, never a consensus sequence.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(deny_unknown_fields))]
+pub struct VersionManifest {
+    pub account: String,
+    pub parents: BTreeSet<String>,
+    pub rank: u64,
+    pub held: BTreeSet<String>,
+    pub refunded: BTreeSet<String>,
+    pub credited: BTreeSet<String>,
+    pub allocation: Resources,
+}
+impl VersionManifest {
+    pub fn id(&self, context: &str) -> String {
+        digest(alloc::vec![
+            text("cbcl/dag-version/v1"),
+            text(context),
+            text(&self.account),
+            strings(&self.parents),
+            text(&self.rank.to_string()),
+            strings(&self.held),
+            strings(&self.refunded),
+            strings(&self.credited),
+            text(&self.allocation.rights.to_string()),
+            text(&self.allocation.headroom.to_string())
+        ])
+    }
+    // Shared numeric books/operation binding, never a legacy handoff proposal.
+    pub(crate) fn books(&self) -> Manifest {
+        Manifest {
+            account: self.account.clone(),
+            parent: String::new(),
+            depth: self.rank,
+            held: self.held.clone(),
+            refunded: self.refunded.clone(),
+            credited: self.credited.clone(),
+            allocation: self.allocation,
+        }
+    }
+}
+/// Untrusted owner-authorized metadata. No checkpoint/validator vote is needed.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(deny_unknown_fields))]
+pub struct DagVersion {
+    pub manifest: VersionManifest,
+    pub authorization: Vote,
+}
+/// Read-only projection of one durable validator for model correspondence.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct VersionSnapshot {
+    pub active: String,
+    pub visited: BTreeSet<String>,
+    pub known: BTreeSet<String>,
+    pub signed: BTreeSet<String>,
+    pub released: BTreeSet<String>,
+    pub effects: BTreeSet<String>,
+    pub fences: BTreeSet<String>,
+}
 /// Typed persistence format. Deserializing an Event confers no trust: recovery
 /// replays all semantic checks, proof signatures and decision guards.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -230,6 +299,8 @@ pub enum Event {
     Checkpoint(Checkpoint),
     Release(String),
     Install(String),
+    Version(DagVersion),
+    AdoptVersion(String),
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Limits {

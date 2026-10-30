@@ -18,6 +18,7 @@ use alloc::{
 #[derive(Debug, Clone)]
 pub struct Context {
     pub(crate) id: String,
+    pub(crate) handoff: Handoff,
     pub(crate) field: String,
     pub(crate) dialect: Dialect,
     pub(crate) thread: ThreadId,
@@ -36,6 +37,25 @@ impl Context {
         validators: Option<&[String]>,
         auth: &A,
     ) -> Result<Self> {
+        Self::with_handoff(inst, field, validators, auth, Handoff::SingleParent)
+    }
+    /// Isolated collective DAG protocol corresponding to SPEC-029. No legacy
+    /// checkpoint signature or journal is valid in this context.
+    pub fn from_instance_multi_parent<A: Authentication>(
+        inst: &Instance,
+        field: &str,
+        validators: Option<&[String]>,
+        auth: &A,
+    ) -> Result<Self> {
+        Self::with_handoff(inst, field, validators, auth, Handoff::MultiParent)
+    }
+    fn with_handoff<A: Authentication>(
+        inst: &Instance,
+        field: &str,
+        validators: Option<&[String]>,
+        auth: &A,
+        handoff: Handoff,
+    ) -> Result<Self> {
         // Instance caches are public convenience fields, not authentication.
         let accepted = Instance::new(inst.dialect, inst.thread.clone(), inst.acts)?;
         let inst = &accepted;
@@ -47,6 +67,9 @@ impl Context {
         else {
             return Err("unknown bounded-counter field".into());
         };
+        if handoff == Handoff::MultiParent && rule.ownership != Ownership::Collective {
+            return Err("multi-parent protocol requires collective ownership".into());
+        }
         let committee = rule.certification.resolve(validators)?;
         let opener = inst.opener.ok_or("missing opener")?;
         let root = inst.root.ok_or("missing root")?;
@@ -151,7 +174,10 @@ impl Context {
             .cloned()
             .collect();
         let id = digest(alloc::vec![
-            text("cbcl/quorum-context/v1"),
+            text(match handoff {
+                Handoff::SingleParent => "cbcl/quorum-context/v1",
+                Handoff::MultiParent => "cbcl/quorum-context/multi-parent/v1",
+            }),
             text(&crate::canonical::dialect_hash(inst.dialect)),
             text(&inst.thread.0),
             text(&root.address),
@@ -162,6 +188,7 @@ impl Context {
         ]);
         let context = Self {
             id,
+            handoff,
             field: field.into(),
             dialect: inst.dialect.clone(),
             thread: inst.thread.clone(),
@@ -180,6 +207,9 @@ impl Context {
     }
     pub fn id(&self) -> &str {
         &self.id
+    }
+    pub fn handoff(&self) -> Handoff {
+        self.handoff
     }
     pub fn committee(&self) -> &Committee {
         &self.committee
@@ -254,10 +284,25 @@ impl Context {
         manifest: &Manifest,
         actor: &str,
     ) -> Result<SigningRequest> {
+        if self.handoff != Handoff::SingleParent {
+            return Err("legacy checkpoint request in multi-parent context".into());
+        }
         if !self.checkpoint_actor(&manifest.account, actor) {
             return Err("checkpoint actor is not authorized for resource account".into());
         }
         Ok(self.request(VoteKind::CheckpointRequest, &manifest.id(&self.id), actor))
+    }
+    /// External actor signing request; receiving replicas validate every field.
+    pub fn version_request(
+        &self,
+        manifest: &VersionManifest,
+        actor: &str,
+    ) -> Result<SigningRequest> {
+        if self.handoff != Handoff::MultiParent || !self.checkpoint_actor(&manifest.account, actor)
+        {
+            return Err("unauthorized DAG version actor or context mode".into());
+        }
+        Ok(self.request(VoteKind::VersionRequest, &manifest.id(&self.id), actor))
     }
     pub(crate) fn matches(&self, inst: &Instance) -> bool {
         self.thread == inst.thread

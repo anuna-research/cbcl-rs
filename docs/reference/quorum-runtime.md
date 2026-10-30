@@ -201,3 +201,77 @@ binding complete immutable payloads are assumptions. Parser/crypto correctness,
 physical durability and formal Rust correspondence remain outside this proof.
 Abstract event-log replay is distinct from the Rust journal serialization, and
 this system model does not establish complete/latest client balance reads.
+
+## Multi-parent collective protocol
+
+`Context::from_instance_multi_parent(&instance, field, roster, &auth)` selects
+[[SPEC-030-rust-multi-parent-refinement]]. It requires collective ownership and uses
+a distinct context domain. Existing `from_instance` keeps the single-parent
+protocol. There is no journal migration: signatures, roots and logs from the other
+mode cannot be mixed. `Context::handoff()` reports the selected mode. Dialect
+syntax and external transaction signing stay the same.
+
+Multi-parent mode replaces seals, one-successor endorsements and checkpoint QCs
+with authenticated version metadata and independent local adoption:
+
+```text
+        A --\
+       /     \
+root          M --> N
+       \     /
+        B --/
+```
+
+| API | Meaning |
+|---|---|
+| `version_snapshot()` | Complete local signed history, visited/known versions and retained fences/releases |
+| `draft_version(parents, held, refunds, credits)` | Union parent sets and compute exact genesis-based books |
+| `Context::version_request(manifest, actor)` | Version authorization bytes for an eligible actual actor |
+| `receive_version(DagVersion, journal, auth)` | Independently verify metadata, actor signature, parents, ranks, sets and funding proofs |
+| `adopt_version(id, journal, auth)` | Require active version among direct parents and every historical signature ID held |
+| `version(id)` | Fetch retained validated metadata for relay |
+
+A host gathers candidate IDs/history through its transport, drafts a covering
+manifest, externally signs its authorization request, relays the version, and lets
+each validator adopt independently. No version/checkpoint vote is needed. Omitted
+IDs cause an adopter to refuse; a proposal cannot reset its history. Released and
+zero-cost signatures remain obligatory. Refunds require real cancellation QCs and
+credits require effects QCs. Parent balances are never added. Proposals that reserve
+more than genesis plus credits require cancellation-backed refunds before adoption
+can succeed. No consensus fallback or unconditional progress guarantee is supplied.
+
+`VersionManifest::rank` exceeds every parent rank and every held operation's source
+rank. Drafting computes the smallest such rank; callers can choose a larger rank
+before reauthorizing a manifest. Siblings can have equal rank. The label is not a
+global transaction order. The semantic ID binds parent IDs, rank, sets, allocation
+and context; changing any field requires a new actor authorization.
+
+All transitions use the same tentative-apply/atomic-append/expose discipline as
+operation signing. Recovery rechecks DAG guards and rejects wrong-mode legacy
+events. Metadata receipt never activates a version, nor does it imply another
+validator has received its proofs. Effects preparation still requires the locally
+received operation QC; a version importing credits requires locally verified
+finality. `finalized_view` retains its local, completeness-unknown meaning.
+Limits also bound DAG versions/parents and cumulative transaction sets. Overflow
+rejects; no evidence is dropped to regain capacity. Cached signing/adoption retries
+return existing evidence or stutter.
+
+The Lean numeric model is [[SPEC-029-multi-parent-counter-model]].
+`MultiParentRustOracle.lean` proves its Rust API adapter refines abstract steps.
+The adapter makes source-metadata registration, own-charge release and idempotent
+retries explicit. The shared fixture synchronizes verified metadata/certificates;
+separate Rust tests cover delayed delivery. `quorum_runtime/multi_parent.rs` compares
+real runtime admission and projected state and recovers the journal after every
+shared step. Regenerate/check with:
+
+```sh
+python3 proofs/validator-budget/check_rust_multi_parent.py
+cargo test -p cbcl-parser --test quorum_runtime multi_parent
+python3 proofs/validator-budget/check_rust_multi_parent_mutations.py
+```
+
+This is tested transition correspondence with the proved Lean reference, not a
+universal Rust source-equivalence proof. Machine integer/catalogue limits reject
+additional inputs. Packet codecs, cryptography and physical journal durability
+remain host assumptions. The new mode does not implement account transfers or
+prove unbounded fresh-ID refinement.

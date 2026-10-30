@@ -1386,3 +1386,6 @@ fn collective_successor_choice_and_cas_are_shared_across_actors() {
         .prepare_checkpoint(&other, &mut n.j, &n.auth)
         .is_err());
 }
+
+#[path = "quorum_runtime/multi_parent.rs"]
+mod multi_parent;
