@@ -1,0 +1,22 @@
+{
+  "baseline": "............\n----------------------------------------------------------------------\nRan 12 tests in 0.008s\n\nOK\n",
+  "mutations": {
+    "accept-incorrect-cut": {
+      "caught": true,
+      "evidence": "F\n======================================================================\nFAIL: test_omitted_report_and_invalid_endorsements (test_sealed_model.SealedTests)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/private/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-sealed-mutant-s5ee506f/test_sealed_model.py\", line 143, in test_omitted_report_and_invalid_endorsements\n    m.vote_checkpoint(2, (replace(cp, charged=frozenset(), rights=30), sidecar))\nAssertionError: Rejected not raised\n\n----------------------------------------------------------------------\nRan 1 test in 0.001s\n\nFAILED (failures=1)\n"
+    },
+    "sign-after-seal": {
+      "caught": true,
+      "evidence": "F\n======================================================================\nFAIL: test_seal_blocks_fresh_votes_but_allows_retry (test_sealed_model.SealedTests)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/private/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-sealed-mutant-8z_1ueqv/test_sealed_model.py\", line 72, in test_seal_blocks_fresh_votes_but_allows_retry\n    m.sign(0, other)\n  File \"/private/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-sealed-mutant-8z_1ueqv/sealed_model.py\", line 52, in sign\n    super().sign(v, tx)\n  File \"/private/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-sealed-mutant-8z_1ueqv/model.py\", line 181, in sign\n    self.check()\n  File \"/private/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-sealed-mutant-8z_1ueqv/sealed_model.py\", line 178, in check\n    assert report.signed == node.signed, 'signing after seal'\nAssertionError: signing after seal\n\n----------------------------------------------------------------------\nRan 1 test in 0.001s\n\nFAILED (failures=1)\n"
+    },
+    "vote-two-successors": {
+      "caught": true,
+      "evidence": "F\n======================================================================\nFAIL: test_vote_once_and_own_report_required (test_sealed_model.SealedTests)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/private/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-sealed-mutant-7ex_vbx0/test_sealed_model.py\", line 107, in test_vote_once_and_own_report_required\n    m.vote_checkpoint(1, full)\nAssertionError: Rejected not raised\n\n----------------------------------------------------------------------\nRan 1 test in 0.000s\n\nFAILED (failures=1)\n"
+    },
+    "double-credit": {
+      "caught": true,
+      "evidence": "F\n======================================================================\nFAIL: test_credit_once_mint_burn_and_recipient (test_sealed_model.SealedTests)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/private/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-sealed-mutant-ge_irxt6/test_sealed_model.py\", line 114, in test_credit_once_mint_burn_and_recipient\n    self.assertEqual((cp.rights, cp.headroom), (13, 7))\nAssertionError: Tuples differ: (16, 7) != (13, 7)\n\nFirst differing element 0:\n16\n13\n\n- (16, 7)\n?   ^\n\n+ (13, 7)\n?   ^\n\n\n----------------------------------------------------------------------\nRan 1 test in 0.001s\n\nFAILED (failures=1)\n"
+    }
+  },
+  "scope": "finite symbolic tests; full asynchronous refinement remains open"
+}

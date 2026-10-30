@@ -1,3 +1,4 @@
+import LeanCbcl.SealedCheckpoint
 import LeanCbcl.ValidatorBudgetRefutation
 import LeanCbcl.ValidatorBudget
 import LeanCbcl.Lattice.Result
@@ -322,3 +323,15 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.ValidatorBudgetRefutation.quorum_adopted_partial_update
 #print axioms CBCL.ValidatorBudgetRefutation.nonnegative_adopters_overspent
 #print axioms CBCL.ValidatorBudgetRefutation.no_funded_refinement
+
+#print axioms CBCL.SealedCheckpoint.step_capacity
+#print axioms CBCL.SealedCheckpoint.step_bounded
+#print axioms CBCL.SealedCheckpoint.reachable_bounded
+#print axioms CBCL.SealedCheckpoint.frozen_step
+#print axioms CBCL.SealedCheckpoint.frozen_journal
+#print axioms CBCL.SealedCheckpoint.finalized_nonnegative
+#print axioms CBCL.SealedCheckpoint.unique_successor
+#print axioms CBCL.SealedCheckpoint.late_certificate_carried
+
+#print axioms CBCL.SealedCheckpoint.disjoint_vote_bound
+#print axioms CBCL.SealedCheckpoint.honest_intersection

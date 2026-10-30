@@ -57,3 +57,5 @@ import LeanCbcl.BoundedCounter
 import LeanCbcl.ValidatorBudget
 
 import LeanCbcl.ValidatorBudgetRefutation
+
+import LeanCbcl.SealedCheckpoint
