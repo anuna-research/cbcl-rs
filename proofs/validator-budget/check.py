@@ -24,7 +24,8 @@ def main():
     args = parser.parse_args()
     if args.output:
         args.output.mkdir(parents=True, exist_ok=True)
-    report = {'scope': 'reference model tests and deliberate unsafe mutations; no distributed refinement proof'}
+    report = {'scope': 'reference tests, mutations and a known safety refutation',
+              'async_safety': 'refuted by SPEC-021 BUG-2100'}
     clean = dict(os.environ)
     clean.pop('CBCL_BUDGET_MODEL_MUTATION', None)
     p = subprocess.run([sys.executable, str(HERE/'test_model.py')], env=clean,
@@ -68,6 +69,15 @@ def main():
             # Temp directory names are not meaningful evidence identity.
             log = p.stdout.replace(str(path), 'UnsafeBudget.lean') + p.stderr
             (args.output/'lean-bound-mutation.log').write_text(log.rstrip()+'\n')
+    p = subprocess.run([sys.executable, str(HERE/'async_counterexample.py')],
+                       env=clean, capture_output=True, text=True)
+    assert p.returncode == 0, p.stderr
+    refutation = json.loads(p.stdout)
+    assert refutation['result'] == 'asynchronous safety refuted'
+    report['known_refutation'] = {'reproduced': True, 'initial_rights': 30,
+                                 'finalized_payments': 33, 'final_rights': -3}
+    if args.output:
+        (args.output/'known-async-refutation.json').write_text(p.stdout)
     rendered = json.dumps(report, indent=2, sort_keys=True)+'\n'
     if args.output:
         (args.output/'checks.json').write_text(rendered)

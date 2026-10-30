@@ -1,5 +1,11 @@
 # Validator-budget reference model
 
+**Known unsafe across partial version changes.**
+[[SPEC-021-validator-budget-model#BUG-2100]] reproduces finalized overspending.
+The earlier fixed-checkpoint proofs are valid, but do not establish lifecycle safety.
+Run `python3 proofs/validator-budget/async_counterexample.py` to reproduce the
+refutation. The main check runner now explicitly reports `async_safety: refuted`.
+
 This is the executable companion to [[SPEC-021-validator-budget-model]], not a
 production certificate API. It models symbolic authenticated messages and durable
 journals in memory, with exact integers rather than floating-point fractions.

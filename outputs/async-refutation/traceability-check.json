@@ -1,0 +1,106 @@
+{
+  "scope": "new refutation artefact targets and named anchors",
+  "checked": [
+    {
+      "source": "specs/SPEC-021-validator-budget-model.md",
+      "target": "SPEC-021-validator-budget-model#BUG-2100"
+    },
+    {
+      "source": "specs/SPEC-021-validator-budget-model.md",
+      "target": "SPEC-021-validator-budget-model#CON-2102"
+    },
+    {
+      "source": "specs/SPEC-021-validator-budget-model.md",
+      "target": "SPEC-020-resource-certification#ADR-2002"
+    },
+    {
+      "source": "specs/SPEC-021-validator-budget-model.md",
+      "target": "SPEC-021-validator-budget-model#CON-2100"
+    },
+    {
+      "source": "specs/SPEC-021-validator-budget-model.md",
+      "target": "SPEC-021-validator-budget-model#CON-2101"
+    },
+    {
+      "source": "specs/SPEC-021-validator-budget-model.md",
+      "target": "SPEC-021-validator-budget-model#TEST-2100"
+    },
+    {
+      "source": "specs/SPEC-021-validator-budget-model.md",
+      "target": "SPEC-021-validator-budget-model#TEST-2101"
+    },
+    {
+      "source": "specs/SPEC-021-validator-budget-model.md",
+      "target": "SPEC-021-validator-budget-model#Open work"
+    },
+    {
+      "source": "specs/SPEC-021-validator-budget-model.md",
+      "target": "SPEC-019-state-rules#CON-1909"
+    },
+    {
+      "source": "specs/SPEC-021-validator-budget-model.md",
+      "target": "SPEC-021-validator-budget-model#TEST-2100"
+    },
+    {
+      "source": "specs/SPEC-021-validator-budget-model.md",
+      "target": "SPEC-021-validator-budget-model#TEST-2100"
+    },
+    {
+      "source": "specs/SPEC-021-validator-budget-model.md",
+      "target": "SPEC-021-validator-budget-model#TEST-2100"
+    },
+    {
+      "source": "specs/SPEC-021-validator-budget-model.md",
+      "target": "SPEC-021-validator-budget-model#TEST-2101"
+    },
+    {
+      "source": "specs/SPEC-021-validator-budget-model.md",
+      "target": "SPEC-021-validator-budget-model#TEST-2100"
+    },
+    {
+      "source": "specs/SPEC-021-validator-budget-model.md",
+      "target": "SPEC-021-validator-budget-model#TEST-2101"
+    },
+    {
+      "source": "specs/SPEC-021-validator-budget-model.md",
+      "target": "SPEC-021-validator-budget-model#REQ-2104"
+    },
+    {
+      "source": "specs/SPEC-021-validator-budget-model.md",
+      "target": "SPEC-021-validator-budget-model#TEST-2102"
+    },
+    {
+      "source": "specs/SPEC-021-validator-budget-model.md",
+      "target": "SPEC-021-validator-budget-model#BUG-2100"
+    },
+    {
+      "source": "specs/SPEC-021-validator-budget-model.md",
+      "target": "SPEC-021-validator-budget-model#TEST-2102"
+    },
+    {
+      "source": "specs/SPEC-021-validator-budget-model.md",
+      "target": "SPEC-021-validator-budget-model#CON-2102"
+    },
+    {
+      "source": "specs/SPEC-021-validator-budget-model.md",
+      "target": "SPEC-020-resource-certification#TEST-2006"
+    },
+    {
+      "source": "specs/SPEC-021-validator-budget-model.md",
+      "target": "validator-budget-model"
+    },
+    {
+      "source": "specs/SPEC-021-validator-budget-model.md",
+      "target": "SPEC-021-validator-budget-model#Open work"
+    },
+    {
+      "source": "outputs/validator-budget-async-refutation.md",
+      "target": "SPEC-021-validator-budget-model#BUG-2100"
+    },
+    {
+      "source": "outputs/validator-budget-async-refutation.md",
+      "target": "SPEC-021-validator-budget-model#CON-2102"
+    }
+  ],
+  "unresolved": []
+}

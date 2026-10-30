@@ -5,6 +5,11 @@ mode: explanation
 
 # Validator-budget model evidence
 
+Subsequent result: [[SPEC-021-validator-budget-model#BUG-2100]] refutes the
+asynchronous resource-safety claim. This page records the earlier scoped checks;
+[[validator-budget-async-refutation]] records the counterexample and Lean disproof.
+The existing tests and fixed-checkpoint proofs did not establish global safety.
+
 [[SPEC-021-validator-budget-model]] records the executable reference and Lean
 safety-core contracts. The comparison gate in
 [[SPEC-020-resource-certification#TEST-2006]] remains incomplete. No certification

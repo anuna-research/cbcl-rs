@@ -1,3 +1,4 @@
+import LeanCbcl.ValidatorBudgetRefutation
 import LeanCbcl.ValidatorBudget
 import LeanCbcl.Lattice.Result
 import LeanCbcl.Lattice.Store
@@ -308,3 +309,16 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.ValidatorBudget.fence_preserves_discipline
 #print axioms CBCL.ValidatorBudget.receipt_monotone
 #print axioms CBCL.ValidatorBudget.receipt_replay
+
+-- SPEC-021 BUG-2100: guarded counterexample, not an asynchronous safety proof.
+#print axioms CBCL.ValidatorBudgetRefutation.guarded_trace
+#print axioms CBCL.ValidatorBudgetRefutation.old_certificates
+#print axioms CBCL.ValidatorBudgetRefutation.partial_update_budgets
+#print axioms CBCL.ValidatorBudgetRefutation.all_final
+#print axioms CBCL.ValidatorBudgetRefutation.final_quorums
+#print axioms CBCL.ValidatorBudgetRefutation.overspent
+#print axioms CBCL.ValidatorBudgetRefutation.nonnegative_adopters_trace
+#print axioms CBCL.ValidatorBudgetRefutation.nonnegative_adopters_budgets
+#print axioms CBCL.ValidatorBudgetRefutation.quorum_adopted_partial_update
+#print axioms CBCL.ValidatorBudgetRefutation.nonnegative_adopters_overspent
+#print axioms CBCL.ValidatorBudgetRefutation.no_funded_refinement

@@ -130,3 +130,8 @@ Fixed-slot certification remains a sequential baseline. Neither profile has a ru
 signing-capacity/finality proofs. These do not change the runtime guarantees above
 or prove the full asynchronous certification lifecycle. See [[validator-budget-model]]
 for evidence and remaining assumptions.
+
+The candidate validator-budget model's asynchronous safety is now refuted by
+[[SPEC-021-validator-budget-model#BUG-2100]]. Its partial renewal rule can finalize
+more rights than exist. This finding does not change the implemented host-gated
+escrow primitive; it blocks promotion of the proposed certification profile.

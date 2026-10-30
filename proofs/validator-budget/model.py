@@ -1,5 +1,9 @@
 """SPEC-021 reference model, not a network service or certificate wire format.
 
+KNOWN UNSAFE: BUG-2100 refutes asynchronous safety of partial version renewal.
+See async_counterexample.py. This implementation is retained as the regression
+subject; its diagnostic check catches a reachable negative finalized balance.
+
 Symbolic authenticated identities, fixed roster, exact scaled integer budgets.
 Signatures and persistence are represented by monotonic records. Recovery models
 only a no-commit fence + an abstract unique consensus outcome, not consensus.

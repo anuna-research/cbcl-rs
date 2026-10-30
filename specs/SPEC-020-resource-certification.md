@@ -1,7 +1,7 @@
 ---
 id: SPEC-020
 title: Resource Agreement — Certification and Compatible Sets
-version: 0.3.1
+version: 0.3.2
 status: design-recommendation
 last-updated: 2026-10-30
 ---
@@ -9,6 +9,10 @@ last-updated: 2026-10-30
 # Resource Agreement — Certification and Compatible Sets
 
 ## Orientation
+
+The validator-budget candidate currently fails asynchronous resource safety;
+[[SPEC-021-validator-budget-model#BUG-2100]] gives executable and Lean evidence.
+Its renewal rule needs a sealed-cut design before a runtime can be selected.
 
 The bounded counter is implemented; malicious-owner certification is not.
 Its current verifier faults on an account fork and requires a correct host issuance
@@ -479,6 +483,8 @@ require separate specifications. No deployable trustless service is claimed.
 
 ## Changelog
 
+- 0.3.2 (2026-10-30): flag the asynchronous validator-budget refutation and
+  sealed-cut repair gate. No certification runtime enabled.
 - 0.3.1 (2026-10-30): link the executable validator-budget model and Lean
   safety core, retaining the asynchronous refinement gate.
 - 0.3.0 (2026-10-30): add Stingray, invariant-confluence and BEC literature;
