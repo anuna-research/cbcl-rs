@@ -86,7 +86,9 @@ and per-account headroom. The default profile uses a host issuance gate;
 with authenticated quorums, durable local journals and cancellation-backed refunds.
 See [bounded counters](docs/concepts/bounded-counter.md), the
 [quorum runtime API](docs/reference/quorum-runtime.md), and the
-[coin dialect](dialects/example-coin.cbcl). Signing, authentication and durable
+[coin dialect](dialects/example-coin.cbcl). Collective ownership supports shared
+pools consumed by distinct authorized signers; see the
+[ticket dialect](dialects/example-collective-tickets.cbcl). Signing, authentication and durable
 storage remain host layers. Quorum balance queries expose known-final local views,
 with completeness explicitly unknown.
 

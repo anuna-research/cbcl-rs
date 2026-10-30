@@ -189,3 +189,52 @@ worked trace is `crates/cbcl-parser/tests/quorum_runtime.rs`.
 Rust/model correspondence has executable tests and independent review; it is not
 formal extraction. The earlier [[SPEC-023-abortable-budget-handoff]] consensus
 fallback is historical research.
+
+## Collective ownership
+
+`(ownership collective)` lets distinct authorized signers consume one shared pool.
+The default `(ownership account)` retains per-signer allocations and existing hashes.
+For tickets, sellers authorize their own sales while charging the same inventory:
+
+```lisp
+(state
+  (tickets
+    (bounded-counter
+      (ownership collective)
+      (certification quorum-budget)
+      (floor 0)
+      (initial open :available)
+      (issuers organizer)
+      (increment restock :amount)
+      (decrement sell :amount))))
+```
+
+Every bound verb, including the opener, declares its `:from` role in `extend`.
+For example, `sell` is from `seller`, while `open` and `restock` are from `organizer`.
+The complete dialect is `dialects/example-collective-tickets.cbcl`.
+The opener supplies scalar `:available 100`, rather than account allocation pairs.
+Concurrent effects-final sales of three and two tickets leave one pool with 95.
+Changing the seller does not create another validator budget.
+
+Collective counters require quorum-budget certification. They support increments
+and decrements; account allocation and transfer options reject. With a ceiling,
+initial headroom is derived as ceiling minus floor minus initial rights. Restocking
+requires both issuer authority and available signing capacity. All existing
+conservative capacity and conditional-progress limits continue to apply.
+
+An owner cancellation request must be signed by the transaction's original actor.
+Another seller may subsequently checkpoint the pool using that cancellation proof,
+without gaining permission to cancel the transaction itself. Checkpoint proposers
+must occupy an operation's from role. A cast member with only an opener or read role
+cannot choose successors. The reserved internal pool identity is never an actor key.
+
+Collective views render scalar `rights` and optional `headroom`, alongside
+`ownership: collective`, `status: finalized-view` and `completeness: unknown`.
+The Rust map holds one reserved pool entry; it does not represent seller balances.
+Use `Context::pool()` to obtain that resource scope.
+
+This implements shared authorization and budgets with the existing single-parent
+checkpoint protocol. It does not implement Stingray multi-parent version merges;
+contending proposals can stall. [[SPEC-027-collective-bounded-counters]] defines the
+extension. Its Lean specialization separates actors from resource ownership and
+inherits generic safety/refinement; Rust correspondence remains tested and reviewed.

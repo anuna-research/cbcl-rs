@@ -234,7 +234,8 @@ impl Replica {
             _ => return Err("missing source epoch".into()),
         };
         let m = self.epoch(&epoch)?;
-        if m.account != a.signer {
+        let account = self.context.account(&a.signer)?.to_string();
+        if m.account != account {
             return Err("epoch belongs to another account".into());
         }
         let dependencies = SExpr::List(
@@ -255,8 +256,8 @@ impl Replica {
             (&rule.increment.1, None, 0)
         } else if a.verb == rule.decrement.0 {
             (&rule.decrement.1, None, 1)
-        } else if a.verb == rule.transfer.0 {
-            (&rule.transfer.2, Some(&rule.transfer.1), 2)
+        } else if let Some((_, r, k)) = rule.transfer.as_ref().filter(|(v, _, _)| a.verb == *v) {
+            (k, Some(r), 2)
         } else if let Some((v, r, k)) = &rule.transfer_headroom {
             if &a.verb == v {
                 (k, Some(r), 3)
@@ -271,7 +272,7 @@ impl Replica {
             _ => return Err("amount must be a positive integer".into()),
         };
         let to = match recipient {
-            None => a.signer.clone(),
+            None => account.clone(),
             Some(k) => match a.fields.get(k) {
                 Some(SExpr::Atom(Atom::Symbol(s) | Atom::Str(s)))
                     if self.context.initial.contains_key(s) =>
@@ -337,6 +338,7 @@ impl Replica {
         };
         Ok(Operation {
             act: a.clone(),
+            account,
             epoch,
             cost,
             credits: [(to, credit)].into_iter().collect(),
@@ -359,7 +361,7 @@ impl Replica {
     fn budget(&self, id: &str) -> Result<()> {
         let op = self.op(id)?;
         let epoch = self.epoch(&op.epoch)?;
-        if self.state.active.get(&op.act.signer) != Some(&op.epoch)
+        if self.state.active.get(&op.account) != Some(&op.epoch)
             || self.state.sealed.contains_key(&op.epoch)
             || self.state.released.contains(id)
         {
@@ -418,7 +420,7 @@ impl Replica {
         }
         for id in &m.held {
             let op = self.op(id)?;
-            if op.act.signer != m.account {
+            if op.account != m.account {
                 return Err("held operation belongs to another account".into());
             }
             b = b.sub(op.cost)?;
@@ -464,11 +466,17 @@ impl Replica {
         let m = &p.manifest;
         self.check_manifest(m)?;
         let id = m.id(&self.context.id);
+        if !self
+            .context
+            .checkpoint_actor(&m.account, &p.authorization.signer)
+        {
+            return Err("unauthorized checkpoint actor".into());
+        }
         self.verify_vote(
             &p.authorization,
             VoteKind::CheckpointRequest,
             &id,
-            &m.account,
+            &p.authorization.signer,
             auth,
         )?;
         if p.reports.len() < self.context.committee.quorum
@@ -804,6 +812,7 @@ impl Replica {
         self.commit(Event::Install(id.into()), j, a)
     }
     pub fn active_epoch(&self, account: &str) -> Result<&str> {
+        let account = self.context.account(account)?;
         self.state
             .active
             .get(account)
@@ -826,7 +835,7 @@ impl Replica {
         }
         for id in &finalized {
             let op = self.op(id)?;
-            let owner = balances.get_mut(&op.act.signer).ok_or("unknown owner")?;
+            let owner = balances.get_mut(&op.account).ok_or("unknown owner")?;
             *owner = owner.sub(op.cost)?;
             for (a, credit) in &op.credits {
                 let b = balances.get_mut(a).ok_or("unknown recipient")?;
@@ -854,6 +863,7 @@ impl Replica {
             return Err("final evidence exceeds ceiling".into());
         }
         Ok(FinalizedView {
+            ownership: self.context.rule.ownership,
             context: self.context.id.clone(),
             evidence_digest: digest(alloc::vec![
                 text("cbcl/final-view/v1"),
@@ -916,7 +926,9 @@ impl Replica {
         fields: BTreeMap<String, SExpr>,
         nonce: &str,
     ) -> core::result::Result<Message, Reject> {
-        crate::intend::intend_certified(inst, owner, verb, fields, self, nonce)
+        let bound = Instance::new(inst.dialect, inst.thread.clone(), inst.acts)
+            .map_err(Reject::Resource)?;
+        crate::intend::intend_certified(&bound, owner, verb, fields, self, nonce)
     }
     pub fn fold_instance(&self, inst: &Instance) -> Result<Vec<(String, Value)>> {
         if !self.context.matches(inst) {

@@ -1,0 +1,23 @@
+; Distinct sellers consume a shared pool. Signing and durable journals are host layers.
+(define collective-tickets (cbcl) @ticket-author
+  (:resource-requirements ((max-depth 16) (max-expansion-size 4096) (verification-time 1000)))
+  (:roles (organizer (* seller)))
+  (extend open (to available) :from organizer :to (organizer seller)
+    (tell to :available available))
+  (extend restock (to amount) :from organizer :to (organizer seller)
+    (tell to :amount amount))
+  (extend sell (to buyer amount) :from seller :to (organizer seller)
+    (tell to :buyer buyer :amount amount))
+  (shape open (require :available number))
+  (shape restock (require :amount number))
+  (shape sell (require :buyer symbol) (require :amount number))
+  (protocol (then begin open) (then open restock) (then open sell))
+  (state
+    (tickets (bounded-counter
+      (ownership collective)
+      (certification quorum-budget (validators @v0 @v1 @v2 @v3))
+      (floor 0)
+      (initial open :available)
+      (issuers organizer)
+      (increment restock :amount)
+      (decrement sell :amount)))))

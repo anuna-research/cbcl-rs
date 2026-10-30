@@ -1,0 +1,464 @@
+    Checking cbcl-core v0.1.0 (/private/tmp/cbcl-bounded-counter/crates/cbcl-core)
+warning: redundant field names in struct initialization
+   --> crates/cbcl-core/src/typed_addr.rs:658:13
+    |
+658 |             root: root,
+    |             ^^^^^^^^^^ help: replace it with: `root`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#redundant_field_names
+    = note: `#[warn(clippy::redundant_field_names)]` on by default
+
+warning: calls to `push` immediately after creation
+   --> crates/cbcl-core/src/blame.rs:120:9
+    |
+120 | /         let mut items: Vec<SExpr> = Vec::new();
+121 | |         items.push(SExpr::Atom(Atom::Symbol(String::from("blame"))));
+122 | |         items.push(SExpr::Atom(Atom::Keyword(String::from("party"))));
+123 | |         items.push(SExpr::Atom(Atom::Symbol(String::from(self.party.as_str()))));
+124 | |         items.push(SExpr::Atom(Atom::Keyword(String::from("reason"))));
+125 | |         items.push(SExpr::Atom(Atom::Str(self.reason.clone())));
+    | |________________________________________________________________^ help: consider using the `vec![]` macro: `let mut items: Vec<SExpr> = vec![..];`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#vec_init_then_push
+    = note: `#[warn(clippy::vec_init_then_push)]` on by default
+
+warning: this `impl` can be derived
+  --> crates/cbcl-core/src/policy.rs:45:1
+   |
+45 | / impl Default for UnknownPredecessorPolicy {
+46 | |     fn default() -> Self {
+47 | |         UnknownPredecessorPolicy::Reject
+48 | |     }
+49 | | }
+   | |_^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#derivable_impls
+   = note: `#[warn(clippy::derivable_impls)]` on by default
+help: replace the manual implementation with a derive attribute and mark the default variant
+   |
+32 + #[derive(Default)]
+33 | pub enum UnknownPredecessorPolicy {
+34 |     /// Reject unknown predecessors immediately. Returns `Pending` with retry hint.
+35 |     /// Preserves zero mutable state (NFR-204, NFR-302).
+36 ~     #[default]
+37 ~     Reject,
+   |
+
+warning: this `if` can be collapsed into the outer `match`
+   --> crates/cbcl-core/src/r7.rs:768:13
+    |
+768 | /             if s.len() as u32 > bounds.max_string {
+769 | |                 return Err(violation(
+770 | |                     "size",
+771 | |                     Some(key),
+...   |
+776 | |                 ));
+777 | |             }
+    | |_____________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#collapsible_match
+    = note: `#[warn(clippy::collapsible_match)]` on by default
+help: collapse nested if block
+    |
+767 ~         SExpr::Atom(Atom::Str(s))
+768 ~             if s.len() as u32 > bounds.max_string => {
+769 |                 return Err(violation(
+...
+776 |                 ));
+777 ~             }
+    |
+
+warning: this `if` can be collapsed into the outer `match`
+   --> crates/cbcl-core/src/r7.rs:780:13
+    |
+780 | /             if n.unsigned_abs() > bounds.max_number as u64 {
+781 | |                 return Err(violation(
+782 | |                     "size",
+783 | |                     Some(key),
+...   |
+788 | |                 ));
+789 | |             }
+    | |_____________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#collapsible_match
+help: collapse nested if block
+    |
+779 ~         SExpr::Atom(Atom::Num(n))
+780 ~             if n.unsigned_abs() > bounds.max_number as u64 => {
+781 |                 return Err(violation(
+...
+788 |                 ));
+789 ~             }
+    |
+
+warning: method `from_str` can be confused for the standard trait method `std::str::FromStr::from_str`
+  --> crates/cbcl-core/src/shape.rs:31:5
+   |
+31 | /     pub fn from_str(s: &str) -> Option<TypeConstraint> {
+32 | |         match s {
+33 | |             "string" => Some(TypeConstraint::String),
+34 | |             "number" => Some(TypeConstraint::Number),
+...  |
+41 | |     }
+   | |_____^
+   |
+   = help: consider implementing the trait `std::str::FromStr` or choosing a less ambiguous method name
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#should_implement_trait
+   = note: `#[warn(clippy::should_implement_trait)]` on by default
+
+warning: match expression looks like `matches!` macro
+  --> crates/cbcl-core/src/shape.rs:45:9
+   |
+45 | /         match (self, sexpr) {
+46 | |             (TypeConstraint::String, SExpr::Atom(Atom::Str(_))) => true,
+47 | |             (TypeConstraint::Number, SExpr::Atom(Atom::Num(_))) => true,
+48 | |             (TypeConstraint::Bool, SExpr::Atom(Atom::Bool(_))) => true,
+...  |
+52 | |             _ => false,
+53 | |         }
+   | |_________^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#match_like_matches_macro
+   = note: `#[warn(clippy::match_like_matches_macro)]` on by default
+help: use `matches!` directly
+   |
+45 -         match (self, sexpr) {
+46 -             (TypeConstraint::String, SExpr::Atom(Atom::Str(_))) => true,
+47 -             (TypeConstraint::Number, SExpr::Atom(Atom::Num(_))) => true,
+48 -             (TypeConstraint::Bool, SExpr::Atom(Atom::Bool(_))) => true,
+49 -             (TypeConstraint::Symbol, SExpr::Atom(Atom::Symbol(_))) => true,
+50 -             (TypeConstraint::Keyword, SExpr::Atom(Atom::Keyword(_))) => true,
+51 -             (TypeConstraint::List, SExpr::List(_)) => true,
+52 -             _ => false,
+53 -         }
+45 +         matches!((self, sexpr), (TypeConstraint::String, SExpr::Atom(Atom::Str(_))) | (TypeConstraint::Number, SExpr::Atom(Atom::Num(_))) | (TypeConstraint::Bool, SExpr::Atom(Atom::Bool(_))) | (TypeConstraint::Symbol, SExpr::Atom(Atom::Symbol(_))) | (TypeConstraint::Keyword, SExpr::Atom(Atom::Keyword(_))) | (TypeConstraint::List, SExpr::List(_)))
+   |
+
+warning: `cbcl-core` (lib) generated 6 warnings (run `cargo clippy --fix --lib -p cbcl-core -- ` to apply 3 suggestions)
+    Checking cbcl-parser v0.1.0 (/private/tmp/cbcl-bounded-counter/crates/cbcl-parser)
+warning: redundant closure
+   --> crates/cbcl-core/tests/certificate_tests.rs:301:30
+    |
+301 |         bundle.verify_hashes(|msg| compute_hash(msg)).is_ok(),
+    |                              ^^^^^^^^^^^^^^^^^^^^^^^ help: replace the closure with the function itself: `compute_hash`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#redundant_closure
+    = note: `#[warn(clippy::redundant_closure)]` on by default
+
+warning: redundant closure
+   --> crates/cbcl-core/tests/certificate_tests.rs:544:30
+    |
+544 |         bundle.verify_hashes(|msg| compute_hash(msg)).is_ok(),
+    |                              ^^^^^^^^^^^^^^^^^^^^^^^ help: replace the closure with the function itself: `compute_hash`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#redundant_closure
+
+warning: redundant closure
+   --> crates/cbcl-core/tests/certificate_tests.rs:684:34
+    |
+684 |     assert!(bundle.verify_hashes(|msg| compute_hash(msg)).is_ok());
+    |                                  ^^^^^^^^^^^^^^^^^^^^^^^ help: replace the closure with the function itself: `compute_hash`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#redundant_closure
+
+warning: `cbcl-core` (test "certificate_tests") generated 3 warnings (run `cargo clippy --fix --test "certificate_tests" -p cbcl-core -- ` to apply 3 suggestions)
+warning: large size difference between variants
+   --> crates/cbcl-parser/src/pipeline.rs:116:1
+    |
+116 | / pub enum PipelineResult {
+117 | |     Success(Message),
+    | |     ---------------- the second-largest variant contains at least 192 bytes
+118 | |     ParseError(ParseError),
+119 | |     ValidationError(ValidationError),
+    | |     -------------------------------- the largest variant contains at least 488 bytes
+...   |
+134 | |     },
+135 | | }
+    | |_^ the entire enum is at least 488 bytes
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#large_enum_variant
+    = note: `#[warn(clippy::large_enum_variant)]` on by default
+help: consider boxing the large fields or introducing indirection in some other way to reduce the total size of the enum
+    |
+119 -     ValidationError(ValidationError),
+119 +     ValidationError(Box<ValidationError>),
+    |
+
+warning: the `Err`-variant returned from this function is very large
+   --> crates/cbcl-parser/src/pipeline.rs:367:6
+    |
+ 53 | /     CausalViolation {
+ 54 | |         violation: CausalViolation,
+ 55 | |         blame: ViolationError,
+ 56 | |     },
+    | |_____- the variant `CausalViolation` contains at least 440 bytes
+ 57 |       /// Shape constraint violation (REQ-231, step 6b).
+ 58 | /     ShapeViolation {
+ 59 | |         violation: ShapeViolation,
+ 60 | |         blame: ViolationError,
+ 61 | |     },
+    | |_____- the largest variant contains at least 488 bytes
+...
+367 |   ) -> Result<(), ValidationError> {
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: try reducing the size of `pipeline::ValidationError`, for example by boxing large elements or replacing it with `Box<pipeline::ValidationError>`
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#result_large_err
+    = note: `#[warn(clippy::result_large_err)]` on by default
+
+warning: the `Err`-variant returned from this function is very large
+   --> crates/cbcl-parser/src/pipeline.rs:401:6
+    |
+ 53 | /     CausalViolation {
+ 54 | |         violation: CausalViolation,
+ 55 | |         blame: ViolationError,
+ 56 | |     },
+    | |_____- the variant `CausalViolation` contains at least 440 bytes
+ 57 |       /// Shape constraint violation (REQ-231, step 6b).
+ 58 | /     ShapeViolation {
+ 59 | |         violation: ShapeViolation,
+ 60 | |         blame: ViolationError,
+ 61 | |     },
+    | |_____- the largest variant contains at least 488 bytes
+...
+401 |   ) -> Result<(), ValidationError> {
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: try reducing the size of `pipeline::ValidationError`, for example by boxing large elements or replacing it with `Box<pipeline::ValidationError>`
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#result_large_err
+
+warning: very complex type used. Consider factoring parts into `type` definitions
+   --> crates/cbcl-parser/src/contract.rs:206:12
+    |
+206 |     state: Vec<(&'a str, &'a str, Vec<(Arg, &'a str)>)>, // (field, head, args)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#type_complexity
+    = note: `#[warn(clippy::type_complexity)]` on by default
+
+warning: this call to `clone` can be replaced with `std::slice::from_ref`
+   --> crates/cbcl-core/tests/state_properties.rs:951:50
+    |
+951 |     let other = signer_write(100, "@b", "other", &[old.address.clone()]);
+    |                                                  ^^^^^^^^^^^^^^^^^^^^^^ help: try: `std::slice::from_ref(&old.address)`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#cloned_ref_to_slice_refs
+    = note: `#[warn(clippy::cloned_ref_to_slice_refs)]` on by default
+
+warning: this call to `clone` can be replaced with `std::slice::from_ref`
+   --> crates/cbcl-core/tests/state_properties.rs:977:54
+    |
+977 |     let excluded = signer_write(1, "@a", "excluded", &[old.address.clone()]);
+    |                                                      ^^^^^^^^^^^^^^^^^^^^^^ help: try: `std::slice::from_ref(&old.address)`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#cloned_ref_to_slice_refs
+
+warning: this call to `clone` can be replaced with `std::slice::from_ref`
+   --> crates/cbcl-core/tests/state_properties.rs:978:59
+    |
+978 |     let mut wrong_verb = signer_write(2, "@a", "allowed", &[old.address.clone()]);
+    |                                                           ^^^^^^^^^^^^^^^^^^^^^^ help: try: `std::slice::from_ref(&old.address)`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#cloned_ref_to_slice_refs
+
+warning: this call to `clone` can be replaced with `std::slice::from_ref`
+    --> crates/cbcl-core/tests/state_properties.rs:1039:40
+     |
+1039 |     let first = Act::from_message(bind(&[op.clone()], fields()).unwrap(), "@a").unwrap();
+     |                                        ^^^^^^^^^^^^^ help: try: `std::slice::from_ref(&op)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#cloned_ref_to_slice_refs
+
+warning: this call to `clone` can be replaced with `std::slice::from_ref`
+    --> crates/cbcl-core/tests/state_properties.rs:1064:19
+     |
+1064 |         addr_list(&[other.address.clone()]),
+     |                   ^^^^^^^^^^^^^^^^^^^^^^^^ help: try: `std::slice::from_ref(&other.address)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#cloned_ref_to_slice_refs
+
+warning: this call to `clone` can be replaced with `std::slice::from_ref`
+    --> crates/cbcl-core/tests/state_properties.rs:1120:61
+     |
+1120 |                 &Instance::new(&d, ThreadId(THREAD.into()), &[op.clone()]).unwrap(),
+     |                                                             ^^^^^^^^^^^^^ help: try: `std::slice::from_ref(&op)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#cloned_ref_to_slice_refs
+
+warning: this call to `clone` can be replaced with `std::slice::from_ref`
+    --> crates/cbcl-core/tests/state_properties.rs:1183:53
+     |
+1183 |     let invalid = signer_write(1, "@a", "excluded", &[old.address.clone()]);
+     |                                                     ^^^^^^^^^^^^^^^^^^^^^^ help: try: `std::slice::from_ref(&old.address)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#cloned_ref_to_slice_refs
+
+warning: `cbcl-core` (test "state_properties") generated 7 warnings
+warning: `cbcl-parser` (lib) generated 4 warnings
+warning: this `if let` can be collapsed into the outer `if let`
+    --> crates/cbcl-core/src/equivocation.rs:1231:13
+     |
+1231 | /             if let Message::Simple { content, .. } = message {
+1232 | |                 *content = SExpr::Atom(Atom::Str("tampered".to_string()));
+1233 | |             }
+     | |_____________^
+     |
+help: the outer pattern can be modified to include the inner pattern
+    --> crates/cbcl-core/src/equivocation.rs:1230:45
+     |
+1230 |         if let ProofMember::SignedMessage { message, .. } = &mut proof.second {
+     |                                             ^^^^^^^ replace this binding
+1231 |             if let Message::Simple { content, .. } = message {
+     |                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ with this pattern, prefixed by `message: `
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#collapsible_match
+     = note: `#[warn(clippy::collapsible_match)]` on by default
+
+warning: equality checks against false can be replaced by a negation
+   --> crates/cbcl-core/src/evaluator.rs:553:17
+    |
+553 |         assert!(result.expanded.is_symbol("effect") == false);
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: try: `!result.expanded.is_symbol("effect")`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#bool_comparison
+    = note: `#[warn(clippy::bool_comparison)]` on by default
+
+warning: very complex type used. Consider factoring parts into `type` definitions
+  --> crates/cbcl-parser/tests/contract_parity.rs:76:20
+   |
+76 |     let mutations: Vec<(&str, Box<dyn Fn(&mut Value)>)> = vec![
+   |                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#type_complexity
+   = note: `#[warn(clippy::type_complexity)]` on by default
+
+warning: deref which would be done by auto-deref
+   --> crates/cbcl-core/src/gossip.rs:821:38
+    |
+821 |             assert_eq!(net.neighbors(*name).unwrap().len(), 3);
+    |                                      ^^^^^ help: try: `name`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#explicit_auto_deref
+    = note: `#[warn(clippy::explicit_auto_deref)]` on by default
+
+warning: deref which would be done by auto-deref
+   --> crates/cbcl-core/src/gossip.rs:837:35
+    |
+837 |             let n = net.neighbors(*name).unwrap().len();
+    |                                   ^^^^^ help: try: `name`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#explicit_auto_deref
+
+warning: `cbcl-parser` (test "contract_parity") generated 1 warning
+warning: this call to `clone` can be replaced with `std::slice::from_ref`
+  --> crates/cbcl-parser/tests/state_progress.rs:56:16
+   |
+56 |     accept(&d, &[a.clone()], &b);
+   |                ^^^^^^^^^^^^ help: try: `std::slice::from_ref(&a)`
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#cloned_ref_to_slice_refs
+   = note: `#[warn(clippy::cloned_ref_to_slice_refs)]` on by default
+
+warning: this call to `clone` can be replaced with `std::slice::from_ref`
+   --> crates/cbcl-parser/tests/state_progress.rs:163:26
+    |
+163 |     assert_eq!(state(&d, &[b.clone()])["number"], 0);
+    |                          ^^^^^^^^^^^^ help: try: `std::slice::from_ref(&b)`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#cloned_ref_to_slice_refs
+
+warning: this call to `clone` can be replaced with `std::slice::from_ref`
+   --> crates/cbcl-parser/tests/state_progress.rs:348:15
+    |
+348 |     accept(d, &[open.clone()], &tick);
+    |               ^^^^^^^^^^^^^^^ help: try: `std::slice::from_ref(&open)`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#cloned_ref_to_slice_refs
+
+warning: this call to `clone` can be replaced with `std::slice::from_ref`
+   --> crates/cbcl-parser/tests/state_progress.rs:376:15
+    |
+376 |     accept(d, &[root.clone()], &a);
+    |               ^^^^^^^^^^^^^^^ help: try: `std::slice::from_ref(&root)`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#cloned_ref_to_slice_refs
+
+warning: `cbcl-parser` (test "state_progress") generated 4 warnings
+warning: `cbcl-parser` (lib test) generated 4 warnings (4 duplicates)
+warning: this call to `clone` can be replaced with `std::slice::from_ref`
+  --> crates/cbcl-parser/tests/repeat_execution.rs:48:18
+   |
+48 |     accepted(&d, &[first.clone()], &second);
+   |                  ^^^^^^^^^^^^^^^^ help: try: `std::slice::from_ref(&first)`
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#cloned_ref_to_slice_refs
+   = note: `#[warn(clippy::cloned_ref_to_slice_refs)]` on by default
+
+warning: this call to `clone` can be replaced with `std::slice::from_ref`
+   --> crates/cbcl-parser/tests/repeat_execution.rs:124:18
+    |
+124 |     accepted(&d, &[a.clone()], &b);
+    |                  ^^^^^^^^^^^^ help: try: `std::slice::from_ref(&a)`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#cloned_ref_to_slice_refs
+
+warning: this call to `clone` can be replaced with `std::slice::from_ref`
+   --> crates/cbcl-parser/tests/repeat_execution.rs:317:17
+    |
+317 |     accepted(d, &[root.clone()], &open);
+    |                 ^^^^^^^^^^^^^^^ help: try: `std::slice::from_ref(&root)`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#cloned_ref_to_slice_refs
+
+warning: `cbcl-parser` (test "repeat_execution") generated 3 warnings
+warning: this `if` can be collapsed into the outer `match`
+   --> crates/cbcl-core/src/r7.rs:768:13
+    |
+768 | /             if s.len() as u32 > bounds.max_string {
+769 | |                 return Err(violation(
+770 | |                     "size",
+771 | |                     Some(key),
+...   |
+776 | |                 ));
+777 | |             }
+    | |_____________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#collapsible_match
+help: collapse nested if block
+    |
+767 ~         SExpr::Atom(Atom::Str(s))
+768 ~             if s.len() as u32 > bounds.max_string => {
+769 |                 return Err(violation(
+...
+776 |                 ));
+777 ~             }
+    |
+
+warning: the loop variable `t` is used to index `threads`
+    --> crates/cbcl-core/src/store.rs:1036:18
+     |
+1036 |         for t in 0..10 {
+     |                  ^^^^^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#needless_range_loop
+     = note: `#[warn(clippy::needless_range_loop)]` on by default
+help: consider using an iterator and enumerate()
+     |
+1036 -         for t in 0..10 {
+1036 +         for (t, <item>) in threads.iter().enumerate().take(10) {
+     |
+
+warning: the loop variable `t` is used to index `threads`
+    --> crates/cbcl-core/src/store.rs:1057:18
+     |
+1057 |         for t in 0..10 {
+     |                  ^^^^^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#needless_range_loop
+help: consider using an iterator and enumerate()
+     |
+1057 -         for t in 0..10 {
+1057 +         for (t, <item>) in threads.iter().enumerate().take(10) {
+     |
+
+warning: `cbcl-core` (lib test) generated 13 warnings (5 duplicates) (run `cargo clippy --fix --lib -p cbcl-core --tests -- ` to apply 5 suggestions)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 4.84s

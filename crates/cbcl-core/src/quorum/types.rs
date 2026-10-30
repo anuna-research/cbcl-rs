@@ -10,6 +10,8 @@ use alloc::{
     vec::Vec,
 };
 use sha2::{Digest, Sha256};
+/// Financial scope for a collective pool; never an authenticated key identifier.
+pub const COLLECTIVE_POOL: &str = "$collective";
 pub type Result<T> = core::result::Result<T, String>;
 pub(crate) fn text(s: &str) -> SExpr {
     SExpr::Atom(Atom::Str(s.into()))
@@ -250,6 +252,7 @@ impl Default for Limits {
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FinalizedView {
+    pub ownership: crate::escrow::Ownership,
     pub context: String,
     pub evidence_digest: String,
     pub rights: BTreeMap<String, i128>,
@@ -273,9 +276,23 @@ impl FinalizedView {
         let balances = |m: &BTreeMap<String, i128>| {
             Value::Map(m.iter().map(|(k, v)| (t(k), Value::Int(*v))).collect())
         };
-        xs.push((t("rights"), balances(&self.rights)));
-        if let Some(h) = &self.headroom {
-            xs.push((t("headroom"), balances(h)));
+        if self.ownership == crate::escrow::Ownership::Collective {
+            xs.push((t("ownership"), t("collective")));
+            xs.push((
+                t("rights"),
+                Value::Int(self.rights.get(COLLECTIVE_POOL).copied().unwrap_or(0)),
+            ));
+            if let Some(h) = &self.headroom {
+                xs.push((
+                    t("headroom"),
+                    Value::Int(h.get(COLLECTIVE_POOL).copied().unwrap_or(0)),
+                ));
+            }
+        } else {
+            xs.push((t("rights"), balances(&self.rights)));
+            if let Some(h) = &self.headroom {
+                xs.push((t("headroom"), balances(h)));
+            }
         }
         xs.push((
             t("finalized"),
@@ -291,6 +308,7 @@ impl FinalizedView {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct Operation {
     pub act: Act,
+    pub account: String,
     pub epoch: String,
     pub cost: Resources,
     pub credits: BTreeMap<String, Resources>,

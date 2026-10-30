@@ -278,6 +278,8 @@ fn parse_counter(args: &[SExpr]) -> Result<cbcl_core::escrow::CounterRule, Strin
             "floor",
             "ceiling",
             "certification",
+            "ownership",
+            "initial",
             "initial-rights",
             "initial-headroom",
             "issuers",
@@ -321,7 +323,36 @@ fn parse_counter(args: &[SExpr]) -> Result<cbcl_core::escrow::CounterRule, Strin
             keyword(&xs[2], "amount field")?,
         ))
     };
-    let (initial_verb, initial_key) = pair("initial-rights")?;
+    let ownership = match options.get("ownership") {
+        None => cbcl_core::escrow::Ownership::Account,
+        Some(xs) if xs.len() == 1 => match symbol(&xs[0], "ownership")?.as_str() {
+            "account" => cbcl_core::escrow::Ownership::Account,
+            "collective" => cbcl_core::escrow::Ownership::Collective,
+            _ => return Err("ownership must be account or collective".into()),
+        },
+        _ => return Err("ownership takes one argument".into()),
+    };
+    let collective = ownership == cbcl_core::escrow::Ownership::Collective;
+    if collective
+        && [
+            "initial-rights",
+            "initial-headroom",
+            "transfer",
+            "transfer-headroom",
+        ]
+        .iter()
+        .any(|k| options.contains_key(*k))
+    {
+        return Err("collective counters use scalar initial and do not accept account allocation/transfer options".into());
+    }
+    if !collective && options.contains_key("initial") {
+        return Err("account ownership requires initial-rights".into());
+    }
+    let (initial_verb, initial_key) = pair(if collective {
+        "initial"
+    } else {
+        "initial-rights"
+    })?;
     let ceiling = if options.contains_key("ceiling") {
         Some(integer("ceiling")?)
     } else {
@@ -332,7 +363,7 @@ fn parse_counter(args: &[SExpr]) -> Result<cbcl_core::escrow::CounterRule, Strin
     } else {
         None
     };
-    if ceiling.is_some() != headroom.is_some() {
+    if !collective && ceiling.is_some() != headroom.is_some() {
         return Err(String::from(
             "ceiling and initial-headroom must occur together",
         ));
@@ -353,11 +384,16 @@ fn parse_counter(args: &[SExpr]) -> Result<cbcl_core::escrow::CounterRule, Strin
     if transfer_headroom.is_some() && ceiling.is_none() {
         return Err(String::from("headroom transfer requires ceiling"));
     }
+    let certification = match options.get("certification") {
+        Some(xs) => parse_certification(xs)?,
+        None => cbcl_core::certification::Certification::default(),
+    };
+    if collective && !certification.is_quorum() {
+        return Err("collective counters require quorum-budget certification".into());
+    }
     Ok(CounterRule {
-        certification: match options.get("certification") {
-            Some(xs) => parse_certification(xs)?,
-            None => cbcl_core::certification::Certification::default(),
-        },
+        ownership,
+        certification,
         floor: integer("floor")?,
         ceiling,
         initial_verb,
@@ -369,7 +405,11 @@ fn parse_counter(args: &[SExpr]) -> Result<cbcl_core::escrow::CounterRule, Strin
         },
         increment: pair("increment")?,
         decrement: pair("decrement")?,
-        transfer: triple("transfer")?,
+        transfer: if collective {
+            None
+        } else {
+            Some(triple("transfer")?)
+        },
         transfer_headroom,
     })
 }

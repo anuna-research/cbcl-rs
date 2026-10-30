@@ -1,0 +1,26 @@
+
+running 2 tests
+collective_concurrent_sellers_finalize_one_pool --- FAILED
+collective_sellers_share_one_validator_budget --- FAILED
+
+failures:
+
+---- collective_concurrent_sellers_finalize_one_pool stdout ----
+
+thread 'collective_concurrent_sellers_finalize_one_pool' (5680513) panicked at crates/cbcl-parser/tests/quorum_runtime.rs:60:49:
+called `Result::unwrap()` on an `Err` value: "unknown bounded-counter option 'ownership'"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- collective_sellers_share_one_validator_budget stdout ----
+
+thread 'collective_sellers_share_one_validator_budget' (5680514) panicked at crates/cbcl-parser/tests/quorum_runtime.rs:60:49:
+called `Result::unwrap()` on an `Err` value: "unknown bounded-counter option 'ownership'"
+
+
+failures:
+    collective_concurrent_sellers_finalize_one_pool
+    collective_sellers_share_one_validator_budget
+
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 18 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p cbcl-parser --test quorum_runtime`

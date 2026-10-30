@@ -14,9 +14,20 @@ pub const PREV: &str = "escrow-prev";
 pub const DEPS: &str = "escrow-deps";
 pub const NONCE: &str = "escrow-nonce";
 
+/// The default preserves existing per-signer resource ownership.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum Ownership {
+    #[default]
+    Account,
+    Collective,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct CounterRule {
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub ownership: Ownership,
     #[cfg_attr(feature = "serde", serde(default))]
     pub certification: crate::certification::Certification,
     pub floor: i64,
@@ -27,16 +38,15 @@ pub struct CounterRule {
     pub issuer: String,
     pub increment: (String, String),
     pub decrement: (String, String),
-    pub transfer: (String, String, String),
+    pub transfer: Option<(String, String, String)>,
     pub transfer_headroom: Option<(String, String, String)>,
 }
 impl CounterRule {
     pub fn operation_verbs(&self) -> Vec<&str> {
-        let mut out = alloc::vec![
-            self.increment.0.as_str(),
-            self.decrement.0.as_str(),
-            self.transfer.0.as_str()
-        ];
+        let mut out = alloc::vec![self.increment.0.as_str(), self.decrement.0.as_str()];
+        if let Some(t) = &self.transfer {
+            out.push(&t.0);
+        }
         if let Some(t) = &self.transfer_headroom {
             out.push(&t.0);
         }
@@ -51,10 +61,12 @@ impl CounterRule {
         let mut v = alloc::vec![
             (self.initial_verb.as_str(), self.initial_key.as_str()),
             (&self.increment.0, &self.increment.1),
-            (&self.decrement.0, &self.decrement.1),
-            (&self.transfer.0, &self.transfer.1),
-            (&self.transfer.0, &self.transfer.2)
+            (&self.decrement.0, &self.decrement.1)
         ];
+        if let Some((verb, r, k)) = &self.transfer {
+            v.push((verb, r));
+            v.push((verb, k));
+        }
         if let Some(k) = &self.headroom_key {
             v.push((&self.initial_verb, k));
         }
@@ -80,8 +92,18 @@ impl CounterRule {
         if let Some(profile) = self.certification.canonical_option() {
             v.push(profile);
         }
+        if self.ownership == Ownership::Collective {
+            v.push(SExpr::List(alloc::vec![
+                sym("ownership"),
+                sym("collective")
+            ]));
+        }
         v.push(SExpr::List(alloc::vec![
-            sym("initial-rights"),
+            sym(if self.ownership == Ownership::Collective {
+                "initial"
+            } else {
+                "initial-rights"
+            }),
             sym(&self.initial_verb),
             key(&self.initial_key)
         ]));
@@ -106,12 +128,14 @@ impl CounterRule {
         ] {
             v.push(SExpr::List(alloc::vec![sym(name), sym(verb), key(k)]));
         }
-        v.push(SExpr::List(alloc::vec![
-            sym("transfer"),
-            sym(&self.transfer.0),
-            key(&self.transfer.1),
-            key(&self.transfer.2)
-        ]));
+        if let Some((a, b, c)) = &self.transfer {
+            v.push(SExpr::List(alloc::vec![
+                sym("transfer"),
+                sym(a),
+                key(b),
+                key(c)
+            ]));
+        }
         if let Some((a, b, c)) = &self.transfer_headroom {
             v.push(SExpr::List(alloc::vec![
                 sym("transfer-headroom"),
@@ -270,12 +294,8 @@ fn operation<'a>(c: &CounterRule, a: &'a Act) -> Option<(Kind, &'a SExpr, Option
         (Kind::Increment, c.increment.1.as_str(), None)
     } else if a.verb == c.decrement.0 {
         (Kind::Decrement, c.decrement.1.as_str(), None)
-    } else if a.verb == c.transfer.0 {
-        (
-            Kind::Transfer,
-            c.transfer.2.as_str(),
-            Some(c.transfer.1.as_str()),
-        )
+    } else if let Some((_, r, k)) = c.transfer.as_ref().filter(|(v, _, _)| a.verb == *v) {
+        (Kind::Transfer, k.as_str(), Some(r.as_str()))
     } else if let Some((v, r, k)) = &c.transfer_headroom {
         if &a.verb == v {
             (Kind::Headroom, k.as_str(), Some(r.as_str()))
@@ -428,6 +448,12 @@ fn local_budgets(
 /// disappearing. Missing evidence returns pending; no partial balance is exposed.
 /// Inputs must be authenticated and protocol accepted by the host.
 pub fn observe(c: &CounterRule, acts: &[Act]) -> Outcome {
+    if c.ownership == Ownership::Collective {
+        return fault(
+            "collective counter requires the certificate runtime",
+            Vec::new(),
+        );
+    }
     if c.certification.is_quorum() {
         return fault("quorum-budget requires an explicit certificate runtime; legacy fold cannot prove finality", Vec::new());
     }
@@ -858,12 +884,33 @@ pub fn declaration_errors(d: &crate::dialect::Dialect) -> Vec<String> {
         {
             errors.push("counter bounds exceed numeric limits or ceiling is below floor".into());
         }
-        if c.ceiling.is_some() != c.headroom_key.is_some()
+        if (c.ownership == Ownership::Account && c.ceiling.is_some() != c.headroom_key.is_some())
             || c.transfer_headroom.is_some() && c.ceiling.is_none()
         {
             errors.push(
                 "ceiling requires initial-headroom; headroom transfers require ceiling".into(),
             );
+        }
+        if c.ownership == Ownership::Collective {
+            if !c.certification.is_quorum()
+                || c.headroom_key.is_some()
+                || c.transfer.is_some()
+                || c.transfer_headroom.is_some()
+            {
+                errors.push("collective counters require quorum-budget and scalar initialization without account transfers".into());
+            }
+            for verb in c.verbs() {
+                if d.find_performative(verb)
+                    .and_then(|p| p.role.as_ref())
+                    .is_none()
+                {
+                    errors.push(format!(
+                        "collective verb '{verb}' requires an explicit from role"
+                    ));
+                }
+            }
+        } else if c.transfer.is_none() {
+            errors.push("account counters require a transfer mapping".into());
         }
         for verb in c.operation_verbs() {
             if verb == c.initial_verb || operation_owner.insert(verb, name).is_some() {
@@ -876,18 +923,23 @@ pub fn declaration_errors(d: &crate::dialect::Dialect) -> Vec<String> {
             (
                 c.initial_verb.as_str(),
                 c.initial_key.as_str(),
-                alloc::vec![T::List]
+                alloc::vec![if c.ownership == Ownership::Collective {
+                    T::Number
+                } else {
+                    T::List
+                }]
             ),
             (&c.increment.0, &c.increment.1, alloc::vec![T::Number]),
-            (&c.decrement.0, &c.decrement.1, alloc::vec![T::Number]),
-            (
-                &c.transfer.0,
-                &c.transfer.1,
-                alloc::vec![T::Symbol, T::String]
-            ),
-            (&c.transfer.0, &c.transfer.2, alloc::vec![T::Number])
+            (&c.decrement.0, &c.decrement.1, alloc::vec![T::Number])
         ];
-        if c.transfer.1 == c.transfer.2 || c.headroom_key.as_ref() == Some(&c.initial_key) {
+        if let Some((v, r, k)) = &c.transfer {
+            expected.push((v, r, alloc::vec![T::Symbol, T::String]));
+            expected.push((v, k, alloc::vec![T::Number]));
+            if r == k {
+                errors.push("counter data fields must be distinct".into());
+            }
+        }
+        if c.headroom_key.as_ref() == Some(&c.initial_key) {
             errors.push("counter data fields must be distinct".into());
         }
         if let Some(k) = &c.headroom_key {
@@ -946,7 +998,9 @@ pub fn rule_for<'a>(
 /// Shape typing exception: a resource recipient is an authenticated account key.
 pub fn recipient_field(d: &crate::dialect::Dialect, verb: &str, key: &str) -> bool {
     rule_for(d, verb).is_some_and(|(_, c)| {
-        (c.transfer.0 == verb && c.transfer.1 == key)
+        c.transfer
+            .as_ref()
+            .is_some_and(|(v, r, _)| v == verb && r == key)
             || c.transfer_headroom
                 .as_ref()
                 .is_some_and(|(v, r, _)| v == verb && r == key)

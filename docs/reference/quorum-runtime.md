@@ -151,3 +151,35 @@ explicit test-only authentication and in-memory CAS journals. Production signing
 transport, nonforking durable journal providers and complete-history read protocols
 remain host integrations. Rust/Lean correspondence is tested and reviewed, not
 formally extracted or proved.
+
+## Collective pool API
+
+`CounterRule::ownership` defaults to `Ownership::Account`. Collective rules use
+`Ownership::Collective`, `(initial open :available)` and no transfer mapping.
+`CounterRule::transfer` is now optional: account rules require `Some(tuple)`, while
+collective rules require `None`. Existing tuple JSON is compatible with `Some`;
+missing serialized ownership defaults to account.
+
+`Context::ownership()` reports the mode. `Context::pool()` returns the reserved
+`COLLECTIVE_POOL` resource scope in collective mode. Genesis rejects a cast key
+matching that scope. Actor authorization always uses real authenticated signers
+and the pinned cast. `Replica::intend` reconstructs public Instance caches before
+using the shared binder.
+
+`root_epoch(actor)` and `active_epoch(actor)` resolve every collective actor to the
+same pool epoch. They also accept the explicit resource scope for read access.
+The resource scope cannot sign transactions, cancellation requests or checkpoints.
+
+`checkpoint_request_by(manifest, actor)` returns signing bytes for an admitted
+operation actor. Use this method for collective checkpoints; the older
+`checkpoint_request(manifest)` remains valid for account ownership. Incoming
+proposals independently recheck the actual authorizing actor. Cancellation continues
+to require the original operation signer. Neither role authorization nor the
+pool's balance can replace that cancellation signature.
+
+`FinalizedView` exposes its ownership mode. Rust `rights` and optional `headroom`
+maps contain one pool entry for collective rules. `value()` renders scalar resources
+and `ownership: collective`. Final-set digests and unknown completeness retain their
+existing meaning. Collective checkpoint accounting and journals use the same pool
+scope across all actors. No multi-parent merge, consensus fallback or unconditional
+progress is implied. See [[SPEC-027-collective-bounded-counters]].

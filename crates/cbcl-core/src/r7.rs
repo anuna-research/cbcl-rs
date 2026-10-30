@@ -610,7 +610,7 @@ pub fn verify_state_shape(d: &Dialect, msg: &Message) -> Result<(), ShapeViolati
         let Some(value) = fields.get(key) else {
             continue;
         };
-        let allocation = clause.fields().any(|(_,r)|matches!(r, Rule::BoundedCounter(c) if c.initial_verb==verb&&(c.initial_key==key||c.headroom_key.as_deref()==Some(key))));
+        let allocation = clause.fields().any(|(_,r)|matches!(r, Rule::BoundedCounter(c) if c.ownership==crate::escrow::Ownership::Account&&c.initial_verb==verb&&(c.initial_key==key||c.headroom_key.as_deref()==Some(key))));
         if allocation {
             let parsed = crate::escrow::allocations(value)
                 .map_err(|e| violation("allocations", Some(key), e))?;

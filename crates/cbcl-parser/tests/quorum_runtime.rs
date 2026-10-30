@@ -250,7 +250,7 @@ impl Net {
                 &credits.iter().cloned().collect(),
             )
             .unwrap();
-        let authorization = sign(self.ctx.checkpoint_request(&m).unwrap());
+        let authorization = sign(self.ctx.checkpoint_request_by(&m, owner).unwrap());
         let p = Proposal {
             manifest: m,
             reports,
@@ -933,4 +933,456 @@ fn issuer_authority_is_checked_even_when_protocol_role_permits_mint() {
     n.auth.acts.insert((op.address.clone(), op.signer.clone()));
     let error = n.rs[0].register(op, &mut n.j, &n.auth).unwrap_err();
     assert!(error.contains("issuer authority"), "{error}");
+}
+
+const TICKETS: &str = include_str!("../../../dialects/example-collective-tickets.cbcl");
+fn collective() -> Net {
+    collective_source(TICKETS)
+}
+fn collective_source(source: &str) -> Net {
+    let d = dialect(source);
+    let root=act("(with-roles ((organizer @treasury) (seller @alice @bob)) (signed @treasury (hello :thread \"coin-1\" :caused-by begin)))","@treasury");
+    let open=act(&format!("(signed @treasury (lang {} (open (@alice @bob @treasury) :available 100 :from @treasury :thread \"coin-1\" :caused-by {})))",d.name,root.address),"@treasury");
+    let base = vec![root, open];
+    let auth = Auth {
+        acts: base
+            .iter()
+            .map(|a| (a.address.clone(), a.signer.clone()))
+            .collect(),
+    };
+    let inst = Instance::new(&d, ThreadId("coin-1".into()), &base).unwrap();
+    let ctx = Context::from_instance(&inst, "tickets", None, &auth).unwrap();
+    let mut j = Memory::default();
+    let rs = (0..4)
+        .map(|i| {
+            Replica::initialize(ctx.clone(), &format!("@v{i}"), Limits::default(), &mut j).unwrap()
+        })
+        .collect();
+    Net {
+        d,
+        base,
+        ctx,
+        auth,
+        j,
+        rs,
+    }
+}
+fn ticket(n: &mut Net, actor: &str, amount: i64, nonce: &str) -> Act {
+    let inst = Instance::new(&n.d, ThreadId("coin-1".into()), &n.base).unwrap();
+    let mut f = fields(None, amount);
+    f.insert(
+        "buyer".into(),
+        SExpr::Atom(Atom::Symbol("@customer".into())),
+    );
+    let m = n.rs[0]
+        .intend(&inst, &AgentKey(actor.into()), "sell", f, nonce)
+        .unwrap();
+    let a = Act::from_message(m, actor).unwrap();
+    n.auth.acts.insert((a.address.clone(), actor.into()));
+    a
+}
+#[test]
+fn collective_sellers_share_one_validator_budget() {
+    let mut n = collective();
+    let a = ticket(&mut n, "@alice", 60, "alice");
+    let b = ticket(&mut n, "@bob", 60, "bob");
+    n.register(&a);
+    n.register(&b);
+    n.rs[0]
+        .prepare_operation(&a.address, &mut n.j, &n.auth)
+        .unwrap();
+    assert!(n.rs[0]
+        .prepare_operation(&b.address, &mut n.j, &n.auth)
+        .is_err());
+}
+#[test]
+fn collective_concurrent_sellers_finalize_one_pool() {
+    let mut n = collective();
+    let a = ticket(&mut n, "@alice", 3, "alice");
+    let b = ticket(&mut n, "@bob", 2, "bob");
+    n.operation(&a);
+    n.operation(&b);
+    assert_eq!(n.rs[0].finalized_view().unwrap().value, 100);
+    n.finalize(&b);
+    n.finalize(&a);
+    let view = n.rs[0].finalized_view().unwrap();
+    assert_eq!(view.value, 95);
+    assert_eq!(view.rights.len(), 1);
+    let rendered = view.value().render();
+    assert!(rendered.contains("collective"));
+    assert!(rendered.contains("unknown"));
+    let restored =
+        Replica::recover(n.ctx.clone(), "@v0", Limits::default(), &n.j, &n.auth).unwrap();
+    assert_eq!(view, restored.finalized_view().unwrap());
+}
+
+#[test]
+fn collective_cancellation_uses_original_actor_and_refunds_shared_pool() {
+    let mut n = collective();
+    let a = ticket(&mut n, "@alice", 60, "cancel");
+    n.operation(&a);
+    let wrong = sign(n.ctx.cancellation_request("@bob", &a.address).unwrap());
+    assert!(n.rs[0].prepare_cancel(wrong, &mut n.j, &n.auth).is_err());
+    n.cancel(&a);
+    for r in &mut n.rs[..3] {
+        r.release(&a.address, &mut n.j, &n.auth).unwrap();
+    }
+    let cp = n.checkpoint("@bob", std::slice::from_ref(&a.address), &[]);
+    assert_eq!(cp.proposal.manifest.allocation.rights, 100);
+    assert_eq!(cp.proposal.authorization.signer, "@bob");
+    assert_eq!(cp.proposal.manifest.account, COLLECTIVE_POOL);
+    assert!(cp.proposal.manifest.held.contains(&a.address));
+    let b = ticket(&mut n, "@bob", 60, "spend-reclaimed");
+    n.operation(&b);
+    n.finalize(&b);
+    let view = n.rs[0].finalized_view().unwrap();
+    assert_eq!(view.value, 40);
+    let mut restored =
+        Replica::recover(n.ctx.clone(), "@v0", Limits::default(), &n.j, &n.auth).unwrap();
+    assert_eq!(restored.finalized_view().unwrap(), view);
+    assert!(restored
+        .prepare_effects(&a.address, &mut n.j, &n.auth)
+        .is_err());
+}
+#[test]
+fn collective_late_old_certificate_stays_charged_across_actor_checkpoint() {
+    let mut n = collective();
+    let old = ticket(&mut n, "@alice", 60, "old");
+    n.operation(&old);
+    let cp = n.checkpoint("@bob", &[], &[]);
+    assert_eq!(cp.proposal.manifest.allocation.rights, 40);
+    let next = ticket(&mut n, "@bob", 20, "next");
+    n.operation(&next);
+    n.finalize(&next);
+    n.finalize(&old);
+    let view = n.rs[0].finalized_view().unwrap();
+    assert_eq!(view.rights[COLLECTIVE_POOL], 20);
+    assert_eq!(
+        n.rs[0].active_epoch("@alice").unwrap(),
+        n.rs[0].active_epoch("@bob").unwrap()
+    );
+    assert_eq!(
+        n.ctx.root_epoch("@alice").unwrap(),
+        n.ctx.root_epoch("@bob").unwrap()
+    );
+}
+#[test]
+fn collective_ceiling_issuer_and_checkpoint_authorization() {
+    let mut n = collective_source(&TICKETS.replace("(floor 0)", "(floor 0) (ceiling 100)"));
+    let restock = n.make("@treasury", "restock", None, 1, "too-soon");
+    n.register(&restock);
+    assert!(n.rs[0]
+        .prepare_operation(&restock.address, &mut n.j, &n.auth)
+        .is_err());
+    let a = ticket(&mut n, "@alice", 30, "a");
+    let b = ticket(&mut n, "@bob", 20, "b");
+    n.operation(&a);
+    n.operation(&b);
+    n.finalize(&a);
+    n.finalize(&b);
+    let cp = n.checkpoint("@alice", &[], &[a.address.clone(), b.address.clone()]);
+    assert_eq!(
+        cp.proposal.manifest.allocation,
+        Resources {
+            rights: 50,
+            headroom: 50
+        }
+    );
+    assert!(n.ctx.checkpoint_request(&cp.proposal.manifest).is_err());
+    let restock = n.make("@treasury", "restock", None, 20, "restock");
+    n.operation(&restock);
+    n.finalize(&restock);
+    let v = n.rs[0].finalized_view().unwrap();
+    assert_eq!(v.value, 70);
+    assert_eq!(v.headroom.unwrap()[COLLECTIVE_POOL], 30);
+    let mut forged = cp.proposal.clone();
+    forged.authorization.signer = "@outsider".into();
+    forged.authorization.signature = signature(
+        &forged.authorization.signer,
+        &forged.authorization.preimage(),
+    );
+    assert!(n.rs[3]
+        .register_proposal(forged, &mut n.j, &n.auth)
+        .is_err());
+    // A cast member with only the opener role cannot select successors.
+    let n = collective_source(&TICKETS.replace(
+        "(extend restock (to amount) :from organizer",
+        "(extend restock (to amount) :from seller",
+    ));
+    let root = n.ctx.root_epoch("@alice").unwrap();
+    let m = n.rs[0]
+        .draft_checkpoint(&root, &[], &BTreeSet::new(), &BTreeSet::new())
+        .unwrap();
+    assert!(n.ctx.checkpoint_request_by(&m, "@treasury").is_err());
+    assert!(n.ctx.checkpoint_request_by(&m, "@alice").is_ok());
+}
+#[test]
+fn collective_declarations_defaults_and_programmatic_validation() {
+    let account = dialect(COIN);
+    let explicit = dialect(&COIN.replace("(floor 0)", "(floor 0) (ownership account)"));
+    assert_eq!(
+        cbcl_core::canonical::dialect_hash(&account),
+        cbcl_core::canonical::dialect_hash(&explicit)
+    );
+    let original = rule(&account);
+    let mut raw = serde_json::to_value(original).unwrap();
+    raw.as_object_mut().unwrap().remove("ownership");
+    let decoded: cbcl_core::escrow::CounterRule = serde_json::from_value(raw).unwrap();
+    assert_eq!(&decoded, original);
+    let n = collective();
+    let normalized = cbcl_parser::define_text_str(TICKETS).unwrap();
+    assert_eq!(
+        cbcl_core::canonical::dialect_hash(&n.d),
+        cbcl_core::canonical::dialect_hash(&dialect(&normalized))
+    );
+    for bad in [
+        TICKETS.replace("(ownership collective)", "(ownership unknown)"),
+        TICKETS.replace(
+            "(ownership collective)",
+            "(ownership collective) (ownership collective)",
+        ),
+        TICKETS.replace(
+            "(initial open :available)",
+            "(initial-rights open :available)",
+        ),
+        TICKETS.replace(
+            "(initial open :available)",
+            "(initial open :available) (initial-rights open :available)",
+        ),
+        TICKETS.replace("(floor 0)", "(floor 0) (transfer sell :buyer :amount)"),
+        TICKETS.replace("(floor 0)", "(floor 0) (initial-headroom open :space)"),
+        TICKETS.replace(
+            "(certification quorum-budget (validators @v0 @v1 @v2 @v3))",
+            "(certification host-gate)",
+        ),
+        TICKETS.replace(":from seller :to", ":to"),
+        COIN.replace(
+            "(initial-rights open :allocations)",
+            "(initial open :allocations)",
+        ),
+    ] {
+        if let Ok(d) = parse_dialect(&parse(&bad).unwrap()) {
+            assert!(!cbcl_core::r7::r7_violations(&d).is_empty(), "{bad}");
+        }
+    }
+    let mut invalid = n.d.clone();
+    if let Some(Rule::BoundedCounter(c)) = invalid
+        .state
+        .as_mut()
+        .unwrap()
+        .entries
+        .iter_mut()
+        .find_map(|e| match e {
+            cbcl_core::state::Entry::Field { name, rule } if name == "tickets" => Some(rule),
+            _ => None,
+        })
+    {
+        c.certification = Certification::HostGate;
+    }
+    assert!(!cbcl_core::r7::r7_violations(&invalid).is_empty());
+}
+#[test]
+fn collective_authoring_ignores_forged_role_caches_and_preserves_signers() {
+    let mut n = collective();
+    let mut inst = Instance::new(&n.d, ThreadId("coin-1".into()), &n.base).unwrap();
+    inst.cast.as_mut().unwrap().indexed.insert(
+        "seller".into(),
+        [AgentKey("@mallory".into())].into_iter().collect(),
+    );
+    let mut f = fields(None, 3);
+    f.insert(
+        "buyer".into(),
+        SExpr::Atom(Atom::Symbol("@customer".into())),
+    );
+    assert!(n.rs[0]
+        .intend(
+            &inst,
+            &AgentKey("@mallory".into()),
+            "sell",
+            f.clone(),
+            "bad"
+        )
+        .is_err());
+    let good = n.rs[0]
+        .intend(&inst, &AgentKey("@alice".into()), "sell", f, "good")
+        .unwrap();
+    let a = Act::from_message(good, "@alice").unwrap();
+    assert_eq!(a.signer, "@alice");
+    n.auth.acts.insert((a.address.clone(), a.signer.clone()));
+    n.register(&a);
+    assert_eq!(
+        a.fields["escrow-prev"],
+        SExpr::Atom(Atom::Symbol(n.ctx.root_epoch("@bob").unwrap()))
+    );
+    let inst = Instance::new(&n.d, ThreadId("coin-1".into()), &n.base).unwrap();
+    assert!(intend(&inst, &AgentKey("@alice".into()), "sell", fields(None, 3)).is_err());
+    assert!(n.rs[0]
+        .fold_instance(&inst)
+        .unwrap()
+        .iter()
+        .find(|(f, _)| f == "tickets")
+        .unwrap()
+        .1
+        .render()
+        .contains("collective"));
+}
+
+#[test]
+fn collective_reserved_resource_scope_cannot_be_an_authenticated_actor() {
+    let n = collective();
+    let root_message = serde_json::to_string(&n.base[0].message)
+        .unwrap()
+        .replace("@alice", COLLECTIVE_POOL);
+    let root =
+        Act::from_message(serde_json::from_str(&root_message).unwrap(), "@treasury").unwrap();
+    let open_message = serde_json::to_string(&n.base[1].message)
+        .unwrap()
+        .replace("@alice", COLLECTIVE_POOL)
+        .replace(&n.base[0].address, &root.address);
+    let open =
+        Act::from_message(serde_json::from_str(&open_message).unwrap(), "@treasury").unwrap();
+    let base = vec![root, open];
+    let auth = Auth {
+        acts: base
+            .iter()
+            .map(|a| (a.address.clone(), a.signer.clone()))
+            .collect(),
+    };
+    let inst = Instance::new(&n.d, ThreadId("coin-1".into()), &base).unwrap();
+    assert!(Context::from_instance(&inst, "tickets", None, &auth)
+        .unwrap_err()
+        .contains("reserved"));
+}
+#[test]
+fn collective_json_contract_uses_shared_rule_recognizer() {
+    let contract = serde_json::json!({"version":3,"kind":"contract","name":"json-tickets","author":"@author",
+        "roles":{"organizer":"singleton","seller":"indexed"},
+        "verbs":{
+            "open":{"after":["begin"],"fields":{"available":"number"},"from":"organizer","to":["organizer","seller"]},
+            "restock":{"after":["open"],"fields":{"amount":"number"},"from":"organizer","to":["organizer","seller"]},
+            "sell":{"after":["open"],"fields":{"buyer":"symbol","amount":"number"},"from":"seller","to":["organizer","seller"]}},
+        "state":{"tickets":["boundedCounter",[["ownership","collective"],["certification","quorum-budget"],["floor",0],["ceiling",100],["initial","open",":available"],["issuers","organizer"],["increment","restock",":amount"],["decrement","sell",":amount"]]]}});
+    let compiled: serde_json::Value =
+        serde_json::from_str(&cbcl_parser::compile_contract_str(&contract.to_string()).unwrap())
+            .unwrap();
+    let d = dialect(compiled["dialect"].as_str().unwrap());
+    let Rule::BoundedCounter(c) = d.state.as_ref().unwrap().rule_of("tickets").unwrap() else {
+        panic!()
+    };
+    assert_eq!(c.ownership, cbcl_core::escrow::Ownership::Collective);
+    assert!(c.transfer.is_none());
+    assert_eq!(c.ceiling, Some(100));
+    let mut bad = contract;
+    bad["state"]["tickets"][1]
+        .as_array_mut()
+        .unwrap()
+        .push(serde_json::json!(["transfer", "sell", ":buyer", ":amount"]));
+    assert!(cbcl_parser::compile_contract_str(&bad.to_string()).is_err());
+}
+#[test]
+fn collective_invalid_genesis_never_creates_a_pool() {
+    for (source, available, signer) in [
+        (TICKETS.to_string(), -1, "@treasury"),
+        (
+            TICKETS.replace("(floor 0)", "(floor 0) (ceiling 99)"),
+            100,
+            "@treasury",
+        ),
+        (TICKETS.to_string(), 100, "@alice"),
+    ] {
+        let n = collective();
+        let d = dialect(&source);
+        let root = n.base[0].clone();
+        let open=act(&format!("(lang {} (open (@alice @bob @treasury) :available {} :from {} :thread \"coin-1\" :caused-by {}))",d.name,available,signer,root.address),signer);
+        let base = vec![root, open];
+        let auth = Auth {
+            acts: base
+                .iter()
+                .map(|a| (a.address.clone(), a.signer.clone()))
+                .collect(),
+        };
+        let inst = Instance::new(&d, ThreadId("coin-1".into()), &base).unwrap();
+        assert!(Context::from_instance(&inst, "tickets", None, &auth).is_err());
+    }
+}
+
+#[test]
+fn collective_received_acts_enforce_roles_and_actual_issuer() {
+    for (source, actor, verb, extra, expected) in [
+        (
+            TICKETS.to_string(),
+            "@treasury",
+            "sell",
+            ":buyer @customer",
+            "role",
+        ),
+        (
+            TICKETS.replace(
+                "(extend restock (to amount) :from organizer",
+                "(extend restock (to amount) :from seller",
+            ),
+            "@bob",
+            "restock",
+            "",
+            "issuer",
+        ),
+    ] {
+        let mut n = collective_source(&source);
+        let epoch = n.ctx.root_epoch(actor).unwrap();
+        let op=act(&format!("(lang {} ({} (@alice @bob @treasury) :amount 1 {} :escrow-prev {} :escrow-deps () :escrow-nonce \"received\" :from {} :thread \"coin-1\" :caused-by {}))",n.d.name,verb,extra,epoch,actor,n.base[1].address),actor);
+        n.auth.acts.insert((op.address.clone(), op.signer.clone()));
+        let error = n.rs[0].register(op, &mut n.j, &n.auth).unwrap_err();
+        assert!(error.contains(expected), "{error}");
+    }
+}
+
+#[test]
+fn collective_successor_choice_and_cas_are_shared_across_actors() {
+    let mut n = collective();
+    let a = ticket(&mut n, "@alice", 10, "a");
+    let b = ticket(&mut n, "@bob", 10, "b");
+    n.register(&a);
+    n.register(&b);
+    let mut stale =
+        Replica::recover(n.ctx.clone(), "@v0", Limits::default(), &n.j, &n.auth).unwrap();
+    let sequence = n.rs[0].journal_sequence();
+    n.j.fail = true;
+    assert!(n.rs[0]
+        .prepare_operation(&a.address, &mut n.j, &n.auth)
+        .is_err());
+    assert_eq!(n.rs[0].journal_sequence(), sequence);
+    n.j.fail = false;
+    n.rs[0]
+        .prepare_operation(&a.address, &mut n.j, &n.auth)
+        .unwrap();
+    assert!(stale
+        .prepare_operation(&b.address, &mut n.j, &n.auth)
+        .is_err());
+    let reports = n.reports("@alice");
+    let epoch = n.rs[0].active_epoch("@bob").unwrap().to_string();
+    let manifest = n.rs[0]
+        .draft_checkpoint(&epoch, &reports, &BTreeSet::new(), &BTreeSet::new())
+        .unwrap();
+    let p = Proposal {
+        authorization: sign(n.ctx.checkpoint_request_by(&manifest, "@alice").unwrap()),
+        manifest,
+        reports,
+    };
+    let id = n.rs[0]
+        .register_proposal(p.clone(), &mut n.j, &n.auth)
+        .unwrap();
+    n.rs[0].prepare_checkpoint(&id, &mut n.j, &n.auth).unwrap();
+    let mut split = p;
+    split.manifest.held.insert(b.address.clone());
+    split.manifest.allocation.rights -= 10;
+    split.authorization = sign(
+        n.ctx
+            .checkpoint_request_by(&split.manifest, "@bob")
+            .unwrap(),
+    );
+    let other = n.rs[0].register_proposal(split, &mut n.j, &n.auth).unwrap();
+    assert_ne!(id, other);
+    assert!(n.rs[0]
+        .prepare_checkpoint(&other, &mut n.j, &n.auth)
+        .is_err());
 }

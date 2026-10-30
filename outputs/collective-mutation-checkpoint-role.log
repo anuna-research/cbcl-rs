@@ -1,0 +1,31 @@
+warning: unreachable statement
+   --> crates/cbcl-core/src/quorum/context.rs:212:9
+    |
+211 |           return true;
+    |           ----------- any code following this expression is unreachable
+212 | /         let Ok(inst) = Instance::new(&self.dialect, self.thread.clone(), &self.genesis) else {
+213 | |             return false;
+214 | |         };
+    | |__________^ unreachable statement
+    |
+    = note: `#[warn(unreachable_code)]` (part of `#[warn(unused)]`) on by default
+
+
+running 1 test
+collective_ceiling_issuer_and_checkpoint_authorization --- FAILED
+
+failures:
+
+---- collective_ceiling_issuer_and_checkpoint_authorization stdout ----
+
+thread 'collective_ceiling_issuer_and_checkpoint_authorization' (5711923) panicked at crates/cbcl-parser/tests/quorum_runtime.rs:1116:5:
+assertion failed: n.ctx.checkpoint_request_by(&m, "@treasury").is_err()
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    collective_ceiling_issuer_and_checkpoint_authorization
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 28 filtered out; finished in 0.04s
+
+error: test failed, to rerun pass `-p cbcl-parser --test quorum_runtime`

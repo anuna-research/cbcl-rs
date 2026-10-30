@@ -1,0 +1,19 @@
+
+running 1 test
+nonce_forgery_seals_successor_choice_and_limits --- FAILED
+
+failures:
+
+---- nonce_forgery_seals_successor_choice_and_limits stdout ----
+
+thread 'nonce_forgery_seals_successor_choice_and_limits' (5707744) panicked at crates/cbcl-parser/tests/quorum_runtime.rs:545:5:
+assertion failed: n.rs[0].prepare_operation(&b.address, &mut n.j, &n.auth).is_err()
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    nonce_forgery_seals_successor_choice_and_limits
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 28 filtered out; finished in 0.02s
+
+error: test failed, to rerun pass `-p cbcl-parser --test quorum_runtime`

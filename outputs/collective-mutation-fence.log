@@ -1,0 +1,19 @@
+
+running 1 test
+cancellation_reclaims_once_and_survives_late_delivery --- FAILED
+
+failures:
+
+---- cancellation_reclaims_once_and_survives_late_delivery stdout ----
+
+thread 'cancellation_reclaims_once_and_survives_late_delivery' (5707153) panicked at crates/cbcl-parser/tests/quorum_runtime.rs:457:9:
+assertion failed: r.prepare_effects(&pay.address, &mut n.j, &n.auth).is_err()
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    cancellation_reclaims_once_and_survives_late_delivery
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 28 filtered out; finished in 0.02s
+
+error: test failed, to rerun pass `-p cbcl-parser --test quorum_runtime`
