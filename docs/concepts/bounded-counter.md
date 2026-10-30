@@ -116,3 +116,12 @@ A proposed certification extension is investigated in
 It would replace the account-owner nonforking safety premise with a secure
 broadcast protocol and an explicit honest-witness quorum assumption.
 The investigation does not change the runtime guarantees described here.
+
+The subsequent [[SPEC-020-resource-certification#ADR-2001|agreement comparison]]
+prefers invariant-aware account-local certification for richer concurrency.
+[[byzantine-resource-literature]] compares compatible sets with conservative
+validator signing budgets.
+Ordinary BGLA over proposal evidence does not enforce the numeric bounds.
+The current owner-chain verifier still rejects compatible same-account siblings;
+shared-account agreement needs a new history interpretation and a joint-budget model.
+Fixed-slot certification remains a sequential baseline. Neither profile has a runtime.

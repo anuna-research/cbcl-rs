@@ -1,0 +1,27 @@
+Explanation for +d ready(agreement-model)
+This was proven using defeasible rules and was not defeated by any conflicting rule.
+
+Derivation:
+  1. "ready(agreement-model)" was derived defeasibly
+     Using defeasible rule: r-ready-agreement-model-v2
+     Prerequisites:
+       1. "task(agreement-model)" was established as a fact
+          Using fact: f11
+       1. "completed(agreement-comparison)" was derived defeasibly
+          Using defeasible rule: r-completed-agreement-comparison
+          Prerequisites:
+            1. "verified(comparison-finite-checks)" was established as a fact
+               Using fact: f17
+            1. "verified(independent-comparison-review)" was established as a fact
+               Using fact: f18
+       1. "completed(agreement-literature)" was derived defeasibly
+          Using defeasible rule: r-completed-agreement-literature
+          Prerequisites:
+            1. "verified(literature-crawl-evidence)" was established as a fact
+               Using fact: f19
+            1. "verified(signing-budget-finite-checks)" was established as a fact
+               Using fact: f20
+            1. "verified(signing-budget-mutation)" was established as a fact
+               Using fact: f21
+            1. "verified(independent-literature-review)" was established as a fact
+               Using fact: f22

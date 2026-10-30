@@ -1,0 +1,60 @@
+{
+  "f": 1,
+  "fraction": "2/3",
+  "full_local_budget_counterexample": {
+    "balance": 2,
+    "certified": 3,
+    "honest_signature_sets": [
+      [
+        0,
+        1
+      ],
+      [
+        0,
+        2
+      ],
+      [
+        1,
+        2
+      ]
+    ]
+  },
+  "integer_dust_example": {
+    "balance": 1,
+    "requires_additional_protocol": true,
+    "validator_budget": 0
+  },
+  "n": 4,
+  "q": 3,
+  "safe_profiles": [
+    {
+      "balance": 1,
+      "maximum_certified_unit_debits": 0,
+      "signature_assignments_examined": 1,
+      "validator_budget": 0
+    },
+    {
+      "balance": 2,
+      "maximum_certified_unit_debits": 1,
+      "signature_assignments_examined": 64,
+      "validator_budget": 1
+    },
+    {
+      "balance": 3,
+      "maximum_certified_unit_debits": 3,
+      "signature_assignments_examined": 1331,
+      "validator_budget": 2
+    },
+    {
+      "balance": 4,
+      "maximum_certified_unit_debits": 3,
+      "signature_assignments_examined": 4096,
+      "validator_budget": 2
+    }
+  ],
+  "scope": "one-version finite unit-debit model; not a Stingray implementation or lifecycle proof",
+  "withholding_availability_example": {
+    "balance": 3,
+    "spendable_before_version_update": 2
+  }
+}

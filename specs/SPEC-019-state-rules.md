@@ -2,7 +2,7 @@
 id: SPEC-019
 title: State Layer — R7 State Rules and the Intent Binder
 status: draft
-version: 2.0.1
+version: 2.0.2
 date: 2026-10-30
 author: Anuna Research (https://anuna.io) — drafted with Claude Fable 5.1
 owner: CBCL maintainer
@@ -29,7 +29,7 @@ all capitals.
 
 ## Orientation
 
-Certification research: [[SPEC-019-state-rules#Certification research — AT2-style asset transfer]] evaluates Byzantine account-owner safety as a separate proposed layer. It does not change existing runtime guarantees.
+Certification research: [[SPEC-019-state-rules#Certification research — AT2-style asset transfer]] evaluates Byzantine account-owner safety as a separate proposed layer. [[SPEC-020-resource-certification#ADR-2001]] compares fixed slots with BGLA and selects invariant-aware account-local model comparison as the next research task. Neither changes existing runtime guarantees.
 
 Escrow extension: [[SPEC-019-state-rules#Bounded counter amendment — escrow resource primitive]] specifies lower-bound escrow rights, optional ceiling headroom, transfers, and separate resource authorization. See the implementation evidence for runtime and proof status.
 
@@ -1442,8 +1442,13 @@ expected execution, not a failed consensus termination test.
 
 ### Next prototype and acceptance questions
 
-Recommendation: a separately specified fixed-committee profile, with a pinned
+Sequential baseline: a separately specified fixed-committee profile, with a pinned
 asset genesis, portable certificate verification and a certified-history boundary.
+The subsequent comparison at [[SPEC-020-resource-certification#ADR-2001]] prefers
+invariant-aware account-local certification for the richer profile.
+[[SPEC-020-resource-certification#ADR-2002]] adds validator signing budgets as
+an alternative to compatible-set agreement. Its next
+modelling task gates certification runtime work; fixed slots remain a baseline.
 Next actor: CBCL maintainer. Select and model the broadcast protocol before any
 production transport or author-facing certification syntax is implemented.
 The prototype acceptance cases need to exercise:
@@ -1770,6 +1775,7 @@ order; update cbcl-aamas §6 and §7.
 
 ## Changelog
 
+- 2.0.2 (2026-10-30) — Link the agreement comparison and model-first research direction in [[SPEC-020-resource-certification#ADR-2001]]. No runtime or wire change.
 - 2.0.1 (2026-10-30) — AT2-style certification investigation, proposed [[SPEC-019-state-rules#ADR-1915]], finite quorum checks, Astro client/replica and credit evidence comparison, AT2 fault/sampling assumptions and prospective VRF sortition, and explicit separation of raw, certified-delivered and finalized resource histories. No runtime or wire change.
 
 - 2.0.0 (2026-10-30) — specify bounded-counter grammar, resource-reference fields, tagged observations, issuance gate, and shared export contract. Corpus version advances with the wire integration.

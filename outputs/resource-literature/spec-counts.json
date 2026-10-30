@@ -1,0 +1,12 @@
+{
+  "artefacts": {
+    "REQ": 2,
+    "CON": 1,
+    "TEST": 1,
+    "ADR": 2,
+    "BUG": 1,
+    "SPEC": 3
+  },
+  "gate": { "pass": 0, "fail": 0, "unverified": 0, "rows": 0 },
+  "wikilinks": { "total": 39, "anchored": 36 }
+}

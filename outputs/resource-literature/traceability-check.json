@@ -1,0 +1,194 @@
+{
+  "scope": "repository target and named-anchor recognition for new comparison artefacts",
+  "checked": [
+    {
+      "source": "specs/SPEC-020-resource-certification.md",
+      "target": "SPEC-020-resource-certification#ADR-2001"
+    },
+    {
+      "source": "specs/SPEC-020-resource-certification.md",
+      "target": "SPEC-020-resource-certification#TEST-2005"
+    },
+    {
+      "source": "specs/SPEC-020-resource-certification.md",
+      "target": "SPEC-020-resource-certification#TEST-2006"
+    },
+    {
+      "source": "specs/SPEC-020-resource-certification.md",
+      "target": "SPEC-020-resource-certification#ADR-2000"
+    },
+    {
+      "source": "specs/SPEC-020-resource-certification.md",
+      "target": "SPEC-019-state-rules#ADR-1915"
+    },
+    {
+      "source": "specs/SPEC-020-resource-certification.md",
+      "target": "SPEC-020-resource-certification#TEST-2005"
+    },
+    {
+      "source": "specs/SPEC-020-resource-certification.md",
+      "target": "SPEC-020-resource-certification#ADR-2002"
+    },
+    {
+      "source": "specs/SPEC-020-resource-certification.md",
+      "target": "SPEC-020-resource-certification#ADR-2000"
+    },
+    {
+      "source": "specs/SPEC-020-resource-certification.md",
+      "target": "SPEC-020-resource-certification#TEST-2006"
+    },
+    {
+      "source": "specs/SPEC-020-resource-certification.md",
+      "target": "SPEC-019-state-rules#Certification research \u2014 AT2-style asset transfer"
+    },
+    {
+      "source": "specs/SPEC-020-resource-certification.md",
+      "target": "SPEC-020-resource-certification#TEST-2006"
+    },
+    {
+      "source": "specs/SPEC-020-resource-certification.md",
+      "target": "SPEC-020-resource-certification#ADR-2001"
+    },
+    {
+      "source": "specs/SPEC-020-resource-certification.md",
+      "target": "SPEC-020-resource-certification#TEST-2007"
+    },
+    {
+      "source": "specs/SPEC-020-resource-certification.md",
+      "target": "SPEC-020-resource-certification#TEST-2008"
+    },
+    {
+      "source": "specs/SPEC-020-resource-certification.md",
+      "target": "byzantine-resource-literature"
+    },
+    {
+      "source": "specs/SPEC-020-resource-certification.md",
+      "target": "SPEC-020-resource-certification#ADR-2001"
+    },
+    {
+      "source": "specs/SPEC-020-resource-certification.md",
+      "target": "bounded-counter-agreement-review"
+    },
+    {
+      "source": "specs/SPEC-020-resource-certification.md",
+      "target": "SPEC-020-resource-certification#TEST-2005"
+    },
+    {
+      "source": "specs/SPEC-020-resource-certification.md",
+      "target": "SPEC-020-resource-certification#ADR-2002"
+    },
+    {
+      "source": "specs/SPEC-020-resource-certification.md",
+      "target": "byzantine-resource-literature"
+    },
+    {
+      "source": "specs/SPEC-020-resource-certification.md",
+      "target": "SPEC-020-resource-certification#ADR-2002"
+    },
+    {
+      "source": "specs/SPEC-020-resource-certification.md",
+      "target": "SPEC-020-resource-certification#ADR-2001"
+    },
+    {
+      "source": "specs/SPEC-020-resource-certification.md",
+      "target": "SPEC-019-state-rules#ADR-1915"
+    },
+    {
+      "source": "specs/SPEC-020-resource-certification.md",
+      "target": "SPEC-015-evidence-widening-v2#REQ-708"
+    },
+    {
+      "source": "specs/SPEC-020-resource-certification.md",
+      "target": "SPEC-020-resource-certification#CON-2000"
+    },
+    {
+      "source": "specs/SPEC-020-resource-certification.md",
+      "target": "SPEC-020-resource-certification#TEST-2000"
+    },
+    {
+      "source": "specs/SPEC-020-resource-certification.md",
+      "target": "SPEC-020-resource-certification#CON-2000"
+    },
+    {
+      "source": "specs/SPEC-020-resource-certification.md",
+      "target": "SPEC-020-resource-certification#TEST-2001"
+    },
+    {
+      "source": "specs/SPEC-020-resource-certification.md",
+      "target": "SPEC-020-resource-certification#CON-2000"
+    },
+    {
+      "source": "specs/SPEC-020-resource-certification.md",
+      "target": "SPEC-020-resource-certification#TEST-2002"
+    },
+    {
+      "source": "specs/SPEC-020-resource-certification.md",
+      "target": "SPEC-020-resource-certification#CON-2000"
+    },
+    {
+      "source": "specs/SPEC-020-resource-certification.md",
+      "target": "SPEC-020-resource-certification#TEST-2003"
+    },
+    {
+      "source": "specs/SPEC-020-resource-certification.md",
+      "target": "SPEC-020-resource-certification#CON-2000"
+    },
+    {
+      "source": "specs/SPEC-020-resource-certification.md",
+      "target": "SPEC-020-resource-certification#TEST-2004"
+    },
+    {
+      "source": "specs/SPEC-020-resource-certification.md",
+      "target": "SPEC-020-resource-certification#REQ-2000"
+    },
+    {
+      "source": "specs/SPEC-020-resource-certification.md",
+      "target": "SPEC-020-resource-certification#REQ-2001"
+    },
+    {
+      "source": "specs/SPEC-020-resource-certification.md",
+      "target": "SPEC-020-resource-certification#REQ-2002"
+    },
+    {
+      "source": "specs/SPEC-020-resource-certification.md",
+      "target": "SPEC-020-resource-certification#REQ-2003"
+    },
+    {
+      "source": "specs/SPEC-020-resource-certification.md",
+      "target": "SPEC-020-resource-certification#REQ-2004"
+    },
+    {
+      "source": "docs/concepts/byzantine-resource-literature.md",
+      "target": "SPEC-020-resource-certification#ADR-2001"
+    },
+    {
+      "source": "docs/concepts/byzantine-resource-literature.md",
+      "target": "SPEC-020-resource-certification#ADR-2001"
+    },
+    {
+      "source": "docs/concepts/byzantine-resource-literature.md",
+      "target": "SPEC-020-resource-certification#TEST-2006"
+    },
+    {
+      "source": "docs/concepts/byzantine-resource-literature.md",
+      "target": "bounded-counter-agreement-review"
+    },
+    {
+      "source": "outputs/bounded-counter-agreement-review.md",
+      "target": "SPEC-020-resource-certification#ADR-2001"
+    },
+    {
+      "source": "outputs/bounded-counter-agreement-review.md",
+      "target": "SPEC-020-resource-certification#TEST-2006"
+    },
+    {
+      "source": "outputs/bounded-counter-agreement-review.md",
+      "target": "SPEC-020-resource-certification#TEST-2006"
+    },
+    {
+      "source": "outputs/bounded-counter-agreement-review.md",
+      "target": "byzantine-resource-literature"
+    }
+  ],
+  "unresolved": []
+}
