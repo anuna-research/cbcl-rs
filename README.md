@@ -80,6 +80,13 @@ Named after McCarthy's 1982 proposal for a "Common Business Communication Langua
 
 Full theoretical framework and proofs are in the LangSec '26 paper, available as a preprint: [arXiv:2604.14512](https://arxiv.org/abs/2604.14512). The original prototype is the [Scheme implementation](https://github.com/anuna-research/cbcl).
 
+The state-rules branch also supports escrow bounded counters: a floor, optional
+ceiling with per-account headroom, transfers, tagged resource verdicts, and a
+required host issuance gate. See [bounded counters](docs/concepts/bounded-counter.md)
+and the [coin dialect](dialects/example-coin.cbcl). Resource authorization remains
+separate from protocol admission; host authentication and durable account
+serialization are explicit premises.
+
 ## Features
 
 - **Linear-time parser.** S-expression parser with O(n) time complexity and fuel-bounded recursion.

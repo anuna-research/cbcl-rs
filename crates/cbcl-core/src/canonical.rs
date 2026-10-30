@@ -324,6 +324,7 @@ fn state_to_sexpr(clause: &crate::state::StateClause) -> SExpr {
             Entry::Field { name, rule } => {
                 let mut r = vec![sym(rule.head())];
                 match rule {
+                    Rule::BoundedCounter(c) => r.extend(c.canonical_options()),
                     Rule::Last { verb, key }
                     | Rule::LatestPerSigner { verb, key }
                     | Rule::Events { verb, key }

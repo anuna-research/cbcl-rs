@@ -56,6 +56,7 @@ impl Default for StateBounds {
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Rule {
+    BoundedCounter(alloc::boxed::Box<crate::escrow::CounterRule>),
     Last {
         verb: String,
         key: String,
@@ -125,6 +126,7 @@ impl Rule {
     /// The head symbol of this rule in the clause grammar.
     pub fn head(&self) -> &'static str {
         match self {
+            Rule::BoundedCounter(_) => "bounded-counter",
             Rule::Last { .. } => "last",
             Rule::LatestPerSigner { .. } => "latest-per-signer",
             Rule::LatestPerKey { .. } => "latest-per-key",
@@ -146,6 +148,7 @@ impl Rule {
     /// Every performative this rule names.
     pub fn verbs(&self) -> Vec<&str> {
         match self {
+            Rule::BoundedCounter(c) => c.verbs(),
             Rule::Last { verb, .. }
             | Rule::LatestPerSigner { verb, .. }
             | Rule::LatestPerKey { verb, .. }
@@ -171,6 +174,7 @@ impl Rule {
     /// Every `(verb, key)` pair this rule reads as data.
     pub fn data_fields(&self) -> Vec<(&str, &str)> {
         match self {
+            Rule::BoundedCounter(c) => c.data_fields(),
             Rule::Last { verb, key }
             | Rule::LatestPerSigner { verb, key }
             | Rule::Events { verb, key }
@@ -844,6 +848,11 @@ impl<'a> Kernel<'a> {
         protocol: Option<&CausalProtocol>,
     ) -> Value {
         match rule {
+            Rule::BoundedCounter(c) => crate::escrow::observe(
+                c,
+                &self.acts.iter().map(|a| (*a).clone()).collect::<Vec<_>>(),
+            )
+            .value(),
             Rule::Last { verb, key } => self.pick(&self.acts(verb), key),
             Rule::LatestPerSigner { verb, key } => Value::Map(
                 self.group_by_signer(&self.current_by_signer(verb))
@@ -961,7 +970,10 @@ pub fn fold(
     let kernel = kernel_for(clause, acts);
     let mut done: Vec<(String, Value)> = Vec::new();
     for (name, rule) in clause.fields() {
-        let v = kernel.eval(rule, &done, protocol);
+        let v = match rule {
+            Rule::BoundedCounter(c) => crate::escrow::observe(c, acts).value(),
+            _ => kernel.eval(rule, &done, protocol),
+        };
         done.push((String::from(name), v));
     }
     done
@@ -1005,6 +1017,7 @@ impl ScalarType {
 /// The type of a state field, derived from its rule and the shapes.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum StateType {
+    BoundedCounter,
     /// A value that may be absent (`last`).
     OptScalar(ScalarType),
     Int,
@@ -1024,6 +1037,7 @@ impl StateType {
     /// JSON rendering of a type, for the export.
     pub fn render(&self) -> String {
         match self {
+            StateType::BoundedCounter => String::from("{\"type\":\"bounded-counter\"}"),
             StateType::OptScalar(t) => {
                 format!("{{\"type\":\"opt-scalar\",\"of\":\"{}\"}}", t.as_str())
             }
@@ -1090,6 +1104,7 @@ pub fn state_schema(
     let mut out: Vec<(String, StateType)> = Vec::new();
     for (name, rule) in clause.fields() {
         let ty = match rule {
+            Rule::BoundedCounter(_) => StateType::BoundedCounter,
             Rule::Last { verb, key } => StateType::OptScalar(scalar(verb, key)),
             Rule::LatestPerSigner { verb, key } => StateType::Map(
                 ScalarType::Str,

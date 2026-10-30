@@ -1,0 +1,3 @@
+KILLED: removed local escrow budget guard: funding_evidence_pending_replay_and_forks
+KILLED: removed local escrow budget guard: headroom_must_be_in_the_increment_causal_past
+Original source restored exactly.

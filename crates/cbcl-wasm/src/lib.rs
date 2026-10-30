@@ -289,6 +289,13 @@ pub fn admit_bytes(input: &[u8]) -> Result<Vec<u8>, Vec<u8>> {
         .map(|s| s.into_bytes())
         .map_err(|e| e.into_bytes())
 }
+/// `(resource-check ...)` → escrow verdict, separate from protocol admission.
+pub fn resource_check_bytes(input: &[u8]) -> Result<Vec<u8>, Vec<u8>> {
+    let s = core::str::from_utf8(input).map_err(|e| format!("invalid UTF-8: {e}").into_bytes())?;
+    state_layer::resource_check_str(s)
+        .map(String::into_bytes)
+        .map_err(String::into_bytes)
+}
 /// One S-expression → the parser's tree as JSON (lists, `{"str":…}`, atom text).
 pub fn read_bytes(input: &[u8]) -> Result<Vec<u8>, Vec<u8>> {
     let s = core::str::from_utf8(input).map_err(|e| format!("invalid UTF-8: {e}").into_bytes())?;
@@ -752,6 +759,11 @@ mod wasm_bindgen_api {
     pub fn admit(input: &str) -> Result<String, String> {
         state_layer::admit_str(input)
     }
+    /// Escrow authorization only; protocol admission and durable issuance are separate.
+    #[wasm_bindgen]
+    pub fn resource_check(input: &str) -> Result<String, String> {
+        state_layer::resource_check_str(input)
+    }
 
     #[wasm_bindgen]
     pub fn verify_message_shape(input: &str) -> Result<String, String> {
@@ -972,14 +984,17 @@ mod tests {
         assert!(read_bytes(b"(open").is_err());
         let define = String::from_utf8(define_text_bytes(checklist.as_bytes()).unwrap()).unwrap();
         assert!(define.starts_with("(define "));
-        let described = String::from_utf8(describe_dialect_bytes(checklist.as_bytes()).unwrap()).unwrap();
+        let described =
+            String::from_utf8(describe_dialect_bytes(checklist.as_bytes()).unwrap()).unwrap();
         assert!(described.contains("\"opener\":\"open\""), "{described}");
         let contract = br#"{"version":3,"kind":"contract","name":"one","verbs":{"open":{"after":["begin"],"fields":{"title":"string"}}},"state":{"title":["last","open","title"]}}"#;
         let compiled = String::from_utf8(compile_contract_bytes(contract).unwrap()).unwrap();
         assert!(compiled.contains("\"label\":\"one\""));
         assert!(compile_contract_bytes(b"{").is_err());
         let declared = define.split_whitespace().nth(1).unwrap();
-        let act = format!("(lang {declared} (open @o :thread \"t\" :from @o :caused-by begin :title \"T\"))");
+        let act = format!(
+            "(lang {declared} (open @o :thread \"t\" :from @o :caused-by begin :title \"T\"))"
+        );
         let read = String::from_utf8(read_act_bytes(act.as_bytes()).unwrap()).unwrap();
         assert!(read.contains("\"verb\":\"open\""));
         let admitted = format!("(admit {define} \"t\" (acts) (@o {act}))");
@@ -1832,5 +1847,23 @@ mod tests {
         );
         let result = verify_protocol_str(&frame);
         assert!(result.is_err());
+    }
+}
+
+#[cfg(test)]
+mod bounded_counter_binding_tests {
+    #[test]
+    fn escrow_export_matches_shared_verifier() {
+        for frame in [
+            include_str!("../../../test-vectors/state/resource-check.sexp"),
+            include_str!("../../../test-vectors/state/resource-check-capped.sexp"),
+        ] {
+            let expected = cbcl_parser::state_exports::resource_check_str(frame).unwrap();
+            assert!(expected.contains("\"ready\""));
+            assert_eq!(
+                super::resource_check_bytes(frame.as_bytes()).unwrap(),
+                expected.into_bytes()
+            );
+        }
     }
 }

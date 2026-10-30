@@ -144,11 +144,13 @@ pub enum Reject {
     NotValid(VerificationResult),
     /// The instance has no accepted opener, so no recipient set is known.
     NoOpener,
+    Resource(String),
 }
 
 impl fmt::Display for Reject {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Reject::Resource(reason) => write!(f, "resource authorization: {reason}"),
             Reject::UnknownVerb => write!(f, "unknown verb"),
             Reject::Opener => write!(f, "the opener cannot be emitted on an existing instance"),
             Reject::Forge(field) => {
@@ -168,6 +170,7 @@ impl fmt::Display for Reject {
 /// The JSON rendering of a rejection, for exports.
 pub fn render_reject(r: &Reject) -> String {
     let kind = match r {
+        Reject::Resource(_) => "resource",
         Reject::UnknownVerb => "unknown-verb",
         Reject::Opener => "opener",
         Reject::Forge(_) => "forge",
@@ -424,7 +427,11 @@ pub fn intend(
         return Err(Reject::Opener);
     }
     for k in fields.keys() {
-        if ROUTING_KEYWORDS.contains(&k.as_str()) || k == RESERVED_REPLACES {
+        if ROUTING_KEYWORDS.contains(&k.as_str())
+            || k == RESERVED_REPLACES
+            || k == crate::escrow::PREV
+            || k == crate::escrow::DEPS
+        {
             return Err(Reject::Forge(k.clone()));
         }
     }
@@ -638,6 +645,12 @@ pub fn intend(
         params.push(SExpr::Atom(Atom::Keyword(k.clone())));
         params.push(v.clone());
     }
+    for (key, value) in crate::escrow::bookkeeping(d, inst.acts, &inst.thread.0, &signer.0, verb)
+        .map_err(Reject::Resource)?
+    {
+        params.push(SExpr::Atom(Atom::Keyword(key)));
+        params.push(value);
+    }
     if let Some(addrs) = replaces {
         params.push(SExpr::Atom(Atom::Keyword(String::from(RESERVED_REPLACES))));
         params.push(SExpr::List(
@@ -704,7 +717,21 @@ pub fn intend(
         _ => verify_causal(verb, simple.caused_by(), &store, protocol, &inst.thread),
     };
     match verdict {
-        VerificationResult::Valid => Ok(message),
+        VerificationResult::Valid => {
+            if let Some((_, c)) = crate::escrow::rule_for(d, verb) {
+                let candidate =
+                    Act::from_message(message.clone(), &signer.0).map_err(Reject::Resource)?;
+                match crate::escrow::observe_in(d, &inst.thread.0, c, inst.acts) {
+                    crate::escrow::Outcome::Ready(_) => {}
+                    other => return Err(Reject::Resource(other.value().render())),
+                }
+                match crate::escrow::check(c, inst.acts, &candidate) {
+                    crate::escrow::Outcome::Ready(_) => {}
+                    other => return Err(Reject::Resource(other.value().render())),
+                }
+            }
+            Ok(message)
+        }
         other => Err(Reject::NotValid(other)),
     }
 }
@@ -765,6 +792,7 @@ pub fn address_of(message: &Message) -> Option<String> {
 impl Reject {
     pub fn kind(&self) -> &'static str {
         match self {
+            Reject::Resource(_) => "resource",
             Reject::UnknownVerb => "unknown-verb",
             Reject::Opener => "opener",
             Reject::Forge(_) => "forge",

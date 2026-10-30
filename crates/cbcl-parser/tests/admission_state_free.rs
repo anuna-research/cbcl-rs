@@ -103,6 +103,13 @@ fn footprint(c: &StateClause) -> Footprint {
 /// that computes something else. `None` when the sugar has no such sibling.
 fn sibling(rule: &Rule) -> Option<Rule> {
     Some(match rule.clone() {
+        Rule::BoundedCounter(mut c) => {
+            c.floor = c.floor.checked_add(1)?;
+            if let Some(ceiling) = c.ceiling {
+                c.ceiling = Some(ceiling.checked_add(1)?);
+            }
+            Rule::BoundedCounter(c)
+        }
         Rule::Last { verb, key } => Rule::LatestPerSigner { verb, key },
         Rule::LatestPerSigner { verb, key } => Rule::SetUnion { verb, key },
         Rule::SetUnion { verb, key } => Rule::Last { verb, key },

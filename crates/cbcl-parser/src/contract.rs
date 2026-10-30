@@ -25,11 +25,24 @@ pub const CONTRACT_VERSION: u64 = 3;
 pub const MAX_CONTRACT_BYTES: usize = 16384;
 
 /// The eight core performatives plus `lang`, never a contract verb.
-const CORE: &[&str] = &["tell", "ask", "reply", "error", "ok", "cancel", "hello", "bye", "lang"];
+const CORE: &[&str] = &[
+    "tell", "ask", "reply", "error", "ok", "cancel", "hello", "bye", "lang",
+];
 /// Keywords the binder owns; never a field name.
 const ROUTING: &[&str] = &[
-    "from", "thread", "dialect", "caused-by", "to", "sender", "replaces", "audience", "sig", "key",
+    "from",
+    "thread",
+    "dialect",
+    "caused-by",
+    "to",
+    "sender",
+    "replaces",
+    "audience",
+    "sig",
+    "key",
     "signing-key",
+    "escrow-prev",
+    "escrow-deps",
 ];
 const RESERVED_NAMES: &[&str] = &["begin", "constructor", "prototype", "__proto__"];
 const RESOURCE_KEYS: &[(&str, &str, u64)] = &[
@@ -57,17 +70,37 @@ enum Arg {
 /// dialect head and the shape of their arguments.
 const RULES: &[(&str, &str, &[Arg])] = &[
     ("last", "last", &[Arg::Verb, Arg::Key]),
-    ("latestPerSigner", "latest-per-signer", &[Arg::Verb, Arg::Key]),
-    ("latestPerKey", "latest-per-key", &[Arg::Verb, Arg::Key, Arg::Key]),
+    (
+        "latestPerSigner",
+        "latest-per-signer",
+        &[Arg::Verb, Arg::Key],
+    ),
+    (
+        "latestPerKey",
+        "latest-per-key",
+        &[Arg::Verb, Arg::Key, Arg::Key],
+    ),
     ("exists", "exists", &[Arg::Verb]),
     ("count", "count", &[Arg::Verb]),
     ("progress", "progress", &[Arg::Verb]),
     ("events", "events", &[Arg::Verb, Arg::Key]),
     ("setUnion", "set-union", &[Arg::Verb, Arg::Key]),
     ("values", "values", &[Arg::Verb, Arg::Key]),
-    ("valuesPerKey", "values-per-key", &[Arg::Verb, Arg::Key, Arg::Key, Arg::OptVerb]),
-    ("registerPerKey", "register-per-key", &[Arg::Verb, Arg::Key, Arg::Key, Arg::OptVerb]),
-    ("observedSet", "observed-set", &[Arg::Verb, Arg::Verb, Arg::Key]),
+    (
+        "valuesPerKey",
+        "values-per-key",
+        &[Arg::Verb, Arg::Key, Arg::Key, Arg::OptVerb],
+    ),
+    (
+        "registerPerKey",
+        "register-per-key",
+        &[Arg::Verb, Arg::Key, Arg::Key, Arg::OptVerb],
+    ),
+    (
+        "observedSet",
+        "observed-set",
+        &[Arg::Verb, Arg::Verb, Arg::Key],
+    ),
     ("counter", "counter", &[Arg::Verb, Arg::Verb, Arg::Key]),
     ("histogram", "histogram", &[Arg::Field]),
     ("sum", "sum", &[Arg::Field]),
@@ -82,7 +115,8 @@ fn identifier(s: &str) -> bool {
     let ok_head = matches!(chars.next(), Some(c) if c.is_ascii_lowercase());
     ok_head
         && s.len() <= 48
-        && s.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
+        && s.chars()
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
         && !ROUTING.contains(&s)
         && !RESERVED_NAMES.contains(&s)
 }
@@ -91,7 +125,9 @@ fn handle(s: &str) -> bool {
     s.len() >= 2
         && s.len() <= 64
         && s.starts_with('@')
-        && s[1..].chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '.' | '-'))
+        && s[1..]
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '.' | '-'))
 }
 
 fn record<'a>(
@@ -131,6 +167,7 @@ struct Contract<'a> {
     bounds: Vec<(&'static str, u64)>,
     roles: Vec<(&'a str, bool)>, // (role, indexed)
     verbs: Vec<Verb<'a>>,
+    escrow: Vec<(&'a str, cbcl_core::escrow::CounterRule)>,
     state: Vec<(&'a str, &'a str, Vec<(Arg, &'a str)>)>, // (field, head, args)
 }
 
@@ -149,11 +186,14 @@ fn recognize(json: &Json) -> Result<Contract<'_>, String> {
         &["author", "requirements", "bounds", "roles"],
         "contract",
     )?;
-    if top["version"].as_u64() != Some(CONTRACT_VERSION) || top["kind"].as_str() != Some("contract") {
+    if top["version"].as_u64() != Some(CONTRACT_VERSION) || top["kind"].as_str() != Some("contract")
+    {
         return err("unsupported contract version");
     }
     let name = top["name"].as_str().filter(|n| identifier(n));
-    let Some(name) = name else { return err("invalid contract name") };
+    let Some(name) = name else {
+        return err("invalid contract name");
+    };
     let author = match top.get("author") {
         None => "@object",
         Some(a) => match a.as_str() {
@@ -163,7 +203,12 @@ fn recognize(json: &Json) -> Result<Contract<'_>, String> {
     };
     let mut resources = Vec::new();
     if let Some(r) = top.get("requirements") {
-        let map = record(r, &[], &RESOURCE_KEYS.iter().map(|k| k.0).collect::<Vec<_>>(), "requirements")?;
+        let map = record(
+            r,
+            &[],
+            &RESOURCE_KEYS.iter().map(|k| k.0).collect::<Vec<_>>(),
+            "requirements",
+        )?;
         for (json_key, cbcl_key, _) in RESOURCE_KEYS {
             if let Some(v) = map.get(*json_key) {
                 resources.push((*cbcl_key, positive_int(v, json_key)?));
@@ -172,7 +217,12 @@ fn recognize(json: &Json) -> Result<Contract<'_>, String> {
     }
     let mut bounds = Vec::new();
     if let Some(b) = top.get("bounds") {
-        let map = record(b, &[], &BOUND_KEYS.iter().map(|k| k.0).collect::<Vec<_>>(), "bounds")?;
+        let map = record(
+            b,
+            &[],
+            &BOUND_KEYS.iter().map(|k| k.0).collect::<Vec<_>>(),
+            "bounds",
+        )?;
         // Emit in declaration order.
         for (key, value) in map {
             let cbcl = BOUND_KEYS.iter().find(|k| k.0 == key).map(|k| k.1).unwrap();
@@ -181,7 +231,9 @@ fn recognize(json: &Json) -> Result<Contract<'_>, String> {
     }
     let mut roles = Vec::new();
     if let Some(r) = top.get("roles") {
-        let Some(map) = r.as_object() else { return err("roles must be a record") };
+        let Some(map) = r.as_object() else {
+            return err("roles must be a record");
+        };
         if map.is_empty() || map.len() > 16 {
             return err("a contract declares between 1 and 16 roles");
         }
@@ -198,7 +250,9 @@ fn recognize(json: &Json) -> Result<Contract<'_>, String> {
         }
     }
     let has_roles = !roles.is_empty();
-    let Some(verb_map) = top["verbs"].as_object() else { return err("verbs must be a record") };
+    let Some(verb_map) = top["verbs"].as_object() else {
+        return err("verbs must be a record");
+    };
     if verb_map.is_empty() || verb_map.len() > 16 {
         return err("a contract declares between 1 and 16 verbs");
     }
@@ -210,7 +264,9 @@ fn recognize(json: &Json) -> Result<Contract<'_>, String> {
         }
         let optional: &[&str] = if has_roles { &["from", "to"] } else { &[] };
         let map = record(rule, &["after", "fields"], optional, verb)?;
-        let Some(after) = map["after"].as_array() else { return err(format!("invalid predecessors of {verb}")) };
+        let Some(after) = map["after"].as_array() else {
+            return err(format!("invalid predecessors of {verb}"));
+        };
         if after.is_empty() || after.len() > 16 {
             return err(format!("invalid predecessors of {verb}"));
         }
@@ -228,7 +284,9 @@ fn recognize(json: &Json) -> Result<Contract<'_>, String> {
             }
             openers += 1;
         }
-        let Some(field_map) = map["fields"].as_object() else { return err(format!("invalid fields of {verb}")) };
+        let Some(field_map) = map["fields"].as_object() else {
+            return err(format!("invalid fields of {verb}"));
+        };
         if field_map.len() > 16 {
             return err(format!("too many fields on {verb}"));
         }
@@ -238,13 +296,17 @@ fn recognize(json: &Json) -> Result<Contract<'_>, String> {
                 return err(format!("invalid field name {field}"));
             }
             match ty {
-                Json::String(t) if matches!(t.as_str(), "string" | "number" | "bool" | "list") => {
+                Json::String(t)
+                    if matches!(t.as_str(), "string" | "number" | "bool" | "list" | "symbol") =>
+                {
                     fields.push((field.as_str(), t.as_str(), None))
                 }
                 Json::Object(_) => {
                     let m = record(ty, &["enumOf"], &[], field)?;
                     match m["enumOf"].as_str() {
-                        Some(target) if identifier(target) => fields.push((field.as_str(), "string", Some(target))),
+                        Some(target) if identifier(target) => {
+                            fields.push((field.as_str(), "string", Some(target)))
+                        }
                         _ => return err("invalid domain"),
                     }
                 }
@@ -271,22 +333,84 @@ fn recognize(json: &Json) -> Result<Contract<'_>, String> {
         } else {
             (None, Vec::new())
         };
-        verbs.push(Verb { name: verb.as_str(), after: preds, fields, from, to });
+        verbs.push(Verb {
+            name: verb.as_str(),
+            after: preds,
+            fields,
+            from,
+            to,
+        });
     }
     if openers != 1 {
         return err("exactly one opener required");
     }
-    let Some(state_map) = top["state"].as_object() else { return err("state must be a record") };
+    let Some(state_map) = top["state"].as_object() else {
+        return err("state must be a record");
+    };
     if state_map.is_empty() || state_map.len() > 32 {
         return err("a state declares between 1 and 32 fields");
     }
     let mut state = Vec::new();
+    let mut escrow = Vec::new();
     for (field, expr) in state_map {
         if !identifier(field) {
             return err(format!("invalid state field {field}"));
         }
-        let Some(items) = expr.as_array() else { return err(format!("unknown rule for {field}")) };
-        let Some(op) = items.first().and_then(Json::as_str) else { return err(format!("unknown rule for {field}")) };
+        let Some(items) = expr.as_array() else {
+            return err(format!("unknown rule for {field}"));
+        };
+        let Some(op) = items.first().and_then(Json::as_str) else {
+            return err(format!("unknown rule for {field}"));
+        };
+        if op == "boundedCounter" {
+            if items.len() != 2 {
+                return err("boundedCounter takes one option-list argument");
+            }
+            let options = items[1]
+                .as_array()
+                .ok_or("contract: boundedCounter options must be an array")?;
+            let mut forms = alloc::vec![cbcl_core::sexpr::SExpr::Atom(
+                cbcl_core::sexpr::Atom::Symbol("bounded-counter".into())
+            )];
+            for option in options {
+                let xs = option
+                    .as_array()
+                    .ok_or("contract: boundedCounter option must be an array")?;
+                let mut form = Vec::new();
+                for x in xs {
+                    use cbcl_core::sexpr::{Atom, SExpr};
+                    if matches!(x,Json::Array(xs) if xs.is_empty()) {
+                        form.push(SExpr::List(Vec::new()));
+                        continue;
+                    }
+                    let atom = if let Some(n) = x.as_i64() {
+                        Atom::Num(n)
+                    } else if let Some(s) = x.as_str() {
+                        if let Some(key) = s.strip_prefix(':') {
+                            if !identifier(key) {
+                                return err("invalid counter keyword");
+                            }
+                            Atom::Keyword(key.into())
+                        } else {
+                            if !identifier(s) {
+                                return err("invalid counter symbol");
+                            }
+                            Atom::Symbol(s.into())
+                        }
+                    } else {
+                        return err("counter options contain only symbols, keywords and integers");
+                    };
+                    form.push(SExpr::Atom(atom));
+                }
+                forms.push(cbcl_core::sexpr::SExpr::List(form));
+            }
+            let rule = crate::state_parser::parse_rule(&cbcl_core::sexpr::SExpr::List(forms))?;
+            if let cbcl_core::state::Rule::BoundedCounter(c) = rule {
+                escrow.push((field.as_str(), *c));
+            }
+            state.push((field.as_str(), "bounded-counter", Vec::new()));
+            continue;
+        }
         let Some((_, head, shape)) = RULES.iter().find(|r| r.0 == op) else {
             return err(format!("unknown rule for {field}"));
         };
@@ -313,7 +437,16 @@ fn recognize(json: &Json) -> Result<Contract<'_>, String> {
             }
         }
     }
-    Ok(Contract { name, author, resources, bounds, roles, verbs, state })
+    Ok(Contract {
+        name,
+        author,
+        resources,
+        bounds,
+        roles,
+        verbs,
+        state,
+        escrow,
+    })
 }
 
 /// The dialect text of a recognised contract, named `name` (SPEC-087 CON-001).
@@ -323,11 +456,19 @@ fn emit(c: &Contract<'_>, name: &str) -> String {
     let resources: Vec<String> = RESOURCE_KEYS
         .iter()
         .map(|(_, key, default)| {
-            let value = c.resources.iter().find(|(k, _)| k == key).map(|(_, v)| *v).unwrap_or(*default);
+            let value = c
+                .resources
+                .iter()
+                .find(|(k, _)| k == key)
+                .map(|(_, v)| *v)
+                .unwrap_or(*default);
             format!("({key} {value})")
         })
         .collect();
-    out.push_str(&format!("  (:resource-requirements ({}))\n", resources.join(" ")));
+    out.push_str(&format!(
+        "  (:resource-requirements ({}))\n",
+        resources.join(" ")
+    ));
     if !c.bounds.is_empty() {
         let bounds: Vec<String> = c.bounds.iter().map(|(k, v)| format!("({k} {v})")).collect();
         out.push_str(&format!("  (:state-bounds {})\n", bounds.join(" ")));
@@ -336,7 +477,13 @@ fn emit(c: &Contract<'_>, name: &str) -> String {
         let roles: Vec<String> = c
             .roles
             .iter()
-            .map(|(r, indexed)| if *indexed { format!("(* {r})") } else { r.to_string() })
+            .map(|(r, indexed)| {
+                if *indexed {
+                    format!("(* {r})")
+                } else {
+                    r.to_string()
+                }
+            })
             .collect();
         out.push_str(&format!("  (:roles ({}))\n", roles.join(" ")));
     }
@@ -346,22 +493,41 @@ fn emit(c: &Contract<'_>, name: &str) -> String {
             Some(from) => format!(" :from {from} :to ({})", v.to.join(" ")),
             None => String::new(),
         };
-        let template: String = v.fields.iter().map(|f| format!(" :{} {}", f.0, f.0)).collect();
-        let param_list = if params.is_empty() { String::new() } else { format!(" {}", params.join(" ")) };
-        out.push_str(&format!("  (extend {} (to{param_list}){annotation} (tell to{template}))\n", v.name));
+        let template: String = v
+            .fields
+            .iter()
+            .map(|f| format!(" :{} {}", f.0, f.0))
+            .collect();
+        let param_list = if params.is_empty() {
+            String::new()
+        } else {
+            format!(" {}", params.join(" "))
+        };
+        out.push_str(&format!(
+            "  (extend {} (to{param_list}){annotation} (tell to{template}))\n",
+            v.name
+        ));
     }
     for v in &c.verbs {
         if v.fields.is_empty() {
             continue;
         }
-        let rules: String = v.fields.iter().map(|(f, t, _)| format!(" (require :{f} {t})")).collect();
+        let rules: String = v
+            .fields
+            .iter()
+            .map(|(f, t, _)| format!(" (require :{f} {t})"))
+            .collect();
         out.push_str(&format!("  (shape {}{rules})\n", v.name));
     }
     let steps: String = c
         .verbs
         .iter()
         .map(|v| {
-            let pred = if v.after.len() == 1 { v.after[0].to_string() } else { format!("(any {})", v.after.join(" ")) };
+            let pred = if v.after.len() == 1 {
+                v.after[0].to_string()
+            } else {
+                format!("(any {})", v.after.join(" "))
+            };
             format!(" (then {pred} {})", v.name)
         })
         .collect();
@@ -377,6 +543,17 @@ fn emit(c: &Contract<'_>, name: &str) -> String {
         .collect();
     let mut entries = Vec::new();
     for (field, head, args) in &c.state {
+        if let Some((_, counter)) = c.escrow.iter().find(|(name, _)| name == field) {
+            let options = counter
+                .canonical_options()
+                .iter()
+                .map(cbcl_core::serializer::serialize)
+                .collect::<Vec<_>>()
+                .join(" ");
+            entries.push(format!("({field} (bounded-counter {options}))"));
+            continue;
+        }
+
         let rendered: String = args
             .iter()
             .map(|(kind, a)| match kind {
@@ -402,14 +579,18 @@ pub fn compile_contract_str(input: &str) -> Result<String, String> {
     if input.len() > MAX_CONTRACT_BYTES {
         return err("contract exceeds 16 KiB");
     }
-    let json: Json = serde_json::from_str(input).map_err(|e| format!("contract: invalid JSON: {e}"))?;
+    let json: Json =
+        serde_json::from_str(input).map_err(|e| format!("contract: invalid JSON: {e}"))?;
     let contract = recognize(&json)?;
     let draft = emit(&contract, contract.name);
-    let parsed = crate::parser::parse(&draft).map_err(|e| format!("contract: emitted dialect does not parse: {e}"))?;
-    let dialect = crate::parse_dialect(&parsed).map_err(|e| format!("contract: emitted dialect is malformed: {e}"))?;
+    let parsed = crate::parser::parse(&draft)
+        .map_err(|e| format!("contract: emitted dialect does not parse: {e}"))?;
+    let dialect = crate::parse_dialect(&parsed)
+        .map_err(|e| format!("contract: emitted dialect is malformed: {e}"))?;
     let name = dialect_name(&dialect);
     let text = emit(&contract, &name);
-    let sexpr = crate::parser::parse(&text).map_err(|e| format!("contract: emitted dialect does not parse: {e}"))?;
+    let sexpr = crate::parser::parse(&text)
+        .map_err(|e| format!("contract: emitted dialect does not parse: {e}"))?;
     crate::state_exports::parse_and_install_dialect(&sexpr)?;
     Ok(format!(
         "{{\"name\":{},\"label\":{},\"dialect\":{}}}",

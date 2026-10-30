@@ -59,6 +59,7 @@ pub fn parse_rule(sexpr: &SExpr) -> Result<Rule, String> {
     let verb = |i: usize| symbol(&args[i], "verb");
     let key = |i: usize| keyword(&args[i], "field");
     Ok(match head.as_str() {
+        "bounded-counter" => Rule::BoundedCounter(alloc::boxed::Box::new(parse_counter(args)?)),
         "last" => {
             arity(2)?;
             Rule::Last {
@@ -258,6 +259,114 @@ pub fn parse_state_bounds(sexpr: &SExpr) -> Result<StateBounds, String> {
         }
     }
     Ok(b)
+}
+
+/// Full recognition of the bounded-counter declaration (CON-1908/1909).
+fn parse_counter(args: &[SExpr]) -> Result<cbcl_core::escrow::CounterRule, String> {
+    use alloc::collections::BTreeMap;
+    use cbcl_core::escrow::CounterRule;
+    let mut options = BTreeMap::new();
+    for option in args {
+        let SExpr::List(xs) = option else {
+            return Err(String::from("counter option must be a list"));
+        };
+        let Some(head) = xs.first() else {
+            return Err(String::from("empty counter option"));
+        };
+        let name = symbol(head, "counter option")?;
+        if ![
+            "floor",
+            "ceiling",
+            "initial-rights",
+            "initial-headroom",
+            "issuers",
+            "increment",
+            "decrement",
+            "transfer",
+            "transfer-headroom",
+        ]
+        .contains(&name.as_str())
+        {
+            return Err(alloc::format!("unknown bounded-counter option '{name}'"));
+        }
+        if options.insert(name.clone(), &xs[1..]).is_some() {
+            return Err(alloc::format!("duplicate bounded-counter option '{name}'"));
+        }
+    }
+    let get = |name: &str, n: usize| -> Result<&[SExpr], String> {
+        let xs = options
+            .get(name)
+            .ok_or_else(|| alloc::format!("missing bounded-counter option '{name}'"))?;
+        if xs.len() != n {
+            return Err(alloc::format!("'{name}' takes {n} arguments"));
+        }
+        Ok(xs)
+    };
+    let integer = |name: &str| -> Result<i64, String> {
+        match &get(name, 1)?[0] {
+            SExpr::Atom(Atom::Num(n)) => Ok(*n),
+            _ => Err(alloc::format!("'{name}' requires an integer")),
+        }
+    };
+    let pair = |name: &str| -> Result<(String, String), String> {
+        let xs = get(name, 2)?;
+        Ok((symbol(&xs[0], "verb")?, keyword(&xs[1], "field")?))
+    };
+    let triple = |name: &str| -> Result<(String, String, String), String> {
+        let xs = get(name, 3)?;
+        Ok((
+            symbol(&xs[0], "verb")?,
+            keyword(&xs[1], "recipient field")?,
+            keyword(&xs[2], "amount field")?,
+        ))
+    };
+    let (initial_verb, initial_key) = pair("initial-rights")?;
+    let ceiling = if options.contains_key("ceiling") {
+        Some(integer("ceiling")?)
+    } else {
+        None
+    };
+    let headroom = if options.contains_key("initial-headroom") {
+        Some(pair("initial-headroom")?)
+    } else {
+        None
+    };
+    if ceiling.is_some() != headroom.is_some() {
+        return Err(String::from(
+            "ceiling and initial-headroom must occur together",
+        ));
+    }
+    if headroom
+        .as_ref()
+        .is_some_and(|(v, k)| v != &initial_verb || k == &initial_key)
+    {
+        return Err(String::from(
+            "headroom needs the same opener and a distinct field",
+        ));
+    }
+    let transfer_headroom = if options.contains_key("transfer-headroom") {
+        Some(triple("transfer-headroom")?)
+    } else {
+        None
+    };
+    if transfer_headroom.is_some() && ceiling.is_none() {
+        return Err(String::from("headroom transfer requires ceiling"));
+    }
+    Ok(CounterRule {
+        floor: integer("floor")?,
+        ceiling,
+        initial_verb,
+        initial_key,
+        headroom_key: headroom.map(|(_, k)| k),
+        issuer: match &get("issuers", 1)?[0] {
+            SExpr::List(xs) if xs.is_empty() => String::new(),
+            x => symbol(x, "issuer role or ()")?,
+        },
+        increment: pair("increment")?,
+        decrement: pair("decrement")?,
+        transfer: triple("transfer")?,
+        transfer_headroom,
+    })
 }
 
 #[cfg(test)]

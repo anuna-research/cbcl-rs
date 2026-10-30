@@ -5,6 +5,9 @@ mode: reference
 
 # Bounded counter specification review
 
+Historical draft review at commit `e126bf6`. Current runtime evidence is
+[[bounded-counter-implementation]].
+
 Scope: the draft escrow amendment in [[SPEC-019-state-rules]] and the explanation
 [[bounded-counter]]. This record covers specification integration only.
 Runtime implementation, model proofs, host races, and corpus agreement remain

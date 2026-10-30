@@ -90,6 +90,44 @@ pub fn insert_replaces(d: &mut Dialect) {
         .into_iter()
         .map(String::from)
         .collect();
+    let escrow_verbs: Vec<String> = clause
+        .fields()
+        .filter_map(|(_, r)| {
+            if let Rule::BoundedCounter(c) = r {
+                Some(
+                    c.operation_verbs()
+                        .into_iter()
+                        .map(String::from)
+                        .collect::<Vec<_>>(),
+                )
+            } else {
+                None
+            }
+        })
+        .flatten()
+        .collect();
+    for verb in escrow_verbs {
+        for (keyword, ty) in [
+            (crate::escrow::PREV, TypeConstraint::Symbol),
+            (crate::escrow::DEPS, TypeConstraint::List),
+        ] {
+            if field_type(&d.shapes, &verb, keyword).is_some() {
+                continue;
+            }
+            let rule = ShapeRule::Require {
+                keyword: keyword.into(),
+                type_constraint: Some(ty),
+                children: Vec::new(),
+            };
+            match d.shapes.iter_mut().find(|s| s.performative == verb) {
+                Some(s) => s.rules.push(rule),
+                None => d.shapes.push(ShapeConstraint {
+                    performative: verb.clone(),
+                    rules: alloc::vec![rule],
+                }),
+            }
+        }
+    }
     for verb in verbs {
         if shape_has_replaces(&d.shapes, &verb) {
             continue;
@@ -132,7 +170,10 @@ fn is_scalar(tc: &TypeConstraint) -> bool {
 /// R7 installation checks (SPEC-019 REQ-1904–1910, 1927). Empty for a
 /// dialect with neither clause (REQ-1909).
 pub fn r7_violations(d: &Dialect) -> Vec<R7Violation> {
-    let mut out = Vec::new();
+    let mut out: Vec<R7Violation> = crate::escrow::declaration_errors(d)
+        .into_iter()
+        .map(R7Violation::Typing)
+        .collect();
     let bounds = bounds_of(d);
     let defaults = StateBounds::default();
     if let Some(b) = &d.state_bounds {
@@ -221,6 +262,7 @@ pub fn r7_violations(d: &Dialect) -> Vec<R7Violation> {
                     });
                 }
             }
+            Some(TypeConstraint::Symbol) if crate::escrow::recipient_field(d, verb, key) => {}
             Some(TypeConstraint::Symbol) | Some(TypeConstraint::Keyword) => {
                 out.push(R7Violation::Typing(format!(
                     "field :{key} of '{verb}' is a symbol or keyword; state-bearing fields are string, number, bool, or list"
@@ -539,7 +581,78 @@ pub fn verify_state_shape(d: &Dialect, msg: &Message) -> Result<(), ShapeViolati
         let Some(value) = fields.get(key) else {
             continue;
         };
-        check_bounds(&verb, key, value, &bounds)?;
+        let allocation = clause.fields().any(|(_,r)|matches!(r, Rule::BoundedCounter(c) if c.initial_verb==verb&&(c.initial_key==key||c.headroom_key.as_deref()==Some(key))));
+        if allocation {
+            let parsed = crate::escrow::allocations(value)
+                .map_err(|e| violation("allocations", Some(key), e))?;
+            if parsed.len() > bounds.max_list as usize
+                || parsed.iter().any(|(a, n)| {
+                    a.len() > bounds.max_string as usize || *n > i128::from(bounds.max_number)
+                })
+            {
+                return Err(violation(
+                    "allocations",
+                    Some(key),
+                    "allocation bounds exceeded".into(),
+                ));
+            }
+        } else if crate::escrow::recipient_field(d, &verb, key) {
+            match value {
+                SExpr::Atom(Atom::Symbol(s)) | SExpr::Atom(Atom::Str(s))
+                    if s.starts_with('@')
+                        && s.len() > 1
+                        && s.len() <= bounds.max_string as usize => {}
+                _ => {
+                    return Err(violation(
+                        "recipient",
+                        Some(key),
+                        "recipient must be an account key".into(),
+                    ))
+                }
+            }
+        } else {
+            check_bounds(&verb, key, value, &bounds)?;
+        }
+    }
+
+    if crate::escrow::rule_for(d, &verb).is_some() {
+        let prev = match fields.get(crate::escrow::PREV) {
+            Some(SExpr::Atom(Atom::Symbol(s))) if is_address(s) => s,
+            _ => {
+                return Err(violation(
+                    "escrow",
+                    Some(crate::escrow::PREV),
+                    "missing or invalid escrow-prev".into(),
+                ))
+            }
+        };
+        let deps = match fields.get(crate::escrow::DEPS) {
+            Some(SExpr::List(xs)) if xs.len() <= bounds.max_list as usize => xs,
+            _ => {
+                return Err(violation(
+                    "escrow",
+                    Some(crate::escrow::DEPS),
+                    "missing or oversized escrow-deps".into(),
+                ))
+            }
+        };
+        let mut last: Option<&str> = None;
+        for dep in deps {
+            match dep {
+                SExpr::Atom(Atom::Symbol(s))
+                    if is_address(s) && s != prev && last.map_or(true, |p| p < s.as_str()) =>
+                {
+                    last = Some(s)
+                }
+                _ => {
+                    return Err(violation(
+                        "escrow",
+                        Some(crate::escrow::DEPS),
+                        "dependencies must be sorted distinct addresses".into(),
+                    ))
+                }
+            }
+        }
     }
 
     // Compiler-owned bookkeeping is required on every replacement writer.

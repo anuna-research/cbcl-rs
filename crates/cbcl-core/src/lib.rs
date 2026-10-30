@@ -53,6 +53,7 @@ pub mod clock;
 pub mod dialect;
 pub mod envelope;
 pub mod equivocation;
+pub mod escrow;
 pub mod evaluator;
 pub mod gossip;
 pub mod intend;

@@ -27,7 +27,7 @@
 
 use alloc::collections::BTreeMap;
 use alloc::format;
-use alloc::string::String;
+use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use cbcl_core::blame::ViolationError;
 use cbcl_core::canonical::{dialect_hash, dialect_name};
@@ -38,7 +38,7 @@ use cbcl_core::protocol::{verify_causal, VerificationResult};
 use cbcl_core::role::{AgentKey, Endpoint};
 use cbcl_core::serializer::serialize;
 use cbcl_core::sexpr::{Atom, SExpr};
-use cbcl_core::state::{fold, frontier, render_json, render_schema, state_schema, Act, Value};
+use cbcl_core::state::{frontier, render_json, render_schema, state_schema, Act, Value};
 use cbcl_core::store::{ContentHash, MessageStore, ThreadId};
 
 /// Parse a dialect S-expression, or a `(dialects <ancestor>* <leaf>)` chain,
@@ -150,15 +150,15 @@ fn instance_frame(input: &str, head: &str) -> Result<InstanceFrame, String> {
 
 /// `(fold <dialect> <thread> (acts …))` → the state as canonical JSON.
 pub fn fold_str(input: &str) -> Result<String, String> {
-    let (d, _thread, acts, _) = instance_frame(input, "fold")?;
-    let clause = d
-        .state
-        .as_ref()
-        .ok_or_else(|| String::from("dialect has no state clause"))?;
-    Ok(render_json(&fold(
-        clause,
-        d.causal_protocol.as_ref(),
-        &acts,
+    let (d, thread, acts, rest) = instance_frame(input, "fold")?;
+    if !rest.is_empty() {
+        return Err("fold takes dialect, thread and acts".into());
+    }
+    if d.state.is_none() {
+        return Err("dialect has no state clause".into());
+    }
+    Ok(render_json(&cbcl_core::escrow::fold_instance(
+        &d, &thread.0, &acts,
     )))
 }
 
@@ -386,4 +386,64 @@ pub fn dialect_hash_str(input: &str) -> Result<String, String> {
     let sexpr = crate::parser::parse(input).map_err(|e| format!("parse error: {e}"))?;
     let d = crate::parse_dialect(&sexpr).map_err(|e| format!("dialect parse error: {e}"))?;
     Ok(dialect_name(&d))
+}
+
+/// Pure escrow authorization, separate from `admit`. Both are required before
+/// an external effect. Supplied history and signer identities must already be
+/// authenticated by the host. A locally ready result does not rule out a fork
+/// that a remote owner has withheld.
+pub fn resource_check_str(input: &str) -> Result<String, String> {
+    use cbcl_core::escrow::{self, Outcome};
+    let (d, thread, accepted, rest) = instance_frame(input, "resource-check")?;
+    if rest.len() != 1 {
+        return Err("expected (resource-check dialect thread (acts ...) (signer message))".into());
+    }
+    let one = SExpr::List(alloc::vec![
+        SExpr::Atom(Atom::Symbol("acts".into())),
+        rest[0].clone()
+    ]);
+    let candidate = parse_acts(&one)?.pop().ok_or("missing candidate")?;
+    let (_, c) = escrow::rule_for(&d, &candidate.verb)
+        .ok_or("candidate is not a bounded-counter operation")?;
+    let rejected = |reason: String, evidence: Vec<String>| {
+        let value = Value::Map(alloc::vec![
+            (Value::Str("status".into()), Value::Str("rejected".into())),
+            (Value::Str("reason".into()), Value::Str(reason)),
+            (
+                Value::Str("evidence".into()),
+                Value::List(evidence.into_iter().map(Value::Str).collect())
+            )
+        ]);
+        value.render()
+    };
+    match escrow::observe_in(&d, &thread.0, c, &accepted) {
+        Outcome::Ready(_) => {}
+        other => return Ok(other.value().render()),
+    }
+    if candidate.simple().thread() != Some(thread.0.as_str()) {
+        return Ok(rejected(
+            "candidate thread mismatch".into(),
+            alloc::vec![candidate.address.clone()],
+        ));
+    }
+    if let Err(e) = cbcl_core::r7::verify_state_shape(&d, &candidate.message) {
+        return Ok(rejected(
+            e.to_string(),
+            alloc::vec![candidate.address.clone()],
+        ));
+    }
+    for shape in d.shapes.iter().filter(|s| s.performative == candidate.verb) {
+        if let Err(e) = shape.check(&SExpr::from(candidate.simple())) {
+            return Ok(rejected(
+                e.to_string(),
+                alloc::vec![candidate.address.clone()],
+            ));
+        }
+    }
+    let mut with = accepted.clone();
+    with.push(candidate);
+    Ok(match escrow::observe_in(&d, &thread.0, c, &with) {
+        Outcome::Fault { reason, evidence } => rejected(reason, evidence),
+        other => other.value().render(),
+    })
 }

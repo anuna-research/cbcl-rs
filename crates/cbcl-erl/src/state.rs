@@ -71,6 +71,11 @@ pub fn dialect_hash_pure(bytes: &[u8]) -> Result<String, String> {
 pub fn admit_pure(bytes: &[u8]) -> Result<String, String> {
     state_exports::admit_str(utf8(bytes)?)
 }
+/// Env-free escrow authorization; protocol admission remains separate.
+pub fn resource_check_pure(bytes: &[u8]) -> Result<String, String> {
+    state_exports::resource_check_str(utf8(bytes)?)
+}
+
 /// Env-free core of `read/1`: the parser's tree as JSON.
 pub fn read_pure(bytes: &[u8]) -> Result<String, String> {
     cbcl_parser::read_str(utf8(bytes)?)
@@ -180,6 +185,11 @@ pub fn admit<'a>(env: Env<'a>, bytes: Binary<'a>) -> Term<'a> {
 }
 
 #[rustler::nif]
+pub fn resource_check<'a>(env: Env<'a>, bytes: Binary<'a>) -> Term<'a> {
+    run(env, "resource_check", bytes.as_slice(), resource_check_pure)
+}
+
+#[rustler::nif]
 pub fn read<'a>(env: Env<'a>, bytes: Binary<'a>) -> Term<'a> {
     run(env, "read", bytes.as_slice(), read_pure)
 }
@@ -191,7 +201,12 @@ pub fn define_text<'a>(env: Env<'a>, bytes: Binary<'a>) -> Term<'a> {
 
 #[rustler::nif]
 pub fn describe_dialect<'a>(env: Env<'a>, bytes: Binary<'a>) -> Term<'a> {
-    run(env, "describe_dialect", bytes.as_slice(), describe_dialect_pure)
+    run(
+        env,
+        "describe_dialect",
+        bytes.as_slice(),
+        describe_dialect_pure,
+    )
 }
 
 #[rustler::nif]
@@ -201,12 +216,22 @@ pub fn read_act<'a>(env: Env<'a>, bytes: Binary<'a>) -> Term<'a> {
 
 #[rustler::nif]
 pub fn compile_contract<'a>(env: Env<'a>, bytes: Binary<'a>) -> Term<'a> {
-    run(env, "compile_contract", bytes.as_slice(), compile_contract_pure)
+    run(
+        env,
+        "compile_contract",
+        bytes.as_slice(),
+        compile_contract_pure,
+    )
 }
 
 #[rustler::nif]
 pub fn verify_message_shape<'a>(env: Env<'a>, bytes: Binary<'a>) -> Term<'a> {
-    run(env, "verify_message_shape", bytes.as_slice(), verify_message_shape_pure)
+    run(
+        env,
+        "verify_message_shape",
+        bytes.as_slice(),
+        verify_message_shape_pure,
+    )
 }
 
 #[cfg(test)]
@@ -263,16 +288,25 @@ mod tests {
         assert!(fr.starts_with("{\"instance\":\"sha256-"), "{fr}");
         let root = fr.split('"').nth(3).unwrap().to_string();
         let vote = format!("(lang lunch-vote (vote @lunch :choice \"Sushi\" :replaces () :caused-by {root} :thread \"v1\" :from @bo))");
-        let admitted = admit_pure(format!("(admit {LUNCH} \"v1\" {acts} (@bo {vote}))").as_bytes()).unwrap();
+        let admitted =
+            admit_pure(format!("(admit {LUNCH} \"v1\" {acts} (@bo {vote}))").as_bytes()).unwrap();
         assert_eq!(admitted, "{\"verdict\":\"accepted\"}");
         let orphan = "(lang lunch-vote (vote @lunch :choice \"Sushi\" :replaces () :caused-by sha256-ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff :thread \"v1\" :from @bo))";
-        let pending = admit_pure(format!("(admit {LUNCH} \"v1\" {acts} (@bo {orphan}))").as_bytes()).unwrap();
+        let pending =
+            admit_pure(format!("(admit {LUNCH} \"v1\" {acts} (@bo {orphan}))").as_bytes()).unwrap();
         assert_eq!(pending, "{\"verdict\":\"pending\"}");
         assert_eq!(
-            verify_message_shape_pure(format!("(verify-shape {LUNCH} vote (vote @lunch :choice \"Sushi\" :replaces ()))").as_bytes()).unwrap(),
+            verify_message_shape_pure(
+                format!("(verify-shape {LUNCH} vote (vote @lunch :choice \"Sushi\" :replaces ()))")
+                    .as_bytes()
+            )
+            .unwrap(),
             "ok"
         );
-        let blame = verify_message_shape_pure(format!("(verify-shape {LUNCH} vote (vote @lunch :choice 3))").as_bytes()).unwrap_err();
+        let blame = verify_message_shape_pure(
+            format!("(verify-shape {LUNCH} vote (vote @lunch :choice 3))").as_bytes(),
+        )
+        .unwrap_err();
         assert!(blame.contains("choice"), "{blame}");
     }
 
@@ -287,5 +321,23 @@ mod tests {
         assert!(verify_state_shape_pure(bad.as_bytes())
             .unwrap_err()
             .contains("closed"));
+    }
+}
+
+#[cfg(test)]
+mod bounded_counter_binding_tests {
+    #[test]
+    fn escrow_export_matches_shared_verifier() {
+        for frame in [
+            include_str!("../../../test-vectors/state/resource-check.sexp"),
+            include_str!("../../../test-vectors/state/resource-check-capped.sexp"),
+        ] {
+            let expected = cbcl_parser::state_exports::resource_check_str(frame).unwrap();
+            assert!(expected.contains("\"ready\""));
+            assert_eq!(
+                super::resource_check_pure(frame.as_bytes()).unwrap(),
+                expected
+            );
+        }
     }
 }

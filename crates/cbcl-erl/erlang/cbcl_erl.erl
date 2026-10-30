@@ -65,7 +65,7 @@
          may_send/1,
          frontier/1,
          dialect_hash/1,
-         admit/1,
+         admit/1, resource_check/1,
          compile_contract/1,
          define_text/1,
          describe_dialect/1,
@@ -105,3 +105,7 @@ define_text(_Bytes)        -> erlang:nif_error(nif_not_loaded).
 describe_dialect(_Bytes)   -> erlang:nif_error(nif_not_loaded).
 read_act(_Bytes)           -> erlang:nif_error(nif_not_loaded).
 read(_Bytes)               -> erlang:nif_error(nif_not_loaded).
+
+%% Separate escrow authorization; protocol admission and issuance remain host duties.
+-spec resource_check(binary()) -> {ok, binary()} | {error, binary()}.
+resource_check(_) -> erlang:nif_error(nif_not_loaded).

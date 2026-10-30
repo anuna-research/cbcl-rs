@@ -2,7 +2,7 @@
 id: SPEC-019
 title: State Layer — R7 State Rules and the Intent Binder
 status: draft
-version: 1.2.0
+version: 2.0.0
 date: 2026-10-30
 author: Anuna Research (https://anuna.io) — drafted with Claude Fable 5.1
 owner: CBCL maintainer
@@ -29,7 +29,7 @@ all capitals.
 
 ## Orientation
 
-Draft extension: [[SPEC-019-state-rules#Bounded counter amendment — escrow resource primitive]] specifies lower-bound escrow rights, transfers, and separate resource authorization. Runtime support remains unimplemented.
+Escrow extension: [[SPEC-019-state-rules#Bounded counter amendment — escrow resource primitive]] specifies lower-bound escrow rights, optional ceiling headroom, transfers, and separate resource authorization. See the implementation evidence for runtime and proof status.
 
 Intent: give a CBCL dialect a `(state …)` clause that says what its accepted
 acts amount to. Each state field is one *state rule* from a closed
@@ -49,7 +49,7 @@ Cross-signer references contribute no supersession; the referring act still cont
 Domain-excluded acts contribute neither values nor replacement references.
 Superseded domain-admitted acts still supply replacement references.
 Replacement applies whenever a domain-admitted write names another accepted same-verb, same-signer write, including after out-of-order delivery.
-The rules desugar to fixed selections and reductions; protocol progress adds an established-position selection and maximum reduction. The fold
+Ordinary rules desugar to fixed selections and reductions; bounded counters add the separately verified resource DAG of [[SPEC-019-state-rules#CON-1908]]. Protocol progress adds an established-position selection and maximum reduction. The fold
 and the intent binder are pure functions in `cbcl-core`, exported to every
 host as the parser already is. The invariant added is **R7**: for every
 installed dialect, each state field is a total, order-independent,
@@ -89,7 +89,7 @@ first consumer and the source of the semantics adopted here; it appears in
 Context, in ADRs as evidence, in Migration, and nowhere in a requirement.
 
 Decisions: [[SPEC-019-state-rules#ADR-1900]] a kernel of
-fixed selections and reductions; the fifteen author-facing names are sugar ·
+fixed selections and reductions; the author-facing names are sugar ·
 [[SPEC-019-state-rules#ADR-1901]] supersession rides one reserved
 field, `:replaces`, inserted by the compiler ·
 [[SPEC-019-state-rules#ADR-1902]] one total order, the content
@@ -114,6 +114,7 @@ Load-bearing: [[SPEC-019-state-rules#REQ-1915]] R7 ·
 [[SPEC-019-state-rules#REQ-1931]] one corpus.
 
 Controls:
+- With a ceiling, increment consumes owned headroom; a global observed-value check never substitutes for it → [[SPEC-019-state-rules#REQ-1948]].
 - Bounded resource effects require exclusive rights and nonforking owner issuance; protocol admission alone supplies neither → [[SPEC-019-state-rules#REQ-1940]]–[[SPEC-019-state-rules#REQ-1947]].
 - Refinement claims exclude Rust equivalence, authentication correctness, liveness, and universal business refinement → [[SPEC-019-state-rules#REQ-1938]].
 - A signer cannot supersede another signer’s ballot → [[SPEC-019-state-rules#REQ-1933]].
@@ -181,7 +182,8 @@ field          := symbol                                     ; [a-z][a-z0-9-]{0,
 verb           := symbol                                     ; a performative of this dialect
 key            := keyword                                    ; a keyword field of that performative's shape
 
-rule           := "(" "last"              verb key ")"
+rule           := bounded-counter-rule                       ; CON-1908/1909
+                | "(" "last"              verb key ")"
                 | "(" "latest-per-signer" verb key ")"
                 | "(" "latest-per-key"    verb key key ")"          ; key-field value-field
                 | "(" "exists"            verb ")"
@@ -280,6 +282,9 @@ Value  := Absent | Str | Int | Bool | Set [Scalar] | Map [(Scalar, Value)] | Pai
 State  := [(field, Value)]                                  in clause order
 ```
 
+Bounded-counter fields are tagged `Map` values with the schema in
+[[SPEC-019-state-rules#CON-1908]]; pending and fault values have no numeric balance.
+
 Canonical JSON: `Absent → null`; `Str → JSON string` (RFC 8259 §7 shortest
 escapes, lowercase hex); `Int → decimal`; `Bool → true|false`; `Set → array`
 sorted by the UTF-8 bytes of each element's rendering; `Map → object`, a
@@ -367,6 +372,7 @@ instance(instance)                      → address of the accepted opener
 frontier(instance)                      → sorted addresses no accepted act names in :caused-by
 dialect_hash(define_text)               → sha256-<hex>
 admit(dialect, instance, message)       → accepted | pending | rejected(reason)   R.4 + R5 + R6 against acc(t)
+resource_check(dialect, instance, message) → ready | pending | rejected | fault   CON-1908/1909
 ```
 
 At the boundary the exports take S-expression frames and return canonical JSON:
@@ -379,6 +385,7 @@ At the boundary the exports take S-expression frames and return canonical JSON:
 (may-send <dialect> <thread> (acts …) <signer>)
 (frontier <dialect> <thread> (acts …))
 (admit <dialect> <thread> (acts …) (<signer> <message>))
+(resource-check <dialect> <thread> (acts …) (<signer> <message>))
 dialect_hash(<define text>)
 ```
 
@@ -425,8 +432,8 @@ is normative, the requirement fixes the obligation and its trace.
 `(state …)` clause and an OPTIONAL `(:state-bounds …)` clause per R.1, at
 most one of each. Trace: [[SPEC-019-state-rules#TEST-1900]], [[SPEC-019-state-rules#CON-1900]].
 
-**REQ-1901: Closed vocabulary.** The rule heads are exactly the fifteen
-of R.1 plus `domain`; any other head is a parse violation. The vocabulary
+**REQ-1901: Closed vocabulary.** The rule heads are exactly those
+of R.1 and [[SPEC-019-state-rules#CON-1908]], plus `domain`; any other head is a parse violation. The vocabulary
 changes only with a new version of this document and of the corpus.
 Trace: [[SPEC-019-state-rules#TEST-1901]].
 
@@ -709,12 +716,10 @@ Trace: [[SPEC-019-state-rules#TEST-1932]].
 
 ## Bounded counter amendment — escrow resource primitive
 
-Status: draft design, specified for implementation; no bounded-counter parser,
-export, runtime enforcement, corpus, or Lean theorem is delivered by this amendment.
-The existing grammar, corpus version, admission rules, and unrestricted `counter`
-retain their current meanings. This section specifies a separate typed resource
-interface; promoting it into the state-rule grammar requires the coordinated major
-version change in [[SPEC-019-state-rules#Amendment Channels]].
+Status: implementation in progress. The versioned wire contract below replaces
+the earlier typed-only draft. Runtime support is tested independently from the
+model proof and host serialization obligations; no protocol-admission theorem
+is extended to arithmetic authorization.
 
 ### Orientation
 
@@ -722,8 +727,8 @@ Intent: a [[bounded-counter]] maintains an integer lower bound by allocating
 exclusive decrement rights to owners. This is the escrow construction of
 [Balegas et al. (2015)](https://arxiv.org/abs/1503.09052), adapted to CBCL's
 immutable act store. It is useful for stock, spendable credits, and resource quotas.
-The first profile supports a lower bound; upper bounds and simultaneous bounds
-are deferred to a separate contract owned by the CBCL maintainer.
+The lower bound is required. An optional ceiling adds an independent
+escrow budget of increment headroom, so both bounds survive compatible union.
 
 Each owner serializes its own operations durably. Different owners operate
 concurrently within their allocations. A transfer moves existing rights; it
@@ -813,9 +818,8 @@ operation := Increment(amount) | Decrement(amount) | Transfer(recipient, amount)
 amount    := Natural excluding zero
 ```
 
-These are typed interface contracts, not wire exports. The wire grammar and
-JSON schema are deferred to the implementation plan before parser work; existing
-parsers must continue rejecting an unknown `bounded-counter` rule head.
+The typed interfaces are implemented through the versioned wire integration
+in [[SPEC-019-state-rules#CON-1908]]. Unknown options remain parse errors.
 No external bytes enter this interface without the existing full message
 recognizer, authenticated signer binding, and typed conversion. The typed act
 contains the instance address, resource field identifier, operation, owner,
@@ -967,8 +971,8 @@ Validates: [[SPEC-019-state-rules#REQ-1943]].
 
 **TEST-1965: Boundary regression.** Core: a well-shaped protocol-conformant spend
 can pass protocol admission while failing the resource budget check. Existing
-unrestricted counters still admit negative observations. Unknown bounded rule
-syntax remains rejected until a versioned grammar amendment is implemented.
+unrestricted counters still admit negative observations. Malformed bounded rule
+syntax remains rejected by the versioned grammar recognizer.
 Validates: [[SPEC-019-state-rules#REQ-1944]].
 
 **TEST-1966: Equivocation.** Core: two owner operations naming one previous
@@ -989,21 +993,158 @@ Depth: construct conflicting independently issued spends to demonstrate why a
 signature alone cannot satisfy the nonforking premise.
 Validates: [[SPEC-019-state-rules#REQ-1947]].
 
+### CON-1908: Version 2 wire integration
+
+The author keeps business acts in `extend`; the new rule is part of `state`.
+This grammar is recognized over the existing S-expression AST before execution:
+
+```text
+bounded-counter-rule := (bounded-counter
+          (floor integer)
+          [(ceiling integer)]
+          (initial-rights verb keyword)
+          [(initial-headroom verb keyword)]
+          (issuers role-or-empty)
+          (increment verb keyword)
+          (decrement verb keyword)
+          (transfer verb keyword keyword)
+          [(transfer-headroom verb keyword keyword)])
+```
+
+The issuer value is a declared role, or `()` to disable all issuance. Opener
+authorization follows its protocol role and does not require mint authority.
+Each required subclause occurs exactly once; order is irrelevant and canonicalizes to
+the order above. The transfer keywords are recipient then amount. Operation
+verbs are distinct and serve exactly one bounded counter. The initializer is
+the unique protocol opener. Amount fields require `number` shapes; recipient
+requires `symbol` or `string`; allocations require `list`. A nonempty issuer role is
+a declared singleton or indexed role in the authenticated root cast. Bounded
+counters require that cast even when issuance is disabled.
+
+Allocation input is a nonempty list `((account natural) ...)`, with distinct
+accounts written as `@`-prefixed symbols or strings. Every account belongs to
+the root cast; every issuer belongs to the initial allocation account set. Accounts are fixed by that list. Initial
+allocations and the floor obey the configured max-number bound. Allocation
+pairs are a recognized exception to the scalar-list restriction. Account strings
+obey max-string and the list obeys max-list. The sum uses checked i128 arithmetic;
+overflow faults the resource observation before any usable balance is returned.
+
+Each operation carries two compiler-owned fields:
+
+```text
+:escrow-prev sha256-<hex>
+:escrow-deps (sha256-<hex> ...)
+```
+
+The previous reference names the last operation by this signer on this counter,
+or the opener for the first. Dependencies name operations on the same counter;
+their transitive closure plus the previous reference forms resource causal
+history. This resource DAG is separate from protocol `:caused-by`. It does not
+change allowed protocol predecessors. Dependencies are sorted by content address. References are unique bounded address lists;
+the previous reference cannot also occur in dependencies. Authors and intent
+callers cannot supply compiler-owned fields. No rule or domain can read these
+fields as data; they cannot be allocation, amount, or recipient keywords. Installation adds their shapes.
+The binder references every other account's known tip, without truncating needed
+evidence. If max-list is insufficient it refuses the intent.
+
+`fold` returns a tagged object for the bounded field:
+`{"status":"ready","value":integer,"rights":{"@account":integer,...}}`,
+`{"status":"pending","evidence":[address,...]}`, or
+`{"status":"fault","reason":string,"evidence":[address,...]}`.
+No pending/fault object contains a spendable numeric balance. `state-schema`
+reports `{"type":"bounded-counter"}`. Existing fold bindings share this logic.
+The fold validates all resource acts, never an address-selected winning subset;
+a second distinct opener faults the instance. Resource acts cannot be hidden by
+`domain` entries. The signer, thread, dialect, content hash, and reconstructed
+act fields must agree with the pinned instance. Supplied signer identities remain
+host-authenticated inputs, not proofs of signatures.
+
+`intend` generates bookkeeping and verifies the candidate's resource contribution
+before returning a canonical unsigned act. Insufficient rights are resource errors;
+`admit` remains protocol-only. A new `(resource-check dialect thread (acts ...)
+(signer message))` frame returns ready/pending/rejected/fault diagnostics, and is
+wrapped by the same WASM, FFI and Erlang surfaces as existing state exports.
+An already included candidate is a duplicate and does not add another effect.
+An already faulted accepted history faults resource-check before judging the
+candidate. Binding and exported observation pin dialect, thread, opener and cast;
+conflicting casts sharing an innermost root address fault under every ordering.
+
+A pure `issue` helper combines `intend` with a required host `IssuanceGate`.
+The host atomically persists the complete candidate against the expected previous
+tip before the helper returns it for publication. Its namespace is the canonical
+dialect identity, thread, opener, bounded field, and signer. All rights and
+headroom operations by that signer share this lane. Gate failure returns no issued
+message. `intend` alone remains advisory. A new operation against a stale own tip
+cannot be issued by a correct gate; recovery reuses the stored operation identity.
+Host implementations remain responsible for durable storage, authentication and
+idempotent external effects; the library does not claim to provide a production
+cross-device storage service.
+
+Trace: [[SPEC-019-state-rules#REQ-1939]]–[[SPEC-019-state-rules#REQ-1947]],
+[[SPEC-019-state-rules#TEST-1960]]–[[SPEC-019-state-rules#TEST-1968]].
+
+### REQ-1948: Optional ceiling and headroom
+
+When configured with ceiling `C`, every resource observation SHALL preserve
+`floor ≤ value ≤ C` using independently owned increment headroom.
+Trace: [[SPEC-019-state-rules#CON-1909]], [[SPEC-019-state-rules#TEST-1969]].
+
+### CON-1909: Dual escrow budgets
+
+`ceiling` and `initial-headroom` occur together, or neither occurs.
+The headroom initializer names the same opener and a distinct allocation field.
+Its account set equals the initial-rights account set. Every amount is a natural
+integer. Initial `Σ rights + Σ headroom = ceiling - floor`; ceiling is at least
+floor and both fit the configured numeric bound.
+
+Without a ceiling, increments require issuer authority but no headroom budget.
+With a ceiling, an increment consumes the signer's headroom and creates the same
+amount of its decrement rights. A decrement consumes rights and restores the
+same amount of headroom to that signer. Transfer moves decrement rights only.
+Optional `transfer-headroom` moves headroom only; it requires a ceiling and
+sufficient source headroom. It follows the same authenticated account chain.
+No operation checks only the currently observed global value against the ceiling.
+
+The invariant is `value = floor + Σ rights = ceiling - Σ headroom`.
+Ready observations include `headroom` only when a ceiling is configured.
+Pending and fault observations never expose partial budgets. Headroom can remain
+unused on an offline account; this contract makes no unconditional availability
+claim. The fixed mint-authority requirement still applies to increments.
+
+### TEST-1969: Ceiling and concurrent increments
+
+Core: floor 0, ceiling 10, initial rights Alice 2/Bob 2, initial headroom 3/3.
+Concurrent authorized increments of 3/3 reach value 10. A subsequent increment
+of 1 fails. A decrement of 2 restores 2 headroom and permits a later increment
+of 2 by an authorized signer. Independent histories merge without exceeding 10.
+Reject a mismatched headroom account set, incorrect initial total, ceiling below
+floor, missing paired options, and transfer-headroom without ceiling.
+A headroom transfer changes neither value nor total headroom; replay counts once.
+Depth: dual-budget conservation and compatible-union safety; remove the local
+headroom guard and require the ceiling test to fail.
+Validates: [[SPEC-019-state-rules#REQ-1948]].
+
 ### Implementation handoff
 
-Owner: CBCL maintainer. Next action: author an executable implementation theory
-tracing the requirements to the tests above before runtime work begins.
+Owner: CBCL maintainer. The executable implementation theory is
+[[bounded-counter-implementation#Implementation plan]]. Verification evidence is [[bounded-counter-implementation]].
 The work includes a typed pure verifier, a model proof, canonical wire grammar,
 versioned state-rule/export integration and corpus, and a durable host adapter.
 Before accepting external resource messages, specify the wire contract.
 It defines the resource schema, exact integer encoding, field identifiers,
 binder bookkeeping, dependency limits, error JSON, and every binding's exports.
-That change bumps the spec and corpus major versions together; the present
-specification-only addition introduces no accepted syntax or wire behavior.
+The spec and corpus major versions advance together for this integration.
+Runtime recognition, fold, binder, pure issuance-gate interface and bindings are
+implemented separately from the host storage service and formal correspondence.
 
-Release gate: pure core tests, deliberate budget-check mutation, the compatible
-union proof, a host race/crash test, and corpus agreement across supported bindings.
-Until those exist, status remains draft and hard-bound runtime support is unimplemented.
+The core release checks are parser/runtime tests, deliberate budget mutations,
+account race/recovery tests, and binding agreement. The independent arithmetic
+model establishes local conservation and bounds. A mechanised resource-DAG
+compatible-union proof and Rust/model equivalence remain depth obligations owned
+by the CBCL maintainer; no output describes those as completed. Production hosts
+must provide a durable gate and authenticated accepted history before relying on
+hard bounds. Overall specification status remains draft while those obligations
+remain open.
 Independent review and comprehension evidence are recorded in
 [[bounded-counter-review]]; the original arithmetic theorem remains scoped by
 [[SPEC-019-state-rules#REQ-1937]].
@@ -1308,6 +1449,8 @@ order; update cbcl-aamas §6 and §7.
 - **Prover**: R.2 properties → REQ-1930 → TEST-1940–1946.
 
 ## Changelog
+
+- 2.0.0 (2026-10-30) — specify bounded-counter grammar, resource-reference fields, tagged observations, issuance gate, and shared export contract. Corpus version advances with the wire integration.
 
 - 1.2.0 (2026-10-30) — draft typed lower-bound escrow resource contract, separate from protocol admission; ownership, transfers, fork assumptions, tests, and implementation handoff. Existing grammar and corpus remain at their previous versions.
 

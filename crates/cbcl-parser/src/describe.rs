@@ -34,12 +34,18 @@ pub fn define_form(input: &str) -> Result<SExpr, String> {
     let mut current = &form;
     loop {
         let SExpr::List(items) = current else {
-            return Err(String::from("expected a (define …), (meta (define …)) or (meta (teach (define …))) form"));
+            return Err(String::from(
+                "expected a (define …), (meta (define …)) or (meta (teach (define …))) form",
+            ));
         };
         match items.first().and_then(symbol) {
             Some("define") => return Ok(current.clone()),
             Some("meta") | Some("teach") if items.len() >= 2 => current = &items[1],
-            _ => return Err(String::from("expected a (define …), (meta (define …)) or (meta (teach (define …))) form")),
+            _ => {
+                return Err(String::from(
+                    "expected a (define …), (meta (define …)) or (meta (teach (define …))) form",
+                ))
+            }
         }
     }
 }
@@ -61,7 +67,17 @@ fn json_of_sexpr(s: &SExpr) -> Json {
 
 /// A rule of the state clause as JSON's spelling: `[op, arg…]`, keys without their colon.
 fn rule_json(rule: &Rule) -> Json {
+    if let Rule::BoundedCounter(c) = rule {
+        return json!([
+            "boundedCounter",
+            c.canonical_options()
+                .iter()
+                .map(json_of_sexpr)
+                .collect::<Vec<_>>()
+        ]);
+    }
     let (op, args): (&str, Vec<&str>) = match rule {
+        Rule::BoundedCounter(_) => unreachable!("handled above"),
         Rule::Last { verb, key } => ("last", alloc::vec![verb, key]),
         Rule::LatestPerSigner { verb, key } => ("latestPerSigner", alloc::vec![verb, key]),
         Rule::LatestPerKey { verb, key, value } => ("latestPerKey", alloc::vec![verb, key, value]),
@@ -71,14 +87,28 @@ fn rule_json(rule: &Rule) -> Json {
         Rule::Events { verb, key } => ("events", alloc::vec![verb, key]),
         Rule::SetUnion { verb, key } => ("setUnion", alloc::vec![verb, key]),
         Rule::Values { verb, key } => ("values", alloc::vec![verb, key]),
-        Rule::ValuesPerKey { verb, key, value, delete } => {
+        Rule::ValuesPerKey {
+            verb,
+            key,
+            value,
+            delete,
+        } => {
             let mut v = alloc::vec![verb.as_str(), key, value];
-            if let Some(d) = delete { v.push(d); }
+            if let Some(d) = delete {
+                v.push(d);
+            }
             ("valuesPerKey", v)
         }
-        Rule::RegisterPerKey { verb, key, value, delete } => {
+        Rule::RegisterPerKey {
+            verb,
+            key,
+            value,
+            delete,
+        } => {
             let mut v = alloc::vec![verb.as_str(), key, value];
-            if let Some(d) = delete { v.push(d); }
+            if let Some(d) = delete {
+                v.push(d);
+            }
             ("registerPerKey", v)
         }
         Rule::ObservedSet { add, remove, key } => ("observedSet", alloc::vec![add, remove, key]),
@@ -99,7 +129,12 @@ pub fn describe(d: &Dialect, text: &str) -> Json {
         let mut fields = Map::new();
         for shape in d.shapes.iter().filter(|s| s.performative == p.name) {
             for rule in &shape.rules {
-                if let ShapeRule::Require { keyword, type_constraint, .. } = rule {
+                if let ShapeRule::Require {
+                    keyword,
+                    type_constraint,
+                    ..
+                } = rule
+                {
                     if keyword == RESERVED_REPLACES {
                         continue;
                     }
@@ -159,7 +194,9 @@ pub fn describe(d: &Dialect, text: &str) -> Json {
         }
     }
     let bounds = match &d.state_bounds {
-        Some(b) => json!({ "max-string": b.max_string, "max-list": b.max_list, "max-number": b.max_number, "max-fields": b.max_fields }),
+        Some(b) => {
+            json!({ "max-string": b.max_string, "max-list": b.max_list, "max-number": b.max_number, "max-fields": b.max_fields })
+        }
         None => json!({}),
     };
     json!({
@@ -194,7 +231,8 @@ fn dialect_of(m: &Message) -> Option<&str> {
 /// data fields (routing excluded), and routing, as JSON.
 pub fn read_act_str(input: &str) -> Result<String, String> {
     let form = crate::parser::parse(input).map_err(|e| alloc::format!("parse error: {e}"))?;
-    let message = crate::parse_message(&form).map_err(|e| alloc::format!("message parse error: {e}"))?;
+    let message =
+        crate::parse_message(&form).map_err(|e| alloc::format!("message parse error: {e}"))?;
     let dialect = dialect_of(&message).map(|s| s.to_string());
     let act = Act::from_message(message, "")?;
     let simple = act.simple();
@@ -204,10 +242,12 @@ pub fn read_act_str(input: &str) -> Result<String, String> {
             let mut i = 0;
             while i + 1 < params.len() {
                 if matches!(&params[i], SExpr::Atom(Atom::Keyword(k)) if k == "from") {
-                    found = symbol(&params[i + 1]).map(|s| s.to_string()).or_else(|| match &params[i + 1] {
-                        SExpr::Atom(Atom::Str(s)) => Some(s.clone()),
-                        _ => None,
-                    });
+                    found = symbol(&params[i + 1])
+                        .map(|s| s.to_string())
+                        .or_else(|| match &params[i + 1] {
+                            SExpr::Atom(Atom::Str(s)) => Some(s.clone()),
+                            _ => None,
+                        });
                 }
                 i += 2;
             }
@@ -247,8 +287,14 @@ mod tests {
     fn define_text_unwraps_meta_and_teach() {
         let bare = define_text_str(D).unwrap();
         assert!(bare.starts_with("(define d (cbcl) @a"));
-        assert_eq!(define_text_str(&alloc::format!("; c\n(meta {D})")).unwrap(), bare);
-        assert_eq!(define_text_str(&alloc::format!("(meta (teach {D}))")).unwrap(), bare);
+        assert_eq!(
+            define_text_str(&alloc::format!("; c\n(meta {D})")).unwrap(),
+            bare
+        );
+        assert_eq!(
+            define_text_str(&alloc::format!("(meta (teach {D}))")).unwrap(),
+            bare
+        );
         assert!(define_text_str("(tell @a \"x\")").is_err());
     }
 
@@ -258,7 +304,10 @@ mod tests {
         assert_eq!(v["opener"], "open");
         assert_eq!(v["verbs"]["vote"]["fields"]["choice"], "string");
         assert_eq!(v["verbs"]["vote"]["after"], json!(["open"]));
-        assert_eq!(v["state"]["ballots"], json!(["latestPerSigner", "vote", "choice"]));
+        assert_eq!(
+            v["state"]["ballots"],
+            json!(["latestPerSigner", "vote", "choice"])
+        );
         assert_eq!(v["roles"], json!({}));
     }
 

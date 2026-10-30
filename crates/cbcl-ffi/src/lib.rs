@@ -309,6 +309,14 @@ pub unsafe extern "C" fn cbcl_admit(input: *const c_char) -> CbclResult {
     state_export(input, cbcl_parser::state_exports::admit_str)
 }
 
+/// Verify escrow authorization separately from protocol admission.
+/// # Safety
+/// `input` must be a valid null-terminated UTF-8 C string.
+#[no_mangle]
+pub unsafe extern "C" fn cbcl_resource_check(input: *const c_char) -> CbclResult {
+    state_export(input, cbcl_parser::state_exports::resource_check_str)
+}
+
 /// The parser's tree of one S-expression as JSON: lists as arrays, quoted
 /// strings as `{"str":…}`, every other atom as its text. A host reads a
 /// frame through this rather than a reader of its own (SPEC-013 REQ-018).
@@ -690,5 +698,28 @@ mod tests {
         assert!(e != 0 && s.contains("closed"), "{s}");
         let (e, _) = take(unsafe { cbcl_fold(ptr::null()) });
         assert_ne!(e, 0);
+    }
+}
+
+#[cfg(test)]
+mod bounded_counter_binding_tests {
+    #[test]
+    fn escrow_export_matches_shared_verifier() {
+        for frame in [
+            include_str!("../../../test-vectors/state/resource-check.sexp"),
+            include_str!("../../../test-vectors/state/resource-check-capped.sexp"),
+        ] {
+            let expected = cbcl_parser::state_exports::resource_check_str(frame).unwrap();
+            let input = std::ffi::CString::new(frame).unwrap();
+            let result = unsafe { super::cbcl_resource_check(input.as_ptr()) };
+            assert_eq!(result.error, 0);
+            let actual = unsafe { std::ffi::CStr::from_ptr(result.data) }
+                .to_str()
+                .unwrap()
+                .to_string();
+            unsafe { super::cbcl_string_free(result.data) };
+            assert_eq!(actual, expected);
+            assert!(actual.contains("\"ready\""));
+        }
     }
 }

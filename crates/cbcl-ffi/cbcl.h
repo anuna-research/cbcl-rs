@@ -155,6 +155,13 @@ struct CbclResult cbcl_dialect_hash(const char *input);
 struct CbclResult cbcl_admit(const char *input);
 
 /**
+ * Verify escrow authorization separately from protocol admission.
+ * # Safety
+ * `input` must be a valid null-terminated UTF-8 C string.
+ */
+struct CbclResult cbcl_resource_check(const char *input);
+
+/**
  * The parser's tree of one S-expression as JSON: lists as arrays, quoted
  * strings as `{"str":…}`, every other atom as its text. A host reads a
  * frame through this rather than a reader of its own (SPEC-013 REQ-018).

@@ -104,10 +104,10 @@ pub fn parse_dialect(sexpr: &SExpr) -> Result<Dialect, String> {
         for shape in &shapes {
             let declares = shape.rules.iter().any(|r| matches!(r,
                 cbcl_core::shape::ShapeRule::Require { keyword, .. }
-                | cbcl_core::shape::ShapeRule::Optional { keyword, .. } if keyword == RESERVED_REPLACES));
+                | cbcl_core::shape::ShapeRule::Optional { keyword, .. } if keyword == RESERVED_REPLACES || keyword == cbcl_core::escrow::PREV || keyword == cbcl_core::escrow::DEPS));
             if declares {
                 return Err(alloc::format!(
-                    "shape '{}' declares :replaces, which is reserved and inserted by the compiler (SPEC-019 REQ-1907)",
+                    "shape '{}' declares compiler bookkeeping (:replaces or :escrow-*), which is reserved and inserted by the compiler (SPEC-019 REQ-1907)",
                     shape.performative
                 ));
             }

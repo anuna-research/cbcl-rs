@@ -1246,7 +1246,8 @@ state-entry    = "(" field WS rule ")"
                / "(" "domain" WS perf-name WS keyword WS field ")"
 field          = symbol            ; [a-z][a-z0-9-]{0,47}, unique in the clause
 
-rule           = "(" "last"              WS perf-name WS keyword ")"
+rule           = bounded-counter-rule
+               / "(" "last"              WS perf-name WS keyword ")"
                / "(" "latest-per-signer" WS perf-name WS keyword ")"
                / "(" "latest-per-key"    WS perf-name WS keyword WS keyword ")"
                / "(" "exists"            WS perf-name ")"
@@ -1263,12 +1264,33 @@ rule           = "(" "last"              WS perf-name WS keyword ")"
                / "(" "histogram"         WS field ")"
                / "(" "sum"               WS field ")"
 
+bounded-counter-rule = "(" "bounded-counter" 1*( WS bounded-counter-option ) ")"
+bounded-counter-option = "(" "floor" WS number ")"
+                       / "(" "ceiling" WS number ")"
+                       / "(" "initial-rights" WS perf-name WS keyword ")"
+                       / "(" "initial-headroom" WS perf-name WS keyword ")"
+                       / "(" "issuers" WS ( role-name / "()" ) ")"
+                       / "(" "increment" WS perf-name WS keyword ")"
+                       / "(" "decrement" WS perf-name WS keyword ")"
+                       / "(" "transfer" WS perf-name WS keyword WS keyword ")"
+                       / "(" "transfer-headroom" WS perf-name WS keyword WS keyword ")"
+
 state-bounds-clause = "(" ":state-bounds" *( WS state-bound ) ")"
 state-bound    = "(" ( "max-string" / "max-list" / "max-number"
                      / "max-fields" ) WS number ")"
 ~~~
 
-Every rule is defined over two selections and five reductions. `acts v` is the
+The version 2 escrow profile adds `bounded-counter-rule`, specified by
+SPEC-019 CON-1908/1909 in the reference implementation. It associates authored
+increment, decrement and transfer acts with account rights, plus optional ceiling
+headroom. Its resource verdict is separate from protocol admission. Resource
+references use compiler-owned `:escrow-prev` and `:escrow-deps` fields; they do not
+change the protocol's `:caused-by` relation. Fold observations are tagged ready,
+pending or fault values. Hard bounds require authenticated accepted history and
+nonforking durable account issuance. No Rust/model equivalence or resource-DAG
+merge proof is claimed by the arithmetic model.
+
+Ordinary state rules are defined over two selections and five reductions. `acts v` is the
 set of accepted messages of performative `v` in the thread, minus those a
 `domain` entry excludes; `current v k d` is the subset of `acts v` that no
 accepted message of `v`, or of the delete performative `d`, names in its

@@ -243,7 +243,8 @@ dialect-clause  = extend-clause
                 | hash-clause
                 | sig-algorithm-clause
                 | roles-clause
-                | causal-locality-clause ;
+                | causal-locality-clause
+                | state-clause | state-bounds-clause ;
 
 (* -- Performative extension ---------------------------------------- *)
 (* Exactly one template form. :from/:to may appear before or after it, *)
@@ -381,3 +382,33 @@ type-name       = "string" | "number" | "bool"
                 | "symbol" | "keyword" | "list" ;
 
 default-value   = expression ;
+
+
+(* State-rule extension, SPEC-019 v2 CON-1908/1909. Ordinary state rules
+   remain specified in SPEC-019 R.1. Options below are shown in canonical
+   order; the recognizer accepts any order, rejects duplicate/unknown options,
+   and requires ceiling and initial-headroom to occur together. *)
+state-clause = "(" , "state" , ( ws , state-entry ) , { ws , state-entry } , ")" ;
+state-entry = "(" , symbol , ws , state-rule , ")"
+            | "(" , "domain" , ws , perf-name , ws , keyword , ws , symbol , ")" ;
+state-rule = bounded-counter-rule | ordinary-state-rule ;
+ordinary-state-rule = ? SPEC-019 R.1 fixed ordinary rule productions ? ;
+state-bounds-clause = "(" , ":state-bounds" , { ws , state-bound } , ")" ;
+state-bound = "(" , ( "max-string" | "max-list" | "max-number" | "max-fields" ) , ws , positive-number , ")" ;
+bounded-counter-rule = "(" , "bounded-counter" , ws , floor-option ,
+    [ ws , ceiling-option ] , ws , rights-option , [ ws , headroom-option ] ,
+    ws , issuer-option , ws , increment-option , ws , decrement-option ,
+    ws , transfer-option , [ ws , transfer-headroom-option ] , ")" ;
+floor-option = "(" , "floor" , ws , number , ")" ;
+ceiling-option = "(" , "ceiling" , ws , number , ")" ;
+rights-option = "(" , "initial-rights" , ws , perf-name , ws , keyword , ")" ;
+headroom-option = "(" , "initial-headroom" , ws , perf-name , ws , keyword , ")" ;
+issuer-option = "(" , "issuers" , ws , ( role-name | "(" , ")" ) , ")" ;
+increment-option = "(" , "increment" , ws , perf-name , ws , keyword , ")" ;
+decrement-option = "(" , "decrement" , ws , perf-name , ws , keyword , ")" ;
+transfer-option = "(" , "transfer" , ws , perf-name , ws , keyword , ws , keyword , ")" ;
+transfer-headroom-option = "(" , "transfer-headroom" , ws , perf-name , ws , keyword , ws , keyword , ")" ;
+(* Transfer keywords are recipient then amount. Escrow data references use
+   sha256-<64 lowercase hex>, separately from protocol caused-by references.
+   Initial allocation/headroom values are nonempty lists of distinct
+   (account natural-integer) pairs, checked before resource interpretation. *)
