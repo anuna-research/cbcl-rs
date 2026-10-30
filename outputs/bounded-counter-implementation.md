@@ -111,3 +111,36 @@ prove exactly-once external effects. Production hosts supply durable shared
 serialization, authentication, protocol admission, missing-evidence retrieval,
 and idempotent effect sinks. A self-asserted signed wrapper supplies none of those.
 A ready result cannot exclude an undisclosed remote fork.
+
+
+## Certification investigation
+
+The follow-up research at [[SPEC-019-state-rules#ADR-1915]] compares AT2, Astro,
+source/account-ordered secure broadcast, VRF eligibility, and Pastro with the existing runtime.
+No runtime or accepted grammar change accompanies that investigation.
+The proposed profile keeps raw evidence, certified delivery and application
+finalization distinct. It requires complete certified dependency closures before
+reusing the resource verifier or exposing spendable state.
+
+Run `python3 proofs/bounded-counter-certification/check_quorums.py` to reproduce
+`outputs/bounded-counter-certification-checks.json`. Replay matches the saved JSON.
+The harness enumerates small static-roster quorum intersections and constructs
+negative examples for threshold, persistence, slot binding, and roster changes.
+Signer labels represent authenticated keys; no cryptography, ledger or network
+implementation is provided by this harness.
+The existing raw-fork behavior was rerun with the named integration test;
+`outputs/bounded-counter-certification-existing-fork.log` records its passing result.
+
+Fresh-context cross-model reviewer `certification_research_review` first read
+only the research orientation, then reviewed the full investigation, finite
+harness, source papers and relevant runtime interfaces. The orientation correctly
+transmitted the honest-quorum safety premise and the absence of malicious-source
+progress guarantees. Full review reported no substantive blocker to the research
+prototype. The suggested acceptance extension—merging independently finalized
+histories while preserving bounds and final receipts—is included in the note.
+Human security review, protocol proofs and production implementation remain
+future work; this review does not certify a deployed payment protocol.
+
+Follow-up independent review found no substantive defects in the Astro and VRF
+comparison. The extracted research prose lint reports zero errors and two sentence
+length warnings. `git diff --check` passes.

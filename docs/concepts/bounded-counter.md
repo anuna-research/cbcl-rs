@@ -110,3 +110,9 @@ The independent Lean model proves guarded local conservation and arithmetic boun
 It does not prove resource-DAG merge safety, Rust correspondence, or deployed host correctness.
 
 The construction follows [Balegas et al., Extending Eventually Consistent Cloud Databases for Enforcing Numeric Invariants](https://arxiv.org/abs/1503.09052).
+
+A proposed certification extension is investigated in
+[[SPEC-019-state-rules#Certification research — AT2-style asset transfer]].
+It would replace the account-owner nonforking safety premise with a secure
+broadcast protocol and an explicit honest-witness quorum assumption.
+The investigation does not change the runtime guarantees described here.

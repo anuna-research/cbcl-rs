@@ -2,7 +2,7 @@
 id: SPEC-019
 title: State Layer — R7 State Rules and the Intent Binder
 status: draft
-version: 2.0.0
+version: 2.0.1
 date: 2026-10-30
 author: Anuna Research (https://anuna.io) — drafted with Claude Fable 5.1
 owner: CBCL maintainer
@@ -28,6 +28,8 @@ described in BCP 14 (RFC 2119, RFC 8174) when, and only when, they appear in
 all capitals.
 
 ## Orientation
+
+Certification research: [[SPEC-019-state-rules#Certification research — AT2-style asset transfer]] evaluates Byzantine account-owner safety as a separate proposed layer. It does not change existing runtime guarantees.
 
 Escrow extension: [[SPEC-019-state-rules#Bounded counter amendment — escrow resource primitive]] specifies lower-bound escrow rights, optional ceiling headroom, transfers, and separate resource authorization. See the implementation evidence for runtime and proof status.
 
@@ -1149,6 +1151,324 @@ Independent review and comprehension evidence are recorded in
 [[bounded-counter-review]]; the original arithmetic theorem remains scoped by
 [[SPEC-019-state-rules#REQ-1937]].
 
+## Certification research — AT2-style asset transfer
+
+Status: investigation and proposed architecture, not an implemented certification
+profile. The existing counter grammar, corpus version, resource verdicts, and
+[[SPEC-019-state-rules#REQ-1914]] remain unchanged.
+
+### Research orientation
+
+Intent: protect honest recipients when an account owner deliberately signs
+competing spends. The current [[bounded-counter]] assumes nonforking issuance;
+its local host gate cannot enforce that assumption against the account owner.
+The proposed next layer is [[SPEC-019-state-rules#Research vocabulary|secure broadcast]]
+with transferable quorum evidence and validation of the certified funding history.
+This is an AT2-inspired CBCL adaptation, not an implementation of AT2 or an
+inheritance of its proofs.
+
+Example: Alice owns 10 and proposes paying Bob 10 and Carol 10 at the same
+account position. With a fixed committee of four distinct witness keys and at
+most one faulty witness, a certificate requires three witnesses. Two such
+certificates intersect in an honest witness, which durably refuses a second
+value at that position. Neither proposal need complete if Alice equivocates.
+A missing quorum leaves the account pending; a timeout does not unlock votes.
+An uncertified competing proposal cannot revoke a finalized payment or fault
+other accounts' finalized balances.
+
+The first candidate profile fixes its witness roster, fault bound, asset genesis,
+root cast, and dialect identity. It removes account-owner honesty as a safety
+premise only if the certification protocol and its witness/network assumptions
+hold. It is permissioned and trust-minimized, not an unconditional permissionless
+coin. Multi-device writers can still need local coordination for progress.
+
+Controls for the proposed profile:
+- Only finalized, resource-valid history contributes to spendable balances;
+  raw proposals and certificates alone do not suffice.
+- Honest witnesses persist one choice per asset/account position before acknowledging it.
+- Certificates bind the full asset context and distinct authenticated witness keys.
+- Every funding dependency and previous account position requires prior finalization.
+- Observed equivocation can stop its source account; it does not retract another
+  account's finalized receipt.
+- Membership changes, shared-account progress, permissionless admission, and
+  general atomic smart contracts require separately justified protocols.
+
+### Research vocabulary
+
+| Term | Meaning in this investigation |
+|---|---|
+| Secure broadcast | Consistent source order, integrity, eventual agreement after correct delivery, and progress for a correct source under the network assumptions. It need not choose a value from an equivocating source. |
+| Quorum certificate | Transferable signatures from enough distinct configured witnesses over one precisely scoped statement. It establishes the certified statement, not automatically its application validity. |
+| Finalized resource history | A dependency-closed set of certificate-backed acts which also pass owner authentication, protocol admission, and resource verification. |
+| Permissioned committee | A fixed roster pinned by the expected asset genesis. Accepting the roster supplied by an arbitrary payer supplies no protection. |
+| Account position | One sequence number in one account's operation chain, shared by mint, burn, rights transfer, and headroom transfer. |
+
+### What the literature establishes
+
+[AT2, sections 3–4 and appendix A](https://arxiv.org/html/1812.10844v3)
+combines source order with funded transfer dependencies. Its deterministic model
+assumes fewer than one third Byzantine processes and acknowledgment quorums above
+two thirds over reliable broadcast. Ordinary gossip or signature counting does
+not establish that abstraction. Faulty senders need not complete.
+
+[The consensus number of a cryptocurrency, sections 5–6](https://pmc.ncbi.nlm.nih.gov/articles/PMC8882574/)
+explains the single-owner case and the limits of the result. Successful transfers
+have a stronger consistency guarantee than local reads or failed transfers.
+Concurrent independent writers to one account introduce a separate coordination
+problem. The shared-account extension uses per-account BFT ordering; compromised
+accounts can block while other operations remain safe. This does not provide
+general ERC-20 allowance replacement or arbitrary contract execution without
+additional reasoning.
+
+[Pastro, introduction and system model](https://drops.dagstuhl.de/opus/volltexte/2021/14830/pdf/LIPIcs-DISC-2021-28.pdf)
+addresses open membership using stake-weighted configurations, lattice agreement,
+and forward-secure signatures. Its adversary restriction concerns less than one
+third of stake in every active candidate configuration. This is a substantially
+larger protocol than replacing a fixed witness list with current balances.
+It is relevant to a later permissionless design, not evidence that CBCL already
+has a secure open validator-selection mechanism.
+
+### ADR-1915: Investigate fixed-roster certification outside the state kernel
+
+Status: proposed research recommendation. Owner: CBCL maintainer.
+Source: user request to investigate a coin safe against malicious account owners.
+
+Decision candidate: retain authored business verbs and the bounded-counter rule.
+Add a distinct, opt-in certification and finalization layer. Begin by modelling a
+fixed witness committee, rather than new arithmetic operators or a globally
+ordered chain. Decide the exact reliable-broadcast implementation before
+implementing transport. Astro supplies prior art for separating external wallet clients from a fixed
+replica committee. The CBCL integration still needs its own correctness argument,
+including both escrow budgets and authenticated instance context.
+
+Composition first: reuse canonical encoding, content-addressed acts, R4
+signature-suite dispatch, authenticated role/cast handling, and the existing pure
+resource verifier. Existing gossip does not provide Byzantine secure broadcast.
+The R4 `Signer` port does not itself provide a witness-key directory or quorum
+verification. Those missing responsibilities cannot be inferred from a successful
+CBCL signature or protocol verdict.
+
+The general intersection condition is `2*q - n > f`; for the initial profile
+`n = 3*f + 1` and `q = 2*f + 1`. Every pair of certificates then shares an honest
+witness. Signature unforgeability, durable non-equivocation by honest witnesses,
+a fixed common roster, and correct account-position binding are essential
+premises. This argument is safety only. Reliable delivery, data availability,
+recovery, and correct-source progress remain separate protocol obligations.
+
+A sender can split honest votes between conflicting values and prevent a quorum.
+That is expected for a faulty source. Choosing a winner after a timeout, forgetting
+locks, or restarting the same account position under an uncoordinated new roster
+invalidates the argument. Independent accounts need no common total order.
+
+Trace: [[SPEC-019-state-rules#REQ-1939]], [[SPEC-019-state-rules#REQ-1947]],
+[[SPEC-019-state-rules#REQ-1948]].
+
+### Integration findings from the current implementation
+
+**Finalized history needs a distinct boundary.** `escrow::observe` faults on an
+owner fork anywhere in its supplied history. `resource_check_str` likewise faults
+on an already invalid base. Feeding all protocol-accepted proposals to those
+functions lets an uncertified fork poison an otherwise finalized coin.
+The existing fork test in `crates/cbcl-parser/tests/bounded_counter.rs` exercises
+that behavior. It is correct for the current profile's premises; the certified
+profile needs a separate validated-history type or equally enforced boundary.
+
+Keep the raw immutable store for audit. Derive a certified delivery set, then a
+resource-valid finalized set. Pending and invalid proposals remain diagnostics;
+they do not enter spendable state. A certified but invalid account operation can
+block that account's next position. It does not become a globally applied debit.
+The future binder also reads the finalized set; raw or merely delivered account
+tips cannot become its funding references.
+A valid finalized act remains finalized after an uncertified sibling arrives.
+Two genuinely conflicting valid quorum certificates indicate a violated trust or
+implementation premise and require an explicit severe-fault response.
+
+**The existing issuance callback is not an asynchronous finality API.**
+`escrow::issue` passes an unsigned candidate to `IssuanceGate` before returning it
+for signing. Witness certification requires the owner's authenticated complete proposed act
+before it can authorize a spend. A network certificate cannot simply be attached inside
+that callback and called finality. The future flow needs separate preparation,
+owner signing, submission, certificate verification, dependency validation, and
+finalization. The local gate can still help honest clients avoid self-conflicts.
+It is no longer the only barrier against a malicious owner.
+
+**An act hash alone is insufficient context.** `state::Act` addresses the
+innermost simple act; wrappers and casts are checked separately. Use the same act
+address, plus a separately committed certification context.
+The signed statement binds the domain tag, suite, expected genesis, committee
+policy, dialect identity, and authenticated root/cast commitment.
+It also binds thread, state field, account, position, previous act, and candidate
+act address. The candidate already commits its resource dependencies. Certificates
+are sidecar evidence; adding one does not mutate the owner-signed act or invent a
+second message identifier.
+
+**Count keys, not messages or labels.** Witness identities resolve to configured verification keys. Duplicate signatures and equivalent key aliases
+count once; nonmembers and invalid signatures count zero. Lock persistence is
+keyed by the fixed asset context, account and position, never by candidate hash.
+Previous-position validation prevents skipping to a fresh position while spending
+against an older account tip.
+
+**Ceilings require the same protection.** Mint consumes headroom and burn restores
+it. Rights transfers and headroom transfers share the account sequence with those
+operations. Certifying only `pay` leaves conflicting burns, mints or capacity
+transfers outside the safety argument. One certificate commits the whole operation; both budget changes enter history
+together. The existing local two-budget verifier can
+be reused over finalized evidence, but the transfer-only literature does not
+prove this composite CBCL protocol automatically.
+
+### Astro: clients, replicas, and transferable credit evidence
+
+[Astro, sections III–V](https://arxiv.org/pdf/2004.13184) is a closer architectural
+reference for an external-wallet profile. Clients submit payments through a
+representative replica. Each client has an exclusive log, ordered by its own
+sequence numbers. The replica roster is permissioned and assumes fewer than
+one third Byzantine replicas. Progress requires a correct client and representative.
+
+Astro I uses Bracha broadcast with totality. Astro II uses signed acknowledgments
+and commit evidence, with an additional credit-dependency mechanism to compensate
+for missing broadcast totality. Its credit certificates contain f+1 distinct
+approvals, which prove at least one honest replica approved a payment. They are
+not the quorum that prevents conflicting payments. Used credit evidence is tracked
+to prevent duplicate deposits. Sharding requires the fault bound in every shard.
+
+Design inference for CBCL: distinguish evidence selecting one account operation
+from evidence making its received rights available to another account. A naive
+signature quorum plus gossip can leave a recipient unable to spend a payment
+that only some replicas received. Our explicit funding dependencies offer a useful
+integration point, but do not already implement Astro's credit protocol. Neither
+Astro's fixed roster nor its transfer protocol supplies permissionless membership,
+a VRF election, or a proof for CBCL's optional ceiling and headroom transfers.
+
+### Validator fractions, AT2 sampling, and a possible VRF layer
+
+The fault fraction is over a defined population of eligible processes, not over
+whoever replies or whoever the payer nominates. For a static profile, define
+`n` distinct witness identities and at most `b` Byzantine witnesses, with `n > 3*b`.
+This is stronger than a simple honest majority. An open roster needs a mechanism
+that keeps this fraction meaningful despite arbitrary key creation.
+
+AT2's probabilistic model in section 5.1 assumes a bounded Byzantine fraction,
+reliable authenticated links, private randomness, hidden correct-process
+communication relationships, and uniform sampling of process public keys.
+Section 5.5 discusses Brahms plus a separate Sybil-resistance mechanism.
+It is not a VRF-selection protocol. Sample sizes and thresholds govern
+probabilistic failure, rather than supplying the fixed-quorum guarantee above.
+
+[VRFs, RFC 9381 sections 2–3](https://www.rfc-editor.org/rfc/rfc9381.html)
+provide verifiable deterministic outputs for a fixed key and input.
+[Algorand, sections 5–6](https://people.csail.mit.edu/nickolai/papers/gilad-algorand.pdf)
+uses VRF-based cryptographic sortition with weighted participation and protocol
+seed management. VRF eligibility is not itself double-spend finality or proof of
+an honest committee.
+
+Design inference for CBCL: a VRF is a plausible later eligibility layer around
+[[SPEC-019-state-rules#ADR-1915]], subject to additional selection and rotation
+proofs. The following conditions become design obligations, not implemented features:
+
+- Fix the registered population, weights and VRF keys before revealing the seed.
+  A closed eligible roster can supply admission control; open participation needs
+  scarce-resource weighting or another defended admission mechanism.
+- Use a common, authenticated membership/weight snapshot and an unbiased seed.
+  A payment hash or payer-chosen nonce permits candidate grinding. A previous
+  payment hash is not automatically an unbiased beacon either.
+- Competing proposals at one account position use the same eligibility instance.
+  A candidate selection input can bind domain, asset genesis, established seed,
+  membership checkpoint, account, position and role, but not a freely chosen act hash.
+  This sketches input binding, not a complete sortition algorithm.
+- Keep eligibility fixed across retries of an unresolved position. Rotating to a
+  disjoint committee after a timeout can produce conflicting certificates despite
+  honest majorities inside both committees. Rotation needs a certified handoff or
+  another proved cross-committee rule.
+- Derive certificate thresholds from the selected protocol and agreed population
+  or weight checkpoint. Two thirds of revealed replies is not a safe denominator;
+  withholding proofs cannot redefine the quorum.
+- Quantify sampling failure and its accumulation across positions, accounts and
+  retries. An honest global fraction does not force every small sample to have
+  the same honest fraction. A privately eligible committee also needs a specified
+  policy for missing members and withheld proofs.
+- Preserve the network/adversary assumptions of the chosen protocol. A VRF does
+  not by itself hide peer connections, provide reliable broadcast, or solve an
+  adaptive corruption and old-key compromise problem.
+
+For initial testing, a fixed roster isolates finalization correctness from those
+sampling questions. A later VRF profile can sample that established roster before
+attempting permissionless membership. A stake snapshot of the new coin itself
+needs secure bootstrap and consistent finalization; raw, disputed counter balances
+cannot safely choose the validators which declare those balances final.
+
+### Candidate finalization pipeline
+
+```text
+Pinned asset genesis: dialect + cast + allocations + witness roster + fault bound
+                                      |
+owner-signed act --> authentication / protocol checks --> raw audit store
+                                      |
+                       source-ordered certification protocol
+                                      |
+                       certificate-backed delivery buffer
+                                      |
+                  previous position + funding dependencies finalized?
+                                      |
+                       pure bounded-counter verification
+                                      |
+                     monotonically add to finalized history
+                                      |
+                  spendable observations / idempotent external effects
+```
+
+Broadcast delivery, certificate verification and final application are distinct.
+A future `finalized` result implies the complete pipeline; the existing `ready`
+result continues to mean resource validity under supplied history premises.
+A future implementation cannot trust a caller-provided `finalized` flag.
+Every correct process which accepts a final result needs the signed data and
+its certificates, not only an unresolvable digest. Correct recipients relay verified final evidence. The chosen reliable-broadcast
+protocol supplies its promised dissemination guarantees.
+
+### Executed finite checks and limits
+
+Run `python3 proofs/bounded-counter-certification/check_quorums.py`.
+The machine output is `outputs/bounded-counter-certification-checks.json`.
+This independently enumerates static quorum intersections for the four-witness
+and seven-witness profiles. It constructs failures for an insufficient threshold,
+forgotten vote persistence, per-candidate rather than per-slot locking, and
+uncoordinated roster replacement. It also checks statement-context distinctions
+and duplicate/nonmember witness rejection in a structural model.
+
+These checks do not verify signatures, run reliable broadcast, implement an
+account ledger, or establish asynchronous liveness. Signer labels stand for
+already authenticated distinct keys. They are falsifiable design examples, not a
+proof of an implemented trustless coin. A faulty source's split-vote stall is an
+expected execution, not a failed consensus termination test.
+
+### Next prototype and acceptance questions
+
+Recommendation: a separately specified fixed-committee profile, with a pinned
+asset genesis, portable certificate verification and a certified-history boundary.
+Next actor: CBCL maintainer. Select and model the broadcast protocol before any
+production transport or author-facing certification syntax is implemented.
+The prototype acceptance cases need to exercise:
+
+- Competing same-position spends, different-position spends naming a stale parent,
+  and an invalid operation with a syntactically valid transport certificate.
+- A finalized receipt surviving a later uncertified sibling; unrelated accounts
+  progressing while a malicious source is blocked.
+- Certified funding arriving out of order, withheld payload recovery, certificate
+  relay after the original sender disappears, and fair-delivery progress for a
+  correct sequential source.
+- Durable witness restart, duplicate key aliases, nonmember signatures, forged
+  signatures, and replay across asset, dialect, cast, field, account or position.
+- All rights and headroom operations sharing one certified account chain, with
+  both bounds checked over finalized dependency closures.
+- Independently finalized histories merging in different delivery orders without
+  retracting final receipts or violating rights/headroom bounds.
+
+Open, owner CBCL maintainer: exact broadcast implementation and proofs; real
+cryptographic host integration; payload retention/retrieval; certified-history
+API and wire contracts; validator recovery; human security review. Permissionless
+membership, witness reconfiguration, competing-wallet progress and allowance or
+multi-account contract semantics require additional designs. They are not enabled
+by the current dialect grammar or by this investigation.
+
 ## Signer register amendment — issue 18
 
 The failure is semantic: two sequential votes share an opener predecessor, so address order discards an observed edit.
@@ -1449,6 +1769,8 @@ order; update cbcl-aamas §6 and §7.
 - **Prover**: R.2 properties → REQ-1930 → TEST-1940–1946.
 
 ## Changelog
+
+- 2.0.1 (2026-10-30) — AT2-style certification investigation, proposed [[SPEC-019-state-rules#ADR-1915]], finite quorum checks, Astro client/replica and credit evidence comparison, AT2 fault/sampling assumptions and prospective VRF sortition, and explicit separation of raw, certified-delivered and finalized resource histories. No runtime or wire change.
 
 - 2.0.0 (2026-10-30) — specify bounded-counter grammar, resource-reference fields, tagged observations, issuance gate, and shared export contract. Corpus version advances with the wire integration.
 
