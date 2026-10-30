@@ -2,8 +2,8 @@
 id: SPEC-019
 title: State Layer — R7 State Rules and the Intent Binder
 status: draft
-version: 1.1.0
-date: 2026-10-19
+version: 1.2.0
+date: 2026-10-30
 author: Anuna Research (https://anuna.io) — drafted with Claude Fable 5.1
 owner: CBCL maintainer
 depends-on:
@@ -28,6 +28,8 @@ described in BCP 14 (RFC 2119, RFC 8174) when, and only when, they appear in
 all capitals.
 
 ## Orientation
+
+Draft extension: [[SPEC-019-state-rules#Bounded counter amendment — escrow resource primitive]] specifies lower-bound escrow rights, transfers, and separate resource authorization. Runtime support remains unimplemented.
 
 Intent: give a CBCL dialect a `(state …)` clause that says what its accepted
 acts amount to. Each state field is one *state rule* from a closed
@@ -112,6 +114,7 @@ Load-bearing: [[SPEC-019-state-rules#REQ-1915]] R7 ·
 [[SPEC-019-state-rules#REQ-1931]] one corpus.
 
 Controls:
+- Bounded resource effects require exclusive rights and nonforking owner issuance; protocol admission alone supplies neither → [[SPEC-019-state-rules#REQ-1940]]–[[SPEC-019-state-rules#REQ-1947]].
 - Refinement claims exclude Rust equivalence, authentication correctness, liveness, and universal business refinement → [[SPEC-019-state-rules#REQ-1938]].
 - A signer cannot supersede another signer’s ballot → [[SPEC-019-state-rules#REQ-1933]].
 - A dialect whose state clause fails well-formedness is not installed →
@@ -704,6 +707,307 @@ the shared frames is the conformance gate for all three
 ([[SPEC-009-erlang-binding#CON-003]] for the NIFs).
 Trace: [[SPEC-019-state-rules#TEST-1932]].
 
+## Bounded counter amendment — escrow resource primitive
+
+Status: draft design, specified for implementation; no bounded-counter parser,
+export, runtime enforcement, corpus, or Lean theorem is delivered by this amendment.
+The existing grammar, corpus version, admission rules, and unrestricted `counter`
+retain their current meanings. This section specifies a separate typed resource
+interface; promoting it into the state-rule grammar requires the coordinated major
+version change in [[SPEC-019-state-rules#Amendment Channels]].
+
+### Orientation
+
+Intent: a [[bounded-counter]] maintains an integer lower bound by allocating
+exclusive decrement rights to owners. This is the escrow construction of
+[Balegas et al. (2015)](https://arxiv.org/abs/1503.09052), adapted to CBCL's
+immutable act store. It is useful for stock, spendable credits, and resource quotas.
+The first profile supports a lower bound; upper bounds and simultaneous bounds
+are deferred to a separate contract owned by the CBCL maintainer.
+
+Each owner serializes its own operations durably. Different owners operate
+concurrently within their allocations. A transfer moves existing rights; it
+creates no global value. Rights exhaustion can refuse a request while another
+owner still holds unused rights. Acquiring those rights requires communication.
+
+Example: value 10, floor 0, allocations Alice 6 and Bob 4. Concurrent spending
+of 6 and 4 succeeds, leaving value 0. Alice cannot spend 7 merely because she
+observes global value 10. Alice transferring 2 to Bob leaves value 10 and
+allocations 4 and 6; Bob can spend the received rights only after the transfer
+is present in his operation's causal evidence.
+
+This primitive has a resource verdict separate from CBCL protocol admission.
+R5/R6 acceptance alone does not authorize resource consumption. The fold can
+observe a valid resource history without modifying protocol acceptance.
+The hard bound assumes nonforking owner histories; signatures alone do not
+prevent a signer from producing competing spends. Applications needing protection
+against malicious owners must supply an authority that prevents forks before
+resource effects occur. Later detection cannot undo an external purchase.
+
+Controls:
+- No decrement or outgoing transfer exceeds the owner's available rights → [[SPEC-019-state-rules#REQ-1940]].
+- Only the owner can spend or transfer its rights → [[SPEC-019-state-rules#REQ-1941]].
+- A missing dependency remains pending and authorizes no effect → [[SPEC-019-state-rules#REQ-1942]].
+- Replay creates no additional rights or debit → [[SPEC-019-state-rules#REQ-1943]].
+- Resource rejection leaves protocol acceptance unchanged → [[SPEC-019-state-rules#REQ-1944]].
+- Competing owner branches cannot be resolved by content-address ordering → [[SPEC-019-state-rules#REQ-1945]].
+- An intent result is advisory until serialized and resource-verified → [[SPEC-019-state-rules#REQ-1946]].
+- Hard-bound claims name the owner serialization assumption → [[SPEC-019-state-rules#REQ-1947]].
+
+### ADR-1914: Separate escrow authorization from protocol admission
+
+Context: [[SPEC-019-state-rules#REQ-1914]] forbids state-dependent protocol
+admission. [[SPEC-019-state-rules#REQ-1937]] proves unrestricted integer
+arithmetic, not preservation of a bound. Checking the current global balance
+before each spend fails under concurrent replicas.
+
+Decision: compose the accepted-act store, authenticated owner identities, exact
+integer arithmetic, and a separate pure resource verifier in `cbcl-core`.
+Keep transport, signatures, durable serialization, and external effects in the
+host. Do not add a mutable replicated counter alongside the act store.
+The resource verifier reads arithmetic evidence; it is outside the regular
+protocol monitor and its monotonic verdict theorem.
+
+Composition check: the existing counter can display increments minus decrements,
+but cannot establish ownership, transfers, or exclusive spending. A binder-only
+check is bypassable and races under concurrent use. The minimum new capability
+is escrow authorization plus an observation of its verified history.
+This settles at composition plus a new pure verifier, with no change to R5/R6.
+
+Alternatives: a central authority can serialize all spends, but removes independent
+owner availability. A global balance guard overspends under concurrency. Clamping
+the displayed balance hides invalid consumption. Selecting a winning spend by
+address can revoke an already executed effect. None implements this contract.
+
+Consequence: the resource history is a dependency-closed subset of the protocol
+accepted acts, with its own pending, rejected, and fault diagnostics. It is not
+another replicated store: it is recomputed from the same acts and fixed context.
+Resource validity is conditional on the nonforking assumption; a later observed
+fork faults the resource instance instead of retroactively choosing a winner.
+
+Trace: [[SPEC-019-state-rules#REQ-1939]]–[[SPEC-019-state-rules#REQ-1947]], [[SPEC-019-state-rules#CON-1907]].
+
+### CON-1907: Typed lower-bound escrow contract
+
+Scope: fixed thread, dialect, field identifier, nonempty finite owner set,
+floor `K : Integer`, and initial allocations `A : Owner → Natural`.
+A fixed subset of owners is authorized to mint credit. Configuration is committed by the authenticated
+opener; no host-supplied replacement configuration is permitted. Initial value
+is `K + Σ A(i)`. Empty mint authority means fixed initial supply with no replenishment.
+An increment is issuance of new value, not a proof of payment or returned stock;
+the application supplies that authorization through the configured mint owners.
+Membership, key rotation, reclamation from offline owners, and changing the floor
+require a separately specified migration; this contract has no such operation.
+
+Interface, pure over recognized typed inputs:
+
+```text
+resource_check(config, accepted_acts, candidate)
+    → ready | pending(missing_addresses) | rejected(reason) | fault(evidence)
+resource_observe(config, accepted_acts)
+    → snapshot(value, rights_by_owner) | pending(missing_addresses) | fault(evidence)
+resource_intend(config, accepted_acts, owner, operation)
+    → unsigned_candidate | pending(missing_addresses) | rejected(reason) | fault(evidence)
+
+operation := Increment(amount) | Decrement(amount) | Transfer(recipient, amount)
+amount    := Natural excluding zero
+```
+
+These are typed interface contracts, not wire exports. The wire grammar and
+JSON schema are deferred to the implementation plan before parser work; existing
+parsers must continue rejecting an unknown `bounded-counter` rule head.
+No external bytes enter this interface without the existing full message
+recognizer, authenticated signer binding, and typed conversion. The typed act
+contains the instance address, resource field identifier, operation, owner,
+previous-owner-operation address (or opener), and causal dependency addresses.
+The operation owner equals the authenticated signer. Recipients belong to the
+fixed owner set and differ from the sender. Zero and negative amounts are rejected.
+All arithmetic is exact; an implementation with bounded machine integers returns
+an explicit overflow error before emitting an effect, never wrapping or clamping.
+
+Let `H` be the resource-verified, dependency-closed history, deduplicated by
+content address. Every operation names its previous operation by the same owner,
+or the opener for the first operation. An owner operation includes that previous
+operation and all incoming transfers it uses in its transitive causal past.
+Each previous-owner link belongs to this resource, instance, and signer.
+Cycles, conflicting bodies for one address, foreign-instance dependencies, and
+wrong-owner links are rejected. Missing dependencies yield pending.
+A malformed or rejected resource operation cannot support later resource operations;
+dependents are rejected as invalid-dependency once that result is established.
+
+For owner `i`, define the exact sums over `H`:
+
+```text
+I(i)   = increments issued by i
+D(i)   = decrements issued by i
+T(i,j) = transfers from i to j
+rights(i) = A(i) + I(i) + Σ_j T(j,i) - Σ_j T(i,j) - D(i)
+value     = K + Σ_i A(i) + Σ_i I(i) - Σ_i D(i)
+          = K + Σ_i rights(i)
+```
+
+For a candidate, evaluate the owner's rights over its resource-verified causal
+past, excluding the candidate. Decrement and transfer require `rights(owner) ≥ amount`.
+Increment requires membership in the mint-owner set. Increment adds rights to
+its owner and increases value. Decrement removes rights and decreases value.
+Transfer subtracts rights from sender and adds the same amount to recipient.
+No operation reads a concurrent owner's unobserved credit. Each incoming transfer
+contributes once in the set, even if named along several dependency paths.
+
+The complete resource history of each owner is a single chain. Two distinct
+operations with the same previous-owner link are a fork, including two first
+operations naming the opener. They produce fault evidence containing both
+addresses. Fault is sticky under history growth. A resource snapshot requires the available protocol-accepted resource acts
+to resolve to a fully valid, closed, fork-free resource history.
+Unresolved dependencies return pending. Invalid operations return fault with their rejection evidence. No partial snapshot
+is presented as complete. Historical rejection diagnostics remain available.
+`resource_check` rejects invalid candidates before insertion; observation faults
+if such a candidate nevertheless appears in the protocol-accepted resource acts.
+
+A ready result is relative to the supplied history and cannot establish that a
+remote fork does not exist. The host serializes each owner with a durable atomic
+compare-and-append against its previous operation before signing/publishing.
+It also serializes issuance across crashes, retries, and multiple devices using
+the same key. An adapter which cannot provide this must refuse the hard-bound
+profile. Byzantine protection needs a separately evidenced nonforking authority;
+ordinary signature verification and later equivocation detection are insufficient.
+
+External effects occur only after successful owner serialization, protocol
+acceptance, and a ready resource verdict. The effect sink deduplicates by operation
+content address. Crash-safe effect delivery and recovery are host obligations;
+this primitive makes no exactly-once external-delivery claim.
+
+Preconditions for the invariant: authentic fixed opener; authenticated owners;
+nonforking serialized owner issuance; dependency-closed verified histories;
+correct exact arithmetic and no effect before resource authorization.
+Postconditions under those premises: every owner's rights are nonnegative,
+`value ≥ K`, and union of compatible verified histories preserves both properties.
+Compatible means histories from the same configuration whose combined owner
+chains do not fork. The theorem must cover union, not only sequential transitions.
+
+Purity boundary: the core checks supplied typed evidence and computes snapshots.
+The host supplies authentication, durable nonforking issuance, persistence, and
+idempotent effects. No theorem about the pure model proves those host mechanisms.
+
+Trace: [[SPEC-019-state-rules#REQ-1939]]–[[SPEC-019-state-rules#REQ-1947]].
+
+### Requirements and acceptance evidence
+
+**REQ-1939: Conservation and floor.** The resource observation SHALL satisfy
+`value = K + Σ rights(i) ≥ K` on every compatible union of valid histories.
+Trace: [[SPEC-019-state-rules#CON-1907]], [[SPEC-019-state-rules#TEST-1960]].
+
+**REQ-1940: Exclusive budget.** Decrement and transfer SHALL reject amounts
+exceeding the owner's rights in the operation's verified causal past.
+Trace: [[SPEC-019-state-rules#CON-1907]], [[SPEC-019-state-rules#TEST-1961]].
+
+**REQ-1941: Authority.** Resource verification SHALL reject an unauthorized
+owner, mint issuer, recipient, or resource/instance reference.
+Trace: [[SPEC-019-state-rules#CON-1907]], [[SPEC-019-state-rules#TEST-1962]].
+
+**REQ-1942: Dependency closure.** An operation with absent required evidence
+SHALL remain pending with no authorized resource effect.
+Trace: [[SPEC-019-state-rules#CON-1907]], [[SPEC-019-state-rules#TEST-1963]].
+
+**REQ-1943: Set semantics.** Resource observations SHALL be invariant under
+permutation, duplicate delivery, and multiple paths to a transfer.
+Trace: [[SPEC-019-state-rules#CON-1907]], [[SPEC-019-state-rules#TEST-1964]].
+
+**REQ-1944: Admission separation.** Resource verdicts SHALL NOT change R5/R6
+acceptance or the existing unrestricted counter's semantics.
+Trace: [[SPEC-019-state-rules#ADR-1914]], [[SPEC-019-state-rules#TEST-1965]].
+
+**REQ-1945: Fork handling.** An observed owner fork SHALL fault the resource
+instance with both addresses as evidence, without selecting a winning branch.
+Trace: [[SPEC-019-state-rules#CON-1907]], [[SPEC-019-state-rules#TEST-1966]].
+
+**REQ-1946: Issuance discipline.** The host SHALL authorize external effects
+only under the serialized issuance and verification conditions of the contract.
+Trace: [[SPEC-019-state-rules#CON-1907]], [[SPEC-019-state-rules#TEST-1967]].
+
+**REQ-1947: Claim boundary.** Bounded-counter claims SHALL state the authentication,
+nonforking, dependency-closure, arithmetic, and external-effect premises.
+Trace: [[SPEC-019-state-rules#CON-1907]], [[SPEC-019-state-rules#TEST-1968]].
+
+### Test specifications
+
+All tests below are specified obligations, not passing evidence.
+Core cases use pure typed acts; depth covers proofs and host integration.
+
+**TEST-1960: Conservation.** Core: allocations 6/4, floor 0; concurrent spends
+6/4 yield zero; a transfer of 2 yields allocations 4/6 and unchanged value.
+A nonzero floor of 5 with the same allocations ends at 5 after spending 10.
+An authorized increment of 3 increases rights and value by 3.
+Depth: prove conservation, nonnegative rights, and compatible-union preservation
+in Lean with an independent bounded business machine. Instantiate the generic
+simulation contract, including the additional issuance premises explicitly.
+Validates: [[SPEC-019-state-rules#REQ-1939]].
+
+**TEST-1961: Overspend.** Core: Alice with 6 rights cannot spend or transfer 7;
+spending 6 then 1 on her chain fails even if Bob retains 4. Zero and negative
+amounts fail. Insufficient-rights refusal emits no operation and changes no history.
+Depth: mutation removing the owner budget check must fail the negative cases;
+overflow cannot authorize an effect.
+Validates: [[SPEC-019-state-rules#REQ-1940]].
+
+**TEST-1962: Forgery.** Core: reject another owner's spend, an unauthorized
+increment, foreign thread/resource links, unknown/self recipient, and wrong-owner
+previous links; accept an authorized issuer's increment.
+Validates: [[SPEC-019-state-rules#REQ-1941]].
+
+**TEST-1963: Out-of-order transfer.** Core: deliver Bob's spend before Alice's
+funding transfer: pending, no effect. Deliver the dependency: ready once.
+A spend without the transfer in its causal past fails even if the local store has
+it. Invalid dependencies reject descendants; observation with invalid acts faults.
+Validates: [[SPEC-019-state-rules#REQ-1942]].
+
+**TEST-1964: Replay.** Core: permute and duplicate complete histories, including
+a transfer reached through two paths; value and rights remain identical.
+Validates: [[SPEC-019-state-rules#REQ-1943]].
+
+**TEST-1965: Boundary regression.** Core: a well-shaped protocol-conformant spend
+can pass protocol admission while failing the resource budget check. Existing
+unrestricted counters still admit negative observations. Unknown bounded rule
+syntax remains rejected until a versioned grammar amendment is implemented.
+Validates: [[SPEC-019-state-rules#REQ-1944]].
+
+**TEST-1966: Equivocation.** Core: two owner operations naming one previous
+operation fault, including two operations at the opener and a fork discovered
+after a locally ready spend. Address ordering cannot repair the fault.
+Further history preserves the evidence and fault.
+Validates: [[SPEC-019-state-rules#REQ-1945]].
+
+**TEST-1967: Host races.** Depth: race two devices sharing an owner key against
+the same tip; at most one operation is issued. Crash after tip reservation,
+publication, or effect execution; recovery creates no second spend or effect.
+A rejected/pending resource operation invokes no effect sink.
+Validates: [[SPEC-019-state-rules#REQ-1946]].
+
+**TEST-1968: Premise audit.** Core: documentation and export descriptions make
+no Byzantine, unconditional availability, fairness, or deployed-correctness claim.
+Depth: construct conflicting independently issued spends to demonstrate why a
+signature alone cannot satisfy the nonforking premise.
+Validates: [[SPEC-019-state-rules#REQ-1947]].
+
+### Implementation handoff
+
+Owner: CBCL maintainer. Next action: author an executable implementation theory
+tracing the requirements to the tests above before runtime work begins.
+The work includes a typed pure verifier, a model proof, canonical wire grammar,
+versioned state-rule/export integration and corpus, and a durable host adapter.
+Before accepting external resource messages, specify the wire contract.
+It defines the resource schema, exact integer encoding, field identifiers,
+binder bookkeeping, dependency limits, error JSON, and every binding's exports.
+That change bumps the spec and corpus major versions together; the present
+specification-only addition introduces no accepted syntax or wire behavior.
+
+Release gate: pure core tests, deliberate budget-check mutation, the compatible
+union proof, a host race/crash test, and corpus agreement across supported bindings.
+Until those exist, status remains draft and hard-bound runtime support is unimplemented.
+Independent review and comprehension evidence are recorded in
+[[bounded-counter-review]]; the original arithmetic theorem remains scoped by
+[[SPEC-019-state-rules#REQ-1937]].
+
 ## Signer register amendment — issue 18
 
 The failure is semantic: two sequential votes share an opener predecessor, so address order discards an observed edit.
@@ -1004,6 +1308,8 @@ order; update cbcl-aamas §6 and §7.
 - **Prover**: R.2 properties → REQ-1930 → TEST-1940–1946.
 
 ## Changelog
+
+- 1.2.0 (2026-10-30) — draft typed lower-bound escrow resource contract, separate from protocol admission; ownership, transfers, fork assumptions, tests, and implementation handoff. Existing grammar and corpus remain at their previous versions.
 
 <details>
 <summary>Revision history</summary>
