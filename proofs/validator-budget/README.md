@@ -64,3 +64,12 @@ advancing versions. The Python model is not extracted from Lean and no refinemen
 theorem between them is claimed. Finite schedules exercise the lifecycle but do
 not prove it safe or live for every execution. The remaining proof task stays open
 in Elephant under `budget-async-refinement`.
+
+
+Multi-parent Lean protocol and executable admission mutation checks are governed
+by [[SPEC-029-multi-parent-counter-model]]. Run
+`python3 proofs/validator-budget/check_multi_parent_mutations.py` from the repository
+root. The checker uses temporary executable wrappers and leaves the verified
+source and theorem statements unchanged. It requires real kernel `decide`
+counterexamples for weakened guards; import/type failures do not count as a kill.
+Detailed scope and results: [[multi-parent-evidence]].

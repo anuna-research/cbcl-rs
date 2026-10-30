@@ -83,3 +83,18 @@ capstones use only `propext`, `Classical.choice`, and `Quot.sound`. Grammar test
 use kernel `decide`; the arbitrary-nesting property is proved by induction.
 
 Full evidence: [[dcfl-raw-installation-evidence-2026-09-10]].
+
+
+The separate multi-parent numeric protocol in `ConsensusFree/MultiParent.lean`
+allows local root→A/B→M DAG adoption with full immutable signature coverage.
+It proves certified-version ancestry, late-certificate coverage, nonnegative
+resource vectors, finite/infinite funded refinement and safe cancellation releases.
+The interpreter is a model harness over verified certificate evidence, not the
+Rust wire protocol. Infinite traces range over a fixed finite catalogue; funded
+refinement requires disjoint debit/credit per coordinate. It does not guarantee
+progress under contention. Rust remains on its existing single-parent handoff.
+Contract: [[SPEC-029-multi-parent-counter-model]]. Evidence: [[multi-parent-evidence]].
+
+Run `lake env lean --run MultiParentAudit.lean` here and
+`python3 proofs/validator-budget/check_multi_parent_mutations.py` from the repository
+root for executable branch joins and isolated guard mutation checks.

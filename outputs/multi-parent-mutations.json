@@ -1,0 +1,48 @@
+{
+  "source": "LeanCbcl/ConsensusFree/MultiParent.lean",
+  "results": [
+    {
+      "mutation": "control",
+      "exit_code": 0,
+      "false_executable_assertions": 0,
+      "expected_result": true,
+      "output": ""
+    },
+    {
+      "mutation": "omit-historical-signatures",
+      "exit_code": 1,
+      "false_executable_assertions": 4,
+      "expected_result": true,
+      "output": "/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-multiparent-mutations-j_4x7suk/omit-historical-signatures.lean:91:80: error: Tactic `decide` proved that the proposition\n  executeMutant forget initial (split ++ partials ++ join) = none\nis false\n/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-multiparent-mutations-j_4x7suk/omit-historical-signatures.lean:92:90: error: Tactic `decide` proved that the proposition\n  executeMutant forget initial (split ++ partials ++ cancel ++ join) = none\nis false\n/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-multiparent-mutations-j_4x7suk/omit-historical-signatures.lean:161:93: error: Tactic `decide` proved that the proposition\n  executeMutant oldPattern initial (oldVotes ++ [Command.record 1, Command.adopt 1 1]) = none\nis false\n/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-multiparent-mutations-j_4x7suk/omit-historical-signatures.lean:162:93: error: Tactic `decide` proved that the proposition\n  executeMutant oldPattern initial (oldVotes ++ [Command.record 1, Command.adopt 1 2]) = none\nis false\n"
+    },
+    {
+      "mutation": "omit-exact-books",
+      "exit_code": 1,
+      "false_executable_assertions": 3,
+      "expected_result": true,
+      "output": "/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-multiparent-mutations-j_4x7suk/omit-exact-books.lean:113:68: error: Tactic `decide` proved that the proposition\n  executeMutant summed initial (split ++ join) = none\nis false\n/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-multiparent-mutations-j_4x7suk/omit-exact-books.lean:118:84: error: Tactic `decide` proved that the proposition\n  executeMutant wrongBooks initial (split ++ partials ++ join) = none\nis false\n/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-multiparent-mutations-j_4x7suk/omit-exact-books.lean:186:81: error: Tactic `decide` proved that the proposition\n  executeMutant crowded initial (split ++ partials ++ join) = none\nis false\n"
+    },
+    {
+      "mutation": "allow-sibling-adoption",
+      "exit_code": 1,
+      "false_executable_assertions": 1,
+      "expected_result": true,
+      "output": "/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-multiparent-mutations-j_4x7suk/allow-sibling-adoption.lean:113:75: error: Tactic `decide` proved that the proposition\n  executeMutant clean initial (split ++ [Command.adopt 2 0]) = none\nis false\n"
+    },
+    {
+      "mutation": "release-without-certificate",
+      "exit_code": 1,
+      "false_executable_assertions": 1,
+      "expected_result": true,
+      "output": "/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-multiparent-mutations-j_4x7suk/release-without-certificate.lean:109:91: error: Tactic `decide` proved that the proposition\n  executeMutant pending initial (split ++ partials ++ [Command.release 0 0]) = none\nis false\n"
+    },
+    {
+      "mutation": "omit-scaled-budget",
+      "exit_code": 1,
+      "false_executable_assertions": 1,
+      "expected_result": true,
+      "output": "/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-multiparent-mutations-j_4x7suk/omit-scaled-budget.lean:119:84: error: Tactic `decide` proved that the proposition\n  executeMutant tooMuch initial (split ++ join ++ [Command.sign 2 0]) = none\nis false\n"
+    }
+  ],
+  "passed": true
+}

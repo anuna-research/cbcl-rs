@@ -1,0 +1,358 @@
+Running linter on specified module: LeanCbcl
+-- Found 298 errors in 2750 declarations (plus 4408 automatically generated ones) in LeanCbcl with 13 linters
+
+/- The `docBlame` linter reports:
+DEFINITIONS ARE MISSING DOCUMENTATION STRINGS: -/
+-- LeanCbcl.AbortableHandoff
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/AbortableHandoff.lean:13:1: error: CBCL.AbortableHandoff.Node inductive missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/AbortableHandoff.lean:14:3: error: CBCL.AbortableHandoff.Node.signed definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/AbortableHandoff.lean:15:3: error: CBCL.AbortableHandoff.Node.activated definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/AbortableHandoff.lean:16:3: error: CBCL.AbortableHandoff.Node.stopped definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/AbortableHandoff.lean:17:3: error: CBCL.AbortableHandoff.Node.exported definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/AbortableHandoff.lean:19:1: error: CBCL.AbortableHandoff.Step inductive missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/AbortableHandoff.lean:28:1: error: CBCL.AbortableHandoff.Reach inductive missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/AbortableHandoff.lean:32:1: error: CBCL.AbortableHandoff.SnapshotValid definition missing documentation string
+
+-- LeanCbcl.ConsensusFree.Archive
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Archive.lean:7:1: error: @CBCL.ConsensusFree.StaticFacts inductive missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Archive.lean:28:1: error: @CBCL.ConsensusFree.ArchiveExtension definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Archive.lean:52:1: error: @CBCL.ConsensusFree.Catalogue inductive missing documentation string
+
+-- LeanCbcl.ConsensusFree.Capacity
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Capacity.lean:7:1: error: @CBCL.ConsensusFree.Capacity definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Capacity.lean:80:1: error: @CBCL.ConsensusFree.currentFinal definition missing documentation string
+
+-- LeanCbcl.ConsensusFree.Collective
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Collective.lean:10:1: error: CBCL.ConsensusFree.Collective.Context inductive missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Collective.lean:11:3: error: @CBCL.ConsensusFree.Collective.Context.checkpoints definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Collective.lean:12:3: error: @CBCL.ConsensusFree.Collective.Context.epoch definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Collective.lean:13:3: error: @CBCL.ConsensusFree.Collective.Context.actor definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Collective.lean:14:3: error: @CBCL.ConsensusFree.Collective.Context.isMint definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Collective.lean:15:3: error: @CBCL.ConsensusFree.Collective.Context.amount definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Collective.lean:16:3: error: @CBCL.ConsensusFree.Collective.Context.signatureValid definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Collective.lean:17:3: error: @CBCL.ConsensusFree.Collective.Context.roleAdmitted definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Collective.lean:18:3: error: @CBCL.ConsensusFree.Collective.Context.isIssuer definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Collective.lean:19:3: error: @CBCL.ConsensusFree.Collective.Context.initialRights definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Collective.lean:20:3: error: @CBCL.ConsensusFree.Collective.Context.initialHeadroom definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Collective.lean:21:3: error: @CBCL.ConsensusFree.Collective.Context.capped definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Collective.lean:23:1: error: @CBCL.ConsensusFree.Collective.actorAuthorized definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Collective.lean:27:1: error: @CBCL.ConsensusFree.Collective.currency definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Collective.lean:44:1: error: @CBCL.ConsensusFree.Collective.config definition missing documentation string
+
+-- LeanCbcl.ConsensusFree.CollectiveProtocol
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/CollectiveProtocol.lean:9:1: error: CBCL.ConsensusFree.CollectiveActors.Identity inductive missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/CollectiveProtocol.lean:14:1: error: CBCL.ConsensusFree.CollectiveActors.Payload inductive missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/CollectiveProtocol.lean:21:1: error: CBCL.ConsensusFree.CollectiveActors.Packet inductive missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/CollectiveProtocol.lean:22:3: error: @CBCL.ConsensusFree.CollectiveActors.Packet.domain definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/CollectiveProtocol.lean:23:3: error: @CBCL.ConsensusFree.CollectiveActors.Packet.signer definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/CollectiveProtocol.lean:24:3: error: @CBCL.ConsensusFree.CollectiveActors.Packet.payload definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/CollectiveProtocol.lean:27:1: error: CBCL.ConsensusFree.CollectiveActors.Policy inductive missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/CollectiveProtocol.lean:28:3: error: @CBCL.ConsensusFree.CollectiveActors.Policy.cast definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/CollectiveProtocol.lean:29:3: error: @CBCL.ConsensusFree.CollectiveActors.Policy.role definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/CollectiveProtocol.lean:30:3: error: @CBCL.ConsensusFree.CollectiveActors.Policy.initializer definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/CollectiveProtocol.lean:31:3: error: @CBCL.ConsensusFree.CollectiveActors.Policy.increment definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/CollectiveProtocol.lean:32:3: error: @CBCL.ConsensusFree.CollectiveActors.Policy.decrement definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/CollectiveProtocol.lean:33:3: error: @CBCL.ConsensusFree.CollectiveActors.Policy.issuer definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/CollectiveProtocol.lean:35:1: error: @CBCL.ConsensusFree.CollectiveActors.Policy.admitted definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/CollectiveProtocol.lean:37:1: error: @CBCL.ConsensusFree.CollectiveActors.Policy.issues definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/CollectiveProtocol.lean:40:1: error: @CBCL.ConsensusFree.CollectiveActors.Policy.checkpoints definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/CollectiveProtocol.lean:43:1: error: CBCL.ConsensusFree.CollectiveActors.Manifest inductive missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/CollectiveProtocol.lean:44:3: error: @CBCL.ConsensusFree.CollectiveActors.Manifest.parent definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/CollectiveProtocol.lean:45:3: error: @CBCL.ConsensusFree.CollectiveActors.Manifest.depth definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/CollectiveProtocol.lean:46:3: error: @CBCL.ConsensusFree.CollectiveActors.Manifest.held definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/CollectiveProtocol.lean:47:3: error: @CBCL.ConsensusFree.CollectiveActors.Manifest.refunded definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/CollectiveProtocol.lean:48:3: error: @CBCL.ConsensusFree.CollectiveActors.Manifest.credited definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/CollectiveProtocol.lean:49:3: error: @CBCL.ConsensusFree.CollectiveActors.Manifest.allocation definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/CollectiveProtocol.lean:51:1: error: CBCL.ConsensusFree.CollectiveActors.Context inductive missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/CollectiveProtocol.lean:52:3: error: @CBCL.ConsensusFree.CollectiveActors.Context.domain definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/CollectiveProtocol.lean:53:3: error: @CBCL.ConsensusFree.CollectiveActors.Context.policy definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/CollectiveProtocol.lean:56:3: error: @CBCL.ConsensusFree.CollectiveActors.Context.opener definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/CollectiveProtocol.lean:57:3: error: @CBCL.ConsensusFree.CollectiveActors.Context.floor definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/CollectiveProtocol.lean:58:3: error: @CBCL.ConsensusFree.CollectiveActors.Context.ceiling definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/CollectiveProtocol.lean:59:3: error: @CBCL.ConsensusFree.CollectiveActors.Context.initialRights definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/CollectiveProtocol.lean:60:3: error: @CBCL.ConsensusFree.CollectiveActors.Context.manifests definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/CollectiveProtocol.lean:61:3: error: @CBCL.ConsensusFree.CollectiveActors.Context.epoch definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/CollectiveProtocol.lean:62:3: error: @CBCL.ConsensusFree.CollectiveActors.Context.actor definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/CollectiveProtocol.lean:63:3: error: @CBCL.ConsensusFree.CollectiveActors.Context.isMint definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/CollectiveProtocol.lean:64:3: error: @CBCL.ConsensusFree.CollectiveActors.Context.amount definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/CollectiveProtocol.lean:66:1: error: @CBCL.ConsensusFree.CollectiveActors.canonical definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/CollectiveProtocol.lean:69:1: error: @CBCL.ConsensusFree.CollectiveActors.headroom definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/CollectiveProtocol.lean:72:1: error: @CBCL.ConsensusFree.CollectiveActors.genesisBounds definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/CollectiveProtocol.lean:75:1: error: @CBCL.ConsensusFree.CollectiveActors.roleFor definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/CollectiveProtocol.lean:78:1: error: @CBCL.ConsensusFree.CollectiveActors.operationAuthorized definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/CollectiveProtocol.lean:83:1: error: @CBCL.ConsensusFree.CollectiveActors.verify definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/CollectiveProtocol.lean:94:1: error: @CBCL.ConsensusFree.CollectiveActors.checkpointAuthorized definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/CollectiveProtocol.lean:97:1: error: @CBCL.ConsensusFree.CollectiveActors.checkpoint definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/CollectiveProtocol.lean:107:1: error: @CBCL.ConsensusFree.CollectiveActors.business definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/CollectiveProtocol.lean:120:1: error: @CBCL.ConsensusFree.CollectiveActors.config definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/CollectiveProtocol.lean:157:1: error: CBCL.ConsensusFree.CollectiveActors.State inductive missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/CollectiveProtocol.lean:158:3: error: @CBCL.ConsensusFree.CollectiveActors.State.core definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/CollectiveProtocol.lean:159:3: error: @CBCL.ConsensusFree.CollectiveActors.State.genesis definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/CollectiveProtocol.lean:163:1: error: @CBCL.ConsensusFree.CollectiveActors.initialState definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/CollectiveProtocol.lean:168:1: error: @CBCL.ConsensusFree.CollectiveActors.admitGenesis definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/CollectiveProtocol.lean:171:1: error: @CBCL.ConsensusFree.CollectiveActors.stamp definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/CollectiveProtocol.lean:174:1: error: @CBCL.ConsensusFree.CollectiveActors.opReady definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/CollectiveProtocol.lean:176:1: error: @CBCL.ConsensusFree.CollectiveActors.cancelReady definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/CollectiveProtocol.lean:178:1: error: @CBCL.ConsensusFree.CollectiveActors.checkpointReady definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/CollectiveProtocol.lean:181:1: error: @CBCL.ConsensusFree.CollectiveActors.guard definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/CollectiveProtocol.lean:188:1: error: CBCL.ConsensusFree.CollectiveActors.Event inductive missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/CollectiveProtocol.lean:193:1: error: @CBCL.ConsensusFree.CollectiveActors.execute definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/CollectiveProtocol.lean:223:1: error: @CBCL.ConsensusFree.CollectiveActors.run definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/CollectiveProtocol.lean:352:1: error: @CBCL.ConsensusFree.CollectiveActors.ControlInvariant inductive missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/CollectiveProtocol.lean:640:1: error: @CBCL.ConsensusFree.CollectiveActors.recover definition missing documentation string
+
+-- LeanCbcl.ConsensusFree.Core
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Core.lean:9:1: error: CBCL.ConsensusFree.Epoch inductive missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Core.lean:14:1: error: CBCL.ConsensusFree.Checkpoint inductive missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Core.lean:15:3: error: @CBCL.ConsensusFree.Checkpoint.owner definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Core.lean:16:3: error: @CBCL.ConsensusFree.Checkpoint.parent definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Core.lean:17:3: error: @CBCL.ConsensusFree.Checkpoint.depth definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Core.lean:18:3: error: @CBCL.ConsensusFree.Checkpoint.held definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Core.lean:19:3: error: @CBCL.ConsensusFree.Checkpoint.refunded definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Core.lean:20:3: error: @CBCL.ConsensusFree.Checkpoint.credited definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Core.lean:21:3: error: @CBCL.ConsensusFree.Checkpoint.allocation definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Core.lean:22:3: error: @CBCL.ConsensusFree.Checkpoint.authorized definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Core.lean:24:1: error: @CBCL.ConsensusFree.epochOwner definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Core.lean:28:1: error: @CBCL.ConsensusFree.epochDepth definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Core.lean:32:1: error: CBCL.ConsensusFree.Config inductive missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Core.lean:33:3: error: @CBCL.ConsensusFree.Config.committee definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Core.lean:34:3: error: @CBCL.ConsensusFree.Config.initial definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Core.lean:35:3: error: @CBCL.ConsensusFree.Config.checkpoints definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Core.lean:36:3: error: @CBCL.ConsensusFree.Config.opEpoch definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Core.lean:37:3: error: @CBCL.ConsensusFree.Config.resourceOwner definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Core.lean:38:3: error: @CBCL.ConsensusFree.Config.cost definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Core.lean:39:3: error: @CBCL.ConsensusFree.Config.credit definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Core.lean:40:3: error: @CBCL.ConsensusFree.Config.authorized definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Core.lean:44:1: error: @CBCL.ConsensusFree.owner definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Core.lean:45:1: error: @CBCL.ConsensusFree.depth definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Core.lean:47:1: error: @CBCL.ConsensusFree.held definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Core.lean:50:1: error: @CBCL.ConsensusFree.refunded definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Core.lean:53:1: error: @CBCL.ConsensusFree.credited definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Core.lean:56:1: error: @CBCL.ConsensusFree.allowance definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Core.lean:60:1: error: @CBCL.ConsensusFree.two definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Core.lean:63:1: error: CBCL.ConsensusFree.State inductive missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Core.lean:64:3: error: @CBCL.ConsensusFree.State.active definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Core.lean:65:3: error: @CBCL.ConsensusFree.State.signatures definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Core.lean:66:3: error: @CBCL.ConsensusFree.State.released definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Core.lean:67:3: error: @CBCL.ConsensusFree.State.sealed definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Core.lean:68:3: error: @CBCL.ConsensusFree.State.votes definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Core.lean:69:3: error: @CBCL.ConsensusFree.State.choices definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Core.lean:70:3: error: @CBCL.ConsensusFree.State.effects definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Core.lean:71:3: error: @CBCL.ConsensusFree.State.fences definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Core.lean:72:3: error: @CBCL.ConsensusFree.State.seenOperation definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Core.lean:73:3: error: @CBCL.ConsensusFree.State.seenFinal definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Core.lean:74:3: error: @CBCL.ConsensusFree.State.seenCheckpoint definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Core.lean:75:3: error: @CBCL.ConsensusFree.State.archive definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Core.lean:76:3: error: @CBCL.ConsensusFree.State.frontier definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Core.lean:77:3: error: @CBCL.ConsensusFree.State.balance definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Core.lean:79:1: error: @CBCL.ConsensusFree.initial definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Core.lean:95:1: error: @CBCL.ConsensusFree.quorum definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Core.lean:97:1: error: @CBCL.ConsensusFree.operationCert definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Core.lean:98:1: error: @CBCL.ConsensusFree.finalCert definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Core.lean:99:1: error: @CBCL.ConsensusFree.cancelCert definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Core.lean:100:1: error: @CBCL.ConsensusFree.checkpointCert definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Core.lean:101:1: error: @CBCL.ConsensusFree.Known definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Core.lean:104:1: error: @CBCL.ConsensusFree.Member definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Core.lean:113:1: error: @CBCL.ConsensusFree.signed definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Core.lean:115:1: error: @CBCL.ConsensusFree.freeze definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Core.lean:117:1: error: @CBCL.ConsensusFree.release definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Core.lean:119:1: error: @CBCL.ConsensusFree.endorse definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Core.lean:123:1: error: @CBCL.ConsensusFree.record definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Core.lean:128:1: error: @CBCL.ConsensusFree.install definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Core.lean:130:1: error: @CBCL.ConsensusFree.receiveOperation definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Core.lean:132:1: error: @CBCL.ConsensusFree.receiveFinal definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Core.lean:134:1: error: @CBCL.ConsensusFree.emit definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Core.lean:136:1: error: @CBCL.ConsensusFree.fence definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Core.lean:138:1: error: @CBCL.ConsensusFree.newlyFinal definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Core.lean:141:1: error: @CBCL.ConsensusFree.effect definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Core.lean:146:1: error: @CBCL.ConsensusFree.Fits definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Core.lean:155:1: error: @CBCL.ConsensusFree.ManifestStatic definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Core.lean:170:1: error: @CBCL.ConsensusFree.ManifestLive definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Core.lean:176:1: error: @CBCL.ConsensusFree.SignAllowed definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Core.lean:181:1: error: @CBCL.ConsensusFree.EndorseAllowed definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Core.lean:185:1: error: @CBCL.ConsensusFree.EffectAllowed definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Core.lean:188:1: error: @CBCL.ConsensusFree.FenceAllowed definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Core.lean:192:1: error: @CBCL.ConsensusFree.Step inductive missing documentation string
+
+-- LeanCbcl.ConsensusFree.Coverage
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Coverage.lean:57:1: error: @CBCL.ConsensusFree.markedNat definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Coverage.lean:60:1: error: @CBCL.ConsensusFree.netHeld definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Coverage.lean:62:1: error: @CBCL.ConsensusFree.epochDebit definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Coverage.lean:64:1: error: @CBCL.ConsensusFree.totalDebit definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Coverage.lean:66:1: error: @CBCL.ConsensusFree.totalCredit definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Coverage.lean:68:1: error: @CBCL.ConsensusFree.manifestCredit definition missing documentation string
+
+-- LeanCbcl.ConsensusFree.Currency
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Currency.lean:8:1: error: @CBCL.ConsensusFree.Currency.rights definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Currency.lean:9:1: error: @CBCL.ConsensusFree.Currency.headroom definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Currency.lean:11:1: error: @CBCL.ConsensusFree.Currency.resourceOwner definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Currency.lean:33:1: error: @CBCL.ConsensusFree.Currency.atom definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Currency.lean:41:1: error: CBCL.ConsensusFree.Currency.Operation inductive missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Currency.lean:42:3: error: @CBCL.ConsensusFree.Currency.Operation.epoch definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Currency.lean:43:3: error: @CBCL.ConsensusFree.Currency.Operation.kind definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Currency.lean:44:3: error: @CBCL.ConsensusFree.Currency.Operation.amount definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Currency.lean:45:3: error: @CBCL.ConsensusFree.Currency.Operation.recipient definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Currency.lean:47:1: error: CBCL.ConsensusFree.Currency.Context inductive missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Currency.lean:48:3: error: @CBCL.ConsensusFree.Currency.Context.checkpoints definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Currency.lean:49:3: error: @CBCL.ConsensusFree.Currency.Context.operations definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Currency.lean:50:3: error: @CBCL.ConsensusFree.Currency.Context.initialRights definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Currency.lean:51:3: error: @CBCL.ConsensusFree.Currency.Context.initialHeadroom definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Currency.lean:52:3: error: @CBCL.ConsensusFree.Currency.Context.capped definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Currency.lean:53:3: error: @CBCL.ConsensusFree.Currency.Context.issuers definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Currency.lean:54:3: error: @CBCL.ConsensusFree.Currency.Context.ownerSigned definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Currency.lean:58:1: error: @CBCL.ConsensusFree.Currency.source definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Currency.lean:60:1: error: @CBCL.ConsensusFree.Currency.cost definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Currency.lean:66:1: error: @CBCL.ConsensusFree.Currency.credit definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Currency.lean:73:1: error: @CBCL.ConsensusFree.Currency.authorized definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Currency.lean:122:1: error: @CBCL.ConsensusFree.Currency.config definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Currency.lean:172:1: error: @CBCL.ConsensusFree.Currency.rightsTotal definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Currency.lean:174:1: error: @CBCL.ConsensusFree.Currency.headroomTotal definition missing documentation string
+
+-- LeanCbcl.ConsensusFree.Evidence
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Evidence.lean:7:1: error: @CBCL.ConsensusFree.Locals inductive missing documentation string
+
+-- LeanCbcl.ConsensusFree.Execution
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Execution.lean:6:1: error: CBCL.ConsensusFree.Command inductive missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Execution.lean:20:1: error: @CBCL.ConsensusFree.perform definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Execution.lean:123:1: error: @CBCL.ConsensusFree.execute definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Execution.lean:133:1: error: @CBCL.ConsensusFree.Trace inductive missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Execution.lean:137:1: error: @CBCL.ConsensusFree.run definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Execution.lean:157:1: error: @CBCL.ConsensusFree.BusinessStep definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Execution.lean:161:1: error: @CBCL.ConsensusFree.Simulates definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Execution.lean:202:1: error: @CBCL.ConsensusFree.BusinessRun inductive missing documentation string
+
+-- LeanCbcl.ConsensusFree.Journals
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Journals.lean:40:1: error: @CBCL.ConsensusFree.JournalExtension inductive missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Journals.lean:116:1: error: @CBCL.ConsensusFree.Evidence inductive missing documentation string
+
+-- LeanCbcl.ConsensusFree.Observation
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Observation.lean:7:1: error: @CBCL.ConsensusFree.Observed definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Observation.lean:95:1: error: @CBCL.ConsensusFree.Invariant inductive missing documentation string
+
+-- LeanCbcl.ConsensusFree.Tests
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Tests.lean:9:1: error: CBCL.ConsensusFree.Tests.Cmd definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Tests.lean:11:1: error: CBCL.ConsensusFree.Tests.cp definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Tests.lean:40:1: error: CBCL.ConsensusFree.Tests.op definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Tests.lean:62:1: error: CBCL.ConsensusFree.Tests.context definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Tests.lean:72:1: error: CBCL.ConsensusFree.Tests.committee definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Tests.lean:73:1: error: CBCL.ConsensusFree.Tests.cfg definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Tests.lean:75:1: error: CBCL.ConsensusFree.Tests.after definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Tests.lean:77:1: error: CBCL.ConsensusFree.Tests.signWith definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Tests.lean:78:1: error: CBCL.ConsensusFree.Tests.signs definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Tests.lean:79:1: error: CBCL.ConsensusFree.Tests.finish definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Tests.lean:82:1: error: CBCL.ConsensusFree.Tests.cancel definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Tests.lean:83:1: error: CBCL.ConsensusFree.Tests.releases definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Tests.lean:84:1: error: CBCL.ConsensusFree.Tests.seals definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Tests.lean:85:1: error: CBCL.ConsensusFree.Tests.endorseWith definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Tests.lean:86:1: error: CBCL.ConsensusFree.Tests.deliverAndInstall definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Tests.lean:88:1: error: CBCL.ConsensusFree.Tests.triangle definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Tests.lean:90:1: error: CBCL.ConsensusFree.Tests.closedTriangle definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Tests.lean:92:1: error: CBCL.ConsensusFree.Tests.oldFinals definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Tests.lean:94:1: error: CBCL.ConsensusFree.Tests.refundedDescendant definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Tests.lean:97:1: error: CBCL.ConsensusFree.Tests.refundThenSpend definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Tests.lean:99:1: error: CBCL.ConsensusFree.Tests.repeatRefund definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Tests.lean:102:1: error: CBCL.ConsensusFree.Tests.reusedRoot definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Tests.lean:104:1: error: CBCL.ConsensusFree.Tests.closedReused definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Tests.lean:107:1: error: CBCL.ConsensusFree.Tests.splitVotes definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Tests.lean:110:1: error: CBCL.ConsensusFree.Tests.firstBranch definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Tests.lean:113:1: error: CBCL.ConsensusFree.Tests.cappedFlow definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Tests.lean:115:1: error: CBCL.ConsensusFree.Tests.incoming definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Tests.lean:118:1: error: CBCL.ConsensusFree.Tests.lagging definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Tests.lean:123:1: error: CBCL.ConsensusFree.Tests.uncappedContext definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Tests.lean:124:1: error: CBCL.ConsensusFree.Tests.uncapped definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Tests.lean:126:1: error: CBCL.ConsensusFree.Tests.budgetBefore definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Tests.lean:127:1: error: CBCL.ConsensusFree.Tests.currentLabel definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Tests.lean:129:1: error: CBCL.ConsensusFree.Tests.checks definition missing documentation string
+
+-- LeanCbcl.ConsensusFreeArithmetic
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFreeArithmetic.lean:6:1: error: @CBCL.ConsensusFree.setAt definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFreeArithmetic.lean:14:1: error: @CBCL.ConsensusFree.isum definition missing documentation string
+
+-- LeanCbcl.SealedCheckpoint
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/SealedCheckpoint.lean:37:1: error: CBCL.SealedCheckpoint.Journal inductive missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/SealedCheckpoint.lean:38:3: error: CBCL.SealedCheckpoint.Journal.spent definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/SealedCheckpoint.lean:39:3: error: CBCL.SealedCheckpoint.Journal.capacity definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/SealedCheckpoint.lean:40:3: error: CBCL.SealedCheckpoint.Journal.frozen definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/SealedCheckpoint.lean:42:1: error: CBCL.SealedCheckpoint.Step inductive missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/SealedCheckpoint.lean:49:1: error: CBCL.SealedCheckpoint.Reach inductive missing documentation string
+
+-- LeanCbcl.ValidatorBudget
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ValidatorBudget.lean:86:3: error: @CBCL.ValidatorBudget.Committee.core definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ValidatorBudget.lean:87:3: error: @CBCL.ValidatorBudget.Committee.others definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ValidatorBudget.lean:171:1: error: CBCL.ValidatorBudget.Operation inductive missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ValidatorBudget.lean:172:3: error: CBCL.ValidatorBudget.Operation.kind definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ValidatorBudget.lean:173:3: error: CBCL.ValidatorBudget.Operation.amount definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ValidatorBudget.lean:176:1: error: CBCL.ValidatorBudget.rightsCost definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ValidatorBudget.lean:181:1: error: CBCL.ValidatorBudget.headroomCost definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ValidatorBudget.lean:186:1: error: CBCL.ValidatorBudget.minted definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ValidatorBudget.lean:187:1: error: CBCL.ValidatorBudget.burned definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ValidatorBudget.lean:218:1: error: CBCL.ValidatorBudget.LocalBudget inductive missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ValidatorBudget.lean:219:3: error: CBCL.ValidatorBudget.LocalBudget.rights definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ValidatorBudget.lean:220:3: error: CBCL.ValidatorBudget.LocalBudget.headroom definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ValidatorBudget.lean:270:3: error: CBCL.ValidatorBudget.Witness.faulty definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ValidatorBudget.lean:271:3: error: CBCL.ValidatorBudget.Witness.executed definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ValidatorBudget.lean:272:3: error: CBCL.ValidatorBudget.Witness.fenced definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ValidatorBudget.lean:275:1: error: CBCL.ValidatorBudget.disciplined definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ValidatorBudget.lean:278:1: error: CBCL.ValidatorBudget.executions definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ValidatorBudget.lean:279:1: error: CBCL.ValidatorBudget.fences definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ValidatorBudget.lean:280:1: error: CBCL.ValidatorBudget.faults definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ValidatorBudget.lean:311:1: error: CBCL.ValidatorBudget.fence definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ValidatorBudget.lean:328:1: error: CBCL.ValidatorBudget.ReceiptEvent inductive missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ValidatorBudget.lean:354:1: error: CBCL.ValidatorBudget.splitVotes definition missing documentation string
+
+-- LeanCbcl.ValidatorBudgetRefutation
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ValidatorBudgetRefutation.lean:17:1: error: CBCL.ValidatorBudgetRefutation.Payment inductive missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ValidatorBudgetRefutation.lean:21:1: error: CBCL.ValidatorBudgetRefutation.amount definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ValidatorBudgetRefutation.lean:25:1: error: CBCL.ValidatorBudgetRefutation.version definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ValidatorBudgetRefutation.lean:29:1: error: CBCL.ValidatorBudgetRefutation.Local inductive missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ValidatorBudgetRefutation.lean:30:3: error: CBCL.ValidatorBudgetRefutation.Local.version definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ValidatorBudgetRefutation.lean:31:3: error: CBCL.ValidatorBudgetRefutation.Local.free definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ValidatorBudgetRefutation.lean:32:3: error: CBCL.ValidatorBudgetRefutation.Local.signed definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ValidatorBudgetRefutation.lean:33:3: error: CBCL.ValidatorBudgetRefutation.Local.executed definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ValidatorBudgetRefutation.lean:36:1: error: CBCL.ValidatorBudgetRefutation.State inductive missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ValidatorBudgetRefutation.lean:37:3: error: CBCL.ValidatorBudgetRefutation.State.nodes definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ValidatorBudgetRefutation.lean:38:3: error: CBCL.ValidatorBudgetRefutation.State.ballots definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ValidatorBudgetRefutation.lean:39:3: error: CBCL.ValidatorBudgetRefutation.State.final definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ValidatorBudgetRefutation.lean:40:3: error: CBCL.ValidatorBudgetRefutation.State.versionKnown definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ValidatorBudgetRefutation.lean:43:1: error: CBCL.ValidatorBudgetRefutation.initial definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ValidatorBudgetRefutation.lean:45:1: error: CBCL.ValidatorBudgetRefutation.signatures definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ValidatorBudgetRefutation.lean:48:1: error: CBCL.ValidatorBudgetRefutation.effects definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ValidatorBudgetRefutation.lean:89:1: error: CBCL.ValidatorBudgetRefutation.Command inductive missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ValidatorBudgetRefutation.lean:95:1: error: CBCL.ValidatorBudgetRefutation.step definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ValidatorBudgetRefutation.lean:100:1: error: CBCL.ValidatorBudgetRefutation.run definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ValidatorBudgetRefutation.lean:113:1: error: CBCL.ValidatorBudgetRefutation.finalize definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ValidatorBudgetRefutation.lean:116:1: error: CBCL.ValidatorBudgetRefutation.renew definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ValidatorBudgetRefutation.lean:119:1: error: CBCL.ValidatorBudgetRefutation.checkpointPrefix definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ValidatorBudgetRefutation.lean:121:1: error: CBCL.ValidatorBudgetRefutation.trace definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ValidatorBudgetRefutation.lean:124:1: error: CBCL.ValidatorBudgetRefutation.result definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ValidatorBudgetRefutation.lean:126:1: error: CBCL.ValidatorBudgetRefutation.observed definition missing documentation string
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ValidatorBudgetRefutation.lean:170:1: error: CBCL.ValidatorBudgetRefutation.BusinessReachable inductive missing documentation string
+
+/- The `simpNF` linter reports:
+SOME SIMP LEMMAS ARE NOT IN SIMP-NORMAL FORM.
+Please change the lemma to make sure their left-hand sides are in simp normal form.
+To learn about simp normal forms, see
+https://leanprover-community.github.io/extras/simp.html#simp-normal-form
+and https://lean-lang.org/doc/reference/latest/The-Simplifier/Simp-Normal-Forms/. -/
+-- LeanCbcl.ConsensusFree.Currency
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/Currency.lean:14:1: error: @CBCL.ConsensusFree.Currency.owner_headroom Left-hand side simplifies from
+  CBCL.ConsensusFree.Currency.resourceOwner (CBCL.ConsensusFree.Currency.headroom a)
+to
+  CBCL.ConsensusFree.Currency.resourceOwner (a.addNat A)
+using
+  simp only [*, Fin.natAdd_eq_addNat]
+Try to change the left-hand side to the simplified term!
+
+/- The `unusedArguments` linter reports:
+UNUSED ARGUMENTS. -/
+-- LeanCbcl.ConsensusFree.CollectiveProtocol
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ConsensusFree/CollectiveProtocol.lean:25:25: error: @CBCL.ConsensusFree.CollectiveActors.instReprPacket.repr argument 5 prec✝ : Nat
+
+-- LeanCbcl.ValidatorBudget
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ValidatorBudget.lean:174:25: error: CBCL.ValidatorBudget.instReprOperation.repr argument 2 prec✝ : Nat
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ValidatorBudget.lean:221:25: error: CBCL.ValidatorBudget.instReprLocalBudget.repr argument 2 prec✝ : Nat
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ValidatorBudget.lean:273:25: error: CBCL.ValidatorBudget.instReprWitness.repr argument 2 prec✝ : Nat
+
+-- LeanCbcl.ValidatorBudgetRefutation
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ValidatorBudgetRefutation.lean:34:25: error: CBCL.ValidatorBudgetRefutation.instReprLocal.repr argument 2 prec✝ : Nat
+/private/tmp/cbcl-bounded-counter/lean-cbcl/LeanCbcl/ValidatorBudgetRefutation.lean:41:25: error: CBCL.ValidatorBudgetRefutation.instReprState.repr argument 2 prec✝ : Nat
