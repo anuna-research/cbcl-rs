@@ -12,10 +12,13 @@ use alloc::vec::Vec;
 
 pub const PREV: &str = "escrow-prev";
 pub const DEPS: &str = "escrow-deps";
+pub const NONCE: &str = "escrow-nonce";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct CounterRule {
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub certification: crate::certification::Certification,
     pub floor: i64,
     pub ceiling: Option<i64>,
     pub initial_verb: String,
@@ -73,6 +76,9 @@ impl CounterRule {
                 sym("ceiling"),
                 SExpr::Atom(Atom::Num(n))
             ]));
+        }
+        if let Some(profile) = self.certification.canonical_option() {
+            v.push(profile);
         }
         v.push(SExpr::List(alloc::vec![
             sym("initial-rights"),
@@ -422,6 +428,9 @@ fn local_budgets(
 /// disappearing. Missing evidence returns pending; no partial balance is exposed.
 /// Inputs must be authenticated and protocol accepted by the host.
 pub fn observe(c: &CounterRule, acts: &[Act]) -> Outcome {
+    if c.certification.is_quorum() {
+        return fault("quorum-budget requires an explicit certificate runtime; legacy fold cannot prove finality", Vec::new());
+    }
     let mut all: BTreeMap<&str, &Act> = BTreeMap::new();
     for a in acts {
         let rebuilt = match Act::from_message(a.message.clone(), &a.signer) {
@@ -818,13 +827,16 @@ pub fn declaration_errors(d: &crate::dialect::Dialect) -> Vec<String> {
         return errors;
     };
     let reserved = |key: &str| {
-        [PREV, DEPS, crate::state::RESERVED_REPLACES].contains(&key)
+        [PREV, DEPS, NONCE, crate::state::RESERVED_REPLACES].contains(&key)
             || crate::state::ROUTING_KEYWORDS.contains(&key)
     };
     for (name, rule) in clause.fields() {
         let Rule::BoundedCounter(c) = rule else {
             continue;
         };
+        if let Err(error) = c.certification.validate() {
+            errors.push(error);
+        }
         if d.roles.is_empty() {
             errors.push("bounded counters require an authenticated role cast".into());
         }
@@ -907,13 +919,13 @@ pub fn declaration_errors(d: &crate::dialect::Dialect) -> Vec<String> {
     // No ordinary state rule can interpret compiler-owned resource evidence.
     for (_, rule) in clause.fields() {
         for (_, k) in rule.data_fields() {
-            if [PREV, DEPS].contains(&k) {
+            if [PREV, DEPS, NONCE].contains(&k) {
                 errors.push("state data may not read escrow bookkeeping".into());
             }
         }
     }
     for (_, k, _) in clause.domains() {
-        if [PREV, DEPS].contains(&k) {
+        if [PREV, DEPS, NONCE].contains(&k) {
             errors.push("domain may not read escrow bookkeeping".into());
         }
     }
@@ -1026,6 +1038,9 @@ pub fn issue<G: IssuanceGate>(
     gate: &mut G,
 ) -> Result<Message, String> {
     let (field, c) = rule_for(inst.dialect, verb).ok_or("not a resource operation")?;
+    if c.certification.is_quorum() {
+        return Err("quorum-budget uses independent validator votes, not IssuanceGate".into());
+    }
     let message = crate::intend::intend(inst, signer, verb, fields).map_err(|e| e.to_string())?;
     let candidate = Act::from_message(message.clone(), &signer.0)?;
     let Outcome::Ready(s) = observe_in(inst.dialect, &inst.thread.0, c, inst.acts) else {

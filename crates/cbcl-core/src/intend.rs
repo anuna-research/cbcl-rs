@@ -405,6 +405,27 @@ pub fn intend(
     verb: &str,
     fields: BTreeMap<String, SExpr>,
 ) -> Result<Message, Reject> {
+    intend_impl(inst, signer, verb, fields, None)
+}
+
+pub(crate) fn intend_certified(
+    inst: &Instance,
+    signer: &AgentKey,
+    verb: &str,
+    fields: BTreeMap<String, SExpr>,
+    runtime: &crate::quorum::Replica,
+    nonce: &str,
+) -> Result<Message, Reject> {
+    intend_impl(inst, signer, verb, fields, Some((runtime, nonce)))
+}
+
+fn intend_impl(
+    inst: &Instance,
+    signer: &AgentKey,
+    verb: &str,
+    fields: BTreeMap<String, SExpr>,
+    runtime: Option<(&crate::quorum::Replica, &str)>,
+) -> Result<Message, Reject> {
     let d = inst.dialect;
     let clause: &StateClause = match d.state.as_ref() {
         Some(c) => c,
@@ -431,6 +452,7 @@ pub fn intend(
             || k == RESERVED_REPLACES
             || k == crate::escrow::PREV
             || k == crate::escrow::DEPS
+            || k == crate::escrow::NONCE
         {
             return Err(Reject::Forge(k.clone()));
         }
@@ -645,9 +667,12 @@ pub fn intend(
         params.push(SExpr::Atom(Atom::Keyword(k.clone())));
         params.push(v.clone());
     }
-    for (key, value) in crate::escrow::bookkeeping(d, inst.acts, &inst.thread.0, &signer.0, verb)
-        .map_err(Reject::Resource)?
-    {
+    let bookkeeping = match runtime {
+        Some((engine, nonce)) => engine.bookkeeping(inst, &signer.0, verb, nonce),
+        None => crate::escrow::bookkeeping(d, inst.acts, &inst.thread.0, &signer.0, verb),
+    }
+    .map_err(Reject::Resource)?;
+    for (key, value) in bookkeeping {
         params.push(SExpr::Atom(Atom::Keyword(key)));
         params.push(value);
     }
@@ -721,6 +746,15 @@ pub fn intend(
             if let Some((_, c)) = crate::escrow::rule_for(d, verb) {
                 let candidate =
                     Act::from_message(message.clone(), &signer.0).map_err(Reject::Resource)?;
+                if c.certification.is_quorum() {
+                    let (engine, _) = runtime.ok_or_else(|| {
+                        Reject::Resource("quorum-budget requires certificate runtime".into())
+                    })?;
+                    engine
+                        .check_candidate(inst, &candidate)
+                        .map_err(Reject::Resource)?;
+                    return Ok(message);
+                }
                 match crate::escrow::observe_in(d, &inst.thread.0, c, inst.acts) {
                     crate::escrow::Outcome::Ready(_) => {}
                     other => return Err(Reject::Resource(other.value().render())),

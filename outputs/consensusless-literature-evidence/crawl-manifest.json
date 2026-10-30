@@ -1,0 +1,143 @@
+{
+  "reviewer": "/root/consensusless_literature_review",
+  "date": "2026-10-31",
+  "tool": "ar-crawl v1.0.27-3-g446eced",
+  "sources": [
+    {
+      "file": "outputs/consensusless-literature-evidence/at2.json",
+      "url": "https://arxiv.org/abs/1812.10844",
+      "timestamp": "2026-10-30T19:33:22Z",
+      "content_bytes": 43854,
+      "sha256": "ddac1a070f32f31819ac555c20c460dbd373db82885acf7f9b40fb36274bce00",
+      "content_status": "source-text-observed",
+      "inspection": "Primary paper body or abstract/author page; paper-body inspection recorded in review."
+    },
+    {
+      "file": "outputs/consensusless-literature-evidence/awesome-consensus-raw.json",
+      "url": "https://raw.githubusercontent.com/hellas-ai/awesome-consensus/main/README.md",
+      "timestamp": "2026-10-30T19:32:10Z",
+      "content_bytes": 185103,
+      "sha256": "0f93845562490eb00eb47686c2c09338188439f1be7f963fb9067c9c35627e16",
+      "content_status": "source-text-observed",
+      "inspection": "Primary paper body or abstract/author page; paper-body inspection recorded in review."
+    },
+    {
+      "file": "outputs/consensusless-literature-evidence/awesome-consensus.json",
+      "url": "https://github.com/hellas-ai/awesome-consensus#consensus-less--crdt-approaches",
+      "timestamp": "2026-10-30T19:31:09Z",
+      "content_bytes": 1440,
+      "sha256": "bd86f960d9ef0d2d892d099564515797cdef649678080ab7edd80ddc0c53d9eb",
+      "content_status": "error-page",
+      "inspection": "Primary paper body or abstract/author page; paper-body inspection recorded in review."
+    },
+    {
+      "file": "outputs/consensusless-literature-evidence/bft-crdt.json",
+      "url": "https://martin.kleppmann.com/2022/04/05/bft-crdt-papoc.html",
+      "timestamp": "2026-10-30T19:32:58Z",
+      "content_bytes": 10232,
+      "sha256": "146c2d3aef0c27a0573b9535bc28f54cf35ec51b555748dfdea16559abd21f97",
+      "content_status": "source-text-observed",
+      "inspection": "Primary paper body or abstract/author page; paper-body inspection recorded in review."
+    },
+    {
+      "file": "outputs/consensusless-literature-evidence/blocklace-attack-v1.json",
+      "url": "https://arxiv.org/html/2607.15185v1",
+      "timestamp": "2026-10-30T19:32:10Z",
+      "content_bytes": 55911,
+      "sha256": "b496187e4cf202f8734f4092aa4e9807e7e9a2fed83acdd0fe789ee10b0634e2",
+      "content_status": "source-text-observed",
+      "inspection": "Primary paper body or abstract/author page; paper-body inspection recorded in review."
+    },
+    {
+      "file": "outputs/consensusless-literature-evidence/blocklace-v4.json",
+      "url": "https://arxiv.org/html/2402.08068v4",
+      "timestamp": "2026-10-30T19:32:57Z",
+      "content_bytes": 243641,
+      "sha256": "1748dc8bd92440fc14f87d91965520697c815452911430582fc3af717de5ad8d",
+      "content_status": "source-text-observed",
+      "inspection": "Primary paper body or abstract/author page; paper-body inspection recorded in review."
+    },
+    {
+      "file": "outputs/consensusless-literature-evidence/cryptoconcurrency.json",
+      "url": "https://arxiv.org/abs/2212.04895",
+      "timestamp": "2026-10-30T19:32:57Z",
+      "content_bytes": 41962,
+      "sha256": "d496520fc79962bb48993e6a7fe8eef4d13eede1030dcde8cc2602ab2eb07814",
+      "content_status": "source-text-observed",
+      "inspection": "Primary paper body or abstract/author page; paper-body inspection recorded in review."
+    },
+    {
+      "file": "outputs/consensusless-literature-evidence/goc-ledger.json",
+      "url": "https://arxiv.org/abs/2305.16976",
+      "timestamp": "2026-10-30T19:32:57Z",
+      "content_bytes": 42544,
+      "sha256": "8866c09be43ed0e02bcc98ea5900dc86754af1006ca17c62969e1a12653e43f0",
+      "content_status": "source-text-observed",
+      "inspection": "Primary paper body or abstract/author page; paper-body inspection recorded in review."
+    },
+    {
+      "file": "outputs/consensusless-literature-evidence/pastro.json",
+      "url": "https://arxiv.org/abs/2105.04966",
+      "timestamp": "2026-10-30T19:32:57Z",
+      "content_bytes": 40115,
+      "sha256": "0acf577a1571a490f5bbffdb25189efc825b0f58be2793cf453e52a81a7b289a",
+      "content_status": "source-text-observed",
+      "inspection": "Primary paper body or abstract/author page; paper-body inspection recorded in review."
+    },
+    {
+      "file": "outputs/consensusless-literature-evidence/paxpay.json",
+      "url": "https://drops.dagstuhl.de/storage/00lipics/lipics-vol354-aft2025/html/LIPIcs.AFT.2025.3/LIPIcs.AFT.2025.3.html",
+      "timestamp": "2026-10-30T19:33:24Z",
+      "content_bytes": 448951,
+      "sha256": "1fafcefef0290d77444932e21e247176755f46fe0177cbcbd6bb6aa14ad3afe1",
+      "content_status": "source-text-observed",
+      "inspection": "Primary paper body or abstract/author page; paper-body inspection recorded in review."
+    },
+    {
+      "file": "outputs/consensusless-literature-evidence/pco-v2.json",
+      "url": "https://arxiv.org/html/2311.13936v2",
+      "timestamp": "2026-10-30T19:31:35Z",
+      "content_bytes": 1001311,
+      "sha256": "ae8bd7fbe9216fad61a437c37f0feb5d1b23e8d8fda470f31669fbbd91054305",
+      "content_status": "source-text-observed",
+      "inspection": "Primary paper body or abstract/author page; paper-body inspection recorded in review."
+    },
+    {
+      "file": "outputs/consensusless-literature-evidence/qaat-v2.json",
+      "url": "https://arxiv.org/html/2405.18072v2",
+      "timestamp": "2026-10-30T19:31:36Z",
+      "content_bytes": 1196194,
+      "sha256": "b1a26eca6226342956afd656f7f06378b19c73c0029809effb935eb9baa555e3",
+      "content_status": "source-text-observed",
+      "inspection": "Primary paper body or abstract/author page; paper-body inspection recorded in review."
+    },
+    {
+      "file": "outputs/consensusless-literature-evidence/stingray-v1.json",
+      "url": "https://arxiv.org/html/2501.06531v1",
+      "timestamp": "2026-10-30T19:32:57Z",
+      "content_bytes": 746476,
+      "sha256": "af144bc251630241a7e44c396ffd77e4eea8b2164fa3db1a4168e2fa401fa900",
+      "content_status": "source-text-observed",
+      "inspection": "Primary paper body or abstract/author page; paper-body inspection recorded in review."
+    },
+    {
+      "file": "outputs/consensusless-literature-evidence/untraceable-v1.json",
+      "url": "https://arxiv.org/html/2607.20929v1",
+      "timestamp": "2026-10-30T19:32:09Z",
+      "content_bytes": 589597,
+      "sha256": "ebe3ee2d3beb48eead42ed87766d80b69f771581b96dd151171e8954cb28bbf3",
+      "content_status": "source-text-observed",
+      "inspection": "Primary paper body or abstract/author page; paper-body inspection recorded in review."
+    },
+    {
+      "file": "outputs/consensusless-literature-evidence/zef.json",
+      "url": "https://arxiv.org/abs/2201.05671",
+      "timestamp": "2026-10-30T19:33:22Z",
+      "content_bytes": 41753,
+      "sha256": "e2efdb7b3d70424fc6e66637e21054d3b6b4f207485dd6f9c9f0361abdb103f6",
+      "content_status": "source-text-observed",
+      "inspection": "Primary paper body or abstract/author page; paper-body inspection recorded in review."
+    }
+  ],
+  "note": "Exit 0 was insufficient for GitHub HTML crawl: body is an error page. The separate raw GitHub README crawl contains the requested section. PDF papers were additionally inspected with web PDF reader; PaxPay PDF retrieved directly and inspected with pdftotext."
+}

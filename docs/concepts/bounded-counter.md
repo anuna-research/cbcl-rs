@@ -70,7 +70,7 @@ headroom(account) >= 0
 `dialects/example-capped-coin.cbcl` demonstrates the ceiling profile.
 A global observed-value check cannot substitute for account headroom under concurrency.
 
-## Observation and authorization
+## Host-gated observation and authorization
 
 A bounded field returns a tagged value through the existing fold exports:
 
@@ -111,43 +111,81 @@ It does not prove resource-DAG merge safety, Rust correspondence, or deployed ho
 
 The construction follows [Balegas et al., Extending Eventually Consistent Cloud Databases for Enforcing Numeric Invariants](https://arxiv.org/abs/1503.09052).
 
-A proposed certification extension is investigated in
-[[SPEC-019-state-rules#Certification research — AT2-style asset transfer]].
-It would replace the account-owner nonforking safety premise with a secure
-broadcast protocol and an explicit honest-witness quorum assumption.
-The investigation does not change the runtime guarantees described here.
+## Consensus-free quorum certification
 
-The subsequent [[SPEC-020-resource-certification#ADR-2001|agreement comparison]]
-prefers invariant-aware account-local certification for richer concurrency.
-[[byzantine-resource-literature]] compares compatible sets with conservative
-validator signing budgets.
-Ordinary BGLA over proposal evidence does not enforce the numeric bounds.
-The current owner-chain verifier still rejects compatible same-account siblings;
-shared-account agreement needs a new history interpretation and a joint-budget model.
-Fixed-slot certification remains a sequential baseline. Neither profile has a runtime.
+Add this option to select the Rust certificate runtime:
 
-[[SPEC-021-validator-budget-model]] adds an executable lifecycle model and Lean
-signing-capacity/finality proofs. These do not change the runtime guarantees above
-or prove the full asynchronous certification lifecycle. See [[validator-budget-model]]
-for evidence and remaining assumptions.
+```lisp
+(certification quorum-budget)
+```
 
-The candidate validator-budget model's asynchronous safety is now refuted by
-[[SPEC-021-validator-budget-model#BUG-2100]]. Its partial renewal rule can finalize
-more rights than exist. This finding does not change the implemented host-gated
-escrow primitive; it blocks promotion of the proposed certification profile.
+The host supplies an authenticated, pinned validator roster when binding the
+instance. A static roster can instead be part of the dialect:
 
-[[SPEC-022-sealed-budget-checkpoints]] tests a conservative repair that seals old
-signing journals and carries possible late certificates as obligations.
-[[SPEC-023-abortable-budget-handoff]] adds a separate prepare/activation and recovery
-handoff experiment. Its abstract consensus service can supersede split prepare
-votes while preserving potentially activated successors. Neither experiment enables
-a runtime certification profile or reclaims abandoned reservations. See
-[[abortable-handoff-prototype]] for checks and proof boundaries.
+```lisp
+(certification quorum-budget
+  (validators @v0 @v1 @v2 @v3)
+  (faults 1))
+```
 
-The selected consensus-free model is [[SPEC-025-consensus-free-refinement]]. It
-retains independent signing budgets and derives cross-epoch resource safety and
-funded asynchronous refinement. Cancellation-backed local release and cumulative
-checkpoint refunds preserve safety against late certificates. It uses no consensus
-service or global reservation ledger; split votes can stall. The earlier
-[[SPEC-023-abortable-budget-handoff]] consensus fallback is historical research.
-See [[consensus-free-refinement]] for executable checks and exact proof boundaries.
+Omitting `faults` derives it from the committee size, which must equal `3f+1`.
+Certificates require `2f+1` distinct authenticated validators; safety assumes at
+most `f` Byzantine validators. Omitting the entire certification option preserves
+the existing host-gated semantics. Explicit quorum mode never falls back to that gate.
+Compiler evidence and committee configuration are bound into signed identities.
+
+```text
+business fields -> runtime.intend(instance, owner, verb, fields, nonce)
+                                  |
+                         complete unsigned act
+                                  |
+                         external owner signer
+                                  |
+                         authenticate + register
+                                  |
+                 durable independent operation votes
+                                  |
+                         operation certificate
+                                  |
+                   durable effects votes -> effects certificate
+                                                    |
+                                           known-final balance view
+```
+
+Transaction signing and validator signing remain separate host layers. The core
+returns domain-separated `SigningRequest` bytes; it stores no private keys.
+An operation certificate reserves capacity but does not make the transfer final.
+Only a verified effects certificate contributes to the runtime balance.
+
+Each validator has its own scaled signing budget per account epoch. The guard is
+`quorum * signed_cost <= (f+1) * epoch_allocation`, independently for rights and
+headroom. It does not consult a shared available-balance ledger. This conservative
+rule can reject a payment even when the displayed balance covers it. In particular,
+one transaction cannot necessarily spend the entire balance. A checkpoint can
+refresh residual capacity while carrying every potentially late old certificate.
+This construction proves safety; contention can stall indefinitely.
+
+An owner's signed cancellation request allows validators that have not signed
+effects to fence the operation. A cancellation quorum permits local release and
+checkpoint refunds. Released signatures remain in sealed reports. Timeouts never
+unlock a reservation. A checkpoint requires a seal quorum, full report inclusion,
+exact cumulative accounting, and a successor quorum. An honest validator signs one
+successor per parent. Conflicting proposals can stall; no consensus fallback resets
+that choice.
+
+`Replica::finalized_view()` reports `status: finalized-view`, verified known-final
+IDs, pending operation IDs, rights, optional headroom, and total value. Its
+`completeness: unknown` label means other finalized transactions may exist. Its
+evidence digest identifies the local final set; it is not a quorum-signed latest
+balance snapshot. `Replica::fold_instance()` overlays this view on the ordinary
+state fold. Plain stateless fold/authoring bindings reject quorum counters without
+an explicit runtime and certificate evidence.
+
+The Rust API and host contracts are documented in
+[the quorum runtime reference](../reference/quorum-runtime.md). The executable
+worked trace is `crates/cbcl-parser/tests/quorum_runtime.rs`.
+[[SPEC-026-rust-quorum-certification]] defines this runtime;
+[[SPEC-025-consensus-free-refinement]] supplies its consensus-free safety model.
+Rust/model correspondence has executable tests and independent review; it is not
+formal extraction. The earlier [[SPEC-023-abortable-budget-handoff]] consensus
+fallback is historical research.

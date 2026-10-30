@@ -173,6 +173,7 @@ dependencies = [
  "criterion",
  "proptest",
  "serde_json",
+ "sha2",
  "tracing",
 ]
 

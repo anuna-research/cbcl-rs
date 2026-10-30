@@ -277,6 +277,7 @@ fn parse_counter(args: &[SExpr]) -> Result<cbcl_core::escrow::CounterRule, Strin
         if ![
             "floor",
             "ceiling",
+            "certification",
             "initial-rights",
             "initial-headroom",
             "issuers",
@@ -353,6 +354,10 @@ fn parse_counter(args: &[SExpr]) -> Result<cbcl_core::escrow::CounterRule, Strin
         return Err(String::from("headroom transfer requires ceiling"));
     }
     Ok(CounterRule {
+        certification: match options.get("certification") {
+            Some(xs) => parse_certification(xs)?,
+            None => cbcl_core::certification::Certification::default(),
+        },
         floor: integer("floor")?,
         ceiling,
         initial_verb,
@@ -367,6 +372,62 @@ fn parse_counter(args: &[SExpr]) -> Result<cbcl_core::escrow::CounterRule, Strin
         transfer: triple("transfer")?,
         transfer_headroom,
     })
+}
+
+fn parse_certification(args: &[SExpr]) -> Result<cbcl_core::certification::Certification, String> {
+    use cbcl_core::certification::Certification;
+    let Some(mode) = args.first() else {
+        return Err("certification requires a profile".into());
+    };
+    match symbol(mode, "certification profile")?.as_str() {
+        "host-gate" if args.len() == 1 => Ok(Certification::HostGate),
+        "quorum-budget" => {
+            let mut validators = None;
+            let mut faults = None;
+            let mut seen = alloc::collections::BTreeSet::new();
+            for option in &args[1..] {
+                let SExpr::List(xs) = option else {
+                    return Err("certification option must be a list".into());
+                };
+                let Some(head) = xs.first() else {
+                    return Err("empty certification option".into());
+                };
+                let name = symbol(head, "certification option")?;
+                if !seen.insert(name.clone()) {
+                    return Err(alloc::format!("duplicate certification option '{name}'"));
+                }
+                match name.as_str() {
+                    "validators" => {
+                        if xs.len() < 2 {
+                            return Err("validators requires at least one key".into());
+                        }
+                        validators = Some(
+                            xs[1..]
+                                .iter()
+                                .map(|x| symbol(x, "validator key"))
+                                .collect::<Result<Vec<_>, _>>()?,
+                        );
+                    }
+                    "faults" if xs.len() == 2 => match xs[1] {
+                        SExpr::Atom(Atom::Num(n)) => {
+                            faults = Some(
+                                u32::try_from(n)
+                                    .map_err(|_| "faults must be a nonnegative 32-bit integer")?,
+                            )
+                        }
+                        _ => return Err("faults requires an integer".into()),
+                    },
+                    _ => {
+                        return Err(alloc::format!(
+                            "unknown or malformed certification option '{name}'"
+                        ))
+                    }
+                }
+            }
+            Certification::quorum_budget(validators, faults)
+        }
+        _ => Err("unknown or malformed certification profile".into()),
+    }
 }
 
 #[cfg(test)]

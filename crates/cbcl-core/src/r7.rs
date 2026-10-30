@@ -128,6 +128,35 @@ pub fn insert_replaces(d: &mut Dialect) {
             }
         }
     }
+    let quorum_verbs: Vec<String> = clause
+        .fields()
+        .filter_map(|(_, r)| match r {
+            Rule::BoundedCounter(c) if c.certification.is_quorum() => Some(
+                c.operation_verbs()
+                    .into_iter()
+                    .map(String::from)
+                    .collect::<Vec<_>>(),
+            ),
+            _ => None,
+        })
+        .flatten()
+        .collect();
+    for verb in quorum_verbs {
+        let rule = ShapeRule::Require {
+            keyword: crate::escrow::NONCE.into(),
+            type_constraint: Some(TypeConstraint::String),
+            children: Vec::new(),
+        };
+        if field_type(&d.shapes, &verb, crate::escrow::NONCE).is_none() {
+            match d.shapes.iter_mut().find(|s| s.performative == verb) {
+                Some(s) => s.rules.push(rule),
+                None => d.shapes.push(ShapeConstraint {
+                    performative: verb,
+                    rules: alloc::vec![rule],
+                }),
+            }
+        }
+    }
     for verb in verbs {
         if shape_has_replaces(&d.shapes, &verb) {
             continue;
@@ -615,7 +644,16 @@ pub fn verify_state_shape(d: &Dialect, msg: &Message) -> Result<(), ShapeViolati
         }
     }
 
-    if crate::escrow::rule_for(d, &verb).is_some() {
+    if let Some((_, counter)) = crate::escrow::rule_for(d, &verb) {
+        if counter.certification.is_quorum()
+            && !matches!(fields.get(crate::escrow::NONCE),Some(SExpr::Atom(Atom::Str(s))) if !s.is_empty() && s.len()<=256)
+        {
+            return Err(violation(
+                "escrow",
+                Some(crate::escrow::NONCE),
+                "missing or invalid transaction nonce".into(),
+            ));
+        }
         let prev = match fields.get(crate::escrow::PREV) {
             Some(SExpr::Atom(Atom::Symbol(s))) if is_address(s) => s,
             _ => {

@@ -43,6 +43,7 @@ const ROUTING: &[&str] = &[
     "signing-key",
     "escrow-prev",
     "escrow-deps",
+    "escrow-nonce",
 ];
 const RESERVED_NAMES: &[&str] = &["begin", "constructor", "prototype", "__proto__"];
 const RESOURCE_KEYS: &[(&str, &str, u64)] = &[
@@ -128,6 +129,40 @@ fn handle(s: &str) -> bool {
         && s[1..]
             .chars()
             .all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '.' | '-'))
+}
+
+// Recognize the bounded option AST before handing it to the shared rule parser.
+// JSON grammar: option := [symbol, atom-or-list*], list nesting <= 3;
+// atom := i64 | identifier | keyword | handle. Semantic option names/arity are
+// recognized by state_parser::parse_rule, exactly as in textual dialects.
+fn counter_option(value: &Json, depth: usize) -> Result<cbcl_core::sexpr::SExpr, String> {
+    use cbcl_core::sexpr::{Atom, SExpr};
+    if depth > 3 {
+        return err("counter option nesting exceeds three lists");
+    }
+    if let Some(xs) = value.as_array() {
+        return Ok(SExpr::List(
+            xs.iter()
+                .map(|x| counter_option(x, depth + 1))
+                .collect::<Result<Vec<_>, _>>()?,
+        ));
+    }
+    if let Some(n) = value.as_i64() {
+        return Ok(SExpr::Atom(Atom::Num(n)));
+    }
+    if let Some(s) = value.as_str() {
+        if let Some(key) = s.strip_prefix(':') {
+            if !identifier(key) {
+                return err("invalid counter keyword");
+            }
+            return Ok(SExpr::Atom(Atom::Keyword(key.into())));
+        }
+        if !identifier(s) && !handle(s) {
+            return err("invalid counter symbol");
+        }
+        return Ok(SExpr::Atom(Atom::Symbol(s.into())));
+    }
+    err("counter options contain only lists, symbols, keywords and integers")
 }
 
 fn record<'a>(
@@ -373,36 +408,10 @@ fn recognize(json: &Json) -> Result<Contract<'_>, String> {
                 cbcl_core::sexpr::Atom::Symbol("bounded-counter".into())
             )];
             for option in options {
-                let xs = option
-                    .as_array()
-                    .ok_or("contract: boundedCounter option must be an array")?;
-                let mut form = Vec::new();
-                for x in xs {
-                    use cbcl_core::sexpr::{Atom, SExpr};
-                    if matches!(x,Json::Array(xs) if xs.is_empty()) {
-                        form.push(SExpr::List(Vec::new()));
-                        continue;
-                    }
-                    let atom = if let Some(n) = x.as_i64() {
-                        Atom::Num(n)
-                    } else if let Some(s) = x.as_str() {
-                        if let Some(key) = s.strip_prefix(':') {
-                            if !identifier(key) {
-                                return err("invalid counter keyword");
-                            }
-                            Atom::Keyword(key.into())
-                        } else {
-                            if !identifier(s) {
-                                return err("invalid counter symbol");
-                            }
-                            Atom::Symbol(s.into())
-                        }
-                    } else {
-                        return err("counter options contain only symbols, keywords and integers");
-                    };
-                    form.push(SExpr::Atom(atom));
+                if !option.is_array() {
+                    return err("boundedCounter option must be an array");
                 }
-                forms.push(cbcl_core::sexpr::SExpr::List(form));
+                forms.push(counter_option(option, 1)?);
             }
             let rule = crate::state_parser::parse_rule(&cbcl_core::sexpr::SExpr::List(forms))?;
             if let cbcl_core::state::Rule::BoundedCounter(c) = rule {

@@ -1,0 +1,94 @@
+{
+  "scope": "implemented Rust library; host crypto/admission/durable journals/networking remain integrations",
+  "runtime_tests": {
+    "command": "cargo test -p cbcl-parser --test quorum_runtime --quiet",
+    "pass": true,
+    "log": "outputs/rust-quorum-runtime-tests.log"
+  },
+  "workspace": {
+    "command": "cargo test --workspace --all-features --quiet",
+    "pass": true,
+    "log": "outputs/rust-quorum-workspace-tests.log"
+  },
+  "no_std": {
+    "pass": true,
+    "log": "outputs/rust-quorum-no-std.log"
+  },
+  "mutations": [
+    {
+      "name": "baseline",
+      "exit_code": 0,
+      "accepted": true,
+      "log": "rust-quorum-mutation-baseline.log"
+    },
+    {
+      "name": "quorum",
+      "exit_code": 101,
+      "accepted": true,
+      "log": "rust-quorum-mutation-quorum.log"
+    },
+    {
+      "name": "budget",
+      "exit_code": 101,
+      "accepted": true,
+      "log": "rust-quorum-mutation-budget.log"
+    },
+    {
+      "name": "fence",
+      "exit_code": 101,
+      "accepted": true,
+      "log": "rust-quorum-mutation-fence.log"
+    },
+    {
+      "name": "seal",
+      "exit_code": 101,
+      "accepted": true,
+      "log": "rust-quorum-mutation-seal.log"
+    },
+    {
+      "name": "successor",
+      "exit_code": 101,
+      "accepted": true,
+      "log": "rust-quorum-mutation-successor.log"
+    },
+    {
+      "name": "release",
+      "exit_code": 101,
+      "accepted": true,
+      "log": "rust-quorum-mutation-release.log"
+    },
+    {
+      "name": "coverage",
+      "exit_code": 101,
+      "accepted": true,
+      "log": "rust-quorum-mutation-coverage.log"
+    },
+    {
+      "name": "durability",
+      "exit_code": 101,
+      "accepted": true,
+      "log": "rust-quorum-mutation-durability.log"
+    }
+  ],
+  "source_sha256": {
+    "crates/cbcl-core/src/certification.rs": "6c2acefa1adec270b860006d866132edc6c7c2ed02a8199e768eb9e65218c546",
+    "crates/cbcl-core/src/quorum/context.rs": "f207aa52a99eb78459849f0daba1266b061620907abd1fd136f9ebf10833a45a",
+    "crates/cbcl-core/src/quorum/engine.rs": "e0ac99828f41ff52f62a817d09127ac6835f45f3365b90aa9a1b2a6a4c3ec5c7",
+    "crates/cbcl-core/src/quorum/mod.rs": "eefb0f5cf6f9323c5897d895fe6c49e4843026cc594b9ee79261ba008b51510b",
+    "crates/cbcl-core/src/quorum/types.rs": "f669adab457321059462df2dec606bbeeaab63be141fbb897bbfb7839c0c70e4",
+    "crates/cbcl-parser/tests/quorum_runtime.rs": "4c14adbb67c7e0996b7d00fe42a31cf5633c7979c1133812298b0839d5dd1920",
+    "specs/SPEC-026-rust-quorum-certification.md": "b51ef01af07e3f7a3522b52e2fb4925d180a848552a64714155576cea9a0305d",
+    "crates/cbcl-core/src/escrow.rs": "248886bfb819730bd1521578be250c65f5266605afe500f674b8a5e99381a173",
+    "crates/cbcl-core/src/intend.rs": "f35f1937b1c21109cb5ff4286d69fd8ba40c1447531b34ec41547f5c0986134b",
+    "crates/cbcl-core/src/lib.rs": "a6b55428f5c4430031f7fbf8e5e93f14b9fc5117058d374c7b9d1315982e3000",
+    "crates/cbcl-core/src/r7.rs": "13cb8851cd39439c045791675330f7b799f1c7b3f44bcf7320613924834e704d",
+    "crates/cbcl-core/src/state.rs": "02b2c55ec9300ba6865e4804d3ae950beb9c28f7bb4936e2b783c98105f34509",
+    "crates/cbcl-parser/src/contract.rs": "ee285b2ea1f25485c93ae8ccdf97fc303965c202e215d2c1ee1a7d028756a7bc",
+    "crates/cbcl-parser/src/dialect_parser.rs": "d9968145714b3773b4b844115fb7e8c1df9cce33524728c950f924e2dea35a4d",
+    "crates/cbcl-parser/src/state_parser.rs": "547f388d7ae4c63355d1c541dca4d59cccbbe6e00a610ad97705fa6a6bbf7b9f"
+  },
+  "independent_review": "outputs/rust-quorum-security-review.md",
+  "orientation_review": "outputs/rust-quorum-orientation-review.md",
+  "production_human_review": "not performed; no deployment",
+  "formal_rust_lean_correspondence": "not proved"
+}

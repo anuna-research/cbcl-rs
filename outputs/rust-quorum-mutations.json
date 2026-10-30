@@ -1,0 +1,56 @@
+[
+  {
+    "name": "baseline",
+    "exit_code": 0,
+    "accepted": true,
+    "log": "rust-quorum-mutation-baseline.log"
+  },
+  {
+    "name": "quorum",
+    "exit_code": 101,
+    "accepted": true,
+    "log": "rust-quorum-mutation-quorum.log"
+  },
+  {
+    "name": "budget",
+    "exit_code": 101,
+    "accepted": true,
+    "log": "rust-quorum-mutation-budget.log"
+  },
+  {
+    "name": "fence",
+    "exit_code": 101,
+    "accepted": true,
+    "log": "rust-quorum-mutation-fence.log"
+  },
+  {
+    "name": "seal",
+    "exit_code": 101,
+    "accepted": true,
+    "log": "rust-quorum-mutation-seal.log"
+  },
+  {
+    "name": "successor",
+    "exit_code": 101,
+    "accepted": true,
+    "log": "rust-quorum-mutation-successor.log"
+  },
+  {
+    "name": "release",
+    "exit_code": 101,
+    "accepted": true,
+    "log": "rust-quorum-mutation-release.log"
+  },
+  {
+    "name": "coverage",
+    "exit_code": 101,
+    "accepted": true,
+    "log": "rust-quorum-mutation-coverage.log"
+  },
+  {
+    "name": "durability",
+    "exit_code": 101,
+    "accepted": true,
+    "log": "rust-quorum-mutation-durability.log"
+  }
+]

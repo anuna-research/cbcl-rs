@@ -1,0 +1,9 @@
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Checking cbcl-core v0.1.0 (/private/tmp/cbcl-bounded-counter/crates/cbcl-core)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.95s
+    Blocking waiting for file lock on build directory
+    Checking cbcl-core v0.1.0 (/private/tmp/cbcl-bounded-counter/crates/cbcl-core)
+    Checking cbcl-parser v0.1.0 (/private/tmp/cbcl-bounded-counter/crates/cbcl-parser)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 10.71s

@@ -357,6 +357,7 @@ pub fn opener_verb(protocol: &CausalProtocol) -> Option<&str> {
 /// included, so a store can be rebuilt from acts for the binder's
 /// verification step and the cast can be read from the root wrapper.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Act {
     /// `message_content_hash` of the innermost simple message.
     pub address: String,

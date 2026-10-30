@@ -80,12 +80,15 @@ Named after McCarthy's 1982 proposal for a "Common Business Communication Langua
 
 Full theoretical framework and proofs are in the LangSec '26 paper, available as a preprint: [arXiv:2604.14512](https://arxiv.org/abs/2604.14512). The original prototype is the [Scheme implementation](https://github.com/anuna-research/cbcl).
 
-The state-rules branch also supports escrow bounded counters: a floor, optional
-ceiling with per-account headroom, transfers, tagged resource verdicts, and a
-required host issuance gate. See [bounded counters](docs/concepts/bounded-counter.md)
-and the [coin dialect](dialects/example-coin.cbcl). Resource authorization remains
-separate from protocol admission; host authentication and durable account
-serialization are explicit premises.
+The state-rules branch supports escrow bounded counters with an optional ceiling
+and per-account headroom. The default profile uses a host issuance gate;
+`(certification quorum-budget)` selects the consensus-free Rust validator runtime,
+with authenticated quorums, durable local journals and cancellation-backed refunds.
+See [bounded counters](docs/concepts/bounded-counter.md), the
+[quorum runtime API](docs/reference/quorum-runtime.md), and the
+[coin dialect](dialects/example-coin.cbcl). Signing, authentication and durable
+storage remain host layers. Quorum balance queries expose known-final local views,
+with completeness explicitly unknown.
 
 A separate [abortable handoff experiment](outputs/abortable-handoff-prototype.md)
 models recovery from split checkpoint votes while preserving delayed certificates.

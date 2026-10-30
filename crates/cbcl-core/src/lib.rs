@@ -49,6 +49,7 @@ pub mod attest;
 pub mod blame;
 pub mod canonical;
 mod causal_kernel;
+pub mod certification;
 pub mod clock;
 pub mod dialect;
 pub mod envelope;
@@ -124,3 +125,6 @@ pub mod prelude {
         MergeResult, MessageStore, ThreadId, ThreadedMessageStore,
     };
 }
+
+/// Consensus-free quorum-budget runtime.
+pub mod quorum;
