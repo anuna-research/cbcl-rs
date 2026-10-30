@@ -125,3 +125,8 @@ Ordinary BGLA over proposal evidence does not enforce the numeric bounds.
 The current owner-chain verifier still rejects compatible same-account siblings;
 shared-account agreement needs a new history interpretation and a joint-budget model.
 Fixed-slot certification remains a sequential baseline. Neither profile has a runtime.
+
+[[SPEC-021-validator-budget-model]] adds an executable lifecycle model and Lean
+signing-capacity/finality proofs. These do not change the runtime guarantees above
+or prove the full asynchronous certification lifecycle. See [[validator-budget-model]]
+for evidence and remaining assumptions.

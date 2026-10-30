@@ -1,7 +1,7 @@
 ---
 id: SPEC-020
 title: Resource Agreement — Certification and Compatible Sets
-version: 0.3.0
+version: 0.3.1
 status: design-recommendation
 last-updated: 2026-10-30
 ---
@@ -289,6 +289,10 @@ Either source protocol's safety argument needs an extension to two coupled budge
 before it justifies mint, burn or headroom transfer. Record usable capacity, stalls,
 resynchronization work and certificate requirements alongside safety outcomes.
 
+The selected validator-budget model is recorded in
+[[SPEC-021-validator-budget-model]]. It supplies executable lifecycle evidence and
+a Lean safety core, not completion of this broader comparison/refinement gate.
+
 ## TEST-2007: Additional literature evidence (core)
 
 Trace: [[SPEC-020-resource-certification#ADR-2002]].
@@ -475,6 +479,8 @@ require separate specifications. No deployable trustless service is claimed.
 
 ## Changelog
 
+- 0.3.1 (2026-10-30): link the executable validator-budget model and Lean
+  safety core, retaining the asynchronous refinement gate.
 - 0.3.0 (2026-10-30): add Stingray, invariant-confluence and BEC literature;
   compare compatible sets with conservative validator signing budgets; require
   owner-independent next-epoch notarization in the model. No runtime change.

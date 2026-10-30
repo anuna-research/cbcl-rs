@@ -1,0 +1,16 @@
+test_no_commit_recovery_and_late_certificate (test_model.ModelTests) ... FAIL
+
+======================================================================
+FAIL: test_no_commit_recovery_and_late_certificate (test_model.ModelTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/cbcl-bounded-counter/proofs/validator-budget/test_model.py", line 289, in test_no_commit_recovery_and_late_certificate
+    self.unchanged_rejection(m, lambda v=v: m.receive(v, tx))
+  File "/private/tmp/cbcl-bounded-counter/proofs/validator-budget/test_model.py", line 44, in unchanged_rejection
+    action()
+AssertionError: Rejected not raised
+
+----------------------------------------------------------------------
+Ran 1 test in 0.001s
+
+FAILED (failures=1)

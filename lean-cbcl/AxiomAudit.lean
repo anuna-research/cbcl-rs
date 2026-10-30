@@ -1,3 +1,4 @@
+import LeanCbcl.ValidatorBudget
 import LeanCbcl.Lattice.Result
 import LeanCbcl.Lattice.Store
 import LeanCbcl.Verify
@@ -292,3 +293,18 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.InstalledSyntax.Raw.monitored_dcfl_preserved_many
 #print axioms CBCL.InstalledSyntax.Raw.monitored_accepted_installations_dcfl
 #print axioms CBCL.InstalledSyntax.Raw.monitored_check_correct
+
+-- SPEC-021: validator signing-capacity and finality core; no lifecycle refinement claim.
+#print axioms CBCL.ValidatorBudget.quorum_coverage
+#print axioms CBCL.ValidatorBudget.certified_consumption_bound
+#print axioms CBCL.ValidatorBudget.both_consumption_bounds
+#print axioms CBCL.ValidatorBudget.fixed_checkpoint_bounds
+#print axioms CBCL.ValidatorBudget.certified_batch_bounds
+#print axioms CBCL.ValidatorBudget.reserve_nonnegative
+#print axioms CBCL.ValidatorBudget.reservation_replay
+#print axioms CBCL.ValidatorBudget.reconciliation_preserves_exposure
+#print axioms CBCL.ValidatorBudget.finality_excludes_no_commit
+#print axioms CBCL.ValidatorBudget.execute_preserves_discipline
+#print axioms CBCL.ValidatorBudget.fence_preserves_discipline
+#print axioms CBCL.ValidatorBudget.receipt_monotone
+#print axioms CBCL.ValidatorBudget.receipt_replay

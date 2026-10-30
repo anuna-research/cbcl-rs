@@ -1,0 +1,63 @@
+{
+  "behavioral_mutations_killed": {
+    "charge-replay": {
+      "behavioral_assertion_failed": true,
+      "exit_code": 1,
+      "test": "test_signing_replay_and_restart"
+    },
+    "early-finality": {
+      "behavioral_assertion_failed": true,
+      "exit_code": 1,
+      "test": "test_finality_is_not_certification_or_local_execution"
+    },
+    "forget-omitted": {
+      "behavioral_assertion_failed": true,
+      "exit_code": 1,
+      "test": "test_version_omitted_signatures_remain_charged"
+    },
+    "ignore-fence": {
+      "behavioral_assertion_failed": true,
+      "exit_code": 1,
+      "test": "test_no_commit_recovery_and_late_certificate"
+    }
+  },
+  "lean_mutation": {
+    "change": "allow each honest witness the full resource budget",
+    "exit_code": 1,
+    "proof_rejected": true
+  },
+  "lifecycle": {
+    "assumptions": [
+      "symbolic authenticated identities",
+      "fixed roster and fault set",
+      "persistent vote/effect/fence records",
+      "unique abstract recovery consensus"
+    ],
+    "cases": [
+      "test_authentication_context_and_atomic_guard",
+      "test_certificate_distinct_members_and_actual_votes",
+      "test_concurrent_certification_and_delivery_orders",
+      "test_exhaustive_fence_effect_partitions",
+      "test_exhaustive_small_signing_assignments_on_actual_transitions",
+      "test_finality_is_not_certification_or_local_execution",
+      "test_finalized_receipt_prevents_no_commit_quorum",
+      "test_genesis_exact_integers_and_canonical_identity_slots",
+      "test_no_commit_recovery_and_late_certificate",
+      "test_only_finalized_funding_and_pending_buffer_bypass",
+      "test_other_fault_bounds_and_honest_committee",
+      "test_reconciliation_preserves_negative_exposure_without_clipping",
+      "test_signing_replay_and_restart",
+      "test_split_quorums_and_withholding_budget",
+      "test_uncapped_and_fixed_supply",
+      "test_version_merge_and_credit_replay",
+      "test_version_omitted_signatures_remain_charged",
+      "test_worked_dual_budget_operations",
+      "test_zero_width_ceiling_cannot_speculatively_net"
+    ],
+    "errors": 0,
+    "failures": 0,
+    "scope": "symbolic reference lifecycle; selected finite schedules; no asynchronous refinement proof",
+    "tests_run": 19
+  },
+  "scope": "reference model tests and deliberate unsafe mutations; no distributed refinement proof"
+}
