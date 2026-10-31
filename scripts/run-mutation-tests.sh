@@ -45,9 +45,12 @@ for f in "${CRITICAL_FILES[@]}"; do
     FILE_FLAGS+=(--file "$f")
 done
 
-EXTRA_ARGS=()
+# Positional arguments safely represent an empty optional list on Bash 3.2 too.
+# An empty array expansion under `set -u` fails on the macOS system Bash.
 if [[ "${1:-}" == "--list" ]]; then
-    EXTRA_ARGS+=(--list)
+    set -- --list
+else
+    set --
 fi
 
 # ---------- run cargo-mutants ----------
@@ -68,7 +71,7 @@ cargo mutants \
     --package cbcl-core \
     --package cbcl-parser \
     "${FILE_FLAGS[@]}" \
-    "${EXTRA_ARGS[@]}" || MUTATION_STATUS=$?
+    "$@" || MUTATION_STATUS=$?
 
 # If we only listed mutants, exit early.
 if [[ "${1:-}" == "--list" ]]; then
