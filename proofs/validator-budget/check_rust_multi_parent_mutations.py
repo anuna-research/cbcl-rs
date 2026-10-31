@@ -28,6 +28,12 @@ budget_start=engine.index('        if used.rights.checked_mul(q)')
 budget_end=engine.index('            return Err("local validator budget exceeded"',budget_start)
 budget_guard=engine[budget_start:budget_end]
 cases=[('control',ENGINE,'',''),
+       ('cache-sign',ENGINE,
+        'self.state.signed.insert(id);\n                self.state.charges.insert(epoch, charge);',
+        'self.state.signed.insert(id);\n                self.state.charges.entry(epoch).or_default();'),
+       ('cache-release',ENGINE,
+        'self.state.released.insert(id);\n                self.state.charges.insert(epoch, charge);',
+        'self.state.released.insert(id);\n                let _ = (epoch,charge);'),
        ('parent-scope',ENGINE,'parent.account != m.account','false'),
        ('held-scope',ENGINE,'if op.account != m.account','if false'),
        ('scope-history',ENGINE,'self.op(signed)?.account == m.account && !m.held.contains(signed)',
@@ -41,7 +47,7 @@ cases=[('control',ENGINE,'',''),
        ('domain',CONTEXT,'text("cbcl/quorum-context/multi-parent/v1")',
         'text("cbcl/quorum-context/v1")'),
        ('durability',ENGINE,'        if self.sequence >= self.limits.events {',
-        '        if matches!(event, Event::AdoptVersion(_)) { return Ok(()); }\n        if self.sequence >= self.limits.events {')]
+        '        if matches!(event, Event::AdoptVersion(_)) { self.apply_update(update); return Ok(()); }\n        if self.sequence >= self.limits.events {')]
 results=[]
 archive=subprocess.run(['git','archive','HEAD'],cwd=ROOT,check=True,capture_output=True).stdout
 with tempfile.TemporaryDirectory(prefix='cbcl-rust-dag-mutations-') as temp:
@@ -58,7 +64,8 @@ with tempfile.TemporaryDirectory(prefix='cbcl-rust-dag-mutations-') as temp:
             if original[file].count(before)!=1: raise SystemExit(f'{name}: ambiguous mutation marker')
             (checkout/file).write_text(original[file].replace(before,after,1))
         env=dict(os.environ,CARGO_TARGET_DIR=str(base/f'target-{name}'),CARGO_BUILD_JOBS='4',
-                 CARGO_PROFILE_TEST_DEBUG='0',CARGO_INCREMENTAL='0')
+                 CARGO_PROFILE_TEST_DEBUG='0',CARGO_INCREMENTAL='0',
+                 CARGO_PROFILE_TEST_DEBUG_ASSERTIONS='false' if name.startswith('cache-') else 'true')
         run=subprocess.run(['cargo','test','-p','cbcl-parser','--test','quorum_runtime','multi_parent','--','--nocapture'],
                            cwd=checkout,env=env,capture_output=True,text=True,timeout=300)
         output=run.stdout+run.stderr
@@ -67,7 +74,7 @@ with tempfile.TemporaryDirectory(prefix='cbcl-rust-dag-mutations-') as temp:
         if not passed:
             print(output,file=__import__('sys').stderr)
         results.append({'mutation':name,'exit_code':run.returncode,'actual_assertion_failure':test_failure,
-                        'expected_result':passed,'output_sha256':hashlib.sha256(output.encode()).hexdigest(),
+                        'expected_result':passed,'debug_assertions':not name.startswith('cache-'),'output_sha256':hashlib.sha256(output.encode()).hexdigest(),
                         'test_results':[line for line in output.splitlines() if line.startswith('test result:')]})
         print(f'{name}: {"expected" if passed else "UNEXPECTED"}',file=__import__('sys').stderr,flush=True)
         shutil.rmtree(base/f'target-{name}')

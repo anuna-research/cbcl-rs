@@ -9,12 +9,13 @@ use crate::{
     state::{Act, Value},
 };
 use alloc::{
+    borrow::Cow,
     collections::{BTreeMap, BTreeSet},
     string::{String, ToString},
     vec::Vec,
 };
 
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Default)]
 struct State {
     operations: BTreeMap<String, Operation>,
     certificates: BTreeMap<(VoteKind, String), Certificate>,
@@ -25,6 +26,31 @@ struct State {
     fences: BTreeSet<String>,
     released: BTreeSet<String>,
     active: BTreeMap<String, String>,
+    // Derived from immutable signed/released history; never loaded from a snapshot.
+    charges: BTreeMap<String, Resources>,
+}
+/// Owned, already-validated changes. No protocol checks may fail during application.
+/// This is transient preparation, never serialized or accepted as journal input.
+enum Update {
+    Candidate(String, Operation),
+    Certificate((VoteKind, String), Certificate),
+    Version(String, DagVersion),
+    Adopt {
+        account: String,
+        id: String,
+    },
+    Sign {
+        id: String,
+        epoch: String,
+        charge: Resources,
+    },
+    Effect(String),
+    Fence(String),
+    Release {
+        id: String,
+        epoch: String,
+        charge: Resources,
+    },
 }
 /// One validator's independent state machine. Each mutation is journaled before
 /// exposing a decision to the signer. There is no shared reservation authority.
@@ -125,27 +151,21 @@ impl Replica {
         journal: &mut J,
         auth: &A,
     ) -> Result<()> {
-        let old = self.state.clone();
-        if let Err(e) = self.apply(&event, auth) {
-            self.state = old;
-            return Err(e);
-        }
-        if self.state == old {
+        let Some(update) = self.prepare(&event, auth)? else {
             return Ok(());
-        }
+        };
         if self.sequence >= self.limits.events {
-            self.state = old;
             return Err("journal limit reached; evidence retained".into());
         }
-        if let Err(e) = journal.append(
+        // All fallible protocol validation is complete. Failure/CAS rejection
+        // leaves state (including derived charges) untouched; no vote is exposed.
+        journal.append(
             &self.context.id,
             &self.validator,
             Some(self.sequence),
             &event,
-        ) {
-            self.state = old;
-            return Err(e);
-        }
+        )?;
+        self.apply_update(update);
         self.sequence += 1;
         Ok(())
     }
@@ -158,14 +178,14 @@ impl Replica {
     fn has(&self, kind: VoteKind, id: &str) -> bool {
         self.state.certificates.contains_key(&(kind, id.into()))
     }
-    fn epoch(&self, id: &str) -> Result<VersionManifest> {
+    fn epoch(&self, id: &str) -> Result<Cow<'_, VersionManifest>> {
         if let Some(v) = self.state.versions.get(id) {
-            return Ok(v.manifest.clone());
+            return Ok(Cow::Borrowed(&v.manifest));
         }
 
         for (a, b) in &self.context.initial {
             if self.context.root_epoch(a)? == id {
-                return Ok(VersionManifest {
+                return Ok(Cow::Owned(VersionManifest {
                     account: a.clone(),
                     parents: BTreeSet::new(),
                     rank: 0,
@@ -173,7 +193,7 @@ impl Replica {
                     refunded: BTreeSet::new(),
                     credited: BTreeSet::new(),
                     allocation: *b,
-                });
+                }));
             }
         }
         Err(alloc::format!("missing certified epoch {id}"))
@@ -346,20 +366,14 @@ impl Replica {
         })
     }
     fn charge(&self, epoch: &str, extra: &str) -> Result<Resources> {
-        let mut total = Resources::default();
-        let extra = extra.to_string();
-        for id in self.state.signed.iter().chain(core::iter::once(&extra)) {
-            if self.state.released.contains(id) {
-                continue;
-            }
-            let op = self.op(id)?;
-            if op.epoch == epoch {
-                total = total.add(op.cost)?;
-            }
-        }
-        Ok(total)
+        self.state
+            .charges
+            .get(epoch)
+            .copied()
+            .unwrap_or_default()
+            .add(self.op(extra)?.cost)
     }
-    fn budget(&self, id: &str) -> Result<()> {
+    fn budget(&self, id: &str) -> Result<Resources> {
         let op = self.op(id)?;
         let epoch = self.epoch(&op.epoch)?;
         if self.state.active.get(&op.account) != Some(&op.epoch) || self.state.released.contains(id)
@@ -384,7 +398,7 @@ impl Replica {
         {
             return Err("local validator budget exceeded".into());
         }
-        Ok(())
+        Ok(used)
     }
 
     fn allocation(&self, m: &VersionManifest) -> Result<Resources> {
@@ -534,7 +548,8 @@ impl Replica {
         let mut m = VersionManifest {
             account: self
                 .epoch(parents.first().ok_or("empty parent set")?)?
-                .account,
+                .account
+                .clone(),
             parents: parents.clone(),
             rank: 0,
             held: held.clone(),
@@ -545,9 +560,9 @@ impl Replica {
         for id in parents {
             let p = self.epoch(id)?;
             m.rank = m.rank.max(p.rank);
-            m.held.extend(p.held);
-            m.refunded.extend(p.refunded);
-            m.credited.extend(p.credited);
+            m.held.extend(p.held.iter().cloned());
+            m.refunded.extend(p.refunded.iter().cloned());
+            m.credited.extend(p.credited.iter().cloned());
         }
         if m.held.len() > self.limits.operations
             || m.refunded.len() > self.limits.operations
@@ -579,25 +594,33 @@ impl Replica {
     ) -> Result<()> {
         self.commit(Event::AdoptVersion(id.into()), journal, auth)
     }
+    // Replay shares exactly the same validation/update functions as live commit.
     fn apply<A: Authentication>(&mut self, event: &Event, auth: &A) -> Result<()> {
-        match event {
+        if let Some(update) = self.prepare(event, auth)? {
+            self.apply_update(update);
+        }
+        Ok(())
+    }
+    fn prepare<A: Authentication>(&self, event: &Event, auth: &A) -> Result<Option<Update>> {
+        let update = match event {
             Event::Initialize => return Err("duplicate initialization".into()),
             Event::Version(v) => {
                 self.check_version(v, auth)?;
                 let id = v.manifest.id(&self.context.id);
-                if !self.state.versions.contains_key(&id)
-                    && self.state.versions.len() >= self.limits.versions
-                {
+                if self.state.versions.contains_key(&id) {
+                    return Ok(None);
+                }
+                if self.state.versions.len() >= self.limits.versions {
                     return Err("version limit reached; evidence retained".into());
                 }
-                self.state.versions.entry(id).or_insert_with(|| v.clone());
+                Update::Version(id, v.clone())
             }
             Event::AdoptVersion(id) => {
                 let v = self.state.versions.get(id).ok_or("unknown DAG version")?;
                 let m = &v.manifest;
                 let current = self.state.active.get(&m.account).ok_or("unknown pool")?;
                 if current == id {
-                    return Ok(());
+                    return Ok(None);
                 }
                 if !m.parents.contains(current) {
                     return Err("adoption must follow a direct active parent".into());
@@ -608,8 +631,10 @@ impl Replica {
                         return Err("DAG version omits historical signature".into());
                     }
                 }
-                self.state.active.insert(m.account.clone(), id.clone());
-                self.state.visited.insert(id.clone());
+                Update::Adopt {
+                    account: m.account.clone(),
+                    id: id.clone(),
+                }
             }
             Event::Candidate(a) => {
                 let op = self.operation(a)?;
@@ -620,12 +645,12 @@ impl Replica {
                     if *old != op {
                         return Err("conflicting act identity".into());
                     }
-                    return Ok(());
+                    return Ok(None);
                 }
                 if self.state.operations.len() >= self.limits.operations {
                     return Err("operation limit reached; evidence retained".into());
                 }
-                self.state.operations.insert(a.address.clone(), op);
+                Update::Candidate(a.address.clone(), op)
             }
             Event::Certificate(c) => {
                 if !matches!(
@@ -649,27 +674,31 @@ impl Replica {
                 if c.kind == VoteKind::Cancel && self.has(VoteKind::Effects, &c.payload) {
                     return Err("conflicting genuine cancellation and effects certificates".into());
                 }
-                self.state
-                    .certificates
-                    .entry((c.kind, c.payload.clone()))
-                    .or_insert_with(|| c.clone());
+                if self.has(c.kind, &c.payload) {
+                    return Ok(None);
+                }
+                Update::Certificate((c.kind, c.payload.clone()), c.clone())
             }
             Event::Sign(id) => {
                 if self.state.signed.contains(id) {
-                    return Ok(());
+                    return Ok(None);
                 }
-                self.budget(id)?;
-                self.state.signed.insert(id.clone());
+                let charge = self.budget(id)?;
+                Update::Sign {
+                    id: id.clone(),
+                    epoch: self.op(id)?.epoch.clone(),
+                    charge,
+                }
             }
             Event::Effect(id) => {
                 if self.state.effects.contains(id) {
-                    return Ok(());
+                    return Ok(None);
                 }
                 self.op(id)?;
                 if self.state.fences.contains(id) || !self.has(VoteKind::Operation, id) {
                     return Err("effects fenced or missing operation certificate".into());
                 }
-                self.state.effects.insert(id.clone());
+                Update::Effect(id.clone())
             }
             Event::Fence(v) => {
                 let op = self.op(&v.payload)?;
@@ -677,16 +706,93 @@ impl Replica {
                 if self.state.effects.contains(&v.payload) {
                     return Err("validator already signed effects".into());
                 }
-                self.state.fences.insert(v.payload.clone());
+                if self.state.fences.contains(&v.payload) {
+                    return Ok(None);
+                }
+                Update::Fence(v.payload.clone())
             }
             Event::Release(id) => {
                 if !self.state.signed.contains(id) || !self.has(VoteKind::Cancel, id) {
                     return Err("release requires own charge and cancellation quorum".into());
                 }
-                self.state.released.insert(id.clone());
+                if self.state.released.contains(id) {
+                    return Ok(None);
+                }
+                let op = self.op(id)?;
+                let charge = self
+                    .state
+                    .charges
+                    .get(&op.epoch)
+                    .copied()
+                    .unwrap_or_default()
+                    .sub(op.cost)?;
+                if !charge.nonnegative() {
+                    return Err("inconsistent derived charge".into());
+                }
+                Update::Release {
+                    id: id.clone(),
+                    epoch: op.epoch.clone(),
+                    charge,
+                }
+            }
+        };
+        Ok(Some(update))
+    }
+    fn apply_update(&mut self, update: Update) {
+        match update {
+            Update::Candidate(id, op) => {
+                self.state.operations.insert(id, op);
+            }
+            Update::Certificate(key, certificate) => {
+                self.state.certificates.insert(key, certificate);
+            }
+            Update::Version(id, version) => {
+                self.state.versions.insert(id, version);
+            }
+            Update::Adopt { account, id } => {
+                self.state.active.insert(account, id.clone());
+                self.state.visited.insert(id);
+            }
+            Update::Sign { id, epoch, charge } => {
+                self.state.signed.insert(id);
+                self.state.charges.insert(epoch, charge);
+            }
+            Update::Effect(id) => {
+                self.state.effects.insert(id);
+            }
+            Update::Fence(id) => {
+                self.state.fences.insert(id);
+            }
+            Update::Release { id, epoch, charge } => {
+                self.state.released.insert(id);
+                self.state.charges.insert(epoch, charge);
             }
         }
-        Ok(())
+        #[cfg(debug_assertions)]
+        self.assert_charge_cache();
+    }
+    /// Independent reference expression: the original history-based budget sum.
+    /// Kept out of optimized builds; exercised at every debug execution/replay step.
+    #[cfg(debug_assertions)]
+    fn assert_charge_cache(&self) {
+        let mut expected: BTreeMap<String, Resources> = BTreeMap::new();
+        for id in &self.state.signed {
+            let op = self
+                .state
+                .operations
+                .get(id)
+                .expect("signed candidate retained");
+            let total = expected.entry(op.epoch.clone()).or_default();
+            if !self.state.released.contains(id) {
+                *total = total
+                    .add(op.cost)
+                    .expect("reachable historical charge fits");
+            }
+        }
+        debug_assert_eq!(
+            self.state.charges, expected,
+            "derived charge differs from signed history"
+        );
     }
     pub fn register<J: Journal, A: Authentication>(
         &mut self,

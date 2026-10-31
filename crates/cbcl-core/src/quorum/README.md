@@ -20,3 +20,9 @@ See [runtime API reference](../../../../docs/reference/quorum-runtime.md) and
 against `MultiParentRustOracle.lean`. Account DAG has additional scope/transfer
 execution evidence, not a new single-pool Lean refinement claim. Universal Rust
 source equivalence remains separate work.
+
+Local transitions prepare an owned update before journal append instead of copying
+whole replica state. Per-version charge caches are reconstructed from journals;
+debug builds check them against the historical expression. Borrowed manifests
+avoid cloning large held sets during reads. See [[SPEC-032-quorum-local-update-cost]]
+and [[quorum-local-cost-evidence]] for validation and the opt-in local probe.

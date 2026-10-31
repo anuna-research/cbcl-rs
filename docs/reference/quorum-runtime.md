@@ -56,9 +56,9 @@ it never trusts a deserialized balance or counter. Events contain complete acts 
 proofs. Recovery has no clock, timeout unlock, or signing-budget reset. Signature
 verification and act admission must remain deterministic for the pinned instance.
 
-Every mutation applies to a tentative state, appends its event, and only then
-exposes a signing request. Storage/CAS failure restores the previous state and
-returns no signing request. Retrying a durable vote returns the same preimage.
+Every mutation is validated into an owned local update, then its original event
+is appended atomically before that update is applied or a signing request exposed.
+Storage/CAS failure leaves the previous state untouched and returns no request. Retrying a durable vote returns the same preimage.
 Physical durability is a host obligation, not a property of an in-memory test log.
 
 ## Transaction and certificate operations
@@ -147,7 +147,7 @@ rank. Drafting computes the smallest such label; callers can choose a larger ran
 before reauthorizing. Siblings can share rank. This is not a global transaction
 order. The version ID binds scope, context, parents, rank, sets and allocation.
 
-Versions use the same tentative apply, atomic append and guarded recovery as votes.
+Versions use the same prepared update, atomic append and guarded recovery as votes.
 Recovery recognizes only current typed events; removed legacy event/vote variants
 reject during decoding. Cached signing and same-active-version adoption retries
 stutter. Old version receipt never resets the active version.
@@ -236,3 +236,34 @@ outside the supported projection. Cryptography, physical journal durability and
 network decoding remain host assumptions. Neither unbounded fresh-ID refinement
 nor complete/latest balance reads are proved. Current evidence:
 [[unified-quorum-evidence]].
+
+## Local execution cost
+
+The runtime validates each event into a small owned update before atomic append,
+then applies that update without repeating fallible protocol checks. Rejection,
+failed append/CAS and validated retries leave in-memory state unchanged; signing
+requests remain unavailable until persistence succeeds. No full-state clone is
+needed to implement rollback.
+
+Per-version charge totals are derived from signed/released journal evidence and
+updated once on first sign/release. Adoption never resets them. Recovery rebuilds
+the cache through the same validated transitions; serialized totals are not trusted.
+Debug builds independently recompute the history sum after each applied update.
+Read-only checks borrow stored manifests rather than cloning their held sets.
+
+An ignored local probe measures four serial validators, a memory journal and test
+authentication. It includes authoring, registration, operation QCs and effects
+finality, but no network, real cryptography, fsync, version merges or adversarial
+contention. Run with native speed optimization (the workspace release default is
+size optimization):
+
+```sh
+CARGO_PROFILE_RELEASE_OPT_LEVEL=3 CARGO_PROFILE_RELEASE_LTO=false CARGO_PROFILE_RELEASE_DEBUG=0 \
+  cargo test --release -p cbcl-parser --test quorum_runtime \
+  multi_parent::in_memory_throughput_probe -- --ignored --exact --nocapture
+```
+
+There is no CI timing threshold. Measurements and validation are recorded in
+[[quorum-local-cost-evidence]] under [[SPEC-032-quorum-local-update-cost]]. They do
+not establish production TPS; networking, durable writes, real signatures and
+history retention limits remain separate costs.

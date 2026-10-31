@@ -1,0 +1,22 @@
+{
+  "runtime_tests": {
+    "passed": 44,
+    "ignored_probe": 1
+  },
+  "workspace": {
+    "exit_code": 0
+  },
+  "no_std": {
+    "exit_code": 0
+  },
+  "shared_oracle": {
+    "commands": 268,
+    "matches": true
+  },
+  "clippy": {
+    "diagnostics": [],
+    "other_diagnostics": 45,
+    "passed": true
+  },
+  "mutations_passed": true
+}

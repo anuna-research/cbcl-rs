@@ -1162,3 +1162,100 @@ fn account_branches_join_with_late_transfers_refunds_and_recovery() {
         .released
         .contains(&right.address));
 }
+
+/// A local CPU/allocation probe, not a distributed throughput benchmark.
+/// Four validators run serially with test authentication and a memory journal.
+#[test]
+#[ignore = "opt-in performance probe; no network, real crypto or durable storage"]
+fn in_memory_throughput_probe() {
+    let mut n = dag_supply(TICKETS, 1_000_000);
+    let mut completed = 0;
+    for target in [50, 100, 250, 500, 1000] {
+        let start = std::time::Instant::now();
+        let count = target - completed;
+        for i in completed..target {
+            let a = ticket(&mut n, "@alice", 1, &format!("perf-{i}"));
+            n.operation(&a);
+            n.finalize(&a);
+        }
+        let secs = start.elapsed().as_secs_f64();
+        println!(
+            "COUNTER_TPS history={completed}..{target} count={count} seconds={secs:.6} tps={:.2}",
+            count as f64 / secs
+        );
+        completed = target;
+    }
+    assert_eq!(n.rs[0].finalized_view().unwrap().value, 999_000);
+}
+
+#[test]
+fn cached_capacity_changes_only_after_durable_first_sign_and_release() {
+    let mut n = dag_source(TICKETS);
+    let a = ticket(&mut n, "@alice", 60, "cache-a");
+    let b = ticket(&mut n, "@bob", 60, "cache-b");
+    let c = ticket(&mut n, "@alice", 10, "cache-c");
+    for op in [&a, &b, &c] {
+        n.register(op);
+    }
+    let before = n.rs[0].version_snapshot(COLLECTIVE_POOL).unwrap();
+    n.j.fail = true;
+    assert!(n.rs[0]
+        .prepare_operation(&a.address, &mut n.j, &n.auth)
+        .is_err());
+    n.j.fail = false;
+    assert_eq!(n.rs[0].version_snapshot(COLLECTIVE_POOL).unwrap(), before);
+    // Failed A must not consume capacity: B60 must still fit (limit 66).
+    let b_request = n.rs[0]
+        .prepare_operation(&b.address, &mut n.j, &n.auth)
+        .unwrap();
+    assert!(n.rs[0]
+        .prepare_operation(&a.address, &mut n.j, &n.auth)
+        .is_err());
+    n.cancel(&b);
+    n.j.fail = true;
+    assert!(n.rs[0].release(&b.address, &mut n.j, &n.auth).is_err());
+    n.j.fail = false;
+    // Failed release must not grant capacity or change the original obligation.
+    assert!(n.rs[0]
+        .prepare_operation(&a.address, &mut n.j, &n.auth)
+        .is_err());
+    assert!(!n.rs[0]
+        .version_snapshot(COLLECTIVE_POOL)
+        .unwrap()
+        .released
+        .contains(&b.address));
+    n.rs[0].release(&b.address, &mut n.j, &n.auth).unwrap();
+    n.rs[0]
+        .prepare_operation(&a.address, &mut n.j, &n.auth)
+        .unwrap();
+    let sequence = n.rs[0].journal_sequence();
+    // A released signature retry is old evidence; it cannot reserve cost again.
+    assert_eq!(
+        b_request.preimage(),
+        n.rs[0]
+            .prepare_operation(&b.address, &mut n.j, &n.auth)
+            .unwrap()
+            .preimage()
+    );
+    // Neither duplicate release nor signing retry may mint another 60 of capacity.
+    n.rs[0].release(&b.address, &mut n.j, &n.auth).unwrap();
+    n.rs[0]
+        .prepare_operation(&a.address, &mut n.j, &n.auth)
+        .unwrap();
+    assert_eq!(sequence, n.rs[0].journal_sequence());
+    assert!(n.rs[0]
+        .prepare_operation(&c.address, &mut n.j, &n.auth)
+        .is_err());
+    let mut recovered =
+        Replica::recover(n.ctx.clone(), "@v0", Limits::default(), &n.j, &n.auth).unwrap();
+    assert_eq!(
+        recovered.version_snapshot(COLLECTIVE_POOL).unwrap(),
+        n.rs[0].version_snapshot(COLLECTIVE_POOL).unwrap()
+    );
+    assert!(recovered
+        .prepare_operation(&c.address, &mut n.j, &n.auth)
+        .is_err());
+    let sequence = recovered.journal_sequence();
+    recovered.release(&b.address, &mut n.j, &n.auth).unwrap();
+    assert_eq!(sequence, recovered.journal_sequence());
+}
