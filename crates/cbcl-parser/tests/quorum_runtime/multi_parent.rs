@@ -1188,6 +1188,44 @@ fn in_memory_throughput_probe() {
     assert_eq!(n.rs[0].finalized_view().unwrap().value, 999_000);
 }
 
+/// Repeat the existing workload long enough for a sampling profiler to attach.
+/// Phase timers exclude fixture setup, the final view query and fixture teardown.
+#[test]
+#[ignore = "opt-in sampling profile; same limitations as the throughput probe"]
+fn in_memory_profile_probe() {
+    let rounds: usize = std::env::var("CBCL_QUORUM_PROFILE_ROUNDS")
+        .map(|s| s.parse().expect("positive integer profile rounds"))
+        .unwrap_or(100);
+    assert!(rounds > 0);
+    let mut construction = std::time::Duration::ZERO;
+    let mut operation = std::time::Duration::ZERO;
+    let mut finalization = std::time::Duration::ZERO;
+    let wall = std::time::Instant::now();
+    println!("PROFILE_START pid={} rounds={rounds}", std::process::id());
+    for _ in 0..rounds {
+        let mut n = dag_supply(TICKETS, 1_000_000);
+        for i in 0..1000 {
+            let start = std::time::Instant::now();
+            let a = ticket(&mut n, "@alice", 1, &format!("perf-{i}"));
+            construction += start.elapsed();
+            let start = std::time::Instant::now();
+            n.operation(&a);
+            operation += start.elapsed();
+            let start = std::time::Instant::now();
+            n.finalize(&a);
+            finalization += start.elapsed();
+        }
+        assert_eq!(n.rs[0].finalized_view().unwrap().value, 999_000);
+    }
+    let measured = construction + operation + finalization;
+    println!(
+        "PROFILE_RESULT transactions={} construction_s={:.6} operation_s={:.6} finalization_s={:.6} measured_s={:.6} wall_s={:.6} tps={:.2}",
+        rounds * 1000, construction.as_secs_f64(), operation.as_secs_f64(),
+        finalization.as_secs_f64(), measured.as_secs_f64(), wall.elapsed().as_secs_f64(),
+        (rounds * 1000) as f64 / measured.as_secs_f64()
+    );
+}
+
 #[test]
 fn cached_capacity_changes_only_after_durable_first_sign_and_release() {
     let mut n = dag_source(TICKETS);
@@ -1258,4 +1296,85 @@ fn cached_capacity_changes_only_after_durable_first_sign_and_release() {
     let sequence = recovered.journal_sequence();
     recovered.release(&b.address, &mut n.j, &n.auth).unwrap();
     assert_eq!(sequence, recovered.journal_sequence());
+}
+
+#[test]
+fn authoring_rechecks_canonical_identity_and_preserves_rejection_order() {
+    use cbcl_core::intend::Reject;
+    let n = dag_supply(TICKETS, 1_000_000);
+    let request = || {
+        let mut f = fields(None, 1);
+        f.insert(
+            "buyer".into(),
+            SExpr::Atom(Atom::Symbol("@customer".into())),
+        );
+        f
+    };
+    let author = |d: &Dialect, acts: &[Act], thread: &str, verb: &str, f| {
+        let inst = Instance::new(d, ThreadId(thread.into()), acts).unwrap();
+        n.rs[0].intend(&inst, &AgentKey("@alice".into()), verb, f, "identity")
+    };
+    let expected = author(&n.d, &n.base, "coin-1", "sell", request()).unwrap();
+    let mut copy = n.d.clone();
+    // Convenience integrity fields do not change canonical dialect identity.
+    copy.hash = Some("untrusted claim".into());
+    copy.signature = Some(vec![1, 2, 3]);
+    assert_eq!(
+        author(&copy, &n.base, "coin-1", "sell", request()).unwrap(),
+        expected
+    );
+    // Mutating the same caller object after a successful call must be noticed,
+    // even if its name and claimed hash still match the pinned dialect.
+    copy.hash = Some(cbcl_core::canonical::dialect_hash(&n.d));
+    copy.state_bounds = Some(cbcl_core::state::StateBounds {
+        max_list: 63,
+        ..Default::default()
+    });
+    assert_ne!(
+        cbcl_core::canonical::dialect_hash(&copy),
+        cbcl_core::canonical::dialect_hash(&n.d)
+    );
+    assert!(matches!(
+        author(&copy, &n.base, "coin-1", "sell", request()),
+        Err(Reject::Resource(_))
+    ));
+    let altered = Instance::new(&copy, ThreadId("coin-1".into()), &n.base).unwrap();
+    assert!(n.rs[0].fold_instance(&altered).is_err());
+    assert!(matches!(
+        author(&copy, &n.base, "coin-1", "unknown", request()),
+        Err(Reject::UnknownVerb)
+    ));
+    let mut forged_fields = request();
+    forged_fields.insert("from".into(), SExpr::Atom(Atom::Symbol("@alice".into())));
+    assert!(matches!(
+        author(&copy, &n.base, "coin-1", "sell", forged_fields),
+        Err(Reject::Forge(_))
+    ));
+    assert!(matches!(
+        author(&n.d, &n.base, "other-thread", "sell", request()),
+        Err(Reject::Resource(_))
+    ));
+    let other = dag_supply(TICKETS, 999_999);
+    assert!(matches!(
+        author(&n.d, &other.base, "coin-1", "sell", request()),
+        Err(Reject::Resource(_))
+    ));
+    // Public Instance convenience caches cannot override the accepted history.
+    let mut forged = Instance::new(&n.d, ThreadId("coin-1".into()), &n.base).unwrap();
+    forged.opener = None;
+    forged.root = None;
+    forged.cast = None;
+    assert_eq!(
+        n.rs[0]
+            .intend(
+                &forged,
+                &AgentKey("@alice".into()),
+                "sell",
+                request(),
+                "identity"
+            )
+            .unwrap(),
+        expected
+    );
+    assert_eq!(n.rs[0].journal_sequence(), 1);
 }

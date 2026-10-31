@@ -667,8 +667,17 @@ fn intend_impl(
         params.push(SExpr::Atom(Atom::Keyword(k.clone())));
         params.push(v.clone());
     }
-    let bookkeeping = match runtime {
-        Some((engine, nonce)) => engine.bookkeeping(inst, &signer.0, verb, nonce),
+    // Keep identity rejection at its original point after ordinary admission.
+    // The binding holds the exact immutable inputs for both authoring stages.
+    let authoring = runtime
+        .map(|(engine, nonce)| engine.bind_authoring(inst).map(|bound| (bound, nonce)))
+        .transpose()
+        .map_err(Reject::Resource)?;
+    let inst = authoring
+        .as_ref()
+        .map_or(inst, |(bound, _)| bound.instance());
+    let bookkeeping = match &authoring {
+        Some((engine, nonce)) => engine.bookkeeping(&signer.0, verb, nonce),
         None => crate::escrow::bookkeeping(d, inst.acts, &inst.thread.0, &signer.0, verb),
     }
     .map_err(Reject::Resource)?;
@@ -747,11 +756,11 @@ fn intend_impl(
                 let candidate =
                     Act::from_message(message.clone(), &signer.0).map_err(Reject::Resource)?;
                 if c.certification.is_quorum() {
-                    let (engine, _) = runtime.ok_or_else(|| {
+                    let (engine, _) = authoring.as_ref().ok_or_else(|| {
                         Reject::Resource("quorum-budget requires certificate runtime".into())
                     })?;
                     engine
-                        .check_candidate(inst, &candidate)
+                        .check_candidate(&candidate)
                         .map_err(Reject::Resource)?;
                     return Ok(message);
                 }

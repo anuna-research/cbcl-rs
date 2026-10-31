@@ -1,0 +1,378 @@
+{
+  "source_commit": "6d18ef8e04a273aa918b572217f96c8c36bc200a",
+  "engine_sha256": "4136616da7b04a6fec95890569e32ecee87290237670e29e2eb69121bfd4e64b",
+  "profile_probe_sha256": "ba1fd58c091abf334c4f142b02b08e81ffc38c7a47b2d543ea2f5146fee77018",
+  "hardware": "Apple M2; macOS 26.5; ARM64",
+  "workload": "Repeat fresh 1000-transaction collective-pool fixtures; four serial replicas; one-unit decrements; test SHA-256 authentication; memory journals; no network or fsync",
+  "profile": {
+    "opt_level": 3,
+    "lto": false,
+    "debug": 1,
+    "strip": false
+  },
+  "sampling": {
+    "tool": "macOS sample",
+    "duration_seconds": 25,
+    "requested_interval_ms": 1,
+    "thread": "multi_parent::in_memory_profile_probe",
+    "raw_sha256": "5d6f5ec2b81c6de82597694b8aa0bcaa0d62c0344561c3ab963599e1809cf6b7",
+    "scope": "Worker thread only; excludes idle test-runner main thread. Includes fixture setup, final balance query and teardown. Inclusive function costs overlap; recursive frames counted once per sampled stack."
+  },
+  "sampled_run": {
+    "transactions": 150000,
+    "construction_s": 22.021642,
+    "operation_s": 16.44405,
+    "finalization_s": 4.152254,
+    "measured_s": 42.617945,
+    "wall_s": 44.878463,
+    "tps": 3519.64,
+    "phases": {
+      "construction": {
+        "seconds": 22.021642,
+        "percent": 51.67,
+        "microseconds_per_transaction": 146.81
+      },
+      "operation": {
+        "seconds": 16.44405,
+        "percent": 38.58,
+        "microseconds_per_transaction": 109.63
+      },
+      "finalization": {
+        "seconds": 4.152254,
+        "percent": 9.74,
+        "microseconds_per_transaction": 27.68
+      }
+    }
+  },
+  "isolated_unsampled_control": {
+    "transactions": 30000,
+    "construction_s": 4.094478,
+    "operation_s": 3.069334,
+    "finalization_s": 0.77483,
+    "measured_s": 7.938642,
+    "wall_s": 8.386473,
+    "tps": 3778.98,
+    "phases": {
+      "construction": {
+        "seconds": 4.094478,
+        "percent": 51.58,
+        "microseconds_per_transaction": 136.48
+      },
+      "operation": {
+        "seconds": 3.069334,
+        "percent": 38.66,
+        "microseconds_per_transaction": 102.31
+      },
+      "finalization": {
+        "seconds": 0.77483,
+        "percent": 9.76,
+        "microseconds_per_transaction": 25.83
+      }
+    }
+  },
+  "analysis": {
+    "samples": 18730,
+    "groups": {
+      "dialect_identity_checks": {
+        "samples": 5978,
+        "percent": 31.92
+      },
+      "canonical_encoding": {
+        "samples": 5547,
+        "percent": 29.62
+      },
+      "operation_reconstruction_and_validation": {
+        "samples": 5224,
+        "percent": 27.89
+      },
+      "budget_checks": {
+        "samples": 408,
+        "percent": 2.18
+      }
+    },
+    "hot_functions_inclusive": [
+      {
+        "function": "quorum_runtime::multi_parent::in_memory_profile_probe",
+        "samples": 18683,
+        "percent": 99.75
+      },
+      {
+        "function": "quorum_runtime::ticket",
+        "samples": 9239,
+        "percent": 49.33
+      },
+      {
+        "function": "cbcl_core::quorum::engine::Replica::intend",
+        "samples": 8668,
+        "percent": 46.28
+      },
+      {
+        "function": "cbcl_core::intend::intend_impl",
+        "samples": 8629,
+        "percent": 46.07
+      },
+      {
+        "function": "cbcl_core::quorum::engine::Replica::commit",
+        "samples": 7566,
+        "percent": 40.4
+      },
+      {
+        "function": "cbcl_core::quorum::engine::Replica::prepare",
+        "samples": 7011,
+        "percent": 37.43
+      },
+      {
+        "function": "quorum_runtime::Net::operation",
+        "samples": 6787,
+        "percent": 36.24
+      },
+      {
+        "function": "cbcl_core::quorum::context::Context::matches",
+        "samples": 5978,
+        "percent": 31.92
+      },
+      {
+        "function": "cbcl_core::canonical::dialect_hash",
+        "samples": 5972,
+        "percent": 31.88
+      },
+      {
+        "function": "cbcl_core::canonical::encode_into",
+        "samples": 5547,
+        "percent": 29.62
+      },
+      {
+        "function": "cbcl_core::quorum::engine::Replica::operation",
+        "samples": 5224,
+        "percent": 27.89
+      },
+      {
+        "function": "quorum_runtime::Net::register",
+        "samples": 4682,
+        "percent": 25.0
+      },
+      {
+        "function": "cbcl_core::canonical::dialect_canonical_bytes",
+        "samples": 4645,
+        "percent": 24.8
+      },
+      {
+        "function": "cbcl_core::quorum::engine::Replica::check_candidate",
+        "samples": 4104,
+        "percent": 21.91
+      },
+      {
+        "function": "cbcl_core::state::wire_address",
+        "samples": 3813,
+        "percent": 20.36
+      },
+      {
+        "function": "cbcl_core::typed_addr::typed_root",
+        "samples": 3771,
+        "percent": 20.13
+      },
+      {
+        "function": "cbcl_core::typed_addr::build_tree",
+        "samples": 3738,
+        "percent": 19.96
+      },
+      {
+        "function": "cbcl_core::quorum::context::Context::structural",
+        "samples": 3625,
+        "percent": 19.35
+      },
+      {
+        "function": "cbcl_core::state::Act::from_message",
+        "samples": 3567,
+        "percent": 19.04
+      },
+      {
+        "function": "cbcl_core::quorum::engine::Replica::bookkeeping",
+        "samples": 3129,
+        "percent": 16.71
+      },
+      {
+        "function": "cbcl_core::quorum::engine::Replica::verify_vote",
+        "samples": 1970,
+        "percent": 10.52
+      },
+      {
+        "function": "quorum_runtime::Net::finalize",
+        "samples": 1710,
+        "percent": 9.13
+      },
+      {
+        "function": "cbcl_core::typed_addr::leaf_hash",
+        "samples": 1537,
+        "percent": 8.21
+      },
+      {
+        "function": "cbcl_core::canonical::atom_to_octets",
+        "samples": 1188,
+        "percent": 6.34
+      },
+      {
+        "function": "cbcl_core::canonical::to_signable_sexpr",
+        "samples": 1162,
+        "percent": 6.2
+      },
+      {
+        "function": "cbcl_core::quorum::engine::Replica::epoch",
+        "samples": 1140,
+        "percent": 6.09
+      },
+      {
+        "function": "cbcl_core::quorum::context::Context::root_epoch",
+        "samples": 1119,
+        "percent": 5.97
+      },
+      {
+        "function": "cbcl_core::quorum::types::Vote::preimage",
+        "samples": 1052,
+        "percent": 5.62
+      },
+      {
+        "function": "cbcl_core::quorum::types::digest",
+        "samples": 859,
+        "percent": 4.59
+      },
+      {
+        "function": "quorum_runtime::sign",
+        "samples": 512,
+        "percent": 2.73
+      },
+      {
+        "function": "cbcl_core::quorum::engine::Replica::prepare_operation",
+        "samples": 511,
+        "percent": 2.73
+      },
+      {
+        "function": "cbcl_core::r7::verify_state_shape",
+        "samples": 451,
+        "percent": 2.41
+      },
+      {
+        "function": "cbcl_core::quorum::engine::Replica::budget",
+        "samples": 408,
+        "percent": 2.18
+      },
+      {
+        "function": "cbcl_core::canonical::shape_rule_to_sexpr",
+        "samples": 240,
+        "percent": 1.28
+      },
+      {
+        "function": "cbcl_core::escrow::CounterRule::canonical_options",
+        "samples": 189,
+        "percent": 1.01
+      }
+    ],
+    "leaf_functions": [
+      {
+        "function": "sha2::sha256::compress256",
+        "samples": 4691,
+        "percent": 25.05
+      },
+      {
+        "function": "_xzm_free",
+        "samples": 2401,
+        "percent": 12.82
+      },
+      {
+        "function": "_platform_memmove",
+        "samples": 1420,
+        "percent": 7.58
+      },
+      {
+        "function": "_xzm_xzone_malloc",
+        "samples": 942,
+        "percent": 5.03
+      },
+      {
+        "function": "<deduplicated_symbol>",
+        "samples": 873,
+        "percent": 4.66
+      },
+      {
+        "function": "_malloc_zone_malloc",
+        "samples": 870,
+        "percent": 4.64
+      },
+      {
+        "function": "_free",
+        "samples": 861,
+        "percent": 4.6
+      },
+      {
+        "function": "cbcl_core::canonical::encode_into",
+        "samples": 463,
+        "percent": 2.47
+      },
+      {
+        "function": "_platform_memcmp",
+        "samples": 309,
+        "percent": 1.65
+      },
+      {
+        "function": "DYLD-STUB$$free",
+        "samples": 299,
+        "percent": 1.6
+      },
+      {
+        "function": "_RNvNvNtCs1OjIl8oxbrv_5alloc3fmt6format12format_inner",
+        "samples": 276,
+        "percent": 1.47
+      },
+      {
+        "function": "_RNvCsfLfy6EI15iL_7___rustc11___rdl_alloc",
+        "samples": 270,
+        "percent": 1.44
+      },
+      {
+        "function": "cbcl_core::canonical::atom_to_octets",
+        "samples": 267,
+        "percent": 1.43
+      },
+      {
+        "function": "_RNvNtCsl8K0bEFm1U0_4core3fmt5write",
+        "samples": 265,
+        "percent": 1.41
+      },
+      {
+        "function": "xzm_realloc",
+        "samples": 259,
+        "percent": 1.38
+      },
+      {
+        "function": "_RNvMsa_NtCsl8K0bEFm1U0_4core3fmtNtB5_9Formatter12pad_integral",
+        "samples": 255,
+        "percent": 1.36
+      },
+      {
+        "function": "_platform_memset",
+        "samples": 252,
+        "percent": 1.35
+      },
+      {
+        "function": "_RNvXs4_NtCs1OjIl8oxbrv_5alloc6stringNtB5_6StringNtNtCsl8K0bEFm1U0_4core5clone5Clone5clone",
+        "samples": 200,
+        "percent": 1.07
+      },
+      {
+        "function": "xzm_malloc_zone_size",
+        "samples": 180,
+        "percent": 0.96
+      },
+      {
+        "function": "DYLD-STUB$$memcpy",
+        "samples": 179,
+        "percent": 0.96
+      }
+    ]
+  },
+  "reproduce_build": "CARGO_PROFILE_RELEASE_OPT_LEVEL=3 CARGO_PROFILE_RELEASE_LTO=false CARGO_PROFILE_RELEASE_DEBUG=1 CARGO_PROFILE_RELEASE_STRIP=false cargo test --release -p cbcl-parser --test quorum_runtime --no-run",
+  "reproduce_workload": "CBCL_QUORUM_PROFILE_ROUNDS=150 <test-binary> multi_parent::in_memory_profile_probe --ignored --exact --nocapture",
+  "reproduce_sample": "dsymutil <test-binary>; sample <pid> 25 1 -mayDie -file /tmp/quorum.sample",
+  "regression": "44 runtime tests passed; 2 opt-in probes ignored; changed test file rustfmt and git diff --check passed",
+  "limits": "Phase timers add small overhead. Sampling and machine conditions affect throughput; no causal overhead estimate from a single sampled/control pair. No allocation-count profiler, real crypto, network, storage, merges, large committees or sustained unbounded history measured."
+}

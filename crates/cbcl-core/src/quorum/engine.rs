@@ -920,42 +920,6 @@ impl Replica {
             pending,
         })
     }
-    pub(crate) fn bookkeeping(
-        &self,
-        inst: &Instance,
-        owner: &str,
-        verb: &str,
-        nonce: &str,
-    ) -> Result<Vec<(String, SExpr)>> {
-        if !self.context.matches(inst) || !self.context.rule.operation_verbs().contains(&verb) {
-            return Err("runtime does not match instance or counter verb".into());
-        }
-        if nonce.is_empty() || nonce.len() > 256 {
-            return Err("nonce must contain 1..256 bytes".into());
-        }
-        let epoch = self.active_epoch(owner)?;
-        let m = self.epoch(epoch)?;
-        Ok(alloc::vec![
-            (PREV.into(), SExpr::Atom(Atom::Symbol(epoch.into()))),
-            (
-                DEPS.into(),
-                SExpr::List(
-                    m.credited
-                        .iter()
-                        .map(|s| SExpr::Atom(Atom::Symbol(s.clone())))
-                        .collect()
-                )
-            ),
-            (NONCE.into(), SExpr::Atom(Atom::Str(nonce.into())))
-        ])
-    }
-    pub(crate) fn check_candidate(&self, inst: &Instance, candidate: &Act) -> Result<()> {
-        if !self.context.matches(inst) {
-            return Err("runtime instance mismatch".into());
-        }
-        self.operation(candidate)?;
-        Ok(())
-    }
     pub fn intend(
         &self,
         inst: &Instance,
@@ -968,6 +932,19 @@ impl Replica {
             .map_err(Reject::Resource)?;
         crate::intend::intend_certified(&bound, owner, verb, fields, self, nonce)
     }
+    pub(crate) fn bind_authoring<'a, 'd>(
+        &'a self,
+        instance: &'a Instance<'d>,
+    ) -> Result<BoundAuthoring<'a, 'd>> {
+        if !self.context.matches(instance) {
+            return Err("runtime does not match instance or counter verb".into());
+        }
+        Ok(BoundAuthoring {
+            replica: self,
+            instance,
+        })
+    }
+
     pub fn fold_instance(&self, inst: &Instance) -> Result<Vec<(String, Value)>> {
         if !self.context.matches(inst) {
             return Err("runtime instance mismatch".into());
@@ -1089,4 +1066,49 @@ fn bounded_message(message: &Message, limit: usize) -> Result<()> {
         }
     }
     Ok(())
+}
+
+/// Immutable authoring inputs whose instance identity was checked together.
+/// Only this module can construct the binding; it cannot be retargeted to a
+/// different instance. Bookkeeping and candidate checks share that validation.
+pub(crate) struct BoundAuthoring<'a, 'd> {
+    replica: &'a Replica,
+    instance: &'a Instance<'d>,
+}
+impl<'d> BoundAuthoring<'_, 'd> {
+    pub(crate) fn instance(&self) -> &Instance<'d> {
+        self.instance
+    }
+    pub(crate) fn bookkeeping(
+        &self,
+        owner: &str,
+        verb: &str,
+        nonce: &str,
+    ) -> Result<Vec<(String, SExpr)>> {
+        if !self.replica.context.rule.operation_verbs().contains(&verb) {
+            return Err("runtime does not match instance or counter verb".into());
+        }
+        if nonce.is_empty() || nonce.len() > 256 {
+            return Err("nonce must contain 1..256 bytes".into());
+        }
+        let epoch = self.replica.active_epoch(owner)?;
+        let m = self.replica.epoch(epoch)?;
+        Ok(alloc::vec![
+            (PREV.into(), SExpr::Atom(Atom::Symbol(epoch.into()))),
+            (
+                DEPS.into(),
+                SExpr::List(
+                    m.credited
+                        .iter()
+                        .map(|s| SExpr::Atom(Atom::Symbol(s.clone())))
+                        .collect()
+                )
+            ),
+            (NONCE.into(), SExpr::Atom(Atom::Str(nonce.into())))
+        ])
+    }
+    pub(crate) fn check_candidate(&self, candidate: &Act) -> Result<()> {
+        self.replica.operation(candidate)?;
+        Ok(())
+    }
 }

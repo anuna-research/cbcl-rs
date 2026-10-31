@@ -19,7 +19,9 @@ use alloc::{
 pub struct Context {
     pub(crate) id: String,
     pub(crate) field: String,
-    pub(crate) dialect: Dialect,
+    // Kept private with its derived hash so neither can be changed independently.
+    dialect: Dialect,
+    dialect_hash: String,
     pub(crate) thread: ThreadId,
     pub(crate) genesis: Vec<Act>,
     pub(crate) opener: String,
@@ -150,9 +152,10 @@ impl Context {
             .filter(|k| cast.admits(&rule.issuer, &AgentKey((*k).clone())))
             .cloned()
             .collect();
+        let dialect_hash = crate::canonical::dialect_hash(inst.dialect);
         let id = digest(alloc::vec![
             text("cbcl/quorum-context/multi-parent/v1"),
-            text(&crate::canonical::dialect_hash(inst.dialect)),
+            text(&dialect_hash),
             text(&inst.thread.0),
             text(&root.address),
             text(&opener.address),
@@ -164,6 +167,7 @@ impl Context {
             id,
             field: field.into(),
             dialect: inst.dialect.clone(),
+            dialect_hash,
             thread: inst.thread.clone(),
             genesis,
             opener: opener.address.clone(),
@@ -260,8 +264,7 @@ impl Context {
     pub(crate) fn matches(&self, inst: &Instance) -> bool {
         self.thread == inst.thread
             && inst.instance_id() == Some(self.opener.as_str())
-            && crate::canonical::dialect_hash(inst.dialect)
-                == crate::canonical::dialect_hash(&self.dialect)
+            && crate::canonical::dialect_hash(inst.dialect) == self.dialect_hash
     }
     pub(crate) fn structural(&self, act: &Act) -> Result<()> {
         if Act::from_message(act.message.clone(), &act.signer)? != *act {
