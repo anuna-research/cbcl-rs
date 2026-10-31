@@ -6,8 +6,10 @@ open CBCL.ConsensusFree.Currency
 set_option maxRecDepth 10000
 set_option maxHeartbeats 4000000
 
+/-- Commands for the two-account, fourteen-operation, ten-checkpoint fixture. -/
 abbrev Cmd := Command 2 14 10
 
+/-- Checkpoint catalogue including valid descendants and invalid proposals. -/
 def cp (p : Fin 10) : Checkpoint 2 14 10 4 where
   owner := if p.val = 7 then 1 else 0
   parent := match p.val with
@@ -37,6 +39,7 @@ def cp (p : Fin 10) : Checkpoint 2 14 10 4 where
     else 0
   authorized := p.val != 9
 
+/-- Fixed currency operations used by the adversarial schedules. -/
 def op (tx : Fin 14) : Currency.Operation 2 10 where
   epoch := match tx.val with
     | 3 => .checkpoint 0
@@ -59,6 +62,7 @@ def op (tx : Fin 14) : Currency.Operation 2 10 where
     | _ => 0
   recipient := if tx.val = 10 || tx.val = 11 then 0 else 1
 
+/-- Capped two-account fixture with thirty initial rights. -/
 def context : Context 2 14 10 where
   checkpoints := cp
   operations := op
@@ -69,63 +73,92 @@ def context : Context 2 14 10 where
   ownerSigned := fun _ => true
   nonself := by decide
 
+/-- Three honest validators and one Byzantine validator. -/
 def committee : Committee 1 := ⟨[0,1,2], [3], by decide, rfl, rfl⟩
+/-- Resource configuration of the capped currency fixture. -/
 def cfg := Currency.config context committee
 
+/-- Final state after executing commands from genesis. -/
 def after (commands : List Cmd) := (run cfg (initial cfg) commands).2
 
+/-- Request reservation signatures from the chosen validators. -/
 def signWith (tx : Fin 14) (witnesses : List Nat) : List Cmd := witnesses.map (Command.sign tx)
+/-- Request a quorum containing validators zero, one and three. -/
 def signs (tx : Fin 14) : List Cmd := signWith tx [0,1,3]
+/-- Deliver the operation certificate and collect three honest effect votes. -/
 def finish (tx : Fin 14) : List Cmd :=
   [.receiveOperation tx 0, .receiveOperation tx 1, .receiveOperation tx 2,
    .receiveOperation tx 3, .effect tx 0, .effect tx 1, .effect tx 2]
+/-- Collect cancellation votes from the three honest validators. -/
 def cancel (tx : Fin 14) : List Cmd := [.fence tx 0, .fence tx 1, .fence tx 2]
+/-- Request reservation reclamation at all four validators. -/
 def releases (tx : Fin 14) : List Cmd := [.release tx 0, .release tx 1, .release tx 2, .release tx 3]
+/-- Freeze an epoch at every validator. -/
 def seals (e : Epoch 2 10) : List Cmd := [0,1,2,3].map (Command.freeze e)
+/-- Collect three honest checkpoint endorsements. -/
 def endorseWith (p : Fin 10) : List Cmd := [0,1,2].map (Command.endorse p)
+/-- Deliver and install a checkpoint at every validator. -/
 def deliverAndInstall (p : Fin 10) : List Cmd := [0,1,2,3].flatMap (fun w => [.record p w, .install p w])
 
+/-- Overlapping reservation quorums followed by one final transfer. -/
 def triangle : List Cmd := signWith 0 [0,1,3] ++ signWith 1 [0,2,3] ++ signWith 2 [1,2,3] ++ finish 2
 
+/-- Seal the triangle history and install its complete checkpoint. -/
 def closedTriangle := triangle ++ seals (.root 0) ++ endorseWith 0 ++ deliverAndInstall 0
 
+/-- Spend in the successor before delivering delayed predecessor effects. -/
 def oldFinals := closedTriangle ++ signs 3 ++ finish 3 ++ finish 0 ++ finish 1
 
+/-- Cancel a held operation and carry its refund into a descendant. -/
 def refundedDescendant := closedTriangle ++ cancel 0 ++ releases 0 ++
   seals (.checkpoint 0) ++ endorseWith 1 ++ deliverAndInstall 1
 
+/-- Spend the refund before attempting delayed effects of the cancelled operation. -/
 def refundThenSpend := refundedDescendant ++ signs 4 ++ finish 4 ++ finish 1 ++ finish 0
 
+/-- Attempt repeated refunds, stale installations and delayed effects. -/
 def repeatRefund := refundedDescendant ++ seals (.checkpoint 1) ++ endorseWith 2 ++ deliverAndInstall 2 ++
   [.record 1 0, .install 1 0, .release 0 0, .release 0 0] ++ finish 1 ++ finish 0
 
+/-- Cancel one reservation and spend the reclaimed root budget. -/
 def reusedRoot := signs 5 ++ signs 6 ++ cancel 5 ++ releases 5 ++ signs 6 ++ finish 6
 
+/-- Carry root reuse through descendants and retry the old cancellation. -/
 def closedReused := reusedRoot ++ seals (.root 0) ++ endorseWith 4 ++ deliverAndInstall 4 ++
   seals (.checkpoint 4) ++ endorseWith 5 ++ deliverAndInstall 5 ++ releases 5 ++ finish 5
 
+/-- Split honest endorsements across incompatible successor proposals. -/
 def splitVotes : List Cmd := signs 2 ++ seals (.root 0) ++ [.endorse 0 0, .endorse 3 1, .endorse 3 2,
   .record 0 0, .record 3 1, .endorse 3 0, .endorse 0 1, .record 0 0, .record 3 1]
 
+/-- Certify one successor, then attempt a conflicting sibling and invalid child. -/
 def firstBranch := signs 2 ++ seals (.root 0) ++ [.endorse 0 0, .endorse 0 1, .endorse 0 3] ++
   deliverAndInstall 0 ++ [.endorse 3 2, .endorse 3 3, .record 3 2, .endorse 6 0, .record 6 0]
 
+/-- Finalize mint, burn and headroom-transfer operations. -/
 def cappedFlow := signs 7 ++ finish 7 ++ signs 8 ++ finish 8 ++ signs 9 ++ finish 9
 
+/-- Import a finalized transfer credit into the recipient's next checkpoint. -/
 def incoming := signs 2 ++ finish 2 ++ seals (.root 1) ++ endorseWith 7 ++
   [0,1,2,3].flatMap (fun w => [.record 7 w, .receiveFinal 2 w, .install 7 w]) ++ signs 10 ++ finish 10
 
+/-- Exercise out-of-order checkpoint delivery at a lagging validator. -/
 def lagging := triangle ++ seals (.root 0) ++ endorseWith 0 ++
   [.record 0 0, .install 0 0, .record 0 1, .install 0 1, .record 0 3, .install 0 3] ++
   cancel 0 ++ releases 0 ++ seals (.checkpoint 0) ++ endorseWith 1 ++
   [.record 1 2, .install 1 2, .record 0 2, .install 0 2, .install 1 2]
 
+/-- Fixture with ceiling accounting disabled. -/
 def uncappedContext : Context 2 14 10 := { context with capped := false }
+/-- Resource configuration of the uncapped fixture. -/
 def uncapped := Currency.config uncappedContext committee
 
+/-- Whether a second operation was signed after reserving the first. -/
 def budgetBefore := (after (signs 5)).signatures 6 0
+/-- Finalized transaction identifiers emitted by a command sequence. -/
 def currentLabel (commands : List Cmd) := ((run cfg (initial cfg) commands).1.filterMap id).map Fin.val
 
+/-- Named kernel-evaluated safety and rejection checks. -/
 def checks : List (String × Bool) := [
   ("triangle complete checkpoint", decide ((after closedTriangle).active 0 0 = .checkpoint 0)),
   ("triangle partial renewal rejected", (perform cfg (after (triangle ++ seals (.root 0))) (.endorse 3 0)).isNone),

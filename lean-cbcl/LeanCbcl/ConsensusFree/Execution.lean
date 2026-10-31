@@ -3,6 +3,7 @@ import LeanCbcl.ConsensusFree.Coverage
 namespace CBCL.ConsensusFree
 variable {A T P R f : Nat}
 
+/-- Executable protocol requests with explicit transaction and validator identities. -/
 inductive Command (A T P : Nat) where
   | sign (tx : Fin T) (w : Nat)
   | freeze (e : Epoch A P) (w : Nat)
@@ -17,6 +18,7 @@ inductive Command (A T P : Nat) where
   | wait
   deriving DecidableEq, Repr
 
+/-- Check a command's guards and return its transition, or reject it. -/
 def perform (c : Config A T P R f) (s : State A T P R) (command : Command A T P) :
     Option (Option (Fin T) × State A T P R) :=
   match command with
@@ -120,6 +122,7 @@ theorem perform_sound (c : Config A T P R f) (s : State A T P R) (command : Comm
       next => simp at result
   | wait => cases result; exact Step.replay _
 
+/-- Execute a command, treating rejection as a state-preserving step. -/
 def execute (c : Config A T P R f) (s : State A T P R) (command : Command A T P) : Option (Fin T) × State A T P R :=
   (perform c s command).getD (none, s)
 
@@ -130,10 +133,12 @@ theorem execute_sound (c : Config A T P R f) (s : State A T P R) (command : Comm
   | none => exact Step.replay _
   | some pair => exact perform_sound c s command result
 
+/-- Finite labelled sequence of protocol transitions. -/
 inductive Trace (c : Config A T P R f) : State A T P R → List (Option (Fin T)) → State A T P R → Prop where
   | nil (s) : Trace c s [] s
   | cons : Step c s label mid → Trace c mid labels t → Trace c s (label :: labels) t
 
+/-- Execute commands in order, retaining their labels and final state. -/
 def run (c : Config A T P R f) (s : State A T P R) : List (Command A T P) → List (Option (Fin T)) × State A T P R
   | [] => ([], s)
   | command :: rest =>
@@ -154,10 +159,12 @@ theorem trace_invariant {c : Config A T P R f} {s t : State A T P R} {labels}
   | nil => intro h; exact h
   | cons step rest ih => intro h; exact ih (step_invariant h step)
 
+/-- An authorized and funded debit-credit change to business balances. -/
 def BusinessStep (c : Config A T P R f) (before : Fin R → Int) (tx : Fin T) (after : Fin R → Int) : Prop :=
   c.authorized tx = true ∧ (∀ d, (c.cost tx d : Int) ≤ before d) ∧
     after = fun d => before d + c.credit tx d - c.cost tx d
 
+/-- A protocol step either preserves balances or performs its labelled business operation. -/
 def Simulates (c : Config A T P R f) (s : State A T P R) (label : Option (Fin T)) (t : State A T P R) : Prop :=
   match label with
   | none => t.balance = s.balance
@@ -199,6 +206,7 @@ theorem step_simulation {c : Config A T P R f} {s t : State A T P R} {label}
       · simp only [new, Bool.false_eq_true, ↓reduceIte, Simulates, effect]
         simp [emit]
 
+/-- Finite sequence of authorized, funded business operations. -/
 inductive BusinessRun (c : Config A T P R f) : (Fin R → Int) → List (Fin T) → (Fin R → Int) → Prop where
   | nil (balance) : BusinessRun c balance [] balance
   | cons : BusinessStep c before tx mid → BusinessRun c mid txs after → BusinessRun c before (tx :: txs) after

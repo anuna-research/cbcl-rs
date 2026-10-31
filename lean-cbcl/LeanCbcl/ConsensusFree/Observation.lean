@@ -4,6 +4,7 @@ namespace CBCL.ConsensusFree
 open CBCL.ValidatorBudget CBCL.SealedCheckpoint
 variable {A T P R f : Nat}
 
+/-- Ghost balances equal genesis plus credits minus debits of final operations. -/
 def Observed (c : Config A T P R f) (s : State A T P R) : Prop :=
   ∀ d, s.balance d = (c.initial d : Int) +
     isum (List.finRange T) (fun tx => if finalCert c s tx then (c.credit tx d : Int) else 0) -
@@ -92,6 +93,7 @@ theorem isum_zero (xs : List α) : isum xs (fun _ => 0) = 0 := by
   | nil => rfl
   | cons x xs ih => simp [isum, ih]
 
+/-- Joint journal, archive, local-state, capacity and observation invariant. -/
 structure Invariant (c : Config A T P R f) (s : State A T P R) : Prop where
   evidence : Evidence c s
   catalogue : Catalogue c s

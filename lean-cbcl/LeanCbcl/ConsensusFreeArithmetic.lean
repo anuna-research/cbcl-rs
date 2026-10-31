@@ -3,6 +3,7 @@ import LeanCbcl.SealedCheckpoint
 namespace CBCL.ConsensusFree
 open CBCL.ValidatorBudget CBCL.SealedCheckpoint
 
+/-- Function update at one key, leaving all other entries unchanged. -/
 def setAt [DecidableEq α] (fn : α → β) (key : α) (value : β) : α → β :=
   fun x => if x = key then value else fn x
 
@@ -11,6 +12,7 @@ def setAt [DecidableEq α] (fn : α → β) (key : α) (value : β) : α → β 
 @[simp] theorem setAt_other [DecidableEq α] (fn : α → β) (key x : α) (v : β)
     (different : x ≠ key) : setAt fn key v x = fn x := by simp [setAt, different]
 
+/-- Sum an integer-valued function over a finite list. -/
 def isum (xs : List α) (fn : α → Int) : Int :=
   match xs with
   | [] => 0

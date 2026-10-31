@@ -4,6 +4,7 @@ namespace CBCL.ConsensusFree
 open CBCL.ValidatorBudget CBCL.SealedCheckpoint
 variable {A T P R f : Nat}
 
+/-- Every honest validator's scaled outstanding charge fits its epoch allocation. -/
 def Capacity (c : Config A T P R f) (s : State A T P R) : Prop :=
   ∀ e w, w ∈ c.committee.core → ∀ d, charge c s e w d ≤ (f+1) * allowance c e d
 
@@ -77,6 +78,7 @@ theorem certified_bound (committee : Committee f) (txs : List α)
       _ = _ := by ac_rfl
   exact Nat.le_of_mul_le_mul_left (Nat.le_of_mul_le_mul_left total (by omega)) (by omega)
 
+/-- Whether an operation is final and originates in the specified epoch. -/
 def currentFinal (c : Config A T P R f) (s : State A T P R) (e : Epoch A P) (tx : Fin T) : Bool :=
   finalCert c s tx && decide (c.opEpoch tx = e)
 

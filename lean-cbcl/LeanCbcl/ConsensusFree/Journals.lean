@@ -37,6 +37,7 @@ theorem quorum_has_core (c : Config A T P R f) (votes : Nat → Bool) (hq : quor
     simpa [voteCount] using Nat.le_zero.mp (by simpa using bound)
   omega
 
+/-- Persistent signature, effect and cancellation evidence grows monotonically. -/
 structure JournalExtension (s t : State A T P R) : Prop where
   signatures : ∀ tx w, s.signatures tx w = true → t.signatures tx w = true
   effects : ∀ tx w, s.effects tx w = true → t.effects tx w = true
@@ -113,6 +114,7 @@ theorem reporter_persistent {c : Config A T P R f} {s t : State A T P R} {label}
   rw [← step_sealed_stable step _ w hw pair.1 tx context]
   exact signature
 
+/-- Honest journals obey authentication, epoch knowledge and vote exclusion. -/
 structure Evidence (c : Config A T P R f) (s : State A T P R) : Prop where
   discipline : ∀ tx w, w ∈ c.committee.core → ¬ (s.effects tx w = true ∧ s.fences tx w = true)
   signature_known : ∀ tx w, w ∈ c.committee.core → s.signatures tx w = true → Known c s (c.opEpoch tx)

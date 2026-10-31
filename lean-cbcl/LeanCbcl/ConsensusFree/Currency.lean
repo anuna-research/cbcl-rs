@@ -5,13 +5,20 @@ open CBCL.ValidatorBudget
 open CBCL.ConsensusFree
 variable {A T P f : Nat}
 
+/-- Resource coordinate for an account's spendable rights. -/
 abbrev rights (a : Fin A) : Fin (A+A) := Fin.castAdd A a
+/-- Resource coordinate for an account's capacity below the ceiling. -/
 abbrev headroom (a : Fin A) : Fin (A+A) := Fin.natAdd A a
 
+/-- Recover the account owning either resource coordinate. -/
 def resourceOwner (d : Fin (A+A)) : Fin A := Fin.addCases (fun a => a) (fun a => a) d
 
 @[simp] theorem owner_rights (a : Fin A) : resourceOwner (rights a) = a := by simp [resourceOwner]
-@[simp] theorem owner_headroom (a : Fin A) : resourceOwner (headroom a) = a := by exact Fin.addCases_right a
+theorem owner_headroom (a : Fin A) : resourceOwner (headroom a) = a := by exact Fin.addCases_right a
+
+/-- Ownership of the headroom coordinate in the simplifier's normal form. -/
+@[simp] theorem owner_addNat (a : Fin A) : resourceOwner (a.addNat A) = a := by
+  simpa only [headroom, Fin.natAdd_eq_addNat] using (owner_headroom a)
 
 theorem rights_ne_headroom (a b : Fin A) : rights a ≠ headroom b := by
   intro eq
@@ -30,6 +37,7 @@ theorem headroom_injective {a b : Fin A} (eq : headroom a = headroom b) : a = b 
   change A + a.val = A + b.val at values
   omega
 
+/-- A resource vector with an amount at exactly one coordinate. -/
 def atom (key : Fin R) (amount : Nat) (d : Fin R) : Nat := if d = key then amount else 0
 
 theorem atoms_disjoint (a b : Fin R) (amount : Nat) (different : a ≠ b) (d : Fin R) :
@@ -38,31 +46,47 @@ theorem atoms_disjoint (a b : Fin R) (amount : Nat) (different : a ≠ b) (d : F
   · subst d; exact Or.inr (by simp [atom, different])
   · exact Or.inl (by simp [atom, same])
 
+/-- Currency request with a source epoch, category, amount and destination. -/
 structure Operation (A P : Nat) where
+  /-- Source epoch for each operation. -/
   epoch : Epoch A P
+  /-- Operation category determining which resources are debited and credited. -/
   kind : Kind
+  /-- Nonnegative amount carried by an operation. -/
   amount : Nat
+  /-- Destination account for transfer credits. -/
   recipient : Fin A
 
+/-- Currency operation catalogue, genesis balances and authorization policy. -/
 structure Context (A T P : Nat) where
+  /-- Catalogue of immutable checkpoint manifests. -/
   checkpoints : Fin P → Checkpoint A T P (A+A)
+  /-- Catalogue of immutable currency operations. -/
   operations : Fin T → Operation A P
+  /-- Rights allocated at genesis above the counter floor. -/
   initialRights : Fin A → Nat
+  /-- Capacity allocated at genesis below the optional ceiling. -/
   initialHeadroom : Fin A → Nat
+  /-- Whether upper-bound headroom accounting is enabled. -/
   capped : Bool
+  /-- Accounts allowed to mint new rights. -/
   issuers : Fin A → Bool
+  /-- Whether the source owner authenticated an operation. -/
   ownerSigned : Fin T → Bool
   nonself : ∀ tx, ((operations tx).kind = .pay ∨ (operations tx).kind = .headroom) →
     (operations tx).recipient ≠ epochOwner checkpoints (operations tx).epoch
 
+/-- Account owning the operation's source epoch. -/
 abbrev source (c : Context A T P) (tx : Fin T) := epochOwner c.checkpoints (c.operations tx).epoch
 
+/-- Resource debit required by an operation. -/
 def cost (c : Context A T P) (tx : Fin T) : Fin (A+A) → Nat :=
   match (c.operations tx).kind with
   | .pay | .burn => atom (rights (source c tx)) (c.operations tx).amount
   | .mint => if c.capped then atom (headroom (source c tx)) (c.operations tx).amount else fun _ => 0
   | .headroom => atom (headroom (source c tx)) (c.operations tx).amount
 
+/-- Resource credit produced by an operation. -/
 def credit (c : Context A T P) (tx : Fin T) : Fin (A+A) → Nat :=
   match (c.operations tx).kind with
   | .pay => atom (rights (c.operations tx).recipient) (c.operations tx).amount
@@ -70,6 +94,7 @@ def credit (c : Context A T P) (tx : Fin T) : Fin (A+A) → Nat :=
   | .burn => if c.capped then atom (headroom (source c tx)) (c.operations tx).amount else fun _ => 0
   | .headroom => atom (headroom (c.operations tx).recipient) (c.operations tx).amount
 
+/-- Require source-owner authentication and issuer permission for minting. -/
 def authorized (c : Context A T P) (tx : Fin T) : Bool :=
   c.ownerSigned tx && decide (0 < (c.operations tx).amount) &&
     (if (c.operations tx).kind = .mint then c.issuers (source c tx) else true) &&
@@ -119,6 +144,7 @@ theorem vectors_disjoint (c : Context A T P) (tx : Fin T) (d : Fin (A+A)) :
             (c.operations tx).amount (rights_ne_headroom _ _) d
           simpa [cost, credit, kind, capped] using dis
 
+/-- Build the resource protocol configuration from the application context. -/
 def config (c : Context A T P) (committee : Committee f) : Config A T P (A+A) f where
   committee := committee
   initial := Fin.addCases c.initialRights (fun a => if c.capped then c.initialHeadroom a else 0)
@@ -169,8 +195,10 @@ theorem business_run_conservation {c : Config A T P R f} {before after : Fin R �
   | nil => rfl
   | cons step tail ih => exact ih.trans (business_conservation step dims (conserved _))
 
+/-- Sum spendable-rights balances across all accounts. -/
 def rightsTotal (balance : Fin (A+A) → Int) : Int :=
   isum (List.finRange (A+A)) (fun d => if d.val < A then balance d else 0)
+/-- Sum headroom balances across all accounts. -/
 def headroomTotal (balance : Fin (A+A) → Int) : Int :=
   isum (List.finRange (A+A)) (fun d => if d.val < A then 0 else balance d)
 

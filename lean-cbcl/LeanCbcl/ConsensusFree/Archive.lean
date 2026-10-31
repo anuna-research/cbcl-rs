@@ -4,6 +4,7 @@ namespace CBCL.ConsensusFree
 open CBCL.ValidatorBudget CBCL.SealedCheckpoint
 variable {A T P R f : Nat}
 
+/-- Static manifest properties extracted from live validity. -/
 structure StaticFacts (c : Config A T P R f) (p : Fin P) : Prop where
   authorized : (c.checkpoints p).authorized = true
   parent_owner : owner c (c.checkpoints p).parent = (c.checkpoints p).owner
@@ -25,6 +26,7 @@ theorem static_facts {c : Config A T P R f} {p : Fin P} (h : ManifestStatic c p)
   rcases h with ⟨ha, ho, hd, hh, hr, hc, hs, hx, hz, hb⟩
   exact ⟨ha, ho, hd, hh, hr, hc, hs, hx, hz, hb⟩
 
+/-- Every previously recorded archive entry is preserved. -/
 def ArchiveExtension (s t : State A T P R) : Prop :=
   ∀ a n e, s.archive a n = some e → t.archive a n = some e
 
@@ -49,6 +51,7 @@ theorem manifest_persistent {c : Config A T P R f} {s t : State A T P R} {label}
   · intro tx refunded
     exact quorum_mono c _ _ ((step_journals step).fences tx) (refunds tx refunded)
 
+/-- Archive entries have consistent ownership, depth and live validity. -/
 structure Catalogue (c : Config A T P R f) (s : State A T P R) : Prop where
   slot_owner : ∀ a n e, s.archive a n = some e → owner c e = a
   slot_depth : ∀ a n e, s.archive a n = some e → depth c e = n

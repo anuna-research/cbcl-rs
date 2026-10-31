@@ -34,11 +34,16 @@ theorem honest_intersection (c : Committee f) (a b : Nat → Bool)
   rw [c.core_size] at bound
   omega
 
+/-- Local cumulative charge, capacity and irreversible freeze flag. -/
 structure Journal where
+  /-- Cumulative reservation charge in this epoch. -/
   spent : Nat
+  /-- Maximum charge allowed in this epoch. -/
   capacity : Nat
+  /-- Whether fresh reservations have been disabled. -/
   frozen : Bool
 
+/-- One permitted protocol transition, labelled only when an operation becomes final. -/
 inductive Step : Journal → Journal → Prop where
   | sign (s : Journal) (amount : Nat) (openEpoch : s.frozen = false)
       (affordable : s.spent + amount ≤ s.capacity) :
@@ -46,6 +51,7 @@ inductive Step : Journal → Journal → Prop where
   | freeze (s : Journal) : Step s { s with frozen := true }
   | replay (s : Journal) : Step s s
 
+/-- States reachable by finitely many permitted transitions. -/
 inductive Reach (initial : Journal) : Journal → Prop where
   | start : Reach initial initial
   | next : Reach initial s → Step s t → Reach initial t

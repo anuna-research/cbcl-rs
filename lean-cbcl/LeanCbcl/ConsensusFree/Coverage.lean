@@ -54,17 +54,23 @@ theorem known_credit_final {c : Config A T P R f} {s : State A T P R} (cat : Cat
   | root a => simp [credited] at credit
   | checkpoint p => exact (cat.checkpoint_valid p known).2.2.2.1 tx credit
 
+/-- Sum weights for exactly the marked transactions. -/
 def markedNat (mark : Fin T → Bool) (weight : Fin T → Nat) : Nat :=
   sumOn (List.finRange T) (fun tx => if mark tx then weight tx else 0)
 
+/-- Held debit remaining after manifest refunds. -/
 def netHeld (c : Config A T P R f) (e : Epoch A P) (d : Fin R) : Nat :=
   markedNat (fun tx => held c e tx && !refunded c e tx) (fun tx => c.cost tx d)
+/-- Total final debit originating in one epoch. -/
 def epochDebit (c : Config A T P R f) (s : State A T P R) (e : Epoch A P) (d : Fin R) : Nat :=
   sumOn ((List.finRange T).filter (currentFinal c s e)) (fun tx => c.cost tx d)
+/-- Total debit of all final operations for one resource. -/
 def totalDebit (c : Config A T P R f) (s : State A T P R) (d : Fin R) : Nat :=
   markedNat (finalCert c s) (fun tx => c.cost tx d)
+/-- Total credit of all final operations for one resource. -/
 def totalCredit (c : Config A T P R f) (s : State A T P R) (d : Fin R) : Nat :=
   markedNat (finalCert c s) (fun tx => c.credit tx d)
+/-- Credit already accounted for by an epoch's manifest. -/
 def manifestCredit (c : Config A T P R f) (e : Epoch A P) (d : Fin R) : Nat :=
   markedNat (credited c e) (fun tx => c.credit tx d)
 

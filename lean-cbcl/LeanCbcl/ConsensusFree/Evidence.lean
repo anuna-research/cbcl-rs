@@ -4,6 +4,7 @@ namespace CBCL.ConsensusFree
 open CBCL.ValidatorBudget CBCL.SealedCheckpoint
 variable {A T P R f : Nat}
 
+/-- Local installations and delivered checkpoints refer to known archive entries. -/
 structure Locals (c : Config A T P R f) (s : State A T P R) : Prop where
   installed_known : ∀ w a, Known c s (s.active w a)
   installed_owner : ∀ w a, owner c (s.active w a) = a

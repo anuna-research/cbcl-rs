@@ -14,37 +14,59 @@ not an extraction/cross-language correspondence theorem.
 namespace CBCL.ValidatorBudgetRefutation
 open CBCL.ValidatorBudget (sumOn)
 
+/-- Four fixed payments used by the unsafe renewal counterexample. -/
 inductive Payment where
   | a | b | c | d
   deriving DecidableEq, Repr, Inhabited
 
+/-- Nonnegative amount carried by an operation. -/
 def amount : Payment → Nat
   | .a | .b | .c => 10
   | .d => 3
 
+/-- Source version assigned to each counterexample payment. -/
 def version : Payment → Nat
   | .a | .b | .c => 0
   | .d => 1
 
+/-- One validator's version, remaining budget and persistent journals. -/
 structure Local where
+  /-- Version currently installed by this validator. -/
   version : Nat := 0
+  /-- Remaining scaled budget in the counterexample validator. -/
   free : Int := 60
+  /-- Payments durably reserved by this validator. -/
   signed : List Payment := []
+  /-- Payments for which this validator emitted effects. -/
   executed : List Payment := []
   deriving DecidableEq, Repr, Inhabited
 
+-- Lean generates a precedence parameter that these record printers do not use.
+attribute [nolint unusedArguments] instReprLocal.repr
+
+/-- Counterexample validator states, reservation ballots and final effects. -/
 structure State where
+  /-- Four validator-local states. -/
   nodes : List Local := List.replicate 4 {}
+  /-- Persistent reservation signatures, indexed by validator and payment. -/
   ballots : List (Nat × Payment) := []
+  /-- Payments with a completed effect certificate. -/
   final : List Payment := []
+  /-- Whether the counterexample's replacement version has been announced. -/
   versionKnown : Bool := false
   deriving DecidableEq, Repr, Inhabited
 
+-- Lean generates a precedence parameter that these record printers do not use.
+attribute [nolint unusedArguments] instReprState.repr
+
+/-- Four validators at version zero with sixty scaled budget units each. -/
 def initial : State := {}
 
+/-- Count distinct reservation signers for a payment. -/
 def signatures (s : State) (tx : Payment) : Nat :=
   sumOn [0, 1, 2, 3] (fun w => if (w, tx) ∈ s.ballots then 1 else 0)
 
+/-- Count validator effect votes for a payment. -/
 def effects (s : State) (tx : Payment) : Nat :=
   sumOn s.nodes (fun w => if tx ∈ w.executed then 1 else 0)
 
@@ -86,17 +108,20 @@ def execute (s : State) (w : Nat) (tx : Payment) : Option State := do
           some { next with final := tx :: s.final }
         else some next
 
+/-- Executable protocol requests with explicit transaction and validator identities. -/
 inductive Command where
   | sign (w : Nat) (tx : Payment)
   | update (w : Nat)
   | execute (w : Nat) (tx : Payment)
   deriving DecidableEq, Repr
 
+/-- Execute one counterexample command, rejecting an invalid local action. -/
 def step (s : State) : Command → Option State
   | .sign w tx => sign s w tx
   | .update w => update s w
   | .execute w tx => execute s w tx
 
+/-- Execute the counterexample schedule, propagating the first rejection. -/
 def run : State → List Command → Option State
   | s, [] => some s
   | s, cmd :: rest => (step s cmd).bind (fun next => run next rest)
@@ -110,19 +135,25 @@ def oldSignatures : List Command := [
   .sign 0 .b, .sign 2 .b, .sign 3 .b,
   .sign 1 .c, .sign 2 .c, .sign 3 .c]
 
+/-- Ask three honest validators to emit effects for a payment. -/
 def finalize (tx : Payment) : List Command :=
   [.execute 0 tx, .execute 1 tx, .execute 2 tx]
 
+/-- Install the replacement version, optionally including validator zero. -/
 def renew (updateZero : Bool) : List Command :=
   (if updateZero then [.update 0] else []) ++ [.update 1, .update 2, .update 3]
 
+/-- Old reservations and one final payment followed by unsafe version renewal. -/
 def checkpointPrefix (updateZero : Bool) : List Command := oldSignatures ++ finalize .c ++ renew updateZero
 
+/-- Counterexample schedule: renew, spend again, then deliver delayed old effects. -/
 def trace (updateZero : Bool) : List Command := checkpointPrefix updateZero ++
   [.sign 1 .d, .sign 2 .d, .sign 3 .d] ++ finalize .d ++ finalize .a ++ finalize .b
 
+/-- Final counterexample state obtained by executing the complete schedule. -/
 def result (updateZero : Bool) : State := (run initial (trace updateZero)).getD initial
 
+/-- Business balance after subtracting all final payment amounts. -/
 def observed (s : State) : Int := 30 - (sumOn s.final amount : Int)
 
 /-- Kernel reduction checks EVERY command returned success, rather than admitting
@@ -167,6 +198,7 @@ inductive BusinessStep : Int → Int → Prop where
   | pay (balance : Int) (n : Nat) (positive : 0 < n) (funded : (n : Int) ≤ balance) :
       BusinessStep balance (balance - n)
 
+/-- Balances reachable by legal funded business steps from thirty rights. -/
 inductive BusinessReachable : Int → Prop where
   | start : BusinessReachable 30
   | next {a b : Int} : BusinessReachable a → BusinessStep a b → BusinessReachable b

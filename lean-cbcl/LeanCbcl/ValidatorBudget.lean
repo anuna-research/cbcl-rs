@@ -1,4 +1,5 @@
 import Std
+import Batteries.Tactic.Lint
 import LeanCbcl.BoundedCounter
 
 /-!
@@ -83,7 +84,9 @@ theorem voteCount_le_length (ws : List Nat) (voted : Nat → Bool) :
 /-- Select 2f+1 honest witnesses as a proof device; remaining f slots can include
 additional honest witnesses. Validators do not know which witnesses form the core. -/
 structure Committee (f : Nat) where
+  /-- Honest committee members used by the proof. -/
   core : List Nat
+  /-- Remaining committee members, allowed to behave arbitrarily. -/
   others : List Nat
   distinct : (core ++ others).Nodup
   core_size : core.length = 2 * f + 1
@@ -168,22 +171,32 @@ inductive Kind where
   | mint | burn | pay | headroom
   deriving DecidableEq, Repr
 
+/-- Operation category and nonnegative requested amount. -/
 structure Operation where
+  /-- Operation category determining which resources are debited and credited. -/
   kind : Kind
+  /-- Nonnegative amount carried by an operation. -/
   amount : Nat
   deriving DecidableEq, Repr
 
+-- Lean generates a precedence parameter that these record printers do not use.
+attribute [nolint unusedArguments] instReprOperation.repr
+
+/-- Rights consumed by a burn or payment. -/
 def rightsCost (op : Operation) : Nat :=
   match op.kind with
   | .burn | .pay => op.amount
   | _ => 0
 
+/-- Headroom consumed by a mint or headroom transfer. -/
 def headroomCost (op : Operation) : Nat :=
   match op.kind with
   | .mint | .headroom => op.amount
   | _ => 0
 
+/-- Amount created by a mint, zero for other operations. -/
 def minted (op : Operation) : Nat := if op.kind == .mint then op.amount else 0
+/-- Amount destroyed by a burn, zero for other operations. -/
 def burned (op : Operation) : Nat := if op.kind == .burn then op.amount else 0
 
 theorem burn_le_rightsCost (op : Operation) : burned op ≤ rightsCost op := by
@@ -215,10 +228,16 @@ theorem certified_batch_bounds (c : Committee f) (txs : List Nat)
     (fun t _ => mint_le_headroomCost (ops t))
   exact fixed_checkpoint_bounds floor r h _ _ (Nat.le_trans rb bounds.1) (Nat.le_trans hm bounds.2)
 
+/-- A validator's remaining scaled rights and headroom budgets. -/
 structure LocalBudget where
+  /-- Remaining scaled spendable-rights budget. -/
   rights : Int
+  /-- Remaining scaled headroom budget. -/
   headroom : Int
   deriving DecidableEq, Repr
+
+-- Lean generates a precedence parameter that these record printers do not use.
+attribute [nolint unusedArguments] instReprLocalBudget.repr
 
 /-- No partially applied reservation can escape an insufficient second guard. -/
 def reserve (b : LocalBudget) (scale rightsCost headroomCost : Nat) : Option LocalBudget :=
@@ -267,16 +286,26 @@ theorem empty_reconciliation (free : Int) (k scale : Nat) :
 
 /-- Flags concern one candidate account/version. Byzantine witnesses may set both. -/
 structure Witness where
+  /-- Whether this witness is exempt from honest vote discipline. -/
   faulty : Bool
+  /-- Whether this witness has emitted an effect vote. -/
   executed : Bool
+  /-- Whether this witness has emitted a cancellation vote. -/
   fenced : Bool
   deriving DecidableEq, Repr
 
+-- Lean generates a precedence parameter that these record printers do not use.
+attribute [nolint unusedArguments] instReprWitness.repr
+
+/-- An honest witness never votes for both effect and cancellation. -/
 def disciplined (w : Witness) : Prop :=
   w.faulty = false → ¬ (w.executed = true ∧ w.fenced = true)
 
+/-- Count witnesses that emitted effect votes. -/
 def executions (ws : List Witness) : Nat := sumOn ws (fun w => if w.executed then 1 else 0)
+/-- Count witnesses that emitted cancellation votes. -/
 def fences (ws : List Witness) : Nat := sumOn ws (fun w => if w.fenced then 1 else 0)
+/-- Count Byzantine witnesses. -/
 def faults (ws : List Witness) : Nat := sumOn ws (fun w => if w.faulty then 1 else 0)
 
 theorem disciplined_count_bound (ws : List Witness)
@@ -308,6 +337,7 @@ theorem finality_excludes_no_commit (ws : List Witness) (f : Nat)
 def execute (w : Witness) : Option Witness :=
   if w.faulty || !w.fenced then some { w with executed := true } else none
 
+/-- Emit a cancellation vote unless an honest witness already executed. -/
 def fence (w : Witness) : Option Witness :=
   if w.faulty || !w.executed then some { w with fenced := true } else none
 
@@ -325,6 +355,7 @@ theorem fence_preserves_discipline (w after : Witness) (hw : disciplined w)
     cases faulty <;> cases executed <;> cases fenced <;>
       simp [fence, disciplined] at hw step ⊢ <;> subst after <;> simp
 
+/-- An internal step or an externally visible finalization receipt. -/
 inductive ReceiptEvent where
   | internal
   | finalize (id : Nat)
@@ -351,6 +382,7 @@ theorem receipt_replay (receipts : List Nat) (id : Nat) :
 /-- A concrete distinct roster used for positive and adversarial examples. -/
 def four : Committee 1 := ⟨[0, 1, 2], [3], by decide, by decide, by decide⟩
 
+/-- Four-validator triangle schedule illustrating overlapping certificates. -/
 def splitVotes (tx witness : Nat) : Bool :=
   witness == 3 || match tx with
     | 0 => witness == 0 || witness == 1

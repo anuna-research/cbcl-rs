@@ -7,23 +7,37 @@ namespace CBCL.ConsensusFree.Collective
 open CBCL.ValidatorBudget
 open CBCL.ConsensusFree
 
+/-- Collective counter requests sharing one resource owner and two resource coordinates. -/
 structure Context (K T P : Nat) where
+  /-- Catalogue of immutable checkpoint manifests. -/
   checkpoints : Fin P → Checkpoint 1 T P 2
+  /-- Source epoch for each operation. -/
   epoch : Fin T → Epoch 1 P
+  /-- Actor requesting each operation. -/
   actor : Fin T → Fin K
+  /-- Whether an operation increments rather than decrements the counter. -/
   isMint : Fin T → Bool
+  /-- Nonnegative amount carried by an operation. -/
   amount : Fin T → Nat
+  /-- Whether an operation's actor signature is valid. -/
   signatureValid : Fin T → Bool
+  /-- Whether the actor is admitted to the operation's role. -/
   roleAdmitted : Fin T → Bool
+  /-- Actors authorized to issue new rights. -/
   isIssuer : Fin K → Bool
+  /-- Rights allocated at genesis above the counter floor. -/
   initialRights : Nat
+  /-- Capacity allocated at genesis below the optional ceiling. -/
   initialHeadroom : Nat
+  /-- Whether upper-bound headroom accounting is enabled. -/
   capped : Bool
 
+/-- Signature and role checks, including issuer permission for minting. -/
 def actorAuthorized (c : Context K T P) (tx : Fin T) : Bool :=
   c.signatureValid tx && c.roleAdmitted tx &&
     (if c.isMint tx then c.isIssuer (c.actor tx) else true)
 
+/-- Translate collective operations to a one-account currency context. -/
 def currency (c : Context K T P) : Currency.Context 1 T P where
   checkpoints := c.checkpoints
   operations := fun tx => {
@@ -41,6 +55,7 @@ def currency (c : Context K T P) : Currency.Context 1 T P where
     intro tx h
     cases hm : c.isMint tx <;> simp [hm] at h
 
+/-- Build the resource protocol configuration from the application context. -/
 def config (c : Context K T P) (committee : Committee f) : Config 1 T P 2 f :=
   Currency.config (currency c) committee
 

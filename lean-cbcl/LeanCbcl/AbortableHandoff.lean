@@ -10,12 +10,18 @@ No full Python lifecycle correspondence or Abstract ordered-history theorem.
 namespace CBCL.AbortableHandoff
 open CBCL.ValidatorBudget CBCL.SealedCheckpoint
 
+/-- Local journal and abort/export state for the handoff abstraction. -/
 structure Node where
+  /-- Transactions durably signed by this node. -/
   signed : Nat → Bool
+  /-- Checkpoint activated by this node, if any. -/
   activated : Option Nat
+  /-- Whether this node has irreversibly stopped normal execution. -/
   stopped : Bool
+  /-- Frozen signature journal and activated checkpoint exported on abort. -/
   exported : Option ((Nat → Bool) × Option Nat)
 
+/-- One permitted protocol transition, labelled only when an operation becomes final. -/
 inductive Step : Node → Node → Prop where
   | sign (s : Node) (tx : Nat) (openPhase : s.stopped = false) :
       Step s { s with signed := fun t => if t = tx then true else s.signed t }
@@ -25,10 +31,12 @@ inductive Step : Node → Node → Prop where
   | abort (s : Node) : Step s { s with stopped := true, exported := some (s.signed, s.activated) }
   | replay (s : Node) : Step s s
 
+/-- States reachable by finitely many permitted transitions. -/
 inductive Reach (initial : Node) : Node → Prop where
   | start : Reach initial initial
   | next : Reach initial s → Step s t → Reach initial t
 
+/-- Every exported snapshot matches the node's stopped, immutable state. -/
 def SnapshotValid (s : Node) : Prop :=
   ∀ ops choice, s.exported = some (ops, choice) →
     s.stopped = true ∧ s.signed = ops ∧ s.activated = choice

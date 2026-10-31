@@ -6,11 +6,13 @@ no crypto, codec, physical journal or Rust-extraction theorem is assumed. -/
 namespace CBCL.ConsensusFree.CollectiveActors
 open CBCL.ValidatorBudget
 
+/-- Actor signing identities plus the deliberately unauthenticated pool identity. -/
 inductive Identity (K : Nat) where
   | actor (id : Fin K)
   | pool
   deriving DecidableEq, Repr
 
+/-- Application request phases bound into authenticated packets. -/
 inductive Payload (T P : Nat) where
   | genesis
   | operation (tx : Fin T)
@@ -18,68 +20,110 @@ inductive Payload (T P : Nat) where
   | checkpoint (p : Fin P)
   deriving DecidableEq, Repr
 
+/-- Instance-scoped request with an explicit signing identity. -/
 structure Packet (K T P : Nat) where
+  /-- Instance domain included in authenticated requests. -/
   domain : Nat
+  /-- Identity claimed by the packet signer. -/
   signer : Identity K
+  /-- Complete application request carried by the packet. -/
   payload : Payload T P
   deriving DecidableEq, Repr
 
+-- Lean generates a precedence parameter that these record printers do not use.
+attribute [nolint unusedArguments] instReprPacket.repr
+
+/-- Cast membership and roles controlling collective requests. -/
 structure Policy (K L : Nat) where
+  /-- Whether an actor belongs to the protocol cast. -/
   cast : Fin K → Bool
+  /-- Roles assigned to each actor. -/
   role : Fin K → Fin L → Bool
+  /-- Role permitted to open the counter instance. -/
   initializer : Fin L
+  /-- Role permitted to request increments. -/
   increment : Fin L
+  /-- Role permitted to request decrements. -/
   decrement : Fin L
+  /-- Optional role required for minting rights. -/
   issuer : Option (Fin L)
 
+/-- Require both cast membership and the requested role. -/
 def Policy.admitted (p : Policy K L) (a : Fin K) (r : Fin L) := p.cast a && p.role a r
 
+/-- Check the configured issuer role; no issuer role admits nobody. -/
 def Policy.issues (p : Policy K L) (a : Fin K) : Bool :=
   match p.issuer with | none => false | some r => p.admitted a r
 
+/-- Allow cast members with increment or decrement roles to propose checkpoints. -/
 def Policy.checkpoints (p : Policy K L) (a : Fin K) : Bool :=
   p.cast a && (p.role a p.increment || p.role a p.decrement)
 
+/-- Single-pool checkpoint books before application authorization is attached. -/
 structure Manifest (T P : Nat) where
+  /-- Immediate predecessor epoch of the checkpoint. -/
   parent : Epoch 1 P
+  /-- Depth of an epoch in this configuration. -/
   depth : Nat
+  /-- Operations whose debits are included in the manifest. -/
   held : Fin T → Bool
+  /-- Held operations whose cancellation restores their debit. -/
   refunded : Fin T → Bool
+  /-- Final operations whose credits are included in the manifest. -/
   credited : Fin T → Bool
+  /-- Available resource vector after applying the manifest books. -/
   allocation : Fin 2 → Nat
 
+/-- Instance domain, roles, authenticated actors and immutable request catalogue. -/
 structure Context (K L T P : Nat) where
+  /-- Instance domain included in authenticated requests. -/
   domain : Nat
+  /-- Application admission policy for the instance. -/
   policy : Policy K L
   /-- Ideal verified signatures bind key, instance, phase and complete payload ID. -/
   authenticated : Fin K → Nat → Payload T P → Bool
+  /-- Actor designated to open the instance. -/
   opener : Fin K
+  /-- Lower bound of the counter value. -/
   floor : Int
+  /-- Optional upper bound of the counter value. -/
   ceiling : Option Int
+  /-- Rights allocated at genesis above the counter floor. -/
   initialRights : Nat
+  /-- Catalogue of proposed checkpoint bodies. -/
   manifests : Fin P → Manifest T P
+  /-- Source epoch for each operation. -/
   epoch : Fin T → Epoch 1 P
+  /-- Actor requesting each operation. -/
   actor : Fin T → Fin K
+  /-- Whether an operation increments rather than decrements the counter. -/
   isMint : Fin T → Bool
+  /-- Nonnegative amount carried by an operation. -/
   amount : Fin T → Nat
 
+/-- Construct the instance-scoped packet for an actor and payload. -/
 def canonical (c : Context K L T P) (body : Payload T P) (a : Fin K) : Packet K T P :=
   ⟨c.domain, .actor a, body⟩
 
+/-- Initial capacity below the ceiling, or zero for an uncapped counter. -/
 def headroom (c : Context K L T P) : Nat :=
   match c.ceiling with | none => 0 | some cap => (cap - c.floor - c.initialRights).toNat
 
+/-- Check that the initial counter value does not exceed the ceiling. -/
 def genesisBounds (c : Context K L T P) : Bool :=
   match c.ceiling with | none => true | some cap => decide (c.floor + c.initialRights ≤ cap)
 
+/-- Select the increment or decrement role for an operation. -/
 def roleFor (c : Context K L T P) (tx : Fin T) : Fin L :=
   if c.isMint tx then c.policy.increment else c.policy.decrement
 
+/-- Check actor authentication, admission, positive amount and mint authority. -/
 def operationAuthorized (c : Context K L T P) (tx : Fin T) : Bool :=
   c.authenticated (c.actor tx) c.domain (.operation tx) &&
   c.policy.admitted (c.actor tx) (roleFor c tx) && decide (0 < c.amount tx) &&
   (if c.isMint tx then c.policy.issues (c.actor tx) else true)
 
+/-- Verify a packet's domain, actor signature and phase-specific admission. -/
 def verify (c : Context K L T P) (packet : Packet K T P) : Bool :=
   match packet.signer with
   | .pool => false
@@ -91,9 +135,11 @@ def verify (c : Context K L T P) (packet : Packet K T P) : Bool :=
     | .cancellation tx => decide (a = c.actor tx)
     | .checkpoint _ => c.policy.checkpoints a
 
+/-- Whether an eligible actor authenticates the checkpoint request. -/
 def checkpointAuthorized (c : Context K L T P) (p : Fin P) : Bool :=
   (List.finRange K).any (fun a => verify c (canonical c (.checkpoint p) a))
 
+/-- Attach verified application authorization to a checkpoint body. -/
 def checkpoint (c : Context K L T P) (p : Fin P) : Checkpoint 1 T P 2 where
   owner := 0
   parent := (c.manifests p).parent
@@ -104,6 +150,7 @@ def checkpoint (c : Context K L T P) (p : Fin P) : Checkpoint 1 T P 2 where
   allocation := (c.manifests p).allocation
   authorized := checkpointAuthorized c p
 
+/-- Translate authenticated collective requests into the business resource context. -/
 def business (c : Context K L T P) : Collective.Context K T P where
   checkpoints := checkpoint c
   epoch := c.epoch
@@ -117,6 +164,7 @@ def business (c : Context K L T P) : Collective.Context K T P where
   initialHeadroom := headroom c
   capped := c.ceiling.isSome
 
+/-- Build the resource protocol configuration from the application context. -/
 def config (c : Context K L T P) (committee : Committee f) := Collective.config (business c) committee
 
 @[simp] theorem pool_rejected (c : Context K L T P) (i : Nat) (body : Payload T P) :
@@ -154,30 +202,40 @@ theorem operation_authorized_eq (c : Context K L T P) (tx : Fin T) :
       Collective.actorAuthorized, business, operationAuthorized, mint, Bool.and_assoc,
       Bool.and_comm, Bool.and_left_comm]
 
+/-- Resource protocol state with genesis authentication and local request receipts. -/
 structure State (K T P : Nat) where
+  /-- Underlying resource-protocol state. -/
   core : CBCL.ConsensusFree.State 1 T P 2
+  /-- Authenticated packet that opened this instance. -/
   genesis : Packet K T P
   /-- A bit identifies the full canonical request, retaining all eligible actors. -/
   receipts : Nat → Payload T P → Fin K → Bool
 
+/-- Initialize protocol state and empty delivery receipts from the genesis packet. -/
 def initialState (c : Context K L T P) (committee : Committee f) (genesis : Packet K T P) : State K T P where
   core := initial (config c committee)
   genesis := genesis
   receipts := fun _ _ _ => false
 
+/-- Create state only for a verified genesis packet. -/
 def admitGenesis (c : Context K L T P) (committee : Committee f) (packet : Packet K T P) : Option (State K T P) :=
   if packet.payload = .genesis ∧ verify c packet = true then some (initialState c committee packet) else none
 
+/-- Record delivery of a canonical actor request to a validator. -/
 def stamp (s : State K T P) (w : Nat) (body : Payload T P) (a : Fin K) : State K T P :=
   {s with receipts := two s.receipts w body (setAt (s.receipts w body) a true)}
 
+/-- Whether a validator has received the operation actor's request. -/
 def opReady (c : Context K L T P) (s : State K T P) (tx : Fin T) (w : Nat) :=
   s.receipts w (.operation tx) (c.actor tx)
+/-- Whether a validator has received the operation actor's cancellation request. -/
 def cancelReady (c : Context K L T P) (s : State K T P) (tx : Fin T) (w : Nat) :=
   s.receipts w (.cancellation tx) (c.actor tx)
+/-- Whether a validator has received any actor's checkpoint request. -/
 def checkpointReady (s : State K T P) (p : Fin P) (w : Nat) :=
   (List.finRange K).any (fun a => s.receipts w (.checkpoint p) a)
 
+/-- Require authenticated request delivery before honest protocol actions. -/
 def guard (c : Context K L T P) (committee : Committee f) (s : State K T P) : Command 1 T P → Bool
   | .sign tx w | .receiveOperation tx w | .receiveFinal tx w | .effect tx w =>
     if w ∈ committee.core then opReady c s tx w else true
@@ -185,11 +243,13 @@ def guard (c : Context K L T P) (committee : Committee f) (s : State K T P) : Co
   | .endorse p w | .record p w => if w ∈ committee.core then checkpointReady s p w else true
   | _ => true
 
+/-- An asynchronous packet delivery or local protocol command. -/
 inductive Event (K T P : Nat) where
   | deliver (validator : Nat) (packet : Packet K T P)
   | protocol (command : Command 1 T P)
   deriving DecidableEq, Repr
 
+/-- Deliver an authenticated request or execute a guarded local protocol command. -/
 def execute (c : Context K L T P) (committee : Committee f) (s : State K T P)
     (event : Event K T P) : Option (Fin T) × State K T P :=
   match event with
@@ -220,6 +280,7 @@ theorem execute_erases (c : Context K L T P) (committee : Committee f) (s : Stat
       · exact execute_sound (config c committee) s.core command
       · exact Step.replay _
 
+/-- Replay asynchronous events in order, collecting finalization labels. -/
 def run (c : Context K L T P) (committee : Committee f) (s : State K T P) :
     List (Event K T P) → List (Option (Fin T)) × State K T P
   | [] => ([],s)
@@ -349,6 +410,7 @@ private theorem stamp_mono (s : State K T P) (w v : Nat) (body key : Payload T P
   by_cases hw : v = w <;> by_cases hk : key = body <;> by_cases ha : b = a <;>
     simp_all [stamp, two, setAt]
 
+/-- Genesis, receipt and honest-action authentication invariants. -/
 structure ControlInvariant (c : Context K L T P) (committee : Committee f) (s : State K T P) : Prop where
   genesis : s.genesis.payload = .genesis ∧ verify c s.genesis = true
   receipts : ∀ w body a, s.receipts w body a = true → verify c (canonical c body a) = true
@@ -637,6 +699,7 @@ theorem byzantine_auth_guard_unrestricted (c : Context K L T P) (committee : Com
     guard c committee s (.sign tx w) = true ∧ guard c committee s (.fence tx w) = true ∧
       guard c committee s (.endorse p w) = true := by simp [guard,outside]
 
+/-- Verify genesis and replay the persisted event journal. -/
 def recover (c : Context K L T P) (committee : Committee f) (packet : Packet K T P)
     (journal : List (Event K T P)) : Option (State K T P) :=
   (admitGenesis c committee packet).map (fun state => (run c committee state journal).2)
