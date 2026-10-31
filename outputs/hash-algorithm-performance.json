@@ -1,0 +1,232 @@
+{
+  "base_commit": "a65b3914245730f038056f31a3d0ac1932749b87",
+  "baseline": "Base commit plus the pending shared canonical streaming encoder; production source unchanged by these hash experiments.",
+  "hardware": "Apple M2; macOS ARM64",
+  "build": {
+    "opt_level": 3,
+    "lto": false,
+    "debug": 0,
+    "strip": true,
+    "incremental": false,
+    "build_jobs": 4
+  },
+  "libraries": {
+    "sha2": "0.10.9",
+    "blake3": "1.8.7"
+  },
+  "workload": "30 fresh 1000-transaction collective fixtures per run; four serial validators; one-unit decrements; memory journals; test authentication; no real cryptography/network/fsync.",
+  "primary_comparison": "Accelerated SHA-256 versus BLAKE3; both use identical SHA-256-asm mock signatures and verification. Software SHA-256 is a reference run whose mock authentication is also software SHA-256.",
+  "protocol_hash_scope": "All production hashing sites in canonical.rs, typed_addr.rs and quorum/types.rs replaced in the temporary BLAKE3 variants; message/dialect/Merkle/quorum digests all use BLAKE3. Mock transaction signing remains a separate unchanged host layer.",
+  "wire_scope": "Temporary algorithm substitution only. Existing equal-length wire labels/domain tags retained to isolate hashing cost; no BLAKE3-labelled wire protocol or compatible storage format was published or retained.",
+  "first_trial": {
+    "runs": [
+      {
+        "transactions": 30000.0,
+        "construction_s": 1.519916,
+        "operation_s": 2.522384,
+        "finalization_s": 0.680499,
+        "measured_s": 4.722799,
+        "wall_s": 5.169964,
+        "tps": 6352.17,
+        "variant": "sha256-soft",
+        "pair": 0
+      },
+      {
+        "transactions": 30000.0,
+        "construction_s": 1.031108,
+        "operation_s": 1.859899,
+        "finalization_s": 0.425272,
+        "measured_s": 3.316279,
+        "wall_s": 3.74191,
+        "tps": 9046.28,
+        "variant": "sha256-arm",
+        "pair": 0
+      },
+      {
+        "transactions": 30000.0,
+        "construction_s": 1.341906,
+        "operation_s": 2.147021,
+        "finalization_s": 0.428141,
+        "measured_s": 3.917068,
+        "wall_s": 4.363298,
+        "tps": 7658.79,
+        "variant": "blake3",
+        "pair": 0
+      },
+      {
+        "transactions": 30000.0,
+        "construction_s": 1.029686,
+        "operation_s": 1.852212,
+        "finalization_s": 0.42505,
+        "measured_s": 3.306948,
+        "wall_s": 3.730959,
+        "tps": 9071.81,
+        "variant": "sha256-arm",
+        "pair": 1
+      },
+      {
+        "transactions": 30000.0,
+        "construction_s": 1.32982,
+        "operation_s": 2.127996,
+        "finalization_s": 0.425078,
+        "measured_s": 3.882894,
+        "wall_s": 4.316932,
+        "tps": 7726.2,
+        "variant": "blake3",
+        "pair": 1
+      },
+      {
+        "transactions": 30000.0,
+        "construction_s": 1.507589,
+        "operation_s": 2.506885,
+        "finalization_s": 0.678303,
+        "measured_s": 4.692776,
+        "wall_s": 5.137391,
+        "tps": 6392.8,
+        "variant": "sha256-soft",
+        "pair": 1
+      },
+      {
+        "transactions": 30000.0,
+        "construction_s": 1.325733,
+        "operation_s": 2.115882,
+        "finalization_s": 0.422962,
+        "measured_s": 3.864577,
+        "wall_s": 4.29684,
+        "tps": 7762.82,
+        "variant": "blake3",
+        "pair": 2
+      },
+      {
+        "transactions": 30000.0,
+        "construction_s": 1.508865,
+        "operation_s": 2.502083,
+        "finalization_s": 0.676455,
+        "measured_s": 4.687403,
+        "wall_s": 5.121169,
+        "tps": 6400.13,
+        "variant": "sha256-soft",
+        "pair": 2
+      },
+      {
+        "transactions": 30000.0,
+        "construction_s": 1.020154,
+        "operation_s": 1.848764,
+        "finalization_s": 0.422728,
+        "measured_s": 3.291647,
+        "wall_s": 3.706379,
+        "tps": 9113.98,
+        "variant": "sha256-arm",
+        "pair": 2
+      }
+    ],
+    "median_tps": {
+      "sha256-soft": 6392.8,
+      "sha256-arm": 9071.81,
+      "blake3": 7726.2
+    },
+    "blake3_vs_accelerated_sha256": 0.8516712761841353
+  },
+  "buffered_trial": {
+    "runs": [
+      {
+        "transactions": 30000.0,
+        "construction_s": 1.02503,
+        "operation_s": 1.853626,
+        "finalization_s": 0.424258,
+        "measured_s": 3.302914,
+        "wall_s": 3.72267,
+        "tps": 9082.89,
+        "variant": "sha256-arm",
+        "pair": 0
+      },
+      {
+        "transactions": 30000.0,
+        "construction_s": 1.274655,
+        "operation_s": 2.074074,
+        "finalization_s": 0.423435,
+        "measured_s": 3.772164,
+        "wall_s": 4.196437,
+        "tps": 7952.99,
+        "variant": "blake3-buffered",
+        "pair": 0
+      },
+      {
+        "transactions": 30000.0,
+        "construction_s": 1.271818,
+        "operation_s": 2.057908,
+        "finalization_s": 0.416161,
+        "measured_s": 3.745886,
+        "wall_s": 4.166334,
+        "tps": 8008.79,
+        "variant": "blake3-buffered",
+        "pair": 1
+      },
+      {
+        "transactions": 30000.0,
+        "construction_s": 1.038539,
+        "operation_s": 1.874295,
+        "finalization_s": 0.429207,
+        "measured_s": 3.342041,
+        "wall_s": 3.788257,
+        "tps": 8976.55,
+        "variant": "sha256-arm",
+        "pair": 1
+      },
+      {
+        "transactions": 30000.0,
+        "construction_s": 1.024191,
+        "operation_s": 1.857184,
+        "finalization_s": 0.426582,
+        "measured_s": 3.307956,
+        "wall_s": 3.739865,
+        "tps": 9069.04,
+        "variant": "sha256-arm",
+        "pair": 2
+      },
+      {
+        "transactions": 30000.0,
+        "construction_s": 1.274278,
+        "operation_s": 2.072467,
+        "finalization_s": 0.424403,
+        "measured_s": 3.771148,
+        "wall_s": 4.199673,
+        "tps": 7955.14,
+        "variant": "blake3-buffered",
+        "pair": 2
+      }
+    ],
+    "median_tps": {
+      "sha256-arm": 9069.04,
+      "blake3-buffered": 7955.14
+    },
+    "blake3_vs_accelerated_sha256": 0.8771755334632992
+  },
+  "median_tps": {
+    "software_sha256": 6392.8,
+    "accelerated_sha256": 9069.04,
+    "blake3_incremental": 7726.2,
+    "blake3_buffered": 7955.14
+  },
+  "accelerated_sha256_over_buffered_blake3": 1.140022677162187,
+  "binary_sha256": {
+    "sha256-soft": "9bf2d4acd4ae8cb5d20ea2132a48be3394fd0f44542d0edbd267ad151f6e9179",
+    "sha256-arm": "db9c5b8b304964ced7b8016860275134efa598dc0477188efc1bd231eecfacea",
+    "blake3": "2331899bde76a5af9da62ab409e7a213d0840275b2b8d5f717b5a11ebb36105b",
+    "blake3-buffered": "e02c5a9f7423602ea682a764c1cfaa0015257e1e0d06037fbaeabf399b868610"
+  },
+  "source_input_sha256": {
+    "crates/cbcl-core/src/canonical.rs": "0a9c5666ef45380b691dc145bcb6a88f3f9b8bf08153b92305bf4581f5570cdf",
+    "crates/cbcl-core/src/typed_addr.rs": "d6b929bfd199f68d6efef0de8803c48110b7b2062ebe8f2c4414abd5191df49a",
+    "crates/cbcl-core/src/quorum/types.rs": "cb37446f2e02a4b51077c10b7b40783ef34abbf858c2e80cba8f98aa9edb4f14",
+    "crates/cbcl-core/src/lib.rs": "a6b55428f5c4430031f7fbf8e5e93f14b9fc5117058d374c7b9d1315982e3000",
+    "crates/cbcl-core/Cargo.toml": "fc23d39e59c44df5139b24308c1a51d7ec873da64764ee6e5ef86918dc8ba2c6"
+  },
+  "buffered_blake3_adapter": "// Ephemeral benchmark adapter. Buffer short inputs for BLAKE3's one-shot path.\npub(crate) struct ExperimentalHash {\n    short: [u8; 1024],\n    used: usize,\n    long: Option<blake3::Hasher>,\n}\nimpl ExperimentalHash {\n    pub(crate) fn new() -> Self {\n        Self { short: [0; 1024], used: 0, long: None }\n    }\n    pub(crate) fn update(&mut self, bytes: impl AsRef<[u8]>) {\n        let bytes = bytes.as_ref();\n        if let Some(h) = &mut self.long { h.update(bytes); }\n        else if bytes.len() <= self.short.len() - self.used {\n            self.short[self.used..self.used+bytes.len()].copy_from_slice(bytes);\n            self.used += bytes.len();\n        } else {\n            let mut h = blake3::Hasher::new();\n            h.update(&self.short[..self.used]); h.update(bytes); self.long = Some(h);\n        }\n    }\n    pub(crate) fn finalize(self) -> [u8; 32] {\n        match self.long {\n            Some(h) => *h.finalize().as_bytes(),\n            None => *blake3::hash(&self.short[..self.used]).as_bytes(),\n        }\n    }\n    pub(crate) fn digest(bytes: impl AsRef<[u8]>) -> [u8; 32] { *blake3::hash(bytes.as_ref()).as_bytes() }\n}\n#[cfg(test)] mod tests {\n    use super::*;\n    #[test] fn buffered_matches_blake3_at_boundaries() {\n        for len in [0,1,63,64,65,511,512,1023,1024,1025,4096] {\n            let bytes: alloc::vec::Vec<u8> = (0..len).map(|i| (i % 251) as u8).collect();\n            for chunk in [1,7,64,1024] {\n                let mut h = ExperimentalHash::new();\n                for part in bytes.chunks(chunk) { h.update(part); }\n                assert_eq!(h.finalize(), *blake3::hash(&bytes).as_bytes());\n            }\n        }\n    }\n}\n",
+  "reproduce_build": "Build each isolated checkout with CARGO_PROFILE_RELEASE_OPT_LEVEL=3 CARGO_PROFILE_RELEASE_LTO=false CARGO_PROFILE_RELEASE_DEBUG=0 CARGO_PROFILE_RELEASE_STRIP=true CARGO_INCREMENTAL=0 cargo test --release -p cbcl-parser --test quorum_runtime --no-run. Enable sha2/asm for accelerated SHA-256 and both BLAKE3 variants. BLAKE3 uses default-features=false.",
+  "reproduce_run": "CBCL_QUORUM_PROFILE_ROUNDS=30 <variant-test-binary> multi_parent::in_memory_profile_probe --ignored --exact --nocapture",
+  "measurement": "Three rotated rounds for initial variants; three alternating pairs for accelerated SHA-256 versus buffered BLAKE3; no concurrent builds/tests. Every workload asserted expected final counter value.",
+  "validation": "Every benchmark run passed the expected final balance assertion. Buffered BLAKE3 checked against blake3::hash for nonuniform input lengths 0,1,63,64,65,511,512,1023,1024,1025,4096 and chunk sizes 1,7,64,1024.",
+  "decision": "Retain SHA-256; accelerated SHA-256 won on this machine/workload. No BLAKE3 dependency or protocol change added to the working branch.",
+  "limits": "Single Apple M2, short Merkle preimages and small transactions. Results do not establish the winner on x86, WASM or large payloads. Latest BLAKE3 tested using the installed toolchain; crate/MSRV integration was not attempted."
+}

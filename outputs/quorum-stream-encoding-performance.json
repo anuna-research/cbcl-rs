@@ -1,0 +1,338 @@
+{
+  "base_commit": "a65b3914245730f038056f31a3d0ac1932749b87",
+  "contract": "SPEC-032 REQ-3200: preserve observable protocol behavior",
+  "changes": [
+    "Share one canonical encoder between Vec output and a crate-private infallible byte sink.",
+    "Borrow atom strings and format decimal lengths/numbers on the stack, including i64::MIN.",
+    "Stream the unchanged Merkle leaf prefix, list framing, domain tag and value into SHA-256; remove the cloned framed expression and canonical leaf byte buffer.",
+    "Retain the previous buffered encoder only in tests as an independent compatibility oracle."
+  ],
+  "production_encoder_and_leaf_sha256": "ec79c90869a277a42471ad24343edaf3572b4ac4a91b79740deb70c2d015c33a",
+  "binary_sha256": {
+    "baseline": "b55d4f037bd175e7e9b02d091f5fd9c5078ff7d80ba77723dfa18749fa68520f",
+    "optimized": "8f57058287c781827d7f87758ae6c878f81bf0d37de4fb9b953e245ac854f57d"
+  },
+  "hardware": "Apple M2; macOS ARM64",
+  "build": {
+    "opt_level": 3,
+    "lto": false,
+    "debug": 1,
+    "strip": false
+  },
+  "workload": "30 fresh 1000-transaction collective fixtures per run; four serial replicas; one-unit decrements; test authentication; memory journals",
+  "measurement": "Three alternating isolated A/B pairs (A/B, B/A, A/B); phase timers exclude fixture setup, final view and teardown; no concurrent builds or tests.",
+  "comparison": {
+    "runs": [
+      {
+        "transactions": 30000.0,
+        "construction_s": 2.240991,
+        "operation_s": 3.2327,
+        "finalization_s": 0.820966,
+        "measured_s": 6.294657,
+        "wall_s": 6.748217,
+        "tps": 4765.95,
+        "label": "baseline",
+        "pair": 0
+      },
+      {
+        "transactions": 30000.0,
+        "construction_s": 1.622316,
+        "operation_s": 2.690085,
+        "finalization_s": 0.724584,
+        "measured_s": 5.036986,
+        "wall_s": 5.487696,
+        "tps": 5955.94,
+        "label": "optimized",
+        "pair": 0
+      },
+      {
+        "transactions": 30000.0,
+        "construction_s": 1.551103,
+        "operation_s": 2.570311,
+        "finalization_s": 0.69515,
+        "measured_s": 4.816565,
+        "wall_s": 5.256302,
+        "tps": 6228.51,
+        "label": "optimized",
+        "pair": 1
+      },
+      {
+        "transactions": 30000.0,
+        "construction_s": 2.139126,
+        "operation_s": 3.092023,
+        "finalization_s": 0.784973,
+        "measured_s": 6.016121,
+        "wall_s": 6.459144,
+        "tps": 4986.6,
+        "label": "baseline",
+        "pair": 1
+      },
+      {
+        "transactions": 30000.0,
+        "construction_s": 2.142794,
+        "operation_s": 3.094129,
+        "finalization_s": 0.783454,
+        "measured_s": 6.020377,
+        "wall_s": 6.464599,
+        "tps": 4983.08,
+        "label": "baseline",
+        "pair": 2
+      },
+      {
+        "transactions": 30000.0,
+        "construction_s": 1.520914,
+        "operation_s": 2.517935,
+        "finalization_s": 0.677543,
+        "measured_s": 4.716392,
+        "wall_s": 5.144136,
+        "tps": 6360.79,
+        "label": "optimized",
+        "pair": 2
+      }
+    ],
+    "baseline_median_tps": 4983.08,
+    "optimized_median_tps": 6228.51,
+    "speedup": 1.249931769106657,
+    "improvement_percent": 24.993176910665692
+  },
+  "sampled_run": {
+    "transactions": 200000,
+    "measured_tps": 6101.57,
+    "sample_seconds": 25,
+    "worker_samples": 18839,
+    "hot_functions_inclusive": [
+      {
+        "function": "quorum_runtime::multi_parent::in_memory_profile_probe",
+        "samples": 18762,
+        "percent": 99.59
+      },
+      {
+        "function": "cbcl_core::quorum::engine::Replica::commit",
+        "samples": 10068,
+        "percent": 53.44
+      },
+      {
+        "function": "cbcl_core::quorum::engine::Replica::prepare",
+        "samples": 9175,
+        "percent": 48.7
+      },
+      {
+        "function": "quorum_runtime::Net::operation",
+        "samples": 9002,
+        "percent": 47.78
+      },
+      {
+        "function": "cbcl_core::quorum::engine::Replica::operation",
+        "samples": 6467,
+        "percent": 34.33
+      },
+      {
+        "function": "quorum_runtime::Net::register",
+        "samples": 5945,
+        "percent": 31.56
+      },
+      {
+        "function": "quorum_runtime::ticket",
+        "samples": 5695,
+        "percent": 30.23
+      },
+      {
+        "function": "cbcl_core::quorum::engine::Replica::intend",
+        "samples": 5076,
+        "percent": 26.94
+      },
+      {
+        "function": "cbcl_core::intend::intend_impl",
+        "samples": 5022,
+        "percent": 26.66
+      },
+      {
+        "function": "cbcl_core::quorum::context::Context::structural",
+        "samples": 4473,
+        "percent": 23.74
+      },
+      {
+        "function": "cbcl_core::state::wire_address",
+        "samples": 3965,
+        "percent": 21.05
+      },
+      {
+        "function": "cbcl_core::typed_addr::typed_root",
+        "samples": 3893,
+        "percent": 20.66
+      },
+      {
+        "function": "cbcl_core::typed_addr::build_tree",
+        "samples": 3840,
+        "percent": 20.38
+      },
+      {
+        "function": "cbcl_core::state::Act::from_message",
+        "samples": 3797,
+        "percent": 20.15
+      },
+      {
+        "function": "cbcl_core::quorum::engine::Replica::verify_vote",
+        "samples": 2674,
+        "percent": 14.19
+      },
+      {
+        "function": "quorum_runtime::Net::finalize",
+        "samples": 2430,
+        "percent": 12.9
+      },
+      {
+        "function": "cbcl_core::canonical::encode_to",
+        "samples": 1999,
+        "percent": 10.61
+      },
+      {
+        "function": "cbcl_core::quorum::engine::Replica::epoch",
+        "samples": 1721,
+        "percent": 9.14
+      },
+      {
+        "function": "cbcl_core::quorum::context::Context::root_epoch",
+        "samples": 1679,
+        "percent": 8.91
+      },
+      {
+        "function": "cbcl_core::quorum::engine::Replica::bind_authoring",
+        "samples": 1574,
+        "percent": 8.36
+      },
+      {
+        "function": "cbcl_core::quorum::context::Context::matches",
+        "samples": 1574,
+        "percent": 8.36
+      },
+      {
+        "function": "cbcl_core::canonical::dialect_hash",
+        "samples": 1573,
+        "percent": 8.35
+      },
+      {
+        "function": "cbcl_core::quorum::engine::BoundAuthoring::check_candidate",
+        "samples": 1449,
+        "percent": 7.69
+      },
+      {
+        "function": "cbcl_core::canonical::encode_tagged_to",
+        "samples": 1282,
+        "percent": 6.81
+      },
+      {
+        "function": "cbcl_core::quorum::types::digest",
+        "samples": 1273,
+        "percent": 6.76
+      },
+      {
+        "function": "cbcl_core::canonical::dialect_canonical_bytes",
+        "samples": 973,
+        "percent": 5.16
+      },
+      {
+        "function": "cbcl_core::quorum::types::Vote::preimage",
+        "samples": 966,
+        "percent": 5.13
+      },
+      {
+        "function": "cbcl_core::typed_addr::leaf_hash",
+        "samples": 847,
+        "percent": 4.5
+      },
+      {
+        "function": "cbcl_core::quorum::engine::Replica::prepare_operation",
+        "samples": 785,
+        "percent": 4.17
+      },
+      {
+        "function": "cbcl_core::r7::verify_state_shape",
+        "samples": 733,
+        "percent": 3.89
+      },
+      {
+        "function": "cbcl_core::quorum::engine::Replica::budget",
+        "samples": 644,
+        "percent": 3.42
+      },
+      {
+        "function": "quorum_runtime::sign",
+        "samples": 642,
+        "percent": 3.41
+      },
+      {
+        "function": "cbcl_core::canonical::to_signable_sexpr",
+        "samples": 500,
+        "percent": 2.65
+      },
+      {
+        "function": "cbcl_core::message::_$LT$impl$u20$core..convert..From$LT$$RF$cbcl_core..message..Message$GT$$u20$for$u20$cbcl_core..sexpr..SExpr$GT$::from",
+        "samples": 344,
+        "percent": 1.83
+      },
+      {
+        "function": "cbcl_core::message::_$LT$impl$u20$core..convert..From$LT$cbcl_core..message..Message$GT$$u20$for$u20$cbcl_core..sexpr..SExpr$GT$::from",
+        "samples": 314,
+        "percent": 1.67
+      },
+      {
+        "function": "cbcl_core::state::keyword_fields",
+        "samples": 295,
+        "percent": 1.57
+      },
+      {
+        "function": "cbcl_core::typed_addr::field_sexpr",
+        "samples": 269,
+        "percent": 1.43
+      },
+      {
+        "function": "cbcl_core::quorum::engine::Replica::apply_update",
+        "samples": 253,
+        "percent": 1.34
+      },
+      {
+        "function": "cbcl_core::intend::Instance::new",
+        "samples": 222,
+        "percent": 1.18
+      },
+      {
+        "function": "cbcl_core::quorum::engine::Replica::has",
+        "samples": 214,
+        "percent": 1.14
+      }
+    ],
+    "scope": "Worker thread including fixture setup, final query and teardown; inclusive functions overlap and recursive calls count once per stack."
+  },
+  "mutations": [
+    {
+      "mutation": "numeric-tag",
+      "test": "canonical::tests::canonical_stream_preserves_decimal_and_utf8_boundaries",
+      "exit_code": 101,
+      "detected_by_executed_assertion": true
+    },
+    {
+      "mutation": "leaf-framing",
+      "test": "typed_addr::tests::streamed_merkle_leaves_and_roots_match_reference_encoding",
+      "exit_code": 101,
+      "detected_by_executed_assertion": true
+    }
+  ],
+  "review": {
+    "reviewer": "local_cost_review",
+    "result": "accepted",
+    "independent_tests": "Decimal/UTF-8 boundaries, recursive byte/stream-hash compatibility, and reference Merkle leaf/root/opening tests passed"
+  },
+  "validation": {
+    "workspace_tests": "passed",
+    "core_unit_tests": "870 passed",
+    "quorum_runtime": "45 passed; 2 opt-in probes ignored",
+    "no_std": "passed",
+    "shared_lean_trace": "268 commands match",
+    "changed_file_format": "passed",
+    "diff_check": "passed",
+    "clippy": "No new findings; existing root:root test initializer warning in typed_addr.rs remains"
+  },
+  "reproduce": "CARGO_PROFILE_RELEASE_OPT_LEVEL=3 CARGO_PROFILE_RELEASE_LTO=false CARGO_PROFILE_RELEASE_DEBUG=1 CARGO_PROFILE_RELEASE_STRIP=false CBCL_QUORUM_PROFILE_ROUNDS=30 cargo test --release -p cbcl-parser --test quorum_runtime multi_parent::in_memory_profile_probe -- --ignored --exact --nocapture",
+  "limits": "Local CPU probe only; no real signatures, network, fsync, large committees, merges or sustained unbounded history. Streaming still constructs each field expression; it removes the additional framing clone and encoded-byte buffer. Buffered canonical callers also benefit from the shared allocation-reduced encoder."
+}

@@ -46,7 +46,7 @@
 //! ```
 //!
 //! The domain tag and the field value are wrapped in a *two-element list* and
-//! run through the existing [`canonical_encode`]: RFC 9804's length-prefixed
+//! run through the existing [`crate::canonical::canonical_encode`]: RFC 9804's length-prefixed
 //! framing makes `(tag field)` an unambiguous, injective encoding of the pair
 //! — there is no concatenation-boundary ambiguity to exploit, and the fixed
 //! per-field tag domain-separates leaf 0's bytes from leaf 5's even when the
@@ -104,6 +104,7 @@
 
 #![forbid(unsafe_code)]
 
+#[cfg(test)]
 use crate::canonical::canonical_encode;
 use crate::message::{CausedBy, Message};
 use crate::protocol::BEGIN_KEYWORD;
@@ -276,13 +277,14 @@ fn caused_by_sexpr(cb: &CausedBy) -> SExpr {
 
 /// The leaf digest for a field value: `SHA256(0x00 ‖ enc((tag, value)))`.
 fn leaf_hash(id: FieldId, value: &SExpr) -> [u8; 32] {
-    let framed = SExpr::List(vec![
-        SExpr::Atom(Atom::Symbol(String::from(id.domain_tag()))),
-        value.clone(),
-    ]);
     let mut h = Sha256::new();
-    h.update([LEAF_PREFIX]);
-    h.update(canonical_encode(&framed));
+    h.update([LEAF_PREFIX, b'(']);
+    {
+        let mut sink = |bytes: &[u8]| h.update(bytes);
+        crate::canonical::encode_symbol_to(id.domain_tag(), &mut sink);
+        crate::canonical::encode_to(value, &mut sink);
+    }
+    h.update(b")");
     h.finalize().into()
 }
 
@@ -440,6 +442,78 @@ mod tests {
             thread: Some("conv-7".to_string()),
             sender: Some("@alice".to_string()),
             caused_by: Some(CausedBy::Single("sha256:beef".to_string())),
+        }
+    }
+
+    #[test]
+    fn streamed_merkle_leaves_and_roots_match_reference_encoding() {
+        let mut messages = vec![sample(""), sample("é🙂"), sample(&"x".repeat(4096))];
+        let mut rich = sample("payload");
+        if let Message::Simple {
+            content,
+            params,
+            sender,
+            thread,
+            caused_by,
+            recipient,
+            ..
+        } = &mut rich
+        {
+            *content = SExpr::List(vec![SExpr::Atom(Atom::Num(i64::MIN)), SExpr::List(vec![])]);
+            *params = vec![
+                SExpr::Atom(Atom::Keyword("flag".into())),
+                SExpr::Atom(Atom::Bool(false)),
+            ];
+            *sender = None;
+            *thread = None;
+            *caused_by = Some(CausedBy::Multiple(vec!["z".into(), "a".into()]));
+            *recipient = None;
+        }
+        messages.push(rich.clone());
+        messages.push(Message::Wrapped {
+            wrapper: crate::message::WrapperType::Signed,
+            params: vec![SExpr::Atom(Atom::Symbol("@alice".into()))],
+            content: alloc::boxed::Box::new(rich.clone()),
+        });
+        messages.push(Message::Dialect {
+            dialect_name: "probe".into(),
+            inner: alloc::boxed::Box::new(rich),
+        });
+        messages.push(Message::Meta {
+            dialect_def: SExpr::List(vec![]),
+        });
+        for message in messages {
+            let mut leaves = [[0u8; 32]; 6];
+            for (slot, field) in FIELD_ORDER.iter().enumerate() {
+                let value = field_sexpr(&message, *field);
+                let framed = SExpr::List(vec![
+                    SExpr::Atom(Atom::Symbol(field.domain_tag().into())),
+                    value.clone(),
+                ]);
+                let mut h = Sha256::new();
+                h.update([LEAF_PREFIX]);
+                h.update(crate::canonical::reference_encode(&framed));
+                leaves[slot] = h.finalize().into();
+                assert_eq!(leaf_hash(*field, &value), leaves[slot]);
+            }
+            let left = node_hash(
+                &node_hash(&leaves[0], &leaves[1]),
+                &node_hash(&leaves[2], &leaves[3]),
+            );
+            let root = node_hash(&left, &node_hash(&leaves[4], &leaves[5]));
+            assert_eq!(
+                typed_root(&message),
+                alloc::format!("sha256:{}", hex32(&root))
+            );
+            for field in FIELD_ORDER {
+                let opening = open(&message, field);
+                assert!(verify_opening(
+                    &typed_root(&message),
+                    field,
+                    &opening.value,
+                    &opening
+                ));
+            }
         }
     }
 

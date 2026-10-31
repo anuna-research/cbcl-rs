@@ -9,7 +9,6 @@ use crate::{
     state::{Act, Value},
 };
 use alloc::{
-    borrow::Cow,
     collections::{BTreeMap, BTreeSet},
     string::{String, ToString},
     vec::Vec,
@@ -178,25 +177,13 @@ impl Replica {
     fn has(&self, kind: VoteKind, id: &str) -> bool {
         self.state.certificates.contains_key(&(kind, id.into()))
     }
-    fn epoch(&self, id: &str) -> Result<Cow<'_, VersionManifest>> {
+    fn epoch(&self, id: &str) -> Result<&VersionManifest> {
         if let Some(v) = self.state.versions.get(id) {
-            return Ok(Cow::Borrowed(&v.manifest));
+            return Ok(&v.manifest);
         }
-
-        for (a, b) in &self.context.initial {
-            if self.context.root_epoch(a)? == id {
-                return Ok(Cow::Owned(VersionManifest {
-                    account: a.clone(),
-                    parents: BTreeSet::new(),
-                    rank: 0,
-                    held: BTreeSet::new(),
-                    refunded: BTreeSet::new(),
-                    credited: BTreeSet::new(),
-                    allocation: *b,
-                }));
-            }
-        }
-        Err(alloc::format!("missing certified epoch {id}"))
+        self.context
+            .root_manifest(id)
+            .ok_or_else(|| alloc::format!("missing certified epoch {id}"))
     }
     fn verify_vote<A: Authentication>(
         &self,

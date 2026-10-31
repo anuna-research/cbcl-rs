@@ -1378,3 +1378,139 @@ fn authoring_rechecks_canonical_identity_and_preserves_rejection_order() {
     );
     assert_eq!(n.rs[0].journal_sequence(), 1);
 }
+
+#[test]
+fn cached_genesis_roots_preserve_identity_scope_and_empty_books() {
+    for n in [Net::new(), dag()] {
+        for actor in ["@alice", "@bob", "@treasury"] {
+            let account = if n.ctx.ownership() == cbcl_core::escrow::Ownership::Collective {
+                COLLECTIVE_POOL
+            } else {
+                actor
+            };
+            let bytes = cbcl_core::canonical::canonical_encode(&SExpr::List(
+                ["cbcl/root-epoch/v1", n.ctx.id(), account]
+                    .into_iter()
+                    .map(|s| SExpr::Atom(Atom::Str(s.into())))
+                    .collect(),
+            ));
+            let expected = format!(
+                "sha256-{}",
+                Sha256::digest(bytes)
+                    .iter()
+                    .map(|b| format!("{b:02x}"))
+                    .collect::<String>()
+            );
+            assert_eq!(n.ctx.root_epoch(actor).unwrap(), expected);
+            assert_eq!(n.ctx.clone().root_epoch(actor).unwrap(), expected);
+            let mut returned = n.ctx.root_epoch(actor).unwrap();
+            returned.clear();
+            assert_eq!(n.ctx.root_epoch(actor).unwrap(), expected);
+            let manifest = n.rs[0]
+                .draft_version(
+                    &set([expected]),
+                    &BTreeSet::new(),
+                    &BTreeSet::new(),
+                    &BTreeSet::new(),
+                )
+                .unwrap();
+            assert_eq!(manifest.account, account);
+            assert_eq!(manifest.rank, 1);
+            assert!(
+                manifest.held.is_empty()
+                    && manifest.refunded.is_empty()
+                    && manifest.credited.is_empty()
+            );
+        }
+        assert!(n.ctx.root_epoch("@unknown").is_err());
+        assert!(n.rs[0]
+            .draft_version(
+                &set(["unknown-root".into()]),
+                &BTreeSet::new(),
+                &BTreeSet::new(),
+                &BTreeSet::new()
+            )
+            .is_err());
+    }
+    let first = dag_supply(TICKETS, 100);
+    let second = dag_supply(TICKETS, 101);
+    let foreign = second.ctx.root_epoch(COLLECTIVE_POOL).unwrap();
+    assert_ne!(first.ctx.root_epoch(COLLECTIVE_POOL).unwrap(), foreign);
+    assert!(first.rs[0]
+        .draft_version(
+            &set([foreign]),
+            &BTreeSet::new(),
+            &BTreeSet::new(),
+            &BTreeSet::new()
+        )
+        .is_err());
+}
+
+#[test]
+fn cached_genesis_allocations_preserve_both_budgets_after_context_rebuild() {
+    for collective in [false, true] {
+        let mut n = if collective {
+            dag()
+        } else {
+            let source = COIN
+                .replace("(floor 0)", "(floor 0) (ceiling 2000) (certification quorum-budget (validators @v0 @v1 @v2 @v3))")
+                .replace("(initial-rights open :allocations)", "(initial-rights open :allocations) (initial-headroom open :capacity)")
+                .replace("(to name allocations)", "(to name allocations capacity)")
+                .replace(":allocations allocations))", ":allocations allocations :capacity capacity))")
+                .replace("(require :allocations list)", "(require :allocations list) (require :capacity list)");
+            Net::source(source, true)
+        };
+        let limit = if collective { 66 } else { 666 };
+        let verbs = if collective {
+            ["sell", "restock"]
+        } else {
+            ["burn", "mint"]
+        };
+        for verb in verbs {
+            let mut make = |amount: i64, nonce: &str| {
+                if verb == "sell" {
+                    ticket(&mut n, "@alice", amount, nonce)
+                } else {
+                    n.make("@treasury", verb, None, amount, nonce)
+                }
+            };
+            let too_big = make(limit + 1, &format!("{verb}-too-big"));
+            let fits = make(limit, &format!("{verb}-fits"));
+            n.register(&too_big);
+            n.register(&fits);
+            assert!(n.rs[0]
+                .prepare_operation(&too_big.address, &mut n.j, &n.auth)
+                .is_err());
+            n.rs[0]
+                .prepare_operation(&fits.address, &mut n.j, &n.auth)
+                .unwrap();
+        }
+        let field = if collective { "tickets" } else { "coins" };
+        let account = if collective {
+            COLLECTIVE_POOL
+        } else {
+            "@treasury"
+        };
+        let inst = Instance::new(&n.d, ThreadId("coin-1".into()), &n.base).unwrap();
+        let rebuilt = Context::from_instance(&inst, field, None, &n.auth).unwrap();
+        assert_eq!(
+            rebuilt.root_epoch(account).unwrap(),
+            n.ctx.root_epoch(account).unwrap()
+        );
+        let mut restored =
+            Replica::recover(rebuilt, "@v0", Limits::default(), &n.j, &n.auth).unwrap();
+        assert_eq!(
+            restored.version_snapshot(account).unwrap(),
+            n.rs[0].version_snapshot(account).unwrap()
+        );
+        let next = if collective {
+            ticket(&mut n, "@bob", 1, "after-rebuild")
+        } else {
+            n.make("@treasury", "burn", None, 1, "after-rebuild")
+        };
+        restored.register(next.clone(), &mut n.j, &n.auth).unwrap();
+        assert!(restored
+            .prepare_operation(&next.address, &mut n.j, &n.auth)
+            .is_err());
+    }
+}

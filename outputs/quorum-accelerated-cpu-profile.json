@@ -1,0 +1,412 @@
+{
+  "variant": "Isolated accelerated SHA-256 prototype; pending canonical streaming optimization included",
+  "hardware": "Apple M2; macOS ARM64",
+  "build": {
+    "opt_level": 3,
+    "lto": false,
+    "debug": 1,
+    "strip": false,
+    "sha2_asm": true
+  },
+  "workload": "300 fresh fixtures of1000 collective decrements; four serial validators; memory journal and test authentication",
+  "sampling": {
+    "tool": "macOS sample",
+    "seconds": 25,
+    "requested_interval_ms": 1,
+    "raw_sha256": "79bd634961d7f5693bf39124a9b008cc8601617115368ff8917320a8464ad4a4",
+    "scope": "Worker thread only, including fixture setup, final query and teardown. Inclusive function samples overlap."
+  },
+  "measurement": {
+    "transactions": 300000,
+    "construction_s": 10.656128,
+    "operation_s": 19.069775,
+    "finalization_s": 4.336578,
+    "measured_s": 34.062481,
+    "wall_s": 38.467549,
+    "tps": 8807.34
+  },
+  "analysis": {
+    "samples": 16557,
+    "groups": {
+      "operation_reconstruction_and_validation": {
+        "samples": 5753,
+        "percent": 34.75
+      },
+      "budget_checks": {
+        "samples": 647,
+        "percent": 3.91
+      },
+      "dialect_identity_checks": {
+        "samples": 1388,
+        "percent": 8.38
+      }
+    },
+    "hot_functions_inclusive": [
+      {
+        "function": "quorum_runtime::multi_parent::in_memory_profile_probe",
+        "samples": 16486,
+        "percent": 99.57
+      },
+      {
+        "function": "cbcl_core::quorum::engine::Replica::commit",
+        "samples": 8738,
+        "percent": 52.78
+      },
+      {
+        "function": "quorum_runtime::Net::operation",
+        "samples": 8085,
+        "percent": 48.83
+      },
+      {
+        "function": "cbcl_core::quorum::engine::Replica::prepare",
+        "samples": 7577,
+        "percent": 45.76
+      },
+      {
+        "function": "cbcl_core::quorum::engine::Replica::operation",
+        "samples": 5753,
+        "percent": 34.75
+      },
+      {
+        "function": "quorum_runtime::Net::register",
+        "samples": 5660,
+        "percent": 34.18
+      },
+      {
+        "function": "quorum_runtime::ticket",
+        "samples": 4633,
+        "percent": 27.98
+      },
+      {
+        "function": "cbcl_core::quorum::engine::Replica::intend",
+        "samples": 4293,
+        "percent": 25.93
+      },
+      {
+        "function": "cbcl_core::intend::intend_impl",
+        "samples": 4221,
+        "percent": 25.49
+      },
+      {
+        "function": "cbcl_core::quorum::context::Context::structural",
+        "samples": 3432,
+        "percent": 20.73
+      },
+      {
+        "function": "quorum_runtime::Net::finalize",
+        "samples": 1834,
+        "percent": 11.08
+      },
+      {
+        "function": "cbcl_core::state::Act::from_message",
+        "samples": 1826,
+        "percent": 11.03
+      },
+      {
+        "function": "cbcl_core::canonical::encode_to",
+        "samples": 1825,
+        "percent": 11.02
+      },
+      {
+        "function": "cbcl_core::quorum::engine::Replica::epoch",
+        "samples": 1745,
+        "percent": 10.54
+      },
+      {
+        "function": "cbcl_core::quorum::context::Context::root_epoch",
+        "samples": 1712,
+        "percent": 10.34
+      },
+      {
+        "function": "cbcl_core::state::wire_address",
+        "samples": 1635,
+        "percent": 9.87
+      },
+      {
+        "function": "cbcl_core::canonical::encode_tagged_to",
+        "samples": 1616,
+        "percent": 9.76
+      },
+      {
+        "function": "cbcl_core::quorum::types::digest",
+        "samples": 1614,
+        "percent": 9.75
+      },
+      {
+        "function": "cbcl_core::typed_addr::typed_root",
+        "samples": 1548,
+        "percent": 9.35
+      },
+      {
+        "function": "cbcl_core::typed_addr::build_tree",
+        "samples": 1476,
+        "percent": 8.91
+      },
+      {
+        "function": "cbcl_core::quorum::engine::Replica::verify_vote",
+        "samples": 1401,
+        "percent": 8.46
+      },
+      {
+        "function": "cbcl_core::canonical::dialect_hash",
+        "samples": 1392,
+        "percent": 8.41
+      },
+      {
+        "function": "cbcl_core::quorum::context::Context::matches",
+        "samples": 1388,
+        "percent": 8.38
+      },
+      {
+        "function": "cbcl_core::quorum::engine::Replica::bind_authoring",
+        "samples": 1387,
+        "percent": 8.38
+      },
+      {
+        "function": "cbcl_core::quorum::engine::BoundAuthoring::check_candidate",
+        "samples": 1307,
+        "percent": 7.89
+      },
+      {
+        "function": "cbcl_core::canonical::dialect_canonical_bytes",
+        "samples": 1293,
+        "percent": 7.81
+      },
+      {
+        "function": "cbcl_core::quorum::types::Vote::preimage",
+        "samples": 1163,
+        "percent": 7.02
+      },
+      {
+        "function": "cbcl_core::quorum::engine::Replica::prepare_operation",
+        "samples": 832,
+        "percent": 5.03
+      },
+      {
+        "function": "cbcl_core::r7::verify_state_shape",
+        "samples": 789,
+        "percent": 4.77
+      },
+      {
+        "function": "cbcl_core::quorum::engine::Replica::budget",
+        "samples": 647,
+        "percent": 3.91
+      },
+      {
+        "function": "cbcl_core::canonical::to_signable_sexpr",
+        "samples": 629,
+        "percent": 3.8
+      },
+      {
+        "function": "cbcl_core::typed_addr::leaf_hash",
+        "samples": 555,
+        "percent": 3.35
+      },
+      {
+        "function": "quorum_runtime::signature",
+        "samples": 430,
+        "percent": 2.6
+      },
+      {
+        "function": "cbcl_core::message::_$LT$impl$u20$core..convert..From$LT$$RF$cbcl_core..message..Message$GT$$u20$for$u20$cbcl_core..sexpr..SExpr$GT$::from",
+        "samples": 384,
+        "percent": 2.32
+      },
+      {
+        "function": "cbcl_core::message::_$LT$impl$u20$core..convert..From$LT$cbcl_core..message..Message$GT$$u20$for$u20$cbcl_core..sexpr..SExpr$GT$::from",
+        "samples": 365,
+        "percent": 2.2
+      },
+      {
+        "function": "cbcl_core::state::keyword_fields",
+        "samples": 346,
+        "percent": 2.09
+      },
+      {
+        "function": "cbcl_core::typed_addr::field_sexpr",
+        "samples": 327,
+        "percent": 1.97
+      },
+      {
+        "function": "quorum_runtime::sign",
+        "samples": 327,
+        "percent": 1.97
+      },
+      {
+        "function": "cbcl_core::quorum::engine::Replica::apply_update",
+        "samples": 302,
+        "percent": 1.82
+      },
+      {
+        "function": "cbcl_core::typed_addr::node_hash",
+        "samples": 279,
+        "percent": 1.69
+      },
+      {
+        "function": "cbcl_core::quorum::engine::Replica::has",
+        "samples": 231,
+        "percent": 1.4
+      },
+      {
+        "function": "cbcl_core::intend::Instance::new",
+        "samples": 230,
+        "percent": 1.39
+      },
+      {
+        "function": "cbcl_core::quorum::engine::Replica::prepare_effects",
+        "samples": 209,
+        "percent": 1.26
+      },
+      {
+        "function": "cbcl_core::quorum::engine::BoundAuthoring::bookkeeping",
+        "samples": 199,
+        "percent": 1.2
+      },
+      {
+        "function": "cbcl_core::intend::cast_of",
+        "samples": 196,
+        "percent": 1.18
+      },
+      {
+        "function": "cbcl_core::role::parse_wrapper_cast",
+        "samples": 194,
+        "percent": 1.17
+      },
+      {
+        "function": "cbcl_core::role::parse_cast",
+        "samples": 184,
+        "percent": 1.11
+      }
+    ],
+    "leaf_functions": [
+      {
+        "function": "_xzm_free",
+        "samples": 2779,
+        "percent": 16.78
+      },
+      {
+        "function": "_platform_memmove",
+        "samples": 1365,
+        "percent": 8.24
+      },
+      {
+        "function": "_xzm_xzone_malloc",
+        "samples": 1012,
+        "percent": 6.11
+      },
+      {
+        "function": "sha2::sha256::compress256",
+        "samples": 915,
+        "percent": 5.53
+      },
+      {
+        "function": "<deduplicated_symbol>",
+        "samples": 908,
+        "percent": 5.48
+      },
+      {
+        "function": "_free",
+        "samples": 855,
+        "percent": 5.16
+      },
+      {
+        "function": "_malloc_zone_malloc",
+        "samples": 776,
+        "percent": 4.69
+      },
+      {
+        "function": "_platform_memcmp",
+        "samples": 572,
+        "percent": 3.45
+      },
+      {
+        "function": "_platform_memset",
+        "samples": 369,
+        "percent": 2.23
+      },
+      {
+        "function": "cbcl_core::canonical::encode_tagged_to",
+        "samples": 357,
+        "percent": 2.16
+      },
+      {
+        "function": "_RNvXs4_NtCs1OjIl8oxbrv_5alloc6stringNtB5_6StringNtNtCsl8K0bEFm1U0_4core5clone5Clone5clone",
+        "samples": 319,
+        "percent": 1.93
+      },
+      {
+        "function": "_RNvCsfLfy6EI15iL_7___rustc11___rdl_alloc",
+        "samples": 283,
+        "percent": 1.71
+      },
+      {
+        "function": "DYLD-STUB$$free",
+        "samples": 275,
+        "percent": 1.66
+      },
+      {
+        "function": "xzm_realloc",
+        "samples": 262,
+        "percent": 1.58
+      },
+      {
+        "function": "alloc::collections::btree::map::BTreeMap$LT$K$C$V$C$A$GT$::insert",
+        "samples": 252,
+        "percent": 1.52
+      },
+      {
+        "function": "core::ptr::drop_in_place$LT$cbcl_core..sexpr..SExpr$GT$",
+        "samples": 237,
+        "percent": 1.43
+      },
+      {
+        "function": "_$LT$alloc..vec..Vec$LT$T$C$A$GT$$u20$as$u20$core..clone..Clone$GT$::clone",
+        "samples": 226,
+        "percent": 1.36
+      },
+      {
+        "function": "xzm_malloc_zone_size",
+        "samples": 217,
+        "percent": 1.31
+      },
+      {
+        "function": "cbcl_core::canonical::encode_to",
+        "samples": 217,
+        "percent": 1.31
+      },
+      {
+        "function": "_xzm_xzone_malloc_tiny",
+        "samples": 208,
+        "percent": 1.26
+      }
+    ]
+  },
+  "next_targets": [
+    {
+      "priority": 1,
+      "target": "Cache genesis root epoch IDs and immutable root manifests",
+      "evidence": "Context::root_epoch 10.34% inclusive; Replica::epoch 10.54%; current root fallback scans initial accounts and hashes roots on every lookup."
+    },
+    {
+      "priority": 2,
+      "target": "Use a counting canonical sink for operation size checks",
+      "evidence": "operation currently allocates canonical_encode(...), then uses only .len(); existing byte sink can count without collecting bytes. Size-only path not independently timed."
+    },
+    {
+      "priority": 3,
+      "target": "Validate borrowed Act metadata without constructing and dropping a full duplicate Act",
+      "evidence": "Context::structural 20.73% inclusive; Act::from_message 11.03% inclusive; public cached fields must still be checked."
+    },
+    {
+      "priority": 4,
+      "target": "Borrow field encoding during typed-root construction",
+      "evidence": "typed_root 9.35% inclusive; field_sexpr still materializes owned field expressions; root-only hashing could borrow content/params while disclosure retains owned values."
+    },
+    {
+      "priority": 5,
+      "target": "Measure validator concurrency and transaction pipelining separately",
+      "evidence": "Current workload executes all four replicas serially; no concurrency scaling has been measured."
+    }
+  ],
+  "limits": "Local prototype, not production throughput. No allocation-count profiler; allocation pressure inferred from sampled allocator/free/memcpy stacks and source inspection."
+}

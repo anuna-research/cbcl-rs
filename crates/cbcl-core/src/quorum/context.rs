@@ -28,6 +28,10 @@ pub struct Context {
     pub(crate) rule: CounterRule,
     pub(crate) committee: Committee,
     pub(crate) initial: BTreeMap<String, Resources>,
+    // Derived once from the authenticated genesis and immutable context ID.
+    // Neither index is accepted from wire data or a journal snapshot.
+    root_ids: BTreeMap<String, String>,
+    root_manifests: BTreeMap<String, VersionManifest>,
     pub(crate) issuers: BTreeSet<String>,
     pub(crate) actors: BTreeSet<String>,
 }
@@ -163,6 +167,28 @@ impl Context {
             SExpr::List(committee.validators.iter().map(|k| text(k)).collect()),
             text(&committee.faults.to_string())
         ]);
+        let mut root_ids = BTreeMap::new();
+        let mut root_manifests = BTreeMap::new();
+        for (account, allocation) in &initial {
+            let root = digest(alloc::vec![
+                text("cbcl/root-epoch/v1"),
+                text(&id),
+                text(account)
+            ]);
+            root_ids.insert(account.clone(), root.clone());
+            root_manifests.insert(
+                root,
+                VersionManifest {
+                    account: account.clone(),
+                    parents: BTreeSet::new(),
+                    rank: 0,
+                    held: BTreeSet::new(),
+                    refunded: BTreeSet::new(),
+                    credited: BTreeSet::new(),
+                    allocation: *allocation,
+                },
+            );
+        }
         let context = Self {
             id,
             field: field.into(),
@@ -174,6 +200,8 @@ impl Context {
             rule: (**rule).clone(),
             committee,
             initial,
+            root_ids,
+            root_manifests,
             issuers,
             actors,
         };
@@ -227,11 +255,13 @@ impl Context {
     }
     pub fn root_epoch(&self, account: &str) -> Result<String> {
         let account = self.account(account)?;
-        Ok(digest(alloc::vec![
-            text("cbcl/root-epoch/v1"),
-            text(&self.id),
-            text(account)
-        ]))
+        self.root_ids
+            .get(account)
+            .cloned()
+            .ok_or_else(|| "unknown actor or resource account".into())
+    }
+    pub(crate) fn root_manifest(&self, id: &str) -> Option<&VersionManifest> {
+        self.root_manifests.get(id)
     }
     pub(crate) fn request(&self, kind: VoteKind, payload: &str, signer: &str) -> SigningRequest {
         SigningRequest {

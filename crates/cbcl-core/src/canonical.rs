@@ -150,34 +150,94 @@ pub fn atom_to_octets(atom: &Atom) -> Vec<u8> {
 /// The output is deterministic: `canonical_encode(e1) == canonical_encode(e2)` iff `e1 == e2`.
 pub fn canonical_encode(sexpr: &SExpr) -> Vec<u8> {
     let mut buf = Vec::new();
-    encode_into(sexpr, &mut buf);
+    encode_to(sexpr, &mut |bytes| buf.extend_from_slice(bytes));
     buf
 }
 
-fn encode_into(sexpr: &SExpr, buf: &mut Vec<u8>) {
+/// Emit the canonical bytes to an infallible sink without intermediate buffers.
+/// Buffered encoding and streamed hashing share this exact representation.
+pub(crate) fn encode_to(sexpr: &SExpr, sink: &mut impl FnMut(&[u8])) {
     match sexpr {
-        SExpr::Atom(atom) => {
-            let octets = atom_to_octets(atom);
-            let len_str = decimal_no_leading_zeros(octets.len());
-            buf.extend_from_slice(len_str.as_bytes());
-            buf.push(b':');
-            buf.extend_from_slice(&octets);
-        }
-        SExpr::List(items) => {
-            buf.push(b'(');
-            for item in items {
-                encode_into(item, buf);
+        SExpr::Atom(atom) => match atom {
+            Atom::Symbol(s) => encode_symbol_to(s, sink),
+            Atom::Keyword(s) => encode_tagged_to(b'K', s.as_bytes(), sink),
+            Atom::Str(s) => encode_tagged_to(b'Q', s.as_bytes(), sink),
+            Atom::Bool(b) => encode_tagged_to(b'B', if *b { b"t" } else { b"f" }, sink),
+            Atom::Num(n) => {
+                // unsigned_abs also handles i64::MIN without overflow.
+                let mut digits = [0u8; 21];
+                let mut offset = digits.len();
+                let mut magnitude = n.unsigned_abs();
+                loop {
+                    offset -= 1;
+                    digits[offset] = b'0' + (magnitude % 10) as u8;
+                    magnitude /= 10;
+                    if magnitude == 0 {
+                        break;
+                    }
+                }
+                if *n < 0 {
+                    offset -= 1;
+                    digits[offset] = b'-';
+                }
+                encode_tagged_to(b'N', &digits[offset..], sink);
             }
-            buf.push(b')');
+        },
+        SExpr::List(items) => {
+            sink(b"(");
+            for item in items {
+                encode_to(item, sink);
+            }
+            sink(b")");
         }
     }
 }
 
-/// Format a usize as decimal with no leading zeros.
-/// Zero is represented as "0".
-fn decimal_no_leading_zeros(n: usize) -> String {
-    use alloc::format;
-    format!("{n}")
+/// Encode a borrowed symbol, including its type tag and octet length.
+pub(crate) fn encode_symbol_to(symbol: &str, sink: &mut impl FnMut(&[u8])) {
+    encode_tagged_to(b'S', symbol.as_bytes(), sink);
+}
+
+fn encode_tagged_to(tag: u8, octets: &[u8], sink: &mut impl FnMut(&[u8])) {
+    let mut digits = [0u8; usize::BITS as usize];
+    let mut offset = digits.len();
+    let mut length = octets.len() + 1;
+    loop {
+        offset -= 1;
+        digits[offset] = b'0' + (length % 10) as u8;
+        length /= 10;
+        if length == 0 {
+            break;
+        }
+    }
+    sink(&digits[offset..]);
+    sink(b":");
+    sink(&[tag]);
+    sink(octets);
+}
+
+// Independent pre-streaming encoder retained only as a compatibility oracle.
+#[cfg(test)]
+pub(crate) fn reference_encode(sexpr: &SExpr) -> Vec<u8> {
+    fn append(sexpr: &SExpr, buf: &mut Vec<u8>) {
+        match sexpr {
+            SExpr::Atom(atom) => {
+                let octets = atom_to_octets(atom);
+                buf.extend_from_slice(alloc::format!("{}:", octets.len()).as_bytes());
+                buf.extend_from_slice(&octets);
+            }
+            SExpr::List(items) => {
+                buf.push(b'(');
+                for item in items {
+                    append(item, buf);
+                }
+                buf.push(b')');
+            }
+        }
+    }
+    let mut buf = Vec::new();
+    append(sexpr, &mut buf);
+    buf
 }
 
 // ---------------------------------------------------------------------------
@@ -637,6 +697,62 @@ mod tests {
     use crate::dialect::{base_dialect, PerformativeDef, ResourceBounds};
     use alloc::string::String;
     use alloc::vec;
+
+    #[test]
+    fn canonical_stream_preserves_decimal_and_utf8_boundaries() {
+        let mut values = vec![SExpr::List(vec![])];
+        for n in [i64::MIN, -1_000_000, -10, -1, 0, 1, 9, 10, i64::MAX] {
+            values.push(SExpr::Atom(Atom::Num(n)));
+        }
+        for value in [true, false] {
+            values.push(SExpr::Atom(Atom::Bool(value)));
+        }
+        for length in [0, 1, 8, 9, 10, 98, 99, 100, 998, 999, 1000] {
+            for unit in ["x", "é", "🙂"] {
+                let value = unit.repeat(length);
+                values.extend([
+                    SExpr::Atom(Atom::Symbol(value.clone())),
+                    SExpr::Atom(Atom::Keyword(value.clone())),
+                    SExpr::Atom(Atom::Str(value)),
+                ]);
+            }
+        }
+        values.extend([
+            SExpr::Atom(Atom::Str("\0\n\r\t():\\\"".into())),
+            SExpr::Atom(Atom::Symbol("\0():\n".into())),
+            SExpr::Atom(Atom::Keyword("é\r\t".into())),
+        ]);
+        for value in &values {
+            assert_eq!(canonical_encode(value), reference_encode(value));
+        }
+        let nested = SExpr::List(vec![SExpr::List(values.clone()), SExpr::List(values)]);
+        assert_eq!(canonical_encode(&nested), reference_encode(&nested));
+    }
+
+    proptest::proptest! {
+        #[test]
+        fn canonical_stream_matches_reference_for_recursive_values(
+            value in {
+                use proptest::prelude::*;
+                prop_oneof![
+                    any::<i64>().prop_map(|n| SExpr::Atom(Atom::Num(n))),
+                    any::<bool>().prop_map(|b| SExpr::Atom(Atom::Bool(b))),
+                    ".{0,64}".prop_map(|s| SExpr::Atom(Atom::Symbol(s))),
+                    ".{0,64}".prop_map(|s| SExpr::Atom(Atom::Keyword(s))),
+                    ".{0,64}".prop_map(|s| SExpr::Atom(Atom::Str(s))),
+                ].prop_recursive(6, 128, 8, |inner| {
+                    proptest::collection::vec(inner, 0..8).prop_map(SExpr::List)
+                })
+            }
+        ) {
+            use sha2::{Digest, Sha256};
+            let expected = reference_encode(&value);
+            proptest::prop_assert_eq!(canonical_encode(&value), expected.clone());
+            let mut hasher = Sha256::new();
+            encode_to(&value, &mut |bytes| hasher.update(bytes));
+            proptest::prop_assert_eq!(hasher.finalize(), Sha256::digest(&expected));
+        }
+    }
 
     // ====================================================================
     // Phase 1: Atom-to-octet mapping tests
