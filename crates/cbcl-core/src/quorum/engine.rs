@@ -18,16 +18,12 @@ use alloc::{
 struct State {
     operations: BTreeMap<String, Operation>,
     certificates: BTreeMap<(VoteKind, String), Certificate>,
-    proposals: BTreeMap<String, Proposal>,
-    checkpoints: BTreeMap<String, Checkpoint>,
     versions: BTreeMap<String, DagVersion>,
     visited: BTreeSet<String>,
     signed: BTreeSet<String>,
     effects: BTreeSet<String>,
     fences: BTreeSet<String>,
     released: BTreeSet<String>,
-    sealed: BTreeMap<String, BTreeSet<String>>,
-    choices: BTreeMap<String, String>,
     active: BTreeMap<String, String>,
 }
 /// One validator's independent state machine. Each mutation is journaled before
@@ -119,9 +115,7 @@ impl Replica {
     pub fn certificate(&self, kind: VoteKind, id: &str) -> Option<&Certificate> {
         self.state.certificates.get(&(kind, id.into()))
     }
-    pub fn checkpoint(&self, id: &str) -> Option<&Checkpoint> {
-        self.state.checkpoints.get(id)
-    }
+
     pub fn journal_sequence(&self) -> u64 {
         self.sequence
     }
@@ -164,19 +158,17 @@ impl Replica {
     fn has(&self, kind: VoteKind, id: &str) -> bool {
         self.state.certificates.contains_key(&(kind, id.into()))
     }
-    fn epoch(&self, id: &str) -> Result<Manifest> {
+    fn epoch(&self, id: &str) -> Result<VersionManifest> {
         if let Some(v) = self.state.versions.get(id) {
-            return Ok(v.manifest.books());
+            return Ok(v.manifest.clone());
         }
-        if let Some(c) = self.state.checkpoints.get(id) {
-            return Ok(c.proposal.manifest.clone());
-        }
+
         for (a, b) in &self.context.initial {
             if self.context.root_epoch(a)? == id {
-                return Ok(Manifest {
+                return Ok(VersionManifest {
                     account: a.clone(),
-                    parent: String::new(),
-                    depth: 0,
+                    parents: BTreeSet::new(),
+                    rank: 0,
                     held: BTreeSet::new(),
                     refunded: BTreeSet::new(),
                     credited: BTreeSet::new(),
@@ -370,11 +362,9 @@ impl Replica {
     fn budget(&self, id: &str) -> Result<()> {
         let op = self.op(id)?;
         let epoch = self.epoch(&op.epoch)?;
-        if self.state.active.get(&op.account) != Some(&op.epoch)
-            || self.state.sealed.contains_key(&op.epoch)
-            || self.state.released.contains(id)
+        if self.state.active.get(&op.account) != Some(&op.epoch) || self.state.released.contains(id)
         {
-            return Err("epoch inactive, sealed or operation released".into());
+            return Err("version inactive or operation released".into());
         }
         let used = self.charge(&op.epoch, id)?;
         let q = self.context.committee.quorum as i128;
@@ -396,25 +386,13 @@ impl Replica {
         }
         Ok(())
     }
-    fn signed_in(&self, epoch: &str) -> BTreeSet<String> {
-        self.state
-            .signed
-            .iter()
-            .filter(|id| {
-                self.state
-                    .operations
-                    .get(*id)
-                    .is_some_and(|op| op.epoch == epoch)
-            })
-            .cloned()
-            .collect()
-    }
-    fn allocation(&self, m: &Manifest) -> Result<Resources> {
+
+    fn allocation(&self, m: &VersionManifest) -> Result<Resources> {
         let mut b = *self
             .context
             .initial
             .get(&m.account)
-            .ok_or("unknown checkpoint account")?;
+            .ok_or("unknown resource scope")?;
         for id in &m.credited {
             if !self.has(VoteKind::Effects, id) {
                 return Err("missing final credit certificate".into());
@@ -441,86 +419,14 @@ impl Replica {
             b = b.add(self.op(id)?.cost)?;
         }
         if !b.nonnegative() {
-            return Err("negative checkpoint allocation".into());
+            return Err("negative version allocation".into());
         }
         Ok(b)
     }
-    fn check_manifest(&self, m: &Manifest) -> Result<()> {
-        let p = self.epoch(&m.parent)?;
-        if m.account != p.account
-            || m.depth != p.depth.checked_add(1).ok_or("epoch depth overflow")?
-            || !p.held.is_subset(&m.held)
-            || !p.refunded.is_subset(&m.refunded)
-            || !p.credited.is_subset(&m.credited)
-        {
-            return Err("checkpoint parent, depth or monotonicity mismatch".into());
-        }
-        if m.held.len() > self.limits.operations
-            || m.refunded.len() > self.limits.operations
-            || m.credited.len() > self.limits.operations
-        {
-            return Err("checkpoint too large".into());
-        }
-        for id in m.held.difference(&p.held) {
-            if self.op(id)?.epoch != m.parent {
-                return Err("new held operation outside parent epoch".into());
-            }
-        }
-        if self.allocation(m)? != m.allocation {
-            return Err("checkpoint allocation mismatch".into());
-        }
-        Ok(())
-    }
-    fn check_proposal<A: Authentication>(&self, p: &Proposal, auth: &A) -> Result<()> {
-        let m = &p.manifest;
-        self.check_manifest(m)?;
-        let id = m.id(&self.context.id);
-        if !self
-            .context
-            .checkpoint_actor(&m.account, &p.authorization.signer)
-        {
-            return Err("unauthorized checkpoint actor".into());
-        }
-        self.verify_vote(
-            &p.authorization,
-            VoteKind::CheckpointRequest,
-            &id,
-            &p.authorization.signer,
-            auth,
-        )?;
-        if p.reports.len() < self.context.committee.quorum
-            || p.reports.len() > self.context.committee.validators.len()
-        {
-            return Err("checkpoint requires a seal quorum".into());
-        }
-        let mut keys = BTreeSet::new();
-        for report in &p.reports {
-            if report.epoch != m.parent
-                || report.signed.len() > self.limits.operations
-                || !self.context.committee.contains(&report.vote.signer)
-                || !keys.insert(report.vote.signer.clone())
-            {
-                return Err("invalid seal report quorum".into());
-            }
-            for id in &report.signed {
-                if self.op(id)?.epoch != m.parent || !m.held.contains(id) {
-                    return Err("checkpoint omits sealed journal candidate".into());
-                }
-            }
-            self.verify_vote(
-                &report.vote,
-                VoteKind::Seal,
-                &SealReport::payload(&self.context.id, &report.epoch, &report.signed),
-                &report.vote.signer,
-                auth,
-            )?;
-        }
-        Ok(())
-    }
     fn check_version_manifest(&self, m: &VersionManifest) -> Result<()> {
-        if m.account != COLLECTIVE_POOL
+        if !self.context.initial.contains_key(&m.account)
             || m.parents.is_empty()
-            || m.parents.len() > self.limits.checkpoints.saturating_add(1)
+            || m.parents.len() > self.limits.versions.saturating_add(1)
             || m.held.len() > self.limits.operations
             || m.refunded.len() > self.limits.operations
             || m.credited.len() > self.limits.operations
@@ -530,7 +436,7 @@ impl Replica {
         for id in &m.parents {
             let parent = self.epoch(id)?;
             if parent.account != m.account
-                || parent.depth >= m.rank
+                || parent.rank >= m.rank
                 || !parent.held.is_subset(&m.held)
                 || !parent.refunded.is_subset(&m.refunded)
                 || !parent.credited.is_subset(&m.credited)
@@ -539,11 +445,11 @@ impl Replica {
             }
         }
         for id in &m.held {
-            if self.epoch(&self.op(id)?.epoch)?.depth >= m.rank {
+            if self.epoch(&self.op(id)?.epoch)?.rank >= m.rank {
                 return Err("held transaction must precede DAG version rank".into());
             }
         }
-        if self.allocation(&m.books())? != m.allocation {
+        if self.allocation(m)? != m.allocation {
             return Err("DAG version allocation mismatch".into());
         }
         Ok(())
@@ -552,7 +458,7 @@ impl Replica {
         self.check_version_manifest(&v.manifest)?;
         if !self
             .context
-            .checkpoint_actor(&v.manifest.account, &v.authorization.signer)
+            .version_actor(&v.manifest.account, &v.authorization.signer)
         {
             return Err("unauthorized DAG version actor".into());
         }
@@ -569,21 +475,43 @@ impl Replica {
         self.state.versions.get(id)
     }
     /// Complete immutable local history, including released and zero-cost IDs.
-    pub fn version_snapshot(&self) -> Result<VersionSnapshot> {
-        if self.context.handoff != Handoff::MultiParent {
-            return Err("not a multi-parent context".into());
-        }
-        let root = self.context.root_epoch(COLLECTIVE_POOL)?;
-        let mut known: BTreeSet<_> = self.state.versions.keys().cloned().collect();
+    pub fn version_snapshot(&self, account: &str) -> Result<VersionSnapshot> {
+        let account = self.context.account(account)?;
+        let root = self.context.root_epoch(account)?;
+        let mut known: BTreeSet<_> = self
+            .state
+            .versions
+            .iter()
+            .filter(|(_, v)| v.manifest.account == account)
+            .map(|(id, _)| id.clone())
+            .collect();
         known.insert(root);
+        let project = |ids: &BTreeSet<String>| {
+            ids.iter()
+                .filter(|id| {
+                    self.state
+                        .operations
+                        .get(*id)
+                        .is_some_and(|op| op.account == account)
+                })
+                .cloned()
+                .collect()
+        };
+        let visited = self
+            .state
+            .visited
+            .iter()
+            .filter(|id| self.epoch(id).is_ok_and(|m| m.account == account))
+            .cloned()
+            .collect();
         Ok(VersionSnapshot {
-            active: self.active_epoch(COLLECTIVE_POOL)?.into(),
+            active: self.active_epoch(account)?.into(),
             known,
-            visited: self.state.visited.clone(),
-            signed: self.state.signed.clone(),
-            released: self.state.released.clone(),
-            effects: self.state.effects.clone(),
-            fences: self.state.fences.clone(),
+            visited,
+            signed: project(&self.state.signed),
+            released: project(&self.state.released),
+            effects: project(&self.state.effects),
+            fences: project(&self.state.fences),
         })
     }
     /// Compute unique cumulative books. The caller externally authorizes the
@@ -595,9 +523,8 @@ impl Replica {
         refunds: &BTreeSet<String>,
         credits: &BTreeSet<String>,
     ) -> Result<VersionManifest> {
-        if self.context.handoff != Handoff::MultiParent
-            || parents.is_empty()
-            || parents.len() > self.limits.checkpoints.saturating_add(1)
+        if parents.is_empty()
+            || parents.len() > self.limits.versions.saturating_add(1)
             || held.len() > self.limits.operations
             || refunds.len() > self.limits.operations
             || credits.len() > self.limits.operations
@@ -605,7 +532,9 @@ impl Replica {
             return Err("invalid DAG draft context or limits".into());
         }
         let mut m = VersionManifest {
-            account: COLLECTIVE_POOL.into(),
+            account: self
+                .epoch(parents.first().ok_or("empty parent set")?)?
+                .account,
             parents: parents.clone(),
             rank: 0,
             held: held.clone(),
@@ -615,7 +544,7 @@ impl Replica {
         };
         for id in parents {
             let p = self.epoch(id)?;
-            m.rank = m.rank.max(p.depth);
+            m.rank = m.rank.max(p.rank);
             m.held.extend(p.held);
             m.refunded.extend(p.refunded);
             m.credited.extend(p.credited);
@@ -627,10 +556,10 @@ impl Replica {
             return Err("cumulative DAG sets exceed limits".into());
         }
         for id in &m.held {
-            m.rank = m.rank.max(self.epoch(&self.op(id)?.epoch)?.depth);
+            m.rank = m.rank.max(self.epoch(&self.op(id)?.epoch)?.rank);
         }
         m.rank = m.rank.checked_add(1).ok_or("DAG rank overflow")?;
-        m.allocation = self.allocation(&m.books())?;
+        m.allocation = self.allocation(&m)?;
         self.check_version_manifest(&m)?;
         Ok(m)
     }
@@ -651,27 +580,13 @@ impl Replica {
         self.commit(Event::AdoptVersion(id.into()), journal, auth)
     }
     fn apply<A: Authentication>(&mut self, event: &Event, auth: &A) -> Result<()> {
-        let legacy = matches!(
-            event,
-            Event::Seal(_)
-                | Event::Proposal(_)
-                | Event::Endorse(_)
-                | Event::Checkpoint(_)
-                | Event::Install(_)
-        );
-        let dag = matches!(event, Event::Version(_) | Event::AdoptVersion(_));
-        if (legacy && self.context.handoff != Handoff::SingleParent)
-            || (dag && self.context.handoff != Handoff::MultiParent)
-        {
-            return Err("handoff protocol/context mismatch".into());
-        }
         match event {
             Event::Initialize => return Err("duplicate initialization".into()),
             Event::Version(v) => {
                 self.check_version(v, auth)?;
                 let id = v.manifest.id(&self.context.id);
                 if !self.state.versions.contains_key(&id)
-                    && self.state.versions.len() >= self.limits.checkpoints
+                    && self.state.versions.len() >= self.limits.versions
                 {
                     return Err("version limit reached; evidence retained".into());
                 }
@@ -688,8 +603,10 @@ impl Replica {
                     return Err("adoption must follow a direct active parent".into());
                 }
                 // Includes every old version, released reservation and zero-cost ID.
-                if !self.state.signed.is_subset(&m.held) {
-                    return Err("DAG version omits historical signature".into());
+                for signed in &self.state.signed {
+                    if self.op(signed)?.account == m.account && !m.held.contains(signed) {
+                        return Err("DAG version omits historical signature".into());
+                    }
                 }
                 self.state.active.insert(m.account.clone(), id.clone());
                 self.state.visited.insert(id.clone());
@@ -762,80 +679,11 @@ impl Replica {
                 }
                 self.state.fences.insert(v.payload.clone());
             }
-            Event::Seal(epoch) => {
-                self.epoch(epoch)?;
-                let ids = self.signed_in(epoch);
-                self.state.sealed.entry(epoch.clone()).or_insert(ids);
-            }
-            Event::Proposal(p) => {
-                self.check_proposal(p, auth)?;
-                let id = p.manifest.id(&self.context.id);
-                if !self.state.proposals.contains_key(&id)
-                    && self.state.proposals.len() >= self.limits.checkpoints
-                {
-                    return Err("proposal limit reached".into());
-                }
-                self.state.proposals.entry(id).or_insert_with(|| p.clone());
-            }
-            Event::Endorse(id) => {
-                let p = self.state.proposals.get(id).ok_or("missing proposal")?;
-                let m = &p.manifest;
-                let own = self
-                    .state
-                    .sealed
-                    .get(&m.parent)
-                    .ok_or("endorsement requires own sealed journal")?;
-                if !own.is_subset(&m.held) {
-                    return Err("checkpoint omits own sealed candidate".into());
-                }
-                if let Some(chosen) = self.state.choices.get(&m.parent) {
-                    if chosen != id {
-                        return Err("successor vote already cast".into());
-                    }
-                }
-                self.state.choices.insert(m.parent.clone(), id.clone());
-            }
-            Event::Checkpoint(c) => {
-                self.check_proposal(&c.proposal, auth)?;
-                let m = &c.proposal.manifest;
-                let id = m.id(&self.context.id);
-                self.verify_certificate(&c.certificate, VoteKind::Checkpoint, &id, auth)?;
-                if self.state.checkpoints.values().any(|old| {
-                    old.proposal.manifest.parent == m.parent && old.proposal.manifest != *m
-                }) {
-                    return Err("conflicting genuine successor certificates".into());
-                }
-                if !self.state.checkpoints.contains_key(&id)
-                    && self.state.checkpoints.len() >= self.limits.checkpoints
-                {
-                    return Err("checkpoint limit reached".into());
-                }
-                self.state
-                    .checkpoints
-                    .entry(id)
-                    .or_insert_with(|| c.clone());
-            }
             Event::Release(id) => {
                 if !self.state.signed.contains(id) || !self.has(VoteKind::Cancel, id) {
                     return Err("release requires own charge and cancellation quorum".into());
                 }
                 self.state.released.insert(id.clone());
-            }
-            Event::Install(id) => {
-                let cp = self
-                    .state
-                    .checkpoints
-                    .get(id)
-                    .ok_or("missing checkpoint certificate")?;
-                let m = &cp.proposal.manifest;
-                let current = self.state.active.get(&m.account).ok_or("unknown account")?;
-                if current == id {
-                    return Ok(());
-                }
-                if current != &m.parent {
-                    return Err("install must follow local active parent".into());
-                }
-                self.state.active.insert(m.account.clone(), id.clone());
             }
         }
         Ok(())
@@ -886,101 +734,6 @@ impl Replica {
         self.commit(Event::Fence(request), j, a)?;
         Ok(self.context.request(VoteKind::Cancel, &id, &self.validator))
     }
-    pub fn seal<J: Journal, A: Authentication>(
-        &mut self,
-        epoch: &str,
-        j: &mut J,
-        a: &A,
-    ) -> Result<(BTreeSet<String>, SigningRequest)> {
-        self.commit(Event::Seal(epoch.into()), j, a)?;
-        let ids = self
-            .state
-            .sealed
-            .get(epoch)
-            .ok_or("missing sealed journal")?
-            .clone();
-        Ok((
-            ids.clone(),
-            self.context.request(
-                VoteKind::Seal,
-                &SealReport::payload(&self.context.id, epoch, &ids),
-                &self.validator,
-            ),
-        ))
-    }
-    /// Construct semantic checkpoint contents; the owner subsequently signs the
-    /// returned manifest ID. Reports and authorization are validated at admission.
-    pub fn draft_checkpoint(
-        &self,
-        epoch: &str,
-        reports: &[SealReport],
-        refunds: &BTreeSet<String>,
-        credits: &BTreeSet<String>,
-    ) -> Result<Manifest> {
-        if self.context.handoff != Handoff::SingleParent {
-            return Err("legacy checkpoint draft in multi-parent context".into());
-        }
-        if reports.len() > self.context.committee.validators.len()
-            || refunds.len() > self.limits.operations
-            || credits.len() > self.limits.operations
-        {
-            return Err("checkpoint draft input limit exceeded".into());
-        }
-        let parent = self.epoch(epoch)?;
-        let mut m = Manifest {
-            account: parent.account.clone(),
-            parent: epoch.into(),
-            depth: parent.depth.checked_add(1).ok_or("depth overflow")?,
-            held: parent.held,
-            refunded: parent.refunded,
-            credited: parent.credited,
-            allocation: Resources::default(),
-        };
-        for r in reports {
-            if r.epoch != epoch || r.signed.len() > self.limits.operations {
-                return Err("invalid report epoch or size".into());
-            }
-            m.held.extend(r.signed.clone());
-        }
-        m.refunded.extend(refunds.clone());
-        m.credited.extend(credits.clone());
-        m.allocation = self.allocation(&m)?;
-        self.check_manifest(&m)?;
-        Ok(m)
-    }
-    pub fn register_proposal<J: Journal, A: Authentication>(
-        &mut self,
-        p: Proposal,
-        j: &mut J,
-        a: &A,
-    ) -> Result<String> {
-        self.check_proposal(&p, a)?;
-        let id = p.manifest.id(&self.context.id);
-        self.commit(Event::Proposal(p), j, a)?;
-        Ok(id)
-    }
-    pub fn prepare_checkpoint<J: Journal, A: Authentication>(
-        &mut self,
-        id: &str,
-        j: &mut J,
-        a: &A,
-    ) -> Result<SigningRequest> {
-        self.commit(Event::Endorse(id.into()), j, a)?;
-        Ok(self
-            .context
-            .request(VoteKind::Checkpoint, id, &self.validator))
-    }
-    pub fn receive_checkpoint<J: Journal, A: Authentication>(
-        &mut self,
-        c: Checkpoint,
-        j: &mut J,
-        a: &A,
-    ) -> Result<String> {
-        self.check_proposal(&c.proposal, a)?;
-        let id = c.proposal.manifest.id(&self.context.id);
-        self.commit(Event::Checkpoint(c), j, a)?;
-        Ok(id)
-    }
     pub fn release<J: Journal, A: Authentication>(
         &mut self,
         id: &str,
@@ -989,14 +742,7 @@ impl Replica {
     ) -> Result<()> {
         self.commit(Event::Release(id.into()), j, a)
     }
-    pub fn install<J: Journal, A: Authentication>(
-        &mut self,
-        id: &str,
-        j: &mut J,
-        a: &A,
-    ) -> Result<()> {
-        self.commit(Event::Install(id.into()), j, a)
-    }
+
     pub fn active_epoch(&self, account: &str) -> Result<&str> {
         let account = self.context.account(account)?;
         self.state

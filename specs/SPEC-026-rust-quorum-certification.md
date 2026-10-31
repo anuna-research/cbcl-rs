@@ -8,6 +8,11 @@ last-updated: 2026-10-31
 
 # Rust Quorum-Budget Certification Runtime
 
+Current runtime handoff rules are [[SPEC-031-unified-quorum-dag]]. Its DAG protocol
+replaces this document's single-parent checkpoint APIs and compatibility assumptions;
+the business declaration, authentication and resource-policy contracts remain
+background for the current implementation.
+
 ## Orientation
 
 Implement [[SPEC-025-consensus-free-refinement]] in the Rust library without a

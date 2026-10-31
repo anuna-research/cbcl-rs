@@ -161,17 +161,18 @@ Each validator has its own scaled signing budget per account epoch. The guard is
 `quorum * signed_cost <= (f+1) * epoch_allocation`, independently for rights and
 headroom. It does not consult a shared available-balance ledger. This conservative
 rule can reject a payment even when the displayed balance covers it. In particular,
-one transaction cannot necessarily spend the entire balance. A checkpoint can
+one transaction cannot necessarily spend the entire balance. A covering DAG version can
 refresh residual capacity while carrying every potentially late old certificate.
 This construction proves safety; contention can stall indefinitely.
 
 An owner's signed cancellation request allows validators that have not signed
 effects to fence the operation. A cancellation quorum permits local release and
-checkpoint refunds. Released signatures remain in sealed reports. Timeouts never
-unlock a reservation. A checkpoint requires a seal quorum, full report inclusion,
-exact cumulative accounting, and a successor quorum. An honest validator signs one
-successor per parent. Conflicting proposals can stall; no consensus fallback resets
-that choice.
+DAG-version refunds. Released and zero-cost signatures stay in every covering
+version. A validator adopts only from its current active parent and requires its
+complete signing history for that resource scope. Two branches can join by unioning
+obligations and accounting for each ID once. There are no seal reports, successor
+votes or host-selected handoff algorithms. Timeouts never unlock reservations;
+contention can still stall without sufficient refunds or credits.
 
 `Replica::finalized_view()` reports `status: finalized-view`, verified known-final
 IDs, pending operation IDs, rights, optional headroom, and total value. Its
@@ -184,8 +185,10 @@ an explicit runtime and certificate evidence.
 The Rust API and host contracts are documented in
 [the quorum runtime reference](../reference/quorum-runtime.md). The executable
 worked trace is `crates/cbcl-parser/tests/quorum_runtime.rs`.
-[[SPEC-026-rust-quorum-certification]] defines this runtime;
-[[SPEC-025-consensus-free-refinement]] supplies its consensus-free safety model.
+[[SPEC-031-unified-quorum-dag]] defines this runtime;
+[[SPEC-029-multi-parent-counter-model]] supplies the collective DAG safety model.
+Account transfers have runtime scope/isolation and asynchronous execution tests;
+a formal account-DAG extension remains separate.
 Rust/model correspondence has executable tests and independent review; it is not
 formal extraction. The earlier [[SPEC-023-abortable-budget-handoff]] consensus
 fallback is historical research.
@@ -223,18 +226,18 @@ requires both issuer authority and available signing capacity. All existing
 conservative capacity and conditional-progress limits continue to apply.
 
 An owner cancellation request must be signed by the transaction's original actor.
-Another seller may subsequently checkpoint the pool using that cancellation proof,
-without gaining permission to cancel the transaction itself. Checkpoint proposers
+Another seller may subsequently propose a pool version using that cancellation proof,
+without gaining permission to cancel the transaction itself. Version proposers
 must occupy an operation's from role. A cast member with only an opener or read role
-cannot choose successors. The reserved internal pool identity is never an actor key.
+cannot authorize versions. The reserved internal pool identity is never an actor key.
 
 Collective views render scalar `rights` and optional `headroom`, alongside
 `ownership: collective`, `status: finalized-view` and `completeness: unknown`.
 The Rust map holds one reserved pool entry; it does not represent seller balances.
 Use `Context::pool()` to obtain that resource scope.
 
-This implements shared authorization and budgets with the existing single-parent
-checkpoint protocol. It does not implement Stingray multi-parent version merges;
-contending proposals can stall. [[SPEC-027-collective-bounded-counters]] defines the
-extension. Its Lean specialization separates actors from resource ownership and
-inherits generic safety/refinement; Rust correspondence remains tested and reviewed.
+Both account and collective quorum counters use multi-parent DAG adoption through
+`Context::from_instance`. The language declaration determines the protocol; hosts
+provide storage, signing and transport. [[SPEC-031-unified-quorum-dag]] replaces
+the earlier single-parent runtime. Collective Lean safety/refinement and shared
+Rust traces remain applicable; universal Rust source equivalence is not claimed.

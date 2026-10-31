@@ -2,11 +2,15 @@
 id: SPEC-030
 title: Rust multi-parent counter refinement
 version: 0.1.0
-status: implemented
+status: superseded
 last-updated: 2026-10-31
 ---
 
 # Rust multi-parent counter refinement
+
+Runtime selection and collective-only implementation restrictions in this document
+are superseded by [[SPEC-031-unified-quorum-dag]]. The dated implementation evidence
+remains a record of that delivery, not the current host API contract.
 
 ## Orientation
 

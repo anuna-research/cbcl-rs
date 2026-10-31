@@ -1,4 +1,4 @@
-//! Consensus-free bounded counters (SPEC-025 / SPEC-026).
+//! Consensus-free bounded counters with multi-parent DAG adoption (SPEC-031).
 //!
 //! Keys, networking and durable storage are host responsibilities. The engine
 //! returns signing requests only after a successful atomic journal append.

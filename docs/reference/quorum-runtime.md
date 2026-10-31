@@ -6,7 +6,7 @@ mode: reference
 # Quorum runtime API
 
 `cbcl_core::quorum` implements the consensus-free bounded-counter safety protocol
-specified by [[SPEC-026-rust-quorum-certification]]. Its public types use `alloc`;
+specified by [[SPEC-031-unified-quorum-dag]]. Its public types use `alloc`;
 optional `serde` supports typed transport and journal serialization. Parsing and
 allocation limits belong at the host's wire boundary before constructing these types.
 
@@ -46,7 +46,7 @@ Implement `Journal` per `(context ID, validator key)`. `load` returns the entire
 acknowledged log or `None` only for a previously unused identity. `append` atomically
 creates that identity when `expected=None`, or appends when the existing event count
 matches `Some(sequence)`. A failure must mean no append occurred. The acknowledged
-log must survive crashes without truncation, rollback, forks or lost choices. Shared
+log must survive crashes without truncation, rollback, forks or lost history. Shared
 processes using one validator key must use this same storage namespace and atomic CAS.
 Do not initialize the same previously used key against an empty replacement store.
 
@@ -92,37 +92,65 @@ by choosing a hash or arrival order. Treat that error as a violated assumption.
 Cancellation does not introduce a business `extend` message or bypass normal act
 signing. No private key or signing algorithm is embedded in the runtime.
 
-## Checkpoints
+## DAG versions
 
-`seal(epoch, journal, auth)` persists closure before returning the full local
-signed-ID set and a seal signing request. Construct `SealReport { epoch, signed,
-vote }` after external signing. Released and zero-cost signatures remain present.
-Fresh signatures in a sealed epoch reject; cached vote retries remain identical.
-
-`draft_checkpoint(epoch, reports, refunds, credits)` computes cumulative contents
-and exact allocation. Refunds need cancellation QCs; credits need effects QCs.
-Sign `Context::checkpoint_request(manifest)` as the account owner, then construct a
-`Proposal`. `register_proposal` verifies owner authorization, seal quorum, complete
-report inclusion, parent/depth, cumulative sets, funding proofs and exact books.
-
-`prepare_checkpoint` requires the validator's own sealed journal to be included
-and persists its one-successor choice. Assemble a checkpoint QC and a `Checkpoint`.
-`receive_checkpoint` independently verifies the whole proposal and QC.
-`install` only follows the local active parent. Replayed old checkpoints cannot
-reset the active epoch. `active_epoch` provides the installed local epoch.
-Alternate report bundles proving the same manifest share its semantic ID.
-
-The accounting equation for each resource is:
+`(certification quorum-budget ...)` always selects consensus-free multi-parent DAG
+adoption. `Context::from_instance` derives the runtime from that declaration. The
+host supplies cryptography, transport and durable storage, not a handoff protocol.
+There is no handoff option, legacy checkpoint API or old-log migration.
 
 ```text
-allocation = genesis + cumulative final credits
-                     - cumulative held costs
-                     + cumulative cancellation-backed refunds
+        A --\
+       /     \
+root          M --> N
+       \     /
+        B --/
 ```
 
-There is no consensus recovery path for split successor votes or effects/fence
-splits. The protocol guarantees safety under its assumptions, not unconditional
-progress or immediate spending of an entire displayed balance.
+| API | Meaning |
+|---|---|
+| `version_snapshot(account)` | This scope's active/visited/known versions and complete own-origin journals |
+| `draft_version(parents, held, refunds, credits)` | Derive scope from parents, union cumulative sets and recompute exact books |
+| `Context::version_request(manifest, actor)` | Version authorization bytes for the actual eligible actor |
+| `receive_version(DagVersion, journal, auth)` | Verify actor, parents, rank, inherited sets, exact books and real credit/refund QCs |
+| `adopt_version(id, journal, auth)` | Require current scope's active version among parents and its full signature history held |
+| `version(id)` | Fetch retained verified metadata for relay |
+
+An account version is authorized by that account's actor. A collective version is
+authorized by an eligible operation actor, never by the pool identity. A host gathers
+candidate histories, drafts a covering manifest, externally signs its authorization
+request and relays the version. Each validator adopts independently. Receipt makes
+metadata known without activating it. No version/checkpoint quorum is needed.
+
+The target must include every historical signature from its resource scope,
+including released and zero-cost IDs. Signatures from other accounts do not become
+this account's debit obligations. Parents and held operations must share the target
+scope; verified incoming transfer credits can originate in another account.
+Changing the actor within a collective pool does not change the scope or budget.
+Adoption preserves all machine evidence, including other accounts' histories.
+
+The accounting equation is independently checked for rights and headroom:
+
+```text
+allocation = genesis + unique cumulative final credits
+                     - unique cumulative held costs
+                     + unique cancellation-backed refunds
+```
+
+Parent allowances are never added. Over-reserved branches need refunds or adequate
+verified credits before they can produce a funded join. Cancellation continues to
+require the original transaction actor. Missing history blocks an adopter; there is
+no timeout unlock, consensus fallback or unconditional progress guarantee.
+
+`VersionManifest::rank` exceeds every parent rank and every held operation's source
+rank. Drafting computes the smallest such label; callers can choose a larger rank
+before reauthorizing. Siblings can share rank. This is not a global transaction
+order. The version ID binds scope, context, parents, rank, sets and allocation.
+
+Versions use the same tentative apply, atomic append and guarded recovery as votes.
+Recovery recognizes only current typed events; removed legacy event/vote variants
+reject during decoding. Cached signing and same-active-version adoption retries
+stutter. Old version receipt never resets the active version.
 
 ## Queries and limits
 
@@ -134,16 +162,15 @@ The digest commits the context and final operation set, not a quorum-signed bala
 `fold_instance` overlays this selected field on the normal state fold. Generic
 stateless parser/WASM/FFI folds remain fail closed for quorum counters.
 
-`operation_act`, `certificate` and `checkpoint` return retained evidence for host
+`operation_act`, `certificate` and `version` return retained evidence for host
 fetch/relay protocols. They never synthesize signatures or completeness claims.
 
-`Limits::default()` admits at most 4096 candidates, 1024 proposals and checkpoints
-each, 65536 journal events, 1 MiB per operation object, and 8192 bytes per signature.
+`Limits::default()` admits at most 4096 candidates, 1024 DAG versions, 65536 journal events, 1 MiB per operation object, and 8192 bytes per signature.
 The typed message traversal also enforces a depth ceiling of 64 before recursive
 canonicalization. Cardinalities and known-ID checks bound certificate/report inputs.
 The host can choose stricter limits and must bound decoding before allocating inputs.
 Hitting a limit refuses new work and retains safety evidence. It does not garbage
-collect histories, fences, signatures or choices. Limit changes on recovery must
+collect histories, fences, signatures or visited versions. Limit changes on recovery must
 still admit the full existing log.
 
 The executable example is `crates/cbcl-parser/tests/quorum_runtime.rs`. It uses
@@ -168,110 +195,44 @@ using the shared binder.
 
 `root_epoch(actor)` and `active_epoch(actor)` resolve every collective actor to the
 same pool epoch. They also accept the explicit resource scope for read access.
-The resource scope cannot sign transactions, cancellation requests or checkpoints.
+The resource scope cannot sign transactions, cancellation requests or versions.
 
-`checkpoint_request_by(manifest, actor)` returns signing bytes for an admitted
-operation actor. Use this method for collective checkpoints; the older
-`checkpoint_request(manifest)` remains valid for account ownership. Incoming
-proposals independently recheck the actual authorizing actor. Cancellation continues
-to require the original operation signer. Neither role authorization nor the
-pool's balance can replace that cancellation signature.
+`version_request(manifest, actor)` returns signing bytes for an eligible actual
+actor. Incoming versions independently recheck authorization. Cancellation always
+requires the original transaction signer; a shared balance cannot replace that
+signature. `version_snapshot(actor)` resolves the actor to the same pool scope.
 
 `FinalizedView` exposes its ownership mode. Rust `rights` and optional `headroom`
 maps contain one pool entry for collective rules. `value()` renders scalar resources
 and `ownership: collective`. Final-set digests and unknown completeness retain their
-existing meaning. Collective checkpoint accounting and journals use the same pool
-scope across all actors. No multi-parent merge, consensus fallback or unconditional
-progress is implied. See [[SPEC-027-collective-bounded-counters]].
+existing meaning. Collective DAG accounting and journals use the same pool scope
+across all actors. See [[SPEC-031-unified-quorum-dag]].
 
-## Explicit collective Lean protocol
+## Proof and execution scope
 
-[[SPEC-028-collective-actor-refinement]] formalizes signed request admission,
-concrete cast/role checks, per-validator receipts and shared-pool execution in
-`LeanCbcl/ConsensusFree/CollectiveProtocol.lean`. Cancellation quorum provenance
-names the original transaction actor; checkpoint quorum provenance names an
-eligible authenticated proposer. Receipt/rejection steps erase to stuttering in
-the existing resource protocol. General proofs cover finite and infinite safety,
-funded refinement, declared floor/ceiling, retained successor choices and safe release.
+[[SPEC-029-multi-parent-counter-model]] proves the collective numeric DAG protocol.
+`MultiParentRustOracle.lean` proves its API adapter generates valid abstract runs.
+The adapter names source-metadata registration, own-charge release and durable
+retry stuttering. Shared fixtures synchronize verified metadata/certificates;
+separate Rust tests cover delayed local receipt. Tests compare real runtime
+admission/projected state and recover journals after every shared command.
 
-Run `lake env lean --run CollectiveActorAudit.lean` from `lean-cbcl` for the
-kernel-checked traces and axiom audit. `CollectiveActorAdversarialReview.lean`
-contains independently authored checks. Ideal signatures and fixed identifiers
-binding complete immutable payloads are assumptions. Parser/crypto correctness,
-physical durability and formal Rust correspondence remain outside this proof.
-Abstract event-log replay is distinct from the Rust journal serialization, and
-this system model does not establish complete/latest client balance reads.
+Account DAG behavior additionally has transfer, headroom, scope isolation, branch
+join, late-certificate and recovery tests. It is not newly claimed as formally
+refined to the single-pool Lean model. Historical single-parent Lean modules remain
+research artifacts and do not select runtime behavior.
 
-## Multi-parent collective protocol
-
-`Context::from_instance_multi_parent(&instance, field, roster, &auth)` selects
-[[SPEC-030-rust-multi-parent-refinement]]. It requires collective ownership and uses
-a distinct context domain. Existing `from_instance` keeps the single-parent
-protocol. There is no journal migration: signatures, roots and logs from the other
-mode cannot be mixed. `Context::handoff()` reports the selected mode. Dialect
-syntax and external transaction signing stay the same.
-
-Multi-parent mode replaces seals, one-successor endorsements and checkpoint QCs
-with authenticated version metadata and independent local adoption:
-
-```text
-        A --\
-       /     \
-root          M --> N
-       \     /
-        B --/
-```
-
-| API | Meaning |
-|---|---|
-| `version_snapshot()` | Complete local signed history, visited/known versions and retained fences/releases |
-| `draft_version(parents, held, refunds, credits)` | Union parent sets and compute exact genesis-based books |
-| `Context::version_request(manifest, actor)` | Version authorization bytes for an eligible actual actor |
-| `receive_version(DagVersion, journal, auth)` | Independently verify metadata, actor signature, parents, ranks, sets and funding proofs |
-| `adopt_version(id, journal, auth)` | Require active version among direct parents and every historical signature ID held |
-| `version(id)` | Fetch retained validated metadata for relay |
-
-A host gathers candidate IDs/history through its transport, drafts a covering
-manifest, externally signs its authorization request, relays the version, and lets
-each validator adopt independently. No version/checkpoint vote is needed. Omitted
-IDs cause an adopter to refuse; a proposal cannot reset its history. Released and
-zero-cost signatures remain obligatory. Refunds require real cancellation QCs and
-credits require effects QCs. Parent balances are never added. Proposals that reserve
-more than genesis plus credits require cancellation-backed refunds before adoption
-can succeed. No consensus fallback or unconditional progress guarantee is supplied.
-
-`VersionManifest::rank` exceeds every parent rank and every held operation's source
-rank. Drafting computes the smallest such rank; callers can choose a larger rank
-before reauthorizing a manifest. Siblings can have equal rank. The label is not a
-global transaction order. The semantic ID binds parent IDs, rank, sets, allocation
-and context; changing any field requires a new actor authorization.
-
-All transitions use the same tentative-apply/atomic-append/expose discipline as
-operation signing. Recovery rechecks DAG guards and rejects wrong-mode legacy
-events. Metadata receipt never activates a version, nor does it imply another
-validator has received its proofs. Effects preparation still requires the locally
-received operation QC; a version importing credits requires locally verified
-finality. `finalized_view` retains its local, completeness-unknown meaning.
-Limits also bound DAG versions/parents and cumulative transaction sets. Overflow
-rejects; no evidence is dropped to regain capacity. Cached signing/adoption retries
-return existing evidence or stutter.
-
-The Lean numeric model is [[SPEC-029-multi-parent-counter-model]].
-`MultiParentRustOracle.lean` proves its Rust API adapter refines abstract steps.
-The adapter makes source-metadata registration, own-charge release and idempotent
-retries explicit. The shared fixture synchronizes verified metadata/certificates;
-separate Rust tests cover delayed delivery. `quorum_runtime/multi_parent.rs` compares
-real runtime admission and projected state and recovers the journal after every
-shared step. Regenerate/check with:
+Run from repository root:
 
 ```sh
 python3 proofs/validator-budget/check_rust_multi_parent.py
-cargo test -p cbcl-parser --test quorum_runtime multi_parent
+cargo test -p cbcl-parser --test quorum_runtime
 python3 proofs/validator-budget/check_rust_multi_parent_mutations.py
 ```
 
-This is tested transition correspondence with the proved Lean reference, not a
-universal Rust source-equivalence proof. Machine integer/catalogue limits reject
-additional inputs. Packet codecs, cryptography and physical journal durability
-remain host assumptions. The new mode does not implement account transfers or
-prove unbounded fresh-ID refinement.
+This is tested Rust correspondence, not universal source-code equivalence. The
+finite catalogue, machine arithmetic and positive-amount/codec limits reject inputs
+outside the supported projection. Cryptography, physical journal durability and
+network decoding remain host assumptions. Neither unbounded fresh-ID refinement
+nor complete/latest balance reads are proved. Current evidence:
+[[unified-quorum-evidence]].

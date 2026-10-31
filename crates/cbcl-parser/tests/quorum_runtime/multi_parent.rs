@@ -15,7 +15,7 @@ fn dag_supply(source: &str, supply: i64) -> Net {
         .acts
         .insert((n.base[1].address.clone(), n.base[1].signer.clone()));
     let inst = Instance::new(&n.d, ThreadId("coin-1".into()), &n.base).unwrap();
-    n.ctx = Context::from_instance_multi_parent(&inst, "tickets", None, &n.auth).unwrap();
+    n.ctx = Context::from_instance(&inst, "tickets", None, &n.auth).unwrap();
     n.j = Memory::default();
     n.rs = (0..4)
         .map(|w| {
@@ -275,7 +275,7 @@ impl OracleNet {
             .map(|a| a.as_ref().unwrap().address.clone())
             .collect();
         let nodes: Vec<_> = self.n.rs.iter().take(3).map(|r| {
-            let s = r.version_snapshot().unwrap();
+            let s = r.version_snapshot(COLLECTIVE_POOL).unwrap();
             json!({"active":self.ids.iter().position(|x|x==&s.active).unwrap(),
                 "visited":self.project(&s.visited,&self.ids),"known":self.project(&s.known,&self.ids),
                 "signed":self.project(&s.signed,&txs),"released":self.project(&s.released,&txs),
@@ -327,8 +327,8 @@ fn lean_shared_transition_traces() {
                 )
                 .unwrap();
                 assert_eq!(
-                    recovered.version_snapshot().unwrap(),
-                    runtime.n.rs[w].version_snapshot().unwrap()
+                    recovered.version_snapshot(COLLECTIVE_POOL).unwrap(),
+                    runtime.n.rs[w].version_snapshot(COLLECTIVE_POOL).unwrap()
                 );
                 assert_eq!(
                     recovered.finalized_view().unwrap(),
@@ -354,56 +354,54 @@ fn authorized(n: &Net, m: VersionManifest) -> DagVersion {
     }
 }
 #[test]
-fn protocol_domains_and_legacy_entry_points_are_isolated() {
-    let mut n = dag();
-    let inst = Instance::new(&n.d, ThreadId("coin-1".into()), &n.base).unwrap();
-    let legacy = Context::from_instance(&inst, "tickets", None, &n.auth).unwrap();
-    assert_ne!(legacy.id(), n.ctx.id());
-    assert_ne!(
-        legacy.root_epoch("@alice").unwrap(),
-        n.ctx.root_epoch("@alice").unwrap()
-    );
-    assert_eq!(n.ctx.handoff(), Handoff::MultiParent);
-    let root = n.ctx.root_epoch("@alice").unwrap();
-    let before = n.rs[0].journal_sequence();
-    assert!(n.rs[0].seal(&root, &mut n.j, &n.auth).is_err());
-    assert!(n.rs[0].install(&root, &mut n.j, &n.auth).is_err());
-    assert!(n.rs[0]
-        .prepare_checkpoint("no-proposal", &mut n.j, &n.auth)
-        .is_err());
-    assert!(n.rs[0]
-        .draft_checkpoint(&root, &[], &BTreeSet::new(), &BTreeSet::new())
-        .is_err());
-    assert_eq!(before, n.rs[0].journal_sequence());
-    let mut old = Replica::initialize(legacy.clone(), "@v0", Limits::default(), &mut n.j).unwrap();
-    let m = n.rs[0]
-        .draft_version(
-            &set([root.clone()]),
-            &BTreeSet::new(),
-            &BTreeSet::new(),
-            &BTreeSet::new(),
-        )
-        .unwrap();
-    let v = authorized(&n, m);
-    assert!(old.receive_version(v.clone(), &mut n.j, &n.auth).is_err());
-    assert!(old
-        .adopt_version(&v.manifest.id(n.ctx.id()), &mut n.j, &n.auth)
-        .is_err());
-    assert!(legacy.version_request(&v.manifest, "@alice").is_err());
+fn quorum_budget_has_one_dag_protocol_and_rejects_legacy_wire_types() {
+    let n = dag();
     let account = Net::new();
     let inst = Instance::new(&account.d, ThreadId("coin-1".into()), &account.base).unwrap();
-    assert!(Context::from_instance_multi_parent(&inst, "coins", None, &account.auth).is_err());
+    assert!(Context::from_instance(&inst, "coins", None, &account.auth).is_ok());
+    for kind in ["Seal", "Checkpoint", "CheckpointRequest"] {
+        let err = serde_json::from_value::<VoteKind>(json!(kind)).unwrap_err();
+        assert!(err.to_string().contains("unknown variant"));
+    }
+    for kind in ["Seal", "Endorse", "Install", "Proposal", "Checkpoint"] {
+        let err = serde_json::from_value::<Event>(json!({kind:"obsolete"})).unwrap_err();
+        assert!(err.to_string().contains("unknown variant"));
+    }
+    let text = |s: &str| SExpr::Atom(Atom::Str(s.into()));
+    let old_domain = cbcl_core::canonical::canonical_encode(&SExpr::List(vec![
+        text("cbcl/quorum-context/v1"),
+        text(&cbcl_core::canonical::dialect_hash(&n.d)),
+        text("coin-1"),
+        text(&n.base[0].address),
+        text(&n.base[1].address),
+        text("tickets"),
+        SExpr::List(
+            n.ctx
+                .committee()
+                .validators
+                .iter()
+                .map(|k| text(k))
+                .collect(),
+        ),
+        text("1"),
+    ]));
+    let hash = Sha256::digest(old_domain);
+    let mut old_id = String::from("sha256-");
+    for b in hash {
+        old_id.push_str(&format!("{b:02x}"));
+    }
+    assert_ne!(n.ctx.id(), old_id);
+    assert_ne!(n.ctx.id(), account.ctx.id());
 }
-
 #[test]
 fn version_authentication_rank_sets_limits_and_overflow_are_checked() {
     let mut x = oracle();
     let valid = x.versions[1].clone().unwrap();
     let reject = |x: &mut OracleNet, v: DagVersion| {
-        let before = x.n.rs[0].version_snapshot().unwrap();
+        let before = x.n.rs[0].version_snapshot(COLLECTIVE_POOL).unwrap();
         let sequence = x.n.rs[0].journal_sequence();
         assert!(x.n.rs[0].receive_version(v, &mut x.n.j, &x.n.auth).is_err());
-        assert_eq!(before, x.n.rs[0].version_snapshot().unwrap());
+        assert_eq!(before, x.n.rs[0].version_snapshot(COLLECTIVE_POOL).unwrap());
         assert_eq!(sequence, x.n.rs[0].journal_sequence());
     };
     let mut v = valid.clone();
@@ -457,7 +455,7 @@ fn version_authentication_rank_sets_limits_and_overflow_are_checked() {
         x.n.ctx.clone(),
         "@v0",
         Limits {
-            checkpoints: 0,
+            versions: 0,
             ..Limits::default()
         },
         &mut j,
@@ -648,21 +646,21 @@ fn zero_cost_mint_signatures_are_still_immutable_obligations() {
 fn dag_atomic_append_cas_and_recovery_recheck_the_actual_guards() {
     let mut x = oracle();
     let v = x.versions[1].clone().unwrap();
-    let before = x.n.rs[0].version_snapshot().unwrap();
+    let before = x.n.rs[0].version_snapshot(COLLECTIVE_POOL).unwrap();
     x.n.j.fail = true;
     assert!(x.n.rs[0].receive_version(v, &mut x.n.j, &x.n.auth).is_err());
-    assert_eq!(before, x.n.rs[0].version_snapshot().unwrap());
+    assert_eq!(before, x.n.rs[0].version_snapshot(COLLECTIVE_POOL).unwrap());
     x.n.j.fail = false;
     assert!(x.command(&json!(["record", 1, 0])));
     assert!(x.command(&json!(["record", 2, 0])));
     let mut stale =
         Replica::recover(x.n.ctx.clone(), "@v0", Limits::default(), &x.n.j, &x.n.auth).unwrap();
-    let before = x.n.rs[0].version_snapshot().unwrap();
+    let before = x.n.rs[0].version_snapshot(COLLECTIVE_POOL).unwrap();
     x.n.j.fail = true;
     assert!(x.n.rs[0]
         .adopt_version(&x.ids[1], &mut x.n.j, &x.n.auth)
         .is_err());
-    assert_eq!(before, x.n.rs[0].version_snapshot().unwrap());
+    assert_eq!(before, x.n.rs[0].version_snapshot(COLLECTIVE_POOL).unwrap());
     x.n.j.fail = false;
     x.n.rs[0]
         .adopt_version(&x.ids[1], &mut x.n.j, &x.n.auth)
@@ -671,9 +669,9 @@ fn dag_atomic_append_cas_and_recovery_recheck_the_actual_guards() {
         .adopt_version(&x.ids[2], &mut x.n.j, &x.n.auth)
         .unwrap_err()
         .contains("compare-and-append"));
-    assert_eq!(stale.version_snapshot().unwrap(), before);
+    assert_eq!(stale.version_snapshot(COLLECTIVE_POOL).unwrap(), before);
     let key = (x.n.ctx.id().to_string(), "@v0".to_string());
-    // Legacy events cannot bypass mode isolation on crash recovery.
+    // Root replay cannot bypass forward-only adoption on crash recovery.
     let mut corrupt = Memory {
         logs: x.n.j.logs.clone(),
         fail: false,
@@ -682,7 +680,7 @@ fn dag_atomic_append_cas_and_recovery_recheck_the_actual_guards() {
         .logs
         .get_mut(&key)
         .unwrap()
-        .push(Event::Seal(x.ids[1].clone()));
+        .push(Event::AdoptVersion(x.ids[0].clone()));
     assert!(Replica::recover(
         x.n.ctx.clone(),
         "@v0",
@@ -848,12 +846,12 @@ fn crowded_branches_require_cancellation_before_a_funded_join() {
         n.rs[w].adopt_version(&id, &mut n.j, &n.auth).unwrap();
     }
     assert!(n.rs[2]
-        .version_snapshot()
+        .version_snapshot(COLLECTIVE_POOL)
         .unwrap()
         .signed
         .contains(&right.address));
     assert!(n.rs[2]
-        .version_snapshot()
+        .version_snapshot(COLLECTIVE_POOL)
         .unwrap()
         .released
         .contains(&right.address));
@@ -918,4 +916,249 @@ fn partial_renewal_counterexample_is_rejected_after_real_quorums() {
             .unwrap_err()
             .contains("historical"));
     }
+}
+
+fn approve_account(n: &mut Net, manifest: VersionManifest) -> String {
+    let authorization = sign(n.ctx.version_request(&manifest, &manifest.account).unwrap());
+    let id = manifest.id(n.ctx.id());
+    let v = DagVersion {
+        manifest,
+        authorization,
+    };
+    for r in &mut n.rs {
+        r.receive_version(v.clone(), &mut n.j, &n.auth).unwrap();
+    }
+    id
+}
+#[test]
+fn account_scope_guards_reject_foreign_parents_debits_and_authority() {
+    let mut n = Net::new();
+    let root = n.ctx.root_epoch("@alice").unwrap();
+    let m = n.rs[0]
+        .draft_version(
+            &set([root.clone()]),
+            &BTreeSet::new(),
+            &BTreeSet::new(),
+            &BTreeSet::new(),
+        )
+        .unwrap();
+    let mut foreign_parent = m.clone();
+    foreign_parent
+        .parents
+        .insert(n.ctx.root_epoch("@treasury").unwrap());
+    let v = DagVersion {
+        authorization: sign(n.ctx.version_request(&foreign_parent, "@alice").unwrap()),
+        manifest: foreign_parent,
+    };
+    assert!(n.rs[0]
+        .receive_version(v, &mut n.j, &n.auth)
+        .unwrap_err()
+        .contains("parent"));
+    let foreign_mint = n.make("@treasury", "mint", None, 10, "foreign-zero-cost");
+    n.register(&foreign_mint);
+    let mut foreign_held = m.clone();
+    foreign_held.held.insert(foreign_mint.address);
+    // Cost0 and all other fields valid: only the held operation's scope rejects.
+    let v = DagVersion {
+        authorization: sign(n.ctx.version_request(&foreign_held, "@alice").unwrap()),
+        manifest: foreign_held,
+    };
+    assert!(n.rs[0]
+        .receive_version(v, &mut n.j, &n.auth)
+        .unwrap_err()
+        .contains("another account"));
+    assert!(n.ctx.version_request(&m, "@bob").is_err());
+    let mut v = DagVersion {
+        authorization: sign(n.ctx.version_request(&m, "@alice").unwrap()),
+        manifest: m,
+    };
+    v.authorization.signer = "@bob".into();
+    v.authorization.signature = signature("@bob", &v.authorization.preimage());
+    assert!(n.rs[0]
+        .receive_version(v, &mut n.j, &n.auth)
+        .unwrap_err()
+        .contains("actor"));
+}
+
+#[test]
+fn account_adoption_covers_own_history_without_importing_other_accounts() {
+    let mut n = Net::new();
+    let pay = n.make("@treasury", "pay", Some("@alice"), 100, "incoming");
+    n.operation(&pay);
+    n.finalize(&pay);
+    let root = n.ctx.root_epoch("@alice").unwrap();
+    let m = n.rs[0]
+        .draft_version(
+            &set([root]),
+            &BTreeSet::new(),
+            &BTreeSet::new(),
+            &set([pay.address.clone()]),
+        )
+        .unwrap();
+    assert_eq!(m.allocation.rights, 100);
+    assert!(m.held.is_empty());
+    let id = approve_account(&mut n, m);
+    for r in &mut n.rs {
+        r.adopt_version(&id, &mut n.j, &n.auth).unwrap();
+    }
+    assert!(n.rs[0]
+        .version_snapshot("@alice")
+        .unwrap()
+        .signed
+        .is_empty());
+    assert!(n.rs[0]
+        .version_snapshot("@treasury")
+        .unwrap()
+        .signed
+        .contains(&pay.address));
+    let treasury_root = n.ctx.root_epoch("@treasury").unwrap();
+    let bad = n.rs[0]
+        .draft_version(
+            &set([treasury_root.clone()]),
+            &BTreeSet::new(),
+            &BTreeSet::new(),
+            &BTreeSet::new(),
+        )
+        .unwrap();
+    let bid = approve_account(&mut n, bad);
+    assert!(n.rs[0]
+        .adopt_version(&bid, &mut n.j, &n.auth)
+        .unwrap_err()
+        .contains("historical"));
+    let good = n.rs[0]
+        .draft_version(
+            &set([treasury_root]),
+            &set([pay.address.clone()]),
+            &BTreeSet::new(),
+            &BTreeSet::new(),
+        )
+        .unwrap();
+    assert_eq!(good.allocation.rights, 900);
+    let tid = approve_account(&mut n, good);
+    for r in &mut n.rs {
+        r.adopt_version(&tid, &mut n.j, &n.auth).unwrap();
+    }
+    assert_eq!(n.rs[0].active_epoch("@alice").unwrap(), id);
+    assert_eq!(n.rs[0].active_epoch("@treasury").unwrap(), tid);
+    let restored =
+        Replica::recover(n.ctx.clone(), "@v0", Limits::default(), &n.j, &n.auth).unwrap();
+    for account in ["@alice", "@treasury", "@bob"] {
+        assert_eq!(
+            restored.version_snapshot(account).unwrap(),
+            n.rs[0].version_snapshot(account).unwrap()
+        );
+    }
+}
+fn account_pay_at(n: &mut Net, w: usize, amount: i64, nonce: &str) -> Act {
+    let inst = Instance::new(&n.d, ThreadId("coin-1".into()), &n.base).unwrap();
+    let msg = n.rs[w]
+        .intend(
+            &inst,
+            &AgentKey("@alice".into()),
+            "pay",
+            fields(Some("@bob"), amount),
+            nonce,
+        )
+        .unwrap();
+    let a = Act::from_message(msg, "@alice").unwrap();
+    n.auth.acts.insert((a.address.clone(), a.signer.clone()));
+    a
+}
+#[test]
+fn account_branches_join_with_late_transfers_refunds_and_recovery() {
+    let mut n = Net::new();
+    let seed = n.make("@treasury", "pay", Some("@alice"), 100, "seed");
+    n.operation(&seed);
+    n.finalize(&seed);
+    let root = n.ctx.root_epoch("@alice").unwrap();
+    let a = n.rs[0]
+        .draft_version(
+            &set([root]),
+            &BTreeSet::new(),
+            &BTreeSet::new(),
+            &set([seed.address.clone()]),
+        )
+        .unwrap();
+    let mut b = a.clone();
+    b.rank += 1;
+    let aid = approve_account(&mut n, a);
+    let bid = approve_account(&mut n, b);
+    for w in [0, 1] {
+        n.rs[w].adopt_version(&aid, &mut n.j, &n.auth).unwrap();
+    }
+    for w in [2, 3] {
+        n.rs[w].adopt_version(&bid, &mut n.j, &n.auth).unwrap();
+    }
+    let left = account_pay_at(&mut n, 0, 30, "left");
+    let right = account_pay_at(&mut n, 2, 30, "right");
+    n.register(&left);
+    n.register(&right);
+    let mut left_votes = Vec::new();
+    for w in [0, 1] {
+        left_votes.push(sign(
+            n.rs[w]
+                .prepare_operation(&left.address, &mut n.j, &n.auth)
+                .unwrap(),
+        ));
+    }
+    for w in [2, 3] {
+        n.rs[w]
+            .prepare_operation(&right.address, &mut n.j, &n.auth)
+            .unwrap();
+    }
+    let m = n.rs[0]
+        .draft_version(
+            &set([aid, bid]),
+            &set([left.address.clone(), right.address.clone()]),
+            &BTreeSet::new(),
+            &BTreeSet::new(),
+        )
+        .unwrap();
+    assert_eq!(m.allocation.rights, 40);
+    assert_eq!(m.credited.len(), 1);
+    let mid = approve_account(&mut n, m);
+    for r in &mut n.rs {
+        r.adopt_version(&mid, &mut n.j, &n.auth).unwrap();
+    }
+    let current = account_pay_at(&mut n, 0, 20, "current");
+    n.operation(&current);
+    n.finalize(&current);
+    let mut byz = Vote {
+        context: n.ctx.id().into(),
+        kind: VoteKind::Operation,
+        payload: left.address.clone(),
+        signer: "@v3".into(),
+        signature: vec![],
+    };
+    byz.signature = signature(&byz.signer, &byz.preimage());
+    left_votes.push(byz);
+    let c = Certificate {
+        kind: VoteKind::Operation,
+        payload: left.address.clone(),
+        votes: left_votes,
+    };
+    for r in &mut n.rs {
+        r.receive(c.clone(), &mut n.j, &n.auth).unwrap();
+    }
+    n.finalize(&left);
+    let view = n.rs[0].finalized_view().unwrap();
+    assert_eq!(view.rights["@alice"], 50);
+    assert_eq!(view.rights["@bob"], 50);
+    assert_eq!(view.value, 1000);
+    n.cancel(&right);
+    n.rs[2].release(&right.address, &mut n.j, &n.auth).unwrap();
+    let reclaimed = n.advance_version("@alice", std::slice::from_ref(&right.address), &[]);
+    assert_eq!(reclaimed.manifest.allocation.rights, 50);
+    let restored =
+        Replica::recover(n.ctx.clone(), "@v2", Limits::default(), &n.j, &n.auth).unwrap();
+    assert_eq!(
+        restored.version_snapshot("@alice").unwrap(),
+        n.rs[2].version_snapshot("@alice").unwrap()
+    );
+    assert_eq!(restored.finalized_view().unwrap(), view);
+    assert!(restored
+        .version_snapshot("@alice")
+        .unwrap()
+        .released
+        .contains(&right.address));
 }

@@ -50,22 +50,13 @@ pub trait Journal {
         event: &Event,
     ) -> Result<()>;
 }
-/// The handoff protocol is pinned in the authenticated context identity.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Handoff {
-    SingleParent,
-    MultiParent,
-}
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum VoteKind {
     Operation,
     Effects,
     Cancel,
-    Seal,
-    Checkpoint,
     CancelRequest,
-    CheckpointRequest,
     VersionRequest,
 }
 impl VoteKind {
@@ -74,10 +65,7 @@ impl VoteKind {
             Self::Operation => "operation",
             Self::Effects => "effects",
             Self::Cancel => "cancel",
-            Self::Seal => "seal",
-            Self::Checkpoint => "checkpoint",
             Self::CancelRequest => "owner-cancel",
-            Self::CheckpointRequest => "owner-checkpoint",
             Self::VersionRequest => "owner-dag-version",
         }
     }
@@ -130,24 +118,6 @@ pub struct Certificate {
     pub payload: String,
     pub votes: Vec<Vote>,
 }
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "serde", serde(deny_unknown_fields))]
-pub struct SealReport {
-    pub epoch: String,
-    pub signed: BTreeSet<String>,
-    pub vote: Vote,
-}
-impl SealReport {
-    pub fn payload(context: &str, epoch: &str, signed: &BTreeSet<String>) -> String {
-        digest(alloc::vec![
-            text("cbcl/seal/v1"),
-            text(context),
-            text(epoch),
-            strings(signed)
-        ])
-    }
-}
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(deny_unknown_fields))]
@@ -178,49 +148,6 @@ impl Resources {
         self.rights >= 0 && self.headroom >= 0
     }
 }
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "serde", serde(deny_unknown_fields))]
-pub struct Manifest {
-    pub account: String,
-    pub parent: String,
-    pub depth: u64,
-    pub held: BTreeSet<String>,
-    pub refunded: BTreeSet<String>,
-    pub credited: BTreeSet<String>,
-    pub allocation: Resources,
-}
-impl Manifest {
-    pub fn id(&self, context: &str) -> String {
-        digest(alloc::vec![
-            text("cbcl/epoch/v1"),
-            text(context),
-            text(&self.account),
-            text(&self.parent),
-            text(&self.depth.to_string()),
-            strings(&self.held),
-            strings(&self.refunded),
-            strings(&self.credited),
-            text(&self.allocation.rights.to_string()),
-            text(&self.allocation.headroom.to_string())
-        ])
-    }
-}
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "serde", serde(deny_unknown_fields))]
-pub struct Proposal {
-    pub manifest: Manifest,
-    pub reports: Vec<SealReport>,
-    pub authorization: Vote,
-}
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "serde", serde(deny_unknown_fields))]
-pub struct Checkpoint {
-    pub proposal: Proposal,
-    pub certificate: Certificate,
-}
 /// A candidate DAG node. All fields are bound by its semantic identity.
 /// Rank is a local well-founded label, never a consensus sequence.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -250,18 +177,6 @@ impl VersionManifest {
             text(&self.allocation.headroom.to_string())
         ])
     }
-    // Shared numeric books/operation binding, never a legacy handoff proposal.
-    pub(crate) fn books(&self) -> Manifest {
-        Manifest {
-            account: self.account.clone(),
-            parent: String::new(),
-            depth: self.rank,
-            held: self.held.clone(),
-            refunded: self.refunded.clone(),
-            credited: self.credited.clone(),
-            allocation: self.allocation,
-        }
-    }
 }
 /// Untrusted owner-authorized metadata. No checkpoint/validator vote is needed.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -290,22 +205,17 @@ pub enum Event {
     Initialize,
     Candidate(Act),
     Certificate(Certificate),
-    Proposal(Proposal),
     Sign(String),
     Effect(String),
     Fence(Vote),
-    Seal(String),
-    Endorse(String),
-    Checkpoint(Checkpoint),
     Release(String),
-    Install(String),
     Version(DagVersion),
     AdoptVersion(String),
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Limits {
     pub operations: usize,
-    pub checkpoints: usize,
+    pub versions: usize,
     pub events: u64,
     pub object_bytes: usize,
     pub signature_bytes: usize,
@@ -314,7 +224,7 @@ impl Default for Limits {
     fn default() -> Self {
         Self {
             operations: 4096,
-            checkpoints: 1024,
+            versions: 1024,
             events: 65536,
             object_bytes: 1_048_576,
             signature_bytes: 8192,

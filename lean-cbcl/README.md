@@ -92,7 +92,7 @@ resource vectors, finite/infinite funded refinement and safe cancellation releas
 The interpreter is a model harness over verified certificate evidence, not the
 Rust wire protocol. Infinite traces range over a fixed finite catalogue; funded
 refinement requires disjoint debit/credit per coordinate. It does not guarantee
-progress under contention. Rust offers a separate opt-in DAG handoff under [[SPEC-030-rust-multi-parent-refinement]].
+progress under contention. Rust uses DAG adoption for every quorum-budget context under [[SPEC-031-unified-quorum-dag]].
 Contract: [[SPEC-029-multi-parent-counter-model]]. Evidence: [[multi-parent-evidence]].
 
 Run `lake env lean --run MultiParentAudit.lean` here and
@@ -112,3 +112,10 @@ correspondence, not universal source equivalence or network refinement.
 Run `python3 proofs/validator-budget/check_rust_multi_parent.py` from repository
 root to regenerate the reference in memory and check the committed fixture.
 Use `--write` only after inspecting an intentional oracle change.
+
+
+Single-parent counter modules remain historical formal models; the Rust runtime
+has no selector or compatibility path for them. Its account and collective modes
+both use scoped DAG adoption. The current collective reference still applies;
+account DAG transfers have execution/adversarial evidence, with their formal
+extension tracked separately in [[SPEC-031-unified-quorum-dag]].

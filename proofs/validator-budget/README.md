@@ -76,10 +76,17 @@ Detailed scope and results: [[multi-parent-evidence]].
 
 
 The Rust DAG implementation is governed by
-[[SPEC-030-rust-multi-parent-refinement]]. `check_rust_multi_parent.py` compares the
+[[SPEC-031-unified-quorum-dag]]. `check_rust_multi_parent.py` compares the
 committed shared fixture with fresh execution of the Lean oracle.
 `check_rust_multi_parent_mutations.py` archives the repository into a temporary
 checkout, overlays the current runtime/tests, and weakens real production guards.
 It requires running test assertion failures; compiler failures do not count.
 Separate Cargo target directories are removed after each case to bound disk use.
 See [[rust-multi-parent-evidence]] for scope, commands and review findings.
+
+
+The unified runtime has no host selector or single-parent compatibility APIs.
+Account and collective quorum counters share DAG code. The mutation checker also
+weakens account-parent, held-operation and scoped-history isolation guards.
+Collective Lean correspondence remains checked; account-DAG formalization remains
+separate from the added transfer, branch and recovery execution evidence.

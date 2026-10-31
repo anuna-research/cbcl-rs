@@ -1,0 +1,50 @@
+   Compiling cbcl-parser v0.1.0 (/private/tmp/cbcl-bounded-counter/crates/cbcl-parser)
+    Finished `test` profile [unoptimized] target(s) in 1.31s
+     Running tests/quorum_runtime.rs (target/debug/deps/quorum_runtime-a5df34c7f30ef507)
+
+running 43 tests
+test collective_declarations_defaults_and_programmatic_validation ... ok
+test collective_authoring_ignores_forged_role_caches_and_preserves_signers ... ok
+test bounded_inputs_reject_before_decisions ... ok
+test collective_json_contract_uses_shared_rule_recognizer ... ok
+test collective_history_and_cas_are_shared_across_actors ... ok
+test collective_concurrent_sellers_finalize_one_pool ... ok
+test ceiling_issuers_and_missing_epoch_evidence ... ok
+test cancellation_reclaims_once_and_survives_late_delivery ... ok
+test collective_invalid_genesis_never_creates_a_pool ... ok
+test collective_received_acts_enforce_roles_and_actual_issuer ... ok
+test collective_cancellation_uses_original_actor_and_refunds_shared_pool ... ok
+test collective_reserved_resource_scope_cannot_be_an_authenticated_actor ... ok
+test collective_ceiling_issuer_and_version_authorization ... ok
+test collective_sellers_share_one_validator_budget ... ok
+test collective_late_old_certificate_stays_charged_across_actor_adoption ... ok
+test issuer_authority_is_checked_even_when_protocol_role_permits_mint ... ok
+test json_contract_and_text_roundtrips_use_certification_options ... ok
+test corrupted_recovery_and_duplicate_wire_fields_reject ... ok
+test defaults_and_canonical_committee ... ok
+test malformed_context_caches_cannot_replace_genesis ... ok
+test headroom_transfers_and_burn_credits_are_independent_resources ... ok
+test local_budget_triangle_and_durable_cas ... ok
+test late_old_effects_remain_charged_after_adoption ... ok
+test language_trace_finality_and_restart ... ok
+test multi_parent::account_scope_guards_reject_foreign_parents_debits_and_authority ... ok
+test multi_parent::quorum_budget_has_one_dag_protocol_and_rejects_legacy_wire_types ... ok
+test multi_parent::account_adoption_covers_own_history_without_importing_other_accounts ... ok
+test multi_parent::crowded_branches_require_cancellation_before_a_funded_join ... ok
+test multi_parent::partial_renewal_counterexample_is_rejected_after_real_quorums ... ok
+test multi_parent::dag_atomic_append_cas_and_recovery_recheck_the_actual_guards ... ok
+test nested_resource_codec_rejects_unknown_fields ... ok
+test multi_parent::account_branches_join_with_late_transfers_refunds_and_recovery ... ok
+test multi_parent::zero_cost_mint_signatures_are_still_immutable_obligations ... ok
+test multi_parent::delayed_local_certificates_do_not_become_global_knowledge ... ok
+test programmatic_and_serde_rosters_use_symbol_grammar ... ok
+test out_of_order_certificate_delivery_can_fetch_and_retry ... ok
+test persistence_roundtrip_preserves_all_decisions ... ok
+test signed_domains_distinct_members_and_no_early_effects ... ok
+test nonce_forgery_dag_history_and_limits ... ok
+test multi_parent::same_rank_siblings_join_without_a_total_version_order ... ok
+test multi_parent::version_authentication_rank_sets_limits_and_overflow_are_checked ... ok
+test multi_parent::shared_parent_debits_and_credits_are_each_counted_once ... ok
+test multi_parent::lean_shared_transition_traces ... ok
+
+test result: ok. 43 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.87s

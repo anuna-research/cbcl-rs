@@ -27,14 +27,18 @@ budget_start=engine.index('        if used.rights.checked_mul(q)')
 budget_end=engine.index('            return Err("local validator budget exceeded"',budget_start)
 budget_guard=engine[budget_start:budget_end]
 cases=[('control',ENGINE,'',''),
-       ('history',ENGINE,'if !self.state.signed.is_subset(&m.held)', 'if false'),
-       ('books',ENGINE,'if self.allocation(&m.books())? != m.allocation','if false'),
+       ('parent-scope',ENGINE,'parent.account != m.account','false'),
+       ('held-scope',ENGINE,'if op.account != m.account','if false'),
+       ('scope-history',ENGINE,'self.op(signed)?.account == m.account && !m.held.contains(signed)',
+        '!m.held.contains(signed)'),
+       ('history',ENGINE,'if self.op(signed)?.account == m.account && !m.held.contains(signed)', 'if false'),
+       ('books',ENGINE,'if self.allocation(m)? != m.allocation','if false'),
        ('parent',ENGINE,'if !m.parents.contains(current)','if false'),
        ('release',ENGINE,'if !self.state.signed.contains(id) || !self.has(VoteKind::Cancel, id)',
         'if !self.state.signed.contains(id)'),
        ('budget',ENGINE,budget_guard,'        if false {\n'),
-       ('domain',CONTEXT,'Handoff::MultiParent => "cbcl/quorum-context/multi-parent/v1"',
-        'Handoff::MultiParent => "cbcl/quorum-context/v1"'),
+       ('domain',CONTEXT,'text("cbcl/quorum-context/multi-parent/v1")',
+        'text("cbcl/quorum-context/v1")'),
        ('durability',ENGINE,'        if self.sequence >= self.limits.events {',
         '        if matches!(event, Event::AdoptVersion(_)) { return Ok(()); }\n        if self.sequence >= self.limits.events {')]
 results=[]

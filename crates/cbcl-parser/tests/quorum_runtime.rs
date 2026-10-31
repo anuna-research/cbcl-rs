@@ -225,62 +225,38 @@ impl Net {
         }
         c
     }
-    fn reports(&mut self, owner: &str) -> Vec<SealReport> {
+    fn advance_version(
+        &mut self,
+        owner: &str,
+        refunds: &[String],
+        credits: &[String],
+    ) -> DagVersion {
         let epoch = self.rs[0].active_epoch(owner).unwrap().to_string();
-        self.rs
-            .iter_mut()
-            .map(|r| {
-                let (signed, req) = r.seal(&epoch, &mut self.j, &self.auth).unwrap();
-                SealReport {
-                    epoch: epoch.clone(),
-                    signed,
-                    vote: sign(req),
-                }
-            })
-            .collect()
-    }
-    fn checkpoint(&mut self, owner: &str, refunds: &[String], credits: &[String]) -> Checkpoint {
-        let reports = self.reports(owner);
-        let epoch = self.rs[0].active_epoch(owner).unwrap().to_string();
-        let m = self.rs[0]
-            .draft_checkpoint(
-                &epoch,
-                &reports,
+        let held: BTreeSet<_> = self
+            .rs
+            .iter()
+            .flat_map(|r| r.version_snapshot(owner).unwrap().signed.into_iter())
+            .collect();
+        let manifest = self.rs[0]
+            .draft_version(
+                &[epoch].into_iter().collect(),
+                &held,
                 &refunds.iter().cloned().collect(),
                 &credits.iter().cloned().collect(),
             )
             .unwrap();
-        let authorization = sign(self.ctx.checkpoint_request_by(&m, owner).unwrap());
-        let p = Proposal {
-            manifest: m,
-            reports,
+        let authorization = sign(self.ctx.version_request(&manifest, owner).unwrap());
+        let v = DagVersion {
+            manifest,
             authorization,
         };
-        let id = p.manifest.id(self.ctx.id());
-        let votes = self
-            .rs
-            .iter_mut()
-            .take(3)
-            .map(|r| {
-                r.register_proposal(p.clone(), &mut self.j, &self.auth)
-                    .unwrap();
-                sign(r.prepare_checkpoint(&id, &mut self.j, &self.auth).unwrap())
-            })
-            .collect();
-        let cp = Checkpoint {
-            proposal: p,
-            certificate: Certificate {
-                kind: VoteKind::Checkpoint,
-                payload: id.clone(),
-                votes,
-            },
-        };
+        let id = v.manifest.id(self.ctx.id());
         for r in &mut self.rs {
-            r.receive_checkpoint(cp.clone(), &mut self.j, &self.auth)
+            r.receive_version(v.clone(), &mut self.j, &self.auth)
                 .unwrap();
-            r.install(&id, &mut self.j, &self.auth).unwrap();
+            r.adopt_version(&id, &mut self.j, &self.auth).unwrap();
         }
-        cp
+        v
     }
 }
 #[test]
@@ -354,11 +330,11 @@ fn language_trace_finality_and_restart() {
     assert_eq!(before.rights["@alice"], 0);
     assert!(before.pending.contains(&pay.address));
     n.finalize(&pay);
-    n.checkpoint("@alice", &[], std::slice::from_ref(&pay.address));
+    n.advance_version("@alice", &[], std::slice::from_ref(&pay.address));
     let pay2 = n.make("@alice", "pay", Some("@bob"), 25, "pay-2");
     n.operation(&pay2);
     n.finalize(&pay2);
-    n.checkpoint("@bob", &[], std::slice::from_ref(&pay2.address));
+    n.advance_version("@bob", &[], std::slice::from_ref(&pay2.address));
     let burn = n.make("@bob", "burn", None, 5, "burn-1");
     n.operation(&burn);
     n.finalize(&burn);
@@ -456,15 +432,15 @@ fn cancellation_reclaims_once_and_survives_late_delivery() {
         r.release(&pay.address, &mut n.j, &n.auth).unwrap();
         assert!(r.prepare_effects(&pay.address, &mut n.j, &n.auth).is_err());
     }
-    let cp = n.checkpoint("@treasury", std::slice::from_ref(&pay.address), &[]);
-    assert!(cp.proposal.manifest.held.contains(&pay.address));
-    assert_eq!(cp.proposal.manifest.allocation.rights, 1000);
-    // Replaying old certificates/checkpoints cannot re-open the root epoch.
+    let cp = n.advance_version("@treasury", std::slice::from_ref(&pay.address), &[]);
+    assert!(cp.manifest.held.contains(&pay.address));
+    assert_eq!(cp.manifest.allocation.rights, 1000);
+    // Replaying old certificates/versions cannot re-open the root epoch.
     let active = n.rs[0].active_epoch("@treasury").unwrap().to_string();
     n.rs[0].receive(qc, &mut n.j, &n.auth).unwrap();
     n.rs[0].receive(cancel, &mut n.j, &n.auth).unwrap();
     n.rs[0]
-        .receive_checkpoint(cp.clone(), &mut n.j, &n.auth)
+        .receive_version(cp.clone(), &mut n.j, &n.auth)
         .unwrap();
     assert_eq!(n.rs[0].active_epoch("@treasury").unwrap(), active);
     let restored =
@@ -532,7 +508,7 @@ fn local_budget_triangle_and_durable_cas() {
     );
 }
 #[test]
-fn nonce_forgery_seals_successor_choice_and_limits() {
+fn nonce_forgery_dag_history_and_limits() {
     let mut n = Net::new();
     let a = n.make("@treasury", "pay", Some("@alice"), 10, "a");
     let retry = n.make("@treasury", "pay", Some("@alice"), 10, "a");
@@ -541,44 +517,36 @@ fn nonce_forgery_seals_successor_choice_and_limits() {
     assert_ne!(a.address, b.address);
     n.operation(&a);
     n.register(&b);
-    let reports = n.reports("@treasury");
+    let parents = [n.ctx.root_epoch("@treasury").unwrap()]
+        .into_iter()
+        .collect();
+    let held = [a.address.clone()].into_iter().collect();
+    let m = n.rs[0]
+        .draft_version(&parents, &held, &BTreeSet::new(), &BTreeSet::new())
+        .unwrap();
+    let p = DagVersion {
+        authorization: sign(n.ctx.version_request(&m, "@treasury").unwrap()),
+        manifest: m,
+    };
+    let id = p.manifest.id(n.ctx.id());
+    n.rs[0]
+        .receive_version(p.clone(), &mut n.j, &n.auth)
+        .unwrap();
+    n.rs[0].adopt_version(&id, &mut n.j, &n.auth).unwrap();
     assert!(n.rs[0]
         .prepare_operation(&b.address, &mut n.j, &n.auth)
         .is_err());
-    let epoch = n.rs[0].active_epoch("@treasury").unwrap().to_string();
-    let m = n.rs[0]
-        .draft_checkpoint(&epoch, &reports, &BTreeSet::new(), &BTreeSet::new())
-        .unwrap();
-    let p = Proposal {
-        authorization: sign(n.ctx.checkpoint_request(&m).unwrap()),
-        manifest: m,
-        reports: reports.clone(),
-    };
-    let id = n.rs[0]
-        .register_proposal(p.clone(), &mut n.j, &n.auth)
-        .unwrap();
-    n.rs[0].prepare_checkpoint(&id, &mut n.j, &n.auth).unwrap();
-    let mut split = p.clone();
-    split.manifest.held.insert(b.address.clone());
-    split.manifest.allocation.rights -= 10;
-    split.authorization = sign(n.ctx.checkpoint_request(&split.manifest).unwrap());
-    let other = n.rs[0].register_proposal(split, &mut n.j, &n.auth).unwrap();
-    assert!(n.rs[0]
-        .prepare_checkpoint(&other, &mut n.j, &n.auth)
-        .is_err());
-    let mut omitted = p.clone();
+    let mut omitted = p;
     omitted.manifest.held.clear();
     omitted.manifest.allocation.rights = 1000;
-    omitted.authorization = sign(n.ctx.checkpoint_request(&omitted.manifest).unwrap());
-    assert!(n.rs[1]
-        .register_proposal(omitted, &mut n.j, &n.auth)
-        .is_err());
-    let mut alternate = p.clone();
-    alternate.reports.reverse();
-    assert_eq!(alternate.manifest.id(n.ctx.id()), id);
-    n.rs[0]
-        .register_proposal(alternate, &mut n.j, &n.auth)
-        .unwrap();
+    omitted.authorization = sign(
+        n.ctx
+            .version_request(&omitted.manifest, "@treasury")
+            .unwrap(),
+    );
+    let oid = omitted.manifest.id(n.ctx.id());
+    n.rs[1].receive_version(omitted, &mut n.j, &n.auth).unwrap();
+    assert!(n.rs[1].adopt_version(&oid, &mut n.j, &n.auth).is_err());
     let inst = Instance::new(&n.d, ThreadId("coin-1".into()), &n.base).unwrap();
     for key in ["escrow-prev", "escrow-deps", "escrow-nonce"] {
         let mut f = fields(None, 1);
@@ -647,20 +615,20 @@ fn ceiling_issuers_and_missing_epoch_evidence() {
     let pay = n.make("@treasury", "pay", Some("@alice"), 100, "pay");
     n.operation(&pay);
     n.finalize(&pay);
-    let cp = n.checkpoint("@alice", &[], std::slice::from_ref(&pay.address));
+    let cp = n.advance_version("@alice", &[], std::slice::from_ref(&pay.address));
     let mut j = Memory::default();
     let mut fresh = Replica::initialize(n.ctx.clone(), "@v0", Limits::default(), &mut j).unwrap();
-    assert!(fresh.receive_checkpoint(cp, &mut j, &n.auth).is_err());
+    assert!(fresh.receive_version(cp, &mut j, &n.auth).is_err());
     assert_eq!(fresh.journal_sequence(), 1);
 }
 
 #[test]
-fn late_old_effects_remain_charged_after_checkpoint() {
+fn late_old_effects_remain_charged_after_adoption() {
     let mut n = Net::new();
     let old = n.make("@treasury", "pay", Some("@alice"), 100, "old");
     n.operation(&old);
-    let cp = n.checkpoint("@treasury", &[], &[]);
-    assert_eq!(cp.proposal.manifest.allocation.rights, 900);
+    let cp = n.advance_version("@treasury", &[], &[]);
+    assert_eq!(cp.manifest.allocation.rights, 900);
     let new = n.make("@treasury", "burn", None, 500, "new");
     n.operation(&new);
     n.finalize(&new);
@@ -670,7 +638,7 @@ fn late_old_effects_remain_charged_after_checkpoint() {
     assert_eq!(v.rights["@alice"], 100);
     assert_eq!(v.value, 500);
     assert!(n.rs[0]
-        .install(&n.ctx.root_epoch("@treasury").unwrap(), &mut n.j, &n.auth)
+        .adopt_version(&n.ctx.root_epoch("@treasury").unwrap(), &mut n.j, &n.auth)
         .is_err());
 }
 #[test]
@@ -720,7 +688,7 @@ fn persistence_roundtrip_preserves_all_decisions() {
     n.operation(&op);
     n.cancel(&op);
     n.rs[0].release(&op.address, &mut n.j, &n.auth).unwrap();
-    n.checkpoint("@treasury", std::slice::from_ref(&op.address), &[]);
+    n.advance_version("@treasury", std::slice::from_ref(&op.address), &[]);
     for log in n.j.logs.values_mut() {
         let bytes = serde_json::to_vec(log).unwrap();
         *log = serde_json::from_slice(&bytes).unwrap();
@@ -906,11 +874,11 @@ fn headroom_transfers_and_burn_credits_are_independent_resources() {
     assert_eq!(view.value, 1000);
     assert_eq!(view.rights["@alice"], 0);
     assert_eq!(view.headroom.unwrap()["@alice"], 200);
-    n.checkpoint("@alice", &[], std::slice::from_ref(&space.address));
+    n.advance_version("@alice", &[], std::slice::from_ref(&space.address));
     let burn = n.make("@treasury", "burn", None, 200, "burn");
     n.operation(&burn);
     n.finalize(&burn);
-    n.checkpoint("@treasury", &[], std::slice::from_ref(&burn.address));
+    n.advance_version("@treasury", &[], std::slice::from_ref(&burn.address));
     let view = n.rs[0].finalized_view().unwrap();
     assert_eq!(view.value, 800);
     assert_eq!(view.headroom.unwrap()["@treasury"], 1000);
@@ -1027,11 +995,11 @@ fn collective_cancellation_uses_original_actor_and_refunds_shared_pool() {
     for r in &mut n.rs[..3] {
         r.release(&a.address, &mut n.j, &n.auth).unwrap();
     }
-    let cp = n.checkpoint("@bob", std::slice::from_ref(&a.address), &[]);
-    assert_eq!(cp.proposal.manifest.allocation.rights, 100);
-    assert_eq!(cp.proposal.authorization.signer, "@bob");
-    assert_eq!(cp.proposal.manifest.account, COLLECTIVE_POOL);
-    assert!(cp.proposal.manifest.held.contains(&a.address));
+    let cp = n.advance_version("@bob", std::slice::from_ref(&a.address), &[]);
+    assert_eq!(cp.manifest.allocation.rights, 100);
+    assert_eq!(cp.authorization.signer, "@bob");
+    assert_eq!(cp.manifest.account, COLLECTIVE_POOL);
+    assert!(cp.manifest.held.contains(&a.address));
     let b = ticket(&mut n, "@bob", 60, "spend-reclaimed");
     n.operation(&b);
     n.finalize(&b);
@@ -1045,12 +1013,12 @@ fn collective_cancellation_uses_original_actor_and_refunds_shared_pool() {
         .is_err());
 }
 #[test]
-fn collective_late_old_certificate_stays_charged_across_actor_checkpoint() {
+fn collective_late_old_certificate_stays_charged_across_actor_adoption() {
     let mut n = collective();
     let old = ticket(&mut n, "@alice", 60, "old");
     n.operation(&old);
-    let cp = n.checkpoint("@bob", &[], &[]);
-    assert_eq!(cp.proposal.manifest.allocation.rights, 40);
+    let cp = n.advance_version("@bob", &[], &[]);
+    assert_eq!(cp.manifest.allocation.rights, 40);
     let next = ticket(&mut n, "@bob", 20, "next");
     n.operation(&next);
     n.finalize(&next);
@@ -1067,7 +1035,7 @@ fn collective_late_old_certificate_stays_charged_across_actor_checkpoint() {
     );
 }
 #[test]
-fn collective_ceiling_issuer_and_checkpoint_authorization() {
+fn collective_ceiling_issuer_and_version_authorization() {
     let mut n = collective_source(&TICKETS.replace("(floor 0)", "(floor 0) (ceiling 100)"));
     let restock = n.make("@treasury", "restock", None, 1, "too-soon");
     n.register(&restock);
@@ -1080,30 +1048,31 @@ fn collective_ceiling_issuer_and_checkpoint_authorization() {
     n.operation(&b);
     n.finalize(&a);
     n.finalize(&b);
-    let cp = n.checkpoint("@alice", &[], &[a.address.clone(), b.address.clone()]);
+    let cp = n.advance_version("@alice", &[], &[a.address.clone(), b.address.clone()]);
     assert_eq!(
-        cp.proposal.manifest.allocation,
+        cp.manifest.allocation,
         Resources {
             rights: 50,
             headroom: 50
         }
     );
-    assert!(n.ctx.checkpoint_request(&cp.proposal.manifest).is_err());
+    assert!(n
+        .ctx
+        .version_request(&cp.manifest, COLLECTIVE_POOL)
+        .is_err());
     let restock = n.make("@treasury", "restock", None, 20, "restock");
     n.operation(&restock);
     n.finalize(&restock);
     let v = n.rs[0].finalized_view().unwrap();
     assert_eq!(v.value, 70);
     assert_eq!(v.headroom.unwrap()[COLLECTIVE_POOL], 30);
-    let mut forged = cp.proposal.clone();
+    let mut forged = cp.clone();
     forged.authorization.signer = "@outsider".into();
     forged.authorization.signature = signature(
         &forged.authorization.signer,
         &forged.authorization.preimage(),
     );
-    assert!(n.rs[3]
-        .register_proposal(forged, &mut n.j, &n.auth)
-        .is_err());
+    assert!(n.rs[3].receive_version(forged, &mut n.j, &n.auth).is_err());
     // A cast member with only the opener role cannot select successors.
     let n = collective_source(&TICKETS.replace(
         "(extend restock (to amount) :from organizer",
@@ -1111,10 +1080,15 @@ fn collective_ceiling_issuer_and_checkpoint_authorization() {
     ));
     let root = n.ctx.root_epoch("@alice").unwrap();
     let m = n.rs[0]
-        .draft_checkpoint(&root, &[], &BTreeSet::new(), &BTreeSet::new())
+        .draft_version(
+            &[root].into_iter().collect(),
+            &BTreeSet::new(),
+            &BTreeSet::new(),
+            &BTreeSet::new(),
+        )
         .unwrap();
-    assert!(n.ctx.checkpoint_request_by(&m, "@treasury").is_err());
-    assert!(n.ctx.checkpoint_request_by(&m, "@alice").is_ok());
+    assert!(n.ctx.version_request(&m, "@treasury").is_err());
+    assert!(n.ctx.version_request(&m, "@alice").is_ok());
 }
 #[test]
 fn collective_declarations_defaults_and_programmatic_validation() {
@@ -1337,7 +1311,7 @@ fn collective_received_acts_enforce_roles_and_actual_issuer() {
 }
 
 #[test]
-fn collective_successor_choice_and_cas_are_shared_across_actors() {
+fn collective_history_and_cas_are_shared_across_actors() {
     let mut n = collective();
     let a = ticket(&mut n, "@alice", 10, "a");
     let b = ticket(&mut n, "@bob", 10, "b");
@@ -1358,33 +1332,18 @@ fn collective_successor_choice_and_cas_are_shared_across_actors() {
     assert!(stale
         .prepare_operation(&b.address, &mut n.j, &n.auth)
         .is_err());
-    let reports = n.reports("@alice");
-    let epoch = n.rs[0].active_epoch("@bob").unwrap().to_string();
-    let manifest = n.rs[0]
-        .draft_checkpoint(&epoch, &reports, &BTreeSet::new(), &BTreeSet::new())
-        .unwrap();
-    let p = Proposal {
-        authorization: sign(n.ctx.checkpoint_request_by(&manifest, "@alice").unwrap()),
-        manifest,
-        reports,
-    };
-    let id = n.rs[0]
-        .register_proposal(p.clone(), &mut n.j, &n.auth)
-        .unwrap();
-    n.rs[0].prepare_checkpoint(&id, &mut n.j, &n.auth).unwrap();
-    let mut split = p;
-    split.manifest.held.insert(b.address.clone());
-    split.manifest.allocation.rights -= 10;
-    split.authorization = sign(
-        n.ctx
-            .checkpoint_request_by(&split.manifest, "@bob")
-            .unwrap(),
+    let v = n.advance_version("@alice", &[], &[]);
+    assert!(v.manifest.held.contains(&a.address));
+    assert_eq!(
+        n.rs[0].active_epoch("@alice").unwrap(),
+        n.rs[0].active_epoch("@bob").unwrap()
     );
-    let other = n.rs[0].register_proposal(split, &mut n.j, &n.auth).unwrap();
-    assert_ne!(id, other);
-    assert!(n.rs[0]
-        .prepare_checkpoint(&other, &mut n.j, &n.auth)
-        .is_err());
+    let recovered =
+        Replica::recover(n.ctx.clone(), "@v0", Limits::default(), &n.j, &n.auth).unwrap();
+    assert_eq!(
+        recovered.version_snapshot("@alice").unwrap(),
+        n.rs[0].version_snapshot("@bob").unwrap()
+    );
 }
 
 #[path = "quorum_runtime/multi_parent.rs"]
