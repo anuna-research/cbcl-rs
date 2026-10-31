@@ -78,8 +78,9 @@ scripts/check-axioms.sh
 scripts/check-verified-by.sh
 ```
 
-Recorded results are `outputs/multi-parent-build.log`,
-`outputs/multi-parent-audit.log` and `outputs/multi-parent-mutations.json`.
+Recorded mutation outcomes remain in `outputs/multi-parent-mutations.json`.
+Raw build/audit transcripts are archived at commit `713b599`; see the README in
+this directory for retrieval and artifact policy.
 The executable audit checks split A/B adoption followed by a genuine shared M,
 spending after merging, delayed old certificates, refund-backed reclamation with
 old signatures retained, shared debits/credits counted once, and crowded branches

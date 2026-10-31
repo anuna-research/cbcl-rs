@@ -21,3 +21,22 @@
 /js/node_modules/
 /js/dist/
 /js/LICENSE
+
+# Local specification indexes and generated verification/crawl output
+/.zetl/
+/specs/.zetl/
+/outputs/**/*.log
+/outputs/**/*.txt
+/outputs/**/*.pdf
+/outputs/**/*elephant*.json
+/outputs/**/*fingerprint*.json
+/outputs/**/*backlinks*.json
+/outputs/**/*vault*.json
+/outputs/**/*zetl*.json
+/outputs/**/*lint*.json
+/outputs/**/*spec-counts*.json
+/outputs/**/*traceability*.json
+/outputs/**/*lifecycle*.json
+/outputs/**/*comprehension-review*.json
+/outputs/consensusless-literature-evidence/*.json
+!/outputs/consensusless-literature-evidence/crawl-manifest.json

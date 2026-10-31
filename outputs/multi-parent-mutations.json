@@ -13,14 +13,16 @@
       "exit_code": 1,
       "false_executable_assertions": 4,
       "expected_result": true,
-      "output": "/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-multiparent-mutations-j_4x7suk/omit-historical-signatures.lean:91:80: error: Tactic `decide` proved that the proposition\n  executeMutant forget initial (split ++ partials ++ join) = none\nis false\n/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-multiparent-mutations-j_4x7suk/omit-historical-signatures.lean:92:90: error: Tactic `decide` proved that the proposition\n  executeMutant forget initial (split ++ partials ++ cancel ++ join) = none\nis false\n/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-multiparent-mutations-j_4x7suk/omit-historical-signatures.lean:161:93: error: Tactic `decide` proved that the proposition\n  executeMutant oldPattern initial (oldVotes ++ [Command.record 1, Command.adopt 1 1]) = none\nis false\n/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-multiparent-mutations-j_4x7suk/omit-historical-signatures.lean:162:93: error: Tactic `decide` proved that the proposition\n  executeMutant oldPattern initial (oldVotes ++ [Command.record 1, Command.adopt 1 2]) = none\nis false\n"
+      "output_sha256": "66aace3d2c4870159020e5ad5d75ee0c52bd2ba5d93dc34e2182e043ebe22e8c",
+      "output_archive": "git history at 713b599cbc5b3052fa122a820a807217d3c625a1"
     },
     {
       "mutation": "omit-exact-books",
       "exit_code": 1,
       "false_executable_assertions": 3,
       "expected_result": true,
-      "output": "/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-multiparent-mutations-j_4x7suk/omit-exact-books.lean:113:68: error: Tactic `decide` proved that the proposition\n  executeMutant summed initial (split ++ join) = none\nis false\n/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-multiparent-mutations-j_4x7suk/omit-exact-books.lean:118:84: error: Tactic `decide` proved that the proposition\n  executeMutant wrongBooks initial (split ++ partials ++ join) = none\nis false\n/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-multiparent-mutations-j_4x7suk/omit-exact-books.lean:186:81: error: Tactic `decide` proved that the proposition\n  executeMutant crowded initial (split ++ partials ++ join) = none\nis false\n"
+      "output_sha256": "a7cad40f2948ef758997db00624f025df84fbd5370c60c8f0eae30c5e2c5d43d",
+      "output_archive": "git history at 713b599cbc5b3052fa122a820a807217d3c625a1"
     },
     {
       "mutation": "allow-sibling-adoption",

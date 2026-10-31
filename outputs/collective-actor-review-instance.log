@@ -1,3 +1,0 @@
-/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/collective-actor-review-rk21u2br/collective_actor_review_instance.lean:221:63: error: Tactic `decide` proved that the proposition
-  verify ctx { domain := 8, signer := Identity.actor 1, payload := Payload.operation 0 } = false
-is false

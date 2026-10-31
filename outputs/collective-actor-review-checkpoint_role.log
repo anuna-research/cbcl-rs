@@ -1,3 +1,0 @@
-/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/collective-actor-review-rk21u2br/collective_actor_review_checkpoint_role.lean:223:69: error: Tactic `decide` proved that the proposition
-  verify ctx (canonical ctx (Payload.checkpoint 0) 0) = false
-is false

@@ -5,6 +5,8 @@ Run from any directory. Each mutant must trigger an actual kernel `decide`
 counterexample in the executable audit, rather than a missing import/type error.
 """
 import json
+import hashlib
+import sys
 from pathlib import Path
 import re
 import subprocess
@@ -63,9 +65,11 @@ with tempfile.TemporaryDirectory(prefix='cbcl-multiparent-mutations-') as tmp:
         output = run.stdout + run.stderr
         false_tests = output.count('Tactic `decide` proved that the proposition')
         expected = run.returncode == 0 if name == 'control' else run.returncode != 0 and false_tests > 0
+        if not expected:
+            print(output,file=sys.stderr)
         results.append({'mutation': name, 'exit_code': run.returncode,
                         'false_executable_assertions': false_tests, 'expected_result': expected,
-                        'output': output})
+                        'output_sha256': hashlib.sha256(output.encode()).hexdigest()})
 report = {'source': 'LeanCbcl/ConsensusFree/MultiParent.lean', 'results': results,
           'passed': all(r['expected_result'] for r in results)}
 print(json.dumps(report, indent=2))

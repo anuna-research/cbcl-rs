@@ -21,15 +21,15 @@ machine defining integer addition and subtraction. This is not an abstract
 
 | Gate | Result | Evidence |
 | --- | --- | --- |
-| `lake build` in `lean-cbcl` | Pass | [build log](state-refinement-build.log) |
-| `lake exe runLinter LeanCbcl` | Pass | [lint log](state-refinement-lint.log) |
-| `scripts/check-axioms.sh` | Pass; standard allowlist only | [axiom log](state-refinement-axioms.log) |
-| New SPEC-019 identifier uniqueness and internal trace targets | Pass | [trace log](state-refinement-trace.log) |
-| Counter subtraction-to-addition mutation | Rejected by simulation and regression | [mutation log](state-refinement-mutation.log) |
+| `lake build` in `lean-cbcl` | Pass | [build log](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/713b599cbc5b3052fa122a820a807217d3c625a1/outputs/state-refinement-build.log) |
+| `lake exe runLinter LeanCbcl` | Pass | [lint log](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/713b599cbc5b3052fa122a820a807217d3c625a1/outputs/state-refinement-lint.log) |
+| `scripts/check-axioms.sh` | Pass; standard allowlist only | [axiom log](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/713b599cbc5b3052fa122a820a807217d3c625a1/outputs/state-refinement-axioms.log) |
+| New SPEC-019 identifier uniqueness and internal trace targets | Pass | [trace log](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/713b599cbc5b3052fa122a820a807217d3c625a1/outputs/state-refinement-trace.log) |
+| Counter subtraction-to-addition mutation | Rejected by simulation and regression | [mutation log](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/713b599cbc5b3052fa122a820a807217d3c625a1/outputs/state-refinement-mutation.log) |
 | Independent adversarial review | Accept; all findings resolved | [review](state-refinement-review.md) |
 | `git diff --check` | Pass | Local changed-path inspection |
 | Concept documentation-mode and controlled-language lint | Pass | `usdd-lint.sh --doc/--type descriptive --strict` |
-| Repository-wide `zetl -d . check --dead-links --fail-on error` | Fail: unrelated link debt | [vault log](state-refinement-vault.log) |
+| Repository-wide `zetl -d . check --dead-links --fail-on error` | Fail: unrelated link debt | [vault log](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/713b599cbc5b3052fa122a820a807217d3c625a1/outputs/state-refinement-vault.log) |
 
 The vault reports 25 dead links outside the new refinement section and concept,
 with zero syntax or SPL errors. The unrelated links were not repaired here.

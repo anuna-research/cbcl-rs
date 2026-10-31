@@ -130,9 +130,10 @@ not a guarantee of exhaustive state-of-the-art coverage. Performance claims were
 not reproduced, private-payment cryptography was not audited, and publications'
 proofs were not mechanically reverified here.
 
-Raw ar-crawl records and hashes are in
-`outputs/consensusless-literature-evidence/crawl-manifest.json`. These are local
-retrieval evidence, not paper text intended for publication. The initial GitHub
+Primary URLs, versions and retrieval hashes remain in
+`outputs/consensusless-literature-evidence/crawl-manifest.json`. Raw crawl records
+and copied paper text are archived at commit `713b599`, rather than vendored in
+the current tree. The initial GitHub
 HTML crawl returned an error page despite successful process exit; the raw GitHub
 README retry contains the requested section. Full papers were read through web
 HTML/PDF extraction as indicated above; PaxPay's PDF was additionally inspected

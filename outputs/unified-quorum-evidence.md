@@ -62,7 +62,7 @@ isolate the intended guard rather than failing on authorization or books first.
 
 Independent review accepted source, actual account tests, mutation outcomes and
 revised docs: [[unified-quorum-review]]. Measured command output is retained in
-`outputs/unified-quorum-*.log/json`.
+the retained `outputs/unified-quorum-mutations.json` and scoped-check summaries.
 
 ## Scope
 
@@ -78,3 +78,6 @@ production deployment are not supplied.
 The specs-only vault still has existing dead links and evidence references outside
 its scan root. Those remain a coordinator-owned vault integration backlog; no
 clean-vault or strict-global-lint claim is made.
+
+Raw diagnostic transcripts are archived as described in this directory's README;
+reproduction commands and concise outcome records remain versioned.

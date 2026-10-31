@@ -1,6 +1,0 @@
-Traceback (most recent call last):
-  File "/private/tmp/cbcl-budget-mutant.py", line 63, in <module>
-    main()
-  File "/private/tmp/cbcl-budget-mutant.py", line 37, in main
-    assert maximum <= balance
-AssertionError

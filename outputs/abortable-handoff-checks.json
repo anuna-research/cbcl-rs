@@ -3,29 +3,35 @@
   "mutants": {
     "omit-prepare-evidence": {
       "caught": true,
-      "evidence": "F\n======================================================================\nFAIL: test_hidden_activation_certificate_preserved (test_handoff_model.HandoffTests)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/private/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-handoff-mutant-ibqqvqpx/test_handoff_model.py\", line 81, in test_hidden_activation_certificate_preserved\n    self.assertTrue(any(r.prepared == b[0].id for r in reports))\nAssertionError: False is not true\n\n----------------------------------------------------------------------\nRan 1 test in 0.001s\n\nFAILED (failures=1)\n"
+      "evidence_sha256": "51cbde98faefb7c54c77c1c3ba26b71989d62b6c67e565736bbf9925b00d5425",
+      "evidence_archive": "git history at 713b599cbc5b3052fa122a820a807217d3c625a1"
     },
     "activate-after-abort": {
       "caught": true,
-      "evidence": "F\n======================================================================\nFAIL: test_abort_stops_activation_prepare_and_operation (test_handoff_model.HandoffTests)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/private/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-handoff-mutant-bxo701st/test_handoff_model.py\", line 113, in test_abort_stops_activation_prepare_and_operation\n    m.activate_checkpoint(2, a)\nAssertionError: Rejected not raised\n\n----------------------------------------------------------------------\nRan 1 test in 0.001s\n\nFAILED (failures=1)\n"
+      "evidence_sha256": "f2c0ef9dee64b02fedb92ffc0c14e7f111fff4c44980a95c8dcebbc390d3e16f",
+      "evidence_archive": "git history at 713b599cbc5b3052fa122a820a807217d3c625a1"
     },
     "ignore-pinned-successor": {
       "caught": true,
-      "evidence": "F\n======================================================================\nFAIL: test_hidden_activation_certificate_preserved (test_handoff_model.HandoffTests)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/private/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-handoff-mutant-_7uckf3_/test_handoff_model.py\", line 83, in test_hidden_activation_certificate_preserved\n    m.decide_recovery(reports, a)\nAssertionError: Rejected not raised\n\n----------------------------------------------------------------------\nRan 1 test in 0.001s\n\nFAILED (failures=1)\n"
+      "evidence_sha256": "43ee526cb366a56ce1361fda644cc5e55740a227aa83045bd3fd88750bcdd472",
+      "evidence_archive": "git history at 713b599cbc5b3052fa122a820a807217d3c625a1"
     },
     "reset-replayed-journal": {
       "caught": true,
-      "evidence": "F\n======================================================================\nFAIL: test_recovery_replay_after_spending (test_handoff_model.HandoffTests)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/private/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-handoff-mutant-223cs50k/test_handoff_model.py\", line 165, in test_recovery_replay_after_spending\n    self.assertEqual(m.local[0][0].rights, before)\nAssertionError: 60 != 45\n\n----------------------------------------------------------------------\nRan 1 test in 0.001s\n\nFAILED (failures=1)\n"
+      "evidence_sha256": "68ca2f1c615c49db4eb1d0504faaa00ddba77d8ec432fa3398a8acaa4236bf9c",
+      "evidence_archive": "git history at 713b599cbc5b3052fa122a820a807217d3c625a1"
     },
     "install-prepare-only": {
       "caught": true,
-      "evidence": "F\n======================================================================\nFAIL: test_one_phase_install_is_disabled (test_handoff_model.HandoffTests)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/private/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-handoff-mutant-3lho6fzz/test_handoff_model.py\", line 126, in test_one_phase_install_is_disabled\n    m.install_checkpoint(0, a)\nAssertionError: Rejected not raised\n\n----------------------------------------------------------------------\nRan 1 test in 0.001s\n\nFAILED (failures=1)\n"
+      "evidence_sha256": "76f4cc2f58c2e37eb4395e498e852a4d001db76773d2e5f240bb57f0b4ca026e",
+      "evidence_archive": "git history at 713b599cbc5b3052fa122a820a807217d3c625a1"
     }
   },
   "boundary": "recovery agreement is a trusted abstract oracle, not implemented BFT",
   "lean_mutation": {
     "mutation": "allow fresh activation after abort",
     "caught": true,
-    "evidence": "/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-handoff-lean-j5e0mm8b/AbortableHandoff.lean:42:31: error: unsolved goals\ncase activate\ns : Node\nvalid : SnapshotValid s\ncp : Nat\nopenPhase : True\nonce : s.activated = none \u2228 s.activated = some cp\nops : Nat \u2192 Bool\nchoice : Option Nat\nexported :\n  { signed := s.signed, activated := some cp, stopped := s.stopped, exported := s.exported }.exported =\n    some (ops, choice)\nold : s.stopped = true \u2227 s.signed = ops \u2227 s.activated = choice\n\u22a2 { signed := s.signed, activated := some cp, stopped := s.stopped, exported := s.exported }.stopped = true \u2227\n    { signed := s.signed, activated := some cp, stopped := s.stopped, exported := s.exported }.signed = ops \u2227\n      { signed := s.signed, activated := some cp, stopped := s.stopped, exported := s.exported }.activated = choice\n/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-handoff-lean-j5e0mm8b/AbortableHandoff.lean:45:12: warning: This simp argument is unused:\n  openPhase\n\nHint: Omit it from the simp argument list.\n  simp [\u0335o\u0335p\u0335e\u0335n\u0335P\u0335h\u0335a\u0335s\u0335e\u0335]\u0335 \u0335at old\n\nNote: This linter can be disabled with `set_option linter.unusedSimpArgs false`\n/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-handoff-lean-j5e0mm8b/AbortableHandoff.lean:64:34: error: `simp` made no progress\n"
+    "evidence_sha256": "d1a742e47e798efb039f74c14ae6bd221d237f458df0bdb21e3abdcc2bb9c9fa",
+    "evidence_archive": "git history at 713b599cbc5b3052fa122a820a807217d3c625a1"
   }
 }

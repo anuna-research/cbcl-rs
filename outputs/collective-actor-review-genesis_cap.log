@@ -1,9 +1,0 @@
-/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/collective-actor-review-rk21u2br/collective_actor_review_genesis_cap.lean:230:88: error: Tactic `decide` proved that the proposition
-  verify
-      (let __src := ctx;
-      { domain := __src.domain, policy := __src.policy, authenticated := __src.authenticated, opener := __src.opener,
-        floor := __src.floor, ceiling := some 89, initialRights := __src.initialRights, manifests := __src.manifests,
-        epoch := __src.epoch, actor := __src.actor, isMint := __src.isMint, amount := __src.amount })
-      (canonical ctx Payload.genesis 0) =
-    false
-is false

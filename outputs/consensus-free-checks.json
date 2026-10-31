@@ -44,7 +44,8 @@
       "compiled_dependencies": [
         "Core"
       ],
-      "evidence": "/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-cf-proof-3rubxu96/LeanCbcl/ConsensusFree/Journals.lean:84:8: error: unsolved goals\ncase pos\nA T P R f : Nat\nc : Config A T P R f\ns : State A T P R\ne : Epoch A P\nw : Nat\nhw : w \u2208 c.committee.core\nfrozen : s.sealed e w = true\ntx : Fin T\ncontext : c.opEpoch tx = e\nmember : Member c w\nfresh : s.signatures tx w = false\nallowed : SignAllowed c s tx w\nopenEpoch : True\n\u22a2 (signed s tx w).signatures tx w = s.signatures tx w\n/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-cf-proof-3rubxu96/LeanCbcl/ConsensusFree/Journals.lean:86:16: warning: This simp argument is unused:\n  context\n\nHint: Omit it from the simp argument list.\n  simp [c\u0335o\u0335n\u0335t\u0335e\u0335x\u0335t\u0335,\u0335 \u0335frozen] at openEpoch\n\nNote: This linter can be disabled with `set_option linter.unusedSimpArgs false`\n/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-cf-proof-3rubxu96/LeanCbcl/ConsensusFree/Journals.lean:86:25: warning: This simp argument is unused:\n  frozen\n\nHint: Omit it from the simp argument list.\n  simp [context,\u0335 \u0335f\u0335r\u0335o\u0335z\u0335e\u0335n\u0335] at openEpoch\n\nNote: This linter can be disabled with `set_option linter.unusedSimpArgs false`\n"
+      "evidence_sha256": "553b6facca843b66389da255ceb14a6122181a896b670c5f5ccd2ce922f43fe1",
+      "evidence_archive": "git history at 713b599cbc5b3052fa122a820a807217d3c625a1"
     },
     "release-without-cancellation": {
       "caught": true,
@@ -91,7 +92,8 @@
         "Core",
         "Journals"
       ],
-      "evidence": "/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-cf-proof-kjffpo7n/LeanCbcl/ConsensusFree/Archive.lean:26:45: error: Application type mismatch: The argument\n  hb\nhas type\n  \u2200 (d : Fin R),\n    c.resourceOwner d = (c.checkpoints p).owner \u2192\n      \u2191((c.checkpoints p).allocation d) =\n        ((\u2191(c.initial d) +\n              isum (List.finRange T) fun tx => if (c.checkpoints p).credited tx = true then \u2191(c.credit tx d) else 0) -\n            isum (List.finRange T) fun tx => if (c.checkpoints p).held tx = true then \u2191(c.cost tx d) else 0) +\n          2 * isum (List.finRange T) fun tx => if (c.checkpoints p).refunded tx = true then \u2191(c.cost tx d) else 0\nbut is expected to have type\n  \u2200 (d : Fin R),\n    c.resourceOwner d = (c.checkpoints p).owner \u2192\n      \u2191((c.checkpoints p).allocation d) =\n        ((\u2191(c.initial d) +\n              isum (List.finRange T) fun tx => if (c.checkpoints p).credited tx = true then \u2191(c.credit tx d) else 0) -\n            isum (List.finRange T) fun tx => if (c.checkpoints p).held tx = true then \u2191(c.cost tx d) else 0) +\n          isum (List.finRange T) fun tx => if (c.checkpoints p).refunded tx = true then \u2191(c.cost tx d) else 0\nin the application\n  { authorized := ha, parent_owner := ho, parent_depth := hd, inherit_held := hh, inherit_refunded := hr,\n    inherit_credited := hc, refund_held := hs, held_context := hx, off_source := hz, books := hb }\n"
+      "evidence_sha256": "944030d8120feb65f6e23f95f093baf400289937951079de2c34ef7749f1a490",
+      "evidence_archive": "git history at 713b599cbc5b3052fa122a820a807217d3c625a1"
     },
     "record-without-certificate": {
       "caught": true,
@@ -115,7 +117,8 @@
         "Journals",
         "Archive"
       ],
-      "evidence": "/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-cf-proof-7x5p9wcr/LeanCbcl/ConsensusFree/Evidence.lean:134:12: error: unsolved goals\ncase pos\nA T P R f : Nat\nc : Config A T P R f\ns : State A T P R\nh : Evidence c s\nlocalState : Locals c s\ncat : Catalogue c s\ntx : Fin T\nw : Nat\nmember : Member c w\nallowed : EffectAllowed c s tx w\narchive : ArchiveExtension s (effect c s tx w)\njournals : JournalExtension s (effect c s tx w)\nhv : w \u2208 c.committee.core\neffectVote : (emit s tx w).effects tx w = true\nfenceVote : s.fences tx w = true\nnoFence : True\n\u22a2 False\n/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-cf-proof-7x5p9wcr/LeanCbcl/ConsensusFree/Evidence.lean:134:67: warning: This simp argument is unused:\n  noFence\n\nHint: Omit it from the simp argument list.\n  simp [emit,\u0335 \u0335n\u0335o\u0335F\u0335e\u0335n\u0335c\u0335e\u0335] at fenceVote\n\nNote: This linter can be disabled with `set_option linter.unusedSimpArgs false`\n"
+      "evidence_sha256": "e2d59e1f9414591f9429caeebb01b6850fbe926a677b866ce339a882e060aa33",
+      "evidence_archive": "git history at 713b599cbc5b3052fa122a820a807217d3c625a1"
     }
   },
   "scope": "consensus-free independent budgets, sealed checkpoints, cancellation and typed currency; full declared protocol-model safety refinement; no cryptographic/Rust/storage correspondence"

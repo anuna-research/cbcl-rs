@@ -105,7 +105,7 @@ exposed an integration failure; the final workspace run uses the dedicated path.
 
 Independent review and Orientation comprehension accepted this scope:
 [[rust-multi-parent-review]]. Measured commands, trace totals, test outcomes and
-mutation details are retained in `outputs/rust-multi-parent-*.log/json`.
+mutation details are retained in the retained mutation/scoped-check JSON summaries.
 
 ## Claim boundaries
 
@@ -126,3 +126,6 @@ The specs-only vault scan still has unrelated dead links and output-page referen
 outside its root. Vault integration is coordinator-owned backlog; no clean-vault or
 strict-global-lint claim is made. The existing default API is retained to avoid
 silently changing live protocol identities.
+
+Raw diagnostic transcripts are archived as described in this directory's README;
+reproduction commands and concise outcome records remain versioned.

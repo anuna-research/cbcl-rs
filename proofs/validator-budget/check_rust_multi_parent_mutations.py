@@ -6,6 +6,7 @@ A kill requires a running test assertion failure; compiler/import failures fail
 this checker rather than counting as success.
 """
 import io
+import hashlib
 import json
 import os
 import shutil
@@ -63,8 +64,11 @@ with tempfile.TemporaryDirectory(prefix='cbcl-rust-dag-mutations-') as temp:
         output=run.stdout+run.stderr
         test_failure='test result: FAILED' in output and 'panicked at' in output
         passed=run.returncode==0 if name=='control' else run.returncode!=0 and test_failure
+        if not passed:
+            print(output,file=__import__('sys').stderr)
         results.append({'mutation':name,'exit_code':run.returncode,'actual_assertion_failure':test_failure,
-                        'expected_result':passed,'output':output})
+                        'expected_result':passed,'output_sha256':hashlib.sha256(output.encode()).hexdigest(),
+                        'test_results':[line for line in output.splitlines() if line.startswith('test result:')]})
         print(f'{name}: {"expected" if passed else "UNEXPECTED"}',file=__import__('sys').stderr,flush=True)
         shutil.rmtree(base/f'target-{name}')
 report={'passed':all(r['expected_result'] for r in results),'results':results}

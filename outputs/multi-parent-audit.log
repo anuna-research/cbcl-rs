@@ -1,5 +1,0 @@
-'CBCL.ConsensusFree.MultiParent.resource_nonnegative' depends on axioms: [propext, Classical.choice, Quot.sound]
-'CBCL.ConsensusFree.MultiParent.finite_refinement' depends on axioms: [propext, Classical.choice, Quot.sound]
-'CBCL.ConsensusFree.MultiParent.infinite_refinement' depends on axioms: [propext, Classical.choice, Quot.sound]
-'CBCL.ConsensusFree.MultiParent.release_future_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
-MultiParentAudit: kernel-checked split/join, late certificates, cancellation/refund and rejection scenarios
