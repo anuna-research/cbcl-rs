@@ -1,4 +1,6 @@
 import LeanCbcl.ConsensusFree
+import LeanCbcl.ConsensusFree.Liveness
+import LeanCbcl.ConsensusFree.Scheduler
 import LeanCbcl.AbortableHandoff
 import LeanCbcl.SealedCheckpoint
 import LeanCbcl.ValidatorBudgetRefutation
@@ -441,3 +443,19 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.ConsensusFree.isum_zero
 #print axioms CBCL.ConsensusFree.initial_invariant
 #print axioms CBCL.ConsensusFree.step_invariant
+
+-- Conditional multi-parent liveness: fairness and arithmetic admission are
+-- explicit theorem premises; no eventual certificate is assumed.
+#print axioms CBCL.ConsensusFree.MultiParent.Liveness.eventual_honest_effects
+#print axioms CBCL.ConsensusFree.MultiParent.Liveness.eventual_finality
+#print axioms CBCL.ConsensusFree.MultiParent.Liveness.envelope_eventual_finality
+#print axioms CBCL.ConsensusFree.MultiParent.Liveness.client_eventual_finality
+#print axioms CBCL.ConsensusFree.MultiParent.Liveness.observed_certificate_sound
+
+-- Concrete queue/dispatcher discharges both honest action fairness premises.
+#print axioms CBCL.ConsensusFree.MultiParent.Liveness.Scheduler.position_serviced
+#print axioms CBCL.ConsensusFree.MultiParent.Liveness.Scheduler.admitted_revisited
+#print axioms CBCL.ConsensusFree.MultiParent.Liveness.Scheduler.scheduler_fair
+#print axioms CBCL.ConsensusFree.MultiParent.Liveness.Scheduler.scheduled_finality
+#print axioms CBCL.ConsensusFree.MultiParent.Liveness.Scheduler.scheduled_envelope_finality
+#print axioms CBCL.ConsensusFree.MultiParent.Liveness.Scheduler.scheduled_client_finality

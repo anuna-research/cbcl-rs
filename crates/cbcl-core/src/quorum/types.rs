@@ -50,6 +50,20 @@ pub trait Journal {
         event: &Event,
     ) -> Result<()>;
 }
+/// Optional group-commit extension. Success durably appends the complete ordered
+/// group at the expected sequence before returning. An error means no append;
+/// ambiguous writes/sync errors must stop the signer rather than return Err.
+/// Crash recovery may find a complete prefix, but must never truncate an
+/// acknowledged group. Empty groups need not perform I/O.
+pub trait BatchJournal: Journal {
+    fn append_batch(
+        &mut self,
+        context: &str,
+        validator: &str,
+        expected: u64,
+        events: &[Event],
+    ) -> Result<()>;
+}
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum VoteKind {

@@ -83,3 +83,83 @@ review accepted the code and inspected execution evidence. The opt-in probe has
 no timing gate; exact measurements and limits are [[quorum-local-cost-evidence]],
 [[quorum-local-cost-performance]] and [[quorum-local-cost-review]]. Output-page
 integration into the specs-only vault remains coordinator-owned backlog.
+
+## REQ-3201: Bounded durable group commit
+
+Trace: [[#REQ-3200]], [[#CON-3200]], [[#TEST-3201]].
+
+Measured end-to-end service cost is dominated by journal writes and syncing.
+An optional group path MUST amortize that I/O without weakening durable-before-
+signing semantics or changing the accepted protocol events. The serial path
+MUST remain available for comparison. The host MAY wait up to a configured short
+batch window; no new async progress guarantee follows.
+
+## CON-3201: Private staging and durable publication
+
+Trace: [[#REQ-3201]], [[#TEST-3201]].
+
+The batch extension MUST accept at most 256 candidate/certificate/sign/effect
+events. Ordinary event guards MUST validate the ordered group. Private staging
+under an exclusive mutable borrow MAY apply reversible touched-entry updates;
+it MUST restore exact state and sequence before calling the durable journal and
+on rejection or unwinding. This bounded staging is an explicit extension to
+[[#CON-3200]]; the serial preparation path remains immutable. No retained-history
+clone, external callback with state access, or signing request may escape staging.
+
+A batch journal success MUST mean the complete ordered group is durable at the
+expected sequence. A returned error MUST mean no append. Ambiguous write/sync
+failures MUST stop the signer. Only after success may the engine apply prepared
+updates and return signing requests. Retries MUST remain journal stutters.
+An interrupted unacknowledged batch may recover as a complete prefix; torn
+records MUST fail closed. Recovery MUST use ordinary event replay, never caches
+or serialized staging state. The host MUST fence competing journal owners.
+
+The benchmark host defaults to at most 64 requests and a 1 ms collection window;
+size 1 selects the unchanged per-event durability path. Invalid groups MUST
+restore staging before per-request fallback. Final certificate observation MUST
+also be durable before shutdown statistics are acknowledged.
+
+## TEST-3201: Group safety and measured benefit
+
+Trace: [[#REQ-3201]], [[#CON-3201]].
+
+Tests MUST cover dependent candidate/sign events, duplicate groups, invalid
+suffix rollback, event limits, failed CAS/append, unwinding, and exact serial/
+group event-log and recovered-state equivalence. Rejected groups MUST expose no
+signing requests and consume no cached capacity. Journal tests MUST verify one
+sync per group, pre-write envelope rejection, contiguous records, owner fencing,
+and refusal of torn suffixes. Process tests MUST retain real signatures,
+certificate verification, quorum stalls and restart recovery. Paired release
+runs MUST report throughput, latency, one-second fractions, sync counts and
+recovery with identical offered load/delay; report sample sizes and host scope.
+Independent review MUST inspect rollback, durability order and vote publication.
+
+### Group implementation and evidence
+
+Synthesis: measured I/O saturation motivated group commit; the synchronous
+journal contract ruled out returning success before sync. Reversible touched-
+entry staging preserves the serial guards without copying retained history.
+Independent review identified a grouped response-delivery behavior mismatch and
+missing exact-capacity/certificate rollback coverage; both were corrected.
+
+The host/core group tests pass, including exact-capacity rollback, unwind,
+failed append/CAS, certificate/effect undo, envelope rejection before writing,
+serial equivalence and recovery. Workspace tests (1,537 passed, 30 ignored),
+shared Lean-derived transition traces, native no-std and actual WASM no-std
+builds pass. Changed-file formatting and scoped Clippy pass; core Clippy allows
+only the five existing lint categories recorded by the baseline run.
+Independent safety/preservation review accepted the implementation.
+
+Three paired 100-transaction release runs at 100 offered TPS and 20 ms one-way
+delay changed median completed throughput from 26.27 to 90.64 TPS and median
+p99 from 2785.73 to 130.90 ms. Median sync count across four validators fell
+from 2004 to 461. All 600 transactions finalized; every journal recovered.
+The grouped path uses the default 64-request bound and 1 ms collection window.
+Evidence: `outputs/quorum-e2e-group-commit.json`. This is a same-workload
+comparison on shared host/storage, not a maximum capacity or async liveness claim.
+
+## Retired experiment IDs: REQ-3202, CON-3202, TEST-3202
+
+Signature preverification ahead of journal I/O showed no throughput benefit on
+the benchmark host and worsened overload results. The experiment, configuration,
+cache and worker pipeline were removed; these IDs remain reserved.

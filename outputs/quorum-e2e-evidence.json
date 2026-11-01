@@ -1,0 +1,539 @@
+{
+  "description": "Initial single-host release smoke runs; fixed one-way delay; per-event sync_all. Single runs, not capacity estimates. Raw private run directories remain under /tmp.",
+  "runs": {
+    "healthy": {
+      "schema": "cbcl-quorum-e2e/v1",
+      "config": {
+        "transactions": 100,
+        "rate": 20.0,
+        "delay_ms": 20,
+        "timeout_ms": 5000,
+        "max_inflight": 1024,
+        "silent_validators": 0,
+        "out": "/private/tmp/cbcl-e2e-healthy",
+        "allow_debug": false
+      },
+      "client_pid": 93068,
+      "validators": [
+        {
+          "pid": 93069,
+          "address": "127.0.0.1:60071",
+          "context": "sha256-26ca9a99c280dfca77c0f5e8fc37b199c3303a0c31bf60f5cdf4e33c2e637199"
+        },
+        {
+          "pid": 93070,
+          "address": "127.0.0.1:60072",
+          "context": "sha256-26ca9a99c280dfca77c0f5e8fc37b199c3303a0c31bf60f5cdf4e33c2e637199"
+        },
+        {
+          "pid": 93071,
+          "address": "127.0.0.1:60073",
+          "context": "sha256-26ca9a99c280dfca77c0f5e8fc37b199c3303a0c31bf60f5cdf4e33c2e637199"
+        },
+        {
+          "pid": 93072,
+          "address": "127.0.0.1:60074",
+          "context": "sha256-26ca9a99c280dfca77c0f5e8fc37b199c3303a0c31bf60f5cdf4e33c2e637199"
+        }
+      ],
+      "context": "sha256-26ca9a99c280dfca77c0f5e8fc37b199c3303a0c31bf60f5cdf4e33c2e637199",
+      "quorum": 3,
+      "build": {
+        "profile": "release",
+        "opt_level": "3",
+        "target": "aarch64-apple-darwin",
+        "rustc": "rustc 1.95.0 (59807616e 2026-04-14)",
+        "debug_assertions": false,
+        "git_commit": "6d1a6759cad414d8aee538f60d470074803e4f92",
+        "working_tree_dirty": true
+      },
+      "host": {
+        "os": "macos",
+        "arch": "aarch64",
+        "logical_cpus": 8
+      },
+      "metrics": {
+        "offered": 100,
+        "submitted": 100,
+        "finalized": 100,
+        "stalled": 0,
+        "client_overload": 0,
+        "finalized_within_one_second": 100,
+        "fraction_within_one_second_of_submitted": 1.0,
+        "fraction_within_one_second_of_offered": 1.0,
+        "finalized_latency_ms": {
+          "p50": 129.656833,
+          "p95": 138.659,
+          "p99": 140.318667
+        },
+        "all_submitted_latency_ms": {
+          "p50": {
+            "value": 129.656833,
+            "right_censored": false
+          },
+          "p95": {
+            "value": 138.659,
+            "right_censored": false
+          },
+          "p99": {
+            "value": 140.318667,
+            "right_censored": false
+          }
+        },
+        "measurement_seconds": 5.078884042,
+        "throughput_finalized_tps": 19.689364666144506,
+        "submitted_tps_over_measurement": 19.689364666144506,
+        "max_scheduler_lateness_ms": 1.001334,
+        "transaction_error_responses": 0
+      },
+      "offering_window_seconds": 4.9511985,
+      "invalid_votes": 0,
+      "transport_errors": 0,
+      "error_samples": [],
+      "validator_observations": {
+        "0": {
+          "pid": 93069,
+          "finalized": 100,
+          "value": 999999900,
+          "events": 501,
+          "syncs": 501
+        },
+        "1": {
+          "pid": 93070,
+          "finalized": 100,
+          "value": 999999900,
+          "events": 501,
+          "syncs": 501
+        },
+        "2": {
+          "pid": 93071,
+          "finalized": 100,
+          "value": 999999900,
+          "events": 501,
+          "syncs": 501
+        },
+        "3": {
+          "pid": 93072,
+          "finalized": 100,
+          "value": 999999900,
+          "events": 501,
+          "syncs": 501
+        }
+      },
+      "recovery": [
+        {
+          "validator": 0,
+          "passed": true,
+          "state": {
+            "pid": 93073,
+            "validator": "@v0",
+            "finalized": 100,
+            "value": 999999900,
+            "events": 501,
+            "syncs": 0
+          },
+          "error": ""
+        },
+        {
+          "validator": 1,
+          "passed": true,
+          "state": {
+            "pid": 93074,
+            "validator": "@v1",
+            "finalized": 100,
+            "value": 999999900,
+            "events": 501,
+            "syncs": 0
+          },
+          "error": ""
+        },
+        {
+          "validator": 2,
+          "passed": true,
+          "state": {
+            "pid": 93075,
+            "validator": "@v2",
+            "finalized": 100,
+            "value": 999999900,
+            "events": 501,
+            "syncs": 0
+          },
+          "error": ""
+        },
+        {
+          "validator": 3,
+          "passed": true,
+          "state": {
+            "pid": 93076,
+            "validator": "@v3",
+            "finalized": 100,
+            "value": 999999900,
+            "events": 501,
+            "syncs": 0
+          },
+          "error": ""
+        }
+      ],
+      "recovery_passed": true,
+      "measurement_definition": "Signed transaction submission before transport enqueue to client receipt and strict Ed25519 verification of effects QC; client generation/signing excluded; network queues, fixed per-direction delay, validator validation/signing and sync_all before votes included.",
+      "limits": "One host, loopback TCP, fixed one-way delay without packet-loss/bandwidth modelling; one hot collective pool; no batching; filesystem/device sync_all guarantees assumed. Finalized latency percentiles are conditional; all-submitted quantiles include right-censored stalls."
+    },
+    "load": {
+      "schema": "cbcl-quorum-e2e/v1",
+      "config": {
+        "transactions": 100,
+        "rate": 100.0,
+        "delay_ms": 20,
+        "timeout_ms": 5000,
+        "max_inflight": 1024,
+        "silent_validators": 0,
+        "out": "/private/tmp/cbcl-e2e-load",
+        "allow_debug": false
+      },
+      "client_pid": 93085,
+      "validators": [
+        {
+          "pid": 93086,
+          "address": "127.0.0.1:60079",
+          "context": "sha256-26ca9a99c280dfca77c0f5e8fc37b199c3303a0c31bf60f5cdf4e33c2e637199"
+        },
+        {
+          "pid": 93087,
+          "address": "127.0.0.1:60080",
+          "context": "sha256-26ca9a99c280dfca77c0f5e8fc37b199c3303a0c31bf60f5cdf4e33c2e637199"
+        },
+        {
+          "pid": 93088,
+          "address": "127.0.0.1:60081",
+          "context": "sha256-26ca9a99c280dfca77c0f5e8fc37b199c3303a0c31bf60f5cdf4e33c2e637199"
+        },
+        {
+          "pid": 93089,
+          "address": "127.0.0.1:60082",
+          "context": "sha256-26ca9a99c280dfca77c0f5e8fc37b199c3303a0c31bf60f5cdf4e33c2e637199"
+        }
+      ],
+      "context": "sha256-26ca9a99c280dfca77c0f5e8fc37b199c3303a0c31bf60f5cdf4e33c2e637199",
+      "quorum": 3,
+      "build": {
+        "profile": "release",
+        "opt_level": "3",
+        "target": "aarch64-apple-darwin",
+        "rustc": "rustc 1.95.0 (59807616e 2026-04-14)",
+        "debug_assertions": false,
+        "git_commit": "6d1a6759cad414d8aee538f60d470074803e4f92",
+        "working_tree_dirty": true
+      },
+      "host": {
+        "os": "macos",
+        "arch": "aarch64",
+        "logical_cpus": 8
+      },
+      "metrics": {
+        "offered": 100,
+        "submitted": 100,
+        "finalized": 100,
+        "stalled": 0,
+        "client_overload": 0,
+        "finalized_within_one_second": 18,
+        "fraction_within_one_second_of_submitted": 0.18,
+        "fraction_within_one_second_of_offered": 0.18,
+        "finalized_latency_ms": {
+          "p50": 2265.936334,
+          "p95": 2760.847167,
+          "p99": 2804.117417
+        },
+        "all_submitted_latency_ms": {
+          "p50": {
+            "value": 2265.936334,
+            "right_censored": false
+          },
+          "p95": {
+            "value": 2760.847167,
+            "right_censored": false
+          },
+          "p99": {
+            "value": 2804.117417,
+            "right_censored": false
+          }
+        },
+        "measurement_seconds": 3.7970955,
+        "throughput_finalized_tps": 26.335919125552675,
+        "submitted_tps_over_measurement": 26.335919125552675,
+        "max_scheduler_lateness_ms": 1.0095,
+        "transaction_error_responses": 0
+      },
+      "offering_window_seconds": 0.990445708,
+      "invalid_votes": 0,
+      "transport_errors": 0,
+      "error_samples": [],
+      "validator_observations": {
+        "0": {
+          "pid": 93086,
+          "finalized": 100,
+          "value": 999999900,
+          "events": 501,
+          "syncs": 501
+        },
+        "1": {
+          "pid": 93087,
+          "finalized": 100,
+          "value": 999999900,
+          "events": 501,
+          "syncs": 501
+        },
+        "2": {
+          "pid": 93088,
+          "finalized": 100,
+          "value": 999999900,
+          "events": 501,
+          "syncs": 501
+        },
+        "3": {
+          "pid": 93089,
+          "finalized": 100,
+          "value": 999999900,
+          "events": 501,
+          "syncs": 501
+        }
+      },
+      "recovery": [
+        {
+          "validator": 0,
+          "passed": true,
+          "state": {
+            "pid": 93158,
+            "validator": "@v0",
+            "finalized": 100,
+            "value": 999999900,
+            "events": 501,
+            "syncs": 0
+          },
+          "error": ""
+        },
+        {
+          "validator": 1,
+          "passed": true,
+          "state": {
+            "pid": 93159,
+            "validator": "@v1",
+            "finalized": 100,
+            "value": 999999900,
+            "events": 501,
+            "syncs": 0
+          },
+          "error": ""
+        },
+        {
+          "validator": 2,
+          "passed": true,
+          "state": {
+            "pid": 93160,
+            "validator": "@v2",
+            "finalized": 100,
+            "value": 999999900,
+            "events": 501,
+            "syncs": 0
+          },
+          "error": ""
+        },
+        {
+          "validator": 3,
+          "passed": true,
+          "state": {
+            "pid": 93161,
+            "validator": "@v3",
+            "finalized": 100,
+            "value": 999999900,
+            "events": 501,
+            "syncs": 0
+          },
+          "error": ""
+        }
+      ],
+      "recovery_passed": true,
+      "measurement_definition": "Signed transaction submission before transport enqueue to client receipt and strict Ed25519 verification of effects QC; client generation/signing excluded; network queues, fixed per-direction delay, validator validation/signing and sync_all before votes included.",
+      "limits": "One host, loopback TCP, fixed one-way delay without packet-loss/bandwidth modelling; one hot collective pool; no batching; filesystem/device sync_all guarantees assumed. Finalized latency percentiles are conditional; all-submitted quantiles include right-censored stalls."
+    },
+    "stall": {
+      "schema": "cbcl-quorum-e2e/v1",
+      "config": {
+        "transactions": 10,
+        "rate": 20.0,
+        "delay_ms": 0,
+        "timeout_ms": 1500,
+        "max_inflight": 1024,
+        "silent_validators": 2,
+        "out": "/private/tmp/cbcl-e2e-stall",
+        "allow_debug": false
+      },
+      "client_pid": 93066,
+      "validators": [
+        {
+          "pid": 93170,
+          "address": "127.0.0.1:60090",
+          "context": "sha256-26ca9a99c280dfca77c0f5e8fc37b199c3303a0c31bf60f5cdf4e33c2e637199"
+        },
+        {
+          "pid": 93171,
+          "address": "127.0.0.1:60091",
+          "context": "sha256-26ca9a99c280dfca77c0f5e8fc37b199c3303a0c31bf60f5cdf4e33c2e637199"
+        },
+        {
+          "pid": 93172,
+          "address": "127.0.0.1:60092",
+          "context": "sha256-26ca9a99c280dfca77c0f5e8fc37b199c3303a0c31bf60f5cdf4e33c2e637199"
+        },
+        {
+          "pid": 93173,
+          "address": "127.0.0.1:60093",
+          "context": "sha256-26ca9a99c280dfca77c0f5e8fc37b199c3303a0c31bf60f5cdf4e33c2e637199"
+        }
+      ],
+      "context": "sha256-26ca9a99c280dfca77c0f5e8fc37b199c3303a0c31bf60f5cdf4e33c2e637199",
+      "quorum": 3,
+      "build": {
+        "profile": "release",
+        "opt_level": "3",
+        "target": "aarch64-apple-darwin",
+        "rustc": "rustc 1.95.0 (59807616e 2026-04-14)",
+        "debug_assertions": false,
+        "git_commit": "6d1a6759cad414d8aee538f60d470074803e4f92",
+        "working_tree_dirty": true
+      },
+      "host": {
+        "os": "macos",
+        "arch": "aarch64",
+        "logical_cpus": 8
+      },
+      "metrics": {
+        "offered": 10,
+        "submitted": 10,
+        "finalized": 0,
+        "stalled": 10,
+        "client_overload": 0,
+        "finalized_within_one_second": 0,
+        "fraction_within_one_second_of_submitted": 0.0,
+        "fraction_within_one_second_of_offered": 0.0,
+        "finalized_latency_ms": {
+          "p50": null,
+          "p95": null,
+          "p99": null
+        },
+        "all_submitted_latency_ms": {
+          "p50": {
+            "value": null,
+            "right_censored": true,
+            "at_least": 1500
+          },
+          "p95": {
+            "value": null,
+            "right_censored": true,
+            "at_least": 1500
+          },
+          "p99": {
+            "value": null,
+            "right_censored": true,
+            "at_least": 1500
+          }
+        },
+        "measurement_seconds": 1.950483709,
+        "throughput_finalized_tps": 0.0,
+        "submitted_tps_over_measurement": 5.126933362148886,
+        "max_scheduler_lateness_ms": 1.015125,
+        "transaction_error_responses": 0
+      },
+      "offering_window_seconds": 0.450185458,
+      "invalid_votes": 0,
+      "transport_errors": 0,
+      "error_samples": [],
+      "validator_observations": {
+        "0": {
+          "pid": 93170,
+          "finalized": 0,
+          "value": 1000000000,
+          "events": 1,
+          "syncs": 1
+        },
+        "1": {
+          "pid": 93171,
+          "finalized": 0,
+          "value": 1000000000,
+          "events": 1,
+          "syncs": 1
+        },
+        "2": {
+          "pid": 93172,
+          "finalized": 0,
+          "value": 1000000000,
+          "events": 21,
+          "syncs": 21
+        },
+        "3": {
+          "pid": 93173,
+          "finalized": 0,
+          "value": 1000000000,
+          "events": 21,
+          "syncs": 21
+        }
+      },
+      "recovery": [
+        {
+          "validator": 0,
+          "passed": true,
+          "state": {
+            "pid": 93210,
+            "validator": "@v0",
+            "finalized": 0,
+            "value": 1000000000,
+            "events": 1,
+            "syncs": 0
+          },
+          "error": ""
+        },
+        {
+          "validator": 1,
+          "passed": true,
+          "state": {
+            "pid": 93211,
+            "validator": "@v1",
+            "finalized": 0,
+            "value": 1000000000,
+            "events": 1,
+            "syncs": 0
+          },
+          "error": ""
+        },
+        {
+          "validator": 2,
+          "passed": true,
+          "state": {
+            "pid": 93212,
+            "validator": "@v2",
+            "finalized": 0,
+            "value": 1000000000,
+            "events": 21,
+            "syncs": 0
+          },
+          "error": ""
+        },
+        {
+          "validator": 3,
+          "passed": true,
+          "state": {
+            "pid": 93213,
+            "validator": "@v3",
+            "finalized": 0,
+            "value": 1000000000,
+            "events": 21,
+            "syncs": 0
+          },
+          "error": ""
+        }
+      ],
+      "recovery_passed": true,
+      "measurement_definition": "Signed transaction submission before transport enqueue to client receipt and strict Ed25519 verification of effects QC; client generation/signing excluded; network queues, fixed per-direction delay, validator validation/signing and sync_all before votes included.",
+      "limits": "One host, loopback TCP, fixed one-way delay without packet-loss/bandwidth modelling; one hot collective pool; no batching; filesystem/device sync_all guarantees assumed. Finalized latency percentiles are conditional; all-submitted quantiles include right-censored stalls."
+    }
+  }
+}

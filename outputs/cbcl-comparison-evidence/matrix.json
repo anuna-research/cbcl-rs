@@ -1,0 +1,405 @@
+{
+  "axes": [
+    "substrate-neutral",
+    "dynamic-vocabulary",
+    "behavioral-extension",
+    "local-causal-conformance",
+    "signed-evidence",
+    "derived-state"
+  ],
+  "rows": [
+    {
+      "project": "CBCL",
+      "sources": [
+        "B01",
+        "B02",
+        "B03",
+        "B04",
+        "B05"
+      ],
+      "assessments": {
+        "substrate-neutral": "native",
+        "dynamic-vocabulary": "native",
+        "behavioral-extension": "native",
+        "local-causal-conformance": "native",
+        "signed-evidence": "partial",
+        "derived-state": "native"
+      },
+      "scope": "Restricted dialect installation and accepted-act state; host supplies authentication and persistence. General immutable parameter bindings and general liveness checking remain gaps."
+    },
+    {
+      "project": "BSPL",
+      "sources": [
+        "S01",
+        "S02",
+        "S35"
+      ],
+      "assessments": {
+        "substrate-neutral": "native",
+        "dynamic-vocabulary": "partial",
+        "behavioral-extension": "native",
+        "local-causal-conformance": "native",
+        "signed-evidence": "external",
+        "derived-state": "partial"
+      },
+      "scope": "Strongest information-protocol comparison: keyed immutable bindings, in/out/nil knowledge flow, composition and protocol analysis. Parameter knowledge is richer than current CBCL value guards."
+    },
+    {
+      "project": "Scribble",
+      "sources": [
+        "S03"
+      ],
+      "assessments": {
+        "substrate-neutral": "native",
+        "dynamic-vocabulary": "partial",
+        "behavioral-extension": "native",
+        "local-causal-conformance": "native",
+        "signed-evidence": "external",
+        "derived-state": "external"
+      },
+      "scope": "Global interaction types, role projection and recursion; compare communication conformance, not an authenticated state-fold kernel."
+    },
+    {
+      "project": "PACT",
+      "sources": [
+        "S04"
+      ],
+      "assessments": {
+        "substrate-neutral": "unknown",
+        "dynamic-vocabulary": "unknown",
+        "behavioral-extension": "unknown",
+        "local-causal-conformance": "unknown",
+        "signed-evidence": "unknown",
+        "derived-state": "unknown"
+      },
+      "scope": "Paper retained as a lead; not scored without a full-paper implementation and semantics audit. Abstract-only coverage cannot establish equivalence."
+    },
+    {
+      "project": "Daml/Canton",
+      "sources": [
+        "S05",
+        "S06"
+      ],
+      "assessments": {
+        "substrate-neutral": "excluded",
+        "dynamic-vocabulary": "partial",
+        "behavioral-extension": "native",
+        "local-causal-conformance": "partial",
+        "signed-evidence": "native",
+        "derived-state": "native"
+      },
+      "scope": "Ledger-backed contracts, authorization, privacy and atomic transactions. More integrated execution substrate; not transport-neutral accepted-message semantics."
+    },
+    {
+      "project": "Holochain",
+      "sources": [
+        "S07",
+        "S08",
+        "S09"
+      ],
+      "assessments": {
+        "substrate-neutral": "excluded",
+        "dynamic-vocabulary": "native",
+        "behavioral-extension": "native",
+        "local-causal-conformance": "native",
+        "signed-evidence": "native",
+        "derived-state": "native"
+      },
+      "scope": "Agent-centric runtime with source chains and DHT validation. No mandatory global total order, but applications use Holochain machinery. Countersigning unstable/off by default in 0.4+."
+    },
+    {
+      "project": "Goblins/OCapN",
+      "sources": [
+        "S10"
+      ],
+      "assessments": {
+        "substrate-neutral": "partial",
+        "dynamic-vocabulary": "native",
+        "behavioral-extension": "native",
+        "local-causal-conformance": "partial",
+        "signed-evidence": "partial",
+        "derived-state": "partial"
+      },
+      "scope": "Distributed object-capability actors; authority through references and general Scheme behavior, rather than a restricted business-message kernel. Persistence and transport profile matter."
+    },
+    {
+      "project": "Agoric",
+      "sources": [
+        "S11",
+        "S12",
+        "S13"
+      ],
+      "assessments": {
+        "substrate-neutral": "excluded",
+        "dynamic-vocabulary": "native",
+        "behavioral-extension": "native",
+        "local-causal-conformance": "partial",
+        "signed-evidence": "native",
+        "derived-state": "native"
+      },
+      "scope": "Hardened JavaScript, ERTP assets and Zoe contracts; broad execution/platform and economy. Strong asset safety concepts, different deployment waist."
+    },
+    {
+      "project": "ActivityStreams 2",
+      "sources": [
+        "S30"
+      ],
+      "assessments": {
+        "substrate-neutral": "native",
+        "dynamic-vocabulary": "native",
+        "behavioral-extension": "partial",
+        "local-causal-conformance": "external",
+        "signed-evidence": "external",
+        "derived-state": "external"
+      },
+      "scope": "Extensible vocabulary and normative core semantics. Extension processing has no normative general model; unknown extensions are ignored. Editor-copy evidence."
+    },
+    {
+      "project": "DIDComm",
+      "sources": [
+        "S15"
+      ],
+      "assessments": {
+        "substrate-neutral": "native",
+        "dynamic-vocabulary": "native",
+        "behavioral-extension": "partial",
+        "local-causal-conformance": "partial",
+        "signed-evidence": "native",
+        "derived-state": "external"
+      },
+      "scope": "Transport-independent authenticated/encrypted messaging and threading; application protocols supply their business state semantics."
+    },
+    {
+      "project": "KERI/ACDC/CESR",
+      "sources": [
+        "S16",
+        "S17",
+        "S38"
+      ],
+      "assessments": {
+        "substrate-neutral": "native",
+        "dynamic-vocabulary": "native",
+        "behavioral-extension": "partial",
+        "local-causal-conformance": "partial",
+        "signed-evidence": "native",
+        "derived-state": "partial"
+      },
+      "scope": "Chained verifiable credentials, typed edges, rules/policy, disclosure and registry state. Much closer to portable evidence than a plain schema format; general business conformance not established here."
+    },
+    {
+      "project": "WoT Thing Description",
+      "sources": [
+        "S31"
+      ],
+      "assessments": {
+        "substrate-neutral": "native",
+        "dynamic-vocabulary": "native",
+        "behavioral-extension": "partial",
+        "local-causal-conformance": "partial",
+        "signed-evidence": "partial",
+        "derived-state": "external"
+      },
+      "scope": "Interaction affordances, schemas, security metadata and protocol bindings; evidence is the 2.0 editor draft, not a claim about published 1.1."
+    },
+    {
+      "project": "UBL/ebBP",
+      "sources": [
+        "S19",
+        "S37"
+      ],
+      "assessments": {
+        "substrate-neutral": "native",
+        "dynamic-vocabulary": "partial",
+        "behavioral-extension": "native",
+        "local-causal-conformance": "native",
+        "signed-evidence": "external",
+        "derived-state": "partial"
+      },
+      "scope": "Business documents plus business-process collaboration/choreography. Requires execution/security bindings; not merely invoice field schemas."
+    },
+    {
+      "project": "NLIP",
+      "sources": [
+        "S20",
+        "S21"
+      ],
+      "assessments": {
+        "substrate-neutral": "native",
+        "dynamic-vocabulary": "partial",
+        "behavioral-extension": "partial",
+        "local-causal-conformance": "partial",
+        "signed-evidence": "unknown",
+        "derived-state": "unknown"
+      },
+      "scope": "ECMA transport-neutral AI-agent application messages plus bindings. Suite publication evidence does not establish full runtime or business-invariant coverage."
+    },
+    {
+      "project": "MCP",
+      "sources": [
+        "S22"
+      ],
+      "assessments": {
+        "substrate-neutral": "native",
+        "dynamic-vocabulary": "native",
+        "behavioral-extension": "partial",
+        "local-causal-conformance": "partial",
+        "signed-evidence": "partial",
+        "derived-state": "external"
+      },
+      "scope": "Version-pinned 2025-11-25 interface/lifecycle snapshot. Tools, resources, schemas and authorization are meaningful protocol semantics, not an arbitrary replicated business state machine."
+    },
+    {
+      "project": "A2A",
+      "sources": [
+        "S23"
+      ],
+      "assessments": {
+        "substrate-neutral": "native",
+        "dynamic-vocabulary": "native",
+        "behavioral-extension": "partial",
+        "local-causal-conformance": "partial",
+        "signed-evidence": "partial",
+        "derived-state": "partial"
+      },
+      "scope": "Version 1.0.0 task lifecycle, artifacts and extensions; distinguishes task coordination from causal business-act acceptance and certified resources."
+    },
+    {
+      "project": "Accord Project",
+      "sources": [
+        "S24",
+        "S25"
+      ],
+      "assessments": {
+        "substrate-neutral": "native",
+        "dynamic-vocabulary": "partial",
+        "behavioral-extension": "native",
+        "local-causal-conformance": "partial",
+        "signed-evidence": "external",
+        "derived-state": "partial"
+      },
+      "scope": "Current TypeScript contract logic and templates can be ledger independent. Legacy Ergo is a separate restricted language; do not attribute its properties to current TypeScript."
+    },
+    {
+      "project": "Aqua/AIR",
+      "sources": [
+        "S26"
+      ],
+      "assessments": {
+        "substrate-neutral": "partial",
+        "dynamic-vocabulary": "native",
+        "behavioral-extension": "native",
+        "local-causal-conformance": "native",
+        "signed-evidence": "external",
+        "derived-state": "partial"
+      },
+      "scope": "Distributed choreography and pure state-transition interpreter. A close executable interaction-language comparator; operational maturity and full security/proof correspondence not established."
+    },
+    {
+      "project": "AsyncAPI",
+      "sources": [
+        "S27"
+      ],
+      "assessments": {
+        "substrate-neutral": "native",
+        "dynamic-vocabulary": "native",
+        "behavioral-extension": "partial",
+        "local-causal-conformance": "partial",
+        "signed-evidence": "external",
+        "derived-state": "external"
+      },
+      "scope": "Message/API interface definitions and bindings. Workflow behavior is scored separately under Arazzo. OpenAPI remains an unscored contextual lead without a separate capture."
+    },
+    {
+      "project": "Arazzo",
+      "sources": [
+        "S28"
+      ],
+      "assessments": {
+        "substrate-neutral": "native",
+        "dynamic-vocabulary": "native",
+        "behavioral-extension": "native",
+        "local-causal-conformance": "native",
+        "signed-evidence": "external",
+        "derived-state": "partial"
+      },
+      "scope": "1.1.0 workflows: dependencies, output binding, conditions, retries, composition, async joins. Security mechanisms left to implementers; no established signed accepted-act-set fold."
+    },
+    {
+      "project": "Matrix",
+      "sources": [
+        "S32",
+        "S33"
+      ],
+      "assessments": {
+        "substrate-neutral": "partial",
+        "dynamic-vocabulary": "native",
+        "behavioral-extension": "partial",
+        "local-causal-conformance": "partial",
+        "signed-evidence": "native",
+        "derived-state": "native"
+      },
+      "scope": "Signed causal event graph and deterministic room-state resolution are strong prior art. Room-v7 rules are specialized; custom event types do not install arbitrary bounded business authorization."
+    },
+    {
+      "project": "Secure Scuttlebutt",
+      "sources": [
+        "S34"
+      ],
+      "assessments": {
+        "substrate-neutral": "native",
+        "dynamic-vocabulary": "native",
+        "behavioral-extension": "partial",
+        "local-causal-conformance": "partial",
+        "signed-evidence": "native",
+        "derived-state": "partial"
+      },
+      "scope": "Signed hash-linked per-author feeds and application messages. No global act DAG or general safe business-state installation established."
+    },
+    {
+      "project": "AT Protocol",
+      "sources": [
+        "S39",
+        "S40"
+      ],
+      "assessments": {
+        "substrate-neutral": "partial",
+        "dynamic-vocabulary": "native",
+        "behavioral-extension": "partial",
+        "local-causal-conformance": "partial",
+        "signed-evidence": "native",
+        "derived-state": "native"
+      },
+      "scope": "Dynamic Lexicon schemas plus signed deterministic map repositories. Mutable record map, not append-only causal business acts; validation of unknown schemas is policy dependent."
+    },
+    {
+      "project": "Bounded-counter CRDT",
+      "sources": [
+        "S36"
+      ],
+      "assessments": {
+        "substrate-neutral": "native",
+        "dynamic-vocabulary": "excluded",
+        "behavioral-extension": "excluded",
+        "local-causal-conformance": "external",
+        "signed-evidence": "external",
+        "derived-state": "native"
+      },
+      "scope": "Escrow numeric bounds without global ordering are established prior art under trusted-replica assumptions; not the Byzantine-certified CBCL profile."
+    },
+    {
+      "project": "JSON",
+      "sources": [
+        "S29"
+      ],
+      "assessments": {
+        "substrate-neutral": "native",
+        "dynamic-vocabulary": "partial",
+        "behavioral-extension": "excluded",
+        "local-causal-conformance": "external",
+        "signed-evidence": "external",
+        "derived-state": "external"
+      },
+      "scope": "Interchange grammar, not a business execution/authorization language. JSON syntax is decidable; calling it Turing complete is incorrect."
+    }
+  ]
+}

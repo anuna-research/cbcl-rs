@@ -64,3 +64,5 @@ import LeanCbcl.AbortableHandoff
 
 import LeanCbcl.ConsensusFree
 import LeanCbcl.ConsensusFree.Tests
+import LeanCbcl.ConsensusFree.Liveness
+import LeanCbcl.ConsensusFree.Scheduler

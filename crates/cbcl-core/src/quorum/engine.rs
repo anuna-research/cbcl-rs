@@ -30,6 +30,7 @@ struct State {
 }
 /// Owned, already-validated changes. No protocol checks may fail during application.
 /// This is transient preparation, never serialized or accepted as journal input.
+#[derive(Clone)]
 enum Update {
     Candidate(String, Operation),
     Certificate((VoteKind, String), Certificate),
@@ -60,7 +61,129 @@ pub struct Replica {
     sequence: u64,
     state: State,
 }
+// Only touched entries are saved. No retained-history clone is needed.
+enum GroupUndo {
+    Candidate(String),
+    Certificate((VoteKind, String)),
+    Sign {
+        id: String,
+        epoch: String,
+        charge: Option<Resources>,
+    },
+    Effect(String),
+}
+struct GroupPreparation<'a> {
+    replica: &'a mut Replica,
+    sequence: u64,
+    undo: Vec<GroupUndo>,
+}
+impl Drop for GroupPreparation<'_> {
+    fn drop(&mut self) {
+        for undo in self.undo.drain(..).rev() {
+            match undo {
+                GroupUndo::Candidate(id) => {
+                    self.replica.state.operations.remove(&id);
+                }
+                GroupUndo::Certificate(key) => {
+                    self.replica.state.certificates.remove(&key);
+                }
+                GroupUndo::Sign { id, epoch, charge } => {
+                    self.replica.state.signed.remove(&id);
+                    match charge {
+                        Some(old) => {
+                            self.replica.state.charges.insert(epoch, old);
+                        }
+                        None => {
+                            self.replica.state.charges.remove(&epoch);
+                        }
+                    }
+                }
+                GroupUndo::Effect(id) => {
+                    self.replica.state.effects.remove(&id);
+                }
+            }
+        }
+        self.replica.sequence = self.sequence;
+    }
+}
 impl Replica {
+    /// Validate a bounded group using the ordinary guards, then persist it with
+    /// one durability barrier. No signing request escapes before that barrier.
+    /// On validation/CAS failure state is unchanged. Retries emit no log event.
+    /// Only candidate/certificate/sign/effect transitions are supported; DAG
+    /// adoption, cancellation fencing and release retain their serial API.
+    pub fn commit_group<J: BatchJournal, A: Authentication>(
+        &mut self,
+        events: &[Event],
+        journal: &mut J,
+        auth: &A,
+    ) -> Result<Vec<Option<SigningRequest>>> {
+        if events.len() > 256 {
+            return Err("group exceeds 256 events".into());
+        }
+        let mut durable = Vec::new();
+        let mut updates = Vec::new();
+        {
+            let sequence = self.sequence;
+            let plan = GroupPreparation {
+                replica: self,
+                sequence,
+                undo: Vec::new(),
+            };
+            let mut plan = plan;
+            for event in events {
+                if !matches!(
+                    event,
+                    Event::Candidate(_) | Event::Certificate(_) | Event::Sign(_) | Event::Effect(_)
+                ) {
+                    return Err("unsupported group transition".into());
+                }
+                let Some(update) = plan.replica.prepare(event, auth)? else {
+                    continue;
+                };
+                if plan.replica.sequence >= plan.replica.limits.events {
+                    return Err("journal limit reached; evidence retained".into());
+                }
+                let undo = match &update {
+                    Update::Candidate(id, _) => GroupUndo::Candidate(id.clone()),
+                    Update::Certificate(key, _) => GroupUndo::Certificate(key.clone()),
+                    Update::Sign { id, epoch, .. } => GroupUndo::Sign {
+                        id: id.clone(),
+                        epoch: epoch.clone(),
+                        charge: plan.replica.state.charges.get(epoch).copied(),
+                    },
+                    Update::Effect(id) => GroupUndo::Effect(id.clone()),
+                    _ => unreachable!("group transition checked"),
+                };
+                plan.undo.push(undo);
+                plan.replica.apply_update(update.clone());
+                plan.replica.sequence += 1;
+                durable.push(event.clone());
+                updates.push(update);
+            }
+        } // Roll back staging on success, rejection and unwinding alike.
+        if !durable.is_empty() {
+            journal.append_batch(&self.context.id, &self.validator, self.sequence, &durable)?;
+            for update in updates {
+                self.apply_update(update);
+                self.sequence += 1;
+            }
+        }
+        Ok(events
+            .iter()
+            .map(|event| match event {
+                Event::Sign(id) => Some(self.context.request(
+                    VoteKind::Operation,
+                    id,
+                    &self.validator,
+                )),
+                Event::Effect(id) => {
+                    Some(self.context.request(VoteKind::Effects, id, &self.validator))
+                }
+                _ => None,
+            })
+            .collect())
+    }
     /// Creates a log exactly once. An existing identity must use `recover`.
     pub fn initialize<J: Journal>(
         context: Context,

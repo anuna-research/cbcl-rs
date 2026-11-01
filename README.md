@@ -17,6 +17,8 @@ Rust implementation of **CBCL** (Common Business Communication Language): a safe
 
 Prerequisites: Rust 1.75+ (the workspace toolchain is pinned in `rust-toolchain.toml`). For the Lean proofs, install Lean 4 via [elan](https://github.com/leanprover/elan).
 
+AArch64 Unix builds use accelerated SHA-256 and require a target C compiler/assembler: Xcode Command Line Tools on macOS, or the appropriate native/cross toolchain on Linux and Android. WASM builds do not enable this assembly dependency.
+
 ```bash
 git clone https://codeberg.org/anuna/cbcl-rs
 cd cbcl-rs
@@ -210,6 +212,8 @@ Strict **purity boundary**: the core crates are deterministic, `no_std + alloc`,
 - **Fuzz targets**: libFuzzer harnesses for parser trust boundary
 - **Mutation testing**: cargo-mutants config targeting critical-path modules (90% kill rate threshold)
 - **Benchmarks**: Criterion benchmarks for parser, constraints, template expansion, gossip
+
+The [end-to-end quorum benchmark](tools/quorum-e2e/README.md) measures client-observed effects-certificate finality with four validator processes, real Ed25519 signatures, durable journals, configurable delay/load, and explicit stall accounting.
 
 ## Contributing
 

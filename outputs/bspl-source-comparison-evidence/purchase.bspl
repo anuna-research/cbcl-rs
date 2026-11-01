@@ -1,0 +1,7 @@
+Purchase {
+  roles Buyer, Seller
+  parameters out order key, out item, out price, out accepted
+  Buyer -> Seller: Request[out order key, out item]
+  Seller -> Buyer: Quote[in order key, in item, out price]
+  Buyer -> Seller: Accept[in order key, in item, in price, out accepted]
+}

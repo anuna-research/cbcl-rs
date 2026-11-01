@@ -406,6 +406,56 @@ impl Act {
         })
     }
 
+    /// Check derived metadata against the message without cloning an owned Act.
+    /// The signer remains host-supplied; this check does not authenticate it.
+    pub(crate) fn validate_identity(&self) -> Result<(), String> {
+        let simple = self
+            .message
+            .innermost_simple()
+            .ok_or_else(|| String::from("an act must contain a simple message"))?;
+        let verb = simple
+            .performative()
+            .ok_or_else(|| String::from("an act must have a performative"))?;
+        let predecessors_match = match simple.caused_by() {
+            None | Some(CausedBy::Begin) => self.predecessors.is_empty(),
+            Some(CausedBy::Single(h)) => self.predecessors.as_slice() == core::slice::from_ref(h),
+            Some(CausedBy::Multiple(hs)) => self.predecessors == *hs,
+        };
+        // Mirror keyword_fields exactly, including last-value-wins and its
+        // permissive scan of malformed lists. Structural admission checks the
+        // complete parameter grammar afterward, at the original rejection point.
+        let mut fields = BTreeMap::new();
+        if let Message::Simple { params, .. } = simple {
+            let mut i = 0;
+            while i + 1 < params.len() {
+                if let SExpr::Atom(Atom::Keyword(k)) = &params[i] {
+                    if !ROUTING_KEYWORDS.contains(&k.as_str()) {
+                        fields.insert(k.as_str(), &params[i + 1]);
+                    }
+                    i += 2;
+                } else {
+                    i += 1;
+                }
+            }
+        }
+        let fields_match = fields.len() == self.fields.len()
+            && fields
+                .into_iter()
+                .all(|(k, v)| self.fields.get(k) == Some(v));
+        let recipients = simple.recipient_set();
+        let recipients_match = self.recipients.iter().map(String::as_str).eq(recipients);
+        let address = wire_address(simple);
+        if self.address != address
+            || self.verb != verb.name()
+            || !predecessors_match
+            || !recipients_match
+            || !fields_match
+        {
+            return Err(String::from("inconsistent act identity"));
+        }
+        Ok(())
+    }
+
     /// The innermost simple message.
     pub fn simple(&self) -> &Message {
         self.message
@@ -1378,5 +1428,125 @@ mod tests {
         let mut out = String::new();
         json_string("a\"b\\c\n\u{1}", &mut out);
         assert_eq!(out, "\"a\\\"b\\\\c\\n\\u0001\"");
+    }
+}
+
+#[cfg(test)]
+mod act_identity_tests {
+    use super::*;
+    use crate::message::{Performative, Recipients, WrapperType};
+    use proptest::prelude::*;
+
+    fn reference(act: &Act) -> Result<(), String> {
+        if Act::from_message(act.message.clone(), &act.signer)? == *act {
+            Ok(())
+        } else {
+            Err("inconsistent act identity".into())
+        }
+    }
+    fn expr() -> impl Strategy<Value = SExpr> {
+        prop_oneof![
+            any::<i64>().prop_map(|n| SExpr::Atom(Atom::Num(n))),
+            any::<bool>().prop_map(|v| SExpr::Atom(Atom::Bool(v))),
+            ".{0,16}".prop_map(|s| SExpr::Atom(Atom::Symbol(s))),
+            ".{0,16}".prop_map(|s| SExpr::Atom(Atom::Keyword(s))),
+            ".{0,16}".prop_map(|s| SExpr::Atom(Atom::Str(s))),
+        ]
+        .prop_recursive(3, 32, 4, |inner| {
+            proptest::collection::vec(inner, 0..4).prop_map(SExpr::List)
+        })
+    }
+    proptest! {
+        #[test]
+        fn borrowed_identity_matches_owned_reconstruction(
+            content in expr(), params in proptest::collection::vec(expr(), 0..24),
+            replacement in expr(), verb in ".{0,16}",
+            recipients in proptest::collection::vec(".{0,12}", 0..5),
+            predecessors in proptest::collection::vec(".{0,12}", 0..5),
+            thread in proptest::option::of(".{0,12}"),
+            sender in proptest::option::of(".{0,12}"),
+            recipient_kind in 0usize..3, cause_kind in 0usize..4,
+            wrapper in 0usize..3, tamper in 0usize..9,
+        ) {
+            let recipient = match recipient_kind {
+                0 => None,
+                1 => Some(Recipients::One(recipients.first().cloned().unwrap_or_default())),
+                _ => Some(Recipients::Set(recipients.into_iter().collect())),
+            };
+            let caused_by = match cause_kind {
+                0 => None, 1 => Some(CausedBy::Begin),
+                2 => Some(CausedBy::Single(predecessors.first().cloned().unwrap_or_default())),
+                _ => Some(CausedBy::Multiple(predecessors)),
+            };
+            let mut message = Message::Simple {
+                performative: Performative::Custom(verb), recipient, content,
+                params, thread, sender, caused_by,
+            };
+            if wrapper == 1 {
+                message = Message::Dialect { dialect_name: "probe".into(), inner: alloc::boxed::Box::new(message) };
+            } else if wrapper == 2 {
+                message = Message::Wrapped { wrapper: WrapperType::Signed,
+                    params: alloc::vec![SExpr::Atom(Atom::Symbol("@host".into()))],
+                    content: alloc::boxed::Box::new(message) };
+            }
+            let mut act = Act::from_message(message, "@host").unwrap();
+            match tamper {
+                1 => act.address.push('x'),
+                2 => act.verb.push('x'),
+                // Signer is supplied by the host, not derived from the message.
+                3 => act.signer.push('x'),
+                4 => act.predecessors.push("extra".into()),
+                5 => { act.recipients.insert("extra".into()); },
+                6 => { act.fields.insert("injected".into(), replacement); },
+                7 => act.message = Message::Meta { dialect_def: replacement },
+                8 => { act.fields.clear(); },
+                _ => (),
+            }
+            prop_assert_eq!(act.validate_identity(), reference(&act));
+        }
+    }
+    #[test]
+    fn borrowed_identity_preserves_keyword_scan_and_duplicate_semantics() {
+        let kw = |s: &str| SExpr::Atom(Atom::Keyword(s.into()));
+        let cases = [
+            alloc::vec![],
+            alloc::vec![kw("tail")],
+            alloc::vec![
+                SExpr::Atom(Atom::Num(7)),
+                kw("x"),
+                kw("y"),
+                kw("x"),
+                SExpr::Atom(Atom::Num(2)),
+                kw("tail")
+            ],
+            alloc::vec![
+                kw("from"),
+                SExpr::Atom(Atom::Symbol("@sender".into())),
+                kw("thread"),
+                SExpr::Atom(Atom::Str("t".into()))
+            ],
+        ];
+        for params in cases {
+            let message = Message::Simple {
+                performative: Performative::Core(crate::message::CorePerformative::Tell),
+                recipient: None,
+                content: SExpr::List(alloc::vec![]),
+                params,
+                thread: None,
+                sender: None,
+                caused_by: Some(CausedBy::Multiple(alloc::vec![
+                    "z".into(),
+                    "a".into(),
+                    "z".into()
+                ])),
+            };
+            let mut act = Act::from_message(message, "@host").unwrap();
+            assert_eq!(act.validate_identity(), reference(&act));
+            assert!(act.validate_identity().is_ok());
+            act.fields
+                .insert("forged".into(), SExpr::Atom(Atom::Bool(true)));
+            assert_eq!(act.validate_identity(), reference(&act));
+            assert!(act.validate_identity().is_err());
+        }
     }
 }

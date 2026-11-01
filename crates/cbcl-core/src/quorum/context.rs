@@ -297,9 +297,7 @@ impl Context {
             && crate::canonical::dialect_hash(inst.dialect) == self.dialect_hash
     }
     pub(crate) fn structural(&self, act: &Act) -> Result<()> {
-        if Act::from_message(act.message.clone(), &act.signer)? != *act {
-            return Err("inconsistent act identity".into());
-        }
+        act.validate_identity()?;
         if !self.actors.contains(&act.signer) {
             return Err("owner outside pinned accounts".into());
         }

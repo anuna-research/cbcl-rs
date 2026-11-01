@@ -40,3 +40,10 @@
 /outputs/**/*comprehension-review*.json
 /outputs/consensusless-literature-evidence/*.json
 !/outputs/consensusless-literature-evidence/crawl-manifest.json
+
+# Local research captures; commit curated reports, matrices and source manifests.
+/outputs/cbcl-comparison-evidence/S[0-9][0-9].json
+/outputs/cbcl-comparison-evidence/*session*.json
+/outputs/cbcl-comparison-evidence/*transcript*.jsonl
+/outputs/cbcl-comparison-evidence/elephant-operations.jsonl
+/outputs/bspl-source-comparison-evidence/elephant-operations.jsonl

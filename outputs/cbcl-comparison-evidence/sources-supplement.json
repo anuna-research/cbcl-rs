@@ -1,0 +1,57 @@
+[
+  {
+    "id": "S30",
+    "project": "activitystreams",
+    "url": "https://w3c.github.io/activitystreams/"
+  },
+  {
+    "id": "S31",
+    "project": "wot",
+    "url": "https://w3c.github.io/wot-thing-description/"
+  },
+  {
+    "id": "S32",
+    "project": "matrix",
+    "url": "https://spec.matrix.org/latest/rooms/v7/"
+  },
+  {
+    "id": "S33",
+    "project": "matrix",
+    "url": "https://spec.matrix.org/latest/client-server-api/"
+  },
+  {
+    "id": "S34",
+    "project": "ssb",
+    "url": "https://ssbc.github.io/scuttlebutt-protocol-guide/"
+  },
+  {
+    "id": "S35",
+    "project": "bspl",
+    "url": "https://www.csc2.ncsu.edu/faculty/mpsingh/papers/mas/AAMAS-12-BSPL.pdf"
+  },
+  {
+    "id": "S36",
+    "project": "bounded-crdt",
+    "url": "https://arxiv.org/abs/1503.09052"
+  },
+  {
+    "id": "S37",
+    "project": "ubl-ebbp",
+    "url": "https://docs.oasis-open.org/ebxml-bp/2.0.4/ebxmlbp-v2.0.4-Spec-cs-en.pdf"
+  },
+  {
+    "id": "S38",
+    "project": "keri-acdc",
+    "url": "https://keri.foundation/resources/"
+  },
+  {
+    "id": "S39",
+    "project": "atproto",
+    "url": "https://atproto.com/specs/lexicon"
+  },
+  {
+    "id": "S40",
+    "project": "atproto",
+    "url": "https://atproto.com/specs/repository"
+  }
+]

@@ -29,3 +29,8 @@ criterion.workspace = true
 [[bench]]
 name = "core_bench"
 harness = false
+
+# sha2 0.10 gates AArch64 SHA instructions behind `asm`. Keep its assembler
+# dependency out of WASM and other targets; the hash format is unchanged.
+[target.'cfg(all(target_arch = "aarch64", target_family = "unix"))'.dependencies]
+sha2 = { version = "0.10", default-features = false, features = ["asm"] }

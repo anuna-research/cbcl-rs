@@ -1,0 +1,414 @@
+[
+  {
+    "id": "S01",
+    "project": "bspl",
+    "url": "https://github.com/shcv/bspl",
+    "captured_at": "2026-11-01T03:24:59.219143+00:00",
+    "title": "GitHub - shcv/bspl \u00b7 GitHub",
+    "sha256": "a6c0ac820b789bc0c402f787e72178e5ccf8af89517670ea922871c9327541b9",
+    "pdf_fallback": null,
+    "usable": true
+  },
+  {
+    "id": "S02",
+    "project": "bspl",
+    "url": "https://arxiv.org/abs/1901.08441",
+    "captured_at": "2026-11-01T03:25:00.775484+00:00",
+    "title": "[1901.08441] An Evaluation of Communication Protocol Languages for Engineering Multiagent Systems",
+    "sha256": "7e039081cb1c3deaaae0410c809cc04f709f5c4753dd192909402c13fa3efb74",
+    "pdf_fallback": null,
+    "usable": true
+  },
+  {
+    "id": "S03",
+    "project": "scribble",
+    "url": "https://www.doc.ic.ac.uk/~rhu/scribble/langref.html",
+    "captured_at": "2026-11-01T03:25:03.571126+00:00",
+    "title": "Scribble Language Reference Version 0.3",
+    "sha256": "157781e54e82725d6a87a45d6724008d30ee815f45450a991e07f6436b749bc7",
+    "pdf_fallback": null,
+    "usable": true
+  },
+  {
+    "id": "S04",
+    "project": "pact",
+    "url": "https://arxiv.org/abs/2605.03143",
+    "captured_at": "2026-11-01T03:25:04.928477+00:00",
+    "title": "[2605.03143] Pact: A Choreographic Language for Agentic Ecosystems",
+    "sha256": "b5ee391bbe4d694b8618f96286d1a21669934f5f27020f9a3253e2664b71ca24",
+    "pdf_fallback": null,
+    "usable": true
+  },
+  {
+    "id": "S05",
+    "project": "daml-canton",
+    "url": "https://arxiv.org/abs/2303.03749",
+    "captured_at": "2026-11-01T03:25:06.010301+00:00",
+    "title": "[2303.03749] Daml: A Smart Contract Language for Securely Automating Real-World Multi-Party Business Workflows",
+    "sha256": "cf8865a2378e31393b4c5e04c3e47f3c43b69a8225287b32cf7eea0362b0952b",
+    "pdf_fallback": null,
+    "usable": true
+  },
+  {
+    "id": "S06",
+    "project": "daml-canton",
+    "url": "https://archived.docs.digitalasset.com/build/3.4/tutorials/smart-contracts/functional-101.html",
+    "captured_at": "2026-11-01T03:25:08.720517+00:00",
+    "title": "Functional programming 101 \u2014 Digital Asset\u2019s platform documentation",
+    "sha256": "8b5eb4a33ee22ab3bb3a45a3e98816df20e3a73cdc644e3affafd2f01b034a23",
+    "pdf_fallback": null,
+    "usable": true
+  },
+  {
+    "id": "S07",
+    "project": "holochain",
+    "url": "https://developer.holochain.org/build/application-structure/",
+    "captured_at": "2026-11-01T03:25:10.965492+00:00",
+    "title": "Application Structure",
+    "sha256": "4e527c112f5896bd3040d5c60c616bb1a3856124337d5b466818d64373e2e38f",
+    "pdf_fallback": null,
+    "usable": true
+  },
+  {
+    "id": "S08",
+    "project": "holochain",
+    "url": "https://developer.holochain.org/concepts/10_countersigning/",
+    "captured_at": "2026-11-01T03:25:12.418052+00:00",
+    "title": "Countersigning: Reaching Agreement Between Peers",
+    "sha256": "b80aa397f188e9e89c8b6454f6208e569db649f67a9a77570bd042fe6d1c94dc",
+    "pdf_fallback": null,
+    "usable": true
+  },
+  {
+    "id": "S09",
+    "project": "holochain",
+    "url": "https://developer.holochain.org/build/validation/",
+    "captured_at": "2026-11-01T03:25:14.168898+00:00",
+    "title": "Validation",
+    "sha256": "912d5f798da72ed0076e689bedab424e3af02933a547d5176c1c0c1cbd61eced",
+    "pdf_fallback": null,
+    "usable": true
+  },
+  {
+    "id": "S10",
+    "project": "goblins-ocapn",
+    "url": "https://files.spritely.institute/papers/spritely-core.html",
+    "captured_at": "2026-11-01T03:25:17.018255+00:00",
+    "title": "The Heart of Spritely: Distributed Objects and Capability Security",
+    "sha256": "c201baf84a8e9f3e79492709a826d5d3b3fffbdf1852073f274c26c4022cfbaa",
+    "pdf_fallback": null,
+    "usable": true
+  },
+  {
+    "id": "S11",
+    "project": "agoric",
+    "url": "https://docs.agoric.com/guides/ertp/",
+    "captured_at": "2026-11-01T03:25:18.410994+00:00",
+    "title": "ERTP Overview | Agoric Documentation",
+    "sha256": "a3d84ac2b3b6126b48cd17122da55a5734464be6a24d37cfabb2ff1bcd5ad03c",
+    "pdf_fallback": null,
+    "usable": true
+  },
+  {
+    "id": "S12",
+    "project": "agoric",
+    "url": "https://docs.agoric.com/guides/js-programming/hardened-js",
+    "captured_at": "2026-11-01T03:25:19.655088+00:00",
+    "title": "Hardened JavaScript | Agoric Documentation",
+    "sha256": "e49868fd6ff087314641cc885c686a412970d0d18f5904994fffdaa40484f908",
+    "pdf_fallback": null,
+    "usable": true
+  },
+  {
+    "id": "S13",
+    "project": "agoric",
+    "url": "https://docs.agoric.com/guides/platform/",
+    "captured_at": "2026-11-01T03:25:21.145154+00:00",
+    "title": "The Agoric Platform | Agoric Documentation",
+    "sha256": "081a057f3a498c2067af1629d144782efb4b5e27c3582240aab86304ec340d2b",
+    "pdf_fallback": null,
+    "usable": true
+  },
+  {
+    "id": "S14",
+    "project": "activitystreams",
+    "url": "https://www.w3.org/TR/activitystreams-core/",
+    "captured_at": "2026-11-01T03:25:22.299151+00:00",
+    "title": "Just a moment...",
+    "sha256": "8a840452da17a61133941b76cdb766549e2d32b563d32aba8bc6bb7f48b471b6",
+    "pdf_fallback": null,
+    "usable": false
+  },
+  {
+    "id": "S15",
+    "project": "didcomm",
+    "url": "https://identity.foundation/didcomm-messaging/spec/",
+    "captured_at": "2026-11-01T03:25:24.675567+00:00",
+    "title": "DIDComm Messaging Specification v2 Editor's Draft",
+    "sha256": "c12c1c8785c6fc37bbd31eab55bbd14dc3a4d3096cac8734e5cd97316fc4413b",
+    "pdf_fallback": null,
+    "usable": true
+  },
+  {
+    "id": "S16",
+    "project": "keri-acdc",
+    "url": "https://trustoverip.github.io/kswg-acdc-specification/",
+    "captured_at": "2026-11-01T03:25:27.362547+00:00",
+    "title": "Authentic Chained Data Containers (ACDC)",
+    "sha256": "076cb9c08e2ff12909b87235b1464cced1c306cfdea6ba2dd808c3ae192fe0ec",
+    "pdf_fallback": null,
+    "usable": true
+  },
+  {
+    "id": "S17",
+    "project": "keri-acdc",
+    "url": "https://trustoverip.github.io/kswg-cesr-specification/",
+    "captured_at": "2026-11-01T03:25:29.231545+00:00",
+    "title": "Composable Event Streaming Representation",
+    "sha256": "f930551823ed2ceac867acf35acf08231ddc4d50f9e35fe0346c98e07659bac6",
+    "pdf_fallback": null,
+    "usable": true
+  },
+  {
+    "id": "S18",
+    "project": "wot",
+    "url": "https://www.w3.org/TR/wot-thing-description/",
+    "captured_at": "2026-11-01T03:25:30.458608+00:00",
+    "title": "Just a moment...",
+    "sha256": "bd2c99f249bceb6d00ae71b8755651a6926e631021b048342106a1f091228d15",
+    "pdf_fallback": null,
+    "usable": false
+  },
+  {
+    "id": "S19",
+    "project": "ubl-ebbP",
+    "url": "https://docs.oasis-open.org/ubl/UBL-2.4.html",
+    "captured_at": "2026-11-01T03:25:32.806952+00:00",
+    "title": "Universal Business Language Version\u00a02.4",
+    "sha256": "b4cbf51aa95c8ea4b669dfc4f348885cc988962b5d2b9d471e7491378d4ee830",
+    "pdf_fallback": null,
+    "usable": true
+  },
+  {
+    "id": "S20",
+    "project": "nlip",
+    "url": "https://ecma-international.org/publications-and-standards/standards/ecma-430/",
+    "captured_at": "2026-11-01T03:25:37.459092+00:00",
+    "title": "ECMA-430 - Ecma International",
+    "sha256": "6cd9ea6d8547a7b19912a92bf114db3e9fa03274600759b885e41f8a9166bc2f",
+    "pdf_fallback": null,
+    "usable": true
+  },
+  {
+    "id": "S21",
+    "project": "nlip",
+    "url": "https://ecma-international.org/news/ecma-international-approves-nlip-standards-suite-for-universal-ai-agent-communication/",
+    "captured_at": "2026-11-01T03:25:39.871233+00:00",
+    "title": "Ecma International approves NLIP standards suite for universal AI agent communication - Ecma International",
+    "sha256": "944e95b2456773162d7ff7c64c6a00421e5389ddd8ad739cdfc8aca37624ea94",
+    "pdf_fallback": null,
+    "usable": true
+  },
+  {
+    "id": "S22",
+    "project": "mcp",
+    "url": "https://modelcontextprotocol.io/specification/2025-11-25",
+    "captured_at": "2026-11-01T03:25:41.653002+00:00",
+    "title": "Specification - Model Context Protocol",
+    "sha256": "76de75066023b58d777f26fef60961f6dc35a0758460f4831459b700209e7785",
+    "pdf_fallback": null,
+    "usable": true
+  },
+  {
+    "id": "S23",
+    "project": "a2a",
+    "url": "https://a2a-protocol.org/v1.0.0/specification/",
+    "captured_at": "2026-11-01T03:25:44.099584+00:00",
+    "title": "Overview - A2A Protocol",
+    "sha256": "926dd2c8f805baefe0277d1e7b1c83db90db96617fbde03e532012cf4385f650",
+    "pdf_fallback": null,
+    "usable": true
+  },
+  {
+    "id": "S24",
+    "project": "accord",
+    "url": "https://docs.accordproject.org/docs/accordproject/",
+    "captured_at": "2026-11-01T03:25:47.685713+00:00",
+    "title": "Overview | Accord Project",
+    "sha256": "a3bdd5b02c7ce44d6a4232a87726a2dae01f03148cbed7a4412046f0fcfae01c",
+    "pdf_fallback": null,
+    "usable": true
+  },
+  {
+    "id": "S25",
+    "project": "accord",
+    "url": "https://docs.accordproject.org/docs/logic-ergo/",
+    "captured_at": "2026-11-01T03:25:49.035080+00:00",
+    "title": "Ergo Overview | Accord Project",
+    "sha256": "950ccf0ad9b556d8cf866b8d6ef8c6e1035b6f644d8e0010629134c92ef2384b",
+    "pdf_fallback": null,
+    "usable": true
+  },
+  {
+    "id": "S26",
+    "project": "aqua",
+    "url": "https://github.com/fluencelabs/aquavm",
+    "captured_at": "2026-11-01T03:25:51.282132+00:00",
+    "title": "GitHub - fluencelabs/aquavm: AquaVM interprets AIR \u2013 a \u03c0-calculus-derived set of instructions that the Aqua language compiles to \u00b7 GitHub",
+    "sha256": "51773b6383a37d8a59654011e335e845674008299f4d7bf854cf6e24abdfd55a",
+    "pdf_fallback": null,
+    "usable": true
+  },
+  {
+    "id": "S27",
+    "project": "openapi-asyncapi",
+    "url": "https://www.asyncapi.com/docs/concepts/asyncapi-document",
+    "captured_at": "2026-11-01T03:25:53.599730+00:00",
+    "title": "Introduction | AsyncAPI Initiative for event-driven APIs",
+    "sha256": "df7ff4c5cd92bed631a54e37740ea01ddc5d050a3a5d4785250c70a5589b375f",
+    "pdf_fallback": null,
+    "usable": true
+  },
+  {
+    "id": "S28",
+    "project": "openapi-asyncapi",
+    "url": "https://spec.openapis.org/arazzo/latest.html",
+    "captured_at": "2026-11-01T03:25:55.076408+00:00",
+    "title": "The Arazzo Specification v1.1.0",
+    "sha256": "7e78c53e012da6be79363b25a07351de6f18cd96ae6c186bb7599a3411d83b56",
+    "pdf_fallback": null,
+    "usable": true
+  },
+  {
+    "id": "S29",
+    "project": "json",
+    "url": "https://www.rfc-editor.org/rfc/rfc8259.html",
+    "captured_at": "2026-11-01T03:25:56.665185+00:00",
+    "title": "",
+    "sha256": "b1c6c1c2002797330b484f6b3c9e43d778c62331ccc1d65dbfd6eabc9cba3380",
+    "pdf_fallback": null,
+    "usable": true
+  },
+  {
+    "id": "S30",
+    "project": "activitystreams",
+    "url": "https://w3c.github.io/activitystreams/",
+    "captured_at": "2026-11-01T03:26:52.223259+00:00",
+    "title": "Activity Streams 2.0",
+    "sha256": "14410ce9f5fa1a2dc49a426e9be6e34c88d0fb42be2cc5c4a321d0acc029550e",
+    "pdf_fallback": null,
+    "usable": true
+  },
+  {
+    "id": "S31",
+    "project": "wot",
+    "url": "https://w3c.github.io/wot-thing-description/",
+    "captured_at": "2026-11-01T03:26:53.799125+00:00",
+    "title": "Web of Things (WoT) Thing Description 2.0",
+    "sha256": "f1108cb8efc25903d0bfc5ddb2b56da3d5f9a336d52e08ef5ac21ab027944fcb",
+    "pdf_fallback": null,
+    "usable": true
+  },
+  {
+    "id": "S32",
+    "project": "matrix",
+    "url": "https://spec.matrix.org/latest/rooms/v7/",
+    "captured_at": "2026-11-01T03:26:57.759285+00:00",
+    "title": "Room Version 7 | Matrix Specification",
+    "sha256": "20352ec400432d8c063d9d4c718499b870c7d295fb59288cb5a26378e7ff1886",
+    "pdf_fallback": null,
+    "usable": true
+  },
+  {
+    "id": "S33",
+    "project": "matrix",
+    "url": "https://spec.matrix.org/latest/client-server-api/",
+    "captured_at": "2026-11-01T03:27:00.983557+00:00",
+    "title": "Client-Server API | Matrix Specification",
+    "sha256": "39d60d5c6e883f9409036532705385d9c38d7de85061b887a0c9c97a184d283c",
+    "pdf_fallback": null,
+    "usable": true
+  },
+  {
+    "id": "S34",
+    "project": "ssb",
+    "url": "https://ssbc.github.io/scuttlebutt-protocol-guide/",
+    "captured_at": "2026-11-01T03:27:02.597104+00:00",
+    "title": "Scuttlebutt Protocol Guide",
+    "sha256": "1d17edb3b193cd1cc731a623a7dcf86f9133c484a1f3e08ba87f18aa13250443",
+    "pdf_fallback": null,
+    "usable": true
+  },
+  {
+    "id": "S35",
+    "project": "bspl",
+    "url": "https://www.csc2.ncsu.edu/faculty/mpsingh/papers/mas/AAMAS-12-BSPL.pdf",
+    "captured_at": "2026-11-01T03:27:05.309243+00:00",
+    "title": null,
+    "sha256": "d812428521790ed45c7bcb292d8bfd325e7f5fe54b86ef6b6fc1667c0edef416",
+    "pdf_fallback": {
+      "method": "Direct HTTP PDF retrieval after ar-crawl session navigation triggered a download; pdftotext -layout",
+      "captured_at": "2026-11-01T03:28:15.110320+00:00",
+      "sha256": "4fe40f21b79e63f6197b62a2a5c7e101bedfc63277647ac5499011c9f03f0674",
+      "text_sha256": "1870f880145b03b118a7fb87ac0401c8d104611aa7b03ecccbd7d9f33bbce742",
+      "characters": 68479
+    },
+    "usable": true
+  },
+  {
+    "id": "S36",
+    "project": "bounded-crdt",
+    "url": "https://arxiv.org/abs/1503.09052",
+    "captured_at": "2026-11-01T03:27:06.841920+00:00",
+    "title": "[1503.09052] Extending Eventually Consistent Cloud Databases for Enforcing Numeric Invariants",
+    "sha256": "04e0e4edc6634142f85d07643c79e0c7fd8b7ececc909a675e571ea5e80af82b",
+    "pdf_fallback": null,
+    "usable": true
+  },
+  {
+    "id": "S37",
+    "project": "ubl-ebbp",
+    "url": "https://docs.oasis-open.org/ebxml-bp/2.0.4/ebxmlbp-v2.0.4-Spec-cs-en.pdf",
+    "captured_at": "2026-11-01T03:27:09.099193+00:00",
+    "title": null,
+    "sha256": "f4c33f182b3cc10eeaef437adf0f8d5fd786cf3918736492625d3580a31ca96c",
+    "pdf_fallback": {
+      "method": "Direct HTTP PDF retrieval after ar-crawl session navigation triggered a download; pdftotext -layout",
+      "captured_at": "2026-11-01T03:28:17.478593+00:00",
+      "sha256": "4b117554b4317bc1c86b03629799f403abf59adf485f717ea50a6c6223e1a679",
+      "text_sha256": "a86ef0e536c6edf7c1808cb1773fc38c5d8afe7528d04837e13abc73514a6e7b",
+      "characters": 354736
+    },
+    "usable": true
+  },
+  {
+    "id": "S38",
+    "project": "keri-acdc",
+    "url": "https://keri.foundation/resources/",
+    "captured_at": "2026-11-01T03:27:14.109323+00:00",
+    "title": "Resources \u2013 KERI Foundation",
+    "sha256": "1101536b2898c2a1acdd7f894cff3715b63d2889553a78903f9ba6ad331dc00e",
+    "pdf_fallback": null,
+    "usable": true
+  },
+  {
+    "id": "S39",
+    "project": "atproto",
+    "url": "https://atproto.com/specs/lexicon",
+    "captured_at": "2026-11-01T03:27:15.809024+00:00",
+    "title": "Lexicon - AT Protocol",
+    "sha256": "3801a750746e26021b8d0196f02c79f2c0d14cd46d2fcd42bf740123767ff726",
+    "pdf_fallback": null,
+    "usable": true
+  },
+  {
+    "id": "S40",
+    "project": "atproto",
+    "url": "https://atproto.com/specs/repository",
+    "captured_at": "2026-11-01T03:27:17.061047+00:00",
+    "title": "Repository - AT Protocol",
+    "sha256": "9960b1396083f93391b4626b1393b50ce812849807a238d97300e7d5740dd866",
+    "pdf_fallback": null,
+    "usable": true
+  }
+]

@@ -1514,3 +1514,65 @@ fn cached_genesis_allocations_preserve_both_budgets_after_context_rebuild() {
             .is_err());
     }
 }
+
+#[test]
+fn borrowed_identity_rejects_forged_metadata_before_persistence() {
+    use cbcl_core::message::Message;
+    fn duplicate_amount(message: &mut Message) {
+        match message {
+            Message::Simple { params, .. } => params.extend([
+                SExpr::Atom(Atom::Keyword("amount".into())),
+                SExpr::Atom(Atom::Num(2)),
+            ]),
+            Message::Dialect { inner, .. } => duplicate_amount(inner),
+            Message::Wrapped { content, .. } => duplicate_amount(content),
+            Message::Meta { .. } => unreachable!(),
+        }
+    }
+    let mut n = dag();
+    let original = ticket(&mut n, "@alice", 1, "borrowed-identity");
+    let before = n.rs[0].journal_sequence();
+    for mutation in 0..5 {
+        let mut forged = original.clone();
+        match mutation {
+            0 => forged.address.push('f'),
+            1 => forged.verb = "restock".into(),
+            2 => forged.predecessors.clear(),
+            3 => {
+                forged.recipients.clear();
+            }
+            _ => {
+                forged
+                    .fields
+                    .insert("amount".into(), SExpr::Atom(Atom::Num(99)));
+            }
+        }
+        n.auth
+            .acts
+            .insert((forged.address.clone(), forged.signer.clone()));
+        let error = n.rs[0].register(forged, &mut n.j, &n.auth).unwrap_err();
+        assert_eq!(error, "inconsistent act identity", "mutation {mutation}");
+        assert_eq!(n.rs[0].journal_sequence(), before);
+    }
+    // Coherent last-value-wins caches still reach the original duplicate-key
+    // rejection; forging those caches must retain identity-error precedence.
+    let mut message = original.message.clone();
+    duplicate_amount(&mut message);
+    let duplicate = Act::from_message(message, "@alice").unwrap();
+    n.auth
+        .acts
+        .insert((duplicate.address.clone(), duplicate.signer.clone()));
+    let mut forged = duplicate.clone();
+    forged.fields.clear();
+    assert_eq!(
+        n.rs[0].register(forged, &mut n.j, &n.auth).unwrap_err(),
+        "inconsistent act identity"
+    );
+    assert_eq!(
+        n.rs[0].register(duplicate, &mut n.j, &n.auth).unwrap_err(),
+        "duplicate resource keyword"
+    );
+    assert_eq!(n.rs[0].journal_sequence(), before);
+    n.rs[0].register(original, &mut n.j, &n.auth).unwrap();
+    assert_eq!(n.rs[0].journal_sequence(), before + 1);
+}

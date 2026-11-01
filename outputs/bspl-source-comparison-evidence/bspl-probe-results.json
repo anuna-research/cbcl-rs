@@ -1,0 +1,80 @@
+{
+  "quote_value_binding": {
+    "good_integrity": true,
+    "changed_price_integrity": false,
+    "good_emission": true,
+    "changed_price_emission": false
+  },
+  "duplicate_and_conflict": {
+    "same_duplicate_before": false,
+    "same_duplicate_after": true,
+    "changed_duplicate_error": "Message found with matching key order:o1 but different parameters: Accept(order='o1',item='book',price=1,accepted=True){system='purchase'}, Accept(order='o1',item='book',price=100,accepted=True){system='purchase'}"
+  },
+  "dependency_checker_early_return": {
+    "required_inputs": [
+      "item",
+      "order",
+      "price"
+    ],
+    "first_iterated": "order",
+    "known": [
+      "order"
+    ],
+    "all_required_known": false,
+    "returned": true
+  },
+  "receive_unseen_input_values": {
+    "stored": true,
+    "signals": [
+      "ReceptionEvent"
+    ],
+    "history_had_quote": false,
+    "scope": "receive permits consistent new knowledge; does not authenticate sender or prove remote sender dependencies"
+  },
+  "static_purchase": {
+    "safety": {
+      "elapsed": 0.0008697910000000086,
+      "paths": 1,
+      "safe": true
+    },
+    "liveness": {
+      "elapsed": 0.0008234579999999991,
+      "paths": 1,
+      "live": true
+    }
+  },
+  "static_conflicting_producers": {
+    "elapsed": 0.0008169169999999726,
+    "path": [
+      "A!Start",
+      "A!Left",
+      "B?Start",
+      "B!Right",
+      "B?Left",
+      "A?Right"
+    ],
+    "paths": 2,
+    "safe": false,
+    "unsafe": "x"
+  },
+  "static_circular_knowledge": {
+    "elapsed": 0.00045162500000001105,
+    "path": [
+      "A!Start",
+      "B?Start"
+    ],
+    "paths": 1,
+    "live": false,
+    "incomplete": "set()"
+  },
+  "nil_is_local": {
+    "right_enabled_after_left_sent_not_received": true
+  },
+  "handoff": {
+    "B_can_send_N_after_receiving_M": true,
+    "C_observed_M": false
+  },
+  "refinement_ship_first": {
+    "ok": true
+  }
+}
