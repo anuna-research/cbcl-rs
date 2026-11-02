@@ -1,0 +1,32 @@
+[
+  {
+    "id": "L01",
+    "project": "stingray",
+    "url": "https://arxiv.org/html/2501.06531v1"
+  },
+  {
+    "id": "L02",
+    "project": "fastpay",
+    "url": "https://arxiv.org/html/2003.11506v3"
+  },
+  {
+    "id": "L03",
+    "project": "at2",
+    "url": "https://arxiv.org/html/1812.10844v3"
+  },
+  {
+    "id": "L04",
+    "project": "astro",
+    "url": "https://arxiv.org/html/2004.13184v1"
+  },
+  {
+    "id": "L05",
+    "project": "cryptoconcurrency",
+    "url": "https://arxiv.org/html/2212.04895v2"
+  },
+  {
+    "id": "L06",
+    "project": "consensus-number",
+    "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC8882574/"
+  }
+]

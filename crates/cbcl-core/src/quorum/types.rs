@@ -72,6 +72,8 @@ pub enum VoteKind {
     Cancel,
     CancelRequest,
     VersionRequest,
+    OwnedSealRequest,
+    OwnedSeal,
 }
 impl VoteKind {
     fn tag(self) -> &'static str {
@@ -81,6 +83,8 @@ impl VoteKind {
             Self::Cancel => "cancel",
             Self::CancelRequest => "owner-cancel",
             Self::VersionRequest => "owner-dag-version",
+            Self::OwnedSealRequest => "owner-permanent-seal",
+            Self::OwnedSeal => "validator-permanent-seal",
         }
     }
 }
@@ -162,12 +166,21 @@ impl Resources {
         self.rights >= 0 && self.headroom >= 0
     }
 }
+/// Hash-bound lifecycle phase, derived by the owner driver. Owned metadata
+/// cannot be used provisionally with the concurrent fractional signing guard.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum VersionPhase {
+    Concurrent,
+    Owned,
+}
 /// A candidate DAG node. All fields are bound by its semantic identity.
 /// Rank is a local well-founded label, never a consensus sequence.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(deny_unknown_fields))]
 pub struct VersionManifest {
+    pub phase: VersionPhase,
     pub account: String,
     pub parents: BTreeSet<String>,
     pub rank: u64,
@@ -179,7 +192,11 @@ pub struct VersionManifest {
 impl VersionManifest {
     pub fn id(&self, context: &str) -> String {
         digest(alloc::vec![
-            text("cbcl/dag-version/v1"),
+            text("cbcl/dag-version/v2"),
+            text(match self.phase {
+                VersionPhase::Concurrent => "concurrent",
+                VersionPhase::Owned => "owned",
+            }),
             text(context),
             text(&self.account),
             strings(&self.parents),
@@ -200,9 +217,19 @@ pub struct DagVersion {
     pub manifest: VersionManifest,
     pub authorization: Vote,
 }
+/// Explicit owner authorization for permanent conversion of one account.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(deny_unknown_fields))]
+pub struct OwnedSealRequest {
+    pub version: DagVersion,
+    pub authorization: Vote,
+}
 /// Read-only projection of one durable validator for model correspondence.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VersionSnapshot {
+    pub permanent_seal: Option<String>,
+    pub owned_root: Option<String>,
     pub active: String,
     pub visited: BTreeSet<String>,
     pub known: BTreeSet<String>,
@@ -225,6 +252,8 @@ pub enum Event {
     Release(String),
     Version(DagVersion),
     AdoptVersion(String),
+    OwnedProposal(OwnedSealRequest),
+    SealOwned(OwnedSealRequest),
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Limits {
@@ -307,4 +336,56 @@ pub(crate) struct Operation {
     pub epoch: String,
     pub cost: Resources,
     pub credits: BTreeMap<String, Resources>,
+}
+
+/// Public authenticated evidence only; local validator decisions are not relayable.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(deny_unknown_fields))]
+pub enum RelayItem {
+    Act(Act),
+    Version(DagVersion),
+    Owned(OwnedSealRequest),
+    Certificate(Certificate),
+}
+/// Immutable issued act plus its retained dependency closure. The host carries
+/// real transaction authentication envelopes for every Act independently.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(deny_unknown_fields))]
+pub struct Publication {
+    pub act: Act,
+    pub evidence: Vec<RelayItem>,
+}
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(deny_unknown_fields))]
+pub struct SealPublication {
+    pub request: OwnedSealRequest,
+    pub evidence: Vec<RelayItem>,
+}
+pub enum PublicationResult {
+    Seal(SigningRequest),
+    Operation(SigningRequest),
+    /// The certificate which made operation-sign retries obsolete must be relayed
+    /// to the owner, not just the effects vote it enabled.
+    Effects {
+        operation: Certificate,
+        request: SigningRequest,
+    },
+    Finalized {
+        certificate: Certificate,
+        evidence: Vec<RelayItem>,
+    },
+    /// Retain/retry the publication. A fixed point is not target completion.
+    Pending {
+        items: Vec<RelayItem>,
+        reasons: Vec<String>,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RelayReport {
+    pub pending: Vec<RelayItem>,
+    pub reasons: Vec<String>,
 }

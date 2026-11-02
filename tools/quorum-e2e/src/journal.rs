@@ -227,3 +227,132 @@ impl DurableJournal {
         Ok(())
     }
 }
+
+/// Reference durable owner journal, in a namespace separate from validator logs.
+/// Uses a process lock, exact CAS, fsync and directory sync before issuance.
+pub struct DurableOwnerJournal {
+    path: PathBuf,
+    _lock: File,
+    file: Option<File>,
+    context: String,
+    owner: String,
+    records: Vec<OwnerRecord>,
+}
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct OwnerRecord {
+    context: String,
+    owner: String,
+    sequence: u64,
+    event: cbcl_core::quorum::OwnerEvent,
+}
+impl DurableOwnerJournal {
+    pub fn open(path: &Path, context: &str, owner: &str) -> Result<Self> {
+        let lock = OpenOptions::new()
+            .create(true)
+            .truncate(false)
+            .read(true)
+            .write(true)
+            .open(path.with_extension("owner-lock"))
+            .map_err(|e| e.to_string())?;
+        FileExt::try_lock_exclusive(&lock)
+            .map_err(|e| format!("owner journal already active: {e}"))?;
+        let existed = path.exists();
+        let mut records = Vec::new();
+        if existed {
+            let bytes = std::fs::read(path).map_err(|e| e.to_string())?;
+            if bytes.is_empty() || bytes.last() != Some(&b'\n') {
+                return Err("empty or torn owner journal".into());
+            }
+            for line in bytes[..bytes.len() - 1].split(|b| *b == b'\n') {
+                let record: OwnerRecord =
+                    serde_json::from_slice(line).map_err(|e| e.to_string())?;
+                if record.context != context
+                    || record.owner != owner
+                    || record.sequence != records.len() as u64
+                {
+                    return Err("owner journal identity/sequence mismatch".into());
+                }
+                records.push(record);
+            }
+        }
+        let file = if existed {
+            Some(
+                OpenOptions::new()
+                    .append(true)
+                    .open(path)
+                    .map_err(|e| e.to_string())?,
+            )
+        } else {
+            None
+        };
+        Ok(Self {
+            path: path.into(),
+            _lock: lock,
+            file,
+            context: context.into(),
+            owner: owner.into(),
+            records,
+        })
+    }
+}
+impl cbcl_core::quorum::OwnerJournal for DurableOwnerJournal {
+    fn load_owner(
+        &self,
+        context: &str,
+        owner: &str,
+    ) -> Result<Option<Vec<cbcl_core::quorum::OwnerEvent>>> {
+        if context != self.context || owner != self.owner {
+            return Err("owner journal identity mismatch".into());
+        }
+        Ok(self
+            .file
+            .as_ref()
+            .map(|_| self.records.iter().map(|r| r.event.clone()).collect()))
+    }
+    fn append_owner(
+        &mut self,
+        context: &str,
+        owner: &str,
+        expected: Option<u64>,
+        event: &cbcl_core::quorum::OwnerEvent,
+    ) -> Result<()> {
+        if context != self.context
+            || owner != self.owner
+            || expected != self.file.as_ref().map(|_| self.records.len() as u64)
+        {
+            return Err("owner journal compare-and-append conflict".into());
+        }
+        let record = OwnerRecord {
+            context: context.into(),
+            owner: owner.into(),
+            sequence: self.records.len() as u64,
+            event: event.clone(),
+        };
+        let mut bytes = serde_json::to_vec(&record).map_err(|e| e.to_string())?;
+        bytes.push(b'\n');
+        let creating = self.file.is_none();
+        if creating {
+            self.file = Some(
+                OpenOptions::new()
+                    .create_new(true)
+                    .append(true)
+                    .open(&self.path)
+                    .map_err(|e| e.to_string())?,
+            );
+        }
+        let file = self.file.as_mut().unwrap();
+        file.write_all(&bytes)
+            .unwrap_or_else(|e| DurableJournal::fail_stop(e));
+        file.sync_all()
+            .unwrap_or_else(|e| DurableJournal::fail_stop(e));
+        if creating {
+            #[cfg(unix)]
+            File::open(self.path.parent().unwrap())
+                .and_then(|d| d.sync_all())
+                .unwrap_or_else(|e| DurableJournal::fail_stop(e));
+        }
+        self.records.push(record);
+        Ok(())
+    }
+}

@@ -1348,3 +1348,6 @@ fn collective_history_and_cas_are_shared_across_actors() {
 
 #[path = "quorum_runtime/multi_parent.rs"]
 mod multi_parent;
+
+#[path = "quorum_runtime/owned.rs"]
+mod owned;

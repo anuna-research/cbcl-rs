@@ -1,9 +1,9 @@
 ---
 id: SPEC-031
 title: One DAG protocol for quorum counters
-version: 0.1.0
+version: 0.2.0
 status: implemented
-last-updated: 2026-10-31
+last-updated: 2026-11-01
 ---
 
 # One DAG protocol for quorum counters
@@ -28,7 +28,10 @@ This replaces the runtime selection contract in
 traces still apply after constructor simplification. Account DAG execution is
 covered by concrete transfer, resource-isolation and adversarial tests plus review;
 it is not newly claimed as formally refined to the single-pool Lean model.
-No old journal migration, consensus fallback or liveness guarantee is supplied.
+No old journal migration or consensus fallback is supplied.
+[[SPEC-033-owned-counter-lifecycle]] adds the permanent account-owned completion
+lifecycle and its conditional progress contract. It amends this specification's
+earlier prohibition on all seals; collective DAG contention remains unchanged.
 
 [[SPEC-031-unified-quorum-dag#CON-3100]] defines the sole protocol and scoped
 adoption. [[SPEC-031-unified-quorum-dag#TEST-3100]] defines acceptance.
@@ -45,8 +48,11 @@ migration are outside this change.
 ## REQ-3100: Language-selected DAG semantics
 
 Every quorum-budget context MUST use multi-parent adoption. There MUST be no host
-handoff selector, seal protocol, checkpoint quorum, successor choice or legacy
-install API. Unknown legacy serialized events and vote variants MUST reject.
+handoff selector, legacy checkpoint quorum, consensus-selected successor or legacy
+install API. Account-owned permanent seals and full-capacity continuation are
+governed exclusively by [[SPEC-033-owned-counter-lifecycle#REQ-3300]] and
+[[SPEC-033-owned-counter-lifecycle#REQ-3301]]; they do not restore the removed
+checkpoint protocol. Unknown legacy serialized events and vote variants MUST reject.
 Validates: [[SPEC-031-unified-quorum-dag#TEST-3100]].
 
 ## REQ-3101: Account and collective resource isolation
@@ -62,10 +68,12 @@ Validates: [[SPEC-031-unified-quorum-dag#TEST-3100]].
 ## CON-3100: Construction, graph and scoped state
 
 `Context::from_instance` recognizes the existing certification and ownership
-clauses. The only quorum handoff is DAG adoption. Metadata input remains the typed
+clauses. Concurrent quorum updates use DAG adoption; account completion follows
+[[SPEC-033-owned-counter-lifecycle#CON-3300]]. Metadata input uses the typed
 VersionManifest/DagVersion grammar from
 [[SPEC-030-rust-multi-parent-refinement#CON-3000]], with `account` ranging over
-pinned accounts or the collective pool. The context domain identifies DAG semantics.
+pinned accounts or the collective pool. Hash-bound lifecycle phase and DAG identity
+v2 are defined by [[SPEC-033-owned-counter-lifecycle#CON-3300]].
 Legacy Event/VoteKind variants MUST NOT be recognized by serde. No automatic
 conversion of old logs is performed.
 

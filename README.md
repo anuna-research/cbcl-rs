@@ -86,7 +86,12 @@ The state-rules branch supports escrow bounded counters with an optional ceiling
 and per-account headroom. The default profile uses a host issuance gate;
 `(certification quorum-budget)` selects the consensus-free Rust validator runtime,
 with multi-parent DAG adoption, authenticated quorums, durable local journals and
-cancellation-backed refunds. The language declaration selects that protocol; hosts
+cancellation-backed refunds. Account owners have a durable FIFO driver that
+freezes/drains issued work, permanently seals a continuation root and spends the
+full remaining allocation, including the final unit, under the documented progress
+conditions. This addresses the identified protocol budget/cancellation traps; Lean
+proves abstract conditional progress, while universal Rust-driver refinement remains
+open. The language declaration selects that protocol; hosts
 do not choose a separate handoff algorithm.
 See [bounded counters](docs/concepts/bounded-counter.md), the
 [quorum runtime API](docs/reference/quorum-runtime.md), and the

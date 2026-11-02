@@ -6,7 +6,8 @@ mode: reference
 # Quorum runtime API
 
 `cbcl_core::quorum` implements the consensus-free bounded-counter safety protocol
-specified by [[SPEC-031-unified-quorum-dag]]. Its public types use `alloc`;
+specified by [[SPEC-031-unified-quorum-dag]], with the account-owned lifecycle in
+[[SPEC-033-owned-counter-lifecycle]]. Its public types use `alloc`;
 optional `serde` supports typed transport and journal serialization. Parsing and
 allocation limits belong at the host's wire boundary before constructing these types.
 
@@ -67,7 +68,7 @@ Physical durability is a host obligation, not a property of an in-memory test lo
 |---|---|
 | `intend(instance, owner, verb, fields, nonce)` | Shared CBCL binder, adding epoch, dependencies and nonce before owner signing |
 | `register(act, journal, auth)` | Authenticate and retain a candidate; missing dependencies reject for fetch/retry |
-| `prepare_operation(id, journal, auth)` | Enforce local epoch and scaled budget; persist before returning signing bytes |
+| `prepare_operation(id, journal, auth)` | Enforce local epoch, phase and budget/owned slot; persist before returning signing bytes |
 | `receive(certificate, journal, auth)` | Verify every distinct member signature and complete local prerequisites |
 | `prepare_effects(id, journal, auth)` | Require operation QC and no local cancellation fence |
 | `prepare_cancel(owner_request, journal, auth)` | Verify owner request, require no prior local effects vote, persist fence |
@@ -111,7 +112,7 @@ root          M --> N
 |---|---|
 | `version_snapshot(account)` | This scope's active/visited/known versions and complete own-origin journals |
 | `draft_version(parents, held, refunds, credits)` | Derive scope from parents, union cumulative sets and recompute exact books |
-| `Context::version_request(manifest, actor)` | Version authorization bytes for the actual eligible actor |
+| `Context::version_request(manifest, actor)` | Version authorization bytes for the actual eligible actor (not permanent seal intent) |
 | `receive_version(DagVersion, journal, auth)` | Verify actor, parents, rank, inherited sets, exact books and real credit/refund QCs |
 | `adopt_version(id, journal, auth)` | Require current scope's active version among parents and its full signature history held |
 | `version(id)` | Fetch retained verified metadata for relay |
@@ -120,7 +121,8 @@ An account version is authorized by that account's actor. A collective version i
 authorized by an eligible operation actor, never by the pool identity. A host gathers
 candidate histories, drafts a covering manifest, externally signs its authorization
 request and relays the version. Each validator adopts independently. Receipt makes
-metadata known without activating it. No version/checkpoint quorum is needed.
+metadata known without activating it. Concurrent DAG updates need no version quorum.
+Owned roots require the separately authorized seal quorum described below.
 
 The target must include every historical signature from its resource scope,
 including released and zero-cost IDs. Signatures from other accounts do not become
@@ -140,7 +142,8 @@ allocation = genesis + unique cumulative final credits
 Parent allowances are never added. Over-reserved branches need refunds or adequate
 verified credits before they can produce a funded join. Cancellation continues to
 require the original transaction actor. Missing history blocks an adopter; there is
-no timeout unlock, consensus fallback or unconditional progress guarantee.
+no timeout unlock or consensus fallback. These are concurrent DAG constraints;
+account completion uses the separate correct-owner lifecycle below.
 
 `VersionManifest::rank` exceeds every parent rank and every held operation's source
 rank. Drafting computes the smallest such label; callers can choose a larger rank
@@ -267,3 +270,154 @@ There is no CI timing threshold. Measurements and validation are recorded in
 [[quorum-local-cost-evidence]] under [[SPEC-032-quorum-local-update-cost]]. They do
 not establish production TPS; networking, durable writes, real signatures and
 history retention limits remain separate costs.
+
+
+## Account-owned completion lifecycle
+
+Use `OwnerDriver` for the correct logical owner of an account counter. Initialize
+its separate `OwnerJournal` before the first issuance; after restart recover that
+same journal and retain/fetch validator metadata and evidence. Existing owners must
+recover their issuance log rather than initialize an empty replacement. A signing
+key shared by independent writers is outside the progress guarantee.
+
+```text
+intend draft -> durable enqueue/reserve -> poll -> Publish(exact act)
+                                          |
+                              head exceeds concurrent envelope
+                                          |
+                                  freeze new issuance
+                                          |
+                            retry finite issued batch to effects
+                                          |
+                    AuthorizeSeal(exact Owned version manifest)
+                                          |
+                 owner signs VersionRequest + OwnedSealRequest
+                                          |
+                     validators persist seal -> seal votes/QC
+                                          |
+                           adopt -> Publish(full allocation)
+                                          |
+                   effects QC -> next funded Owned version
+```
+
+The existing `(certification quorum-budget ...)` declaration selects this protocol;
+there is no new dialect keyword or host protocol switch. The driver chooses the
+internal lifecycle phase deterministically. Ordinary account DAG APIs remain
+available for concurrent metadata, but raw replica calls alone do not implement
+the correct-owner progress policy. Collective pools retain their previous
+contention behavior and cannot be converted to owned accounts.
+
+`OwnerDriver::enqueue(draft, replica, owner_journal)` takes an unsigned draft built
+by `Replica::intend`. It derives resource costs, reserves known-final funds and
+rejects changed nonce reuse or overcommitted queues. `poll` exposes `Publish` (act and retained evidence),
+`AuthorizeSeal`, `AuthorizeVersion`, `Adopt` or `Idle`. Every issuance and selected
+manifest is journaled first. Host signs/relays the exact returned act or manifest and the accompanying
+prerequisites;
+retries reuse it. Continue polling and relaying evidence until completion. The
+driver never cancels issued work. It completes an owned operation before issuing
+the next version's operation. Certificates—not acknowledgements or timeouts—release
+queue reservations. No timeout reclaims funds.
+
+`VersionManifest::phase` is hash-bound (`Concurrent`/`Owned`, DAG identity v2).
+`draft_version` inherits Owned phase from any Owned parent. An Owned root must be
+marked Owned before generating either owner authorization. The owner driver
+handles this. Owned metadata cannot be adopted or signed before a verified seal
+QC; phase downgrade rejects. A `VersionRequest` signature never authorizes a seal.
+
+| API | Meaning |
+|---|---|
+| `Context::owned_seal_request(manifest, owner)` | Distinct permanent-seal owner signing domain; requires an Owned account manifest |
+| `record_owned_proposal(request, journal, auth)` | Verify drained books, both owner authorizations and retain metadata for relay |
+| `prepare_owned_seal(request, journal, auth)` | Require active parent and all historical signatures held; persist the unique account seal before returning a validator signing request |
+| `receive(OwnedSeal certificate, journal, auth)` | Verify quorum before enabling full-capacity continuation |
+| `owned_root(account)` | Verified certificate-derived root, never a caller-supplied mode flag |
+| `version_snapshot(account)` | Includes permanent local seal and verified owned root separately |
+
+Full-capacity owned signing requires a descendant of that root, the active version,
+cost within every allocation coordinate, and an unused permanent version slot.
+Historical fences/cancellation QCs reject, including those recorded before seal
+arrival. Owned operations cannot be canceled or released; another distinct operation
+cannot reuse their slot. Incoming and self credits require actual effects QCs and
+unique cumulative transaction IDs. Rights and optional headroom use the same rules.
+
+Progress assumes at most f Byzantine validators among 3f+1, a correct coherent
+owner, reliable eventual delivery, fair honest service, finite draining and available
+configured catalogue/journal capacity. It has no clock-bound guarantee and does
+not require Byzantine cooperation. Byzantine owners may stall their own accounts.
+The Lean model proves abstract safety and conditional progress; selected shared
+traces and real-signature/durable-journal tests validate Rust execution. This is
+not a universal source/network/filesystem refinement. See [[owned-lifecycle-evidence]] for precise proof and correspondence boundaries.
+
+
+### Protocol-level progress
+
+For a funded account request outside the fractional envelope, `OwnerDriver` stops
+new issuance, drains its finite issued batch, obtains an owner-authorized seal QC
+and continues with full-capacity versions. Finishing the issued batch requires no
+new spending allowance. The driver retries its exact issued acts and never races
+them against cancellation. The identified residual-budget and split-cancellation
+traps therefore have an explicit avoidance/completion path for a correct owner.
+
+The intended client contract is eventual receipt and verification of an effects
+certificate for each funded FIFO request under the conditions above. This includes
+spending the entire remaining balance and the final base unit, without Byzantine
+votes. A pending certificate is not a deadline-triggered refund or balance reset.
+
+The formal result is conditional progress in the abstract Lean model. Its explicit
+owner-history, funding and prerequisite-availability premises have not been
+universally derived from every Rust `OwnerDriver` execution. Shared traces,
+adversarial tests and durable-journal recovery tests provide implementation evidence;
+a universal Rust-driver refinement and implementation-wide deadlock-freedom proof
+remain open. This boundary concerns the protocol implementation itself, separately
+from outages or loss of keys/storage. Collective contention and conflicting owner
+issuance remain outside the account progress contract.
+
+
+### Retained publication and lagging validators
+
+`OwnerAction::Publish(Publication)` contains the immutable issued `act` and its
+transitive counter `evidence`. `AuthorizeSeal { manifest, evidence }` includes old
+holds/credits and their prerequisites. Host signs the manifest's two distinct owner
+requests, then sends `SealPublication { request, evidence }`. Act signing remains
+separate: transport must provide the real authentication envelope for **each**
+relayed Act, plus any normal CBCL causal/admission evidence required by the host.
+An Act cache or a publisher's assertion is not authentication.
+
+`Replica::prepare_publication` imports evidence through the ordinary guards until
+it reaches a fixed point. It catches up along a compatible verified ancestry path,
+using ordinary direct-parent adoption and complete historical-signature coverage,
+then prepares an operation/effects vote. It searches alternative covering parent
+paths rather than relying on hash/arrival order. `prepare_seal_publication` similarly
+imports the drained batch's actual certificates and catches up to a compatible
+seal parent before voting. A root QC also permits forward traversal of its pre-root
+ancestors; the certified-root budget guard still forbids new signatures outside the
+owned root. No old allowance is reopened.
+
+Responses distinguish pending work from observed completion:
+
+- `Operation(request)` / `Seal(request)`: local decision was durably recorded before
+  exposing signing bytes.
+- `Effects { operation, request }`: includes the actual operation QC that enabled
+  this effects vote. Relay/verify it at the owner before collecting finality.
+- `Finalized { certificate, evidence }`: supplies the retained dependency chain,
+  including operation QC before effects QC. The supplied target is authenticated
+  even when its certificate was already cached.
+- `Pending { items, reasons }`: retain/retry; a fixed point or an empty `items` list
+  is not completion. Adoption/signing may still need prerequisites or service.
+
+`receive_evidence` imports response proofs without making local voting decisions.
+Its `RelayReport` retains unresolved objects and reasons. Individual accepted
+journal events survive a later batch failure. Catch-up is also a sequence of
+individually atomic durable adoptions, not a transactional rollback of the batch.
+
+The sender's durable issued record remains pending until the owner verifies the
+actual effects certificate and journals completion. Retry current publications
+with their prerequisites after reordering, rejection or restart. An early valid
+Byzantine-assisted QC does not require every honest validator to have signed the
+old operation; later publications let lagging validators catch up without waiting
+for Byzantine cooperation. Privately existing/unreceived votes never retire honest
+work. Capacity assumptions include retained dependencies, cumulative metadata,
+transport envelopes and local service—not only transaction counts.
+
+See [[SPEC-034-owned-progress-closure]] and [[owned-progress-evidence]] for current
+proof components and the still-open universal owner/product completion theorem.

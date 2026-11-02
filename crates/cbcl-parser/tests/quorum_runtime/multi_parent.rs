@@ -68,6 +68,7 @@ impl OracleNet {
                     .map(|i| x.acts[*i].as_ref().unwrap().address.clone()))
             };
             let m = VersionManifest {
+                phase: VersionPhase::Concurrent,
                 account: COLLECTIVE_POOL.into(),
                 parents: set(indices(&v["parents"]).iter().map(|i| x.ids[*i].clone())),
                 rank: v["rank"].as_u64().unwrap(),

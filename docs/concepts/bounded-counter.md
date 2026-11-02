@@ -157,22 +157,25 @@ returns domain-separated `SigningRequest` bytes; it stores no private keys.
 An operation certificate reserves capacity but does not make the transfer final.
 Only a verified effects certificate contributes to the runtime balance.
 
-Each validator has its own scaled signing budget per account epoch. The guard is
+In the concurrent phase, each validator has its own scaled signing budget per
+resource scope and epoch. The guard is
 `quorum * signed_cost <= (f+1) * epoch_allocation`, independently for rights and
 headroom. It does not consult a shared available-balance ledger. This conservative
-rule can reject a payment even when the displayed balance covers it. In particular,
-one transaction cannot necessarily spend the entire balance. A covering DAG version can
-refresh residual capacity while carrying every potentially late old certificate.
-This construction proves safety; contention can stall indefinitely.
+rule can reject a payment even when the displayed balance covers it, including a
+full-balance or final-unit payment. An account's `OwnerDriver` responds by entering
+the completion lifecycle below; it does not keep retrying the same insufficient
+fractional budget. Collective pools retain the concurrent guard and its contention
+limits.
 
-An owner's signed cancellation request allows validators that have not signed
-effects to fence the operation. A cancellation quorum permits local release and
-DAG-version refunds. Released and zero-cost signatures stay in every covering
-version. A validator adopts only from its current active parent and requires its
-complete signing history for that resource scope. Two branches can join by unioning
-obligations and accounting for each ID once. There are no seal reports, successor
-votes or host-selected handoff algorithms. Timeouts never unlock reservations;
-contention can still stall without sufficient refunds or credits.
+For concurrent operations, an owner's signed cancellation request allows validators
+that have not signed effects to fence the operation. A cancellation quorum permits
+local release and DAG-version refunds. Released and zero-cost signatures stay in
+every covering version. A validator adopts only from its current active parent and
+requires its complete signing history for that resource scope. Two branches can
+join by unioning obligations and accounting for each ID once. Collective DAG updates
+need no seal or successor votes. Raw concurrent use can stall through contention
+or split execution/cancellation votes; the correct-owner driver avoids that race
+by finishing issued work without cancellation. Timeouts never unlock reservations.
 
 `Replica::finalized_view()` reports `status: finalized-view`, verified known-final
 IDs, pending operation IDs, rights, optional headroom, and total value. Its
@@ -241,3 +244,71 @@ Both account and collective quorum counters use multi-parent DAG adoption throug
 provide storage, signing and transport. [[SPEC-031-unified-quorum-dag]] replaces
 the earlier single-parent runtime. Collective Lean safety/refinement and shared
 Rust traces remain applicable; universal Rust source equivalence is not claimed.
+
+
+## Spending the whole account balance
+
+For account ownership, the durable owner driver batches requests inside the
+concurrent signing envelope. If the FIFO head does not fit, it freezes issuance,
+drains its finite published batch to effects, and proposes one permanently sealed
+Owned root. A quorum authorizes the cutover. Each following Owned version permits
+one distinct operation using its full rights/headroom allocation, including the
+last unit. Later versions carry complete books and real effects credits.
+
+This remains consensus-free: no account or validator selects a global transaction
+order. The correct logical owner sequences its own continuation; other accounts
+progress independently. The existing `quorum-budget` declaration needs no added
+language option. Signing and durable storage remain host layers. Collective pools
+retain their contention limits.
+
+Use `quorum::OwnerDriver`, with a separate nonforking `OwnerJournal` initialized
+before first publication. Raw validator APIs provide safety guards but do not
+implement that client's freeze/drain/retry policy. Availability assumes a correct
+coherent owner, fair honest service, eventual reliable delivery, at most f Byzantine
+validators in 3f+1, and available configured catalogue/storage capacity. There is no
+timeout refund or fixed finality deadline. See [[SPEC-033-owned-counter-lifecycle]],
+[[quorum-runtime]] and [[owned-lifecycle-evidence]] for API, proof scope and evidence.
+
+
+### Protocol stalls and the progress claim
+
+The account lifecycle addresses two protocol-level traps: insufficient fractional
+budget for an otherwise funded request, and a split between execution and
+cancellation votes. A funded request outside the envelope triggers freeze, drain
+and a permanent seal. Draining finishes the finite already-issued batch; it needs
+no fresh spending allowance. The sealed continuation then uses the full remaining
+allocation. The driver never cancels its issued operations, so its recovery path
+does not depend on collecting a competing cancellation quorum.
+
+Under the stated correct-owner, honest-quorum, delivery, fair-service and capacity
+conditions, the intended contract is that each funded FIFO request eventually
+obtains an observed effects certificate, including a full-balance or final-unit
+request. Waiting for messages or certificates during this lifecycle is an
+asynchronous pending state; the model supplies no fixed completion deadline.
+Collective pools and conflicting owner behavior have no corresponding progress
+claim.
+
+The current Lean results establish abstract safety and conditional progress under
+explicit batch, history, funding and prerequisite-availability premises. Tests
+exercise the Rust driver's establishment of those conditions. A universal proof
+that every Rust driver execution establishes the model's progress premises remains
+open. Consequently, the implemented escape from the identified protocol traps
+must be distinguished from a proved absence of every possible implementation
+protocol deadlock. See [[owned-lifecycle-evidence]] for the precise boundary.
+
+
+### Closing the progress proof
+
+[[SPEC-034-owned-progress-closure]] tracks the remaining proof work. Publications
+now retain transitive counter prerequisites. Receivers retry them to a fixed point
+and catch up along verified ancestry before signing; failed out-of-order adoptions
+need not be resent as separate old jobs. Seal requests carry the drained batch's
+actual certificates too. Effects responses relay their enabling operation QC, and
+completed responses carry the proof chain, so the owner can verify observed finality.
+
+The new Lean components derive dependency readiness from an acyclic catalogue and
+an executable retry queue, permit retirement only on owner-observed evidence, and
+derive full-allocation head funding from checked admission/reservation invariants.
+They are components of the proof. The theorem composing the complete executable
+owner, dependency relay, validators and completion journal remains open; a blanket
+protocol deadlock-freedom claim is still premature.

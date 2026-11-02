@@ -82,6 +82,12 @@ pub struct Auth {
 }
 impl Auth {
     pub fn new(setup: &Setup) -> Result<Self> {
+        let dialect = parse_dialect(&parse(DIALECT).map_err(|e| e.to_string())?)
+            .map_err(|e| e.to_string())?;
+        Self::with_dialect(setup, dialect)
+    }
+    /// Reuse real signature/protocol admission for account lifecycle tests.
+    pub fn with_dialect(setup: &Setup, dialect: cbcl_core::dialect::Dialect) -> Result<Self> {
         let keys = setup
             .public_keys
             .iter()
@@ -96,8 +102,7 @@ impl Auth {
             keys,
             signatures: BTreeMap::new(),
             genesis: setup.genesis.iter().map(|s| s.act.clone()).collect(),
-            dialect: parse_dialect(&parse(DIALECT).map_err(|e| e.to_string())?)
-                .map_err(|e| e.to_string())?,
+            dialect,
         };
         for signed in &setup.genesis {
             auth.remember(signed);

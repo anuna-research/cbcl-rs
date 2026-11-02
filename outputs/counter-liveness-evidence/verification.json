@@ -1,0 +1,26 @@
+{
+  "passed": true,
+  "audits": [
+    {
+      "audit": "ResidualBalanceAudit.lean",
+      "kernel_passed": true,
+      "sha256": "f46da3b699772fc6a8918d00fb12bd8cb55c13774f5abf93354783171def75c0",
+      "negative_control": {
+        "replacement": "cost := fun _ _ => 0",
+        "rejected": true,
+        "scope": "Changed cost or removed cancellation split; proof must no longer typecheck."
+      }
+    },
+    {
+      "audit": "CancellationRaceAudit.lean",
+      "kernel_passed": true,
+      "sha256": "905683d0e3194490651ab577b09b54d5b0aae66cae7ca9838c514429b4477215",
+      "negative_control": {
+        "replacement": ".effect 0 0, .effect 0 1, .effect 0 2",
+        "rejected": true,
+        "scope": "Changed cost or removed cancellation split; proof must no longer typecheck."
+      }
+    }
+  ],
+  "limitations": "Ideal current-model counterexamples; no replacement protocol implemented, no universal Rust/network refinement, no general impossibility theorem."
+}

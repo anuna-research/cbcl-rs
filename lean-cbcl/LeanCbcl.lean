@@ -66,3 +66,9 @@ import LeanCbcl.ConsensusFree
 import LeanCbcl.ConsensusFree.Tests
 import LeanCbcl.ConsensusFree.Liveness
 import LeanCbcl.ConsensusFree.Scheduler
+
+import LeanCbcl.ConsensusFree.OwnedLifecycle
+
+import LeanCbcl.ConsensusFree.OwnedProgress
+
+import LeanCbcl.ConsensusFree.OwnerFunding

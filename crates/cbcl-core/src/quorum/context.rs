@@ -179,6 +179,7 @@ impl Context {
             root_manifests.insert(
                 root,
                 VersionManifest {
+                    phase: VersionPhase::Concurrent,
                     account: account.clone(),
                     parents: BTreeSet::new(),
                     rank: 0,
@@ -290,6 +291,20 @@ impl Context {
             return Err("unauthorized DAG version actor".into());
         }
         Ok(self.request(VoteKind::VersionRequest, &manifest.id(&self.id), actor))
+    }
+    /// Permanent account conversion requires a distinct owner signature domain.
+    pub fn owned_seal_request(
+        &self,
+        manifest: &VersionManifest,
+        actor: &str,
+    ) -> Result<SigningRequest> {
+        if manifest.phase != VersionPhase::Owned
+            || self.ownership() != Ownership::Account
+            || !self.version_actor(&manifest.account, actor)
+        {
+            return Err("only the account owner can authorize a permanent seal".into());
+        }
+        Ok(self.request(VoteKind::OwnedSealRequest, &manifest.id(&self.id), actor))
     }
     pub(crate) fn matches(&self, inst: &Instance) -> bool {
         self.thread == inst.thread

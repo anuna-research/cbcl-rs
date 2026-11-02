@@ -17,6 +17,8 @@ use alloc::{
 #[derive(Debug, Default)]
 struct State {
     operations: BTreeMap<String, Operation>,
+    owned: BTreeMap<String, OwnedSealRequest>,
+    sealed: BTreeMap<String, String>,
     certificates: BTreeMap<(VoteKind, String), Certificate>,
     versions: BTreeMap<String, DagVersion>,
     visited: BTreeSet<String>,
@@ -33,6 +35,7 @@ struct State {
 #[derive(Clone)]
 enum Update {
     Candidate(String, Operation),
+    Owned(String, OwnedSealRequest, bool),
     Certificate((VoteKind, String), Certificate),
     Version(String, DagVersion),
     Adopt {
@@ -250,6 +253,450 @@ impl Replica {
         }
         Ok(r)
     }
+    /// Plan a finite forward path; validate coverage at every NEW node before IO.
+    /// The starting current node need not hold signatures made in its own slot.
+    fn owned_adoption_path(&self, target: &str) -> Result<Vec<String>> {
+        let manifest = self.epoch(target)?;
+        if manifest.phase != VersionPhase::Owned {
+            return Ok(Vec::new());
+        }
+        let root = self
+            .owned_root(&manifest.account)
+            .ok_or("catch-up awaits owned-root QC")?;
+        if !self.descends(target, root)? {
+            return Err("catch-up target outside owned root".into());
+        }
+        self.adoption_path(target, Some(root))
+    }
+    fn adoption_path(&self, target: &str, boundary: Option<&str>) -> Result<Vec<String>> {
+        let manifest = self.epoch(target)?;
+        let current = self.active_epoch(&manifest.account)?;
+        if current == target {
+            return Ok(Vec::new());
+        }
+        let mut todo = alloc::vec![target.to_string()];
+        let mut seen = BTreeSet::from([target.to_string()]);
+        let mut forward = BTreeMap::new();
+        let mut found = false;
+        while let Some(id) = todo.pop() {
+            if id == current {
+                found = true;
+                break;
+            }
+            let node = self.epoch(&id)?;
+            if let Some(root) = boundary {
+                if !self.descends(&id, root)? && !self.descends(root, &id)? {
+                    continue;
+                }
+            } else if node.phase == VersionPhase::Owned
+                && self.owned_root(&manifest.account).is_none()
+            {
+                continue;
+            }
+            // A multi-parent DAG can offer an incompatible first branch. Skip
+            // it and search another path; never let arrival/hash order strand
+            // a validator when a covering path exists.
+            if self.state.signed.iter().any(|signed| {
+                self.state.operations[signed].account == manifest.account
+                    && !node.held.contains(signed)
+            }) {
+                continue;
+            }
+            for parent in &node.parents {
+                if seen.insert(parent.clone()) {
+                    forward.insert(parent.clone(), id.clone());
+                    todo.push(parent.clone());
+                }
+            }
+        }
+        if !found {
+            return Err("catch-up target is not a descendant of current version".into());
+        }
+        let mut path = Vec::new();
+        let mut cursor = current.to_string();
+        while cursor != target {
+            let next = forward.get(&cursor).ok_or("broken catch-up path")?;
+            let node = self.epoch(next)?;
+            if let Some(root) = boundary {
+                if !self.descends(next, root)? && !self.descends(root, next)? {
+                    return Err("catch-up node is outside certified root ancestry".into());
+                }
+            } else if node.phase == VersionPhase::Owned
+                && self.owned_root(&manifest.account).is_none()
+            {
+                return Err("catch-up awaits owned-root QC".into());
+            }
+            for signed in &self.state.signed {
+                if self.op(signed)?.account == manifest.account && !node.held.contains(signed) {
+                    return Err("catch-up node omits historical signature".into());
+                }
+            }
+            path.push(next.clone());
+            cursor = next.clone();
+        }
+        Ok(path)
+    }
+    /// Apply ordinary adoption events, retaining durable prefix progress on IO
+    /// failure. This is a retryable multi-event service, not an atomic transaction.
+    pub fn catch_up_owned<J: Journal, A: Authentication>(
+        &mut self,
+        target: &str,
+        journal: &mut J,
+        auth: &A,
+    ) -> Result<()> {
+        let path = self.owned_adoption_path(target)?;
+        for id in path {
+            self.adopt_version(&id, journal, auth)?;
+        }
+        Ok(())
+    }
+
+    /// Export the transitive verified dependency closure, deduplicated by identity.
+    /// Host transport must attach each Act's actual authentication envelope.
+    pub fn publication(&self, act: &Act) -> Result<Publication> {
+        self.operation(act)?;
+        Ok(Publication {
+            act: act.clone(),
+            evidence: self.relay_evidence(
+                Some(act),
+                alloc::vec![act.address.clone()],
+                Vec::new(),
+            )?,
+        })
+    }
+    /// Old holds/credits and their transitive ancestry are also required at seal.
+    pub fn seal_evidence(&self, manifest: &VersionManifest) -> Result<Vec<RelayItem>> {
+        self.check_version_manifest(manifest)?;
+        self.relay_evidence(
+            None,
+            manifest.held.union(&manifest.credited).cloned().collect(),
+            manifest.parents.iter().cloned().collect(),
+        )
+    }
+    fn relay_evidence(
+        &self,
+        target: Option<&Act>,
+        mut operations: Vec<String>,
+        mut versions: Vec<String>,
+    ) -> Result<Vec<RelayItem>> {
+        let mut seen_ops = BTreeSet::new();
+        let mut seen_versions = BTreeSet::new();
+        let mut seen_roots = BTreeSet::new();
+        let mut evidence = Vec::new();
+        while !operations.is_empty() || !versions.is_empty() {
+            while let Some(id) = operations.pop() {
+                if !seen_ops.insert(id.clone()) {
+                    continue;
+                }
+                let candidate = match target.filter(|act| id == act.address) {
+                    Some(act) => act,
+                    None => self.operation_act(&id).ok_or("missing relay operation")?,
+                };
+                let op = self.operation(candidate)?;
+                versions.push(op.epoch);
+                evidence.push(RelayItem::Act(candidate.clone()));
+                for kind in [VoteKind::Operation, VoteKind::Effects, VoteKind::Cancel] {
+                    if let Some(cert) = self.certificate(kind, &id) {
+                        evidence.push(RelayItem::Certificate(cert.clone()));
+                    }
+                }
+            }
+            if let Some(id) = versions.pop() {
+                if !seen_versions.insert(id.clone()) {
+                    continue;
+                }
+                let manifest = self.epoch(&id)?;
+                let Some(version) = self.version(&id) else {
+                    continue;
+                }; // pinned genesis
+                evidence.push(RelayItem::Version(version.clone()));
+                versions.extend(manifest.parents.iter().cloned());
+                operations.extend(manifest.held.iter().cloned());
+                operations.extend(manifest.credited.iter().cloned());
+                operations.extend(manifest.refunded.iter().cloned());
+                if manifest.phase == VersionPhase::Owned {
+                    let root = self
+                        .owned_root(&manifest.account)
+                        .ok_or("missing relay owned-root QC")?;
+                    if !self.descends(&id, root)? {
+                        return Err("relay target is outside owned root".into());
+                    }
+                    if seen_roots.insert(root.to_string()) {
+                        evidence.push(RelayItem::Owned(self.state.owned[root].clone()));
+                        evidence.push(RelayItem::Certificate(
+                            self.certificate(VoteKind::OwnedSeal, root)
+                                .ok_or("missing seal QC")?
+                                .clone(),
+                        ));
+                        versions.push(root.to_string());
+                    }
+                }
+            }
+        }
+        Ok(evidence)
+    }
+    fn bound_relay_act(&self, act: &Act) -> Result<()> {
+        if act.signer.len() > self.limits.object_bytes
+            || act.address.len() > self.limits.object_bytes
+            || act.verb.len() > self.limits.object_bytes
+        {
+            return Err("relay act header limit exceeded".into());
+        }
+        bounded_message(&act.message, self.limits.object_bytes)?;
+        self.context.structural(act)
+    }
+    fn bound_relay_vote(&self, vote: &Vote) -> Result<()> {
+        if vote.signature.len() > self.limits.signature_bytes
+            || vote.context != self.context.id
+            || vote.payload.len() > 71
+        {
+            return Err("relay vote domain or signature limit exceeded".into());
+        }
+        // Key names are bounded by the initialized roster, not by the unrelated
+        // Act byte limit. Crypto signature size has its own native limit.
+        if !self.context.actors.contains(&vote.signer)
+            && !self.context.committee.contains(&vote.signer)
+        {
+            return Err("unknown relay signing identity".into());
+        }
+        Ok(())
+    }
+    fn bound_relay_version(&self, version: &DagVersion) -> Result<()> {
+        let m = &version.manifest;
+        if !self.context.initial.contains_key(&m.account)
+            || m.parents.len() > self.limits.versions.saturating_add(1)
+            || m.held.len() > self.limits.operations
+            || m.refunded.len() > self.limits.operations
+            || m.credited.len() > self.limits.operations
+        {
+            return Err("relay manifest scope or count limit exceeded".into());
+        }
+        // Existing act/version identity functions emit 71-byte digest IDs.
+        // Match ordinary collection bounds; do not impose a new aggregate-byte
+        // ceiling that could strand already admitted cumulative metadata.
+        for ids in [&m.parents, &m.held, &m.refunded, &m.credited] {
+            if ids.iter().any(|id| id.len() > 71) {
+                return Err("relay identifier limit exceeded".into());
+            }
+        }
+        self.bound_relay_vote(&version.authorization)
+    }
+    fn bound_seal_request(&self, request: &OwnedSealRequest) -> Result<()> {
+        self.bound_relay_version(&request.version)?;
+        self.bound_relay_vote(&request.authorization)
+    }
+    fn bound_relay_item(&self, item: &RelayItem) -> Result<()> {
+        match item {
+            RelayItem::Act(act) => self.bound_relay_act(act),
+            RelayItem::Version(v) => self.bound_relay_version(v),
+            RelayItem::Owned(r) => self.bound_seal_request(r),
+            RelayItem::Certificate(c) => {
+                if c.votes.len() > self.context.committee.validators.len() || c.payload.len() > 71 {
+                    return Err("relay certificate count or payload limit exceeded".into());
+                }
+                for v in &c.votes {
+                    self.bound_relay_vote(v)?;
+                }
+                Ok(())
+            }
+        }
+    }
+    fn relay_item_bound(&self) -> usize {
+        self.limits
+            .operations
+            .saturating_mul(4)
+            .saturating_add(self.limits.versions.saturating_mul(3))
+            .saturating_add(1)
+    }
+    /// Seal preparation uses the same retry closure; a lagging honest validator
+    /// must not need a Byzantine sender to supply the old effects certificates.
+    pub fn prepare_seal_publication<J: Journal, A: Authentication>(
+        &mut self,
+        publication: &SealPublication,
+        journal: &mut J,
+        auth: &A,
+    ) -> Result<PublicationResult> {
+        self.bound_seal_request(&publication.request)?;
+        if publication.evidence.len() > self.relay_item_bound() {
+            return Err("seal evidence limit exceeded".into());
+        }
+        let (pending, reasons) = self.import_relay_items(&publication.evidence, journal, auth)?;
+        let id = publication.request.version.manifest.id(&self.context.id);
+        if let Some(cert) = self.certificate(VoteKind::OwnedSeal, &id) {
+            self.check_owned(&publication.request, auth)?;
+            let mut evidence = self.seal_evidence(&publication.request.version.manifest)?;
+            evidence.push(RelayItem::Owned(publication.request.clone()));
+            evidence.push(RelayItem::Certificate(cert.clone()));
+            return Ok(PublicationResult::Finalized {
+                certificate: cert.clone(),
+                evidence,
+            });
+        }
+        if !pending.is_empty() {
+            return Ok(PublicationResult::Pending {
+                items: pending,
+                reasons,
+            });
+        }
+        self.check_owned(&publication.request, auth)?;
+        let manifest = &publication.request.version.manifest;
+        let current = self.active_epoch(&manifest.account)?.to_string();
+        if !manifest.parents.contains(&current)
+            && !self.state.sealed.contains_key(&manifest.account)
+        {
+            let path = manifest.parents.iter().find_map(|parent| {
+                self.adoption_path(parent, self.owned_root(&manifest.account))
+                    .ok()
+            });
+            let Some(path) = path else {
+                return Ok(PublicationResult::Pending {
+                    items: Vec::new(),
+                    reasons: alloc::vec!["seal parent catch-up needs compatible ancestry".into()],
+                });
+            };
+            for id in path {
+                self.adopt_version(&id, journal, auth)?;
+            }
+        }
+        match self.prepare(&Event::SealOwned(publication.request.clone()), auth) {
+            Err(reason) => Ok(PublicationResult::Pending {
+                items: Vec::new(),
+                reasons: alloc::vec![reason],
+            }),
+            Ok(_) => Ok(PublicationResult::Seal(self.prepare_owned_seal(
+                publication.request.clone(),
+                journal,
+                auth,
+            )?)),
+        }
+    }
+    fn import_relay_items<J: Journal, A: Authentication>(
+        &mut self,
+        items: &[RelayItem],
+        journal: &mut J,
+        auth: &A,
+    ) -> Result<(Vec<RelayItem>, Vec<String>)> {
+        let bound = self
+            .limits
+            .operations
+            .saturating_mul(4)
+            .saturating_add(self.limits.versions.saturating_mul(3))
+            .saturating_add(2);
+        if items.len() > bound {
+            return Err("publication evidence limit exceeded".into());
+        }
+        for item in items {
+            self.bound_relay_item(item)?;
+        }
+        let mut pending = items.to_vec();
+        let mut reasons;
+        loop {
+            let before = pending.len();
+            let mut deferred = Vec::new();
+            reasons = Vec::new();
+            for item in pending {
+                let event = match &item {
+                    RelayItem::Act(a) => Event::Candidate(a.clone()),
+                    RelayItem::Version(v) => Event::Version(v.clone()),
+                    RelayItem::Owned(r) => Event::OwnedProposal(r.clone()),
+                    RelayItem::Certificate(c) => Event::Certificate(c.clone()),
+                };
+                match self.prepare(&event, auth) {
+                    Err(reason) => {
+                        reasons.push(reason);
+                        deferred.push(item);
+                    }
+                    Ok(_) => self.commit(event, journal, auth)?,
+                }
+            }
+            pending = deferred;
+            if pending.is_empty() || pending.len() == before {
+                break;
+            }
+        }
+        Ok((pending, reasons))
+    }
+    /// Import peer-retained proofs without making any local voting decision.
+    /// This is also the owner-side path for feedback certificates. Individual
+    /// accepted journal events remain durable if a later append fails.
+    pub fn receive_evidence<J: Journal, A: Authentication>(
+        &mut self,
+        items: &[RelayItem],
+        journal: &mut J,
+        auth: &A,
+    ) -> Result<RelayReport> {
+        let (pending, reasons) = self.import_relay_items(items, journal, auth)?;
+        Ok(RelayReport { pending, reasons })
+    }
+    /// Retry public evidence to a finite fixed point, using ordinary guards and
+    /// individually atomic journal events. Accepted prefix progress survives errors.
+    /// No signing request escapes a failed journal append. Pending is not success.
+    pub fn prepare_publication<J: Journal, A: Authentication>(
+        &mut self,
+        publication: &Publication,
+        journal: &mut J,
+        auth: &A,
+    ) -> Result<PublicationResult> {
+        self.bound_relay_act(&publication.act)?;
+        if !auth.authenticate_act(&publication.act) {
+            return Err("publication target authentication failed".into());
+        }
+        if publication.evidence.len() > self.relay_item_bound() {
+            return Err("publication evidence limit exceeded".into());
+        }
+        for item in &publication.evidence {
+            self.bound_relay_item(item)?;
+        }
+        let mut items = publication.evidence.clone();
+        items.push(RelayItem::Act(publication.act.clone()));
+        let (pending, reasons) = self.import_relay_items(&items, journal, auth)?;
+        if let Some(cert) = self.certificate(VoteKind::Effects, &publication.act.address) {
+            return Ok(PublicationResult::Finalized {
+                certificate: cert.clone(),
+                evidence: self.publication(&publication.act)?.evidence,
+            });
+        }
+        if !pending.is_empty() {
+            return Ok(PublicationResult::Pending {
+                items: pending,
+                reasons,
+            });
+        }
+        if self.has(VoteKind::Operation, &publication.act.address) {
+            let operation = self
+                .certificate(VoteKind::Operation, &publication.act.address)
+                .ok_or("missing operation QC")?
+                .clone();
+            let request = self.prepare_effects(&publication.act.address, journal, auth)?;
+            return Ok(PublicationResult::Effects { operation, request });
+        }
+        let epoch = self.op(&publication.act.address)?.epoch.clone();
+        match self.owned_adoption_path(&epoch) {
+            Err(reason) => {
+                return Ok(PublicationResult::Pending {
+                    items: Vec::new(),
+                    reasons: alloc::vec![reason],
+                })
+            }
+            Ok(path) => {
+                for id in path {
+                    self.adopt_version(&id, journal, auth)?;
+                }
+            }
+        }
+        match self.prepare(&Event::Sign(publication.act.address.clone()), auth) {
+            Err(reason) => Ok(PublicationResult::Pending {
+                items: Vec::new(),
+                reasons: alloc::vec![reason],
+            }),
+            Ok(_) => Ok(PublicationResult::Operation(self.prepare_operation(
+                &publication.act.address,
+                journal,
+                auth,
+            )?)),
+        }
+    }
+
     pub fn context(&self) -> &Context {
         &self.context
     }
@@ -475,22 +922,56 @@ impl Replica {
             credits: [(to, credit)].into_iter().collect(),
         })
     }
-    fn charge(&self, epoch: &str, extra: &str) -> Result<Resources> {
-        self.state
-            .charges
-            .get(epoch)
-            .copied()
-            .unwrap_or_default()
-            .add(self.op(extra)?.cost)
-    }
     fn budget(&self, id: &str) -> Result<Resources> {
-        let op = self.op(id)?;
+        self.budget_op(id, self.op(id)?)
+    }
+    fn budget_op(&self, id: &str, op: &Operation) -> Result<Resources> {
         let epoch = self.epoch(&op.epoch)?;
         if self.state.active.get(&op.account) != Some(&op.epoch) || self.state.released.contains(id)
         {
             return Err("version inactive or operation released".into());
         }
-        let used = self.charge(&op.epoch, id)?;
+        if let Some(root) = self.owned_root(&op.account) {
+            if self.state.fences.contains(id) || self.has(VoteKind::Cancel, id) {
+                return Err("owned operation has a preexisting cancellation fence".into());
+            }
+            if !self.descends(&op.epoch, root)? {
+                return Err("operation outside certified owned continuation".into());
+            }
+            if self
+                .state
+                .signed
+                .iter()
+                .any(|other| self.state.operations[other].epoch == op.epoch)
+            {
+                return Err("owned version slot already consumed".into());
+            }
+            if op.cost.rights > epoch.allocation.rights
+                || op.cost.headroom > epoch.allocation.headroom
+            {
+                return Err("owned allocation exceeded".into());
+            }
+            return self
+                .state
+                .charges
+                .get(&op.epoch)
+                .copied()
+                .unwrap_or_default()
+                .add(op.cost);
+        }
+        if epoch.phase == VersionPhase::Owned {
+            return Err("owned metadata awaits certified root".into());
+        }
+        if self.state.sealed.contains_key(&op.account) {
+            return Err("account sealed; awaiting certificate".into());
+        }
+        let used = self
+            .state
+            .charges
+            .get(&op.epoch)
+            .copied()
+            .unwrap_or_default()
+            .add(op.cost)?;
         let q = self.context.committee.quorum as i128;
         let k = i128::from(self.context.committee.faults) + 1;
         if used.rights.checked_mul(q).ok_or("budget overflow")?
@@ -511,6 +992,176 @@ impl Replica {
         Ok(used)
     }
 
+    pub(crate) fn owner_pristine(&self, owner: &str) -> bool {
+        !self.state.operations.values().any(|op| op.account == owner)
+            && self.state.active.get(owner) == self.context.root_epoch(owner).ok().as_ref()
+    }
+    pub(crate) fn owner_epoch_is_owned(&self, owner: &str, epoch: &str) -> Result<bool> {
+        match self.owned_root(owner) {
+            Some(root) => self.descends(epoch, root),
+            None => Ok(false),
+        }
+    }
+    pub(crate) fn owner_cost(&self, act: &Act) -> Result<Resources> {
+        Ok(self.operation(act)?.cost)
+    }
+    pub(crate) fn owner_can_issue(&self, act: &Act, issued: &[Act]) -> Result<()> {
+        let op = self.operation(act)?;
+        self.budget_op(&act.address, &op)?;
+        self.owner_batch_fits(act, issued)
+    }
+    pub(crate) fn owner_batch_fits(&self, act: &Act, issued: &[Act]) -> Result<()> {
+        let op = self.operation(act)?;
+        let epoch = self.epoch(&op.epoch)?;
+        let owned = epoch.phase == VersionPhase::Owned;
+        if op.cost.rights > epoch.allocation.rights || op.cost.headroom > epoch.allocation.headroom
+        {
+            return Err("owner cost exceeds version allocation".into());
+        }
+        let mut used = op.cost;
+        for previous in issued {
+            let previous = self.operation(previous)?;
+            if previous.epoch == op.epoch {
+                if owned {
+                    return Err("owner already issued this owned slot".into());
+                }
+                used = used.add(previous.cost)?;
+            }
+        }
+        if !owned {
+            let allocation = epoch.allocation;
+            let q = self.context.committee.quorum as i128;
+            let k = i128::from(self.context.committee.faults) + 1;
+            if used.rights.checked_mul(q).ok_or("owner budget overflow")?
+                > allocation
+                    .rights
+                    .checked_mul(k)
+                    .ok_or("owner budget overflow")?
+                || used
+                    .headroom
+                    .checked_mul(q)
+                    .ok_or("owner budget overflow")?
+                    > allocation
+                        .headroom
+                        .checked_mul(k)
+                        .ok_or("owner budget overflow")?
+            {
+                return Err("issued owner batch exceeds concurrent envelope".into());
+            }
+        }
+        Ok(())
+    }
+    /// Rebuild bookkeeping only. Business content, owner and nonce remain exact.
+    pub(crate) fn owner_rebase(&self, draft: &Act, epoch: &str) -> Result<Act> {
+        self.operation(draft)?;
+        let m = self.epoch(epoch)?;
+        let mut message = draft.message.clone();
+        fn replace(msg: &mut Message, epoch: &str, credits: &BTreeSet<String>) {
+            match msg {
+                Message::Wrapped { content, .. } => replace(content, epoch, credits),
+                Message::Dialect { inner, .. } => replace(inner, epoch, credits),
+                Message::Simple { params, .. } => {
+                    for pair in params.chunks_exact_mut(2) {
+                        match &pair[0] {
+                            SExpr::Atom(Atom::Keyword(k)) if k == PREV => {
+                                pair[1] = SExpr::Atom(Atom::Symbol(epoch.into()))
+                            }
+                            SExpr::Atom(Atom::Keyword(k)) if k == DEPS => {
+                                pair[1] = SExpr::List(
+                                    credits
+                                        .iter()
+                                        .map(|id| SExpr::Atom(Atom::Symbol(id.clone())))
+                                        .collect(),
+                                )
+                            }
+                            _ => (),
+                        }
+                    }
+                }
+                _ => (),
+            }
+        }
+        replace(&mut message, epoch, &m.credited);
+        let act = Act::from_message(message, &draft.signer)?;
+        self.operation(&act)?;
+        Ok(act)
+    }
+    pub(crate) fn owner_manifest(
+        &self,
+        account: &str,
+        issued: &BTreeSet<String>,
+    ) -> Result<VersionManifest> {
+        let mut held = issued.clone();
+        for id in &self.state.signed {
+            if self.op(id)?.account == account {
+                held.insert(id.clone());
+            }
+        }
+        for id in &held {
+            if !self.has(VoteKind::Effects, id) && !self.has(VoteKind::Cancel, id) {
+                return Err("owner batch still draining".into());
+            }
+        }
+        let credits = self
+            .state
+            .operations
+            .iter()
+            .filter_map(|(id, op)| {
+                (op.credits.contains_key(account) && self.has(VoteKind::Effects, id))
+                    .then_some(id.clone())
+            })
+            .collect();
+        let mut manifest = self.draft_version(
+            &BTreeSet::from([self.active_epoch(account)?.into()]),
+            &held,
+            &BTreeSet::new(),
+            &credits,
+        )?;
+        manifest.phase = VersionPhase::Owned;
+        Ok(manifest)
+    }
+    /// Certificate-derived mode; an untrusted manifest cannot activate ownership.
+    pub fn owned_root(&self, account: &str) -> Option<&str> {
+        self.state.owned.iter().find_map(|(id, request)| {
+            (request.version.manifest.account == account && self.has(VoteKind::OwnedSeal, id))
+                .then_some(id.as_str())
+        })
+    }
+    fn descends(&self, version: &str, root: &str) -> Result<bool> {
+        let mut todo = alloc::vec![version.to_string()];
+        let mut seen = BTreeSet::new();
+        while let Some(id) = todo.pop() {
+            if id == root {
+                return Ok(true);
+            }
+            if seen.insert(id.clone()) {
+                todo.extend(self.epoch(&id)?.parents.iter().cloned());
+            }
+        }
+        Ok(false)
+    }
+    fn check_owned<A: Authentication>(&self, request: &OwnedSealRequest, auth: &A) -> Result<()> {
+        let m = &request.version.manifest;
+        if m.phase != VersionPhase::Owned
+            || self.context.ownership() != crate::escrow::Ownership::Account
+        {
+            return Err("collective pools cannot become owned accounts".into());
+        }
+        self.check_version(&request.version, auth)?;
+        self.verify_vote(
+            &request.authorization,
+            VoteKind::OwnedSealRequest,
+            &m.id(&self.context.id),
+            &m.account,
+            auth,
+        )?;
+        for id in &m.held {
+            if !self.has(VoteKind::Effects, id) && !self.has(VoteKind::Cancel, id) {
+                return Err("seal requires completely drained history".into());
+            }
+        }
+        Ok(())
+    }
     fn allocation(&self, m: &VersionManifest) -> Result<Resources> {
         let mut b = *self
             .context
@@ -548,7 +1199,9 @@ impl Replica {
         Ok(b)
     }
     fn check_version_manifest(&self, m: &VersionManifest) -> Result<()> {
-        if !self.context.initial.contains_key(&m.account)
+        if (m.phase == VersionPhase::Owned
+            && self.context.ownership() == crate::escrow::Ownership::Collective)
+            || !self.context.initial.contains_key(&m.account)
             || m.parents.is_empty()
             || m.parents.len() > self.limits.versions.saturating_add(1)
             || m.held.len() > self.limits.operations
@@ -559,7 +1212,8 @@ impl Replica {
         }
         for id in &m.parents {
             let parent = self.epoch(id)?;
-            if parent.account != m.account
+            if (parent.phase == VersionPhase::Owned && m.phase != VersionPhase::Owned)
+                || parent.account != m.account
                 || parent.rank >= m.rank
                 || !parent.held.is_subset(&m.held)
                 || !parent.refunded.is_subset(&m.refunded)
@@ -629,6 +1283,8 @@ impl Replica {
             .cloned()
             .collect();
         Ok(VersionSnapshot {
+            permanent_seal: self.state.sealed.get(account).cloned(),
+            owned_root: self.owned_root(account).map(String::from),
             active: self.active_epoch(account)?.into(),
             known,
             visited,
@@ -656,6 +1312,7 @@ impl Replica {
             return Err("invalid DAG draft context or limits".into());
         }
         let mut m = VersionManifest {
+            phase: VersionPhase::Concurrent,
             account: self
                 .epoch(parents.first().ok_or("empty parent set")?)?
                 .account
@@ -669,6 +1326,9 @@ impl Replica {
         };
         for id in parents {
             let p = self.epoch(id)?;
+            if p.phase == VersionPhase::Owned {
+                m.phase = VersionPhase::Owned;
+            }
             m.rank = m.rank.max(p.rank);
             m.held.extend(p.held.iter().cloned());
             m.refunded.extend(p.refunded.iter().cloned());
@@ -714,6 +1374,47 @@ impl Replica {
     fn prepare<A: Authentication>(&self, event: &Event, auth: &A) -> Result<Option<Update>> {
         let update = match event {
             Event::Initialize => return Err("duplicate initialization".into()),
+            Event::OwnedProposal(request) | Event::SealOwned(request) => {
+                self.check_owned(request, auth)?;
+                let m = &request.version.manifest;
+                let id = m.id(&self.context.id);
+                let seal = matches!(event, Event::SealOwned(_));
+                if let Some(root) = self.owned_root(&m.account) {
+                    if root != id {
+                        return Err("conflicting certified owned root".into());
+                    }
+                }
+                if seal {
+                    if let Some(old) = self.state.sealed.get(&m.account) {
+                        if old != &id {
+                            return Err("account permanently sealed to another root".into());
+                        }
+                        return Ok(None);
+                    }
+                    let current = self.state.active.get(&m.account).ok_or("unknown account")?;
+                    if !m.parents.contains(current) {
+                        return Err("seal must follow active parent".into());
+                    }
+                    for signed in &self.state.signed {
+                        if self.op(signed)?.account == m.account && !m.held.contains(signed) {
+                            return Err("seal omits historical signature".into());
+                        }
+                    }
+                } else if self.state.owned.contains_key(&id) {
+                    return Ok(None);
+                }
+                if !self.state.owned.contains_key(&id)
+                    && self.state.owned.len() >= self.limits.versions
+                {
+                    return Err("owned proposal limit reached".into());
+                }
+                if !self.state.versions.contains_key(&id)
+                    && self.state.versions.len() >= self.limits.versions
+                {
+                    return Err("version limit reached; evidence retained".into());
+                }
+                Update::Owned(id, request.clone(), seal)
+            }
             Event::Version(v) => {
                 self.check_version(v, auth)?;
                 let id = v.manifest.id(&self.context.id);
@@ -731,6 +1432,17 @@ impl Replica {
                 let current = self.state.active.get(&m.account).ok_or("unknown pool")?;
                 if current == id {
                     return Ok(None);
+                }
+                if let Some(root) = self.owned_root(&m.account) {
+                    if !self.descends(id, root)? && !self.descends(root, id)? {
+                        return Err("adoption outside certified owned ancestry".into());
+                    }
+                    // Pre-root ancestors may be traversed to catch up. budget_op
+                    // still forbids EVERY new signature outside the owned root.
+                } else if m.phase == VersionPhase::Owned
+                    || self.state.sealed.contains_key(&m.account)
+                {
+                    return Err("owned account awaits seal certificate".into());
                 }
                 if !m.parents.contains(current) {
                     return Err("adoption must follow a direct active parent".into());
@@ -765,11 +1477,32 @@ impl Replica {
             Event::Certificate(c) => {
                 if !matches!(
                     c.kind,
-                    VoteKind::Operation | VoteKind::Effects | VoteKind::Cancel
+                    VoteKind::Operation
+                        | VoteKind::Effects
+                        | VoteKind::Cancel
+                        | VoteKind::OwnedSeal
                 ) {
                     return Err("unexpected certificate type".into());
                 }
-                self.op(&c.payload)?;
+                if c.kind == VoteKind::OwnedSeal {
+                    let request = self
+                        .state
+                        .owned
+                        .get(&c.payload)
+                        .ok_or("unknown owned proposal")?;
+                    if let Some(root) = self.owned_root(&request.version.manifest.account) {
+                        if root != c.payload {
+                            return Err("conflicting certified owned root".into());
+                        }
+                    }
+                    if let Some(root) = self.state.sealed.get(&request.version.manifest.account) {
+                        if root != &c.payload {
+                            return Err("certificate conflicts with permanent local seal".into());
+                        }
+                    }
+                } else {
+                    self.op(&c.payload)?;
+                }
                 self.verify_certificate(c, c.kind, &c.payload, auth)?;
                 if c.kind == VoteKind::Effects {
                     if !self.has(VoteKind::Operation, &c.payload) {
@@ -812,6 +1545,11 @@ impl Replica {
             }
             Event::Fence(v) => {
                 let op = self.op(&v.payload)?;
+                if let Some(root) = self.owned_root(&op.account) {
+                    if self.descends(&op.epoch, root)? {
+                        return Err("owned operations cannot be cancelled".into());
+                    }
+                }
                 self.verify_vote(v, VoteKind::CancelRequest, &v.payload, &op.act.signer, auth)?;
                 if self.state.effects.contains(&v.payload) {
                     return Err("validator already signed effects".into());
@@ -829,6 +1567,9 @@ impl Replica {
                     return Ok(None);
                 }
                 let op = self.op(id)?;
+                if self.owner_epoch_is_owned(&op.account, &op.epoch)? {
+                    return Err("owned operations cannot release slots".into());
+                }
                 let charge = self
                     .state
                     .charges
@@ -850,6 +1591,17 @@ impl Replica {
     }
     fn apply_update(&mut self, update: Update) {
         match update {
+            Update::Owned(id, request, seal) => {
+                if seal {
+                    self.state
+                        .sealed
+                        .insert(request.version.manifest.account.clone(), id.clone());
+                }
+                self.state
+                    .versions
+                    .insert(id.clone(), request.version.clone());
+                self.state.owned.insert(id, request);
+            }
             Update::Candidate(id, op) => {
                 self.state.operations.insert(id, op);
             }
@@ -903,6 +1655,27 @@ impl Replica {
             self.state.charges, expected,
             "derived charge differs from signed history"
         );
+    }
+    pub fn record_owned_proposal<J: Journal, A: Authentication>(
+        &mut self,
+        request: OwnedSealRequest,
+        journal: &mut J,
+        auth: &A,
+    ) -> Result<()> {
+        self.commit(Event::OwnedProposal(request), journal, auth)
+    }
+    /// Journal the unique permanent seal before exposing a validator vote.
+    pub fn prepare_owned_seal<J: Journal, A: Authentication>(
+        &mut self,
+        request: OwnedSealRequest,
+        journal: &mut J,
+        auth: &A,
+    ) -> Result<SigningRequest> {
+        let id = request.version.manifest.id(&self.context.id);
+        self.commit(Event::SealOwned(request), journal, auth)?;
+        Ok(self
+            .context
+            .request(VoteKind::OwnedSeal, &id, &self.validator))
     }
     pub fn register<J: Journal, A: Authentication>(
         &mut self,

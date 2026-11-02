@@ -26,3 +26,15 @@ whole replica state. Per-version charge caches are reconstructed from journals;
 debug builds check them against the historical expression. Borrowed manifests
 avoid cloning large held sets during reads. See [[SPEC-032-quorum-local-update-cost]]
 and [[quorum-local-cost-evidence]] for validation and the opt-in local probe.
+
+
+Account owners use `OwnerDriver` and a separate durable `OwnerJournal` for FIFO
+reservations and permanent conversion when the head exceeds the concurrent budget.
+A distinct owner-signed seal intent and validator seal QC activate an Owned root.
+Hash-bound version phase prevents provisional signatures and downgrades. Owned
+versions spend full allocation, one permanent operation slot per version. The
+driver drains issued work to effects and never races it against cancellation.
+Initial-unit/full-balance availability needs the documented coherent-owner,
+delivery, fair-service and available-capacity conditions. Collective pools retain
+their existing contention limits. See [[SPEC-033-owned-counter-lifecycle]] and
+[[owned-lifecycle-evidence]] for the abstract Lean proof and scoped Rust evidence.

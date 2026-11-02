@@ -5,7 +5,9 @@
 #![forbid(unsafe_code)]
 mod context;
 mod engine;
+mod owner;
 mod types;
 pub use context::Context;
 pub use engine::Replica;
+pub use owner::{OwnerAction, OwnerDriver, OwnerEvent, OwnerJournal};
 pub use types::*;
