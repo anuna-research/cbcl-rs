@@ -7,14 +7,20 @@ This is not the owner-product capstone or Rust source refinement. -/
 namespace CBCL.ConsensusFree.OwnedProgress
 open CBCL.ConsensusFree.MultiParent.Liveness
 namespace Retry
+/-- Concrete FIFO retry queue used for retained dependency work. -/
 abbrev Queue := Scheduler.QueueTrace
 variable {N : Nat}
+/-- Finite verified dependency objects with strictly decreasing dependency height. -/
 structure Catalogue (N : Nat) where
+  /-- Objects that must be known before importing each object. -/
   dependencies : Fin N → List (Fin N)
+  /-- Well-founded height ordering each object's dependencies. -/
   height : Fin N → Nat
   earlier : ∀ i j, j ∈ dependencies i → height j < height i
+  /-- Authentication result for each retained public object. -/
   verified : Fin N → Bool
 
+/-- Import an authenticated object only after all its dependencies are known. -/
 def importOne (c : Catalogue N) (known : Fin N → Bool) (i : Fin N) : Fin N → Bool :=
   if c.verified i && (c.dependencies i).all known then setAt known i true else known
 
@@ -44,7 +50,9 @@ theorem import_requires (c : Catalogue N) (known : Fin N → Bool) (i : Fin N)
 
 /-- The executable queue tries its head, then retains it behind finite arrivals. -/
 structure Execution (c : Catalogue N) where
+  /-- Concrete retained retry jobs and finite arrivals. -/
   queue : Queue (Fin N)
+  /-- Objects successfully imported at each completed worker tick. -/
   known : Nat → Fin N → Bool
   step : ∀ n, known (n+1) = match (queue.pending n).head? with
     | none => known n
@@ -103,8 +111,11 @@ theorem finite_closure {c : Catalogue N} (e : Execution c)
 
 /-- Observed completion may retire stale work; an unreceived quorum may not. -/
 structure RetiringExecution (c : Catalogue N) where
+  /-- Retained dependency work scheduled before observed completion. -/
   queue : Queue (Fin N)
+  /-- Objects actually imported before work may retire. -/
   known : Nat → Fin N → Bool
+  /-- Whether the owner has received and verified completion evidence. -/
   observedDone : Nat → Bool
   retained : ∀ n, observedDone n = true → observedDone (n+1) = true
   step : ∀ n, known (n+1) = if observedDone n then known n else
@@ -159,13 +170,16 @@ def chain : Retry.Catalogue 3 where
     · subst j; decide
   verified := fun _ => true
 
+/-- Pending reversed-chain retry jobs at each witness tick. -/
 def pendingAt : Nat → List (Fin 3) :=
   Nat.rec [2, 1, 0] (fun _ pending => Scheduler.advance pending [])
+/-- Objects imported by the reversed-chain witness at each tick. -/
 def knownAt : Nat → Fin 3 → Bool :=
   Nat.rec (fun _ => false) (fun n previous => match (pendingAt n).head? with
     | none => previous
     | some i => importOne chain previous i)
 
+/-- Executable retry trace that imports the reversed dependency chain. -/
 def retry : Retry.Execution chain where
   queue := ⟨pendingAt, fun _ => [], fun _ => rfl⟩
   known := knownAt
@@ -186,14 +200,18 @@ example : ∃ t, ∀ n, t ≤ n → ∀ i, retry.known n i = true := by
 /-- A real observed early QC may retire stale jobs without an honest third vote.
 The global/private and owner-received vote sets are explicitly different. -/
 def protocol := OwnedLifecycle.Witness.unit.old
+/-- Early quorum votes from two honest validators and one Byzantine validator. -/
 def earlyVotes (w : Nat) : Bool := decide (w = 0 ∨ w = 1 ∨ w = 3)
+/-- A globally formed quorum whose signatures need not reach the owner. -/
 def privateVotes (w : Nat) : Bool := decide (w = 0 ∨ w = 1 ∨ w = 3)
+/-- Owner receipt of only the two honest signatures from a private quorum. -/
 def onlyTwoReceived (w : Nat) : Bool := decide (w = 0 ∨ w = 1)
 example : MultiParent.quorum protocol privateVotes = true ∧
     MultiParent.quorum protocol onlyTwoReceived = false := by decide
 example : MultiParent.quorum protocol earlyVotes = true ∧ earlyVotes 2 = false := by decide
 example : MultiParent.quorum protocol (fun w => decide (w ≤ 2)) = true := by decide
 
+/-- Retry trace in which observed completion legitimately retires old work. -/
 def earlyRetirement : Retry.RetiringExecution chain where
   queue := retry.queue
   known := fun _ _ => false

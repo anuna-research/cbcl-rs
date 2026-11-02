@@ -8,18 +8,23 @@ namespace CBCL.ConsensusFree.OwnerProduct
 open CBCL.ValidatorBudget
 variable {N W R f : Nat}
 
+/-- Kinds of durable request-indexed owner facts. -/
 inductive U where
   | accepted | issued | final | income | batch | version | activated | operation | complete
   deriving DecidableEq, Repr
+/-- Kinds of request-indexed evidence and votes stored for individual validators. -/
 inductive L where
   | act | metadata | adopted | vote | voteReceived | operation | effect | effectReceived | final | income
   deriving DecidableEq, Repr
+/-- Permanent owner-wide freeze and observed seal-certificate facts. -/
 inductive G where
   | frozen | seal
   deriving DecidableEq, Repr
+/-- Kinds of validator-indexed seal votes, receipts and verified root evidence. -/
 inductive P where
   | sealVote | sealReceived | root
   deriving DecidableEq, Repr
+/-- Finite coordinates of the product's monotone durable evidence projection. -/
 inductive Flag (N W : Nat) where
   | u (kind : U) (request : Fin N)
   | l (kind : L) (request : Fin N) (validator : Fin W)
@@ -30,13 +35,18 @@ inductive Flag (N W : Nat) where
   | external (income object : Fin N) (validator : Fin W)
   deriving DecidableEq, Repr
 
+/-- Pinned financial inputs, committee identities and finite external proof catalogues. -/
 structure Config (N W R f : Nat) where
+  /-- Immutable identities and resource effects used for admission and version books. -/
   costs : OwnerFunding.Costs N R
+  /-- Distinct honest validators whose votes alone meet the quorum threshold. -/
   core : List (Fin W)
+  /-- Remaining committee members, which may behave Byzantine or remain silent. -/
   others : List (Fin W)
   distinct : (core ++ others).Nodup
   coreSize : core.length = 2*f+1
   otherSize : others.length ≤ f
+  /-- Correct local replica whose adoption permits owner activation. -/
   ownerValidator : Fin W
   ownerHonest : ownerValidator ∈ core
   /-- A received external effects proof retains its finite verified dependency
@@ -48,47 +58,64 @@ structure Config (N W R f : Nat) where
   limit : Fin R → Nat
   safeLimit : ∀ d, limit d * (2*f+1) ≤ costs.initial d * (f+1)
 
+/-- Durable product evidence and immutable resource books pinned for each version. -/
 structure State (N W R : Nat) where
+  /-- Monotone durable owner, validator, receipt and evidence facts. -/
   bits : Flag N W → Bool
   /-- Exact books pinned at first publication of this immutable version. -/
   allocation : Fin N → Fin R → Int
 
+/-- Product state before any admission, publication, vote or receipt. -/
 def initial : State N W R := ⟨fun _ => false, fun _ _ => 0⟩
+/-- Project owner admission and verified receipt facts into the funding model. -/
 def funds (s : State N W R) : OwnerFunding.State N R :=
   ⟨s.bits ∘ Flag.u .accepted, s.bits ∘ Flag.u .issued,
    s.bits ∘ Flag.u .final, s.bits ∘ Flag.u .income⟩
+/-- Retain a finite set of newly durable facts without clearing existing facts. -/
 def add (s : State N W R) (flags : List (Flag N W)) : State N W R :=
   {s with bits := fun k => if k ∈ flags then true else s.bits k}
+/-- External credit identities copied into a newly pinned version. -/
 def snapshots (s : State N W R) (i : Fin N) : List (Flag N W) :=
   ((List.finRange N).filter (fun j => s.bits (.u .income j))).map (Flag.snapshot i)
+/-- Publish immutable version books and choose the first root intent exactly once. -/
 def pin (c : Config N W R f) (s : State N W R) (i : Fin N) : State N W R :=
   { add s (if (List.finRange N).any (fun j => s.bits (.u .version j))
       then [.u .version i] ++ snapshots s i else [.u .version i, .root i] ++ snapshots s i) with
     allocation := setAt s.allocation i (OwnerFunding.allocation c.costs (funds s)) }
 
+/-- Count actual signature facts from the distinct pinned committee. -/
 def quorum (c : Config N W R f) (votes : Fin W → Bool) : Bool :=
   decide (2*f+1 ≤ (c.core ++ c.others).countP votes)
+/-- Total resource debit of the entire owner-issued concurrent batch. -/
 def batchTotal (c : Config N W R f) (s : State N W R) (d : Fin R) : Int :=
   OwnerFunding.marked (fun i => s.bits (.u .batch i)) (fun i => c.costs.debit i d)
+/-- Whether one more request fits the initial allocation and concurrent envelope. -/
 def batchFits (c : Config N W R f) (s : State N W R) (i : Fin N) : Prop :=
   ∀ d, c.costs.debit i d ≤ c.costs.initial d ∧
     batchTotal c s d + c.costs.debit i d ≤ c.limit d
+/-- The next accepted unissued request in durable FIFO issuance order. -/
 def head (s : State N W R) (i : Fin N) : Prop :=
   s.bits (.u .accepted i) = true ∧ s.bits (.u .issued i) = false ∧
   ∀ j, j < i → s.bits (.u .issued j) = true
+/-- Whether every issued request has an owner-journaled completion record. -/
 def drained (s : State N W R) : Prop :=
   ∀ i, s.bits (.u .issued i) = true → s.bits (.u .complete i) = true
+/-- Whether the owner has published a permanent root intent. -/
 def rootExists (s : State N W R) : Prop := ∃ i, s.bits (.root i) = true
+/-- Local predecessor metadata, settled history and incoming proof prerequisites. -/
 def versionKnown (s : State N W R) (i : Fin N) (w : Fin W) : Prop :=
   (∀ j, j < i → s.bits (.u .version j) = true → s.bits (.l .metadata j w) = true) ∧
   (∀ j, j < i → s.bits (.l .final j w) = true) ∧
   (∀ j, s.bits (.snapshot i j) = true → s.bits (.l .income j w) = true)
+/-- Whether every retained local operation vote is covered by the target history. -/
 def historyCovered (s : State N W R) (i : Fin N) (w : Fin W) : Prop :=
   ∀ j, s.bits (.l .vote j w) = true → j ≤ i
+/-- Whether a validator has adopted the target version and no later version. -/
 def current (s : State N W R) (i : Fin N) (w : Fin W) : Prop :=
   s.bits (.l .adopted i w) = true ∧
   ∀ j, i < j → s.bits (.l .adopted j w) = false
 
+/-- Concrete honest signing guard for concurrent envelope or full owned allocation. -/
 def signReady (c : Config N W R f) (s : State N W R) (i : Fin N) (w : Fin W) : Prop :=
   s.bits (.u .issued i) = true ∧ s.bits (.l .act i w) = true ∧
   s.bits (.l .operation i w) = false ∧
@@ -100,6 +127,7 @@ def signReady (c : Config N W R f) (s : State N W R) (i : Fin N) (w : Fin W) : P
   else current s i w ∧ historyCovered s i w ∧
     (∀ d, (c.costs.debit i d : Int) ≤ s.allocation i d))
 
+/-- Owner decisions, local validation, network receipts and optional Byzantine disclosures. -/
 inductive Action (N W : Nat) where
   | admit (i : Fin N) | income (i : Fin N) | issueBatch (i : Fin N)
   | freeze (i : Fin N) | manifest (i : Fin N) | activate (i : Fin N)
@@ -123,6 +151,7 @@ inductive Action (N W : Nat) where
   | replay
   deriving DecidableEq, Repr
 
+/-- First-time durable fact produced by an action, excluding replay. -/
 def target : Action N W → Option (Flag N W)
   | .admit i => some (.u .accepted i) | .income i => some (.u .income i)
   | .issueBatch i | .issueOwned i => some (.u .issued i)
@@ -142,6 +171,7 @@ def target : Action N W → Option (Flag N W)
   | .deliverIncome i w => some (.l .income i w)
   | .complete i => some (.u .complete i) | .replay => none
 
+/-- Native prerequisite guard for each modeled action before its target freshness check. -/
 def requires (c : Config N W R f) (s : State N W R) : Action N W → Prop
   | .admit i => (∀ j, j < i → s.bits (.u .accepted j) = true) ∧
       ∀ d, (c.costs.debit i d : Int) ≤ OwnerFunding.available c.costs (funds s) d
@@ -199,17 +229,20 @@ def requires (c : Config N W R f) (s : State N W R) : Action N W → Prop
       ∀ node, s.bits (.external i node w) = true
   | .replay => True
 
+/-- Apply an action's durable facts and any immutable version-book snapshot. -/
 def applyAction (c : Config N W R f) (s : State N W R) (a : Action N W) : State N W R :=
   match a with
   | .manifest i => pin c s i
   | .issueBatch i => add s [.u .issued i, .u .batch i]
   | _ => match target a with | some k => add s [k] | none => s
 
+/-- Whether an action's prerequisites hold and its target is still absent. -/
 def Enabled (c : Config N W R f) (s : State N W R) (a : Action N W) : Prop :=
   requires c s a ∧ match target a with | none => True | some k => s.bits k = false
 instance : Decidable (Enabled c s a) := by
   cases a <;> simp only [Enabled, requires, target, head, batchFits, drained, rootExists, versionKnown, signReady, current, historyCovered] <;> infer_instance
 
+/-- Execute an enabled action; rejected, duplicate or failed attempts stutter. -/
 def perform (c : Config N W R f) (s : State N W R) (a : Action N W) : State N W R :=
   if Enabled c s a then applyAction c s a else s
 
@@ -224,13 +257,17 @@ def honest (c : Config N W R f) : Action N W → Prop
   | .external _ _ w | .deliverIncome _ w => w ∈ c.core
   | _ => True
 
+/-- Existence of an accepted request without owner-journaled completion. -/
 def Pending (s : State N W R) : Prop :=
   ∃ i, s.bits (.u .accepted i) = true ∧ s.bits (.u .complete i) = false
+/-- An issued request whose effects certificate the owner has not yet verified. -/
 def Unfinal (s : State N W R) (i : Fin N) : Prop :=
   s.bits (.u .issued i) = true ∧ s.bits (.u .final i) = false
+/-- An old request referenced by a later published version's retained history. -/
 def HeldDependency (s : State N W R) (i : Fin N) : Prop :=
   ∃ j, s.bits (.u .version j) = true ∧ i < j
 
+/-- Retained work still necessary for pending requests or their selected dependencies. -/
 def Needed (s : State N W R) : Action N W → Prop
   | .sign i _ | .receiveVote i _ | .feedbackOperation i _ | .formOperation i =>
       Pending s ∧ Unfinal s i ∧ s.bits (.u .operation i) = false
@@ -246,8 +283,11 @@ def Needed (s : State N W R) : Action N W → Prop
       Pending s ∧ ∃ j, s.bits (.u .version j) = true ∧ s.bits (.snapshot j i) = true
   | _ => True
 
+/-- Initialized interleaving with fair service only for necessary honest work. -/
 structure Execution (c : Config N W R f) where
+  /-- Durable product state after each completed service turn. -/
   state : Nat → State N W R
+  /-- Owner, validator or network action attempted at each service turn. -/
   action : Nat → Action N W
   starts : state 0 = initial
   step : ∀ n, state (n+1) = perform c (state n) (action n)
@@ -325,6 +365,7 @@ theorem funding_run (e : Execution c) (n : Nat) :
     next disabled => exact ih
 
 
+/-- Inductive owner-order, root, history and authentication-support invariants. -/
 structure Causal (c : Config N W R f) (s : State N W R) : Prop where
   admittedPrefix : ∀ i, s.bits (.u .accepted i) = true → ∀ j, j < i → s.bits (.u .accepted j) = true
   issuedAccepted : ∀ i, s.bits (.u .issued i) = true → s.bits (.u .accepted i) = true
@@ -387,6 +428,7 @@ theorem causal_run (e : Execution c) (n : Nat) : Causal c (e.state n) := by
     next disabled => exact ih
 
 
+/-- Complete finite catalogue of durable evidence coordinates for fixed capacities. -/
 def flags (N W : Nat) : List (Flag N W) :=
   [.g .frozen, .g .seal] ++
   (List.finRange N).flatMap (fun i =>
@@ -474,6 +516,7 @@ theorem eventually_stationary (e : Execution c) :
     · have eq : t = n+1 := by omega
       subst t; rfl
 
+/-- A state where every necessary honest action already has its durable target. -/
 def Saturated (c : Config N W R f) (s : State N W R) : Prop :=
   ∀ a, honest c a → requires c s a → Needed s a → ∀ k, target a = some k → s.bits k = true
 

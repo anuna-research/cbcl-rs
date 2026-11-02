@@ -15,8 +15,11 @@ def advance (pending arrivals : List α) : List α :=
   | [] => arrivals
   | head :: rest => rest ++ arrivals ++ [head]
 
+/-- A FIFO retry queue with finite arrivals at each completed worker tick. -/
 structure QueueTrace (α : Type) where
+  /-- Retained jobs awaiting service at each worker tick. -/
   pending : Nat → List α
+  /-- Finite new jobs appended at each worker tick. -/
   arrivals : Nat → List α
   next : ∀ n, pending (n+1) = advance (pending n) (arrivals n)
 
@@ -89,10 +92,14 @@ def select (serve : Command V T → Bool) (s : State V T) (candidate : Option (C
       | none => .replay
     else .replay
 
+/-- Protocol state paired with its concrete pending command queue. -/
 structure Machine (V T : Nat) where
+  /-- Current protocol state serviced by the dispatcher. -/
   protocol : State V T
+  /-- Retained commands in FIFO retry order. -/
   pending : List (Command V T)
 
+/-- Service one eligible head command, then rotate the queue with new arrivals. -/
 def tick (serve : Command V T → Bool) (arrivals : List (Command V T)) (s : Machine V T) : Machine V T where
   protocol := (perform c s.protocol (select c serve s.protocol s.pending.head?)).getD s.protocol
   pending := advance s.pending arrivals
@@ -117,6 +124,7 @@ theorem select_accepted (serve : Command V T → Bool) (s : State V T)
       | some t => exact ⟨t, result⟩
     · exact ⟨s, rfl⟩
 
+/-- Project the concrete dispatcher run into an initialized protocol execution. -/
 def execution (serve : Command V T → Bool) (initialQueue : List (Command V T))
     (arrivals : Nat → List (Command V T)) : Execution c where
   state n := (run c serve initialQueue arrivals n).protocol
@@ -129,6 +137,7 @@ def execution (serve : Command V T → Bool) (initialQueue : List (Command V T))
       (run c serve initialQueue arrivals n).pending.head?
     simp only [run, tick, accepted, Option.getD_some]
 
+/-- Project the dispatcher run into its FIFO queue trace. -/
 def queues (serve : Command V T → Bool) (initialQueue : List (Command V T))
     (arrivals : Nat → List (Command V T)) : QueueTrace (Command V T) where
   pending n := (run c serve initialQueue arrivals n).pending

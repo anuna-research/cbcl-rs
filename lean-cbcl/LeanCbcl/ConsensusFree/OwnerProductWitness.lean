@@ -4,6 +4,7 @@ namespace CBCL.ConsensusFree.OwnerProduct
 open CBCL.ValidatorBudget
 variable {N W R f : Nat}
 
+/-- Run a finite action script for a bounded number of service turns, then retain its result. -/
 def play (c : Config N W R f) (s : State N W R) : List (Action N W) → Nat → State N W R
   | [], _ => s
   | _ :: _, 0 => s
@@ -12,6 +13,7 @@ def play (c : Config N W R f) (s : State N W R) : List (Action N W) → Nat → 
 @[simp] theorem play_zero (c : Config N W R f) (s : State N W R) (actions : List (Action N W)) :
     play c s actions 0 = s := by cases actions <;> rfl
 
+/-- Select a script's next action, using replay after its last entry. -/
 def scriptAction (actions : List (Action N W)) (n : Nat) : Action N W :=
   (actions[n]?).getD .replay
 
@@ -67,6 +69,7 @@ private def external : OwnedProgress.Retry.Catalogue 2 where
   earlier := by simp
   verified := fun _ => false
 
+/-- Two funded requests and a four-validator committee with one Byzantine member. -/
 def config : Config 2 4 1 1 where
   costs := costs
   core := [0,1,2]
@@ -89,13 +92,16 @@ def sealEarly : List (Action 2 4) :=
    .metadata 0 0, .metadata 0 1, .metadata 0 3,
    .seal 0, .seal 1, .seal 3,
    .receiveSeal 0, .receiveSeal 1, .receiveSeal 3, .formSeal]
+/-- Early operation certification while honest validator two still lags. -/
 def opEarly : List (Action 2 4) := sealEarly ++
   [.deliverRoot 0, .deliverRoot 1, .adopt 0 0, .adopt 0 1, .activate 0, .issueOwned 0,
    .act 0 0, .act 0 1, .sign 0 0, .sign 0 1, .sign 0 3,
    .receiveVote 0 0, .receiveVote 0 1, .receiveVote 0 3, .formOperation 0]
+/-- First-request completion using two honest validators and Byzantine assistance. -/
 def firstDone : List (Action 2 4) := opEarly ++
   [.deliverOperation 0 0, .deliverOperation 0 1, .effect 0 0, .effect 0 1, .effect 0 3,
    .receiveEffect 0 0, .receiveEffect 0 1, .receiveEffect 0 3, .formFinal 0, .complete 0]
+/-- Lagging-validator catch-up and final-unit completion after Byzantine silence. -/
 def allDone : List (Action 2 4) := firstDone ++
   [.manifest 1,
    .deliverFinal 0 0, .deliverFinal 0 1,
@@ -107,9 +113,13 @@ def allDone : List (Action 2 4) := firstDone ++
    .deliverOperation 1 0, .deliverOperation 1 1, .deliverOperation 1 2,
    .effect 1 0, .effect 1 1, .effect 1 2,
    .receiveEffect 1 0, .receiveEffect 1 1, .receiveEffect 1 2, .formFinal 1, .complete 1]
+/-- State with an owner-observed root certificate before validator two catches up. -/
 def sealedEarly := play config initial sealEarly sealEarly.length
+/-- State with an observed operation QC but no vote from validator two. -/
 def operationEarly := play config initial opEarly opEarly.length
+/-- State after the first request's durable owner completion. -/
 def firstComplete := play config initial firstDone firstDone.length
+/-- State after both witness requests durably complete. -/
 def terminal := play config initial allDone allDone.length
 
 set_option maxRecDepth 10000
@@ -139,6 +149,7 @@ private theorem terminal_no_work : ∀ a, honest config a → ¬ (Enabled config
   cases a <;> simp [honest, Enabled, Needed, target, noPending, issued, versions, activated,
     operations, finals, completed, frozen, sealed] at *
 
+/-- A non-vacuous fair infinite execution ending in replay after both requests finish. -/
 def fairWitness : Execution config := scripted config allDone terminal_no_work
 example : (fairWitness.state allDone.length).bits (.u .complete 1) = true := by decide
 example : ∃ t, (fairWitness.state t).bits (.u .complete 1) = true := by
@@ -158,6 +169,7 @@ private def externalChain : OwnedProgress.Retry.Catalogue 2 where
   earlier := by decide
   verified := fun _ => true
 
+/-- Zero initial funds with authenticated external credit and an acyclic proof chain. -/
 def incomeConfig : Config 2 4 1 1 := {config with
   costs := {costs with
     initial := fun _ => 0
@@ -167,7 +179,9 @@ def incomeConfig : Config 2 4 1 1 := {config with
   externalVerified := by decide
   limit := fun _ => 0
   safeLimit := by decide}
+/-- Receive funding, admit both requests and pin the first owned version. -/
 def pinIncome : List (Action 2 4) := [.income 0, .admit 0, .admit 1, .freeze 0, .manifest 0]
+/-- Version state whose incoming identity snapshot is already immutable. -/
 def pinnedIncome := play incomeConfig initial pinIncome pinIncome.length
 example : pinnedIncome.bits (.snapshot 0 0) = true ∧ pinnedIncome.bits (.snapshot 0 1) = false := by decide
 example : (perform incomeConfig pinnedIncome (.metadata 0 0)).bits (.l .metadata 0 0) = false := by decide
@@ -175,6 +189,7 @@ example : (perform incomeConfig pinnedIncome (.external 0 1 0)).bits (.external 
 example : (perform incomeConfig pinnedIncome (.income 1)).allocation 0 0 = 5 ∧
     (perform incomeConfig pinnedIncome (.income 1)).bits (.snapshot 0 1) = false := by decide
 
+/-- Dependency-ordered external imports followed by both funded witness payments. -/
 def incomeTrace : List (Action 2 4) := pinIncome ++
   [0,1,2,3].flatMap (fun w => [.external 0 1 w, .external 0 0 w, .external 0 1 w, .deliverIncome 0 w]) ++
   allDone.drop 4

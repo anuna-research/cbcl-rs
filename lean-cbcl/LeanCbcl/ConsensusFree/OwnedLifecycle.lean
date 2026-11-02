@@ -12,27 +12,46 @@ variable {V O K N R f : Nat}
     two fn a b v x y = fn x y := by
   by_cases hx : x = a <;> simp_all [two, setAt]
 
+/-- A fixed owner-authorized handoff manifest and its exact resource allocation. -/
 structure Root (O R : Nat) where
+  /-- Old operation identities retained by this root. -/
   held : Fin O → Bool
+  /-- Held old operations whose certified cancellation restores capacity. -/
   refunded : Fin O → Bool
+  /-- Old effects certificates whose credits enter the root allocation. -/
   credited : Fin O → Bool
+  /-- Resources available in the certified owned root. -/
   allocation : Fin R → Nat
+  /-- Whether the owner authenticated this root intent. -/
   authorized : Bool
+/-- Fixed operation, root and resource catalogues for owned-continuation safety. -/
 structure Config (V O K N R f : Nat) where
+  /-- Concurrent multi-parent protocol before permanent cutover. -/
   old : MultiParent.Config V O R f
+  /-- Candidate owner-authorized root manifests. -/
   root : Fin K → Root O R
+  /-- Owned root selected by each continuation operation. -/
   source : Fin N → Fin K
+  /-- Topological rank used to order continuation dependencies. -/
   rank : Fin N → Nat
+  /-- Earlier continuation identities retained by each operation's version. -/
   held : Fin N → Fin N → Bool
+  /-- Earlier continuation effects certificates imported by each version. -/
   credited : Fin N → Fin N → Bool
+  /-- Exact resource books of each continuation version. -/
   allocation : Fin N → Fin R → Nat
+  /-- Resource debit of each continuation operation. -/
   cost : Fin N → Fin R → Nat
+  /-- Resource credit produced by each continuation operation. -/
   credit : Fin N → Fin R → Nat
+  /-- Whether each continuation operation has valid owner authorization. -/
   authorized : Fin N → Bool
   /-- Disjoint external transaction catalogue, each entry verified as an effects
   QC in this context, crediting this scope. Root imports are excluded. -/
   incoming : Fin N → Fin R → Nat
+  /-- Whether each external incoming effects proof is authentic. -/
   incomingAuthenticated : Fin N → Bool
+  /-- External incoming proofs named by each continuation version. -/
   imports : Fin N → Fin N → Bool
   /-- Permanent cancellation votes made before this continuation was activated. -/
   priorFences : Fin N → Nat → Bool
@@ -43,19 +62,32 @@ structure Config (V O K N R f : Nat) where
     isum (List.finRange N) (fun y => if credited x y then (credit y d : Int) else 0) +
     isum (List.finRange N) (fun y => if imports x y then (incoming y d : Int) else 0) -
     isum (List.finRange N) (fun y => if held x y then (cost y d : Int) else 0)
+/-- Concurrent state and durable owned votes, receipts and closure records. -/
 structure State (V O K N : Nat) where
+  /-- Retained concurrent protocol state. -/
   old : MultiParent.State V O
+  /-- External incoming proofs actually imported by the recipient. -/
   received : Fin N → Bool
+  /-- Validators permanently closed to further concurrent signing. -/
   closed : Nat → Bool
+  /-- Durable seal votes indexed by root and validator. -/
   seals : Fin K → Nat → Bool
+  /-- Durable owned operation votes indexed by operation and validator. -/
   votes : Fin N → Nat → Bool
+  /-- Durable owned effects votes indexed by operation and validator. -/
   effects : Fin N → Nat → Bool
+/-- Empty owned journals with the concurrent protocol initialized. -/
 def initial : State V O K N :=
   ⟨MultiParent.initial, fun _ => false, fun _ => false, fun _ _ => false, fun _ _ => false, fun _ _ => false⟩
+/-- Count votes using the pinned concurrent committee's quorum threshold. -/
 def quorum (c : Config V O K N R f) (votes : Nat → Bool) : Bool := MultiParent.quorum c.old votes
+/-- Whether durable seal votes form a quorum for a root. -/
 def sealCert (c : Config V O K N R f) (s : State V O K N) (k : Fin K) := quorum c (s.seals k)
+/-- Whether durable operation votes form a quorum for an owned request. -/
 def opCert (c : Config V O K N R f) (s : State V O K N) (x : Fin N) := quorum c (s.votes x)
+/-- Whether durable effects votes form a quorum for an owned request. -/
 def finalCert (c : Config V O K N R f) (s : State V O K N) (x : Fin N) := quorum c (s.effects x)
+/-- Authenticated root books backed by settled held operations and valid credits. -/
 def RootValid (c : Config V O K N R f) (s : State V O K N) (k : Fin K) : Prop :=
   (c.root k).authorized = true ∧
   (∀ x, (c.root k).refunded x = true → (c.root k).held x = true ∧ MultiParent.cancelCert c.old s.old x = true) ∧
@@ -66,17 +98,22 @@ def RootValid (c : Config V O K N R f) (s : State V O K N) (k : Fin K) : Prop :=
     isum (List.finRange O) (fun x => if (c.root k).held x then (c.old.cost x d : Int) else 0) +
     isum (List.finRange O) (fun x => if (c.root k).refunded x then (c.old.cost x d : Int) else 0))
 instance : Decidable (RootValid c s k) := by unfold RootValid; infer_instance
+/-- Record a durable seal vote and permanently close its validator. -/
 def closeState (s : State V O K N) (k : Fin K) (w : Nat) : State V O K N :=
   {s with closed := setAt s.closed w true, seals := two s.seals k w true}
+/-- Add one validator's durable owned operation vote. -/
 def sign (s : State V O K N) (x : Fin N) (w : Nat) : State V O K N :=
   {s with votes := two s.votes x w true}
+/-- Add one validator's durable owned effects vote. -/
 def effect (s : State V O K N) (x : Fin N) (w : Nat) : State V O K N :=
   {s with effects := two s.effects x w true}
+/-- Honest seal guard preserving the root intent and all prior signature history. -/
 def SealAllowed (c : Config V O K N R f) (s : State V O K N) (k : Fin K) (w : Nat) : Prop :=
   w ∈ c.old.committee.core → RootValid c s k ∧
     (s.closed w = false ∨ s.seals k w = true) ∧
     ∀ x, s.old.signatures x w = true → (c.root k).held x = true
 instance : Decidable (SealAllowed c s k w) := by unfold SealAllowed; infer_instance
+/-- Honest owned signing guard for certified roots, history, credits and capacity. -/
 def SignAllowed (c : Config V O K N R f) (s : State V O K N) (x : Fin N) (w : Nat) : Prop :=
   w ∈ c.old.committee.core → c.authorized x = true ∧ sealCert c s (c.source x) = true ∧
     (∀ y, s.votes y w = true → y = x ∨ c.held x y = true) ∧
@@ -84,6 +121,7 @@ def SignAllowed (c : Config V O K N R f) (s : State V O K N) (x : Fin N) (w : Na
     (∀ i, c.imports x i = true → s.received i = true) ∧
     (∀ d, c.cost x d ≤ c.allocation x d) ∧ c.priorFences x w = false
 instance : Decidable (SignAllowed c s x w) := by unfold SignAllowed; infer_instance
+/-- Accepted concurrent, seal, owned vote, receipt and replay transitions. -/
 inductive Step (c : Config V O K N R f) : State V O K N → State V O K N → Prop where
   | old {s t} (step : MultiParent.Step c.old s.old t)
       (closed : ∀ w, w ∈ c.old.committee.core → s.closed w = true →
@@ -94,6 +132,7 @@ inductive Step (c : Config V O K N R f) : State V O K N → State V O K N → Pr
   | receipt (s) (i : Fin N) (verified : c.incomingAuthenticated i = true) :
       Step c s {s with received := setAt s.received i true}
   | replay (s) : Step c s s
+/-- Safety properties preserved by all accepted owned lifecycle transitions. -/
 structure Invariant (c : Config V O K N R f) (s : State V O K N) : Prop where
   old : MultiParent.Invariant c.old s.old
   closure : ∀ k w, w ∈ c.old.committee.core → s.seals k w = true → s.closed w = true
@@ -197,6 +236,7 @@ theorem step_invariant (h : Invariant c s) (st : Step c s t) : Invariant c t := 
   | receipt => exact ⟨h.old, h.closure, h.cover, h.unique, h.lineage, h.capacity, h.effects⟩
   | replay => exact h
 
+/-- Finite sequences of accepted owned lifecycle transitions. -/
 inductive Run (c : Config V O K N R f) : State V O K N → State V O K N → Prop where
   | refl (s) : Run c s s
   | next : Run c s t → Step c t u → Run c s u
@@ -228,6 +268,7 @@ private theorem root_valid_old (valid : RootValid c s k)
     · exact Or.inl (fq x final)
     · exact Or.inr (cq x cancel)
 
+/-- Authentication and prerequisite evidence supporting retained honest votes. -/
 structure Evidence (c : Config V O K N R f) (s : State V O K N) : Prop where
   roots : ∀ k w, w ∈ c.old.committee.core → s.seals k w = true → RootValid c s k
   source : ∀ x w, w ∈ c.old.committee.core → s.votes x w = true → sealCert c s (c.source x) = true
@@ -426,11 +467,14 @@ private theorem isum_single (m : Fin N) (value : Int) :
   rw [isum_update _ _ m value (finRange_unique N) (by simp)]
   simp [isum_zero]
 
+/-- Total continuation debits with certified final effects in this resource. -/
 def newDebit (c : Config V O K N R f) (s : State V O K N) (d : Fin R) : Int :=
   isum (List.finRange N) (fun x => if finalCert c s x then (c.cost x d : Int) else 0)
+/-- Total continuation credits with certified final effects in this resource. -/
 def newCredit (c : Config V O K N R f) (s : State V O K N) (d : Fin R) : Int :=
   isum (List.finRange N) (fun x => if finalCert c s x then (c.credit x d : Int) else 0)
 
+/-- Total authenticated external credit actually received in this resource. -/
 def receivedCredit (c : Config V O K N R f) (s : State V O K N) (d : Fin R) : Int :=
   isum (List.finRange N) (fun i => if s.received i then (c.incoming i d : Int) else 0)
 
@@ -541,6 +585,7 @@ inductive Action (K N : Nat) where
   | other
   deriving DecidableEq
 
+/-- Whether a useful seal, operation or effects service action is enabled. -/
 def Enabled (c : Config V O K N R f) (s : State V O K N) : Action K N → Prop
   | .close k w => s.seals k w = false ∧ SealAllowed c s k w
   | .sign x w => s.votes x w = false ∧ SignAllowed c s x w
@@ -550,6 +595,7 @@ def Enabled (c : Config V O K N R f) (s : State V O K N) : Action K N → Prop
 instance (c : Config V O K N R f) (s : State V O K N) (a : Action K N) : Decidable (Enabled c s a) := by
   cases a <;> unfold Enabled <;> infer_instance
 
+/-- Apply the durable update associated with an owned service action. -/
 def applyAction (s : State V O K N) : Action K N → State V O K N
   | .close k w => closeState s k w
   | .sign x w => sign s x w
@@ -558,7 +604,9 @@ def applyAction (s : State V O K N) : Action K N → State V O K N
 
 /-- The old subsystem may advance between these service actions. -/
 structure Service (c : Config V O K N R f) where
+  /-- Protocol state after each completed owned service turn. -/
   state : Nat → State V O K N
+  /-- Owned service action selected at each turn. -/
   action : Nat → Action K N
   starts : state 0 = initial
   step : ∀ n, Step c (state n) (state (n+1))
@@ -652,6 +700,7 @@ theorem eventually_final (e : Service c) (x : Fin N)
 and retained; eventual delivery has no timing bound. -/
 structure Observer (c : Config V O K N R f) (states : Nat → State V O K N)
     (votes : State V O K N → Nat → Bool) where
+  /-- Signatures actually delivered to this observer at each turn. -/
   received : Nat → Nat → Bool
   sound : ∀ n w, received n w = true → votes (states n) w = true
   retained : ∀ n w, received n w = true → received (n+1) w = true
@@ -670,6 +719,7 @@ theorem observed_quorum (e : Service c) (votes : State V O K N → Nat → Bool)
   obtain ⟨t, ht⟩ := finite_eventually c.old.committee.core _ delivered
   exact ⟨t, fun n hn => MultiParent.Liveness.core_forms_quorum c.old _ (ht n hn)⟩
 
+/-- Execute an enabled owned action, rejecting disabled actions. -/
 def perform (c : Config V O K N R f) (s : State V O K N) (a : Action K N) : Option (State V O K N) :=
   if Enabled c s a then some (applyAction s a) else none
 
@@ -686,6 +736,7 @@ theorem perform_sound (h : perform c s a = some t) : Step c s t := by
     | other => exact .replay _
   next disabled => contradiction
 
+/-- Execute a finite list of enabled owned service actions. -/
 def execute (c : Config V O K N R f) (s : State V O K N) : List (Action K N) → Option (State V O K N)
   | [] => some s
   | a :: rest => (perform c s a).bind (fun t => execute c t rest)
@@ -834,6 +885,7 @@ private def old (balance : Nat) : MultiParent.Config 0 0 R 1 where
   cancelAuthorized := Fin.elim0
   disjoint := fun tx => Fin.elim0 tx
 
+/-- A one-unit balance and one authorized full-balance owned spend. -/
 def unit : Config 0 0 1 1 1 1 where
   old := old 1
   root := fun _ => ⟨fun _ => false, fun _ => false, fun _ => false, fun _ => 1, true⟩
@@ -854,6 +906,7 @@ def unit : Config 0 0 1 1 1 1 where
   creditsOlder := by intros; contradiction
   book := by decide
 
+/-- Two owned debits that consume a five-unit balance exactly. -/
 def spendDown : Config 0 0 1 2 1 1 where
   old := old 5
   root := fun _ => ⟨fun _ => false, fun _ => false, fun _ => false, fun _ => 5, true⟩
@@ -874,11 +927,15 @@ def spendDown : Config 0 0 1 2 1 1 where
   creditsOlder := by intros; contradiction
   book := by decide
 
+/-- Honest-core seal votes activating the unique witness root. -/
 def handoff : List (Action 1 N) := [.close 0 0, .close 0 1, .close 0 2]
+/-- Honest-core operation and effects votes for one witness request. -/
 def spend (x : Fin N) : List (Action K N) :=
   [.sign x 0, .sign x 1, .sign x 2, .effect x 0, .effect x 1, .effect x 2]
 
+/-- Result of handoff and the one-unit witness spend. -/
 def unitEnd := execute unit initial (handoff ++ spend 0)
+/-- Result of handoff followed by both spend-down requests. -/
 def downEnd := execute spendDown initial (handoff ++ spend 0 ++ spend 1)
 example : unitEnd.isSome = true := by decide
 example : finalCert unit (unitEnd.getD initial) 0 = true := by decide
@@ -911,11 +968,13 @@ def cycle : Config 0 0 1 3 2 1 where
   creditsOlder := by intros x y h; exact (of_decide_eq_true h).1
   book := by decide
 
+/-- Result of burning, minting against headroom and spending all rights. -/
 def cycleEnd := execute cycle initial (handoff ++ spend 0 ++ spend 1 ++ spend 2)
 example : cycleEnd.isSome = true := by decide
 example : finalCert cycle (cycleEnd.getD initial) 2 = true := by decide
 example : MultiParent.balance cycle.old (cycleEnd.getD initial).old 0 + newCredit cycle (cycleEnd.getD initial) 0 - newDebit cycle (cycleEnd.getD initial) 0 = 0 := by decide
 
+/-- A spend requiring an authenticated external credit before signing. -/
 def lateIncoming : Config 0 0 1 1 1 1 := { unit with
   incoming := fun _ _ => 1
   incomingAuthenticated := fun _ => true
@@ -923,7 +982,9 @@ def lateIncoming : Config 0 0 1 1 1 1 := { unit with
   allocation := fun _ _ => 2
   cost := fun _ _ => 2
   book := by decide }
+/-- Witness state after handoff but before receipt of the required credit. -/
 def beforeIncoming := (execute lateIncoming initial handoff).getD initial
+/-- Witness state after importing the required external credit. -/
 def afterIncoming : State 0 0 1 1 := {beforeIncoming with received := fun _ => true}
 example : ¬ SignAllowed lateIncoming beforeIncoming 0 0 := by decide
 example : Step lateIncoming beforeIncoming afterIncoming := by
@@ -946,6 +1007,7 @@ example : ∀ w ∈ unit.old.committee.core,
   have casesW : w = 0 ∨ w = 1 ∨ w = 2 := by simpa [unit, old, committee] using hw
   rcases casesW with rfl | rfl | rfl <;> decide
 
+/-- A witness whose owned request was fenced before activation. -/
 def prefenced : Config 0 0 1 1 1 1 := {unit with priorFences := fun _ _ => true}
 example : ¬ SignAllowed prefenced ((execute prefenced initial handoff).getD initial) 0 0 := by decide
 

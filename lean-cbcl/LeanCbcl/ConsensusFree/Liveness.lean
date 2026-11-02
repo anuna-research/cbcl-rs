@@ -7,15 +7,19 @@ namespace CBCL.ConsensusFree.MultiParent.Liveness
 open CBCL.ValidatorBudget
 variable {V T R f : Nat}
 
+/-- An initialized asynchronous trace of accepted multi-parent commands. -/
 structure Execution (c : Config V T R f) where
+  /-- Protocol state after each completed service turn. -/
   state : Nat → State V T
+  /-- Command selected at each service turn. -/
   command : Nat → Command V T
   starts : state 0 = initial
   accepted : ∀ n, perform c (state n) (command n) = some (state (n+1))
 
 variable {c : Config V T R f}
 
-def Execution.step (e : Execution c) (n : Nat) : Step c (e.state n) (e.state (n+1)) :=
+/-- Each accepted service turn is a step of the protocol transition relation. -/
+theorem Execution.step (e : Execution c) (n : Nat) : Step c (e.state n) (e.state (n+1)) :=
   perform_sound (e.accepted n)
 
 /-- Weak action fairness: continuously enabled work is eventually scheduled. -/
@@ -23,9 +27,11 @@ def WeakFair (commands : Nat → Command V T) (enabled : Nat → Prop)
     (action : Command V T) : Prop :=
   ∀ start, (∀ n, start ≤ n → enabled n) → ∃ n, start ≤ n ∧ commands n = action
 
+/-- A missing signature whose native signing guard currently holds. -/
 def SignEnabled (c : Config V T R f) (s : State V T) (tx : Fin T) (w : Nat) : Prop :=
   s.signatures tx w = false ∧ SignAllowed c s tx w
 
+/-- A missing effects vote enabled by an operation QC and no local fence. -/
 def EffectEnabled (c : Config V T R f) (s : State V T) (tx : Fin T) (w : Nat) : Prop :=
   s.effects tx w = false ∧ operationCert c s tx = true ∧ s.fences tx w = false
 
@@ -279,6 +285,7 @@ theorem envelope_eventual_finality (e : Execution c) (tx : Fin T)
 /-- Client observation is a separate reliable-delivery premise: durable votes
 are eventually delivered and retained, not certificates assumed into existence. -/
 structure Observer (e : Execution c) (tx : Fin T) where
+  /-- Signatures actually received by this observer at each service turn. -/
   seen : Nat → Nat → Bool
   authentic : ∀ n w, seen n w = true → (e.state n).effects tx w = true
   retained : ∀ n w, seen n w = true → seen (n+1) w = true
