@@ -1,8 +1,8 @@
 ---
 id: SPEC-034
 title: Closing correct-owner protocol progress obligations
-version: 0.1.0
-status: in progress
+version: 0.2.0
+status: implemented
 last-updated: 2026-11-02
 ---
 
@@ -11,11 +11,12 @@ last-updated: 2026-11-02
 ## Orientation
 
 The user wants to establish protocol-level deadlock freedom for the account-owned
-lifecycle in [[SPEC-033-owned-counter-lifecycle]]. The current proof assumes owner
-readiness conditions; it does not derive them from every executable owner schedule.
-This work closes those obligations without consensus, timeout refunds or a winner
-oracle. A correct coherent owner, available honest quorum, eventual delivery and
-service/commits, retained evidence and finite configured capacity remain explicit
+lifecycle in [[SPEC-033-owned-counter-lifecycle]]. The earlier proof assumed owner
+readiness conditions. The initialized finite-capacity product now derives those
+conditions and proves eventual owner-journaled completion for each accepted request.
+This work uses no consensus, timeout refunds or winner oracle. A correct coherent
+owner, available honest quorum, eventual delivery and service/commits, retained
+evidence and finite configured capacity remain explicit
 assumptions.
 
 Named failures: **stale-sign fairness** requires old signatures after observed
@@ -39,7 +40,12 @@ accepted FIFO input + actual resource reservation
 ```
 
 The proof target is per-request completion, including the final unit, not a timing
-bound. Necessary honest retry work persists while the owner lacks its certificate.
+bound. The product has finite request, validator and retained-evidence catalogues;
+admissions may occur arbitrarily late. Necessary-job fairness applies until the
+owner observes the relevant certificate; completed signature jobs may retire.
+Native capacity/serialization/checked-arithmetic bounds and universal Rust
+extraction are a separate refinement boundary. Necessary honest retry work persists
+while the owner lacks its certificate.
 After observed completion, stale jobs need not execute. Later arrivals cannot
 bypass a selected request or seal. Collective contention and conflicting owners
 are excluded. Product-model proofs and finite Rust correspondence must be
@@ -154,7 +160,7 @@ Validates: [[SPEC-034-owned-progress-closure#REQ-3402]].
 Depth: initialized product executions derive observed Complete for every admitted
 funded request under named environmental conditions, without opaque readiness or
 terminal-QC assumptions. Audit standard axioms. Until this capstone exists,
-implementation-wide deadlock freedom remains unproved.
+implementation-wide deadlock freedom remains a distinct Rust refinement claim.
 Validates: [[SPEC-034-owned-progress-closure#REQ-3403]].
 
 ### TEST-3404
@@ -163,17 +169,46 @@ Core: independent adversarial review, relevant Rust/Lean tests, no_std, formatti
 and mutations. Shared traces compare actual guards rather than a second simulator.
 Validates: [[SPEC-034-owned-progress-closure#REQ-3404]].
 
+## Product completion proof
+
+The initialized product is implemented in `OwnerProduct.lean`; `OwnerTermination.lean`
+proves `admitted_eventually_complete` and `admitted_eventually_always_complete`.
+Their inputs are a configured ideal-authentication product execution, task-level
+fair service of retained necessary work, and an accepted request at a time. They
+have no terminal-QC, SignAllowed, drain, head-funding or readiness premise.
+
+The proof first derives monotone bounded structural progress, then eventual
+stationarity of the product projection. A saturated reachable state cannot retain
+an accepted incomplete request: dependency induction establishes local proof
+imports; signature history, envelope and pinned financial invariants establish
+honest guards; receipt counting forms actual quorums; owner service records Complete.
+Early imported certificates take the feedback branch instead of forcing stale votes.
+
+External income is a received authenticated proof with a finite verified acyclic
+retained dependency catalogue. Its objects are existing public evidence, not future
+signing jobs. Pinned version snapshots name the external identities they use.
+Later receipts cannot mutate the selected snapshot. Owner activation requires
+actual owner-replica adoption; recipient root QC imports require root metadata.
+
+The local/global clock enumerates successful service interleavings, not a global
+ledger or consensus decision. Retry/duplicate/failed-write turns may stutter.
+Configured native capacities must cover the structural catalogue, all generated
+wire objects, journal events, rank and numeric operations. Journal exhaustion is
+not used to justify stabilization.
+
 ## Open obligations
 
-Owner: coordinator. The universal product completion theorem and Rust refinement
-remain active work. Close observed-progress and dependency/catch-up seams before
-composing the capstone; passing partial checks does not discharge the capstone.
+Owner: coordinator. Universal Rust source correspondence, concrete checked-arithmetic
+and serialization/limit extraction remain separate work. Product-model completion
+does not itself prove that every deployed host satisfies retained-job service,
+delivery, recovery and sufficient-capacity assumptions. Collective contention and
+conflicting owners remain excluded.
 
 ## Implementation checkpoint
 
 Retained publication, bounded fixed-point evidence import, history-compatible
-catch-up and owner certificate feedback are implemented. Lean components prove
-retry closure, observed-quorum retirement and admission-derived full-allocation
-head funding. Independent review and the fresh-context Orientation gate are
-recorded in [[owned-progress-evidence]]. These satisfy component milestones;
-TEST-3403 and the universal executable-owner completion obligation remain open.
+catch-up and owner certificate feedback are implemented. Product theorem verification,
+independent review, executable traces and mutations are recorded in
+[[owned-deadlock-proof-evidence]]. Earlier component evidence remains in
+[[owned-progress-evidence]]. The product proof's independent acceptance, executable fair trace, axiom audit
+and guard mutations pass. Universal Rust extraction remains explicitly open.

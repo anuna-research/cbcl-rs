@@ -102,3 +102,7 @@ complete run passed with incremental compilation and debug symbols disabled.
 The workspace emitted its existing macOS Erlang NIF installation notice; no
 new compiler warning was reported. The SPEC-034 plan records verified catch-up,
 component model and scoped review milestones. The universal capstone is open.
+
+Subsequent composed product completion is recorded in
+[[owned-deadlock-proof-evidence]]. Its initialized Lean theorem closes the product
+capstone; universal Rust refinement remains a distinct obligation.

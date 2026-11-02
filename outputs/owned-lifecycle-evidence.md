@@ -139,3 +139,7 @@ contract does not extend to arbitrary collective contention or conflicting owner
 
 Subsequent progress repairs and component proofs are recorded in
 [[owned-progress-evidence]]. The universal completion obligation remains open.
+
+The composed initialized product theorem is now recorded in
+[[owned-deadlock-proof-evidence]]. It replaces readiness premises with derived
+product invariants; it does not establish universal Rust source correspondence.

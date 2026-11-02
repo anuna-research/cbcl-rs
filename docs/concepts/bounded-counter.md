@@ -288,18 +288,18 @@ asynchronous pending state; the model supplies no fixed completion deadline.
 Collective pools and conflicting owner behavior have no corresponding progress
 claim.
 
-The current Lean results establish abstract safety and conditional progress under
-explicit batch, history, funding and prerequisite-availability premises. Tests
-exercise the Rust driver's establishment of those conditions. A universal proof
-that every Rust driver execution establishes the model's progress premises remains
-open. Consequently, the implemented escape from the identified protocol traps
+The Lean results establish abstract safety and eventual completion in an
+initialized finite-capacity owner/protocol product. Batch, history, funding and
+prerequisite readiness are derived from that product's transitions. Tests exercise
+the corresponding Rust behavior. Universal correspondence between all Rust driver
+executions and the product remains open. Consequently, the implemented escape from the identified protocol traps
 must be distinguished from a proved absence of every possible implementation
 protocol deadlock. See [[owned-lifecycle-evidence]] for the precise boundary.
 
 
 ### Closing the progress proof
 
-[[SPEC-034-owned-progress-closure]] tracks the remaining proof work. Publications
+[[SPEC-034-owned-progress-closure]] records the composed completion proof. Publications
 now retain transitive counter prerequisites. Receivers retry them to a fixed point
 and catch up along verified ancestry before signing; failed out-of-order adoptions
 need not be resent as separate old jobs. Seal requests carry the drained batch's
@@ -309,6 +309,11 @@ completed responses carry the proof chain, so the owner can verify observed fina
 The new Lean components derive dependency readiness from an acyclic catalogue and
 an executable retry queue, permit retirement only on owner-observed evidence, and
 derive full-allocation head funding from checked admission/reservation invariants.
-They are components of the proof. The theorem composing the complete executable
-owner, dependency relay, validators and completion journal remains open; a blanket
-protocol deadlock-freedom claim is still premature.
+The composed theorem now proves that each accepted request eventually reaches
+owner-journaled `Complete` in the initialized finite-capacity product. A separate
+theorem shows that every reachable pending request has a necessary honest or owner
+action enabled. Fairness is per retained necessary job; stale signatures may retire
+after the owner observes the relevant QC. No terminal certificate or opaque
+readiness premise is supplied. This is a protocol-model proof, with the native
+Rust capacity/arithmetic/identity and universal source-refinement boundary still
+open. See [[owned-deadlock-proof-evidence]].

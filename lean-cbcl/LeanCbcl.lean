@@ -72,3 +72,7 @@ import LeanCbcl.ConsensusFree.OwnedLifecycle
 import LeanCbcl.ConsensusFree.OwnedProgress
 
 import LeanCbcl.ConsensusFree.OwnerFunding
+
+import LeanCbcl.ConsensusFree.OwnerProduct
+import LeanCbcl.ConsensusFree.OwnerTermination
+import LeanCbcl.ConsensusFree.OwnerProductWitness

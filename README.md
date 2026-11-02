@@ -90,7 +90,7 @@ cancellation-backed refunds. Account owners have a durable FIFO driver that
 freezes/drains issued work, permanently seals a continuation root and spends the
 full remaining allocation, including the final unit, under the documented progress
 conditions. This addresses the identified protocol budget/cancellation traps; Lean
-proves abstract conditional progress, while universal Rust-driver refinement remains
+proves initialized finite-product eventual completion, while universal Rust-driver refinement remains
 open. The language declaration selects that protocol; hosts
 do not choose a separate handoff algorithm.
 See [bounded counters](docs/concepts/bounded-counter.md), the

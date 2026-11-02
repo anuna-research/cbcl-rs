@@ -363,9 +363,12 @@ certificate for each funded FIFO request under the conditions above. This includ
 spending the entire remaining balance and the final base unit, without Byzantine
 votes. A pending certificate is not a deadline-triggered refund or balance reset.
 
-The formal result is conditional progress in the abstract Lean model. Its explicit
-owner-history, funding and prerequisite-availability premises have not been
-universally derived from every Rust `OwnerDriver` execution. Shared traces,
+The composed Lean product proves eventual owner-journaled completion for every
+accepted request, deriving history, funding, drain and prerequisite readiness from
+initialized transitions. Its explicit environmental assumptions are correct durable
+ownership, an available honest quorum, retained proofs, fair necessary-job service
+and sufficient finite capacity. These product invariants have not been universally
+extracted from every Rust `OwnerDriver` execution. Shared traces,
 adversarial tests and durable-journal recovery tests provide implementation evidence;
 a universal Rust-driver refinement and implementation-wide deadlock-freedom proof
 remain open. This boundary concerns the protocol implementation itself, separately
@@ -419,5 +422,6 @@ for Byzantine cooperation. Privately existing/unreceived votes never retire hone
 work. Capacity assumptions include retained dependencies, cumulative metadata,
 transport envelopes and local service—not only transaction counts.
 
-See [[SPEC-034-owned-progress-closure]] and [[owned-progress-evidence]] for current
-proof components and the still-open universal owner/product completion theorem.
+See [[SPEC-034-owned-progress-closure]] and [[owned-deadlock-proof-evidence]] for the
+initialized finite-product completion theorem, executable fair witness and precise
+source-refinement boundary. Earlier component evidence is in [[owned-progress-evidence]].
