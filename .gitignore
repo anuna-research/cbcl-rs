@@ -26,3 +26,6 @@
 /.zetl/
 /specs/.zetl/
 /outputs/
+
+# Locally staged release artifacts
+/dist/
