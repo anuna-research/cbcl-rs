@@ -6,7 +6,7 @@
 
 CBCL (Common Business Communication Language) lets agents define, exchange, and participate in multiparty protocols at runtime, without a central coordinator or a shared global message order. This repository provides the Rust implementation and Lean proofs.
 
-Agents teach each other new interaction vocabularies as messages. Decidable checks constrain those extensions, while signed, content-addressed evidence supports verification of public protocol behaviour and detection of equivocation.
+Agents teach each other new interaction vocabularies as messages. Protocols can also define shared state and bounded resources: replicas derive state from accepted acts, while escrow rights constrain concurrent spending. Signed, content-addressed evidence supports verification of public protocol behaviour and detection of equivocation.
 
 These guarantees concern observable interactions. They do not establish that an agent’s claims are true or that compliant actions are beneficial.
 
@@ -43,19 +43,33 @@ For bindings, see [[js/README]], [[README-WASM]], and [[crates/cbcl-erl/README]]
 ## Current capabilities
 
 - **Causal contracts:** three-valued verification (`Unknown`, `Valid`, `Violation`) over mergeable message stores, with accepted-history admission and an extractable causal kernel.
-- **Distributed state (R7):** optional state rules fold accepted acts into order-independent, duplicate-insensitive state; `intend` binds new acts against that accepted set. The state APIs are exported through every binding. See [[specs/SPEC-019-state-rules]].
-- **Quorum counters:** escrow bounded counters and authenticated quorum-budget certification, with durable journals. See [[docs/reference/quorum-runtime]] and `dialects/example-coin.cbcl`.
 - **Multiparty roles:** endpoint projection and role-local verification under R6 causal locality. See [[specs/SPEC-014-role-layer-endpoint-projection]].
 - **Evidence widening:** payload-free causal evidence, bounded protocol repetition, and equivocation detection. See [[specs/SPEC-015-evidence-widening-v2]].
 - **Typed content addresses:** Merkle roots over message fields, v3 root signatures, and authenticated field-openings for selective disclosure. Openings support causal safety; completion-level fan-in still requires full messages. See [[specs/SPEC-017-typed-content-addresses]] (implementation present; spec marked draft).
 
 Field-openings preserve the need for causal evidence: a bare hash cannot establish a missing predecessor's type. See [[specs/SPEC-016-splicing-boundary]].
 
+## State and bounded counters
+
+An optional `(state …)` declaration gives a protocol's messages a shared state interpretation. Registers, sets, maps, and counters are derived from the accepted acts in a thread. The same accepted set produces the same state regardless of arrival order or duplicate delivery. `fold` computes that state; `intend` binds a proposed act against it. These primitives are exposed through the Rust, JavaScript/TypeScript, WASM, C, and Erlang interfaces. See [[specs/SPEC-019-state-rules]].
+
+The **bounded-counter primitive** adds escrow rights to an integer counter. Each account can decrement within its allocation; transferring rights changes who can spend without changing the total. An optional ceiling adds per-account headroom for increments. This supports balances, quotas, and shared resource pools without relying on a global observed balance to authorize concurrent operations.
+
+| Operation | Effect |
+|-----------|--------|
+| Increment | Raises the value; requires issuer authority and, when capped, headroom |
+| Decrement | Lowers the value; consumes the signer's rights |
+| Transfer | Moves rights between accounts; preserves the value |
+
+Account ownership and collective ownership support individual allocations and pools consumed by distinct authorized signers. Examples: `dialects/example-coin.cbcl`, `dialects/example-capped-coin.cbcl`, and `dialects/example-collective-tickets.cbcl`. See [[docs/concepts/bounded-counter]] for declarations and invariants.
+
+The default certification profile requires a durable host issuance gate. `(certification quorum-budget)` selects the Rust validator runtime with authenticated quorums, multi-parent DAG adoption, durable journals, and cancellation-backed refunds. Signing, authentication, persistence, and external-effect deduplication remain host responsibilities. Quorum balance queries report known-final local views, with completeness unknown. See [[docs/reference/quorum-runtime]].
+
 ## Architecture
 
 `cbcl-core` and `cbcl-parser` form the deterministic `no_std + alloc` core and forbid unsafe code. CLI, WASM, C FFI, and Erlang NIF crates provide the effectful interfaces. See [[.hence/ADR-004-purity-boundary]] and [[.hence/PURITY-MAP]].
 
-Lean proofs live in `lean-cbcl/`, including R1–R5 properties, endpoint-projection correspondence, finite-time delivery results, and R6 DCFL preservation. Splicing and selective-disclosure results concern abstract predecessor-type evidence; concrete field-opening authentication remains a separate refinement obligation. The concrete R6 checks are tested in Rust; their semantic guarantees are mechanised in Lean. The axiom audit allowlist includes explicit content-hash and causal-accessor assumptions. For proof boundaries, see [[proofs/epp-correspondence/design]] and `scripts/check-axioms.sh`.
+Lean proofs live in `lean-cbcl/`, including R1–R5 properties, endpoint-projection correspondence, finite-time delivery results, and R6 DCFL preservation. Splicing and selective-disclosure results concern abstract predecessor-type evidence; concrete field-opening authentication remains a separate refinement obligation. State-fold and binder properties are proved in `State.lean`; corpus tests check Rust/model correspondence, while universal Rust-driver refinement remains open. The concrete R6 checks are tested in Rust; their semantic guarantees are mechanised in Lean. The axiom audit allowlist includes explicit content-hash and causal-accessor assumptions. For proof boundaries, see [[proofs/epp-correspondence/design]] and `scripts/check-axioms.sh`.
 
 ## API reference
 
