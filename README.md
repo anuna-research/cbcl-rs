@@ -2,233 +2,92 @@
 
 # CBCL
 
-[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
-[![Rust: 1.75+](https://img.shields.io/badge/rust-1.75%2B-orange.svg)](rust-toolchain.toml)
-[![Lean 4](https://img.shields.io/badge/lean-4-purple.svg)](lean-cbcl/)
-[![Sorries: 0](https://img.shields.io/badge/sorries-0-brightgreen.svg)](lean-cbcl/)
-[![no_std](https://img.shields.io/badge/no__std-%2B%20alloc-lightgrey.svg)](#architecture)
-[![WASM](https://img.shields.io/badge/wasm32-unknown--unknown-654FF0.svg)](crates/cbcl-wasm)
-[![LangSec '26](https://img.shields.io/badge/LangSec-'26-8a2be2.svg)](https://arxiv.org/abs/2604.14512)
-[![arXiv](https://img.shields.io/badge/arXiv-2604.14512-b31b1b.svg)](https://arxiv.org/abs/2604.14512)
+**A language for composing multi-agent protocols.**
 
-Rust implementation of **CBCL** (Common Business Communication Language): a safely extensible agent communication language with formal guarantees. CBCL restricts agent messages to the deterministic context-free (DCFL) language class, so message validity stays decidable as agents define new dialects at runtime. Safety under extension rests on six invariants: three structural (R1–R3), one cryptographic (R4), one for optional message contracts (R5), and one for the opt-in multiparty role layer (R6), all enforced by the same parser that handles ordinary communication.
+CBCL (Common Business Communication Language) lets agents define, exchange, and participate in multiparty protocols at runtime, without a central coordinator or a shared global message order. This repository provides the Rust implementation and Lean proofs.
+
+Agents teach each other new interaction vocabularies as messages. Decidable checks constrain those extensions, while signed, content-addressed evidence supports verification of public protocol behaviour and detection of equivocation.
+
+These guarantees concern observable interactions. They do not establish that an agent’s claims are true or that compliant actions are beneficial.
 
 ## Quick start
 
-Prerequisites: Rust 1.75+ (the workspace toolchain is pinned in `rust-toolchain.toml`). For the Lean proofs, install Lean 4 via [elan](https://github.com/leanprover/elan).
-
-AArch64 Unix builds use accelerated SHA-256 and require a target C compiler/assembler: Xcode Command Line Tools on macOS, or the appropriate native/cross toolchain on Linux and Android. WASM builds do not enable this assembly dependency.
+Install Rust stable, then:
 
 ```bash
 git clone https://codeberg.org/anuna/cbcl-rs
 cd cbcl-rs
-
-# Run tests (1404 passing tests across 40 suites; 23 ignored)
-cargo test --workspace
-
-# Parse a message
 cargo run -p cbcl-cli -- parse '(tell agent-b "hello")'
-
-# Verify a dialect (R1, R2, R3, R5)
-cargo run -p cbcl-cli -- verify dialect.scm
-
-# Run benchmarks
-cargo bench --workspace
-
-# Build for WASM
-cargo build --target wasm32-unknown-unknown -p cbcl-wasm
+cargo run -p cbcl-cli -- verify '(define greeting () @alice (extend greet (who) (tell who "hello")))'
 ```
 
-For the Lean 4 proofs:
+AArch64 Unix builds also require a target C compiler/assembler (Xcode Command Line Tools on macOS). WASM builds do not use that assembly dependency.
+
+The workspace declares Rust 1.75 as its minimum version; `rust-toolchain.toml` selects stable.
+
+## Usage
+
+The CLI supports parsing, dialect verification, an agent REPL, and gossip simulation:
 
 ```bash
-cd lean-cbcl && lake build
+cargo run -p cbcl-cli -- agent --id @alice
+cargo run -p cbcl-cli -- --help
 ```
 
-## The problem
+`parse`, `verify`, and `simulate` read from stdin when their input argument is omitted. To verify your own dialect file, use `cargo run -p cbcl-cli -- verify < dialect.scm`.
 
-Language-theoretic security (LangSec) teaches that the computational complexity class of an input language determines the *category* of bugs its parsers can exhibit. Regular languages admit only finite-state bugs; context-free languages add stack-related bugs; Turing-complete inputs make parser correctness undecidable.
+Custom performatives require an explicit `(lang …)` scope; installed dialects do not provide an unscoped fallback.
 
-Agent communication protocols have moved *up* this hierarchy without acknowledging the security consequences:
+For bindings, see [[js/README]], [[README-WASM]], and [[crates/cbcl-erl/README]]. The JavaScript/TypeScript package includes a JSON-authored object runtime.
 
-| Protocol | Input Complexity | Extensible? | Verifiable? | Weird Machines? |
-|----------|-----------------|-------------|-------------|-----------------|
-| KQML | CFG | No | Partially | Stack-based |
-| FIPA-ACL | CFG | No | Partially | Stack-based |
-| MCP | Unrestricted JSON | Yes | No | Turing-complete |
-| LLM Agents | Natural language | Yes | No | Turing-complete |
-| **CBCL** | **DCFL** | **Yes** | **Yes** | **None (by construction)** |
+## Current capabilities
 
-Early ACLs (KQML, FIPA-ACL) had fixed vocabularies that couldn't evolve without out-of-band standardisation. The modern alternative, natural language and unrestricted JSON (MCP, LLM agent frameworks), provides unlimited extensibility but creates an input language whose computational complexity is effectively unbounded. Determining whether an arbitrary message will cause harmful behaviour requires solving undecidable problems.
+- **Causal contracts:** three-valued verification (`Unknown`, `Valid`, `Violation`) over mergeable message stores, with accepted-history admission and an extractable causal kernel.
+- **Distributed state (R7):** optional state rules fold accepted acts into order-independent, duplicate-insensitive state; `intend` binds new acts against that accepted set. The state APIs are exported through every binding. See [[specs/SPEC-019-state-rules]].
+- **Quorum counters:** escrow bounded counters and authenticated quorum-budget certification, with durable journals. See [[docs/reference/quorum-runtime]] and `dialects/example-coin.cbcl`.
+- **Multiparty roles:** endpoint projection and role-local verification under R6 causal locality. See [[specs/SPEC-014-role-layer-endpoint-projection]].
+- **Evidence widening:** payload-free causal evidence, bounded protocol repetition, and equivocation detection. See [[specs/SPEC-015-evidence-widening-v2]].
+- **Typed content addresses:** Merkle roots over message fields, v3 root signatures, and authenticated field-openings for selective disclosure. Openings support causal safety; completion-level fan-in still requires full messages. See [[specs/SPEC-017-typed-content-addresses]] (implementation present; spec marked draft).
 
-## The solution
-
-CBCL sits between these extremes: a small core vocabulary (8 performatives) with a formal mechanism for agents to define, exchange, and adopt new domain-specific vocabularies ("dialects") at runtime, without centralised coordination and without escaping the DCFL complexity class.
-
-The key insight is *homoiconic self-extension*: dialect definitions are themselves valid CBCL messages in S-expression syntax, parsed and verified by the same deterministic pushdown automaton used for ordinary communication. Safety constraints, verified in Lean 4 and enforced at runtime, ensure this self-extension is provably safe:
-
-- **R1 (No Recursion):** Dialect templates are purely declarative pattern-template substitutions. No cyclic dependencies, iteration, or reflection.
-- **R2 (Resource Bounds):** Every dialect declares static resource limits (depth, expansion size, verification time) enforced at both definition time and runtime.
-- **R3 (Core Preservation):** The eight core performatives (`tell`, `ask`, `reply`, `hello`, `bye`, `ok`, `error`, `cancel`) cannot be redefined by any dialect.
-- **R4 (Integrity):** Dialects carry an Ed25519-style signature over their canonical byte encoding (`Signer` trait); install accepts `Valid` and `Unsigned` (with warning) and rejects `Invalid`, so a dialect's authorship and bit-exact contents can be checked before any further safety constraint runs.
-- **R5 (Contract Well-formedness):** Optional `(protocol …)` and `(shape …)` clauses on a dialect (its causal-message contract and per-performative shape contracts) must be acyclic, fully reachable from `begin`, reference only defined performatives (with ancestor closure for `extends`), have no duplicate steps, and respect the dialect's R2 depth bound. All five sub-checks run at install time and terminate in time linear in the dialect's size.
-- **R6 (Multiparty Well-formedness):** When a dialect's protocol carries `:roles`/`:from`/`:to` annotations, it must be role-complete, chooser-coherent, projectable onto every role, *causally local* (every endpoint role of a performative is an endpoint of each predecessor type its `:caused-by` clause names), reachable for every role, and single-decider at every choice. Checked at install time in O(|P|² · |R|) table lookups; causal locality is what makes coordination-free role-local verification agree with a whole-conversation verifier (the endpoint-projection correspondence, mechanised in `lean-cbcl` — see [Formal verification](#formal-verification)). Role annotations stay inside the DCFL class, machine-checked at both levels: the syntax inhabits the existing S-expression grammar, and protocol trace languages are regular with projection adding no recogniser (`R6DCFLPreservation.lean`).
-
-- **R7 (State Well-formedness):** An optional `(state …)` clause gives accepted acts a transition semantics from a closed vocabulary of fourteen rules over selection and reduction operations; every rule is a function of a thread's accepted set. `latest-per-signer` supersedes observed writes from the same signer through `:replaces`, then orders concurrent writes by content address. Installation checks that each rule names a defined performative and a required keyword of its shape, that the protocol has exactly one opener, and that the reserved `:replaces` field is declared by nobody: the compiler inserts it and a pure binder (`intend`) fills it from the accepted set. State is therefore order-independent and duplicate-insensitive, and replicas holding the same acts compute the same state (`State.lean`; [SPEC-019](specs/SPEC-019-state-rules.md)).
-
-**Why DCFL?** Deterministic pushdown recognition supports unbounded nesting (envelopes wrapping messages and dialects scoping inner messages) with deterministic parsing. Agreement between implementations requires a shared grammar and a correspondence proof; DCFL membership alone does not guarantee identical acceptance or parse trees. Languages beyond DCFL can also be decidable.
-
-Named after McCarthy's 1982 proposal for a "Common Business Communication Language" that would be "open ended so that as programs improve, programs that can at first only order by stock numbers can later be programmed to inquire about specifications and prices."
-
-Full theoretical framework and proofs are in the LangSec '26 paper, available as a preprint: [arXiv:2604.14512](https://arxiv.org/abs/2604.14512). The original prototype is the [Scheme implementation](https://github.com/anuna-research/cbcl).
-
-The state-rules branch supports escrow bounded counters with an optional ceiling
-and per-account headroom. The default profile uses a host issuance gate;
-`(certification quorum-budget)` selects the consensus-free Rust validator runtime,
-with multi-parent DAG adoption, authenticated quorums, durable local journals and
-cancellation-backed refunds. Account owners have a durable FIFO driver that
-freezes/drains issued work, permanently seals a continuation root and spends the
-full remaining allocation, including the final unit, under the documented progress
-conditions. This addresses the identified protocol budget/cancellation traps; Lean
-proves initialized finite-product eventual completion, while universal Rust-driver refinement remains
-open. The language declaration selects that protocol; hosts
-do not choose a separate handoff algorithm.
-See [bounded counters](docs/concepts/bounded-counter.md), the
-[quorum runtime API](docs/reference/quorum-runtime.md), and the
-[coin dialect](dialects/example-coin.cbcl). Collective ownership supports shared
-pools consumed by distinct authorized signers; see the
-[ticket dialect](dialects/example-collective-tickets.cbcl). Signing, authentication and durable
-storage remain host layers. Quorum balance queries expose known-final local views,
-with completeness explicitly unknown.
-
-A separate [abortable handoff experiment](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/abortable-handoff-prototype.md)
-models recovery from split checkpoint votes while preserving delayed certificates.
-Its consensus service is abstract; full asynchronous verification remains open.
-That fallback is historical research. The current
-[multi-parent DAG model](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/multi-parent-evidence.md) proves collective numeric
-safety and cancellation-backed reclamation. The Rust runtime uses DAG adoption for
-both account-owned and collective quorum counters, with per-scope histories and
-no host handoff selector. [Archived validation evidence](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/unified-quorum-evidence.md)
-distinguishes collective Lean correspondence from account-DAG execution tests and
-from universal Rust source equivalence. There is no consensus service or serialized
-reservation ledger.
-
-## Features
-
-- **Linear-time parser.** S-expression parser with O(n) time complexity and fuel-bounded recursion.
-- **Full message grammar.** Core performatives, dialects, and templates, all parsed by one DPDA.
-- **Verified safety constraints.** R1 (no recursion), R2 (resource bounds), R3 (core preservation), R4 (integrity), R5 (causal-protocol + shape contract well-formedness), each machine-checked in Lean 4.
-- **Multiparty roles (R6).** Opt-in role layer over R5: `:roles`/`:from`/`:to` annotations, installation-time R6 checks, coordination-free endpoint projection, and role-local verification composed with the R5 verifier — no central compiler or ordered transport. Projection and gluing satisfy a machine-checked run-level correspondence (`epp_correspondence`), a temporal bridge to conformant executions (`temporal_bridge`), and an abstract splicing analysis characterizing local predecessor coverage (`decidesAll_iff_predsLocal`); typed content addresses (`typed_addr`, Merkle-over-fields) give field-openings for selective disclosure (their abstract semantic interface is `openings_suffice`) ([SPEC-014](specs/SPEC-014-role-layer-endpoint-projection.md); modules `role`, `r6`, `projection`, `splice`, `typed_addr`, `envelope`, `attest`, `equivocation`; correspondence theorems mechanised in `lean-cbcl`).
-- **State layer (R7).** Opt-in `(state …)` and `(:state-bounds …)` clauses; a fold (`fold`) and an intent binder (`intend`) in the core, exported to every host with `admit` (the consumer's admission of a message against the accepted set), `may_send`, `frontier`, `state_schema`, and `dialect_hash` (a dialect's self-address); a conformance corpus in `test-vectors/state/` that every binding replays ([SPEC-019](specs/SPEC-019-state-rules.md); modules `state`, `r7`, `intend`; `State.lean`).
-- **Deterministic message tagging** preserving DCFL properties under dialect union.
-- **Embedded-friendly.** `no_std + alloc` compatible pure core; `#![forbid(unsafe_code)]`.
-- **Polyglot bindings.** WASM target (`wasm32-unknown-unknown`) via `wasm-bindgen`; C FFI via `cbindgen`; Erlang/BEAM NIF via `rustler`; and [`js/`](js/README.md), the `cbcl` package for JavaScript and TypeScript (typed wrappers over the wasm, plus `cbcl/object`, the JSON-authored object runtime), which contains no parser and no interpreter of its own. Every binding wraps the same functions with no semantics of its own: parsing, `verify_dialect`, `verify_message_shape`, `verify_protocol`, `message_hash`, `read` (the parser's tree, so a host never re-parses a frame), and the state-layer exports.
-- **CLI tooling.** Parsing, verification, agent REPL, gossip simulation.
-
-## Workspace
-
-| Crate | Zone | Description |
-|-------|------|-------------|
-| `cbcl-core` | Pure | Types, constraints (R1–R7), role layer + endpoint projection, state layer (fold, binder), template expansion, gossip, evaluator |
-| `cbcl-parser` | Pure | S-expression and message parser, pipeline |
-| `cbcl-cli` | Shell | Command-line interface |
-| `cbcl-wasm` | Shell | WebAssembly bindings |
-| `cbcl-ffi` | Shell | C FFI bindings |
-| `cbcl-erl` | Shell | Erlang/BEAM NIF bindings via `rustler` |
-| `js/` | Shell | `cbcl`: the verifier for JavaScript/TypeScript over the wasm build, and `cbcl/object` |
-| `lean-cbcl` | Proofs | Lean 4 formal verification of core algorithms |
-
-## Related projects
-
-- [`cbcl-router`](https://codeberg.org/anuna/cbcl-router) — BEAM/LFE router
-  that uses this crate's parser and R1–R4 validators on every message,
-  dispatching asks from authenticated producers to capability-registered
-  agents.
-- [`hark`](https://codeberg.org/anuna/hark) — Rust CLI and per-user daemon
-  that connects an agent to `cbcl-router`, linking this crate for local parse
-  and R1–R5 validation at the `/send` and `recv` boundaries.
-
-## Formal verification
-
-The `lean-cbcl/` directory contains a Lean 4 formalisation that machine-checks the core safety properties. Zero sorries, standard axioms only (`propext`, `Classical.choice`, `Quot.sound`). R1–R5 checkers are verified directly against their contracts; for R6 the mechanisation covers the *semantic* guarantees the checks purchase — the endpoint-projection correspondence, causal-locality sufficiency and a nonlocal counterexample, the splicing/type-opacity analysis, the temporal bridge, and DCFL preservation (role syntax adds no grammar; protocol trace languages are regular, and projection adds no recogniser) — while the R6 table checks themselves are exercised by property tests mirroring the Lean model ([SPEC-014](specs/SPEC-014-role-layer-endpoint-projection.md)).
-
-| Rust module | Lean file | What is proved |
-|---|---|---|
-| `sexpr.rs` | `SExpr.lean` | S-expression type well-formedness, `DecidableEq` |
-| `parser.rs` | `Parser.lean` | Parser soundness (`WellFormedSExpr`), concrete parse tests |
-| `serializer.rs` | `Serializer.lean` | Round-trip theorem for `SafeSymbol`, `RoundTrippable'` spec |
-| `msg.rs` | `MessageParser.lean` | Grammar soundness + completeness (`ValidMessageGrammar` ↔ `parseMessage`) |
-| `r1.rs` | `R1NoRecursion.lean` | DFS cycle detection: **sound** (`true → ¬cycle`) **and complete** (`cycle → false`) |
-| `r2.rs` | `R2ResourceBounds.lean` | Bounded evaluation terminates; depth returns to original level |
-| `r3.rs` | `R3CorePreservation.lean` | Core performatives cannot be redefined by extension dialects |
-| `r5.rs`, `protocol.rs` | `R5.lean` | Causal-protocol + shape contract well-formedness: acyclicity, reachability, performative definedness, step uniqueness, with full iff theorems for all four sub-checks |
-| `protocol.rs` (verify_causal) | `Verify.lean`, `Lattice/Result.lean`, `Lattice/Store.lean` | `verify : Message × CausalProtocol × MessageStore → VerificationResult` is monotone in the store, `(all …)` fan-in is the eager meet, and replica results join coordination-free under store union (G-Set merge). The store is a genuine lattice; the verdict is not — see `Lattice/NotALattice.lean` |
-| `role.rs`, `r6.rs`, `projection.rs` | `EPP.lean`, `EPPCompletion.lean`, `ProtocolProjection.lean`, `ConcreteProjection.lean` | Safe closed run correspondence and both round trips. Concrete Send/Recv selection and raw clause-table preservation are proved; `concrete_verification_agrees` connects map-selected stores to resolved-first verification under consistent annotations, shared-root visibility and causal locality. A root-preserving filtered protocol view also satisfies `AgreesOnRole`. A live Rust/Lean kernel comparison checks the source transcription boundary; generalized nonlocal splicing and deployed verifier/authentication refinement remain open |
-| `splice.rs`, `typed_addr.rs` | `Splice.lean` | Splicing analysis + typed content addresses: a spliced (non-local) predecessor stays permanently `Unknown`; role-local verification decides a closed configuration iff every cited predecessor is role-local (`decidesAll ↔ predsLocal`); resolved abstract stores with equal predecessor types agree on verdicts; concrete field-opening authentication is outside this proof (`spliced_pred_permanently_unknown`, `decidesAll_iff_predsLocal`, `openings_suffice`) |
-| `protocol.rs` (verify_causal) | `Bridge.lean` | Conformant executions — monotone delivery schedules accumulating a closed configuration — embed into the correspondence (`temporal_bridge`) |
-| `role.rs`, `projection.rs`, `protocol.rs` (verify_causal) | `R6DCFLPreservation.lean` | DCFL preservation at R6. Syntax half (typechecking-level): the role-annotation surface forms inhabit the existing S-expression grammar. Trace half, with `verify_causal`'s clause semantics (disjunctive `Single`/`Any` pool, first-`(all …)` fan-in, undeclared performatives unconstrained): both the causal-order trace language (`causalTrace_regular`) and the deployed order-free acceptance — valid-sticky verdicts, every message eventually `Valid` (`storeTrace_regular`) — are regular, hence trace-DCFL, with `causalTrace_storeTrace` embedding the former in the latter and the projected protocol recognised by the same builder |
-| `protocol.rs` (verdict) | `Lattice/NotALattice.lean` | The three-valued verdict is a bounded meet-semilattice under the knowledge order (GLB is the consensus meet, `Valid ⊓ Violation = Unknown`) and a bisemilattice for the deployed eager operators (absorption fails) — provably **not** a lattice (`not_a_lattice`, `no_join_of_terminals`, `kmeet_is_glb`, `eager_absorption_fails`) |
-| `dialect.rs` (`base_definer_of`), `evaluator.rs` | `Agent.lean` | Custom names require a lang scope (`resolvePerformative_unscoped_custom`); scoped resolution is independent of other installed dialects (`resolvePerformative_scoped_custom`) and has no fallback (`resolvePerformative_no_fallback`) |
-| `state.rs`, `intend.rs` | `State.lean` | The state layer over a list model of the accepted set: every rule of the sugar table is a set function (`fold_perm_invariant`, `fold_dedup_invariant`), monotone rules under store growth, the register characterisation (a replaced write never wins, an unnamed write is always current), sums once per address, the domain filter (`actsDom_setEq`, `actsDom_excluded`), and binder soundness (`intend_pred_valid`, `intend_replaces_current`, `intend_supersedes`, `intend_current_after`). The Rust/Lean correspondence is checked by the corpus, not proved |
-| Typed state execution model | `StateRefinement.lean` | Forward simulation and behavior refinement with stuttering, under independent initialization and acceptance-effect proofs. The counter instance refines labelled integer addition/subtraction. Reachable histories preserve unique addresses and authenticated receipt; Rust/model equivalence and liveness remain open ([SPEC-019](specs/SPEC-019-state-rules.md)) |
-| `template.rs` | `TemplateExpansion.lean` | Expansion terminates within declared resource bounds |
-| — | `FiniteDPDA.lean`, `InstalledSyntax.lean`, `InstalledLexer.lean` | Finite control, stack and input alphabets; recursive installed syntax and raw Unicode-scalar recognition on every word, including malformed words; preserved under any finite installation sequence |
-| — | `FiniteMonitor.lean`, `MonitoredDCFL.lean` | Intersection with any finite-state input monitor preserves the raw-language DCFL certificate after installation; `monitored_check_correct` proves equality with the existing Lean lexer/reference checker plus monitor |
-| — | `Pipeline.lean` | End-to-end: `pipeline_success_grammar` (success ⟹ `ValidMessageGrammar`) |
-
-### Headline theorems
-
-- **`InstalledSyntax.Raw.dcfl_preserved_many`**: every finite dialect installation sequence has a finite real-time DPDA for its recursive raw-character syntax language. The certificate covers all scalar words. The recogniser is fixed for each installed environment; this does not assert that the language of all possible environments is DCFL or that all semantic validation is included.
-- **`InstalledSyntax.Raw.monitored_dcfl_preserved_many`**: the same preservation holds when the raw syntax language is restricted by a finite-state input monitor. `Monitor.product_accepts` proves exact intersection on every word; arbitrary semantic predicates and pushdown-language intersections are outside this claim.
-- **`r1_mutual_sound`** + **`dfsNoCycle_complete`**: the DFS cycle detector is both sound and complete: it returns `true` iff no dependency cycle exists.
-- **`check_acyclicity_iff_no_cycle`** / **`check_reachability_iff_all_reachable`** / **`check_performative_definedness_iff_all_defined`** / **`check_step_uniqueness_iff_no_duplicates`**: each R5 sub-check returns `[]` iff the corresponding contract property holds on the dialect's causal protocol.
-- **`verify_monotone`** / **`verify_all_is_meet`** / **`verify_eventually_consistent`**: causal-protocol verification is a monotone map from the message-store join-semilattice into the three-valued verdict: monotone in the store, `(all …)` fan-in is exactly the eager meet, and replica verdicts join coordination-free under G-Set store merge (`verify M P S₁ ⊔ verify M P S₂ ⊑ verify M P (S₁ ∪ S₂)`). Merging knowledge can confirm but never overturn a per-replica verdict. (Coordination-freedom rests on the map being monotone, not on the verdict being a lattice — it is not; see below.)
-- **`epp_correspondence`** / **`epp_correspondence_complete`**: the endpoint-projection correspondence, at run level. On a closed configuration, `project` and `glue` are mutually inverse and role-local verification is sound and complete for whole-conversation safety — so each endpoint checking only its own projection agrees with a verifier holding the entire conversation. The correspondence relates configurations (states), not executions.
-- **`decidesAll_iff_predsLocal`** / **`spliced_pred_permanently_unknown`**: role-local verification decides every message in a closed configuration exactly when every cited predecessor is role-local (`decidesAll ↔ predsLocal`); a message citing a non-local ("spliced") predecessor stays `Unknown` forever. This characterizes the resolved-first store model; it does not establish a cryptographic impossibility or optimal communication scheme.
-- **`temporal_bridge`**: every conformant execution, modelled as a monotone delivery schedule accumulating a closed configuration, embeds into the correspondence, so the state-level guarantee carries along conformant runs.
-- **`causalTrace_regular`** / **`storeTrace_regular`**: the paper's DCFL-preservation proposition, mechanised with the deployed verifier's clause semantics (`verify_causal`'s disjunctive `Single`/`Any` pool and first-`(all …)` fan-in). Two trace languages, both recognised exactly by explicit finite automata over the canonical seen-set (the verifier's unbounded consumed-name list provably collapses onto sublists of the protocol's relevant names): the causal-order arrival language, and the order-free *store* language — which is the language the deployed valid-sticky verdicts actually accept (out-of-order arrival is `Unknown` then `Valid`, so acceptance is "every message eventually `Valid`"). `causalTrace_storeTrace` embeds the first in the second; regular ⊆ DCFL is formal (the automaton wrapped as a stack-untouched DPDA); and the projected protocol's recogniser is the same builder applied to the projected steps (`projection_adds_no_recogniser` — definitional by construction; the substantive local statement is the regularity instance). Role-local verification needs no machine class beyond what the global protocol already has.
-- **`not_a_lattice`** / **`kmeet_is_glb`** / **`eager_absorption_fails`**: the three-valued verdict is a bounded meet-semilattice under the knowledge order — its GLB is the consensus meet (`Valid ⊓ Violation = Unknown` under that order) — while the deployed eager operators form a bisemilattice in which absorption fails. The two terminal verdicts have no join, so the verdict is provably **not** a lattice; the store, separately, is.
-- **`openings_suffice`**: resolved abstract stores exposing identical predecessor types have identical safety verdicts. Connecting a concrete authenticated field-opening to these hypotheses requires a separate refinement proof; the theorem does not implement or verify Merkle authentication.
-- **`resolvePerformative_scoped_custom`**: a custom performative resolves only against the dialect selected by its `(lang …)` wrapper. Other installed dialects cannot redirect it. `resolvePerformative_unscoped_custom` rejects custom names without a scope, and `resolvePerformative_no_fallback` rejects names absent from the selected dialect.
-- **`pipeline_success_grammar`**: if the verified pipeline accepts a string, the result satisfies the `ValidMessageGrammar` relation.
-- **`fold_perm_invariant`** / **`fold_dedup_invariant`** / **`intend_pred_valid`**: R7. Every state rule is a function of the accepted set, invariant under permutation and re-delivery; the binder's predecessor is an accepted act of an admitted type, its `:replaces` names the current writes for the key (or its own signer for `latest-per-signer`), and once accepted a fresh act supersedes the named writes and is itself current, provided no prior write names its address.
-
-The EPP temporal theorem `eventually_present_valid` strengthens limit correspondence:
-under a safe closed global run, an exhausting append-only delivery schedule, and a
-finite list covering a message's predecessors, the relevant message is present and
-Valid from some finite time onward. This is resolved-first abstract semantics;
-concrete Send/Recv projection is now connected under the premises above. Deployed
-message/eager-verifier semantics, cast/seal agreement, envelope-route derivation, and
-field-opening authentication remain separate refinement obligations.
-
-Differential tests (`crates/cbcl-parser/tests/differential.rs`) run both implementations on the same test vectors and assert identical accept/reject verdicts.
+Field-openings preserve the need for causal evidence: a bare hash cannot establish a missing predecessor's type. See [[specs/SPEC-016-splicing-boundary]].
 
 ## Architecture
 
-Strict **purity boundary**: the core crates are deterministic, `no_std + alloc`, `#![forbid(unsafe_code)]`. Effectful code (I/O, CLI, WASM bindings, FFI) lives in shell crates that import the core, never the reverse. See `.hence/ADR-004-purity-boundary.md` and `.hence/PURITY-MAP.md`.
+`cbcl-core` and `cbcl-parser` form the deterministic `no_std + alloc` core and forbid unsafe code. CLI, WASM, C FFI, and Erlang NIF crates provide the effectful interfaces. See [[.hence/ADR-004-purity-boundary]] and [[.hence/PURITY-MAP]].
 
-## Testing
+Lean proofs live in `lean-cbcl/`, including R1–R5 properties, endpoint-projection correspondence, finite-time delivery results, and R6 DCFL preservation. Splicing and selective-disclosure results concern abstract predecessor-type evidence; concrete field-opening authentication remains a separate refinement obligation. The concrete R6 checks are tested in Rust; their semantic guarantees are mechanised in Lean. The axiom audit allowlist includes explicit content-hash and causal-accessor assumptions. For proof boundaries, see [[proofs/epp-correspondence/design]] and `scripts/check-axioms.sh`.
 
-- **Unit tests**: 867 in cbcl-core, 160 in cbcl-parser, 65 in cbcl-wasm, 39 in cbcl-erl (19 further ignored), 15 in cbcl-ffi; 4 CLI integration tests
-- **Property tests**: 43 proptest cases (37 in cbcl-core, of which 6 mirror the State.lean theorems, 6 in cbcl-parser) covering USDD verification properties
-- **Conformance corpus**: `test-vectors/state/` replayed forward, reversed, and duplicated by the parser runner and by every binding (`crates/cbcl-parser/tests/state_exports.rs`); a BEAM smoke test (`crates/cbcl-erl/scripts/smoke.escript`, 30 checks) loads the NIF and calls every export
-- **Differential tests**: 21 integration tests comparing Rust vs Lean on shared test vectors
-- **Eventual-consistency / NFR tests**: 12 + 4 integration tests in cbcl-core
-- **Fuzz targets**: libFuzzer harnesses for parser trust boundary
-- **Mutation testing**: cargo-mutants config targeting critical-path modules (90% kill rate threshold)
-- **Benchmarks**: Criterion benchmarks for parser, constraints, template expansion, gossip
+## API reference
 
-The [end-to-end quorum benchmark](tools/quorum-e2e/README.md) measures client-observed effects-certificate finality with four validator processes, real Ed25519 signatures, durable journals, configurable delay/load, and explicit stall accounting.
+Generate local Rust documentation with `cargo doc --workspace --no-deps`. Start with:
 
-## Contributing
+| Task | API |
+|------|-----|
+| Parse and validate | `cbcl_parser::run_pipeline` |
+| Verify causal evidence | `cbcl_core::protocol::verify_causal` |
+| Compute state and bind intent | `cbcl_core::state::fold`, `cbcl_core::intend::intend` |
+| Project and verify roles | `cbcl_core::projection::{project, verify_causal_for_role}` |
+| Open committed fields | `cbcl_core::typed_addr::{typed_root, open, verify_opening}` |
+| Authenticate disclosed evidence | `cbcl_core::envelope::{build_opened, verify_opened}` |
 
-Contributions are welcome, including reports of things that don't work or aren't clear. Bug reports live under [`bugs/`](bugs/) as Markdown with YAML frontmatter (severity S1-S4, priority P0-P2). Design specs (SPEC-001 onward) live under [`specs/`](specs/); architecture decisions are recorded in `.hence/`. In-flight work is tracked under [`plans/`](plans/).
+## Development
 
-Before opening a PR, run `cargo test --workspace`. For changes that touch verified modules, also run `lake build` from `lean-cbcl/`. If you're unsure how a change fits, open an issue or a draft PR; we're happy to help orient you.
+```bash
+cargo test --workspace
+cargo bench --workspace
+```
 
-## License
+For proof changes, install Lean via elan and run `lake build` and `lake exe runLinter LeanCbcl` from `lean-cbcl/`. Run `scripts/check-axioms.sh` from the repository root. For mutation testing, see [[docs/mutation-testing]].
 
-Apache-2.0. See [LICENSE](LICENSE).
+Contributions are welcome. Specs live under `specs/`, implementation plans under `plans/`, and bug reports under `bugs/`. Link changes to their governing requirements and verification evidence.
+
+State conformance vectors live in `test-vectors/state/`. For client-observed certificate finality measurements, see [[tools/quorum-e2e/README]].
+
+## Background and license
+
+The theoretical framework appears in the [LangSec ’26 preprint](https://arxiv.org/abs/2604.14512). The original prototype is the [Scheme implementation](https://github.com/anuna-research/cbcl).
+
+Apache-2.0; see LICENSE.
 
 ## Citation
 
