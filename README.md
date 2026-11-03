@@ -49,6 +49,14 @@ For bindings, see [JavaScript/TypeScript](js/README.md), [WebAssembly](README-WA
 
 Field-openings preserve the need for causal evidence: a bare hash cannot establish a missing predecessor's type.
 
+## Message store
+
+Each agent keeps a local, content-addressed message store. Messages belong to threads, and `:caused-by` links connect them into a causal graph. The store is an append-only, deduplicated set: exchanging messages merges knowledge by set union, without requiring a global delivery order. The core provides an in-memory implementation; transport and durable storage belong to the host.
+
+Verification consults this store for predecessor evidence. If a required predecessor has not arrived, the result can remain `Unknown`; later delivery lets the agent check again. Causal-closure bundles package a message and its transitive predecessors for transfer, while the frontier identifies messages not yet referenced by another message in the thread.
+
+Receipt alone does not mean acceptance. The admission monitor separates pending candidates from accepted history and verifies against accepted predecessors. State rules then derive an object's state from its accepted acts. Replicas with different evidence can temporarily differ; replicas with the same accepted acts derive the same state.
+
 ## State and bounded counters
 
 An optional `(state …)` declaration gives a protocol's messages a shared state interpretation. Registers, sets, maps, and counters are derived from the accepted acts in a thread. The same accepted set produces the same state regardless of arrival order or duplicate delivery. `fold` computes that state; `intend` binds a proposed act against it. These primitives are exposed through the Rust, JavaScript/TypeScript, WASM, C, and Erlang interfaces.
@@ -78,6 +86,8 @@ Generate local Rust documentation with `cargo doc --workspace --no-deps`. Start 
 | Task | API |
 |------|-----|
 | Parse and validate | `cbcl_parser::run_pipeline` |
+| Store messages and traverse causality | `cbcl_core::store::{MessageStore, ThreadedMessageStore, CausalClosureBundle}` |
+| Admit messages into accepted history | `cbcl_core::admission::AdmissionMonitor` |
 | Verify causal evidence | `cbcl_core::protocol::verify_causal` |
 | Compute state and bind intent | `cbcl_core::state::fold`, `cbcl_core::intend::intend` |
 | Project and verify roles | `cbcl_core::projection::{project, verify_causal_for_role}` |
