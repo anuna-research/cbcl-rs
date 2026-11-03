@@ -183,9 +183,9 @@ trait), GUI, IDE tooling, specific dialect implementations beyond
 
 | ID       | Requirement |
 |----------|-------------|
-| NFR-030  | The message tag function (`msg_tag`) SHALL be deterministic: identical `SExpr` input always produces identical `MsgTag` output, matching `msgTag_deterministic` in `DeterministicUnion.lean:69–71`. |
-| NFR-031  | Installing an R3-verified dialect into a well-formed agent SHALL preserve decidability of the agent's message language. This is the operational equivalent of `decidable_preserved` in `DeterministicUnion.lean`. |
-| NFR-032  | The parser and message-tag dispatch SHALL preserve the DCFL property: the accepted language is recognizable by a deterministic pushdown automaton. Tag dispatch examines only the head symbol (or head + second symbol for `lang` messages), matching `msgTag_head_only` in `DeterministicUnion.lean:73–78`. |
+| NFR-030  | The message tag function (`msg_tag`) SHALL be deterministic: identical `SExpr` input always produces identical `MsgTag` output. |
+| NFR-031  | Installing an R3-verified dialect into a well-formed agent SHALL preserve decidability of the agent's message language. The finite-machine installation certificates and Rust correspondence boundary are specified in [[SPEC-018-dcfl-installation#REQ-1802]]. |
+| NFR-032  | The parser and message-tag dispatch SHALL preserve the DCFL property: the accepted language is recognizable by a deterministic pushdown automaton. Tag dispatch examines only the head symbol (or head + second symbol for `lang` messages). Finite-machine recognition is specified in [[SPEC-018-dcfl-installation#CON-1800]]. |
 | NFR-033  | The crate SHALL include property-based tests (via `proptest` or `quickcheck`) exercising DCFL tag determinism, round-trip serialization, and R1/R2/R3 verification invariants. |
 
 ### 4.5  Correctness
@@ -254,8 +254,7 @@ trait), GUI, IDE tooling, specific dialect implementations beyond
 | `R1NoRecursion.lean`      | REQ-060–063  | NFR-033      | CON-001      |
 | `R2ResourceBounds.lean`   | REQ-070–073  | NFR-033      | CON-001      |
 | `R3CorePreservation.lean` | REQ-080–081  | NFR-031, 033 | CON-001      |
-| `DetParser.lean`          |              | NFR-030–032  |              |
-| `DeterministicUnion.lean` |              | NFR-030–032  |              |
+| [[SPEC-018-dcfl-installation]] (finite-machine installation certificates; Rust correspondence remains separate) | | NFR-031–032 | |
 | `TemplateExpansion.lean`  | REQ-100–101  |              | CON-001      |
 | `Pipeline.lean`           | REQ-110–111  | NFR-002, 040 | CON-001, 004 |
 | `gossip.scm`              | REQ-120–122  |              | CON-001      |

@@ -11,10 +11,13 @@ Mirrors `src/cbcl/template-expansion.scm` at a structural level.
 
 namespace CBCL
 
+/-- True iff the S-expression is a list whose head is a symbol atom. -/
 def isSymbolHead : SExpr → Bool
   | .list (.atom (.symbol _) :: _) => true
   | _ => false
 
+/-- The CBCL type name of an S-expression: `"string"`, `"number"`, `"boolean"`, `"agent"`
+    (a symbol starting with `@`), `"symbol"` (any other symbol or keyword), or `"list"`. -/
 def cbclTypeOf : SExpr → String
   | .atom (.str _) => "string"
   | .atom (.num _) => "number"
@@ -24,6 +27,7 @@ def cbclTypeOf : SExpr → String
   | .atom (.keyword _) => "symbol"
   | .list _ => "list"
 
+/-- True iff `value` inhabits the CBCL type named `typeName` (unknown type names never match). -/
 def typeMatches (value : SExpr) (typeName : String) : Bool :=
   match typeName with
   | "string" => match value with | .atom (.str _) => true | _ => false
@@ -34,6 +38,8 @@ def typeMatches (value : SExpr) (typeName : String) : Bool :=
   | "agent" => match value with | .atom (.symbol s) => s.startsWith "@" | .atom (.str s) => s.startsWith "@" | _ => false
   | _ => false
 
+/-- Evaluates a `cond` guard -- an equality (`=`), membership (`member`), or type (`type?`)
+    test -- against `bindings`, returning its boolean value or an error. -/
 def evaluateCondition (cond : SExpr) (bindings : Bindings) : Except String Bool :=
   match cond with
   | .list [ .atom (.symbol "="), .atom (.symbol param), value ] =>
@@ -51,6 +57,8 @@ def evaluateCondition (cond : SExpr) (bindings : Bindings) : Except String Bool 
   | _ => .error "Invalid condition"
 
 mutual
+  /-- Expands a template S-expression under `bindings`: handles `literal`, parameter
+      substitution, tagged (keyword) substitution, `cond`, and sequence templates. -/
   def expandTemplate (template : SExpr) (bindings : Bindings) : Except String SExpr :=
     match template with
     | .list [ .atom (.symbol "literal"), msg ] =>
@@ -75,6 +83,8 @@ mutual
     | other =>
       .ok (substituteBindings other bindings)
 
+  /-- Expands a `cond` template: returns the expansion of the first clause whose condition
+      holds (or the `else` clause), erroring if no clause matches. -/
   def expandConditionalTemplate (clauses : List SExpr) (bindings : Bindings) : Except String SExpr :=
     match clauses with
     | [] => .error "No condition matched and no else clause provided"
@@ -89,8 +99,13 @@ mutual
         | .ok false => expandConditionalTemplate rest bindings
       | _ => .error "Invalid conditional clause"
 
+  /-- Expands each element template of a sequence under `bindings` and reassembles the
+      results into a list S-expression, propagating the first error. -/
   def expandSequenceTemplate (templates : List SExpr) (bindings : Bindings) : Except String SExpr :=
-    let rec go (ts : List SExpr) (acc : List SExpr) : Except String (List SExpr) :=
+    let rec
+      /-- Tail-recursive worker: expand each remaining template, accumulating
+          results in reverse, and stop at the first error. -/
+      go (ts : List SExpr) (acc : List SExpr) : Except String (List SExpr) :=
       match ts with
       | [] => .ok acc.reverse
       | t :: rest =>
@@ -102,6 +117,8 @@ mutual
     | .error msg => .error msg
 end
 
+/-- Expands a performative call: matches `args` against the performative's parameter
+    pattern and, on success, expands its template under the resulting bindings. -/
 def expandPerformative (perf : PerformativeDef) (args : List SExpr) : Except String SExpr :=
   let pattern := SExpr.list perf.params
   let actual := SExpr.list args

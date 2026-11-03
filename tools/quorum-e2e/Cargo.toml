@@ -1,0 +1,25 @@
+[package]
+name = "cbcl-quorum-e2e"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[features]
+default = []
+queue-diagnostics = []
+
+[dependencies]
+cbcl-core = { workspace = true, features = ["std", "serde"] }
+cbcl-parser = { workspace = true, features = ["std"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+ed25519-dalek = { version = "=2.1.1", features = ["rand_core"] }
+rand_core = { version = "0.6", features = ["getrandom"] }
+fs2 = "0.4"
+# Keep the workspace Rust 1.75 baseline (zeroize 1.9 requires Rust 1.85).
+zeroize = "=1.8.2"
+
+[dev-dependencies]
+tempfile = "3"

@@ -122,7 +122,7 @@
 
 (meta task-ci-build
   (description "NFR-510 / TEST-550 / OBS-510: add a CI step that runs `lake build` in lean-cbcl/ on every PR touching lean-cbcl/, specs/SPEC-002-*.md, specs/SPEC-003-*.md, or specs/SPEC-005-*.md. Zero errors and zero `sorry`-warnings for any theorem marked `verified-by: lean` is the gate. The CI step also runs the parity tests from task-parity-tests.")
-  (acceptance "CI config (.github/workflows/*.yml or equivalent for codeberg) updated; a deliberately-introduced `sorry` in a `verified-by: lean` theorem fails CI; clean main branch passes CI within the runtime budget noted in the task-mathlib-setup commit."))
+  (acceptance "CI config (.github/workflows/*.yml or equivalent for the repository host) updated; a deliberately-introduced `sorry` in a `verified-by: lean` theorem fails CI; clean main branch passes CI within the runtime budget noted in the task-mathlib-setup commit."))
 
 (meta task-verified-by-final
   (description "REQ-517 closeout: revisit the verified-by annotations from task-verified-by-init and update them to reflect what actually landed. Theorems mechanised in this plan: REQ-303/304/307 (lattice + monotonicity + eventual consistency), REQ-204/205/206/207 (R5 sub-checks — `lean` for those with full iff, `lean (soundness only)` for any deferring completeness per ADR-512), REQ-209/225 (DCFL preservation). Anything still `prose` or `property` after this plan ships is honest about the remaining gap.")

@@ -725,10 +725,15 @@ mod tests {
 
     fn test_dialect(name: &str) -> Dialect {
         Dialect {
+            roles: Vec::new(),
+            state: None,
+            state_bounds: None,
+            causal_locality: Default::default(),
             name: String::from(name),
             extends: Vec::new(),
             author: None,
             performatives: vec![PerformativeDef {
+                role: None,
                 name: alloc::format!("{}-action", name),
                 params: Vec::new(),
                 template: SExpr::List(alloc::vec![
@@ -973,10 +978,15 @@ mod tests {
         let mut net = GossipNetwork::with_defaults();
         net.add_agent("alice");
         let bad = Dialect {
+            roles: Vec::new(),
+            state: None,
+            state_bounds: None,
+            causal_locality: Default::default(),
             name: String::from("bad"),
             extends: Vec::new(),
             author: None,
             performatives: vec![PerformativeDef {
+                role: None,
                 name: String::from("tell"), // R3 violation
                 params: Vec::new(),
                 template: SExpr::Atom(Atom::Symbol(String::from("x"))),
@@ -1003,6 +1013,10 @@ mod tests {
         let mut net = GossipNetwork::with_defaults();
         net.add_agent("alice");
         let bad = Dialect {
+            roles: Vec::new(),
+            state: None,
+            state_bounds: None,
+            causal_locality: Default::default(),
             name: String::from("bad-bounds"),
             extends: Vec::new(),
             author: None,

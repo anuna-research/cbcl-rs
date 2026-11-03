@@ -380,6 +380,10 @@ mod tests {
         verification_time_ms: u32,
     ) -> crate::dialect::Dialect {
         crate::dialect::Dialect {
+            roles: Vec::new(),
+            state: None,
+            state_bounds: None,
+            causal_locality: Default::default(),
             name: String::from("test-dialect"),
             extends: alloc::vec![],
             author: None,

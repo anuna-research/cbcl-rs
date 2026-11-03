@@ -12,6 +12,7 @@ use alloc::string::String;
 use alloc::vec::Vec;
 use core::fmt;
 
+use crate::causal_kernel::{self as kernel, Decision, FanIn, Lookup};
 use crate::message::CausedBy;
 use crate::store::{ContentHash, MessageStore, ThreadId};
 
@@ -24,6 +25,38 @@ use crate::store::{ContentHash, MessageStore, ThreadId};
 /// The accompanying tripwire test in this module asserts the singleton
 /// invariant; updating it without an ADR is a review-time signal.
 pub const BEGIN_KEYWORD: &str = "begin";
+
+/// Index separator for names synthesised by `(repeat k …)` macro-expansion
+/// (SPEC-015 REQ-704, CON-701).
+///
+/// `'#'` is *outside* the parser's legal symbol alphabet: in
+/// `cbcl-parser::parser::is_symbol_char` the accepted characters are ASCII
+/// alphanumerics plus `_ - . / ! ? + * < > = @`, and `'#'` instead
+/// introduces the boolean literals `#t`/`#f`. A user-declared performative
+/// name therefore can never contain `'#'`, so a synthesised copy name like
+/// `x#2` cannot collide with any declared performative — impossible by
+/// construction, not by convention (the hazard SPEC-014 ADR-604 avoided).
+pub const REPEAT_SEPARATOR: char = '#';
+
+/// Resolve a (possibly synthesised) protocol step name to its base
+/// performative name (SPEC-015 REQ-704).
+///
+/// `x#2` → `x`; nested-repeat names strip every index: `x#1#3` → `x`;
+/// a plain user name is returned unchanged. Because `#` is outside the
+/// user symbol alphabet ([`REPEAT_SEPARATOR`]), this resolution is exact:
+/// everything before the first separator is the declared base name.
+///
+/// This is how each expanded copy *inherits the base performative's
+/// definition and role annotation*: R5 definedness and the R6 annotation
+/// table look a copy up under its base name, while R3 core-name protection
+/// continues to apply to the base name (copies are never declared
+/// performatives).
+pub fn repeat_base_name(name: &str) -> &str {
+    match name.find(REPEAT_SEPARATOR) {
+        Some(idx) => &name[..idx],
+        None => name,
+    }
+}
 
 // ================================================================
 // Causal Protocol Data Model (REQ-200)
@@ -255,13 +288,35 @@ impl CausalProtocol {
         let defined: BTreeSet<&str> = defined_performatives.iter().copied().collect();
         let referenced = self.all_referenced_performatives();
 
+        // A `(repeat k …)` copy such as `x#2` is defined iff its base
+        // performative `x` is (SPEC-015 REQ-704: per-copy inheritance).
+        // Flag each undefined *base* name once, not once per copy.
+        let mut flagged: BTreeSet<&str> = BTreeSet::new();
         let mut violations = Vec::new();
         for name in &referenced {
-            if !defined.contains(name.as_str()) {
-                violations.push(ProtocolViolation::UndefinedPerformative { name: name.clone() });
+            let base = repeat_base_name(name);
+            if !defined.contains(base) && flagged.insert(base) {
+                violations.push(ProtocolViolation::UndefinedPerformative {
+                    name: String::from(base),
+                });
             }
         }
         violations
+    }
+
+    /// Number of protocol steps that count against R2's declared expansion
+    /// budget at install (SPEC-015 REQ-704): every named step — including
+    /// `(repeat k …)` copies, which are already materialised in `steps` by
+    /// the time a `CausalProtocol` exists — except the `begin` root, which
+    /// is a keyword, not an expansion product. A hand-unrolled equivalent
+    /// protocol counts identically, which is what keeps `k` honest.
+    pub fn expansion_size(&self) -> u32 {
+        let n = self
+            .steps
+            .keys()
+            .filter(|name| name.as_str() != BEGIN_KEYWORD)
+            .count();
+        u32::try_from(n).unwrap_or(u32::MAX)
     }
 
     /// Check that no performative has duplicate step declarations (REQ-207).
@@ -327,6 +382,8 @@ pub enum CausalViolation {
     ExtraneousPredecessor { caused_by: String, found: String },
     /// Fan-in without an `(all ...)` declaration for this performative.
     FanInWithoutAllDecl { performative: String },
+    /// Role-layer conformance failure (SPEC-014 REQ-612/613/615/618).
+    RoleConformance { reason: String },
 }
 
 impl fmt::Display for CausalViolation {
@@ -359,6 +416,9 @@ impl fmt::Display for CausalViolation {
             }
             Self::FanInWithoutAllDecl { performative } => {
                 write!(f, "fan-in without (all ...) declaration for {performative}")
+            }
+            Self::RoleConformance { reason } => {
+                write!(f, "role conformance: {reason}")
             }
         }
     }
@@ -463,10 +523,56 @@ impl PartialOrd for VerificationResult {
 // Causal Verification (REQ-203, REQ-304, ADR-008)
 // ================================================================
 
+/// Resolve the performative type of a `:caused-by` reference: from the
+/// full message when the store holds one, else from a redacted envelope's
+/// *authenticated* header, else from an opened envelope's *authenticated*
+/// Performative opening (SPEC-015 REQ-702; SPEC-017 REQ-813).
+///
+/// This is the safety-level seam of redacted delivery: presence,
+/// predecessor type, and resolution read exactly the fields an envelope
+/// carries (hash, type, endpoints, signature), so a widened recipient
+/// holding only the envelope — redacted *or* opened — reaches the same
+/// safety verdict it would with the full predecessor. An opened envelope's
+/// type comes from its Performative opening, verified against the signed
+/// typed root the address commits to; its endpoints (from/to openings) are
+/// available for role-conformance the same way, at zero payload disclosure.
+/// A full message, when present, wins — the two name the same content root,
+/// so they are the same message.
+///
+/// The completion-level occupant fan-in (`projection::verify_causal_for_role`,
+/// REQ-618) deliberately does *not* use this seam: fan-in membership
+/// ("present and Valid") still demands full messages (REQ-703). An opened
+/// envelope, which seals leaf 5, therefore satisfies the safety checks here
+/// but never the completion check there — the SPEC-015 boundary, preserved.
+pub(crate) fn predecessor_type<'a, S: MessageStore>(
+    store: &'a S,
+    hash: &ContentHash,
+    thread: &ThreadId,
+) -> Option<&'a str> {
+    if let Some(predecessor_msg) = store.lookup_in_thread(hash, thread) {
+        // Type through wrappers: the agent stores whole (possibly signed)
+        // messages, so a wrapped predecessor must type as its innermost
+        // Simple (SPEC-014; pre-existing Simple behaviour unchanged).
+        return Some(
+            predecessor_msg
+                .innermost_simple()
+                .and_then(|m| m.performative())
+                .map(|p| p.name())
+                .unwrap_or(""),
+        );
+    }
+    if let Some(e) = store.envelope_in_thread(hash, thread) {
+        return Some(e.performative());
+    }
+    store
+        .opened_in_thread(hash, thread)
+        .and_then(|e| e.performative())
+}
+
 /// Collect performative names allowed as single-message predecessors.
 ///
 /// Gathers names from `Single` and `Any` node-refs (not `All`, which is for fan-in).
-fn allowed_single_predecessors(step: &StepDecl) -> Vec<String> {
+pub(crate) fn allowed_single_predecessors(step: &StepDecl) -> Vec<String> {
     let mut types = Vec::new();
     for nr in &step.predecessors {
         match nr {
@@ -485,8 +591,10 @@ fn allowed_single_predecessors(step: &StepDecl) -> Vec<String> {
 /// a predecessor exists but has the wrong type or the causal link is malformed.
 ///
 /// Thread-scoped: `:caused-by` hashes resolve only within the same `:thread` (ADR-008).
-/// Stateless and monotone — re-evaluating after store growth can only move from
-/// `Unknown` toward `Valid` or `Violation`, never backwards.
+/// Stateless and valid-sticky. Wrong evidence dominates missing evidence in fan-in.
+/// The admission monitor applies a separate resolved-first guard before this verifier.
+/// Decisions use `causal_kernel`; lookups, membership, coverage and diagnostics
+/// remain adapters whose Rust-to-Lean correspondence is a separate obligation.
 pub fn verify_causal<S: MessageStore>(
     msg_performative: &str,
     caused_by: Option<&CausedBy>,
@@ -494,140 +602,133 @@ pub fn verify_causal<S: MessageStore>(
     protocol: &CausalProtocol,
     thread: &ThreadId,
 ) -> VerificationResult {
-    // Look up the step declaration for this performative
+    if crate::repeat::has_repeat(protocol) {
+        return crate::repeat::verify(msg_performative, caused_by, store, protocol, thread, None);
+    }
     let step = match protocol.steps.get(msg_performative) {
         Some(s) => s,
-        // Performative not declared in protocol — not constrained
+        // Legacy unconstrained route; strict admission excludes it.
         None => return VerificationResult::Valid,
     };
-
     let has_predecessors = !step.predecessors.is_empty();
 
     match caused_by {
-        // No :caused-by provided
-        None => {
-            if has_predecessors {
+        None => match kernel::absent(has_predecessors) {
+            Decision::Valid => VerificationResult::Valid,
+            Decision::MissingCausedBy => {
                 VerificationResult::Violation(CausalViolation::MissingCausedBy)
-            } else {
-                VerificationResult::Valid
             }
-        }
-
-        // :caused-by begin — root of a causal chain
+            _ => unreachable!("absent decision"),
+        },
         Some(CausedBy::Begin) => {
-            // BEGIN_KEYWORD must appear in a Single or Any predecessor ref
             let begin_allowed = step.predecessors.iter().any(|nr| match nr {
                 NodeRef::Single(s) => s == BEGIN_KEYWORD,
                 NodeRef::Any(set) => set.contains(BEGIN_KEYWORD),
-                NodeRef::All(_) => false, // begin in All doesn't apply to Begin caused-by
+                NodeRef::All(_) => false,
             });
-            if begin_allowed {
-                VerificationResult::Valid
-            } else {
-                let expected = allowed_single_predecessors(step);
-                VerificationResult::Violation(CausalViolation::InvalidPredecessor {
-                    caused_by: BEGIN_KEYWORD.into(),
-                    expected,
-                    found: BEGIN_KEYWORD.into(),
-                })
+            match kernel::literal_begin(begin_allowed) {
+                Decision::Valid => VerificationResult::Valid,
+                Decision::InvalidPredecessor => {
+                    VerificationResult::Violation(CausalViolation::InvalidPredecessor {
+                        caused_by: BEGIN_KEYWORD.into(),
+                        expected: allowed_single_predecessors(step),
+                        found: BEGIN_KEYWORD.into(),
+                    })
+                }
+                _ => unreachable!("literal-begin decision"),
             }
         }
-
-        // :caused-by <hash> — single predecessor
         Some(CausedBy::Single(hash_str)) => {
             let content_hash = ContentHash(hash_str.clone());
-            match store.lookup_in_thread(&content_hash, thread) {
-                None => VerificationResult::Unknown,
-                Some(predecessor_msg) => {
-                    let pred_perf = predecessor_msg
-                        .performative()
-                        .map(|p| p.name())
-                        .unwrap_or("");
-
-                    let allowed = allowed_single_predecessors(step);
-                    if allowed.iter().any(|a| a == pred_perf) {
-                        VerificationResult::Valid
-                    } else if allowed.is_empty() && !has_predecessors {
-                        VerificationResult::Violation(CausalViolation::ExtraneousPredecessor {
-                            caused_by: hash_str.clone(),
-                            found: pred_perf.into(),
-                        })
-                    } else {
-                        VerificationResult::Violation(CausalViolation::InvalidPredecessor {
-                            caused_by: hash_str.clone(),
-                            expected: allowed,
-                            found: pred_perf.into(),
-                        })
-                    }
+            let pred_perf = predecessor_type(store, &content_hash, thread);
+            // Preserve the missing-lookup fast path and diagnostics ordering.
+            let allowed = if pred_perf.is_some() {
+                allowed_single_predecessors(step)
+            } else {
+                Vec::new()
+            };
+            let lookup = match pred_perf {
+                None => Lookup::Missing,
+                Some(p) if allowed.iter().any(|a| a == p) => Lookup::Allowed,
+                Some(_) => Lookup::Wrong,
+            };
+            match kernel::single(has_predecessors, lookup) {
+                Decision::Valid => VerificationResult::Valid,
+                Decision::Unknown => VerificationResult::Unknown,
+                Decision::ExtraneousPredecessor => {
+                    VerificationResult::Violation(CausalViolation::ExtraneousPredecessor {
+                        caused_by: hash_str.clone(),
+                        found: pred_perf.expect("wrong lookup has a type").into(),
+                    })
                 }
+                Decision::InvalidPredecessor => {
+                    VerificationResult::Violation(CausalViolation::InvalidPredecessor {
+                        caused_by: hash_str.clone(),
+                        expected: allowed,
+                        found: pred_perf.expect("wrong lookup has a type").into(),
+                    })
+                }
+                _ => unreachable!("single decision"),
             }
         }
-
-        // :caused-by (h1 h2 ...) — fan-in (multiple predecessors)
         Some(CausedBy::Multiple(hashes)) => {
-            // Must have an (all ...) predecessor declaration
-            let all_decl = step.predecessors.iter().find_map(|nr| {
-                if let NodeRef::All(set) = nr {
-                    Some(set)
-                } else {
-                    None
-                }
+            // Preserve FIRST-All selection, including empty and later clauses.
+            let all_decl = step.predecessors.iter().find_map(|nr| match nr {
+                NodeRef::All(set) => Some(set),
+                _ => None,
             });
-
-            let all_set = match all_decl {
-                Some(s) => s,
-                None => {
-                    return VerificationResult::Violation(CausalViolation::FanInWithoutAllDecl {
-                        performative: msg_performative.into(),
-                    });
-                }
-            };
-
-            let mut result = VerificationResult::Valid;
+            let mut state = FanIn::Clear;
             let mut found_types = BTreeSet::new();
-
-            for hash_str in hashes {
-                let content_hash = ContentHash(hash_str.clone());
-                match store.lookup_in_thread(&content_hash, thread) {
-                    None => {
-                        result = result.meet(VerificationResult::Unknown);
-                    }
-                    Some(predecessor_msg) => {
-                        let pred_perf = predecessor_msg
-                            .performative()
-                            .map(|p| p.name())
-                            .unwrap_or("");
-
-                        if all_set.contains(pred_perf) {
+            let mut first_error = None;
+            let mut missing = Vec::new();
+            if let Some(all_set) = all_decl {
+                for hash_str in hashes {
+                    let content_hash = ContentHash(hash_str.clone());
+                    let lookup = match predecessor_type(store, &content_hash, thread) {
+                        None => Lookup::Missing,
+                        Some(pred_perf) if all_set.contains(pred_perf) => {
                             found_types.insert(String::from(pred_perf));
-                        } else {
-                            result = result.meet(VerificationResult::Violation(
-                                CausalViolation::InvalidPredecessor {
+                            Lookup::Allowed
+                        }
+                        Some(pred_perf) => {
+                            if first_error.is_none() {
+                                first_error = Some(CausalViolation::InvalidPredecessor {
                                     caused_by: hash_str.clone(),
                                     expected: all_set.iter().cloned().collect(),
                                     found: pred_perf.into(),
-                                },
-                            ));
+                                });
+                            }
+                            Lookup::Wrong
                         }
-                    }
+                    };
+                    state = kernel::observe(state, lookup);
+                }
+                if matches!(state, FanIn::Clear) {
+                    missing = all_set
+                        .iter()
+                        .filter(|t| !found_types.contains(*t))
+                        .cloned()
+                        .collect();
                 }
             }
-
-            // Check completeness only when all lookups succeeded
-            if matches!(result, VerificationResult::Valid) {
-                let missing: Vec<String> = all_set
-                    .iter()
-                    .filter(|t| !found_types.contains(*t))
-                    .cloned()
-                    .collect();
-                if !missing.is_empty() {
-                    result = VerificationResult::Violation(CausalViolation::IncompleteFanIn {
+            match kernel::finish(all_decl.is_some(), state, missing.is_empty()) {
+                Decision::Valid => VerificationResult::Valid,
+                Decision::Unknown => VerificationResult::Unknown,
+                Decision::InvalidPredecessor => VerificationResult::Violation(
+                    first_error.expect("wrong fan-in has a diagnostic"),
+                ),
+                Decision::IncompleteFanIn => {
+                    VerificationResult::Violation(CausalViolation::IncompleteFanIn {
                         missing_types: missing,
-                    });
+                    })
                 }
+                Decision::FanInWithoutAllDecl => {
+                    VerificationResult::Violation(CausalViolation::FanInWithoutAllDecl {
+                        performative: msg_performative.into(),
+                    })
+                }
+                _ => unreachable!("fan-in decision"),
             }
-
-            result
         }
     }
 }
@@ -1879,5 +1980,308 @@ mod tests {
             &t,
         );
         assert_eq!(r1, r2);
+    }
+
+    // ================================================================
+    // SPEC-015 REQ-702: safety-level verification over envelopes
+    // ================================================================
+
+    use crate::attest::{sign_attestation_v2, AttestationHeader};
+    use crate::envelope::RedactedEnvelope;
+    use crate::keyid::KeyId;
+    use crate::r4::Signer;
+
+    /// Data-dependent test signer (as in `attest.rs`): sig = SHA-256(secret
+    /// ‖ data), so tampering with any authenticated field kills it.
+    struct TestSigner {
+        secret: &'static [u8],
+    }
+
+    impl Signer for TestSigner {
+        fn sign(&self, data: &[u8]) -> Vec<u8> {
+            use sha2::{Digest, Sha256};
+            let mut h = Sha256::new();
+            h.update(self.secret);
+            h.update(data);
+            h.finalize().to_vec()
+        }
+        fn verify(&self, data: &[u8], sig: &[u8]) -> bool {
+            self.sign(data) == sig
+        }
+    }
+
+    const SIGNER: TestSigner = TestSigner { secret: b"alice" };
+
+    fn signed_env(hash: &str, perf: &str, thread_name: &str) -> RedactedEnvelope {
+        let mut to = BTreeSet::new();
+        to.insert(KeyId::parse("@bob").unwrap());
+        let header = AttestationHeader {
+            content_hash: hash.into(),
+            performative: perf.into(),
+            from: KeyId::parse("@alice").unwrap(),
+            to,
+            thread: thread_name.into(),
+            caused_by: Some(CausedBy::Begin),
+        };
+        let signature = sign_attestation_v2(&SIGNER, &header).unwrap();
+        RedactedEnvelope { header, signature }
+    }
+
+    /// REQ-702: a `:caused-by` reference resolves through an envelope —
+    /// Unknown before it arrives, then the same safety verdict a full
+    /// predecessor would give (here Valid), read from the authenticated
+    /// performative type.
+    #[test]
+    fn single_reference_resolves_through_an_envelope() {
+        let proto = verification_protocol();
+        let mut store = ThreadedMessageStore::new();
+        let t = tid("t1");
+        let msg_b = ("b", Some(CausedBy::Single("h1".into())));
+
+        // Nothing yet: Unknown.
+        assert_eq!(
+            verify_causal(msg_b.0, msg_b.1.as_ref(), &store, &proto, &t),
+            VerificationResult::Unknown
+        );
+
+        // Envelope of the predecessor `a` arrives: resolves Valid.
+        store
+            .append_envelope(signed_env("h1", "a", "t1"), &SIGNER)
+            .unwrap();
+        assert_eq!(
+            verify_causal(msg_b.0, msg_b.1.as_ref(), &store, &proto, &t),
+            VerificationResult::Valid
+        );
+
+        // Same verdict as with the full predecessor.
+        let mut full_store = ThreadedMessageStore::new();
+        full_store.append(chash("h1"), t.clone(), make_msg("a", Some(CausedBy::Begin)));
+        assert_eq!(
+            verify_causal(msg_b.0, msg_b.1.as_ref(), &store, &proto, &t),
+            verify_causal(msg_b.0, msg_b.1.as_ref(), &full_store, &proto, &t),
+        );
+    }
+
+    /// REQ-702: predecessor *type* checks read the envelope's
+    /// authenticated performative — a wrong-typed envelope resolves to
+    /// the same typed Violation a wrong-typed full message would.
+    #[test]
+    fn envelope_with_wrong_type_is_the_typed_violation() {
+        let proto = verification_protocol();
+        let mut store = ThreadedMessageStore::new();
+        let t = tid("t1");
+        store
+            .append_envelope(signed_env("h1", "c", "t1"), &SIGNER)
+            .unwrap();
+        assert_eq!(
+            verify_causal(
+                "b",
+                Some(&CausedBy::Single("h1".into())),
+                &store,
+                &proto,
+                &t
+            ),
+            VerificationResult::Violation(CausalViolation::InvalidPredecessor {
+                caused_by: "h1".into(),
+                expected: vec!["a".into()],
+                found: "c".into(),
+            })
+        );
+    }
+
+    /// REQ-702: an envelope satisfies references only in its
+    /// authenticated thread — it is invisible from any other thread.
+    #[test]
+    fn envelope_is_scoped_to_its_authenticated_thread() {
+        let proto = verification_protocol();
+        let mut store = ThreadedMessageStore::new();
+        store
+            .append_envelope(signed_env("h1", "a", "t1"), &SIGNER)
+            .unwrap();
+        assert_eq!(
+            verify_causal(
+                "b",
+                Some(&CausedBy::Single("h1".into())),
+                &store,
+                &proto,
+                &tid("t2")
+            ),
+            VerificationResult::Unknown
+        );
+    }
+
+    /// A full message and its envelope name the same content hash; when
+    /// both are present the full message is read (they agree by content
+    /// addressing, so this is a preference, not a semantic difference).
+    #[test]
+    fn full_message_shadows_its_own_envelope() {
+        let proto = verification_protocol();
+        let mut store = ThreadedMessageStore::new();
+        let t = tid("t1");
+        store
+            .append_envelope(signed_env("h1", "a", "t1"), &SIGNER)
+            .unwrap();
+        store.append(chash("h1"), t.clone(), make_msg("a", Some(CausedBy::Begin)));
+        assert_eq!(
+            verify_causal(
+                "b",
+                Some(&CausedBy::Single("h1".into())),
+                &store,
+                &proto,
+                &t
+            ),
+            VerificationResult::Valid
+        );
+    }
+
+    /// REQ-702 over the R5 fan-in *type* check: envelope members resolve
+    /// the `(all …)` type completeness (safety level). The completion
+    /// boundary (REQ-703) is enforced one layer up, in the role layer's
+    /// occupant fan-in — see `projection.rs`.
+    #[test]
+    fn fan_in_type_check_resolves_through_envelopes() {
+        let proto = fan_in_protocol();
+        let mut store = ThreadedMessageStore::new();
+        let t = tid("t1");
+        // x arrives in full; y only as an envelope.
+        store.append(chash("hx"), t.clone(), make_msg("x", Some(CausedBy::Begin)));
+        let z = CausedBy::Multiple(vec!["hx".into(), "hy".into()]);
+        assert_eq!(
+            verify_causal("z", Some(&z), &store, &proto, &t),
+            VerificationResult::Unknown
+        );
+        store
+            .append_envelope(signed_env("hy", "y", "t1"), &SIGNER)
+            .unwrap();
+        assert_eq!(
+            verify_causal("z", Some(&z), &store, &proto, &t),
+            VerificationResult::Valid
+        );
+    }
+
+    // ================================================================
+    // SPEC-017 REQ-813 Stage 3: safety-level verification over OPENED
+    // envelopes (native field-openings against the signed typed root)
+    // ================================================================
+
+    use crate::envelope::{build_opened, OpenedEnvelope, HEADER_FIELDS};
+    use crate::keyid::SignatureSuite;
+    use crate::message::Recipients;
+
+    /// A predecessor message typed `perf`, sender `@alice`, thread
+    /// `thread_name`, and its opened envelope (header fields, payload sealed)
+    /// plus the typed root that a citing `:caused-by` must name.
+    fn opened_pred(perf: &str, thread_name: &str) -> (OpenedEnvelope, String) {
+        let mut to = BTreeSet::new();
+        to.insert("@bob".to_string());
+        let m = Message::Simple {
+            performative: Performative::Custom(perf.into()),
+            recipient: Some(Recipients::Set(to)),
+            content: SExpr::Atom(Atom::Str("secret-payload".into())),
+            params: alloc::vec![],
+            thread: Some(thread_name.into()),
+            sender: Some("@alice".into()),
+            caused_by: Some(CausedBy::Begin),
+        };
+        let root = crate::typed_addr::typed_root(&m);
+        let env = build_opened(&m, &HEADER_FIELDS, &SignatureSuite::Ed25519, &SIGNER).unwrap();
+        (env, root)
+    }
+
+    /// REQ-813: a `:caused-by` reference resolves through an opened
+    /// envelope — Unknown before it arrives, then the same safety verdict a
+    /// full predecessor gives (Valid), read from the authenticated
+    /// Performative opening, at zero payload disclosure.
+    #[test]
+    fn single_reference_resolves_through_an_opened_envelope() {
+        let proto = verification_protocol();
+        let mut store = ThreadedMessageStore::new();
+        let t = tid("t1");
+        let (env, root) = opened_pred("a", "t1");
+        let cb = CausedBy::Single(root);
+
+        assert_eq!(
+            verify_causal("b", Some(&cb), &store, &proto, &t),
+            VerificationResult::Unknown
+        );
+        store.append_opened(env, &SIGNER).unwrap();
+        assert_eq!(
+            verify_causal("b", Some(&cb), &store, &proto, &t),
+            VerificationResult::Valid
+        );
+    }
+
+    /// REQ-813: a wrong-typed opened envelope resolves to the same typed
+    /// Violation a wrong-typed full message would (predecessor-type check
+    /// reads the authenticated Performative opening).
+    #[test]
+    fn opened_envelope_with_wrong_type_is_the_typed_violation() {
+        let proto = verification_protocol();
+        let mut store = ThreadedMessageStore::new();
+        let t = tid("t1");
+        let (env, root) = opened_pred("c", "t1"); // 'b' requires 'a', not 'c'
+        store.append_opened(env, &SIGNER).unwrap();
+        assert_eq!(
+            verify_causal(
+                "b",
+                Some(&CausedBy::Single(root.clone())),
+                &store,
+                &proto,
+                &t
+            ),
+            VerificationResult::Violation(CausalViolation::InvalidPredecessor {
+                caused_by: root,
+                expected: vec!["a".into()],
+                found: "c".into(),
+            })
+        );
+    }
+
+    /// REQ-813: an opened envelope satisfies references only in its
+    /// authenticated thread (its Thread opening) — invisible elsewhere.
+    #[test]
+    fn opened_envelope_is_scoped_to_its_authenticated_thread() {
+        let proto = verification_protocol();
+        let mut store = ThreadedMessageStore::new();
+        let (env, root) = opened_pred("a", "t1");
+        store.append_opened(env, &SIGNER).unwrap();
+        assert_eq!(
+            verify_causal(
+                "b",
+                Some(&CausedBy::Single(root)),
+                &store,
+                &proto,
+                &tid("t2")
+            ),
+            VerificationResult::Unknown
+        );
+    }
+
+    /// REQ-813 over the R5 fan-in *type* check: opened-envelope members
+    /// resolve the `(all …)` type completeness (safety level). The
+    /// completion boundary (REQ-703) is enforced one layer up in the role
+    /// layer's occupant fan-in (`projection.rs`), which never consults the
+    /// opened shelf — an opened envelope seals leaf 5 and so can satisfy
+    /// safety here but never completion there.
+    #[test]
+    fn fan_in_type_check_resolves_through_opened_envelopes() {
+        let proto = fan_in_protocol();
+        let mut store = ThreadedMessageStore::new();
+        let t = tid("t1");
+        let (env_x, root_x) = opened_pred("x", "t1");
+        let (env_y, root_y) = opened_pred("y", "t1");
+        let z = CausedBy::Multiple(vec![root_x.clone(), root_y.clone()]);
+
+        store.append_opened(env_x, &SIGNER).unwrap();
+        assert_eq!(
+            verify_causal("z", Some(&z), &store, &proto, &t),
+            VerificationResult::Unknown,
+            "one member still missing"
+        );
+        store.append_opened(env_y, &SIGNER).unwrap();
+        assert_eq!(
+            verify_causal("z", Some(&z), &store, &proto, &t),
+            VerificationResult::Valid
+        );
     }
 }

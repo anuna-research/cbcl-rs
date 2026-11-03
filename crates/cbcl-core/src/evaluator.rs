@@ -76,6 +76,12 @@ pub enum Effect {
 pub enum EvalError {
     /// The performative is not defined in any installed dialect.
     UnknownPerformative(String),
+    /// A custom performative was invoked outside any `(lang …)` wrapper, so
+    /// the message does not name the dialect that defines it (REQ-033).
+    ///
+    /// Normally unreachable from parsed input — the recogniser rejects the
+    /// form — so this fires for messages built programmatically.
+    UnscopedDialectPerformative(String),
     /// Template expansion failed (e.g. resource bounds exceeded, no matching cond branch).
     TemplateExpansionFailed { performative: String },
     /// The named dialect is not installed.
@@ -91,6 +97,13 @@ impl fmt::Display for EvalError {
         match self {
             EvalError::UnknownPerformative(name) => {
                 write!(f, "unknown performative: {name}")
+            }
+            EvalError::UnscopedDialectPerformative(name) => {
+                write!(
+                    f,
+                    "dialect performative '{name}' invoked outside (lang <dialect> ...); \
+                     the message must name the dialect that defines it"
+                )
             }
             EvalError::TemplateExpansionFailed { performative } => {
                 write!(
@@ -179,8 +192,7 @@ fn evaluate_simple(
 
     let perf_name = performative.name();
 
-    let dialect = resolve_performative_dialect(performative, registry, scope)
-        .ok_or_else(|| EvalError::UnknownPerformative(String::from(perf_name)))?;
+    let dialect = resolve_performative_dialect(performative, registry, scope)?;
 
     let def = dialect
         .find_performative(perf_name)
@@ -209,10 +221,12 @@ fn evaluate_simple(
         check_shapes(perf_name, &expanded, registry)?;
     }
 
-    // Interpret the expanded form into concrete effects.
-    let recipient = msg.recipient().map(String::from);
+    // Interpret the expanded form into concrete effects. A message may now
+    // carry a *set* of recipients (SPEC-014 REQ-622); send effects fan out
+    // over the set so a multicast is not silently narrowed to one or none.
+    let recipients: Vec<String> = msg.recipient_set().into_iter().map(String::from).collect();
     let content = msg.content().cloned().unwrap_or(SExpr::List(Vec::new()));
-    let effects = interpret_effects(&expanded, recipient, content, performative);
+    let effects = interpret_effects(&expanded, recipients, content, performative);
 
     Ok(EvalResult {
         expanded,
@@ -275,21 +289,43 @@ fn evaluate_wrapped(
     evaluate_with_scope(inner, registry, scope, check_shape)
 }
 
+/// Resolve the dialect that defines `performative` (REQ-033).
+///
+/// A **custom** performative is resolved *only* against the dialect named by
+/// its enclosing `(lang …)` wrapper. There is deliberately no fallback to the
+/// registry: the dialect is chosen by the message, never by the receiver's
+/// installed set, so the same bytes expand identically on every agent that
+/// holds the named dialect. This is also what lets two dialects define the
+/// same performative name without conflict — the wrapper disambiguates.
+///
+/// A **core** performative is resolved against the base dialect, which R3
+/// guarantees is its only definer.
+///
+/// The unscoped-custom case is rejected by the recogniser before evaluation
+/// (`message.rs`, `LangScope`); it is re-checked here so that programmatically
+/// constructed messages, which never passed through the parser, cannot bypass
+/// the rule.
 fn resolve_performative_dialect<'a>(
     performative: &Performative,
     registry: &'a DialectRegistry,
     scope: Option<&'a Dialect>,
-) -> Option<&'a Dialect> {
+) -> Result<&'a Dialect, EvalError> {
+    let name = performative.name();
+
     if !performative.is_core() {
-        if let Some(dialect) = scope {
-            if dialect.defines_performative(performative.name()) {
-                return Some(dialect);
-            }
-            return None;
-        }
+        let Some(dialect) = scope else {
+            return Err(EvalError::UnscopedDialectPerformative(String::from(name)));
+        };
+        return if dialect.defines_performative(name) {
+            Ok(dialect)
+        } else {
+            Err(EvalError::UnknownPerformative(String::from(name)))
+        };
     }
 
-    registry.find_performative_dialect(performative.name())
+    registry
+        .base_definer_of(name)
+        .ok_or_else(|| EvalError::UnknownPerformative(String::from(name)))
 }
 
 // ---------------------------------------------------------------------------
@@ -326,25 +362,50 @@ fn check_shapes(
 /// templates may expand to arbitrary S-expressions, which become `Custom` effects.
 fn interpret_effects(
     expanded: &SExpr,
-    recipient: Option<String>,
+    recipients: Vec<String>,
     content: SExpr,
     _performative: &Performative,
 ) -> Vec<Effect> {
+    // One `Option<String>` recipient per addressed target; an empty set
+    // yields a single `None` (unaddressed) effect, preserving the
+    // pre-SPEC-014 no-recipient behaviour. A multicast fans out into one
+    // send effect per recipient (canonical sorted order via `recipient_set`).
+    let targets: Vec<Option<String>> = if recipients.is_empty() {
+        vec![None]
+    } else {
+        recipients.into_iter().map(Some).collect()
+    };
+
     // Check for (effect <action>) form.
     if let Some(action) = extract_effect_action(expanded) {
         return match action.as_str() {
             "send-message" => {
-                // A tell also stores the content as a belief for the receiver.
-                vec![
-                    Effect::SendMessage {
+                // A tell sends to each recipient and stores the content as a
+                // belief once (the belief is about the content, not a target).
+                let mut effects: Vec<Effect> = targets
+                    .into_iter()
+                    .map(|recipient| Effect::SendMessage {
                         recipient,
                         content: content.clone(),
-                    },
-                    Effect::StoreBelief(content),
-                ]
+                    })
+                    .collect();
+                effects.push(Effect::StoreBelief(content));
+                effects
             }
-            "send-query" => vec![Effect::SendQuery { recipient, content }],
-            "send-reply" => vec![Effect::SendReply { recipient, content }],
+            "send-query" => targets
+                .into_iter()
+                .map(|recipient| Effect::SendQuery {
+                    recipient,
+                    content: content.clone(),
+                })
+                .collect(),
+            "send-reply" => targets
+                .into_iter()
+                .map(|recipient| Effect::SendReply {
+                    recipient,
+                    content: content.clone(),
+                })
+                .collect(),
             "signal-error" => vec![Effect::SignalError { content }],
             "acknowledge" => vec![Effect::Acknowledge],
             "cancel-conversation" => vec![Effect::CancelConversation],
@@ -388,10 +449,15 @@ mod tests {
     fn make_registry_with_custom() -> DialectRegistry {
         let mut reg = DialectRegistry::new();
         reg.install(Dialect {
+            roles: Vec::new(),
+            state: None,
+            state_bounds: None,
+            causal_locality: Default::default(),
             name: String::from("logistics"),
             extends: vec![String::from("cbcl")],
             author: None,
             performatives: vec![PerformativeDef {
+                role: None,
                 name: String::from("ship"),
                 params: vec![
                     SExpr::Atom(Atom::Symbol(String::from("package"))),
@@ -421,10 +487,15 @@ mod tests {
     fn make_registry_with_duplicate_customs() -> DialectRegistry {
         let mut reg = make_registry_with_custom();
         reg.install(Dialect {
+            roles: Vec::new(),
+            state: None,
+            state_bounds: None,
+            causal_locality: Default::default(),
             name: String::from("warehouse"),
             extends: vec![String::from("cbcl")],
             author: None,
             performatives: vec![PerformativeDef {
+                role: None,
                 name: String::from("ship"),
                 params: vec![
                     SExpr::Atom(Atom::Symbol(String::from("package"))),
@@ -458,7 +529,7 @@ mod tests {
         let reg = make_registry();
         let msg = Message::Simple {
             performative: Performative::Core(CorePerformative::Tell),
-            recipient: Some(String::from("@bob")),
+            recipient: Some("@bob".into()),
             content: SExpr::Atom(Atom::Str(String::from("hello"))),
             params: Vec::new(),
             thread: None,
@@ -470,7 +541,7 @@ mod tests {
         assert_eq!(
             result.effects[0],
             Effect::SendMessage {
-                recipient: Some(String::from("@bob")),
+                recipient: Some("@bob".into()),
                 content: SExpr::Atom(Atom::Str(String::from("hello"))),
             }
         );
@@ -484,11 +555,51 @@ mod tests {
     }
 
     #[test]
+    fn eval_multicast_tell_fans_out_to_every_recipient() {
+        // SPEC-014 REQ-622: a recipient set must not be silently dropped.
+        let reg = make_registry();
+        let msg = Message::try_from(
+            &"(tell (@a @b) \"hi\")"
+                .parse::<crate::sexpr::SExpr>()
+                .unwrap(),
+        )
+        .unwrap();
+        let result = evaluate(&msg, &reg).unwrap();
+        // one SendMessage per recipient (canonical sorted) + one StoreBelief
+        let sends: Vec<&Effect> = result
+            .effects
+            .iter()
+            .filter(|e| matches!(e, Effect::SendMessage { .. }))
+            .collect();
+        assert_eq!(sends.len(), 2, "multicast fans out to both recipients");
+        let recipients: alloc::collections::BTreeSet<String> = result
+            .effects
+            .iter()
+            .filter_map(|e| match e {
+                Effect::SendMessage {
+                    recipient: Some(r), ..
+                } => Some(r.clone()),
+                _ => None,
+            })
+            .collect();
+        assert!(recipients.contains("@a") && recipients.contains("@b"));
+        assert_eq!(
+            result
+                .effects
+                .iter()
+                .filter(|e| matches!(e, Effect::StoreBelief(_)))
+                .count(),
+            1,
+            "content stored as a belief once"
+        );
+    }
+
+    #[test]
     fn eval_ask_produces_send_query() {
         let reg = make_registry();
         let msg = Message::Simple {
             performative: Performative::Core(CorePerformative::Ask),
-            recipient: Some(String::from("@alice")),
+            recipient: Some("@alice".into()),
             content: SExpr::Atom(Atom::Str(String::from("what time?"))),
             params: Vec::new(),
             thread: None,
@@ -500,7 +611,7 @@ mod tests {
         assert_eq!(
             result.effects[0],
             Effect::SendQuery {
-                recipient: Some(String::from("@alice")),
+                recipient: Some("@alice".into()),
                 content: SExpr::Atom(Atom::Str(String::from("what time?"))),
             }
         );
@@ -628,6 +739,10 @@ mod tests {
             sender: None,
             caused_by: None,
         };
+        let msg = Message::Dialect {
+            dialect_name: String::from("cbcl-base"),
+            inner: alloc::boxed::Box::new(msg),
+        };
         let err = evaluate(&msg, &reg).unwrap_err();
         assert!(matches!(err, EvalError::UnknownPerformative(_)));
     }
@@ -645,6 +760,10 @@ mod tests {
             thread: None,
             sender: None,
             caused_by: None,
+        };
+        let msg = Message::Dialect {
+            dialect_name: String::from("logistics"),
+            inner: alloc::boxed::Box::new(msg),
         };
         let result = evaluate(&msg, &reg).unwrap();
         // Template expands to (effect dispatch-shipment) — a custom effect action
@@ -744,6 +863,88 @@ mod tests {
         assert!(matches!(err, EvalError::UnknownPerformative(_)));
     }
 
+    /// Build an unscoped invocation of the duplicated `ship` performative.
+    fn unscoped_ship() -> Message {
+        Message::Simple {
+            performative: Performative::Custom(String::from("ship")),
+            recipient: None,
+            content: SExpr::Atom(Atom::Str(String::from("PKG-789"))),
+            params: vec![SExpr::Atom(Atom::Symbol(String::from("dock-C")))],
+            thread: None,
+            sender: None,
+            caused_by: None,
+        }
+    }
+
+    /// REQ-033: the same unscoped invocation is refused whatever the
+    /// registry holds — the message never names a dialect, so no installed
+    /// set can supply one.
+    #[test]
+    fn eval_unscoped_custom_performative_is_rejected() {
+        for reg in [
+            make_registry_with_custom(),
+            make_registry_with_duplicate_customs(),
+        ] {
+            match evaluate(&unscoped_ship(), &reg).unwrap_err() {
+                EvalError::UnscopedDialectPerformative(name) => assert_eq!(name, "ship"),
+                other => panic!("expected UnscopedDialectPerformative, got {other:?}"),
+            }
+        }
+    }
+
+    /// Scoping is how a dialect performative is invoked at all — and two
+    /// dialects defining one name is fine, because the wrapper chooses.
+    #[test]
+    fn eval_scoping_resolves_an_otherwise_ambiguous_performative() {
+        let reg = make_registry_with_duplicate_customs();
+        for name in ["logistics", "warehouse"] {
+            let msg = Message::Dialect {
+                dialect_name: String::from(name),
+                inner: Box::new(unscoped_ship()),
+            };
+            assert!(
+                evaluate(&msg, &reg).is_ok(),
+                "scoped invocation to '{name}' must resolve"
+            );
+        }
+    }
+
+    #[test]
+    fn scoped_resolution_preserves_wrapper_scope_and_install_order() {
+        let forward = make_registry_with_duplicate_customs();
+        let mut reverse = DialectRegistry::new();
+        for name in ["warehouse", "logistics"] {
+            reverse
+                .install(forward.find_by_name(name).unwrap().clone())
+                .unwrap();
+        }
+        for input in [
+            "(lang logistics (ship parcel dock))",
+            "(lang logistics (signed signature (ship parcel dock)))",
+            "(signed signature (lang logistics (ship parcel dock)))",
+            "(lang warehouse (lang logistics (ship parcel dock)))",
+        ] {
+            let msg = Message::try_from(&input.parse::<SExpr>().unwrap()).unwrap();
+            let a = evaluate(&msg, &forward).unwrap();
+            let b = evaluate(&msg, &reverse).unwrap();
+            assert_eq!(a.expanded, b.expanded, "{input}");
+            assert_eq!(
+                extract_effect_action(&a.expanded).as_deref(),
+                Some("dispatch-shipment")
+            );
+        }
+        let msg = Message::try_from(
+            &"(lang logistics (tell @bob parcel))"
+                .parse::<SExpr>()
+                .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(
+            extract_effect_action(&evaluate(&msg, &reverse).unwrap().expanded).as_deref(),
+            Some("send-message")
+        );
+    }
+
     #[test]
     fn eval_dialect_unknown_dialect_errors() {
         let reg = make_registry();
@@ -771,7 +972,7 @@ mod tests {
         let reg = make_registry();
         let inner = Message::Simple {
             performative: Performative::Core(CorePerformative::Tell),
-            recipient: Some(String::from("@bob")),
+            recipient: Some("@bob".into()),
             content: SExpr::Atom(Atom::Str(String::from("secret"))),
             params: Vec::new(),
             thread: None,
@@ -801,7 +1002,7 @@ mod tests {
         let reg = make_registry();
         let msg = Message::Simple {
             performative: Performative::Core(CorePerformative::Tell),
-            recipient: Some(String::from("@bob")),
+            recipient: Some("@bob".into()),
             content: SExpr::Atom(Atom::Str(String::from("hi"))),
             params: Vec::new(),
             thread: Some(String::from("thread-42")),
@@ -879,10 +1080,15 @@ mod tests {
         // Template: (ship-effect :package <pkg> :dest <dst>)
         // Params bind: pkg = args[0], dst = args[1]
         reg.install(Dialect {
+            roles: Vec::new(),
+            state: None,
+            state_bounds: None,
+            causal_locality: Default::default(),
             name: String::from("logistics"),
             extends: vec![String::from("cbcl")],
             author: None,
             performatives: vec![PerformativeDef {
+                role: None,
                 name: String::from("ship"),
                 params: vec![
                     SExpr::Atom(Atom::Symbol(String::from("pkg"))),
@@ -938,6 +1144,10 @@ mod tests {
             sender: None,
             caused_by: None,
         };
+        let msg = Message::Dialect {
+            dialect_name: String::from("logistics"),
+            inner: alloc::boxed::Box::new(msg),
+        };
         let result = evaluate(&msg, &reg);
         assert!(result.is_ok());
     }
@@ -955,6 +1165,10 @@ mod tests {
             sender: None,
             caused_by: None,
         };
+        let msg = Message::Dialect {
+            dialect_name: String::from("logistics"),
+            inner: alloc::boxed::Box::new(msg),
+        };
         let result = evaluate(&msg, &reg);
         match result {
             Err(EvalError::ShapeViolation(v)) => {
@@ -970,7 +1184,7 @@ mod tests {
         let reg = make_registry();
         let msg = Message::Simple {
             performative: Performative::Core(CorePerformative::Tell),
-            recipient: Some(String::from("@bob")),
+            recipient: Some("@bob".into()),
             content: SExpr::Atom(Atom::Str(String::from("hello"))),
             params: Vec::new(),
             thread: None,
@@ -985,10 +1199,15 @@ mod tests {
         // Two shape constraints on same performative compose via conjunction (REQ-224)
         let mut reg = DialectRegistry::new();
         reg.install(Dialect {
+            roles: Vec::new(),
+            state: None,
+            state_bounds: None,
+            causal_locality: Default::default(),
             name: String::from("logistics"),
             extends: vec![String::from("cbcl")],
             author: None,
             performatives: vec![PerformativeDef {
+                role: None,
                 name: String::from("ship"),
                 params: vec![
                     SExpr::Atom(Atom::Symbol(String::from("pkg"))),
@@ -1045,6 +1264,10 @@ mod tests {
             sender: None,
             caused_by: None,
         };
+        let msg = Message::Dialect {
+            dialect_name: String::from("logistics"),
+            inner: alloc::boxed::Box::new(msg),
+        };
         assert!(evaluate(&msg, &reg).is_ok());
     }
 
@@ -1052,10 +1275,15 @@ mod tests {
     fn shape_check_max_depth() {
         let mut reg = DialectRegistry::new();
         reg.install(Dialect {
+            roles: Vec::new(),
+            state: None,
+            state_bounds: None,
+            causal_locality: Default::default(),
             name: String::from("shallow"),
             extends: vec![String::from("cbcl")],
             author: None,
             performatives: vec![PerformativeDef {
+                role: None,
                 name: String::from("nest"),
                 params: vec![],
                 // Template that expands to deeply nested structure
@@ -1092,6 +1320,10 @@ mod tests {
             thread: None,
             sender: None,
             caused_by: None,
+        };
+        let msg = Message::Dialect {
+            dialect_name: String::from("shallow"),
+            inner: alloc::boxed::Box::new(msg),
         };
         let result = evaluate(&msg, &reg);
         match result {

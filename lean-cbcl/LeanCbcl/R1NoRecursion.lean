@@ -26,6 +26,7 @@ def containsSelfReference (name : String) : SExpr → Bool
   | .atom _           => false
   | .list xs          => go xs
 where
+  /-- Fold over a list of S-expressions, true if any element contains `name`. -/
   go : List SExpr → Bool
   | []      => false
   | e :: es => containsSelfReference name e || go es

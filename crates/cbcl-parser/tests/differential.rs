@@ -467,12 +467,16 @@ fn differential_dialect_messages() {
                 other => panic!("[{id}] expected success, got: {other:?}"),
             };
 
-            let expected = &v["expected"]["value"];
+            let expected = &v["expected"];
 
             // Verify performative name
             if let Some(perf) = expected["performative"].as_str() {
                 assert_eq!(
-                    msg.performative().unwrap().name(),
+                    msg.innermost_simple()
+                        .unwrap()
+                        .performative()
+                        .unwrap()
+                        .name(),
                     perf,
                     "[{id}] performative mismatch"
                 );
@@ -555,6 +559,10 @@ fn differential_r1_no_recursion() {
 
 fn make_test_dialect(name: &str, bounds: ResourceBounds) -> Dialect {
     Dialect {
+        roles: Vec::new(),
+        state: None,
+        state_bounds: None,
+        causal_locality: Default::default(),
         name: name.to_string(),
         extends: vec![],
         author: None,
@@ -672,10 +680,15 @@ fn differential_r3_core_preservation() {
             // should fail R3 if it's a core performative
             if expected_core {
                 let d = Dialect {
+                    roles: Vec::new(),
+                    state: None,
+                    state_bounds: None,
+                    causal_locality: Default::default(),
                     name: "test-r3".to_string(),
                     extends: vec![],
                     author: None,
                     performatives: vec![PerformativeDef {
+                        role: None,
                         name: name.to_string(),
                         params: vec![],
                         template: SExpr::Atom(Atom::Symbol(name.to_string())),
@@ -770,6 +783,10 @@ fn differential_r4_signatures() {
         // r4-004: Dialect with integrity fields
         if let Some(hash) = input.get("hash") {
             let d = Dialect {
+                roles: Vec::new(),
+                state: None,
+                state_bounds: None,
+                causal_locality: Default::default(),
                 name: input["dialect_name"].as_str().unwrap_or("test").to_string(),
                 extends: vec![],
                 author: None,

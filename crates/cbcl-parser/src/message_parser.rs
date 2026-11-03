@@ -20,6 +20,13 @@ pub fn parse_message(sexpr: &SExpr) -> Result<Message, String> {
     Message::try_from(sexpr).map_err(|e| e.0)
 }
 
+/// Lax recognition: as [`parse_message`], except that a bare custom
+/// performative outside `(lang …)` is accepted (see [`Message::parse_lax`]).
+/// For a host's own control frames, dispatched by head name; never content.
+pub fn parse_message_lax(sexpr: &SExpr) -> Result<Message, String> {
+    Message::parse_lax(sexpr).map_err(|e| e.0)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -66,17 +73,66 @@ mod tests {
 
     #[test]
     fn parse_custom_performative() {
-        let msg = list(vec![sym("propose-step"), sym("s1"), sym("pickup")]);
+        let inner = list(vec![sym("propose-step"), sym("s1"), sym("pickup")]);
+        assert!(parse_message(&inner).is_err());
+        let msg = list(vec![sym("lang"), sym("cbcl-planning"), inner]);
         let m = parse_message(&msg).unwrap();
-        assert_eq!(m.message_type(), MessageType::Simple);
+        assert_eq!(m.message_type(), MessageType::Dialect);
         assert_eq!(
-            m.performative(),
+            m.innermost_simple().unwrap().performative(),
             Some(&Performative::Custom(String::from("propose-step")))
         );
         // s1 is content, pickup is param
-        assert_eq!(m.content(), Some(&sym("s1")));
-        if let Message::Simple { params, .. } = &m {
+        assert_eq!(m.innermost_simple().unwrap().content(), Some(&sym("s1")));
+        if let Some(Message::Simple { params, .. }) = m.inner_message() {
             assert_eq!(params.len(), 1);
+        }
+    }
+
+    #[test]
+    fn lax_recognition_accepts_a_bare_custom_head_for_a_hosts_control_frame() {
+        // The chat hub dispatches its control frames by head name and gates
+        // them with an allow-list; strict refuses them, lax names the head.
+        let sexpr = crate::parse("(adddialect @general :name probe :def \"(define probe (cbcl) @a)\" :from @alice)").unwrap();
+        assert!(parse_message(&sexpr).is_err());
+        let m = parse_message_lax(&sexpr).unwrap();
+        assert_eq!(m.performative(), Some(&Performative::Custom("adddialect".into())));
+        // Lax changes nothing else: a core performative and a scoped one read the same.
+        let core = crate::parse("(tell @bob \"hi\")").unwrap();
+        assert_eq!(parse_message_lax(&core).unwrap(), parse_message(&core).unwrap());
+        let scoped = crate::parse("(lang d (ship parcel))").unwrap();
+        assert_eq!(parse_message_lax(&scoped).unwrap(), parse_message(&scoped).unwrap());
+    }
+
+    #[test]
+    fn custom_performatives_require_lang_through_wrappers() {
+        for input in [
+            "(ship parcel)",
+            "(signed signature (ship parcel))",
+            "(with-limits () (signed signature (ship parcel)))",
+            "(envelope :from @alice (ship parcel))",
+        ] {
+            let sexpr = crate::parse(input).unwrap();
+            assert!(parse_message(&sexpr).is_err(), "must reject {input}");
+            assert!(Message::try_from(&sexpr).is_err());
+        }
+        for input in [
+            "(lang logistics (ship parcel))",
+            "(lang logistics (signed signature (ship parcel)))",
+            "(signed signature (lang logistics (ship parcel)))",
+            "(lang outer (with-limits () (lang logistics (ship parcel))))",
+        ] {
+            let sexpr = crate::parse(input).unwrap();
+            let msg = parse_message(&sexpr).expect(input);
+            assert_eq!(
+                msg.innermost_simple()
+                    .unwrap()
+                    .performative()
+                    .unwrap()
+                    .name(),
+                "ship"
+            );
+            assert_eq!(parse_message(&SExpr::from(&msg)).unwrap(), msg);
         }
     }
 
@@ -168,15 +224,15 @@ mod tests {
 
     #[test]
     fn parse_from_text() {
-        let input = "(share-conditional pickup box-location box-in-hand)";
+        let input = "(lang cbcl-planning (share-conditional pickup box-location box-in-hand))";
         let sexpr = crate::parser::parse(input).unwrap();
         let m = parse_message(&sexpr).unwrap();
         assert_eq!(
-            m.performative(),
+            m.innermost_simple().unwrap().performative(),
             Some(&Performative::Custom(String::from("share-conditional")))
         );
         // pickup is content, box-location and box-in-hand are params
-        if let Message::Simple { params, .. } = &m {
+        if let Some(Message::Simple { params, .. }) = m.inner_message() {
             assert_eq!(params.len(), 2);
         }
     }
@@ -184,24 +240,25 @@ mod tests {
     #[test]
     fn parse_test_vector_messages() {
         // dial-msg-001
-        let input = "(share-conditional pickup box-location box-in-hand)";
+        let input = "(lang cbcl-planning (share-conditional pickup box-location box-in-hand))";
         let sexpr = crate::parser::parse(input).unwrap();
         let m = parse_message(&sexpr).unwrap();
         assert_eq!(
-            m.performative(),
+            m.innermost_simple().unwrap().performative(),
             Some(&Performative::Custom("share-conditional".into()))
         );
 
         // dial-msg-003
-        let input = "(plant \"field-test\" \"corn\" \"30000\" \"2-in\" \"30-in\")";
+        let input =
+            "(lang agriculture (plant \"field-test\" \"corn\" \"30000\" \"2-in\" \"30-in\"))";
         let sexpr = crate::parser::parse(input).unwrap();
         let m = parse_message(&sexpr).unwrap();
         assert_eq!(
-            m.performative(),
+            m.innermost_simple().unwrap().performative(),
             Some(&Performative::Custom("plant".into()))
         );
         // "field-test" is content, rest are params
-        if let Message::Simple { params, .. } = &m {
+        if let Some(Message::Simple { params, .. }) = m.inner_message() {
             assert_eq!(params.len(), 4);
         }
     }
@@ -659,7 +716,7 @@ mod tests {
     }
 
     // -----------------------------------------------------------------------
-    // Deterministic msg_tag dispatch (mirrors Lean msgTag)
+    // Message tags agree with parser dispatch.
     // -----------------------------------------------------------------------
 
     #[test]

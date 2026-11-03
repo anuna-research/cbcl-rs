@@ -1,0 +1,40 @@
+{
+  "name": "cbcl",
+  "version": "0.1.0",
+  "description": "CBCL for JavaScript: the verifier (parse, verify, fold, bind, compile) as typed wrappers over the cbcl-rs WebAssembly build, and the object authoring runtime on top of it.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://git.anuna.io/anuna-research/cbcl-rs"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./object": {
+      "types": "./dist/object/index.d.ts",
+      "default": "./dist/object/index.js"
+    },
+    "./wasm": "./dist/cbcl_wasm.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=22.6"
+  },
+  "scripts": {
+    "build:wasm": "bash scripts/build-wasm.sh",
+    "build": "cp ../LICENSE LICENSE && tsc -p tsconfig.json && cp src/cbcl_wasm.js src/cbcl_wasm.d.ts src/cbcl_wasm_bg.wasm src/cbcl_wasm_bg.wasm.d.ts src/cbcl_wasm.provenance.json dist/",
+    "test": "node --experimental-strip-types --test test/*.test.ts",
+    "check": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "typescript": "^5.7"
+  }
+}

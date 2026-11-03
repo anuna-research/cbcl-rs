@@ -18,6 +18,11 @@ examine_re = [
     "crates/cbcl-core/src/template\\.rs$",
     "crates/cbcl-core/src/msg_tag\\.rs$",
     "crates/cbcl-core/src/evaluator\\.rs$",
+    # SPEC-014 role layer (R6 / endpoint projection) — AI-synthesised spec,
+    # mutation testing mandatory per the USDD protocol.
+    "crates/cbcl-core/src/role\\.rs$",
+    "crates/cbcl-core/src/r6\\.rs$",
+    "crates/cbcl-core/src/projection\\.rs$",
 ]
 
 # Exclude test modules and benchmarks from mutation.

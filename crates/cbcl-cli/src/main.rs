@@ -204,6 +204,15 @@ fn cmd_verify(input: Option<String>) -> i32 {
         }
     }
 
+    // R7: state clause well-formedness and self-addressed naming (SPEC-019).
+    // Vacuous for a dialect with no state clause. A dialect whose name is
+    // not yet its self-address reports the expected name so an author can
+    // rename it.
+    let r7 = cbcl_core::r7::r7_violations(&dialect);
+    for v in &r7 {
+        violations.push(format!("R7: {v}"));
+    }
+
     if violations.is_empty() {
         println!(
             "dialect '{}' passed all safety checks (R1, R2, R3, R5)",
@@ -217,6 +226,17 @@ fn cmd_verify(input: Option<String>) -> i32 {
             dialect.resources.verification_time_ms
         );
         println!("  R5: pass");
+        if let Some(state) = &dialect.state {
+            println!(
+                "  R7: pass ({} state field(s), {} domain(s))",
+                state.fields().count(),
+                state.domains().count()
+            );
+            println!(
+                "  self-address: {}",
+                cbcl_core::canonical::dialect_name(&dialect)
+            );
+        }
         0
     } else {
         eprintln!("dialect '{}' failed verification:", dialect.name);

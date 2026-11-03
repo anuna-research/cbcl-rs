@@ -1,0 +1,68 @@
+{
+  "id": "progress-fork",
+  "version": "1.1.0",
+  "thread": "progress-1",
+  "contract": "(define progress-fork (cbcl) @anuna (extend tick (to) (tell to)) (protocol (then begin (repeat 2 tick))) (state (number (progress tick)) (messages (count tick))))",
+  "covers": [
+    "progress",
+    "repeat",
+    "concurrent-branches",
+    "duplicate-delivery",
+    "missing-ancestry",
+    "repeat-bound"
+  ],
+  "messages": [
+    {
+      "canonical": "(lang progress-fork (tick @room :caused-by begin :thread \"progress-1\" :from @a))",
+      "signer": "@a"
+    },
+    {
+      "canonical": "(lang progress-fork (tick @room :caused-by sha256-c334b0427283879aa854898427aeea2bc181286a4fc176d94a8bf80e907fcb7c :thread \"progress-1\" :from @b))",
+      "signer": "@b"
+    },
+    {
+      "canonical": "(lang progress-fork (tick @room :caused-by sha256-c334b0427283879aa854898427aeea2bc181286a4fc176d94a8bf80e907fcb7c :thread \"progress-1\" :from @c))",
+      "signer": "@c"
+    },
+    {
+      "canonical": "(lang progress-fork (tick @room :caused-by sha256-79d6a8d27793bcc86acb6e4bc31a6e0548ab646250e87a6d1f87fcfbbda41450 :thread \"progress-1\" :from @a))",
+      "signer": "@a"
+    },
+    {
+      "canonical": "(lang progress-fork (tick @room :caused-by sha256-ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff :thread \"progress-1\" :from @b))",
+      "signer": "@b"
+    },
+    {
+      "canonical": "(lang progress-fork (tick @room  :thread \"progress-1\" :from @c))",
+      "signer": "@c"
+    },
+    {
+      "canonical": "(lang progress-fork (tick @room :caused-by sha256-c334b0427283879aa854898427aeea2bc181286a4fc176d94a8bf80e907fcb7c :thread \"progress-1\" :from @b))",
+      "signer": "@b"
+    }
+  ],
+  "expect": {
+    "addresses": [
+      "sha256-c334b0427283879aa854898427aeea2bc181286a4fc176d94a8bf80e907fcb7c",
+      "sha256-79d6a8d27793bcc86acb6e4bc31a6e0548ab646250e87a6d1f87fcfbbda41450",
+      "sha256-ca31ed8a8fb1ffafc812130cdadf8e30c06462f7d8dcef8b6d71f76b4ad3963a",
+      "sha256-9432db3d7caae14a4c38d60fca26bb65f1464532e6a7ef9426cf75005cde4bb1",
+      "sha256-0f199540ec2c5bc58e8c7a41b919d40e73ceb8fdbc287353d361748bd229a3f0",
+      "sha256-5f92edaf99ebc5ed7b91759c74a815143c1d66e29333eb923303bfd77895d4f3",
+      "sha256-79d6a8d27793bcc86acb6e4bc31a6e0548ab646250e87a6d1f87fcfbbda41450"
+    ],
+    "verdicts": {
+      "sha256-c334b0427283879aa854898427aeea2bc181286a4fc176d94a8bf80e907fcb7c": "accepted",
+      "sha256-79d6a8d27793bcc86acb6e4bc31a6e0548ab646250e87a6d1f87fcfbbda41450": "accepted",
+      "sha256-ca31ed8a8fb1ffafc812130cdadf8e30c06462f7d8dcef8b6d71f76b4ad3963a": "accepted",
+      "sha256-9432db3d7caae14a4c38d60fca26bb65f1464532e6a7ef9426cf75005cde4bb1": "rejected",
+      "sha256-0f199540ec2c5bc58e8c7a41b919d40e73ceb8fdbc287353d361748bd229a3f0": "pending",
+      "sha256-5f92edaf99ebc5ed7b91759c74a815143c1d66e29333eb923303bfd77895d4f3": "rejected"
+    },
+    "state": {
+      "number": 2,
+      "messages": 3
+    },
+    "intents": []
+  }
+}

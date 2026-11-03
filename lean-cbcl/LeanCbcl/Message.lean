@@ -1,4 +1,5 @@
 import LeanCbcl.SExpr
+import Batteries.Tactic.Lint  -- provides the `@[nolint …]` attribute
 
 /-!
 # CBCL Message Types
@@ -39,12 +40,22 @@ inductive MessageType where
 
 /-- A CBCL message. Mirrors `<cbcl-message>` record type. -/
 structure Message where
+  /-- The message's syntactic category. -/
   type         : MessageType
+  /-- The performative (speech act) carried by the message. -/
   performative : Performative
+  /-- The performative's argument S-expressions. -/
   params       : List SExpr
+  /-- Optional conversation/thread identifier. -/
   thread       : Option String := none
+  /-- Optional sender identifier. -/
   sender       : Option String := none
   deriving Repr, BEq, DecidableEq, Inhabited
+
+-- The derived `Repr` ignores its precedence argument (records are never
+-- parenthesised), so `unusedArguments` flags the generated `.repr`. False
+-- positive on generated code; suppressed rather than altering the instance.
+attribute [nolint unusedArguments] instReprMessage.repr
 
 /-- All core performative names as strings. -/
 def corePerformativeNames : List String :=

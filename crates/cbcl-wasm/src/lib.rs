@@ -39,7 +39,6 @@ use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use cbcl_core::agent::Agent;
 use cbcl_core::blame::ViolationError;
-use cbcl_core::canonical::{canonical_encode, dialect_canonical_bytes};
 use cbcl_core::dialect::DialectRegistry;
 use cbcl_core::evaluator;
 use cbcl_core::message::{CorePerformative, Message, Performative};
@@ -48,7 +47,6 @@ use cbcl_core::serializer::serialize;
 use cbcl_core::sexpr::{Atom, SExpr};
 use cbcl_core::store::{ContentHash, MessageStore, ThreadId, ThreadedMessageStore};
 use cbcl_parser::parser;
-use sha2::{Digest, Sha256};
 
 // ---------------------------------------------------------------------------
 // Pure WASM byte-level API (always available)
@@ -93,6 +91,22 @@ pub fn parse_message_bytes(input: &[u8]) -> Result<Vec<u8>, Vec<u8>> {
     let input_str =
         core::str::from_utf8(input).map_err(|e| format!("invalid UTF-8: {e}").into_bytes())?;
     parse_message_str(input_str)
+        .map(|s| s.into_bytes())
+        .map_err(|e| e.into_bytes())
+}
+
+/// Compute a message's canonical content hash (`sha256:<hex>`).
+///
+/// Input: UTF-8 bytes of a message S-expression; wrapped (`lang`, `envelope`,
+/// `signed`, `with-limits`) messages are addressed by their innermost simple
+/// message. This is the hash `verify_protocol`'s `history` entries and
+/// `:caused-by` references must carry, so a host whose own transport
+/// addresses differ can still name predecessors in CBCL's terms without
+/// reimplementing the typed content address.
+pub fn message_hash_bytes(input: &[u8]) -> Result<Vec<u8>, Vec<u8>> {
+    let input_str =
+        core::str::from_utf8(input).map_err(|e| format!("invalid UTF-8: {e}").into_bytes())?;
+    message_hash_str(input_str)
         .map(|s| s.into_bytes())
         .map_err(|e| e.into_bytes())
 }
@@ -221,6 +235,17 @@ fn parse_message_str(input: &str) -> Result<String, String> {
     Ok(serialize(&msg_sexpr))
 }
 
+/// Parse a message and return the canonical content hash of its innermost
+/// simple message, as `load_history_into_store` computes it.
+fn message_hash_str(input: &str) -> Result<String, String> {
+    let sexpr = parser::parse(input).map_err(|e| format!("parse error: {e}"))?;
+    let msg = cbcl_parser::parse_message(&sexpr).map_err(|e| format!("message error: {e}"))?;
+    let inner = msg
+        .innermost_simple()
+        .ok_or_else(|| String::from("expected a simple message at the innermost layer"))?;
+    Ok(compute_canonical_message_hash(inner))
+}
+
 /// Verify a dialect definition against R1/R2/R3/R5 rules and (when declared)
 /// confirm its `:hash` matches the canonical hash of its content.
 fn verify_dialect_str(input: &str) -> Result<String, String> {
@@ -230,158 +255,142 @@ fn verify_dialect_str(input: &str) -> Result<String, String> {
 }
 
 /// Parse a dialect S-expression (or a `(dialects <ancestor>* <leaf>)` chain)
-/// and install each into a fresh registry, running the same R1/R2/R3/R5 checks
-/// — and `:hash` consistency — that `cbcl_verify_dialect` performs. Returns
-/// the populated registry; the runtime verifiers (shape, protocol) iterate
-/// it whole rather than picking out a single "subject" dialect, so they
-/// honour constraints declared by *any* installed dialect.
-///
-/// The `(dialects ...)` form lets callers supply ancestor dialects so that
-/// R5's resolve-ancestors-by-name pass (`DialectRegistry::resolve_ancestors`)
-/// can find non-base parents. Without this, a child dialect like
-/// `(define child-d (parent-d) ... (protocol (then notify ack)))` would be
-/// rejected by R5 here because `parent-d` is not in the fresh registry, even
-/// though the rest of the pipeline accepts it once `parent-d` is installed.
-/// Order matters: ancestors must precede the leaf so each `install` call
-/// sees its parents already present.
-///
-/// Both runtime verifiers (shape, protocol) reuse this so callers cannot
-/// bypass install-time well-formedness — e.g. shapes that target an
-/// undefined performative, or protocols referencing undefined predecessors —
-/// to get a spurious "ok" or a misleading violation.
+/// and install each into a fresh registry, running the same R1–R7 checks and
+/// `:hash` consistency that `cbcl_verify_dialect` performs. One implementation
+/// for every binding: `cbcl_parser::state_exports::parse_and_install_dialect`.
 fn parse_and_install_dialect(dialect_sexpr: &SExpr) -> Result<DialectRegistry, String> {
-    // Accept either a bare `(define ...)` (back-compat) or a
-    // `(dialects <define-ancestor>* <define-leaf>)` chain.
-    let dialect_forms: alloc::vec::Vec<&SExpr> = match dialect_sexpr {
-        SExpr::List(xs)
-            if matches!(
-                xs.first(),
-                Some(SExpr::Atom(Atom::Symbol(s))) if s == "dialects"
-            ) =>
-        {
-            if xs.len() < 2 {
-                return Err(String::from(
-                    "(dialects ...) must contain at least one (define ...) form",
-                ));
-            }
-            xs[1..].iter().collect()
-        }
-        _ => alloc::vec![dialect_sexpr],
-    };
-
-    let mut registry = DialectRegistry::new();
-    for form in &dialect_forms {
-        let dialect =
-            cbcl_parser::parse_dialect(form).map_err(|e| format!("dialect parse error: {e}"))?;
-        registry
-            .install(dialect)
-            .map_err(|e| format!("dialect verification failed: {e}"))?;
-
-        // If the dialect declares a `:hash`, verify it matches the actual
-        // canonical hash of the (just-installed) dialect. The wrapper surfaces
-        // this hash in REQ-233 blame attribution via `with_dialect_context`,
-        // so trusting an unchecked claim would let a frame mislabel which
-        // dialect signed a verdict. Apply to every link in the chain, not
-        // just the leaf — a tampered ancestor :hash would otherwise propagate
-        // through R5 into the leaf's verification context.
-        let installed_idx = registry.len() - 1;
-        let installed = registry
-            .get(installed_idx)
-            .ok_or_else(|| String::from("internal: just-installed dialect not found"))?;
-        if let Some(claimed) = &installed.hash {
-            let computed = format!(
-                "sha256:{}",
-                hex_encode(Sha256::digest(dialect_canonical_bytes(installed)).as_slice())
-            );
-            if claimed != &computed {
-                return Err(format!(
-                    "dialect verification failed: declared :hash {claimed} \
-                     does not match canonical hash {computed}"
-                ));
-            }
-        }
-    }
-
-    Ok(registry)
-}
-
-/// Lowercase hex-encode bytes. Local helper to avoid a `hex` crate dep on the
-/// wasm32 build path.
-fn hex_encode(bytes: &[u8]) -> String {
-    const HEX: &[u8; 16] = b"0123456789abcdef";
-    let mut out = String::with_capacity(bytes.len() * 2);
-    for b in bytes {
-        out.push(HEX[(b >> 4) as usize] as char);
-        out.push(HEX[(b & 0x0f) as usize] as char);
-    }
-    out
+    cbcl_parser::state_exports::parse_and_install_dialect(dialect_sexpr)
 }
 
 /// Compute the canonical content hash of a message in the form
 /// `sha256:<lowercase-hex>`, matching the format the rest of the codebase
-/// uses for `:caused-by` references and dialect `:hash` fields. Hashes the
-/// canonical encoding of `SExpr::from(msg)`.
+/// uses for `:caused-by` references and dialect `:hash` fields.
+///
+/// SPEC-017 Stage 1 (hub flip): delegates to the shared content-address hub,
+/// the typed Merkle root over the message's fields
+/// (`cbcl_core::typed_addr::typed_root`), so the wasm binding and the core
+/// (`equivocation::message_content_hash`) can never disagree on a message's
+/// address. Return shape unchanged (`sha256:<hex64>`); only the digest value
+/// differs from the older flat `sha256:H(canonical-bytes)`.
 fn compute_canonical_message_hash(msg: &cbcl_core::message::Message) -> String {
-    let sexpr: SExpr = msg.into();
-    let bytes = canonical_encode(&sexpr);
-    format!("sha256:{}", hex_encode(Sha256::digest(&bytes).as_slice()))
+    cbcl_core::typed_addr::typed_root(msg)
 }
+
+// ---------------------------------------------------------------------------
+// SPEC-019 state layer exports (R.7). Frames are S-expressions, like every
+// other export; state, schema, and rejections come back as canonical JSON.
+// ---------------------------------------------------------------------------
+
+/// `(admit <dialect> <thread> (acts …) (<signer> <message>))` →
+/// `{"verdict":"accepted"|"pending"|"rejected"[,"reason"]}` (SPEC-019 R.4/R5/R6).
+pub fn admit_bytes(input: &[u8]) -> Result<Vec<u8>, Vec<u8>> {
+    let s = core::str::from_utf8(input).map_err(|e| format!("invalid UTF-8: {e}").into_bytes())?;
+    state_layer::admit_str(s)
+        .map(|s| s.into_bytes())
+        .map_err(|e| e.into_bytes())
+}
+/// `(resource-check ...)` → escrow verdict, separate from protocol admission.
+pub fn resource_check_bytes(input: &[u8]) -> Result<Vec<u8>, Vec<u8>> {
+    let s = core::str::from_utf8(input).map_err(|e| format!("invalid UTF-8: {e}").into_bytes())?;
+    state_layer::resource_check_str(s)
+        .map(String::into_bytes)
+        .map_err(String::into_bytes)
+}
+/// One S-expression → the parser's tree as JSON (lists, `{"str":…}`, atom text).
+pub fn read_bytes(input: &[u8]) -> Result<Vec<u8>, Vec<u8>> {
+    let s = core::str::from_utf8(input).map_err(|e| format!("invalid UTF-8: {e}").into_bytes())?;
+    cbcl_parser::read_str(s)
+        .map(|s| s.into_bytes())
+        .map_err(|e| e.into_bytes())
+}
+/// The canonical `(define …)` a dialect text, `(meta (define …))`, or teach frame carries.
+#[cfg(feature = "std")]
+pub fn define_text_bytes(input: &[u8]) -> Result<Vec<u8>, Vec<u8>> {
+    let s = core::str::from_utf8(input).map_err(|e| format!("invalid UTF-8: {e}").into_bytes())?;
+    cbcl_parser::define_text_str(s)
+        .map(|s| s.into_bytes())
+        .map_err(|e| e.into_bytes())
+}
+/// A dialect's description (name, author, opener, verbs, roles, state rules, …) as JSON.
+#[cfg(feature = "std")]
+pub fn describe_dialect_bytes(input: &[u8]) -> Result<Vec<u8>, Vec<u8>> {
+    let s = core::str::from_utf8(input).map_err(|e| format!("invalid UTF-8: {e}").into_bytes())?;
+    cbcl_parser::describe_dialect_str(s)
+        .map(|s| s.into_bytes())
+        .map_err(|e| e.into_bytes())
+}
+/// An act's wire text → `{dialect, address, verb, recipients, fields, thread, from, causedBy}`.
+#[cfg(feature = "std")]
+pub fn read_act_bytes(input: &[u8]) -> Result<Vec<u8>, Vec<u8>> {
+    let s = core::str::from_utf8(input).map_err(|e| format!("invalid UTF-8: {e}").into_bytes())?;
+    cbcl_parser::read_act_str(s)
+        .map(|s| s.into_bytes())
+        .map_err(|e| e.into_bytes())
+}
+/// SPEC-087: a JSON contract → `{"name","label","dialect"}`, installed through R1–R7.
+#[cfg(feature = "std")]
+pub fn compile_contract_bytes(input: &[u8]) -> Result<Vec<u8>, Vec<u8>> {
+    let s = core::str::from_utf8(input).map_err(|e| format!("invalid UTF-8: {e}").into_bytes())?;
+    cbcl_parser::compile_contract_str(s)
+        .map(|s| s.into_bytes())
+        .map_err(|e| e.into_bytes())
+}
+/// `(fold <dialect-or-chain> <thread> (acts (<signer> <message>) …))` → state JSON.
+pub fn fold_bytes(input: &[u8]) -> Result<Vec<u8>, Vec<u8>> {
+    let s = core::str::from_utf8(input).map_err(|e| format!("invalid UTF-8: {e}").into_bytes())?;
+    state_layer::fold_str(s)
+        .map(|s| s.into_bytes())
+        .map_err(|e| e.into_bytes())
+}
+/// `(intend <dialect-or-chain> <thread> (acts …) <signer> <verb> (:k v …))` → canonical act.
+pub fn intend_bytes(input: &[u8]) -> Result<Vec<u8>, Vec<u8>> {
+    let s = core::str::from_utf8(input).map_err(|e| format!("invalid UTF-8: {e}").into_bytes())?;
+    state_layer::intend_str(s)
+        .map(|s| s.into_bytes())
+        .map_err(|e| e.into_bytes())
+}
+/// `(verify-state-shape <dialect-or-chain> <message>)` → "ok".
+pub fn verify_state_shape_bytes(input: &[u8]) -> Result<Vec<u8>, Vec<u8>> {
+    let s = core::str::from_utf8(input).map_err(|e| format!("invalid UTF-8: {e}").into_bytes())?;
+    state_layer::verify_state_shape_str(s)
+        .map(|s| s.into_bytes())
+        .map_err(|e| e.into_bytes())
+}
+/// `(state-schema <dialect-or-chain>)` → schema JSON.
+pub fn state_schema_bytes(input: &[u8]) -> Result<Vec<u8>, Vec<u8>> {
+    let s = core::str::from_utf8(input).map_err(|e| format!("invalid UTF-8: {e}").into_bytes())?;
+    state_layer::state_schema_str(s)
+        .map(|s| s.into_bytes())
+        .map_err(|e| e.into_bytes())
+}
+/// `(may-send <dialect-or-chain> <thread> (acts …) <signer>)` → JSON array of verbs.
+pub fn may_send_bytes(input: &[u8]) -> Result<Vec<u8>, Vec<u8>> {
+    let s = core::str::from_utf8(input).map_err(|e| format!("invalid UTF-8: {e}").into_bytes())?;
+    state_layer::may_send_str(s)
+        .map(|s| s.into_bytes())
+        .map_err(|e| e.into_bytes())
+}
+/// `(frontier <dialect-or-chain> <thread> (acts …))` → `{"instance":…,"frontier":[…]}`.
+pub fn frontier_bytes(input: &[u8]) -> Result<Vec<u8>, Vec<u8>> {
+    let s = core::str::from_utf8(input).map_err(|e| format!("invalid UTF-8: {e}").into_bytes())?;
+    state_layer::frontier_str(s)
+        .map(|s| s.into_bytes())
+        .map_err(|e| e.into_bytes())
+}
+/// A `(define …)` → its self-addressed name `sha256-<hex>`.
+pub fn dialect_hash_bytes(input: &[u8]) -> Result<Vec<u8>, Vec<u8>> {
+    let s = core::str::from_utf8(input).map_err(|e| format!("invalid UTF-8: {e}").into_bytes())?;
+    state_layer::dialect_hash_str(s)
+        .map(|s| s.into_bytes())
+        .map_err(|e| e.into_bytes())
+}
+
+/// The state-layer frames are one implementation shared by every binding.
+use cbcl_parser::state_exports as state_layer;
 
 /// Verify a runtime message against a dialect's shape constraints.
 fn verify_message_shape_str(input: &str) -> Result<String, String> {
-    let frame = parser::parse(input).map_err(|e| format!("parse error: {e}"))?;
-    let items = match &frame {
-        SExpr::List(items) => items,
-        _ => {
-            return Err(String::from(
-                "expected (verify-shape <dialect-or-chain> <performative> <message>)",
-            ))
-        }
-    };
-    if items.len() != 4 || !matches!(&items[0], SExpr::Atom(Atom::Symbol(s)) if s == "verify-shape")
-    {
-        return Err(String::from(
-            "expected (verify-shape <dialect-or-chain> <performative> <message>)",
-        ));
-    }
-    let performative = match &items[2] {
-        SExpr::Atom(Atom::Symbol(s)) => s.clone(),
-        _ => return Err(String::from("performative must be a symbol")),
-    };
-    let dialect_sexpr = &items[1];
-    let message_sexpr = &items[3];
-
-    let registry = parse_and_install_dialect(dialect_sexpr)?;
-
-    // Composition by conjunction (REQ-224): every matching shape across the
-    // whole installed registry must pass. Iterating all installed dialects
-    // (not just the leaf) matches the full pipeline's behaviour, so a shape
-    // declared on a parent dialect supplied via the `(dialects ...)` chain
-    // form still fires for messages that target the parent's performative.
-    // Blame attribution follows the dialect that owns the failing shape.
-    for d in registry.iter() {
-        for shape in &d.shapes {
-            if shape.performative != performative {
-                continue;
-            }
-            if let Err(violation) = shape.check(message_sexpr) {
-                let blame = ViolationError::from_shape_violation(
-                    &violation,
-                    None,
-                    None,
-                    Some(message_sexpr.clone()),
-                )
-                .with_dialect_context(
-                    &d.name,
-                    d.author.as_deref(),
-                    d.hash.as_deref(),
-                    Some(&performative),
-                );
-                return Err(serialize(&blame.to_sexpr()));
-            }
-        }
-    }
-    Ok(String::from("ok"))
+    cbcl_parser::verify_message_shape_str(input)
 }
 
 /// Parse a `(history (<hash> <msg>) ...)` block and append each entry to `store`
@@ -600,7 +609,7 @@ fn send_message_str(recipient: &str, content: &str) -> Result<String, String> {
 
     let msg = Message::Simple {
         performative: Performative::Core(CorePerformative::Tell),
-        recipient: Some(recipient_sym),
+        recipient: Some(recipient_sym.into()),
         content: content_expr,
         params: Vec::new(),
         thread: None,
@@ -657,6 +666,13 @@ mod wasm_bindgen_api {
         parse_message_str(input)
     }
 
+    /// Canonical content hash (`sha256:<hex>`) of a message's innermost simple
+    /// message: the address `verify_protocol` history entries must carry.
+    #[wasm_bindgen]
+    pub fn message_hash(input: &str) -> Result<String, String> {
+        message_hash_str(input)
+    }
+
     /// Parse and verify a dialect definition against R1/R2/R3 rules.
     ///
     /// Input: `(define dialect-name (extends...) @author ...)` S-expression.
@@ -672,6 +688,83 @@ mod wasm_bindgen_api {
     ///
     /// Input: `(verify-shape <dialect> <performative> <message>)` S-expression.
     /// Returns "ok" or a REQ-233 blame S-expression as the error description.
+    /// SPEC-019 R.7: `(fold <dialect> <thread> (acts (<signer> <message>) …))` → state JSON.
+    #[wasm_bindgen]
+    pub fn fold(input: &str) -> Result<String, String> {
+        state_layer::fold_str(input)
+    }
+    /// SPEC-019 R.7: `(intend <dialect> <thread> (acts …) <signer> <verb> (:k v …))` → the
+    /// canonical act to sign, or a JSON rejection.
+    #[wasm_bindgen]
+    pub fn intend(input: &str) -> Result<String, String> {
+        state_layer::intend_str(input)
+    }
+    /// SPEC-019 R.4: `(verify-state-shape <dialect> <message>)` → "ok".
+    #[wasm_bindgen]
+    pub fn verify_state_shape(input: &str) -> Result<String, String> {
+        state_layer::verify_state_shape_str(input)
+    }
+    /// SPEC-019 R.7: `(state-schema <dialect>)` → schema JSON.
+    #[wasm_bindgen]
+    pub fn state_schema(input: &str) -> Result<String, String> {
+        state_layer::state_schema_str(input)
+    }
+    /// SPEC-019 R.7: `(may-send <dialect> <thread> (acts …) <signer>)` → JSON array.
+    #[wasm_bindgen]
+    pub fn may_send(input: &str) -> Result<String, String> {
+        state_layer::may_send_str(input)
+    }
+    /// SPEC-019 R.7: `(frontier <dialect> <thread> (acts …))` → `{"instance","frontier"}`.
+    #[wasm_bindgen]
+    pub fn frontier(input: &str) -> Result<String, String> {
+        state_layer::frontier_str(input)
+    }
+    /// SPEC-019 R.6: a `(define …)` → its self-addressed name `sha256-<hex>`.
+    #[wasm_bindgen]
+    pub fn dialect_hash(input: &str) -> Result<String, String> {
+        state_layer::dialect_hash_str(input)
+    }
+    /// The parser's tree for one S-expression as JSON (lists as arrays, quoted
+    /// strings as `{"str":…}`, every other atom as its text), so a host reads a
+    /// frame through this parser instead of one of its own (SPEC-013 REQ-018).
+    #[wasm_bindgen]
+    pub fn read(input: &str) -> Result<String, String> {
+        cbcl_parser::read_str(input)
+    }
+    /// The canonical `(define …)` a dialect text, `(meta (define …))`, or teach frame carries.
+    #[wasm_bindgen]
+    pub fn define_text(input: &str) -> Result<String, String> {
+        cbcl_parser::define_text_str(input)
+    }
+    /// A dialect's description as JSON: opener, verbs (fields, predecessors, roles),
+    /// roles, state rules, domains, bounds; from the installed structures.
+    #[wasm_bindgen]
+    pub fn describe_dialect(input: &str) -> Result<String, String> {
+        cbcl_parser::describe_dialect_str(input)
+    }
+    /// An act's wire text → `{dialect, address, verb, recipients, fields, thread, from, causedBy}`.
+    #[wasm_bindgen]
+    pub fn read_act(input: &str) -> Result<String, String> {
+        cbcl_parser::read_act_str(input)
+    }
+    /// SPEC-087: a JSON contract → `{"name","label","dialect"}`, the dialect named by
+    /// its self-address and installed through R1–R7, or a reason.
+    #[wasm_bindgen]
+    pub fn compile_contract(input: &str) -> Result<String, String> {
+        cbcl_parser::compile_contract_str(input)
+    }
+    /// SPEC-019 R.4/R5/R6: `(admit <dialect> <thread> (acts …) (<signer> <message>))` →
+    /// `{"verdict":"accepted"|"pending"|"rejected"[,"reason"]}` against the accepted set.
+    #[wasm_bindgen]
+    pub fn admit(input: &str) -> Result<String, String> {
+        state_layer::admit_str(input)
+    }
+    /// Escrow authorization only; protocol admission and durable issuance are separate.
+    #[wasm_bindgen]
+    pub fn resource_check(input: &str) -> Result<String, String> {
+        state_layer::resource_check_str(input)
+    }
+
     #[wasm_bindgen]
     pub fn verify_message_shape(input: &str) -> Result<String, String> {
         verify_message_shape_str(input)
@@ -829,6 +922,25 @@ mod c_abi {
         }
     }
 
+    /// Canonical content hash of a message's innermost simple message.
+    ///
+    /// Input: UTF-8 bytes of a message S-expression.
+    /// Returns 0 on success (`sha256:<hex>` in result buf), 1 on error.
+    #[no_mangle]
+    pub unsafe extern "C" fn cbcl_message_hash(ptr: *const u8, len: usize) -> i32 {
+        let input = core::slice::from_raw_parts(ptr, len);
+        match message_hash_bytes(input) {
+            Ok(out) => {
+                RESULT_BUF = out;
+                0
+            }
+            Err(err) => {
+                RESULT_BUF = err;
+                1
+            }
+        }
+    }
+
     /// Verify a message's causal predecessor against a dialect's protocol.
     ///
     /// Input: UTF-8 bytes of
@@ -859,6 +971,36 @@ mod c_abi {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // -- native state-layer and reading exports (the same functions the
+    // bindgen block exposes to browsers; hosts that link natively call these) --
+
+    #[test]
+    fn native_bytes_exports_match_the_bindgen_surface() {
+        let checklist = include_str!("../../../dialects/checklist.cbcl");
+        assert!(dialect_hash_bytes(checklist.as_bytes()).is_ok());
+        let tree = String::from_utf8(read_bytes(b"(open @a :x \"y\")").unwrap()).unwrap();
+        assert_eq!(tree, r#"["open","@a",":x",{"str":"y"}]"#);
+        assert!(read_bytes(b"(open").is_err());
+        let define = String::from_utf8(define_text_bytes(checklist.as_bytes()).unwrap()).unwrap();
+        assert!(define.starts_with("(define "));
+        let described =
+            String::from_utf8(describe_dialect_bytes(checklist.as_bytes()).unwrap()).unwrap();
+        assert!(described.contains("\"opener\":\"open\""), "{described}");
+        let contract = br#"{"version":3,"kind":"contract","name":"one","verbs":{"open":{"after":["begin"],"fields":{"title":"string"}}},"state":{"title":["last","open","title"]}}"#;
+        let compiled = String::from_utf8(compile_contract_bytes(contract).unwrap()).unwrap();
+        assert!(compiled.contains("\"label\":\"one\""));
+        assert!(compile_contract_bytes(b"{").is_err());
+        let declared = define.split_whitespace().nth(1).unwrap();
+        let act = format!(
+            "(lang {declared} (open @o :thread \"t\" :from @o :caused-by begin :title \"T\"))"
+        );
+        let read = String::from_utf8(read_act_bytes(act.as_bytes()).unwrap()).unwrap();
+        assert!(read.contains("\"verb\":\"open\""));
+        let admitted = format!("(admit {define} \"t\" (acts) (@o {act}))");
+        let verdict = String::from_utf8(admit_bytes(admitted.as_bytes()).unwrap()).unwrap();
+        assert!(verdict.contains("\"verdict\":\""), "{verdict}");
+    }
 
     // -- parse_bytes --
 
@@ -1005,10 +1147,7 @@ mod tests {
         let dialect_no_hash = "(define h-d (cbcl) @author \
             (extend greet (name) (effect greet-action)))";
         let parsed = cbcl_parser::parse_dialect(&parser::parse(dialect_no_hash).unwrap()).unwrap();
-        let computed = format!(
-            "sha256:{}",
-            hex_encode(Sha256::digest(dialect_canonical_bytes(&parsed)).as_slice())
-        );
+        let computed = cbcl_core::canonical::dialect_hash(&parsed);
         let dialect_with_hash = format!(
             "(define h-d (cbcl) @author \
              (:hash \"{computed}\") \
@@ -1163,10 +1302,7 @@ mod tests {
         let dialect_no_hash = "(define h-d (cbcl) @author \
             (extend greet (name) (effect greet-action)))";
         let parsed = cbcl_parser::parse_dialect(&parser::parse(dialect_no_hash).unwrap()).unwrap();
-        let computed = format!(
-            "sha256:{}",
-            hex_encode(Sha256::digest(dialect_canonical_bytes(&parsed)).as_slice())
-        );
+        let computed = cbcl_core::canonical::dialect_hash(&parsed);
         let dialect_with_hash = format!(
             "(define h-d (cbcl) @author \
              (:hash \"{computed}\") \
@@ -1218,12 +1354,10 @@ mod tests {
             (define child-d (parent-d) @author \
                 (extend ack () (effect ack-action)) \
                 (protocol (then begin notify) (then notify ack))))";
-        let pred = "(notify :msg \"hi\" :caused-by begin)";
+        let pred = "(lang parent-d (notify :msg \"hi\" :caused-by begin))";
         let h = predecessor_hash(pred);
         let frame = format!(
-            "(verify-protocol {chain} \"t1\" \
-             (ack :caused-by \"{h}\") \
-             (history (\"{h}\" {pred})))"
+            "(verify-protocol {chain} \"t1\" (lang child-d (ack :caused-by \"{h}\")) (history (\"{h}\" {pred})))"
         );
         assert_eq!(verify_protocol_str(&frame).as_deref(), Ok("ok"));
     }
@@ -1323,7 +1457,9 @@ mod tests {
 
     #[test]
     fn verify_protocol_ok_with_caused_by_begin() {
-        let frame = format!("(verify-protocol {PROTOCOL_DIALECT} \"t1\" (greet :caused-by begin))");
+        let frame = format!(
+            "(verify-protocol {PROTOCOL_DIALECT} \"t1\" (lang greet-d (greet :caused-by begin)))"
+        );
         let result = verify_protocol_str(&frame);
         assert_eq!(result.as_deref(), Ok("ok"));
     }
@@ -1332,7 +1468,9 @@ mod tests {
     fn verify_protocol_violation_when_caused_by_missing() {
         // Protocol declares greet must follow `begin`, so a greet with no
         // :caused-by is a MissingCausedBy violation.
-        let frame = format!("(verify-protocol {PROTOCOL_DIALECT} \"t1\" (greet :name \"a\"))");
+        let frame = format!(
+            "(verify-protocol {PROTOCOL_DIALECT} \"t1\" (lang greet-d (greet :name \"a\")))"
+        );
         let result = verify_protocol_str(&frame);
         assert!(result.is_err());
         let err = result.unwrap_err();
@@ -1351,8 +1489,7 @@ mod tests {
         // Hash provided as a string literal so the parser keeps `sha256:...`
         // as a single atom rather than tokenising on `:`.
         let frame = format!(
-            "(verify-protocol {PROTOCOL_DIALECT} \"t1\" \
-             (greet :caused-by \"sha256:nonexistent\"))"
+            "(verify-protocol {PROTOCOL_DIALECT} \"t1\" (lang greet-d (greet :caused-by \"sha256:nonexistent\")))"
         );
         let result = verify_protocol_str(&frame);
         assert!(result.is_err());
@@ -1371,7 +1508,8 @@ mod tests {
     fn verify_protocol_ok_when_dialect_has_no_protocol() {
         let dialect = "(define plain-d (cbcl) @author \
             (extend greet (name) (effect greet-action)))";
-        let frame = format!("(verify-protocol {dialect} \"t1\" (greet :caused-by begin))");
+        let frame =
+            format!("(verify-protocol {dialect} \"t1\" (lang plain-d (greet :caused-by begin)))");
         // No protocol → vacuously valid.
         assert_eq!(verify_protocol_str(&frame).as_deref(), Ok("ok"));
     }
@@ -1384,7 +1522,9 @@ mod tests {
 
     #[test]
     fn verify_protocol_bytes_passes() {
-        let frame = format!("(verify-protocol {PROTOCOL_DIALECT} \"t1\" (greet :caused-by begin))");
+        let frame = format!(
+            "(verify-protocol {PROTOCOL_DIALECT} \"t1\" (lang greet-d (greet :caused-by begin)))"
+        );
         let result = verify_protocol_bytes(frame.as_bytes());
         assert!(result.is_ok());
     }
@@ -1411,16 +1551,43 @@ mod tests {
     }
 
     #[test]
+    fn message_hash_matches_history_binding() {
+        let pred = "(lang convo-d (query :q \"hi\" :caused-by begin))";
+        let h = message_hash_str(pred).unwrap();
+        assert_eq!(h, predecessor_hash(pred));
+        assert!(h.starts_with("sha256:") && h.len() == "sha256:".len() + 64);
+        // The exported hash is exactly what verify_protocol binds history to.
+        let frame = format!(
+            "(verify-protocol {QUERY_DIALECT} \"t1\" \
+             (lang convo-d (respond :a \"ok\" :caused-by \"{h}\")) \
+             (history (\"{h}\" {pred})))"
+        );
+        assert_eq!(verify_protocol_str(&frame), Ok(String::from("ok")));
+    }
+
+    #[test]
+    fn message_hash_is_a_function_of_message_content() {
+        let hi = "(lang convo-d (query :q \"hi\" :caused-by begin))";
+        let bye = "(lang convo-d (query :q \"bye\" :caused-by begin))";
+        assert_eq!(message_hash_str(hi), message_hash_str(hi));
+        assert_ne!(message_hash_str(hi), message_hash_str(bye));
+    }
+
+    #[test]
+    fn message_hash_rejects_malformed_input() {
+        assert!(message_hash_str("(unbalanced").is_err());
+        assert!(message_hash_bytes(&[0xff, 0xfe]).is_err());
+    }
+
+    #[test]
     fn verify_protocol_resolves_hash_predecessor_from_history() {
         // Predecessor `query` is supplied via history under its canonical
         // content hash. verify_causal must resolve the :caused-by reference
         // and return Valid.
-        let pred = "(query :q \"hi\" :caused-by begin)";
+        let pred = "(lang convo-d (query :q \"hi\" :caused-by begin))";
         let h = predecessor_hash(pred);
         let frame = format!(
-            "(verify-protocol {QUERY_DIALECT} \"t1\" \
-             (respond :a \"ok\" :caused-by \"{h}\") \
-             (history (\"{h}\" {pred})))"
+            "(verify-protocol {QUERY_DIALECT} \"t1\" (lang convo-d (respond :a \"ok\" :caused-by \"{h}\")) (history (\"{h}\" {pred})))"
         );
         let result = verify_protocol_str(&frame);
         assert_eq!(
@@ -1435,12 +1602,10 @@ mod tests {
         // History supplies a `respond` under its canonical hash, but the
         // protocol requires `query` before `respond`. Should produce an
         // InvalidPredecessor violation, not pending.
-        let pred = "(respond :a \"earlier\" :caused-by begin)";
+        let pred = "(lang convo-d (respond :a \"earlier\" :caused-by begin))";
         let h = predecessor_hash(pred);
         let frame = format!(
-            "(verify-protocol {QUERY_DIALECT} \"t1\" \
-             (respond :a \"ok\" :caused-by \"{h}\") \
-             (history (\"{h}\" {pred})))"
+            "(verify-protocol {QUERY_DIALECT} \"t1\" (lang convo-d (respond :a \"ok\" :caused-by \"{h}\")) (history (\"{h}\" {pred})))"
         );
         let result = verify_protocol_str(&frame);
         assert!(result.is_err());
@@ -1466,9 +1631,7 @@ mod tests {
         // `:caused-by "fake"` paired with `(history ("fake" <msg>))` cannot
         // satisfy verify_causal.
         let frame = format!(
-            "(verify-protocol {QUERY_DIALECT} \"t1\" \
-             (respond :a \"ok\" :caused-by \"sha256:deadbeef\") \
-             (history (\"sha256:deadbeef\" (query :q \"hi\" :caused-by begin))))"
+            "(verify-protocol {QUERY_DIALECT} \"t1\" (lang convo-d (respond :a \"ok\" :caused-by \"sha256:deadbeef\")) (history (\"sha256:deadbeef\" (lang convo-d (query :q \"hi\" :caused-by begin)))))"
         );
         let result = verify_protocol_str(&frame);
         assert!(result.is_err());
@@ -1484,9 +1647,7 @@ mod tests {
         // History does not contain "h1", so the predecessor is genuinely
         // unknown and the result should be pending.
         let frame = format!(
-            "(verify-protocol {QUERY_DIALECT} \"t1\" \
-             (respond :a \"ok\" :caused-by \"h1\") \
-             (history))"
+            "(verify-protocol {QUERY_DIALECT} \"t1\" (lang convo-d (respond :a \"ok\" :caused-by \"h1\")) (history))"
         );
         let result = verify_protocol_str(&frame);
         assert!(result.is_err());
@@ -1506,7 +1667,8 @@ mod tests {
         let dialect = "(define cbcl-base (cbcl) @author \
             (extend greet (name) (effect greet-action)) \
             (protocol (then begin greet)))";
-        let frame = format!("(verify-protocol {dialect} \"t1\" (greet :name \"a\"))");
+        let frame =
+            format!("(verify-protocol {dialect} \"t1\" (lang cbcl-base (greet :name \"a\")))");
         // Without the fix, lookup resolves the preloaded protocol-less base
         // and returns "ok"; with the fix the supplied protocol fires a
         // MissingCausedBy violation.
@@ -1547,9 +1709,7 @@ mod tests {
             (extend respond (a) (effect respond-action)) \
             (protocol (then unknown-perf respond)))";
         let frame = format!(
-            "(verify-protocol {dialect} \"t1\" \
-             (respond :a \"x\" :caused-by \"h1\") \
-             (history (\"h1\" (unknown-perf :caused-by begin))))"
+            "(verify-protocol {dialect} \"t1\" (lang convo-d (respond :a \"x\" :caused-by \"h1\")) (history (\"h1\" (unknown-perf :caused-by begin))))"
         );
         let result = verify_protocol_str(&frame);
         assert!(result.is_err());
@@ -1571,7 +1731,7 @@ mod tests {
                 (extend greet (name) (effect greet-action)) \
                 (protocol (then begin greet))) \
             (define c-d (p-d) @author))";
-        let frame = format!("(verify-protocol {chain} \"t1\" (greet :name \"a\"))");
+        let frame = format!("(verify-protocol {chain} \"t1\" (lang p-d (greet :name \"a\")))");
         let result = verify_protocol_str(&frame);
         assert!(
             result.is_err(),
@@ -1597,13 +1757,11 @@ mod tests {
         // produces a false InvalidPredecessor violation. The hash is bound
         // against the *innermost* simple, since that's what the store ends
         // up holding.
-        let inner_pred = "(query :q \"hi\" :caused-by begin)";
+        let inner_pred = "(lang convo-d (query :q \"hi\" :caused-by begin))";
         let wrapped_pred = format!("(envelope :from @alice {inner_pred})");
         let h = predecessor_hash(&wrapped_pred);
         let frame = format!(
-            "(verify-protocol {QUERY_DIALECT} \"t1\" \
-             (respond :a \"ok\" :caused-by \"{h}\") \
-             (history (\"{h}\" {wrapped_pred})))"
+            "(verify-protocol {QUERY_DIALECT} \"t1\" (lang convo-d (respond :a \"ok\" :caused-by \"{h}\")) (history (\"{h}\" {wrapped_pred})))"
         );
         let result = verify_protocol_str(&frame);
         assert_eq!(
@@ -1618,9 +1776,7 @@ mod tests {
         // A bare `(meta ...)` history entry has no innermost Simple; we
         // surface that as a parse error instead of silently dropping it.
         let frame = format!(
-            "(verify-protocol {QUERY_DIALECT} \"t1\" \
-             (respond :a \"ok\" :caused-by \"h1\") \
-             (history (\"h1\" (meta (define x (cbcl) @a)))))"
+            "(verify-protocol {QUERY_DIALECT} \"t1\" (lang convo-d (respond :a \"ok\" :caused-by \"h1\")) (history (\"h1\" (meta (define x (cbcl) @a)))))"
         );
         let result = verify_protocol_str(&frame);
         assert!(result.is_err());
@@ -1637,9 +1793,7 @@ mod tests {
         // this check the wrapper would silently relocate the message into t1
         // and verify it against t1 predecessors, defeating thread isolation.
         let frame = format!(
-            "(verify-protocol {QUERY_DIALECT} \"t1\" \
-             (respond :a \"ok\" :thread \"t2\" :caused-by \"h1\") \
-             (history (\"h1\" (query :q \"hi\" :caused-by begin))))"
+            "(verify-protocol {QUERY_DIALECT} \"t1\" (lang convo-d (respond :a \"ok\" :thread \"t2\" :caused-by \"h1\")) (history (\"h1\" (lang convo-d (query :q \"hi\" :caused-by begin)))))"
         );
         let result = verify_protocol_str(&frame);
         assert!(result.is_err());
@@ -1656,9 +1810,7 @@ mod tests {
         // The wrapper must refuse to insert it under t1 — otherwise a
         // frame could pull a t2 predecessor into t1's causal scope.
         let frame = format!(
-            "(verify-protocol {QUERY_DIALECT} \"t1\" \
-             (respond :a \"ok\" :caused-by \"h1\") \
-             (history (\"h1\" (query :q \"hi\" :thread \"t2\" :caused-by begin))))"
+            "(verify-protocol {QUERY_DIALECT} \"t1\" (lang convo-d (respond :a \"ok\" :caused-by \"h1\")) (history (\"h1\" (lang convo-d (query :q \"hi\" :thread \"t2\" :caused-by begin)))))"
         );
         let result = verify_protocol_str(&frame);
         assert!(result.is_err());
@@ -1673,12 +1825,10 @@ mod tests {
     fn verify_protocol_accepts_matching_explicit_threads() {
         // Both message and history predecessor explicitly set `:thread "t1"`
         // matching the frame — verification proceeds normally.
-        let pred = "(query :q \"hi\" :thread \"t1\" :caused-by begin)";
+        let pred = "(lang convo-d (query :q \"hi\" :thread \"t1\" :caused-by begin))";
         let h = predecessor_hash(pred);
         let frame = format!(
-            "(verify-protocol {QUERY_DIALECT} \"t1\" \
-             (respond :a \"ok\" :thread \"t1\" :caused-by \"{h}\") \
-             (history (\"{h}\" {pred})))"
+            "(verify-protocol {QUERY_DIALECT} \"t1\" (lang convo-d (respond :a \"ok\" :thread \"t1\" :caused-by \"{h}\")) (history (\"{h}\" {pred})))"
         );
         assert_eq!(verify_protocol_str(&frame).as_deref(), Ok("ok"));
     }
@@ -1687,19 +1837,33 @@ mod tests {
     fn verify_protocol_rejects_malformed_history_block() {
         // Missing the `history` head symbol.
         let frame = format!(
-            "(verify-protocol {QUERY_DIALECT} \"t1\" \
-             (respond :a \"ok\" :caused-by \"h1\") \
-             ((\"h1\" (query :q \"hi\" :caused-by begin))))"
+            "(verify-protocol {QUERY_DIALECT} \"t1\" (lang convo-d (respond :a \"ok\" :caused-by \"h1\")) ((\"h1\" (lang convo-d (query :q \"hi\" :caused-by begin)))))"
         );
         let result = verify_protocol_str(&frame);
         assert!(result.is_err());
         // History entry that isn't a (hash msg) pair.
         let frame = format!(
-            "(verify-protocol {QUERY_DIALECT} \"t1\" \
-             (respond :a \"ok\" :caused-by \"h1\") \
-             (history \"just-a-hash\"))"
+            "(verify-protocol {QUERY_DIALECT} \"t1\" (lang convo-d (respond :a \"ok\" :caused-by \"h1\")) (history \"just-a-hash\"))"
         );
         let result = verify_protocol_str(&frame);
         assert!(result.is_err());
+    }
+}
+
+#[cfg(test)]
+mod bounded_counter_binding_tests {
+    #[test]
+    fn escrow_export_matches_shared_verifier() {
+        for frame in [
+            include_str!("../../../test-vectors/state/resource-check.sexp"),
+            include_str!("../../../test-vectors/state/resource-check-capped.sexp"),
+        ] {
+            let expected = cbcl_parser::state_exports::resource_check_str(frame).unwrap();
+            assert!(expected.contains("\"ready\""));
+            assert_eq!(
+                super::resource_check_bytes(frame.as_bytes()).unwrap(),
+                expected.into_bytes()
+            );
+        }
     }
 }

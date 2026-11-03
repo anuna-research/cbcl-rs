@@ -9,8 +9,13 @@ use alloc::string::String;
 use alloc::vec::Vec;
 use cbcl_core::dialect::{Dialect, PerformativeDef, ResourceBounds};
 use cbcl_core::protocol::CausalProtocol;
+use cbcl_core::role::{
+    parse_from, parse_recipient_set, parse_roles, CausalLocality, EnvelopeRoutes, RoleAnnotation,
+    RoleDecl,
+};
 use cbcl_core::sexpr::{Atom, SExpr};
 use cbcl_core::shape::ShapeConstraint;
+use cbcl_core::state::{StateBounds, StateClause, RESERVED_REPLACES};
 
 /// Parse a dialect definition from a `(define name extends author clauses...)` form (REQ-045).
 ///
@@ -70,6 +75,10 @@ pub fn parse_dialect(sexpr: &SExpr) -> Result<Dialect, String> {
     let mut protocol: Option<String> = None;
     let mut causal_protocol: Option<CausalProtocol> = None;
     let mut shapes: Vec<ShapeConstraint> = Vec::new();
+    let mut roles: Vec<RoleDecl> = Vec::new();
+    let mut causal_locality = CausalLocality::Reject;
+    let mut state: Option<StateClause> = None;
+    let mut state_bounds: Option<StateBounds> = None;
 
     for clause in &items[4..] {
         parse_clause(
@@ -82,10 +91,34 @@ pub fn parse_dialect(sexpr: &SExpr) -> Result<Dialect, String> {
             &mut protocol,
             &mut causal_protocol,
             &mut shapes,
+            &mut roles,
+            &mut causal_locality,
+            &mut state,
+            &mut state_bounds,
         )?;
     }
 
-    Ok(Dialect {
+    // SPEC-019 ADR-1901: `:replaces` is reserved. An author never declares
+    // it; the compiler inserts it where the state clause implies it.
+    if state.is_some() {
+        for shape in &shapes {
+            let declares = shape.rules.iter().any(|r| matches!(r,
+                cbcl_core::shape::ShapeRule::Require { keyword, .. }
+                | cbcl_core::shape::ShapeRule::Optional { keyword, .. } if keyword == RESERVED_REPLACES || keyword == cbcl_core::escrow::PREV || keyword == cbcl_core::escrow::DEPS || keyword == cbcl_core::escrow::NONCE));
+            if declares {
+                return Err(alloc::format!(
+                    "shape '{}' declares compiler bookkeeping (:replaces or :escrow-*), which is reserved and inserted by the compiler (SPEC-019 REQ-1907)",
+                    shape.performative
+                ));
+            }
+        }
+    }
+
+    let mut d = Dialect {
+        roles,
+        causal_locality,
+        state,
+        state_bounds,
         name,
         extends,
         author,
@@ -97,7 +130,9 @@ pub fn parse_dialect(sexpr: &SExpr) -> Result<Dialect, String> {
         protocol,
         causal_protocol,
         shapes,
-    })
+    };
+    cbcl_core::r7::insert_replaces(&mut d);
+    Ok(d)
 }
 
 /// Parse a dialect from `(meta (define ...))` form.
@@ -146,6 +181,7 @@ fn extract_author(sexpr: &SExpr) -> Result<Option<String>, String> {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn parse_clause(
     clause: &SExpr,
     performatives: &mut Vec<PerformativeDef>,
@@ -156,6 +192,10 @@ fn parse_clause(
     protocol: &mut Option<String>,
     causal_protocol: &mut Option<CausalProtocol>,
     shapes: &mut Vec<ShapeConstraint>,
+    roles: &mut Vec<RoleDecl>,
+    causal_locality: &mut CausalLocality,
+    state: &mut Option<StateClause>,
+    state_bounds: &mut Option<StateBounds>,
 ) -> Result<(), String> {
     let items = match clause {
         SExpr::List(items) if !items.is_empty() => items,
@@ -191,10 +231,55 @@ fn parse_clause(
                     *protocol = Some(extract_string_or_symbol(&items[1]));
                 }
             }
+            // SPEC-014 REQ-600/621: (:roles (name (* name) ...))
+            "roles" => {
+                if items.len() != 2 {
+                    return Err(String::from(":roles takes exactly one value (CON-600)"));
+                }
+                *roles = parse_roles(&items[1]).map_err(|v| alloc::format!("{v}"))?;
+            }
+            // SPEC-015 REQ-709: (:causal-locality derive|reject); the
+            // routing table is derived at install, never authored, so the
+            // parser always records an empty table under `derive`. Fail
+            // closed: any other value is rejected, never repaired.
+            "causal-locality" => {
+                if items.len() != 2 {
+                    return Err(String::from(
+                        ":causal-locality takes exactly one value (REQ-709)",
+                    ));
+                }
+                *causal_locality = match &items[1] {
+                    SExpr::Atom(Atom::Symbol(mode)) if mode == "derive" => {
+                        CausalLocality::Derive(EnvelopeRoutes::default())
+                    }
+                    SExpr::Atom(Atom::Symbol(mode)) if mode == "reject" => CausalLocality::Reject,
+                    other => {
+                        return Err(alloc::format!(
+                            ":causal-locality must be derive or reject, got {other} (REQ-709)"
+                        ))
+                    }
+                };
+            }
+            // SPEC-019 R.1: (:state-bounds (max-… n) …)
+            "state-bounds" => {
+                if state_bounds.is_some() {
+                    return Err(String::from("duplicate :state-bounds clause"));
+                }
+                *state_bounds = Some(crate::state_parser::parse_state_bounds(clause)?);
+            }
             _ => {
                 return Err(alloc::format!("unknown keyword clause: :{kw}"));
             }
         }
+        return Ok(());
+    }
+
+    // Check for 'state' clause (SPEC-019 R.1)
+    if items[0].is_symbol("state") {
+        if state.is_some() {
+            return Err(String::from("duplicate state clause"));
+        }
+        *state = Some(crate::state_parser::parse_state(clause)?);
         return Ok(());
     }
 
@@ -207,9 +292,68 @@ fn parse_clause(
         }
         let perf_name = extract_symbol(&items[1], "performative name")?;
         let params = extract_param_list(&items[2])?;
-        let template = items[3].clone();
+
+        // SPEC-014 REQ-621/CON-600: optional :from/:to annotations may
+        // appear before or after the template; exactly one template form.
+        let mut template: Option<SExpr> = None;
+        let mut from: Option<String> = None;
+        let mut to = None;
+        let mut rest = items[3..].iter();
+        while let Some(item) = rest.next() {
+            match item {
+                SExpr::Atom(Atom::Keyword(kw)) if kw == "from" => {
+                    let value = rest
+                        .next()
+                        .ok_or_else(|| alloc::format!(":from on '{perf_name}' needs a value"))?;
+                    if from.is_some() {
+                        return Err(alloc::format!("duplicate :from on '{perf_name}'"));
+                    }
+                    from = Some(parse_from(&perf_name, value).map_err(|v| alloc::format!("{v}"))?);
+                }
+                SExpr::Atom(Atom::Keyword(kw)) if kw == "to" => {
+                    let value = rest
+                        .next()
+                        .ok_or_else(|| alloc::format!(":to on '{perf_name}' needs a value"))?;
+                    if to.is_some() {
+                        return Err(alloc::format!("duplicate :to on '{perf_name}'"));
+                    }
+                    to = Some(
+                        parse_recipient_set(&perf_name, value)
+                            .map_err(|v| alloc::format!("{v}"))?,
+                    );
+                }
+                // Fail closed: an unrecognised keyword is not silently
+                // absorbed as a template (CON-600, LangSec principle 4).
+                SExpr::Atom(Atom::Keyword(kw)) => {
+                    return Err(alloc::format!(
+                        "extend '{perf_name}' has unknown keyword :{kw}"
+                    ));
+                }
+                other => {
+                    if template.is_some() {
+                        return Err(alloc::format!(
+                            "extend '{perf_name}' has more than one template form"
+                        ));
+                    }
+                    template = Some(other.clone());
+                }
+            }
+        }
+        let template = template
+            .ok_or_else(|| alloc::format!("extend '{perf_name}' is missing its template"))?;
+        let role = match (from, to) {
+            (Some(from), Some(to)) => Some(RoleAnnotation { from, to }),
+            (None, None) => None,
+            // Fail closed: half an annotation is malformed (CON-600).
+            _ => {
+                return Err(alloc::format!(
+                    "extend '{perf_name}' must carry both :from and :to or neither (CON-600)"
+                ))
+            }
+        };
 
         performatives.push(PerformativeDef {
+            role,
             name: perf_name,
             params,
             template,
@@ -535,5 +679,161 @@ mod tests {
         assert_eq!(d.performatives[0].name, "greet");
         assert_eq!(d.resources.max_depth, 8);
         assert_eq!(d.protocol, Some(String::from("ed25519")));
+    }
+
+    // ---- SPEC-014 role annotations (REQ-600/621, CON-600) ----
+
+    fn oauth_dialect_src() -> &'static str {
+        "(define oauth (cbcl) @example \
+           (:roles (server client authoriser)) \
+           (extend login (session scope) :from server :to (client authoriser) \
+             (tell @client)) \
+           (extend passwd (session credential) :from client :to (authoriser server) \
+             (tell @authoriser)) \
+           (extend auth (session grant) (tell @server) :from authoriser :to server))"
+    }
+
+    #[test]
+    fn parses_roles_attribute() {
+        let sexpr: SExpr = oauth_dialect_src().parse().unwrap();
+        let d = parse_dialect(&sexpr).unwrap();
+        assert_eq!(d.roles.len(), 3);
+        assert!(d
+            .roles
+            .iter()
+            .all(|r| matches!(r.cardinality, cbcl_core::role::RoleCardinality::Singleton)));
+    }
+
+    #[test]
+    fn parses_indexed_role_marker() {
+        let sexpr: SExpr = "(define auction (cbcl) @a (:roles (auctioneer (* bidder))))"
+            .parse()
+            .unwrap();
+        let d = parse_dialect(&sexpr).unwrap();
+        assert_eq!(d.roles[1].name, "bidder");
+        assert!(matches!(
+            d.roles[1].cardinality,
+            cbcl_core::role::RoleCardinality::Indexed
+        ));
+    }
+
+    #[test]
+    fn parses_from_to_before_and_after_template() {
+        let sexpr: SExpr = oauth_dialect_src().parse().unwrap();
+        let d = parse_dialect(&sexpr).unwrap();
+        let login = d.find_performative("login").unwrap();
+        let ann = login.role.as_ref().unwrap();
+        assert_eq!(ann.from, "server");
+        assert!(ann.to.contains("client") && ann.to.contains("authoriser"));
+        // :from/:to after the template also parses (auth)
+        let auth = d.find_performative("auth").unwrap();
+        assert_eq!(auth.role.as_ref().unwrap().from, "authoriser");
+    }
+
+    /// TEST-621 (REQ-621): the parser populates the role data on the
+    /// `Dialect` value itself — `Dialect.roles` and `PerformativeDef.role` —
+    /// so `r6_violations`/`project` are functions of the `Dialect` alone.
+    #[test]
+    fn test_621_role_data_lands_on_dialect_types() {
+        let sexpr: SExpr = oauth_dialect_src().parse().unwrap();
+        let d = parse_dialect(&sexpr).unwrap();
+        // Dialect carries the declared roles.
+        let role_names: alloc::vec::Vec<&str> = d.roles.iter().map(|r| r.name.as_str()).collect();
+        assert_eq!(role_names, ["server", "client", "authoriser"]);
+        // Every protocol performative carries its annotation.
+        for name in ["login", "passwd", "auth"] {
+            assert!(
+                d.find_performative(name).unwrap().role.is_some(),
+                "{name} should carry a role annotation"
+            );
+        }
+        // A role-free dialect carries neither.
+        let plain: SExpr = "(define plain (cbcl) @a (extend p (x) (tell @x)))"
+            .parse()
+            .unwrap();
+        let pd = parse_dialect(&plain).unwrap();
+        assert!(pd.roles.is_empty());
+        assert!(pd.find_performative("p").unwrap().role.is_none());
+    }
+
+    #[test]
+    fn rejects_half_annotation() {
+        let sexpr: SExpr = "(define x (cbcl) @a (:roles (r)) (extend p (a) :from r (tell @r)))"
+            .parse()
+            .unwrap();
+        assert!(parse_dialect(&sexpr).is_err());
+    }
+
+    #[test]
+    fn rejects_empty_roles() {
+        let sexpr: SExpr = "(define x (cbcl) @a (:roles ()))".parse().unwrap();
+        assert!(parse_dialect(&sexpr).is_err());
+    }
+
+    #[test]
+    fn rejects_postfix_indexed_marker() {
+        let sexpr: SExpr = "(define x (cbcl) @a (:roles (a (bidder *))))"
+            .parse()
+            .unwrap();
+        assert!(parse_dialect(&sexpr).is_err());
+    }
+
+    // ---- SPEC-015 REQ-709: (:causal-locality derive|reject) ----
+
+    #[test]
+    fn parses_causal_locality_derive_with_empty_table() {
+        let sexpr: SExpr = "(define x (cbcl) @a (:causal-locality derive))"
+            .parse()
+            .unwrap();
+        let d = parse_dialect(&sexpr).unwrap();
+        // The table is derived at install, never authored: the parser
+        // always records an empty table under `derive`.
+        assert_eq!(
+            d.causal_locality,
+            CausalLocality::Derive(EnvelopeRoutes::default())
+        );
+    }
+
+    #[test]
+    fn causal_locality_defaults_to_reject_and_parses_explicit_reject() {
+        let d = parse_dialect(&make_minimal_dialect()).unwrap();
+        assert_eq!(d.causal_locality, CausalLocality::Reject);
+        let sexpr: SExpr = "(define x (cbcl) @a (:causal-locality reject))"
+            .parse()
+            .unwrap();
+        let d = parse_dialect(&sexpr).unwrap();
+        assert_eq!(d.causal_locality, CausalLocality::Reject);
+    }
+
+    #[test]
+    fn rejects_malformed_causal_locality() {
+        // Fail closed (LangSec principle 4): unknown mode, wrong arity,
+        // and non-symbol values are rejected, never repaired.
+        for bad in [
+            "(define x (cbcl) @a (:causal-locality maybe))",
+            "(define x (cbcl) @a (:causal-locality))",
+            "(define x (cbcl) @a (:causal-locality derive reject))",
+            "(define x (cbcl) @a (:causal-locality \"derive\"))",
+        ] {
+            let sexpr: SExpr = bad.parse().unwrap();
+            assert!(parse_dialect(&sexpr).is_err(), "must reject: {bad}");
+        }
+    }
+
+    #[test]
+    fn empty_to_parses_as_terminal() {
+        let sexpr: SExpr =
+            "(define x (cbcl) @a (:roles (r)) (extend done (v) :from r :to () (tell @r)))"
+                .parse()
+                .unwrap();
+        let d = parse_dialect(&sexpr).unwrap();
+        assert!(d
+            .find_performative("done")
+            .unwrap()
+            .role
+            .as_ref()
+            .unwrap()
+            .to
+            .is_empty());
     }
 }

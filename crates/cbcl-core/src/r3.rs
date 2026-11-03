@@ -57,12 +57,17 @@ mod tests {
 
     fn test_dialect_with(perf_names: &[&str]) -> Dialect {
         Dialect {
+            roles: Vec::new(),
+            state: None,
+            state_bounds: None,
+            causal_locality: Default::default(),
             name: String::from("test-dialect"),
             extends: vec![String::from("cbcl")],
             author: None,
             performatives: perf_names
                 .iter()
                 .map(|n| PerformativeDef {
+                    role: None,
                     name: String::from(*n),
                     params: vec![],
                     template: SExpr::Atom(Atom::Symbol(String::from(*n))),

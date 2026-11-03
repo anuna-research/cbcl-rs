@@ -1,0 +1,40 @@
+---
+title: Quorum budget module
+mode: reference
+---
+
+# Quorum budget module
+
+`(certification quorum-budget ...)` selects the multi-parent DAG protocol for both
+account and collective counters. `Context::from_instance` pins instance, rules and
+committee; there is no host handoff selector or single-parent compatibility path.
+The host supplies signing, authentication, transport and durable journal storage.
+
+`VersionManifest` and `DagVersion` bind verified metadata. Receipt checks scope,
+parents/ranks, cumulative books and real credit/refund QCs. Local adoption checks
+the active parent and the complete signing history for that resource scope.
+Evidence never resets; atomic append and semantic recovery guard every mutation.
+
+See [runtime API reference](../../../../docs/reference/quorum-runtime.md) and
+[[SPEC-031-unified-quorum-dag]]. Collective Lean/Rust correspondence is checked
+against `MultiParentRustOracle.lean`. Account DAG has additional scope/transfer
+execution evidence, not a new single-pool Lean refinement claim. Universal Rust
+source equivalence remains separate work.
+
+Local transitions prepare an owned update before journal append instead of copying
+whole replica state. Per-version charge caches are reconstructed from journals;
+debug builds check them against the historical expression. Borrowed manifests
+avoid cloning large held sets during reads. See [[SPEC-032-quorum-local-update-cost]]
+and [quorum-local-cost-evidence](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/quorum-local-cost-evidence.md) for validation and the opt-in local probe.
+
+
+Account owners use `OwnerDriver` and a separate durable `OwnerJournal` for FIFO
+reservations and permanent conversion when the head exceeds the concurrent budget.
+A distinct owner-signed seal intent and validator seal QC activate an Owned root.
+Hash-bound version phase prevents provisional signatures and downgrades. Owned
+versions spend full allocation, one permanent operation slot per version. The
+driver drains issued work to effects and never races it against cancellation.
+Initial-unit/full-balance availability needs the documented coherent-owner,
+delivery, fair-service and available-capacity conditions. Collective pools retain
+their existing contention limits. See [[SPEC-033-owned-counter-lifecycle]] and
+[owned-lifecycle-evidence](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/owned-lifecycle-evidence.md) for the abstract Lean proof and scoped Rust evidence.

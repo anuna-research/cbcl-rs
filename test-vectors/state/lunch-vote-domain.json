@@ -1,0 +1,96 @@
+{
+  "contract": "(define lunch-vote (cbcl) @anuna\n  (:resource-requirements\n    ((max-depth 12)\n     (max-expansion-size 2048)\n     (verification-time 200)))\n\n  (:state-bounds\n    (max-string 280)\n    (max-list 24))\n\n  (extend propose (to question options)\n    (tell to :question question :options options))\n\n  (extend vote (to choice)\n    (tell to :choice choice))\n\n  (shape propose\n    (require :question string)\n    (require :options list))\n\n  (shape vote\n    (require :choice string))\n\n  (protocol\n    (then begin propose)\n    (then propose vote))\n\n  (state\n    (question (last propose :question))\n    (options  (last propose :options))\n    (domain vote :choice options)\n    (ballots  (latest-per-signer vote :choice))\n    (tally    (histogram ballots))))",
+  "covers": [
+    "last",
+    "latest-per-signer",
+    "histogram",
+    "domain",
+    "state-bounds",
+    "intend-domain"
+  ],
+  "expect": {
+    "addresses": [
+      "sha256-5baf2223ddfaeb4fada57b5edd42129d80c7c26b111b6263c2f60f212b118dd5",
+      "sha256-4bdbd776171d4c2dca279a877dd8aa2a46c1698cf0f687d774c10f3e340e33f7",
+      "sha256-f5b62d0d66e52db10796891a8307647742acf2c628b2579f74477aaca732b034",
+      "sha256-ff20390b7d2f62013a1313307d2040ac6cb4e517aaceea81e4aa812766c57358",
+      "sha256-bdc8c94baf921a7e8467d89dc8ae24da7769e2c2b727ef777cd3c7d9ec4e1f48",
+      "sha256-0cec4be111c4f1eab4770ff67149dcc4a653f1d1c0a9f4436d404b5ced219d18"
+    ],
+    "intents": [
+      {
+        "canonical": "(lang lunch-vote (vote @lunch () :choice \"Sushi\" :replaces (sha256-bdc8c94baf921a7e8467d89dc8ae24da7769e2c2b727ef777cd3c7d9ec4e1f48) :from @dan :thread \"v1\" :caused-by sha256-5baf2223ddfaeb4fada57b5edd42129d80c7c26b111b6263c2f60f212b118dd5))"
+      },
+      {
+        "reject": "domain"
+      }
+    ],
+    "state": {
+      "ballots": {
+        "@bo": "Sushi",
+        "@dan": "Pizza"
+      },
+      "options": [
+        "Pizza",
+        "Sushi"
+      ],
+      "question": "Lunch?",
+      "tally": {
+        "Pizza": 1,
+        "Sushi": 1
+      }
+    },
+    "verdicts": {
+      "sha256-0cec4be111c4f1eab4770ff67149dcc4a653f1d1c0a9f4436d404b5ced219d18": "rejected",
+      "sha256-4bdbd776171d4c2dca279a877dd8aa2a46c1698cf0f687d774c10f3e340e33f7": "accepted",
+      "sha256-5baf2223ddfaeb4fada57b5edd42129d80c7c26b111b6263c2f60f212b118dd5": "accepted",
+      "sha256-bdc8c94baf921a7e8467d89dc8ae24da7769e2c2b727ef777cd3c7d9ec4e1f48": "accepted",
+      "sha256-f5b62d0d66e52db10796891a8307647742acf2c628b2579f74477aaca732b034": "accepted",
+      "sha256-ff20390b7d2f62013a1313307d2040ac6cb4e517aaceea81e4aa812766c57358": "accepted"
+    }
+  },
+  "id": "lunch-vote-domain",
+  "intents": [
+    {
+      "fields": {
+        "choice": "Sushi"
+      },
+      "signer": "@dan",
+      "verb": "vote"
+    },
+    {
+      "fields": {
+        "choice": "Tacos"
+      },
+      "signer": "@dan",
+      "verb": "vote"
+    }
+  ],
+  "messages": [
+    {
+      "canonical": "(lang lunch-vote (propose @lunch :question \"Lunch?\" :options (\"Pizza\" \"Sushi\") :caused-by begin :thread \"v1\" :from @aria))",
+      "signer": "@aria"
+    },
+    {
+      "canonical": "(lang lunch-vote (vote @lunch :choice \"Pizza\" :replaces () :caused-by sha256-5baf2223ddfaeb4fada57b5edd42129d80c7c26b111b6263c2f60f212b118dd5 :thread \"v1\" :from @bo))",
+      "signer": "@bo"
+    },
+    {
+      "canonical": "(lang lunch-vote (vote @lunch :choice \"Sushi\" :replaces (sha256-4bdbd776171d4c2dca279a877dd8aa2a46c1698cf0f687d774c10f3e340e33f7) :caused-by sha256-5baf2223ddfaeb4fada57b5edd42129d80c7c26b111b6263c2f60f212b118dd5 :thread \"v1\" :from @bo))",
+      "signer": "@bo"
+    },
+    {
+      "canonical": "(lang lunch-vote (vote @lunch :choice \"Tacos\" :replaces () :caused-by sha256-5baf2223ddfaeb4fada57b5edd42129d80c7c26b111b6263c2f60f212b118dd5 :thread \"v1\" :from @cy))",
+      "signer": "@cy"
+    },
+    {
+      "canonical": "(lang lunch-vote (vote @lunch :choice \"Pizza\" :replaces () :caused-by sha256-5baf2223ddfaeb4fada57b5edd42129d80c7c26b111b6263c2f60f212b118dd5 :thread \"v1\" :from @dan))",
+      "signer": "@dan"
+    },
+    {
+      "canonical": "(lang lunch-vote (propose @lunch :question \"qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq\" :options (\"a\") :caused-by begin :thread \"v1\" :from @eve))",
+      "signer": "@eve"
+    }
+  ],
+  "thread": "v1"
+}

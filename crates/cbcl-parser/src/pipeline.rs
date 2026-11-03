@@ -488,6 +488,15 @@ fn eval_error_to_validation(err: EvalError, thread: Option<String>) -> Validatio
         EvalError::UnknownPerformative(name) => ValidationError::MalformedMessage {
             reason: alloc::format!("unknown performative: {name}"),
         },
+        // REQ-033: a dialect performative must name its dialect. The
+        // recogniser rejects the unscoped form, so this path is reached only
+        // by programmatically constructed messages.
+        EvalError::UnscopedDialectPerformative(name) => ValidationError::MalformedMessage {
+            reason: alloc::format!(
+                "dialect performative '{name}' invoked outside (lang <dialect> ...); \
+                 the message must name the dialect that defines it"
+            ),
+        },
         EvalError::TemplateExpansionFailed { performative: _ } => ValidationError::R2FuelExhausted,
         EvalError::UnknownDialect(name) => ValidationError::MalformedMessage {
             reason: alloc::format!("unknown dialect: {name}"),
@@ -572,7 +581,9 @@ mod tests {
 
     #[test]
     fn pipeline_custom_performative() {
-        let result = run_pipeline("(share-conditional pickup box-location box-in-hand)");
+        let result = run_pipeline(
+            "(lang cbcl-planning (share-conditional pickup box-location box-in-hand))",
+        );
         assert!(matches!(result, PipelineResult::Success(_)));
     }
 
@@ -657,10 +668,15 @@ mod tests {
 
         registry
             .install(cbcl_core::dialect::Dialect {
+                roles: Vec::new(),
+                state: None,
+                state_bounds: None,
+                causal_locality: Default::default(),
                 name: String::from("proto-dialect"),
                 extends: alloc::vec![String::from("cbcl")],
                 author: None,
                 performatives: alloc::vec![PerformativeDef {
+                    role: None,
                     name: String::from("greet"),
                     params: alloc::vec![],
                     template: effect_template("greet-action"),
@@ -683,7 +699,7 @@ mod tests {
         let ctx = PipelineContext::new(&registry, &store);
 
         // Send "greet" without :caused-by — protocol requires begin as predecessor.
-        let result = run_pipeline_full("(greet \"hi\")", &ctx);
+        let result = run_pipeline_full("(lang proto-dialect (greet \"hi\"))", &ctx);
         assert!(
             matches!(
                 result,
@@ -701,10 +717,15 @@ mod tests {
         // Install dialect with shape constraint requiring :target string
         registry
             .install(cbcl_core::dialect::Dialect {
+                roles: Vec::new(),
+                state: None,
+                state_bounds: None,
+                causal_locality: Default::default(),
                 name: String::from("shape-dialect"),
                 extends: alloc::vec![String::from("cbcl")],
                 author: None,
                 performatives: alloc::vec![PerformativeDef {
+                    role: None,
                     name: String::from("propose"),
                     params: alloc::vec![],
                     template: effect_template("propose-action"),
@@ -734,7 +755,7 @@ mod tests {
         let ctx = PipelineContext::new(&registry, &store);
 
         // "propose" without :target — shape requires it.
-        let result = run_pipeline_full("(propose \"idea\")", &ctx);
+        let result = run_pipeline_full("(lang shape-dialect (propose \"idea\"))", &ctx);
         assert!(
             matches!(
                 result,
@@ -771,10 +792,15 @@ mod tests {
 
         registry
             .install(cbcl_core::dialect::Dialect {
+                roles: Vec::new(),
+                state: None,
+                state_bounds: None,
+                causal_locality: Default::default(),
                 name: String::from("ack-dialect"),
                 extends: alloc::vec![String::from("cbcl")],
                 author: None,
                 performatives: alloc::vec![PerformativeDef {
+                    role: None,
                     name: String::from("ack"),
                     params: alloc::vec![],
                     template: effect_template("ack-action"),
@@ -805,7 +831,10 @@ mod tests {
         let ctx = PipelineContext::new(&registry, &store);
 
         // "ack" with :caused-by pointing to the begin message.
-        let result = run_pipeline_full("(ack \"done\" :caused-by \"abc123\")", &ctx);
+        let result = run_pipeline_full(
+            "(lang ack-dialect (ack \"done\" :caused-by \"abc123\"))",
+            &ctx,
+        );
         assert!(
             matches!(result, PipelineResult::Success(_)),
             "expected success, got {:?}",
@@ -869,10 +898,15 @@ mod tests {
 
         registry
             .install(cbcl_core::dialect::Dialect {
+                roles: Vec::new(),
+                state: None,
+                state_bounds: None,
+                causal_locality: Default::default(),
                 name: String::from("ack-dialect"),
                 extends: alloc::vec![String::from("cbcl")],
                 author: None,
                 performatives: alloc::vec![PerformativeDef {
+                    role: None,
                     name: String::from("ack"),
                     params: alloc::vec![],
                     template: effect_template("ack-action"),
@@ -900,7 +934,10 @@ mod tests {
         let ctx = PipelineContext::new(&registry, &store);
 
         // ack with :caused-by referencing a hash not in the store.
-        let result = run_pipeline_full("(ack \"done\" :caused-by \"missing-hash\")", &ctx);
+        let result = run_pipeline_full(
+            "(lang ack-dialect (ack \"done\" :caused-by \"missing-hash\"))",
+            &ctx,
+        );
         assert!(
             matches!(
                 result,
@@ -924,7 +961,10 @@ mod tests {
             cbcl_core::policy::UnknownPredecessorPolicy::buffer(60),
         );
 
-        let result = run_pipeline_full("(ack \"done\" :caused-by \"missing-hash\")", &ctx);
+        let result = run_pipeline_full(
+            "(lang ack-dialect (ack \"done\" :caused-by \"missing-hash\"))",
+            &ctx,
+        );
         assert!(
             matches!(result, PipelineResult::Buffered { .. }),
             "expected Buffered under Buffer policy, got {:?}",
@@ -962,10 +1002,15 @@ mod tests {
 
         registry
             .install(cbcl_core::dialect::Dialect {
+                roles: Vec::new(),
+                state: None,
+                state_bounds: None,
+                causal_locality: Default::default(),
                 name: String::from("ack-with-shape"),
                 extends: alloc::vec![String::from("cbcl")],
                 author: None,
                 performatives: alloc::vec![PerformativeDef {
+                    role: None,
                     name: String::from("ack"),
                     params: alloc::vec![],
                     template: effect_template("ack-action"),
@@ -996,7 +1041,7 @@ mod tests {
 
         // ack with no :caused-by AND no :target — both causal and shape would fail.
         // We must see CausalViolation, not ShapeViolation, because causal is checked first.
-        let result = run_pipeline_full("(ack \"done\")", &ctx);
+        let result = run_pipeline_full("(lang ack-with-shape (ack \"done\"))", &ctx);
         assert!(
             matches!(
                 result,
@@ -1033,6 +1078,10 @@ mod tests {
         );
         registry
             .install(cbcl_core::dialect::Dialect {
+                roles: Vec::new(),
+                state: None,
+                state_bounds: None,
+                causal_locality: Default::default(),
                 name: String::from("ok-protocol"),
                 extends: alloc::vec![String::from("cbcl")],
                 author: None,
@@ -1075,10 +1124,15 @@ mod tests {
         // First install a parent dialect that defines `notify`.
         registry
             .install(cbcl_core::dialect::Dialect {
+                roles: Vec::new(),
+                state: None,
+                state_bounds: None,
+                causal_locality: Default::default(),
                 name: String::from("parent-dialect"),
                 extends: alloc::vec![String::from("cbcl")],
                 author: None,
                 performatives: alloc::vec![PerformativeDef {
+                    role: None,
                     name: String::from("notify"),
                     params: alloc::vec![],
                     template: effect_template("notify-action"),
@@ -1143,12 +1197,134 @@ mod tests {
 
         // (lang ack-dialect (ack "done" :caused-by "missing"))
         let result = run_pipeline_full(
-            "(lang ack-dialect (ack \"done\" :caused-by \"missing\"))",
+            "(lang ack-dialect (lang ack-dialect (ack \"done\" :caused-by \"missing\")))",
             &ctx,
         );
         assert!(
             !matches!(result, PipelineResult::Success(_)),
             "expected dialect-scoped wrapper not to bypass verification, got Success: {result:?}"
+        );
+    }
+
+    // -- Install-time dialect content hashing (SPEC-014 REQ-628) --
+
+    /// Parse dialect source text and install it into a fresh registry,
+    /// returning the installed dialect's hash.
+    fn parse_install_hash(source: &str) -> String {
+        let sexpr = parser::parse(source).expect("dialect source parses");
+        let d = crate::dialect_parser::parse_dialect(&sexpr).expect("dialect extracts");
+        assert!(d.hash.is_none(), "source declares no :hash");
+        let mut registry = DialectRegistry::new();
+        registry.install(d).expect("dialect installs");
+        registry
+            .get(1)
+            .expect("installed at index 1")
+            .hash
+            .clone()
+            .expect("install populates hash")
+    }
+
+    #[test]
+    fn parsed_dialect_hash_populated_after_install() {
+        let h = parse_install_hash(
+            "(define greeting-dialect (cbcl) @author (extend greet () (effect greet-action)))",
+        );
+        let hex = h.strip_prefix("sha256:").expect("sha256: prefix");
+        assert_eq!(hex.len(), 64);
+        assert!(hex
+            .chars()
+            .all(|c| c.is_ascii_digit() || ('a'..='f').contains(&c)));
+    }
+
+    #[test]
+    fn parsed_dialect_hash_stable_under_reformatting() {
+        // Same dialect, different whitespace/formatting: the hash is over
+        // the RFC 9804 canonical form, so formatting cannot change it.
+        let compact =
+            "(define greeting-dialect (cbcl) @author (extend greet () (effect greet-action)))";
+        let sprawling = "(define greeting-dialect\n    (cbcl)\n    @author\n    (extend greet\n        ()\n        (effect    greet-action)))\n";
+        assert_eq!(
+            parse_install_hash(compact),
+            parse_install_hash(sprawling),
+            "reformatted-but-equal source must yield the identical hash"
+        );
+    }
+
+    #[test]
+    fn parsed_dialect_hash_changes_when_performative_renamed() {
+        let original =
+            "(define greeting-dialect (cbcl) @author (extend greet () (effect greet-action)))";
+        let renamed =
+            "(define greeting-dialect (cbcl) @author (extend salute () (effect greet-action)))";
+        assert_ne!(
+            parse_install_hash(original),
+            parse_install_hash(renamed),
+            "renaming a performative must change the hash"
+        );
+    }
+
+    #[test]
+    fn blame_carries_installed_dialect_hash() {
+        // With install-time hashing, shape-violation blame must now carry
+        // `:dialect-hash` (previously None for unhashed dialects), and the
+        // rest of the blame output is unchanged.
+        let mut registry = DialectRegistry::new();
+        registry
+            .install(cbcl_core::dialect::Dialect {
+                roles: Vec::new(),
+                state: None,
+                state_bounds: None,
+                causal_locality: Default::default(),
+                name: String::from("shape-dialect"),
+                extends: alloc::vec![String::from("cbcl")],
+                author: Some(String::from("@shape-author")),
+                performatives: alloc::vec![PerformativeDef {
+                    role: None,
+                    name: String::from("propose"),
+                    params: alloc::vec![],
+                    template: effect_template("propose-action"),
+                }],
+                resources: ResourceBounds {
+                    max_depth: 8,
+                    max_expansion_size: 512,
+                    verification_time_ms: 10,
+                },
+                examples: alloc::vec![],
+                signature: None,
+                hash: None,
+                protocol: None,
+                causal_protocol: None,
+                shapes: alloc::vec![ShapeConstraint {
+                    performative: String::from("propose"),
+                    rules: alloc::vec![ShapeRule::Require {
+                        keyword: String::from("target"),
+                        type_constraint: Some(TypeConstraint::String),
+                        children: alloc::vec![],
+                    }],
+                }],
+            })
+            .unwrap();
+        let installed_hash = registry
+            .find_by_name("shape-dialect")
+            .unwrap()
+            .hash
+            .clone()
+            .expect("install populates hash");
+
+        let store = ThreadedMessageStore::new();
+        let ctx = PipelineContext::new(&registry, &store);
+        let result = run_pipeline_full("(lang shape-dialect (propose \"idea\"))", &ctx);
+        let PipelineResult::ValidationError(ValidationError::ShapeViolation { blame, .. }) = result
+        else {
+            panic!("expected shape violation, got {result:?}");
+        };
+        assert_eq!(blame.dialect_hash.as_deref(), Some(installed_hash.as_str()));
+        assert_eq!(blame.dialect.as_deref(), Some("shape-dialect"));
+        assert_eq!(blame.performative.as_deref(), Some("propose"));
+        let rendered = alloc::format!("{}", blame.to_sexpr());
+        assert!(
+            rendered.contains("dialect-hash") && rendered.contains(&installed_hash),
+            "blame wire form must carry the installed dialect hash: {rendered}"
         );
     }
 }

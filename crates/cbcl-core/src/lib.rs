@@ -23,6 +23,13 @@
 //! - `msg_tag` — Deterministic message tagging (DCFL)
 //! - `shape` — Structural shape constraints (REQ-220)
 //! - `gossip` — Epidemic gossip protocol for dialect propagation
+//! - `keyid` — Canonical suite-typed key identity (SPEC-015 REQ-708)
+//! - `attest` — R4 v2 attestation signing discipline (SPEC-015 REQ-701, ADR-700)
+//! - `envelope` — Redacted envelopes: payload-free evidence widening (SPEC-015 REQ-700..703)
+//! - `equivocation` — Equivocation accountability: predicate, proof object, lint (SPEC-015 REQ-705..707)
+//! - `state` — State layer: the `(state …)` clause, kernel, fold, values (SPEC-019 R.1–R.3)
+//! - `r7` — R7: state-clause installation checks and state shape (SPEC-019 R.4)
+//! - `intend` — The intent binder (SPEC-019 R.5)
 
 #![forbid(unsafe_code)]
 #![cfg_attr(not(feature = "std"), no_std)]
@@ -36,31 +43,51 @@ extern crate alloc;
 /// runtime was linked against without parsing the workspace manifest.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
+pub mod admission;
 pub mod agent;
+pub mod attest;
 pub mod blame;
 pub mod canonical;
+mod causal_kernel;
+pub mod certification;
 pub mod clock;
 pub mod dialect;
+pub mod envelope;
+pub mod equivocation;
+pub mod escrow;
 pub mod evaluator;
 pub mod gossip;
+pub mod intend;
+pub mod keyid;
 pub mod message;
 pub mod msg_tag;
 pub mod pattern;
 pub mod policy;
+pub mod projection;
 pub mod protocol;
 pub mod r1;
 pub mod r2;
 pub mod r3;
 pub mod r4;
 pub mod r5;
+pub mod r6;
+pub mod r7;
+mod repeat;
+pub mod role;
 pub mod serializer;
 pub mod sexpr;
 pub mod shape;
+pub mod splice;
+pub mod state;
 pub mod store;
 pub mod template;
+pub mod typed_addr;
 
 /// Prelude re-exporting the most-used types.
 pub mod prelude {
+    pub use crate::admission::{
+        AdmissionError, AdmissionEvent, AdmissionGate, AdmissionMonitor, AdmissionState,
+    };
     pub use crate::agent::{Agent, AgentOutcome, MergePolicy};
     pub use crate::blame::{BlameEntry, BlameParty, ViolationError, ViolationKind};
     #[cfg(feature = "std")]
@@ -69,8 +96,10 @@ pub mod prelude {
     pub use crate::dialect::{
         Dialect, DialectInstallError, DialectRegistry, PerformativeDef, ResourceBounds,
     };
+    pub use crate::envelope::{parse_envelope, redact, EnvelopeParseError, RedactedEnvelope};
     pub use crate::evaluator::{Effect, EvalError, EvalResult};
     pub use crate::gossip::{GossipConfig, GossipNetwork, GossipStats, PropagationState, Topology};
+    pub use crate::intend::{intend, may_send, roles_of, Instance, Reject};
     pub use crate::message::{
         CausedBy, CorePerformative, Message, MessageParseError, MessageType, Performative,
         WrapperType,
@@ -84,10 +113,18 @@ pub mod prelude {
         VerificationResult, BEGIN_KEYWORD,
     };
     pub use crate::r4::{R4Result, Signer};
+    pub use crate::r7::{r7_violations, verify_state_shape, R7Violation};
     pub use crate::sexpr::{Atom, SExpr};
     pub use crate::shape::{ShapeConstraint, ShapeRule, ShapeViolation, TypeConstraint};
+    pub use crate::state::{
+        fold, frontier, render_json, state_schema, Act, Entry, Rule, StateBounds, StateClause,
+        Value,
+    };
     pub use crate::store::{
         BundleVerificationError, CausalClosureBundle, ClosureError, ContentHash, HashIndex,
         MergeResult, MessageStore, ThreadId, ThreadedMessageStore,
     };
 }
+
+/// Consensus-free quorum-budget runtime.
+pub mod quorum;

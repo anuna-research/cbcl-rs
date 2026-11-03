@@ -15,7 +15,7 @@ prior-art:
   - Goldreich/Micali/Wigderson 1987 (commit-reveal as a primitive)
   - Vickrey 1961 (sealed-bid auction theory)
   - Akerlof 1970 (markets with asymmetric information)
-repository: https://codeberg.org/anuna/cbcl-rs
+repository: https://git.anuna.io/anuna-research/cbcl-rs
 ---
 
 # SPEC-004: Sealed-Bid Auction — Structural Defence Against False-Claim Manipulation

@@ -39,6 +39,7 @@
 
 use crate::dialect::Dialect;
 use crate::protocol::{CausalProtocol, NodeRef, StepDecl};
+use crate::role::{RoleAnnotation, RoleCardinality, RoleDecl};
 use crate::sexpr::{Atom, SExpr};
 use crate::shape::{ShapeConstraint, ShapeRule, TypeConstraint};
 use alloc::string::String;
@@ -56,10 +57,27 @@ use alloc::vec::Vec;
 /// History:
 /// - `1` (initial): name, extends, author, performatives, resources,
 ///   examples.
-/// - `2` (current): adds `(causal-protocol …)` and `(shapes …)`
+/// - `2`: adds `(causal-protocol …)` and `(shapes …)`
 ///   segments, gated on presence so dialects that omit both fields
 ///   produce v1-identical bytes (legacy signatures keep verifying).
-pub const CANONICAL_FORM_VERSION: u32 = 2;
+/// - `3`: adds the `(roles …)` segment and a per-performative
+///   `(role …)` element (SPEC-014 REQ-624), both gated on presence, so
+///   role-free dialects produce v2-identical bytes and role annotations
+///   cannot be stripped or rewritten in gossip without invalidating the
+///   R4 signature.
+/// - `4` (current): adds the `(causal-locality derive)` segment (SPEC-015
+///   REQ-709), gated on the non-default mode, so `reject`-mode dialects
+///   produce v3-identical bytes. Only the declared *mode* is signed — the
+///   derived envelope-routing table is install-derived, deterministic from
+///   the signed body, and therefore excluded like `hash` itself. Binding
+///   the mode is load-bearing: without it a relay could flip a signed
+///   `reject` dialect to `derive`, silently enlarging delivery obligations
+///   under an intact signature.
+/// - `5` (current): adds the `(state …)` and `(state-bounds …)` segments
+///   (SPEC-019 REQ-1903), gated on presence, so dialects without a state
+///   layer produce v4-identical bytes. The fold is signature-bound: it
+///   cannot be stripped or rewritten in gossip under an intact signature.
+pub const CANONICAL_FORM_VERSION: u32 = 5;
 
 // ---------------------------------------------------------------------------
 // Atom-to-octet-string mapping
@@ -132,34 +150,94 @@ pub fn atom_to_octets(atom: &Atom) -> Vec<u8> {
 /// The output is deterministic: `canonical_encode(e1) == canonical_encode(e2)` iff `e1 == e2`.
 pub fn canonical_encode(sexpr: &SExpr) -> Vec<u8> {
     let mut buf = Vec::new();
-    encode_into(sexpr, &mut buf);
+    encode_to(sexpr, &mut |bytes| buf.extend_from_slice(bytes));
     buf
 }
 
-fn encode_into(sexpr: &SExpr, buf: &mut Vec<u8>) {
+/// Emit the canonical bytes to an infallible sink without intermediate buffers.
+/// Buffered encoding and streamed hashing share this exact representation.
+pub(crate) fn encode_to(sexpr: &SExpr, sink: &mut impl FnMut(&[u8])) {
     match sexpr {
-        SExpr::Atom(atom) => {
-            let octets = atom_to_octets(atom);
-            let len_str = decimal_no_leading_zeros(octets.len());
-            buf.extend_from_slice(len_str.as_bytes());
-            buf.push(b':');
-            buf.extend_from_slice(&octets);
-        }
-        SExpr::List(items) => {
-            buf.push(b'(');
-            for item in items {
-                encode_into(item, buf);
+        SExpr::Atom(atom) => match atom {
+            Atom::Symbol(s) => encode_symbol_to(s, sink),
+            Atom::Keyword(s) => encode_tagged_to(b'K', s.as_bytes(), sink),
+            Atom::Str(s) => encode_tagged_to(b'Q', s.as_bytes(), sink),
+            Atom::Bool(b) => encode_tagged_to(b'B', if *b { b"t" } else { b"f" }, sink),
+            Atom::Num(n) => {
+                // unsigned_abs also handles i64::MIN without overflow.
+                let mut digits = [0u8; 21];
+                let mut offset = digits.len();
+                let mut magnitude = n.unsigned_abs();
+                loop {
+                    offset -= 1;
+                    digits[offset] = b'0' + (magnitude % 10) as u8;
+                    magnitude /= 10;
+                    if magnitude == 0 {
+                        break;
+                    }
+                }
+                if *n < 0 {
+                    offset -= 1;
+                    digits[offset] = b'-';
+                }
+                encode_tagged_to(b'N', &digits[offset..], sink);
             }
-            buf.push(b')');
+        },
+        SExpr::List(items) => {
+            sink(b"(");
+            for item in items {
+                encode_to(item, sink);
+            }
+            sink(b")");
         }
     }
 }
 
-/// Format a usize as decimal with no leading zeros.
-/// Zero is represented as "0".
-fn decimal_no_leading_zeros(n: usize) -> String {
-    use alloc::format;
-    format!("{n}")
+/// Encode a borrowed symbol, including its type tag and octet length.
+pub(crate) fn encode_symbol_to(symbol: &str, sink: &mut impl FnMut(&[u8])) {
+    encode_tagged_to(b'S', symbol.as_bytes(), sink);
+}
+
+fn encode_tagged_to(tag: u8, octets: &[u8], sink: &mut impl FnMut(&[u8])) {
+    let mut digits = [0u8; usize::BITS as usize];
+    let mut offset = digits.len();
+    let mut length = octets.len() + 1;
+    loop {
+        offset -= 1;
+        digits[offset] = b'0' + (length % 10) as u8;
+        length /= 10;
+        if length == 0 {
+            break;
+        }
+    }
+    sink(&digits[offset..]);
+    sink(b":");
+    sink(&[tag]);
+    sink(octets);
+}
+
+// Independent pre-streaming encoder retained only as a compatibility oracle.
+#[cfg(test)]
+pub(crate) fn reference_encode(sexpr: &SExpr) -> Vec<u8> {
+    fn append(sexpr: &SExpr, buf: &mut Vec<u8>) {
+        match sexpr {
+            SExpr::Atom(atom) => {
+                let octets = atom_to_octets(atom);
+                buf.extend_from_slice(alloc::format!("{}:", octets.len()).as_bytes());
+                buf.extend_from_slice(&octets);
+            }
+            SExpr::List(items) => {
+                buf.push(b'(');
+                for item in items {
+                    append(item, buf);
+                }
+                buf.push(b')');
+            }
+        }
+    }
+    let mut buf = Vec::new();
+    append(sexpr, &mut buf);
+    buf
 }
 
 // ---------------------------------------------------------------------------
@@ -218,13 +296,18 @@ pub fn to_signable_sexpr(d: &Dialect) -> SExpr {
         let mut params_list = vec![SExpr::Atom(Atom::Symbol(String::from("params")))];
         params_list.extend(p.params.clone());
 
-        let perf = SExpr::List(vec![
+        let mut perf_items = vec![
             SExpr::Atom(Atom::Symbol(String::from("perf"))),
             SExpr::Atom(Atom::Str(p.name.clone())),
             SExpr::List(params_list),
             p.template.clone(),
-        ]);
-        perfs.push(perf);
+        ];
+        // role annotation (SPEC-014 REQ-624) — only when present
+        // (backward-compat: unannotated performatives keep v2 bytes).
+        if let Some(ref ann) = p.role {
+            perf_items.push(role_annotation_to_sexpr(ann));
+        }
+        perfs.push(SExpr::List(perf_items));
     }
     top.push(SExpr::List(perfs));
 
@@ -251,7 +334,171 @@ pub fn to_signable_sexpr(d: &Dialect) -> SExpr {
         top.push(shapes_to_sexpr(&d.shapes));
     }
 
+    // roles (SPEC-014 REQ-624) — only when non-empty (backward-compat).
+    if !d.roles.is_empty() {
+        top.push(roles_to_sexpr(&d.roles));
+    }
+
+    // causal-locality mode (SPEC-015 REQ-709) — only under the non-default
+    // `derive` (backward-compat: reject-mode dialects keep v3 bytes). The
+    // derived routing table is deliberately excluded: it is a deterministic
+    // function of the signed body, recomputed at install, so signing the
+    // mode alone binds the semantics without freezing the derivation.
+    if matches!(d.causal_locality, crate::role::CausalLocality::Derive(_)) {
+        top.push(SExpr::List(vec![
+            SExpr::Atom(Atom::Symbol(String::from("causal-locality"))),
+            SExpr::Atom(Atom::Symbol(String::from("derive"))),
+        ]));
+    }
+
+    // state (SPEC-019 REQ-1903) — only when present (backward-compat).
+    if let Some(ref clause) = d.state {
+        top.push(state_to_sexpr(clause));
+    }
+    if let Some(ref b) = d.state_bounds {
+        top.push(SExpr::List(vec![
+            SExpr::Atom(Atom::Symbol(String::from("state-bounds"))),
+            SExpr::Atom(Atom::Num(b.max_string as i64)),
+            SExpr::Atom(Atom::Num(b.max_list as i64)),
+            SExpr::Atom(Atom::Num(b.max_number)),
+            SExpr::Atom(Atom::Num(b.max_fields as i64)),
+        ]));
+    }
+
     SExpr::List(top)
+}
+
+/// Encode the state clause deterministically, in clause order (order is
+/// part of the signed body: later fields may reference earlier ones).
+fn state_to_sexpr(clause: &crate::state::StateClause) -> SExpr {
+    use crate::state::{Entry, Rule};
+    use alloc::vec;
+    let s = |x: &str| SExpr::Atom(Atom::Str(String::from(x)));
+    let sym = |x: &str| SExpr::Atom(Atom::Symbol(String::from(x)));
+    let mut items = vec![sym("state")];
+    for e in &clause.entries {
+        match e {
+            Entry::Domain { verb, key, field } => {
+                items.push(SExpr::List(vec![sym("domain"), s(verb), s(key), s(field)]));
+            }
+            Entry::Field { name, rule } => {
+                let mut r = vec![sym(rule.head())];
+                match rule {
+                    Rule::BoundedCounter(c) => r.extend(c.canonical_options()),
+                    Rule::Last { verb, key }
+                    | Rule::LatestPerSigner { verb, key }
+                    | Rule::Events { verb, key }
+                    | Rule::SetUnion { verb, key }
+                    | Rule::Values { verb, key } => {
+                        r.push(s(verb));
+                        r.push(s(key));
+                    }
+                    Rule::LatestPerKey { verb, key, value } => {
+                        r.push(s(verb));
+                        r.push(s(key));
+                        r.push(s(value));
+                    }
+                    Rule::Exists { verb } | Rule::Count { verb } | Rule::Progress { verb } => {
+                        r.push(s(verb))
+                    }
+                    Rule::ValuesPerKey {
+                        verb,
+                        key,
+                        value,
+                        delete,
+                    }
+                    | Rule::RegisterPerKey {
+                        verb,
+                        key,
+                        value,
+                        delete,
+                    } => {
+                        r.push(s(verb));
+                        r.push(s(key));
+                        r.push(s(value));
+                        if let Some(d) = delete {
+                            r.push(s(d));
+                        }
+                    }
+                    Rule::ObservedSet { add, remove, key } => {
+                        r.push(s(add));
+                        r.push(s(remove));
+                        r.push(s(key));
+                    }
+                    Rule::Counter { inc, dec, key } => {
+                        r.push(s(inc));
+                        r.push(s(dec));
+                        r.push(s(key));
+                    }
+                    Rule::Histogram { field } | Rule::Sum { field } => r.push(s(field)),
+                }
+                items.push(SExpr::List(vec![sym("field"), s(name), SExpr::List(r)]));
+            }
+        }
+    }
+    SExpr::List(items)
+}
+
+/// The hash of a dialect's *body*: its canonical form with the name slot
+/// empty (SPEC-019 R.6, ADR-1903). Lowercase hex, no prefix. A name is a
+/// pointer; the body hash never sees it.
+pub fn dialect_body_hash(d: &Dialect) -> String {
+    use sha2::{Digest, Sha256};
+    let mut body = d.clone();
+    body.name = String::new();
+    let digest = Sha256::digest(dialect_canonical_bytes(&body));
+    const HEX: &[u8; 16] = b"0123456789abcdef";
+    let mut out = String::with_capacity(64);
+    for b in digest {
+        out.push(HEX[(b >> 4) as usize] as char);
+        out.push(HEX[(b & 0x0f) as usize] as char);
+    }
+    out
+}
+
+/// The name a self-addressed dialect carries: `sha256-` plus its body
+/// hash (SPEC-019 REQ-1927), spelled like every other content address.
+pub fn dialect_name(d: &Dialect) -> String {
+    let mut out = String::from(crate::r7::SELF_ADDRESS_PREFIX);
+    out.push_str(&dialect_body_hash(d));
+    out
+}
+
+/// Encode the declared roles deterministically, preserving declaration
+/// order (order is part of the signed body).
+fn roles_to_sexpr(roles: &[RoleDecl]) -> SExpr {
+    use alloc::vec;
+    let mut items = vec![SExpr::Atom(Atom::Symbol(String::from("roles")))];
+    for r in roles {
+        let card = match r.cardinality {
+            RoleCardinality::Singleton => "singleton",
+            RoleCardinality::Indexed => "indexed",
+        };
+        items.push(SExpr::List(vec![
+            SExpr::Atom(Atom::Symbol(String::from("role-decl"))),
+            SExpr::Atom(Atom::Str(r.name.clone())),
+            SExpr::Atom(Atom::Symbol(String::from(card))),
+        ]));
+    }
+    SExpr::List(items)
+}
+
+/// Encode a per-performative `:from`/`:to` annotation. The recipient set is
+/// a `BTreeSet`, so iteration (and hence the signed byte order) is sorted.
+fn role_annotation_to_sexpr(ann: &RoleAnnotation) -> SExpr {
+    use alloc::vec;
+    let mut to_items = vec![SExpr::Atom(Atom::Symbol(String::from("to")))];
+    for r in &ann.to {
+        to_items.push(SExpr::Atom(Atom::Str(r.clone())));
+    }
+    SExpr::List(vec![
+        SExpr::Atom(Atom::Symbol(String::from("role"))),
+        SExpr::List(vec![
+            SExpr::Atom(Atom::Symbol(String::from("from"))),
+            SExpr::Atom(Atom::Str(ann.from.clone())),
+        ]),
+        SExpr::List(to_items),
+    ])
 }
 
 /// Encode a `CausalProtocol` deterministically. Steps come from a `BTreeMap`
@@ -418,6 +665,28 @@ pub fn dialect_canonical_bytes(d: &Dialect) -> Vec<u8> {
     canonical_encode(&to_signable_sexpr(d))
 }
 
+/// Compute a dialect's canonical content hash: `sha256:<lowercase-hex64>`
+/// over [`dialect_canonical_bytes`] (SPEC-014 REQ-628).
+///
+/// This follows the same discipline as message content hashing (SPEC-003
+/// REQ-314): the hash input is the RFC 9804 canonical serialization, never
+/// the human-readable form, so whitespace/formatting differences in dialect
+/// source cannot change the hash while any semantic change does. Integrity
+/// fields (`signature`, `hash`, `protocol`) are excluded from the signable
+/// form, so populating `Dialect::hash` with this value does not perturb it.
+pub fn dialect_hash(d: &Dialect) -> String {
+    use sha2::{Digest, Sha256};
+    let digest = Sha256::digest(dialect_canonical_bytes(d));
+    const HEX: &[u8; 16] = b"0123456789abcdef";
+    let mut out = String::with_capacity(7 + 64);
+    out.push_str("sha256:");
+    for b in digest {
+        out.push(HEX[(b >> 4) as usize] as char);
+        out.push(HEX[(b & 0x0f) as usize] as char);
+    }
+    out
+}
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -428,6 +697,62 @@ mod tests {
     use crate::dialect::{base_dialect, PerformativeDef, ResourceBounds};
     use alloc::string::String;
     use alloc::vec;
+
+    #[test]
+    fn canonical_stream_preserves_decimal_and_utf8_boundaries() {
+        let mut values = vec![SExpr::List(vec![])];
+        for n in [i64::MIN, -1_000_000, -10, -1, 0, 1, 9, 10, i64::MAX] {
+            values.push(SExpr::Atom(Atom::Num(n)));
+        }
+        for value in [true, false] {
+            values.push(SExpr::Atom(Atom::Bool(value)));
+        }
+        for length in [0, 1, 8, 9, 10, 98, 99, 100, 998, 999, 1000] {
+            for unit in ["x", "é", "🙂"] {
+                let value = unit.repeat(length);
+                values.extend([
+                    SExpr::Atom(Atom::Symbol(value.clone())),
+                    SExpr::Atom(Atom::Keyword(value.clone())),
+                    SExpr::Atom(Atom::Str(value)),
+                ]);
+            }
+        }
+        values.extend([
+            SExpr::Atom(Atom::Str("\0\n\r\t():\\\"".into())),
+            SExpr::Atom(Atom::Symbol("\0():\n".into())),
+            SExpr::Atom(Atom::Keyword("é\r\t".into())),
+        ]);
+        for value in &values {
+            assert_eq!(canonical_encode(value), reference_encode(value));
+        }
+        let nested = SExpr::List(vec![SExpr::List(values.clone()), SExpr::List(values)]);
+        assert_eq!(canonical_encode(&nested), reference_encode(&nested));
+    }
+
+    proptest::proptest! {
+        #[test]
+        fn canonical_stream_matches_reference_for_recursive_values(
+            value in {
+                use proptest::prelude::*;
+                prop_oneof![
+                    any::<i64>().prop_map(|n| SExpr::Atom(Atom::Num(n))),
+                    any::<bool>().prop_map(|b| SExpr::Atom(Atom::Bool(b))),
+                    ".{0,64}".prop_map(|s| SExpr::Atom(Atom::Symbol(s))),
+                    ".{0,64}".prop_map(|s| SExpr::Atom(Atom::Keyword(s))),
+                    ".{0,64}".prop_map(|s| SExpr::Atom(Atom::Str(s))),
+                ].prop_recursive(6, 128, 8, |inner| {
+                    proptest::collection::vec(inner, 0..8).prop_map(SExpr::List)
+                })
+            }
+        ) {
+            use sha2::{Digest, Sha256};
+            let expected = reference_encode(&value);
+            proptest::prop_assert_eq!(canonical_encode(&value), expected.clone());
+            let mut hasher = Sha256::new();
+            encode_to(&value, &mut |bytes| hasher.update(bytes));
+            proptest::prop_assert_eq!(hasher.finalize(), Sha256::digest(&expected));
+        }
+    }
 
     // ====================================================================
     // Phase 1: Atom-to-octet mapping tests
@@ -676,10 +1001,15 @@ mod tests {
 
     fn test_dialect(name: &str) -> Dialect {
         Dialect {
+            roles: Vec::new(),
+            state: None,
+            state_bounds: None,
+            causal_locality: Default::default(),
             name: String::from(name),
             extends: vec![],
             author: Some(String::from("@test")),
             performatives: vec![PerformativeDef {
+                role: None,
                 name: String::from("greet"),
                 params: vec![],
                 template: SExpr::List(vec![
@@ -756,11 +1086,13 @@ mod tests {
         let mut d1 = test_dialect("test");
         d1.performatives = vec![
             PerformativeDef {
+                role: None,
                 name: String::from("a"),
                 params: vec![],
                 template: SExpr::Atom(Atom::Symbol(String::from("a"))),
             },
             PerformativeDef {
+                role: None,
                 name: String::from("b"),
                 params: vec![],
                 template: SExpr::Atom(Atom::Symbol(String::from("b"))),
@@ -770,11 +1102,13 @@ mod tests {
         let mut d2 = test_dialect("test");
         d2.performatives = vec![
             PerformativeDef {
+                role: None,
                 name: String::from("b"),
                 params: vec![],
                 template: SExpr::Atom(Atom::Symbol(String::from("b"))),
             },
             PerformativeDef {
+                role: None,
                 name: String::from("a"),
                 params: vec![],
                 template: SExpr::Atom(Atom::Symbol(String::from("a"))),
@@ -791,6 +1125,10 @@ mod tests {
     #[test]
     fn signable_empty_dialect() {
         let d = Dialect {
+            roles: Vec::new(),
+            state: None,
+            state_bounds: None,
+            causal_locality: Default::default(),
             name: String::from("empty"),
             extends: vec![],
             author: None,
@@ -817,10 +1155,15 @@ mod tests {
     #[test]
     fn signable_all_optional_fields() {
         let d = Dialect {
+            roles: Vec::new(),
+            state: None,
+            state_bounds: None,
+            causal_locality: Default::default(),
             name: String::from("full"),
             extends: vec![String::from("parent1"), String::from("parent2")],
             author: Some(String::from("@author")),
             performatives: vec![PerformativeDef {
+                role: None,
                 name: String::from("act"),
                 params: vec![SExpr::Atom(Atom::Symbol("x".into()))],
                 template: SExpr::Atom(Atom::Symbol("do-it".into())),
@@ -1025,10 +1368,15 @@ mod tests {
     /// verifying.
     fn snapshot_legacy_dialect() -> Dialect {
         Dialect {
+            roles: Vec::new(),
+            state: None,
+            state_bounds: None,
+            causal_locality: Default::default(),
             name: String::from("legacy"),
             extends: vec![String::from("cbcl")],
             author: Some(String::from("@authority")),
             performatives: vec![PerformativeDef {
+                role: None,
                 name: String::from("act"),
                 params: vec![SExpr::Atom(Atom::Symbol("x".into()))],
                 template: SExpr::Atom(Atom::Symbol("do".into())),
@@ -1172,9 +1520,53 @@ mod tests {
     }
 
     #[test]
-    fn canonical_form_version_is_two() {
+    fn canonical_form_version_is_five() {
         // Pin the version constant so changes are deliberate.
-        assert_eq!(CANONICAL_FORM_VERSION, 2);
+        assert_eq!(CANONICAL_FORM_VERSION, 5);
+    }
+
+    // ---- SPEC-015 REQ-709: causal-locality mode is signature-bound ----
+
+    #[test]
+    fn reject_mode_dialect_keeps_v3_bytes() {
+        // The default mode adds nothing: reject-mode dialects (including
+        // every pre-v4 dialect) produce byte-identical canonical output.
+        let d = test_dialect("t");
+        let s = alloc::string::String::from_utf8(dialect_canonical_bytes(&d)).unwrap();
+        assert!(
+            !s.contains("causal-locality"),
+            "reject mode must not appear in canonical bytes: {s}"
+        );
+    }
+
+    #[test]
+    fn flipping_to_derive_changes_signable_bytes() {
+        use crate::role::{CausalLocality, EnvelopeRoutes};
+        let d1 = test_dialect("t");
+        let mut d2 = test_dialect("t");
+        d2.causal_locality = CausalLocality::Derive(EnvelopeRoutes::default());
+        assert_ne!(
+            dialect_canonical_bytes(&d1),
+            dialect_canonical_bytes(&d2),
+            "the derive mode must be signature-bound (REQ-709)"
+        );
+    }
+
+    #[test]
+    fn derived_routes_do_not_affect_signable_bytes() {
+        use crate::role::{CausalLocality, EnvelopeRoutes};
+        use alloc::collections::{BTreeMap, BTreeSet};
+        // Recording the install-derived table must not perturb the signed
+        // form — the R4 check precedes derivation recording at install.
+        let mut d1 = test_dialect("t");
+        d1.causal_locality = CausalLocality::Derive(EnvelopeRoutes::default());
+        let mut d2 = test_dialect("t");
+        let mut routes = BTreeMap::new();
+        let mut to = BTreeSet::new();
+        to.insert(String::from("warehouse"));
+        routes.insert(String::from("accept"), to);
+        d2.causal_locality = CausalLocality::Derive(EnvelopeRoutes(routes));
+        assert_eq!(dialect_canonical_bytes(&d1), dialect_canonical_bytes(&d2));
     }
 
     // ====================================================================
@@ -1261,5 +1653,108 @@ mod tests {
     fn test_vector_num_zero() {
         // Num(0) -> octets "N0" (2 bytes) -> "2:N0"
         assert_eq!(canonical_encode(&SExpr::Atom(Atom::Num(0))), b"2:N0");
+    }
+
+    // ---- SPEC-014 REQ-624: role annotations are signature-bound ----
+
+    #[test]
+    fn role_free_dialect_has_no_roles_segment() {
+        let d = test_dialect("t");
+        let sexpr = to_signable_sexpr(&d);
+        let rendered = alloc::format!("{sexpr}");
+        assert!(!rendered.contains("(roles"));
+        assert!(!rendered.contains("role-decl"));
+    }
+
+    #[test]
+    fn stripping_roles_changes_signable_bytes() {
+        use crate::role::{RoleCardinality, RoleDecl};
+        let mut d = test_dialect("t");
+        let bytes_before = dialect_canonical_bytes(&d);
+        d.roles.push(RoleDecl {
+            name: String::from("server"),
+            cardinality: RoleCardinality::Singleton,
+        });
+        let bytes_with_roles = dialect_canonical_bytes(&d);
+        assert_ne!(bytes_before, bytes_with_roles);
+    }
+
+    #[test]
+    fn stripping_from_to_changes_signable_bytes() {
+        use crate::role::RoleAnnotation;
+        use alloc::collections::BTreeSet;
+        let mut d = test_dialect("t");
+        let bytes_before = dialect_canonical_bytes(&d);
+        let mut to = BTreeSet::new();
+        to.insert(String::from("client"));
+        if let Some(p) = d.performatives.first_mut() {
+            p.role = Some(RoleAnnotation {
+                from: String::from("server"),
+                to,
+            });
+        }
+        let bytes_annotated = dialect_canonical_bytes(&d);
+        assert_ne!(bytes_before, bytes_annotated);
+    }
+
+    // ---- dialect content hash (SPEC-014 REQ-628) ----
+
+    #[test]
+    fn dialect_hash_has_sha256_hex64_form() {
+        let h = dialect_hash(&test_dialect("t"));
+        let hex = h.strip_prefix("sha256:").expect("sha256: prefix");
+        assert_eq!(hex.len(), 64);
+        assert!(hex
+            .chars()
+            .all(|c| c.is_ascii_digit() || ('a'..='f').contains(&c)));
+    }
+
+    #[test]
+    fn dialect_hash_is_deterministic() {
+        assert_eq!(
+            dialect_hash(&test_dialect("t")),
+            dialect_hash(&test_dialect("t"))
+        );
+    }
+
+    #[test]
+    fn dialect_hash_ignores_integrity_fields() {
+        // signature/hash/protocol are excluded from the signable form, so
+        // stamping the computed hash back onto the dialect is a fixpoint.
+        let d1 = test_dialect("t");
+        let mut d2 = test_dialect("t");
+        d2.signature = None;
+        d2.hash = Some(dialect_hash(&d1));
+        d2.protocol = None;
+        assert_eq!(dialect_hash(&d1), dialect_hash(&d2));
+    }
+
+    #[test]
+    fn dialect_hash_changes_on_content_change() {
+        let d1 = test_dialect("t");
+        let mut d2 = test_dialect("t");
+        d2.performatives[0].name = String::from("salute");
+        assert_ne!(dialect_hash(&d1), dialect_hash(&d2));
+    }
+
+    #[test]
+    fn recipient_set_order_is_canonical() {
+        use crate::role::RoleAnnotation;
+        use alloc::collections::BTreeSet;
+        let mk = |names: &[&str]| {
+            let mut d = test_dialect("t");
+            let mut to = BTreeSet::new();
+            for n in names {
+                to.insert(String::from(*n));
+            }
+            if let Some(p) = d.performatives.first_mut() {
+                p.role = Some(RoleAnnotation {
+                    from: String::from("server"),
+                    to,
+                });
+            }
+            dialect_canonical_bytes(&d)
+        };
+        assert_eq!(mk(&["a", "b"]), mk(&["b", "a"]));
     }
 }

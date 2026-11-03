@@ -140,12 +140,17 @@ mod tests {
 
     fn test_dialect(performatives: Vec<&str>, shapes: Vec<ShapeConstraint>) -> Dialect {
         Dialect {
+            roles: Vec::new(),
+            state: None,
+            state_bounds: None,
+            causal_locality: Default::default(),
             name: String::from("test-dialect"),
             extends: vec![String::from("cbcl")],
             author: None,
             performatives: performatives
                 .into_iter()
                 .map(|name| PerformativeDef {
+                    role: None,
                     name: String::from(name),
                     params: vec![],
                     template: SExpr::List(vec![
@@ -440,12 +445,17 @@ mod tests {
 
     fn protocol_dialect(performatives: Vec<&str>, proto: CausalProtocol) -> Dialect {
         Dialect {
+            roles: Vec::new(),
+            state: None,
+            state_bounds: None,
+            causal_locality: Default::default(),
             name: String::from("test-dialect"),
             extends: vec![String::from("cbcl")],
             author: None,
             performatives: performatives
                 .into_iter()
                 .map(|name| PerformativeDef {
+                    role: None,
                     name: String::from(name),
                     params: vec![],
                     template: SExpr::List(vec![

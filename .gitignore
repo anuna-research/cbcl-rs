@@ -10,3 +10,22 @@
 
 # macOS metadata
 **/.DS_Store
+/fuzz/target
+/mutants.out
+/.mut-tmp
+/fuzz/corpus
+/fuzz/artifacts
+
+# JavaScript package (js/): generated wasm, dependencies, build output
+/js/src/cbcl_wasm*
+/js/node_modules/
+/js/dist/
+/js/LICENSE
+
+# Local specification indexes and generated research/verification records
+/.zetl/
+/specs/.zetl/
+/outputs/
+
+# Locally staged release artifacts
+/dist/

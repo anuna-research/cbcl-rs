@@ -179,7 +179,7 @@ mod tests {
                 ..
             } => {
                 assert_eq!(performative, Performative::Core(CorePerformative::Tell));
-                assert_eq!(recipient.as_deref(), Some("@bob"));
+                assert_eq!(recipient.as_ref().and_then(|r| r.as_single()), Some("@bob"));
                 // content should be the bare string atom "hello"
                 match content {
                     SExpr::Atom(cbcl_core::sexpr::Atom::Str(s)) => {

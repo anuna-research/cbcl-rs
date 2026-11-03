@@ -110,6 +110,56 @@ impl Performative {
     }
 }
 
+/// Recipient position of a Simple message (SPEC-014 REQ-622).
+///
+/// A bare `@key` symbol is a single recipient (the pre-SPEC-014 form,
+/// byte-identical on re-serialisation); a non-empty list of `@key` symbols
+/// is a multicast, serialised in canonical (sorted) order. A performative
+/// whose `:to` annotation is the empty set simply carries no recipient
+/// position.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum Recipients {
+    /// Single recipient: `(perf @r …)`.
+    One(String),
+    /// Multicast: `(perf (@r1 @r2) …)`; canonical order via `BTreeSet`.
+    Set(alloc::collections::BTreeSet<String>),
+}
+
+impl Recipients {
+    /// The single recipient, if this is the `One` form.
+    pub fn as_single(&self) -> Option<&str> {
+        match self {
+            Recipients::One(r) => Some(r.as_str()),
+            Recipients::Set(_) => None,
+        }
+    }
+
+    /// All recipients as a normalized sorted set.
+    pub fn as_set(&self) -> alloc::collections::BTreeSet<&str> {
+        match self {
+            Recipients::One(r) => {
+                let mut s = alloc::collections::BTreeSet::new();
+                s.insert(r.as_str());
+                s
+            }
+            Recipients::Set(rs) => rs.iter().map(|r| r.as_str()).collect(),
+        }
+    }
+}
+
+impl From<String> for Recipients {
+    fn from(r: String) -> Self {
+        Recipients::One(r)
+    }
+}
+
+impl From<&str> for Recipients {
+    fn from(r: &str) -> Self {
+        Recipients::One(String::from(r))
+    }
+}
+
 /// Message type classification (REQ-012).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -122,13 +172,19 @@ pub enum MessageType {
 
 /// Wrapper type for wrapped messages (REQ-012).
 ///
-/// Three wrapper forms: `envelope`, `signed`, `with-limits`.
+/// Four wrapper forms: `envelope`, `signed`, `with-limits`, and the
+/// cast-bearing `with-roles` thread root (SPEC-014 REQ-625).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum WrapperType {
     Envelope,
     Signed,
     WithLimits,
+    /// `(with-roles (<bindings>) <signed-message>)` — the cast nomination
+    /// wrapper at a thread's causal root (SPEC-014 REQ-611/625, CON-601).
+    /// The bindings list travels in `params`; the inner signed message is
+    /// carried unchanged.
+    WithRoles,
 }
 
 impl WrapperType {
@@ -138,6 +194,7 @@ impl WrapperType {
             WrapperType::Envelope => "envelope",
             WrapperType::Signed => "signed",
             WrapperType::WithLimits => "with-limits",
+            WrapperType::WithRoles => "with-roles",
         }
     }
 
@@ -147,6 +204,7 @@ impl WrapperType {
             "envelope" => Some(WrapperType::Envelope),
             "signed" => Some(WrapperType::Signed),
             "with-limits" => Some(WrapperType::WithLimits),
+            "with-roles" => Some(WrapperType::WithRoles),
             _ => None,
         }
     }
@@ -168,7 +226,7 @@ pub enum Message {
     /// Simple message: `(performative [recipient] content [:key val ...])`
     Simple {
         performative: Performative,
-        recipient: Option<String>,
+        recipient: Option<Recipients>,
         content: SExpr,
         params: Vec<SExpr>,
         thread: Option<String>,
@@ -195,6 +253,20 @@ pub enum Message {
 // ---------------------------------------------------------------------------
 
 impl Message {
+    /// Recognise a message as [`TryFrom<&SExpr>`] does, except that a custom
+    /// performative outside a `(lang …)` wrapper is accepted as a bare
+    /// `Performative::Custom` instead of being refused under the scoping rule.
+    ///
+    /// For hosts that dispatch such a frame by its head name themselves and
+    /// accept only the names they know — the chat hub's control plane
+    /// (`adddialect`, `fetchdialect`, `addagent`, …), which its lax parser
+    /// gates with a performative allow-list. Content messages go through
+    /// `TryFrom`, where the scoping rule stands: nothing in a bare custom head
+    /// says which dialect defines it.
+    pub fn parse_lax(sexpr: &SExpr) -> Result<Self, MessageParseError> {
+        parse_message_scoped(sexpr, LangScope::Lax)
+    }
+
     /// Returns the message type classification.
     pub fn message_type(&self) -> MessageType {
         match self {
@@ -213,13 +285,24 @@ impl Message {
         }
     }
 
-    /// Returns the recipient if this is a Simple message with one.
+    /// Returns the recipient if this is a Simple message with exactly one.
     pub fn recipient(&self) -> Option<&str> {
         match self {
             Message::Simple {
                 recipient: Some(r), ..
-            } => Some(r.as_str()),
+            } => r.as_single(),
             _ => None,
+        }
+    }
+
+    /// Returns all recipients of a Simple message as a normalized set
+    /// (empty when the recipient position is absent) — SPEC-014 REQ-622.
+    pub fn recipient_set(&self) -> alloc::collections::BTreeSet<&str> {
+        match self {
+            Message::Simple {
+                recipient: Some(r), ..
+            } => r.as_set(),
+            _ => alloc::collections::BTreeSet::new(),
         }
     }
 
@@ -329,8 +412,18 @@ impl From<Message> for SExpr {
                 caused_by,
             } => {
                 let mut items = vec![SExpr::Atom(Atom::Symbol(String::from(performative.name())))];
-                if let Some(r) = recipient {
-                    items.push(SExpr::Atom(Atom::Symbol(r)));
+                match recipient {
+                    Some(Recipients::One(r)) => {
+                        items.push(SExpr::Atom(Atom::Symbol(r)));
+                    }
+                    Some(Recipients::Set(rs)) => {
+                        items.push(SExpr::List(
+                            rs.into_iter()
+                                .map(|r| SExpr::Atom(Atom::Symbol(r)))
+                                .collect(),
+                        ));
+                    }
+                    None => {}
                 }
                 items.push(content);
                 items.extend(params);
@@ -412,29 +505,65 @@ impl TryFrom<&SExpr> for Message {
     type Error = MessageParseError;
 
     fn try_from(sexpr: &SExpr) -> Result<Self, Self::Error> {
-        let items = match sexpr {
-            SExpr::List(items) if !items.is_empty() => items,
-            SExpr::List(_) => return Err(MessageParseError(String::from("empty message"))),
-            _ => return Err(MessageParseError(String::from("message must be a list"))),
-        };
+        parse_message_scoped(sexpr, LangScope::Unscoped)
+    }
+}
 
-        let head = match &items[0] {
-            SExpr::Atom(Atom::Symbol(s)) => s.as_str(),
-            _ => {
-                return Err(MessageParseError(String::from(
-                    "message head must be a symbol",
-                )))
-            }
-        };
+/// Whether the message being recognised sits inside a `(lang …)` wrapper
+/// (REQ-033).
+///
+/// This is the only context a *custom* performative may appear in. The `lang`
+/// tag plus the dialect name is the deterministic dispatch token that selects
+/// which dialect's subgrammar applies; without it the head symbol alone would
+/// have to select it, and which dialect that names is a property of the
+/// receiver's installed set rather than of the message. Two agents holding
+/// different dialects would then read the same bytes differently, which is the
+/// parser-equivalence failure the whole design exists to exclude.
+///
+/// Because dispatch goes through `lang`, two dialects defining the same
+/// performative name is not a conflict at all — the wrapper says which one is
+/// meant. That coexistence is the feature the scoping rule buys.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum LangScope {
+    /// No enclosing `(lang …)`: only core performatives may head a message.
+    Unscoped,
+    /// Inside a `(lang <dialect> …)`, possibly through wrappers.
+    Scoped,
+    /// No enclosing `(lang …)`, but the caller dispatches a bare custom head
+    /// by name itself and asked for it ([`Message::parse_lax`]): a control
+    /// frame of a host whose control plane predates the scoping rule. Never a
+    /// content message.
+    Lax,
+}
 
-        match head {
-            "meta" => parse_meta(&items[1..]),
-            "lang" => parse_dialect_msg(&items[1..]),
-            w if WrapperType::parse(w).is_some() => {
-                parse_wrapped(WrapperType::parse(w).unwrap(), &items[1..])
-            }
-            _ => parse_simple(head, &items[1..]),
+/// Recognise a message, tracking whether a `(lang …)` wrapper encloses it.
+///
+/// Wrappers propagate the scope they were found in, so
+/// `(lang d (signed "…" (offer …)))` recognises `offer` as scoped, while
+/// `(signed "…" (offer …))` does not.
+fn parse_message_scoped(sexpr: &SExpr, scope: LangScope) -> Result<Message, MessageParseError> {
+    let items = match sexpr {
+        SExpr::List(items) if !items.is_empty() => items,
+        SExpr::List(_) => return Err(MessageParseError(String::from("empty message"))),
+        _ => return Err(MessageParseError(String::from("message must be a list"))),
+    };
+
+    let head = match &items[0] {
+        SExpr::Atom(Atom::Symbol(s)) => s.as_str(),
+        _ => {
+            return Err(MessageParseError(String::from(
+                "message head must be a symbol",
+            )))
         }
+    };
+
+    match head {
+        "meta" => parse_meta(&items[1..]),
+        "lang" => parse_dialect_msg(&items[1..]),
+        w if WrapperType::parse(w).is_some() => {
+            parse_wrapped(WrapperType::parse(w).unwrap(), &items[1..], scope)
+        }
+        _ => parse_simple(head, &items[1..], scope),
     }
 }
 
@@ -463,19 +592,27 @@ fn parse_dialect_msg(tail: &[SExpr]) -> Result<Message, MessageParseError> {
             )))
         }
     };
-    let inner = Message::try_from(&tail[1])?;
+    // Entering a `lang` wrapper is what puts the inner message in scope: the
+    // dialect name is now fixed by the message itself (REQ-033).
+    let inner = parse_message_scoped(&tail[1], LangScope::Scoped)?;
     Ok(Message::Dialect {
         dialect_name,
         inner: Box::new(inner),
     })
 }
 
-fn parse_wrapped(wrapper: WrapperType, tail: &[SExpr]) -> Result<Message, MessageParseError> {
+fn parse_wrapped(
+    wrapper: WrapperType,
+    tail: &[SExpr],
+    scope: LangScope,
+) -> Result<Message, MessageParseError> {
     // The last list element is the inner message; everything before it is params.
     let inner_idx = tail.iter().rposition(|item| matches!(item, SExpr::List(_)));
     match inner_idx {
         Some(idx) => {
-            let inner = Message::try_from(&tail[idx])?;
+            // A wrapper neither establishes nor discards a lang scope; it
+            // carries through whatever it was found in.
+            let inner = parse_message_scoped(&tail[idx], scope)?;
             let params = tail[..idx].to_vec();
             Ok(Message::Wrapped {
                 wrapper,
@@ -489,9 +626,43 @@ fn parse_wrapped(wrapper: WrapperType, tail: &[SExpr]) -> Result<Message, Messag
     }
 }
 
-fn parse_simple(head: &str, tail: &[SExpr]) -> Result<Message, MessageParseError> {
+/// Whether an S-expression is a single address token (`@key`).
+fn is_address(s: &SExpr) -> bool {
+    matches!(s, SExpr::Atom(Atom::Symbol(sym)) if sym.starts_with('@'))
+}
+
+/// Whether an S-expression is an *address group*: a single address `@x` or a
+/// non-empty list of addresses `(@a @b)`. These are exactly the forms the
+/// recipient position accepts, so they are forbidden as positional content
+/// (which is what keeps `@` sigil-disciplined and serialise ∘ parse injective).
+/// A mixed list like `(introduce @bob)` is not an address group — it is
+/// ordinary content with a nested address.
+fn is_address_group(s: &SExpr) -> bool {
+    match s {
+        SExpr::Atom(Atom::Symbol(sym)) => sym.starts_with('@'),
+        SExpr::List(items) => !items.is_empty() && items.iter().all(is_address),
+        _ => false,
+    }
+}
+
+fn parse_simple(
+    head: &str,
+    tail: &[SExpr],
+    scope: LangScope,
+) -> Result<Message, MessageParseError> {
     let performative = match CorePerformative::parse(head) {
         Some(cp) => Performative::Core(cp),
+        // A custom performative outside a `(lang …)` wrapper has no
+        // deterministic dispatch: nothing in the message says which dialect
+        // defines it. Reject rather than resolve against the installed set
+        // (REQ-033) — see `LangScope`.
+        None if scope == LangScope::Unscoped => {
+            return Err(MessageParseError(alloc::format!(
+                "'{head}' is not a core performative; a dialect performative must be \
+                 invoked inside (lang <dialect> ...) so the message names the dialect \
+                 that defines it"
+            )))
+        }
         None => Performative::Custom(String::from(head)),
     };
 
@@ -503,13 +674,27 @@ fn parse_simple(head: &str, tail: &[SExpr]) -> Result<Message, MessageParseError
     let mut params = Vec::new();
     let mut i = 0;
 
-    // Check for @-prefixed recipient as the first arg.
+    // Check for a recipient as the first arg: an @-prefixed symbol
+    // (single) or a non-empty list of @-prefixed symbols (multicast,
+    // SPEC-014 REQ-622). An empty list stays content (pre-SPEC-014 form).
     if i < tail.len() {
-        if let SExpr::Atom(Atom::Symbol(s)) = &tail[i] {
-            if s.starts_with('@') {
-                recipient = Some(s.clone());
+        match &tail[i] {
+            SExpr::Atom(Atom::Symbol(s)) if s.starts_with('@') => {
+                recipient = Some(Recipients::One(s.clone()));
                 i += 1;
             }
+            SExpr::List(items) if !items.is_empty() && items.iter().all(is_address) => {
+                let set: alloc::collections::BTreeSet<String> = items
+                    .iter()
+                    .map(|it| match it {
+                        SExpr::Atom(Atom::Symbol(s)) => s.clone(),
+                        _ => unreachable!("guarded by the match arm"),
+                    })
+                    .collect();
+                recipient = Some(Recipients::Set(set));
+                i += 1;
+            }
+            _ => {}
         }
     }
 
@@ -534,6 +719,20 @@ fn parse_simple(head: &str, tail: &[SExpr]) -> Result<Message, MessageParseError
                     params.push(val.clone());
                 }
                 i += 2;
+            }
+            // An address group — a bare `@x` or an all-`@` list `(@a @b)` —
+            // is not data. These are exactly the forms the recipient parser
+            // accepts above, so admitting them as content would overload the
+            // surface syntax and break serialise ∘ parse (a content address
+            // group re-parses as the recipient). Reject them in the positional
+            // slot; addresses belong in the recipient slot or a keyword value.
+            // A *mixed* list (e.g. `(introduce @bob)`) is ordinary content —
+            // nested addresses are fine — as are `@`-runs inside a string.
+            positional if is_address_group(positional) => {
+                return Err(MessageParseError(alloc::format!(
+                    "address(es) '{positional}' in content position; addresses \
+                     go in the recipient slot or a keyword value"
+                )));
             }
             _ => {
                 if content.is_none() {
@@ -1046,9 +1245,11 @@ mod tests {
     #[test]
     fn custom_performative() {
         let sexpr = list(vec![sym("propose-step"), sym("s1"), sym("pickup")]);
+        assert!(Message::try_from(&sexpr).is_err());
+        let sexpr = list(vec![sym("lang"), sym("cbcl-planning"), sexpr]);
         let msg = Message::try_from(&sexpr).unwrap();
         assert_eq!(
-            msg.performative(),
+            msg.innermost_simple().unwrap().performative(),
             Some(&Performative::Custom(String::from("propose-step")))
         );
     }
@@ -1292,5 +1493,184 @@ mod tests {
             bytes1, bytes2,
             "canonical encoding must be deterministic after sorting"
         );
+    }
+
+    // ---- SPEC-014 REQ-622: recipient sets ----
+
+    #[test]
+    fn multicast_recipient_parses_and_roundtrips() {
+        let sexpr: SExpr = "(lang oauth (login (@cli @as) \"n-42\" :caused-by h0))"
+            .parse()
+            .unwrap();
+        let msg = Message::try_from(&sexpr).unwrap();
+        let set = msg.innermost_simple().unwrap().recipient_set();
+        assert_eq!(set.len(), 2);
+        assert!(set.contains("@cli") && set.contains("@as"));
+        // round-trip: serialise and re-parse preserves the set
+        let back = SExpr::from(&msg);
+        let msg2 = Message::try_from(&back).unwrap();
+        assert_eq!(msg, msg2);
+    }
+
+    #[test]
+    fn multicast_serialisation_is_canonical_sorted() {
+        let a: SExpr = "(lang oauth (login (@b @a) \"x\"))".parse().unwrap();
+        let b: SExpr = "(lang oauth (login (@a @b) \"x\"))".parse().unwrap();
+        let ma = Message::try_from(&a).unwrap();
+        let mb = Message::try_from(&b).unwrap();
+        assert_eq!(SExpr::from(&ma), SExpr::from(&mb));
+    }
+
+    #[test]
+    fn single_recipient_form_is_unchanged() {
+        let sexpr: SExpr = "(tell @bob \"hi\")".parse().unwrap();
+        let msg = Message::try_from(&sexpr).unwrap();
+        assert_eq!(msg.recipient(), Some("@bob"));
+        assert_eq!(SExpr::from(&msg), sexpr);
+    }
+
+    #[test]
+    fn empty_list_stays_content_not_recipient() {
+        let sexpr: SExpr = "(tell () :thread \"t\")".parse().unwrap();
+        let msg = Message::try_from(&sexpr).unwrap();
+        assert!(msg.recipient_set().is_empty());
+        assert_eq!(msg.content(), Some(&SExpr::List(Vec::new())));
+    }
+
+    #[test]
+    fn non_recipient_list_stays_content() {
+        let sexpr: SExpr = "(tell (a b) \"x\")".parse().unwrap();
+        let msg = Message::try_from(&sexpr).unwrap();
+        assert!(msg.recipient_set().is_empty());
+    }
+
+    // ---- Addresses are sigil-disciplined: a bare `@`-symbol is an address,
+    // never positional content. Found by the role_layer round-trip fuzzer. ----
+
+    fn parses(src: &str) -> bool {
+        let sexpr: SExpr = src.parse().unwrap();
+        Message::try_from(&sexpr).is_ok()
+    }
+
+    fn round_trips(src: &str) {
+        let sexpr: SExpr = src.parse().unwrap();
+        let msg = Message::try_from(&sexpr).unwrap();
+        let back = SExpr::from(&msg);
+        let msg2 = Message::try_from(&back).unwrap();
+        assert_eq!(msg, msg2, "round-trip must be identity for {src}");
+    }
+
+    #[test]
+    fn address_group_in_content_position_is_rejected() {
+        // Bare address after keyword params, no recipient (fuzzer find #1).
+        assert!(!parses("(tell :session \"foo\" @key)"));
+        // A second bare address after the recipient.
+        assert!(!parses("(reply @alice @bob)"));
+        // A bare address in a positional param slot (after content).
+        assert!(!parses("(tell @client \"msg\" @extra)"));
+        // An all-`@` *list* in the content position collides with the
+        // recipient set form `(@a @b)` (fuzzer find #2).
+        assert!(!parses("(tell :kw \"v\" (@a @b))"));
+        assert!(!parses("(reply @dest (@a @b))"));
+        // ...but the same list *leading* is a legitimate recipient set.
+        assert!(parses("(tell (@@@))"));
+        assert!(parses("(tell (@a @b) \"content\")"));
+    }
+
+    #[test]
+    fn addresses_in_content_are_fine_when_tagged_or_wrapped() {
+        // Keyword value.
+        assert!(parses("(tell @client :ref @bob :action \"review\")"));
+        round_trips("(tell @client :ref @bob :action \"review\")");
+        // Nested inside a structured (list) content.
+        assert!(parses("(tell @client (introduce @bob))"));
+        round_trips("(tell @client (introduce @bob))");
+        // Inside a string literal — just text, not an address token.
+        assert!(parses("(tell @client \"ping @bob\")"));
+        round_trips("(tell @client \"ping @bob\")");
+        // Multicast recipient set + string content (the paper's OAuth trace).
+        assert!(parses(
+            "(lang oauth (login (@cli @as) \"n-42\" \"profile\"))"
+        ));
+        round_trips("(lang oauth (login (@cli @as) \"n-42\" \"profile\"))");
+    }
+
+    #[test]
+    fn two_recipients_must_use_the_set_form() {
+        // The nudge: `(@a @b)` is unambiguous; `@a @b` is not (and is rejected).
+        assert!(parses("(reply (@alice @bob) \"ok\")"));
+        assert!(!parses("(reply @alice @bob \"ok\")"));
+    }
+
+    // ---- SPEC-014 REQ-625: with-roles typed wrapper ----
+
+    #[test]
+    fn with_roles_parses_as_typed_wrapper() {
+        let sexpr: SExpr =
+            "(with-roles ((auctioneer @auc) (bidder @b1 @b2)) (signed @auc \"sig\" (hello :thread \"conv-7\" :caused-by begin)))"
+                .parse()
+                .unwrap();
+        let msg = Message::try_from(&sexpr).unwrap();
+        let Message::Wrapped {
+            wrapper,
+            params,
+            content,
+        } = &msg
+        else {
+            panic!("with-roles must parse as Wrapped, got {msg:?}");
+        };
+        assert_eq!(*wrapper, WrapperType::WithRoles);
+        assert_eq!(params.len(), 1, "bindings list travels in params");
+        // inner signed message carried unchanged
+        let Message::Wrapped {
+            wrapper: inner_w, ..
+        } = content.as_ref()
+        else {
+            panic!("inner must be the signed wrapper");
+        };
+        assert_eq!(*inner_w, WrapperType::Signed);
+        // round-trip
+        let back = SExpr::from(&msg);
+        assert_eq!(Message::try_from(&back).unwrap(), msg);
+    }
+
+    #[test]
+    fn with_roles_bindings_parse_into_cast() {
+        use crate::role::{parse_cast, parse_roles};
+        let sexpr: SExpr =
+            "(with-roles ((auctioneer @auc) (bidder @b1 @b2)) (signed @auc \"sig\" (hello :caused-by begin)))"
+                .parse()
+                .unwrap();
+        let msg = Message::try_from(&sexpr).unwrap();
+        let Message::Wrapped { params, .. } = &msg else {
+            unreachable!()
+        };
+        let roles = parse_roles(&"(auctioneer (* bidder))".parse().unwrap()).unwrap();
+        let cast = parse_cast(&params[0], &roles).unwrap();
+        assert_eq!(cast.indexed.get("bidder").unwrap().len(), 2);
+    }
+
+    #[test]
+    fn with_roles_dialect_pin_parses_into_cast() {
+        // SPEC-014 REQ-628: the optional `:dialect sha256:<hex64>` field
+        // travels in the wrapper params and lands on `Cast::dialect_pin`.
+        use crate::role::{parse_roles, parse_wrapper_cast};
+        let pin = alloc::format!("sha256:{}", "a".repeat(64));
+        let sexpr: SExpr = alloc::format!(
+            "(with-roles ((auctioneer @auc) (bidder @b1 @b2)) :dialect {pin} (signed @auc \"sig\" (hello :caused-by begin)))"
+        )
+        .parse()
+        .unwrap();
+        let msg = Message::try_from(&sexpr).unwrap();
+        let Message::Wrapped { params, .. } = &msg else {
+            unreachable!()
+        };
+        assert_eq!(params.len(), 3, "bindings + :dialect keyword + pin");
+        let roles = parse_roles(&"(auctioneer (* bidder))".parse().unwrap()).unwrap();
+        let cast = parse_wrapper_cast(params, &roles).unwrap();
+        assert_eq!(cast.dialect_pin.as_deref(), Some(pin.as_str()));
+        // round-trip preserves the pin
+        let back = SExpr::from(&msg);
+        assert_eq!(Message::try_from(&back).unwrap(), msg);
     }
 }

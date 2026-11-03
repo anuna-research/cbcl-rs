@@ -1,0 +1,62 @@
+{
+  "id": "bounded-ceiling",
+  "version": "2.0.0",
+  "thread": "coin-1",
+  "contract": "; Capped profile: initial allocations sum to 4, initial :space sums to 6.\n; Example cast: issuer={@treasury,@alice}, holder={@treasury,@alice,@bob}.\n; Bounded-counter example. Amounts are integer base units, not decimals.\n; Hosts authenticate acts and serialize issuance per account before publication.\n(define example-capped-coin (cbcl) @coin-author\n  (:resource-requirements ((max-depth 16) (max-expansion-size 4096) (verification-time 1000)))\n  (:roles ((* issuer) (* holder)))\n  (extend open (to name allocations space) :from issuer :to (issuer holder)\n    (tell to :name name :allocations allocations :space space))\n  (extend mint (to amount) :from issuer :to (issuer holder)\n    (tell to :amount amount))\n  (extend burn (to amount) :from holder :to (issuer holder)\n    (tell to :amount amount))\n  (extend pay (to recipient amount) :from holder :to (issuer holder)\n    (tell to :recipient recipient :amount amount))\n  (shape open (require :name string) (require :allocations list) (require :space list))\n  (shape mint (require :amount number))\n  (shape burn (require :amount number))\n  (shape pay (require :recipient symbol) (require :amount number))\n  (extend share-space (to recipient amount) :from holder :to (issuer holder)\n    (tell to :recipient recipient :amount amount))\n  (shape share-space (require :recipient symbol) (require :amount number))\n  (protocol (then open share-space) (then begin open) (then open mint) (then open burn) (then open pay))\n  (state\n    (name (last open :name))\n    (coins (bounded-counter\n      (floor 0)\n      (ceiling 10)\n      (initial-headroom open :space)\n      (transfer-headroom share-space :recipient :amount)\n      (initial-rights open :allocations)\n      (issuers issuer)\n      (increment mint :amount)\n      (decrement burn :amount)\n      (transfer pay :recipient :amount)))))\n",
+  "covers": [
+    "bounded-counter",
+    "ceiling",
+    "concurrent-mint",
+    "headroom"
+  ],
+  "messages": [
+    {
+      "signer": "@treasury",
+      "canonical": "(with-roles ((issuer @treasury @alice) (holder @treasury @alice @bob)) (signed @treasury (hello () :thread \"coin-1\" :caused-by begin)))"
+    },
+    {
+      "signer": "@treasury",
+      "canonical": "(signed @treasury (lang example-capped-coin (open (@alice @bob @treasury) () :name \"Capped\" :allocations ((@treasury 2) (@alice 2) (@bob 0)) :space ((@treasury 3) (@alice 3) (@bob 0)) :from @treasury :thread \"coin-1\" :caused-by sha256-6655c6fbcd385dd84414cad93d6cad9a1ed650f4c2834790d9043f543051d407)))"
+    },
+    {
+      "signer": "@treasury",
+      "canonical": "(signed @treasury (lang example-capped-coin (mint (@alice @bob @treasury) () :amount 3 :escrow-prev sha256-26e0e8161d624375c59a70d05103cf571d66bf2d24615d34d5608cb5267a5ffc :escrow-deps () :from @treasury :thread \"coin-1\" :caused-by sha256-26e0e8161d624375c59a70d05103cf571d66bf2d24615d34d5608cb5267a5ffc)))"
+    },
+    {
+      "signer": "@alice",
+      "canonical": "(signed @alice (lang example-capped-coin (mint (@alice @bob @treasury) () :amount 3 :escrow-prev sha256-26e0e8161d624375c59a70d05103cf571d66bf2d24615d34d5608cb5267a5ffc :escrow-deps () :from @alice :thread \"coin-1\" :caused-by sha256-26e0e8161d624375c59a70d05103cf571d66bf2d24615d34d5608cb5267a5ffc)))"
+    }
+  ],
+  "expect": {
+    "addresses": [
+      "sha256-6655c6fbcd385dd84414cad93d6cad9a1ed650f4c2834790d9043f543051d407",
+      "sha256-26e0e8161d624375c59a70d05103cf571d66bf2d24615d34d5608cb5267a5ffc",
+      "sha256-cd91ef5eb00f4e47d2f635b6098dce3c5aff90300355083fbb1a3dc68deab27b",
+      "sha256-569a0088ed83bb12e0c802cf4f2eb0382daa7ed41049bb2e529dec4bab3ab796"
+    ],
+    "verdicts": {
+      "sha256-6655c6fbcd385dd84414cad93d6cad9a1ed650f4c2834790d9043f543051d407": "accepted",
+      "sha256-26e0e8161d624375c59a70d05103cf571d66bf2d24615d34d5608cb5267a5ffc": "accepted",
+      "sha256-cd91ef5eb00f4e47d2f635b6098dce3c5aff90300355083fbb1a3dc68deab27b": "accepted",
+      "sha256-569a0088ed83bb12e0c802cf4f2eb0382daa7ed41049bb2e529dec4bab3ab796": "accepted"
+    },
+    "state": {
+      "name": "Capped",
+      "coins": {
+        "status": "ready",
+        "value": 10,
+        "rights": {
+          "@treasury": 5,
+          "@alice": 5,
+          "@bob": 0
+        },
+        "headroom": {
+          "@treasury": 0,
+          "@alice": 0,
+          "@bob": 0
+        }
+      }
+    },
+    "intents": []
+  }
+}

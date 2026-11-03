@@ -41,6 +41,10 @@ fn valid_bounds() -> ResourceBounds {
 
 fn make_dialect(name: &str, perfs: Vec<PerformativeDef>) -> Dialect {
     Dialect {
+        roles: Vec::new(),
+        state: None,
+        state_bounds: None,
+        causal_locality: Default::default(),
         name: String::from(name),
         extends: vec![String::from("cbcl")],
         author: None,
@@ -57,6 +61,7 @@ fn make_dialect(name: &str, perfs: Vec<PerformativeDef>) -> Dialect {
 
 fn make_perf(name: &str, template_str: &str) -> PerformativeDef {
     PerformativeDef {
+        role: None,
         name: String::from(name),
         params: vec![],
         template: parse(template_str),
@@ -65,10 +70,15 @@ fn make_perf(name: &str, template_str: &str) -> PerformativeDef {
 
 fn test_dialect(name: &str) -> Dialect {
     Dialect {
+        roles: Vec::new(),
+        state: None,
+        state_bounds: None,
+        causal_locality: Default::default(),
         name: String::from(name),
         extends: Vec::new(),
         author: None,
         performatives: vec![PerformativeDef {
+            role: None,
             name: format!("{}-action", name),
             params: Vec::new(),
             template: SExpr::List(vec![
@@ -224,6 +234,7 @@ fn bench_r3(c: &mut Criterion) {
 
 fn bench_template(c: &mut Criterion) {
     let def = PerformativeDef {
+        role: None,
         name: String::from("greet"),
         params: vec![sym("recipient"), sym("msg")],
         template: parse("(tell recipient msg)"),
@@ -321,7 +332,7 @@ fn bench_eval(c: &mut Criterion) {
 
     let tell_msg = Message::Simple {
         performative: Performative::Core(CorePerformative::Tell),
-        recipient: Some(String::from("@bob")),
+        recipient: Some("@bob".into()),
         content: str_expr("hello"),
         params: Vec::new(),
         thread: None,
@@ -334,7 +345,7 @@ fn bench_eval(c: &mut Criterion) {
 
     let ask_msg = Message::Simple {
         performative: Performative::Core(CorePerformative::Ask),
-        recipient: Some(String::from("@alice")),
+        recipient: Some("@alice".into()),
         content: str_expr("what time?"),
         params: Vec::new(),
         thread: None,
@@ -356,10 +367,15 @@ fn bench_eval(c: &mut Criterion) {
     let mut custom_registry = DialectRegistry::new();
     custom_registry
         .install(Dialect {
+            roles: Vec::new(),
+            state: None,
+            state_bounds: None,
+            causal_locality: Default::default(),
             name: String::from("logistics"),
             extends: vec![String::from("cbcl")],
             author: None,
             performatives: vec![PerformativeDef {
+                role: None,
                 name: String::from("ship"),
                 params: vec![sym("package"), sym("destination")],
                 template: parse("(effect dispatch-shipment)"),
@@ -735,7 +751,7 @@ fn bench_dedup(c: &mut Criterion) {
     let thread = ThreadId(String::from("dedup-thread"));
     let msg = Message::Simple {
         performative: Performative::Core(CorePerformative::Tell),
-        recipient: Some(String::from("@bob")),
+        recipient: Some("@bob".into()),
         content: str_expr("hello"),
         params: vec![],
         thread: Some(String::from("dedup-thread")),

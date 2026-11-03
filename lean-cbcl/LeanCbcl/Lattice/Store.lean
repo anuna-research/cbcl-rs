@@ -59,9 +59,13 @@ namespace Set
 
 instance : Membership α (Set α) := ⟨fun s a => s a⟩
 
+/-- The empty set: the predicate that is `False` everywhere. -/
 protected def empty : Set α := fun _ => False
+/-- The singleton `{a}`: the predicate true exactly at `a`. -/
 protected def singleton (a : α) : Set α := fun b => b = a
+/-- Set union: membership in `s` or in `t`. -/
 protected def union (s t : Set α) : Set α := fun a => s a ∨ t a
+/-- Subset: every element of `s` is an element of `t`. -/
 protected def Subset (s t : Set α) : Prop := ∀ ⦃a⦄, a ∈ s → a ∈ t
 
 instance : EmptyCollection (Set α) := ⟨Set.empty⟩
@@ -69,7 +73,11 @@ instance : Singleton α (Set α) := ⟨Set.singleton⟩
 instance : Union (Set α) := ⟨Set.union⟩
 instance : HasSubset (Set α) := ⟨Set.Subset⟩
 
-@[simp] theorem mem_def {s : Set α} {a : α} : a ∈ s ↔ s a := Iff.rfl
+-- `mem_def` is intentionally NOT a simp lemma: unfolding `a ∈ s` to `s a`
+-- would push the `mem_empty`/`mem_singleton`/`mem_union` lemmas out of
+-- simp-normal form (flagged by `simpNF`). Matches `Set.mem_def` in Mathlib,
+-- which is likewise not `@[simp]`.
+theorem mem_def {s : Set α} {a : α} : a ∈ s ↔ s a := Iff.rfl
 @[simp] theorem mem_empty {a : α} : a ∈ (∅ : Set α) ↔ False := Iff.rfl
 @[simp] theorem mem_singleton {a b : α} : a ∈ ({b} : Set α) ↔ a = b := Iff.rfl
 @[simp] theorem mem_union {s t : Set α} {a : α} : a ∈ s ∪ t ↔ a ∈ s ∨ a ∈ t := Iff.rfl
@@ -87,20 +95,30 @@ end Set
     A type with a binary `⊔` that is associative, commutative and idempotent.
     REQ-511 only requires the algebraic axioms; the order-theoretic
     formulation `a ≤ b ↔ a ⊔ b = b` is left implicit. -/
+/-- A join-semilattice: a type with an associative, commutative, idempotent
+    binary join `⊔`. -/
 class JoinSemiLattice (α : Type u) where
+  /-- The binary join `⊔`. -/
   join       : α → α → α
+  /-- Join is associative. -/
   join_assoc : ∀ a b c : α, join (join a b) c = join a (join b c)
+  /-- Join is commutative. -/
   join_comm  : ∀ a b : α, join a b = join b a
+  /-- Join is idempotent. -/
   join_idem  : ∀ a : α, join a a = a
 
+/-- Notation for `JoinSemiLattice.join`. -/
 infixl:65 " ⊔ " => JoinSemiLattice.join
 
 end Lattice
 
 /-! ## ContentHash — opaque, with injective `contentHash` (Open Question §2). -/
 
-/-- Opaque canonical-form content hash. Real CBCL: SHA-256 of the
-    canonical S-expression encoding. -/
+/-- Opaque canonical-form content hash. Real CBCL: the typed Merkle root
+    over the message's canonical field encodings (SPEC-017), rendered
+    `sha256:<hex>`. The model needs only that it is opaque and injective;
+    the concrete construction (flat SHA-256 vs. Merkle-over-fields) is
+    immaterial here. -/
 axiom ContentHash : Type
 
 /-- The canonical content hash of a message. Mirrors

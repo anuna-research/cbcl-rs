@@ -1,5 +1,5 @@
 /-!
-# CBCL Three-Valued Verification Result Lattice (REQ-510 / CON-510)
+# CBCL Three-Valued Verification Result Bisemilattice (REQ-510 / CON-510)
 
 Models SPEC-003's three-valued verification result as a finite inductive
 type `VerificationResult` with constructors `unknown`, `valid`,
@@ -7,39 +7,64 @@ type `VerificationResult` with constructors `unknown`, `valid`,
 and `join` (⊔, disjunction for `(any ...)` predecessors) operations
 matching the truth tables in SPEC-003 REQ-303 verbatim.
 
-## Structure of the lattice
+## Structure of the bisemilattice
 
 Per SPEC-003 ADR-300 / REQ-303, the bottom `⊥ = unknown` is the identity
 for `join` (least element under disjunction). The top `⊤ = valid` is the
 identity for `meet` (greatest element under conjunction). Note that this
-is the *operational* bounded lattice used for CBCL verification: the meet
-and join obey associativity, commutativity, and idempotence — and bottom
-/ top are identities of join / meet respectively — but absorption in the
-classical lattice sense is **not** required by SPEC-003 (Violation is
-absorbing for meet, Valid is absorbing for join, in opposite directions).
-The `BoundedLattice` typeclass below records exactly the axioms that the
+is the *operational* structure used for CBCL verification — a **bounded
+bisemilattice**, not a lattice: the meet and join obey associativity,
+commutativity, and idempotence — and bottom / top are identities of join
+/ meet respectively — but absorption in the classical lattice sense
+**fails** for this algebra (Violation is absorbing for meet, Valid is
+absorbing for join, in opposite directions), so the two induced
+semilattice orders disagree and no single lattice order underlies both
+operations. (Under the separate resolved-first knowledge order the type
+is a bounded meet-semilattice — see the "Order-theoretic structure"
+section below and `Lattice/NotALattice.lean`.)
+The `BoundedBisemilattice` typeclass below records exactly the axioms that the
 SPEC-003 truth tables satisfy.
 
-## Mathlib
+## Order-theoretic structure — never a lattice (REQ-510 / ADR-510 / RISK-511)
 
-Per SPEC-005 ADR-510 (amended `accepted-with-deferral`), this module's
-local `BoundedLattice` typeclass is **retained**, not deferred-then-
-replaced: `VerificationResult` is non-absorbing
-(`unknown ⊓ (unknown ⊔ violation) = violation ≠ unknown`) and its
-knowledge order `⊑` is a preorder rather than a partial order, so
-Mathlib's `Order.Lattice` and `SemilatticeSup`/`SemilatticeInf` types
-do not apply. See the amended ADR for the full finding.
+`VerificationResult` is **not a lattice**. This is a spec correction
+(SPEC-005 REQ-510 / ADR-510 / RISK-511), not a Mathlib quirk. There are
+two honest readings, both machine-checked in `Lattice/NotALattice.lean`:
+
+* **Bounded meet-semilattice (resolved-first knowledge order).** Under
+  the knowledge order `kle` (`unknown ⊥`; `valid`, `violation`
+  incomparable and maximal) every pair has a greatest lower bound — the
+  *consensus meet* `kmeet` — with bottom `unknown` (`kmeet_is_glb`,
+  `unknown_kle`). This order + GLB *does* match the shape of Mathlib's
+  `SemilatticeInf` + `OrderBot`; we do not import Mathlib (ADR-510). It
+  is **not** a lattice: `valid ⊔ violation` has no least upper bound
+  (`no_join_of_terminals` / `not_a_lattice`). NOTE: the GLB `kmeet` is a
+  *distinct* operation from the eager `meet` below —
+  `kmeet valid violation = unknown` but `meet valid violation =
+  violation` (`eager_meet_ne_kmeet`); the deployed conjunction is the
+  Kleene min, not the knowledge-order GLB.
+
+* **Bisemilattice (deployed eager algebra).** The `meet`/`join` defined
+  in this file (used by `verify`) are each bona-fide semilattice
+  operations, but their induced orders disagree and absorption fails
+  (`unknown ⊓ (unknown ⊔ violation) = violation ≠ unknown`,
+  `eager_absorption_fails`), so under the valid-is-sticky preorder `le`
+  they form a **bisemilattice** — also **not** a lattice.
+
+The earlier claim that Mathlib's `SemilatticeInf` "does not apply" was an
+overclaim — it applies to the knowledge order — and is removed here. See
+the amended ADR-510 / RISK-511 for the full finding.
 
 ## Theorems
 
-* `BoundedLattice VerificationResult` instance (axioms discharged by
+* `BoundedBisemilattice VerificationResult` instance (axioms discharged by
   exhaustive case analysis over the finite carrier).
 * `result_meet_table` — the 3×3 meet truth table (REQ-303).
 * `result_join_table` — the 3×3 join truth table (REQ-303).
 
 ## Mirrors
 
-- SPEC-003 §"REQ-303: Conjunction and Disjunction on the Result Lattice".
+- SPEC-003 §"REQ-303: Conjunction and Disjunction — the Result Bisemilattice".
 - SPEC-005 §"REQ-510" / §"CON-510".
 - Rust `crates/cbcl-core/src/protocol/result.rs` (forthcoming, pinned by
   SHA in `task-verify-skeleton`).
@@ -48,18 +73,33 @@ do not apply. See the amended ADR for the full finding.
 namespace CBCL
 namespace Lattice
 
-/-! ## Local `BoundedLattice` typeclass — mirrors `Mathlib.Order.Lattice`
-    + `Mathlib.Order.BoundedOrder`.
+/-! ## Local `BoundedBisemilattice` typeclass — the eager verdict algebra.
 
-    The typeclass records the algebraic axioms that the SPEC-003 REQ-303
-    truth tables satisfy: `meet` and `join` are each associative,
-    commutative, and idempotent; `bot` is the two-sided identity of
-    `join`; `top` is the two-sided identity of `meet`. Absorption is
-    deliberately omitted — see the module docstring above. -/
-class BoundedLattice (α : Type u) where
+    This typeclass names the deployed *eager verdict algebra* (SPEC-003
+    REQ-303): exactly the axioms the two truth tables satisfy — `meet`
+    and `join` each associative, commutative, and idempotent; `bot` the
+    two-sided identity of `join`; `top` the two-sided identity of `meet`.
+    These are the genuine, complete axioms of a **bounded
+    bisemilattice**; it is a self-standing algebraic interface, not a
+    weakened copy of any Mathlib lattice class with a law struck out.
+
+    Absorption is not an axiom here because it is *false* for this
+    algebra (`unknown ⊓ (unknown ⊔ violation) = violation ≠ unknown`) —
+    that failure is precisely what makes the carrier a bisemilattice and
+    not a lattice (see `Lattice/NotALattice.lean`,
+    `eager_absorption_fails`, and the module docstring). Mathlib is not
+    imported (ADR-510). -/
+/-- The eager verdict algebra: two idempotent-commutative-associative
+    operations `meet`/`join` with identities `top`/`bot` — a bounded
+    bisemilattice (deliberately *not* a lattice; absorption fails). -/
+class BoundedBisemilattice (α : Type u) where
+  /-- The meet operation `⊓` (eager verdict conjunction). -/
   meet       : α → α → α
+  /-- The join operation `⊔` (eager verdict disjunction). -/
   join       : α → α → α
+  /-- The bottom element (two-sided identity of `join`). -/
   bot        : α
+  /-- The top element (two-sided identity of `meet`). -/
   top        : α
   meet_assoc : ∀ a b c : α, meet (meet a b) c = meet a (meet b c)
   meet_comm  : ∀ a b : α, meet a b = meet b a
@@ -72,16 +112,16 @@ class BoundedLattice (α : Type u) where
   top_meet   : ∀ a : α, meet top a = a
   meet_top   : ∀ a : α, meet a top = a
 
-/-- Lattice meet (`⊓`, conjunction). Used in REQ-513
+/-- Bisemilattice meet (`⊓`, conjunction). Used in REQ-513
     (`verify_all_is_meet`) to write the fan-in fold over `(all ...)`
     predecessors. Scoped to the `Lattice` namespace to avoid colliding
     with Mathlib's `Inf` once the `task-mathlib-setup` lands. -/
-scoped infixl:69 " ⊓ " => BoundedLattice.meet
+scoped infixl:69 " ⊓ " => BoundedBisemilattice.meet
 
-/-- Lattice top (`⊤`, the meet identity / `valid`). Used in REQ-513 as
+/-- Bisemilattice top (`⊤`, the meet identity / `valid`). Used in REQ-513 as
     the seed of the fan-in fold. Scoped to the `Lattice` namespace
     (see `⊓` above). -/
-scoped notation "⊤" => BoundedLattice.top
+scoped notation "⊤" => BoundedBisemilattice.top
 
 end Lattice
 
@@ -125,10 +165,10 @@ def join : VerificationResult → VerificationResult → VerificationResult
   | violation, valid     => valid
   | violation, _         => violation
 
-/-! ### `BoundedLattice` instance — axioms discharged by exhaustive
+/-! ### `BoundedBisemilattice` instance — axioms discharged by exhaustive
     case analysis over the 3-element carrier. -/
 
-instance : Lattice.BoundedLattice VerificationResult where
+instance : Lattice.BoundedBisemilattice VerificationResult where
   meet       := meet
   join       := join
   bot        := unknown

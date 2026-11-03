@@ -53,11 +53,16 @@ proptest! {
     /// For Simple messages: `Message::try_from(&SExpr::from(msg)) == msg`.
     #[test]
     fn prop_simple_message_roundtrip(msg in arb_simple_message()) {
+        let msg = if msg.performative().is_some_and(|p| !p.is_core()) {
+            Message::Dialect { dialect_name: "test".into(), inner: Box::new(msg) }
+        } else { msg };
         let sexpr = SExpr::from(msg.clone());
         let parsed = Message::try_from(&sexpr);
         prop_assert!(parsed.is_ok(), "failed to parse message sexpr: {:?}", sexpr);
         let parsed = parsed.unwrap();
-        // Compare structurally
+        // Compare the simple message fields through the scope wrapper.
+        let parsed = parsed.innermost_simple().unwrap();
+        let msg = msg.innermost_simple().unwrap();
         prop_assert_eq!(parsed.message_type(), msg.message_type());
         prop_assert_eq!(parsed.performative(), msg.performative());
         prop_assert_eq!(parsed.recipient(), msg.recipient());
@@ -207,7 +212,7 @@ proptest! {
     /// Valid resource bounds always pass R2 verification.
     #[test]
     fn prop_valid_bounds_pass_r2(bounds in arb_valid_resource_bounds()) {
-        let d = Dialect {
+        let d = Dialect { roles: Vec::new(), causal_locality: Default::default(), state: None, state_bounds: None,
             name: String::from("test"),
             extends: Vec::new(),
             author: None,
@@ -225,7 +230,7 @@ proptest! {
     /// Invalid resource bounds always fail R2 verification.
     #[test]
     fn prop_invalid_bounds_fail_r2(bounds in arb_invalid_resource_bounds()) {
-        let d = Dialect {
+        let d = Dialect { roles: Vec::new(), causal_locality: Default::default(), state: None, state_bounds: None,
             name: String::from("test"),
             extends: Vec::new(),
             author: None,
@@ -312,11 +317,11 @@ proptest! {
         }
 
         // Create a valid dialect for propagation
-        let dialect = Dialect {
+        let dialect = Dialect { roles: Vec::new(), causal_locality: Default::default(), state: None, state_bounds: None,
             name: String::from("prop-test-dialect"),
             extends: Vec::new(),
             author: None,
-            performatives: vec![PerformativeDef {
+            performatives: vec![PerformativeDef { role: None,
                 name: String::from("prop-action"),
                 params: Vec::new(),
                 template: SExpr::List(vec![
@@ -374,7 +379,7 @@ proptest! {
             net.add_agent(format!("agent-{}", i));
         }
 
-        let dialect = Dialect {
+        let dialect = Dialect { roles: Vec::new(), causal_locality: Default::default(), state: None, state_bounds: None,
             name: String::from("fast-dialect"),
             extends: Vec::new(),
             author: None,
@@ -414,7 +419,7 @@ proptest! {
             net.add_agent(format!("agent-{}", i));
         }
 
-        let dialect = Dialect {
+        let dialect = Dialect { roles: Vec::new(), causal_locality: Default::default(), state: None, state_bounds: None,
             name: String::from("zero-dialect"),
             extends: Vec::new(),
             author: None,
@@ -497,7 +502,7 @@ proptest! {
     #[test]
     fn prop_r2_violation_rejected(bounds in arb_invalid_resource_bounds()) {
         let mut reg = DialectRegistry::new();
-        let d = Dialect {
+        let d = Dialect { roles: Vec::new(), causal_locality: Default::default(), state: None, state_bounds: None,
             name: String::from("bad-bounds"),
             extends: Vec::new(),
             author: None,

@@ -62,10 +62,9 @@ theorem core_performative_not_in_r3_dialect
         `"cbcl-base"` regardless of its performatives. Without this
         premise, a spoofed dialect could claim the base name and
         redefine core performatives (e.g. `tell`) while still passing
-        R3 verification, and `findPerformativeDialect` (which searches
-        the reversed `dialects` list) would resolve the core name to
-        the spoofed definition. The premise closes that loophole at
-        the installation boundary. -/
+        R3 verification. The premise rules out that duplicate core
+        definition at the installation boundary; dispatch separately
+        uses `baseDefinerOf`, which consults only the list head. -/
 theorem install_preserves_core
     (a : Agent) (d : Dialect)
     (hwf : a.wellFormed)
@@ -123,8 +122,8 @@ theorem spoofed_passes_verifyR3 : verifyR3 spoofedBaseDialect = true := by
     would pass `verifyR3` without its `noCoreRedefinition` obligation
     being discharged, and the positional invariant of
     `Agent.wellFormed` would be violated by a fake base at the list
-    tail (which `Agent.findPerformativeDialect`, searching the reversed
-    list, would then resolve core names against). -/
+    tail. `Agent.baseDefinerOf` independently confines core dispatch to
+    the list head. -/
 theorem spoofed_fails_noCoreRedefinition :
     ¬ spoofedBaseDialect.noCoreRedefinition := by
   intro h

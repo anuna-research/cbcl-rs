@@ -14,14 +14,14 @@ use alloc::vec::Vec;
 use crate::clock::{Clock, NoClock};
 use crate::dialect::{Dialect, DialectInstallError, DialectRegistry};
 use crate::evaluator::{Effect, EvalError, EvalResult};
-use crate::message::Message;
+use crate::message::{CausedBy, Message};
 use crate::policy::{
     apply_policy, DropReason, PendingEntry, PendingQueue, PendingReason, PolicyOutcome,
     UnknownPredecessorPolicy,
 };
 use crate::protocol::{verify_causal, CausalViolation, VerificationResult};
 use crate::sexpr::SExpr;
-use crate::store::{ContentHash, ThreadId, ThreadedMessageStore};
+use crate::store::{ContentHash, MessageStore, ThreadId, ThreadedMessageStore};
 
 /// A CBCL agent (REQ-030).
 ///
@@ -144,6 +144,42 @@ fn merge_disjunctive_result(a: VerificationResult, b: VerificationResult) -> Ver
     }
 }
 
+/// Whether a `:caused-by` reference is *resolved* — every hash it names
+/// present in `thread`'s store (SPEC-003 REQ-315). `Begin` (and an absent
+/// `:caused-by`) name no hashes and count as resolved; `Single`/`Multiple`
+/// check each hash's presence via the store's hash index.
+fn caused_by_resolved(
+    caused_by: Option<&CausedBy>,
+    store: &ThreadedMessageStore,
+    thread: &ThreadId,
+) -> bool {
+    match caused_by {
+        None | Some(CausedBy::Begin) => true,
+        Some(CausedBy::Single(h)) => store.contains(&ContentHash(h.clone()), thread),
+        Some(CausedBy::Multiple(hs)) => hs
+            .iter()
+            .all(|h| store.contains(&ContentHash(h.clone()), thread)),
+    }
+}
+
+/// Resolution gate (SPEC-003 REQ-315): a `Violation` reached while some
+/// named `:caused-by` hash is still absent from the store is *provisional*
+/// — under an `(any …)` clause the eager clause algebra can supersede it
+/// with `Valid` at resolution (the lattice's monotonicity is
+/// valid-is-sticky, not violation-is-sticky, before resolution) — so
+/// action must wait: the verdict is downgraded to `Unknown`, making the
+/// Reject policy answer `CausalPending` and the Buffer policy enqueue,
+/// exactly as for any `Unknown`. A *resolved* `Violation` (every named
+/// hash present) is permanent under store growth and still maps to
+/// `Reject`.
+fn gate_unresolved_violation(result: VerificationResult, resolved: bool) -> VerificationResult {
+    if !resolved && matches!(result, VerificationResult::Violation(_)) {
+        VerificationResult::Unknown
+    } else {
+        result
+    }
+}
+
 /// Outcome of [`Agent::evaluate_and_apply`] (REQ-231 fail-closed contract).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AgentOutcome {
@@ -259,12 +295,14 @@ impl Agent {
         &self.dialect_registry
     }
 
-    /// Search dialects in reverse order for one that defines the given
-    /// performative (REQ-033).
+    /// Every installed dialect defining `name`, in installation order
+    /// (REQ-033).
     ///
-    /// Delegates to `DialectRegistry::find_performative_dialect`.
-    pub fn find_performative_dialect(&self, name: &str) -> Option<&Dialect> {
-        self.dialect_registry.find_performative_dialect(name)
+    /// Introspection only. Dispatch never uses it: a custom performative is
+    /// resolved against the dialect named by its `(lang …)` wrapper, so more
+    /// than one result here is normal rather than a conflict.
+    pub fn dialects_defining<'a>(&'a self, name: &'a str) -> impl Iterator<Item = &'a Dialect> {
+        self.dialect_registry.dialects_defining(name)
     }
 
     /// Install a dialect after verifying R1, R2, and R3 (REQ-034).
@@ -351,7 +389,10 @@ impl Agent {
     /// 1. Causal verification against the agent's dialect registry, message
     ///    store, and configured [`UnknownPredecessorPolicy`].
     /// 2. On `Accept`: evaluate the message and apply its effects.
-    /// 3. On `Violation`: return [`AgentOutcome::CausalReject`] without applying.
+    /// 3. On a *resolved* `Violation`: return [`AgentOutcome::CausalReject`]
+    ///    without applying. A provisional `Violation` — some named
+    ///    `:caused-by` hash still absent from the store — is downgraded to
+    ///    `Unknown` first (SPEC-003 REQ-315), so it follows 4/5 instead.
     /// 4. On `Unknown` + `Reject` policy: return [`AgentOutcome::Pending`].
     /// 5. On `Unknown` + `Buffer` policy: enqueue in the pending queue and
     ///    return [`AgentOutcome::Buffered`]; the message is *not* applied.
@@ -425,6 +466,10 @@ impl Agent {
     /// performative such as `ok`); constraints compose by conjunction so any
     /// rejection short-circuits, with `Pending`/`Buffered` outranking
     /// `Accept`. This mirrors the full pipeline's step 6a.
+    ///
+    /// Each per-protocol verdict passes through the REQ-315 resolution gate
+    /// ([`gate_unresolved_violation`]) before [`apply_policy`], so only
+    /// resolved `Violation`s can become `Reject`.
     fn causal_verdict(&self, msg: &Message) -> Option<PolicyOutcome> {
         let inner = msg.innermost_simple()?;
         let (caused_by, thread, perf_name) = match inner {
@@ -439,6 +484,10 @@ impl Agent {
 
         let thread_id = ThreadId(thread.cloned().unwrap_or_else(|| String::from("default")));
 
+        // SPEC-003 REQ-315: resolvedness is a property of the message and
+        // store alone, shared by every matching protocol's verdict.
+        let resolved = caused_by_resolved(caused_by, &self.message_store, &thread_id);
+
         let mut decision: Option<PolicyOutcome> = None;
         for d in self.dialect_registry.iter() {
             let Some(ref proto) = d.causal_protocol else {
@@ -449,6 +498,7 @@ impl Agent {
             }
             let result =
                 verify_causal(perf_name, caused_by, &self.message_store, proto, &thread_id);
+            let result = gate_unresolved_violation(result, resolved);
             let outcome = apply_policy(&result, &self.policy);
             decision = Some(match decision {
                 None => outcome,
@@ -547,6 +597,10 @@ impl Agent {
         let store = &self.message_store;
         let merge = self.merge_policy;
         self.pending_queue.re_evaluate_with(|entry, thread_id| {
+            // SPEC-003 REQ-315: same resolution gate as the live path — a
+            // still-provisional Violation keeps the entry pending rather
+            // than flushing it as Reject.
+            let resolved = caused_by_resolved(entry.caused_by.as_ref(), store, thread_id);
             let mut combined: Option<VerificationResult> = None;
             for d in registry.iter() {
                 let Some(ref proto) = d.causal_protocol else {
@@ -562,6 +616,7 @@ impl Agent {
                     proto,
                     thread_id,
                 );
+                let r = gate_unresolved_violation(r, resolved);
                 combined = Some(match combined {
                     None => r,
                     Some(prev) => match merge {
@@ -601,14 +656,18 @@ mod tests {
     use crate::dialect::{PerformativeDef, ResourceBounds};
     use crate::message::{CorePerformative, Performative};
     use crate::sexpr::Atom;
-    use crate::store::MessageStore as _;
 
     fn valid_custom_dialect(name: &str) -> Dialect {
         Dialect {
+            roles: Vec::new(),
+            state: None,
+            state_bounds: None,
+            causal_locality: Default::default(),
             name: String::from(name),
             extends: Vec::new(),
             author: None,
             performatives: vec![PerformativeDef {
+                role: None,
                 name: String::from("custom-action"),
                 params: Vec::new(),
                 template: SExpr::List(alloc::vec![
@@ -688,28 +747,44 @@ mod tests {
     }
 
     #[test]
-    fn find_performative_dialect_finds_core() {
-        let agent = Agent::new("a");
-        let d = agent.find_performative_dialect("tell").unwrap();
-        assert_eq!(d.name, "cbcl-base");
-    }
-
-    #[test]
-    fn find_performative_dialect_finds_custom() {
+    fn dialects_defining_finds_custom() {
         let mut agent = Agent::new("a");
         agent.install_dialect(valid_custom_dialect("ext")).unwrap();
-        let d = agent.find_performative_dialect("custom-action").unwrap();
-        assert_eq!(d.name, "ext");
+        let names: Vec<&str> = agent
+            .dialects_defining("custom-action")
+            .map(|d| d.name.as_str())
+            .collect();
+        assert_eq!(names, vec!["ext"]);
+    }
+
+    /// REQ-033: two dialects defining one performative name is legitimate —
+    /// the `(lang …)` wrapper says which is meant — so introspection reports
+    /// both rather than treating the second as a conflict.
+    #[test]
+    fn dialects_defining_reports_every_definer() {
+        let mut agent = Agent::new("a");
+        agent.install_dialect(valid_custom_dialect("ext")).unwrap();
+        agent.install_dialect(valid_custom_dialect("ext2")).unwrap();
+        let names: Vec<&str> = agent
+            .dialects_defining("custom-action")
+            .map(|d| d.name.as_str())
+            .collect();
+        assert_eq!(names, vec!["ext", "ext2"]);
     }
 
     #[test]
     fn install_bad_dialect_rejected() {
         let mut agent = Agent::new("a");
         let bad = Dialect {
+            roles: Vec::new(),
+            state: None,
+            state_bounds: None,
+            causal_locality: Default::default(),
             name: String::from("bad"),
             extends: Vec::new(),
             author: None,
             performatives: vec![PerformativeDef {
+                role: None,
                 name: String::from("tell"), // R3 violation: redefines core
                 params: Vec::new(),
                 template: SExpr::Atom(Atom::Symbol(String::from("x"))),
@@ -851,7 +926,7 @@ mod tests {
         let mut agent = Agent::new("@alice");
         let msg = Message::Simple {
             performative: Performative::Core(CorePerformative::Tell),
-            recipient: Some(String::from("@bob")),
+            recipient: Some("@bob".into()),
             content: SExpr::Atom(Atom::Str(String::from("hello"))),
             params: Vec::new(),
             thread: Some(String::from("conv-1")),
@@ -915,10 +990,15 @@ mod tests {
         let proto = CausalProtocol { steps };
 
         Dialect {
+            roles: Vec::new(),
+            state: None,
+            state_bounds: None,
+            causal_locality: Default::default(),
             name: String::from("ack-dialect"),
             extends: alloc::vec![String::from("cbcl")],
             author: None,
             performatives: vec![PerformativeDef {
+                role: None,
                 name: String::from("ack"),
                 params: Vec::new(),
                 template: SExpr::List(alloc::vec![
@@ -941,14 +1021,17 @@ mod tests {
     }
 
     fn ack_with_caused_by(hash: &str) -> Message {
-        Message::Simple {
-            performative: Performative::Custom(String::from("ack")),
-            recipient: None,
-            content: SExpr::Atom(Atom::Str(String::from("done"))),
-            params: Vec::new(),
-            thread: None,
-            sender: None,
-            caused_by: Some(crate::message::CausedBy::Single(String::from(hash))),
+        Message::Dialect {
+            dialect_name: String::from("ack-dialect"),
+            inner: alloc::boxed::Box::new(Message::Simple {
+                performative: Performative::Custom(String::from("ack")),
+                recipient: None,
+                content: SExpr::Atom(Atom::Str(String::from("done"))),
+                params: Vec::new(),
+                thread: None,
+                sender: None,
+                caused_by: Some(crate::message::CausedBy::Single(String::from(hash))),
+            }),
         }
     }
 
@@ -1027,6 +1110,229 @@ mod tests {
         }
     }
 
+    // -- SPEC-003 REQ-315 / TEST-355: resolution-gated rejection --
+
+    /// Dialect whose protocol gives `z` the disjunctive clause `(any x y)`.
+    fn any_xy_dialect() -> Dialect {
+        use crate::protocol::{CausalProtocol, NodeRef, StepDecl};
+        let mut any_set = alloc::collections::BTreeSet::new();
+        any_set.insert(String::from("x"));
+        any_set.insert(String::from("y"));
+        let mut steps = alloc::collections::BTreeMap::new();
+        steps.insert(
+            "begin".into(),
+            StepDecl {
+                performative: "begin".into(),
+                predecessors: alloc::vec![],
+                successors: alloc::vec![NodeRef::Single("x".into()), NodeRef::Single("y".into()),],
+            },
+        );
+        steps.insert(
+            "x".into(),
+            StepDecl {
+                performative: "x".into(),
+                predecessors: alloc::vec![NodeRef::Single("begin".into())],
+                successors: alloc::vec![NodeRef::Single("z".into())],
+            },
+        );
+        steps.insert(
+            "y".into(),
+            StepDecl {
+                performative: "y".into(),
+                predecessors: alloc::vec![NodeRef::Single("begin".into())],
+                successors: alloc::vec![NodeRef::Single("z".into())],
+            },
+        );
+        steps.insert(
+            "z".into(),
+            StepDecl {
+                performative: "z".into(),
+                predecessors: alloc::vec![NodeRef::Any(any_set)],
+                successors: alloc::vec![],
+            },
+        );
+        let def = |name: &str| PerformativeDef {
+            role: None,
+            name: String::from(name),
+            params: Vec::new(),
+            template: SExpr::List(alloc::vec![
+                SExpr::Atom(Atom::Symbol(String::from("effect"))),
+                SExpr::Atom(Atom::Symbol(alloc::format!("{name}-action"))),
+            ]),
+        };
+        Dialect {
+            roles: Vec::new(),
+            state: None,
+            state_bounds: None,
+            causal_locality: Default::default(),
+            name: String::from("any-xy"),
+            extends: alloc::vec![String::from("cbcl")],
+            author: None,
+            performatives: vec![def("x"), def("y"), def("z")],
+            resources: ResourceBounds {
+                max_depth: 8,
+                max_expansion_size: 512,
+                verification_time_ms: 10,
+            },
+            examples: Vec::new(),
+            signature: None,
+            hash: None,
+            protocol: None,
+            causal_protocol: Some(CausalProtocol { steps }),
+            shapes: Vec::new(),
+        }
+    }
+
+    fn z_with_caused_by_hashes(hashes: &[&str]) -> Message {
+        Message::Simple {
+            performative: Performative::Custom(String::from("z")),
+            recipient: None,
+            content: SExpr::Atom(Atom::Str(String::from("zed"))),
+            params: Vec::new(),
+            thread: None,
+            sender: None,
+            caused_by: Some(crate::message::CausedBy::Multiple(
+                hashes.iter().map(|h| String::from(*h)).collect(),
+            )),
+        }
+    }
+
+    /// Append a predecessor of the given performative type at `hash` in the
+    /// default thread.
+    fn append_pred(agent: &mut Agent, hash: &str, perf: &str) {
+        use crate::store::ContentHash as Hash;
+        let msg = Message::Simple {
+            performative: Performative::Custom(String::from(perf)),
+            recipient: None,
+            content: SExpr::Atom(Atom::Str(String::from("p"))),
+            params: Vec::new(),
+            thread: None,
+            sender: None,
+            caused_by: Some(crate::message::CausedBy::Begin),
+        };
+        agent.message_store_mut().append(
+            Hash(String::from(hash)),
+            ThreadId(String::from("default")),
+            msg,
+        );
+    }
+
+    #[test]
+    fn agent_gates_provisional_violation_as_pending_until_resolution() {
+        // TEST-355: m names two hashes under z's `(any x y)` clause — one
+        // resolving to a stored wrong-typed predecessor, one absent. The
+        // verifier's verdict is an eager Violation, but the message is
+        // unresolved, so the agent must answer Pending(CausalPending), NOT
+        // CausalReject (which the ungated Violation → Reject mapping gave).
+        let mut agent = Agent::new("@alice");
+        agent.install_dialect(any_xy_dialect()).unwrap();
+        append_pred(&mut agent, "h-wrong", "w"); // not x or y
+        let m = z_with_caused_by_hashes(&["h-absent", "h-wrong"]);
+        match agent.evaluate_and_apply(&m) {
+            AgentOutcome::Pending(PendingReason::CausalPending) => {}
+            other => panic!("expected Pending for a provisional violation, got {other:?}"),
+        }
+
+        // The absent hash arrives wrong-typed too: m is now resolved, the
+        // Violation is permanent under store growth, and the gate no
+        // longer applies — a resolved Violation still maps to Reject.
+        append_pred(&mut agent, "h-absent", "w2");
+        match agent.evaluate_and_apply(&m) {
+            AgentOutcome::CausalReject(_) => {}
+            other => panic!("expected CausalReject once resolved, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn agent_buffers_provisional_violation_until_resolution() {
+        // TEST-355 under the Buffer policy: a provisional Violation is
+        // enqueued exactly as an Unknown, and re-evaluation while the
+        // named hash is still absent keeps it buffered rather than
+        // flushing it as Reject.
+        let mut agent = Agent::with_policy("@alice", UnknownPredecessorPolicy::buffer(60));
+        agent.install_dialect(any_xy_dialect()).unwrap();
+        append_pred(&mut agent, "h-wrong", "w");
+        let m = z_with_caused_by_hashes(&["h-absent", "h-wrong"]);
+        match agent.evaluate_and_apply(&m) {
+            AgentOutcome::Buffered => {}
+            other => panic!("expected Buffered, got {other:?}"),
+        }
+        assert_eq!(agent.pending_len(), 1);
+
+        // Still unresolved: the re-evaluation gate keeps it pending.
+        let resolved = agent.reevaluate_pending();
+        assert!(
+            resolved.is_empty(),
+            "provisional violation must stay buffered, got {resolved:?}"
+        );
+        assert_eq!(agent.pending_len(), 1);
+
+        // Resolution with a second wrong-typed predecessor: flushed as
+        // Reject.
+        append_pred(&mut agent, "h-absent", "w2");
+        let resolved = agent.reevaluate_pending();
+        assert_eq!(resolved.len(), 1);
+        match &resolved[0].1 {
+            PolicyOutcome::Reject(_) => {}
+            other => panic!("expected Reject after resolution, got {other:?}"),
+        }
+        assert_eq!(agent.pending_len(), 0);
+    }
+
+    #[test]
+    fn agent_still_rejects_resolved_violation_immediately() {
+        // REQ-315's other half: when every named hash is present, a
+        // Violation is permanent under store growth and maps straight to
+        // Reject — the gate must not delay it.
+        let mut agent = Agent::new("@alice");
+        agent.install_dialect(any_xy_dialect()).unwrap();
+        append_pred(&mut agent, "h-wrong", "w");
+        let m = Message::Simple {
+            performative: Performative::Custom(String::from("z")),
+            recipient: None,
+            content: SExpr::Atom(Atom::Str(String::from("zed"))),
+            params: Vec::new(),
+            thread: None,
+            sender: None,
+            caused_by: Some(crate::message::CausedBy::Single(String::from("h-wrong"))),
+        };
+        match agent.evaluate_and_apply(&m) {
+            AgentOutcome::CausalReject(crate::protocol::CausalViolation::InvalidPredecessor {
+                ..
+            }) => {}
+            other => panic!("expected CausalReject(InvalidPredecessor), got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn resolution_with_legal_type_still_rejects_multi_hash_any_reference() {
+        // TEST-355's remaining branch expects that once the absent hash
+        // arrives with a *legal* type (x or y), m verifies Valid and is
+        // accepted. The deployed `verify_causal` has no multi-hash
+        // evaluation for `(any …)` clauses — a `Multiple` reference
+        // without an `(all …)` declaration is FanInWithoutAllDecl
+        // regardless of the store — so at resolution the verdict is a
+        // (resolved) Violation and the gate correctly stands aside. This
+        // test pins that gap: delivering the Accept branch of TEST-355
+        // needs `(any …)` clause evaluation over multi-hash references in
+        // the verifier, which REQ-315 scopes out of this change.
+        let mut agent = Agent::new("@alice");
+        agent.install_dialect(any_xy_dialect()).unwrap();
+        append_pred(&mut agent, "h-wrong", "w");
+        let m = z_with_caused_by_hashes(&["h-absent", "h-wrong"]);
+        match agent.evaluate_and_apply(&m) {
+            AgentOutcome::Pending(PendingReason::CausalPending) => {}
+            other => panic!("expected Pending pre-resolution, got {other:?}"),
+        }
+        append_pred(&mut agent, "h-absent", "x"); // legal type
+        match agent.evaluate_and_apply(&m) {
+            AgentOutcome::CausalReject(crate::protocol::CausalViolation::FanInWithoutAllDecl {
+                ..
+            }) => {}
+            other => panic!("expected CausalReject(FanInWithoutAllDecl), got {other:?}"),
+        }
+    }
+
     // -- PR feedback P1: wrappers must not bypass agent causal verification. --
 
     fn ack_simple_with_missing_predecessor() -> Message {
@@ -1100,6 +1406,10 @@ mod tests {
             },
         );
         Dialect {
+            roles: Vec::new(),
+            state: None,
+            state_bounds: None,
+            causal_locality: Default::default(),
             name: String::from("ok-protocol"),
             extends: alloc::vec![String::from("cbcl")],
             author: None,
@@ -1171,10 +1481,15 @@ mod tests {
         );
         agent
             .install_dialect(Dialect {
+                roles: Vec::new(),
+                state: None,
+                state_bounds: None,
+                causal_locality: Default::default(),
                 name: String::from("ping-dialect"),
                 extends: alloc::vec![String::from("cbcl")],
                 author: None,
                 performatives: alloc::vec![PerformativeDef {
+                    role: None,
                     name: String::from("ping"),
                     params: Vec::new(),
                     template: SExpr::List(alloc::vec![
@@ -1292,6 +1607,10 @@ mod tests {
             },
         );
         Dialect {
+            roles: Vec::new(),
+            state: None,
+            state_bounds: None,
+            causal_locality: Default::default(),
             name: String::from(name),
             extends: alloc::vec![String::from("cbcl")],
             author: None,
@@ -1332,6 +1651,10 @@ mod tests {
             },
         );
         Dialect {
+            roles: Vec::new(),
+            state: None,
+            state_bounds: None,
+            causal_locality: Default::default(),
             name: String::from(name),
             extends: alloc::vec![String::from("cbcl")],
             author: None,
@@ -1391,11 +1714,16 @@ mod tests {
             },
         );
         Dialect {
+            roles: Vec::new(),
+            state: None,
+            state_bounds: None,
+            causal_locality: Default::default(),
             name: String::from(name),
             extends: alloc::vec![String::from("cbcl")],
             author: None,
             performatives: vec![
                 PerformativeDef {
+                    role: None,
                     name: String::from("p1"),
                     params: Vec::new(),
                     template: SExpr::List(alloc::vec![
@@ -1404,6 +1732,7 @@ mod tests {
                     ]),
                 },
                 PerformativeDef {
+                    role: None,
                     name: String::from("p2"),
                     params: Vec::new(),
                     template: SExpr::List(alloc::vec![

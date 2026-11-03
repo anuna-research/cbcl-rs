@@ -11,6 +11,8 @@ use crate::r2::verify_r2;
 use crate::r3::{r3_violations, verify_r3};
 use crate::r4::{check_r4, R4Result, Signer};
 use crate::r5::{r5_violations_with_ancestors, verify_r5_with_ancestors};
+use crate::r6::{derive_envelope_routes, r6_violations};
+use crate::role::{CausalLocality, R6Violation as R6ViolationDetail, RoleAnnotation, RoleDecl};
 use crate::sexpr::{Atom, SExpr};
 use crate::shape::ShapeConstraint;
 use alloc::string::String;
@@ -49,6 +51,17 @@ pub enum DialectInstallError {
     },
     /// The dialect's resource bounds are invalid (R2 violation).
     R2Violation { dialect_name: String },
+    /// The protocol's expanded step count — after `(repeat k …)`
+    /// macro-expansion (SPEC-015 REQ-704) — is not within the dialect's
+    /// declared R2 expansion budget. This is what keeps `k` honest:
+    /// repetition is priced in R2's existing declared-bounds currency.
+    R2ProtocolBudgetExceeded {
+        dialect_name: String,
+        /// Post-expansion protocol step count (`begin` excluded).
+        expanded_steps: u32,
+        /// The dialect's declared `max-expansion-size` bound.
+        budget: u32,
+    },
     /// The dialect redefines one or more core performatives (R3 violation).
     R3Violation {
         dialect_name: String,
@@ -56,10 +69,22 @@ pub enum DialectInstallError {
     },
     /// The dialect's signature failed verification (R4 violation).
     R4Violation { dialect_name: String },
+    /// The state clause is ill-formed or the self-address is wrong (R7,
+    /// SPEC-019 REQ-1910).
+    R7Violation {
+        dialect_name: String,
+        violations: Vec<crate::r7::R7Violation>,
+    },
     /// A shape constraint is malformed (R5 violation).
     R5Violation {
         dialect_name: String,
         shape_errors: Vec<String>,
+    },
+    /// The dialect's role layer is ill-formed (R6 violation, SPEC-014
+    /// REQ-627).
+    R6Violation {
+        dialect_name: String,
+        violations: Vec<R6ViolationDetail>,
     },
 }
 
@@ -82,6 +107,18 @@ impl fmt::Display for DialectInstallError {
                     f,
                     "R2 violation: dialect '{}' has invalid resource bounds",
                     dialect_name,
+                )
+            }
+            DialectInstallError::R2ProtocolBudgetExceeded {
+                dialect_name,
+                expanded_steps,
+                budget,
+            } => {
+                write!(
+                    f,
+                    "R2 violation: dialect '{}' protocol expands to {} steps, \
+                     exceeding the declared expansion budget {}",
+                    dialect_name, expanded_steps, budget,
                 )
             }
             DialectInstallError::R3Violation {
@@ -113,6 +150,26 @@ impl fmt::Display for DialectInstallError {
                     shape_errors.join("; ")
                 )
             }
+            DialectInstallError::R6Violation {
+                dialect_name,
+                violations,
+            } => {
+                write!(f, "R6 violation: dialect '{dialect_name}':")?;
+                for v in violations {
+                    write!(f, " {v};")?;
+                }
+                Ok(())
+            }
+            DialectInstallError::R7Violation {
+                dialect_name,
+                violations,
+            } => {
+                write!(f, "R7 violation: dialect '{dialect_name}':")?;
+                for v in violations {
+                    write!(f, " {v};")?;
+                }
+                Ok(())
+            }
         }
     }
 }
@@ -124,6 +181,9 @@ pub struct PerformativeDef {
     pub name: String,
     pub params: Vec<SExpr>,
     pub template: SExpr,
+    /// `:from`/`:to` role annotation (SPEC-014 REQ-621, CON-600).
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub role: Option<RoleAnnotation>,
 }
 
 /// A CBCL dialect (REQ-022).
@@ -140,12 +200,35 @@ pub struct Dialect {
     pub resources: ResourceBounds,
     pub examples: Vec<SExpr>,
     pub signature: Option<Vec<u8>>,
+    /// Canonical content hash, `sha256:<lowercase-hex64>` over
+    /// [`crate::canonical::dialect_canonical_bytes`] (SPEC-014 REQ-628).
+    ///
+    /// Invariant: every dialect installed into a [`DialectRegistry`] has
+    /// `Some(..)` — installation computes the hash when this is `None`.
+    /// A pre-declared hash (e.g. a `:hash` clause in dialect source) is
+    /// preserved verbatim so wrappers can compare the claim against the
+    /// computed value and reject mismatches.
     pub hash: Option<String>,
     pub protocol: Option<String>,
     /// Causal protocol declaration (REQ-200, REQ-201).
     pub causal_protocol: Option<CausalProtocol>,
     /// Shape constraints for expanded messages (REQ-220).
     pub shapes: Vec<ShapeConstraint>,
+    /// Declared roles (SPEC-014 REQ-621, CON-600); empty = role-free dialect.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub roles: Vec<RoleDecl>,
+    /// `(:causal-locality derive|reject)` (SPEC-015 REQ-709, ADR-704):
+    /// under `Derive`, R6(vi) failures compile into the recorded
+    /// envelope-routing table instead of rejecting; the default `Reject`
+    /// preserves v1 semantics bit-for-bit.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub causal_locality: CausalLocality,
+    /// `(state …)` clause (SPEC-019 REQ-1902); `None` = no state layer.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub state: Option<crate::state::StateClause>,
+    /// `(:state-bounds …)` (SPEC-019 REQ-1904); `None` = the defaults.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub state_bounds: Option<crate::state::StateBounds>,
 }
 
 impl Dialect {
@@ -191,12 +274,17 @@ const CORE_EFFECT_ACTIONS: [(&str, &str); 8] = [
 /// `Dialect.lean:53–68`.
 pub fn base_dialect() -> Dialect {
     Dialect {
+        state: None,
+        state_bounds: None,
+        causal_locality: CausalLocality::Reject,
+        roles: Vec::new(),
         name: String::from("cbcl-base"),
         extends: Vec::new(),
         author: Some(String::from("@cbcl-system")),
         performatives: CORE_EFFECT_ACTIONS
             .iter()
             .map(|&(name, action)| PerformativeDef {
+                role: None,
                 name: String::from(name),
                 params: Vec::new(),
                 template: effect_template(action),
@@ -250,7 +338,7 @@ impl DialectRegistry {
     /// with the R1 precondition from `R1NoRecursion.lean:38–40`,
     /// the R2 precondition from `R2ResourceBounds.lean:59–63`,
     /// and the R3 precondition from `R3CorePreservation.lean:57`.
-    pub fn install(&mut self, d: Dialect) -> Result<(), DialectInstallError> {
+    pub fn install(&mut self, mut d: Dialect) -> Result<(), DialectInstallError> {
         if !verify_r1_dialect(&d) {
             return Err(DialectInstallError::R1Violation {
                 recursive: r1_violations(&d),
@@ -262,6 +350,7 @@ impl DialectRegistry {
                 dialect_name: d.name,
             });
         }
+        Self::check_protocol_expansion_budget(&d)?;
         if !verify_r3(&d) {
             return Err(DialectInstallError::R3Violation {
                 redefined: r3_violations(&d),
@@ -275,6 +364,21 @@ impl DialectRegistry {
                 dialect_name: d.name,
             });
         }
+        // R6 (SPEC-014 REQ-627; SPEC-015 REQ-709): dialect-level role
+        // checks; role-free dialects pass trivially (REQ-607). Under
+        // `(:causal-locality derive)`, R6(vi) findings compile into the
+        // envelope-routing table instead of rejecting.
+        Self::apply_r6(&mut d)?;
+        // R7 (SPEC-019 REQ-1910): state-clause well-formedness and the
+        // self-addressed name; dialects with neither clause pass trivially.
+        let r7 = crate::r7::r7_violations(&d);
+        if !r7.is_empty() {
+            return Err(DialectInstallError::R7Violation {
+                dialect_name: d.name,
+                violations: r7,
+            });
+        }
+        Self::ensure_hash(&mut d);
         #[cfg(feature = "tracing")]
         tracing::event!(
             tracing::Level::INFO,
@@ -282,6 +386,83 @@ impl DialectRegistry {
             "dialect_install_count"
         );
         self.dialects.push(d);
+        Ok(())
+    }
+
+    /// R6 gate (SPEC-014 REQ-627; SPEC-015 REQ-709, ADR-704).
+    ///
+    /// Under the default `(:causal-locality reject)` any violation rejects,
+    /// exactly as v1. Under `derive`, R6(vi) `NotCausallyLocal` findings
+    /// stop being rejection conditions and become the derivation's
+    /// worklist: every *other* violation class still rejects, and when none
+    /// remain the envelope-widening closure is derived
+    /// ([`derive_envelope_routes`]) and recorded on the dialect. Payload
+    /// `:to` sets are untouched — the closure only adds envelope routes.
+    fn apply_r6(d: &mut Dialect) -> Result<(), DialectInstallError> {
+        let r6 = r6_violations(d);
+        let deriving = matches!(d.causal_locality, CausalLocality::Derive(_));
+        let violations: Vec<R6ViolationDetail> = if deriving {
+            r6.into_iter()
+                .filter(|v| !matches!(v, R6ViolationDetail::NotCausallyLocal { .. }))
+                .collect()
+        } else {
+            r6
+        };
+        if !violations.is_empty() {
+            return Err(DialectInstallError::R6Violation {
+                violations,
+                dialect_name: d.name.clone(),
+            });
+        }
+        if deriving {
+            // Deterministic and idempotent: the closure is a pure function
+            // of the dialect body, so every independent install records the
+            // identical table (the replicated-choreographer property
+            // extended from projection to repair).
+            d.causal_locality = CausalLocality::Derive(derive_envelope_routes(d));
+        }
+        Ok(())
+    }
+
+    /// Populate `d.hash` with the canonical content hash when absent
+    /// (SPEC-014 REQ-628: every installed dialect carries `Some(hash)`).
+    ///
+    /// A pre-declared hash is left untouched: overwriting it would defeat
+    /// wrappers that compare the declared claim against the computed value
+    /// after install (e.g. the wasm bindings' `:hash` verification).
+    ///
+    /// SIMPLIFY: only *installed* dialects are hashed — the base dialect
+    /// seeded by `DialectRegistry::new()` keeps `hash: None` because
+    /// `is_well_formed()` (and callers) compare `dialects[0]` against
+    /// `base_dialect()` by equality. Upgrade path: make `base_dialect()`
+    /// itself return `hash: Some(dialect_hash(..))` and update the golden
+    /// expectations that pin its serialized form.
+    fn ensure_hash(d: &mut Dialect) {
+        if d.hash.is_none() {
+            d.hash = Some(crate::canonical::dialect_hash(d));
+        }
+    }
+
+    /// SPEC-015 REQ-704: the protocol's expanded step count counts against
+    /// R2's declared expansion budget. By install time, `(repeat k …)`
+    /// forms are already macro-expanded into the `CausalProtocol` (the
+    /// parser expands once at parse), so the count here *is* the expanded
+    /// size; a hand-unrolled equivalent protocol is priced identically.
+    ///
+    /// Uses R2's strict-`<` idiom (`ResourceState::add_expansion` in
+    /// `R2ResourceBounds.lean:43–47`): a count at or above the declared
+    /// bound is a typed rejection.
+    fn check_protocol_expansion_budget(d: &Dialect) -> Result<(), DialectInstallError> {
+        if let Some(cp) = &d.causal_protocol {
+            let expanded_steps = cp.expansion_size();
+            if expanded_steps >= d.resources.max_expansion_size {
+                return Err(DialectInstallError::R2ProtocolBudgetExceeded {
+                    dialect_name: d.name.clone(),
+                    expanded_steps,
+                    budget: d.resources.max_expansion_size,
+                });
+            }
+        }
         Ok(())
     }
 
@@ -321,7 +502,7 @@ impl DialectRegistry {
     /// dialect was signed or unsigned.
     pub fn install_with_signer(
         &mut self,
-        d: Dialect,
+        mut d: Dialect,
         signer: &dyn Signer,
     ) -> Result<R4Result, DialectInstallError> {
         // R1–R3 checks (same as install)
@@ -336,6 +517,7 @@ impl DialectRegistry {
                 dialect_name: d.name,
             });
         }
+        Self::check_protocol_expansion_budget(&d)?;
         if !verify_r3(&d) {
             return Err(DialectInstallError::R3Violation {
                 redefined: r3_violations(&d),
@@ -349,6 +531,11 @@ impl DialectRegistry {
                 dialect_name: d.name,
             });
         }
+        // R6 (SPEC-014 REQ-627; SPEC-015 REQ-709): as in `install`. The
+        // derived routing table is excluded from the canonical signing
+        // form (only the declared mode is signed), so recording it here
+        // cannot invalidate the signature checked next.
+        Self::apply_r6(&mut d)?;
         // R4 check: invalid signatures are rejected; unsigned is accepted.
         // The canonical signing form (`canonical::to_signable_sexpr`) covers
         // every semantics-relevant field, including `causal_protocol` and
@@ -359,6 +546,10 @@ impl DialectRegistry {
                 dialect_name: d.name,
             });
         }
+        // The hash is over the signable form, which excludes integrity
+        // fields, so populating it after the R4 check cannot invalidate
+        // the just-verified signature.
+        Self::ensure_hash(&mut d);
         #[cfg(feature = "tracing")]
         tracing::event!(
             tracing::Level::INFO,
@@ -395,15 +586,33 @@ impl DialectRegistry {
         self.dialects.iter().find(|d| d.name == name)
     }
 
-    /// Search dialects in reverse order for one that defines the given
-    /// performative (REQ-033).
+    /// The base dialect, if it defines `name` (REQ-033).
     ///
-    /// Matches `Agent.findPerformativeDialect` in `Agent.lean:34–35`.
-    pub fn find_performative_dialect(&self, name: &str) -> Option<&Dialect> {
+    /// This is the *only* name-based lookup dispatch performs, and it is
+    /// confined to the base dialect because R3 guarantees the eight core
+    /// performatives have exactly one definer. A custom performative is never
+    /// looked up this way: it is resolved against the dialect its `(lang …)`
+    /// wrapper names, so which definition applies is fixed by the message
+    /// rather than by the installed set. That is what allows two dialects to
+    /// define the same performative name without conflict.
+    ///
+    /// Matches `Agent.baseDefinerOf` in `Agent.lean`.
+    pub fn base_definer_of(&self, name: &str) -> Option<&Dialect> {
+        self.dialects
+            .first()
+            .filter(|d| d.defines_performative(name))
+    }
+
+    /// Every installed dialect defining `name`, in installation order.
+    ///
+    /// Introspection only — capability queries, diagnostics, tooling. It is
+    /// deliberately not a dispatch path: several dialects may legitimately
+    /// define one name, and choosing between them is the `(lang …)` wrapper's
+    /// job, not the registry's.
+    pub fn dialects_defining<'a>(&'a self, name: &'a str) -> impl Iterator<Item = &'a Dialect> {
         self.dialects
             .iter()
-            .rev()
-            .find(|d| d.defines_performative(name))
+            .filter(move |d| d.defines_performative(name))
     }
 
     /// Iterate over all installed dialects in order.
@@ -525,10 +734,15 @@ mod tests {
     fn registry_install_appends() {
         let mut reg = DialectRegistry::new();
         let planning = Dialect {
+            roles: Vec::new(),
+            state: None,
+            state_bounds: None,
+            causal_locality: Default::default(),
             name: String::from("cbcl-planning"),
             extends: vec![String::from("cbcl")],
             author: Some(String::from("@planning-authority")),
             performatives: vec![PerformativeDef {
+                role: None,
                 name: String::from("propose-step"),
                 params: vec![],
                 template: effect_template("propose"),
@@ -551,47 +765,79 @@ mod tests {
         assert_eq!(reg.get(1).unwrap().name, "cbcl-planning");
     }
 
-    #[test]
-    fn registry_find_performative_dialect_reverse_order() {
-        let mut reg = DialectRegistry::new();
-        // Install two dialects that define the same custom performative.
-        for name in &["first", "second"] {
-            reg.install(Dialect {
-                name: String::from(*name),
-                extends: vec![String::from("cbcl")],
-                author: None,
-                performatives: vec![PerformativeDef {
-                    name: String::from("greet"),
-                    params: vec![],
-                    template: effect_template("greet-action"),
-                }],
-                resources: ResourceBounds {
-                    max_depth: 8,
-                    max_expansion_size: 512,
-                    verification_time_ms: 10,
-                },
-                examples: vec![],
-                signature: None,
-                hash: None,
-                protocol: None,
-                causal_protocol: None,
-                shapes: Vec::new(),
-            })
-            .unwrap();
+    /// A dialect defining a single custom performative `greet`.
+    fn greeter(name: &str) -> Dialect {
+        Dialect {
+            roles: Vec::new(),
+            state: None,
+            state_bounds: None,
+            causal_locality: Default::default(),
+            name: String::from(name),
+            extends: vec![String::from("cbcl")],
+            author: None,
+            performatives: vec![PerformativeDef {
+                role: None,
+                name: String::from("greet"),
+                params: vec![],
+                template: effect_template("greet-action"),
+            }],
+            resources: ResourceBounds {
+                max_depth: 8,
+                max_expansion_size: 512,
+                verification_time_ms: 10,
+            },
+            examples: vec![],
+            signature: None,
+            hash: None,
+            protocol: None,
+            causal_protocol: None,
+            shapes: Vec::new(),
         }
-        // Reverse-order search should find the later dialect first.
-        let found = reg.find_performative_dialect("greet").unwrap();
-        assert_eq!(found.name, "second");
+    }
+
+    #[test]
+    fn base_definer_of_finds_core_performatives() {
+        let reg = DialectRegistry::new();
+        assert_eq!(reg.base_definer_of("tell").unwrap().name, "cbcl-base");
+    }
+
+    /// REQ-033: core dispatch consults the base dialect only, so installing
+    /// dialects can never change what a core performative means.
+    #[test]
+    fn base_definer_of_ignores_installed_dialects() {
+        let mut reg = DialectRegistry::new();
+        reg.install(greeter("first")).unwrap();
+        assert!(reg.base_definer_of("greet").is_none());
+    }
+
+    /// REQ-033: two dialects defining one performative name is legitimate.
+    /// The `(lang …)` wrapper chooses between them, so the registry reports
+    /// both instead of picking or rejecting.
+    #[test]
+    fn dialects_defining_reports_every_definer_in_install_order() {
+        let mut reg = DialectRegistry::new();
+        reg.install(greeter("first")).unwrap();
+        reg.install(greeter("second")).unwrap();
+        let names: Vec<&str> = reg
+            .dialects_defining("greet")
+            .map(|d| d.name.as_str())
+            .collect();
+        assert_eq!(names, vec!["first", "second"]);
     }
 
     #[test]
     fn registry_install_rejects_r3_violation() {
         let mut reg = DialectRegistry::new();
         let bad = Dialect {
+            roles: Vec::new(),
+            state: None,
+            state_bounds: None,
+            causal_locality: Default::default(),
             name: String::from("bad-dialect"),
             extends: vec![String::from("cbcl")],
             author: None,
             performatives: vec![PerformativeDef {
+                role: None,
                 name: String::from("tell"),
                 params: vec![],
                 template: effect_template("custom-tell"),
@@ -627,6 +873,10 @@ mod tests {
     fn registry_install_rejects_r2_violation() {
         let mut reg = DialectRegistry::new();
         let bad = Dialect {
+            roles: Vec::new(),
+            state: None,
+            state_bounds: None,
+            causal_locality: Default::default(),
             name: String::from("bad-bounds"),
             extends: vec![String::from("cbcl")],
             author: None,
@@ -658,6 +908,10 @@ mod tests {
     fn registry_install_rejects_zero_bounds() {
         let mut reg = DialectRegistry::new();
         let bad = Dialect {
+            roles: Vec::new(),
+            state: None,
+            state_bounds: None,
+            causal_locality: Default::default(),
             name: String::from("zero-depth"),
             extends: vec![],
             author: None,
@@ -703,6 +957,10 @@ mod tests {
             "cbcl-artifacts",
         ] {
             reg.install(Dialect {
+                roles: Vec::new(),
+                state: None,
+                state_bounds: None,
+                causal_locality: Default::default(),
                 name: String::from(*name),
                 extends: vec![String::from("cbcl")],
                 author: None,
@@ -757,6 +1015,10 @@ mod tests {
     fn registry_install_with_signer_accepts_unsigned() {
         let mut reg = DialectRegistry::new();
         let d = Dialect {
+            roles: Vec::new(),
+            state: None,
+            state_bounds: None,
+            causal_locality: Default::default(),
             name: String::from("unsigned-dialect"),
             extends: vec![],
             author: None,
@@ -782,6 +1044,10 @@ mod tests {
     fn registry_install_with_signer_accepts_valid_signature() {
         let mut reg = DialectRegistry::new();
         let d = Dialect {
+            roles: Vec::new(),
+            state: None,
+            state_bounds: None,
+            causal_locality: Default::default(),
             name: String::from("signed-dialect"),
             extends: vec![],
             author: None,
@@ -807,6 +1073,10 @@ mod tests {
     fn registry_install_with_signer_rejects_invalid_signature() {
         let mut reg = DialectRegistry::new();
         let d = Dialect {
+            roles: Vec::new(),
+            state: None,
+            state_bounds: None,
+            causal_locality: Default::default(),
             name: String::from("bad-sig-dialect"),
             extends: vec![],
             author: None,
@@ -839,10 +1109,15 @@ mod tests {
         let mut reg = DialectRegistry::new();
         // R3 violation: redefines "tell"
         let d = Dialect {
+            roles: Vec::new(),
+            state: None,
+            state_bounds: None,
+            causal_locality: Default::default(),
             name: String::from("bad-r3"),
             extends: vec![],
             author: None,
             performatives: vec![PerformativeDef {
+                role: None,
                 name: String::from("tell"),
                 params: vec![],
                 template: effect_template("custom-tell"),
@@ -915,10 +1190,15 @@ mod tests {
             },
         );
         Dialect {
+            roles: Vec::new(),
+            state: None,
+            state_bounds: None,
+            causal_locality: Default::default(),
             name: String::from("bound-by-signature"),
             extends: vec![String::from("cbcl")],
             author: None,
             performatives: vec![PerformativeDef {
+                role: None,
                 name: String::from("greet"),
                 params: vec![],
                 template: SExpr::List(vec![
@@ -1061,6 +1341,10 @@ mod tests {
             },
         );
         let d = Dialect {
+            roles: Vec::new(),
+            state: None,
+            state_bounds: None,
+            causal_locality: Default::default(),
             name: String::from("uses-ok"),
             extends: vec![String::from("cbcl")],
             author: None,
@@ -1079,5 +1363,122 @@ mod tests {
         };
         reg.install(d)
             .expect("dialect extending cbcl should install");
+    }
+
+    // ---- install-time content hashing (SPEC-014 REQ-628) ----
+
+    fn hashless_dialect(name: &str) -> Dialect {
+        Dialect {
+            roles: Vec::new(),
+            state: None,
+            state_bounds: None,
+            causal_locality: Default::default(),
+            name: String::from(name),
+            extends: vec![String::from("cbcl")],
+            author: Some(String::from("@hash-tests")),
+            performatives: vec![PerformativeDef {
+                role: None,
+                name: String::from("greet"),
+                params: vec![],
+                template: effect_template("greet-action"),
+            }],
+            resources: ResourceBounds {
+                max_depth: 8,
+                max_expansion_size: 512,
+                verification_time_ms: 10,
+            },
+            examples: vec![],
+            signature: None,
+            hash: None,
+            protocol: None,
+            causal_protocol: None,
+            shapes: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn install_populates_canonical_hash() {
+        let d = hashless_dialect("hashed");
+        let expected = crate::canonical::dialect_hash(&d);
+        let mut reg = DialectRegistry::new();
+        reg.install(d).unwrap();
+        let installed = reg.find_by_name("hashed").unwrap();
+        let h = installed.hash.as_deref().expect("install must set hash");
+        assert_eq!(h, expected);
+        let hex = h.strip_prefix("sha256:").expect("sha256: prefix");
+        assert_eq!(hex.len(), 64);
+        assert!(hex
+            .chars()
+            .all(|c| c.is_ascii_digit() || ('a'..='f').contains(&c)));
+    }
+
+    #[test]
+    fn install_hash_is_stable_across_registries() {
+        let mut reg1 = DialectRegistry::new();
+        let mut reg2 = DialectRegistry::new();
+        reg1.install(hashless_dialect("stable")).unwrap();
+        reg2.install(hashless_dialect("stable")).unwrap();
+        assert_eq!(
+            reg1.find_by_name("stable").unwrap().hash,
+            reg2.find_by_name("stable").unwrap().hash
+        );
+    }
+
+    #[test]
+    fn install_hash_changes_when_performative_renamed() {
+        let mut renamed = hashless_dialect("same-name");
+        renamed.performatives[0].name = String::from("salute");
+        let mut reg1 = DialectRegistry::new();
+        let mut reg2 = DialectRegistry::new();
+        reg1.install(hashless_dialect("same-name")).unwrap();
+        reg2.install(renamed).unwrap();
+        assert_ne!(
+            reg1.find_by_name("same-name").unwrap().hash,
+            reg2.find_by_name("same-name").unwrap().hash,
+            "renaming a performative must change the installed hash"
+        );
+    }
+
+    #[test]
+    fn install_preserves_declared_hash() {
+        // A declared :hash claim is kept verbatim so wrappers can compare it
+        // against the computed value and reject mismatches.
+        let mut d = hashless_dialect("claimed");
+        d.hash = Some(String::from("sha256:abcd1234"));
+        let mut reg = DialectRegistry::new();
+        reg.install(d).unwrap();
+        assert_eq!(
+            reg.find_by_name("claimed").unwrap().hash.as_deref(),
+            Some("sha256:abcd1234")
+        );
+    }
+
+    #[test]
+    fn install_with_signer_populates_canonical_hash() {
+        let d = hashless_dialect("signer-hashed");
+        let expected = crate::canonical::dialect_hash(&d);
+        let mut reg = DialectRegistry::new();
+        reg.install_with_signer(d, &MockSigner).unwrap();
+        assert_eq!(
+            reg.find_by_name("signer-hashed").unwrap().hash.as_deref(),
+            Some(expected.as_str())
+        );
+    }
+
+    #[test]
+    fn install_hash_of_signed_dialect_keeps_signature_valid() {
+        // Populating `hash` post-R4 must not perturb the signable bytes:
+        // sign, install, and confirm both hash presence and R4Result::Valid.
+        let mut d = hashless_dialect("signed-and-hashed");
+        d.protocol = Some(String::from("ed25519"));
+        d.signature = Some(CanonicalSigner.sign(&crate::canonical::dialect_canonical_bytes(&d)));
+        let mut reg = DialectRegistry::new();
+        let r4 = reg.install_with_signer(d, &CanonicalSigner).unwrap();
+        assert_eq!(r4, R4Result::Valid);
+        assert!(reg
+            .find_by_name("signed-and-hashed")
+            .unwrap()
+            .hash
+            .is_some());
     }
 }

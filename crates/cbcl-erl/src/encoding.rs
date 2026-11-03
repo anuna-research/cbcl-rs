@@ -220,7 +220,7 @@ fn meta_atom(env: Env<'_>) -> ErlAtom {
 }
 
 /// Encode a `WrapperType` as a closed-enum atom (`envelope` / `signed`
-/// / `with_limits`). Note the underscore in `with_limits` — BEAM atoms
+/// / `with_limits` / `with_roles`). Note the underscores — BEAM atoms
 /// can't contain hyphens without quoting, so the canonical text name
 /// `"with-limits"` becomes the atom `with_limits` here. Three values,
 /// closed set, atom-safe.
@@ -229,6 +229,7 @@ fn encode_wrapper_type<'a>(env: Env<'a>, w: WrapperType) -> Term<'a> {
         WrapperType::Envelope => "envelope",
         WrapperType::Signed => "signed",
         WrapperType::WithLimits => "with_limits",
+        WrapperType::WithRoles => "with_roles",
     };
     ErlAtom::from_str(env, name)
         .expect("wrapper-type names are ASCII")
@@ -328,7 +329,19 @@ fn encode_simple<'a>(env: Env<'a>, m: &Message) -> NifResult<Term<'a>> {
 
     let type_term = simple_atom(env).to_term(env);
     let perf_term = encode_performative(env, performative);
-    let recipient_term = encode_optional_binary(env, recipient.as_deref());
+    // SPEC-014 REQ-622: One(r) keeps the pre-SPEC-014 binary encoding;
+    // Set(rs) encodes as a list of binaries (canonical sorted order).
+    let recipient_term = match recipient {
+        Some(cbcl_core::message::Recipients::One(r)) => {
+            encode_optional_binary(env, Some(r.as_str()))
+        }
+        Some(cbcl_core::message::Recipients::Set(rs)) => rs
+            .iter()
+            .map(|r| r.as_str())
+            .collect::<Vec<_>>()
+            .encode(env),
+        None => encode_optional_binary(env, None),
+    };
     let content_term = encode_sexpr(env, content);
     let params_term = encode_params(env, params)?;
     let thread_term = encode_optional_binary(env, thread.as_deref());

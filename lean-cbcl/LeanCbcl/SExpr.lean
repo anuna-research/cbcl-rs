@@ -75,7 +75,9 @@ def SExpr.depth : SExpr → Nat
   | .list xs => 1 + xs.foldl (fun acc e => max acc e.depth) 0
 
 -- Convenience constructors
+/-- Build a symbol S-expression from a string (`.atom (.symbol s)`). -/
 def SExpr.sym (s : String) : SExpr := .atom (.symbol s)
+/-- Build a numeric-atom S-expression from an integer (`.atom (.num n)`). -/
 def SExpr.int (n : Int) : SExpr := .atom (.num n)
 
 /-- Check if an S-expression is a specific symbol -/

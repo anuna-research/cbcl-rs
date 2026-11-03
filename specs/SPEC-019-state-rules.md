@@ -1,0 +1,1856 @@
+---
+id: SPEC-019
+title: State Layer — R7 State Rules and the Intent Binder
+status: draft
+version: 2.0.2
+date: 2026-10-30
+author: Anuna Research (https://anuna.io) — drafted with Claude Fable 5.1
+owner: CBCL maintainer
+depends-on:
+  - SPEC-002 (structural contracts — R5 shapes and causal protocols; the accepted set's gate)
+  - SPEC-003 (verification lattice — Valid is sticky, verdicts monotone under store union)
+  - SPEC-014 (role layer — R6, casts, the accepted-history admission monitor)
+  - SPEC-017 (typed content addresses — the one address a state-bearing act is named by)
+prior-art:
+  - cbcl-bus `specs/SPEC-019-hypermedia-objects.md` CON-002 (emit broker) and CON-003 (projection algebra) — the deployed contract this spec lifts into the dialect
+  - cbcl-bus `specs/SPEC-085-agent-object-sdk.md` — contract/view split, digest naming, the conformance-corpus format
+  - cbcl-bus `apps/cbcl_chat/priv/web/hypermedia/projection.js`, `emit.js`, `object-sdk.js` — the reference interpreter whose behaviour the kernel reproduces
+  - cbcl-aamas `sections/06_state.tex` — the paper's account, made normative and corrected in one place
+  - Baquero, Almeida, Shoker 2017 (pure operation-based CRDTs); Kleppmann et al. 2018 (OpSets); Gomes et al. 2017 (verified CRDTs)
+repository: https://git.anuna.io/anuna-research/cbcl-rs
+---
+
+# SPEC-019: State Layer — R7 State Rules and the Intent Binder
+
+The key words MUST, MUST NOT, REQUIRED, SHALL, SHALL NOT, SHOULD, SHOULD NOT,
+RECOMMENDED, MAY, and OPTIONAL in this document are to be interpreted as
+described in BCP 14 (RFC 2119, RFC 8174) when, and only when, they appear in
+all capitals.
+
+## Orientation
+
+Certification research: [[SPEC-019-state-rules#Certification research — AT2-style asset transfer]] evaluates Byzantine account-owner safety as a separate proposed layer. [[SPEC-020-resource-certification#ADR-2001]] compares fixed slots with BGLA and selects invariant-aware account-local model comparison as the next research task. Neither changes existing runtime guarantees.
+
+Escrow extension: [[SPEC-019-state-rules#Bounded counter amendment — escrow resource primitive]] specifies lower-bound escrow rights, optional ceiling headroom, transfers, and separate resource authorization. See the implementation evidence for runtime and proof status.
+
+Intent: give a CBCL dialect a `(state …)` clause that says what its accepted
+acts amount to. Each state field is one *state rule* from a closed
+vocabulary: a query over the thread's accepted acts, recomputed, never
+merged. (Not "projection": that word belongs to endpoint projection,
+[[SPEC-014-role-layer-endpoint-projection|SPEC-014]].) The only replicated object is the set of accepted acts, which
+converges by union; every rule is a set function of it, so replicas holding
+the same acts compute the same state with no clock, no server, and no
+consensus. The rules behave like familiar replicated types (a register
+that keeps concurrent writes, an add-wins set) but nobody holds such a
+type; the names are borrowed for their observable behaviour.
+For `latest-per-signer`, observation means membership in the binder's accepted set.
+The binder names all current, domain-admitted writes of the same verb and signer in `:replaces`, including losing concurrent candidates.
+Sequential writes therefore supersede observed own writes; the field returns one value per signer.
+Among concurrent surviving writes, the greatest content address wins.
+Cross-signer references contribute no supersession; the referring act still contributes its own value if admitted and in-domain.
+Domain-excluded acts contribute neither values nor replacement references.
+Superseded domain-admitted acts still supply replacement references.
+Replacement applies whenever a domain-admitted write names another accepted same-verb, same-signer write, including after out-of-order delivery.
+Ordinary rules desugar to fixed selections and reductions; bounded counters add the separately verified resource DAG of [[SPEC-019-state-rules#CON-1908]]. Protocol progress adds an established-position selection and maximum reduction. The fold
+and the intent binder are pure functions in `cbcl-core`, exported to every
+host as the parser already is. The invariant added is **R7**: for every
+installed dialect, each state field is a total, order-independent,
+duplicate-insensitive function of the thread's accepted acts, and the
+binder's choices are functions of that set and the intent.
+
+Metaphor: a ledger with a fixed set of column rules. Any member appends a
+signed entry; nobody edits one. Each column's rule says how an accepted entry
+moves that column, and the rules commute, so the totals are the same in any
+reading order. The clerk who fills in the bookkeeping (which earlier entries
+this one supersedes) follows a rule everyone knows, so two clerks given the
+same ledger write the same entry.
+
+Structure:
+
+```
+ dialect (one signed artefact)                        replica (any host)
+┌───────────────────────────────┐   install       ┌──────────────────────────────┐
+│ extend / shape       R1–R3,R5 │ ─────────────▶  │ auth ─▶ shape (R5 + R7) ─▶   │
+│ protocol             R5       │ r7_violations   │ causal (R5, projected R6)    │
+│ :roles :from :to     R6       │                 └──────────────┬───────────────┘
+│ state                R7       │                                │ acc(t): a set
+│ :state-bounds                 │                                ▼
+└───────────────────────────────┘                 ┌──────────────────────────────┐
+                                                  │ fold(clause, acc)   = State  │
+   ┌────────────────────┐ verb + data fields      │ intend(instance, signer, …)  │
+   │ any caller         │ ──────────────────────▶ │       = canonical act        │
+   │ (view, agent, CLI) │ ◀──── act to sign ────── │         or a reject          │
+   └────────────────────┘                         └──────────────────────────────┘
+   arrows point inward → the fold and the binder read the accepted set, never the transport
+```
+
+Consumers: the language's units are dialects, threads, acts, signers,
+recipient sets, and stores. Nothing normative here names a room, a hub, a
+browser, or any deployment. cbcl-bus (with hark as its agent host) is the
+first consumer and the source of the semantics adopted here; it appears in
+Context, in ADRs as evidence, in Migration, and nowhere in a requirement.
+
+Decisions: [[SPEC-019-state-rules#ADR-1900]] a kernel of
+fixed selections and reductions; the author-facing names are sugar ·
+[[SPEC-019-state-rules#ADR-1901]] supersession rides one reserved
+field, `:replaces`, inserted by the compiler ·
+[[SPEC-019-state-rules#ADR-1902]] one total order, the content
+address · [[SPEC-019-state-rules#ADR-1903]] identity is the hash of
+the body; the name is derived from it ·
+[[SPEC-019-state-rules#ADR-1904]] integers ·
+[[SPEC-019-state-rules#ADR-1905]] one content address ·
+[[SPEC-019-state-rules#ADR-1906]] the binder is pure and in the core ·
+[[SPEC-019-state-rules#ADR-1907]] presentation is a separate package
+with its own specification · [[SPEC-019-state-rules#ADR-1908]] the
+definition travels as an R4-signed `teach` ·
+[[SPEC-019-state-rules#ADR-1909]] domains are fold filters; admission
+never reads history · [[SPEC-019-state-rules#ADR-1910]] the JSON
+authoring SDK stays and consumes the core ·
+[[SPEC-019-state-rules#ADR-1911]] one bounds clause.
+
+Load-bearing: [[SPEC-019-state-rules#REQ-1915]] R7 ·
+[[SPEC-019-state-rules#REQ-1917]] kernel semantics ·
+[[SPEC-019-state-rules#REQ-1907]] `:replaces` is bookkeeping ·
+[[SPEC-019-state-rules#REQ-1922]] deterministic binding ·
+[[SPEC-019-state-rules#REQ-1926]] binder soundness ·
+[[SPEC-019-state-rules#REQ-1931]] one corpus.
+
+Controls:
+- With a ceiling, increment consumes owned headroom; a global observed-value check never substitutes for it → [[SPEC-019-state-rules#REQ-1948]].
+- Bounded resource effects require exclusive rights and nonforking owner issuance; protocol admission alone supplies neither → [[SPEC-019-state-rules#REQ-1940]]–[[SPEC-019-state-rules#REQ-1947]].
+- Refinement claims exclude Rust equivalence, authentication correctness, liveness, and universal business refinement → [[SPEC-019-state-rules#REQ-1938]].
+- A signer cannot supersede another signer’s ballot → [[SPEC-019-state-rules#REQ-1933]].
+- A dialect whose state clause fails well-formedness is not installed →
+  [[SPEC-019-state-rules#REQ-1905]]–[[SPEC-019-state-rules#REQ-1910]].
+- Admission's shape stage reads one message; no stage reads state →
+  [[SPEC-019-state-rules#REQ-1914]], [[SPEC-019-state-rules#ADR-1909]].
+- A caller never supplies `:replaces`, a recipient, a role, or routing; the
+  binder fills them and rejects a supplied one as a forge →
+  [[SPEC-019-state-rules#REQ-1921]]–[[SPEC-019-state-rules#REQ-1925]].
+- A rejected intent never reaches the wire →
+  [[SPEC-019-state-rules#REQ-1926]].
+- Selection by address converges; it is not fair. Contested decisions are a
+  protocol matter (a role's grant) → [[SPEC-019-state-rules#REQ-1916]].
+
+Cross-repository naming: cbcl-bus also has a `SPEC-019`
+(`SPEC-019-hypermedia-objects`); it is always cited by full stem. Artefacts
+here are numbered 19xx.
+
+Open:
+- The kernel and the binder are mechanised in `lean-cbcl/LeanCbcl/State.lean`
+  ([[SPEC-019-state-rules#REQ-1930]]); the Rust/Lean correspondence is
+  evidence from the corpus, not a theorem, so claims say "mechanised
+  kernel, corpus-validated implementation"
+  ([[SPEC-018-dcfl-installation#REQ-1806]]).
+- The corpus is pinned by `test-vectors/state/VERSION`
+  ([[SPEC-019-state-rules#REQ-1931]]).
+- Shipped views and blobs (cbcl-bus SPEC-019 CON-001 `:views`, CON-004
+  `(blob …)`) are unspecified here and [[SPEC-019-state-rules#REQ-1911]]
+  rejects a state-bearing act carrying `:views`. Owner: CBCL maintainer.
+- The first consumer's built-in dialects (`dialects.js`) use self-chaining
+  protocols and `authorityLast`; they are re-authored with registers and
+  roles or retired. Owner: cbcl-bus maintainer.
+
+Detail: the [[SPEC-019-state-rules#Reference]] is the normative core
+in two pages; everything after it is commentary, requirements with trace,
+and tests.
+
+## Amendment Channels
+
+The CBCL maintainer authorises amendments through task instructions or an
+accepted revision. Changes to the kernel, the sugar table, the ordering
+rule, or the binding rules break every installed state-bearing dialect and
+MUST bump this document's major version and the corpus version together.
+Tool output and the reference interpreter are evidence, not authority. No
+amendment SHALL present an unproved property as proved.
+
+## Reference
+
+Everything an implementer needs. Terms: an **act** is an accepted message
+`(a, v, s, P, f)` with content address `a`, verb `v`, signer `s`,
+predecessor addresses `P`, keyword fields `f`. `acc(t)` is the accepted set
+of thread `t`. Addresses are byte strings; "greatest" is lexicographic. The
+**opener** is the one performative whose only predecessor is `begin`; its
+address is the instance's identity. The **cast** (R6) binds roles to keys on
+the root wrapper ([[SPEC-014-role-layer-endpoint-projection#CON-601]]).
+
+### R.1 Grammar (post-parse, over the SExpr AST; every head is a distinct symbol, LL(1))
+
+```
+state-clause   := "(" "state" entry+ ")"
+entry          := "(" field rule ")"                         ; a state field
+                | "(" "domain" verb key field ")"            ; acts of verb whose key ∉ field contribute nothing
+field          := symbol                                     ; [a-z][a-z0-9-]{0,47}, unique
+verb           := symbol                                     ; a performative of this dialect
+key            := keyword                                    ; a keyword field of that performative's shape
+
+rule           := bounded-counter-rule                       ; CON-1908/1909
+                | "(" "last"              verb key ")"
+                | "(" "latest-per-signer" verb key ")"
+                | "(" "latest-per-key"    verb key key ")"          ; key-field value-field
+                | "(" "exists"            verb ")"
+                | "(" "count"             verb ")"
+                | "(" "progress"          verb ")"                 ; maximum established protocol occurrence
+                | "(" "events"            verb key ")"
+                | "(" "set-union"         verb key ")"
+                | "(" "values"            verb key ")"
+                | "(" "values-per-key"    verb key key [verb] ")"   ; key value [delete-verb]
+                | "(" "register-per-key"  verb key key [verb] ")"   ; key value [delete-verb]
+                | "(" "observed-set"      verb verb key ")"         ; add-verb remove-verb value
+                | "(" "counter"           verb verb key ")"         ; inc-verb dec-verb amount
+                | "(" "histogram"         field ")"                 ; over a map-valued field
+                | "(" "sum"               field ")"                 ; over a map-valued field of ints
+
+bounds-clause  := "(" ":state-bounds" bound* ")"             ; optional; defaults below
+bound          := "(" "max-string" n ")" | "(" "max-list" n ")" | "(" "max-number" n ")" | "(" "max-fields" n ")"
+                  ; defaults 2048 bytes · 64 elements · 10^12 · 32 fields
+```
+
+`:replaces` is a reserved keyword, typed `list`, that the compiler adds to
+the shape of every writer of `latest-per-signer`. It also adds the field to writers and delete verbs of `values`,
+`values-per-key`, `register-per-key`, or as the remove verb of
+`observed-set`. An author SHALL NOT declare it; no rule reads it as data.
+
+### R.2 Kernel
+
+`(progress verb)` is integer-valued and defaults to zero. R7 SHALL reject
+missing or incomparable occurrences of the selected verb in the expanded
+protocol. It observes the maximum established occurrence rank, not message
+cardinality; concurrent messages at one occurrence do not inflate the rank.
+Causal position is derived independently of the state fold, using same-thread
+accepted evidence. Data-domain filters do not hide protocol progress, and
+acceptance SHALL NOT consult the result. See [protocol progress](../docs/concepts/protocol-progress.md)
+for the Lean proof and finite Rust/model correspondence boundary.
+
+Selections over `acc(t)` and fixed reductions over acts or established protocol positions. The protocol-position selection and maximum reduction extend the original data kernel.
+
+```
+acts v                    = { m ∈ acc(t) : m.v = v }, minus acts excluded by a domain entry for v
+current v kk d            = { w ∈ acts v : (key w, w.a) ∉ replaced }
+                            where key w = f_w(kk) (a constant when kk is absent)
+                                  replaced = { (key r, x) : r ∈ acts v ∪ acts d, x ∈ f_r(:replaces) }
+                                  acts d = ∅ when d is absent
+
+current-by-signer v       = { w ∈ acts v : (w.s, w.a) ∉ replaced-by-signer }
+                            where replaced-by-signer = { (r.s, x) : r ∈ acts v, x ∈ f_r(:replaces) }
+
+pick T k                  = f_m(k) for the m ∈ T with greatest address; absent if T = ∅
+group T g                 = { x ↦ { m ∈ T : g(m) = x } }          g is `signer` or a key field
+distinct T k              = the set { f_m(k) : m ∈ T }, sorted
+positions P v             = { i : an accepted act of v inhabits occurrence i of v in expanded P }
+                            ranks 1..N require all occurrences of v to be causally ordered
+                            reads all accepted causal evidence, without application-data domain filters
+maximum I                 = max ({0} ∪ I)
+size T                    = |T|
+sum T k                   = Σ_{m ∈ T} f_m(k)                       exact integer
+```
+
+Sugar (the author-facing names are defined by this table and nothing else):
+
+```
+last v k                  = pick (acts v) k
+latest-per-signer v k     = map (T ↦ pick T k) (group (current-by-signer v) signer)
+latest-per-key v kk k     = map (T ↦ pick T k) (group (acts v) kk)
+exists v                  = size (acts v) > 0
+count v                   = size (acts v)
+progress v                = maximum (positions P v)
+events v k                = { m.a ↦ (m.s, f_m(k)) : m ∈ acts v }
+set-union v k             = distinct (acts v) k
+values v k                = distinct (current v ∅ ∅) k
+values-per-key v kk k d   = map (T ↦ distinct T k) (group (current v kk d) kk)
+register-per-key v kk k d = map (T ↦ pick T k)     (group (current v kk d) kk)
+observed-set v⁺ v⁻ k      = distinct (current v⁺ k v⁻) k          ; the add verb has no :replaces of its own
+counter v⁺ v⁻ k           = sum (acts v⁺) k − sum (acts v⁻) k
+histogram F               = { x ↦ |{ key : F(key) = x }| }         F a map-valued field
+sum F                     = Σ_{key} F(key)                          F a map-valued field of ints; events sum the value
+```
+
+A `domain v k F` entry, where `F` is a list-valued field defined over the
+opener only, removes from `acts v` every act whose `k` is not an element of
+`F`; the excluded act stays accepted and contributes nothing.
+
+Properties (the corpus checks them; [[SPEC-019-state-rules#REQ-1930]]
+proves them): every kernel function is invariant under permutation and
+duplication of `acc(t)`; `acts`, `size`, `distinct`, and `events` are
+monotone in `acc(t)`; a write named in some accepted `:replaces` for its
+key is never picked from `current`; a write no accepted act names is in
+`current` whatever else is accepted (add-wins); signer selection removes a write only when a same-signer act names it; `sum` contributes once per
+address.
+
+### R.3 Values and rendering
+
+```
+Value  := Absent | Str | Int | Bool | Set [Scalar] | Map [(Scalar, Value)] | Pair (Signer, Scalar)
+State  := [(field, Value)]                                  in clause order
+```
+
+Bounded-counter fields are tagged `Map` values with the schema in
+[[SPEC-019-state-rules#CON-1908]]; pending and fault values have no numeric balance.
+
+Canonical JSON: `Absent → null`; `Str → JSON string` (RFC 8259 §7 shortest
+escapes, lowercase hex); `Int → decimal`; `Bool → true|false`; `Set → array`
+sorted by the UTF-8 bytes of each element's rendering; `Map → object`, a
+string key as itself and a number or boolean key as its rendering (a key
+field has one declared type, so no collision), sorted by UTF-8 bytes; `Pair →
+{"by": signer, "value": scalar}`; `State → object` in clause order. Two
+states are equal iff their renderings are byte-equal. Numbers are CBCL
+integers (`i64` in a field, exact and unbounded as a total).
+
+### R.4 Receipt (R7 state shape, part of the shape stage of admission)
+
+For an act of any verb the state clause names: no keyword field beyond the
+shape's declared fields plus `:caused-by :thread :from :to`; strings ≤
+`max-string` bytes, lists ≤ `max-list` scalar elements, numbers ≤
+`max-number` in magnitude, for every field a rule or domain names;
+`:replaces`, when present, a list of ≤ `max-list` distinct `sha256-<64hex>`
+symbols that need not resolve. (Addresses are spelled `sha256-<hex>` on the
+wire because the lexer reads `:` as the start of a keyword; the digest is
+`message_content_hash`'s, whose textual form uses a colon.) Any failure is a `Violation` blamed on the
+sender. No rule here reads history.
+
+### R.5 The binder
+
+`intend(instance, signer, verb, fields)`, pure, where `instance` = dialect,
+thread, `acc(t)`, opener, and under R6 the root and its cast. The root is
+the cast-bearing `with-roles` wrapper around a `hello` that opens the
+thread ([[SPEC-014-role-layer-endpoint-projection#REQ-611]]); it is typed
+as `begin` (REQ-623) and the opener follows it. Role-free, there is no root
+and the opener's predecessor is `begin`.
+
+```
+1 admit    verb is a non-opener performative of the dialect; fields carry no routing keyword,
+           no recipient, no role, no :replaces; under R6 the signer occupies a role the verb's
+           :from names (singleton: nominated key; indexed: any member)   → else reject
+2 domain   for each (domain verb k F): fields[k] ∈ F                     → else reject
+3 to       role-free: the accepted opener's recipient set
+           R6: the verb's :to roles resolved through the cast (indexed → every member; () → none)
+4 replaces for each register/removal the verb writes or deletes: the addresses of the current
+           writes for the intent's key (or value), plus current deletions for a writer with a
+           delete verb, sorted, the first max-list of them; a delete verb with no current write → reject
+           for latest-per-signer: the signer’s own current-by-signer writes of this verb,
+           sorted and distinct, bounded by max-list; an empty list is included on the first write; union targets when one verb feeds several replacement rules
+5 caused-by C = { m ∈ acc(t) : m.v ∈ allowed(verb) }; C = ∅ → begin if allowed else reject;
+           Own = { m ∈ C : m.s = signer } ≠ ∅ → greatest-address own act no own act names;
+           else greatest-address member of C; under (all p₁…pₙ) once per pᵢ in declared order
+6 build    the act in keyword form: (verb <recipients> :field value … [:replaces (…)] :from signer
+           :thread t :caused-by …), wrapped in (lang <name> …); canonicalise; address := the
+           wire spelling of message_content_hash. Templates are the dialect's declared effect
+           and are not expanded on this path; a state-bearing act is its keyword form.
+7 verify   R.4 state shape, R5 shape, R5 causal, R6 role, against acc(t) ∪ {act}  → else reject
+out        the canonical act (to be signed by the host), or reject(reason); no side effect
+```
+
+Rejects: `UnknownVerb`, `Opener`, `Forge(field)`, `Role(required)`,
+`Domain(field)`, `NothingToDelete`, `NoPredecessor`, `Shape(violation)`,
+`NotValid(verdict)`. Calling `intend` and discarding the result is the dry
+run.
+
+### R.6 Identity and distribution
+
+A dialect's identity is `dialect_body_hash`: SHA-256 over its canonical
+form with the name slot empty (the signature and hash fields are excluded
+as before). Its *self-address* is `sha256-` followed by that hash's
+lowercase hex: the same spelling as every content address on the wire, so
+`(lang sha256-… …)` names a dialect as `:caused-by sha256-…` names an act.
+A name beginning with `sha256-` claims to be a self-address
+and installation rejects it unless it is; an author-chosen name is a
+pointer and is left alone. A consumer that needs content-addressed
+identity (the object SDK) names dialects by self-address, which
+`dialect_hash` exports.
+The dialect is distributed as an R4-signed `(meta (teach (define …)))` to
+the recipient set of the instances it governs; an opener identifies it by
+the `lang` wrapper's name and by nothing else. Every address in `:caused-by`,
+`:replaces`, the fold, the corpus, and every export is `message_content_hash`.
+
+### R.7 Exports (wasm, Erlang NIF, FFI; JSON at the boundary)
+
+```
+fold(dialect, instance)                 → state
+intend(dialect, instance, signer, verb, fields) → canonical | reject
+verify_state_shape(dialect, message)    → ok | violation
+state_schema(dialect)                   → [(field, type)]        type derived from the sugar table
+may_send(dialect, instance, signer)     → [verb]                 step 1 of intend, without an intent
+instance(instance)                      → address of the accepted opener
+frontier(instance)                      → sorted addresses no accepted act names in :caused-by
+dialect_hash(define_text)               → sha256-<hex>
+admit(dialect, instance, message)       → accepted | pending | rejected(reason)   R.4 + R5 + R6 against acc(t)
+resource_check(dialect, instance, message) → ready | pending | rejected | fault   CON-1908/1909
+```
+
+At the boundary the exports take S-expression frames and return canonical JSON:
+
+```text
+(fold <dialect> <thread> (acts (<signer> <message>) …))
+(intend <dialect> <thread> (acts …) <signer> <verb> (:k v …))
+(verify-state-shape <dialect> <message>)
+(state-schema <dialect>)
+(may-send <dialect> <thread> (acts …) <signer>)
+(frontier <dialect> <thread> (acts …))
+(admit <dialect> <thread> (acts …) (<signer> <message>))
+(resource-check <dialect> <thread> (acts …) (<signer> <message>))
+dialect_hash(<define text>)
+```
+
+`admit` checks one message against the accepted set.
+It checks R5 and R.4 shapes first, then R5 causal and R6 role conformance under the thread's cast.
+A missing predecessor yields `pending`.
+Consumers retry pending messages as the accepted set grows; the corpus runner uses this same function.
+Each act entry is the complete received message with its authenticated
+signer; the cast is read from the root among the acts and never supplied.
+
+## Context
+
+### The first consumer: what cbcl-bus deploys
+
+Descriptive, not normative. cbcl-bus rooms carry interactive objects. An
+agent publishes a JSON contract `{verbs, project}`; its `verbs` compile to
+`(extend …)`, `(shape …)`, `(protocol …)` which cbcl-rs `verify_dialect`
+must accept, but its `project` is interpreted by `projection.js` and its
+intents are completed by `emit.js`, both vendored into hark so that agents
+and browsers agree. Four gaps follow: the artefact cbcl-rs verifies does
+not carry the fold; the SDK keeps a second message identifier beside
+`message_hash`; agreement between hosts holds by copying a file, not by
+specification; and roles are unreachable because the artefact that carries
+them is not the one that carries state.
+
+### What this specification does
+
+It adopts the deployed algebra unchanged in substance, states it as a kernel
+with sugar, makes it a dialect clause with an installation check, moves the
+fold and the binder into `cbcl-core`, and closes the four gaps. It corrects
+one claim in cbcl-aamas §6.2: the per-signer and per-key selectors do not
+order by causal depth. Under R5 acyclicity a same-verb group never contains
+a member's predecessor, so the depth the interpreter computes over that
+group is identically zero; the deployed order is the content address.
+
+## Requirements
+
+Each requirement points at the Reference for its definition; the Reference
+is normative, the requirement fixes the obligation and its trace.
+
+### Clause and carrier
+
+**REQ-1900: State clause.** The dialect parser SHALL accept an OPTIONAL
+`(state …)` clause and an OPTIONAL `(:state-bounds …)` clause per R.1, at
+most one of each. Trace: [[SPEC-019-state-rules#TEST-1900]], [[SPEC-019-state-rules#CON-1900]].
+
+**REQ-1901: Closed vocabulary.** The rule heads are exactly those
+of R.1 and [[SPEC-019-state-rules#CON-1908]], plus `domain`; any other head is a parse violation. The vocabulary
+changes only with a new version of this document and of the corpus.
+Trace: [[SPEC-019-state-rules#TEST-1901]].
+
+**REQ-1902: State data on dialect types.** `Dialect` SHALL carry
+`state: Option<StateClause>` and `state_bounds: StateBounds`, so that
+`r7_violations`, `fold`, and `intend` are functions of the `Dialect` value.
+Trace: [[SPEC-019-state-rules#TEST-1900]], [[SPEC-019-state-rules#CON-1903]].
+
+**REQ-1903: Signature-bound.** The canonical body of a dialect
+([[SPEC-014-role-layer-endpoint-projection#REQ-624]]) SHALL include both
+clauses and the compiler-inserted `:replaces` shape rules, as a new
+canonical-form version. Trace: [[SPEC-019-state-rules#TEST-1903]].
+
+**REQ-1904: Bounds.** The four bounds of R.1 SHALL take their defaults when
+absent and SHALL be checked at installation (a bound above its default is
+a violation). Trace: [[SPEC-019-state-rules#TEST-1904]], [[SPEC-019-state-rules#ADR-1911]].
+
+### Installation (R7)
+
+**REQ-1905: References resolve.** Every verb a rule names SHALL be a
+performative of this dialect; every key SHALL be a required keyword of that
+performative's shape with a type; the dialect SHALL have a protocol clause
+with exactly one opener. Trace: [[SPEC-019-state-rules#TEST-1905]].
+
+**REQ-1906: Typing.** Key fields, `set-union`/`observed-set` value fields,
+and `values*` value fields SHALL be scalar (`string`, `number`, `bool`) or,
+for `values`, a scalar list; `counter` names two distinct verbs carrying a
+`number` field of the same name; `histogram` and `sum` name a map-valued
+field defined earlier in the clause, `sum` one whose values are `number`;
+no rule names a `symbol` or `keyword` field. Types follow the sugar table.
+Trace: [[SPEC-019-state-rules#TEST-1906]].
+
+**REQ-1907: `:replaces` is bookkeeping.** Installation SHALL add
+`(require :replaces list)` to the shape of every writer, delete, and remove
+verb of R.1 and SHALL reject a dialect that declares `:replaces` itself,
+names it in a rule, or gives a delete verb any field beyond the key. One
+delete verb serves one register. Trace: [[SPEC-019-state-rules#TEST-1907]], [[SPEC-019-state-rules#ADR-1901]].
+
+**REQ-1908: Domains.** A `domain v k F` entry SHALL name a `string` key
+of `v` and a list-valued field `F` whose rule names only the opener.
+Trace: [[SPEC-019-state-rules#TEST-1908]], [[SPEC-019-state-rules#ADR-1909]].
+
+**REQ-1909: Opt-in.** `r7_violations` SHALL be empty for a dialect with
+neither clause. Trace: [[SPEC-019-state-rules#TEST-1909]].
+
+**REQ-1910: Integration.** `DialectRegistry::install` SHALL run
+`r7_violations` with R1–R6 and reject on a non-empty result via
+`DialectInstallError::R7`; every binding's `verify_dialect` reports it.
+Trace: [[SPEC-019-state-rules#TEST-1910]].
+
+### Receipt
+
+**REQ-1911: Closed field sets.** Per R.4, an act of a state-bearing verb
+with an undeclared keyword is a shape violation. Trace: [[SPEC-019-state-rules#TEST-1911]].
+
+**REQ-1912: Bounds on state-bearing fields.** Per R.4. Fields no rule names
+are bounded only by R2 and transport. Trace: [[SPEC-019-state-rules#TEST-1912]].
+
+**REQ-1913: `:replaces` carries addresses.** Per R.4. Trace: [[SPEC-019-state-rules#TEST-1913]].
+
+**REQ-1914: Admission never reads state.** The R7 state-shape check
+SHALL run in the shape stage, after authentication and before
+`verify_causal`, and SHALL depend on the message alone. The causal stage
+reads the accepted set only for its causal structure (predecessors, the
+root and its cast). No stage SHALL read a value the fold computes, so a
+verdict is a function of the dialect's static footprint, the message, and
+that structure. Domains are not checked at admission
+([[SPEC-019-state-rules#ADR-1909]]). This keeps acceptance in the regular
+trace languages of SPEC-014 (`storeTrace_regular`): no counter or data
+comparison a rule computes can reach a verdict, and no verdict changes when
+a concurrent act moves a field.
+Trace: [[SPEC-019-state-rules#TEST-1914]].
+
+### Semantics
+
+**REQ-1915: R7.** `fold(clause, acc(t))` SHALL be total on finite sets and
+SHALL depend on `acc(t)` only as a set: invariant under permutation and
+duplication, independent of time, randomness, replica, and other threads.
+Trace: [[SPEC-019-state-rules#TEST-1915]], [[SPEC-019-state-rules#TEST-1940]].
+
+**REQ-1916: The order.** `pick` selects the greatest address and nothing
+else; no rule consults depth, chain length, or a timestamp.
+Trace: [[SPEC-019-state-rules#TEST-1916]], [[SPEC-019-state-rules#ADR-1902]].
+
+**REQ-1917: Kernel semantics.** Each rule SHALL compute the R.2 definition
+by way of the sugar table; the properties listed there SHALL hold.
+Trace: [[SPEC-019-state-rules#TEST-1917]], [[SPEC-019-state-rules#TEST-1941]]–[[SPEC-019-state-rules#TEST-1944]].
+
+**REQ-1918: Values and rendering.** Per R.3. Trace: [[SPEC-019-state-rules#TEST-1918]].
+
+**REQ-1919: Integers.** Per R.3; no rounding rule exists.
+Trace: [[SPEC-019-state-rules#TEST-1919]], [[SPEC-019-state-rules#ADR-1904]].
+
+**REQ-1920: One address.** Per R.6. No consumer SHALL key state, `:replaces`,
+or the corpus by a second identifier. Trace: [[SPEC-019-state-rules#TEST-1920]], [[SPEC-019-state-rules#ADR-1905]].
+
+### The binder
+
+**REQ-1921: Pure.** `intend` SHALL be a pure function of its arguments per
+R.5; it never signs, sends, stores, or reads a clock.
+Trace: [[SPEC-019-state-rules#TEST-1921]].
+
+**REQ-1922: Deterministic binding.** Steps 3 and 5 of R.5 (recipient set,
+role gate, predecessor) SHALL be computed exactly as written.
+Trace: [[SPEC-019-state-rules#TEST-1922]].
+
+**REQ-1923: Replacement binding.** Step 4 of R.5: the binder names up to
+`max-list` current writes in address order and never rejects for having
+more; a delete verb with nothing to delete rejects.
+Trace: [[SPEC-019-state-rules#TEST-1923]].
+
+**REQ-1924: Domain refusal.** Step 2 of R.5. Trace: [[SPEC-019-state-rules#TEST-1924]].
+
+**REQ-1925: Rejection is total and silent.** Every reject carries one of
+the R.5 reasons and leaves store and transport untouched.
+Trace: [[SPEC-019-state-rules#TEST-1925]].
+
+**REQ-1926: Soundness.** A returned act SHALL verify `Valid` (and
+role-conformant) against `acc(t) ∪ {act}`, SHALL satisfy R.4, and its
+`:replaces` SHALL equal the current writes the binder saw; two replicas
+with the same `acc(t)` and intent SHALL return byte-identical text.
+Trace: [[SPEC-019-state-rules#TEST-1926]], [[SPEC-019-state-rules#TEST-1946]].
+
+### Identity, distribution, presentation
+
+**REQ-1927: Name from hash.** Per R.6. Trace: [[SPEC-019-state-rules#TEST-1927]], [[SPEC-019-state-rules#ADR-1903]].
+
+**REQ-1928: Teach.** Per R.6. A receiver installs through R1–R7, MAY hold
+openers pending, MAY query for a definition by name, and SHALL NOT install
+one from an opener's fields. Trace: [[SPEC-019-state-rules#TEST-1928]], [[SPEC-019-state-rules#ADR-1908]].
+
+**REQ-1929: Presentation is separate.** The dialect's body, hash, and
+signature SHALL NOT depend on any presentation. A presentation binds to a
+dialect by its name and receives state, `may_send`, and `frontier`; it is
+never given the acts, the store, or the opener. A dialect author who wants
+a value displayed projects it. Trace: [[SPEC-019-state-rules#TEST-1929]], [[SPEC-019-state-rules#ADR-1907]].
+
+### Proof, conformance, exports
+
+### State-machine refinement
+
+Failure mode: set invariance establishes equal observations of equal histories, but does not establish legal business transitions during execution.
+The [[state-refinement]] proof closes this gap for a pinned thread and dialect, with an independently defined counter instance.
+Reviewers read [[SPEC-019-state-rules#ADR-1913]]; implementers read [[SPEC-019-state-rules#CON-1906]] and its tests.
+Consumers use the counter theorem as a worked proof, then discharge the acceptance obligation for their own business machines.
+
+**REQ-1935: Execution discipline.** The Lean execution model SHALL preserve unique accepted addresses and acceptance only from received, pending candidates.
+Trace: [[SPEC-019-state-rules#CON-1906]], [[SPEC-019-state-rules#TEST-1954]], [[SPEC-019-state-rules#TEST-1957]].
+
+**REQ-1936: Forward simulation.** Given independently supplied initialization and acceptance obligations, every concrete step SHALL map to its business action or stuttering.
+The mapping reads only the accepted history; the dialect and immutable admission context remain fixed throughout each behavior.
+Trace: [[SPEC-019-state-rules#CON-1906]], [[SPEC-019-state-rules#TEST-1955]].
+
+**REQ-1937: Counter instance.** The counter fold SHALL refine independently defined labelled increment and decrement operations, starting at zero.
+Distinct verbs select addition or subtraction; other verbs leave the balance unchanged.
+Duplicate acceptance leaves the balance unchanged, including nonzero amounts.
+Amounts are integers; this theorem promises neither nonnegative balances nor nonnegative amounts.
+Trace: [[SPEC-019-state-rules#CON-1906]], [[SPEC-019-state-rules#TEST-1956]], [[SPEC-019-state-rules#TEST-1958]].
+
+**REQ-1938: Claim boundary.** Documentation SHALL NOT present this model proof as Rust equivalence, authentication correctness, liveness, or refinement of every business dialect.
+Trace: [[SPEC-019-state-rules#TEST-1959]].
+
+#### CON-1906: Execution-to-business simulation
+
+Interface: `LeanCbcl/StateRefinement.lean`, typed `State.Act` inputs; no new wire grammar or external-input recogniser.
+Preconditions: fixed admission function and immutable authentication predicate; initial empty history; address-consistent received acts; distinct counter verbs.
+Postconditions: reachable histories preserve address uniqueness; internal steps preserve observations; accepted acts satisfy the supplied business transition obligation.
+The abstract specification supplies `initial` and `next` independently of the concrete step relation.
+The generic theorem takes separate initialization and acceptance-effect proofs; the counter instance discharges both using arithmetic lemmas.
+Fresh acceptance requires a business transition proof; only reapplication may bypass it as stuttering.
+Error model: malformed or unauthenticated acts have no receive transition; address-conflicting candidates have no fresh receive transition.
+Rejected and pending candidates remain outside accepted history.
+Infinite behaviors retain stuttering explicitly, including behaviors that stutter forever; no fairness assumption or termination claim applies.
+Purity boundary: the proof consumes typed acts and an authentication premise; parsing, cryptography, transport, and Rust execution remain outside it.
+Implements: [[SPEC-019-state-rules#REQ-1935]], [[SPEC-019-state-rules#REQ-1936]], [[SPEC-019-state-rules#REQ-1937]].
+Verified by: [[SPEC-019-state-rules#TEST-1954]], [[SPEC-019-state-rules#TEST-1955]], [[SPEC-019-state-rules#TEST-1956]].
+Negative and scope coverage: [[SPEC-019-state-rules#TEST-1957]], [[SPEC-019-state-rules#TEST-1958]], [[SPEC-019-state-rules#TEST-1959]].
+
+#### ADR-1913: Compose an execution model with an independent counter specification
+
+The existing set-invariance theorems describe snapshots; the requested Lamport comparison requires a theorem about execution steps.
+The proof reuses `AdmissionStratification.Admission`, `State.insertAct`, and the existing counter reduction.
+A small execution relation supplies receipt, pending scheduling, rejection, acceptance, duplicate delivery, and idle steps.
+The generic simulation contract separates business obligations from execution bookkeeping.
+The worked business machine defines addition and subtraction directly, without referencing `fold` or concrete execution states.
+This settles at the composition rung, followed by minimum new execution and simulation definitions.
+Whole-history counters provide a compact independent instance; phase-gated voting requires additional business obligations beyond existing R7 invariance.
+Open, owner CBCL maintainer: Rust/model equivalence, deployed authentication, dynamically changing dialects, other business instances, and fairness-dependent progress.
+Trace: [[SPEC-019-state-rules#REQ-1936]], [[SPEC-019-state-rules#REQ-1937]], [[SPEC-019-state-rules#REQ-1938]].
+
+#### Refinement tests
+
+All tests are core and run through Lean's kernel, the library build, and the axiom audit.
+The proof-specific evidence lives in [archived state-refinement-verification.md](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/state-refinement-verification.md).
+
+**TEST-1954: Execution invariants.** Prove reachable accepted histories have unique addresses and contain only authenticated, received acts.
+Validates: [[SPEC-019-state-rules#REQ-1935]].
+
+**TEST-1955: Simulation and behaviors.** Prove initial-state mapping, step simulation, finite reachability, and pointwise infinite behavior mapping with stuttering.
+Prove a constant observation cannot simulate a business machine forbidding every accepted effect.
+Validates: [[SPEC-019-state-rules#REQ-1936]].
+
+**TEST-1956: Independent arithmetic.** Prove counter acceptance effects for arbitrary amounts and accepted histories, then instantiate the generic behavior theorem.
+Validates: [[SPEC-019-state-rules#REQ-1937]].
+
+**TEST-1957: Prohibited acceptance.** Prove absent candidates and conflicting accepted addresses cannot enter the accepted set.
+Validates: [[SPEC-019-state-rules#REQ-1935]].
+
+**TEST-1958: Wrong outputs.** Reject double-counting duplicate acts, decrement sign reversal, and receipt changing the displayed balance.
+Run a deliberate sign mutation and require the arithmetic regression theorem to fail.
+Validates: [[SPEC-019-state-rules#REQ-1937]].
+
+**TEST-1959: Scope and claims.** Independently review theorem assumptions and documented boundaries.
+Inspect the changed-path diff for only Lean, specification, plan, concept, README, and evidence changes.
+Record the reviewer identity, findings, claim-boundary search, and changed paths in the verification evidence.
+Validates: [[SPEC-019-state-rules#REQ-1938]].
+
+**REQ-1930: Lean obligations.** `LeanCbcl/State.lean` models the accepted
+set as a `List Act` under the store invariant `NodupAddr` (no two acts share
+an address) with set-extensional equality `SetEq`, addresses as `Nat` (an
+order-preserving image of the hex form), and collections as characteristic
+functions. Proved, with only the standard axioms: `fold_perm_invariant`
+(every rule of the sugar table is a set function; `pickAct_setEq` is the
+order-by-address core), `fold_dedup_invariant` (the store's `insertAct`
+ignores a re-delivered act); `acts_mono`, `count_mono`, `has_mono`,
+`exists_mono` under store growth (`Sublist`); `mem_current_iff`,
+`replaced_never_current`, `unnamed_is_current`, `registerPerKey_from_current`;
+`sumField_insert` (once per address); and for the binder
+`intend_pred_valid` (the predecessor is an accepted act of an admitted
+type), `intend_replaces_current` (`:replaces` names exactly the current
+writes of the key), `intend_supersedes` (those writes are not current once
+the act is accepted), `intend_current_after` (the act itself is current).
+Also proved: `histogramPerKey_setEq` (the per-key histogram is a set
+function); `allowedOf_setEq` and `actsDom_setEq` (a domain's list, read
+from the opener as a scalar list `Val.list`, and the acts it admits are set
+functions; both are conjuncts of `fold_perm_invariant`); `actsDom_excluded`
+and `excluded_not_mem` (accepting an act outside the domain changes no rule
+over its verb, and the act is in no rule's table; ADR-1909). Not modelled in
+`State.lean`: the R5/R6 verifier itself, which `intend_pred_valid`
+characterises as an admitted-type predecessor.
+`LeanCbcl/AdmissionStratification.lean` models admission as a shape stage
+over one act and a causal stage over the accepted set's skeletons (address,
+verb, signer, predecessors) and proves, for REQ-1914: `admit_ignores_data`
+(rewriting every accepted act's fields and `:replaces`, all any rule reads,
+moves no verdict; `fold_reads_data` shows a rule it does move);
+`storeAccepts_iff` and `localStoreTrace_regular` (with R6's name-level
+causal stage, the stores admission accepts are a regular language for any
+message-local shape stage, hence `r7Store_isTraceDCFL`, extending SPEC-014's
+`storeTrace_regular`); `r7Admission_sticky` (an accepted verdict survives
+store growth). Necessity: `countGated_not_regular` (an admission gated on
+one `count` rule recognises a language no finite automaton does) and
+`domain_feedback_not_sticky` (a domain enforced at admission accepts a vote,
+then rejects it when a concurrent opener arrives). Stratification alone does
+not give regularity, since a causal stage could count verbs; regularity
+rests on the causal stage reading names by membership, as R6's does.
+The Rust/Lean correspondence is checked by the corpus, not proved.
+The signer model proves `currentOwn_setEq`, signer-scoped membership, supersession, and cross-signer noninterference.
+`intendOwn` proves own-current replacement targets, predecessor validity, supersession, and fresh-write currency.
+Its input list is domain-prefiltered; the binder abstraction omits Rust’s sorted, bounded address prefix.
+The conformance corpus and targeted Rust tests check that finite policy.
+Trace: [[SPEC-019-state-rules#TEST-1953]].
+Trace: [[SPEC-019-state-rules#TEST-1940]]–[[SPEC-019-state-rules#TEST-1946]], [[SPEC-019-state-rules#TEST-1953]].
+
+**REQ-1931: One corpus.** The corpus of cbcl-bus SPEC-085 CON-005, amended
+per [[SPEC-019-state-rules#CON-1904]], SHALL be the oracle. cbcl-rs
+SHALL ship a runner feeding each vector forward, reversed, and duplicated,
+and SHALL pass every vector at the pinned version. Every *independent*
+implementation (one that computes the fold or the binding without calling
+the core) pins the vectors by content hash and passes them; a consumer that
+obtains every judgement from the exports inherits conformance.
+Trace: [[SPEC-019-state-rules#TEST-1931]].
+
+**REQ-1932: Exports.** Per R.7, through `cbcl-wasm`, `cbcl-erl`, and
+`cbcl-ffi` under [[SPEC-010-binding-conformance|SPEC-010]]. The frames are
+one implementation, `cbcl_parser::state_exports`; a binding adds term
+translation and crash containment and no semantics, so the corpus test on
+the shared frames is the conformance gate for all three
+([[SPEC-009-erlang-binding#CON-003]] for the NIFs).
+Trace: [[SPEC-019-state-rules#TEST-1932]].
+
+## Bounded counter amendment — escrow resource primitive
+
+Status: implementation in progress. The versioned wire contract below replaces
+the earlier typed-only draft. Runtime support is tested independently from the
+model proof and host serialization obligations; no protocol-admission theorem
+is extended to arithmetic authorization.
+
+### Orientation
+
+Intent: a [[bounded-counter]] maintains an integer lower bound by allocating
+exclusive decrement rights to owners. This is the escrow construction of
+[Balegas et al. (2015)](https://arxiv.org/abs/1503.09052), adapted to CBCL's
+immutable act store. It is useful for stock, spendable credits, and resource quotas.
+The lower bound is required. An optional ceiling adds an independent
+escrow budget of increment headroom, so both bounds survive compatible union.
+
+Each owner serializes its own operations durably. Different owners operate
+concurrently within their allocations. A transfer moves existing rights; it
+creates no global value. Rights exhaustion can refuse a request while another
+owner still holds unused rights. Acquiring those rights requires communication.
+
+Example: value 10, floor 0, allocations Alice 6 and Bob 4. Concurrent spending
+of 6 and 4 succeeds, leaving value 0. Alice cannot spend 7 merely because she
+observes global value 10. Alice transferring 2 to Bob leaves value 10 and
+allocations 4 and 6; Bob can spend the received rights only after the transfer
+is present in his operation's causal evidence.
+
+This primitive has a resource verdict separate from CBCL protocol admission.
+R5/R6 acceptance alone does not authorize resource consumption. The fold can
+observe a valid resource history without modifying protocol acceptance.
+The hard bound assumes nonforking owner histories; signatures alone do not
+prevent a signer from producing competing spends. Applications needing protection
+against malicious owners must supply an authority that prevents forks before
+resource effects occur. Later detection cannot undo an external purchase.
+
+Controls:
+- No decrement or outgoing transfer exceeds the owner's available rights → [[SPEC-019-state-rules#REQ-1940]].
+- Only the owner can spend or transfer its rights → [[SPEC-019-state-rules#REQ-1941]].
+- A missing dependency remains pending and authorizes no effect → [[SPEC-019-state-rules#REQ-1942]].
+- Replay creates no additional rights or debit → [[SPEC-019-state-rules#REQ-1943]].
+- Resource rejection leaves protocol acceptance unchanged → [[SPEC-019-state-rules#REQ-1944]].
+- Competing owner branches cannot be resolved by content-address ordering → [[SPEC-019-state-rules#REQ-1945]].
+- An intent result is advisory until serialized and resource-verified → [[SPEC-019-state-rules#REQ-1946]].
+- Hard-bound claims name the owner serialization assumption → [[SPEC-019-state-rules#REQ-1947]].
+
+### ADR-1914: Separate escrow authorization from protocol admission
+
+Context: [[SPEC-019-state-rules#REQ-1914]] forbids state-dependent protocol
+admission. [[SPEC-019-state-rules#REQ-1937]] proves unrestricted integer
+arithmetic, not preservation of a bound. Checking the current global balance
+before each spend fails under concurrent replicas.
+
+Decision: compose the accepted-act store, authenticated owner identities, exact
+integer arithmetic, and a separate pure resource verifier in `cbcl-core`.
+Keep transport, signatures, durable serialization, and external effects in the
+host. Do not add a mutable replicated counter alongside the act store.
+The resource verifier reads arithmetic evidence; it is outside the regular
+protocol monitor and its monotonic verdict theorem.
+
+Composition check: the existing counter can display increments minus decrements,
+but cannot establish ownership, transfers, or exclusive spending. A binder-only
+check is bypassable and races under concurrent use. The minimum new capability
+is escrow authorization plus an observation of its verified history.
+This settles at composition plus a new pure verifier, with no change to R5/R6.
+
+Alternatives: a central authority can serialize all spends, but removes independent
+owner availability. A global balance guard overspends under concurrency. Clamping
+the displayed balance hides invalid consumption. Selecting a winning spend by
+address can revoke an already executed effect. None implements this contract.
+
+Consequence: the resource history is a dependency-closed subset of the protocol
+accepted acts, with its own pending, rejected, and fault diagnostics. It is not
+another replicated store: it is recomputed from the same acts and fixed context.
+Resource validity is conditional on the nonforking assumption; a later observed
+fork faults the resource instance instead of retroactively choosing a winner.
+
+Trace: [[SPEC-019-state-rules#REQ-1939]]–[[SPEC-019-state-rules#REQ-1947]], [[SPEC-019-state-rules#CON-1907]].
+
+### CON-1907: Typed lower-bound escrow contract
+
+Scope: fixed thread, dialect, field identifier, nonempty finite owner set,
+floor `K : Integer`, and initial allocations `A : Owner → Natural`.
+A fixed subset of owners is authorized to mint credit. Configuration is committed by the authenticated
+opener; no host-supplied replacement configuration is permitted. Initial value
+is `K + Σ A(i)`. Empty mint authority means fixed initial supply with no replenishment.
+An increment is issuance of new value, not a proof of payment or returned stock;
+the application supplies that authorization through the configured mint owners.
+Membership, key rotation, reclamation from offline owners, and changing the floor
+require a separately specified migration; this contract has no such operation.
+
+Interface, pure over recognized typed inputs:
+
+```text
+resource_check(config, accepted_acts, candidate)
+    → ready | pending(missing_addresses) | rejected(reason) | fault(evidence)
+resource_observe(config, accepted_acts)
+    → snapshot(value, rights_by_owner) | pending(missing_addresses) | fault(evidence)
+resource_intend(config, accepted_acts, owner, operation)
+    → unsigned_candidate | pending(missing_addresses) | rejected(reason) | fault(evidence)
+
+operation := Increment(amount) | Decrement(amount) | Transfer(recipient, amount)
+amount    := Natural excluding zero
+```
+
+The typed interfaces are implemented through the versioned wire integration
+in [[SPEC-019-state-rules#CON-1908]]. Unknown options remain parse errors.
+No external bytes enter this interface without the existing full message
+recognizer, authenticated signer binding, and typed conversion. The typed act
+contains the instance address, resource field identifier, operation, owner,
+previous-owner-operation address (or opener), and causal dependency addresses.
+The operation owner equals the authenticated signer. Recipients belong to the
+fixed owner set and differ from the sender. Zero and negative amounts are rejected.
+All arithmetic is exact; an implementation with bounded machine integers returns
+an explicit overflow error before emitting an effect, never wrapping or clamping.
+
+Let `H` be the resource-verified, dependency-closed history, deduplicated by
+content address. Every operation names its previous operation by the same owner,
+or the opener for the first operation. An owner operation includes that previous
+operation and all incoming transfers it uses in its transitive causal past.
+Each previous-owner link belongs to this resource, instance, and signer.
+Cycles, conflicting bodies for one address, foreign-instance dependencies, and
+wrong-owner links are rejected. Missing dependencies yield pending.
+A malformed or rejected resource operation cannot support later resource operations;
+dependents are rejected as invalid-dependency once that result is established.
+
+For owner `i`, define the exact sums over `H`:
+
+```text
+I(i)   = increments issued by i
+D(i)   = decrements issued by i
+T(i,j) = transfers from i to j
+rights(i) = A(i) + I(i) + Σ_j T(j,i) - Σ_j T(i,j) - D(i)
+value     = K + Σ_i A(i) + Σ_i I(i) - Σ_i D(i)
+          = K + Σ_i rights(i)
+```
+
+For a candidate, evaluate the owner's rights over its resource-verified causal
+past, excluding the candidate. Decrement and transfer require `rights(owner) ≥ amount`.
+Increment requires membership in the mint-owner set. Increment adds rights to
+its owner and increases value. Decrement removes rights and decreases value.
+Transfer subtracts rights from sender and adds the same amount to recipient.
+No operation reads a concurrent owner's unobserved credit. Each incoming transfer
+contributes once in the set, even if named along several dependency paths.
+
+The complete resource history of each owner is a single chain. Two distinct
+operations with the same previous-owner link are a fork, including two first
+operations naming the opener. They produce fault evidence containing both
+addresses. Fault is sticky under history growth. A resource snapshot requires the available protocol-accepted resource acts
+to resolve to a fully valid, closed, fork-free resource history.
+Unresolved dependencies return pending. Invalid operations return fault with their rejection evidence. No partial snapshot
+is presented as complete. Historical rejection diagnostics remain available.
+`resource_check` rejects invalid candidates before insertion; observation faults
+if such a candidate nevertheless appears in the protocol-accepted resource acts.
+
+A ready result is relative to the supplied history and cannot establish that a
+remote fork does not exist. The host serializes each owner with a durable atomic
+compare-and-append against its previous operation before signing/publishing.
+It also serializes issuance across crashes, retries, and multiple devices using
+the same key. An adapter which cannot provide this must refuse the hard-bound
+profile. Byzantine protection needs a separately evidenced nonforking authority;
+ordinary signature verification and later equivocation detection are insufficient.
+
+External effects occur only after successful owner serialization, protocol
+acceptance, and a ready resource verdict. The effect sink deduplicates by operation
+content address. Crash-safe effect delivery and recovery are host obligations;
+this primitive makes no exactly-once external-delivery claim.
+
+Preconditions for the invariant: authentic fixed opener; authenticated owners;
+nonforking serialized owner issuance; dependency-closed verified histories;
+correct exact arithmetic and no effect before resource authorization.
+Postconditions under those premises: every owner's rights are nonnegative,
+`value ≥ K`, and union of compatible verified histories preserves both properties.
+Compatible means histories from the same configuration whose combined owner
+chains do not fork. The theorem must cover union, not only sequential transitions.
+
+Purity boundary: the core checks supplied typed evidence and computes snapshots.
+The host supplies authentication, durable nonforking issuance, persistence, and
+idempotent effects. No theorem about the pure model proves those host mechanisms.
+
+Trace: [[SPEC-019-state-rules#REQ-1939]]–[[SPEC-019-state-rules#REQ-1947]].
+
+### Requirements and acceptance evidence
+
+**REQ-1939: Conservation and floor.** The resource observation SHALL satisfy
+`value = K + Σ rights(i) ≥ K` on every compatible union of valid histories.
+Trace: [[SPEC-019-state-rules#CON-1907]], [[SPEC-019-state-rules#TEST-1960]].
+
+**REQ-1940: Exclusive budget.** Decrement and transfer SHALL reject amounts
+exceeding the owner's rights in the operation's verified causal past.
+Trace: [[SPEC-019-state-rules#CON-1907]], [[SPEC-019-state-rules#TEST-1961]].
+
+**REQ-1941: Authority.** Resource verification SHALL reject an unauthorized
+owner, mint issuer, recipient, or resource/instance reference.
+Trace: [[SPEC-019-state-rules#CON-1907]], [[SPEC-019-state-rules#TEST-1962]].
+
+**REQ-1942: Dependency closure.** An operation with absent required evidence
+SHALL remain pending with no authorized resource effect.
+Trace: [[SPEC-019-state-rules#CON-1907]], [[SPEC-019-state-rules#TEST-1963]].
+
+**REQ-1943: Set semantics.** Resource observations SHALL be invariant under
+permutation, duplicate delivery, and multiple paths to a transfer.
+Trace: [[SPEC-019-state-rules#CON-1907]], [[SPEC-019-state-rules#TEST-1964]].
+
+**REQ-1944: Admission separation.** Resource verdicts SHALL NOT change R5/R6
+acceptance or the existing unrestricted counter's semantics.
+Trace: [[SPEC-019-state-rules#ADR-1914]], [[SPEC-019-state-rules#TEST-1965]].
+
+**REQ-1945: Fork handling.** An observed owner fork SHALL fault the resource
+instance with both addresses as evidence, without selecting a winning branch.
+Trace: [[SPEC-019-state-rules#CON-1907]], [[SPEC-019-state-rules#TEST-1966]].
+
+**REQ-1946: Issuance discipline.** The host SHALL authorize external effects
+only under the serialized issuance and verification conditions of the contract.
+Trace: [[SPEC-019-state-rules#CON-1907]], [[SPEC-019-state-rules#TEST-1967]].
+
+**REQ-1947: Claim boundary.** Bounded-counter claims SHALL state the authentication,
+nonforking, dependency-closure, arithmetic, and external-effect premises.
+Trace: [[SPEC-019-state-rules#CON-1907]], [[SPEC-019-state-rules#TEST-1968]].
+
+### Test specifications
+
+All tests below are specified obligations, not passing evidence.
+Core cases use pure typed acts; depth covers proofs and host integration.
+
+**TEST-1960: Conservation.** Core: allocations 6/4, floor 0; concurrent spends
+6/4 yield zero; a transfer of 2 yields allocations 4/6 and unchanged value.
+A nonzero floor of 5 with the same allocations ends at 5 after spending 10.
+An authorized increment of 3 increases rights and value by 3.
+Depth: prove conservation, nonnegative rights, and compatible-union preservation
+in Lean with an independent bounded business machine. Instantiate the generic
+simulation contract, including the additional issuance premises explicitly.
+Validates: [[SPEC-019-state-rules#REQ-1939]].
+
+**TEST-1961: Overspend.** Core: Alice with 6 rights cannot spend or transfer 7;
+spending 6 then 1 on her chain fails even if Bob retains 4. Zero and negative
+amounts fail. Insufficient-rights refusal emits no operation and changes no history.
+Depth: mutation removing the owner budget check must fail the negative cases;
+overflow cannot authorize an effect.
+Validates: [[SPEC-019-state-rules#REQ-1940]].
+
+**TEST-1962: Forgery.** Core: reject another owner's spend, an unauthorized
+increment, foreign thread/resource links, unknown/self recipient, and wrong-owner
+previous links; accept an authorized issuer's increment.
+Validates: [[SPEC-019-state-rules#REQ-1941]].
+
+**TEST-1963: Out-of-order transfer.** Core: deliver Bob's spend before Alice's
+funding transfer: pending, no effect. Deliver the dependency: ready once.
+A spend without the transfer in its causal past fails even if the local store has
+it. Invalid dependencies reject descendants; observation with invalid acts faults.
+Validates: [[SPEC-019-state-rules#REQ-1942]].
+
+**TEST-1964: Replay.** Core: permute and duplicate complete histories, including
+a transfer reached through two paths; value and rights remain identical.
+Validates: [[SPEC-019-state-rules#REQ-1943]].
+
+**TEST-1965: Boundary regression.** Core: a well-shaped protocol-conformant spend
+can pass protocol admission while failing the resource budget check. Existing
+unrestricted counters still admit negative observations. Malformed bounded rule
+syntax remains rejected by the versioned grammar recognizer.
+Validates: [[SPEC-019-state-rules#REQ-1944]].
+
+**TEST-1966: Equivocation.** Core: two owner operations naming one previous
+operation fault, including two operations at the opener and a fork discovered
+after a locally ready spend. Address ordering cannot repair the fault.
+Further history preserves the evidence and fault.
+Validates: [[SPEC-019-state-rules#REQ-1945]].
+
+**TEST-1967: Host races.** Depth: race two devices sharing an owner key against
+the same tip; at most one operation is issued. Crash after tip reservation,
+publication, or effect execution; recovery creates no second spend or effect.
+A rejected/pending resource operation invokes no effect sink.
+Validates: [[SPEC-019-state-rules#REQ-1946]].
+
+**TEST-1968: Premise audit.** Core: documentation and export descriptions make
+no Byzantine, unconditional availability, fairness, or deployed-correctness claim.
+Depth: construct conflicting independently issued spends to demonstrate why a
+signature alone cannot satisfy the nonforking premise.
+Validates: [[SPEC-019-state-rules#REQ-1947]].
+
+### CON-1908: Version 2 wire integration
+
+The author keeps business acts in `extend`; the new rule is part of `state`.
+This grammar is recognized over the existing S-expression AST before execution:
+
+```text
+bounded-counter-rule := (bounded-counter
+          (floor integer)
+          [(ceiling integer)]
+          (initial-rights verb keyword)
+          [(initial-headroom verb keyword)]
+          (issuers role-or-empty)
+          (increment verb keyword)
+          (decrement verb keyword)
+          (transfer verb keyword keyword)
+          [(transfer-headroom verb keyword keyword)])
+```
+
+The issuer value is a declared role, or `()` to disable all issuance. Opener
+authorization follows its protocol role and does not require mint authority.
+Each required subclause occurs exactly once; order is irrelevant and canonicalizes to
+the order above. The transfer keywords are recipient then amount. Operation
+verbs are distinct and serve exactly one bounded counter. The initializer is
+the unique protocol opener. Amount fields require `number` shapes; recipient
+requires `symbol` or `string`; allocations require `list`. A nonempty issuer role is
+a declared singleton or indexed role in the authenticated root cast. Bounded
+counters require that cast even when issuance is disabled.
+
+Allocation input is a nonempty list `((account natural) ...)`, with distinct
+accounts written as `@`-prefixed symbols or strings. Every account belongs to
+the root cast; every issuer belongs to the initial allocation account set. Accounts are fixed by that list. Initial
+allocations and the floor obey the configured max-number bound. Allocation
+pairs are a recognized exception to the scalar-list restriction. Account strings
+obey max-string and the list obeys max-list. The sum uses checked i128 arithmetic;
+overflow faults the resource observation before any usable balance is returned.
+
+Each operation carries two compiler-owned fields:
+
+```text
+:escrow-prev sha256-<hex>
+:escrow-deps (sha256-<hex> ...)
+```
+
+The previous reference names the last operation by this signer on this counter,
+or the opener for the first. Dependencies name operations on the same counter;
+their transitive closure plus the previous reference forms resource causal
+history. This resource DAG is separate from protocol `:caused-by`. It does not
+change allowed protocol predecessors. Dependencies are sorted by content address. References are unique bounded address lists;
+the previous reference cannot also occur in dependencies. Authors and intent
+callers cannot supply compiler-owned fields. No rule or domain can read these
+fields as data; they cannot be allocation, amount, or recipient keywords. Installation adds their shapes.
+The binder references every other account's known tip, without truncating needed
+evidence. If max-list is insufficient it refuses the intent.
+
+`fold` returns a tagged object for the bounded field:
+`{"status":"ready","value":integer,"rights":{"@account":integer,...}}`,
+`{"status":"pending","evidence":[address,...]}`, or
+`{"status":"fault","reason":string,"evidence":[address,...]}`.
+No pending/fault object contains a spendable numeric balance. `state-schema`
+reports `{"type":"bounded-counter"}`. Existing fold bindings share this logic.
+The fold validates all resource acts, never an address-selected winning subset;
+a second distinct opener faults the instance. Resource acts cannot be hidden by
+`domain` entries. The signer, thread, dialect, content hash, and reconstructed
+act fields must agree with the pinned instance. Supplied signer identities remain
+host-authenticated inputs, not proofs of signatures.
+
+`intend` generates bookkeeping and verifies the candidate's resource contribution
+before returning a canonical unsigned act. Insufficient rights are resource errors;
+`admit` remains protocol-only. A new `(resource-check dialect thread (acts ...)
+(signer message))` frame returns ready/pending/rejected/fault diagnostics, and is
+wrapped by the same WASM, FFI and Erlang surfaces as existing state exports.
+An already included candidate is a duplicate and does not add another effect.
+An already faulted accepted history faults resource-check before judging the
+candidate. Binding and exported observation pin dialect, thread, opener and cast;
+conflicting casts sharing an innermost root address fault under every ordering.
+
+A pure `issue` helper combines `intend` with a required host `IssuanceGate`.
+The host atomically persists the complete candidate against the expected previous
+tip before the helper returns it for publication. Its namespace is the canonical
+dialect identity, thread, opener, bounded field, and signer. All rights and
+headroom operations by that signer share this lane. Gate failure returns no issued
+message. `intend` alone remains advisory. A new operation against a stale own tip
+cannot be issued by a correct gate; recovery reuses the stored operation identity.
+Host implementations remain responsible for durable storage, authentication and
+idempotent external effects; the library does not claim to provide a production
+cross-device storage service.
+
+Trace: [[SPEC-019-state-rules#REQ-1939]]–[[SPEC-019-state-rules#REQ-1947]],
+[[SPEC-019-state-rules#TEST-1960]]–[[SPEC-019-state-rules#TEST-1968]].
+
+### REQ-1948: Optional ceiling and headroom
+
+When configured with ceiling `C`, every resource observation SHALL preserve
+`floor ≤ value ≤ C` using independently owned increment headroom.
+Trace: [[SPEC-019-state-rules#CON-1909]], [[SPEC-019-state-rules#TEST-1969]].
+
+### CON-1909: Dual escrow budgets
+
+`ceiling` and `initial-headroom` occur together, or neither occurs.
+The headroom initializer names the same opener and a distinct allocation field.
+Its account set equals the initial-rights account set. Every amount is a natural
+integer. Initial `Σ rights + Σ headroom = ceiling - floor`; ceiling is at least
+floor and both fit the configured numeric bound.
+
+Without a ceiling, increments require issuer authority but no headroom budget.
+With a ceiling, an increment consumes the signer's headroom and creates the same
+amount of its decrement rights. A decrement consumes rights and restores the
+same amount of headroom to that signer. Transfer moves decrement rights only.
+Optional `transfer-headroom` moves headroom only; it requires a ceiling and
+sufficient source headroom. It follows the same authenticated account chain.
+No operation checks only the currently observed global value against the ceiling.
+
+The invariant is `value = floor + Σ rights = ceiling - Σ headroom`.
+Ready observations include `headroom` only when a ceiling is configured.
+Pending and fault observations never expose partial budgets. Headroom can remain
+unused on an offline account; this contract makes no unconditional availability
+claim. The fixed mint-authority requirement still applies to increments.
+
+### TEST-1969: Ceiling and concurrent increments
+
+Core: floor 0, ceiling 10, initial rights Alice 2/Bob 2, initial headroom 3/3.
+Concurrent authorized increments of 3/3 reach value 10. A subsequent increment
+of 1 fails. A decrement of 2 restores 2 headroom and permits a later increment
+of 2 by an authorized signer. Independent histories merge without exceeding 10.
+Reject a mismatched headroom account set, incorrect initial total, ceiling below
+floor, missing paired options, and transfer-headroom without ceiling.
+A headroom transfer changes neither value nor total headroom; replay counts once.
+Depth: dual-budget conservation and compatible-union safety; remove the local
+headroom guard and require the ceiling test to fail.
+Validates: [[SPEC-019-state-rules#REQ-1948]].
+
+### Implementation handoff
+
+Owner: CBCL maintainer. The executable implementation theory is
+[bounded-counter-implementation#Implementation plan](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/bounded-counter-implementation.md#Implementation plan). Verification evidence is [bounded-counter-implementation](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/bounded-counter-implementation.md).
+The work includes a typed pure verifier, a model proof, canonical wire grammar,
+versioned state-rule/export integration and corpus, and a durable host adapter.
+Before accepting external resource messages, specify the wire contract.
+It defines the resource schema, exact integer encoding, field identifiers,
+binder bookkeeping, dependency limits, error JSON, and every binding's exports.
+The spec and corpus major versions advance together for this integration.
+Runtime recognition, fold, binder, pure issuance-gate interface and bindings are
+implemented separately from the host storage service and formal correspondence.
+
+The core release checks are parser/runtime tests, deliberate budget mutations,
+account race/recovery tests, and binding agreement. The independent arithmetic
+model establishes local conservation and bounds. A mechanised resource-DAG
+compatible-union proof and Rust/model equivalence remain depth obligations owned
+by the CBCL maintainer; no output describes those as completed. Production hosts
+must provide a durable gate and authenticated accepted history before relying on
+hard bounds. Overall specification status remains draft while those obligations
+remain open.
+Independent review and comprehension evidence are recorded in
+[bounded-counter-review](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/bounded-counter-review.md); the original arithmetic theorem remains scoped by
+[[SPEC-019-state-rules#REQ-1937]].
+
+## Certification research — AT2-style asset transfer
+
+Status: investigation and proposed architecture, not an implemented certification
+profile. The existing counter grammar, corpus version, resource verdicts, and
+[[SPEC-019-state-rules#REQ-1914]] remain unchanged.
+
+### Research orientation
+
+Intent: protect honest recipients when an account owner deliberately signs
+competing spends. The current [[bounded-counter]] assumes nonforking issuance;
+its local host gate cannot enforce that assumption against the account owner.
+The proposed next layer is [[SPEC-019-state-rules#Research vocabulary|secure broadcast]]
+with transferable quorum evidence and validation of the certified funding history.
+This is an AT2-inspired CBCL adaptation, not an implementation of AT2 or an
+inheritance of its proofs.
+
+Example: Alice owns 10 and proposes paying Bob 10 and Carol 10 at the same
+account position. With a fixed committee of four distinct witness keys and at
+most one faulty witness, a certificate requires three witnesses. Two such
+certificates intersect in an honest witness, which durably refuses a second
+value at that position. Neither proposal need complete if Alice equivocates.
+A missing quorum leaves the account pending; a timeout does not unlock votes.
+An uncertified competing proposal cannot revoke a finalized payment or fault
+other accounts' finalized balances.
+
+The first candidate profile fixes its witness roster, fault bound, asset genesis,
+root cast, and dialect identity. It removes account-owner honesty as a safety
+premise only if the certification protocol and its witness/network assumptions
+hold. It is permissioned and trust-minimized, not an unconditional permissionless
+coin. Multi-device writers can still need local coordination for progress.
+
+Controls for the proposed profile:
+- Only finalized, resource-valid history contributes to spendable balances;
+  raw proposals and certificates alone do not suffice.
+- Honest witnesses persist one choice per asset/account position before acknowledging it.
+- Certificates bind the full asset context and distinct authenticated witness keys.
+- Every funding dependency and previous account position requires prior finalization.
+- Observed equivocation can stop its source account; it does not retract another
+  account's finalized receipt.
+- Membership changes, shared-account progress, permissionless admission, and
+  general atomic smart contracts require separately justified protocols.
+
+### Research vocabulary
+
+| Term | Meaning in this investigation |
+|---|---|
+| Secure broadcast | Consistent source order, integrity, eventual agreement after correct delivery, and progress for a correct source under the network assumptions. It need not choose a value from an equivocating source. |
+| Quorum certificate | Transferable signatures from enough distinct configured witnesses over one precisely scoped statement. It establishes the certified statement, not automatically its application validity. |
+| Finalized resource history | A dependency-closed set of certificate-backed acts which also pass owner authentication, protocol admission, and resource verification. |
+| Permissioned committee | A fixed roster pinned by the expected asset genesis. Accepting the roster supplied by an arbitrary payer supplies no protection. |
+| Account position | One sequence number in one account's operation chain, shared by mint, burn, rights transfer, and headroom transfer. |
+
+### What the literature establishes
+
+[AT2, sections 3–4 and appendix A](https://arxiv.org/html/1812.10844v3)
+combines source order with funded transfer dependencies. Its deterministic model
+assumes fewer than one third Byzantine processes and acknowledgment quorums above
+two thirds over reliable broadcast. Ordinary gossip or signature counting does
+not establish that abstraction. Faulty senders need not complete.
+
+[The consensus number of a cryptocurrency, sections 5–6](https://pmc.ncbi.nlm.nih.gov/articles/PMC8882574/)
+explains the single-owner case and the limits of the result. Successful transfers
+have a stronger consistency guarantee than local reads or failed transfers.
+Concurrent independent writers to one account introduce a separate coordination
+problem. The shared-account extension uses per-account BFT ordering; compromised
+accounts can block while other operations remain safe. This does not provide
+general ERC-20 allowance replacement or arbitrary contract execution without
+additional reasoning.
+
+[Pastro, introduction and system model](https://drops.dagstuhl.de/opus/volltexte/2021/14830/pdf/LIPIcs-DISC-2021-28.pdf)
+addresses open membership using stake-weighted configurations, lattice agreement,
+and forward-secure signatures. Its adversary restriction concerns less than one
+third of stake in every active candidate configuration. This is a substantially
+larger protocol than replacing a fixed witness list with current balances.
+It is relevant to a later permissionless design, not evidence that CBCL already
+has a secure open validator-selection mechanism.
+
+### ADR-1915: Investigate fixed-roster certification outside the state kernel
+
+Status: proposed research recommendation. Owner: CBCL maintainer.
+Source: user request to investigate a coin safe against malicious account owners.
+
+Decision candidate: retain authored business verbs and the bounded-counter rule.
+Add a distinct, opt-in certification and finalization layer. Begin by modelling a
+fixed witness committee, rather than new arithmetic operators or a globally
+ordered chain. Decide the exact reliable-broadcast implementation before
+implementing transport. Astro supplies prior art for separating external wallet clients from a fixed
+replica committee. The CBCL integration still needs its own correctness argument,
+including both escrow budgets and authenticated instance context.
+
+Composition first: reuse canonical encoding, content-addressed acts, R4
+signature-suite dispatch, authenticated role/cast handling, and the existing pure
+resource verifier. Existing gossip does not provide Byzantine secure broadcast.
+The R4 `Signer` port does not itself provide a witness-key directory or quorum
+verification. Those missing responsibilities cannot be inferred from a successful
+CBCL signature or protocol verdict.
+
+The general intersection condition is `2*q - n > f`; for the initial profile
+`n = 3*f + 1` and `q = 2*f + 1`. Every pair of certificates then shares an honest
+witness. Signature unforgeability, durable non-equivocation by honest witnesses,
+a fixed common roster, and correct account-position binding are essential
+premises. This argument is safety only. Reliable delivery, data availability,
+recovery, and correct-source progress remain separate protocol obligations.
+
+A sender can split honest votes between conflicting values and prevent a quorum.
+That is expected for a faulty source. Choosing a winner after a timeout, forgetting
+locks, or restarting the same account position under an uncoordinated new roster
+invalidates the argument. Independent accounts need no common total order.
+
+Trace: [[SPEC-019-state-rules#REQ-1939]], [[SPEC-019-state-rules#REQ-1947]],
+[[SPEC-019-state-rules#REQ-1948]].
+
+### Integration findings from the current implementation
+
+**Finalized history needs a distinct boundary.** `escrow::observe` faults on an
+owner fork anywhere in its supplied history. `resource_check_str` likewise faults
+on an already invalid base. Feeding all protocol-accepted proposals to those
+functions lets an uncertified fork poison an otherwise finalized coin.
+The existing fork test in `crates/cbcl-parser/tests/bounded_counter.rs` exercises
+that behavior. It is correct for the current profile's premises; the certified
+profile needs a separate validated-history type or equally enforced boundary.
+
+Keep the raw immutable store for audit. Derive a certified delivery set, then a
+resource-valid finalized set. Pending and invalid proposals remain diagnostics;
+they do not enter spendable state. A certified but invalid account operation can
+block that account's next position. It does not become a globally applied debit.
+The future binder also reads the finalized set; raw or merely delivered account
+tips cannot become its funding references.
+A valid finalized act remains finalized after an uncertified sibling arrives.
+Two genuinely conflicting valid quorum certificates indicate a violated trust or
+implementation premise and require an explicit severe-fault response.
+
+**The existing issuance callback is not an asynchronous finality API.**
+`escrow::issue` passes an unsigned candidate to `IssuanceGate` before returning it
+for signing. Witness certification requires the owner's authenticated complete proposed act
+before it can authorize a spend. A network certificate cannot simply be attached inside
+that callback and called finality. The future flow needs separate preparation,
+owner signing, submission, certificate verification, dependency validation, and
+finalization. The local gate can still help honest clients avoid self-conflicts.
+It is no longer the only barrier against a malicious owner.
+
+**An act hash alone is insufficient context.** `state::Act` addresses the
+innermost simple act; wrappers and casts are checked separately. Use the same act
+address, plus a separately committed certification context.
+The signed statement binds the domain tag, suite, expected genesis, committee
+policy, dialect identity, and authenticated root/cast commitment.
+It also binds thread, state field, account, position, previous act, and candidate
+act address. The candidate already commits its resource dependencies. Certificates
+are sidecar evidence; adding one does not mutate the owner-signed act or invent a
+second message identifier.
+
+**Count keys, not messages or labels.** Witness identities resolve to configured verification keys. Duplicate signatures and equivalent key aliases
+count once; nonmembers and invalid signatures count zero. Lock persistence is
+keyed by the fixed asset context, account and position, never by candidate hash.
+Previous-position validation prevents skipping to a fresh position while spending
+against an older account tip.
+
+**Ceilings require the same protection.** Mint consumes headroom and burn restores
+it. Rights transfers and headroom transfers share the account sequence with those
+operations. Certifying only `pay` leaves conflicting burns, mints or capacity
+transfers outside the safety argument. One certificate commits the whole operation; both budget changes enter history
+together. The existing local two-budget verifier can
+be reused over finalized evidence, but the transfer-only literature does not
+prove this composite CBCL protocol automatically.
+
+### Astro: clients, replicas, and transferable credit evidence
+
+[Astro, sections III–V](https://arxiv.org/pdf/2004.13184) is a closer architectural
+reference for an external-wallet profile. Clients submit payments through a
+representative replica. Each client has an exclusive log, ordered by its own
+sequence numbers. The replica roster is permissioned and assumes fewer than
+one third Byzantine replicas. Progress requires a correct client and representative.
+
+Astro I uses Bracha broadcast with totality. Astro II uses signed acknowledgments
+and commit evidence, with an additional credit-dependency mechanism to compensate
+for missing broadcast totality. Its credit certificates contain f+1 distinct
+approvals, which prove at least one honest replica approved a payment. They are
+not the quorum that prevents conflicting payments. Used credit evidence is tracked
+to prevent duplicate deposits. Sharding requires the fault bound in every shard.
+
+Design inference for CBCL: distinguish evidence selecting one account operation
+from evidence making its received rights available to another account. A naive
+signature quorum plus gossip can leave a recipient unable to spend a payment
+that only some replicas received. Our explicit funding dependencies offer a useful
+integration point, but do not already implement Astro's credit protocol. Neither
+Astro's fixed roster nor its transfer protocol supplies permissionless membership,
+a VRF election, or a proof for CBCL's optional ceiling and headroom transfers.
+
+### Validator fractions, AT2 sampling, and a possible VRF layer
+
+The fault fraction is over a defined population of eligible processes, not over
+whoever replies or whoever the payer nominates. For a static profile, define
+`n` distinct witness identities and at most `b` Byzantine witnesses, with `n > 3*b`.
+This is stronger than a simple honest majority. An open roster needs a mechanism
+that keeps this fraction meaningful despite arbitrary key creation.
+
+AT2's probabilistic model in section 5.1 assumes a bounded Byzantine fraction,
+reliable authenticated links, private randomness, hidden correct-process
+communication relationships, and uniform sampling of process public keys.
+Section 5.5 discusses Brahms plus a separate Sybil-resistance mechanism.
+It is not a VRF-selection protocol. Sample sizes and thresholds govern
+probabilistic failure, rather than supplying the fixed-quorum guarantee above.
+
+[VRFs, RFC 9381 sections 2–3](https://www.rfc-editor.org/rfc/rfc9381.html)
+provide verifiable deterministic outputs for a fixed key and input.
+[Algorand, sections 5–6](https://people.csail.mit.edu/nickolai/papers/gilad-algorand.pdf)
+uses VRF-based cryptographic sortition with weighted participation and protocol
+seed management. VRF eligibility is not itself double-spend finality or proof of
+an honest committee.
+
+Design inference for CBCL: a VRF is a plausible later eligibility layer around
+[[SPEC-019-state-rules#ADR-1915]], subject to additional selection and rotation
+proofs. The following conditions become design obligations, not implemented features:
+
+- Fix the registered population, weights and VRF keys before revealing the seed.
+  A closed eligible roster can supply admission control; open participation needs
+  scarce-resource weighting or another defended admission mechanism.
+- Use a common, authenticated membership/weight snapshot and an unbiased seed.
+  A payment hash or payer-chosen nonce permits candidate grinding. A previous
+  payment hash is not automatically an unbiased beacon either.
+- Competing proposals at one account position use the same eligibility instance.
+  A candidate selection input can bind domain, asset genesis, established seed,
+  membership checkpoint, account, position and role, but not a freely chosen act hash.
+  This sketches input binding, not a complete sortition algorithm.
+- Keep eligibility fixed across retries of an unresolved position. Rotating to a
+  disjoint committee after a timeout can produce conflicting certificates despite
+  honest majorities inside both committees. Rotation needs a certified handoff or
+  another proved cross-committee rule.
+- Derive certificate thresholds from the selected protocol and agreed population
+  or weight checkpoint. Two thirds of revealed replies is not a safe denominator;
+  withholding proofs cannot redefine the quorum.
+- Quantify sampling failure and its accumulation across positions, accounts and
+  retries. An honest global fraction does not force every small sample to have
+  the same honest fraction. A privately eligible committee also needs a specified
+  policy for missing members and withheld proofs.
+- Preserve the network/adversary assumptions of the chosen protocol. A VRF does
+  not by itself hide peer connections, provide reliable broadcast, or solve an
+  adaptive corruption and old-key compromise problem.
+
+For initial testing, a fixed roster isolates finalization correctness from those
+sampling questions. A later VRF profile can sample that established roster before
+attempting permissionless membership. A stake snapshot of the new coin itself
+needs secure bootstrap and consistent finalization; raw, disputed counter balances
+cannot safely choose the validators which declare those balances final.
+
+### Candidate finalization pipeline
+
+```text
+Pinned asset genesis: dialect + cast + allocations + witness roster + fault bound
+                                      |
+owner-signed act --> authentication / protocol checks --> raw audit store
+                                      |
+                       source-ordered certification protocol
+                                      |
+                       certificate-backed delivery buffer
+                                      |
+                  previous position + funding dependencies finalized?
+                                      |
+                       pure bounded-counter verification
+                                      |
+                     monotonically add to finalized history
+                                      |
+                  spendable observations / idempotent external effects
+```
+
+Broadcast delivery, certificate verification and final application are distinct.
+A future `finalized` result implies the complete pipeline; the existing `ready`
+result continues to mean resource validity under supplied history premises.
+A future implementation cannot trust a caller-provided `finalized` flag.
+Every correct process which accepts a final result needs the signed data and
+its certificates, not only an unresolvable digest. Correct recipients relay verified final evidence. The chosen reliable-broadcast
+protocol supplies its promised dissemination guarantees.
+
+### Executed finite checks and limits
+
+Run `python3 proofs/bounded-counter-certification/check_quorums.py`.
+The machine output is [archived bounded-counter-certification-checks.json](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/bounded-counter-certification-checks.json).
+This independently enumerates static quorum intersections for the four-witness
+and seven-witness profiles. It constructs failures for an insufficient threshold,
+forgotten vote persistence, per-candidate rather than per-slot locking, and
+uncoordinated roster replacement. It also checks statement-context distinctions
+and duplicate/nonmember witness rejection in a structural model.
+
+These checks do not verify signatures, run reliable broadcast, implement an
+account ledger, or establish asynchronous liveness. Signer labels stand for
+already authenticated distinct keys. They are falsifiable design examples, not a
+proof of an implemented trustless coin. A faulty source's split-vote stall is an
+expected execution, not a failed consensus termination test.
+
+### Next prototype and acceptance questions
+
+Sequential baseline: a separately specified fixed-committee profile, with a pinned
+asset genesis, portable certificate verification and a certified-history boundary.
+The subsequent comparison at [[SPEC-020-resource-certification#ADR-2001]] prefers
+invariant-aware account-local certification for the richer profile.
+[[SPEC-020-resource-certification#ADR-2002]] adds validator signing budgets as
+an alternative to compatible-set agreement. Its next
+modelling task gates certification runtime work; fixed slots remain a baseline.
+Next actor: CBCL maintainer. Select and model the broadcast protocol before any
+production transport or author-facing certification syntax is implemented.
+The prototype acceptance cases need to exercise:
+
+- Competing same-position spends, different-position spends naming a stale parent,
+  and an invalid operation with a syntactically valid transport certificate.
+- A finalized receipt surviving a later uncertified sibling; unrelated accounts
+  progressing while a malicious source is blocked.
+- Certified funding arriving out of order, withheld payload recovery, certificate
+  relay after the original sender disappears, and fair-delivery progress for a
+  correct sequential source.
+- Durable witness restart, duplicate key aliases, nonmember signatures, forged
+  signatures, and replay across asset, dialect, cast, field, account or position.
+- All rights and headroom operations sharing one certified account chain, with
+  both bounds checked over finalized dependency closures.
+- Independently finalized histories merging in different delivery orders without
+  retracting final receipts or violating rights/headroom bounds.
+
+Open, owner CBCL maintainer: exact broadcast implementation and proofs; real
+cryptographic host integration; payload retention/retrieval; certified-history
+API and wire contracts; validator recovery; human security review. Permissionless
+membership, witness reconfiguration, competing-wallet progress and allowance or
+multi-account contract semantics require additional designs. They are not enabled
+by the current dialect grammar or by this investigation.
+
+## Signer register amendment — issue 18
+
+The failure is semantic: two sequential votes share an opener predecessor, so address order discards an observed edit.
+The maintainer's task instruction authorises this amendment through [[SPEC-019-state-rules#Amendment Channels]].
+
+### REQ-1933: Observed signer writes supersede
+
+`latest-per-signer` SHALL select only `current-by-signer` writes before grouping and picking.
+Only a same-verb, same-signer, domain-admitted act naming an address in `:replaces` supersedes that write.
+Cross-signer and cross-verb references SHALL NOT remove it.
+Concurrent surviving writes still use [[SPEC-019-state-rules#REQ-1916]].
+Trace: [[SPEC-019-state-rules#TEST-1951]], [[SPEC-019-state-rules#ADR-1912]].
+
+### REQ-1934: Binder supplies signer bookkeeping
+
+The compiler SHALL insert the reserved list field for `latest-per-signer` writers.
+The binder SHALL include the signer's own current writes, including concurrent losing writes, in sorted distinct replacement targets within `max-list`.
+When one verb feeds several replacement rules, targets are their sorted distinct union, truncated after union.
+The first write SHALL carry an empty list.
+Existing forge rejection and domain filtering remain binding.
+Trace: [[SPEC-019-state-rules#TEST-1952]], [[SPEC-019-state-rules#ADR-1912]].
+
+### ADR-1912: Reuse reserved replacement addresses with signer scope
+
+The existing reserved field carries observed supersession without changing R5 acyclicity or adding clocks.
+The authenticated signer supplies the register key; payload fields cannot impersonate another signer.
+The kernel reuses replacement-address selection with signer comparison, while keyed-register semantics remain unchanged.
+The maintainer selected `latest-per-signer` only.
+`last` retains its existing address-order semantics.
+
+### TEST-1951: Signer fold regression (core)
+
+Validates: [[SPEC-019-state-rules#REQ-1933]], [[SPEC-019-state-rules#REQ-1915]].
+Verify a lower-address observed edit wins, concurrent writes use greatest address, and an observed edit replaces all concurrent own writes.
+Verify cross-signer, cross-verb, and domain-excluded replacers leave the targeted ballot unchanged.
+Verify identical state under permutation and duplication, using real canonical messages in the conformance corpus.
+
+### TEST-1952: Signer binder regression (core)
+
+Validates: [[SPEC-019-state-rules#REQ-1934]], [[SPEC-019-state-rules#REQ-1926]].
+Verify first-write empty bookkeeping, sorted bounded own replacements, other-signer exclusion, and supplied-field forge rejection.
+Verify compiler shape insertion, exports, and the JavaScript authoring path.
+
+### TEST-1953: Signer model correspondence (core)
+
+Validates: [[SPEC-019-state-rules#REQ-1930]], [[SPEC-019-state-rules#REQ-1933]], [[SPEC-019-state-rules#REQ-1934]].
+Build the signer selection and binder proofs without new axioms.
+Audit new theorem axioms and retain set-extensional fold invariance.
+
+## Non-Functional Requirements
+
+**NFR-1900:** `fold` runs in `O(F · n log n)` for `F` fields and `n` acts;
+incremental recomputation is out of scope.
+**NFR-1901:** `state.rs`, `r7.rs`, `intend.rs` are `no_std + alloc` and
+`#![forbid(unsafe_code)]`.
+**NFR-1902:** the exports produce byte-identical JSON and canonical text on
+wasm32, aarch64, and x86_64 for every vector.
+
+## Architecture Decisions
+
+### ADR-1900: A kernel with sugar, not fourteen primitives
+Fourteen author-facing names were each a commutativity proof owed forever.
+They compose `acts`, `current`, `current-by-signer`, and five
+reductions; `observed-set` turned out to be `current` keyed by value. The
+names stay for authors and are defined by the table in R.2; proofs and
+typing live on the kernel. Rejected: author-supplied code (unverifiable),
+a per-verb CRDT schema (cannot express one verb feeding many fields).
+
+### ADR-1901: One reserved field, inserted by the compiler
+R5 acyclicity forbids a write from naming an earlier write of its own verb
+as predecessor, so supersession rides data: a list of addresses the host
+fills. Registers and removals both reduce to `current`, so both use one
+reserved keyword, `:replaces`, and the compiler adds it to the shapes the
+clause implies. Authors never write bookkeeping the machine can write; a
+caller who supplies it is forging.
+
+### ADR-1902: One total order, the content address
+The interpreter's depth-then-hash order is identically hash order on every
+input R5 admits (a same-verb group never contains a member's predecessor).
+Specify the address order only; parity is exact and cbcl-aamas §6.2 is
+corrected. The order converges and is not fair; contested decisions are a
+role's grant in the protocol, so `authorityLast` is not adopted.
+
+### ADR-1903: Identity is the hash of the body
+`dialect_hash` excludes name, signature, and hash; a state-bearing
+dialect's name is derived from the hash, not hashed. A name is a pointer;
+we do not hash the pointer. Every existing object type changes identity at
+migration, which cbcl-aamas §8.1 already accepts.
+
+### ADR-1904: Integers
+CBCL numbers are `i64`; state-bearing numbers are integers of magnitude ≤
+`max-number`; totals are exact. Fractions are minor units. The corpus is
+integer-only; a JavaScript consumer passes it unchanged below 2^53.
+
+### ADR-1905: One content address
+`message_content_hash` serves `:caused-by`, `:replaces`, the fold, and the
+corpus. Any consumer that invents a second identifier reproduces the
+parity problem.
+
+### ADR-1906: The binder is pure and in the core
+Steps 3 to 5 of R.5 decide whether concurrent writers converge; every host
+must compute them identically, so they are one function next to the fold.
+Fan-in binding applies the single rule per required type; the corpus covers
+single predecessors only (deliberate simplification, known ceiling).
+
+### ADR-1907: Presentation is a separate package with its own specification
+Presentation is untrusted author code behind an opt-in; authoring is
+trusted host code that must run headless. They share nothing but the
+dialect name and three exports. Rejected: presentation as a module of the
+authoring package (a DOM in a headless package).
+
+### ADR-1908: The definition travels as an R4-signed `teach`
+The language already distributes dialects and already names one on every
+act. Two signed messages open the first instance of a type; provenance of
+the definition is the author's signature. Rejected: a definition inside the
+opener (R2 bound conflict, no definition provenance).
+
+### ADR-1909: Domains are fold filters
+An opener-drawn domain was the one place admission read history. It is now
+a filter in `acts v` and a refusal in the binder: an out-of-domain act is
+accepted and contributes nothing, an honest caller never sends one, and
+admission reads one message. Stratification has no exception.
+
+### ADR-1910: The authoring SDK stays and consumes the core
+`@cbcl/object` keeps JSON authoring, compiles it to a `(define …)`, names it
+with `dialect_hash`, and calls `fold`, `intend`, `verify_state_shape`,
+`verify_dialect`, `message_content_hash` for every judgement. Its
+interpreter is deleted. The compile is specified beside cbcl-bus SPEC-085.
+
+### ADR-1911: One bounds clause
+Scattered constants became `(:state-bounds …)` with defaults, checked at
+install like R2. Exceeding `max-list` current writes no longer rejects an
+intent; the binder names what fits and the next write names the rest.
+
+## Contracts
+
+**CON-1900: Grammar.** R.1. Input: the SExpr AST; byte-level recognition is
+`cbcl-parser`, unchanged. Output: `StateClause`, `StateBounds`, or
+`R7Violation::Malformed`, fail closed. Implements REQ-1900, 1901, 1904.
+Verified by TEST-1900, 1901, 1950.
+
+**CON-1901: Kernel and sugar.** R.2. Implements REQ-1906, 1915–1917.
+Verified by TEST-1915–1917, 1940–1944, 1931.
+
+**CON-1902: Values.** R.3. Implements REQ-1918, 1919. Verified by TEST-1918, 1919.
+
+**CON-1903: Rust API.**
+
+```rust
+// state.rs
+pub struct StateClause { pub entries: Vec<Entry> }
+pub enum Entry { Field(String, Rule), Domain { verb: String, key: String, field: String } }
+pub enum Rule { /* the fifteen of R.1 */ }
+pub struct StateBounds { pub max_string: u32, pub max_list: u32, pub max_number: i64, pub max_fields: u32 }
+pub struct Act { pub address: ContentHash, pub verb: String, pub signer: AgentKey,
+    pub predecessors: Vec<ContentHash>, pub fields: BTreeMap<String, SExpr> }
+pub struct Instance<'a> { pub dialect: &'a Dialect, pub thread: &'a ThreadId, pub acts: &'a [Act],
+    pub opener: Option<&'a Act>, pub cast: Option<Cast> }
+pub fn instance_of<'a>(d: &'a Dialect, store: &'a ThreadedMessageStore, thread: &'a ThreadId) -> Result<Instance<'a>, R7Violation>;
+pub fn fold(inst: &Instance) -> Vec<(String, Value)>;
+pub fn render_json(state: &[(String, Value)]) -> String;
+pub fn state_schema(d: &Dialect) -> Vec<(String, StateType)>;
+pub fn frontier(inst: &Instance) -> Vec<ContentHash>;
+// r7.rs
+pub enum R7Violation { Malformed(String), UnknownVerb(String), UnknownField{verb,field}, Typing(String),
+    Replaces(String), Domain(String), Bounds(String), Name{expected,found} }
+pub fn r7_violations(d: &Dialect) -> Vec<R7Violation>;
+pub fn verify_state_shape(d: &Dialect, msg: &Message) -> Result<(), ShapeViolation>;
+// intend.rs
+pub enum Reject { UnknownVerb, Opener, Forge(String), Role(String), Domain(String), NothingToDelete,
+    NoPredecessor, Shape(ShapeViolation), NotValid(VerificationResult) }
+pub fn intend(inst: &Instance, signer: &AgentKey, verb: &str, fields: BTreeMap<String, SExpr>) -> Result<Message, Reject>;
+pub fn may_send(inst: &Instance, signer: &AgentKey) -> Vec<String>;
+pub fn roles_of(cast: &Cast, signer: &AgentKey) -> Vec<String>;
+// canonical.rs: dialect_body_hash excludes the name; dialect_name(d) = "sha256-" + hex
+```
+
+`Dialect` gains `state`, `state_bounds`; `DialectInstallError` gains `R7`.
+Implements REQ-1902, 1910, 1921, 1932. Verified by TEST-1921, 1932.
+
+**CON-1904: Conformance vector.** cbcl-bus SPEC-085 CON-005 with: `cids`
+renamed `addresses` (`message_content_hash`); `contract` holds `(define …)`
+text, `authoring` optionally a consumer's source; integers only;
+`expect.state` per R.3; optional `intents: [{signer, thread, verb, fields,
+expect: canonical | {reject}}]`. Location `test-vectors/state/`, plus
+`VERSION`. Implements REQ-1931. Verified by TEST-1931.
+
+**CON-1905: Errors.** Install: `R7Violation`, all reported together, none
+installs partially. Receipt: `ShapeViolation` with rule ∈ {closed, size,
+replaces}, sender blamed. Binder: `Reject` per R.5. Implements REQ-1910,
+1914, 1925.
+
+## Purity Boundary Map
+
+Pure core: `state.rs` (clause + acts → state, schema, frontier), `r7.rs`
+(dialect → violations; message → verdict), `intend.rs` (instance + signer +
+intent → act or reject), `canonical.rs` (body hash, name). Effectful shell:
+none added; consumers own authentication, store, signing, encryption,
+transport, history, presentation. Boundary: `SExpr`, `Act`, `Instance` in;
+`Value`, `Message`, violations, `Reject` out. Dependency: `state.rs` ←
+`r7.rs` ← `intend.rs`, all on existing core modules; core never imports a
+shell.
+
+## Test Specifications
+
+Example tests TEST-1900 … TEST-1932 pair with their REQ numbers, each with
+a positive, a negative-input, and where applicable a negative-output case.
+Fixtures: `dialects/checklist.cbcl`, `dialects/lunch-vote.cbcl`, a tag set,
+a balance. Selected obligations:
+
+**TEST-1907.** A dialect declaring `:replaces` in a shape, naming it in a
+rule, or giving `drop` a second field fails install; the installed
+checklist's `check` and `drop` shapes require `:replaces list`.
+
+**TEST-1908/1924.** A `vote` whose `:choice` is not in the accepted opener's
+`:options` is accepted, absent from `ballots` and `tally`, and refused by
+`intend` with `Domain(choice)`.
+
+**TEST-1914.** (`crates/cbcl-parser/tests/admission_state_free.rs`.) Each
+corpus dialect has a *footprint twin*: every rule swapped for a sibling over
+the same verbs and fields with the same `:replaces` verbs (`last` →
+`latest-per-signer` → `set-union`, `register-per-key` ↔ `values-per-key`,
+`exists` ↔ `count`, `counter` with `inc`/`dec` exchanged, `latest-per-key`
+with key and value exchanged), and each domain dropped where its field stays
+read; a change is kept only if the twin installs (R7) with an equal
+footprint (state-bearing verbs, `:replaces` verbs, data fields). The twin's
+fold differs; `admit` gives every message the same verdict under both,
+against every prefix of the accepted set and (proptest) any subset in any
+order. Negative-output: an admission that enforces domains by reading the
+fold, the pre-ADR-1909 behaviour, fails the check on `lunch-vote-domain`. A
+static scan asserts that `admit`, `verify_state_shape`, `cast_of`,
+`Instance`, and the R5/R6 verifier modules call no fold, binder, or schema
+function. The twin covers the rule kinds the corpus uses; a vector that
+adds a kind extends both the corpus and the sibling table. The Lean side
+(REQ-1930, `AdmissionStratification.lean`) proves the property for the
+model; this test checks that the Rust `admit` has the model's form.
+
+**TEST-1922.** Cast owner=@aria, member={@bo,@cy}: `intend` for `check` from
+@bo binds `to (@aria @bo @cy)` and `caused-by` M1; for `drop` from @bo
+rejects `Role(owner)`; a role-free dialect binds `to` from the opener.
+
+**TEST-1923.** With 70 current writes for one key, `intend` names 64 in
+address order and succeeds; after acceptance, the next write names the
+remaining 6; `drop` on an absent key rejects `NothingToDelete`.
+
+**TEST-1927.** Renaming a dialect to `sha256-<body hash>` installs;
+any other name for a state-bearing dialect is rejected before R1; changing
+one rule changes the name.
+
+**TEST-1931.** The runner passes every vector forward, reversed, duplicated;
+a vector from a live session of two independent consumers is included;
+mutating `pick` to the least address turns a vector red.
+
+Property tests (proptest, `crates/cbcl-core/tests/state_properties.rs`; the pure core is the executable twin of the model, and each test names the State.lean theorem it mirrors):
+**TEST-1940** permutation and duplication invariance of `fold`;
+**TEST-1941** monotonicity of `acts`, `size`, `distinct`, `events`;
+**TEST-1942** `mem_current_iff`; **TEST-1943** a replaced write is never
+picked and a write nobody names is always current; **TEST-1944** `sum`
+changes by exactly one act's amount per new address and by zero per
+duplicate; **TEST-1945** (migration, retired with `projection.js`) address
+order equals the interpreter's depth-then-hash on every R5-acyclic input;
+**TEST-1946** `intend_sound`: the result verifies against `acc ∪ {result}`
+and re-binding names it. **TEST-1950** fuzz: clause parser round-trip and
+no-panic; `fold` and `intend` on random accepted sets, no-panic.
+
+## Migration
+
+Phase 1 (cbcl-rs): implement CON-1900–1905; land the corpus runner with
+vectors transcribed from the first consumer's tests. Phase 2 (cbcl-bus):
+move presentation out of `@cbcl/object` into its own package and
+specification; the authoring compile emits both clauses, names by
+`dialect_hash`, distributes as `teach`; `read`/`act`/`checkShape` call the
+exports; `projection.js`, `emit.js`, and the renderer in `object-sdk.js`
+are deleted after TEST-1945 passes. Existing objects change identity;
+histories keyed by cid are read-only under the old runtime. Phase 2b
+(hark): run the authoring package against the same wasm or call the native
+core; drop the vendored interpreter. Phase 3 (Lean): discharge REQ-1930 in
+order; update cbcl-aamas §6 and §7.
+
+## Traceability
+
+| REQ | CON | TEST | Anchor |
+|-----|-----|------|--------|
+| 1900–1904 | 1900 | 1900–1904, 1950 | cbcl-bus SPEC-085 CON-001 limits; AAMAS §6.2 |
+| 1905–1910 | 1900, 1905 | 1905–1910 | `object-sdk.js` `expression()`; AAMAS §6.3 |
+| 1911–1914 | 1905 | 1911–1914 | SDK rules "CBCL shapes cannot express" |
+| 1915–1920 | 1901, 1902 | 1915–1920, 1940–1945 | cbcl-bus SPEC-019 CON-003, REQ-024/029/030; `projection.js`; Baquero 2017; Kleppmann 2018 |
+| 1921–1926 | 1903, 1905 | 1921–1926, 1946 | cbcl-bus SPEC-019 CON-002; `emit.js`; AAMAS §6.4 |
+| 1927–1929 | 1903 | 1927–1929 | SPEC-014 REQ-628; cbcl-bus SPEC-085 REQ-002, ADR-003; SPEC-019-bus ADR-009 |
+| 1930–1932 | 1903, 1904 | 1931, 1932, 1940–1946 | `LeanCbcl/State.lean`; Gomes 2017; OpSets; SPEC-018 REQ-1806; SPEC-010 |
+
+## Reading Paths
+
+- **Dialect author**: Orientation → `dialects/checklist.cbcl` → R.1 → R.2 sugar table → R.4.
+- **Implementer**: R.1–R.7 → CON-1903 → REQ-1905–1910 → Purity Boundary Map.
+- **Consumer maintainer**: ADR-1903, 1905, 1907, 1908, 1910 → R.6, R.7 → Migration.
+- **Presentation author**: R.5 → R.7 (`state_schema`, `may_send`, `frontier`) → REQ-1929.
+- **Prover**: R.2 properties → REQ-1930 → TEST-1940–1946.
+
+## Changelog
+
+- 2.0.2 (2026-10-30) — Link the agreement comparison and model-first research direction in [[SPEC-020-resource-certification#ADR-2001]]. No runtime or wire change.
+- 2.0.1 (2026-10-30) — AT2-style certification investigation, proposed [[SPEC-019-state-rules#ADR-1915]], finite quorum checks, Astro client/replica and credit evidence comparison, AT2 fault/sampling assumptions and prospective VRF sortition, and explicit separation of raw, certified-delivered and finalized resource histories. No runtime or wire change.
+
+- 2.0.0 (2026-10-30) — specify bounded-counter grammar, resource-reference fields, tagged observations, issuance gate, and shared export contract. Corpus version advances with the wire integration.
+
+- 1.2.0 (2026-10-30) — draft typed lower-bound escrow resource contract, separate from protocol admission; ownership, transfers, fork assumptions, tests, and implementation handoff. Existing grammar and corpus remain at their previous versions.
+
+<details>
+<summary>Revision history</summary>
+
+- 1.1.0 (2026-10-19) — add `(progress verb)`, ordered-position installation checks, causal-position maximum reduction, Lean invariants and live Rust/model comparisons; add the progress-fork corpus vector and bump its version. Existing data-rule semantics are unchanged.
+- 1.0.0 (2026-10-06) — issue 18: signer-scoped observed supersession for `latest-per-signer`; corpus version bumped.
+- 0.3.9 (2026-10-05) — REQ-1930 gains the admission obligations, mechanised
+  in `LeanCbcl/AdmissionStratification.lean`: stratification
+  (`admit_ignores_data`), regularity of the R7 store language
+  (`localStoreTrace_regular`, `r7Store_isTraceDCFL`), stickiness, and two
+  necessity results (`countGated_not_regular`, `domain_feedback_not_sticky`).
+  No wire or semantic change.
+- 0.3.8 (2026-10-05) — REQ-1914 states what admission may read: the
+  message in the shape stage, the accepted set's causal structure in the
+  causal stage, and no value the fold computes; it was titled "never reads
+  history", which the causal stage necessarily does. TEST-1914, previously a
+  trace link with no test, is specified and implemented: footprint twins of
+  the corpus dialects, a domain-enforcing mutant that must fail, and a
+  static scan of the admission functions. No wire or semantic change.
+- 0.3.7 (2026-09-28) — R.7 gains `admit`, the consumer's admission of one
+  message against the accepted set (shape stage, then R5/R6 causal stage,
+  `pending` while a predecessor is missing), exported by wasm, NIF, and FFI
+  and used by the corpus runner, so a consumer's accepted set is the
+  corpus's by construction.
+- 0.3.6 (2026-09-28) — REQ-1930 gaps closed: `State.lean` adds `Val.list`,
+  `histogramPerKey`, and the explicit domain filter `actsDom`, with
+  `histogramPerKey_setEq`, `allowedOf_setEq`, `actsDom_setEq`,
+  `actsDom_excluded`, `excluded_not_mem` (standard axioms; audited);
+  `state::fold` deduplicates by address; TEST-1940–1946 as property tests
+  in `crates/cbcl-core/tests/state_properties.rs`.
+- 0.3.5 (2026-09-27) — REQ-1932 complete: the seven exports moved into
+  `cbcl_parser::state_exports` as the one implementation; `cbcl-wasm`
+  delegates; `cbcl-erl` gains `fold/1` … `dialect_hash/1` (SPEC-009
+  CON-003); `cbcl-ffi` gains `cbcl_fold` … `cbcl_dialect_hash` with the
+  regenerated `cbcl.h`; the corpus drives the shared frames.
+- 0.3.4 (2026-09-27) — Phase 3: `LeanCbcl/State.lean` discharges
+  REQ-1930 (16 theorems, standard axioms only, listed in `AxiomAudit.lean`);
+  REQ-1930 restated to say what the model is and what it leaves out.
+- 0.3.3 (2026-09-27) — the self-address prefix is `sha256-`, the wire
+  spelling of every content address; `object-` was the first consumer's
+  vocabulary.
+- 0.3.2 (2026-09-27) — implementation-driven corrections: under R6 the
+  root is the cast-bearing `hello` and the opener follows it (SPEC-014
+  REQ-611/623); wire addresses are `sha256-<hex>`; a state-bearing act is
+  its keyword form, not a template expansion; only a claimed `sha256-`
+  name is checked against the self-address; exports take S-expression
+  frames; map keys render strings raw. Implemented in `cbcl-core`
+  (`state.rs`, `r7.rs`, `intend.rs`), `cbcl-parser` (`state_parser.rs`),
+  `cbcl-wasm`, `cbcl-cli`, with the corpus in `test-vectors/state/` and
+  its runner.
+- 0.3.1 (2026-09-27) — renamed: "state rules" replaces "transition
+  combinators" in the title and file name ("projection" was rejected as
+  colliding with endpoint projection); the Orientation says plainly that
+  the layer is a query over a grow-only set of acts, not a replicated
+  data type.
+- 0.3.0 (2026-09-27) — simplification: a two-page Reference (R.1–R.7)
+  is the normative core; the fourteen rules desugar to a kernel of two
+  selections and five reductions (ADR-1900); `:replaces` is one reserved,
+  compiler-inserted field (ADR-1901); `(:state-bounds …)` replaces
+  scattered constants and over-full registers no longer reject (ADR-1911);
+  `enum-of` becomes a `domain` entry filtered in the fold and refused by
+  the binder, so admission never reads history (ADR-1909); identity is
+  `dialect_hash` over the body with the name derived (ADR-1903);
+  `bind_intent` renamed `intend`; the presentation interface reduced to
+  `state_schema`, `may_send`, `frontier`, with `events` carrying the
+  signer; `histogram`/`sum` reference a field instead of nesting.
+  Requirements renumbered 1900–1932.
+- 0.2.2 — ADR-1910 authoring SDK consumes the core; presentation separate.
+- 0.2.1 — cast as explicit instance context.
+- 0.2.0 — view author's interface; binder walkthrough.
+- 0.1.1 — consumer-neutral wording.
+- 0.1.0 — draft.
+</details>

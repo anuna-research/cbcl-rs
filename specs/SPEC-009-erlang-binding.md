@@ -2,7 +2,7 @@
 id: SPEC-009
 title: Erlang Binding for CBCL — `cbcl-erl` Crate
 status: draft
-version: 0.1.0
+version: 0.2.0
 audience: cbcl-rs-maintainers, binding-implementors, beam-consumers
 created: 2026-04-29
 source-protocol: ../../handbook/engineering/usdd-agent-protocol.md
@@ -315,6 +315,45 @@ verify_dialect(Bytes :: binary()) ->
 **Implements:** REQ-004.
 
 **Verified by:** TEST-004.
+
+---
+
+### CON-003: SPEC-019 state-layer NIFs
+
+**Signature:**
+```
+fold(Frame :: binary())               -> {ok, StateJson :: binary()}   | {error, Reason :: binary()}.
+intend(Frame :: binary())             -> {ok, CanonicalAct :: binary()} | {error, RejectJson | Reason}.
+verify_state_shape(Frame :: binary()) -> {ok, <<"ok">>}               | {error, BlameSExpr | Reason}.
+state_schema(Frame :: binary())       -> {ok, SchemaJson :: binary()}  | {error, Reason}.
+may_send(Frame :: binary())           -> {ok, VerbsJson :: binary()}   | {error, Reason}.
+frontier(Frame :: binary())           -> {ok, FrontierJson :: binary()}| {error, Reason}.
+dialect_hash(Define :: binary())      -> {ok, SelfAddress :: binary()} | {error, Reason}.
+```
+
+**Pre-conditions:** `Frame` is the UTF-8 S-expression frame of the
+corresponding export in [[SPEC-019-state-rules#Reference]] R.7, exactly as
+`cbcl-wasm` and `cbcl-ffi` take it; the binding adds term translation and
+crash containment (REQ-005) and no semantics.
+
+**Post-conditions:** the `ok` payload is byte-identical to what
+`cbcl_parser::state_exports` returns for the same frame: canonical JSON
+for `fold`, `state_schema`, `may_send`, `frontier`; the act's wire text
+for `intend`; `sha256-<hex>` for `dialect_hash`. A rejected intent is
+`{error, JSON}` with members `reject` (kind) and `reason`; a state-shape
+violation is `{error, BlameSExpr}` per REQ-233.
+
+**Error model:** `invalid utf-8`, `parse error:`, `expected (…)` (frame
+shape), `dialect parse error:`, `dialect verification failed:`; binaries,
+never atoms.
+
+**Implements:** [[SPEC-019-state-rules#REQ-1932]]; conformance by
+[[SPEC-010-binding-conformance#REQ-002]] through
+`crates/cbcl-parser/tests/state_exports.rs`, which drives the shared
+frames against `test-vectors/state/`.
+
+**Verified by:** `crates/cbcl-erl/src/state.rs` unit tests on the
+`*_pure` helpers; the shared corpus test above.
 
 ---
 

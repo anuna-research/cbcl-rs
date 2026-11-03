@@ -359,6 +359,7 @@ mod tests {
     #[test]
     fn simple_substitution() {
         let def = PerformativeDef {
+            role: None,
             name: String::from("greet"),
             params: vec![SExpr::Atom(Atom::Symbol(String::from("x")))],
             template: SExpr::List(vec![
@@ -701,6 +702,7 @@ mod tests {
     fn expand_template_backwards_compat() {
         // Ensure the original expand_template API still works with positional params
         let def = PerformativeDef {
+            role: None,
             name: String::from("notify"),
             params: vec![
                 SExpr::Atom(Atom::Symbol(String::from("recipient"))),

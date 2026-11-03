@@ -42,7 +42,7 @@ prior-art:
   - Rowicki/Francalanza/Scalas 2025 (Correct Black-Box Monitors for Distributed Deadlock Detection, OOPSLA2 — newer Francalanza/Scalas distributed monitor, binary-verdict liveness only)
   - Hellerstein 2026 (The Coordination Criterion, arXiv:2602.09435 — modern spec-level statement of monotonicity ⇔ coordination-freedom)
   - Waites 2026, Plumbing (Leith Document Company) — contemporary convergent work
-repository: https://codeberg.org/anuna/cbcl-rs
+repository: https://git.anuna.io/anuna-research/cbcl-rs
 ---
 
 # SPEC-002: Structural Contracts for CBCL — Causal Protocols and Shapes
@@ -538,7 +538,7 @@ This holds for both single-predecessor and multi-predecessor (fan-in) verificati
 - **Single predecessor:** `verify(msg, store) = Valid` requires predecessor hash H to exist in the store with type T. Adding messages to the store cannot remove H or change its type. `Valid` is stable. `Violation` is stable by the same argument.
 - **Multi-predecessor (fan-in):** `verify(msg, store) = Valid` requires ALL predecessor hashes H₁...Hₖ to exist in the store with types T₁...Tₖ. Each sub-check is individually monotone (same argument as single). Meet of monotone functions is monotone. `Valid` is stable.
 
-**Algebraic foundation.** The monotonicity guarantee is proved structurally — not by case analysis — in SPEC-003 (Verification Lattice). The message store is a join-semilattice (G-Set CRDT), the verification result is a flat lattice with bottom `Unknown`, and the verification function is a monotone map between them (SPEC-003 REQ-304). Compositional closure (meet for `(all ...)`, join for `(any ...)`) preserves monotonicity automatically. See SPEC-003 for the full algebraic treatment and Lean 4 proof targets.
+**Algebraic foundation.** The monotonicity guarantee is proved structurally — not by case analysis — in SPEC-003 (Verification Lattice). The message store is a join-semilattice (G-Set CRDT), the verification result is a flat poset with bottom `Unknown`, and the verification function is a monotone map between them (SPEC-003 REQ-304). Compositional closure (meet for `(all ...)`, join for `(any ...)`) preserves monotonicity automatically. See SPEC-003 for the full algebraic treatment and Lean 4 proof targets.
 
 **Rationale:** This is the property that makes the system coordination-free. SPEC-001's DFA violated this: receiving message X could advance the DFA state, causing a previously valid message Y to become invalid in the new state. Causal verification does not have this problem — it checks a static predicate on immutable data. Fan-in adds conjunctive checks but preserves monotonicity because meet over monotone functions is monotone.
 
