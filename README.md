@@ -109,21 +109,21 @@ State conformance vectors live in `test-vectors/state/`. For client-observed cer
 
 ## Background and license
 
-The theoretical framework appears in the [LangSec ’26 preprint](https://arxiv.org/abs/2604.14512). The original prototype is the [Scheme implementation](https://github.com/anuna-research/cbcl).
+The theoretical framework is published in the [2026 IEEE Symposium on Security and Privacy Workshops (SPW)](https://www.computer.org/csdl/proceedings-article/spw/2026/107000a039/2hIfzFiEfjG), pp. 39–48. A [preprint](https://arxiv.org/abs/2604.14512) is also available. The original prototype is the [Scheme implementation](https://github.com/anuna-research/cbcl).
 
 Apache-2.0; see LICENSE.
 
 ## Citation
 
 ```bibtex
-@misc{cbcl2026,
-  title         = {CBCL: Safe Self-Extending Agent Communication},
-  author        = {O'Connor, Hugo},
-  year          = {2026},
-  eprint        = {2604.14512},
-  archivePrefix = {arXiv},
-  primaryClass  = {cs.CR},
-  url           = {https://arxiv.org/abs/2604.14512},
-  note          = {LangSec '26}
+@inproceedings{cbcl2026,
+  title     = {{CBCL}: Safe Self-Extending Agent Communication},
+  author    = {O'Connor, Hugo},
+  booktitle = {2026 IEEE Symposium on Security and Privacy Workshops (SPW)},
+  year      = {2026},
+  pages     = {39--48},
+  publisher = {IEEE},
+  doi       = {10.1109/SPW72489.2026.00007},
+  url       = {https://www.computer.org/csdl/proceedings-article/spw/2026/107000a039/2hIfzFiEfjG}
 }
 ```
