@@ -38,20 +38,20 @@ cargo run -p cbcl-cli -- --help
 
 Custom performatives require an explicit `(lang …)` scope; installed dialects do not provide an unscoped fallback.
 
-For bindings, see [[js/README]], [[README-WASM]], and [[crates/cbcl-erl/README]]. The JavaScript/TypeScript package includes a JSON-authored object runtime.
+For bindings, see [JavaScript/TypeScript](js/README.md), [WebAssembly](README-WASM.md), and [Erlang/BEAM](crates/cbcl-erl/README.md). The JavaScript/TypeScript package includes a JSON-authored object runtime.
 
 ## Current capabilities
 
 - **Causal contracts:** three-valued verification (`Unknown`, `Valid`, `Violation`) over mergeable message stores, with accepted-history admission and an extractable causal kernel.
-- **Multiparty roles:** endpoint projection and role-local verification under R6 causal locality. See [[specs/SPEC-014-role-layer-endpoint-projection]].
-- **Evidence widening:** payload-free causal evidence, bounded protocol repetition, and equivocation detection. See [[specs/SPEC-015-evidence-widening-v2]].
-- **Typed content addresses:** Merkle roots over message fields, v3 root signatures, and authenticated field-openings for selective disclosure. Openings support causal safety; completion-level fan-in still requires full messages. See [[specs/SPEC-017-typed-content-addresses]] (implementation present; spec marked draft).
+- **Multiparty roles:** endpoint projection and role-local verification under R6 causal locality.
+- **Evidence widening:** payload-free causal evidence, bounded protocol repetition, and equivocation detection.
+- **Typed content addresses:** Merkle roots over message fields, v3 root signatures, and authenticated field-openings for selective disclosure. Openings support causal safety; completion-level fan-in still requires full messages.
 
-Field-openings preserve the need for causal evidence: a bare hash cannot establish a missing predecessor's type. See [[specs/SPEC-016-splicing-boundary]].
+Field-openings preserve the need for causal evidence: a bare hash cannot establish a missing predecessor's type.
 
 ## State and bounded counters
 
-An optional `(state …)` declaration gives a protocol's messages a shared state interpretation. Registers, sets, maps, and counters are derived from the accepted acts in a thread. The same accepted set produces the same state regardless of arrival order or duplicate delivery. `fold` computes that state; `intend` binds a proposed act against it. These primitives are exposed through the Rust, JavaScript/TypeScript, WASM, C, and Erlang interfaces. See [[specs/SPEC-019-state-rules]].
+An optional `(state …)` declaration gives a protocol's messages a shared state interpretation. Registers, sets, maps, and counters are derived from the accepted acts in a thread. The same accepted set produces the same state regardless of arrival order or duplicate delivery. `fold` computes that state; `intend` binds a proposed act against it. These primitives are exposed through the Rust, JavaScript/TypeScript, WASM, C, and Erlang interfaces.
 
 The **bounded-counter primitive** adds escrow rights to an integer counter. Each account can decrement within its allocation; transferring rights changes who can spend without changing the total. An optional ceiling adds per-account headroom for increments. This supports balances, quotas, and shared resource pools without relying on a global observed balance to authorize concurrent operations.
 
@@ -61,15 +61,15 @@ The **bounded-counter primitive** adds escrow rights to an integer counter. Each
 | Decrement | Lowers the value; consumes the signer's rights |
 | Transfer | Moves rights between accounts; preserves the value |
 
-Account ownership and collective ownership support individual allocations and pools consumed by distinct authorized signers. Examples: `dialects/example-coin.cbcl`, `dialects/example-capped-coin.cbcl`, and `dialects/example-collective-tickets.cbcl`. See [[docs/concepts/bounded-counter]] for declarations and invariants.
+Account ownership and collective ownership support individual allocations and pools consumed by distinct authorized signers. Examples: `dialects/example-coin.cbcl`, `dialects/example-capped-coin.cbcl`, and `dialects/example-collective-tickets.cbcl`. See [bounded-counter guide](docs/concepts/bounded-counter.md) for declarations and invariants.
 
-The default certification profile requires a durable host issuance gate. `(certification quorum-budget)` selects the Rust validator runtime with authenticated quorums, multi-parent DAG adoption, durable journals, and cancellation-backed refunds. Signing, authentication, persistence, and external-effect deduplication remain host responsibilities. Quorum balance queries report known-final local views, with completeness unknown. See [[docs/reference/quorum-runtime]].
+The default certification profile requires a durable host issuance gate. `(certification quorum-budget)` selects the Rust validator runtime with authenticated quorums, multi-parent DAG adoption, durable journals, and cancellation-backed refunds. Signing, authentication, persistence, and external-effect deduplication remain host responsibilities. Quorum balance queries report known-final local views, with completeness unknown. See [quorum runtime API](docs/reference/quorum-runtime.md).
 
 ## Architecture
 
-`cbcl-core` and `cbcl-parser` form the deterministic `no_std + alloc` core and forbid unsafe code. CLI, WASM, C FFI, and Erlang NIF crates provide the effectful interfaces. See [[.hence/ADR-004-purity-boundary]] and [[.hence/PURITY-MAP]].
+`cbcl-core` and `cbcl-parser` form the deterministic `no_std + alloc` core and forbid unsafe code. CLI, WASM, C FFI, and Erlang NIF crates provide the effectful interfaces.
 
-Lean proofs live in `lean-cbcl/`, including R1–R5 properties, endpoint-projection correspondence, finite-time delivery results, and R6 DCFL preservation. Splicing and selective-disclosure results concern abstract predecessor-type evidence; concrete field-opening authentication remains a separate refinement obligation. State-fold and binder properties are proved in `State.lean`; corpus tests check Rust/model correspondence, while universal Rust-driver refinement remains open. The concrete R6 checks are tested in Rust; their semantic guarantees are mechanised in Lean. The axiom audit allowlist includes explicit content-hash and causal-accessor assumptions. For proof boundaries, see [[proofs/epp-correspondence/design]] and `scripts/check-axioms.sh`.
+Lean proofs live in `lean-cbcl/`, including R1–R5 properties, endpoint-projection correspondence, finite-time delivery results, and R6 DCFL preservation. Splicing and selective-disclosure results concern abstract predecessor-type evidence; concrete field-opening authentication remains a separate refinement obligation. State-fold and binder properties are proved in `State.lean`; corpus tests check Rust/model correspondence, while universal Rust-driver refinement remains open. The concrete R6 checks are tested in Rust; their semantic guarantees are mechanised in Lean. The axiom audit allowlist includes explicit content-hash and causal-accessor assumptions. For proof boundaries, see [proof design notes](proofs/epp-correspondence/design.md) and `scripts/check-axioms.sh`.
 
 ## API reference
 
@@ -91,11 +91,11 @@ cargo test --workspace
 cargo bench --workspace
 ```
 
-For proof changes, install Lean via elan and run `lake build` and `lake exe runLinter LeanCbcl` from `lean-cbcl/`. Run `scripts/check-axioms.sh` from the repository root. For mutation testing, see [[docs/mutation-testing]].
+For proof changes, install Lean via elan and run `lake build` and `lake exe runLinter LeanCbcl` from `lean-cbcl/`. Run `scripts/check-axioms.sh` from the repository root. For mutation testing, see [mutation-testing guide](docs/mutation-testing.md).
 
 Contributions are welcome. Specs live under `specs/`, implementation plans under `plans/`, and bug reports under `bugs/`. Link changes to their governing requirements and verification evidence.
 
-State conformance vectors live in `test-vectors/state/`. For client-observed certificate finality measurements, see [[tools/quorum-e2e/README]].
+State conformance vectors live in `test-vectors/state/`. For client-observed certificate finality measurements, see [quorum benchmark](tools/quorum-e2e/README.md).
 
 ## Background and license
 
