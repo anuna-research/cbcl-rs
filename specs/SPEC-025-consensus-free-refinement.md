@@ -203,12 +203,12 @@ The proof quantifies over arbitrary finite typed operation/checkpoint/account/re
 universes; dynamic wire ID allocation is not mechanized.
 
 The executable regressions are `ConsensusFree/Tests.lean` and `ConsensusFreeAudit.lean`.
-The independent review checks are `outputs/consensus-free-independent-review.lean`.
+The independent review checks are `proofs/validator-budget/consensus-free-independent-review.lean`.
 `proofs/validator-budget/check_consensus_free.py` runs these checks and recompiles
 isolated guard mutants through all affected proof modules. It also checks the
 absence of balance/frontier/ledger signing inputs and a registration selection guard.
 Those structural checks supplement independent review; they are not a general
-static-analysis proof. Recorded outcomes are `outputs/consensus-free-checks.json`.
+static-analysis proof. Recorded outcomes are [archived consensus-free-checks.json](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/consensus-free-checks.json).
 
 Fresh-context cross-model review by `/root/consensus_free_design_review`
 (gpt-6-astra) found no blocking safety defect or hidden ordering oracle. It checked

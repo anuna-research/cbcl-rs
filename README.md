@@ -101,14 +101,14 @@ pools consumed by distinct authorized signers; see the
 storage remain host layers. Quorum balance queries expose known-final local views,
 with completeness explicitly unknown.
 
-A separate [abortable handoff experiment](outputs/abortable-handoff-prototype.md)
+A separate [abortable handoff experiment](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/abortable-handoff-prototype.md)
 models recovery from split checkpoint votes while preserving delayed certificates.
 Its consensus service is abstract; full asynchronous verification remains open.
 That fallback is historical research. The current
-[multi-parent DAG model](outputs/multi-parent-evidence.md) proves collective numeric
+[multi-parent DAG model](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/multi-parent-evidence.md) proves collective numeric
 safety and cancellation-backed reclamation. The Rust runtime uses DAG adoption for
 both account-owned and collective quorum counters, with per-scope histories and
-no host handoff selector. [Current evidence](outputs/unified-quorum-evidence.md)
+no host handoff selector. [Archived validation evidence](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/unified-quorum-evidence.md)
 distinguishes collective Lean correspondence from account-DAG execution tests and
 from universal Rust source equivalence. There is no consensus service or serialized
 reservation ledger.

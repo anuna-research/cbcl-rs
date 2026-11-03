@@ -1,6 +1,7 @@
 from pathlib import Path
 import subprocess,json,sys,tempfile
 root=Path(__file__).resolve().parents[2]
+(root/'outputs').mkdir(exist_ok=True)
 src=(root/'lean-cbcl/LeanCbcl/ConsensusFree/CollectiveProtocol.lean').read_text()
 # Mutate executable declarations only; imported checks separately cover the complete proved module.
 base=src[:src.index('@[simp] theorem pool_rejected')]

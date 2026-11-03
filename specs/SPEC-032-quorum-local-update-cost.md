@@ -80,8 +80,8 @@ Stored manifests are borrowed; charges are derived from signed/released evidence
 Runtime/recovery tests, shared traces, workspace/no-std and changed-file lint pass.
 Guard mutations include cache errors with debug assertions disabled. Independent
 review accepted the code and inspected execution evidence. The opt-in probe has
-no timing gate; exact measurements and limits are [[quorum-local-cost-evidence]],
-[[quorum-local-cost-performance]] and [[quorum-local-cost-review]]. Output-page
+no timing gate; exact measurements and limits are [quorum-local-cost-evidence](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/quorum-local-cost-evidence.md),
+[quorum-local-cost-performance](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/quorum-local-cost-performance.json) and [quorum-local-cost-review](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/quorum-local-cost-review.md). Output-page
 integration into the specs-only vault remains coordinator-owned backlog.
 
 ## REQ-3201: Bounded durable group commit
@@ -155,7 +155,7 @@ delay changed median completed throughput from 26.27 to 90.64 TPS and median
 p99 from 2785.73 to 130.90 ms. Median sync count across four validators fell
 from 2004 to 461. All 600 transactions finalized; every journal recovered.
 The grouped path uses the default 64-request bound and 1 ms collection window.
-Evidence: `outputs/quorum-e2e-group-commit.json`. This is a same-workload
+Evidence: [archived quorum-e2e-group-commit.json](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/quorum-e2e-group-commit.json). This is a same-workload
 comparison on shared host/storage, not a maximum capacity or async liveness claim.
 
 ## Retired experiment IDs: REQ-3202, CON-3202, TEST-3202

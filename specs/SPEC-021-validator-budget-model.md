@@ -300,7 +300,7 @@ and cross-account funding before selecting a production protocol. The broader
 
 ## Evidence
 
-[[validator-budget-model]] records the executable checks, isolated mutations, Lean
+[validator-budget-model](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/validator-budget-model.md) records the executable checks, isolated mutations, Lean
 build, axiom audit and independent review. The model is available and its asynchronous resource safety is refuted. Repair,
 refinement and runtime obligations in [[SPEC-021-validator-budget-model#Open work]]
 remain open.

@@ -133,7 +133,7 @@ A separate two-silent-validator run finalized 0/10 by its 1500 ms deadline;
 all population percentiles were censored. All journals recovered successfully.
 Other build/test activity was present on the host. These single runs establish that the harness observes load-dependent queueing
 and quorum stalls; they are not a capacity estimate. Aggregate evidence and build
-metadata are in [quorum-e2e-evidence.json](../../outputs/quorum-e2e-evidence.json).
+metadata are in [quorum-e2e-evidence.json](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/quorum-e2e-evidence.json).
 
 ## Validator service-cost measurements
 
@@ -167,7 +167,7 @@ as the primary service cost on this host; it does not apportion end-to-end laten
 or predict throughput after batching. All validators share the same host/storage,
 and other development activity was present. Evidence with per-validator timings,
 latency distributions and build metadata is in
-[quorum-e2e-service-costs.json](../../outputs/quorum-e2e-service-costs.json).
+[quorum-e2e-service-costs.json](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/quorum-e2e-service-costs.json).
 
 
 ## Durable group commit
@@ -204,7 +204,7 @@ one-way delay and a 5-second deadline, produced these medians:
 Sync counts include initialization and all four validators. All 600 transactions
 finalized and all journals recovered. These short runs on shared host/storage
 show improvement for the same offered workload, not maximum sustainable TPS.
-[Aggregate evidence](../../outputs/quorum-e2e-group-commit.json) includes per-run
+[Aggregate evidence](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/quorum-e2e-group-commit.json) includes per-run
 latency distributions, service profiles, sync counts and build metadata.
 
 
@@ -254,7 +254,7 @@ target/release/cbcl-quorum-e2e --transactions 7500 --rate 1500 \
   --out /tmp/cbcl-finality-1500
 ```
 
-[Full sweep evidence](../../outputs/quorum-e2e-load-sweep.json) includes all ten
+[Full sweep evidence](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/quorum-e2e-load-sweep.json) includes all ten
 reports, build/host metadata, service timings and recovery checks. Raw run
 folders remain private because they contain validator signing keys.
 
@@ -278,7 +278,7 @@ bandwidth/cache behavior and long-lived history growth are separate questions.
 `ps` sampling adds overhead, so diagnostic throughput is not substituted for the
 uninstrumented sweep. Both diagnostic runs passed journal recovery.
 
-[Memory evidence](../../outputs/quorum-e2e-memory-probe.json) includes RSS
+[Memory evidence](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/quorum-e2e-memory-probe.json) includes RSS
 samples, paging/compression deltas, timing reports and measurement limitations.
 
 ## CPU diagnostic
@@ -304,7 +304,7 @@ can include drain and should not be compared as steady offered-load utilization.
 Both runs passed recovery. Sampling adds overhead; diagnostic finality/throughput
 is not substituted for the uninstrumented load sweep.
 
-[CPU evidence](../../outputs/quorum-e2e-cpu-probe.json) includes CPU-time samples,
+[CPU evidence](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/quorum-e2e-cpu-probe.json) includes CPU-time samples,
 window definitions, service profiles and end-to-end results.
 
 
@@ -335,7 +335,7 @@ recovery, and all four validators' final counts and pool values matched the
 client-observed completions. These are short local tests, not sustained capacity
 or deployment-level finality guarantees.
 
-[Restored implementation results](../../outputs/quorum-e2e-restored-inline.json)
+[Restored implementation results](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/quorum-e2e-restored-inline.json)
 contain every report, build/host metadata, service profiles and recovery results.
 
 
@@ -373,7 +373,7 @@ queue. The evidence includes those traces in aggregate to expose growing delay
 rather than treating low whole-run throughput as a protocol safety failure.
 These short local results do not establish a long-duration safe operating limit.
 
-[Intermediate-rate evidence](../../outputs/quorum-e2e-saturation-knee.json)
+[Intermediate-rate evidence](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/quorum-e2e-saturation-knee.json)
 contains all eight reports, recovery/state checks, service profiles and cohort
 summaries. Full raw traces remain in private run directories.
 
@@ -443,8 +443,8 @@ and can omit a few outstanding writes. Group composition timing covers grouped
 attempts; serial mode retains the existing aggregate service profiles. Quantiles
 from different queues cannot be added to decompose one transaction.
 
-[Queue evidence](../../outputs/quorum-e2e-queue-diagnostics.json) includes four
-instrumented load points. [Controlled scan probe](../../outputs/quorum-e2e-timeout-scan-probe.json)
+[Queue evidence](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/quorum-e2e-queue-diagnostics.json) includes four
+instrumented load points. [Controlled scan probe](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/quorum-e2e-timeout-scan-probe.json)
 includes the temporary variants and restored baseline. Tests check phase counts,
 group event/sync accounting, recovery, and absence of diagnostic samples in the
 normal build. Core protocol and journal semantics are unchanged.
@@ -494,7 +494,7 @@ These five-second local runs do not establish long-duration capacity. Queue
 instrumentation was disabled and no concurrent builds/tests/profiling were
 intentionally run during the measurements.
 
-[Deadline FIFO results](../../outputs/quorum-e2e-deadline-fifo.json) include all
+[Deadline FIFO results](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/quorum-e2e-deadline-fifo.json) include all
 six reports, client-source digest, build/host metadata and recovery checks. Earlier
 full-scan and throttled-probe results remain historical evidence; the temporary
 throttling variant is not present in the implementation.
@@ -537,7 +537,7 @@ Decision: remove this prototype because it did not consistently improve the test
 end-to-end workload enough to justify the additional representation/cache code.
 The deadline FIFO fix remains. Earlier performance evidence is historical; the
 new paired numbers should not be mixed with earlier isolated runs.
-[Experiment evidence](../../outputs/quorum-e2e-canonical-bytes.json) retains all
+[Experiment evidence](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/quorum-e2e-canonical-bytes.json) retains all
 public reports, source/binary digests, counters and review scope. Private run
 fixtures were deleted only after recovery/report capture to bound disk use;
 prototype source snapshots remain outside the repository in the comparison folder.
@@ -601,7 +601,7 @@ These are five-second local runs, not long-duration or geographically distribute
 capacity guarantees. Throughput includes drain, and quantiles are medians of
 per-run quantiles; one-second fractions aggregate all offered transactions.
 
-Decision: retain this small client-only change. [Paired results](../../outputs/quorum-e2e-verified-votes.json)
+Decision: retain this small client-only change. [Paired results](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/quorum-e2e-verified-votes.json)
 include reports, signature counts, OS accounting, source/binary digests and review
 scope. Private fixtures were deleted only after recovery/report capture to bound
 disk use. Public reports and baseline binaries remain in the comparison folder.
@@ -642,7 +642,7 @@ table quantiles are medians of per-run quantiles, while one-second fractions
 aggregate all offered transactions. Repetitions followed the initial sweep
 and were not randomized. The ordinary default remains 64 / 1 ms.
 
-[Full batch-tuning reports](../../outputs/quorum-e2e-batch-tuning.json) retain
+[Full batch-tuning reports](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/quorum-e2e-batch-tuning.json) retain
 build metadata, binary digest, all run metrics and recovery results. Private
 fixtures were deleted only after successful recovery and report capture.
 
@@ -700,7 +700,7 @@ target/release/cbcl-quorum-e2e \
   --byzantine-mode invalid-flood --out /tmp/cbcl-byzantine-example
 ```
 
-[Full Byzantine reports](../../outputs/quorum-e2e-byzantine.json) include each
+[Full Byzantine reports](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/quorum-e2e-byzantine.json) include each
 run, attack counters, build/host metadata, source/binary digests and recovery
 evidence. Private fixtures were removed only after successful recovery, honest
 state checks and report capture.

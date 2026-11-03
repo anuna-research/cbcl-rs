@@ -245,7 +245,7 @@ future idea, not a new authoring obligation or implemented analysis.
 
 Trace: [[SPEC-020-resource-certification#ADR-2001]].
 Run `python3 proofs/bounded-counter-certification/compare_agreement.py` and compare
-its JSON with `outputs/bounded-counter-agreement-comparison.json`. The assertions
+its JSON with [archived bounded-counter-agreement-comparison.json](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/bounded-counter-agreement-comparison.json). The assertions
 exercise both non-join-closed budgets, the per-operation-quorum counterexample,
 whole-set monotonic signing in a finite fixed-budget model, pairwise insufficiency,
 nonmonotonic hash filtering and the unfunded net-zero cycle. Run the existing
@@ -253,7 +253,7 @@ nonmonotonic hash filtering and the unfunded net-zero cycle. Run the existing
 semantics. Neither harness implements BGLA, COD, signatures or network liveness.
 
 Independent review checks the source assumptions, inference boundaries and next
-implementation task. Review evidence lives in [[bounded-counter-agreement-review]].
+implementation task. Review evidence lives in [bounded-counter-agreement-review](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/bounded-counter-agreement-review.md).
 
 ## TEST-2006: Next executable model (depth; prerequisite to richer-profile runtime)
 
@@ -310,7 +310,7 @@ the sourced Elephant task graph. Abstract-only screened papers remain labelled.
 
 Trace: [[SPEC-020-resource-certification#ADR-2002]].
 Run `python3 proofs/bounded-counter-certification/check_signing_budgets.py` and
-compare its output with `outputs/bounded-counter-signing-budget-checks.json`.
+compare its output with [archived bounded-counter-signing-budget-checks.json](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/bounded-counter-signing-budget-checks.json).
 Enumerate the n=4/f=1 unit-debit signatures in one version. Verify conservative
 budgets prevent overspending in those cases, reproduce failure with full local
 budgets, and record withholding and integer-dust limitations. A deliberate budget

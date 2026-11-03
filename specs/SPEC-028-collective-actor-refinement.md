@@ -144,7 +144,7 @@ Validates: [[SPEC-028-collective-actor-refinement#REQ-2800]],
 
 ## Evidence and reading paths
 
-[[collective-actor-formalization]] links kernel builds, executable adversaries,
+[collective-actor-formalization](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/collective-actor-formalization.md) links kernel builds, executable adversaries,
 mutation results and independent review. Reviewers follow request grammar to
 control invariants and quorum provenance, then erasure/refinement and numeric bounds.
 Implementers follow the read-only Rust mapping and its stated abstraction gaps.

@@ -169,8 +169,8 @@ no-std, fixture regeneration, runtime boundary tests and production guard mutati
 pass. Scoped Clippy reports no diagnostics in the changed runtime/test files;
 strict global lint reports unrelated findings in unchanged modules. Independent
 cross-model review accepted the documented scope. Recorded commands, outcomes and
-limitations are [[rust-multi-parent-evidence]], with review details in
-[[rust-multi-parent-review]]. These output-page links sit outside the specs-only
+limitations are [rust-multi-parent-evidence](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/rust-multi-parent-evidence.md), with review details in
+[rust-multi-parent-review](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/rust-multi-parent-review.md). These output-page links sit outside the specs-only
 vault scan; the coordinator owns their vault-integration backlog.
 
 Universal Rust source equivalence, packet/crypto verification, physical durability,

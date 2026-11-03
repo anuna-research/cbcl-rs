@@ -13,7 +13,7 @@ last-updated: 2026-11-02
 Intent: a correct logical owner must be able to spend its whole funded balance,
 including the final base unit, without consensus or timeout refunds. The existing
 fractional signing guard cannot do this. Execution/cancellation races can also
-split votes permanently. Evidence: [[counter-availability-investigation]].
+split votes permanently. Evidence: [counter-availability-investigation](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/counter-availability-investigation.md).
 
 One protocol has two internal phases:
 
@@ -223,7 +223,7 @@ Validates: [[SPEC-033-owned-counter-lifecycle#REQ-3304]].
 
 ## Implementation and proof scope
 
-[[owned-lifecycle-evidence]] records the implementation, independent adversarial
+[owned-lifecycle-evidence](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/owned-lifecycle-evidence.md) records the implementation, independent adversarial
 review, executable Lean/Rust traces and validation. Lean proves an abstract finite
 catalogue model with ideal authentication, complete exact books, coherent owner
 issuance/history conditions, and fair honest service. It includes authenticated

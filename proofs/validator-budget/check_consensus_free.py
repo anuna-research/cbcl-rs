@@ -100,7 +100,7 @@ def compile_tree(binary, lean_path, sources, mutation=None):
 def main():
     build = checked(['lake', 'build', 'LeanCbcl.ConsensusFree', 'LeanCbcl.ConsensusFree.Tests'])
     audit = json.loads(checked(['lake', 'env', 'lean', '--run', 'ConsensusFreeAudit.lean']))
-    independent = checked(['lake', 'env', 'lean', '--run', '../outputs/consensus-free-independent-review.lean'])
+    independent = checked(['lake', 'env', 'lean', '--run', '../proofs/validator-budget/consensus-free-independent-review.lean'])
     binary = checked(['lake', 'env', 'which', 'lean']).strip()
     lean_path = checked(['lake', 'env', 'printenv', 'LEAN_PATH']).strip()
     sources = {module: (LEAN / 'LeanCbcl/ConsensusFree' / (module + '.lean')).read_text() for module in MODULES}

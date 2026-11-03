@@ -22,38 +22,7 @@
 /js/dist/
 /js/LICENSE
 
-# Local specification indexes and generated verification/crawl output
+# Local specification indexes and generated research/verification records
 /.zetl/
 /specs/.zetl/
-/outputs/**/*.log
-/outputs/**/*.txt
-/outputs/**/*.pdf
-/outputs/**/*elephant*.json
-/outputs/**/*fingerprint*.json
-/outputs/**/*backlinks*.json
-/outputs/**/*vault*.json
-/outputs/**/*zetl*.json
-/outputs/**/*lint*.json
-/outputs/**/*spec-counts*.json
-/outputs/**/*traceability*.json
-/outputs/**/*lifecycle*.json
-/outputs/**/*comprehension-review*.json
-/outputs/consensusless-literature-evidence/*.json
-!/outputs/consensusless-literature-evidence/crawl-manifest.json
-
-# Local research captures; commit curated reports, matrices and source manifests.
-/outputs/cbcl-comparison-evidence/S[0-9][0-9].json
-/outputs/cbcl-comparison-evidence/*session*.json
-/outputs/cbcl-comparison-evidence/*transcript*.jsonl
-/outputs/cbcl-comparison-evidence/elephant-operations.jsonl
-/outputs/bspl-source-comparison-evidence/elephant-operations.jsonl
-
-# Availability literature: raw captures and session transcripts stay local.
-/outputs/counter-liveness-evidence/L[0-9][0-9].json
-/outputs/counter-liveness-evidence/session-*.json
-/outputs/counter-liveness-evidence/*transcript*.jsonl
-/outputs/counter-liveness-evidence/elephant-operations.jsonl
-
-# Local signed planning journals; curated specifications carry the reviewable plan.
-/outputs/owned-lifecycle/elephant-operations.jsonl
-/outputs/owned-progress/elephant-operations.jsonl
+/outputs/

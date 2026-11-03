@@ -202,7 +202,7 @@ certification profile is enabled by these prototype artefacts.
 
 The executable prototype is `proofs/validator-budget/sealed_model.py`; its runner is
 `check_sealed.py`. Recorded behavioral evidence is in
-`outputs/sealed-budget-checks.json`. The old unsafe model remains unchanged.
+[archived sealed-budget-checks.json](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/sealed-budget-checks.json). The old unsafe model remains unchanged.
 Independent review found and corrected exact-type recognition of checkpoint and
 report fields (Python float/bool equality must not authenticate integer fields).
 
@@ -220,7 +220,7 @@ obligations of [[SPEC-022-sealed-budget-checkpoints#CON-2201]] and
 No completion claim for those obligations is made.
 
 An isolated Lean mutant removes the signing affordability premise; compilation
-fails at the spending-bound proof, recorded in `outputs/sealed-budget-lean-mutation.json`.
+fails at the spending-bound proof, recorded in [archived sealed-budget-lean-mutation.json](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/sealed-budget-lean-mutation.json).
 The complete library builds and the central axiom audit passes. Vault-wide zetl
 validation still reports dead links; no vault-clean claim is made.
 

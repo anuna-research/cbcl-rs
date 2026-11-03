@@ -105,7 +105,7 @@ The library supplies the verifier and gate interface, not a production distribut
 ## Evidence and scope
 
 [[SPEC-019-state-rules#CON-1908]] defines the wire contract; [[SPEC-019-state-rules#CON-1909]] defines dual budgets.
-[[bounded-counter-implementation]] records tests, mutations, binding agreement, and remaining proof obligations.
+[bounded-counter-implementation](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/bounded-counter-implementation.md) records tests, mutations, binding agreement, and remaining proof obligations.
 The independent Lean model proves guarded local conservation and arithmetic bounds.
 It does not prove resource-DAG merge safety, Rust correspondence, or deployed host correctness.
 
@@ -267,7 +267,7 @@ implement that client's freeze/drain/retry policy. Availability assumes a correc
 coherent owner, fair honest service, eventual reliable delivery, at most f Byzantine
 validators in 3f+1, and available configured catalogue/storage capacity. There is no
 timeout refund or fixed finality deadline. See [[SPEC-033-owned-counter-lifecycle]],
-[[quorum-runtime]] and [[owned-lifecycle-evidence]] for API, proof scope and evidence.
+[[quorum-runtime]] and [owned-lifecycle-evidence](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/owned-lifecycle-evidence.md) for API, proof scope and evidence.
 
 
 ### Protocol stalls and the progress claim
@@ -294,7 +294,7 @@ prerequisite readiness are derived from that product's transitions. Tests exerci
 the corresponding Rust behavior. Universal correspondence between all Rust driver
 executions and the product remains open. Consequently, the implemented escape from the identified protocol traps
 must be distinguished from a proved absence of every possible implementation
-protocol deadlock. See [[owned-lifecycle-evidence]] for the precise boundary.
+protocol deadlock. See [owned-lifecycle-evidence](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/owned-lifecycle-evidence.md) for the precise boundary.
 
 
 ### Closing the progress proof
@@ -316,4 +316,4 @@ action enabled. Fairness is per retained necessary job; stale signatures may ret
 after the owner observes the relevant QC. No terminal certificate or opaque
 readiness premise is supplied. This is a protocol-model proof, with the native
 Rust capacity/arithmetic/identity and universal source-refinement boundary still
-open. See [[owned-deadlock-proof-evidence]].
+open. See [owned-deadlock-proof-evidence](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/owned-deadlock-proof-evidence.md).

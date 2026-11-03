@@ -238,7 +238,7 @@ finite catalogue, machine arithmetic and positive-amount/codec limits reject inp
 outside the supported projection. Cryptography, physical journal durability and
 network decoding remain host assumptions. Neither unbounded fresh-ID refinement
 nor complete/latest balance reads are proved. Current evidence:
-[[unified-quorum-evidence]].
+[unified-quorum-evidence](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/unified-quorum-evidence.md).
 
 ## Local execution cost
 
@@ -267,7 +267,7 @@ CARGO_PROFILE_RELEASE_OPT_LEVEL=3 CARGO_PROFILE_RELEASE_LTO=false CARGO_PROFILE_
 ```
 
 There is no CI timing threshold. Measurements and validation are recorded in
-[[quorum-local-cost-evidence]] under [[SPEC-032-quorum-local-update-cost]]. They do
+[quorum-local-cost-evidence](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/quorum-local-cost-evidence.md) under [[SPEC-032-quorum-local-update-cost]]. They do
 not establish production TPS; networking, durable writes, real signatures and
 history retention limits remain separate costs.
 
@@ -346,7 +346,7 @@ configured catalogue/journal capacity. It has no clock-bound guarantee and does
 not require Byzantine cooperation. Byzantine owners may stall their own accounts.
 The Lean model proves abstract safety and conditional progress; selected shared
 traces and real-signature/durable-journal tests validate Rust execution. This is
-not a universal source/network/filesystem refinement. See [[owned-lifecycle-evidence]] for precise proof and correspondence boundaries.
+not a universal source/network/filesystem refinement. See [owned-lifecycle-evidence](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/owned-lifecycle-evidence.md) for precise proof and correspondence boundaries.
 
 
 ### Protocol-level progress
@@ -422,6 +422,6 @@ for Byzantine cooperation. Privately existing/unreceived votes never retire hone
 work. Capacity assumptions include retained dependencies, cumulative metadata,
 transport envelopes and local service—not only transaction counts.
 
-See [[SPEC-034-owned-progress-closure]] and [[owned-deadlock-proof-evidence]] for the
+See [[SPEC-034-owned-progress-closure]] and [owned-deadlock-proof-evidence](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/owned-deadlock-proof-evidence.md) for the
 initialized finite-product completion theorem, executable fair witness and precise
-source-refinement boundary. Earlier component evidence is in [[owned-progress-evidence]].
+source-refinement boundary. Earlier component evidence is in [owned-progress-evidence](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/owned-progress-evidence.md).

@@ -119,6 +119,6 @@ mutations pass. Changed-file Clippy diagnostics are empty; unrelated baseline
 warnings remain elsewhere. Independent review accepted source, account-specific
 execution tests and actual scope-guard mutation failures. Orientation comprehension
 correctly distinguishes account scope from a collective pool. Detailed evidence and
-claim boundaries are [[unified-quorum-evidence]], with review in
-[[unified-quorum-review]]. Output-page vault integration remains coordinator-owned
+claim boundaries are [unified-quorum-evidence](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/unified-quorum-evidence.md), with review in
+[unified-quorum-review](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/unified-quorum-review.md). Output-page vault integration remains coordinator-owned
 backlog outside the specs-only scan.

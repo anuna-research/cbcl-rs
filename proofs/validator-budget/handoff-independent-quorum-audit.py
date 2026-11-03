@@ -1,6 +1,6 @@
 """Independent finite audit for SPEC-023; not full lifecycle model checking.
 
-Run: python3 outputs/handoff-independent-quorum-audit.py
+Run: python3 proofs/validator-budget/handoff-independent-quorum-audit.py
 Enumerates all activation-prefix subsets and exact abort quorums for f=0,1,2,
 then attempts every remaining activation. Also checks distinct prepare choices
 and late fast delivery to an already-aborted witness.
@@ -10,7 +10,7 @@ from pathlib import Path
 import json
 import sys
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'proofs/validator-budget'))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 from handoff_model import HandoffModel
 from model import Operation, Rejected
 

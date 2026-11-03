@@ -204,9 +204,9 @@ CBCL maintainer owns the Elephant tasks `abortable-handoff-model`
 executable evidence plus independent review, not production release.
 
 The executable model and test runner are `proofs/validator-budget/handoff_model.py`
-and `check_handoff.py`. Recorded outcomes are `outputs/abortable-handoff-checks.json`
-and `outputs/abortable-handoff-quorum-audit.json`; the latter is reproduced by
-`outputs/handoff-independent-quorum-audit.py`. The runner's `--lean-mutation`
+and `check_handoff.py`. Recorded outcomes are [archived abortable-handoff-checks.json](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/abortable-handoff-checks.json)
+and [archived abortable-handoff-quorum-audit.json](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/abortable-handoff-quorum-audit.json); the latter is reproduced by
+`proofs/validator-budget/handoff-independent-quorum-audit.py`. The runner's `--lean-mutation`
 option checks the weakened activation freeze guard.
 
 Independent fresh-context review by `/root/handoff_adversarial_review`

@@ -629,7 +629,7 @@ Trace: [[SPEC-019-state-rules#REQ-1936]], [[SPEC-019-state-rules#REQ-1937]], [[S
 #### Refinement tests
 
 All tests are core and run through Lean's kernel, the library build, and the axiom audit.
-The proof-specific evidence lives in `outputs/state-refinement-verification.md`.
+The proof-specific evidence lives in [archived state-refinement-verification.md](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/state-refinement-verification.md).
 
 **TEST-1954: Execution invariants.** Prove reachable accepted histories have unique addresses and contain only authenticated, received acts.
 Validates: [[SPEC-019-state-rules#REQ-1935]].
@@ -1129,7 +1129,7 @@ Validates: [[SPEC-019-state-rules#REQ-1948]].
 ### Implementation handoff
 
 Owner: CBCL maintainer. The executable implementation theory is
-[[bounded-counter-implementation#Implementation plan]]. Verification evidence is [[bounded-counter-implementation]].
+[bounded-counter-implementation#Implementation plan](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/bounded-counter-implementation.md#Implementation plan). Verification evidence is [bounded-counter-implementation](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/bounded-counter-implementation.md).
 The work includes a typed pure verifier, a model proof, canonical wire grammar,
 versioned state-rule/export integration and corpus, and a durable host adapter.
 Before accepting external resource messages, specify the wire contract.
@@ -1148,7 +1148,7 @@ must provide a durable gate and authenticated accepted history before relying on
 hard bounds. Overall specification status remains draft while those obligations
 remain open.
 Independent review and comprehension evidence are recorded in
-[[bounded-counter-review]]; the original arithmetic theorem remains scoped by
+[bounded-counter-review](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/bounded-counter-review.md); the original arithmetic theorem remains scoped by
 [[SPEC-019-state-rules#REQ-1937]].
 
 ## Certification research — AT2-style asset transfer
@@ -1427,7 +1427,7 @@ protocol supplies its promised dissemination guarantees.
 ### Executed finite checks and limits
 
 Run `python3 proofs/bounded-counter-certification/check_quorums.py`.
-The machine output is `outputs/bounded-counter-certification-checks.json`.
+The machine output is [archived bounded-counter-certification-checks.json](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/bounded-counter-certification-checks.json).
 This independently enumerates static quorum intersections for the four-witness
 and seven-witness profiles. It constructs failures for an insufficient threshold,
 forgotten vote persistence, per-candidate rather than per-slot locking, and

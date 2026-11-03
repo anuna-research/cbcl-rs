@@ -113,7 +113,7 @@ design; concurrent devices with the same identity are the first model target.
 
 ## Evidence and next actors
 
-The ar-crawl provenance manifest is `outputs/resource-literature/crawl-manifest.json`.
+The ar-crawl provenance manifest is [archived crawl-manifest.json](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/resource-literature/crawl-manifest.json).
 Raw successful crawls stay at the local paths in that manifest; they are not vendored
 paper text. The author-page crawl corrected an initial nonexistent publications
 index; the Stingray abstract DNS failure succeeded on retry outside the sandbox.
@@ -128,5 +128,5 @@ record the signing-budget finding and recovery-notarization requirement.
 
 The CBCL maintainer owns the next model and eventual protocol selection. Independent
 review and reproducible finite checks are recorded in
-[[bounded-counter-agreement-review]]. Human security review and network/storage
+[bounded-counter-agreement-review](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/bounded-counter-agreement-review.md). Human security review and network/storage
 integration remain prerequisites to a deployed payment service.

@@ -1,6 +1,0 @@
-{
-  "mutation": "allow fresh activation after abort",
-  "caught": true,
-  "evidence_sha256": "d1a742e47e798efb039f74c14ae6bd221d237f458df0bdb21e3abdcc2bb9c9fa",
-  "evidence_archive": "git history at 713b599cbc5b3052fa122a820a807217d3c625a1"
-}

@@ -1,1 +1,0 @@
-{"labels":[{"label":"r-ready-model","meta":{"description":"TEST-derived lifecycle phase readiness","id":"s-297a0f8908255fe0","source":"SPEC-033-owned-counter-lifecycle#REQ-3303","timestamp":"2026-11-01T12:02:38Z"},"rule":"(always r-ready-model (and (task model) (completed design)) (ready model))"}],"theory":"e53dae8faed494dfe995eb4f7c52d5d0aaaca9707cc032e664e36d28f854c642","v":1}

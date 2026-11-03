@@ -82,7 +82,7 @@ From the repository root, also run `scripts/check-axioms.sh` and
 capstones use only `propext`, `Classical.choice`, and `Quot.sound`. Grammar tests
 use kernel `decide`; the arbitrary-nesting property is proved by induction.
 
-Full evidence: [[dcfl-raw-installation-evidence-2026-09-10]].
+Full evidence: [dcfl-raw-installation-evidence-2026-09-10](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/dcfl-raw-installation-evidence-2026-09-10.md).
 
 
 The separate multi-parent numeric protocol in `ConsensusFree/MultiParent.lean`
@@ -93,7 +93,7 @@ The interpreter is a model harness over verified certificate evidence, not the
 Rust wire protocol. Infinite traces range over a fixed finite catalogue; funded
 refinement requires disjoint debit/credit per coordinate. It does not guarantee
 progress under contention. Rust uses DAG adoption for every quorum-budget context under [[SPEC-031-unified-quorum-dag]].
-Contract: [[SPEC-029-multi-parent-counter-model]]. Evidence: [[multi-parent-evidence]].
+Contract: [[SPEC-029-multi-parent-counter-model]]. Evidence: [multi-parent-evidence](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/multi-parent-evidence.md).
 
 Run `lake env lean --run MultiParentAudit.lean` here and
 `python3 proofs/validator-budget/check_multi_parent_mutations.py` from the repository

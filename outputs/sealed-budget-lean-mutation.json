@@ -1,5 +1,0 @@
-{
-  "mutation": "remove affordability premise from signing transition",
-  "caught": true,
-  "output": "/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-sealed-lean-11lsz057/SealedCheckpoint.lean:59:27: error: Type mismatch\n  affordable\nhas type\n  True\nbut is expected to have type\n  { spent := s.spent + amount\u271d, capacity := s.capacity, frozen := s.frozen }.spent \u2264\n    { spent := s.spent + amount\u271d, capacity := s.capacity, frozen := s.frozen }.capacity\n"
-}

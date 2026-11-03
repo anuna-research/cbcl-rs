@@ -209,6 +209,6 @@ conflicting owners remain excluded.
 Retained publication, bounded fixed-point evidence import, history-compatible
 catch-up and owner certificate feedback are implemented. Product theorem verification,
 independent review, executable traces and mutations are recorded in
-[[owned-deadlock-proof-evidence]]. Earlier component evidence remains in
-[[owned-progress-evidence]]. The product proof's independent acceptance, executable fair trace, axiom audit
+[owned-deadlock-proof-evidence](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/owned-deadlock-proof-evidence.md). Earlier component evidence remains in
+[owned-progress-evidence](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/owned-progress-evidence.md). The product proof's independent acceptance, executable fair trace, axiom audit
 and guard mutations pass. Universal Rust extraction remains explicitly open.

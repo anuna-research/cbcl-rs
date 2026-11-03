@@ -141,7 +141,7 @@ Validates: [[SPEC-027-collective-bounded-counters#REQ-2700]],
 
 ## Evidence and reading paths
 
-[[collective-implementation]] records executed Rust and Lean checks, behavioral
+[collective-implementation](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/collective-implementation.md) records executed Rust and Lean checks, behavioral
 mutations and independent review. Reviewers follow contracts to adversarial tests
 and evidence. Implementers follow contracts to their validating tests and linked
 requirements. Dialect authors read the collective section of the bounded-counter

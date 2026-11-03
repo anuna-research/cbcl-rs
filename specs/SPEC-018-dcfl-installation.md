@@ -47,7 +47,7 @@ Controls:
 
 Concrete behaviour: with `d` declaring `ship`, `(lang d (signed sig (ship parcel)))` is admitted. `(signed sig (ship parcel))` is rejected. Nested `lang e` selects `e`; it cannot borrow `ship` from `d`. A wrapper selects its last list-valued argument; subsequent atoms remain structurally permitted. Argument checks still reject missing keyword values and malformed `:caused-by` values.
 
-Evidence: the finite scalar lexer and universal DPDA composition discharge [[SPEC-018-dcfl-installation#CON-1803]]; see [[dcfl-raw-installation-evidence-2026-09-10]]. The concrete lexer declares the lexical language, including rejection. The maintainer owns runtime conformance gaps in [[SPEC-018-dcfl-installation#Open boundaries]].
+Evidence: the finite scalar lexer and universal DPDA composition discharge [[SPEC-018-dcfl-installation#CON-1803]]; see [dcfl-raw-installation-evidence-2026-09-10](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/dcfl-raw-installation-evidence-2026-09-10.md). The concrete lexer declares the lexical language, including rejection. The maintainer owns runtime conformance gaps in [[SPEC-018-dcfl-installation#Open boundaries]].
 
 Detail: [[SPEC-018-dcfl-installation#CON-1801]] defines recursive admission; [[SPEC-018-dcfl-installation#CON-1803]] fixes the Unicode scalar lexical contract; [[SPEC-018-dcfl-installation#Acceptance tests]] defines evidence; [[SPEC-018-dcfl-installation#Reading paths]] directs readers.
 
@@ -283,11 +283,11 @@ Stakeholder: [[SPEC-018-dcfl-installation#Context and failure mode]] → [[SPEC-
 
 ## Gate evidence
 
-The generic finite-machine and forest-compilation foundation is implemented and independently reviewed. Its build, arbitrary-word correctness, axiom audit, and malformed-input mutation evidence are recorded in [[dcfl-foundation-evidence-2026-09-10]]. The Orientation comprehension review identified the raw bridge contract and predicted scope replacement correctly after clarification.
+The generic finite-machine and forest-compilation foundation is implemented and independently reviewed. Its build, arbitrary-word correctness, axiom audit, and malformed-input mutation evidence are recorded in [dcfl-foundation-evidence-2026-09-10](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/dcfl-foundation-evidence-2026-09-10.md). The Orientation comprehension review identified the raw bridge contract and predicted scope replacement correctly after clarification.
 
-The concrete CBCL algebra, classification fidelity, scope-indexed recursive admission bridge, and finite installation theorems are implemented and independently reviewed. [[dcfl-installation-evidence-2026-09-10]] records validation and the exact Lean acceptance-gate link. The unconditional theorem also covers arbitrary finite append sequences without assuming acceptance-gate correctness.
+The concrete CBCL algebra, classification fidelity, scope-indexed recursive admission bridge, and finite installation theorems are implemented and independently reviewed. [dcfl-installation-evidence-2026-09-10](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/dcfl-installation-evidence-2026-09-10.md) records validation and the exact Lean acceptance-gate link. The unconditional theorem also covers arbitrary finite append sequences without assuming acceptance-gate correctness.
 
-Raw lexical lifting is implemented. [[dcfl-raw-installation-evidence-2026-09-10]] records the finite scalar encoding, universal exact-name theorem, lexer/parser composition, installation capstones, kernel tests, mutation checks, axiom audit, and independent review. REQ-1800 through REQ-1806 are discharged within the stated scope. Rust parser/admission equivalence and UTF-8 byte decoding are not established.
+Raw lexical lifting is implemented. [dcfl-raw-installation-evidence-2026-09-10](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/dcfl-raw-installation-evidence-2026-09-10.md) records the finite scalar encoding, universal exact-name theorem, lexer/parser composition, installation capstones, kernel tests, mutation checks, axiom audit, and independent review. REQ-1800 through REQ-1806 are discharged within the stated scope. Rust parser/admission equivalence and UTF-8 byte decoding are not established.
 
 ## Changelog
 

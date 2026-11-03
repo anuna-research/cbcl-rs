@@ -239,9 +239,9 @@ Validates: [[SPEC-026-rust-quorum-certification#REQ-2602]].
 ## Evidence and integration scope
 
 The implementation is in `crates/cbcl-core/src/quorum/` and `certification.rs`.
-[[rust-quorum-implementation]] links executed workspace/no_std checks, runtime tests,
+[rust-quorum-implementation](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/rust-quorum-implementation.md) links executed workspace/no_std checks, runtime tests,
 behavioral guard mutations, Orientation comprehension and independent security review.
-[[consensusless-literature-review]] records the primary-source comparison requested
+[consensusless-literature-review](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/consensusless-literature-review.md) records the primary-source comparison requested
 by the user. These records distinguish tested Rust/model correspondence from a
 formal extraction proof.
 

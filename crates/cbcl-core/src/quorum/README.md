@@ -25,7 +25,7 @@ Local transitions prepare an owned update before journal append instead of copyi
 whole replica state. Per-version charge caches are reconstructed from journals;
 debug builds check them against the historical expression. Borrowed manifests
 avoid cloning large held sets during reads. See [[SPEC-032-quorum-local-update-cost]]
-and [[quorum-local-cost-evidence]] for validation and the opt-in local probe.
+and [quorum-local-cost-evidence](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/quorum-local-cost-evidence.md) for validation and the opt-in local probe.
 
 
 Account owners use `OwnerDriver` and a separate durable `OwnerJournal` for FIFO
@@ -37,4 +37,4 @@ driver drains issued work to effects and never races it against cancellation.
 Initial-unit/full-balance availability needs the documented coherent-owner,
 delivery, fair-service and available-capacity conditions. Collective pools retain
 their existing contention limits. See [[SPEC-033-owned-counter-lifecycle]] and
-[[owned-lifecycle-evidence]] for the abstract Lean proof and scoped Rust evidence.
+[owned-lifecycle-evidence](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/owned-lifecycle-evidence.md) for the abstract Lean proof and scoped Rust evidence.

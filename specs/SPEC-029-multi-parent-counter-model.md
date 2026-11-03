@@ -143,8 +143,8 @@ work, separate from this model's acceptance.
 Kernel builds, executable assertions and isolated weakened-guard checks support
 [[SPEC-029-multi-parent-counter-model#TEST-2900]]. Fresh Orientation comprehension
 and independent cross-model adversarial review accepted the documented scope.
-Detailed recorded evidence is [[multi-parent-evidence]], with review outcomes in
-[[multi-parent-adversarial-review]] and [[multi-parent-orientation-review]].
+Detailed recorded evidence is [multi-parent-evidence](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/multi-parent-evidence.md), with review outcomes in
+[multi-parent-adversarial-review](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/multi-parent-adversarial-review.md) and [multi-parent-orientation-review](https://git.anuna.io/anuna-research/cbcl-rs/src/commit/96d5858d427fb1e371e0a8f13ddf0b23c6c6c8f2/outputs/multi-parent-orientation-review.md).
 These output pages live outside the specs-only vault scan; their resolution is a
 vault-integration backlog owned by the coordinator. Pre-existing vault dead links
 remain; no clean-vault claim is made.
