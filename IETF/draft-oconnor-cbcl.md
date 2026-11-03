@@ -32,6 +32,7 @@ normative:
   RFC8174:
   RFC6838:
   RFC5234:
+  RFC7405:
   RFC8032:
   RFC6234:
   RFC9804:
@@ -257,7 +258,10 @@ and satisfy the semantic constraints defined in {{core-semantics}}.
 ## Syntax Notation
 
 The grammar in this specification uses Augmented Backus-Naur Form (ABNF) as
-defined in {{RFC5234}}, including its core rules.
+defined in {{RFC5234}}, including its core rules, with case-sensitive strings
+from {{RFC7405}}. Every literal in the grammar is explicitly case-sensitive
+(`%s"..."`). Core names, wrapper names, keywords, boolean literals, and
+signature-suite names MUST NOT be case-folded.
 
 A CBCL message is a sequence of octets that MUST be well-formed UTF-8
 {{RFC3629}}. Recognition is defined over the resulting sequence of Unicode
@@ -295,7 +299,7 @@ cbcl-input   = WS s-expr WS
 
 s-expr       = list / atom
 
-list         = "(" *( WS s-expr ) WS ")"
+list         = %s"(" *( WS s-expr ) WS %s")"
 
 atom         = string / boolean / keyword / number / symbol
 
@@ -308,7 +312,7 @@ wsp-char     = SP / HTAB / LF / FF / CR
 FF           = %x0C                     ; form feed
 
 ; A comment runs to the next line feed, or to end of input.
-comment      = ";" *( UTF8-char-not-LF ) [ LF ]
+comment      = %s";" *( UTF8-char-not-LF ) [ LF ]
 
 UTF8-char-not-LF = %x00-09 / %x0B-7F / utf8-2 / utf8-3 / utf8-4
 
@@ -316,15 +320,16 @@ UTF8-char-not-LF = %x00-09 / %x0B-7F / utf8-2 / utf8-3 / utf8-4
 
 symbol       = 1*symbol-char
 
-symbol-char  = ALPHA / DIGIT / "_" / "-" / "." / "/"
-             / "!" / "?" / "+" / "*" / "<" / ">" / "=" / "@"
+symbol-char  = ALPHA / DIGIT / %s"_" / %s"-" / %s"." / %s"/"
+             / %s"!" / %s"?" / %s"+" / %s"*" / %s"<" / %s">" / %s"="
+               / %s"@"
 
 ; -- Numbers -----------------------------------------------------
 ;
 ; Numbers are 64-bit signed integers. See the tokenization note
 ; below: a token beginning with DIGIT, or with "-" followed by
 ; DIGIT, is lexed as a number token and MUST match this rule.
-number       = [ "-" ] 1*DIGIT
+number       = [ %s"-" ] 1*DIGIT
 
 ; -- Strings -----------------------------------------------------
 
@@ -334,15 +339,17 @@ string       = DQUOTE *( string-char / escape ) DQUOTE
 string-char  = %x00-21 / %x23-5B / %x5D-7F
              / utf8-2 / utf8-3 / utf8-4
 
-escape       = %x5C ( DQUOTE / %x5C / "n" / "r" / "t" )
+escape       = %x5C ( DQUOTE / %x5C / %s"n" / %s"r" / %s"t" )
 
 ; -- Booleans and keywords ---------------------------------------
 
-boolean      = ( "#t" / "#f" ) &delimiter
+boolean      = %s"#t" / %s"#f"
+; A following delimiter or end of input is required by the normative
+; scanner rule below; lookahead is not an ABNF operator.
 
-delimiter    = wsp-char / "(" / ")" / DQUOTE / ";"
+delimiter    = wsp-char / %s"(" / %s")" / DQUOTE / %s";"
 
-keyword      = ":" 1*symbol-char
+keyword      = %s":" 1*symbol-char
 ~~~
 
 ### Tokenization Rules {#tokenization}
@@ -357,9 +364,9 @@ scanner. Three of its rules are not expressible in ABNF alone and are normative:
 2. **Number tokens are maximal.** Once a token is recognized as a number, the
    scanner consumes the maximal run of DIGIT and `-` characters and the result
    MUST match `number` and MUST be representable as a 64-bit signed integer.
-   Consequently `1-2`, `--3`, `1-`, and integers outside the 64-bit signed range
+   Consequently `1-2`, `1-`, and integers outside the 64-bit signed range
    are errors, not symbols. A `-` **not** followed by a DIGIT begins a symbol, so
-   `-`, `-a`, and `->` are symbols.
+   `-`, `-a`, `--3`, and `->` are symbols.
 
 3. **Boolean literals require a following delimiter.** `#` MUST be followed by
    exactly `t` or `f` and then by a delimiter or end of input. `#true`, `#tx`,
@@ -412,8 +419,8 @@ cbcl-message = simple-message / meta-message
 ; only if it is an address group. An absent content is the empty
 ; list.
 
-simple-message = "(" core-performative message-tail ")"
-custom-message = "(" custom-performative message-tail ")"
+simple-message = %s"(" core-performative message-tail %s")"
+custom-message = %s"(" custom-performative message-tail %s")"
 
 message-tail = [ WS recipients ]
                      [ WS content ]
@@ -424,8 +431,8 @@ message-tail = [ WS recipients ]
 scoped-message = simple-message / custom-message / meta-message
                / lang-message / scoped-wrapped-message
 
-core-performative = "tell" / "ask" / "reply" / "hello"
-                  / "bye" / "ok" / "error" / "cancel"
+core-performative = %s"tell" / %s"ask" / %s"reply" / %s"hello"
+                  / %s"bye" / %s"ok" / %s"error" / %s"cancel"
 
 custom-performative = symbol
                     ; excludes core names and reserved heads
@@ -434,9 +441,9 @@ custom-performative = symbol
 
 recipients   = address / address-group
 
-address      = "@" 1*symbol-char
+address      = %s"@" 1*symbol-char
 
-address-group = "(" address *( WS address ) ")"    ; non-empty
+address-group = %s"(" address *( WS address ) %s")"    ; non-empty
 
 content      = s-expr
              ; MUST NOT be an address or an address-group
@@ -454,33 +461,33 @@ user-param   = keyword WS s-expr
 
 reserved-param = thread-param / sender-param / caused-by-param
 
-thread-param   = ":thread"  WS ( string / symbol )
-sender-param   = ":sender"  WS ( string / symbol )
-caused-by-param = ":caused-by" WS caused-by-value
+thread-param   = %s":thread"  WS ( string / symbol )
+sender-param   = %s":sender"  WS ( string / symbol )
+caused-by-param = %s":caused-by" WS caused-by-value
 
 caused-by-value = begin-ref / hash-ref / hash-list
 
-begin-ref    = "begin" / DQUOTE "begin" DQUOTE
+begin-ref    = %s"begin" / DQUOTE %s"begin" DQUOTE
 
 hash-ref     = string / symbol           ; a content address
 
-hash-list    = "(" hash-ref *( WS hash-ref ) ")"   ; non-empty
+hash-list    = %s"(" hash-ref *( WS hash-ref ) %s")"   ; non-empty
 
 ; -- Meta messages -----------------------------------------------
 
-meta-message = "(" "meta" WS meta-operation *( WS s-expr ) ")"
+meta-message = %s"(" %s"meta" WS meta-operation *( WS s-expr ) %s")"
 
 meta-operation = meta-query / meta-teach
                / dialect-definition / s-expr
 
-meta-query   = "(" "query" WS s-expr ")"
+meta-query   = %s"(" %s"query" WS s-expr %s")"
 
-meta-teach   = "(" "teach" WS address WS s-expr ")"
+meta-teach   = %s"(" %s"teach" WS address WS s-expr %s")"
 
 ; -- Language-scoped messages ------------------------------------
 
-lang-message = "(" "lang" WS dialect-name WS scoped-message
-                   *( WS s-expr ) ")"
+lang-message = %s"(" %s"lang" WS dialect-name WS scoped-message
+                   *( WS s-expr ) %s")"
 
 dialect-name = symbol
 
@@ -489,13 +496,14 @@ dialect-name = symbol
 ; The inner message is the LAST list-valued element. Every element
 ; before it is a wrapper parameter.
 
-wrapped-message = "(" wrapper-type *( WS wrapper-param )
-                      WS cbcl-message *( WS atom ) ")"
+wrapped-message = %s"(" wrapper-type *( WS wrapper-param )
+                      WS cbcl-message *( WS atom ) %s")"
 
-scoped-wrapped-message = "(" wrapper-type *( WS wrapper-param )
-                      WS scoped-message *( WS atom ) ")"
+scoped-wrapped-message = %s"(" wrapper-type *( WS wrapper-param )
+                      WS scoped-message *( WS atom ) %s")"
 
-wrapper-type = "envelope" / "signed" / "with-limits" / "with-roles"
+wrapper-type = %s"envelope" / %s"signed" / %s"with-limits" /
+               %s"with-roles"
 
 wrapper-param = s-expr
 ~~~
@@ -659,11 +667,11 @@ and installed by receiving agents.
 ; followed by optional clauses in any order.
 ; ================================================================
 
-dialect-definition = "(" "define" WS dialect-name
+dialect-definition = %s"(" %s"define" WS dialect-name
                      WS extends-list WS author
-                     *( WS dialect-clause ) ")"
+                     *( WS dialect-clause ) %s")"
 
-extends-list = "(" *( WS symbol ) ")"
+extends-list = %s"(" *( WS symbol ) %s")"
 
 author       = symbol / string
 
@@ -680,86 +688,87 @@ dialect-clause = extend-clause / protocol-clause / shape-clause
 ; role layer (Section "Multiparty Role Layer") and may appear
 ; before or after the template.
 
-extend-clause = "(" "extend" WS perf-name WS param-list
-                    1*( WS extend-item ) ")"
+extend-clause = %s"(" %s"extend" WS perf-name WS param-list
+                    1*( WS extend-item ) %s")"
 
 extend-item  = role-from / role-to / template
 
-role-from    = ":from" WS role-name
-role-to      = ":to" WS ( role-name / role-set )
-role-set     = "(" *( WS role-name ) ")"
+role-from    = %s":from" WS role-name
+role-to      = %s":to" WS ( role-name / role-set )
+role-set     = %s"(" *( WS role-name ) %s")"
 
 perf-name    = symbol
 role-name    = symbol
-param-list   = "(" *( WS symbol ) ")"
+param-list   = %s"(" *( WS symbol ) %s")"
 template     = s-expr
 
 ; -- Resource requirements ---------------------------------------
 
-resource-clause = "(" ":resource-requirements"
-                  WS resource-alist ")"
+resource-clause = %s"(" %s":resource-requirements"
+                  WS resource-alist %s")"
 
-resource-alist = "(" *( WS resource-pair ) ")"
+resource-alist = %s"(" *( WS resource-pair ) %s")"
 
-resource-pair = "(" resource-key WS number ")"
+resource-pair = %s"(" resource-key WS number %s")"
 
-resource-key = "max-depth" / "max-expansion-size"
-             / "verification-time"
+resource-key = %s"max-depth" / %s"max-expansion-size"
+             / %s"verification-time"
 
 ; -- Integrity and metadata --------------------------------------
 
-examples-clause      = "(" ":examples" *( WS s-expr ) ")"
+examples-clause      = %s"(" %s":examples" *( WS s-expr ) %s")"
 
-signature-clause     = "(" ( ":signature" / ":signed" )
-                       WS ( string / symbol ) ")"
+signature-clause     = %s"(" ( %s":signature" / %s":signed" )
+                       WS ( string / symbol ) %s")"
 
-hash-clause          = "(" ":hash" WS ( string / symbol ) ")"
+hash-clause          = %s"(" %s":hash" WS ( string / symbol ) %s")"
 
-sig-algorithm-clause = "(" ":protocol" WS ( string / symbol ) ")"
+sig-algorithm-clause = %s"(" %s":protocol" WS ( string / symbol )
+               %s")"
 
 ; -- Role layer --------------------------------------------------
 
-roles-clause = "(" ":roles" WS role-decl-list ")"
+roles-clause = %s"(" %s":roles" WS role-decl-list %s")"
 
-role-decl-list = "(" role-decl *( WS role-decl ) ")"
+role-decl-list = %s"(" role-decl *( WS role-decl ) %s")"
 
 role-decl    = role-name                      ; singleton role
-             / "(" "*" WS role-name ")"       ; indexed role
+             / %s"(" %s"*" WS role-name %s")"       ; indexed role
 
-causal-locality-clause = "(" ":causal-locality"
-                         WS ( "derive" / "reject" ) ")"
+causal-locality-clause = %s"(" %s":causal-locality"
+                         WS ( %s"derive" / %s"reject" ) %s")"
 
 ; -- Contracts (see Section "Message Contracts") -----------------
 
-protocol-clause = "(" "protocol" 1*( WS then-clause ) ")"
+protocol-clause = %s"(" %s"protocol" 1*( WS then-clause ) %s")"
 
-then-clause  = "(" "then" 2*( WS protocol-step ) ")"
+then-clause  = %s"(" %s"then" 2*( WS protocol-step ) %s")"
 
 protocol-step = node-ref / repeat-form
 
 node-ref     = perf-name
-             / "(" "any" WS perf-name 1*( WS perf-name ) ")"
-             / "(" "all" WS perf-name 1*( WS perf-name ) ")"
+             / %s"(" %s"any" WS perf-name 1*( WS perf-name ) %s")"
+             / %s"(" %s"all" WS perf-name 1*( WS perf-name ) %s")"
 
-repeat-form  = "(" "repeat" WS positive-number
-                   1*( WS protocol-step ) ")"
+repeat-form  = %s"(" %s"repeat" WS positive-number
+                   1*( WS protocol-step ) %s")"
 
 positive-number = 1*DIGIT              ; MUST be greater than zero
 
-shape-clause = "(" "shape" WS perf-name 1*( WS shape-rule ) ")"
+shape-clause = %s"(" %s"shape" WS perf-name 1*( WS shape-rule ) %s")"
 
 shape-rule   = require-rule / optional-rule / depth-rule
 
-require-rule = "(" "require" WS keyword [ WS type-name ]
-                   *( WS shape-rule ) ")"
+require-rule = %s"(" %s"require" WS keyword [ WS type-name ]
+                   *( WS shape-rule ) %s")"
 
-optional-rule = "(" "optional" WS keyword [ WS type-name ]
-                    [ WS default-value ] *( WS shape-rule ) ")"
+optional-rule = %s"(" %s"optional" WS keyword [ WS type-name ]
+                    [ WS default-value ] *( WS shape-rule ) %s")"
 
-depth-rule   = "(" "max-depth" WS number ")"
+depth-rule   = %s"(" %s"max-depth" WS number %s")"
 
-type-name    = "string" / "number" / "bool"
-             / "symbol" / "keyword" / "list"
+type-name    = %s"string" / %s"number" / %s"bool"
+             / %s"symbol" / %s"keyword" / %s"list"
 
 default-value = s-expr
 ~~~
@@ -1143,8 +1152,19 @@ A variadic chain desugars to pairwise edges: `(then a b c)` declares the edges
 a→b and b→c. Two grouping forms may appear at either end of an edge, and each
 takes **two or more** members:
 
-- `(any p q …)` — a *choice*: exactly one of the alternatives occurs
-- `(all p q …)` — a *fan-in*: every member must have occurred
+- On the predecessor side, `(any p q …)` permits a cited predecessor of any
+  listed type; `(all p q …)` requires evidence for every listed type.
+- On the successor side, both forms generate the listed outgoing dependency
+  edges. `any` expresses the sender's obligation to choose one alternative;
+  `all` expresses the intent to emit every branch. Causal verification does
+  not enforce successor exclusivity or guarantee eventual emission.
+
+For example, both `accept` and `decline` can independently cite one valid
+`offer` and satisfy their causal checks. Discovering a sibling later does not
+retroactively invalidate either causal verdict. Chooser coherence identifies
+the role responsible for choosing; it does not supply mutual exclusion.
+Applications requiring a single business outcome need a separately specified
+authorization or conflict-resolution policy.
 
 `(repeat k step …)` may appear in step position inside a `then` chain and
 nowhere else. `k` MUST be a positive integer. The form is macro-expanded once,
@@ -1217,19 +1237,44 @@ that has not yet seen a predecessor cannot distinguish "not yet delivered" from
 promote it to `Valid`, and SHOULD hold the message pending further arrivals
 under a policy the deployment sets.
 
-The verdict has three properties that matter operationally:
+The operational combination rules are the following truth tables. `V`, `U`,
+and `X` denote `Valid`, `Unknown`, and `Violation`, respectively; diagnostic
+details attached to a violation do not change its verdict class.
 
-- **Monotone in the store**: adding messages to the store can only refine a
-  verdict, never overturn one. Verification is a monotone predicate over an
-  append-only message store, so replicas converge without coordination
-  ({{CALM}}).
-- **`(all …)` fan-in is the meet**: the verdict for a fan-in is the greatest
-  lower bound of its members' verdicts, with `Violation` absorbing.
-- **The verdict is not a lattice.** Under the knowledge order the two terminal
-  verdicts `Valid` and `Violation` have no join: two replicas that have reached
-  opposite conclusions have no common refinement. The message *store* is a
-  join-semilattice under union; the verdict is a bounded meet-semilattice only.
-  Implementations MUST NOT assume a join exists on verdicts.
+| conjunction (`all`) | V | U | X |
+|---|---|---|---|
+| V | V | U | X |
+| U | U | U | X |
+| X | X | X | X |
+
+| disjunction (`any`) | V | U | X |
+|---|---|---|---|
+| V | V | V | V |
+| U | V | U | X |
+| X | V | X | X |
+
+These are the deployed eager conjunction and disjunction operations, not the
+meet and join of the knowledge order. In the knowledge order, `Unknown` is
+below both terminal verdicts, and `Valid` and `Violation` are incomparable.
+Their knowledge-order greatest lower bound is `Unknown`, whereas operational
+conjunction of those two values is `Violation`. The knowledge order is a
+meet-semilattice with bottom and has no join for the two terminal values.
+The operational algebra is a bisemilattice; implementations MUST use the
+tables above rather than substitute knowledge-order meet or join.
+
+Store-growth claims apply to the specified verifier with immutable,
+content-address-authenticated evidence and a fixed installed protocol and
+thread context. Missing evidence can become available as the store grows;
+this does not authorize arbitrary policy changes or treating an undecided
+message as accepted. Replicas with the same evidence and context compute the
+same verdict. They merge evidence and reverify, rather than attempting a
+knowledge-order join of terminal verdicts. In particular, the operational
+`any` table is not a general monotone operator under the knowledge order:
+`X any U = X`, while `X any V = V`. A convergence claim for a concrete causal
+verifier requires its evidence and admissible-transition assumptions; it does
+not follow from these tables alone. A coordination-free convergence argument
+using CALM {{CALM}} requires a monotone computation over growing evidence;
+these tables alone do not establish that premise.
 
 ## State Rules {#state}
 
@@ -1241,76 +1286,159 @@ an instance is a function of the set of accepted messages of its thread and of
 nothing else.
 
 ~~~ abnf
-state-clause   = "(" "state" 1*( WS state-entry ) ")"
-state-entry    = "(" field WS rule ")"
-               / "(" "domain" WS perf-name WS keyword WS field ")"
-field          = symbol            ; [a-z][a-z0-9-]{0,47}, unique in the clause
+state-clause   = %s"(" %s"state" 1*( WS state-entry ) %s")"
+state-entry    = %s"(" field WS rule %s")"
+               / %s"(" %s"domain" WS perf-name WS keyword WS field
+               %s")"
+; [a-z][a-z0-9-]{0,47}, unique in the clause
+field          = symbol
 
 rule           = bounded-counter-rule
-               / "(" "last"              WS perf-name WS keyword ")"
-               / "(" "latest-per-signer" WS perf-name WS keyword ")"
-               / "(" "latest-per-key"    WS perf-name WS keyword WS keyword ")"
-               / "(" "exists"            WS perf-name ")"
-               / "(" "count"             WS perf-name ")"
-               / "(" "events"            WS perf-name WS keyword ")"
-               / "(" "set-union"         WS perf-name WS keyword ")"
-               / "(" "values"            WS perf-name WS keyword ")"
-               / "(" "values-per-key"    WS perf-name WS keyword WS keyword
-                                         [ WS perf-name ] ")"
-               / "(" "register-per-key"  WS perf-name WS keyword WS keyword
-                                         [ WS perf-name ] ")"
-               / "(" "observed-set"      WS perf-name WS perf-name WS keyword ")"
-               / "(" "counter"           WS perf-name WS perf-name WS keyword ")"
-               / "(" "histogram"         WS field ")"
-               / "(" "sum"               WS field ")"
+               / %s"(" %s"last"              WS perf-name WS keyword
+               %s")"
+               / %s"(" %s"latest-per-signer" WS perf-name WS keyword
+               %s")"
+               / %s"(" %s"latest-per-key"    WS perf-name WS keyword
+               WS keyword %s")"
+               / %s"(" %s"exists"            WS perf-name %s")"
+               / %s"(" %s"count"             WS perf-name %s")"
+               / %s"(" %s"progress"          WS perf-name %s")"
+               / %s"(" %s"events"            WS perf-name WS keyword
+               %s")"
+               / %s"(" %s"set-union"         WS perf-name WS keyword
+               %s")"
+               / %s"(" %s"values"            WS perf-name WS keyword
+               %s")"
+               / %s"(" %s"values-per-key"    WS perf-name WS keyword
+               WS keyword
+                                         [ WS perf-name ] %s")"
+               / %s"(" %s"register-per-key"  WS perf-name WS keyword
+               WS keyword
+                                         [ WS perf-name ] %s")"
+               / %s"(" %s"observed-set"      WS perf-name WS
+               perf-name WS keyword %s")"
+               / %s"(" %s"counter"           WS perf-name WS
+               perf-name WS keyword %s")"
+               / %s"(" %s"histogram"         WS field %s")"
+               / %s"(" %s"sum"               WS field %s")"
 
-bounded-counter-rule = "(" "bounded-counter" 1*( WS bounded-counter-option ) ")"
-bounded-counter-option = "(" "floor" WS number ")"
-                       / "(" "ceiling" WS number ")"
-                       / "(" "initial-rights" WS perf-name WS keyword ")"
-                       / "(" "initial-headroom" WS perf-name WS keyword ")"
-                       / "(" "issuers" WS ( role-name / "()" ) ")"
-                       / "(" "increment" WS perf-name WS keyword ")"
-                       / "(" "decrement" WS perf-name WS keyword ")"
-                       / "(" "transfer" WS perf-name WS keyword WS keyword ")"
-                       / "(" "transfer-headroom" WS perf-name WS keyword WS keyword ")"
+bounded-counter-rule = %s"(" %s"bounded-counter" 1*( WS
+               bounded-counter-option ) %s")"
+bounded-counter-option = %s"(" %s"ownership" WS ( %s"account" /
+               %s"collective" ) %s")"
+                       / %s"(" %s"certification" WS
+               certification-profile %s")"
+                       / %s"(" %s"initial" WS perf-name WS keyword
+               %s")"
+                       / %s"(" %s"floor" WS number %s")"
+                       / %s"(" %s"ceiling" WS number %s")"
+                       / %s"(" %s"initial-rights" WS perf-name WS
+               keyword %s")"
+                       / %s"(" %s"initial-headroom" WS perf-name WS
+               keyword %s")"
+                       / %s"(" %s"issuers" WS ( role-name / %s"()" )
+               %s")"
+                       / %s"(" %s"increment" WS perf-name WS keyword
+               %s")"
+                       / %s"(" %s"decrement" WS perf-name WS keyword
+               %s")"
+                       / %s"(" %s"transfer" WS perf-name WS keyword
+               WS keyword %s")"
+                       / %s"(" %s"transfer-headroom" WS perf-name WS
+               keyword WS keyword %s")"
 
-state-bounds-clause = "(" ":state-bounds" *( WS state-bound ) ")"
-state-bound    = "(" ( "max-string" / "max-list" / "max-number"
-                     / "max-fields" ) WS number ")"
+certification-profile = %s"host-gate"
+                      / %s"quorum-budget" *( WS committee-option )
+committee-option = %s"(" %s"validators" 1*( WS address ) %s")"
+                 / %s"(" %s"faults" WS number %s")"
+
+state-bounds-clause = %s"(" %s":state-bounds" *( WS state-bound )
+               %s")"
+state-bound    = %s"(" ( %s"max-string" / %s"max-list" /
+               %s"max-number"
+                     / %s"max-fields" ) WS number %s")"
 ~~~
 
-The version 2 escrow profile adds `bounded-counter-rule`, specified by
-SPEC-019 CON-1908/1909 in the reference implementation. It associates authored
-increment, decrement and transfer acts with account rights, plus optional ceiling
-headroom. Its resource verdict is separate from protocol admission. Resource
-references use compiler-owned `:escrow-prev` and `:escrow-deps` fields; they do not
-change the protocol's `:caused-by` relation. Fold observations are tagged ready,
-pending or fault values. Hard bounds require authenticated accepted history and
-nonforking durable account issuance. No Rust/model equivalence or resource-DAG
-merge proof is claimed by the arithmetic model.
+The bounded-counter declaration has two ownership modes. Omitted ownership
+means `account`; omitted certification means `host-gate`. Options MUST NOT be
+duplicated, and unknown options MUST be rejected. `floor`, `issuers`,
+`increment`, and `decrement` are required. Account mode also requires
+`initial-rights` and `transfer`, rejects `initial`, and requires `ceiling` and
+`initial-headroom` either together or both absent. Initial headroom uses the
+same opener as initial rights and a distinct keyword. `transfer-headroom`
+requires a ceiling. Collective mode instead requires scalar `initial`, rejects
+the account allocation and transfer options, and requires explicit
+`quorum-budget` certification.
 
-Ordinary state rules are defined over two selections and five reductions. `acts v` is the
+The host-gate profile associates increment, decrement and transfer acts with
+account rights and optional ceiling headroom. Its resource verdict is separate
+from protocol admission. Resource references use compiler-owned `:escrow-prev`
+and `:escrow-deps` fields; they do not change `:caused-by`. Observations are
+tagged ready, pending or fault values. Hard bounds depend on authenticated
+accepted history and nonforking durable account issuance; an ordinary fold
+does not establish those host guarantees.
+
+`quorum-budget` selects the reference implementation's multi-parent resource
+DAG runtime. A resolved committee has exactly `3f+1` distinct validator keys
+and requires `2f+1` distinct authenticated votes; `faults` is a nonnegative
+32-bit integer. For an explicit roster and omitted `faults`, `f` is
+`floor((n-1)/3)`, and the roster MUST still satisfy `n = 3f+1`. An omitted
+roster requires instance-bound committee resolution before use. Each committee
+option may occur at most once. This declaration does not itself authenticate
+votes or make a stateless fold a validator.
+
+This document records the quorum declaration syntax and profile selection;
+it does not standardize the validator journal, vote/certificate transport,
+version-adoption protocol, or durable owner driver. Those remain a reference
+implementation extension, described in its quorum runtime API. Implementations
+without that runtime MUST reject execution of a quorum counter rather than
+silently substitute host-gate certification. No cross-implementation quorum
+wire interoperability is claimed by this media-type specification.
+
+Ordinary data rules select accepted acts and apply deterministic reductions. `acts v` is the
 set of accepted messages of performative `v` in the thread, minus those a
 `domain` entry excludes; `current v k d` is the subset of `acts v` that no
 accepted message of `v`, or of the delete performative `d`, names in its
 `:replaces` field for the same key `k`. A reduction picks the message of
 greatest content address, counts a set, tests membership of a value, collects
-distinct values, or sums an integer field. No rule consults a clock, a
-timestamp, or causal depth: the only order is the content address.
+distinct values, or sums an integer field. These data reductions do not consult a clock or timestamp; content-address
+order breaks ties. `progress` instead observes established protocol positions,
+as defined below.
 
 `:replaces` is a reserved keyword of type `list` that installation adds to the
-shape of every performative a `values`, `values-per-key`, `register-per-key`, or
-`observed-set` rule names as a writer, delete, or remove performative. An author
+shape of every performative a `latest-per-signer`, `values`, `values-per-key`,
+`register-per-key`, or `observed-set` rule names as a writer, delete, or remove performative. An author
 MUST NOT declare it, a rule MUST NOT read it, and a sending host fills it with
 the content addresses of the current writes for the message's key. A message
 that carries `:replaces` is thereby a replacement of those writes; a write no
 accepted message names stays current whatever else is accepted.
 
+For `latest-per-signer`, replacement is scoped to the authenticated signer:
+only another accepted write of the same performative by the same signer can
+supersede a cited write. A different signer naming that address cannot remove
+it. The host supplies the signer's observed current write addresses in
+`:replaces`; unseen concurrent writes remain current. The result is a map
+from signer to the selected field of that signer's greatest-address current
+write. Thus a causally replacing write supersedes its target even when its
+address sorts lower; address order resolves only the remaining concurrent ties.
+
+`(progress v)` returns the greatest established occurrence rank of `v` in the
+expanded finite protocol, or zero if none is established. R7 MUST reject it
+unless `v` occurs and its occurrences are totally ordered by causal
+reachability. Ranks are 1 through N among occurrences of `v`; intervening
+performatives do not add ranks. Positions are resolved from same-thread
+accepted causal evidence, including the sealed cast when roles are present,
+not from a caller-supplied number. Unresolved or invalid positions contribute
+nothing. Unlike data selections, progress observes all accepted acts without
+application-data `domain` filtering. Concurrent messages at rank N still yield
+N, not a count of messages. Progress elects no branch and grants no mutual
+exclusion for business actions.
+
 A `domain` entry names a `string` keyword of a performative and a list-valued
 field defined by a rule over the opener only. An accepted message whose keyword
 value is not an element of that list is accepted but contributes to no field;
-admission never reads history.
+the filter does not affect `progress`. Admission does not consult folded
+application state; it may still require accepted causal predecessors.
 
 **R7 - State Well-Formedness.** When a dialect declares a `state` clause,
 installation MUST verify that every performative a rule names is defined by the
@@ -1451,53 +1579,128 @@ rejected at installation.
 
 ## Canonical Form {#canonical-form}
 
-For all cryptographic operations — signing, hashing, content addressing — CBCL
-uses the canonical form of S-expressions specified in {{RFC9804}}. The canonical
-form represents each string in verbatim (length-prefixed) mode and each list
-with no whitespace separating elements, so that structurally identical messages
-produce identical octet sequences regardless of formatting. This is a
-prerequisite for deterministic signature verification.
+CBCL uses the canonical list/octet-string framing of {{RFC9804}}, with the
+following REQUIRED injective mapping of its typed atoms to octet strings.
+All text is UTF-8; lengths count octets, including the type-tag octet.
 
-Multicast recipient sets and multi-element `:caused-by` lists are serialized in
-ascending lexicographic order, so set-valued fields have one encoding.
+| Atom | Octet string before length framing |
+|---|---|
+| symbol `s` | ASCII `S` followed by the bytes of `s` |
+| keyword `:k` | ASCII `K` followed by the bytes of `k`, without the colon |
+| string `s` | ASCII `Q` followed by the decoded bytes of `s` |
+| integer `n` | ASCII `N` followed by minimal signed decimal ASCII of `n` |
+| boolean true / false | ASCII `Bt` / `Bf` |
+
+An atom is encoded as its octet-string length in decimal ASCII with no leading
+zeros, a colon, and the octet string. Zero is spelled `0`; integers have no
+leading plus or zeros, and negative zero normalizes to zero. A list is `(`,
+the concatenated canonical encodings of its children, and `)`, with no spaces.
+Strings are not Unicode-normalized. A symbol and a string with the same text
+MUST remain distinct. For example:
+
+| Input | Canonical octets, shown as ASCII |
+|---|---|
+| `alice` | `6:Salice` |
+| `"alice"` | `6:Qalice` |
+| `:x` | `2:Kx` |
+| `-0` | `2:N0` |
+| `#t` | `2:Bt` |
+| `(tell "hi")` | `(5:Stell3:Qhi)` |
+
+For messages, canonical field extraction operates on the structured message,
+not on an arbitrary surface spelling. Multicast recipient sets and
+multi-element `:caused-by` lists use ascending lexicographic order. In a simple
+message, the reserved sender and thread fields are represented internally as
+strings; causal references are represented as symbols, including a hash whose
+wire representation is a string. This internal symbol is an encoding value,
+not an instruction to parse a colon-bearing symbol from wire text.
 
 ## Content Addresses
 
-A message's content address is a SHA-256 {{RFC6234}} digest, written
-`sha256:` followed by exactly 64 lowercase hexadecimal characters. On the wire a
-content address is a **string** ({{tokenization}}).
+A message's content address is the typed Merkle root defined below, rendered
+as `sha256:` and exactly 64 lowercase hexadecimal characters. It is a string
+on the wire. It is not the flat SHA-256 hash of the serialized message.
 
-The address is the root of a fixed-shape Merkle tree over the message's fields,
-in this order:
+For a simple message, construct these six field values in order. `opt(x)` is
+the one-element list `(x)` when present and the empty list `()` when absent.
+`enc` is the typed canonical encoding above.
 
-| Leaf | Field |
-|---|---|
-| 0 | performative type |
-| 1 | sender key |
-| 2 | recipient set |
-| 3 | `:caused-by` reference |
-| 4 | thread identifier |
-| 5 | payload (content and remaining parameters) |
+| i | Domain tag (a symbol) | Field value |
+|---|---|---|
+| 0 | `cbcl-taddr-v1/field-0-performative` | performative symbol |
+| 1 | `cbcl-taddr-v1/field-1-from` | `opt(sender-string)` |
+| 2 | `cbcl-taddr-v1/field-2-to` | sorted list of recipient symbols |
+| 3 | `cbcl-taddr-v1/field-3-caused-by` | `opt(causal-reference)` |
+| 4 | `cbcl-taddr-v1/field-4-thread` | `opt(thread-string)` |
+| 5 | `cbcl-taddr-v1/field-5-payload` | list of content followed by remaining parameter expressions |
 
-Each leaf is `SHA256(0x00 ‖ canonical-encode((tag_i field_i)))` and each internal
-node `SHA256(0x01 ‖ left ‖ right)`. The distinct leaf and node prefixes prevent a
-leaf digest being reinterpreted as an internal node. Because the leaf count is a
-protocol constant, the tree shape is fixed and the duplicate-last-leaf forgery,
-which requires an attacker-chosen leaf count, cannot arise.
+A causal reference is the symbol `begin`, a single hash symbol, or a sorted
+list of hash symbols. A message with absent content uses the empty list as its
+content value. The payload excludes reserved parameters lifted into the
+structured header and retains the order of the remaining parameters.
+
+For a non-simple message, field 0 is the symbol `meta`, `lang`, or its wrapper
+name; fields 1 through 4 are empty lists; field 5 is a one-element list
+containing its structured S-expression representation. Wrappers are therefore
+committed as wrappers, not silently stripped before hashing.
+
+Compute `l_i = SHA256(0x00 || enc((tag_i field_i)))`, using SHA-256
+{{RFC6234}}. Let
+`H(a,b) = SHA256(0x01 || a || b)`, where `a` and `b` are raw 32-octet digests,
+not hexadecimal strings. The tree topology is exactly:
+
+~~~
+n0   = H(l0, l1)
+n1   = H(l2, l3)
+n2   = H(l4, l5)
+m0   = H(n0, n1)
+root = H(m0, n2)
+~~~
+
+There is no padding or leaf duplication. The domain tags, field types,
+optional-field framing, and topology are part of this construction and MUST
+NOT vary between implementations.
+
+For the simple message `(tell "hi")`, the six field values are the symbol
+`tell`, four empty lists, and the one-element list containing the string
+`"hi"`, respectively. Its address is:
+
+~~~
+sha256:51ab48a6af30fb4e0023222c4bc90d788c0748a34faac9b7609eaaf844ad7a05
+~~~
+
+For example, opening its thread field (index 4, value `()`) has these two
+sibling digests in bottom-up order:
+
+~~~
+right: 6f766fcaee1c8b1450bd7659ececdd2b9ab4991641d1cba42563e5046fc032e7
+left:  3b0ebf787f1335404c34be9293401f6cc518cc6e511cd6396f1bf0b818808545
+~~~
 
 ### Field Openings
 
-Any single field **opens**: its holder produces the field value plus a
-constant-size sibling path that verifies against the address alone, revealing
-that one field and nothing else. This is authenticated selective disclosure. A
-relay that never authored a message, holding only the address and an opening,
-can prove to a third party that the address names a message of a given type from
-a given sender while the payload stays sealed.
+An opening contains a field index, its typed field value, and a bottom-up list
+of sibling digests with their left/right sides. Starting from the field's leaf
+digest, a verifier hashes each sibling on its declared side and MUST obtain
+the claimed root. The path length and sides MUST match that field's position
+in the fixed tree: fields 0 through 3 have three siblings; fields 4 and 5 have
+two. Out-of-range fields, malformed digests, and mismatching paths are rejected.
 
-Openings are sufficient for the role layer's safety checks, because a safety
-verdict depends on predecessor presence and predecessor *type* only. A delivery
-carrying exactly a predecessor's type yields the same verdict as holding the
-full message.
+| Field | Sibling sides, bottom-up |
+|---|---|
+| 0 | right, right, right |
+| 1 | left, right, right |
+| 2 | right, left, right |
+| 3 | left, left, right |
+| 4 | right, left |
+| 5 | left, left |
+
+An opening proves a field value relative to a root; sender authentication
+additionally requires an authenticated root and a verified binding to the
+signing key. A type opening alone does not establish the sender, thread,
+endpoints, or predecessor references. A role verifier MUST obtain authenticated
+evidence for every field its checks use. Completion checks that need payload
+grammaticality additionally require payload disclosure.
 
 ## Attestation Disciplines
 
@@ -1524,15 +1727,27 @@ verification under another; the mismatch is a typed rejection.
   The attestation is never transmitted; both a full-message holder and an
   envelope holder reconstruct the identical preimage. Verification therefore
   never requires the payload.
+
+  In that preimage, the domain tag, suite, hash, performative, sender and
+  recipient keys are symbol atoms; the thread is a string atom. Sender and
+  recipient keys use suite-explicit canonical spelling, and the recipient list
+  is sorted by (suite, name). An absent causal reference contributes no element;
+  a present one contributes the symbol `begin`, a hash symbol, or a sorted list
+  of hash symbols. These internal symbols use the typed canonical encoder, not
+  the wire lexer.
+
 - **v3** signs a domain-tagged commitment to the typed Merkle root alone:
 
   ~~~
   (cbcl-attest-v3 <suite> <root>)
   ~~~
 
-  Because the root commits every header field as an authenticated leaf, one
-  root signature authenticates all fields at once, and verification needs only
-  the suite, the root, and the signature.
+  Signature verification needs the suite, root, signature, and the sender's
+  authenticated verification key. This authenticates the root commitment.
+  Authenticating any disclosed field additionally requires its verified Merkle
+  opening; a root signature alone does not authenticate accompanying header
+  claims. The suite and root in the preimage are symbol atoms, using the typed
+  canonical encoding above, regardless of their transport spelling.
 
 ### Suite-Typed Key Identity
 
@@ -1549,27 +1764,41 @@ suite MUST be written as a string wherever it appears in a field position. See
 
 ## Redacted Envelopes {#envelopes}
 
-A **redacted envelope** is the payload-free derivative of a signed message: its
-content address, performative name, sender key, recipient set, thread
-identifier, `:caused-by` list, and signature — and nothing else.
+There are two payload-free evidence forms, with distinct verification rules.
 
-An envelope widens the *evidence*, not the message. A widened recipient's
-safety-level verification reads a predecessor's address, type, endpoints, and
-signature but never its payload, so the envelope satisfies that need at zero
-payload disclosure and at a size independent of the payload it redacts.
+- A **v2 redacted envelope** carries the content address, performative name,
+  sender key, recipient set, thread, optional causal reference, and signature.
+  The verifier reconstructs the v2 attestation from these exact fields and
+  verifies its signature. No Merkle openings are needed because v2 directly
+  signs the header claims.
+- A **v3 opened envelope** carries the signature suite, typed root, root
+  signature, and field openings. Full header disclosure opens fields 0 through
+  4; field 5 remains sealed. A narrower disclosure MAY omit fields, but an
+  omitted field is unavailable evidence, not an authenticated absence.
 
-What an envelope does reveal is exactly its declared fields: type, speaker,
-audience, and causal position. That is metadata-only disclosure, not *no*
-disclosure, and deployments MUST treat it accordingly — for many protocols the
-type and audience of a message are the knowledge being conveyed.
+Both forms MUST identify their discipline explicitly. The verifier MUST NOT
+interpret a v3 root signature as a v2 header signature. For v3, it MUST verify
+the root signature and each supplied opening before using the disclosed field.
+It MUST reject duplicate or malformed field disclosures and MUST NOT promote
+an unproved header claim to authenticated evidence. A consumer MUST require
+all fields needed by its particular safety check; missing fields cannot yield
+`Valid` merely because the root signature verifies. Opening the sender field
+does not replace checking that it matches the authenticated signing identity.
 
-Every field a verifier reads is authenticated, because the envelope's signature
-is the v2 (or v3) attestation over exactly those fields. An envelope whose
-address fails to parse, whose recipient set exceeds the receiver's R2-derived
-bound, or which carries any additional field MUST be rejected, never repaired.
+An envelope widens evidence without disclosing payload. It does disclose the
+opened metadata: type, speaker, audience, thread, and causal position may
+themselves be sensitive. Size is independent of the redacted payload, but
+depends on the disclosed metadata and recipient/reference counts. Malformed
+addresses, excessive recipient counts under the receiver's configured bound,
+and fields outside the selected evidence form MUST be rejected, never repaired.
+Completion checks requiring payload grammaticality MUST still require the full
+message or the authenticated payload disclosure those checks consume.
 
-Envelopes are sufficient for safety-level verification only. Completion-level
-checks, which require payload grammaticality, MUST still require full messages.
+These definitions specify the authenticated evidence objects and verification
+requirements. The generic `envelope` wrapper in {{core-grammar}} is not itself
+a wire grammar for v2 or v3 evidence. A transport profile carrying these objects
+MUST specify its discipline marker, signature encoding, and field/opening
+serialization; this document does not define that transport profile.
 
 ## Equivocation
 
@@ -2468,11 +2697,12 @@ multiplexing.
 
 A two-valued verdict would force a receiver that has not yet seen a message's
 predecessor to answer "invalid", which in any unordered transport is wrong far
-more often than it is right. Making "undecided" a first-class verdict is what
-allows verification to be monotone in the message store, which in turn is what
-allows replicas to converge without coordination. The cost is that
-implementations must handle a verdict that may never resolve, which is precisely
-the situation {{splicing}} analyses.
+more often than it is right. Making "undecided" a first-class verdict lets a
+receiver defer acceptance until the required evidence is available. Replicas
+with the same authenticated evidence and fixed context compute the same
+verdict; the operational tables and limits on monotonicity claims are stated
+in {{verdicts}}. Implementations must handle a verdict that may never resolve,
+which is precisely the situation {{splicing}} analyses.
 
 **Separation of Concerns**
 
