@@ -15,7 +15,7 @@ prior-art:
   - Davey & Priestley 2002 (Introduction to Lattices and Order — formalisation reference)
   - Mathlib4 (Order.Lattice, Order.BoundedLattice — Mathlib lattice infrastructure)
   - de Moura & Ullrich 2021 (The Lean 4 Theorem Prover and Programming Language)
-repository: https://codeberg.org/anuna/cbcl-rs
+repository: https://git.anuna.io/anuna-research/cbcl-rs
 ---
 
 # SPEC-005: Lean Mechanisation of Causal Protocols and Verification Lattice

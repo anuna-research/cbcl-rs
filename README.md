@@ -15,7 +15,7 @@ These guarantees concern observable interactions. They do not establish that an 
 Install Rust stable, then:
 
 ```bash
-git clone https://codeberg.org/anuna/cbcl-rs
+git clone https://git.anuna.io/anuna-research/cbcl-rs
 cd cbcl-rs
 cargo run -p cbcl-cli -- parse '(tell agent-b "hello")'
 cargo run -p cbcl-cli -- verify '(define greeting () @alice (extend greet (who) (tell who "hello")))'

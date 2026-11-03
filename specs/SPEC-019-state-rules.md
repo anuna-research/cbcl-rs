@@ -17,7 +17,7 @@ prior-art:
   - cbcl-bus `apps/cbcl_chat/priv/web/hypermedia/projection.js`, `emit.js`, `object-sdk.js` — the reference interpreter whose behaviour the kernel reproduces
   - cbcl-aamas `sections/06_state.tex` — the paper's account, made normative and corrected in one place
   - Baquero, Almeida, Shoker 2017 (pure operation-based CRDTs); Kleppmann et al. 2018 (OpSets); Gomes et al. 2017 (verified CRDTs)
-repository: https://codeberg.org/anuna/cbcl-rs
+repository: https://git.anuna.io/anuna-research/cbcl-rs
 ---
 
 # SPEC-019: State Layer — R7 State Rules and the Intent Binder

@@ -16,7 +16,7 @@ prior-art:
   - proofs/epp-correspondence/proof.tex (paper-level proofs)
   - anuna-papers/papers/2026-cbcl-endpoint-projection (the EPP paper; design source)
   - SPEC-004 (sealed-bid auction demo — first consumer of indexed roles)
-repository: https://codeberg.org/anuna/cbcl-rs
+repository: https://git.anuna.io/anuna-research/cbcl-rs
 ---
 
 # SPEC-014: Role Layer — R6 and Coordination-Free Endpoint Projection

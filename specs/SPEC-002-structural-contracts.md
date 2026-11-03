@@ -42,7 +42,7 @@ prior-art:
   - Rowicki/Francalanza/Scalas 2025 (Correct Black-Box Monitors for Distributed Deadlock Detection, OOPSLA2 — newer Francalanza/Scalas distributed monitor, binary-verdict liveness only)
   - Hellerstein 2026 (The Coordination Criterion, arXiv:2602.09435 — modern spec-level statement of monotonicity ⇔ coordination-freedom)
   - Waites 2026, Plumbing (Leith Document Company) — contemporary convergent work
-repository: https://codeberg.org/anuna/cbcl-rs
+repository: https://git.anuna.io/anuna-research/cbcl-rs
 ---
 
 # SPEC-002: Structural Contracts for CBCL — Causal Protocols and Shapes

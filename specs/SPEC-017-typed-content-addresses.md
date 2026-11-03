@@ -17,7 +17,7 @@ prior-art:
   - af75648 (IMPL-017 spike — GO verdict; determinism + collision-safety, envelope subsumption, bounded blast radius)
   - crates/cbcl-core/src/canonical.rs (RFC 9804 canonical_encode — the per-field encoder composed here)
   - crates/cbcl-core/src/equivocation.rs (message_content_hash — the flat H(canonical-bytes) this replaces at the hub)
-repository: https://codeberg.org/anuna/cbcl-rs
+repository: https://git.anuna.io/anuna-research/cbcl-rs
 ---
 
 # SPEC-017: Typed Content Addresses

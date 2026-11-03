@@ -15,7 +15,7 @@ prior-art:
   - crates/cbcl-core/src/splice.rs (the decidable splice-coherence analyzer)
   - crates/cbcl-parser/tests/splice_corpus.rs (corpus verdicts)
   - anuna-papers/papers/2026-cbcl-endpoint-projection (Theorem thm:splice-necessity, regime lattice)
-repository: https://codeberg.org/anuna/cbcl-rs
+repository: https://git.anuna.io/anuna-research/cbcl-rs
 ---
 
 # SPEC-016: The Splicing Boundary

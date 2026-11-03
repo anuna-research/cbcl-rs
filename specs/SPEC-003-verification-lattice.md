@@ -16,7 +16,7 @@ prior-art:
   - Lamport 1978 (happened-before, causal ordering)
   - Birman/Joseph 1987 (reliable communication in the presence of failures)
   - Bailis et al. 2015 (coordination avoidance, invariant confluence)
-repository: https://codeberg.org/anuna/cbcl-rs
+repository: https://git.anuna.io/anuna-research/cbcl-rs
 ---
 
 # SPEC-003: Verification Lattice — Algebraic Foundations for Causal Protocol Checking

@@ -2595,7 +2595,7 @@ correspondence, the splicing analysis, a temporal bridge to conformant
 executions, and DCFL preservation at the role layer. A verified parser binary is
 extracted from the proofs.
 
-Implementation repository: https://codeberg.org/anuna/cbcl-rs
+Implementation repository: https://git.anuna.io/anuna-research/cbcl-rs
 
 ## Divergences from this specification {#divergences}
 {:numbered="false"}

@@ -12,7 +12,7 @@ depends-on:
 prior-art:
   - crates/cbcl-parser/tests/paper_corpus.rs (TEST-640 — the corpus verdicts motivating this spec)
   - anuna-papers/papers/2026-cbcl-endpoint-projection (EPP paper — corpus table, adversary and equivocation sections)
-repository: https://codeberg.org/anuna/cbcl-rs
+repository: https://git.anuna.io/anuna-research/cbcl-rs
 ---
 
 # SPEC-015: Role Layer v2 — Redacted Delivery, Bounded Repetition, Equivocation Accountability
