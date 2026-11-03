@@ -61,7 +61,7 @@ Receipt alone does not mean acceptance. The admission monitor separates pending 
 
 An optional `(state …)` declaration gives a protocol's messages a shared state interpretation. Registers, sets, maps, and counters are derived from the accepted acts in a thread. The same accepted set produces the same state regardless of arrival order or duplicate delivery. `fold` computes that state; `intend` binds a proposed act against it. These primitives are exposed through the Rust, JavaScript/TypeScript, WASM, C, and Erlang interfaces.
 
-The **bounded-counter primitive** adds escrow rights to an integer counter. Each account can decrement within its allocation; transferring rights changes who can spend without changing the total. An optional ceiling adds per-account headroom for increments. This supports balances, quotas, and shared resource pools without relying on a global observed balance to authorize concurrent operations.
+The **bounded-counter primitive** represents transferable rights over constrained resources, supporting balances, quotas, credits, and inventory. These escrow rights are bound to authenticated accounts: each account can decrement within its allocation, and transferring rights changes who can spend without changing the total. An optional ceiling adds per-account headroom for increments. Concurrent operations are authorized against these allocations rather than a global observed balance.
 
 | Operation | Effect |
 |-----------|--------|
