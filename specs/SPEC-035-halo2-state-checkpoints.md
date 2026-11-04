@@ -234,7 +234,7 @@ Trace: [[SPEC-035-halo2-state-checkpoints#TEST-3503]],
 
 A chain SHALL carry one profile identity and an ordered list of at most 64
 proofs. `Chain::verify` SHALL take the receiver's start checkpoint and an
-optional expected final checkpoint. It SHALL require that every proof's profile
+receiver-chosen expected final checkpoint. It SHALL require that every proof's profile
 identity equals the chain's and the verifier's, that the first proof's before
 checkpoint equals the start, and that each later proof's before checkpoint
 equals the previous proof's after checkpoint. It SHALL verify every link's
@@ -297,7 +297,7 @@ Trace: [[SPEC-035-halo2-state-checkpoints#TEST-3507]],
 (a) The crate `cbcl-state-proof` SHALL be a workspace member and SHALL pass the
 repository's `make check` gate: formatting, clippy with warnings denied, and
 tests under `--locked`. (b) No workspace crate other than `cbcl-cli` SHALL
-depend on it, and `cbcl-cli` SHALL depend on it only as an optional dependency
+depend on it, and `cbcl-cli` SHALL depend on it only as a feature-gated dependency
 behind the `state-proof` feature; the out-of-workspace `cbcl-fuzz` crate MAY
 depend on it for the TEST-3507 fuzz target. (c) The `no_std`, WebAssembly, FFI and Erlang bindings
 SHALL be unaffected. (d) The `examine_re` list in `mutants.toml` SHALL NOT list
@@ -438,8 +438,8 @@ checked against it:
 - JSON whitespace is permitted between tokens and after the final value;
   any other trailing input is rejected.
 - Every value shown below as `{ ... }` SHALL be a JSON object. A JSON array in
-  an object position is rejected even though `serde_json` would otherwise
-  accept a positional array for a struct; the recogniser checks object shape
+  an object position is rejected even though `serde_json` otherwise
+  accepts a positional array for a struct; the recogniser checks object shape
   before typed deserialisation.
 - Object member order is not significant. A duplicate member is rejected.
 - A byte is a JSON integer in 0 to 255 with no fraction, exponent or sign.
