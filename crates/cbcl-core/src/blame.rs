@@ -117,7 +117,7 @@ impl BlameEntry {
     /// (blame :party sender :reason "missing :caused-by" :evidence (...))
     /// ```
     pub fn to_sexpr(&self) -> SExpr {
-        let mut items: Vec<SExpr> = vec![
+        let mut items: Vec<SExpr> = alloc::vec![
             SExpr::Atom(Atom::Symbol(String::from("blame"))),
             SExpr::Atom(Atom::Keyword(String::from("party"))),
             SExpr::Atom(Atom::Symbol(String::from(self.party.as_str()))),
