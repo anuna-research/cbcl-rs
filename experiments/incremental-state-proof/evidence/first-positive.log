@@ -1,0 +1,5 @@
+
+> cbcl-incremental-state-proof-experiment@0.0.0 test
+> tsx experiment.ts
+
+first witnessed update passed

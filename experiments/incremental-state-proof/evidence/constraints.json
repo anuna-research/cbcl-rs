@@ -1,0 +1,165 @@
+{
+  "tests": [
+    {
+      "name": "native-parity-1",
+      "result": "pass",
+      "ms": 672
+    },
+    {
+      "name": "native-parity-8",
+      "result": "pass",
+      "ms": 201
+    },
+    {
+      "name": "native-parity-64",
+      "result": "pass",
+      "ms": 1004
+    },
+    {
+      "name": "native-parity-256",
+      "result": "pass",
+      "ms": 3814
+    },
+    {
+      "name": "valid-replacement",
+      "result": "pass",
+      "ms": 38
+    },
+    {
+      "name": "wrong-old-value",
+      "result": "pass",
+      "ms": 89
+    },
+    {
+      "name": "wrong-replacement",
+      "result": "pass",
+      "ms": 19
+    },
+    {
+      "name": "wrong-sequence",
+      "result": "pass",
+      "ms": 17
+    },
+    {
+      "name": "wrong-signer-index",
+      "result": "pass",
+      "ms": 82
+    },
+    {
+      "name": "wrong-state-path",
+      "result": "pass",
+      "ms": 22
+    },
+    {
+      "name": "wrong-state-root",
+      "result": "pass",
+      "ms": 15
+    },
+    {
+      "name": "wrong-history-root",
+      "result": "pass",
+      "ms": 22
+    },
+    {
+      "name": "wrong-count",
+      "result": "pass",
+      "ms": 15
+    },
+    {
+      "name": "wrong-object",
+      "result": "pass",
+      "ms": 6
+    },
+    {
+      "name": "wrong-operation",
+      "result": "pass",
+      "ms": 6
+    },
+    {
+      "name": "wrong-append-index",
+      "result": "pass",
+      "ms": 32
+    },
+    {
+      "name": "occupied-append-slot",
+      "result": "pass",
+      "ms": 43
+    },
+    {
+      "name": "history-capacity",
+      "result": "pass",
+      "ms": 16
+    },
+    {
+      "name": "noncanonical-empty-head",
+      "result": "pass",
+      "ms": 50
+    },
+    {
+      "name": "sequence-overflow",
+      "result": "pass",
+      "ms": 34
+    },
+    {
+      "name": "replayed-write",
+      "result": "pass",
+      "ms": 40
+    },
+    {
+      "name": "unsupported-concurrency",
+      "result": "pass",
+      "ms": 39
+    },
+    {
+      "name": "sibling-forks-require-receiver-selection",
+      "result": "pass",
+      "ms": 106
+    }
+  ],
+  "parityCosts": [
+    {
+      "writes": 1,
+      "nativeOracleMs": 11
+    },
+    {
+      "writes": 8,
+      "nativeOracleMs": 4
+    },
+    {
+      "writes": 64,
+      "nativeOracleMs": 19
+    },
+    {
+      "writes": 256,
+      "nativeOracleMs": 140
+    }
+  ],
+  "analysis": {
+    "rows": 2178,
+    "digest": "5fbbda4e1907fe5689b9165ff539d9fd"
+  },
+  "height": 17,
+  "capacity": 65536,
+  "witnesses": [
+    {
+      "history": 1,
+      "privateFields": 76,
+      "pathFields": 64
+    },
+    {
+      "history": 8,
+      "privateFields": 76,
+      "pathFields": 64
+    },
+    {
+      "history": 64,
+      "privateFields": 76,
+      "pathFields": 64
+    },
+    {
+      "history": 256,
+      "privateFields": 76,
+      "pathFields": 64
+    }
+  ]
+}

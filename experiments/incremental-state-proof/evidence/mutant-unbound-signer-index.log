@@ -1,0 +1,19 @@
+/workspace_root/src/bindings/ocaml/jsoo_exports/overrides.js:45
+    if (err instanceof Error) throw err;
+                              ^
+
+AssertionError [ERR_ASSERTION]: Missing expected rejection.
+    at async reject (/Users/anuna-02/Code/cbcl-rs-incremental-state/experiments/incremental-state-proof/experiment.ts:36:3)
+    at async <anonymous> (/Users/anuna-02/Code/cbcl-rs-incremental-state/experiments/incremental-state-proof/experiment.ts:67:5)
+    at async test (/Users/anuna-02/Code/cbcl-rs-incremental-state/experiments/incremental-state-proof/experiment.ts:30:3)
+    at async constraints (/Users/anuna-02/Code/cbcl-rs-incremental-state/experiments/incremental-state-proof/experiment.ts:64:3)
+    at async <anonymous> (/Users/anuna-02/Code/cbcl-rs-incremental-state/experiments/incremental-state-proof/experiment.ts:159:64) {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: undefined,
+  expected: /Constraint unsatisfied/i,
+  operator: 'rejects',
+  diff: 'simple'
+}
+
+Node.js v25.6.1

@@ -1,0 +1,19 @@
+{
+  "platform": "macOS-26.5-arm64-arm-64bit",
+  "machine": "arm64",
+  "node": "v25.6.1",
+  "rustc": "rustc 1.95.0 (59807616e 2026-04-14)",
+  "o1js": "2.2.0",
+  "workers": 1,
+  "cpu": "Apple M2",
+  "generated_by": "Codex; system model family GPT-6; exact version not exposed",
+  "branch": "experiment/incremental-state-paths",
+  "base_commit": "6f00b4e",
+  "source_sha256": {
+    "program.ts": "fa7681fb311a2801ae84abea546b818273063422248e9bdb7b540f6e6ab3fc85",
+    "helpers.ts": "016b46f2cd390223b8afed9534dc75e1b2265cc552915db6f63837215a2cba2a",
+    "experiment.ts": "d38bed7b412c7bb87822baced20d04ffc063e45d1177e99904537addd3e2a45c",
+    "../../crates/cbcl-state-proof/examples/incremental_oracle.rs": "6335f53b2cefaa28066daad379fd2714736cd37af97bb811f76e4d5e6ce2023d"
+  },
+  "source_hash_stage": "Final source after test-only review repairs; program.ts unchanged during real-proof run"
+}

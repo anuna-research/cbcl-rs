@@ -1,0 +1,31 @@
+
+> cbcl-incremental-state-proof-experiment@0.0.0 test
+> tsx experiment.ts
+
+{"name":"native-parity-1","result":"pass","ms":1674}
+{"name":"native-parity-8","result":"pass","ms":196}
+{"name":"native-parity-64","result":"pass","ms":979}
+{"name":"native-parity-256","result":"pass","ms":3801}
+{"name":"valid-replacement","result":"pass","ms":38}
+{"name":"wrong-old-value","result":"pass","ms":87}
+{"name":"wrong-replacement","result":"pass","ms":19}
+{"name":"wrong-sequence","result":"pass","ms":17}
+{"name":"wrong-signer-index","result":"pass","ms":8}
+/workspace_root/src/bindings/ocaml/jsoo_exports/overrides.js:45
+    if (err instanceof Error) throw err;
+                              ^
+
+AssertionError [ERR_ASSERTION]: Missing expected rejection.
+    at async reject (/Users/anuna-02/Code/cbcl-rs-incremental-state/experiments/incremental-state-proof/experiment.ts:36:3)
+    at async test (/Users/anuna-02/Code/cbcl-rs-incremental-state/experiments/incremental-state-proof/experiment.ts:30:3)
+    at async constraints (/Users/anuna-02/Code/cbcl-rs-incremental-state/experiments/incremental-state-proof/experiment.ts:64:3)
+    at async <anonymous> (/Users/anuna-02/Code/cbcl-rs-incremental-state/experiments/incremental-state-proof/experiment.ts:147:64) {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: undefined,
+  expected: /Constraint unsatisfied/i,
+  operator: 'rejects',
+  diff: 'simple'
+}
+
+Node.js v25.6.1

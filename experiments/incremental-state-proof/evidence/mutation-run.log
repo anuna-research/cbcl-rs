@@ -1,0 +1,4 @@
+{"name": "unbound-signer-index", "test": "wrong-signer-index", "command": ["node", "--import", "tsx", "experiment.ts", "--only=wrong-signer-index"], "exit_code": 7, "killed": true}
+{"name": "unbound-append-index", "test": "wrong-append-index", "command": ["node", "--import", "tsx", "experiment.ts", "--only=wrong-append-index"], "exit_code": 7, "killed": true}
+{"name": "unbound-state-path", "test": "wrong-old-value", "command": ["node", "--import", "tsx", "experiment.ts", "--only=wrong-old-value"], "exit_code": 7, "killed": true}
+{"name": "unbound-replacement", "test": "wrong-replacement", "command": ["node", "--import", "tsx", "experiment.ts", "--only=wrong-replacement"], "exit_code": 7, "killed": true}

@@ -1,0 +1,5 @@
+    Checking cbcl-core v0.1.1 (/Users/anuna-02/Code/cbcl-rs-incremental-state/crates/cbcl-core)
+    Checking halo2_proofs v0.3.5
+    Checking cbcl-parser v0.1.1 (/Users/anuna-02/Code/cbcl-rs-incremental-state/crates/cbcl-parser)
+    Checking cbcl-state-proof v0.1.1 (/Users/anuna-02/Code/cbcl-rs-incremental-state/crates/cbcl-state-proof)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.72s

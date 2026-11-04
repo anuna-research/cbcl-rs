@@ -1,0 +1,6 @@
+
+> cbcl-incremental-state-proof-experiment@0.0.0 verify
+> tsx verify-evidence.ts
+
+{"history":8,"nativeExpectationsMatch":true,"serializedProofVerified":true,"verificationKeyHash":"538244288301218823560130384579427068006133610246124859463058230996952168208"}
+{"history":256,"nativeExpectationsMatch":true,"serializedProofVerified":true,"verificationKeyHash":"538244288301218823560130384579427068006133610246124859463058230996952168208"}

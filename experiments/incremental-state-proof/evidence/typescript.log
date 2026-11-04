@@ -1,0 +1,4 @@
+
+> cbcl-incremental-state-proof-experiment@0.0.0 check
+> tsc --noEmit
+

@@ -1,0 +1,61 @@
+[
+  {
+    "case": "valid-native-first-write",
+    "result": "pass"
+  },
+  {
+    "case": "top-array",
+    "result": "rejected",
+    "exit_code": 1
+  },
+  {
+    "case": "record-array",
+    "result": "rejected",
+    "exit_code": 1
+  },
+  {
+    "case": "unknown-input-member",
+    "result": "rejected",
+    "exit_code": 1
+  },
+  {
+    "case": "duplicate-input-member",
+    "result": "rejected",
+    "exit_code": 1
+  },
+  {
+    "case": "unknown-record-member",
+    "result": "rejected",
+    "exit_code": 1
+  },
+  {
+    "case": "duplicate-record-member",
+    "result": "rejected",
+    "exit_code": 1
+  },
+  {
+    "case": "signer-capacity",
+    "result": "rejected",
+    "exit_code": 1
+  },
+  {
+    "case": "negative-u32",
+    "result": "rejected",
+    "exit_code": 1
+  },
+  {
+    "case": "record-capacity",
+    "result": "rejected",
+    "exit_code": 1
+  },
+  {
+    "case": "byte-capacity",
+    "result": "rejected",
+    "exit_code": 1
+  },
+  {
+    "case": "trailing-input",
+    "result": "rejected",
+    "exit_code": 1
+  }
+]

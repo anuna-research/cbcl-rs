@@ -1,0 +1,12 @@
+[
+  {
+    "case": "empty-artifact",
+    "exit_code": 1,
+    "rejected": true
+  },
+  {
+    "case": "missing-second-proof",
+    "exit_code": 1,
+    "rejected": true
+  }
+]

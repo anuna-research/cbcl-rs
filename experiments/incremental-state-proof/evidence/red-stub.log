@@ -1,0 +1,31 @@
+
+> cbcl-incremental-state-proof-experiment@0.0.0 test
+> tsx experiment.ts
+
+/workspace_root/src/bindings/ocaml/jsoo_exports/overrides.js:45
+    if (err instanceof Error) throw err;
+                              ^
+
+Error: next state
+Constraint unsatisfied (unreduced):
+
+
+
+Constraint:
+((basic(Equal(Var 1)(Constant 12539058810612682036550568695127616447588986940395730561615339324069048979248)))(annotation()))
+Data:
+Equal 16510281280427274356185141347114409143460588060107208117935011691496157196057 12539058810612682036550568695127616447588986940395730561615339324069048979248
+    at failwith (ocaml/ocaml/stdlib.ml:29:14)
+    at <anonymous> (ocaml/base/printf.ml:6:43)
+    at <anonymous> (src/mina/src/lib/snarky/src/base/checked_runner.ml:216:13)
+    at run (src/mina/src/lib/snarky/src/base/snark0.ml:749:27)
+    at assert$0 (src/mina/src/lib/snarky/src/base/snark0.ml:1185:32)
+    at assert_equal$0 (src/bindings/ocaml/lib/snarky_bindings.ml:92:39)
+    at assertEqualCompatible (o1js/src/lib/provable/gadgets/compatible.ts:225:25)
+    at Field.assertEquals (o1js/src/lib/provable/field.ts:216:7)
+    at <anonymous> (/Users/anuna-02/Code/cbcl-rs-incremental-state/experiments/incremental-state-proof/experiment.ts:21:29)
+    at async generateWitness (o1js/src/lib/provable/core/provable-context.ts:92:5)
+    at async Object.runAndCheck (o1js/src/lib/provable/provable.ts:190:5)
+    at async <anonymous> (/Users/anuna-02/Code/cbcl-rs-incremental-state/experiments/incremental-state-proof/experiment.ts:13:1)
+
+Node.js v25.6.1

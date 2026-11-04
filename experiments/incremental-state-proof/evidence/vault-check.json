@@ -1,0 +1,9 @@
+{
+  "command": "NO_COLOR=true zetl --no-cache -d . check --dead-links --fail-on error",
+  "exit_code": 1,
+  "syntax_errors": 0,
+  "dead_links_reported": 23,
+  "comparison_vault_dead_links_reported": 40,
+  "cross_worktree_comparison": "inconclusive: diagnostic graphs differ; no unchanged-backlog or clean-link claim",
+  "owner": "CBCL maintainer"
+}
