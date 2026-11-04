@@ -1,6 +1,6 @@
 ---
 mode: explanation
-status: implementing
+status: implemented
 ---
 # Halo2 state checkpoints
 

@@ -1,7 +1,7 @@
 ---
 title: SPEC-035 implementation evidence
 mode: reference
-status: in-progress
+status: complete
 ---
 
 # SPEC-035 Halo2 State Checkpoints — evidence record
@@ -248,13 +248,82 @@ Carried from the specification's Orientation; none closed by this record.
 - Lean correspondence between the compiled relation and the SPEC-019 model.
 - Pairing a `Signer` with the key it embodies is a host obligation the library
   cannot check (CON-3504). Owner: host integrators.
-- Status: the specification and crate README remain `implementing`; the
-  independent reviewing session decides status after inspecting the repair
-  evidence, under [[SPEC-035-halo2-state-checkpoints#REQ-3511]].
+- Current status: the specification and crate README are `implemented` under
+  the independent status decision below. Human cryptographic review and
+  production authorisation remain open.
 
 
 ## Review repairs verified
 
 The interrupted `review-repairs/1` attempt was recovered by a new Codex session on 2026-11-04. Acceptance evidence, reconstructed red gates, final workspace and feature gates, fuzz-target build, and named mutation results are committed in [[review-repairs]] and its adjacent `review-repairs-logs/` directory. The historical Gates and Mutations sections above describe the earlier implementation baseline; the repair record supersedes them for current acceptance.
 
-A fresh-context review of the repairs identified one regression: deleting `Chain::verify`'s length check allowed public `Deserialize` to bypass the constructor limit. The guard was restored with an executed failing-then-passing regression test for [[SPEC-035-halo2-state-checkpoints#REQ-3505]]. The reviewer reinspected the fix and reported no further correctness findings. Item 11's proposed cleanup was narrowed accordingly. All named mutants are killed by executed tests. The status decision is reserved for that independent reviewer, as required by [[SPEC-035-halo2-state-checkpoints#REQ-3511]].
+A fresh-context review of the repairs identified one regression: deleting `Chain::verify`'s length check allowed public `Deserialize` to bypass the constructor limit. The guard was restored with an executed failing-then-passing regression test for [[SPEC-035-halo2-state-checkpoints#REQ-3505]]. The reviewer reinspected the fix and reported no further correctness findings. Item 11's proposed cleanup was narrowed accordingly. All named mutants are killed by executed tests. The independent reviewer records the status decision below, under [[SPEC-035-halo2-state-checkpoints#REQ-3511]].
+
+
+## Status decision
+
+On 2026-11-04, the independent Codex reviewing session `/root/status_reviewer`
+sets version `0.3.0`
+to `implemented` under [[SPEC-035-halo2-state-checkpoints#REQ-3511]] and
+[[SPEC-035-halo2-state-checkpoints#TEST-3510]].
+This status-reviewing session did not produce code or implement repairs. It
+inspected the specification, merged repair diff, prior fresh-context review and
+its dispositions, and committed gate evidence at `744e9f1` (repair commit
+`51dbe91`). The prior fresh-context reviewer `/root/review_repairs` found
+the chain-length regression,
+reinspected its correction, and reported no further correctness findings.
+The merge introduces no additional deliverable change beyond the reviewed repairs.
+No unresolved correctness finding blocks this status decision.
+
+The decision records implementation verification, not production authorisation.
+Human cryptographic review, long fuzz campaigns, and the other maintainer-owned
+depth items remain open. The earlier gate sections remain historical records;
+[[review-repairs]] supplies current repair acceptance evidence.
+
+### Disposition verification
+
+| Finding | Inspected implementation, test, or scoped deferral |
+|---|---|
+| X1 | `profile::dialect_bound`; `nested_or_wrapped_dialect_forms_invalidate_every_containing_set` rejects nested and signed wrappers. |
+| C1 / X4 | `size_bounds_and_roles_fail_before_enumeration` covers individual size limits, timing, and roles rejection. |
+| C2 / X8 | README status followed the specification during repairs; this independent decision updates both metadata values. |
+| C3 / X3 | Mutation runner includes final transition-total and chain-continuity mutations alongside the original mutations. |
+| C4 | Boolean forge seam and gate-specific rejection assertion added. Growth and validity mutation isolation remains a documented defence-in-depth blind spot. |
+| C5 / X5 | Two proofs of one statement differ and both verify. Transcript overflow exercise remains deferred at the bounded profile size; runtime rejection remains present. |
+| X2 | `from_field` scans past positional parameters; the attested duplicate-field regression exercises the repaired scan. |
+| C7 | Profile/circuit invalidity cases cover conflicting `:sender` and duplicate `:from`. |
+| C8 | Lunch-vote per-subset native parity uses the shared parity helper. |
+| C9 / X9 | Version 0.2.2 explicitly permits the out-of-workspace fuzz dependency. |
+| C10 | Compilation reports each resource bound separately. |
+| C11 / X6 | CLI reads through `take(limit + 1)` and rejects excess bytes. |
+| C12 | CLI rejects repeated addresses and emits hex checkpoints; golden output assertions cover both verification commands. |
+| C13 | Alias removed; `Chain::verify` retains its required length check. Direct-deserialization regression rejects before backend verification. |
+| C14 | Single-proof and chain tests assert early rejection messages. |
+| C15 / C16 | README documents v1 signatures, key-label spelling, and internal `relation_domain` visibility. |
+| X7 | Proof, chain, and CLI profile recognisers check object shapes before typed parsing; negative array cases cover those positions. |
+| C17 | Without-feature CLI verification remains the recorded manual check in [[cli-checkpoint]]; a second automated build remains deferred. |
+| C18 | `state_proof_verify` exercises transcript bytes against a fixed verifier; target compilation is recorded. Long campaigns remain maintainer-owned depth work. |
+| C19 / X NFR | Recorded machine and example measurements satisfy the stated budget; ongoing depth ownership remains with the maintainer. |
+| X whitespace | Candidate identity test explicitly inserts spaces and newlines. |
+
+### Inspected gate evidence
+
+These results come from committed output, not a fresh execution by this reviewer.
+The reviewer checked the relevant assertions, successful suite output, and
+mutation records. Unchanged full suites were not repeated for this metadata decision.
+
+| Gate | Inspected result and committed output |
+|---|---|
+| Workspace | `make check` exits 0; includes the final chain-bound regression: [workspace.log](circus/review-repairs-logs/workspace.log). |
+| Proof crate | Tests and compile-fail doctest pass: [crate.log](circus/review-repairs-logs/crate.log). |
+| Feature CLI | Checkpoint integration tests pass: [cli.log](circus/review-repairs-logs/cli.log). |
+| Lints | Both crate and feature CLI clippy runs pass with warnings denied: [crate-clippy.log](circus/review-repairs-logs/crate-clippy.log), [cli-clippy.log](circus/review-repairs-logs/cli-clippy.log). |
+| Fuzz target | Offline verification-target compilation passes: [fuzz.log](circus/review-repairs-logs/fuzz.log). No long campaign is claimed. |
+| Named mutations | Every runner entry reports `killed: true`, with assertion failures required: [mutations.log](circus/review-repairs-logs/mutations.log). |
+| Reconstructed red gates | Nested wrapper, duplicate-field scan, object shape, bound errors, and CLI recognition execute and fail against baseline: [command/results manifest](circus/review-repairs-logs/results.json), with individual `red-*.log` files beside it. |
+| Reviewer regression | Removing the chain bound produces the expected assertion failure; restoring it passes: [chain-red.log](circus/review-repairs-logs/chain-red.log), [chain-green.log](circus/review-repairs-logs/chain-green.log). |
+| Vault | Syntax check passes. Existing dead-link backlog is unchanged, as recorded in [[review-repairs]] and [zetl-syntax.log](circus/review-repairs-logs/zetl-syntax.log). |
+
+The earlier standalone `cbcl-core --no-default-features` defect was fixed on
+main and merged in `fe2a06e`; the committed final workspace log includes the
+successful `make nostd` gate. The maintainer-owned open items remain open.

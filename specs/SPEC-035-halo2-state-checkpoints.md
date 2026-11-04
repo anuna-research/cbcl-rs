@@ -1,8 +1,9 @@
 ---
 id: SPEC-035
 title: Halo2 State Checkpoints — bounded proofs of accepted-set growth and native state
-version: 0.2.2
-status: implementing
+version: 0.3.0
+status: implemented
+implemented-date: 2026-11-04
 last-updated: 2026-11-04
 author: Anuna Research (https://anuna.io) — drafted with Claude Fable 5.1
 owner: CBCL maintainer
@@ -819,8 +820,13 @@ above.
 ## Changelog
 
 <details>
-<summary>Revision history — 0.1.0 → 0.2.2</summary>
+<summary>Revision history — 0.1.0 → 0.3.0</summary>
 
+- 0.3.0 — 2026-11-04 — independent Codex reviewing session verified merged
+  repairs and committed gate evidence under
+  [[SPEC-035-halo2-state-checkpoints#REQ-3511]]; status `implemented`.
+  Human cryptographic review and production authorisation remain open.
+  No requirement or contract changes.
 - 0.2.2 — 2026-11-04 — after independent code reviews (Claude fresh context,
   Codex cross-model): REQ-3509 (b) admits the out-of-workspace fuzz crate;
   CON-3502 and CON-3505 reject positional arrays in object positions; CON-3505
