@@ -1,7 +1,7 @@
 ---
 id: SPEC-035
 title: Halo2 State Checkpoints — bounded proofs of accepted-set growth and native state
-version: 0.2.0
+version: 0.2.1
 status: implementing
 last-updated: 2026-11-04
 author: Anuna Research (https://anuna.io) — drafted with Claude Fable 5.1
@@ -98,7 +98,7 @@ Controls (exhaustive):
 - [[SPEC-035-halo2-state-checkpoints#REQ-3504]] a bare signer label SHALL enter a profile only through `Candidate::unauthenticated`; `Candidate` fields SHALL be private.
 - [[SPEC-035-halo2-state-checkpoints#REQ-3505]] a chain with any gap, profile change, start mismatch or failed link SHALL NOT verify.
 - [[SPEC-035-halo2-state-checkpoints#REQ-3507]] more than 8 candidates, 65,536 dialect bytes, 8,192 bytes per message, 2,048 bytes per label or thread, or 256 parser expression steps SHALL fail closed before enumeration.
-- [[SPEC-035-halo2-state-checkpoints#REQ-3508]] no verification SHALL run on a package that failed recognition; transcripts are 32 to 16,384 bytes in 32-byte steps; packages are at most 100,000 bytes; chains carry at most 64 links.
+- [[SPEC-035-halo2-state-checkpoints#REQ-3508]] no verification SHALL run on a package that failed recognition; transcripts are 32 to 16,384 bytes in 32-byte steps; a proof package is at most 100,000 bytes; a chain package is at most 1,048,576 bytes and carries at most 64 links.
 - [[SPEC-035-halo2-state-checkpoints#REQ-3511]] the status `implemented` SHALL NOT be set by the session that produced the code, and SHALL NOT be set before the named mutations are killed and an independent review is recorded.
 - [[SPEC-035-halo2-state-checkpoints#REQ-3512]] a set containing a candidate from another thread, another dialect, or with a signer field that disagrees with its label SHALL be invalid; role-declaring dialects SHALL be rejected at compile.
 
@@ -281,9 +281,10 @@ Trace: [[SPEC-035-halo2-state-checkpoints#TEST-3506]],
 (a) Proof and chain packages SHALL be recognised against
 [[SPEC-035-halo2-state-checkpoints#CON-3502]] before any field is read for
 verification. (b) An unknown member, a duplicate member, a non-integer or
-out-of-range byte value, a package over 100,000 bytes, a transcript outside 32
-to 16,384 bytes or not a multiple of 32, a chain over 64 links, or trailing
-input other than JSON whitespace SHALL be rejected. (c) `Proof` and `Chain`
+out-of-range byte value, a proof package over 100,000 bytes, a chain package
+over 1,048,576 bytes, a transcript outside 32 to 16,384 bytes or not a multiple
+of 32, a chain over 64 links, or trailing input other than JSON whitespace SHALL
+be rejected. (c) `Proof` and `Chain`
 SHALL implement `PartialEq` and `Eq`, and for every value the crate writes,
 reading it back SHALL yield an equal value. (d) `Prover::prove` SHALL fail
 closed when its transcript exceeds 16,384 bytes.
@@ -423,7 +424,9 @@ Verified by: TEST-3500, TEST-3502.
 
 ### CON-3502: Package grammar
 
-Both packages are JSON texts (RFC 8259), UTF-8, at most 100,000 bytes. The
+Both packages are JSON texts (RFC 8259), UTF-8. A proof package is at most
+100,000 bytes; a chain package is at most 1,048,576 bytes, which holds 64 links
+of the largest proof the proof limit admits with room for the envelope. The
 recogniser is `serde_json::from_slice` into the Rust types below, every struct
 carrying `#[serde(deny_unknown_fields)]`. The grammar is the set of JSON texts
 that recogniser accepts, which is stated here so a second implementation can be
@@ -440,7 +443,7 @@ Proof     = { "statement": Statement, "transcript": bytes }
             ; transcript length in 32..=16384 and a multiple of 32
 Statement = { "profile": h32, "before": Checkpoint, "after": Checkpoint, "batch": h32 }
 Checkpoint= { "accepted": h32, "state": h32 }
-Chain     = { "profile": h32, "links": [ Proof * ] }   ; 0..=64 links
+Chain     = { "profile": h32, "links": [ Proof * ] }   ; 0..=64 links, package <= 1,048,576 bytes
 ```
 
 The writer emits members in the order shown, with no whitespace. Size and
@@ -677,8 +680,9 @@ Validates: [[SPEC-035-halo2-state-checkpoints#REQ-3507]].
 ### TEST-3507: Package recognition (core, with a depth fuzz target)
 
 Core: unknown member, duplicate member, byte value 256, negative byte, trailing
-non-whitespace, trailing whitespace accepted, oversize package, transcript
-length not a multiple of 32, and a 65-link chain behave as CON-3502 states; a
+non-whitespace, trailing whitespace accepted, oversize proof package, oversize
+chain package, a 64-link chain of real proofs accepted, transcript length not a
+multiple of 32, and a 65-link chain behave as CON-3502 states; a
 property test over random statements and transcripts shows
 `from_json(to_json(x)) == x` for proofs and chains. Depth: a `cargo-fuzz`
 target `state_proof_package` feeds arbitrary bytes to `Proof::from_json` and
@@ -804,8 +808,12 @@ above.
 ## Changelog
 
 <details>
-<summary>Revision history — 0.1.0 → 0.2.0</summary>
+<summary>Revision history — 0.1.0 → 0.2.1</summary>
 
+- 0.2.1 — 2026-11-04 — chain package limit raised to 1,048,576 bytes: the
+  chain attempt showed 64 real links cannot fit in 100,000 bytes, so the link
+  limit was unreachable. Steward amendment under the goal directive; maintainer
+  review pending. Normative.
 - 0.2.0 — 2026-11-04 — after fresh-context adversarial review (26 findings)
   and the comprehension gate: attestation now targets the innermost simple
   message with `KeyId` identity comparison and `:from` labels; `Candidate`
