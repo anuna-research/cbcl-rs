@@ -267,6 +267,11 @@ impl Profile {
     pub fn genesis(&self) -> Checkpoint {
         self.rows[0].checkpoint
     }
+    /// Halo2 size parameter `k` of this profile's circuit (2^k rows), the
+    /// value `Prover::new` and `Verifier::new` build with. No keys are built.
+    pub fn circuit_k(&self) -> u32 {
+        crate::StateCircuit::empty(self).k()
+    }
     pub fn checkpoint(&self, mask: u16) -> Result<Checkpoint> {
         let row = self.rows.get(mask as usize).ok_or("mask outside profile")?;
         if !row.valid {
