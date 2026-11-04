@@ -1227,10 +1227,12 @@ mod tests {
         );
         // Re-content the second member after signing: the recomputed
         // content hash changes the attestation preimage.
-        if let ProofMember::SignedMessage { message, .. } = &mut proof.second {
-            if let Message::Simple { content, .. } = message {
-                *content = SExpr::Atom(Atom::Str("tampered".to_string()));
-            }
+        if let ProofMember::SignedMessage {
+            message: Message::Simple { content, .. },
+            ..
+        } = &mut proof.second
+        {
+            *content = SExpr::Atom(Atom::Str("tampered".to_string()));
         }
         assert_eq!(
             verify_equivocation_proof(&proof, &d, &ALICE_SIGNER),

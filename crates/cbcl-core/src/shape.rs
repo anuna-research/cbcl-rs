@@ -28,6 +28,7 @@ pub enum TypeConstraint {
 
 impl TypeConstraint {
     /// Parse a type constraint from a symbol name.
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Option<TypeConstraint> {
         match s {
             "string" => Some(TypeConstraint::String),
@@ -42,15 +43,15 @@ impl TypeConstraint {
 
     /// Check whether an S-expression satisfies this type constraint.
     pub fn matches(&self, sexpr: &SExpr) -> bool {
-        match (self, sexpr) {
-            (TypeConstraint::String, SExpr::Atom(Atom::Str(_))) => true,
-            (TypeConstraint::Number, SExpr::Atom(Atom::Num(_))) => true,
-            (TypeConstraint::Bool, SExpr::Atom(Atom::Bool(_))) => true,
-            (TypeConstraint::Symbol, SExpr::Atom(Atom::Symbol(_))) => true,
-            (TypeConstraint::Keyword, SExpr::Atom(Atom::Keyword(_))) => true,
-            (TypeConstraint::List, SExpr::List(_)) => true,
-            _ => false,
-        }
+        matches!(
+            (self, sexpr),
+            (TypeConstraint::String, SExpr::Atom(Atom::Str(_)))
+                | (TypeConstraint::Number, SExpr::Atom(Atom::Num(_)))
+                | (TypeConstraint::Bool, SExpr::Atom(Atom::Bool(_)))
+                | (TypeConstraint::Symbol, SExpr::Atom(Atom::Symbol(_)))
+                | (TypeConstraint::Keyword, SExpr::Atom(Atom::Keyword(_)))
+                | (TypeConstraint::List, SExpr::List(_))
+        )
     }
 }
 

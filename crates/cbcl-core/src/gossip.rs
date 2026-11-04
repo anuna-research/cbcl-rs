@@ -818,7 +818,7 @@ mod tests {
             net.add_agent(*name);
         }
         for name in &["a", "b", "c", "d"] {
-            assert_eq!(net.neighbors(*name).unwrap().len(), 3);
+            assert_eq!(net.neighbors(name).unwrap().len(), 3);
         }
     }
 
@@ -834,7 +834,7 @@ mod tests {
         }
         // Each agent should have at most 2 neighbors in a ring
         for name in &["a", "b", "c", "d", "e"] {
-            let n = net.neighbors(*name).unwrap().len();
+            let n = net.neighbors(name).unwrap().len();
             assert!(n <= 4, "ring neighbor count {} > 4 for {}", n, name);
             assert!(n >= 1, "ring neighbor count {} < 1 for {}", n, name);
         }

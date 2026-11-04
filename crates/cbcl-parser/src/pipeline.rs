@@ -113,6 +113,7 @@ impl std::error::Error for ValidationError {}
 
 /// Top-level pipeline result (REQ-111).
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(clippy::large_enum_variant)]
 pub enum PipelineResult {
     Success(Message),
     ParseError(ParseError),
@@ -361,6 +362,7 @@ pub fn run_pipeline_full<S: MessageStore>(
 /// Both `(meta (define ...))` and `(meta (teach ...))` carry dialect definitions
 /// that must pass R1–R5 before acceptance. The teach form includes protocol and
 /// shape declarations for gossip propagation.
+#[allow(clippy::result_large_err)]
 fn validate_meta_dialect(
     message: &Message,
     registry: Option<&DialectRegistry>,
@@ -395,6 +397,7 @@ fn validate_meta_dialect(
     Ok(())
 }
 
+#[allow(clippy::result_large_err)]
 fn validate_define_dialect(
     dialect_def: &SExpr,
     registry: Option<&DialectRegistry>,

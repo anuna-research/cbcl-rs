@@ -298,7 +298,7 @@ fn bundle_verify_hashes_succeeds_with_correct_hasher() {
 
     let bundle = CausalClosureBundle::extract(tip, &tid, &store).unwrap();
     assert!(
-        bundle.verify_hashes(|msg| compute_hash(msg)).is_ok(),
+        bundle.verify_hashes(compute_hash).is_ok(),
         "verify_hashes must pass when hashes are correctly computed"
     );
 }
@@ -541,7 +541,7 @@ fn fan_in_bundle_is_complete_and_verifiable() {
 
     // Hash verification must pass
     assert!(
-        bundle.verify_hashes(|msg| compute_hash(msg)).is_ok(),
+        bundle.verify_hashes(compute_hash).is_ok(),
         "fan-in bundle must pass hash verification"
     );
 }
@@ -681,7 +681,7 @@ fn linear_chain_bundle_has_complete_closure() {
 
     assert_eq!(bundle.len(), 5, "5-message chain");
     assert!(bundle.verify_completeness().is_ok());
-    assert!(bundle.verify_hashes(|msg| compute_hash(msg)).is_ok());
+    assert!(bundle.verify_hashes(compute_hash).is_ok());
 
     // All hashes must be present
     let bundle_hash_set: std::collections::HashSet<_> =

@@ -1,4 +1,5 @@
 //! Protocol progress counts established positions, not competing messages.
+#![allow(clippy::cloned_ref_to_slice_refs)]
 use cbcl_core::dialect::{Dialect, DialectRegistry};
 use cbcl_core::r7::r7_violations;
 use cbcl_core::state::{fold, render_json, render_schema, state_schema, Act};

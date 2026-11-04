@@ -1,5 +1,6 @@
 //! End-to-end regression: repeat positions are inferred from causal evidence,
 //! never from the number of received messages or an untrusted position field.
+#![allow(clippy::cloned_ref_to_slice_refs)]
 use cbcl_core::intend::{intend, Instance};
 use cbcl_core::role::AgentKey;
 use cbcl_core::state::{fold, Act, Value};

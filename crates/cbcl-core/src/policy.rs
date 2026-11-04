@@ -28,10 +28,11 @@ use crate::store::{ContentHash, MessageStore, ThreadId};
 // ---------------------------------------------------------------------------
 
 /// Policy for handling `VerificationResult::Unknown` (predecessor not yet in store).
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub enum UnknownPredecessorPolicy {
     /// Reject unknown predecessors immediately. Returns `Pending` with retry hint.
     /// Preserves zero mutable state (NFR-204, NFR-302).
+    #[default]
     Reject,
     /// Buffer messages with unknown predecessors for later re-evaluation.
     Buffer {
@@ -40,12 +41,6 @@ pub enum UnknownPredecessorPolicy {
         /// Time-to-live in seconds for buffered entries. Expired entries yield `CausalTimeout`.
         ttl: u64,
     },
-}
-
-impl Default for UnknownPredecessorPolicy {
-    fn default() -> Self {
-        UnknownPredecessorPolicy::Reject
-    }
 }
 
 impl UnknownPredecessorPolicy {

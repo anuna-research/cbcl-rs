@@ -5,11 +5,11 @@
 //! 1. Set `CBCL_RS_GIT_REVISION` for the `versions/0` NIF (SPEC-009 OBS-001).
 //!
 //!    Resolution order:
-//!      a. If we are in a git checkout and `git rev-parse HEAD` succeeds, use it.
-//!      b. Otherwise, if the build environment already has `CBCL_RS_GIT_REVISION`
-//!         set (e.g. set by a release script or CI), pass it through.
-//!      c. Otherwise, fall back to `unknown` so source-tarball / shallow-clone
-//!         builds don't panic.
+//!    a. If we are in a git checkout and `git rev-parse HEAD` succeeds, use it.
+//!    b. Otherwise, if the build environment already has `CBCL_RS_GIT_REVISION`
+//!    set (e.g. set by a release script or CI), pass it through.
+//!    c. Otherwise, fall back to `unknown` so source-tarball / shallow-clone
+//!    builds don't panic.
 //!
 //!    Cargo's rerun-if-changed scope must cover the *actual* file that records
 //!    the current commit. `.git/HEAD` typically holds `ref: refs/heads/<branch>`

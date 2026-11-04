@@ -126,13 +126,16 @@ mod tests {
 
     #[test]
     fn a_bare_control_performative_is_accepted_by_lax_and_refused_by_strict() {
-        let frame = b"(adddialect @general :name probe :def \"(define probe (cbcl) @a)\" :from @alice)";
+        let frame =
+            b"(adddialect @general :name probe :def \"(define probe (cbcl) @a)\" :from @alice)";
         assert!(crate::parse_message_pure(frame).is_err());
         let msg = parse_message_lax_pure(frame).unwrap();
         assert!(matches!(msg, Message::Simple { .. }));
         assert_eq!(
             msg.performative(),
-            Some(&cbcl_core::message::Performative::Custom("adddialect".into()))
+            Some(&cbcl_core::message::Performative::Custom(
+                "adddialect".into()
+            ))
         );
     }
 

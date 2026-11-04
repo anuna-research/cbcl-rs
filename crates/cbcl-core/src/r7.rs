@@ -757,6 +757,7 @@ pub fn is_address(s: &str) -> bool {
     hex.len() == 64 && hex.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'))
 }
 
+#[allow(clippy::collapsible_match)]
 fn check_bounds(
     verb: &str,
     key: &str,

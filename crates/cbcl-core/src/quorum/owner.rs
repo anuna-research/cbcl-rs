@@ -385,9 +385,9 @@ impl OwnerDriver {
             };
             let act = r.owner_rebase(&head.draft, r.active_epoch(&self.owner)?)?;
             let owned = r.owned_root(&self.owner).is_some();
-            if owned && outstanding.is_some() {
+            if let (true, Some(e)) = (owned, outstanding) {
                 return Ok(OwnerAction::Publish(
-                    r.publication(outstanding.unwrap().issued.as_ref().unwrap())?,
+                    r.publication(e.issued.as_ref().unwrap())?,
                 ));
             }
             if (!self.frozen || owned)

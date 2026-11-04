@@ -1,3 +1,5 @@
+// Span handles are `()` without the `tracing` feature; keep the call shape.
+#![allow(clippy::let_unit_value, clippy::unit_arg)]
 #![forbid(unsafe_code)]
 //! cbcl-erl: Erlang/BEAM NIF binding for CBCL — see SPEC-009.
 //!
@@ -39,8 +41,8 @@ mod tracing_hooks;
 pub use parse_message::parse_message_pure;
 pub use parse_message_lax::parse_message_lax_pure;
 pub use state::{
-    admit_pure, dialect_hash_pure, fold_pure, frontier_pure, intend_pure, may_send_pure,
-    compile_contract_pure, define_text_pure, describe_dialect_pure, read_act_pure, read_pure,
+    admit_pure, compile_contract_pure, define_text_pure, describe_dialect_pure, dialect_hash_pure,
+    fold_pure, frontier_pure, intend_pure, may_send_pure, read_act_pure, read_pure,
     state_schema_pure, verify_message_shape_pure, verify_state_shape_pure,
 };
 pub use verify_dialect::verify_dialect_pure;

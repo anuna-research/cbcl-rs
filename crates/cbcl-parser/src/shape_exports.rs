@@ -76,7 +76,6 @@ pub fn verify_message_shape_str(input: &str) -> Result<String, String> {
     Ok(String::from("ok"))
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -85,12 +84,23 @@ mod tests {
 
     #[test]
     fn shape_verdicts() {
-        assert_eq!(verify_message_shape_str(&format!("(verify-shape {D} vote (vote @r :choice \"x\"))")).unwrap(), "ok");
-        let blame = verify_message_shape_str(&format!("(verify-shape {D} vote (vote @r :choice 1))")).unwrap_err();
+        assert_eq!(
+            verify_message_shape_str(&format!("(verify-shape {D} vote (vote @r :choice \"x\"))"))
+                .unwrap(),
+            "ok"
+        );
+        let blame =
+            verify_message_shape_str(&format!("(verify-shape {D} vote (vote @r :choice 1))"))
+                .unwrap_err();
         assert!(blame.contains("choice"), "{blame}");
         assert!(verify_message_shape_str(&format!("(verify-shape {D} vote (vote @r))")).is_err());
         // No shape targets the performative: nothing to violate.
-        assert_eq!(verify_message_shape_str(&format!("(verify-shape {D} other (other @r))")).unwrap(), "ok");
-        assert!(verify_message_shape_str("(verify-shape").unwrap_err().starts_with("parse error"));
+        assert_eq!(
+            verify_message_shape_str(&format!("(verify-shape {D} other (other @r))")).unwrap(),
+            "ok"
+        );
+        assert!(verify_message_shape_str("(verify-shape")
+            .unwrap_err()
+            .starts_with("parse error"));
     }
 }

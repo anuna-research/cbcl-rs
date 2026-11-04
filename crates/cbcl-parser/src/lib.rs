@@ -8,14 +8,14 @@
 
 extern crate alloc;
 
-pub mod dialect_parser;
-pub mod message_parser;
-pub mod parser;
-pub mod pipeline;
 #[cfg(feature = "std")]
 pub mod contract;
 #[cfg(feature = "std")]
 pub mod describe;
+pub mod dialect_parser;
+pub mod message_parser;
+pub mod parser;
+pub mod pipeline;
 pub mod protocol_parser;
 pub mod read;
 pub mod shape_exports;

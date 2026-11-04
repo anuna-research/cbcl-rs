@@ -729,7 +729,7 @@ mod tests {
             to: open(m, FieldId::To),
             caused_by: open(m, FieldId::CausedBy),
             thread: open(m, FieldId::Thread),
-            root: root,
+            root,
         }
     }
 

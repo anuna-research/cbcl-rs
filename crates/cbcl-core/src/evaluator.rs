@@ -550,7 +550,7 @@ mod tests {
             Effect::StoreBelief(SExpr::Atom(Atom::Str(String::from("hello")))),
         );
         // Expanded form is (effect send-message)
-        assert!(result.expanded.is_symbol("effect") == false);
+        assert!(!result.expanded.is_symbol("effect"));
         assert!(extract_effect_action(&result.expanded) == Some(String::from("send-message")));
     }
 

@@ -1,4 +1,5 @@
 //! Property tests for the SPEC-019 state layer (TEST-1940 … TEST-1946).
+#![allow(clippy::cloned_ref_to_slice_refs)]
 //!
 //! Each property names the theorem of `lean-cbcl/LeanCbcl/State.lean`
 //! (REQ-1930) it mirrors. The Lean model proves the property of the

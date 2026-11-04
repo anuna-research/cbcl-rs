@@ -117,12 +117,13 @@ impl BlameEntry {
     /// (blame :party sender :reason "missing :caused-by" :evidence (...))
     /// ```
     pub fn to_sexpr(&self) -> SExpr {
-        let mut items: Vec<SExpr> = Vec::new();
-        items.push(SExpr::Atom(Atom::Symbol(String::from("blame"))));
-        items.push(SExpr::Atom(Atom::Keyword(String::from("party"))));
-        items.push(SExpr::Atom(Atom::Symbol(String::from(self.party.as_str()))));
-        items.push(SExpr::Atom(Atom::Keyword(String::from("reason"))));
-        items.push(SExpr::Atom(Atom::Str(self.reason.clone())));
+        let mut items: Vec<SExpr> = vec![
+            SExpr::Atom(Atom::Symbol(String::from("blame"))),
+            SExpr::Atom(Atom::Keyword(String::from("party"))),
+            SExpr::Atom(Atom::Symbol(String::from(self.party.as_str()))),
+            SExpr::Atom(Atom::Keyword(String::from("reason"))),
+            SExpr::Atom(Atom::Str(self.reason.clone())),
+        ];
         if let Some(ref ev) = self.evidence {
             items.push(SExpr::Atom(Atom::Keyword(String::from("evidence"))));
             items.push(ev.clone());

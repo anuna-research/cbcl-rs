@@ -203,6 +203,7 @@ struct Contract<'a> {
     roles: Vec<(&'a str, bool)>, // (role, indexed)
     verbs: Vec<Verb<'a>>,
     escrow: Vec<(&'a str, cbcl_core::escrow::CounterRule)>,
+    #[allow(clippy::type_complexity)]
     state: Vec<(&'a str, &'a str, Vec<(Arg, &'a str)>)>, // (field, head, args)
 }
 

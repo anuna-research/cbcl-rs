@@ -1028,6 +1028,7 @@ mod tests {
     // --- scale test (TEST-309: 10K messages across 10 threads) ---
 
     #[test]
+    #[allow(clippy::needless_range_loop)]
     fn scale_10k_messages_10_threads() {
         let mut idx = HashIndex::new();
         let threads: Vec<ThreadId> = (0..10).map(|i| thread(&i.to_string())).collect();

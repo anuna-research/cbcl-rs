@@ -69,7 +69,7 @@ fn owned_full_balance_and_last_unit_without_byzantine_votes() {
     assert!(n.rs[0]
         .prepare_operation(&competing.address, &mut n.j, &n.auth)
         .is_err());
-    let mut m = manifest(&n, &[a.clone()], 1);
+    let mut m = manifest(&n, std::slice::from_ref(&a), 1);
     m.rank = 2;
     let v = DagVersion {
         authorization: sign(n.ctx.version_request(&m, "@treasury").unwrap()),
@@ -109,7 +109,7 @@ fn owned_seal_authorization_drain_and_disk_failure() {
     let mut n = Net::new();
     let a = n.make("@treasury", "pay", Some("@alice"), 100, "old");
     n.operation(&a);
-    let m = manifest(&n, &[a.clone()], 900);
+    let m = manifest(&n, std::slice::from_ref(&a), 900);
     let mut req = request(&n, m);
     assert!(n.rs[0]
         .prepare_owned_seal(req.clone(), &mut n.j, &n.auth)
@@ -334,7 +334,7 @@ fn owned_dual_resource_replenishment_and_account_isolation() {
 }
 #[test]
 fn owned_rejects_collective_conversion_and_unsealed_full_capacity() {
-    let mut n = collective_source(&TICKETS);
+    let mut n = collective_source(TICKETS);
     let root = n.rs[0].active_epoch("@treasury").unwrap().to_string();
     let m = n.rs[0]
         .draft_version(
