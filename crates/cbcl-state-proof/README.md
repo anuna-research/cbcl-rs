@@ -87,8 +87,10 @@ Source limits are 65,536 dialect bytes, 8,192 bytes per candidate, 2,048 bytes
 per signer/thread, and 256 native parser expression steps per source/message.
 The expression budget also bounds recursive parsing depth. Roles, duplicate
 candidate identities, malformed or trailing input, and out-of-profile masks fail
-closed. Proofs contain 32–16,384 transcript bytes in 32-byte increments. Packages
-are at most 100,000 bytes; JSON rejects unknown fields and trailing input.
+closed. Proofs contain 32–16,384 transcript bytes in 32-byte increments. A proof
+package is at most 100,000 bytes and a chain package at most 1,048,576 bytes
+(SPEC-035 CON-3502); JSON rejects unknown or duplicate members, non-integer or
+out-of-range bytes and trailing input other than whitespace.
 
 ## Semantics version
 

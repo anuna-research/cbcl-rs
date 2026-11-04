@@ -26,6 +26,9 @@ use serde::{Deserialize, Serialize};
 pub type Result<T> = std::result::Result<T, String>;
 const MAX_TRANSCRIPT: usize = 16_384;
 const MAX_PACKAGE: usize = 100_000;
+/// Chain package limit (SPEC-035 v0.2.1 CON-3502): 64 links of the largest
+/// proof the proof limit admits, with room for the envelope.
+const MAX_CHAIN_PACKAGE: usize = 1_048_576;
 
 /// Authentication is a host precondition; this proof does not verify signatures.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -35,6 +38,8 @@ pub struct Proof {
     pub transcript: Vec<u8>,
 }
 impl Proof {
+    /// Writes CON-3502 member order with no whitespace. Rejects an invalid
+    /// transcript size and a package over `MAX_PACKAGE` (100,000) bytes.
     pub fn to_json(&self) -> Result<Vec<u8>> {
         self.check_size()?;
         let bytes = serde_json::to_vec(self).map_err(|e| e.to_string())?;
@@ -43,6 +48,10 @@ impl Proof {
         }
         Ok(bytes)
     }
+    /// Recognises against CON-3502: unknown or duplicate members, non-integer
+    /// or out-of-range bytes, trailing input other than JSON whitespace, a
+    /// package over `MAX_PACKAGE` bytes and an invalid transcript size are
+    /// rejected.
     pub fn from_json(bytes: &[u8]) -> Result<Self> {
         if bytes.len() > MAX_PACKAGE {
             return Err("proof package exceeds limit".into());
@@ -85,6 +94,9 @@ impl Prover {
             pk,
         })
     }
+    /// Proves `profile.statement(before, after)`. Fails closed (REQ-3508 d):
+    /// the transcript must be 32 to 16,384 bytes in 32-byte steps or `prove`
+    /// returns `Err` instead of a proof no recogniser would accept.
     pub fn prove(&self, before: u16, after: u16) -> Result<Proof> {
         let statement = self.profile.statement(before, after)?;
         let circuit = StateCircuit::witness(&self.profile, before, after);
@@ -151,5 +163,7 @@ pub(crate) fn limbs(bytes: [u8; 32]) -> [Fp; 2] {
 
 #[cfg(test)]
 mod chain_tests;
+#[cfg(test)]
+mod package_tests;
 #[cfg(test)]
 mod tests;
