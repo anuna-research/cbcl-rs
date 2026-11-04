@@ -1,0 +1,329 @@
+ Downloading crates ...
+  Downloaded log v0.4.35
+  Downloaded malloc_buf v0.0.6
+  Downloaded docker-generate v0.1.3
+  Downloaded defmt-parser v1.1.0
+  Downloaded camino v1.2.6
+  Downloaded stability v0.2.1
+  Downloaded core-graphics-types v0.1.3
+  Downloaded block v0.1.6
+  Downloaded ark-snark v0.5.1
+  Downloaded ruint-macro v1.2.1
+  Downloaded no_std_strings v0.1.3
+  Downloaded lazy-regex-proc_macros v3.6.2
+  Downloaded include_bytes_aligned v0.1.4
+  Downloaded ark-serialize-derive v0.5.0
+  Downloaded equivalent v1.0.3
+  Downloaded rrs-lib v0.1.0
+  Downloaded strum v0.27.2
+  Downloaded deranged v0.5.9
+  Downloaded lazy-regex v3.6.2
+  Downloaded hex-literal v0.4.1
+  Downloaded risc0-core v3.0.2
+  Downloaded rand_xorshift v0.5.0
+  Downloaded ark-serialize v0.5.0
+  Downloaded toml_datetime v1.1.2+spec-1.1.0
+  Downloaded risc0-zkvm-platform v2.2.3
+  Downloaded ark-relations v0.5.1
+  Downloaded strum_macros v0.27.2
+  Downloaded toml_parser v1.1.5+spec-1.1.0
+  Downloaded serde_with_macros v3.24.0
+  Downloaded smallvec v1.16.4
+  Downloaded defmt v1.2.0
+  Downloaded risc0-build v3.0.6
+  Downloaded pkcs1 v0.7.5
+  Downloaded toml_edit v0.25.18+spec-1.1.0
+  Downloaded rsa v0.9.10
+  Downloaded schemars v1.2.3
+  Downloaded ark-r1cs-std v0.5.0
+  Downloaded risc0-circuit-recursion v4.0.5
+  Downloaded ruint v1.21.1
+  Downloaded jiff-core v0.1.2
+  Downloaded serde_with v3.24.0
+  Downloaded proptest v1.12.0
+  Downloaded num-bigint-dig v0.8.6
+  Downloaded risc0-zkp v3.0.5
+  Downloaded elf v0.7.4
+  Downloaded rzup v0.5.2
+  Downloaded zerocopy v0.8.63
+  Downloaded risc0-groth16 v3.0.5
+  Downloaded risc0-binfmt v3.0.5
+  Downloaded defmt-macros v1.2.0
+  Downloaded ark-groth16 v0.5.0
+  Downloaded risc0-zkos-v1compat v2.2.3
+  Downloaded objc v0.2.7
+  Downloaded rustix v1.1.6
+  Downloaded encoding_rs v0.8.44
+  Downloaded jiff v0.2.39
+  Downloaded metal v0.29.0
+  Downloaded risc0-circuit-rv32im v4.0.5
+  Downloaded risc0-zkvm v3.0.6
+  Downloaded risc0-circuit-keccak v4.0.6
+   Compiling proc-macro2 v1.0.107
+   Compiling quote v1.0.47
+   Compiling unicode-ident v1.0.27
+   Compiling syn v3.0.9
+   Compiling libc v0.2.191
+   Compiling syn v2.0.119
+   Compiling version_check v0.9.5
+   Compiling generic-array v0.14.7
+   Compiling cfg-if v1.0.5
+   Compiling serde_derive v1.0.229
+   Compiling autocfg v1.5.1
+   Compiling libm v0.2.16
+   Compiling zerocopy v0.8.63
+   Compiling paste v1.0.15
+   Compiling rustversion v1.0.23
+   Compiling const-oid v0.9.6
+   Compiling typenum v1.20.1
+   Compiling serde_core v1.0.229
+   Compiling block-buffer v0.10.4
+   Compiling crypto-common v0.1.7
+   Compiling subtle v2.6.1
+   Compiling digest v0.10.7
+   Compiling equivalent v1.0.3
+   Compiling hashbrown v0.17.1
+   Compiling indexmap v2.14.2
+   Compiling num-traits v0.2.19
+   Compiling once_cell v1.21.4
+   Compiling thiserror v2.0.21
+   Compiling winnow v1.0.4
+   Compiling serde v1.0.229
+   Compiling toml_parser v1.1.5+spec-1.1.0
+   Compiling getrandom v0.2.17
+   Compiling thiserror-impl v2.0.21
+   Compiling strsim v0.11.1
+   Compiling cfg_aliases v0.2.2
+   Compiling ident_case v1.0.1
+   Compiling toml_datetime v1.1.2+spec-1.1.0
+   Compiling toml_edit v0.25.18+spec-1.1.0
+   Compiling borsh v1.8.1
+   Compiling rand_core v0.6.4
+   Compiling num-integer v0.1.47
+   Compiling num_enum_derive v0.7.6
+   Compiling tracing-attributes v0.1.31
+   Compiling zeroize_derive v1.5.0
+   Compiling anyhow v1.0.104
+   Compiling zeroize v1.9.1
+   Compiling proc-macro-crate v3.5.0
+   Compiling shlex v2.0.1
+   Compiling find-msvc-tools v0.1.15
+   Compiling cc v1.11.0
+   Compiling borsh-derive v1.8.1
+   Compiling ppv-lite86 v0.2.21
+   Compiling stability v0.2.1
+   Compiling bytemuck_derive v1.12.1
+   Compiling foreign-types-macros v0.2.4
+   Compiling rand_chacha v0.3.1
+   Compiling sha2-asm v0.6.4
+   Compiling cpufeatures v0.2.17
+   Compiling rand v0.8.8
+   Compiling foldhash v0.1.5
+   Compiling zmij v1.0.23
+   Compiling allocator-api2 v0.2.21
+   Compiling hashbrown v0.15.5
+   Compiling sha2 v0.10.9
+   Compiling tracing-core v0.1.36
+   Compiling encoding_rs v0.8.44
+   Compiling unicode-xid v0.2.6
+   Compiling log v0.4.35
+   Compiling num-bigint-dig v0.8.6
+   Compiling rustix v1.1.6
+   Compiling getrandom v0.4.3
+   Compiling derive_more-impl v2.1.1
+   Compiling darling_core v0.24.1
+   Compiling serde_json v1.0.154
+   Compiling ruint-macro v1.2.1
+   Compiling pin-project-lite v0.2.17
+   Compiling fnv v1.0.7
+   Compiling darling_core v0.20.11
+   Compiling tracing v0.1.44
+   Compiling darling_macro v0.24.1
+   Compiling enum-ordinalize-derive v4.4.2
+   Compiling bitflags v2.13.2
+   Compiling memchr v2.8.3
+   Compiling hex v0.4.3
+   Compiling camino v1.2.6
+   Compiling multiversion_no_op v1.0.0
+   Compiling enum-ordinalize v4.4.2
+   Compiling darling v0.24.1
+   Compiling darling_macro v0.20.11
+   Compiling ark-std v0.5.0
+   Compiling num-bigint v0.4.8
+   Compiling ark-serialize-derive v0.5.0
+   Compiling rand_core v0.9.5
+   Compiling base64ct v1.8.3
+   Compiling arrayvec v0.7.8
+   Compiling either v1.19.0
+   Compiling core-foundation-sys v0.8.7
+   Compiling heck v0.5.0
+   Compiling strum_macros v0.27.2
+   Compiling core-foundation v0.9.4
+   Compiling itertools v0.13.0
+   Compiling ark-serialize v0.5.0
+   Compiling pem-rfc7468 v0.7.0
+   Compiling ark-ff-macros v0.5.0
+   Compiling darling v0.20.11
+   Compiling serde_with_macros v3.24.0
+   Compiling educe v0.6.0
+   Compiling num_enum v0.7.6
+   Compiling blake2 v0.10.6
+   Compiling malloc_buf v0.0.6
+   Compiling ark-ff-asm v0.5.0
+   Compiling bitflags v1.3.2
+   Compiling spin v0.9.9
+   Compiling foreign-types-shared v0.3.1
+   Compiling foreign-types v0.5.0
+   Compiling lazy_static v1.5.1
+   Compiling core-graphics-types v0.1.3
+   Compiling ark-ff v0.5.0
+   Compiling objc v0.2.7
+   Compiling risc0-zkvm-platform v2.2.3
+   Compiling derive_builder_core v0.20.2
+   Compiling der v0.7.10
+   Compiling bytemuck v1.25.2
+   Compiling ahash v0.8.12
+   Compiling block v0.1.6
+   Compiling risc0-zkp v3.0.5
+   Compiling metal v0.29.0
+   Compiling risc0-core v3.0.2
+   Compiling spki v0.7.3
+   Compiling derive_builder_macro v0.20.2
+   Compiling semver v1.0.28
+   Compiling ruint v1.21.1
+   Compiling hex-literal v0.4.1
+   Compiling pkcs8 v0.10.2
+   Compiling cobs v0.3.0
+   Compiling rand v0.9.5
+   Compiling serde_spanned v0.6.9
+   Compiling toml_datetime v0.6.11
+   Compiling num-iter v0.1.46
+   Compiling errno v0.3.14
+   Compiling simdutf8 v0.1.5
+   Compiling scopeguard v1.2.0
+   Compiling toml_write v0.1.2
+   Compiling winnow v0.7.15
+   Compiling syn v1.0.109
+   Compiling smallvec v1.16.4
+   Compiling toml_edit v0.22.27
+   Compiling postcard v1.1.3
+   Compiling ark-poly v0.5.0
+   Compiling pkcs1 v0.7.5
+   Compiling hashlink v0.10.0
+   Compiling signature v2.2.0
+   Compiling derive_more v2.1.1
+   Compiling tracing-subscriber v0.2.25
+   Compiling itoa v1.0.18
+   Compiling elf v0.7.4
+   Compiling fastrand v2.5.0
+   Compiling arraydeque v0.5.1
+   Compiling option-ext v0.2.0
+   Compiling dirs-sys v0.5.0
+   Compiling yaml-rust2 v0.10.4
+   Compiling tempfile v3.27.0
+   Compiling risc0-binfmt v3.0.5
+   Compiling ark-relations v0.5.1
+   Compiling rsa v0.9.10
+   Compiling ark-ec v0.5.0
+   Compiling toml v0.8.23
+   Compiling serde_with v3.24.0
+   Compiling strum v0.27.2
+   Compiling aho-corasick v1.1.5
+   Compiling cargo-platform v0.1.9
+   Compiling keccak v0.1.6
+   Compiling regex-syntax v0.8.11
+   Compiling no_std_strings v0.1.3
+   Compiling byteorder v1.5.0
+   Compiling include_bytes_aligned v0.1.4
+   Compiling risc0-zkos-v1compat v2.2.3
+   Compiling merlin v3.0.0
+   Compiling regex-automata v0.4.18
+   Compiling cargo_metadata v0.19.2
+   Compiling rzup v0.5.2
+   Compiling derivative v2.2.0
+   Compiling ark-snark v0.5.1
+   Compiling dirs v6.0.0
+   Compiling derive_builder v0.20.2
+   Compiling risc0-circuit-recursion v4.0.5
+   Compiling ark-crypto-primitives-macros v0.5.0
+   Compiling docker-generate v0.1.3
+   Compiling itertools v0.14.0
+   Compiling risc0-build v3.0.6
+   Compiling ark-crypto-primitives v0.5.0
+   Compiling regex v1.13.1
+   Compiling risc0-circuit-keccak v4.0.6
+   Compiling lazy-regex-proc_macros v3.6.2
+   Compiling ark-groth16 v0.5.0
+   Compiling checkpoint-methods v0.0.0 (/Users/anuna-02/Code/cbcl-rs-general-checkpoint/experiments/general-kernel-checkpoint/methods)
+   Compiling prost-derive v0.13.5
+   Compiling ark-bn254 v0.5.0
+   Compiling cbcl-core v0.1.1 (/Users/anuna-02/Code/cbcl-rs-general-checkpoint/crates/cbcl-core)
+   Compiling bytes v1.12.1
+   Compiling downcast-rs v1.2.1
+   Compiling bit-vec v0.8.0
+   Compiling risc0-circuit-rv32im v4.0.5
+   Compiling rrs-lib v0.1.0
+   Compiling prost v0.13.5
+   Compiling cbcl-parser v0.1.1 (/Users/anuna-02/Code/cbcl-rs-general-checkpoint/crates/cbcl-parser)
+   Compiling risc0-groth16 v3.0.5
+   Compiling lazy-regex v3.6.2
+   Compiling bincode v1.3.3
+   Compiling risc0-zkvm v3.0.6
+   Compiling checkpoint-common v0.0.0 (/Users/anuna-02/Code/cbcl-rs-general-checkpoint/experiments/general-kernel-checkpoint/common)
+   Compiling checkpoint-host v0.0.0 (/Users/anuna-02/Code/cbcl-rs-general-checkpoint/experiments/general-kernel-checkpoint/host)
+error[E0277]: the trait bound `serde_json::Value: From<u128>` is not satisfied
+  --> host/src/main.rs:44:56
+   |
+44 |      metrics["execute_ms"]=start.elapsed().as_millis().into();
+   |                                                        ^^^^ the trait `From<u128>` is not implemented for `serde_json::Value`
+   |
+   = help: the following other types implement trait `From<T>`:
+             `serde_json::Value` implements `From<&[T]>`
+             `serde_json::Value` implements `From<&str>`
+             `serde_json::Value` implements `From<()>`
+             `serde_json::Value` implements `From<Cow<'_, str>>`
+             `serde_json::Value` implements `From<Option<T>>`
+             `serde_json::Value` implements `From<Vec<T>>`
+             `serde_json::Value` implements `From<[T; N]>`
+             `serde_json::Value` implements `From<bool>`
+           and 15 others
+   = note: required for `u128` to implement `Into<serde_json::Value>`
+
+error[E0277]: the trait bound `serde_json::Value: From<u128>` is not satisfied
+  --> host/src/main.rs:49:72
+   |
+49 |      metrics["prove_including_execute_ms"]=start.elapsed().as_millis().into();
+   |                                                                        ^^^^ the trait `From<u128>` is not implemented for `serde_json::Value`
+   |
+   = help: the following other types implement trait `From<T>`:
+             `serde_json::Value` implements `From<&[T]>`
+             `serde_json::Value` implements `From<&str>`
+             `serde_json::Value` implements `From<()>`
+             `serde_json::Value` implements `From<Cow<'_, str>>`
+             `serde_json::Value` implements `From<Option<T>>`
+             `serde_json::Value` implements `From<Vec<T>>`
+             `serde_json::Value` implements `From<[T; N]>`
+             `serde_json::Value` implements `From<bool>`
+           and 15 others
+   = note: required for `u128` to implement `Into<serde_json::Value>`
+
+error[E0277]: the trait bound `serde_json::Value: From<u128>` is not satisfied
+  --> host/src/main.rs:51:55
+   |
+51 |      metrics["verify_ms"]=check.elapsed().as_millis().into();
+   |                                                       ^^^^ the trait `From<u128>` is not implemented for `serde_json::Value`
+   |
+   = help: the following other types implement trait `From<T>`:
+             `serde_json::Value` implements `From<&[T]>`
+             `serde_json::Value` implements `From<&str>`
+             `serde_json::Value` implements `From<()>`
+             `serde_json::Value` implements `From<Cow<'_, str>>`
+             `serde_json::Value` implements `From<Option<T>>`
+             `serde_json::Value` implements `From<Vec<T>>`
+             `serde_json::Value` implements `From<[T; N]>`
+             `serde_json::Value` implements `From<bool>`
+           and 15 others
+   = note: required for `u128` to implement `Into<serde_json::Value>`
+
+For more information about this error, try `rustc --explain E0277`.
+error: could not compile `checkpoint-host` (bin "checkpoint-host") due to 3 previous errors

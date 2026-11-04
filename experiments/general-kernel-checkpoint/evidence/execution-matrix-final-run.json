@@ -1,0 +1,14 @@
+{
+  "command": [
+    "python3",
+    "run-execution-matrix.py"
+  ],
+  "exit_code": 0,
+  "seconds": 2.025430583,
+  "peak_observed_tree_rss_bytes": 6602752,
+  "rss_sample_interval_seconds": 2,
+  "minimum_free_bytes": 11980062720,
+  "limit_reason": null,
+  "dev_mode": false,
+  "rayon_threads": 4
+}

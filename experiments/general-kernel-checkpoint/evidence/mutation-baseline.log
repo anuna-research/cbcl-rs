@@ -1,0 +1,17 @@
+    Finished `release` profile [optimized] target(s) in 0.19s
+     Running tests/checkpoint.rs (target/release/deps/checkpoint-3d6c365e181caa91)
+
+running 11 tests
+test invalid_dialect_rejected ... ok
+test nested_dialect_mismatch_rejected ... ok
+test duplicate_addresses_rejected ... ok
+test schema_and_byte_bounds_rejected ... ok
+test noncanonical_rejected ... ok
+test invalid_shape_rejected ... ok
+test mixed_thread_rejected ... ok
+test missing_ancestor_rejected_and_ancestor_closure_committed ... ok
+test unresolved_dependency_rejected ... ok
+test source_closure_and_message_set_bound ... ok
+test fixtures_match_expected_bytes_and_permutations ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s

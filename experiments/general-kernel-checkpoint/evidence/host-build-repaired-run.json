@@ -1,0 +1,15 @@
+{
+  "command": [
+    "cargo",
+    "build",
+    "--release",
+    "-p",
+    "checkpoint-host"
+  ],
+  "exit_code": 0,
+  "seconds": 60.526414,
+  "peak_tree_rss_bytes": 549093376,
+  "minimum_free_bytes": 11113709568,
+  "limit_reason": null,
+  "dev_mode": false
+}

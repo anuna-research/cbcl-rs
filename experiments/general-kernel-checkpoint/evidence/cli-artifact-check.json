@@ -1,0 +1,5 @@
+{
+  "inPlaceCompressionRefusedBeforeDeletion": true,
+  "proveFailureClearsOldArtifacts": true,
+  "compressFailureClearsOldArtifacts": true
+}

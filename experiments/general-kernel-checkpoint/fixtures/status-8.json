@@ -1,0 +1,42 @@
+{
+  "dialect": "(define checkpoint-status-native (cbcl) @object (:resource-requirements ((max-depth 16) (max-expansion-size 4096) (verification-time 1000))) (extend open (to title) (tell to :title title)) (extend put (to value) (tell to :value value)) (shape open (require :title string)) (shape put (require :value string)) (protocol (then begin open) (then open put)) (state (title (last open :title)) (heads (latest-per-signer put :value)) (count (count put))))",
+  "thread": "checkpoint-status",
+  "messages": [
+    {
+      "signer": "@owner",
+      "canonical": "(lang checkpoint-status-native (open @benchmark () :title \"Checkpoint benchmark\" :from @owner :thread \"checkpoint-status\" :caused-by begin))"
+    },
+    {
+      "signer": "@writer0",
+      "canonical": "(lang checkpoint-status-native (put @benchmark () :value \"state0\" :replaces () :from @writer0 :thread \"checkpoint-status\" :caused-by sha256-b89ff5012fd16d0b1347b109bcbe2db1e663ea84288b2a1efde2bc73148dde5a))"
+    },
+    {
+      "signer": "@writer1",
+      "canonical": "(lang checkpoint-status-native (put @benchmark () :value \"state1\" :replaces () :from @writer1 :thread \"checkpoint-status\" :caused-by sha256-b89ff5012fd16d0b1347b109bcbe2db1e663ea84288b2a1efde2bc73148dde5a))"
+    },
+    {
+      "signer": "@writer0",
+      "canonical": "(lang checkpoint-status-native (put @benchmark () :value \"state2\" :replaces (sha256-612695f13185f6c6c018c4d2abb731b184f1a2dde463414fcaf706b1a601dde1) :from @writer0 :thread \"checkpoint-status\" :caused-by sha256-b89ff5012fd16d0b1347b109bcbe2db1e663ea84288b2a1efde2bc73148dde5a))"
+    },
+    {
+      "signer": "@writer1",
+      "canonical": "(lang checkpoint-status-native (put @benchmark () :value \"state0\" :replaces (sha256-dfa4d3b8d01c1ea8ee35a929a1914bbc4fe5a83293cfebd67b965e60a3025b35) :from @writer1 :thread \"checkpoint-status\" :caused-by sha256-b89ff5012fd16d0b1347b109bcbe2db1e663ea84288b2a1efde2bc73148dde5a))"
+    },
+    {
+      "signer": "@writer0",
+      "canonical": "(lang checkpoint-status-native (put @benchmark () :value \"state1\" :replaces (sha256-205ef37a071ddcb9dacfcb3f0a969cae49aa0d8d5747f88308c91a112916e388) :from @writer0 :thread \"checkpoint-status\" :caused-by sha256-b89ff5012fd16d0b1347b109bcbe2db1e663ea84288b2a1efde2bc73148dde5a))"
+    },
+    {
+      "signer": "@writer1",
+      "canonical": "(lang checkpoint-status-native (put @benchmark () :value \"state2\" :replaces (sha256-a806173320c2eb14e0fd707b57fa2e4d09e1bb848ca27bd0ca5a5a11343afa62) :from @writer1 :thread \"checkpoint-status\" :caused-by sha256-b89ff5012fd16d0b1347b109bcbe2db1e663ea84288b2a1efde2bc73148dde5a))"
+    },
+    {
+      "signer": "@writer0",
+      "canonical": "(lang checkpoint-status-native (put @benchmark () :value \"state0\" :replaces (sha256-4eef9bd775d6333024114c2c5f43bcb08b565dbb873ab0251c210cd07c89346d) :from @writer0 :thread \"checkpoint-status\" :caused-by sha256-b89ff5012fd16d0b1347b109bcbe2db1e663ea84288b2a1efde2bc73148dde5a))"
+    },
+    {
+      "signer": "@writer1",
+      "canonical": "(lang checkpoint-status-native (put @benchmark () :value \"state1\" :replaces (sha256-157f0ba7e853c8169a21b822918ed3a96cfbf5253ee6155c73ed62743d57be55) :from @writer1 :thread \"checkpoint-status\" :caused-by sha256-b89ff5012fd16d0b1347b109bcbe2db1e663ea84288b2a1efde2bc73148dde5a))"
+    }
+  ]
+}

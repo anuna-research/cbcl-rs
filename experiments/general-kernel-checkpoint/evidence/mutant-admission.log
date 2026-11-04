@@ -1,0 +1,26 @@
+    Updating crates.io index
+     Locking 29 packages to latest compatible versions
+      Adding generic-array v0.14.7 (available: v0.14.9)
+      Adding sha2 v0.10.9 (available: v0.11.1)
+   Compiling checkpoint-common v0.0.0 (/Users/anuna-02/Code/cbcl-rs-general-checkpoint/experiments/general-kernel-checkpoint/.mutation-runs/admission/common)
+    Finished `release` profile [optimized] target(s) in 2.23s
+     Running tests/checkpoint.rs (target/release/deps/checkpoint-373d156aaf18e8e2)
+
+running 1 test
+test invalid_shape_rejected ... FAILED
+
+failures:
+
+---- invalid_shape_rejected stdout ----
+
+thread 'invalid_shape_rejected' (11783712) panicked at tests/checkpoint.rs:90:31:
+called `Option::unwrap()` on a `None` value
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    invalid_shape_rejected
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 10 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `--test checkpoint`

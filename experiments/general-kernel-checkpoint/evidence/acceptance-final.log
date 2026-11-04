@@ -1,0 +1,39 @@
+   Compiling checkpoint-common v0.0.0 (/Users/anuna-02/Code/cbcl-rs-general-checkpoint/experiments/general-kernel-checkpoint/common)
+    Finished `release` profile [optimized] target(s) in 1.56s
+     Running unittests src/lib.rs (target/release/deps/checkpoint_common-e1db6135fd152072)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/checkpoint.rs (target/release/deps/checkpoint-3d6c365e181caa91)
+
+running 12 tests
+test invalid_dialect_rejected ... ok
+test noncanonical_rejected ... ok
+test nested_dialect_mismatch_rejected ... ok
+test mixed_thread_rejected ... ok
+test invalid_shape_rejected ... ok
+test duplicate_addresses_rejected ... ok
+test missing_ancestor_rejected_and_ancestor_closure_committed ... ok
+test role_signer_outside_cast_rejected ... FAILED
+test schema_and_byte_bounds_rejected ... ok
+test source_closure_and_message_set_bound ... ok
+test unresolved_dependency_rejected ... ok
+test fixtures_match_expected_bytes_and_permutations ... ok
+
+failures:
+
+---- role_signer_outside_cast_rejected stdout ----
+
+thread 'role_signer_outside_cast_rejected' (11799288) panicked at common/tests/checkpoint.rs:150:5:
+assertion failed: run(&input).is_err()
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    role_signer_outside_cast_rejected
+
+test result: FAILED. 11 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p checkpoint-common --test checkpoint`

@@ -1,0 +1,32 @@
+[
+  {
+    "mutant": "context",
+    "killed_by_executed_test": true,
+    "exit_code": 101,
+    "target_test": "nested_dialect_mismatch_rejected"
+  },
+  {
+    "mutant": "thread",
+    "killed_by_executed_test": true,
+    "exit_code": 101,
+    "target_test": "mixed_thread_rejected"
+  },
+  {
+    "mutant": "admission",
+    "killed_by_executed_test": true,
+    "exit_code": 101,
+    "target_test": "invalid_shape_rejected"
+  },
+  {
+    "mutant": "source-commitment",
+    "killed_by_executed_test": true,
+    "exit_code": 101,
+    "target_test": "source_closure_and_message_set_bound"
+  },
+  {
+    "mutant": "snapshot-commitment",
+    "killed_by_executed_test": true,
+    "exit_code": 101,
+    "target_test": "source_closure_and_message_set_bound"
+  }
+]

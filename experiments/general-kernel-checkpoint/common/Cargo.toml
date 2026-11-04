@@ -1,0 +1,10 @@
+[package]
+name = "checkpoint-common"
+version = "0.0.0"
+edition = "2021"
+[dependencies]
+cbcl-core = { path = "../../../crates/cbcl-core", default-features = false }
+cbcl-parser = { path = "../../../crates/cbcl-parser", default-features = false }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"

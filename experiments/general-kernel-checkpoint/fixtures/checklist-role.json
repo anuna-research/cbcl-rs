@@ -1,0 +1,22 @@
+{
+  "dialect": "\n(define checklist (cbcl) @anuna\n  (:resource-requirements\n    ((max-depth 16)\n     (max-expansion-size 4096)\n     (verification-time 1000)))\n\n  (:roles (owner (* member)))\n\n  (extend open (to title) :from owner :to (owner member)\n    (tell to :title title))\n\n  (extend check (to item done) :from member :to (owner member)\n    (tell to :item item :done done))\n\n  (extend drop (to item) :from owner :to (owner member)\n    (tell to :item item))\n\n  (shape open\n    (require :title string))\n  (shape check\n    (require :item string)\n    (require :done bool))\n  (shape drop\n    (require :item string))\n\n  (protocol\n    (then begin open)\n    (then open check)\n    (then open drop))\n\n  (state\n    (title (last open :title))\n    (items (register-per-key check :item :done drop))))\n",
+  "thread": "list-1",
+  "messages": [
+    {
+      "signer": "@aria",
+      "canonical": "(with-roles ((owner @aria) (member @bo @cy)) (signed @aria (hello () :thread \"list-1\" :caused-by begin)))"
+    },
+    {
+      "signer": "@aria",
+      "canonical": "(signed @aria (lang checklist (open (@aria @bo @cy) () :title \"Launch tasks\" :from @aria :thread \"list-1\" :caused-by sha256-482c9b2855fdb98df32c3472fd8648da48fc5cf5594f77627283af7e9c927b3c)))"
+    },
+    {
+      "signer": "@bo",
+      "canonical": "(signed @bo (lang checklist (check (@aria @bo @cy) () :item \"venue\" :done #f :replaces () :from @bo :thread \"list-1\" :caused-by sha256-d74d0f31a23eb08b76f311dba75890264431cc818073a82050a5dea28b1fab69)))"
+    },
+    {
+      "signer": "@bo",
+      "canonical": "(signed @bo (lang checklist (check (@aria @bo @cy) () :item \"venue\" :done #t :replaces (sha256-fdbf1ba82f98e0b0d01cf4be9a9258a523ae1caa32ac9fd97bf95433b879d2fa) :from @bo :thread \"list-1\" :caused-by sha256-d74d0f31a23eb08b76f311dba75890264431cc818073a82050a5dea28b1fab69)))"
+    }
+  ]
+}

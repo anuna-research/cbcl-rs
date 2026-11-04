@@ -1,0 +1,17 @@
+{
+  "command": [
+    "cargo",
+    "test",
+    "--release",
+    "-p",
+    "checkpoint-common"
+  ],
+  "exit_code": 101,
+  "seconds": 4.048851,
+  "peak_observed_tree_rss_bytes": 53624832,
+  "rss_sample_interval_seconds": 2,
+  "minimum_free_bytes": 11981258752,
+  "limit_reason": null,
+  "dev_mode": false,
+  "rayon_threads": 4
+}

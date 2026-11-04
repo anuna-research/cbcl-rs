@@ -1,0 +1,28 @@
+    Updating crates.io index
+     Locking 29 packages to latest compatible versions
+      Adding generic-array v0.14.7 (available: v0.14.9)
+      Adding sha2 v0.10.9 (available: v0.11.1)
+   Compiling checkpoint-common v0.0.0 (/Users/anuna-02/Code/cbcl-rs-general-checkpoint/experiments/general-kernel-checkpoint/.mutation-runs/source-commitment/common)
+    Finished `release` profile [optimized] target(s) in 2.41s
+     Running tests/checkpoint.rs (target/release/deps/checkpoint-373d156aaf18e8e2)
+
+running 1 test
+test source_closure_and_message_set_bound ... FAILED
+
+failures:
+
+---- source_closure_and_message_set_bound stdout ----
+
+thread 'source_closure_and_message_set_bound' (11783960) panicked at tests/checkpoint.rs:114:5:
+assertion `left != right` failed
+  left: [225, 149, 199, 142, 90, 184, 151, 112, 36, 206, 167, 16, 201, 10, 116, 118, 236, 212, 223, 183, 190, 92, 230, 37, 68, 177, 236, 90, 5, 100, 36, 254]
+ right: [225, 149, 199, 142, 90, 184, 151, 112, 36, 206, 167, 16, 201, 10, 116, 118, 236, 212, 223, 183, 190, 92, 230, 37, 68, 177, 236, 90, 5, 100, 36, 254]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    source_closure_and_message_set_bound
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 10 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `--test checkpoint`

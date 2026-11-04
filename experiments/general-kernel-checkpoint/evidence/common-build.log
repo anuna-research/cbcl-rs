@@ -1,0 +1,44 @@
+    Updating crates.io index
+     Locking 279 packages to latest compatible versions
+      Adding bincode v1.3.3 (available: v3.0.0)
+      Adding generic-array v0.14.7 (available: v0.14.9)
+      Adding sha2 v0.10.9 (available: v0.11.1)
+ Downloading crates ...
+  Downloaded cc v1.11.0
+  Downloaded libc v0.2.191
+   Compiling version_check v0.9.5
+   Compiling generic-array v0.14.7
+   Compiling typenum v1.20.1
+   Compiling shlex v2.0.1
+   Compiling find-msvc-tools v0.1.15
+   Compiling cc v1.11.0
+   Compiling proc-macro2 v1.0.107
+   Compiling libc v0.2.191
+   Compiling sha2-asm v0.6.4
+   Compiling quote v1.0.47
+   Compiling unicode-ident v1.0.27
+   Compiling crypto-common v0.1.7
+   Compiling block-buffer v0.10.4
+   Compiling serde_core v1.0.229
+   Compiling digest v0.10.7
+   Compiling cpufeatures v0.2.17
+   Compiling foldhash v0.1.5
+   Compiling zmij v1.0.23
+   Compiling cfg-if v1.0.5
+   Compiling sha2 v0.10.9
+   Compiling hashbrown v0.15.5
+   Compiling syn v3.0.9
+   Compiling serde_json v1.0.154
+   Compiling serde v1.0.229
+   Compiling serde_derive v1.0.229
+   Compiling cbcl-core v0.1.1 (/Users/anuna-02/Code/cbcl-rs-general-checkpoint/crates/cbcl-core)
+   Compiling itoa v1.0.18
+   Compiling memchr v2.8.3
+   Compiling cbcl-parser v0.1.1 (/Users/anuna-02/Code/cbcl-rs-general-checkpoint/crates/cbcl-parser)
+   Compiling checkpoint-common v0.0.0 (/Users/anuna-02/Code/cbcl-rs-general-checkpoint/experiments/general-kernel-checkpoint/common)
+    Finished `test` profile [optimized] target(s) in 48.03s
+     Running unittests src/lib.rs (experiments/general-kernel-checkpoint/target/debug/deps/checkpoint_common-527081517a18c251)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s

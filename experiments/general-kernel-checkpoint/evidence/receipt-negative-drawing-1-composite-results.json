@@ -1,0 +1,50 @@
+[
+  {
+    "case": "honest",
+    "accepted": true,
+    "expected_accepted": true,
+    "output": "{\"count\":2,\"history_files_read\":0,\"verified\":true,\"verify_ms\":85}\n"
+  },
+  {
+    "case": "wrong-thread",
+    "accepted": false,
+    "expected_accepted": false,
+    "output": "\nthread 'main' (11809473) panicked at host/src/main.rs:29:5:\nassertion `left == right` failed: expected checkpoint differs\n  left: Journal { version: 1, semantics: \"cbcl-rs:c45b468:state_exports::admit+escrow::fold_instance\", authentication: \"asserted-signer-labels; no Ed25519 verification\", dialect_sources_hash: [218, 113, 73, 121, 173, 30, 6, 105, 249, 61, 94, 104, 237, 139, 127, 155, 17, 25, 195, 20, 84, 133, 93, 29, 109, 125, 84, 84, 9, 212, 136, 222], dialect: \"sha256-90544c46e25eb55c3335cd828b7e0407a88b7c357daba9ac4cfa1ba991c3d496\", thread: \"checkpoint-drawing\", messages_hash: [180, 213, 209, 152, 191, 145, 192, 238, 85, 236, 20, 12, 213, 213, 193, 253, 235, 128, 1, 190, 231, 243, 41, 62, 197, 92, 145, 103, 3, 49, 137, 232], count: 2, state_hash: [0, 225, 202, 251, 121, 70, 239, 184, 91, 220, 135, 250, 189, 107, 142, 223, 8, 201, 107, 158, 135, 92, 63, 182, 64, 191, 218, 93, 124, 0, 81, 163] }\n right: Journal { version: 1, semantics: \"cbcl-rs:c45b468:state_exports::admit+escrow::fold_instance\", authentication: \"asserted-signer-labels; no Ed25519 verification\", dialect_sources_hash: [218, 113, 73, 121, 173, 30, 6, 105, 249, 61, 94, 104, 237, 139, 127, 155, 17, 25, 195, 20, 84, 133, 93, 29, 109, 125, 84, 84, 9, 212, 136, 222], dialect: \"sha256-90544c46e25eb55c3335cd828b7e0407a88b7c357daba9ac4cfa1ba991c3d496\", thread: \"wrong\", messages_hash: [180, 213, 209, 152, 191, 145, 192, 238, 85, 236, 20, 12, 213, 213, 193, 253, 235, 128, 1, 190, 231, 243, 41, 62, 197, 92, 145, 103, 3, 49, 137, 232], count: 2, state_hash: [0, 225, 202, 251, 121, 70, 239, 184, 91, 220, 135, 250, 189, 107, 142, 223, 8, 201, 107, 158, 135, 92, 63, 182, 64, 191, 218, 93, 124, 0, 81, 163] }\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n"
+  },
+  {
+    "case": "wrong-dialect",
+    "accepted": false,
+    "expected_accepted": false,
+    "output": "\nthread 'main' (11809475) panicked at host/src/main.rs:29:5:\nassertion `left == right` failed: expected checkpoint differs\n  left: Journal { version: 1, semantics: \"cbcl-rs:c45b468:state_exports::admit+escrow::fold_instance\", authentication: \"asserted-signer-labels; no Ed25519 verification\", dialect_sources_hash: [218, 113, 73, 121, 173, 30, 6, 105, 249, 61, 94, 104, 237, 139, 127, 155, 17, 25, 195, 20, 84, 133, 93, 29, 109, 125, 84, 84, 9, 212, 136, 222], dialect: \"sha256-90544c46e25eb55c3335cd828b7e0407a88b7c357daba9ac4cfa1ba991c3d496\", thread: \"checkpoint-drawing\", messages_hash: [180, 213, 209, 152, 191, 145, 192, 238, 85, 236, 20, 12, 213, 213, 193, 253, 235, 128, 1, 190, 231, 243, 41, 62, 197, 92, 145, 103, 3, 49, 137, 232], count: 2, state_hash: [0, 225, 202, 251, 121, 70, 239, 184, 91, 220, 135, 250, 189, 107, 142, 223, 8, 201, 107, 158, 135, 92, 63, 182, 64, 191, 218, 93, 124, 0, 81, 163] }\n right: Journal { version: 1, semantics: \"cbcl-rs:c45b468:state_exports::admit+escrow::fold_instance\", authentication: \"asserted-signer-labels; no Ed25519 verification\", dialect_sources_hash: [218, 113, 73, 121, 173, 30, 6, 105, 249, 61, 94, 104, 237, 139, 127, 155, 17, 25, 195, 20, 84, 133, 93, 29, 109, 125, 84, 84, 9, 212, 136, 222], dialect: \"sha256-0000000000000000000000000000000000000000000000000000000000000000\", thread: \"checkpoint-drawing\", messages_hash: [180, 213, 209, 152, 191, 145, 192, 238, 85, 236, 20, 12, 213, 213, 193, 253, 235, 128, 1, 190, 231, 243, 41, 62, 197, 92, 145, 103, 3, 49, 137, 232], count: 2, state_hash: [0, 225, 202, 251, 121, 70, 239, 184, 91, 220, 135, 250, 189, 107, 142, 223, 8, 201, 107, 158, 135, 92, 63, 182, 64, 191, 218, 93, 124, 0, 81, 163] }\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n"
+  },
+  {
+    "case": "wrong-messages_hash",
+    "accepted": false,
+    "expected_accepted": false,
+    "output": "\nthread 'main' (11809478) panicked at host/src/main.rs:29:5:\nassertion `left == right` failed: expected checkpoint differs\n  left: Journal { version: 1, semantics: \"cbcl-rs:c45b468:state_exports::admit+escrow::fold_instance\", authentication: \"asserted-signer-labels; no Ed25519 verification\", dialect_sources_hash: [218, 113, 73, 121, 173, 30, 6, 105, 249, 61, 94, 104, 237, 139, 127, 155, 17, 25, 195, 20, 84, 133, 93, 29, 109, 125, 84, 84, 9, 212, 136, 222], dialect: \"sha256-90544c46e25eb55c3335cd828b7e0407a88b7c357daba9ac4cfa1ba991c3d496\", thread: \"checkpoint-drawing\", messages_hash: [180, 213, 209, 152, 191, 145, 192, 238, 85, 236, 20, 12, 213, 213, 193, 253, 235, 128, 1, 190, 231, 243, 41, 62, 197, 92, 145, 103, 3, 49, 137, 232], count: 2, state_hash: [0, 225, 202, 251, 121, 70, 239, 184, 91, 220, 135, 250, 189, 107, 142, 223, 8, 201, 107, 158, 135, 92, 63, 182, 64, 191, 218, 93, 124, 0, 81, 163] }\n right: Journal { version: 1, semantics: \"cbcl-rs:c45b468:state_exports::admit+escrow::fold_instance\", authentication: \"asserted-signer-labels; no Ed25519 verification\", dialect_sources_hash: [218, 113, 73, 121, 173, 30, 6, 105, 249, 61, 94, 104, 237, 139, 127, 155, 17, 25, 195, 20, 84, 133, 93, 29, 109, 125, 84, 84, 9, 212, 136, 222], dialect: \"sha256-90544c46e25eb55c3335cd828b7e0407a88b7c357daba9ac4cfa1ba991c3d496\", thread: \"checkpoint-drawing\", messages_hash: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], count: 2, state_hash: [0, 225, 202, 251, 121, 70, 239, 184, 91, 220, 135, 250, 189, 107, 142, 223, 8, 201, 107, 158, 135, 92, 63, 182, 64, 191, 218, 93, 124, 0, 81, 163] }\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n"
+  },
+  {
+    "case": "wrong-dialect_sources_hash",
+    "accepted": false,
+    "expected_accepted": false,
+    "output": "\nthread 'main' (11809480) panicked at host/src/main.rs:29:5:\nassertion `left == right` failed: expected checkpoint differs\n  left: Journal { version: 1, semantics: \"cbcl-rs:c45b468:state_exports::admit+escrow::fold_instance\", authentication: \"asserted-signer-labels; no Ed25519 verification\", dialect_sources_hash: [218, 113, 73, 121, 173, 30, 6, 105, 249, 61, 94, 104, 237, 139, 127, 155, 17, 25, 195, 20, 84, 133, 93, 29, 109, 125, 84, 84, 9, 212, 136, 222], dialect: \"sha256-90544c46e25eb55c3335cd828b7e0407a88b7c357daba9ac4cfa1ba991c3d496\", thread: \"checkpoint-drawing\", messages_hash: [180, 213, 209, 152, 191, 145, 192, 238, 85, 236, 20, 12, 213, 213, 193, 253, 235, 128, 1, 190, 231, 243, 41, 62, 197, 92, 145, 103, 3, 49, 137, 232], count: 2, state_hash: [0, 225, 202, 251, 121, 70, 239, 184, 91, 220, 135, 250, 189, 107, 142, 223, 8, 201, 107, 158, 135, 92, 63, 182, 64, 191, 218, 93, 124, 0, 81, 163] }\n right: Journal { version: 1, semantics: \"cbcl-rs:c45b468:state_exports::admit+escrow::fold_instance\", authentication: \"asserted-signer-labels; no Ed25519 verification\", dialect_sources_hash: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], dialect: \"sha256-90544c46e25eb55c3335cd828b7e0407a88b7c357daba9ac4cfa1ba991c3d496\", thread: \"checkpoint-drawing\", messages_hash: [180, 213, 209, 152, 191, 145, 192, 238, 85, 236, 20, 12, 213, 213, 193, 253, 235, 128, 1, 190, 231, 243, 41, 62, 197, 92, 145, 103, 3, 49, 137, 232], count: 2, state_hash: [0, 225, 202, 251, 121, 70, 239, 184, 91, 220, 135, 250, 189, 107, 142, 223, 8, 201, 107, 158, 135, 92, 63, 182, 64, 191, 218, 93, 124, 0, 81, 163] }\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n"
+  },
+  {
+    "case": "tampered-state",
+    "accepted": false,
+    "expected_accepted": false,
+    "output": "\nthread 'main' (11809482) panicked at host/src/main.rs:30:5:\nassertion `left == right` failed: snapshot differs\n  left: [0, 225, 202, 251, 121, 70, 239, 184, 91, 220, 135, 250, 189, 107, 142, 223, 8, 201, 107, 158, 135, 92, 63, 182, 64, 191, 218, 93, 124, 0, 81, 163]\n right: [170, 231, 79, 83, 236, 209, 58, 136, 234, 201, 197, 20, 59, 203, 146, 167, 105, 35, 62, 32, 17, 10, 182, 192, 226, 3, 108, 24, 234, 127, 131, 25]\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n"
+  },
+  {
+    "case": "corrupt-receipt",
+    "accepted": false,
+    "expected_accepted": false,
+    "output": "\nthread 'main' (11809485) panicked at host/src/main.rs:27:41:\ncalled `Result::unwrap()` on an `Err` value: verification indicates proof is invalid\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n"
+  },
+  {
+    "case": "fake-even-with-dev-enabled",
+    "accepted": false,
+    "expected_accepted": false,
+    "output": "\nthread 'main' (11809489) panicked at host/src/main.rs:23:5:\nfake receipt forbidden\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n"
+  }
+]

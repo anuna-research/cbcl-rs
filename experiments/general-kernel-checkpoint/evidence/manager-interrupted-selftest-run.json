@@ -1,0 +1,13 @@
+{
+  "command": [
+    "python3",
+    ".artifacts/manager-selftest/interrupt.py"
+  ],
+  "exit_code": -9,
+  "seconds": 2.0879770000000004,
+  "peak_observed_tree_rss_bytes": 5308416,
+  "rss_sample_interval_seconds": 2,
+  "minimum_free_bytes": 12074504192,
+  "limit_reason": "monitor interrupted or failed: ",
+  "dev_mode": false
+}

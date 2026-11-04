@@ -1,0 +1,14 @@
+{
+  "command": [
+    "python3",
+    "mutation-check.py"
+  ],
+  "exit_code": 0,
+  "seconds": 18.194145167000002,
+  "peak_observed_tree_rss_bytes": 212615168,
+  "rss_sample_interval_seconds": 2,
+  "minimum_free_bytes": 11969818624,
+  "limit_reason": null,
+  "dev_mode": false,
+  "rayon_threads": 4
+}

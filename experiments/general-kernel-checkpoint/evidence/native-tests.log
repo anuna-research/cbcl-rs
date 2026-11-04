@@ -1,0 +1,37 @@
+   Compiling checkpoint-common v0.0.0 (/Users/anuna-02/Code/cbcl-rs-general-checkpoint/experiments/general-kernel-checkpoint/common)
+    Finished `release` profile [optimized] target(s) in 0.79s
+     Running unittests src/lib.rs (target/release/deps/checkpoint_common-e1db6135fd152072)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/checkpoint.rs (target/release/deps/checkpoint-3d6c365e181caa91)
+
+running 10 tests
+test invalid_dialect_rejected ... ok
+test nested_dialect_mismatch_rejected ... ok
+test schema_and_byte_bounds_rejected ... ok
+test mixed_thread_rejected ... ok
+test noncanonical_rejected ... ok
+test duplicate_addresses_rejected ... ok
+test invalid_shape_rejected ... ok
+test source_closure_and_message_set_bound ... ok
+test unresolved_dependency_rejected ... ok
+test sdk_fixtures_match_native_and_permutations ... FAILED
+
+failures:
+
+---- sdk_fixtures_match_native_and_permutations stdout ----
+
+thread 'sdk_fixtures_match_native_and_permutations' (11737541) panicked at common/tests/checkpoint.rs:28:36:
+called `Result::unwrap()` on an `Err` value: "dialect verification failed: R7 violation: dialect 'sha256-956ab6a44a0563be55f11a4d459f58f1860d435f50532b0cbe47d8688641d664': self-addressed dialect must be named 'sha256-b039d4f8d55e609b6ee60941fc5ba57917bbacb81fbc47a6b14df975f51d0711', found 'sha256-956ab6a44a0563be55f11a4d459f58f1860d435f50532b0cbe47d8688641d664';"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    sdk_fixtures_match_native_and_permutations
+
+test result: FAILED. 9 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `-p checkpoint-common --test checkpoint`

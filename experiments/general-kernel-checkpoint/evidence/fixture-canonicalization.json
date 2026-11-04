@@ -1,0 +1,38 @@
+[
+  {
+    "canonical": "(lang sha256-90544c46e25eb55c3335cd828b7e0407a88b7c357daba9ac4cfa1ba991c3d496 (open @benchmark () :title \"Checkpoint benchmark\" :from @owner :thread \"checkpoint-drawing\" :caused-by begin))",
+    "fixture": "drawing-0",
+    "received": "(lang sha256-90544c46e25eb55c3335cd828b7e0407a88b7c357daba9ac4cfa1ba991c3d496 (open @benchmark :title \"Checkpoint benchmark\" :caused-by begin :thread \"checkpoint-drawing\" :from @owner))",
+    "record": 0
+  },
+  {
+    "canonical": "(lang sha256-90544c46e25eb55c3335cd828b7e0407a88b7c357daba9ac4cfa1ba991c3d496 (open @benchmark () :title \"Checkpoint benchmark\" :from @owner :thread \"checkpoint-drawing\" :caused-by begin))",
+    "fixture": "drawing-1",
+    "received": "(lang sha256-90544c46e25eb55c3335cd828b7e0407a88b7c357daba9ac4cfa1ba991c3d496 (open @benchmark :title \"Checkpoint benchmark\" :caused-by begin :thread \"checkpoint-drawing\" :from @owner))",
+    "record": 0
+  },
+  {
+    "canonical": "(lang sha256-90544c46e25eb55c3335cd828b7e0407a88b7c357daba9ac4cfa1ba991c3d496 (open @benchmark () :title \"Checkpoint benchmark\" :from @owner :thread \"checkpoint-drawing\" :caused-by begin))",
+    "fixture": "drawing-8",
+    "received": "(lang sha256-90544c46e25eb55c3335cd828b7e0407a88b7c357daba9ac4cfa1ba991c3d496 (open @benchmark :title \"Checkpoint benchmark\" :caused-by begin :thread \"checkpoint-drawing\" :from @owner))",
+    "record": 0
+  },
+  {
+    "canonical": "(lang sha256-956ab6a44a0563be55f11a4d459f58f1860d435f50532b0cbe47d8688641d664 (open @benchmark () :title \"Checkpoint benchmark\" :from @owner :thread \"checkpoint-status\" :caused-by begin))",
+    "fixture": "status-0",
+    "received": "(lang sha256-956ab6a44a0563be55f11a4d459f58f1860d435f50532b0cbe47d8688641d664 (open @benchmark :title \"Checkpoint benchmark\" :caused-by begin :thread \"checkpoint-status\" :from @owner))",
+    "record": 0
+  },
+  {
+    "canonical": "(lang sha256-956ab6a44a0563be55f11a4d459f58f1860d435f50532b0cbe47d8688641d664 (open @benchmark () :title \"Checkpoint benchmark\" :from @owner :thread \"checkpoint-status\" :caused-by begin))",
+    "fixture": "status-1",
+    "received": "(lang sha256-956ab6a44a0563be55f11a4d459f58f1860d435f50532b0cbe47d8688641d664 (open @benchmark :title \"Checkpoint benchmark\" :caused-by begin :thread \"checkpoint-status\" :from @owner))",
+    "record": 0
+  },
+  {
+    "canonical": "(lang sha256-956ab6a44a0563be55f11a4d459f58f1860d435f50532b0cbe47d8688641d664 (open @benchmark () :title \"Checkpoint benchmark\" :from @owner :thread \"checkpoint-status\" :caused-by begin))",
+    "fixture": "status-8",
+    "received": "(lang sha256-956ab6a44a0563be55f11a4d459f58f1860d435f50532b0cbe47d8688641d664 (open @benchmark :title \"Checkpoint benchmark\" :caused-by begin :thread \"checkpoint-status\" :from @owner))",
+    "record": 0
+  }
+]

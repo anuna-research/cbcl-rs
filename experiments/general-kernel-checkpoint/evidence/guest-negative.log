@@ -1,0 +1,33 @@
+
+thread '<unnamed>' (1) panicked at src/main.rs:8:53:
+invalid checkpoint input: "thread context mismatch"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+thread '<unnamed>' (1) panicked at src/main.rs:8:53:
+invalid checkpoint input: "dialect context mismatch"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+thread '<unnamed>' (1) panicked at src/main.rs:8:53:
+invalid checkpoint input: "duplicate act address"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+thread '<unnamed>' (1) panicked at src/main.rs:8:53:
+invalid checkpoint input: "unresolved causal dependencies"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+thread '<unnamed>' (1) panicked at src/main.rs:8:53:
+invalid checkpoint input: "noncanonical message"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+thread '<unnamed>' (1) panicked at src/main.rs:8:53:
+invalid checkpoint input: "dialect parse error: dialect definition must start with 'define'"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+thread '<unnamed>' (1) panicked at src/main.rs:8:53:
+invalid checkpoint input: "rejected: state shape: shape violation: undeclared field :bad-data on 'chunk'"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+thread '<unnamed>' (1) panicked at src/main.rs:8:53:
+invalid checkpoint input: "unknown field `extra`, expected one of `dialect`, `thread`, `messages` at line 1 column 8"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+[{"case":"wrong-thread","detail":"Guest panicked: invalid checkpoint input: \"thread context mismatch\"","guest_rejected":true},{"case":"nested-wrong-dialect","detail":"Guest panicked: invalid checkpoint input: \"dialect context mismatch\"","guest_rejected":true},{"case":"duplicate","detail":"Guest panicked: invalid checkpoint input: \"duplicate act address\"","guest_rejected":true},{"case":"pending","detail":"Guest panicked: invalid checkpoint input: \"unresolved causal dependencies\"","guest_rejected":true},{"case":"noncanonical","detail":"Guest panicked: invalid checkpoint input: \"noncanonical message\"","guest_rejected":true},{"case":"invalid-dialect","detail":"Guest panicked: invalid checkpoint input: \"dialect parse error: dialect definition must start with 'define'\"","guest_rejected":true},{"case":"invalid-shape","detail":"Guest panicked: invalid checkpoint input: \"rejected: state shape: shape violation: undeclared field :bad-data on 'chunk'\"","guest_rejected":true},{"case":"invalid-json","detail":"Guest panicked: invalid checkpoint input: \"unknown field `extra`, expected one of `dialect`, `thread`, `messages` at line 1 column 8\"","guest_rejected":true}]

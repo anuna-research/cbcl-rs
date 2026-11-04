@@ -1,0 +1,27 @@
+[
+  {
+    "mutant": "context",
+    "killed_by_executed_test": true,
+    "exit_code": 101
+  },
+  {
+    "mutant": "thread",
+    "killed_by_executed_test": true,
+    "exit_code": 101
+  },
+  {
+    "mutant": "admission",
+    "killed_by_executed_test": true,
+    "exit_code": 101
+  },
+  {
+    "mutant": "source-commitment",
+    "killed_by_executed_test": true,
+    "exit_code": 101
+  },
+  {
+    "mutant": "snapshot-commitment",
+    "killed_by_executed_test": true,
+    "exit_code": 101
+  }
+]

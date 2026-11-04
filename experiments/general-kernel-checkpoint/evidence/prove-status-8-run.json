@@ -1,0 +1,16 @@
+{
+  "command": [
+    "target/release/checkpoint-host",
+    "prove",
+    "fixtures/status-8.json",
+    "evidence/proved-status-8"
+  ],
+  "exit_code": 0,
+  "seconds": 662.2833288329999,
+  "peak_observed_tree_rss_bytes": 2519203840,
+  "rss_sample_interval_seconds": 2,
+  "minimum_free_bytes": 11969757184,
+  "limit_reason": null,
+  "dev_mode": false,
+  "rayon_threads": 4
+}

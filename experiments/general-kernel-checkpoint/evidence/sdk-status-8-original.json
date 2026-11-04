@@ -1,0 +1,42 @@
+{
+  "dialect": "(define sha256-956ab6a44a0563be55f11a4d459f58f1860d435f50532b0cbe47d8688641d664 (cbcl) @object\n  (:resource-requirements ((max-depth 16) (max-expansion-size 4096) (verification-time 1000)))\n  (extend open (to title) (tell to :title title))\n  (extend put (to value) (tell to :value value))\n  (shape open (require :title string))\n  (shape put (require :value string))\n  (protocol (then begin open) (then open put))\n  (state (title (last open :title)) (heads (latest-per-signer put :value)) (count (count put))))",
+  "thread": "checkpoint-status",
+  "messages": [
+    {
+      "signer": "@owner",
+      "canonical": "(lang sha256-956ab6a44a0563be55f11a4d459f58f1860d435f50532b0cbe47d8688641d664 (open @benchmark () :title \"Checkpoint benchmark\" :from @owner :thread \"checkpoint-status\" :caused-by begin))"
+    },
+    {
+      "signer": "@writer0",
+      "canonical": "(lang sha256-956ab6a44a0563be55f11a4d459f58f1860d435f50532b0cbe47d8688641d664 (put @benchmark () :value \"state0\" :from @writer0 :thread \"checkpoint-status\" :caused-by sha256-b89ff5012fd16d0b1347b109bcbe2db1e663ea84288b2a1efde2bc73148dde5a))"
+    },
+    {
+      "signer": "@writer1",
+      "canonical": "(lang sha256-956ab6a44a0563be55f11a4d459f58f1860d435f50532b0cbe47d8688641d664 (put @benchmark () :value \"state1\" :from @writer1 :thread \"checkpoint-status\" :caused-by sha256-b89ff5012fd16d0b1347b109bcbe2db1e663ea84288b2a1efde2bc73148dde5a))"
+    },
+    {
+      "signer": "@writer0",
+      "canonical": "(lang sha256-956ab6a44a0563be55f11a4d459f58f1860d435f50532b0cbe47d8688641d664 (put @benchmark () :value \"state2\" :from @writer0 :thread \"checkpoint-status\" :caused-by sha256-b89ff5012fd16d0b1347b109bcbe2db1e663ea84288b2a1efde2bc73148dde5a))"
+    },
+    {
+      "signer": "@writer1",
+      "canonical": "(lang sha256-956ab6a44a0563be55f11a4d459f58f1860d435f50532b0cbe47d8688641d664 (put @benchmark () :value \"state0\" :from @writer1 :thread \"checkpoint-status\" :caused-by sha256-b89ff5012fd16d0b1347b109bcbe2db1e663ea84288b2a1efde2bc73148dde5a))"
+    },
+    {
+      "signer": "@writer0",
+      "canonical": "(lang sha256-956ab6a44a0563be55f11a4d459f58f1860d435f50532b0cbe47d8688641d664 (put @benchmark () :value \"state1\" :from @writer0 :thread \"checkpoint-status\" :caused-by sha256-b89ff5012fd16d0b1347b109bcbe2db1e663ea84288b2a1efde2bc73148dde5a))"
+    },
+    {
+      "signer": "@writer1",
+      "canonical": "(lang sha256-956ab6a44a0563be55f11a4d459f58f1860d435f50532b0cbe47d8688641d664 (put @benchmark () :value \"state2\" :from @writer1 :thread \"checkpoint-status\" :caused-by sha256-b89ff5012fd16d0b1347b109bcbe2db1e663ea84288b2a1efde2bc73148dde5a))"
+    },
+    {
+      "signer": "@writer0",
+      "canonical": "(lang sha256-956ab6a44a0563be55f11a4d459f58f1860d435f50532b0cbe47d8688641d664 (put @benchmark () :value \"state0\" :from @writer0 :thread \"checkpoint-status\" :caused-by sha256-b89ff5012fd16d0b1347b109bcbe2db1e663ea84288b2a1efde2bc73148dde5a))"
+    },
+    {
+      "signer": "@writer1",
+      "canonical": "(lang sha256-956ab6a44a0563be55f11a4d459f58f1860d435f50532b0cbe47d8688641d664 (put @benchmark () :value \"state1\" :from @writer1 :thread \"checkpoint-status\" :caused-by sha256-b89ff5012fd16d0b1347b109bcbe2db1e663ea84288b2a1efde2bc73148dde5a))"
+    }
+  ]
+}

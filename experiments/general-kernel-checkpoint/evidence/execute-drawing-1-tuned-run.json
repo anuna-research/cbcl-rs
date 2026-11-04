@@ -1,0 +1,16 @@
+{
+  "command": [
+    "target/release/checkpoint-host",
+    "execute",
+    "fixtures/drawing-1.json",
+    "evidence/drawing-1-tuned"
+  ],
+  "exit_code": 0,
+  "seconds": 2.0273052500000004,
+  "peak_observed_tree_rss_bytes": 6930432,
+  "rss_sample_interval_seconds": 2,
+  "minimum_free_bytes": 12076081152,
+  "limit_reason": null,
+  "dev_mode": false,
+  "rayon_threads": 4
+}

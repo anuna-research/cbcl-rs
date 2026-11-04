@@ -1,0 +1,9 @@
+{
+  "initialAttempt": "prove-drawing-1",
+  "initialSegmentPo2": 16,
+  "initialRayonThreads": 1,
+  "disposition": "interrupted partial, no proof artifact; tune segmentation/threading within unchanged memory and total-time envelope",
+  "nextSegmentPo2": 18,
+  "nextRayonThreads": 4,
+  "reason": "initial observed RSS below1GiB and more than20minutes elapsed; initial execution had68segments for1170520guestcycles"
+}

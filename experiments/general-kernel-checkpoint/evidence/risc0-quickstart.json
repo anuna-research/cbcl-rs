@@ -1,0 +1,24 @@
+{
+  "data": [
+    {
+      "content": "<!DOCTYPE html>\n<html>\n  <head>\n    <meta charset=\"UTF-8\">\n    <meta http-equiv=\"refresh\" content=\"0; url=/api/zkvm/quickstart\">\n    <link rel=\"canonical\" href=\"/api/zkvm/quickstart\" />\n  </head>\n  <script>\n    window.location.href = '/api/zkvm/quickstart' + window.location.search + window.location.hash;\n  </script>\n</html>",
+      "links": [],
+      "metadata": {
+        "content-length": 325,
+        "method": "direct-http",
+        "user-agent": "AR-Crawl/1.0"
+      },
+      "timestamp": "2026-11-04T12:58:59Z",
+      "title": "",
+      "url": "https://dev.risczero.com/zkvm/quickstart"
+    }
+  ],
+  "errors": [],
+  "metadata": {
+    "duration": 860,
+    "job-id": "d0a2e97e-b44e-4be7-a132-73c1d4399a1b",
+    "status": "completed",
+    "url": "https://dev.risczero.com/zkvm/quickstart"
+  },
+  "timestamp": "2026-11-04T12:58:59Z"
+}

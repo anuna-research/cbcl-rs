@@ -1,0 +1,13 @@
+   Compiling sha2-asm v0.6.4
+   Compiling sha2 v0.10.9
+   Compiling cbcl-core v0.1.1 (/Users/anuna-02/Code/cbcl-rs-general-checkpoint/crates/cbcl-core)
+   Compiling cbcl-parser v0.1.1 (/Users/anuna-02/Code/cbcl-rs-general-checkpoint/crates/cbcl-parser)
+   Compiling checkpoint-common v0.0.0 (/Users/anuna-02/Code/cbcl-rs-general-checkpoint/experiments/general-kernel-checkpoint/common)
+    Finished `release` profile [optimized] target(s) in 24.72s
+     Running `target/release/examples/make_native`
+
+thread 'main' (11740725) panicked at common/examples/make_native.rs:24:3:
+assertion `left == right` failed: native/SDK state mismatch
+  left: "{\"title\":\"Checkpoint benchmark\",\"heads\":{\"@writer0\":\"state0\",\"@writer1\":\"state1\"},\"count\":8}"
+ right: "{\"title\":\"Checkpoint benchmark\",\"heads\":{\"@writer0\":\"state2\",\"@writer1\":\"state2\"},\"count\":6}"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

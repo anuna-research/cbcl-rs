@@ -1,0 +1,3 @@
+   Compiling checkpoint-common v0.0.0 (/Users/anuna-02/Code/cbcl-rs-general-checkpoint/experiments/general-kernel-checkpoint/common)
+    Finished `release` profile [optimized] target(s) in 0.48s
+     Running `target/release/examples/make_role`

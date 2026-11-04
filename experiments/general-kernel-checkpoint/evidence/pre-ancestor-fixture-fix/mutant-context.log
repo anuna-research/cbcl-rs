@@ -1,0 +1,54 @@
+    Updating crates.io index
+     Locking 29 packages to latest compatible versions
+      Adding generic-array v0.14.7 (available: v0.14.9)
+      Adding sha2 v0.10.9 (available: v0.11.1)
+   Compiling sha2 v0.10.9
+   Compiling cbcl-core v0.1.1 (/Users/anuna-02/Code/cbcl-rs-general-checkpoint/crates/cbcl-core)
+   Compiling cbcl-parser v0.1.1 (/Users/anuna-02/Code/cbcl-rs-general-checkpoint/crates/cbcl-parser)
+   Compiling checkpoint-common v0.0.0 (/Users/anuna-02/Code/cbcl-rs-general-checkpoint/experiments/general-kernel-checkpoint/.mutation-runs/context/common)
+warning: function `context` is never used
+  --> src/lib.rs:60:4
+   |
+60 | fn context(m: &Message, name: &str, identity: &str) -> Result<(), String> {
+   |    ^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `checkpoint-common` (lib) generated 1 warning
+    Finished `release` profile [optimized] target(s) in 28.19s
+     Running tests/checkpoint.rs (target/release/deps/checkpoint-373d156aaf18e8e2)
+
+running 11 tests
+test invalid_dialect_rejected ... ok
+test mixed_thread_rejected ... ok
+test schema_and_byte_bounds_rejected ... ok
+test noncanonical_rejected ... ok
+test invalid_shape_rejected ... ok
+test nested_dialect_mismatch_rejected ... FAILED
+test duplicate_addresses_rejected ... ok
+test missing_ancestor_rejected_and_ancestor_closure_committed ... FAILED
+test unresolved_dependency_rejected ... ok
+test source_closure_and_message_set_bound ... ok
+test fixtures_match_expected_bytes_and_permutations ... ok
+
+failures:
+
+---- nested_dialect_mismatch_rejected stdout ----
+
+thread 'nested_dialect_mismatch_rejected' (11760746) panicked at tests/checkpoint.rs:60:10:
+called `Option::unwrap()` on a `None` value
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- missing_ancestor_rejected_and_ancestor_closure_committed stdout ----
+
+thread 'missing_ancestor_rejected_and_ancestor_closure_committed' (11760744) panicked at tests/checkpoint.rs:137:5:
+missing ancestor was accepted
+
+
+failures:
+    missing_ancestor_rejected_and_ancestor_closure_committed
+    nested_dialect_mismatch_rejected
+
+test result: FAILED. 9 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `--test checkpoint`

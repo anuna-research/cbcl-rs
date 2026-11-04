@@ -1,0 +1,14 @@
+{
+  "command": [
+    "target/release/checkpoint-host",
+    "prove",
+    "fixtures/drawing-1.json",
+    "evidence/proved-drawing-1"
+  ],
+  "exit_code": -15,
+  "seconds": 1284.056132208,
+  "peak_tree_rss_bytes": 668827648,
+  "minimum_free_bytes": 11077271552,
+  "limit_reason": null,
+  "dev_mode": false
+}

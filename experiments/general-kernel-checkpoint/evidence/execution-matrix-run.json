@@ -1,0 +1,12 @@
+{
+  "command": [
+    "python3",
+    "run-execution-matrix.py"
+  ],
+  "exit_code": 0,
+  "seconds": 2.018376459,
+  "peak_tree_rss_bytes": 3244032,
+  "minimum_free_bytes": 11085672448,
+  "limit_reason": null,
+  "dev_mode": false
+}

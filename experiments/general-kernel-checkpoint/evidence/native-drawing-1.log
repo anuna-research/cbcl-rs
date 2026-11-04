@@ -1,0 +1,23 @@
+    Blocking waiting for file lock on artifact directory
+   Compiling libc v0.2.191
+   Compiling proc-macro2 v1.0.107
+   Compiling quote v1.0.47
+   Compiling sha2-asm v0.6.4
+   Compiling serde_core v1.0.229
+   Compiling digest v0.10.7
+   Compiling cpufeatures v0.2.17
+   Compiling sha2 v0.10.9
+   Compiling hashbrown v0.15.5
+   Compiling syn v3.0.9
+   Compiling serde_json v1.0.154
+   Compiling serde v1.0.229
+   Compiling serde_derive v1.0.229
+   Compiling cbcl-core v0.1.1 (/Users/anuna-02/Code/cbcl-rs-general-checkpoint/crates/cbcl-core)
+   Compiling cbcl-parser v0.1.1 (/Users/anuna-02/Code/cbcl-rs-general-checkpoint/crates/cbcl-parser)
+   Compiling checkpoint-common v0.0.0 (/Users/anuna-02/Code/cbcl-rs-general-checkpoint/experiments/general-kernel-checkpoint/common)
+    Finished `release` profile [optimized] target(s) in 3m 59s
+     Running `target/release/examples/native fixtures/drawing-1.json`
+
+thread 'main' (11736078) panicked at common/examples/native.rs:4:55:
+called `Result::unwrap()` on an `Err` value: "noncanonical message"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

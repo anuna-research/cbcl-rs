@@ -1,0 +1,64 @@
+{
+  "cases": {
+    "drawing-1": {
+      "messages": 2,
+      "replay": {
+        "raw": 1337,
+        "gzip9": 583,
+        "brotli5": 538
+      },
+      "snapshotOnly": {
+        "raw": 896,
+        "gzip9": 462,
+        "brotli5": 421
+      },
+      "bundles": {
+        "composite": {
+          "receiptBinaryBytes": 1792230,
+          "raw": 2390660,
+          "gzip9": 1604686,
+          "brotli5": 1576599
+        },
+        "succinct": {
+          "receiptBinaryBytes": 224442,
+          "raw": 300276,
+          "gzip9": 226018,
+          "brotli5": 223154
+        }
+      }
+    },
+    "status-8": {
+      "messages": 9,
+      "replay": {
+        "raw": 3085,
+        "gzip9": 776,
+        "brotli5": 700
+      },
+      "snapshotOnly": {
+        "raw": 617,
+        "gzip9": 343,
+        "brotli5": 307
+      },
+      "bundles": {
+        "composite": {
+          "receiptBinaryBytes": 3838966,
+          "raw": 5119366,
+          "gzip9": 3437000,
+          "brotli5": 3369728
+        },
+        "succinct": {
+          "receiptBinaryBytes": 224442,
+          "raw": 299998,
+          "gzip9": 225997,
+          "brotli5": 223584
+        }
+      }
+    }
+  },
+  "firstDownloadHostBinaryBytes": 8291440,
+  "notes": [
+    "Host binary includes execution/proving; it is not a minimal browser verifier.",
+    "Assumes a preinstalled verifier and independently authenticated expected commitments; acquiring/authenticating them is excluded and unmeasured.",
+    "The snapshot/receipt bundle includes image ID and full dialect closure. No end-to-end first-sync or smaller-than-history claim is made."
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "command": [
+    "target/release/guest-negative"
+  ],
+  "exit_code": 0,
+  "seconds": 2.023186875,
+  "peak_observed_tree_rss_bytes": 32768,
+  "rss_sample_interval_seconds": 2,
+  "minimum_free_bytes": 12103016448,
+  "limit_reason": null,
+  "dev_mode": false
+}

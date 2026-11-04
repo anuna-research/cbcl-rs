@@ -1,0 +1,10 @@
+[package]
+name = "checkpoint-host"
+version = "0.0.0"
+edition = "2021"
+[dependencies]
+checkpoint-common = { path = "../common" }
+checkpoint-methods = { path = "../methods" }
+risc0-zkvm = { version = "=3.0.6", default-features = false, features = ["client"] }
+serde_json = "1"
+bincode = "1.3"

@@ -1,0 +1,12 @@
+{
+  "count": 9,
+  "cycles": 2404390,
+  "execute_ms": 203,
+  "mode": "execute",
+  "native_ms": 0,
+  "proof_generated": false,
+  "sdk": "3.0.6",
+  "segment_po2": 18,
+  "segments": 15,
+  "state_bytes": 92
+}

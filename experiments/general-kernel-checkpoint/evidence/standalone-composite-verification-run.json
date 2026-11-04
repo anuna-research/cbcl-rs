@@ -1,0 +1,17 @@
+{
+  "command": [
+    "target/release/checkpoint-host",
+    "verify",
+    "evidence/proved-drawing-1-tuned/receipt.bin",
+    "evidence/independent-drawing-1/expected.json",
+    "evidence/independent-drawing-1/state.json"
+  ],
+  "exit_code": 0,
+  "seconds": 2.0184950830000004,
+  "peak_observed_tree_rss_bytes": 5619712,
+  "rss_sample_interval_seconds": 2,
+  "minimum_free_bytes": 12021981184,
+  "limit_reason": null,
+  "dev_mode": false,
+  "rayon_threads": 4
+}
