@@ -86,6 +86,28 @@ candidate identities, malformed or trailing input, and out-of-profile masks fail
 closed. Proofs contain 32–16,384 transcript bytes in 32-byte increments. Packages
 are at most 100,000 bytes; JSON rejects unknown fields and trailing input.
 
+## Semantics version
+
+`SEMANTICS_VERSION` (exported from the crate) names the kernel revision whose
+admission and fold semantics a profile identity binds. The identity's hash
+domain is `cbcl-state-proof/relation-v1/<SEMANTICS_VERSION>`, so two profiles
+compiled from the same dialect, thread and candidates under different versions
+have different identities and their proofs do not verify against each other.
+
+`test-vectors/state-proof/signer-supersession.json` pins the identity, every
+valid checkpoint and one statement for the signer-supersession fixture. The test
+`golden_vector_matches_compiled_profile` recompiles and compares. When a change
+to admission or fold semantics makes it fail:
+
+1. Confirm the semantic change is intended; the test is the alarm, not the bug.
+2. Bump `SEMANTICS_VERSION` in `src/profile.rs` to the new base revision.
+3. Regenerate the vector:
+   `cargo test -p cbcl-state-proof -- --ignored write_golden_vector`.
+4. Commit the constant, the vector and the code together, and record the
+   reason for the semantic change in the commit message.
+
+Never edit the vector by hand, and never regenerate it without a version bump.
+
 ## Limits and next step
 
 Snapshot enumeration has at most `2^n` rows; transition enumeration has at most
