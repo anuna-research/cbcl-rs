@@ -122,3 +122,8 @@ checkpoint. There is no global latest-head guarantee.
 [[experiments/incremental-state-proof/BRIEF]] records the hypothesis, bounded language, acceptance criteria and cost
 caps. This isolated experiment is not cryptographically audited or authorized
 for production. The CBCL maintainer owns the successor specification decision.
+
+[[experiments/incremental-state-proof/BENCHMARK-RESULTS]] compares app-format
+shared-drawing replay with full native view sizes under gzip and Brotli, and
+records actual whole-history numeric proof generation through 256 writes.
+Drawing proof coverage remains open; view bytes are not resumable checkpoints.

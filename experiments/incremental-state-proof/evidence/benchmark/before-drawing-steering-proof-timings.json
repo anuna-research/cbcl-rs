@@ -1,0 +1,45 @@
+{
+  "status": "running",
+  "stages": [
+    {
+      "name": "shared-cached-source-setup",
+      "ms": 8112,
+      "rss": 1522073600
+    },
+    {
+      "name": "shared-fresh-genesis",
+      "ms": 24474,
+      "rss": 1978744832
+    },
+    {
+      "name": "control-whole-history-136",
+      "ms": 70239,
+      "rss": 1087733760
+    },
+    {
+      "name": "control-whole-history-144",
+      "ms": 68205,
+      "rss": 505020416
+    },
+    {
+      "name": "control-whole-history-152",
+      "ms": 73570,
+      "rss": 1734508544
+    },
+    {
+      "name": "control-whole-history-160",
+      "ms": 68353,
+      "rss": 803766272
+    },
+    {
+      "name": "control-whole-history-168",
+      "ms": 68089,
+      "rss": 992493568
+    }
+  ],
+  "cases": [],
+  "setupMs": 8112,
+  "verificationKeyHash": "15589916575014712402755606163469077366113149805220509502861783256800465221420",
+  "genesisMs": 24474,
+  "controlLatestCompleteWrites": 168
+}

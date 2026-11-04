@@ -1,0 +1,109 @@
+---
+mode: explanation
+status: experiment
+owner: CBCL maintainer
+---
+# Recursive proof versus compressed replay benchmark
+
+## Intent and scope
+
+The user asks for representative histories, comparison against compressed replay
+including usable snapshots, and actual proof-generation timing. The existing
+[[experiments/incremental-state-proof/RECURSION-RESULTS]] measured tiny numeric
+messages without ordinary compression. That comparison can exaggerate useful
+savings and hide proving cost. This benchmark changes no circuit, key, native
+language, production API or specification status. It measures the current model.
+Tier 2 evidence/benchmark harness around a Tier 1 experimental proof system;
+cryptographic soundness and production review remain open as previously recorded.
+
+Only UInt32 sequential per-signer registers are proved by this model. Use clearly
+labelled deterministic simulations: existing four-writer monotone control, a
+many-writer status board with repeated small states, and many-writer telemetry
+with changing bounded readings. These are representative patterns within the
+supported language, not production traces or proof coverage of chat/document
+payloads. A workload preference was requested asynchronously; use the supported
+patterns if no alternative is supplied. Do not pad messages or attach unproved
+payloads to improve a claimed compression ratio.
+
+## Comparison and snapshot contracts
+
+Replay encoding is one compact JSON array of canonical native message strings.
+Compare raw bytes, gzip level 9 and Brotli quality 5 using built-in Node zlib;
+measure compression/decompression time and verify byte-exact round trips. Apply
+identical compression choices to each complete checkpoint bundle, rather than
+adding separately compressed sizes or choosing only the favorable codec.
+Message signatures are not present in these synthetic fixtures and not counted.
+
+A current-view snapshot contains the complete sorted per-signer head list
+(signer index, native address, sequence, numeric value) plus the sibling hashes
+for the next empty history append slot. Its declared JSON shape is
+`{"version":1,"heads":[{"signer":u32,"address":"sha256-<hex64>","seq":u32,"value":u32}],"appendSiblings":[fieldString,...]}`.
+Heads have distinct strictly increasing signer indexes below 65536; addresses
+are lower-case hex; field strings are canonical decimal integers below the field
+order; the sibling array has exactly 16 entries. Reconstruct the head-tree root
+and authenticate the next-append path at the proven count before using values.
+Reject malformed/unknown fields, duplicate signers, missing or tampered heads,
+wrong object, and wrong append siblings. This includes metadata needed to
+validate the displayed current values and a first append witness. It does not
+claim standalone long-term availability of all future witnesses.
+
+A history-retaining snapshot contains ordered compact operation records
+`{"version":1,"records":[{"signer":u32,"seq":u32,"value":u32,"address":"sha256-<hex64>","replaces":null|address}]}`.
+Its root and count reconstruction must equal the selected checkpoint, and the
+rendered historical entries must equal native `all`. This mode retains enough
+model data for the native historical projection; it is not constant-sized.
+The compact tuple encoding itself is structural compression and must not be
+credited to cryptography. Both snapshot forms retain the existing host boundary
+for native byte/address/authentication mapping.
+
+Report proof + snapshot bundles, with the separately pinned key excluded for a
+warm client and included for a first-download byte accounting. A downloaded key
+still requires independent trust. Do not call proof-only bytes a usable state
+snapshot. The full historical view and current view are distinct client needs.
+
+## Execution and acceptance
+
+- B1: measure byte-exact raw/gzip/Brotli replay and snapshot encodings at 128,
+  256, 1024 and 4096 writes for each simulation. Bound native oracle input to its
+  existing 4096-record/1 MiB grammar. Larger unproved rows are comparison baselines,
+  never presented as new proof measurements.
+- B2: actually generate a complete 256-write monotone proof by extending the
+  existing verified 128-write recursive proof. Validate key/object and prefix
+  roots against the generated data first. This is still a whole-history proof,
+  not a newly trusted prefix. Report extension wall time separately; derive
+  cumulative genesis-to-256 proving time only from the recorded actual prefix
+  and extension calls, explicitly labelled as measured across runs.
+- B3: generate complete telemetry and status histories from a timed fresh empty
+  base, targeting 128 telemetry writes and 32 status writes. Compile once and
+  reuse the same key and empty-base proof. Separate setup, genesis, witness
+  construction, proof-call totals, verification, and per-case end-to-end time.
+  Shared genesis/setup costs must be stated, not silently charged or omitted.
+- B4: reconstruct both snapshots against the measured proof's actual roots and
+  native state, and show negative tests reject corruptions. Produce each saved
+  proof+snapshot bundle and verify its serialized proof against the expected
+  object/tip. Measure actual bundles at proved lengths. At larger lengths, use
+  clearly marked fixed-size-proof projections only if shown; the primary report
+  must keep them separate from measured bundles.
+- B5: save machine/runtime/settings, timing and size data, scripts, source hashes
+  and a fresh-context adversarial benchmark review. Do not claim lossless message
+  recovery from the proof, general CBCL equivalence, improved native authentication,
+  or production performance guarantees.
+
+## Resource envelope and exit
+
+Branch `experiment/recursive-proof-benchmark`. Keep previous experiment evidence
+unchanged; write a new `evidence/benchmark/` tree. One proof worker, 4 GiB sampled
+process-tree RSS, 1 GiB disk reserve, 60-minute managed benchmark run and 65-minute
+total active proof-run timebox. Record stops as partial with the exact completed
+lengths; never pass a missing-case row. Use incremental progress records. No
+production writes, participant messages, dependency changes or private datasets.
+The maintainer acts next on the measured tradeoff and decides whether a more
+complete kernel or a different proof backend merits a successor specification.
+
+Producer: Codex; system model family GPT-6, exact version not exposed. Session
+settings. Intent: “yes, and measure the time to generate the profo”. Inputs:
+current recursive experiment, native oracle and fixture corpus. Design sequence:
+separate represented data from proof; define current versus history-retaining
+snapshots; use symmetric standard compression; preserve actual whole-history
+coverage and distinguish resumed from fresh proving time. Reviews and results
+are recorded after execution.

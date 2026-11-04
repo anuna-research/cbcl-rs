@@ -1,0 +1,7 @@
+{
+  "operations": 1024,
+  "points": 4,
+  "exit": 0,
+  "provenance": "Python subprocess.run timeout=300 supervisor stdout captured in tool session 56966; copied into durable ledger after completion.",
+  "seconds": 12.798546
+}

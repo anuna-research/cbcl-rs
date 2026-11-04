@@ -1,0 +1,199 @@
+{
+  "status": "passed",
+  "stages": [
+    {
+      "name": "shared-cached-source-setup",
+      "ms": 8112,
+      "rss": 1522073600
+    },
+    {
+      "name": "shared-fresh-genesis",
+      "ms": 24474,
+      "rss": 1978744832
+    },
+    {
+      "name": "control-whole-history-136",
+      "ms": 70239,
+      "rss": 1087733760
+    },
+    {
+      "name": "control-whole-history-144",
+      "ms": 68205,
+      "rss": 505020416
+    },
+    {
+      "name": "control-whole-history-152",
+      "ms": 73570,
+      "rss": 1734508544
+    },
+    {
+      "name": "control-whole-history-160",
+      "ms": 68353,
+      "rss": 803766272
+    },
+    {
+      "name": "control-whole-history-168",
+      "ms": 68089,
+      "rss": 992493568
+    },
+    {
+      "name": "shared-cached-source-setup",
+      "ms": 7962,
+      "rss": 1897381888
+    },
+    {
+      "name": "control-whole-history-176",
+      "ms": 70918,
+      "rss": 1076936704
+    },
+    {
+      "name": "control-whole-history-184",
+      "ms": 68517,
+      "rss": 2617622528
+    },
+    {
+      "name": "control-whole-history-192",
+      "ms": 67968,
+      "rss": 1586954240
+    },
+    {
+      "name": "control-whole-history-200",
+      "ms": 67963,
+      "rss": 1219772416
+    },
+    {
+      "name": "control-whole-history-208",
+      "ms": 68249,
+      "rss": 557842432
+    },
+    {
+      "name": "control-whole-history-216",
+      "ms": 69053,
+      "rss": 836190208
+    },
+    {
+      "name": "control-whole-history-224",
+      "ms": 69065,
+      "rss": 550682624
+    },
+    {
+      "name": "control-whole-history-232",
+      "ms": 69991,
+      "rss": 719929344
+    },
+    {
+      "name": "control-whole-history-240",
+      "ms": 71905,
+      "rss": 977911808
+    },
+    {
+      "name": "control-whole-history-248",
+      "ms": 72595,
+      "rss": 857325568
+    },
+    {
+      "name": "control-whole-history-256",
+      "ms": 70253,
+      "rss": 1013628928
+    },
+    {
+      "name": "control-verify-final",
+      "ms": 2162,
+      "rss": 922697728
+    }
+  ],
+  "cases": [
+    {
+      "profile": "control",
+      "writes": 256,
+      "prefixWrites": 168,
+      "writers": 4,
+      "nativeFixtureMs": 142,
+      "witnessMs": 2043,
+      "newProofCallMs": 766477,
+      "prefixProofCallMs": 1474789,
+      "genesisMsCharged": 0,
+      "cumulativeGenesisProofCallMs": 2241266,
+      "cumulativeTimingNote": "sum of actually measured prior base/prefix calls and current extension calls across separate runs; not a fresh uninterrupted wall time",
+      "expectedRootReconstructionMs": 1449,
+      "verifyMs": 2162,
+      "caseWallMs": 776296,
+      "proofBinaryBytes": 24381,
+      "proofJsonBytes": 33069,
+      "batches": [
+        {
+          "from": 168,
+          "to": 176,
+          "witnessMs": 97,
+          "proofMs": 70918
+        },
+        {
+          "from": 176,
+          "to": 184,
+          "witnessMs": 298,
+          "proofMs": 68517
+        },
+        {
+          "from": 184,
+          "to": 192,
+          "witnessMs": 161,
+          "proofMs": 67968
+        },
+        {
+          "from": 192,
+          "to": 200,
+          "witnessMs": 99,
+          "proofMs": 67963
+        },
+        {
+          "from": 200,
+          "to": 208,
+          "witnessMs": 209,
+          "proofMs": 68249
+        },
+        {
+          "from": 208,
+          "to": 216,
+          "witnessMs": 228,
+          "proofMs": 69053
+        },
+        {
+          "from": 216,
+          "to": 224,
+          "witnessMs": 213,
+          "proofMs": 69065
+        },
+        {
+          "from": 224,
+          "to": 232,
+          "witnessMs": 235,
+          "proofMs": 69991
+        },
+        {
+          "from": 232,
+          "to": 240,
+          "witnessMs": 144,
+          "proofMs": 71905
+        },
+        {
+          "from": 240,
+          "to": 248,
+          "witnessMs": 125,
+          "proofMs": 72595
+        },
+        {
+          "from": 248,
+          "to": 256,
+          "witnessMs": 234,
+          "proofMs": 70253
+        }
+      ],
+      "verified": true
+    }
+  ],
+  "setupMs": 7962,
+  "verificationKeyHash": "15589916575014712402755606163469077366113149805220509502861783256800465221420",
+  "genesisMs": 24474,
+  "controlLatestCompleteWrites": 256,
+  "workloadSteering": "User identified cbcl-bus drawing workload; numeric proofs retained as calibration only"
+}

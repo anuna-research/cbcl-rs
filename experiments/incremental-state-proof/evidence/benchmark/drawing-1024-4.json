@@ -1,0 +1,64 @@
+{
+  "dataset": "synthetic-app-contract-v1",
+  "messages": 1025,
+  "operations": 1024,
+  "pointsPerChunk": 4,
+  "writers": 4,
+  "chunks": 998,
+  "erasedStrokes": 26,
+  "visibleChunks": 816,
+  "generationMs": 240.23649999999998,
+  "freshNativeAdmissionAndFoldMs": 12383.965583000001,
+  "stateEqualsIndependentExpected": true,
+  "sizes": {
+    "replay": {
+      "raw": 425496,
+      "gzip9": 24751,
+      "brotli5": 20072,
+      "gzipMs": 4.982291000000259,
+      "brotliMs": 2.45916699999907,
+      "gunzipAndValidateMs": 0.3687499999996362,
+      "unbrotliAndValidateMs": 0.6053330000013375,
+      "parseRoundTripAndValidateMs": 1.6477080000004207
+    },
+    "nativeState": {
+      "raw": 132764,
+      "gzip9": 22193,
+      "brotli5": 18195,
+      "gzipMs": 3.2682089999998425,
+      "brotliMs": 1.4568339999987074,
+      "gunzipAndValidateMs": 0.17312499999934516,
+      "unbrotliAndValidateMs": 0.24441599999954633,
+      "parseRoundTripAndValidateMs": 1.2100000000009459
+    },
+    "visiblePreview": {
+      "raw": 106897,
+      "gzip9": 17578,
+      "brotli5": 14737,
+      "gzipMs": 2.5588750000006257,
+      "brotliMs": 1.1650000000008731,
+      "gunzipAndValidateMs": 0.13729099999909522,
+      "unbrotliAndValidateMs": 0.2032500000004802,
+      "parseRoundTripAndValidateMs": 0.889166999999361
+    }
+  },
+  "sources": {
+    "apps/cbcl_chat/priv/web/object-starters/drawing.mjs": "4159c2b37ab50d64305694db6e31605a485cd6a3a7480522a3b99339f79aaa6e",
+    "apps/cbcl_chat/priv/web/cbcl/object/runtime.js": "f929b9034e8d777d583f1b1ce43050cf1a896aec978f209c9102b97306a68560",
+    "apps/cbcl_chat/priv/web/cbcl/verifier.js": "7d0adffa3760cfb0e6d7267a8b7fec1fdb2a24f79ec31c4416483789989b7299",
+    "apps/cbcl_chat/priv/web/cbcl/cbcl_wasm.js": "93e85c41e86b50ba96ff1e41ebad2474ab80ed4bee45b3848ee66c8bf80b115b",
+    "apps/cbcl_chat/priv/web/cbcl/cbcl_wasm_bg.wasm": "56edcbc5ad2af99ac59016fff6cda9cc7be54d41fc74da72bbcae9a0f03b8156",
+    "apps/cbcl_chat/priv/web/cbcl/object/compile.js": "b687b9c4639c91c99b89863e16c83d38f7c2cd19d35802397cae9d4772edbf7c",
+    "apps/cbcl_chat/priv/web/cbcl/object/index.js": "381e0cb622e08bfbb995ca320babd7acaaf9c88d231b02915176f30bef8869d2"
+  },
+  "node": "v25.6.1",
+  "platform": "darwin",
+  "arch": "arm64",
+  "proofCoverage": false,
+  "notes": [
+    "Authenticated signer labels assumed; signatures absent.",
+    "nativeState is the current full fold output, not a resumable/authenticated checkpoint.",
+    "visiblePreview omits erased data and cannot replace native state.",
+    "No drawing proof exists in this experiment."
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "reason": "User identified shared drawing app in sibling cbcl-bus; stop remaining synthetic profiles and retain control as calibration",
+  "original_worker_signal": "SIGTERM",
+  "completed_writes": 168,
+  "planned_actual_drawing_proof": false
+}

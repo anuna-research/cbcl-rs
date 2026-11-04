@@ -1,0 +1,8 @@
+{
+  "capturedAfterMeasurements": true,
+  "machine": "Apple M2",
+  "memoryBytes": 8589934592,
+  "os": "macOS-26.5-arm64-arm-64bit",
+  "cbclBusCommit": "33eb90c10c175055d14045af478fc43ffa0b9c0b",
+  "timingConditions": "Single samples on a shared workstation. Native drawing runs overlapped each other and recursive proving; a release Rust build overlapped an earlier proof batch. No dedicated-machine performance guarantee."
+}
