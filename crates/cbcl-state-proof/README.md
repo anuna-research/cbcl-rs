@@ -1,6 +1,6 @@
 ---
 mode: explanation
-status: implemented
+status: implementing
 ---
 # Halo2 state checkpoints
 
@@ -14,9 +14,9 @@ existing admission, state rules, or production bindings. Only `cbcl-cli`
 depends on it, optionally, behind the `state-proof` feature.
 
 This is an experimental cryptographic artefact. It is not independently
-audited and not approved for production use. The status line above records
-that the specification's requirements are implemented and tested; it does not
-record a cryptographic review. See the open items at the end.
+audited and not approved for production use. The status line above follows
+the specification's status and does not record a cryptographic review. See the
+open items at the end.
 
 Run the example from the repository root:
 
@@ -112,6 +112,13 @@ header names; a host that passes a verifier for another key authenticates
 nothing. The `lang` wrapper is not covered by the signature; the profile binds
 it to the installed dialect instead.
 
+Two further limits. Only R4 v2 attestations are accepted; a v1 signature over
+the full message bytes is rejected by `attested`. `@a` and `@ed25519:a` name
+one key but are two labels: `attested` accepts `:from @a` with
+`:sender "@ed25519:a"` because the key identities agree, yet every set
+containing that candidate is invalid under REQ-3512 (c), because the `:sender`
+text differs from the label. Write `:sender` exactly as `:from` is written.
+
 ## Receiver-owned expectation and chains
 
 The verifier chooses the expected statement; accepting whatever statement
@@ -138,10 +145,15 @@ unknown fields denied, exactly as SPEC-035 CON-3502 states: a proof is
 "links"}`; digests are arrays of 32 bytes and a byte is an integer 0 to 255.
 Proofs contain 32–16,384 transcript bytes in 32-byte increments. A proof
 package is at most 100,000 bytes and a chain package at most 1,048,576 bytes
-(SPEC-035 CON-3502); JSON rejects unknown or duplicate members, non-integer or
-out-of-range bytes and trailing input other than whitespace. Nothing is
-verified from a package that failed recognition, and `Prover::prove` fails
-closed rather than return a transcript no recogniser would accept.
+(SPEC-035 CON-3502); the recognisers reject unknown or duplicate members,
+non-integer or out-of-range bytes, trailing input other than whitespace, and a
+positional array in any object position (the shape is checked on the JSON
+value before typed deserialisation, since `serde` alone would accept an array
+for a struct). Nothing is verified from a package that failed recognition, and
+`Prover::prove` fails closed rather than return a transcript no recogniser
+would accept. That size rule cannot be exercised in a test: at the
+eight-candidate bound a transcript is far below 16,384 bytes, so only an
+over-size profile, which the compiler rejects first, could trip it.
 
 ## API
 
@@ -162,9 +174,10 @@ proof. `Proof::to_json`, `Proof::from_json`, `Chain::to_json` and
 
 ## Semantics version
 
-`SEMANTICS_VERSION` (exported from the crate) names the kernel revision whose
-admission and fold semantics a profile identity binds. The identity's hash
-domain is `cbcl-state-proof/relation-v1/<SEMANTICS_VERSION>`, so two profiles
+`SEMANTICS_VERSION` is the public constant naming the kernel revision whose
+admission and fold semantics a profile identity binds. `relation_domain` is
+crate-internal; it builds the identity's hash domain
+`cbcl-state-proof/relation-v1/<SEMANTICS_VERSION>`, so two profiles
 compiled from the same dialect, thread and candidates under different versions
 have different identities and their proofs do not verify against each other.
 
@@ -189,8 +202,8 @@ per signer/thread, and 256 native parser expression steps per source/message.
 The expression budget also bounds recursive parsing depth. Roles, duplicate
 candidate identities, malformed or trailing input, and out-of-profile masks
 fail closed. Every limit is checked before enumeration or key setup, so an
-oversize input is rejected in milliseconds. For eight candidates the circuit
-size parameter is `k = 14`.
+oversize input is rejected in milliseconds, and each rejection names the bound
+that tripped. For eight candidates the circuit size parameter is `k = 14`.
 
 ## Command-line interface
 
@@ -208,11 +221,14 @@ cargo run -p cbcl-cli --features state-proof -- checkpoint chain-verify profile.
 ```
 
 `profile.json` is `{"dialect", "thread", "candidates": [{"text", "label"}]}`
-with unknown members rejected. Address lists are comma-separated
-`sha256-<hex64>` wire addresses; the empty list is `-`. Candidates given this
-way are unauthenticated, and every operation prints one warning line on stderr
-saying so. Exit codes: 0 success, 1 rejection or verification failure, 2 usage
-error.
+with unknown members rejected and a positional array rejected where the
+profile or a candidate object is required; the file is read through a 1 MiB
+cap. Address lists are comma-separated `sha256-<hex64>` wire addresses; the
+empty list is `-`; a repeated address in one list is a rejection. `verify` and
+`chain-verify` print checkpoints as `{"accepted": hex64, "state": hex64}`,
+never as byte arrays. Candidates given this way are unauthenticated, and every
+operation prints one warning line on stderr saying so. Exit codes: 0 success,
+1 rejection or verification failure, 2 usage error.
 
 ## Limits and open items
 
@@ -255,10 +271,12 @@ Tests include a real serialized proof, independent verifier setup, commitment
 and transcript tampering, invalid and pending candidates, state comparison
 against the native corpus, replacement, observed deletion, a late concurrent
 edit, attested candidates, chains, package recognition with a property test
-and a fuzz target, and the golden vector. Circuit-level tests bypass honest
-prechecks. Targeted mutations remove a state binding and the previous-context
-admission constraint; named tests must execute and fail, rather than merely
-fail to compile.
+and two fuzz targets (package recognition, and transcript bytes against a
+fixed verifier), and the golden vector. Circuit-level tests bypass honest
+prechecks, including a non-Boolean selection bit. Targeted mutations remove a
+state binding, the previous-context admission constraint, the final transition
+total constraint and the chain continuity check; named tests must execute and
+fail, rather than merely fail to compile.
 
 The implementation evidence record is
 [docs/evidence/SPEC-035-halo2-state-checkpoints.md](../../docs/evidence/SPEC-035-halo2-state-checkpoints.md).

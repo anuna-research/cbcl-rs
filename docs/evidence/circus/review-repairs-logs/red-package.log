@@ -1,0 +1,21 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.04s
+     Running unittests src/lib.rs (target/debug/deps/cbcl_state_proof-ae8c753fb33435eb)
+
+running 1 test
+test package_tests::positional_arrays_are_rejected ... FAILED
+
+failures:
+
+---- package_tests::positional_arrays_are_rejected stdout ----
+
+thread 'package_tests::positional_arrays_are_rejected' (11456546) panicked at crates/cbcl-state-proof/src/package_tests.rs:106:5:
+assertion failed: Proof::from_json(format!("[{st},{t}]").as_bytes()).is_err()
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    package_tests::positional_arrays_are_rejected
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 52 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p cbcl-state-proof --lib`

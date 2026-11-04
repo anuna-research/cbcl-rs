@@ -1,0 +1,28 @@
+   Compiling sha2-asm v0.6.4
+   Compiling sha2 v0.10.9
+   Compiling cbcl-core v0.1.1 (/Users/anuna-02/Code/cbcl-rs-review-repairs-1/crates/cbcl-core)
+   Compiling cbcl-parser v0.1.1 (/Users/anuna-02/Code/cbcl-rs-review-repairs-1/crates/cbcl-parser)
+   Compiling cbcl-state-proof v0.1.1 (/Users/anuna-02/Code/cbcl-rs-review-repairs-1/crates/cbcl-state-proof)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.26s
+     Running unittests src/lib.rs (target/debug/deps/cbcl_state_proof-ae8c753fb33435eb)
+
+running 1 test
+test chain_tests::directly_deserialized_overlong_chain_is_rejected_before_verification ... FAILED
+
+failures:
+
+---- chain_tests::directly_deserialized_overlong_chain_is_rejected_before_verification stdout ----
+
+thread 'chain_tests::directly_deserialized_overlong_chain_is_rejected_before_verification' (11459500) panicked at crates/cbcl-state-proof/src/chain_tests.rs:252:5:
+assertion `left == right` failed
+  left: "link 0: invalid proof"
+ right: "chain exceeds link limit"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    chain_tests::directly_deserialized_overlong_chain_is_rejected_before_verification
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 53 filtered out; finished in 15.26s
+
+error: test failed, to rerun pass `-p cbcl-state-proof --lib`

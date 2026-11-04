@@ -71,6 +71,7 @@ dependencies = [
  "cbcl-parser",
  "cbcl-state-proof",
  "libfuzzer-sys",
+ "serde_json",
 ]
 
 [[package]]

@@ -1,0 +1,21 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.16s
+     Running unittests src/lib.rs (target/debug/deps/cbcl_state_proof-ae8c753fb33435eb)
+
+running 1 test
+test tests::attested_rejects_second_from_after_stray_positional_param ... FAILED
+
+failures:
+
+---- tests::attested_rejects_second_from_after_stray_positional_param stdout ----
+
+thread 'tests::attested_rejects_second_from_after_stray_positional_param' (11456499) panicked at crates/cbcl-state-proof/src/tests.rs:771:5:
+assertion failed: Candidate::attested(&message, &signature, &KEY).is_err()
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    tests::attested_rejects_second_from_after_stray_positional_param
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 52 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p cbcl-state-proof --lib`

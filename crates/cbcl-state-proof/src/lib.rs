@@ -22,6 +22,7 @@ use halo2_proofs::{
 pub use profile::{Checkpoint, Profile, Statement, MAX_CANDIDATES, SEMANTICS_VERSION};
 use rand_core::OsRng;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 pub type Result<T> = std::result::Result<T, String>;
 const MAX_TRANSCRIPT: usize = 16_384;
@@ -56,9 +57,25 @@ impl Proof {
         if bytes.len() > MAX_PACKAGE {
             return Err("proof package exceeds limit".into());
         }
+        Self::check_shape(&serde_json::from_slice(bytes).map_err(|e| e.to_string())?)?;
         let proof: Self = serde_json::from_slice(bytes).map_err(|e| e.to_string())?;
         proof.check_size()?;
         Ok(proof)
+    }
+    /// CON-3502: every struct position (`Proof`, `statement`, `before`,
+    /// `after`) is a JSON object; serde alone would also accept a positional
+    /// array. Missing or mistyped members are left to typed deserialisation.
+    pub(crate) fn check_shape(value: &Value) -> Result<()> {
+        let proof = object(value)?;
+        if let Some(statement) = proof.get("statement") {
+            let statement = object(statement)?;
+            for side in ["before", "after"] {
+                if let Some(checkpoint) = statement.get(side) {
+                    object(checkpoint)?;
+                }
+            }
+        }
+        Ok(())
     }
     fn check_size(&self) -> Result<()> {
         let n = self.transcript.len();
@@ -67,6 +84,12 @@ impl Proof {
         }
         Ok(())
     }
+}
+
+pub(crate) fn object(value: &Value) -> Result<&serde_json::Map<String, Value>> {
+    value
+        .as_object()
+        .ok_or_else(|| "expected a JSON object".to_string())
 }
 
 /// Parameters and proving key are reusable for this exact public profile.

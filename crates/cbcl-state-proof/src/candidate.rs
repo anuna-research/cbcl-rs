@@ -82,20 +82,30 @@ impl Candidate {
 }
 
 /// The single `:from` field of a simple message, as a string or symbol.
-/// `None` when absent, repeated, or of another atom type.
+/// `None` when absent, repeated, or of another atom type. Scans as
+/// `cbcl_core::state::keyword_fields` does: a keyword consumes the next
+/// param, anything else is skipped, so a stray positional param cannot hide
+/// a second `:from`.
 pub(crate) fn from_field(simple: &Message) -> Option<&str> {
     let Message::Simple { params, .. } = simple else {
         return None;
     };
-    let mut from = params
-        .chunks_exact(2)
-        .filter(|pair| matches!(&pair[0], SExpr::Atom(Atom::Keyword(k)) if k == "from"))
-        .map(|pair| &pair[1]);
-    let value = from.next()?;
-    if from.next().is_some() {
-        return None;
+    let mut from = None;
+    let mut i = 0;
+    while i + 1 < params.len() {
+        if let SExpr::Atom(Atom::Keyword(k)) = &params[i] {
+            if k == "from" {
+                if from.is_some() {
+                    return None;
+                }
+                from = Some(&params[i + 1]);
+            }
+            i += 2;
+        } else {
+            i += 1;
+        }
     }
-    match value {
+    match from? {
         SExpr::Atom(Atom::Str(s) | Atom::Symbol(s)) => Some(s.as_str()),
         _ => None,
     }

@@ -163,7 +163,10 @@ fn foreign_profile_in_header_is_rejected() {
     let mut foreign = f.profile.id();
     foreign[0] ^= 1;
     let c = Chain::new(foreign, f.links[..2].to_vec()).unwrap();
-    assert!(c.verify(&f.verifier, f.profile.genesis(), None).is_err());
+    let err = c
+        .verify(&f.verifier, f.profile.genesis(), None)
+        .unwrap_err();
+    assert!(err.contains("chain profile differs"), "{err}");
 }
 #[test]
 fn foreign_profile_in_one_link_is_rejected() {
@@ -171,7 +174,11 @@ fn foreign_profile_in_one_link_is_rejected() {
     let mut links = f.links[..2].to_vec();
     links[1].statement.profile[0] ^= 1;
     let c = chain(&links);
-    assert!(c.verify(&f.verifier, f.profile.genesis(), None).is_err());
+    // REQ-3505: rejected on the early path, before the backend runs.
+    let err = c
+        .verify(&f.verifier, f.profile.genesis(), None)
+        .unwrap_err();
+    assert!(err.contains("link 1: foreign profile"), "{err}");
 }
 #[test]
 fn corrupted_transcript_in_second_link_is_rejected() {
@@ -229,4 +236,20 @@ fn json_round_trip_and_recogniser_limits() {
     assert_eq!(f.links[0], f.links[0].clone());
     assert_ne!(f.links[0], f.links[1]);
     let _ = &f.candidates;
+}
+
+/// REQ-3505 / CON-3503: public serde deserialization bypasses constructors,
+/// so verify must enforce the link bound before checking any proof.
+#[test]
+fn directly_deserialized_overlong_chain_is_rejected_before_verification() {
+    let f = fixture();
+    let value = serde_json::json!({
+        "profile": f.profile.id(),
+        "links": vec![fake_link(); 65],
+    });
+    let chain: Chain = serde_json::from_value(value).unwrap();
+    let err = chain
+        .verify(&f.verifier, f.profile.genesis(), None)
+        .unwrap_err();
+    assert_eq!(err, "chain exceeds link limit");
 }

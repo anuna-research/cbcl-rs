@@ -1,0 +1,191 @@
+{
+  "dead_links": [
+    {
+      "source": "SPEC-014-role-layer-endpoint-projection",
+      "line": 33,
+      "target": "endpoint-projection",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-014-role-layer-endpoint-projection",
+      "line": 116,
+      "target": "role-cast",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-014-role-layer-endpoint-projection",
+      "line": 118,
+      "target": "causal-locality",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-015-evidence-widening-v2",
+      "line": 55,
+      "target": "DCFL",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-015-evidence-widening-v2",
+      "line": 59,
+      "target": "CALM",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-015-evidence-widening-v2",
+      "line": 257,
+      "target": "Ed25519",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-015-evidence-widening-v2",
+      "line": 265,
+      "target": "did:crdt",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-015-evidence-widening-v2",
+      "line": 299,
+      "target": "Ed25519",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-015-evidence-widening-v2",
+      "line": 310,
+      "target": "SHA-256",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-015-evidence-widening-v2",
+      "line": 368,
+      "target": "CALM",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-017-typed-content-addresses",
+      "line": 34,
+      "target": "crates/cbcl-core/src/equivocation.rs",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-017-typed-content-addresses",
+      "line": 85,
+      "target": "crates/cbcl-core/src/typed_addr.rs",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-017-typed-content-addresses",
+      "line": 103,
+      "target": "crates/cbcl-core/src/canonical.rs",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-017-typed-content-addresses",
+      "line": 121,
+      "target": "SHA-256",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-017-typed-content-addresses",
+      "line": 142,
+      "target": "SHA-256",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-017-typed-content-addresses",
+      "line": 208,
+      "target": "SHA-256",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-017-typed-content-addresses",
+      "line": 290,
+      "target": "crates/cbcl-core/src/typed_addr.rs",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-017-typed-content-addresses",
+      "line": 337,
+      "target": "crates/cbcl-core/src/typed_addr.rs",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-017-typed-content-addresses",
+      "line": 370,
+      "target": "crates/cbcl-core/src/typed_addr.rs",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-018-dcfl-installation",
+      "line": 178,
+      "target": "IETF/draft-oconnor-cbcl",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-018-dcfl-installation",
+      "line": 270,
+      "target": "IETF/draft-oconnor-cbcl",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-018-dcfl-installation",
+      "line": 270,
+      "target": "crates/cbcl-core/src/message.rs",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-019-state-rules",
+      "line": 581,
+      "target": "state-refinement",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-019-state-rules",
+      "line": 728,
+      "target": "bounded-counter",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-019-state-rules",
+      "line": 1163,
+      "target": "bounded-counter",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-020-resource-certification",
+      "line": 232,
+      "target": "byzantine-resource-literature",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-020-resource-certification",
+      "line": 306,
+      "target": "byzantine-resource-literature",
+      "predicate": null
+    }
+  ],
+  "orphans": [
+    {
+      "page": "SPEC-012-agent-arena-platform",
+      "forward_links": 0
+    }
+  ],
+  "syntax_errors": [],
+  "spl_diagnostics": [],
+  "drift_diagnostics": [],
+  "predicate_lints": [],
+  "summary": {
+    "dead_links": 27,
+    "orphans": 1,
+    "syntax_errors": 0,
+    "spl_errors": 0,
+    "drift_warnings": 0,
+    "drift_info": 0,
+    "total_spl_blocks": 0,
+    "drifted_blocks_warning": 0,
+    "drifted_blocks_info": 0,
+    "explicitly_grounded_facts": 0,
+    "broken_groundings": 0,
+    "predicate_errors": 0,
+    "predicate_warnings": 0
+  }
+}

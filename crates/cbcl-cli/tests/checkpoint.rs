@@ -111,12 +111,15 @@ fn compile_prove_verify_and_chain_verify_round_trip() {
     ]);
     assert_eq!(run.code, 0, "{}", run.stderr);
 
-    // verify: receiver-derived statement matches, exit 0.
+    // verify: receiver-derived statement matches, exit 0; the after
+    // checkpoint is printed as hex (CON-3505), equal to golden mask 6.
     let run = checkpoint(&[
         "verify", &profile, &p2, "--before", &opener, "--after", &two,
     ]);
     assert_eq!(run.code, 0, "{}", run.stderr);
-    assert!(run.stdout.trim().starts_with('{'), "{}", run.stdout);
+    let out: Value = serde_json::from_str(run.stdout.trim()).expect("verify json");
+    assert_eq!(out["verified"], json!(true));
+    assert_eq!(out["after"], golden()["checkpoints"]["6"], "{}", run.stdout);
 
     // verify with a different --after (a valid identity transition): exit 1.
     let run = checkpoint(&[
@@ -137,7 +140,8 @@ fn compile_prove_verify_and_chain_verify_round_trip() {
     let run = checkpoint(&["chain-verify", &profile, &chain_path]);
     assert_eq!(run.code, 0, "{}", run.stderr);
     let final_cp: Value = serde_json::from_str(run.stdout.trim()).expect("checkpoint json");
-    assert_eq!(final_cp, proof2["statement"]["after"]);
+    assert_eq!(final_cp, golden()["checkpoints"]["6"], "{}", run.stdout);
+    assert!(final_cp["accepted"].as_str().is_some_and(|h| h.len() == 64));
 
     // chain-verify with --start and --end naming the right sets: exit 0.
     let run = checkpoint(&[
@@ -220,6 +224,37 @@ fn malformed_profile_and_address_inputs_exit_one() {
     assert_eq!(run.code, 1);
     let run = checkpoint(&["prove", &profile, "--before", "-", "--after", ""]);
     assert_eq!(run.code, 1);
+
+    // a repeated address in one list is a rejection (CON-3505).
+    let run = checkpoint(&["compile", &profile]);
+    let out: Value = serde_json::from_str(run.stdout.trim()).unwrap();
+    let opener = out["addresses"][2].as_str().unwrap().to_owned();
+    let twice = format!("{opener},{opener}");
+    let run = checkpoint(&["prove", &profile, "--before", "-", "--after", &twice]);
+    assert_eq!(run.code, 1, "{}", run.stdout);
+    assert!(run.stderr.contains("repeated address"), "{}", run.stderr);
+
+    // a positional array where an object is required (CON-3505): top level
+    // and one candidate.
+    let f = fixture_profile();
+    let top = json!([f["dialect"], f["thread"], f["candidates"]]);
+    let path = write(&dir, "top-array.json", &top);
+    assert_eq!(checkpoint(&["compile", &path]).code, 1);
+    let mut cand = fixture_profile();
+    let c0 = cand["candidates"][0].clone();
+    cand["candidates"][0] = json!([c0["text"], c0["label"]]);
+    let path = write(&dir, "candidate-array.json", &cand);
+    assert_eq!(checkpoint(&["compile", &path]).code, 1);
+
+    // a profile file of exactly 1 MiB is read and accepted.
+    let mut bytes = serde_json::to_vec(&fixture_profile()).unwrap();
+    bytes.resize(1 << 20, b' ');
+    let at_limit = dir.join("at-limit.json");
+    fs::write(&at_limit, &bytes).unwrap();
+    assert_eq!(
+        checkpoint(&["compile", &at_limit.to_string_lossy()]).code,
+        0
+    );
 
     let _ = fs::remove_dir_all(&dir);
 }

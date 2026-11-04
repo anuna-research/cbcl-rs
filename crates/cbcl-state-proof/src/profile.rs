@@ -5,6 +5,7 @@ use crate::{
 use cbcl_core::{
     canonical::dialect_hash,
     dialect::Dialect,
+    message::Message,
     serializer::serialize,
     sexpr::SExpr,
     state::{fold, render_json, Act},
@@ -30,6 +31,7 @@ pub(crate) fn relation_domain(version: &str) -> Vec<u8> {
 }
 const MAX_SOURCE: usize = 65_536;
 const MAX_MESSAGE: usize = 8_192;
+const MAX_LABEL: usize = 2_048;
 const PARSER_FUEL: usize = 256;
 fn parse_bounded(source: &str) -> Result<SExpr> {
     cbcl_parser::parser::parse_with_fuel(source, Some(PARSER_FUEL)).map_err(|e| e.to_string())
@@ -103,24 +105,29 @@ fn hash(domain: &[u8], parts: &[&[u8]]) -> [u8; 32] {
     }
     h.finalize().into()
 }
-/// Profile identity: `hash` over the identity parts under `domain`.
-fn relation_id(domain: &[u8], parts: &[&[u8]]) -> [u8; 32] {
-    hash(domain, parts)
-}
 impl Profile {
     /// Compile the full bounded relation using the installed CBCL semantics.
     /// SIMPLIFY: exponential at <=8 candidates; replace enumeration with a
     /// constrained incremental admission/fold kernel before extending this bound.
     /// Trace: experiments/state-proof/BRIEF.md, scope and P5.
     pub fn compile(source: &str, thread: &str, candidates: &[Candidate]) -> Result<Self> {
-        if candidates.len() > MAX_CANDIDATES
-            || source.len() > MAX_SOURCE
-            || thread.len() > 2048
-            || candidates
-                .iter()
-                .any(|c| c.text().len() > MAX_MESSAGE || c.label().len() > 2048)
-        {
-            return Err("profile resource limit".into());
+        // REQ-3507 (a) to (d): each bound names itself (CON-3500 error model).
+        if candidates.len() > MAX_CANDIDATES {
+            return Err("resource limit: more than 8 candidates".into());
+        }
+        if source.len() > MAX_SOURCE {
+            return Err("resource limit: dialect source over 65,536 bytes".into());
+        }
+        if thread.len() > MAX_LABEL {
+            return Err("resource limit: thread over 2,048 bytes".into());
+        }
+        for c in candidates {
+            if c.text().len() > MAX_MESSAGE {
+                return Err("resource limit: candidate text over 8,192 bytes".into());
+            }
+            if c.label().len() > MAX_LABEL {
+                return Err("resource limit: label over 2,048 bytes".into());
+            }
         }
         let registry = parse_and_install_dialect(&parse_bounded(source)?)?;
         let d: Dialect = registry.iter().last().cloned().ok_or("missing dialect")?;
@@ -155,7 +162,7 @@ impl Profile {
         for (act, text) in &acts {
             parts.extend([act.signer.as_bytes(), text.as_bytes()]);
         }
-        let id = relation_id(&relation_domain(SEMANTICS_VERSION), &parts);
+        let id = hash(&relation_domain(SEMANTICS_VERSION), &parts);
         #[cfg(test)]
         let id_parts = parts.iter().map(|p| p.to_vec()).collect();
         let thread_id = ThreadId(thread.into());
@@ -175,7 +182,7 @@ impl Profile {
             let bindings_ok = selected.iter().all(|(a, _)| {
                 a.simple().thread() == Some(thread)
                     && sender_matches(a)
-                    && a.message.dialect_name() == Some(d.name.as_str())
+                    && dialect_bound(&a.message, &d.name)
             });
             let selected_acts: Vec<Act> = selected.iter().map(|(a, _)| a.clone()).collect();
             let valid = bindings_ok && admits_extension(&d, &thread_id, &[], &selected_acts);
@@ -246,7 +253,7 @@ impl Profile {
     #[cfg(test)]
     pub(crate) fn id_with_domain(&self, domain: &[u8]) -> [u8; 32] {
         let parts: Vec<&[u8]> = self.id_parts.iter().map(Vec::as_slice).collect();
-        relation_id(domain, &parts)
+        hash(domain, &parts)
     }
     pub fn addresses(&self) -> &[String] {
         &self.addresses
@@ -327,6 +334,17 @@ fn admits_extension(d: &Dialect, thread: &ThreadId, before: &[Act], delta: &[Act
     }
 }
 
+/// REQ-3512 (b): the candidate is exactly one `lang` wrapper naming the
+/// installed dialect around a simple message. A nested wrapper, a wrapper
+/// naming another dialect, or a `signed`/`envelope` form between the wrapper
+/// and the simple message does not bind.
+fn dialect_bound(message: &Message, dialect: &str) -> bool {
+    matches!(
+        message,
+        Message::Dialect { dialect_name, inner }
+            if dialect_name == dialect && matches!(**inner, Message::Simple { .. })
+    )
+}
 // `:from` remains a keyword in the typed message; Message::sender() reads
 // the distinct `:sender` routing field. Reject ambiguous or conflicting labels.
 fn sender_matches(act: &Act) -> bool {

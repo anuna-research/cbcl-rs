@@ -131,11 +131,9 @@ tree-plain exit=0
 ```
 
 Only `cbcl-state-proof` depends on itself without the feature, and only
-`cbcl-cli` with it (REQ-3509 b). Known gap carried from the workspace-gates
-attempt: `cargo check -p cbcl-core --no-default-features` on its own fails on
-`main` and here alike (`blame.rs` lacks `use alloc::vec`); the `make check`
-`nostd` target passes because it checks `cbcl-core` together with
-`cbcl-parser`. Unchanged by SPEC-035.
+`cbcl-cli` with it (REQ-3509 b). The earlier standalone `no_std` regression was
+fixed on main and merged into this branch in `fe2a06e`; the current workspace
+verification includes `make nostd`. Historical gate output above is retained.
 
 ## Mutations
 
@@ -224,7 +222,7 @@ Dispositions (C = Claude finding, X = Codex finding):
 | C10 one combined resource-limit error | minor | Accepted. One message per bound. |
 | C11 / X6 CLI `read_file` bounded by metadata only | minor | Accepted. Read through a `take(limit + 1)` and reject on length. |
 | C12 duplicate addresses silently OR-ed; chain-verify prints byte arrays | minor | Accepted. CON-3505 amended in 0.2.2; repeated addresses reject; checkpoints print as hex. |
-| C13 dead code (`check_len` in `verify`, `relation_id` alias) | minor | Accepted. Removed. |
+| C13 dead code (`check_len` in `verify`, `relation_id` alias) | minor | Partly accepted. Removed `relation_id`; retained `check_len` after independent repair review showed public serde deserialization bypasses constructors. The direct-deserialization regression test pins rejection before backend verification. |
 | C14 early-rejection path indistinguishable from backend failure in tests | minor | Accepted. Tests assert the rejection message of the early path. |
 | C15 README omits the v1-signature and two-labels limitations; `relation_domain` visibility wording | minor | Accepted. README updated. |
 | X7 serde derive accepts positional arrays for structs | note | Accepted. CON-3502 and CON-3505 amended in 0.2.2; recognisers check object shape before typed deserialisation; tests added. |
@@ -250,7 +248,13 @@ Carried from the specification's Orientation; none closed by this record.
 - Lean correspondence between the compiled relation and the SPEC-019 model.
 - Pairing a `Signer` with the key it embodies is a host obligation the library
   cannot check (CON-3504). Owner: host integrators.
-- Status: the specification remains `implementing` (REQ-3511). The crate README
-  carries `status: implemented` for the crate's own requirements and says the
-  artefact is not independently audited; the specification status is for the
-  reviewing session to set.
+- Status: the specification and crate README remain `implementing`; the
+  independent reviewing session decides status after inspecting the repair
+  evidence, under [[SPEC-035-halo2-state-checkpoints#REQ-3511]].
+
+
+## Review repairs verified
+
+The interrupted `review-repairs/1` attempt was recovered by a new Codex session on 2026-11-04. Acceptance evidence, reconstructed red gates, final workspace and feature gates, fuzz-target build, and named mutation results are committed in [[review-repairs]] and its adjacent `review-repairs-logs/` directory. The historical Gates and Mutations sections above describe the earlier implementation baseline; the repair record supersedes them for current acceptance.
+
+A fresh-context review of the repairs identified one regression: deleting `Chain::verify`'s length check allowed public `Deserialize` to bypass the constructor limit. The guard was restored with an executed failing-then-passing regression test for [[SPEC-035-halo2-state-checkpoints#REQ-3505]]. The reviewer reinspected the fix and reported no further correctness findings. Item 11's proposed cleanup was narrowed accordingly. All named mutants are killed by executed tests. The status decision is reserved for that independent reviewer, as required by [[SPEC-035-halo2-state-checkpoints#REQ-3511]].

@@ -1,0 +1,26 @@
+   Compiling sha2-asm v0.6.4
+   Compiling sha2 v0.10.9
+   Compiling cbcl-core v0.1.1 (/Users/anuna-02/Code/cbcl-rs-review-repairs-1/crates/cbcl-core)
+   Compiling cbcl-parser v0.1.1 (/Users/anuna-02/Code/cbcl-rs-review-repairs-1/crates/cbcl-parser)
+   Compiling cbcl-state-proof v0.1.1 (/Users/anuna-02/Code/cbcl-rs-review-repairs-1/crates/cbcl-state-proof)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.37s
+     Running unittests src/lib.rs (target/debug/deps/cbcl_state_proof-ae8c753fb33435eb)
+
+running 1 test
+test tests::nested_or_wrapped_dialect_forms_invalidate_every_containing_set ... FAILED
+
+failures:
+
+---- tests::nested_or_wrapped_dialect_forms_invalidate_every_containing_set stdout ----
+
+thread 'tests::nested_or_wrapped_dialect_forms_invalidate_every_containing_set' (11456444) panicked at crates/cbcl-state-proof/src/tests.rs:740:9:
+(lang signer-register (lang other (open @room :title "Register" :caused-by begin :thread "s1" :from @owner)))
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    tests::nested_or_wrapped_dialect_forms_invalidate_every_containing_set
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 52 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p cbcl-state-proof --lib`
