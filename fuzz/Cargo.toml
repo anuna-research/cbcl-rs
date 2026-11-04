@@ -12,6 +12,7 @@ libfuzzer-sys = "0.4"
 arbitrary = { version = "1", features = ["derive"] }
 cbcl-core = { path = "../crates/cbcl-core", default-features = false, features = ["std"] }
 cbcl-parser = { path = "../crates/cbcl-parser", default-features = false, features = ["std"] }
+cbcl-state-proof = { path = "../crates/cbcl-state-proof" }
 
 [workspace]
 
@@ -43,6 +44,11 @@ doc = false
 [[bin]]
 name = "role_layer"
 path = "fuzz_targets/role_layer.rs"
+doc = false
+
+[[bin]]
+name = "state_proof_package"
+path = "fuzz_targets/state_proof_package.rs"
 doc = false
 
 # Prevent this from interfering with workspace lints

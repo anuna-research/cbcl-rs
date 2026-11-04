@@ -211,7 +211,7 @@ fn json_round_trip_and_recogniser_limits() {
     assert!(Chain::from_json(&serde_json::to_vec(&v).unwrap()).is_err());
     assert!(Chain::from_json(&[json.as_slice(), b"x"].concat()).is_err());
     assert!(Chain::from_json(&[json.as_slice(), b" \n"].concat()).is_ok());
-    assert!(Chain::from_json(&vec![b' '; MAX_PACKAGE + 1]).is_err());
+    assert!(Chain::from_json(&vec![b' '; MAX_CHAIN_PACKAGE + 1]).is_err());
     // Per-link transcript checks: a bad link is rejected by both directions.
     for n in [0usize, 31, MAX_TRANSCRIPT + 32] {
         let mut bad = fake_link();

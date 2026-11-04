@@ -1,6 +1,6 @@
 //! Checkpoint chains: sequential verification from a receiver-pinned start
 //! (SPEC-035 REQ-3505, CON-3503).
-use crate::{Checkpoint, Proof, Result, Verifier, MAX_PACKAGE};
+use crate::{Checkpoint, Proof, Result, Verifier, MAX_CHAIN_PACKAGE};
 use serde::{Deserialize, Serialize};
 
 /// Most links a chain may carry (REQ-3508).
@@ -28,20 +28,21 @@ impl Chain {
         &self.links
     }
     /// Rejects an over-long chain, a link with an invalid transcript size and
-    /// a package over `MAX_PACKAGE` bytes.
+    /// a package over `MAX_CHAIN_PACKAGE` (1,048,576) bytes.
     pub fn to_json(&self) -> Result<Vec<u8>> {
         self.check_shape()?;
         let bytes = serde_json::to_vec(self).map_err(|e| e.to_string())?;
-        if bytes.len() > MAX_PACKAGE {
+        if bytes.len() > MAX_CHAIN_PACKAGE {
             return Err("chain package exceeds limit".into());
         }
         Ok(bytes)
     }
-    /// Recognises against CON-3502: unknown members, trailing input, a package
-    /// over `MAX_PACKAGE` bytes, more than `MAX_LINKS` links and a link with an
-    /// invalid transcript size are rejected.
+    /// Recognises against CON-3502: unknown or duplicate members, non-integer
+    /// or out-of-range bytes, trailing input other than JSON whitespace, a
+    /// package over `MAX_CHAIN_PACKAGE` bytes, more than `MAX_LINKS` links and
+    /// a link with an invalid transcript size are rejected.
     pub fn from_json(bytes: &[u8]) -> Result<Self> {
-        if bytes.len() > MAX_PACKAGE {
+        if bytes.len() > MAX_CHAIN_PACKAGE {
             return Err("chain package exceeds limit".into());
         }
         let chain: Self = serde_json::from_slice(bytes).map_err(|e| e.to_string())?;

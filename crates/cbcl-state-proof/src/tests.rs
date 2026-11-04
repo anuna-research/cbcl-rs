@@ -13,7 +13,7 @@ use ff::Field;
 use halo2_proofs::dev::MockProver;
 use serde_json::Value as Json;
 
-fn fixture() -> (String, String, Vec<Candidate>) {
+pub(crate) fn fixture() -> (String, String, Vec<Candidate>) {
     let v: Json = serde_json::from_str(include_str!(
         "../../../test-vectors/state/signer-supersession.json"
     ))
@@ -46,7 +46,7 @@ fn relabel(c: &Candidate, label: &str) -> Candidate {
 fn retext(c: &Candidate, text: String) -> Candidate {
     Candidate::unauthenticated(text, c.label().into())
 }
-fn masks(p: &Profile, c: &[Candidate]) -> (u16, u16) {
+pub(crate) fn masks(p: &Profile, c: &[Candidate]) -> (u16, u16) {
     (
         p.mask(&[&address(&c[0]), &address(&c[1])]).unwrap(),
         p.mask(
