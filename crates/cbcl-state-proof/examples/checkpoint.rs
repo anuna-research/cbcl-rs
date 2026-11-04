@@ -13,17 +13,19 @@ fn main() -> Result<(), String> {
     let source = fixture["contract"].as_str().ok_or("missing contract")?;
     let candidates: Vec<_> = fixture["messages"].as_array().ok_or("missing messages")?[..3]
         .iter()
-        .map(|m| Candidate {
-            canonical: m["canonical"].as_str().unwrap().into(),
-            signer: m["signer"].as_str().unwrap().into(),
+        .map(|m| {
+            Candidate::unauthenticated(
+                m["canonical"].as_str().unwrap().into(),
+                m["signer"].as_str().unwrap().into(),
+            )
         })
         .collect();
     let addresses: Vec<_> = candidates
         .iter()
         .map(|c| {
-            let message = parse_message(&parse(&c.canonical).map_err(|e| e.to_string())?)
+            let message = parse_message(&parse(c.text()).map_err(|e| e.to_string())?)
                 .map_err(|e| e.to_string())?;
-            Ok(Act::from_message(message, &c.signer)?.address)
+            Ok(Act::from_message(message, c.label())?.address)
         })
         .collect::<Result<_, String>>()?;
     let start = Instant::now();

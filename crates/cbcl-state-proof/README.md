@@ -61,7 +61,11 @@ specialisation of CBCL semantics, not a reimplementation of the kernel in gates.
 A successful proof establishes validity relative to that public profile and a
 previously trusted or verified checkpoint. It does not establish signatures,
 signer enrolment, availability of messages, or completeness relative to unseen
-concurrent messages. Authenticate candidates before constructing the profile.
+concurrent messages. Authenticate candidates before constructing the profile:
+`Candidate::attested(message, signature, signer)` verifies an R4 v2 attestation
+over the innermost simple message and takes the label from `:from`;
+`Candidate::unauthenticated(text, label)` trusts the host. Both give the same
+profile identity for the same text and label.
 A small candidate universe can be exhaustively searched: this prototype makes
 no useful claim about hiding which facts or messages are present.
 

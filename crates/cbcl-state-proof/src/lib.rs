@@ -2,10 +2,12 @@
 //! The verifier compiles the complete relation from CBCL, not from prover tables.
 #![forbid(unsafe_code)]
 
+mod candidate;
 mod chain;
 mod circuit;
 mod profile;
 
+pub use candidate::Candidate;
 pub use chain::{Chain, MAX_LINKS};
 use circuit::StateCircuit;
 use ff::PrimeField;
@@ -17,7 +19,7 @@ use halo2_proofs::{
     poly::commitment::Params,
     transcript::{Blake2bRead, Blake2bWrite, Challenge255},
 };
-pub use profile::{Candidate, Checkpoint, Profile, Statement, MAX_CANDIDATES, SEMANTICS_VERSION};
+pub use profile::{Checkpoint, Profile, Statement, MAX_CANDIDATES, SEMANTICS_VERSION};
 use rand_core::OsRng;
 use serde::{Deserialize, Serialize};
 
