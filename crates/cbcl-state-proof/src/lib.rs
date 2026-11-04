@@ -2,9 +2,11 @@
 //! The verifier compiles the complete relation from CBCL, not from prover tables.
 #![forbid(unsafe_code)]
 
+mod chain;
 mod circuit;
 mod profile;
 
+pub use chain::{Chain, MAX_LINKS};
 use circuit::StateCircuit;
 use ff::PrimeField;
 use halo2_proofs::{
@@ -24,7 +26,7 @@ const MAX_TRANSCRIPT: usize = 16_384;
 const MAX_PACKAGE: usize = 100_000;
 
 /// Authentication is a host precondition; this proof does not verify signatures.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Proof {
     pub statement: Statement,
@@ -145,5 +147,7 @@ pub(crate) fn limbs(bytes: [u8; 32]) -> [Fp; 2] {
     })
 }
 
+#[cfg(test)]
+mod chain_tests;
 #[cfg(test)]
 mod tests;
