@@ -12,21 +12,27 @@ def handle_term(_sig,_frame):
 signal.signal(signal.SIGTERM,handle_term)
 threads=int(os.environ.get('CBCL_RAYON_THREADS','4'));assert 1<=threads<=4
 started=time.monotonic();peak=0;minimum=shutil.disk_usage(root).free;reason=None;code=None
-session=root/'.session';session.mkdir(exist_ok=True)
+session_name=os.environ.get('CBCL_RUN_SESSION','')
+assert not session_name or session_name.replace('-','').isalnum()
+session=root/'.session'/session_name;session.mkdir(parents=True,exist_ok=True)
 epoch=session/'epoch.json'
 if not epoch.exists():
  info=(root.parents[1]/'.git').stat()
- epoch.write_text(json.dumps({'start':getattr(info,'st_birthtime',info.st_mtime)}))
+ epoch.write_text(json.dumps({'start':time.time() if session_name else getattr(info,'st_birthtime',info.st_mtime)}))
 experiment_start=json.loads(epoch.read_text())['start']
-(out/'session-start.json').write_text(epoch.read_text())
+(out/(f'{session_name}-session-start.json' if session_name else 'session-start.json')).write_text(epoch.read_text())
 if time.time()-experiment_start>5400 or minimum<1024**3:
  reason='preflight experiment time budget or disk reserve exhausted'
  result={'command':command,'exit_code':None,'limit_reason':reason,'spawned':False}
  (out/f'{label}-run.json').write_text(json.dumps(result,indent=2)+'\n')
  print(json.dumps(result));sys.exit(1)
+cleanup_warnings=[]
 def kill_group(pid,sig):
  try:os.killpg(pid,sig)
  except ProcessLookupError:pass
+ except PermissionError as error:
+  if child.poll() is None:raise
+  cleanup_warnings.append(f"group cleanup after leader exit: {error}")
 with (out/f'{label}.log').open('w') as log:
  child=subprocess.Popen(command,cwd=root,stdout=log,stderr=subprocess.STDOUT,start_new_session=True,env={**os.environ,'CARGO_BUILD_JOBS':'1','RAYON_NUM_THREADS':str(threads),'RUSTUP_TOOLCHAIN':'1.95.0'})
  try:
@@ -55,6 +61,6 @@ with (out/f'{label}.log').open('w') as log:
    time.sleep(2)
   kill_group(child.pid,signal.SIGKILL)
   code=child.wait()
-result={'command':command,'exit_code':code,'seconds':time.monotonic()-started,'peak_observed_tree_rss_bytes':peak,'rss_sample_interval_seconds':2,'minimum_free_bytes':minimum,'limit_reason':reason,'mock_proofs':False,'rayon_threads':threads}
+result={'command':command,'exit_code':code,'seconds':time.monotonic()-started,'peak_observed_tree_rss_bytes':peak,'rss_sample_interval_seconds':2,'minimum_free_bytes':minimum,'limit_reason':reason,'mock_proofs':False,'rayon_threads':threads,'cleanup_warnings':cleanup_warnings,'session':session_name or 'original','count_only':os.environ.get('CBCL_COUNT_ONLY')=='1','cargo_incremental':os.environ.get('CARGO_INCREMENTAL')}
 (out/f'{label}-run.json').write_text(json.dumps(result,indent=2)+'\n');print(json.dumps(result))
 sys.exit(0 if code==0 and reason is None else 1)

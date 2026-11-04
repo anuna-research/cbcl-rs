@@ -2,13 +2,13 @@
 extern crate alloc;
 use alloc::vec::Vec;
 #[jolt::provable(
-    heap_size = 8388608,
+    heap_size = 67108864,
     stack_size = 1048576,
     max_input_size = 0,
     max_trusted_advice_size = 0,
     max_untrusted_advice_size = 2097152,
     max_output_size = 8192,
-    max_trace_length = 4194304
+    max_trace_length = 1073741824
 )]
 fn checkpoint(input: jolt::UntrustedAdvice<Vec<u8>>) -> Vec<u8> {
     let computed = checkpoint_common::compute(&input).expect("invalid checkpoint input");

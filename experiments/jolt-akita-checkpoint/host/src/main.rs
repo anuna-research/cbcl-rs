@@ -6,7 +6,7 @@ use common::jolt_device::{JoltDevice, MemoryConfig, MemoryLayout};
 use jolt_akita::{AkitaChunkProfile, AkitaField, AkitaScheduleArtifacts, AkitaScheme};
 use jolt_host::{JoltProgramSource, Program};
 use jolt_program::{
-    execution::{ExecutionBackend, TraceInputs},
+    execution::{ChunkedExecutionBackend, ExecutionBackend, TraceInputs},
     preprocess::JoltProgramPreprocessing,
 };
 use jolt_prover::{
@@ -31,7 +31,7 @@ use tracer::execution_backend::TracerBackend;
 type Proof = jolt_verifier::JoltProof<AkitaScheme, AkitaVc>;
 type Setup = jolt_verifier::JoltVerifierPreprocessing<AkitaScheme, AkitaVc>;
 const PIN: &str = "beebf45d829f5aecc5d330f78879cd914e47541e";
-const MAX_TRACE: usize = 1 << 22;
+const MAX_TRACE: usize = 1 << 30;
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Trust {
@@ -137,7 +137,13 @@ fn main() -> Result<()> {
             let pins = PathBuf::from(&args[5]);
             fs::create_dir_all(&out)?;
             fs::create_dir_all(&pins)?;
-            for file in ["proof.bin", "metrics.json"] {
+            for file in [
+                "proof.bin",
+                "metrics.json",
+                "execution-metrics.json",
+                "progress.json",
+                "phase.json",
+            ] {
                 match fs::remove_file(out.join(file)) {
                     Ok(()) => {}
                     Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
@@ -153,7 +159,7 @@ fn main() -> Result<()> {
             phase(&out, "guest-build")?;
             let mut source = Program::new("cbcl-akita-guest");
             source.set_func("checkpoint");
-            source.set_heap_size(8388608);
+            source.set_heap_size(67108864);
             source.set_stack_size(1048576);
             source.set_max_input_size(0);
             source.set_max_output_size(8192);
@@ -177,7 +183,7 @@ fn main() -> Result<()> {
                     .map_err(|e| anyhow!("program: {e:?}"))?,
             );
             let memory = MemoryConfig {
-                heap_size: 8388608,
+                heap_size: 67108864,
                 stack_size: 1048576,
                 max_input_size: 0,
                 max_output_size: 8192,
@@ -187,6 +193,30 @@ fn main() -> Result<()> {
             };
             let layout = MemoryLayout::try_new(&memory)?;
             let advice = postcard::to_stdvec(&input)?;
+            if std::env::var("CBCL_COUNT_ONLY").as_deref() == Ok("1") {
+                phase(&out, "count-execution")?;
+                let execution = TracerBackend::new()
+                    .execute(
+                        &program,
+                        TraceInputs::new(Vec::new(), advice, Vec::new(), memory),
+                        1 << 28,
+                    )
+                    .map_err(|e| anyhow!("count execution: {e:?}"))?;
+                check_output(&execution.device, &expected, &native.state)?;
+                metrics["execute_count_ms"] = (t.elapsed().as_millis() as u64).into();
+                metrics["trace_rows"] = execution.trace_len.into();
+                let padded = (execution.trace_len + 1).next_power_of_two();
+                metrics["padded_trace_rows"] = padded.into();
+                metrics["within_trace_bound"] = (padded <= MAX_TRACE).into();
+                metrics["guest_elf_sha256"] = serde_json::json!(hash(&elf));
+                metrics["execution_output_matches"] = true.into();
+                fs::write(
+                    out.join("execution-metrics.json"),
+                    serde_json::to_vec_pretty(&metrics)?,
+                )?;
+                println!("{metrics}");
+                return Ok(());
+            }
             let trace = TracerBackend::new()
                 .trace(
                     &program,

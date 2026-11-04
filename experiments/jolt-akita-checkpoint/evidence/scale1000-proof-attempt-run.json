@@ -1,0 +1,25 @@
+{
+  "command": [
+    "python3",
+    "run-from-jolt.py",
+    "run",
+    "/Users/anuna-02/Code/cbcl-rs-jolt-akita/experiments/jolt-akita-checkpoint/evidence/scale1000-fixture/input.json",
+    "/Users/anuna-02/Code/cbcl-rs-jolt-akita/experiments/jolt-akita-checkpoint/evidence/scale1000-fixture/expected.json",
+    "/Users/anuna-02/Code/cbcl-rs-jolt-akita/experiments/jolt-akita-checkpoint/evidence/scale1000-proof",
+    "/Users/anuna-02/Code/cbcl-rs-jolt-akita/experiments/jolt-akita-checkpoint/evidence/independent-scale1000-proof"
+  ],
+  "exit_code": -15,
+  "seconds": 35.233452833,
+  "peak_observed_tree_rss_bytes": 1026097152,
+  "rss_sample_interval_seconds": 2,
+  "minimum_free_bytes": 509186048,
+  "limit_reason": "disk reserve below 1 GiB",
+  "mock_proofs": false,
+  "rayon_threads": 4,
+  "cleanup_warnings": [
+    "group cleanup after leader exit: [Errno 1] Operation not permitted"
+  ],
+  "session": "scale1000",
+  "count_only": false,
+  "cargo_incremental": null
+}

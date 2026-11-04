@@ -1,0 +1,10 @@
+{
+  "chunks": 999,
+  "expected_state": "independent keyed map of 999 distinct drawing payloads",
+  "fixture_ms": 15,
+  "input_bytes": 350003,
+  "messages": 1000,
+  "native_ms": 278,
+  "state_bytes": 61339,
+  "synthetic": true
+}

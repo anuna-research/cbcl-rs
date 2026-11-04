@@ -1,0 +1,23 @@
+warning: /tmp/cbcl-jolt-akita-source/crates/jolt-prover/Cargo.toml: `default-features` is ignored for jolt-kernels, since `default-features` was not specified for `workspace.dependencies.jolt-kernels`, this could become a hard error in the future
+warning: /tmp/cbcl-jolt-akita-source/crates/jolt-prover/Cargo.toml: `default-features` is ignored for jolt-poly, since `default-features` was not specified for `workspace.dependencies.jolt-poly`, this could become a hard error in the future
+warning: /tmp/cbcl-jolt-akita-source/crates/jolt-prover/Cargo.toml: `default-features` is ignored for jolt-profiling, since `default-features` was not specified for `workspace.dependencies.jolt-profiling`, this could become a hard error in the future
+warning: /tmp/cbcl-jolt-akita-source/crates/jolt-kernels/Cargo.toml: `default-features` is ignored for jolt-poly, since `default-features` was not specified for `workspace.dependencies.jolt-poly`, this could become a hard error in the future
+   Compiling checkpoint-common v0.0.0 (/tmp/cbcl-jolt-akita-source/.cbcl-overlay/common)
+    Finished `build-fast` profile [optimized + debuginfo] target(s) in 0.90s
+────────────
+ Nextest run ID 69bec1cf-8550-4409-9557-56e4d8a90323 with nextest profile: default
+    Starting 12 tests across 2 binaries
+        PASS [   0.018s] ( 1/12) checkpoint-common::checkpoint invalid_dialect_rejected
+        PASS [   0.018s] ( 2/12) checkpoint-common::checkpoint nested_dialect_mismatch_rejected
+        PASS [   0.018s] ( 3/12) checkpoint-common::checkpoint missing_ancestor_rejected_and_ancestor_closure_committed
+        PASS [   0.018s] ( 4/12) checkpoint-common::checkpoint invalid_shape_rejected
+        PASS [   0.018s] ( 5/12) checkpoint-common::checkpoint duplicate_addresses_rejected
+        PASS [   0.019s] ( 6/12) checkpoint-common::checkpoint noncanonical_rejected
+        PASS [   0.020s] ( 7/12) checkpoint-common::checkpoint mixed_thread_rejected
+        PASS [   0.027s] ( 8/12) checkpoint-common::checkpoint fixtures_match_expected_bytes_and_permutations
+        PASS [   0.009s] ( 9/12) checkpoint-common::checkpoint unresolved_dependency_rejected
+        PASS [   0.010s] (10/12) checkpoint-common::checkpoint source_closure_and_message_set_bound
+        PASS [   0.010s] (11/12) checkpoint-common::checkpoint schema_and_byte_bounds_rejected
+        PASS [   0.010s] (12/12) checkpoint-common::checkpoint sender_outside_cast_rejected
+────────────
+     Summary [   0.030s] 12 tests run: 12 passed, 0 skipped

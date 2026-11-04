@@ -1,0 +1,7 @@
+{
+  "backend": "Akita optimized CPU",
+  "count": 1000,
+  "guest_build_ms": 438,
+  "jolt_commit": "beebf45d829f5aecc5d330f78879cd914e47541e",
+  "proof_generated": false
+}

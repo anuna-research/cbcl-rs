@@ -89,7 +89,7 @@ pub fn compute(bytes: &[u8]) -> Result<Computed, String> {
     if input.dialect.len() > 65536
         || input.thread.is_empty()
         || input.thread.len() > 1024
-        || input.messages.len() > 256
+        || input.messages.len() > 1024
     {
         return Err("input bounds".into());
     }

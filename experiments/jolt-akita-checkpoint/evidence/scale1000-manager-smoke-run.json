@@ -1,0 +1,14 @@
+{
+  "command": [
+    "/usr/bin/true"
+  ],
+  "exit_code": 0,
+  "seconds": 2.023387209,
+  "peak_observed_tree_rss_bytes": 0,
+  "rss_sample_interval_seconds": 2,
+  "minimum_free_bytes": 7806717952,
+  "limit_reason": null,
+  "mock_proofs": false,
+  "rayon_threads": 4,
+  "cleanup_warnings": []
+}

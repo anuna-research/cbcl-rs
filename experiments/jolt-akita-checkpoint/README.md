@@ -1,5 +1,10 @@
 # Jolt/Akita CBCL checkpoint experiment
 
+The `experiment/jolt-akita-1000` scaling branch raises the profile limits and
+adds an execution-only counting mode. See [[SCALE-1000]] for the failed full-proof
+attempt and measured VM result. The smaller successful proofs in [[RESULTS]]
+are from baseline commit5b55d0e and its original guest image.
+
 This runs the existing bounded general CBCL consumer in a Jolt no_std guest.
 Inputs are untrusted advice. The public journal binds the complete supplied
 source registry, dialect, thread, canonical message/signer set, count and native

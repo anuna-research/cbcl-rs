@@ -1,0 +1,12 @@
+{
+  "input.json": {
+    "raw": 350003,
+    "gzip9": 13977,
+    "brotli9": 7706
+  },
+  "state.json": {
+    "raw": 61339,
+    "gzip9": 10090,
+    "brotli9": 5514
+  }
+}

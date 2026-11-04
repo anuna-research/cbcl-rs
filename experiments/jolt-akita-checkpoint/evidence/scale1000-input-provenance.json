@@ -1,0 +1,32 @@
+{
+  "seed": "experiments/general-kernel-checkpoint/fixtures/drawing-1.json",
+  "baseline_commit": "5b55d0e",
+  "generator": "common/examples/make_drawing_1000.rs",
+  "synthetic": true,
+  "messages": 1000,
+  "writers": 2,
+  "root_signer": "@owner",
+  "chunk_records": 999,
+  "files": {
+    "state.json": {
+      "bytes": 61339,
+      "sha256": "11261967c9762c093f4a6658bf397e457208347ecac90dc92f3f5a49e3ad5e26"
+    },
+    "expected.json": {
+      "bytes": 1199,
+      "sha256": "3e17e5310706126d5475ed4c3a976c588ee4d6f31426b08b9bedfa384e83f655"
+    },
+    "input.json": {
+      "bytes": 350003,
+      "sha256": "0d13567bf8d29deb6d35156eaeccb600092fa5b68257cbab4d6304e453559fe0"
+    },
+    "fixture-metrics.json": {
+      "bytes": 227,
+      "sha256": "b1d568aaae5f3e245489f9fec263d98133557ea2604b95c94e2e197463962ccf"
+    },
+    "bandwidth.json": {
+      "bytes": 166,
+      "sha256": "a2766fc65d2f7c7d8337d0f9d2f13591f11a750932605df664e30c76c30e50ba"
+    }
+  }
+}

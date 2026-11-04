@@ -1,0 +1,99 @@
+{
+  "outcome": "execution verified; proof attempt failed during trace; no proof",
+  "fixture": {
+    "chunks": 999,
+    "expected_state": "independent keyed map of 999 distinct drawing payloads",
+    "fixture_ms": 15,
+    "input_bytes": 350003,
+    "messages": 1000,
+    "native_ms": 278,
+    "state_bytes": 61339,
+    "synthetic": true
+  },
+  "execution": {
+    "backend": "Akita optimized CPU",
+    "count": 1000,
+    "execute_count_ms": 134447,
+    "execution_output_matches": true,
+    "guest_build_ms": 8122,
+    "guest_elf_sha256": [
+      190,
+      91,
+      124,
+      162,
+      10,
+      79,
+      156,
+      233,
+      59,
+      100,
+      132,
+      252,
+      205,
+      148,
+      95,
+      2,
+      213,
+      141,
+      52,
+      118,
+      123,
+      200,
+      186,
+      38,
+      157,
+      173,
+      231,
+      22,
+      250,
+      35,
+      178,
+      43
+    ],
+    "jolt_commit": "beebf45d829f5aecc5d330f78879cd914e47541e",
+    "padded_trace_rows": 8589934592,
+    "proof_generated": false,
+    "trace_rows": 5024762651,
+    "within_trace_bound": false
+  },
+  "proof_attempt": {
+    "command": [
+      "python3",
+      "run-from-jolt.py",
+      "run",
+      "/Users/anuna-02/Code/cbcl-rs-jolt-akita/experiments/jolt-akita-checkpoint/evidence/scale1000-fixture/input.json",
+      "/Users/anuna-02/Code/cbcl-rs-jolt-akita/experiments/jolt-akita-checkpoint/evidence/scale1000-fixture/expected.json",
+      "/Users/anuna-02/Code/cbcl-rs-jolt-akita/experiments/jolt-akita-checkpoint/evidence/scale1000-proof",
+      "/Users/anuna-02/Code/cbcl-rs-jolt-akita/experiments/jolt-akita-checkpoint/evidence/independent-scale1000-proof"
+    ],
+    "exit_code": -15,
+    "seconds": 35.233452833,
+    "peak_observed_tree_rss_bytes": 1026097152,
+    "rss_sample_interval_seconds": 2,
+    "minimum_free_bytes": 509186048,
+    "limit_reason": "disk reserve below 1 GiB",
+    "mock_proofs": false,
+    "rayon_threads": 4,
+    "cleanup_warnings": [
+      "group cleanup after leader exit: [Errno 1] Operation not permitted"
+    ],
+    "session": "scale1000",
+    "count_only": false,
+    "cargo_incremental": null
+  },
+  "changed_limits": {
+    "messages": 1024,
+    "heap_bytes": 67108864,
+    "padded_trace_rows": 1073741824
+  },
+  "required_padded_rows": 8589934592,
+  "proving_ms": null,
+  "proof_bytes": null,
+  "verification_ms": null,
+  "source_sha256": {
+    "common/src/lib.rs": "0277b682184ae043ba42dd1607823d4644d603b2774435875e8b4bbef4869f74",
+    "guest/src/lib.rs": "ba8c02bb1afae5f5fa9c669277d3e1d29e5563ef06c887410242a98fdf2855ac",
+    "host/src/main.rs": "ce96a83087262a6982d6e18aa767cca1890e1ef1d4119a4180a39c207b14334b",
+    "common/examples/make_drawing_1000.rs": "0c9c4ce7d5b466ae63445b93fcbf7e8aba5b3bb49880cb949a648155749fc462"
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "scope": "/Users/anuna-02/Code/cbcl-rs-jolt-akita/experiments/jolt-akita-checkpoint/target/build-fast/deps",
+  "removed_pattern": "*.rcgu.o",
+  "removed_files": 6333,
+  "logical_bytes": 5287622704,
+  "free_bytes_after": 5789233152,
+  "retained": "complete rlib/rmeta, binaries, all source and proof evidence"
+}

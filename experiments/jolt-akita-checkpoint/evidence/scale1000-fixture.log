@@ -1,0 +1,7 @@
+warning: /tmp/cbcl-jolt-akita-source/crates/jolt-prover/Cargo.toml: `default-features` is ignored for jolt-kernels, since `default-features` was not specified for `workspace.dependencies.jolt-kernels`, this could become a hard error in the future
+warning: /tmp/cbcl-jolt-akita-source/crates/jolt-prover/Cargo.toml: `default-features` is ignored for jolt-poly, since `default-features` was not specified for `workspace.dependencies.jolt-poly`, this could become a hard error in the future
+warning: /tmp/cbcl-jolt-akita-source/crates/jolt-prover/Cargo.toml: `default-features` is ignored for jolt-profiling, since `default-features` was not specified for `workspace.dependencies.jolt-profiling`, this could become a hard error in the future
+warning: /tmp/cbcl-jolt-akita-source/crates/jolt-kernels/Cargo.toml: `default-features` is ignored for jolt-poly, since `default-features` was not specified for `workspace.dependencies.jolt-poly`, this could become a hard error in the future
+   Compiling checkpoint-common v0.0.0 (/tmp/cbcl-jolt-akita-source/.cbcl-overlay/common)
+    Finished `build-fast` profile [optimized + debuginfo] target(s) in 3.50s
+     Running `target/build-fast/examples/make_drawing_1000 /Users/anuna-02/Code/cbcl-rs-jolt-akita/experiments/general-kernel-checkpoint/fixtures/drawing-1.json /Users/anuna-02/Code/cbcl-rs-jolt-akita/experiments/jolt-akita-checkpoint/evidence/scale1000-fixture`

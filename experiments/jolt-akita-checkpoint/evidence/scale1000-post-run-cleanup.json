@@ -1,0 +1,13 @@
+{
+  "scope": "/Users/anuna-02/Code/cbcl-rs-jolt-akita/experiments/jolt-akita-checkpoint/target/build-fast",
+  "removed_patterns": [
+    "deps/*.rcgu.o",
+    "incremental/"
+  ],
+  "standalone_objects": 288,
+  "object_logical_bytes": 1562084888,
+  "incremental_logical_bytes": 2154635016,
+  "free_before": 6004318208,
+  "free_after": 8159547392,
+  "retained": "complete libraries, CLI and host binaries, guest ELF, all source/proof evidence"
+}

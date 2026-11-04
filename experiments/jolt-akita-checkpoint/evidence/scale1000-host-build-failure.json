@@ -1,0 +1,12 @@
+{
+  "proof_generated": false,
+  "stage": "host build",
+  "cargo_exit_code": null,
+  "failure": "rustc-LLVM ERROR: IO failure on output stream: No space left on device",
+  "log": "scale1000-host-build.log",
+  "supervisor_failure": "PermissionError in final killpg after child exited; no timed ledger was written",
+  "observed_free_bytes_after_failure": 526028800,
+  "runtime_seconds": null,
+  "peak_rss_bytes": null,
+  "recovery": "removed only disposable standalone rcgu objects from owned build cache; retain complete libraries and binaries; retry original incremental profile"
+}

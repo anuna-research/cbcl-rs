@@ -33,3 +33,16 @@ suites (12 cases each), identical guest ELF hashes, and identical larger setup
 hashes. Supports committing as experimental evidence. Required disclosure of
 unestablished cross-model diversity was added; drawing chunks clarified as
 application payload chunks rather than Akita geometry.
+
+## 1,000-message follow-up
+
+Fresh-context reviewer /root/scale1000_review, inherited model selection; exact
+variant/settings and cross-model diversity unestablished. No Cargo or mutations.
+Reviewed SCALE-1000 brief, harness delta, generator and final measurements.
+No blocking workload/computation mismatch found. Required repairs: clear stale
+execution-metrics before reruns and record padded trace eligibility; both fixed.
+Final reviewed result: VM succeeds in134.447s with5,024,762,651 rows, padded2^33
+beyond configured2^30; full trace attempt aborts35.233s on disk guard, not RSS
+guard; no setup/proof/verification exists. More disk alone cannot make this
+configuration eligible. Reviewer supports completing the requested experiment
+without further optimization. Human cryptographic review remains open.
