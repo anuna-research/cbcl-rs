@@ -1,0 +1,50 @@
+[
+  {
+    "case": "recover-current-milestone",
+    "command": [
+      "python3",
+      "run-recursive-proof.py",
+      "--resume",
+      "--target=128"
+    ],
+    "exit_code": 0,
+    "recovered": true
+  },
+  {
+    "case": "empty-manifest",
+    "command": [
+      "node",
+      "--import",
+      "tsx",
+      "recursive-verify.ts",
+      "--history=128"
+    ],
+    "exit_code": 1,
+    "rejected": true
+  },
+  {
+    "case": "missing-prior-milestone",
+    "command": [
+      "node",
+      "--import",
+      "tsx",
+      "recursive-verify.ts",
+      "--history=128"
+    ],
+    "exit_code": 1,
+    "rejected": true
+  },
+  {
+    "case": "producer-withholds-passed-for-missing-old-milestone",
+    "command": [
+      "node",
+      "--import",
+      "tsx",
+      "recursive-prove.ts",
+      "--resume",
+      "--target=128"
+    ],
+    "exit_code": 1,
+    "rejected": true
+  }
+]

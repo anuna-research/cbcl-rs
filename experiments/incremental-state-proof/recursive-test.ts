@@ -3,7 +3,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { Field, Provable, UInt32, setNumberOfWorkers } from 'o1js';
 import { Checkpoint, Head, Operation, Path } from './program.js';
 import { assertCheckpoint, objectId, operation, State, stateFromNative, trace } from './helpers.js';
-import { baseContext, makeBatch, stepContext } from './recursive-helpers.js';
+import { baseContext, makeBatch, stepContext, unreachablePrefix } from './recursive-helpers.js';
 import { batchDigest, emptyCheckpoint, HistoryContext, HistoryProof, historyProgram, Updates } from './recursive-program.js';
 setNumberOfWorkers(1);
 const only = process.argv.find(x => x.startsWith('--only='))?.slice(7);
@@ -79,8 +79,8 @@ await test('single-step-tail-native-parity', async () => {
 await test('forged-parent-passes-local-arithmetic-control', async () => {
   // A forged base can claim eight unproved writes. Arithmetic is consistent;
   // the real negative MUST be rejected by recursive proof verification.
-  const later = makeBatch(state, oracle.messages.slice(8, 16));
-  await batchCheck(later.context, later.updates, baseContext(object), batch.after, stateFromNative(oracle).checkpoint());
+  const forged = unreachablePrefix();
+  await batchCheck(forged.next.context, forged.next.updates, baseContext(object), forged.checkpoint, forged.next.after);
 });
 if (only) { assert.equal(results.length, 1, 'named test must execute'); } else {
   const analysis = await historyProgram.analyzeMethods();

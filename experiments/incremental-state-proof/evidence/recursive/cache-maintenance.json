@@ -1,0 +1,7 @@
+{
+  "command": "cargo clean --manifest-path /Users/anuna-02/Code/cbcl-rs-review-repairs-1/Cargo.toml --target-dir /Users/anuna-02/Code/cbcl-rs-review-repairs-1/target",
+  "exit_code": 0,
+  "reported_output": "Removed 30706 files, 6.0GiB total",
+  "purpose": "Maintain the existing 1 GiB disk reserve during proving; completed review-repair build cache only",
+  "initial_free_after_cleanup_observed": "5.0 GiB"
+}

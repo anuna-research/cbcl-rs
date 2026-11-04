@@ -1,0 +1,74 @@
+[
+  {
+    "name": "valid-genesis",
+    "result": "pass"
+  },
+  {
+    "name": "forged-genesis-state",
+    "result": "pass"
+  },
+  {
+    "name": "forged-genesis-history",
+    "result": "pass"
+  },
+  {
+    "name": "forged-genesis-count",
+    "result": "pass"
+  },
+  {
+    "name": "wrong-genesis-method",
+    "result": "pass"
+  },
+  {
+    "name": "wrong-genesis-operation",
+    "result": "pass"
+  },
+  {
+    "name": "valid-batch-native-parity",
+    "result": "pass"
+  },
+  {
+    "name": "wrong-parent-object",
+    "result": "pass"
+  },
+  {
+    "name": "wrong-parent-output",
+    "result": "pass"
+  },
+  {
+    "name": "wrong-parent-count",
+    "result": "pass"
+  },
+  {
+    "name": "wrong-parent-history",
+    "result": "pass"
+  },
+  {
+    "name": "wrong-batch-digest",
+    "result": "pass"
+  },
+  {
+    "name": "wrong-batch-method",
+    "result": "pass"
+  },
+  {
+    "name": "wrong-operation-inside-batch",
+    "result": "pass"
+  },
+  {
+    "name": "wrong-path-inside-batch",
+    "result": "pass"
+  },
+  {
+    "name": "reordered-batch",
+    "result": "pass"
+  },
+  {
+    "name": "single-step-tail-native-parity",
+    "result": "pass"
+  },
+  {
+    "name": "forged-parent-passes-local-arithmetic-control",
+    "result": "pass"
+  }
+]

@@ -1,0 +1,9 @@
+
+> cbcl-incremental-state-proof-experiment@0.0.0 recursive:verify
+> tsx recursive-verify.ts --trusted-key=evidence/recursive/verification-key.json
+
+{"history":0,"verifiedSingleFinalProof":true,"verificationKeyHash":"15589916575014712402755606163469077366113149805220509502861783256800465221420"}
+{"history":1,"verifiedSingleFinalProof":true,"verificationKeyHash":"15589916575014712402755606163469077366113149805220509502861783256800465221420"}
+{"history":8,"verifiedSingleFinalProof":true,"verificationKeyHash":"15589916575014712402755606163469077366113149805220509502861783256800465221420"}
+{"history":32,"verifiedSingleFinalProof":true,"verificationKeyHash":"15589916575014712402755606163469077366113149805220509502861783256800465221420"}
+{"history":128,"verifiedSingleFinalProof":true,"verificationKeyHash":"15589916575014712402755606163469077366113149805220509502861783256800465221420"}

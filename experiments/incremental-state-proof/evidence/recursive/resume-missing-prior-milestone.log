@@ -1,0 +1,15 @@
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: all promised complete-history milestones must be durable
+    at <anonymous> (/Users/anuna-02/Code/cbcl-rs-incremental-state/experiments/incremental-state-proof/recursive-prove.ts:57:12) {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: false,
+  expected: true,
+  operator: '==',
+  diff: 'simple'
+}
+
+Node.js v25.6.1

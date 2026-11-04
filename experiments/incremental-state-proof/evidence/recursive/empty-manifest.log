@@ -1,0 +1,26 @@
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: all promised complete histories must exist
++ actual - expected
+
++ []
+- [
+-   0,
+-   1,
+-   8,
+-   32,
+-   128
+- ]
+
+    at <anonymous> (/Users/anuna-02/Code/cbcl-rs-incremental-state/experiments/incremental-state-proof/recursive-verify.ts:14:8) {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: [],
+  expected: [ 0, 1, 8, 32, 128 ],
+  operator: 'deepStrictEqual',
+  diff: 'simple'
+}
+
+Node.js v25.6.1

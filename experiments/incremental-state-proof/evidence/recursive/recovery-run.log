@@ -1,0 +1,8 @@
+{"pid": 49740, "status": "started", "rss_cap_bytes": 4294967296}
+{"name":"compile","status":"started"}
+{"name":"compile","ms":188582,"rss":865140736,"status":"passed"}
+{"name":"verify-history-128","status":"started"}
+{"name":"verify-history-128","ms":2062,"rss":928907264,"status":"passed"}
+{"name":"extend-cryptographically-invalid-parent","status":"started"}
+{"name":"extend-cryptographically-invalid-parent","ms":3144,"status":"rejected","error":"Error: Constraint unsatisfied (unreduced):\n\nall: File \"src/mina/src/lib/snarky/src/base/utils.ml\", line 395, characters 6-162\nprevs_verified\n\nConstraint:\n((basic(Equal(Add(Constant 1)(Scale 28948022309329048855892746252171976963363056481941560715954676764349967630336(Add(Constant 1)(Scale 28948022309329048855892746252171976963363056481941560715954676764349967630336(Var 304071)))))(Constant 1)))(annotation()))\nData:\nEqual 0 1"}
+{"exit_code": 0, "limit_reason": null, "seconds": 207.98, "peak_observed_tree_rss_bytes": 1934049280, "minimum_observed_free_bytes": 5813891072}

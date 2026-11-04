@@ -5,7 +5,7 @@ status: experiment-complete
 
 # Incremental authenticated register findings
 
-The experiment supports replacing finite-vocabulary enumeration with a fixed
+The original isolated-update experiment supports replacing finite-vocabulary enumeration with a fixed
 authenticated-path transition circuit for the declared sequential register subset.
 It does not replace [[SPEC-035-halo2-state-checkpoints]], establish general native
 kernel equivalence, implement recursion, or authorize production use.
@@ -120,3 +120,11 @@ is sufficient; one current head per signer cannot handle general concurrent
 updates. Recursive composition can later compress proof histories, but does not
 solve those state semantics. Keep this prototype isolated on its experiment
 branch. No production integration or existing checkpoint-spec status changes.
+
+
+## Subsequent recursive experiment
+
+[[experiments/incremental-state-proof/RECURSION-RESULTS]] records composition of
+this same transition kernel from a fixed genesis. The measurements above remain
+the original isolated-update experiment; the recursive results cover complete
+supported write histories and keep the native/authentication boundaries explicit.

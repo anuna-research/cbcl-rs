@@ -1,0 +1,246 @@
+{
+  "status": "passed",
+  "target": 128,
+  "object": "26239981210472973024776894565687464657521452088094722837016101305567320252976",
+  "batchSize": 8,
+  "nativeTraceMs": 48,
+  "stages": [
+    {
+      "name": "compile",
+      "ms": 271553,
+      "rss": 1247182848,
+      "status": "passed"
+    },
+    {
+      "name": "base",
+      "ms": 24176,
+      "rss": 1295515648,
+      "status": "passed"
+    },
+    {
+      "name": "verify-history-0",
+      "ms": 2146,
+      "rss": 1198440448,
+      "status": "passed"
+    },
+    {
+      "name": "single-history-1",
+      "ms": 36613,
+      "rss": 1632092160,
+      "status": "passed"
+    },
+    {
+      "name": "verify-history-1",
+      "ms": 2122,
+      "rss": 1606828032,
+      "status": "passed"
+    },
+    {
+      "name": "batch-history-8",
+      "ms": 68043,
+      "rss": 634798080,
+      "status": "passed"
+    },
+    {
+      "name": "verify-history-8",
+      "ms": 2112,
+      "rss": 919732224,
+      "status": "passed"
+    },
+    {
+      "name": "batch-history-16",
+      "ms": 68456,
+      "rss": 1048936448,
+      "status": "passed"
+    },
+    {
+      "name": "batch-history-24",
+      "ms": 69094,
+      "rss": 1177632768,
+      "status": "passed"
+    },
+    {
+      "name": "batch-history-32",
+      "ms": 68452,
+      "rss": 494583808,
+      "status": "passed"
+    },
+    {
+      "name": "verify-history-32",
+      "ms": 2119,
+      "rss": 672022528,
+      "status": "passed"
+    },
+    {
+      "name": "batch-history-40",
+      "ms": 68652,
+      "rss": 674250752,
+      "status": "passed"
+    },
+    {
+      "name": "batch-history-48",
+      "ms": 68782,
+      "rss": 1113833472,
+      "status": "passed"
+    },
+    {
+      "name": "batch-history-56",
+      "ms": 69371,
+      "rss": 611434496,
+      "status": "passed"
+    },
+    {
+      "name": "batch-history-64",
+      "ms": 69269,
+      "rss": 899874816,
+      "status": "passed"
+    },
+    {
+      "name": "batch-history-72",
+      "ms": 69335,
+      "rss": 663896064,
+      "status": "passed"
+    },
+    {
+      "name": "batch-history-80",
+      "ms": 68823,
+      "rss": 1046396928,
+      "status": "passed"
+    },
+    {
+      "name": "batch-history-88",
+      "ms": 68832,
+      "rss": 534593536,
+      "status": "passed"
+    },
+    {
+      "name": "batch-history-96",
+      "ms": 69297,
+      "rss": 807714816,
+      "status": "passed"
+    },
+    {
+      "name": "batch-history-104",
+      "ms": 68619,
+      "rss": 1040629760,
+      "status": "passed"
+    },
+    {
+      "name": "batch-history-112",
+      "ms": 68659,
+      "rss": 682967040,
+      "status": "passed"
+    },
+    {
+      "name": "batch-history-120",
+      "ms": 68784,
+      "rss": 723894272,
+      "status": "passed"
+    },
+    {
+      "name": "batch-history-128",
+      "ms": 69689,
+      "rss": 694255616,
+      "status": "passed"
+    },
+    {
+      "name": "verify-history-128",
+      "ms": 2133,
+      "rss": 817528832,
+      "status": "passed"
+    },
+    {
+      "name": "extend-cryptographically-invalid-parent",
+      "ms": 1463,
+      "status": "rejected",
+      "error": "Error: Constraint unsatisfied (unreduced):\n\nall: File \"src/mina/src/lib/snarky/src/base/utils.ml\", line 395, characters 6-162\nprevs_verified\n\nConstraint:\n((basic(Equal(Add(Constant 1)(Scale 28948022309329048855892746252171976963363056481941560715954676764349967630336(Add(Constant 1)(Scale 28948022309329048855892746252171976963363056481941560715954676764349967630336(Var 304071)))))(Constant 1)))(annotation()))\nData:\nEqual 0 1"
+    }
+  ],
+  "proofs": [
+    {
+      "history": 0,
+      "file": "history-0.json",
+      "binaryBytes": 23282,
+      "jsonBytes": 31527,
+      "canonicalMessageBytes": 0,
+      "verified": true,
+      "expected": {
+        "object": "26239981210472973024776894565687464657521452088094722837016101305567320252976",
+        "checkpoint": {
+          "state": "16510281280427274356185141347114409143460588060107208117935011691496157196057",
+          "history": "16510281280427274356185141347114409143460588060107208117935011691496157196057",
+          "count": "0"
+        }
+      }
+    },
+    {
+      "history": 1,
+      "file": "history-1.json",
+      "binaryBytes": 24381,
+      "jsonBytes": 33066,
+      "canonicalMessageBytes": 203,
+      "verified": true,
+      "expected": {
+        "object": "26239981210472973024776894565687464657521452088094722837016101305567320252976",
+        "checkpoint": {
+          "state": "1963755524755733113336258985541793853685873770850592511057387895742233815713",
+          "history": "11567101882616977238327149994634956439599574335178316587468502454139244361245",
+          "count": "1"
+        }
+      }
+    },
+    {
+      "history": 8,
+      "file": "history-8.json",
+      "binaryBytes": 24381,
+      "jsonBytes": 33066,
+      "canonicalMessageBytes": 1917,
+      "verified": true,
+      "expected": {
+        "object": "26239981210472973024776894565687464657521452088094722837016101305567320252976",
+        "checkpoint": {
+          "state": "10190005179340872856466246062259970372986662713945854031586927079764581277576",
+          "history": "2955867628708338376431864482274331576619130018270052072634333620934857662271",
+          "count": "8"
+        }
+      }
+    },
+    {
+      "history": 32,
+      "file": "history-32.json",
+      "binaryBytes": 24381,
+      "jsonBytes": 33066,
+      "canonicalMessageBytes": 8541,
+      "verified": true,
+      "expected": {
+        "object": "26239981210472973024776894565687464657521452088094722837016101305567320252976",
+        "checkpoint": {
+          "state": "20682337081822916957822208146254966719464607171386870526277408976959497786068",
+          "history": "11265040036607234129452970217754003263255959836490043962205400112959774853",
+          "count": "32"
+        }
+      }
+    },
+    {
+      "history": 128,
+      "file": "history-128.json",
+      "binaryBytes": 24381,
+      "jsonBytes": 33066,
+      "canonicalMessageBytes": 35200,
+      "verified": true,
+      "expected": {
+        "object": "26239981210472973024776894565687464657521452088094722837016101305567320252976",
+        "checkpoint": {
+          "state": "970165835806203265730438487639416289865695451354982343000939378604820116055",
+          "history": "7499454133679901530432469948641766307535260547462496767185790643853097436433",
+          "count": "128"
+        }
+      }
+    }
+  ],
+  "verificationKeyHash": "15589916575014712402755606163469077366113149805220509502861783256800465221420",
+  "latestCompleteWrites": 128,
+  "oldValidHeadRejected": true,
+  "recursionNegativeError": "Error: Constraint unsatisfied (unreduced):\n\nall: File \"src/mina/src/lib/snarky/src/base/utils.ml\", line 395, characters 6-162\nprevs_verified\n\nConstraint:\n((basic(Equal(Add(Constant 1)(Scale 28948022309329048855892746252171976963363056481941560715954676764349967630336(Add(Constant 1)(Scale 28948022309329048855892746252171976963363056481941560715954676764349967630336(Var 304071)))))(Constant 1)))(annotation()))\nData:\nEqual 0 1",
+  "recursionNegativeStatus": "rejected-during-proving"
+}

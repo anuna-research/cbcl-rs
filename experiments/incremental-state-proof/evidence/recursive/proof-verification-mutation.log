@@ -1,0 +1,21 @@
+{"stage":"compile-real-verification-mutant"}
+{"stage":"prove-from-invalid-parent"}
+{"invalidParentRejected":true,"mutantChildVerified":true,"honestKeyRejectsChild":true,"finalCount":"16"}
+/workspace_root/src/bindings/ocaml/jsoo_exports/overrides.js:45
+    if (err instanceof Error) throw err;
+                              ^
+
+AssertionError [ERR_ASSERTION]: forged predecessor accepted after removing verification
+
+true !== false
+
+    at <anonymous> (/Users/anuna-02/Code/cbcl-rs-incremental-state/experiments/incremental-state-proof/.recursion-mutant-mpnfujwl/driver.ts:29:8) {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: true,
+  expected: false,
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v25.6.1

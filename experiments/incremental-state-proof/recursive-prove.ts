@@ -4,7 +4,7 @@ import { performance } from 'node:perf_hooks';
 import { Cache, Field, setNumberOfWorkers, verify } from 'o1js';
 import { Checkpoint } from './program.js';
 import { assertCheckpoint, objectId, operation, State, stateFromNative, trace } from './helpers.js';
-import { baseContext, makeBatch, stepContext } from './recursive-helpers.js';
+import { baseContext, makeBatch, stepContext, unreachablePrefix } from './recursive-helpers.js';
 import { BATCH, HistoryProof, historyProgram } from './recursive-program.js';
 import { verifyHistory } from './recursive-receiver.js';
 setNumberOfWorkers(1);
@@ -50,6 +50,12 @@ async function saveProof(proof: HistoryProof, n: number, key: string, file = `hi
   await persist();
 }
 try {
+  if (resume) {
+    const latest = Number(record.latestCompleteWrites);
+    assert.ok(Number.isSafeInteger(latest) && latest >= 0, 'invalid resume milestone count');
+    const earlier = [0, 1, 8, 32, 128, 256].filter(n => n < latest && n <= target);
+    assert.ok(earlier.every(n => record.proofs.some(p => p.history === n)), 'all promised complete-history milestones must be durable');
+  }
   const { verificationKey } = await stage('compile', () => historyProgram.compile({ cache: Cache.FileSystem('.cache-recursive') }));
   if (record.verificationKeyHash) assert.equal(record.verificationKeyHash, verificationKey.hash.toString(), 'resume key differs');
   record.verificationKeyHash = verificationKey.hash.toString();
@@ -97,20 +103,24 @@ try {
   // Forge a real base's public output to a locally consistent eight-write state.
   // Its proof bytes never established those writes. Only recursive verification
   // can reject its otherwise valid extension with the next eight operations.
-  const negativeState = new State(object);
-  oracle.messages.slice(0, BATCH).forEach(message => negativeState.apply(operation(message)));
+  const forged = unreachablePrefix();
+  assert.equal(forged.next.context.object.toString(), object.toString());
   const forgedJson = baseProof.toJSON();
-  forgedJson.publicOutput = Checkpoint.toFields(negativeState.checkpoint()).map(x => x.toString());
+  forgedJson.publicOutput = Checkpoint.toFields(forged.checkpoint).map(x => x.toString());
   const forgedParent = await HistoryProof.fromJSON(forgedJson);
   assert.equal(await verify(forgedParent, verificationKey.data), false, 'adversarial parent must be cryptographically invalid');
-  const next = makeBatch(negativeState, oracle.messages.slice(BATCH, 2 * BATCH));
+  const next = forged.next;
+  record.recursionNegativeFixture = 'unreachable count-eight prefix with signer sequences 100+';
   let status = 'inconclusive';
   try {
     const attempted = (await stage('extend-cryptographically-invalid-parent', () => historyProgram.batch(next.context, forgedParent, next.updates))).proof;
     status = await verify(attempted, verificationKey.data) ? 'failed-laundered-parent' : 'rejected-by-verifier';
   } catch (error) {
     const text = String(error); record.recursionNegativeError = text.slice(0, 4000);
-    if (/constraint.*unsatisfied|verification.*fail|proof.*verif.*fail|previous.*proof.*invalid/i.test(text)) status = 'rejected-during-proving';
+    if (/prevs_verified|proof.*verif.*fail|previous.*proof.*invalid|recursive.*verif.*fail/i.test(text)) {
+      status = 'rejected-during-proving';
+      record.recursionNegativeMechanism = /prevs_verified/.test(text) ? 'prevs_verified' : 'explicit proof-verification failure';
+    }
   }
   record.recursionNegativeStatus = status;
   assert.ok(status === 'rejected-during-proving' || status === 'rejected-by-verifier', 'forged-parent rejection must be classified, not a generic backend failure');

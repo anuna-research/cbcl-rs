@@ -1,0 +1,14 @@
+{
+  "base": {
+    "rows": 4,
+    "digest": "fb188714ce00b58738438c2097eb7dec"
+  },
+  "batch": {
+    "rows": 26697,
+    "digest": "721d566df42295aff22dbeaee7af5cfc"
+  },
+  "step": {
+    "rows": 2182,
+    "digest": "6660885bc44abcd6d5477e6b2ba74851"
+  }
+}

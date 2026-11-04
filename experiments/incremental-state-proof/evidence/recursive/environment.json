@@ -1,0 +1,29 @@
+{
+  "platform": "macOS-26.5-arm64-arm-64bit",
+  "machine": "arm64",
+  "node": "v25.6.1",
+  "o1js": "2.2.0",
+  "workers": 1,
+  "source_sha256": {
+    "recursive-program.ts": "7aa26985e5789d4075b3d6e5cfd4ea8a0f97cd52ad33df368b991e59ffdd11e6",
+    "recursive-helpers.ts": "a3d2a4f445424e60a9b1221936a92c1132f05db21c96fba72a833e39f436aa67",
+    "recursive-prove.ts": "d752bfe5cd9b3c4407953704f99c0c548bcd2709c4e3b2e0ec6bd01f6e9e0eae",
+    "recursive-test.ts": "c5de1752dae2dd158956aef97bb5a0500047f381040f44cb75d56b2e0311d0e2",
+    "recursive-receiver.ts": "d8c548b1692cc559f6effa88f9c319e6fe9ec5755fba77328aa809970c4543e5",
+    "recursive-verify.ts": "49384aab257e91941b60ebb412def6d80d99abdc2fc10a264a816e65a463e39d",
+    "program.ts": "fa7681fb311a2801ae84abea546b818273063422248e9bdb7b540f6e6ab3fc85",
+    "helpers.ts": "016b46f2cd390223b8afed9534dc75e1b2265cc552915db6f63837215a2cba2a",
+    "recursive-one-proof.ts": "2c568115b1857db2220ec08e5dc58d9a0a23f876882e0c19f7e650842413a62f",
+    "recursive-proof-mutation.py": "c8a918479933f65c00dcdd94e4c7b5330c6500021ecd74e78593bb03d6ea9cc3",
+    "recursive-recovery-check.py": "3c3ffabea0875fe26aaca4539301f48372993bc0cf83011a94345b8aa3a57128",
+    "recursive-mutate.py": "6da139d4e0ee2cefbdb3595e506f55d769be477c231b1ba3359be5d5f0ec0f0b",
+    "run-recursive-proof.py": "920fe0e902493769b84c5eb5f78b6a289f359215e41e2d8a9a90417df87db249",
+    "recursive-isolated-receiver.py": "6d13a0b46fa339b023d0fa7655a5a74172bea89eba7977259b425f01f21766a8",
+    "recursive-mutation-artifact-check.ts": "5cd7702ab9a161fb837a18d95975ad2287ee05257936e2736fbd2cb51162b2c1",
+    "package.json": "75a049aebc13a3f3ac85de80651da8de3b4a7d7355b0ebde4df5e24f1af30cff",
+    "package-lock.json": "3749f98a37b4f0b61a356b9ab1466768c4bd19dd2e0f93462a3e81d2adbd998d"
+  },
+  "model": "Codex; system model family GPT-6, exact version not exposed",
+  "base_commit": "ffad944",
+  "branch": "experiment/recursive-incremental-state"
+}

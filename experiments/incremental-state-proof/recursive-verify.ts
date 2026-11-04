@@ -15,7 +15,12 @@ assert.deepEqual(record.proofs.map((row: { history: number }) => row.history), h
 const selected = process.argv.find(x => x.startsWith('--history='))?.slice(10);
 const wanted = selected === undefined ? histories : [Number(selected)];
 assert.ok(wanted.every(n => histories.includes(n)), 'history was not proved');
-const { verificationKey } = await historyProgram.compile({ cache: Cache.FileSystem('.cache-recursive') });
+// A trusted key is normally installed once by the receiver. Source compilation
+// is an optional reproducibility path, not a per-proof verification requirement.
+const trustedPath = process.argv.find(x => x.startsWith('--trusted-key='))?.slice(14);
+const verificationKey = trustedPath
+  ? await (async () => { const key = JSON.parse(await readFile(trustedPath, 'utf8')); return { hash: Field(key.hash), data: key.data as string }; })()
+  : (await historyProgram.compile({ cache: Cache.FileSystem('.cache-recursive') })).verificationKey;
 assert.equal(verificationKey.hash.toString(), record.verificationKeyHash);
 const savedKey = JSON.parse(await readFile(dir + '/verification-key.json', 'utf8'));
 assert.equal(savedKey.hash, verificationKey.hash.toString());

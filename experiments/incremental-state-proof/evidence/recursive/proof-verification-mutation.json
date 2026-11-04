@@ -1,0 +1,12 @@
+{
+  "name": "omitted-parent-proof-verification",
+  "exit_code": 7,
+  "killed": true,
+  "limit_reason": null,
+  "seconds": 369.51,
+  "peak_sampled_tree_rss_bytes": 1739309056,
+  "minimum_free_bytes": 5853081600,
+  "cache": "Cache.None",
+  "source_variant": "temporary copy; original sources untouched",
+  "assertion": "forged predecessor accepted after removing verification"
+}

@@ -1,0 +1,19 @@
+{
+  "exit_code": 0,
+  "complete_writes": 128,
+  "input_files": [
+    "proof.json",
+    "trusted-key.json",
+    "expected-head.json"
+  ],
+  "input_file_bytes": {
+    "proof.json": 33135,
+    "trusted-key.json": 2504,
+    "expected-head.json": 325
+  },
+  "total_input_file_bytes": 35964,
+  "native_oracle_available": false,
+  "predecessor_artifact_files_provided": 0,
+  "wall_seconds_including_process_and_backend_startup": 42.786,
+  "cold_start_measurement_note": "concurrent isolated-mutant compilation may affect wall time"
+}

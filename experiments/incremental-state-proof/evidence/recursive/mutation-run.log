@@ -1,0 +1,5 @@
+{"name": "unbound-genesis-state", "test": "forged-genesis-state", "file": "recursive-program.ts", "command": ["node", "--import", "tsx", "recursive-test.ts", "--only=forged-genesis-state"], "exit_code": 7, "killed": true}
+{"name": "unbound-parent-output", "test": "wrong-parent-output", "file": "recursive-program.ts", "command": ["node", "--import", "tsx", "recursive-test.ts", "--only=wrong-parent-output"], "exit_code": 7, "killed": true}
+{"name": "unbound-parent-object", "test": "wrong-parent-object", "file": "recursive-program.ts", "command": ["node", "--import", "tsx", "recursive-test.ts", "--only=wrong-parent-object"], "exit_code": 7, "killed": true}
+{"name": "unbound-batch-digest", "test": "wrong-batch-digest", "file": "recursive-program.ts", "command": ["node", "--import", "tsx", "recursive-test.ts", "--only=wrong-batch-digest"], "exit_code": 7, "killed": true}
+{"name": "batch-unbound-replacement", "test": "wrong-operation-inside-batch", "file": "program.ts", "command": ["node", "--import", "tsx", "recursive-test.ts", "--only=wrong-operation-inside-batch"], "exit_code": 7, "killed": true}

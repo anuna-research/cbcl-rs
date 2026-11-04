@@ -1,0 +1,2587 @@
+{
+  "dead_links": [
+    {
+      "source": "BUG-005-two-sexpr-recognisers-disagree",
+      "line": 33,
+      "target": "BUG-006",
+      "predicate": null
+    },
+    {
+      "source": "BUG-005-two-sexpr-recognisers-disagree",
+      "line": 150,
+      "target": "BUG-006",
+      "predicate": null
+    },
+    {
+      "source": "BUG-006-envelope-wire-form-unparseable-by-the-real-parser",
+      "line": 30,
+      "target": "BUG-005",
+      "predicate": null
+    },
+    {
+      "source": "BUG-006-envelope-wire-form-unparseable-by-the-real-parser",
+      "line": 168,
+      "target": "BUG-005",
+      "predicate": null
+    },
+    {
+      "source": "BUG-006-envelope-wire-form-unparseable-by-the-real-parser",
+      "line": 173,
+      "target": "BUG-005",
+      "predicate": null
+    },
+    {
+      "source": "BUG-006-envelope-wire-form-unparseable-by-the-real-parser",
+      "line": 179,
+      "target": "BUG-005",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-015-evidence-widening-v2",
+      "line": 55,
+      "target": "DCFL",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-015-evidence-widening-v2",
+      "line": 59,
+      "target": "CALM",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-015-evidence-widening-v2",
+      "line": 257,
+      "target": "Ed25519",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-015-evidence-widening-v2",
+      "line": 265,
+      "target": "did:crdt",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-015-evidence-widening-v2",
+      "line": 299,
+      "target": "Ed25519",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-015-evidence-widening-v2",
+      "line": 310,
+      "target": "SHA-256",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-015-evidence-widening-v2",
+      "line": 368,
+      "target": "CALM",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-017-typed-content-addresses",
+      "line": 34,
+      "target": "crates/cbcl-core/src/equivocation.rs",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-017-typed-content-addresses",
+      "line": 85,
+      "target": "crates/cbcl-core/src/typed_addr.rs",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-017-typed-content-addresses",
+      "line": 103,
+      "target": "crates/cbcl-core/src/canonical.rs",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-017-typed-content-addresses",
+      "line": 121,
+      "target": "SHA-256",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-017-typed-content-addresses",
+      "line": 142,
+      "target": "SHA-256",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-017-typed-content-addresses",
+      "line": 208,
+      "target": "SHA-256",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-017-typed-content-addresses",
+      "line": 290,
+      "target": "crates/cbcl-core/src/typed_addr.rs",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-017-typed-content-addresses",
+      "line": 337,
+      "target": "crates/cbcl-core/src/typed_addr.rs",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-017-typed-content-addresses",
+      "line": 370,
+      "target": "crates/cbcl-core/src/typed_addr.rs",
+      "predicate": null
+    },
+    {
+      "source": "SPEC-018-dcfl-installation",
+      "line": 270,
+      "target": "crates/cbcl-core/src/message.rs",
+      "predicate": null
+    }
+  ],
+  "orphans": [
+    {
+      "page": "ADMISSION",
+      "forward_links": 0
+    },
+    {
+      "page": "BUG-001-wellformed-sexpr-vacuous",
+      "forward_links": 0
+    },
+    {
+      "page": "BUG-002-install-preserves-core-vestigial-r3",
+      "forward_links": 0
+    },
+    {
+      "page": "BUG-003-dcfl-preserved-vestigial-hypotheses",
+      "forward_links": 0
+    },
+    {
+      "page": "BUG-004-verify-file-argument-parsed-as-dialect-text",
+      "forward_links": 0
+    },
+    {
+      "page": "BUG-005-two-sexpr-recognisers-disagree",
+      "forward_links": 2
+    },
+    {
+      "page": "BUG-006-envelope-wire-form-unparseable-by-the-real-parser",
+      "forward_links": 4
+    },
+    {
+      "page": "FIX-LEAN-AUDIT",
+      "forward_links": 0
+    },
+    {
+      "page": "IMPL-002-003",
+      "forward_links": 0
+    },
+    {
+      "page": "IMPL-005-r5-mechanisation",
+      "forward_links": 0
+    },
+    {
+      "page": "IMPL-015-evidence-widening",
+      "forward_links": 0
+    },
+    {
+      "page": "IMPL-016-splicing",
+      "forward_links": 0
+    },
+    {
+      "page": "IMPL-017-typed-content-addresses",
+      "forward_links": 0
+    },
+    {
+      "page": "IMPL-018-dcfl-installation",
+      "forward_links": 0
+    },
+    {
+      "page": "IMPL-019-signer-register",
+      "forward_links": 0
+    },
+    {
+      "page": "IMPL-020-state-refinement",
+      "forward_links": 0
+    },
+    {
+      "page": "IMPL-021-bounded-counter",
+      "forward_links": 0
+    },
+    {
+      "page": "IMPL-035-state-checkpoints",
+      "forward_links": 0
+    },
+    {
+      "page": "README",
+      "forward_links": 16
+    },
+    {
+      "page": "README-WASM",
+      "forward_links": 0
+    },
+    {
+      "page": "SPEC-009-erl-binding",
+      "forward_links": 0
+    },
+    {
+      "page": "SPEC-012-agent-arena-platform",
+      "forward_links": 0
+    },
+    {
+      "page": "SPEC-014-role-layer",
+      "forward_links": 0
+    },
+    {
+      "page": "attested-candidates",
+      "forward_links": 0
+    },
+    {
+      "page": "bounded-repeat",
+      "forward_links": 0
+    },
+    {
+      "page": "chain",
+      "forward_links": 0
+    },
+    {
+      "page": "design",
+      "forward_links": 0
+    },
+    {
+      "page": "docs-evidence",
+      "forward_links": 0
+    },
+    {
+      "page": "mutation-testing",
+      "forward_links": 0
+    },
+    {
+      "page": "package-grammar",
+      "forward_links": 0
+    },
+    {
+      "page": "plan",
+      "forward_links": 0
+    },
+    {
+      "page": "protocol-progress",
+      "forward_links": 0
+    },
+    {
+      "page": "review",
+      "forward_links": 0
+    },
+    {
+      "page": "review-fixes",
+      "forward_links": 0
+    },
+    {
+      "page": "semantics-pin",
+      "forward_links": 0
+    },
+    {
+      "page": "state-checkpoint",
+      "forward_links": 0
+    },
+    {
+      "page": "workspace-gates",
+      "forward_links": 0
+    }
+  ],
+  "syntax_errors": [],
+  "spl_diagnostics": [
+    {
+      "level": "Warning",
+      "message": "Duplicate rule label 'r-assign-spec' (also defined in plans/IMPL-016-splicing.spl:55)",
+      "file": "plans/IMPL-017-typed-content-addresses.spl",
+      "line": 60,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Duplicate rule label 'r-ready-paper' (also defined in plans/IMPL-016-splicing.spl:51)",
+      "file": "plans/IMPL-017-typed-content-addresses.spl",
+      "line": 56,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Duplicate rule label 'r-ready-spec' (also defined in plans/IMPL-016-splicing.spl:47)",
+      "file": "plans/IMPL-017-typed-content-addresses.spl",
+      "line": 51,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Duplicate rule label 'r-assign-paper' (also defined in plans/IMPL-016-splicing.spl:59)",
+      "file": "plans/IMPL-017-typed-content-addresses.spl",
+      "line": 65,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'upstream-blocked-simp-literal-cleanup' in rule 'r-propagate-heartbeat-scope-detparser-from-simp-literal-cleanup-blocked' appears in no rule head or fact (possible typo)",
+      "file": "lean-cbcl/review-fixes.spl",
+      "line": 309,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed-result-lattice' in rule 'r-ready-axiom-audit' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-005-r5-mechanisation.spl",
+      "line": 212,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed-store-lattice' in rule 'r-ready-axiom-audit' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-005-r5-mechanisation.spl",
+      "line": 212,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed-verify-monotone' in rule 'r-ready-axiom-audit' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-005-r5-mechanisation.spl",
+      "line": 212,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed-verify-fanin-meet' in rule 'r-ready-axiom-audit' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-005-r5-mechanisation.spl",
+      "line": 212,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed-verify-eventual-consistency' in rule 'r-ready-axiom-audit' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-005-r5-mechanisation.spl",
+      "line": 212,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed-r5-acyclicity' in rule 'r-ready-axiom-audit' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-005-r5-mechanisation.spl",
+      "line": 212,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed-r5-reachability' in rule 'r-ready-axiom-audit' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-005-r5-mechanisation.spl",
+      "line": 212,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed-r5-perf-definedness' in rule 'r-ready-axiom-audit' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-005-r5-mechanisation.spl",
+      "line": 212,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed-r5-step-uniqueness' in rule 'r-ready-axiom-audit' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-005-r5-mechanisation.spl",
+      "line": 212,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed-dcfl-preservation' in rule 'r-ready-axiom-audit' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-005-r5-mechanisation.spl",
+      "line": 212,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'failed-dialect-hashing' in rule 'r-propagate-req628-pin-from-dialect-hashing-failed' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-015-evidence-widening.spl",
+      "line": 144,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'failed-message-recipients' in rule 'r-propagate-role-verify-from-message-recipients-failed' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-014-role-layer.spl",
+      "line": 244,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed-verify-skeleton' in rule 'r-ready-r5-acyclicity' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-005-r5-mechanisation.spl",
+      "line": 170,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'timeout-v1-verify-dialect' in rule 'r-propagate-panic-guard-from-verify-dialect-timeout-v1' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-009-erl-binding.spl",
+      "line": 235,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'stale-v1-verify-dialect' in rule 'r-propagate-panic-guard-from-verify-dialect-stale-v1' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-009-erl-binding.spl",
+      "line": 234,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'timeout-v1-role-types' in rule 'r-propagate-dialect-wiring-from-role-types-timeout-v1' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-014-role-layer.spl",
+      "line": 183,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'timeout-v1-property-tests' in rule 'r-propagate-docs-status-from-property-tests-timeout-v1' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-014-role-layer.spl",
+      "line": 314,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'timeout-v1-axiomaudit-instnonempty-check' in rule 'r-propagate-final-build-and-axiom-audit-from-axiomaudit-instnonempty-check-timeout-v1' appears in no rule head or fact (possible typo)",
+      "file": "lean-cbcl/review-fixes.spl",
+      "line": 400,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'failed-encoding' in rule 'r-propagate-parse-msg-from-encoding-failed' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-009-erl-binding.spl",
+      "line": 215,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed-message-store' in rule 'r-ready-persistence' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-002-003.spl",
+      "line": 248,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'stale-v1-version-obs' in rule 'r-propagate-tests-from-version-obs-stale-v1' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-009-erl-binding.spl",
+      "line": 247,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'stale-v1-bug-001' in rule 'r-propagate-verify-build-from-bug-001-stale-v1' appears in no rule head or fact (possible typo)",
+      "file": "plans/FIX-LEAN-AUDIT.spl",
+      "line": 192,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'gate-green(docs-evidence)' in rule 'r-complete-docs-evidence' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-035-state-checkpoints.spl",
+      "line": 92,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'evidence-recorded(docs-evidence)' in rule 'r-complete-docs-evidence' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-035-state-checkpoints.spl",
+      "line": 92,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'failed-verify-build' in rule 'r-propagate-update-bugs-from-verify-build-failed' appears in no rule head or fact (possible typo)",
+      "file": "plans/FIX-LEAN-AUDIT.spl",
+      "line": 208,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'permanently-failed-simp-literal-cleanup' in rule 'r-propagate-heartbeat-scope-detparser-from-simp-literal-cleanup-permanently-failed' appears in no rule head or fact (possible typo)",
+      "file": "lean-cbcl/review-fixes.spl",
+      "line": 306,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'failed-axiomaudit-instnonempty-check' in rule 'r-propagate-final-build-and-axiom-audit-from-axiomaudit-instnonempty-check-failed' appears in no rule head or fact (possible typo)",
+      "file": "lean-cbcl/review-fixes.spl",
+      "line": 397,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed(refinement-proof)' in rule 'r-refinement-complete' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-020-state-refinement.spl",
+      "line": 22,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed(refinement-checks)' in rule 'r-refinement-complete' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-020-state-refinement.spl",
+      "line": 22,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed(refinement-review)' in rule 'r-refinement-complete' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-020-state-refinement.spl",
+      "line": 22,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'upstream-blocked-bug-001' in rule 'r-propagate-verify-build-from-bug-001-blocked' appears in no rule head or fact (possible typo)",
+      "file": "plans/FIX-LEAN-AUDIT.spl",
+      "line": 194,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'permanently-failed-gitignore-dsstore' in rule 'r-propagate-final-build-and-axiom-audit-from-gitignore-dsstore-permanently-failed' appears in no rule head or fact (possible typo)",
+      "file": "lean-cbcl/review-fixes.spl",
+      "line": 283,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'failed-simp-literal-cleanup' in rule 'r-propagate-heartbeat-scope-detparser-from-simp-literal-cleanup-failed' appears in no rule head or fact (possible typo)",
+      "file": "lean-cbcl/review-fixes.spl",
+      "line": 305,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'stale-v1-bug-003' in rule 'r-propagate-verify-build-from-bug-003-stale-v1' appears in no rule head or fact (possible typo)",
+      "file": "plans/FIX-LEAN-AUDIT.spl",
+      "line": 175,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'failed-bug-002' in rule 'r-propagate-verify-build-from-bug-002-failed' appears in no rule head or fact (possible typo)",
+      "file": "plans/FIX-LEAN-AUDIT.spl",
+      "line": 151,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'stale-v1-heartbeat-scope-detunion' in rule 'r-propagate-final-build-and-axiom-audit-from-heartbeat-scope-detunion-stale-v1' appears in no rule head or fact (possible typo)",
+      "file": "lean-cbcl/review-fixes.spl",
+      "line": 346,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'upstream-blocked-fix-bug640' in rule 'r-propagate-dialect-hashing-from-fix-bug640-blocked' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-015-evidence-widening.spl",
+      "line": 105,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'permanently-failed-spec015-review' in rule 'r-propagate-equivocation-from-spec015-review-permanently-failed' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-015-evidence-widening.spl",
+      "line": 158,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'upstream-blocked-pipeline-proof-refactor' in rule 'r-propagate-final-build-and-axiom-audit-from-pipeline-proof-refactor-blocked' appears in no rule head or fact (possible typo)",
+      "file": "lean-cbcl/review-fixes.spl",
+      "line": 419,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'failed-scaffold' in rule 'r-propagate-encoding-from-scaffold-failed' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-009-erl-binding.spl",
+      "line": 177,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'timeout-v1-bug-002' in rule 'r-propagate-verify-build-from-bug-002-timeout-v1' appears in no rule head or fact (possible typo)",
+      "file": "plans/FIX-LEAN-AUDIT.spl",
+      "line": 154,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'stale-v1-req315-gate' in rule 'r-propagate-dialect-hashing-from-req315-gate-stale-v1' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-015-evidence-widening.spl",
+      "line": 120,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'permanently-failed-req315-gate' in rule 'r-propagate-dialect-hashing-from-req315-gate-permanently-failed' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-015-evidence-widening.spl",
+      "line": 119,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed-verify-skeleton' in rule 'r-ready-verify-fanin-meet' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-005-r5-mechanisation.spl",
+      "line": 159,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'permanently-failed-version-obs' in rule 'r-propagate-tests-from-version-obs-permanently-failed' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-009-erl-binding.spl",
+      "line": 246,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'timeout-v1-dialect-wiring' in rule 'r-propagate-r6-checker-from-dialect-wiring-timeout-v1' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-014-role-layer.spl",
+      "line": 226,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'stale-v1-simp-literal-cleanup' in rule 'r-propagate-heartbeat-scope-detparser-from-simp-literal-cleanup-stale-v1' appears in no rule head or fact (possible typo)",
+      "file": "lean-cbcl/review-fixes.spl",
+      "line": 307,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed-lean-defs' in rule 'r-ready-lean-gluing' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-016-splicing.spl",
+      "line": 50,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'stale-v1-encoding' in rule 'r-propagate-parse-msg-lax-from-encoding-stale-v1' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-009-erl-binding.spl",
+      "line": 221,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed-message-store' in rule 'r-ready-certificate-tests' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-002-003.spl",
+      "line": 282,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed-caused-by' in rule 'r-ready-certificate-tests' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-002-003.spl",
+      "line": 282,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed-result-lattice' in rule 'r-ready-verify-skeleton' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-005-r5-mechanisation.spl",
+      "line": 150,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed-store-lattice' in rule 'r-ready-verify-skeleton' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-005-r5-mechanisation.spl",
+      "line": 150,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'stale-v1-bug-002' in rule 'r-propagate-bug-003-from-bug-002-stale-v1' appears in no rule head or fact (possible typo)",
+      "file": "plans/FIX-LEAN-AUDIT.spl",
+      "line": 148,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'upstream-blocked-archive-proof-gaps' in rule 'r-propagate-final-build-and-axiom-audit-from-archive-proof-gaps-blocked' appears in no rule head or fact (possible typo)",
+      "file": "lean-cbcl/review-fixes.spl",
+      "line": 268,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'go-spike' in rule 'r-ready-spec' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-017-typed-content-addresses.spl",
+      "line": 51,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'permanently-failed-spec015-review' in rule 'r-propagate-repeat-unroll-from-spec015-review-permanently-failed' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-015-evidence-widening.spl",
+      "line": 168,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'timeout-v1-dialect-hashing' in rule 'r-propagate-req628-pin-from-dialect-hashing-timeout-v1' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-015-evidence-widening.spl",
+      "line": 147,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'timeout-v1-simp-literal-cleanup' in rule 'r-propagate-heartbeat-scope-detparser-from-simp-literal-cleanup-timeout-v1' appears in no rule head or fact (possible typo)",
+      "file": "lean-cbcl/review-fixes.spl",
+      "line": 308,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'failed-r6-checker' in rule 'r-propagate-role-verify-from-r6-checker-failed' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-014-role-layer.spl",
+      "line": 265,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed-parity-tests' in rule 'r-ready-ci-build' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-005-r5-mechanisation.spl",
+      "line": 226,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed-axiom-audit' in rule 'r-ready-ci-build' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-005-r5-mechanisation.spl",
+      "line": 226,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed(escrow-runtime)' in rule 'r-ready-escrow-evidence' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-021-bounded-counter.spl",
+      "line": 18,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'timeout-v1-scaffold' in rule 'r-propagate-encoding-from-scaffold-timeout-v1' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-009-erl-binding.spl",
+      "line": 180,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'stale-v1-role-types' in rule 'r-propagate-dialect-wiring-from-role-types-stale-v1' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-014-role-layer.spl",
+      "line": 182,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'timeout-v1-pipeline-proof-refactor' in rule 'r-propagate-final-build-and-axiom-audit-from-pipeline-proof-refactor-timeout-v1' appears in no rule head or fact (possible typo)",
+      "file": "lean-cbcl/review-fixes.spl",
+      "line": 418,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'upstream-blocked-gitignore-dsstore' in rule 'r-propagate-final-build-and-axiom-audit-from-gitignore-dsstore-blocked' appears in no rule head or fact (possible typo)",
+      "file": "lean-cbcl/review-fixes.spl",
+      "line": 286,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'timeout-v1-spec015-review' in rule 'r-propagate-r4v2-attestation-from-spec015-review-timeout-v1' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-015-evidence-widening.spl",
+      "line": 165,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'timeout-v1-message-recipients' in rule 'r-propagate-role-verify-from-message-recipients-timeout-v1' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-014-role-layer.spl",
+      "line": 247,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'upstream-blocked-r5-fuel-bound-tighten' in rule 'r-propagate-final-build-and-axiom-audit-from-r5-fuel-bound-tighten-blocked' appears in no rule head or fact (possible typo)",
+      "file": "lean-cbcl/review-fixes.spl",
+      "line": 437,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'timeout-v1-dialect-wiring' in rule 'r-propagate-projection-from-dialect-wiring-timeout-v1' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-014-role-layer.spl",
+      "line": 222,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'timeout-v1-bug-001' in rule 'r-propagate-verify-build-from-bug-001-timeout-v1' appears in no rule head or fact (possible typo)",
+      "file": "plans/FIX-LEAN-AUDIT.spl",
+      "line": 193,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'failed-scaffold' in rule 'r-propagate-version-obs-from-scaffold-failed' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-009-erl-binding.spl",
+      "line": 187,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'stale-v1-dialect-wiring' in rule 'r-propagate-projection-from-dialect-wiring-stale-v1' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-014-role-layer.spl",
+      "line": 221,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed-message-store' in rule 'r-ready-causal-closure' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-002-003.spl",
+      "line": 218,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed-causal-verify' in rule 'r-ready-causal-closure' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-002-003.spl",
+      "line": 218,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'failed-spec015-review' in rule 'r-propagate-equivocation-from-spec015-review-failed' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-015-evidence-widening.spl",
+      "line": 157,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed-verify-skeleton' in rule 'r-ready-r5-step-uniqueness' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-005-r5-mechanisation.spl",
+      "line": 182,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'failed-dialect-wiring' in rule 'r-propagate-projection-from-dialect-wiring-failed' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-014-role-layer.spl",
+      "line": 219,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'stale-v1-scaffold' in rule 'r-propagate-version-obs-from-scaffold-stale-v1' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-009-erl-binding.spl",
+      "line": 189,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'timeout-v1-projection' in rule 'r-propagate-role-verify-from-projection-timeout-v1' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-014-role-layer.spl",
+      "line": 289,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'timeout-v1-tests' in rule 'r-propagate-conformance-from-tests-timeout-v1' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-009-erl-binding.spl",
+      "line": 324,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'stale-v1-scaffold' in rule 'r-propagate-encoding-from-scaffold-stale-v1' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-009-erl-binding.spl",
+      "line": 179,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'permanently-failed-verify-build' in rule 'r-propagate-update-bugs-from-verify-build-permanently-failed' appears in no rule head or fact (possible typo)",
+      "file": "plans/FIX-LEAN-AUDIT.spl",
+      "line": 209,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'timeout-v1-gitignore-dsstore' in rule 'r-propagate-final-build-and-axiom-audit-from-gitignore-dsstore-timeout-v1' appears in no rule head or fact (possible typo)",
+      "file": "lean-cbcl/review-fixes.spl",
+      "line": 285,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'upstream-blocked-heartbeat-scope-detunion' in rule 'r-propagate-final-build-and-axiom-audit-from-heartbeat-scope-detunion-blocked' appears in no rule head or fact (possible typo)",
+      "file": "lean-cbcl/review-fixes.spl",
+      "line": 348,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'timeout-v1-fix-bug640' in rule 'r-propagate-dialect-hashing-from-fix-bug640-timeout-v1' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-015-evidence-widening.spl",
+      "line": 104,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed-hash-index' in rule 'r-ready-message-store' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-002-003.spl",
+      "line": 136,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed-caused-by' in rule 'r-ready-message-store' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-002-003.spl",
+      "line": 136,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'permanently-failed-property-tests' in rule 'r-propagate-docs-status-from-property-tests-permanently-failed' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-014-role-layer.spl",
+      "line": 312,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'stale-v1-spec015-review' in rule 'r-propagate-repeat-unroll-from-spec015-review-stale-v1' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-015-evidence-widening.spl",
+      "line": 169,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'stale-v1-message-recipients' in rule 'r-propagate-fuzz-from-message-recipients-stale-v1' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-014-role-layer.spl",
+      "line": 242,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed-result-lattice' in rule 'r-ready-parity-tests' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-005-r5-mechanisation.spl",
+      "line": 197,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed-store-lattice' in rule 'r-ready-parity-tests' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-005-r5-mechanisation.spl",
+      "line": 197,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed-verify-monotone' in rule 'r-ready-parity-tests' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-005-r5-mechanisation.spl",
+      "line": 197,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed-verify-fanin-meet' in rule 'r-ready-parity-tests' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-005-r5-mechanisation.spl",
+      "line": 197,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed-verify-eventual-consistency' in rule 'r-ready-parity-tests' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-005-r5-mechanisation.spl",
+      "line": 197,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed-r5-acyclicity' in rule 'r-ready-parity-tests' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-005-r5-mechanisation.spl",
+      "line": 197,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed-r5-reachability' in rule 'r-ready-parity-tests' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-005-r5-mechanisation.spl",
+      "line": 197,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed-r5-perf-definedness' in rule 'r-ready-parity-tests' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-005-r5-mechanisation.spl",
+      "line": 197,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed-r5-step-uniqueness' in rule 'r-ready-parity-tests' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-005-r5-mechanisation.spl",
+      "line": 197,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed-dcfl-preservation' in rule 'r-ready-parity-tests' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-005-r5-mechanisation.spl",
+      "line": 197,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'failed-r5-fuel-bound-tighten' in rule 'r-propagate-final-build-and-axiom-audit-from-r5-fuel-bound-tighten-failed' appears in no rule head or fact (possible typo)",
+      "file": "lean-cbcl/review-fixes.spl",
+      "line": 433,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'failed-gitignore-dsstore' in rule 'r-propagate-final-build-and-axiom-audit-from-gitignore-dsstore-failed' appears in no rule head or fact (possible typo)",
+      "file": "lean-cbcl/review-fixes.spl",
+      "line": 282,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'permanently-failed-spec015-review' in rule 'r-propagate-r4v2-attestation-from-spec015-review-permanently-failed' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-015-evidence-widening.spl",
+      "line": 163,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'stale-v1-verify-build' in rule 'r-propagate-update-bugs-from-verify-build-stale-v1' appears in no rule head or fact (possible typo)",
+      "file": "plans/FIX-LEAN-AUDIT.spl",
+      "line": 210,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'upstream-blocked-bug-002' in rule 'r-propagate-bug-003-from-bug-002-blocked' appears in no rule head or fact (possible typo)",
+      "file": "plans/FIX-LEAN-AUDIT.spl",
+      "line": 150,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'stale-v1-heartbeat-scope-serializer' in rule 'r-propagate-final-build-and-axiom-audit-from-heartbeat-scope-serializer-stale-v1' appears in no rule head or fact (possible typo)",
+      "file": "lean-cbcl/review-fixes.spl",
+      "line": 328,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'failed-req315-gate' in rule 'r-propagate-dialect-hashing-from-req315-gate-failed' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-015-evidence-widening.spl",
+      "line": 118,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'timeout-v1-verify-build' in rule 'r-propagate-update-bugs-from-verify-build-timeout-v1' appears in no rule head or fact (possible typo)",
+      "file": "plans/FIX-LEAN-AUDIT.spl",
+      "line": 211,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'upstream-blocked-scaffold' in rule 'r-propagate-verify-dialect-from-scaffold-blocked' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-009-erl-binding.spl",
+      "line": 186,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'gate-green(cli-checkpoint)' in rule 'r-complete-cli-checkpoint' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-035-state-checkpoints.spl",
+      "line": 90,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'evidence-recorded(cli-checkpoint)' in rule 'r-complete-cli-checkpoint' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-035-state-checkpoints.spl",
+      "line": 90,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'upstream-blocked-spec015-review' in rule 'r-propagate-repeat-unroll-from-spec015-review-blocked' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-015-evidence-widening.spl",
+      "line": 171,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'timeout-v1-migrate-hash' in rule 'r-propagate-migrate-store-from-migrate-hash-timeout-v1' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-017-typed-content-addresses.spl",
+      "line": 101,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'stale-v1-parse-msg-lax' in rule 'r-propagate-panic-guard-from-parse-msg-lax-stale-v1' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-009-erl-binding.spl",
+      "line": 285,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'upstream-blocked-heartbeat-scope-serializer' in rule 'r-propagate-final-build-and-axiom-audit-from-heartbeat-scope-serializer-blocked' appears in no rule head or fact (possible typo)",
+      "file": "lean-cbcl/review-fixes.spl",
+      "line": 330,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'stale-v1-fix-bug640' in rule 'r-propagate-dialect-hashing-from-fix-bug640-stale-v1' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-015-evidence-widening.spl",
+      "line": 103,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'stale-v1-spec015-review' in rule 'r-propagate-equivocation-from-spec015-review-stale-v1' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-015-evidence-widening.spl",
+      "line": 159,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'failed-bug-002' in rule 'r-propagate-bug-003-from-bug-002-failed' appears in no rule head or fact (possible typo)",
+      "file": "plans/FIX-LEAN-AUDIT.spl",
+      "line": 146,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'upstream-blocked-partial-to-total-dialectparser' in rule 'r-propagate-final-build-and-axiom-audit-from-partial-to-total-dialectparser-blocked' appears in no rule head or fact (possible typo)",
+      "file": "lean-cbcl/review-fixes.spl",
+      "line": 383,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'permanently-failed-archive-proof-gaps' in rule 'r-propagate-final-build-and-axiom-audit-from-archive-proof-gaps-permanently-failed' appears in no rule head or fact (possible typo)",
+      "file": "lean-cbcl/review-fixes.spl",
+      "line": 265,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'failed-pipeline-proof-refactor' in rule 'r-propagate-final-build-and-axiom-audit-from-pipeline-proof-refactor-failed' appears in no rule head or fact (possible typo)",
+      "file": "lean-cbcl/review-fixes.spl",
+      "line": 415,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'failed-fix-bug640' in rule 'r-propagate-dialect-hashing-from-fix-bug640-failed' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-015-evidence-widening.spl",
+      "line": 101,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'stale-v1-bug-002' in rule 'r-propagate-verify-build-from-bug-002-stale-v1' appears in no rule head or fact (possible typo)",
+      "file": "plans/FIX-LEAN-AUDIT.spl",
+      "line": 153,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'gate-green(workspace-gates)' in rule 'r-complete-workspace-gates' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-035-state-checkpoints.spl",
+      "line": 80,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'evidence-recorded(workspace-gates)' in rule 'r-complete-workspace-gates' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-035-state-checkpoints.spl",
+      "line": 80,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'upstream-blocked-scaffold' in rule 'r-propagate-encoding-from-scaffold-blocked' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-009-erl-binding.spl",
+      "line": 181,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'timeout-v1-archive-proof-gaps' in rule 'r-propagate-final-build-and-axiom-audit-from-archive-proof-gaps-timeout-v1' appears in no rule head or fact (possible typo)",
+      "file": "lean-cbcl/review-fixes.spl",
+      "line": 267,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed-message-store' in rule 'r-ready-compaction' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-002-003.spl",
+      "line": 238,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed-unknown-policy' in rule 'r-ready-compaction' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-002-003.spl",
+      "line": 238,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'gate-green(package-grammar)' in rule 'r-complete-package-grammar' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-035-state-checkpoints.spl",
+      "line": 88,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'evidence-recorded(package-grammar)' in rule 'r-complete-package-grammar' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-035-state-checkpoints.spl",
+      "line": 88,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'failed-bug-003' in rule 'r-propagate-verify-build-from-bug-003-failed' appears in no rule head or fact (possible typo)",
+      "file": "plans/FIX-LEAN-AUDIT.spl",
+      "line": 173,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'failed-panic-guard' in rule 'r-propagate-tests-from-panic-guard-failed' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-009-erl-binding.spl",
+      "line": 304,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'permanently-failed-verify-dialect' in rule 'r-propagate-panic-guard-from-verify-dialect-permanently-failed' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-009-erl-binding.spl",
+      "line": 233,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed(recursive)' in rule 'r-ready-installation' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-018-dcfl-installation.spl",
+      "line": 17,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'permanently-failed-pipeline-proof-refactor' in rule 'r-propagate-final-build-and-axiom-audit-from-pipeline-proof-refactor-permanently-failed' appears in no rule head or fact (possible typo)",
+      "file": "lean-cbcl/review-fixes.spl",
+      "line": 416,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'stale-v1-r5-fuel-bound-tighten' in rule 'r-propagate-final-build-and-axiom-audit-from-r5-fuel-bound-tighten-stale-v1' appears in no rule head or fact (possible typo)",
+      "file": "lean-cbcl/review-fixes.spl",
+      "line": 435,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed(refinement-checks)' in rule 'r-ready-refinement-review' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-020-state-refinement.spl",
+      "line": 20,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'permanently-failed-r6-checker' in rule 'r-propagate-role-verify-from-r6-checker-permanently-failed' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-014-role-layer.spl",
+      "line": 266,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'failed-dialect-wiring' in rule 'r-propagate-r6-checker-from-dialect-wiring-failed' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-014-role-layer.spl",
+      "line": 223,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'permanently-failed-r6-checker' in rule 'r-propagate-r6-instantiated-from-r6-checker-permanently-failed' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-014-role-layer.spl",
+      "line": 262,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'timeout-v1-encoding' in rule 'r-propagate-parse-msg-lax-from-encoding-timeout-v1' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-009-erl-binding.spl",
+      "line": 222,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'stale-v1-dialect-hashing' in rule 'r-propagate-req628-pin-from-dialect-hashing-stale-v1' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-015-evidence-widening.spl",
+      "line": 146,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'permanently-failed-parse-msg-lax' in rule 'r-propagate-panic-guard-from-parse-msg-lax-permanently-failed' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-009-erl-binding.spl",
+      "line": 284,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'permanently-failed-r5-fuel-bound-tighten' in rule 'r-propagate-final-build-and-axiom-audit-from-r5-fuel-bound-tighten-permanently-failed' appears in no rule head or fact (possible typo)",
+      "file": "lean-cbcl/review-fixes.spl",
+      "line": 434,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed(refinement-proof)' in rule 'r-ready-refinement-checks' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-020-state-refinement.spl",
+      "line": 15,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'failed-heartbeat-scope-serializer' in rule 'r-propagate-final-build-and-axiom-audit-from-heartbeat-scope-serializer-failed' appears in no rule head or fact (possible typo)",
+      "file": "lean-cbcl/review-fixes.spl",
+      "line": 326,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed-unknown-policy' in rule 'r-ready-pipeline' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-002-003.spl",
+      "line": 194,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed-blame' in rule 'r-ready-pipeline' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-002-003.spl",
+      "line": 194,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed-protocol-validation' in rule 'r-ready-pipeline' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-002-003.spl",
+      "line": 194,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed-shape-validation' in rule 'r-ready-pipeline' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-002-003.spl",
+      "line": 194,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'stale-v1-spec015-review' in rule 'r-propagate-r4v2-attestation-from-spec015-review-stale-v1' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-015-evidence-widening.spl",
+      "line": 164,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'failed-message-recipients' in rule 'r-propagate-fuzz-from-message-recipients-failed' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-014-role-layer.spl",
+      "line": 240,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'permanently-failed-bug-002' in rule 'r-propagate-verify-build-from-bug-002-permanently-failed' appears in no rule head or fact (possible typo)",
+      "file": "plans/FIX-LEAN-AUDIT.spl",
+      "line": 152,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'timeout-v1-role-types' in rule 'r-propagate-message-recipients-from-role-types-timeout-v1' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-014-role-layer.spl",
+      "line": 188,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'stale-v1-dialect-wiring' in rule 'r-propagate-r6-checker-from-dialect-wiring-stale-v1' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-014-role-layer.spl",
+      "line": 225,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'gate-green(status-implemented)' in rule 'r-complete-status-implemented' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-035-state-checkpoints.spl",
+      "line": 96,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'evidence-recorded(status-implemented)' in rule 'r-complete-status-implemented' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-035-state-checkpoints.spl",
+      "line": 96,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'upstream-blocked-role-types' in rule 'r-propagate-dialect-wiring-from-role-types-blocked' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-014-role-layer.spl",
+      "line": 184,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed-shape' in rule 'r-ready-shape-check' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-002-003.spl",
+      "line": 160,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'stale-v1-panic-guard' in rule 'r-propagate-tests-from-panic-guard-stale-v1' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-009-erl-binding.spl",
+      "line": 306,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'failed-parse-msg-lax' in rule 'r-propagate-panic-guard-from-parse-msg-lax-failed' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-009-erl-binding.spl",
+      "line": 283,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'failed-spec015-review' in rule 'r-propagate-repeat-unroll-from-spec015-review-failed' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-015-evidence-widening.spl",
+      "line": 167,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'permanently-failed-scaffold' in rule 'r-propagate-encoding-from-scaffold-permanently-failed' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-009-erl-binding.spl",
+      "line": 178,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'failed-projection' in rule 'r-propagate-role-verify-from-projection-failed' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-014-role-layer.spl",
+      "line": 286,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'upstream-blocked-req315-gate' in rule 'r-propagate-dialect-hashing-from-req315-gate-blocked' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-015-evidence-widening.spl",
+      "line": 122,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'failed-role-types' in rule 'r-propagate-dialect-wiring-from-role-types-failed' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-014-role-layer.spl",
+      "line": 180,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'stale-v1-heartbeat-scope-detparser' in rule 'r-propagate-final-build-and-axiom-audit-from-heartbeat-scope-detparser-stale-v1' appears in no rule head or fact (possible typo)",
+      "file": "lean-cbcl/review-fixes.spl",
+      "line": 364,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed-causal-verify' in rule 'r-ready-monotonicity-tests' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-002-003.spl",
+      "line": 262,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed-message-store' in rule 'r-ready-monotonicity-tests' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-002-003.spl",
+      "line": 262,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed-verify-skeleton' in rule 'r-ready-verify-monotone' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-005-r5-mechanisation.spl",
+      "line": 155,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'upstream-blocked-migrate-hash' in rule 'r-propagate-migrate-store-from-migrate-hash-blocked' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-017-typed-content-addresses.spl",
+      "line": 102,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'permanently-failed-role-types' in rule 'r-propagate-message-recipients-from-role-types-permanently-failed' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-014-role-layer.spl",
+      "line": 186,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed(installation)' in rule 'r-ready-review' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-018-dcfl-installation.spl",
+      "line": 27,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed(lexical)' in rule 'r-ready-review' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-018-dcfl-installation.spl",
+      "line": 27,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'stale-v1-property-tests' in rule 'r-propagate-docs-status-from-property-tests-stale-v1' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-014-role-layer.spl",
+      "line": 313,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'timeout-v1-simp-literal-cleanup' in rule 'r-propagate-final-build-and-axiom-audit-from-simp-literal-cleanup-timeout-v1' appears in no rule head or fact (possible typo)",
+      "file": "lean-cbcl/review-fixes.spl",
+      "line": 303,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'timeout-v1-panic-guard' in rule 'r-propagate-tests-from-panic-guard-timeout-v1' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-009-erl-binding.spl",
+      "line": 307,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'timeout-v1-parse-msg-lax' in rule 'r-propagate-panic-guard-from-parse-msg-lax-timeout-v1' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-009-erl-binding.spl",
+      "line": 286,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'stale-v1-message-recipients' in rule 'r-propagate-role-verify-from-message-recipients-stale-v1' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-014-role-layer.spl",
+      "line": 246,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'timeout-v1-r6-checker' in rule 'r-propagate-r6-instantiated-from-r6-checker-timeout-v1' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-014-role-layer.spl",
+      "line": 264,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'stale-v1-r6-checker' in rule 'r-propagate-role-verify-from-r6-checker-stale-v1' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-014-role-layer.spl",
+      "line": 267,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'permanently-failed-axiomaudit-instnonempty-check' in rule 'r-propagate-final-build-and-axiom-audit-from-axiomaudit-instnonempty-check-permanently-failed' appears in no rule head or fact (possible typo)",
+      "file": "lean-cbcl/review-fixes.spl",
+      "line": 398,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'stale-v1-migrate-hash' in rule 'r-propagate-migrate-store-from-migrate-hash-stale-v1' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-017-typed-content-addresses.spl",
+      "line": 100,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'timeout-v1-parse-msg' in rule 'r-propagate-panic-guard-from-parse-msg-timeout-v1' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-009-erl-binding.spl",
+      "line": 273,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'permanently-failed-fix-bug640' in rule 'r-propagate-dialect-hashing-from-fix-bug640-permanently-failed' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-015-evidence-widening.spl",
+      "line": 102,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'failed-parse-msg' in rule 'r-propagate-panic-guard-from-parse-msg-failed' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-009-erl-binding.spl",
+      "line": 270,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'timeout-v1-scaffold' in rule 'r-propagate-verify-dialect-from-scaffold-timeout-v1' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-009-erl-binding.spl",
+      "line": 185,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'stale-v1-encoding' in rule 'r-propagate-parse-msg-from-encoding-stale-v1' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-009-erl-binding.spl",
+      "line": 217,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed(machine)' in rule 'r-ready-recursive' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-018-dcfl-installation.spl",
+      "line": 12,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed-protocol-parser' in rule 'r-ready-protocol-validation' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-002-003.spl",
+      "line": 112,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'timeout-v1-version-obs' in rule 'r-propagate-tests-from-version-obs-timeout-v1' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-009-erl-binding.spl",
+      "line": 248,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'failed-migrate-hash' in rule 'r-propagate-migrate-store-from-migrate-hash-failed' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-017-typed-content-addresses.spl",
+      "line": 98,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'timeout-v1-message-recipients' in rule 'r-propagate-fuzz-from-message-recipients-timeout-v1' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-014-role-layer.spl",
+      "line": 243,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed(issue18-core)' in rule 'r-ready-issue18-review' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-019-signer-register.spl",
+      "line": 25,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed(issue18-surfaces)' in rule 'r-ready-issue18-review' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-019-signer-register.spl",
+      "line": 25,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed(issue18-lean)' in rule 'r-ready-issue18-review' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-019-signer-register.spl",
+      "line": 25,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'permanently-failed-partial-to-total-dialectparser' in rule 'r-propagate-final-build-and-axiom-audit-from-partial-to-total-dialectparser-permanently-failed' appears in no rule head or fact (possible typo)",
+      "file": "lean-cbcl/review-fixes.spl",
+      "line": 380,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed-r4v2-attestation' in rule 'r-ready-envelopes' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-015-evidence-widening.spl",
+      "line": 69,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed-migrate-hash' in rule 'r-ready-migrate-store' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-017-typed-content-addresses.spl",
+      "line": 53,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed-pipeline' in rule 'r-ready-benchmarks' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-002-003.spl",
+      "line": 292,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'gate-green(independent-review)' in rule 'r-complete-independent-review' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-035-state-checkpoints.spl",
+      "line": 94,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'evidence-recorded(independent-review)' in rule 'r-complete-independent-review' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-035-state-checkpoints.spl",
+      "line": 94,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'upstream-blocked-bug-002' in rule 'r-propagate-verify-build-from-bug-002-blocked' appears in no rule head or fact (possible typo)",
+      "file": "plans/FIX-LEAN-AUDIT.spl",
+      "line": 155,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed-unknown-policy' in rule 'r-ready-eventual-tests' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-002-003.spl",
+      "line": 272,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed-message-store' in rule 'r-ready-eventual-tests' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-002-003.spl",
+      "line": 272,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'stale-v1-r6-checker' in rule 'r-propagate-r6-instantiated-from-r6-checker-stale-v1' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-014-role-layer.spl",
+      "line": 263,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'permanently-failed-parse-msg' in rule 'r-propagate-panic-guard-from-parse-msg-permanently-failed' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-009-erl-binding.spl",
+      "line": 271,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'failed-version-obs' in rule 'r-propagate-tests-from-version-obs-failed' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-009-erl-binding.spl",
+      "line": 245,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'gate-green(chain)' in rule 'r-complete-chain' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-035-state-checkpoints.spl",
+      "line": 84,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'evidence-recorded(chain)' in rule 'r-complete-chain' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-035-state-checkpoints.spl",
+      "line": 84,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'failed-r6-checker' in rule 'r-propagate-r6-instantiated-from-r6-checker-failed' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-014-role-layer.spl",
+      "line": 261,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'permanently-failed-heartbeat-scope-detparser' in rule 'r-propagate-final-build-and-axiom-audit-from-heartbeat-scope-detparser-permanently-failed' appears in no rule head or fact (possible typo)",
+      "file": "lean-cbcl/review-fixes.spl",
+      "line": 363,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed(recursive)' in rule 'r-ready-lexical' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-018-dcfl-installation.spl",
+      "line": 22,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed-protocol-types' in rule 'r-ready-verification-result' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-002-003.spl",
+      "line": 82,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'stale-v1-axiomaudit-instnonempty-check' in rule 'r-propagate-final-build-and-axiom-audit-from-axiomaudit-instnonempty-check-stale-v1' appears in no rule head or fact (possible typo)",
+      "file": "lean-cbcl/review-fixes.spl",
+      "line": 399,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'failed-heartbeat-scope-detparser' in rule 'r-propagate-final-build-and-axiom-audit-from-heartbeat-scope-detparser-failed' appears in no rule head or fact (possible typo)",
+      "file": "lean-cbcl/review-fixes.spl",
+      "line": 362,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'upstream-blocked-scaffold' in rule 'r-propagate-version-obs-from-scaffold-blocked' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-009-erl-binding.spl",
+      "line": 191,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'gate-green(semantics-pin)' in rule 'r-complete-semantics-pin' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-035-state-checkpoints.spl",
+      "line": 82,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'evidence-recorded(semantics-pin)' in rule 'r-complete-semantics-pin' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-035-state-checkpoints.spl",
+      "line": 82,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'permanently-failed-role-types' in rule 'r-propagate-dialect-wiring-from-role-types-permanently-failed' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-014-role-layer.spl",
+      "line": 181,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed-verification-result' in rule 'r-ready-causal-verify' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-002-003.spl",
+      "line": 150,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed-protocol-types' in rule 'r-ready-causal-verify' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-002-003.spl",
+      "line": 150,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed-message-store' in rule 'r-ready-causal-verify' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-002-003.spl",
+      "line": 150,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'failed-archive-proof-gaps' in rule 'r-propagate-final-build-and-axiom-audit-from-archive-proof-gaps-failed' appears in no rule head or fact (possible typo)",
+      "file": "lean-cbcl/review-fixes.spl",
+      "line": 264,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'failed-role-types' in rule 'r-propagate-message-recipients-from-role-types-failed' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-014-role-layer.spl",
+      "line": 185,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed-verify-skeleton' in rule 'r-ready-r5-perf-definedness' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-005-r5-mechanisation.spl",
+      "line": 178,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'permanently-failed-scaffold' in rule 'r-propagate-verify-dialect-from-scaffold-permanently-failed' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-009-erl-binding.spl",
+      "line": 183,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'permanently-failed-simp-literal-cleanup' in rule 'r-propagate-final-build-and-axiom-audit-from-simp-literal-cleanup-permanently-failed' appears in no rule head or fact (possible typo)",
+      "file": "lean-cbcl/review-fixes.spl",
+      "line": 301,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'permanently-failed-tests' in rule 'r-propagate-conformance-from-tests-permanently-failed' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-009-erl-binding.spl",
+      "line": 322,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'stale-v1-projection' in rule 'r-propagate-role-verify-from-projection-stale-v1' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-014-role-layer.spl",
+      "line": 288,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'timeout-v1-spec015-review' in rule 'r-propagate-equivocation-from-spec015-review-timeout-v1' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-015-evidence-widening.spl",
+      "line": 160,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'permanently-failed-bug-002' in rule 'r-propagate-bug-003-from-bug-002-permanently-failed' appears in no rule head or fact (possible typo)",
+      "file": "plans/FIX-LEAN-AUDIT.spl",
+      "line": 147,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed(escrow-grammar)' in rule 'r-ready-escrow-runtime' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-021-bounded-counter.spl",
+      "line": 13,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'permanently-failed-heartbeat-scope-detunion' in rule 'r-propagate-final-build-and-axiom-audit-from-heartbeat-scope-detunion-permanently-failed' appears in no rule head or fact (possible typo)",
+      "file": "lean-cbcl/review-fixes.spl",
+      "line": 345,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'stale-v1-pipeline-proof-refactor' in rule 'r-propagate-final-build-and-axiom-audit-from-pipeline-proof-refactor-stale-v1' appears in no rule head or fact (possible typo)",
+      "file": "lean-cbcl/review-fixes.spl",
+      "line": 417,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed-shape' in rule 'r-ready-shape-validation' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-002-003.spl",
+      "line": 122,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'timeout-v1-bug-003' in rule 'r-propagate-verify-build-from-bug-003-timeout-v1' appears in no rule head or fact (possible typo)",
+      "file": "plans/FIX-LEAN-AUDIT.spl",
+      "line": 176,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'failed-simp-literal-cleanup' in rule 'r-propagate-final-build-and-axiom-audit-from-simp-literal-cleanup-failed' appears in no rule head or fact (possible typo)",
+      "file": "lean-cbcl/review-fixes.spl",
+      "line": 300,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed(issue18-core)' in rule 'r-issue18-complete' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-019-signer-register.spl",
+      "line": 27,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed(issue18-surfaces)' in rule 'r-issue18-complete' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-019-signer-register.spl",
+      "line": 27,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed(issue18-lean)' in rule 'r-issue18-complete' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-019-signer-register.spl",
+      "line": 27,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed(issue18-review)' in rule 'r-issue18-complete' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-019-signer-register.spl",
+      "line": 27,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed-protocol-types' in rule 'r-ready-protocol-parser' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-002-003.spl",
+      "line": 98,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'gate-green(attested-candidates)' in rule 'r-complete-attested-candidates' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-035-state-checkpoints.spl",
+      "line": 86,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'evidence-recorded(attested-candidates)' in rule 'r-complete-attested-candidates' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-035-state-checkpoints.spl",
+      "line": 86,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'permanently-failed-message-recipients' in rule 'r-propagate-role-verify-from-message-recipients-permanently-failed' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-014-role-layer.spl",
+      "line": 245,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'stale-v1-tests' in rule 'r-propagate-conformance-from-tests-stale-v1' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-009-erl-binding.spl",
+      "line": 323,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'permanently-failed-encoding' in rule 'r-propagate-parse-msg-lax-from-encoding-permanently-failed' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-009-erl-binding.spl",
+      "line": 220,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'permanently-failed-dialect-wiring' in rule 'r-propagate-projection-from-dialect-wiring-permanently-failed' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-014-role-layer.spl",
+      "line": 220,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed-migrate-store' in rule 'r-ready-lean' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-017-typed-content-addresses.spl",
+      "line": 55,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'timeout-v1-r5-fuel-bound-tighten' in rule 'r-propagate-final-build-and-axiom-audit-from-r5-fuel-bound-tighten-timeout-v1' appears in no rule head or fact (possible typo)",
+      "file": "lean-cbcl/review-fixes.spl",
+      "line": 436,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'gate-green(review-repairs)' in rule 'r-complete-review-repairs' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-035-state-checkpoints.spl",
+      "line": 62,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'evidence-recorded(review-repairs)' in rule 'r-complete-review-repairs' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-035-state-checkpoints.spl",
+      "line": 62,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'permanently-failed-panic-guard' in rule 'r-propagate-tests-from-panic-guard-permanently-failed' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-009-erl-binding.spl",
+      "line": 305,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed-envelopes' in rule 'r-ready-derive-routing' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-015-evidence-widening.spl",
+      "line": 72,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed(escrow-runtime)' in rule 'r-ready-escrow-host-crash' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-021-bounded-counter.spl",
+      "line": 30,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'failed-verify-dialect' in rule 'r-propagate-panic-guard-from-verify-dialect-failed' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-009-erl-binding.spl",
+      "line": 232,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'permanently-failed-dialect-hashing' in rule 'r-propagate-req628-pin-from-dialect-hashing-permanently-failed' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-015-evidence-widening.spl",
+      "line": 145,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'timeout-v1-partial-to-total-dialectparser' in rule 'r-propagate-final-build-and-axiom-audit-from-partial-to-total-dialectparser-timeout-v1' appears in no rule head or fact (possible typo)",
+      "file": "lean-cbcl/review-fixes.spl",
+      "line": 382,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'stale-v1-gitignore-dsstore' in rule 'r-propagate-final-build-and-axiom-audit-from-gitignore-dsstore-stale-v1' appears in no rule head or fact (possible typo)",
+      "file": "lean-cbcl/review-fixes.spl",
+      "line": 284,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'permanently-failed-encoding' in rule 'r-propagate-parse-msg-from-encoding-permanently-failed' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-009-erl-binding.spl",
+      "line": 216,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed-causal-closure' in rule 'r-ready-reconciliation' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-002-003.spl",
+      "line": 228,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'timeout-v1-r6-checker' in rule 'r-propagate-role-verify-from-r6-checker-timeout-v1' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-014-role-layer.spl",
+      "line": 268,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'stale-v1-simp-literal-cleanup' in rule 'r-propagate-final-build-and-axiom-audit-from-simp-literal-cleanup-stale-v1' appears in no rule head or fact (possible typo)",
+      "file": "lean-cbcl/review-fixes.spl",
+      "line": 302,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'stale-v1-parse-msg' in rule 'r-propagate-panic-guard-from-parse-msg-stale-v1' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-009-erl-binding.spl",
+      "line": 272,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed-causal-verify' in rule 'r-ready-blame' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-002-003.spl",
+      "line": 184,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed-shape-check' in rule 'r-ready-blame' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-002-003.spl",
+      "line": 184,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'timeout-v1-heartbeat-scope-detparser' in rule 'r-propagate-final-build-and-axiom-audit-from-heartbeat-scope-detparser-timeout-v1' appears in no rule head or fact (possible typo)",
+      "file": "lean-cbcl/review-fixes.spl",
+      "line": 365,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed-blame' in rule 'r-ready-observability' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-002-003.spl",
+      "line": 204,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'permanently-failed-heartbeat-scope-serializer' in rule 'r-propagate-final-build-and-axiom-audit-from-heartbeat-scope-serializer-permanently-failed' appears in no rule head or fact (possible typo)",
+      "file": "lean-cbcl/review-fixes.spl",
+      "line": 327,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'upstream-blocked-simp-literal-cleanup' in rule 'r-propagate-final-build-and-axiom-audit-from-simp-literal-cleanup-blocked' appears in no rule head or fact (possible typo)",
+      "file": "lean-cbcl/review-fixes.spl",
+      "line": 304,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'failed-heartbeat-scope-detunion' in rule 'r-propagate-final-build-and-axiom-audit-from-heartbeat-scope-detunion-failed' appears in no rule head or fact (possible typo)",
+      "file": "lean-cbcl/review-fixes.spl",
+      "line": 344,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed-migrate-store' in rule 'r-ready-subsume-envelope' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-017-typed-content-addresses.spl",
+      "line": 54,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'failed-partial-to-total-dialectparser' in rule 'r-propagate-final-build-and-axiom-audit-from-partial-to-total-dialectparser-failed' appears in no rule head or fact (possible typo)",
+      "file": "lean-cbcl/review-fixes.spl",
+      "line": 379,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed-mathlib-setup' in rule 'r-ready-store-lattice' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-005-r5-mechanisation.spl",
+      "line": 145,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'permanently-failed-scaffold' in rule 'r-propagate-version-obs-from-scaffold-permanently-failed' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-009-erl-binding.spl",
+      "line": 188,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'permanently-failed-message-recipients' in rule 'r-propagate-fuzz-from-message-recipients-permanently-failed' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-014-role-layer.spl",
+      "line": 241,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed-mathlib-setup' in rule 'r-ready-dcfl-preservation' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-005-r5-mechanisation.spl",
+      "line": 187,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'stale-v1-archive-proof-gaps' in rule 'r-propagate-final-build-and-axiom-audit-from-archive-proof-gaps-stale-v1' appears in no rule head or fact (possible typo)",
+      "file": "lean-cbcl/review-fixes.spl",
+      "line": 266,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed-verified-by-init' in rule 'r-ready-verified-by-final' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-005-r5-mechanisation.spl",
+      "line": 231,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed-ci-build' in rule 'r-ready-verified-by-final' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-005-r5-mechanisation.spl",
+      "line": 231,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'failed-property-tests' in rule 'r-propagate-docs-status-from-property-tests-failed' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-014-role-layer.spl",
+      "line": 311,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'permanently-failed-migrate-hash' in rule 'r-propagate-migrate-store-from-migrate-hash-permanently-failed' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-017-typed-content-addresses.spl",
+      "line": 99,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed-verify-monotone' in rule 'r-ready-verify-eventual-consistency' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-005-r5-mechanisation.spl",
+      "line": 163,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed-verify-fanin-meet' in rule 'r-ready-verify-eventual-consistency' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-005-r5-mechanisation.spl",
+      "line": 163,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'timeout-v1-bug-002' in rule 'r-propagate-bug-003-from-bug-002-timeout-v1' appears in no rule head or fact (possible typo)",
+      "file": "plans/FIX-LEAN-AUDIT.spl",
+      "line": 149,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'permanently-failed-bug-001' in rule 'r-propagate-verify-build-from-bug-001-permanently-failed' appears in no rule head or fact (possible typo)",
+      "file": "plans/FIX-LEAN-AUDIT.spl",
+      "line": 191,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'gate-green(spec-review)' in rule 'r-complete-spec-review' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-035-state-checkpoints.spl",
+      "line": 78,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'evidence-recorded(spec-review)' in rule 'r-complete-spec-review' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-035-state-checkpoints.spl",
+      "line": 78,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'timeout-v1-spec015-review' in rule 'r-propagate-repeat-unroll-from-spec015-review-timeout-v1' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-015-evidence-widening.spl",
+      "line": 170,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed(escrow-runtime)' in rule 'r-ready-escrow-merge-proof' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-021-bounded-counter.spl",
+      "line": 25,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'failed-scaffold' in rule 'r-propagate-verify-dialect-from-scaffold-failed' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-009-erl-binding.spl",
+      "line": 182,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'upstream-blocked-role-types' in rule 'r-propagate-message-recipients-from-role-types-blocked' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-014-role-layer.spl",
+      "line": 189,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'upstream-blocked-axiomaudit-instnonempty-check' in rule 'r-propagate-final-build-and-axiom-audit-from-axiomaudit-instnonempty-check-blocked' appears in no rule head or fact (possible typo)",
+      "file": "lean-cbcl/review-fixes.spl",
+      "line": 401,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'timeout-v1-encoding' in rule 'r-propagate-parse-msg-from-encoding-timeout-v1' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-009-erl-binding.spl",
+      "line": 218,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed-causal-verify' in rule 'r-ready-unknown-policy' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-002-003.spl",
+      "line": 174,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'timeout-v1-heartbeat-scope-serializer' in rule 'r-propagate-final-build-and-axiom-audit-from-heartbeat-scope-serializer-timeout-v1' appears in no rule head or fact (possible typo)",
+      "file": "lean-cbcl/review-fixes.spl",
+      "line": 329,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed-subsume-envelope' in rule 'r-ready-paper' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-017-typed-content-addresses.spl",
+      "line": 56,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed-lean' in rule 'r-ready-paper' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-017-typed-content-addresses.spl",
+      "line": 56,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'upstream-blocked-spec015-review' in rule 'r-propagate-equivocation-from-spec015-review-blocked' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-015-evidence-widening.spl",
+      "line": 161,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'timeout-v1-req315-gate' in rule 'r-propagate-dialect-hashing-from-req315-gate-timeout-v1' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-015-evidence-widening.spl",
+      "line": 121,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'failed-bug-001' in rule 'r-propagate-verify-build-from-bug-001-failed' appears in no rule head or fact (possible typo)",
+      "file": "plans/FIX-LEAN-AUDIT.spl",
+      "line": 190,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed-verify-skeleton' in rule 'r-ready-r5-reachability' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-005-r5-mechanisation.spl",
+      "line": 174,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'timeout-v1-scaffold' in rule 'r-propagate-version-obs-from-scaffold-timeout-v1' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-009-erl-binding.spl",
+      "line": 190,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'permanently-failed-projection' in rule 'r-propagate-role-verify-from-projection-permanently-failed' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-014-role-layer.spl",
+      "line": 287,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed-mathlib-setup' in rule 'r-ready-result-lattice' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-005-r5-mechanisation.spl",
+      "line": 141,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'upstream-blocked-spec015-review' in rule 'r-propagate-r4v2-attestation-from-spec015-review-blocked' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-015-evidence-widening.spl",
+      "line": 166,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'stale-v1-partial-to-total-dialectparser' in rule 'r-propagate-final-build-and-axiom-audit-from-partial-to-total-dialectparser-stale-v1' appears in no rule head or fact (possible typo)",
+      "file": "lean-cbcl/review-fixes.spl",
+      "line": 381,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'stale-v1-scaffold' in rule 'r-propagate-verify-dialect-from-scaffold-stale-v1' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-009-erl-binding.spl",
+      "line": 184,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'failed-encoding' in rule 'r-propagate-parse-msg-lax-from-encoding-failed' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-009-erl-binding.spl",
+      "line": 219,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'permanently-failed-dialect-wiring' in rule 'r-propagate-r6-checker-from-dialect-wiring-permanently-failed' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-014-role-layer.spl",
+      "line": 224,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'stale-v1-role-types' in rule 'r-propagate-message-recipients-from-role-types-stale-v1' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-014-role-layer.spl",
+      "line": 187,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'timeout-v1-heartbeat-scope-detunion' in rule 'r-propagate-final-build-and-axiom-audit-from-heartbeat-scope-detunion-timeout-v1' appears in no rule head or fact (possible typo)",
+      "file": "lean-cbcl/review-fixes.spl",
+      "line": 347,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'failed-spec015-review' in rule 'r-propagate-r4v2-attestation-from-spec015-review-failed' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-015-evidence-widening.spl",
+      "line": 162,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'failed-tests' in rule 'r-propagate-conformance-from-tests-failed' appears in no rule head or fact (possible typo)",
+      "file": "plans/SPEC-009-erl-binding.spl",
+      "line": 321,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'permanently-failed-bug-003' in rule 'r-propagate-verify-build-from-bug-003-permanently-failed' appears in no rule head or fact (possible typo)",
+      "file": "plans/FIX-LEAN-AUDIT.spl",
+      "line": 174,
+      "column": 0
+    },
+    {
+      "level": "Warning",
+      "message": "Body literal 'completed-lean-defs' in rule 'r-ready-lean-soundness' appears in no rule head or fact (possible typo)",
+      "file": "plans/IMPL-016-splicing.spl",
+      "line": 49,
+      "column": 0
+    }
+  ],
+  "drift_diagnostics": [],
+  "predicate_lints": [],
+  "summary": {
+    "dead_links": 23,
+    "orphans": 37,
+    "syntax_errors": 0,
+    "spl_errors": 0,
+    "drift_warnings": 0,
+    "drift_info": 0,
+    "total_spl_blocks": 14,
+    "drifted_blocks_warning": 0,
+    "drifted_blocks_info": 0,
+    "explicitly_grounded_facts": 0,
+    "broken_groundings": 0,
+    "predicate_errors": 0,
+    "predicate_warnings": 0
+  }
+}
