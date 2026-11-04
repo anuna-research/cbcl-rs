@@ -9,6 +9,9 @@ use cbcl_core::{r1, r2, r3, r5};
 use cbcl_parser::{parse, parse_dialect, run_pipeline, PipelineResult};
 use clap::{Parser, Subcommand};
 
+#[cfg(feature = "state-proof")]
+mod checkpoint;
+
 #[derive(Parser)]
 #[command(name = "cbcl", about = "CBCL communication language toolkit")]
 struct Cli {
@@ -57,6 +60,9 @@ enum Command {
         #[arg(long, default_value_t = 1234567)]
         seed: u64,
     },
+    /// Halo2 state checkpoints: compile, prove, verify, chain-verify (SPEC-035)
+    #[cfg(feature = "state-proof")]
+    Checkpoint(checkpoint::CheckpointArgs),
 }
 
 fn main() {
@@ -74,6 +80,8 @@ fn main() {
             input,
             seed,
         } => cmd_simulate(agents, probability, max_rounds, topology, input, seed),
+        #[cfg(feature = "state-proof")]
+        Command::Checkpoint(args) => checkpoint::run(args),
     };
 
     std::process::exit(exit_code);
