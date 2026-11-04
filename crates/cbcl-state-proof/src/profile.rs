@@ -243,6 +243,10 @@ impl Profile {
         }
         Ok(mask)
     }
+    /// The empty-set checkpoint. Mask 0 is valid for every compiled profile.
+    pub fn genesis(&self) -> Checkpoint {
+        self.rows[0].checkpoint
+    }
     pub fn checkpoint(&self, mask: u16) -> Result<Checkpoint> {
         let row = self.rows.get(mask as usize).ok_or("mask outside profile")?;
         if !row.valid {
