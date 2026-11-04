@@ -1,7 +1,7 @@
 ---
 id: SPEC-035
 title: Halo2 State Checkpoints — bounded proofs of accepted-set growth and native state
-version: 0.2.1
+version: 0.2.2
 status: implementing
 last-updated: 2026-11-04
 author: Anuna Research (https://anuna.io) — drafted with Claude Fable 5.1
@@ -296,9 +296,10 @@ Trace: [[SPEC-035-halo2-state-checkpoints#TEST-3507]],
 
 (a) The crate `cbcl-state-proof` SHALL be a workspace member and SHALL pass the
 repository's `make check` gate: formatting, clippy with warnings denied, and
-tests under `--locked`. (b) No crate other than `cbcl-cli` SHALL depend on it,
-and `cbcl-cli` SHALL depend on it only as an optional dependency behind the
-`state-proof` feature. (c) The `no_std`, WebAssembly, FFI and Erlang bindings
+tests under `--locked`. (b) No workspace crate other than `cbcl-cli` SHALL
+depend on it, and `cbcl-cli` SHALL depend on it only as an optional dependency
+behind the `state-proof` feature; the out-of-workspace `cbcl-fuzz` crate MAY
+depend on it for the TEST-3507 fuzz target. (c) The `no_std`, WebAssembly, FFI and Erlang bindings
 SHALL be unaffected. (d) The `examine_re` list in `mutants.toml` SHALL NOT list
 the Halo2 crate, and the targeted mutation runner SHALL live at
 `scripts/state-proof-mutations.py`.
@@ -335,7 +336,9 @@ Trace: [[SPEC-035-halo2-state-checkpoints#TEST-3510]].
 
 A subset of the vocabulary SHALL be invalid in the compiled relation when it
 contains a candidate (a) whose `:thread` differs from the profile thread, (b)
-whose dialect wrapper names a dialect other than the installed one, or (c)
+whose dialect wrapper names a dialect other than the installed one or that
+carries more than one dialect wrapper between the outer `lang` and the simple
+message, or (c)
 whose `:from` field, or `:sender` field when present, is not exactly the
 candidate's signer label. Compilation SHALL succeed and mark such sets invalid;
 it SHALL NOT silently drop the candidate. A `:from` written as a string and the
@@ -434,6 +437,10 @@ checked against it:
 
 - JSON whitespace is permitted between tokens and after the final value;
   any other trailing input is rejected.
+- Every value shown below as `{ ... }` SHALL be a JSON object. A JSON array in
+  an object position is rejected even though `serde_json` would otherwise
+  accept a positional array for a struct; the recogniser checks object shape
+  before typed deserialisation.
 - Object member order is not significant. A duplicate member is rejected.
 - A byte is a JSON integer in 0 to 255 with no fraction, exponent or sign.
 - `h32` is an array of exactly 32 bytes. `bytes` is an array of bytes.
@@ -529,8 +536,12 @@ Input grammar: `profile.json` is
 recognised by `serde_json` with `deny_unknown_fields`, at most 1 MiB.
 Candidates given this way are `unauthenticated`; every operation prints one
 warning line on stderr saying so. Address lists are comma-separated wire
-addresses `sha256-<hex64>`; an empty list is written `-`. Proof and chain files
-use CON-3502.
+addresses `sha256-<hex64>`; an empty list is written `-`; a repeated address
+in one list is a rejection. Proof and chain files use CON-3502. Checkpoints
+and identities on stdout are printed as lower-case hex strings
+(`{"accepted": hex64, "state": hex64}`), never as byte arrays. The
+`profile.json` recogniser rejects a positional array where an object is
+required, as CON-3502 does.
 
 Exit codes: 0 success; 1 rejection or verification failure; 2 usage error.
 Behaviour is invariant across TTY and pipe output.
@@ -808,8 +819,14 @@ above.
 ## Changelog
 
 <details>
-<summary>Revision history — 0.1.0 → 0.2.1</summary>
+<summary>Revision history — 0.1.0 → 0.2.2</summary>
 
+- 0.2.2 — 2026-11-04 — after independent code reviews (Claude fresh context,
+  Codex cross-model): REQ-3509 (b) admits the out-of-workspace fuzz crate;
+  CON-3502 and CON-3505 reject positional arrays in object positions; CON-3505
+  fixes hex output and rejects repeated addresses; REQ-3512 (b) rejects nested
+  dialect wrappers. Steward amendment under the goal directive; maintainer
+  review pending. Normative.
 - 0.2.1 — 2026-11-04 — chain package limit raised to 1,048,576 bytes: the
   chain attempt showed 64 real links cannot fit in 100,000 bytes, so the link
   limit was unreachable. Steward amendment under the goal directive; maintainer
