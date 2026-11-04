@@ -63,8 +63,9 @@ mod tests {
         assert!(!CBCL_CORE_VERSION.is_empty());
         assert!(!CBCL_ERL_VERSION.is_empty());
         // CARGO_PKG_VERSION for a workspace member that inherits
-        // `version.workspace = true` resolves to the workspace version.
-        assert_eq!(CBCL_ERL_VERSION, "0.1.0");
+        // `version.workspace = true` resolves to the workspace version, so
+        // both crates must report the same version.
+        assert_eq!(CBCL_ERL_VERSION, CBCL_CORE_VERSION);
     }
 
     // The end-to-end test of `versions/0` requires `OwnedEnv::new()`, which
