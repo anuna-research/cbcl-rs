@@ -39,6 +39,7 @@ cargo run -p cbcl-cli -- --help
 Custom performatives require an explicit `(lang …)` scope; installed dialects do not provide an unscoped fallback.
 
 For bindings, see [JavaScript/TypeScript](js/README.md), [WebAssembly](README-WASM.md), and [Erlang/BEAM](crates/cbcl-erl/README.md). The JavaScript/TypeScript package includes a JSON-authored object runtime.
+The opt-in experimental Halo2 state-checkpoint crate is described in [crates/cbcl-state-proof/README.md](crates/cbcl-state-proof/README.md).
 
 ## Current capabilities
 

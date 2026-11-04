@@ -1,0 +1,36 @@
+   Compiling cbcl-state-proof v0.1.1 (/Users/anuna-02/Code/cbcl-rs-workspace-gates-1/crates/cbcl-state-proof)
+warning: field `transition` is never read
+  --> crates/cbcl-state-proof/src/circuit.rs:24:5
+   |
+12 | pub(crate) struct Config {
+   |                   ------ field in this struct
+...
+24 |     transition: Selector,
+   |     ^^^^^^^^^^
+   |
+   = note: `Config` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `cbcl-state-proof` (lib test) generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.65s
+     Running unittests src/lib.rs (target/debug/deps/cbcl_state_proof-32493cb2cbf048f7)
+
+running 1 test
+test tests::previous_context_relation_is_enforced_independently_of_snapshot_and_growth_checks ... FAILED
+
+failures:
+
+---- tests::previous_context_relation_is_enforced_independently_of_snapshot_and_growth_checks stdout ----
+
+thread 'tests::previous_context_relation_is_enforced_independently_of_snapshot_and_growth_checks' (11161615) panicked at crates/cbcl-state-proof/src/tests.rs:193:5:
+assertion failed: MockProver::run(dishonest.k(), &dishonest,
+                vec![statement.instance()]).unwrap().verify().is_err()
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    tests::previous_context_relation_is_enforced_independently_of_snapshot_and_growth_checks
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 11 filtered out; finished in 0.02s
+
+error: test failed, to rerun pass `-p cbcl-state-proof --lib`

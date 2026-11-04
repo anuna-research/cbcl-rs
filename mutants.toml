@@ -10,6 +10,7 @@ timeout_multiplier = 3.0
 minimum_test_timeout = 30
 
 # Only mutate critical-path source files.
+# The Halo2 crate (crates/cbcl-state-proof) is covered by scripts/state-proof-mutations.py instead.
 examine_re = [
     "crates/cbcl-parser/src/parser\\.rs$",
     "crates/cbcl-parser/src/message_parser\\.rs$",
