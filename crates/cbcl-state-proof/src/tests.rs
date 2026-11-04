@@ -638,3 +638,34 @@ fn attested_rejects_forged_altered_and_mismatched_candidates() {
     )
     .is_err());
 }
+
+/// NFR-3500: eight candidates fit in k <= 14, reported without proving.
+#[test]
+fn eight_candidate_profile_circuit_k_is_at_most_14() {
+    let v: Json = serde_json::from_str(include_str!(
+        "../../../test-vectors/state/tags-and-balance.json"
+    ))
+    .unwrap();
+    let mut candidates = Vec::new();
+    let mut seen = std::collections::BTreeSet::new();
+    for m in v["messages"].as_array().unwrap() {
+        let c = Candidate::unauthenticated(
+            m["canonical"].as_str().unwrap().into(),
+            m["signer"].as_str().unwrap().into(),
+        );
+        if seen.insert(address(&c)) && candidates.len() < MAX_CANDIDATES {
+            candidates.push(c);
+        }
+    }
+    assert_eq!(candidates.len(), MAX_CANDIDATES);
+    let p = Profile::compile(
+        v["contract"].as_str().unwrap(),
+        v["thread"].as_str().unwrap(),
+        &candidates,
+    )
+    .unwrap();
+    assert!(p.circuit_k() <= 14, "k = {}", p.circuit_k());
+    let (source, thread, three) = fixture();
+    let small = Profile::compile(&source, &thread, &three).unwrap();
+    assert!(small.circuit_k() < p.circuit_k());
+}

@@ -56,9 +56,44 @@ fn main() -> Result<(), String> {
     if verifier.verify(&forged, &forged.statement).is_ok() {
         return Err("tampered state verified".into());
     }
+    // NFR-3500 ceiling: an eight-candidate profile is compiled and its circuit
+    // size parameter k reported; no keys are built and nothing is proved over it.
+    let eight = eight_candidate_profile()?;
     println!(
         "{}",
-        serde_json::json!({"candidates":candidates.len(),"compile_ms":compile_ms,"prover_setup_ms":prover_setup_ms,"verifier_setup_ms":verifier_setup_ms,"prove_ms":prove_ms,"cached_verify_ms":verify_ms,"transcript_bytes":proof.transcript.len(),"package_bytes":serialized.len(),"state":serde_json::from_str::<Value>(&state).map_err(|e|e.to_string())?,"tampered_state_rejected":true,"signature_verification":"external host precondition"})
+        serde_json::json!({"candidates":candidates.len(),"compile_ms":compile_ms,"prover_setup_ms":prover_setup_ms,"verifier_setup_ms":verifier_setup_ms,"prove_ms":prove_ms,"cached_verify_ms":verify_ms,"transcript_bytes":proof.transcript.len(),"package_bytes":serialized.len(),"state":serde_json::from_str::<Value>(&state).map_err(|e|e.to_string())?,"tampered_state_rejected":true,"signature_verification":"external host precondition","eight_candidates":eight})
     );
     Ok(())
+}
+
+/// Compiles the first eight distinct accepted messages of the tags-and-balance
+/// fixture (lunch-vote has only five accepted messages) and reports `k`.
+fn eight_candidate_profile() -> Result<Value, String> {
+    let fixture: Value = serde_json::from_str(include_str!(
+        "../../../test-vectors/state/tags-and-balance.json"
+    ))
+    .map_err(|e| e.to_string())?;
+    let mut candidates = Vec::new();
+    let mut seen = std::collections::BTreeSet::new();
+    for m in fixture["messages"].as_array().ok_or("missing messages")? {
+        let c = Candidate::unauthenticated(
+            m["canonical"].as_str().ok_or("missing canonical")?.into(),
+            m["signer"].as_str().ok_or("missing signer")?.into(),
+        );
+        let message = parse_message(&parse(c.text()).map_err(|e| e.to_string())?)
+            .map_err(|e| e.to_string())?;
+        let address = Act::from_message(message, c.label())?.address;
+        if seen.insert(address) && candidates.len() < 8 {
+            candidates.push(c);
+        }
+    }
+    let start = Instant::now();
+    let profile = Profile::compile(
+        fixture["contract"].as_str().ok_or("missing contract")?,
+        fixture["thread"].as_str().ok_or("missing thread")?,
+        &candidates,
+    )?;
+    Ok(
+        serde_json::json!({"fixture":"tags-and-balance","candidates":candidates.len(),"compile_ms":start.elapsed().as_millis(),"circuit_k":profile.circuit_k(),"proved":false}),
+    )
 }
