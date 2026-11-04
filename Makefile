@@ -4,7 +4,7 @@ CARGO ?= cargo
 # Respect custom Cargo build directories when installing or staging artifacts.
 TARGET_DIR ?= $(if $(CARGO_TARGET_DIR),$(CARGO_TARGET_DIR),target)
 
-.PHONY: all build test check lint clippy fmt fmt-fix run install uninstall dist clean doc doc-open proof release help
+.PHONY: all build test check lint clippy nostd fmt fmt-fix run install uninstall dist clean doc doc-open proof release help
 all: build
 
 build:
@@ -15,13 +15,17 @@ test:
 
 check: lint test
 
-lint: fmt clippy
+lint: fmt clippy nostd
 
 clippy:
 	$(CARGO) clippy --workspace --all-targets --locked -- -D warnings
 
 fmt:
 	$(CARGO) fmt --all --check
+
+# The no_std crates must still compile without their std feature.
+nostd:
+	$(CARGO) check -p cbcl-core -p cbcl-parser --no-default-features --locked
 
 fmt-fix:
 	$(CARGO) fmt --all
@@ -73,7 +77,7 @@ help:
 	@echo 'CBCL development and release targets:'
 	@echo '  build / run ARGS="..."   Build the release CLI / run from source'
 	@echo '  test / check            Workspace tests / formatting, clippy and tests'
-	@echo '  lint / clippy / fmt     Check code quality'
+	@echo '  lint / clippy / fmt / nostd  Check code quality and the no_std build'
 	@echo '  fmt-fix                 Apply Rust formatting'
 	@echo '  proof                   Build Lean, run linter and axiom audit'
 	@echo '  install / uninstall     Install/remove cbcl under PREFIX (default ~/.local)'
