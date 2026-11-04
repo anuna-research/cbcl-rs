@@ -1,0 +1,139 @@
+diff --git a/Cargo.lock b/Cargo.lock
+index a4637b4..10a4222 100644
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -584 +584 @@ dependencies = [
+- "foldhash",
++ "foldhash 0.2.0",
+@@ -1190,0 +1191,9 @@ checksum = "7c02d123df017efcdfbd739ef81735b36c5ba83ec3c59c80a9d7ecc718f92e50"
++[[package]]
++name = "atomic-polyfill"
++version = "1.0.3"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "8cf2bce30dfe09ef0bfaef228b9d414faaf7e563035494d7fe092dba54b300f4"
++dependencies = [
++ "critical-section",
++]
++
+@@ -1586,0 +1596,46 @@ checksum = "37b2a672a2cb129a2e41c10b1224bb368f9f37a2b16b612598138befd7b37eb5"
++[[package]]
++name = "cbcl-akita-guest"
++version = "0.0.0"
++dependencies = [
++ "checkpoint-common",
++ "jolt-sdk",
++ "serde_json",
++]
++
++[[package]]
++name = "cbcl-akita-host"
++version = "0.0.0"
++dependencies = [
++ "anyhow",
++ "bincode 2.0.1",
++ "checkpoint-common",
++ "common",
++ "jolt-akita",
++ "jolt-host",
++ "jolt-program",
++ "jolt-prover",
++ "jolt-transcript",
++ "jolt-verifier",
++ "jolt-witness",
++ "postcard",
++ "serde",
++ "serde_json",
++ "sha2 0.10.9",
++ "tracer",
++]
++
++[[package]]
++name = "cbcl-core"
++version = "0.1.1"
++dependencies = [
++ "hashbrown 0.15.5",
++ "sha2 0.10.9",
++]
++
++[[package]]
++name = "cbcl-parser"
++version = "0.1.1"
++dependencies = [
++ "cbcl-core",
++]
++
+@@ -1619,0 +1675,11 @@ dependencies = [
++[[package]]
++name = "checkpoint-common"
++version = "0.0.0"
++dependencies = [
++ "cbcl-core",
++ "cbcl-parser",
++ "serde",
++ "serde_json",
++ "sha2 0.10.9",
++]
++
+@@ -2752,0 +2819,6 @@ checksum = "3f9eec918d3f24069decb9af1554cad7c880e2da24a9afd88aca000531ab82c1"
++[[package]]
++name = "foldhash"
++version = "0.1.5"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "d9c4f5dac5e15c24eb999c26181a6ca40b39fe946cbe4c263c7209467bc83af2"
++
+@@ -2906,0 +2979,9 @@ dependencies = [
++[[package]]
++name = "hash32"
++version = "0.2.1"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "b0c35f58762feb77d74ebe43bdbc3210f09be9fe6742234d573bacc26ed92b67"
++dependencies = [
++ "byteorder",
++]
++
+@@ -2940,0 +3022 @@ dependencies = [
++ "foldhash 0.1.5",
+@@ -2949 +3031 @@ dependencies = [
+- "foldhash",
++ "foldhash 0.2.0",
+@@ -2953,0 +3036,14 @@ dependencies = [
++[[package]]
++name = "heapless"
++version = "0.7.17"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "cdc6457c0eb62c71aac4bc17216026d8410337c4126773b9c5daba343f17964f"
++dependencies = [
++ "atomic-polyfill",
++ "hash32",
++ "rustc_version 0.4.1",
++ "serde",
++ "spin 0.9.9",
++ "stable_deref_trait",
++]
++
+@@ -5220,0 +5317 @@ dependencies = [
++ "heapless",
+@@ -6419,0 +6517 @@ dependencies = [
++ "sha2-asm",
+@@ -6432,0 +6531,9 @@ dependencies = [
++[[package]]
++name = "sha2-asm"
++version = "0.6.4"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "b845214d6175804686b2bd482bcffe96651bb2d1200742b712003504a2dac1ab"
++dependencies = [
++ "cc",
++]
++
+@@ -6651,0 +6759,3 @@ checksum = "3763264f6b73151db08c50ff20d7d8a0b8796e021cdea7ceedad07b80155fa0e"
++dependencies = [
++ "lock_api",
++]
+diff --git a/Cargo.toml b/Cargo.toml
+index aa1d953..30964f0 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -26,0 +27,3 @@ members = [
++  ".cbcl-overlay/host",
++  ".cbcl-overlay/guest",
++  ".cbcl-overlay/common",

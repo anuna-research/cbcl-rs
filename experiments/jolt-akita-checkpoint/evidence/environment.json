@@ -1,0 +1,11 @@
+{
+  "os": "ProductName:\t\tmacOS\nProductVersion:\t\t26.5\nBuildVersion:\t\t25F71",
+  "hardware": "Mac14,3\n8589934592\n8",
+  "rust": "rustc 1.95.0 (59807616e 2026-04-14)\nbinary: rustc\ncommit-hash: 59807616e1fa2540724bfbac14d7976d7e4a3860\ncommit-date: 2026-04-14\nhost: aarch64-apple-darwin\nrelease: 1.95.0\nLLVM version: 22.1.2",
+  "jolt": "beebf45d829f5aecc5d330f78879cd914e47541e",
+  "cbcl": "65e5383d48c2f468cc339e6d067dc2d478857e37",
+  "machine": "arm64",
+  "guest_target": "riscv64imac-unknown-none-elf",
+  "profile": "build-fast",
+  "rayon_threads": 4
+}

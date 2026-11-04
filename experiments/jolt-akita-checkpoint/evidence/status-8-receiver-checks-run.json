@@ -1,0 +1,15 @@
+{
+  "command": [
+    "python3",
+    "verify-negative.py",
+    "status-8"
+  ],
+  "exit_code": 0,
+  "seconds": 4.052931916,
+  "peak_observed_tree_rss_bytes": 99680256,
+  "rss_sample_interval_seconds": 2,
+  "minimum_free_bytes": 3060932608,
+  "limit_reason": null,
+  "mock_proofs": false,
+  "rayon_threads": 4
+}

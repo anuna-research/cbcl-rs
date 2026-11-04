@@ -1,0 +1,9 @@
+{
+  "commit": "beebf45d829f5aecc5d330f78879cd914e47541e",
+  "checkout": "/private/tmp/cbcl-jolt-akita-source",
+  "overlayPackages": [
+    "common",
+    "guest",
+    "host"
+  ]
+}

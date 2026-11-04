@@ -1,0 +1,23 @@
+{
+  "command": [
+    "cargo",
+    "nextest",
+    "run",
+    "--manifest-path",
+    "/tmp/cbcl-jolt-akita-source/Cargo.toml",
+    "--profile",
+    "build-fast",
+    "-p",
+    "checkpoint-common",
+    "--target-dir",
+    "/Users/anuna-02/Code/cbcl-rs-jolt-akita/experiments/jolt-akita-checkpoint/target"
+  ],
+  "exit_code": 96,
+  "seconds": 8.089501292,
+  "peak_observed_tree_rss_bytes": 201277440,
+  "rss_sample_interval_seconds": 2,
+  "minimum_free_bytes": 5088501760,
+  "limit_reason": null,
+  "mock_proofs": false,
+  "rayon_threads": 4
+}

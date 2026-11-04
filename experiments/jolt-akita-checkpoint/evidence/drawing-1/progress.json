@@ -1,0 +1,11 @@
+{
+  "backend": "Akita optimized CPU",
+  "count": 2,
+  "guest_build_ms": 673,
+  "jolt_commit": "beebf45d829f5aecc5d330f78879cd914e47541e",
+  "preprocess_ms": 305,
+  "proof_generated": false,
+  "trace_ms": 196,
+  "trace_rows": 1609395,
+  "verifier_setup_bytes": 13051098
+}

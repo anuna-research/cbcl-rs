@@ -1,0 +1,28 @@
+phase=guest-build
+phase=trace
+
+thread 'main' (12111389) panicked at tracer/src/emulator/mmu.rs:126:13:
+I/O overflow: Attempted to read from 0x7FE03008. Out of bounds.
+MemoryLayout {
+    program_size: 637144,
+    max_input_size: 0,
+    max_trusted_advice_size: 0,
+    max_untrusted_advice_size: 2097152,
+    max_output_size: 8192,
+    trusted_advice_start: 0x7FE00000,
+    trusted_advice_end: 0x7FE00000,
+    untrusted_advice_start: 0x7FC00000,
+    untrusted_advice_end: 0x7FE00000,
+    input_start: 0x7FE00000,
+    input_end: 0x7FE00000,
+    output_start: 0x7FE00000,
+    output_end: 0x7FE02000,
+    stack_size: 0x100000,
+    stack_end: 0x8009B8D8,
+    heap_size: 0x800000,
+    heap_end: 0x8099B958,
+    panic: 0x7FE02000,
+    termination: 0x7FE02008,
+    io_end: 0x7FE02010,
+}
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

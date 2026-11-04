@@ -1,0 +1,6 @@
+phase=guest-build
+phase=trace
+phase=preprocess
+phase=prove
+phase=verify
+{"backend":"Akita optimized CPU","count":9,"guest_build_ms":427,"jolt_commit":"beebf45d829f5aecc5d330f78879cd914e47541e","preprocess_ms":1009,"proof_bytes":109917,"proof_generated":true,"prove_ms":26183,"public_io_bytes":785,"trace_ms":312,"trace_rows":3917940,"verifier_setup_bytes":13057041,"verify_ms":29}

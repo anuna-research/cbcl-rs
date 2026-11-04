@@ -1,0 +1,42 @@
+warning: /tmp/cbcl-jolt-akita-source/crates/jolt-prover/Cargo.toml: `default-features` is ignored for jolt-kernels, since `default-features` was not specified for `workspace.dependencies.jolt-kernels`, this could become a hard error in the future
+warning: /tmp/cbcl-jolt-akita-source/crates/jolt-prover/Cargo.toml: `default-features` is ignored for jolt-poly, since `default-features` was not specified for `workspace.dependencies.jolt-poly`, this could become a hard error in the future
+warning: /tmp/cbcl-jolt-akita-source/crates/jolt-prover/Cargo.toml: `default-features` is ignored for jolt-profiling, since `default-features` was not specified for `workspace.dependencies.jolt-profiling`, this could become a hard error in the future
+warning: /tmp/cbcl-jolt-akita-source/crates/jolt-kernels/Cargo.toml: `default-features` is ignored for jolt-poly, since `default-features` was not specified for `workspace.dependencies.jolt-poly`, this could become a hard error in the future
+   Compiling typenum v1.20.1
+   Compiling generic-array v0.14.7
+   Compiling libc v0.2.190
+   Compiling proc-macro2 v1.0.107
+   Compiling quote v1.0.47
+   Compiling crypto-common v0.1.7
+   Compiling block-buffer v0.10.4
+   Compiling serde_core v1.0.229
+   Compiling digest v0.10.7
+   Compiling cpufeatures v0.2.17
+   Compiling sha2 v0.10.9
+   Compiling hashbrown v0.15.5
+   Compiling syn v3.0.9
+   Compiling serde v1.0.229
+   Compiling serde_json v1.0.154
+   Compiling serde_derive v1.0.229
+   Compiling cbcl-core v0.1.1 (/Users/anuna-02/Code/cbcl-rs-jolt-akita/crates/cbcl-core)
+   Compiling memchr v2.8.0
+   Compiling cbcl-parser v0.1.1 (/Users/anuna-02/Code/cbcl-rs-jolt-akita/crates/cbcl-parser)
+   Compiling checkpoint-common v0.0.0 (/tmp/cbcl-jolt-akita-source/.cbcl-overlay/common)
+    Finished `build-fast` profile [optimized + debuginfo] target(s) in 27.24s
+────────────
+ Nextest run ID 9636f78d-9a6b-4c1c-8383-e9dab46cb193 with nextest profile: default
+    Starting 12 tests across 2 binaries
+        PASS [   0.026s] ( 1/12) checkpoint-common::checkpoint invalid_shape_rejected
+        PASS [   0.026s] ( 2/12) checkpoint-common::checkpoint mixed_thread_rejected
+        PASS [   0.025s] ( 3/12) checkpoint-common::checkpoint duplicate_addresses_rejected
+        PASS [   0.026s] ( 4/12) checkpoint-common::checkpoint invalid_dialect_rejected
+        PASS [   0.026s] ( 5/12) checkpoint-common::checkpoint nested_dialect_mismatch_rejected
+        PASS [   0.027s] ( 6/12) checkpoint-common::checkpoint missing_ancestor_rejected_and_ancestor_closure_committed
+        PASS [   0.027s] ( 7/12) checkpoint-common::checkpoint noncanonical_rejected
+        PASS [   0.030s] ( 8/12) checkpoint-common::checkpoint fixtures_match_expected_bytes_and_permutations
+        PASS [   0.014s] ( 9/12) checkpoint-common::checkpoint unresolved_dependency_rejected
+        PASS [   0.014s] (10/12) checkpoint-common::checkpoint schema_and_byte_bounds_rejected
+        PASS [   0.014s] (11/12) checkpoint-common::checkpoint sender_outside_cast_rejected
+        PASS [   0.014s] (12/12) checkpoint-common::checkpoint source_closure_and_message_set_bound
+────────────
+     Summary [   0.042s] 12 tests run: 12 passed, 0 skipped

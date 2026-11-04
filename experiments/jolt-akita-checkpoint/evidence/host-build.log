@@ -1,0 +1,99 @@
+warning: /tmp/cbcl-jolt-akita-source/crates/jolt-kernels/Cargo.toml: `default-features` is ignored for jolt-poly, since `default-features` was not specified for `workspace.dependencies.jolt-poly`, this could become a hard error in the future
+warning: /tmp/cbcl-jolt-akita-source/crates/jolt-prover/Cargo.toml: `default-features` is ignored for jolt-kernels, since `default-features` was not specified for `workspace.dependencies.jolt-kernels`, this could become a hard error in the future
+warning: /tmp/cbcl-jolt-akita-source/crates/jolt-prover/Cargo.toml: `default-features` is ignored for jolt-poly, since `default-features` was not specified for `workspace.dependencies.jolt-poly`, this could become a hard error in the future
+warning: /tmp/cbcl-jolt-akita-source/crates/jolt-prover/Cargo.toml: `default-features` is ignored for jolt-profiling, since `default-features` was not specified for `workspace.dependencies.jolt-profiling`, this could become a hard error in the future
+     Locking 3 packages to latest compatible versions
+      Adding atomic-polyfill v1.0.3
+      Adding hash32 v0.2.1
+      Adding heapless v0.7.17
+ Downloading crates ...
+  Downloaded ctutils v0.4.6
+  Downloaded blake2 v0.11.0
+  Downloaded sha3 v0.11.0
+   Compiling rand v0.8.7
+   Compiling ark-std v0.5.0
+   Compiling ark-serialize v0.5.0 (https://github.com/a16z/arkworks-algebra?branch=dev%2Ftwist-shout#b8f0f512)
+   Compiling foldhash v0.1.5
+   Compiling hashbrown v0.15.5
+   Compiling cmov v0.5.4
+   Compiling ctutils v0.4.6
+   Compiling digest v0.11.3
+   Compiling ark-ff v0.5.0 (https://github.com/a16z/arkworks-algebra?branch=dev%2Ftwist-shout#b8f0f512)
+   Compiling ark-poly v0.5.0 (https://github.com/a16z/arkworks-algebra?branch=dev%2Ftwist-shout#b8f0f512)
+   Compiling ark-ec v0.5.0 (https://github.com/a16z/arkworks-algebra?branch=dev%2Ftwist-shout#b8f0f512)
+   Compiling ark-bn254 v0.5.0 (https://github.com/a16z/arkworks-algebra?branch=dev%2Ftwist-shout#b8f0f512)
+   Compiling jolt-field v0.1.0 (/tmp/cbcl-jolt-akita-source/crates/jolt-field)
+   Compiling spongefish v0.8.0
+   Compiling sha3 v0.12.0
+   Compiling shake v0.1.0
+   Compiling jolt-transcript v0.1.0 (/tmp/cbcl-jolt-akita-source/crates/jolt-transcript)
+   Compiling jolt-poly v0.1.0 (/tmp/cbcl-jolt-akita-source/crates/jolt-poly)
+   Compiling memchr v2.8.0
+   Compiling cpufeatures v0.2.17
+   Compiling smallvec v1.15.2
+   Compiling semver v1.0.27
+   Compiling rustc_version v0.4.1
+   Compiling sha3 v0.11.0
+   Compiling blake2 v0.11.0
+   Compiling akita-error v0.1.0 (https://github.com/LayerZero-Labs/akita.git?rev=1160b0a8d574f7090bf47adfa026658a5099787a#1160b0a8)
+   Compiling spongefish v0.7.4 (https://github.com/arkworks-rs/spongefish?rev=ef9741346a150039427d9e0c02d6b2d73e93ec81#ef974134)
+   Compiling heapless v0.7.17
+   Compiling serde_json v1.0.154
+   Compiling byteorder v1.5.0
+   Compiling hash32 v0.2.1
+   Compiling akita-transcript v0.1.0 (https://github.com/LayerZero-Labs/akita.git?rev=1160b0a8d574f7090bf47adfa026658a5099787a#1160b0a8)
+   Compiling akita-serialization v0.1.0 (https://github.com/LayerZero-Labs/akita.git?rev=1160b0a8d574f7090bf47adfa026658a5099787a#1160b0a8)
+   Compiling stable_deref_trait v1.2.1
+   Compiling akita-algebra v0.1.0 (https://github.com/LayerZero-Labs/akita.git?rev=1160b0a8d574f7090bf47adfa026658a5099787a#1160b0a8)
+   Compiling keccak v0.1.6
+   Compiling postcard v1.1.3
+   Compiling akita-challenges v0.1.0 (https://github.com/LayerZero-Labs/akita.git?rev=1160b0a8d574f7090bf47adfa026658a5099787a#1160b0a8)
+   Compiling akita-sumcheck v0.1.0 (https://github.com/LayerZero-Labs/akita.git?rev=1160b0a8d574f7090bf47adfa026658a5099787a#1160b0a8)
+   Compiling akita-params v0.1.0 (https://github.com/LayerZero-Labs/akita.git?rev=1160b0a8d574f7090bf47adfa026658a5099787a#1160b0a8)
+   Compiling jolt-riscv v0.1.0 (/tmp/cbcl-jolt-akita-source/crates/jolt-riscv)
+   Compiling serde_bytes v0.11.19
+   Compiling akita-schedules v0.1.0 (https://github.com/LayerZero-Labs/akita.git?rev=1160b0a8d574f7090bf47adfa026658a5099787a#1160b0a8)
+   Compiling jolt-crypto v0.1.0 (/tmp/cbcl-jolt-akita-source/crates/jolt-crypto)
+   Compiling indexmap v2.14.0
+   Compiling akita-types v0.1.0 (https://github.com/LayerZero-Labs/akita.git?rev=1160b0a8d574f7090bf47adfa026658a5099787a#1160b0a8)
+   Compiling akita-config v0.1.0 (https://github.com/LayerZero-Labs/akita.git?rev=1160b0a8d574f7090bf47adfa026658a5099787a#1160b0a8)
+   Compiling object v0.40.0
+   Compiling jolt-openings v0.1.0 (/tmp/cbcl-jolt-akita-source/crates/jolt-openings)
+   Compiling jolt-r1cs v0.1.0 (/tmp/cbcl-jolt-akita-source/crates/jolt-r1cs)
+   Compiling common v0.2.0 (/tmp/cbcl-jolt-akita-source/common)
+   Compiling jolt-lookup-tables v0.1.0 (/tmp/cbcl-jolt-akita-source/crates/jolt-lookup-tables)
+   Compiling jolt-claims v0.1.0 (/tmp/cbcl-jolt-akita-source/crates/jolt-claims)
+   Compiling jolt-program v0.1.0 (/tmp/cbcl-jolt-akita-source/crates/jolt-program)
+   Compiling akita-prover v0.1.0 (https://github.com/LayerZero-Labs/akita.git?rev=1160b0a8d574f7090bf47adfa026658a5099787a#1160b0a8)
+   Compiling sha2-asm v0.6.4
+   Compiling libm v0.2.16
+   Compiling akita-cpu-backend v0.1.0 (https://github.com/LayerZero-Labs/akita.git?rev=1160b0a8d574f7090bf47adfa026658a5099787a#1160b0a8)
+   Compiling regex-automata v0.4.18
+   Compiling akita-setup v0.1.0 (https://github.com/LayerZero-Labs/akita.git?rev=1160b0a8d574f7090bf47adfa026658a5099787a#1160b0a8)
+   Compiling jolt-sumcheck v0.1.0 (/tmp/cbcl-jolt-akita-source/crates/jolt-sumcheck)
+   Compiling akita-verifier v0.1.0 (https://github.com/LayerZero-Labs/akita.git?rev=1160b0a8d574f7090bf47adfa026658a5099787a#1160b0a8)
+   Compiling clap_builder v4.6.7
+   Compiling akita-pcs v0.1.0 (https://github.com/LayerZero-Labs/akita.git?rev=1160b0a8d574f7090bf47adfa026658a5099787a#1160b0a8)
+   Compiling jolt-blindfold v0.1.0 (/tmp/cbcl-jolt-akita-source/crates/jolt-blindfold)
+   Compiling akita-planner v0.1.0 (https://github.com/LayerZero-Labs/akita.git?rev=1160b0a8d574f7090bf47adfa026658a5099787a#1160b0a8)
+   Compiling sha2 v0.10.9
+   Compiling matchers v0.2.0
+   Compiling tracing-subscriber v0.3.23
+   Compiling addr2line v0.27.1
+   Compiling dory-pcs v0.5.0
+   Compiling jolt-witness v0.1.0 (/tmp/cbcl-jolt-akita-source/crates/jolt-witness)
+   Compiling jolt-verifier v0.1.0 (/tmp/cbcl-jolt-akita-source/crates/jolt-verifier)
+   Compiling jolt-optimizations v0.5.0 (https://github.com/a16z/arkworks-algebra?branch=dev%2Ftwist-shout#b8f0f512)
+   Compiling clap v4.6.7
+   Compiling jolt-platform v0.1.0 (/tmp/cbcl-jolt-akita-source/jolt-platform)
+   Compiling cbcl-core v0.1.1 (/Users/anuna-02/Code/cbcl-rs-jolt-akita/crates/cbcl-core)
+   Compiling jolt-akita v0.1.0 (/tmp/cbcl-jolt-akita-source/crates/jolt-akita)
+   Compiling tracer v0.2.0 (/tmp/cbcl-jolt-akita-source/tracer)
+   Compiling jolt-kernels v0.1.0 (/tmp/cbcl-jolt-akita-source/crates/jolt-kernels)
+   Compiling cbcl-parser v0.1.1 (/Users/anuna-02/Code/cbcl-rs-jolt-akita/crates/cbcl-parser)
+   Compiling jolt-dory v0.1.0 (/tmp/cbcl-jolt-akita-source/crates/jolt-dory)
+   Compiling jolt-prover v0.1.0 (/tmp/cbcl-jolt-akita-source/crates/jolt-prover)
+   Compiling checkpoint-common v0.0.0 (/tmp/cbcl-jolt-akita-source/.cbcl-overlay/common)
+   Compiling jolt-host v0.1.0 (/tmp/cbcl-jolt-akita-source/crates/jolt-host)
+   Compiling cbcl-akita-host v0.0.0 (/tmp/cbcl-jolt-akita-source/.cbcl-overlay/host)
+    Finished `build-fast` profile [optimized + debuginfo] target(s) in 16m 59s

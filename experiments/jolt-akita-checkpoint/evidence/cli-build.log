@@ -1,0 +1,261 @@
+warning: /tmp/cbcl-jolt-akita-source/crates/jolt-kernels/Cargo.toml: `default-features` is ignored for jolt-poly, since `default-features` was not specified for `workspace.dependencies.jolt-poly`, this could become a hard error in the future
+warning: /tmp/cbcl-jolt-akita-source/crates/jolt-prover/Cargo.toml: `default-features` is ignored for jolt-kernels, since `default-features` was not specified for `workspace.dependencies.jolt-kernels`, this could become a hard error in the future
+warning: /tmp/cbcl-jolt-akita-source/crates/jolt-prover/Cargo.toml: `default-features` is ignored for jolt-poly, since `default-features` was not specified for `workspace.dependencies.jolt-poly`, this could become a hard error in the future
+warning: /tmp/cbcl-jolt-akita-source/crates/jolt-prover/Cargo.toml: `default-features` is ignored for jolt-profiling, since `default-features` was not specified for `workspace.dependencies.jolt-profiling`, this could become a hard error in the future
+    Updating git repository `https://github.com/a16z/arkworks-algebra`
+    Updating git repository `https://github.com/LayerZero-Labs/ZeroOS.git`
+    Updating crates.io index
+    Updating git repository `https://github.com/LayerZero-Labs/akita.git`
+    Updating git submodule `https://github.com/malb/lattice-estimator.git`
+    Updating git repository `https://github.com/paradigmxyz/reth`
+    Updating git repository `https://github.com/arkworks-rs/spongefish`
+     Locking 4 packages to latest compatible versions
+      Adding cbcl-core v0.1.1 (/Users/anuna-02/Code/cbcl-rs-jolt-akita/crates/cbcl-core)
+      Adding cbcl-parser v0.1.1 (/Users/anuna-02/Code/cbcl-rs-jolt-akita/crates/cbcl-parser)
+      Adding foldhash v0.1.5
+      Adding sha2-asm v0.6.4
+ Downloading crates ...
+  Downloaded virtue v0.0.18
+  Downloaded dory-derive v0.3.0
+  Downloaded block-buffer v0.12.0
+  Downloaded allocative_derive v0.3.6
+  Downloaded unty v0.0.4
+  Downloaded sponge-cursor v0.1.0
+  Downloaded parse-size v1.1.0
+  Downloaded bincode_derive v2.0.1
+  Downloaded enum-ordinalize-derive v4.3.2
+  Downloaded enum-ordinalize v4.3.2
+  Downloaded ctor v1.0.7
+  Downloaded inventory v0.3.25
+  Downloaded toml_writer v1.1.3+spec-1.1.0
+  Downloaded allocative v0.3.6
+  Downloaded memmap2 v0.9.11
+  Downloaded objc2-open-directory v0.3.2
+  Downloaded link-section v0.18.2
+  Downloaded toml_edit v0.25.17+spec-1.1.0
+  Downloaded dory-pcs v0.5.0
+  Downloaded cpp_demangle v0.5.1
+  Downloaded ruzstd v0.9.1
+  Downloaded itertools v0.15.0
+  Downloaded bincode v2.0.1
+  Downloaded sha3 v0.12.0
+  Downloaded spongefish v0.8.0
+  Downloaded sysinfo v0.39.6
+  Downloaded objc2-io-kit v0.3.2
+  Downloaded addr2line v0.27.1
+  Downloaded linktime-proc-macro v0.2.0
+  Downloaded keccak v0.2.0
+  Downloaded objc2 v0.6.5
+  Downloaded shake v0.1.0
+  Downloaded gimli v0.34.0
+  Downloaded object v0.40.0
+   Compiling proc-macro2 v1.0.107
+   Compiling unicode-ident v1.0.24
+   Compiling quote v1.0.47
+   Compiling libc v0.2.190
+   Compiling syn v2.0.119
+   Compiling cfg-if v1.0.5
+   Compiling autocfg v1.5.0
+   Compiling zerocopy v0.8.40
+   Compiling version_check v0.9.5
+   Compiling num-traits v0.2.19
+   Compiling generic-array v0.14.7
+   Compiling syn v3.0.9
+   Compiling typenum v1.20.1
+   Compiling crossbeam-utils v0.8.21
+   Compiling crossbeam-epoch v0.9.20
+   Compiling serde_core v1.0.229
+   Compiling getrandom v0.2.17
+   Compiling either v1.15.0
+   Compiling rayon-core v1.13.0
+   Compiling rand_core v0.6.4
+   Compiling crossbeam-deque v0.8.6
+   Compiling ppv-lite86 v0.2.21
+   Compiling linktime-proc-macro v0.2.0
+   Compiling allocative v0.3.6
+   Compiling rand_chacha v0.3.1
+   Compiling ark-serialize-derive v0.5.0 (https://github.com/a16z/arkworks-algebra?branch=dev%2Ftwist-shout#b8f0f512)
+   Compiling once_cell v1.21.3
+   Compiling rayon v1.12.0
+   Compiling rand v0.8.7
+   Compiling block-buffer v0.10.4
+   Compiling crypto-common v0.1.7
+   Compiling num-integer v0.1.47
+   Compiling serde_derive v1.0.229
+   Compiling allocative_derive v0.3.6
+   Compiling subtle v2.6.1
+   Compiling digest v0.10.7
+   Compiling num-bigint v0.4.6
+   Compiling ark-std v0.5.0
+   Compiling serde v1.0.229
+   Compiling link-section v0.18.2
+   Compiling arrayvec v0.7.6
+   Compiling ark-serialize v0.5.0 (https://github.com/a16z/arkworks-algebra?branch=dev%2Ftwist-shout#b8f0f512)
+   Compiling ctor v1.0.7
+   Compiling paste v1.0.15
+   Compiling thiserror v2.0.20
+   Compiling thiserror-impl v2.0.20
+   Compiling zeroize_derive v1.4.3
+   Compiling enum-ordinalize-derive v4.3.2
+   Compiling enum-ordinalize v4.3.2
+   Compiling zeroize v1.8.2
+   Compiling ahash v0.8.12
+   Compiling educe v0.6.0
+   Compiling ark-ff-macros v0.5.0 (https://github.com/a16z/arkworks-algebra?branch=dev%2Ftwist-shout#b8f0f512)
+   Compiling itertools v0.13.0
+   Compiling hybrid-array v0.4.15
+   Compiling ark-ff-asm v0.5.0 (https://github.com/a16z/arkworks-algebra?branch=dev%2Ftwist-shout#b8f0f512)
+   Compiling allocator-api2 v0.2.21
+   Compiling hashbrown v0.15.5
+   Compiling ark-ff v0.5.0 (https://github.com/a16z/arkworks-algebra?branch=dev%2Ftwist-shout#b8f0f512)
+   Compiling getrandom v0.4.3
+   Compiling ark-poly v0.5.0 (https://github.com/a16z/arkworks-algebra?branch=dev%2Ftwist-shout#b8f0f512)
+   Compiling crypto-common v0.2.2
+   Compiling block-buffer v0.12.0
+   Compiling cpufeatures v0.3.0
+   Compiling const-oid v0.10.2
+   Compiling memchr v2.8.0
+   Compiling digest v0.11.3
+   Compiling keccak v0.2.0
+   Compiling ark-ec v0.5.0 (https://github.com/a16z/arkworks-algebra?branch=dev%2Ftwist-shout#b8f0f512)
+   Compiling tracing-core v0.1.36
+   Compiling shlex v2.0.1
+   Compiling find-msvc-tools v0.1.15
+   Compiling cc v1.10.0
+   Compiling ark-bn254 v0.5.0 (https://github.com/a16z/arkworks-algebra?branch=dev%2Ftwist-shout#b8f0f512)
+   Compiling tracing-attributes v0.1.31
+   Compiling pin-project-lite v0.2.17
+   Compiling tracing v0.1.44
+   Compiling jolt-field v0.1.0 (/tmp/cbcl-jolt-akita-source/crates/jolt-field)
+   Compiling heck v0.5.0
+   Compiling spongefish v0.8.0
+   Compiling sponge-cursor v0.1.0
+   Compiling sha3 v0.12.0
+   Compiling shake v0.1.0
+   Compiling strum_macros v0.28.0
+   Compiling crc32fast v1.5.0
+   Compiling foldhash v0.2.0
+   Compiling hashbrown v0.17.0
+   Compiling strum v0.28.0
+   Compiling jolt-transcript v0.1.0 (/tmp/cbcl-jolt-akita-source/crates/jolt-transcript)
+   Compiling jolt-utils v0.1.0 (/tmp/cbcl-jolt-akita-source/crates/jolt-utils)
+   Compiling adler2 v2.0.1
+   Compiling equivalent v1.0.2
+   Compiling simd-adler32 v0.3.8
+   Compiling miniz_oxide v0.8.9
+   Compiling indexmap v2.14.0
+   Compiling jolt-poly v0.1.0 (/tmp/cbcl-jolt-akita-source/crates/jolt-poly)
+   Compiling jolt-riscv v0.1.0 (/tmp/cbcl-jolt-akita-source/crates/jolt-riscv)
+   Compiling twox-hash v2.1.2
+   Compiling ruzstd v0.9.1
+   Compiling flate2 v1.1.9
+   Compiling jolt-crypto v0.1.0 (/tmp/cbcl-jolt-akita-source/crates/jolt-crypto)
+   Compiling aho-corasick v1.1.4
+   Compiling derive_more-impl v2.1.1
+   Compiling regex-syntax v0.8.11
+   Compiling regex-automata v0.4.18
+   Compiling derive_more v2.1.1
+   Compiling object v0.40.0
+   Compiling utf8parse v0.2.2
+   Compiling anstyle-parse v1.0.0
+   Compiling common v0.2.0 (/tmp/cbcl-jolt-akita-source/common)
+   Compiling jolt-openings v0.1.0 (/tmp/cbcl-jolt-akita-source/crates/jolt-openings)
+   Compiling jolt-r1cs v0.1.0 (/tmp/cbcl-jolt-akita-source/crates/jolt-r1cs)
+   Compiling anstyle v1.0.14
+   Compiling colorchoice v1.0.4
+   Compiling anstyle-query v1.1.5
+   Compiling log v0.4.34
+   Compiling bitflags v2.11.0
+   Compiling is_terminal_polyfill v1.70.2
+   Compiling anstream v1.0.0
+   Compiling jolt-program v0.1.0 (/tmp/cbcl-jolt-akita-source/crates/jolt-program)
+   Compiling jolt-lookup-tables v0.1.0 (/tmp/cbcl-jolt-akita-source/crates/jolt-lookup-tables)
+   Compiling jolt-claims-derive v0.1.0 (/tmp/cbcl-jolt-akita-source/crates/jolt-claims-derive)
+   Compiling zmij v1.0.21
+   Compiling objc2 v0.6.5
+   Compiling virtue v0.0.18
+   Compiling bincode_derive v2.0.1
+   Compiling jolt-claims v0.1.0 (/tmp/cbcl-jolt-akita-source/crates/jolt-claims)
+   Compiling cpp_demangle v0.5.1
+   Compiling clap_lex v1.0.0
+   Compiling lazy_static v1.5.0
+   Compiling strsim v0.11.1
+   Compiling unty v0.0.4
+   Compiling getrandom v0.3.4
+   Compiling smallvec v1.15.2
+   Compiling serde_json v1.0.154
+   Compiling objc2-encode v4.1.0
+   Compiling bincode v2.0.1
+   Compiling clap_builder v4.6.7
+   Compiling sharded-slab v0.1.7
+   Compiling tracing-log v0.2.0
+   Compiling jolt-sumcheck v0.1.0 (/tmp/cbcl-jolt-akita-source/crates/jolt-sumcheck)
+   Compiling matchers v0.2.0
+   Compiling clap_derive v4.6.7
+   Compiling thread_local v1.1.9
+   Compiling itoa v1.0.17
+   Compiling nu-ansi-term v0.50.3
+   Compiling tracing-subscriber v0.3.23
+   Compiling clap v4.6.7
+   Compiling jolt-blindfold v0.1.0 (/tmp/cbcl-jolt-akita-source/crates/jolt-blindfold)
+   Compiling cobs v0.3.0
+   Compiling bincode v1.3.3
+   Compiling blake2 v0.10.6
+   Compiling num-rational v0.4.2
+   Compiling jolt-verifier-derive v0.1.0 (/tmp/cbcl-jolt-akita-source/crates/jolt-verifier-derive)
+   Compiling jolt-witness-derive v0.1.0 (/tmp/cbcl-jolt-akita-source/crates/jolt-witness-derive)
+   Compiling memmap2 v0.9.11
+   Compiling dory-derive v0.3.0
+   Compiling embedded-io v0.6.1
+   Compiling typed-arena v2.0.2
+   Compiling fallible-iterator v0.3.0
+   Compiling rustix v1.1.4
+   Compiling rustc-demangle v0.1.27
+   Compiling gimli v0.34.0
+   Compiling addr2line v0.27.1
+   Compiling postcard v1.1.3
+   Compiling dory-pcs v0.5.0
+   Compiling jolt-witness v0.1.0 (/tmp/cbcl-jolt-akita-source/crates/jolt-witness)
+   Compiling jolt-verifier v0.1.0 (/tmp/cbcl-jolt-akita-source/crates/jolt-verifier)
+   Compiling jolt-optimizations v0.5.0 (https://github.com/a16z/arkworks-algebra?branch=dev%2Ftwist-shout#b8f0f512)
+   Compiling jolt-platform v0.1.0 (/tmp/cbcl-jolt-akita-source/jolt-platform)
+   Compiling objc2-core-foundation v0.3.2
+   Compiling itertools v0.15.0
+   Compiling jolt-kernels-derive v0.1.0 (/tmp/cbcl-jolt-akita-source/crates/jolt-kernels-derive)
+   Compiling errno v0.3.14
+   Compiling inventory v0.3.25
+   Compiling fnv v1.0.7
+   Compiling option-ext v0.2.0
+   Compiling anyhow v1.0.104
+   Compiling dirs-sys v0.4.1
+   Compiling tracer v0.2.0 (/tmp/cbcl-jolt-akita-source/tracer)
+   Compiling jolt-kernels v0.1.0 (/tmp/cbcl-jolt-akita-source/crates/jolt-kernels)
+   Compiling jolt-dory v0.1.0 (/tmp/cbcl-jolt-akita-source/crates/jolt-dory)
+   Compiling objc2-foundation v0.3.2
+   Compiling regex v1.13.1
+   Compiling eyre v0.6.14
+   Compiling fastrand v2.3.0
+   Compiling winnow v1.0.1
+   Compiling toml_parser v1.1.5+spec-1.1.0
+   Compiling tempfile v3.27.0
+   Compiling env_filter v2.0.0
+   Compiling objc2-open-directory v0.3.2
+   Compiling jolt-prover v0.1.0 (/tmp/cbcl-jolt-akita-source/crates/jolt-prover)
+   Compiling jolt-sdk-macros v0.1.0 (/tmp/cbcl-jolt-akita-source/jolt-sdk/macros)
+   Compiling jolt-host v0.1.0 (/tmp/cbcl-jolt-akita-source/crates/jolt-host)
+   Compiling dirs v5.0.1
+   Compiling objc2-io-kit v0.3.2
+   Compiling mini-template v0.1.0 (https://github.com/LayerZero-Labs/ZeroOS.git?rev=c572b88a643474317e4b0c7e53ac722a98a0e050#c572b88a)
+   Compiling toml_writer v1.1.3+spec-1.1.0
+   Compiling jiff v0.2.23
+   Compiling jolt v0.1.0 (/tmp/cbcl-jolt-akita-source)
+   Compiling parse-size v1.1.0
+   Compiling bytemuck v1.25.2
+   Compiling indenter v0.3.4
+   Compiling toml_datetime v1.1.2+spec-1.1.0
+   Compiling toml_edit v0.25.17+spec-1.1.0
+   Compiling jolt-sdk v0.1.0 (/tmp/cbcl-jolt-akita-source/jolt-sdk)
+   Compiling zeroos-build v0.1.0 (https://github.com/LayerZero-Labs/ZeroOS.git?rev=c572b88a643474317e4b0c7e53ac722a98a0e050#c572b88a)
+   Compiling env_logger v0.11.11
+   Compiling sysinfo v0.39.6
+    Finished `build-fast` profile [optimized + debuginfo] target(s) in 5m 32s

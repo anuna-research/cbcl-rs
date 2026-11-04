@@ -1,0 +1,6 @@
+warning: /tmp/cbcl-jolt-akita-source/crates/jolt-kernels/Cargo.toml: `default-features` is ignored for jolt-poly, since `default-features` was not specified for `workspace.dependencies.jolt-poly`, this could become a hard error in the future
+warning: /tmp/cbcl-jolt-akita-source/crates/jolt-prover/Cargo.toml: `default-features` is ignored for jolt-kernels, since `default-features` was not specified for `workspace.dependencies.jolt-kernels`, this could become a hard error in the future
+warning: /tmp/cbcl-jolt-akita-source/crates/jolt-prover/Cargo.toml: `default-features` is ignored for jolt-poly, since `default-features` was not specified for `workspace.dependencies.jolt-poly`, this could become a hard error in the future
+warning: /tmp/cbcl-jolt-akita-source/crates/jolt-prover/Cargo.toml: `default-features` is ignored for jolt-profiling, since `default-features` was not specified for `workspace.dependencies.jolt-profiling`, this could become a hard error in the future
+   Compiling cbcl-akita-host v0.0.0 (/tmp/cbcl-jolt-akita-source/.cbcl-overlay/host)
+    Finished `build-fast` profile [optimized + debuginfo] target(s) in 6m 43s

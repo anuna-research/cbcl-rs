@@ -1,0 +1,74 @@
+[
+  {
+    "case": "honest",
+    "accepted": true,
+    "expected_accepted": true,
+    "output": "{\"count\":9,\"history_files_read\":0,\"verified\":true,\"verify_us\":1056623}\n"
+  },
+  {
+    "case": "wrong-thread",
+    "accepted": false,
+    "expected_accepted": false,
+    "output": "Error: expected checkpoint differs\n"
+  },
+  {
+    "case": "wrong-dialect",
+    "accepted": false,
+    "expected_accepted": false,
+    "output": "Error: expected checkpoint differs\n"
+  },
+  {
+    "case": "wrong-messages_hash",
+    "accepted": false,
+    "expected_accepted": false,
+    "output": "Error: expected checkpoint differs\n"
+  },
+  {
+    "case": "wrong-dialect_sources_hash",
+    "accepted": false,
+    "expected_accepted": false,
+    "output": "Error: expected checkpoint differs\n"
+  },
+  {
+    "case": "wrong-count",
+    "accepted": false,
+    "expected_accepted": false,
+    "output": "Error: expected checkpoint differs\n"
+  },
+  {
+    "case": "tampered-state",
+    "accepted": false,
+    "expected_accepted": false,
+    "output": "Error: snapshot differs\n"
+  },
+  {
+    "case": "corrupt-proof",
+    "accepted": false,
+    "expected_accepted": false,
+    "output": "Error: verification: FinalOpeningVerificationFailed { reason: \"opening proof verification failed\" }\n"
+  },
+  {
+    "case": "corrupt-setup",
+    "accepted": false,
+    "expected_accepted": false,
+    "output": "Error: untrusted program/setup\n"
+  },
+  {
+    "case": "corrupt-io",
+    "accepted": false,
+    "expected_accepted": false,
+    "output": "Error: expected checkpoint differs\n"
+  },
+  {
+    "case": "coherent-public-output-tamper",
+    "accepted": false,
+    "expected_accepted": false,
+    "output": "Error: verification: ProofOfWorkRejected { site: Stage1Tau }\n"
+  },
+  {
+    "case": "wrong-program-pin",
+    "accepted": false,
+    "expected_accepted": false,
+    "output": "Error: untrusted program/setup\n"
+  }
+]

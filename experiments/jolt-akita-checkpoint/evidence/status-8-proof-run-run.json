@@ -1,0 +1,19 @@
+{
+  "command": [
+    "python3",
+    "run-from-jolt.py",
+    "run",
+    "/Users/anuna-02/Code/cbcl-rs-jolt-akita/experiments/general-kernel-checkpoint/fixtures/status-8.json",
+    "/Users/anuna-02/Code/cbcl-rs-jolt-akita/experiments/general-kernel-checkpoint/evidence/independent-status-8/expected.json",
+    "/Users/anuna-02/Code/cbcl-rs-jolt-akita/experiments/jolt-akita-checkpoint/evidence/status-8",
+    "/Users/anuna-02/Code/cbcl-rs-jolt-akita/experiments/jolt-akita-checkpoint/evidence/independent-status-8"
+  ],
+  "exit_code": 0,
+  "seconds": 24.281294708,
+  "peak_observed_tree_rss_bytes": 1413234688,
+  "rss_sample_interval_seconds": 2,
+  "minimum_free_bytes": 3061870592,
+  "limit_reason": null,
+  "mock_proofs": false,
+  "rayon_threads": 4
+}

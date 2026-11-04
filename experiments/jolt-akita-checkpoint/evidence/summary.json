@@ -1,0 +1,104 @@
+[
+  {
+    "backend": "Akita optimized CPU",
+    "count": 2,
+    "guest_build_ms": 673,
+    "jolt_commit": "beebf45d829f5aecc5d330f78879cd914e47541e",
+    "preprocess_ms": 305,
+    "proof_bytes": 106630,
+    "proof_generated": true,
+    "prove_ms": 9417,
+    "public_io_bytes": 785,
+    "trace_ms": 196,
+    "trace_rows": 1609395,
+    "verifier_setup_bytes": 13051098,
+    "verify_ms": 24,
+    "case": "drawing-1",
+    "state_bytes": 97,
+    "warm_bytes": 107512,
+    "cold_bytes": 13158610,
+    "trace_setup_proof_ms": 9918,
+    "files": {
+      "io.bin": {
+        "bytes": 785,
+        "sha256": "ae3ba1d3f5c1ef8d70dbf277f4f98b94c234955e96e82b40dde338dd7b130458"
+      },
+      "verifier-setup.bin": {
+        "bytes": 13051098,
+        "sha256": "e1224c29186acf41dc6afa6ef557350179cc15a4e8ae256303cb7f8face0cafc"
+      },
+      "proof.bin": {
+        "bytes": 106630,
+        "sha256": "b7df27b983aceef14ce4c8ea6b9ff483451a8c8145c4ab7b8e421a4ffada8cbf"
+      }
+    }
+  },
+  {
+    "backend": "Akita optimized CPU",
+    "count": 9,
+    "guest_build_ms": 425,
+    "jolt_commit": "beebf45d829f5aecc5d330f78879cd914e47541e",
+    "preprocess_ms": 997,
+    "proof_bytes": 109904,
+    "proof_generated": true,
+    "prove_ms": 22202,
+    "public_io_bytes": 777,
+    "trace_ms": 278,
+    "trace_rows": 3222118,
+    "verifier_setup_bytes": 13057041,
+    "verify_ms": 28,
+    "case": "status-8",
+    "state_bytes": 92,
+    "warm_bytes": 110773,
+    "cold_bytes": 13167814,
+    "trace_setup_proof_ms": 23477,
+    "files": {
+      "io.bin": {
+        "bytes": 777,
+        "sha256": "dbacd9b9b6d94b54c3c8e324e0c668e49efbde6449b44553ab16698f46ded0bf"
+      },
+      "verifier-setup.bin": {
+        "bytes": 13057041,
+        "sha256": "52730ea532619906fa219abb478cc343d6df7a30167d4c15c4e1e95023a3deb6"
+      },
+      "proof.bin": {
+        "bytes": 109904,
+        "sha256": "20625aa3c482ec0b72b81e22e81b730203a465c528e4724c946fdc517a1aeabd"
+      }
+    }
+  },
+  {
+    "backend": "Akita optimized CPU",
+    "count": 9,
+    "guest_build_ms": 427,
+    "jolt_commit": "beebf45d829f5aecc5d330f78879cd914e47541e",
+    "preprocess_ms": 1009,
+    "proof_bytes": 109917,
+    "proof_generated": true,
+    "prove_ms": 26183,
+    "public_io_bytes": 785,
+    "trace_ms": 312,
+    "trace_rows": 3917940,
+    "verifier_setup_bytes": 13057041,
+    "verify_ms": 29,
+    "case": "drawing-8",
+    "state_bytes": 391,
+    "warm_bytes": 111093,
+    "cold_bytes": 13168134,
+    "trace_setup_proof_ms": 27504,
+    "files": {
+      "io.bin": {
+        "bytes": 785,
+        "sha256": "6b47ae6383e1b622b941158e77275739c5e4526616509e135b4fa56a1c00fbc5"
+      },
+      "verifier-setup.bin": {
+        "bytes": 13057041,
+        "sha256": "52730ea532619906fa219abb478cc343d6df7a30167d4c15c4e1e95023a3deb6"
+      },
+      "proof.bin": {
+        "bytes": 109917,
+        "sha256": "5ce5dac91fad4e4ee37ca13ce2df6bdf061cb5dd60be5ed3b4397491cf5ec310"
+      }
+    }
+  }
+]
