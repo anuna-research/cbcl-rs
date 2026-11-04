@@ -15,7 +15,7 @@ use halo2_proofs::{
     poly::commitment::Params,
     transcript::{Blake2bRead, Blake2bWrite, Challenge255},
 };
-pub use profile::{Candidate, Checkpoint, Profile, Statement, MAX_CANDIDATES};
+pub use profile::{Candidate, Checkpoint, Profile, Statement, MAX_CANDIDATES, SEMANTICS_VERSION};
 use rand_core::OsRng;
 use serde::{Deserialize, Serialize};
 

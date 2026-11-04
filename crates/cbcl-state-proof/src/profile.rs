@@ -18,6 +18,14 @@ use sha2::{Digest, Sha256};
 use std::collections::BTreeSet;
 
 pub const MAX_CANDIDATES: usize = 8;
+/// Kernel semantics revision bound into every profile identity. Bump it, and
+/// regenerate `test-vectors/state-proof/*.json`, when admission or fold
+/// semantics change (README, "Semantics version").
+pub const SEMANTICS_VERSION: &str = "c9093e8";
+/// Identity domain `cbcl-state-proof/relation-v1/<version>`.
+pub(crate) fn relation_domain(version: &str) -> Vec<u8> {
+    format!("cbcl-state-proof/relation-v1/{version}").into_bytes()
+}
 const MAX_SOURCE: usize = 65_536;
 const MAX_MESSAGE: usize = 8_192;
 const PARSER_FUEL: usize = 256;
@@ -84,6 +92,8 @@ impl Row {
 #[derive(Clone, Debug)]
 pub struct Profile {
     id: [u8; 32],
+    #[cfg(test)]
+    id_parts: Vec<Vec<u8>>,
     addresses: Vec<String>,
     pub(crate) rows: Vec<Row>,
     pub(crate) transitions: Vec<(usize, usize)>,
@@ -97,6 +107,10 @@ fn hash(domain: &[u8], parts: &[&[u8]]) -> [u8; 32] {
         h.update(p);
     }
     h.finalize().into()
+}
+/// Profile identity: `hash` over the identity parts under `domain`.
+fn relation_id(domain: &[u8], parts: &[&[u8]]) -> [u8; 32] {
+    hash(domain, parts)
 }
 impl Profile {
     /// Compile the full bounded relation using the installed CBCL semantics.
@@ -146,7 +160,9 @@ impl Profile {
         for (act, text) in &acts {
             parts.extend([act.signer.as_bytes(), text.as_bytes()]);
         }
-        let id = hash(b"cbcl-state-proof/relation-v1/c9093e8", &parts);
+        let id = relation_id(&relation_domain(SEMANTICS_VERSION), &parts);
+        #[cfg(test)]
+        let id_parts = parts.iter().map(|p| p.to_vec()).collect();
         let thread_id = ThreadId(thread.into());
         let mut rows = Vec::new();
         for mask in 0..1usize << acts.len() {
@@ -220,6 +236,8 @@ impl Profile {
         transitions.sort_unstable();
         Ok(Self {
             id,
+            #[cfg(test)]
+            id_parts,
             transitions,
             addresses: acts.into_iter().map(|(a, _)| a.address).collect(),
             rows,
@@ -227,6 +245,13 @@ impl Profile {
     }
     pub fn id(&self) -> [u8; 32] {
         self.id
+    }
+    /// Identity of this profile's parts under another domain. Test seam for
+    /// the `SEMANTICS_VERSION` binding; `id()` uses `relation_domain(SEMANTICS_VERSION)`.
+    #[cfg(test)]
+    pub(crate) fn id_with_domain(&self, domain: &[u8]) -> [u8; 32] {
+        let parts: Vec<&[u8]> = self.id_parts.iter().map(Vec::as_slice).collect();
+        relation_id(domain, &parts)
     }
     pub fn addresses(&self) -> &[String] {
         &self.addresses

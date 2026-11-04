@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "semantics_version": "c9093e8",
+  "fixture": "test-vectors/state/signer-supersession.json",
+  "thread": "s1",
+  "candidates": 3,
+  "profile": "6c09fe84bd408e7ee2331dab22d51231deb929c50a4876f931b94aefee22fa36",
+  "checkpoints": {
+    "0": {
+      "accepted": "fd6b1fce5b2b1a0e0817480cf2c49a4fb6e587f86ba5638f4e9ec119aeb64953",
+      "state": "6ff78d85704721c491c9df58b10b8fe375630fa4a614708c643962ea1d91f408"
+    },
+    "4": {
+      "accepted": "c17dcac223f0302c35d0cb8be1fd67f1242cecc5c3e5fe33440f473abd775f34",
+      "state": "e940cd7df2c9d672892e5b90b4047869f2ac3bfeb679a1d23d4456f0727dceb7"
+    },
+    "5": {
+      "accepted": "ac01e93759920686f808f366cb8e8b153ba763a1557a910f15994d8ab248ac0c",
+      "state": "6ccb17553d21312c1d3fa6b2848a5a8cac4bbb5dd6b645c067f00813f85792a4"
+    },
+    "6": {
+      "accepted": "be4309851676e443da2e5b60f839786e6723b85b85af276e411a6c3783469097",
+      "state": "bd526fb507514c46c86216061467607399f3297af7d2707fbe26a603e9ee8d69"
+    },
+    "7": {
+      "accepted": "1727820d701ba5f08053dbf8cb46d10dcda3059fbdc1d63182e2d13a8fede8f0",
+      "state": "0d0a43f20642a093160fa82d001b1548bf971b4e12c19318d594f2b14eeb9a53"
+    }
+  },
+  "statement": {
+    "before": "6",
+    "after": "7",
+    "batch": "afad4d323de2f046543a25a7e41f6275bfbf5ddf4f68135e6fe0517c5ec582c9"
+  }
+}

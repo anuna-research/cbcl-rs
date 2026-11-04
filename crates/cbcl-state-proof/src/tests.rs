@@ -433,3 +433,101 @@ fn register_deletion_preserves_history_and_unseen_concurrent_write() {
         p.checkpoint(0).unwrap().accepted
     );
 }
+
+/// TEST-3505: the pinned vector and the compiled profile must agree on the
+/// identity, every valid checkpoint, and the fixture's statement.
+#[test]
+fn golden_vector_matches_compiled_profile() {
+    let (s, t, c) = fixture();
+    let p = Profile::compile(&s, &t, &c).unwrap();
+    let v: Json = serde_json::from_str(include_str!(
+        "../../../test-vectors/state-proof/signer-supersession.json"
+    ))
+    .unwrap();
+    let hex = |b: [u8; 32]| b.iter().map(|x| format!("{x:02x}")).collect::<String>();
+    assert_eq!(v["version"], 1);
+    assert_eq!(v["semantics_version"], SEMANTICS_VERSION);
+    assert_eq!(v["thread"], t);
+    assert_eq!(v["candidates"], c.len());
+    assert_eq!(v["profile"], hex(p.id()));
+    let checkpoints = v["checkpoints"].as_object().unwrap();
+    let valid: Vec<u16> = (0..p.rows.len() as u16)
+        .filter(|m| p.checkpoint(*m).is_ok())
+        .collect();
+    assert_eq!(
+        checkpoints.len(),
+        valid.len(),
+        "every valid checkpoint is pinned"
+    );
+    for mask in valid {
+        let cp = p.checkpoint(mask).unwrap();
+        let pinned = &checkpoints[&mask.to_string()];
+        assert_eq!(pinned["accepted"], hex(cp.accepted), "mask {mask}");
+        assert_eq!(pinned["state"], hex(cp.state), "mask {mask}");
+    }
+    let (old, new) = masks(&p, &c);
+    let statement = p.statement(old, new).unwrap();
+    assert_eq!(v["statement"]["before"], old.to_string());
+    assert_eq!(v["statement"]["after"], new.to_string());
+    assert_eq!(v["statement"]["batch"], hex(statement.batch));
+}
+
+/// TEST-3505: the identity binds `SEMANTICS_VERSION` through `relation_domain`.
+#[test]
+fn semantics_version_changes_profile_identity() {
+    let (s, t, c) = fixture();
+    let p = Profile::compile(&s, &t, &c).unwrap();
+    assert_eq!(
+        profile::relation_domain(SEMANTICS_VERSION),
+        b"cbcl-state-proof/relation-v1/c9093e8"
+    );
+    let same = p.id_with_domain(&profile::relation_domain(SEMANTICS_VERSION));
+    let other = p.id_with_domain(&profile::relation_domain("other"));
+    assert_eq!(same, p.id());
+    assert_ne!(other, p.id());
+    assert_ne!(
+        profile::relation_domain("other"),
+        profile::relation_domain(SEMANTICS_VERSION)
+    );
+}
+
+/// Regenerates the golden vector. Run after bumping `SEMANTICS_VERSION`:
+/// `cargo test -p cbcl-state-proof -- --ignored write_golden_vector`.
+#[test]
+#[ignore]
+fn write_golden_vector() {
+    let (s, t, c) = fixture();
+    let p = Profile::compile(&s, &t, &c).unwrap();
+    let hex = |b: [u8; 32]| b.iter().map(|x| format!("{x:02x}")).collect::<String>();
+    let mut checkpoints = serde_json::Map::new();
+    for mask in 0..p.rows.len() as u16 {
+        if let Ok(cp) = p.checkpoint(mask) {
+            checkpoints.insert(
+                mask.to_string(),
+                serde_json::json!({"accepted": hex(cp.accepted), "state": hex(cp.state)}),
+            );
+        }
+    }
+    let (old, new) = masks(&p, &c);
+    let statement = p.statement(old, new).unwrap();
+    let v = serde_json::json!({
+        "version": 1,
+        "semantics_version": SEMANTICS_VERSION,
+        "fixture": "test-vectors/state/signer-supersession.json",
+        "thread": t,
+        "candidates": c.len(),
+        "profile": hex(p.id()),
+        "checkpoints": checkpoints,
+        "statement": {"before": old.to_string(), "after": new.to_string(), "batch": hex(statement.batch)},
+    });
+    let path = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../test-vectors/state-proof/signer-supersession.json"
+    );
+    std::fs::create_dir_all(std::path::Path::new(path).parent().unwrap()).unwrap();
+    std::fs::write(
+        path,
+        format!("{}\n", serde_json::to_string_pretty(&v).unwrap()),
+    )
+    .unwrap();
+}
