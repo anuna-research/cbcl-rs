@@ -194,7 +194,50 @@ to a power of two, and the fixture yields 2^14 rows. The unit test
 
 ## Independent code review
 
-Pending.
+Two fresh-context reviews of the integration branch at `e3bf0ea` (all
+implementation tasks merged), each given only the specification and the
+deliverable, with a mandate to find defects and no access to attempt evidence
+or transcripts:
+
+- Claude Fable 5.1 (same model family as the generator, fresh context, ran the
+  test suites and gates itself): 0 critical, 4 major, 11 minor, 4 notes. No
+  soundness break found; public-instance wiring, limb encoding, one-hot
+  indicators, transition accumulation, grow-only gate and batch selection
+  checked out; recognisers accept exactly CON-3502.
+- Codex (`gpt-6.1-sol`, cross-model, static review; its sandbox could not run
+  cargo): 0 critical, 1 major, 5 minor, 2 notes.
+
+Dispositions (C = Claude finding, X = Codex finding):
+
+| Finding | Severity | Disposition |
+|---|---|---|
+| X1 nested `lang` wrappers bypass dialect binding (`dialect_name` reads the outer wrapper, admission the innermost message) | major | Accepted. REQ-3512 (b) amended in 0.2.2 to reject nested wrappers; repaired in `review-repairs` with a negative test. |
+| C1 / X4 REQ-3507 (b, c, d, h) implemented but untested; `size_bounds_and_roles_fail_before_enumeration` absent | major | Accepted. Test added in `review-repairs`, including the 100 ms bound and the roles fixture. |
+| C2 / X8 crate README front matter said `status: implemented` while the spec is `implementing` | major | Accepted. README status follows the spec; set by the reviewing session with the spec. |
+| C3 / X3 mutation runner lacks the TEST-3504 continuity mutation and the final-one constraint mutation | major | Accepted. Runner generalised to several files; both mutants added. |
+| C4 Boolean selector, growth gate and validity constants are mutation-invisible because every witness is mask-derived | major | Accepted for the Boolean gate: a `#[cfg(test)]` forge hook presents a non-Boolean bit and a test asserts rejection. Growth and validity gates stay redundant with the transition sum by design (defence in depth); recorded as a known blind spot. |
+| C5 / X5 two proofs of one statement not shown to differ; `prove` size check not exercised | minor | Accepted (first half): test added. Second half: only an over-size profile could exercise it; recorded in the README as untestable at the eight-candidate bound. |
+| X2 duplicate `:from` scan assumed aligned pairs | minor | Accepted. Sliding scan like `keyword_fields`; negative test added. |
+| C7 profile-level `:sender` ≠ label and duplicate `:from` untested | minor | Accepted. Tests added. |
+| C8 lunch-vote per-subset parity not tested | minor | Accepted. Parity loop runs over both fixtures. |
+| C9 / X9 fuzz crate depends on the proof crate against REQ-3509 (b) | minor | Accepted as a spec tension. REQ-3509 (b) amended in 0.2.2 to name the out-of-workspace fuzz crate. |
+| C10 one combined resource-limit error | minor | Accepted. One message per bound. |
+| C11 / X6 CLI `read_file` bounded by metadata only | minor | Accepted. Read through a `take(limit + 1)` and reject on length. |
+| C12 duplicate addresses silently OR-ed; chain-verify prints byte arrays | minor | Accepted. CON-3505 amended in 0.2.2; repeated addresses reject; checkpoints print as hex. |
+| C13 dead code (`check_len` in `verify`, `relation_id` alias) | minor | Accepted. Removed. |
+| C14 early-rejection path indistinguishable from backend failure in tests | minor | Accepted. Tests assert the rejection message of the early path. |
+| C15 README omits the v1-signature and two-labels limitations; `relation_domain` visibility wording | minor | Accepted. README updated. |
+| X7 serde derive accepts positional arrays for structs | note | Accepted. CON-3502 and CON-3505 amended in 0.2.2; recognisers check object shape before typed deserialisation; tests added. |
+| C16 `:from @a` with `:sender "@ed25519:a"` passes `attested` but every set is invalid under REQ-3512 (c) | note | Accepted as documentation. README states the trap. |
+| C17 without-feature CLI behaviour verified manually only | note | Recorded. Automating it needs a second build; manual record in `docs/evidence/circus/cli-checkpoint.md`. |
+| C18 fuzz target covers `from_json` only, not `Verifier::verify` | note | Accepted. A second target `state_proof_verify` fuzzes transcript bytes against a fixed verifier. |
+| C19 / X (NFR) 1,000 ms budget only measured by the example | note | The measurement and machine are recorded above; depth item stays with the maintainer. |
+| X conformance: REQ-3506 (d) whitespace test does not introduce whitespace | minor | Accepted. Test adds spacing and newlines to candidate text. |
+
+Repairs are scoped to the implicated requirements and carried out by the
+`review-repairs` Circus attempt; its evidence is `docs/evidence/circus/review-repairs.md`.
+The status change to `implemented` is made by the reviewing session after the
+repairs merge, per REQ-3511.
 
 ## Open items for the CBCL maintainer
 

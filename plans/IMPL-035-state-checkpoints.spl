@@ -54,10 +54,18 @@
 (normally r-ready-docs-evidence (and (task docs-evidence) (completed package-grammar) (completed cli-checkpoint)) (ready docs-evidence))
 (meta r-ready-docs-evidence (source "SPEC-035-halo2-state-checkpoints#REQ-3511"))
 
+(given (task review-repairs))
+(given (task-description review-repairs "Repair the accepted findings of the two independent code reviews: nested wrapper binding, :from scan, object-only recognisers, missing REQ-3507 tests, mutation runner coverage, README status and limitations, CLI bounded read and hex output"))
+(given (task-acceptance review-repairs "TEST-3506, TEST-3504, TEST-3502, TEST-3507, TEST-3509: new negative tests fail first and pass after; scripts/state-proof-mutations.py kills four mutants; make check green"))
+(normally r-ready-review-repairs (and (task review-repairs) (completed docs-evidence)) (ready review-repairs))
+(meta r-ready-review-repairs (source "SPEC-035-halo2-state-checkpoints#REQ-3511"))
+(normally r-complete-review-repairs (and (gate-green review-repairs) (evidence-recorded review-repairs)) (completed review-repairs))
+(meta r-complete-review-repairs (source "SPEC-035-halo2-state-checkpoints#TEST-3510"))
+
 (given (task independent-review))
 (given (task-description independent-review "Fresh-context adversarial code review of the integration branch against SPEC-035, cross-model attempt recorded, findings dispositioned, repairs scoped to implicated requirements"))
 (given (task-acceptance independent-review "TEST-3510 core: review record with findings and dispositions committed; no critical finding open"))
-(normally r-ready-independent-review (and (task independent-review) (completed docs-evidence)) (ready independent-review))
+(normally r-ready-independent-review (and (task independent-review) (completed review-repairs)) (ready independent-review))
 (meta r-ready-independent-review (source "SPEC-035-halo2-state-checkpoints#REQ-3511"))
 
 (given (task status-implemented))
