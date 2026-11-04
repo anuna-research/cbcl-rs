@@ -1,0 +1,68 @@
+   Compiling cbcl-state-proof v0.1.1 (/Users/anuna-02/Code/cbcl-rs-review-repairs-1/crates/cbcl-state-proof)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.15s
+     Running unittests src/lib.rs (target/debug/deps/cbcl_state_proof-ae8c753fb33435eb)
+
+running 53 tests
+test chain_tests::corrupted_transcript_in_second_link_is_rejected ... ok
+test chain_tests::empty_chain_returns_start ... ok
+test chain_tests::expected_end_mismatch_is_rejected ... ok
+test chain_tests::first_link_not_at_start_is_rejected ... ok
+test chain_tests::foreign_profile_in_header_is_rejected ... ok
+test chain_tests::foreign_profile_in_one_link_is_rejected ... ok
+test chain_tests::gap_between_links_is_rejected ... ok
+test chain_tests::genesis_is_the_empty_set_checkpoint ... ok
+test chain_tests::json_round_trip_and_recogniser_limits ... ok
+test chain_tests::matching_expected_end_is_accepted ... ok
+test chain_tests::one_link_chain_from_non_genesis_start_verifies ... ok
+test chain_tests::sixty_five_links_are_rejected_by_new_and_from_json ... ok
+test chain_tests::swapped_links_are_rejected ... ok
+test chain_tests::two_link_chain_from_genesis_verifies ... ok
+test package_tests::byte_values_outside_the_grammar_are_rejected ... ok
+test package_tests::chain_package_limit_is_1_048_576_bytes ... ok
+test package_tests::chain_round_trips ... ok
+test package_tests::duplicate_member_is_rejected ... ok
+test package_tests::h32_must_have_exactly_32_bytes ... ok
+test package_tests::member_order_is_not_significant ... ok
+test package_tests::positional_arrays_are_rejected ... ok
+test package_tests::proof_package_limit_is_100_000_bytes ... ok
+test package_tests::proof_round_trips ... ok
+test package_tests::prove_output_rule_rejects_transcript_over_16_384_bytes ... ok
+test package_tests::sixty_four_real_links_round_trip_and_sixty_five_are_rejected ... ok
+test package_tests::trailing_input_other_than_json_whitespace_is_rejected ... ok
+test package_tests::transcript_length_rule_is_enforced_by_both_recognisers ... ok
+test package_tests::unknown_member_is_rejected ... ok
+test package_tests::writer_emits_members_in_grammar_order_without_whitespace ... ok
+test tests::actual_proof_roundtrip_tampering_and_independent_verifier ... ok
+test tests::attested_candidates_bind_from_label_and_match_unauthenticated_profile ... ok
+test tests::attested_rejects_forged_altered_and_mismatched_candidates ... ok
+test tests::attested_rejects_second_from_after_stray_positional_param ... ok
+test tests::candidate_and_parser_limits_fail_closed ... ok
+test tests::canonical_whitespace_and_unknown_candidates ... ok
+test tests::complete_native_corpus_snapshots_match_recorded_results ... ok
+test tests::eight_candidate_profile_circuit_k_is_at_most_14 ... ok
+test tests::every_public_limb_is_constrained_without_the_host_precheck ... ok
+test tests::golden_vector_matches_compiled_profile ... ok
+test tests::grow_only_and_exact_delta_are_circuit_obligations ... ok
+test tests::invalid_shape_sender_thread_and_dialect_are_constrained ... ok
+test tests::lunch_vote_native_fold_matches_for_every_valid_subset ... ok
+test tests::native_fold_and_replacement_match_for_every_valid_subset ... ok
+test tests::nested_or_wrapped_dialect_forms_invalidate_every_containing_set ... ok
+test tests::non_boolean_selection_bit_is_rejected_by_the_boolean_gate ... ok
+test tests::pending_message_cannot_enter_committed_set_even_when_precheck_is_bypassed ... ok
+test tests::previous_context_relation_is_enforced_independently_of_snapshot_and_growth_checks ... ok
+test tests::register_deletion_preserves_history_and_unseen_concurrent_write ... ok
+test tests::reordered_candidates_and_child_before_opener_use_the_same_relation ... ok
+test tests::semantics_version_changes_profile_identity ... ok
+test tests::size_bounds_and_roles_fail_before_enumeration ... ok
+test tests::transition_total_must_equal_one_without_a_forged_sum ... ok
+test tests::write_golden_vector ... ignored
+
+test result: ok. 52 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 42.28s
+
+   Doc-tests cbcl_state_proof
+
+running 1 test
+test crates/cbcl-state-proof/src/candidate.rs - candidate::Candidate (line 21) - compile fail ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+

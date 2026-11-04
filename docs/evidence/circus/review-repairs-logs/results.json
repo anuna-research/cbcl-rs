@@ -1,0 +1,177 @@
+[
+  {
+    "name": "red-nested",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "cbcl-state-proof",
+      "--lib",
+      "nested_or_wrapped_dialect_forms_invalidate_every_containing_set",
+      "--locked",
+      "--",
+      "--test-threads=1"
+    ],
+    "exit_code": 101,
+    "pass_gate": true
+  },
+  {
+    "name": "red-from",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "cbcl-state-proof",
+      "--lib",
+      "attested_rejects_second_from_after_stray_positional_param",
+      "--locked",
+      "--",
+      "--test-threads=1"
+    ],
+    "exit_code": 101,
+    "pass_gate": true
+  },
+  {
+    "name": "red-package",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "cbcl-state-proof",
+      "--lib",
+      "positional_arrays_are_rejected",
+      "--locked",
+      "--",
+      "--test-threads=1"
+    ],
+    "exit_code": 101,
+    "pass_gate": true
+  },
+  {
+    "name": "red-bounds",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "cbcl-state-proof",
+      "--lib",
+      "size_bounds_and_roles_fail_before_enumeration",
+      "--locked",
+      "--",
+      "--test-threads=1"
+    ],
+    "exit_code": 101,
+    "pass_gate": true
+  },
+  {
+    "name": "red-cli",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "cbcl-cli",
+      "--features",
+      "state-proof",
+      "--locked",
+      "--test",
+      "checkpoint",
+      "malformed_profile_and_address_inputs_exit_one"
+    ],
+    "exit_code": 101,
+    "pass_gate": true
+  },
+  {
+    "name": "crate",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "cbcl-state-proof",
+      "--locked",
+      "--",
+      "--test-threads=1"
+    ],
+    "exit_code": 0,
+    "pass_gate": true
+  },
+  {
+    "name": "cli",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "cbcl-cli",
+      "--features",
+      "state-proof",
+      "--locked"
+    ],
+    "exit_code": 0,
+    "pass_gate": true
+  },
+  {
+    "name": "crate-clippy",
+    "command": [
+      "cargo",
+      "clippy",
+      "-p",
+      "cbcl-state-proof",
+      "--all-targets",
+      "--locked",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "exit_code": 0,
+    "pass_gate": true
+  },
+  {
+    "name": "cli-clippy",
+    "command": [
+      "cargo",
+      "clippy",
+      "-p",
+      "cbcl-cli",
+      "--all-targets",
+      "--features",
+      "state-proof",
+      "--locked",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "exit_code": 0,
+    "pass_gate": true
+  },
+  {
+    "name": "fuzz",
+    "command": [
+      "cargo",
+      "check",
+      "--manifest-path",
+      "fuzz/Cargo.toml",
+      "--bin",
+      "state_proof_verify",
+      "--offline"
+    ],
+    "exit_code": 0,
+    "pass_gate": true
+  },
+  {
+    "name": "mutations",
+    "command": [
+      "python3",
+      "scripts/state-proof-mutations.py"
+    ],
+    "exit_code": 0,
+    "pass_gate": true
+  },
+  {
+    "name": "workspace",
+    "command": [
+      "make",
+      "check"
+    ],
+    "exit_code": 0,
+    "pass_gate": true
+  }
+]

@@ -1,13 +1,15 @@
 //! Checkpoint chains: sequential verification from a receiver-pinned start
 //! (SPEC-035 REQ-3505, CON-3503).
-use crate::{Checkpoint, Proof, Result, Verifier, MAX_CHAIN_PACKAGE};
+use crate::{object, Checkpoint, Proof, Result, Verifier, MAX_CHAIN_PACKAGE};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 /// Most links a chain may carry (REQ-3508).
 pub const MAX_LINKS: usize = 64;
 
 /// An ordered list of proofs over one profile. Fields are private: a chain is
-/// only built through `new` or `from_json`, and neither establishes validity.
+/// normally built through `new` or `from_json`. Direct serde deserialization
+/// also constructs a chain; `verify` independently enforces the link bound.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Chain {
@@ -38,12 +40,17 @@ impl Chain {
         Ok(bytes)
     }
     /// Recognises against CON-3502: unknown or duplicate members, non-integer
-    /// or out-of-range bytes, trailing input other than JSON whitespace, a
-    /// package over `MAX_CHAIN_PACKAGE` bytes, more than `MAX_LINKS` links and
-    /// a link with an invalid transcript size are rejected.
+    /// or out-of-range bytes, a positional array in an object position,
+    /// trailing input other than JSON whitespace, a package over
+    /// `MAX_CHAIN_PACKAGE` bytes, more than `MAX_LINKS` links and a link with
+    /// an invalid transcript size are rejected.
     pub fn from_json(bytes: &[u8]) -> Result<Self> {
         if bytes.len() > MAX_CHAIN_PACKAGE {
             return Err("chain package exceeds limit".into());
+        }
+        let value: Value = serde_json::from_slice(bytes).map_err(|e| e.to_string())?;
+        if let Some(Value::Array(links)) = object(&value)?.get("links") {
+            links.iter().try_for_each(Proof::check_shape)?;
         }
         let chain: Self = serde_json::from_slice(bytes).map_err(|e| e.to_string())?;
         chain.check_shape()?;

@@ -5,13 +5,15 @@
 //! (clap). No input panics; every rejection is an `Err(String)` printed as
 //! `error: ...` on stderr.
 
+use std::collections::BTreeSet;
 use std::fs;
-use std::io::Write;
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 
 use cbcl_state_proof::{Candidate, Chain, Checkpoint, Profile, Proof, Prover, Verifier};
 use clap::{Args, Subcommand};
 use serde::Deserialize;
+use serde_json::Value;
 
 /// Largest `profile.json` accepted (CON-3505).
 const MAX_PROFILE_FILE: usize = 1 << 20;
@@ -137,7 +139,7 @@ fn execute(op: Op) -> Result<()> {
             // statement is only ever compared against it.
             let expected = profile.statement(mask(&profile, &before)?, mask(&profile, &after)?)?;
             Verifier::new(profile)?.verify(&proof, &expected)?;
-            emit(&serde_json::json!({"verified": true, "after": expected.after}))
+            emit(&serde_json::json!({"verified": true, "after": checkpoint_json(&expected.after)}))
         }
         Op::ChainVerify {
             profile,
@@ -156,15 +158,23 @@ fn execute(op: Op) -> Result<()> {
                 None => None,
             };
             let last = chain.verify(&Verifier::new(profile)?, start, end)?;
-            emit(&last)
+            emit(&checkpoint_json(&last))
         }
     }
 }
 
 /// Reads and recognises `profile.json`, then compiles it. Rejects a file over
-/// 1 MiB, unknown or duplicate members, and anything `Profile::compile` rejects.
+/// 1 MiB, unknown or duplicate members, a positional array where the profile
+/// or a candidate object is required, and anything `Profile::compile` rejects.
 fn compile(path: &Path) -> Result<Profile> {
     let bytes = read_file(path, MAX_PROFILE_FILE)?;
+    let value: Value = serde_json::from_slice(&bytes).map_err(|e| format!("profile: {e}"))?;
+    let top = value.as_object().ok_or("profile: expected a JSON object")?;
+    if let Some(Value::Array(candidates)) = top.get("candidates") {
+        if !candidates.iter().all(Value::is_object) {
+            return Err("profile: candidate must be a JSON object".into());
+        }
+    }
     let file: ProfileFile = serde_json::from_slice(&bytes).map_err(|e| format!("profile: {e}"))?;
     let candidates: Vec<Candidate> = file
         .candidates
@@ -174,25 +184,33 @@ fn compile(path: &Path) -> Result<Profile> {
     Profile::compile(&file.dialect, &file.thread, &candidates)
 }
 
-/// Reads at most `limit` bytes; a longer file is rejected without being parsed.
+/// Reads at most `limit + 1` bytes through `Read::take`; a file with more
+/// than `limit` bytes is rejected without being parsed (CON-3505).
 fn read_file(path: &Path, limit: usize) -> Result<Vec<u8>> {
-    let len = fs::metadata(path)
-        .map_err(|e| format!("{}: {e}", path.display()))?
-        .len();
-    if len > limit as u64 {
+    let file = fs::File::open(path).map_err(|e| format!("{}: {e}", path.display()))?;
+    let mut bytes = Vec::new();
+    file.take(limit as u64 + 1)
+        .read_to_end(&mut bytes)
+        .map_err(|e| format!("{}: {e}", path.display()))?;
+    if bytes.len() > limit {
         return Err(format!("{}: exceeds {limit} bytes", path.display()));
     }
-    fs::read(path).map_err(|e| format!("{}: {e}", path.display()))
+    Ok(bytes)
 }
 
 /// Parses a CON-3505 address list: `-` is the empty set; otherwise every
-/// comma-separated item must be a `sha256-<hex64>` address in the profile.
+/// comma-separated item must be a `sha256-<hex64>` address in the profile,
+/// and no address may repeat.
 fn mask(profile: &Profile, list: &str) -> Result<u16> {
     if list == "-" {
         return profile.mask(&[]);
     }
     let addresses: Vec<&str> = list.split(',').collect();
+    let mut seen = BTreeSet::new();
     for a in &addresses {
+        if !seen.insert(*a) {
+            return Err(format!("repeated address {a:?}"));
+        }
         let hex = a
             .strip_prefix("sha256-")
             .ok_or_else(|| format!("malformed address {a:?}"))?;
@@ -205,6 +223,11 @@ fn mask(profile: &Profile, list: &str) -> Result<u16> {
 
 fn hex(bytes: &[u8]) -> String {
     bytes.iter().map(|b| format!("{b:02x}")).collect()
+}
+
+/// CON-3505: checkpoints print as `{"accepted": hex64, "state": hex64}`.
+fn checkpoint_json(cp: &Checkpoint) -> Value {
+    serde_json::json!({"accepted": hex(&cp.accepted), "state": hex(&cp.state)})
 }
 
 /// One line of compact JSON on stdout.

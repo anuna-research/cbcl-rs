@@ -29,6 +29,9 @@ pub(crate) struct StateCircuit {
     pub(crate) masks: Option<(u16, u16)>,
     #[cfg(test)]
     pub(crate) forge_transition_sum: bool,
+    /// Test seam: assign 2 to the first before-selection bit (REQ-3503).
+    #[cfg(test)]
+    pub(crate) forge_non_boolean_bit: bool,
 }
 impl StateCircuit {
     pub(crate) fn empty(profile: &Profile) -> Self {
@@ -37,6 +40,8 @@ impl StateCircuit {
             masks: None,
             #[cfg(test)]
             forge_transition_sum: false,
+            #[cfg(test)]
+            forge_non_boolean_bit: false,
         }
     }
     pub(crate) fn witness(profile: &Profile, before: u16, after: u16) -> Self {
@@ -45,6 +50,8 @@ impl StateCircuit {
             masks: Some((before, after)),
             #[cfg(test)]
             forge_transition_sum: false,
+            #[cfg(test)]
+            forge_non_boolean_bit: false,
         }
     }
     pub(crate) fn k(&self) -> u32 {
@@ -258,11 +265,16 @@ impl Circuit<Fp> for StateCircuit {
                 for side in 0..2 {
                     let mut bits = Vec::new();
                     for j in 0..n {
-                        let value = self.masks.map(|(old, new)| {
+                        #[allow(unused_mut)]
+                        let mut value = self.masks.map(|(old, new)| {
                             Fp::from(u64::from(
                                 (if side == 0 { old } else { new }) & (1 << j) != 0,
                             ))
                         });
+                        #[cfg(test)]
+                        if self.forge_non_boolean_bit && side == 0 && j == 0 {
+                            value = Some(Fp::from(2));
+                        }
                         let cell = region.assign_advice(
                             || "selection",
                             config.a,

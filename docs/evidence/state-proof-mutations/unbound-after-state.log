@@ -1,9 +1,9 @@
    Compiling sha2-asm v0.6.4
    Compiling sha2 v0.10.9
-   Compiling cbcl-core v0.1.1 (/Users/anuna-02/Code/cbcl-rs-docs-evidence-1/crates/cbcl-core)
-   Compiling cbcl-parser v0.1.1 (/Users/anuna-02/Code/cbcl-rs-docs-evidence-1/crates/cbcl-parser)
-   Compiling cbcl-state-proof v0.1.1 (/Users/anuna-02/Code/cbcl-rs-docs-evidence-1/crates/cbcl-state-proof)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.74s
+   Compiling cbcl-core v0.1.1 (/Users/anuna-02/Code/cbcl-rs-review-repairs-1/crates/cbcl-core)
+   Compiling cbcl-parser v0.1.1 (/Users/anuna-02/Code/cbcl-rs-review-repairs-1/crates/cbcl-parser)
+   Compiling cbcl-state-proof v0.1.1 (/Users/anuna-02/Code/cbcl-rs-review-repairs-1/crates/cbcl-state-proof)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.81s
      Running unittests src/lib.rs (target/debug/deps/cbcl_state_proof-ae8c753fb33435eb)
 
 running 1 test
@@ -13,7 +13,7 @@ failures:
 
 ---- tests::every_public_limb_is_constrained_without_the_host_precheck stdout ----
 
-thread 'tests::every_public_limb_is_constrained_without_the_host_precheck' (11365523) panicked at crates/cbcl-state-proof/src/tests.rs:180:9:
+thread 'tests::every_public_limb_is_constrained_without_the_host_precheck' (11464176) panicked at crates/cbcl-state-proof/src/tests.rs:229:9:
 public limb 8
 note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 
@@ -21,6 +21,6 @@ note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 failures:
     tests::every_public_limb_is_constrained_without_the_host_precheck
 
-test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 45 filtered out; finished in 0.12s
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 53 filtered out; finished in 0.12s
 
 error: test failed, to rerun pass `-p cbcl-state-proof --lib`

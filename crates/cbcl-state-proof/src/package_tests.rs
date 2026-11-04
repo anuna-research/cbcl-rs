@@ -89,6 +89,44 @@ fn unknown_member_is_rejected() {
     assert!(Chain::from_json(c.as_bytes()).is_ok());
 }
 
+/// CON-3502: a positional array in any object position is rejected even
+/// though serde would accept it for a struct.
+#[test]
+fn positional_arrays_are_rejected() {
+    let h = h32_text(0);
+    let t = serde_json::to_string(&[7u8; 32]).unwrap();
+    let cp = format!("[{h},{h}]");
+    let obj_cp = format!(r#"{{"accepted":{h},"state":{h}}}"#);
+    let st = format!("[{h},{cp},{cp},{h}]");
+    let obj_st = format!(r#"{{"profile":{h},"before":{obj_cp},"after":{obj_cp},"batch":{h}}}"#);
+    // Control: the object text is in the language.
+    let proof = format!(r#"{{"statement":{obj_st},"transcript":{t}}}"#);
+    assert_eq!(Proof::from_json(proof.as_bytes()).unwrap(), small_proof());
+    // Whole proof, statement, and one checkpoint as arrays.
+    assert!(Proof::from_json(format!("[{st},{t}]").as_bytes()).is_err());
+    assert!(
+        Proof::from_json(format!(r#"{{"statement":{st},"transcript":{t}}}"#).as_bytes()).is_err()
+    );
+    let one_cp = format!(r#"{{"profile":{h},"before":{cp},"after":{obj_cp},"batch":{h}}}"#);
+    assert!(
+        Proof::from_json(format!(r#"{{"statement":{one_cp},"transcript":{t}}}"#).as_bytes())
+            .is_err()
+    );
+    // Chain: whole chain, and one link, as arrays.
+    let h1 = h32_text(1);
+    assert!(Chain::from_json(format!("[{h1},[]]").as_bytes()).is_err());
+    assert!(
+        Chain::from_json(format!(r#"{{"profile":{h1},"links":[[{st},{t}]]}}"#).as_bytes()).is_err()
+    );
+    assert!(Chain::from_json(
+        format!(r#"{{"profile":{h1},"links":[{{"statement":{st},"transcript":{t}}}]}}"#).as_bytes()
+    )
+    .is_err());
+    // Control: the object form of the same chain is accepted.
+    let chain = format!(r#"{{"profile":{h1},"links":[{proof}]}}"#);
+    assert_eq!(Chain::from_json(chain.as_bytes()).unwrap().links().len(), 1);
+}
+
 #[test]
 fn duplicate_member_is_rejected() {
     let p = proof_text();

@@ -1,0 +1,32 @@
+   Compiling sha2-asm v0.6.4
+   Compiling sha2 v0.10.9
+   Compiling cbcl-core v0.1.1 (/Users/anuna-02/Code/cbcl-rs-review-repairs-1/crates/cbcl-core)
+   Compiling cbcl-parser v0.1.1 (/Users/anuna-02/Code/cbcl-rs-review-repairs-1/crates/cbcl-parser)
+   Compiling cbcl-state-proof v0.1.1 (/Users/anuna-02/Code/cbcl-rs-review-repairs-1/crates/cbcl-state-proof)
+   Compiling cbcl-cli v0.1.1 (/Users/anuna-02/Code/cbcl-rs-review-repairs-1/crates/cbcl-cli)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.13s
+     Running unittests src/main.rs (target/debug/deps/cbcl_cli-21fd2e2347a117c4)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/checkpoint.rs (target/debug/deps/checkpoint-d4772e16d40c56b6)
+
+running 3 tests
+test usage_errors_exit_two ... ok
+test malformed_profile_and_address_inputs_exit_one ... ok
+test compile_prove_verify_and_chain_verify_round_trip ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 44.43s
+
+     Running tests/verify_cli.rs (target/debug/deps/verify_cli-f24f720c3b74c8a5)
+
+running 4 tests
+test protocol_referencing_undefined_performative_fails_r5 ... ok
+test protocol_referencing_inherited_core_performative_passes_r5 ... ok
+test crosschain_passes_r5_with_protocol ... ok
+test protocol_free_dialects_pass_r5_vacuously ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+

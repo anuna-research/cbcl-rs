@@ -1,0 +1,6 @@
+   Compiling sha2-asm v0.6.4
+    Checking sha2 v0.10.9
+    Checking cbcl-core v0.1.1 (/Users/anuna-02/Code/cbcl-rs-review-repairs-1/crates/cbcl-core)
+    Checking cbcl-parser v0.1.1 (/Users/anuna-02/Code/cbcl-rs-review-repairs-1/crates/cbcl-parser)
+    Checking cbcl-state-proof v0.1.1 (/Users/anuna-02/Code/cbcl-rs-review-repairs-1/crates/cbcl-state-proof)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.81s

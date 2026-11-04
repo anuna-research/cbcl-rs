@@ -3,6 +3,7 @@ use crate::*;
 use cbcl_core::{
     attest::sign_attestation_v2,
     equivocation::attestation_header_for,
+    message::Message,
     r4::Signer,
     serializer::serialize,
     sexpr::SExpr,
@@ -75,16 +76,38 @@ fn mock(p: &Profile, before: u16, after: u16, statement: &Statement) -> bool {
         .verify()
         .is_ok()
 }
-#[test]
-fn native_fold_and_replacement_match_for_every_valid_subset() {
-    let (source, thread, c) = fixture();
-    let p = Profile::compile(&source, &thread, &c).unwrap();
-    let registry = parse_and_install_dialect(&parse(&source).unwrap()).unwrap();
+/// Accepted, distinct messages of a state fixture, with its dialect and thread.
+pub(crate) fn corpus(text: &str) -> (String, String, Vec<Candidate>) {
+    let v: Json = serde_json::from_str(text).unwrap();
+    let mut candidates = Vec::new();
+    let mut seen = std::collections::BTreeSet::new();
+    for m in v["messages"].as_array().unwrap() {
+        let c = Candidate::unauthenticated(
+            m["canonical"].as_str().unwrap().into(),
+            m["signer"].as_str().unwrap().into(),
+        );
+        let id = address(&c);
+        if v["expect"]["verdicts"][&id] == "accepted" && seen.insert(id) {
+            candidates.push(c);
+        }
+    }
+    (
+        v["contract"].as_str().unwrap().into(),
+        v["thread"].as_str().unwrap().into(),
+        candidates,
+    )
+}
+/// REQ-3501: every valid subset's state JSON is the native fold of that subset.
+fn assert_native_parity(source: &str, thread: &str, c: &[Candidate]) {
+    let p = Profile::compile(source, thread, c).unwrap();
+    let registry = parse_and_install_dialect(&parse(source).unwrap()).unwrap();
     let d = registry.iter().last().unwrap();
+    let mut valid = 0;
     for mask in 0..p.rows.len() {
         if p.checkpoint(mask as u16).is_err() {
             continue;
         }
+        valid += 1;
         let acts: Vec<_> = c
             .iter()
             .filter(|c| mask & p.mask(&[&address(c)]).unwrap() as usize != 0)
@@ -102,6 +125,13 @@ fn native_fold_and_replacement_match_for_every_valid_subset() {
             ))
         );
     }
+    assert!(valid > 1, "fixture has only the empty valid set");
+}
+#[test]
+fn native_fold_and_replacement_match_for_every_valid_subset() {
+    let (source, thread, c) = fixture();
+    assert_native_parity(&source, &thread, &c);
+    let p = Profile::compile(&source, &thread, &c).unwrap();
     let (old, new) = masks(&p, &c);
     let state: Json = serde_json::from_str(p.state_json(new).unwrap()).unwrap();
     assert_eq!(state["entries"]["@a"], "new");
@@ -132,7 +162,14 @@ fn pending_message_cannot_enter_committed_set_even_when_precheck_is_bypassed() {
 #[test]
 fn invalid_shape_sender_thread_and_dialect_are_constrained() {
     let (s, t, c) = fixture();
-    for mode in ["shape", "sender", "thread", "dialect"] {
+    for mode in [
+        "shape",
+        "sender",
+        "sender-field",
+        "two-from",
+        "thread",
+        "dialect",
+    ] {
         let mut candidates = c[..2].to_vec();
         match mode {
             "shape" => {
@@ -140,6 +177,18 @@ fn invalid_shape_sender_thread_and_dialect_are_constrained() {
                 candidates[1] = retext(&candidates[1], text);
             }
             "sender" => candidates[1] = relabel(&candidates[1], "@impostor"),
+            // REQ-3512 (c): `:sender` present and different from the label.
+            "sender-field" => {
+                let text = with_sender(candidates[1].text(), "@impostor");
+                candidates[1] = retext(&candidates[1], text);
+            }
+            // REQ-3512 (c): two `:from` fields are ambiguous.
+            "two-from" => {
+                let text = candidates[1]
+                    .text()
+                    .replace(":from @a", ":from @a :from @a");
+                candidates[1] = retext(&candidates[1], text);
+            }
             "thread" => {
                 let text = candidates[1].text().replace("\"s1\"", "\"other\"");
                 candidates[1] = retext(&candidates[1], text);
@@ -231,9 +280,16 @@ fn canonical_whitespace_and_unknown_candidates() {
     let (s, t, mut c) = fixture();
     let p = Profile::compile(&s, &t, &c).unwrap();
     for c in &mut c {
+        // Reserialised through the typed message, then extra spaces and
+        // newlines between tokens (REQ-3506 d); no fixture string contains a
+        // space, so the message is unchanged.
         let text = serialize(&SExpr::from(
             &parse_message(&parse(c.text()).unwrap()).unwrap(),
-        ));
+        ))
+        .replace(' ', " \n  ")
+        .replace("((", "( (");
+        assert_ne!(text, c.text());
+        assert!(text.contains('\n'));
         *c = retext(c, text);
     }
     let q = Profile::compile(&s, &t, &c).unwrap();
@@ -253,6 +309,18 @@ fn actual_proof_roundtrip_tampering_and_independent_verifier() {
     let encoded = proof.to_json().unwrap();
     let proof = Proof::from_json(&encoded).unwrap();
     verifier.verify(&proof, &expected).unwrap();
+    // CON-3506: two proofs of one statement differ and both verify.
+    let second = prover.prove(old, new).unwrap();
+    assert_eq!(second.statement, expected);
+    assert_ne!(second.transcript, proof.transcript);
+    verifier.verify(&second, &expected).unwrap();
+    // REQ-3502 (b): a foreign-profile expectation is rejected on the early path.
+    let mut foreign = expected.clone();
+    foreign.profile[0] ^= 1;
+    let err = verifier.verify(&proof, &foreign).unwrap_err();
+    assert!(err.contains("unexpected checkpoint statement"), "{err}");
+    let err = verifier.verify(&second, &expected.clone()).err();
+    assert_eq!(err, None);
     for field in 0..6 {
         let mut forged = proof.clone();
         let root = match field {
@@ -301,24 +369,8 @@ fn complete_native_corpus_snapshots_match_recorded_results() {
         include_str!("../../../test-vectors/state/lunch-vote-domain.json"),
     ] {
         let v: Json = serde_json::from_str(text).unwrap();
-        let mut candidates = Vec::new();
-        let mut seen = std::collections::BTreeSet::new();
-        for m in v["messages"].as_array().unwrap() {
-            let c = Candidate::unauthenticated(
-                m["canonical"].as_str().unwrap().into(),
-                m["signer"].as_str().unwrap().into(),
-            );
-            let id = address(&c);
-            if v["expect"]["verdicts"][&id] == "accepted" && seen.insert(id) {
-                candidates.push(c);
-            }
-        }
-        let p = Profile::compile(
-            v["contract"].as_str().unwrap(),
-            v["thread"].as_str().unwrap(),
-            &candidates,
-        )
-        .unwrap();
+        let (source, thread, candidates) = corpus(text);
+        let p = Profile::compile(&source, &thread, &candidates).unwrap();
         let all = (1 << candidates.len()) - 1;
         let actual: Json = serde_json::from_str(p.state_json(all).unwrap()).unwrap();
         assert_eq!(actual, v["expect"]["state"]);
@@ -668,4 +720,163 @@ fn eight_candidate_profile_circuit_k_is_at_most_14() {
     let (source, thread, three) = fixture();
     let small = Profile::compile(&source, &thread, &three).unwrap();
     assert!(small.circuit_k() < p.circuit_k());
+}
+
+/// REQ-3512 (b): only one `lang` wrapper naming the installed dialect directly
+/// around a simple message binds a candidate. A nested wrapper or a `signed`
+/// form between the wrapper and the simple message invalidates every set that
+/// contains the candidate; compilation still succeeds.
+#[test]
+fn nested_or_wrapped_dialect_forms_invalidate_every_containing_set() {
+    let (s, t, c) = fixture();
+    let opener = c[0].text();
+    let inner = opener.strip_prefix("(lang signer-register ").unwrap();
+    for text in [
+        format!("(lang signer-register (lang other {inner})"),
+        format!("(lang signer-register (lang signer-register {inner})"),
+        format!("(lang signer-register (signed @owner {inner})"),
+    ] {
+        let p = Profile::compile(&s, &t, &[retext(&c[0], text.clone())]).unwrap();
+        assert!(p.statement(0, 1).is_err(), "{text}");
+        assert!(!mock(&p, 0, 1, &raw_statement(&p, 0, 1)), "{text}");
+    }
+    // Control: the plain wrapper is bound.
+    let p = Profile::compile(&s, &t, &c[..1]).unwrap();
+    assert!(p.statement(0, 1).is_ok());
+}
+
+/// REQ-3504 (c): the `:from` scan advances like `keyword_fields`, so a second
+/// `:from` after a stray positional param is still counted and rejected.
+#[test]
+fn attested_rejects_second_from_after_stray_positional_param() {
+    use cbcl_core::sexpr::Atom;
+    let (_, _, c) = fixture();
+    let owner = with_sender(c[0].text(), "@owner");
+    let mut message = parse_message(&parse(&owner).unwrap()).unwrap();
+    let Message::Dialect { inner, .. } = &mut message else {
+        unreachable!()
+    };
+    let Message::Simple { params, .. } = inner.as_mut() else {
+        unreachable!()
+    };
+    let at = params
+        .iter()
+        .position(|p| matches!(p, SExpr::Atom(Atom::Keyword(k)) if k == "from"))
+        .unwrap();
+    params.insert(at + 2, SExpr::Atom(Atom::Symbol("junk".into())));
+    params.insert(at + 3, SExpr::Atom(Atom::Keyword("from".into())));
+    params.insert(at + 4, SExpr::Atom(Atom::Symbol("@other".into())));
+    let header = attestation_header_for(message.innermost_simple().unwrap()).unwrap();
+    let signature = sign_attestation_v2(&KEY, &header).unwrap();
+    assert!(Candidate::attested(&message, &signature, &KEY).is_err());
+    // Control: the same params without the second `:from` are accepted.
+    let Message::Dialect { inner, .. } = &mut message else {
+        unreachable!()
+    };
+    let Message::Simple { params, .. } = inner.as_mut() else {
+        unreachable!()
+    };
+    params.truncate(at + 3);
+    let header = attestation_header_for(message.innermost_simple().unwrap()).unwrap();
+    let signature = sign_attestation_v2(&KEY, &header).unwrap();
+    assert!(Candidate::attested(&message, &signature, &KEY).is_ok());
+}
+
+/// TEST-3506: every size bound and the roles rule fail before enumeration,
+/// each naming the bound that tripped (REQ-3507 b, c, d, h; CON-3500).
+#[test]
+fn size_bounds_and_roles_fail_before_enumeration() {
+    use std::time::{Duration, Instant};
+    let (s, t, c) = fixture();
+    let timed = |label: &str, compile: &dyn Fn() -> Result<Profile>| -> String {
+        let start = Instant::now();
+        let err = compile()
+            .err()
+            .unwrap_or_else(|| panic!("{label} accepted"));
+        let elapsed = start.elapsed();
+        assert!(elapsed < Duration::from_millis(100), "{label}: {elapsed:?}");
+        err
+    };
+    let nine = timed("nine candidates", &|| {
+        Profile::compile(&s, &t, &vec![c[0].clone(); MAX_CANDIDATES + 1])
+    });
+    assert!(nine.contains("more than 8 candidates"), "{nine}");
+    let dialect = format!("{s}{}", " ".repeat(65_537 - s.len()));
+    assert_eq!(dialect.len(), 65_537);
+    let err = timed("dialect", &|| Profile::compile(&dialect, &t, &c));
+    assert!(err.contains("dialect source over 65,536 bytes"), "{err}");
+    let text = format!("{}{}", c[0].text(), " ".repeat(8_193 - c[0].text().len()));
+    assert_eq!(text.len(), 8_193);
+    let big = retext(&c[0], text);
+    let err = timed("candidate", &|| {
+        Profile::compile(&s, &t, std::slice::from_ref(&big))
+    });
+    assert!(err.contains("candidate text over 8,192 bytes"), "{err}");
+    let labelled = relabel(&c[0], &"x".repeat(2_049));
+    let err = timed("label", &|| {
+        Profile::compile(&s, &t, std::slice::from_ref(&labelled))
+    });
+    assert!(err.contains("label over 2,048 bytes"), "{err}");
+    let thread = "x".repeat(2_049);
+    let err = timed("thread", &|| Profile::compile(&s, &thread, &c));
+    assert!(err.contains("thread over 2,048 bytes"), "{err}");
+    let roles: Json = serde_json::from_str(include_str!(
+        "../../../test-vectors/state/checklist-roles.json"
+    ))
+    .unwrap();
+    let err = Profile::compile(
+        roles["contract"].as_str().unwrap(),
+        roles["thread"].as_str().unwrap(),
+        &[],
+    )
+    .unwrap_err();
+    assert!(err.contains("role"), "{err}");
+    // Controls: the bounds themselves are accepted.
+    let at_bound = format!("{s}{}", " ".repeat(65_536 - s.len()));
+    assert!(Profile::compile(&at_bound, &"x".repeat(2_048), &[]).is_ok());
+}
+
+/// REQ-3503 / REQ-3500: a selection bit of 2 is rejected, and the Boolean
+/// gate itself is among the failures (not only the downstream sums).
+#[test]
+fn non_boolean_selection_bit_is_rejected_by_the_boolean_gate() {
+    let (s, t, c) = fixture();
+    let p = Profile::compile(&s, &t, &c).unwrap();
+    let (old, new) = masks(&p, &c);
+    let statement = p.statement(old, new).unwrap();
+    let mut dishonest = StateCircuit::witness(&p, old, new);
+    dishonest.forge_non_boolean_bit = true;
+    let failures = MockProver::run(dishonest.k(), &dishonest, vec![statement.instance()])
+        .unwrap()
+        .verify()
+        .unwrap_err();
+    assert!(
+        failures
+            .iter()
+            .any(|f| f.to_string().contains("Boolean selection")),
+        "{failures:#?}"
+    );
+}
+
+/// TEST-3502: with the pair removed from the compiled relation and an honest
+/// (zero) transition total, the final-total constant constraint alone rejects.
+#[test]
+fn transition_total_must_equal_one_without_a_forged_sum() {
+    let (s, t, c) = fixture();
+    let mut p = Profile::compile(&s, &t, &c).unwrap();
+    let (old, new) = masks(&p, &c);
+    let statement = p.statement(old, new).unwrap();
+    p.transitions
+        .retain(|pair| *pair != (old as usize, new as usize));
+    assert!(!mock(&p, old, new, &statement));
+}
+
+/// TEST-3500 (lunch-vote): per-subset parity for the second fixture.
+#[test]
+fn lunch_vote_native_fold_matches_for_every_valid_subset() {
+    let (source, thread, c) = corpus(include_str!(
+        "../../../test-vectors/state/lunch-vote-domain.json"
+    ));
+    assert!(c.len() > 1);
+    assert_native_parity(&source, &thread, &c);
 }
