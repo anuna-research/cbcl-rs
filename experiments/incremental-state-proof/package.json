@@ -8,7 +8,10 @@
     "check": "tsc --noEmit",
     "test": "tsx experiment.ts",
     "prove": "python3 run-proof.py",
-    "verify": "tsx verify-evidence.ts"
+    "verify": "tsx verify-evidence.ts",
+    "recursive:test": "tsx recursive-test.ts",
+    "recursive:prove": "python3 run-recursive-proof.py",
+    "recursive:verify": "tsx recursive-verify.ts"
   },
   "dependencies": {
     "o1js": "2.2.0"
