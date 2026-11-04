@@ -286,7 +286,7 @@ to 16,384 bytes or not a multiple of 32, a chain over 64 links, or trailing
 input other than JSON whitespace SHALL be rejected. (c) `Proof` and `Chain`
 SHALL implement `PartialEq` and `Eq`, and for every value the crate writes,
 reading it back SHALL yield an equal value. (d) `Prover::prove` SHALL fail
-closed when its transcript would exceed 16,384 bytes.
+closed when its transcript exceeds 16,384 bytes.
 Addresses F6.
 Trace: [[SPEC-035-halo2-state-checkpoints#TEST-3507]],
 [[SPEC-035-halo2-state-checkpoints#CON-3502]].
@@ -729,7 +729,7 @@ Validates: [[SPEC-035-halo2-state-checkpoints#NFR-3500]].
 
 ### ADR-3500: Verifier-derived finite relation
 
-Context: proving CBCL admission and fold in gates would need the parser,
+Context: proving CBCL admission and fold in gates needs the parser,
 SHA-256, the state kernel and the role layer inside the circuit. The experiment
 showed another route: the verifier compiles the complete finite relation
 natively and the circuit proves exact membership.
