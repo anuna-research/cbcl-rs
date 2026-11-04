@@ -6,9 +6,9 @@ from pathlib import Path
 import subprocess
 import sys
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / 'crates/cbcl-state-proof/src/circuit.rs'
-EVIDENCE = ROOT / 'experiments/state-proof/evidence'
+EVIDENCE = ROOT / 'docs/evidence/state-proof-mutations'
 MUTANTS = [
     ('unbound-after-state',
      'layouter.constrain_instance(cell.cell(), config.public, i)?;',
@@ -21,7 +21,7 @@ MUTANTS = [
 ]
 
 def main():
-    EVIDENCE.mkdir(exist_ok=True)
+    EVIDENCE.mkdir(parents=True, exist_ok=True)
     original = SOURCE.read_text()
     results = []
     try:

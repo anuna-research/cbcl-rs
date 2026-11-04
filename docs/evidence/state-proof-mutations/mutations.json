@@ -1,0 +1,34 @@
+[
+  {
+    "mutant": "unbound-after-state",
+    "test": "every_public_limb_is_constrained_without_the_host_precheck",
+    "exit_code": 101,
+    "killed": true,
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "cbcl-state-proof",
+      "--lib",
+      "every_public_limb_is_constrained_without_the_host_precheck",
+      "--",
+      "--test-threads=1"
+    ]
+  },
+  {
+    "mutant": "unconstrained-admission-transition",
+    "test": "previous_context_relation_is_enforced_independently_of_snapshot_and_growth_checks",
+    "exit_code": 101,
+    "killed": true,
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "cbcl-state-proof",
+      "--lib",
+      "previous_context_relation_is_enforced_independently_of_snapshot_and_growth_checks",
+      "--",
+      "--test-threads=1"
+    ]
+  }
+]

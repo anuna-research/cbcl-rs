@@ -112,7 +112,7 @@ still requires growing verification work unless composition is added.
 RAYON_NUM_THREADS=2 cargo test -p cbcl-state-proof -- --test-threads=1
 cargo fmt -p cbcl-state-proof -- --check
 cargo clippy -p cbcl-state-proof --all-targets --no-deps -- -D warnings
-python3 experiments/state-proof/mutate.py
+python3 scripts/state-proof-mutations.py
 ```
 
 Tests include a real serialized proof, independent verifier setup, commitment and
