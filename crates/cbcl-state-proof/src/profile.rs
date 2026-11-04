@@ -1,10 +1,12 @@
-use crate::{limbs, Result};
+use crate::{
+    candidate::{from_field, Candidate},
+    limbs, Result,
+};
 use cbcl_core::{
     canonical::dialect_hash,
     dialect::Dialect,
-    message::Message,
     serializer::serialize,
-    sexpr::{Atom, SExpr},
+    sexpr::SExpr,
     state::{fold, render_json, Act},
     store::ThreadId,
 };
@@ -31,13 +33,6 @@ const MAX_MESSAGE: usize = 8_192;
 const PARSER_FUEL: usize = 256;
 fn parse_bounded(source: &str) -> Result<SExpr> {
     cbcl_parser::parser::parse_with_fuel(source, Some(PARSER_FUEL)).map_err(|e| e.to_string())
-}
-
-/// Public candidate vocabulary. `signer` must be established by the host.
-#[derive(Clone, Debug)]
-pub struct Candidate {
-    pub canonical: String,
-    pub signer: String,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -123,7 +118,7 @@ impl Profile {
             || thread.len() > 2048
             || candidates
                 .iter()
-                .any(|c| c.canonical.len() > MAX_MESSAGE || c.signer.len() > 2048)
+                .any(|c| c.text().len() > MAX_MESSAGE || c.label().len() > 2048)
         {
             return Err("profile resource limit".into());
         }
@@ -138,9 +133,9 @@ impl Profile {
         }
         let mut acts = Vec::new();
         for c in candidates {
-            let sexpr = parse_bounded(&c.canonical)?;
+            let sexpr = parse_bounded(c.text())?;
             let message = parse_message(&sexpr).map_err(|e| e.to_string())?;
-            let act = Act::from_message(message, &c.signer)?;
+            let act = Act::from_message(message, c.label())?;
             let canonical = serialize(&SExpr::from(&act.message));
             acts.push((act, canonical));
         }
@@ -330,21 +325,7 @@ fn admits_extension(d: &Dialect, thread: &ThreadId, before: &[Act], delta: &[Act
 // `:from` remains a keyword in the typed message; Message::sender() reads
 // the distinct `:sender` routing field. Reject ambiguous or conflicting labels.
 fn sender_matches(act: &Act) -> bool {
-    let Message::Simple { params, .. } = act.simple() else {
-        return false;
-    };
-    let from: Vec<_> = params
-        .chunks_exact(2)
-        .filter_map(|pair| {
-            if matches!(&pair[0], SExpr::Atom(Atom::Keyword(k)) if k == "from") {
-                Some(&pair[1])
-            } else {
-                None
-            }
-        })
-        .collect();
-    from.len() == 1
-        && matches!(from[0], SExpr::Atom(Atom::Str(s) | Atom::Symbol(s)) if s == &act.signer)
+    from_field(act.simple()) == Some(act.signer.as_str())
         && act
             .simple()
             .sender()

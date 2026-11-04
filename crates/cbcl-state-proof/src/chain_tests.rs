@@ -26,9 +26,11 @@ fn fixture() -> &'static Fixture {
         .unwrap();
         let candidates: Vec<Candidate> = v["messages"].as_array().unwrap()[..3]
             .iter()
-            .map(|m| Candidate {
-                canonical: m["canonical"].as_str().unwrap().into(),
-                signer: m["signer"].as_str().unwrap().into(),
+            .map(|m| {
+                Candidate::unauthenticated(
+                    m["canonical"].as_str().unwrap().into(),
+                    m["signer"].as_str().unwrap().into(),
+                )
             })
             .collect();
         let source: String = v["contract"].as_str().unwrap().into();
@@ -36,12 +38,9 @@ fn fixture() -> &'static Fixture {
         let addr: Vec<String> = candidates
             .iter()
             .map(|c| {
-                Act::from_message(
-                    parse_message(&parse(&c.canonical).unwrap()).unwrap(),
-                    &c.signer,
-                )
-                .unwrap()
-                .address
+                Act::from_message(parse_message(&parse(c.text()).unwrap()).unwrap(), c.label())
+                    .unwrap()
+                    .address
             })
             .collect();
         let profile = Profile::compile(&source, &thread, &candidates).unwrap();

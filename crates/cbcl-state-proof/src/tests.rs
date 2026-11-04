@@ -1,6 +1,9 @@
 //! Prototype P1–P6: semantic differential checks and dishonest circuit witnesses.
 use crate::*;
 use cbcl_core::{
+    attest::sign_attestation_v2,
+    equivocation::attestation_header_for,
+    r4::Signer,
     serializer::serialize,
     sexpr::SExpr,
     state::{fold, render_json, Act},
@@ -17,9 +20,11 @@ fn fixture() -> (String, String, Vec<Candidate>) {
     .unwrap();
     let candidates = v["messages"].as_array().unwrap()[..3]
         .iter()
-        .map(|m| Candidate {
-            canonical: m["canonical"].as_str().unwrap().into(),
-            signer: m["signer"].as_str().unwrap().into(),
+        .map(|m| {
+            Candidate::unauthenticated(
+                m["canonical"].as_str().unwrap().into(),
+                m["signer"].as_str().unwrap().into(),
+            )
         })
         .collect();
     (
@@ -29,12 +34,17 @@ fn fixture() -> (String, String, Vec<Candidate>) {
     )
 }
 fn address(c: &Candidate) -> String {
-    Act::from_message(
-        parse_message(&parse(&c.canonical).unwrap()).unwrap(),
-        &c.signer,
-    )
-    .unwrap()
-    .address
+    Act::from_message(parse_message(&parse(c.text()).unwrap()).unwrap(), c.label())
+        .unwrap()
+        .address
+}
+/// Same text, new label.
+fn relabel(c: &Candidate, label: &str) -> Candidate {
+    Candidate::unauthenticated(c.text().into(), label.into())
+}
+/// Same label, new text.
+fn retext(c: &Candidate, text: String) -> Candidate {
+    Candidate::unauthenticated(text, c.label().into())
 }
 fn masks(p: &Profile, c: &[Candidate]) -> (u16, u16) {
     (
@@ -79,11 +89,8 @@ fn native_fold_and_replacement_match_for_every_valid_subset() {
             .iter()
             .filter(|c| mask & p.mask(&[&address(c)]).unwrap() as usize != 0)
             .map(|c| {
-                Act::from_message(
-                    parse_message(&parse(&c.canonical).unwrap()).unwrap(),
-                    &c.signer,
-                )
-                .unwrap()
+                Act::from_message(parse_message(&parse(c.text()).unwrap()).unwrap(), c.label())
+                    .unwrap()
             })
             .collect();
         assert_eq!(
@@ -129,18 +136,19 @@ fn invalid_shape_sender_thread_and_dialect_are_constrained() {
         let mut candidates = c[..2].to_vec();
         match mode {
             "shape" => {
-                candidates[1].canonical = candidates[1]
-                    .canonical
-                    .replace(":value \"old\"", ":value 42")
+                let text = candidates[1].text().replace(":value \"old\"", ":value 42");
+                candidates[1] = retext(&candidates[1], text);
             }
-            "sender" => candidates[1].signer = "@impostor".into(),
+            "sender" => candidates[1] = relabel(&candidates[1], "@impostor"),
             "thread" => {
-                candidates[1].canonical = candidates[1].canonical.replace("\"s1\"", "\"other\"")
+                let text = candidates[1].text().replace("\"s1\"", "\"other\"");
+                candidates[1] = retext(&candidates[1], text);
             }
             "dialect" => {
-                candidates[1].canonical = candidates[1]
-                    .canonical
-                    .replace("lang signer-register", "lang other")
+                let text = candidates[1]
+                    .text()
+                    .replace("lang signer-register", "lang other");
+                candidates[1] = retext(&candidates[1], text);
             }
             _ => unreachable!(),
         }
@@ -210,19 +218,11 @@ fn candidate_and_parser_limits_fail_closed() {
         .contains("duplicate"));
     let nested = format!("{}{}", "(".repeat(10000), ")".repeat(10000));
     assert!(Profile::compile(&nested, &t, &[]).is_err());
-    let mut bad = c[0].clone();
-    bad.canonical = format!("{}{}", "(".repeat(3000), ")".repeat(3000));
+    let bad = retext(&c[0], format!("{}{}", "(".repeat(3000), ")".repeat(3000)));
     assert!(Profile::compile(&s, &t, &[bad]).is_err());
     assert!(Profile::compile(&format!("{s} trailing"), &t, &c).is_err());
-    assert!(Profile::compile(
-        &s,
-        &t,
-        &[Candidate {
-            canonical: format!("{} trailing", c[0].canonical),
-            signer: c[0].signer.clone()
-        }]
-    )
-    .is_err());
+    let trailing = retext(&c[0], format!("{} trailing", c[0].text()));
+    assert!(Profile::compile(&s, &t, &[trailing]).is_err());
     let p = Profile::compile(&s, &t, &[]).unwrap();
     assert!(mock(&p, 0, 0, &p.statement(0, 0).unwrap()));
 }
@@ -231,9 +231,10 @@ fn canonical_whitespace_and_unknown_candidates() {
     let (s, t, mut c) = fixture();
     let p = Profile::compile(&s, &t, &c).unwrap();
     for c in &mut c {
-        c.canonical = serialize(&SExpr::from(
-            &parse_message(&parse(&c.canonical).unwrap()).unwrap(),
+        let text = serialize(&SExpr::from(
+            &parse_message(&parse(c.text()).unwrap()).unwrap(),
         ));
+        *c = retext(c, text);
     }
     let q = Profile::compile(&s, &t, &c).unwrap();
     assert_eq!(p.id(), q.id());
@@ -303,10 +304,10 @@ fn complete_native_corpus_snapshots_match_recorded_results() {
         let mut candidates = Vec::new();
         let mut seen = std::collections::BTreeSet::new();
         for m in v["messages"].as_array().unwrap() {
-            let c = Candidate {
-                canonical: m["canonical"].as_str().unwrap().into(),
-                signer: m["signer"].as_str().unwrap().into(),
-            };
+            let c = Candidate::unauthenticated(
+                m["canonical"].as_str().unwrap().into(),
+                m["signer"].as_str().unwrap().into(),
+            );
             let id = address(&c);
             if v["expect"]["verdicts"][&id] == "accepted" && seen.insert(id) {
                 candidates.push(c);
@@ -350,14 +351,14 @@ fn register_deletion_preserves_history_and_unseen_concurrent_write() {
             body.push(SExpr::Atom(Atom::Keyword(k.into())));
             body.push(v);
         }
-        Candidate {
-            canonical: serialize(&SExpr::List(vec![
+        Candidate::unauthenticated(
+            serialize(&SExpr::List(vec![
                 symbol("lang"),
                 symbol(name),
                 SExpr::List(body),
             ])),
-            signer: signer.into(),
-        }
+            signer.into(),
+        )
     };
     let root = make("open", "@a", "begin", vec![("title", string("Document"))]);
     let root_id = address(&root);
@@ -530,4 +531,110 @@ fn write_golden_vector() {
         format!("{}\n", serde_json::to_string_pretty(&v).unwrap()),
     )
     .unwrap();
+}
+
+/// Data-dependent test signer, as in `equivocation.rs`:
+/// sig = SHA-256(secret ‖ data).
+struct TestSigner {
+    secret: &'static [u8],
+}
+impl Signer for TestSigner {
+    fn sign(&self, data: &[u8]) -> Vec<u8> {
+        use sha2::{Digest, Sha256};
+        Sha256::new()
+            .chain_update(self.secret)
+            .chain_update(data)
+            .finalize()
+            .to_vec()
+    }
+    fn verify(&self, data: &[u8], sig: &[u8]) -> bool {
+        self.sign(data) == sig
+    }
+}
+const KEY: TestSigner = TestSigner { secret: b"key" };
+/// Fixture texts end in `:from <key>))`; add a `:sender` string to the simple
+/// message. A string because `@suite:name` does not tokenise as a symbol.
+fn with_sender(text: &str, sender: &str) -> String {
+    let body = text.strip_suffix("))").unwrap();
+    format!("{body} :sender \"{sender}\"))")
+}
+/// Sign the innermost simple message's header (empty signature when it has
+/// none) and build the attested candidate.
+fn attest(text: &str, signer: &dyn Signer) -> std::result::Result<Candidate, String> {
+    let message = parse_message(&parse(text).unwrap()).unwrap();
+    let signature = attestation_header_for(message.innermost_simple().unwrap())
+        .ok()
+        .and_then(|h| sign_attestation_v2(signer, &h).ok())
+        .unwrap_or_default();
+    Candidate::attested(&message, &signature, signer)
+}
+
+/// TEST-3503 positive: attested labels are the `:from` text and the profile
+/// identity matches the unauthenticated path.
+#[test]
+fn attested_candidates_bind_from_label_and_match_unauthenticated_profile() {
+    let (s, t, c) = fixture();
+    let mut attested = Vec::new();
+    let mut plain = Vec::new();
+    for c in &c {
+        let text = with_sender(c.text(), c.label());
+        let a = attest(&text, &KEY).unwrap();
+        assert_eq!(a.label(), c.label());
+        attested.push(a);
+        plain.push(retext(c, text));
+    }
+    let p = Profile::compile(&s, &t, &attested).unwrap();
+    let q = Profile::compile(&s, &t, &plain).unwrap();
+    assert_eq!(p.id(), q.id());
+    assert_eq!(p.addresses(), q.addresses());
+    // `:sender` changes the addresses the fixture's children point at; the
+    // opener stands alone and shows an attested candidate is admissible.
+    let opener = p.mask(&[&address(&attested[0])]).unwrap();
+    assert!(p.statement(0, opener).is_ok());
+    // Alias spelling: `@a` and `@ed25519:a` are one key; the label keeps `@a`.
+    let alias = attest(&with_sender(c[1].text(), "@ed25519:a"), &KEY).unwrap();
+    assert_eq!(alias.label(), "@a");
+    assert_eq!(
+        address(&alias),
+        address(&retext(&c[1], alias.text().into()))
+    );
+}
+
+/// TEST-3503 prohibited actions: every forged, altered or mismatched input
+/// is rejected by `attested`.
+#[test]
+fn attested_rejects_forged_altered_and_mismatched_candidates() {
+    let (_, _, c) = fixture();
+    let owner = with_sender(c[0].text(), "@owner");
+    let message = parse_message(&parse(&owner).unwrap()).unwrap();
+    let header = attestation_header_for(message.innermost_simple().unwrap()).unwrap();
+    let signature = sign_attestation_v2(&KEY, &header).unwrap();
+    assert!(Candidate::attested(&message, &signature, &KEY).is_ok());
+    let mut wrong = signature.clone();
+    wrong[0] ^= 1;
+    assert!(Candidate::attested(&message, &wrong, &KEY).is_err());
+    assert!(Candidate::attested(&message, &[], &KEY).is_err());
+    let other = TestSigner { secret: b"other" };
+    assert!(Candidate::attested(&message, &signature, &other).is_err());
+    // Payload edited after signing.
+    let write = with_sender(c[1].text(), "@a");
+    let signed = parse_message(&parse(&write).unwrap()).unwrap();
+    let header = attestation_header_for(signed.innermost_simple().unwrap()).unwrap();
+    let signature = sign_attestation_v2(&KEY, &header).unwrap();
+    let edited = write.replace(":value \"old\"", ":value \"new\"");
+    let edited = parse_message(&parse(&edited).unwrap()).unwrap();
+    assert!(Candidate::attested(&edited, &signature, &KEY).is_err());
+    assert!(Candidate::attested(&signed, &signature, &KEY).is_ok());
+    // Missing routing fields.
+    assert!(attest(c[0].text(), &KEY).is_err());
+    assert!(attest(&owner.replace(" :thread \"s1\"", ""), &KEY).is_err());
+    // `:from` disagrees with the signed `:sender`, by key or by suite.
+    assert!(attest(&owner.replace(":from @owner", ":from @impostor"), &KEY).is_err());
+    assert!(attest(&with_sender(c[1].text(), "@ed25519:b"), &KEY).is_err());
+    assert!(attest(&with_sender(c[1].text(), "@pq:a"), &KEY).is_err());
+    assert!(attest(
+        &owner.replace(":from @owner", ":from @owner :from @owner"),
+        &KEY
+    )
+    .is_err());
 }
