@@ -161,7 +161,9 @@ version = "0.1.1"
 dependencies = [
  "cbcl-core",
  "cbcl-parser",
+ "cbcl-state-proof",
  "clap",
+ "serde",
  "serde_json",
 ]
 
