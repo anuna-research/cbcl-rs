@@ -292,3 +292,79 @@ lake env lean MultiParentLivenessAudit.lean
 
 The queue, fairness and scheduler-finality capstones are included in the main
 axiom audit and use only the same standard Lean axioms as the existing proofs.
+
+
+## Explicit HLC arbitration
+
+`LeanCbcl/HlcRegister.lean` proves soundness/completeness of greatest-candidate
+selection under lexicographic physical/logical/signer/address ordering, uniqueness
+under address consistency, and invariance under candidate-set equality. Separate
+component theorems compose arbitration with verb, current-own and current-keyed
+selections. The model consumes typed numeric evidence; the signer rank is an
+order-preserving abstraction of byte order. It proves neither honest clock
+generation, wire/Rust correspondence, resource finality nor a whole-clause kernel
+correctness theorem. The public component theorems are in `AxiomAudit.lean`.
+
+
+## Whole typed state-kernel correctness
+
+`LeanCbcl/StateKernelClause.lean` composes independent denotations for all 16
+surface heads into an arbitrary finite clause theorem. `compile_clause_complete`
+accepts every independently well-formed supported clause; `whole_kernel_correct`
+proves successful evaluation meets its independent surface meaning;
+`well_formed_kernel_correct` combines these for unique-address accepted stores.
+Domains, replacement sources, HLC/address choice, finite map support, events,
+histograms, sums and established protocol progress are covered. Component map
+completeness is extensional: key order and reads outside support are irrelevant.
+
+The bounded-counter part preserves typed verifier tags and computes ready budget
+observations. Verifier classification and resource-DAG validation remain outside
+this proof. Parsing, installation checks, canonical rendering, clock honesty and
+Rust equivalence are also separate obligations. This is denotational correctness,
+not a universal business-refinement or liveness result. See SPEC-036 and
+`proofs/state-kernel/state-kernel-verification.md` for the exact inventory and checks.
+
+```sh
+lake build
+lake exe runLinter LeanCbcl
+../scripts/check-axioms.sh
+python3 ../scripts/check-state-kernel.py
+```
+
+
+## Conditional strong eventual consistency
+
+`StateKernelSEC.lean` proves equal accepted sets give extensionally equal
+observations for every expression and arbitrary compiled clauses. Its shared
+`Context` fixes the dialect interpretation and requires causal/resource evidence
+providers to respect set equality. Store merge is set union and is associative,
+commutative and idempotent modulo membership; duplicate insertion preserves
+observations. These merge laws do not reconcile conflicting addresses or prove
+that a runtime can bypass admission when merging received data.
+
+`StateKernelDelivery.lean` uses the existing `StateRefinement.Behavior`, including
+receipt, pending candidates, acceptance, rejection, waiting and idle steps. Under
+eventual receipt, continuously enabled transition fairness, finite lower-ranked
+dependencies, dependency-based admission and no false rejection, it proves:
+
+- `eventual_acceptance`: every valid act eventually enters and remains accepted.
+- `eventual_dissemination`: an accepted act eventually reaches another compliant replica.
+- `finite_history_stabilizes`: a complete finite history eventually equals each accepted set.
+- `strong_eventual_consistency`: any two compliant replicas agree at all sufficiently late times.
+
+Fairness schedules actual acceptance-labelled transitions; acceptance membership
+is derived from `Step`. `StateKernelSECTests.lean` supplies a nonempty two-act
+replica with out-of-order receipt, and an otherwise legal starving execution
+excluded by fairness. A growing unique-address snapshot sequence demonstrates
+that ongoing writes need not produce a final count; this is not an instantiated
+infinite replica execution.
+
+These are conditional typed-model results. Admission obligations, transport,
+resource classification/finalization and Rust correspondence remain separate.
+A shared evidence provider is required: two unrelated individually extensional
+providers are insufficient. See SPEC-037 and
+`proofs/state-kernel-sec/state-kernel-sec-verification.md`.
+
+```sh
+python3 ../scripts/check-state-kernel-sec.py
+```

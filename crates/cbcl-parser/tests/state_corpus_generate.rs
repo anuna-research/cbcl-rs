@@ -61,20 +61,20 @@ fn generate_checklist_with_roles() {
     let a0 = address(&m0);
     let m1 = format!("(signed @aria (lang {n} (open (@aria @bo @cy) :title \"Launch tasks\" :caused-by {a0} :thread \"list-1\" :from @aria)))");
     let a1 = address(&m1);
-    let m2 = format!("(signed @bo (lang {n} (check (@aria @bo @cy) :item \"venue\" :done #f :replaces () :caused-by {a1} :thread \"list-1\" :from @bo)))");
+    let m2 = format!("(signed @bo (lang {n} (check (@aria @bo @cy) :item \"venue\" :done #f :replaces () :caused-by {a1} :clock \"hlc-0000000000000000-00000000\" :thread \"list-1\" :from @bo)))");
     let a2 = address(&m2);
-    let m3 = format!("(signed @bo (lang {n} (check (@aria @bo @cy) :item \"venue\" :done #t :replaces ({a2}) :caused-by {a1} :thread \"list-1\" :from @bo)))");
+    let m3 = format!("(signed @bo (lang {n} (check (@aria @bo @cy) :item \"venue\" :done #t :replaces ({a2}) :caused-by {a1} :clock \"hlc-0000000000000000-00000000\" :thread \"list-1\" :from @bo)))");
     let a3 = address(&m3);
     // @cy writes concurrently with M3, having seen only M2: both stay current.
-    let m4 = format!("(signed @cy (lang {n} (check (@aria @bo @cy) :item \"venue\" :done #f :replaces ({a2}) :caused-by {a1} :thread \"list-1\" :from @cy)))");
+    let m4 = format!("(signed @cy (lang {n} (check (@aria @bo @cy) :item \"venue\" :done #f :replaces ({a2}) :caused-by {a1} :clock \"hlc-0000000000000000-00000000\" :thread \"list-1\" :from @cy)))");
     let a4 = address(&m4);
-    let m5 = format!("(signed @bo (lang {n} (check (@aria @bo @cy) :item \"cake\" :done #f :replaces () :caused-by {a1} :thread \"list-1\" :from @bo)))");
+    let m5 = format!("(signed @bo (lang {n} (check (@aria @bo @cy) :item \"cake\" :done #f :replaces () :caused-by {a1} :clock \"hlc-0000000000000000-00000000\" :thread \"list-1\" :from @bo)))");
     // @aria drops "venue" having seen M3 only; @cy's M4 survives (edit beats a concurrent delete).
     let m6 = format!("(signed @aria (lang {n} (drop (@aria @bo @cy) :item \"venue\" :replaces ({a3}) :caused-by {a1} :thread \"list-1\" :from @aria)))");
     // Rejected: a member may not drop (R6); rejected: undeclared field (R7 closed); pending: unknown predecessor.
     let bad_role = format!("(signed @bo (lang {n} (drop (@aria @bo @cy) :item \"cake\" :replaces () :caused-by {a1} :thread \"list-1\" :from @bo)))");
-    let bad_field = format!("(signed @bo (lang {n} (check (@aria @bo @cy) :item \"cake\" :done #t :note \"x\" :replaces () :caused-by {a1} :thread \"list-1\" :from @bo)))");
-    let pending = format!("(signed @bo (lang {n} (check (@aria @bo @cy) :item \"cake\" :done #t :replaces () :caused-by sha256-{} :thread \"list-1\" :from @bo)))", "f".repeat(64));
+    let bad_field = format!("(signed @bo (lang {n} (check (@aria @bo @cy) :item \"cake\" :done #t :note \"x\" :replaces () :caused-by {a1} :clock \"hlc-0000000000000000-00000000\" :thread \"list-1\" :from @bo)))");
+    let pending = format!("(signed @bo (lang {n} (check (@aria @bo @cy) :item \"cake\" :done #t :replaces () :caused-by sha256-{} :clock \"hlc-0000000000000000-00000000\" :thread \"list-1\" :from @bo)))", "f".repeat(64));
     let messages = [
         (&m0, "@aria"),
         (&m1, "@aria"),
@@ -92,16 +92,16 @@ fn generate_checklist_with_roles() {
         "checklist-roles",
         json!({
             "id": "checklist-roles",
-            "covers": ["last", "register-per-key", "delete-verb", "concurrent-writes", "add-wins-delete", "R6-role-gate", "R7-closed", "pending", "intend"],
+            "covers": ["initial", "lww-map", "delete-verb", "concurrent-writes", "add-wins-delete", "R6-role-gate", "R7-closed", "pending", "intend"],
             "thread": "list-1",
             "contract": contract,
             "messages": messages.iter().map(|(m, s)| json!({"canonical": m, "signer": s})).collect::<Vec<_>>(),
             "intents": [
-                {"signer": "@bo", "verb": "check", "fields": {"item": "venue", "done": true}},
+                {"signer": "@bo", "verb": "check", "fields": {"clock":"hlc-0000000000000000-00000000", "item": "venue", "done": true}},
                 {"signer": "@bo", "verb": "drop", "fields": {"item": "venue"}},
                 {"signer": "@aria", "verb": "drop", "fields": {"item": "venue"}},
                 {"signer": "@aria", "verb": "drop", "fields": {"item": "bread"}},
-                {"signer": "@bo", "verb": "check", "fields": {"item": "venue", "done": true, "replaces": []}},
+                {"signer": "@bo", "verb": "check", "fields": {"clock":"hlc-0000000000000000-00000000", "item": "venue", "done": true, "replaces": []}},
                 {"signer": "@bo", "verb": "open", "fields": {"title": "again"}}
             ]
         }),
@@ -115,11 +115,11 @@ fn generate_lunch_vote_domain() {
     let n = "lunch-vote";
     let p = format!("(lang {n} (propose @lunch :question \"Lunch?\" :options (\"Pizza\" \"Sushi\") :caused-by begin :thread \"v1\" :from @aria))");
     let a = address(&p);
-    let v1 = format!("(lang {n} (vote @lunch :choice \"Pizza\" :replaces () :caused-by {a} :thread \"v1\" :from @bo))");
+    let v1 = format!("(lang {n} (vote @lunch :choice \"Pizza\" :replaces () :caused-by {a} :clock \"hlc-0000000000000000-00000000\" :thread \"v1\" :from @bo))");
     let a1 = address(&v1);
-    let v2 = format!("(lang {n} (vote @lunch :choice \"Sushi\" :replaces ({a1}) :caused-by {a} :thread \"v1\" :from @bo))");
-    let v3 = format!("(lang {n} (vote @lunch :choice \"Tacos\" :replaces () :caused-by {a} :thread \"v1\" :from @cy))");
-    let v4 = format!("(lang {n} (vote @lunch :choice \"Pizza\" :replaces () :caused-by {a} :thread \"v1\" :from @dan))");
+    let v2 = format!("(lang {n} (vote @lunch :choice \"Sushi\" :replaces ({a1}) :caused-by {a} :clock \"hlc-0000000000000000-00000000\" :thread \"v1\" :from @bo))");
+    let v3 = format!("(lang {n} (vote @lunch :choice \"Tacos\" :replaces () :caused-by {a} :clock \"hlc-0000000000000000-00000000\" :thread \"v1\" :from @cy))");
+    let v4 = format!("(lang {n} (vote @lunch :choice \"Pizza\" :replaces () :caused-by {a} :clock \"hlc-0000000000000000-00000000\" :thread \"v1\" :from @dan))");
     let long_q = "q".repeat(281);
     let too_long = format!("(lang {n} (propose @lunch :question \"{long_q}\" :options (\"a\") :caused-by begin :thread \"v1\" :from @eve))");
     let messages = [
@@ -134,13 +134,13 @@ fn generate_lunch_vote_domain() {
         "lunch-vote-domain",
         json!({
             "id": "lunch-vote-domain",
-            "covers": ["last", "latest-per-signer", "histogram", "domain", "state-bounds", "intend-domain"],
+            "covers": ["initial", "lww-per-signer", "histogram", "domain", "state-bounds", "intend-domain"],
             "thread": "v1",
             "contract": contract,
             "messages": messages.iter().map(|(m, s)| json!({"canonical": m, "signer": s})).collect::<Vec<_>>(),
             "intents": [
-                {"signer": "@dan", "verb": "vote", "fields": {"choice": "Sushi"}},
-                {"signer": "@dan", "verb": "vote", "fields": {"choice": "Tacos"}}
+                {"signer": "@dan", "verb": "vote", "fields": {"clock":"hlc-0000000000000000-00000000", "choice": "Sushi"}},
+                {"signer": "@dan", "verb": "vote", "fields": {"clock":"hlc-0000000000000000-00000000", "choice": "Tacos"}}
             ]
         }),
     );
@@ -162,7 +162,7 @@ fn generate_tags_and_balance() {
   (shape credit (require :amount number) (require :op string))
   (shape debit (require :amount number) (require :op string))
   (protocol (then begin open) (then open add) (then open remove) (then open credit) (then open debit))
-  (state (title (last open :title))
+  (state (title (initial open :title))
          (tags (observed-set add remove :tag))
          (credits (events credit :amount))
          (total (sum credits))
@@ -233,16 +233,16 @@ fn generate_signer_supersession() {
     let contract = "(define signer-register (cbcl) @anuna
       (:resource-requirements ((max-depth 12) (max-expansion-size 2048) (verification-time 200)))
       (extend open (to title) (tell to :title title))
-      (extend write (to value op) (tell to :value value :op op))
+      (extend write (to value op clock) (tell to :value value :op op :clock clock))
       (shape open (require :title string))
-      (shape write (require :value string) (require :op number))
+      (shape write (require :clock hlc) (require :value string) (require :op number))
       (protocol (then begin open) (then open write))
-      (state (title (last open :title)) (entries (latest-per-signer write :value)) (all (events write :value))))";
+      (state (title (initial open :title)) (entries (lww-per-signer write :value :clock)) (all (events write :value))))";
     let root = "(lang signer-register (open @room :title \"Register\" :caused-by begin :thread \"s1\" :from @owner))";
     let predecessor = address(root);
     let write_act = |signer: &str, value: &str, replaces: &str, op: usize| {
         format!(
-        "(lang signer-register (write @room :value {value:?} :op {op} :replaces ({replaces}) :caused-by {predecessor} :thread \"s1\" :from {signer}))"
+        "(lang signer-register (write @room :value {value:?} :op {op} :replaces ({replaces}) :caused-by {predecessor} :clock \"hlc-0000000000000000-00000000\" :thread \"s1\" :from {signer}))"
     )
     };
     let first = write_act("@a", "old", "", 0);
@@ -268,12 +268,12 @@ fn generate_signer_supersession() {
         "signer-supersession",
         json!({
             "id": "signer-supersession", "version": "1.0.0", "thread": "s1", "contract": contract,
-            "covers": ["latest-per-signer", "lower-address-sequential-edit", "concurrent-same-signer", "cross-signer-replacement", "events-preserve-history", "intend"],
+            "covers": ["lww-per-signer", "lower-address-sequential-edit", "concurrent-same-signer", "cross-signer-replacement", "events-preserve-history", "intend"],
             "messages": messages.iter().map(|(m,s)| json!({"canonical":m,"signer":s})).collect::<Vec<_>>(),
             "intents": [
-                {"signer":"@a","verb":"write","fields":{"value":"third","op":10001}},
-                {"signer":"@b","verb":"write","fields":{"value":"merged","op":10002}},
-                {"signer":"@new","verb":"write","fields":{"value":"first","op":10003}}
+                {"signer":"@a","verb":"write","fields":{"clock":"hlc-0000000000000000-00000000","value":"third","op":10001}},
+                {"signer":"@b","verb":"write","fields":{"clock":"hlc-0000000000000000-00000000","value":"merged","op":10002}},
+                {"signer":"@new","verb":"write","fields":{"clock":"hlc-0000000000000000-00000000","value":"first","op":10003}}
             ]
         }),
     );

@@ -14,11 +14,13 @@ use alloc::string::String;
 use alloc::vec::Vec;
 use core::fmt;
 
-/// The six recognised type constraints for shape rules (REQ-221).
+/// The seven recognised type constraints for shape rules (REQ-221).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum TypeConstraint {
     String,
+    /// Canonical host-supplied hybrid logical clock evidence, encoded as a string.
+    Hlc,
     Number,
     Bool,
     Symbol,
@@ -32,6 +34,7 @@ impl TypeConstraint {
     pub fn from_str(s: &str) -> Option<TypeConstraint> {
         match s {
             "string" => Some(TypeConstraint::String),
+            "hlc" => Some(TypeConstraint::Hlc),
             "number" => Some(TypeConstraint::Number),
             "bool" => Some(TypeConstraint::Bool),
             "symbol" => Some(TypeConstraint::Symbol),
@@ -43,6 +46,9 @@ impl TypeConstraint {
 
     /// Check whether an S-expression satisfies this type constraint.
     pub fn matches(&self, sexpr: &SExpr) -> bool {
+        if *self == TypeConstraint::Hlc {
+            return matches!(sexpr, SExpr::Atom(Atom::Str(text)) if crate::hlc::Hlc::parse(text).is_some());
+        }
         matches!(
             (self, sexpr),
             (TypeConstraint::String, SExpr::Atom(Atom::Str(_)))
@@ -59,6 +65,7 @@ impl fmt::Display for TypeConstraint {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let s = match self {
             TypeConstraint::String => "string",
+            TypeConstraint::Hlc => "hlc",
             TypeConstraint::Number => "number",
             TypeConstraint::Bool => "bool",
             TypeConstraint::Symbol => "symbol",

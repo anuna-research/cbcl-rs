@@ -7,25 +7,25 @@ const checklist = {
   name: 'agent-checklist',
   verbs: {
     open: { after: ['begin'], fields: { title: 'string' } },
-    check: { after: ['open'], fields: { item: 'string', done: 'bool' } },
+    check: { after: ['open'], fields: { item: 'string', done: 'bool', clock: "hlc" } },
     drop: { after: ['open'], fields: { item: 'string' } },
   },
-  state: { title: c.last('open', 'title'), items: c.registerPerKey('check', 'item', 'done', 'drop'), all: c.valuesPerKey('check', 'item', 'done', 'drop'), checks: c.count('check'), any: c.exists('check') },
+  state: { title: c.initial('open', 'title'), items: c.lwwMap('check',  'item',  'done', 'clock',  'drop'), all: c.valuesPerKey('check', 'item', 'done', 'drop'), checks: c.count('check'), any: c.exists('check') },
 };
 const lunchVote = {
   name: 'lunch-vote', author: '@anuna',
   requirements: { maxDepth: 12, maxExpansionSize: 2048, verificationTime: 200 },
   bounds: { maxString: 280, maxList: 24 },
-  verbs: { propose: { after: ['begin'], fields: { question: 'string', options: 'list' as const } }, vote: { after: ['propose'], fields: { choice: enumOf('options') } } },
-  state: { question: c.last('propose', 'question'), options: c.last('propose', 'options'), ballots: c.latestPerSigner('vote', 'choice'), tally: c.histogram('ballots') },
+  verbs: { propose: { after: ['begin'], fields: { question: 'string', options: 'list' as const } }, vote: { after: ['propose'], fields: { choice: enumOf('options'), clock: "hlc" } } },
+  state: { question: c.initial('propose', 'question'), options: c.initial('propose', 'options'), ballots: c.lwwPerSigner('vote', 'choice', 'clock'), tally: c.histogram('ballots') },
 };
 const collections = {
   name: 'collections',
   verbs: {
-    open: { after: ['begin'], fields: { title: 'string' } }, add: { after: ['open'], fields: { tag: 'string', op: 'string' } }, remove: { after: ['open'], fields: { tag: 'string' } },
+    open: { after: ['begin'], fields: { title: 'string' } }, add: { after: ['open'], fields: { tag: 'string', op: 'string', clock: "hlc" } }, remove: { after: ['open'], fields: { tag: 'string' } },
     credit: { after: ['open'], fields: { amount: 'number' as const, op: 'string' } }, debit: { after: ['open'], fields: { amount: 'number' as const, op: 'string' } }, write: { after: ['open'], fields: { text: 'string' } },
   },
-  state: { tags: c.observedSet('add', 'remove', 'tag'), seen: c.setUnion('add', 'tag'), adds: c.count('add'), credits: c.events('credit', 'amount'), total: c.sum('credits'), balance: c.counter('credit', 'debit', 'amount'), choices: c.values('write', 'text'), ops: c.latestPerKey('add', 'tag', 'op') },
+  state: { tags: c.observedSet('add', 'remove', 'tag'), seen: c.setUnion('add', 'tag'), adds: c.count('add'), credits: c.events('credit', 'amount'), total: c.sum('credits'), balance: c.counter('credit', 'debit', 'amount'), choices: c.values('write', 'text'), ops: c.lwwMap('add', 'tag', 'op', 'clock') },
 };
 
 function host(me: string, store = new ThreadStore()) {
@@ -40,7 +40,7 @@ function opened(object: CbclObject, thread = 'demo', fields: Record<string, neve
 }
 /** A peer's act that saw no current write (`:replaces ()`): concurrent by construction. */
 const remote = (object: CbclObject, root: Msg, verb: string, kw: Record<string, never> | Record<string, unknown>, signer: string, thread = 'demo') =>
-  actRecord(`(lang ${object.name} (${verb} @general ${keywordText(kw as never)} :replaces () :caused-by ${root.cid} :thread ${JSON.stringify(thread)} :from ${signer}))`, signer);
+  actRecord(`(lang ${object.name} (${verb} @general ${keywordText(((["check", "vote", "add"].includes(verb)) ? { ...kw, clock: "hlc-0000000000000000-00000000" } : kw) as never)} :replaces () :caused-by ${root.cid} :thread ${JSON.stringify(thread)} :from ${signer}))`, signer);
 
 test('a contract compiles to a self-addressed dialect the verifier accepts', async () => {
   const object = await defineContract(checklist);
@@ -50,7 +50,7 @@ test('a contract compiles to a self-addressed dialect the verifier accepts', asy
   assert.doesNotThrow(() => verifyDialect(object.dialect));
   assert.equal((await importObject(object.serialized)).name, object.name);
   assert.equal(object.info.opener, 'open');
-  assert.deepEqual(Object.keys(object.info.verbs.check.fields), ['item', 'done']);
+  assert.deepEqual(Object.keys(object.info.verbs.check.fields), ['item', 'done', 'clock']);
   await assert.rejects(defineContract({ ...checklist, verbs: { ...checklist.verbs, check: { ...checklist.verbs.check, after: ['open', 'check'] } } }), /R5/);
   await assert.rejects(defineContract({ ...checklist, view: [] } as never), /host package/);
   for (const field of ['from', 'replaces', 'key']) {
@@ -67,7 +67,7 @@ test('the opener is verified; the fold is order-independent and duplicate-insens
   assert.throws(() => object.open({ room: '@general', thread: 't', from: '@a', fields: { title: 7 } }), /invalid opener fields/);
   assert.throws(() => object.open({ room: '@general', thread: 't', from: '@a', fields: {} }), /exactly title/);
   const agent = object.agent(host('@human', store));
-  assert.equal((await agent.act('demo', 'check', { item: 'Ship', done: true })).ok, true);
+  assert.equal((await agent.act('demo', 'check', { item: 'Ship', done: true , clock: 'hlc-0000000000000000-00000000'})).ok, true);
   const messages = store.messages('demo');
   assert.deepEqual(object.read(messages), { title: 'Launch', items: { Ship: true }, all: { Ship: [true] }, checks: 1, any: true });
   assert.deepEqual(object.read(messages.slice().reverse()), object.read(messages));
@@ -83,9 +83,9 @@ test('the broker refuses core performatives, unknown verbs, the opener, and forg
   assert.equal((await agent.act('demo', 'nope', {})).ok, false);
   assert.equal((await agent.act('demo', 'open', { title: 'again' })).ok, false);
   for (const forged of [{ from: '@mira' }, { thread: 'other' }, { dialect: 'x' }, { 'caused-by': 'begin' }, { replaces: [] }]) {
-    assert.equal((await agent.act('demo', 'check', { item: 'x', done: true, ...forged })).ok, false, JSON.stringify(forged));
+    assert.equal((await agent.act('demo', 'check', { item: 'x', done: true, ...forged , clock: 'hlc-0000000000000000-00000000'})).ok, false, JSON.stringify(forged));
   }
-  assert.equal((await agent.act('demo', 'check', { item: 'x', done: true, from: '@agent' })).ok, true); // an echoed binding is stripped
+  assert.equal((await agent.act('demo', 'check', { item: 'x', done: true, from: '@agent' , clock: 'hlc-0000000000000000-00000000'})).ok, true); // an echoed binding is stripped
   assert.equal(h.sent.length, 1);
   assert.deepEqual(agent.maySend('demo'), ['check', 'drop']);
 });
@@ -95,25 +95,25 @@ test('domains: the binder refuses an out-of-opener choice; a received one contri
   const { store, root } = opened(object, 'v1', { question: 'Lunch?', options: ['yes', 'no'] });
   const h = host('@agent', store);
   const agent = object.agent(h);
-  const outside = await agent.act('v1', 'vote', { choice: 'outside' });
+  const outside = await agent.act('v1', 'vote', { choice: 'outside' , clock: 'hlc-0000000000000000-00000000'});
   assert.equal(outside.ok, false); assert.match((outside as { reason: string }).reason, /domain/); assert.equal(h.sent.length, 0);
-  assert.equal((await agent.act('v1', 'vote', { choice: 'yes' })).ok, true);
-  const stray = actRecord(`(lang ${object.name} (vote @general :choice "elsewhere" :replaces () :caused-by ${root.cid} :thread "v1" :from @stranger))`, '@stranger');
+  assert.equal((await agent.act('v1', 'vote', { choice: 'yes' , clock: 'hlc-0000000000000000-00000000'})).ok, true);
+  const stray = actRecord(`(lang ${object.name} (vote @general :choice "elsewhere" :clock "hlc-0000000000000000-00000000" :replaces () :caused-by ${root.cid} :thread "v1" :from @stranger))`, '@stranger');
   store.append(stray);
   assert.equal(object.verdicts(store.messages('v1'), 'v1').get(stray.cid), 'accepted');
   assert.deepEqual(agent.read('v1').tally, { yes: 1 });
-  assert.equal((await agent.act('v1', 'vote', { choice: '😀'.repeat(80) })).ok, false); // max-string 280
+  assert.equal((await agent.act('v1', 'vote', { choice: '😀'.repeat(80) , clock: 'hlc-0000000000000000-00000000'})).ok, false); // max-string 280
 });
 
 test('registers: replacements bind to the intent key, a peer write is concurrent, delete names current writes', async () => {
   const object = await defineContract(checklist);
   const { store, root } = opened(object, 't');
   const agent = object.agent(host('@a', store));
-  const milk = await agent.act('t', 'check', { item: 'milk', done: false });
-  const eggs = await agent.act('t', 'check', { item: 'eggs', done: false });
+  const milk = await agent.act('t', 'check', { item: 'milk', done: false , clock: 'hlc-0000000000000000-00000000'});
+  const eggs = await agent.act('t', 'check', { item: 'eggs', done: false , clock: 'hlc-0000000000000000-00000000'});
   assert.ok(milk.ok && eggs.ok);
   assert.deepEqual(readAct(eggs.canonical).fields.replaces, []);
-  const ticked = await agent.act('t', 'check', { item: 'milk', done: true });
+  const ticked = await agent.act('t', 'check', { item: 'milk', done: true , clock: 'hlc-0000000000000000-00000000'});
   assert.ok(ticked.ok);
   assert.deepEqual(readAct(ticked.canonical).fields.replaces, [milk.cid]);
   const peer = remote(object, root, 'check', { item: 'milk', done: false }, '@b', 't'); store.append(peer);
@@ -124,10 +124,10 @@ test('registers: replacements bind to the intent key, a peer write is concurrent
   assert.deepEqual(agent.read('t').items, { eggs: false });
   const again = await agent.act('t', 'drop', { item: 'milk' });
   assert.equal(again.ok, false); assert.match((again as { reason: string }).reason, /nothing-to-delete/);
-  const readd = await agent.act('t', 'check', { item: 'milk', done: false });
+  const readd = await agent.act('t', 'check', { item: 'milk', done: false , clock: 'hlc-0000000000000000-00000000'});
   assert.ok(readd.ok);
   assert.deepEqual(readAct(readd.canonical).fields.replaces, [dropped.cid]);
-  const [x, y] = await Promise.all([agent.act('t', 'check', { item: 'eggs', done: true }), agent.act('t', 'check', { item: 'eggs', done: false })]);
+  const [x, y] = await Promise.all([agent.act('t', 'check', { item: 'eggs', done: true , clock: 'hlc-0000000000000000-00000000'}), agent.act('t', 'check', { item: 'eggs', done: false , clock: 'hlc-0000000000000000-00000000'})]);
   assert.ok(x.ok && y.ok);
   assert.match(y.canonical, new RegExp(`:replaces \\(${x.cid}\\)`)); // rapid intents serialise
 });
@@ -136,7 +136,7 @@ test('every rule head folds; sums move once per address; observed removals name 
   const object = await defineContract(collections);
   const { store, root } = opened(object, 't', { title: 'C' });
   const a = object.agent(host('@a', store)), b = object.agent(host('@b', store));
-  for (const [agent, verb, fields] of [[a, 'credit', { amount: 2, op: '1' }], [a, 'credit', { amount: 3, op: '2' }], [b, 'credit', { amount: 7, op: '3' }], [a, 'debit', { amount: 1, op: '4' }], [a, 'add', { tag: 'one', op: '5' }], [a, 'write', { text: 'a' }]] as const) {
+  for (const [agent, verb, fields] of [[a, 'credit', { amount: 2, op: '1' }], [a, 'credit', { amount: 3, op: '2' }], [b, 'credit', { amount: 7, op: '3' }], [a, 'debit', { amount: 1, op: '4' }], [a, 'add', { tag: 'one', op: '5', clock: 'hlc-0000000000000000-00000000' }], [a, 'write', { text: 'a' }]] as const) {
     assert.equal((await agent.act('t', verb, fields)).ok, true, verb);
   }
   store.append(remote(object, root, 'write', { text: 'b' }, '@b', 't'));
@@ -156,7 +156,7 @@ test('every rule head folds; sums move once per address; observed removals name 
 test('cbcl-rs judges every received act; unknown predecessors wait', async () => {
   const object = await defineContract(checklist);
   const { store, root } = opened(object);
-  const check = (kw: string, causedBy = root.cid) => actRecord(`(lang ${object.name} (check @general ${kw} :caused-by ${causedBy} :thread "demo" :from @human))`, '@human');
+  const check = (kw: string, causedBy = root.cid) => actRecord(`(lang ${object.name} (check @general ${kw} :clock "hlc-0000000000000000-00000000" :caused-by ${causedBy} :thread "demo" :from @human))`, '@human');
   const verdict = (m: Msg) => object.verdicts([...store.messages('demo'), m], 'demo').get(m.cid);
   assert.equal(verdict(check(':item "Ship" :done #t :replaces ()')), 'accepted');
   assert.equal(verdict(check(':item "Ship" :done "yes" :replaces ()')), 'rejected');
@@ -167,25 +167,25 @@ test('cbcl-rs judges every received act; unknown predecessors wait', async () =>
 
 
 // SPEC-019 TEST-1951/1952: binder and fold agree on signer replacement.
-test('latestPerSigner edits replace observed own votes and preserve other signers', async () => {
+test('lwwPerSigner edits replace observed own votes and preserve other signers', async () => {
   const object = await defineContract(lunchVote);
   const { store, root } = opened(object, 'v1', { question: 'Lunch?', options: ['yes', 'no', 'maybe'] });
   const a = object.agent(host('@a', store));
   const b = object.agent(host('@b', store));
-  const first = await a.act('v1', 'vote', { choice: 'yes' });
-  const peer = await b.act('v1', 'vote', { choice: 'yes' });
+  const first = await a.act('v1', 'vote', { choice: 'yes' , clock: 'hlc-0000000000000000-00000000'});
+  const peer = await b.act('v1', 'vote', { choice: 'yes' , clock: 'hlc-0000000000000000-00000000'});
   assert.ok(first.ok && peer.ok);
   assert.deepEqual(readAct(peer.canonical).fields.replaces, []);
-  const second = await a.act('v1', 'vote', { choice: 'no' });
+  const second = await a.act('v1', 'vote', { choice: 'no' , clock: 'hlc-0000000000000000-00000000'});
   assert.ok(second.ok);
   assert.deepEqual(readAct(second.canonical).fields.replaces, [first.cid]);
   assert.deepEqual(a.read('v1').ballots, { '@a': 'no', '@b': 'yes' });
-  const hostile = actRecord(`(lang ${object.name} (vote @general :choice "no" :replaces (${peer.cid}) :caused-by ${root.cid} :thread "v1" :from @c))`, '@c');
+  const hostile = actRecord(`(lang ${object.name} (vote @general :choice "no" :clock "hlc-0000000000000000-00000000" :replaces (${peer.cid}) :caused-by ${root.cid} :thread "v1" :from @c))`, '@c');
   store.append(hostile);
   assert.deepEqual(a.read('v1').ballots, { '@a': 'no', '@b': 'yes', '@c': 'no' });
   const concurrent = remote(object, root, 'vote', { choice: 'maybe' }, '@a', 'v1');
   store.append(concurrent);
-  const merged = await a.act('v1', 'vote', { choice: 'no' });
+  const merged = await a.act('v1', 'vote', { choice: 'no' , clock: 'hlc-0000000000000000-00000000'});
   assert.ok(merged.ok);
   assert.deepEqual(readAct(merged.canonical).fields.replaces, [second.cid, concurrent.cid].sort());
   const messages = store.messages('v1');

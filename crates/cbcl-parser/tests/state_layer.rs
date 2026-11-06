@@ -45,7 +45,17 @@ fn dialect(src: &str) -> cbcl_core::dialect::Dialect {
 }
 
 fn msg(text: &str) -> Message {
-    parse_message(&parse(text).unwrap()).unwrap()
+    let text = if (text.contains("(check ") || text.contains("(vote ")) && !text.contains(":clock")
+    {
+        text.replacen(
+            ":thread",
+            ":clock \"hlc-0000000000000000-00000000\" :thread",
+            1,
+        )
+    } else {
+        text.to_owned()
+    };
+    parse_message(&parse(&text).unwrap()).unwrap()
 }
 
 fn act(text: &str, signer: &str) -> Act {
@@ -53,10 +63,14 @@ fn act(text: &str, signer: &str) -> Act {
 }
 
 fn fields(pairs: &[(&str, SExpr)]) -> BTreeMap<String, SExpr> {
-    pairs
+    let mut out: BTreeMap<String, SExpr> = pairs
         .iter()
         .map(|(k, v)| (String::from(*k), v.clone()))
-        .collect()
+        .collect();
+    if out.contains_key("done") || out.contains_key("choice") {
+        out.insert("clock".into(), s("hlc-0000000000000000-00000000"));
+    }
+    out
 }
 
 fn s(x: &str) -> SExpr {
@@ -89,8 +103,8 @@ fn checklist_parses_and_replaces_is_inserted() {
 #[test]
 fn author_declared_replaces_is_rejected() {
     let src = checklist_source().replace(
-        "(require :done bool))",
-        "(require :done bool) (require :replaces list))",
+        "(require :clock hlc))",
+        "(require :clock hlc) (require :replaces list))",
     );
     let err = parse_dialect(&parse(&src).unwrap()).unwrap_err();
     assert!(err.contains("reserved"), "{err}");
@@ -98,7 +112,7 @@ fn author_declared_replaces_is_rejected() {
 
 #[test]
 fn unknown_rule_and_bad_domain_fail_install() {
-    let src = checklist_source().replace("(last open :title)", "(newest open :title)");
+    let src = checklist_source().replace("(initial open :title)", "(newest open :title)");
     assert!(parse_dialect(&parse(&src).unwrap()).is_err());
     let src = lunch_vote_source().replace(
         "(domain vote :choice options)",
@@ -145,7 +159,7 @@ fn install_accepts_author_name_and_checks_claimed_self_address() {
 
     // Changing one rule changes the self-address.
     let src = checklist_source().replace(
-        "(register-per-key check :item :done drop)",
+        "(lww-map check :item :done :clock drop)",
         "(values-per-key check :item :done drop)",
     );
     assert_ne!(dialect_name(&dialect(&src)), name);

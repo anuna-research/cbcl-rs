@@ -245,10 +245,10 @@ mod tests {
       (extend propose (to question options) (tell to :question question :options options)) \
       (extend vote (to choice) (tell to :choice choice)) \
       (shape propose (require :question string) (require :options list)) \
-      (shape vote (require :choice string)) \
+      (shape vote (require :choice string) (require :clock hlc)) \
       (protocol (then begin propose) (then propose vote)) \
-      (state (question (last propose :question)) (options (last propose :options)) \
-             (domain vote :choice options) (ballots (latest-per-signer vote :choice)) \
+      (state (question (initial propose :question)) (options (initial propose :options)) \
+             (domain vote :choice options) (ballots (lww-per-signer vote :choice :clock)) \
              (tally (histogram ballots))))";
 
     #[test]
@@ -272,7 +272,7 @@ mod tests {
         let state = fold_pure(format!("(fold {LUNCH} \"v1\" {acts})").as_bytes()).unwrap();
         assert_eq!(state, "{\"question\":\"Lunch?\",\"options\":[\"Pizza\",\"Sushi\"],\"ballots\":{},\"tally\":{}}");
         let ok = intend_pure(
-            format!("(intend {LUNCH} \"v1\" {acts} @bo vote (:choice \"Sushi\"))").as_bytes(),
+            format!("(intend {LUNCH} \"v1\" {acts} @bo vote (:choice \"Sushi\" :clock \"hlc-0000000000000000-00000000\"))").as_bytes(),
         )
         .unwrap();
         assert!(ok.starts_with("(lang lunch-vote (vote @lunch"), "{ok}");
@@ -287,17 +287,17 @@ mod tests {
         let fr = frontier_pure(format!("(frontier {LUNCH} \"v1\" {acts})").as_bytes()).unwrap();
         assert!(fr.starts_with("{\"instance\":\"sha256-"), "{fr}");
         let root = fr.split('"').nth(3).unwrap().to_string();
-        let vote = format!("(lang lunch-vote (vote @lunch :choice \"Sushi\" :replaces () :caused-by {root} :thread \"v1\" :from @bo))");
+        let vote = format!("(lang lunch-vote (vote @lunch :choice \"Sushi\" :clock \"hlc-0000000000000000-00000000\" :replaces () :caused-by {root} :thread \"v1\" :from @bo))");
         let admitted =
             admit_pure(format!("(admit {LUNCH} \"v1\" {acts} (@bo {vote}))").as_bytes()).unwrap();
         assert_eq!(admitted, "{\"verdict\":\"accepted\"}");
-        let orphan = "(lang lunch-vote (vote @lunch :choice \"Sushi\" :replaces () :caused-by sha256-ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff :thread \"v1\" :from @bo))";
+        let orphan = "(lang lunch-vote (vote @lunch :choice \"Sushi\" :clock \"hlc-0000000000000000-00000000\" :replaces () :caused-by sha256-ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff :thread \"v1\" :from @bo))";
         let pending =
             admit_pure(format!("(admit {LUNCH} \"v1\" {acts} (@bo {orphan}))").as_bytes()).unwrap();
         assert_eq!(pending, "{\"verdict\":\"pending\"}");
         assert_eq!(
             verify_message_shape_pure(
-                format!("(verify-shape {LUNCH} vote (vote @lunch :choice \"Sushi\" :replaces ()))")
+                format!("(verify-shape {LUNCH} vote (vote @lunch :choice \"Sushi\" :clock \"hlc-0000000000000000-00000000\" :replaces ()))")
                     .as_bytes()
             )
             .unwrap(),

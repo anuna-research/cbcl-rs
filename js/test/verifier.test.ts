@@ -46,18 +46,18 @@ test('canonical form, addresses, and the self-address', () => {
 });
 
 test('shape, state shape, and protocol verdicts are cbcl-rs blame', () => {
-  assert.deepEqual(verifyShape(LUNCH, 'vote', '(vote @lunch :choice "x" :replaces ())'), { ok: true });
-  const bad = verifyShape(LUNCH, 'vote', '(vote @lunch :choice 1 :replaces ())');
+  assert.deepEqual(verifyShape(LUNCH, 'vote', '(vote @lunch :choice "x" :clock "hlc-0000000000000000-00000000" :replaces ())'), { ok: true });
+  const bad = verifyShape(LUNCH, 'vote', '(vote @lunch :choice 1 :clock "hlc-0000000000000000-00000000" :replaces ())');
   assert.equal(bad.ok, false); assert.match((bad as { reason: string }).reason, /choice/);
-  assert.equal(verifyStateShape(LUNCH, '(lang lunch-vote (vote @lunch :choice "x" :replaces () :extra 1 :caused-by begin :thread "v" :from @b))').ok, false);
+  assert.equal(verifyStateShape(LUNCH, '(lang lunch-vote (vote @lunch :choice "x" :clock "hlc-0000000000000000-00000000" :replaces () :extra 1 :caused-by begin :thread "v" :from @b))').ok, false);
   const opener = '(lang lunch-vote (propose @lunch :question "Q" :options ("a") :caused-by begin :thread "v" :from @a))';
   assert.equal(verifyProtocol(LUNCH, 'v', opener), 'Valid');
   // verify-protocol predates the state layer: it keys history by the canonical
   // `sha256:` hash, quoted in :caused-by because the lexer reads `:` as a keyword.
-  const vote = `(lang lunch-vote (vote @lunch :choice "a" :replaces () :caused-by ${JSON.stringify(messageHash(opener))} :thread "v" :from @b))`;
+  const vote = `(lang lunch-vote (vote @lunch :choice "a" :clock "hlc-0000000000000000-00000000" :replaces () :caused-by ${JSON.stringify(messageHash(opener))} :thread "v" :from @b))`;
   assert.equal(verifyProtocol(LUNCH, 'v', vote, [[messageHash(opener), opener]]), 'Valid');
   assert.equal(verifyProtocol(LUNCH, 'v', vote), 'Unknown');
-  assert.equal(verifyProtocol(LUNCH, 'v', `(lang lunch-vote (vote @lunch :choice "a" :replaces () :caused-by begin :thread "v" :from @b))`), 'Violation');
+  assert.equal(verifyProtocol(LUNCH, 'v', `(lang lunch-vote (vote @lunch :choice "a" :clock "hlc-0000000000000000-00000000" :replaces () :caused-by begin :thread "v" :from @b))`), 'Violation');
 });
 
 test('SPEC-087 TEST-001: the contract compile is cbcl-rs and names the authored dialects', async () => {
@@ -66,10 +66,10 @@ test('SPEC-087 TEST-001: the contract compile is cbcl-rs and names the authored 
     roles: { owner: 'singleton', member: 'indexed' },
     verbs: {
       open: { after: ['begin'], fields: { title: 'string' }, from: 'owner', to: ['owner', 'member'] },
-      check: { after: ['open'], fields: { item: 'string', done: 'bool' }, from: 'member', to: ['owner', 'member'] },
+      check: { after: ['open'], fields: { item: 'string', done: 'bool', clock: "hlc" }, from: 'member', to: ['owner', 'member'] },
       drop: { after: ['open'], fields: { item: 'string' }, from: 'owner', to: ['owner', 'member'] },
     },
-    state: { title: ['last', 'open', 'title'], items: ['registerPerKey', 'check', 'item', 'done', 'drop'] },
+    state: { title: ['initial', 'open', 'title'], items: ['lwwMap', 'check', 'item', 'done', 'clock', 'drop'] },
   };
   const out = compileContract(JSON.stringify(checklist));
   assert.equal(out.name, dialectHash(await readFile(new URL('checklist.cbcl', dialects), 'utf8')));

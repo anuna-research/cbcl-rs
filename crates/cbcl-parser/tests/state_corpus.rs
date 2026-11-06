@@ -211,7 +211,7 @@ fn every_vector_passes_forward_reversed_and_duplicated() {
     let dir = corpus_dir();
     assert_eq!(
         std::fs::read_to_string(dir.join("VERSION")).unwrap().trim(),
-        "2.0.0",
+        "4.0.0",
         "state corpus version is pinned"
     );
     let mut paths: Vec<PathBuf> = std::fs::read_dir(&dir)

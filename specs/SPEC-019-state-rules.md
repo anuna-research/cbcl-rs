@@ -2,8 +2,8 @@
 id: SPEC-019
 title: State Layer — R7 State Rules and the Intent Binder
 status: draft
-version: 2.0.2
-date: 2026-10-30
+version: 4.0.0
+date: 2026-11-06
 author: Anuna Research (https://anuna.io) — drafted with Claude Fable 5.1
 owner: CBCL maintainer
 depends-on:
@@ -29,6 +29,32 @@ all capitals.
 
 ## Orientation
 
+Register semantics: [[SPEC-035-register-semantics#ADR-3503]] exposes one explicit
+`lww-*` family, ordered by trusted-host HLC, signer, then content address. Hash is
+only an exact clock/signer tie-break. `initial` reads the sole opener without
+arbitration. The former hash-primary selectors are rejected. The state corpus is
+version 4.0.0; removed definitions require migration and are not silently reinterpreted.
+
+State above the multiparty protocol: The state layer sits above the dialect's multiparty protocol and its
+[[SPEC-014-role-layer-endpoint-projection|role and endpoint-projection layer]].
+Protocol and role checks determine which interactions enter the accepted history;
+state rules determine what those accepted interactions mean for application state.
+A state rule does not change protocol admission or grant a sender a role. In
+particular, an HLC orders eligible state writes, not protocol steps, and cannot
+supply business authority missing from the protocol. The same protocol can expose
+several state fields with different concurrency policies.
+
+State-rule approaches: the rule chosen for each field determines its treatment of
+concurrency; there is no universal last-writer policy. `initial` reads immutable
+opener data. Multi-value rules preserve concurrent surviving values; `lww-*` rules
+choose one candidate using host-supplied HLC evidence. Sets, events, counts and
+arithmetic rules combine their selected evidence without timestamp arbitration.
+`bounded-counter` adds resource verification with separate issuance/certification
+premises. See [[hlc-registers#Choosing a state rule]] for the selection guide.
+Observed supersession (`:replaces`), winner selection, and resource authorization
+are distinct mechanisms. In particular, `lww-map` removes explicitly superseded
+writes before timestamp selection and uses observed removal for deletion.
+
 Certification research: [[SPEC-019-state-rules#Certification research — AT2-style asset transfer]] evaluates Byzantine account-owner safety as a separate proposed layer. [[SPEC-020-resource-certification#ADR-2001]] compares fixed slots with BGLA and selects invariant-aware account-local model comparison as the next research task. Neither changes existing runtime guarantees.
 
 Escrow extension: [[SPEC-019-state-rules#Bounded counter amendment — escrow resource primitive]] specifies lower-bound escrow rights, optional ceiling headroom, transfers, and separate resource authorization. See the implementation evidence for runtime and proof status.
@@ -39,14 +65,15 @@ vocabulary: a query over the thread's accepted acts, recomputed, never
 merged. (Not "projection": that word belongs to endpoint projection,
 [[SPEC-014-role-layer-endpoint-projection|SPEC-014]].) The only replicated object is the set of accepted acts, which
 converges by union; every rule is a set function of it, so replicas holding
-the same acts compute the same state with no clock, no server, and no
-consensus. The rules behave like familiar replicated types (a register
+the same acts compute the same state without reading a clock or contacting a
+server. LWW rules read immutable host-supplied clock evidence; resource rules
+have separate authorization and certification premises. The rules behave like familiar replicated types (a register
 that keeps concurrent writes, an add-wins set) but nobody holds such a
 type; the names are borrowed for their observable behaviour.
-For `latest-per-signer`, observation means membership in the binder's accepted set.
+For `lww-per-signer`, observation means membership in the binder's accepted set.
 The binder names all current, domain-admitted writes of the same verb and signer in `:replaces`, including losing concurrent candidates.
 Sequential writes therefore supersede observed own writes; the field returns one value per signer.
-Among concurrent surviving writes, the greatest content address wins.
+Among concurrent surviving writes, the greatest HLC/signer/address tuple wins.
 Cross-signer references contribute no supersession; the referring act still contributes its own value if admitted and in-domain.
 Domain-excluded acts contribute neither values nor replacement references.
 Superseded domain-admitted acts still supply replacement references.
@@ -94,8 +121,8 @@ Decisions: [[SPEC-019-state-rules#ADR-1900]] a kernel of
 fixed selections and reductions; the author-facing names are sugar ·
 [[SPEC-019-state-rules#ADR-1901]] supersession rides one reserved
 field, `:replaces`, inserted by the compiler ·
-[[SPEC-019-state-rules#ADR-1902]] one total order, the content
-address · [[SPEC-019-state-rules#ADR-1903]] identity is the hash of
+[[SPEC-019-state-rules#ADR-1902]] explicit HLC order with a final content-address
+tie-break · [[SPEC-019-state-rules#ADR-1903]] identity is the hash of
 the body; the name is derived from it ·
 [[SPEC-019-state-rules#ADR-1904]] integers ·
 [[SPEC-019-state-rules#ADR-1905]] one content address ·
@@ -129,7 +156,8 @@ Controls:
   [[SPEC-019-state-rules#REQ-1921]]–[[SPEC-019-state-rules#REQ-1925]].
 - A rejected intent never reaches the wire →
   [[SPEC-019-state-rules#REQ-1926]].
-- Selection by address converges; it is not fair. Contested decisions are a
+- LWW selection uses HLC, signer and a final address tie-break; convergence
+  does not establish fairness or honest time. Contested decisions are a
   protocol matter (a role's grant) → [[SPEC-019-state-rules#REQ-1916]].
 
 Cross-repository naming: cbcl-bus also has a `SPEC-019`
@@ -142,6 +170,13 @@ Open:
   evidence from the corpus, not a theorem, so claims say "mechanised
   kernel, corpus-validated implementation"
   ([[SPEC-018-dcfl-installation#REQ-1806]]).
+  [[SPEC-036-state-kernel-correctness]] additionally proves typed whole-clause
+  denotational correctness and elaboration completeness across the rule inventory.
+  Resource-verifier classification, resource-DAG validation, wire recognition and
+  Rust correspondence remain outside that theorem.
+  [[SPEC-037-state-kernel-sec]] proves conditional strong eventual consistency
+  under delivery, fair scheduling, ranked admission dependencies and shared
+  set-extensional causal/resource evidence providers.
 - The corpus is pinned by `test-vectors/state/VERSION`
   ([[SPEC-019-state-rules#REQ-1931]]).
 - Shipped views and blobs (cbcl-bus SPEC-019 CON-001 `:views`, CON-004
@@ -184,10 +219,13 @@ field          := symbol                                     ; [a-z][a-z0-9-]{0,
 verb           := symbol                                     ; a performative of this dialect
 key            := keyword                                    ; a keyword field of that performative's shape
 
-rule           := bounded-counter-rule                       ; CON-1908/1909
-                | "(" "last"              verb key ")"
-                | "(" "latest-per-signer" verb key ")"
-                | "(" "latest-per-key"    verb key key ")"          ; key-field value-field
+rule           := "(" "initial" verb key ")"                    ; immutable opener field
+                | "(" "lww-register" verb key key ")"               ; value clock
+                | "(" "lww-per-signer" verb key key ")"             ; value clock
+                | "(" "lww-map" verb key key key [verb] ")"         ; key value clock [delete]
+                | "(" "multi-value-register" verb key ")"          ; alias of values
+                | "(" "multi-value-map" verb key key [verb] ")"     ; alias of values-per-key
+                | bounded-counter-rule                       ; CON-1908/1909
                 | "(" "exists"            verb ")"
                 | "(" "count"             verb ")"
                 | "(" "progress"          verb ")"                 ; maximum established protocol occurrence
@@ -195,7 +233,6 @@ rule           := bounded-counter-rule                       ; CON-1908/1909
                 | "(" "set-union"         verb key ")"
                 | "(" "values"            verb key ")"
                 | "(" "values-per-key"    verb key key [verb] ")"   ; key value [delete-verb]
-                | "(" "register-per-key"  verb key key [verb] ")"   ; key value [delete-verb]
                 | "(" "observed-set"      verb verb key ")"         ; add-verb remove-verb value
                 | "(" "counter"           verb verb key ")"         ; inc-verb dec-verb amount
                 | "(" "histogram"         field ")"                 ; over a map-valued field
@@ -207,9 +244,18 @@ bound          := "(" "max-string" n ")" | "(" "max-list" n ")" | "(" "max-numbe
 ```
 
 `:replaces` is a reserved keyword, typed `list`, that the compiler adds to
-the shape of every writer of `latest-per-signer`. It also adds the field to writers and delete verbs of `values`,
-`values-per-key`, `register-per-key`, or as the remove verb of
+the shape of every writer of `lww-per-signer`. It also adds the field to writers and delete verbs of `values`,
+`values-per-key`, `lww-map`, or as the remove verb of
 `observed-set`. An author SHALL NOT declare it; no rule reads it as data.
+
+`initial` MUST name the unique protocol opener. Its raw candidate set is deduplicated
+by content address before testing uniqueness. It returns Absent for empty or ambiguous
+evidence, including when only one of several candidates carries the requested field.
+Domains cannot filter the opener. Retired heads `last`, `lww-per-signer`,
+`latest-per-key`, and `register-per-key` are parse errors, not aliases.
+LWW clocks are required `hlc` fields, encoded as strings spelled `hlc-` + 16 lowercase hexadecimal
+physical digits + `-` + 8 lowercase hexadecimal logical digits. Clock recognition
+reads one message; it does not verify time or generate clock evidence.
 
 ### R.2 Kernel
 
@@ -234,7 +280,9 @@ current v kk d            = { w ∈ acts v : (key w, w.a) ∉ replaced }
 current-by-signer v       = { w ∈ acts v : (w.s, w.a) ∉ replaced-by-signer }
                             where replaced-by-signer = { (r.s, x) : r ∈ acts v, x ∈ f_r(:replaces) }
 
-pick T k                  = f_m(k) for the m ∈ T with greatest address; absent if T = ∅
+initial v k               = f_o(k) if raw accepted acts of v have exactly one distinct member o; absent otherwise
+pick-hlc T k c            = f_m(k) for the greatest eligible (HLC(f_m(c)), signer, address); absent if none
+                            eligibility requires a canonical HLC string; address only breaks an exact clock/signer tie
 group T g                 = { x ↦ { m ∈ T : g(m) = x } }          g is `signer` or a key field
 distinct T k              = the set { f_m(k) : m ∈ T }, sorted
 positions P v             = { i : an accepted act of v inhabits occurrence i of v in expanded P }
@@ -248,9 +296,10 @@ sum T k                   = Σ_{m ∈ T} f_m(k)                       exact inte
 Sugar (the author-facing names are defined by this table and nothing else):
 
 ```
-last v k                  = pick (acts v) k
-latest-per-signer v k     = map (T ↦ pick T k) (group (current-by-signer v) signer)
-latest-per-key v kk k     = map (T ↦ pick T k) (group (acts v) kk)
+initial v k               = read the unique raw opener v, without domain filtering or arbitration
+lww-register v k c        = pick-hlc (acts v) k c
+lww-per-signer v k c      = map (T ↦ pick-hlc T k c) (group (current-by-signer v) signer)
+lww-map v kk k c d        = map (T ↦ pick-hlc T k c) (group (current v kk d) kk)
 exists v                  = size (acts v) > 0
 count v                   = size (acts v)
 progress v                = maximum (positions P v)
@@ -258,7 +307,6 @@ events v k                = { m.a ↦ (m.s, f_m(k)) : m ∈ acts v }
 set-union v k             = distinct (acts v) k
 values v k                = distinct (current v ∅ ∅) k
 values-per-key v kk k d   = map (T ↦ distinct T k) (group (current v kk d) kk)
-register-per-key v kk k d = map (T ↦ pick T k)     (group (current v kk d) kk)
 observed-set v⁺ v⁻ k      = distinct (current v⁺ k v⁻) k          ; the add verb has no :replaces of its own
 counter v⁺ v⁻ k           = sum (acts v⁺) k − sum (acts v⁻) k
 histogram F               = { x ↦ |{ key : F(key) = x }| }         F a map-valued field
@@ -276,6 +324,35 @@ monotone in `acc(t)`; a write named in some accepted `:replaces` for its
 key is never picked from `current`; a write no accepted act names is in
 `current` whatever else is accepted (add-wins); signer selection removes a write only when a same-signer act names it; `sum` contributes once per
 address.
+
+### Explicit host-HLC arbitration
+
+The additional definitions and wire contract are [[SPEC-035-register-semantics#ADR-3503]].
+`pick-hlc T value clock` selects the greatest canonical timestamp, then signer UTF-8
+bytes, then content address. The timestamp is the required string field explicitly
+named by the rule, spelled `hlc-<16 lowercase hex>-<8 lowercase hex>` for unsigned
+physical milliseconds and a logical counter. The field differs from key/value
+fields and routing/compiler-owned fields. R7 requires a top-level required `hlc`
+shape and sufficient max-string. Receipt fully recognizes canonical spelling using
+only that message; no current-time or state comparison is performed. The host supplies
+and persists clock evidence before pure binding. Shape conformance does not prove
+honest clocks. Malformed clocks are ineligible in a direct low-level fold; ordinary
+admitted histories exclude them through the shape check.
+
+```text
+lww-register v k c         = pick-hlc (acts v) k c
+lww-per-signer v k c       = map (T ↦ pick-hlc T k c) (group (current-by-signer v) signer)
+lww-map v kk k c d         = map (T ↦ pick-hlc T k c) (group (current v kk d) kk)
+multi-value-register v k   = values v k
+multi-value-map v kk k d   = values-per-key v kk k d
+```
+
+LWW signer writers and LWW map writers/deleters use the same compiler/binder
+`:replaces` rules and bounds as their old counterparts. Map deletion names observed
+writes and needs no clock; concurrent unnamed additions survive. Retired rule
+heads are rejected. Multi-value aliases canonicalize to `values` and
+`values-per-key`; they provide conflict-preserving alternatives.
+These rules add a clock-trusting register profile, not resource certification.
 
 ### R.3 Values and rendering
 
@@ -327,7 +404,7 @@ and the opener's predecessor is `begin`.
 4 replaces for each register/removal the verb writes or deletes: the addresses of the current
            writes for the intent's key (or value), plus current deletions for a writer with a
            delete verb, sorted, the first max-list of them; a delete verb with no current write → reject
-           for latest-per-signer: the signer’s own current-by-signer writes of this verb,
+           for lww-per-signer: the signer’s own current-by-signer writes of this verb,
            sorted and distinct, bounded by max-list; an empty list is included on the first write; union targets when one verb feeds several replacement rules
 5 caused-by C = { m ∈ acc(t) : m.v ∈ allowed(verb) }; C = ∅ → begin if allowed else reject;
            Own = { m ∈ C : m.s = signer } ≠ ∅ → greatest-address own act no own act names;
@@ -461,7 +538,7 @@ performative's shape with a type; the dialect SHALL have a protocol clause
 with exactly one opener. Trace: [[SPEC-019-state-rules#TEST-1905]].
 
 **REQ-1906: Typing.** Key fields, `set-union`/`observed-set` value fields,
-and `values*` value fields SHALL be scalar (`string`, `number`, `bool`) or,
+and `values*` value fields SHALL be scalar (`string`, `hlc`, `number`, `bool`) or,
 for `values`, a scalar list; `counter` names two distinct verbs carrying a
 `number` field of the same name; `histogram` and `sum` name a map-valued
 field defined earlier in the clause, `sum` one whose values are `number`;
@@ -516,9 +593,15 @@ SHALL depend on `acc(t)` only as a set: invariant under permutation and
 duplication, independent of time, randomness, replica, and other threads.
 Trace: [[SPEC-019-state-rules#TEST-1915]], [[SPEC-019-state-rules#TEST-1940]].
 
-**REQ-1916: The order.** `pick` selects the greatest address and nothing
-else; no rule consults depth, chain length, or a timestamp.
-Trace: [[SPEC-019-state-rules#TEST-1916]], [[SPEC-019-state-rules#ADR-1902]].
+**REQ-1916: The order.**
+
+LWW arbitration SHALL compare `(physical, logical, authenticated signer, content address)`.
+Content address SHALL only break exact HLC/signer ties. No state rule SHALL use
+address as its primary application ordering. `initial` SHALL read the sole distinct
+raw opener candidate and return Absent when none or more than one exist.
+Installation SHALL reject an initializer naming any verb other than the unique
+protocol opener. Duplicate receipt of that opener SHALL preserve its value.
+Trace: [[SPEC-035-register-semantics#TEST-3500]], [[SPEC-035-register-semantics#TEST-3504]].
 
 **REQ-1917: Kernel semantics.** Each rule SHALL compute the R.2 definition
 by way of the sugar table; the properties listed there SHALL hold.
@@ -653,7 +736,14 @@ Inspect the changed-path diff for only Lean, specification, plan, concept, READM
 Record the reviewer identity, findings, claim-boundary search, and changed paths in the verification evidence.
 Validates: [[SPEC-019-state-rules#REQ-1938]].
 
-**REQ-1930: Lean obligations.** `LeanCbcl/State.lean` models the accepted
+**REQ-1930: Lean obligations.** Current surface correctness is mechanised in
+`StateKernelSemantics.lean`, `StateKernel.lean` and `StateKernelClause.lean`, with
+`well_formed_kernel_correct` for the 16 version-4 heads. Sole-initializer recognition
+and domain evidence use independent uniqueness semantics, not address choice.
+`StateKernelSEC.lean` and `StateKernelDelivery.lean` compose conditional SEC.
+The component facts below include historical State.lean primitives; retired
+address-selector lemmas are not current installation or grammar obligations.
+ `LeanCbcl/State.lean` models the accepted
 set as a `List Act` under the store invariant `NodupAddr` (no two acts share
 an address) with set-extensional equality `SetEq`, addresses as `Nat` (an
 order-preserving image of the hex form), and collections as characteristic
@@ -1481,7 +1571,7 @@ The maintainer's task instruction authorises this amendment through [[SPEC-019-s
 
 ### REQ-1933: Observed signer writes supersede
 
-`latest-per-signer` SHALL select only `current-by-signer` writes before grouping and picking.
+`lww-per-signer` SHALL select only `current-by-signer` writes before grouping and picking.
 Only a same-verb, same-signer, domain-admitted act naming an address in `:replaces` supersedes that write.
 Cross-signer and cross-verb references SHALL NOT remove it.
 Concurrent surviving writes still use [[SPEC-019-state-rules#REQ-1916]].
@@ -1489,7 +1579,7 @@ Trace: [[SPEC-019-state-rules#TEST-1951]], [[SPEC-019-state-rules#ADR-1912]].
 
 ### REQ-1934: Binder supplies signer bookkeeping
 
-The compiler SHALL insert the reserved list field for `latest-per-signer` writers.
+The compiler SHALL insert the reserved list field for `lww-per-signer` writers.
 The binder SHALL include the signer's own current writes, including concurrent losing writes, in sorted distinct replacement targets within `max-list`.
 When one verb feeds several replacement rules, targets are their sorted distinct union, truncated after union.
 The first write SHALL carry an empty list.
@@ -1501,13 +1591,13 @@ Trace: [[SPEC-019-state-rules#TEST-1952]], [[SPEC-019-state-rules#ADR-1912]].
 The existing reserved field carries observed supersession without changing R5 acyclicity or adding clocks.
 The authenticated signer supplies the register key; payload fields cannot impersonate another signer.
 The kernel reuses replacement-address selection with signer comparison, while keyed-register semantics remain unchanged.
-The maintainer selected `latest-per-signer` only.
-`last` retains its existing address-order semantics.
+The maintainer selected `lww-per-signer` only.
+The opener-only `initial` rule has no arbitration semantics.
 
 ### TEST-1951: Signer fold regression (core)
 
 Validates: [[SPEC-019-state-rules#REQ-1933]], [[SPEC-019-state-rules#REQ-1915]].
-Verify a lower-address observed edit wins, concurrent writes use greatest address, and an observed edit replaces all concurrent own writes.
+Verify a lower-address observed edit wins, concurrent writes use HLC, then signer, then address, and an observed edit replaces all concurrent own writes.
 Verify cross-signer, cross-verb, and domain-excluded replacers leave the targeted ballot unchanged.
 Verify identical state under permutation and duplication, using real canonical messages in the conformance corpus.
 
@@ -1534,7 +1624,7 @@ wasm32, aarch64, and x86_64 for every vector.
 
 ## Architecture Decisions
 
-### ADR-1900: A kernel with sugar, not fourteen primitives
+### ADR-1900: A kernel with author-facing rules
 Fourteen author-facing names were each a commutativity proof owed forever.
 They compose `acts`, `current`, `current-by-signer`, and five
 reductions; `observed-set` turned out to be `current` keyed by value. The
@@ -1550,12 +1640,13 @@ reserved keyword, `:replaces`, and the compiler adds it to the shapes the
 clause implies. Authors never write bookkeeping the machine can write; a
 caller who supplies it is forging.
 
-### ADR-1902: One total order, the content address
-The interpreter's depth-then-hash order is identically hash order on every
-input R5 admits (a same-verb group never contains a member's predecessor).
-Specify the address order only; parity is exact and cbcl-aamas §6.2 is
-corrected. The order converges and is not fair; contested decisions are a
-role's grant in the protocol, so `authorityLast` is not adopted.
+### ADR-1902: Explicit HLC order; content address only breaks exact ties
+
+Superseded the former hash-primary policy in version 4. Registers use explicit
+trusted-host HLC evidence, then signer, then content address. The final tie-break
+provides reproducibility, not fairness or trustworthy time. `initial` reads one
+opener and chooses no winner from ambiguous evidence. See
+[[SPEC-035-register-semantics#ADR-3503]].
 
 ### ADR-1903: Identity is the hash of the body
 `dialect_hash` excludes name, signature, and hash; a state-bearing
@@ -1695,8 +1786,8 @@ checklist's `check` and `drop` shapes require `:replaces list`.
 **TEST-1914.** (`crates/cbcl-parser/tests/admission_state_free.rs`.) Each
 corpus dialect has a *footprint twin*: every rule swapped for a sibling over
 the same verbs and fields with the same `:replaces` verbs (`last` →
-`latest-per-signer` → `set-union`, `register-per-key` ↔ `values-per-key`,
-`exists` ↔ `count`, `counter` with `inc`/`dec` exchanged, `latest-per-key`
+`lww-per-signer` → `set-union`, `lww-map` ↔ `values-per-key`,
+`exists` ↔ `count`, `counter` with `inc`/`dec` exchanged, `lww-map`
 with key and value exchanged), and each domain dropped where its field stays
 read; a change is kept only if the twin installs (R7) with an equal
 footprint (state-bearing verbs, `:replaces` verbs, data fields). The twin's
@@ -1775,6 +1866,8 @@ order; update cbcl-aamas §6 and §7.
 
 ## Changelog
 
+- 3.0.0 (2026-11-06) — explicit host-HLC LWW register/map/per-signer rules and multi-value aliases, per [[SPEC-035-register-semantics#ADR-3503]]. Corpus major version advances; old heads and canonical bodies are unchanged.
+
 - 2.0.2 (2026-10-30) — Link the agreement comparison and model-first research direction in [[SPEC-020-resource-certification#ADR-2001]]. No runtime or wire change.
 - 2.0.1 (2026-10-30) — AT2-style certification investigation, proposed [[SPEC-019-state-rules#ADR-1915]], finite quorum checks, Astro client/replica and credit evidence comparison, AT2 fault/sampling assumptions and prospective VRF sortition, and explicit separation of raw, certified-delivered and finalized resource histories. No runtime or wire change.
 
@@ -1786,7 +1879,7 @@ order; update cbcl-aamas §6 and §7.
 <summary>Revision history</summary>
 
 - 1.1.0 (2026-10-19) — add `(progress verb)`, ordered-position installation checks, causal-position maximum reduction, Lean invariants and live Rust/model comparisons; add the progress-fork corpus vector and bump its version. Existing data-rule semantics are unchanged.
-- 1.0.0 (2026-10-06) — issue 18: signer-scoped observed supersession for `latest-per-signer`; corpus version bumped.
+- 1.0.0 (2026-10-06) — issue 18: signer-scoped observed supersession for `lww-per-signer`; corpus version bumped.
 - 0.3.9 (2026-10-05) — REQ-1930 gains the admission obligations, mechanised
   in `LeanCbcl/AdmissionStratification.lean`: stratification
   (`admit_ignores_data`), regularity of the R7 store language
@@ -1854,3 +1947,14 @@ order; update cbcl-aamas §6 and §7.
 - 0.1.1 — consumer-neutral wording.
 - 0.1.0 — draft.
 </details>
+
+
+### 4.0.0 (2026-11-06)
+
+Retire primary hash-ordered register selectors. Add opener-only `initial` and retain
+one explicit `lww-*` family with the previously defined clock/signer/address order.
+The corpus advances to 4.0.0. Older signed definitions using removed heads do not
+install in this runtime; no versioned legacy interpreter is provided. Interpret
+old histories only with their pinned older runtime or explicitly migrate to a new
+definition and instance. Re-author changed fixtures and refresh typed correctness
+and SEC coverage. Earlier changelog entries record historical contracts.

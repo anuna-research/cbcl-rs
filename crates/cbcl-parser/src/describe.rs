@@ -78,9 +78,23 @@ fn rule_json(rule: &Rule) -> Json {
     }
     let (op, args): (&str, Vec<&str>) = match rule {
         Rule::BoundedCounter(_) => unreachable!("handled above"),
-        Rule::Last { verb, key } => ("last", alloc::vec![verb, key]),
-        Rule::LatestPerSigner { verb, key } => ("latestPerSigner", alloc::vec![verb, key]),
-        Rule::LatestPerKey { verb, key, value } => ("latestPerKey", alloc::vec![verb, key, value]),
+        Rule::LwwRegister { verb, key, clock } => ("lwwRegister", alloc::vec![verb, key, clock]),
+        Rule::LwwPerSigner { verb, key, clock } => ("lwwPerSigner", alloc::vec![verb, key, clock]),
+        Rule::LwwMap {
+            verb,
+            key,
+            value,
+            clock,
+            delete,
+        } => {
+            let mut args = alloc::vec![verb.as_str(), key, value, clock];
+            if let Some(d) = delete {
+                args.push(d);
+            }
+            ("lwwMap", args)
+        }
+        Rule::Initial { verb, key } => ("initial", alloc::vec![verb, key]),
+
         Rule::Exists { verb } => ("exists", alloc::vec![verb]),
         Rule::Count { verb } => ("count", alloc::vec![verb]),
         Rule::Progress { verb } => ("progress", alloc::vec![verb]),
@@ -99,18 +113,7 @@ fn rule_json(rule: &Rule) -> Json {
             }
             ("valuesPerKey", v)
         }
-        Rule::RegisterPerKey {
-            verb,
-            key,
-            value,
-            delete,
-        } => {
-            let mut v = alloc::vec![verb.as_str(), key, value];
-            if let Some(d) = delete {
-                v.push(d);
-            }
-            ("registerPerKey", v)
-        }
+
         Rule::ObservedSet { add, remove, key } => ("observedSet", alloc::vec![add, remove, key]),
         Rule::Counter { inc, dec, key } => ("counter", alloc::vec![inc, dec, key]),
         Rule::Histogram { field } => ("histogram", alloc::vec![field]),
@@ -281,7 +284,7 @@ pub fn read_act_str(input: &str) -> Result<String, String> {
 mod tests {
     use super::*;
 
-    const D: &str = "(define d (cbcl) @a (extend open (to title) (tell to :title title)) (extend vote (to choice) (tell to :choice choice)) (shape open (require :title string)) (shape vote (require :choice string)) (protocol (then begin open) (then open vote)) (state (title (last open :title)) (ballots (latest-per-signer vote :choice))))";
+    const D: &str = "(define d (cbcl) @a (extend open (to title) (tell to :title title)) (extend vote (to choice) (tell to :choice choice)) (shape open (require :title string)) (shape vote (require :choice string) (require :clock hlc)) (protocol (then begin open) (then open vote)) (state (title (initial open :title)) (ballots (lww-per-signer vote :choice :clock))))";
 
     #[test]
     fn define_text_unwraps_meta_and_teach() {
@@ -306,7 +309,7 @@ mod tests {
         assert_eq!(v["verbs"]["vote"]["after"], json!(["open"]));
         assert_eq!(
             v["state"]["ballots"],
-            json!(["latestPerSigner", "vote", "choice"])
+            json!(["lwwPerSigner", "vote", "choice", "clock"])
         );
         assert_eq!(v["roles"], json!({}));
     }
