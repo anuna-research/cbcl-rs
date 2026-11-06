@@ -2,7 +2,7 @@
   "id": "signer-supersession",
   "version": "1.0.0",
   "thread": "s1",
-  "contract": "(define signer-register (cbcl) @anuna\n      (:resource-requirements ((max-depth 12) (max-expansion-size 2048) (verification-time 200)))\n      (extend open (to title) (tell to :title title))\n      (extend write (to value op) (tell to :value value :op op))\n      (shape open (require :title string))\n      (shape write (require :clock string) (require :value string) (require :op number))\n      (protocol (then begin open) (then open write))\n      (state (title (initial open :title)) (entries (lww-per-signer write :value :clock)) (all (events write :value))))",
+  "contract": "(define signer-register (cbcl) @anuna\n      (:resource-requirements ((max-depth 12) (max-expansion-size 2048) (verification-time 200)))\n      (extend open (to title) (tell to :title title))\n      (extend write (to value op) (tell to :value value :op op))\n      (shape open (require :title string))\n      (shape write (require :clock hlc) (require :value string) (require :op number))\n      (protocol (then begin open) (then open write))\n      (state (title (initial open :title)) (entries (lww-per-signer write :value :clock)) (all (events write :value))))",
   "covers": [
     "lww-per-signer",
     "lower-address-sequential-edit",

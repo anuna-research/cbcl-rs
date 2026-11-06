@@ -235,7 +235,7 @@ fn generate_signer_supersession() {
       (extend open (to title) (tell to :title title))
       (extend write (to value op clock) (tell to :value value :op op :clock clock))
       (shape open (require :title string))
-      (shape write (require :clock string) (require :value string) (require :op number))
+      (shape write (require :clock hlc) (require :value string) (require :op number))
       (protocol (then begin open) (then open write))
       (state (title (initial open :title)) (entries (lww-per-signer write :value :clock)) (all (events write :value))))";
     let root = "(lang signer-register (open @room :title \"Register\" :caused-by begin :thread \"s1\" :from @owner))";

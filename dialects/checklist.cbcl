@@ -50,7 +50,7 @@
   (shape check
     (require :item string)
     (require :done bool)
-    (require :clock string))
+    (require :clock hlc))
   (shape drop
     (require :item string))
 

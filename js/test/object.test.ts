@@ -7,7 +7,7 @@ const checklist = {
   name: 'agent-checklist',
   verbs: {
     open: { after: ['begin'], fields: { title: 'string' } },
-    check: { after: ['open'], fields: { item: 'string', done: 'bool', clock: 'string' } },
+    check: { after: ['open'], fields: { item: 'string', done: 'bool', clock: "hlc" } },
     drop: { after: ['open'], fields: { item: 'string' } },
   },
   state: { title: c.initial('open', 'title'), items: c.lwwMap('check',  'item',  'done', 'clock',  'drop'), all: c.valuesPerKey('check', 'item', 'done', 'drop'), checks: c.count('check'), any: c.exists('check') },
@@ -16,13 +16,13 @@ const lunchVote = {
   name: 'lunch-vote', author: '@anuna',
   requirements: { maxDepth: 12, maxExpansionSize: 2048, verificationTime: 200 },
   bounds: { maxString: 280, maxList: 24 },
-  verbs: { propose: { after: ['begin'], fields: { question: 'string', options: 'list' as const } }, vote: { after: ['propose'], fields: { choice: enumOf('options'), clock: 'string' } } },
+  verbs: { propose: { after: ['begin'], fields: { question: 'string', options: 'list' as const } }, vote: { after: ['propose'], fields: { choice: enumOf('options'), clock: "hlc" } } },
   state: { question: c.initial('propose', 'question'), options: c.initial('propose', 'options'), ballots: c.lwwPerSigner('vote', 'choice', 'clock'), tally: c.histogram('ballots') },
 };
 const collections = {
   name: 'collections',
   verbs: {
-    open: { after: ['begin'], fields: { title: 'string' } }, add: { after: ['open'], fields: { tag: 'string', op: 'string', clock: 'string' } }, remove: { after: ['open'], fields: { tag: 'string' } },
+    open: { after: ['begin'], fields: { title: 'string' } }, add: { after: ['open'], fields: { tag: 'string', op: 'string', clock: "hlc" } }, remove: { after: ['open'], fields: { tag: 'string' } },
     credit: { after: ['open'], fields: { amount: 'number' as const, op: 'string' } }, debit: { after: ['open'], fields: { amount: 'number' as const, op: 'string' } }, write: { after: ['open'], fields: { text: 'string' } },
   },
   state: { tags: c.observedSet('add', 'remove', 'tag'), seen: c.setUnion('add', 'tag'), adds: c.count('add'), credits: c.events('credit', 'amount'), total: c.sum('credits'), balance: c.counter('credit', 'debit', 'amount'), choices: c.values('write', 'text'), ops: c.lwwMap('add', 'tag', 'op', 'clock') },

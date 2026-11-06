@@ -192,7 +192,10 @@ pub fn declared_keywords(shapes: &[ShapeConstraint], verb: &str) -> BTreeSet<Str
 fn is_scalar(tc: &TypeConstraint) -> bool {
     matches!(
         tc,
-        TypeConstraint::String | TypeConstraint::Number | TypeConstraint::Bool
+        TypeConstraint::String
+            | TypeConstraint::Hlc
+            | TypeConstraint::Number
+            | TypeConstraint::Bool
     )
 }
 
@@ -304,8 +307,8 @@ pub fn r7_violations(d: &Dialect) -> Vec<R7Violation> {
         clause.fields().map(|(n, r)| (String::from(n), r)).collect();
     for (name, rule) in &field_types {
         if let Some((verb, clock)) = rule.clock_field() {
-            if ty(verb, clock) != Some(TypeConstraint::String) || !d.shapes.iter().filter(|s| s.performative == verb).any(|s| s.rules.iter().any(|r| matches!(r, ShapeRule::Require { keyword, type_constraint: Some(TypeConstraint::String), .. } if keyword == clock))) {
-                out.push(R7Violation::Typing(format!("LWW clock :{clock} of '{verb}' must be a required string")));
+            if ty(verb, clock) != Some(TypeConstraint::Hlc) || !d.shapes.iter().filter(|s| s.performative == verb).any(|s| s.rules.iter().any(|r| matches!(r, ShapeRule::Require { keyword, type_constraint: Some(TypeConstraint::Hlc), .. } if keyword == clock))) {
+                out.push(R7Violation::Typing(format!("LWW clock :{clock} of '{verb}' must be a required hlc field")));
             }
             if bounds.max_string < crate::hlc::WIRE_LEN as u32 {
                 out.push(R7Violation::Bounds(
@@ -636,11 +639,14 @@ pub fn verify_state_shape(d: &Dialect, msg: &Message) -> Result<(), ShapeViolati
         }
     }
 
-    // SPEC-035: full message-local recognition, never a wall-clock comparison.
+    // Preserve the R7-only export contract by delegating clock checks to the
+    // declared shape type. Canonical recognition belongs to TypeConstraint::Hlc.
     for (_, rule) in clause.fields() {
         if let Some((writer, clock)) = rule.clock_field() {
             if writer == verb {
-                let valid = matches!(fields.get(clock), Some(SExpr::Atom(Atom::Str(text))) if crate::hlc::Hlc::parse(text).is_some());
+                let valid = fields
+                    .get(clock)
+                    .is_some_and(|value| TypeConstraint::Hlc.matches(value));
                 if !valid {
                     return Err(violation(
                         "hlc",

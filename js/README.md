@@ -35,7 +35,7 @@ const poll = await defineContract({
   dialect: 'team-choice',
   verbs: {
     propose: { causedBy: 'begin', fields: { question: 'string', options: ['string'] } },
-    vote: { causedBy: ['propose'], fields: { choice: enumOf('options'), clock: 'string' } },
+    vote: { causedBy: ['propose'], fields: { choice: enumOf('options'), clock: 'hlc' } },
   },
   state: {
     question: c.initial('propose', 'question'), options: c.initial('propose', 'options'),
@@ -56,7 +56,7 @@ agent.read('lunch-1');                                       // the fold
 ```
 
 The state grammar has 16 heads, including `initial` and the explicit
-`lwwRegister`, `lwwPerSigner` and `lwwMap` rules. LWW writes declare and supply a
+`lwwRegister`, `lwwPerSigner` and `lwwMap` rules. LWW writes declare an `hlc` field and supply its
 canonical clock string; the host generates it before calling the binder. Choice
 uses HLC, signer, then content address as an exact final tie-break. `initial`
 reads the sole raw opener without arbitration. The retired `last`,

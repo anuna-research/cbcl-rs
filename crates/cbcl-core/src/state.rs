@@ -1097,6 +1097,7 @@ pub fn fold(
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ScalarType {
     Str,
+    Hlc,
     Int,
     Bool,
     /// A list of scalars (a `list` shape type).
@@ -1107,6 +1108,7 @@ impl ScalarType {
     pub fn from_constraint(tc: &TypeConstraint) -> Option<ScalarType> {
         match tc {
             TypeConstraint::String => Some(ScalarType::Str),
+            TypeConstraint::Hlc => Some(ScalarType::Hlc),
             TypeConstraint::Number => Some(ScalarType::Int),
             TypeConstraint::Bool => Some(ScalarType::Bool),
             TypeConstraint::List => Some(ScalarType::List),
@@ -1117,6 +1119,7 @@ impl ScalarType {
     pub fn as_str(&self) -> &'static str {
         match self {
             ScalarType::Str => "string",
+            ScalarType::Hlc => "hlc",
             ScalarType::Int => "number",
             ScalarType::Bool => "bool",
             ScalarType::List => "list",

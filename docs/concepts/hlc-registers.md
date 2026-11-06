@@ -25,7 +25,7 @@ candidate count. No hash winner is selected, and domains use the same raw eviden
 (shape write
   (require :item string)
   (require :value string)
-  (require :clock string))
+  (require :clock hlc))
 
 (state
   (announcement (lww-register write :value :clock))
@@ -33,6 +33,12 @@ candidate count. No hash winner is selected, and domains use the same raw eviden
   (items (lww-map write :item :value :clock))
   (conflicts (multi-value-map write :item :value)))
 ```
+
+`hlc` is a declared shape type, not a field-name convention. It works with any
+keyword and in required, optional or nested shapes. Normal shape validation owns
+canonical recognition. LWW rules require a top-level required `hlc` field; plain
+`string` is rejected for that clock reference. JSON/JavaScript declares
+`fields: { clock: 'hlc' }`. Schema and read-back retain that type.
 
 Each write supplies a canonical string such as
 `"hlc-000001a3185c5000-00000000"`. Physical milliseconds occupy unsigned 64-bit
@@ -88,6 +94,9 @@ rules and an explicit resolution policy instead.
 
 [[SPEC-025-consensus-free-refinement]] has separate resource-certification premises.
 An HLC is not a resource authorization or finality certificate.
+
+Changing an earlier LWW clock declaration from `string` to `hlc` changes the
+dialect identity. The serialized timestamp value is unchanged.
 
 The model in `LeanCbcl/HlcRegister.lean` proves greatest-candidate arbitration,
 set invariance and composition with signer/keyed candidate selection over typed

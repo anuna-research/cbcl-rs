@@ -44,6 +44,10 @@ def main():
             destination.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(ROOT / name, destination)
         mutations = [
+            ('hlc-type-accepts-any-string', 'crates/cbcl-core/src/shape.rs',
+             'matches!(sexpr, SExpr::Atom(Atom::Str(text)) if crate::hlc::Hlc::parse(text).is_some())',
+             'matches!(sexpr, SExpr::Atom(Atom::Str(_)))',
+             ['cargo', 'test', '-p', 'cbcl-parser', '--test', 'hlc_type', '--locked']),
             ('initializer-arbitrates-ambiguity', 'crates/cbcl-core/src/state.rs',
              'match table {\n            [act] => self.field(act, key).unwrap_or(Value::Absent),\n            _ => Value::Absent,\n        }',
              'table.iter().max_by(|a, b| a.address.cmp(&b.address)).and_then(|a| self.field(a, key)).unwrap_or(Value::Absent)',

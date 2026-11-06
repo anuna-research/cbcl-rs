@@ -245,7 +245,7 @@ mod tests {
       (extend propose (to question options) (tell to :question question :options options)) \
       (extend vote (to choice) (tell to :choice choice)) \
       (shape propose (require :question string) (require :options list)) \
-      (shape vote (require :choice string) (require :clock string)) \
+      (shape vote (require :choice string) (require :clock hlc)) \
       (protocol (then begin propose) (then propose vote)) \
       (state (question (initial propose :question)) (options (initial propose :options)) \
              (domain vote :choice options) (ballots (lww-per-signer vote :choice :clock)) \

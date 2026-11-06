@@ -284,7 +284,7 @@ pub fn read_act_str(input: &str) -> Result<String, String> {
 mod tests {
     use super::*;
 
-    const D: &str = "(define d (cbcl) @a (extend open (to title) (tell to :title title)) (extend vote (to choice) (tell to :choice choice)) (shape open (require :title string)) (shape vote (require :choice string)) (protocol (then begin open) (then open vote)) (state (title (initial open :title)) (ballots (lww-per-signer vote :choice :clock))))";
+    const D: &str = "(define d (cbcl) @a (extend open (to title) (tell to :title title)) (extend vote (to choice) (tell to :choice choice)) (shape open (require :title string)) (shape vote (require :choice string) (require :clock hlc)) (protocol (then begin open) (then open vote)) (state (title (initial open :title)) (ballots (lww-per-signer vote :choice :clock))))";
 
     #[test]
     fn define_text_unwraps_meta_and_teach() {

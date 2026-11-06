@@ -6,7 +6,7 @@ const source = {
   name: 'hlc-registers', author: '@a',
   verbs: {
     open: { after: ['begin'], fields: { title: 'string' } },
-    write: { after: ['open'], fields: { item: 'string', value: 'string', clock: 'string' } },
+    write: { after: ['open'], fields: { item: 'string', value: 'string', clock: "hlc" } },
     drop: { after: ['open'], fields: { item: 'string' } },
   },
   state: {
@@ -41,7 +41,7 @@ test('new authoring names use the shared HLC fold and explicit clock input', asy
 test('domain-excluded same-key writes cannot corrupt deletion bookkeeping', async () => {
   const object=await defineContract({...source,verbs:{...source.verbs,
     open:{after:['begin'],fields:{title:'string',options:'list' as const}},
-    write:{after:['open'],fields:{item:'string',value:enumOf('options'),clock:'string'}}},
+    write:{after:['open'],fields:{item:'string',value:enumOf('options'),clock:"hlc"}}},
     state:{options:c.initial('open','options'),...source.state}});
   const root=actRecord(object.open({room:'@a',thread:'t',from:'@a',fields:{title:'demo',options:['allowed']}}),'@a');
   const runtime=createRuntime(object.dialect);
@@ -54,4 +54,16 @@ test('domain-excluded same-key writes cannot corrupt deletion bookkeeping', asyn
   const deletion=runtime.intend('t',records,'@alice','drop',{item:'x'});
   assert.equal(deletion.ok,true); if (!deletion.ok) return;
   assert.deepEqual(readAct(deletion.canonical).fields.replaces,[a.cid]);
+});
+
+
+test('declared hlc fields validate without an LWW rule and retain their type', async () => {
+  const object = await defineContract({name:'typed-clock', verbs:{
+    open:{after:['begin'], fields:{when:'hlc' as const}}},
+    state:{when:c.initial('open','when')}});
+  assert.equal(object.info.verbs.open.fields.when,'hlc');
+  assert.throws(()=>object.open({room:'@a',thread:'t',from:'@a',fields:{when:'invalid'}}),/hlc/);
+  const valid='hlc-000001a3185c5000-00000000';
+  const root=actRecord(object.open({room:'@a',thread:'t',from:'@a',fields:{when:valid}}),'@a');
+  assert.equal(object.runtime.read('t',[root]).when,valid);
 });

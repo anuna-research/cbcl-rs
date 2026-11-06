@@ -231,7 +231,7 @@ by content address before testing uniqueness. It returns Absent for empty or amb
 evidence, including when only one of several candidates carries the requested field.
 Domains cannot filter the opener. Retired heads `last`, `lww-per-signer`,
 `latest-per-key`, and `register-per-key` are parse errors, not aliases.
-LWW clocks are required string fields spelled `hlc-` + 16 lowercase hexadecimal
+LWW clocks are required `hlc` fields, encoded as strings spelled `hlc-` + 16 lowercase hexadecimal
 physical digits + `-` + 8 lowercase hexadecimal logical digits. Clock recognition
 reads one message; it does not verify time or generate clock evidence.
 
@@ -310,7 +310,7 @@ The additional definitions and wire contract are [[SPEC-035-register-semantics#A
 bytes, then content address. The timestamp is the required string field explicitly
 named by the rule, spelled `hlc-<16 lowercase hex>-<8 lowercase hex>` for unsigned
 physical milliseconds and a logical counter. The field differs from key/value
-fields and routing/compiler-owned fields. R7 requires a top-level required string
+fields and routing/compiler-owned fields. R7 requires a top-level required `hlc`
 shape and sufficient max-string. Receipt fully recognizes canonical spelling using
 only that message; no current-time or state comparison is performed. The host supplies
 and persists clock evidence before pure binding. Shape conformance does not prove
@@ -516,7 +516,7 @@ performative's shape with a type; the dialect SHALL have a protocol clause
 with exactly one opener. Trace: [[SPEC-019-state-rules#TEST-1905]].
 
 **REQ-1906: Typing.** Key fields, `set-union`/`observed-set` value fields,
-and `values*` value fields SHALL be scalar (`string`, `number`, `bool`) or,
+and `values*` value fields SHALL be scalar (`string`, `hlc`, `number`, `bool`) or,
 for `values`, a scalar list; `counter` names two distinct verbs carrying a
 `number` field of the same name; `histogram` and `sum` name a map-valued
 field defined earlier in the clause, `sum` one whose values are `number`;

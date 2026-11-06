@@ -343,7 +343,10 @@ fn recognize(json: &Json) -> Result<Contract<'_>, String> {
             }
             match ty {
                 Json::String(t)
-                    if matches!(t.as_str(), "string" | "number" | "bool" | "list" | "symbol") =>
+                    if matches!(
+                        t.as_str(),
+                        "string" | "hlc" | "number" | "bool" | "list" | "symbol"
+                    ) =>
                 {
                     fields.push((field.as_str(), t.as_str(), None))
                 }

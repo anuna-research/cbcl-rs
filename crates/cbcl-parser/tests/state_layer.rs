@@ -103,8 +103,8 @@ fn checklist_parses_and_replaces_is_inserted() {
 #[test]
 fn author_declared_replaces_is_rejected() {
     let src = checklist_source().replace(
-        "(require :clock string))",
-        "(require :clock string) (require :replaces list))",
+        "(require :clock hlc))",
+        "(require :clock hlc) (require :replaces list))",
     );
     let err = parse_dialect(&parse(&src).unwrap()).unwrap_err();
     assert!(err.contains("reserved"), "{err}");

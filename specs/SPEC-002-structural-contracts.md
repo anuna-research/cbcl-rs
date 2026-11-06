@@ -693,7 +693,7 @@ optional-rule    = "(" "optional" WS keyword
 max-depth-rule   = "(" "max-depth" WS number ")"
 
 type-constraint  = "string" / "number" / "bool"
-                 / "symbol" / "keyword" / "list"
+                 / "symbol" / "keyword" / "list" / "hlc"
 
 default-value    = s-expr
 ~~~
@@ -710,7 +710,7 @@ The system SHALL verify each `(shape ...)` clause at installation:
 
 1. Performative name matches an `extend` clause.
 2. All keywords are valid CBCL keywords (start with `:`).
-3. All type constraints are one of the six recognised types.
+3. All type constraints are one of the seven recognised types.
 4. `max-depth` does not exceed the dialect's R2 bound.
 5. No duplicate require/optional for the same keyword at the same depth.
 
@@ -1825,7 +1825,7 @@ optional-rule    = "(" "optional" WS keyword
 max-depth-rule   = "(" "max-depth" WS number ")"
 
 type-constraint  = "string" / "number" / "bool"
-                 / "symbol" / "keyword" / "list"
+                 / "symbol" / "keyword" / "list" / "hlc"
 
 default-value    = s-expr
 ~~~
@@ -1970,3 +1970,15 @@ Usage with fan-in `:caused-by`:
 ;;     :detail "incomplete-fan-in"
 ;;     :missing ("result-c"))
 ```
+
+
+### HLC shape-type amendment — SPEC-035 ADR-3504
+
+`hlc` is a refined string type. `(require :observed-at hlc)` requires the canonical
+29-byte encoding: `hlc-` + 16 lowercase hexadecimal physical-millisecond digits +
+`-` + 8 lowercase hexadecimal logical-counter digits. The same recognition applies
+to optional and nested shape rules, independent of field name or state clauses.
+The validator reads one immutable message and no clock/history. The type asserts
+syntax, not honest generation, causal advancement, resource authority or finality.
+`string` remains the unrestricted string type; it is not an alias for `hlc`.
+The canonical type name is signature-bound. See [[SPEC-035-register-semantics#ADR-3504]].

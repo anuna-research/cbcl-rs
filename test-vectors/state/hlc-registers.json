@@ -12,7 +12,7 @@
     "exact-hlc-hash-tie"
   ],
   "thread": "t",
-  "contract": "(define hlc-test (cbcl) @a\n  (extend open (to title) (tell to :title title))\n  (extend write (to item value clock) (tell to :item item :value value :clock clock))\n  (extend drop (to item) (tell to :item item))\n  (shape open (require :title string))\n  (shape write (require :item string) (require :value string) (require :clock string))\n  (shape drop (require :item string))\n  (protocol (then begin open) (then open write) (then open drop))\n  (state\n    (title (initial open :title))\n    (lww (lww-register write :value :clock))\n    (own (lww-per-signer write :value :clock))\n    (map (lww-map write :item :value :clock drop))\n    (values (multi-value-register write :value))\n    (all (multi-value-map write :item :value))))",
+  "contract": "(define hlc-test (cbcl) @a\n  (extend open (to title) (tell to :title title))\n  (extend write (to item value clock) (tell to :item item :value value :clock clock))\n  (extend drop (to item) (tell to :item item))\n  (shape open (require :title string))\n  (shape write (require :item string) (require :value string) (require :clock hlc))\n  (shape drop (require :item string))\n  (protocol (then begin open) (then open write) (then open drop))\n  (state\n    (title (initial open :title))\n    (lww (lww-register write :value :clock))\n    (own (lww-per-signer write :value :clock))\n    (map (lww-map write :item :value :clock drop))\n    (values (multi-value-register write :value))\n    (all (multi-value-map write :item :value))))",
   "messages": [
     {
       "canonical": "(lang hlc-test (open @a () :title \"demo\" :from @a :thread \"t\" :caused-by begin))",

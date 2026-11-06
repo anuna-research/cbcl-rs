@@ -66,7 +66,7 @@ test('SPEC-087 TEST-001: the contract compile is cbcl-rs and names the authored 
     roles: { owner: 'singleton', member: 'indexed' },
     verbs: {
       open: { after: ['begin'], fields: { title: 'string' }, from: 'owner', to: ['owner', 'member'] },
-      check: { after: ['open'], fields: { item: 'string', done: 'bool', clock: 'string' }, from: 'member', to: ['owner', 'member'] },
+      check: { after: ['open'], fields: { item: 'string', done: 'bool', clock: "hlc" }, from: 'member', to: ['owner', 'member'] },
       drop: { after: ['open'], fields: { item: 'string' }, from: 'owner', to: ['owner', 'member'] },
     },
     state: { title: ['initial', 'open', 'title'], items: ['lwwMap', 'check', 'item', 'done', 'clock', 'drop'] },

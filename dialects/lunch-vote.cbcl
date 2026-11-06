@@ -39,7 +39,7 @@
 
   (shape vote
     (require :choice string)
-    (require :clock string))
+    (require :clock hlc))
 
   (protocol
     (then begin propose)

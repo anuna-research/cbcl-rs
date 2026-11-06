@@ -1,0 +1,9 @@
+; SPEC-035 ADR-3504: declared HLC type, canonical string wire value.
+(given (task hlc-shape-type))
+(given (task-description hlc-shape-type "Declare hlc type across shape validation, authoring, schema and LWW checks"))
+(given (task-acceptance hlc-shape-type "TEST-3505 standalone/nested shape, typed LWW, bindings, corpus and mutation checks pass"))
+(given (no-deps hlc-shape-type))
+(normally r-ready-hlc-type (and (task hlc-shape-type) (no-deps hlc-shape-type)) (ready hlc-shape-type))
+
+; Evidence: proofs/hlc-type/hlc-type-verification.md.
+(given (completed hlc-shape-type))

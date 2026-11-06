@@ -642,6 +642,7 @@ fn type_constraint_to_sexpr(tc: &Option<TypeConstraint>) -> SExpr {
     if let Some(t) = tc {
         let name = match t {
             TypeConstraint::String => "string",
+            TypeConstraint::Hlc => "hlc",
             TypeConstraint::Number => "number",
             TypeConstraint::Bool => "bool",
             TypeConstraint::Symbol => "symbol",

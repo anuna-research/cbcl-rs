@@ -721,7 +721,7 @@ fn checklist() -> Dialect {
                 rules: vec![
                     require("item", TypeConstraint::String),
                     require("done", TypeConstraint::Bool),
-                    require("clock", TypeConstraint::String),
+                    require("clock", TypeConstraint::Hlc),
                 ],
             },
             ShapeConstraint {

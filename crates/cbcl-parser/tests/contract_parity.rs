@@ -22,7 +22,7 @@ fn checklist() -> Value {
       "roles":{"owner":"singleton","member":"indexed"},
       "verbs":{
         "open":{"after":["begin"],"fields":{"title":"string"},"from":"owner","to":["owner","member"]},
-        "check":{"after":["open"],"fields":{"item":"string","done":"bool","clock":"string"},"from":"member","to":["owner","member"]},
+        "check":{"after":["open"],"fields":{"item":"string","done":"bool","clock":"hlc"},"from":"member","to":["owner","member"]},
         "drop":{"after":["open"],"fields":{"item":"string"},"from":"owner","to":["owner","member"]}},
       "state":{"title":["initial","open","title"],"items":["lwwMap","check","item","done","clock","drop"]}})
 }
@@ -33,7 +33,7 @@ fn lunch_vote() -> Value {
       "bounds":{"maxString":280,"maxList":24},
       "verbs":{
         "propose":{"after":["begin"],"fields":{"question":"string","options":"list"}},
-        "vote":{"after":["propose"],"fields":{"choice":{"enumOf":"options"},"clock":"string"}}},
+        "vote":{"after":["propose"],"fields":{"choice":{"enumOf":"options"},"clock":"hlc"}}},
       "state":{"question":["initial","propose","question"],"options":["initial","propose","options"],
                "ballots":["lwwPerSigner","vote","choice","clock"],"tally":["histogram","ballots"]}})
 }
@@ -83,7 +83,7 @@ fn identity_is_the_body_and_the_state_clause_is_part_of_it() {
     assert!(text
         .contains("(options (initial propose :options)) (domain vote :choice options) (ballots"));
     assert!(text.contains("(:state-bounds (max-string 280) (max-list 24))"));
-    assert!(text.contains("(shape vote (require :choice string) (require :clock string))"));
+    assert!(text.contains("(shape vote (require :choice string) (require :clock hlc))"));
 }
 
 #[test]

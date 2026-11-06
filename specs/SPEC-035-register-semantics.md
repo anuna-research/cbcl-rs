@@ -18,8 +18,8 @@ The current register/initializer heads are `lww-register`, `lww-per-signer`, `lw
 Missing or several opener candidates yield Absent, before projecting the field.
 Repeated receipt of one opener preserves its value. Conflict-preserving forms are
 `multi-value-register` and `multi-value-map` (aliases of `values` and `values-per-key`).
-LWW selects the greatest tuple of HLC, authenticated signer, then content address. Hosts supply and
-persist honest clock evidence; clock shape does not prove time or resource finality.
+LWW selects the greatest tuple of HLC, authenticated signer, then content address. LWW clocks have declared shape type `hlc`, with a canonical string wire value.
+Hosts generate, advance and persist honest clock evidence; clock shape does not prove time or resource finality.
 The former `last`, `latest-per-signer`, `latest-per-key` and `register-per-key`
 heads are retired and rejected, not aliases.
 
@@ -98,7 +98,7 @@ Trace: [[SPEC-035-register-semantics#TEST-3504]].
 (values-per-key verb key-key value-key [delete]) ; multi-value-map alias
 ```
 
-Clock fields are required strings: `hlc-` + 16 lowercase hex digits + `-` + 8
+LWW clock fields MUST have declared type `hlc`, whose wire string is: `hlc-` + 16 lowercase hex digits + `-` + 8
 lowercase hex digits. Clock keys differ from grouping and value keys and are not
 routing/compiler fields. JavaScript uses `c.initial`, `c.lwwRegister`,
 `c.lwwPerSigner`, `c.lwwMap`, `c.multiValueRegister`, and `c.multiValueMap`.
@@ -134,7 +134,7 @@ parsing, installation, authoring and the public typed rule inventory. Keep
 `lww-register`, `lww-per-signer`, and `lww-map`, using the already accepted order
 `(physical, logical, authenticated signer, content address)`. Content address only
 breaks exact clock/signer ties. It is not an alternate application ordering policy.
-Clock evidence remains explicit trusted-host data.
+Clock evidence remains explicit trusted-host data, with declared shape type `hlc`.
 
 Introduce `(initial opener keyword)` and `c.initial(opener, field)`. Installation
 requires the protocol's unique opener. The fold returns that act's field, or
@@ -189,3 +189,41 @@ Validates REQ-3503, REQ-3504 and REQ-3505.
 Plan: [[IMPL-025-register-simplification]]. Earlier implementation evidence
 [[register-semantics-implementation-review]] and earlier mutation outputs are
 historical; updated validation is recorded in [[register-simplification-verification]].
+
+
+## ADR-3504: Declare HLC as a shape type
+
+Status: accepted by user task, 2026-11-06. This is part of the unreleased version-4
+surface, not a new clock wire representation or arbitration policy.
+
+Add `hlc` to TypeConstraint and the shape grammar. Its validator uses the canonical
+HLC recognizer for any field name, including optional/nested fields without state
+or LWW rules. LWW clock references MUST resolve to top-level required `hlc` fields;
+plain `string`, optional clocks and missing/unknown declarations are rejected.
+
+Declaration compatibility remains exact: `hlc` is not implicitly accepted where
+an existing rule specifically requires a `string` declaration.
+Canonical clock recognition belongs to TypeConstraint::Hlc. The R7-only shape export
+reuses that validator for its LWW clock checks; it owns no parallel string grammar.
+Normal R5 shape validation applies the same type independently of state rules.
+Schema and description preserve the `hlc` type, and JavaScript/JSON authoring accepts
+`clock: 'hlc'`. The wire value remains a canonical string. Changing a declared type
+changes the dialect body/hash; existing typed clock inputs and message bodies do
+not change. Host generation, advancement and durable persistence remain obligations.
+
+## REQ-3506: Declared HLC shape semantics
+
+The recognized type vocabulary MUST include `hlc`. Required, optional and nested
+shape checks MUST recognize the canonical clock string without state/routing
+lookups. LWW references MUST require this declared type. Canonicalization, schema,
+description, JSON authoring and JS FieldType MUST preserve it. A plain string MUST
+NOT silently become an HLC type. Trace: [[SPEC-035-register-semantics#TEST-3505]].
+
+## TEST-3505: HLC type conformance
+
+Check canonical/invalid strings and non-string atoms; required, optional and nested
+fields with names other than `clock`; missing required evidence; standalone shapes
+without any state clause; signature-bound type identity; schema/authoring/readback;
+and rejection of LWW clocks declared string/optional. Kill a type validator that
+accepts every string and retain the independent fold/SEC claim boundaries.
+Validates REQ-3506. Evidence: [[hlc-type-verification]].
