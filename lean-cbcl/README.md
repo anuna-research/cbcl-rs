@@ -330,3 +330,41 @@ lake exe runLinter LeanCbcl
 ../scripts/check-axioms.sh
 python3 ../scripts/check-state-kernel.py
 ```
+
+
+## Conditional strong eventual consistency
+
+`StateKernelSEC.lean` proves equal accepted sets give extensionally equal
+observations for every expression and arbitrary compiled clauses. Its shared
+`Context` fixes the dialect interpretation and requires causal/resource evidence
+providers to respect set equality. Store merge is set union and is associative,
+commutative and idempotent modulo membership; duplicate insertion preserves
+observations. These merge laws do not reconcile conflicting addresses or prove
+that a runtime can bypass admission when merging received data.
+
+`StateKernelDelivery.lean` uses the existing `StateRefinement.Behavior`, including
+receipt, pending candidates, acceptance, rejection, waiting and idle steps. Under
+eventual receipt, continuously enabled transition fairness, finite lower-ranked
+dependencies, dependency-based admission and no false rejection, it proves:
+
+- `eventual_acceptance`: every valid act eventually enters and remains accepted.
+- `eventual_dissemination`: an accepted act eventually reaches another compliant replica.
+- `finite_history_stabilizes`: a complete finite history eventually equals each accepted set.
+- `strong_eventual_consistency`: any two compliant replicas agree at all sufficiently late times.
+
+Fairness schedules actual acceptance-labelled transitions; acceptance membership
+is derived from `Step`. `StateKernelSECTests.lean` supplies a nonempty two-act
+replica with out-of-order receipt, and an otherwise legal starving execution
+excluded by fairness. A growing unique-address snapshot sequence demonstrates
+that ongoing writes need not produce a final count; this is not an instantiated
+infinite replica execution.
+
+These are conditional typed-model results. Admission obligations, transport,
+resource classification/finalization and Rust correspondence remain separate.
+A shared evidence provider is required: two unrelated individually extensional
+providers are insufficient. See SPEC-037 and
+`proofs/state-kernel-sec/state-kernel-sec-verification.md`.
+
+```sh
+python3 ../scripts/check-state-kernel-sec.py
+```

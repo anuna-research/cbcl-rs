@@ -261,3 +261,11 @@ wire grammar, corpus version or installed dialect identity changes in this work.
 Open, owner CBCL maintainer: universal Rust/model and rendering correspondence;
 resource-verifier classification and resource-DAG compatible-union validation;
 proofs connecting host recognition/authentication to the typed input boundary.
+
+
+## Subsequent conditional consistency proof
+
+[[SPEC-037-state-kernel-sec]] composes this interpretation with accepted-set
+convergence, eventual delivery, ranked dependency admission and weak scheduling
+fairness. Its conditional liveness theorem is separate from this specification's
+pure denotational result and retains the delegated evidence-port boundaries.

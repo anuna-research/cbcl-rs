@@ -1,3 +1,4 @@
+import LeanCbcl.StateKernelSECTests
 import LeanCbcl.StateKernelClause
 import LeanCbcl.HlcRegister
 import LeanCbcl.Lattice.NotALattice
@@ -514,3 +515,39 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateKernelAggregates.cell_number_complete
 #print axioms CBCL.StateKernelAggregates.sum_meaning_unique
 #print axioms CBCL.StateKernelAggregates.histogram_meaning_unique
+
+-- SPEC-037: equal-set convergence, fair admission and finite-history SEC.
+#print axioms CBCL.StateKernelSEC.admitted_setEq
+#print axioms CBCL.StateKernelSEC.select_setEq
+#print axioms CBCL.StateKernelSEC.choose_setEq
+#print axioms CBCL.StateKernelSEC.map_setEq
+#print axioms CBCL.StateKernelSEC.values_map_setEq
+#print axioms CBCL.StateKernelSEC.histogram_equivalent
+#print axioms CBCL.StateKernelSEC.sum_equivalent
+#print axioms CBCL.StateKernelSEC.strong_convergence
+#print axioms CBCL.StateKernelSEC.clause_strong_convergence
+#print axioms CBCL.StateKernelDelivery.step_received
+#print axioms CBCL.StateKernelDelivery.step_accepted
+#print axioms CBCL.StateKernelDelivery.accepted_persistent
+#print axioms CBCL.StateKernelDelivery.received_persistent
+#print axioms CBCL.StateKernelDelivery.accepted_valid
+#print axioms CBCL.StateKernelDelivery.pending_or_accepted
+#print axioms CBCL.StateKernelDelivery.label_accepted
+#print axioms CBCL.StateKernelDelivery.enabled_eventually_accepted
+#print axioms CBCL.StateKernelDelivery.eventual_acceptance
+#print axioms CBCL.StateKernelDelivery.finite_history_stabilizes
+#print axioms CBCL.StateKernelDelivery.strong_eventual_consistency
+#print axioms CBCL.StateKernelSECTests.run_behavior
+#print axioms CBCL.StateKernelSECTests.child_eventually_accepted
+#print axioms CBCL.StateKernelSECTests.starved_behavior
+#print axioms CBCL.StateKernelSECTests.starved_no_acceptance
+#print axioms CBCL.StateKernelSECTests.starved_not_fair
+#print axioms CBCL.StateKernelSEC.merge_setEq
+#print axioms CBCL.StateKernelSEC.merge_associative
+#print axioms CBCL.StateKernelSEC.merge_commutative
+#print axioms CBCL.StateKernelSEC.merge_idempotent
+#print axioms CBCL.StateKernelSEC.duplicate_observation
+#print axioms CBCL.StateKernelDelivery.eventual_dissemination
+#print axioms CBCL.StateKernelSECTests.ticks_unique
+#print axioms CBCL.StateKernelSECTests.ticks_count
+#print axioms CBCL.StateKernelSECTests.ongoing_writes_need_not_stabilize

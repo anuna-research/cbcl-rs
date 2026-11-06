@@ -81,3 +81,5 @@ import LeanCbcl.HlcRegister
 
 import LeanCbcl.StateKernelClause
 import LeanCbcl.StateKernelTests
+
+import LeanCbcl.StateKernelSECTests

@@ -148,6 +148,9 @@ Open:
   denotational correctness and elaboration completeness across the rule inventory.
   Resource-verifier classification, resource-DAG validation, wire recognition and
   Rust correspondence remain outside that theorem.
+  [[SPEC-037-state-kernel-sec]] proves conditional strong eventual consistency
+  under delivery, fair scheduling, ranked admission dependencies and shared
+  set-extensional causal/resource evidence providers.
 - The corpus is pinned by `test-vectors/state/VERSION`
   ([[SPEC-019-state-rules#REQ-1931]]).
 - Shipped views and blobs (cbcl-bus SPEC-019 CON-001 `:views`, CON-004
