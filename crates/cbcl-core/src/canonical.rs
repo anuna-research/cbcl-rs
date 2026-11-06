@@ -401,29 +401,18 @@ fn state_to_sexpr(clause: &crate::state::StateClause) -> SExpr {
                             r.push(s(d));
                         }
                     }
-                    Rule::Last { verb, key }
-                    | Rule::LatestPerSigner { verb, key }
+                    Rule::Initial { verb, key }
                     | Rule::Events { verb, key }
                     | Rule::SetUnion { verb, key }
                     | Rule::Values { verb, key } => {
                         r.push(s(verb));
                         r.push(s(key));
                     }
-                    Rule::LatestPerKey { verb, key, value } => {
-                        r.push(s(verb));
-                        r.push(s(key));
-                        r.push(s(value));
-                    }
+
                     Rule::Exists { verb } | Rule::Count { verb } | Rule::Progress { verb } => {
                         r.push(s(verb))
                     }
                     Rule::ValuesPerKey {
-                        verb,
-                        key,
-                        value,
-                        delete,
-                    }
-                    | Rule::RegisterPerKey {
                         verb,
                         key,
                         value,

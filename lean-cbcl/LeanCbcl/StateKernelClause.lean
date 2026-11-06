@@ -10,9 +10,7 @@ open CBCL.StateKernelAggregates CBCL.StateKernelExtensions CBCL.StateKernel
 
 /-- Typed surface inventory matching runtime Rule::head. Aliases normalize before this AST. -/
 inductive Rule where
-  | last (verb field : String)
-  | latestPerSigner (verb field : String)
-  | latestPerKey (verb key field : String)
+  | initial (verb field : String)
   | existsRule (verb : String)
   | count (verb : String)
   | progress (verb : String)
@@ -20,7 +18,6 @@ inductive Rule where
   | setUnion (verb field : String)
   | values (verb field : String)
   | valuesPerKey (verb key field : String) (delete : Option String)
-  | registerPerKey (verb key field : String) (delete : Option String)
   | observedSet (add remove field : String)
   | counter (increment decrement field : String)
   | histogram (earlier : String)
@@ -33,9 +30,7 @@ inductive Rule where
 
 /-- Exact public wire head inventory; checked against the Rust enum by a script. -/
 def Rule.head : Rule → String
-  | .last .. => "last"
-  | .latestPerSigner .. => "latest-per-signer"
-  | .latestPerKey .. => "latest-per-key"
+  | .initial .. => "initial"
   | .existsRule .. => "exists"
   | .count .. => "count"
   | .progress .. => "progress"
@@ -43,7 +38,6 @@ def Rule.head : Rule → String
   | .setUnion .. => "set-union"
   | .values .. => "values"
   | .valuesPerKey .. => "values-per-key"
-  | .registerPerKey .. => "register-per-key"
   | .observedSet .. => "observed-set"
   | .counter .. => "counter"
   | .histogram .. => "histogram"
@@ -61,29 +55,17 @@ def normalizeHead : String → String
 
 /-- Independently enumerated scalar/event map sources accepted by derived fields. -/
 inductive MapSource : Rule → Prop where
-  | signer (v f) : MapSource (.latestPerSigner v f)
-  | keyed (v k f) : MapSource (.latestPerKey v k f)
-  | register (v k f d) : MapSource (.registerPerKey v k f d)
   | events (v f) : MapSource (.events v f)
   | hlcSigner (v f c) : MapSource (.lwwPerSigner v f c)
   | hlcKeyed (v k f c d) : MapSource (.lwwMap v k f c d)
 
 /-- Histograms accept scalar maps; event histograms remain installation-incompatible. -/
 inductive HistogramSource : Rule → Prop where
-  | signer (v f) : HistogramSource (.latestPerSigner v f)
-  | keyed (v k f) : HistogramSource (.latestPerKey v k f)
-  | register (v k f d) : HistogramSource (.registerPerKey v k f d)
   | hlcSigner (v f c) : HistogramSource (.lwwPerSigner v f c)
   | hlcKeyed (v k f c d) : HistogramSource (.lwwMap v k f c d)
 
 /-- Independent map denotation, not a call to elaboration. -/
 def SurfaceMapMeaning (input : Input) (domains : List Domain) : Rule → FiniteMap → Prop
-  | .latestPerSigner v f, m => MapMeaning input.clock input.signerRank (Admitted domains input.acts)
-      ⟨.own v, .signer, .address, f, false⟩ m
-  | .latestPerKey v k f, m => MapMeaning input.clock input.signerRank (Admitted domains input.acts)
-      ⟨.verb v, .key k, .address, f, false⟩ m
-  | .registerPerKey v k f d, m => MapMeaning input.clock input.signerRank (Admitted domains input.acts)
-      ⟨.current v (some k) d, .key k, .address, f, false⟩ m
   | .events v f, m => MapMeaning input.clock input.signerRank (Admitted domains input.acts)
       ⟨.withField (.verb v) f, .address, .address, f, true⟩ m
   | .lwwPerSigner v f c, m => MapMeaning input.clock input.signerRank (Admitted domains input.acts)
@@ -96,8 +78,8 @@ def SurfaceMapMeaning (input : Input) (domains : List Domain) : Rule → FiniteM
 def SurfaceMeaning (input : Input) (domains : List Domain) (earlier : List (String × Rule))
     (rule : Rule) (output : Observation) : Prop :=
   match rule with
-  | .last v f => Meaning input domains (.scalar (.verb v) .address f) output
-  | .latestPerSigner .. | .latestPerKey .. | .registerPerKey .. | .events ..
+  | .initial v f => Meaning input domains (.initial v f) output
+  | .events ..
   | .lwwPerSigner .. | .lwwMap .. => match output with
       | .map m => SurfaceMapMeaning input domains rule m
       | _ => False
@@ -122,9 +104,6 @@ def SurfaceMeaning (input : Input) (domains : List Domain) (earlier : List (Stri
 
 /-- Executable lowering of primitive map declarations. -/
 def mapPlanOf : Rule → Option MapPlan
-  | .latestPerSigner v f => some ⟨.own v, .signer, .address, f, false⟩
-  | .latestPerKey v k f => some ⟨.verb v, .key k, .address, f, false⟩
-  | .registerPerKey v k f d => some ⟨.current v (some k) d, .key k, .address, f, false⟩
   | .events v f => some ⟨.withField (.verb v) f, .address, .address, f, true⟩
   | .lwwPerSigner v f c => some ⟨.own v, .signer, .hlc c, f, false⟩
   | .lwwMap v k f c d => some ⟨.current v (some k) d, .key k, .hlc c, f, false⟩
@@ -132,7 +111,7 @@ def mapPlanOf : Rule → Option MapPlan
 
 /-- Executable compatibility check, separate from the inductive specification. -/
 def histogramAllowed : Rule → Bool
-  | .latestPerSigner .. | .latestPerKey .. | .registerPerKey .. | .lwwPerSigner .. | .lwwMap .. => true
+  | .lwwPerSigner .. | .lwwMap .. => true
   | _ => false
 
 /-- Every independently specified map source lowers; no reject-all loophole. -/
@@ -175,7 +154,7 @@ def compileRule (earlier : List (String × Rule)) (rule : Rule) : Option Expr :=
   match mapPlanOf rule with
   | some plan => some (.mapped plan)
   | none => match rule with
-      | .last v f => some (.scalar (.verb v) .address f)
+      | .initial v f => some (.initial v f)
       | .existsRule v => some (.existsRule (.verb v))
       | .count v => some (.count (.verb v))
       | .progress v => some (.progress v)
@@ -274,12 +253,12 @@ structure Clause where
 /-- Independent domain-source resolution; not a call to the elaborator. -/
 def DomainMeaning (input : Input) (fields : List (String × Rule)) (decl : DomainDecl)
     (resolved : Domain) : Prop :=
-  ∃ field, fields.lookup decl.source = some (.last input.opener field) ∧
+  ∃ field, fields.lookup decl.source = some (.initial input.opener field) ∧
     resolved = ⟨decl.verb, decl.key, input.opener, field⟩
 
 /-- Independent admissibility of domain references. -/
 def WellFormedDomain (input : Input) (fields : List (String × Rule)) (decl : DomainDecl) : Prop :=
-  ∃ field, fields.lookup decl.source = some (.last input.opener field)
+  ∃ field, fields.lookup decl.source = some (.initial input.opener field)
 
 /-- Independent rule-list admissibility; references can only use preceding declarations. -/
 inductive WellFormedFields : List (String × Rule) → List (String × Rule) → Prop where
@@ -297,7 +276,7 @@ def WellFormedClause (input : Input) (clause : Clause) : Prop :=
 /-- Concrete domain elaboration consults the entire raw declaration list. -/
 def compileDomain (input : Input) (fields : List (String × Rule)) (decl : DomainDecl) : Option Domain :=
   match fields.lookup decl.source with
-  | some (.last opener field) => if opener == input.opener then
+  | some (.initial opener field) => if opener == input.opener then
       some ⟨decl.verb, decl.key, opener, field⟩ else none
   | _ => none
 

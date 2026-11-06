@@ -1,0 +1,97 @@
+{
+  "spec": "SPEC-035 ADR-3503",
+  "parent": "8277c4c",
+  "branch": "draft/state-register-semantics",
+  "policy": {
+    "retired": [
+      "last",
+      "latest-per-signer",
+      "latest-per-key",
+      "register-per-key"
+    ],
+    "registers": [
+      "lww-register",
+      "lww-per-signer",
+      "lww-map"
+    ],
+    "initializer": "initial",
+    "order": [
+      "HLC physical",
+      "HLC logical",
+      "signer",
+      "content address"
+    ],
+    "public_heads": 16,
+    "state_corpus": "4.0.0",
+    "canonical_version": 5,
+    "json_authoring_version": 3
+  },
+  "checks": [
+    {
+      "command": "cargo test -q -p cbcl-core -p cbcl-parser --locked",
+      "result": "pass; includes corpus and initializer retirement tests"
+    },
+    {
+      "command": "cargo test -p cbcl-ffi -p cbcl-erl --locked",
+      "result": "pass; Erlang 41 pass / 19 ignored; FFI 16 pass"
+    },
+    {
+      "command": "cargo check --workspace --locked",
+      "result": "pass"
+    },
+    {
+      "command": "cargo check -p cbcl-core -p cbcl-parser --no-default-features --locked",
+      "result": "pass"
+    },
+    {
+      "command": "npm run build:wasm; npm run check",
+      "result": "pass"
+    },
+    {
+      "command": "node --experimental-strip-types --test --test-timeout=30000 test/*.test.ts",
+      "result": "28 pass"
+    },
+    {
+      "command": "node --experimental-strip-types --test test/corpus.test.ts test/hlc.test.ts test/object.test.ts test/verifier.test.ts",
+      "result": "26 pass against final rebuilt WASM"
+    },
+    {
+      "command": "lake build; lake exe runLinter LeanCbcl",
+      "result": "pass; 130 build jobs"
+    },
+    {
+      "command": "scripts/check-axioms.sh",
+      "result": "pass; 401 audited theorems"
+    },
+    {
+      "command": "semantic mutation scripts",
+      "result": {
+        "hlc": 6,
+        "kernel": 11,
+        "sec": 4
+      }
+    },
+    {
+      "command": "usdd-lint.sh specs/SPEC-035-register-semantics.md",
+      "result": "0 errors; 1 sentence-length warning"
+    },
+    {
+      "command": "NO_COLOR=true zetl check",
+      "result": "pre-existing 23 dead links and 3 SPL errors; no new origin"
+    },
+    {
+      "command": "git diff --check; cargo fmt --all -- --check",
+      "result": "pass"
+    }
+  ],
+  "source_sha256": {
+    "crates/cbcl-core/src/state.rs": "fe5923a0f8875e5fc131504c0846986fa1d041846318e2eb5df69fe067edf805",
+    "crates/cbcl-core/src/r7.rs": "e693ea235d5a6430bab1c0b7772cfd435e66e990116fbed7df233e167a1875e2",
+    "crates/cbcl-parser/src/state_parser.rs": "88ceb50991b0749f846a84bc5eb4af7c97b16783e8c732803d1fb3a7455b4f3e",
+    "js/src/object/compile.ts": "1ba97fd0c0a574861395cc734722572c677de680172a3c984791a094e5934df0",
+    "lean-cbcl/LeanCbcl/StateKernelSemantics.lean": "f5606b05e7d69e632cbeaf07da3e8d3f636443a9159f675612da3f1a73d13329",
+    "lean-cbcl/LeanCbcl/StateKernelClause.lean": "30a98617a0a9484d4b1953f7df065e6304f0b5824e46a84f475da9c856f81bb4",
+    "lean-cbcl/LeanCbcl/StateKernelSEC.lean": "e7e8702f4789eff62a721a55bf2e490cd39b1a184f7e375de76cf2ce320268f0"
+  },
+  "boundary": "Typed proofs and test evidence; clock honesty, resource classification/finalization and universal Rust correspondence remain separate."
+}

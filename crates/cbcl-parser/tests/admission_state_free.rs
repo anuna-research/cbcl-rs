@@ -115,35 +115,20 @@ fn sibling(rule: &Rule) -> Option<Rule> {
             }
             Rule::BoundedCounter(c)
         }
-        Rule::Last { verb, key } => Rule::LatestPerSigner { verb, key },
-        Rule::LatestPerSigner { verb, key } => Rule::SetUnion { verb, key },
-        Rule::SetUnion { verb, key } => Rule::Last { verb, key },
-        Rule::Events { verb, key } => Rule::Last { verb, key },
-        Rule::LatestPerKey { verb, key, value } if key != value => Rule::LatestPerKey {
+        Rule::Initial { verb, key } => Rule::SetUnion { verb, key },
+        Rule::SetUnion { verb, key } => Rule::Events { verb, key },
+        Rule::Events { verb, key } => Rule::SetUnion { verb, key },
+        Rule::LwwMap {
+            verb,
+            key,
+            value,
+            clock,
+            delete,
+        } if key != value => Rule::LwwMap {
             verb,
             key: value,
             value: key,
-        },
-        Rule::RegisterPerKey {
-            verb,
-            key,
-            value,
-            delete,
-        } => Rule::ValuesPerKey {
-            verb,
-            key,
-            value,
-            delete,
-        },
-        Rule::ValuesPerKey {
-            verb,
-            key,
-            value,
-            delete,
-        } => Rule::RegisterPerKey {
-            verb,
-            key,
-            value,
+            clock,
             delete,
         },
         Rule::Exists { verb } => Rule::Count { verb },

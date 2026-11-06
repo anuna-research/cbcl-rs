@@ -13,10 +13,94 @@ open CBCL.State
 
 /-! ## Independent selection specification -/
 
+/-- Return the only distinct candidate, never an address-selected winner. -/
+def sole : List Act → Option Act
+  | [] => none
+  | a :: rest => if rest.all (fun b => b == a) then some a else none
+
+/-- Independent exact-singleton specification. -/
+def SoleMeaning (P : Act → Prop) : Option Act → Prop
+  | none => ¬ ∃ a, P a ∧ ∀ b, P b → b = a
+  | some a => P a ∧ ∀ b, P b → b = a
+
+/-- Sole-candidate recognition is independent of order and duplicate delivery. -/
+theorem sole_some (T : List Act) (a : Act) :
+    sole T = some a ↔ a ∈ T ∧ ∀ b ∈ T, b = a := by
+  cases T with
+  | nil => simp [sole]
+  | cons head rest =>
+      by_cases all : rest.all (fun b => b == head) = true
+      · simp only [sole, all, ite_true]
+        have all : ∀ b ∈ rest, b = head := by simpa [List.all_eq_true] using all
+        constructor
+        · intro eq
+          have eq : head = a := Option.some.inj eq
+          subst a
+          exact ⟨by simp, fun b hb => (List.mem_cons.mp hb).elim id (all b)⟩
+        · rintro ⟨member, uniform⟩
+          exact congrArg some (uniform head (by simp))
+      · simp only [sole, all, ite_false, reduceCtorEq, false_iff]
+        rintro ⟨member, uniform⟩
+        apply all
+        apply List.all_eq_true.mpr
+        intro b hb
+        exact beq_iff_eq.mpr ((uniform b (List.mem_cons_of_mem head hb)).trans
+          (uniform head (by simp)).symm)
+
+/-- Initializer meaning fixes both the candidate and the absence case. -/
+theorem sole_correct (T : List Act) : SoleMeaning (fun a => a ∈ T) (sole T) := by
+  cases h : sole T with
+  | some a => exact (sole_some T a).mp h
+  | none =>
+      rintro ⟨a, member, uniform⟩
+      have result := (sole_some T a).mpr ⟨member, uniform⟩
+      rw [h] at result
+      contradiction
+
+/-- Any matching sole-candidate result equals the concrete recognition result. -/
+theorem sole_complete (T : List Act) (result : Option Act) :
+    SoleMeaning (fun a => a ∈ T) result ↔ result = sole T := by
+  cases result with
+  | some a => exact (sole_some T a).symm.trans eq_comm
+  | none =>
+      constructor
+      · intro empty
+        cases h : sole T with
+        | none => rfl
+        | some a => exact False.elim (empty ⟨a, (sole_some T a).mp h⟩)
+      · intro eq
+        have good := sole_correct T
+        rw [← eq] at good
+        exact good
+
+/-- Sole-candidate recognition respects membership equality without ordering. -/
+theorem sole_setEq {A B : List Act} (same : SetEq A B) : sole A = sole B := by
+  apply (sole_complete B _).mp
+  have good := sole_correct A
+  cases h : sole A with
+  | none =>
+      rw [h] at good
+      rintro ⟨a, member, uniform⟩
+      exact good ⟨a, (same a).mpr member, fun b hb => uniform b ((same b).mp hb)⟩
+  | some a =>
+      rw [h] at good
+      exact ⟨(same a).mp good.1, fun b hb => good.2 b ((same b).mpr hb)⟩
+
+/-- Initializer list evidence is read from raw acts, before domains. -/
+def initialValues (opener field : String) (A : List Act) : List Val :=
+  match (sole (acts opener A)).bind (fun a => a.get field) with
+  | some (.list xs) => xs.map Scalar.toVal
+  | _ => []
+
+/-- Domain initializer evidence has no hash or clock choice. -/
+theorem initialValues_setEq {A B : List Act} (same : SetEq A B) (opener field : String) :
+    initialValues opener field A = initialValues opener field B := by
+  simp only [initialValues, sole_setEq (acts_setEq same opener)]
+
 /-- Raw-history opener evidence, before application-data filtering. -/
 def Allowed (A : List Act) (opener field : String) (x : Val) : Prop :=
   ∃ o ∈ A, o.verb = opener ∧
-    (∀ b ∈ A, b.verb = opener → b.addr ≤ o.addr) ∧
+    (∀ b ∈ A, b.verb = opener → b = o) ∧
     ∃ xs, o.get field = some (.list xs) ∧ x ∈ xs.map Scalar.toVal
 
 /-- Resolved domain filter with a raw opener initializer. -/
@@ -254,54 +338,48 @@ theorem events_correct {T : List Act} (unique : NodupAddr T) (key : String) :
 
 /-! ## Domain filtering before every data selection -/
 
-theorem allowed_correct {A : List Act} (unique : NodupAddr A)
+theorem allowed_correct {A : List Act}
     (opener field : String) (x : Val) :
-    x ∈ allowedOf opener field A ↔ Allowed A opener field x := by
-  cases hp : pickAct (acts opener A) with
+    x ∈ initialValues opener field A ↔ Allowed A opener field x := by
+  cases h : sole (acts opener A) with
   | none =>
-      have empty := pickAct_eq_none_iff.mp hp
-      simp only [allowedOf, last, pick, hp, Option.bind_none, List.not_mem_nil, false_iff]
-      rintro ⟨o, ho, hv, _⟩
-      have mem : o ∈ acts opener A := by simp [acts, ho, hv]
-      rw [empty] at mem
-      exact List.not_mem_nil mem
+      simp only [initialValues, h, Option.bind_none, List.not_mem_nil, false_iff]
+      rintro ⟨o, member, verb, uniform, xs, fieldEq, value⟩
+      have unique := (sole_some (acts opener A) o).mpr ⟨by simp [acts, member, verb],
+        fun b hb => uniform b (List.mem_filter.mp hb).1 (by simpa using (List.mem_filter.mp hb).2)⟩
+      rw [h] at unique
+      contradiction
   | some o =>
-      have top := pickAct_spec hp
-      have omem := List.mem_filter.mp top.1
-      have ov : o.verb = opener := by simpa using omem.2
-      have greatest : ∀ b ∈ A, b.verb = opener → b.addr ≤ o.addr := by
-        intro b hb hv; exact top.2 b (by simp [acts, hb, hv])
-      have other_unique : ∀ b ∈ A, b.verb = opener →
-          (∀ a ∈ A, a.verb = opener → a.addr ≤ b.addr) → b = o := by
-        intro b hb hv max
-        exact unique.eq_of_addr hb omem.1 (Nat.le_antisymm (greatest b hb hv) (max o omem.1 ov))
-      simp only [allowedOf, last, pick, hp, Option.bind_some]
+      have unique := (sole_some (acts opener A) o).mp h
+      have member := (List.mem_filter.mp unique.1).1
+      have verb : o.verb = opener := by simpa using (List.mem_filter.mp unique.1).2
+      have uniform : ∀ b ∈ A, b.verb = opener → b = o :=
+        fun b hb hv => unique.2 b (by simp [acts, hb, hv])
+      simp only [initialValues, h, Option.bind_some]
       constructor
-      · intro member
-        refine ⟨o, omem.1, ov, greatest, ?_⟩
-        cases hf : o.get field with
-        | none => simp [hf] at member
-        | some value =>
-            cases value with
-            | str s => simp [hf] at member
-            | int n => simp [hf] at member
-            | bool b => simp [hf] at member
-            | list xs => exact ⟨xs, rfl, by simpa [hf] using member⟩
-      · rintro ⟨b, hb, hv, max, xs, fieldValue, member⟩
-        have same := other_unique b hb hv max
+      · intro value
+        cases fieldEq : o.get field with
+        | none => simp [fieldEq] at value
+        | some v => cases v with
+          | list xs => exact ⟨o, member, verb, uniform, xs, fieldEq, by simpa [fieldEq] using value⟩
+          | str _ => simp [fieldEq] at value
+          | int _ => simp [fieldEq] at value
+          | bool _ => simp [fieldEq] at value
+      · rintro ⟨b, hb, hv, _, xs, fieldEq, value⟩
+        have equal := uniform b hb hv
         subst b
-        simpa [fieldValue] using member
+        simpa [fieldEq] using value
 
 /-- Concrete domain pass retains the raw history as opener evidence. -/
 def admitted (ds : List Domain) (A : List Act) : List Act :=
   A.filter (fun a => ds.all (fun d => if a.verb == d.verb then
-    inDomain d.key (allowedOf d.opener d.field A) a else true))
+    inDomain d.key (initialValues d.opener d.field A) a else true))
 
 theorem domain_check (key : String) (allowed : List Val) (a : Act) :
     inDomain key allowed a = true ↔ ∃ x, a.get key = some x ∧ x ∈ allowed := by
   cases h : a.get key <;> simp [inDomain, h]
 
-theorem admitted_correct {A : List Act} (unique : NodupAddr A)
+theorem admitted_correct {A : List Act}
     (ds : List Domain) (a : Act) : a ∈ admitted ds A ↔ Admitted ds A a := by
   simp only [admitted, List.mem_filter, List.all_eq_true, Admitted]
   constructor
@@ -311,14 +389,14 @@ theorem admitted_correct {A : List Act} (unique : NodupAddr A)
     have good := checked d hd
     simp only [hv, beq_self_eq_true, ↓reduceIte] at good
     obtain ⟨x, field, member⟩ := (domain_check _ _ _).mp good
-    exact ⟨x, field, (allowed_correct unique _ _ _).mp member⟩
+    exact ⟨x, field, (allowed_correct _ _ _).mp member⟩
   · rintro ⟨ha, spec⟩
     refine ⟨ha, ?_⟩
     intro d hd
     by_cases hv : a.verb = d.verb
     · obtain ⟨x, field, allowed⟩ := spec d hd hv
       simp only [hv, beq_self_eq_true, ↓reduceIte]
-      exact (domain_check _ _ _).mpr ⟨x, field, (allowed_correct unique _ _ _).mpr allowed⟩
+      exact (domain_check _ _ _).mpr ⟨x, field, (allowed_correct _ _ _).mpr allowed⟩
     · simp [hv]
 
 theorem admitted_unique {A : List Act} (unique : NodupAddr A) (ds : List Domain) :
@@ -335,9 +413,9 @@ theorem selected_congr {P Q : Act → Prop} (same : ∀ a, P a ↔ Q a)
   | bySigner s signer ih => simp only [Selected, ih]
   | withField s k ih => simp only [Selected, ih]
 
-theorem data_selection_correct {A : List Act} (unique : NodupAddr A)
+theorem data_selection_correct {A : List Act}
     (ds : List Domain) (s : Selection) (a : Act) :
     a ∈ select (admitted ds A) s ↔ Selected (Admitted ds A) s a :=
-  (select_correct _ _ _).trans (selected_congr (admitted_correct unique ds) s a)
+  (select_correct _ _ _).trans (selected_congr (admitted_correct ds) s a)
 
 end CBCL.StateKernelSemantics

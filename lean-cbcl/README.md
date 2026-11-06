@@ -308,7 +308,7 @@ correctness theorem. The public component theorems are in `AxiomAudit.lean`.
 
 ## Whole typed state-kernel correctness
 
-`LeanCbcl/StateKernelClause.lean` composes independent denotations for all 19
+`LeanCbcl/StateKernelClause.lean` composes independent denotations for all 16
 surface heads into an arbitrary finite clause theorem. `compile_clause_complete`
 accepts every independently well-formed supported clause; `whole_kernel_correct`
 proves successful evaluation meets its independent surface meaning;

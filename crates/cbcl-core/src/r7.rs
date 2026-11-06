@@ -340,10 +340,7 @@ pub fn r7_violations(d: &Dialect) -> Vec<R7Violation> {
                     }
                 }
             }
-            Rule::LatestPerKey { verb, key, .. }
-            | Rule::LwwMap { verb, key, .. }
-            | Rule::ValuesPerKey { verb, key, .. }
-            | Rule::RegisterPerKey { verb, key, .. } => {
+            Rule::LwwMap { verb, key, .. } | Rule::ValuesPerKey { verb, key, .. } => {
                 if let Some(tc) = ty(verb, key) {
                     if !is_scalar(&tc) {
                         out.push(R7Violation::Typing(format!(
@@ -389,16 +386,13 @@ pub fn r7_violations(d: &Dialect) -> Vec<R7Violation> {
                     Some((_, r)) => {
                         let map_like = matches!(
                             r,
-                            Rule::LatestPerSigner { .. }
-                                | Rule::LwwPerSigner { .. }
+                            Rule::LwwPerSigner { .. }
                                 | Rule::LwwMap { .. }
-                                | Rule::LatestPerKey { .. }
-                                | Rule::RegisterPerKey { .. }
                                 | Rule::Events { .. }
                         );
                         if !map_like {
                             out.push(R7Violation::Typing(format!(
-                                "'{name}' must reference a per-signer, per-key, register-per-key, or events field"
+                                "'{name}' must reference an lww-per-signer, lww-map, or events field"
                             )));
                         }
                         if matches!(rule, Rule::Histogram { .. }) && matches!(r, Rule::Events { .. }) {
@@ -406,10 +400,10 @@ pub fn r7_violations(d: &Dialect) -> Vec<R7Violation> {
                         }
                         if matches!(rule, Rule::Sum { .. }) {
                             let numeric = match r {
-                                Rule::LatestPerSigner { verb, key } | Rule::LwwPerSigner { verb, key, .. } | Rule::Events { verb, key } => {
+                                Rule::LwwPerSigner { verb, key, .. } | Rule::Events { verb, key } => {
                                     ty(verb, key) == Some(TypeConstraint::Number)
                                 }
-                                Rule::LatestPerKey { verb, value, .. } | Rule::LwwMap { verb, value, .. } | Rule::RegisterPerKey { verb, value, .. } => {
+                                Rule::LwwMap { verb, value, .. }  => {
                                     ty(verb, value) == Some(TypeConstraint::Number)
                                 }
                                 _ => false,
@@ -431,12 +425,6 @@ pub fn r7_violations(d: &Dialect) -> Vec<R7Violation> {
             ..
         }
         | Rule::LwwMap {
-            verb,
-            key,
-            delete: Some(dv),
-            ..
-        }
-        | Rule::RegisterPerKey {
             verb,
             key,
             delete: Some(dv),
@@ -498,11 +486,6 @@ pub fn r7_violations(d: &Dialect) -> Vec<R7Violation> {
             verb,
             delete: Some(dv),
             ..
-        }
-        | Rule::RegisterPerKey {
-            verb,
-            delete: Some(dv),
-            ..
         } = rule
         {
             if let Some(prev) = delete_owner.insert(dv.as_str(), verb.as_str()) {
@@ -511,6 +494,17 @@ pub fn r7_violations(d: &Dialect) -> Vec<R7Violation> {
                         "delete verb '{dv}' serves two registers (field '{name}')"
                     )));
                 }
+            }
+        }
+    }
+
+    // Initial fields read only the protocol opener, without an ordering policy.
+    for (name, rule) in clause.fields() {
+        if let Rule::Initial { verb, .. } = rule {
+            if Some(verb.as_str()) != opener.as_deref() {
+                out.push(R7Violation::Typing(format!(
+                    "initial field '{name}' must name the unique protocol opener"
+                )));
             }
         }
     }
@@ -540,7 +534,7 @@ pub fn r7_violations(d: &Dialect) -> Vec<R7Violation> {
                         "domain field '{field}' must be a rule over the opener only"
                     )));
                 }
-                if let Rule::Last { verb, key } = rule {
+                if let Rule::Initial { verb, key } = rule {
                     if ty(verb, key) != Some(TypeConstraint::List) {
                         out.push(R7Violation::Domain(format!(
                             "domain field '{field}' must be list-valued"
@@ -548,7 +542,7 @@ pub fn r7_violations(d: &Dialect) -> Vec<R7Violation> {
                     }
                 } else {
                     out.push(R7Violation::Domain(format!(
-                        "domain field '{field}' must be a `last` over the opener's list"
+                        "domain field '{field}' must be an `initial` over the opener's list"
                     )));
                 }
             }

@@ -5,9 +5,19 @@ mode: explanation
 
 # HLC registers
 
-[[SPEC-035-register-semantics#ADR-3502]] adds an explicit trusted-host clock profile.
-It does not change the old `last`, `latest-per-key`, `latest-per-signer` or
-`register-per-key` rules. Those continue to arbitrate by content address.
+[[SPEC-035-register-semantics#ADR-3503]] defines one explicit trusted-host LWW
+family: `lww-register`, `lww-per-signer`, and `lww-map`. The retired `last`,
+`latest-per-key`, `latest-per-signer`, and `register-per-key` heads are rejected.
+Use `initial` for immutable opener fields; it never arbitrates between writers.
+
+```lisp
+(state (title (initial open :title)))
+```
+
+Installation requires the protocol's opener verb. A sole distinct raw accepted
+opener supplies the field; no opener or several candidates yields Absent. Repeated
+receipt of the same opener preserves its value. Missing payloads do not reduce the
+candidate count. No hash winner is selected, and domains use the same raw evidence.
 
 ## Declaring clock evidence
 
@@ -81,14 +91,15 @@ An HLC is not a resource authorization or finality certificate.
 
 The model in `LeanCbcl/HlcRegister.lean` proves greatest-candidate arbitration,
 set invariance and composition with signer/keyed candidate selection over typed
-clock evidence. Clock honesty, wire/Rust correspondence and whole-kernel clause
-correctness remain separate. Evidence is
+clock evidence. Whole-clause correctness and conditional SEC are mechanised in SPEC-036/037.
+Clock honesty, wire/Rust correspondence and resource classification remain separate. Evidence is
 [[register-semantics-implementation-review]].
 
 ## Compatibility
 
-The state corpus is version 3.0.0. Existing heads retain the same canonical body
-encoding and dialect identity. Multi-value aliases canonicalize to the original
-heads, so spelling an equivalent definition with an alias does not invent a new
-semantic identity. New LWW heads are explicit opt-in and older parsers reject them.
-The JSON authoring contract remains version 3 with additional operation names.
+The state specification and corpus are version 4.0.0. Retired definitions do not
+install; no legacy interpreter is bundled. Pin old histories to their old runtime,
+or explicitly migrate to a new definition and instance. The new `initial` head
+changes definition identity. Surviving unchanged rule bodies keep canonical form
+version 5. Multi-value aliases canonicalize to `values` and `values-per-key`.
+The JSON authoring contract stays version 3 but rejects retired operation names.

@@ -37,8 +37,8 @@
     (tell to :title title))
 
   ; A write to the register keyed by :item.
-  (extend check (to item done) :from member :to (owner member)
-    (tell to :item item :done done))
+  (extend check (to item done clock) :from member :to (owner member)
+    (tell to :item item :done done :clock clock))
 
   ; The register's delete verb: exactly the key.
   (extend drop (to item) :from owner :to (owner member)
@@ -49,7 +49,8 @@
     (require :title string))
   (shape check
     (require :item string)
-    (require :done bool))
+    (require :done bool)
+    (require :clock string))
   (shape drop
     (require :item string))
 
@@ -60,13 +61,13 @@
     (then open drop))
 
   ; --- R7: state ---
-  ; title: one value, greatest content address wins (uncontested).
+  ; title: one value, immutable value of the sole opener, without arbitration.
   ; items: per :item key, one current :done value; a write is current
   ;        until a later write or drop of the same key names it in
-  ;        :replaces; concurrent writes resolve by content address.
+  ;        :replaces; concurrent writes use HLC, then signer, then address.
   (state
-    (title (last open :title))
-    (items (register-per-key check :item :done drop))))
+    (title (initial open :title))
+    (items (lww-map check :item :done :clock drop))))
 
 ; --- Worked trace (addresses abbreviated) ---
 ;
@@ -87,11 +88,11 @@
 ;     :caused-by sha256-<M0> :thread "list-1" :from @aria)))
 ;
 ; M2  open -> check            by @bo (member); no current write for "venue"
-;   (signed @bo (lang sha256-<body> (check (@aria @bo @cy) :item "venue" :done #f :replaces ()
+;   (signed @bo (lang sha256-<body> (check (@aria @bo @cy) :item "venue" :done #f :clock "hlc-0000000000000000-00000000" :replaces ()
 ;     :caused-by sha256-<M1> :thread "list-1" :from @bo)))
 ;
 ; M3  open -> check            by @bo; the binder fills :replaces (M2)
-;   (signed @bo (lang sha256-<body> (check (@aria @bo @cy) :item "venue" :done #t :replaces (sha256-<M2>)
+;   (signed @bo (lang sha256-<body> (check (@aria @bo @cy) :item "venue" :done #t :clock "hlc-0000000000000000-00000000" :replaces (sha256-<M2>)
 ;     :caused-by sha256-<M1> :thread "list-1" :from @bo)))
 ;
 ; M4  open -> drop             by @aria (owner); fills :replaces (M3)

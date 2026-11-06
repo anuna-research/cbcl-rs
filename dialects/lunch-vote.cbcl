@@ -30,23 +30,24 @@
   (extend propose (to question options)
     (tell to :question question :options options))
 
-  (extend vote (to choice)
-    (tell to :choice choice))
+  (extend vote (to choice clock)
+    (tell to :choice choice :clock clock))
 
   (shape propose
     (require :question string)
     (require :options list))
 
   (shape vote
-    (require :choice string))
+    (require :choice string)
+    (require :clock string))
 
   (protocol
     (then begin propose)
     (then propose vote))
 
   (state
-    (question (last propose :question))
-    (options  (last propose :options))
+    (question (initial propose :question))
+    (options  (initial propose :options))
     (domain vote :choice options)
-    (ballots  (latest-per-signer vote :choice))
+    (ballots  (lww-per-signer vote :choice :clock))
     (tally    (histogram ballots))))

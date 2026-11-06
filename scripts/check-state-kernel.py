@@ -31,13 +31,16 @@ def main():
     runtime = set(re.findall(r'=> "([a-z-]+)"', block))
     source = (MODULES / 'StateKernelClause.lean').read_text()
     heads = set(re.findall(r'=> "([a-z-]+)"', source.split('def Rule.head', 1)[1].split('/--', 1)[0]))
-    if len(runtime) != 19 or heads != runtime:
+    if len(runtime) != 16 or heads != runtime:
         raise SystemExit(f'Coverage mismatch: Rust={runtime}, Lean={heads}')
     parser_source = (ROOT / 'crates/cbcl-parser/src/state_parser.rs').read_text()
     for alias in ('multi-value-register', 'multi-value-map'):
         if alias not in parser_source or alias not in source:
             raise SystemExit(f'Missing alias coverage: {alias}')
     mutations = [
+        ('initializer-arbitrates-ambiguity', 'StateKernelSemantics',
+         'if rest.all (fun b => b == a) then some a else none',
+         'if rest.all (fun b => b == a) then some a else some a'),
         ('drop-own-supersession', 'StateKernelSemantics',
          '| .own v => currentOwn v A', '| .own v => acts v A'),
         ('cardinality-always-zero', 'StateKernel',
@@ -81,7 +84,7 @@ def main():
             if not code or not proof_failure or any(x in output.lower() for x in rejected):
                 raise SystemExit(f'{name}: survived or infrastructure failure:\n{output}')
             results.append({'mutation': name, 'killed': True, 'evidence': output})
-    report = {'runtime_heads': sorted(runtime), 'coverage': '19/19 heads and 2 aliases; names only',
+    report = {'runtime_heads': sorted(runtime), 'coverage': '16/16 heads and 2 aliases; names only',
               'baseline': 'passed', 'mutations': results}
     if args.output:
         args.output.write_text(json.dumps(report, indent=2) + '\n')

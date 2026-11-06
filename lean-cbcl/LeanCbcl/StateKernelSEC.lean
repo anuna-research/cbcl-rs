@@ -44,11 +44,11 @@ def Context.input (c : Context) (A : List Act) : Input :=
   ⟨A, c.opener, c.clock, c.rank, c.causal A, c.thread, c.limit, c.resource A⟩
 
 /-- Domain filtering preserves set equality. -/
-theorem admitted_setEq {A B : List Act} (ua : NodupAddr A) (ub : NodupAddr B)
+theorem admitted_setEq {A B : List Act}
     (same : SetEq A B) (domains : List Domain) :
     SetEq (admitted domains A) (admitted domains B) := by
   intro a
-  simp only [admitted, List.mem_filter, same a, allowedOf_setEq ua ub same]
+  simp only [admitted, List.mem_filter, same a, initialValues_setEq same]
 
 /-- Nested selections preserve source membership equality. -/
 theorem select_setEq {A B : List Act} (same : SetEq A B) (s : Selection) :
@@ -126,11 +126,13 @@ theorem sum_equivalent {a b : FiniteMap} (ua : a.keys.Nodup) (ub : b.keys.Nodup)
 theorem strong_convergence (c : Context) (domains : List Domain) (expression : Expr)
     {A B : List Act} (ua : NodupAddr A) (ub : NodupAddr B) (same : SetEq A B) :
     Equivalent (evaluate (c.input A) domains expression) (evaluate (c.input B) domains expression) := by
-  have data := admitted_setEq ua ub same domains
+  have data := admitted_setEq same domains
   have uniqueA := admitted_unique ua domains
   have uniqueB := admitted_unique ub domains
   have selections := select_setEq data
   cases expression with
+  | initial verb field =>
+      exact congrArg (project field false) (sole_setEq (acts_setEq same verb))
   | scalar s p f =>
       exact congrArg (project f false)
         (choose_setEq (select_unique uniqueB s) (selections s) c.clock c.rank p)

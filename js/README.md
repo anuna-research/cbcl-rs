@@ -35,11 +35,11 @@ const poll = await defineContract({
   dialect: 'team-choice',
   verbs: {
     propose: { causedBy: 'begin', fields: { question: 'string', options: ['string'] } },
-    vote: { causedBy: ['propose'], fields: { choice: enumOf('options') } },
+    vote: { causedBy: ['propose'], fields: { choice: enumOf('options'), clock: 'string' } },
   },
   state: {
-    question: c.last('propose', 'question'), options: c.last('propose', 'options'),
-    ballots: c.latestPerSigner('vote', 'choice'), tally: c.histogram('ballots'),
+    question: c.initial('propose', 'question'), options: c.initial('propose', 'options'),
+    ballots: c.lwwPerSigner('vote', 'choice', 'clock'), tally: c.histogram('ballots'),
   },
 });
 
@@ -50,11 +50,21 @@ const opener = poll.open({ room: '@general', thread: 'lunch-1', from: '@me', fie
 const store = new ThreadStore();
 store.append(actRecord(opener, '@me'));   // authenticated records, keyed by wire address
 const agent = poll.agent({ store, me: () => '@me', send: text => transport.send(text) });
-await agent.act('lunch-1', 'vote', { choice: 'Sushi' });   // cbcl-rs binds, the host signs
+// The host generates and persists clock evidence before binding.
+await agent.act('lunch-1', 'vote', { choice: 'Sushi', clock: 'hlc-000001a3185c5000-00000000' });   // cbcl-rs binds, the host signs
 agent.read('lunch-1');                                       // the fold
 ```
 
-Rules are the fifteen of SPEC-019 R.1 (`last`, `latestPerSigner`, `latestPerKey`, `exists`, `count`, `progress`, `events`, `setUnion`, `values`, `valuesPerKey`, `registerPerKey`, `observedSet`, `counter`, `histogram(field)`, `sum(field)`); optional `author`, `requirements`, `bounds`, and `roles` with `from`/`to` per verb. Registers and `latestPerSigner` writers carry replacement in a reserved `:replaces` field that cbcl-rs inserts and the binder fills. For `latestPerSigner`, an edit replaces the current writes of its signer; concurrent unseen writes survive and the greatest content address breaks ties. Another signer cannot replace those writes. `last` continues to select the greatest content address. An intent supplies a verb and its data fields only; a routing keyword is refused as a forge.
+The state grammar has 16 heads, including `initial` and the explicit
+`lwwRegister`, `lwwPerSigner` and `lwwMap` rules. LWW writes declare and supply a
+canonical clock string; the host generates it before calling the binder. Choice
+uses HLC, signer, then content address as an exact final tie-break. `initial`
+reads the sole raw opener without arbitration. The retired `last`,
+`latestPerSigner`, `latestPerKey`, and `registerPerKey` operations are rejected.
+Conflict-preserving alternatives are `multiValueRegister` and `multiValueMap`.
+Replacement metadata remains compiler/binder-owned; callers cannot forge it.
+See [HLC registers](../docs/concepts/hlc-registers.md) for assumptions and migration.
+
 
 `poll.read(records)` folds without a transport; `poll.verdicts(records)` says which are accepted, pending, or rejected; `createRuntime(dialectText)` is the runtime for any dialect text, including one learned from a room.
 

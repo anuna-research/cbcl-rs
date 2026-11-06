@@ -495,9 +495,7 @@ fn intend_impl(
     let bounds = bounds_of(d);
     let mut replaces: Option<Vec<String>> = None;
     for (_, rule) in clause.fields() {
-        if let Rule::LatestPerSigner { verb: writer, .. }
-        | Rule::LwwPerSigner { verb: writer, .. } = rule
-        {
+        if let Rule::LwwPerSigner { verb: writer, .. } = rule {
             if writer == verb {
                 let mut addrs: Vec<String> =
                     crate::state::current_by_signer(clause, inst.acts, writer)
@@ -524,12 +522,6 @@ fn intend_impl(
                 ..
             }
             | Rule::LwwMap {
-                verb: w,
-                key,
-                delete,
-                ..
-            }
-            | Rule::RegisterPerKey {
                 verb: w,
                 key,
                 delete,

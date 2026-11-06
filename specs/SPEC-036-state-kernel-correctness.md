@@ -87,7 +87,7 @@ Trace: [[SPEC-036-state-kernel-correctness#TEST-3601]].
 
 ### REQ-3602: Map and reduction correctness
 
-Greatest-address/HLC choice, existence, cardinality, distinct membership, counter
+Sole-opener initialization and HLC choice, existence, cardinality, distinct membership, counter
 arithmetic and address-keyed signer/value events MUST meet their independent
 specifications. Maps MUST have exact finite support and pointwise specified values.
 Histograms MUST count distinct supported keys whose values match; sums MUST add
@@ -128,8 +128,8 @@ Trace: [[SPEC-036-state-kernel-correctness#TEST-3605]].
 ## CON-3600: Typed surface and interpreter boundary
 
 Input grammar is a finite list of named field entries plus domains. Rule heads
-are `last`, `latest-per-signer`, `latest-per-key`, `exists`, `count`, `progress`,
-`events`, `set-union`, `values`, `values-per-key`, `register-per-key`, `observed-set`,
+are `initial`, `exists`, `count`, `progress`,
+`events`, `set-union`, `values`, `values-per-key`, `observed-set`,
 `counter`, `histogram`, `sum`, `lww-register`, `lww-per-signer`, `lww-map` and
 `bounded-counter`. Multi-value aliases normalize as in
 [[SPEC-035-register-semantics#ADR-3502]]. Verb/field operands are typed strings;
@@ -138,9 +138,7 @@ compatible map field. Domains resolve their source to an opener-only list field.
 
 | Surface rule operands | Observation | Coverage disposition |
 |---|---|---|
-| `last verb value` | optional scalar | greatest address |
-| `latest-per-signer verb value` | signer → optional scalar | own-current selection, address choice |
-| `latest-per-key verb key value` | key → optional scalar | all matching writes, address choice |
+| `initial opener value` | optional scalar | sole raw opener; no arbitration |
 | `exists verb` | boolean | nonempty selection |
 | `count verb` | integer | accepted-address cardinality |
 | `progress verb` | integer | maximum established position, raw causal evidence |
@@ -148,7 +146,6 @@ compatible map field. Domains resolve their source to an opener-only list field.
 | `set-union verb value` | value membership | all matching writes |
 | `values verb value` | value membership | current unkeyed writes |
 | `values-per-key verb key value [delete]` | key → value membership | current keyed writes |
-| `register-per-key verb key value [delete]` | key → optional scalar | current keyed writes, address choice |
 | `observed-set add remove value` | value membership | current writes keyed by value |
 | `counter increment decrement amount` | integer | independent exact sums and subtraction |
 | `histogram earlier` | scalar → integer count | earlier primitive scalar map, distinct group counts |
@@ -161,7 +158,7 @@ compatible map field. Domains resolve their source to an opener-only list field.
 `multi-value-register` normalizes to `values`; `multi-value-map` normalizes to
 `values-per-key`. The bounded-counter configuration string is a model port key,
 not a proof of the configuration grammar or raw resource history validation.
-Histogram and sum references use the six primitive map sources accepted by R7;
+Histogram and sum references use the three primitive map sources accepted by R7;
 histogram excludes events. Neither can reference a histogram, a multi-value map,
 or a resource field. Numeric shape checks, required fields, opener uniqueness,
 and clock recognition remain installation/input premises outside this typed
@@ -269,3 +266,9 @@ proofs connecting host recognition/authentication to the typed input boundary.
 convergence, eventual delivery, ranked dependency admission and weak scheduling
 fairness. Its conditional liveness theorem is separate from this specification's
 pure denotational result and retains the delegated evidence-port boundaries.
+
+
+Version-4 simplification: [[SPEC-035-register-semantics#ADR-3503]] removes the four
+hash-primary surface heads and adds `initial`. Its independent sole-candidate
+semantics covers missing, repeated and ambiguous raw evidence. Historical
+address-selector lemmas are not elaboration cases for the current vocabulary.

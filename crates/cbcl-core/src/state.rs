@@ -77,18 +77,10 @@ pub enum Rule {
         clock: String,
         delete: Option<String>,
     },
-    Last {
+    /// Immutable field of the unique accepted opener; no arbitration.
+    Initial {
         verb: String,
         key: String,
-    },
-    LatestPerSigner {
-        verb: String,
-        key: String,
-    },
-    LatestPerKey {
-        verb: String,
-        key: String,
-        value: String,
     },
     Exists {
         verb: String,
@@ -113,12 +105,6 @@ pub enum Rule {
         key: String,
     },
     ValuesPerKey {
-        verb: String,
-        key: String,
-        value: String,
-        delete: Option<String>,
-    },
-    RegisterPerKey {
         verb: String,
         key: String,
         value: String,
@@ -150,9 +136,8 @@ impl Rule {
             Rule::LwwRegister { .. } => "lww-register",
             Rule::LwwPerSigner { .. } => "lww-per-signer",
             Rule::LwwMap { .. } => "lww-map",
-            Rule::Last { .. } => "last",
-            Rule::LatestPerSigner { .. } => "latest-per-signer",
-            Rule::LatestPerKey { .. } => "latest-per-key",
+            Rule::Initial { .. } => "initial",
+
             Rule::Exists { .. } => "exists",
             Rule::Count { .. } => "count",
             Rule::Progress { .. } => "progress",
@@ -160,7 +145,7 @@ impl Rule {
             Rule::SetUnion { .. } => "set-union",
             Rule::Values { .. } => "values",
             Rule::ValuesPerKey { .. } => "values-per-key",
-            Rule::RegisterPerKey { .. } => "register-per-key",
+
             Rule::ObservedSet { .. } => "observed-set",
             Rule::Counter { .. } => "counter",
             Rule::Histogram { .. } => "histogram",
@@ -174,18 +159,14 @@ impl Rule {
             Rule::BoundedCounter(c) => c.verbs(),
             Rule::LwwRegister { verb, .. }
             | Rule::LwwPerSigner { verb, .. }
-            | Rule::Last { verb, .. }
-            | Rule::LatestPerSigner { verb, .. }
-            | Rule::LatestPerKey { verb, .. }
+            | Rule::Initial { verb, .. }
             | Rule::Exists { verb }
             | Rule::Count { verb }
             | Rule::Progress { verb }
             | Rule::Events { verb, .. }
             | Rule::SetUnion { verb, .. }
             | Rule::Values { verb, .. } => alloc::vec![verb.as_str()],
-            Rule::ValuesPerKey { verb, delete, .. }
-            | Rule::RegisterPerKey { verb, delete, .. }
-            | Rule::LwwMap { verb, delete, .. } => {
+            Rule::ValuesPerKey { verb, delete, .. } | Rule::LwwMap { verb, delete, .. } => {
                 let mut v = alloc::vec![verb.as_str()];
                 if let Some(d) = delete {
                     v.push(d.as_str());
@@ -232,24 +213,12 @@ impl Rule {
                 }
                 fields
             }
-            Rule::Last { verb, key }
-            | Rule::LatestPerSigner { verb, key }
+            Rule::Initial { verb, key }
             | Rule::Events { verb, key }
             | Rule::SetUnion { verb, key }
             | Rule::Values { verb, key } => alloc::vec![(verb.as_str(), key.as_str())],
-            Rule::LatestPerKey { verb, key, value } => {
-                alloc::vec![
-                    (verb.as_str(), key.as_str()),
-                    (verb.as_str(), value.as_str())
-                ]
-            }
+
             Rule::ValuesPerKey {
-                verb,
-                key,
-                value,
-                delete,
-            }
-            | Rule::RegisterPerKey {
                 verb,
                 key,
                 value,
@@ -285,14 +254,10 @@ impl Rule {
     /// writers and delete verbs of registers, signer writers, and observed-set removals.
     pub fn replaces_verbs(&self) -> Vec<&str> {
         match self {
-            Rule::Values { verb, .. }
-            | Rule::LatestPerSigner { verb, .. }
-            | Rule::LwwPerSigner { verb, .. } => {
+            Rule::Values { verb, .. } | Rule::LwwPerSigner { verb, .. } => {
                 alloc::vec![verb.as_str()]
             }
-            Rule::ValuesPerKey { verb, delete, .. }
-            | Rule::RegisterPerKey { verb, delete, .. }
-            | Rule::LwwMap { verb, delete, .. } => {
+            Rule::ValuesPerKey { verb, delete, .. } | Rule::LwwMap { verb, delete, .. } => {
                 let mut v = alloc::vec![verb.as_str()];
                 if let Some(d) = delete {
                     v.push(d.as_str());
@@ -916,13 +881,12 @@ impl<'a> Kernel<'a> {
             .collect()
     }
 
-    /// `pick T k`: the value of `k` on the greatest-address act.
-    fn pick(&self, table: &[&Act], key: &str) -> Value {
-        table
-            .iter()
-            .max_by(|a, b| a.address.as_bytes().cmp(b.address.as_bytes()))
-            .and_then(|a| self.field(a, key))
-            .unwrap_or(Value::Absent)
+    /// Read the sole initializer. Empty or ambiguous evidence has no value.
+    fn initial(&self, table: &[&Act], key: &str) -> Value {
+        match table {
+            [act] => self.field(act, key).unwrap_or(Value::Absent),
+            _ => Value::Absent,
+        }
     }
 
     /// `group T g` by signer.
@@ -1012,19 +976,16 @@ impl<'a> Kernel<'a> {
                     .map(|(k, t)| (k, self.pick_lww(&t, value, clock)))
                     .collect(),
             ),
-            Rule::Last { verb, key } => self.pick(&self.acts(verb), key),
-            Rule::LatestPerSigner { verb, key } => Value::Map(
-                self.group_by_signer(&self.current_by_signer(verb))
-                    .into_iter()
-                    .map(|(s, t)| (Value::Str(s), self.pick(&t, key)))
-                    .collect(),
+            Rule::Initial { verb, key } => self.initial(
+                &self
+                    .acts
+                    .iter()
+                    .copied()
+                    .filter(|a| a.verb == *verb)
+                    .collect::<Vec<_>>(),
+                key,
             ),
-            Rule::LatestPerKey { verb, key, value } => Value::Map(
-                self.group_by_key(&self.acts(verb), key)
-                    .into_iter()
-                    .map(|(k, t)| (k, self.pick(&t, value)))
-                    .collect(),
-            ),
+
             Rule::Exists { verb } => Value::Bool(!self.acts(verb).is_empty()),
             Rule::Count { verb } => Value::Int(self.acts(verb).len() as i128),
             Rule::Progress { verb } => {
@@ -1065,17 +1026,7 @@ impl<'a> Kernel<'a> {
                     .map(|(k, t)| (k, self.distinct(&t, value)))
                     .collect(),
             ),
-            Rule::RegisterPerKey {
-                verb,
-                key,
-                value,
-                delete,
-            } => Value::Map(
-                self.group_by_key(&self.current(verb, Some(key), delete.as_deref()), key)
-                    .into_iter()
-                    .map(|(k, t)| (k, self.pick(&t, value)))
-                    .collect(),
-            ),
+
             Rule::ObservedSet { add, remove, key } => {
                 self.distinct(&self.current(add, Some(key), Some(remove)), key)
             }
@@ -1264,20 +1215,14 @@ pub fn state_schema(
     for (name, rule) in clause.fields() {
         let ty = match rule {
             Rule::BoundedCounter(_) => StateType::BoundedCounter,
-            Rule::Last { verb, key } | Rule::LwwRegister { verb, key, .. } => {
+            Rule::Initial { verb, key } | Rule::LwwRegister { verb, key, .. } => {
                 StateType::OptScalar(scalar(verb, key))
             }
-            Rule::LatestPerSigner { verb, key } | Rule::LwwPerSigner { verb, key, .. } => {
-                StateType::Map(
-                    ScalarType::Str,
-                    alloc::boxed::Box::new(StateType::OptScalar(scalar(verb, key))),
-                )
-            }
-            Rule::LatestPerKey { verb, key, value }
-            | Rule::LwwMap {
-                verb, key, value, ..
-            }
-            | Rule::RegisterPerKey {
+            Rule::LwwPerSigner { verb, key, .. } => StateType::Map(
+                ScalarType::Str,
+                alloc::boxed::Box::new(StateType::OptScalar(scalar(verb, key))),
+            ),
+            Rule::LwwMap {
                 verb, key, value, ..
             } => StateType::Map(
                 scalar(verb, key),
@@ -1341,6 +1286,10 @@ mod tests {
             params.push(SExpr::Atom(Atom::Keyword(String::from(*k))));
             params.push(v.clone());
         }
+        params.push(SExpr::Atom(Atom::Keyword("clock".into())));
+        params.push(SExpr::Atom(Atom::Str(
+            "hlc-0000000000000000-00000000".into(),
+        )));
         let message = Message::Simple {
             performative: Performative::Custom(String::from(verb)),
             recipient: Some(Recipients::One(String::from("@list"))),
@@ -1378,18 +1327,19 @@ mod tests {
             entries: alloc::vec![
                 Entry::Field {
                     name: "title".into(),
-                    rule: Rule::Last {
+                    rule: Rule::Initial {
                         verb: "open".into(),
                         key: "title".into()
                     }
                 },
                 Entry::Field {
                     name: "items".into(),
-                    rule: Rule::RegisterPerKey {
+                    rule: Rule::LwwMap {
                         verb: "check".into(),
                         key: "item".into(),
                         value: "done".into(),
                         delete: Some("drop".into()),
+                        clock: "clock".into(),
                     },
                 },
             ],
@@ -1478,7 +1428,7 @@ mod tests {
             entries: alloc::vec![
                 Entry::Field {
                     name: "options".into(),
-                    rule: Rule::Last {
+                    rule: Rule::Initial {
                         verb: "propose".into(),
                         key: "options".into()
                     }
@@ -1490,9 +1440,10 @@ mod tests {
                 },
                 Entry::Field {
                     name: "ballots".into(),
-                    rule: Rule::LatestPerSigner {
+                    rule: Rule::LwwPerSigner {
                         verb: "vote".into(),
-                        key: "choice".into()
+                        key: "choice".into(),
+                        clock: "clock".into(),
                     }
                 },
                 Entry::Field {

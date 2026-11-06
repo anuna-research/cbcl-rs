@@ -162,13 +162,13 @@ fn signer_replaces_shape_is_exported() {
     ))
     .unwrap();
     let missing =
-        "(lang lunch-vote (vote @room :choice \"Pizza\" :caused-by begin :thread \"v1\" :from @a))";
+        "(lang lunch-vote (vote @room :choice \"Pizza\" :clock \"hlc-0000000000000000-00000000\" :caused-by begin :thread \"v1\" :from @a))";
     let result = cbcl_parser::state_exports::verify_state_shape_str(&format!(
         "(verify-state-shape {contract} {missing})"
     ));
     assert!(
         result.is_err(),
-        "latest-per-signer requires replacement bookkeeping"
+        "lww-per-signer requires replacement bookkeeping"
     );
     let empty = missing.replace(":choice \"Pizza\"", ":choice \"Pizza\" :replaces ()");
     assert!(cbcl_parser::state_exports::verify_state_shape_str(&format!(

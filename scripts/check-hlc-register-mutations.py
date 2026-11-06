@@ -44,6 +44,10 @@ def main():
             destination.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(ROOT / name, destination)
         mutations = [
+            ('initializer-arbitrates-ambiguity', 'crates/cbcl-core/src/state.rs',
+             'match table {\n            [act] => self.field(act, key).unwrap_or(Value::Absent),\n            _ => Value::Absent,\n        }',
+             'table.iter().max_by(|a, b| a.address.cmp(&b.address)).and_then(|a| self.field(a, key)).unwrap_or(Value::Absent)',
+             ['cargo', 'test', '-p', 'cbcl-parser', '--test', 'register_simplification', '--locked']),
             ('reverse-clock-order', 'crates/cbcl-core/src/state.rs',
              '.max_by(|(x, _), (y, _)| x.cmp(y))', '.min_by(|(x, _), (y, _)| x.cmp(y))', rust_cmd),
             ('ignore-own-supersession', 'crates/cbcl-core/src/state.rs',

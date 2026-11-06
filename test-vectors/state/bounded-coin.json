@@ -2,7 +2,7 @@
   "id": "bounded-coin",
   "version": "2.0.0",
   "thread": "coin-1",
-  "contract": "; Bounded-counter example. Amounts are integer base units, not decimals.\n; Hosts authenticate acts and serialize issuance per account before publication.\n(define example-coin (cbcl) @coin-author\n  (:resource-requirements ((max-depth 16) (max-expansion-size 4096) (verification-time 1000)))\n  (:roles (issuer (* holder)))\n  (extend open (to name allocations) :from issuer :to (issuer holder)\n    (tell to :name name :allocations allocations))\n  (extend mint (to amount) :from issuer :to (issuer holder)\n    (tell to :amount amount))\n  (extend burn (to amount) :from holder :to (issuer holder)\n    (tell to :amount amount))\n  (extend pay (to recipient amount) :from holder :to (issuer holder)\n    (tell to :recipient recipient :amount amount))\n  (shape open (require :name string) (require :allocations list))\n  (shape mint (require :amount number))\n  (shape burn (require :amount number))\n  (shape pay (require :recipient symbol) (require :amount number))\n  (protocol (then begin open) (then open mint) (then open burn) (then open pay))\n  (state\n    (name (last open :name))\n    (coins (bounded-counter\n      (floor 0)\n      (initial-rights open :allocations)\n      (issuers issuer)\n      (increment mint :amount)\n      (decrement burn :amount)\n      (transfer pay :recipient :amount)))))\n",
+  "contract": "; Bounded-counter example. Amounts are integer base units, not decimals.\n; Hosts authenticate acts and serialize issuance per account before publication.\n(define example-coin (cbcl) @coin-author\n  (:resource-requirements ((max-depth 16) (max-expansion-size 4096) (verification-time 1000)))\n  (:roles (issuer (* holder)))\n  (extend open (to name allocations) :from issuer :to (issuer holder)\n    (tell to :name name :allocations allocations))\n  (extend mint (to amount) :from issuer :to (issuer holder)\n    (tell to :amount amount))\n  (extend burn (to amount) :from holder :to (issuer holder)\n    (tell to :amount amount))\n  (extend pay (to recipient amount) :from holder :to (issuer holder)\n    (tell to :recipient recipient :amount amount))\n  (shape open (require :name string) (require :allocations list))\n  (shape mint (require :amount number))\n  (shape burn (require :amount number))\n  (shape pay (require :recipient symbol) (require :amount number))\n  (protocol (then begin open) (then open mint) (then open burn) (then open pay))\n  (state\n    (name (initial open :name))\n    (coins (bounded-counter\n      (floor 0)\n      (initial-rights open :allocations)\n      (issuers issuer)\n      (increment mint :amount)\n      (decrement burn :amount)\n      (transfer pay :recipient :amount)))))\n",
   "covers": [
     "bounded-counter",
     "transfer",
@@ -56,13 +56,13 @@
     "state": {
       "name": "Example Coin",
       "coins": {
-        "status": "ready",
-        "value": 1245,
         "rights": {
-          "@treasury": 1150,
           "@alice": 75,
-          "@bob": 20
-        }
+          "@bob": 20,
+          "@treasury": 1150
+        },
+        "status": "ready",
+        "value": 1245
       }
     },
     "intents": []

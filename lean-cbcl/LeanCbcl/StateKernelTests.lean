@@ -38,7 +38,7 @@ example : resourceObserve (.pending [100]) = .pending [100] := rfl
 example : ResourceView.balance (resourceObserve (.fault "fork" [10, 20])) = none := rfl
 
 private def fields : List (String × Rule) :=
-  [("options", .last "open" "options"), ("ballots", .latestPerSigner "vote" "amount"),
+  [("options", .initial "open" "options"), ("ballots", .lwwPerSigner "vote" "amount" "clock"),
    ("tally", .histogram "ballots"), ("total", .sum "ballots")]
 private def clause : Clause := ⟨fields, [⟨"vote", "choice", "options"⟩]⟩
 
@@ -46,7 +46,7 @@ example : (compileClause input clause).isSome = true := by decide
 example : compileRule [] (.histogram "future") = none := by decide
 example : compileRule [("tally", .histogram "ballots")] (.sum "tally") = none := by decide
 example : compileClause input ⟨[("x", .count "vote"), ("x", .existsRule "vote")], []⟩ = none := by decide
-example : compileDomain input [("options", .last "vote" "choice")]
+example : compileDomain input [("options", .initial "vote" "choice")]
     ⟨"vote", "choice", "options"⟩ = none := by decide
 example : normalizeHead "multi-value-register" = "values" := rfl
 example : normalizeHead "multi-value-map" = "values-per-key" := rfl

@@ -1,0 +1,9 @@
+; SPEC-035 ADR-3503 accepted register simplification.
+(given (task register-simplification))
+(given (task-description register-simplification "Retire primary hash selectors; initial plus explicit LWW family"))
+(given (task-acceptance register-simplification "Runtime, corpus, JS and Lean coverage agree at major version 4"))
+(given (no-deps register-simplification))
+(normally r-ready-register-simplification (and (task register-simplification) (no-deps register-simplification)) (ready register-simplification))
+
+; Evidence: proofs/register-simplification/register-simplification-verification.md.
+(given (completed register-simplification))

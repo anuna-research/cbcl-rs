@@ -551,3 +551,10 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateKernelSECTests.ticks_unique
 #print axioms CBCL.StateKernelSECTests.ticks_count
 #print axioms CBCL.StateKernelSECTests.ongoing_writes_need_not_stabilize
+
+-- Version-4 sole initializer; no address-primary arbitration in the surface.
+#print axioms CBCL.StateKernelSemantics.sole_some
+#print axioms CBCL.StateKernelSemantics.sole_correct
+#print axioms CBCL.StateKernelSemantics.sole_complete
+#print axioms CBCL.StateKernelSemantics.sole_setEq
+#print axioms CBCL.StateKernelSemantics.initialValues_setEq

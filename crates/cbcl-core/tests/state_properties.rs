@@ -69,18 +69,19 @@ fn clause() -> StateClause {
         entries: vec![
             field_entry(
                 "title",
-                Rule::Last {
+                Rule::Initial {
                     verb: s("open"),
                     key: s("title"),
                 },
             ),
             field_entry(
                 "items",
-                Rule::RegisterPerKey {
+                Rule::LwwMap {
                     verb: s("check"),
                     key: s("item"),
                     value: s("done"),
                     delete: Some(s("drop")),
+                    clock: "clock".into(),
                 },
             ),
             field_entry(
@@ -94,10 +95,12 @@ fn clause() -> StateClause {
             ),
             field_entry(
                 "per-item",
-                Rule::LatestPerKey {
+                Rule::LwwMap {
                     verb: s("check"),
                     key: s("item"),
                     value: s("done"),
+                    clock: "clock".into(),
+                    delete: None,
                 },
             ),
             field_entry("any-check", Rule::Exists { verb: s("check") }),
@@ -147,9 +150,10 @@ fn clause() -> StateClause {
             ),
             field_entry(
                 "ballots",
-                Rule::LatestPerSigner {
+                Rule::LwwPerSigner {
                     verb: s("vote"),
                     key: s("choice"),
+                    clock: "clock".into(),
                 },
             ),
             field_entry(
@@ -216,6 +220,10 @@ fn mk_act(addr: &str, verb: &str, signer: &str, preds: &[&str], fields: &[(&str,
         params.push(kw(k));
         params.push(v.clone());
     }
+    params.push(SExpr::Atom(Atom::Keyword("clock".into())));
+    params.push(SExpr::Atom(Atom::Str(
+        "hlc-0000000000000000-00000000".into(),
+    )));
     let message = Message::Simple {
         performative: Performative::Custom(String::from(verb)),
         recipient: Some(Recipients::One(String::from("@list"))),
@@ -421,7 +429,7 @@ fn current_writes<'a>(
         .collect()
 }
 
-/// `register-per-key` from `current`: per key, the greatest-address
+/// LWW map over `current`: fixed fixture clocks tie, then signer/address select the
 /// current write's value (`registerPerKey_from_current`).
 fn register_oracle(acts: &[Act]) -> BTreeMap<String, String> {
     let mut best: BTreeMap<String, &Act> = BTreeMap::new();
@@ -430,7 +438,7 @@ fn register_oracle(acts: &[Act]) -> BTreeMap<String, String> {
             continue;
         };
         match best.get(&k) {
-            Some(b) if b.address.as_bytes() >= w.address.as_bytes() => {}
+            Some(b) if (&b.signer, &b.address) >= (&w.signer, &w.address) => {}
             _ => {
                 best.insert(k, w);
             }
@@ -518,8 +526,8 @@ proptest! {
     }
 
     /// TEST-1942. Mirrors `mem_current_iff` and
-    /// `registerPerKey_from_current` (State.lean): `register-per-key` is,
-    /// per key, the greatest-address member of `current`, where a write is
+    /// Per key, the greatest HLC/signer/address member of current is chosen.
+    /// Fixture timestamps are equal; the independent oracle compares signer/address. A write is
     /// current iff it is a write of the verb that no accepted write or
     /// deletion of the same key names in `:replaces`.
     #[test]
@@ -574,7 +582,7 @@ proptest! {
                     // The winner is a current write: a replaced write never wins.
                     let winner = current_for_key
                         .iter()
-                        .max_by(|a, b| a.address.as_bytes().cmp(b.address.as_bytes()))
+                        .max_by(|a, b| (&a.signer, &a.address).cmp(&(&b.signer, &b.address)))
                         .expect("a present key has a current write");
                     prop_assert!(!named.contains(&winner.address) || current.contains(&winner.address));
                     let winner_done = render_field(winner, "done");
@@ -713,6 +721,7 @@ fn checklist() -> Dialect {
                 rules: vec![
                     require("item", TypeConstraint::String),
                     require("done", TypeConstraint::Bool),
+                    require("clock", TypeConstraint::String),
                 ],
             },
             ShapeConstraint {
@@ -726,18 +735,19 @@ fn checklist() -> Dialect {
             entries: vec![
                 field_entry(
                     "title",
-                    Rule::Last {
+                    Rule::Initial {
                         verb: s("open"),
                         key: s("title"),
                     },
                 ),
                 field_entry(
                     "items",
-                    Rule::RegisterPerKey {
+                    Rule::LwwMap {
                         verb: s("check"),
                         key: s("item"),
                         value: s("done"),
                         delete: Some(s("drop")),
+                        clock: "clock".into(),
                     },
                 ),
             ],
@@ -790,6 +800,7 @@ fn intent_fields(i: &Intent) -> (&'static str, String, BTreeMap<String, SExpr>) 
         Intent::Check { item, done } => {
             f.insert(String::from("item"), str_(item));
             f.insert(String::from("done"), boolean(*done));
+            f.insert("clock".into(), str_("hlc-0000000000000000-00000000"));
             ("check", item.clone(), f)
         }
         Intent::Drop { item } => {
@@ -924,9 +935,10 @@ fn signer_clause() -> StateClause {
     StateClause {
         entries: vec![field_entry(
             "ballots",
-            Rule::LatestPerSigner {
+            Rule::LwwPerSigner {
                 verb: "check".into(),
                 key: "item".into(),
+                clock: "clock".into(),
             },
         )],
     }
@@ -990,7 +1002,7 @@ fn signer_domain_and_verb_guards() {
         0,
         field_entry(
             "options",
-            Rule::Last {
+            Rule::Initial {
                 verb: "open".into(),
                 key: "options".into(),
             },
@@ -1024,6 +1036,7 @@ fn signer_binder_first_concurrent_sorted_bounded_and_forge() {
     let fields = || {
         [
             ("item".into(), str_("edit")),
+            ("clock".into(), str_("hlc-0000000000000000-00000000")),
             ("done".into(), boolean(true)),
         ]
         .into_iter()
@@ -1099,9 +1112,10 @@ fn signer_canonical_lower_address_edit_always_wins() {
     let mut d = checklist();
     d.state.as_mut().unwrap().entries.push(field_entry(
         "ballots",
-        Rule::LatestPerSigner {
+        Rule::LwwPerSigner {
             verb: "check".into(),
             key: "done".into(),
+            clock: "clock".into(),
         },
     ));
     insert_replaces(&mut d);
@@ -1111,6 +1125,7 @@ fn signer_canonical_lower_address_edit_always_wins() {
         let fields = |done| {
             [
                 ("item".into(), str_(&format!("item-{n}"))),
+                ("clock".into(), str_("hlc-0000000000000000-00000000")),
                 ("done".into(), boolean(done)),
             ]
             .into_iter()
@@ -1167,9 +1182,10 @@ fn signer_binder_uses_domain_admitted_current_writes() {
         .rules = vec![require("title", TypeConstraint::List)];
     d.state.as_mut().unwrap().entries.push(field_entry(
         "ballots",
-        Rule::LatestPerSigner {
+        Rule::LwwPerSigner {
             verb: "check".into(),
             key: "item".into(),
+            clock: "clock".into(),
         },
     ));
     d.state.as_mut().unwrap().entries.push(Entry::Domain {
@@ -1186,6 +1202,7 @@ fn signer_binder_uses_domain_admitted_current_writes() {
     let inst = Instance::new(&d, ThreadId(THREAD.into()), &acts).unwrap();
     let fields = [
         ("item".into(), str_("allowed")),
+        ("clock".into(), str_("hlc-0000000000000000-00000000")),
         ("done".into(), boolean(true)),
     ]
     .into_iter()
@@ -1199,7 +1216,7 @@ fn signer_binder_uses_domain_admitted_current_writes() {
 }
 
 #[test]
-fn signer_string_addresses_and_last_retains_address_order() {
+fn signer_string_addresses_and_ambiguous_initializer_has_no_value() {
     let old = signer_write(90, "@a", "old", &[]);
     let mut edit = signer_write(1, "@a", "edit", &[]);
     edit.fields.insert(
@@ -1209,14 +1226,14 @@ fn signer_string_addresses_and_last_retains_address_order() {
     let mut clause = signer_clause();
     clause.entries.push(field_entry(
         "last",
-        Rule::Last {
+        Rule::Initial {
             verb: "check".into(),
             key: "item".into(),
         },
     ));
     let state = fold(&clause, None, &[old, edit]);
     assert_eq!(entries(&state[0].1).get("\"@a\""), Some(&"\"edit\"".into()));
-    assert_eq!(state[1].1, Value::Str("old".into()));
+    assert_eq!(state[1].1, Value::Absent);
 }
 
 #[test]
@@ -1224,9 +1241,10 @@ fn signer_binder_mixed_rule_union_remains_sorted_and_bounded() {
     let mut d = checklist();
     d.state.as_mut().unwrap().entries.push(field_entry(
         "ballots",
-        Rule::LatestPerSigner {
+        Rule::LwwPerSigner {
             verb: "check".into(),
             key: "done".into(),
+            clock: "clock".into(),
         },
     ));
     d.state_bounds = Some(cbcl_core::state::StateBounds {
@@ -1240,6 +1258,7 @@ fn signer_binder_mixed_rule_union_remains_sorted_and_bounded() {
     let acts = vec![op, own_elsewhere.clone(), own_same, other_same.clone()];
     let fields = [
         ("item".into(), str_("same")),
+        ("clock".into(), str_("hlc-0000000000000000-00000000")),
         ("done".into(), boolean(true)),
     ]
     .into_iter()

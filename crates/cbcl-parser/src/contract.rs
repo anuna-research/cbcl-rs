@@ -95,17 +95,7 @@ const RULES: &[(&str, &str, &[Arg])] = &[
         "multi-value-map",
         &[Arg::Verb, Arg::Key, Arg::Key, Arg::OptVerb],
     ),
-    ("last", "last", &[Arg::Verb, Arg::Key]),
-    (
-        "latestPerSigner",
-        "latest-per-signer",
-        &[Arg::Verb, Arg::Key],
-    ),
-    (
-        "latestPerKey",
-        "latest-per-key",
-        &[Arg::Verb, Arg::Key, Arg::Key],
-    ),
+    ("initial", "initial", &[Arg::Verb, Arg::Key]),
     ("exists", "exists", &[Arg::Verb]),
     ("count", "count", &[Arg::Verb]),
     ("progress", "progress", &[Arg::Verb]),
@@ -115,11 +105,6 @@ const RULES: &[(&str, &str, &[Arg])] = &[
     (
         "valuesPerKey",
         "values-per-key",
-        &[Arg::Verb, Arg::Key, Arg::Key, Arg::OptVerb],
-    ),
-    (
-        "registerPerKey",
-        "register-per-key",
         &[Arg::Verb, Arg::Key, Arg::Key, Arg::OptVerb],
     ),
     (

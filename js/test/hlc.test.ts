@@ -42,7 +42,7 @@ test('domain-excluded same-key writes cannot corrupt deletion bookkeeping', asyn
   const object=await defineContract({...source,verbs:{...source.verbs,
     open:{after:['begin'],fields:{title:'string',options:'list' as const}},
     write:{after:['open'],fields:{item:'string',value:enumOf('options'),clock:'string'}}},
-    state:{options:c.last('open','options'),...source.state}});
+    state:{options:c.initial('open','options'),...source.state}});
   const root=actRecord(object.open({room:'@a',thread:'t',from:'@a',fields:{title:'demo',options:['allowed']}}),'@a');
   const runtime=createRuntime(object.dialect);
   const first=runtime.intend('t',[root],'@alice','write',{item:'x',value:'allowed',clock:'hlc-0000000000000001-00000000'});

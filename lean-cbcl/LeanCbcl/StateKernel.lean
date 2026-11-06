@@ -44,6 +44,7 @@ inductive Observation where
 
 /-- Complete compositional algebra for the fixed surface-rule vocabulary. -/
 inductive Expr where
+  | initial (verb field : String)
   | scalar (source : Selection) (policy : Policy) (field : String)
   | existsRule (source : Selection)
   | count (source : Selection)
@@ -106,6 +107,7 @@ theorem values_by_complete (A : List Act) (source : Selection) (key field : Stri
 
 /-- Pure expression evaluation. Progress and resource ports bypass data domains. -/
 def evaluate (input : Input) (domains : List Domain) : Expr → Observation
+  | .initial verb field => .cell (project field false (sole (acts verb input.acts)))
   | .scalar source policy field => .cell (project field false
       (choose input.clock input.signerRank policy (select (admitted domains input.acts) source)))
   | .existsRule source => .boolean (!(select (admitted domains input.acts) source).isEmpty)
@@ -124,6 +126,8 @@ def evaluate (input : Input) (domains : List Domain) : Expr → Observation
 
 /-- Independent expression semantics. No branch calls evaluation or selections. -/
 def Meaning (input : Input) (domains : List Domain) : Expr → Observation → Prop
+  | .initial verb field, .cell cell => ∃ candidate,
+      SoleMeaning (fun a => a ∈ input.acts ∧ a.verb = verb) candidate ∧ Projection field false candidate cell
   | .scalar source policy field, .cell cell => CellMeaning input.clock input.signerRank policy
       (Selected (Admitted domains input.acts) source) field false cell
   | .existsRule source, .boolean value => Existence (Selected (Admitted domains input.acts) source) value
@@ -149,42 +153,47 @@ theorem selected_total (input : Input) (unique : NodupAddr input.acts) (domains 
     Total (Selected (Admitted domains input.acts) source) field
       (sumField field (select (admitted domains input.acts) source)) := by
   refine ⟨select (admitted domains input.acts) source, ?_, ?_⟩
-  · exact ⟨select_unique (admitted_unique unique domains) source, data_selection_correct unique domains source⟩
+  · exact ⟨select_unique (admitted_unique unique domains) source, data_selection_correct domains source⟩
   · exact sumField_eq field _
 
 /-- All expression constructors satisfy their independent denotation. -/
 theorem evaluate_correct (input : Input) (unique : NodupAddr input.acts)
     (domains : List Domain) (expression : Expr) : Meaning input domains expression (evaluate input domains expression) := by
   cases expression with
+  | initial verb field =>
+      refine ⟨sole (acts verb input.acts), ?_, project_correct _ _ _⟩
+      have good := sole_correct (acts verb input.acts)
+      cases h : sole (acts verb input.acts) <;> rw [h] at good <;>
+        simpa only [SoleMeaning, acts, List.mem_filter, beq_iff_eq] using good
   | scalar source policy field =>
       refine ⟨choose input.clock input.signerRank policy (select (admitted domains input.acts) source), ?_, project_correct _ _ _⟩
-      apply (choice_congr (data_selection_correct unique domains source) _ _ _ _).mp
+      apply (choice_congr (data_selection_correct domains source) _ _ _ _).mp
       exact choose_satisfies _ _ _ _
   | existsRule source =>
       have good := existence_correct (select (admitted domains input.acts) source)
-      simpa only [Existence, data_selection_correct unique domains source] using good
+      simpa only [Existence, data_selection_correct domains source] using good
   | count source =>
       exact ⟨size (select (admitted domains input.acts) source),
         ⟨select (admitted domains input.acts) source,
-          ⟨select_unique (admitted_unique unique domains) source, data_selection_correct unique domains source⟩, rfl⟩, rfl⟩
+          ⟨select_unique (admitted_unique unique domains) source, data_selection_correct domains source⟩, rfl⟩, rfl⟩
   | distinct source field =>
       have good := values_correct (select (admitted domains input.acts) source) field
-      simpa only [Values, data_selection_correct unique domains source] using good
+      simpa only [Values, data_selection_correct domains source] using good
   | mapped plan =>
-      exact (map_meaning_congr (admitted_correct unique domains) _ _ _ _).mp (map_correct _ _ _ _)
+      exact (map_meaning_congr (admitted_correct domains) _ _ _ _).mp (map_correct _ _ _ _)
   | valuesBy source key field =>
       have good := values_by_correct (admitted domains input.acts) source key field
-      have same := fun a => selected_congr (admitted_correct unique domains) source a
+      have same := fun a => selected_congr (admitted_correct (A := input.acts) domains) source a
       simpa only [ValueMapMeaning, same] using good
   | counter inc dec field =>
       exact ⟨_, _, selected_total input unique domains inc field,
         selected_total input unique domains dec field, rfl⟩
   | histogram plan =>
       refine ⟨evalMap input.clock input.signerRank (admitted domains input.acts) plan, ?_, histogram_correct _ (uniqueKeys_nodup _)⟩
-      exact (map_meaning_congr (admitted_correct unique domains) _ _ _ _).mp (map_correct _ _ _ _)
+      exact (map_meaning_congr (admitted_correct domains) _ _ _ _).mp (map_correct _ _ _ _)
   | sum plan =>
       refine ⟨evalMap input.clock input.signerRank (admitted domains input.acts) plan, ?_, map_sum_correct _ (uniqueKeys_nodup _)⟩
-      exact (map_meaning_congr (admitted_correct unique domains) _ _ _ _).mp (map_correct _ _ _ _)
+      exact (map_meaning_congr (admitted_correct domains) _ _ _ _).mp (map_correct _ _ _ _)
   | progress verb => exact ⟨_, progress_correct _ _ _ _ _, rfl⟩
   | bounded name => exact resource_correct _
 
