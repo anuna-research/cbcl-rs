@@ -19,6 +19,55 @@ opener supplies the field; no opener or several candidates yields Absent. Repeat
 receipt of the same opener preserves its value. Missing payloads do not reduce the
 candidate count. No hash winner is selected, and domains use the same raw evidence.
 
+## Choosing a state rule
+
+The state layer sits above the dialect's multiparty protocol and its
+[[SPEC-014-role-layer-endpoint-projection|role and endpoint-projection layer]].
+Protocol and role checks determine which interactions enter the accepted history;
+state rules determine what those accepted interactions mean for application state.
+A state rule does not change protocol admission or grant a sender a role. In
+particular, an HLC orders eligible state writes, not protocol steps, and cannot
+supply business authority missing from the protocol. The same protocol can expose
+several state fields with different concurrency policies.
+
+A dialect chooses an approach per state field. HLC is optional: convergence comes
+from deterministic rules over the same accepted set, not from trusting time.
+
+| Approach | Rules | Meaning and assumptions |
+|----------|-------|-------------------------|
+| Immutable initialization | `initial` | Read the sole distinct opener; multiple candidates yield Absent. |
+| Preserve conflicts | `multi-value-register`, `multi-value-map` (canonical `values`, `values-per-key`) | Remove explicitly superseded writes, then expose distinct surviving values. No clock is required. Applications choose how to resolve competing values. |
+| Choose a timestamp winner | `lww-register`, `lww-per-signer`, `lww-map` | Select one candidate per register, signer or key by HLC, signer, then address. Meaningful recency assumes trusted hosts generate, merge and persist clocks correctly. |
+| Combine evidence | `events`, `exists`, `count`, `set-union`, `observed-set`, `counter`, `histogram`, `sum` | Record events, derive membership or aggregate values according to the declared rule. These rules do not select a timestamp winner; observed-set removal uses explicit replacement evidence. An unrestricted counter does not enforce bounds. |
+| Observe protocol position | `progress` | Read the greatest established protocol occurrence, not the number of messages or a clock. |
+| Enforce resource budgets | `bounded-counter` | Verify allocated rights and optional headroom under the selected resource profile. Issuance and certification premises are separate from register ordering; see [[bounded-counter]]. |
+
+Use multi-value rules when concurrent alternatives should remain visible. For
+example, concurrent writes of `red` and `blue` to one map key yield both values;
+a later resolution write naming both candidates in `:replaces` supersedes them
+(within the binder's replacement bound). Equal payloads collapse to one displayed
+value, while the immutable acts retain their separate evidence.
+
+Use LWW when the application deliberately accepts one timestamp-selected value.
+For the same concurrent map writes, the greatest HLC/signer/address tuple selects
+the displayed value. This is approximate recency under the host assumptions,
+not proof of real-time order between disconnected writers or a fair decision.
+The underlying acts remain available for audit in either approach.
+
+Supersession and arbitration are separate stages. `lww-register` considers all
+admitted writes of its verb. `lww-per-signer` first removes explicitly superseded
+own writes; `lww-map` first removes explicitly superseded writes for each key.
+Only then do they choose among survivors. Thus a named superseded write cannot
+win merely by carrying a higher timestamp. With an optional delete verb, map
+deletion removes observed candidates rather than assigning a timestamped tombstone:
+a concurrent write the deletion did not name survives.
+
+Choosing a displayed register winner does not authorize an irreversible business
+effect. Use protocol roles and an application-specific decision procedure when
+one party must decide; resource effects additionally require the selected
+resource-verification/finalization path. Clock syntax, convergence and resource
+safety are different guarantees.
+
 ## Declaring clock evidence
 
 ```lisp

@@ -35,6 +35,26 @@ only an exact clock/signer tie-break. `initial` reads the sole opener without
 arbitration. The former hash-primary selectors are rejected. The state corpus is
 version 4.0.0; removed definitions require migration and are not silently reinterpreted.
 
+State above the multiparty protocol: The state layer sits above the dialect's multiparty protocol and its
+[[SPEC-014-role-layer-endpoint-projection|role and endpoint-projection layer]].
+Protocol and role checks determine which interactions enter the accepted history;
+state rules determine what those accepted interactions mean for application state.
+A state rule does not change protocol admission or grant a sender a role. In
+particular, an HLC orders eligible state writes, not protocol steps, and cannot
+supply business authority missing from the protocol. The same protocol can expose
+several state fields with different concurrency policies.
+
+State-rule approaches: the rule chosen for each field determines its treatment of
+concurrency; there is no universal last-writer policy. `initial` reads immutable
+opener data. Multi-value rules preserve concurrent surviving values; `lww-*` rules
+choose one candidate using host-supplied HLC evidence. Sets, events, counts and
+arithmetic rules combine their selected evidence without timestamp arbitration.
+`bounded-counter` adds resource verification with separate issuance/certification
+premises. See [[hlc-registers#Choosing a state rule]] for the selection guide.
+Observed supersession (`:replaces`), winner selection, and resource authorization
+are distinct mechanisms. In particular, `lww-map` removes explicitly superseded
+writes before timestamp selection and uses observed removal for deletion.
+
 Certification research: [[SPEC-019-state-rules#Certification research — AT2-style asset transfer]] evaluates Byzantine account-owner safety as a separate proposed layer. [[SPEC-020-resource-certification#ADR-2001]] compares fixed slots with BGLA and selects invariant-aware account-local model comparison as the next research task. Neither changes existing runtime guarantees.
 
 Escrow extension: [[SPEC-019-state-rules#Bounded counter amendment — escrow resource primitive]] specifies lower-bound escrow rights, optional ceiling headroom, transfers, and separate resource authorization. See the implementation evidence for runtime and proof status.
@@ -45,8 +65,9 @@ vocabulary: a query over the thread's accepted acts, recomputed, never
 merged. (Not "projection": that word belongs to endpoint projection,
 [[SPEC-014-role-layer-endpoint-projection|SPEC-014]].) The only replicated object is the set of accepted acts, which
 converges by union; every rule is a set function of it, so replicas holding
-the same acts compute the same state with no clock, no server, and no
-consensus. The rules behave like familiar replicated types (a register
+the same acts compute the same state without reading a clock or contacting a
+server. LWW rules read immutable host-supplied clock evidence; resource rules
+have separate authorization and certification premises. The rules behave like familiar replicated types (a register
 that keeps concurrent writes, an add-wins set) but nobody holds such a
 type; the names are borrowed for their observable behaviour.
 For `lww-per-signer`, observation means membership in the binder's accepted set.
@@ -100,8 +121,8 @@ Decisions: [[SPEC-019-state-rules#ADR-1900]] a kernel of
 fixed selections and reductions; the author-facing names are sugar ·
 [[SPEC-019-state-rules#ADR-1901]] supersession rides one reserved
 field, `:replaces`, inserted by the compiler ·
-[[SPEC-019-state-rules#ADR-1902]] one total order, the content
-address · [[SPEC-019-state-rules#ADR-1903]] identity is the hash of
+[[SPEC-019-state-rules#ADR-1902]] explicit HLC order with a final content-address
+tie-break · [[SPEC-019-state-rules#ADR-1903]] identity is the hash of
 the body; the name is derived from it ·
 [[SPEC-019-state-rules#ADR-1904]] integers ·
 [[SPEC-019-state-rules#ADR-1905]] one content address ·
@@ -135,7 +156,8 @@ Controls:
   [[SPEC-019-state-rules#REQ-1921]]–[[SPEC-019-state-rules#REQ-1925]].
 - A rejected intent never reaches the wire →
   [[SPEC-019-state-rules#REQ-1926]].
-- Selection by address converges; it is not fair. Contested decisions are a
+- LWW selection uses HLC, signer and a final address tie-break; convergence
+  does not establish fairness or honest time. Contested decisions are a
   protocol matter (a role's grant) → [[SPEC-019-state-rules#REQ-1916]].
 
 Cross-repository naming: cbcl-bus also has a `SPEC-019`

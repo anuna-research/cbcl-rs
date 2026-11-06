@@ -61,6 +61,18 @@ Receipt alone does not mean acceptance. The admission monitor separates pending 
 
 An optional `(state …)` declaration gives a protocol's messages a shared state interpretation. Registers, sets, maps, and counters are derived from the accepted acts in a thread. The same accepted set produces the same state regardless of arrival order or duplicate delivery. `fold` computes that state; `intend` binds a proposed act against it. These primitives are exposed through the Rust, JavaScript/TypeScript, WASM, C, and Erlang interfaces.
 
+The state layer interprets the accepted interactions of the multiparty protocol;
+protocol and role checks govern admission, while state rules govern observations.
+An HLC orders eligible state writes, not protocol execution. State fields choose
+different concurrency policies: `initial` reads immutable
+opener data; multi-value registers/maps preserve concurrent surviving values;
+explicit `lww-*` registers choose a winner using trusted-host HLC evidence; and
+sets, events and aggregates combine evidence according to their rules. Explicit
+supersession and timestamp arbitration are separate: `lww-map` removes replaced
+writes before choosing a survivor, and deletion leaves unobserved concurrent
+writes intact. Bounded counters add separate resource authorization. See
+[[hlc-registers#Choosing a state rule|choosing a state rule]] for examples and assumptions.
+
 The **bounded-counter primitive** represents transferable rights over constrained resources, supporting balances, quotas, credits, and inventory. These escrow rights are bound to authenticated accounts: each account can decrement within its allocation, and transferring rights changes who can spend without changing the total. An optional ceiling adds per-account headroom for increments. Concurrent operations are authorized against these allocations rather than a global observed balance.
 
 | Operation | Effect |

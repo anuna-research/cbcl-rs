@@ -23,6 +23,19 @@ Hosts generate, advance and persist honest clock evidence; clock shape does not 
 The former `last`, `latest-per-signer`, `latest-per-key` and `register-per-key`
 heads are retired and rejected, not aliases.
 
+The state layer interprets interactions admitted by the dialect's multiparty
+protocol and roles ([[SPEC-014-role-layer-endpoint-projection]]). Register
+ordering does not order protocol execution or replace role authorization.
+Each state field chooses its own concurrency policy. Multi-value rules preserve
+distinct surviving values without clocks; LWW rules select one survivor using
+clock evidence. `:replaces` determines supersession before winner selection for
+signer and keyed LWW rules. A keyed delete removes only named observed writes;
+unobserved concurrent writes survive. Aggregation rules do not themselves arbitrate by timestamp, though they may
+aggregate an earlier LWW-selected field. `bounded-counter` has separate
+resource-authorization premises. See
+[[hlc-registers#Choosing a state rule]] for examples and the complete rule families.
+Convergence does not require clock honesty; interpreting a winner as recent does.
+
 Earlier alternatives remain in Git history. The accepted
 replacement contract is ADR-3503, which supersedes ADR-3502's retention decision.
 The state specification and corpus advance to major version 4 together. Runtime,
