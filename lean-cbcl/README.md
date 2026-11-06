@@ -304,3 +304,29 @@ selections. The model consumes typed numeric evidence; the signer rank is an
 order-preserving abstraction of byte order. It proves neither honest clock
 generation, wire/Rust correspondence, resource finality nor a whole-clause kernel
 correctness theorem. The public component theorems are in `AxiomAudit.lean`.
+
+
+## Whole typed state-kernel correctness
+
+`LeanCbcl/StateKernelClause.lean` composes independent denotations for all 19
+surface heads into an arbitrary finite clause theorem. `compile_clause_complete`
+accepts every independently well-formed supported clause; `whole_kernel_correct`
+proves successful evaluation meets its independent surface meaning;
+`well_formed_kernel_correct` combines these for unique-address accepted stores.
+Domains, replacement sources, HLC/address choice, finite map support, events,
+histograms, sums and established protocol progress are covered. Component map
+completeness is extensional: key order and reads outside support are irrelevant.
+
+The bounded-counter part preserves typed verifier tags and computes ready budget
+observations. Verifier classification and resource-DAG validation remain outside
+this proof. Parsing, installation checks, canonical rendering, clock honesty and
+Rust equivalence are also separate obligations. This is denotational correctness,
+not a universal business-refinement or liveness result. See SPEC-036 and
+`proofs/state-kernel/state-kernel-verification.md` for the exact inventory and checks.
+
+```sh
+lake build
+lake exe runLinter LeanCbcl
+../scripts/check-axioms.sh
+python3 ../scripts/check-state-kernel.py
+```

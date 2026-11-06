@@ -1,3 +1,4 @@
+import LeanCbcl.StateKernelClause
 import LeanCbcl.HlcRegister
 import LeanCbcl.Lattice.NotALattice
 import LeanCbcl.ConsensusFree
@@ -480,3 +481,36 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.HlcRegister.keyed_correct
 #print axioms CBCL.HlcRegister.own_candidate_scope
 #print axioms CBCL.HlcRegister.keyed_candidate_scope
+
+-- SPEC-036: typed whole-clause denotation; delegated resource classification excluded.
+#print axioms CBCL.StateKernelSemantics.select_correct
+#print axioms CBCL.StateKernelSemantics.allowed_correct
+#print axioms CBCL.StateKernelSemantics.admitted_correct
+#print axioms CBCL.StateKernelSemantics.data_selection_correct
+#print axioms CBCL.StateKernelSemantics.pick_correct
+#print axioms CBCL.StateKernelSemantics.cardinality_correct
+#print axioms CBCL.StateKernelSemantics.total_correct
+#print axioms CBCL.StateKernelSemantics.events_correct
+#print axioms CBCL.StateKernelQueries.choose_correct
+#print axioms CBCL.StateKernelQueries.cell_complete
+#print axioms CBCL.StateKernelQueries.map_complete
+#print axioms CBCL.StateKernelAggregates.histogram_correct
+#print axioms CBCL.StateKernelAggregates.map_sum_correct
+#print axioms CBCL.StateKernelAggregates.key_count_unique
+#print axioms CBCL.StateKernelAggregates.key_total_unique
+#print axioms CBCL.StateKernelExtensions.progress_correct
+#print axioms CBCL.StateKernelExtensions.progress_unique
+#print axioms CBCL.StateKernelExtensions.resource_correct
+#print axioms CBCL.StateKernelExtensions.resource_unique
+#print axioms CBCL.StateKernelExtensions.resource_floor
+#print axioms CBCL.StateKernelExtensions.resource_ceiling
+#print axioms CBCL.StateKernel.evaluate_correct
+#print axioms CBCL.StateKernelClause.compile_clause_complete
+#print axioms CBCL.StateKernelClause.whole_kernel_correct
+#print axioms CBCL.StateKernelClause.well_formed_kernel_correct
+#print axioms CBCL.StateKernel.values_by_complete
+#print axioms CBCL.StateKernelAggregates.cell_number_correct
+
+#print axioms CBCL.StateKernelAggregates.cell_number_complete
+#print axioms CBCL.StateKernelAggregates.sum_meaning_unique
+#print axioms CBCL.StateKernelAggregates.histogram_meaning_unique

@@ -1,0 +1,77 @@
+{
+  "runtime_heads": [
+    "bounded-counter",
+    "count",
+    "counter",
+    "events",
+    "exists",
+    "histogram",
+    "last",
+    "latest-per-key",
+    "latest-per-signer",
+    "lww-map",
+    "lww-per-signer",
+    "lww-register",
+    "observed-set",
+    "progress",
+    "register-per-key",
+    "set-union",
+    "sum",
+    "values",
+    "values-per-key"
+  ],
+  "coverage": "19/19 heads and 2 aliases; names only",
+  "baseline": "passed",
+  "mutations": [
+    {
+      "mutation": "drop-own-supersession",
+      "killed": true,
+      "evidence": "/var/folders/k7/rpqdyqmx06v1y3gpqnx2355m0000gn/T/cbcl-state-kernel-mutants-1qp3jvsn/StateKernelSemantics.lean:100:15: error(lean.unknownIdentifier): Unknown identifier `ha`\n/var/folders/k7/rpqdyqmx06v1y3gpqnx2355m0000gn/T/cbcl-state-kernel-mutants-1qp3jvsn/StateKernelSemantics.lean:100:19: error(lean.unknownIdentifier): Unknown identifier `hv`\n/var/folders/k7/rpqdyqmx06v1y3gpqnx2355m0000gn/T/cbcl-state-kernel-mutants-1qp3jvsn/StateKernelSemantics.lean:100:41: error: Function expected at\n  hn\nbut this term has type\n  a.verb = v\n\nNote: Expected a function because this term is being applied to the argument\n  r\n/var/folders/k7/rpqdyqmx06v1y3gpqnx2355m0000gn/T/cbcl-state-kernel-mutants-1qp3jvsn/StateKernelSemantics.lean:99:6: error: unsolved goals\ncase own.mp.head.cons\na : Act\nv : String\nhn : a.verb = v\nhead\u271d : Act\ntail\u271d : List Act\n\u22a2 a \u2208 a :: head\u271d :: tail\u271d \u2227\n    a.verb = v \u2227 \u2200 (r : Act), r \u2208 a :: head\u271d :: tail\u271d \u2192 r.verb = v \u2192 r.signer = a.signer \u2192 \u00aca.addr \u2208 r.replaces\n\ncase own.mp.tail\na : Act\nv : String\nhn : a.verb = v\nb\u271d : Act\nas\u271d : List Act\na\u271d : List.Mem a as\u271d\n\u22a2 a \u2208 b\u271d :: as\u271d \u2227 a.verb = v \u2227 \u2200 (r : Act), r \u2208 b\u271d :: as\u271d \u2192 r.verb = v \u2192 r.signer = a.signer \u2192 \u00aca.addr \u2208 r.replaces\n/var/folders/k7/rpqdyqmx06v1y3gpqnx2355m0000gn/T/cbcl-state-kernel-mutants-1qp3jvsn/StateKernelSemantics.lean:102:15: error: Invalid `\u27e8...\u27e9` notation: The expected type `List.Mem a A` has more than one constructor\n\nNote: This notation can only be used when the expected type is an inductive type with a single constructor\n/var/folders/k7/rpqdyqmx06v1y3gpqnx2355m0000gn/T/cbcl-state-kernel-mutants-1qp3jvsn/StateKernelSemantics.lean:102:45: error: Invalid projection: Type of\n  hr\nis not known; cannot resolve projection `1`\n/var/folders/k7/rpqdyqmx06v1y3gpqnx2355m0000gn/T/cbcl-state-kernel-mutants-1qp3jvsn/StateKernelSemantics.lean:102:50: error: Invalid projection: Type of\n  hr\nis not known; cannot resolve projection `2`\n/var/folders/k7/rpqdyqmx06v1y3gpqnx2355m0000gn/T/cbcl-state-kernel-mutants-1qp3jvsn/StateKernelSemantics.lean:97:25: warning: This simp argument is unused:\n  mem_currentOwn_iff\n\nHint: Omit it from the simp argument list.\n  simp only [select, m\u0335e\u0335m\u0335_\u0335c\u0335u\u0335r\u0335r\u0335e\u0335n\u0335t\u0335O\u0335w\u0335n\u0335_\u0335i\u0335f\u0335f\u0335,\u0335 \u0335acts, List.mem_filter, beq_iff_eq, Selected]\n\nNote: This linter can be disabled with `set_option linter.unusedSimpArgs false`\n/var/folders/k7/rpqdyqmx06v1y3gpqnx2355m0000gn/T/cbcl-state-kernel-mutants-1qp3jvsn/StateKernelSemantics.lean:112:13: error: Type mismatch\n  NodupAddr.currentOwn h v\nhas type\n  NodupAddr (currentOwn v A)\nbut is expected to have type\n  NodupAddr (select A (Selection.own v))\n"
+    },
+    {
+      "mutation": "cardinality-always-zero",
+      "killed": true,
+      "evidence": "/var/folders/k7/rpqdyqmx06v1y3gpqnx2355m0000gn/T/cbcl-state-kernel-mutants-1qp3jvsn/StateKernel.lean:169:119: error: Application type mismatch: The argument\n  rfl\nhas type\n  ?m.109 = ?m.109\nbut is expected to have type\n  0 = Int.ofNat (size (select (admitted domains input.acts) source))\nin the application\n  \u27e8Exists.intro (select (admitted domains input.acts) source)\n      \u27e8\u27e8select_unique (admitted_unique unique domains) source, data_selection_correct unique domains source\u27e9, rfl\u27e9,\n    rfl\u27e9\n"
+    },
+    {
+      "mutation": "ignore-domains",
+      "killed": true,
+      "evidence": "/var/folders/k7/rpqdyqmx06v1y3gpqnx2355m0000gn/T/cbcl-state-kernel-mutants-1qp3jvsn/StateKernelSemantics.lean:296:14: warning: unused variable `ds`\n\nNote: This linter can be disabled with `set_option linter.unusedVariables false`\n/var/folders/k7/rpqdyqmx06v1y3gpqnx2355m0000gn/T/cbcl-state-kernel-mutants-1qp3jvsn/StateKernelSemantics.lean:311:27: error: Application type mismatch: The argument\n  hd\nhas type\n  d \u2208 ds\nbut is expected to have type\n  d \u2208 []\nin the application\n  checked d hd\n/var/folders/k7/rpqdyqmx06v1y3gpqnx2355m0000gn/T/cbcl-state-kernel-mutants-1qp3jvsn/StateKernelSemantics.lean:319:43: error: Application type mismatch: The argument\n  hd\nhas type\n  d \u2208 []\nbut is expected to have type\n  d \u2208 ds\nin the application\n  spec d hd\n"
+    },
+    {
+      "mutation": "numeric-payload-zero",
+      "killed": true,
+      "evidence": "/var/folders/k7/rpqdyqmx06v1y3gpqnx2355m0000gn/T/cbcl-state-kernel-mutants-1qp3jvsn/StateKernelAggregates.lean:41:12: error: unsolved goals\ncase value.int\nn\u271d : Int\n\u22a2 0 = n\u271d\n/var/folders/k7/rpqdyqmx06v1y3gpqnx2355m0000gn/T/cbcl-state-kernel-mutants-1qp3jvsn/StateKernelAggregates.lean:42:19: error: unsolved goals\ncase event.int\nsigner : String\nn\u271d : Int\n\u22a2 n\u271d = 0\n/var/folders/k7/rpqdyqmx06v1y3gpqnx2355m0000gn/T/cbcl-state-kernel-mutants-1qp3jvsn/StateKernelAggregates.lean:108:12: error: unsolved goals\ncase value.int\nn n\u271d : Int\n\u22a2 n = n\u271d \u2194 n = 0\n/var/folders/k7/rpqdyqmx06v1y3gpqnx2355m0000gn/T/cbcl-state-kernel-mutants-1qp3jvsn/StateKernelAggregates.lean:109:19: error: unsolved goals\ncase event.int\nn : Int\nsigner : String\nn\u271d : Int\n\u22a2 n = n\u271d \u2194 n = 0\n"
+    },
+    {
+      "mutation": "histogram-counts-all-keys",
+      "killed": true,
+      "evidence": "/var/folders/k7/rpqdyqmx06v1y3gpqnx2355m0000gn/T/cbcl-state-kernel-mutants-1qp3jvsn/StateKernelAggregates.lean:49:31: warning: unused variable `v`\n\nNote: This linter can be disabled with `set_option linter.unusedVariables false`\n/var/folders/k7/rpqdyqmx06v1y3gpqnx2355m0000gn/T/cbcl-state-kernel-mutants-1qp3jvsn/StateKernelAggregates.lean:74:78: error: Application type mismatch: The argument\n  rfl\nhas type\n  ?m.25 = ?m.25\nbut is expected to have type\n  histogram m v = (List.filter (fun key => cellScalar (m.read key) == some v) m.keys).length\nin the application\n  \u27e8?m.23, rfl\u27e9\n"
+    },
+    {
+      "mutation": "map-sum-zero",
+      "killed": true,
+      "evidence": "/var/folders/k7/rpqdyqmx06v1y3gpqnx2355m0000gn/T/cbcl-state-kernel-mutants-1qp3jvsn/StateKernelAggregates.lean:55:12: warning: unused variable `m`\n\nNote: This linter can be disabled with `set_option linter.unusedVariables false`\n/var/folders/k7/rpqdyqmx06v1y3gpqnx2355m0000gn/T/cbcl-state-kernel-mutants-1qp3jvsn/StateKernelAggregates.lean:79:93: error: unsolved goals\nm : FiniteMap\nunique : m.keys.Nodup\n\u22a2 0 = List.foldl (fun x y => x + cellNumber (m.read y)) 0 m.keys\n"
+    },
+    {
+      "mutation": "wrong-surface-dispatch",
+      "killed": true,
+      "evidence": "/var/folders/k7/rpqdyqmx06v1y3gpqnx2355m0000gn/T/cbcl-state-kernel-mutants-1qp3jvsn/StateKernelClause.lean:256:92: error: Type mismatch\n  good\nhas type\n  Existence (Selected (Admitted domains input.acts) (Selection.verb verb\u271d)) value\u271d\nbut is expected to have type\n  False\n"
+    },
+    {
+      "mutation": "omit-clause-fields",
+      "killed": true,
+      "evidence": "/var/folders/k7/rpqdyqmx06v1y3gpqnx2355m0000gn/T/cbcl-state-kernel-mutants-1qp3jvsn/StateKernelClause.lean:336:20: warning: unused variable `input`\n\nNote: This linter can be disabled with `set_option linter.unusedVariables false`\n/var/folders/k7/rpqdyqmx06v1y3gpqnx2355m0000gn/T/cbcl-state-kernel-mutants-1qp3jvsn/StateKernelClause.lean:336:36: warning: unused variable `domains`\n\nNote: This linter can be disabled with `set_option linter.unusedVariables false`\n/var/folders/k7/rpqdyqmx06v1y3gpqnx2355m0000gn/T/cbcl-state-kernel-mutants-1qp3jvsn/StateKernelClause.lean:336:60: warning: unused variable `fields`\n\nNote: This linter can be disabled with `set_option linter.unusedVariables false`\n/var/folders/k7/rpqdyqmx06v1y3gpqnx2355m0000gn/T/cbcl-state-kernel-mutants-1qp3jvsn/StateKernelClause.lean:435:14: error: Type mismatch\n  FieldsMeaning.cons earlier name rule rest (evaluate input domains expression) (evaluateFields input domains more)\n    (compile_rule_correct head input domains (evaluate input domains expression)\n      (evaluate_correct input unique domains expression))\n    (ih tail)\nhas type\n  FieldsMeaning input domains earlier ((name, rule) :: rest)\n    ((name, evaluate input domains expression) :: evaluateFields input domains more)\nbut is expected to have type\n  FieldsMeaning input domains earlier ((name, rule) :: rest) (evaluateFields input domains ((name, expression) :: more))\n"
+    },
+    {
+      "mutation": "progress-always-zero",
+      "killed": true,
+      "evidence": "/var/folders/k7/rpqdyqmx06v1y3gpqnx2355m0000gn/T/cbcl-state-kernel-mutants-1qp3jvsn/StateKernel.lean:188:59: error: Application type mismatch: The argument\n  rfl\nhas type\n  ?m.287 = ?m.287\nbut is expected to have type\n  0 = Int.ofNat (protocolProgress input.causal input.thread verb (input.limit verb) input.acts)\nin the application\n  \u27e8progress_correct input.causal input.thread verb (input.limit verb) input.acts, rfl\u27e9\n"
+    },
+    {
+      "mutation": "pending-exposes-ready",
+      "killed": true,
+      "evidence": "/var/folders/k7/rpqdyqmx06v1y3gpqnx2355m0000gn/T/cbcl-state-kernel-mutants-1qp3jvsn/StateKernelExtensions.lean:84:23: error: Type mismatch\n  ResourceMeaning.pending missing\nhas type\n  ResourceMeaning (ResourceInput.pending missing) (ResourceView.pending missing)\nbut is expected to have type\n  ResourceMeaning (ResourceInput.pending missing) (resourceObserve (ResourceInput.pending missing))\n/var/folders/k7/rpqdyqmx06v1y3gpqnx2355m0000gn/T/cbcl-state-kernel-mutants-1qp3jvsn/StateKernelExtensions.lean:105:0: error: Not a definitional equality: the left-hand side\n  (resourceObserve (ResourceInput.pending missing)).balance\nis not definitionally equal to the right-hand side\n  none\n/var/folders/k7/rpqdyqmx06v1y3gpqnx2355m0000gn/T/cbcl-state-kernel-mutants-1qp3jvsn/StateKernelExtensions.lean:106:59: error: Type mismatch\n  rfl\nhas type\n  ?m.4 = ?m.4\nbut is expected to have type\n  (resourceObserve (ResourceInput.pending missing)).balance = none\n"
+    }
+  ]
+}

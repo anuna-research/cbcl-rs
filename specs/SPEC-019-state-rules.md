@@ -144,6 +144,10 @@ Open:
   evidence from the corpus, not a theorem, so claims say "mechanised
   kernel, corpus-validated implementation"
   ([[SPEC-018-dcfl-installation#REQ-1806]]).
+  [[SPEC-036-state-kernel-correctness]] additionally proves typed whole-clause
+  denotational correctness and elaboration completeness across the rule inventory.
+  Resource-verifier classification, resource-DAG validation, wire recognition and
+  Rust correspondence remain outside that theorem.
 - The corpus is pinned by `test-vectors/state/VERSION`
   ([[SPEC-019-state-rules#REQ-1931]]).
 - Shipped views and blobs (cbcl-bus SPEC-019 CON-001 `:views`, CON-004

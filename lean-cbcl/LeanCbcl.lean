@@ -78,3 +78,6 @@ import LeanCbcl.ConsensusFree.OwnerTermination
 import LeanCbcl.ConsensusFree.OwnerProductWitness
 
 import LeanCbcl.HlcRegister
+
+import LeanCbcl.StateKernelClause
+import LeanCbcl.StateKernelTests

@@ -1,0 +1,23 @@
+; One steward records independent tool-session reviews, not distinct P2P signers.
+; Seed task-description/2 and task-acceptance/2 as state predicates in Elephant.
+(given (task kernel-semantics))
+(given (task-description kernel-semantics "Independent domain, selection, reduction and finite-map denotations"))
+(given (task-acceptance kernel-semantics "TEST-3600/3601/3602 Lean accepts general component characterizations"))
+(given (no-deps kernel-semantics))
+(normally r-ready-kernel-semantics (and (task kernel-semantics) (no-deps kernel-semantics)) (ready kernel-semantics))
+(meta r-ready-kernel-semantics (source "SPEC-036-state-kernel-correctness#CON-3600"))
+(given (task kernel-composition))
+(given (task-description kernel-composition "Complete surface coverage, derived references and extension adapters"))
+(given (task-acceptance kernel-composition "TEST-3603/3604 arbitrary successfully elaborated clauses meet independent denotation"))
+(normally r-ready-kernel-composition (and (task kernel-composition) (completed kernel-semantics)) (ready kernel-composition))
+(meta r-ready-kernel-composition (source "SPEC-036-state-kernel-correctness#REQ-3603"))
+(given (task kernel-verification))
+(given (task-description kernel-verification "Build, axiom audit, semantic mutants and independent review"))
+(given (task-acceptance kernel-verification "TEST-3605 mutants fail covered proofs and independent reviews find no blockers"))
+(normally r-ready-kernel-verification (and (task kernel-verification) (completed kernel-composition)) (ready kernel-verification))
+(meta r-ready-kernel-verification (source "SPEC-036-state-kernel-correctness#TEST-3605"))
+
+; Completion evidence: SPEC-036 and proofs/state-kernel/state-kernel-verification.md.
+(given (completed kernel-semantics))
+(given (completed kernel-composition))
+(given (completed kernel-verification))

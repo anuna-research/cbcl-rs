@@ -225,7 +225,9 @@ Implements: [[SPEC-035-register-semantics#REQ-3501]],
 ## Acceptance tests
 
 Implementation evidence is [[register-semantics-implementation-review]].
-The broader whole-kernel theorem remains explicitly open.
+The broader typed whole-kernel theorem is developed in
+[[SPEC-036-state-kernel-correctness]], with resource-verifier classification and
+Rust correspondence explicitly outside its scope.
 
 ### TEST-3500: Naming and disposition (core)
 
@@ -301,9 +303,9 @@ acceptance of the unresolved design choices.
 
 Owner: CBCL maintainer. HLC semantics are adopted below, with all old heads retained.
 Consolidation/retirement of old heads, alternative clocks, certified registers and
-a new ownership primitive are deferred. Whole-kernel denotational correctness
-requires the coverage/translation work in this contract; the HLC arbitration proof
-is a component result. The resource-certification profile keeps its own assumptions.
+a new ownership primitive are deferred. [[SPEC-036-state-kernel-correctness]]
+discharges typed whole-clause denotational correctness and elaboration completeness;
+the HLC arbitration proof is a component result. The resource-certification profile keeps its own assumptions.
 
 
 ## ADR-3502: Accepted host-HLC extension
@@ -367,8 +369,9 @@ contract version 3 remains accepted and gains explicit camelCase operations.
 Scope: implement parser, installation/receipt checks, fold, binder, canonical
 identity, schema, describe/authoring and corpus integration. Add independent model
 proofs for the HLC arbitration operation and its replacement-source composition;
-do not label these the still-open whole-kernel denotational correctness theorem.
-The general coverage/translation work remains owned by the CBCL maintainer.
+these remain component theorems. The subsequent typed whole-clause coverage and
+translation proof is [[SPEC-036-state-kernel-correctness]]; runtime correspondence
+and resource classification remain owned by the CBCL maintainer.
 Trace: [[SPEC-035-register-semantics#REQ-3500]],
 [[SPEC-035-register-semantics#REQ-3501]],
 [[SPEC-035-register-semantics#REQ-3502]],
