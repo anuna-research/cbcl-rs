@@ -1,0 +1,41 @@
+{
+  "base": "45bd3d06d141b6a10b3337544c724e6e04ffc4b1",
+  "new_diagnostics": {
+    "dead_links": [],
+    "syntax_errors": [],
+    "spl_diagnostics": [],
+    "drift_diagnostics": [],
+    "predicate_lints": []
+  },
+  "new_links_and_anchors": "all resolved",
+  "baseline_summary": {
+    "dead_links": 23,
+    "orphans": 28,
+    "syntax_errors": 0,
+    "spl_errors": 3,
+    "drift_warnings": 0,
+    "drift_info": 0,
+    "total_spl_blocks": 13,
+    "drifted_blocks_warning": 0,
+    "drifted_blocks_info": 0,
+    "explicitly_grounded_facts": 0,
+    "broken_groundings": 0,
+    "predicate_errors": 0,
+    "predicate_warnings": 0
+  },
+  "draft_summary": {
+    "dead_links": 23,
+    "orphans": 28,
+    "syntax_errors": 0,
+    "spl_errors": 3,
+    "drift_warnings": 0,
+    "drift_info": 0,
+    "total_spl_blocks": 13,
+    "drifted_blocks_warning": 0,
+    "drifted_blocks_info": 0,
+    "explicitly_grounded_facts": 0,
+    "broken_groundings": 0,
+    "predicate_errors": 0,
+    "predicate_warnings": 0
+  }
+}
