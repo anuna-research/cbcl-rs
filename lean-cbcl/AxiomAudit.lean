@@ -1,3 +1,4 @@
+import LeanCbcl.Lattice.NotALattice
 import LeanCbcl.ConsensusFree
 import LeanCbcl.ConsensusFree.Liveness
 import LeanCbcl.ConsensusFree.Scheduler
@@ -70,9 +71,16 @@ below — the shell script discovers theorems from this file's output, so
 editing only this file is enough to extend the audit.
 -/
 
--- CON-510 — Three-valued result bisemilattice (Lattice/Result.lean).
+-- CON-510 — Strong Kleene truth-order lattice (Lattice/Result.lean).
 #print axioms CBCL.VerificationResult.result_meet_table
 #print axioms CBCL.VerificationResult.result_join_table
+
+#print axioms CBCL.VerificationResult.meet_absorption
+#print axioms CBCL.VerificationResult.join_absorption
+#print axioms CBCL.VerificationResult.meet_distributive
+#print axioms CBCL.VerificationResult.join_distributive
+#print axioms CBCL.VerificationResult.meet_knowledge_mono
+#print axioms CBCL.VerificationResult.join_knowledge_mono
 
 -- CON-511 — Message store G-Set (Lattice/Store.lean).
 #print axioms CBCL.MessageStore.union_assoc
@@ -80,6 +88,9 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.MessageStore.union_idem
 #print axioms CBCL.MessageStore.append_eq_union_singleton
 #print axioms CBCL.MessageStore.lookup_monotone
+
+#print axioms CBCL.verify_any_empty
+#print axioms CBCL.verify_any_singleton
 
 -- CON-512 — `verify` monotonicity (Verify.lean).
 #print axioms CBCL.verify_monotone

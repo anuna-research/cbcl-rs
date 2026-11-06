@@ -1250,17 +1250,22 @@ details attached to a violation do not change its verdict class.
 | disjunction (`any`) | V | U | X |
 |---|---|---|---|
 | V | V | V | V |
-| U | V | U | X |
-| X | V | X | X |
+| U | V | U | U |
+| X | V | U | X |
 
-These are the deployed eager conjunction and disjunction operations, not the
-meet and join of the knowledge order. In the knowledge order, `Unknown` is
-below both terminal verdicts, and `Valid` and `Violation` are incomparable.
+These are strong Kleene conjunction and disjunction: min and max in the
+truth order `Violation < Unknown < Valid`. Disjunction has identity
+`Violation`, and conjunction has identity `Valid`. A failed alternative
+combined with an unresolved one remains unresolved; the latter may still
+succeed. These operations do not compute the bounds of the knowledge order.
+In the knowledge order, `Unknown` is below both terminal verdicts, and
+`Valid` and `Violation` are incomparable.
 Their knowledge-order greatest lower bound is `Unknown`, whereas operational
 conjunction of those two values is `Violation`. The knowledge order is a
 meet-semilattice with bottom and has no join for the two terminal values.
-The operational algebra is a bisemilattice; implementations MUST use the
-tables above rather than substitute knowledge-order meet or join.
+The truth-order algebra is a bounded distributive lattice at the verdict-class
+level, satisfying absorption and distributivity. Implementations MUST use
+the tables above rather than substitute knowledge-order meet or join.
 
 Store-growth claims apply to the specified verifier with immutable,
 content-address-authenticated evidence and a fixed installed protocol and
@@ -1268,11 +1273,13 @@ thread context. Missing evidence can become available as the store grows;
 this does not authorize arbitrary policy changes or treating an undecided
 message as accepted. Replicas with the same evidence and context compute the
 same verdict. They merge evidence and reverify, rather than attempting a
-knowledge-order join of terminal verdicts. In particular, the operational
-`any` table is not a general monotone operator under the knowledge order:
-`X any U = X`, while `X any V = V`. A convergence claim for a concrete causal
-verifier requires its evidence and admissible-transition assumptions; it does
-not follow from these tables alone. A coordination-free convergence argument
+knowledge-order join of terminal verdicts. Both strong Kleene operations
+are monotone under the knowledge order. For a fixed set of alternatives
+whose terminal verdicts are stable, disjunction returns `Valid` once any
+alternative is valid, `Violation` only when every alternative is a violation,
+and `Unknown` otherwise. A convergence claim for a concrete causal verifier
+still requires its evidence and admissible-transition assumptions; it does
+not follow from the tables alone. A coordination-free convergence argument
 using CALM {{CALM}} requires a monotone computation over growing evidence;
 these tables alone do not establish that premise.
 

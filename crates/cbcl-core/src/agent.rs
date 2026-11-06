@@ -117,33 +117,6 @@ fn merge_policy_outcomes_disjunctive(a: PolicyOutcome, b: PolicyOutcome) -> Poli
     }
 }
 
-/// Combine two `VerificationResult`s under "any-accept" disjunction
-/// semantics, in lock-step with [`merge_policy_outcomes_disjunctive`].
-///
-/// This is *not* the same as [`VerificationResult::join`]: `join` is the
-/// information-theoretic LUB used for `(any ...)` fan-in inside a single
-/// protocol, where a definitive `Violation` outranks an undecided
-/// `Unknown`. Across multiple matching protocols under disjunction, an
-/// `Unknown` from one protocol must be preserved over a `Violation` from
-/// another — the Unknown protocol might still resolve to `Valid` once its
-/// predecessor arrives, and a single `Valid` is enough to accept the
-/// message. Collapsing to `Violation` would prematurely flush such entries
-/// from the pending queue.
-///
-/// Truth table (commutative):
-/// - `Valid ⊔ _ = Valid`           (any accept wins)
-/// - `Unknown ⊔ Violation = Unknown` (preserve hope)
-/// - `Unknown ⊔ Unknown = Unknown`
-/// - `Violation ⊔ Violation = Violation`  (only when no protocol could accept)
-fn merge_disjunctive_result(a: VerificationResult, b: VerificationResult) -> VerificationResult {
-    use VerificationResult::*;
-    match (a, b) {
-        (Valid, _) | (_, Valid) => Valid,
-        (Unknown, _) | (_, Unknown) => Unknown,
-        (Violation(v), _) => Violation(v),
-    }
-}
-
 /// Whether a `:caused-by` reference is *resolved* — every hash it names
 /// present in `thread`'s store (SPEC-003 REQ-315). `Begin` (and an absent
 /// `:caused-by`) name no hashes and count as resolved; `Single`/`Multiple`
@@ -622,10 +595,8 @@ impl Agent {
                     Some(prev) => match merge {
                         // Conjunction = lattice meet (Unknown < Valid; Valid ⊓ Violation = Violation).
                         MergePolicy::Conjunction => prev.meet(r),
-                        // Disjunction = "any-accept" merge (Valid wins; Unknown
-                        // outranks Violation so a still-pending protocol can
-                        // resolve later — see `merge_disjunctive_result`).
-                        MergePolicy::Disjunction => merge_disjunctive_result(prev, r),
+                        // Strong Kleene disjunction preserves a pending alternative.
+                        MergePolicy::Disjunction => prev.join(r),
                     },
                 });
             }
@@ -1849,8 +1820,8 @@ mod tests {
 
     #[test]
     fn agent_disjunction_reevaluate_keeps_buffered_when_one_protocol_unknown() {
-        // Reproduces the (Unknown, Violation) inconsistency that
-        // `merge_disjunctive_result` fixes.
+        // Guards against premature rejection of (Unknown, Violation).
+        // Strong Kleene join keeps the unresolved alternative pending.
         //
         // fan_in protocol: ok requires `(all p1 p2)` — Multiple-friendly.
         // single_pred  : ok requires single `begin` — *not* Multiple-friendly,
@@ -1865,10 +1836,8 @@ mod tests {
         // Live disjunction path: merge_policy_outcomes_disjunctive
         //   (Buffered, Reject) = Buffered ✓
         //
-        // Re-evaluate path BEFORE fix: prev.join(r) used
-        //   Unknown.join(Violation) = Violation → Reject — flushed entry.
-        // Re-evaluate path AFTER  fix: merge_disjunctive_result
-        //   (Unknown, Violation) = Unknown → still Unknown → kept buffered.
+        // Re-evaluation uses the same strong Kleene disjunction:
+        //   Unknown.join(Violation) = Unknown → kept buffered.
         let mut agent = Agent::with_policy("@alice", UnknownPredecessorPolicy::buffer(60))
             .with_merge_policy(MergePolicy::Disjunction);
         agent.install_dialect(fan_in_ok_dialect("fan-in")).unwrap();
@@ -1907,51 +1876,48 @@ mod tests {
         assert_eq!(agent.merge_policy(), MergePolicy::Disjunction);
     }
 
-    // Direct truth-table tests of the disjunction VerificationResult merge.
-    // These pin the (Unknown, Violation) → Unknown semantic that
-    // `merge_disjunctive_result` introduces vs. the existing `join`
-    // (Unknown.join(Violation) = Violation).
+    // Strong Kleene disjunction used by pending protocol re-evaluation.
 
     fn vr_violation() -> VerificationResult {
         VerificationResult::Violation(crate::protocol::CausalViolation::MissingCausedBy)
     }
 
     #[test]
-    fn merge_disjunctive_result_valid_absorbs() {
+    fn strong_kleene_join_valid_absorbs() {
         assert!(matches!(
-            merge_disjunctive_result(VerificationResult::Valid, VerificationResult::Unknown),
+            VerificationResult::Valid.join(VerificationResult::Unknown),
             VerificationResult::Valid
         ));
         assert!(matches!(
-            merge_disjunctive_result(VerificationResult::Unknown, VerificationResult::Valid),
+            VerificationResult::Unknown.join(VerificationResult::Valid),
             VerificationResult::Valid
         ));
         assert!(matches!(
-            merge_disjunctive_result(VerificationResult::Valid, vr_violation()),
+            VerificationResult::Valid.join(vr_violation()),
             VerificationResult::Valid
         ));
         assert!(matches!(
-            merge_disjunctive_result(vr_violation(), VerificationResult::Valid),
+            vr_violation().join(VerificationResult::Valid),
             VerificationResult::Valid
         ));
     }
 
     #[test]
-    fn merge_disjunctive_result_unknown_outranks_violation() {
+    fn strong_kleene_join_unknown_outranks_violation() {
         assert!(matches!(
-            merge_disjunctive_result(VerificationResult::Unknown, vr_violation()),
+            VerificationResult::Unknown.join(vr_violation()),
             VerificationResult::Unknown
         ));
         assert!(matches!(
-            merge_disjunctive_result(vr_violation(), VerificationResult::Unknown),
+            vr_violation().join(VerificationResult::Unknown),
             VerificationResult::Unknown
         ));
     }
 
     #[test]
-    fn merge_disjunctive_result_violation_only_when_no_hope() {
+    fn strong_kleene_join_violation_only_when_no_hope() {
         assert!(matches!(
-            merge_disjunctive_result(vr_violation(), vr_violation()),
+            vr_violation().join(vr_violation()),
             VerificationResult::Violation(_)
         ));
     }

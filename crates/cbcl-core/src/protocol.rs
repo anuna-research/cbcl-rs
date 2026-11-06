@@ -446,7 +446,9 @@ pub enum VerificationResult {
 }
 
 impl VerificationResult {
-    /// Lattice meet (greatest lower bound) — conjunction for `(all ...)` fan-in (REQ-303).
+    /// Strong Kleene conjunction for `(all ...)` fan-in (REQ-303).
+    /// Greatest lower bound in the truth order: Violation < Unknown < Valid.
+    /// Algebraic laws apply to verdict classes, excluding diagnostic payloads.
     ///
     /// Truth table:
     /// - Violation ⊓ _ = Violation  (absorbing)
@@ -464,23 +466,25 @@ impl VerificationResult {
         }
     }
 
-    /// Lattice join (least upper bound) — disjunction for `(any ...)` (REQ-303).
+    /// Strong Kleene disjunction for `(any ...)` (REQ-303).
+    /// Least upper bound in the truth order: Violation < Unknown < Valid.
+    /// Algebraic laws apply to verdict classes, excluding diagnostic payloads.
     ///
     /// Truth table:
     /// - Valid ⊔ _ = Valid           (absorbing)
     /// - _ ⊔ Valid = Valid           (absorbing)
-    /// - Violation ⊔ Unknown = Violation
+    /// - Violation ⊔ Unknown = Unknown
+    /// - Violation ⊔ Violation = Violation (preserves the left diagnostic)
     /// - Unknown ⊔ Unknown = Unknown
     pub fn join(self, other: VerificationResult) -> VerificationResult {
         match (&self, &other) {
             (VerificationResult::Valid, _) | (_, VerificationResult::Valid) => {
                 VerificationResult::Valid
             }
-            (VerificationResult::Violation(_), _) => self,
-            (_, VerificationResult::Violation(_)) => other,
-            (VerificationResult::Unknown, VerificationResult::Unknown) => {
+            (VerificationResult::Unknown, _) | (_, VerificationResult::Unknown) => {
                 VerificationResult::Unknown
             }
+            (VerificationResult::Violation(_), VerificationResult::Violation(_)) => self,
         }
     }
 
@@ -498,7 +502,7 @@ impl VerificationResult {
 }
 
 impl PartialOrd for VerificationResult {
-    /// Flat lattice ordering: Unknown < Valid, Unknown < Violation,
+    /// Knowledge partial order: Unknown < Valid, Unknown < Violation,
     /// Valid and Violation are incomparable.
     fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
         use core::cmp::Ordering;
@@ -911,7 +915,7 @@ mod tests {
     #[test]
     fn test_join_unknown_violation() {
         let result = VerificationResult::Unknown.join(violation());
-        assert!(matches!(result, VerificationResult::Violation(_)));
+        assert_eq!(result, VerificationResult::Unknown);
     }
 
     #[test]
@@ -941,7 +945,7 @@ mod tests {
     #[test]
     fn test_join_violation_unknown() {
         let result = violation().join(VerificationResult::Unknown);
-        assert!(matches!(result, VerificationResult::Violation(_)));
+        assert_eq!(result, VerificationResult::Unknown);
     }
 
     #[test]
@@ -1013,13 +1017,13 @@ mod tests {
     }
 
     // ================================================================
-    // Join preserves first violation detail when no Valid present
+    // Join preserves first violation detail when both alternatives are violations
     // ================================================================
 
     #[test]
     fn test_join_preserves_first_violation() {
         let v1 = violation();
-        let result = v1.join(VerificationResult::Unknown);
+        let result = v1.join(violation2());
         assert_eq!(
             result,
             VerificationResult::Violation(CausalViolation::MissingCausedBy)

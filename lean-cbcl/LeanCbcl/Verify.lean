@@ -158,7 +158,7 @@ open VerificationResult MessageStore
                          performative; missing predecessor ⇒ Unknown,
                          wrong type ⇒ Violation.
     * `any ps`        — disjunctive fold under `join` (`⊔`); empty list
-                         is `unknown` (the `join` identity).
+                         is `violation` (the `join` identity).
     * `all ps`        — conjunctive fold under `meet` (`⊓`); empty list
                          is `valid` (the `meet` identity). This is the
                          shape that REQ-513's lattice-homomorphism
@@ -182,9 +182,21 @@ noncomputable def verify : Message → CausalProtocol → MessageStore → Verif
           | none      => .unknown
       | _ => .violation
   | m, .any ps, S =>
-      ps.foldr (fun p acc => (verify m p S).join acc) .unknown
+      ps.foldr (fun p acc => (verify m p S).join acc) .violation
   | m, .all ps, S =>
       ps.foldr (fun p acc => (verify m p S).meet acc) .valid
+
+/-- REQ-303 / REQ-510: empty disjunction is false (the join identity). -/
+theorem verify_any_empty (m : Message) (S : MessageStore) :
+    verify m (.any []) S = .violation := by
+  simp [verify]
+
+/-- REQ-303 / REQ-510: a singleton disjunction preserves its sub-verdict,
+    including a violation. This guards the disjunction fold identity. -/
+theorem verify_any_singleton (m : Message) (p : CausalProtocol) (S : MessageStore) :
+    verify m (.any [p]) S = verify m p S := by
+  simp only [verify, List.foldr_cons, List.foldr_nil]
+  cases verify m p S <;> rfl
 
 /-! ## REQ-512 / CON-512 — `verify` monotonicity under store growth.
 
@@ -193,8 +205,8 @@ noncomputable def verify : Message → CausalProtocol → MessageStore → Verif
     `VerificationResult.le` (`⊑`) order — i.e. once a verification
     has reached `valid`, store growth never overturns it. See the
     docstring on `VerificationResult.le` in `Lattice/Result.lean` for
-    why "`valid` is sticky" is the order that makes monotonicity hold
-    through arbitrary nestings of `(any …)` inside `(all …)`. -/
+    the retained valid-is-sticky preorder. The strong Kleene operations
+    also preserve the stricter knowledge order; see `NotALattice.lean`. -/
 
 open VerificationResult (le_refl unknown_le violation_le meet_mono join_mono)
 open scoped VerificationResult
@@ -213,7 +225,7 @@ open scoped VerificationResult
       `MessageStore.lookup_monotone`, giving `lookup S₂ = some pred`
       (the same witness, by injectivity), so both stores produce the
       same result.
-    * `.any ps` — induction on `ps`. Empty list folds to `unknown`,
+    * `.any ps` — induction on `ps`. Empty list folds to `violation`,
       monotone. Cons step combines the per-element monotonicity
       (the recursive call at `p`, structurally smaller than `.any ps`)
       with the rest's IH via `join_mono`.
@@ -297,11 +309,11 @@ decreasing_by all_goals (simp_wf; omega)
 
     Proof: the `.all` arm of `verify` is *literally* the `foldr` on the
     right-hand side, so `simp only [verify]` fires the auto-generated
-    equational lemma; what remains is the `BoundedBisemilattice` typeclass
+    equational lemma; what remains is the `BoundedDistribLattice` typeclass
     projection unfolding to `VerificationResult.meet` / `valid` via the
     SPEC-003 instance (REQ-510), which is `rfl`. The associativity of
     meet promised in TEST-513's technique note is therefore not invoked
-    at this level — it is recorded by the `BoundedBisemilattice` instance and
+    at this level — it is recorded by the `BoundedDistribLattice` instance and
     consumed by the downstream REQ-514 proof, where the fold is rotated
     to obtain `S₁ ∪ S₂` from `S₁` and `S₂`. -/
 theorem verify_all_is_meet :
