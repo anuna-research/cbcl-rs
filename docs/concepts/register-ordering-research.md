@@ -62,9 +62,22 @@ contract; it is not accomplished by renaming a single-value rule.
 ## Clock-trusting profiles
 
 A clock-trusting last-writer-wins profile is an explicit CBCL design option, not
-a conclusion that arbitrary senders provide honest clocks. HLC, Lamport and
-per-signer sequence options remain undecided in [[SPEC-035-register-semantics]].
+a conclusion that arbitrary senders provide honest clocks. The implemented trusted-host HLC profile is
+[[SPEC-035-register-semantics#ADR-3502]]. Lamport and per-signer sequence profiles
+remain research alternatives.
 An accepted profile needs authoritative source review of its exact clock algorithm,
 wire evidence, persistence, range and trust policy before implementation. No
 statement here claims that timestamps supply Byzantine finality or physical
 ordering of concurrent events.
+
+
+## Adopted HLC advancement algorithm
+
+Kulkarni, Demirbas, Madeppa, Avva and Leone, *Logical Physical Clocks and
+Consistent Snapshots in Globally Distributed Databases* (2014), section 3,
+describe physical/logical clock advancement for local/send and receive events.
+The helper follows those maximum-and-logical-increment cases with explicit host
+inputs. CBCL uses a separate fixed-width u64/u32 encoding and checked logical
+overflow refusal; it does not claim the paper's compact NTP representation or
+inherit its deployment assumptions as a Rust correctness proof.
+Source: https://cse.buffalo.edu/tech-reports/2014-04.pdf

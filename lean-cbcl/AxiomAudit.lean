@@ -1,3 +1,4 @@
+import LeanCbcl.HlcRegister
 import LeanCbcl.Lattice.NotALattice
 import LeanCbcl.ConsensusFree
 import LeanCbcl.ConsensusFree.Liveness
@@ -470,3 +471,12 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.ConsensusFree.MultiParent.Liveness.Scheduler.scheduled_finality
 #print axioms CBCL.ConsensusFree.MultiParent.Liveness.Scheduler.scheduled_envelope_finality
 #print axioms CBCL.ConsensusFree.MultiParent.Liveness.Scheduler.scheduled_client_finality
+
+-- SPEC-035: typed HLC arbitration; clock honesty and Rust correspondence excluded.
+#print axioms CBCL.HlcRegister.pick_correct
+#print axioms CBCL.HlcRegister.pick_setEq
+#print axioms CBCL.HlcRegister.register_correct
+#print axioms CBCL.HlcRegister.own_correct
+#print axioms CBCL.HlcRegister.keyed_correct
+#print axioms CBCL.HlcRegister.own_candidate_scope
+#print axioms CBCL.HlcRegister.keyed_candidate_scope

@@ -70,6 +70,31 @@ enum Arg {
 /// The state rule heads (SPEC-019 R.1) as JSON spells them, with the
 /// dialect head and the shape of their arguments.
 const RULES: &[(&str, &str, &[Arg])] = &[
+    (
+        "lwwRegister",
+        "lww-register",
+        &[Arg::Verb, Arg::Key, Arg::Key],
+    ),
+    (
+        "lwwPerSigner",
+        "lww-per-signer",
+        &[Arg::Verb, Arg::Key, Arg::Key],
+    ),
+    (
+        "lwwMap",
+        "lww-map",
+        &[Arg::Verb, Arg::Key, Arg::Key, Arg::Key, Arg::OptVerb],
+    ),
+    (
+        "multiValueRegister",
+        "multi-value-register",
+        &[Arg::Verb, Arg::Key],
+    ),
+    (
+        "multiValueMap",
+        "multi-value-map",
+        &[Arg::Verb, Arg::Key, Arg::Key, Arg::OptVerb],
+    ),
     ("last", "last", &[Arg::Verb, Arg::Key]),
     (
         "latestPerSigner",

@@ -82,6 +82,7 @@ type Footprint = (
     BTreeSet<String>,
     BTreeSet<String>,
     BTreeSet<(String, String)>,
+    BTreeSet<(String, String)>,
 );
 
 /// Everything admission may read from a state clause (R.4): the verbs whose
@@ -94,6 +95,10 @@ fn footprint(c: &StateClause) -> Footprint {
         own(c.replaces_verbs()),
         c.data_fields()
             .into_iter()
+            .map(|(v, k)| (v.to_string(), k.to_string()))
+            .collect(),
+        c.fields()
+            .filter_map(|(_, r)| r.clock_field())
             .map(|(v, k)| (v.to_string(), k.to_string()))
             .collect(),
     )

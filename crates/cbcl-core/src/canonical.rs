@@ -385,6 +385,22 @@ fn state_to_sexpr(clause: &crate::state::StateClause) -> SExpr {
                 let mut r = vec![sym(rule.head())];
                 match rule {
                     Rule::BoundedCounter(c) => r.extend(c.canonical_options()),
+                    Rule::LwwRegister { verb, key, clock }
+                    | Rule::LwwPerSigner { verb, key, clock } => {
+                        r.extend([s(verb), s(key), s(clock)]);
+                    }
+                    Rule::LwwMap {
+                        verb,
+                        key,
+                        value,
+                        clock,
+                        delete,
+                    } => {
+                        r.extend([s(verb), s(key), s(value), s(clock)]);
+                        if let Some(d) = delete {
+                            r.push(s(d));
+                        }
+                    }
                     Rule::Last { verb, key }
                     | Rule::LatestPerSigner { verb, key }
                     | Rule::Events { verb, key }

@@ -78,6 +78,21 @@ fn rule_json(rule: &Rule) -> Json {
     }
     let (op, args): (&str, Vec<&str>) = match rule {
         Rule::BoundedCounter(_) => unreachable!("handled above"),
+        Rule::LwwRegister { verb, key, clock } => ("lwwRegister", alloc::vec![verb, key, clock]),
+        Rule::LwwPerSigner { verb, key, clock } => ("lwwPerSigner", alloc::vec![verb, key, clock]),
+        Rule::LwwMap {
+            verb,
+            key,
+            value,
+            clock,
+            delete,
+        } => {
+            let mut args = alloc::vec![verb.as_str(), key, value, clock];
+            if let Some(d) = delete {
+                args.push(d);
+            }
+            ("lwwMap", args)
+        }
         Rule::Last { verb, key } => ("last", alloc::vec![verb, key]),
         Rule::LatestPerSigner { verb, key } => ("latestPerSigner", alloc::vec![verb, key]),
         Rule::LatestPerKey { verb, key, value } => ("latestPerKey", alloc::vec![verb, key, value]),

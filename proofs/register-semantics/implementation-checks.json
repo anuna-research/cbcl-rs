@@ -1,0 +1,209 @@
+{
+  "base_main": "45bd3d06d141b6a10b3337544c724e6e04ffc4b1",
+  "implementation_parent": "552b543",
+  "checks": [
+    {
+      "name": "rust-core-parser",
+      "command": "cargo test -q -p cbcl-core -p cbcl-parser --locked",
+      "exit_code": 0,
+      "log_sha256": "e1d12ae279387fdb32affd77922a4e8752212adf5e376ad9b09b22b8b2bc860d",
+      "summary": [
+        "test result: ok. 874 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.46s",
+        "test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s",
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s",
+        "test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s",
+        "test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s",
+        "test result: ok. 31 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.52s",
+        "test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.57s",
+        "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "test result: ok. 31 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.37s",
+        "test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.63s",
+        "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "test result: ok. 164 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s",
+        "test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.78s",
+        "test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "test result: ok. 12 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 5.15s",
+        "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s",
+        "test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s",
+        "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s",
+        "test result: ok. 13 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.02s",
+        "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s",
+        "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s",
+        "test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s",
+        "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s",
+        "test result: ok. 72 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.47s",
+        "test result: ok. 11 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 5.60s",
+        "test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s",
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s",
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s",
+        "test result: ok. 0 passed; 0 failed; 5 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s",
+        "test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s",
+        "test result: ok. 11 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 3.06s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s"
+      ]
+    },
+    {
+      "name": "workspace",
+      "command": "cargo check --workspace --locked",
+      "exit_code": 0,
+      "log_sha256": "97187dcd0422d363a2e0799bd6f7023c11b620646ec61c23ce696ad1c9621cba",
+      "summary": [
+        "    Finished `dev` profile [unoptimized + debuginfo] target(s) in 3.85s"
+      ]
+    },
+    {
+      "name": "no-std",
+      "command": "cargo check -p cbcl-core -p cbcl-parser --no-default-features --locked",
+      "exit_code": 0,
+      "log_sha256": "6997eb1e8674eaa84f445d92dbcbc4f98ca19372dd3ab09dd57ce5c36eb73ee2",
+      "summary": [
+        "    Finished `dev` profile [unoptimized + debuginfo] target(s) in 4.11s"
+      ]
+    },
+    {
+      "name": "typescript",
+      "command": "npm run check",
+      "exit_code": 0,
+      "log_sha256": "52d2cc999bfd02913d0580208a33aa04ead69788bc4cc7174682003680ba18ec",
+      "summary": [
+        "",
+        "> cbcl@0.1.0 check",
+        "> tsc -p tsconfig.json --noEmit",
+        ""
+      ]
+    },
+    {
+      "name": "js-full-before-binder-repair",
+      "command": "npm test",
+      "exit_code": 0,
+      "log_sha256": "595cb0b645050ced3928f2a95cf3fccbce5da9f019718b3bc65d221afcdb9e7f",
+      "summary": [
+        "\u2139 tests 27",
+        "\u2139 suites 0",
+        "\u2139 pass 27",
+        "\u2139 fail 0",
+        "\u2139 cancelled 0",
+        "\u2139 skipped 0",
+        "\u2139 todo 0",
+        "\u2139 duration_ms 61767.382666"
+      ]
+    },
+    {
+      "name": "js-final-hlc-and-corpus",
+      "command": "node --experimental-strip-types --test test/hlc.test.ts test/corpus.test.ts",
+      "exit_code": 0,
+      "log_sha256": "d15a8d11e81836c6942699a0a8eeed2ac4dab3fe46f15b95a1eff2f2c93ee00f",
+      "summary": [
+        "\u2139 tests 12",
+        "\u2139 suites 0",
+        "\u2139 pass 12",
+        "\u2139 fail 0",
+        "\u2139 cancelled 0",
+        "\u2139 skipped 0",
+        "\u2139 todo 0",
+        "\u2139 duration_ms 164.113459"
+      ]
+    },
+    {
+      "name": "lean-build",
+      "command": "lake build",
+      "exit_code": 0,
+      "log_sha256": "734335e41ec04d053438c3ce49938a0f5a4da34b2eaf7ea134320e9a73b100cb",
+      "summary": [
+        "\u2139 [29/120] Replayed LeanCbcl.R6DCFLPreservation",
+        "\u2139 [34/120] Replayed LeanCbcl.Projectability",
+        "\u2139 [35/120] Replayed LeanCbcl.ProtocolProjection",
+        "\u2139 [37/120] Replayed LeanCbcl.Splice",
+        "\u2139 [38/120] Replayed LeanCbcl.Bridge",
+        "\u2139 [66/120] Replayed LeanCbcl.BoundedCounter",
+        "\u2139 [67/120] Replayed LeanCbcl.ValidatorBudget",
+        "\u2139 [68/120] Replayed LeanCbcl.ValidatorBudgetRefutation",
+        "Build completed successfully (120 jobs)."
+      ]
+    },
+    {
+      "name": "lean-lint",
+      "command": "lake exe runLinter LeanCbcl",
+      "exit_code": 0,
+      "log_sha256": "52c0c995fd7f111662124f5a7e548337b25bda91e8679d39338855ad111412d4",
+      "summary": [
+        "-- Linting passed for LeanCbcl."
+      ]
+    },
+    {
+      "name": "axiom-audit",
+      "command": "bash scripts/check-axioms.sh",
+      "exit_code": 0,
+      "log_sha256": "ad188acc2cf5e0e7de5040894fc29431af9a2843f90b7a04a9c2b77ba86480d8",
+      "summary": [
+        "OK: 332 theorem(s) audited; all axioms allowlisted."
+      ]
+    },
+    {
+      "name": "isolated-mutations",
+      "command": "python3 scripts/check-hlc-register-mutations.py --output proofs/register-semantics/hlc-mutations.json",
+      "exit_code": 0,
+      "log_sha256": "451fee907773d86244723a1152e1de20dfc058d1f33f87b53aa93c493b476f11",
+      "summary": [
+        "      \"killed\": true",
+        "    },",
+        "    {",
+        "      \"mutation\": \"reverse-model-arbitration\",",
+        "      \"killed\": true",
+        "    }",
+        "  ]",
+        "}"
+      ]
+    }
+  ],
+  "mutations": [
+    {
+      "mutation": "reverse-clock-order",
+      "killed": true
+    },
+    {
+      "mutation": "ignore-own-supersession",
+      "killed": true
+    },
+    {
+      "mutation": "accept-malformed-clock",
+      "killed": true
+    },
+    {
+      "mutation": "logical-overflow-wrap",
+      "killed": true
+    },
+    {
+      "mutation": "reverse-model-arbitration",
+      "killed": true
+    }
+  ],
+  "vault_summary": {
+    "dead_links": 23,
+    "orphans": 30,
+    "syntax_errors": 0,
+    "spl_errors": 3,
+    "drift_warnings": 0,
+    "drift_info": 0,
+    "total_spl_blocks": 14,
+    "drifted_blocks_warning": 0,
+    "drifted_blocks_info": 0,
+    "explicitly_grounded_facts": 0,
+    "broken_groundings": 0,
+    "predicate_errors": 0,
+    "predicate_warnings": 0
+  },
+  "new_dead_links": [],
+  "new_spl_errors": [],
+  "rustc": "rustc 1.96.0 (ac68faa20 2026-05-25)",
+  "node": "v25.2.1"
+}

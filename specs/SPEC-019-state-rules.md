@@ -2,8 +2,8 @@
 id: SPEC-019
 title: State Layer — R7 State Rules and the Intent Binder
 status: draft
-version: 2.0.2
-date: 2026-10-30
+version: 3.0.0
+date: 2026-11-06
 author: Anuna Research (https://anuna.io) — drafted with Claude Fable 5.1
 owner: CBCL maintainer
 depends-on:
@@ -28,6 +28,8 @@ described in BCP 14 (RFC 2119, RFC 8174) when, and only when, they appear in
 all capitals.
 
 ## Orientation
+
+Explicit LWW extension: [[SPEC-035-register-semantics#ADR-3502]] adds host-supplied HLC arbitration without changing the old hash-ordered rules. The clocks are trusted sender evidence, not Byzantine-certified time. The corpus is version 3.0.0; old canonical dialect bodies retain their identities.
 
 Certification research: [[SPEC-019-state-rules#Certification research — AT2-style asset transfer]] evaluates Byzantine account-owner safety as a separate proposed layer. [[SPEC-020-resource-certification#ADR-2001]] compares fixed slots with BGLA and selects invariant-aware account-local model comparison as the next research task. Neither changes existing runtime guarantees.
 
@@ -184,7 +186,12 @@ field          := symbol                                     ; [a-z][a-z0-9-]{0,
 verb           := symbol                                     ; a performative of this dialect
 key            := keyword                                    ; a keyword field of that performative's shape
 
-rule           := bounded-counter-rule                       ; CON-1908/1909
+rule           := "(" "lww-register" verb key key ")"               ; value clock
+                | "(" "lww-per-signer" verb key key ")"             ; value clock
+                | "(" "lww-map" verb key key key [verb] ")"         ; key value clock [delete]
+                | "(" "multi-value-register" verb key ")"          ; alias of values
+                | "(" "multi-value-map" verb key key [verb] ")"     ; alias of values-per-key
+                | bounded-counter-rule                       ; CON-1908/1909
                 | "(" "last"              verb key ")"
                 | "(" "latest-per-signer" verb key ")"
                 | "(" "latest-per-key"    verb key key ")"          ; key-field value-field
@@ -276,6 +283,35 @@ monotone in `acc(t)`; a write named in some accepted `:replaces` for its
 key is never picked from `current`; a write no accepted act names is in
 `current` whatever else is accepted (add-wins); signer selection removes a write only when a same-signer act names it; `sum` contributes once per
 address.
+
+### Explicit host-HLC arbitration
+
+The additional definitions and wire contract are [[SPEC-035-register-semantics#ADR-3502]].
+`pick-hlc T value clock` selects the greatest canonical timestamp, then signer UTF-8
+bytes, then content address. The timestamp is the required string field explicitly
+named by the rule, spelled `hlc-<16 lowercase hex>-<8 lowercase hex>` for unsigned
+physical milliseconds and a logical counter. The field differs from key/value
+fields and routing/compiler-owned fields. R7 requires a top-level required string
+shape and sufficient max-string. Receipt fully recognizes canonical spelling using
+only that message; no current-time or state comparison is performed. The host supplies
+and persists clock evidence before pure binding. Shape conformance does not prove
+honest clocks. Malformed clocks are ineligible in a direct low-level fold; ordinary
+admitted histories exclude them through the shape check.
+
+```text
+lww-register v k c         = pick-hlc (acts v) k c
+lww-per-signer v k c       = map (T ↦ pick-hlc T k c) (group (current-by-signer v) signer)
+lww-map v kk k c d         = map (T ↦ pick-hlc T k c) (group (current v kk d) kk)
+multi-value-register v k   = values v k
+multi-value-map v kk k d   = values-per-key v kk k d
+```
+
+LWW signer writers and LWW map writers/deleters use the same compiler/binder
+`:replaces` rules and bounds as their old counterparts. Map deletion names observed
+writes and needs no clock; concurrent unnamed additions survive. Old rule heads,
+including `last`, remain address-ordered. Multi-value aliases canonicalize to the
+old heads. They do not create a second interpretation or alter old identities.
+These rules add a clock-trusting register profile, not resource certification.
 
 ### R.3 Values and rendering
 
@@ -1774,6 +1810,8 @@ order; update cbcl-aamas §6 and §7.
 - **Prover**: R.2 properties → REQ-1930 → TEST-1940–1946.
 
 ## Changelog
+
+- 3.0.0 (2026-11-06) — explicit host-HLC LWW register/map/per-signer rules and multi-value aliases, per [[SPEC-035-register-semantics#ADR-3502]]. Corpus major version advances; old heads and canonical bodies are unchanged.
 
 - 2.0.2 (2026-10-30) — Link the agreement comparison and model-first research direction in [[SPEC-020-resource-certification#ADR-2001]]. No runtime or wire change.
 - 2.0.1 (2026-10-30) — AT2-style certification investigation, proposed [[SPEC-019-state-rules#ADR-1915]], finite quorum checks, Astro client/replica and credit evidence comparison, AT2 fault/sampling assumptions and prospective VRF sortition, and explicit separation of raw, certified-delivered and finalized resource histories. No runtime or wire change.

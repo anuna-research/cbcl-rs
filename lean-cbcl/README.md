@@ -292,3 +292,15 @@ lake env lean MultiParentLivenessAudit.lean
 
 The queue, fairness and scheduler-finality capstones are included in the main
 axiom audit and use only the same standard Lean axioms as the existing proofs.
+
+
+## Explicit HLC arbitration
+
+`LeanCbcl/HlcRegister.lean` proves soundness/completeness of greatest-candidate
+selection under lexicographic physical/logical/signer/address ordering, uniqueness
+under address consistency, and invariance under candidate-set equality. Separate
+component theorems compose arbitration with verb, current-own and current-keyed
+selections. The model consumes typed numeric evidence; the signer rank is an
+order-preserving abstraction of byte order. It proves neither honest clock
+generation, wire/Rust correspondence, resource finality nor a whole-clause kernel
+correctness theorem. The public component theorems are in `AxiomAudit.lean`.

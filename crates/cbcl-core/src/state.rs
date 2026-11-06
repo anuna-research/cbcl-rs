@@ -57,6 +57,26 @@ impl Default for StateBounds {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Rule {
     BoundedCounter(alloc::boxed::Box<crate::escrow::CounterRule>),
+    /// Clock-trusting last-writer-wins over domain-admitted writes.
+    LwwRegister {
+        verb: String,
+        key: String,
+        clock: String,
+    },
+    /// Own observed replacement, then clock arbitration among survivors.
+    LwwPerSigner {
+        verb: String,
+        key: String,
+        clock: String,
+    },
+    /// Keyed observed replacement/deletion, then clock arbitration.
+    LwwMap {
+        verb: String,
+        key: String,
+        value: String,
+        clock: String,
+        delete: Option<String>,
+    },
     Last {
         verb: String,
         key: String,
@@ -127,6 +147,9 @@ impl Rule {
     pub fn head(&self) -> &'static str {
         match self {
             Rule::BoundedCounter(_) => "bounded-counter",
+            Rule::LwwRegister { .. } => "lww-register",
+            Rule::LwwPerSigner { .. } => "lww-per-signer",
+            Rule::LwwMap { .. } => "lww-map",
             Rule::Last { .. } => "last",
             Rule::LatestPerSigner { .. } => "latest-per-signer",
             Rule::LatestPerKey { .. } => "latest-per-key",
@@ -149,7 +172,9 @@ impl Rule {
     pub fn verbs(&self) -> Vec<&str> {
         match self {
             Rule::BoundedCounter(c) => c.verbs(),
-            Rule::Last { verb, .. }
+            Rule::LwwRegister { verb, .. }
+            | Rule::LwwPerSigner { verb, .. }
+            | Rule::Last { verb, .. }
             | Rule::LatestPerSigner { verb, .. }
             | Rule::LatestPerKey { verb, .. }
             | Rule::Exists { verb }
@@ -158,7 +183,9 @@ impl Rule {
             | Rule::Events { verb, .. }
             | Rule::SetUnion { verb, .. }
             | Rule::Values { verb, .. } => alloc::vec![verb.as_str()],
-            Rule::ValuesPerKey { verb, delete, .. } | Rule::RegisterPerKey { verb, delete, .. } => {
+            Rule::ValuesPerKey { verb, delete, .. }
+            | Rule::RegisterPerKey { verb, delete, .. }
+            | Rule::LwwMap { verb, delete, .. } => {
                 let mut v = alloc::vec![verb.as_str()];
                 if let Some(d) = delete {
                     v.push(d.as_str());
@@ -171,10 +198,40 @@ impl Rule {
         }
     }
 
+    /// Declared clock evidence of an explicit LWW rule, if any.
+    pub fn clock_field(&self) -> Option<(&str, &str)> {
+        match self {
+            Rule::LwwRegister { verb, clock, .. }
+            | Rule::LwwPerSigner { verb, clock, .. }
+            | Rule::LwwMap { verb, clock, .. } => Some((verb, clock)),
+            _ => None,
+        }
+    }
+
     /// Every `(verb, key)` pair this rule reads as data.
     pub fn data_fields(&self) -> Vec<(&str, &str)> {
         match self {
             Rule::BoundedCounter(c) => c.data_fields(),
+            Rule::LwwRegister { verb, key, clock } | Rule::LwwPerSigner { verb, key, clock } => {
+                alloc::vec![(verb, key), (verb, clock)]
+            }
+            Rule::LwwMap {
+                verb,
+                key,
+                value,
+                clock,
+                delete,
+            } => {
+                let mut fields = alloc::vec![
+                    (verb.as_str(), key.as_str()),
+                    (verb.as_str(), value.as_str()),
+                    (verb.as_str(), clock.as_str())
+                ];
+                if let Some(d) = delete {
+                    fields.push((d, key));
+                }
+                fields
+            }
             Rule::Last { verb, key }
             | Rule::LatestPerSigner { verb, key }
             | Rule::Events { verb, key }
@@ -228,10 +285,14 @@ impl Rule {
     /// writers and delete verbs of registers, signer writers, and observed-set removals.
     pub fn replaces_verbs(&self) -> Vec<&str> {
         match self {
-            Rule::Values { verb, .. } | Rule::LatestPerSigner { verb, .. } => {
+            Rule::Values { verb, .. }
+            | Rule::LatestPerSigner { verb, .. }
+            | Rule::LwwPerSigner { verb, .. } => {
                 alloc::vec![verb.as_str()]
             }
-            Rule::ValuesPerKey { verb, delete, .. } | Rule::RegisterPerKey { verb, delete, .. } => {
+            Rule::ValuesPerKey { verb, delete, .. }
+            | Rule::RegisterPerKey { verb, delete, .. }
+            | Rule::LwwMap { verb, delete, .. } => {
                 let mut v = alloc::vec![verb.as_str()];
                 if let Some(d) = delete {
                     v.push(d.as_str());
@@ -740,6 +801,18 @@ pub(crate) fn current_by_signer<'a>(
     kernel_for(clause, acts).current_by_signer(verb)
 }
 
+/// The binder and fold share domain-aware keyed replacement selection.
+/// Excluded acts contribute neither values nor retirement references.
+pub(crate) fn current_writes<'a>(
+    clause: &StateClause,
+    acts: &'a [Act],
+    verb: &str,
+    key: Option<&str>,
+    delete: Option<&str>,
+) -> Vec<&'a Act> {
+    kernel_for(clause, acts).current(verb, key, delete)
+}
+
 fn kernel_for<'a>(clause: &StateClause, acts: &'a [Act]) -> Kernel<'a> {
     // Domains read a list-valued field defined over the opener only, so
     // resolve them first with no domain in force.
@@ -892,6 +965,22 @@ impl<'a> Kernel<'a> {
     }
 
     /// One rule, by the sugar table of R.2.
+    /// Select only canonical HLC candidates. Ties are signer, then address.
+    /// Low-level fold stays total; receipt/intent enforce clock shape separately.
+    fn pick_lww(&self, acts: &[&Act], key: &str, clock: &str) -> Value {
+        acts.iter()
+            .filter_map(|a| {
+                let SExpr::Atom(Atom::Str(text)) = a.fields.get(clock)? else {
+                    return None;
+                };
+                let timestamp = crate::hlc::Hlc::parse(text)?;
+                Some(((timestamp, a.signer.as_str(), a.address.as_str()), *a))
+            })
+            .max_by(|(x, _), (y, _)| x.cmp(y))
+            .map(|(_, a)| self.field(a, key).unwrap_or(Value::Absent))
+            .unwrap_or(Value::Absent)
+    }
+
     fn eval(
         &self,
         rule: &Rule,
@@ -904,6 +993,25 @@ impl<'a> Kernel<'a> {
                 &self.acts.iter().map(|a| (*a).clone()).collect::<Vec<_>>(),
             )
             .value(),
+            Rule::LwwRegister { verb, key, clock } => self.pick_lww(&self.acts(verb), key, clock),
+            Rule::LwwPerSigner { verb, key, clock } => Value::Map(
+                self.group_by_signer(&self.current_by_signer(verb))
+                    .into_iter()
+                    .map(|(s, t)| (Value::Str(s), self.pick_lww(&t, key, clock)))
+                    .collect(),
+            ),
+            Rule::LwwMap {
+                verb,
+                key,
+                value,
+                clock,
+                delete,
+            } => Value::Map(
+                self.group_by_key(&self.current(verb, Some(key), delete.as_deref()), key)
+                    .into_iter()
+                    .map(|(k, t)| (k, self.pick_lww(&t, value, clock)))
+                    .collect(),
+            ),
             Rule::Last { verb, key } => self.pick(&self.acts(verb), key),
             Rule::LatestPerSigner { verb, key } => Value::Map(
                 self.group_by_signer(&self.current_by_signer(verb))
@@ -1156,12 +1264,19 @@ pub fn state_schema(
     for (name, rule) in clause.fields() {
         let ty = match rule {
             Rule::BoundedCounter(_) => StateType::BoundedCounter,
-            Rule::Last { verb, key } => StateType::OptScalar(scalar(verb, key)),
-            Rule::LatestPerSigner { verb, key } => StateType::Map(
-                ScalarType::Str,
-                alloc::boxed::Box::new(StateType::OptScalar(scalar(verb, key))),
-            ),
+            Rule::Last { verb, key } | Rule::LwwRegister { verb, key, .. } => {
+                StateType::OptScalar(scalar(verb, key))
+            }
+            Rule::LatestPerSigner { verb, key } | Rule::LwwPerSigner { verb, key, .. } => {
+                StateType::Map(
+                    ScalarType::Str,
+                    alloc::boxed::Box::new(StateType::OptScalar(scalar(verb, key))),
+                )
+            }
             Rule::LatestPerKey { verb, key, value }
+            | Rule::LwwMap {
+                verb, key, value, ..
+            }
             | Rule::RegisterPerKey {
                 verb, key, value, ..
             } => StateType::Map(

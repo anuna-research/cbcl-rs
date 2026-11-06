@@ -303,6 +303,35 @@ pub fn r7_violations(d: &Dialect) -> Vec<R7Violation> {
     let field_types: Vec<(String, &Rule)> =
         clause.fields().map(|(n, r)| (String::from(n), r)).collect();
     for (name, rule) in &field_types {
+        if let Some((verb, clock)) = rule.clock_field() {
+            if ty(verb, clock) != Some(TypeConstraint::String) || !d.shapes.iter().filter(|s| s.performative == verb).any(|s| s.rules.iter().any(|r| matches!(r, ShapeRule::Require { keyword, type_constraint: Some(TypeConstraint::String), .. } if keyword == clock))) {
+                out.push(R7Violation::Typing(format!("LWW clock :{clock} of '{verb}' must be a required string")));
+            }
+            if bounds.max_string < crate::hlc::WIRE_LEN as u32 {
+                out.push(R7Violation::Bounds(
+                    "max-string cannot hold a canonical HLC".into(),
+                ));
+            }
+            let conflicts = match rule {
+                Rule::LwwRegister { key, .. } | Rule::LwwPerSigner { key, .. } => clock == key,
+                Rule::LwwMap { key, value, .. } => clock == key || clock == value,
+                _ => false,
+            };
+            if conflicts
+                || ROUTING_KEYWORDS.contains(&clock)
+                || [
+                    RESERVED_REPLACES,
+                    crate::escrow::PREV,
+                    crate::escrow::DEPS,
+                    crate::escrow::NONCE,
+                ]
+                .contains(&clock)
+            {
+                out.push(R7Violation::Typing(
+                    "LWW clock must be a distinct application field".into(),
+                ));
+            }
+        }
         match rule {
             Rule::Progress { verb } => {
                 if let Some(protocol) = &d.causal_protocol {
@@ -312,6 +341,7 @@ pub fn r7_violations(d: &Dialect) -> Vec<R7Violation> {
                 }
             }
             Rule::LatestPerKey { verb, key, .. }
+            | Rule::LwwMap { verb, key, .. }
             | Rule::ValuesPerKey { verb, key, .. }
             | Rule::RegisterPerKey { verb, key, .. } => {
                 if let Some(tc) = ty(verb, key) {
@@ -360,6 +390,8 @@ pub fn r7_violations(d: &Dialect) -> Vec<R7Violation> {
                         let map_like = matches!(
                             r,
                             Rule::LatestPerSigner { .. }
+                                | Rule::LwwPerSigner { .. }
+                                | Rule::LwwMap { .. }
                                 | Rule::LatestPerKey { .. }
                                 | Rule::RegisterPerKey { .. }
                                 | Rule::Events { .. }
@@ -374,10 +406,10 @@ pub fn r7_violations(d: &Dialect) -> Vec<R7Violation> {
                         }
                         if matches!(rule, Rule::Sum { .. }) {
                             let numeric = match r {
-                                Rule::LatestPerSigner { verb, key } | Rule::Events { verb, key } => {
+                                Rule::LatestPerSigner { verb, key } | Rule::LwwPerSigner { verb, key, .. } | Rule::Events { verb, key } => {
                                     ty(verb, key) == Some(TypeConstraint::Number)
                                 }
-                                Rule::LatestPerKey { verb, value, .. } | Rule::RegisterPerKey { verb, value, .. } => {
+                                Rule::LatestPerKey { verb, value, .. } | Rule::LwwMap { verb, value, .. } | Rule::RegisterPerKey { verb, value, .. } => {
                                     ty(verb, value) == Some(TypeConstraint::Number)
                                 }
                                 _ => false,
@@ -393,6 +425,12 @@ pub fn r7_violations(d: &Dialect) -> Vec<R7Violation> {
         }
         // REQ-1907: a delete verb carries exactly the key and :replaces.
         if let Rule::ValuesPerKey {
+            verb,
+            key,
+            delete: Some(dv),
+            ..
+        }
+        | Rule::LwwMap {
             verb,
             key,
             delete: Some(dv),
@@ -452,6 +490,11 @@ pub fn r7_violations(d: &Dialect) -> Vec<R7Violation> {
         alloc::collections::BTreeMap::new();
     for (name, rule) in &field_types {
         if let Rule::ValuesPerKey {
+            verb,
+            delete: Some(dv),
+            ..
+        }
+        | Rule::LwwMap {
             verb,
             delete: Some(dv),
             ..
@@ -593,6 +636,22 @@ pub fn verify_state_shape(d: &Dialect, msg: &Message) -> Result<(), ShapeViolati
                         "closed",
                         None,
                         format!("positional parameter {other} on '{verb}'"),
+                    ));
+                }
+            }
+        }
+    }
+
+    // SPEC-035: full message-local recognition, never a wall-clock comparison.
+    for (_, rule) in clause.fields() {
+        if let Some((writer, clock)) = rule.clock_field() {
+            if writer == verb {
+                let valid = matches!(fields.get(clock), Some(SExpr::Atom(Atom::Str(text))) if crate::hlc::Hlc::parse(text).is_some());
+                if !valid {
+                    return Err(violation(
+                        "hlc",
+                        Some(clock),
+                        "expected canonical hlc-<16 lower hex>-<8 lower hex> string".into(),
                     ));
                 }
             }

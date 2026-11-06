@@ -1,0 +1,9 @@
+{
+  "bounded-ceiling.json": "sha256-cc62a5f04c7baeb55652a1f2565717bb7184fe9d2df9d28df6f7e5b8e0dc4965",
+  "bounded-coin.json": "sha256-25709b5237b452045c17efd54dce0b28f5ce06998d38469c1a9c0044cc2690b0",
+  "checklist-roles.json": "sha256-c33ae316003bcc8666549233fd7b3112b2da0dbd5d326ad2291cd09bc0b23f53",
+  "lunch-vote-domain.json": "sha256-a254061f7d72cd24c3ab2efdcd8560dfa5ab774c10e42943b300e24dacfca548",
+  "progress-fork.json": "sha256-399c4de8b37a3f4ef6e324a6d0cbb36db22dea3d5126d17a779569036fdc66c6",
+  "signer-supersession.json": "sha256-f92bcc0d5e15b4e81c04312940d2403b216e502490abb045511c57528688f940",
+  "tags-and-balance.json": "sha256-35e998e58aed713508a6cd47bd477456471bb995b1d3cd7b2938e159b522def9"
+}

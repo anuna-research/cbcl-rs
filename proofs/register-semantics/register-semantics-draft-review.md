@@ -9,6 +9,10 @@ last-updated: 2026-11-06
 
 ## Scope and status
 
+Historical record: this review covers drafting commit `552b543`, before the user
+authorized the HLC implementation. Current implementation evidence is
+[[register-semantics-implementation-review]].
+
 [[SPEC-035-register-semantics]] and [[register-ordering-research]] are a design
 draft. They do not amend installed semantics or implement a new clock profile.
 The branch starts at fetched origin/main commit

@@ -60,6 +60,34 @@ pub fn parse_rule(sexpr: &SExpr) -> Result<Rule, String> {
     let key = |i: usize| keyword(&args[i], "field");
     Ok(match head.as_str() {
         "bounded-counter" => Rule::BoundedCounter(alloc::boxed::Box::new(parse_counter(args)?)),
+        "lww-register" | "lww-per-signer" => {
+            arity(3)?;
+            let (verb, key, clock) = (verb(0)?, key(1)?, key(2)?);
+            if head == "lww-register" {
+                Rule::LwwRegister { verb, key, clock }
+            } else {
+                Rule::LwwPerSigner { verb, key, clock }
+            }
+        }
+        "lww-map" => {
+            if args.len() != 4 && args.len() != 5 {
+                return Err(alloc::format!(
+                    "{head} takes 4 or 5 arguments, got {}",
+                    args.len()
+                ));
+            }
+            Rule::LwwMap {
+                verb: verb(0)?,
+                key: key(1)?,
+                value: key(2)?,
+                clock: key(3)?,
+                delete: if args.len() == 5 {
+                    Some(verb(4)?)
+                } else {
+                    None
+                },
+            }
+        }
         "last" => {
             arity(2)?;
             Rule::Last {
@@ -108,14 +136,14 @@ pub fn parse_rule(sexpr: &SExpr) -> Result<Rule, String> {
                 key: key(1)?,
             }
         }
-        "values" => {
+        "values" | "multi-value-register" => {
             arity(2)?;
             Rule::Values {
                 verb: verb(0)?,
                 key: key(1)?,
             }
         }
-        "values-per-key" | "register-per-key" => {
+        "values-per-key" | "multi-value-map" | "register-per-key" => {
             if args.len() != 3 && args.len() != 4 {
                 return Err(alloc::format!(
                     "{head} takes 3 or 4 arguments, got {}",
@@ -128,7 +156,7 @@ pub fn parse_rule(sexpr: &SExpr) -> Result<Rule, String> {
                 None
             };
             let (v, k, val) = (verb(0)?, key(1)?, key(2)?);
-            if head == "values-per-key" {
+            if head == "values-per-key" || head == "multi-value-map" {
                 Rule::ValuesPerKey {
                     verb: v,
                     key: k,

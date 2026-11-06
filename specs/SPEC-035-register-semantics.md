@@ -2,7 +2,7 @@
 id: SPEC-035
 title: Register semantics, ordering policies and trust assumptions
 version: 0.1.0
-status: draft
+status: implemented
 last-updated: 2026-11-06
 ---
 
@@ -18,9 +18,9 @@ neither the most recent write nor an authorized resolution of a conflict.
 [[SPEC-019-state-rules]] currently defines `last`, `latest-per-key`,
 `latest-per-signer` and `register-per-key` using greatest content address. This
 proposal separates replacement, grouping and arbitration. It explores explicit
-last-writer-wins, conflict-preserving and ownership-based contracts. It does not
-select HLC over the alternatives, introduce a clock field, rename installed
-rules, or change the existing runtime or corpus.
+last-writer-wins, conflict-preserving and ownership-based contracts. The accepted extension adds explicit HLC-based LWW rules and multi-value aliases.
+Existing rule names retain their meaning and identity. Alternatives remain research
+context rather than selectable runtime profiles.
 
 Example: Alice and Bob concurrently write different titles. A last-writer-wins
 contract selects the greatest declared order key under its clock assumptions.
@@ -41,26 +41,27 @@ Controls: [[SPEC-035-register-semantics#REQ-3500]] semantic naming;
 [[SPEC-035-register-semantics#REQ-3504]] proof and resource boundaries;
 [[SPEC-035-register-semantics#REQ-3505]] versioned migration.
 
-Next actor: CBCL maintainer selects the contracts and ordering profiles through
-[[SPEC-035-register-semantics#ADR-3500]] before authorizing runtime changes.
+Next actor: CBCL maintainer reviews implementation against
+[[SPEC-035-register-semantics#ADR-3502]]. Other clock profiles remain deferred.
 Reviewer path: Orientation, decisions, open questions. Implementer path: contract,
 tests, requirements. Paper-author path: proof target and claim boundaries.
 
 ## Amendment Channels
 
-The user's instruction authorizes a draft on a branch from latest main. It does
-not resolve the open design choices below. Existing installed semantics remain
-those of [[SPEC-019-state-rules]]. An accepted runtime amendment must follow its
+The user authorizes implementation on this branch and selects host-supplied HLCs,
+retaining all existing rules and adding explicit LWW rules. Existing installed semantics remain
+those of [[SPEC-019-state-rules]]. This runtime amendment follows its
 major-specification and corpus-version rule. Neither a new name nor a proof may
 silently change the meaning of an installed dialect.
 
-## Current behavior and candidate names
+## Retained behavior and explicit new names
 
-These names are candidates, not accepted new grammar. Here last-writer-wins means
-selection by a specified immutable order key; an HLC is one possible order key.
+The new LWW heads and multi-value aliases are adopted by
+[[SPEC-035-register-semantics#ADR-3502]]. Old heads remain supported. Here
+last-writer-wins means selection by an immutable host-supplied HLC order key.
 It does not promise an objectively latest real-world concurrent event.
 
-| Existing construct | Existing meaning | Candidate contract/name |
+| Existing construct | Existing meaning | Extension disposition |
 |---|---|---|
 | `last` | Greatest address across all selected writes of a verb | `lww-register` when cross-writer overwriting and timestamp ordering are intended |
 | `latest-per-key` | Greatest address per application key, without replacement selection | `lww-map` for a precisely specified per-key last-writer-wins contract |
@@ -78,7 +79,8 @@ A per-key grouping does not, by itself, assign ownership of that key.
 
 ## ADR-3500: Separate conflict policy from ordering mechanism
 
-Status: proposed. Grouping determines which writes concern one entry. Explicit
+Status: accepted separation; the implemented mechanism is
+[[SPEC-035-register-semantics#ADR-3502]]. Grouping determines which writes concern one entry. Explicit
 replacement determines which candidates survive. Arbitration, if selected,
 determines which surviving candidate is displayed. Authority determines permitted writers and resolvers; it is not inferred from the order key.
 
@@ -105,15 +107,16 @@ A sender signature authenticates an asserted timestamp, not honest clock behavio
 A future-skew check against receipt-time wall clocks can make replicas disagree or
 change a verdict over time. Such checks need a separately justified policy.
 
-Open, owner CBCL maintainer: select profiles, exact total order and tie-breaker,
-range/overflow handling, clock persistence/restarts, validation and trust scope.
+The selected HLC order, recognition, range and host persistence boundary are
+[[SPEC-035-register-semantics#ADR-3502]]. Alternative profiles remain research,
+not runtime options.
 For dependency-derived order, decide whether the evidence is protocol `:caused-by`,
 semantic `:replaces`, or a distinct relation. R5's same-verb predecessor restrictions
 mean these relations cannot be treated as interchangeable.
 
 ## ADR-3501: Do not conflate a map with replacement authority
 
-Status: proposed. `last` across all members explicitly permits cross-member
+Status: accepted scope distinction. `last` across all members explicitly permits cross-member
 arbitration. Honest clocks can support that policy, but cannot justify it.
 Similarly, two members writing one application key share a conflict domain;
 the key does not authorize either to override the other.
@@ -129,10 +132,10 @@ retained under its existing meaning, or migrated to the same replacement model a
 `register-per-key`. Consolidation must specify tombstones, missing groups and
 concurrent write/delete behavior; a rename alone is insufficient.
 
-## Requirements for an accepted successor
+## Requirements
 
-These obligations constrain a future adopted amendment. They do not change
-current installation or receipt behavior.
+These obligations govern the additive HLC extension. Old rules retain their
+existing contracts; the extension is activated only by explicit new rule heads.
 
 ### REQ-3500: Semantic names
 
@@ -149,7 +152,7 @@ separate convergence, causal ordering, approximate recency and fairness claims.
 Any clock read MUST occur in the host before pure binding/folding; the pure core
 MUST consume explicit evidence rather than reading a clock. Timestamp wire fields,
 canonical encoding, bounds and forgery controls MUST be specified before runtime
-implementation. No wire syntax is introduced by this draft.
+implementation. The accepted wire grammar is [[SPEC-035-register-semantics#ADR-3502]].
 Trace: [[SPEC-035-register-semantics#TEST-3501]].
 
 ### REQ-3502: Replacement and authority
@@ -188,14 +191,15 @@ Any adopted change to the kernel vocabulary, ordering or binding MUST advance
 [[SPEC-019-state-rules]] and the conformance corpus together as required there.
 Old signed dialects and histories MUST retain their old interpretation. New
 identities, authoring compilation, bindings and migration behavior MUST be
-specified and tested before activation. This draft MUST NOT activate new rules.
+specified and tested before activation. New LWW semantics MUST require explicit new heads; old signed definitions MUST
+retain their original interpretation.
 Trace: [[SPEC-035-register-semantics#TEST-3505]].
 
 ## CON-3500: Proof and implementation handoff
 
-This document introduces no external-input API. Its tables describe candidate
-contracts, not executable syntax. A future accepted grammar must enumerate the
-constructors and typed observations before parsing, binding or evaluation changes.
+The accepted extension uses the existing dialect/message recognizers and state
+exports, with the rule and clock grammar in
+[[SPEC-035-register-semantics#ADR-3502]]. No new transport endpoint is introduced.
 Reuse [[SPEC-019-state-rules#Contracts]], [[SPEC-019-state-rules#CON-1906]] and
 [[SPEC-025-consensus-free-refinement#CON-2501]] with their distinct scopes.
 
@@ -218,9 +222,10 @@ Implements: [[SPEC-035-register-semantics#REQ-3501]],
 [[SPEC-035-register-semantics#REQ-3504]],
 [[SPEC-035-register-semantics#REQ-3505]].
 
-## Acceptance tests for the eventual amendment
+## Acceptance tests
 
-These are specified future obligations, not executed implementation evidence.
+Implementation evidence is [[register-semantics-implementation-review]].
+The broader whole-kernel theorem remains explicitly open.
 
 ### TEST-3500: Naming and disposition (core)
 
@@ -270,10 +275,10 @@ register timestamp assumptions. Validates:
 
 ### TEST-3505: Migration and inactivity (core; host migration is depth)
 
-Verify this draft changes no runtime, canonical dialect body or corpus. Before an
-adopted release, replay old histories with the pinned old semantics; install new
-contracts under their new identities and corpus version; reject mixed-version
-interpretation. Validates: [[SPEC-035-register-semantics#REQ-3505]].
+Verify old canonical dialect bodies and observations remain identical to main.
+Replay old histories with their pinned semantics; install explicit new contracts
+under their identities and corpus version. Older implementations reject new LWW
+heads rather than interpreting them as legacy rules. Validates: [[SPEC-035-register-semantics#REQ-3505]].
 
 ## Research evidence
 
@@ -294,10 +299,79 @@ acceptance of the unresolved design choices.
 
 ## Open decisions and next work
 
-Owner: CBCL maintainer. Select names and profiles, decide cross-member overwrite
-policy, settle per-key replacement/deletion consolidation, and specify clock or
-sequence metadata only for the chosen profile. Then amend the standing spec,
-produce an implementation plan, and resume kernel correctness against those
-independent contracts. The existing runtime remains governed by the standing spec
-until that amendment. Human review can accept a clock-trusting register profile
-without weakening the separately specified resource-certification profile.
+Owner: CBCL maintainer. HLC semantics are adopted below, with all old heads retained.
+Consolidation/retirement of old heads, alternative clocks, certified registers and
+a new ownership primitive are deferred. Whole-kernel denotational correctness
+requires the coverage/translation work in this contract; the HLC arbitration proof
+is a component result. The resource-certification profile keeps its own assumptions.
+
+
+## ADR-3502: Accepted host-HLC extension
+
+Status: accepted by user task and explicit profile selection on 2026-11-06.
+The implementation adds these rules; no existing head is removed or reinterpreted.
+
+```text
+rule := (lww-register verb value-key clock-key)
+      | (lww-per-signer verb value-key clock-key)
+      | (lww-map verb key-key value-key clock-key [delete-verb])
+      | (multi-value-register verb value-key)
+      | (multi-value-map verb key-key value-key [delete-verb])
+clock := "hlc-" lowerhex{16} "-" lowerhex{8}
+```
+
+The clock is a string-valued required application field named explicitly by each
+LWW rule. It encodes unsigned physical milliseconds (u64) and a logical component
+(u32) in fixed-width lowercase hexadecimal. Leading zeroes are required. Thus
+clock comparisons are exact without JSON number precision or the ordinary numeric
+field bound limiting epoch milliseconds. Normal max-string limits still apply;
+installation rejects an LWW clock bound too short for the canonical spelling.
+The clock keyword differs from grouping and value keywords and cannot be a routing
+or compiler-owned field. All referenced shapes and scalar-key checks still apply.
+Missing, malformed, uppercase or non-string clocks are message-local shape errors.
+There is no comparison to receipt time, no freshness check and no honesty verdict.
+
+Order is lexicographic `(physical, logical, authenticated signer, content address)`.
+Signer and address only break exact clock ties; they establish no fairness.
+`lww-register` selects over all domain-admitted writes of its verb and returns
+Absent when none exist. `lww-per-signer` uses existing same-signer supersession
+before clock arbitration. `lww-map` uses existing keyed supersession and optional
+delete semantics before clock arbitration. A delete carries only its key and
+compiler-supplied replacements, not a clock. Concurrent unnamed additions survive
+deletion; a writer includes observed current deletions as before. Superseded
+replacers retain their effects; excluded replacers have none. The bounded prefix
+policy for replacement binding is unchanged.
+
+A malformed candidate supplied directly to the low-level total fold is ineligible
+for LWW choice; this does not authorize effects or substitute for admission. Its
+replacement references follow the ordinary admitted-history precondition. Exported
+admission and intent reject malformed clocks before accepted use. Clock fields are
+ordinary declared host input, never silently generated by the binder. Pure checked
+HLC advancement helpers accept explicit wall-clock values, retain no global state,
+and return an error on logical overflow. Hosts persist and merge clocks; shared-key
+multi-device issuance requires host coordination. Honest HLC generation/update is
+a trust premise of recency/causal-order claims, not a theorem about arbitrary senders.
+
+`multi-value-register` and `multi-value-map` are parser/authoring aliases for
+`values` and `values-per-key`. Their canonical internal heads remain the old heads,
+so equivalent definitions have the same body identity. Describe/read-back APIs
+return the canonical old operation names. A separate ownership primitive is not
+added: existing roles/casts express authorized writers without another engine.
+
+The state specification and corpus advance to major version 3. Existing canonical
+encoding remains version 5: all old constructs encode identically and keep their
+body hashes. Old runtime versions fail closed on new LWW heads; old heads continue
+to run unchanged in the new runtime. Bindings use the shared state frames; JSON
+contract version 3 remains accepted and gains explicit camelCase operations.
+
+Scope: implement parser, installation/receipt checks, fold, binder, canonical
+identity, schema, describe/authoring and corpus integration. Add independent model
+proofs for the HLC arbitration operation and its replacement-source composition;
+do not label these the still-open whole-kernel denotational correctness theorem.
+The general coverage/translation work remains owned by the CBCL maintainer.
+Trace: [[SPEC-035-register-semantics#REQ-3500]],
+[[SPEC-035-register-semantics#REQ-3501]],
+[[SPEC-035-register-semantics#REQ-3502]],
+[[SPEC-035-register-semantics#REQ-3503]],
+[[SPEC-035-register-semantics#REQ-3504]],
+[[SPEC-035-register-semantics#REQ-3505]].
