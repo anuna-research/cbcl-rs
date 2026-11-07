@@ -553,7 +553,11 @@ impl<'a> Ctx<'a> {
                 .unwrap_or(Value::Absent),
             (Post::Identity, L::Sole(s)) => match s {
                 Sole::One(_, v) => v.clone().unwrap_or(Value::Absent),
-                Sole::Bot | Sole::Top(_) => Value::Absent,
+                Sole::Bot => Value::Absent,
+                // ⊤ renders as a fault with its evidence (SPEC-038 REQ-3804).
+                Sole::Top(t) => {
+                    crate::state::conflict_top("opener fork", t.iter().cloned().collect())
+                }
             },
             (Post::Size, L::Addrs(s)) => Value::Int(s.len() as i128),
             (Post::Difference, L::Pair(a, b)) => match (&**a, &**b) {

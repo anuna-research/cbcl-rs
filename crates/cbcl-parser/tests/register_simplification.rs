@@ -51,8 +51,18 @@ fn initial_is_opener_only_and_has_no_hash_winner() {
     assert_eq!(observe(&[]), "{\"title\":null}");
     assert_eq!(observe(core::slice::from_ref(&a)), "{\"title\":\"first\"}");
     assert_eq!(observe(&[a.clone(), a.clone()]), "{\"title\":\"first\"}");
-    assert_eq!(observe(&[a.clone(), b.clone()]), "{\"title\":null}");
-    assert_eq!(observe(&[b, a]), "{\"title\":null}");
+    // Two distinct openers are the conflict top: a sticky fault naming
+    // both, never a hash winner (SPEC-038 REQ-3804).
+    let fault = |xs: &[&Act]| {
+        let mut e: Vec<String> = xs.iter().map(|a| format!("\"{}\"", a.address)).collect();
+        e.sort();
+        format!(
+            "{{\"title\":{{\"evidence\":[{}],\"reason\":\"opener fork\",\"status\":\"fault\"}}}}",
+            e.join(",")
+        )
+    };
+    assert_eq!(observe(&[a.clone(), b.clone()]), fault(&[&a, &b]));
+    assert_eq!(observe(&[b.clone(), a.clone()]), fault(&[&a, &b]));
     let missing = Act::from_message(
         parse_message(
             &parse("(lang init-test (open @a :from @a :thread \"t\" :caused-by begin))").unwrap(),
@@ -62,8 +72,8 @@ fn initial_is_opener_only_and_has_no_hash_winner() {
     )
     .unwrap();
     assert_eq!(
-        observe(&[act("first"), missing]),
-        "{\"title\":null}",
+        observe(&[act("first"), missing.clone()]),
+        fault(&[&a, &missing]),
         "candidate count must not depend on payload presence"
     );
 }

@@ -249,8 +249,10 @@ the shape of every writer of `lww-per-signer`. It also adds the field to writers
 `observed-set`. An author SHALL NOT declare it; no rule reads it as data.
 
 `initial` MUST name the unique protocol opener. Its raw candidate set is deduplicated
-by content address before testing uniqueness. It returns Absent for empty or ambiguous
-evidence, including when only one of several candidates carries the requested field.
+by content address before testing uniqueness. It returns Absent for no candidate, the
+candidate's field (Absent when the payload is missing) for exactly one, and the conflict
+top of [[SPEC-038-lvar-state-kernel#REQ-3804]], a `fault` naming every candidate's
+address, for several.
 Domains cannot filter the opener. Retired heads `last`, `lww-per-signer`,
 `latest-per-key`, and `register-per-key` are parse errors, not aliases.
 LWW clocks are required `hlc` fields, encoded as strings spelled `hlc-` + 16 lowercase hexadecimal

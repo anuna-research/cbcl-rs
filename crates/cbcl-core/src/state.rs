@@ -718,6 +718,29 @@ fn sorted_distinct(values: Vec<Value>) -> Vec<Value> {
     keyed.into_iter().map(|(_, v)| v).collect()
 }
 
+/// The conflict top ⊤ of a field, rendered uniformly across heads as
+/// `{"evidence":[addresses],"reason":…,"status":"fault"}` with the members
+/// in key order and the evidence sorted (SPEC-038 REQ-3804, ADR-3803): the
+/// same member set a `bounded-counter` resource fault carries.
+pub(crate) fn conflict_top(reason: &str, mut evidence: Vec<String>) -> Value {
+    evidence.sort();
+    evidence.dedup();
+    Value::Map(alloc::vec![
+        (
+            Value::Str(String::from("evidence")),
+            Value::List(evidence.into_iter().map(Value::Str).collect()),
+        ),
+        (
+            Value::Str(String::from("reason")),
+            Value::Str(String::from(reason)),
+        ),
+        (
+            Value::Str(String::from("status")),
+            Value::Str(String::from("fault"))
+        ),
+    ])
+}
+
 /// Render a whole state (R.3): an object in clause order.
 pub fn render_json(state: &[(String, Value)]) -> String {
     let mut out = String::from("{");
@@ -881,11 +904,18 @@ impl<'a> Kernel<'a> {
             .collect()
     }
 
-    /// Read the sole initializer. Empty or ambiguous evidence has no value.
+    /// Read the sole initializer. No opener has no value; two or more
+    /// distinct openers are the conflict top, rendered as a fault naming
+    /// them (SPEC-038 REQ-3804, ADR-3803). The display is therefore
+    /// monotone: absent, then a value, then fault, never back.
     fn initial(&self, table: &[&Act], key: &str) -> Value {
         match table {
+            [] => Value::Absent,
             [act] => self.field(act, key).unwrap_or(Value::Absent),
-            _ => Value::Absent,
+            many => conflict_top(
+                "opener fork",
+                many.iter().map(|a| a.address.clone()).collect(),
+            ),
         }
     }
 

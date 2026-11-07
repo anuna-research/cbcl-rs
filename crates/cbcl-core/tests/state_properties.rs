@@ -1216,7 +1216,7 @@ fn signer_binder_uses_domain_admitted_current_writes() {
 }
 
 #[test]
-fn signer_string_addresses_and_ambiguous_initializer_has_no_value() {
+fn signer_string_addresses_and_ambiguous_initializer_is_the_conflict_top() {
     let old = signer_write(90, "@a", "old", &[]);
     let mut edit = signer_write(1, "@a", "edit", &[]);
     edit.fields.insert(
@@ -1231,9 +1231,19 @@ fn signer_string_addresses_and_ambiguous_initializer_has_no_value() {
             key: "item".into(),
         },
     ));
+    let mut evidence = vec![old.address.clone(), edit.address.clone()];
+    evidence.sort();
     let state = fold(&clause, None, &[old, edit]);
     assert_eq!(entries(&state[0].1).get("\"@a\""), Some(&"\"edit\"".into()));
-    assert_eq!(state[1].1, Value::Absent);
+    // Two distinct openers join to ⊤, rendered as a fault naming both
+    // (SPEC-038 REQ-3804); supersession does not arbitrate an `initial`.
+    assert_eq!(
+        state[1].1.render(),
+        format!(
+            "{{\"evidence\":[\"{}\",\"{}\"],\"reason\":\"opener fork\",\"status\":\"fault\"}}",
+            evidence[0], evidence[1]
+        )
+    );
 }
 
 #[test]
