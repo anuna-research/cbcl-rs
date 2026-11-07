@@ -284,7 +284,10 @@ element   := scalar | "(" "count" integer ")" | "(" "member" scalar ")"
            | "(" "sum" integer ")" | "(" "progress" integer ")" | "fault"
 ```
 
-`element` forms are typed against the field's carrier: `count n` against
+`element` forms are typed against the field's carrier, never against the
+displayed value, so that a threshold over a superseding or observed-remove
+carrier is stated on its grow-only halves (an address was written, an address
+was replaced) rather than on membership, which is not monotone: `count n` against
 `addrs`, `member x` against `vals` or `entries`, `sum n` against `amounts`,
 `progress n` against the progress chain, `fault` against any carrier's ⊤, and a
 bare scalar against `bool` (`#t`). Install rejects any element not admitted by
@@ -314,11 +317,21 @@ Verified by: [[SPEC-038-lvar-state-kernel#TEST-3802]].
 
 Decision: adopt the LVar store, with put, threshold read and freeze, as the
 semantics the kernel aspires to, and quasi-determinism as its theorem.
-Alternatives: keep the fold as an unclassified set function (status quo; leaves
-finality to hosts and gives no exactly-once property); adopt CRDT state alone
-(gives the lattice but not the read discipline); adopt full Bloom^L with
+Alternatives, with sources verified on 7 November 2026 ([[LVars]]): keep the fold
+as an unclassified set function (status quo; leaves finality to hosts and gives
+no exactly-once property); adopt CRDT state alone (gives the lattice but not the
+read discipline); adopt Lasp's monotonic read, `read(x, v)`, which returns the
+replica's state once it dominates a trigger (gives liveness but not a unique
+answer: two replicas can return different states from one trigger, so it is a
+snapshot in this specification's terms); adopt Hydro's lattice-typed dataflow
+(gives morphism tracking, which [[SPEC-038-lvar-state-kernel#REQ-3809]] borrows,
+but assumes cooperating replicas and has no freeze); adopt full Bloom^L with
 user-defined lattices (gives expressiveness at the cost of unproved merges,
-rejected by [[SPEC-038-lvar-state-kernel#ADR-3801]]). Consequence: the
+rejected by [[SPEC-038-lvar-state-kernel#ADR-3801]]). Lasp's stated reason for
+leaving threshold reads, that they need a priori knowledge of the carrier and a
+monotone queryable value, is met here by the closed algebra and by typing
+thresholds against carriers rather than displays
+([[SPEC-038-lvar-state-kernel#CON-3801]]). Consequence: the
 non-monotone projections stop being an exception; they are snapshots, readable
 after a freeze or through a threshold, and the chain's last step is located
 exactly.
