@@ -1,7 +1,4 @@
 {
-  "id": "progress-fork",
-  "version": "1.1.0",
-  "thread": "progress-1",
   "contract": "(define progress-fork (cbcl) @anuna (extend tick (to) (tell to)) (protocol (then begin (repeat 2 tick))) (state (number (progress tick)) (messages (count tick))))",
   "covers": [
     "progress",
@@ -10,36 +7,6 @@
     "duplicate-delivery",
     "missing-ancestry",
     "repeat-bound"
-  ],
-  "messages": [
-    {
-      "canonical": "(lang progress-fork (tick @room :caused-by begin :thread \"progress-1\" :from @a))",
-      "signer": "@a"
-    },
-    {
-      "canonical": "(lang progress-fork (tick @room :caused-by sha256-c334b0427283879aa854898427aeea2bc181286a4fc176d94a8bf80e907fcb7c :thread \"progress-1\" :from @b))",
-      "signer": "@b"
-    },
-    {
-      "canonical": "(lang progress-fork (tick @room :caused-by sha256-c334b0427283879aa854898427aeea2bc181286a4fc176d94a8bf80e907fcb7c :thread \"progress-1\" :from @c))",
-      "signer": "@c"
-    },
-    {
-      "canonical": "(lang progress-fork (tick @room :caused-by sha256-79d6a8d27793bcc86acb6e4bc31a6e0548ab646250e87a6d1f87fcfbbda41450 :thread \"progress-1\" :from @a))",
-      "signer": "@a"
-    },
-    {
-      "canonical": "(lang progress-fork (tick @room :caused-by sha256-ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff :thread \"progress-1\" :from @b))",
-      "signer": "@b"
-    },
-    {
-      "canonical": "(lang progress-fork (tick @room  :thread \"progress-1\" :from @c))",
-      "signer": "@c"
-    },
-    {
-      "canonical": "(lang progress-fork (tick @room :caused-by sha256-c334b0427283879aa854898427aeea2bc181286a4fc176d94a8bf80e907fcb7c :thread \"progress-1\" :from @b))",
-      "signer": "@b"
-    }
   ],
   "expect": {
     "addresses": [
@@ -64,5 +31,38 @@
       "messages": 3
     },
     "intents": []
-  }
+  },
+  "id": "progress-fork",
+  "messages": [
+    {
+      "canonical": "(lang progress-fork (tick @room () :from @a :thread \"progress-1\" :caused-by begin))",
+      "signer": "@a"
+    },
+    {
+      "canonical": "(lang progress-fork (tick @room () :from @b :thread \"progress-1\" :caused-by sha256-c334b0427283879aa854898427aeea2bc181286a4fc176d94a8bf80e907fcb7c))",
+      "signer": "@b"
+    },
+    {
+      "canonical": "(lang progress-fork (tick @room () :from @c :thread \"progress-1\" :caused-by sha256-c334b0427283879aa854898427aeea2bc181286a4fc176d94a8bf80e907fcb7c))",
+      "signer": "@c"
+    },
+    {
+      "canonical": "(lang progress-fork (tick @room () :from @a :thread \"progress-1\" :caused-by sha256-79d6a8d27793bcc86acb6e4bc31a6e0548ab646250e87a6d1f87fcfbbda41450))",
+      "signer": "@a"
+    },
+    {
+      "canonical": "(lang progress-fork (tick @room () :from @b :thread \"progress-1\" :caused-by sha256-ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff))",
+      "signer": "@b"
+    },
+    {
+      "canonical": "(lang progress-fork (tick @room () :from @c :thread \"progress-1\"))",
+      "signer": "@c"
+    },
+    {
+      "canonical": "(lang progress-fork (tick @room () :from @b :thread \"progress-1\" :caused-by sha256-c334b0427283879aa854898427aeea2bc181286a4fc176d94a8bf80e907fcb7c))",
+      "signer": "@b"
+    }
+  ],
+  "thread": "progress-1",
+  "version": "1.1.0"
 }

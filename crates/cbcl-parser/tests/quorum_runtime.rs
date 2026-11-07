@@ -1303,7 +1303,7 @@ fn collective_received_acts_enforce_roles_and_actual_issuer() {
     ] {
         let mut n = collective_source(&source);
         let epoch = n.ctx.root_epoch(actor).unwrap();
-        let op=act(&format!("(lang {} ({} (@alice @bob @treasury) :amount 1 {} :escrow-prev {} :escrow-deps () :escrow-nonce \"received\" :from {} :thread \"coin-1\" :caused-by {}))",n.d.name,verb,extra,epoch,actor,n.base[1].address),actor);
+        let op=act(&format!("(lang {} ({} (@alice @bob @treasury) {} :amount 1 :escrow-prev {} :escrow-deps () :escrow-nonce \"received\" :from {} :thread \"coin-1\" :caused-by {}))",n.d.name,verb,extra,epoch,actor,n.base[1].address),actor);
         n.auth.acts.insert((op.address.clone(), op.signer.clone()));
         let error = n.rs[0].register(op, &mut n.j, &n.auth).unwrap_err();
         assert!(error.contains(expected), "{error}");

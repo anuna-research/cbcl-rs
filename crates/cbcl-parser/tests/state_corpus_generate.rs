@@ -46,10 +46,33 @@ fn address(text: &str) -> String {
         .address
 }
 
-fn write(id: &str, vector: Value) {
+/// Sort object keys recursively so the committed vectors have a stable layout.
+fn sorted(v: Value) -> Value {
+    match v {
+        Value::Object(m) => {
+            let mut entries: Vec<(String, Value)> = m.into_iter().map(|(k, v)| (k, sorted(v))).collect();
+            entries.sort_by(|a, b| a.0.cmp(&b.0));
+            Value::Object(entries.into_iter().collect())
+        }
+        Value::Array(xs) => Value::Array(xs.into_iter().map(sorted).collect()),
+        other => other,
+    }
+}
+
+/// Write a vector with every message in canonical text (the serializer's
+/// rendering of the parsed message) and object keys sorted.
+fn write(id: &str, mut vector: Value) {
+    if let Some(messages) = vector.get_mut("messages").and_then(Value::as_array_mut) {
+        for m in messages.iter_mut() {
+            if let Some(c) = m.get("canonical").and_then(Value::as_str) {
+                let message = parse_message(&parse(c).unwrap()).unwrap();
+                m["canonical"] = Value::String(cbcl_core::intend::canonical_text(&message));
+            }
+        }
+    }
     let path = corpus_dir().join(format!("{id}.json"));
     std::fs::create_dir_all(corpus_dir()).unwrap();
-    std::fs::write(&path, serde_json::to_string_pretty(&vector).unwrap() + "\n").unwrap();
+    std::fs::write(&path, serde_json::to_string_pretty(&sorted(vector)).unwrap() + "\n").unwrap();
 }
 
 #[test]
@@ -61,20 +84,20 @@ fn generate_checklist_with_roles() {
     let a0 = address(&m0);
     let m1 = format!("(signed @aria (lang {n} (open (@aria @bo @cy) :title \"Launch tasks\" :caused-by {a0} :thread \"list-1\" :from @aria)))");
     let a1 = address(&m1);
-    let m2 = format!("(signed @bo (lang {n} (check (@aria @bo @cy) :item \"venue\" :done #f :replaces () :caused-by {a1} :clock \"hlc-0000000000000000-00000000\" :thread \"list-1\" :from @bo)))");
+    let m2 = format!("(signed @bo (lang {n} (check (@aria @bo @cy) :item \"venue\" :done #f :clock \"hlc-0000000000000000-00000000\" :replaces () :caused-by {a1} :thread \"list-1\" :from @bo)))");
     let a2 = address(&m2);
-    let m3 = format!("(signed @bo (lang {n} (check (@aria @bo @cy) :item \"venue\" :done #t :replaces ({a2}) :caused-by {a1} :clock \"hlc-0000000000000000-00000000\" :thread \"list-1\" :from @bo)))");
+    let m3 = format!("(signed @bo (lang {n} (check (@aria @bo @cy) :item \"venue\" :done #t :clock \"hlc-0000000000000000-00000000\" :replaces ({a2}) :caused-by {a1} :thread \"list-1\" :from @bo)))");
     let a3 = address(&m3);
     // @cy writes concurrently with M3, having seen only M2: both stay current.
-    let m4 = format!("(signed @cy (lang {n} (check (@aria @bo @cy) :item \"venue\" :done #f :replaces ({a2}) :caused-by {a1} :clock \"hlc-0000000000000000-00000000\" :thread \"list-1\" :from @cy)))");
+    let m4 = format!("(signed @cy (lang {n} (check (@aria @bo @cy) :item \"venue\" :done #f :clock \"hlc-0000000000000000-00000000\" :replaces ({a2}) :caused-by {a1} :thread \"list-1\" :from @cy)))");
     let a4 = address(&m4);
-    let m5 = format!("(signed @bo (lang {n} (check (@aria @bo @cy) :item \"cake\" :done #f :replaces () :caused-by {a1} :clock \"hlc-0000000000000000-00000000\" :thread \"list-1\" :from @bo)))");
+    let m5 = format!("(signed @bo (lang {n} (check (@aria @bo @cy) :item \"cake\" :done #f :clock \"hlc-0000000000000000-00000000\" :replaces () :caused-by {a1} :thread \"list-1\" :from @bo)))");
     // @aria drops "venue" having seen M3 only; @cy's M4 survives (edit beats a concurrent delete).
     let m6 = format!("(signed @aria (lang {n} (drop (@aria @bo @cy) :item \"venue\" :replaces ({a3}) :caused-by {a1} :thread \"list-1\" :from @aria)))");
     // Rejected: a member may not drop (R6); rejected: undeclared field (R7 closed); pending: unknown predecessor.
     let bad_role = format!("(signed @bo (lang {n} (drop (@aria @bo @cy) :item \"cake\" :replaces () :caused-by {a1} :thread \"list-1\" :from @bo)))");
-    let bad_field = format!("(signed @bo (lang {n} (check (@aria @bo @cy) :item \"cake\" :done #t :note \"x\" :replaces () :caused-by {a1} :clock \"hlc-0000000000000000-00000000\" :thread \"list-1\" :from @bo)))");
-    let pending = format!("(signed @bo (lang {n} (check (@aria @bo @cy) :item \"cake\" :done #t :replaces () :caused-by sha256-{} :clock \"hlc-0000000000000000-00000000\" :thread \"list-1\" :from @bo)))", "f".repeat(64));
+    let bad_field = format!("(signed @bo (lang {n} (check (@aria @bo @cy) :item \"cake\" :done #t :clock \"hlc-0000000000000000-00000000\" :note \"x\" :replaces () :caused-by {a1} :thread \"list-1\" :from @bo)))");
+    let pending = format!("(signed @bo (lang {n} (check (@aria @bo @cy) :item \"cake\" :done #t :clock \"hlc-0000000000000000-00000000\" :replaces () :caused-by sha256-{} :thread \"list-1\" :from @bo)))", "f".repeat(64));
     let messages = [
         (&m0, "@aria"),
         (&m1, "@aria"),
@@ -115,11 +138,11 @@ fn generate_lunch_vote_domain() {
     let n = "lunch-vote";
     let p = format!("(lang {n} (propose @lunch :question \"Lunch?\" :options (\"Pizza\" \"Sushi\") :caused-by begin :thread \"v1\" :from @aria))");
     let a = address(&p);
-    let v1 = format!("(lang {n} (vote @lunch :choice \"Pizza\" :replaces () :caused-by {a} :clock \"hlc-0000000000000000-00000000\" :thread \"v1\" :from @bo))");
+    let v1 = format!("(lang {n} (vote @lunch :choice \"Pizza\" :clock \"hlc-0000000000000000-00000000\" :replaces () :caused-by {a} :thread \"v1\" :from @bo))");
     let a1 = address(&v1);
-    let v2 = format!("(lang {n} (vote @lunch :choice \"Sushi\" :replaces ({a1}) :caused-by {a} :clock \"hlc-0000000000000000-00000000\" :thread \"v1\" :from @bo))");
-    let v3 = format!("(lang {n} (vote @lunch :choice \"Tacos\" :replaces () :caused-by {a} :clock \"hlc-0000000000000000-00000000\" :thread \"v1\" :from @cy))");
-    let v4 = format!("(lang {n} (vote @lunch :choice \"Pizza\" :replaces () :caused-by {a} :clock \"hlc-0000000000000000-00000000\" :thread \"v1\" :from @dan))");
+    let v2 = format!("(lang {n} (vote @lunch :choice \"Sushi\" :clock \"hlc-0000000000000000-00000000\" :replaces ({a1}) :caused-by {a} :thread \"v1\" :from @bo))");
+    let v3 = format!("(lang {n} (vote @lunch :choice \"Tacos\" :clock \"hlc-0000000000000000-00000000\" :replaces () :caused-by {a} :thread \"v1\" :from @cy))");
+    let v4 = format!("(lang {n} (vote @lunch :choice \"Pizza\" :clock \"hlc-0000000000000000-00000000\" :replaces () :caused-by {a} :thread \"v1\" :from @dan))");
     let long_q = "q".repeat(281);
     let too_long = format!("(lang {n} (propose @lunch :question \"{long_q}\" :options (\"a\") :caused-by begin :thread \"v1\" :from @eve))");
     let messages = [
@@ -235,14 +258,14 @@ fn generate_signer_supersession() {
       (extend open (to title) (tell to :title title))
       (extend write (to value op clock) (tell to :value value :op op :clock clock))
       (shape open (require :title string))
-      (shape write (require :clock hlc) (require :value string) (require :op number))
+      (shape write (require :value string) (require :op number) (require :clock hlc))
       (protocol (then begin open) (then open write))
       (state (title (initial open :title)) (entries (lww-per-signer write :value :clock)) (all (events write :value))))";
     let root = "(lang signer-register (open @room :title \"Register\" :caused-by begin :thread \"s1\" :from @owner))";
     let predecessor = address(root);
     let write_act = |signer: &str, value: &str, replaces: &str, op: usize| {
         format!(
-        "(lang signer-register (write @room :value {value:?} :op {op} :replaces ({replaces}) :caused-by {predecessor} :clock \"hlc-0000000000000000-00000000\" :thread \"s1\" :from {signer}))"
+        "(lang signer-register (write @room :value {value:?} :op {op} :clock \"hlc-0000000000000000-00000000\" :replaces ({replaces}) :caused-by {predecessor} :thread \"s1\" :from {signer}))"
     )
     };
     let first = write_act("@a", "old", "", 0);

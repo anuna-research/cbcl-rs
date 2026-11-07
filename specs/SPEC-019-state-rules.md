@@ -382,8 +382,9 @@ shape's declared fields plus `:caused-by :thread :from :to`; strings ≤
 `:replaces`, when present, a list of ≤ `max-list` distinct `sha256-<64hex>`
 symbols that need not resolve. (Addresses are spelled `sha256-<hex>` on the
 wire because the lexer reads `:` as the start of a keyword; the digest is
-`message_content_hash`'s, whose textual form uses a colon.) Any failure is a `Violation` blamed on the
-sender. No rule here reads history.
+`message_content_hash`'s, whose textual form uses a colon.) The keyword
+parameters appear in canonical order ([[SPEC-019-state-rules#REQ-1949]]).
+Any failure is a `Violation` blamed on the sender. No rule here reads history.
 
 ### R.5 The binder
 
@@ -1181,6 +1182,25 @@ When configured with ceiling `C`, every resource observation SHALL preserve
 `floor ≤ value ≤ C` using independently owned increment headroom.
 Trace: [[SPEC-019-state-rules#CON-1909]], [[SPEC-019-state-rules#TEST-1969]].
 
+### REQ-1949: Canonical keyword order
+
+The content address commits to an act's parameter list in order, so two
+spellings of one act with the same named fields in different positions would be
+two acts with two addresses. The receipt SHALL reject any act of a state-bearing
+verb whose keyword parameters are not in canonical order, leaving exactly one
+spelling per act: the business fields in the order the verb's `shape` declares
+them (which follows the `extend` parameter list); then the compiler-owned
+fields `:escrow-prev`, `:escrow-deps`, `:escrow-nonce` in that order; then
+`:replaces`; then `:from` and `:to`. (`:sender`, `:thread` and `:caused-by` are
+lifted out of the parameter list on parse and are not part of the address's
+parameter leaf.) The binder SHALL emit this order. This is the same rule the
+checkpoint companion dialect already applies to its coordination fields
+([[SPEC-035-cached-state-checkpoints]]). Rejection is a `Violation` with rule
+`order` naming the first keyword that descends; it is checked after the
+closed-set and bound checks so their diagnostics keep precedence. No repair is
+attempted.
+Trace: [[SPEC-019-state-rules#TEST-1970]].
+
 ### CON-1909: Dual escrow budgets
 
 `ceiling` and `initial-headroom` occur together, or neither occurs.
@@ -1215,6 +1235,17 @@ A headroom transfer changes neither value nor total headroom; replay counts once
 Depth: dual-budget conservation and compatible-union safety; remove the local
 headroom guard and require the ceiling test to fail.
 Validates: [[SPEC-019-state-rules#REQ-1948]].
+
+### TEST-1970: Canonical keyword order
+
+For `pay (to recipient amount)`, an act written with `:amount` before
+`:recipient` is rejected with rule `order`; the same act in declared order is
+accepted and its address equals the binder's output for the same fields. An act
+with `:escrow-deps` before `:escrow-prev`, or `:replaces` before a business
+field, or `:from` before `:replaces`, is rejected. A single business field, and
+a verb with no business fields, pass. The conformance vectors contain only
+canonical spellings.
+Validates: [[SPEC-019-state-rules#REQ-1949]].
 
 ### Implementation handoff
 

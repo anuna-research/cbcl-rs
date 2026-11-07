@@ -90,8 +90,8 @@ fn all_sixteen_installed_heads_resume_native_certificates_at_every_cut() {
     let mut previous = f.target_open.id().unwrap();
     for i in 1..=8 {
         let message = SignedMessage::sign(parse(&format!(
-            "(lang {} (write (@m0 @m1 @m2 @m3) :item \"shape\" :value {} :clock \"hlc-{:016x}-00000000\" :replaces ({}) :unused \"discard-me\" :escrow-prev {} :escrow-deps () :from @m0 :sender @m0 :thread \"target\" :caused-by \"{}\"))",
-            f.context.target().name, i, i, messages.last().map(|m: &SignedMessage|m.authenticate(&f.keys).unwrap().address).unwrap_or_default(), previous.replace("sha256:", "sha256-"), previous
+            "(lang {} (write (@m0 @m1 @m2 @m3) :item \"shape\" :value {} :clock \"hlc-{:016x}-00000000\" :unused \"discard-me\" :escrow-prev {} :escrow-deps () :replaces ({}) :from @m0 :sender @m0 :thread \"target\" :caused-by \"{}\"))",
+            f.context.target().name, i, i, previous.replace("sha256:", "sha256-"), messages.last().map(|m: &SignedMessage|m.authenticate(&f.keys).unwrap().address).unwrap_or_default(), previous
         )), "@m0", &f.keys).unwrap();
         previous = message.id().unwrap();
         messages.push(message);

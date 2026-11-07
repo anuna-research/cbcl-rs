@@ -10,6 +10,74 @@
     "duplicate-delivery",
     "intend-remove"
   ],
+  "id": "tags-and-balance",
+  "intents": [
+    {
+      "fields": {
+        "tag": "urgent"
+      },
+      "signer": "@d",
+      "verb": "remove"
+    },
+    {
+      "fields": {
+        "tag": "gone"
+      },
+      "signer": "@d",
+      "verb": "remove"
+    },
+    {
+      "fields": {
+        "amount": 5,
+        "op": "c3"
+      },
+      "signer": "@d",
+      "verb": "credit"
+    }
+  ],
+  "messages": [
+    {
+      "canonical": "(lang tags (open @room () :title \"Board\" :from @a :thread \"b1\" :caused-by begin))",
+      "signer": "@a"
+    },
+    {
+      "canonical": "(lang tags (add @room () :tag \"urgent\" :op \"1\" :from @b :thread \"b1\" :caused-by sha256-0a00637fda555fccf70a8c0978eac294050de34397c8a89d029002d621f7f155))",
+      "signer": "@b"
+    },
+    {
+      "canonical": "(lang tags (add @room () :tag \"urgent\" :op \"2\" :from @c :thread \"b1\" :caused-by sha256-0a00637fda555fccf70a8c0978eac294050de34397c8a89d029002d621f7f155))",
+      "signer": "@c"
+    },
+    {
+      "canonical": "(lang tags (remove @room () :tag \"urgent\" :replaces (sha256-2a92b081f026a1e7ecb4a197597412b45d92ebef1954f61a68b314c7d21c0378) :from @a :thread \"b1\" :caused-by sha256-0a00637fda555fccf70a8c0978eac294050de34397c8a89d029002d621f7f155))",
+      "signer": "@a"
+    },
+    {
+      "canonical": "(lang tags (add @room () :tag \"later\" :op \"3\" :from @b :thread \"b1\" :caused-by sha256-0a00637fda555fccf70a8c0978eac294050de34397c8a89d029002d621f7f155))",
+      "signer": "@b"
+    },
+    {
+      "canonical": "(lang tags (remove @room () :tag \"later\" :replaces (sha256-64c3ae87875b26850ca6b0ffdadde6d92adad2ba440574c2ebe852b1f9a9a79d) :from @c :thread \"b1\" :caused-by sha256-0a00637fda555fccf70a8c0978eac294050de34397c8a89d029002d621f7f155))",
+      "signer": "@c"
+    },
+    {
+      "canonical": "(lang tags (credit @room () :amount 100 :op \"c1\" :from @a :thread \"b1\" :caused-by sha256-0a00637fda555fccf70a8c0978eac294050de34397c8a89d029002d621f7f155))",
+      "signer": "@a"
+    },
+    {
+      "canonical": "(lang tags (credit @room () :amount 250 :op \"c2\" :from @b :thread \"b1\" :caused-by sha256-0a00637fda555fccf70a8c0978eac294050de34397c8a89d029002d621f7f155))",
+      "signer": "@b"
+    },
+    {
+      "canonical": "(lang tags (debit @room () :amount 50 :op \"d1\" :from @a :thread \"b1\" :caused-by sha256-0a00637fda555fccf70a8c0978eac294050de34397c8a89d029002d621f7f155))",
+      "signer": "@a"
+    },
+    {
+      "canonical": "(lang tags (credit @room () :amount 100 :op \"c1\" :from @a :thread \"b1\" :caused-by sha256-0a00637fda555fccf70a8c0978eac294050de34397c8a89d029002d621f7f155))",
+      "signer": "@a"
+    }
+  ],
+  "thread": "b1",
   "expect": {
     "addresses": [
       "sha256-0a00637fda555fccf70a8c0978eac294050de34397c8a89d029002d621f7f155",
@@ -64,73 +132,5 @@
         "canonical": "(lang tags (credit @room () :amount 5 :op \"c3\" :from @d :thread \"b1\" :caused-by sha256-0a00637fda555fccf70a8c0978eac294050de34397c8a89d029002d621f7f155))"
       }
     ]
-  },
-  "id": "tags-and-balance",
-  "intents": [
-    {
-      "fields": {
-        "tag": "urgent"
-      },
-      "signer": "@d",
-      "verb": "remove"
-    },
-    {
-      "fields": {
-        "tag": "gone"
-      },
-      "signer": "@d",
-      "verb": "remove"
-    },
-    {
-      "fields": {
-        "amount": 5,
-        "op": "c3"
-      },
-      "signer": "@d",
-      "verb": "credit"
-    }
-  ],
-  "messages": [
-    {
-      "canonical": "(lang tags (open @room :title \"Board\" :caused-by begin :thread \"b1\" :from @a))",
-      "signer": "@a"
-    },
-    {
-      "canonical": "(lang tags (add @room :tag \"urgent\" :op \"1\" :caused-by sha256-0a00637fda555fccf70a8c0978eac294050de34397c8a89d029002d621f7f155 :thread \"b1\" :from @b))",
-      "signer": "@b"
-    },
-    {
-      "canonical": "(lang tags (add @room :tag \"urgent\" :op \"2\" :caused-by sha256-0a00637fda555fccf70a8c0978eac294050de34397c8a89d029002d621f7f155 :thread \"b1\" :from @c))",
-      "signer": "@c"
-    },
-    {
-      "canonical": "(lang tags (remove @room :tag \"urgent\" :replaces (sha256-2a92b081f026a1e7ecb4a197597412b45d92ebef1954f61a68b314c7d21c0378) :caused-by sha256-0a00637fda555fccf70a8c0978eac294050de34397c8a89d029002d621f7f155 :thread \"b1\" :from @a))",
-      "signer": "@a"
-    },
-    {
-      "canonical": "(lang tags (add @room :tag \"later\" :op \"3\" :caused-by sha256-0a00637fda555fccf70a8c0978eac294050de34397c8a89d029002d621f7f155 :thread \"b1\" :from @b))",
-      "signer": "@b"
-    },
-    {
-      "canonical": "(lang tags (remove @room :tag \"later\" :replaces (sha256-64c3ae87875b26850ca6b0ffdadde6d92adad2ba440574c2ebe852b1f9a9a79d) :caused-by sha256-0a00637fda555fccf70a8c0978eac294050de34397c8a89d029002d621f7f155 :thread \"b1\" :from @c))",
-      "signer": "@c"
-    },
-    {
-      "canonical": "(lang tags (credit @room :amount 100 :op \"c1\" :caused-by sha256-0a00637fda555fccf70a8c0978eac294050de34397c8a89d029002d621f7f155 :thread \"b1\" :from @a))",
-      "signer": "@a"
-    },
-    {
-      "canonical": "(lang tags (credit @room :amount 250 :op \"c2\" :caused-by sha256-0a00637fda555fccf70a8c0978eac294050de34397c8a89d029002d621f7f155 :thread \"b1\" :from @b))",
-      "signer": "@b"
-    },
-    {
-      "canonical": "(lang tags (debit @room :amount 50 :op \"d1\" :caused-by sha256-0a00637fda555fccf70a8c0978eac294050de34397c8a89d029002d621f7f155 :thread \"b1\" :from @a))",
-      "signer": "@a"
-    },
-    {
-      "canonical": "(lang tags (credit @room :amount 100 :op \"c1\" :caused-by sha256-0a00637fda555fccf70a8c0978eac294050de34397c8a89d029002d621f7f155 :thread \"b1\" :from @a))",
-      "signer": "@a"
-    }
-  ],
-  "thread": "b1"
+  }
 }

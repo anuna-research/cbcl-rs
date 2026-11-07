@@ -805,10 +805,83 @@ pub fn verify_state_shape(d: &Dialect, msg: &Message) -> Result<(), ShapeViolati
             }
         }
     }
+    // Canonical keyword order (SPEC-019 R.4, REQ-1949): one spelling per act.
+    if let Message::Simple { params, .. } = simple {
+        let order = declared_keyword_order(&d.shapes, &verb);
+        canonical_keyword_order(&order, params)
+            .map_err(|detail| violation("order", None, detail))?;
+    }
     Ok(())
 }
 
 /// A content address as the wire spells it: `sha256-` plus 64 lowercase hex.
+/// The business keywords a verb's shape declares, in declaration order, with
+/// the compiler-owned fields (`:replaces`, `:escrow-prev`, `:escrow-deps`,
+/// `:escrow-nonce`) left out. This is the canonical order of an act's
+/// business fields (SPEC-019 R.4, REQ-1949).
+pub fn declared_keyword_order(shapes: &[ShapeConstraint], verb: &str) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    for shape in shapes.iter().filter(|s| s.performative == verb) {
+        for rule in &shape.rules {
+            if let ShapeRule::Require { keyword, .. } | ShapeRule::Optional { keyword, .. } = rule {
+                if !is_compiler_owned(keyword) && !out.iter().any(|k| k == keyword) {
+                    out.push(keyword.clone());
+                }
+            }
+        }
+    }
+    out
+}
+
+fn is_compiler_owned(k: &str) -> bool {
+    k == RESERVED_REPLACES
+        || k == crate::escrow::PREV
+        || k == crate::escrow::DEPS
+        || k == crate::escrow::NONCE
+}
+
+/// Canonical keyword order of an act's parameter list (SPEC-019 R.4,
+/// REQ-1949). The content address commits to the parameter list in order, so
+/// two spellings of one act would be two acts; this rule leaves exactly one
+/// spelling, the one the binder emits: the declared business fields in the
+/// order the verb's shape declares them, then the compiler-owned fields
+/// `:escrow-prev`, `:escrow-deps`, `:escrow-nonce`, then `:replaces`, then the
+/// routing fields `:from`, `:to`. (`:sender`, `:thread` and `:caused-by` are
+/// lifted out of the parameter list by the parser and are not part of it.)
+/// Undeclared keywords are the closed-set check's business, not this one's.
+pub fn canonical_keyword_order(declared: &[String], params: &[SExpr]) -> Result<(), String> {
+    let rank = |k: &str| -> Option<(u8, usize)> {
+        match k {
+            crate::escrow::PREV => Some((1, 0)),
+            crate::escrow::DEPS => Some((1, 1)),
+            crate::escrow::NONCE => Some((1, 2)),
+            RESERVED_REPLACES => Some((2, 0)),
+            "from" => Some((3, 0)),
+            "to" => Some((3, 1)),
+            "sender" => Some((3, 2)),
+            "thread" => Some((3, 3)),
+            "caused-by" => Some((3, 4)),
+            other => declared.iter().position(|d| d == other).map(|i| (0, i)),
+        }
+    };
+    let mut prev: Option<(&str, (u8, usize))> = None;
+    let mut i = 0;
+    while i + 1 < params.len() {
+        if let SExpr::Atom(Atom::Keyword(k)) = &params[i] {
+            if let Some(r) = rank(k) {
+                if let Some((p, pr)) = prev {
+                    if pr >= r {
+                        return Err(format!("non-canonical keyword order: :{k} after :{p}"));
+                    }
+                }
+                prev = Some((k.as_str(), r));
+            }
+        }
+        i += 2;
+    }
+    Ok(())
+}
+
 pub fn is_address(s: &str) -> bool {
     let Some(hex) = s.strip_prefix("sha256-") else {
         return false;

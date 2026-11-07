@@ -47,10 +47,17 @@ fn dialect(src: &str) -> cbcl_core::dialect::Dialect {
 fn msg(text: &str) -> Message {
     let text = if (text.contains("(check ") || text.contains("(vote ")) && !text.contains(":clock")
     {
-        text.replacen(
-            ":thread",
-            ":clock \"hlc-0000000000000000-00000000\" :thread",
-            1,
+        // Canonical order (REQ-1949): `:clock` is the last declared business
+        // field of `check` and `vote`, so it goes before `:replaces` and routing.
+        let at = [" :replaces", " :from", " :caused-by", " :thread"]
+            .iter()
+            .filter_map(|k| text.find(k))
+            .min()
+            .unwrap();
+        format!(
+            "{} :clock \"hlc-0000000000000000-00000000\"{}",
+            &text[..at],
+            &text[at..]
         )
     } else {
         text.to_owned()

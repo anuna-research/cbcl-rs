@@ -19,15 +19,15 @@
       "signer": "@a"
     },
     {
-      "canonical": "(lang hlc-test (write @a () :clock \"hlc-0000000000000001-00000000\" :item \"x\" :value \"old\" :replaces () :from @alice :thread \"t\" :caused-by sha256-fd5bfc52002eb644f3d32d9f71b95fc730e58ed97302a2bd9bc299ec7b61b2b9))",
+      "canonical": "(lang hlc-test (write @a () :item \"x\" :value \"old\" :clock \"hlc-0000000000000001-00000000\" :replaces () :from @alice :thread \"t\" :caused-by sha256-fd5bfc52002eb644f3d32d9f71b95fc730e58ed97302a2bd9bc299ec7b61b2b9))",
       "signer": "@alice"
     },
     {
-      "canonical": "(lang hlc-test (write @a () :clock \"hlc-0000000000000002-00000000\" :item \"x\" :value \"bob\" :replaces () :from @bob :thread \"t\" :caused-by sha256-fd5bfc52002eb644f3d32d9f71b95fc730e58ed97302a2bd9bc299ec7b61b2b9))",
+      "canonical": "(lang hlc-test (write @a () :item \"x\" :value \"bob\" :clock \"hlc-0000000000000002-00000000\" :replaces () :from @bob :thread \"t\" :caused-by sha256-fd5bfc52002eb644f3d32d9f71b95fc730e58ed97302a2bd9bc299ec7b61b2b9))",
       "signer": "@bob"
     },
     {
-      "canonical": "(lang hlc-test (write @a () :clock \"hlc-0000000000000003-00000000\" :item \"x\" :value \"edit\" :replaces (sha256-f69f6f7a122ff6a8f3b8c49c83cde7ce6634451153608876be7b2aa3c89a9d8c) :from @alice :thread \"t\" :caused-by sha256-fd5bfc52002eb644f3d32d9f71b95fc730e58ed97302a2bd9bc299ec7b61b2b9))",
+      "canonical": "(lang hlc-test (write @a () :item \"x\" :value \"edit\" :clock \"hlc-0000000000000003-00000000\" :replaces (sha256-d1472998120a4468f5e859bce1784d312a35139125d823cb946e6d477ae9da64) :from @alice :thread \"t\" :caused-by sha256-fd5bfc52002eb644f3d32d9f71b95fc730e58ed97302a2bd9bc299ec7b61b2b9))",
       "signer": "@alice"
     },
     {
@@ -39,16 +39,16 @@
   "expect": {
     "addresses": [
       "sha256-fd5bfc52002eb644f3d32d9f71b95fc730e58ed97302a2bd9bc299ec7b61b2b9",
-      "sha256-f69f6f7a122ff6a8f3b8c49c83cde7ce6634451153608876be7b2aa3c89a9d8c",
-      "sha256-adc0df24354bb6e37301d1ea88e089712b14a33e945ab2613d08468f031b9f18",
-      "sha256-a393b590ce8d67d291644ee5767031711c2c50b667b688a27d01de1fd6319e21",
+      "sha256-d1472998120a4468f5e859bce1784d312a35139125d823cb946e6d477ae9da64",
+      "sha256-88dcdeaf87430ea9d82e351b9ba4460b0a6c847b779d05e4ac13763921f14907",
+      "sha256-1b7ab6c0811d37aa2875de31dcb2923bff27c4292e468eda457c6ea6c3f48711",
       "sha256-91028c2e86d768c2fe8221fc1252cfc9fb6ec56e9ff86481caff16f07afa7207"
     ],
     "verdicts": {
       "sha256-fd5bfc52002eb644f3d32d9f71b95fc730e58ed97302a2bd9bc299ec7b61b2b9": "accepted",
-      "sha256-f69f6f7a122ff6a8f3b8c49c83cde7ce6634451153608876be7b2aa3c89a9d8c": "accepted",
-      "sha256-adc0df24354bb6e37301d1ea88e089712b14a33e945ab2613d08468f031b9f18": "accepted",
-      "sha256-a393b590ce8d67d291644ee5767031711c2c50b667b688a27d01de1fd6319e21": "accepted",
+      "sha256-d1472998120a4468f5e859bce1784d312a35139125d823cb946e6d477ae9da64": "accepted",
+      "sha256-88dcdeaf87430ea9d82e351b9ba4460b0a6c847b779d05e4ac13763921f14907": "accepted",
+      "sha256-1b7ab6c0811d37aa2875de31dcb2923bff27c4292e468eda457c6ea6c3f48711": "accepted",
       "sha256-91028c2e86d768c2fe8221fc1252cfc9fb6ec56e9ff86481caff16f07afa7207": "rejected"
     },
     "state": {

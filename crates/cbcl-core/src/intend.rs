@@ -655,7 +655,7 @@ fn intend_impl(
     // 6 build
     let mut params: Vec<SExpr> = Vec::new();
     let declared = declared_keywords(&d.shapes, verb);
-    for (k, v) in &fields {
+    for k in fields.keys() {
         if !declared.contains(k) {
             return Err(Reject::Shape(ShapeViolation {
                 rule: String::from("closed"),
@@ -665,8 +665,13 @@ fn intend_impl(
                 detail: format!("undeclared field :{k} on '{verb}'"),
             }));
         }
-        params.push(SExpr::Atom(Atom::Keyword(k.clone())));
-        params.push(v.clone());
+    }
+    // Canonical order (SPEC-019 REQ-1949): business fields as the shape declares them.
+    for k in crate::r7::declared_keyword_order(&d.shapes, verb) {
+        if let Some(v) = fields.get(&k) {
+            params.push(SExpr::Atom(Atom::Keyword(k)));
+            params.push(v.clone());
+        }
     }
     // Keep identity rejection at its original point after ordinary admission.
     // The binding holds the exact immutable inputs for both authoring stages.
