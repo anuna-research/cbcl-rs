@@ -226,6 +226,10 @@ let act = intend(&inst, &AgentKey("@treasury".into()), "pay", fields)?;
 
 The `signed` wrapper names the signer; the host's authentication, not the wrapper, establishes it. The complete message sequence for this example is in `test-vectors/state/bounded-coin.json`.
 
+#### How identities, roles and allocations connect
+
+`@treasury` is a key identity, short for `@ed25519:treasury`. The core never holds public keys: the host maps each identity to real key material, verifies the signature over the act's header, and only then passes the signer to the core. The root act's `with-roles` cast binds identities to roles and is immutable for the thread. The opener's `:allocations` binds the same identities to rights; every account must be in the cast, and each operation debits the authenticated signer. One host-side signature check therefore anchors role, account and rights.
+
 The trace from `crates/cbcl-parser/tests/bounded_counter.rs` opens the coin with allocations `((@treasury 1000) (@alice 0) (@bob 0))` and then applies four acts:
 
 | Act | Signer | Rights afterwards | Value |
