@@ -59,6 +59,7 @@ pub mod evaluator;
 pub mod gossip;
 pub mod intend;
 pub mod keyid;
+pub mod lattice;
 pub mod message;
 pub mod msg_tag;
 pub mod pattern;

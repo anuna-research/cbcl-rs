@@ -1,0 +1,133 @@
+;; IMPL-030: the state kernel as a store of lattice variables (SPEC-038 v0.1.0).
+;; Slice 1 lands the pure lattice algebra and the factorisation tests with no
+;; wire change; later slices add threshold reads, freeze, the conflict top,
+;; bindings, and the Lean capstone. Acceptance criteria quote SPEC-038 TESTs.
+
+(meta plan
+  (id "IMPL-030")
+  (title "LVar state kernel: lattice algebra, threshold reads, freeze, conflict top (SPEC-038 v0.1.0)")
+  (version "0.1.0")
+  (status "active")
+  (created "2026-11-07")
+  (author "agent:claude")
+  (spec "SPEC-038, depends on SPEC-019, SPEC-036, SPEC-037")
+  (description "Deliver crates/cbcl-core/src/lattice.rs (CON-3800) with differential and morphism tests (TEST-3800); then threshold observations (CON-3801, TEST-3801/3803), the conflict top (REQ-3804, TEST-3804), freeze (CON-3802, TEST-3802), snapshot marking (REQ-3805), the Lean lift theorem and quasi-determinism capstone (REQ-3806, TEST-3806), and docs/status."))
+
+;; Task metadata
+
+(meta task-lattice-algebra
+  (description "CON-3800: crates/cbcl-core/src/lattice.rs with carriers, join, per-act contributions, factor(&Rule) for the thirteen lift heads (None for progress and bounded-counter), evaluate and display matching state::fold; module rustdoc cites SPEC-038.")
+  (acceptance "TEST-3800: crates/cbcl-parser/tests/lattice_factorisation.rs passes on every state vector: display equals fold in forward, reversed and duplicated delivery; L(A1 ∪ A2) = L(A1) ⊔ L(A2) for parity and halves partitions; factor returns None for the two closure heads."))
+
+(meta task-threshold-reads
+  (description "CON-3801: parse (threshold name field element+) in the state clause; type elements against the field carrier; reject compatible pairs at install in O(k^2); render reached/pending in fold and state_schema.")
+  (acceptance "TEST-3801 property test and TEST-3803 install rejections pass; existing vectors unchanged (TEST-3807)."))
+
+(meta task-conflict-top
+  (description "ADR-3803 / REQ-3804: add the sole carrier's top to the fold rendering of initial as {status: fault, evidence: [...]}, uniform with the resource fault; keep Absent for no opener.")
+  (acceptance "TEST-3804 for initial and bounded-counter passes; vectors without conflicts are byte-identical (TEST-3807)."))
+
+(meta task-freeze
+  (description "CON-3802 / ADR-3802: parse (freeze field verb [policy]); fold excludes contributions causally after the freeze under supersede or joins to top under fault; render frozen with the freezing address; install checks field and verb.")
+  (acceptance "TEST-3802 passes for both policies including the concurrent-write case; TEST-3804's freeze clause passes."))
+
+(meta task-snapshot-marking
+  (description "REQ-3805: state_schema marks fields that are neither threshold nor frozen as snapshot; bindings' READMEs state the host obligation for effects.")
+  (acceptance "TEST-3805 passes; js, wasm, erl and ffi docs updated."))
+
+(meta task-lean-lift-theorem
+  (description "Lean: define the carrier lattices and the lift; prove one theorem that any lifted term is a join-homomorphism, and derive the per-rule invariance of State.lean for the thirteen lift heads from it.")
+  (acceptance "lake build green; scripts/check-axioms.sh allowlisted; the thirteen fold_perm_invariant conjuncts follow from the lift theorem without sorry."))
+
+(meta task-lean-quasi-determinism
+  (description "REQ-3806 / TEST-3806: state and prove quasi-determinism over StateKernelDelivery's replica model with top as the conflict case; show strong_eventual_consistency as the no-top specialisation.")
+  (acceptance "lake build green; axiom audit clean; a semantic mutant that drops top-stickiness fails the proof."))
+
+(meta task-docs-status
+  (description "Update docs/concepts/bounded-counter.md and hlc-registers.md with the term reading of each head and the snapshot/threshold/frozen vocabulary; set SPEC-038 status to implemented; zetl check clean.")
+  (acceptance "zetl check --dead-links --fail-on error clean; SPEC-038 status implemented with verified-by annotations reconciled to what landed."))
+
+;; Facts
+(given task-lattice-algebra)
+(given task-threshold-reads)
+(given task-conflict-top)
+(given task-freeze)
+(given task-snapshot-marking)
+(given task-lean-lift-theorem)
+(given task-lean-quasi-determinism)
+(given task-docs-status)
+(given agent-claude-available)
+
+;; Readiness rules
+(normally r-ready-lattice-algebra task-lattice-algebra ready-lattice-algebra)
+(meta r-ready-lattice-algebra (source "SPEC-038-lvar-state-kernel#REQ-3800"))
+(normally r-ready-threshold-reads (and task-threshold-reads completed-lattice-algebra) ready-threshold-reads)
+(meta r-ready-threshold-reads (source "SPEC-038-lvar-state-kernel#REQ-3802"))
+(normally r-ready-conflict-top (and task-conflict-top completed-lattice-algebra) ready-conflict-top)
+(meta r-ready-conflict-top (source "SPEC-038-lvar-state-kernel#REQ-3804"))
+(normally r-ready-freeze (and task-freeze completed-conflict-top) ready-freeze)
+(meta r-ready-freeze (source "SPEC-038-lvar-state-kernel#REQ-3803"))
+(normally r-ready-snapshot-marking (and task-snapshot-marking completed-threshold-reads completed-freeze) ready-snapshot-marking)
+(meta r-ready-snapshot-marking (source "SPEC-038-lvar-state-kernel#REQ-3805"))
+(normally r-ready-lean-lift-theorem (and task-lean-lift-theorem completed-lattice-algebra) ready-lean-lift-theorem)
+(meta r-ready-lean-lift-theorem (source "SPEC-038-lvar-state-kernel#REQ-3800"))
+(normally r-ready-lean-quasi-determinism (and task-lean-quasi-determinism completed-lean-lift-theorem completed-conflict-top completed-freeze) ready-lean-quasi-determinism)
+(meta r-ready-lean-quasi-determinism (source "SPEC-038-lvar-state-kernel#REQ-3806"))
+(normally r-ready-docs-status (and task-docs-status completed-snapshot-marking completed-lean-quasi-determinism) ready-docs-status)
+(meta r-ready-docs-status (source "SPEC-038-lvar-state-kernel#REQ-3807"))
+
+;; Assignment rules
+(normally r-assign-lattice-algebra (and ready-lattice-algebra agent-claude-available) assign-to-lattice-algebra-claude)
+(meta r-assign-lattice-algebra (source "SPEC-038-lvar-state-kernel#ADR-3804"))
+(normally r-assign-threshold-reads (and ready-threshold-reads agent-claude-available) assign-to-threshold-reads-claude)
+(meta r-assign-threshold-reads (source "SPEC-038-lvar-state-kernel#ADR-3804"))
+(normally r-assign-conflict-top (and ready-conflict-top agent-claude-available) assign-to-conflict-top-claude)
+(meta r-assign-conflict-top (source "SPEC-038-lvar-state-kernel#ADR-3804"))
+(normally r-assign-freeze (and ready-freeze agent-claude-available) assign-to-freeze-claude)
+(meta r-assign-freeze (source "SPEC-038-lvar-state-kernel#ADR-3804"))
+(normally r-assign-snapshot-marking (and ready-snapshot-marking agent-claude-available) assign-to-snapshot-marking-claude)
+(meta r-assign-snapshot-marking (source "SPEC-038-lvar-state-kernel#ADR-3804"))
+(normally r-assign-lean-lift-theorem (and ready-lean-lift-theorem agent-claude-available) assign-to-lean-lift-theorem-claude)
+(meta r-assign-lean-lift-theorem (source "SPEC-038-lvar-state-kernel#ADR-3804"))
+(normally r-assign-lean-quasi-determinism (and ready-lean-quasi-determinism agent-claude-available) assign-to-lean-quasi-determinism-claude)
+(meta r-assign-lean-quasi-determinism (source "SPEC-038-lvar-state-kernel#ADR-3804"))
+(normally r-assign-docs-status (and ready-docs-status agent-claude-available) assign-to-docs-status-claude)
+(meta r-assign-docs-status (source "SPEC-038-lvar-state-kernel#ADR-3804"))
+
+(claims agent:claude
+  :at "2026-11-07T11:21:36Z"
+  (given claim-v1-lattice-algebra)
+  (normally r-cl-state-v1-lattice-algebra claim-v1-lattice-algebra state-claimed-v1-lattice-algebra)
+  (normally r-cl-chain-v1-lattice-algebra state-claimed-v1-lattice-algebra claimed-lattice-algebra)
+)
+
+;; Propagation rules: failures in 'lattice-algebra' block downstream tasks
+(normally r-propagate-conflict-top-from-lattice-algebra-failed failed-lattice-algebra upstream-blocked-conflict-top)
+(normally r-propagate-conflict-top-from-lattice-algebra-permanently-failed permanently-failed-lattice-algebra upstream-blocked-conflict-top)
+(normally r-propagate-conflict-top-from-lattice-algebra-stale-v1 stale-v1-lattice-algebra upstream-blocked-conflict-top)
+(normally r-propagate-conflict-top-from-lattice-algebra-timeout-v1 timeout-v1-lattice-algebra upstream-blocked-conflict-top)
+(normally r-propagate-conflict-top-from-lattice-algebra-blocked upstream-blocked-lattice-algebra upstream-blocked-conflict-top)
+(normally r-propagate-lean-lift-theorem-from-lattice-algebra-failed failed-lattice-algebra upstream-blocked-lean-lift-theorem)
+(normally r-propagate-lean-lift-theorem-from-lattice-algebra-permanently-failed permanently-failed-lattice-algebra upstream-blocked-lean-lift-theorem)
+(normally r-propagate-lean-lift-theorem-from-lattice-algebra-stale-v1 stale-v1-lattice-algebra upstream-blocked-lean-lift-theorem)
+(normally r-propagate-lean-lift-theorem-from-lattice-algebra-timeout-v1 timeout-v1-lattice-algebra upstream-blocked-lean-lift-theorem)
+(normally r-propagate-lean-lift-theorem-from-lattice-algebra-blocked upstream-blocked-lattice-algebra upstream-blocked-lean-lift-theorem)
+(normally r-propagate-threshold-reads-from-lattice-algebra-failed failed-lattice-algebra upstream-blocked-threshold-reads)
+(normally r-propagate-threshold-reads-from-lattice-algebra-permanently-failed permanently-failed-lattice-algebra upstream-blocked-threshold-reads)
+(normally r-propagate-threshold-reads-from-lattice-algebra-stale-v1 stale-v1-lattice-algebra upstream-blocked-threshold-reads)
+(normally r-propagate-threshold-reads-from-lattice-algebra-timeout-v1 timeout-v1-lattice-algebra upstream-blocked-threshold-reads)
+(normally r-propagate-threshold-reads-from-lattice-algebra-blocked upstream-blocked-lattice-algebra upstream-blocked-threshold-reads)
+
+;; Transitive propagation: upstream-blocked cascades through dependency chain
+(normally r-propagate-freeze-from-conflict-top-blocked upstream-blocked-conflict-top upstream-blocked-freeze)
+(normally r-propagate-lean-quasi-determinism-from-conflict-top-blocked upstream-blocked-conflict-top upstream-blocked-lean-quasi-determinism)
+(normally r-propagate-lean-quasi-determinism-from-lean-lift-theorem-blocked upstream-blocked-lean-lift-theorem upstream-blocked-lean-quasi-determinism)
+(normally r-propagate-snapshot-marking-from-threshold-reads-blocked upstream-blocked-threshold-reads upstream-blocked-snapshot-marking)
+(normally r-propagate-lean-quasi-determinism-from-freeze-blocked upstream-blocked-freeze upstream-blocked-lean-quasi-determinism)
+(normally r-propagate-snapshot-marking-from-freeze-blocked upstream-blocked-freeze upstream-blocked-snapshot-marking)
+(normally r-propagate-docs-status-from-lean-quasi-determinism-blocked upstream-blocked-lean-quasi-determinism upstream-blocked-docs-status)
+(normally r-propagate-docs-status-from-snapshot-marking-blocked upstream-blocked-snapshot-marking upstream-blocked-docs-status)
+
+(claims agent:claude
+  :at "2026-11-07T11:21:37Z"
+  (given completed-lattice-algebra))

@@ -669,7 +669,7 @@ impl Value {
         }
     }
 
-    fn as_int(&self) -> Option<i128> {
+    pub fn as_int(&self) -> Option<i128> {
         match self {
             Value::Int(n) => Some(*n),
             Value::Pair { value, .. } => value.as_int(),
