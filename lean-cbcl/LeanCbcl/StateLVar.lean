@@ -663,7 +663,8 @@ def selectionVerbs : Selection → List String
   | .byKey source _ _ | .bySigner source _ | .withField source _ => selectionVerbs source
 
 def expressionVerbs (resourceVerbs : String → List String) : Expr → List String
-  | .initial v _ | .progress v => [v]
+  | .initial _ _ => []
+  | .progress v => [v]
   | .scalar source _ _ | .existsRule source | .count source | .distinct source _
   | .valuesBy source _ _ => selectionVerbs source
   | .counter inc dec _ => selectionVerbs inc ++ selectionVerbs dec
@@ -694,13 +695,29 @@ def FieldEquivalent : FieldObservation → FieldObservation → Prop
   | .fault a, .fault b => a = b
   | _, _ => False
 
+/-- Resource failures are explicit terminal observations, not absent numbers.
+The verifier remains the existing typed closure port. -/
+def resourceFailure (context : Context) (expression : Expr) (A : List Act) : Option (Lattice.Set Nat) :=
+  match expression with
+  | .bounded name => match context.resource A name with
+      | .fault _ evidence => some (fun address => address ∈ evidence)
+      | _ => none
+  | _ => none
+
+theorem resourceFailure_setEq (context : Context) (expression : Expr) {A B : List Act}
+    (same : SetEq A B) : resourceFailure context expression A = resourceFailure context expression B := by
+  cases expression <;> simp only [resourceFailure]
+  rw [context.resource_ext A B same]
+
 /-- Conflict-aware compiled display checks raw initializers before the legacy
 selector can turn a conflicting domain into an empty successful collection. -/
 noncomputable def evaluateField (context : Context) (resourceVerbs : String → List String)
     (domains : List Domain) (expression : Expr) (A : List Act) : FieldObservation := by
   classical
   let sources := initializerSources resourceVerbs domains expression
-  exact if initializerConflict sources A then .fault (initializerEvidence sources A)
+  let resource := resourceFailure context expression A
+  exact if initializerConflict sources A ∨ resource.isSome then
+      .fault (initializerEvidence sources A ∪ resource.getD ∅)
     else .value (evaluate (context.input A) domains expression)
 
 theorem initializerConflict_setEq {sources : List (String × String)} {A B : List Act}
@@ -729,10 +746,11 @@ theorem evaluateField_fork (context : Context) (resourceVerbs : String → List 
   obtain ⟨e, conflict, ea, eb⟩ := opener_fork_fault opener field ha hb va vb different
   have fault : initializerConflict (initializerSources resourceVerbs domains expression) A :=
     ⟨(opener, field), source, e, conflict⟩
-  refine ⟨initializerEvidence (initializerSources resourceVerbs domains expression) A, ?_, ?_, ?_⟩
+  refine ⟨initializerEvidence (initializerSources resourceVerbs domains expression) A ∪
+    (resourceFailure context expression A).getD ∅, ?_, ?_, ?_⟩
   · simp [evaluateField, fault]
-  · exact ⟨(opener, field), source, e, conflict, ea⟩
-  · exact ⟨(opener, field), source, e, conflict, eb⟩
+  · exact Or.inl ⟨(opener, field), source, e, conflict, ea⟩
+  · exact Or.inl ⟨(opener, field), source, e, conflict, eb⟩
 
 theorem evaluateField_setEq (context : Context) (resourceVerbs : String → List String)
     (domains : List Domain) (expression : Expr) {A B : List Act}
@@ -741,20 +759,24 @@ theorem evaluateField_setEq (context : Context) (resourceVerbs : String → List
       (evaluateField context resourceVerbs domains expression B) := by
   classical
   unfold evaluateField
+  dsimp only
+  rw [resourceFailure_setEq context expression same]
   rw [show initializerConflict (initializerSources resourceVerbs domains expression) A ↔
       initializerConflict (initializerSources resourceVerbs domains expression) B from initializerConflict_setEq same]
   split
-  · exact initializerEvidence_setEq same
+  · change _ ∪ _ = _ ∪ _
+    rw [initializerEvidence_setEq same]
   · exact strong_convergence context domains expression ua ub same
 
 /-- Conflict-free erasure is exactly the previous evaluator. -/
 theorem evaluateField_forget (context : Context) (resourceVerbs : String → List String)
     (domains : List Domain) (expression : Expr) (A : List Act)
-    (ordinary : ¬ initializerConflict (initializerSources resourceVerbs domains expression) A) :
+    (ordinary : ¬ initializerConflict (initializerSources resourceVerbs domains expression) A)
+    (resourceOrdinary : resourceFailure context expression A = none) :
     evaluateField context resourceVerbs domains expression A =
       .value (evaluate (context.input A) domains expression) := by
   classical
-  simp [evaluateField, ordinary]
+  simp [evaluateField, ordinary, resourceOrdinary]
 
 /-- A legacy compiled field has the full accepted-set carrier. The summarizing
 per-head lifts in StateLift refine this identity carrier where possible. -/
@@ -765,29 +787,77 @@ structure CompiledTerm where
 /-- Interpretation is independent of which unique accepted-history
 representative is chosen for the carrier. Uses the existing kernel evaluator,
 including HLC, derived fields and delegated closure/resource semantics. -/
-def TermMeaning (context : Context) (domains : List Domain) (term : CompiledTerm)
-    (output : Observation) : Prop :=
+def TermMeaning (context : Context) (resourceVerbs : String → List String)
+    (domains : List Domain) (term : CompiledTerm) (output : FieldObservation) : Prop :=
   ∀ A, NodupAddr A → rawHistory A = term.carrier →
-    Equivalent (evaluate (context.input A) domains term.expression) output
+    FieldEquivalent (evaluateField context resourceVerbs domains term.expression A) output
 
 /-- Whole-clause lift, in the original declaration order. -/
 def compileTerms (clause : Compiled) (A : List Act) : List (String × CompiledTerm) :=
   clause.fields.map (fun (name, expression) => (name, ⟨expression, rawHistory A⟩))
 
-/-- The actual compiled-clause observations interpret the product of raw lifts.
-This connects the full legacy clause, not just a hand-enumerated head list. -/
-theorem compiled_clause_correspondence (context : Context) (clause : Compiled)
+/-- Whole compiled observation after raw faults have propagated. -/
+noncomputable def observeFields (context : Context) (resourceVerbs : String → List String)
+    (clause : Compiled) (A : List Act) : List (String × FieldObservation) :=
+  clause.fields.map (fun (name, expression) =>
+    (name, evaluateField context resourceVerbs clause.domains expression A))
+
+/-- Componentwise union for the full clause product, with names and expressions
+fixed. The carrier is independent of its display and dependency faults. -/
+theorem compileTerms_union (clause : Compiled) (A B : List Act) :
+    compileTerms clause (A ++ B) = (compileTerms clause A).map (fun (name, term) =>
+      (name, {term with carrier := term.carrier ⊔ rawHistory B})) := by
+  simp [compileTerms, rawHistory_union, List.map_map]
+
+theorem compileTerms_put (clause : Compiled) (a : Act) (A : List Act) :
+    compileTerms clause (a :: A) = (compileTerms clause A).map (fun (name, term) =>
+      (name, {term with carrier := FinSet.mk [a] ⊔ term.carrier})) := by
+  simp [compileTerms, rawHistory, lift_cons, List.map_map]
+
+/-- Fault-aware compiled observations interpret the product of raw lifts,
+including initializer faults propagated to primitive, closure and derived fields. -/
+theorem compiled_clause_correspondence (context : Context)
+    (resourceVerbs : String → List String) (clause : Compiled)
     (A : List Act) (unique : NodupAddr A) :
-    List.Forall₂ (fun term output => term.1 = output.1 ∧ TermMeaning context clause.domains term.2 output.2)
-      (compileTerms clause A) (evaluateFields (context.input A) clause.domains clause.fields) := by
-  unfold compileTerms evaluateFields
+    List.Forall₂ (fun term output => term.1 = output.1 ∧
+      TermMeaning context resourceVerbs clause.domains term.2 output.2)
+      (compileTerms clause A) (observeFields context resourceVerbs clause A) := by
+  unfold compileTerms observeFields
   induction clause.fields with
   | nil => exact .nil
   | cons field rest ih =>
       refine .cons ⟨rfl, ?_⟩ ih
       intro B uniqueB equal
-      exact strong_convergence context clause.domains field.2 uniqueB unique
+      exact evaluateField_setEq context resourceVerbs clause.domains field.2 uniqueB unique
         (rawHistory_faithful equal)
+
+/-- Finite delivery converges on the whole conflict-aware legacy clause,
+including propagated initializer and resource-port faults. This uses the typed
+resource port's extensionality; it does not prove that verifier's witness
+classification or persistence under strict history growth. -/
+theorem fault_aware_strong_eventual_consistency {adm : AdmissionStratification.Admission}
+    {auth : Act → Prop} {H : StateKernelDelivery.ValidHistory adm}
+    (left right : StateKernelDelivery.Replica adm auth H) (context : Context)
+    (resourceVerbs : String → List String) (clause : Compiled)
+    (history : List Act) (complete : ∀ a, H.contains a ↔ a ∈ history) :
+    ∃ t, ∀ n m, t ≤ n → t ≤ m →
+      List.Forall₂ (fun a b => a.1 = b.1 ∧ FieldEquivalent a.2 b.2)
+        (observeFields context resourceVerbs clause (left.run n).accepted)
+        (observeFields context resourceVerbs clause (right.run m).accepted) := by
+  obtain ⟨tl, hl⟩ := StateKernelDelivery.finite_history_stabilizes left history complete
+  obtain ⟨tr, hr⟩ := StateKernelDelivery.finite_history_stabilizes right history complete
+  refine ⟨max tl tr, ?_⟩
+  intro n m hn hm
+  have same : SetEq (left.run n).accepted (right.run m).accepted :=
+    fun a => (hl n (by omega) a).trans (hr m (by omega) a).symm
+  have uniqueLeft := (StateRefinement.reachable_wellFormed (StateRefinement.behavior_reachable left.behavior n)).accepted_unique
+  have uniqueRight := (StateRefinement.reachable_wellFormed (StateRefinement.behavior_reachable right.behavior m)).accepted_unique
+  unfold observeFields
+  induction clause.fields with
+  | nil => exact .nil
+  | cons field rest ih =>
+    exact .cons ⟨rfl, evaluateField_setEq context resourceVerbs clause.domains
+      field.2 uniqueLeft uniqueRight same⟩ ih
 
 /-- The no-new-observation fragment recovers the existing SEC theorem over
 actual compiled clauses and the original observation equivalence. -/

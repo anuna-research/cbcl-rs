@@ -7,22 +7,15 @@
 //! lift followed by a display, and keeps that name only as the API of
 //! [`crate::state::fold`].
 //!
-//! Every shipped R7 rule head except `progress` and `bounded-counter` is a
-//! *lift*: a per-act contribution `g` joined over the selected accepted acts,
-//! followed by a post-map to the displayed value. The join half is a
-//! join-homomorphism from `(℘(A), ⊆)` — `σ(A₁ ∪ A₂) = σ(A₁) ⊔ σ(A₂)` — which is
-//! why the fold is a set function and why replicas merge by union only. The
-//! post-map is where monotonicity ends: `size` and membership are monotone,
-//! a winner's value or a difference is a revisable snapshot (SPEC-038 REQ-3805).
+//! Every shipped R7 rule head denotes a lift followed by a display. The
+//! join half is a morphism from accepted-set union; displayed winners and
+//! signed balances remain revisable snapshots (SPEC-038 REQ-3805).
 //!
-//! This module does not replace [`crate::state::fold`]; it *denotes* each rule
-//! as a term and is checked against the fold differentially (TEST-3800). The
-//! two closure heads return `None` from [`factor`] not because the join law
-//! fails — with the identity contribution every head is a morphism into the
-//! set of acts under union — but because no *summarising* carrier exists for
-//! them: an act's protocol position or an operation's validity depends on its
-//! cited ancestors, so their post-map is a least fixed point over citations
-//! and nothing smaller than the act set can be joined per contribution
+//! `progress` and `bounded-counter` use `Term::History`, the identity lift
+//! retaining accepted acts under union. Their closure projections reuse the
+//! protocol-position and resource-DAG validators. They share the same kernel
+//! path, domain faults and freeze machinery as summarizing carriers, without
+//! pretending that their ancestor-dependent contributions are scalar deltas
 //! (SPEC-038 REQ-3808).
 //!
 //! Supersession fits the algebra by carrying two grow-only halves: `W`, the
@@ -230,18 +223,25 @@ pub enum Term {
     Pair(Box<Term>, Box<Term>),
     /// Reads an earlier field of the same clause; no lattice of its own.
     Earlier(String),
+    /// Full accepted history under union; verbs identify domain dependencies.
+    History(Vec<String>),
 }
 
 /// The post-map from a carrier to the displayed value (CON-3800 `post`).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Post {
     Finite(Option<crate::finite::Projection>),
+    /// Native closure algorithm over the retained immutable history.
+    Closure(Box<Rule>),
     Identity,
     Size,
     Difference,
     Current(Box<Post>),
     GroupBy(Group, Box<Post>),
-    PickLww { value: String, clock: String },
+    PickLww {
+        value: String,
+        clock: String,
+    },
     Distinct(String),
     Histogram,
     Sum,
@@ -261,8 +261,8 @@ fn sel(verb: &str) -> Select {
     }
 }
 
-/// The denotation of a shipped head as a term (SPEC-038 ADR-3804). `None`
-/// for the two closure heads (REQ-3808).
+/// The denotation of a shipped head as a term (SPEC-038 ADR-3804).
+/// Only an unresolved, uninstalled finite declaration has no denotation.
 pub fn factor(rule: &Rule) -> Option<Factored> {
     let lift = |verbs: Vec<Select>, c: Contribute| Term::Lift(verbs, c);
     let pair = |a: Term, b: Term| Term::Pair(Box::new(a), Box::new(b));
@@ -281,7 +281,10 @@ pub fn factor(rule: &Rule) -> Option<Factored> {
                 Post::Finite(lift.projection.clone()),
             )
         }
-        Rule::BoundedCounter(_) | Rule::Progress { .. } => None,
+        Rule::Context { .. } | Rule::BoundedCounter(_) | Rule::Progress { .. } => f(
+            Term::History(rule.verbs().into_iter().map(String::from).collect()),
+            Post::Closure(Box::new(rule.clone())),
+        ),
         Rule::Exists { verb } => f(
             lift(alloc::vec![sel(verb)], Contribute::Flag),
             Post::Identity,
@@ -418,18 +421,32 @@ pub fn factor(rule: &Rule) -> Option<Factored> {
 /// The accepted acts, unique by address, with the clause's domain filters
 /// resolved (SPEC-019 ADR-1909: domains read list-valued opener fields).
 pub struct Ctx<'a> {
+    clause: &'a StateClause,
+    raw_acts: &'a [Act],
+    protocol: Option<&'a crate::protocol::CausalProtocol>,
     acts: hashbrown::HashMap<String, &'a Act>,
     domains: Vec<(String, String, Vec<Value>)>,
     domain_faults: Vec<(String, Value)>,
 }
 
 impl<'a> Ctx<'a> {
-    pub fn new(clause: &StateClause, acts: &'a [Act]) -> Ctx<'a> {
+    pub fn new(clause: &'a StateClause, acts: &'a [Act]) -> Ctx<'a> {
+        Self::with_protocol(clause, acts, None)
+    }
+
+    pub fn with_protocol(
+        clause: &'a StateClause,
+        acts: &'a [Act],
+        protocol: Option<&'a crate::protocol::CausalProtocol>,
+    ) -> Ctx<'a> {
         let mut unique: hashbrown::HashMap<String, &Act> = hashbrown::HashMap::new();
         for a in acts {
             unique.entry(a.address.clone()).or_insert(a);
         }
         let bare = Ctx {
+            clause,
+            raw_acts: acts,
+            protocol,
             acts: unique.clone(),
             domains: Vec::new(),
             domain_faults: Vec::new(),
@@ -453,6 +470,9 @@ impl<'a> Ctx<'a> {
             domains.push((String::from(verb), String::from(key), allowed));
         }
         Ctx {
+            clause,
+            raw_acts: acts,
+            protocol,
             acts: unique,
             domains,
             domain_faults,
@@ -601,7 +621,7 @@ impl<'a> Ctx<'a> {
 
     /// The join half of a term over this context's accepted acts.
     pub fn eval(&self, term: &Term) -> L {
-        if self.domain_governed(term) {
+        if self.domain_governed(term) || matches!(term, Term::History(_)) {
             return L::History(
                 self.acts
                     .iter()
@@ -618,7 +638,7 @@ impl<'a> Ctx<'a> {
                 .iter()
                 .any(|s| !s.raw && self.domains.iter().any(|(verb, _, _)| *verb == s.verb)),
             Term::Pair(a, b) => self.domain_governed(a) || self.domain_governed(b),
-            Term::Earlier(_) => false,
+            Term::Earlier(_) | Term::History(_) => false,
         }
     }
 
@@ -635,12 +655,26 @@ impl<'a> Ctx<'a> {
                 Box::new(self.read_carrier(b)),
             ),
             Term::Earlier(_) => L::Bool(false),
+            Term::History(_) => L::History(
+                self.acts
+                    .iter()
+                    .map(|(id, a)| (id.clone(), (*a).clone()))
+                    .collect(),
+            ),
         }
     }
 
     /// The displayed value: the post-map applied to the join.
     pub fn display(&self, f: &Factored, done: &[(String, Value)]) -> Value {
         if let Some(fault) = self.term_fault(&f.term) {
+            if let Post::Closure(rule) = &f.post {
+                let own =
+                    crate::state::closure_value(self.clause, self.protocol, self.raw_acts, rule);
+                if let Some(mut evidence) = own.fault_evidence() {
+                    evidence.extend(fault.fault_evidence().unwrap_or_default());
+                    return crate::state::conflict_top("state conflicts", evidence);
+                }
+            }
             return fault;
         }
         match &f.term {
@@ -691,32 +725,30 @@ impl<'a> Ctx<'a> {
                 self.collect_term_faults(a, evidence);
                 self.collect_term_faults(b, evidence);
             }
+            Term::History(verbs) => {
+                for (_, fault) in self
+                    .domain_faults
+                    .iter()
+                    .filter(|(verb, _)| verbs.contains(verb))
+                {
+                    if let Some(addresses) = fault.fault_evidence() {
+                        evidence.extend(addresses);
+                    }
+                }
+            }
             Term::Earlier(_) => {}
         }
     }
 
     pub fn rule_fault(&self, rule: &Rule) -> Option<Value> {
-        if let Some(f) = factor(rule) {
-            return self.term_fault(&f.term);
-        }
-        let verbs = rule.verbs();
-        let mut evidence = BTreeSet::new();
-        for (_, fault) in self
-            .domain_faults
-            .iter()
-            .filter(|(verb, _)| verbs.contains(&verb.as_str()))
-        {
-            if let Some(addresses) = fault.fault_evidence() {
-                evidence.extend(addresses);
-            }
-        }
-        (!evidence.is_empty()).then(|| {
-            crate::state::conflict_top("initializer conflict", evidence.into_iter().collect())
-        })
+        factor(rule).and_then(|f| self.term_fault(&f.term))
     }
 
     fn post(&self, l: &L, post: &Post) -> Value {
         match (post, l) {
+            (Post::Closure(rule), L::History(_)) => {
+                crate::state::closure_value(self.clause, self.protocol, self.raw_acts, rule)
+            }
             (
                 Post::Finite(projection),
                 L::Finite {
@@ -860,14 +892,23 @@ fn histogram(earlier: Option<&Value>) -> Value {
     )
 }
 
-/// Every factored field of a clause, displayed in clause order; closure heads
-/// are reported as `None` so a caller can fall back to the shipped fold.
+/// Display fields in clause order. For progress closures, supply protocol
+/// context through [`display_clause_with_protocol`].
 pub fn display_clause(
     clause: &StateClause,
     acts: &[Act],
     fallback: &[(String, Value)],
 ) -> Vec<(String, Option<Value>)> {
-    let ctx = Ctx::new(clause, acts);
+    display_clause_with_protocol(clause, acts, None, fallback)
+}
+
+pub fn display_clause_with_protocol(
+    clause: &StateClause,
+    acts: &[Act],
+    protocol: Option<&crate::protocol::CausalProtocol>,
+    fallback: &[(String, Value)],
+) -> Vec<(String, Option<Value>)> {
+    let ctx = Ctx::with_protocol(clause, acts, protocol);
     let mut done: Vec<(String, Value)> = Vec::new();
     let mut out = Vec::new();
     for (name, rule) in clause.fields() {
@@ -953,7 +994,7 @@ fn carrier_of_term(term: &Term) -> Option<Carrier> {
             Box::new(carrier_of_term(a)?),
             Box::new(carrier_of_term(b)?),
         )),
-        Term::Earlier(_) => None,
+        Term::Earlier(_) | Term::History(_) => None,
     }
 }
 
@@ -966,6 +1007,9 @@ pub fn carrier_of(rule: &Rule) -> Option<Carrier> {
             .table
             .as_ref()
             .map(|t| Carrier::Finite(Arc::new((**t).clone()), lift.projection.clone())),
+        Rule::Context { path, .. } if crate::context::roster_role(path).is_some() => {
+            Some(Carrier::Vals)
+        }
         Rule::Progress { .. } => Some(Carrier::Progress),
         Rule::BoundedCounter(_) => Some(Carrier::Resource),
         _ => factor(rule).and_then(|f| carrier_of_term(&f.term)),
@@ -1138,6 +1182,7 @@ impl Element {
     pub fn le_display(&self, shown: &Value) -> bool {
         match (self, shown) {
             (Element::Progress(n), Value::Int(i)) => *i >= *n as i128,
+            (Element::Member(member), Value::Set(values)) => values.contains(member),
             _ => false,
         }
     }

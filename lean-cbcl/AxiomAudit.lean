@@ -20,6 +20,7 @@ import LeanCbcl.R6DCFLPreservation
 import LeanCbcl.State
 import LeanCbcl.StateLift
 import LeanCbcl.StateLVar
+import LeanCbcl.StateContext
 import LeanCbcl.AdmissionStratification
 import LeanCbcl.StateRefinement
 import LeanCbcl.MonitoredDCFL
@@ -698,3 +699,52 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateLVar.freeze_evidence_sound
 #print axioms CBCL.StateLVar.freeze_witness_transfer
 #print axioms CBCL.StateLVar.eventual_freeze_conflict
+#print axioms CBCL.StateLVar.below_refl
+#print axioms CBCL.StateLVar.below_left
+#print axioms CBCL.StateLVar.below_right
+#print axioms CBCL.StateLVar.join_below
+#print axioms CBCL.StateLVar.top_below
+#print axioms CBCL.StateLVar.thresholdRead_fault_first
+#print axioms CBCL.StateLVar.thresholdRead_sound
+#print axioms CBCL.StateLVar.thresholdRead_agreement
+#print axioms CBCL.StateLVar.rawHistory_eq
+#print axioms CBCL.StateLVar.rawHistory_faithful
+#print axioms CBCL.StateLVar.sole_evidence_join
+#print axioms CBCL.StateLVar.nonnegative_sum_sublist
+#print axioms CBCL.StateLVar.ancestor_accepted
+#print axioms CBCL.StateLVar.earliest_transfer
+#print axioms CBCL.StateLVar.freeze_witness_accepted
+#print axioms CBCL.StateLVar.earliest_setEq
+#print axioms CBCL.StateLVar.freezeConflict_setEq
+#print axioms CBCL.StateLVar.freezeEvidence_setEq
+#print axioms CBCL.StateLVar.causalCut_setEq
+#print axioms CBCL.StateLVar.earliest_find_setEq
+#print axioms CBCL.StateLVar.freezeRead_conflict
+#print axioms CBCL.StateLVar.freezeRead_setEq
+#print axioms CBCL.StateLVar.step_causal_closed
+#print axioms CBCL.StateLVar.replica_causal_closed
+#print axioms CBCL.StateLVar.eventual_freeze_fault
+#print axioms CBCL.StateLVar.finite_freeze_agreement
+#print axioms CBCL.StateLVar.finite_domain_agreement
+#print axioms CBCL.StateLVar.resourceFailure_setEq
+#print axioms CBCL.StateLVar.initializerConflict_setEq
+#print axioms CBCL.StateLVar.initializerEvidence_setEq
+#print axioms CBCL.StateLVar.evaluateField_fork
+#print axioms CBCL.StateLVar.evaluateField_setEq
+#print axioms CBCL.StateLVar.evaluateField_forget
+#print axioms CBCL.StateLVar.compileTerms_union
+#print axioms CBCL.StateLVar.compileTerms_put
+#print axioms CBCL.StateLVar.compiled_clause_correspondence
+#print axioms CBCL.StateLVar.legacy_strong_eventual_consistency
+#print axioms CBCL.StateContext.carrier_union
+#print axioms CBCL.StateContext.read_setEq
+#print axioms CBCL.StateContext.display_quasi
+#print axioms CBCL.StateContext.read_quasi
+#print axioms CBCL.StateContext.invalid_root_faults
+#print axioms CBCL.StateContext.recognized_root_value
+#print axioms CBCL.StateContext.fault_evidence
+#print axioms CBCL.StateContext.fault_join
+#print axioms CBCL.StateContext.read_fault_persists
+#print axioms CBCL.StateContext.eventual_context_fault
+
+#print axioms CBCL.StateLVar.fault_aware_strong_eventual_consistency

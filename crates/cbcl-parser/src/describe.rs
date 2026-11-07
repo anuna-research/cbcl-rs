@@ -98,6 +98,7 @@ fn rule_json(rule: &Rule) -> Json {
             }
             ("lwwMap", args)
         }
+        Rule::Context { path, .. } => ("context", path.iter().map(String::as_str).collect()),
         Rule::Initial { verb, key } => ("initial", alloc::vec![verb, key]),
 
         Rule::Exists { verb } => ("exists", alloc::vec![verb]),

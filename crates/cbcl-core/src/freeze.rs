@@ -85,6 +85,16 @@ fn verbs(clause: &StateClause, rule: &Rule) -> Vec<String> {
     let mut seen = BTreeSet::new();
     loop {
         match rule {
+            Rule::Context { path, definition }
+                if path.len() == 1 && path[0] == "thread"
+                    || path.iter().map(String::as_str).eq(["thread", "opener"]) =>
+            {
+                return definition
+                    .as_ref()
+                    .and_then(|d| d.opener.clone())
+                    .into_iter()
+                    .collect();
+            }
             Rule::Histogram { field } | Rule::Sum { field } if seen.insert(field) => {
                 match clause.rule_of(field) {
                     Some(source) => rule = source,
@@ -94,6 +104,19 @@ fn verbs(clause: &StateClause, rule: &Rule) -> Vec<String> {
             _ => return rule.verbs().iter().map(|s| (*s).to_string()).collect(),
         }
     }
+}
+
+fn contributors(clause: &StateClause, field: &str, acts: &[Act]) -> HashSet<String> {
+    let Some(rule) = clause.rule_of(field) else {
+        return HashSet::new();
+    };
+    if matches!(rule,Rule::Context {path,..} if path.is_empty() || path.first().is_some_and(|p|p=="observation"))
+    {
+        // Observation metadata depends on every accepted act, even when its
+        // application contribution is excluded by a data domain.
+        return acts.iter().map(|a| a.address.clone()).collect();
+    }
+    state::contribution_addresses(clause, acts, &verbs(clause, rule))
 }
 
 struct Reader<'a> {
@@ -213,11 +236,7 @@ pub(crate) fn fold(
         if frontier.len() > 1 {
             let mut evidence = frontier.clone();
             if policy == FreezePolicy::Fault {
-                let contributors = clause
-                    .rule_of(field)
-                    .map(|r| verbs(clause, r))
-                    .unwrap_or_default();
-                let candidates = state::contribution_addresses(clause, &unique, &contributors);
+                let candidates = contributors(clause, field, &unique);
                 for root in &frontier {
                     let cut = past(root, &ordered);
                     evidence.extend(candidates.iter().filter(|a| !cut.contains(*a)).cloned());
@@ -245,11 +264,7 @@ pub(crate) fn fold(
                 );
                 scopes.len() - 1
             });
-            let contributors = clause
-                .rule_of(field)
-                .map(|r| verbs(clause, r))
-                .unwrap_or_default();
-            let late = state::contribution_addresses(clause, &unique, &contributors)
+            let late = contributors(clause, field, &unique)
                 .into_iter()
                 .filter(|a| !cut.contains(a))
                 .collect();

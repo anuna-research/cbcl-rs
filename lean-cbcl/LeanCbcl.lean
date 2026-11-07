@@ -48,6 +48,7 @@ import LeanCbcl.AdmissionStratification
 import LeanCbcl.StateRefinement
 import LeanCbcl.StateLift
 import LeanCbcl.StateLVar
+import LeanCbcl.StateContext
 
 import LeanCbcl.Repeat
 

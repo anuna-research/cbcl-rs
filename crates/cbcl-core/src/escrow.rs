@@ -611,6 +611,42 @@ pub fn observe_facts<F: Fn(&str) -> bool>(
     all: &BTreeMap<String, ResourceFact>,
     present: F,
 ) -> Outcome {
+    let mut outcome = observe_facts_inner(c, all, &present);
+    if let Outcome::Fault { evidence, .. } = &mut outcome {
+        // SPEC-038 REQ-3806: a later diagnosis must not erase an earlier
+        // witness. Evidence is a contextual certificate, not a minimal blame
+        // set: retain all accepted resource facts and accepted cited context.
+        evidence.extend(all.keys().cloned());
+        for fact in all.values() {
+            evidence.extend(fact.predecessors.iter().filter(|id| present(id)).cloned());
+            if let Some(id) = fact
+                .fields
+                .get(PREV)
+                .and_then(text)
+                .filter(|id| present(id))
+            {
+                evidence.push(id.to_string());
+            }
+            if let Some(SExpr::List(deps)) = fact.fields.get(DEPS) {
+                evidence.extend(
+                    deps.iter()
+                        .filter_map(text)
+                        .filter(|id| present(id))
+                        .map(String::from),
+                );
+            }
+        }
+        crate::state::sort_addresses(evidence);
+        evidence.dedup();
+    }
+    outcome
+}
+
+fn observe_facts_inner<F: Fn(&str) -> bool>(
+    c: &CounterRule,
+    all: &BTreeMap<String, ResourceFact>,
+    present: F,
+) -> Outcome {
     if c.ownership == Ownership::Collective {
         return fault(
             "collective counter requires the certificate runtime",

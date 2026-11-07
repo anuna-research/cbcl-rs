@@ -406,6 +406,7 @@ fn state_to_sexpr(clause: &crate::state::StateClause) -> SExpr {
             Entry::Field { name, rule } => {
                 let mut r = vec![sym(rule.head())];
                 match rule {
+                    Rule::Context { path, .. } => r.extend(path.iter().map(|p| s(p))),
                     Rule::Lift(lift) => r.extend(lift.arguments()),
                     Rule::BoundedCounter(c) => r.extend(c.canonical_options()),
                     Rule::LwwRegister { verb, key, clock }

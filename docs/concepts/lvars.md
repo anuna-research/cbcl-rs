@@ -199,3 +199,45 @@ and alternatives. Hosts should inspect reached/frozen/fault outcomes before
 triggering effects that depend on stability. An external effect fired on a
 snapshot has no finality guarantee from this kernel; effect idempotency and
 external transaction policy remain the host's responsibility.
+
+## Read-only context
+
+`context` makes metadata available as ordinary kernel data:
+
+```scheme
+(state
+  (meta (context))
+  (reviewers (context thread roles reviewer))
+  (domain respond :participant reviewers)
+  (responses (events respond :answer))
+  (threshold eligible reviewers (member "@alice")))
+```
+
+The containing dialect declares the roles and message shapes. The roster comes
+from the validated root cast; it is not repeated in a business payload. It can
+supply a domain or an existing membership threshold. Context access adds no
+quorum policy: a roster is an input to an author's calculation, rather than a
+built-in majority or voting rule.
+
+| Path | Contents |
+|---|---|
+| `dialect` | `name`, `address`, `body-address`, `author`, `roles`, `bounds` |
+| `dialect roles reviewer` | That role's declared cardinality |
+| `dialect bounds max-list` | The installed state bound |
+| `thread` | `id`, `root`, `initiator`, `opener`, `roles` |
+| `thread roles reviewer` | The sealed participant set for that declared role |
+| `observation` | `accepted-count`, `frontier` |
+
+`dialect.address` is the canonical signing hash used by dialect pins.
+`dialect.body-address` is the self-addressed body name, independent of an authored
+alias; `dialect.name` is the installed name. Missing root evidence leaves thread
+metadata absent. Incompatible roots or bindings fault dependent reads. Context
+reads preserve the existing permission and admission rules.
+
+Schema entries distinguish immutable projections with
+`"observation":"context"` from current observations marked `"snapshot"`.
+Whole context/thread maps can change as evidence arrives. Current observations
+cannot supply domains or stable threshold carriers. A frozen full/observation
+context accounts for every accepted act, including domain-excluded application
+acts. Context uses the same raw history carrier and fold as other kernel terms;
+compact checkpoint profiles reject this extension explicitly.

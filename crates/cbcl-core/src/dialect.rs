@@ -372,6 +372,7 @@ impl DialectRegistry {
         // `(:causal-locality derive)`, R6(vi) findings compile into the
         // envelope-routing table instead of rejecting.
         Self::apply_r6(&mut d)?;
+        crate::context::resolve(&mut d);
         // R7 (SPEC-019 REQ-1910): state-clause well-formedness and the
         // self-addressed name; dialects with neither clause pass trivially.
         let r7 = crate::r7::r7_violations(&d);

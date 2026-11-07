@@ -2,9 +2,9 @@
 //! displayed value equals the shipped fold on every state vector, in forward,
 //! reversed and duplicated delivery; (b) the join half is a morphism,
 //! `L(A1 ∪ A2) = L(A1) ⊔ L(A2)`, for two partitions of the accepted set;
-//! (c) the two closure heads do not factor.
-use cbcl_core::lattice::{display_clause, factor, Ctx, Term, L};
-use cbcl_core::state::{fold, render_json, Act, Rule};
+//! (c) closure heads retain immutable history rather than scalar summaries.
+use cbcl_core::lattice::{display_clause_with_protocol, factor, Ctx, Term, L};
+use cbcl_core::state::{fold, fold_reference, render_json, Act, Rule};
 use cbcl_core::store::ThreadId;
 use cbcl_parser::state_exports::{self, Admission};
 use cbcl_parser::{parse, parse_dialect, parse_message};
@@ -98,8 +98,15 @@ fn load() -> Vec<Loaded> {
 
 fn check_display(l: &Loaded, acts: &[Act], label: &str) -> usize {
     let clause = l.dialect.state.as_ref().unwrap();
-    let shipped = fold(clause, l.dialect.causal_protocol.as_ref(), acts);
-    let ours = display_clause(clause, acts, &shipped);
+    let shipped = fold_reference(clause, l.dialect.causal_protocol.as_ref(), acts);
+    assert_eq!(
+        render_json(&fold(clause, l.dialect.causal_protocol.as_ref(), acts)),
+        render_json(&shipped),
+        "{}: shared kernel differs from independent legacy evaluator ({label})",
+        l.id
+    );
+    let ours =
+        display_clause_with_protocol(clause, acts, l.dialect.causal_protocol.as_ref(), &shipped);
     let mut compared = 0;
     for (name, got) in &ours {
         let (_, want) = shipped.iter().find(|(n, _)| n == name).unwrap();
@@ -193,11 +200,19 @@ fn the_join_half_is_a_morphism_on_two_partitions() {
 }
 
 #[test]
-fn closure_heads_do_not_factor_and_lift_heads_do() {
+fn closure_heads_use_history_and_lift_heads_summarize() {
     assert!(factor(&Rule::Progress {
         verb: "tick".into()
     })
-    .is_none());
+    .is_some());
+    assert!(matches!(
+        factor(&Rule::Progress {
+            verb: "tick".into()
+        })
+        .unwrap()
+        .term,
+        Term::History(_)
+    ));
     assert!(factor(&Rule::Exists {
         verb: "open".into()
     })

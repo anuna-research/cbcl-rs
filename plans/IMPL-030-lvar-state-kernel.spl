@@ -19,8 +19,8 @@
 ;; Task metadata
 
 (meta task-lattice-algebra
-  (description "CON-3800: crates/cbcl-core/src/lattice.rs with carriers, join, per-act contributions, factor(&Rule) for the thirteen lift heads (None for progress and bounded-counter), evaluate and display matching state::fold; module rustdoc cites SPEC-038.")
-  (acceptance "TEST-3800: crates/cbcl-parser/tests/lattice_factorisation.rs passes on every state vector: display equals fold in forward, reversed and duplicated delivery; L(A1 ∪ A2) = L(A1) ⊔ L(A2) for parity and halves partitions; factor returns None for the two closure heads."))
+  (description "CON-3800: crates/cbcl-core/src/lattice.rs with carriers, join, per-act contributions, factor(&Rule) for all installed heads, with explicit history carriers and native closure projections for progress and bounded-counter, evaluate and display matching state::fold; module rustdoc cites SPEC-038.")
+  (acceptance "TEST-3800: crates/cbcl-parser/tests/lattice_factorisation.rs passes on every state vector: display equals fold in forward, reversed and duplicated delivery; L(A1 ∪ A2) = L(A1) ⊔ L(A2) for parity and halves partitions; the closure heads use history carriers and participate in the same partition union law."))
 
 (meta task-threshold-reads
   (description "CON-3801 / ADR-3805: stable thresholds over count, members, nonnegative event sums and progress; reject signed net balances and fault alternatives; render successful, pending or separate terminal fault outcomes.")
@@ -155,3 +155,8 @@
 (claims agent:claude
   :at "2026-11-07T11:21:37Z"
   (given completed-lattice-algebra))
+
+;; Maintainer extension: generic context access; policy composition remains separate.
+(meta task-context-map
+  (description "REQ-3811 / CON-3804: expose installed dialect, sealed thread and current observation metadata as read-only typed kernel data; existing domains and membership reads consume sealed role rosters.")
+  (acceptance "TEST-3809: role admission unchanged, missing/conflicting roots and pins, domains, freeze integration, schema/canonical cache checks and semantic mutations pass; no dedicated quorum policy forms are introduced."))

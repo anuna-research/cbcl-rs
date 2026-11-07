@@ -187,10 +187,13 @@ fn funding_evidence_pending_replay_and_forks() {
         &[("recipient", sym("@bob")), ("amount", num(101))],
     )
     .unwrap();
-    acts.push(fork);
+    acts.push(fork.clone());
     let s = state(&d, &acts);
     assert_eq!(s["coins"]["reason"], "owner fork");
-    assert_eq!(s["coins"]["evidence"].as_array().unwrap().len(), 2);
+    let evidence = s["coins"]["evidence"].as_array().unwrap();
+    for witness in [&funding.address, &fork.address] {
+        assert!(evidence.contains(&serde_json::json!(witness)));
+    }
     acts.reverse();
     assert_eq!(state(&d, &acts), s);
     // Duplicate authentication with a different claimed signer cannot be hidden by fold dedup.
@@ -742,4 +745,40 @@ fn headroom_must_be_in_the_increment_causal_past() {
         state(&d, &history)["coins"]["reason"],
         "insufficient headroom"
     );
+}
+
+#[test]
+fn resource_fault_evidence_keeps_prior_witnesses_when_another_fork_arrives() {
+    let d = dialect();
+    let base = initial(&d);
+    let mut siblings = Vec::new();
+    for amount in [10, 11, 12] {
+        let mut branch = base.clone();
+        siblings.push(
+            emit(
+                &d,
+                &mut branch,
+                "@treasury",
+                "pay",
+                &[("recipient", sym("@alice")), ("amount", num(amount))],
+            )
+            .unwrap(),
+        );
+    }
+    siblings.sort_by(|a, b| a.address.cmp(&b.address));
+    let mut history = base;
+    history.extend([siblings[1].clone(), siblings[2].clone()]);
+    let before = state(&d, &history);
+    assert_eq!(before["coins"]["status"], "fault");
+    history.push(siblings[0].clone());
+    let after = state(&d, &history);
+    for address in before["coins"]["evidence"].as_array().unwrap() {
+        assert!(
+            after["coins"]["evidence"]
+                .as_array()
+                .unwrap()
+                .contains(address),
+            "lost {address}: {before} -> {after}"
+        );
+    }
 }

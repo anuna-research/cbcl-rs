@@ -47,6 +47,15 @@ pub fn parse_rule(sexpr: &SExpr) -> Result<Rule, String> {
     };
     let head = symbol(&items[0], "rule head")?;
     let args = &items[1..];
+    if head == "context" {
+        return Ok(Rule::Context {
+            path: args
+                .iter()
+                .map(|a| symbol(a, "context path"))
+                .collect::<Result<_, _>>()?,
+            definition: None,
+        });
+    }
     if head == "lift" {
         return parse_finite_lift(args).map(|lift| Rule::Lift(alloc::boxed::Box::new(lift)));
     }

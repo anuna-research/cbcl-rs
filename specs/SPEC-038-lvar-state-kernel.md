@@ -2,7 +2,7 @@
 id: SPEC-038
 title: LVar state kernel
 status: draft
-version: 0.2.1
+version: 0.3.0
 last-updated: 2026-11-08
 ---
 
@@ -12,10 +12,12 @@ last-updated: 2026-11-08
 
 Intent: an LVar state kernel. Each state field is a lattice variable in the
 sense of [[LVars]], written only by joining the contributions of
-authenticated, admitted acts, read only through threshold reads or after an
-attributable freeze, and quasi-deterministic: replicas with equal accepted
-sets observe equal values, and any two replicas observe either the same value
-or an attributable conflict. This restates the R7 kernel of
+authenticated, admitted acts. Authors may inspect revisable snapshots; only
+stable threshold facts and attributable frozen values reach the execution
+layer. Replicas with equal accepted sets observe equal values. Successful
+threshold answers agree unless the combined history faults; frozen underlying
+values agree for the same earliest freezer. Ordinary snapshots at different
+replicas may differ. This restates the R7 kernel of
 [[SPEC-019-state-rules]]; every state field becomes a term in one closed
 lattice algebra.
 The named failure is **a displayed value that an application acts on as if it
@@ -38,10 +40,19 @@ initializer conflicts propagate to dependent fields; raw carrier evidence is
 retained under merge. A host still supplies its own external-effect finality,
 deduplication and recovery contract: a threshold is not an exactly-once effect.
 
+The read-only context map exposes installed dialect identity, sealed thread
+role rosters and current observation metadata as ordinary kernel data. Sealed
+rosters can supply domains and membership reads. Replica-local observations
+such as the frontier remain snapshots. The context primitive supplies data,
+not a quorum policy or dedicated quorum arithmetic.
+[[SPEC-038-lvar-state-kernel#CON-3804]] specifies the typed paths.
+
 Metaphor: a notice board. Anyone with standing may pin a notice; nothing is
 ever unpinned; a reader may ask "has at least this been pinned?" and get a
 yes that never becomes a no; and the chair may seal the board, after which the
-whole board can be read exactly and a late notice is a breach, not an edit.
+board at that seal can be read exactly. A later notice is excluded from that
+sealed value and recorded as superseded, or faults the read when the author
+selects the fault policy.
 
 Structure:
 
@@ -75,10 +86,12 @@ Load-bearing: [[SPEC-038-lvar-state-kernel#REQ-3800]] every field is a term ·
 [[SPEC-038-lvar-state-kernel#REQ-3803]] freeze · [[SPEC-038-lvar-state-kernel#REQ-3806]]
 quasi-determinism · [[SPEC-038-lvar-state-kernel#NFR-3800]] explicit evaluation cost bounds.
 
-Open: freeze concurrency policy default (owner: CBCL maintainer, decided
-provisionally in ADR-3802); whether `progress` and `bounded-counter` get a shared
-closure combinator or stay as two primitives (owner: CBCL maintainer, see
-REQ-3808); sequence lattices are out of scope (recorded, not deferred).
+Open: the remaining whole-kernel proof bridges are owned by the SPEC-038
+implementer: resource-verifier witness persistence and composition of context,
+freeze and threshold observations. Progress and the escrow function
+`bounded-counter` retain their
+author-facing forms over the shared history-backed kernel path
+([[SPEC-038-lvar-state-kernel#ADR-3806]]). Sequence lattices are out of scope.
 
 Detail: the Vocabulary section below for the names (lift, display, LVar, put,
 threshold read, frozen read, snapshot, stable, kernel); [[SPEC-019-state-rules]]
@@ -287,8 +300,8 @@ Trace: [[SPEC-038-lvar-state-kernel#TEST-3804]].
 
 ## REQ-3805: Snapshot discipline for projections
 
-A rendered field value that is neither a reached threshold nor frozen SHALL be
-marked as a snapshot in the state schema, and the host documentation SHALL
+A rendered field value that is neither a reached threshold, frozen, nor an
+immutable installed/sealed context projection SHALL be marked as a snapshot in the state schema, and the host documentation SHALL
 state that an external effect fired on a snapshot has no finality guarantee
 from this kernel. The existing fold outputs remain available unchanged; this
 requirement adds the marking, not a restriction.
@@ -340,8 +353,9 @@ post-maps is as proved there: `progress` is monotone, a resource `fault` is
 sticky, and `ready` and the rights are revisable. They SHALL participate in
 freeze. `progress` supports successful threshold reads on reaching its bound;
 resource conflicts propagate as separate terminal faults, never successful
-threshold alternatives. Whether they share one closure
-combinator is open.
+threshold alternatives. Both heads use the same history-term and closure-post
+interface, retaining their specialized algorithms under
+[[SPEC-038-lvar-state-kernel#ADR-3806]].
 Trace: [[SPEC-038-lvar-state-kernel#TEST-3800]].
 
 ## REQ-3809: Fields over the product lattice
@@ -378,6 +392,28 @@ threshold element source under [[SPEC-038-lvar-state-kernel#REQ-3802]]. The
 element count SHALL be bounded by the clause's `max-list`.
 Trace: [[SPEC-038-lvar-state-kernel#TEST-3808]], [[SPEC-038-lvar-state-kernel#CON-3803]].
 
+## REQ-3811: Read-only dialect and thread context
+
+A dialect author SHALL be able to read installed dialect metadata, validated
+thread metadata and the current accepted-set observation through a typed,
+read-only context map in the LVar kernel. Context supplies ordinary data to
+kernel operations; it SHALL NOT introduce quorum policies or change admission
+permissions. Sealed role rosters SHALL support existing domains and membership
+thresholds without duplicating the cast in business payload fields.
+
+The context SHALL expose dialect signing identity, self-addressed body name,
+authored name, author, role declarations and state bounds; thread ID, root,
+initiator, business opener and sealed role occupants; and observation accepted
+count and causal frontier. Missing root evidence leaves thread metadata absent,
+not an invented empty roster. Incompatible roots/bindings fault dependent reads.
+Fixed installed/sealed projections SHALL be marked `context` in the schema;
+whole context/thread objects and current observations remain snapshots. No local
+wall clock or arbitrary host configuration supplies these values. Compilation
+caches SHALL be rebuilt from the installed dialect and excluded from wire
+identity.
+Trace: [[SPEC-038-lvar-state-kernel#CON-3804]],
+[[SPEC-038-lvar-state-kernel#TEST-3809]].
+
 ## NFR-3800: Cost
 
 For `n` accepted acts and total state-expression size `t`, ordinary collection
@@ -404,14 +440,16 @@ Trace: [[SPEC-038-lvar-state-kernel#TEST-3803]], [[SPEC-038-lvar-state-kernel#TE
 ## CON-3800: The lattice algebra
 
 Interface: a pure module `cbcl_core::lattice` with a denotation
-`factor(&Rule) -> Option<Factored>` (`None` for the two closure heads), an
+`factor(&Rule) -> Option<Factored>` (all installed heads factor; unresolved
+finite declarations have no denotation), an
 evaluator `evaluate(&Factored, &Ctx, done) -> (L, Value)`, and `L::join`.
 
 Grammar of terms (abstract; no new wire syntax in this contract):
 
 ```text
 term         := lift(select+, contribute)            ; join over selected acts
-              | pair(term, term)
+              | pair(term, term) | earlier(field)
+              | history(dependency-verbs)             ; identity contribution of accepted acts
 contribute   := flag | address | field(key) | entry(key) | amount(key)
               | clocked(value-key, clock-key)        ; chain under (hlc, signer, address)
               | write(group) | replaced(group)        ; the W and R halves of supersession
@@ -421,6 +459,7 @@ select       := (verb, raw?)                          ; raw ignores domain filte
 post         := identity | size | difference
               | current(post) | group-by(group, post) | pick-lww(value-key, clock-key)
               | distinct(key) | histogram(earlier) | sum(earlier)
+              | closure(progress | bounded-counter)  ; existing native validators
 carrier L    := bool | addrs | vals | entries | amounts | chain | writes | replaced | sole | pair(L, L)
               | history                             ; raw acts and initializer evidence under union
 ```
@@ -529,6 +568,38 @@ rejects with the first failing law and the witnessing elements, for example
 `join not commutative: (a b) ≠ (b a)`; no repair.
 Implements: [[SPEC-038-lvar-state-kernel#REQ-3810]].
 Verified by: [[SPEC-038-lvar-state-kernel#TEST-3808]].
+
+## CON-3804: Context projection
+
+Recognized grammar (paths are closed and validated against installed metadata):
+
+```text
+rule := … | (context [path])
+path := dialect [address|body-address|name|author|roles [role]|bounds [bound]]
+      | thread [id|root|initiator|opener|roles [role]]
+      | observation [accepted-count|frontier]
+bound := max-fields | max-list | max-number | max-string
+```
+
+An empty path returns the complete map. Nested role names must be declared.
+`address` is the dialect signing hash used by pins; `body-address` is its
+self-addressed body name, independent of an authored alias. `name` is the
+installed dialect name. The root's cast is recognized using the existing role
+recognizer, including optional dialect pin validation. Unknown paths are
+installation errors. Missing root evidence is absent; malformed casts and
+incompatible roots/bindings render the standard attributable fault.
+
+Context projections retain the accepted-history carrier under union and use the
+shared kernel display path. Static metadata is compiled from the dialect;
+thread metadata is reconstructed from accepted causal roots. A role-roster
+projection can supply an existing data domain or membership threshold. Revisable
+observation paths cannot supply contribution selectors or threshold carriers.
+Freezing full/observation context accounts for every accepted act, including acts
+excluded by application data domains. A historical cut cannot conceal a later
+context-root conflict. Quorum policy and new arithmetic operators are outside
+this context-access contract.
+Implements: [[SPEC-038-lvar-state-kernel#REQ-3811]].
+Verified by: [[SPEC-038-lvar-state-kernel#TEST-3809]].
 
 ## ADR-3800: LVars as the model of the state kernel
 
@@ -670,13 +741,57 @@ Trace: [[SPEC-038-lvar-state-kernel#REQ-3800]],
 [[SPEC-038-lvar-state-kernel#REQ-3802]],
 [[SPEC-038-lvar-state-kernel#REQ-3804]].
 
+## ADR-3806: Explicit history terms for closure heads
+
+Status: accepted by the maintainer on 2026-11-08.
+
+Decision: `progress` and `bounded-counter` factor into a raw accepted-history
+carrier under union and a native closure projection. The fold uses the same
+factored-term path for all installed heads. Domain/dependency faults and freeze
+orchestration belong to the common kernel. Protocol-position reconstruction
+and resource-DAG validation remain specialized pure algorithms inside the
+closure projection; their arithmetic is not replaced with per-act scalar
+summation. The independent legacy evaluator remains a differential reference
+for conflict-free conformance histories.
+
+Rationale: an absent factorization confused lack of a smaller summarizing
+carrier with lack of an LVar interpretation. The identity lift already supplies
+the algebra. Explicit terms remove a runtime exception and extend the same
+partition, permutation and duplicate-delivery checks to both closure heads.
+
+The LVish implementation provides a useful implementation cross-check:
+`verifyFiniteJoin` checks the three join laws; `verifyFiniteGet` checks that a
+successful read cannot become blocked or change its successful answer while
+allowing an error outcome. Its frozen collection interface distinguishes
+freezing from ordered traversal, and `runParThenFreeze` relies on a completion
+barrier. CBCL's distributed close remains an explicit causal act; local
+quiescence supplies no global completion evidence. The LVish review is a design
+reference; any copied or translated implementation retains its BSD-3-Clause
+copyright notice, conditions and disclaimer. Reviewed the published
+`lvish-1.1.4` sources and the upstream implementation:
+[finite join/read checks](https://raw.githubusercontent.com/iu-parfunc/lvars/master/src/lvish/Data/LVar/Internal/Pure.hs),
+[frozen traversal](https://raw.githubusercontent.com/iu-parfunc/lvars/master/src/lvish/Data/LVar/Generic/Internal.hs),
+[completion barrier](https://raw.githubusercontent.com/iu-parfunc/lvars/master/src/lvish/Control/LVish/DeepFrz.hs).
+
+Fault evidence is a contextual certificate containing the conflicting witness,
+not a minimal blame set. Resource faults retain accepted resource facts and
+accepted cited context so a later diagnosis cannot erase an earlier witness.
+This changes conflicting-history evidence where necessary; conflict-free
+conformance observations and all wire addresses remain unchanged.
+
+Trace: [[SPEC-038-lvar-state-kernel#REQ-3800]],
+[[SPEC-038-lvar-state-kernel#REQ-3804]],
+[[SPEC-038-lvar-state-kernel#REQ-3806]],
+[[SPEC-038-lvar-state-kernel#REQ-3808]].
+
 ## TEST-3800: Factorisation and morphism law
 
 For every conformance vector in `test-vectors/state/` and every field whose head
 factors, (a) the term's displayed value equals the shipped fold's value on the
 accepted set, in forward, reversed and duplicated delivery; (b) for the partition
 of the accepted set into even and odd positions, and into first and second
-halves, `L(A₁ ∪ A₂) = L(A₁) ⊔ L(A₂)`; (c) the two closure heads report `None`
+halves, `L(A₁ ∪ A₂) = L(A₁) ⊔ L(A₂)`; (c) the two closure heads factor into
+history carriers and their native closure projections
 from `factor`. Include causally closed, admitted histories with different
 openers: joining their raw carriers SHALL equal the carrier of their union,
 while conflicting initializer displays and dependent fields SHALL fault with
@@ -727,7 +842,8 @@ Validates REQ-3804.
 ## TEST-3805: Snapshot marking
 
 `state_schema` marks every field that is neither threshold nor frozen as
-`snapshot`; the bindings' documentation states the host obligation.
+`snapshot`; immutable context projections are marked `context`; the bindings'
+documentation states the host obligation.
 Validates REQ-3805.
 
 ## TEST-3806: Quasi-determinism in Lean
@@ -761,6 +877,21 @@ is rejected; the installation check completes within the `O(n³)` bound on a
 64-element lattice. A field over the accepted lattice passes TEST-3800's
 display and morphism checks. Validates REQ-3810, NFR-3800.
 
+## TEST-3809: Context as ordinary kernel data
+
+Core: read the complete map and supported typed paths; verify signing hash,
+alias-independent body address, authored name, bounds, role declarations,
+thread provenance and actual sealed occupants. Missing roots remain absent;
+malformed casts, conflicting roots and wrong pins fault deterministically under
+reordering/duplicates. Sealed rosters supply data domains and existing membership
+thresholds under normal role admission. Reject unknown paths/roles and unintended
+policy-specific forms. Verify schema stability markers, canonical cache exclusion
+and install-time cache rebuilding. A frozen context observation includes late
+accepted acts even when an application domain excludes them, and cannot hide
+later root conflicts. Mutation checks detect bypassed pin validation, missing
+stability marking and dropped observation contributors.
+Validates [[SPEC-038-lvar-state-kernel#REQ-3811]].
+
 ## Purity Boundary Map
 
 ### Pure Core (no I/O, no shared state, deterministic)
@@ -782,12 +913,40 @@ Dependencies point inward: shell → core. `lattice` imports nothing from any ho
 
 ## Proof obligations and evidence
 
-First slice: `lattice.rs` and TEST-3800 (this branch). Threshold, freeze, ⊤ and
-the Lean theorems follow the plan in [[IMPL-030-lvar-state-kernel]]. Nothing
-in this specification is claimed as proved until the corresponding TEST reports
-it; the status above is `draft` for that reason.
+The Rust implementation includes the shared lattice/history path, stable
+thresholds, explicit snapshot/context schema markers, causal freeze reads,
+finite user lattices and the generic context map. The core/parser suites and
+`scripts/check-lvar-semantics-mutations.py` exercise these behaviours. The
+workspace all-target check and core/parser no-default-features check pass.
+
+`StateLift.lean` establishes the lift algebra and per-head invariance;
+`StateLVar.lean` covers threshold agreement, domain-fork faults, causal freeze
+cuts and witness dissemination over actual replicas. `StateContext.lean`
+covers immutable typed root projections, conflict persistence and eventual
+fault dissemination. `scripts/check-state-lvar-mutations.py` checks that the
+concrete proof obligations reject altered fault, cut and root behaviour. The
+full Lean build and allowlisted axiom audit pass at this checkpoint.
+
+[[SPEC-038-lvar-state-kernel#TEST-3806]] remains partial. The legacy resource
+closure port supplies extensionality rather than a proof of the Rust verifier's
+witness classification and persistence. Composition of all context, freeze and
+threshold paths, and wire/rank/renderer correspondence, remain explicit proof
+boundaries. Context pin tests cover the typed message boundary; the existing
+[[BUG-006-envelope-wire-form-unparseable-by-the-real-parser]] remains open.
+The specification stays `draft` until those acceptance obligations are resolved.
 
 ## Changelog
+
+- 0.3.0 (2026-11-08): maintainer requested the read-only dialect/thread context
+  map as ordinary kernel input, keeping policy-specific quorum forms outside
+  that primitive. Added
+  [[SPEC-038-lvar-state-kernel#REQ-3811]] and
+  [[SPEC-038-lvar-state-kernel#CON-3804]].
+
+- 0.2.2 (2026-11-08): maintainer selected explicit history-backed LVar terms
+  for progress and escrow, sharing the kernel path while retaining native
+  closure algorithms ([[SPEC-038-lvar-state-kernel#ADR-3806]]). Reviewed LVish's
+  finite-read stability checks, frozen traversal, and completion barrier.
 
 - 0.2.1 (2026-11-08): maintainer selected documenting the current implementation
   cost bounds under [[SPEC-038-lvar-state-kernel#NFR-3800]], including ordered

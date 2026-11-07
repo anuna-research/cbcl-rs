@@ -200,7 +200,10 @@ fn a_resource_fork_renders_the_same_shape_and_survives_every_superset() {
     assert_ne!(p1.address, p2.address);
     let fork = [root.clone(), open.clone(), p1.clone(), p2.clone()];
     let s = state(COIN, &fork);
-    assert_fault(&s["coins"], &[&p1.address, &p2.address]);
+    assert_fault(
+        &s["coins"],
+        &[&root.address, &open.address, &p1.address, &p2.address],
+    );
     let rev: Vec<Act> = fork.iter().rev().cloned().collect();
     assert_eq!(state(COIN, &rev)["coins"], s["coins"], "order independence");
 

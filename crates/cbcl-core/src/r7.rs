@@ -291,6 +291,18 @@ pub fn r7_violations(d: &Dialect) -> Vec<R7Violation> {
             }
         }
     }
+    for (field, rule) in clause.fields() {
+        match rule {
+            Rule::Context { path, definition } => {
+                if !definition.as_ref().is_some_and(|d| d.valid_path(path)) {
+                    out.push(R7Violation::Typing(format!(
+                        "context '{field}' names an unknown path or role"
+                    )));
+                }
+            }
+            _ => {}
+        }
+    }
     check_thresholds(d, clause, &mut names, &mut out);
     let mut frozen_fields = BTreeSet::new();
     for (field, verb, _) in clause.freezes() {
@@ -589,6 +601,7 @@ pub fn r7_violations(d: &Dialect) -> Vec<R7Violation> {
             None => out.push(R7Violation::Domain(format!(
                 "domain names undefined field '{field}'"
             ))),
+            Some(Rule::Context { path, .. }) if crate::context::roster_role(path).is_some() => {}
             Some(rule) => {
                 let over_opener = rule.verbs().iter().all(|v| Some(*v) == opener.as_deref());
                 if !over_opener || rule.verbs().is_empty() {

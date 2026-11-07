@@ -386,6 +386,8 @@ impl Summary {
                 }
             }
             rows.push(match rule {
+                // These terms require raw history or a finite-table checkpoint profile.
+                Rule::Context { .. } | Rule::Lift(_) => return Err(Error::Unsupported),
                 Rule::Initial { .. } => RowData::Initial(vec![]),
                 Rule::LwwRegister { .. } => RowData::LwwRegister(None),
                 Rule::Values { .. }

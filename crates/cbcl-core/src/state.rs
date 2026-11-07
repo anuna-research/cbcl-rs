@@ -56,6 +56,10 @@ impl Default for StateBounds {
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Rule {
+    Context {
+        path: Vec<String>,
+        definition: Option<alloc::boxed::Box<crate::context::Definition>>,
+    },
     /// A finite lattice and contribution table verified at installation.
     Lift(alloc::boxed::Box<crate::finite::Lift>),
     BoundedCounter(alloc::boxed::Box<crate::escrow::CounterRule>),
@@ -134,6 +138,7 @@ impl Rule {
     /// The head symbol of this rule in the clause grammar.
     pub fn head(&self) -> &'static str {
         match self {
+            Rule::Context { .. } => "context",
             Rule::Lift(_) => "lift",
             Rule::BoundedCounter(_) => "bounded-counter",
             Rule::LwwRegister { .. } => "lww-register",
@@ -159,6 +164,7 @@ impl Rule {
     /// Every performative this rule names.
     pub fn verbs(&self) -> Vec<&str> {
         match self {
+            Rule::Context { .. } => Vec::new(),
             Rule::Lift(lift) => alloc::vec![lift.verb.as_str()],
             Rule::BoundedCounter(c) => c.verbs(),
             Rule::LwwRegister { verb, .. }
@@ -196,6 +202,7 @@ impl Rule {
     /// Every `(verb, key)` pair this rule reads as data.
     pub fn data_fields(&self) -> Vec<(&str, &str)> {
         match self {
+            Rule::Context { .. } => Vec::new(),
             Rule::Lift(lift) => lift
                 .rows
                 .iter()
@@ -1178,6 +1185,15 @@ impl<'a> Kernel<'a> {
         protocol: Option<&CausalProtocol>,
     ) -> Value {
         match rule {
+            Rule::Context { path, definition } => definition
+                .as_ref()
+                .map(|d| {
+                    d.read(
+                        path,
+                        &self.acts.iter().map(|a| (*a).clone()).collect::<Vec<_>>(),
+                    )
+                })
+                .unwrap_or(Value::Absent),
             Rule::Lift(lift) => lift.evaluate(self.acts(&lift.verb)),
             Rule::BoundedCounter(c) => crate::escrow::observe(
                 c,
@@ -1315,30 +1331,14 @@ pub(crate) fn fold_unfrozen(
     protocol: Option<&CausalProtocol>,
     acts: &[Act],
 ) -> Vec<(String, Value)> {
-    let kernel = kernel_for(clause, acts);
     let mut done: Vec<(String, Value)> = Vec::new();
-    // The lattice context evaluates a threshold's field as a carrier element
-    // (SPEC-038 REQ-3802); it is built only when the clause declares one.
-    let ctx = (clause.thresholds().next().is_some() || clause.domains().next().is_some())
-        .then(|| crate::lattice::Ctx::new(clause, acts));
+    let ctx = crate::lattice::Ctx::with_protocol(clause, acts, protocol);
     for entry in &clause.entries {
         match entry {
             Entry::Field { name, rule } => {
-                let fault =
-                    ctx.as_ref()
-                        .and_then(|ctx| ctx.rule_fault(rule))
-                        .or_else(|| match rule {
-                            Rule::Histogram { field } | Rule::Sum { field } => done
-                                .iter()
-                                .find(|(n, _)| n == field)
-                                .filter(|(_, v)| v.fault_evidence().is_some())
-                                .map(|(_, v)| v.clone()),
-                            _ => None,
-                        });
-                let v = fault.unwrap_or_else(|| match rule {
-                    Rule::BoundedCounter(c) => crate::escrow::observe(c, acts).value(),
-                    _ => kernel.eval(rule, &done, protocol),
-                });
+                let v = crate::lattice::factor(rule)
+                    .map(|f| ctx.display(&f, &done))
+                    .unwrap_or(Value::Absent);
                 done.push((name.clone(), v));
             }
             Entry::Domain { .. } | Entry::Freeze { .. } | Entry::Lattice(_) => {}
@@ -1347,12 +1347,51 @@ pub(crate) fn fold_unfrozen(
                 field,
                 elements,
             } => {
-                let v = match ctx.as_ref() {
-                    Some(ctx) => threshold_read(ctx, clause, field, elements, &done),
-                    None => Value::Absent,
-                };
+                let v = threshold_read(&ctx, clause, field, elements, &done);
                 done.push((name.clone(), v));
             }
+        }
+    }
+    done
+}
+
+/// Independent pre-factorization evaluator for legacy conformance checks.
+/// New threshold/freeze declarations are exercised by their dedicated suites.
+#[doc(hidden)]
+pub fn fold_reference(
+    clause: &StateClause,
+    protocol: Option<&CausalProtocol>,
+    acts: &[Act],
+) -> Vec<(String, Value)> {
+    let kernel = kernel_for(clause, acts);
+    let ctx = crate::lattice::Ctx::with_protocol(clause, acts, protocol);
+    let mut done: Vec<(String, Value)> = Vec::new();
+    for entry in &clause.entries {
+        match entry {
+            Entry::Field { name, rule } => {
+                let fault = ctx.rule_fault(rule).or_else(|| match rule {
+                    Rule::Histogram { field } | Rule::Sum { field } => done
+                        .iter()
+                        .find(|(n, _)| n == field)
+                        .filter(|(_, v)| v.fault_evidence().is_some())
+                        .map(|(_, v)| v.clone()),
+                    _ => None,
+                });
+                let value = fault.unwrap_or_else(|| match rule {
+                    Rule::BoundedCounter(c) => crate::escrow::observe(c, acts).value(),
+                    _ => kernel.eval(rule, &done, protocol),
+                });
+                done.push((name.clone(), value));
+            }
+            Entry::Threshold {
+                name,
+                field,
+                elements,
+            } => {
+                let value = threshold_read(&ctx, clause, field, elements, &done);
+                done.push((name.clone(), value));
+            }
+            _ => {}
         }
     }
     done
@@ -1367,21 +1406,28 @@ pub(crate) fn scoped_rule(
     rule: &Rule,
     done: &[(String, Value)],
 ) -> Value {
-    let ctx = crate::lattice::Ctx::new(clause, acts);
-    if let Some(fault) = ctx.rule_fault(rule) {
-        return fault;
-    }
-    if let Rule::Histogram { field: source } | Rule::Sum { field: source } = rule {
-        if let Some((_, fault)) = done
-            .iter()
-            .find(|(name, value)| name == source && value.fault_evidence().is_some())
-        {
-            return fault.clone();
-        }
-    }
+    let ctx = crate::lattice::Ctx::with_protocol(clause, acts, protocol);
+    crate::lattice::factor(rule)
+        .map(|f| ctx.display(&f, done))
+        .unwrap_or(Value::Absent)
+}
+
+/// Closure projections share the history carrier, retaining their existing
+/// protocol-position and escrow validators as pure native algorithms.
+pub(crate) fn closure_value(
+    clause: &StateClause,
+    protocol: Option<&CausalProtocol>,
+    acts: &[Act],
+    rule: &Rule,
+) -> Value {
     match rule {
+        Rule::Context { path, definition } => definition
+            .as_ref()
+            .map(|d| d.read(path, acts))
+            .unwrap_or(Value::Absent),
+        Rule::Progress { .. } => kernel_for(clause, acts).eval(rule, &[], protocol),
         Rule::BoundedCounter(c) => crate::escrow::observe(c, acts).value(),
-        _ => kernel_for(clause, acts).eval(rule, done, protocol),
+        _ => Value::Absent,
     }
 }
 
@@ -1406,6 +1452,17 @@ pub(crate) fn contribution_addresses(
                 for act in acts.iter().filter(|a| a.verb == *opener) {
                     if let Some(SExpr::List(values)) = act.fields.get(source) {
                         allowed.extend(values.iter().map(|v| Value::from_sexpr(v).render()));
+                    }
+                }
+            }
+            if let Some(Rule::Context {
+                path,
+                definition: Some(metadata),
+            }) = clause.rule_of(field)
+            {
+                for root in acts.iter().filter(|a| a.predecessors.is_empty()) {
+                    if let Value::Set(members) = metadata.read(path, core::slice::from_ref(root)) {
+                        allowed.extend(members.iter().map(Value::render));
                     }
                 }
             }
@@ -1446,6 +1503,10 @@ pub(crate) fn threshold_read(
         return fault.clone();
     }
     let reached = match clause.rule_of(field).map(crate::lattice::factor) {
+        Some(Some(f)) if matches!(f.post, crate::lattice::Post::Closure(_)) => done
+            .iter()
+            .find(|(n, _)| n == field)
+            .and_then(|(_, shown)| elements.iter().find(|e| e.le_display(shown.unfrozen()))),
         Some(Some(f)) => {
             let sigma = ctx.read_carrier(&f.term);
             elements.iter().find(|e| e.le_with_post(&sigma, &f.post))
@@ -1512,6 +1573,9 @@ impl ScalarType {
 /// The type of a state field, derived from its rule and the shapes.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum StateType {
+    Object(Vec<(String, StateType)>),
+    /// Immutable installed metadata or a sealed thread-context projection.
+    Context(alloc::boxed::Box<StateType>),
     /// A current observation. A declared freezer can later produce an exact cut.
     Snapshot {
         value: alloc::boxed::Box<StateType>,
@@ -1542,6 +1606,16 @@ impl StateType {
     /// JSON rendering of a type, for the export.
     pub fn render(&self) -> String {
         match self {
+            StateType::Object(fields) => format!(
+                "{{\"type\":\"object\",\"fields\":{}}}",
+                render_schema(fields)
+            ),
+            StateType::Context(value) => {
+                let mut out = value.render();
+                out.pop();
+                out.push_str(",\"observation\":\"context\"}");
+                out
+            }
             StateType::Snapshot { value, freeze } => {
                 let mut out = value.render();
                 out.pop();
@@ -1654,6 +1728,7 @@ pub fn state_schema(
             }
         };
         let ty = match rule {
+            Rule::Context { path, .. } => crate::context::schema(path),
             Rule::Lift(lift) => match &lift.projection {
                 None => StateType::OptScalar(ScalarType::Str),
                 Some(p)
@@ -1726,6 +1801,8 @@ pub fn state_schema(
         .map(|(name, ty)| {
             if matches!(ty, StateType::Threshold { .. }) {
                 (name, ty)
+            } else if matches!(clause.rule_of(&name),Some(Rule::Context {path,..}) if crate::context::stable_path(path)) {
+                (name,StateType::Context(alloc::boxed::Box::new(ty)))
             } else {
                 let freeze = clause
                     .freezes()
