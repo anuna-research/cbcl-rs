@@ -1560,15 +1560,10 @@ output; network or filesystem callbacks do not execute inside pure validation.
 
 ## Evidence and delivery boundary
 
-The user's intent is the performance goal and preservation of the state kernel's
-semantics. Existing experiment results inform feasibility, not normative truth.
-Evidence is recorded in `research/object-checkpoints/cached-outcome.json`,
-`cached-results.json`, `cached-review-findings.json`, and
-`kernel-generalization.json`. At 600 edits the probe reports 5.250 ms latest open,
-34.591 ms recent fallback and 410.902 ms stale fallback; its typed-tail timing
-excludes decoding and durable installation. Proposal/endorsement takes 1,079.567 ms
-with full reconstruction. Those numbers justify measuring amortization and cadence;
-they do not establish the production performance requirements.
+The performance goal is to avoid replaying covered message bodies while preserving
+the state kernel's semantics. Research prototypes informed the design; they are
+not production components or normative acceptance evidence. Reproducible native
+fold/admission tests and the typed continuation proof govern acceptance.
 
 Delivery order is the bundled native checkpoint dialect, binding/bootstrap and
 endorsement-capability vectors; native profile vectors and summary laws; incremental
@@ -1588,15 +1583,19 @@ Profile v2 implements every native head in
 ordered derived-field rendering, verified protocol metadata and native resource
 facts. The local all-head workspace, codec/host regressions, guard mutations,
 trust-zero proof checks and independent parity/review gates passed for the
-recorded source trees. Exact commands, exit codes, source hashes and limitations
-are in the [acceptance evidence](../proofs/cached-checkpoints/README.md).
-The final workspace run passed 1,739 tests with 36 ignored and no failures;
-strict workspace Clippy, formatting and the no-std WASM check passed. The current
+recorded source trees. Recorded results, reproduction commands and limitations are in the
+[acceptance guide](../proofs/cached-checkpoints/README.md). Detailed machine reports
+and logs are generated locally rather than committed.
+The pre-cleanup workspace run passed 1,739 tests with 36 ignored and no failures;
+that count includes the subsequently removed research-only prototype. After
+artifact/prototype cleanup, the workspace passed 1,692 tests with the same 36
+ignored. Strict workspace Clippy, formatting and the proof checker passed again;
+the original no-std WASM result applies to the unchanged runtime sources. The current
 mutation runs killed all 17 compiled guard mutants and all eight summary mutants.
 The all-head bridge compared 7,392 rendered observations across 231 cuts, all native
 heads and both execution paths; its three typed semantic controls executed and
 diverged as intended. The separately reviewed
-[resource-policy sidecar](../proofs/cached-checkpoints/all16-resource-policy-parity.json)
+[resource-policy sidecar](../scripts/check-checkpoint-resource-ports.py)
 compared native fold, decoded/resumed Summary and independent Lean fault ports for
 installed legacy Collective/Quorum policies without source drift. This transports
 the native legacy fault boundary; it does not establish resource finality or a
@@ -1628,54 +1627,15 @@ This compares that fixture's representation sizes; it measures neither full nati
 admission nor end-to-end opening latency. Event output and selected facts can grow,
 and no constant-space or current all-head latency claim follows from this ratio.
 
-### Historical Profile v1 evidence
+### Earlier profile
 
-The following measurements and seven-rule proof evidence remain valid for their
-pinned historical source trees. They are not current v2 benchmark evidence or a
-substitute for [[SPEC-035-cached-state-checkpoints#TEST-3520]] through
-[[SPEC-035-cached-state-checkpoints#TEST-3525]].
-
-The bundled companion dialect and `cbcl-checkpoint` crate implement the initial
-native profile. The typed continuation theorem and its checked model boundary satisfy
-[[SPEC-035-cached-state-checkpoints#REQ-3515]] and
-[[SPEC-035-cached-state-checkpoints#TEST-3519]]. Work is coordinated by
-[[SPEC-035-cached-state-checkpoints#IMPL-028 continuation proof plan|IMPL-028 continuation proof plan]].
-The [crate guide](../crates/cbcl-checkpoint/README.md) covers key custody, independent
-member maintenance, certificate assembly, bounded opening, durable installation,
-shadow comparison and disable/replay behavior. The
-[acceptance evidence](../proofs/cached-checkpoints/README.md) maps every TEST row to
-its implementation tests and records source hashes, commands, review findings,
-closed-grammar corpus, fault injection, compiled mutations and measurements.
-
-The final local workspace run passed 1,721 tests. Strict workspace Clippy,
-formatting, the no-std WASM build and all 17 compiled guard mutations passed.
-The fixed-output, eight-head native rig measured median complete-open thread CPU
-of 7.35/7.17/10.83 ms at 600/6,000/60,000 covered messages, a 1.47 ratio within the
-provisional 2× target. Certificates were 4,901 bytes and offers 100,708 bytes at
-all three scales. Durable install encoded only three newly supplied bodies.
-Appending 32 acts per maintained member required 32 explicit dependency lookups
-and no prefix reconstruction or snapshot scan. These are accepted-message scaling
-results, not a claim of constant work for growing live contributions, output or
-frontier. Initial admission, proof preparation and the replay oracle were outside
-opening timing; complete measurement boundaries are recorded with the results.
-
-The Lean theorem `CBCL.CheckpointKernel.render_advance_checkpoint` establishes
-semantic rendering equality for every finite supported clause, covered prefix and
-continuation. Its reference fold invokes the existing native kernel after accepted
-identity deduplication. The computational summary contains finite rule rows and
-identity-only coverage, not a historical act archive. The imported-snapshot theorem
-requires the sufficient-state invariant; certificates do not produce that invariant
-from signatures alone. The dedicated trust-zero check reports only Lean's standard
-foundational axioms. Hostile executable examples and semantic proof mutations reject
-broken compact updates. The Rust/Lean corpus checks 1,330 rule/prefix/cut observations
-and rejects altered live, pending and value projections. Independent reviews record
-the proof and correspondence boundaries. The [proof guide](../lean-cbcl/README.md#cached-checkpoint-continuation)
-and [proof evidence](../proofs/cached-checkpoints/README.md#lean-continuation-proof)
-provide exact commands, source hashes and limitations.
-
-These historical results establish only the initial v1 local implementation boundary. They do not
-activate checkpointing in consumers, ratify every host platform or replace the
-security/domain reviews below.
+The earlier seven-head proof remains a dependency of the all-head composition,
+not a separate runtime profile. Its independent Rust/Lean test generates its
+corpus at execution time. Intermediate benchmark captures, raw literature
+snapshots, prototype code and review transcripts are not part of the deliverable.
+Earlier measurements do not establish current all-head latency or platform
+acceptance. The [validation guide](../proofs/cached-checkpoints/README.md) records
+checked scope and reproduction commands.
 
 ## Open work
 

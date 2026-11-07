@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Closed all-sixteen checkpoint proof evidence; preserves the earlier seven checker.
+"""Closed all-sixteen checkpoint proof evidence and semantic mutation checks.
 
 Run --check-source during development. Run full checks only after the proof owner
 freezes/builds current imports in lean-cbcl. Source and compiled-import hashes are
@@ -17,7 +17,7 @@ import sys
 import tempfile
 
 HERE = Path(__file__).resolve().parent
-spec = importlib.util.spec_from_file_location("checkpoint_lean_evidence_helpers", HERE / "check-checkpoint-lean.py")
+spec = importlib.util.spec_from_file_location("checkpoint_lean_evidence_helpers", HERE / "checkpoint_lean_support.py")
 helper = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(helper)
 ROOT, LEAN, MODULES = helper.ROOT, helper.LEAN, helper.MODULES
@@ -201,7 +201,7 @@ def main():
     report = {
         "schema_version": 1, "complete": False, "passed": False, "trust_level": 0,
         "started_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-        "runner_sha256": helper.sha(Path(__file__)), "helper_sha256": helper.sha(HERE / "check-checkpoint-lean.py"),
+        "runner_sha256": helper.sha(Path(__file__)), "helper_sha256": helper.sha(HERE / "checkpoint_lean_support.py"),
         "source_checks": checked, "source_and_compiled_import_sha256": helper.bindings(),
         "allowed_axioms": sorted(helper.ALLOWED), "baselines": [], "proof_mutations": [],
         "scope": "All native heads in typed Lean model; explicit native evidence extraction/classifier boundary. Not a Rust compiled-test mutant kill or host/security release approval.",
@@ -245,7 +245,7 @@ def main():
         initial_bindings = report["source_and_compiled_import_sha256"]
         report["live_binding_drift"] = [name for name in sorted(set(initial_bindings) | set(final_bindings))
             if initial_bindings.get(name) != final_bindings.get(name)]
-        if helper.sha(Path(__file__)) != report["runner_sha256"] or helper.sha(HERE / "check-checkpoint-lean.py") != report["helper_sha256"]:
+        if helper.sha(Path(__file__)) != report["runner_sha256"] or helper.sha(HERE / "checkpoint_lean_support.py") != report["helper_sha256"]:
             report["live_binding_drift"].append("evidence checker source")
         report["complete"] = True
         report["passed"] = not report["live_binding_drift"] and len(report["proof_mutations"]) == len(MUTANTS) and all(r["proof_rejected"] for r in report["proof_mutations"])

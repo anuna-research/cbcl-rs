@@ -420,6 +420,7 @@ lake env lean -t 0 LeanCbcl/CheckpointAllTests.lean
 python3 ../scripts/check-checkpoint-all16.py
 ```
 
-See `proofs/cached-checkpoints/all16-lean-checks.json` for source bindings,
-trust-zero checks, allowed axioms and semantic proof mutations. The older
-`lean-proof-checks.json` records the earlier seven-head profile separately.
+See the [checkpoint validation guide](../proofs/cached-checkpoints/README.md)
+for recorded acceptance, reproducible trust-zero checks and the exact scope of
+bounded Rust/Lean correspondence. Detailed reports are generated locally and
+are not checked in.

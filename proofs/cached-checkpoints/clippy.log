@@ -1,4 +1,0 @@
-    Blocking waiting for file lock on build directory
-warning: cbcl-erl@0.1.1: cbcl-erl: macOS produces libcbcl_erl.dylib but erlang:load_nif/2 expects libcbcl_erl.so — run crates/cbcl-erl/scripts/install-mac-nif.sh after build, or set CBCL_ERL_SUPPRESS_MACOS_WARNING=1 to silence.
-    Checking cbcl-checkpoint v0.1.1 (/Users/anuna-02/Code/cbcl-rs/crates/cbcl-checkpoint)
-    Finished `dev` profile [unoptimized] target(s) in 4.51s

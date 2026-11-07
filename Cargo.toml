@@ -9,7 +9,6 @@ members = [
     "crates/cbcl-ffi",
     "crates/cbcl-erl",
     "tools/quorum-e2e",
-    "tools/object-checkpoint-probe",
 ]
 
 [workspace.package]

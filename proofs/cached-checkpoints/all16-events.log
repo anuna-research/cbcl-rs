@@ -1,9 +1,0 @@
-    Finished `test` profile [unoptimized] target(s) in 0.10s
-     Running unittests src/lib.rs (target/debug/deps/cbcl_checkpoint-04eb85f7ca7ea07e)
-
-running 1 test
-events-projection messages=2000 signed_body_bytes=10296890 checkpoint_bytes=184942 reduction=55.68
-test all_heads_tests::two_thousand_events_keep_selected_values_without_message_bodies ... ok
-
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 90 filtered out; finished in 3.87s
-
