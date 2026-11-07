@@ -13,40 +13,44 @@ These guarantees concern observable interactions. They do not establish that an 
 ## How it works
 
 ```text
-      Alice holds {p, a}              Bob holds {p, c}
-                 \                        /
-                  +------ set union ------+      duplicates change nothing;
-                             |                   no global arrival order required
-                             v
- (1)  received records       S = {p, a, c}
-                             |
-                             v
- (2)  proposal --> approval --> completion       arrow reads "cited as evidence by"
-      citations fix the dependencies; delivery order may differ
-                             |
-                             v
- (3)  check each candidate against its selected dialect D
-      +---------------------------------------------------+
-      |  Types    what act is this?                       |
-      |  Roles    who may perform it?                     |
-      |  Causes   which predecessor acts must it cite?    |
-      +---------------------------------------------------+
-               |                 |                 |
-            Unknown            Valid           Violation
-      required evidence     the protocol     available evidence
-      missing: wait, then   check passes     establishes a breach
-      recheck when more
-      evidence arrives
-                             |
-                             v
- (4)  accepted subset        A, a subset of S
-      acceptance requires authenticated acts and accepted predecessors;
-      passing one causal check alone does not admit an act
-                             |
-                             v
- (5)  derived state          State = f_D(A)      approvals, balances, progress
-      same accepted acts + same fixed rules -> same derived state
+   Alice {p, a}       Bob {p, c}
+          \             /
+           +-----------+
+                 |  set union
+                 v
+ (1) S = {p, a, c}  received records
+                 |
+                 v
+ (2) proposal -> approval -> completion
+     arrow reads "cited as evidence by"
+                 |
+                 v
+ (3) check against dialect D
+     +----------------------------+
+     | Types   what act is this?  |
+     | Roles   who may perform it?|
+     | Causes  what must it cite? |
+     +----------------------------+
+        |          |          |
+     Unknown     Valid     Violation
+     evidence    check     breach
+     missing;    passes    established
+     wait and
+     recheck
+                 |
+                 v
+ (4) A, the accepted subset of S
+                 |
+                 v
+ (5) State = f_D(A)
+     approvals, balances, progress
 ```
+
+1. **Union.** Duplicates change nothing, and no global arrival order is required.
+2. **Citations.** Dependencies come from what an act cites, not from the order records arrive.
+3. **Check.** Each candidate is checked under the dialect in scope. `Unknown` returns to this step when more evidence arrives.
+4. **Admission.** Acceptance requires authenticated acts and accepted predecessors. Passing one causal check alone does not admit an act.
+5. **State.** The same accepted acts under the same fixed rules give the same derived state.
 
 Verdicts in step (3) follow strong Kleene three-valued logic, ordered `Violation < Unknown < Valid`: a conjunction of checks takes the least verdict and a disjunction the greatest, so `Unknown` is kept until evidence resolves it.
 
