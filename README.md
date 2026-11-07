@@ -19,6 +19,8 @@ CBCL defines interaction protocols over sets of recorded speech acts. Each parti
                  |
                  v
  (0) full recognition: is it in L_E?
+     L_E = the language the installed
+           environment E recognises
         |      \
         | yes   no -> rejected
         v
