@@ -56,10 +56,16 @@ unions, max and min chains, `WithBot`, `WithTop`), and `LatticeBimorphism`,
 "semilattice bimorphism: lattice merge must distribute over this binary
 function, in both arguments". The crate's own text motivates it by the CALM
 theorem. "Keep CALM and CRDT On" (Laddad, Power, Milano, Cheung, Crooks and
-Hellerstein, VLDB 2022, DOI 10.14778/3574245.3574268) extends CRDTs "with a
-query model that reasons about which queries are safe without coordination by
-applying monotonicity results from the CALM Theorem", which is the same move as
-LVars' threshold read made over CRDT queries. "Flo" (Laddad, Cheung, Hellerstein
+Hellerstein, VLDB 2022, DOI 10.14778/3574245.3574268; read in full) is a
+vision paper: it proposes a query model for CRDTs that "uses monotonicity as a
+key property to determine how the query should be executed to guarantee
+consistent results", sketches a SQL-like language for it, and cites LVars as
+part of the monotonic-logic lineage. It never uses the word morphism. On how
+a query's monotonicity is to be established it offers "type annotations in
+existing languages along the lines of Blazes", and "formal verification and
+fuzzing", as research directions; that is, it leaves the question open. The
+`lattices` crate's own rule, "LatticeOrd must always agree with the Merge
+function", is likewise an obligation on the implementer, not a check. "Flo" (Laddad, Cheung, Hellerstein
 and Milano, POPL 2025, DOI 10.1145/3704845; arXiv 2411.08274) gives the semantic
 foundation.
 
