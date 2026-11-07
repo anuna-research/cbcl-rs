@@ -18,6 +18,10 @@ def main():
     freeze_pair_test = ("freeze_reads", "repeated_causal_freezes_keep_the_first_cut_but_concurrent_freezes_fault")
     freeze_initial_test = ("freeze_reads", "freeze_cannot_hide_a_later_initializer_conflict")
     mutations = [
+        ("missing-dependency-hides-resource-fault", "escrow.rs",
+         '    // Validate every dependency-closed component before reporting missing',
+         '    if !missing.is_empty() { return Outcome::Pending(missing.into_iter().collect()); }\n    // Validate every dependency-closed component before reporting missing',
+         ("bounded_counter", "missing_dependency_cannot_hide_an_independent_resource_fault")),
         ("context-pin-not-checked", "context.rs",
          '.is_some_and(|pin| *pin != self.address)', '.is_some_and(|_| false)',
          ("state_context", "cast_validation_and_pins_are_not_bypassed_by_context_reads")),

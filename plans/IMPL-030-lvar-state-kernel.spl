@@ -160,3 +160,12 @@
 (meta task-context-map
   (description "REQ-3811 / CON-3804: expose installed dialect, sealed thread and current observation metadata as read-only typed kernel data; existing domains and membership reads consume sealed role rosters.")
   (acceptance "TEST-3809: role admission unchanged, missing/conflicting roots and pins, domains, freeze integration, schema/canonical cache checks and semantic mutations pass; no dedicated quorum policy forms are introduced."))
+
+;; 2026-11-08 context-map acceptance checkpoint: state_context integration
+;; tests and isolated Rust/Lean semantic mutants pass; role admission and
+;; existing vectors remain covered by the core/parser suites. StateContext's
+;; root-projection proof passed independent review; its typed recognition
+;; boundary and BUG-006 wire limitation are explicit in SPEC-038.
+;; The broader lean-quasi-determinism task stays partial: legacy fault-aware
+;; finite clause convergence is proved, while resource-verifier witness
+;; classification/persistence and full new-observation composition remain.

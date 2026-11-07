@@ -876,9 +876,9 @@ fn observe_facts_inner<F: Fn(&str) -> bool>(
             }
         }
     }
-    if !missing.is_empty() {
-        return Outcome::Pending(missing.into_iter().collect());
-    }
+    // Validate every dependency-closed component before reporting missing
+    // evidence elsewhere. Otherwise an unrelated pending account could hide
+    // an already established budget fault (SPEC-038 REQ-3806).
     // Kahn traversal plus bounded account frontiers. Each summary stores only
     // the latest observed operation per account and that owner's cumulative
     // transfers. Installed profiles bound accounts and dependencies by max-list;
@@ -963,6 +963,42 @@ fn observe_facts_inner<F: Fn(&str) -> bool>(
                 }
             }
         }
+    }
+    if !missing.is_empty() {
+        // Missing references block budget evaluation, but cannot hide an
+        // independent cycle. Release their graph edges without inventing
+        // resource summaries, then finish the structural Kahn traversal.
+        for dependency in &missing {
+            if let Some(children) = waiting.remove(dependency) {
+                for child in children {
+                    let count = remaining.get_mut(&child).expect("known dependent");
+                    *count -= 1;
+                    if *count == 0 {
+                        ready.insert(child);
+                    }
+                }
+            }
+        }
+        let mut reached = summaries.len();
+        while let Some(address) = ready.pop_first() {
+            reached += 1;
+            if let Some(children) = waiting.remove(&address) {
+                for child in children {
+                    let count = remaining.get_mut(&child).expect("known dependent");
+                    *count -= 1;
+                    if *count == 0 {
+                        ready.insert(child);
+                    }
+                }
+            }
+        }
+        if reached != nodes.len() {
+            return fault(
+                "cyclic escrow dependencies",
+                nodes.keys().cloned().collect(),
+            );
+        }
+        return Outcome::Pending(missing.into_iter().collect());
     }
     if summaries.len() != nodes.len() {
         return fault(

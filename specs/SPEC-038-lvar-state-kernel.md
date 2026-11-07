@@ -837,7 +837,12 @@ the opener evidence, never pending, for every declaration order and delivery.
 Two distinct openers render `initial` as `fault` with both addresses; a
 resource fork renders the same shape; a late write under the `fault` freeze
 policy renders the same shape; in each case the fault survives every superset.
-Validates REQ-3804.
+A protocol-admitted insufficient-rights fault remains a fault when another
+account adds an operation with a missing escrow dependency; the earlier
+accepted witnesses remain in its evidence. Missing references may prevent a
+ready balance, but cannot suppress independently established faults. Validate
+that restoring the early missing-reference return makes this regression fail.
+Validates REQ-3804 and REQ-3806.
 
 ## TEST-3805: Snapshot marking
 
@@ -921,7 +926,10 @@ workspace all-target check and core/parser no-default-features check pass.
 
 `StateLift.lean` establishes the lift algebra and per-head invariance;
 `StateLVar.lean` covers threshold agreement, domain-fork faults, causal freeze
-cuts and witness dissemination over actual replicas. `StateContext.lean`
+cuts and witness dissemination over actual replicas. Its
+`fault_aware_strong_eventual_consistency` theorem establishes finite-history
+agreement of the entire modeled legacy clause, using the resource port's
+extensionality premise. `StateContext.lean`
 covers immutable typed root projections, conflict persistence and eventual
 fault dissemination. `scripts/check-state-lvar-mutations.py` checks that the
 concrete proof obligations reject altered fault, cut and root behaviour. The

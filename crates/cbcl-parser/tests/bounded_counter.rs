@@ -782,3 +782,39 @@ fn resource_fault_evidence_keeps_prior_witnesses_when_another_fork_arrives() {
         );
     }
 }
+
+#[test]
+fn missing_dependency_cannot_hide_an_independent_resource_fault() {
+    // SPEC-038 REQ-3806: independent missing evidence cannot retract a fault.
+    let d = dialect();
+    let mut history = initial(&d);
+    let opener = history[1].address.clone();
+    let burn = |signer: &str, dependencies: &str| {
+        act(&format!(
+        "(signed {signer} (lang {} (burn (@alice @bob @treasury) :amount 1 :from {signer} :thread \"coin-1\" :caused-by {opener} :escrow-prev {opener} :escrow-deps ({dependencies}))))", d.name), signer)
+    };
+    let first = burn("@alice", "");
+    let verdict =
+        cbcl_parser::state_exports::admit(&d, &ThreadId("coin-1".into()), &history, &first);
+    assert!(
+        matches!(verdict, cbcl_parser::state_exports::Admission::Accepted),
+        "{verdict:?}"
+    );
+    history.push(first);
+    let before = state(&d, &history);
+    assert_eq!(before["coins"]["reason"], "insufficient rights");
+    let later = burn("@bob", &format!("sha256-{}", "f".repeat(64)));
+    assert!(matches!(
+        cbcl_parser::state_exports::admit(&d, &ThreadId("coin-1".into()), &history, &later),
+        cbcl_parser::state_exports::Admission::Accepted
+    ));
+    history.push(later);
+    let after = state(&d, &history);
+    assert_eq!(after["coins"]["status"], "fault", "{before} -> {after}");
+    for address in before["coins"]["evidence"].as_array().unwrap() {
+        assert!(after["coins"]["evidence"]
+            .as_array()
+            .unwrap()
+            .contains(address));
+    }
+}
