@@ -1,9 +1,10 @@
 import LeanCbcl.Lattice.Result
 
 /-!
-# The knowledge order is not a lattice (REQ-510 / ADR-510 / RISK-511)
+# The knowledge order (REQ-510 / ADR-510 / RISK-511)
 
-The knowledge order `kle` puts `unknown` below the incomparable terminals.
+The knowledge order `kle` puts `unknown` below the incomparable terminals; it is
+a partial order and not a lattice.
 Its consensus meet `kmeet` is a greatest lower bound with bottom `unknown`,
 but the terminals have no common upper bound. These facts concern the
 knowledge order only: strong Kleene `meet` / `join` form a bounded

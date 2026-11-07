@@ -206,7 +206,7 @@ theorem verify_any_singleton (m : Message) (p : CausalProtocol) (S : MessageStor
     has reached `valid`, store growth never overturns it. See the
     docstring on `VerificationResult.le` in `Lattice/Result.lean` for
     the retained valid-is-sticky preorder. The strong Kleene operations
-    also preserve the stricter knowledge order; see `NotALattice.lean`. -/
+    also preserve the stricter knowledge order; see `Lattice/KnowledgeOrder.lean`. -/
 
 open VerificationResult (le_refl unknown_le violation_le meet_mono join_mono)
 open scoped VerificationResult

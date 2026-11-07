@@ -7,12 +7,12 @@ with `violation` the join identity and `valid` the meet identity.
 Both truth tables match SPEC-003 REQ-303, ignoring Rust diagnostic payloads.
 
 The separate knowledge order puts `unknown` below the two incomparable
-terminal verdicts. It has no join of the terminals; see `NotALattice.lean`.
+terminal verdicts. It has no join of the terminals; see `KnowledgeOrder.lean`.
 Truth-order meet is not the knowledge-order consensus meet.
 
 The legacy valid-is-sticky preorder is retained for the existing verifier
 monotonicity and confluence theorems. Strong Kleene operations also preserve
-the stricter knowledge order (proved in `NotALattice.lean`).
+the stricter knowledge order (proved in `KnowledgeOrder.lean`).
 
 Mirrors: SPEC-003 REQ-303, SPEC-005 REQ-510 / CON-510, and
 `crates/cbcl-core/src/protocol.rs`.
@@ -163,7 +163,7 @@ theorem result_join_table :
     equivalent under it. Existing REQ-512 / REQ-514 theorems retain this
     preorder for compatibility; the strong Kleene operations do not require
     weakening the knowledge order. Their knowledge-order monotonicity is
-    proved separately in `NotALattice.lean`. -/
+    proved separately in `KnowledgeOrder.lean`. -/
 
 /-- `a ⊑ b` — the verification result order under store growth.
     Defined by case match: `valid ⊑ b` iff `b = valid`; otherwise

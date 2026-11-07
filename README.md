@@ -10,6 +10,62 @@ Agents teach each other new interaction vocabularies as messages. Protocols can 
 
 These guarantees concern observable interactions. They do not establish that an agent’s claims are true or that compliant actions are beneficial.
 
+## How it works
+
+CBCL defines interaction protocols over sets of recorded speech acts. Each participant holds a set of signed, content-addressed acts; sets merge by union, acts cite the acts they respond to, and a dialect says which citations are valid.
+
+```text
+   incoming messages, any bytes
+                 |
+                 v
+ (0) full recognition: is it in L_E?
+     L_E = the language the installed
+           environment E recognises
+        |      \
+        | yes   no -> rejected
+        v
+   Alice {p, a}       Bob {p, c}
+          \             /
+           +-----------+
+                 |  set union
+                 v
+ (1) S = {p, a, c}  received records
+                 |
+                 v
+ (2) proposal -> approval -> completion
+     arrow reads "cited as evidence by"
+                 |
+                 v
+ (3) check against dialect D
+     +----------------------------+
+     | Types   what act is this?  |
+     | Roles   who may perform it?|
+     | Causes  what must it cite? |
+     +----------------------------+
+        |          |          |
+     Unknown     Valid     Violation
+     evidence    check     breach
+     missing;    passes    established
+     wait and
+     recheck
+                 |
+                 v
+ (4) A, the accepted subset of S
+                 |
+                 v
+ (5) State = f_D(A)
+     approvals, balances, progress
+```
+
+0. **Full recognition.** L_E is a deterministic context-free language. Every message is recognised in full before any semantic action; anything outside L_E is rejected and never recorded. Installing a dialect extends L_E without losing this property.
+1. **Union.** Duplicates change nothing and no global arrival order is required.
+2. **Citations.** Dependencies come from what an act cites, not from the order records arrive.
+3. **Check.** Verdicts follow strong Kleene logic, ordered `Violation < Unknown < Valid`; `all` takes the least and `any` the greatest. `Unknown` is kept until evidence resolves it, and a terminal verdict never changes.
+4. **Admission.** Acceptance requires authenticated acts and accepted predecessors. One passed causal check alone does not admit an act.
+5. **State.** The same accepted acts under the same fixed rules give the same derived state.
+
+Transport delivers records, cryptography authenticates authors and integrity, and CBCL defines and verifies interaction rules. Authentication establishes who said what, not that the statement is true. Bounded resources need rights plus issuance discipline; set union alone does not prevent double spending. A larger diagram is in [docs/diagrams/cbcl-architecture.svg](docs/diagrams/cbcl-architecture.svg) and the model as a theorem is in [protocol model](docs/concepts/protocol-model.md).
+
 ## Quick start
 
 Install Rust stable, then:
@@ -89,7 +145,47 @@ continuation and local-history coverage, and retains signed evidence. It supplie
 neither resource-release authority nor global freshness. See
 [checkpoint runtime](crates/cbcl-checkpoint/README.md).
 
-The default certification profile requires a durable host issuance gate. `(certification quorum-budget)` selects the Rust validator runtime with authenticated quorums, multi-parent DAG adoption, durable journals, and cancellation-backed refunds. Signing, authentication, persistence, and external-effect deduplication remain host responsibilities. Quorum balance queries report known-final local views, with completeness unknown. See [quorum runtime API](docs/reference/quorum-runtime.md).
+### Example: a coin with a bounded counter
+
+`dialects/example-coin.cbcl` declares a coin. `open` fixes each account's allocation, `mint` and `burn` change the value, and `pay` moves spending rights without changing it:
+
+```lisp
+; Bounded-counter example. Amounts are integer base units, not decimals.
+; Hosts authenticate acts and serialize issuance per account before publication.
+(define example-coin (cbcl) @coin-author
+  (:resource-requirements ((max-depth 16) (max-expansion-size 4096) (verification-time 1000)))
+  (:roles (issuer (* holder)))
+  (extend open (to name allocations) :from issuer :to (issuer holder)
+    (tell to :name name :allocations allocations))
+  (extend mint (to amount) :from issuer :to (issuer holder)
+    (tell to :amount amount))
+  (extend burn (to amount) :from holder :to (issuer holder)
+    (tell to :amount amount))
+  (extend pay (to recipient amount) :from holder :to (issuer holder)
+    (tell to :recipient recipient :amount amount))
+  (shape open (require :name string) (require :allocations list))
+  (shape mint (require :amount number))
+  (shape burn (require :amount number))
+  (shape pay (require :recipient symbol) (require :amount number))
+  (protocol (then begin open) (then open mint) (then open burn) (then open pay))
+  (state
+    (name (initial open :name))
+    (coins (bounded-counter
+      (floor 0)
+      (initial-rights open :allocations)
+      (issuers issuer)
+      (increment mint :amount)
+      (decrement burn :amount)
+      (transfer pay :recipient :amount)))))
+```
+
+Opening with allocations `((@treasury 1000) (@alice 0) (@bob 0))`, then treasury pays Alice 100, Alice pays Bob 25, Bob burns 5 and treasury mints 250, leaves this state:
+
+```json
+{"name":"Example Coin","coins":{"status":"ready","value":1245,"rights":{"@treasury":1150,"@alice":75,"@bob":20}}}
+```
+
+The source account of every operation is the authenticated signer, never a caller-supplied field. A `pay` or `burn` beyond the signer's rights is refused with `insufficient rights`, even when another account has unused rights. The message forms, the `intend` call that produces them, and how key identities connect to roles and allocations are in [example coin](docs/concepts/example-coin.md).
 
 ## Architecture
 

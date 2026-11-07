@@ -25,10 +25,11 @@ import LeanCbcl.Pipeline
 import LeanCbcl.TemplateExpansion
 import LeanCbcl.Lattice.Store
 import LeanCbcl.Lattice.Result
-import LeanCbcl.Lattice.NotALattice
+import LeanCbcl.Lattice.KnowledgeOrder
 import LeanCbcl.DCFLPreservation
 import LeanCbcl.R6DCFLPreservation
 import LeanCbcl.Verify
+import LeanCbcl.VerifyKnowledge
 import LeanCbcl.R5
 import LeanCbcl.EPP
 import LeanCbcl.EPPCompletion

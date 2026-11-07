@@ -3,7 +3,7 @@ import LeanCbcl.CheckpointAll
 import LeanCbcl.StateKernelSECTests
 import LeanCbcl.StateKernelClause
 import LeanCbcl.HlcRegister
-import LeanCbcl.Lattice.NotALattice
+import LeanCbcl.Lattice.KnowledgeOrder
 import LeanCbcl.ConsensusFree
 import LeanCbcl.ConsensusFree.Liveness
 import LeanCbcl.ConsensusFree.Scheduler
