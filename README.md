@@ -12,6 +12,8 @@ These guarantees concern observable interactions. They do not establish that an 
 
 ## How it works
 
+CBCL defines interaction protocols over sets of authenticated speech acts. Each participant holds a set of signed, content-addressed acts; sets merge by union, acts cite the acts they respond to, and a dialect says which citations are valid. The flow below follows one act from receipt to derived state.
+
 ```text
    Alice {p, a}       Bob {p, c}
           \             /
