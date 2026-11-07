@@ -34,7 +34,11 @@ fn act(source: &str, signer: &str) -> Act {
 fn documented_messages_parse_address_and_fold_as_claimed() {
     let lisp = blocks("lisp");
     assert_eq!(lisp.len(), 4, "dialect, root, open, pay");
-    assert_eq!(lisp[0].trim(), COIN.trim(), "README quotes the dialect verbatim");
+    assert_eq!(
+        lisp[0].trim(),
+        COIN.trim(),
+        "README quotes the dialect verbatim"
+    );
 
     let dialect = parse_dialect(&parse(&lisp[0]).unwrap()).unwrap();
     let mut registry = cbcl_core::dialect::DialectRegistry::new();
@@ -43,11 +47,25 @@ fn documented_messages_parse_address_and_fold_as_claimed() {
     let root = act(&lisp[1], "@treasury");
     let open = act(&lisp[2], "@treasury");
     let pay = act(&lisp[3], "@treasury");
-    assert_eq!(root.address, ROOT_ADDR, "root address matches the test vector");
-    assert_eq!(open.address, OPEN_ADDR, "open address matches the test vector");
+    assert_eq!(
+        root.address, ROOT_ADDR,
+        "root address matches the test vector"
+    );
+    assert_eq!(
+        open.address, OPEN_ADDR,
+        "open address matches the test vector"
+    );
     assert_eq!(pay.address, PAY_ADDR, "pay address matches the test vector");
-    assert_eq!(open.predecessors, vec![ROOT_ADDR.to_string()], "open cites the root");
-    assert_eq!(pay.predecessors, vec![OPEN_ADDR.to_string()], "pay cites open");
+    assert_eq!(
+        open.predecessors,
+        vec![ROOT_ADDR.to_string()],
+        "open cites the root"
+    );
+    assert_eq!(
+        pay.predecessors,
+        vec![OPEN_ADDR.to_string()],
+        "pay cites open"
+    );
 
     let acts = vec![root.clone(), open.clone(), pay.clone()];
     let state: serde_json::Value = serde_json::from_str(&render_json(&fold(
@@ -67,11 +85,17 @@ fn documented_messages_parse_address_and_fold_as_claimed() {
     let accepted = vec![root, open];
     let inst = Instance::new(&dialect, ThreadId("coin-1".into()), &accepted).unwrap();
     let fields = BTreeMap::from([
-        ("recipient".to_string(), SExpr::Atom(Atom::Symbol("@alice".into()))),
+        (
+            "recipient".to_string(),
+            SExpr::Atom(Atom::Symbol("@alice".into())),
+        ),
         ("amount".to_string(), SExpr::Atom(Atom::Num(100))),
     ]);
     let built = intend(&inst, &AgentKey("@treasury".into()), "pay", fields).unwrap();
     let built = Act::from_message(built, "@treasury").unwrap();
-    assert_eq!(built.address, pay.address, "intend output equals the documented pay act");
+    assert_eq!(
+        built.address, pay.address,
+        "intend output equals the documented pay act"
+    );
     assert_eq!(built.fields, pay.fields);
 }

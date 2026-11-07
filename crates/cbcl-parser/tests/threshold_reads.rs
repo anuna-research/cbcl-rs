@@ -109,7 +109,7 @@ fn closed(acts: &[Act]) -> Vec<Act> {
 #[test]
 fn a_threshold_is_pending_then_reached_with_its_element() {
     let o = open();
-    let s = state_of(DEMO, &[o.clone()]);
+    let s = state_of(DEMO, std::slice::from_ref(&o));
     for t in THRESHOLDS {
         assert_eq!(s[t], json!({"status": "pending"}), "{t}");
     }
@@ -232,7 +232,10 @@ fn the_schema_types_a_threshold_by_its_field_and_elements() {
         &d.shapes,
     )))
     .unwrap();
-    assert_eq!(schema["approvals"], json!({"type": "int"}));
+    assert_eq!(
+        schema["approvals"],
+        json!({"type": "int", "observation": "snapshot"})
+    );
     assert_eq!(
         schema["quorum"],
         json!({"type": "threshold", "field": "approvals", "elements": [{"count": 2}]})
@@ -278,7 +281,7 @@ fn fault_and_scalar_elements_read_the_top_and_the_bool_carrier() {
         ),
         "@a",
     );
-    let s = state_of(FORK, &[a.clone()]);
+    let s = state_of(FORK, std::slice::from_ref(&a));
     assert_eq!(s["title"], "Alpha");
     assert_eq!(s["shut"], json!({"status": "pending"}));
     let s = state_of(FORK, &[a.clone(), b.clone(), c.clone()]);
@@ -443,7 +446,7 @@ proptest! {
 
         // Supersets: further valid acts never retract a reached element.
         let o = &original[0];
-        let last_tick = original.iter().filter(|a| a.verb == "tick").last().map(|a| a.address.clone()).unwrap_or(o.address.clone());
+        let last_tick = original.iter().rfind(|a| a.verb == "tick").map(|a| a.address.clone()).unwrap_or(o.address.clone());
         let more = vec![
             demo("approve", "", &o.address, "@e"),
             demo("tag", " :label \"x\"", &o.address, "@e"),

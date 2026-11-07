@@ -129,22 +129,36 @@ impl Reader<'_> {
             &rule,
             &done,
         );
-        let value = match self.plans.get(name).cloned() {
-            _ if normal.fault_evidence().is_some() => normal,
-            Some(plan) if plan.fault.is_some() => plan.fault.unwrap(),
-            Some(plan)
-                if plan
-                    .root
-                    .as_ref()
-                    .is_some_and(|root| self.scopes[scope].iter().any(|a| a.address == *root)) =>
-            {
-                let root = plan.root.unwrap();
-                if plan.policy == FreezePolicy::Fault && !plan.late.is_empty() {
-                    state::conflict_top(
-                        "write after or concurrent with freeze",
-                        core::iter::once(root).chain(plan.late).collect(),
-                    )
-                } else {
+        let plan = self.plans.get(name).cloned();
+        let freeze_fault = plan.as_ref().and_then(|p| p.fault.clone()).or_else(|| {
+            let p = plan.as_ref()?;
+            if p.policy == FreezePolicy::Fault && !p.late.is_empty() {
+                Some(state::conflict_top(
+                    "write after or concurrent with freeze",
+                    p.root
+                        .iter()
+                        .cloned()
+                        .chain(p.late.iter().cloned())
+                        .collect(),
+                ))
+            } else {
+                None
+            }
+        });
+        let value = match (normal.fault_evidence(), freeze_fault) {
+            (Some(mut evidence), Some(fault)) => {
+                evidence.extend(fault.fault_evidence().unwrap_or_default());
+                state::conflict_top("state conflicts", evidence)
+            }
+            (Some(_), None) => normal,
+            (None, Some(fault)) => fault,
+            (None, None) => match plan {
+                Some(plan)
+                    if plan.root.as_ref().is_some_and(|root| {
+                        self.scopes[scope].iter().any(|a| a.address == *root)
+                    }) =>
+                {
+                    let root = plan.root.unwrap();
                     let value = if scope == plan.scope {
                         normal
                     } else {
@@ -165,8 +179,8 @@ impl Reader<'_> {
                         (Value::Str("value".into()), value),
                     ])
                 }
-            }
-            _ => normal,
+                _ => normal,
+            },
         };
         self.values.insert(key, value.clone());
         value
@@ -197,13 +211,25 @@ pub(crate) fn fold(
             seen.insert(&a.address, earlier || a.verb == verb);
         }
         if frontier.len() > 1 {
+            let mut evidence = frontier.clone();
+            if policy == FreezePolicy::Fault {
+                let contributors = clause
+                    .rule_of(field)
+                    .map(|r| verbs(clause, r))
+                    .unwrap_or_default();
+                let candidates = state::contribution_addresses(clause, &unique, &contributors);
+                for root in &frontier {
+                    let cut = past(root, &ordered);
+                    evidence.extend(candidates.iter().filter(|a| !cut.contains(*a)).cloned());
+                }
+            }
             plans.insert(
                 field.to_string(),
                 Plan {
                     root: None,
                     scope: 0,
                     late: HashSet::new(),
-                    fault: Some(state::conflict_top("concurrent freezes", frontier)),
+                    fault: Some(state::conflict_top("concurrent freezes", evidence)),
                     policy,
                 },
             );

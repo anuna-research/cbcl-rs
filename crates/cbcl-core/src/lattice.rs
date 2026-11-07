@@ -418,14 +418,14 @@ pub fn factor(rule: &Rule) -> Option<Factored> {
 /// The accepted acts, unique by address, with the clause's domain filters
 /// resolved (SPEC-019 ADR-1909: domains read list-valued opener fields).
 pub struct Ctx<'a> {
-    acts: BTreeMap<String, &'a Act>,
+    acts: hashbrown::HashMap<String, &'a Act>,
     domains: Vec<(String, String, Vec<Value>)>,
     domain_faults: Vec<(String, Value)>,
 }
 
 impl<'a> Ctx<'a> {
     pub fn new(clause: &StateClause, acts: &'a [Act]) -> Ctx<'a> {
-        let mut unique: BTreeMap<String, &Act> = BTreeMap::new();
+        let mut unique: hashbrown::HashMap<String, &Act> = hashbrown::HashMap::new();
         for a in acts {
             unique.entry(a.address.clone()).or_insert(a);
         }

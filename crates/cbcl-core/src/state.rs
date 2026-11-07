@@ -969,7 +969,7 @@ struct Kernel<'a> {
 /// is what makes `fold` a set function of the slice itself (SPEC-019 R7,
 /// REQ-1930 `fold_dedup_invariant`).
 fn dedup_by_address(acts: &[Act]) -> Vec<&Act> {
-    let mut seen: BTreeSet<&str> = BTreeSet::new();
+    let mut seen: hashbrown::HashSet<&str> = hashbrown::HashSet::new();
     acts.iter()
         .filter(|a| seen.insert(a.address.as_str()))
         .collect()
@@ -1390,10 +1390,38 @@ pub(crate) fn contribution_addresses(
     acts: &[Act],
     verbs: &[String],
 ) -> hashbrown::HashSet<String> {
-    let kernel = kernel_for(clause, acts);
-    verbs
-        .iter()
-        .flat_map(|verb| kernel.acts(verb))
+    // Freeze witnesses must survive a later initializer fork. Retain every
+    // contribution admitted by any observed initializer, rather than applying
+    // the now-faulting domain's empty successful display.
+    let domains: Vec<(&str, &str, hashbrown::HashSet<String>)> = clause
+        .domains()
+        .filter(|(verb, _, _)| verbs.iter().any(|v| v == verb))
+        .map(|(verb, key, field)| {
+            let mut allowed = hashbrown::HashSet::new();
+            if let Some(Rule::Initial {
+                verb: opener,
+                key: source,
+            }) = clause.rule_of(field)
+            {
+                for act in acts.iter().filter(|a| a.verb == *opener) {
+                    if let Some(SExpr::List(values)) = act.fields.get(source) {
+                        allowed.extend(values.iter().map(|v| Value::from_sexpr(v).render()));
+                    }
+                }
+            }
+            (verb, key, allowed)
+        })
+        .collect();
+    acts.iter()
+        .filter(|a| verbs.contains(&a.verb))
+        .filter(|a| {
+            domains.iter().all(|(verb, key, allowed)| {
+                a.verb != *verb
+                    || a.fields
+                        .get(*key)
+                        .is_some_and(|v| allowed.contains(&Value::from_sexpr(v).render()))
+            })
+        })
         .map(|a| a.address.clone())
         .collect()
 }
@@ -1484,6 +1512,11 @@ impl ScalarType {
 /// The type of a state field, derived from its rule and the shapes.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum StateType {
+    /// A current observation. A declared freezer can later produce an exact cut.
+    Snapshot {
+        value: alloc::boxed::Box<StateType>,
+        freeze: Option<(String, FreezePolicy)>,
+    },
     BoundedCounter,
     /// A value that may be absent (`last`).
     OptScalar(ScalarType),
@@ -1509,6 +1542,20 @@ impl StateType {
     /// JSON rendering of a type, for the export.
     pub fn render(&self) -> String {
         match self {
+            StateType::Snapshot { value, freeze } => {
+                let mut out = value.render();
+                out.pop();
+                out.push_str(",\"observation\":\"snapshot\"");
+                if let Some((verb, policy)) = freeze {
+                    out.push_str(",\"freeze\":{\"verb\":");
+                    json_string(verb, &mut out);
+                    out.push_str(",\"policy\":");
+                    json_string(policy.as_str(), &mut out);
+                    out.push('}');
+                }
+                out.push('}');
+                out
+            }
             StateType::Threshold { field, elements } => {
                 let mut out = String::from("{\"type\":\"threshold\",\"field\":");
                 json_string(field, &mut out);
@@ -1607,15 +1654,30 @@ pub fn state_schema(
             }
         };
         let ty = match rule {
-            Rule::Lift(lift) => match lift
-                .projection
-                .as_ref()
-                .and_then(|p| p.rows.first())
-                .map(|(_, value)| value)
-            {
-                Some(SExpr::Atom(Atom::Bool(_))) => StateType::Bool,
-                Some(SExpr::Atom(Atom::Num(_))) => StateType::Int,
-                _ => StateType::OptScalar(ScalarType::Str),
+            Rule::Lift(lift) => match &lift.projection {
+                None => StateType::OptScalar(ScalarType::Str),
+                Some(p)
+                    if p.rows
+                        .iter()
+                        .all(|(_, v)| matches!(v, SExpr::Atom(Atom::Bool(_)))) =>
+                {
+                    StateType::Bool
+                }
+                Some(p)
+                    if p.rows
+                        .iter()
+                        .all(|(_, v)| matches!(v, SExpr::Atom(Atom::Num(_)))) =>
+                {
+                    StateType::Int
+                }
+                Some(p)
+                    if p.rows
+                        .iter()
+                        .all(|(_, v)| matches!(v, SExpr::Atom(Atom::Str(_)))) =>
+                {
+                    StateType::OptScalar(ScalarType::Str)
+                }
+                Some(_) => StateType::Unknown,
             },
             Rule::BoundedCounter(_) => StateType::BoundedCounter,
             Rule::Initial { verb, key } | Rule::LwwRegister { verb, key, .. } => {
@@ -1660,7 +1722,25 @@ pub fn state_schema(
         };
         out.push((String::from(name), ty));
     }
-    out
+    out.into_iter()
+        .map(|(name, ty)| {
+            if matches!(ty, StateType::Threshold { .. }) {
+                (name, ty)
+            } else {
+                let freeze = clause
+                    .freezes()
+                    .find(|(field, _, _)| *field == name)
+                    .map(|(_, verb, policy)| (verb.to_string(), policy));
+                (
+                    name,
+                    StateType::Snapshot {
+                        value: alloc::boxed::Box::new(ty),
+                        freeze,
+                    },
+                )
+            }
+        })
+        .collect()
 }
 
 /// JSON rendering of a schema.

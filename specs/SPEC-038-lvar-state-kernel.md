@@ -2,7 +2,7 @@
 id: SPEC-038
 title: LVar state kernel
 status: draft
-version: 0.2.0
+version: 0.2.1
 last-updated: 2026-11-08
 ---
 
@@ -73,7 +73,7 @@ Load-bearing: [[SPEC-038-lvar-state-kernel#REQ-3800]] every field is a term ·
 [[SPEC-038-lvar-state-kernel#REQ-3809]] derived fields over the product, contributions never read revisable fields ·
 [[SPEC-038-lvar-state-kernel#REQ-3802]] threshold reads ·
 [[SPEC-038-lvar-state-kernel#REQ-3803]] freeze · [[SPEC-038-lvar-state-kernel#REQ-3806]]
-quasi-determinism · [[SPEC-038-lvar-state-kernel#NFR-3800]] linear cost.
+quasi-determinism · [[SPEC-038-lvar-state-kernel#NFR-3800]] explicit evaluation cost bounds.
 
 Open: freeze concurrency policy default (owner: CBCL maintainer, decided
 provisionally in ADR-3802); whether `progress` and `bounded-counter` get a shared
@@ -380,12 +380,25 @@ Trace: [[SPEC-038-lvar-state-kernel#TEST-3808]], [[SPEC-038-lvar-state-kernel#CO
 
 ## NFR-3800: Cost
 
-Evaluating any term over an accepted set of `n` acts SHALL take time linear in
-`n` times the term's size, with no per-act work exceeding the existing R2
-bounds; the pairwise-incompatibility check of a threshold set of `k` elements
-SHALL take `O(k²)` lattice comparisons at installation and none at fold time;
-verifying a user-defined lattice of `n ≤ max-list` elements SHALL take `O(n³)`
-table lookups at installation and none at fold time.
+For `n` accepted acts and total state-expression size `t`, ordinary collection
+selection and rendering SHALL stay within `O(t n log(n + 1))` work under the
+existing bounded-key and expected hash-index lookup model. A frozen clause with
+`d` distinct causal cuts and at most `f` earliest concurrent freezers per field
+SHALL stay within `O(t (d + 1) n log(n + 1) + t n f)` work: scoped reads are
+memoized, and complete concurrent-freeze witness evidence visits each frontier
+cut. In particular, an unbounded number of concurrent earliest freezers can
+make evidence collection quadratic in accepted history size. The implementation
+SHALL NOT describe end-to-end evaluation as strictly linear. The delegated
+protocol-position and resource validators retain their existing R2 bounds;
+their validation cost SHALL be stated separately from collection evaluation.
+
+The pairwise-incompatibility check of a threshold set of `k` elements SHALL
+perform `O(k²)` constant-work pair comparisons at installation and none at fold
+time. A finite carrier with `m` elements MAY preprocess its ordinary projected
+upper sets in `O(m²)` comparisons before those pair checks. Verifying a
+user-defined lattice of `m ≤ max-list` elements SHALL take `O(m³)` table lookups
+at installation and none at fold time. These are operation-count bounds, not
+wall-clock benchmark claims.
 Trace: [[SPEC-038-lvar-state-kernel#TEST-3803]], [[SPEC-038-lvar-state-kernel#TEST-3808]].
 
 ## CON-3800: The lattice algebra
@@ -775,6 +788,12 @@ in this specification is claimed as proved until the corresponding TEST reports
 it; the status above is `draft` for that reason.
 
 ## Changelog
+
+- 0.2.1 (2026-11-08): maintainer selected documenting the current implementation
+  cost bounds under [[SPEC-038-lvar-state-kernel#NFR-3800]], including ordered
+  collections, scoped freeze reads and concurrent-freeze witness collection.
+  Threshold pair checks and finite-table law verification retain their separate
+  installation bounds.
 
 - 0.2.0 (2026-11-08): maintainer accepted
   [[SPEC-038-lvar-state-kernel#ADR-3805]] after reviewing signed-sum retraction,

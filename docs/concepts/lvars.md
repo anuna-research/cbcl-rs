@@ -116,3 +116,86 @@ What none of these systems has, and the kernel adds underneath: puts that are
 signed, content-addressed and admitted against a cast and a causal protocol
 ([[protocol-model]]); a freeze that is an attributable act by a role; and a ⊤
 that carries the addresses in conflict as evidence.
+
+## Writing a dialect
+
+A threshold establishes a stable successful fact. A snapshot describes the
+accepted history currently visible. A later accepted act can revise a snapshot;
+it can preserve a reached threshold or turn it into an explicit fault, but
+cannot change it into another successful result or make it pending again.
+
+For example, a count can establish that two approvals exist:
+
+```scheme
+(state
+  (approvals (count approve))
+  (threshold ready approvals (count 2)))
+```
+
+`ready` renders as `{"status":"pending"}` until the count reaches two, then
+as `{"status":"reached","element":{"count":2}}`. Alternatives in a single
+threshold declaration must be incompatible: `(count 2)` and `(count 3)` cannot
+be alternatives because both can succeed in an ordinary history. Installation
+rejects that declaration. Faults are separate terminal outcomes, rendered as
+`{"status":"fault","evidence":[...]}` with attributable act addresses.
+
+A sum threshold requires an `events` source whose writer has a mandatory
+`nonnegative` amount shape. A signed counter balance remains a snapshot:
+receiving a debit can decrease the balance. Reading its credit half would
+answer a different question, so installation refuses a balance threshold.
+
+A freeze chooses the causal past of the earliest freezing act, including that
+act itself:
+
+```scheme
+(state
+  (responses (events respond :answer))
+  (freeze responses close supersede))
+```
+
+The `close` verb must name an authorized sender role. Before it arrives,
+`responses` is an ordinary snapshot. Afterwards the value has the shape
+`{"frozen":"<close-address>","superseded":[...],"value":...}`. The inner
+value is the exact causal cut; the sorted `superseded` addresses record
+contributions outside it and can grow. A causally later `close` retains the
+first cut; concurrent earliest closes fault with their addresses.
+
+Use `fault` instead of `supersede` to make an excluded contribution a fault
+naming the freezer and contributor. A `supersede` freeze can revise a previously
+visible snapshot and therefore cannot govern a threshold source. A `fault`
+freeze can: a reached threshold survives or reports a fault. Neither policy
+conceals an initializer or resource conflict already present in raw history.
+
+Finite custom lattices use data tables, with a distinct conflict top:
+
+```scheme
+(state
+  (lattice decision
+    (elements empty yes no conflict)
+    (bottom empty) (top conflict)
+    (join
+      (empty empty empty) (empty yes yes) (empty no no) (empty conflict conflict)
+      (yes empty yes) (yes yes yes) (yes no conflict) (yes conflict conflict)
+      (no empty no) (no yes conflict) (no no no) (no conflict conflict)
+      (conflict empty conflict) (conflict yes conflict)
+      (conflict no conflict) (conflict conflict conflict)))
+  (choice (lift vote (into decision)
+    (contribute (:answer "yes" yes) (:answer "no" no))))
+  (threshold chosen choice "yes" "no"))
+```
+
+Declare the `vote` verb and its `:answer` shape in the containing dialect.
+Installation checks totality, commutativity, associativity, idempotence, bottom
+and top laws, and the `max-list` element bound. Every matching contribution row
+is joined. Reaching `conflict` faults; it is not a business outcome. Optional
+`(project ((element scalar) ...))` rows give a snapshot display. Adding
+`stable` after `project` asks installation to verify monotonicity into a single
+numeric or Boolean order, permitting projected thresholds. An unmarked
+projection remains available even when non-monotone.
+
+`state_schema` marks current fields with `"observation":"snapshot"` and
+records a declared freezer separately. A threshold schema identifies the source
+and alternatives. Hosts should inspect reached/frozen/fault outcomes before
+triggering effects that depend on stability. An external effect fired on a
+snapshot has no finality guarantee from this kernel; effect idempotency and
+external transaction policy remain the host's responsibility.

@@ -75,7 +75,7 @@ fn hlc_is_signature_bound_and_preserved_by_schema_and_authoring() {
             typed.state.as_ref().unwrap(),
             &typed.shapes
         )),
-        "{\"when\":{\"type\":\"opt-scalar\",\"of\":\"hlc\"}}"
+        "{\"when\":{\"type\":\"opt-scalar\",\"of\":\"hlc\",\"observation\":\"snapshot\"}}"
     );
 
     let contract = serde_json::json!({"version":3,"kind":"contract","name":"clocks","author":"@a",

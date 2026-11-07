@@ -19,6 +19,7 @@ import LeanCbcl.DCFLPreservation
 import LeanCbcl.R6DCFLPreservation
 import LeanCbcl.State
 import LeanCbcl.StateLift
+import LeanCbcl.StateLVar
 import LeanCbcl.AdmissionStratification
 import LeanCbcl.StateRefinement
 import LeanCbcl.MonitoredDCFL
@@ -673,3 +674,27 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.CheckpointData.events_continuation
 #print axioms CBCL.CheckpointEvidence.progress_checkpoint_tail_native
 #print axioms CBCL.CheckpointEvidence.resource_checkpoint_tail_native
+
+-- SPEC-038 fault-aware observations and actual replica dissemination.
+#print axioms CBCL.StateLVar.below_trans
+#print axioms CBCL.StateLVar.distinct_successes_force_conflict
+#print axioms CBCL.StateLVar.threshold_quasi_determinism
+#print axioms CBCL.StateLVar.success_persists
+#print axioms CBCL.StateLVar.rawHistory_union
+#print axioms CBCL.StateLVar.rawHistory_setEq
+#print axioms CBCL.StateLVar.domainRead_setEq
+#print axioms CBCL.StateLVar.display_rawHistory
+#print axioms CBCL.StateLVar.opener_evidence
+#print axioms CBCL.StateLVar.opener_fork_fault
+#print axioms CBCL.StateLVar.domain_fork_fault
+#print axioms CBCL.StateLVar.witness_dissemination
+#print axioms CBCL.StateLVar.eventual_domain_fork
+#print axioms CBCL.StateLVar.finite_observation_agreement
+#print axioms CBCL.StateLVar.nonnegative_events_monotone
+#print axioms CBCL.StateLVar.causalCut_agreement
+#print axioms CBCL.StateLVar.freezer_in_cut
+#print axioms CBCL.StateLVar.earliest_persists
+#print axioms CBCL.StateLVar.frozen_value_agreement
+#print axioms CBCL.StateLVar.freeze_evidence_sound
+#print axioms CBCL.StateLVar.freeze_witness_transfer
+#print axioms CBCL.StateLVar.eventual_freeze_conflict

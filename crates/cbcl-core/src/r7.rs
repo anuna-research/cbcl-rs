@@ -723,14 +723,36 @@ fn check_thresholds<'a>(
         }
         let compatibility = if let Rule::Lift(lift) = rule {
             if let Some(table) = &lift.table {
-                // Compile each read's accepted ordinary states once. Pair
-                // checks do not perform lattice operations at fold time.
-                let reads: Vec<Vec<bool>> = elements
-                    .iter()
-                    .map(|element| {
+                // Precompute the largest stable projected value in each
+                // principal upper set, excluding conflict top. This takes
+                // O(n²) table comparisons once, independent of threshold count;
+                // every threshold pair below then takes constant work.
+                let projected: Vec<Option<i128>> = (0..table.elements.len())
+                    .map(
+                        |i| match crate::finite::project(&lift.projection, table, i) {
+                            crate::state::Value::Int(n) => Some(n),
+                            crate::state::Value::Bool(b) => Some(i128::from(b)),
+                            _ => None,
+                        },
+                    )
+                    .collect();
+                let maxima: Vec<Option<i128>> = (0..table.elements.len())
+                    .map(|a| {
                         (0..table.elements.len())
-                            .map(|i| element.finite_read(table, i, &lift.projection))
-                            .collect()
+                            .filter(|&b| b != table.top && table.le(a, b))
+                            .filter_map(|b| projected[b])
+                            .max()
+                    })
+                    .collect();
+                let reads: Vec<Result<usize, i128>> = elements
+                    .iter()
+                    .map(|e| match e {
+                        crate::lattice::Element::Scalar(crate::state::Value::Str(name)) => {
+                            Ok(table.index(name).expect("typed finite element"))
+                        }
+                        crate::lattice::Element::Scalar(crate::state::Value::Int(n)) => Err(*n),
+                        crate::lattice::Element::Scalar(crate::state::Value::Bool(true)) => Err(1),
+                        _ => unreachable!("typed finite element"),
                     })
                     .collect();
                 let mut result = Ok(());
@@ -738,7 +760,11 @@ fn check_thresholds<'a>(
                     for j in i + 1..elements.len() {
                         let why = if elements[i] == elements[j] {
                             Some("duplicate")
-                        } else if reads[i].iter().zip(&reads[j]).any(|(a, b)| *a && *b) {
+                        } else if match (reads[i], reads[j]) {
+                            (Ok(a), Ok(b)) => table.merge(a, b) != table.top,
+                            (Ok(a), Err(n)) | (Err(n), Ok(a)) => maxima[a].is_some_and(|v| v >= n),
+                            (Err(a), Err(b)) => maxima[table.bottom].is_some_and(|v| v >= a.max(b)),
+                        } {
                             Some("compatible")
                         } else {
                             None

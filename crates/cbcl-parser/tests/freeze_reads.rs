@@ -291,3 +291,211 @@ fn the_freezing_act_itself_is_in_the_exact_cut() {
     let after = read(&src, &[open, write, close]);
     assert_eq!(after["closed"]["value"], true);
 }
+
+#[test]
+fn schema_marks_snapshots_and_describes_the_freeze_transition() {
+    let src = source("fault");
+    let d = parse_dialect(&parse(&src).unwrap()).unwrap();
+    let schema: Value = serde_json::from_str(&cbcl_core::state::render_schema(
+        &cbcl_core::state::state_schema(d.state.as_ref().unwrap(), &d.shapes),
+    ))
+    .unwrap();
+    assert_eq!(schema["values"]["observation"], "snapshot");
+    assert_eq!(
+        schema["values"]["freeze"],
+        serde_json::json!({"verb":"close", "policy":"fault"})
+    );
+    assert!(read(&src, &[])["values"].get("frozen").is_none());
+}
+
+#[test]
+fn additional_concurrent_freezer_preserves_the_late_writer_witness() {
+    let src = source("fault");
+    let open = act("open", "", "begin");
+    let first = act("close", "", &open.address);
+    let late = act("write", "late", &first.address);
+    let second = act("close", "", &late.address);
+    // A distinct concurrent root: same verb, different immutable predecessor.
+    let concurrent = act("close", "", "begin");
+    let initial = vec![open.clone(), first.clone(), late.clone(), second.clone()];
+    let before = read(&src, &initial);
+    let mut extended = initial;
+    extended.push(concurrent.clone());
+    let after = read(&src, &extended);
+    assert_eq!(after["values"]["status"], "fault");
+    for witness in before["values"]["evidence"].as_array().unwrap() {
+        assert!(
+            after["values"]["evidence"]
+                .as_array()
+                .unwrap()
+                .contains(witness),
+            "lost {witness}: {after}"
+        );
+    }
+    assert!(after["values"]["evidence"]
+        .as_array()
+        .unwrap()
+        .contains(&json!(concurrent.address)));
+}
+
+#[test]
+fn initializer_conflict_preserves_an_existing_freeze_fault_witness() {
+    let src = source("fault")
+        .replace("(extend open (to) :from owner :to owner (tell to))",
+            "(extend open (to title) :from owner :to owner (tell to :title title)) (shape open (require :title string))")
+        .replace("(values (values write :value))", "(values (initial open :title))");
+    state_exports::parse_and_install_dialect(&parse(&src).unwrap()).unwrap();
+    let make_open = |title: &str, pred: &str| {
+        Act::from_message(parse_message(&parse(&format!(
+            "(signed @owner (lang sealed (open @owner :title {title:?} :caused-by {pred} :thread \"t\" :from @owner)))"
+        )).unwrap()).unwrap(), "@owner").unwrap()
+    };
+    let open = make_open("first", "begin");
+    let close = act("close", "", &open.address);
+    let other = make_open("second", &close.address);
+    let after = read(&src, &[open.clone(), close.clone(), other.clone()]);
+    for address in [open.address, close.address, other.address] {
+        assert!(
+            after["values"]["evidence"]
+                .as_array()
+                .unwrap()
+                .contains(&json!(address)),
+            "lost {address}: {after}"
+        );
+    }
+}
+
+#[test]
+fn domain_fault_cannot_erase_the_freeze_witness_of_an_admitted_contributor() {
+    let src = source("fault")
+        .replace("(extend open (to) :from owner :to owner (tell to))",
+            "(extend open (to options) :from owner :to owner (tell to :options options)) (shape open (require :options list))")
+        .replace("(values (values write :value))",
+            "(options (initial open :options)) (domain write :value options) (values (values write :value))");
+    state_exports::parse_and_install_dialect(&parse(&src).unwrap()).unwrap();
+    let make_open = |option: &str| {
+        Act::from_message(parse_message(&parse(&format!(
+            "(lang sealed (open @owner :options ({option:?}) :caused-by begin :thread \"t\" :from @owner))"
+        )).unwrap()).unwrap(), "@owner").unwrap()
+    };
+    let open = make_open("x");
+    let close = act("close", "", &open.address);
+    let late = act("write", "x", &close.address);
+    let before = vec![open.clone(), close, late];
+    let witness = read(&src, &before)["values"]["evidence"]
+        .as_array()
+        .unwrap()
+        .clone();
+    let mut after = before;
+    after.push(make_open("y"));
+    let value = read(&src, &after);
+    for address in witness {
+        assert!(
+            value["values"]["evidence"]
+                .as_array()
+                .unwrap()
+                .contains(&address),
+            "lost {address}: {value}"
+        );
+    }
+}
+
+#[test]
+fn fault_evidence_persists_across_all_closed_subhistories_of_a_forked_graph() {
+    let src = source("fault")
+        .replace("(extend open (to) :from owner :to owner (tell to))",
+            "(extend open (to options) :from owner :to owner (tell to :options options)) (shape open (require :options list))")
+        .replace("(values (values write :value))",
+            "(options (initial open :options)) (domain write :value options) (values (values write :value))");
+    state_exports::parse_and_install_dialect(&parse(&src).unwrap()).unwrap();
+    let opener = |option: &str| {
+        Act::from_message(parse_message(&parse(&format!(
+        "(lang sealed (open @owner :options ({option:?}) :caused-by begin :thread \"t\" :from @owner))"
+    )).unwrap()).unwrap(), "@owner").unwrap()
+    };
+    let a = opener("x");
+    let b = opener("y");
+    let x = act("write", "x", &a.address);
+    let y = act("write", "y", &b.address);
+    let f = act("close", "", &x.address);
+    let g = act("close", "", &y.address);
+    let late_x = act("write", "x", &f.address);
+    let late_y = act("write", "y", &g.address);
+    let graph = [a, b, x, y, f, g, late_x, late_y];
+    let mut histories = Vec::new();
+    for mask in 0usize..(1 << graph.len()) {
+        let acts: Vec<Act> = graph
+            .iter()
+            .enumerate()
+            .filter(|(i, _)| mask & (1 << i) != 0)
+            .map(|(_, a)| a.clone())
+            .collect();
+        if acts.iter().all(|a| {
+            a.predecessors
+                .iter()
+                .all(|p| acts.iter().any(|parent| parent.address == *p))
+        }) {
+            let observed = read(&src, &acts);
+            histories.push((mask, observed));
+        }
+    }
+    for (left, before) in &histories {
+        for (right, after) in &histories {
+            if left & right != *left {
+                continue;
+            }
+            if let Some(witness) = before["values"]["evidence"].as_array() {
+                assert_eq!(after["values"]["status"], "fault");
+                let evidence = after["values"]["evidence"].as_array().unwrap();
+                assert!(
+                    witness.iter().all(|a| evidence.contains(a)),
+                    "witness shrank: {left:08b} -> {right:08b}: {before} -> {after}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn an_earlier_derived_freeze_cannot_hide_a_later_source_fault() {
+    let src = source("fault")
+        .replace("(require :value string)", "(require :value nonnegative)")
+        .replace(
+            "(extend close (to)",
+            "(extend finish (to) :from owner :to owner (tell to)) (extend close (to)",
+        )
+        .replace("(repeat 2 write close)", "(repeat 2 write close finish)")
+        .replace(
+            "(values (values write :value))",
+            "(values (events write :value)) (total (sum values))",
+        )
+        .replace(
+            "(freeze values close fault)",
+            "(freeze values finish fault) (freeze total close supersede)",
+        );
+    state_exports::parse_and_install_dialect(&parse(&src).unwrap()).unwrap();
+    let numeric = |n, pred: &str| {
+        Act::from_message(
+            parse_message(
+                &parse(&format!(
+        "(lang sealed (write @owner :value {n} :caused-by {pred} :thread \"t\" :from @owner))"
+    ))
+                .unwrap(),
+            )
+            .unwrap(),
+            "@owner",
+        )
+        .unwrap()
+    };
+    let open = act("open", "", "begin");
+    let before = numeric(3, &open.address);
+    let close = act("close", "", &before.address);
+    let finish = act("finish", "", &close.address);
+    let history = vec![open, before, close, finish.clone()];
+    assert_eq!(read(&src, &history)["total"]["value"], 3);
+    let mut extended = history;
+    extended.push(numeric(9, &finish.address));
+    let after = read(&src, &extended);
+    assert_eq!(after["total"]["status"], "fault");
+    assert_eq!(after["total"]["evidence"], after["values"]["evidence"]);
+}

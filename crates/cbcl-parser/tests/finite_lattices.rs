@@ -216,3 +216,84 @@ fn element_count_is_bounded_and_a_64_element_lattice_installs() {
     assert!(install(&bounded).unwrap_err().contains("max-list"));
     install(&source(64, "", "")).unwrap();
 }
+
+#[test]
+fn schema_marks_projections_as_snapshots_and_keeps_mixed_types_honest() {
+    for (projection, expected) in [
+        ("(project ((e0 0) (e1 \"ready\") (e2 #t)))", "unknown"),
+        ("(project stable ((e0 0) (e1 1) (e2 2)))", "int"),
+    ] {
+        let src = source(3, projection, "");
+        install(&src).unwrap();
+        let d = parse_dialect(&parse(&src).unwrap()).unwrap();
+        let schema: Value = serde_json::from_str(&cbcl_core::state::render_schema(
+            &cbcl_core::state::state_schema(d.state.as_ref().unwrap(), &d.shapes),
+        ))
+        .unwrap();
+        assert_eq!(schema["phase"]["type"], expected);
+        assert_eq!(schema["phase"]["observation"], "snapshot");
+    }
+    let src = source(3, "", "(threshold ready phase \"e1\")");
+    install(&src).unwrap();
+    let d = parse_dialect(&parse(&src).unwrap()).unwrap();
+    let schema: Value = serde_json::from_str(&cbcl_core::state::render_schema(
+        &cbcl_core::state::state_schema(d.state.as_ref().unwrap(), &d.shapes),
+    ))
+    .unwrap();
+    assert_eq!(schema["ready"]["type"], "threshold");
+    assert!(schema["ready"].get("observation").is_none());
+}
+
+#[test]
+fn malformed_declarations_and_incomplete_projections_are_rejected() {
+    let plain = source(3, "", "");
+    for invalid in [
+        plain.replace("(elements e0 e1 e2)", "(elements e0 e1 e1)"),
+        plain.replace("(bottom e0)", "(bottom missing)"),
+        plain.replace("(top e2)", "(top e0)"),
+        plain.replace("(e0 e0 e0)", "(e0 e0 e0) (e0 e0 e0)"),
+        plain.replace("(e0 e0 e0)", "(e0 e0)"),
+        plain.replace("(into rank)", "(into absent)"),
+        plain.replace("(:phase \"e0\" e0)", "(:phase () e0)"),
+        source(3, "(project ((e0 0) (e1 1)))", ""),
+        source(3, "(project ((e0 0) (e0 0) (e1 1) (e2 2)))", ""),
+        source(3, "(project ((e0 0) (e1 1) (absent 2)))", ""),
+        source(3, "(project stable ((e0 \"a\") (e1 \"b\") (e2 \"c\")))", ""),
+        source(
+            3,
+            "(project ((e0 0) (e1 1) (e2 2)))",
+            "(threshold result phase 1)",
+        ),
+        source(3, "", "(threshold result phase \"e2\")"),
+    ] {
+        let result = parse(&invalid)
+            .map_err(|e| e.to_string())
+            .and_then(|sexpr| state_exports::parse_and_install_dialect(&sexpr).map(|_| ()));
+        assert!(result.is_err(), "unexpectedly installed {invalid}");
+    }
+}
+
+#[test]
+fn every_matching_contribution_row_is_joined() {
+    let src = source(4, "", "")
+        .replace("(e1 e2 e2)", "(e1 e2 e3)")
+        .replace("(e2 e1 e2)", "(e2 e1 e3)")
+        .replace(
+            "(:phase \"e1\" e1)",
+            "(:phase \"e1\" e1) (:phase \"e1\" e2)",
+        );
+    install(&src).unwrap();
+    let acts = history();
+    assert_eq!(read(&src, &acts)["phase"]["status"], "fault");
+    assert_eq!(
+        read(&src, &acts)["phase"]["evidence"],
+        json!([acts[1].address])
+    );
+    let d = parse_dialect(&parse(&src).unwrap()).unwrap();
+    let clause = d.state.as_ref().unwrap();
+    let f = factor(clause.rule_of("phase").unwrap()).unwrap();
+    assert_eq!(
+        Ctx::new(clause, &acts).display(&f, &[]).render(),
+        read(&src, &acts)["phase"].to_string()
+    );
+}
