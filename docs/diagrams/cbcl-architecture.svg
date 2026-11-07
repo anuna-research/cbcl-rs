@@ -301,7 +301,7 @@
 
     <!-- recognition gate -->
     <g id="recognition-gate">
-      <text x="600" y="622" font-size="14" font-weight="600">Recognition gate</text>
+      <text x="600" y="622" font-size="14" font-weight="600">Full recognition</text>
       <line x1="840" y1="636" x2="840" y2="544" stroke="#626B78" stroke-width="1.2" stroke-dasharray="4 3" marker-end="url(#arrow-muted)"/>
       <text x="848" y="566" font-size="10.5" fill="#626B78">E supplies the dialect rules</text>
       <text x="848" y="579" font-size="10.5" fill="#626B78">that step 3 applies</text>
@@ -311,7 +311,7 @@
       <rect x="740" y="682" width="200" height="28" rx="6" fill="#FFFFFF" stroke="#1F2630" stroke-width="1.1"/>
       <text x="840" y="700" text-anchor="middle" font-size="12">Recognised language L<tspan font-size="9" dy="3">E</tspan></text>
       <line x1="840" y1="710" x2="840" y2="738" stroke="#1F2630" stroke-width="1.3" marker-end="url(#arrow)"/>
-      <text x="848" y="728" font-size="10.5" fill="#626B78">deterministic pushdown recognition</text>
+      <text x="848" y="728" font-size="10.5" fill="#626B78">whole input consumed and parsed</text>
       <rect x="730" y="740" width="220" height="28" rx="14" fill="#EEF0F3" stroke="#1F2630" stroke-width="1.1"/>
       <text x="840" y="758" text-anchor="middle" font-size="12">Is this message in L<tspan font-size="9" dy="3">E</tspan><tspan dy="-3">?</tspan></text>
       <g stroke="#1F2630" stroke-width="1.3">
@@ -320,7 +320,7 @@
       </g>
       <text x="765" y="800" text-anchor="middle" font-size="12" font-weight="600" fill="#A33A2C">NO</text>
       <text x="765" y="815" text-anchor="middle" font-size="10.5" fill="#626B78">not in the language:</text>
-      <text x="765" y="828" text-anchor="middle" font-size="10.5" fill="#626B78">rejected before any check</text>
+      <text x="765" y="828" text-anchor="middle" font-size="10.5" fill="#626B78">rejected before any semantic action</text>
       <text x="915" y="800" text-anchor="middle" font-size="12" font-weight="600" fill="#156E76">YES</text>
       <text x="915" y="815" text-anchor="middle" font-size="10.5" fill="#626B78">check roles and</text>
       <text x="915" y="828" text-anchor="middle" font-size="10.5" fill="#626B78">causal evidence (step 3)</text>

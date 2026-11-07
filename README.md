@@ -18,8 +18,8 @@ CBCL defines interaction protocols over sets of authenticated speech acts. Each 
    incoming messages, any bytes
                  |
                  v
- (0) is it in L_E?   deterministic
-        |      \      recognition
+ (0) full recognition: is it in L_E?
+        |      \
         | yes   no -> rejected
         v
    Alice {p, a}       Bob {p, c}
@@ -55,7 +55,7 @@ CBCL defines interaction protocols over sets of authenticated speech acts. Each 
      approvals, balances, progress
 ```
 
-0. **Recognition.** The installed environment E fixes an input language L_E, a deterministic context-free language. Every incoming message is recognised against it first; anything outside L_E is rejected before any other check, and only recognised messages become records. Installing a dialect extends L_E without losing this property.
+0. **Full recognition.** The installed environment E fixes an input language L_E, a deterministic context-free language. Every incoming message is recognised in full against it before any semantic action: the whole input is consumed and parsed, anything outside L_E is rejected, and only recognised messages become records. Installing a dialect extends L_E without losing this property.
 1. **Union.** Duplicates change nothing, and no global arrival order is required.
 2. **Citations.** Dependencies come from what an act cites, not from the order records arrive.
 3. **Check.** Each candidate is checked under the dialect in scope. `Unknown` returns to this step when more evidence arrives.
