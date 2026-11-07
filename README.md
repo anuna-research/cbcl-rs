@@ -149,6 +149,12 @@ The **bounded-counter primitive** represents transferable rights over constraine
 
 Account ownership and collective ownership support individual allocations and pools consumed by distinct authorized signers. Examples: `dialects/example-coin.cbcl`, `dialects/example-capped-coin.cbcl`, and `dialects/example-collective-tickets.cbcl`. See [bounded-counter guide](docs/concepts/bounded-counter.md) for declarations and invariants.
 
+The built-in checkpoint companion dialect supports cached member-certified state
+opening through `cbcl-checkpoint`. It reuses native signed endorsements, verifies
+continuation and local-history coverage, and retains signed evidence. It supplies
+neither resource-release authority nor global freshness. See
+[checkpoint runtime](crates/cbcl-checkpoint/README.md).
+
 ### Example: a coin with a bounded counter
 
 `dialects/example-coin.cbcl` declares a coin. `open` fixes each account's allocation, `mint` and `burn` change the value, and `pay` moves spending rights between accounts without changing the value:
@@ -294,6 +300,14 @@ cargo bench --workspace
 Run `make help` for build, install, distribution, and documentation targets. `make install` installs the CLI as `cbcl` under `~/.local/bin` (override `PREFIX` as needed). `make dist` stages a native binary and checksum locally.
 
 To release from a clean `main` matching `origin/main`, run `./release.sh X.Y.Z` with a higher stable version. It updates the shared workspace version and lockfile, runs Rust and Lean checks, commits, and pushes `main` plus an annotated `vX.Y.Z` tag atomically. It does not publish packages or binaries. Git, Rust, Make, Python 3, and Lean/lake are required.
+
+Cached-checkpoint continuation for all 16 native rule heads is proved in
+[`CheckpointAll.lean`](lean-cbcl/LeanCbcl/CheckpointAll.lean), including ordered
+aggregate sources and projected protocol/resource facts. The theorem connects
+compact incremental state to the existing native evaluator over accepted
+identities; it is not a universal Rust extraction or resource-finality proof.
+See the [proof guide](lean-cbcl/README.md#cached-checkpoint-continuation) for the boundary
+and reproducible checks.
 
 For proof changes, install Lean via elan and run `lake build` and `lake exe runLinter LeanCbcl` from `lean-cbcl/`. Run `scripts/check-axioms.sh` from the repository root. For mutation testing, see [mutation-testing guide](docs/mutation-testing.md).
 

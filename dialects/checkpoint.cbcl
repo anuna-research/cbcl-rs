@@ -1,0 +1,38 @@
+; SPEC-035 CON-3504: native checkpoint attestations, not certification truth.
+; The parser entrypoint installs this body under its computed self-address.
+; Exact scope/hash/version/location recognition belongs to the certificate codec.
+(define checkpoint (cbcl) @anuna
+  (:resource-requirements
+    ((max-depth 16) (max-expansion-size 4096) (verification-time 1000)))
+  (:roles (initializer (* member)))
+  (extend open (to target context policy profile version)
+    :from initializer :to (initializer member)
+    (tell to :target target :context context :policy policy :profile profile :version version))
+  (extend propose (to target context policy profile manifest descriptor)
+    :from member :to (initializer member)
+    (tell to :target target :context context :policy policy :profile profile :manifest manifest :descriptor descriptor))
+  (extend endorse (to target context policy profile manifest)
+    :from member :to (initializer member)
+    (tell to :target target :context context :policy policy :profile profile :manifest manifest))
+  (extend publish (to target context policy profile manifest certificate locations)
+    :from member :to (initializer member)
+    (tell to :target target :context context :policy policy :profile profile :manifest manifest :certificate certificate :locations locations))
+  (shape open
+    (require :target string) (require :context string)
+    (require :policy string) (require :profile string) (require :version number))
+  (shape propose
+    (require :target string) (require :context string)
+    (require :policy string) (require :profile string)
+    (require :manifest string) (require :descriptor string))
+  (shape endorse
+    (require :target string) (require :context string)
+    (require :policy string) (require :profile string) (require :manifest string))
+  (shape publish
+    (require :target string) (require :context string)
+    (require :policy string) (require :profile string)
+    (require :manifest string) (require :certificate string) (require :locations list))
+  (protocol
+    (then begin open)
+    (then open propose)
+    (then open endorse)
+    (then open publish)))
