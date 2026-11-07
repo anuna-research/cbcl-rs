@@ -60,7 +60,23 @@ Hellerstein, VLDB 2022, DOI 10.14778/3574245.3574268) extends CRDTs "with a
 query model that reasons about which queries are safe without coordination by
 applying monotonicity results from the CALM Theorem", which is the same move as
 LVars' threshold read made over CRDT queries. "Flo" (Laddad, Cheung, Hellerstein
-and Milano, POPL 2025, DOI 10.1145/3704845) gives the semantic foundation.
+and Milano, POPL 2025, DOI 10.1145/3704845; arXiv 2411.08274) gives the semantic
+foundation.
+
+Hydro has no freeze. Checked on 7 November 2026 across the `lattices` crate
+documentation, the DFIR operator reference and the Flo text: there is no
+operation that makes a lattice variable exact and rejects later writes. The
+nearest things are three. `IsTop` marks a value that "cannot change any
+further", a terminal lattice element rather than an operation, and `WithTop`
+adds one to any lattice. `MapUnionWithTombstones` is observed removal, the
+W and R pattern. And Flo makes finality a *type*: it "distinguish[es] bounded
+streams, which allow operators to block on termination, from unbounded ones",
+and places the stream-processing progress markers, punctuations, watermarks,
+heartbeats and frontiers, under "families of collection types that admit
+reasoning about fixedness". So in the Hydro line fixedness is declared
+statically by the program; in LVish it is a dynamic operation; in CBCL it is a
+dynamic, signed, role-permitted act that other acts can cite. That difference
+is what makes a late write attributable here and merely late elsewhere.
 
 **Datafun** (Arntzenius and Krishnaswami, ICFP 2016, DOI
 10.1145/2951913.2951948) is a functional Datalog whose "key feature is to track
