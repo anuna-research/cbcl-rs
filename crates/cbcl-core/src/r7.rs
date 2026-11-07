@@ -262,7 +262,53 @@ pub fn r7_violations(d: &Dialect) -> Vec<R7Violation> {
             out.push(R7Violation::Malformed(format!("duplicate field '{name}'")));
         }
     }
+    for definition in clause.lattices() {
+        if !names.insert(&definition.name) {
+            out.push(R7Violation::Malformed(format!(
+                "duplicate lattice/field name '{}'",
+                definition.name
+            )));
+        }
+        if let Err(reason) = definition.validate(bounds.max_list as usize) {
+            out.push(R7Violation::Typing(format!(
+                "lattice '{}': {reason}",
+                definition.name
+            )));
+        }
+    }
+    for (field, rule) in clause.fields() {
+        if let Rule::Lift(lift) = rule {
+            match &lift.table {
+                None => out.push(R7Violation::Typing(format!(
+                    "field '{field}' references undefined or invalid lattice '{}'",
+                    lift.lattice
+                ))),
+                Some(table) => {
+                    if let Err(reason) = lift.validate(table) {
+                        out.push(R7Violation::Typing(format!("lift '{field}': {reason}")));
+                    }
+                }
+            }
+        }
+    }
     check_thresholds(d, clause, &mut names, &mut out);
+    let mut frozen_fields = BTreeSet::new();
+    for (field, verb, _) in clause.freezes() {
+        if clause.rule_of(field).is_none() || !frozen_fields.insert(field) {
+            out.push(R7Violation::Malformed(format!(
+                "freeze field '{field}' is undefined or has multiple freeze declarations"
+            )));
+        }
+        if !d
+            .performatives
+            .iter()
+            .any(|p| p.name == verb && p.role.as_ref().is_some_and(|r| !r.from.is_empty()))
+        {
+            out.push(R7Violation::Malformed(format!(
+                "freeze verb '{verb}' must be defined with a :from role"
+            )));
+        }
+    }
 
     // REQ-1905: protocol with exactly one opener.
     let opener = match d.causal_protocol.as_ref() {
@@ -596,7 +642,7 @@ fn check_thresholds<'a>(
                 declared.insert(name);
                 continue;
             }
-            Entry::Domain { .. } => continue,
+            Entry::Domain { .. } | Entry::Freeze { .. } | Entry::Lattice(_) => continue,
             Entry::Threshold {
                 name,
                 field,
@@ -624,6 +670,15 @@ fn check_thresholds<'a>(
         let Some(rule) = rule else {
             continue;
         };
+        if clause
+            .freezes()
+            .any(|(f, _, policy)| f == field && policy == crate::state::FreezePolicy::Supersede)
+        {
+            out.push(R7Violation::Threshold(format!(
+                "{name}: supersede freeze can revise '{field}'; use a separate unfrozen arrival field or the fault freeze policy"
+            )));
+            continue;
+        }
         let Some(carrier) = carrier_of(rule) else {
             out.push(R7Violation::Threshold(format!(
                 "{name}: field '{field}' is a derived display with no carrier of its own"
@@ -666,7 +721,42 @@ fn check_thresholds<'a>(
         if !typed {
             continue;
         }
-        if let Err((i, j, why)) = pairwise(elements, relation) {
+        let compatibility = if let Rule::Lift(lift) = rule {
+            if let Some(table) = &lift.table {
+                // Compile each read's accepted ordinary states once. Pair
+                // checks do not perform lattice operations at fold time.
+                let reads: Vec<Vec<bool>> = elements
+                    .iter()
+                    .map(|element| {
+                        (0..table.elements.len())
+                            .map(|i| element.finite_read(table, i, &lift.projection))
+                            .collect()
+                    })
+                    .collect();
+                let mut result = Ok(());
+                'pairs: for i in 0..elements.len() {
+                    for j in i + 1..elements.len() {
+                        let why = if elements[i] == elements[j] {
+                            Some("duplicate")
+                        } else if reads[i].iter().zip(&reads[j]).any(|(a, b)| *a && *b) {
+                            Some("compatible")
+                        } else {
+                            None
+                        };
+                        if let Some(why) = why {
+                            result = Err((i, j, why));
+                            break 'pairs;
+                        }
+                    }
+                }
+                result
+            } else {
+                Ok(())
+            }
+        } else {
+            pairwise(elements, relation)
+        };
+        if let Err((i, j, why)) = compatibility {
             out.push(R7Violation::Threshold(format!(
                 "{name}: elements {} and {} are {why}",
                 elements[i].wire(),

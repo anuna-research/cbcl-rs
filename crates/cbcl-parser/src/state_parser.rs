@@ -47,6 +47,9 @@ pub fn parse_rule(sexpr: &SExpr) -> Result<Rule, String> {
     };
     let head = symbol(&items[0], "rule head")?;
     let args = &items[1..];
+    if head == "lift" {
+        return parse_finite_lift(args).map(|lift| Rule::Lift(alloc::boxed::Box::new(lift)));
+    }
     let arity = |n: usize| -> Result<(), String> {
         if args.len() == n {
             Ok(())
@@ -201,6 +204,10 @@ pub fn parse_state(sexpr: &SExpr) -> Result<StateClause, String> {
             SExpr::List(parts) if !parts.is_empty() => parts,
             _ => return Err(String::from("a state entry must be a non-empty list")),
         };
+        if parts[0].is_symbol("lattice") {
+            entries.push(Entry::Lattice(parse_finite_definition(parts)?));
+            continue;
+        }
         if parts[0].is_symbol("domain") {
             if parts.len() != 4 {
                 return Err(String::from("domain takes: verb :key field"));
@@ -209,6 +216,27 @@ pub fn parse_state(sexpr: &SExpr) -> Result<StateClause, String> {
                 verb: symbol(&parts[1], "domain verb")?,
                 key: keyword(&parts[2], "domain key")?,
                 field: symbol(&parts[3], "domain field")?,
+            });
+            continue;
+        }
+        if parts[0].is_symbol("freeze") {
+            if !(3..=4).contains(&parts.len()) {
+                return Err(String::from("freeze takes: field verb [supersede|fault]"));
+            }
+            let policy = match parts
+                .get(3)
+                .map(|x| symbol(x, "freeze policy"))
+                .transpose()?
+                .as_deref()
+            {
+                None | Some("supersede") => cbcl_core::state::FreezePolicy::Supersede,
+                Some("fault") => cbcl_core::state::FreezePolicy::Fault,
+                _ => return Err(String::from("freeze policy must be supersede or fault")),
+            };
+            entries.push(Entry::Freeze {
+                field: symbol(&parts[1], "freeze field")?,
+                verb: symbol(&parts[2], "freeze verb")?,
+                policy,
             });
             continue;
         }
@@ -244,7 +272,136 @@ pub fn parse_state(sexpr: &SExpr) -> Result<StateClause, String> {
         let rule = parse_rule(&parts[1])?;
         entries.push(Entry::Field { name, rule });
     }
-    Ok(StateClause { entries })
+    let mut clause = StateClause { entries };
+    clause.resolve_lattices();
+    Ok(clause)
+}
+
+fn tagged<'a>(value: &'a SExpr, tag: &str) -> Result<&'a [SExpr], String> {
+    match value {
+        SExpr::List(xs) if xs.first().is_some_and(|x| x.is_symbol(tag)) => Ok(&xs[1..]),
+        _ => Err(alloc::format!("expected ({tag} …)")),
+    }
+}
+
+fn finite_scalar(value: &SExpr) -> Result<SExpr, String> {
+    match value {
+        SExpr::Atom(Atom::Str(_) | Atom::Num(_) | Atom::Bool(_)) => Ok(value.clone()),
+        _ => Err(String::from(
+            "finite table values must be scalar strings, integers or booleans",
+        )),
+    }
+}
+
+fn parse_finite_definition(parts: &[SExpr]) -> Result<cbcl_core::finite::Definition, String> {
+    if parts.len() != 6 {
+        return Err(String::from(
+            "lattice takes name, elements, bottom, top and join",
+        ));
+    }
+    let name = symbol(&parts[1], "lattice name")?;
+    if !is_field_name(&name) {
+        return Err(String::from("invalid lattice name"));
+    }
+    let elements = tagged(&parts[2], "elements")?
+        .iter()
+        .map(|x| symbol(x, "lattice element"))
+        .collect::<Result<Vec<_>, _>>()?;
+    if elements.is_empty() || elements.iter().any(|x| !is_field_name(x)) {
+        return Err(String::from(
+            "lattice elements must be nonempty state-name symbols",
+        ));
+    }
+    let bottom = tagged(&parts[3], "bottom")?;
+    let top = tagged(&parts[4], "top")?;
+    if bottom.len() != 1 || top.len() != 1 {
+        return Err(String::from("bottom and top take one element each"));
+    }
+    let rows = tagged(&parts[5], "join")?
+        .iter()
+        .map(|row| match row {
+            SExpr::List(xs) if xs.len() == 3 => Ok((
+                symbol(&xs[0], "join lhs")?,
+                symbol(&xs[1], "join rhs")?,
+                symbol(&xs[2], "join result")?,
+            )),
+            _ => Err(String::from("join row must be (element element element)")),
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(cbcl_core::finite::Definition {
+        name,
+        elements,
+        bottom: symbol(&bottom[0], "bottom")?,
+        top: symbol(&top[0], "top")?,
+        rows,
+    })
+}
+
+fn parse_finite_lift(args: &[SExpr]) -> Result<cbcl_core::finite::Lift, String> {
+    use cbcl_core::finite::{Lift, Projection, Row};
+    if !(3..=4).contains(&args.len()) {
+        return Err(String::from(
+            "lift takes verb, into, contribute and optional project",
+        ));
+    }
+    let into = tagged(&args[1], "into")?;
+    if into.len() != 1 {
+        return Err(String::from("into takes one lattice name"));
+    }
+    let entries = tagged(&args[2], "contribute")?;
+    if entries.is_empty() {
+        return Err(String::from("contribute requires at least one row"));
+    }
+    let rows = entries
+        .iter()
+        .map(|row| match row {
+            SExpr::List(xs) if xs.len() == 3 => Ok(Row {
+                key: keyword(&xs[0], "contribution key")?,
+                value: finite_scalar(&xs[1])?,
+                element: symbol(&xs[2], "contribution element")?,
+            }),
+            _ => Err(String::from(
+                "contribution row must be (:key scalar element)",
+            )),
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    let projection = if let Some(p) = args.get(3) {
+        let xs = tagged(p, "project")?;
+        let (stable, rows) = match xs {
+            [rows] => (false, rows),
+            [flag, rows] if flag.is_symbol("stable") => (true, rows),
+            _ => {
+                return Err(String::from(
+                    "project takes optional stable and one list of rows",
+                ))
+            }
+        };
+        let SExpr::List(rows) = rows else {
+            return Err(String::from("project rows must be a list"));
+        };
+        if rows.is_empty() {
+            return Err(String::from("project requires at least one row"));
+        }
+        let rows = rows
+            .iter()
+            .map(|row| match row {
+                SExpr::List(xs) if xs.len() == 2 => {
+                    Ok((symbol(&xs[0], "project element")?, finite_scalar(&xs[1])?))
+                }
+                _ => Err(String::from("project row must be (element scalar)")),
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        Some(Projection { stable, rows })
+    } else {
+        None
+    };
+    Ok(Lift {
+        verb: symbol(&args[0], "lift verb")?,
+        lattice: symbol(&into[0], "lattice name")?,
+        rows,
+        projection,
+        table: None,
+    })
 }
 
 /// Parse one threshold element (SPEC-038 CON-3801):

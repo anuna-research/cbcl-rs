@@ -43,6 +43,7 @@ use crate::state::{Act, Rule, StateClause, Value, RESERVED_REPLACES};
 use alloc::boxed::Box;
 use alloc::collections::{BTreeMap, BTreeSet};
 use alloc::string::String;
+use alloc::sync::Arc;
 use alloc::vec::Vec;
 
 /// The arbitration key of a clocked write: HLC, then signer, then address
@@ -67,6 +68,11 @@ pub enum Sole {
 /// are only defined between the same variant.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum L {
+    Finite {
+        table: Arc<crate::finite::Table>,
+        index: usize,
+        evidence: BTreeSet<String>,
+    },
     /// Boolean under `or`.
     Bool(bool),
     /// Addresses under union.
@@ -96,6 +102,33 @@ impl L {
     /// produces them.
     pub fn join(self, other: L) -> L {
         match (self, other) {
+            (
+                L::Finite {
+                    table,
+                    index: a,
+                    mut evidence,
+                },
+                L::Finite {
+                    table: other,
+                    index: b,
+                    evidence: right,
+                },
+            ) => {
+                if table.name != other.name {
+                    return L::Finite {
+                        table,
+                        index: a,
+                        evidence,
+                    };
+                }
+                evidence.extend(right);
+                let index = table.merge(a, b);
+                L::Finite {
+                    table,
+                    index,
+                    evidence,
+                }
+            }
             (L::Bool(a), L::Bool(b)) => L::Bool(a || b),
             (L::History(mut a), L::History(b)) => {
                 a.extend(b);
@@ -164,12 +197,19 @@ pub enum Group {
 /// A per-act contribution into a carrier (CON-3800 `contribute`).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Contribute {
+    Finite {
+        table: Arc<crate::finite::Table>,
+        rows: Vec<crate::finite::Row>,
+    },
     Flag,
     Address,
     Field(String),
     Entry(String),
     Amount(String),
-    Clocked { value: String, clock: String },
+    Clocked {
+        value: String,
+        clock: String,
+    },
     Write(Group),
     Replaced(Group),
     Sole(String),
@@ -195,6 +235,7 @@ pub enum Term {
 /// The post-map from a carrier to the displayed value (CON-3800 `post`).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Post {
+    Finite(Option<crate::finite::Projection>),
     Identity,
     Size,
     Difference,
@@ -227,6 +268,19 @@ pub fn factor(rule: &Rule) -> Option<Factored> {
     let pair = |a: Term, b: Term| Term::Pair(Box::new(a), Box::new(b));
     let f = |term, post| Some(Factored { term, post });
     match rule {
+        Rule::Lift(lift) => {
+            let table = Arc::new((**lift.table.as_ref()?).clone());
+            f(
+                Term::Lift(
+                    alloc::vec![sel(&lift.verb)],
+                    Contribute::Finite {
+                        table,
+                        rows: lift.rows.clone(),
+                    },
+                ),
+                Post::Finite(lift.projection.clone()),
+            )
+        }
         Rule::BoundedCounter(_) | Rule::Progress { .. } => None,
         Rule::Exists { verb } => f(
             lift(alloc::vec![sel(verb)], Contribute::Flag),
@@ -443,6 +497,11 @@ impl<'a> Ctx<'a> {
 
     fn bottom(c: &Contribute) -> L {
         match c {
+            Contribute::Finite { table, .. } => L::Finite {
+                table: table.clone(),
+                index: table.bottom,
+                evidence: BTreeSet::new(),
+            },
             Contribute::Flag => L::Bool(false),
             Contribute::Address => L::Addrs(BTreeSet::new()),
             Contribute::Field(_) => L::Vals(BTreeMap::new()),
@@ -458,6 +517,23 @@ impl<'a> Ctx<'a> {
     /// `g(a)`: one act's contribution.
     fn contribute(act: &Act, c: &Contribute) -> L {
         match c {
+            Contribute::Finite { table, rows } => {
+                let index = rows
+                    .iter()
+                    .filter(|row| act.fields.get(&row.key) == Some(&row.value))
+                    .filter_map(|row| table.index(&row.element))
+                    .fold(table.bottom, |a, b| table.merge(a, b));
+                let evidence = if index == table.bottom {
+                    BTreeSet::new()
+                } else {
+                    [act.address.clone()].into_iter().collect()
+                };
+                L::Finite {
+                    table: table.clone(),
+                    index,
+                    evidence,
+                }
+            }
             Contribute::Flag => L::Bool(true),
             Contribute::Address => L::Addrs([act.address.clone()].into_iter().collect()),
             Contribute::Field(k) => L::Vals(
@@ -641,6 +717,23 @@ impl<'a> Ctx<'a> {
 
     fn post(&self, l: &L, post: &Post) -> Value {
         match (post, l) {
+            (
+                Post::Finite(projection),
+                L::Finite {
+                    table,
+                    index,
+                    evidence,
+                },
+            ) => {
+                if *index == table.top {
+                    crate::state::conflict_top(
+                        "finite lattice conflict",
+                        evidence.iter().cloned().collect(),
+                    )
+                } else {
+                    crate::finite::project(projection, table, *index)
+                }
+            }
             (Post::Identity, L::Bool(b)) => Value::Bool(*b),
             (Post::Identity, L::Vals(m)) => Value::Set(m.values().cloned().collect()),
             (Post::Identity, L::Entries(m)) => Value::Map(
@@ -804,6 +897,7 @@ pub fn display_clause(
 /// resource `fault` can be typed.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Carrier {
+    Finite(Arc<crate::finite::Table>, Option<crate::finite::Projection>),
     Bool,
     Addrs,
     Vals,
@@ -824,6 +918,7 @@ impl Carrier {
     /// The carrier's name in the wire grammar of CON-3801.
     pub fn name(&self) -> String {
         match self {
+            Carrier::Finite(table, _) => alloc::format!("finite:{}", table.name),
             Carrier::Bool => String::from("bool"),
             Carrier::Addrs => String::from("addrs"),
             Carrier::Vals => String::from("vals"),
@@ -843,6 +938,7 @@ impl Carrier {
 fn carrier_of_term(term: &Term) -> Option<Carrier> {
     match term {
         Term::Lift(_, c) => Some(match c {
+            Contribute::Finite { table, .. } => Carrier::Finite(table.clone(), None),
             Contribute::Flag => Carrier::Bool,
             Contribute::Address => Carrier::Addrs,
             Contribute::Field(_) => Carrier::Vals,
@@ -866,6 +962,10 @@ fn carrier_of_term(term: &Term) -> Option<Carrier> {
 /// is a display over an earlier field and has no carrier of its own.
 pub fn carrier_of(rule: &Rule) -> Option<Carrier> {
     match rule {
+        Rule::Lift(lift) => lift
+            .table
+            .as_ref()
+            .map(|t| Carrier::Finite(Arc::new((**t).clone()), lift.projection.clone())),
         Rule::Progress { .. } => Some(Carrier::Progress),
         Rule::BoundedCounter(_) => Some(Carrier::Resource),
         _ => factor(rule).and_then(|f| carrier_of_term(&f.term)),
@@ -946,6 +1046,23 @@ impl Element {
     /// a bare `#t` against `bool`. Faults are separate outcomes.
     pub fn admitted_by(&self, carrier: &Carrier) -> bool {
         match (self, carrier) {
+            (Element::Scalar(Value::Str(name)), Carrier::Finite(table, _)) => {
+                table.index(name).is_some_and(|i| i != table.top)
+            }
+            (Element::Scalar(Value::Int(_)), Carrier::Finite(_, Some(project))) => {
+                project.stable
+                    && project
+                        .rows
+                        .iter()
+                        .all(|(_, v)| matches!(v, SExpr::Atom(Atom::Num(_))))
+            }
+            (Element::Scalar(Value::Bool(true)), Carrier::Finite(_, Some(project))) => {
+                project.stable
+                    && project
+                        .rows
+                        .iter()
+                        .all(|(_, v)| matches!(v, SExpr::Atom(Atom::Bool(_))))
+            }
             (Element::Scalar(Value::Bool(true)), Carrier::Bool) => true,
             (Element::Count(n), Carrier::Addrs) => *n >= 0,
             (Element::Member(v), Carrier::Vals | Carrier::Entries) => {
@@ -960,6 +1077,7 @@ impl Element {
     /// `self ≤ σ`: the element is reached by a carrier element.
     pub fn le(&self, l: &L) -> bool {
         match (self, l) {
+            (_, L::Finite { table, index, .. }) => self.finite_read(table, *index, &None),
             (Element::Scalar(Value::Bool(true)), L::Bool(b)) => *b,
             (Element::Count(n), L::Addrs(s)) => s.len() as i64 >= *n,
             (Element::Member(v), L::Vals(m)) => m.contains_key(&v.render()),
@@ -975,6 +1093,40 @@ impl Element {
                 m.values().filter_map(Value::as_int).sum::<i128>() >= *n as i128
             }
             _ => false,
+        }
+    }
+
+    pub fn finite_read(
+        &self,
+        table: &crate::finite::Table,
+        index: usize,
+        projection: &Option<crate::finite::Projection>,
+    ) -> bool {
+        if index == table.top {
+            return false;
+        }
+        match self {
+            Element::Scalar(Value::Str(name)) => {
+                table.index(name).is_some_and(|i| table.le(i, index))
+            }
+            Element::Scalar(Value::Int(n)) if projection.as_ref().is_some_and(|p| p.stable) => {
+                matches!(crate::finite::project(projection,table,index), Value::Int(value) if value >= *n)
+            }
+            Element::Scalar(Value::Bool(true)) if projection.as_ref().is_some_and(|p| p.stable) => {
+                matches!(
+                    crate::finite::project(projection, table, index),
+                    Value::Bool(true)
+                )
+            }
+            _ => false,
+        }
+    }
+
+    pub fn le_with_post(&self, l: &L, post: &Post) -> bool {
+        if let (L::Finite { table, index, .. }, Post::Finite(projection)) = (l, post) {
+            self.finite_read(table, *index, projection)
+        } else {
+            self.le(l)
         }
     }
 

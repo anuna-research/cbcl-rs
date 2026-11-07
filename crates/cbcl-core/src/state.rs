@@ -56,6 +56,8 @@ impl Default for StateBounds {
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Rule {
+    /// A finite lattice and contribution table verified at installation.
+    Lift(alloc::boxed::Box<crate::finite::Lift>),
     BoundedCounter(alloc::boxed::Box<crate::escrow::CounterRule>),
     /// Clock-trusting last-writer-wins over domain-admitted writes.
     LwwRegister {
@@ -132,6 +134,7 @@ impl Rule {
     /// The head symbol of this rule in the clause grammar.
     pub fn head(&self) -> &'static str {
         match self {
+            Rule::Lift(_) => "lift",
             Rule::BoundedCounter(_) => "bounded-counter",
             Rule::LwwRegister { .. } => "lww-register",
             Rule::LwwPerSigner { .. } => "lww-per-signer",
@@ -156,6 +159,7 @@ impl Rule {
     /// Every performative this rule names.
     pub fn verbs(&self) -> Vec<&str> {
         match self {
+            Rule::Lift(lift) => alloc::vec![lift.verb.as_str()],
             Rule::BoundedCounter(c) => c.verbs(),
             Rule::LwwRegister { verb, .. }
             | Rule::LwwPerSigner { verb, .. }
@@ -192,6 +196,11 @@ impl Rule {
     /// Every `(verb, key)` pair this rule reads as data.
     pub fn data_fields(&self) -> Vec<(&str, &str)> {
         match self {
+            Rule::Lift(lift) => lift
+                .rows
+                .iter()
+                .map(|row| (lift.verb.as_str(), row.key.as_str()))
+                .collect(),
             Rule::BoundedCounter(c) => c.data_fields(),
             Rule::LwwRegister { verb, key, clock } | Rule::LwwPerSigner { verb, key, clock } => {
                 alloc::vec![(verb, key), (verb, clock)]
@@ -270,10 +279,27 @@ impl Rule {
     }
 }
 
-/// One entry of the clause: a field or a domain filter.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum FreezePolicy {
+    Supersede,
+    Fault,
+}
+
+impl FreezePolicy {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Supersede => "supersede",
+            Self::Fault => "fault",
+        }
+    }
+}
+
+/// One entry of the state clause.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Entry {
+    Lattice(crate::finite::Definition),
     Field {
         name: String,
         rule: Rule,
@@ -294,6 +320,11 @@ pub enum Entry {
         field: String,
         elements: Vec<crate::lattice::Element>,
     },
+    Freeze {
+        field: String,
+        verb: String,
+        policy: FreezePolicy,
+    },
 }
 
 /// The parsed `(state …)` clause (SPEC-019 R.1).
@@ -304,11 +335,37 @@ pub struct StateClause {
 }
 
 impl StateClause {
+    pub fn lattices(&self) -> impl Iterator<Item = &crate::finite::Definition> {
+        self.entries.iter().filter_map(|entry| match entry {
+            Entry::Lattice(d) => Some(d),
+            _ => None,
+        })
+    }
+
+    /// Rebuild implementation-only table indexes from recognized declarations.
+    pub fn resolve_lattices(&mut self) {
+        let definitions: BTreeMap<String, crate::finite::Definition> = self
+            .lattices()
+            .map(|d| (d.name.clone(), d.clone()))
+            .collect();
+        for entry in &mut self.entries {
+            if let Entry::Field {
+                rule: Rule::Lift(lift),
+                ..
+            } = entry
+            {
+                lift.table = definitions
+                    .get(&lift.lattice)
+                    .and_then(|d| d.compile().ok())
+                    .map(alloc::boxed::Box::new);
+            }
+        }
+    }
     /// Field entries in clause order.
     pub fn fields(&self) -> impl Iterator<Item = (&str, &Rule)> {
         self.entries.iter().filter_map(|e| match e {
             Entry::Field { name, rule } => Some((name.as_str(), rule)),
-            Entry::Domain { .. } | Entry::Threshold { .. } => None,
+            _ => None,
         })
     }
 
@@ -318,7 +375,7 @@ impl StateClause {
             Entry::Domain { verb, key, field } => {
                 Some((verb.as_str(), key.as_str(), field.as_str()))
             }
-            Entry::Field { .. } | Entry::Threshold { .. } => None,
+            _ => None,
         })
     }
 
@@ -331,7 +388,18 @@ impl StateClause {
                 field,
                 elements,
             } => Some((name.as_str(), field.as_str(), elements.as_slice())),
-            Entry::Field { .. } | Entry::Domain { .. } => None,
+            _ => None,
+        })
+    }
+
+    pub fn freezes(&self) -> impl Iterator<Item = (&str, &str, FreezePolicy)> {
+        self.entries.iter().filter_map(|e| match e {
+            Entry::Freeze {
+                field,
+                verb,
+                policy,
+            } => Some((field.as_str(), verb.as_str(), *policy)),
+            _ => None,
         })
     }
 
@@ -342,6 +410,9 @@ impl StateClause {
             out.extend(rule.verbs());
         }
         for (verb, _, _) in self.domains() {
+            out.insert(verb);
+        }
+        for (_, verb, _) in self.freezes() {
             out.insert(verb);
         }
         out
@@ -624,6 +695,25 @@ pub enum Value {
 }
 
 impl Value {
+    pub(crate) fn unfrozen(&self) -> &Value {
+        if let Value::Map(entries) = self {
+            if entries
+                .iter()
+                .any(|(k, v)| matches!((k,v), (Value::Str(k),Value::Str(_)) if k == "frozen"))
+                && entries.iter().any(
+                    |(k, v)| matches!((k,v), (Value::Str(k),Value::List(_)) if k == "superseded"),
+                )
+            {
+                if let Some((_, value)) = entries
+                    .iter()
+                    .find(|(k, _)| matches!(k, Value::Str(k) if k == "value"))
+                {
+                    return value;
+                }
+            }
+        }
+        self
+    }
     /// Evidence of a kernel fault. Installed scalar-map types cannot mimic
     /// the mixed scalar/list structure of this marker.
     pub fn fault_evidence(&self) -> Option<Vec<String>> {
@@ -773,7 +863,7 @@ fn sorted_distinct(values: Vec<Value>) -> Vec<Value> {
 /// in key order and the evidence sorted (SPEC-038 REQ-3804, ADR-3803): the
 /// same member set a `bounded-counter` resource fault carries.
 pub(crate) fn conflict_top(reason: &str, mut evidence: Vec<String>) -> Value {
-    evidence.sort();
+    sort_addresses(&mut evidence);
     evidence.dedup();
     Value::Map(alloc::vec![
         (
@@ -789,6 +879,62 @@ pub(crate) fn conflict_top(reason: &str, mut evidence: Vec<String>) -> Value {
             Value::Str(String::from("fault"))
         ),
     ])
+}
+
+/// Byte-order radix sort for bounded content addresses (SPEC-038 NFR-3800).
+/// Sorting indices avoids cloning addresses on every digit pass. A missing
+/// byte sorts before any byte, preserving ordinary lexicographic prefix order.
+pub(crate) fn sort_addresses(addresses: &mut Vec<String>) {
+    if addresses.len() < 2 {
+        return;
+    }
+    let width = addresses.iter().map(|s| s.len()).max().unwrap_or(0);
+    let mut order: Vec<usize> = (0..addresses.len()).collect();
+    let mut scratch = alloc::vec![0usize; addresses.len()];
+    for digit in (0..width).rev() {
+        let key = |i: usize| {
+            addresses[i]
+                .as_bytes()
+                .get(digit)
+                .map(|b| *b as usize + 1)
+                .unwrap_or(0)
+        };
+        let mut counts = [0usize; 257];
+        for &i in &order {
+            counts[key(i)] += 1;
+        }
+        let mut next = [0usize; 257];
+        for k in 1..257 {
+            next[k] = next[k - 1] + counts[k - 1];
+        }
+        for &i in &order {
+            let k = key(i);
+            scratch[next[k]] = i;
+            next[k] += 1;
+        }
+        core::mem::swap(&mut order, &mut scratch);
+    }
+    let mut values: Vec<Option<String>> =
+        core::mem::take(addresses).into_iter().map(Some).collect();
+    addresses.extend(order.into_iter().map(|i| values[i].take().unwrap()));
+}
+
+#[cfg(test)]
+mod address_sort_tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    proptest! {
+        #[test]
+        fn radix_address_order_matches_byte_lexicographic_order(
+            mut addresses in proptest::collection::vec("[a-f0-9]{0,71}", 0..64)
+        ) {
+            let mut expected = addresses.clone();
+            expected.sort();
+            sort_addresses(&mut addresses);
+            prop_assert_eq!(addresses, expected);
+        }
+    }
 }
 
 /// Render a whole state (R.3): an object in clause order.
@@ -1032,6 +1178,7 @@ impl<'a> Kernel<'a> {
         protocol: Option<&CausalProtocol>,
     ) -> Value {
         match rule {
+            Rule::Lift(lift) => lift.evaluate(self.acts(&lift.verb)),
             Rule::BoundedCounter(c) => crate::escrow::observe(
                 c,
                 &self.acts.iter().map(|a| (*a).clone()).collect::<Vec<_>>(),
@@ -1157,6 +1304,17 @@ pub fn fold(
     protocol: Option<&CausalProtocol>,
     acts: &[Act],
 ) -> Vec<(String, Value)> {
+    if clause.freezes().next().is_some() {
+        return crate::freeze::fold(clause, protocol, acts);
+    }
+    fold_unfrozen(clause, protocol, acts)
+}
+
+pub(crate) fn fold_unfrozen(
+    clause: &StateClause,
+    protocol: Option<&CausalProtocol>,
+    acts: &[Act],
+) -> Vec<(String, Value)> {
     let kernel = kernel_for(clause, acts);
     let mut done: Vec<(String, Value)> = Vec::new();
     // The lattice context evaluates a threshold's field as a carrier element
@@ -1183,7 +1341,7 @@ pub fn fold(
                 });
                 done.push((name.clone(), v));
             }
-            Entry::Domain { .. } => {}
+            Entry::Domain { .. } | Entry::Freeze { .. } | Entry::Lattice(_) => {}
             Entry::Threshold {
                 name,
                 field,
@@ -1200,13 +1358,53 @@ pub fn fold(
     done
 }
 
+/// Evaluate one field in a causal scope. Dependency values are supplied in
+/// clause order; the freeze evaluator memoizes these scoped evaluations.
+pub(crate) fn scoped_rule(
+    clause: &StateClause,
+    protocol: Option<&CausalProtocol>,
+    acts: &[Act],
+    rule: &Rule,
+    done: &[(String, Value)],
+) -> Value {
+    let ctx = crate::lattice::Ctx::new(clause, acts);
+    if let Some(fault) = ctx.rule_fault(rule) {
+        return fault;
+    }
+    if let Rule::Histogram { field: source } | Rule::Sum { field: source } = rule {
+        if let Some((_, fault)) = done
+            .iter()
+            .find(|(name, value)| name == source && value.fault_evidence().is_some())
+        {
+            return fault.clone();
+        }
+    }
+    match rule {
+        Rule::BoundedCounter(c) => crate::escrow::observe(c, acts).value(),
+        _ => kernel_for(clause, acts).eval(rule, done, protocol),
+    }
+}
+
+pub(crate) fn contribution_addresses(
+    clause: &StateClause,
+    acts: &[Act],
+    verbs: &[String],
+) -> hashbrown::HashSet<String> {
+    let kernel = kernel_for(clause, acts);
+    verbs
+        .iter()
+        .flat_map(|verb| kernel.acts(verb))
+        .map(|a| a.address.clone())
+        .collect()
+}
+
 /// A threshold read (SPEC-038 REQ-3802, CON-3801): the unique element of the
 /// declared set at or below the field's carrier element, or `pending`.
 /// Uniqueness is what installation's pairwise-incompatibility check buys, so
 /// the first reached element is the only one. A lift's carrier element is
 /// evaluated by the lattice context; a closure head's position or ⊤ is read
 /// from its display (REQ-3808).
-fn threshold_read(
+pub(crate) fn threshold_read(
     ctx: &crate::lattice::Ctx<'_>,
     clause: &StateClause,
     field: &str,
@@ -1222,12 +1420,12 @@ fn threshold_read(
     let reached = match clause.rule_of(field).map(crate::lattice::factor) {
         Some(Some(f)) => {
             let sigma = ctx.read_carrier(&f.term);
-            elements.iter().find(|e| e.le(&sigma))
+            elements.iter().find(|e| e.le_with_post(&sigma, &f.post))
         }
         Some(None) => done
             .iter()
             .find(|(n, _)| n == field)
-            .and_then(|(_, shown)| elements.iter().find(|e| e.le_display(shown))),
+            .and_then(|(_, shown)| elements.iter().find(|e| e.le_display(shown.unfrozen()))),
         None => None,
     };
     let status = |s: &str| {
@@ -1392,7 +1590,7 @@ pub fn state_schema(
     for entry in &clause.entries {
         let (name, rule) = match entry {
             Entry::Field { name, rule } => (name, rule),
-            Entry::Domain { .. } => continue,
+            Entry::Domain { .. } | Entry::Freeze { .. } | Entry::Lattice(_) => continue,
             Entry::Threshold {
                 name,
                 field,
@@ -1409,6 +1607,16 @@ pub fn state_schema(
             }
         };
         let ty = match rule {
+            Rule::Lift(lift) => match lift
+                .projection
+                .as_ref()
+                .and_then(|p| p.rows.first())
+                .map(|(_, value)| value)
+            {
+                Some(SExpr::Atom(Atom::Bool(_))) => StateType::Bool,
+                Some(SExpr::Atom(Atom::Num(_))) => StateType::Int,
+                _ => StateType::OptScalar(ScalarType::Str),
+            },
             Rule::BoundedCounter(_) => StateType::BoundedCounter,
             Rule::Initial { verb, key } | Rule::LwwRegister { verb, key, .. } => {
                 StateType::OptScalar(scalar(verb, key))

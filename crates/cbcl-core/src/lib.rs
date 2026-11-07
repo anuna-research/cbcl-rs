@@ -132,3 +132,5 @@ pub mod quorum;
 
 /// Pure host-supplied hybrid logical clock evidence (SPEC-035).
 pub mod hlc;
+mod freeze;
+pub mod finite;

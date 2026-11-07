@@ -13,6 +13,10 @@ def main():
     domain_test = ("lattice_factorisation", "domain_lift_obeys_union_law_across_distinct_openers")
     sum_test = ("threshold_reads", "negative_credits_are_rejected_and_signed_balances_remain_snapshots")
     closure_test = ("threshold_reads", "initializer_conflict_faults_progress_and_its_reached_threshold")
+    freeze_test = ("freeze_reads", "freeze_keeps_its_causal_past_and_records_late_and_concurrent_writes")
+    freeze_fault_test = ("freeze_reads", "fault_policy_names_the_freezer_and_late_writer")
+    freeze_pair_test = ("freeze_reads", "repeated_causal_freezes_keep_the_first_cut_but_concurrent_freezes_fault")
+    freeze_initial_test = ("freeze_reads", "freeze_cannot_hide_a_later_initializer_conflict")
     mutations = [
         ("domain-evidence-discarded", "lattice.rs", "if self.domain_governed(term) {",
          "if false {", domain_test),
@@ -27,6 +31,16 @@ def main():
         ("closure-fault-suppressed", "lattice.rs",
          '.filter(|(verb, _)| verbs.contains(&verb.as_str()))',
          '.filter(|_| false)', closure_test),
+        ("freeze-cut-ignored", "freeze.rs", '.filter(|a| cut.contains(&a.address))',
+         '.filter(|_| true)', freeze_test),
+        ("freeze-fault-policy-ignored", "freeze.rs",
+         'if plan.policy == FreezePolicy::Fault && !plan.late.is_empty() {',
+         'if false {', freeze_fault_test),
+        ("concurrent-freezers-hidden", "freeze.rs", 'if frontier.len() > 1 {',
+         'if false {', freeze_pair_test),
+        ("freeze-hides-initializer-fault", "freeze.rs",
+         '_ if normal.fault_evidence().is_some() => normal,',
+         '_ if false => normal,', freeze_initial_test),
     ]
     with tempfile.TemporaryDirectory(prefix="cbcl-lvar-semantics-") as directory:
         isolated = Path(directory)

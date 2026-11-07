@@ -378,6 +378,19 @@ fn state_to_sexpr(clause: &crate::state::StateClause) -> SExpr {
     let mut items = vec![sym("state")];
     for e in &clause.entries {
         match e {
+            Entry::Lattice(definition) => items.push(definition.to_sexpr()),
+            Entry::Freeze {
+                field,
+                verb,
+                policy,
+            } => {
+                items.push(SExpr::List(vec![
+                    sym("freeze"),
+                    s(field),
+                    s(verb),
+                    sym(policy.as_str()),
+                ]));
+            }
             Entry::Domain { verb, key, field } => {
                 items.push(SExpr::List(vec![sym("domain"), s(verb), s(key), s(field)]));
             }
@@ -393,6 +406,7 @@ fn state_to_sexpr(clause: &crate::state::StateClause) -> SExpr {
             Entry::Field { name, rule } => {
                 let mut r = vec![sym(rule.head())];
                 match rule {
+                    Rule::Lift(lift) => r.extend(lift.arguments()),
                     Rule::BoundedCounter(c) => r.extend(c.canonical_options()),
                     Rule::LwwRegister { verb, key, clock }
                     | Rule::LwwPerSigner { verb, key, clock } => {

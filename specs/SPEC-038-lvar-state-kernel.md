@@ -296,10 +296,20 @@ Trace: [[SPEC-038-lvar-state-kernel#TEST-3805]].
 
 ## REQ-3806: Quasi-determinism
 
-The Lean model SHALL prove: for two replicas satisfying the premises of
-[[SPEC-037-state-kernel-sec#CON-3700]] and any field, either both eventually
-observe the same threshold results and the same frozen value, or at least one
-observes ⊤ whose evidence names acts in conflict. Conditional strong eventual
+The Lean model SHALL prove: for two replicas satisfying the delivery premises of
+[[SPEC-037-state-kernel-sec#CON-3700]] and any field, successful threshold
+results agree unless their combined history has a conflict, and successful
+frozen underlying values agree for the same earliest freezer. A conflict
+observation carries a finite witness of acts in conflict. Every replica that
+eventually accepts that witness SHALL fault with evidence containing it;
+additional accepted conflicts MAY enlarge the evidence. Equal accepted sets
+SHALL produce exactly equal observations and canonical evidence.
+
+Under the complete finite-history premise of [[SPEC-037-state-kernel-sec]],
+replicas SHALL eventually agree on the complete observation. For ongoing
+histories the guarantee is stable successful facts and per-witness
+dissemination, not a final snapshot of an infinite history. Frozen values are
+stable; excluded-contribution metadata MAY grow. Conditional strong eventual
 consistency ([[SPEC-037-state-kernel-sec#REQ-3702]]) SHALL be recovered as the
 case in which ⊤ never occurs. The proof SHALL introduce no sorry or custom axiom.
 Trace: [[SPEC-038-lvar-state-kernel#TEST-3806]].
@@ -449,11 +459,27 @@ policy := "supersede" | "fault"                      ; default supersede
 ```
 
 Pre-conditions: `verb` is a performative with a `:from` role; `field` is a
-declared state field. Receipt admits the freezing act like any other; the fold
-computes the field over acts not causally after the freeze (an act is after the
-freeze when the freezing act is in its accepted causal history), applies the
-policy to the rest, and renders `{"frozen": "<address>", …}` alongside the
-value. Error model: install rejects an undeclared field or verb.
+declared state field. Receipt admits the freezing act like any other. The
+frozen value is computed over the freezer's accepted causal past, including
+the freezing act itself; other contributions are after or concurrent with it.
+The default `supersede` policy renders
+`{"frozen":"<address>","superseded":[…],"value":…}`, with excluded contributor
+addresses sorted and unique. The `fault` policy renders the uniform fault
+with the freezer and excluded contributors as evidence.
+
+The earliest causal freeze determines the cut. Causally later freezes do not
+change that cut; concurrent earliest freezes fault with their addresses as
+evidence under either policy. A field may have only one freeze declaration.
+An initializer/resource/dependency fault in the accepted history SHALL NOT be
+hidden by freezing an earlier cut. Derived fields read the underlying frozen
+value and propagate dependency faults.
+
+A `supersede` freeze can revise an earlier snapshot. Installation therefore
+rejects a threshold whose source has that policy; the diagnostic SHALL suggest
+an unfrozen monotone arrival field or the `fault` policy. A threshold over a
+field frozen with `fault` remains reached or explicitly faults, never pending.
+Error model: install rejects an undeclared field or verb, a verb without a
+`:from` role, duplicate freeze declarations, or a revisable threshold source.
 Implements: [[SPEC-038-lvar-state-kernel#REQ-3803]].
 Verified by: [[SPEC-038-lvar-state-kernel#TEST-3802]].
 
@@ -474,6 +500,13 @@ out-row      := "(" symbol scalar ")"         ; element → displayed scalar
 
 Pre-conditions: `name` is unique among lattices and fields; every symbol in a
 `join` row, `entry-row` or `out-row` is a declared element; `n ≤ max-list`.
+Names and element symbols follow the state field-name grammar. Bottom and
+conflict top are distinct. The declared top denotes conflict, not the greatest
+ordinary business value; an author needing ordinary levels `lo`, `mid`, `hi`
+adds a separate element for conflict top. Every matching contribution row is
+joined, so row order does not select a winner. If a project table is present,
+it SHALL have exactly one scalar output per declared element. A stable table
+uses one ordered codomain throughout: booleans or integers.
 Post-conditions: on installation the checks of
 [[SPEC-038-lvar-state-kernel#REQ-3810]] have passed, the field is a lift whose
 join is the declared table, and its display is the `project` table applied to
@@ -688,8 +721,10 @@ Validates REQ-3805.
 
 Build, lint and axiom-audit a theorem that specialises to
 `strong_eventual_consistency` when no field reaches ⊤, and that, when a field
-reaches ⊤ on one replica, every replica with the conflicting acts accepted
-reaches ⊤ with the same evidence. Validates REQ-3806.
+reaches ⊤ on one replica, every replica with the conflicting witness accepted
+reaches ⊤ with evidence containing that witness. Equal accepted sets yield
+equal evidence; complete finite-history delivery yields eventual equality of
+the entire observation. Validates REQ-3806.
 
 ## TEST-3807: Vectors unchanged
 

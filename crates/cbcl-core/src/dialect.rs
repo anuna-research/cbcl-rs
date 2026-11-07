@@ -339,6 +339,9 @@ impl DialectRegistry {
     /// the R2 precondition from `R2ResourceBounds.lean:59–63`,
     /// and the R3 precondition from `R3CorePreservation.lean:57`.
     pub fn install(&mut self, mut d: Dialect) -> Result<(), DialectInstallError> {
+        if let Some(state) = &mut d.state {
+            state.resolve_lattices();
+        }
         if !verify_r1_dialect(&d) {
             return Err(DialectInstallError::R1Violation {
                 recursive: r1_violations(&d),
