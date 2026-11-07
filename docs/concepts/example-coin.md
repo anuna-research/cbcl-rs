@@ -45,7 +45,7 @@ cargo run -p cbcl-cli -- verify < dialects/example-coin.cbcl
 
 ## Sending messages in the dialect
 
-A thread starts with a root act that fixes the cast, binding each role to agent keys:
+A thread starts with a root act: a core `hello` wrapped in `with-roles`, which fixes the cast for the life of the thread. It carries no dialect content; the coin itself is not open yet:
 
 ```lisp
 (with-roles ((issuer @treasury) (holder @treasury @alice @bob))
@@ -53,7 +53,7 @@ A thread starts with a root act that fixes the cast, binding each role to agent 
     (hello () :thread "coin-1" :caused-by begin)))
 ```
 
-Every later act names the dialect with `(lang example-coin …)`. A performative takes the recipient list, a content slot (empty here), the keyword fields its `shape` requires, and the routing fields `:from`, `:thread` and `:caused-by`. The opening act cites the root's content address:
+Every later act names the dialect with `(lang example-coin …)`. A performative takes the recipient list, a content slot (empty here), the keyword fields its `shape` requires, and the routing fields `:from`, `:thread` and `:caused-by`. The coin's `open` act, the protocol opener, cites the root's content address:
 
 ```lisp
 (signed @treasury
@@ -66,7 +66,7 @@ Every later act names the dialect with `(lang example-coin …)`. A performative
       :caused-by sha256-6655c6fbcd385dd84414cad93d6cad9a1ed650f4c2834790d9043f543051d407)))
 ```
 
-A payment cites the opening act. The binder adds `:escrow-prev` and `:escrow-deps`, which record resource causality separately from the protocol's `:caused-by`:
+A payment cites the `open` act. The binder adds `:escrow-prev` and `:escrow-deps`, which record resource causality separately from the protocol's `:caused-by`:
 
 ```lisp
 (signed @treasury
