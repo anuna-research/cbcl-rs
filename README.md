@@ -10,6 +10,54 @@ Agents teach each other new interaction vocabularies as messages. Protocols can 
 
 These guarantees concern observable interactions. They do not establish that an agent’s claims are true or that compliant actions are beneficial.
 
+## How it works
+
+```text
+      Alice holds {p, a}              Bob holds {p, c}
+                 \                        /
+                  +------ set union ------+      duplicates change nothing;
+                             |                   no global arrival order required
+                             v
+ (1)  received records       S = {p, a, c}
+                             |
+                             v
+ (2)  proposal --> approval --> completion       arrow reads "cited as evidence by"
+      citations fix the dependencies; delivery order may differ
+                             |
+                             v
+ (3)  check each candidate against its selected dialect D
+      +---------------------------------------------------+
+      |  Types    what act is this?                       |
+      |  Roles    who may perform it?                     |
+      |  Causes   which predecessor acts must it cite?    |
+      +---------------------------------------------------+
+               |                 |                 |
+            Unknown            Valid           Violation
+      required evidence     the protocol     available evidence
+      missing: wait, then   check passes     establishes a breach
+      recheck when more
+      evidence arrives
+                             |
+                             v
+ (4)  accepted subset        A, a subset of S
+      acceptance requires authenticated acts and accepted predecessors;
+      passing one causal check alone does not admit an act
+                             |
+                             v
+ (5)  derived state          State = f_D(A)      approvals, balances, progress
+      same accepted acts + same fixed rules -> same derived state
+```
+
+Verdicts in step (3) follow strong Kleene three-valued logic, ordered `Violation < Unknown < Valid`: a conjunction of checks takes the least verdict and a disjunction the greatest, so `Unknown` is kept until evidence resolves it.
+
+Three concerns sit beside the main flow:
+
+- **Runtime self-extension.** A dialect is communicated as records, verified, installed, and then used in an explicit `(lang …)` scope. The installed dialect supplies the rules step (3) applies. New dialects do not silently rewrite the meaning of old acts.
+- **Separate responsibilities.** Transport delivers records; cryptography authenticates authors and integrity; CBCL defines and verifies interaction rules. These are responsibilities, not necessarily sequential processing stages.
+- **Bounded resources.** Rights plus issuance or certification discipline constrain spending. Set union alone does not prevent double spending.
+
+Recorded speech acts become evidence for subsequent interactions. Authentication establishes who said what, not that the statement is true. A larger version of this diagram is in [docs/diagrams/cbcl-architecture.svg](docs/diagrams/cbcl-architecture.svg).
+
 ## Quick start
 
 Install Rust stable, then:
@@ -82,6 +130,63 @@ The **bounded-counter primitive** represents transferable rights over constraine
 | Transfer | Moves rights between accounts; preserves the value |
 
 Account ownership and collective ownership support individual allocations and pools consumed by distinct authorized signers. Examples: `dialects/example-coin.cbcl`, `dialects/example-capped-coin.cbcl`, and `dialects/example-collective-tickets.cbcl`. See [bounded-counter guide](docs/concepts/bounded-counter.md) for declarations and invariants.
+
+### Example: a coin with a bounded counter
+
+`dialects/example-coin.cbcl` declares a coin. `open` fixes each account's allocation, `mint` and `burn` change the value, and `pay` moves spending rights between accounts without changing the value:
+
+```lisp
+; Bounded-counter example. Amounts are integer base units, not decimals.
+; Hosts authenticate acts and serialize issuance per account before publication.
+(define example-coin (cbcl) @coin-author
+  (:resource-requirements ((max-depth 16) (max-expansion-size 4096) (verification-time 1000)))
+  (:roles (issuer (* holder)))
+  (extend open (to name allocations) :from issuer :to (issuer holder)
+    (tell to :name name :allocations allocations))
+  (extend mint (to amount) :from issuer :to (issuer holder)
+    (tell to :amount amount))
+  (extend burn (to amount) :from holder :to (issuer holder)
+    (tell to :amount amount))
+  (extend pay (to recipient amount) :from holder :to (issuer holder)
+    (tell to :recipient recipient :amount amount))
+  (shape open (require :name string) (require :allocations list))
+  (shape mint (require :amount number))
+  (shape burn (require :amount number))
+  (shape pay (require :recipient symbol) (require :amount number))
+  (protocol (then begin open) (then open mint) (then open burn) (then open pay))
+  (state
+    (name (initial open :name))
+    (coins (bounded-counter
+      (floor 0)
+      (initial-rights open :allocations)
+      (issuers issuer)
+      (increment mint :amount)
+      (decrement burn :amount)
+      (transfer pay :recipient :amount)))))
+```
+
+The `issuer` role may mint; any `holder` may burn or pay. The source account of every operation is the authenticated signer, never a caller-supplied field. Verify the dialect with:
+
+```bash
+cargo run -p cbcl-cli -- verify < dialects/example-coin.cbcl
+```
+
+The trace from `crates/cbcl-parser/tests/bounded_counter.rs` opens the coin with allocations `((@treasury 1000) (@alice 0) (@bob 0))` and then applies four acts:
+
+| Act | Signer | Rights afterwards | Value |
+|-----|--------|-------------------|-------|
+| `pay :recipient @alice :amount 100` | `@treasury` | treasury 900, alice 100 | 1000 |
+| `pay :recipient @bob :amount 25` | `@alice` | alice 75, bob 25 | 1000 |
+| `burn :amount 5` | `@bob` | bob 20 | 995 |
+| `mint :amount 250` | `@treasury` | treasury 1150 | 1245 |
+
+`fold` over the accepted acts renders the state as:
+
+```json
+{"name":"Example Coin","coins":{"status":"ready","value":1245,"rights":{"@treasury":1150,"@alice":75,"@bob":20}}}
+```
+
+A `pay` or `burn` that exceeds the signer's rights is refused with the reason `insufficient rights`, even when another account has unused rights; the signer needs a transfer first. When a cited resource predecessor has not arrived, the field reports `pending` rather than a partial balance. Replicas that merge the same acts in different orders derive the same rights table.
 
 The default certification profile requires a durable host issuance gate. `(certification quorum-budget)` selects the Rust validator runtime with authenticated quorums, multi-parent DAG adoption, durable journals, and cancellation-backed refunds. Signing, authentication, persistence, and external-effect deduplication remain host responsibilities. Quorum balance queries report known-final local views, with completeness unknown. See [quorum runtime API](docs/reference/quorum-runtime.md).
 
