@@ -1,0 +1,27 @@
+[package]
+name = "cbcl-vote-browser"
+version = "0.0.0"
+edition = "2021"
+[lib]
+crate-type = ["cdylib", "rlib"]
+[dependencies]
+vote-common = { package = "private-vote-common", path = "../common" }
+anyhow = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+postcard = { version = "1", features = ["use-std"] }
+bincode = { version = "2", features = ["serde"] }
+wasm-bindgen = "=0.2.126"
+console_error_panic_hook = "0.1"
+common = { path = "../../common", features = ["std"] }
+jolt-program = { path = "../../crates/jolt-program", features = ["image", "serialization"] }
+jolt-prover = { path = "../../crates/jolt-prover", default-features = false, features = ["zk"] }
+jolt-verifier = { path = "../../crates/jolt-verifier", features = ["zk"] }
+jolt-crypto = { path = "../../crates/jolt-crypto" }
+jolt-dory = { path = "../../crates/jolt-dory" }
+jolt-field = { path = "../../crates/jolt-field", features = ["bn254"] }
+jolt-transcript = { path = "../../crates/jolt-transcript", features = ["prover-grinding"] }
+jolt-witness = { path = "../../crates/jolt-witness" }
+jolt-platform = { path = "../../jolt-platform", features = ["random"] }
+tracer = { path = "../../tracer" }

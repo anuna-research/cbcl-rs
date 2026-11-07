@@ -44,8 +44,11 @@ compile a role-free vocabulary of at most eight public candidates; [member-certi
 caches](crates/cbcl-checkpoint/README.md) open projected state through native
 endorsements and authenticated continuation. See [state checkpoints](docs/concepts/state-checkpoint.md)
 for their different trust and scaling boundaries.
-Jolt remains an experimental alternative; the bounded Halo2 path does not establish
-a winner for large-history proofs.
+Optional private thread-result export is being developed with **Jolt/Dory ZK**,
+with public scope and disclosure chosen explicitly. It is separate from cached
+continuation and remains a prototype, with native authentication/general-dialect
+integration tracked in [SPEC-038](specs/SPEC-038-optional-thread-proof-export.md).
+The bounded Halo2 path does not establish a general backend choice.
 
 ## Current capabilities
 

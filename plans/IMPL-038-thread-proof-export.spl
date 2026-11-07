@@ -1,0 +1,85 @@
+; IMPL-038: implementation-target sidecar for [[SPEC-038-optional-thread-proof-export]].
+; Status: draft/implementing. No task completion or gate evidence is asserted.
+; User direction already authorises Jolt/Dory ZK; backend re-selection is not a task.
+; Imported/evaluated in Elephant theory spec-038; completion requires the named signed gate evidence.
+; Every completion needs inspected TEST evidence from the named producing role.
+; source metadata uses resolvable ID#anchor strings; prose references use wikilinks.
+; Ledger: task-description gives work and owner; task-acceptance gives evidence;
+; readiness premises give dependencies; source metadata gives governing requirement/test.
+; A failed browser run is evidence but not completion. It leaves native/CLI work actionable.
+; WASM deferral requires an explicit scoped spec/plan amendment, never fabricated completion.
+(predicate task-description ((id symbol) (text symbol)) (kind state))
+(predicate task-acceptance ((id symbol) (text symbol)) (kind state))
+(predicate gate-green ((id symbol)) (kind evidence))
+(predicate evidence-recorded ((id symbol)) (kind evidence))
+
+(given (task profile-contract))
+(given (task-description profile-contract "Owner: CBCL maintainer + contract implementer. Ratify profile manifest and nested grammars, public proposal/native binding, identity/eligibility and disclosure choices; publish concrete canonical vectors and limits without changing the frozen experiment"))
+(given (task-acceptance profile-contract "TEST-3804 schema/pin vectors and TEST-3805 policy dispositions; executable recogniser rejects unknown versions, absent limits and placeholder pins"))
+(given (no-deps profile-contract))
+(normally r-ready-profile-contract (and (task profile-contract) (no-deps profile-contract)) (ready profile-contract))
+(meta r-ready-profile-contract (source "SPEC-038-optional-thread-proof-export#CON-3800"))
+(normally r-complete-profile-contract (and (ready profile-contract) (gate-green profile-contract) (evidence-recorded profile-contract)) (completed profile-contract))
+(meta r-complete-profile-contract (source "SPEC-038-optional-thread-proof-export#TEST-3804"))
+
+(given (task browser-feasibility))
+(given (task-description browser-feasibility "Owner: browser feasibility implementer. Inspect the current experiment prototype and execute actual browser trace/prove/export/fresh verify with memory, cancellation and failure results; preserve experimental identity"))
+(given (task-acceptance browser-feasibility "TEST-3806: successful browser pipeline plus measured memory and trace/prove cancellation, resource-failure and recovery artifacts with exact pins"))
+(given (no-deps browser-feasibility))
+(normally r-ready-browser-feasibility (and (task browser-feasibility) (no-deps browser-feasibility)) (ready browser-feasibility))
+(meta r-ready-browser-feasibility (source "SPEC-038-optional-thread-proof-export#NFR-3800"))
+(normally r-complete-browser-feasibility (and (ready browser-feasibility) (gate-green browser-feasibility) (evidence-recorded browser-feasibility)) (completed browser-feasibility))
+(meta r-complete-browser-feasibility (source "SPEC-038-optional-thread-proof-export#TEST-3806"))
+
+(given (task native-integration))
+(given (task-description native-integration "Owner: native relation implementer. Integrate native R4 v2 authentication and admitted-set/fold semantics with source-bound general dialect projections; publish supported construct matrix and keep experimental envelopes distinct"))
+(given (task-acceptance native-integration "TEST-3801/3802/3803: native guest authentication, complete closure and projection fixtures pass; host-precheck bypass and signature/closure mutants fail as intended"))
+(normally r-ready-native-integration (and (task native-integration) (completed profile-contract)) (ready native-integration))
+(meta r-ready-native-integration (source "SPEC-038-optional-thread-proof-export#REQ-3803"))
+(normally r-complete-native-integration (and (ready native-integration) (gate-green native-integration) (evidence-recorded native-integration)) (completed native-integration))
+(meta r-complete-native-integration (source "SPEC-038-optional-thread-proof-export#TEST-3803"))
+
+(given (task verifier-contract))
+(given (task-description verifier-contract "Owner: verifier implementer. Implement shared bounded package/ExpectedContext recognisers and trusted registry verification; derive VerifiedResult without trusting an expected tally"))
+(given (task-acceptance verifier-contract "TEST-3804: honest proof without history verifies, wrong context/mode/source/program/setup and malformed packages reject; context and setup mutations killed"))
+(normally r-ready-verifier-contract (and (task verifier-contract) (completed profile-contract)) (ready verifier-contract))
+(meta r-ready-verifier-contract (source "SPEC-038-optional-thread-proof-export#REQ-3804"))
+(normally r-complete-verifier-contract (and (ready verifier-contract) (gate-green verifier-contract) (evidence-recorded verifier-contract)) (completed verifier-contract))
+(meta r-complete-verifier-contract (source "SPEC-038-optional-thread-proof-export#TEST-3804"))
+
+(given (task browser-support-policy))
+(given (task-description browser-support-policy "Owner: CBCL maintainer. Use measured browser evidence to ratify supported devices, memory/latency/size ceilings and cancellation expectations; record unsupported devices explicitly"))
+(given (task-acceptance browser-support-policy "TEST-3805/3806: profile policy names numeric ceilings, supported devices and measurement provenance; no compile-only or native fallback acceptance"))
+(normally r-ready-browser-support-policy (and (task browser-support-policy) (completed profile-contract) (completed browser-feasibility)) (ready browser-support-policy))
+(meta r-ready-browser-support-policy (source "SPEC-038-optional-thread-proof-export#NFR-3800"))
+(normally r-complete-browser-support-policy (and (ready browser-support-policy) (gate-green browser-support-policy) (evidence-recorded browser-support-policy)) (completed browser-support-policy))
+(meta r-complete-browser-support-policy (source "SPEC-038-optional-thread-proof-export#TEST-3806"))
+
+(given (task optional-cli-api))
+(given (task-description optional-cli-api "Owner: export adapter implementer. Expose explicit local snapshot/prove/export/verify CLI or library adapter behind optional dependency; use receiver ExpectedContext and disclosure confirmation"))
+(given (task-acceptance optional-cli-api "TEST-3800/3801/3804: explicit export verifies, default build/runtime has no proof dependency/work, disable/failure/cancel preserve runtime and no private transfer/log leakage"))
+(normally r-ready-optional-cli-api (and (task optional-cli-api) (completed native-integration) (completed verifier-contract)) (ready optional-cli-api))
+(meta r-ready-optional-cli-api (source "SPEC-038-optional-thread-proof-export#REQ-3800"))
+(normally r-complete-optional-cli-api (and (ready optional-cli-api) (gate-green optional-cli-api) (evidence-recorded optional-cli-api)) (completed optional-cli-api))
+(meta r-complete-optional-cli-api (source "SPEC-038-optional-thread-proof-export#TEST-3800"))
+
+(given (task optional-wasm-api))
+(given (task-description optional-wasm-api "Owner: WASM adapter implementer. Expose optional worker-based WASM export/verification using production profile and native integration; rerun browser pipeline after image changes"))
+(given (task-acceptance optional-wasm-api "TEST-3800/3806: actual production-profile browser trace/prove/export/verify and bounded failure/cancellation pass on supported devices with new image pins"))
+(normally r-ready-optional-wasm-api (and (task optional-wasm-api) (completed native-integration) (completed verifier-contract) (completed browser-support-policy)) (ready optional-wasm-api))
+(meta r-ready-optional-wasm-api (source "SPEC-038-optional-thread-proof-export#NFR-3800"))
+(normally r-complete-optional-wasm-api (and (ready optional-wasm-api) (gate-green optional-wasm-api) (evidence-recorded optional-wasm-api)) (completed optional-wasm-api))
+(meta r-complete-optional-wasm-api (source "SPEC-038-optional-thread-proof-export#TEST-3806"))
+
+(given (task reviewer-acceptance))
+(given (task-description reviewer-acceptance "Owner: independent reviewer + CBCL maintainer. Perform fresh-context comprehension and adversarial spec/plan/code review, inspect core/mutation/browser evidence, disposition policy/crypto assumptions and set status only on acceptance"))
+(given (task-acceptance reviewer-acceptance "TEST-3805: independent review and human domain/crypto review recorded, no material finding unresolved, all applicable profile choices settled and evidence traceable"))
+(normally r-ready-reviewer-acceptance (and (task reviewer-acceptance) (completed optional-cli-api) (completed optional-wasm-api)) (ready reviewer-acceptance))
+(meta r-ready-reviewer-acceptance (source "SPEC-038-optional-thread-proof-export#REQ-3805"))
+(normally r-complete-reviewer-acceptance (and (ready reviewer-acceptance) (gate-green reviewer-acceptance) (evidence-recorded reviewer-acceptance)) (completed reviewer-acceptance))
+(meta r-complete-reviewer-acceptance (source "SPEC-038-optional-thread-proof-export#TEST-3805"))
+
+; Terminal acceptance requires both adapters and their prerequisites through the review gate.
+(normally r-complete-export (completed reviewer-acceptance) (completed thread-proof-export))
+(meta r-complete-export (source "SPEC-038-optional-thread-proof-export#REQ-3805"))
+; No given completed/gate-green/evidence-recorded facts: executed evidence is still required.

@@ -1,0 +1,27 @@
+diff --git a/crates/jolt-kernels/src/optimized/registers_read_write/sparse.rs b/crates/jolt-kernels/src/optimized/registers_read_write/sparse.rs
+index 429c3f2..4c8abab 100644
+--- a/crates/jolt-kernels/src/optimized/registers_read_write/sparse.rs
++++ b/crates/jolt-kernels/src/optimized/registers_read_write/sparse.rs
+@@ -27,7 +27,7 @@ impl<F: JoltField> CoeffLut<F> {
+     }
+
+     pub(super) fn saturated(&self) -> bool {
+-        self.values.len() * self.values.len() > Self::MAX_VALUES
++        (self.values.len() as u128) * (self.values.len() as u128) > Self::MAX_VALUES as u128
+     }
+
+     pub(super) fn bind(&mut self, r: F) {
+diff --git a/crates/jolt-kernels/src/optimized/registers_read_write/sparse/ops.rs b/crates/jolt-kernels/src/optimized/registers_read_write/sparse/ops.rs
+index 6a8b985..8e64fcf 100644
+--- a/crates/jolt-kernels/src/optimized/registers_read_write/sparse/ops.rs
++++ b/crates/jolt-kernels/src/optimized/registers_read_write/sparse/ops.rs
+@@ -21,7 +21,8 @@ pub(crate) fn pair_aligned_bounds<E: Cell>(entries: &[E], pair_bits: u32) -> Vec
+     let mut bounds: Vec<usize> = Vec::with_capacity(block_count + 1);
+     bounds.push(0);
+     for block in 1..block_count {
+-        let mut index = block * len / block_count;
++        // Widen before multiplying: a valid boundary can overflow 32-bit usize.
++        let mut index = ((block as u128 * len as u128) / block_count as u128) as usize;
+         while index < len
+             && index > 0
+             && entries[index].row() >> pair_bits == entries[index - 1].row() >> pair_bits

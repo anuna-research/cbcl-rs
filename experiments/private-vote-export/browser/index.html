@@ -1,0 +1,6 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Private vote proof prototype</title>
+<style>body{font:16px system-ui;max-width:900px;margin:3rem auto;padding:0 1rem}button{padding:.6rem;margin:.3rem}pre{white-space:pre-wrap;background:#eee;padding:1rem}</style></head>
+<body><h1>Private vote proof prototype</h1><p>Local synthetic two-participant vote. Discussion and ballot choices stay in the worker; the exported proof carries the public roster, tally and commitments. This tests the experimental profile.</p>
+<button data-mode="verify">Verify saved proof</button><button data-mode="count">Check guest execution</button><button data-mode="prove">Generate private proof</button><button id="cancel">Cancel</button>
+<pre id="output" aria-live="polite"></pre><script type="module" src="/app.js"></script></body></html>

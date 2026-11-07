@@ -13,11 +13,14 @@ therefore prevent this experimental closure policy from completing.
 
 ## Browser scope
 
-The measured harness is native. A WASM library-compatibility probe is recorded
-separately in [[RESULTS]]; it is not an in-browser vote proof. A browser port
-would preload the compiled guest/program and preprocessing, replace file/process
-interfaces with browser inputs, supply browser randomness and execution workers,
-and measure memory and proving time on the actual client.
+The separate browser prototype now executes the fixed experimental voting profile
+inside a Web Worker. [[browser/README]] gives exact build, fixture, loopback runner
+and independent native receiver instructions; [[browser/RESULTS]] records actual
+runtime evidence and failed attempts. The earlier WASM compilation evidence in
+[[RESULTS]] remains historical and does not itself establish browser proving.
+This prototype does not implement native R4 v2, general arbitrary dialects or the
+future production export API. Browser timing, memory and cancellation findings
+apply only to the recorded artifacts/devices.
 
 ## Reproduction
 

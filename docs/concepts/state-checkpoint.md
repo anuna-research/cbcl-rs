@@ -39,6 +39,26 @@ vector. The historical `c9093e8` pin is not a current-kernel compatibility promi
 This bounded experiment does not provide constant-cost large-history opening or
 recursive proof composition, and it has no production cryptographic approval.
 
+## Optional private result export
+
+Jolt/Dory ZK is the selected first implementation target for an explicit private
+thread-result export, separate from the cached continuation paths above. A
+recipient can verify a disclosed result and participant-key roster without
+receiving the private discussion or individual ballots. The covered set and
+closing policy must be explicit; a proof cannot establish global freshness or
+that no undisclosed message exists.
+
+[SPEC-038](../../specs/SPEC-038-optional-thread-proof-export.md) defines the target
+interface, including receiver-owned expected context rather than a pre-known
+tally. Most threads incur no proof work. The [native experiment](../../experiments/private-vote-export/RESULTS.md)
+proves a fixed synthetic voting profile with experimental signed envelopes;
+it does not establish native R4 v2 or arbitrary-dialect integration. The
+[browser results](../../experiments/private-vote-export/browser/RESULTS.md)
+record successful worker proving and independent verification after two
+upstream arithmetic portability fixes. Browser budgets and production integration remain separate
+acceptance work. A disclosed outcome does not imply permission to continue a
+thread from that projection alone.
+
 ## Member-certified cached continuation
 
 The cached path maintains summaries and identity coverage during ordinary native
