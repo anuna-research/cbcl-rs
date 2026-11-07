@@ -6,7 +6,7 @@ import LeanCbcl.Lattice.NotALattice
 
 `Verify.lean` proves `verify_monotone` under the valid-is-sticky preorder `⊑`,
 which records only that `valid` persists. SPEC-003 REQ-302 states the stronger
-property over the flat knowledge order `kle` (`NotALattice.lean`): once a
+property over the flat knowledge order `kle`: once a
 verdict is terminal, `valid` or `violation`, it is unchanged by store growth,
 and only `unknown` can move. This file proves that statement for the same
 `verify`.

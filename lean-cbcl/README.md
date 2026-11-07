@@ -50,7 +50,7 @@ contradictory draft example. UTF-8 byte decoding, runtime conformance, expansion
 costs, and causal validity remain separate obligations.
 
 `VerifyKnowledge` lifts `verify_monotone` from the valid-is-sticky preorder to the
-flat knowledge order of `Lattice/NotALattice.lean` (`verify_knowledge_monotone`):
+flat knowledge order `kle` (`verify_knowledge_monotone`):
 a terminal verdict, `valid` or `violation`, is unchanged by store growth, and only
 `unknown` can move (`verify_valid_stable`, `verify_violation_stable`). This is
 SPEC-003 REQ-302 as stated, mirrored by `crates/cbcl-core/tests/monotonicity_tests.rs`.
