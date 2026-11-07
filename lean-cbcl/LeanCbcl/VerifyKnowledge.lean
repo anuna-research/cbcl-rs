@@ -1,5 +1,5 @@
 import LeanCbcl.Verify
-import LeanCbcl.Lattice.NotALattice
+import LeanCbcl.Lattice.KnowledgeOrder
 
 /-!
 # `verify` is monotone in the knowledge order (SPEC-003 REQ-302)

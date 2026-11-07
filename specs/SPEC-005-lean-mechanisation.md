@@ -63,7 +63,7 @@ This specification does **not** cover:
 
 The system SHALL define a Lean type `VerificationResult` with constructors `Unknown`, `Valid`, `Violation`. The mechanisation SHALL prove the following distinct structures:
 
-1. **Knowledge-order meet-semilattice.** Under `kle`, `Unknown` is below incomparable `Valid` and `Violation`. The consensus meet `kmeet` is their greatest lower bound, with bottom `Unknown`. The mechanisation SHALL prove that `kmeet` differs from strong Kleene conjunction and that the two terminal verdicts have no common upper bound in this order. The existing `kmeet_is_glb`, `eager_meet_ne_kmeet`, `no_join_of_terminals`, and `not_a_lattice` theorems in `Lattice/NotALattice.lean` refer to this knowledge order only.
+1. **Knowledge-order meet-semilattice.** Under `kle`, `Unknown` is below incomparable `Valid` and `Violation`. The consensus meet `kmeet` is their greatest lower bound, with bottom `Unknown`. The mechanisation SHALL prove that `kmeet` differs from strong Kleene conjunction and that the two terminal verdicts have no common upper bound in this order. The existing `kmeet_is_glb`, `eager_meet_ne_kmeet`, `no_join_of_terminals`, and `not_a_lattice` theorems in `Lattice/KnowledgeOrder.lean` refer to this knowledge order only.
 2. **Truth-order bounded distributive lattice.** `meet` and `join` SHALL match [[SPEC-003-verification-lattice#REQ-303]]'s strong Kleene tables. Their truth order is `Violation < Unknown < Valid`, with `Violation` the join identity and `Valid` the meet identity. The mechanisation SHALL discharge associativity, commutativity, idempotence, identities, both absorption laws and distributivity. A disjunctive fold SHALL start at `Violation`; an empty disjunction is false.
 3. **Knowledge monotonicity of the operators.** `meet` and `join` SHALL preserve `kle` in both arguments. The existing valid-is-sticky preorder and its verifier theorem may remain as weaker compatibility results; they are not the truth order or the knowledge partial order.
 
@@ -385,7 +385,7 @@ Verified by:
 
 #### Order distinction and strong Kleene correction
 
-**Decision:** Retain local `BoundedDistribLattice` and `JoinSemiLattice` typeclasses in `Lattice/Result.lean` and `Lattice/Store.lean`. Mathlib4 is not added to the lakefile. The result instance records strong Kleene truth-order operations, including absorption and distributivity. The knowledge-order results remain separate in `Lattice/NotALattice.lean`.
+**Decision:** Retain local `BoundedDistribLattice` and `JoinSemiLattice` typeclasses in `Lattice/Result.lean` and `Lattice/Store.lean`. Mathlib4 is not added to the lakefile. The result instance records strong Kleene truth-order operations, including absorption and distributivity. The knowledge-order results remain separate in `Lattice/KnowledgeOrder.lean`.
 
 **Rationale:** A verdict's carrier alone does not determine its order. The knowledge order has no join of the terminals, while the truth order is a chain and therefore a bounded distributive lattice. Calling either statement a Mathlib incompatibility confuses a mathematical choice with a dependency choice. The local finite-carrier proofs meet the requirements without adding Mathlib's build and maintenance costs.
 
@@ -468,7 +468,7 @@ Each TEST below corresponds to a `lake build` artefact: the named theorem must c
 
 ### TEST-510: Result lattice axioms
 
-Run `lake build LeanCbcl.Lattice.Result LeanCbcl.Lattice.NotALattice`; require success. Require the `BoundedDistribLattice` instance to prove both absorption laws and distributivity. Check that the truth-table theorems assert both orders of `Unknown ⊔ Violation = Unknown` and that the join identity is `Violation`. Require the knowledge-order operator-monotonicity and no-terminal-join theorems to compile. Audit these proofs with `#print axioms` against the permitted standard axioms.
+Run `lake build LeanCbcl.Lattice.Result LeanCbcl.Lattice.KnowledgeOrder`; require success. Require the `BoundedDistribLattice` instance to prove both absorption laws and distributivity. Check that the truth-table theorems assert both orders of `Unknown ⊔ Violation = Unknown` and that the join identity is `Violation`. Require the knowledge-order operator-monotonicity and no-terminal-join theorems to compile. Audit these proofs with `#print axioms` against the permitted standard axioms.
 
 **Technique:** Compile-time, by-decide for finite cases, manual proof for parametric cases.
 
