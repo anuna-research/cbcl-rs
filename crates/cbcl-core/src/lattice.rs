@@ -1,5 +1,12 @@
 //! The state kernel as lattice terms (SPEC-038 CON-3800, first slice).
 //!
+//! Vocabulary (SPEC-038 § Vocabulary): a *contribution* `g` is what one act
+//! adds to a *carrier* `L`; the *lift* `A ↦ ⋁ g(a)` is the unique
+//! join-homomorphism out of the free join-semilattice on acts; a *display* is
+//! the post-map from the carrier to the rendered value; the R7 *fold* is the
+//! lift followed by a display, and keeps that name only as the API of
+//! [`crate::state::fold`].
+//!
 //! Every shipped R7 rule head except `progress` and `bounded-counter` is a
 //! *lift*: a per-act contribution `g` joined over the selected accepted acts,
 //! followed by a post-map to the displayed value. The join half is a

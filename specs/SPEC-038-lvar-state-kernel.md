@@ -63,7 +63,9 @@ provisionally in ADR-3802); whether `progress` and `bounded-counter` get a share
 closure combinator or stay as two primitives (owner: CBCL maintainer, see
 REQ-3808); sequence lattices are out of scope (recorded, not deferred).
 
-Detail: [[SPEC-019-state-rules]] for the fold this restates;
+Detail: the Vocabulary section below for the names (lift, display, LVar, put,
+threshold read, frozen read, snapshot, stable, kernel); [[SPEC-019-state-rules]]
+for the fold this restates;
 [[SPEC-036-state-kernel-correctness]] and [[SPEC-037-state-kernel-sec]] for the
 theorems this subsumes; [[IMPL-030-lvar-state-kernel]] for the plan;
 [[protocol-model]] for the refinement chain this kernel sits at the end of.
@@ -107,6 +109,70 @@ citations; and `initial` is a
 morphism into a lattice with a conflict top whose displayed value is retracted
 on conflict. This specification makes that structure explicit and adds the two
 reads LVars require.
+
+## Vocabulary
+
+These names are used throughout this specification and SHALL be used in code,
+documentation and theorems that implement it. Where an older name is retained
+for compatibility it is noted.
+
+- **Accepted set** `A`: the finite set of acts admitted into a thread's history
+  ([[SPEC-019-state-rules]] R.1). Unique by address; closed under cited
+  predecessors; the only input to the kernel.
+- **Carrier** `L`: a bounded join-semilattice with bottom `⊥` and top `⊤`,
+  chosen from [[SPEC-038-lvar-state-kernel#CON-3800]] or declared under
+  [[SPEC-038-lvar-state-kernel#CON-3803]]. `⊤` means conflict and carries
+  evidence ([[SPEC-038-lvar-state-kernel#REQ-3804]]).
+- **Contribution** `g : Act → L`: what one act adds to a carrier. A function of
+  that act alone, never of other acts or other fields, except through a domain
+  on an `initial` field ([[SPEC-038-lvar-state-kernel#REQ-3809]]).
+- **Lift**: the map `A ↦ ⋁_{a ∈ A} g(a)` from accepted sets into `L`. It is the
+  unique join-homomorphism out of the free join-semilattice on acts that
+  extends `g`; its laws, order independence, duplicate insensitivity and
+  `lift(A₁ ∪ A₂) = lift(A₁) ⊔ lift(A₂)` on causally closed sets, are the
+  associativity, commutativity and idempotence of `⊔`. *The R7 fold of
+  [[SPEC-019-state-rules]] is the lift followed by a display*; the name `fold`
+  is retained for the `cbcl_core::state::fold` API and means lift-then-display.
+- **Display** (post-map): a function from a carrier element, and the earlier
+  fields of the clause, to a rendered value. It may forget lattice structure. It
+  is classified as a *morphism* (distributes over `⊔`), *monotone* (preserves
+  the carrier order into the codomain's order) or *revisable* (neither).
+- **Term**: a selector, a contribution and a carrier, composed by products,
+  keyed maps and displays ([[SPEC-038-lvar-state-kernel#CON-3800]]). A
+  *summarising carrier* is one smaller than the set of acts; the two *closure
+  heads*, `progress` and `bounded-counter`, have none and their display is a
+  least fixed point over citations ([[SPEC-038-lvar-state-kernel#REQ-3808]]).
+- **LVar**: a state field, viewed as a lattice variable: its carrier, its
+  current element `σ_F = lift(A)`, and its reads. **LVar store**: a clause's
+  fields together, whose state is the product lattice `∏_F L_F`
+  ([[SPEC-038-lvar-state-kernel#REQ-3809]]).
+- **Put**: the change to an LVar when an act is admitted, `σ_F := σ_F ⊔ g_F(a)`
+  ([[SPEC-038-lvar-state-kernel#REQ-3801]]). Puts are the only writes.
+- **Threshold read**: an observation over a declared pairwise-incompatible set
+  `T ⊆ L_F`, yielding the unique `t ∈ T` with `t ≤ σ_F` or `pending`
+  ([[SPEC-038-lvar-state-kernel#REQ-3802]]). Deterministic in delivery order,
+  reached at most once, never retracted. Typed against the carrier, never the
+  display.
+- **Freeze**: a role-permitted act after which an LVar is exact. **Frozen
+  read**: a read of `σ_F` after its freeze, carrying the freezing address
+  ([[SPEC-038-lvar-state-kernel#REQ-3803]]).
+- **Snapshot**: any displayed value that is neither a reached threshold nor
+  frozen. Readable, revisable, no finality from this kernel
+  ([[SPEC-038-lvar-state-kernel#REQ-3805]]).
+- **Stable**: a display that is monotone into booleans or integers, hence
+  admissible as a threshold element source ([[SPEC-038-lvar-state-kernel#REQ-3810]]).
+- **Quasi-determinism**: the kernel's theorem: replicas with equal accepted
+  sets observe equal thresholds and frozen values, and any two replicas observe
+  either the same value or `⊤` with evidence naming the acts in conflict
+  ([[SPEC-038-lvar-state-kernel#REQ-3806]]).
+- **Kernel**: two readings, both intended. The engineering reading: the pure,
+  closed, proven core, `cbcl_core::state` and `cbcl_core::lattice`, that hosts,
+  transport and cryptography sit outside of. The algebraic reading: the kernel
+  of the lift, the congruence on accepted sets `A₁ ~ A₂ ⇔ lift(A₁) = lift(A₂)`;
+  strong convergence ([[SPEC-037-state-kernel-sec#REQ-3700]]) says set
+  equality refines it, and the state lattice is the quotient of act-sets by it.
+  "State kernel" therefore names the relation that says which histories are
+  indistinguishable by state, as well as the code that computes it.
 
 ## REQ-3800: Every field denotes a lattice term
 

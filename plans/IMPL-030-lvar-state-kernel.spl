@@ -49,7 +49,7 @@
 
 (meta task-docs-status
   (description "Update docs/concepts/bounded-counter.md and hlc-registers.md with the term reading of each head and the snapshot/threshold/frozen vocabulary; set SPEC-038 status to implemented; zetl check clean.")
-  (acceptance "zetl check --dead-links --fail-on error clean; SPEC-038 status implemented with verified-by annotations reconciled to what landed."))
+  (acceptance "zetl check --dead-links --fail-on error clean; SPEC-038 status implemented with verified-by annotations reconciled to what landed; docs and rustdoc use the SPEC-038 Vocabulary (lift, display, LVar, put, threshold, frozen, snapshot, stable) with fold retained only as the API name."))
 
 ;; Facts
 (given task-lattice-algebra)
