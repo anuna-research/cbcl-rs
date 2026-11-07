@@ -175,6 +175,57 @@ The `issuer` role may mint; any `holder` may burn or pay. The source account of 
 cargo run -p cbcl-cli -- verify < dialects/example-coin.cbcl
 ```
 
+#### Sending messages in the dialect
+
+A thread starts with a root act that fixes the cast, binding each role to agent keys:
+
+```lisp
+(with-roles ((issuer @treasury) (holder @treasury @alice @bob))
+  (signed @treasury
+    (hello () :thread "coin-1" :caused-by begin)))
+```
+
+Every later act names the dialect with `(lang example-coin …)`. A performative takes the recipient list, a content slot (empty here), the keyword fields its `shape` requires, and the routing fields `:from`, `:thread` and `:caused-by`. The opening act cites the root's content address:
+
+```lisp
+(signed @treasury
+  (lang example-coin
+    (open (@alice @bob @treasury) ()
+      :name "Example Coin"
+      :allocations ((@treasury 1000) (@alice 0) (@bob 0))
+      :from @treasury
+      :thread "coin-1"
+      :caused-by sha256-6655c6fbcd385dd84414cad93d6cad9a1ed650f4c2834790d9043f543051d407)))
+```
+
+A payment cites the opening act. The binder adds `:escrow-prev` and `:escrow-deps`, which record resource causality separately from the protocol's `:caused-by`:
+
+```lisp
+(signed @treasury
+  (lang example-coin
+    (pay (@alice @bob @treasury) ()
+      :recipient @alice
+      :amount 100
+      :escrow-prev sha256-a9d6de157c34d0473ad88f651a6701c40415978732593f22bf77b4fb0a448ca5
+      :escrow-deps ()
+      :from @treasury
+      :thread "coin-1"
+      :caused-by sha256-a9d6de157c34d0473ad88f651a6701c40415978732593f22bf77b4fb0a448ca5)))
+```
+
+Hosts do not write these by hand. `intend` completes a verb and its business fields into the canonical act above, ready for the host to sign and publish:
+
+```rust
+let inst = Instance::new(&dialect, ThreadId("coin-1".into()), &accepted_acts)?;
+let fields = BTreeMap::from([
+    ("recipient".to_string(), SExpr::Atom(Atom::Symbol("@alice".into()))),
+    ("amount".to_string(), SExpr::Atom(Atom::Num(100))),
+]);
+let act = intend(&inst, &AgentKey("@treasury".into()), "pay", fields)?;
+```
+
+The `signed` wrapper names the signer; the host's authentication, not the wrapper, establishes it. The complete message sequence for this example is in `test-vectors/state/bounded-coin.json`.
+
 The trace from `crates/cbcl-parser/tests/bounded_counter.rs` opens the coin with allocations `((@treasury 1000) (@alice 0) (@bob 0))` and then applies four acts:
 
 | Act | Signer | Rights afterwards | Value |
