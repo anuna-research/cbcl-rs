@@ -76,3 +76,13 @@ import LeanCbcl.ConsensusFree.OwnerFunding
 import LeanCbcl.ConsensusFree.OwnerProduct
 import LeanCbcl.ConsensusFree.OwnerTermination
 import LeanCbcl.ConsensusFree.OwnerProductWitness
+
+import LeanCbcl.HlcRegister
+
+import LeanCbcl.StateKernelClause
+import LeanCbcl.StateKernelTests
+
+import LeanCbcl.StateKernelSECTests
+
+import LeanCbcl.CheckpointKernelTests
+import LeanCbcl.CheckpointAllTests

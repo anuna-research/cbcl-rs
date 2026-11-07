@@ -27,5 +27,12 @@
 /specs/.zetl/
 /outputs/
 
+# Checkpoint acceptance reports are reproducible local outputs, not source.
+/proofs/cached-checkpoints/*
+!/proofs/cached-checkpoints/README.md
+/research/object-checkpoints/
+/test-vectors/checkpoints/rust-lean-parity*
+/test-vectors/checkpoints/all16-parity.json
+
 # Locally staged release artifacts
 /dist/

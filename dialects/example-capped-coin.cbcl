@@ -22,7 +22,7 @@
   (shape share-space (require :recipient symbol) (require :amount number))
   (protocol (then open share-space) (then begin open) (then open mint) (then open burn) (then open pay))
   (state
-    (name (last open :name))
+    (name (initial open :name))
     (coins (bounded-counter
       (floor 0)
       (ceiling 10)

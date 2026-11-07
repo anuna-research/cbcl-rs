@@ -1,0 +1,19 @@
+; SPEC-037: implementation and verification sequence.
+(given (task sec-convergence))
+(given (task-description sec-convergence "Prove extensional equal-set observations across arbitrary compiled clauses"))
+(given (task-acceptance sec-convergence "TEST-3700 Lean capstone for all expression constructors"))
+(given (no-deps sec-convergence))
+(normally r-sec-convergence (and (task sec-convergence) (no-deps sec-convergence)) (ready sec-convergence))
+(given (task sec-delivery))
+(given (task-description sec-delivery "Derive acceptance from delivery, finite dependencies and scheduling fairness"))
+(given (task-acceptance sec-delivery "TEST-3701/3702 acceptance and stable pair convergence"))
+(normally r-sec-delivery (and (task sec-delivery) (completed sec-convergence)) (ready sec-delivery))
+(given (task sec-verification))
+(given (task-description sec-verification "Audit axioms, mutations, independent review and docs"))
+(given (task-acceptance sec-verification "TEST-3703 checks pass with explicit port boundaries"))
+(normally r-sec-verification (and (task sec-verification) (completed sec-delivery)) (ready sec-verification))
+
+; Completion evidence: SPEC-037 and proofs/state-kernel-sec/state-kernel-sec-verification.md.
+(given (completed sec-convergence))
+(given (completed sec-delivery))
+(given (completed sec-verification))

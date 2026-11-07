@@ -70,17 +70,32 @@ enum Arg {
 /// The state rule heads (SPEC-019 R.1) as JSON spells them, with the
 /// dialect head and the shape of their arguments.
 const RULES: &[(&str, &str, &[Arg])] = &[
-    ("last", "last", &[Arg::Verb, Arg::Key]),
     (
-        "latestPerSigner",
-        "latest-per-signer",
+        "lwwRegister",
+        "lww-register",
+        &[Arg::Verb, Arg::Key, Arg::Key],
+    ),
+    (
+        "lwwPerSigner",
+        "lww-per-signer",
+        &[Arg::Verb, Arg::Key, Arg::Key],
+    ),
+    (
+        "lwwMap",
+        "lww-map",
+        &[Arg::Verb, Arg::Key, Arg::Key, Arg::Key, Arg::OptVerb],
+    ),
+    (
+        "multiValueRegister",
+        "multi-value-register",
         &[Arg::Verb, Arg::Key],
     ),
     (
-        "latestPerKey",
-        "latest-per-key",
-        &[Arg::Verb, Arg::Key, Arg::Key],
+        "multiValueMap",
+        "multi-value-map",
+        &[Arg::Verb, Arg::Key, Arg::Key, Arg::OptVerb],
     ),
+    ("initial", "initial", &[Arg::Verb, Arg::Key]),
     ("exists", "exists", &[Arg::Verb]),
     ("count", "count", &[Arg::Verb]),
     ("progress", "progress", &[Arg::Verb]),
@@ -90,11 +105,6 @@ const RULES: &[(&str, &str, &[Arg])] = &[
     (
         "valuesPerKey",
         "values-per-key",
-        &[Arg::Verb, Arg::Key, Arg::Key, Arg::OptVerb],
-    ),
-    (
-        "registerPerKey",
-        "register-per-key",
         &[Arg::Verb, Arg::Key, Arg::Key, Arg::OptVerb],
     ),
     (
@@ -333,7 +343,10 @@ fn recognize(json: &Json) -> Result<Contract<'_>, String> {
             }
             match ty {
                 Json::String(t)
-                    if matches!(t.as_str(), "string" | "number" | "bool" | "list" | "symbol") =>
+                    if matches!(
+                        t.as_str(),
+                        "string" | "hlc" | "number" | "bool" | "list" | "symbol"
+                    ) =>
                 {
                     fields.push((field.as_str(), t.as_str(), None))
                 }

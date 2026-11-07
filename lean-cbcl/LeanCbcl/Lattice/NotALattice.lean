@@ -1,49 +1,17 @@
 import LeanCbcl.Lattice.Result
 
 /-!
-# `VerificationResult` is a bounded meet-semilattice, and is NOT a lattice
+# The knowledge order is not a lattice (REQ-510 / ADR-510 / RISK-511)
 
-(SPEC-005 REQ-510 / ADR-510 / RISK-511)
+The knowledge order `kle` puts `unknown` below the incomparable terminals.
+Its consensus meet `kmeet` is a greatest lower bound with bottom `unknown`,
+but the terminals have no common upper bound. These facts concern the
+knowledge order only: strong Kleene `meet` / `join` form a bounded
+distributive lattice in the distinct truth order (see `Result.lean`).
 
-This module machine-checks the *true* order-theoretic structure of
-`VerificationResult`, replacing the earlier (external-review-flagged)
-overclaim that it is a **bounded lattice**. Two facts are proved:
-
-1. **Bounded meet-semilattice under the knowledge order.** Under the
-   *knowledge order* `kle` (`unknown ⊥`; `valid`, `violation`
-   incomparable and maximal), every pair has a greatest lower bound —
-   the *consensus meet* `kmeet` — and `unknown` is the bottom. `kle` is
-   a genuine `PartialOrder` (reflexive, antisymmetric, transitive), and
-   `kmeet_is_glb` proves `kmeet` is the GLB. This order + GLB matches
-   the shape of Mathlib's `SemilatticeInf` + `OrderBot` (see the comment
-   on `kmeet` — we do NOT import Mathlib, per ADR-510).
-
-2. **Not a lattice.** `valid` and `violation` are distinct maximal
-   elements of `kle`, so they have *no common upper bound*
-   (`no_join_of_terminals`); a fortiori no least upper bound
-   (`not_a_lattice`). Hence `VerificationResult` is a meet-semilattice
-   but **not** a lattice.
-
-## The consensus meet `kmeet` is NOT the eager `verify` meet
-
-CRITICAL (and the point external review turned on): the knowledge-order
-GLB `kmeet` is a *different operation* from the eager
-`VerificationResult.meet` that `verify` uses. `verify`'s `meet` is the
-Kleene conjunction (`violation` absorbs), whose induced order has
-`violation`, not `unknown`, at the bottom; it is **not** a lower bound
-under the knowledge order. Concretely
-`meet valid violation = violation` whereas
-`kmeet valid violation = unknown` — proved distinct in
-`eager_meet_ne_kmeet`. So one must NOT read SPEC-005 REQ-510's phrase
-"`meet` (Conjunction) is the greatest lower bound" as saying the
-deployed eager conjunction *is* the knowledge-order GLB; it is not. The
-meet-semilattice witness is `kmeet` (this file); the eager `meet`/`join`
-live in the separate **bisemilattice** reading (see `Result.lean` and
-`eager_absorption_fails` below), which is likewise not a lattice.
-
-## Mirrors
-
-- SPEC-005 §"REQ-510" (amended), §"ADR-510" (amended), §"RISK-511".
+Strong Kleene conjunction and disjunction are monotone under `kle`,
+although neither computes knowledge-order bounds. In particular,
+`meet valid violation = violation` but `kmeet valid violation = unknown`.
 -/
 
 namespace CBCL
@@ -159,10 +127,7 @@ theorem not_a_lattice :
   rintro ⟨u, ⟨hv, hviol⟩, _⟩
   exact no_join_of_terminals ⟨u, hv, hviol⟩
 
-/-! ## The deployed eager algebra is a bisemilattice, also not a lattice.
-
-    These facts pin the honest characterisation of the operations
-    `verify` actually uses (`Result.lean`'s `meet`/`join`). -/
+/-! ## Strong Kleene operations: truth-order laws and knowledge monotonicity. -/
 
 /-- The knowledge-order GLB `kmeet` is genuinely a *different* operation
     from the eager Kleene conjunction `meet` used by `verify`:
@@ -173,13 +138,33 @@ theorem not_a_lattice :
 theorem eager_meet_ne_kmeet : meet valid violation ≠ kmeet valid violation := by
   decide
 
-/-- Absorption fails for the eager `meet`/`join`, so the deployed algebra
-    is a **bisemilattice**, not a lattice:
-    `unknown ⊓ (unknown ⊔ violation) = violation ≠ unknown`. -/
-theorem eager_absorption_fails :
-    meet unknown (join unknown violation) = violation ∧
-      meet unknown (join unknown violation) ≠ unknown := by
-  decide
+/-- Strong Kleene conjunction absorbs disjunction (truth-order lattice law). -/
+theorem meet_absorption (a b : VerificationResult) : meet a (join a b) = a := by
+  cases a <;> cases b <;> rfl
+
+/-- Strong Kleene disjunction absorbs conjunction (truth-order lattice law). -/
+theorem join_absorption (a b : VerificationResult) : join a (meet a b) = a := by
+  cases a <;> cases b <;> rfl
+
+/-- Conjunction distributes over disjunction. -/
+theorem meet_distributive (a b c : VerificationResult) :
+    meet a (join b c) = join (meet a b) (meet a c) := by
+  cases a <;> cases b <;> cases c <;> rfl
+
+/-- Disjunction distributes over conjunction. -/
+theorem join_distributive (a b c : VerificationResult) :
+    join a (meet b c) = meet (join a b) (join a c) := by
+  cases a <;> cases b <;> cases c <;> rfl
+
+/-- Strong Kleene conjunction preserves the knowledge order in both arguments. -/
+theorem meet_knowledge_mono {a b c d : VerificationResult}
+    (hac : kle a c) (hbd : kle b d) : kle (meet a b) (meet c d) := by
+  cases a <;> cases b <;> cases c <;> cases d <;> simp_all [kle, meet]
+
+/-- Strong Kleene disjunction preserves the knowledge order in both arguments. -/
+theorem join_knowledge_mono {a b c d : VerificationResult}
+    (hac : kle a c) (hbd : kle b d) : kle (join a b) (join c d) := by
+  cases a <;> cases b <;> cases c <;> cases d <;> simp_all [kle, join]
 
 end VerificationResult
 end CBCL

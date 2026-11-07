@@ -2,8 +2,8 @@
 id: SPEC-003
 title: Verification Lattice — Algebraic Foundations for Causal Protocol Checking
 status: draft
-version: 0.3.0
-date: 2026-07-04
+version: 0.4.0
+date: 2026-11-06
 author: Anuna Research (https://anuna.io)
 depends-on: SPEC-002 (structural contracts — causal protocols and shapes)
 prior-art:
@@ -41,15 +41,15 @@ This specification provides the **algebraic foundation** underneath SPEC-002. It
 
 ### Terminology: three structures, one word
 
-Earlier drafts of this specification used "lattice" for every order-theoretic structure in sight. The mechanisation (SPEC-005, [[SPEC-005-lean-mechanisation]]) exposed that three *different* structures are in play, only one of which is anything like a lattice. To keep the requirements precise, this spec now distinguishes:
+Earlier drafts of this specification used "lattice" for every order-theoretic structure in sight. The mechanisation ([[SPEC-005-lean-mechanisation]]) distinguishes separate structures whose orders must not be conflated. To keep the requirements precise, this spec now distinguishes:
 
 1. **The store join-semilattice** (REQ-300). Sets of immutable messages under union, ordered by inclusion. A genuine (bounded, join-)semilattice — the G-Set CRDT.
 
 2. **The verdict poset** (REQ-302). The *order* on `{Unknown, Valid, Violation}` used for stability and monotonicity: `Unknown` below both terminal verdicts, `Valid` and `Violation` incomparable. This is a flat poset (discrete order with bottom). It is **not** a lattice: `Valid ⊔ Violation` does not exist in this order.
 
-3. **The verdict bisemilattice** (REQ-303). The *operations* `⊓` (conjunction, for `(all ...)`) and `⊔` (disjunction, for `(any ...)`). Each is associative, commutative, and idempotent with an identity (`Valid` for `⊓`, `Unknown` for `⊔`) — but they are the min/max of two *different* total orders (`⊓` of the truth order `Violation < Unknown < Valid`; `⊔` of the commitment order `Unknown < Violation < Valid`), so the absorption laws fail (`Unknown ⊓ (Unknown ⊔ Violation) = Violation ≠ Unknown`) and no single lattice order underlies both. Two semilattice structures on one carrier without absorption is a **bisemilattice**; with the two identities, a **bounded bisemilattice**. The Lean typeclass is accordingly named `BoundedBisemilattice` (see SPEC-005 ADR-510).
+3. **The verdict truth lattice** ([[SPEC-003-verification-lattice#REQ-303]]). Strong Kleene conjunction `⊓` and disjunction `⊔` are min and max in the truth order `Violation < Unknown < Valid`. They form a bounded distributive lattice at the verdict-class level, with `Violation` the disjunction identity and `Valid` the conjunction identity. Both absorption laws hold. The Lean typeclass is `BoundedDistribLattice` ([[SPEC-005-lean-mechanisation#ADR-510]]).
 
-The spec's title keeps "Verification Lattice" as an umbrella for this family of structures; individual requirements below use the precise term for the structure they constrain. Where a requirement needs only monotonicity and terminal-verdict stability, the verdict poset (2) is the operative structure; where it computes fan-in/fan-out folds, the bisemilattice operations (3) are.
+Where a requirement concerns terminal-verdict stability under evidence growth, the knowledge order (2) applies. Where it computes conjunction or disjunction, the truth-lattice operations (3) apply. These operations are monotone under the knowledge order too, but do not compute its bounds.
 
 ### Scope
 
@@ -210,7 +210,7 @@ Trace:
 - TEST-302
 - CON-301
 
-### REQ-303: Conjunction and Disjunction — the Result Bisemilattice
+### REQ-303: Conjunction and Disjunction — Strong Kleene Truth Lattice
 
 For fan-in verification with `(all ...)`, the overall result SHALL be the **meet** `⊓` of sub-results — the minimum in the *truth order* `Violation < Unknown < Valid`:
 
@@ -226,30 +226,32 @@ Rules:
 - `Violation ⊓ anything = Violation` — one bad predecessor poisons the conjunction (Violation is absorbing for meet).
 - `Unknown ⊓ Valid = Unknown` — can't confirm the conjunction until all sub-checks resolve.
 
-For disjunctive predecessors with `(any ...)`, the overall result SHALL be the **join** `⊔` of sub-results — the maximum in the *commitment order* `Unknown < Violation < Valid`:
+For disjunctive predecessors with `(any ...)`, the overall result SHALL be the **join** `⊔` of sub-results — the maximum in the same *truth order* `Violation < Unknown < Valid`:
 
 | ⊔ | Unknown | Valid | Violation |
 |---|---------|-------|-----------|
-| **Unknown** | Unknown | Valid | Violation |
+| **Unknown** | Unknown | Valid | Unknown |
 | **Valid** | Valid | Valid | Valid |
-| **Violation** | Violation | Valid | Violation |
+| **Violation** | Unknown | Valid | Violation |
 
 Rules:
 - `Unknown ⊔ Unknown = Unknown` — no alternative has resolved.
 - `Valid ⊔ anything = Valid` — one valid predecessor suffices (Valid is absorbing for join).
-- `Unknown ⊔ Violation = Violation` — the one resolved alternative is invalid. (But note: if more alternatives arrive later, the result may change to Valid. This is only stable once ALL alternatives in the `(any ...)` set have resolved.)
+- `Unknown ⊔ Violation = Unknown` — the unresolved alternative might still be valid.
+- `Violation ⊔ Violation = Violation` — every alternative has failed.
+- `Violation` is the identity for `⊔`; an empty disjunction is `Violation`.
 
-**Disjunction stability caveat.** For `(any ...)`, the result is stable (permanent) once any sub-check returns `Valid` — a single valid alternative suffices and cannot be invalidated. However, a `Violation` result for `(any ...)` is NOT stable until all alternatives have been checked — a later alternative may turn out `Valid`. The implementation MUST NOT emit a final `Violation` for `(any ...)` until all alternatives in the disjunction are known.
+**Fixed alternatives and stability.** For a fixed disjunction of stable sub-checks, one `Valid` suffices for a permanent `Valid`; `Violation` is returned only when every alternative is `Violation`. An unresolved alternative keeps the result `Unknown` unless another alternative is `Valid`. Adding alternatives changes the expression and is outside the fixed-protocol store-growth guarantee.
 
-In practice, for `(any ...)` on the predecessor side, the agent has a single `:caused-by` hash. The disjunction is over the valid predecessor *types*, not over multiple hashes. The check is: "is the predecessor's type in the set {a, b, c}?" This resolves immediately when the predecessor is in the store (the type is known) and is `Unknown` when the predecessor is not in the store. There is no partial-disjunction case for single-predecessor `(any ...)` — the result is atomic.
+In practice, for `(any ...)` on the predecessor side, the agent has a single `:caused-by` hash. The disjunction is over valid predecessor *types*, not multiple hashes. The check is: "is the predecessor's type in the set {a, b, c}?" This resolves immediately when the predecessor is in the store and is `Unknown` when it is absent. The same strong Kleene table also governs disjunctive merging across matching protocols.
 
-The partial-disjunction caveat applies only if a future extension allows disjunctive `:caused-by` (multiple hashes where any one suffices). This is not part of SPEC-002 or SPEC-003 but the algebra is recorded here for completeness.
+**Failure mode: premature disjunctive rejection.** Treating `Unknown ⊔ Violation` as `Violation` discards the possibility that missing evidence satisfies an alternative. Strong Kleene disjunction preserves that uncertainty and allows the message to remain pending. Rust and Lean SHALL use the same table, including the `Violation` fold identity. Diagnostic payloads do not change verdict-class algebraic laws; when both operands are violations, Rust preserves the left diagnostic.
 
-**Rationale:** Each operation is individually a bona-fide semilattice operation — associative, commutative, idempotent, with an identity (`Valid` for `⊓`, `Unknown` for `⊔`). But they are the min/max of two *different* total orders, so together they do **not** form a lattice: the absorption laws fail (`Unknown ⊓ (Unknown ⊔ Violation) = Unknown ⊓ Violation = Violation ≠ Unknown`), and neither operation computes bounds in REQ-302's flat order (the flat-order greatest lower bound of `Valid` and `Violation` is `Unknown`, whereas `Valid ⊓ Violation = Violation`). The correct name for the pair `(⊓, ⊔)` with its two identities is a **bounded bisemilattice** (see the terminology note in the Overview). The absorbing elements (Violation for meet, Valid for join) correspond to short-circuit evaluation — a known bad predecessor fails the conjunction immediately, a known good predecessor passes the disjunction immediately.
+**Rationale:** Both operations are associative, commutative and idempotent at the verdict-class level, and satisfy absorption and distributivity. Their identities are `Valid` for `⊓` and `Violation` for `⊔`. This is the bounded distributive lattice of the truth order. It is distinct from the flat knowledge order ([[SPEC-003-verification-lattice#REQ-302]]): `Valid ⊓ Violation = Violation`, whereas their knowledge-order greatest lower bound is `Unknown`. Short-circuiting remains justified: a known violation fails conjunction, and a known valid alternative satisfies disjunction.
 
 verified-by: lean
 
-Mechanised in `lean-cbcl/LeanCbcl/Lattice/Result.lean`: `result_meet_table` and `result_join_table` reproduce both truth tables verbatim, discharged by exhaustive case analysis on the finite `VerificationResult` carrier; `verify_all_is_meet` in `LeanCbcl/Verify.lean` then ties the meet to fan-in `(all …)`. The typeclass recording these axioms is `BoundedBisemilattice` (renamed from `BoundedLattice` on 2026-07-03; absorption is deliberately absent from its axioms — see SPEC-005 ADR-510).
+Mechanised in `lean-cbcl/LeanCbcl/Lattice/Result.lean`: `result_meet_table` and `result_join_table` reproduce both truth tables verbatim, discharged by exhaustive case analysis on the finite `VerificationResult` carrier; `verify_all_is_meet` in `LeanCbcl/Verify.lean` then ties the meet to fan-in `(all …)`. The typeclass recording these axioms is `BoundedDistribLattice`, including absorption and distributivity ([[SPEC-005-lean-mechanisation#ADR-510]]).
 
 Trace:
 - TEST-303
@@ -278,7 +280,7 @@ This is the **structural monotonicity guarantee** that replaces SPEC-002's ad-ho
 
 verified-by: lean
 
-Mechanised in `lean-cbcl/LeanCbcl/Verify.lean` as `verify_monotone : S₁ ⊆ S₂ → verify M P S₁ ⊑ verify M P S₂`, with `verify_all_is_meet` discharging the fan-in meet-fold shape (a meet-semilattice homomorphism; there is no full lattice homomorphism to preserve — see REQ-303).
+Mechanised in `lean-cbcl/LeanCbcl/Verify.lean` as `verify_monotone : S₁ ⊆ S₂ → verify M P S₁ ⊑ verify M P S₂`, with `verify_all_is_meet` discharging the fan-in meet-fold shape. This theorem does not assert that verification is a homomorphism from store union to truth-lattice join; the two operations have different meanings.
 
 Trace:
 - TEST-304
@@ -371,7 +373,7 @@ This follows from:
 
 verified-by: lean
 
-Mechanised in `lean-cbcl/LeanCbcl/Verify.lean` as `verify_eventually_consistent : (verify M P S₁).join (verify M P S₂) ⊑ verify M P (S₁ ∪ S₂)`, derived from `verify_monotone` applied to each side of the union and `join_mono` from the result bisemilattice. **Note on the order.** `⊑` is the "valid-is-sticky" knowledge order from `Lattice/Result.lean` (`a ⊑ b ↔ (a = valid → b = valid)`), not flat equality. The theorem therefore states "if either replica has already verified `valid`, the merged store also verifies `valid`" — a one-sided monotone confluence — rather than "both replicas converge to the same value". The "valid is sticky, unknown/violation are tentative" choice is what makes `meet` and `join` monotone through arbitrary nestings of `(any …)` inside `(all …)`; see the docstring on `VerificationResult.le` for the rationale.
+Mechanised in `lean-cbcl/LeanCbcl/Verify.lean` as `verify_eventually_consistent : (verify M P S₁).join (verify M P S₂) ⊑ verify M P (S₁ ∪ S₂)`, derived from `verify_monotone` applied to each side of the union and `join_mono` from the strong Kleene truth lattice. **Note on the order.** `⊑` is the "valid-is-sticky" preorder from `Lattice/Result.lean` (`a ⊑ b ↔ (a = valid → b = valid)`), not flat equality. The theorem therefore states "if either replica has already verified `valid`, the merged store also verifies `valid`" — a one-sided monotone confluence — rather than "both replicas converge to the same value". This existing preorder theorem remains a valid weaker statement; strong Kleene `meet` and `join` also preserve the stricter flat knowledge order. The theorem does not assert equality between a join of replica verdicts and verification of their merged evidence.
 
 Trace:
 - TEST-307
@@ -586,12 +588,12 @@ Trace:
 *resolved* — every hash its `:caused-by` names present in the store. A
 provisional `Violation` (some named predecessor absent) SHALL be treated as
 the policy treats `Unknown` (return `CausalPending` under Reject policy;
-enqueue under Buffer policy), because under a disjunctive `(any …)` clause
-an eagerly-evaluated `Violation` can be superseded by `Valid` once the
-dangling reference resolves — the deployed lattice's monotonicity is
-valid-is-sticky, not violation-is-sticky, before resolution.
+enqueue under Buffer policy). This is a conservative policy gate for messages
+with incomplete cited evidence. Strong Kleene disjunction itself already
+preserves `Unknown` whenever an unresolved alternative could succeed; the
+gate also covers structural violations raised before all cited evidence arrives.
 
-**Motivation (EPP paper, Limitations; corpus review 2026-07-04).** Today
+**Historical motivation (EPP paper, Limitations; corpus review 2026-07-04).** In the original path,
 `Violation → Reject` is unconditional and a first-pass `Reject` is dropped,
 not buffered, so two endpoints receiving the same messages in different
 orders can diverge permanently in *action* — one dropped a message the
@@ -600,11 +602,11 @@ disagreeing on a resolved verdict. Action convergence requires acting only
 on verdicts that are stable under store growth: `Valid` (sticky) and
 *resolved* `Violation` (permanent from resolution).
 
-**Scope.** This gates the *policy* layer only; the verifier's eager clause
-algebra and its valid-is-sticky monotonicity
-([[SPEC-003-verification-lattice#REQ-304]]) are unchanged.
+**Scope.** This gates the *policy* layer only. It does not change the strong
+Kleene tables in [[SPEC-003-verification-lattice#REQ-303]] or the evidence
+assumptions in [[SPEC-003-verification-lattice#REQ-304]].
 
-**Implementation note (2026-07-04).** The gate is implemented in the agent
+**Historical implementation note (2026-07-04).** The gate is implemented in the agent
 path (`causal_verdict`, `reevaluate_pending`). While implementing
 TEST-355 a model–implementation divergence surfaced: `verify_causal`'s
 `Multiple` arm evaluates only the `(all …)` meet; a multi-hash
@@ -804,7 +806,9 @@ Methods:
     Post-conditions:
       - Valid ⊔ _ = Valid
       - _ ⊔ Valid = Valid
-      - Violation ⊔ Unknown = Violation
+      - Violation ⊔ Unknown = Unknown
+      - Unknown ⊔ Violation = Unknown
+      - Violation ⊔ Violation = Violation
       - Unknown ⊔ Unknown = Unknown
     Implements: disjunction for (any ...) predecessor check
 
@@ -1056,8 +1060,8 @@ Verified by:
 
 ### Pure Core (no I/O, no shared state, deterministic)
 
-- `VerificationResult::meet()` — bisemilattice meet (⊓), returns result
-- `VerificationResult::join()` — bisemilattice join (⊔), returns result
+- `VerificationResult::meet()` — strong Kleene conjunction (⊓), returns result
+- `VerificationResult::join()` — strong Kleene disjunction (⊔), returns result
 - `VerificationResult::is_resolved()` — threshold test, returns bool
 - `verify_causal()` — lookup(s) + set membership, returns VerificationResult (reads message store but does not mutate)
 
@@ -1101,7 +1105,7 @@ Trace: REQ-302
 
 ### TEST-303: Meet and Join Tables
 
-Exhaustively verify the 3×3 meet table and 3×3 join table from REQ-303. 18 cases total.
+Exhaustively verify the meet and join tables from [[SPEC-003-verification-lattice#REQ-303]], including both orders of `Unknown ⊔ Violation = Unknown`. Check identities (`Valid` for meet, `Violation` for join), absorption, distributivity and knowledge-order monotonicity at the verdict-class level. Distinct violation payloads must not change the result class; joining two violations preserves the left diagnostic.
 
 Trace: REQ-303
 
@@ -1254,7 +1258,7 @@ Trace: NFR-302
 
 ## Lean 4 Formalisation Targets
 
-*(This section predates the mechanisation and is retained as the original plan. [[SPEC-005-lean-mechanisation]] records what was actually built: a `BoundedBisemilattice` typeclass for the verdict operations and a "valid-is-sticky" preorder `⊑` for monotonicity — see SPEC-005 ADR-510 for why Mathlib's lattice hierarchy does not apply.)*
+*(Historical implementation plan. Current formal contracts are in [[SPEC-005-lean-mechanisation#REQ-510]]: a `BoundedDistribLattice` in the truth order and a distinct knowledge-order meet-semilattice. The existing verifier monotonicity theorem uses the weaker "valid-is-sticky" preorder `⊑`.)*
 
 The formalization is designed to support a Lean 4 mechanised proof. The proof structure:
 

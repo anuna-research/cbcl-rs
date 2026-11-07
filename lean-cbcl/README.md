@@ -292,3 +292,135 @@ lake env lean MultiParentLivenessAudit.lean
 
 The queue, fairness and scheduler-finality capstones are included in the main
 axiom audit and use only the same standard Lean axioms as the existing proofs.
+
+
+## Explicit HLC arbitration
+
+`LeanCbcl/HlcRegister.lean` proves soundness/completeness of greatest-candidate
+selection under lexicographic physical/logical/signer/address ordering, uniqueness
+under address consistency, and invariance under candidate-set equality. Separate
+component theorems compose arbitration with verb, current-own and current-keyed
+selections. The model consumes typed numeric evidence; the signer rank is an
+order-preserving abstraction of byte order. It proves neither honest clock
+generation, wire/Rust correspondence, resource finality nor a whole-clause kernel
+correctness theorem. The public component theorems are in `AxiomAudit.lean`.
+
+
+## Whole typed state-kernel correctness
+
+`LeanCbcl/StateKernelClause.lean` composes independent denotations for all 16
+surface heads into an arbitrary finite clause theorem. `compile_clause_complete`
+accepts every independently well-formed supported clause; `whole_kernel_correct`
+proves successful evaluation meets its independent surface meaning;
+`well_formed_kernel_correct` combines these for unique-address accepted stores.
+Domains, replacement sources, HLC/address choice, finite map support, events,
+histograms, sums and established protocol progress are covered. Component map
+completeness is extensional: key order and reads outside support are irrelevant.
+
+The bounded-counter part preserves typed verifier tags and computes ready budget
+observations. Verifier classification and resource-DAG validation remain outside
+this proof. Parsing, installation checks, canonical rendering, clock honesty and
+Rust equivalence are also separate obligations. This is denotational correctness,
+not a universal business-refinement or liveness result. See SPEC-036 and
+`proofs/state-kernel/state-kernel-verification.md` for the exact inventory and checks.
+
+```sh
+lake build
+lake exe runLinter LeanCbcl
+../scripts/check-axioms.sh
+python3 ../scripts/check-state-kernel.py
+```
+
+
+## Conditional strong eventual consistency
+
+`StateKernelSEC.lean` proves equal accepted sets give extensionally equal
+observations for every expression and arbitrary compiled clauses. Its shared
+`Context` fixes the dialect interpretation and requires causal/resource evidence
+providers to respect set equality. Store merge is set union and is associative,
+commutative and idempotent modulo membership; duplicate insertion preserves
+observations. These merge laws do not reconcile conflicting addresses or prove
+that a runtime can bypass admission when merging received data.
+
+`StateKernelDelivery.lean` uses the existing `StateRefinement.Behavior`, including
+receipt, pending candidates, acceptance, rejection, waiting and idle steps. Under
+eventual receipt, continuously enabled transition fairness, finite lower-ranked
+dependencies, dependency-based admission and no false rejection, it proves:
+
+- `eventual_acceptance`: every valid act eventually enters and remains accepted.
+- `eventual_dissemination`: an accepted act eventually reaches another compliant replica.
+- `finite_history_stabilizes`: a complete finite history eventually equals each accepted set.
+- `strong_eventual_consistency`: any two compliant replicas agree at all sufficiently late times.
+
+Fairness schedules actual acceptance-labelled transitions; acceptance membership
+is derived from `Step`. `StateKernelSECTests.lean` supplies a nonempty two-act
+replica with out-of-order receipt, and an otherwise legal starving execution
+excluded by fairness. A growing unique-address snapshot sequence demonstrates
+that ongoing writes need not produce a final count; this is not an instantiated
+infinite replica execution.
+
+These are conditional typed-model results. Admission obligations, transport,
+resource classification/finalization and Rust correspondence remain separate.
+A shared evidence provider is required: two unrelated individually extensional
+providers are insufficient. See SPEC-037 and
+`proofs/state-kernel-sec/state-kernel-sec-verification.md`.
+
+```sh
+python3 ../scripts/check-state-kernel-sec.py
+```
+
+## Cached checkpoint continuation
+
+`CheckpointAll.render_advance_checkpoint` proves the continuation law for all
+16 native state rule heads. `render_advance_wellformed_clause` and
+`resolve_fields_complete` connect every well-formed, domain-free native clause
+with distinct field names to the existing ordered compiler and evaluator.
+Histogram/sum resolve earlier map sources; events use selected ID/signer/value
+records. The earlier seven-head `CheckpointKernel` proof remains a dependency and
+historical profile, rather than the limit of the new theorem.
+
+```text
+render(advance(checkpoint(fields, history), tail))
+  = fullFold(fields, history ++ tail)
+```
+
+The theorem derives the continuation invariant from genesis and actual updates.
+It does not take the desired law as a premise. Snapshot data contains finite
+rows, identity membership and projected protocol/resource facts, with no retained
+full-history closure. Sets and maps are compared as semantic values; enumeration
+order, JSON bytes and serialized checkpoint digests remain separate boundaries.
+
+`CheckpointData` proves compact exists/count/counter/set-union and projected event
+invariants. `CheckpointSummary` proves replacement-sensitive live rows and pending
+references, including delayed targets and duplicate coverage. `CheckpointCompact`
+proves bounded initial ambiguity witnesses and the plain HLC winner. Map rules
+retain losing unreplaced candidates because deleting a winner may expose a loser.
+
+`CheckpointEvidence` proves exact projected evidence transport and native
+`Repeat.resolve` continuation. `CheckpointAll.position_advance_checkpoint` exposes
+that result directly. The Rust repeat cache requires native-admitted, causally
+closed histories; the model's arbitrary metadata histories are a broader domain.
+Resource facts are transported through the same fixed classifier port on both
+sides, as in the existing native kernel model. Native resource extraction,
+classification/finalization and cryptography are explicit obligations outside
+this theorem; object certificates never create spend authority. The shared Rust
+escrow verifier factorization and bounded parity tests provide correspondence
+evidence, not a universal Rust extraction proof.
+
+Clock decoding and signer ordering remain fixed typed ports. Domains and global
+all-occupant fan-in remain outside the checkpoint implementation profile. Output,
+event metadata, protocol facts and resource facts can grow with their respective
+state; the theorem makes no constant-storage or resource-verification-time claim.
+
+```sh
+lake build LeanCbcl
+lake exe runLinter LeanCbcl
+lake env lean -t 0 LeanCbcl/CheckpointAllTests.lean
+../scripts/check-axioms.sh
+python3 ../scripts/check-checkpoint-all16.py
+```
+
+See the [checkpoint validation guide](../proofs/cached-checkpoints/README.md)
+for recorded acceptance, reproducible trust-zero checks and the exact scope of
+bounded Rust/Lean correspondence. Detailed reports are generated locally and
+are not checked in.

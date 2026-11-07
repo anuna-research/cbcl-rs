@@ -1,6 +1,6 @@
 ---
 mode: explanation
-status: implemented
+status: merged-kernel-revalidation-in-progress
 ---
 # Halo2 state checkpoints
 
@@ -15,8 +15,29 @@ depends on it, optionally, behind the `state-proof` feature.
 
 This is an experimental cryptographic artefact. It is not independently
 audited and not approved for production use. The status line above follows
-the specification's status and does not record a cryptographic review. See the
-open items at the end.
+the specification's status. The merged native-kernel refresh is awaiting its
+parity, proof, golden-vector and review gates; the earlier implementation pass
+is historical evidence. See the open items at the end.
+
+The native kernel now exposes 16 rule heads, including immutable `initial` and
+explicit host-HLC `lww-*` rules. This crate compiles the installed kernel's
+admission/fold results into finite proof tables; it does not implement the whole
+kernel in Halo2 gates. Role-declaring dialects remain unsupported, and the public
+candidate vocabulary is still limited to eight messages. The bounded profile
+covers the 15 role-free heads: native `bounded-counter` requires an authenticated
+role cast and is rejected as an entire profile, not partially proved. Native semantic changes
+require refreshed profile identities, keys and golden expectations.
+
+For large-history opening, the separate
+[member-certified cache runtime](../cbcl-checkpoint/README.md) maintains projected
+summaries and authenticates continuation under a pinned endorser policy. Its
+all-head typed Lean continuation theorem is not a Halo2 proof, and a Halo2 proof
+here does not replace its local-floor, evidence or durability checks. Neither
+path supplies global freshness or resource authority.
+Jolt remains an experimental backend alternative on the existing experiment
+branches. Keeping this Halo2 implementation does not select a large-history
+backend or establish a fair performance comparison with Jolt.
+
 
 Run the example from the repository root:
 
@@ -24,8 +45,8 @@ Run the example from the repository root:
 RAYON_NUM_THREADS=2 cargo run -p cbcl-state-proof --example checkpoint --release
 ```
 
-The example uses public conformance messages: an opener, a register write, and
-its replacement. It independently builds prover and verifier profiles and keys,
+The example uses public conformance messages: an opener, an explicit HLC register
+write, and its replacement. It independently builds prover and verifier profiles and keys,
 serializes a proof, verifies it, and checks that changing the state root fails.
 The output separates setup costs from proving and verification with cached
 keys, then compiles an eight-candidate profile and reports its circuit size
@@ -93,8 +114,9 @@ the exact batch difference. The table constants and wiring are independent of
 the prover's witness. A proof cannot substitute a different table or policy
 key. The SHA-256 roots are constrained table outputs, not unconstrained values
 from a prover's native admission call. This makes the proof an executable
-bounded specialisation of CBCL semantics, not a reimplementation of the kernel
-in gates.
+bounded specialisation of the current native semantics. Immutable opener data,
+HLC arbitration, explicit replacements and native resource fault behavior remain
+kernel-defined; a bounded table proof does not establish new authority rules.
 
 ## Authentication boundary
 
@@ -174,26 +196,37 @@ proof. `Proof::to_json`, `Proof::from_json`, `Chain::to_json` and
 
 ## Semantics version
 
-`SEMANTICS_VERSION` is the public constant naming the kernel revision whose
-admission and fold semantics a profile identity binds. `relation_domain` is
-crate-internal; it builds the identity's hash domain
-`cbcl-state-proof/relation-v1/<SEMANTICS_VERSION>`, so two profiles
-compiled from the same dialect, thread and candidates under different versions
-have different identities and their proofs do not verify against each other.
+`SEMANTICS_VERSION` is `d1a093d`, the merged native-kernel revision that includes
+`3186cea`, the sixteen-head vocabulary, typed HLC ordering, unique-opener
+`initial`, and native progress/resource address-alias corrections. The old
+`c9093e8` relation and its keys are incompatible with this profile.
 
-`test-vectors/state-proof/signer-supersession.json` pins the identity, every
-valid checkpoint and one statement for the signer-supersession fixture. The
-test `golden_vector_matches_compiled_profile` recompiles and compares. When a
-change to admission or fold semantics makes it fail:
+`relation_domain` builds `cbcl-state-proof/relation-v1/<SEMANTICS_VERSION>`.
+The version binds the profile identity, which in turn binds accepted-set/state
+roots and verifier-owned circuit tables. Tests reject stale-version proof
+statements and chain headers even if their package is otherwise well formed.
+Authentication, Boolean selection, transition constraints and receiver-owned
+chain expectations are unchanged.
 
-1. Confirm the semantic change is intended; the test is the alarm, not the bug.
-2. Bump `SEMANTICS_VERSION` in `src/profile.rs` to the new base revision.
-3. Regenerate the vector:
+The compiler delegates to the installed native admission/fold pipeline; it
+contains no seven-rule whitelist. Its existing role-free restriction remains:
+well-formed native bounded-counter dialects require a role cast and therefore
+cannot be used in this Halo2 profile. This is distinct from the member-certified
+checkpoint implementation's sixteen-rule adapters.
+
+`test-vectors/state-proof/signer-supersession.json` pins the current profile,
+every valid checkpoint and one statement. HLC/replacement and opener tests also
+compare the bounded relation directly with the installed native fold. To update:
+
+1. Confirm that the semantic change is intended.
+2. Bump `SEMANTICS_VERSION` to the new native-kernel revision.
+3. Regenerate with
    `cargo test -p cbcl-state-proof -- --ignored write_golden_vector`.
-4. Commit the constant, the vector and the code together, and record the
-   reason for the semantic change in the commit message.
+4. Review the pin, generated vector and semantic tests together.
 
-Never edit the vector by hand, and never regenerate it without a version bump.
+Never hand-edit commitment values or regenerate without a version bump. A
+successful table proof does not establish signature verification, resource
+finality, or large-history performance.
 
 ## Resource limits
 
@@ -264,8 +297,13 @@ Open items, owned by the CBCL maintainer unless stated:
 RAYON_NUM_THREADS=2 cargo test -p cbcl-state-proof --locked -- --test-threads=1
 cargo fmt --all --check
 cargo clippy -p cbcl-state-proof --all-targets --locked -- -D warnings
-python3 scripts/state-proof-mutations.py
+python3 scripts/state-proof-mutations.py --output-dir /tmp/cbcl-state-proof-mutations
 ```
+
+Without `--output-dir`, generated mutation reports and logs go to the ignored
+`outputs/state-proof-mutations/` directory. The command above keeps this run in
+`/tmp`; retain a concise outcome and source/version binding in documentation
+rather than adding generated raw logs to the repository.
 
 Tests include a real serialized proof, independent verifier setup, commitment
 and transcript tampering, invalid and pending candidates, state comparison
@@ -278,8 +316,11 @@ state binding, the previous-context admission constraint, the final transition
 total constraint and the chain continuity check; named tests must execute and
 fail, rather than merely fail to compile.
 
-The implementation evidence record is
+The historical implementation evidence record is
 [docs/evidence/SPEC-035-halo2-state-checkpoints.md](../../docs/evidence/SPEC-035-halo2-state-checkpoints.md).
+Its earlier pass and experiment timings do not establish current merged-kernel
+acceptance or the cached path's performance. Refreshed checks must bind the current
+semantics version and native corpus before revalidation is marked complete.
 The experiment scope is recorded in `experiments/state-proof/BRIEF.md`;
 observed results and review limitations are recorded in
 `experiments/state-proof/RESULTS.md`. This is an experimental cryptographic

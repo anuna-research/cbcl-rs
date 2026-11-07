@@ -24,7 +24,9 @@ pub const MAX_CANDIDATES: usize = 8;
 /// Kernel semantics revision bound into every profile identity. Bump it, and
 /// regenerate `test-vectors/state-proof/*.json`, when admission or fold
 /// semantics change (README, "Semantics version").
-pub const SEMANTICS_VERSION: &str = "c9093e8";
+// d1a093d includes the native sixteen-head kernel from 3186cea, typed HLC,
+// unique-opener initial(), and native progress/resource identity-alias fixes.
+pub const SEMANTICS_VERSION: &str = "d1a093d";
 /// Identity domain `cbcl-state-proof/relation-v1/<version>`.
 pub(crate) fn relation_domain(version: &str) -> Vec<u8> {
     format!("cbcl-state-proof/relation-v1/{version}").into_bytes()
@@ -106,7 +108,10 @@ fn hash(domain: &[u8], parts: &[&[u8]]) -> [u8; 32] {
     h.finalize().into()
 }
 impl Profile {
-    /// Compile the full bounded relation using the installed CBCL semantics.
+    /// Compile the full bounded relation using the current installed native
+    /// kernel (including typed HLC and unique-opener initialization). There is
+    /// no obsolete state-rule whitelist. The role-free restriction still
+    /// excludes resource counters, whose native declarations require a cast.
     /// SIMPLIFY: exponential at <=8 candidates; replace enumeration with a
     /// constrained incremental admission/fold kernel before extending this bound.
     /// Trace: experiments/state-proof/BRIEF.md, scope and P5.

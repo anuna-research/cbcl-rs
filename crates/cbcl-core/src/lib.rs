@@ -128,3 +128,6 @@ pub mod prelude {
 
 /// Consensus-free quorum-budget runtime.
 pub mod quorum;
+
+/// Pure host-supplied hybrid logical clock evidence (SPEC-035).
+pub mod hlc;

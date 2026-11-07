@@ -1,35 +1,35 @@
 {
   "version": 1,
-  "semantics_version": "c9093e8",
+  "semantics_version": "d1a093d",
   "fixture": "test-vectors/state/signer-supersession.json",
   "thread": "s1",
   "candidates": 3,
-  "profile": "6c09fe84bd408e7ee2331dab22d51231deb929c50a4876f931b94aefee22fa36",
+  "profile": "46d7dfcd1d46703555f1153d975734811a4a1c660797a2a07d5c7d8d6e805cea",
   "checkpoints": {
     "0": {
-      "accepted": "fd6b1fce5b2b1a0e0817480cf2c49a4fb6e587f86ba5638f4e9ec119aeb64953",
-      "state": "6ff78d85704721c491c9df58b10b8fe375630fa4a614708c643962ea1d91f408"
+      "accepted": "3bea6a2f6063a640a5a32950471500020f4d41d46bfd5607e6c9b97b90050b80",
+      "state": "ceeffc84426822c58774109c14c542e5a8c69e2b3149154ac9e7ce3ccc564c99"
     },
     "4": {
-      "accepted": "c17dcac223f0302c35d0cb8be1fd67f1242cecc5c3e5fe33440f473abd775f34",
-      "state": "e940cd7df2c9d672892e5b90b4047869f2ac3bfeb679a1d23d4456f0727dceb7"
+      "accepted": "39b28da029d25e193b4d713d7e1d1d345fc24e0e4826383e1ff0caaeceb4fb27",
+      "state": "06642c73eb2d86336022d9bd6246778891d223627c027275c015709a045b9753"
     },
     "5": {
-      "accepted": "ac01e93759920686f808f366cb8e8b153ba763a1557a910f15994d8ab248ac0c",
-      "state": "6ccb17553d21312c1d3fa6b2848a5a8cac4bbb5dd6b645c067f00813f85792a4"
+      "accepted": "caa2d25b8db387fe43d1f838fe4a5b6e730cf3591f5694a9655e2b35eb403295",
+      "state": "a70a333e1d45b9963b8662411aa971237ee6fca4725747113d9ac7c134b77b8f"
     },
     "6": {
-      "accepted": "be4309851676e443da2e5b60f839786e6723b85b85af276e411a6c3783469097",
-      "state": "bd526fb507514c46c86216061467607399f3297af7d2707fbe26a603e9ee8d69"
+      "accepted": "d7b498c368bc19175c6bec8aeec3a994afbf7966bf0fda76e5b3df63f193945c",
+      "state": "4ee62a3fa43be6cc51d4ae183a17a66e41037f599c0f60b3dadf8614c0da416f"
     },
     "7": {
-      "accepted": "1727820d701ba5f08053dbf8cb46d10dcda3059fbdc1d63182e2d13a8fede8f0",
-      "state": "0d0a43f20642a093160fa82d001b1548bf971b4e12c19318d594f2b14eeb9a53"
+      "accepted": "78d19051c111bf9c0f5f6e17645720d6e1e871e8a984a501f8a7b2395840aeea",
+      "state": "a37840cac8f2e5fc7bb45e9be0e1a9dc3d65bfb78ea19475cf640c21042a8616"
     }
   },
   "statement": {
-    "before": "6",
+    "before": "5",
     "after": "7",
-    "batch": "afad4d323de2f046543a25a7e41f6275bfbf5ddf4f68135e6fe0517c5ec582c9"
+    "batch": "f3035a57fb6108cc6de81ce4420792b5edd1084d84b007b5f01e3b4a08bd067d"
   }
 }

@@ -1,0 +1,72 @@
+{
+  "spec": "SPEC-035 ADR-3504 / REQ-3506",
+  "parent": "47ca59b",
+  "branch": "draft/state-register-semantics",
+  "type": "hlc",
+  "wire": "canonical existing string encoding",
+  "type_count": 7,
+  "state_heads": 16,
+  "corpus_version": "4.0.0",
+  "canonical_version": 5,
+  "checks": [
+    {
+      "command": "cargo test -q -j 2 -p cbcl-core -p cbcl-parser -p cbcl-ffi -p cbcl-erl --locked",
+      "result": "pass with test/dev debug=0; initial disk-space link failure repaired by cleaning generated package artifacts"
+    },
+    {
+      "command": "cargo test -p cbcl-parser --test hlc_type",
+      "result": "3 passed"
+    },
+    {
+      "command": "cargo check --workspace --locked",
+      "result": "pass"
+    },
+    {
+      "command": "cargo check -p cbcl-core -p cbcl-parser --no-default-features --locked",
+      "result": "pass"
+    },
+    {
+      "command": "npm run build:wasm; npm run check",
+      "result": "pass"
+    },
+    {
+      "command": "node --experimental-strip-types --test test/hlc.test.ts test/corpus.test.ts test/object.test.ts test/verifier.test.ts",
+      "result": "27 passed"
+    },
+    {
+      "command": "lake build",
+      "result": "unchanged typed proofs build; 130 jobs; no new Lean wire/type-decoding theorem"
+    },
+    {
+      "command": "scripts/check-hlc-register-mutations.py",
+      "result": "7 killed runtime/model mutants including hlc-type-accepts-any-string"
+    },
+    {
+      "command": "compare parent corpus messages/intents/expect",
+      "result": "unchanged; contract type declarations only"
+    },
+    {
+      "command": "usdd-lint.sh specs/SPEC-035-register-semantics.md",
+      "result": "0 errors, 3 sentence warnings"
+    },
+    {
+      "command": "git diff --check; cargo fmt --all -- --check",
+      "result": "pass"
+    }
+  ],
+  "source_sha256": {
+    "crates/cbcl-core/src/shape.rs": "adc96ff73a45cfc62021a6c4bf9965290adbfe3e83439ec9ba7b37c9607f3e57",
+    "crates/cbcl-core/src/canonical.rs": "1fafe134288354fb948934ae238a4d442e493653e1fec625afe54d25e965649a",
+    "crates/cbcl-core/src/state.rs": "b6d12b3502474125ec4d41146afeb86c42b526dc1e9b1122dd3b52547180c1db",
+    "crates/cbcl-core/src/r7.rs": "4a7b50e291f15e03502e63e464917b7b1fc752fba4e4d885407c0aca3f652c00",
+    "crates/cbcl-parser/src/contract.rs": "bc8054ce96e98f2fe2e6c0ab302badd46f17739f1ce13dfc30bc0638763b87ca",
+    "crates/cbcl-parser/tests/hlc_type.rs": "e7598835c5956ef9cfaf5892356b629d9fe77453adf66dd25c3435c459fb7643",
+    "js/src/object/compile.ts": "773b50f8ae10056e0448446e7c29a8656fdc1ec6b92cb8ac96d7f110520c204e"
+  },
+  "boundaries": [
+    "clock syntax only, no honest/fresh/monotonic time proof",
+    "exact declaration compatibility, no implicit subtype coercion",
+    "existing typed Lean boundaries unchanged",
+    "resource authorization/finalization and universal Rust correspondence remain separate"
+  ]
+}

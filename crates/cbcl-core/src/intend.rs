@@ -495,7 +495,7 @@ fn intend_impl(
     let bounds = bounds_of(d);
     let mut replaces: Option<Vec<String>> = None;
     for (_, rule) in clause.fields() {
-        if let Rule::LatestPerSigner { verb: writer, .. } = rule {
+        if let Rule::LwwPerSigner { verb: writer, .. } = rule {
             if writer == verb {
                 let mut addrs: Vec<String> =
                     crate::state::current_by_signer(clause, inst.acts, writer)
@@ -521,7 +521,7 @@ fn intend_impl(
                 delete,
                 ..
             }
-            | Rule::RegisterPerKey {
+            | Rule::LwwMap {
                 verb: w,
                 key,
                 delete,
@@ -557,7 +557,7 @@ fn intend_impl(
                 },
             }
         };
-        let current = current_writes(clause, protocol, inst.acts, writer, key, delete);
+        let current = crate::state::current_writes(clause, inst.acts, writer, key, delete);
         let mut addrs: Vec<String> = current
             .iter()
             .filter(|a| mine(a))
@@ -569,7 +569,8 @@ fn intend_impl(
         if !is_delete {
             if let Some(dv) = delete {
                 // Current deletions for the key: deletions no later write names.
-                let deletions = current_writes(clause, protocol, inst.acts, dv, key, Some(writer));
+                let deletions =
+                    crate::state::current_writes(clause, inst.acts, dv, key, Some(writer));
                 addrs.extend(
                     deletions
                         .iter()
@@ -777,49 +778,6 @@ fn intend_impl(
         }
         other => Err(Reject::NotValid(other)),
     }
-}
-
-/// The current writes of a register or the live additions of an observed
-/// set, as the binder sees them (shared with the fold's `current`).
-fn current_writes<'a>(
-    clause: &StateClause,
-    protocol: &crate::protocol::CausalProtocol,
-    acts: &'a [Act],
-    writer: &str,
-    key: Option<&str>,
-    delete: Option<&str>,
-) -> Vec<&'a Act> {
-    let _ = (clause, protocol);
-    let writes: Vec<&Act> = acts.iter().filter(|a| a.verb == writer).collect();
-    let mut replacers: Vec<&Act> = writes.clone();
-    if let Some(dv) = delete {
-        replacers.extend(acts.iter().filter(|a| a.verb == dv));
-    }
-    let key_of = |a: &Act| -> String {
-        match key {
-            Some(k) => a
-                .fields
-                .get(k)
-                .map(|v| Value::from_sexpr(v).render())
-                .unwrap_or_default(),
-            None => String::new(),
-        }
-    };
-    let mut replaced: BTreeSet<(String, String)> = BTreeSet::new();
-    for r in &replacers {
-        if let Some(SExpr::List(items)) = r.fields.get(RESERVED_REPLACES) {
-            let k = key_of(r);
-            for item in items {
-                if let SExpr::Atom(Atom::Symbol(a)) | SExpr::Atom(Atom::Str(a)) = item {
-                    replaced.insert((k.clone(), a.clone()));
-                }
-            }
-        }
-    }
-    writes
-        .into_iter()
-        .filter(|w| !replaced.contains(&(key_of(w), w.address.clone())))
-        .collect()
 }
 
 /// The canonical text of an act, as the host signs it.

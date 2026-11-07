@@ -1,0 +1,75 @@
+; id: IMPL-028
+; title: Compact checkpoint continuation proof and native-kernel boundary audit
+; status: formal verification in progress
+; tier: 1
+; Governing law: [[SPEC-035-cached-state-checkpoints#REQ-3515]].
+; Acceptance gate: [[SPEC-035-cached-state-checkpoints#TEST-3519]].
+;
+; Orientation: rowproof and compactproof establish sufficient retained state
+; independently; composition connects every supported field to the existing
+; typed native kernel. Bridge checks the Rust/model correspondence boundary;
+; audit requires independent proof/assumption review before formal acceptance.
+; The runtime summary cannot carry or close over all original history bodies.
+; Native CBCL.State.Act and CBCL.StateKernelClause meanings are reference types.
+; Completed IMPL-027 runtime tasks are not evidence that these proof tasks passed.
+;
+; Planning ledger (owner / observable TEST-3519 acceptance / prerequisites):
+; rowproof: kernel proof maintainer / live+pending invariant, duplicate and pruning
+;   lemmas instantiated to native acts, checked without placeholders / none.
+; compactproof: compact-rule proof maintainer / bounded Initial witnesses and plain
+;   LWW recognized maximum linked to existing native semantics / none.
+; composition: kernel proof maintainer / complete supported-rule render/advance
+;   theorem over shared identity coverage / rowproof + compactproof.
+; bridge: state-kernel conformance maintainer / independently derived parity vectors
+;   and counterexamples, with extraction/codec/crypto exclusions / composition.
+; audit: independent reviewer / checked theorem dependencies and non-circularity,
+;   source-bound Lean build and bridge evidence, explicit residual trust / composition + bridge.
+;
+; Extend ONLY the existing spec-035-cached-checkpoints theory, one form per assert.
+; Reuse its task/ready/completed/no-deps/verified built-ins and its already declared
+; task-description/2 and task-acceptance/2. Document those declarations; do not
+; redefine predicates or infer proof completion from the old acceptance task.
+(meta (predicate task-description 2) (description "Work statement and producing role for an existing task; consumed by elephant next"))
+(meta (predicate task-acceptance 2) (description "TEST-derived observable completion evidence for an existing task; consumed by elephant next"))
+
+(given (task rowproof))
+(given (task-description rowproof "Kernel proof maintainer: prove scoped live/pending sufficient-state invariants in CheckpointSummary using native typed acts, with duplicate suppression and pending pruning"))
+(given (task-acceptance rowproof "[[SPEC-035-cached-state-checkpoints#TEST-3519]] row gate: pinned Lean kernel checks base/advance invariant and native-kernel instantiation for scoped replacements, late and non-state arrivals, duplicate identity and cross-scope pruning; no history cache, sorry or custom axioms"))
+(given (no-deps rowproof))
+(normally r-ready-rowproof (and (task rowproof) (no-deps rowproof)) (ready rowproof))
+(meta r-ready-rowproof (source "SPEC-035-cached-state-checkpoints#REQ-3515"))
+(normally r-done-rowproof (and (ready rowproof) (verified rowproof)) (completed rowproof))
+(meta r-done-rowproof (source "SPEC-035-cached-state-checkpoints#TEST-3519"))
+
+(given (task compactproof))
+(given (task-description compactproof "Compact-rule proof maintainer: prove bounded Initial uniqueness/ambiguity witnesses and plain LWW-register recognized-maximum continuation in CheckpointCompact"))
+(given (task-acceptance compactproof "[[SPEC-035-cached-state-checkpoints#TEST-3519]] compact gate: kernel-checked bounded witnesses and maximum lemmas instantiate existing native Act and rule meaning, without storing ghost history computationally or assuming keyed replacement-sensitive rules are winner-only"))
+(given (no-deps compactproof))
+(normally r-ready-compactproof (and (task compactproof) (no-deps compactproof)) (ready compactproof))
+(meta r-ready-compactproof (source "SPEC-035-cached-state-checkpoints#REQ-3515"))
+(normally r-done-compactproof (and (ready compactproof) (verified compactproof)) (completed compactproof))
+(meta r-done-compactproof (source "SPEC-035-cached-state-checkpoints#TEST-3519"))
+
+(given (task composition))
+(given (task-description composition "Kernel proof maintainer: compose row and compact-rule lemmas into the complete supported-clause render/advance theorem against unchanged native kernel meanings and one shared accepted identity set"))
+(given (task-acceptance composition "[[SPEC-035-cached-state-checkpoints#TEST-3519]] composition gate: all Initial, Values, ValuesPerKey, ObservedSet, LwwRegister, LwwPerSigner and LwwMap fields preserve render(advance(summary(H),tail))=fold(H union tail), duplicates and pending pruning; no assume-advance-correct hypothesis or redefined reference fold"))
+(normally r-ready-composition (and (task composition) (completed rowproof) (completed compactproof)) (ready composition))
+(meta r-ready-composition (source "SPEC-035-cached-state-checkpoints#REQ-3515"))
+(normally r-done-composition (and (ready composition) (verified composition)) (completed composition))
+(meta r-done-composition (source "SPEC-035-cached-state-checkpoints#TEST-3519"))
+
+(given (task bridge))
+(given (task-description bridge "State-kernel conformance maintainer: connect the typed proof model to the Rust summary using independently derived native-kernel vectors and hostile counterexamples"))
+(given (task-acceptance bridge "[[SPEC-035-cached-state-checkpoints#TEST-3519]] bridge gate: independent per-rule/composed vectors cover normalized duplicate identities, cross-scope and late replacements, non-state pruning and removal revealing an LWW loser; suppression/duplicate/pruning counterexamples fail broken transitions; extraction, serialization, admission and crypto remain explicit unproved boundaries"))
+(normally r-ready-bridge (and (task bridge) (completed composition)) (ready bridge))
+(meta r-ready-bridge (source "SPEC-035-cached-state-checkpoints#REQ-3515"))
+(normally r-done-bridge (and (ready bridge) (verified bridge)) (completed bridge))
+(meta r-done-bridge (source "SPEC-035-cached-state-checkpoints#TEST-3519"))
+
+(given (task audit))
+(given (task-description audit "Independent reviewer: audit the actual compact data representation, theorem hypotheses, native semantic instantiation, transitive proof assumptions and Rust/model boundary evidence"))
+(given (task-acceptance audit "[[SPEC-035-cached-state-checkpoints#TEST-3519]] audit gate: independently review source-bound successful Lean build and complete bridge evidence; no sorryAx, admit, custom axioms, hidden whole-history cache, tautological fold/render definitions or assumed advance correctness; enumerate standard foundations and exclude Rust/admission/serialization/crypto verification claims"))
+(normally r-ready-audit (and (task audit) (completed composition) (completed bridge)) (ready audit))
+(meta r-ready-audit (source "SPEC-035-cached-state-checkpoints#REQ-3515"))
+(normally r-done-audit (and (ready audit) (verified audit)) (completed audit))
+(meta r-done-audit (source "SPEC-035-cached-state-checkpoints#TEST-3519"))

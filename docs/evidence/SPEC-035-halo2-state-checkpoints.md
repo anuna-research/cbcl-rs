@@ -12,6 +12,52 @@ Generating model for the specification and orchestration: Claude Fable 5.1
 attempts run through Circus with `circus-driver-claude` (one-shot Claude Code);
 each attempt's own evidence file is under `docs/evidence/circus/`.
 
+## Current-kernel integration — 2026-11-07
+
+The `feat/spec-035-state-checkpoints` integration incorporates
+`feat/cached-state-checkpoints` at `d1a093d` and main at `3186cea`.
+The Halo2 semantics pin is now `d1a093d`; its golden vector was regenerated
+through the native profile compiler. Older `c9093e8` profiles are rejected.
+Address-derived test cuts replace assumptions about candidate bit positions.
+New coverage compares all valid subsets of a 15-rule role-free fixture with
+the native fold, including deletion, retirement, typed HLC ordering, and
+initial-rule ambiguity. Role-bearing bounded counters remain outside the
+Halo2 profile; the separate cached-checkpoint path covers all 16 rules.
+
+Executed validation (Codex integration session):
+
+- Complementary all-feature workspace suite, excluding the separately tested
+  proof crate: 1,696 passed, zero failed, 36 ignored.
+- Halo2 library: 58 passed, zero failed, one ignored golden generator;
+  the generator was also executed successfully to refresh the vector.
+- CLI checkpoint integration: three passed, exercising actual proofs,
+  sequential chains, transcript/state tampering and verifier expectations.
+- Proof doctest, both examples, and both proof fuzz-target builds passed.
+- Workspace Clippy with all targets/features and warnings denied, plus format
+  checks, passed.
+- Lean library build and linter passed; axiom check passed with 423 allowlisted
+  entries. The core kernel and Lean kernel sources match the incoming cached
+  branch. This does not establish Lean correspondence for the Halo2 circuit.
+- Checkpoint crate without default features passed the WASM target check.
+- All four named mutations were killed by executed failing assertions:
+  unbound after-state, missing admission transition, missing transition total,
+  and unchecked chain continuity. Source restoration was verified afterward.
+
+An independent reviewing session reran the 58-test Halo2 library suite,
+reviewed the adapter, regenerated vector, CLI and fuzz changes, and found no
+further concrete correctness or security defect within this bounded scope.
+It checked candidate-address cuts, nonvacuous rule fixtures, typed clocks,
+version rejection and caller expectations. Its six reviewed file hashes
+matched the final sources after mutation restoration. The reviewer disclosed
+earlier work on cached resource dependencies, separate from this Halo2 delta.
+Generated review reports and execution logs remain outside tracked sources.
+
+The first broader build exhausted local disk while linking; after removing
+rebuildable incremental caches, affected checks were rerun successfully.
+No backend comparison establishes Halo2 superiority over Jolt/Akita. Human
+cryptographic review, production authorisation, recursive composition and the
+Halo2 candidate ceiling remain open as recorded in the specification.
+
 ## Specification review (TEST-3510, spec stage)
 
 ### Comprehension gate

@@ -5,30 +5,61 @@ mode: explanation
 
 # State checkpoint
 
-A checkpoint names one accepted set of a CBCL thread by two commitments: the set root and the state root of its native fold.
-A checkpoint proof lets a party that trusts one checkpoint accept a later one without replaying the messages between them.
-The proof states that the accepted set grew by exactly the committed batch, that every added message was admitted against the previous set under the installed dialect, and that the new state is the native fold of the new set.
+A state checkpoint binds an accepted cut of a CBCL thread to its state. The
+repository has two opt-in paths with different trust and scaling boundaries.
+Both use the current native state kernel, whose 16 heads include immutable
+`initial`, conflict-preserving registers/maps and explicit host-HLC `lww-*` rules.
+A timestamp orders eligible state writes; it does not authorize protocol steps
+or resource spending.
 
-The relation is compiled by the verifier, not proved in gates.
-For a public vocabulary of at most eight candidate messages, the verifier runs the native kernel over every subset and every monotone pair of subsets and records which are valid and admitted, with their roots.
-The circuit then proves only exact membership: Boolean selection of a before set and an after set, equality of the public roots with the selected table constants, grow-only membership, the exact batch difference, and that the pair is an admitted transition.
-The native kernel of SPEC-019 stays the single definition of admission and fold; the circuit is a bounded specialisation of it, not a second implementation.
+| Path | What the receiver verifies | Bound or trust premise |
+|---|---|---|
+| [Halo2](../../crates/cbcl-state-proof/README.md) | Exact accepted-set growth and native state in a verifier-compiled finite relation | Role-free dialect; at most eight public candidates; host-authenticated candidates |
+| [Member-certified cache](../../crates/cbcl-checkpoint/README.md) | Native endorsement bundle, projected summary, authenticated tail and returning client's local-history floor | Independently deriving endorsers under the pinned fault policy; native admission and resource authority remain separate |
 
-The verifier owns the expectation.
-A single proof is checked against a statement the receiver chose, never against the statement inside the package.
-A chain is checked link by link from a receiver-pinned start, each link's before checkpoint matched to the running checkpoint, so two valid proofs that do not meet cannot be accepted as one history.
+## Bounded Halo2 proof
 
-The proof is silent on authorship.
-A candidate enters the vocabulary either attested, through its R4 v2 attestation header, or unauthenticated, as a host precondition; both give the same profile identity.
-A host that skips authentication gets a proof that says nothing about who wrote each message, and the proof looks the same either way.
+A Halo2 checkpoint contains accepted-set and native-state commitments. The verifier
+runs the native kernel over every subset and monotone pair of a fixed candidate
+vocabulary. The circuit constrains Boolean selections, selected table roots,
+grow-only membership, the exact batch difference and an admitted transition.
+It proves membership in that verifier-derived relation; it does not implement
+all native rule heads or signature verification in gates.
 
-The ceiling is the enumeration.
-Rows grow as 2^n and transitions as 3^n, so the vocabulary is capped at eight and a new vocabulary needs a new profile and new keys.
-Commitments are flat set roots with no membership paths, so the whole vocabulary is needed to compile a profile and history is retained in the root rather than purged.
-Removing the ceiling needs an incremental constrained kernel over authenticated state paths, and shortening long chains needs recursive composition; both remain open.
-The artefact is experimental and not independently audited.
+The receiver supplies the expected statement. A chain is checked link by link
+from a receiver-pinned start, with each link beginning at the preceding result.
+Candidate authentication is external: R4 v2 attestations can establish the host
+input, while unauthenticated candidates retain a host precondition. The proof
+itself does not distinguish those construction paths.
 
-Requirement: [REQ-3500](../../specs/SPEC-035-halo2-state-checkpoints.md#req-3500-verifier-compiled-relation).
-Contracts: [CON-3500](../../specs/SPEC-035-halo2-state-checkpoints.md#con-3500-profile-compiler), [CON-3501](../../specs/SPEC-035-halo2-state-checkpoints.md#con-3501-circuit-statement), [CON-3503](../../specs/SPEC-035-halo2-state-checkpoints.md#con-3503-verifier-and-chain).
-Decisions: [ADR-3500](../../specs/SPEC-035-halo2-state-checkpoints.md#adr-3500-verifier-derived-finite-relation), [ADR-3505](../../specs/SPEC-035-halo2-state-checkpoints.md#adr-3505-chains-compose-by-sequential-verification-from-a-pinned-start).
-Kernel: [SPEC-019 state rules](../../specs/SPEC-019-state-rules.md).
+Enumeration grows as 2^n rows and 3^n transitions. A new vocabulary needs a new
+profile and keys; flat commitments require the whole vocabulary at compilation.
+Native admission/fold changes require a new semantics pin and regenerated golden
+vector. The historical `c9093e8` pin is not a current-kernel compatibility promise.
+This bounded experiment does not provide constant-cost large-history opening or
+recursive proof composition, and it has no production cryptographic approval.
+
+## Member-certified cached continuation
+
+The cached path maintains summaries and identity coverage during ordinary native
+admission. Each endorser derives the exact cut independently before signing; a
+client verifies the bundle, admits the tail and checks that its previous floor is
+still covered before atomic installation. Prior original signed evidence survives.
+Missing or corrupt offers can fall back within configured work and byte budgets.
+
+Its Profile v2 covers all 16 heads, including projected events, ordered aggregates,
+protocol-position metadata and resource facts. The typed Lean continuation law
+connects these sufficient summaries to the native evaluator over accepted identities.
+It does not turn the bundle into a Halo2 proof or formally verify Rust extraction,
+serialization, cryptographic admission or native resource classification. Growing
+event output and retained selected facts can require growing space.
+
+Neither path establishes global freshness, deletes covered history by itself, or
+grants resource authority. The cached endorser policy and Halo2 proof relation are
+separate mechanisms; one path's acceptance evidence does not certify the other.
+
+Specifications: [bounded Halo2](../../specs/SPEC-035-halo2-state-checkpoints.md),
+[member-certified caches](../../specs/SPEC-035-cached-state-checkpoints.md).
+Native meanings: [state rules](../../specs/SPEC-019-state-rules.md),
+[initial/HLC registers](../../specs/SPEC-035-register-semantics.md),
+[typed kernel correctness](../../specs/SPEC-036-state-kernel-correctness.md).

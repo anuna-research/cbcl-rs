@@ -253,3 +253,17 @@ fn directly_deserialized_overlong_chain_is_rejected_before_verification() {
         .unwrap_err();
     assert_eq!(err, "chain exceeds link limit");
 }
+
+#[test]
+fn stale_semantics_chain_is_rejected_before_verifying_links() {
+    let f = fixture();
+    let stale = f
+        .profile
+        .id_with_domain(&crate::profile::relation_domain("c9093e8"));
+    assert_ne!(stale, f.profile.id());
+    let chain = Chain::new(stale, f.links[..2].to_vec()).unwrap();
+    let err = chain
+        .verify(&f.verifier, f.profile.genesis(), None)
+        .unwrap_err();
+    assert!(err.contains("chain profile differs"), "{err}");
+}

@@ -60,28 +60,45 @@ pub fn parse_rule(sexpr: &SExpr) -> Result<Rule, String> {
     let key = |i: usize| keyword(&args[i], "field");
     Ok(match head.as_str() {
         "bounded-counter" => Rule::BoundedCounter(alloc::boxed::Box::new(parse_counter(args)?)),
-        "last" => {
-            arity(2)?;
-            Rule::Last {
-                verb: verb(0)?,
-                key: key(1)?,
-            }
-        }
-        "latest-per-signer" => {
-            arity(2)?;
-            Rule::LatestPerSigner {
-                verb: verb(0)?,
-                key: key(1)?,
-            }
-        }
-        "latest-per-key" => {
+        "lww-register" | "lww-per-signer" => {
             arity(3)?;
-            Rule::LatestPerKey {
+            let (verb, key, clock) = (verb(0)?, key(1)?, key(2)?);
+            if head == "lww-register" {
+                Rule::LwwRegister { verb, key, clock }
+            } else {
+                Rule::LwwPerSigner { verb, key, clock }
+            }
+        }
+        "lww-map" => {
+            if args.len() != 4 && args.len() != 5 {
+                return Err(alloc::format!(
+                    "{head} takes 4 or 5 arguments, got {}",
+                    args.len()
+                ));
+            }
+            Rule::LwwMap {
                 verb: verb(0)?,
                 key: key(1)?,
                 value: key(2)?,
+                clock: key(3)?,
+                delete: if args.len() == 5 {
+                    Some(verb(4)?)
+                } else {
+                    None
+                },
             }
         }
+        "last" | "latest-per-signer" | "latest-per-key" | "register-per-key" => {
+            return Err(alloc::format!("retired state rule '{head}': use initial for opener fields or an explicit lww-* rule with a clock"));
+        }
+        "initial" => {
+            arity(2)?;
+            Rule::Initial {
+                verb: verb(0)?,
+                key: key(1)?,
+            }
+        }
+
         "exists" => {
             arity(1)?;
             Rule::Exists { verb: verb(0)? }
@@ -108,14 +125,14 @@ pub fn parse_rule(sexpr: &SExpr) -> Result<Rule, String> {
                 key: key(1)?,
             }
         }
-        "values" => {
+        "values" | "multi-value-register" => {
             arity(2)?;
             Rule::Values {
                 verb: verb(0)?,
                 key: key(1)?,
             }
         }
-        "values-per-key" | "register-per-key" => {
+        "values-per-key" | "multi-value-map" => {
             if args.len() != 3 && args.len() != 4 {
                 return Err(alloc::format!(
                     "{head} takes 3 or 4 arguments, got {}",
@@ -128,22 +145,14 @@ pub fn parse_rule(sexpr: &SExpr) -> Result<Rule, String> {
                 None
             };
             let (v, k, val) = (verb(0)?, key(1)?, key(2)?);
-            if head == "values-per-key" {
-                Rule::ValuesPerKey {
-                    verb: v,
-                    key: k,
-                    value: val,
-                    delete,
-                }
-            } else {
-                Rule::RegisterPerKey {
-                    verb: v,
-                    key: k,
-                    value: val,
-                    delete,
-                }
+            Rule::ValuesPerKey {
+                verb: v,
+                key: k,
+                value: val,
+                delete,
             }
         }
+
         "observed-set" => {
             arity(3)?;
             Rule::ObservedSet {
@@ -477,7 +486,7 @@ mod tests {
     #[test]
     fn parses_the_checklist_clause() {
         let s: SExpr =
-            "(state (title (last open :title)) (items (register-per-key check :item :done drop)))"
+            "(state (title (initial open :title)) (items (lww-map check :item :done :clock drop)))"
                 .parse()
                 .unwrap();
         let c = parse_state(&s).unwrap();
@@ -486,11 +495,12 @@ mod tests {
             c.entries[1],
             Entry::Field {
                 name: "items".into(),
-                rule: Rule::RegisterPerKey {
+                rule: Rule::LwwMap {
                     verb: "check".into(),
                     key: "item".into(),
                     value: "done".into(),
-                    delete: Some("drop".into())
+                    delete: Some("drop".into()),
+                    clock: "clock".into(),
                 }
             }
         );
@@ -500,9 +510,9 @@ mod tests {
     fn rejects_unknown_head_and_wrong_atom_kinds() {
         let s: SExpr = "(state (x (newest open :title)))".parse().unwrap();
         assert!(parse_state(&s).unwrap_err().contains("unknown rule"));
-        let s: SExpr = "(state (x (last open title)))".parse().unwrap();
+        let s: SExpr = "(state (x (initial open title)))".parse().unwrap();
         assert!(parse_state(&s).unwrap_err().contains("keyword"));
-        let s: SExpr = "(state (Title (last open :title)))".parse().unwrap();
+        let s: SExpr = "(state (Title (initial open :title)))".parse().unwrap();
         assert!(parse_state(&s).unwrap_err().contains("field name"));
     }
 

@@ -631,10 +631,10 @@ mod tests {
       (extend propose (to question options) (tell to :question question :options options)) \
       (extend vote (to choice) (tell to :choice choice)) \
       (shape propose (require :question string) (require :options list)) \
-      (shape vote (require :choice string)) \
+      (shape vote (require :choice string) (require :clock hlc)) \
       (protocol (then begin propose) (then propose vote)) \
-      (state (question (last propose :question)) (options (last propose :options)) \
-             (domain vote :choice options) (ballots (latest-per-signer vote :choice)) \
+      (state (question (initial propose :question)) (options (initial propose :options)) \
+             (domain vote :choice options) (ballots (lww-per-signer vote :choice :clock)) \
              (tally (histogram ballots))))";
 
     fn take(result: CbclResult) -> (i32, String) {
@@ -656,7 +656,7 @@ mod tests {
         let (e, s) = take(unsafe {
             cbcl_intend(
                 cstr(&format!(
-                    "(intend {LUNCH} \"v1\" {acts} @bo vote (:choice \"Sushi\"))"
+                    "(intend {LUNCH} \"v1\" {acts} @bo vote (:choice \"Sushi\" :clock \"hlc-0000000000000000-00000000\"))"
                 ))
                 .as_ptr(),
             )

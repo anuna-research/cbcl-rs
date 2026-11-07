@@ -385,29 +385,34 @@ fn state_to_sexpr(clause: &crate::state::StateClause) -> SExpr {
                 let mut r = vec![sym(rule.head())];
                 match rule {
                     Rule::BoundedCounter(c) => r.extend(c.canonical_options()),
-                    Rule::Last { verb, key }
-                    | Rule::LatestPerSigner { verb, key }
+                    Rule::LwwRegister { verb, key, clock }
+                    | Rule::LwwPerSigner { verb, key, clock } => {
+                        r.extend([s(verb), s(key), s(clock)]);
+                    }
+                    Rule::LwwMap {
+                        verb,
+                        key,
+                        value,
+                        clock,
+                        delete,
+                    } => {
+                        r.extend([s(verb), s(key), s(value), s(clock)]);
+                        if let Some(d) = delete {
+                            r.push(s(d));
+                        }
+                    }
+                    Rule::Initial { verb, key }
                     | Rule::Events { verb, key }
                     | Rule::SetUnion { verb, key }
                     | Rule::Values { verb, key } => {
                         r.push(s(verb));
                         r.push(s(key));
                     }
-                    Rule::LatestPerKey { verb, key, value } => {
-                        r.push(s(verb));
-                        r.push(s(key));
-                        r.push(s(value));
-                    }
+
                     Rule::Exists { verb } | Rule::Count { verb } | Rule::Progress { verb } => {
                         r.push(s(verb))
                     }
                     Rule::ValuesPerKey {
-                        verb,
-                        key,
-                        value,
-                        delete,
-                    }
-                    | Rule::RegisterPerKey {
                         verb,
                         key,
                         value,
@@ -637,6 +642,7 @@ fn type_constraint_to_sexpr(tc: &Option<TypeConstraint>) -> SExpr {
     if let Some(t) = tc {
         let name = match t {
             TypeConstraint::String => "string",
+            TypeConstraint::Hlc => "hlc",
             TypeConstraint::Number => "number",
             TypeConstraint::Bool => "bool",
             TypeConstraint::Symbol => "symbol",

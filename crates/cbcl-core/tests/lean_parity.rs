@@ -10,12 +10,12 @@
 //!
 //! | REQ | Test fn (this file unless noted) | Lean theorem |
 //! |---|---|---|
-//! | REQ-510 | `req510_meet_assoc` | `Lattice/Result.lean :: BoundedLattice.meet_assoc` |
-//! | REQ-510 | `req510_meet_comm` | `Lattice/Result.lean :: BoundedLattice.meet_comm` |
-//! | REQ-510 | `req510_meet_idem` | `Lattice/Result.lean :: BoundedLattice.meet_idem` |
-//! | REQ-510 | `req510_join_assoc` | `Lattice/Result.lean :: BoundedLattice.join_assoc` |
-//! | REQ-510 | `req510_join_comm` | `Lattice/Result.lean :: BoundedLattice.join_comm` |
-//! | REQ-510 | `req510_join_idem` | `Lattice/Result.lean :: BoundedLattice.join_idem` |
+//! | REQ-510 | `req510_meet_assoc` | `Lattice/Result.lean :: BoundedDistribLattice.meet_assoc` |
+//! | REQ-510 | `req510_meet_comm` | `Lattice/Result.lean :: BoundedDistribLattice.meet_comm` |
+//! | REQ-510 | `req510_meet_idem` | `Lattice/Result.lean :: BoundedDistribLattice.meet_idem` |
+//! | REQ-510 | `req510_join_assoc` | `Lattice/Result.lean :: BoundedDistribLattice.join_assoc` |
+//! | REQ-510 | `req510_join_comm` | `Lattice/Result.lean :: BoundedDistribLattice.join_comm` |
+//! | REQ-510 | `req510_join_idem` | `Lattice/Result.lean :: BoundedDistribLattice.join_idem` |
 //! | REQ-510 | `req510_join_bot_identity` | `Lattice/Result.lean :: bot_join`, `join_bot` |
 //! | REQ-510 | `req510_meet_top_identity` | `Lattice/Result.lean :: top_meet`, `meet_top` |
 //! | REQ-510 | `req510_truth_tables` | `Lattice/Result.lean :: result_meet_table`, `result_join_table` |
@@ -101,8 +101,8 @@ fn join_pos(a: Pos, b: Pos) -> Pos {
     use Pos::*;
     match (a, b) {
         (Valid, _) | (_, Valid) => Valid,
-        (Violation, _) | (_, Violation) => Violation,
-        (Unknown, Unknown) => Unknown,
+        (Unknown, _) | (_, Unknown) => Unknown,
+        (Violation, Violation) => Violation,
     }
 }
 
@@ -258,7 +258,7 @@ fn build_store(entries: &[(String, String, Option<CausedBy>)]) -> ThreadedMessag
 
 // ===========================================================================
 // REQ-510: Three-valued result lattice axioms.
-// Mirrors `LeanCbcl/Lattice/Result.lean :: BoundedLattice VerificationResult`
+// Mirrors `LeanCbcl/Lattice/Result.lean :: BoundedDistribLattice VerificationResult`
 // (`meet_assoc`, `meet_comm`, `meet_idem`, `join_assoc`, `join_comm`,
 // `join_idem`, `bot_join`, `join_bot`, `top_meet`, `meet_top`) and
 // `result_meet_table` / `result_join_table`.
@@ -308,10 +308,10 @@ proptest! {
     }
 
     /// REQ-510 — `Lattice/Result.lean :: bot_join` / `join_bot`.
-    /// `bot = unknown` is a two-sided identity for `join`.
+    /// `bot = violation` is a two-sided identity for `join`.
     #[test]
     fn req510_join_bot_identity(a in arb_result()) {
-        let bot = VerificationResult::Unknown;
+        let bot = VerificationResult::Violation(CausalViolation::MissingCausedBy);
         prop_assert_eq!(pos(&bot.clone().join(a.clone())), pos(&a));
         prop_assert_eq!(pos(&a.clone().join(bot)), pos(&a));
     }

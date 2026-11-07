@@ -1,0 +1,22 @@
+; IMPL-022: accepted SPEC-035 ADR-3502 extension, old semantics preserved.
+; One local steward records independent tool-session reviews, not distinct P2P signers.
+; Ledger: runtime -> corpus/model -> independent review; maintainer owns full-kernel theorem.
+; Seed the theory vocabulary before loading these statements:
+; elephant define task-description/2 --arg id:symbol --arg text:symbol --kind state
+; elephant define task-acceptance/2 --arg id:symbol --arg text:symbol --kind state
+(given (task register-runtime))
+(given (task-description register-runtime "Implement explicit HLC LWW rules, multi-value aliases and shared interfaces"))
+(given (task-acceptance register-runtime "TEST-3500 through TEST-3503 parser, checks, binding, fold and compatibility tests pass"))
+(given (no-deps register-runtime))
+(normally r-ready-register-runtime (and (task register-runtime) (no-deps register-runtime)) (ready register-runtime))
+(meta r-ready-register-runtime (source "SPEC-035-register-semantics#ADR-3502"))
+(given (task register-evidence))
+(given (task-description register-evidence "Pin corpus v3, model arbitration and falsify semantic mutations"))
+(given (task-acceptance register-evidence "TEST-3504 and TEST-3505 corpus, model and mutations pass with unchanged legacy identities"))
+(normally r-ready-register-evidence (and (task register-evidence) (completed register-runtime)) (ready register-evidence))
+(meta r-ready-register-evidence (source "SPEC-035-register-semantics#TEST-3504"))
+(given (task register-review))
+(given (task-description register-review "Independent adversarial and Orientation review of accepted extension"))
+(given (task-acceptance register-review "No unresolved blocking findings against ADR-3502; claims distinguish runtime from model and host assumptions"))
+(normally r-ready-register-review (and (task register-review) (completed register-evidence)) (ready register-review))
+(meta r-ready-register-review (source "SPEC-035-register-semantics#REQ-3504"))

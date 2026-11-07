@@ -22,9 +22,9 @@ fn checklist() -> Value {
       "roles":{"owner":"singleton","member":"indexed"},
       "verbs":{
         "open":{"after":["begin"],"fields":{"title":"string"},"from":"owner","to":["owner","member"]},
-        "check":{"after":["open"],"fields":{"item":"string","done":"bool"},"from":"member","to":["owner","member"]},
+        "check":{"after":["open"],"fields":{"item":"string","done":"bool","clock":"hlc"},"from":"member","to":["owner","member"]},
         "drop":{"after":["open"],"fields":{"item":"string"},"from":"owner","to":["owner","member"]}},
-      "state":{"title":["last","open","title"],"items":["registerPerKey","check","item","done","drop"]}})
+      "state":{"title":["initial","open","title"],"items":["lwwMap","check","item","done","clock","drop"]}})
 }
 
 fn lunch_vote() -> Value {
@@ -33,9 +33,9 @@ fn lunch_vote() -> Value {
       "bounds":{"maxString":280,"maxList":24},
       "verbs":{
         "propose":{"after":["begin"],"fields":{"question":"string","options":"list"}},
-        "vote":{"after":["propose"],"fields":{"choice":{"enumOf":"options"}}}},
-      "state":{"question":["last","propose","question"],"options":["last","propose","options"],
-               "ballots":["latestPerSigner","vote","choice"],"tally":["histogram","ballots"]}})
+        "vote":{"after":["propose"],"fields":{"choice":{"enumOf":"options"},"clock":"hlc"}}},
+      "state":{"question":["initial","propose","question"],"options":["initial","propose","options"],
+               "ballots":["lwwPerSigner","vote","choice","clock"],"tally":["histogram","ballots"]}})
 }
 
 #[test]
@@ -66,25 +66,24 @@ fn identity_is_the_body_and_the_state_clause_is_part_of_it() {
     relabelled["name"] = json!("another-label");
     assert_eq!(compiled(&relabelled)["name"], a["name"]);
     let mut smaller = checklist();
-    smaller["state"] = json!({"title":["last","open","title"]});
+    smaller["state"] = json!({"title":["initial","open","title"]});
     assert_ne!(compiled(&smaller)["name"], a["name"]);
     let text = a["dialect"].as_str().unwrap();
     assert!(text.contains(
-        "(state (title (last open :title)) (items (register-per-key check :item :done drop)))"
+        "(state (title (initial open :title)) (items (lww-map check :item :done :clock drop)))"
     ));
     assert!(text.contains("(:roles (owner (* member)))"));
-    assert!(text.contains("(extend check (to item done) :from member :to (owner member) (tell to :item item :done done))"));
+    assert!(text.contains("(extend check (to item done clock) :from member :to (owner member) (tell to :item item :done done :clock clock))"));
     assert!(
         !text.contains("replaces"),
         "the compiler in cbcl-core, not the contract, inserts :replaces"
     );
     let lunch = compiled(&lunch_vote());
     let text = lunch["dialect"].as_str().unwrap();
-    assert!(
-        text.contains("(options (last propose :options)) (domain vote :choice options) (ballots")
-    );
+    assert!(text
+        .contains("(options (initial propose :options)) (domain vote :choice options) (ballots"));
     assert!(text.contains("(:state-bounds (max-string 280) (max-list 24))"));
-    assert!(text.contains("(shape vote (require :choice string))"));
+    assert!(text.contains("(shape vote (require :choice string) (require :clock hlc))"));
 }
 
 #[test]

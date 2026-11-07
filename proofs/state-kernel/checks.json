@@ -1,0 +1,55 @@
+{
+  "spec": "SPEC-036",
+  "branch": "draft/state-register-semantics",
+  "parent": "3cd7b65",
+  "commands": [
+    {
+      "command": "cd lean-cbcl && lake build",
+      "result": "pass; 127 jobs"
+    },
+    {
+      "command": "cd lean-cbcl && lake exe runLinter LeanCbcl",
+      "result": "pass"
+    },
+    {
+      "command": "scripts/check-axioms.sh",
+      "result": "pass; 362 theorems audited; new kernel theorems use standard axioms only"
+    },
+    {
+      "command": "python3 scripts/check-state-kernel.py --output proofs/state-kernel/mutations.json",
+      "result": "pass; 19/19 heads, 2 aliases, 10 killed mutants"
+    },
+    {
+      "command": "NO_COLOR=true zetl check",
+      "result": "existing 23 dead links, 3 SPL errors; no new origin"
+    },
+    {
+      "command": "usdd-lint.sh specs/SPEC-036-state-kernel-correctness.md",
+      "result": "0 errors; 1 sentence warning includes frontmatter"
+    },
+    {
+      "command": "git diff --check",
+      "result": "pass"
+    }
+  ],
+  "source_sha256": {
+    "lean-cbcl/LeanCbcl/StateKernelSemantics.lean": "b88af5be72acc4c96f865429e3f7a4a42c89ad2b4c93d383d20d1ec6db6be111",
+    "lean-cbcl/LeanCbcl/StateKernel.lean": "114bca861dbcfb75fe934014cf7c87b30deb3c5fc3ce5783a1db87eee414f71c",
+    "lean-cbcl/LeanCbcl/StateKernelExtensions.lean": "4538c1f22855731855c394817c17b89c8444d8682eed1478056610346ec32098",
+    "lean-cbcl/LeanCbcl/StateKernelQueries.lean": "ac77089f0cea29a8890978cc98c11d6118c7cf93207ab6a0f4fcd6fdb5834f6e",
+    "lean-cbcl/LeanCbcl/StateKernelTests.lean": "9e757d0087437fa56065708ccb016425e275dbfde5f8ea7ecd76e0fa1446202a",
+    "lean-cbcl/LeanCbcl/StateKernelClause.lean": "3819d7f4207c5458518ce52a5a68572aa5ea7f9db1c9e1e53f1db9a91a9a3592",
+    "lean-cbcl/LeanCbcl/StateKernelAggregates.lean": "eb3a328d0c0f19ea0d6a9f9d3b64df5d2befd9a0457fca4554366e753c71b888"
+  },
+  "scope": "typed clause denotational correctness and elaboration completeness; delegated resource observation port",
+  "excluded": [
+    "Rust equivalence",
+    "wire recognition",
+    "rendering",
+    "clock honesty",
+    "resource verifier classification",
+    "resource DAG validation",
+    "universal business refinement",
+    "liveness"
+  ]
+}

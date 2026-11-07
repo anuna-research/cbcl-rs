@@ -50,6 +50,22 @@ fn fixture_profile() -> Value {
     json!({"dialect": v["contract"], "thread": "s1", "candidates": candidates})
 }
 
+// Native IDs, independent of the profile's lexicographic bit assignment.
+fn fixture_addresses() -> Vec<String> {
+    fixture_profile()["candidates"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| {
+            let ast = cbcl_parser::parse(c["text"].as_str().unwrap()).unwrap();
+            let message = cbcl_parser::parse_message(&ast).unwrap();
+            cbcl_core::state::Act::from_message(message, c["label"].as_str().unwrap())
+                .unwrap()
+                .address
+        })
+        .collect()
+}
+
 fn temp_dir(name: &str) -> PathBuf {
     let dir = std::env::temp_dir().join(format!("cbcl-checkpoint-{}-{name}", std::process::id()));
     let _ = fs::remove_dir_all(&dir);
@@ -93,9 +109,16 @@ fn compile_prove_verify_and_chain_verify_round_trip() {
         .all(|a| a.starts_with("sha256-") && a.len() == 71));
     assert!(!run.stdout.contains('\n') || run.stdout.trim().lines().count() == 1);
 
-    // Golden masks: 4 = opener alone, 6 = opener + first write, 7 = all.
-    let opener = addresses[2].clone();
-    let two = format!("{},{}", addresses[1], addresses[2]);
+    // Select semantic fixture cuts; HLC edits may change sorted bit positions.
+    let native = fixture_addresses();
+    let opener = native[0].clone();
+    let two = format!("{},{}", native[0], native[1]);
+    let two_mask = addresses
+        .iter()
+        .enumerate()
+        .filter(|(_, id)| native[..2].contains(id))
+        .fold(0usize, |mask, (bit, _)| mask | (1 << bit))
+        .to_string();
     let all = addresses.join(",");
 
     // prove twice: genesis -> opener, opener -> two. Written to files.
@@ -112,14 +135,19 @@ fn compile_prove_verify_and_chain_verify_round_trip() {
     assert_eq!(run.code, 0, "{}", run.stderr);
 
     // verify: receiver-derived statement matches, exit 0; the after
-    // checkpoint is printed as hex (CON-3505), equal to golden mask 6.
+    // checkpoint is printed as hex (CON-3505), equal to the independently pinned golden cut.
     let run = checkpoint(&[
         "verify", &profile, &p2, "--before", &opener, "--after", &two,
     ]);
     assert_eq!(run.code, 0, "{}", run.stderr);
     let out: Value = serde_json::from_str(run.stdout.trim()).expect("verify json");
     assert_eq!(out["verified"], json!(true));
-    assert_eq!(out["after"], golden()["checkpoints"]["6"], "{}", run.stdout);
+    assert_eq!(
+        out["after"],
+        golden()["checkpoints"][&two_mask],
+        "{}",
+        run.stdout
+    );
 
     // verify with a different --after (a valid identity transition): exit 1.
     let run = checkpoint(&[
@@ -140,7 +168,12 @@ fn compile_prove_verify_and_chain_verify_round_trip() {
     let run = checkpoint(&["chain-verify", &profile, &chain_path]);
     assert_eq!(run.code, 0, "{}", run.stderr);
     let final_cp: Value = serde_json::from_str(run.stdout.trim()).expect("checkpoint json");
-    assert_eq!(final_cp, golden()["checkpoints"]["6"], "{}", run.stdout);
+    assert_eq!(
+        final_cp,
+        golden()["checkpoints"][&two_mask],
+        "{}",
+        run.stdout
+    );
     assert!(final_cp["accepted"].as_str().is_some_and(|h| h.len() == 64));
 
     // chain-verify with --start and --end naming the right sets: exit 0.
@@ -167,6 +200,24 @@ fn compile_prove_verify_and_chain_verify_round_trip() {
     let swapped_path = write(&dir, "swapped.json", &swapped);
     let run = checkpoint(&["chain-verify", &profile, &swapped_path]);
     assert_eq!(run.code, 1);
+
+    // Same-shape mutations exercise transcript verification and caller-state binding.
+    let mut corrupt = proof2.clone();
+    let byte = corrupt["transcript"][0].as_u64().unwrap();
+    corrupt["transcript"][0] = json!(byte ^ 1);
+    let path = write(&dir, "corrupt-transcript.json", &corrupt);
+    assert_eq!(
+        checkpoint(&["verify", &profile, &path, "--before", &opener, "--after", &two]).code,
+        1
+    );
+    let mut forged = proof2.clone();
+    let byte = forged["statement"]["after"]["state"][0].as_u64().unwrap();
+    forged["statement"]["after"]["state"][0] = json!(byte ^ 1);
+    let path = write(&dir, "forged-state.json", &forged);
+    assert_eq!(
+        checkpoint(&["verify", &profile, &path, "--before", &opener, "--after", &two]).code,
+        1
+    );
 
     // a proof package with an unknown member is rejected before verification.
     let mut bad = proof2.clone();
@@ -228,7 +279,11 @@ fn malformed_profile_and_address_inputs_exit_one() {
     // a repeated address in one list is a rejection (CON-3505).
     let run = checkpoint(&["compile", &profile]);
     let out: Value = serde_json::from_str(run.stdout.trim()).unwrap();
-    let opener = out["addresses"][2].as_str().unwrap().to_owned();
+    let opener = fixture_addresses()[0].clone();
+    assert!(out["addresses"]
+        .as_array()
+        .unwrap()
+        .contains(&json!(opener)));
     let twice = format!("{opener},{opener}");
     let run = checkpoint(&["prove", &profile, "--before", "-", "--after", &twice]);
     assert_eq!(run.code, 1, "{}", run.stdout);

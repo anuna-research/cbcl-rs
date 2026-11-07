@@ -1,0 +1,69 @@
+{
+  "spec": "SPEC-037",
+  "branch": "draft/state-register-semantics",
+  "parent": "66a129b",
+  "commands": [
+    {
+      "command": "cd lean-cbcl && lake build",
+      "result": "pass; 130 jobs"
+    },
+    {
+      "command": "cd lean-cbcl && lake exe runLinter LeanCbcl",
+      "result": "pass"
+    },
+    {
+      "command": "scripts/check-axioms.sh",
+      "result": "pass; 396 theorems; new capstones standard axioms only"
+    },
+    {
+      "command": "python3 scripts/check-state-kernel-sec.py --output proofs/state-kernel-sec/mutations.json",
+      "result": "pass; 4 killed semantic mutants"
+    },
+    {
+      "command": "usdd-lint.sh specs/SPEC-037-state-kernel-sec.md",
+      "result": "0 errors; 0 warnings"
+    },
+    {
+      "command": "NO_COLOR=true zetl check",
+      "result": "existing 23 dead links and 3 old SPL errors; no new origins"
+    },
+    {
+      "command": "git diff --check",
+      "result": "pass"
+    }
+  ],
+  "source_sha256": {
+    "lean-cbcl/LeanCbcl/StateKernelSEC.lean": "9274327a5588fa040a4b5264c2f9c4976fb639889558c9255289bc5949702a4d",
+    "lean-cbcl/LeanCbcl/StateKernelDelivery.lean": "6157384ba5b404dd662ab58d35581d2bdaf3c81122fe66eb3e4f0698485385a1",
+    "lean-cbcl/LeanCbcl/StateKernelSECTests.lean": "5e8dec1f5ae49cff048eea46e942947bd0a3cdf1f802bfbce7e2f8c1496aba89"
+  },
+  "theorems": [
+    "clause_strong_convergence",
+    "merge_associative",
+    "merge_commutative",
+    "merge_idempotent",
+    "duplicate_observation",
+    "eventual_acceptance",
+    "eventual_dissemination",
+    "finite_history_stabilizes",
+    "strong_eventual_consistency"
+  ],
+  "premises": [
+    "shared immutable context and set-extensional evidence ports",
+    "actual receive/pending/accept Behavior",
+    "eventual receipt",
+    "transition-label weak fairness",
+    "finite closed lower-ranked dependencies",
+    "dependency-based admission and no false rejection",
+    "complete finite history for permanent global agreement"
+  ],
+  "excluded": [
+    "resource verifier classification or finalization proof",
+    "deployed admission/transport/scheduler correctness",
+    "Rust/rendering equivalence",
+    "Byzantine clock honesty",
+    "throughput or time bound",
+    "universal business termination",
+    "global stabilization during arbitrary infinite writes"
+  ]
+}

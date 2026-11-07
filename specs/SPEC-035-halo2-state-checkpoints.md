@@ -1,10 +1,10 @@
 ---
 id: SPEC-035
 title: Halo2 State Checkpoints — bounded proofs of accepted-set growth and native state
-version: 0.3.0
+version: 0.4.0
 status: implemented
-implemented-date: 2026-11-04
-last-updated: 2026-11-04
+previous-implementation-date: 2026-11-04
+last-updated: 2026-11-07
 author: Anuna Research (https://anuna.io) — drafted with Claude Fable 5.1
 owner: CBCL maintainer
 depends-on:
@@ -44,6 +44,39 @@ computed by the Rust kernel of [[SPEC-019-state-rules]], outside any circuit.
 parse of a package against its closed grammar before any field is used. A
 *role-declaring dialect* is one whose protocol carries `:roles` annotations
 ([[SPEC-014-role-layer-endpoint-projection]]); such dialects are out of scope.
+
+### Current kernel and checkpoint paths
+
+The native state kernel has 16 rule heads, including immutable `initial` and
+explicit host-HLC `lww-*` arbitration under
+[[SPEC-035-register-semantics]] and [[SPEC-036-state-kernel-correctness]].
+Conflict-preserving register/map aliases and observed replacement use those native
+meanings; retired hash-arbitrated register behavior is not a compatibility mode.
+The Halo2 compiler uses the installed native kernel to derive its bounded tables.
+A native kernel change therefore requires recompilation and a new semantics pin
+under [[SPEC-035-halo2-state-checkpoints#REQ-3506]], not only relinking the prover.
+The previous implementation's `c9093e8` pin and golden vector describe its old
+kernel. They are historical evidence and cannot certify tables for this kernel.
+The refreshed adapter pins `d1a093d`, including the initial/HLC kernel and native
+progress/resource identity-alias corrections. The refreshed pin, native parity,
+proof/package tests, mutation gates and independent review have passed; the
+current-kernel evidence is recorded below.
+
+This Halo2 path remains role-free, with at most eight public candidates and a
+verifier-enumerated relation over the 15 role-free native heads. Native
+`bounded-counter` declarations require an
+authenticated role cast; this role-free Halo2 profile therefore rejects those
+objects rather than partially proving their resource state. It does not prove the full native kernel in gates
+or provide constant-cost large-history opening. The separate
+[[SPEC-035-cached-state-checkpoints|member-certified cached checkpoint path]] uses
+independently derived native endorsements, projected summaries, authenticated tails
+and a durable local-history floor. Its all-head typed continuation theorem is not
+a Halo2 circuit theorem, and its member trust policy is not a cryptographic proof
+of native admission. Neither path grants resource authority or global freshness.
+Jolt remains an experimental backend alternative on its existing experiment
+branches. Retaining Halo2 here preserves this bounded implementation; it does not
+select a large-history backend or claim a fair benchmark victory over Jolt.
+
 
 Metaphor: a notarised ledger page. The house rules are public. The notary
 stamps a page only when it follows from the previous page under those rules,
@@ -138,7 +171,7 @@ addresses none of them is an integration condition, and says so.
   prover chose. The verifier reads the statement from the package and so proves
   nothing about the state it cares about.
 - **F2 Label laundering by the prover.** The prover asserts the signer label of a
-  candidate. A `latest-per-signer` field then attributes a write to the wrong
+  candidate. An `lww-per-signer` field then attributes a write to the wrong
   signer and the proved state is wrong while every constraint holds. A host that
   pairs the wrong verification key with a message is a separate failure this
   specification records as a precondition, not a control.
@@ -255,7 +288,10 @@ testable. (b) A golden test vector SHALL pin the profile identity, every valid
 checkpoint, and one statement for the signer-supersession fixture. (c) A change
 to admission or fold semantics that alters any pinned value SHALL be
 accompanied by a new `SEMANTICS_VERSION` and a regenerated vector; the
-procedure SHALL be written in the crate README. (d) The profile identity SHALL
+procedure SHALL be written in the crate README. Refreshing the current native
+`initial`/HLC kernel MUST NOT reuse the historical `c9093e8` pin or its old golden
+values; the replacement pin, generated vector and native parity tests belong to
+one reviewed change. (d) The profile identity SHALL
 be independent of candidate order and of insignificant whitespace in candidate
 text.
 Addresses F4.
@@ -600,13 +636,16 @@ named.
 
 ### TEST-3500: Relation, parity and binding (core)
 
-For every valid subset of the signer-supersession fixture and the lunch-vote
-fixture, the profile's state JSON equals the native fold, and the complete
+For every valid subset of the current HLC signer-supersession fixture and the
+lunch-vote fixture, the profile's state JSON equals the native fold, and the complete
 corpus state equals the recorded expectation. A pending child before its opener
 is not a valid set and its raw statement fails the mock prover. A candidate with
 a wrong shape, a label that disagrees with `:from`, another thread, or another
 dialect name makes every set containing it invalid while compilation succeeds.
-Existing tests: `native_fold_and_replacement_match_for_every_valid_subset`,
+Current-kernel cases also cover `initial` opener uniqueness/ambiguity and explicit
+HLC clock order, signer tie-breaking and replacement-before-arbitration. This is
+bounded native/table parity, not a claim that every native head has an independently
+implemented Halo2 gadget. Existing tests: `native_fold_and_replacement_match_for_every_valid_subset`,
 `complete_native_corpus_snapshots_match_recorded_results`,
 `pending_message_cannot_enter_committed_set_even_when_precheck_is_bypassed`,
 `invalid_shape_sender_thread_and_dialect_are_constrained`.
@@ -669,8 +708,10 @@ Validates: [[SPEC-035-halo2-state-checkpoints#REQ-3505]],
 ### TEST-3505: Semantics version and golden vector (core)
 
 A vector file `test-vectors/state-proof/signer-supersession.json` records the
-profile identity, every valid checkpoint and one statement. The test recompiles
-and compares. Reversing candidate order and reserialising candidates yields the
+profile identity, every valid checkpoint and one statement for the current native
+kernel. The test recompiles and compares. The `c9093e8` vector is obsolete for
+merged-kernel acceptance; regeneration follows an intentional semantics-version
+change and must not hide a parity failure. Reversing candidate order and reserialising candidates yields the
 same identity. A test `semantics_version_changes_profile_identity` recomputes
 the identity through `relation_domain` with a different version string and
 asserts it differs. Existing tests:
@@ -708,7 +749,10 @@ Validates: [[SPEC-035-halo2-state-checkpoints#REQ-3508]].
 lists only `cbcl-state-proof`, and additionally `cbcl-cli` when built with
 `--features state-proof`. `cargo check -p cbcl-core --no-default-features` and
 the WebAssembly build are unchanged. `scripts/state-proof-mutations.py` runs
-and reports every mutant killed. `mutants.toml` does not list the crate.
+and reports every mutant killed. Generated logs/reports use ignored
+`outputs/state-proof-mutations/` by default or an explicit `--output-dir` such as
+`/tmp/cbcl-state-proof-mutations`; only a concise outcome belongs in current docs.
+`mutants.toml` does not list the crate.
 Validates: [[SPEC-035-halo2-state-checkpoints#REQ-3509]].
 
 ### TEST-3509: Command-line interface (core)
@@ -812,7 +856,16 @@ path: recursive composition, kept as an open experiment.
 
 ## Evidence
 
-The implementation evidence record is `docs/evidence/SPEC-035-halo2-state-checkpoints.md`.
+The current-kernel execution and independent review are recorded in
+[[../docs/evidence/SPEC-035-halo2-state-checkpoints#Current-kernel integration — 2026-11-07]].
+On 2026-11-07, the reviewing Codex session restored `implemented` under
+[[SPEC-035-halo2-state-checkpoints#REQ-3511]] after independently rerunning the
+Halo2 library suite (58 passed, one ignored golden generator), inspecting the
+four named mutation assertion failures, and checking restored source hashes.
+No further concrete defect was found in the bounded adapter delta. This
+reviewing session did not author that delta; it previously contributed to the
+separate cached resource dependency. Historical evidence remains identified
+separately in the evidence record.
 The experiment record remains in `experiments/state-proof/`. The crate is an
 experimental cryptographic artefact until the maintainer closes the open items
 above.
@@ -820,8 +873,14 @@ above.
 ## Changelog
 
 <details>
-<summary>Revision history — 0.1.0 → 0.3.0</summary>
+<summary>Revision history — 0.1.0 → 0.4.0</summary>
 
+- 0.4.0 — 2026-11-07 — align the merged bounded Halo2 path with the native
+  initial/HLC state kernel; refresh the old semantics pin/golden vector and native
+  parity gates. Distinguish member-certified all-head caches from bounded Halo2
+  relation proofs. Independent reviewing session restored `implemented` after
+  current-kernel gates and all four named mutation checks passed; no ceiling,
+  authentication boundary or production authorisation is expanded.
 - 0.3.0 — 2026-11-04 — independent Codex reviewing session verified merged
   repairs and committed gate evidence under
   [[SPEC-035-halo2-state-checkpoints#REQ-3511]]; status `implemented`.

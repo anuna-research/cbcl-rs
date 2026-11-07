@@ -1,3 +1,9 @@
+import LeanCbcl.CheckpointKernel
+import LeanCbcl.CheckpointAll
+import LeanCbcl.StateKernelSECTests
+import LeanCbcl.StateKernelClause
+import LeanCbcl.HlcRegister
+import LeanCbcl.Lattice.NotALattice
 import LeanCbcl.ConsensusFree
 import LeanCbcl.ConsensusFree.Liveness
 import LeanCbcl.ConsensusFree.Scheduler
@@ -70,9 +76,16 @@ below — the shell script discovers theorems from this file's output, so
 editing only this file is enough to extend the audit.
 -/
 
--- CON-510 — Three-valued result bisemilattice (Lattice/Result.lean).
+-- CON-510 — Strong Kleene truth-order lattice (Lattice/Result.lean).
 #print axioms CBCL.VerificationResult.result_meet_table
 #print axioms CBCL.VerificationResult.result_join_table
+
+#print axioms CBCL.VerificationResult.meet_absorption
+#print axioms CBCL.VerificationResult.join_absorption
+#print axioms CBCL.VerificationResult.meet_distributive
+#print axioms CBCL.VerificationResult.join_distributive
+#print axioms CBCL.VerificationResult.meet_knowledge_mono
+#print axioms CBCL.VerificationResult.join_knowledge_mono
 
 -- CON-511 — Message store G-Set (Lattice/Store.lean).
 #print axioms CBCL.MessageStore.union_assoc
@@ -80,6 +93,9 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.MessageStore.union_idem
 #print axioms CBCL.MessageStore.append_eq_union_singleton
 #print axioms CBCL.MessageStore.lookup_monotone
+
+#print axioms CBCL.verify_any_empty
+#print axioms CBCL.verify_any_singleton
 
 -- CON-512 — `verify` monotonicity (Verify.lean).
 #print axioms CBCL.verify_monotone
@@ -459,3 +475,115 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.ConsensusFree.MultiParent.Liveness.Scheduler.scheduled_finality
 #print axioms CBCL.ConsensusFree.MultiParent.Liveness.Scheduler.scheduled_envelope_finality
 #print axioms CBCL.ConsensusFree.MultiParent.Liveness.Scheduler.scheduled_client_finality
+
+-- SPEC-035: typed HLC arbitration; clock honesty and Rust correspondence excluded.
+#print axioms CBCL.HlcRegister.pick_correct
+#print axioms CBCL.HlcRegister.pick_setEq
+#print axioms CBCL.HlcRegister.register_correct
+#print axioms CBCL.HlcRegister.own_correct
+#print axioms CBCL.HlcRegister.keyed_correct
+#print axioms CBCL.HlcRegister.own_candidate_scope
+#print axioms CBCL.HlcRegister.keyed_candidate_scope
+
+-- SPEC-036: typed whole-clause denotation; delegated resource classification excluded.
+#print axioms CBCL.StateKernelSemantics.select_correct
+#print axioms CBCL.StateKernelSemantics.allowed_correct
+#print axioms CBCL.StateKernelSemantics.admitted_correct
+#print axioms CBCL.StateKernelSemantics.data_selection_correct
+#print axioms CBCL.StateKernelSemantics.pick_correct
+#print axioms CBCL.StateKernelSemantics.cardinality_correct
+#print axioms CBCL.StateKernelSemantics.total_correct
+#print axioms CBCL.StateKernelSemantics.events_correct
+#print axioms CBCL.StateKernelQueries.choose_correct
+#print axioms CBCL.StateKernelQueries.cell_complete
+#print axioms CBCL.StateKernelQueries.map_complete
+#print axioms CBCL.StateKernelAggregates.histogram_correct
+#print axioms CBCL.StateKernelAggregates.map_sum_correct
+#print axioms CBCL.StateKernelAggregates.key_count_unique
+#print axioms CBCL.StateKernelAggregates.key_total_unique
+#print axioms CBCL.StateKernelExtensions.progress_correct
+#print axioms CBCL.StateKernelExtensions.progress_unique
+#print axioms CBCL.StateKernelExtensions.resource_correct
+#print axioms CBCL.StateKernelExtensions.resource_unique
+#print axioms CBCL.StateKernelExtensions.resource_floor
+#print axioms CBCL.StateKernelExtensions.resource_ceiling
+#print axioms CBCL.StateKernel.evaluate_correct
+#print axioms CBCL.StateKernelClause.compile_clause_complete
+#print axioms CBCL.StateKernelClause.whole_kernel_correct
+#print axioms CBCL.StateKernelClause.well_formed_kernel_correct
+#print axioms CBCL.StateKernel.values_by_complete
+#print axioms CBCL.StateKernelAggregates.cell_number_correct
+
+#print axioms CBCL.StateKernelAggregates.cell_number_complete
+#print axioms CBCL.StateKernelAggregates.sum_meaning_unique
+#print axioms CBCL.StateKernelAggregates.histogram_meaning_unique
+
+-- SPEC-037: equal-set convergence, fair admission and finite-history SEC.
+#print axioms CBCL.StateKernelSEC.admitted_setEq
+#print axioms CBCL.StateKernelSEC.select_setEq
+#print axioms CBCL.StateKernelSEC.choose_setEq
+#print axioms CBCL.StateKernelSEC.map_setEq
+#print axioms CBCL.StateKernelSEC.values_map_setEq
+#print axioms CBCL.StateKernelSEC.histogram_equivalent
+#print axioms CBCL.StateKernelSEC.sum_equivalent
+#print axioms CBCL.StateKernelSEC.strong_convergence
+#print axioms CBCL.StateKernelSEC.clause_strong_convergence
+#print axioms CBCL.StateKernelDelivery.step_received
+#print axioms CBCL.StateKernelDelivery.step_accepted
+#print axioms CBCL.StateKernelDelivery.accepted_persistent
+#print axioms CBCL.StateKernelDelivery.received_persistent
+#print axioms CBCL.StateKernelDelivery.accepted_valid
+#print axioms CBCL.StateKernelDelivery.pending_or_accepted
+#print axioms CBCL.StateKernelDelivery.label_accepted
+#print axioms CBCL.StateKernelDelivery.enabled_eventually_accepted
+#print axioms CBCL.StateKernelDelivery.eventual_acceptance
+#print axioms CBCL.StateKernelDelivery.finite_history_stabilizes
+#print axioms CBCL.StateKernelDelivery.strong_eventual_consistency
+#print axioms CBCL.StateKernelSECTests.run_behavior
+#print axioms CBCL.StateKernelSECTests.child_eventually_accepted
+#print axioms CBCL.StateKernelSECTests.starved_behavior
+#print axioms CBCL.StateKernelSECTests.starved_no_acceptance
+#print axioms CBCL.StateKernelSECTests.starved_not_fair
+#print axioms CBCL.StateKernelSEC.merge_setEq
+#print axioms CBCL.StateKernelSEC.merge_associative
+#print axioms CBCL.StateKernelSEC.merge_commutative
+#print axioms CBCL.StateKernelSEC.merge_idempotent
+#print axioms CBCL.StateKernelSEC.duplicate_observation
+#print axioms CBCL.StateKernelDelivery.eventual_dissemination
+#print axioms CBCL.StateKernelSECTests.ticks_unique
+#print axioms CBCL.StateKernelSECTests.ticks_count
+#print axioms CBCL.StateKernelSECTests.ongoing_writes_need_not_stabilize
+
+-- Version-4 sole initializer; no address-primary arbitration in the surface.
+#print axioms CBCL.StateKernelSemantics.sole_some
+#print axioms CBCL.StateKernelSemantics.sole_correct
+#print axioms CBCL.StateKernelSemantics.sole_complete
+#print axioms CBCL.StateKernelSemantics.sole_setEq
+#print axioms CBCL.StateKernelSemantics.initialValues_setEq
+
+-- Cached-state semantic continuation: no project-specific axioms.
+#print axioms CBCL.CheckpointSummary.step_preserves
+#print axioms CBCL.CheckpointSummary.checkpoint_continuation
+#print axioms CBCL.CheckpointCompact.Initial.continuation
+#print axioms CBCL.CheckpointCompact.LwwRegister.continuation
+#print axioms CBCL.CheckpointKernel.rule_render_eq
+#print axioms CBCL.CheckpointKernel.render_advance_checkpoint
+#print axioms CBCL.CheckpointKernel.resume_valid_snapshot
+#print axioms CBCL.CheckpointKernel.native_compile_fields
+#print axioms CBCL.CheckpointKernel.fullFoldRaw_native
+
+#print axioms CBCL.CheckpointKernel.native_compile_clause
+#print axioms CBCL.CheckpointKernel.render_advance_native_clause
+
+-- All sixteen native checkpoint heads and explicit evidence projections.
+#print axioms CBCL.CheckpointAll.render_advance_checkpoint
+#print axioms CBCL.CheckpointAll.resume_valid_snapshot
+#print axioms CBCL.CheckpointAll.render_advance_native_clause
+#print axioms CBCL.CheckpointAll.native_compile_clause
+#print axioms CBCL.CheckpointAll.resolve_fields_complete
+#print axioms CBCL.CheckpointAll.render_advance_wellformed_clause
+#print axioms CBCL.CheckpointAll.position_advance_checkpoint
+#print axioms CBCL.CheckpointAll.resource_facts_advance_checkpoint
+#print axioms CBCL.CheckpointData.events_continuation
+#print axioms CBCL.CheckpointEvidence.progress_checkpoint_tail_native
+#print axioms CBCL.CheckpointEvidence.resource_checkpoint_tail_native

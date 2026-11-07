@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Targeted mutations of cbcl-state-proof; restores sources even when a test fails."""
+import argparse
 import json
 import os
 from pathlib import Path
@@ -8,7 +9,7 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 CRATE = ROOT / 'crates/cbcl-state-proof/src'
-EVIDENCE = ROOT / 'docs/evidence/state-proof-mutations'
+DEFAULT_OUTPUT = ROOT / 'outputs/state-proof-mutations'
 # (name, file, old, new, test module, test name)
 MUTANTS = [
     ('unbound-after-state', 'circuit.rs',
@@ -30,7 +31,12 @@ MUTANTS = [
 ]
 
 def main():
-    EVIDENCE.mkdir(parents=True, exist_ok=True)
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--output-dir', type=Path, default=DEFAULT_OUTPUT,
+                        help='Directory for generated reports and logs (default: gitignored outputs).')
+    args = parser.parse_args()
+    evidence = args.output_dir
+    evidence.mkdir(parents=True, exist_ok=True)
     originals = {f: (CRATE / f).read_text() for _, f, *_ in MUTANTS}
     results = []
     try:
@@ -44,7 +50,7 @@ def main():
                 run = subprocess.run(command, cwd=ROOT, env={**os.environ, 'RAYON_NUM_THREADS':'2'}, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=300)
             finally:
                 (CRATE / file).write_text(original)
-            (EVIDENCE / f'{name}.log').write_text(run.stdout.rstrip()+'\n')
+            (evidence / f'{name}.log').write_text(run.stdout.rstrip()+'\n')
             # Compilation failure is not a killed mutant: a named test must run
             # and fail on its assertion, with no successful test result.
             killed = run.returncode != 0 and f'test {module}::{test} ... FAILED' in run.stdout and 'panicked at' in run.stdout
@@ -53,7 +59,7 @@ def main():
     finally:
         for f, text in originals.items():
             (CRATE / f).write_text(text)
-    (EVIDENCE / 'mutations.json').write_text(json.dumps(results, indent=2)+'\n')
+    (evidence / 'mutations.json').write_text(json.dumps(results, indent=2)+'\n')
     return 0 if len(results)==len(MUTANTS) and all(r['killed'] for r in results) else 1
 
 if __name__ == '__main__':

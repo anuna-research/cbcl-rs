@@ -147,8 +147,10 @@ fn reordered_candidates_and_child_before_opener_use_the_same_relation() {
     assert_eq!(p.addresses(), q.addresses());
     assert_eq!(p.transitions, q.transitions);
     let root = p.mask(&[&address(c.last().unwrap())]).unwrap();
-    // Root sorts last in this corpus; children must remain pending until retried.
-    assert_eq!(root, 4);
+    // Derive the opener position from the native identity; hash ordering may
+    // change when the pinned kernel or typed message identity changes.
+    assert_eq!(root.count_ones(), 1);
+    assert!(p.statement(0, root).is_ok());
     assert!(mock(&p, 0, 7, &p.statement(0, 7).unwrap()));
 }
 #[test]
@@ -309,6 +311,15 @@ fn actual_proof_roundtrip_tampering_and_independent_verifier() {
     let encoded = proof.to_json().unwrap();
     let proof = Proof::from_json(&encoded).unwrap();
     verifier.verify(&proof, &expected).unwrap();
+    let stale_profile = Profile::compile(&s, &t, &c)
+        .unwrap()
+        .id_with_domain(&profile::relation_domain("c9093e8"));
+    let mut stale = proof.clone();
+    stale.statement.profile = stale_profile;
+    assert!(
+        verifier.verify(&stale, &stale.statement).is_err(),
+        "even a matching stale caller expectation cannot bypass the pinned verifier profile"
+    );
     // CON-3506: two proofs of one statement differ and both verify.
     let second = prover.prove(old, new).unwrap();
     assert_eq!(second.statement, expected);
@@ -359,7 +370,11 @@ fn actual_proof_roundtrip_tampering_and_independent_verifier() {
     assert!(Proof::from_json(&serde_json::to_vec(&package).unwrap()).is_err());
     assert!(Proof::from_json(&vec![b' '; MAX_PACKAGE + 1]).is_err());
     assert!(Proof::from_json(&[encoded.as_slice(), b"x"].concat()).is_err());
-    assert!(prover.prove(0, 1).is_err()); // first sorted candidate is a pending write
+    let pending = Profile::compile(&s, &t, &c)
+        .unwrap()
+        .mask(&[&address(&c[1])])
+        .unwrap();
+    assert!(prover.prove(0, pending).is_err()); // child without its opener
 }
 
 #[test]
@@ -383,9 +398,9 @@ fn register_deletion_preserves_history_and_unseen_concurrent_write() {
     use cbcl_core::sexpr::Atom;
     let json = serde_json::json!({"version":3,"kind":"contract","name":"proof-register", "verbs": {
         "open":{"after":["begin"],"fields":{"title":"string"}},
-        "put":{"after":["open"],"fields":{"slot":"string","value":"string"}},
+        "put":{"after":["open"],"fields":{"slot":"string","value":"string","clock":"hlc"}},
         "unset":{"after":["open"],"fields":{"slot":"string"}}
-    },"state":{"properties":["registerPerKey","put","slot","value","unset"],"conflicts":["valuesPerKey","put","slot","value","unset"]}});
+    },"state":{"properties":["lwwMap","put","slot","value","clock","unset"],"conflicts":["valuesPerKey","put","slot","value","unset"]}});
     let compiled: Json =
         serde_json::from_str(&cbcl_parser::compile_contract_str(&json.to_string()).unwrap())
             .unwrap();
@@ -421,6 +436,7 @@ fn register_deletion_preserves_history_and_unseen_concurrent_write() {
         vec![
             ("slot", string("n1.fill")),
             ("value", string("red")),
+            ("clock", string("hlc-0000000000000010-00000000")),
             ("replaces", SExpr::List(vec![])),
         ],
     );
@@ -431,6 +447,7 @@ fn register_deletion_preserves_history_and_unseen_concurrent_write() {
         vec![
             ("slot", string("n1.fill")),
             ("value", string("blue")),
+            ("clock", string("hlc-0000000000000020-00000000")),
             ("replaces", SExpr::List(vec![symbol(&address(&draft))])),
         ],
     );
@@ -450,6 +467,7 @@ fn register_deletion_preserves_history_and_unseen_concurrent_write() {
         vec![
             ("slot", string("n1.fill")),
             ("value", string("green")),
+            ("clock", string("hlc-0000000000000001-00000000")),
             ("replaces", SExpr::List(vec![])),
         ],
     );
@@ -532,12 +550,18 @@ fn semantics_version_changes_profile_identity() {
     let p = Profile::compile(&s, &t, &c).unwrap();
     assert_eq!(
         profile::relation_domain(SEMANTICS_VERSION),
-        b"cbcl-state-proof/relation-v1/c9093e8"
+        b"cbcl-state-proof/relation-v1/d1a093d"
     );
     let same = p.id_with_domain(&profile::relation_domain(SEMANTICS_VERSION));
     let other = p.id_with_domain(&profile::relation_domain("other"));
     assert_eq!(same, p.id());
     assert_ne!(other, p.id());
+    let stale = p.id_with_domain(&profile::relation_domain("c9093e8"));
+    assert_ne!(
+        stale,
+        p.id(),
+        "the previous semantics pin must not be reused"
+    );
     assert_ne!(
         profile::relation_domain("other"),
         profile::relation_domain(SEMANTICS_VERSION)
@@ -879,4 +903,217 @@ fn lunch_vote_native_fold_matches_for_every_valid_subset() {
     ));
     assert!(c.len() > 1);
     assert_native_parity(&source, &thread, &c);
+}
+
+/// Current native heads without the role-bound resource adapter. Real candidate
+/// identities and explicit typed clocks are used; no test-assigned hash ordering.
+fn native_fifteen_fixture() -> (String, Vec<Candidate>) {
+    let source = r#"(define proof-native-fifteen (cbcl) @a
+      (:resource-requirements ((max-depth 12) (max-expansion-size 2048) (verification-time 200)))
+      (extend open (to title) (tell to :title title))
+      (extend put (to slot value clock) (tell to :slot slot :value value :clock clock))
+      (extend drop (to slot) (tell to :slot slot))
+      (extend down (to value) (tell to :value value))
+      (shape open (require :title string))
+      (shape put (require :slot string) (require :value number) (require :clock hlc))
+      (shape drop (require :slot string))
+      (shape down (require :value number))
+      (protocol (then begin open) (then open put) (then open drop) (then open down))
+      (state
+        (title (initial open :title))
+        (lww (lww-register put :value :clock))
+        (own (lww-per-signer put :value :clock))
+        (map (lww-map put :slot :value :clock drop))
+        (values (values put :value))
+        (conflicts (values-per-key put :slot :value drop))
+        (members (observed-set put drop :slot))
+        (exists (exists put))
+        (count (count put))
+        (progress (progress put))
+        (events (events put :value))
+        (tags (set-union put :value))
+        (counter (counter put down :value))
+        (histogram (histogram map))
+        (sum (sum map))))"#
+        .to_string();
+    let make = |verb: &str, signer: &str, cause: &str, fields: &str| {
+        Candidate::unauthenticated(format!(
+            "(lang proof-native-fifteen ({verb} @room {fields} :from {signer} :thread \"native\" :caused-by {cause}))"), signer.into())
+    };
+    let opener = make("open", "@owner", "begin", ":title \"Immutable title\"");
+    let root = address(&opener);
+    let high = make(
+        "put",
+        "@a",
+        &root,
+        ":slot \"x\" :value 1 :clock \"hlc-0000000000000064-00000000\" :replaces ()",
+    );
+    let edit = make(
+        "put",
+        "@a",
+        &root,
+        &format!(
+            ":slot \"x\" :value 2 :clock \"hlc-0000000000000001-00000000\" :replaces ({})",
+            address(&high)
+        ),
+    );
+    let delete = make(
+        "drop",
+        "@a",
+        &root,
+        &format!(":slot \"x\" :replaces ({})", address(&edit)),
+    );
+    (source, vec![opener, high, edit, delete])
+}
+fn selected_mask(p: &Profile, candidates: &[Candidate]) -> u16 {
+    let ids: Vec<_> = candidates.iter().map(address).collect();
+    p.mask(&ids.iter().map(String::as_str).collect::<Vec<_>>())
+        .unwrap()
+}
+#[test]
+fn current_fifteen_role_free_heads_match_native_fold_for_every_valid_subset() {
+    let (source, candidates) = native_fifteen_fixture();
+    let registry = parse_and_install_dialect(&parse(&source).unwrap()).unwrap();
+    let dialect = registry.iter().last().unwrap();
+    let actual_heads: std::collections::BTreeSet<_> = dialect
+        .state
+        .as_ref()
+        .unwrap()
+        .fields()
+        .map(|(_, r)| r.head())
+        .collect();
+    let expected: std::collections::BTreeSet<_> = [
+        "initial",
+        "lww-register",
+        "lww-per-signer",
+        "lww-map",
+        "values",
+        "values-per-key",
+        "observed-set",
+        "exists",
+        "count",
+        "progress",
+        "events",
+        "set-union",
+        "counter",
+        "histogram",
+        "sum",
+    ]
+    .into_iter()
+    .collect();
+    assert_eq!(actual_heads, expected);
+    assert_native_parity(&source, "native", &candidates);
+    let p = Profile::compile(&source, "native", &candidates).unwrap();
+    let before = selected_mask(&p, &candidates[..2]);
+    let retired = selected_mask(&p, &candidates[..3]);
+    let all = selected_mask(&p, &candidates);
+    let state: Json = serde_json::from_str(p.state_json(retired).unwrap()).unwrap();
+    assert_eq!(state["title"], "Immutable title");
+    assert_eq!(
+        state["lww"], 1,
+        "unkeyed LWW ignores replacement retirement"
+    );
+    assert_eq!(
+        state["own"]["@a"], 2,
+        "currentOwn retirement precedes HLC choice"
+    );
+    assert_eq!(
+        state["map"]["x"], 2,
+        "a low-clock replacement removes the former winner"
+    );
+    assert_eq!(state["count"], 2);
+    assert_eq!(state["progress"], 1);
+    assert_eq!(state["counter"], 3);
+    assert_eq!(state["sum"], 2);
+    let deleted: Json = serde_json::from_str(p.state_json(all).unwrap()).unwrap();
+    assert!(deleted["map"].as_object().unwrap().is_empty());
+    assert!(deleted["conflicts"].as_object().unwrap().is_empty());
+    assert_eq!(deleted["events"].as_object().unwrap().len(), 2);
+    assert_eq!(deleted["sum"], 0);
+    assert!(mock(
+        &p,
+        before,
+        retired,
+        &p.statement(before, retired).unwrap()
+    ));
+    assert!(mock(&p, retired, all, &p.statement(retired, all).unwrap()));
+}
+#[test]
+fn typed_hlc_order_and_malformed_clock_follow_native_admission() {
+    let (source, candidates) = native_fifteen_fixture();
+    let opener = &candidates[0];
+    let old = &candidates[1];
+    let mut newer = None;
+    for nonce in 0..256 {
+        let c = Candidate::unauthenticated(format!("(lang proof-native-fifteen (put @room \"{nonce}\" :slot \"x\" :value 3 :clock \"hlc-0000000000000065-00000001\" :replaces () :from @a :thread \"native\" :caused-by {}))",address(opener)), "@a".into());
+        // Vary only the content nonce; no fake identities or undeclared fields.
+        if address(&c) < address(old) {
+            newer = Some(c);
+            break;
+        }
+    }
+    let newer = newer.expect("find a real lower-hash newer-clock candidate");
+    assert!(address(&newer) < address(old));
+    let c = vec![opener.clone(), old.clone(), newer.clone()];
+    assert_native_parity(&source, "native", &c);
+    let p = Profile::compile(&source, "native", &c).unwrap();
+    let all = selected_mask(&p, &c);
+    let state: Json = serde_json::from_str(p.state_json(all).unwrap()).unwrap();
+    assert_eq!(
+        state["lww"], 3,
+        "typed HLC must win despite lower native content hash"
+    );
+    assert_eq!(state["map"]["x"], 3);
+    assert_eq!(state["own"]["@a"], 3);
+    let bad = retext(
+        &newer,
+        newer.text().replace(
+            "hlc-0000000000000065-00000001",
+            "hlc-0000000000000065-0000000A",
+        ),
+    );
+    let bad_profile = Profile::compile(&source, "native", &[opener.clone(), bad.clone()]).unwrap();
+    let mask = selected_mask(&bad_profile, &[opener.clone(), bad]);
+    assert!(bad_profile.checkpoint(mask).is_err());
+    assert!(!mock(
+        &bad_profile,
+        0,
+        mask,
+        &raw_statement(&bad_profile, 0, mask)
+    ));
+}
+#[test]
+fn initial_is_empty_or_sole_opener_and_never_lww_arbitrated() {
+    let (source, candidates) = native_fifteen_fixture();
+    let second = retext(
+        &candidates[0],
+        candidates[0]
+            .text()
+            .replace("Immutable title", "Another title"),
+    );
+    let c = vec![candidates[0].clone(), second];
+    let p = Profile::compile(&source, "native", &c).unwrap();
+    let empty: Json = serde_json::from_str(p.state_json(0).unwrap()).unwrap();
+    assert!(empty["title"].is_null());
+    for opener in &c {
+        let only = p.mask(&[&address(opener)]).unwrap();
+        let state: Json = serde_json::from_str(p.state_json(only).unwrap()).unwrap();
+        assert!(state["title"].is_string());
+    }
+    let both = selected_mask(&p, &c);
+    // Native admission may reject ambiguous opener evidence. If the role-free
+    // history is admitted, initial itself must return absent, not pick a hash.
+    if let Ok(json) = p.state_json(both) {
+        let state: Json = serde_json::from_str(json).unwrap();
+        assert!(state["title"].is_null());
+    }
+    assert_native_parity(&source, "native", &c);
+}
+#[test]
+fn native_bounded_counter_cast_requirement_does_not_bypass_role_free_profile() {
+    let source = include_str!("../../../dialects/example-quorum-coin.cbcl");
+    let registry = parse_and_install_dialect(&parse(source).unwrap()).unwrap();
+    assert!(!registry.iter().last().unwrap().roles.is_empty());
+    let err = Profile::compile(source, "resource", &[]).unwrap_err();
+    assert!(err.contains("role-free"), "{err}");
 }

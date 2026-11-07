@@ -330,7 +330,7 @@ fn native_progress_matches_kernel_reduced_lean() {
 
 #[test]
 fn domain_filtering_does_not_hide_causal_progress() {
-    let text="(define demo (cbcl) @author (extend open (to options) (tell to :options options)) (extend tick (to choice) (tell to :choice choice)) (shape open (require :options list)) (shape tick (require :choice string)) (protocol (then begin open (repeat 3 tick))) (state (options (last open :options)) (domain tick :choice options) (number (progress tick)) (messages (count tick))))";
+    let text="(define demo (cbcl) @author (extend open (to options) (tell to :options options)) (extend tick (to choice) (tell to :choice choice)) (shape open (require :options list)) (shape tick (require :choice string)) (protocol (then begin open (repeat 3 tick))) (state (options (initial open :options)) (domain tick :choice options) (number (progress tick)) (messages (count tick))))";
     let mut registry = DialectRegistry::new();
     registry
         .install(parse_dialect(&parse(text).unwrap()).unwrap())
