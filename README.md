@@ -64,6 +64,8 @@ CBCL defines interaction protocols over sets of recorded speech acts. Each parti
 4. **Admission.** Acceptance requires authenticated acts and accepted predecessors. Passing one causal check alone does not admit an act.
 5. **State.** The same accepted acts under the same fixed rules give the same derived state.
 
+The same model written as a theorem over sets and functions, with the Lean declaration behind each claim, is in [protocol model](docs/concepts/protocol-model.md).
+
 Verdicts in step (3) follow strong Kleene three-valued logic, ordered `Violation < Unknown < Valid`: a conjunction of checks takes the least verdict and a disjunction the greatest, so `Unknown` is kept until evidence resolves it.
 
 Three concerns sit beside the main flow:
