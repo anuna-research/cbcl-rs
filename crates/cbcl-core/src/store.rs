@@ -126,7 +126,17 @@ impl Default for HashIndex {
 }
 
 /// Trait for an append-only message store with G-Set CRDT semantics (REQ-300).
+// Opaque native repeat facts; construction computes positions, never accepts ranks.
+pub use crate::repeat::{MaterializedPositions, PositionContext, PositionMetadata};
+
 pub trait MessageStore {
+    /// Optional independently admitted or snapshot-attested native position cache.
+    /// Implementations must bind installation to the same code/root/thread. The
+    /// resolver checks that binding again; default None preserves legacy behavior.
+    fn materialized_positions(&self) -> Option<&MaterializedPositions> {
+        None
+    }
+
     /// Look up a message by content hash across all threads.
     fn lookup(&self, hash: &ContentHash) -> Option<&Message>;
 
