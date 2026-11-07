@@ -100,7 +100,10 @@ execution gives the same result or raises that error.
 The factorisation recorded in the refinement-chain work shows that thirteen of
 the sixteen heads are already lifts of a per-act contribution into a product of
 grow-only sets, maps or a chain, followed by a projection; two (`progress`,
-`bounded-counter`) are monotone closures over cited acts; and `initial` is a
+`bounded-counter`) have no summarising carrier, since an act's position or an
+operation's validity depends on its cited ancestors, so their only carrier is
+the set of acts itself and their post-map is a least fixed point over
+citations; and `initial` is a
 morphism into a lattice with a conflict top whose displayed value is retracted
 on conflict. This specification makes that structure explicit and adds the two
 reads LVars require.
@@ -201,10 +204,16 @@ Trace: [[SPEC-038-lvar-state-kernel#TEST-3807]].
 
 ## REQ-3808: Closure heads
 
-`progress` and `bounded-counter` SHALL be modelled as monotone, non-morphism
-primitives whose value is a least fixed point over cited acts, with their
-existing proofs ([[SPEC-034-owned-progress-closure]], [[SPEC-019-state-rules#CON-1908]])
-retained. They SHALL participate in threshold reads (`progress` reaching its
+`progress` and `bounded-counter` SHALL be modelled as lifts with the identity
+contribution into the set of selected acts under union, which is a
+join-homomorphism like every other head, and a post-map that is a least fixed
+point over cited acts. They SHALL be distinguished from the other heads only by
+the absence of a summarising carrier: no per-act contribution smaller than the
+act determines their value, so they cannot be evaluated incrementally per
+contribution. Their existing proofs ([[SPEC-034-owned-progress-closure]],
+[[SPEC-019-state-rules#CON-1908]]) are retained; the monotonicity of their
+post-maps is as proved there: `progress` is monotone, a resource `fault` is
+sticky, and `ready` and the rights are revisable. They SHALL participate in threshold reads (`progress` reaching its
 bound; a resource `fault`) and in freeze. Whether they share one closure
 combinator is open.
 Trace: [[SPEC-038-lvar-state-kernel#TEST-3800]].

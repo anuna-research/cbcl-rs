@@ -10,9 +10,13 @@
 //!
 //! This module does not replace [`crate::state::fold`]; it *denotes* each rule
 //! as a term and is checked against the fold differentially (TEST-3800). The
-//! two closure heads return `None` from [`factor`] because their contribution
-//! for one act depends on other acts (a predecessor chain, dependency closure);
-//! they are monotone but not morphisms (SPEC-038 REQ-3808).
+//! two closure heads return `None` from [`factor`] not because the join law
+//! fails — with the identity contribution every head is a morphism into the
+//! set of acts under union — but because no *summarising* carrier exists for
+//! them: an act's protocol position or an operation's validity depends on its
+//! cited ancestors, so their post-map is a least fixed point over citations
+//! and nothing smaller than the act set can be joined per contribution
+//! (SPEC-038 REQ-3808).
 //!
 //! Supersession fits the algebra by carrying two grow-only halves: `W`, the
 //! writes keyed by their group, and `R`, the `(group, address)` pairs a
