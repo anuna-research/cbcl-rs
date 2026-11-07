@@ -29,6 +29,7 @@ import LeanCbcl.Lattice.NotALattice
 import LeanCbcl.DCFLPreservation
 import LeanCbcl.R6DCFLPreservation
 import LeanCbcl.Verify
+import LeanCbcl.VerifyKnowledge
 import LeanCbcl.R5
 import LeanCbcl.EPP
 import LeanCbcl.EPPCompletion
