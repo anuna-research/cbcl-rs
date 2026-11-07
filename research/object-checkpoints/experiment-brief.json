@@ -1,0 +1,37 @@
+{
+  "status": "experimental; not a production protocol",
+  "tier": 1,
+  "authorization": "User authorized trying the Acumen-inspired replacement-map prototype; no production crypto/admission changes.",
+  "hypothesis": "Authenticated member summaries and sparse-set transition witnesses can load replacement-map state without downloading covered message bodies.",
+  "scope": [
+    "real CBCL fold oracle for register-per-key, values-per-key and observed-set",
+    "existing SHA-256 and Ed25519 implementations",
+    "preaccepted same-thread acts; causal admission is outside this experiment",
+    "per-member reconstruction by compact summary plus uncovered bridge operations",
+    "provider retains full coverage index; snapshot clients do not"
+  ],
+  "risks": [
+    "member lag makes bridge evidence grow",
+    "suppression references to unseen acts cannot be dropped",
+    "proof bytes may exceed saved history for small workloads",
+    "member signatures authenticate replay-derived summaries under explicit honest-anchor assumption; malicious-only roster is unsafe"
+  ],
+  "metrics": [
+    "snapshot bytes including signatures, summaries and witnesses",
+    "replay input bytes",
+    "client verification time vs full fold",
+    "bridge and coverage proof size",
+    "provider index nodes",
+    "covered body fetches"
+  ],
+  "exit_criteria": [
+    "compare against real kernel after subsequent edits",
+    "reject mutations and incomplete bridge evidence",
+    "measure fixed live state vs history and member lag",
+    "fresh-context adversarial review; report unresolved gaps"
+  ],
+  "timebox": "one experimental implementation and adversarial review cycle",
+  "next_step": "Convert demonstrated contracts to a proposed specification only after assessing measurements.",
+  "model": "Codex; exact model build not exposed",
+  "prompt": "yes, try that; continuation of Acumen kernel generalization proposal"
+}

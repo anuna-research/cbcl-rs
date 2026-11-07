@@ -1,0 +1,86 @@
+{
+  "spec": "SPEC-035-cached-state-checkpoints",
+  "version": "0.4.0",
+  "status": "typed_checkpoint_continuation_proved_and_locally_verified",
+  "recorded_at_utc": "2026-11-06T22:25:47.194202+00:00",
+  "git_head": "3186cea4ec7ee34c6953f0e37d8296c3206e87dc",
+  "origin_main": "3186cea4ec7ee34c6953f0e37d8296c3206e87dc",
+  "upstream_verification": "git fetch origin main completed during the user latest-main question; HEAD and origin/main equal. Work remains uncommitted.",
+  "scope": {
+    "native_kernel_heads": 16,
+    "enabled_checkpoint_heads": 7,
+    "actual_whitelist": [
+      "Initial",
+      "Values",
+      "ValuesPerKey",
+      "ObservedSet",
+      "LwwMap",
+      "LwwRegister",
+      "LwwPerSigner"
+    ],
+    "equation": "render(advance(checkpoint(fields, history), tail)) = fullFold(fields, history ++ tail)",
+    "equality": "Native semantic field values; collection enumeration ignored, not JSON byte equality.",
+    "runtime_refinement": "Bounded correspondence, not universal Rust extraction.",
+    "per_object_proof_overhead": "None added; static theorem only, attestation trust unchanged."
+  },
+  "checks": [
+    {
+      "command": "cd lean-cbcl && lake build LeanCbcl",
+      "exit_code": 0,
+      "log": "proofs/cached-checkpoints/lean-library.log",
+      "sha256": "1feaba8acd2086815d8daee3891a1516869f2ed7dbd8f37848db6e263e457fe3"
+    },
+    {
+      "command": "cd lean-cbcl && lake exe runLinter LeanCbcl",
+      "exit_code": 0,
+      "log": "proofs/cached-checkpoints/lean-linter.log",
+      "sha256": "52c0c995fd7f111662124f5a7e548337b25bda91e8679d39338855ad111412d4"
+    },
+    {
+      "command": "scripts/check-axioms.sh",
+      "exit_code": 0,
+      "log": "proofs/cached-checkpoints/lean-global-axioms.log",
+      "sha256": "cbe90928d0209e1b46d527faf0210a1cd96b47dd47e7700e30007d93b37e7807"
+    },
+    {
+      "command": "CARGO_PROFILE_DEV_DEBUG=0 CARGO_INCREMENTAL=0 cargo clippy -p cbcl-checkpoint --test lean_checkpoint_parity -- -D warnings",
+      "exit_code": 0,
+      "log": "proofs/cached-checkpoints/lean-rust-clippy.log",
+      "sha256": "bd78efc584786aedeff4a2938ba22269233ac68fe183a1ecbdd47ccc783b7a43"
+    },
+    {
+      "command": "cargo fmt --all -- --check",
+      "exit_code": 0,
+      "log": "proofs/cached-checkpoints/lean-rust-format.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "command": "usdd-lint.sh --show specs/SPEC-035-cached-state-checkpoints.md",
+      "exit_code": 0,
+      "log": "proofs/cached-checkpoints/lean-spec-lint.log",
+      "sha256": "8862528701ada7205d152762ada4eb5968832e6345d62dac67defa0cf95a2f98"
+    }
+  ],
+  "formal_check": "proofs/cached-checkpoints/lean-proof-checks.json",
+  "independent_model_review": "proofs/cached-checkpoints/lean-review.json",
+  "independent_parity_review": "proofs/cached-checkpoints/lean-parity-review.json",
+  "parity_evidence": "test-vectors/checkpoints/rust-lean-parity-evidence.json",
+  "observations": 1330,
+  "proof_axioms": [
+    "Classical.choice",
+    "Quot.sound",
+    "propext"
+  ],
+  "anchor_check": {
+    "checked": 174,
+    "broken": []
+  },
+  "existing_vault_dead_links": 37,
+  "checkpoint_spec_dead_links": 0,
+  "source_hashes": {
+    "specs/SPEC-035-cached-state-checkpoints.md": "5adb9554f31abf2ad4fa60e0334dc1f084918ef2e0b4be8640d928d3fb86082e",
+    "plans/IMPL-028-checkpoint-continuation-proof.spl": "e6b5735bc590e2b3370267583f077bc1e11234e3ad55be2182e87f7c800b0a2b",
+    "lean-cbcl/README.md": "7aa52c0d8cdadbc9309f124dc4a7eba35ccf7c490783138505f855c5fb672bfe",
+    "scripts/check-checkpoint-lean.py": "5de3b0c43301077f89d8ab793ac2970ac429c5654a53529f0593b91fac07f762"
+  }
+}

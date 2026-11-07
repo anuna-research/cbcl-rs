@@ -1,0 +1,28 @@
+{
+  "reviewer_agent": "01a1b09b-3734-7691-9b0b-320f1fc492e1",
+  "review_type": "fresh-context static adversarial review; same inherited model, not independent model-family cryptographic validation",
+  "findings": [
+    {
+      "id": "cross-key-order",
+      "severity": "high",
+      "finding": "Pending cross-key references survived after identity arrival, causing summary-hash divergence.",
+      "fix": "Validate all proofs first; remove every pending reference to arriving identity, suppress only same-key write.",
+      "regression": "cross_key_arrival_order_converges_and_independent_anchors_reconcile"
+    },
+    {
+      "id": "rejection-atomicity",
+      "severity": "medium",
+      "finding": "Invalid later replacement proof could partially mutate state/root.",
+      "fix": "Prevalidate replacement proofs before summary mutation; commit root after summary success.",
+      "regression": "invalid_late_replacement_proof_is_atomic_and_valid_retry_succeeds"
+    },
+    {
+      "id": "performance-scope",
+      "severity": "medium",
+      "finding": "Fixed rendered state does not bound live identity count; stale member and pending reference evidence can grow.",
+      "fix": "Added concurrent-identical and unseen-reference workloads, member-lag axis, comparable decode/render timings, explicit provider cost and proof sizes."
+    }
+  ],
+  "production_review": "Not performed; experimental code is not integrated into production runtime.",
+  "follow_up": "Reviewer confirmed cross-key convergence and rejection atomicity fixes; no further concrete counterexample within stated fold-only scope. Static review only; tests and measurements run by implementing session."
+}

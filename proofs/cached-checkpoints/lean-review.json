@@ -1,0 +1,197 @@
+{
+  "schema_version": 1,
+  "recorded_at_utc": "2026-11-06T22:13:51.373829+00:00",
+  "status": "complete_no_actionable_findings_within_reviewed_scope",
+  "review_author": {
+    "identity": "Independent Codex sidecar formal-review agent in this conversation",
+    "independent_of_lean_proof_authorship": true,
+    "same_model_local_review": true,
+    "different_model_review": false,
+    "human_review": false,
+    "disclosure": "Reviewer previously contributed Rust host/runtime changes and boundary tests; did not author or edit the reviewed Lean proof modules."
+  },
+  "repository_baseline": {
+    "head": "3186cea4ec7ee34c6953f0e37d8296c3206e87dc",
+    "origin_main": "3186cea4ec7ee34c6953f0e37d8296c3206e87dc",
+    "verification": "Local read-only git rev-parse; no network fetch during artifact creation.",
+    "working_tree_proofs": "The new proof files are uncommitted additions; source hashes below, not the baseline commit alone, bind this review."
+  },
+  "source_binding": {
+    "hash_algorithm": "SHA-256 of exact current file bytes",
+    "proof_sources": [
+      "lean-cbcl/LeanCbcl/CheckpointSummary.lean",
+      "lean-cbcl/LeanCbcl/CheckpointCompact.lean",
+      "lean-cbcl/LeanCbcl/CheckpointRender.lean",
+      "lean-cbcl/LeanCbcl/CheckpointKernel.lean"
+    ],
+    "supporting_sources": [
+      "lean-cbcl/LeanCbcl/CheckpointCompactTests.lean",
+      "lean-cbcl/LeanCbcl/CheckpointKernelTests.lean",
+      "lean-cbcl/LeanCbcl.lean",
+      "lean-cbcl/lean-toolchain"
+    ],
+    "sha256": {
+      "lean-cbcl/LeanCbcl/CheckpointSummary.lean": "8c7c7a5653b11bdc83eb4beab99dc7832fbc225c4ce2d363c25495e4b98cc004",
+      "lean-cbcl/LeanCbcl/CheckpointCompact.lean": "546ad60a49d97b8fc3fa079896a5066ee3715236cc5f2c47bf2e412fdd666d03",
+      "lean-cbcl/LeanCbcl/CheckpointRender.lean": "7aa1b1b7d880d6162de02823542f1b310db2b7b149f9da637303af934904d56c",
+      "lean-cbcl/LeanCbcl/CheckpointKernel.lean": "b22db27f84d9be6ca9828467a42cc810e3038b622166251106a338b0d239e819",
+      "lean-cbcl/LeanCbcl/CheckpointCompactTests.lean": "cd9beafbc335bf91c0d84dcb032c0c35b27e2d304c849c65c8b0f513019acbbf",
+      "lean-cbcl/LeanCbcl/CheckpointKernelTests.lean": "cfe1645873b89aaec772d4975bd8c132bca1c0f1a6cc4bd046ec35c2d78f8b7a",
+      "lean-cbcl/LeanCbcl.lean": "28ed41b92b9b68b118ea3950cd33efc6fb89c35c3db99734f2ccf8a1c3794919",
+      "lean-cbcl/lean-toolchain": "d55ca0039a5479db5b38919d005b2c427b89b3be4f0184a20f2f4eae931f5bdb"
+    },
+    "post_review_change_inspection": {
+      "method": "Manual reinspection of current docstrings and declaration bodies against the source reviewed earlier in this conversation.",
+      "result": "No executable definition, theorem statement or proof-body difference observed; additions inspected were documentation.",
+      "limitation": "Not a mechanical diff against an archived pre-docstring source snapshot; none was created by this reviewer."
+    },
+    "proof_hashes_match_existing_main_checker_record": {
+      "lean-cbcl/LeanCbcl/CheckpointSummary.lean": true,
+      "lean-cbcl/LeanCbcl/CheckpointCompact.lean": true,
+      "lean-cbcl/LeanCbcl/CheckpointRender.lean": true,
+      "lean-cbcl/LeanCbcl/CheckpointKernel.lean": true
+    }
+  },
+  "scope": {
+    "native_kernel_rule_count": 16,
+    "checkpoint_supported_rule_count": 7,
+    "checkpoint_supported_rules": [
+      "initial",
+      "values",
+      "valuesPerKey",
+      "observedSet",
+      "lwwRegister",
+      "lwwPerSigner",
+      "lwwMap"
+    ],
+    "excluded_native_rules": [
+      "exists",
+      "count",
+      "progress",
+      "events",
+      "setUnion",
+      "counter",
+      "histogram",
+      "sum",
+      "boundedCounter"
+    ],
+    "clause_boundary": "Arbitrary finite composition of the seven supported rules, without domains; native_compile_clause additionally requires unique field names.",
+    "observation_boundary": "Exact Lean equality of extensional View projections of native observations, preserving cell values and map key presence while identifying enumeration orders. This is not JSON or canonical serialized byte equality.",
+    "claim": "Typed semantic render and continuation correspondence for the complete supported seven-rule checkpoint profile, not checkpoint support for all sixteen native rules."
+  },
+  "findings": [],
+  "analysis": {
+    "vacuity": {
+      "result": "No vacuity found.",
+      "reason": "Empty-state validity is proved; concrete step preservation and induction establish genesis checkpoint validity. render_advance_checkpoint derives continuation from those results rather than assuming advance correctness or the desired rendering equation.",
+      "imported_snapshots": "resume_valid_snapshot explicitly requires a truthful sufficient-state invariant and unique accepted identities. Native signatures or certificate acceptance are not used to prove that invariant."
+    },
+    "history_cache": {
+      "result": "No hidden whole-history body cache found in the computational snapshot.",
+      "representation": "Snapshot holds a finite List Entry with rule-indexed data plus identity coverage. Scoped rows retain surviving contributions and unresolved scoped references; Initial retains at most two witnesses and plain LWW retains at most one candidate.",
+      "coverage": "insertCoverage captures only a Nat identity and the prior membership function, not the incoming Act. Histories in invariants and reference folds are ghost/reference arguments, not snapshot fields.",
+      "qualification": "Live-contribution state and identity coverage may grow. The review does not establish constant storage or asymptotic execution bounds."
+    },
+    "native_evaluator_bridge": {
+      "result": "Native correspondence is substantive, not a renamed summary evaluator.",
+      "bindings": [
+        "CBCL.CheckpointKernel.native_expression",
+        "CBCL.CheckpointKernel.native_compile_fields",
+        "CBCL.CheckpointKernel.native_compile_clause",
+        "CBCL.CheckpointKernel.fullFoldRaw_native",
+        "CBCL.CheckpointKernel.render_advance_native_clause"
+      ],
+      "reason": "Rule expressions are checked against existing native compileRule; whole-clause compilation is checked against compileClause. fullFoldRaw_native exposes the literal pre-existing evaluateFields call. Rendering retained data is related to independent native selections and reductions, not to a reference fold defined using the summary updater."
+    },
+    "identity_and_coverage": {
+      "reference_store": "normalize folds ingest from the empty accepted store; the first act accepted for an identity is retained and later occurrences of that identity are ignored.",
+      "external_preconditions": "Accepted histories have coherent immutable semantic contents for equal native identities. Coverage must answer exact pre-update accepted-identity membership. This oracle assumption does not prove cryptographic coverage integrity or certificate truth."
+    },
+    "refinement_boundaries": [
+      "Rust Summary.apply and its error, normalization and canonical representation behavior are not formally verified by this Lean theorem.",
+      "Lean row membership and observation equality do not assert sorted unique Rust vector/set encodings or byte-identical summaries.",
+      "Typed scope equality must be related to Rust scalar/scope normalization; Nat identities and ranks require the declared injective/order-preserving interpretation of native addresses and signer keys.",
+      "Initial semantic ambiguity witnesses need not be Rust's least-two canonical address witnesses.",
+      "Clock recognition, admission, native identity binding, signatures, certificate endorsement truth, Merkle proofs and host persistence remain separate obligations.",
+      "Independent parity vectors and hostile bridge checks remain necessary; typed proof success alone does not discharge every release gate in REQ-3515/TEST-3519."
+    ]
+  },
+  "kernel_evidence": {
+    "toolchain": "leanprover/lean4:v4.27.0",
+    "reviewer_observed_prior_commands": [
+      {
+        "cwd": "lean-cbcl",
+        "command": "lake env lean LeanCbcl/CheckpointSummary.lean",
+        "exit_code": 0
+      },
+      {
+        "cwd": "lean-cbcl",
+        "command": "lake env lean LeanCbcl/CheckpointKernel.lean",
+        "exit_code": 0
+      },
+      {
+        "cwd": "lean-cbcl",
+        "command": "lake env lean LeanCbcl/CheckpointKernelTests.lean",
+        "exit_code": 0
+      },
+      {
+        "cwd": "lean-cbcl",
+        "command": "lake build LeanCbcl",
+        "exit_code": 0,
+        "reported_jobs": 112
+      }
+    ],
+    "rebuild_during_artifact_creation": false,
+    "axiom_audit": {
+      "method": "Previously executed #print axioms against the imported theorem constants; successful final audit command exited 0.",
+      "result": "Foundational dependencies only.",
+      "allowed_dependencies": [
+        "propext",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "sorryAx_found": false,
+      "project_specific_axioms_found": false,
+      "unchecked_native_decision_dependency_found": false,
+      "audited_endpoints": [
+        "CBCL.CheckpointSummary.checkpoint_continuation",
+        "CBCL.CheckpointCompact.Initial.continuation",
+        "CBCL.CheckpointCompact.LwwRegister.continuation",
+        "CBCL.CheckpointRender.lwwMap_render",
+        "CBCL.CheckpointRender.lwwPerSigner_render",
+        "CBCL.CheckpointKernel.rule_step_valid",
+        "CBCL.CheckpointKernel.rule_render_eq",
+        "CBCL.CheckpointKernel.resume_valid_snapshot",
+        "CBCL.CheckpointKernel.render_advance_checkpoint",
+        "CBCL.CheckpointKernel.render_checkpoint",
+        "CBCL.CheckpointKernel.native_expression",
+        "CBCL.CheckpointKernel.native_compile_fields",
+        "CBCL.CheckpointKernel.fullFoldRaw_native",
+        "CBCL.CheckpointKernel.native_compile_clause",
+        "CBCL.CheckpointKernel.render_advance_native_clause"
+      ]
+    }
+  },
+  "main_verifier_provenance": {
+    "original_verifier_toolchain": "Lean 4.27.0",
+    "original_build_and_axiom_outputs": "Main-agent verifier evidence and the reviewer commands above are distinct from an independently executed trust-level-zero checker run.",
+    "trust_zero_checker_status_at_user_handoff": "Described by user as pending.",
+    "existing_artifact": "proofs/cached-checkpoints/lean-proof-checks.json",
+    "existing_artifact_sha256": "8bd89ac1273003bcea17a0f42d2a8b5fa57fe3075ed92fa0da147db13734e054",
+    "existing_artifact_observed_at_write": {
+      "complete": true,
+      "passed": true,
+      "trust_level": 0
+    },
+    "checker_independently_rerun_by_review_author": false,
+    "note": "The existing main-agent artifact already reports complete=true, passed=true and trust_level=0 when this review is written; that is recorded provenance, not a new checker/mutation execution or an independent certification by this reviewer."
+  },
+  "release_claim": {
+    "local_typed_formal_review_complete": true,
+    "rust_extraction_formally_verified": false,
+    "cross_model_or_human_release_approval_granted": false,
+    "production_enablement_approved": false,
+    "remaining_review_boundary": "Human/cross-model release review and the separately tracked implementation, bridge and operational gates are not granted by this artifact."
+  },
+  "artifact_write_scope": "Only proofs/cached-checkpoints/lean-review.json was created. No source edits or new proof builds were performed for this artifact."
+}

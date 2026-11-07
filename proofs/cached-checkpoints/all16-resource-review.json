@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "recorded_at_utc": "2026-11-06T23:14:52.218466+00:00",
+  "status": "bounded_review_pass",
+  "review_author": {
+    "identity": "Codex coverage/progress sidecar worker",
+    "same_model_local_review": true,
+    "different_model_review": false,
+    "human_review": false,
+    "independent_of_reviewed_rust_authorship": true,
+    "disclosure": "Authored disjoint coverage/progress Rust, CheckpointRender Lean, and all-head checker. Did not author or modify reviewed escrow/resource_resume/summary Rust. Reviewed current frozen delta read-only."
+  },
+  "baseline_head": "3186cea4ec7ee34c6953f0e37d8296c3206e87dc",
+  "source_sha256": {
+    "crates/cbcl-core/src/escrow.rs": "737d50ec65573dc903a287a30d8e6668a560f932f4fb41a9163a2689b533800b",
+    "crates/cbcl-checkpoint/src/resource_resume.rs": "0cfd0bb589621686e77fc91bd7bf7ba71d220e7196e015aebc0a8219188181b6",
+    "crates/cbcl-checkpoint/src/resource_resume_tests.rs": "af00803e02a183475b2769742a4c92a3e9e46275ad132a7a19dca2dcfa882a58",
+    "crates/cbcl-checkpoint/src/summary.rs": "d10f4bf290e34915ee21bb1639fd3b26127b5f9534b808852e2938ad0cf1c5ac"
+  },
+  "review_scope": [
+    "Canonical native identity commitment versus raw-attempt duplicate diagnostics",
+    "Native/state alias normalization of root predecessors and escrow previous/dependency fields",
+    "Malformed reference preservation and sparse proof footprint recognition",
+    "Projected resource data versus full message retention and resource authority",
+    "Known-present non-resource references, late arrivals and wrong-type classification",
+    "Atomic Summary staging and the accepted-ID-normalized input contract"
+  ],
+  "checks": {
+    "identity": "escrow::simple_identity hashes the canonical native message_content_hash bytes. Native-equivalent recipient/core-performative AST aliases therefore project identically; projection no longer adds a representation-sensitive identity tag. project_resource_fact first reconstructs and checks the complete incoming Act.",
+    "raw_attempt_diagnostics": "escrow::observe retains the preexisting raw Simple/signer/language/cast duplicate comparison before projecting a deduplicated map. The alias test explicitly expects a raw mixed-attempt list to fault, while identity-normalized accepted stores and covered replays produce the same checkpoint bytes. This boundary is necessary: no unconditional parity claim on raw conflicting attempt lists.",
+    "address_aliases": "resource_state_id converts only recognized lowercase native sha256: digests to sha256- state keys. Projection applies it to opener causal predecessors, escrow-prev and each escrow-deps element; observe_in compares opener/root links through the same normalization. Snapshot validate rejects noncanonical recognized aliases. Malformed data remains malformed rather than becoming a plausible address.",
+    "query_footprint": "needed filters with native r7::is_address before generating coverage queries. It does not delete malformed fields from ResourceFact, so the unchanged native classifier can still return its malformed previous/dependency fault. query_ids and apply use the same old-reference/new-reference classification; act identity is queried independently.",
+    "late_arrivals": "Previously unresolved referenced non-resource identity becomes known when id == act.address. Previously covered new references are queried at the pre-root. known entries are retained only while referenced and absent from projected facts, allowing native observe_facts to distinguish missing dependencies from present wrong-type dependencies.",
+    "projection": "ResourceFact retains selected rule fields, signed signer/context/cast metadata and an identity commitment; it contains no Act, Message, application body or signature. Rule-owned field allowlists and native codec bounds are validated. Decode recomputes the native observation rather than accepting a supplied cached balance.",
+    "authority": "Collective/quorum legacy modes preserve native Fault behavior. Object checkpoint endorsement verification does not mint ResourceEvidence or assert native finality. The adapter is an observation continuation only.",
+    "atomicity": "Summary.apply validates reconstructed Act/references, checks covered duplicates, and stages fallible resource/progress/checked-arithmetic updates before mutating committed rows. Resource.apply stages a clone, recomputes and validates, then replaces self.",
+    "contract": "Review assumes authenticated, natively admitted inputs, exact pre-root coverage, and an identity-normalized accepted store. Independent evidence/diagnostic retention is owned by Member/host; this review does not authorize dropping supplied signed attempts."
+  },
+  "tests_reviewed": [
+    "native_ready_prefixes_cuts_delayed_operations_and_duplicates",
+    "missing_to_wrong_type_dependencies_before_and_after_cut",
+    "native_faults_keep_tags_and_evidence",
+    "collective_and_quorum_remain_native_faults_not_certificate_authority",
+    "projection_drops_unrelated_bodies_and_validation_is_atomic",
+    "projected_cycle_uses_native_cycle_fault_not_a_balance_shortcut",
+    "native_colon_links_resolve_to_state_wire_facts_without_false_wrong_type",
+    "native_headroom_transfer_and_late_funding_preserve_account_arithmetic",
+    "accepted_native_recipient_aliases_have_identical_resource_snapshots"
+  ],
+  "test_evidence": {
+    "independent_test_run_this_review": false,
+    "reason": "Parent final workspace and clippy runs are active; no duplicate Cargo job started.",
+    "parent_reported": "9 focused resource tests passed, including native aliases, headroom transfer and body-projection size assertion. This is attributed parent evidence, not a newly observed execution by this reviewer.",
+    "source_assertions_inspected": [
+      "compare checks native Outcome and rendered Value at every prefix plus snapshot cuts/roundtrips",
+      "query_ids/apply query-set equality",
+      "native_colon_links_resolve_to_state_wire_facts_without_false_wrong_type",
+      "accepted_native_recipient_aliases_have_identical_resource_snapshots",
+      "native_headroom_transfer_and_late_funding_preserve_account_arithmetic",
+      "malformed escrow-prev/deps remain native faults without invalid proof queries",
+      "projection_drops_unrelated_bodies_and_validation_is_atomic compares encoded projection size against source bodies"
+    ]
+  },
+  "findings": [],
+  "limitations": [
+    "Bounded same-model local review, not independent security or human release approval.",
+    "Resource updates clone/reclassify retained resource facts; no constant update cost or constant storage claim.",
+    "Fact commitments and coverage depend on independently pinned native authentication and checkpoint endorsement truth; projection structure alone does not prove acceptedness.",
+    "No proof of native classifier extraction equivalence, cryptographic implementation, host durability or global fan-in completeness.",
+    "Projection-size ratios are fixture assertions, not a platform performance benchmark."
+  ],
+  "rust_modified_by_review": false,
+  "cargo_started_by_review": false,
+  "source_stability": {
+    "unchanged_during_recording": true,
+    "changed_paths": []
+  }
+}

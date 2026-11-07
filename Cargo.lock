@@ -128,6 +128,22 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "37b2a672a2cb129a2e41c10b1224bb368f9f37a2b16b612598138befd7b37eb5"
 
 [[package]]
+name = "cbcl-checkpoint"
+version = "0.1.1"
+dependencies = [
+ "cbcl-core",
+ "cbcl-parser",
+ "ed25519-dalek",
+ "fs2",
+ "libc",
+ "rustix",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tracing",
+]
+
+[[package]]
 name = "cbcl-cli"
 version = "0.1.1"
 dependencies = [
@@ -169,6 +185,18 @@ dependencies = [
  "cbcl-core",
  "cbcl-parser",
  "cbindgen",
+]
+
+[[package]]
+name = "cbcl-object-checkpoint-probe"
+version = "0.1.1"
+dependencies = [
+ "cbcl-core",
+ "ed25519-dalek",
+ "libc",
+ "serde",
+ "serde_json",
+ "sha2",
 ]
 
 [[package]]
@@ -1301,6 +1329,9 @@ name = "tracing-core"
 version = "0.1.36"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "db97caf9d906fbde555dd62fa95ddba9eecfd14cb388e4f491a66d74cd5fb79a"
+dependencies = [
+ "once_cell",
+]
 
 [[package]]
 name = "typenum"

@@ -1,0 +1,661 @@
+{
+  "schema_version": 1,
+  "recorded_at_utc": "2026-11-06T23:25:22.112750+00:00",
+  "passed": true,
+  "scope": "Two legacy configuration-policy constants only; not the general account/quorum verifier, extraction, admission or cryptography.",
+  "lean_receives_rust_outputs": false,
+  "cargo_invoked": false,
+  "input_contract": "Identity-consistent typed dummy acts; no admission or signature claim for these irrelevant-to-policy histories.",
+  "runs": [
+    {
+      "command": [
+        "rustc",
+        "--edition=2021",
+        "-C",
+        "debuginfo=0",
+        "-L",
+        "dependency=/Users/anuna-02/Code/cbcl-rs/target/debug/deps",
+        "--extern",
+        "checkpoint=/Users/anuna-02/Code/cbcl-rs/target/debug/deps/libcbcl_checkpoint-f2760441410d9553.rlib",
+        "--extern",
+        "cbcl_core=/Users/anuna-02/Code/cbcl-rs/target/debug/deps/libcbcl_core-e85eb6847f02d68e.rlib",
+        "--extern",
+        "cbcl_parser=/Users/anuna-02/Code/cbcl-rs/target/debug/deps/libcbcl_parser-baeca04cdfeb6487.rlib",
+        "--extern",
+        "serde_json=/Users/anuna-02/Code/cbcl-rs/target/debug/deps/libserde_json-1d325e804b338065.rlib",
+        "/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-resource-policy-ports-16m7hg9u/policy.rs",
+        "-o",
+        "/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-resource-policy-ports-16m7hg9u/policy"
+      ],
+      "cwd": "/Users/anuna-02/Code/cbcl-rs",
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-resource-policy-ports-16m7hg9u/policy"
+      ],
+      "cwd": "/Users/anuna-02/Code/cbcl-rs",
+      "exit_code": 0,
+      "stdout": "[{\"policy\":\"collective\",\"prefix\":0,\"cut\":0,\"observation\":{\"evidence\":[],\"reason\":\"collective counter requires the certificate runtime\",\"status\":\"fault\"},\"checkpoint_observation\":{\"evidence\":[],\"reason\":\"collective counter requires the certificate runtime\",\"status\":\"fault\"}},{\"policy\":\"collective\",\"prefix\":1,\"cut\":0,\"observation\":{\"evidence\":[],\"reason\":\"collective counter requires the certificate runtime\",\"status\":\"fault\"},\"checkpoint_observation\":{\"evidence\":[],\"reason\":\"collective counter requires the certificate runtime\",\"status\":\"fault\"}},{\"policy\":\"collective\",\"prefix\":1,\"cut\":1,\"observation\":{\"evidence\":[],\"reason\":\"collective counter requires the certificate runtime\",\"status\":\"fault\"},\"checkpoint_observation\":{\"evidence\":[],\"reason\":\"collective counter requires the certificate runtime\",\"status\":\"fault\"}},{\"policy\":\"collective\",\"prefix\":2,\"cut\":0,\"observation\":{\"evidence\":[],\"reason\":\"collective counter requires the certificate runtime\",\"status\":\"fault\"},\"checkpoint_observation\":{\"evidence\":[],\"reason\":\"collective counter requires the certificate runtime\",\"status\":\"fault\"}},{\"policy\":\"collective\",\"prefix\":2,\"cut\":1,\"observation\":{\"evidence\":[],\"reason\":\"collective counter requires the certificate runtime\",\"status\":\"fault\"},\"checkpoint_observation\":{\"evidence\":[],\"reason\":\"collective counter requires the certificate runtime\",\"status\":\"fault\"}},{\"policy\":\"collective\",\"prefix\":2,\"cut\":2,\"observation\":{\"evidence\":[],\"reason\":\"collective counter requires the certificate runtime\",\"status\":\"fault\"},\"checkpoint_observation\":{\"evidence\":[],\"reason\":\"collective counter requires the certificate runtime\",\"status\":\"fault\"}},{\"policy\":\"collective\",\"prefix\":3,\"cut\":0,\"observation\":{\"evidence\":[],\"reason\":\"collective counter requires the certificate runtime\",\"status\":\"fault\"},\"checkpoint_observation\":{\"evidence\":[],\"reason\":\"collective counter requires the certificate runtime\",\"status\":\"fault\"}},{\"policy\":\"collective\",\"prefix\":3,\"cut\":1,\"observation\":{\"evidence\":[],\"reason\":\"collective counter requires the certificate runtime\",\"status\":\"fault\"},\"checkpoint_observation\":{\"evidence\":[],\"reason\":\"collective counter requires the certificate runtime\",\"status\":\"fault\"}},{\"policy\":\"collective\",\"prefix\":3,\"cut\":2,\"observation\":{\"evidence\":[],\"reason\":\"collective counter requires the certificate runtime\",\"status\":\"fault\"},\"checkpoint_observation\":{\"evidence\":[],\"reason\":\"collective counter requires the certificate runtime\",\"status\":\"fault\"}},{\"policy\":\"collective\",\"prefix\":3,\"cut\":3,\"observation\":{\"evidence\":[],\"reason\":\"collective counter requires the certificate runtime\",\"status\":\"fault\"},\"checkpoint_observation\":{\"evidence\":[],\"reason\":\"collective counter requires the certificate runtime\",\"status\":\"fault\"}},{\"policy\":\"quorum\",\"prefix\":0,\"cut\":0,\"observation\":{\"evidence\":[],\"reason\":\"quorum-budget requires an explicit certificate runtime; legacy fold cannot prove finality\",\"status\":\"fault\"},\"checkpoint_observation\":{\"evidence\":[],\"reason\":\"quorum-budget requires an explicit certificate runtime; legacy fold cannot prove finality\",\"status\":\"fault\"}},{\"policy\":\"quorum\",\"prefix\":1,\"cut\":0,\"observation\":{\"evidence\":[],\"reason\":\"quorum-budget requires an explicit certificate runtime; legacy fold cannot prove finality\",\"status\":\"fault\"},\"checkpoint_observation\":{\"evidence\":[],\"reason\":\"quorum-budget requires an explicit certificate runtime; legacy fold cannot prove finality\",\"status\":\"fault\"}},{\"policy\":\"quorum\",\"prefix\":1,\"cut\":1,\"observation\":{\"evidence\":[],\"reason\":\"quorum-budget requires an explicit certificate runtime; legacy fold cannot prove finality\",\"status\":\"fault\"},\"checkpoint_observation\":{\"evidence\":[],\"reason\":\"quorum-budget requires an explicit certificate runtime; legacy fold cannot prove finality\",\"status\":\"fault\"}},{\"policy\":\"quorum\",\"prefix\":2,\"cut\":0,\"observation\":{\"evidence\":[],\"reason\":\"quorum-budget requires an explicit certificate runtime; legacy fold cannot prove finality\",\"status\":\"fault\"},\"checkpoint_observation\":{\"evidence\":[],\"reason\":\"quorum-budget requires an explicit certificate runtime; legacy fold cannot prove finality\",\"status\":\"fault\"}},{\"policy\":\"quorum\",\"prefix\":2,\"cut\":1,\"observation\":{\"evidence\":[],\"reason\":\"quorum-budget requires an explicit certificate runtime; legacy fold cannot prove finality\",\"status\":\"fault\"},\"checkpoint_observation\":{\"evidence\":[],\"reason\":\"quorum-budget requires an explicit certificate runtime; legacy fold cannot prove finality\",\"status\":\"fault\"}},{\"policy\":\"quorum\",\"prefix\":2,\"cut\":2,\"observation\":{\"evidence\":[],\"reason\":\"quorum-budget requires an explicit certificate runtime; legacy fold cannot prove finality\",\"status\":\"fault\"},\"checkpoint_observation\":{\"evidence\":[],\"reason\":\"quorum-budget requires an explicit certificate runtime; legacy fold cannot prove finality\",\"status\":\"fault\"}},{\"policy\":\"quorum\",\"prefix\":3,\"cut\":0,\"observation\":{\"evidence\":[],\"reason\":\"quorum-budget requires an explicit certificate runtime; legacy fold cannot prove finality\",\"status\":\"fault\"},\"checkpoint_observation\":{\"evidence\":[],\"reason\":\"quorum-budget requires an explicit certificate runtime; legacy fold cannot prove finality\",\"status\":\"fault\"}},{\"policy\":\"quorum\",\"prefix\":3,\"cut\":1,\"observation\":{\"evidence\":[],\"reason\":\"quorum-budget requires an explicit certificate runtime; legacy fold cannot prove finality\",\"status\":\"fault\"},\"checkpoint_observation\":{\"evidence\":[],\"reason\":\"quorum-budget requires an explicit certificate runtime; legacy fold cannot prove finality\",\"status\":\"fault\"}},{\"policy\":\"quorum\",\"prefix\":3,\"cut\":2,\"observation\":{\"evidence\":[],\"reason\":\"quorum-budget requires an explicit certificate runtime; legacy fold cannot prove finality\",\"status\":\"fault\"},\"checkpoint_observation\":{\"evidence\":[],\"reason\":\"quorum-budget requires an explicit certificate runtime; legacy fold cannot prove finality\",\"status\":\"fault\"}},{\"policy\":\"quorum\",\"prefix\":3,\"cut\":3,\"observation\":{\"evidence\":[],\"reason\":\"quorum-budget requires an explicit certificate runtime; legacy fold cannot prove finality\",\"status\":\"fault\"},\"checkpoint_observation\":{\"evidence\":[],\"reason\":\"quorum-budget requires an explicit certificate runtime; legacy fold cannot prove finality\",\"status\":\"fault\"}}]\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "lake",
+        "env",
+        "lean",
+        "--run",
+        "/Users/anuna-02/Code/cbcl-rs/lean-cbcl/CheckpointResourcePolicyOracle.lean"
+      ],
+      "cwd": "/Users/anuna-02/Code/cbcl-rs/lean-cbcl",
+      "exit_code": 0,
+      "stdout": "[{\"cut\":0,\"observation\":{\"evidence\":[],\"reason\":\"collective counter requires the certificate runtime\",\"status\":\"fault\"},\"policy\":\"collective\",\"prefix\":0},{\"cut\":0,\"observation\":{\"evidence\":[],\"reason\":\"collective counter requires the certificate runtime\",\"status\":\"fault\"},\"policy\":\"collective\",\"prefix\":1},{\"cut\":1,\"observation\":{\"evidence\":[],\"reason\":\"collective counter requires the certificate runtime\",\"status\":\"fault\"},\"policy\":\"collective\",\"prefix\":1},{\"cut\":0,\"observation\":{\"evidence\":[],\"reason\":\"collective counter requires the certificate runtime\",\"status\":\"fault\"},\"policy\":\"collective\",\"prefix\":2},{\"cut\":1,\"observation\":{\"evidence\":[],\"reason\":\"collective counter requires the certificate runtime\",\"status\":\"fault\"},\"policy\":\"collective\",\"prefix\":2},{\"cut\":2,\"observation\":{\"evidence\":[],\"reason\":\"collective counter requires the certificate runtime\",\"status\":\"fault\"},\"policy\":\"collective\",\"prefix\":2},{\"cut\":0,\"observation\":{\"evidence\":[],\"reason\":\"collective counter requires the certificate runtime\",\"status\":\"fault\"},\"policy\":\"collective\",\"prefix\":3},{\"cut\":1,\"observation\":{\"evidence\":[],\"reason\":\"collective counter requires the certificate runtime\",\"status\":\"fault\"},\"policy\":\"collective\",\"prefix\":3},{\"cut\":2,\"observation\":{\"evidence\":[],\"reason\":\"collective counter requires the certificate runtime\",\"status\":\"fault\"},\"policy\":\"collective\",\"prefix\":3},{\"cut\":3,\"observation\":{\"evidence\":[],\"reason\":\"collective counter requires the certificate runtime\",\"status\":\"fault\"},\"policy\":\"collective\",\"prefix\":3},{\"cut\":0,\"observation\":{\"evidence\":[],\"reason\":\"quorum-budget requires an explicit certificate runtime; legacy fold cannot prove finality\",\"status\":\"fault\"},\"policy\":\"quorum\",\"prefix\":0},{\"cut\":0,\"observation\":{\"evidence\":[],\"reason\":\"quorum-budget requires an explicit certificate runtime; legacy fold cannot prove finality\",\"status\":\"fault\"},\"policy\":\"quorum\",\"prefix\":1},{\"cut\":1,\"observation\":{\"evidence\":[],\"reason\":\"quorum-budget requires an explicit certificate runtime; legacy fold cannot prove finality\",\"status\":\"fault\"},\"policy\":\"quorum\",\"prefix\":1},{\"cut\":0,\"observation\":{\"evidence\":[],\"reason\":\"quorum-budget requires an explicit certificate runtime; legacy fold cannot prove finality\",\"status\":\"fault\"},\"policy\":\"quorum\",\"prefix\":2},{\"cut\":1,\"observation\":{\"evidence\":[],\"reason\":\"quorum-budget requires an explicit certificate runtime; legacy fold cannot prove finality\",\"status\":\"fault\"},\"policy\":\"quorum\",\"prefix\":2},{\"cut\":2,\"observation\":{\"evidence\":[],\"reason\":\"quorum-budget requires an explicit certificate runtime; legacy fold cannot prove finality\",\"status\":\"fault\"},\"policy\":\"quorum\",\"prefix\":2},{\"cut\":0,\"observation\":{\"evidence\":[],\"reason\":\"quorum-budget requires an explicit certificate runtime; legacy fold cannot prove finality\",\"status\":\"fault\"},\"policy\":\"quorum\",\"prefix\":3},{\"cut\":1,\"observation\":{\"evidence\":[],\"reason\":\"quorum-budget requires an explicit certificate runtime; legacy fold cannot prove finality\",\"status\":\"fault\"},\"policy\":\"quorum\",\"prefix\":3},{\"cut\":2,\"observation\":{\"evidence\":[],\"reason\":\"quorum-budget requires an explicit certificate runtime; legacy fold cannot prove finality\",\"status\":\"fault\"},\"policy\":\"quorum\",\"prefix\":3},{\"cut\":3,\"observation\":{\"evidence\":[],\"reason\":\"quorum-budget requires an explicit certificate runtime; legacy fold cannot prove finality\",\"status\":\"fault\"},\"policy\":\"quorum\",\"prefix\":3}]\n",
+      "stderr": ""
+    }
+  ],
+  "source_and_cached_graph_sha256": {
+    "scripts/check-checkpoint-resource-ports.py": "e831e99b8fa44b9a3b82fb36ab98eab71add9301e14c4719ee990e756be48836",
+    "lean-cbcl/CheckpointResourcePolicyOracle.lean": "3e49a302ad6ccad03acf023fc8f46ca6b3c38079241631a25bb4f73018445ea9",
+    "crates/cbcl-checkpoint/src/summary.rs": "d10f4bf290e34915ee21bb1639fd3b26127b5f9534b808852e2938ad0cf1c5ac",
+    "crates/cbcl-checkpoint/src/resource_resume.rs": "0cfd0bb589621686e77fc91bd7bf7ba71d220e7196e015aebc0a8219188181b6",
+    "crates/cbcl-core/src/escrow.rs": "737d50ec65573dc903a287a30d8e6668a560f932f4fb41a9163a2689b533800b",
+    "dialects/example-collective-tickets.cbcl": "8956fc1ae53cb1c4badc304b63a95dc7558bf59460c3fb615435313509106176",
+    "dialects/example-quorum-coin.cbcl": "966581105a8fc15a300875e871be8f998dbffab6f91518937b29bb484ef999a5",
+    "lean-cbcl/LeanCbcl/CheckpointEvidence.lean": "25be5525f751682d0c9284da1499f3558a2b6727a247156d98d2014ac064064f",
+    "target/debug/.fingerprint/cbcl-checkpoint-f2760441410d9553/lib-cbcl_checkpoint.json": "ac2460c7c72e52ee7040829c861dc471fc09fa668a40a210e75adf11f4c35376",
+    "target/debug/deps/libcbcl_checkpoint-f2760441410d9553.rlib": "63140fb63894232a81f3b021798e9ae41fd6a8b55f43a3d0dd26fa1a8e6df1e5",
+    "target/debug/deps/libcbcl_core-e85eb6847f02d68e.rlib": "c16d3322d93260fcc4e0fec4b051b0937319748b4981d1c513ddf366d6d97e03",
+    "target/debug/deps/libcbcl_parser-baeca04cdfeb6487.rlib": "e4398c38d6c1c0b324590837137ebb4cf23a2ca4b5e95c4d740f0b4a573d8de0",
+    "target/debug/deps/libserde_json-1d325e804b338065.rlib": "f5001b4cfeb4c0dc7bc452d1ed2f76f9d52d33cb4eb31b1984225fac0d5e39c1",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/DeterministicUnion.olean": "d70e7cfec853a68f87e4e7e25cb7a9317a2484fa66838a9978945b4ad7e7d840",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/StateRefinement.olean": "0698212e900ff01ef61c140affe26c5156b6d8a28a29b12c0902af28322adaaf",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/Dialect.olean": "a6e76e0846c1dce9020fa94ab642613856f460bb4300c36957b6c77de5ca2fb4",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/FiniteMonitorTests.olean": "d104efc53f1211d9308644bd4081d642be3a303779700164e9de54676ee80d98",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/ConsensusFreeArithmetic.olean": "9757485f71de8148f2a0019c9fb7b561f22cb0151594d3890a68f47212c322e7",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/R6DCFLPreservation.olean": "f8bb9ebe2fec0e9c5aa040e80181251954ce4b695475caf4dc05f55057270462",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/CheckpointData.olean": "11eae7a4e02f45bd31df9b8deb214d67e02332cabafa5eaa11162ecfe6413754",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/Parser.olean": "7e7cdedaa184f87c3241074652c398221a5344d1d6668cb45345583f95b414f4",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/CheckpointKernelTests.olean": "4542a3473364da4e2dfe723d632e43e01baff1a724e81c0e78044f4d80dbf2be",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/AdmissionStratification.olean": "91c62718e303dc80f9b60d37a00d4bf118dee51a574065750aa6145507223593",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/StateKernelTests.olean": "23e9c57f7665a98b36993421637ac3a65d44260db519d1265321cb0a3b262a17",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/FiniteForest.olean": "ce92e0287ad72b6f7356cb0f7a223a584f6847522876be45bae13ea118cd9bef",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/Serializer.olean": "69bb0f7236bfb86178feea41dcf8c24394d7b520df9719f6ad07c6cc70b87820",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/SExpr.olean": "49d76b39e5cccee0e64252a53ee36151ea5de9b0969524e2a8539f90fd7a08c5",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/CheckpointKernel.olean": "1b49b40060968dff9f91a8777f14e14ee952b979bd3949a961145cc2216a9332",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/ValidatorBudget.olean": "062dfa10c47eb810789143acb99b027558d30b8d0567e661fed953b426bb625f",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/LexicalNames.olean": "e5ecc6ed4bfcf009ab7c8082150fc93519b79b3375cb71738b90040a82c9db31",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/InstalledSyntaxTests.olean": "4d2e55629af569d3c0fa92f94b32d1c4d45273fa9898ecb21423b5c243fe4c7b",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/CheckpointAllTests.olean": "dbd629ba0727151ad15167510bb2e099bfbee40182334185a89de3e5b59feb52",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/Repeat.olean": "0bc120edf6a1aa0578d1d1e13f91461dadd33b764dbbe7670a6d34057d4f02fa",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/FiniteForestTests.olean": "9bb5ff6555809c6d51b8d42959bc0ec6b39be2f371e78375ec2e1cb93c910827",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/CheckpointEvidence.olean": "04354de0d4c3a78a6625098960a40e6c977bdf00adc39341c30376741d5d1be5",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/AbortableHandoff.olean": "dce32a923144abee5503d0f64107e66f04bb8838d0cf95639ca0e005f4a7d1e7",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/StateKernelClause.olean": "d283484f73d075caa83f6a02ff27359243581a095f55a803e0486cf196198518",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/InstalledLexerTests.olean": "d5f76dae0e25b490701fb7efe9a24bc799309014464d2137676ad828e7e248d9",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/StateKernel.olean": "9bf5a8b862c0f89a264c6cf47d8bb8c6e5b4ad6e289a7fafca4630f9112f3e32",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/StateKernelExtensions.olean": "bf76013f6dff3b761322dcefa07ef94cb626abd9f9fd19267c1626b4fb16ce58",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/LexicalComposition.olean": "26a49f3e167c03f9f4bf66a63b186d868a71c334e17bc4e4232913666300a822",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/CheckpointDataTests.olean": "854b20ea6fe783955fb462af6aeddbda72d8dda1f06ddbc39dff4ac75fafe7fe",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/Splice.olean": "e3a3edb03ec03655ddba9f26fa71aeae30de184037cf9cf76b09b12c66b46329",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/HlcRegister.olean": "289c3ce056258113b45c6feb9fc5537c7a22f51c1126d55af3b73a4393e91a28",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/MessageParser.olean": "2b918eeb53a573477116ce212d2456261581227f3a4704be272c2d5f9047d09c",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/MonitoredDCFL.olean": "dfe6266c9ad5477c72b0139223516de535f7f936a87d190d9f91c69c5491b1ee",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/StateKernelSemantics.olean": "844a93468cf2b69bd2b585a89d18dd563c1524c01723492e58199cdd9713b7a8",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/CheckpointAll.olean": "361bd54b930b1b14c91c2eb89c61cccd04517259de9617cfebcdf729bd6fbc2c",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/CheckpointCompactTests.olean": "31cf8f2e36f421d5c3e00d7938bbdb509dba68d51e1f084d1109c1e33af2e1f9",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/StateKernelSECTests.olean": "c63f1952196cd1e39dac986d39949d161aa88f1125272e530449c8796c6e7d7f",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/InstalledDCFL.olean": "3ac176fd990bee0da3b5a84a823e7b45b93ea76e45435edcef8bc3e9638b60ce",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/FiniteCodec.olean": "7ab38caaccd577d8ad6968dbee8520e2d95d01c0a256c76e54ee89ce9ce2691a",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/R5.olean": "74ad7c430caffbd88eae508f9ab5c2d227d6958d68c63a855654b236aa01c5aa",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/DetParser.olean": "5c99c29c424570511785c8e997d1ef68f67368a06a95d787f0f53fd6b02695a8",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/ConcreteProjection.olean": "0f8daab0fc84f1467acfbde587cbaafdb3217522b0e4f4fd535c94198fe8fa75",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/Message.olean": "42256a5ce7d888719001bae043bdd88753d57652858567fdff9a6e5fb14db0f8",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/ProtocolProjection.olean": "f5a45b937c8078ddd139987e4e61e3f738e6d889e61328a77d726624e6256750",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/FiniteMonitor.olean": "9043c409d02d2bb29dbc10bad1af20d669a56a9d86d42a829980fe9f75255461",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/FiniteDPDA.olean": "f2bc2d783aef9e674c3a5b97c1dab1a4a0cfceb4f5e9d7cfa600d437da7d1d93",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/Projectability.olean": "43d4c693a1f66d0ffe7b340326b1aa828227cedbfee4b6053858f23144a9658e",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/TemplateExpansion.olean": "55e8576d79907ec3e5d727ac1f4b3bffdabc72942a3e1439fad15d791f46760a",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/EPPCompletion.olean": "78f734f0f67663ba9e65f0d02f0d59fe76a71bd4a717a37c2003c72f3087383c",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/DCFLPreservation.olean": "95f53ec491d335f6032ff2dc5c98ac067d4fbb4e5af56c79187a27efe318c646",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/CheckpointSummary.olean": "1e422f4fa4cef88e8cf519b870c3f7980694c351eb2cd3bd44281b9d59c3685e",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/ConsensusFree.olean": "1f104f9a8814781889022a7453e72a437e6b9a53dadbdc5480ccb465a72b0975",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/BoundedCounter.olean": "340284ddbda8aa7c657eb63ba6501014dd65609a21b7ac97ab785f85a2a2a63b",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/State.olean": "135339dfb7da005f572cc3e1d841fd036c642fbcf6dd12c9e48b7dd9a1ae2703",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/Agent.olean": "7f8dbfacb26913aa491004250ca2f057f9f603f792dee48bc574295df76dcb59",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/CheckpointCompact.olean": "3f0eecd6d6be55628be4b0e5cfbfe2dc97b107a013ec9b278c73190470fcbcd7",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/StateProgress.olean": "2ad484359e3cae655e277f6aa79aa8efb09f600725318e4519e1c74062dd60dc",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/Pipeline.olean": "a1ee1f977e68b463885961260a3bb071f22aa20ada970c2cb492e504845669cf",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/SealedCheckpoint.olean": "584eff36bef9288862528f619a4960c766e46218f9832c9db37314ab31b64451",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/InstalledLexer.olean": "0e1459aef32dd54f765309798052e414bb8f99fc3716a26e60ad22893bef420e",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/FiniteSummary.olean": "ec4f9c1f7be9715bfa0e92f00ba5e318c7bc15ace52237e052ef45293699fe1f",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/R3CorePreservation.olean": "c31e83c320b6d307247c78982509ee9a38fd90cad8f87053013a21098967276d",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/Bridge.olean": "8f3b8791df518d843939c3a2a601b86d9eedf33f196be79026cfdb48eeb9f593",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/StateKernelDelivery.olean": "1be0801b9ecc9399f7235cea554740c8df901eeb433433c0e3a9fd48d573dc40",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/EPP.olean": "5257aaf9f735c021ffcb1eb334a62d3094ebfb4c2cebe3fae2c13bf0c3e2b9f5",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/PatternMatch.olean": "7aae81ed3b5083178e5e7e0ced361276334067d436d6d15bc85cfbccbfb6bb66",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/InstalledSyntax.olean": "e614d1fce4027499ec1d1fc71b530696783abb15cc0cf57795774e50bdcc0ef7",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/CheckpointEvidenceTests.olean": "638ab22002daeec51cdf49e2f1ac01549312dabdc15f35d7fad16eb1968f9592",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/StateKernelAggregates.olean": "e34e086de59d0eb5f2346df6257695afbcbdd35909ac8f988148b77b6015c40c",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/StateKernelQueries.olean": "83b1ecaa58e149e959b295cb2fff877782bdcb65e7c5b1b67367ba27c10c951f",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/DialectParser.olean": "9b6f89d1042df3647aa097c7f7b340089fdc8deaf0ecab37116622dcf1491db1",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/ValidatorBudgetRefutation.olean": "1812f3b17ff85859e8bac9ab572526c9d105d0e24cdd00fc9387f42aba02b259",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/R2ResourceBounds.olean": "7754fb880bebb0871d7128afc289b4a7d4fab71716437744e74993cd5ba9998e",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/CheckpointRender.olean": "5fde2c0e5ea26f26cce6b106c1ccdfe948f2f9a2d692398193d27cfada6c86f5",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/R1NoRecursion.olean": "d6c9f78f311de012e83f5dbb8656b4d83461b5dff82f84e238f77006a77cc673",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/Verify.olean": "bb1c634afce947dbc73bf7d0afe2e283dd843d1f9d7057a117cd2db274a9e330",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/StateKernelSEC.olean": "f5154fd65f8ebd098b899a9ec17b27557471629d6cf9ebfe415926664e043130"
+  },
+  "cached_dependency_fingerprint": "target/debug/.fingerprint/cbcl-checkpoint-f2760441410d9553/lib-cbcl_checkpoint.json",
+  "native_rows": [
+    {
+      "policy": "collective",
+      "prefix": 0,
+      "cut": 0,
+      "observation": {
+        "evidence": [],
+        "reason": "collective counter requires the certificate runtime",
+        "status": "fault"
+      },
+      "checkpoint_observation": {
+        "evidence": [],
+        "reason": "collective counter requires the certificate runtime",
+        "status": "fault"
+      }
+    },
+    {
+      "policy": "collective",
+      "prefix": 1,
+      "cut": 0,
+      "observation": {
+        "evidence": [],
+        "reason": "collective counter requires the certificate runtime",
+        "status": "fault"
+      },
+      "checkpoint_observation": {
+        "evidence": [],
+        "reason": "collective counter requires the certificate runtime",
+        "status": "fault"
+      }
+    },
+    {
+      "policy": "collective",
+      "prefix": 1,
+      "cut": 1,
+      "observation": {
+        "evidence": [],
+        "reason": "collective counter requires the certificate runtime",
+        "status": "fault"
+      },
+      "checkpoint_observation": {
+        "evidence": [],
+        "reason": "collective counter requires the certificate runtime",
+        "status": "fault"
+      }
+    },
+    {
+      "policy": "collective",
+      "prefix": 2,
+      "cut": 0,
+      "observation": {
+        "evidence": [],
+        "reason": "collective counter requires the certificate runtime",
+        "status": "fault"
+      },
+      "checkpoint_observation": {
+        "evidence": [],
+        "reason": "collective counter requires the certificate runtime",
+        "status": "fault"
+      }
+    },
+    {
+      "policy": "collective",
+      "prefix": 2,
+      "cut": 1,
+      "observation": {
+        "evidence": [],
+        "reason": "collective counter requires the certificate runtime",
+        "status": "fault"
+      },
+      "checkpoint_observation": {
+        "evidence": [],
+        "reason": "collective counter requires the certificate runtime",
+        "status": "fault"
+      }
+    },
+    {
+      "policy": "collective",
+      "prefix": 2,
+      "cut": 2,
+      "observation": {
+        "evidence": [],
+        "reason": "collective counter requires the certificate runtime",
+        "status": "fault"
+      },
+      "checkpoint_observation": {
+        "evidence": [],
+        "reason": "collective counter requires the certificate runtime",
+        "status": "fault"
+      }
+    },
+    {
+      "policy": "collective",
+      "prefix": 3,
+      "cut": 0,
+      "observation": {
+        "evidence": [],
+        "reason": "collective counter requires the certificate runtime",
+        "status": "fault"
+      },
+      "checkpoint_observation": {
+        "evidence": [],
+        "reason": "collective counter requires the certificate runtime",
+        "status": "fault"
+      }
+    },
+    {
+      "policy": "collective",
+      "prefix": 3,
+      "cut": 1,
+      "observation": {
+        "evidence": [],
+        "reason": "collective counter requires the certificate runtime",
+        "status": "fault"
+      },
+      "checkpoint_observation": {
+        "evidence": [],
+        "reason": "collective counter requires the certificate runtime",
+        "status": "fault"
+      }
+    },
+    {
+      "policy": "collective",
+      "prefix": 3,
+      "cut": 2,
+      "observation": {
+        "evidence": [],
+        "reason": "collective counter requires the certificate runtime",
+        "status": "fault"
+      },
+      "checkpoint_observation": {
+        "evidence": [],
+        "reason": "collective counter requires the certificate runtime",
+        "status": "fault"
+      }
+    },
+    {
+      "policy": "collective",
+      "prefix": 3,
+      "cut": 3,
+      "observation": {
+        "evidence": [],
+        "reason": "collective counter requires the certificate runtime",
+        "status": "fault"
+      },
+      "checkpoint_observation": {
+        "evidence": [],
+        "reason": "collective counter requires the certificate runtime",
+        "status": "fault"
+      }
+    },
+    {
+      "policy": "quorum",
+      "prefix": 0,
+      "cut": 0,
+      "observation": {
+        "evidence": [],
+        "reason": "quorum-budget requires an explicit certificate runtime; legacy fold cannot prove finality",
+        "status": "fault"
+      },
+      "checkpoint_observation": {
+        "evidence": [],
+        "reason": "quorum-budget requires an explicit certificate runtime; legacy fold cannot prove finality",
+        "status": "fault"
+      }
+    },
+    {
+      "policy": "quorum",
+      "prefix": 1,
+      "cut": 0,
+      "observation": {
+        "evidence": [],
+        "reason": "quorum-budget requires an explicit certificate runtime; legacy fold cannot prove finality",
+        "status": "fault"
+      },
+      "checkpoint_observation": {
+        "evidence": [],
+        "reason": "quorum-budget requires an explicit certificate runtime; legacy fold cannot prove finality",
+        "status": "fault"
+      }
+    },
+    {
+      "policy": "quorum",
+      "prefix": 1,
+      "cut": 1,
+      "observation": {
+        "evidence": [],
+        "reason": "quorum-budget requires an explicit certificate runtime; legacy fold cannot prove finality",
+        "status": "fault"
+      },
+      "checkpoint_observation": {
+        "evidence": [],
+        "reason": "quorum-budget requires an explicit certificate runtime; legacy fold cannot prove finality",
+        "status": "fault"
+      }
+    },
+    {
+      "policy": "quorum",
+      "prefix": 2,
+      "cut": 0,
+      "observation": {
+        "evidence": [],
+        "reason": "quorum-budget requires an explicit certificate runtime; legacy fold cannot prove finality",
+        "status": "fault"
+      },
+      "checkpoint_observation": {
+        "evidence": [],
+        "reason": "quorum-budget requires an explicit certificate runtime; legacy fold cannot prove finality",
+        "status": "fault"
+      }
+    },
+    {
+      "policy": "quorum",
+      "prefix": 2,
+      "cut": 1,
+      "observation": {
+        "evidence": [],
+        "reason": "quorum-budget requires an explicit certificate runtime; legacy fold cannot prove finality",
+        "status": "fault"
+      },
+      "checkpoint_observation": {
+        "evidence": [],
+        "reason": "quorum-budget requires an explicit certificate runtime; legacy fold cannot prove finality",
+        "status": "fault"
+      }
+    },
+    {
+      "policy": "quorum",
+      "prefix": 2,
+      "cut": 2,
+      "observation": {
+        "evidence": [],
+        "reason": "quorum-budget requires an explicit certificate runtime; legacy fold cannot prove finality",
+        "status": "fault"
+      },
+      "checkpoint_observation": {
+        "evidence": [],
+        "reason": "quorum-budget requires an explicit certificate runtime; legacy fold cannot prove finality",
+        "status": "fault"
+      }
+    },
+    {
+      "policy": "quorum",
+      "prefix": 3,
+      "cut": 0,
+      "observation": {
+        "evidence": [],
+        "reason": "quorum-budget requires an explicit certificate runtime; legacy fold cannot prove finality",
+        "status": "fault"
+      },
+      "checkpoint_observation": {
+        "evidence": [],
+        "reason": "quorum-budget requires an explicit certificate runtime; legacy fold cannot prove finality",
+        "status": "fault"
+      }
+    },
+    {
+      "policy": "quorum",
+      "prefix": 3,
+      "cut": 1,
+      "observation": {
+        "evidence": [],
+        "reason": "quorum-budget requires an explicit certificate runtime; legacy fold cannot prove finality",
+        "status": "fault"
+      },
+      "checkpoint_observation": {
+        "evidence": [],
+        "reason": "quorum-budget requires an explicit certificate runtime; legacy fold cannot prove finality",
+        "status": "fault"
+      }
+    },
+    {
+      "policy": "quorum",
+      "prefix": 3,
+      "cut": 2,
+      "observation": {
+        "evidence": [],
+        "reason": "quorum-budget requires an explicit certificate runtime; legacy fold cannot prove finality",
+        "status": "fault"
+      },
+      "checkpoint_observation": {
+        "evidence": [],
+        "reason": "quorum-budget requires an explicit certificate runtime; legacy fold cannot prove finality",
+        "status": "fault"
+      }
+    },
+    {
+      "policy": "quorum",
+      "prefix": 3,
+      "cut": 3,
+      "observation": {
+        "evidence": [],
+        "reason": "quorum-budget requires an explicit certificate runtime; legacy fold cannot prove finality",
+        "status": "fault"
+      },
+      "checkpoint_observation": {
+        "evidence": [],
+        "reason": "quorum-budget requires an explicit certificate runtime; legacy fold cannot prove finality",
+        "status": "fault"
+      }
+    }
+  ],
+  "lean_rows": [
+    {
+      "cut": 0,
+      "observation": {
+        "evidence": [],
+        "reason": "collective counter requires the certificate runtime",
+        "status": "fault"
+      },
+      "policy": "collective",
+      "prefix": 0
+    },
+    {
+      "cut": 0,
+      "observation": {
+        "evidence": [],
+        "reason": "collective counter requires the certificate runtime",
+        "status": "fault"
+      },
+      "policy": "collective",
+      "prefix": 1
+    },
+    {
+      "cut": 1,
+      "observation": {
+        "evidence": [],
+        "reason": "collective counter requires the certificate runtime",
+        "status": "fault"
+      },
+      "policy": "collective",
+      "prefix": 1
+    },
+    {
+      "cut": 0,
+      "observation": {
+        "evidence": [],
+        "reason": "collective counter requires the certificate runtime",
+        "status": "fault"
+      },
+      "policy": "collective",
+      "prefix": 2
+    },
+    {
+      "cut": 1,
+      "observation": {
+        "evidence": [],
+        "reason": "collective counter requires the certificate runtime",
+        "status": "fault"
+      },
+      "policy": "collective",
+      "prefix": 2
+    },
+    {
+      "cut": 2,
+      "observation": {
+        "evidence": [],
+        "reason": "collective counter requires the certificate runtime",
+        "status": "fault"
+      },
+      "policy": "collective",
+      "prefix": 2
+    },
+    {
+      "cut": 0,
+      "observation": {
+        "evidence": [],
+        "reason": "collective counter requires the certificate runtime",
+        "status": "fault"
+      },
+      "policy": "collective",
+      "prefix": 3
+    },
+    {
+      "cut": 1,
+      "observation": {
+        "evidence": [],
+        "reason": "collective counter requires the certificate runtime",
+        "status": "fault"
+      },
+      "policy": "collective",
+      "prefix": 3
+    },
+    {
+      "cut": 2,
+      "observation": {
+        "evidence": [],
+        "reason": "collective counter requires the certificate runtime",
+        "status": "fault"
+      },
+      "policy": "collective",
+      "prefix": 3
+    },
+    {
+      "cut": 3,
+      "observation": {
+        "evidence": [],
+        "reason": "collective counter requires the certificate runtime",
+        "status": "fault"
+      },
+      "policy": "collective",
+      "prefix": 3
+    },
+    {
+      "cut": 0,
+      "observation": {
+        "evidence": [],
+        "reason": "quorum-budget requires an explicit certificate runtime; legacy fold cannot prove finality",
+        "status": "fault"
+      },
+      "policy": "quorum",
+      "prefix": 0
+    },
+    {
+      "cut": 0,
+      "observation": {
+        "evidence": [],
+        "reason": "quorum-budget requires an explicit certificate runtime; legacy fold cannot prove finality",
+        "status": "fault"
+      },
+      "policy": "quorum",
+      "prefix": 1
+    },
+    {
+      "cut": 1,
+      "observation": {
+        "evidence": [],
+        "reason": "quorum-budget requires an explicit certificate runtime; legacy fold cannot prove finality",
+        "status": "fault"
+      },
+      "policy": "quorum",
+      "prefix": 1
+    },
+    {
+      "cut": 0,
+      "observation": {
+        "evidence": [],
+        "reason": "quorum-budget requires an explicit certificate runtime; legacy fold cannot prove finality",
+        "status": "fault"
+      },
+      "policy": "quorum",
+      "prefix": 2
+    },
+    {
+      "cut": 1,
+      "observation": {
+        "evidence": [],
+        "reason": "quorum-budget requires an explicit certificate runtime; legacy fold cannot prove finality",
+        "status": "fault"
+      },
+      "policy": "quorum",
+      "prefix": 2
+    },
+    {
+      "cut": 2,
+      "observation": {
+        "evidence": [],
+        "reason": "quorum-budget requires an explicit certificate runtime; legacy fold cannot prove finality",
+        "status": "fault"
+      },
+      "policy": "quorum",
+      "prefix": 2
+    },
+    {
+      "cut": 0,
+      "observation": {
+        "evidence": [],
+        "reason": "quorum-budget requires an explicit certificate runtime; legacy fold cannot prove finality",
+        "status": "fault"
+      },
+      "policy": "quorum",
+      "prefix": 3
+    },
+    {
+      "cut": 1,
+      "observation": {
+        "evidence": [],
+        "reason": "quorum-budget requires an explicit certificate runtime; legacy fold cannot prove finality",
+        "status": "fault"
+      },
+      "policy": "quorum",
+      "prefix": 3
+    },
+    {
+      "cut": 2,
+      "observation": {
+        "evidence": [],
+        "reason": "quorum-budget requires an explicit certificate runtime; legacy fold cannot prove finality",
+        "status": "fault"
+      },
+      "policy": "quorum",
+      "prefix": 3
+    },
+    {
+      "cut": 3,
+      "observation": {
+        "evidence": [],
+        "reason": "quorum-budget requires an explicit certificate runtime; legacy fold cannot prove finality",
+        "status": "fault"
+      },
+      "policy": "quorum",
+      "prefix": 3
+    }
+  ],
+  "comparisons": 20,
+  "policies": [
+    "collective",
+    "quorum"
+  ],
+  "source_drift": []
+}

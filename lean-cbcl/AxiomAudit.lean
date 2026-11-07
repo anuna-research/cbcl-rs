@@ -1,3 +1,5 @@
+import LeanCbcl.CheckpointKernel
+import LeanCbcl.CheckpointAll
 import LeanCbcl.StateKernelSECTests
 import LeanCbcl.StateKernelClause
 import LeanCbcl.HlcRegister
@@ -558,3 +560,30 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateKernelSemantics.sole_complete
 #print axioms CBCL.StateKernelSemantics.sole_setEq
 #print axioms CBCL.StateKernelSemantics.initialValues_setEq
+
+-- Cached-state semantic continuation: no project-specific axioms.
+#print axioms CBCL.CheckpointSummary.step_preserves
+#print axioms CBCL.CheckpointSummary.checkpoint_continuation
+#print axioms CBCL.CheckpointCompact.Initial.continuation
+#print axioms CBCL.CheckpointCompact.LwwRegister.continuation
+#print axioms CBCL.CheckpointKernel.rule_render_eq
+#print axioms CBCL.CheckpointKernel.render_advance_checkpoint
+#print axioms CBCL.CheckpointKernel.resume_valid_snapshot
+#print axioms CBCL.CheckpointKernel.native_compile_fields
+#print axioms CBCL.CheckpointKernel.fullFoldRaw_native
+
+#print axioms CBCL.CheckpointKernel.native_compile_clause
+#print axioms CBCL.CheckpointKernel.render_advance_native_clause
+
+-- All sixteen native checkpoint heads and explicit evidence projections.
+#print axioms CBCL.CheckpointAll.render_advance_checkpoint
+#print axioms CBCL.CheckpointAll.resume_valid_snapshot
+#print axioms CBCL.CheckpointAll.render_advance_native_clause
+#print axioms CBCL.CheckpointAll.native_compile_clause
+#print axioms CBCL.CheckpointAll.resolve_fields_complete
+#print axioms CBCL.CheckpointAll.render_advance_wellformed_clause
+#print axioms CBCL.CheckpointAll.position_advance_checkpoint
+#print axioms CBCL.CheckpointAll.resource_facts_advance_checkpoint
+#print axioms CBCL.CheckpointData.events_continuation
+#print axioms CBCL.CheckpointEvidence.progress_checkpoint_tail_native
+#print axioms CBCL.CheckpointEvidence.resource_checkpoint_tail_native

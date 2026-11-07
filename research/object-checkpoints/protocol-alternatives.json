@@ -1,0 +1,35 @@
+{
+  "status": "literature findings; no implementation or performance validation",
+  "findings": [
+    {
+      "id": "acumen-strong-snapshot-consistency",
+      "claim": "Acumen OSDI 2026 constructs strong snapshot consistency using signed per-user state descriptors, reconstruction and verification of missing operations, plus secure causal-stability garbage collection. This is a concrete document protocol, not a generic proof of arbitrary CBCL folds. Source: https://www.usenix.org/system/files/osdi26-cottone.pdf sections 5.2 and 5.3"
+    },
+    {
+      "id": "snapdoc-completeness-correction",
+      "claim": "Acumen Appendix D reports Snapdoc subset-omission weakness: valid snapshots can omit content without corresponding deletion operations. Earlier summaries of Snapdoc should not imply exact snapshot completeness. This is the Acumen authors analysis, not independently reproduced here. Source: https://www.usenix.org/system/files/osdi26-cottone.pdf Appendix D"
+    },
+    {
+      "id": "verifiable-query-kernel-candidate",
+      "claim": "IntegriDB verifies query completeness and aggregates over authenticated owner datasets, including JOIN SUM MAX/MIN COUNT and AVG. Candidate kernel adaptation must additionally authenticate the accepted causal cut and distributed updates. Source: https://www.cs.yale.edu/homes/cpap/published/IntegriDB.pdf"
+    },
+    {
+      "id": "optimistic-verification-tradeoff",
+      "claim": "Fraud-proof protocols can bisect disputed execution to one step; fast provisional loading requires available data, honest challengers and defined dispute resolution, and does not itself provide immediate offline correctness. Source: https://specs.optimism.io/fault-proof/"
+    },
+    {
+      "id": "accountability-not-prevention",
+      "claim": "PeerReview uses signed logs and deterministic replay to detect and attribute misbehavior; it offers eventual accountability, not immediate proof that a loaded snapshot is correct. Source: https://www.mpi-sws.org/tr/2007-003.pdf"
+    },
+    {
+      "id": "incremental-proof-alternative",
+      "claim": "Nova provides incrementally verifiable computation via folding; can move work away from cold-open, but proving overhead and CBCL admission/causality encoding still need measurement. Source: https://eprint.iacr.org/2021/370"
+    }
+  ],
+  "priority": [
+    "Acumen reconstruction and garbage collection applicability",
+    "Cached member-certified checkpoints as performance baseline",
+    "Rule-specific authenticated query proofs",
+    "Incremental proof systems if stronger generic correctness is required"
+  ]
+}

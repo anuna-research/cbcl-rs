@@ -987,7 +987,7 @@ mod tests {
         let described =
             String::from_utf8(describe_dialect_bytes(checklist.as_bytes()).unwrap()).unwrap();
         assert!(described.contains("\"opener\":\"open\""), "{described}");
-        let contract = br#"{"version":3,"kind":"contract","name":"one","verbs":{"open":{"after":["begin"],"fields":{"title":"string"}}},"state":{"title":["last","open","title"]}}"#;
+        let contract = br#"{"version":3,"kind":"contract","name":"one","verbs":{"open":{"after":["begin"],"fields":{"title":"string"}}},"state":{"title":["initial","open","title"]}}"#;
         let compiled = String::from_utf8(compile_contract_bytes(contract).unwrap()).unwrap();
         assert!(compiled.contains("\"label\":\"one\""));
         assert!(compile_contract_bytes(b"{").is_err());

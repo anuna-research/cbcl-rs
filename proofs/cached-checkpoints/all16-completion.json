@@ -1,0 +1,173 @@
+{
+  "schema_version": 2,
+  "spec": "SPEC-035-cached-state-checkpoints",
+  "plan": "IMPL-029-all-head-checkpoint-continuation",
+  "recorded_utc": "2026-11-06T23:26:32.140894+00:00",
+  "status": "locally_verified_all_sixteen_heads",
+  "base_commit": "3186cea4ec7ee34c6953f0e37d8296c3206e87dc",
+  "workspace": "Uncommitted local implementation; source hashes identify the checked tree. No release, deployment or production enablement.",
+  "default_mode": "Off",
+  "summary_wire_version": 2,
+  "checks": {
+    "workspace": {
+      "passed": 1739,
+      "failed": 0,
+      "ignored": 36,
+      "log": "all16-workspace.log"
+    },
+    "strict_workspace_clippy": {
+      "passed": true,
+      "log": "all16-clippy.log"
+    },
+    "format": {
+      "passed": true,
+      "log": "all16-format.log"
+    },
+    "no_std_wasm": {
+      "passed": true,
+      "log": "all16-wasm-no-std.log"
+    },
+    "lean_build": {
+      "passed": true,
+      "jobs": 116,
+      "log": "all16-lean-build.log"
+    },
+    "lean_linter": {
+      "passed": true,
+      "log": "all16-lean-lint.log"
+    },
+    "repository_axiom_audit": {
+      "passed": true,
+      "theorems": 423,
+      "log": "all16-axioms.log"
+    },
+    "critical_all16_model": {
+      "passed": true,
+      "named_axiom_audits": 41,
+      "semantic_proof_mutations_rejected": 4,
+      "report": "all16-lean-checks.json"
+    },
+    "runtime_guard_mutations": {
+      "compiled_and_killed": 17,
+      "live_source_drift": [],
+      "report": "all16-runtime-mutations.json"
+    },
+    "summary_mutations": {
+      "compiled_and_killed": 8,
+      "report": "all16-summary-mutations.json"
+    },
+    "all16_rust_lean_parity": {
+      "prefix_cut_records": 231,
+      "field_observations": 7392,
+      "successful_execution_semantic_controls": 3,
+      "report": "all16-parity-evidence.json"
+    },
+    "legacy_resource_policy_parity": {
+      "prefix_cut_records": 20,
+      "policies": [
+        "collective",
+        "quorum"
+      ],
+      "passed": true,
+      "report": "all16-resource-policy-parity.json"
+    },
+    "legacy_seven_rust_lean_parity": {
+      "passed": true,
+      "observations": 1330,
+      "log": "all16-legacy-seven-parity.log"
+    }
+  },
+  "events_projection": "all16-events-projection.json",
+  "canonical_wire_vectors": "../../test-vectors/checkpoints/v2-wire-vectors.json",
+  "reviews": [
+    "all16-proof-review.json",
+    "all16-progress-review.json",
+    "all16-resource-review.json",
+    "all16-parity-review.json"
+  ],
+  "boundaries": [
+    "The proof is of the typed native kernel, not universal Rust extraction or wire/cryptographic soundness.",
+    "Resource facts transport through the same fixed classifier; native classification/finalization remains an explicit port.",
+    "The all16 bounded bridge uses one repeat-chain mapping and a bootstrap-only account classifier; extra sidecar covers two legacy fault modes.",
+    "Histories contain accepted identities once; raw conflicting duplicate attempts preserve native diagnostics.",
+    "Domains and global all-occupant fan-in remain separate unsupported features.",
+    "Events, protocol metadata and resource facts can grow. Resource graph revalidation is not constant-time.",
+    "Original signed evidence/provider history remains retained; this grants no garbage-collection or spend authority.",
+    "Reviews are bounded local same-model reviews with dependency authorship overlap disclosed; no human/security approval."
+  ],
+  "source_hash_capture": "Recorded after successful checks against a frozen implementation; not an execution-time signed attestation. Dedicated mutation/parity reports bind their own snapshots and caches.",
+  "source_sha256": {
+    "Cargo.lock": "a629b945a83b3672ef2f856416a42d9c22c89d7c3687178caf87d04de09cc255",
+    "Cargo.toml": "e5a79e9482c3f5ae4d64cfab077ea7d4d2f5b296166c5c32e8853c6ffd2bff73",
+    "crates/cbcl-checkpoint/src/all_heads_tests.rs": "d5730aa1879fb3be44d7bd0144d2fdf6e64a5a149dfb3f68c463873cfe166748",
+    "crates/cbcl-checkpoint/src/certificate.rs": "b97f9d256bf63248a454fde37aea7589bae0e12dedd9fa5e431a9cab1f64bfc3",
+    "crates/cbcl-checkpoint/src/closed_grammar_tests.rs": "01e9cd5883aa2e28c6b0f1ce34ce0bf93925ad6610e1372029e7b8cf95a74ed9",
+    "crates/cbcl-checkpoint/src/codec.rs": "9a14d5af102f960bca8a3e24debd2b0a76175c36ced92f0db45871229547e894",
+    "crates/cbcl-checkpoint/src/coverage.rs": "a568c4cd29e62ebb3a048d57fa72d958ad4dca91279ee483d92427bfd4f2aa9e",
+    "crates/cbcl-checkpoint/src/coverage_tests.rs": "9eb98a38556dc28f3e8185dbc97ec7bde128a3234d64562968bf6ffcfdf97bcc",
+    "crates/cbcl-checkpoint/src/evidence.rs": "290e2193fb5caaed5e465ba0cb9d34911e068b6e8d0c52c5164ae10193ad93b6",
+    "crates/cbcl-checkpoint/src/host.rs": "77443094f6850f6f8eed97ff414af09f89f8f568e3bab80cbaaea0207e18d76c",
+    "crates/cbcl-checkpoint/src/host_boundary_tests.rs": "03f5ddd8c61c93238216071960870d9ae11b9a292cbd2810f3587bb7e3e8392e",
+    "crates/cbcl-checkpoint/src/lib.rs": "764c92ae1491fd33bd94a92822d0e2020a60e037b9f1e1f1b7ce1dcdab7557c3",
+    "crates/cbcl-checkpoint/src/lifecycle_tests.rs": "e18ee59c9324980dde52989ebbaf0ce8d10dcbd8610266d1115274f1bb7ca132",
+    "crates/cbcl-checkpoint/src/member.rs": "265c224479abed3c38e6adf0da8b35a5cfa23b879ce78f095578591775d059cb",
+    "crates/cbcl-checkpoint/src/member_tests.rs": "48a8fdebe693d7b0536567bfe4dc322819835ab64c010b4393a31e9b36dfc518",
+    "crates/cbcl-checkpoint/src/progress_resume.rs": "ee020c91b65a06dbed31b0ff3dfb8d9cf87f4ae8dd7ff8eaf5f85e73999b26e3",
+    "crates/cbcl-checkpoint/src/progress_resume_tests.rs": "6370256aa136f71dc8dd2cecd0b5d5f5d45c98a788055faac0918075868b5f45",
+    "crates/cbcl-checkpoint/src/resource_resume.rs": "0cfd0bb589621686e77fc91bd7bf7ba71d220e7196e015aebc0a8219188181b6",
+    "crates/cbcl-checkpoint/src/resource_resume_tests.rs": "af00803e02a183475b2769742a4c92a3e9e46275ad132a7a19dca2dcfa882a58",
+    "crates/cbcl-checkpoint/src/runtime.rs": "7484f915c2a9b260187f4f220bdad03b89d21390c3723104927b29d5485ef12f",
+    "crates/cbcl-checkpoint/src/scaling_tests.rs": "30120194e627a8a53dd3c38ecb11c6b6451af4a63a88fdf111b99c275d432b5d",
+    "crates/cbcl-checkpoint/src/summary.rs": "d10f4bf290e34915ee21bb1639fd3b26127b5f9534b808852e2938ad0cf1c5ac",
+    "crates/cbcl-checkpoint/src/summary_tests.rs": "6723a4a17d46cbc24257426437c7ee62b4a4d4bd27d31f863cfd0f1044c79b75",
+    "crates/cbcl-checkpoint/src/test_support.rs": "987c12e181843fd796bfa23e5e02b51f0a33949cd8decc641a2d1b6b3c55de7b",
+    "crates/cbcl-checkpoint/tests/lean_all16_parity.rs": "d86476083464a149d0cd056ab95697418a9c5e571482f4cb13def0e3803048e5",
+    "crates/cbcl-checkpoint/tests/lean_checkpoint_parity.rs": "54a22ee7d4678ffa587639d323fd7764ce465f927309297c777bf01f7d218820",
+    "crates/cbcl-core/src/escrow.rs": "737d50ec65573dc903a287a30d8e6668a560f932f4fb41a9163a2689b533800b",
+    "crates/cbcl-core/src/repeat.rs": "32ab48264283a444da1bc46fa9daf8cb46f688cad50081abec065e52de76ba05",
+    "crates/cbcl-core/src/state.rs": "b6d12b3502474125ec4d41146afeb86c42b526dc1e9b1122dd3b52547180c1db",
+    "crates/cbcl-core/src/store.rs": "6ddcffe03800d88467fc91edee0c543b136d5185fc8ec113195dfaefdd2a201e",
+    "lean-cbcl/AxiomAudit.lean": "cb041bfcd9350a4cf49e6eccc1568e9d4c456fe0a14adda9db76f39ed9afa753",
+    "lean-cbcl/CheckpointAllRustOracle.lean": "cab2b3a2bffa598e2dc552974f5dbd2ce451f95dd2382be6cbf10bccb0bac61a",
+    "lean-cbcl/CheckpointResourcePolicyOracle.lean": "3e49a302ad6ccad03acf023fc8f46ca6b3c38079241631a25bb4f73018445ea9",
+    "lean-cbcl/LeanCbcl/CheckpointAll.lean": "3045401e5eadd8a283d5633bba12b63ae7ada14182a88305f9fb47ab4bbc8c2c",
+    "lean-cbcl/LeanCbcl/CheckpointAllTests.lean": "07a49f6452df9ce84400bc64f7c9e02df26adbd9743f560a90de0e630c2b90d3",
+    "lean-cbcl/LeanCbcl/CheckpointCompact.lean": "546ad60a49d97b8fc3fa079896a5066ee3715236cc5f2c47bf2e412fdd666d03",
+    "lean-cbcl/LeanCbcl/CheckpointCompactTests.lean": "cd9beafbc335bf91c0d84dcb032c0c35b27e2d304c849c65c8b0f513019acbbf",
+    "lean-cbcl/LeanCbcl/CheckpointData.lean": "1789e0e9c3dd1aa36bdad08affea449841cebe1929f14ce60a58fbcdaddf6211",
+    "lean-cbcl/LeanCbcl/CheckpointDataTests.lean": "4704ee555d5fea07bd438c5aeafc23b924d6795200cdea3231d0db158bd95cd3",
+    "lean-cbcl/LeanCbcl/CheckpointEvidence.lean": "25be5525f751682d0c9284da1499f3558a2b6727a247156d98d2014ac064064f",
+    "lean-cbcl/LeanCbcl/CheckpointEvidenceTests.lean": "a2b7ab60e870dcfb9541136fff48961b0ee82f7c21ebcedc873f9575281483e1",
+    "lean-cbcl/LeanCbcl/CheckpointKernel.lean": "b22db27f84d9be6ca9828467a42cc810e3038b622166251106a338b0d239e819",
+    "lean-cbcl/LeanCbcl/CheckpointKernelTests.lean": "cfe1645873b89aaec772d4975bd8c132bca1c0f1a6cc4bd046ec35c2d78f8b7a",
+    "lean-cbcl/LeanCbcl/CheckpointRender.lean": "7aa1b1b7d880d6162de02823542f1b310db2b7b149f9da637303af934904d56c",
+    "lean-cbcl/LeanCbcl/CheckpointSummary.lean": "8c7c7a5653b11bdc83eb4beab99dc7832fbc225c4ce2d363c25495e4b98cc004",
+    "lean-cbcl/LeanCbcl.lean": "ed9d3e21923aafa7435c418c4956ad6fa0b382b33a2b8d31b07c49fe43b27a88",
+    "lean-cbcl/lean-toolchain": "d55ca0039a5479db5b38919d005b2c427b89b3be4f0184a20f2f4eae931f5bdb",
+    "scripts/check-checkpoint-all16.py": "8aa81634aba8306c1c7e948c363f5e605ca822c2c770a0f74077766cfc4226fa",
+    "scripts/check-checkpoint-mutations.py": "99dba5ca713f83fdedf13907e41f4d20bbeb00e18a81f6d6b41a25eace393f23",
+    "scripts/check-checkpoint-resource-ports.py": "e831e99b8fa44b9a3b82fb36ab98eab71add9301e14c4719ee990e756be48836"
+  },
+  "spec_status": "implemented",
+  "plan_verified_tasks": [
+    "v2inventory",
+    "v2projection",
+    "v2position",
+    "v2resource",
+    "v2codec",
+    "v2composition",
+    "v2proof",
+    "v2bridge",
+    "v2audit"
+  ],
+  "plan_evidence": [
+    "all16-plan-next.json",
+    "all16-plan-status.json",
+    "all16-plan-check.json",
+    "all16-plan-links.json"
+  ],
+  "spec_and_plan_sha256": {
+    "specs/SPEC-035-cached-state-checkpoints.md": "3199b2046e4bc7c2940a955c778d50fcf8133ff59a16a200091f00e99351aa62",
+    "plans/IMPL-029-all-head-checkpoint-continuation.spl": "8b91547661f4a2810a2468cc4e8458e1511dedb7fbab63d518820169ca101e67"
+  }
+}

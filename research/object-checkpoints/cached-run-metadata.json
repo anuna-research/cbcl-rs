@@ -1,0 +1,18 @@
+{
+  "platform": "macOS-26.5-arm64-arm-64bit",
+  "rustc": "rustc 1.95.0 (59807616e 2026-04-14)",
+  "git_base": "45bd3d06d141b6a10b3337544c724e6e04ffc4b1",
+  "source_sha256": {
+    "tools/object-checkpoint-probe/Cargo.toml": "f22485978772cf1155bf9a53fa02df3eb79bfe06e6d1c40dd5d0472a79d7e797",
+    "tools/object-checkpoint-probe/check_mutations.py": "90223c85dba4c0df86b4b2cd8de1abb5b6189ace11e628fee60d803621405784",
+    "tools/object-checkpoint-probe/src/drawing/cached/tests.rs": "fb41322940c193bc4b2c2d1d09b1c35166ca24361f7114a9ec94831a8f1d7bed",
+    "tools/object-checkpoint-probe/src/drawing/cached.rs": "bf30402818fa6fa8723bdc86998e7fe0bbe9886ac45ac5917a3c08844d8594df",
+    "tools/object-checkpoint-probe/src/drawing/tests.rs": "6609f96a1792a036c9f4803fb9965e3c51e2c66112026f83993f183fb4f27191",
+    "tools/object-checkpoint-probe/src/drawing.rs": "dc301f42fac7103cdd29a6869b7ecf305811c8e21686002003483363e8ef3719",
+    "tools/object-checkpoint-probe/src/drawing_fixture.rs": "35d02cea4e0b3fe9bcce2c989e8647d07fbea1bdeafd4165e43304e1e3a1b1db",
+    "tools/object-checkpoint-probe/src/main.rs": "b7ba1771ead27fa31acd707fad23582bd89b524ab6c80b9b92fb49a986c97129",
+    "tools/object-checkpoint-probe/src/tests.rs": "0de98a908229b4e30816d0e1111abffd0fe6dc13efdbbe3dd751ed7ec8a43948"
+  },
+  "measurement_scope": "See cached-outcome.json and cached-results.json timing. Local three-sample medians; tail already typed; publication CPU separately measured.",
+  "execution_note": "Mutation builds initially exhausted disk; only generated probe artifacts were removed before retry. Build failures do not count as killed mutations."
+}

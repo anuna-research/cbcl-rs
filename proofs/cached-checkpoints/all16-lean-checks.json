@@ -1,0 +1,793 @@
+{
+  "schema_version": 1,
+  "complete": true,
+  "passed": true,
+  "trust_level": 0,
+  "started_at": "2026-11-06T23:08:14.660040+00:00",
+  "runner_sha256": "8aa81634aba8306c1c7e948c363f5e605ca822c2c770a0f74077766cfc4226fa",
+  "helper_sha256": "5de3b0c43301077f89d8ab793ac2970ac429c5654a53529f0593b91fac07f762",
+  "source_checks": {
+    "theorem": "CBCL.CheckpointAll.render_advance_checkpoint",
+    "statement": "theorem render_advance_checkpoint (ports : Ports) (input : Input)\n    (fields : List (String \u00d7 Rule)) (history tail : List Act) :\n    ((Snapshot.checkpoint ports input fields history).advance ports input tail).render ports input =\n      fullFold ports input fields (history ++ tail)",
+    "native_rule_heads": {
+      "initial": "initial",
+      "existsRule": "exists",
+      "count": "count",
+      "progress": "progress",
+      "events": "events",
+      "setUnion": "set-union",
+      "values": "values",
+      "valuesPerKey": "values-per-key",
+      "observedSet": "observed-set",
+      "counter": "counter",
+      "histogram": "histogram",
+      "sum": "sum",
+      "lwwRegister": "lww-register",
+      "lwwPerSigner": "lww-per-signer",
+      "lwwMap": "lww-map",
+      "boundedCounter": "bounded-counter"
+    },
+    "runtime_constructed_rules": [
+      "Initial",
+      "LwwRegister",
+      "Values",
+      "ValuesPerKey",
+      "ObservedSet",
+      "LwwMap",
+      "LwwPerSigner",
+      "Exists",
+      "Count",
+      "Counter",
+      "SetUnion",
+      "Events",
+      "Histogram",
+      "Sum",
+      "Progress",
+      "BoundedCounter"
+    ],
+    "runtime_to_proved_rules": {
+      "Initial": "initial",
+      "Exists": "existsRule",
+      "Count": "count",
+      "Progress": "progress",
+      "Events": "events",
+      "SetUnion": "setUnion",
+      "Values": "values",
+      "ValuesPerKey": "valuesPerKey",
+      "ObservedSet": "observedSet",
+      "Counter": "counter",
+      "Histogram": "histogram",
+      "Sum": "sum",
+      "LwwRegister": "lwwRegister",
+      "LwwPerSigner": "lwwPerSigner",
+      "LwwMap": "lwwMap",
+      "BoundedCounter": "boundedCounter"
+    },
+    "unchecked_source_constructs": [],
+    "source_files_scanned": [
+      "lean-cbcl/LeanCbcl/CheckpointAll.lean",
+      "lean-cbcl/LeanCbcl/CheckpointAllTests.lean",
+      "lean-cbcl/LeanCbcl/CheckpointCompact.lean",
+      "lean-cbcl/LeanCbcl/CheckpointCompactTests.lean",
+      "lean-cbcl/LeanCbcl/CheckpointData.lean",
+      "lean-cbcl/LeanCbcl/CheckpointDataTests.lean",
+      "lean-cbcl/LeanCbcl/CheckpointEvidence.lean",
+      "lean-cbcl/LeanCbcl/CheckpointEvidenceTests.lean",
+      "lean-cbcl/LeanCbcl/CheckpointKernel.lean",
+      "lean-cbcl/LeanCbcl/CheckpointKernelTests.lean",
+      "lean-cbcl/LeanCbcl/CheckpointRender.lean",
+      "lean-cbcl/LeanCbcl/CheckpointSummary.lean"
+    ],
+    "required_named_axiom_reports": [
+      "CBCL.CheckpointAll.native_compile_clause",
+      "CBCL.CheckpointAll.native_compile_fields",
+      "CBCL.CheckpointAll.native_expression",
+      "CBCL.CheckpointAll.position_advance_checkpoint",
+      "CBCL.CheckpointAll.render_advance_checkpoint",
+      "CBCL.CheckpointAll.render_advance_native_clause",
+      "CBCL.CheckpointAll.render_advance_wellformed_clause",
+      "CBCL.CheckpointAll.render_checkpoint",
+      "CBCL.CheckpointAll.render_valid",
+      "CBCL.CheckpointAll.resolve_complete",
+      "CBCL.CheckpointAll.resolve_fields_complete",
+      "CBCL.CheckpointAll.resource_facts_advance_checkpoint",
+      "CBCL.CheckpointAll.resume_valid_snapshot",
+      "CBCL.CheckpointAll.rule_render_eq",
+      "CBCL.CheckpointAll.rule_step_valid",
+      "CBCL.CheckpointAll.snapshot_advance_valid",
+      "CBCL.CheckpointAll.snapshot_checkpoint_valid",
+      "CBCL.CheckpointAll.snapshot_duplicate_noop",
+      "CBCL.CheckpointAll.snapshot_step_valid",
+      "CBCL.CheckpointData.Count.step_preserves",
+      "CBCL.CheckpointData.Counter.step_preserves",
+      "CBCL.CheckpointData.Events.map_meaning",
+      "CBCL.CheckpointData.Events.map_native",
+      "CBCL.CheckpointData.Events.read_native",
+      "CBCL.CheckpointData.Events.step_preserves",
+      "CBCL.CheckpointData.Exists.step_preserves",
+      "CBCL.CheckpointData.SetUnion.step_preserves",
+      "CBCL.CheckpointData.count_continuation",
+      "CBCL.CheckpointData.counter_continuation",
+      "CBCL.CheckpointData.events_continuation",
+      "CBCL.CheckpointData.exists_continuation",
+      "CBCL.CheckpointData.setUnion_continuation",
+      "CBCL.CheckpointEvidence.checkpoint_tail",
+      "CBCL.CheckpointEvidence.materialize_checkpoint_tail",
+      "CBCL.CheckpointEvidence.progress_checkpoint_tail_native",
+      "CBCL.CheckpointEvidence.project_ingest",
+      "CBCL.CheckpointEvidence.project_replay",
+      "CBCL.CheckpointEvidence.resolve_checkpoint_tail",
+      "CBCL.CheckpointEvidence.resourceInput_checkpoint_tail",
+      "CBCL.CheckpointEvidence.resourceInput_setEq",
+      "CBCL.CheckpointEvidence.resource_checkpoint_tail_native"
+    ],
+    "boundary": "typed observations and explicit native protocol/resource ports; no JSON-byte/extraction/cryptography claim"
+  },
+  "source_and_compiled_import_sha256": {
+    "crates/cbcl-checkpoint/src/summary.rs": "d10f4bf290e34915ee21bb1639fd3b26127b5f9534b808852e2938ad0cf1c5ac",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/AbortableHandoff.olean": "dce32a923144abee5503d0f64107e66f04bb8838d0cf95639ca0e005f4a7d1e7",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/AdmissionStratification.olean": "91c62718e303dc80f9b60d37a00d4bf118dee51a574065750aa6145507223593",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/Agent.olean": "7f8dbfacb26913aa491004250ca2f057f9f603f792dee48bc574295df76dcb59",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/BoundedCounter.olean": "340284ddbda8aa7c657eb63ba6501014dd65609a21b7ac97ab785f85a2a2a63b",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/Bridge.olean": "8f3b8791df518d843939c3a2a601b86d9eedf33f196be79026cfdb48eeb9f593",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/CheckpointAll.olean": "361bd54b930b1b14c91c2eb89c61cccd04517259de9617cfebcdf729bd6fbc2c",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/CheckpointAllTests.olean": "dbd629ba0727151ad15167510bb2e099bfbee40182334185a89de3e5b59feb52",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/CheckpointCompact.olean": "3f0eecd6d6be55628be4b0e5cfbfe2dc97b107a013ec9b278c73190470fcbcd7",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/CheckpointCompactTests.olean": "31cf8f2e36f421d5c3e00d7938bbdb509dba68d51e1f084d1109c1e33af2e1f9",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/CheckpointData.olean": "11eae7a4e02f45bd31df9b8deb214d67e02332cabafa5eaa11162ecfe6413754",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/CheckpointDataTests.olean": "854b20ea6fe783955fb462af6aeddbda72d8dda1f06ddbc39dff4ac75fafe7fe",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/CheckpointEvidence.olean": "04354de0d4c3a78a6625098960a40e6c977bdf00adc39341c30376741d5d1be5",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/CheckpointEvidenceTests.olean": "638ab22002daeec51cdf49e2f1ac01549312dabdc15f35d7fad16eb1968f9592",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/CheckpointKernel.olean": "1b49b40060968dff9f91a8777f14e14ee952b979bd3949a961145cc2216a9332",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/CheckpointKernelTests.olean": "4542a3473364da4e2dfe723d632e43e01baff1a724e81c0e78044f4d80dbf2be",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/CheckpointRender.olean": "5fde2c0e5ea26f26cce6b106c1ccdfe948f2f9a2d692398193d27cfada6c86f5",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/CheckpointSummary.olean": "1e422f4fa4cef88e8cf519b870c3f7980694c351eb2cd3bd44281b9d59c3685e",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/ConcreteProjection.olean": "0f8daab0fc84f1467acfbde587cbaafdb3217522b0e4f4fd535c94198fe8fa75",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/ConsensusFree/Archive.olean": "42489ca701b1f379df85936f03537fb26327161f26587f66e154ea3686f1664f",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/ConsensusFree/Capacity.olean": "b0ec080005091bf366c8d3593f6516fa1f5a0514e5be27c3fedb70bf8c6edcb0",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/ConsensusFree/Collective.olean": "846a0b46b0417d872dabe13f4b4315c5a3ba1301c0e60d0b2893352feb0393de",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/ConsensusFree/CollectiveProtocol.olean": "3b34081a046dc24847b68572acef04544ac1f2cd404ad1b199608070f4061966",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/ConsensusFree/Core.olean": "d6d6dd50ba5fa2c147748bd3b6f0a675305e2ad70735d8f9f502037e6b98f42e",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/ConsensusFree/Coverage.olean": "eabf3f1d93f705301e5956f8aa8f77561b95f37d7c0141722f284b2448000caf",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/ConsensusFree/Currency.olean": "a8cd8dd456f7c8225edabd4f2611c70eefc4ca3e0bebe486485d1d6e4c34a5d8",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/ConsensusFree/Evidence.olean": "9294057cc546972b55cb56fb2d58d98599ecf908fcff3d05b6929a455e8edeea",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/ConsensusFree/Execution.olean": "9ca0d0fcf25d2f9e76e545935e078cfa201f1c854c3dc25a7a7c20e31cce8da7",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/ConsensusFree/Journals.olean": "849ee49421145e600a7ecfaec304f28e2332a94eccdafa3773eafb7d60a55d59",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/ConsensusFree/Liveness.olean": "b464501ba19b53dbd3488c15e5cb25a5df0ba3b93d1ddde34b4f9da4cb4e1d21",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/ConsensusFree/MultiParent.olean": "c365458e29ecfeb4773419f49805955c0e243aabc1b6d13d6e0dafb45c353fab",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/ConsensusFree/Observation.olean": "eb6c010f94186a9b1052e95e6b70e2cab04ccaacfc3df5ac7fdfd87b600fb5b4",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/ConsensusFree/OwnedLifecycle.olean": "47eb50640be442baafaacd300841fb70c4837b93a8edc405a6f0561073988d06",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/ConsensusFree/OwnedProgress.olean": "9bfe689257e496b0f91b5e3e1b452373ce08d3abb5a56319ce39af2733faacf5",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/ConsensusFree/OwnerFunding.olean": "466179531f067532cb29e79a0843b2567600f4e14d7e824a9ec6f8aae6d6f799",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/ConsensusFree/OwnerProduct.olean": "218f47644b7afdf381f273a1885b5ccad8e122dbef2ed98af6aa390398f1269c",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/ConsensusFree/OwnerProductWitness.olean": "564f2d0c9424883b276a77b8d9a5210413f8b8be40ad186d61c08489afd2b602",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/ConsensusFree/OwnerTermination.olean": "8792e52e907f16d748442f0a1c42e21cb411bfb9cb41c9168e38e89b24564530",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/ConsensusFree/Scheduler.olean": "42c890667e7e1b5820b9c99f2aab858e6b07f1f4a7e0388299204fa6ea88f650",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/ConsensusFree/Tests.olean": "0b6f05ed197a46e4b19eac711f9dff06f0e309d19510d853b94995e7504184d4",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/ConsensusFree.olean": "1f104f9a8814781889022a7453e72a437e6b9a53dadbdc5480ccb465a72b0975",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/ConsensusFreeArithmetic.olean": "9757485f71de8148f2a0019c9fb7b561f22cb0151594d3890a68f47212c322e7",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/DCFLPreservation.olean": "95f53ec491d335f6032ff2dc5c98ac067d4fbb4e5af56c79187a27efe318c646",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/DetParser.olean": "5c99c29c424570511785c8e997d1ef68f67368a06a95d787f0f53fd6b02695a8",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/DeterministicUnion.olean": "d70e7cfec853a68f87e4e7e25cb7a9317a2484fa66838a9978945b4ad7e7d840",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/Dialect.olean": "a6e76e0846c1dce9020fa94ab642613856f460bb4300c36957b6c77de5ca2fb4",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/DialectParser.olean": "9b6f89d1042df3647aa097c7f7b340089fdc8deaf0ecab37116622dcf1491db1",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/EPP.olean": "5257aaf9f735c021ffcb1eb334a62d3094ebfb4c2cebe3fae2c13bf0c3e2b9f5",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/EPPCompletion.olean": "78f734f0f67663ba9e65f0d02f0d59fe76a71bd4a717a37c2003c72f3087383c",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/FiniteCodec.olean": "7ab38caaccd577d8ad6968dbee8520e2d95d01c0a256c76e54ee89ce9ce2691a",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/FiniteDPDA.olean": "f2bc2d783aef9e674c3a5b97c1dab1a4a0cfceb4f5e9d7cfa600d437da7d1d93",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/FiniteForest.olean": "ce92e0287ad72b6f7356cb0f7a223a584f6847522876be45bae13ea118cd9bef",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/FiniteForestTests.olean": "9bb5ff6555809c6d51b8d42959bc0ec6b39be2f371e78375ec2e1cb93c910827",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/FiniteMonitor.olean": "9043c409d02d2bb29dbc10bad1af20d669a56a9d86d42a829980fe9f75255461",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/FiniteMonitorTests.olean": "d104efc53f1211d9308644bd4081d642be3a303779700164e9de54676ee80d98",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/FiniteSummary.olean": "ec4f9c1f7be9715bfa0e92f00ba5e318c7bc15ace52237e052ef45293699fe1f",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/HlcRegister.olean": "289c3ce056258113b45c6feb9fc5537c7a22f51c1126d55af3b73a4393e91a28",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/InstalledDCFL.olean": "3ac176fd990bee0da3b5a84a823e7b45b93ea76e45435edcef8bc3e9638b60ce",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/InstalledLexer.olean": "0e1459aef32dd54f765309798052e414bb8f99fc3716a26e60ad22893bef420e",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/InstalledLexerTests.olean": "d5f76dae0e25b490701fb7efe9a24bc799309014464d2137676ad828e7e248d9",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/InstalledSyntax.olean": "e614d1fce4027499ec1d1fc71b530696783abb15cc0cf57795774e50bdcc0ef7",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/InstalledSyntaxTests.olean": "4d2e55629af569d3c0fa92f94b32d1c4d45273fa9898ecb21423b5c243fe4c7b",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/Lattice/NotALattice.olean": "116dc4d0c5ab89086e067f250790020de2d9d5ecc031ada910169dafd84c1d27",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/Lattice/Result.olean": "0e7664c0c9d922f3070d4200b38483ab59cc48a8ba8474b542846b1c28d1e7b3",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/Lattice/Store.olean": "e17d713aae6490973bfb03a06f57426e55c705ee45ccc0432c135ee3d4082a1e",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/LexicalComposition.olean": "26a49f3e167c03f9f4bf66a63b186d868a71c334e17bc4e4232913666300a822",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/LexicalNames.olean": "e5ecc6ed4bfcf009ab7c8082150fc93519b79b3375cb71738b90040a82c9db31",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/Message.olean": "42256a5ce7d888719001bae043bdd88753d57652858567fdff9a6e5fb14db0f8",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/MessageParser.olean": "2b918eeb53a573477116ce212d2456261581227f3a4704be272c2d5f9047d09c",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/MonitoredDCFL.olean": "dfe6266c9ad5477c72b0139223516de535f7f936a87d190d9f91c69c5491b1ee",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/Parser.olean": "7e7cdedaa184f87c3241074652c398221a5344d1d6668cb45345583f95b414f4",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/PatternMatch.olean": "7aae81ed3b5083178e5e7e0ced361276334067d436d6d15bc85cfbccbfb6bb66",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/Pipeline.olean": "a1ee1f977e68b463885961260a3bb071f22aa20ada970c2cb492e504845669cf",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/Projectability.olean": "43d4c693a1f66d0ffe7b340326b1aa828227cedbfee4b6053858f23144a9658e",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/ProtocolProjection.olean": "f5a45b937c8078ddd139987e4e61e3f738e6d889e61328a77d726624e6256750",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/R1NoRecursion.olean": "d6c9f78f311de012e83f5dbb8656b4d83461b5dff82f84e238f77006a77cc673",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/R2ResourceBounds.olean": "7754fb880bebb0871d7128afc289b4a7d4fab71716437744e74993cd5ba9998e",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/R3CorePreservation.olean": "c31e83c320b6d307247c78982509ee9a38fd90cad8f87053013a21098967276d",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/R5.olean": "74ad7c430caffbd88eae508f9ab5c2d227d6958d68c63a855654b236aa01c5aa",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/R6DCFLPreservation.olean": "f8bb9ebe2fec0e9c5aa040e80181251954ce4b695475caf4dc05f55057270462",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/Repeat.olean": "0bc120edf6a1aa0578d1d1e13f91461dadd33b764dbbe7670a6d34057d4f02fa",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/SExpr.olean": "49d76b39e5cccee0e64252a53ee36151ea5de9b0969524e2a8539f90fd7a08c5",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/SealedCheckpoint.olean": "584eff36bef9288862528f619a4960c766e46218f9832c9db37314ab31b64451",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/Serializer.olean": "69bb0f7236bfb86178feea41dcf8c24394d7b520df9719f6ad07c6cc70b87820",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/Splice.olean": "e3a3edb03ec03655ddba9f26fa71aeae30de184037cf9cf76b09b12c66b46329",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/State.olean": "135339dfb7da005f572cc3e1d841fd036c642fbcf6dd12c9e48b7dd9a1ae2703",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/StateKernel.olean": "9bf5a8b862c0f89a264c6cf47d8bb8c6e5b4ad6e289a7fafca4630f9112f3e32",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/StateKernelAggregates.olean": "e34e086de59d0eb5f2346df6257695afbcbdd35909ac8f988148b77b6015c40c",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/StateKernelClause.olean": "d283484f73d075caa83f6a02ff27359243581a095f55a803e0486cf196198518",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/StateKernelDelivery.olean": "1be0801b9ecc9399f7235cea554740c8df901eeb433433c0e3a9fd48d573dc40",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/StateKernelExtensions.olean": "bf76013f6dff3b761322dcefa07ef94cb626abd9f9fd19267c1626b4fb16ce58",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/StateKernelQueries.olean": "83b1ecaa58e149e959b295cb2fff877782bdcb65e7c5b1b67367ba27c10c951f",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/StateKernelSEC.olean": "f5154fd65f8ebd098b899a9ec17b27557471629d6cf9ebfe415926664e043130",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/StateKernelSECTests.olean": "c63f1952196cd1e39dac986d39949d161aa88f1125272e530449c8796c6e7d7f",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/StateKernelSemantics.olean": "844a93468cf2b69bd2b585a89d18dd563c1524c01723492e58199cdd9713b7a8",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/StateKernelTests.olean": "23e9c57f7665a98b36993421637ac3a65d44260db519d1265321cb0a3b262a17",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/StateProgress.olean": "2ad484359e3cae655e277f6aa79aa8efb09f600725318e4519e1c74062dd60dc",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/StateRefinement.olean": "0698212e900ff01ef61c140affe26c5156b6d8a28a29b12c0902af28322adaaf",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/TemplateExpansion.olean": "55e8576d79907ec3e5d727ac1f4b3bffdabc72942a3e1439fad15d791f46760a",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/ValidatorBudget.olean": "062dfa10c47eb810789143acb99b027558d30b8d0567e661fed953b426bb625f",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/ValidatorBudgetRefutation.olean": "1812f3b17ff85859e8bac9ab572526c9d105d0e24cdd00fc9387f42aba02b259",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/Verify.olean": "bb1c634afce947dbc73bf7d0afe2e283dd843d1f9d7057a117cd2db274a9e330",
+    "lean-cbcl/LeanCbcl/AbortableHandoff.lean": "711c7554ca86e6c4f854d0fdf75e1762f20d16e45cb854d1f6a25801772ce2e3",
+    "lean-cbcl/LeanCbcl/AdmissionStratification.lean": "ca6384d6b92cb92ecc91a0f46ff23d681fc5203a549ae3ffe4c2da15372ae684",
+    "lean-cbcl/LeanCbcl/Agent.lean": "c915f995039ba99f76facb403188d612111171912c0faf8a6799dda9c3051544",
+    "lean-cbcl/LeanCbcl/BoundedCounter.lean": "20a174abe4fb930556eaef16e2922dbe836d5f7d465fec6d92c9cb48a86afe51",
+    "lean-cbcl/LeanCbcl/Bridge.lean": "726b4d12671785f07c3930c6c0d20975366b1ac7c73a3c260607a492c51f8bca",
+    "lean-cbcl/LeanCbcl/CheckpointAll.lean": "3045401e5eadd8a283d5633bba12b63ae7ada14182a88305f9fb47ab4bbc8c2c",
+    "lean-cbcl/LeanCbcl/CheckpointAllTests.lean": "07a49f6452df9ce84400bc64f7c9e02df26adbd9743f560a90de0e630c2b90d3",
+    "lean-cbcl/LeanCbcl/CheckpointCompact.lean": "546ad60a49d97b8fc3fa079896a5066ee3715236cc5f2c47bf2e412fdd666d03",
+    "lean-cbcl/LeanCbcl/CheckpointCompactTests.lean": "cd9beafbc335bf91c0d84dcb032c0c35b27e2d304c849c65c8b0f513019acbbf",
+    "lean-cbcl/LeanCbcl/CheckpointData.lean": "1789e0e9c3dd1aa36bdad08affea449841cebe1929f14ce60a58fbcdaddf6211",
+    "lean-cbcl/LeanCbcl/CheckpointDataTests.lean": "4704ee555d5fea07bd438c5aeafc23b924d6795200cdea3231d0db158bd95cd3",
+    "lean-cbcl/LeanCbcl/CheckpointEvidence.lean": "25be5525f751682d0c9284da1499f3558a2b6727a247156d98d2014ac064064f",
+    "lean-cbcl/LeanCbcl/CheckpointEvidenceTests.lean": "a2b7ab60e870dcfb9541136fff48961b0ee82f7c21ebcedc873f9575281483e1",
+    "lean-cbcl/LeanCbcl/CheckpointKernel.lean": "b22db27f84d9be6ca9828467a42cc810e3038b622166251106a338b0d239e819",
+    "lean-cbcl/LeanCbcl/CheckpointKernelTests.lean": "cfe1645873b89aaec772d4975bd8c132bca1c0f1a6cc4bd046ec35c2d78f8b7a",
+    "lean-cbcl/LeanCbcl/CheckpointRender.lean": "7aa1b1b7d880d6162de02823542f1b310db2b7b149f9da637303af934904d56c",
+    "lean-cbcl/LeanCbcl/CheckpointSummary.lean": "8c7c7a5653b11bdc83eb4beab99dc7832fbc225c4ce2d363c25495e4b98cc004",
+    "lean-cbcl/LeanCbcl/ConcreteProjection.lean": "b7f30585b69ebbbb4b1048609e71841d1dcd59ad1811c227b7b69ccfde97323a",
+    "lean-cbcl/LeanCbcl/ConsensusFree/Archive.lean": "a6ed9ca1701386112b03de5f19cc8982f0bdc15aadf28d4019173fc7a08888bb",
+    "lean-cbcl/LeanCbcl/ConsensusFree/Capacity.lean": "6c40b24dec3b6dd74d1418547429d48aa6ae86b82bc0f61101776029e8d4e429",
+    "lean-cbcl/LeanCbcl/ConsensusFree/Collective.lean": "3e8291ef6fd1664364bb65721545ef0460bb54cefb0934367b1cf83fb586dbf4",
+    "lean-cbcl/LeanCbcl/ConsensusFree/CollectiveProtocol.lean": "e2f3b0bbca5214944c1e96bc8296e56c837ccbd432459756531a4c835b3b9e44",
+    "lean-cbcl/LeanCbcl/ConsensusFree/Core.lean": "ffa21ba03f9c18f07c72287a28e5809c395b7a515b0464d41684ce6a1fbd053b",
+    "lean-cbcl/LeanCbcl/ConsensusFree/Coverage.lean": "be340e6c440ec7c81c4214a8a82bbdb6bbe997739f4c935720095a7628491cec",
+    "lean-cbcl/LeanCbcl/ConsensusFree/Currency.lean": "5ad7eb8cb93159dc2bff8e1b024f79c6142576984843f4525d7bfc58c176beab",
+    "lean-cbcl/LeanCbcl/ConsensusFree/Evidence.lean": "4a87f7faae187e24702ad0ed0ee4d1b1c1a4d9078c037ebe317826576c62b391",
+    "lean-cbcl/LeanCbcl/ConsensusFree/Execution.lean": "53f7252b35af733fbe3dc883e6c2a5fe5b08f3daca8262890fe04f5468e1d65e",
+    "lean-cbcl/LeanCbcl/ConsensusFree/Journals.lean": "7c75be31350b751e0a85594c95e92acf7f5cb8cb47afb7380647e0d4a1cc5411",
+    "lean-cbcl/LeanCbcl/ConsensusFree/Liveness.lean": "628d3d307cb1f864a42de04dae12324a7fb7c223c950ce3ad03292a2d5c80d61",
+    "lean-cbcl/LeanCbcl/ConsensusFree/MultiParent.lean": "efcef67bed9d0317d67f76d288847ae461b5149faf74a36b2aacc926c14ae11c",
+    "lean-cbcl/LeanCbcl/ConsensusFree/Observation.lean": "a41d3b41978a300afead888735084971873820060e9de8bbefd258419645839a",
+    "lean-cbcl/LeanCbcl/ConsensusFree/OwnedLifecycle.lean": "cf311a44979fb5673ecaefe1a244209af4ef79c9aba2acb48e55121d019285bf",
+    "lean-cbcl/LeanCbcl/ConsensusFree/OwnedProgress.lean": "1b18b5c71e1d26767428b2a1170dbb6d94269bb5bdee77520c5db5ae8b88db94",
+    "lean-cbcl/LeanCbcl/ConsensusFree/OwnerFunding.lean": "073313c481208e5c7d4826c7aac12a435c00269f06b514725a388cb52086a5fb",
+    "lean-cbcl/LeanCbcl/ConsensusFree/OwnerProduct.lean": "5055469b76c94fea710650ab269e2cb0b22e26a1896951cceb41f04ceb019701",
+    "lean-cbcl/LeanCbcl/ConsensusFree/OwnerProductWitness.lean": "3cd4cd20b5c8ccc421d4945cd1c1b1021e2928bcdac4451ebcfec9d4d9d0b844",
+    "lean-cbcl/LeanCbcl/ConsensusFree/OwnerTermination.lean": "bb4c787d06112d44deb9ec70a9361946702f58fab4a93e5aa474b06617f5ba16",
+    "lean-cbcl/LeanCbcl/ConsensusFree/Scheduler.lean": "a1c34c6c45390ec6a8a98747c9706e808a02b0b36f869cec812981625ec726f1",
+    "lean-cbcl/LeanCbcl/ConsensusFree/Tests.lean": "1387e9bcd629ec4e1af27df8f324219a996de34a3eb9f8f36265e0f31d83b8f7",
+    "lean-cbcl/LeanCbcl/ConsensusFree.lean": "f62a8794085d5b619c8f0271412f9a52de03acea390b2c58fca9ed5295c38916",
+    "lean-cbcl/LeanCbcl/ConsensusFreeArithmetic.lean": "2fdcb11e2ee4f177d313578e7c9546e0ae035eab53a8fae887e31aacf219fd11",
+    "lean-cbcl/LeanCbcl/DCFLPreservation.lean": "85c878315521aa0b7a3dbe5af9da6844270f2ce4050645b0f57fb18b413fc63f",
+    "lean-cbcl/LeanCbcl/Dialect.lean": "01484d090dd2a83daa4c7d475351eaaaa9cbf771502304afc5feb52092546d3d",
+    "lean-cbcl/LeanCbcl/DialectParser.lean": "85a48ec7eedaa3a8bd3417f612a756c7343a7b6c24466089ee94c98b91da541f",
+    "lean-cbcl/LeanCbcl/EPP.lean": "f8a131bb978967353db2d5c5d6ad3fdc1230cddb5f6032584a5c91440061976f",
+    "lean-cbcl/LeanCbcl/EPPCompletion.lean": "3bb7c2afba8b23585df61eb7aff6f5c4683ccf1c059a42b7c571f17552fd0d4c",
+    "lean-cbcl/LeanCbcl/FiniteCodec.lean": "3cd145de5ac0b0674ff5c48f7889a9d1cfd582c52424378b64d05b8122fb671a",
+    "lean-cbcl/LeanCbcl/FiniteDPDA.lean": "5ddb7368dab7ca81abae320ff14c69ee98eed9e4d2c616eec59f7423e7c48a65",
+    "lean-cbcl/LeanCbcl/FiniteForest.lean": "6d9ab11d7d043294a4cbc76eb2bd070911f925e46ed743deee4e3c431ed990ed",
+    "lean-cbcl/LeanCbcl/FiniteForestTests.lean": "9e425e598447d2086274e0bb239bc4a92a2898ae08aff9bc74df9535a937bc82",
+    "lean-cbcl/LeanCbcl/FiniteMonitor.lean": "4f4bd099f82ad4f391cde8dac018d2453e6de0a631eb13aa9d06b97608597eee",
+    "lean-cbcl/LeanCbcl/FiniteMonitorTests.lean": "e59932c3883254041866abeb80df3c1160002647cc5f584a86a7464f938d018d",
+    "lean-cbcl/LeanCbcl/FiniteSummary.lean": "3e0be3aeec5449fa0a7bb90229b1cf69965d9df50f0a22c60e6e3bbc3be33d4c",
+    "lean-cbcl/LeanCbcl/HlcRegister.lean": "0fb2b4f8b32dd83915d823ec597a38aac77e49de23f694af2150bf9e0b9e45c4",
+    "lean-cbcl/LeanCbcl/InstalledDCFL.lean": "f4d4349db7e062786ff18184d85888d650d5c4dabe48f005e095631106f393b6",
+    "lean-cbcl/LeanCbcl/InstalledLexer.lean": "5f95738f5d17f35f4c1d3ba5893aeaa9ed463dea3fdf51fb00e3e4fb2fc33354",
+    "lean-cbcl/LeanCbcl/InstalledLexerTests.lean": "4287aa09782403a14dfd8cc1de55be208d997623901841b5d9408d44a27f58d7",
+    "lean-cbcl/LeanCbcl/InstalledSyntax.lean": "a018d9722d76776e45631389567c10b4c52a3e1b17eb8d508acf81b8584b93eb",
+    "lean-cbcl/LeanCbcl/InstalledSyntaxTests.lean": "0fbf5609ea8eecf2185c8ffd2bf1278893df6ee26df84406423e9f960483b84b",
+    "lean-cbcl/LeanCbcl/Lattice/NotALattice.lean": "7832ebdb7e2183635832c33ad11ca6aa7044c7d8c6936611d2f54ecb0ec58561",
+    "lean-cbcl/LeanCbcl/Lattice/Result.lean": "6010668efb72f7960c8a49c370015da6161170bf046734032470e0f85e1c6ec7",
+    "lean-cbcl/LeanCbcl/Lattice/Store.lean": "dfb268759124fad22660a867309508d42d795e3feeb60ca62d5c6ac98fe97b3f",
+    "lean-cbcl/LeanCbcl/LexicalComposition.lean": "39f559b0017207ee8730891a294bab2a45eb0dbaaf01868346b947328f6d33c8",
+    "lean-cbcl/LeanCbcl/LexicalNames.lean": "64a14f3805196bac61c0ac57610a4c0827483aa67233fe94896b382f544488a3",
+    "lean-cbcl/LeanCbcl/Message.lean": "fac3b9085032e8a111d8949d6df9ede6f928b27805ce01d0bfddc152bfecfbb0",
+    "lean-cbcl/LeanCbcl/MessageParser.lean": "dea6289714c84b38cb3a13fb126e17302ff98c3fc82e35be1a5b607670239958",
+    "lean-cbcl/LeanCbcl/MonitoredDCFL.lean": "951e2f8cf1320d8da6b89ada0b6934939e1d5c7895d4f7e4084c669a333ba9e9",
+    "lean-cbcl/LeanCbcl/Parser.lean": "916830f788e1a57528ff184de205b4e46ddff0d5e7b88153ea6e230e5e2f83f3",
+    "lean-cbcl/LeanCbcl/PatternMatch.lean": "835a0ecb486b93836242ef0357c7e6fb5a0fa3dd66d08650376ad27740ece5d7",
+    "lean-cbcl/LeanCbcl/Pipeline.lean": "e13d16d09317bf34873520ef5038002b8a0b8c99002e2083aad604ac94e5e3b7",
+    "lean-cbcl/LeanCbcl/Projectability.lean": "c1be47317984d956086cbab36846525fc888b564a7cc81ad31dcc67d4ebc2328",
+    "lean-cbcl/LeanCbcl/ProtocolProjection.lean": "20bdbb7b74303f77128b65a3e581afbe261a6f3a467e06464f894339b2fab7ff",
+    "lean-cbcl/LeanCbcl/R1NoRecursion.lean": "ad656f04558d66d43285d230d1301c2d55fa8c876ed4eb906cd33e1e23ad6615",
+    "lean-cbcl/LeanCbcl/R2ResourceBounds.lean": "711940fcc5dc8635e1423acac33a49982df7dce5d34a7d0ae966ab9619816726",
+    "lean-cbcl/LeanCbcl/R3CorePreservation.lean": "9440897d204b719d9e0f65269a34f0fa703c0feb07ff2434f3016934c27c4232",
+    "lean-cbcl/LeanCbcl/R5.lean": "72ab788f0d2028441866c305c4abcee96175c4d3058538fc29a4a3204ca31b92",
+    "lean-cbcl/LeanCbcl/R6DCFLPreservation.lean": "32982555bf90f33e51f858f8a69b062a5d67a979b60dedcb1cf611d7042f3af9",
+    "lean-cbcl/LeanCbcl/Repeat.lean": "bf85e4c1bef9703766c0013e1c633a796517910577cedf32f99217729afc524a",
+    "lean-cbcl/LeanCbcl/SExpr.lean": "d549a704a3c649e6ee82583622d8e74cedf9733a36e8003956750d5c19dc2f58",
+    "lean-cbcl/LeanCbcl/SealedCheckpoint.lean": "ea9cc81026861eedf539f7482c23e86d837aabd0b1d1c6d5daef17d3cb107951",
+    "lean-cbcl/LeanCbcl/Serializer.lean": "1b3453c35b1010bfea63a11c8a0a76e4868957c7ce3583423c457a4a8a6d655e",
+    "lean-cbcl/LeanCbcl/Splice.lean": "b13364a8bef7804bd50c8c0500c8987a21539a308f0db1b34f2ea7958e7d4075",
+    "lean-cbcl/LeanCbcl/State.lean": "87a0e422606a46790d5345fbb19ebd3156d3202ef6f97c1895a5af4e3a933440",
+    "lean-cbcl/LeanCbcl/StateKernel.lean": "f05c66b2a7581234e595f05756821621c08a2da41ce002610116dbaf37fd7ea2",
+    "lean-cbcl/LeanCbcl/StateKernelAggregates.lean": "eb3a328d0c0f19ea0d6a9f9d3b64df5d2befd9a0457fca4554366e753c71b888",
+    "lean-cbcl/LeanCbcl/StateKernelClause.lean": "30a98617a0a9484d4b1953f7df065e6304f0b5824e46a84f475da9c856f81bb4",
+    "lean-cbcl/LeanCbcl/StateKernelDelivery.lean": "6157384ba5b404dd662ab58d35581d2bdaf3c81122fe66eb3e4f0698485385a1",
+    "lean-cbcl/LeanCbcl/StateKernelExtensions.lean": "4538c1f22855731855c394817c17b89c8444d8682eed1478056610346ec32098",
+    "lean-cbcl/LeanCbcl/StateKernelQueries.lean": "ac77089f0cea29a8890978cc98c11d6118c7cf93207ab6a0f4fcd6fdb5834f6e",
+    "lean-cbcl/LeanCbcl/StateKernelSEC.lean": "e7e8702f4789eff62a721a55bf2e490cd39b1a184f7e375de76cf2ce320268f0",
+    "lean-cbcl/LeanCbcl/StateKernelSECTests.lean": "5e8dec1f5ae49cff048eea46e942947bd0a3cdf1f802bfbce7e2f8c1496aba89",
+    "lean-cbcl/LeanCbcl/StateKernelSemantics.lean": "f5606b05e7d69e632cbeaf07da3e8d3f636443a9159f675612da3f1a73d13329",
+    "lean-cbcl/LeanCbcl/StateKernelTests.lean": "ed45994fad5ab00bbbc0fba94ee182e9f65842a29fa7220b789d988a2fb7f6c5",
+    "lean-cbcl/LeanCbcl/StateProgress.lean": "c4eee03626eaebdce8a8ad1d720f063d41e71cb9fd71914dd98c6b5aa62265e3",
+    "lean-cbcl/LeanCbcl/StateRefinement.lean": "ba8b8665e59fcc616979d24e5be9e73bb00f2e83c750b072320751e94c0df71a",
+    "lean-cbcl/LeanCbcl/TemplateExpansion.lean": "d9fc3788e91a72a2ed196879681b4be463b17321d535edb2170809541b16e727",
+    "lean-cbcl/LeanCbcl/ValidatorBudget.lean": "6c172850aa2720ae4d4e25c97f54d34df905e9b1ec8446ae633da5ce0ac353c6",
+    "lean-cbcl/LeanCbcl/ValidatorBudgetRefutation.lean": "b91837698b1a14fbcd4f82f1c13158e0991e1eda90a6c5501a92a1c8c5edf400",
+    "lean-cbcl/LeanCbcl/Verify.lean": "8aef7dd799b2d8f8479fc088c4dfb02c220d596fae8f036595113ef25baf3419",
+    "lean-cbcl/LeanCbcl.lean": "ed9d3e21923aafa7435c418c4956ad6fa0b382b33a2b8d31b07c49fe43b27a88",
+    "lean-cbcl/lake-manifest.json": "3091b425f2579141f66894187e298f3c655b6f5b5a72d28940120935bd32c04b",
+    "lean-cbcl/lakefile.toml": "a1bfae8bba6fcf091b23950b3fa09663a1054bc8f4a9a6a23b85e503695e6140",
+    "lean-cbcl/lean-toolchain": "d55ca0039a5479db5b38919d005b2c427b89b3be4f0184a20f2f4eae931f5bdb"
+  },
+  "allowed_axioms": [
+    "Classical.choice",
+    "Quot.sound",
+    "propext"
+  ],
+  "baselines": [
+    {
+      "command": [
+        "lake",
+        "env",
+        "lean",
+        "-t",
+        "0",
+        "LeanCbcl/CheckpointData.lean"
+      ],
+      "cwd": "/Users/anuna-02/Code/cbcl-rs/lean-cbcl",
+      "exit_code": 0,
+      "timed_out": false,
+      "elapsed_seconds": 0.825,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "lake",
+        "env",
+        "lean",
+        "-t",
+        "0",
+        "LeanCbcl/CheckpointDataTests.lean"
+      ],
+      "cwd": "/Users/anuna-02/Code/cbcl-rs/lean-cbcl",
+      "exit_code": 0,
+      "timed_out": false,
+      "elapsed_seconds": 1.218,
+      "stdout": "'CBCL.CheckpointData.Exists.step_preserves' depends on axioms: [propext, Classical.choice, Quot.sound]\n'CBCL.CheckpointData.Count.step_preserves' depends on axioms: [propext, Classical.choice, Quot.sound]\n'CBCL.CheckpointData.Counter.step_preserves' depends on axioms: [propext, Classical.choice, Quot.sound]\n'CBCL.CheckpointData.SetUnion.step_preserves' depends on axioms: [propext, Classical.choice, Quot.sound]\n'CBCL.CheckpointData.Events.step_preserves' depends on axioms: [propext, Classical.choice, Quot.sound]\n'CBCL.CheckpointData.Events.read_native' depends on axioms: [propext, Classical.choice, Quot.sound]\n'CBCL.CheckpointData.Events.map_keys_nodup' depends on axioms: [propext]\n'CBCL.CheckpointData.Events.map_meaning' depends on axioms: [propext, Classical.choice, Quot.sound]\n'CBCL.CheckpointData.Events.map_native' depends on axioms: [propext, Classical.choice, Quot.sound]\n'CBCL.CheckpointData.exists_continuation' depends on axioms: [propext, Classical.choice, Quot.sound]\n'CBCL.CheckpointData.count_continuation' depends on axioms: [propext, Classical.choice, Quot.sound]\n'CBCL.CheckpointData.counter_continuation' depends on axioms: [propext, Classical.choice, Quot.sound]\n'CBCL.CheckpointData.setUnion_continuation' depends on axioms: [propext, Classical.choice, Quot.sound]\n'CBCL.CheckpointData.events_continuation' depends on axioms: [propext, Classical.choice, Quot.sound]\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "lake",
+        "env",
+        "lean",
+        "-t",
+        "0",
+        "LeanCbcl/CheckpointEvidence.lean"
+      ],
+      "cwd": "/Users/anuna-02/Code/cbcl-rs/lean-cbcl",
+      "exit_code": 0,
+      "timed_out": false,
+      "elapsed_seconds": 0.756,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "lake",
+        "env",
+        "lean",
+        "-t",
+        "0",
+        "LeanCbcl/CheckpointEvidenceTests.lean"
+      ],
+      "cwd": "/Users/anuna-02/Code/cbcl-rs/lean-cbcl",
+      "exit_code": 0,
+      "timed_out": false,
+      "elapsed_seconds": 0.843,
+      "stdout": "'CBCL.CheckpointEvidence.project_ingest' depends on axioms: [propext]\n'CBCL.CheckpointEvidence.project_replay' depends on axioms: [propext]\n'CBCL.CheckpointEvidence.checkpoint_tail' depends on axioms: [propext, Quot.sound]\n'CBCL.CheckpointEvidence.materialize_checkpoint_tail' depends on axioms: [propext, Quot.sound]\n'CBCL.CheckpointEvidence.resolve_checkpoint_tail' depends on axioms: [propext, Quot.sound]\n'CBCL.CheckpointEvidence.progress_checkpoint_tail' depends on axioms: [propext, Quot.sound]\n'CBCL.CheckpointEvidence.progress_checkpoint_tail_native' depends on axioms: [propext, Quot.sound]\n'CBCL.CheckpointEvidence.resource_checkpoint_tail' depends on axioms: [propext, Quot.sound]\n'CBCL.CheckpointEvidence.resourceInput_checkpoint_tail' depends on axioms: [propext, Quot.sound]\n'CBCL.CheckpointEvidence.resource_checkpoint_tail_native' depends on axioms: [propext, Quot.sound]\n'CBCL.CheckpointEvidence.resourceInput_setEq' depends on axioms: [propext, Quot.sound]\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "lake",
+        "env",
+        "lean",
+        "-t",
+        "0",
+        "LeanCbcl/CheckpointAll.lean"
+      ],
+      "cwd": "/Users/anuna-02/Code/cbcl-rs/lean-cbcl",
+      "exit_code": 0,
+      "timed_out": false,
+      "elapsed_seconds": 0.863,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "lake",
+        "env",
+        "lean",
+        "-t",
+        "0",
+        "LeanCbcl/CheckpointAllTests.lean"
+      ],
+      "cwd": "/Users/anuna-02/Code/cbcl-rs/lean-cbcl",
+      "exit_code": 0,
+      "timed_out": false,
+      "elapsed_seconds": 2.562,
+      "stdout": "'CBCL.CheckpointAll.position_valid' depends on axioms: [propext, Quot.sound]\n'CBCL.CheckpointAll.position_advance_checkpoint' depends on axioms: [propext, Classical.choice, Quot.sound]\n'CBCL.CheckpointAll.resource_facts_advance_checkpoint' depends on axioms: [propext, Classical.choice, Quot.sound]\n'CBCL.CheckpointAll.map_step_valid' depends on axioms: [propext, Classical.choice, Quot.sound]\n'CBCL.CheckpointAll.map_render_eq' depends on axioms: [propext, Classical.choice, Quot.sound]\n'CBCL.CheckpointAll.rule_step_valid' depends on axioms: [propext, Classical.choice, Quot.sound]\n'CBCL.CheckpointAll.rule_render_eq' depends on axioms: [propext, Classical.choice, Quot.sound]\n'CBCL.CheckpointAll.snapshot_step_valid' depends on axioms: [propext, Classical.choice, Quot.sound]\n'CBCL.CheckpointAll.snapshot_advance_valid' depends on axioms: [propext, Classical.choice, Quot.sound]\n'CBCL.CheckpointAll.render_valid' depends on axioms: [propext, Classical.choice, Quot.sound]\n'CBCL.CheckpointAll.resume_valid_snapshot' depends on axioms: [propext, Classical.choice, Quot.sound]\n'CBCL.CheckpointAll.render_advance_checkpoint' depends on axioms: [propext, Classical.choice, Quot.sound]\n'CBCL.CheckpointAll.native_expression' depends on axioms: [propext, Quot.sound]\n'CBCL.CheckpointAll.native_compile_fields' depends on axioms: [propext, Quot.sound]\n'CBCL.CheckpointAll.native_compile_clause' depends on axioms: [propext, Quot.sound]\n'CBCL.CheckpointAll.render_advance_native_clause' depends on axioms: [propext, Classical.choice, Quot.sound]\n'CBCL.CheckpointAll.resolve_complete' depends on axioms: [propext, Quot.sound]\n'CBCL.CheckpointAll.resolve_fields_complete' depends on axioms: [propext, Quot.sound]\n'CBCL.CheckpointAll.render_advance_wellformed_clause' depends on axioms: [propext, Classical.choice, Quot.sound]\n",
+      "stderr": ""
+    }
+  ],
+  "proof_mutations": [
+    {
+      "command": [
+        "lake",
+        "env",
+        "lean",
+        "-t",
+        "0",
+        "/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-checkpoint-all16-97z9yxcx/CheckpointData.lean"
+      ],
+      "cwd": "/Users/anuna-02/Code/cbcl-rs/lean-cbcl",
+      "exit_code": 1,
+      "timed_out": false,
+      "elapsed_seconds": 0.845,
+      "stdout": "/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-checkpoint-all16-97z9yxcx/CheckpointData.lean:190:55: error: `grind` failed\ncase grind.1\nverb field : String\ne : Act\naddr : Nat\nsigner : String\nvalue : Val\nhv : e.verb = verb\nval : Val\nhg : e.get field = some val\nh : e.addr = addr\nh_1 : e.signer = signer\nh_2 : (Val.str \"mutant-dropped-value\" = value) = \u00acval = value\nleft : Val.str \"mutant-dropped-value\" = value\nright : \u00acval = value\n\u22a2 False\n[grind] Goal diagnostics\n  [facts] Asserted facts\n    [prop] e.verb = verb\n    [prop] e.get field = some val\n    [prop] e.addr = addr\n    [prop] e.signer = signer\n    [prop] (Val.str \"mutant-dropped-value\" = value) = \u00acval = value\n    [prop] Val.str \"mutant-dropped-value\" = value\n    [prop] \u00acval = value\n  [eqc] True propositions\n    [prop] \u00acval = value\n    [prop] (Val.str \"mutant-dropped-value\" = value) = \u00acval = value\n    [prop] Val.str \"mutant-dropped-value\" = value\n  [eqc] False propositions\n    [prop] val = value\n  [eqc] Equivalence classes\n    [eqc] {verb, e.verb}\n    [eqc] {addr, e.addr}\n    [eqc] {signer, e.signer}\n    [eqc] {value, Val.str \"mutant-dropped-value\"}\n    [eqc] {e.get field, some val}\n  [cases] Case analyses\n    [cases] [1/2]: (Val.str \"mutant-dropped-value\" = value) = \u00acval = value\n      [cases] source: Initial goal\n",
+      "stderr": "",
+      "mutation": "drop-events-projected-value",
+      "module": "CheckpointData",
+      "before": "(e.get field).map (fun value => \u27e8e.addr, e.signer, value\u27e9)",
+      "after": "(e.get field).map (fun _ => \u27e8e.addr, e.signer, .str \"mutant-dropped-value\"\u27e9)",
+      "mutated_source_sha256": "98d8e50c32208aa766bddb63394de955de76cdd3d5124f66a6476a0fd223cff5",
+      "proof_rejected": true,
+      "theorem_errors": [
+        {
+          "theorem": "projection_eq_some",
+          "line": 190,
+          "column": 55,
+          "message": "`grind` failed"
+        }
+      ],
+      "status": "proof_rejected"
+    },
+    {
+      "command": [
+        "lake",
+        "env",
+        "lean",
+        "-t",
+        "0",
+        "/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-checkpoint-all16-97z9yxcx/CheckpointData.lean"
+      ],
+      "cwd": "/Users/anuna-02/Code/cbcl-rs/lean-cbcl",
+      "exit_code": 1,
+      "timed_out": false,
+      "elapsed_seconds": 0.86,
+      "stdout": "/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-checkpoint-all16-97z9yxcx/CheckpointData.lean:59:59: error: unsolved goals\ncase pos\nverb : String\nH : List Act\ns : Summary\ne : Act\nvalid : s = count verb H\nfresh : covered H e.addr = false\nh : e.verb = verb\n\u22a2 False\n",
+      "stderr": "",
+      "mutation": "skip-count-increment",
+      "module": "CheckpointData",
+      "before": "if coverage e.addr then s else if e.verb = verb then s + 1 else s",
+      "after": "if coverage e.addr then s else if e.verb = verb then s else s",
+      "mutated_source_sha256": "d1e834f9effef1d93ccbcfa5ec558d72030e47911976e799d2342006d64265c3",
+      "proof_rejected": true,
+      "theorem_errors": [
+        {
+          "theorem": "step_preserves",
+          "line": 59,
+          "column": 59,
+          "message": "unsolved goals"
+        }
+      ],
+      "status": "proof_rejected"
+    },
+    {
+      "command": [
+        "lake",
+        "env",
+        "lean",
+        "-t",
+        "0",
+        "/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-checkpoint-all16-97z9yxcx/CheckpointAll.lean"
+      ],
+      "cwd": "/Users/anuna-02/Code/cbcl-rs/lean-cbcl",
+      "exit_code": 1,
+      "timed_out": false,
+      "elapsed_seconds": 0.862,
+      "stdout": "/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-checkpoint-all16-97z9yxcx/CheckpointAll.lean:350:4: error: unsolved goals\ncase neg.refine_1\nports : Ports\ninput : Input\nH : List Act\ns : Snapshot\nvalid : Snapshot.Valid ports input H s\ne : Act\nduplicate : \u00accovered H e.addr = true\nfresh : covered H e.addr = false\n\u22a2 False\n",
+      "stderr": "",
+      "mutation": "drop-progress-protocol-record",
+      "module": "CheckpointAll",
+      "before": "\u27e8e.addr, ports.protocol e\u27e9 :: s.protocol,",
+      "after": "s.protocol,",
+      "mutated_source_sha256": "6890aaf2f8aad7594ee9276dadb49d638053b2dbcefe4a11a249a58d403d5d82",
+      "proof_rejected": true,
+      "theorem_errors": [
+        {
+          "theorem": "snapshot_step_valid",
+          "line": 350,
+          "column": 4,
+          "message": "unsolved goals"
+        }
+      ],
+      "status": "proof_rejected"
+    },
+    {
+      "command": [
+        "lake",
+        "env",
+        "lean",
+        "-t",
+        "0",
+        "/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-checkpoint-all16-97z9yxcx/CheckpointAll.lean"
+      ],
+      "cwd": "/Users/anuna-02/Code/cbcl-rs/lean-cbcl",
+      "exit_code": 1,
+      "timed_out": false,
+      "elapsed_seconds": 0.877,
+      "stdout": "/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-checkpoint-all16-97z9yxcx/CheckpointAll.lean:351:4: error: unsolved goals\ncase neg.refine_2\nports : Ports\ninput : Input\nH : List Act\ns : Snapshot\nvalid : Snapshot.Valid ports input H s\ne : Act\nduplicate : \u00accovered H e.addr = true\nfresh : covered H e.addr = false\n\u22a2 False\n",
+      "stderr": "",
+      "mutation": "drop-resource-verifier-record",
+      "module": "CheckpointAll",
+      "before": "\u27e8e.addr, ports.resource.extract e\u27e9 :: s.resource\u27e9",
+      "after": "s.resource\u27e9",
+      "mutated_source_sha256": "e7e0576ba2937a185d1366862321d5fa5a3da9dbfd40cbe0e481d59dc80eb278",
+      "proof_rejected": true,
+      "theorem_errors": [
+        {
+          "theorem": "snapshot_step_valid",
+          "line": 351,
+          "column": 4,
+          "message": "unsolved goals"
+        }
+      ],
+      "status": "proof_rejected"
+    }
+  ],
+  "scope": "All native heads in typed Lean model; explicit native evidence extraction/classifier boundary. Not a Rust compiled-test mutant kill or host/security release approval.",
+  "toolchain": {
+    "command": [
+      "lake",
+      "env",
+      "lean",
+      "--version"
+    ],
+    "cwd": "/Users/anuna-02/Code/cbcl-rs/lean-cbcl",
+    "exit_code": 0,
+    "timed_out": false,
+    "elapsed_seconds": 0.094,
+    "stdout": "Lean (version 4.27.0, arm64-apple-darwin24.6.0, commit db93fe1608548721853390a10cd40580fe7d22ae, Release)\n",
+    "stderr": ""
+  },
+  "baseline_modules": [
+    "CheckpointData",
+    "CheckpointDataTests",
+    "CheckpointEvidence",
+    "CheckpointEvidenceTests",
+    "CheckpointAll",
+    "CheckpointAllTests"
+  ],
+  "named_axiom_run": {
+    "command": [
+      "lake",
+      "env",
+      "lean",
+      "-t",
+      "0",
+      "/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-checkpoint-all16-97z9yxcx/NamedAxioms.lean"
+    ],
+    "cwd": "/Users/anuna-02/Code/cbcl-rs/lean-cbcl",
+    "exit_code": 0,
+    "timed_out": false,
+    "elapsed_seconds": 2.021,
+    "stdout": "'CBCL.CheckpointAll.native_compile_clause' depends on axioms: [propext, Quot.sound]\n'CBCL.CheckpointAll.native_compile_fields' depends on axioms: [propext, Quot.sound]\n'CBCL.CheckpointAll.native_expression' depends on axioms: [propext, Quot.sound]\n'CBCL.CheckpointAll.position_advance_checkpoint' depends on axioms: [propext, Classical.choice, Quot.sound]\n'CBCL.CheckpointAll.render_advance_checkpoint' depends on axioms: [propext, Classical.choice, Quot.sound]\n'CBCL.CheckpointAll.render_advance_native_clause' depends on axioms: [propext, Classical.choice, Quot.sound]\n'CBCL.CheckpointAll.render_advance_wellformed_clause' depends on axioms: [propext, Classical.choice, Quot.sound]\n'CBCL.CheckpointAll.render_checkpoint' depends on axioms: [propext, Classical.choice, Quot.sound]\n'CBCL.CheckpointAll.render_valid' depends on axioms: [propext, Classical.choice, Quot.sound]\n'CBCL.CheckpointAll.resolve_complete' depends on axioms: [propext, Quot.sound]\n'CBCL.CheckpointAll.resolve_fields_complete' depends on axioms: [propext, Quot.sound]\n'CBCL.CheckpointAll.resource_facts_advance_checkpoint' depends on axioms: [propext, Classical.choice, Quot.sound]\n'CBCL.CheckpointAll.resume_valid_snapshot' depends on axioms: [propext, Classical.choice, Quot.sound]\n'CBCL.CheckpointAll.rule_render_eq' depends on axioms: [propext, Classical.choice, Quot.sound]\n'CBCL.CheckpointAll.rule_step_valid' depends on axioms: [propext, Classical.choice, Quot.sound]\n'CBCL.CheckpointAll.snapshot_advance_valid' depends on axioms: [propext, Classical.choice, Quot.sound]\n'CBCL.CheckpointAll.snapshot_checkpoint_valid' depends on axioms: [propext, Classical.choice, Quot.sound]\n'CBCL.CheckpointAll.snapshot_duplicate_noop' depends on axioms: [propext, Quot.sound]\n'CBCL.CheckpointAll.snapshot_step_valid' depends on axioms: [propext, Classical.choice, Quot.sound]\n'CBCL.CheckpointData.Count.step_preserves' depends on axioms: [propext, Classical.choice, Quot.sound]\n'CBCL.CheckpointData.Counter.step_preserves' depends on axioms: [propext, Classical.choice, Quot.sound]\n'CBCL.CheckpointData.Events.map_meaning' depends on axioms: [propext, Classical.choice, Quot.sound]\n'CBCL.CheckpointData.Events.map_native' depends on axioms: [propext, Classical.choice, Quot.sound]\n'CBCL.CheckpointData.Events.read_native' depends on axioms: [propext, Classical.choice, Quot.sound]\n'CBCL.CheckpointData.Events.step_preserves' depends on axioms: [propext, Classical.choice, Quot.sound]\n'CBCL.CheckpointData.Exists.step_preserves' depends on axioms: [propext, Classical.choice, Quot.sound]\n'CBCL.CheckpointData.SetUnion.step_preserves' depends on axioms: [propext, Classical.choice, Quot.sound]\n'CBCL.CheckpointData.count_continuation' depends on axioms: [propext, Classical.choice, Quot.sound]\n'CBCL.CheckpointData.counter_continuation' depends on axioms: [propext, Classical.choice, Quot.sound]\n'CBCL.CheckpointData.events_continuation' depends on axioms: [propext, Classical.choice, Quot.sound]\n'CBCL.CheckpointData.exists_continuation' depends on axioms: [propext, Classical.choice, Quot.sound]\n'CBCL.CheckpointData.setUnion_continuation' depends on axioms: [propext, Classical.choice, Quot.sound]\n'CBCL.CheckpointEvidence.checkpoint_tail' depends on axioms: [propext, Quot.sound]\n'CBCL.CheckpointEvidence.materialize_checkpoint_tail' depends on axioms: [propext, Quot.sound]\n'CBCL.CheckpointEvidence.progress_checkpoint_tail_native' depends on axioms: [propext, Quot.sound]\n'CBCL.CheckpointEvidence.project_ingest' depends on axioms: [propext]\n'CBCL.CheckpointEvidence.project_replay' depends on axioms: [propext]\n'CBCL.CheckpointEvidence.resolve_checkpoint_tail' depends on axioms: [propext, Quot.sound]\n'CBCL.CheckpointEvidence.resourceInput_checkpoint_tail' depends on axioms: [propext, Quot.sound]\n'CBCL.CheckpointEvidence.resourceInput_setEq' depends on axioms: [propext, Quot.sound]\n'CBCL.CheckpointEvidence.resource_checkpoint_tail_native' depends on axioms: [propext, Quot.sound]\n",
+    "stderr": ""
+  },
+  "axiom_audit": {
+    "CBCL.CheckpointAll.native_compile_clause": [
+      "Quot.sound",
+      "propext"
+    ],
+    "CBCL.CheckpointAll.native_compile_fields": [
+      "Quot.sound",
+      "propext"
+    ],
+    "CBCL.CheckpointAll.native_expression": [
+      "Quot.sound",
+      "propext"
+    ],
+    "CBCL.CheckpointAll.position_advance_checkpoint": [
+      "Classical.choice",
+      "Quot.sound",
+      "propext"
+    ],
+    "CBCL.CheckpointAll.render_advance_checkpoint": [
+      "Classical.choice",
+      "Quot.sound",
+      "propext"
+    ],
+    "CBCL.CheckpointAll.render_advance_native_clause": [
+      "Classical.choice",
+      "Quot.sound",
+      "propext"
+    ],
+    "CBCL.CheckpointAll.render_advance_wellformed_clause": [
+      "Classical.choice",
+      "Quot.sound",
+      "propext"
+    ],
+    "CBCL.CheckpointAll.render_checkpoint": [
+      "Classical.choice",
+      "Quot.sound",
+      "propext"
+    ],
+    "CBCL.CheckpointAll.render_valid": [
+      "Classical.choice",
+      "Quot.sound",
+      "propext"
+    ],
+    "CBCL.CheckpointAll.resolve_complete": [
+      "Quot.sound",
+      "propext"
+    ],
+    "CBCL.CheckpointAll.resolve_fields_complete": [
+      "Quot.sound",
+      "propext"
+    ],
+    "CBCL.CheckpointAll.resource_facts_advance_checkpoint": [
+      "Classical.choice",
+      "Quot.sound",
+      "propext"
+    ],
+    "CBCL.CheckpointAll.resume_valid_snapshot": [
+      "Classical.choice",
+      "Quot.sound",
+      "propext"
+    ],
+    "CBCL.CheckpointAll.rule_render_eq": [
+      "Classical.choice",
+      "Quot.sound",
+      "propext"
+    ],
+    "CBCL.CheckpointAll.rule_step_valid": [
+      "Classical.choice",
+      "Quot.sound",
+      "propext"
+    ],
+    "CBCL.CheckpointAll.snapshot_advance_valid": [
+      "Classical.choice",
+      "Quot.sound",
+      "propext"
+    ],
+    "CBCL.CheckpointAll.snapshot_checkpoint_valid": [
+      "Classical.choice",
+      "Quot.sound",
+      "propext"
+    ],
+    "CBCL.CheckpointAll.snapshot_duplicate_noop": [
+      "Quot.sound",
+      "propext"
+    ],
+    "CBCL.CheckpointAll.snapshot_step_valid": [
+      "Classical.choice",
+      "Quot.sound",
+      "propext"
+    ],
+    "CBCL.CheckpointData.Count.step_preserves": [
+      "Classical.choice",
+      "Quot.sound",
+      "propext"
+    ],
+    "CBCL.CheckpointData.Counter.step_preserves": [
+      "Classical.choice",
+      "Quot.sound",
+      "propext"
+    ],
+    "CBCL.CheckpointData.Events.map_meaning": [
+      "Classical.choice",
+      "Quot.sound",
+      "propext"
+    ],
+    "CBCL.CheckpointData.Events.map_native": [
+      "Classical.choice",
+      "Quot.sound",
+      "propext"
+    ],
+    "CBCL.CheckpointData.Events.read_native": [
+      "Classical.choice",
+      "Quot.sound",
+      "propext"
+    ],
+    "CBCL.CheckpointData.Events.step_preserves": [
+      "Classical.choice",
+      "Quot.sound",
+      "propext"
+    ],
+    "CBCL.CheckpointData.Exists.step_preserves": [
+      "Classical.choice",
+      "Quot.sound",
+      "propext"
+    ],
+    "CBCL.CheckpointData.SetUnion.step_preserves": [
+      "Classical.choice",
+      "Quot.sound",
+      "propext"
+    ],
+    "CBCL.CheckpointData.count_continuation": [
+      "Classical.choice",
+      "Quot.sound",
+      "propext"
+    ],
+    "CBCL.CheckpointData.counter_continuation": [
+      "Classical.choice",
+      "Quot.sound",
+      "propext"
+    ],
+    "CBCL.CheckpointData.events_continuation": [
+      "Classical.choice",
+      "Quot.sound",
+      "propext"
+    ],
+    "CBCL.CheckpointData.exists_continuation": [
+      "Classical.choice",
+      "Quot.sound",
+      "propext"
+    ],
+    "CBCL.CheckpointData.setUnion_continuation": [
+      "Classical.choice",
+      "Quot.sound",
+      "propext"
+    ],
+    "CBCL.CheckpointEvidence.checkpoint_tail": [
+      "Quot.sound",
+      "propext"
+    ],
+    "CBCL.CheckpointEvidence.materialize_checkpoint_tail": [
+      "Quot.sound",
+      "propext"
+    ],
+    "CBCL.CheckpointEvidence.progress_checkpoint_tail_native": [
+      "Quot.sound",
+      "propext"
+    ],
+    "CBCL.CheckpointEvidence.project_ingest": [
+      "propext"
+    ],
+    "CBCL.CheckpointEvidence.project_replay": [
+      "propext"
+    ],
+    "CBCL.CheckpointEvidence.resolve_checkpoint_tail": [
+      "Quot.sound",
+      "propext"
+    ],
+    "CBCL.CheckpointEvidence.resourceInput_checkpoint_tail": [
+      "Quot.sound",
+      "propext"
+    ],
+    "CBCL.CheckpointEvidence.resourceInput_setEq": [
+      "Quot.sound",
+      "propext"
+    ],
+    "CBCL.CheckpointEvidence.resource_checkpoint_tail_native": [
+      "Quot.sound",
+      "propext"
+    ]
+  },
+  "live_binding_drift": [],
+  "finished_at": "2026-11-06T23:08:27.657690+00:00"
+}

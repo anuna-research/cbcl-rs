@@ -116,7 +116,10 @@ fn explicit_replacement_precedes_clock_arbitration_and_keeps_signer_isolation() 
         state["map"]["x"], "alice-edit",
         "authorized keyed writes can replace other writers"
     );
-    let later = with_targets(&act("later", 2, "@alice"), &[edit.address.clone()]);
+    let later = with_targets(
+        &act("later", 2, "@alice"),
+        std::slice::from_ref(&edit.address),
+    );
     let forward = observe(&d, &[a.clone(), b.clone(), edit.clone(), later.clone()]);
     assert_eq!(
         forward["map"]["x"], "later",
@@ -281,7 +284,7 @@ fn issue(
 fn binder_supplies_replacements_but_requires_explicit_clock_and_exports_agree() {
     let d = dialect(D);
     let open = opener();
-    let a = issue(&d, &[open.clone()], "@alice", "x", "old", 1);
+    let a = issue(&d, std::slice::from_ref(&open), "@alice", "x", "old", 1);
     assert_eq!(a.fields["replaces"], "()".parse().unwrap());
     let b = issue(&d, &[open.clone(), a.clone()], "@alice", "x", "edit", 2);
     assert_eq!(
@@ -352,7 +355,7 @@ fn domain_excluded_high_clock_replacer_changes_neither_values_nor_replacements()
     let open_text = r#"(lang hlc-test (open @a :title "demo" :options ("x") :from @a :thread "t" :caused-by begin))"#;
     let open =
         Act::from_message(parse_message(&open_text.parse().unwrap()).unwrap(), "@a").unwrap();
-    let a = issue(&d, &[open.clone()], "@alice", "x", "old", 1);
+    let a = issue(&d, std::slice::from_ref(&open), "@alice", "x", "old", 1);
     let raw = format!(
         r#"(lang hlc-test (write @a :item "excluded" :value "bad" :clock "hlc-ffffffffffffffff-ffffffff" :replaces ({}) :from @alice :thread "t" :caused-by {}))"#,
         a.address, open.address
@@ -402,8 +405,8 @@ fn authoring_and_description_support_new_rules_without_changing_contract_version
 fn author_hlc_conformance_vector() {
     let d = dialect(D);
     let open = opener();
-    let a = issue(&d, &[open.clone()], "@alice", "x", "old", 1);
-    let b = issue(&d, &[open.clone()], "@bob", "x", "bob", 2);
+    let a = issue(&d, std::slice::from_ref(&open), "@alice", "x", "old", 1);
+    let b = issue(&d, std::slice::from_ref(&open), "@bob", "x", "bob", 2);
     // Alice has not observed Bob: both remain in the multi-value result.
     let edit = issue(&d, &[open.clone(), a.clone()], "@alice", "x", "edit", 3);
     let accepted = vec![open, a, b, edit];
@@ -483,7 +486,7 @@ fn excluded_same_key_replacer_cannot_hide_a_write_from_delete_binding() {
     let open_text = r#"(lang hlc-test (open @a :title "demo" :options ("allowed") :from @a :thread "t" :caused-by begin))"#;
     let open =
         Act::from_message(parse_message(&open_text.parse().unwrap()).unwrap(), "@a").unwrap();
-    let a = issue(&d, &[open.clone()], "@alice", "x", "allowed", 1);
+    let a = issue(&d, std::slice::from_ref(&open), "@alice", "x", "allowed", 1);
     let raw = format!(
         r#"(lang hlc-test (write @a :item "x" :value "excluded" :clock "hlc-ffffffffffffffff-ffffffff" :replaces ({}) :from @alice :thread "t" :caused-by {}))"#,
         a.address, open.address
@@ -526,7 +529,7 @@ fn hlc_signer_binding_is_sorted_bounded_and_excludes_other_signers() {
     for n in 0..70 {
         acts.push(issue(
             &d,
-            &[open.clone()],
+            std::slice::from_ref(&open),
             "@alice",
             "x",
             &format!("{n}"),

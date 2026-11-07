@@ -83,3 +83,6 @@ import LeanCbcl.StateKernelClause
 import LeanCbcl.StateKernelTests
 
 import LeanCbcl.StateKernelSECTests
+
+import LeanCbcl.CheckpointKernelTests
+import LeanCbcl.CheckpointAllTests

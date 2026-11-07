@@ -1,0 +1,84 @@
+
+running 15 tests
+test summary::tests::binary_snapshot_byte_budget_is_checked_before_recognition ... ok
+test summary::tests::derived_fields_require_earlier_eligible_materialized_maps ... ok
+test summary::tests::domains_and_bad_references_fail_closed_atomically ... ok
+test summary::tests::exact_precoverage_footprint_matches_actual_update_queries ... ok
+test summary::tests::covered_replay_cannot_restore_retired_contribution ... ok
+test summary::tests::known_profile_id_binds_v2_schema_and_rejects_old_bytes ... ok
+test summary::tests::cross_scope_late_nonstate_and_covered_target_pruning ... ok
+test summary::tests::native_identity_variants_have_identical_projected_summary_roots ... ok
+test summary::tests::plain_lww_loser_can_reemerge_only_in_scoped_rules ... ok
+test summary::tests::events_store_projected_slice_and_derive_histogram_and_sum ... ok
+test summary::tests::compact_rows_incremental_work_does_not_scan_history ... ok
+test summary::tests::scalar_rows_are_compact_and_overflow_is_atomic ... ok
+test summary::tests::malformed_metadata_and_snapshots_fail_before_mutation ... ok
+test summary::tests::all_sixteen_native_prefixes_cuts_and_helper_binding ... ok
+test summary::tests::all_fourteen_plain_rules_every_prefix_cut_permutation_duplicate ... ok
+
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.23s
+
+
+{"mutation": "drop-covered-duplicate-guard", "test": "covered_replay_cannot_restore_retired_contribution", "compiled": true, "killed_by_test": true}
+{"mutation": "forget-unseen-suppression", "test": "all_fourteen_plain_rules_every_prefix_cut_permutation_duplicate", "compiled": true, "killed_by_test": true}
+{"mutation": "allow-invalid-derived-source", "test": "derived_fields_require_earlier_eligible_materialized_maps", "compiled": true, "killed_by_test": true}
+{"mutation": "retain-cross-scope-pending", "test": "cross_scope_late_nonstate_and_covered_target_pruning", "compiled": true, "killed_by_test": true}
+{"mutation": "skip-snapshot-byte-budget", "test": "binary_snapshot_byte_budget_is_checked_before_recognition", "compiled": true, "killed_by_test": true}
+{"mutation": "skip-incoming-metadata-validation", "test": "malformed_metadata_and_snapshots_fail_before_mutation", "compiled": true, "killed_by_test": true}
+{"mutation": "store-unrelated-event-payload", "test": "events_store_projected_slice_and_derive_histogram_and_sum", "compiled": true, "killed_by_test": true}
+{"mutation": "forget-pair-value-sum", "test": "all_fourteen_plain_rules_every_prefix_cut_permutation_duplicate", "compiled": true, "killed_by_test": true}
+{
+  "summary_codec_version": 2,
+  "dependency_fingerprint": "target/debug/.fingerprint/cbcl-checkpoint-f2760441410d9553/lib-cbcl_checkpoint.json",
+  "status": "all compiled mutants killed",
+  "mutations": [
+    {
+      "mutation": "drop-covered-duplicate-guard",
+      "test": "covered_replay_cannot_restore_retired_contribution",
+      "compiled": true,
+      "killed_by_test": true
+    },
+    {
+      "mutation": "forget-unseen-suppression",
+      "test": "all_fourteen_plain_rules_every_prefix_cut_permutation_duplicate",
+      "compiled": true,
+      "killed_by_test": true
+    },
+    {
+      "mutation": "allow-invalid-derived-source",
+      "test": "derived_fields_require_earlier_eligible_materialized_maps",
+      "compiled": true,
+      "killed_by_test": true
+    },
+    {
+      "mutation": "retain-cross-scope-pending",
+      "test": "cross_scope_late_nonstate_and_covered_target_pruning",
+      "compiled": true,
+      "killed_by_test": true
+    },
+    {
+      "mutation": "skip-snapshot-byte-budget",
+      "test": "binary_snapshot_byte_budget_is_checked_before_recognition",
+      "compiled": true,
+      "killed_by_test": true
+    },
+    {
+      "mutation": "skip-incoming-metadata-validation",
+      "test": "malformed_metadata_and_snapshots_fail_before_mutation",
+      "compiled": true,
+      "killed_by_test": true
+    },
+    {
+      "mutation": "store-unrelated-event-payload",
+      "test": "events_store_projected_slice_and_derive_histogram_and_sum",
+      "compiled": true,
+      "killed_by_test": true
+    },
+    {
+      "mutation": "forget-pair-value-sum",
+      "test": "all_fourteen_plain_rules_every_prefix_cut_permutation_duplicate",
+      "compiled": true,
+      "killed_by_test": true
+    }
+  ]
+}

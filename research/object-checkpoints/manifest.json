@@ -1,0 +1,105 @@
+{
+  "method": "ar-crawl; technical PDF passages additionally checked using web extraction",
+  "sources": [
+    {
+      "file": "research/object-checkpoints/acumen-paper.json",
+      "url": "https://www.usenix.org/system/files/osdi26-cottone.pdf",
+      "sha256": "5374c70dc0e9bae458aaebb1db99fa9256a7fa1c2e08fb20e0a40794bf52f22b"
+    },
+    {
+      "file": "research/object-checkpoints/acumen.json",
+      "url": "https://www.usenix.org/conference/osdi26/presentation/cottone",
+      "sha256": "a95acdfddab56dea3c44dcb9db2c7914ad15d909ceb7bafa47557e671792b393"
+    },
+    {
+      "file": "research/object-checkpoints/automerge.json",
+      "url": "https://automerge.org/docs/reference/under-the-hood/storage/",
+      "sha256": "a36cf9b9faa5847075c0931189e3f1c007aace7b8bc96dad8576b4435f7a3ce7"
+    },
+    {
+      "file": "research/object-checkpoints/bec.json",
+      "url": "https://martin.kleppmann.com/2020/12/01/byzantine-eventual.html",
+      "sha256": "249fb331227b69f7bd7f1f6e3383bd9e8e91579d7715324ae4cdf9239518ee10"
+    },
+    {
+      "file": "research/object-checkpoints/bft-crdt-paper.json",
+      "url": "https://martin.kleppmann.com/papers/bft-crdt-papoc22.pdf",
+      "sha256": "095e7595d7321b25c74d38f903a408f6fc43a74bff65ea46fbc4437be5b30e84"
+    },
+    {
+      "file": "research/object-checkpoints/delta.json",
+      "url": "https://arxiv.org/abs/1603.01529",
+      "sha256": "46b37e14cb33f4f4addc90219c8ed3fee315249666e12c93316abb9fd821fd9c"
+    },
+    {
+      "file": "research/object-checkpoints/efficient-delta.json",
+      "url": "https://arxiv.org/abs/1803.02750",
+      "sha256": "d78217f823b06a58924ab8f833bab654f68c462bfd8f2f6d795bd66bbff1e847"
+    },
+    {
+      "file": "research/object-checkpoints/fault-proofs.json",
+      "url": "https://specs.optimism.io/fault-proof/",
+      "sha256": "edd1ed537896141036116c82dbbd0c944514ff351994cd2e1af330ab3948c9f6"
+    },
+    {
+      "file": "research/object-checkpoints/integridb.json",
+      "url": "https://www.cs.yale.edu/homes/cpap/published/IntegriDB.pdf",
+      "sha256": "445c8ea375eda84b0663e6fdd2df009b611f0d18e1aec9038d4f92dd44b37bd6"
+    },
+    {
+      "file": "research/object-checkpoints/nova.json",
+      "url": "https://eprint.iacr.org/2021/370",
+      "sha256": "2aeb35fe9aea53682e7cdbd6494e04c620ddd9d66f2438e726a665735a319ecf"
+    },
+    {
+      "file": "research/object-checkpoints/peerreview.json",
+      "url": "https://peerreview.mpi-sws.org/index.html",
+      "sha256": "d521407a51dd93b2d0ee89f8dc5dd4fbdfaf18d85742979e929b018c4d2e7f10"
+    },
+    {
+      "file": "research/object-checkpoints/pointproofs.json",
+      "url": "https://eprint.iacr.org/2020/419",
+      "sha256": "45047200f06a41f0844f6cdd30e48057ee0c27d2e83235aca644dd7c4d9cccda"
+    },
+    {
+      "file": "research/object-checkpoints/snapdoc-page.json",
+      "url": "https://martin.kleppmann.com/2019/07/16/snapdoc-authenticated-snapshots.html",
+      "sha256": "fc3568c4e9de294571bf823ad6a96b8da5d9e3856da229003ce4cf4fecfc149a"
+    },
+    {
+      "file": "research/object-checkpoints/snapdoc-paper.json",
+      "url": "https://martin.kleppmann.com/papers/snapdoc-pets19.pdf",
+      "sha256": "c2e97f84b02a770cc54b72b80db88badbe63764356f0b54e728769daa4d22a2e"
+    },
+    {
+      "file": "research/object-checkpoints/sporc.json",
+      "url": "https://www.usenix.org/conference/osdi10/sporc-group-collaboration-using-untrusted-cloud-resources",
+      "sha256": "22db6010bd73dc3ca31e4ad1aec27e7f8dfa9cafad40ffe3de3e3a81675bed0c"
+    },
+    {
+      "file": "research/object-checkpoints/unknown-order.json",
+      "url": "https://arxiv.org/abs/2211.16128",
+      "sha256": "32f59ce01f155a1bcceaee46be19ac32ec23ccb36ab8a14a13a159c51535b680"
+    },
+    {
+      "file": "research/object-checkpoints/utreexo.json",
+      "url": "https://eprint.iacr.org/2019/611",
+      "sha256": "53e4619bcbb78989caf180833c9d48b50c4808ea7d956200ab72b912b58bfc41"
+    },
+    {
+      "file": "research/object-checkpoints/verifiable-maps.json",
+      "url": "https://transparency.dev/verifiable-data-structures/",
+      "sha256": "3f6af1791586fce578589378fcbcc41e7d26832b228abeb6b9be6265e3b87551"
+    },
+    {
+      "file": "research/object-checkpoints/verkle.json",
+      "url": "https://verkle.dev/docs/concepts/math/multipoint",
+      "sha256": "a97a57f84743b253e2bbad2c8a814bf5c6ed0d36ef6f4bdb2803cef2388951e8"
+    },
+    {
+      "file": "research/object-checkpoints/yjs.json",
+      "url": "https://docs.yjs.dev/api/document-updates",
+      "sha256": "e06275218cf9af77102a0d70530dbb07ab2b64510c2c4612308fc6834cc525f5"
+    }
+  ]
+}

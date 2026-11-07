@@ -1,0 +1,112 @@
+; id: IMPL-029
+; title: All-head Profile v2 checkpoint continuation
+; status: implemented and locally verified
+; tier: 1
+; Governing law: [[SPEC-035-cached-state-checkpoints#REQ-3516]] through [[SPEC-035-cached-state-checkpoints#REQ-3521]].
+; Acceptance: [[SPEC-035-cached-state-checkpoints#TEST-3520]] through [[SPEC-035-cached-state-checkpoints#TEST-3525]].
+; Existing theory: spec-035-cached-checkpoints; never create a second theory.
+; v1 IMPL-027/028 facts remain historical and do not satisfy these v2 tasks.
+; Local acceptance evidence is recorded separately; this file does not itself
+; assert completed/verified facts or substitute for their source-bound acceptance.
+; Reuse existing task/ready/completed/no-deps/verified and declared task-description/2,
+; task-acceptance/2; no new predicate families.
+; Ledger: each task below names producer, observable acceptance and prerequisites.
+; Native oracle corrections: v2position includes colon native-ID vs dash wire-ID
+; store parity; v2resource includes opener/prev/deps alias resolution and native
+; cast/authority preservation in both full replay and projected observers.
+; v2codec uses [[SPEC-035-cached-state-checkpoints#Profile v2 wire grammar]], including
+; SummaryV2 tags0..10, protocol/global resume, projected resource facts and schema domains.
+; v2bridge/v2audit compare accepted-ID-normalized histories, including independent
+; members admitting native One/singleton-Set aliases with equal commitments. Original
+; signed duplicate evidence survives; raw observer duplicate-attempt diagnostics
+; are reported separately from the accepted-store continuation law.
+; Historical evidence remains v1; local v2 acceptance is source-bound and retains
+; native-port/extraction/serialization/admission/crypto and production-review boundaries.
+; Projection storage may grow with output; native-port classification remains explicit.
+; Extraction/serialization/admission/crypto are external unless separately proved.
+
+; v2inventory prerequisites: none
+(given (task v2inventory))
+(given (task-description v2inventory "Runtime/profile maintainer: bind all sixteen native heads to v2 adapters, declare separate domain/global-All gates"))
+(given (task-acceptance v2inventory "TEST-3520: exact runtime/Lean/native inventory; every head native parity; omitted/extra enabled head negative controls; [[SPEC-035-cached-state-checkpoints#TEST-3520]]"))
+(given (no-deps v2inventory))
+(normally r-ready-v2inventory (and (task v2inventory) (no-deps v2inventory)) (ready v2inventory))
+(meta r-ready-v2inventory (source "SPEC-035-cached-state-checkpoints#REQ-3516"))
+(normally r-done-v2inventory (and (ready v2inventory) (verified v2inventory)) (completed v2inventory))
+(meta r-done-v2inventory (source "SPEC-035-cached-state-checkpoints#TEST-3520"))
+
+; v2projection prerequisites: none
+(given (task v2projection))
+(given (task-description v2projection "Projection/derived-field maintainer: implement selected event records and ordered Histogram/Sum sources without body caches"))
+(given (task-acceptance v2projection "TEST-3521: projected id/signer/value records; output-scaled growth; ordered derived source verdicts; duplicate/replacement vectors; [[SPEC-035-cached-state-checkpoints#TEST-3521]]"))
+(given (no-deps v2projection))
+(normally r-ready-v2projection (and (task v2projection) (no-deps v2projection)) (ready v2projection))
+(meta r-ready-v2projection (source "SPEC-035-cached-state-checkpoints#REQ-3517"))
+(normally r-done-v2projection (and (ready v2projection) (verified v2projection)) (completed v2projection))
+(meta r-done-v2projection (source "SPEC-035-cached-state-checkpoints#TEST-3521"))
+
+; v2position prerequisites: none
+(given (task v2position))
+(given (task-description v2position "Native admission maintainer: resume Progress maximum and context/cut-bound verified position through ordinary R5 tail checks"))
+(given (task-acceptance v2position "TEST-3522: valid/invalid R5 tails, forks/repeats/missing facts and full native verdict parity with unchanged durable floor; [[SPEC-035-cached-state-checkpoints#TEST-3522]]"))
+(given (no-deps v2position))
+(normally r-ready-v2position (and (task v2position) (no-deps v2position)) (ready v2position))
+(meta r-ready-v2position (source "SPEC-035-cached-state-checkpoints#REQ-3518"))
+(normally r-done-v2position (and (ready v2position) (verified v2position)) (completed v2position))
+(meta r-done-v2position (source "SPEC-035-cached-state-checkpoints#TEST-3522"))
+
+; v2resource prerequisites: none
+(given (task v2resource))
+(given (task-description v2resource "Resource native-port maintainer: preserve native tags, authority, legacy core foldCollective/foldQuorum modes and fault classifications as projected verified facts"))
+(given (task-acceptance v2resource "TEST-3523: reference-verifier factorization boundary, valid/invalid authority and tags, native mode/fault parity; state quorum never grants rights; [[SPEC-035-cached-state-checkpoints#TEST-3523]]"))
+(given (no-deps v2resource))
+(normally r-ready-v2resource (and (task v2resource) (no-deps v2resource)) (ready v2resource))
+(meta r-ready-v2resource (source "SPEC-035-cached-state-checkpoints#REQ-3519"))
+(normally r-done-v2resource (and (ready v2resource) (verified v2resource)) (completed v2resource))
+(meta r-done-v2resource (source "SPEC-035-cached-state-checkpoints#TEST-3523"))
+
+; v2codec prerequisites: v2inventory, v2projection, v2position, v2resource
+(given (task v2codec))
+(given (task-description v2codec "Codec/host maintainer: specify and implement closed Profile v2 schema and version-separated canonical codecs"))
+(given (task-acceptance v2codec "TEST-3524: per-variant grammar/canonical vectors, malformed/version/budget negatives, bounded immutable preparation and durable delta writes; [[SPEC-035-cached-state-checkpoints#TEST-3524]]"))
+(normally r-ready-v2codec (and (task v2codec) (completed v2inventory) (completed v2projection) (completed v2position) (completed v2resource)) (ready v2codec))
+(meta r-ready-v2codec (source "SPEC-035-cached-state-checkpoints#REQ-3520"))
+(normally r-done-v2codec (and (ready v2codec) (verified v2codec)) (completed v2codec))
+(meta r-done-v2codec (source "SPEC-035-cached-state-checkpoints#TEST-3524"))
+
+; v2composition prerequisites: v2codec
+(given (task v2composition))
+(given (task-description v2composition "Runtime integration maintainer: compose every ordered native clause and retain previous bounded end-to-end lifecycle"))
+(given (task-acceptance v2composition "TEST-3520 through TEST-3524: all-head native replay oracle, position/resource tails, floor/evidence/atomicity/cache limits and v2 source-bound measurements; [[SPEC-035-cached-state-checkpoints#TEST-3520]]"))
+(normally r-ready-v2composition (and (task v2composition) (completed v2codec)) (ready v2composition))
+(meta r-ready-v2composition (source "SPEC-035-cached-state-checkpoints#REQ-3516"))
+(normally r-done-v2composition (and (ready v2composition) (verified v2composition)) (completed v2composition))
+(meta r-done-v2composition (source "SPEC-035-cached-state-checkpoints#TEST-3520"))
+
+; v2proof prerequisites: v2inventory, v2projection, v2position, v2resource
+(given (task v2proof))
+(given (task-description v2proof "Typed kernel proof maintainer: prove all-head continuation with native ordered clauses, projections, position and verified-resource-fact factorization"))
+(given (task-acceptance v2proof "TEST-3525: sufficient-state invariants, all16 typed theorem, no whole-body cache or assumed advance correctness, trust-zero transitive axiom audit; [[SPEC-035-cached-state-checkpoints#TEST-3525]]"))
+(normally r-ready-v2proof (and (task v2proof) (completed v2inventory) (completed v2projection) (completed v2position) (completed v2resource)) (ready v2proof))
+(meta r-ready-v2proof (source "SPEC-035-cached-state-checkpoints#REQ-3521"))
+(normally r-done-v2proof (and (ready v2proof) (verified v2proof)) (completed v2proof))
+(meta r-done-v2proof (source "SPEC-035-cached-state-checkpoints#TEST-3525"))
+
+; v2bridge prerequisites: v2composition, v2proof
+(given (task v2bridge))
+(given (task-description v2bridge "Independent conformance maintainer: derive native/Rust/Lean all-head parity vectors and targeted semantic/runtime counterexamples"))
+(given (task-acceptance v2bridge "TEST-3525: source-bound all-head/composed vectors, R5/resource modes and faults; proof rejection distinct from executed Rust test kills; explicit external boundaries; [[SPEC-035-cached-state-checkpoints#TEST-3525]]"))
+(normally r-ready-v2bridge (and (task v2bridge) (completed v2composition) (completed v2proof)) (ready v2bridge))
+(meta r-ready-v2bridge (source "SPEC-035-cached-state-checkpoints#REQ-3521"))
+(normally r-done-v2bridge (and (ready v2bridge) (verified v2bridge)) (completed v2bridge))
+(meta r-done-v2bridge (source "SPEC-035-cached-state-checkpoints#TEST-3525"))
+
+; v2audit prerequisites: v2bridge, v2composition, v2proof
+(given (task v2audit))
+(given (task-description v2audit "Independent reviewer: audit complete v2 gates, theorem non-circularity, native-port assumptions, closed codecs and bounded durable lifecycle"))
+(given (task-acceptance v2audit "TEST-3520 through TEST-3525: independent acceptance review of exact current sources; preserve historical v1 evidence without claiming it proves v2; [[SPEC-035-cached-state-checkpoints#TEST-3525]]"))
+(normally r-ready-v2audit (and (task v2audit) (completed v2bridge) (completed v2composition) (completed v2proof)) (ready v2audit))
+(meta r-ready-v2audit (source "SPEC-035-cached-state-checkpoints#REQ-3521"))
+(normally r-done-v2audit (and (ready v2audit) (verified v2audit)) (completed v2audit))
+(meta r-done-v2audit (source "SPEC-035-cached-state-checkpoints#TEST-3525"))
+

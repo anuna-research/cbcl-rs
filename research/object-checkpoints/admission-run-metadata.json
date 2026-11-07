@@ -1,0 +1,22 @@
+{
+  "platform": "macOS-26.5-arm64-arm-64bit",
+  "machine": "arm64",
+  "rustc": "rustc 1.95.0 (59807616e 2026-04-14)",
+  "git_base": "45bd3d06d141b6a10b3337544c724e6e04ffc4b1",
+  "commands": [
+    "cargo test -p cbcl-object-checkpoint-probe",
+    "cargo run --release -p cbcl-object-checkpoint-probe -- admission",
+    "python3 tools/object-checkpoint-probe/check_mutations.py --admission",
+    "cargo clippy -p cbcl-object-checkpoint-probe --all-targets -- -D warnings"
+  ],
+  "source_sha256": {
+    "tools/object-checkpoint-probe/Cargo.toml": "b0c837753563eee2f3987c90c77aea3e12e90e006cb8920c850f1f8a5c919d68",
+    "tools/object-checkpoint-probe/check_mutations.py": "daca4ff83518a4a41b612f05de758d1239ba481c5584e4d2173d5f259203686e",
+    "tools/object-checkpoint-probe/src/drawing_fixture.rs": "35d02cea4e0b3fe9bcce2c989e8647d07fbea1bdeafd4165e43304e1e3a1b1db",
+    "tools/object-checkpoint-probe/src/drawing.rs": "07ce324287dc6cc4b07541eaff4341adb0cf1c0b4024c2c1176c75694e69a86c",
+    "tools/object-checkpoint-probe/src/main.rs": "07b5819359830cab924f2d1fc02db9decd34c1be64031784cf27119ec3a1e523",
+    "tools/object-checkpoint-probe/src/tests.rs": "0de98a908229b4e30816d0e1111abffd0fe6dc13efdbbe3dd751ed7ec8a43948",
+    "tools/object-checkpoint-probe/src/drawing/tests.rs": "6609f96a1792a036c9f4803fb9965e3c51e2c66112026f83993f183fb4f27191"
+  },
+  "measurement_limits": "Three local repetitions; JSON; no browser, disk or network transport latency; cached certificate creation, reconstruction-package creation and metadata-index maintenance excluded."
+}

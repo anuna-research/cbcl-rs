@@ -1,0 +1,569 @@
+{
+  "schema_version": 1,
+  "started_at": "2026-11-06T22:19:42.896421+00:00",
+  "complete": true,
+  "passed": true,
+  "trust_level": 0,
+  "source_checks": {
+    "theorem": "CBCL.CheckpointKernel.render_advance_checkpoint",
+    "statement": "theorem render_advance_checkpoint (input : Input) (fields : List (String \u00d7 Rule))\n    (history tail : List Act) :\n    ((Snapshot.checkpoint input fields history).advance input tail).render input =\n      fullFold input fields (history ++ tail)",
+    "unchecked_source_constructs": [],
+    "required_axiom_reports": [
+      "CBCL.CheckpointKernel.fullFoldRaw_native",
+      "CBCL.CheckpointKernel.native_compile_clause",
+      "CBCL.CheckpointKernel.native_compile_fields",
+      "CBCL.CheckpointKernel.native_expression",
+      "CBCL.CheckpointKernel.render_advance_checkpoint",
+      "CBCL.CheckpointKernel.render_advance_native_clause",
+      "CBCL.CheckpointKernel.render_checkpoint",
+      "CBCL.CheckpointKernel.resume_valid_snapshot",
+      "CBCL.CheckpointKernel.rule_render_eq",
+      "CBCL.CheckpointKernel.rule_step_valid",
+      "CBCL.CheckpointKernel.snapshot_advance_valid",
+      "CBCL.CheckpointSummary.checkpoint_continuation",
+      "CBCL.CheckpointSummary.live_current",
+      "CBCL.CheckpointSummary.live_own",
+      "CBCL.CheckpointSummary.step_preserves"
+    ],
+    "supported_checkpoint_rules": [
+      "initial",
+      "values",
+      "valuesPerKey",
+      "observedSet",
+      "lwwRegister",
+      "lwwPerSigner",
+      "lwwMap"
+    ],
+    "runtime_supported_rules": [
+      "Initial",
+      "Values",
+      "ValuesPerKey",
+      "ObservedSet",
+      "LwwMap",
+      "LwwRegister",
+      "LwwPerSigner"
+    ],
+    "runtime_to_proved_rules": {
+      "Initial": "initial",
+      "Values": "values",
+      "ValuesPerKey": "valuesPerKey",
+      "ObservedSet": "observedSet",
+      "LwwMap": "lwwMap",
+      "LwwRegister": "lwwRegister",
+      "LwwPerSigner": "lwwPerSigner"
+    },
+    "native_full_rule_heads": {
+      "initial": "initial",
+      "existsRule": "exists",
+      "count": "count",
+      "progress": "progress",
+      "events": "events",
+      "setUnion": "set-union",
+      "values": "values",
+      "valuesPerKey": "values-per-key",
+      "observedSet": "observed-set",
+      "counter": "counter",
+      "histogram": "histogram",
+      "sum": "sum",
+      "lwwRegister": "lww-register",
+      "lwwPerSigner": "lww-per-signer",
+      "lwwMap": "lww-map",
+      "boundedCounter": "bounded-counter"
+    },
+    "inventory_source_sha256": {
+      "crates/cbcl-checkpoint/src/summary.rs": "ca1d6aa07a3e7490c6892f18050ddf52ec1b1bf74f39595ddc18159a721f1822",
+      "lean-cbcl/LeanCbcl/StateKernelClause.lean": "30a98617a0a9484d4b1953f7df065e6304f0b5824e46a84f475da9c856f81bb4"
+    },
+    "observation_boundary": "extensional semantic views, not JSON byte equality"
+  },
+  "runner_sha256": "5de3b0c43301077f89d8ab793ac2970ac429c5654a53529f0593b91fac07f762",
+  "source_and_compiled_import_sha256": {
+    "crates/cbcl-checkpoint/src/summary.rs": "ca1d6aa07a3e7490c6892f18050ddf52ec1b1bf74f39595ddc18159a721f1822",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/AbortableHandoff.olean": "dce32a923144abee5503d0f64107e66f04bb8838d0cf95639ca0e005f4a7d1e7",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/AdmissionStratification.olean": "91c62718e303dc80f9b60d37a00d4bf118dee51a574065750aa6145507223593",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/Agent.olean": "7f8dbfacb26913aa491004250ca2f057f9f603f792dee48bc574295df76dcb59",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/BoundedCounter.olean": "340284ddbda8aa7c657eb63ba6501014dd65609a21b7ac97ab785f85a2a2a63b",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/Bridge.olean": "8f3b8791df518d843939c3a2a601b86d9eedf33f196be79026cfdb48eeb9f593",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/CheckpointCompact.olean": "3f0eecd6d6be55628be4b0e5cfbfe2dc97b107a013ec9b278c73190470fcbcd7",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/CheckpointCompactTests.olean": "31cf8f2e36f421d5c3e00d7938bbdb509dba68d51e1f084d1109c1e33af2e1f9",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/CheckpointKernel.olean": "1b49b40060968dff9f91a8777f14e14ee952b979bd3949a961145cc2216a9332",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/CheckpointKernelTests.olean": "4542a3473364da4e2dfe723d632e43e01baff1a724e81c0e78044f4d80dbf2be",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/CheckpointRender.olean": "5fde2c0e5ea26f26cce6b106c1ccdfe948f2f9a2d692398193d27cfada6c86f5",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/CheckpointSummary.olean": "1e422f4fa4cef88e8cf519b870c3f7980694c351eb2cd3bd44281b9d59c3685e",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/ConcreteProjection.olean": "0f8daab0fc84f1467acfbde587cbaafdb3217522b0e4f4fd535c94198fe8fa75",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/ConsensusFree/Archive.olean": "42489ca701b1f379df85936f03537fb26327161f26587f66e154ea3686f1664f",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/ConsensusFree/Capacity.olean": "b0ec080005091bf366c8d3593f6516fa1f5a0514e5be27c3fedb70bf8c6edcb0",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/ConsensusFree/Collective.olean": "846a0b46b0417d872dabe13f4b4315c5a3ba1301c0e60d0b2893352feb0393de",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/ConsensusFree/CollectiveProtocol.olean": "3b34081a046dc24847b68572acef04544ac1f2cd404ad1b199608070f4061966",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/ConsensusFree/Core.olean": "d6d6dd50ba5fa2c147748bd3b6f0a675305e2ad70735d8f9f502037e6b98f42e",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/ConsensusFree/Coverage.olean": "eabf3f1d93f705301e5956f8aa8f77561b95f37d7c0141722f284b2448000caf",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/ConsensusFree/Currency.olean": "a8cd8dd456f7c8225edabd4f2611c70eefc4ca3e0bebe486485d1d6e4c34a5d8",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/ConsensusFree/Evidence.olean": "9294057cc546972b55cb56fb2d58d98599ecf908fcff3d05b6929a455e8edeea",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/ConsensusFree/Execution.olean": "9ca0d0fcf25d2f9e76e545935e078cfa201f1c854c3dc25a7a7c20e31cce8da7",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/ConsensusFree/Journals.olean": "849ee49421145e600a7ecfaec304f28e2332a94eccdafa3773eafb7d60a55d59",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/ConsensusFree/Liveness.olean": "b464501ba19b53dbd3488c15e5cb25a5df0ba3b93d1ddde34b4f9da4cb4e1d21",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/ConsensusFree/MultiParent.olean": "c365458e29ecfeb4773419f49805955c0e243aabc1b6d13d6e0dafb45c353fab",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/ConsensusFree/Observation.olean": "eb6c010f94186a9b1052e95e6b70e2cab04ccaacfc3df5ac7fdfd87b600fb5b4",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/ConsensusFree/OwnedLifecycle.olean": "47eb50640be442baafaacd300841fb70c4837b93a8edc405a6f0561073988d06",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/ConsensusFree/OwnedProgress.olean": "9bfe689257e496b0f91b5e3e1b452373ce08d3abb5a56319ce39af2733faacf5",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/ConsensusFree/OwnerFunding.olean": "466179531f067532cb29e79a0843b2567600f4e14d7e824a9ec6f8aae6d6f799",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/ConsensusFree/OwnerProduct.olean": "218f47644b7afdf381f273a1885b5ccad8e122dbef2ed98af6aa390398f1269c",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/ConsensusFree/OwnerProductWitness.olean": "564f2d0c9424883b276a77b8d9a5210413f8b8be40ad186d61c08489afd2b602",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/ConsensusFree/OwnerTermination.olean": "8792e52e907f16d748442f0a1c42e21cb411bfb9cb41c9168e38e89b24564530",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/ConsensusFree/Scheduler.olean": "42c890667e7e1b5820b9c99f2aab858e6b07f1f4a7e0388299204fa6ea88f650",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/ConsensusFree/Tests.olean": "0b6f05ed197a46e4b19eac711f9dff06f0e309d19510d853b94995e7504184d4",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/ConsensusFree.olean": "1f104f9a8814781889022a7453e72a437e6b9a53dadbdc5480ccb465a72b0975",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/ConsensusFreeArithmetic.olean": "9757485f71de8148f2a0019c9fb7b561f22cb0151594d3890a68f47212c322e7",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/DCFLPreservation.olean": "95f53ec491d335f6032ff2dc5c98ac067d4fbb4e5af56c79187a27efe318c646",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/DetParser.olean": "5c99c29c424570511785c8e997d1ef68f67368a06a95d787f0f53fd6b02695a8",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/DeterministicUnion.olean": "d70e7cfec853a68f87e4e7e25cb7a9317a2484fa66838a9978945b4ad7e7d840",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/Dialect.olean": "a6e76e0846c1dce9020fa94ab642613856f460bb4300c36957b6c77de5ca2fb4",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/DialectParser.olean": "9b6f89d1042df3647aa097c7f7b340089fdc8deaf0ecab37116622dcf1491db1",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/EPP.olean": "5257aaf9f735c021ffcb1eb334a62d3094ebfb4c2cebe3fae2c13bf0c3e2b9f5",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/EPPCompletion.olean": "78f734f0f67663ba9e65f0d02f0d59fe76a71bd4a717a37c2003c72f3087383c",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/FiniteCodec.olean": "7ab38caaccd577d8ad6968dbee8520e2d95d01c0a256c76e54ee89ce9ce2691a",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/FiniteDPDA.olean": "f2bc2d783aef9e674c3a5b97c1dab1a4a0cfceb4f5e9d7cfa600d437da7d1d93",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/FiniteForest.olean": "ce92e0287ad72b6f7356cb0f7a223a584f6847522876be45bae13ea118cd9bef",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/FiniteForestTests.olean": "9bb5ff6555809c6d51b8d42959bc0ec6b39be2f371e78375ec2e1cb93c910827",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/FiniteMonitor.olean": "9043c409d02d2bb29dbc10bad1af20d669a56a9d86d42a829980fe9f75255461",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/FiniteMonitorTests.olean": "d104efc53f1211d9308644bd4081d642be3a303779700164e9de54676ee80d98",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/FiniteSummary.olean": "ec4f9c1f7be9715bfa0e92f00ba5e318c7bc15ace52237e052ef45293699fe1f",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/HlcRegister.olean": "289c3ce056258113b45c6feb9fc5537c7a22f51c1126d55af3b73a4393e91a28",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/InstalledDCFL.olean": "3ac176fd990bee0da3b5a84a823e7b45b93ea76e45435edcef8bc3e9638b60ce",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/InstalledLexer.olean": "0e1459aef32dd54f765309798052e414bb8f99fc3716a26e60ad22893bef420e",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/InstalledLexerTests.olean": "d5f76dae0e25b490701fb7efe9a24bc799309014464d2137676ad828e7e248d9",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/InstalledSyntax.olean": "e614d1fce4027499ec1d1fc71b530696783abb15cc0cf57795774e50bdcc0ef7",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/InstalledSyntaxTests.olean": "4d2e55629af569d3c0fa92f94b32d1c4d45273fa9898ecb21423b5c243fe4c7b",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/Lattice/NotALattice.olean": "116dc4d0c5ab89086e067f250790020de2d9d5ecc031ada910169dafd84c1d27",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/Lattice/Result.olean": "0e7664c0c9d922f3070d4200b38483ab59cc48a8ba8474b542846b1c28d1e7b3",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/Lattice/Store.olean": "e17d713aae6490973bfb03a06f57426e55c705ee45ccc0432c135ee3d4082a1e",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/LexicalComposition.olean": "26a49f3e167c03f9f4bf66a63b186d868a71c334e17bc4e4232913666300a822",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/LexicalNames.olean": "e5ecc6ed4bfcf009ab7c8082150fc93519b79b3375cb71738b90040a82c9db31",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/Message.olean": "42256a5ce7d888719001bae043bdd88753d57652858567fdff9a6e5fb14db0f8",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/MessageParser.olean": "2b918eeb53a573477116ce212d2456261581227f3a4704be272c2d5f9047d09c",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/MonitoredDCFL.olean": "dfe6266c9ad5477c72b0139223516de535f7f936a87d190d9f91c69c5491b1ee",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/Parser.olean": "7e7cdedaa184f87c3241074652c398221a5344d1d6668cb45345583f95b414f4",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/PatternMatch.olean": "7aae81ed3b5083178e5e7e0ced361276334067d436d6d15bc85cfbccbfb6bb66",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/Pipeline.olean": "a1ee1f977e68b463885961260a3bb071f22aa20ada970c2cb492e504845669cf",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/Projectability.olean": "43d4c693a1f66d0ffe7b340326b1aa828227cedbfee4b6053858f23144a9658e",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/ProtocolProjection.olean": "f5a45b937c8078ddd139987e4e61e3f738e6d889e61328a77d726624e6256750",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/R1NoRecursion.olean": "d6c9f78f311de012e83f5dbb8656b4d83461b5dff82f84e238f77006a77cc673",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/R2ResourceBounds.olean": "7754fb880bebb0871d7128afc289b4a7d4fab71716437744e74993cd5ba9998e",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/R3CorePreservation.olean": "c31e83c320b6d307247c78982509ee9a38fd90cad8f87053013a21098967276d",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/R5.olean": "74ad7c430caffbd88eae508f9ab5c2d227d6958d68c63a855654b236aa01c5aa",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/R6DCFLPreservation.olean": "f8bb9ebe2fec0e9c5aa040e80181251954ce4b695475caf4dc05f55057270462",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/Repeat.olean": "0bc120edf6a1aa0578d1d1e13f91461dadd33b764dbbe7670a6d34057d4f02fa",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/SExpr.olean": "49d76b39e5cccee0e64252a53ee36151ea5de9b0969524e2a8539f90fd7a08c5",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/SealedCheckpoint.olean": "584eff36bef9288862528f619a4960c766e46218f9832c9db37314ab31b64451",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/Serializer.olean": "69bb0f7236bfb86178feea41dcf8c24394d7b520df9719f6ad07c6cc70b87820",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/Splice.olean": "e3a3edb03ec03655ddba9f26fa71aeae30de184037cf9cf76b09b12c66b46329",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/State.olean": "135339dfb7da005f572cc3e1d841fd036c642fbcf6dd12c9e48b7dd9a1ae2703",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/StateKernel.olean": "9bf5a8b862c0f89a264c6cf47d8bb8c6e5b4ad6e289a7fafca4630f9112f3e32",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/StateKernelAggregates.olean": "e34e086de59d0eb5f2346df6257695afbcbdd35909ac8f988148b77b6015c40c",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/StateKernelClause.olean": "d283484f73d075caa83f6a02ff27359243581a095f55a803e0486cf196198518",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/StateKernelDelivery.olean": "1be0801b9ecc9399f7235cea554740c8df901eeb433433c0e3a9fd48d573dc40",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/StateKernelExtensions.olean": "bf76013f6dff3b761322dcefa07ef94cb626abd9f9fd19267c1626b4fb16ce58",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/StateKernelQueries.olean": "83b1ecaa58e149e959b295cb2fff877782bdcb65e7c5b1b67367ba27c10c951f",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/StateKernelSEC.olean": "f5154fd65f8ebd098b899a9ec17b27557471629d6cf9ebfe415926664e043130",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/StateKernelSECTests.olean": "c63f1952196cd1e39dac986d39949d161aa88f1125272e530449c8796c6e7d7f",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/StateKernelSemantics.olean": "844a93468cf2b69bd2b585a89d18dd563c1524c01723492e58199cdd9713b7a8",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/StateKernelTests.olean": "23e9c57f7665a98b36993421637ac3a65d44260db519d1265321cb0a3b262a17",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/StateProgress.olean": "2ad484359e3cae655e277f6aa79aa8efb09f600725318e4519e1c74062dd60dc",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/StateRefinement.olean": "0698212e900ff01ef61c140affe26c5156b6d8a28a29b12c0902af28322adaaf",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/TemplateExpansion.olean": "55e8576d79907ec3e5d727ac1f4b3bffdabc72942a3e1439fad15d791f46760a",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/ValidatorBudget.olean": "062dfa10c47eb810789143acb99b027558d30b8d0567e661fed953b426bb625f",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/ValidatorBudgetRefutation.olean": "1812f3b17ff85859e8bac9ab572526c9d105d0e24cdd00fc9387f42aba02b259",
+    "lean-cbcl/.lake/build/lib/lean/LeanCbcl/Verify.olean": "bb1c634afce947dbc73bf7d0afe2e283dd843d1f9d7057a117cd2db274a9e330",
+    "lean-cbcl/LeanCbcl/AbortableHandoff.lean": "711c7554ca86e6c4f854d0fdf75e1762f20d16e45cb854d1f6a25801772ce2e3",
+    "lean-cbcl/LeanCbcl/AdmissionStratification.lean": "ca6384d6b92cb92ecc91a0f46ff23d681fc5203a549ae3ffe4c2da15372ae684",
+    "lean-cbcl/LeanCbcl/Agent.lean": "c915f995039ba99f76facb403188d612111171912c0faf8a6799dda9c3051544",
+    "lean-cbcl/LeanCbcl/BoundedCounter.lean": "20a174abe4fb930556eaef16e2922dbe836d5f7d465fec6d92c9cb48a86afe51",
+    "lean-cbcl/LeanCbcl/Bridge.lean": "726b4d12671785f07c3930c6c0d20975366b1ac7c73a3c260607a492c51f8bca",
+    "lean-cbcl/LeanCbcl/CheckpointCompact.lean": "546ad60a49d97b8fc3fa079896a5066ee3715236cc5f2c47bf2e412fdd666d03",
+    "lean-cbcl/LeanCbcl/CheckpointCompactTests.lean": "cd9beafbc335bf91c0d84dcb032c0c35b27e2d304c849c65c8b0f513019acbbf",
+    "lean-cbcl/LeanCbcl/CheckpointKernel.lean": "b22db27f84d9be6ca9828467a42cc810e3038b622166251106a338b0d239e819",
+    "lean-cbcl/LeanCbcl/CheckpointKernelTests.lean": "cfe1645873b89aaec772d4975bd8c132bca1c0f1a6cc4bd046ec35c2d78f8b7a",
+    "lean-cbcl/LeanCbcl/CheckpointRender.lean": "7aa1b1b7d880d6162de02823542f1b310db2b7b149f9da637303af934904d56c",
+    "lean-cbcl/LeanCbcl/CheckpointSummary.lean": "8c7c7a5653b11bdc83eb4beab99dc7832fbc225c4ce2d363c25495e4b98cc004",
+    "lean-cbcl/LeanCbcl/ConcreteProjection.lean": "b7f30585b69ebbbb4b1048609e71841d1dcd59ad1811c227b7b69ccfde97323a",
+    "lean-cbcl/LeanCbcl/ConsensusFree/Archive.lean": "a6ed9ca1701386112b03de5f19cc8982f0bdc15aadf28d4019173fc7a08888bb",
+    "lean-cbcl/LeanCbcl/ConsensusFree/Capacity.lean": "6c40b24dec3b6dd74d1418547429d48aa6ae86b82bc0f61101776029e8d4e429",
+    "lean-cbcl/LeanCbcl/ConsensusFree/Collective.lean": "3e8291ef6fd1664364bb65721545ef0460bb54cefb0934367b1cf83fb586dbf4",
+    "lean-cbcl/LeanCbcl/ConsensusFree/CollectiveProtocol.lean": "e2f3b0bbca5214944c1e96bc8296e56c837ccbd432459756531a4c835b3b9e44",
+    "lean-cbcl/LeanCbcl/ConsensusFree/Core.lean": "ffa21ba03f9c18f07c72287a28e5809c395b7a515b0464d41684ce6a1fbd053b",
+    "lean-cbcl/LeanCbcl/ConsensusFree/Coverage.lean": "be340e6c440ec7c81c4214a8a82bbdb6bbe997739f4c935720095a7628491cec",
+    "lean-cbcl/LeanCbcl/ConsensusFree/Currency.lean": "5ad7eb8cb93159dc2bff8e1b024f79c6142576984843f4525d7bfc58c176beab",
+    "lean-cbcl/LeanCbcl/ConsensusFree/Evidence.lean": "4a87f7faae187e24702ad0ed0ee4d1b1c1a4d9078c037ebe317826576c62b391",
+    "lean-cbcl/LeanCbcl/ConsensusFree/Execution.lean": "53f7252b35af733fbe3dc883e6c2a5fe5b08f3daca8262890fe04f5468e1d65e",
+    "lean-cbcl/LeanCbcl/ConsensusFree/Journals.lean": "7c75be31350b751e0a85594c95e92acf7f5cb8cb47afb7380647e0d4a1cc5411",
+    "lean-cbcl/LeanCbcl/ConsensusFree/Liveness.lean": "628d3d307cb1f864a42de04dae12324a7fb7c223c950ce3ad03292a2d5c80d61",
+    "lean-cbcl/LeanCbcl/ConsensusFree/MultiParent.lean": "efcef67bed9d0317d67f76d288847ae461b5149faf74a36b2aacc926c14ae11c",
+    "lean-cbcl/LeanCbcl/ConsensusFree/Observation.lean": "a41d3b41978a300afead888735084971873820060e9de8bbefd258419645839a",
+    "lean-cbcl/LeanCbcl/ConsensusFree/OwnedLifecycle.lean": "cf311a44979fb5673ecaefe1a244209af4ef79c9aba2acb48e55121d019285bf",
+    "lean-cbcl/LeanCbcl/ConsensusFree/OwnedProgress.lean": "1b18b5c71e1d26767428b2a1170dbb6d94269bb5bdee77520c5db5ae8b88db94",
+    "lean-cbcl/LeanCbcl/ConsensusFree/OwnerFunding.lean": "073313c481208e5c7d4826c7aac12a435c00269f06b514725a388cb52086a5fb",
+    "lean-cbcl/LeanCbcl/ConsensusFree/OwnerProduct.lean": "5055469b76c94fea710650ab269e2cb0b22e26a1896951cceb41f04ceb019701",
+    "lean-cbcl/LeanCbcl/ConsensusFree/OwnerProductWitness.lean": "3cd4cd20b5c8ccc421d4945cd1c1b1021e2928bcdac4451ebcfec9d4d9d0b844",
+    "lean-cbcl/LeanCbcl/ConsensusFree/OwnerTermination.lean": "bb4c787d06112d44deb9ec70a9361946702f58fab4a93e5aa474b06617f5ba16",
+    "lean-cbcl/LeanCbcl/ConsensusFree/Scheduler.lean": "a1c34c6c45390ec6a8a98747c9706e808a02b0b36f869cec812981625ec726f1",
+    "lean-cbcl/LeanCbcl/ConsensusFree/Tests.lean": "1387e9bcd629ec4e1af27df8f324219a996de34a3eb9f8f36265e0f31d83b8f7",
+    "lean-cbcl/LeanCbcl/ConsensusFree.lean": "f62a8794085d5b619c8f0271412f9a52de03acea390b2c58fca9ed5295c38916",
+    "lean-cbcl/LeanCbcl/ConsensusFreeArithmetic.lean": "2fdcb11e2ee4f177d313578e7c9546e0ae035eab53a8fae887e31aacf219fd11",
+    "lean-cbcl/LeanCbcl/DCFLPreservation.lean": "85c878315521aa0b7a3dbe5af9da6844270f2ce4050645b0f57fb18b413fc63f",
+    "lean-cbcl/LeanCbcl/Dialect.lean": "01484d090dd2a83daa4c7d475351eaaaa9cbf771502304afc5feb52092546d3d",
+    "lean-cbcl/LeanCbcl/DialectParser.lean": "85a48ec7eedaa3a8bd3417f612a756c7343a7b6c24466089ee94c98b91da541f",
+    "lean-cbcl/LeanCbcl/EPP.lean": "f8a131bb978967353db2d5c5d6ad3fdc1230cddb5f6032584a5c91440061976f",
+    "lean-cbcl/LeanCbcl/EPPCompletion.lean": "3bb7c2afba8b23585df61eb7aff6f5c4683ccf1c059a42b7c571f17552fd0d4c",
+    "lean-cbcl/LeanCbcl/FiniteCodec.lean": "3cd145de5ac0b0674ff5c48f7889a9d1cfd582c52424378b64d05b8122fb671a",
+    "lean-cbcl/LeanCbcl/FiniteDPDA.lean": "5ddb7368dab7ca81abae320ff14c69ee98eed9e4d2c616eec59f7423e7c48a65",
+    "lean-cbcl/LeanCbcl/FiniteForest.lean": "6d9ab11d7d043294a4cbc76eb2bd070911f925e46ed743deee4e3c431ed990ed",
+    "lean-cbcl/LeanCbcl/FiniteForestTests.lean": "9e425e598447d2086274e0bb239bc4a92a2898ae08aff9bc74df9535a937bc82",
+    "lean-cbcl/LeanCbcl/FiniteMonitor.lean": "4f4bd099f82ad4f391cde8dac018d2453e6de0a631eb13aa9d06b97608597eee",
+    "lean-cbcl/LeanCbcl/FiniteMonitorTests.lean": "e59932c3883254041866abeb80df3c1160002647cc5f584a86a7464f938d018d",
+    "lean-cbcl/LeanCbcl/FiniteSummary.lean": "3e0be3aeec5449fa0a7bb90229b1cf69965d9df50f0a22c60e6e3bbc3be33d4c",
+    "lean-cbcl/LeanCbcl/HlcRegister.lean": "0fb2b4f8b32dd83915d823ec597a38aac77e49de23f694af2150bf9e0b9e45c4",
+    "lean-cbcl/LeanCbcl/InstalledDCFL.lean": "f4d4349db7e062786ff18184d85888d650d5c4dabe48f005e095631106f393b6",
+    "lean-cbcl/LeanCbcl/InstalledLexer.lean": "5f95738f5d17f35f4c1d3ba5893aeaa9ed463dea3fdf51fb00e3e4fb2fc33354",
+    "lean-cbcl/LeanCbcl/InstalledLexerTests.lean": "4287aa09782403a14dfd8cc1de55be208d997623901841b5d9408d44a27f58d7",
+    "lean-cbcl/LeanCbcl/InstalledSyntax.lean": "a018d9722d76776e45631389567c10b4c52a3e1b17eb8d508acf81b8584b93eb",
+    "lean-cbcl/LeanCbcl/InstalledSyntaxTests.lean": "0fbf5609ea8eecf2185c8ffd2bf1278893df6ee26df84406423e9f960483b84b",
+    "lean-cbcl/LeanCbcl/Lattice/NotALattice.lean": "7832ebdb7e2183635832c33ad11ca6aa7044c7d8c6936611d2f54ecb0ec58561",
+    "lean-cbcl/LeanCbcl/Lattice/Result.lean": "6010668efb72f7960c8a49c370015da6161170bf046734032470e0f85e1c6ec7",
+    "lean-cbcl/LeanCbcl/Lattice/Store.lean": "dfb268759124fad22660a867309508d42d795e3feeb60ca62d5c6ac98fe97b3f",
+    "lean-cbcl/LeanCbcl/LexicalComposition.lean": "39f559b0017207ee8730891a294bab2a45eb0dbaaf01868346b947328f6d33c8",
+    "lean-cbcl/LeanCbcl/LexicalNames.lean": "64a14f3805196bac61c0ac57610a4c0827483aa67233fe94896b382f544488a3",
+    "lean-cbcl/LeanCbcl/Message.lean": "fac3b9085032e8a111d8949d6df9ede6f928b27805ce01d0bfddc152bfecfbb0",
+    "lean-cbcl/LeanCbcl/MessageParser.lean": "dea6289714c84b38cb3a13fb126e17302ff98c3fc82e35be1a5b607670239958",
+    "lean-cbcl/LeanCbcl/MonitoredDCFL.lean": "951e2f8cf1320d8da6b89ada0b6934939e1d5c7895d4f7e4084c669a333ba9e9",
+    "lean-cbcl/LeanCbcl/Parser.lean": "916830f788e1a57528ff184de205b4e46ddff0d5e7b88153ea6e230e5e2f83f3",
+    "lean-cbcl/LeanCbcl/PatternMatch.lean": "835a0ecb486b93836242ef0357c7e6fb5a0fa3dd66d08650376ad27740ece5d7",
+    "lean-cbcl/LeanCbcl/Pipeline.lean": "e13d16d09317bf34873520ef5038002b8a0b8c99002e2083aad604ac94e5e3b7",
+    "lean-cbcl/LeanCbcl/Projectability.lean": "c1be47317984d956086cbab36846525fc888b564a7cc81ad31dcc67d4ebc2328",
+    "lean-cbcl/LeanCbcl/ProtocolProjection.lean": "20bdbb7b74303f77128b65a3e581afbe261a6f3a467e06464f894339b2fab7ff",
+    "lean-cbcl/LeanCbcl/R1NoRecursion.lean": "ad656f04558d66d43285d230d1301c2d55fa8c876ed4eb906cd33e1e23ad6615",
+    "lean-cbcl/LeanCbcl/R2ResourceBounds.lean": "711940fcc5dc8635e1423acac33a49982df7dce5d34a7d0ae966ab9619816726",
+    "lean-cbcl/LeanCbcl/R3CorePreservation.lean": "9440897d204b719d9e0f65269a34f0fa703c0feb07ff2434f3016934c27c4232",
+    "lean-cbcl/LeanCbcl/R5.lean": "72ab788f0d2028441866c305c4abcee96175c4d3058538fc29a4a3204ca31b92",
+    "lean-cbcl/LeanCbcl/R6DCFLPreservation.lean": "32982555bf90f33e51f858f8a69b062a5d67a979b60dedcb1cf611d7042f3af9",
+    "lean-cbcl/LeanCbcl/Repeat.lean": "bf85e4c1bef9703766c0013e1c633a796517910577cedf32f99217729afc524a",
+    "lean-cbcl/LeanCbcl/SExpr.lean": "d549a704a3c649e6ee82583622d8e74cedf9733a36e8003956750d5c19dc2f58",
+    "lean-cbcl/LeanCbcl/SealedCheckpoint.lean": "ea9cc81026861eedf539f7482c23e86d837aabd0b1d1c6d5daef17d3cb107951",
+    "lean-cbcl/LeanCbcl/Serializer.lean": "1b3453c35b1010bfea63a11c8a0a76e4868957c7ce3583423c457a4a8a6d655e",
+    "lean-cbcl/LeanCbcl/Splice.lean": "b13364a8bef7804bd50c8c0500c8987a21539a308f0db1b34f2ea7958e7d4075",
+    "lean-cbcl/LeanCbcl/State.lean": "87a0e422606a46790d5345fbb19ebd3156d3202ef6f97c1895a5af4e3a933440",
+    "lean-cbcl/LeanCbcl/StateKernel.lean": "f05c66b2a7581234e595f05756821621c08a2da41ce002610116dbaf37fd7ea2",
+    "lean-cbcl/LeanCbcl/StateKernelAggregates.lean": "eb3a328d0c0f19ea0d6a9f9d3b64df5d2befd9a0457fca4554366e753c71b888",
+    "lean-cbcl/LeanCbcl/StateKernelClause.lean": "30a98617a0a9484d4b1953f7df065e6304f0b5824e46a84f475da9c856f81bb4",
+    "lean-cbcl/LeanCbcl/StateKernelDelivery.lean": "6157384ba5b404dd662ab58d35581d2bdaf3c81122fe66eb3e4f0698485385a1",
+    "lean-cbcl/LeanCbcl/StateKernelExtensions.lean": "4538c1f22855731855c394817c17b89c8444d8682eed1478056610346ec32098",
+    "lean-cbcl/LeanCbcl/StateKernelQueries.lean": "ac77089f0cea29a8890978cc98c11d6118c7cf93207ab6a0f4fcd6fdb5834f6e",
+    "lean-cbcl/LeanCbcl/StateKernelSEC.lean": "e7e8702f4789eff62a721a55bf2e490cd39b1a184f7e375de76cf2ce320268f0",
+    "lean-cbcl/LeanCbcl/StateKernelSECTests.lean": "5e8dec1f5ae49cff048eea46e942947bd0a3cdf1f802bfbce7e2f8c1496aba89",
+    "lean-cbcl/LeanCbcl/StateKernelSemantics.lean": "f5606b05e7d69e632cbeaf07da3e8d3f636443a9159f675612da3f1a73d13329",
+    "lean-cbcl/LeanCbcl/StateKernelTests.lean": "ed45994fad5ab00bbbc0fba94ee182e9f65842a29fa7220b789d988a2fb7f6c5",
+    "lean-cbcl/LeanCbcl/StateProgress.lean": "c4eee03626eaebdce8a8ad1d720f063d41e71cb9fd71914dd98c6b5aa62265e3",
+    "lean-cbcl/LeanCbcl/StateRefinement.lean": "ba8b8665e59fcc616979d24e5be9e73bb00f2e83c750b072320751e94c0df71a",
+    "lean-cbcl/LeanCbcl/TemplateExpansion.lean": "d9fc3788e91a72a2ed196879681b4be463b17321d535edb2170809541b16e727",
+    "lean-cbcl/LeanCbcl/ValidatorBudget.lean": "6c172850aa2720ae4d4e25c97f54d34df905e9b1ec8446ae633da5ce0ac353c6",
+    "lean-cbcl/LeanCbcl/ValidatorBudgetRefutation.lean": "b91837698b1a14fbcd4f82f1c13158e0991e1eda90a6c5501a92a1c8c5edf400",
+    "lean-cbcl/LeanCbcl/Verify.lean": "8aef7dd799b2d8f8479fc088c4dfb02c220d596fae8f036595113ef25baf3419",
+    "lean-cbcl/LeanCbcl.lean": "28ed41b92b9b68b118ea3950cd33efc6fb89c35c3db99734f2ccf8a1c3794919",
+    "lean-cbcl/lake-manifest.json": "3091b425f2579141f66894187e298f3c655b6f5b5a72d28940120935bd32c04b",
+    "lean-cbcl/lakefile.toml": "a1bfae8bba6fcf091b23950b3fa09663a1054bc8f4a9a6a23b85e503695e6140",
+    "lean-cbcl/lean-toolchain": "d55ca0039a5479db5b38919d005b2c427b89b3be4f0184a20f2f4eae931f5bdb"
+  },
+  "allowed_axioms": [
+    "Classical.choice",
+    "Quot.sound",
+    "propext"
+  ],
+  "baselines": [
+    {
+      "command": [
+        "lake",
+        "env",
+        "lean",
+        "-t",
+        "0",
+        "LeanCbcl/CheckpointSummary.lean"
+      ],
+      "cwd": "/Users/anuna-02/Code/cbcl-rs/lean-cbcl",
+      "exit_code": 0,
+      "timed_out": false,
+      "elapsed_seconds": 0.622,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "lake",
+        "env",
+        "lean",
+        "-t",
+        "0",
+        "LeanCbcl/CheckpointKernel.lean"
+      ],
+      "cwd": "/Users/anuna-02/Code/cbcl-rs/lean-cbcl",
+      "exit_code": 0,
+      "timed_out": false,
+      "elapsed_seconds": 0.698,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "lake",
+        "env",
+        "lean",
+        "-t",
+        "0",
+        "LeanCbcl/CheckpointKernelTests.lean"
+      ],
+      "cwd": "/Users/anuna-02/Code/cbcl-rs/lean-cbcl",
+      "exit_code": 0,
+      "timed_out": false,
+      "elapsed_seconds": 1.168,
+      "stdout": "'CBCL.CheckpointSummary.step_preserves' depends on axioms: [propext, Classical.choice, Quot.sound]\n'CBCL.CheckpointSummary.checkpoint_continuation' depends on axioms: [propext, Classical.choice, Quot.sound]\n'CBCL.CheckpointSummary.live_current' depends on axioms: [propext, Classical.choice, Quot.sound]\n'CBCL.CheckpointSummary.live_own' depends on axioms: [propext, Classical.choice, Quot.sound]\n'CBCL.CheckpointKernel.rule_step_valid' depends on axioms: [propext, Classical.choice, Quot.sound]\n'CBCL.CheckpointKernel.rule_render_eq' depends on axioms: [propext, Classical.choice, Quot.sound]\n'CBCL.CheckpointKernel.snapshot_advance_valid' depends on axioms: [propext, Classical.choice, Quot.sound]\n'CBCL.CheckpointKernel.resume_valid_snapshot' depends on axioms: [propext, Classical.choice, Quot.sound]\n'CBCL.CheckpointKernel.render_advance_checkpoint' depends on axioms: [propext, Classical.choice, Quot.sound]\n'CBCL.CheckpointKernel.render_checkpoint' depends on axioms: [propext, Classical.choice, Quot.sound]\n'CBCL.CheckpointKernel.native_expression' depends on axioms: [propext]\n'CBCL.CheckpointKernel.native_compile_fields' depends on axioms: [propext, Quot.sound]\n'CBCL.CheckpointKernel.fullFoldRaw_native' depends on axioms: [propext, Quot.sound]\n'CBCL.CheckpointKernel.native_compile_clause' depends on axioms: [propext, Quot.sound]\n'CBCL.CheckpointKernel.render_advance_native_clause' depends on axioms: [propext, Classical.choice, Quot.sound]\n",
+      "stderr": ""
+    }
+  ],
+  "proof_mutations": [
+    {
+      "command": [
+        "lake",
+        "env",
+        "lean",
+        "-t",
+        "0",
+        "/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-checkpoint-lean-jd1p5ccs/CheckpointSummary.lean"
+      ],
+      "cwd": "/Users/anuna-02/Code/cbcl-rs/lean-cbcl",
+      "exit_code": 1,
+      "timed_out": false,
+      "elapsed_seconds": 0.605,
+      "stdout": "/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-checkpoint-lean-jd1p5ccs/CheckpointSummary.lean:100:61: error: `grind` failed\ncase grind\nc : Config\ncoverage : Nat \u2192 Bool\ns : Row\ne : Act\nfresh : coverage e.addr = false\nk : Scope\nid : Nat\nhr : c.replacing e = false\nh : (k, id) \u2208 s.pending\nh_1 : \u00acid = e.addr\n\u22a2 False\n[grind] Goal diagnostics\n  [facts] Asserted facts\n    [prop] coverage e.addr = false\n    [prop] c.replacing e = false\n    [prop] (k, id) \u2208 s.pending\n    [prop] \u00acid = e.addr\n  [eqc] True propositions\n    [prop] (k, id) \u2208 s.pending\n  [eqc] False propositions\n    [prop] id = e.addr\n  [eqc] Equivalence classes\n    [eqc] {false, coverage e.addr, c.replacing e}\n/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-checkpoint-lean-jd1p5ccs/CheckpointSummary.lean:100:61: error: `grind` failed\ncase grind.2.1\nc : Config\ncoverage : Nat \u2192 Bool\ns : Row\ne : Act\nfresh : coverage e.addr = false\nk : Scope\nid : Nat\nhr : c.replacing e = true\nh :\n  (\u2203 a, a \u2208 e.replaces \u2227 \u00aca = e.addr \u2227 coverage a = false \u2227 c.scope e = k \u2227 a = id) =\n    ((\u00ac(k, id) \u2208 s.pending \u2228 id = e.addr) \u2227 (\u00acc.scope e = k \u2228 \u00acid \u2208 e.replaces \u2228 id = e.addr \u2228 coverage id = true))\nleft : \u2200 (a : Nat), a \u2208 e.replaces \u2192 a = e.addr \u2228 coverage a = true \u2228 \u00acc.scope e = k \u2228 \u00aca = id\nleft_1 : (k, id) \u2208 s.pending\nright_1 : \u00acid = e.addr\n\u22a2 False\n[grind] Goal diagnostics\n  [facts] Asserted facts\n    [prop] coverage e.addr = false\n    [prop] c.replacing e = true\n    [prop] (\u2203 a, a \u2208 e.replaces \u2227 \u00aca = e.addr \u2227 coverage a = false \u2227 c.scope e = k \u2227 a = id) =\n          ((\u00ac(k, id) \u2208 s.pending \u2228 id = e.addr) \u2227\n            (\u00acc.scope e = k \u2228 \u00acid \u2208 e.replaces \u2228 id = e.addr \u2228 coverage id = true))\n    [prop] \u2200 (a : Nat), a \u2208 e.replaces \u2192 a = e.addr \u2228 coverage a = true \u2228 \u00acc.scope e = k \u2228 \u00aca = id\n    [prop] (k, id) \u2208 s.pending \u2227 \u00acid = e.addr \u2228 c.scope e = k \u2227 id \u2208 e.replaces \u2227 \u00acid = e.addr \u2227 coverage id = false\n    [prop] id \u2208 e.replaces \u2192 id = e.addr \u2228 coverage id = true \u2228 \u00acc.scope e = k\n    [prop] (k, id) \u2208 s.pending\n    [prop] \u00acid = e.addr\n    [prop] \u2200 (a : Nat), a \u2208 e.replaces \u2192 a = e.addr \u2228 coverage a = true \u2228 \u00acc.scope e = k \u2228 \u00aca = id\n  [eqc] True propositions\n    [prop] (\u2203 a, a \u2208 e.replaces \u2227 \u00aca = e.addr \u2227 coverage a = false \u2227 c.scope e = k \u2227 a = id) =\n          ((\u00ac(k, id) \u2208 s.pending \u2228 id = e.addr) \u2227\n            (\u00acc.scope e = k \u2228 \u00acid \u2208 e.replaces \u2228 id = e.addr \u2228 coverage id = true))\n    [prop] (k, id) \u2208 s.pending\n    [prop] \u00acid = e.addr\n    [prop] (k, id) \u2208 s.pending \u2227 \u00acid = e.addr\n    [prop] (k, id) \u2208 s.pending \u2227 \u00acid = e.addr \u2228 c.scope e = k \u2227 id \u2208 e.replaces \u2227 \u00acid = e.addr \u2227 coverage id = false\n    [prop] \u2200 (a : Nat), a \u2208 e.replaces \u2192 a = e.addr \u2228 coverage a = true \u2228 \u00acc.scope e = k \u2228 \u00aca = id\n    [prop] id \u2208 e.replaces \u2192 id = e.addr \u2228 coverage id = true \u2228 \u00acc.scope e = k\n  [eqc] False propositions\n    [prop] \u00ac(k, id) \u2208 s.pending\n    [prop] (\u00ac(k, id) \u2208 s.pending \u2228 id = e.addr) \u2227 (\u00acc.scope e = k \u2228 \u00acid \u2208 e.replaces \u2228 id = e.addr \u2228 coverage id = true)\n    [prop] \u2203 a, a \u2208 e.replaces \u2227 \u00aca = e.addr \u2227 coverage a = false \u2227 c.scope e = k \u2227 a = id\n    [prop] \u00ac(k, id) \u2208 s.pending \u2228 id = e.addr\n    [prop] id = e.addr\n  [eqc] Equivalence classes\n    [eqc] {false, coverage e.addr}\n    [eqc] {true, c.replacing e}\n    [eqc] {id = e.addr \u2228 coverage id = true, coverage id = true}\n    [eqc] {\u00acid = e.addr \u2227 coverage id = false, coverage id = false}\n    [eqc] {coverage id = true \u2228 \u00acc.scope e = k, id = e.addr \u2228 coverage id = true \u2228 \u00acc.scope e = k}\n  [cases] Case analyses\n    [cases] [2/2]: (\u2203 a, a \u2208 e.replaces \u2227 \u00aca = e.addr \u2227 coverage a = false \u2227 c.scope e = k \u2227 a = id) =\n          ((\u00ac(k, id) \u2208 s.pending \u2228 id = e.addr) \u2227\n            (\u00acc.scope e = k \u2228 \u00acid \u2208 e.replaces \u2228 id = e.addr \u2228 coverage id = true))\n      [cases] source: Initial goal\n    [cases] [1/2]: (k, id) \u2208 s.pending \u2227 \u00acid = e.addr \u2228\n          c.scope e = k \u2227 id \u2208 e.replaces \u2227 \u00acid = e.addr \u2227 coverage id = false\n      [cases] source: Initial goal\n  [ematch] E-matching patterns\n    [thm] left: [@Membership.mem `[Nat] `[List Nat] `[List.instMembership] `[e.replaces] #1]\n    [thm] left: [coverage #1]\n/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-checkpoint-lean-jd1p5ccs/CheckpointSummary.lean:99:21: warning: This simp argument is unused:\n  List.mem_filter\n\nHint: Omit it from the simp argument list.\n  simp only [step, fresh, Bool.false_eq_true, \u2193reduceIte, mem_pairs, List.mem_append, L\u0335i\u0335s\u0335t\u0335.\u0335m\u0335e\u0335m\u0335_\u0335f\u0335i\u0335l\u0335t\u0335e\u0335r\u0335,\u0335 \u0335bne_iff_ne]\n\nNote: This linter can be disabled with `set_option linter.unusedSimpArgs false`\n/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-checkpoint-lean-jd1p5ccs/CheckpointSummary.lean:99:38: warning: This simp argument is unused:\n  bne_iff_ne\n\nHint: Omit it from the simp argument list.\n  simp only [step, fresh, Bool.false_eq_true, \u2193reduceIte, mem_pairs,\n  \u0335  \u0335 \u0335 \u0335List.mem_append,\n  \u0332  \u0332 \u0332 \u0332List.mem_filter,\u0335 \u0335b\u0335n\u0335e\u0335_\u0335i\u0335f\u0335f\u0335_\u0335n\u0335e\u0335]\n\nNote: This linter can be disabled with `set_option linter.unusedSimpArgs false`\n",
+      "stderr": "",
+      "mutation": "drop-old-pending-suppressions",
+      "module": "CheckpointSummary",
+      "before": "let old := s.pending.filter (fun p => p.2 != e.addr)",
+      "after": "let old : List (Scope \u00d7 Nat) := []",
+      "mutated_source_sha256": "4db6080e46194e0a080370d6c6bcb54e9375892f76dc75394f50b47ec5f25e69",
+      "proof_rejected": true,
+      "theorem_errors": [
+        {
+          "theorem": "pending_step",
+          "line": 100,
+          "column": 61,
+          "message": "`grind` failed"
+        },
+        {
+          "theorem": "pending_step",
+          "line": 100,
+          "column": 61,
+          "message": "`grind` failed"
+        }
+      ],
+      "status": "proof_rejected"
+    },
+    {
+      "command": [
+        "lake",
+        "env",
+        "lean",
+        "-t",
+        "0",
+        "/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-checkpoint-lean-jd1p5ccs/CheckpointSummary.lean"
+      ],
+      "cwd": "/Users/anuna-02/Code/cbcl-rs/lean-cbcl",
+      "exit_code": 1,
+      "timed_out": false,
+      "elapsed_seconds": 0.647,
+      "stdout": "/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-checkpoint-lean-jd1p5ccs/CheckpointSummary.lean:81:56: error: unsolved goals\nc : Config\nH : List Act\ns : Row\ne : Act\nvalid : Invariant c H s\nfresh : covered H e.addr = false\n\u22a2 (\u2203 r, r \u2208 H \u2227 c.replacing r = true \u2227 c.scope r = c.scope e \u2227 e.addr \u2208 r.replaces) \u2194\n    \u2203 r, r \u2208 H \u2227 c.replacing r = true \u2227 e.addr \u2208 r.replaces\n/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-checkpoint-lean-jd1p5ccs/CheckpointSummary.lean:83:45: warning: This simp argument is unused:\n  and_assoc\n\nHint: Omit it from the simp argument list.\n  simp [Replaced, retires, Bool.and_eq_true,\u0335 \u0335a\u0335n\u0335d\u0335_\u0335a\u0335s\u0335s\u0335o\u0335c\u0335]\n\nNote: This linter can be disabled with `set_option linter.unusedSimpArgs false`\n/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-checkpoint-lean-jd1p5ccs/CheckpointSummary.lean:158:66: error: `grind` failed\ncase grind.1\nv : String\nk : Option String\nH : List Act\nw : Act\nh :\n  (\u2203 r, r \u2208 H \u2227 r.verb = v \u2227 w.addr \u2208 r.replaces) =\n    \u2200 (a : Act), a \u2208 H \u2192 a.verb = v \u2192 keyOf k a = keyOf k w \u2192 \u00acw.addr \u2208 a.replaces\nw_1 : Act\nleft_1 : w_1 \u2208 H\nleft_2 : w_1.verb = v\nright_1 : w.addr \u2208 w_1.replaces\nright_2 : \u2200 (a : Act), a \u2208 H \u2192 a.verb = v \u2192 keyOf k a = keyOf k w \u2192 \u00acw.addr \u2208 a.replaces\nw_2 : Act\nleft_3 : w_2 \u2208 H\nleft_4 : w_2.verb = v\nright_4 : w.addr \u2208 w_2.replaces\n\u22a2 False\n[grind] Goal diagnostics\n  [facts] Asserted facts\n    [prop] (\u2203 r, r \u2208 H \u2227 r.verb = v \u2227 w.addr \u2208 r.replaces) =\n          \u2200 (a : Act), a \u2208 H \u2192 a.verb = v \u2192 keyOf k a = keyOf k w \u2192 \u00acw.addr \u2208 a.replaces\n    [prop] w_1 \u2208 H\n    [prop] w_1.verb = v\n    [prop] w.addr \u2208 w_1.replaces\n    [prop] \u2200 (a : Act), a \u2208 H \u2192 a.verb = v \u2192 keyOf k a = keyOf k w \u2192 \u00acw.addr \u2208 a.replaces\n    [prop] w \u2208 H \u2192 w.verb = v \u2192 \u00acw.addr \u2208 w.replaces\n    [prop] w \u2208 H \u2192 w.verb = v \u2192 \u00acw.addr \u2208 w.replaces\n    [prop] w_1 \u2208 H \u2192 w_1.verb = v \u2192 keyOf k w_1 = keyOf k w \u2192 \u00acw.addr \u2208 w_1.replaces\n    [prop] w_2 \u2208 H\n    [prop] w_2.verb = v\n    [prop] w.addr \u2208 w_2.replaces\n    [prop] w_2 \u2208 H \u2192 w_2.verb = v \u2192 keyOf k w_2 = keyOf k w \u2192 \u00acw.addr \u2208 w_2.replaces\n  [eqc] True propositions\n    [prop] \u2203 r, r \u2208 H \u2227 r.verb = v \u2227 w.addr \u2208 r.replaces\n    [prop] (\u2203 r, r \u2208 H \u2227 r.verb = v \u2227 w.addr \u2208 r.replaces) =\n          \u2200 (a : Act), a \u2208 H \u2192 a.verb = v \u2192 keyOf k a = keyOf k w \u2192 \u00acw.addr \u2208 a.replaces\n    [prop] w_2 \u2208 H\n    [prop] w.addr \u2208 w_2.replaces\n    [prop] \u2200 (a : Act), a \u2208 H \u2192 a.verb = v \u2192 keyOf k a = keyOf k w \u2192 \u00acw.addr \u2208 a.replaces\n    [prop] w \u2208 H \u2192 w.verb = v \u2192 \u00acw.addr \u2208 w.replaces\n    [prop] w_2.verb = v\n    [prop] w_1 \u2208 H\n    [prop] w.addr \u2208 w_1.replaces\n    [prop] w_2.verb = v \u2192 keyOf k w_2 = keyOf k w \u2192 \u00acw.addr \u2208 w_2.replaces\n    [prop] keyOf k w_2 = keyOf k w \u2192 \u00acw.addr \u2208 w_2.replaces\n    [prop] w_2 \u2208 H \u2192 w_2.verb = v \u2192 keyOf k w_2 = keyOf k w \u2192 \u00acw.addr \u2208 w_2.replaces\n    [prop] w_1.verb = v\n    [prop] w_1.verb = v \u2192 keyOf k w_1 = keyOf k w \u2192 \u00acw.addr \u2208 w_1.replaces\n    [prop] keyOf k w_1 = keyOf k w \u2192 \u00acw.addr \u2208 w_1.replaces\n    [prop] w_1 \u2208 H \u2192 w_1.verb = v \u2192 keyOf k w_1 = keyOf k w \u2192 \u00acw.addr \u2208 w_1.replaces\n  [eqc] False propositions\n    [prop] \u00acw.addr \u2208 w_2.replaces\n    [prop] keyOf k w_2 = keyOf k w\n    [prop] \u00acw.addr \u2208 w_1.replaces\n    [prop] keyOf k w_1 = keyOf k w\n  [eqc] Equivalence classes\n    [eqc] {v, w_2.verb, w_1.verb}\n  [cases] Case analyses\n    [cases] [1/2]: (\u2203 r, r \u2208 H \u2227 r.verb = v \u2227 w.addr \u2208 r.replaces) =\n          \u2200 (a : Act), a \u2208 H \u2192 a.verb = v \u2192 keyOf k a = keyOf k w \u2192 \u00acw.addr \u2208 a.replaces\n      [cases] source: Initial goal\n    [cases] [1/1]: \u2203 r, r \u2208 H \u2227 r.verb = v \u2227 w.addr \u2208 r.replaces\n      [cases] source: Initial goal\n  [ematch] E-matching patterns\n    [thm] right_2: [@Membership.mem `[Act] `[List Act] `[List.instMembership] `[H] #3]\n    [thm] right_2: [Act.verb #3]\n    [thm] right_2: [keyOf `[k] #3]\n    [thm] right_2: [@Membership.mem `[Nat] `[List Nat] `[List.instMembership] (Act.replaces #3) `[w.addr]]\n    [thm] right_2: [Act.replaces #3]\n/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-checkpoint-lean-jd1p5ccs/CheckpointSummary.lean:158:66: error: `grind` failed\ncase grind.1.1.1.1.1\nv : String\nk : Option String\nH : List Act\nw : Act\nval : String\nh :\n  (\u2203 r, r \u2208 H \u2227 (r.verb = v \u2228 r.verb = val) \u2227 w.addr \u2208 r.replaces) =\n    \u2200 (a : Act), (\u00aca \u2208 H \u2228 \u00aca.verb = v) \u2227 (\u00aca \u2208 H \u2228 \u00aca.verb = val) \u2228 \u00ackeyOf k a = keyOf k w \u2228 \u00acw.addr \u2208 a.replaces\nw_1 : Act\nleft_1 : w_1 \u2208 H\nright_1 : w.addr \u2208 w_1.replaces\nright_2 : \u2200 (a : Act), (\u00aca \u2208 H \u2228 \u00aca.verb = v) \u2227 (\u00aca \u2208 H \u2228 \u00aca.verb = val) \u2228 \u00ackeyOf k a = keyOf k w \u2228 \u00acw.addr \u2208 a.replaces\nw_2 : Act\nleft_3 : w_2 \u2208 H\nright_4 : w.addr \u2208 w_2.replaces\nh_4 : w_2.verb = v\nh_5 : w_1.verb = v\nleft_5 : \u00acw \u2208 H \u2228 \u00acw.verb = v\nh_7 : \u00acw \u2208 H\n\u22a2 False\n[grind] Goal diagnostics\n  [facts] Asserted facts\n    [prop] (\u2203 r, r \u2208 H \u2227 (r.verb = v \u2228 r.verb = val) \u2227 w.addr \u2208 r.replaces) =\n          \u2200 (a : Act), (\u00aca \u2208 H \u2228 \u00aca.verb = v) \u2227 (\u00aca \u2208 H \u2228 \u00aca.verb = val) \u2228 \u00ackeyOf k a = keyOf k w \u2228 \u00acw.addr \u2208 a.replaces\n    [prop] w_1 \u2208 H\n    [prop] w_1.verb = v \u2228 w_1.verb = val\n    [prop] w.addr \u2208 w_1.replaces\n    [prop] \u2200 (a : Act),\n          (\u00aca \u2208 H \u2228 \u00aca.verb = v) \u2227 (\u00aca \u2208 H \u2228 \u00aca.verb = val) \u2228 \u00ackeyOf k a = keyOf k w \u2228 \u00acw.addr \u2208 a.replaces\n    [prop] (\u00acw_1 \u2208 H \u2228 \u00acw_1.verb = v) \u2227 (\u00acw_1 \u2208 H \u2228 \u00acw_1.verb = val) \u2228 \u00ackeyOf k w_1 = keyOf k w \u2228 \u00acw.addr \u2208 w_1.replaces\n    [prop] (\u00acw \u2208 H \u2228 \u00acw.verb = v) \u2227 (\u00acw \u2208 H \u2228 \u00acw.verb = val) \u2228 \u00acw.addr \u2208 w.replaces\n    [prop] w_2 \u2208 H\n    [prop] w_2.verb = v \u2228 w_2.verb = val\n    [prop] w.addr \u2208 w_2.replaces\n    [prop] (\u00acw_2 \u2208 H \u2228 \u00acw_2.verb = v) \u2227 (\u00acw_2 \u2208 H \u2228 \u00acw_2.verb = val) \u2228 \u00ackeyOf k w_2 = keyOf k w \u2228 \u00acw.addr \u2208 w_2.replaces\n    [prop] w_2.verb = v\n    [prop] w_1.verb = v\n    [prop] \u00acw \u2208 H \u2228 \u00acw.verb = v\n    [prop] \u00acw \u2208 H \u2228 \u00acw.verb = val\n    [prop] \u00acw \u2208 H\n  [eqc] True propositions\n    [prop] \u2203 r, r \u2208 H \u2227 (r.verb = v \u2228 r.verb = val) \u2227 w.addr \u2208 r.replaces\n    [prop] w_2.verb = v \u2228 w_2.verb = val\n    [prop] (\u2203 r, r \u2208 H \u2227 (r.verb = v \u2228 r.verb = val) \u2227 w.addr \u2208 r.replaces) =\n          \u2200 (a : Act), (\u00aca \u2208 H \u2228 \u00aca.verb = v) \u2227 (\u00aca \u2208 H \u2228 \u00aca.verb = val) \u2228 \u00ackeyOf k a = keyOf k w \u2228 \u00acw.addr \u2208 a.replaces\n    [prop] w_2.verb = v\n    [prop] w_2 \u2208 H\n    [prop] w.addr \u2208 w_2.replaces\n    [prop] \u2200 (a : Act),\n          (\u00aca \u2208 H \u2228 \u00aca.verb = v) \u2227 (\u00aca \u2208 H \u2228 \u00aca.verb = val) \u2228 \u00ackeyOf k a = keyOf k w \u2228 \u00acw.addr \u2208 a.replaces\n    [prop] \u00ackeyOf k w_2 = keyOf k w\n    [prop] \u00ackeyOf k w_2 = keyOf k w \u2228 \u00acw.addr \u2208 w_2.replaces\n    [prop] (\u00acw_2 \u2208 H \u2228 \u00acw_2.verb = v) \u2227 (\u00acw_2 \u2208 H \u2228 \u00acw_2.verb = val) \u2228 \u00ackeyOf k w_2 = keyOf k w \u2228 \u00acw.addr \u2208 w_2.replaces\n    [prop] w_1.verb = v \u2228 w_1.verb = val\n    [prop] w_1.verb = v\n    [prop] w_1 \u2208 H\n    [prop] w.addr \u2208 w_1.replaces\n    [prop] \u00ackeyOf k w_1 = keyOf k w\n    [prop] \u00ackeyOf k w_1 = keyOf k w \u2228 \u00acw.addr \u2208 w_1.replaces\n    [prop] (\u00acw_1 \u2208 H \u2228 \u00acw_1.verb = v) \u2227 (\u00acw_1 \u2208 H \u2228 \u00acw_1.verb = val) \u2228 \u00ackeyOf k w_1 = keyOf k w \u2228 \u00acw.addr \u2208 w_1.replaces\n    [prop] \u00acw \u2208 H\n    [prop] (\u00acw \u2208 H \u2228 \u00acw.verb = v) \u2227 (\u00acw \u2208 H \u2228 \u00acw.verb = val)\n    [prop] \u00acw \u2208 H \u2228 \u00acw.verb = v\n    [prop] \u00acw \u2208 H \u2228 \u00acw.verb = val\n    [prop] (\u00acw \u2208 H \u2228 \u00acw.verb = v) \u2227 (\u00acw \u2208 H \u2228 \u00acw.verb = val) \u2228 \u00acw.addr \u2208 w.replaces\n  [eqc] False propositions\n    [prop] \u00acw_2.verb = v\n    [prop] \u00acw_2 \u2208 H\n    [prop] \u00acw.addr \u2208 w_2.replaces\n    [prop] (\u00acw_2 \u2208 H \u2228 \u00acw_2.verb = v) \u2227 (\u00acw_2 \u2208 H \u2228 \u00acw_2.verb = val)\n    [prop] \u00acw_2 \u2208 H \u2228 \u00acw_2.verb = v\n    [prop] keyOf k w_2 = keyOf k w\n    [prop] \u00acw_1.verb = v\n    [prop] \u00acw_1 \u2208 H\n    [prop] \u00acw.addr \u2208 w_1.replaces\n    [prop] (\u00acw_1 \u2208 H \u2228 \u00acw_1.verb = v) \u2227 (\u00acw_1 \u2208 H \u2228 \u00acw_1.verb = val)\n    [prop] \u00acw_1 \u2208 H \u2228 \u00acw_1.verb = v\n    [prop] keyOf k w_1 = keyOf k w\n    [prop] w \u2208 H\n  [eqc] Equivalence classes\n    [eqc] {v, w_2.verb, w_1.verb}\n    [eqc] {w_2.verb = val, w_1.verb = val}\n    [eqc] {\u00acw_2.verb = val, \u00acw_2 \u2208 H \u2228 \u00acw_2.verb = val, \u00acw_1.verb = val, \u00acw_1 \u2208 H \u2228 \u00acw_1.verb = val}\n  [cases] Case analyses\n    [cases] [1/2]: (\u2203 r, r \u2208 H \u2227 (r.verb = v \u2228 r.verb = val) \u2227 w.addr \u2208 r.replaces) =\n          \u2200 (a : Act), (\u00aca \u2208 H \u2228 \u00aca.verb = v) \u2227 (\u00aca \u2208 H \u2228 \u00aca.verb = val) \u2228 \u00ackeyOf k a = keyOf k w \u2228 \u00acw.addr \u2208 a.replaces\n      [cases] source: Initial goal\n    [cases] [1/1]: \u2203 r, r \u2208 H \u2227 (r.verb = v \u2228 r.verb = val) \u2227 w.addr \u2208 r.replaces\n      [cases] source: Initial goal\n    [cases] [1/2]: w_2.verb = v \u2228 w_2.verb = val\n      [cases] source: E-matching `right_2`\n    [cases] [1/2]: w_1.verb = v \u2228 w_1.verb = val\n      [cases] source: Initial goal\n    [cases] [1/2]: (\u00acw \u2208 H \u2228 \u00acw.verb = v) \u2227 (\u00acw \u2208 H \u2228 \u00acw.verb = val) \u2228 \u00acw.addr \u2208 w.replaces\n      [cases] source: E-matching `right_2`\n    [cases] [1/2]: \u00acw \u2208 H \u2228 \u00acw.verb = val\n      [cases] source: E-matching `right_2`\n  [ematch] E-matching patterns\n    [thm] right_2: [@Membership.mem `[Act] `[List Act] `[List.instMembership] `[H] #0]\n    [thm] right_2: [Act.verb #0]\n    [thm] right_2: [keyOf `[k] #0]\n    [thm] right_2: [@Membership.mem `[Nat] `[List Nat] `[List.instMembership] (Act.replaces #0) `[w.addr]]\n    [thm] right_2: [Act.replaces #0]\n/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-checkpoint-lean-jd1p5ccs/CheckpointSummary.lean:173:2: error: `grind` failed\ncase grind.2\nv : String\nH : List Act\ns : Row\nvalid : Invariant (Config.own v) H s\nw : Act\nh :\n  (w \u2208 H \u2227 w.verb = v \u2227 \u2200 (a : Act), a \u2208 H \u2192 a.verb = v \u2192 \u00acw.addr \u2208 a.replaces) =\n    (\u00acw \u2208 H \u2228 \u00acw.verb = v \u2228 \u00ac\u2200 (r : Act), r \u2208 H \u2227 r.verb = v \u2192 r.signer = w.signer \u2192 \u00acw.addr \u2208 r.replaces)\nleft : \u00acw \u2208 H \u2228 \u00acw.verb = v \u2228 \u00ac\u2200 (a : Act), a \u2208 H \u2192 a.verb = v \u2192 \u00acw.addr \u2208 a.replaces\nleft_1 : w \u2208 H\nleft_2 : w.verb = v\nright_2 : \u2200 (r : Act), r \u2208 H \u2227 r.verb = v \u2192 r.signer = w.signer \u2192 \u00acw.addr \u2208 r.replaces\nw_1 : Act\nh_3 : \u00ac(w_1 \u2208 H \u2192 w_1.verb = v \u2192 \u00acw.addr \u2208 w_1.replaces)\n\u22a2 False\n[grind] Goal diagnostics\n  [facts] Asserted facts\n    [prop] Invariant (Config.own v) H s\n    [prop] (w \u2208 H \u2227 w.verb = v \u2227 \u2200 (a : Act), a \u2208 H \u2192 a.verb = v \u2192 \u00acw.addr \u2208 a.replaces) =\n          (\u00acw \u2208 H \u2228 \u00acw.verb = v \u2228 \u00ac\u2200 (r : Act), r \u2208 H \u2227 r.verb = v \u2192 r.signer = w.signer \u2192 \u00acw.addr \u2208 r.replaces)\n    [prop] \u00acw \u2208 H \u2228 \u00acw.verb = v \u2228 \u00ac\u2200 (a : Act), a \u2208 H \u2192 a.verb = v \u2192 \u00acw.addr \u2208 a.replaces\n    [prop] w \u2208 H\n    [prop] w.verb = v\n    [prop] \u2200 (r : Act), r \u2208 H \u2227 r.verb = v \u2192 r.signer = w.signer \u2192 \u00acw.addr \u2208 r.replaces\n    [prop] \u00ac(w_1 \u2208 H \u2192 w_1.verb = v \u2192 \u00acw.addr \u2208 w_1.replaces)\n    [prop] w \u2208 H \u2227 w.verb = v \u2192 \u00acw.addr \u2208 w.replaces\n    [prop] w_1 \u2208 H \u2227 w_1.verb = v \u2192 w_1.signer = w.signer \u2192 \u00acw.addr \u2208 w_1.replaces\n    [prop] w \u2208 H \u2227 w.verb = v \u2192 \u00acw.addr \u2208 w.replaces\n  [eqc] True propositions\n    [prop] \u00acw.addr \u2208 w.replaces\n    [prop] w \u2208 H \u2227 w.verb = v\n    [prop] Invariant (Config.own v) H s\n    [prop] (w \u2208 H \u2227 w.verb = v \u2227 \u2200 (a : Act), a \u2208 H \u2192 a.verb = v \u2192 \u00acw.addr \u2208 a.replaces) =\n          (\u00acw \u2208 H \u2228 \u00acw.verb = v \u2228 \u00ac\u2200 (r : Act), r \u2208 H \u2227 r.verb = v \u2192 r.signer = w.signer \u2192 \u00acw.addr \u2208 r.replaces)\n    [prop] w.verb = v\n    [prop] w_1.verb = v\n    [prop] w \u2208 H\n    [prop] w_1 \u2208 H\n    [prop] w.addr \u2208 w_1.replaces\n    [prop] \u2200 (r : Act), r \u2208 H \u2227 r.verb = v \u2192 r.signer = w.signer \u2192 \u00acw.addr \u2208 r.replaces\n    [prop] w \u2208 H \u2227 w.verb = v \u2192 \u00acw.addr \u2208 w.replaces\n    [prop] \u00ac\u2200 (a : Act), a \u2208 H \u2192 a.verb = v \u2192 \u00acw.addr \u2208 a.replaces\n    [prop] w_1 \u2208 H \u2227 w_1.verb = v\n    [prop] \u00acw.verb = v \u2228 \u00ac\u2200 (a : Act), a \u2208 H \u2192 a.verb = v \u2192 \u00acw.addr \u2208 a.replaces\n    [prop] \u00acw \u2208 H \u2228 \u00acw.verb = v \u2228 \u00ac\u2200 (a : Act), a \u2208 H \u2192 a.verb = v \u2192 \u00acw.addr \u2208 a.replaces\n    [prop] w_1 \u2208 H \u2227 w_1.verb = v \u2192 w_1.signer = w.signer \u2192 \u00acw.addr \u2208 w_1.replaces\n    [prop] w_1.signer = w.signer \u2192 \u00acw.addr \u2208 w_1.replaces\n  [eqc] False propositions\n    [prop] \u00acw.verb = v\n    [prop] \u00acw \u2208 H\n    [prop] \u00acw.addr \u2208 w_1.replaces\n    [prop] \u00ac\u2200 (r : Act), r \u2208 H \u2227 r.verb = v \u2192 r.signer = w.signer \u2192 \u00acw.addr \u2208 r.replaces\n    [prop] w.verb = v \u2227 \u2200 (a : Act), a \u2208 H \u2192 a.verb = v \u2192 \u00acw.addr \u2208 a.replaces\n    [prop] w \u2208 H \u2227 w.verb = v \u2227 \u2200 (a : Act), a \u2208 H \u2192 a.verb = v \u2192 \u00acw.addr \u2208 a.replaces\n    [prop] \u00acw.verb = v \u2228 \u00ac\u2200 (r : Act), r \u2208 H \u2227 r.verb = v \u2192 r.signer = w.signer \u2192 \u00acw.addr \u2208 r.replaces\n    [prop] \u00acw \u2208 H \u2228 \u00acw.verb = v \u2228 \u00ac\u2200 (r : Act), r \u2208 H \u2227 r.verb = v \u2192 r.signer = w.signer \u2192 \u00acw.addr \u2208 r.replaces\n    [prop] w.addr \u2208 w.replaces\n    [prop] \u2200 (a : Act), a \u2208 H \u2192 a.verb = v \u2192 \u00acw.addr \u2208 a.replaces\n    [prop] w_1.verb = v \u2192 \u00acw.addr \u2208 w_1.replaces\n    [prop] w_1 \u2208 H \u2192 w_1.verb = v \u2192 \u00acw.addr \u2208 w_1.replaces\n    [prop] w_1.signer = w.signer\n  [eqc] Equivalence classes\n    [eqc] {v, w.verb, w_1.verb}\n  [cases] Case analyses\n    [cases] [2/2]: (w \u2208 H \u2227 w.verb = v \u2227 \u2200 (a : Act), a \u2208 H \u2192 a.verb = v \u2192 \u00acw.addr \u2208 a.replaces) =\n          (\u00acw \u2208 H \u2228 \u00acw.verb = v \u2228 \u00ac\u2200 (r : Act), r \u2208 H \u2227 r.verb = v \u2192 r.signer = w.signer \u2192 \u00acw.addr \u2208 r.replaces)\n      [cases] source: Initial goal\n  [ematch] E-matching patterns\n    [thm] local_0: [@Membership.mem `[Act] `[List Act] `[List.instMembership] `[H] #2]\n    [thm] local_0: [Act.verb #2]\n    [thm] local_0: [Act.signer #2]\n    [thm] local_0: [@Membership.mem `[Nat] `[List Nat] `[List.instMembership] (Act.replaces #2) `[w.addr]]\n    [thm] local_0: [Act.replaces #2]\n/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-checkpoint-lean-jd1p5ccs/CheckpointSummary.lean:171:62: warning: This simp argument is unused:\n  decide_eq_true_eq\n\nHint: Omit it from the simp argument list.\n  simp only [Replaced, retires, Config.own, Bool.and_eq_true, d\u0335e\u0335c\u0335i\u0335d\u0335e\u0335_\u0335e\u0335q\u0335_\u0335t\u0335r\u0335u\u0335e\u0335_\u0335e\u0335q\u0335,\u0335\n  \u0335 \u0335 \u0335 \u0335 \u0335Option.some.injEq, Val.str.injEq,\n  \u0332  \u0332 \u0332 \u0332List.contains_iff_mem, acts, List.mem_filter, beq_iff_eq]\n\nNote: This linter can be disabled with `set_option linter.unusedSimpArgs false`\n/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-checkpoint-lean-jd1p5ccs/CheckpointSummary.lean:172:4: warning: This simp argument is unused:\n  Option.some.injEq\n\nHint: Omit it from the simp argument list.\n  simp only [Replaced, retires, Config.own, Bool.and_eq_true, decide_eq_true_eq,\n  \u0335  \u0335 \u0335 \u0335O\u0335p\u0335t\u0335i\u0335o\u0335n\u0335.\u0335s\u0335o\u0335m\u0335e\u0335.\u0335i\u0335n\u0335j\u0335E\u0335q\u0335,\u0335 \u0335Val.str.injEq,\n  \u0332  \u0332 \u0332 \u0332List.contains_iff_mem, acts, List.mem_filter, beq_iff_eq]\n\nNote: This linter can be disabled with `set_option linter.unusedSimpArgs false`\n/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-checkpoint-lean-jd1p5ccs/CheckpointSummary.lean:172:23: warning: This simp argument is unused:\n  Val.str.injEq\n\nHint: Omit it from the simp argument list.\n  simp only [Replaced, retires, Config.own, Bool.and_eq_true, decide_eq_true_eq,\n  \u0335  \u0335 \u0335 \u0335Option.some.injEq,\n  \u0332 V\u0335a\u0335l\u0335.\u0335s\u0335t\u0335r\u0335.\u0335i\u0335n\u0335j\u0335E\u0335q\u0335,\u0335  \u0332 \u0332List.contains_iff_mem, acts, List.mem_filter, beq_iff_eq]\n\nNote: This linter can be disabled with `set_option linter.unusedSimpArgs false`\n/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-checkpoint-lean-jd1p5ccs/CheckpointSummary.lean:213:38: warning: This simp argument is unused:\n  signer\n\nHint: Omit it from the simp argument list.\n  simp [retires, Config.own, rverb, s\u0335i\u0335g\u0335ne\u0335r\u0335,\u0335 \u0335n\u0335amed]\n\nNote: This linter can be disabled with `set_option linter.unusedSimpArgs false`\n",
+      "stderr": "",
+      "mutation": "retire-across-every-scope",
+      "module": "CheckpointSummary",
+      "before": "c.replacing r && decide (c.scope r = c.scope w) && r.replaces.contains w.addr",
+      "after": "c.replacing r && r.replaces.contains w.addr",
+      "mutated_source_sha256": "085f4586d0c149a8d13d74b245624545bd5c510dd7b4519bed03373ae5c53d1f",
+      "proof_rejected": true,
+      "theorem_errors": [
+        {
+          "theorem": "pending_arrival",
+          "line": 81,
+          "column": 56,
+          "message": "unsolved goals"
+        },
+        {
+          "theorem": "current_replaced",
+          "line": 158,
+          "column": 66,
+          "message": "`grind` failed"
+        },
+        {
+          "theorem": "current_replaced",
+          "line": 158,
+          "column": 66,
+          "message": "`grind` failed"
+        },
+        {
+          "theorem": "live_own",
+          "line": 173,
+          "column": 2,
+          "message": "`grind` failed"
+        }
+      ],
+      "status": "proof_rejected"
+    },
+    {
+      "command": [
+        "lake",
+        "env",
+        "lean",
+        "-t",
+        "0",
+        "/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-checkpoint-lean-jd1p5ccs/CheckpointSummary.lean"
+      ],
+      "cwd": "/Users/anuna-02/Code/cbcl-rs/lean-cbcl",
+      "exit_code": 1,
+      "timed_out": false,
+      "elapsed_seconds": 0.609,
+      "stdout": "/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-checkpoint-lean-jd1p5ccs/CheckpointSummary.lean:98:19: warning: This simp argument is unused:\n  fresh\n\nHint: Omit it from the simp argument list.\n  simp only [step, f\u0335r\u0335e\u0335s\u0335h\u0335,\u0335 \u0335Bool.false_eq_true, \u2193reduceIte, mem_pairs,\n  \u0335  \u0335 \u0335 \u0335List.mem_append, List.mem_filter,\n  \u0332  \u0332 \u0332 \u0332bne_iff_ne]\n\nNote: This linter can be disabled with `set_option linter.unusedSimpArgs false`\n/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-checkpoint-lean-jd1p5ccs/CheckpointSummary.lean:114:18: warning: This simp argument is unused:\n  fresh\n\nHint: Omit it from the simp argument list.\n  simp [step, f\u0335r\u0335e\u0335s\u0335h\u0335,\u0335 \u0335insert, valid.1, replaced_cons]\n\nNote: This linter can be disabled with `set_option linter.unusedSimpArgs false`\n/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-checkpoint-lean-jd1p5ccs/CheckpointSummary.lean:118:18: warning: This simp argument is unused:\n  fresh\n\nHint: Omit it from the simp argument list.\n  simp [step, f\u0335r\u0335e\u0335s\u0335h\u0335,\u0335 \u0335insert, valid.1, replaced_cons]\n\nNote: This linter can be disabled with `set_option linter.unusedSimpArgs false`\n/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-checkpoint-lean-jd1p5ccs/CheckpointSummary.lean:141:70: error: unsolved goals\nc : Config\ncoverage : Nat \u2192 Bool\ns : Row\ne : Act\nduplicate : coverage e.addr = true\n\u22a2 {\n      live :=\n        List.filter (fun w => !retires c e w)\n          (if c.writer e = true \u2227 \u00ac(c.scope e, e.addr) \u2208 s.pending then e :: s.live else s.live),\n      pending :=\n        List.foldr List.insert\n          (List.foldr List.insert []\n            (if c.replacing e = true then\n              List.filterMap (fun id => if \u00acid = e.addr \u2227 coverage id = false then some (c.scope e, id) else none)\n                e.replaces\n            else []))\n          (List.filter (fun p => p.snd != e.addr) s.pending) } =\n    s\n/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-checkpoint-lean-jd1p5ccs/CheckpointSummary.lean:142:14: warning: This simp argument is unused:\n  duplicate\n\nHint: Omit it from the simp argument list.\n  simp [step,\u0335 \u0335d\u0335u\u0335p\u0335l\u0335i\u0335c\u0335a\u0335t\u0335e\u0335]\n\nNote: This linter can be disabled with `set_option linter.unusedSimpArgs false`\n",
+      "stderr": "",
+      "mutation": "ignore-duplicate-coverage",
+      "module": "CheckpointSummary",
+      "before": "if coverage e.addr then s else",
+      "after": "if false then s else",
+      "mutated_source_sha256": "673ce0e0f51d22ee732ec571564f7c951e252c4dee9418a70d7e49191c237b12",
+      "proof_rejected": true,
+      "theorem_errors": [
+        {
+          "theorem": "duplicate_noop",
+          "line": 141,
+          "column": 70,
+          "message": "unsolved goals"
+        }
+      ],
+      "status": "proof_rejected"
+    },
+    {
+      "command": [
+        "lake",
+        "env",
+        "lean",
+        "-t",
+        "0",
+        "/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-checkpoint-lean-jd1p5ccs/CheckpointKernel.lean"
+      ],
+      "cwd": "/Users/anuna-02/Code/cbcl-rs/lean-cbcl",
+      "exit_code": 1,
+      "timed_out": false,
+      "elapsed_seconds": 0.712,
+      "stdout": "/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-checkpoint-lean-jd1p5ccs/CheckpointKernel.lean:73:15: warning: unused variable `input`\n\nNote: This linter can be disabled with `set_option linter.unusedVariables false`\n/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-checkpoint-lean-jd1p5ccs/CheckpointKernel.lean:76:17: warning: unused variable `v`\n\nNote: This linter can be disabled with `set_option linter.unusedVariables false`\n/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-checkpoint-lean-jd1p5ccs/CheckpointKernel.lean:76:21: warning: unused variable `c`\n\nNote: This linter can be disabled with `set_option linter.unusedVariables false`\n/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-checkpoint-lean-jd1p5ccs/CheckpointKernel.lean:76:32: warning: unused variable `e`\n\nNote: This linter can be disabled with `set_option linter.unusedVariables false`\n/var/folders/gc/t91h69f129z9zcl661gr78440000gn/T/cbcl-checkpoint-lean-jd1p5ccs/CheckpointKernel.lean:122:25: error: Application type mismatch: The argument\n  valid\nhas type\n  Rule.Valid input H (Rule.lwwRegister verb\u271d field\u271d clock\u271d) s\nbut is expected to have type\n  Invariant ?m.131 ?m.132 ?m.133\nin the application\n  step_preserves valid\n",
+      "stderr": "",
+      "mutation": "discard-new-lww-register-winner",
+      "module": "CheckpointKernel",
+      "before": "CheckpointCompact.LwwRegister.step input.clock input.signerRank v c s e (coverage e.addr)",
+      "after": "s",
+      "mutated_source_sha256": "1bf97b0c6363610ec016e06c3ded325bf647c555d0c179f7510a118fb4444b84",
+      "proof_rejected": true,
+      "theorem_errors": [
+        {
+          "theorem": "rule_step_valid",
+          "line": 122,
+          "column": 25,
+          "message": "Application type mismatch: The argument"
+        }
+      ],
+      "status": "proof_rejected"
+    }
+  ],
+  "scope": "Typed compact-summary/native-kernel model. Does not verify Rust, extraction, serialization, admission, cryptography or host durability; independent review/parity bridge required.",
+  "toolchain": {
+    "command": [
+      "lake",
+      "env",
+      "lean",
+      "--version"
+    ],
+    "cwd": "/Users/anuna-02/Code/cbcl-rs/lean-cbcl",
+    "exit_code": 0,
+    "timed_out": false,
+    "elapsed_seconds": 0.084,
+    "stdout": "Lean (version 4.27.0, arm64-apple-darwin24.6.0, commit db93fe1608548721853390a10cd40580fe7d22ae, Release)\n",
+    "stderr": ""
+  },
+  "axiom_audit": {
+    "CBCL.CheckpointSummary.step_preserves": [
+      "Classical.choice",
+      "Quot.sound",
+      "propext"
+    ],
+    "CBCL.CheckpointSummary.checkpoint_continuation": [
+      "Classical.choice",
+      "Quot.sound",
+      "propext"
+    ],
+    "CBCL.CheckpointSummary.live_current": [
+      "Classical.choice",
+      "Quot.sound",
+      "propext"
+    ],
+    "CBCL.CheckpointSummary.live_own": [
+      "Classical.choice",
+      "Quot.sound",
+      "propext"
+    ],
+    "CBCL.CheckpointKernel.rule_step_valid": [
+      "Classical.choice",
+      "Quot.sound",
+      "propext"
+    ],
+    "CBCL.CheckpointKernel.rule_render_eq": [
+      "Classical.choice",
+      "Quot.sound",
+      "propext"
+    ],
+    "CBCL.CheckpointKernel.snapshot_advance_valid": [
+      "Classical.choice",
+      "Quot.sound",
+      "propext"
+    ],
+    "CBCL.CheckpointKernel.resume_valid_snapshot": [
+      "Classical.choice",
+      "Quot.sound",
+      "propext"
+    ],
+    "CBCL.CheckpointKernel.render_advance_checkpoint": [
+      "Classical.choice",
+      "Quot.sound",
+      "propext"
+    ],
+    "CBCL.CheckpointKernel.render_checkpoint": [
+      "Classical.choice",
+      "Quot.sound",
+      "propext"
+    ],
+    "CBCL.CheckpointKernel.native_expression": [
+      "propext"
+    ],
+    "CBCL.CheckpointKernel.native_compile_fields": [
+      "Quot.sound",
+      "propext"
+    ],
+    "CBCL.CheckpointKernel.fullFoldRaw_native": [
+      "Quot.sound",
+      "propext"
+    ],
+    "CBCL.CheckpointKernel.native_compile_clause": [
+      "Quot.sound",
+      "propext"
+    ],
+    "CBCL.CheckpointKernel.render_advance_native_clause": [
+      "Classical.choice",
+      "Quot.sound",
+      "propext"
+    ]
+  },
+  "live_binding_drift": [],
+  "finished_at": "2026-11-06T22:19:48.432208+00:00"
+}

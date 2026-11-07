@@ -1,0 +1,190 @@
+{
+  "schema_version": 1,
+  "reviewed_utc": "2026-11-06T23:07:55.032479+00:00",
+  "status": "pass_with_explicit_model_boundaries",
+  "material_findings": [],
+  "review_scope": {
+    "primary": [
+      "lean-cbcl/LeanCbcl/CheckpointAll.lean",
+      "lean-cbcl/LeanCbcl/CheckpointData.lean"
+    ],
+    "independence": "Reviewer did not author or modify either primary module. Reviewer authored CheckpointEvidence, an imported dependency; this review does not independently certify that dependency or native extraction/classifier soundness.",
+    "not_performed": [
+      "No Rust runtime tests rerun for this review.",
+      "No edits to CheckpointAll or CheckpointData.",
+      "No production/security approval or Rust-to-Lean refinement claim."
+    ]
+  },
+  "source_sha256": {
+    "lean-cbcl/LeanCbcl/CheckpointAll.lean": "3045401e5eadd8a283d5633bba12b63ae7ada14182a88305f9fb47ab4bbc8c2c",
+    "lean-cbcl/LeanCbcl/CheckpointData.lean": "1789e0e9c3dd1aa36bdad08affea449841cebe1929f14ce60a58fbcdaddf6211",
+    "lean-cbcl/LeanCbcl/CheckpointAllTests.lean": "07a49f6452df9ce84400bc64f7c9e02df26adbd9743f560a90de0e630c2b90d3",
+    "lean-cbcl/LeanCbcl/CheckpointDataTests.lean": "4704ee555d5fea07bd438c5aeafc23b924d6795200cdea3231d0db158bd95cd3",
+    "lean-cbcl/LeanCbcl/StateKernelClause.lean": "30a98617a0a9484d4b1953f7df065e6304f0b5824e46a84f475da9c856f81bb4",
+    "lean-cbcl/LeanCbcl/StateKernel.lean": "f05c66b2a7581234e595f05756821621c08a2da41ce002610116dbaf37fd7ea2",
+    "lean-cbcl/LeanCbcl/CheckpointKernel.lean": "b22db27f84d9be6ca9828467a42cc810e3038b622166251106a338b0d239e819",
+    "lean-cbcl/LeanCbcl/CheckpointRender.lean": "7aa1b1b7d880d6162de02823542f1b310db2b7b149f9da637303af934904d56c"
+  },
+  "validation": {
+    "command": [
+      "lake",
+      "build",
+      "LeanCbcl.CheckpointAllTests",
+      "LeanCbcl.CheckpointDataTests"
+    ],
+    "cwd": "/Users/anuna-02/Code/cbcl-rs/lean-cbcl",
+    "returncode": 0,
+    "stdout": "\u2139 [17/46] Replayed LeanCbcl.BoundedCounter\ninfo: LeanCbcl/BoundedCounter.lean:106:0: 'CBCL.BoundedCounter.increment_conserves' depends on axioms: [propext, Quot.sound]\ninfo: LeanCbcl/BoundedCounter.lean:107:0: 'CBCL.BoundedCounter.decrement_conserves' depends on axioms: [propext, Quot.sound]\ninfo: LeanCbcl/BoundedCounter.lean:108:0: 'CBCL.BoundedCounter.transfer_conserves' depends on axioms: [propext, Classical.choice, Quot.sound]\ninfo: LeanCbcl/BoundedCounter.lean:109:0: 'CBCL.BoundedCounter.transfer_headroom_conserves' depends on axioms: [propext, Quot.sound]\ninfo: LeanCbcl/BoundedCounter.lean:110:0: 'CBCL.BoundedCounter.both_bounds' depends on axioms: [propext, Quot.sound]\n\u2139 [34/46] Replayed LeanCbcl.R6DCFLPreservation\ninfo: LeanCbcl/R6DCFLPreservation.lean:976:0: 'CBCL.R6DCFLPreservation.dcfl_preserved_under_roles' depends on axioms: [propext]\ninfo: LeanCbcl/R6DCFLPreservation.lean:977:0: 'CBCL.R6DCFLPreservation.roles_dispatch_currently_unwired' depends on axioms: [propext]\ninfo: LeanCbcl/R6DCFLPreservation.lean:978:0: 'CBCL.R6DCFLPreservation.causalTrace_iff_run' depends on axioms: [propext, Classical.choice, Quot.sound]\ninfo: LeanCbcl/R6DCFLPreservation.lean:979:0: 'CBCL.R6DCFLPreservation.causalTrace_regular' depends on axioms: [propext, Classical.choice, Quot.sound]\ninfo: LeanCbcl/R6DCFLPreservation.lean:980:0: 'CBCL.R6DCFLPreservation.causalTrace_isTraceDCFL' depends on axioms: [propext, Classical.choice, Quot.sound]\ninfo: LeanCbcl/R6DCFLPreservation.lean:981:0: 'CBCL.R6DCFLPreservation.storeTrace_iff_run' depends on axioms: [propext, Classical.choice, Quot.sound]\ninfo: LeanCbcl/R6DCFLPreservation.lean:982:0: 'CBCL.R6DCFLPreservation.storeTrace_regular' depends on axioms: [propext, Classical.choice, Quot.sound]\ninfo: LeanCbcl/R6DCFLPreservation.lean:983:0: 'CBCL.R6DCFLPreservation.storeTrace_isTraceDCFL' depends on axioms: [propext, Classical.choice, Quot.sound]\ninfo: LeanCbcl/R6DCFLPreservation.lean:984:0: 'CBCL.R6DCFLPreservation.causalTrace_storeTrace' depends on axioms: [propext, Quot.sound]\ninfo: LeanCbcl/R6DCFLPreservation.lean:985:0: 'CBCL.R6DCFLPreservation.localTrace_regular' depends on axioms: [propext, Classical.choice, Quot.sound]\ninfo: LeanCbcl/R6DCFLPreservation.lean:986:0: 'CBCL.R6DCFLPreservation.localStoreTrace_regular' depends on axioms: [propext, Classical.choice, Quot.sound]\ninfo: LeanCbcl/R6DCFLPreservation.lean:987:0: 'CBCL.R6DCFLPreservation.projection_adds_no_recogniser' depends on axioms: [propext, Classical.choice, Quot.sound]\ninfo: LeanCbcl/R6DCFLPreservation.lean:988:0: 'CBCL.R6DCFLPreservation.ex_pool_is_disjunctive' depends on axioms: [propext]\ninfo: LeanCbcl/R6DCFLPreservation.lean:989:0: 'CBCL.R6DCFLPreservation.ex_out_of_order_store' depends on axioms: [propext]\ninfo: LeanCbcl/R6DCFLPreservation.lean:990:0: 'CBCL.R6DCFLPreservation.ex_local_permanently_stuck' depends on axioms: [propext]\n\u2139 [44/46] Replayed LeanCbcl.CheckpointDataTests\ninfo: LeanCbcl/CheckpointDataTests.lean:103:0: 'CBCL.CheckpointData.Exists.step_preserves' depends on axioms: [propext, Classical.choice, Quot.sound]\ninfo: LeanCbcl/CheckpointDataTests.lean:104:0: 'CBCL.CheckpointData.Count.step_preserves' depends on axioms: [propext, Classical.choice, Quot.sound]\ninfo: LeanCbcl/CheckpointDataTests.lean:105:0: 'CBCL.CheckpointData.Counter.step_preserves' depends on axioms: [propext, Classical.choice, Quot.sound]\ninfo: LeanCbcl/CheckpointDataTests.lean:106:0: 'CBCL.CheckpointData.SetUnion.step_preserves' depends on axioms: [propext, Classical.choice, Quot.sound]\ninfo: LeanCbcl/CheckpointDataTests.lean:107:0: 'CBCL.CheckpointData.Events.step_preserves' depends on axioms: [propext, Classical.choice, Quot.sound]\ninfo: LeanCbcl/CheckpointDataTests.lean:108:0: 'CBCL.CheckpointData.Events.read_native' depends on axioms: [propext, Classical.choice, Quot.sound]\ninfo: LeanCbcl/CheckpointDataTests.lean:109:0: 'CBCL.CheckpointData.Events.map_keys_nodup' depends on axioms: [propext]\ninfo: LeanCbcl/CheckpointDataTests.lean:110:0: 'CBCL.CheckpointData.Events.map_meaning' depends on axioms: [propext, Classical.choice, Quot.sound]\ninfo: LeanCbcl/CheckpointDataTests.lean:111:0: 'CBCL.CheckpointData.Events.map_native' depends on axioms: [propext, Classical.choice, Quot.sound]\ninfo: LeanCbcl/CheckpointDataTests.lean:112:0: 'CBCL.CheckpointData.exists_continuation' depends on axioms: [propext, Classical.choice, Quot.sound]\ninfo: LeanCbcl/CheckpointDataTests.lean:113:0: 'CBCL.CheckpointData.count_continuation' depends on axioms: [propext, Classical.choice, Quot.sound]\ninfo: LeanCbcl/CheckpointDataTests.lean:114:0: 'CBCL.CheckpointData.counter_continuation' depends on axioms: [propext, Classical.choice, Quot.sound]\ninfo: LeanCbcl/CheckpointDataTests.lean:115:0: 'CBCL.CheckpointData.setUnion_continuation' depends on axioms: [propext, Classical.choice, Quot.sound]\ninfo: LeanCbcl/CheckpointDataTests.lean:116:0: 'CBCL.CheckpointData.events_continuation' depends on axioms: [propext, Classical.choice, Quot.sound]\n\u2714 [45/46] Built LeanCbcl.CheckpointAll (1.1s)\n\u2139 [46/46] Built LeanCbcl.CheckpointAllTests (2.3s)\ninfo: LeanCbcl/CheckpointAllTests.lean:143:0: 'CBCL.CheckpointAll.position_valid' depends on axioms: [propext, Quot.sound]\ninfo: LeanCbcl/CheckpointAllTests.lean:144:0: 'CBCL.CheckpointAll.position_advance_checkpoint' depends on axioms: [propext, Classical.choice, Quot.sound]\ninfo: LeanCbcl/CheckpointAllTests.lean:145:0: 'CBCL.CheckpointAll.resource_facts_advance_checkpoint' depends on axioms: [propext, Classical.choice, Quot.sound]\ninfo: LeanCbcl/CheckpointAllTests.lean:146:0: 'CBCL.CheckpointAll.map_step_valid' depends on axioms: [propext, Classical.choice, Quot.sound]\ninfo: LeanCbcl/CheckpointAllTests.lean:147:0: 'CBCL.CheckpointAll.map_render_eq' depends on axioms: [propext, Classical.choice, Quot.sound]\ninfo: LeanCbcl/CheckpointAllTests.lean:148:0: 'CBCL.CheckpointAll.rule_step_valid' depends on axioms: [propext, Classical.choice, Quot.sound]\ninfo: LeanCbcl/CheckpointAllTests.lean:149:0: 'CBCL.CheckpointAll.rule_render_eq' depends on axioms: [propext, Classical.choice, Quot.sound]\ninfo: LeanCbcl/CheckpointAllTests.lean:150:0: 'CBCL.CheckpointAll.snapshot_step_valid' depends on axioms: [propext, Classical.choice, Quot.sound]\ninfo: LeanCbcl/CheckpointAllTests.lean:151:0: 'CBCL.CheckpointAll.snapshot_advance_valid' depends on axioms: [propext, Classical.choice, Quot.sound]\ninfo: LeanCbcl/CheckpointAllTests.lean:152:0: 'CBCL.CheckpointAll.render_valid' depends on axioms: [propext, Classical.choice, Quot.sound]\ninfo: LeanCbcl/CheckpointAllTests.lean:153:0: 'CBCL.CheckpointAll.resume_valid_snapshot' depends on axioms: [propext, Classical.choice, Quot.sound]\ninfo: LeanCbcl/CheckpointAllTests.lean:154:0: 'CBCL.CheckpointAll.render_advance_checkpoint' depends on axioms: [propext, Classical.choice, Quot.sound]\ninfo: LeanCbcl/CheckpointAllTests.lean:155:0: 'CBCL.CheckpointAll.native_expression' depends on axioms: [propext, Quot.sound]\ninfo: LeanCbcl/CheckpointAllTests.lean:156:0: 'CBCL.CheckpointAll.native_compile_fields' depends on axioms: [propext, Quot.sound]\ninfo: LeanCbcl/CheckpointAllTests.lean:157:0: 'CBCL.CheckpointAll.native_compile_clause' depends on axioms: [propext, Quot.sound]\ninfo: LeanCbcl/CheckpointAllTests.lean:158:0: 'CBCL.CheckpointAll.render_advance_native_clause' depends on axioms: [propext, Classical.choice, Quot.sound]\ninfo: LeanCbcl/CheckpointAllTests.lean:159:0: 'CBCL.CheckpointAll.resolve_complete' depends on axioms: [propext, Quot.sound]\ninfo: LeanCbcl/CheckpointAllTests.lean:160:0: 'CBCL.CheckpointAll.resolve_fields_complete' depends on axioms: [propext, Quot.sound]\ninfo: LeanCbcl/CheckpointAllTests.lean:161:0: 'CBCL.CheckpointAll.render_advance_wellformed_clause' depends on axioms: [propext, Classical.choice, Quot.sound]\nBuild completed successfully (46 jobs).\n",
+    "stderr": "",
+    "prohibited_construct_scan": "No sorry, native_decide, or custom axiom declaration in either primary module.",
+    "observed_foundational_axioms": [
+      "Classical.choice",
+      "Quot.sound",
+      "propext"
+    ]
+  },
+  "native_inventory": {
+    "heads": [
+      "initial",
+      "existsRule",
+      "count",
+      "progress",
+      "events",
+      "setUnion",
+      "values",
+      "valuesPerKey",
+      "observedSet",
+      "counter",
+      "histogram",
+      "sum",
+      "lwwRegister",
+      "lwwPerSigner",
+      "lwwMap",
+      "boundedCounter"
+    ],
+    "head_count": 16,
+    "coverage_basis": "CheckpointAll.resolve exhaustively handles StateKernelClause.Rule. resolve_complete and resolve_fields_complete derive an implementation for every well-formed native head/list; this is not merely a 16-element fixture.",
+    "seven_legacy_heads": [
+      "initial",
+      "values",
+      "valuesPerKey",
+      "observedSet",
+      "lwwRegister",
+      "lwwPerSigner",
+      "lwwMap"
+    ],
+    "additional_heads": [
+      "existsRule",
+      "count",
+      "progress",
+      "events",
+      "setUnion",
+      "counter",
+      "histogram",
+      "sum",
+      "boundedCounter"
+    ]
+  },
+  "checks": [
+    {
+      "topic": "No desired continuation premise",
+      "result": "pass",
+      "evidence": [
+        "CheckpointAll.snapshot_empty_valid",
+        "CheckpointAll.snapshot_step_valid",
+        "CheckpointAll.snapshot_advance_valid",
+        "CheckpointAll.render_advance_checkpoint",
+        "CheckpointAll.render_advance_wellformed_clause"
+      ],
+      "analysis": "Main continuation derives truth from genesis and concrete row preservation. Generic Machine preservation premises are discharged by actual Exists/Count/Counter/SetUnion/Events step proofs. Scalar invariants equate cached scalars with native reductions, but their empty/step cases are proved; advance-equals-fold is not assumed."
+    },
+    {
+      "topic": "Retained state and closures",
+      "result": "pass",
+      "evidence": [
+        "CheckpointAll.Snapshot",
+        "CheckpointAll.Rule.Data",
+        "CheckpointAll.Snapshot.step",
+        "CheckpointData.Events.Projection"
+      ],
+      "analysis": "Snapshot contains identity-only coverage, finite rows and selected evidence records. Constructed coverage captures only prior ID membership and the incoming ID. Events retain address/signer/value, not full Act. Imported legacy rows retain bounded witnesses or live contributions/suppressions; live output and event/evidence facts may grow. Fixed context functions (clock/rank/extraction/classification) remain external; there is no snapshot function taking ghost history."
+    },
+    {
+      "topic": "Projected events and provenance",
+      "result": "pass",
+      "evidence": [
+        "CheckpointData.Events.projection",
+        "CheckpointData.Events.read_correct",
+        "CheckpointData.Events.read_native",
+        "CheckpointData.Events.map_meaning",
+        "CheckpointData.Events.map_native"
+      ],
+      "analysis": "Missing selected values do not become events; accepted identity coverage still advances. Native map support is proved from projected records, and read results preserve the authenticated signer through Cell.event. History uniqueness used in read correctness is derived from normalized accepted-store updates at the main endpoint."
+    },
+    {
+      "topic": "Native derived-source resolution",
+      "result": "pass",
+      "evidence": [
+        "CheckpointAll.MapSource.plan",
+        "CheckpointAll.resolve",
+        "CheckpointAll.resolveFields",
+        "CheckpointAll.native_expression",
+        "CheckpointAll.native_compile_fields",
+        "CheckpointAll.native_compile_clause"
+      ],
+      "analysis": "Resolution uses the actual preceding declaration prefix and native lookup/compatibility rules. Histograms accept native LWW map sources and reject events; sums accept native event/LWW map sources. Forward, missing and non-map sources reject. Native compilation is related by proof, not a second unconnected expression inventory."
+    },
+    {
+      "topic": "Identity normalization",
+      "result": "pass_with_boundary",
+      "evidence": [
+        "CheckpointSummary.ingest",
+        "CheckpointSummary.normalize",
+        "CheckpointAll.snapshot_duplicate_noop",
+        "CheckpointAll.render_advance_checkpoint"
+      ],
+      "analysis": "Reference and incremental sides use the same first-accepted-identity normalization and shared coverage guard. normalize_unique discharges address uniqueness. Conflicting signed contents at one identity are an admission/cryptographic boundary; this theorem does not prove they were rejected."
+    },
+    {
+      "topic": "Native resolver resumption",
+      "result": "pass_with_boundary",
+      "evidence": [
+        "CheckpointAll.position_valid",
+        "CheckpointAll.position_advance_checkpoint",
+        "CheckpointAll.rule_render_eq"
+      ],
+      "analysis": "Progress and position queries use current materialized protocol facts and the existing Repeat.resolve/StateProgress semantics. No immutable cached-maximum premise appears. Missing evidence can become resolved after tail delivery. The formal resolver is the imported bounded single-verb model, not a universal R5/R6 admission proof."
+    },
+    {
+      "topic": "Resource port and authority",
+      "result": "pass_with_boundary",
+      "evidence": [
+        "CheckpointAll.Ports.input",
+        "CheckpointAll.Rule.render",
+        "CheckpointAll.resource_facts_advance_checkpoint",
+        "CheckpointAll.rule_render_eq"
+      ],
+      "analysis": "Reference and checkpoint observations use the same explicit typed resource classifier. Selected facts are exactly projected by accepted updates. This proves transport/observation preservation conditional on the port, not escrow classification soundness, native record extraction, resource rights, global fork absence, or finality. Object endorsement quorum does not synthesize resource authority."
+    },
+    {
+      "topic": "Native observation and compilation endpoint",
+      "result": "pass_with_boundary",
+      "evidence": [
+        "CheckpointAll.fullFoldRaw",
+        "CheckpointAll.native_compile_clause",
+        "CheckpointAll.render_advance_native_clause",
+        "CheckpointAll.render_advance_wellformed_clause"
+      ],
+      "analysis": "The endpoint invokes the existing evaluateFields and native compileClause with an empty domain list. uniqueNames and WellFormedFields are syntactic conditions, not correctness assumptions. Equality is through the existing extensional View, not serialized wire/render-byte equality."
+    }
+  ],
+  "exact_boundaries": [
+    "Domain-free clauses only; all native rule heads does not mean all native domain configurations.",
+    "Admitted identities, authenticated signer/context/causal fields, coverage proofs and certificate truth are external to these state algebra theorems.",
+    "Imported snapshots need the explicit faithful Snapshot.Valid invariant; signatures alone do not prove it.",
+    "Protocol extraction and native resource classification are explicit shared ports. Their Rust/wire refinement is not established by this review.",
+    "Lean Nat/Int reductions are mathematical unbounded arithmetic; Rust checked overflow, parser bounds and resource error behavior require separate conformance/refinement evidence.",
+    "Event/live-state/protocol/resource facts can grow. No constant-space, constant-time, persistence, network freshness or availability theorem is claimed.",
+    "All-head theorems may use standard Lean foundations propext, Classical.choice and Quot.sound; there are no new protocol axioms or native_decide shortcuts in the reviewed modules."
+  ]
+}

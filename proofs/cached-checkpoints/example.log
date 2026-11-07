@@ -1,0 +1,8 @@
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on artifact directory
+   Compiling cbcl-checkpoint v0.1.1 (/Users/anuna-02/Code/cbcl-rs/crates/cbcl-checkpoint)
+    Finished `dev` profile [unoptimized] target(s) in 2.51s
+     Running `target/debug/examples/cached_checkpoint`
+{"state":"{\"title\":\"Drawing\",\"items\":{\"shape\":\"red\"},\"versions\":{\"shape\":[\"red\"]}}","generation":1,"metrics":{"candidates":1,"bytes":30008,"offer_bytes":25617,"certificate_bytes":4391,"tail_message_bytes":476,"ancestry_message_bytes":410,"floor_proof_bytes":8275,"tail_steps":1,"proof_paths":3,"signatures_checked":21,"signature_preimage_bytes":9653,"rejected":[],"elapsed_micros":50523,"companion_history_reads":0,"prefix_replay":0,"decode_micros":370,"verify_and_summary_decode_micros":16316,"fetch_micros":489,"tail_micros":4264,"floor_micros":729,"retain_micros":38,"commit_micros":28161,"requested_target_covered":false},"certificate_endorsements":3,"retained_signed_bodies":3}

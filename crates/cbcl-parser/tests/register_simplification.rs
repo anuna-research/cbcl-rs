@@ -49,7 +49,7 @@ fn initial_is_opener_only_and_has_no_hash_winner() {
         ))
     };
     assert_eq!(observe(&[]), "{\"title\":null}");
-    assert_eq!(observe(&[a.clone()]), "{\"title\":\"first\"}");
+    assert_eq!(observe(core::slice::from_ref(&a)), "{\"title\":\"first\"}");
     assert_eq!(observe(&[a.clone(), a.clone()]), "{\"title\":\"first\"}");
     assert_eq!(observe(&[a.clone(), b.clone()]), "{\"title\":null}");
     assert_eq!(observe(&[b, a]), "{\"title\":null}");

@@ -1,0 +1,232 @@
+{
+  "spec": "SPEC-035-cached-state-checkpoints",
+  "spec_version": "0.2.0",
+  "task": "IMPL-027 summary",
+  "status": "Observed summary-only validation passed; not a production enablement or full lifecycle acceptance claim",
+  "recorded_at_utc": "2026-11-06T21:18:16.069691+00:00",
+  "evidence_provenance": {
+    "measurements": "Transcribed from successful tool stdout of the final source run in this worker session; no benchmark or mutation rerun performed while writing this report.",
+    "source_hash_capture": "Source and cached dependency hashes captured at report creation after the observed run; not an execution-time signed attestation.",
+    "git_head": "3186cea4ec7ee34c6953f0e37d8296c3206e87dc",
+    "workspace_state": "Shared workspace contains uncommitted implementation; git HEAD alone does not identify tested source."
+  },
+  "toolchain": {
+    "rustc_verbose": "rustc 1.95.0 (59807616e 2026-04-14)\nbinary: rustc\ncommit-hash: 59807616e1fa2540724bfbac14d7976d7e4a3860\ncommit-date: 2026-04-14\nhost: aarch64-apple-darwin\nrelease: 1.95.0\nLLVM version: 22.1.2",
+    "cargo": "cargo 1.95.0 (f2d3ce0bd 2026-03-21)",
+    "host": "Darwin arm64"
+  },
+  "source_sha256": {
+    "crates/cbcl-checkpoint/src/summary.rs": "ca1d6aa07a3e7490c6892f18050ddf52ec1b1bf74f39595ddc18159a721f1822",
+    "crates/cbcl-checkpoint/src/summary_tests.rs": "34f4563848942d1995c83f65bee8257e06fcfcf9325861c027b326cbf7f95179",
+    "crates/cbcl-checkpoint/src/summary_mutations.py": "7fe02be1021534961e9f50a1bd675daaa3015ede3eccfeb7f37fbb33f4b40fbf",
+    "crates/cbcl-checkpoint/src/codec.rs": "9a14d5af102f960bca8a3e24debd2b0a76175c36ced92f0db45871229547e894",
+    "crates/cbcl-checkpoint/src/lib.rs": "cddcd0527872a3cbd580fff57a2eca68794d89829a1bcaf2ded8ae4f33ba9721",
+    "Cargo.lock": "a629b945a83b3672ef2f856416a42d9c22c89d7c3687178caf87d04de09cc255"
+  },
+  "native_core_source": {
+    "path": "crates/cbcl-core/src",
+    "files": 46,
+    "tree_sha256": "273765ddc4e8beda251013206ad7321637bc406e6f22070030f1390b34744aea",
+    "tree_hash_algorithm": "SHA256 of sorted UTF-8 records: repository-relative path + NUL + lowercase SHA256(file bytes) + LF",
+    "critical_file_sha256": {
+      "crates/cbcl-core/src/canonical.rs": "1fafe134288354fb948934ae238a4d442e493653e1fec625afe54d25e965649a",
+      "crates/cbcl-core/src/hlc.rs": "2b4f63d169da669d783bc82d071f95227a35c8e23a18045ff26df05eb3ea31b0",
+      "crates/cbcl-core/src/message.rs": "20b2e12d47a8666f7a2a13d7dbac0d1c98e1c4420f4a79779f778dc449ca12cb",
+      "crates/cbcl-core/src/state.rs": "b6d12b3502474125ec4d41146afeb86c42b526dc1e9b1122dd3b52547180c1db",
+      "crates/cbcl-core/src/typed_addr.rs": "1322be369fba1471a90a6d75d30d6102d01565240eee62b876d32c2bb33a6c5e"
+    }
+  },
+  "commands": {
+    "successful_dependency_preparation": "CARGO_PROFILE_RELEASE_LTO=false CARGO_PROFILE_RELEASE_OPT_LEVEL=3 CARGO_PROFILE_RELEASE_DEBUG=0 CARGO_INCREMENTAL=0 cargo build --release -p cbcl-checkpoint -j 1",
+    "final_measurement_and_mutations": "python3 crates/cbcl-checkpoint/src/summary_mutations.py --scale",
+    "final_native_summary_tests": "CARGO_PROFILE_DEV_DEBUG=0 CARGO_INCREMENTAL=0 cargo test -p cbcl-checkpoint summary::tests --lib -j 1",
+    "final_no_std": "CARGO_PROFILE_DEV_DEBUG=0 CARGO_INCREMENTAL=0 cargo check -p cbcl-checkpoint --no-default-features -j 1",
+    "final_clippy": "CARGO_PROFILE_DEV_DEBUG=0 CARGO_INCREMENTAL=0 cargo clippy -p cbcl-checkpoint --all-targets -j 1 -- -D warnings"
+  },
+  "harness": {
+    "source": "crates/cbcl-checkpoint/src/summary_mutations.py",
+    "opt_level": 3,
+    "debuginfo": 0,
+    "dependency_profile": "release",
+    "dependency_selection": "Exact dependency graph from cached Cargo fingerprint, not independent newest-rlib selection",
+    "fingerprint_path": "target/release/.fingerprint/cbcl-checkpoint-91972431fdaff260/lib-cbcl_checkpoint.json",
+    "fingerprint_sha256": "e7bf0664e2f2e7e2607f2891cbd6351f3679f5c5eb50ce7243515999413a73e1",
+    "dependency_artifacts": {
+      "cbcl_core": {
+        "path": "target/release/deps/libcbcl_core-4e05dd2c797a400e.rlib",
+        "sha256": "29bb80623753e20db9a7a2e93d1e214390c7cc919f4a3fcf9e6488e7be09c7c8",
+        "cargo_dependency_fingerprint": 14609656588983584652
+      },
+      "sha2": {
+        "path": "target/release/deps/libsha2-dd806c98a4a159f2.rlib",
+        "sha256": "3950a97435dff42eefd1d00a3cb91c0013d533dade3be4b94dc01d1d407dd86d",
+        "cargo_dependency_fingerprint": 5247549558901762904
+      },
+      "serde": {
+        "path": "target/release/deps/libserde-a7fa8c342abbf4ba.rlib",
+        "sha256": "05ff99bb3a511188002a374a2611ed4f957d1a30449ec81b9db7a30e5c74e634",
+        "cargo_dependency_fingerprint": 10349469649092307641
+      },
+      "serde_json": {
+        "path": "target/release/deps/libserde_json-e95afa30cb8ff7db.rlib",
+        "sha256": "972d72203082d8a13e92053150ac29fabbc05554e7a99f993aa7a7a9af618059",
+        "cargo_dependency_fingerprint": 6949736215374699624
+      }
+    },
+    "scope": "Temporary rustc test harness copies summary.rs and summary_tests.rs; embeds real crate common types/hash and codec code, and links compiled native cbcl-core. Workspace source never mutated.",
+    "cargo_release_rebuild_for_final_run": false
+  },
+  "oracle": {
+    "function": "cbcl_core::state::fold",
+    "rules": [
+      "ValuesPerKey",
+      "ObservedSet",
+      "LwwMap"
+    ],
+    "method": "For each size compare Summary::render() against real native core fold over all generated Acts after maintenance timing. Require identical rendered output across all sizes and binary snapshot roundtrip equality.",
+    "inputs": "Actual generated native Message/Act objects, 8 keys with repeated explicit replacements, fixed output value, increasing nonce and canonical HLC. 24 live contributions represent 8 keys in each of 3 rule shelves.",
+    "coverage": "Exact BTreeSet lookup over previously accepted wire identities; no cryptographic proof verification or admission/signature authentication in this scaling test.",
+    "archive": "No archive interface or body fetches in the test maintenance path; do not interpret this as an instrumented end-to-end host archive-read measurement."
+  },
+  "timing": {
+    "unit": "microseconds",
+    "statistic": "Single local run per size, sum of per-operation elapsed durations; not a median or platform-independent bound",
+    "included": [
+      "Summary::apply including incoming metadata checks, semantic normalization and per-rule updates",
+      "Coverage callback BTreeSet lookups and query counting",
+      "Test work-counter instrumentation and timer overhead"
+    ],
+    "excluded": [
+      "Act/message generation",
+      "Accepted-identity set insertion",
+      "Accumulation of full oracle history",
+      "Native authentication, causal admission and coverage proof verification",
+      "Core fold, render, snapshot encode/decode and validation after maintenance",
+      "Archive/network I/O, persistence and installation",
+      "Compilation and mutation execution"
+    ],
+    "space_limit": "Only summary live/pending counts and serialized summary bytes reported. External identity set and oracle history grow with input; no constant total storage claim."
+  },
+  "raw_scaling_stdout": "summary_scaling actual_ops=600 live_acts=24 pending=0 apply_us=5624 coverage_queries=2376 live_comparisons=23151 incoming_metadata=600 summary_bytes=7624 archive_interface=none oracle=core_fold_outside_timing\nsummary_scaling actual_ops=6000 live_acts=24 pending=0 apply_us=65515 coverage_queries=23976 live_comparisons=233751 incoming_metadata=6000 summary_bytes=7648 archive_interface=none oracle=core_fold_outside_timing\nsummary_scaling actual_ops=60000 live_acts=24 pending=0 apply_us=674205 coverage_queries=239976 live_comparisons=2339751 incoming_metadata=60000 summary_bytes=7672 archive_interface=none oracle=core_fold_outside_timing",
+  "scaling": [
+    {
+      "actual_ops": 600,
+      "live_acts": 24,
+      "pending": 0,
+      "apply_us": 5624,
+      "coverage_queries": 2376,
+      "live_comparisons": 23151,
+      "incoming_metadata": 600,
+      "summary_bytes": 7624,
+      "archive_interface": "none",
+      "oracle": "core_fold_outside_timing"
+    },
+    {
+      "actual_ops": 6000,
+      "live_acts": 24,
+      "pending": 0,
+      "apply_us": 65515,
+      "coverage_queries": 23976,
+      "live_comparisons": 233751,
+      "incoming_metadata": 6000,
+      "summary_bytes": 7648,
+      "archive_interface": "none",
+      "oracle": "core_fold_outside_timing"
+    },
+    {
+      "actual_ops": 60000,
+      "live_acts": 24,
+      "pending": 0,
+      "apply_us": 674205,
+      "coverage_queries": 239976,
+      "live_comparisons": 2339751,
+      "incoming_metadata": 60000,
+      "summary_bytes": 7672,
+      "archive_interface": "none",
+      "oracle": "core_fold_outside_timing"
+    }
+  ],
+  "tests": {
+    "native_summary_tests": {
+      "passed": 17,
+      "failed": 0,
+      "ignored": 1,
+      "ignored_test": "incremental_scaling_fixed_live_600_6000_60000"
+    },
+    "optimized_harness_baseline": {
+      "passed": 17,
+      "failed": 0,
+      "ignored": 1
+    },
+    "explicit_scaling_test": {
+      "passed": 1,
+      "failed": 0
+    },
+    "no_std": "passed",
+    "all_target_clippy_deny_warnings": "passed"
+  },
+  "mutations": {
+    "status": "all guards killed",
+    "compiled": 8,
+    "killed_by_test": 8,
+    "criterion": "Each isolated mutant must compile successfully and fail its named executable test; compile errors and missing tests do not count as kills.",
+    "cases": [
+      {
+        "mutation": "drop-covered-duplicate-guard",
+        "test": "covered_replay_cannot_restore_retired_contribution",
+        "compiled": true,
+        "killed_by_test": true
+      },
+      {
+        "mutation": "forget-unseen-suppression",
+        "test": "test_3503_all_prefixes_permutations_duplicates_and_rule_scopes",
+        "compiled": true,
+        "killed_by_test": true
+      },
+      {
+        "mutation": "accept-unsupported-rule",
+        "test": "test_3510_whole_profile_refuses_domains_and_unsupported_rules",
+        "compiled": true,
+        "killed_by_test": true
+      },
+      {
+        "mutation": "retain-cross-scope-pending",
+        "test": "cross_scope_late_nonstate_and_covered_target_pruning",
+        "compiled": true,
+        "killed_by_test": true
+      },
+      {
+        "mutation": "skip-snapshot-byte-budget",
+        "test": "binary_snapshot_byte_budget_is_checked_before_recognition",
+        "compiled": true,
+        "killed_by_test": true
+      },
+      {
+        "mutation": "skip-incoming-metadata-validation",
+        "test": "malformed_metadata_and_snapshots_fail_before_mutation",
+        "compiled": true,
+        "killed_by_test": true
+      },
+      {
+        "mutation": "skip-native-recipient-normalization",
+        "test": "native_identity_recipient_variants_share_summary_but_preserve_evidence",
+        "compiled": true,
+        "killed_by_test": true
+      },
+      {
+        "mutation": "keep-signature-variant-bytes",
+        "test": "signed_wrapper_variants_have_identical_semantic_summary_roots",
+        "compiled": true,
+        "killed_by_test": true
+      }
+    ]
+  },
+  "encoding_contract": {
+    "header": "u32 version=1, schema h32, u32 row count",
+    "live_row": "vec<(wire identity bytes, authenticated signer bytes, normalized native Message bytes)>; ascending identities; every decoded identity checked against reconstructed Act",
+    "pending_row": "Ordered encoded (canonical native scope bytes, wire target bytes) pairs",
+    "normalization": "Erase native signed signature slot only; canonicalize recipient None/One/Set by cardinality and Core/Custom performative-name aliases; retain semantic wrappers, parameter order and causal order. Original signed evidence remains outside summary.",
+    "profile_gate": "Summary::expected_profile_hash(expected_clause) must equal independently pinned context.profile; unknown profiles unsupported.",
+    "draft_snapshot_compatibility": "Earlier draft rows without explicit wire identities require regeneration."
+  }
+}

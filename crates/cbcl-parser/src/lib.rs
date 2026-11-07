@@ -8,6 +8,8 @@
 
 extern crate alloc;
 
+pub mod checkpoint_dialect;
+
 #[cfg(feature = "std")]
 pub mod contract;
 #[cfg(feature = "std")]

@@ -1,0 +1,113 @@
+{
+  "summary_version": 2,
+  "claim": "bounded observational correspondence, not extraction/native-admission or general resource-classifier proof",
+  "protocol_port": "known opener edge maps to begin; subsequent single-verb tick predecessors retained, native bound3; no positions fed",
+  "resource_port": "independent bootstrap-only account cast+allocations classifier; Pending then Ready; no operations/conflicts/malformed/collective/quorum",
+  "rule_observations": 7392,
+  "cases": [
+    {
+      "case": "forks-late-replacement",
+      "acts": 13,
+      "prefix_cut_records": 105,
+      "all_sixteen_outputs_matched_snapshot_and_fullfold": true,
+      "controls": [
+        {
+          "field": "r11",
+          "compiled_and_executed": true,
+          "observation_diverged": true
+        },
+        {
+          "field": "r14",
+          "compiled_and_executed": true,
+          "observation_diverged": true
+        },
+        {
+          "field": "r15",
+          "compiled_and_executed": true,
+          "observation_diverged": true
+        }
+      ],
+      "nonempty_union_prefixes": 10,
+      "signer_ranks": [
+        [
+          "@m0",
+          0
+        ],
+        [
+          "@m1",
+          1
+        ]
+      ],
+      "address_ranks": {
+        "sha256-1789ffc642d4360948b2e487974a8e3ed1f320647b209550f5a82850cf0cf167": 1,
+        "sha256-25994579b13e468d52187d440064a485c33c30b85f3729681f1157e9e76f7b5d": 2,
+        "sha256-3152602cf77c8ce05e01e4e62cc7da59f1288a51443d2849537e222d9746872b": 3,
+        "sha256-38310b64f520b7b8559c9f82183c8e6411391fc5949c0a50787a67d0a9ec676a": 4,
+        "sha256-3badea39e6e97187716a9934f557ac54daa8b82f3d8056df995d00f3ca3870ac": 5,
+        "sha256-3c4ccd0a2c2cba2a6d57eda10a88f0abe9117dd73ca413867d76b527cf2d8033": 6,
+        "sha256-3d31d1609e2e51d0dd13aacd9f61ac486ed394fce57ae2a79e2dbd55cdc21713": 7,
+        "sha256-501e4ef742b14917651168ed7dd7895a95eb14fcc9dc238a9f3a2aa0c1abf0be": 8,
+        "sha256-5089a85720224265504f7be9d9e08cbe938a6cb5a126c6537f6782705be354f7": 9,
+        "sha256-b99cb5dd13ebb30194578fe82fd4b0968958a295e8ddee87be346ce6ae546f53": 10,
+        "sha256-cbe0ded958fe3902ac9452167f02cae1d93f30d0628008afe997b4e90343127b": 11,
+        "sha256-d4e3b44a9fdbdc59e47ca96f1f6bf41a07d7b00594f5aa901094b7379b1f6db1": 12
+      },
+      "lean_input_events": "[{ act := ⟨12,\"hello\",\"@m0\",[],[],[]⟩, stamp := none, cause := .absent, cast := true, bindings := [⟨\"issuer\",[\"@m0\"]⟩,⟨\"holder\",[\"@m0\",\"@m1\"]⟩], initFlag := false, allocations := [], headroom := [] },{ act := ⟨7,\"open\",\"@m0\",[12],[(\"title\", (.str \"Drawing\"))],[]⟩, stamp := none, cause := .absent, cast := false, bindings := [], initFlag := true, allocations := [(\"@m0\", (10)),(\"@m1\", (0))], headroom := [(\"@m0\", (5)),(\"@m1\", (5))] },{ act := ⟨9,\"tick\",\"@m0\",[7],[],[]⟩, stamp := none, cause := .begin, cast := false, bindings := [], initFlag := false, allocations := [], headroom := [] },{ act := ⟨10,\"put\",\"@m0\",[7],[(\"k\", (.str \"x\")),(\"v\", (.int (3)))],[]⟩, stamp := (some (10,0)), cause := .absent, cast := false, bindings := [], initFlag := false, allocations := [], headroom := [] },{ act := ⟨3,\"put\",\"@m1\",[7],[(\"k\", (.str \"x\")),(\"v\", (.int (7)))],[]⟩, stamp := (some (10,0)), cause := .absent, cast := false, bindings := [], initFlag := false, allocations := [], headroom := [] },{ act := ⟨5,\"put\",\"@m1\",[7],[(\"k\", (.str \"y\")),(\"v\", (.int (-2)))],[10]⟩, stamp := (some (9,0)), cause := .absent, cast := false, bindings := [], initFlag := false, allocations := [], headroom := [] },{ act := ⟨2,\"del\",\"@m0\",[7],[(\"k\", (.str \"x\"))],[3]⟩, stamp := none, cause := .absent, cast := false, bindings := [], initFlag := false, allocations := [], headroom := [] },{ act := ⟨4,\"del\",\"@m1\",[7],[(\"k\", (.str \"x\"))],[6]⟩, stamp := none, cause := .absent, cast := false, bindings := [], initFlag := false, allocations := [], headroom := [] },{ act := ⟨6,\"put\",\"@m0\",[7],[(\"k\", (.str \"x\")),(\"v\", (.int (5)))],[]⟩, stamp := (some (7,0)), cause := .absent, cast := false, bindings := [], initFlag := false, allocations := [], headroom := [] },{ act := ⟨1,\"down\",\"@m0\",[7],[(\"v\", (.int (2)))],[]⟩, stamp := none, cause := .absent, cast := false, bindings := [], initFlag := false, allocations := [], headroom := [] },{ act := ⟨11,\"tick\",\"@m0\",[9],[],[]⟩, stamp := none, cause := (.previous 9), cast := false, bindings := [], initFlag := false, allocations := [], headroom := [] },{ act := ⟨8,\"tick\",\"@m0\",[11],[],[]⟩, stamp := none, cause := (.previous 11), cast := false, bindings := [], initFlag := false, allocations := [], headroom := [] },{ act := ⟨10,\"put\",\"@m0\",[7],[(\"k\", (.str \"x\")),(\"v\", (.int (3)))],[]⟩, stamp := (some (10,0)), cause := .absent, cast := false, bindings := [], initFlag := false, allocations := [], headroom := [] }]"
+    },
+    {
+      "case": "concurrent-order-and-duplicate",
+      "acts": 13,
+      "prefix_cut_records": 105,
+      "all_sixteen_outputs_matched_snapshot_and_fullfold": true,
+      "controls": [],
+      "nonempty_union_prefixes": 11,
+      "signer_ranks": [
+        [
+          "@m0",
+          0
+        ],
+        [
+          "@m1",
+          1
+        ]
+      ],
+      "address_ranks": {
+        "sha256-1789ffc642d4360948b2e487974a8e3ed1f320647b209550f5a82850cf0cf167": 1,
+        "sha256-25994579b13e468d52187d440064a485c33c30b85f3729681f1157e9e76f7b5d": 2,
+        "sha256-3152602cf77c8ce05e01e4e62cc7da59f1288a51443d2849537e222d9746872b": 3,
+        "sha256-38310b64f520b7b8559c9f82183c8e6411391fc5949c0a50787a67d0a9ec676a": 4,
+        "sha256-3badea39e6e97187716a9934f557ac54daa8b82f3d8056df995d00f3ca3870ac": 5,
+        "sha256-3c4ccd0a2c2cba2a6d57eda10a88f0abe9117dd73ca413867d76b527cf2d8033": 6,
+        "sha256-3d31d1609e2e51d0dd13aacd9f61ac486ed394fce57ae2a79e2dbd55cdc21713": 7,
+        "sha256-501e4ef742b14917651168ed7dd7895a95eb14fcc9dc238a9f3a2aa0c1abf0be": 8,
+        "sha256-5089a85720224265504f7be9d9e08cbe938a6cb5a126c6537f6782705be354f7": 9,
+        "sha256-b99cb5dd13ebb30194578fe82fd4b0968958a295e8ddee87be346ce6ae546f53": 10,
+        "sha256-cbe0ded958fe3902ac9452167f02cae1d93f30d0628008afe997b4e90343127b": 11,
+        "sha256-d4e3b44a9fdbdc59e47ca96f1f6bf41a07d7b00594f5aa901094b7379b1f6db1": 12
+      },
+      "lean_input_events": "[{ act := ⟨12,\"hello\",\"@m0\",[],[],[]⟩, stamp := none, cause := .absent, cast := true, bindings := [⟨\"issuer\",[\"@m0\"]⟩,⟨\"holder\",[\"@m0\",\"@m1\"]⟩], initFlag := false, allocations := [], headroom := [] },{ act := ⟨7,\"open\",\"@m0\",[12],[(\"title\", (.str \"Drawing\"))],[]⟩, stamp := none, cause := .absent, cast := false, bindings := [], initFlag := true, allocations := [(\"@m0\", (10)),(\"@m1\", (0))], headroom := [(\"@m0\", (5)),(\"@m1\", (5))] },{ act := ⟨3,\"put\",\"@m1\",[7],[(\"k\", (.str \"x\")),(\"v\", (.int (7)))],[]⟩, stamp := (some (10,0)), cause := .absent, cast := false, bindings := [], initFlag := false, allocations := [], headroom := [] },{ act := ⟨4,\"del\",\"@m1\",[7],[(\"k\", (.str \"x\"))],[6]⟩, stamp := none, cause := .absent, cast := false, bindings := [], initFlag := false, allocations := [], headroom := [] },{ act := ⟨10,\"put\",\"@m0\",[7],[(\"k\", (.str \"x\")),(\"v\", (.int (3)))],[]⟩, stamp := (some (10,0)), cause := .absent, cast := false, bindings := [], initFlag := false, allocations := [], headroom := [] },{ act := ⟨5,\"put\",\"@m1\",[7],[(\"k\", (.str \"y\")),(\"v\", (.int (-2)))],[10]⟩, stamp := (some (9,0)), cause := .absent, cast := false, bindings := [], initFlag := false, allocations := [], headroom := [] },{ act := ⟨6,\"put\",\"@m0\",[7],[(\"k\", (.str \"x\")),(\"v\", (.int (5)))],[]⟩, stamp := (some (7,0)), cause := .absent, cast := false, bindings := [], initFlag := false, allocations := [], headroom := [] },{ act := ⟨2,\"del\",\"@m0\",[7],[(\"k\", (.str \"x\"))],[3]⟩, stamp := none, cause := .absent, cast := false, bindings := [], initFlag := false, allocations := [], headroom := [] },{ act := ⟨9,\"tick\",\"@m0\",[7],[],[]⟩, stamp := none, cause := .begin, cast := false, bindings := [], initFlag := false, allocations := [], headroom := [] },{ act := ⟨11,\"tick\",\"@m0\",[9],[],[]⟩, stamp := none, cause := (.previous 9), cast := false, bindings := [], initFlag := false, allocations := [], headroom := [] },{ act := ⟨1,\"down\",\"@m0\",[7],[(\"v\", (.int (2)))],[]⟩, stamp := none, cause := .absent, cast := false, bindings := [], initFlag := false, allocations := [], headroom := [] },{ act := ⟨8,\"tick\",\"@m0\",[11],[],[]⟩, stamp := none, cause := (.previous 11), cast := false, bindings := [], initFlag := false, allocations := [], headroom := [] },{ act := ⟨3,\"put\",\"@m1\",[7],[(\"k\", (.str \"x\")),(\"v\", (.int (7)))],[]⟩, stamp := (some (10,0)), cause := .absent, cast := false, bindings := [], initFlag := false, allocations := [], headroom := [] }]"
+    },
+    {
+      "case": "causal-chain-checkpoints",
+      "acts": 5,
+      "prefix_cut_records": 21,
+      "all_sixteen_outputs_matched_snapshot_and_fullfold": true,
+      "controls": [],
+      "nonempty_union_prefixes": 0,
+      "signer_ranks": [
+        [
+          "@m0",
+          0
+        ]
+      ],
+      "address_ranks": {
+        "sha256-3d31d1609e2e51d0dd13aacd9f61ac486ed394fce57ae2a79e2dbd55cdc21713": 1,
+        "sha256-501e4ef742b14917651168ed7dd7895a95eb14fcc9dc238a9f3a2aa0c1abf0be": 2,
+        "sha256-5089a85720224265504f7be9d9e08cbe938a6cb5a126c6537f6782705be354f7": 3,
+        "sha256-cbe0ded958fe3902ac9452167f02cae1d93f30d0628008afe997b4e90343127b": 4,
+        "sha256-d4e3b44a9fdbdc59e47ca96f1f6bf41a07d7b00594f5aa901094b7379b1f6db1": 5
+      },
+      "lean_input_events": "[{ act := ⟨5,\"hello\",\"@m0\",[],[],[]⟩, stamp := none, cause := .absent, cast := true, bindings := [⟨\"issuer\",[\"@m0\"]⟩,⟨\"holder\",[\"@m0\",\"@m1\"]⟩], initFlag := false, allocations := [], headroom := [] },{ act := ⟨1,\"open\",\"@m0\",[5],[(\"title\", (.str \"Drawing\"))],[]⟩, stamp := none, cause := .absent, cast := false, bindings := [], initFlag := true, allocations := [(\"@m0\", (10)),(\"@m1\", (0))], headroom := [(\"@m0\", (5)),(\"@m1\", (5))] },{ act := ⟨3,\"tick\",\"@m0\",[1],[],[]⟩, stamp := none, cause := .begin, cast := false, bindings := [], initFlag := false, allocations := [], headroom := [] },{ act := ⟨4,\"tick\",\"@m0\",[3],[],[]⟩, stamp := none, cause := (.previous 3), cast := false, bindings := [], initFlag := false, allocations := [], headroom := [] },{ act := ⟨2,\"tick\",\"@m0\",[4],[],[]⟩, stamp := none, cause := (.previous 4), cast := false, bindings := [], initFlag := false, allocations := [], headroom := [] }]"
+    }
+  ]
+}

@@ -1,0 +1,106 @@
+{
+  "status": "research hypotheses, not an approved specification or measured performance result",
+  "problem": "Opening one drawing requires downloading historical messages before folding frontier state.",
+  "elephant_theory": "cbcl-object-checkpoint-research",
+  "findings": [
+    {
+      "id": "snapdoc-authenticated-bootstrap",
+      "claim": "Snapdoc directly addresses authenticated document bootstrap without full signed history; RSA accumulators and Merkle consistency proofs are alternatives to ZK.",
+      "source": "https://martin.kleppmann.com/papers/snapdoc-pets19.pdf",
+      "location": "sections 5 and 6"
+    },
+    {
+      "id": "snapdoc-concurrent-refresh",
+      "claim": "A joiner must request a refreshed snapshot for operations concurrent with its join snapshot; do not assume arbitrary old edits apply directly.",
+      "source": "https://martin.kleppmann.com/papers/snapdoc-pets19.pdf",
+      "location": "section 5.3"
+    },
+    {
+      "id": "automerge-snapshot-tail",
+      "claim": "Automerge repo stores heads-keyed snapshots and incremental chunks, deleting only incorporated chunks; packaging compaction does not establish history-independent size.",
+      "source": "https://automerge.org/docs/reference/under-the-hood/storage/",
+      "location": "Storage model"
+    },
+    {
+      "id": "yjs-state-diff",
+      "claim": "Yjs supports state transfer and differences from state vectors, including binary-only diffing; mergeUpdates does not itself garbage-collect deleted content.",
+      "source": "https://docs.yjs.dev/api/document-updates",
+      "location": "Update API and Alternative Update API"
+    },
+    {
+      "id": "delta-not-arbitrary-fold",
+      "claim": "Delta-state CRDT merging requires appropriate join structure and causal conditions; CBCL set-function folds do not automatically inherit this structure.",
+      "source": "https://arxiv.org/abs/1603.01529",
+      "location": "abstract and framework"
+    },
+    {
+      "id": "delta-redundancy",
+      "claim": "Delta propagation can waste enough bandwidth to resemble full state transfer; measure actual bytes and duplicate propagation.",
+      "source": "https://arxiv.org/abs/1803.02750",
+      "location": "abstract"
+    },
+    {
+      "id": "hash-heads-not-state-proof",
+      "claim": "Hash DAG heads commit to update ancestry; they do not alone prove that a supplied materialized state is the fold of that ancestry.",
+      "source": "https://martin.kleppmann.com/papers/bft-crdt-papoc22.pdf",
+      "location": "section 3.1; state-proof distinction is our inference"
+    },
+    {
+      "id": "cbcl-output-not-resume-state",
+      "claim": "CBCL fold returns projected values, while replacement selection uses key/address identities and dedup uses accepted addresses; displayed values are insufficient as generic resumable state.",
+      "source": "crates/cbcl-core/src/state.rs",
+      "location": "dedup_by_address, Kernel::current, Kernel::pick, fold"
+    },
+    {
+      "id": "object-members-not-validator-roster",
+      "claim": "Do not assume drawing collaborators are the quorum-runtime validator roster or that a bounded Byzantine fraction applies to them.",
+      "source": "docs/reference/quorum-runtime.md",
+      "location": "Context and defaults; applicability warning is our inference"
+    }
+  ],
+  "proposal": {
+    "unit": "object/thread",
+    "bootstrap": "independently verifiable checkpoint manifest plus materialized resume state plus causal tail",
+    "manifest_fields": [
+      "object/thread identity",
+      "dialect hash",
+      "fold and canonical encoding versions",
+      "authenticated membership policy/epoch",
+      "covered frontier",
+      "state root",
+      "causal/resume metadata root",
+      "optional external dependency commitments"
+    ],
+    "endorsement": "exact same manifest; compare only identical cuts; cached endorsements collected before open; quorum only under explicit pinned roster and fault policy",
+    "tail": "all uncovered target ancestry, including concurrent branches; covered-dependency witnesses must stop recursive pre-checkpoint fetch",
+    "concurrency": "different cuts can coexist; no globally selected checkpoint required",
+    "first_phase": "retain archival history, optimize client transfer; postpone deletion",
+    "security_boundary": "endorsements attest a computation under signer trust; hashes and inclusion proofs alone do not prove fold correctness or global freshness"
+  },
+  "open_questions": [
+    "What drawing dialect and exact fold rules are in use?",
+    "What checkpoint signer trust policy is authorized for object members?",
+    "What compact metadata suffices for admission, replacements, deduplication and future edits?",
+    "How are covered ancestry, exclusion and external references witnessed without replay?",
+    "How are membership changes authenticated without an unbounded bootstrap chain?",
+    "How can recent checkpoints remain available when enough endorsers are offline?"
+  ],
+  "experiment": {
+    "workloads": [
+      "fixed visible drawing, increasing overwrite/delete history",
+      "increasing live strokes at fixed history ratio",
+      "offline concurrent edits crossing checkpoint cut",
+      "replays and references to replaced/deleted identities",
+      "divergent checkpoints and membership changes"
+    ],
+    "metrics": [
+      "cold-open bytes and request round trips",
+      "time to first render and authenticated editable state separately",
+      "tail bytes and apply time",
+      "resume metadata size vs history",
+      "checkpoint producer CPU and attestation traffic",
+      "archive dependency fetches"
+    ],
+    "acceptance": "Full replay and checkpoint-plus-tail agree on render, admission and subsequent edits; for fixed live content and a maintained checkpoint policy, cold-open must not require replay or transfer of the covered message history. No latency target is yet ratified."
+  }
+}

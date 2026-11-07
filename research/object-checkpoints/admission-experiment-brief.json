@@ -1,0 +1,27 @@
+{
+  "status": "experiment in progress",
+  "hypothesis": "A cached member certificate can bound cold-open independently of a stale member, while native signed causal envelopes preserve admission decisions without fetching covered payloads.",
+  "comparison": [
+    "fixed f=1 roster of four; cached three-of-four target checkpoint certificate",
+    "same target state reconstructed from all four pinned members signed cuts, including long-offline member"
+  ],
+  "fixture": "Bounded repeated drawing operations with genuine signatures, cast, R5/R6/R7 checks and AdmissionMonitor replay oracle.",
+  "metrics": [
+    "JSON snapshot bytes including dependency envelopes and witnesses",
+    "median decode/verification/tail-admission time",
+    "covered body fetches instrumented at archive",
+    "covered envelope fetches and bytes",
+    "stale member bridge acts",
+    "same input history baseline full authenticate/admit/fold time"
+  ],
+  "exit_criteria": [
+    "accepted, unknown, rejected tail cases match full accepted-history oracle",
+    "wrong signatures, context, header coverage and causal chains fail closed",
+    "stale edit, replay, concurrent delete/replace and equivocation pair preserved",
+    "bounded depth and long-lag matrix run",
+    "independent adversarial review and failing mutation tests"
+  ],
+  "scope": "Isolated experimental adapter; do not seed or weaken production AdmissionMonitor. Cached accepted-set roots rely on explicit signer trust. No new production garbage collection or membership protocol.",
+  "next_step": "Use results to choose between cached certificates and more elaborate reconstruction; production integration requires a separate specification.",
+  "timebox": "one implementation and adversarial-review cycle"
+}

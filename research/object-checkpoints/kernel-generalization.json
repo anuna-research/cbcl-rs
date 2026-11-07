@@ -1,0 +1,27 @@
+{
+  "status": "research hypothesis, not a specification or demonstrated generalization",
+  "source": "https://www.usenix.org/system/files/osdi26-cottone.pdf",
+  "kernel_observation": "state::fold is a projection over accepted acts; replacement identities, admission evidence and equivocation accountability are separate semantic obligations.",
+  "generalization": "Authenticated reconstruction of signed member views plus verified continuation, with rule-specific summaries and compaction laws.",
+  "candidate_contracts": [
+    "render(summary(H)) = fold(H)",
+    "render(advance(summary(H), D)) = fold(H union D) for admissible uncovered D, including duplicates and concurrent branches",
+    "Authenticated reconstruction of each required member view from snapshot evidence",
+    "Compaction preserves continuation, causal admission and accountable evidence; only historical views covered by the reconstruction contract may be forgotten"
+  ],
+  "semantic_mismatches": [
+    "Acumen uses per-user causal chains and rejects conflicting forks; CBCL equivocation detection is verdict-neutral and does not exclude both valid members.",
+    "CBCL causal admission is independently checked and can require predecessor closure; an authenticated fold does not replace it.",
+    "Acumen structural reconstruction and tombstone garbage collection are Treedoc-specific.",
+    "Current visible state alone may not reconstruct a lagging member state or aggregate."
+  ],
+  "rule_profiles": {
+    "candidate_first": "ValuesPerKey, RegisterPerKey, ObservedSet and LatestPerSigner with live operation IDs, replacement evidence, scope and causal coverage",
+    "aggregates": "Count and Counter require authenticated contributions or member/cut baselines; scalar totals do not establish completeness or historical reconstruction",
+    "derived": "Histogram and Sum can be recomputed from authenticated complete source maps when these maps are available",
+    "special": "Progress requires causal position evidence; BoundedCounter requires resource certificates and permanent local obligations",
+    "output_sensitive": "Events and grow-only sets may inherently be history-sized"
+  },
+  "prototype": "Fixed-member drawing dialect; independent baseline replay; verify old/concurrent edits, snapshots based on snapshots, unequal GC horizons and equivocation; measure cold-open bytes, metadata size and member-lag dependence.",
+  "scaling_caveat": "Do not claim history-independent space with arbitrarily stale member descriptors, unlimited member growth, growing live output or uncontrolled concurrency."
+}

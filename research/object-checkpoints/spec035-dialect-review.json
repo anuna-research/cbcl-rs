@@ -1,0 +1,74 @@
+{
+  "spec": "specs/SPEC-035-cached-state-checkpoints.md",
+  "version": "0.2.0",
+  "sha256": "55f030052e592d68e5a7d70517d8e3a33330dc27fc5be45f7e93d71d9309f98b",
+  "authorization": "User requested amendment to use a general-purpose built-in checkpoint dialect",
+  "changes": [
+    "Native companion open/propose/endorse/publish grammar, pinned code and target binding",
+    "Portable native endorsement bundle with fixed root/opener bootstrap and no companion-history replay",
+    "Profile-authorized native endorsement signing, separate from ordinary native receipt",
+    "Generic attestation verification separate from profile-specific state installation",
+    "REQ-3514, ADR-3504, CON-3504 and TEST-3517; existing floor/evidence/performance invariants retained"
+  ],
+  "adversarial_review": {
+    "agent": "Einstein / 01a1b0e8-e54e-7960-82e1-631911d18f55",
+    "context": "Specification-only amendment review by prior independent reviewer; no implementation or conversation",
+    "result": "No actionable blockers found",
+    "checked": [
+      "native signed endorsements",
+      "fixed bootstrap verification without companion replay",
+      "pinned scope",
+      "profile authorization distinct from receipt",
+      "no circular hashing or target-history pollution"
+    ],
+    "boundary": "Same-model local review; not cross-model or human production approval"
+  },
+  "orientation_comprehension": {
+    "agent": "Locke / 01a1b0e8-e5e6-7f03-b3f4-302f9d579a51",
+    "context": "Updated Orientation only",
+    "result": "pass",
+    "cases": [
+      "False signed proposal/publication authenticates an assertion without certifying truth",
+      "Valid certificate verifies without companion history; target dependencies may still be needed",
+      "Imported checkpoint alone cannot unlock endorsement",
+      "Missing returning-client branch requires admitted catchup and floor coverage or refusal"
+    ],
+    "division": "Dialect coordinates signed claims; profile defines and verifies semantics; host retrieves, persists and atomically installs"
+  },
+  "validation": {
+    "new_unresolved_links": [],
+    "preexisting_dead_links_unchanged": true,
+    "declared_artifact_anchors": "checked",
+    "zetl_ci_summary": {
+      "dead_links": 27,
+      "orphans": 1,
+      "syntax_errors": 0,
+      "spl_errors": 0,
+      "drift_warnings": 0,
+      "drift_info": 0,
+      "total_spl_blocks": 0,
+      "drifted_blocks_warning": 0,
+      "drifted_blocks_info": 0,
+      "explicitly_grounded_facts": 0,
+      "broken_groundings": 0,
+      "predicate_errors": 0,
+      "predicate_warnings": 0
+    },
+    "language_lint": [
+      "    0.2.0 (2026-11-07): use one built-in checkpoint companion dialect for native   proposals,...",
+      "  warn    sentence_over_limit    29",
+      "          longest_sentence       41 (limit 25, mode descriptive)",
+      "          scanned                441 sentences, 6236 words",
+      "          TOTAL                  0 errors, 29 warnings"
+    ],
+    "git_diff_check": "passed",
+    "runtime_tests": "Not run; specification-only amendment; no runtime changes"
+  },
+  "trajectory": [
+    "Backlink scope inspected and previous draft copied before editing",
+    "Coordination and certificate contracts amended together",
+    "Legacy detached-vote references removed from normative contract/tests",
+    "Independent document review and Orientation comprehension passed",
+    "Vault and declared-anchor checks passed for the amendment"
+  ]
+}

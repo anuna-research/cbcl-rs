@@ -1,0 +1,52 @@
+{
+  "status": "completed experimental cached-certificate lifecycle",
+  "recommendation": "Pursue cached certificates with incremental publication and measured publication cadence; this experiment supports moving historical replay off the opening path, not eliminating its cost.",
+  "implementation": "tools/object-checkpoint-probe/src/drawing/cached.rs",
+  "run": "cargo run --release -p cbcl-object-checkpoint-probe -- cached",
+  "mechanism": [
+    "Each member independently admits its received messages and derives the proposed causally closed cut before signing context, coverage root, summary hash and canonical frontier.",
+    "Three distinct pinned endorsements from a fixed four-member roster authorize a cached certificate. Opening requires no new endorsements.",
+    "Content-addressed filesystem certificates support fallback when the latest published blob is physically removed, followed by authenticated tail admission.",
+    "Membership proofs under the final post-tail coverage root preserve every known local frontier head before atomic installation. Successful warm rebase retains previously supplied signed bodies without refolding them.",
+    "Explicit candidate, certificate, tail-step and serialized-tail-byte budgets limit fallback work. Unix cache reads reject symlinks and non-regular files without FIFO blocking."
+  ],
+  "results": "cached-results.json",
+  "six_hundred_edit_observations": {
+    "latest": {
+      "median_open_ms": 5.25,
+      "catchup_messages": 2,
+      "certificate_plus_tail_and_floor_bytes": 74634
+    },
+    "latest_missing_recent_fallback": {
+      "median_open_ms": 34.591,
+      "catchup_messages": 34,
+      "certificate_plus_tail_and_floor_bytes": 256285
+    },
+    "latest_missing_stale_fallback": {
+      "median_open_ms": 410.902,
+      "catchup_messages": 570,
+      "certificate_plus_tail_and_floor_bytes": 2055493
+    },
+    "independent_member_build_ms": 510.934,
+    "proposal_and_independent_endorsements_ms": 1079.567,
+    "installed_frontier_heads": 77
+  },
+  "validation": {
+    "tests": "47 passing; cached-test-output.txt",
+    "mutation_evidence": "All 8 deliberate regressions killed by executed failing tests; cached-mutation-results.json",
+    "clippy": "cargo clippy -p cbcl-object-checkpoint-probe --all-targets -- -D warnings passed",
+    "review": "cached-review-findings.json",
+    "oracle": "Every benchmark scenario checks installed state against full real-core replay outside the timed interval."
+  },
+  "measurement_scope": "Three local repetitions; certificate filesystem read/decode, verification and already-typed tail admission. Tail decoding, pinned public context, offer construction, rendering and oracle assertions excluded. Publication separately measured. Logical cold clients, not OS-cold storage, browser or network measurements.",
+  "limits": [
+    "Experimental code only; production cbcl-core is unchanged.",
+    "Correctness relies on the pinned endorsement policy and honest independent verification, not a succinct proof of computation.",
+    "A local floor prevents losing known history; a fresh client cannot infer globally newest state from an old valid certificate.",
+    "Member reconstruction and endorsement currently rebuild full accepted cuts. Incremental roots and summaries are the next implementation question.",
+    "Cadence and availability determine residual tail costs. Budget exhaustion can refuse an otherwise valid long catchup.",
+    "Frontiers, provider archives and retained signed evidence can grow. This is not a secure garbage-collection or bounded-storage result.",
+    "Fixed four-member roster, f=1; reconfiguration and general-kernel resource counters remain outside scope.",
+    "Unix-specific file hardening is tested; no universal I/O deadline or production crash-durability claim."
+  ]
+}

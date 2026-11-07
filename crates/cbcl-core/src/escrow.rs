@@ -274,6 +274,115 @@ pub fn allocations(x: &SExpr) -> Result<BTreeMap<String, i128>, String> {
     }
     Ok(m)
 }
+/// Rule-relevant projection of an authenticated, identity-checked native act.
+/// No Message or application content is retained. `identity` commits the original
+/// canonical Simple identity for duplicate checks; signature bytes are absent.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(deny_unknown_fields))]
+pub struct ResourceFact {
+    pub address: String,
+    pub verb: String,
+    pub signer: String,
+    pub predecessors: Vec<String>,
+    pub fields: BTreeMap<String, SExpr>,
+    pub language: Option<String>,
+    pub thread: Option<String>,
+    pub from: Option<SExpr>,
+    pub bindings: Option<Vec<SExpr>>,
+    pub identity: [u8; 32],
+}
+
+/// Check a complete incoming Act before discarding any of its payload.
+pub fn project_resource_fact(c: &CounterRule, a: &Act) -> Result<Option<ResourceFact>, String> {
+    let rebuilt = Act::from_message(a.message.clone(), &a.signer)?;
+    if rebuilt != *a {
+        return Err(String::from("inconsistent act identity"));
+    }
+    Ok(project_unchecked(c, a))
+}
+/// Canonical state-index spelling for native resource links. Transport accepts
+/// native colon addresses as well as state-wire dash addresses; verification
+/// must resolve both against Act::address rather than classify an alias missing.
+pub fn resource_state_id(id: &str) -> String {
+    if let Some(hex) = id.strip_prefix("sha256:") {
+        if hex.len() == 64
+            && hex
+                .bytes()
+                .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+        {
+            return format!("sha256-{hex}");
+        }
+    }
+    id.into()
+}
+fn projected_link(x: &SExpr) -> SExpr {
+    match x {
+        SExpr::Atom(Atom::Str(s)) => SExpr::Atom(Atom::Str(resource_state_id(s))),
+        SExpr::Atom(Atom::Symbol(s)) => SExpr::Atom(Atom::Symbol(resource_state_id(s))),
+        _ => x.clone(),
+    }
+}
+// Canonical native Simple identity, not a wire-AST representation tag. Native
+// typed identity already equates One/singleton Set, None/empty Set, and core/
+// custom performative aliases. Fact snapshots must not split on those aliases.
+// observe() retains its separate raw-attempt conflict diagnostics; projection
+// continuation is over the identity-consistent accepted store. A raw attempt
+// list is a diagnostic input to observe(), not this accepted-store contract.
+fn simple_identity(m: &Message) -> [u8; 32] {
+    use sha2::{Digest, Sha256};
+    Sha256::digest(crate::equivocation::message_content_hash(m).as_bytes()).into()
+}
+fn project_unchecked(c: &CounterRule, a: &Act) -> Option<ResourceFact> {
+    let bindings = cast(&a.message);
+    if !c.verbs().contains(&a.verb.as_str()) && bindings.is_none() {
+        return None;
+    }
+    let identity = simple_identity(a.simple());
+    let mut names: BTreeSet<&str> = c
+        .data_fields()
+        .into_iter()
+        .filter(|(v, _)| *v == a.verb)
+        .map(|(_, k)| k)
+        .collect();
+    names.extend([PREV, DEPS]);
+    Some(ResourceFact {
+        address: a.address.clone(),
+        verb: a.verb.clone(),
+        signer: a.signer.clone(),
+        predecessors: a
+            .predecessors
+            .iter()
+            .map(|id| resource_state_id(id))
+            .collect(),
+        fields: a
+            .fields
+            .iter()
+            .filter(|(k, _)| names.contains(k.as_str()))
+            .map(|(k, v)| {
+                (
+                    k.clone(),
+                    if k == PREV {
+                        projected_link(v)
+                    } else if k == DEPS {
+                        match v {
+                            SExpr::List(xs) => SExpr::List(xs.iter().map(projected_link).collect()),
+                            _ => v.clone(),
+                        }
+                    } else {
+                        v.clone()
+                    },
+                )
+            })
+            .collect(),
+        language: lang(&a.message).map(String::from),
+        thread: a.simple().thread().map(String::from),
+        from: raw_field(a.simple(), "from").cloned(),
+        bindings: bindings.map(|xs| xs.to_vec()),
+        identity,
+    })
+}
+
 #[derive(Clone, Copy)]
 enum Kind {
     Increment,
@@ -282,14 +391,17 @@ enum Kind {
     Headroom,
 }
 struct Node<'a> {
-    act: &'a Act,
+    act: &'a ResourceFact,
     prev: String,
     deps: Vec<String>,
     kind: Kind,
     amount: i128,
     recipient: Option<String>,
 }
-fn operation<'a>(c: &CounterRule, a: &'a Act) -> Option<(Kind, &'a SExpr, Option<&'a SExpr>)> {
+fn operation<'a>(
+    c: &CounterRule,
+    a: &'a ResourceFact,
+) -> Option<(Kind, &'a SExpr, Option<&'a SExpr>)> {
     let (kind, key, recipient) = if a.verb == c.increment.0 {
         (Kind::Increment, c.increment.1.as_str(), None)
     } else if a.verb == c.decrement.0 {
@@ -484,11 +596,31 @@ pub fn observe(c: &CounterRule, acts: &[Act]) -> Outcome {
             }
         }
     }
-    let openers: Vec<_> = all
+    let facts: BTreeMap<String, ResourceFact> = all
         .values()
-        .filter(|a| a.verb == c.initial_verb)
-        .copied()
+        .filter_map(|a| project_unchecked(c, a).map(|f| (f.address.clone(), f)))
         .collect();
+    observe_facts(c, &facts, |id| all.contains_key(id))
+}
+
+/// Minimal observation inputs, not signed evidence or resource finality authority.
+/// `present` denotes accepted identities, including non-resource dependencies.
+/// Callers importing a certified projection must pin its rule and provenance.
+pub fn observe_facts<F: Fn(&str) -> bool>(
+    c: &CounterRule,
+    all: &BTreeMap<String, ResourceFact>,
+    present: F,
+) -> Outcome {
+    if c.ownership == Ownership::Collective {
+        return fault(
+            "collective counter requires the certificate runtime",
+            Vec::new(),
+        );
+    }
+    if c.certification.is_quorum() {
+        return fault("quorum-budget requires an explicit certificate runtime; legacy fold cannot prove finality", Vec::new());
+    }
+    let openers: Vec<_> = all.values().filter(|a| a.verb == c.initial_verb).collect();
     if openers.is_empty() {
         return Outcome::Pending(Vec::new());
     }
@@ -506,9 +638,13 @@ pub fn observe(c: &CounterRule, acts: &[Act]) -> Outcome {
         );
     }
     let Some(root) = all.get(op.predecessors[0].as_str()) else {
-        return Outcome::Pending(op.predecessors.clone());
+        return if present(&op.predecessors[0]) {
+            fault("missing authenticated cast", op.predecessors.clone())
+        } else {
+            Outcome::Pending(op.predecessors.clone())
+        };
     };
-    let Some(bindings) = cast(&root.message) else {
+    let Some(bindings) = root.bindings.as_deref() else {
         return fault(
             "missing authenticated cast",
             alloc::vec![root.address.clone()],
@@ -598,16 +734,13 @@ pub fn observe(c: &CounterRule, acts: &[Act]) -> Outcome {
         .values()
         .filter(|a| c.operation_verbs().contains(&a.verb.as_str()))
     {
-        if a.simple().thread() != op.simple().thread()
-            || lang(&a.message) != lang(&op.message)
-            || !initial.contains_key(&a.signer)
-        {
+        if a.thread != op.thread || a.language != op.language || !initial.contains_key(&a.signer) {
             return fault(
                 "foreign resource instance or account",
                 alloc::vec![a.address.clone()],
             );
         }
-        if raw_field(a.simple(), "from").and_then(text) != Some(a.signer.as_str()) {
+        if a.from.as_ref().and_then(text) != Some(a.signer.as_str()) {
             return fault(
                 "resource signer disagrees with :from",
                 alloc::vec![a.address.clone()],
@@ -697,7 +830,7 @@ pub fn observe(c: &CounterRule, acts: &[Act]) -> Outcome {
                         alloc::vec![n.act.address.clone(), dep.clone()],
                     );
                 }
-            } else if all.contains_key(dep.as_str()) {
+            } else if all.contains_key(dep.as_str()) || present(dep) {
                 return fault(
                     "foreign resource dependency",
                     alloc::vec![n.act.address.clone(), dep.clone()],
@@ -1170,10 +1303,12 @@ pub fn observe_in(
     // Validate the actual cast against installed role cardinalities, rather
     // than interpreting arbitrary binding lists as a valid cast.
     for opener in acts.iter().filter(|a| a.verb == c.initial_verb) {
-        for root in acts
-            .iter()
-            .filter(|a| opener.predecessors.contains(&a.address))
-        {
+        for root in acts.iter().filter(|a| {
+            opener
+                .predecessors
+                .iter()
+                .any(|id| resource_state_id(id) == a.address)
+        }) {
             if root.verb != "hello"
                 || root.simple().thread() != Some(thread)
                 || !root.predecessors.is_empty()

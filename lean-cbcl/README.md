@@ -368,3 +368,58 @@ providers are insufficient. See SPEC-037 and
 ```sh
 python3 ../scripts/check-state-kernel-sec.py
 ```
+
+## Cached checkpoint continuation
+
+`CheckpointAll.render_advance_checkpoint` proves the continuation law for all
+16 native state rule heads. `render_advance_wellformed_clause` and
+`resolve_fields_complete` connect every well-formed, domain-free native clause
+with distinct field names to the existing ordered compiler and evaluator.
+Histogram/sum resolve earlier map sources; events use selected ID/signer/value
+records. The earlier seven-head `CheckpointKernel` proof remains a dependency and
+historical profile, rather than the limit of the new theorem.
+
+```text
+render(advance(checkpoint(fields, history), tail))
+  = fullFold(fields, history ++ tail)
+```
+
+The theorem derives the continuation invariant from genesis and actual updates.
+It does not take the desired law as a premise. Snapshot data contains finite
+rows, identity membership and projected protocol/resource facts, with no retained
+full-history closure. Sets and maps are compared as semantic values; enumeration
+order, JSON bytes and serialized checkpoint digests remain separate boundaries.
+
+`CheckpointData` proves compact exists/count/counter/set-union and projected event
+invariants. `CheckpointSummary` proves replacement-sensitive live rows and pending
+references, including delayed targets and duplicate coverage. `CheckpointCompact`
+proves bounded initial ambiguity witnesses and the plain HLC winner. Map rules
+retain losing unreplaced candidates because deleting a winner may expose a loser.
+
+`CheckpointEvidence` proves exact projected evidence transport and native
+`Repeat.resolve` continuation. `CheckpointAll.position_advance_checkpoint` exposes
+that result directly. The Rust repeat cache requires native-admitted, causally
+closed histories; the model's arbitrary metadata histories are a broader domain.
+Resource facts are transported through the same fixed classifier port on both
+sides, as in the existing native kernel model. Native resource extraction,
+classification/finalization and cryptography are explicit obligations outside
+this theorem; object certificates never create spend authority. The shared Rust
+escrow verifier factorization and bounded parity tests provide correspondence
+evidence, not a universal Rust extraction proof.
+
+Clock decoding and signer ordering remain fixed typed ports. Domains and global
+all-occupant fan-in remain outside the checkpoint implementation profile. Output,
+event metadata, protocol facts and resource facts can grow with their respective
+state; the theorem makes no constant-storage or resource-verification-time claim.
+
+```sh
+lake build LeanCbcl
+lake exe runLinter LeanCbcl
+lake env lean -t 0 LeanCbcl/CheckpointAllTests.lean
+../scripts/check-axioms.sh
+python3 ../scripts/check-checkpoint-all16.py
+```
+
+See `proofs/cached-checkpoints/all16-lean-checks.json` for source bindings,
+trust-zero checks, allowed axioms and semantic proof mutations. The older
+`lean-proof-checks.json` records the earlier seven-head profile separately.
