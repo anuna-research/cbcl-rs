@@ -1,0 +1,25 @@
+[package]
+name = "cbcl-vote-host"
+version = "0.0.0"
+edition = "2021"
+[features]
+zk = ["jolt-prover/zk", "jolt-verifier/zk"]
+[dependencies]
+vote-common = { package = "private-vote-common", path = "../common" }
+anyhow = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+postcard = { version = "1", features = ["use-std"] }
+bincode = { version = "2", features = ["serde"] }
+common = { path = "../../common", features = ["std"] }
+jolt-host = { path = "../../crates/jolt-host" }
+jolt-program = { path = "../../crates/jolt-program" }
+jolt-prover = { path = "../../crates/jolt-prover" }
+jolt-verifier = { path = "../../crates/jolt-verifier" }
+jolt-crypto = { path = "../../crates/jolt-crypto" }
+jolt-dory = { path = "../../crates/jolt-dory" }
+jolt-field = { path = "../../crates/jolt-field", features = ["bn254"] }
+jolt-transcript = { path = "../../crates/jolt-transcript", features = ["prover-grinding"] }
+jolt-witness = { path = "../../crates/jolt-witness" }
+tracer = { path = "../../tracer" }

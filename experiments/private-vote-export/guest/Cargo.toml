@@ -1,0 +1,19 @@
+[package]
+name = "cbcl-vote-guest"
+version = "0.0.0"
+edition = "2021"
+[features]
+guest = []
+[dependencies]
+jolt = { package = "jolt-sdk", path = "../../jolt-sdk" }
+vote-common = { package = "private-vote-common", path = "../common" }
+serde_json = { version = "1", default-features = false, features = ["alloc"] }
+[lib]
+test = false
+doctest = false
+bench = false
+[[bin]]
+name = "cbcl-vote-guest"
+path = "src/main.rs"
+test = false
+bench = false
