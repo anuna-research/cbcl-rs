@@ -72,8 +72,8 @@ A payment cites the `open` act. The binder adds `:escrow-prev` and `:escrow-deps
 (signed @treasury
   (lang example-coin
     (pay (@alice @bob @treasury) ()
-      :recipient @alice
       :amount 100
+      :recipient @alice
       :escrow-prev sha256-a9d6de157c34d0473ad88f651a6701c40415978732593f22bf77b4fb0a448ca5
       :escrow-deps ()
       :from @treasury
@@ -81,7 +81,7 @@ A payment cites the `open` act. The binder adds `:escrow-prev` and `:escrow-deps
       :caused-by sha256-a9d6de157c34d0473ad88f651a6701c40415978732593f22bf77b4fb0a448ca5)))
 ```
 
-Hosts do not write these by hand. `intend` completes a verb and its business fields into the canonical act above, ready for the host to sign and publish:
+Keyword order is part of the content address, so a hand-written act with the same fields in a different order is a different act. Hosts do not write these by hand: `intend` completes a verb and its business fields into the canonical act above, ready for the host to sign and publish:
 
 ```rust
 let inst = Instance::new(&dialect, ThreadId("coin-1".into()), &accepted_acts)?;
