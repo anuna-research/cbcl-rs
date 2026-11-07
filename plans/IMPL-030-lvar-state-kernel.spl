@@ -5,7 +5,7 @@
 
 (meta plan
   (id "IMPL-030")
-  (title "LVar state kernel: lattice algebra, threshold reads, freeze, conflict top (SPEC-038 v0.1.0)")
+  (title "LVar state kernel (SPEC-038 v0.1.0): lattice algebra, threshold reads, freeze, conflict top, user lattices")
   (version "0.1.0")
   (status "active")
   (created "2026-11-07")

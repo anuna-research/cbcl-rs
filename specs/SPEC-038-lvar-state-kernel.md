@@ -1,21 +1,23 @@
 ---
 id: SPEC-038
-title: The state kernel as a store of lattice variables
+title: LVar state kernel
 status: draft
 version: 0.1.0
 last-updated: 2026-11-07
 ---
 
-# The state kernel as a store of lattice variables
+# LVar state kernel
 
 ## Orientation
 
-Intent: restate the R7 state kernel of [[SPEC-019-state-rules]] as a store of
-lattice variables in the sense of [[LVars]], so that every state field is a
-term in one closed lattice algebra, every observation is either a threshold
-read or a read after a freeze, and the kernel's guarantee is
-quasi-determinism: replicas with equal accepted sets observe equal values,
-and any two replicas observe either the same value or an attributable fault.
+Intent: an LVar state kernel. Each state field is a lattice variable in the
+sense of [[LVars]], written only by joining the contributions of
+authenticated, admitted acts, read only through threshold reads or after an
+attributable freeze, and quasi-deterministic: replicas with equal accepted
+sets observe equal values, and any two replicas observe either the same value
+or an attributable conflict. This restates the R7 kernel of
+[[SPEC-019-state-rules]]; every state field becomes a term in one closed
+lattice algebra.
 The named failure is **a displayed value that an application acts on as if it
 were final when the accepted set can still revise it**. Today the fold is a
 set function but says nothing about which of its outputs may be acted on; the
