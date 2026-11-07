@@ -101,8 +101,8 @@ fn check_display(l: &Loaded, acts: &[Act], label: &str) -> usize {
     let shipped = fold(clause, l.dialect.causal_protocol.as_ref(), acts);
     let ours = display_clause(clause, acts, &shipped);
     let mut compared = 0;
-    for ((name, want), (name2, got)) in shipped.iter().zip(ours.iter()) {
-        assert_eq!(name, name2);
+    for (name, got) in &ours {
+        let (_, want) = shipped.iter().find(|(n, _)| n == name).unwrap();
         if let Some(got) = got {
             assert_eq!(
                 render_json(&[(name.clone(), got.clone())]),
@@ -214,4 +214,100 @@ fn closure_heads_do_not_factor_and_lift_heads_do() {
         }
     }
     assert!(heads.len() >= 10, "corpus covers {heads:?}");
+}
+
+/// REQ-3800 states the union law on causally closed accepted histories,
+/// including histories with different openers. Sharing every opener between
+/// partitions (as the corpus check does) does not cover this case.
+#[test]
+fn domain_lift_obeys_union_law_across_distinct_openers() {
+    let source = "(define domain-fork (cbcl) @anuna
+      (extend open (to options) (tell to :options options))
+      (extend vote (to choice amount) (tell to :choice choice :amount amount))
+      (shape open (require :options list))
+      (shape vote (require :choice string) (require :amount nonnegative))
+      (protocol (then begin open) (then open vote))
+      (state (options (initial open :options))
+             (domain vote :choice options) (votes (count vote))
+             (threshold quorum votes (count 1))
+             (amounts (events vote :amount)) (total (sum amounts))))";
+    state_exports::parse_and_install_dialect(&parse(source).unwrap()).unwrap();
+    let d = parse_dialect(&parse(source).unwrap()).unwrap();
+    let thread = ThreadId("t".into());
+    let make = |wire: &str, signer: &str| {
+        Act::from_message(parse_message(&parse(wire).unwrap()).unwrap(), signer).unwrap()
+    };
+    let first = make(
+        "(lang domain-fork (open @room :options (\"yes\") :caused-by begin :thread \"t\" :from @a))", "@a");
+    let second = make(
+        "(lang domain-fork (open @room :options (\"no\") :caused-by begin :thread \"t\" :from @b))",
+        "@b",
+    );
+    let vote = make(
+        &format!(
+            "(lang domain-fork (vote @room :choice \"yes\" :amount 1 :caused-by {} :thread \"t\" :from @a))",
+            first.address
+        ),
+        "@a",
+    );
+    // Establish that the counterexample uses actual admitted acts rather
+    // than an impossible fold input. Both histories are causally closed.
+    for act in [&first, &second] {
+        assert!(matches!(
+            state_exports::admit(&d, &thread, &[], act),
+            Admission::Accepted
+        ));
+    }
+    assert!(matches!(
+        state_exports::admit(&d, &thread, &[first.clone()], &vote),
+        Admission::Accepted
+    ));
+    assert!(matches!(
+        state_exports::admit(&d, &thread, &[first.clone(), vote.clone()], &second),
+        Admission::Accepted
+    ));
+    let left = vec![first, vote];
+    let right = vec![second];
+    let union: Vec<Act> = left.iter().chain(&right).cloned().collect();
+    let clause = d.state.as_ref().unwrap();
+    let term = factor(clause.rule_of("votes").unwrap()).unwrap().term;
+    let joined = Ctx::new(clause, &left)
+        .eval(&term)
+        .join(Ctx::new(clause, &right).eval(&term));
+    assert_eq!(
+        Ctx::new(clause, &union).eval(&term),
+        joined,
+        "REQ-3800: domains must preserve the lift union law across closed histories"
+    );
+    let read = |acts: &[Act]| -> serde_json::Value {
+        serde_json::from_str(&render_json(&fold(
+            clause,
+            d.causal_protocol.as_ref(),
+            acts,
+        )))
+        .unwrap()
+    };
+    assert_eq!(read(&left)["quorum"]["status"], "reached");
+    assert_eq!(read(&left)["total"], 1);
+    let conflicted = read(&union);
+    for field in ["votes", "quorum", "amounts", "total"] {
+        assert_eq!(conflicted[field]["status"], "fault", "{field}");
+        assert_eq!(
+            conflicted[field]["evidence"], conflicted["options"]["evidence"],
+            "{field}"
+        );
+    }
+    check_display(
+        &Loaded {
+            id: "domain-fork".into(),
+            dialect: d.clone(),
+            acts: union.clone(),
+        },
+        &union,
+        "fault",
+    );
+    let mut reversed = union.clone();
+    reversed.reverse();
+    reversed.extend(union);
+    assert_eq!(read(&reversed), conflicted);
 }

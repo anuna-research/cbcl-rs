@@ -30,10 +30,10 @@
 //! replacer of the same group names in `:replaces`. `current = W \ R` is a
 //! projection, not a join.
 //!
-//! The morphism law is stated on causally closed accepted sets (SPEC-038
-//! REQ-3800): a domain selector reads the opener's `initial` field, so two
-//! halves that separate the opener from the acts it governs are not both
-//! histories. Admission only ever produces closed sets.
+//! Domain-governed terms retain raw accepted acts under union. Initializer
+//! evidence and contributions remain present even when a later opener
+//! conflicts. Filtering is a read operation; conflicts propagate to dependent
+//! displays and thresholds (SPEC-038 ADR-3805).
 
 #![forbid(unsafe_code)]
 
@@ -85,6 +85,9 @@ pub enum L {
     Replaced(BTreeSet<(String, String)>),
     /// The unique-opener carrier.
     Sole(Sole),
+    /// Domain-governed contributions retain raw evidence; filtering is a
+    /// read/display operation (SPEC-038 ADR-3805).
+    History(BTreeMap<String, Act>),
     Pair(Box<L>, Box<L>),
 }
 
@@ -94,6 +97,10 @@ impl L {
     pub fn join(self, other: L) -> L {
         match (self, other) {
             (L::Bool(a), L::Bool(b)) => L::Bool(a || b),
+            (L::History(mut a), L::History(b)) => {
+                a.extend(b);
+                L::History(a)
+            }
             (L::Addrs(mut a), L::Addrs(b)) => {
                 a.extend(b);
                 L::Addrs(a)
@@ -359,6 +366,7 @@ pub fn factor(rule: &Rule) -> Option<Factored> {
 pub struct Ctx<'a> {
     acts: BTreeMap<String, &'a Act>,
     domains: Vec<(String, String, Vec<Value>)>,
+    domain_faults: Vec<(String, Value)>,
 }
 
 impl<'a> Ctx<'a> {
@@ -370,14 +378,22 @@ impl<'a> Ctx<'a> {
         let bare = Ctx {
             acts: unique.clone(),
             domains: Vec::new(),
+            domain_faults: Vec::new(),
         };
         let mut domains = Vec::new();
+        let mut domain_faults = Vec::new();
         for (verb, key, field) in clause.domains() {
             let allowed = match clause.rule_of(field).and_then(factor) {
-                Some(fd) => match bare.display(&fd, &[]) {
-                    Value::List(items) | Value::Set(items) => items,
-                    _ => Vec::new(),
-                },
+                Some(fd) => {
+                    let value = bare.display(&fd, &[]);
+                    if value.fault_evidence().is_some() {
+                        domain_faults.push((String::from(verb), value.clone()));
+                    }
+                    match value {
+                        Value::List(items) | Value::Set(items) => items,
+                        _ => Vec::new(),
+                    }
+                }
                 None => Vec::new(),
             };
             domains.push((String::from(verb), String::from(key), allowed));
@@ -385,6 +401,7 @@ impl<'a> Ctx<'a> {
         Ctx {
             acts: unique,
             domains,
+            domain_faults,
         }
     }
 
@@ -508,21 +525,54 @@ impl<'a> Ctx<'a> {
 
     /// The join half of a term over this context's accepted acts.
     pub fn eval(&self, term: &Term) -> L {
+        if self.domain_governed(term) {
+            return L::History(
+                self.acts
+                    .iter()
+                    .map(|(addr, act)| (addr.clone(), (*act).clone()))
+                    .collect(),
+            );
+        }
+        self.read_carrier(term)
+    }
+
+    fn domain_governed(&self, term: &Term) -> bool {
+        match term {
+            Term::Lift(selects, _) => selects
+                .iter()
+                .any(|s| !s.raw && self.domains.iter().any(|(verb, _, _)| *verb == s.verb)),
+            Term::Pair(a, b) => self.domain_governed(a) || self.domain_governed(b),
+            Term::Earlier(_) => false,
+        }
+    }
+
+    /// The successful read of retained evidence after resolving domains.
+    /// Callers check dependency faults before interpreting this carrier.
+    pub fn read_carrier(&self, term: &Term) -> L {
         match term {
             Term::Lift(selects, c) => selects
                 .iter()
                 .flat_map(|s| self.selected(s))
                 .fold(Self::bottom(c), |acc, a| acc.join(Self::contribute(a, c))),
-            Term::Pair(a, b) => L::Pair(Box::new(self.eval(a)), Box::new(self.eval(b))),
+            Term::Pair(a, b) => L::Pair(
+                Box::new(self.read_carrier(a)),
+                Box::new(self.read_carrier(b)),
+            ),
             Term::Earlier(_) => L::Bool(false),
         }
     }
 
     /// The displayed value: the post-map applied to the join.
     pub fn display(&self, f: &Factored, done: &[(String, Value)]) -> Value {
+        if let Some(fault) = self.term_fault(&f.term) {
+            return fault;
+        }
         match &f.term {
             Term::Earlier(field) => {
                 let earlier = done.iter().find(|(n, _)| n == field).map(|(_, v)| v);
+                if let Some(value) = earlier.filter(|v| v.fault_evidence().is_some()) {
+                    return value.clone();
+                }
                 match &f.post {
                     Post::Histogram => histogram(earlier),
                     Post::Sum => Value::Int(match earlier {
@@ -534,8 +584,59 @@ impl<'a> Ctx<'a> {
                     _ => Value::Absent,
                 }
             }
-            _ => self.post(&self.eval(&f.term), &f.post),
+            _ => self.post(&self.read_carrier(&f.term), &f.post),
         }
+    }
+
+    fn term_fault(&self, term: &Term) -> Option<Value> {
+        let mut evidence = BTreeSet::new();
+        self.collect_term_faults(term, &mut evidence);
+        (!evidence.is_empty()).then(|| {
+            crate::state::conflict_top("initializer conflict", evidence.into_iter().collect())
+        })
+    }
+
+    fn collect_term_faults(&self, term: &Term, evidence: &mut BTreeSet<String>) {
+        match term {
+            Term::Lift(selects, _) => {
+                for s in selects.iter().filter(|s| !s.raw) {
+                    for (_, fault) in self
+                        .domain_faults
+                        .iter()
+                        .filter(|(verb, _)| *verb == s.verb)
+                    {
+                        if let Some(addresses) = fault.fault_evidence() {
+                            evidence.extend(addresses);
+                        }
+                    }
+                }
+            }
+            Term::Pair(a, b) => {
+                self.collect_term_faults(a, evidence);
+                self.collect_term_faults(b, evidence);
+            }
+            Term::Earlier(_) => {}
+        }
+    }
+
+    pub fn rule_fault(&self, rule: &Rule) -> Option<Value> {
+        if let Some(f) = factor(rule) {
+            return self.term_fault(&f.term);
+        }
+        let verbs = rule.verbs();
+        let mut evidence = BTreeSet::new();
+        for (_, fault) in self
+            .domain_faults
+            .iter()
+            .filter(|(verb, _)| verbs.contains(&verb.as_str()))
+        {
+            if let Some(addresses) = fault.fault_evidence() {
+                evidence.extend(addresses);
+            }
+        }
+        (!evidence.is_empty()).then(|| {
+            crate::state::conflict_top("initializer conflict", evidence.into_iter().collect())
+        })
     }
 
     fn post(&self, l: &L, post: &Post) -> Value {
@@ -690,4 +791,246 @@ pub fn display_clause(
         out.push((String::from(name), v));
     }
     out
+}
+
+// ---------------------------------------------------------------------------
+// Threshold reads (SPEC-038 REQ-3802, CON-3801)
+// ---------------------------------------------------------------------------
+
+/// The carrier a field's term lifts into, named for typing a threshold
+/// element against it (SPEC-038 REQ-3802: typed against the carrier, never
+/// the display). The two closure heads have no summarising carrier
+/// (REQ-3808); they are named by their closure so that `progress n` and a
+/// resource `fault` can be typed.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Carrier {
+    Bool,
+    Addrs,
+    Vals,
+    Entries,
+    Amounts,
+    Chain,
+    Writes,
+    Replaced,
+    Sole,
+    Pair(Box<Carrier>, Box<Carrier>),
+    /// The act set under the `progress` closure.
+    Progress,
+    /// The act set under the `bounded-counter` closure.
+    Resource,
+}
+
+impl Carrier {
+    /// The carrier's name in the wire grammar of CON-3801.
+    pub fn name(&self) -> String {
+        match self {
+            Carrier::Bool => String::from("bool"),
+            Carrier::Addrs => String::from("addrs"),
+            Carrier::Vals => String::from("vals"),
+            Carrier::Entries => String::from("entries"),
+            Carrier::Amounts => String::from("amounts"),
+            Carrier::Chain => String::from("chain"),
+            Carrier::Writes => String::from("writes"),
+            Carrier::Replaced => String::from("replaced"),
+            Carrier::Sole => String::from("sole"),
+            Carrier::Pair(a, b) => alloc::format!("({} × {})", a.name(), b.name()),
+            Carrier::Progress => String::from("progress"),
+            Carrier::Resource => String::from("resource"),
+        }
+    }
+}
+
+fn carrier_of_term(term: &Term) -> Option<Carrier> {
+    match term {
+        Term::Lift(_, c) => Some(match c {
+            Contribute::Flag => Carrier::Bool,
+            Contribute::Address => Carrier::Addrs,
+            Contribute::Field(_) => Carrier::Vals,
+            Contribute::Entry(_) => Carrier::Entries,
+            Contribute::Amount(_) => Carrier::Amounts,
+            Contribute::Clocked { .. } => Carrier::Chain,
+            Contribute::Write(_) => Carrier::Writes,
+            Contribute::Replaced(_) => Carrier::Replaced,
+            Contribute::Sole(_) => Carrier::Sole,
+        }),
+        Term::Pair(a, b) => Some(Carrier::Pair(
+            Box::new(carrier_of_term(a)?),
+            Box::new(carrier_of_term(b)?),
+        )),
+        Term::Earlier(_) => None,
+    }
+}
+
+/// The carrier of a rule: that of its factored term, or the closure for the
+/// two closure heads. `None` for a derived field (`histogram`, `sum`), which
+/// is a display over an earlier field and has no carrier of its own.
+pub fn carrier_of(rule: &Rule) -> Option<Carrier> {
+    match rule {
+        Rule::Progress { .. } => Some(Carrier::Progress),
+        Rule::BoundedCounter(_) => Some(Carrier::Resource),
+        _ => factor(rule).and_then(|f| carrier_of_term(&f.term)),
+    }
+}
+
+/// A threshold element (CON-3801 `element`): a named element of a carrier
+/// that a threshold read observes being reached.
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum Element {
+    /// A bare scalar; only `#t` against `bool` is admitted.
+    Scalar(Value),
+    /// `(count n)`: at least `n` addresses, against `addrs`.
+    Count(i64),
+    /// `(member x)`: `x` present, against `vals` or `entries`.
+    Member(Value),
+    /// `(sum n)`: grow-only numeric events sum to at least `n`. Installation
+    /// requires a mandatory nonnegative shape on their writer.
+    Sum(i64),
+    /// `(progress n)`: the progress closure has reached position `n`.
+    Progress(i64),
+}
+
+impl Element {
+    /// The wire spelling of the element, for diagnostics.
+    pub fn wire(&self) -> String {
+        match self {
+            Element::Scalar(Value::Bool(true)) => String::from("#t"),
+            Element::Scalar(Value::Bool(false)) => String::from("#f"),
+            Element::Scalar(v) => v.render(),
+            Element::Count(n) => alloc::format!("(count {n})"),
+            Element::Member(v) => alloc::format!("(member {})", v.render()),
+            Element::Sum(n) => alloc::format!("(sum {n})"),
+            Element::Progress(n) => alloc::format!("(progress {n})"),
+        }
+    }
+
+    /// The element as a state value that round-trips the wire form:
+    /// `{"count":2}`, `{"member":"x"}`, `{"sum":10}`, `{"progress":3}`,
+    /// `"fault"`, `true`.
+    pub fn render(&self) -> Value {
+        let keyed = |k: &str, v: Value| Value::Map(alloc::vec![(Value::Str(String::from(k)), v)]);
+        match self {
+            Element::Scalar(v) => v.clone(),
+            Element::Count(n) => keyed("count", Value::Int(*n as i128)),
+            Element::Member(v) => keyed("member", v.clone()),
+            Element::Sum(n) => keyed("sum", Value::Int(*n as i128)),
+            Element::Progress(n) => keyed("progress", Value::Int(*n as i128)),
+        }
+    }
+
+    /// The element in the canonical encoding of the clause.
+    pub fn to_sexpr(&self) -> SExpr {
+        fn scalar(v: &Value) -> SExpr {
+            match v {
+                Value::Str(s) => SExpr::Atom(Atom::Str(s.clone())),
+                Value::Int(n) => SExpr::Atom(Atom::Num(*n as i64)),
+                Value::Bool(b) => SExpr::Atom(Atom::Bool(*b)),
+                other => SExpr::Atom(Atom::Str(other.render())),
+            }
+        }
+        let sym = |x: &str| SExpr::Atom(Atom::Symbol(String::from(x)));
+        let num = |n: i64| SExpr::Atom(Atom::Num(n));
+        match self {
+            Element::Scalar(v) => scalar(v),
+            Element::Count(n) => SExpr::List(alloc::vec![sym("count"), num(*n)]),
+            Element::Member(v) => SExpr::List(alloc::vec![sym("member"), scalar(v)]),
+            Element::Sum(n) => SExpr::List(alloc::vec![sym("sum"), num(*n)]),
+            Element::Progress(n) => SExpr::List(alloc::vec![sym("progress"), num(*n)]),
+        }
+    }
+
+    /// Whether the carrier admits this element (the typing table of
+    /// CON-3801): `count n` against `addrs`; `member x` against `vals` or
+    /// `entries`; `sum n` against nonnegative numeric `entries` (the writer
+    /// shape is checked at installation); `progress n` against progress;
+    /// a bare `#t` against `bool`. Faults are separate outcomes.
+    pub fn admitted_by(&self, carrier: &Carrier) -> bool {
+        match (self, carrier) {
+            (Element::Scalar(Value::Bool(true)), Carrier::Bool) => true,
+            (Element::Count(n), Carrier::Addrs) => *n >= 0,
+            (Element::Member(v), Carrier::Vals | Carrier::Entries) => {
+                matches!(v, Value::Str(_) | Value::Int(_) | Value::Bool(_))
+            }
+            (Element::Sum(_), Carrier::Entries) => true,
+            (Element::Progress(n), Carrier::Progress) => *n >= 0,
+            _ => false,
+        }
+    }
+
+    /// `self ≤ σ`: the element is reached by a carrier element.
+    pub fn le(&self, l: &L) -> bool {
+        match (self, l) {
+            (Element::Scalar(Value::Bool(true)), L::Bool(b)) => *b,
+            (Element::Count(n), L::Addrs(s)) => s.len() as i64 >= *n,
+            (Element::Member(v), L::Vals(m)) => m.contains_key(&v.render()),
+            (Element::Member(v), L::Entries(m)) => {
+                let want = v.render();
+                m.values().any(|e| match e {
+                    Value::Pair { value, .. } => value.render() == want,
+                    other => other.render() == want,
+                })
+            }
+            (Element::Sum(n), L::Amounts(m)) => m.values().sum::<i128>() >= *n as i128,
+            (Element::Sum(n), L::Entries(m)) => {
+                m.values().filter_map(Value::as_int).sum::<i128>() >= *n as i128
+            }
+            _ => false,
+        }
+    }
+
+    /// The element is reached by a closure head's display (REQ-3808): the
+    /// progress integer has reached `n`. Faults are checked separately.
+    /// The closure heads have no summarising carrier, so their ⊤ and their
+    /// position are read from the display, which is monotone as proved in
+    /// SPEC-034 and SPEC-019 CON-1908.
+    pub fn le_display(&self, shown: &Value) -> bool {
+        match (self, shown) {
+            (Element::Progress(n), Value::Int(i)) => *i >= *n as i128,
+            _ => false,
+        }
+    }
+}
+
+/// How two elements of one threshold set relate (REQ-3802): `None` when
+/// they are incompatible (no element other than ⊤ lies above both),
+/// `Some("duplicate")` when equal, `Some("compatible")` otherwise. On the
+/// chains (`count`, `sum`, `progress`) any two elements are comparable, hence
+/// compatible; two members are compatible, since the set of both lies above
+/// each. A numeric event member and its sum can also be reached together.
+pub fn relation(a: &Element, b: &Element) -> Option<&'static str> {
+    if a == b {
+        return Some("duplicate");
+    }
+    match (a, b) {
+        (Element::Count(_), Element::Count(_))
+        | (Element::Sum(_), Element::Sum(_))
+        | (Element::Progress(_), Element::Progress(_))
+        | (Element::Member(_), Element::Member(_))
+        | (Element::Member(_), Element::Sum(_))
+        | (Element::Sum(_), Element::Member(_))
+        | (Element::Scalar(_), Element::Scalar(_)) => Some("compatible"),
+        _ => None,
+    }
+}
+
+/// Some element other than ⊤ lies above both.
+pub fn compatible(a: &Element, b: &Element) -> bool {
+    relation(a, b).is_some()
+}
+
+/// The pairwise-incompatibility check of a threshold set in `O(k²)`
+/// comparisons (NFR-3800): the first pair `rel` reports as related, as
+/// `(i, j, why)`, or `Ok`.
+pub fn pairwise(
+    elements: &[Element],
+    mut rel: impl FnMut(&Element, &Element) -> Option<&'static str>,
+) -> Result<(), (usize, usize, &'static str)> {
+    for i in 0..elements.len() {
+        for j in (i + 1)..elements.len() {
+            if let Some(why) = rel(&elements[i], &elements[j]) {
+                return Err((i, j, why));
+            }
+        }
+    }
+    Ok(())
 }

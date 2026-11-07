@@ -285,6 +285,15 @@ pub enum Entry {
         key: String,
         field: String,
     },
+    /// `(threshold name field element+)`: a threshold read over `field`'s
+    /// carrier (SPEC-038 REQ-3802, CON-3801), rendered as a field named
+    /// `name` in clause order: `reached` with the unique element at or below
+    /// the carrier's current element, or `pending`.
+    Threshold {
+        name: String,
+        field: String,
+        elements: Vec<crate::lattice::Element>,
+    },
 }
 
 /// The parsed `(state …)` clause (SPEC-019 R.1).
@@ -299,7 +308,7 @@ impl StateClause {
     pub fn fields(&self) -> impl Iterator<Item = (&str, &Rule)> {
         self.entries.iter().filter_map(|e| match e {
             Entry::Field { name, rule } => Some((name.as_str(), rule)),
-            Entry::Domain { .. } => None,
+            Entry::Domain { .. } | Entry::Threshold { .. } => None,
         })
     }
 
@@ -309,7 +318,20 @@ impl StateClause {
             Entry::Domain { verb, key, field } => {
                 Some((verb.as_str(), key.as_str(), field.as_str()))
             }
-            Entry::Field { .. } => None,
+            Entry::Field { .. } | Entry::Threshold { .. } => None,
+        })
+    }
+
+    /// Threshold entries in clause order: `(name, field, elements)`
+    /// (SPEC-038 CON-3801).
+    pub fn thresholds(&self) -> impl Iterator<Item = (&str, &str, &[crate::lattice::Element])> {
+        self.entries.iter().filter_map(|e| match e {
+            Entry::Threshold {
+                name,
+                field,
+                elements,
+            } => Some((name.as_str(), field.as_str(), elements.as_slice())),
+            Entry::Field { .. } | Entry::Domain { .. } => None,
         })
     }
 
@@ -582,6 +604,7 @@ pub fn frontier(acts: &[Act]) -> Vec<String> {
 
 /// A state value (SPEC-019 R.3).
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Value {
     Absent,
     Str(String),
@@ -601,6 +624,33 @@ pub enum Value {
 }
 
 impl Value {
+    /// Evidence of a kernel fault. Installed scalar-map types cannot mimic
+    /// the mixed scalar/list structure of this marker.
+    pub fn fault_evidence(&self) -> Option<Vec<String>> {
+        let Value::Map(entries) = self else {
+            return None;
+        };
+        if !entries.iter().any(|(k, v)| {
+            matches!((k, v),
+            (Value::Str(k), Value::Str(v)) if k == "status" && v == "fault")
+        }) {
+            return None;
+        }
+        let (_, Value::List(addresses)) = entries
+            .iter()
+            .find(|(k, _)| matches!(k, Value::Str(k) if k == "evidence"))?
+        else {
+            return None;
+        };
+        addresses
+            .iter()
+            .map(|v| match v {
+                Value::Str(address) => Some(address.clone()),
+                _ => None,
+            })
+            .collect()
+    }
+
     /// Convert a field value. Symbols and keywords, which typing forbids on
     /// state-bearing fields, render as their text so the fold stays total.
     pub fn from_sexpr(s: &SExpr) -> Value {
@@ -1109,14 +1159,90 @@ pub fn fold(
 ) -> Vec<(String, Value)> {
     let kernel = kernel_for(clause, acts);
     let mut done: Vec<(String, Value)> = Vec::new();
-    for (name, rule) in clause.fields() {
-        let v = match rule {
-            Rule::BoundedCounter(c) => crate::escrow::observe(c, acts).value(),
-            _ => kernel.eval(rule, &done, protocol),
-        };
-        done.push((String::from(name), v));
+    // The lattice context evaluates a threshold's field as a carrier element
+    // (SPEC-038 REQ-3802); it is built only when the clause declares one.
+    let ctx = (clause.thresholds().next().is_some() || clause.domains().next().is_some())
+        .then(|| crate::lattice::Ctx::new(clause, acts));
+    for entry in &clause.entries {
+        match entry {
+            Entry::Field { name, rule } => {
+                let fault =
+                    ctx.as_ref()
+                        .and_then(|ctx| ctx.rule_fault(rule))
+                        .or_else(|| match rule {
+                            Rule::Histogram { field } | Rule::Sum { field } => done
+                                .iter()
+                                .find(|(n, _)| n == field)
+                                .filter(|(_, v)| v.fault_evidence().is_some())
+                                .map(|(_, v)| v.clone()),
+                            _ => None,
+                        });
+                let v = fault.unwrap_or_else(|| match rule {
+                    Rule::BoundedCounter(c) => crate::escrow::observe(c, acts).value(),
+                    _ => kernel.eval(rule, &done, protocol),
+                });
+                done.push((name.clone(), v));
+            }
+            Entry::Domain { .. } => {}
+            Entry::Threshold {
+                name,
+                field,
+                elements,
+            } => {
+                let v = match ctx.as_ref() {
+                    Some(ctx) => threshold_read(ctx, clause, field, elements, &done),
+                    None => Value::Absent,
+                };
+                done.push((name.clone(), v));
+            }
+        }
     }
     done
+}
+
+/// A threshold read (SPEC-038 REQ-3802, CON-3801): the unique element of the
+/// declared set at or below the field's carrier element, or `pending`.
+/// Uniqueness is what installation's pairwise-incompatibility check buys, so
+/// the first reached element is the only one. A lift's carrier element is
+/// evaluated by the lattice context; a closure head's position or ⊤ is read
+/// from its display (REQ-3808).
+fn threshold_read(
+    ctx: &crate::lattice::Ctx<'_>,
+    clause: &StateClause,
+    field: &str,
+    elements: &[crate::lattice::Element],
+    done: &[(String, Value)],
+) -> Value {
+    if let Some((_, fault)) = done
+        .iter()
+        .find(|(n, v)| n == field && v.fault_evidence().is_some())
+    {
+        return fault.clone();
+    }
+    let reached = match clause.rule_of(field).map(crate::lattice::factor) {
+        Some(Some(f)) => {
+            let sigma = ctx.read_carrier(&f.term);
+            elements.iter().find(|e| e.le(&sigma))
+        }
+        Some(None) => done
+            .iter()
+            .find(|(n, _)| n == field)
+            .and_then(|(_, shown)| elements.iter().find(|e| e.le_display(shown))),
+        None => None,
+    };
+    let status = |s: &str| {
+        (
+            Value::Str(String::from("status")),
+            Value::Str(String::from(s)),
+        )
+    };
+    match reached {
+        Some(e) => Value::Map(alloc::vec![
+            (Value::Str(String::from("element")), e.render()),
+            status("reached"),
+        ]),
+        None => Value::Map(alloc::vec![status("pending")]),
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -1139,7 +1265,7 @@ impl ScalarType {
         match tc {
             TypeConstraint::String => Some(ScalarType::Str),
             TypeConstraint::Hlc => Some(ScalarType::Hlc),
-            TypeConstraint::Number => Some(ScalarType::Int),
+            TypeConstraint::Number | TypeConstraint::Nonnegative => Some(ScalarType::Int),
             TypeConstraint::Bool => Some(ScalarType::Bool),
             TypeConstraint::List => Some(ScalarType::List),
             TypeConstraint::Symbol | TypeConstraint::Keyword => None,
@@ -1174,12 +1300,30 @@ pub enum StateType {
     Histogram(ScalarType),
     /// The referenced field's type could not be derived.
     Unknown,
+    /// A threshold read over `field` (SPEC-038 CON-3801).
+    Threshold {
+        field: String,
+        elements: Vec<crate::lattice::Element>,
+    },
 }
 
 impl StateType {
     /// JSON rendering of a type, for the export.
     pub fn render(&self) -> String {
         match self {
+            StateType::Threshold { field, elements } => {
+                let mut out = String::from("{\"type\":\"threshold\",\"field\":");
+                json_string(field, &mut out);
+                out.push_str(",\"elements\":[");
+                for (i, e) in elements.iter().enumerate() {
+                    if i > 0 {
+                        out.push(',');
+                    }
+                    out.push_str(&e.render().render());
+                }
+                out.push_str("]}");
+                out
+            }
             StateType::BoundedCounter => String::from("{\"type\":\"bounded-counter\"}"),
             StateType::OptScalar(t) => {
                 format!("{{\"type\":\"opt-scalar\",\"of\":\"{}\"}}", t.as_str())
@@ -1245,7 +1389,25 @@ pub fn state_schema(
             .unwrap_or(ScalarType::Str)
     };
     let mut out: Vec<(String, StateType)> = Vec::new();
-    for (name, rule) in clause.fields() {
+    for entry in &clause.entries {
+        let (name, rule) = match entry {
+            Entry::Field { name, rule } => (name, rule),
+            Entry::Domain { .. } => continue,
+            Entry::Threshold {
+                name,
+                field,
+                elements,
+            } => {
+                out.push((
+                    name.clone(),
+                    StateType::Threshold {
+                        field: field.clone(),
+                        elements: elements.clone(),
+                    },
+                ));
+                continue;
+            }
+        };
         let ty = match rule {
             Rule::BoundedCounter(_) => StateType::BoundedCounter,
             Rule::Initial { verb, key } | Rule::LwwRegister { verb, key, .. } => {

@@ -2,8 +2,8 @@
 id: SPEC-038
 title: LVar state kernel
 status: draft
-version: 0.1.0
-last-updated: 2026-11-07
+version: 0.2.0
+last-updated: 2026-11-08
 ---
 
 # LVar state kernel
@@ -23,6 +23,21 @@ were final when the accepted set can still revise it**. Today the fold is a
 set function but says nothing about which of its outputs may be acted on; the
 host decides, and the guarantee stops at the fold.
 
+For a dialect author: a **threshold** establishes a stable fact, a **snapshot**
+describes a value that may change, and a **fault** identifies an inconsistent
+history. "Three approvals have arrived" can be a threshold. "The current net
+balance is ten" is a snapshot when debits or negative amounts are possible.
+A threshold never silently changes its successful answer or returns to pending;
+later conflicting evidence can instead fault the computation. A conflicting
+opener faults dependent tallies rather than making their votes disappear.
+These rules are specified by [[SPEC-038-lvar-state-kernel#ADR-3805]].
+
+Controls: installation rejects revisable sum thresholds and `fault` as a
+threshold alternative; nonnegative contributions are checked before admission;
+initializer conflicts propagate to dependent fields; raw carrier evidence is
+retained under merge. A host still supplies its own external-effect finality,
+deduplication and recovery contract: a threshold is not an exactly-once effect.
+
 Metaphor: a notice board. Anyone with standing may pin a notice; nothing is
 ever unpinned; a reader may ask "has at least this been pinned?" and get a
 yes that never becomes a no; and the chair may seal the board, after which the
@@ -40,7 +55,7 @@ Structure:
                    ┌──────────────────────────────┐   ┌──────────────────────────────┐
                    │ t ∈ T, T pairwise incompatible│   │ exact read after the freeze; │
                    │ yields the unique t ≤ σ_F     │   │ later contribution: supersede │
-                   │ stable: never retracted       │   │ or Violation (ADR-3802)      │
+                     │ stable, or explicit fault     │   │ or Violation (ADR-3802)      │
                    └──────────────────────────────┘   └──────────────────────────────┘
                      only these two reads reach the execution layer; a bare
                      projection of σ_F is a snapshot (REQ-3805)
@@ -74,6 +89,12 @@ theorems this subsumes; [[IMPL-030-lvar-state-kernel]] for the plan;
 
 ## Amendment Channels
 
+The CBCL maintainer may amend this specification through an explicit decision
+in the implementation conversation, recorded in its changelog and decision
+artifacts. No amendment may silently reinterpret a signed balance as gross
+credits, discard conflict evidence, or claim external-effect finality from a
+threshold alone.
+
 This specification authorises a new pure module in `cbcl-core` that denotes
 existing rules as lattice terms and is checked against the shipped fold, two
 new optional state-clause forms (`threshold`, `freeze`), a conflict marker in
@@ -81,6 +102,10 @@ rendered fields, and new Lean theorems. It does not authorise changes to
 addresses, to the admission monitor, to the verdict algebra of
 [[SPEC-003-verification-lattice]], or to the wire form of any existing clause.
 Any such change is a separate specification.
+
+It also authorises the additive `nonnegative` integer shape type required to
+recognize monotone amount contributions. Existing `number` shapes retain their
+signed meaning and existing wire forms retain their addresses.
 
 ## Background
 
@@ -126,8 +151,9 @@ for compatibility it is noted.
   [[SPEC-038-lvar-state-kernel#CON-3803]]. `⊤` means conflict and carries
   evidence ([[SPEC-038-lvar-state-kernel#REQ-3804]]).
 - **Contribution** `g : Act → L`: what one act adds to a carrier. A function of
-  that act alone, never of other acts or other fields, except through a domain
-  on an `initial` field ([[SPEC-038-lvar-state-kernel#REQ-3809]]).
+  that act alone, never of other acts or other fields. A domain-governed
+  contribution retains raw evidence for the display to interpret
+  ([[SPEC-038-lvar-state-kernel#REQ-3809]]).
 - **Lift**: the map `A ↦ ⋁_{a ∈ A} g(a)` from accepted sets into `L`. It is the
   unique join-homomorphism out of the free join-semilattice on acts that
   extends `g`; its laws, order independence, duplicate insensitivity and
@@ -152,9 +178,9 @@ for compatibility it is noted.
   ([[SPEC-038-lvar-state-kernel#REQ-3801]]). Puts are the only writes.
 - **Threshold read**: an observation over a declared pairwise-incompatible set
   `T ⊆ L_F`, yielding the unique `t ∈ T` with `t ≤ σ_F` or `pending`
-  ([[SPEC-038-lvar-state-kernel#REQ-3802]]). Deterministic in delivery order,
-  reached at most once, never retracted. Typed against the carrier, never the
-  display.
+  ([[SPEC-038-lvar-state-kernel#REQ-3802]]). Successful results are stable;
+  conflict is a separate terminal failure. Typed against the carrier with a
+  verified monotone read, never an arbitrary revisable display.
 - **Freeze**: a role-permitted act after which an LVar is exact. **Frozen
   read**: a read of `σ_F` after its freeze, carrying the freezing address
   ([[SPEC-038-lvar-state-kernel#REQ-3803]]).
@@ -184,13 +210,17 @@ contribution `g` into a lattice carrier, the join over the selected acts, and a
 post-map to the displayed value. The join half of every term SHALL be a
 join-homomorphism from `(℘(A), ⊆)` on causally closed accepted sets: for any
 two accepted sets `A₁`, `A₂` each closed under cited predecessors,
-`σ(A₁ ∪ A₂) = σ(A₁) ⊔ σ(A₂)`. Causal closure is the condition under which a
-domain selector, which reads the opener's `initial` field, is a function of
-the act alone; every accepted set a replica holds is causally closed by
-admission ([[SPEC-019-state-rules]] R.1), so the restriction excludes no real
-history. The sixteen shipped heads SHALL be abbreviations
+`σ(A₁ ∪ A₂) = σ(A₁) ⊔ σ(A₂)`, including sets with different openers.
+A domain-governed term SHALL retain raw initializer evidence and raw
+contributions in its carrier; domain filtering SHALL be a display operation,
+not removal of carrier evidence. The carrier MAY retain the accepted acts by
+address where a smaller summary cannot preserve that evidence. Conflicting
+initializers SHALL fault dependent displays and thresholds with their evidence.
+The sixteen shipped heads SHALL be abbreviations
 of terms, and the term's displayed value SHALL equal the shipped fold's value
-on every conformance vector.
+on every conflict-free conformance vector. Conflict rendering follows
+[[SPEC-038-lvar-state-kernel#REQ-3804]] and
+[[SPEC-038-lvar-state-kernel#REQ-3807]].
 Trace: [[SPEC-038-lvar-state-kernel#TEST-3800]], [[SPEC-038-lvar-state-kernel#CON-3800]].
 
 ## REQ-3801: Put is a join of accepted contributions
@@ -209,10 +239,21 @@ A dialect MAY declare a threshold observation
 named elements. Installation SHALL reject a threshold set whose elements are
 not pairwise incompatible, where two elements are incompatible when no lattice
 element lies above both other than ⊤. The fold SHALL render the observation
-as `reached tᵢ` for the unique `tᵢ ≤ σ`, or `pending`. A reached observation
-SHALL never be retracted as the accepted set grows, and SHALL be identical on
-every replica whose accepted set contains the acts that reached it, whatever the
-delivery order.
+as `reached tᵢ` for the unique successful element reached, or `pending`.
+Conflict SHALL be a separate terminal `fault` outcome with evidence, checked
+before successful alternatives; `fault` SHALL NOT be a threshold element.
+A reached observation SHALL never return to pending or change its successful
+element as the accepted set grows. A later conflict MAY replace the current
+successful observation with a fault, without erasing its historical occurrence.
+Successful observations SHALL agree across replicas that contain their
+supporting acts and whose dependent carriers are non-conflicting.
+
+A sum threshold SHALL observe the actual sum of its declared source, not one
+half of a signed counter. Installation SHALL reject a sum threshold unless
+every possible source contribution is recognized as a nonnegative integer and
+the source cannot remove or revise those contributions. Signed counters and
+revisable register sums SHALL remain snapshots. A grow-only numeric `events`
+field whose writer requires `nonnegative` is an admissible source.
 Trace: [[SPEC-038-lvar-state-kernel#TEST-3801]], [[SPEC-038-lvar-state-kernel#TEST-3803]],
 [[SPEC-038-lvar-state-kernel#CON-3801]].
 
@@ -240,6 +281,8 @@ sticky under growth of the accepted set and SHALL be rendered as
 `{"status":"fault","evidence":[…]}` uniformly across heads. The displayed value
 of `initial` SHALL therefore be monotone in the lattice: it moves from absent to
 a value to fault and never back.
+An initializer fault SHALL propagate to every field whose domain depends on
+it, to derived fields depending on those fields, and to their thresholds.
 Trace: [[SPEC-038-lvar-state-kernel#TEST-3804]].
 
 ## REQ-3805: Snapshot discipline for projections
@@ -266,8 +309,11 @@ Trace: [[SPEC-038-lvar-state-kernel#TEST-3806]].
 Every existing dialect SHALL parse, install and fold identically. Every
 conformance vector in `test-vectors/state/` SHALL produce byte-identical
 addresses and verdicts, and identical rendered state except for the additive
-`frozen`, `fault` and threshold members this specification introduces, which
-SHALL appear only when a dialect declares the corresponding form.
+`frozen`, `fault` and threshold members this specification introduces. A fault
+SHALL also appear when existing initializer or resource semantics detect a
+conflict, and SHALL propagate to dependent fields; no declaration is required
+to make an inconsistent history visibly fail. Conflict-free existing vectors
+SHALL remain unchanged.
 Trace: [[SPEC-038-lvar-state-kernel#TEST-3807]].
 
 ## REQ-3808: Closure heads
@@ -281,8 +327,10 @@ act determines their value, so they cannot be evaluated incrementally per
 contribution. Their existing proofs ([[SPEC-034-owned-progress-closure]],
 [[SPEC-019-state-rules#CON-1908]]) are retained; the monotonicity of their
 post-maps is as proved there: `progress` is monotone, a resource `fault` is
-sticky, and `ready` and the rights are revisable. They SHALL participate in threshold reads (`progress` reaching its
-bound; a resource `fault`) and in freeze. Whether they share one closure
+sticky, and `ready` and the rights are revisable. They SHALL participate in
+freeze. `progress` supports successful threshold reads on reaching its bound;
+resource conflicts propagate as separate terminal faults, never successful
+threshold alternatives. Whether they share one closure
 combinator is open.
 Trace: [[SPEC-038-lvar-state-kernel#TEST-3800]].
 
@@ -296,7 +344,8 @@ extended with conjunction and comparison of monotone reads, so that a threshold
 over several fields, for example `(and (count approvals 2) (exists closed))`,
 is a threshold on the product and inherits the stability of
 [[SPEC-038-lvar-state-kernel#REQ-3802]]. A contribution `g` SHALL NOT read any
-field other than an `initial` field through a domain: a put that depended on a
+state field; initializer evidence SHALL instead be retained in the carrier
+and domain predicates evaluated by its display. A put that depended on a
 revisable field would make admission or the fold read its own output, which is
 the feedback the stratification result of [[SPEC-019-state-rules#REQ-1914]]
 forbids. Cross-field conditions on revisable values are therefore expressible
@@ -350,12 +399,14 @@ post         := identity | size | difference
               | current(post) | group-by(group, post) | pick-lww(value-key, clock-key)
               | distinct(key) | histogram(earlier) | sum(earlier)
 carrier L    := bool | addrs | vals | entries | amounts | chain | writes | replaced | sole | pair(L, L)
+              | history                             ; raw acts and initializer evidence under union
 ```
 
 Pre-conditions: acts are unique by address; the clause installed under R7.
 Post-conditions: for every factored head, (i) `L` is a join-homomorphism from
-accepted sets, (ii) the displayed value equals [[SPEC-019-state-rules]] R.2's
-fold. Error model: none; the evaluator is total.
+accepted sets, (ii) on conflict-free histories the displayed value equals
+[[SPEC-019-state-rules]] R.2's fold. On conflicting histories display follows
+[[SPEC-038-lvar-state-kernel#REQ-3804]]. Error model: none; the evaluator is total.
 Implements: [[SPEC-038-lvar-state-kernel#REQ-3800]], [[SPEC-038-lvar-state-kernel#REQ-3801]].
 Verified by: [[SPEC-038-lvar-state-kernel#TEST-3800]].
 
@@ -367,19 +418,26 @@ S-expression recogniser and checked at install, no new lexical forms:
 ```text
 entry     := … | "(" "threshold" name field element+ ")"
 element   := scalar | "(" "count" integer ")" | "(" "member" scalar ")"
-           | "(" "sum" integer ")" | "(" "progress" integer ")" | "fault"
+           | "(" "sum" integer ")" | "(" "progress" integer ")"
+shape-type := … | "nonnegative"                       ; integer >= 0, existing numeric bounds apply
 ```
 
 `element` forms are typed against the field's carrier, never against the
 displayed value, so that a threshold over a superseding or observed-remove
 carrier is stated on its grow-only halves (an address was written, an address
 was replaced) rather than on membership, which is not monotone: `count n` against
-`addrs`, `member x` against `vals` or `entries`, `sum n` against `amounts`,
-`progress n` against the progress chain, `fault` against any carrier's ⊤, and a
-bare scalar against `bool` (`#t`). Install rejects any element not admitted by
-the carrier and any pair of elements that are compatible. Rendering:
-`{"status":"reached","element":…}` or `{"status":"pending"}` as a field named
-`name` in clause order.
+`addrs`, `member x` against `vals` or `entries`, `sum n` against a grow-only
+numeric events carrier whose writer requires `nonnegative`, `progress n`
+against the progress chain, and a bare scalar against `bool` (`#t`). A
+`history` carrier retains the raw contributions and initializer evidence; the
+read first checks initializer conflicts, then reads the domain-admitted
+contributions. Install rejects a signed counter or revisable map as a sum
+threshold source, `fault` as an element, mistyped elements, and compatible
+pairs. Rendering: `{"status":"reached","element":…}`,
+`{"status":"pending"}`, or the uniform
+`{"status":"fault","evidence":[…]}` as a field named `name` in clause order.
+The `nonnegative` shape type recognizes only integers >= 0 before admission;
+no clamping, omission or conversion of negative contributions is permitted.
 Implements: [[SPEC-038-lvar-state-kernel#REQ-3802]].
 Verified by: [[SPEC-038-lvar-state-kernel#TEST-3801]], [[SPEC-038-lvar-state-kernel#TEST-3803]].
 
@@ -519,6 +577,53 @@ differentially. Rationale: [[SPEC-038-lvar-state-kernel#REQ-3807]], and the
 Simplicity Ladder: the first slice adds a pure module and tests, no new syntax,
 and proves the factorisation claim executably before any surface changes.
 
+## ADR-3805: Read semantics that match the dialect author's intent
+
+Decision: thresholds establish stable successful facts; snapshots describe
+current values; conflict is a separate failure with attributable evidence.
+This decision was accepted by the CBCL maintainer on 8 November 2026.
+
+A signed net balance is revisable, even when its credits and debits are each
+nonnegative. Its threshold SHALL NOT silently read only its credit half.
+For an explicitly named gross-credit stream an author may write:
+
+```lisp
+(shape credit (require :amount nonnegative))
+(state
+  (credits (events credit :amount))
+  (threshold funded credits (sum 10)))
+```
+
+The shape recognizer enforces nonnegativity before admission. A signed
+`number` field is unchanged; its sum remains available as a snapshot, and
+exact reads are available through [[SPEC-038-lvar-state-kernel#CON-3802]].
+Installation rejects a revisable threshold with an explanation pointing to
+snapshot, freeze, or an explicitly monotone source, rather than changing the
+meaning of the author's term.
+
+`fault` is not an alternative that the author must remember to put in a
+threshold. Every threshold first checks its dependency faults. A threshold
+that was reached may subsequently fault, but may never silently become pending
+or report a different successful element. Hosts retain the history of observed
+events; this kernel does not undo external actions and does not establish their
+exactly-once execution.
+
+Domain-governed carriers retain raw initializer evidence and contribution
+evidence under union. Their displays filter against the initializer and fault
+when it conflicts. Conflicting allowed-choice lists must not present a tally
+of zero as ordinary business data. Derived fields propagate their source's
+fault rather than reducing it to zero or an empty map.
+
+Placement: use the existing shape recognizer for the additive `nonnegative`
+type, the existing lattice module for history carriers, and the existing fold
+for fault propagation. No host service, custom parser, or new rule head is
+needed. Rejected alternatives: ignoring negative amounts, interpreting net
+balance as gross credits, choosing a threshold answer at conflict top, and
+restricting the merge law to replicas that already share an initializer.
+Trace: [[SPEC-038-lvar-state-kernel#REQ-3800]],
+[[SPEC-038-lvar-state-kernel#REQ-3802]],
+[[SPEC-038-lvar-state-kernel#REQ-3804]].
+
 ## TEST-3800: Factorisation and morphism law
 
 For every conformance vector in `test-vectors/state/` and every field whose head
@@ -526,14 +631,19 @@ factors, (a) the term's displayed value equals the shipped fold's value on the
 accepted set, in forward, reversed and duplicated delivery; (b) for the partition
 of the accepted set into even and odd positions, and into first and second
 halves, `L(A₁ ∪ A₂) = L(A₁) ⊔ L(A₂)`; (c) the two closure heads report `None`
-from `factor`. Validates REQ-3800, REQ-3801, REQ-3808.
+from `factor`. Include causally closed, admitted histories with different
+openers: joining their raw carriers SHALL equal the carrier of their union,
+while conflicting initializer displays and dependent fields SHALL fault with
+the opener addresses. Validates REQ-3800, REQ-3801, REQ-3808.
 
 ## TEST-3801: Threshold determinism
 
 Property test: for a dialect declaring thresholds over `count`, `set-union`,
-`counter` increments and `progress`, any permutation and duplication of a
+nonnegative numeric `events` and `progress`, any permutation and duplication of a
 delivery reaches the same element, the element is reached at most once, and a
-reached element is never retracted on any superset. Validates REQ-3802.
+reached element is never retracted on any non-conflicting superset. On a
+conflicting superset the observation SHALL become a fault with evidence,
+never pending or another successful element. Validates REQ-3802.
 
 ## TEST-3802: Freeze
 
@@ -545,11 +655,21 @@ Validates REQ-3803.
 
 ## TEST-3803: Install rejects compatible thresholds
 
-Installing `(threshold t coins (sum 10) (sum 20))` is rejected because the
-two elements are comparable; `(threshold t coins (sum 10) fault)` is accepted;
+With `coins` a nonnegative numeric events field, installing
+`(threshold t coins (sum 10) (sum 20))` is rejected because the
+two elements are comparable; `(threshold t coins (sum 10) fault)` is rejected
+because fault is not a successful alternative;
 `(threshold t flag #t #t)` is rejected as duplicate; a `count` element against
 a `vals` carrier is rejected as mistyped; the check runs in `O(k²)` comparisons.
 Validates REQ-3802, NFR-3800.
+
+Core additions: a signed `number` events source and every `counter` are
+rejected as sum-threshold sources; a `nonnegative` events source installs and
+reaches ten for amounts six and four; its negative write fails recognition
+before acceptance; a signed balance still renders ten then nine as a snapshot.
+Verify fault-only and mixed successful/fault threshold declarations are
+rejected. For a domain initializer conflict, verify reached becomes fault with
+the opener evidence, never pending, for every declaration order and delivery.
 
 ## TEST-3804: Conflict top
 
@@ -574,8 +694,11 @@ reaches ⊤ with the same evidence. Validates REQ-3806.
 ## TEST-3807: Vectors unchanged
 
 Every vector's addresses, verdicts and rendered state are byte-identical to
-`main` before this specification, except for members the vector's dialect
-explicitly declares. Validates REQ-3807.
+`main` before this specification on conflict-free histories, except for members
+the vector's dialect explicitly declares. Conflicting initializer/resource
+histories render explicit faults and propagate dependent faults under
+[[SPEC-038-lvar-state-kernel#REQ-3804]], without requiring a new declaration.
+Validates REQ-3807.
 
 ## TEST-3808: User-defined lattices
 
@@ -615,3 +738,12 @@ First slice: `lattice.rs` and TEST-3800 (this branch). Threshold, freeze, ⊤ an
 the Lean theorems follow the plan in [[IMPL-030-lvar-state-kernel]]. Nothing
 in this specification is claimed as proved until the corresponding TEST reports
 it; the status above is `draft` for that reason.
+
+## Changelog
+
+- 0.2.0 (2026-11-08): maintainer accepted
+  [[SPEC-038-lvar-state-kernel#ADR-3805]] after reviewing signed-sum retraction,
+  conflict-top threshold ambiguity, and the admitted-history domain union
+  counterexample. Stable facts, snapshots and faults have distinct author-facing
+  meanings; full carrier merge evidence is preserved. Implementation and proof
+  acceptance must be checked against this version.

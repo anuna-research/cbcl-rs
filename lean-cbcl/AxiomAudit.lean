@@ -18,6 +18,7 @@ import LeanCbcl.R5
 import LeanCbcl.DCFLPreservation
 import LeanCbcl.R6DCFLPreservation
 import LeanCbcl.State
+import LeanCbcl.StateLift
 import LeanCbcl.AdmissionStratification
 import LeanCbcl.StateRefinement
 import LeanCbcl.MonitoredDCFL
@@ -215,6 +216,91 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.State.actsDom_setEq
 #print axioms CBCL.State.actsDom_excluded
 #print axioms CBCL.State.excluded_not_mem
+-- LVar state kernel, the lift theorem (SPEC-038 REQ-3800, REQ-3801;
+-- StateLift.lean): the lift of any contribution into any carrier is a set
+-- function and a join-homomorphism; the shipped heads are displays of
+-- lifts, so R7 follows from the algebra rather than per rule.
+#print axioms CBCL.StateLift.lift_setEq
+#print axioms CBCL.StateLift.lift_append
+#print axioms CBCL.StateLift.lift_perm
+#print axioms CBCL.StateLift.lift_cons
+#print axioms CBCL.StateLift.lift_insertAct
+#print axioms CBCL.StateLift.lift_cons_of_mem
+#print axioms CBCL.StateLift.lift_sublist
+#print axioms CBCL.StateLift.lift_pair
+#print axioms CBCL.StateLift.WithTop.lift_of
+#print axioms CBCL.StateLift.mem_lift
+#print axioms CBCL.StateLift.FinSet.ext
+#print axioms CBCL.StateLift.FinSet.card_mk_of_nodup
+#print axioms CBCL.StateLift.FinSet.sumBy_mk_of_nodup
+#print axioms CBCL.StateLift.FinSet.instJoinSemilatticeBot
+#print axioms CBCL.StateLift.instBoundedJoinSemilatticeBool
+#print axioms CBCL.StateLift.Chain.instJoinSemilatticeBot
+#print axioms CBCL.StateLift.Sole.instBoundedJoinSemilattice
+#print axioms CBCL.StateLift.WithTop.instBoundedJoinSemilattice
+#print axioms CBCL.StateLift.instJoinSemilatticeBotProd
+-- Each head as a display of a lift (ADR-3804).
+#print axioms CBCL.StateLift.existsRule_eq_lift
+#print axioms CBCL.StateLift.count_eq_lift
+#print axioms CBCL.StateLift.has_eq_lift
+#print axioms CBCL.StateLift.setUnion_eq_lift
+#print axioms CBCL.StateLift.sumField_eq_lift
+#print axioms CBCL.StateLift.counter_eq_lift
+#print axioms CBCL.StateLift.pick_eq_lift
+#print axioms CBCL.StateLift.last_eq_lift
+#print axioms CBCL.StateLift.latestPerKey_eq_lift
+#print axioms CBCL.StateLift.current_eq_currentLift
+#print axioms CBCL.StateLift.currentOwn_eq_currentOwnLift
+#print axioms CBCL.StateLift.values_eq_lift
+#print axioms CBCL.StateLift.valuesPerKey_eq_lift
+#print axioms CBCL.StateLift.registerPerKey_eq_lift
+#print axioms CBCL.StateLift.observedSet_eq_lift
+#print axioms CBCL.StateLift.latestPerSigner_eq_lift
+#print axioms CBCL.StateLift.isTop_eq_lift
+#print axioms CBCL.StateLift.topCount_setEq
+-- The thirteen heads and the domain filter, invariant from the lift theorem.
+#print axioms CBCL.StateLift.fold_perm_invariant_lift
+#print axioms CBCL.StateLift.initialCarrier_invariant
+#print axioms CBCL.StateLift.initialAllowed_invariant
+#print axioms CBCL.StateLift.initialDomain_invariant
+#print axioms CBCL.StateLift.initialDomain_lift_invariant
+#print axioms CBCL.StateLift.initialAllowed_fork
+#print axioms CBCL.StateLift.HlcLift.carrier_eq
+#print axioms CBCL.StateLift.HlcLift.candidates_consistent
+#print axioms CBCL.StateLift.HlcLift.consistent_setEq
+#print axioms CBCL.StateLift.HlcLift.readList_setEq
+#print axioms CBCL.StateLift.HlcLift.merge_assoc
+#print axioms CBCL.StateLift.HlcLift.merge_idem
+#print axioms CBCL.StateLift.HlcLift.pick_cons
+#print axioms CBCL.StateLift.HlcLift.pick_append
+#print axioms CBCL.StateLift.HlcLift.display_union
+#print axioms CBCL.StateLift.HlcLift.pick_eq_lift
+#print axioms CBCL.StateLift.HlcLift.compressed_join
+#print axioms CBCL.StateLift.HlcLift.display_invariant
+#print axioms CBCL.StateLift.HlcLift.pick_invariant
+#print axioms CBCL.StateLift.HlcLift.field_invariant
+#print axioms CBCL.StateLift.HlcLift.unrecognized_is_bottom
+#print axioms CBCL.StateLift.HlcLift.unrecognized_put_unchanged
+#print axioms CBCL.StateLift.HlcLift.physical_precedes_address
+#print axioms CBCL.StateLift.HlcLift.logical_precedes_address
+#print axioms CBCL.StateLift.HlcLift.signer_precedes_address
+#print axioms CBCL.StateLift.HlcLift.address_breaks_tie
+#print axioms CBCL.StateLift.HlcLift.unrecognized_high_address_ignored
+#print axioms CBCL.StateLift.HlcLift.all_unrecognized_have_no_winner
+#print axioms CBCL.StateLift.hlc_register_invariant
+#print axioms CBCL.StateLift.hlc_perSigner_invariant
+#print axioms CBCL.StateLift.hlc_map_invariant
+#print axioms CBCL.StateLift.domainActs_invariant
+#print axioms CBCL.StateLift.domainActs_unique
+#print axioms CBCL.StateLift.HlcFields.scalar_invariant
+#print axioms CBCL.StateLift.HlcFields.group_invariant
+#print axioms CBCL.StateLift.HlcFields.perSigner_invariant
+#print axioms CBCL.StateLift.HlcFields.keyed_invariant
+#print axioms CBCL.StateLift.HlcFields.domain_heads_invariant
+#print axioms CBCL.StateLift.HlcFields.excluded_replacer_cannot_erase_value
+#print axioms CBCL.StateLift.HlcFields.unrecognized_group_value_is_absent
+#print axioms CBCL.StateLift.HlcFields.nonexistent_group_has_no_entry
+#print axioms CBCL.StateLift.HlcFields.unrelated_delete_survives_domain
 -- Admission never reads state (SPEC-019 REQ-1914, ADR-1909;
 -- AdmissionStratification.lean): stratification, regularity of the R7 store
 -- language, and the two necessity results.

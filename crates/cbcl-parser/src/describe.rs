@@ -184,6 +184,7 @@ pub fn describe(d: &Dialect, text: &str) -> Json {
     }
     let mut state = Map::new();
     let mut domains = Vec::new();
+    let mut thresholds = Vec::new();
     if let Some(clause) = &d.state {
         for entry in &clause.entries {
             match entry {
@@ -192,6 +193,18 @@ pub fn describe(d: &Dialect, text: &str) -> Json {
                 }
                 Entry::Domain { verb, key, field } => {
                     domains.push(json!({ "verb": verb, "key": key, "field": field }));
+                }
+                Entry::Threshold {
+                    name,
+                    field,
+                    elements,
+                } => {
+                    let elements: Vec<Json> = elements
+                        .iter()
+                        .map(|e| serde_json::from_str(&e.render().render()).unwrap_or(Json::Null))
+                        .collect();
+                    thresholds
+                        .push(json!({ "name": name, "field": field, "elements": elements }));
                 }
             }
         }
@@ -210,6 +223,7 @@ pub fn describe(d: &Dialect, text: &str) -> Json {
         "roles": roles,
         "state": state,
         "domains": domains,
+        "thresholds": thresholds,
         "bounds": bounds,
         "text": text,
     })

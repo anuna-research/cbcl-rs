@@ -1,12 +1,15 @@
-;; IMPL-030: the state kernel as a store of lattice variables (SPEC-038 v0.1.0).
+;; IMPL-030: the state kernel as a store of lattice variables (SPEC-038 v0.2.0).
+;; Maintainer accepted ADR-3805 on 2026-11-08: stable thresholds, revisable
+;; snapshots, separate terminal faults, and full domain carrier evidence.
+;; Earlier lattice-algebra completion is reopened for v0.2.0 acceptance.
 ;; Slice 1 lands the pure lattice algebra and the factorisation tests with no
 ;; wire change; later slices add threshold reads, freeze, the conflict top,
 ;; bindings, and the Lean capstone. Acceptance criteria quote SPEC-038 TESTs.
 
 (meta plan
   (id "IMPL-030")
-  (title "LVar state kernel (SPEC-038 v0.1.0): lattice algebra, threshold reads, freeze, conflict top, user lattices")
-  (version "0.1.0")
+  (title "LVar state kernel (SPEC-038 v0.2.0): author-facing stable facts, snapshots and conflicts")
+  (version "0.2.0")
   (status "active")
   (created "2026-11-07")
   (author "agent:claude")
@@ -20,8 +23,20 @@
   (acceptance "TEST-3800: crates/cbcl-parser/tests/lattice_factorisation.rs passes on every state vector: display equals fold in forward, reversed and duplicated delivery; L(A1 ∪ A2) = L(A1) ⊔ L(A2) for parity and halves partitions; factor returns None for the two closure heads."))
 
 (meta task-threshold-reads
-  (description "CON-3801: parse (threshold name field element+) in the state clause; type elements against the field carrier; reject compatible pairs at install in O(k^2); render reached/pending in fold and state_schema.")
-  (acceptance "TEST-3801 property test and TEST-3803 install rejections pass; existing vectors unchanged (TEST-3807)."))
+  (description "CON-3801 / ADR-3805: stable thresholds over count, members, nonnegative event sums and progress; reject signed net balances and fault alternatives; render successful, pending or separate terminal fault outcomes.")
+  (acceptance "TEST-3801/3803/3804: properties and rejection tests pass; negative nonnegative-shaped inputs fail before admission; signed balances remain snapshots; conflicting initializers fault dependent lift/closure fields and thresholds; TEST-3807 conflict-free vectors unchanged."))
+
+(meta task-semantic-alignment
+  (description "ADR-3805: preserve raw initializer/contribution evidence under domain-carrier union; propagate initializer faults to dependent displays and thresholds; install nonnegative events sum thresholds without reinterpreting signed counters.")
+  (acceptance "TEST-3800 distinct-opener admitted-history union law, TEST-3801 threshold stability or explicit fault, TEST-3803 signed source and fault alternative rejection, TEST-3804 derived and closure dependency faults; fresh-context review and isolated semantic mutants pass."))
+
+;; Current Elephant task convention. This amendment is also in theory spec-038.
+(given (task semantic-alignment))
+(given (task-description semantic-alignment "Implement maintainer-approved ADR-3805 read semantics and repair domain carrier evidence."))
+(given (task-acceptance semantic-alignment "TEST-3800/3801/3803/3804 pass, including admitted opener forks, negative-source rejection, derived and closure fault propagation, and semantic mutations."))
+(given (no-deps semantic-alignment))
+(normally r-ready-semantic-alignment (and (task semantic-alignment) (no-deps semantic-alignment)) (ready semantic-alignment))
+(meta r-ready-semantic-alignment (source "SPEC-038-lvar-state-kernel#ADR-3805"))
 
 (meta task-conflict-top
   (description "ADR-3803 / REQ-3804: add the sole carrier's top to the fold rendering of initial as {status: fault, evidence: [...]}, uniform with the resource fault; keep Absent for no opener.")

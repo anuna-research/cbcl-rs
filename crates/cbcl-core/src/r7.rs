@@ -28,12 +28,21 @@ pub const SELF_ADDRESS_PREFIX: &str = "sha256-";
 pub enum R7Violation {
     Malformed(String),
     UnknownVerb(String),
-    UnknownField { verb: String, field: String },
+    UnknownField {
+        verb: String,
+        field: String,
+    },
     Typing(String),
     Replaces(String),
     Domain(String),
     Bounds(String),
-    Name { expected: String, found: String },
+    Name {
+        expected: String,
+        found: String,
+    },
+    /// A threshold read not admitted by its field's carrier, or a set that
+    /// is not pairwise incompatible (SPEC-038 REQ-3802, CON-3801).
+    Threshold(String),
 }
 
 impl fmt::Display for R7Violation {
@@ -53,6 +62,7 @@ impl fmt::Display for R7Violation {
             R7Violation::Replaces(s) => write!(f, ":replaces: {s}"),
             R7Violation::Domain(s) => write!(f, "domain: {s}"),
             R7Violation::Bounds(s) => write!(f, "state bounds: {s}"),
+            R7Violation::Threshold(s) => write!(f, "threshold {s}"),
             R7Violation::Name { expected, found } => {
                 write!(
                     f,
@@ -195,6 +205,7 @@ fn is_scalar(tc: &TypeConstraint) -> bool {
         TypeConstraint::String
             | TypeConstraint::Hlc
             | TypeConstraint::Number
+            | TypeConstraint::Nonnegative
             | TypeConstraint::Bool
     )
 }
@@ -231,8 +242,9 @@ pub fn r7_violations(d: &Dialect) -> Vec<R7Violation> {
         return out;
     };
 
-    // REQ-1904: at most max-fields fields.
-    let field_count = clause.fields().count();
+    // REQ-1904: at most max-fields fields; a threshold renders as a field
+    // (SPEC-038 CON-3801) and counts as one.
+    let field_count = clause.fields().count() + clause.thresholds().count();
     if field_count == 0 {
         out.push(R7Violation::Malformed(String::from(
             "a state clause declares at least one field",
@@ -250,6 +262,7 @@ pub fn r7_violations(d: &Dialect) -> Vec<R7Violation> {
             out.push(R7Violation::Malformed(format!("duplicate field '{name}'")));
         }
     }
+    check_thresholds(d, clause, &mut names, &mut out);
 
     // REQ-1905: protocol with exactly one opener.
     let opener = match d.causal_protocol.as_ref() {
@@ -369,7 +382,7 @@ pub fn r7_violations(d: &Dialect) -> Vec<R7Violation> {
                 }
                 for v in [inc, dec] {
                     if let Some(tc) = ty(v, key) {
-                        if tc != TypeConstraint::Number {
+                        if !matches!(tc, TypeConstraint::Number | TypeConstraint::Nonnegative) {
                             out.push(R7Violation::Typing(format!(
                                 "counter '{name}': :{key} of '{v}' must be a number"
                             )));
@@ -404,10 +417,10 @@ pub fn r7_violations(d: &Dialect) -> Vec<R7Violation> {
                         if matches!(rule, Rule::Sum { .. }) {
                             let numeric = match r {
                                 Rule::LwwPerSigner { verb, key, .. } | Rule::Events { verb, key } => {
-                                    ty(verb, key) == Some(TypeConstraint::Number)
+                                    matches!(ty(verb, key), Some(TypeConstraint::Number | TypeConstraint::Nonnegative))
                                 }
                                 Rule::LwwMap { verb, value, .. }  => {
-                                    ty(verb, value) == Some(TypeConstraint::Number)
+                                    matches!(ty(verb, value), Some(TypeConstraint::Number | TypeConstraint::Nonnegative))
                                 }
                                 _ => false,
                             };
@@ -560,6 +573,107 @@ pub fn r7_violations(d: &Dialect) -> Vec<R7Violation> {
         check_name(d, &mut out);
     }
     out
+}
+
+/// SPEC-038 REQ-3802 / CON-3801 at installation: a threshold's name is unique
+/// among fields and thresholds; its field is declared earlier in the clause
+/// and has a carrier; every element is admitted by that carrier, never by
+/// the display (REQ-3809); and the elements are pairwise incompatible, in
+/// `O(k²)` comparisons (NFR-3800). Fail closed: the message names the
+/// offending element and carrier.
+fn check_thresholds<'a>(
+    dialect: &Dialect,
+    clause: &'a StateClause,
+    names: &mut BTreeSet<&'a str>,
+    out: &mut Vec<R7Violation>,
+) {
+    use crate::lattice::{carrier_of, pairwise, relation};
+    use crate::state::Entry;
+    let mut declared: BTreeSet<&str> = BTreeSet::new();
+    for entry in &clause.entries {
+        let (name, field, elements) = match entry {
+            Entry::Field { name, .. } => {
+                declared.insert(name);
+                continue;
+            }
+            Entry::Domain { .. } => continue,
+            Entry::Threshold {
+                name,
+                field,
+                elements,
+            } => (name.as_str(), field.as_str(), elements.as_slice()),
+        };
+        if !names.insert(name) {
+            out.push(R7Violation::Malformed(format!(
+                "duplicate field '{name}' (a threshold shares the field namespace)"
+            )));
+        }
+        let rule = if declared.contains(field) {
+            clause.rule_of(field)
+        } else if clause.rule_of(field).is_some() {
+            out.push(R7Violation::Threshold(format!(
+                "{name}: field '{field}' is declared after the threshold; declare it earlier in the clause"
+            )));
+            None
+        } else {
+            out.push(R7Violation::Threshold(format!(
+                "{name}: names undefined field '{field}'"
+            )));
+            None
+        };
+        let Some(rule) = rule else {
+            continue;
+        };
+        let Some(carrier) = carrier_of(rule) else {
+            out.push(R7Violation::Threshold(format!(
+                "{name}: field '{field}' is a derived display with no carrier of its own"
+            )));
+            continue;
+        };
+        let mut typed = true;
+        for e in elements {
+            if matches!(e, crate::lattice::Element::Sum(_)) {
+                let monotone = match rule {
+                    Rule::Events { verb, key } => dialect
+                        .shapes
+                        .iter()
+                        .filter(|s| s.performative == *verb)
+                        .flat_map(|s| &s.rules)
+                        .any(|r| {
+                            matches!(r, ShapeRule::Require {
+                            keyword, type_constraint: Some(TypeConstraint::Nonnegative), ..
+                        } if keyword == key)
+                        }),
+                    _ => false,
+                };
+                if !monotone {
+                    typed = false;
+                    out.push(R7Violation::Threshold(format!(
+                        "{name}: (sum …) on '{field}' can be revised; use a snapshot, freeze, or an events source whose writer requires nonnegative amounts"
+                    )));
+                    continue;
+                }
+            }
+            if !e.admitted_by(&carrier) {
+                typed = false;
+                out.push(R7Violation::Threshold(format!(
+                    "{name}: element {} is not admitted by carrier {} of field '{field}'",
+                    e.wire(),
+                    carrier.name()
+                )));
+            }
+        }
+        if !typed {
+            continue;
+        }
+        if let Err((i, j, why)) = pairwise(elements, relation) {
+            out.push(R7Violation::Threshold(format!(
+                "{name}: elements {} and {} are {why}",
+                elements[i].wire(),
+                elements[j].wire()
+            )));
+        }
+    }
 }
 
 fn check_name(d: &Dialect, out: &mut Vec<R7Violation>) {

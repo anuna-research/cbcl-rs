@@ -164,7 +164,7 @@ fn twin(d: &Dialect) -> Dialect {
                 }
                 None => continue,
             },
-            Entry::Domain { .. } => {
+            Entry::Domain { .. } | Entry::Threshold { .. } => {
                 entries.remove(at);
             }
         }

@@ -381,6 +381,15 @@ fn state_to_sexpr(clause: &crate::state::StateClause) -> SExpr {
             Entry::Domain { verb, key, field } => {
                 items.push(SExpr::List(vec![sym("domain"), s(verb), s(key), s(field)]));
             }
+            Entry::Threshold {
+                name,
+                field,
+                elements,
+            } => {
+                let mut t = vec![sym("threshold"), s(name), s(field)];
+                t.extend(elements.iter().map(|e| e.to_sexpr()));
+                items.push(SExpr::List(t));
+            }
             Entry::Field { name, rule } => {
                 let mut r = vec![sym(rule.head())];
                 match rule {
@@ -644,6 +653,7 @@ fn type_constraint_to_sexpr(tc: &Option<TypeConstraint>) -> SExpr {
             TypeConstraint::String => "string",
             TypeConstraint::Hlc => "hlc",
             TypeConstraint::Number => "number",
+            TypeConstraint::Nonnegative => "nonnegative",
             TypeConstraint::Bool => "bool",
             TypeConstraint::Symbol => "symbol",
             TypeConstraint::Keyword => "keyword",

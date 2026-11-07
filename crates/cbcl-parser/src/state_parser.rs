@@ -10,8 +10,9 @@
 
 use alloc::string::String;
 use alloc::vec::Vec;
+use cbcl_core::lattice::Element;
 use cbcl_core::sexpr::{Atom, SExpr};
-use cbcl_core::state::{Entry, Rule, StateBounds, StateClause};
+use cbcl_core::state::{Entry, Rule, StateBounds, StateClause, Value};
 
 fn symbol(s: &SExpr, what: &str) -> Result<String, String> {
     match s {
@@ -211,6 +212,26 @@ pub fn parse_state(sexpr: &SExpr) -> Result<StateClause, String> {
             });
             continue;
         }
+        if parts[0].is_symbol("threshold") {
+            if parts.len() < 4 {
+                return Err(String::from("threshold takes: name field element…"));
+            }
+            let name = symbol(&parts[1], "threshold name")?;
+            if !is_field_name(&name) {
+                return Err(alloc::format!(
+                    "'{name}' is not a field name ([a-z][a-z0-9-]{{0,47}})"
+                ));
+            }
+            entries.push(Entry::Threshold {
+                name,
+                field: symbol(&parts[2], "threshold field")?,
+                elements: parts[3..]
+                    .iter()
+                    .map(parse_element)
+                    .collect::<Result<Vec<_>, _>>()?,
+            });
+            continue;
+        }
         if parts.len() != 2 {
             return Err(String::from("a field entry is: (name (rule …))"));
         }
@@ -224,6 +245,54 @@ pub fn parse_state(sexpr: &SExpr) -> Result<StateClause, String> {
         entries.push(Entry::Field { name, rule });
     }
     Ok(StateClause { entries })
+}
+
+/// Parse one threshold element (SPEC-038 CON-3801):
+/// `scalar | (count n) | (member scalar) | (sum n) | (progress n) | fault`.
+/// Typing against the field's carrier is an installation check (R7).
+fn parse_element(sexpr: &SExpr) -> Result<Element, String> {
+    let scalar = |s: &SExpr| -> Result<Value, String> {
+        match s {
+            SExpr::Atom(Atom::Str(_)) | SExpr::Atom(Atom::Num(_)) | SExpr::Atom(Atom::Bool(_)) => {
+                Ok(Value::from_sexpr(s))
+            }
+            other => Err(alloc::format!(
+                "threshold element must be a scalar, got {other}"
+            )),
+        }
+    };
+    match sexpr {
+        SExpr::Atom(Atom::Symbol(s)) if s == "fault" => Err(String::from(
+            "fault is a separate terminal outcome, not a threshold alternative",
+        )),
+        SExpr::Atom(Atom::Symbol(other)) => Err(alloc::format!(
+            "unknown threshold element '{other}' (SPEC-038 CON-3801)"
+        )),
+        SExpr::Atom(_) => scalar(sexpr).map(Element::Scalar),
+        SExpr::List(items) => {
+            let [head, arg] = items.as_slice() else {
+                return Err(String::from(
+                    "a threshold element is: (count n) | (member x) | (sum n) | (progress n)",
+                ));
+            };
+            let head = symbol(head, "threshold element head")?;
+            let integer = || match arg {
+                SExpr::Atom(Atom::Num(n)) => Ok(*n),
+                other => Err(alloc::format!("{head} requires an integer, got {other}")),
+            };
+            Ok(match head.as_str() {
+                "count" => Element::Count(integer()?),
+                "sum" => Element::Sum(integer()?),
+                "progress" => Element::Progress(integer()?),
+                "member" => Element::Member(scalar(arg)?),
+                other => {
+                    return Err(alloc::format!(
+                        "unknown threshold element '{other}' (SPEC-038 CON-3801)"
+                    ))
+                }
+            })
+        }
+    }
 }
 
 /// Parse a `(:state-bounds bound…)` clause; absent bounds take defaults.
