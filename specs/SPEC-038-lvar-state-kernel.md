@@ -46,7 +46,7 @@ Structure:
 ```
 
 Decisions: [[SPEC-038-lvar-state-kernel#ADR-3800]] LVars as the kernel model ·
-[[SPEC-038-lvar-state-kernel#ADR-3801]] a closed algebra, no user merge functions ·
+[[SPEC-038-lvar-state-kernel#ADR-3801]] user definition in three tiers: compose freely, declare finite lattices and tables verified at install, never supply code ·
 [[SPEC-038-lvar-state-kernel#ADR-3802]] freeze against a concurrent write: supersede by
 default, fault by declaration · [[SPEC-038-lvar-state-kernel#ADR-3803]] a conflict top in
 every lattice · [[SPEC-038-lvar-state-kernel#ADR-3804]] the sixteen heads stay as
@@ -235,13 +235,31 @@ forbids. Cross-field conditions on revisable values are therefore expressible
 only as derived snapshots or as thresholds, never as selectors.
 Trace: [[SPEC-038-lvar-state-kernel#TEST-3800]], [[SPEC-038-lvar-state-kernel#TEST-3801]].
 
+## REQ-3810: User-defined finite lattices verified at installation
+
+A dialect MAY declare a finite lattice, a table-defined contribution and a
+table-defined post-map ([[SPEC-038-lvar-state-kernel#CON-3803]]). Installation
+SHALL reject the declaration unless: the join table is total on the declared
+elements; join is commutative, associative and idempotent; the declared bottom
+is the identity of join and the declared top absorbs it; every contribution
+table maps into the declared elements; and every post-map table marked `stable`
+is monotone from the lattice order into its codomain's order (booleans under
+false ≤ true, integers under ≤). A field over such a lattice SHALL then satisfy
+[[SPEC-038-lvar-state-kernel#REQ-3800]] and [[SPEC-038-lvar-state-kernel#REQ-3801]]
+with no further proof, and a `stable` post-map SHALL be admissible as a
+threshold element source under [[SPEC-038-lvar-state-kernel#REQ-3802]]. The
+element count SHALL be bounded by the clause's `max-list`.
+Trace: [[SPEC-038-lvar-state-kernel#TEST-3808]], [[SPEC-038-lvar-state-kernel#CON-3803]].
+
 ## NFR-3800: Cost
 
 Evaluating any term over an accepted set of `n` acts SHALL take time linear in
 `n` times the term's size, with no per-act work exceeding the existing R2
 bounds; the pairwise-incompatibility check of a threshold set of `k` elements
-SHALL take `O(k²)` lattice comparisons at installation and none at fold time.
-Trace: [[SPEC-038-lvar-state-kernel#TEST-3803]].
+SHALL take `O(k²)` lattice comparisons at installation and none at fold time;
+verifying a user-defined lattice of `n ≤ max-list` elements SHALL take `O(n³)`
+table lookups at installation and none at fold time.
+Trace: [[SPEC-038-lvar-state-kernel#TEST-3803]], [[SPEC-038-lvar-state-kernel#TEST-3808]].
 
 ## CON-3800: The lattice algebra
 
@@ -313,6 +331,33 @@ value. Error model: install rejects an undeclared field or verb.
 Implements: [[SPEC-038-lvar-state-kernel#REQ-3803]].
 Verified by: [[SPEC-038-lvar-state-kernel#TEST-3802]].
 
+## CON-3803: User-defined finite lattices
+
+Wire grammar, entries of the `state` clause recognised by the existing
+S-expression recogniser:
+
+```text
+entry        := … | "(" "lattice" name "(" "elements" symbol+ ")"
+                                     "(" "bottom" symbol ")" "(" "top" symbol ")"
+                                     "(" "join" "(" symbol symbol symbol ")"* ")" ")"
+rule         := … | "(" "lift" verb "(" "into" name ")" "(" "contribute" entry-row+ ")"
+                                 [ "(" "project" ["stable"] "(" out-row+ ")" ")" ] ")"
+entry-row    := "(" key scalar symbol ")"     ; field, field value → element
+out-row      := "(" symbol scalar ")"         ; element → displayed scalar
+```
+
+Pre-conditions: `name` is unique among lattices and fields; every symbol in a
+`join` row, `entry-row` or `out-row` is a declared element; `n ≤ max-list`.
+Post-conditions: on installation the checks of
+[[SPEC-038-lvar-state-kernel#REQ-3810]] have passed, the field is a lift whose
+join is the declared table, and its display is the `project` table applied to
+the joined element, or the element's symbol when no `project` is given. An act
+whose fields match no `entry-row` contributes the bottom. Error model: install
+rejects with the first failing law and the witnessing elements, for example
+`join not commutative: (a b) ≠ (b a)`; no repair.
+Implements: [[SPEC-038-lvar-state-kernel#REQ-3810]].
+Verified by: [[SPEC-038-lvar-state-kernel#TEST-3808]].
+
 ## ADR-3800: LVars as the model of the state kernel
 
 Decision: adopt the LVar store, with put, threshold read and freeze, as the
@@ -336,14 +381,47 @@ non-monotone projections stop being an exception; they are snapshots, readable
 after a freeze or through a threshold, and the chain's last step is located
 exactly.
 
-## ADR-3801: A closed algebra, no user merge functions
+## ADR-3801: Three tiers of user definition; verified tables yes, code no
 
-Decision: dialects compose terms from the primitives of
-[[SPEC-038-lvar-state-kernel#CON-3800]]; they cannot define carriers or join
-functions. Rationale: R1 to R3 exist to keep installed dialects from adding
-computational power, and a user-supplied merge is code. Consequence: a new
-primitive is a new proof, as today, but a new rule head is a term and needs no
-proof.
+Decision: a dialect may define its own lattices and morphisms in two of three
+forms, and the third is excluded.
+
+1. *Composition.* Terms over the primitives of
+   [[SPEC-038-lvar-state-kernel#CON-3800]]. Any per-act contribution lifts to a
+   morphism by the universal property of the powerset, and products, keyed maps
+   and composition preserve the lattice laws, so nothing needs checking beyond
+   the term's shape.
+2. *Finite lattices and tables, verified at installation.* A dialect may declare
+   a finite lattice by its elements and join table, a contribution as a table
+   from field values to elements, and a post-map as a table from elements to
+   scalars ([[SPEC-038-lvar-state-kernel#CON-3803]]). Installation checks the
+   lattice laws exhaustively, checks that a post-map marked stable is monotone,
+   and bounds the element count by `max-list`, so every check is decidable and
+   polynomial ([[SPEC-038-lvar-state-kernel#REQ-3810]]).
+3. *Code for a join or a contribution.* Excluded.
+
+Rationale. The determinism of a morphism is conditional on the carrier being a
+join-semilattice and on the function distributing over its join. In a trusted
+codebase those are obligations a programmer promises: Hydro's `lattices` crate
+states that "LatticeOrd must always agree with the Merge function", and "Keep
+CALM and CRDT On" leaves the monotonicity of user queries to "type annotations
+… along the lines of Blazes" and "formal verification and fuzzing"
+([[LVars]]). A dialect arrives as data from any author. A merge that is not
+commutative or not idempotent breaks replica agreement silently, which is the
+premise of [[SPEC-037-state-kernel-sec]]; unbounded code breaks the R2 bounds
+and reopens the undecidability that the first inclusion of the chain closes
+([[protocol-model]]). For finite tables the laws are decidable by inspection,
+which is the LangSec discipline of recognising and verifying before use; for
+code they are not. Tier 2 therefore gives dialect authors Hydro's and BloomL's
+expressiveness without their promise.
+
+Alternatives: the previous form of this decision, composition only, which was
+simpler but needlessly excluded any carrier the primitives do not spell;
+user code with a required test suite, rejected because tests cannot establish
+a universal law and the author is untrusted. Consequence: a new primitive still
+needs a proof, a new term needs none, and a new finite lattice needs an
+installation check whose cost is stated in
+[[SPEC-038-lvar-state-kernel#NFR-3800]].
 
 ## ADR-3802: Freeze against a concurrent write
 
@@ -431,12 +509,25 @@ Every vector's addresses, verdicts and rendered state are byte-identical to
 `main` before this specification, except for members the vector's dialect
 explicitly declares. Validates REQ-3807.
 
+## TEST-3808: User-defined lattices
+
+A three-element lattice `{lo, mid, hi}` with the chain join installs and
+behaves as `max`; the same table with `(join lo hi mid)` and `(join hi lo hi)`
+is rejected as not commutative, naming the pair; a table missing a row is
+rejected as not total; a table where `join a (join b c) ≠ join (join a b) c` is
+rejected as not associative, naming the triple; a `project stable` table that
+maps `mid ↦ 2` and `hi ↦ 1` is rejected as not monotone; the same table without
+`stable` installs and is marked snapshot; a lattice of `max-list + 1` elements
+is rejected; the installation check completes within the `O(n³)` bound on a
+64-element lattice. A field over the accepted lattice passes TEST-3800's
+display and morphism checks. Validates REQ-3810, NFR-3800.
+
 ## Purity Boundary Map
 
 ### Pure Core (no I/O, no shared state, deterministic)
 - `cbcl_core::lattice`: terms, carriers, join, evaluation, display.
 - `cbcl_core::state::fold`: unchanged; the existing evaluator.
-- Install checks for threshold incompatibility and freeze roles.
+- Install checks for threshold incompatibility, freeze roles, and the lattice laws of user-defined tables.
 
 ### Effectful Shell (orchestrates I/O, calls pure core)
 - Hosts and bindings that subscribe to threshold crossings and freezes and fire effects.

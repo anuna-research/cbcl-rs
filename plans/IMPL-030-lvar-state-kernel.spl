@@ -31,6 +31,10 @@
   (description "CON-3802 / ADR-3802: parse (freeze field verb [policy]); fold excludes contributions causally after the freeze under supersede or joins to top under fault; render frozen with the freezing address; install checks field and verb.")
   (acceptance "TEST-3802 passes for both policies including the concurrent-write case; TEST-3804's freeze clause passes."))
 
+(meta task-user-lattices
+  (description "CON-3803 / REQ-3810: parse (lattice …) declarations and (lift … (into name) (contribute …) [(project [stable] …)]) rules; verify join totality, commutativity, associativity, idempotence, bottom identity and top absorption, contribution range, and monotonicity of stable projections at install; evaluate as a lift in lattice.rs; render project tables.")
+  (acceptance "TEST-3808 passes including every rejection with its named witness; a field over an accepted user lattice passes TEST-3800; vectors unchanged (TEST-3807)."))
+
 (meta task-snapshot-marking
   (description "REQ-3805: state_schema marks fields that are neither threshold nor frozen as snapshot; bindings' READMEs state the host obligation for effects.")
   (acceptance "TEST-3805 passes; js, wasm, erl and ffi docs updated."))
@@ -52,6 +56,7 @@
 (given task-threshold-reads)
 (given task-conflict-top)
 (given task-freeze)
+(given task-user-lattices)
 (given task-snapshot-marking)
 (given task-lean-lift-theorem)
 (given task-lean-quasi-determinism)
@@ -67,13 +72,15 @@
 (meta r-ready-conflict-top (source "SPEC-038-lvar-state-kernel#REQ-3804"))
 (normally r-ready-freeze (and task-freeze completed-conflict-top) ready-freeze)
 (meta r-ready-freeze (source "SPEC-038-lvar-state-kernel#REQ-3803"))
+(normally r-ready-user-lattices (and task-user-lattices completed-threshold-reads) ready-user-lattices)
+(meta r-ready-user-lattices (source "SPEC-038-lvar-state-kernel#REQ-3810"))
 (normally r-ready-snapshot-marking (and task-snapshot-marking completed-threshold-reads completed-freeze) ready-snapshot-marking)
 (meta r-ready-snapshot-marking (source "SPEC-038-lvar-state-kernel#REQ-3805"))
 (normally r-ready-lean-lift-theorem (and task-lean-lift-theorem completed-lattice-algebra) ready-lean-lift-theorem)
 (meta r-ready-lean-lift-theorem (source "SPEC-038-lvar-state-kernel#REQ-3800"))
 (normally r-ready-lean-quasi-determinism (and task-lean-quasi-determinism completed-lean-lift-theorem completed-conflict-top completed-freeze) ready-lean-quasi-determinism)
 (meta r-ready-lean-quasi-determinism (source "SPEC-038-lvar-state-kernel#REQ-3806"))
-(normally r-ready-docs-status (and task-docs-status completed-snapshot-marking completed-lean-quasi-determinism) ready-docs-status)
+(normally r-ready-docs-status (and task-docs-status completed-snapshot-marking completed-user-lattices completed-lean-quasi-determinism) ready-docs-status)
 (meta r-ready-docs-status (source "SPEC-038-lvar-state-kernel#REQ-3807"))
 
 ;; Assignment rules
@@ -85,6 +92,8 @@
 (meta r-assign-conflict-top (source "SPEC-038-lvar-state-kernel#ADR-3804"))
 (normally r-assign-freeze (and ready-freeze agent-claude-available) assign-to-freeze-claude)
 (meta r-assign-freeze (source "SPEC-038-lvar-state-kernel#ADR-3804"))
+(normally r-assign-user-lattices (and ready-user-lattices agent-claude-available) assign-to-user-lattices-claude)
+(meta r-assign-user-lattices (source "SPEC-038-lvar-state-kernel#ADR-3804"))
 (normally r-assign-snapshot-marking (and ready-snapshot-marking agent-claude-available) assign-to-snapshot-marking-claude)
 (meta r-assign-snapshot-marking (source "SPEC-038-lvar-state-kernel#ADR-3804"))
 (normally r-assign-lean-lift-theorem (and ready-lean-lift-theorem agent-claude-available) assign-to-lean-lift-theorem-claude)
