@@ -2,6 +2,10 @@
 
 # CBCL
 
+**Proof-export branch:** see the [branch note](BRANCH-NOTE.md) for findings and
+the rationale for deferring integration. The separately merged checkpoint feature
+does not depend on this experiment.
+
 **A language for composing multi-agent protocols.**
 
 CBCL (Common Business Communication Language) lets agents define, exchange, and participate in multiparty protocols at runtime, without a central coordinator or a shared global message order. This repository provides the Rust implementation and Lean proofs.
