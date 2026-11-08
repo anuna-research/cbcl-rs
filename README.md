@@ -115,25 +115,40 @@ Receipt alone does not mean acceptance. The admission monitor separates pending 
 
 ## State and bounded counters
 
-An optional `(state …)` declaration gives a protocol's messages a shared state interpretation. Registers, sets, maps, and counters are derived from the accepted acts in a thread. The same accepted set produces the same state regardless of arrival order or duplicate delivery. `fold` computes that state; `intend` binds a proposed act against it. These primitives are exposed through the Rust, JavaScript/TypeScript, WASM, C, and Erlang interfaces.
+An optional `(state …)` declaration defines what a dialect author can observe
+from a thread's accepted acts. Every field uses the shared
+[LVar state kernel](specs/SPEC-038-lvar-state-kernel.md): accepted evidence
+accumulates by lattice join, and the field's read rule determines its observable
+value. With the same installed dialect and interpretation of authenticated
+metadata, equal accepted sets give equal observations regardless of arrival
+order or duplicate delivery.
 
-The state layer interprets the accepted interactions of the multiparty protocol;
-protocol and role checks govern admission, while state rules govern observations.
-An HLC orders eligible state writes, not protocol execution. State fields choose
-different concurrency policies: `initial` reads immutable
-opener data; multi-value registers/maps preserve concurrent surviving values;
-explicit `lww-*` registers choose a winner using trusted-host HLC evidence; and
-sets, events and aggregates combine evidence according to their rules. Explicit
-supersession and timestamp arbitration are separate: `lww-map` removes replaced
-writes before choosing a survivor, and deletion leaves unobserved concurrent
-writes intact. Bounded counters add separate resource authorization. See
-[choosing a state rule](docs/concepts/hlc-registers.md#choosing-a-state-rule) for examples and assumptions.
+The read guarantee matters as much as the value: a snapshot may revise, a
+threshold establishes a stable fact unless the history faults, and a freeze
+reads an exact causal cut. A displayed count or balance alone does not establish
+finality. `fold` evaluates these observations; `intend` uses the current accepted
+history to bind a proposed act. These APIs are exposed through Rust,
+JavaScript/TypeScript, WASM, C, and Erlang.
+
+Protocol and role checks govern admission; state rules interpret the admitted
+history. Authors can compose registers, sets, maps, counters, progress, and
+read-only context, or declare a finite lattice with contribution and projection
+tables checked at installation. Progress and resource fields retain history in
+the kernel so their reads can follow causal dependencies.
+
+Each source defines how its evidence is displayed. `initial` reads opener data
+and faults on competing openers. Multi-value registers and maps retain concurrent
+surviving values; explicit `lww-*` rules select a winner using trusted-host HLC
+metadata. An HLC orders eligible writes within those rules. Explicit supersession
+removes named writes before winner selection, and deletion leaves unobserved
+concurrent writes intact. Resource counters additionally check spending rights
+and issuance authority against causal evidence. See
+[choosing a state rule](docs/concepts/hlc-registers.md#choosing-a-state-rule)
+for examples and assumptions.
 
 ### LVar reads, freezes, and context
 
-State rules share an [LVar state kernel](specs/SPEC-038-lvar-state-kernel.md):
-accepted acts accumulate by join, and a display interprets the retained evidence.
-For dialect authors, the read forms have different guarantees:
+Dialect authors choose the read guarantee explicitly:
 
 - A **snapshot** reports the current value and may change as more acts arrive.
 - A **threshold** reports a stable fact. Once reached, it keeps the same answer
