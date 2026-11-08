@@ -41,7 +41,7 @@ def writers (field : Field) (A : List Act) : Evidence := fun address =>
 def domainSpec (field : Field) : ErrorSpec :=
   (field.domains.filter (fun domain => domain.verb == field.verb)).foldr
     (fun domain rest => StateContextEvidence.joinSpec (StateInstalledDomains.errorSpec domain.source) rest)
-    { read := fun _ => none, equiv := fun _ => rfl, grow := by intro A B growth e impossible; contradiction }
+    { support := by intros A e fault; contradiction, read := fun _ => none, equiv := fun _ => rfl, grow := by intro A B growth e impossible; contradiction }
 
 theorem selected_setEq (field : Field) {A B : List Act} (same : SetEq A B) :
     SetEq (selected field A) (selected field B) := by
@@ -82,6 +82,16 @@ theorem writers_grows (field : Field) {A B : List Act} (growth : ∀ act ∈ A, 
 
 /-- A domain fault retains all raw writer addresses before data selection. -/
 def domainErrorSpec (field : Field) : ErrorSpec := {
+  support := by
+    intro A e fault
+    cases old : (domainSpec field).read A with
+    | none => simp [old] at fault
+    | some initial =>
+      have same : initial ∪ writers field A = e := by simpa [old] using fault
+      subst e
+      apply StateEvidenceSupport.union_supported ((domainSpec field).support old)
+      rintro id ⟨act,accepted,identity,_,_⟩
+      exact List.mem_map.mpr ⟨act,accepted,identity⟩
   read := fun A => match (domainSpec field).read A with
     | none => none
     | some evidence => some (evidence ∪ writers field A)
@@ -102,6 +112,14 @@ def domainErrorSpec (field : Field) : ErrorSpec := {
 
 /-- Finite top retains precisely the selected non-bottom writer addresses. -/
 def topErrorSpec (field : Field) : ErrorSpec := {
+  support := by
+    intro A e fault
+    split at fault
+    · have same := Option.some.inj fault
+      subst e
+      rintro id ⟨act,accepted,identity,_,_⟩
+      exact List.mem_map.mpr ⟨act,selected_inside field A act accepted,identity⟩
+    · contradiction
   read := fun A => if state field A = field.table.table.top then some (writers field (selected field A)) else none
   equiv := by
     intro A B same

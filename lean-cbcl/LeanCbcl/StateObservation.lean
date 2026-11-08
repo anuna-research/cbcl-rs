@@ -97,6 +97,8 @@ structure ErrorSpec where
   read : List Act → Error
   equiv : ∀ {A B}, SetEq A B → read A = read B
   grow : ∀ {A B}, (∀ a ∈ A, a ∈ B) → Grows (read A) (read B)
+  /-- Report only identities belonging to the accepted source history. -/
+  support : ∀ {A e}, read A = some e → ∀ id ∈ e, id ∈ A.map Act.addr
 
 /-- A compositional observation path with persistent error guards. -/
 inductive Path where

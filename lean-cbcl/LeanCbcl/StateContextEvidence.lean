@@ -1,4 +1,4 @@
-import LeanCbcl.StateObservation
+import LeanCbcl.StateEvidenceSupport
 
 /-! Independent context fault witnesses survive diagnostic precedence. Root
 sealing uses the kernel's typed root decoder; mixed-thread and opener-fork
@@ -24,6 +24,7 @@ theorem vacuous_closed (A : List Act) : CausallyClosed (fun _ => False) A := by
 
 /-- Persistent error guard for incompatible or malformed root projections. -/
 def rootSpec (input : Input) : ErrorSpec := {
+  support := fun fault => StateEvidenceSupport.context_error_supported input.root _ _ fault
   read := fun A => contextError (StateContext.read input.root A)
   equiv := fun same => by rw [StateContext.read_setEq input.root same]
   grow := fun growth => errors_persist (fun _ => False) (.context input.root) (vacuous_closed _) growth }
@@ -54,6 +55,15 @@ theorem mixed_setEq (input : Input) {A B : List Act} (same : SetEq A B) : mixedC
 
 /-- The mixed-thread error channel with proved extensionality and growth. -/
 def mixedSpec (input : Input) : ErrorSpec := {
+  support := by
+    intro A e fault
+    unfold mixedError at fault
+    split at fault
+    · have same := Option.some.inj fault
+      subst e
+      rintro id ⟨act,accepted,identity⟩
+      exact List.mem_map.mpr ⟨act,accepted,identity⟩
+    · contradiction
   read := mixedError input
   equiv := fun same => by simp [mixedError,mixed_setEq input same,acceptedEvidence_setEq same]
   grow := by
@@ -115,6 +125,21 @@ def openerError (input : Input) (A : List Act) : Error :=
 
 /-- Persistent error guard for competing accepted context openers. -/
 def openerSpec (input : Input) : ErrorSpec := {
+  support := by
+    intro A e fault
+    unfold openerError at fault
+    split at fault
+    · cases observed : lift (openerContribution input) A with
+      | bot | one _ _ => simp [soleError,observed] at fault
+      | top actual =>
+        have same : actual = e := by simpa [soleError,observed] using fault
+        subst e
+        have supports := StateEvidenceSupport.sole_lift_supported (openerContribution input) (by
+          intro act id
+          unfold openerContribution
+          split <;> simp [Sole.evidence]) A
+        simpa only [observed,Sole.evidence] using supports
+    · contradiction
   read := openerError input
   equiv := by
     intro A B same
@@ -138,6 +163,8 @@ def openerSpec (input : Input) : ErrorSpec := {
 
 /-- Union independently proved error channels without changing their data. -/
 def joinSpec (left right : ErrorSpec) : ErrorSpec := {
+  support := fun fault => StateEvidenceSupport.union_error_supported _ _ _
+    (fun _ h => left.support h) (fun _ h => right.support h) _ fault
   read := fun A => unionError (left.read A) (right.read A)
   equiv := fun same => by rw [left.equiv same,right.equiv same]
   grow := fun growth => unionError_grows (left.grow growth) (right.grow growth) }

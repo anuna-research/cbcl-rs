@@ -35,6 +35,7 @@ def allowed (source : DomainSource) (A : List Act) : FinSet Val := lift (contrib
 /-- The actual initializer/context fault checker associated with this domain source. -/
 def errorSpec : DomainSource → ErrorSpec
   | .initial opener field => {
+      support := fun fault => StateEvidenceSupport.domain_error_supported opener field _ _ fault
       read := domainError opener field
       equiv := fun same => by simp [domainError,initialCarrier_invariant same]
       grow := fun growth => errors_persist (fun _ => False) (.domain opener field)

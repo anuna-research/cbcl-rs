@@ -196,7 +196,7 @@ def needsThread : List String → Bool
 /-- Build the path-scoped context fault channels from the same profile. -/
 def errorSpec (profile : Profile) (path : List String) : ErrorSpec :=
   if needsThread path then StateContextEvidence.spec (evidenceInput profile) (observesOpener path)
-  else {read := fun _ => none,equiv := fun _ => rfl,grow := by intros; intro evidence fault; contradiction}
+  else {support := by intros A e fault; contradiction,read := fun _ => none,equiv := fun _ => rfl,grow := by intros; intro evidence fault; contradiction}
 
 /-- Construct the context source with its path-specific status and error guard. -/
 noncomputable def source (profile : Profile) (path : List String) : Source Value :=

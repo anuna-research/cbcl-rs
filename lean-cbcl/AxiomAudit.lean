@@ -3075,3 +3075,19 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateResourceRendering.serialized_fault_persists
 
 #print axioms CBCL.StateResourceFactsOracle.capped_configuration
+
+#print axioms CBCL.StateEvidenceSupport.union_supported
+#print axioms CBCL.StateEvidenceSupport.union_error_supported
+#print axioms CBCL.StateEvidenceSupport.sole_lift_supported
+#print axioms CBCL.StateEvidenceSupport.context_read_supported
+#print axioms CBCL.StateEvidenceSupport.context_error_supported
+#print axioms CBCL.StateEvidenceSupport.domain_error_supported
+#print axioms CBCL.StateEvidenceSupport.resource_error_supported
+#print axioms CBCL.StateEvidenceSupport.finite_realization
+#print axioms CBCL.StateEvidenceSupport.freeze_evidence_supported
+#print axioms CBCL.StateEvidenceSupport.freeze_fault_supported
+#print axioms CBCL.StateEvidenceSupport.errors_supported
+#print axioms CBCL.StateEvidenceSupport.errors_finite
+#print axioms CBCL.StateEvidenceSupport.certified_empty_evidence
+#print axioms CBCL.StateEvidenceSupport.observation_supported
+#print axioms CBCL.StateEvidenceSupport.observation_finite

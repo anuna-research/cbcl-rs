@@ -333,3 +333,7 @@ import LeanCbcl.StateResourceOracle
 import LeanCbcl.StateResourceRendering
 
 import LeanCbcl.StateResourceFactsOracle
+
+import LeanCbcl.StateEvidenceSupport
+
+import LeanCbcl.StateEvidenceSupportTests

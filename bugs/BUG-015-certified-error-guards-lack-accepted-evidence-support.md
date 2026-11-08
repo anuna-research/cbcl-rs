@@ -3,7 +3,7 @@ id: BUG-015
 title: Certified error guards lack accepted-evidence support
 severity: S3
 priority: P1
-status: new
+status: resolved
 reported-date: 2026-11-09
 assigned-to: SPEC-038 implementer
 component: lean-cbcl/LeanCbcl/StateObservation.lean
@@ -12,8 +12,8 @@ component: lean-cbcl/LeanCbcl/StateObservation.lean
 # BUG-015: ErrorSpec does not guarantee finite accepted evidence
 
 [[SPEC-038-lvar-state-kernel#REQ-3806]] requires finite conflict witnesses.
-The model's `ErrorSpec` currently requires a reader, set extensionality and
-error growth. These laws permit an error that reports every natural-number
+The model's former `ErrorSpec` required a reader, set extensionality and
+error growth. Those laws permitted an error that reports every natural-number
 address even on empty accepted history. Consequently a capstone quantified over
 generic certified guards cannot derive finite, accepted-act evidence from this
 interface alone. This is a proof-contract gap; no concrete native factory has
@@ -69,3 +69,25 @@ fault has finite exact evidence. Build, Batteries lint and axiom audit pass,
 with semantic proof mutants and independent review. This closes a normative
 model obligation of [[SPEC-038-lvar-state-kernel#TEST-3806]], not a newly inferred
 requirement for literal Rust source extraction.
+
+## Resolution and verification
+
+`ErrorSpec.support` now requires every reported identity to belong to the
+accepted history. All root, mixed-thread, opener, domain and finite-lattice
+factories prove this property without changing their readers. Joins retain
+both channels. `StateEvidenceSupport.errors_supported` covers every closed
+path constructor, including resource certificates, thresholds and freeze
+witnesses. `observation_supported` transfers that result to the fault returned
+by the complete typed `Plan.observe`; `observation_finite` constructs an exact
+finite enumeration from the accepted address list.
+
+`StateEvidenceSupportTests` checks that the former universal guard is rejected
+for its missing support proof. An interface-weakening mutant, made by removing
+the support field from the extracted guard structure, admits that same guard
+and fails the expected-error test. Independent proof review found no defect.
+The full Lean build and Batteries env-linter pass; all 2,140 audited theorems
+use only allowlisted axioms. No new axiom or sorry was introduced.
+
+These results establish finite accepted support. They do not establish
+witness-only replay sufficiency or close the remaining top-level capstone,
+root identity and authored product-read contract work.
