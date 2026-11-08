@@ -805,6 +805,15 @@ suites.append(("StateAddressArrayScatter", (root / "lean-cbcl/LeanCbcl/StateAddr
     ("radix-array-scratch-extra-slot", "then passArray key order (Array.replicate order.length 0)", "then passArray key order (Array.replicate (order.length+1) 0)", "checkedPass_refinement"),
 ]))
 
+suites.append(("StateAddressWords", (root / "lean-cbcl/LeanCbcl/StateAddressWords.lean").read_text(), [
+    ("radix-word-count-increment-doubled", "current.modify (key index) (· + 1)", "current.modify (key index) (· + 2)", "counts_encode"),
+    ("radix-word-prefix-next-bucket", "readWord previous width + readWord table width", "readWord previous width + readWord table (width+1)", "prefixes_encode"),
+    ("radix-word-scratch-next-slot", "let destination := (readWord state.next bucket).toNat", "let destination := (readWord state.next bucket).toNat + 1", "step_encode"),
+    ("radix-word-scratch-wrong-value", "state.scratch.setIfInBounds destination (USize.ofNat index)", "state.scratch.setIfInBounds destination (USize.ofNat (index+1))", "step_encode"),
+    ("radix-word-next-increment-skipped", "state.next.modify bucket (·+1)", "state.next.modify bucket (·+0)", "step_encode"),
+    ("radix-word-source-index-bound-bypassed", "order.all (fun index => index < USize.size)", "true", "checkedWordPass_refinement"),
+]))
+
 # Preserve the full default gate while allowing a focused continuation check.
 import argparse
 parser = argparse.ArgumentParser(description=__doc__)

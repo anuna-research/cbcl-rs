@@ -1551,3 +1551,21 @@
 ;; in10.62s; three native radix mutations are rejected. Full allowlisted axiom
 ;; audit passes2050 theorems; verified-by/whitespace checks and final wiring
 ;; review pass. No production Rust algorithm or identity change is included.
+
+;; Native-word array continuation: StateAddressWords proves USize encoding
+;; commutes with indexed count increments and prefix additions; exact decoding
+;; follows operational total-length bounds. Byte conversion plus sentinel offset
+;; is exact on supported word widths. WordStorage decodes actual word next
+;; pointers for scratch writes, then increments word pointers. Derived prefix
+;; cursors establish every reachable destination's representability. Complete
+;; word loop/initializer/readback and checked wordSort refine the Nat-array and
+;; full radix semantics, including multiplicities. Generic bounds guards retain
+;; total semantics outside the native domain. Oracle explicitly executes
+;; wordSort, confirmed in C. Six mutations fail word counts/prefixes/pointers/
+;; scratch/source-index recognition. Build/env-linter and independent review pass.
+;; This is word-valued array refinement: Lean array/control indices and loops
+;; still use Nat. Native control-loop/pool/literal Rust and broader SPEC-038 ports
+;; remain open; the pending BUG-011 contract is unchanged.
+;; Final word-array checkpoint: all nine live suites pass512 cases/seed380038
+;; in16.33s; three native radix mutants are rejected. Allowlisted audit passes
+;;2071 theorems; verified-by/diff checks pass. No production Rust/identity change.

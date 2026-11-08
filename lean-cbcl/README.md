@@ -709,5 +709,17 @@ bound; out-of-bounds no-op behavior is not used to justify writes. Readback
 therefore preserves input multiplicities and composes to the complete radix
 semantics for arbitrary initial scratch contents of the required length. The
 oracle explicitly calls this proved array implementation; generated C confirms
-that call. Native `usize`, source-pool representation and literal Rust extraction
-remain separate obligations.
+that call. Word-valued array refinement is established below. Native control indices,
+source-pool representation and literal Rust extraction remain separate obligations.
+
+
+`StateAddressWords` encodes finite Nat arrays into actual `USize` arrays and
+proves counter increments and prefix addition commute with that encoding.
+Operational input-length bounds establish exact, non-wrapping decoding; byte
+conversion plus the sentinel offset is exact on both supported word widths.
+Word scratch destination decoding, updates and complete readback refine the
+Nat-array execution, including source multiplicities. A checked implementation
+preserves the full generic input semantics and composes to the established radix
+sort. The oracle explicitly executes `wordSort`, confirmed in generated C.
+Lean array/control indices and loops remain Nat-based; native control-loop,
+source-pool and literal Rust correspondence are still open.

@@ -1,3 +1,4 @@
+import LeanCbcl.StateAddressWords
 import LeanCbcl.StateAddressArrayScatter
 import LeanCbcl.StateAddressTables
 import LeanCbcl.StateAddressRadix
@@ -2981,3 +2982,26 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateAddressArrayScatter.pass_permutation
 #print axioms CBCL.StateAddressArrayScatter.checkedPass_refinement
 #print axioms CBCL.StateAddressArrayScatter.arraySort_refinement
+
+#print axioms CBCL.StateAddressWords.read_encode
+#print axioms CBCL.StateAddressWords.modify_encode
+#print axioms CBCL.StateAddressWords.counts_encode
+#print axioms CBCL.StateAddressWords.prefixes_encode
+#print axioms CBCL.StateAddressWords.add_exact
+#print axioms CBCL.StateAddressWords.increment_exact
+#print axioms CBCL.StateAddressWords.encode_zero
+#print axioms CBCL.StateAddressWords.counts_exact
+#print axioms CBCL.StateAddressWords.prefixes_exact
+#print axioms CBCL.StateAddressWords.byte_bucket_fits
+#print axioms CBCL.StateAddressWords.step_encode
+#print axioms CBCL.StateAddressWords.next_array_counts
+#print axioms CBCL.StateAddressWords.array_cursor
+#print axioms CBCL.StateAddressWords.destination_exact
+#print axioms CBCL.StateAddressWords.run_encode
+#print axioms CBCL.StateAddressWords.run_exact
+#print axioms CBCL.StateAddressWords.initial_encode
+#print axioms CBCL.StateAddressWords.pass_exact
+#print axioms CBCL.StateAddressWords.checkedWordPass_refinement
+#print axioms CBCL.StateAddressWords.wordSort_refinement
+
+#print axioms CBCL.StateAddressWords.byte_digit_exact

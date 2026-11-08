@@ -280,12 +280,20 @@ again. Native usize, address-pool representation and literal Rust refinement rem
 word bounds in the arithmetic model require a representable input length.
 
 
-The compiled operational radix oracle uses `StateAddressArrayScatter` directly:
-finite count/prefix/next/scratch arrays proved equal to the original functional
-semantics. Every destination bound is derived from the processed-prefix
+The compiled operational radix oracle uses `StateAddressWords` directly:
+`USize`-valued count/prefix/next/scratch arrays proved equal to the Nat-array
+and original functional semantics. Every destination bound is derived from the processed-prefix
 invariant, and initial scratch contents do not affect readback. The finite
 byte-key domain is checked; generic inputs retain the original behavior.
 The response deadline remains ten seconds. A failed transport poisons the
 session, preventing proptest shrinking from comparing a late reply to a newer
 request. Its regression queues a late reply after failure and verifies that it
 remains unread; disabling either poisoning or its guard fails that regression.
+
+
+Word arithmetic encoding is modular in general. Exact decoding is proved from
+the total-length and source-index bounds, with each scatter destination derived
+from its operational prefix. The checked word path enforces those bounds before
+execution, preserving the generic Nat semantics outside that domain. Lean array
+and loop indices still use Nat; complete native control-loop, pool and literal
+Rust correspondence remain open.
