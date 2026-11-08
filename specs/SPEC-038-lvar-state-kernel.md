@@ -1221,14 +1221,41 @@ freezer membership in the actual indexed scope; it is not supplied by a caller.
 `prepared_scoped_cache` composes the scope certificate with prepared dependencies
 and operational cache execution under ranked, consistent delivery premises.
 
-Native normal-value, combined-fault and presentation leaves are still supplied
-operations; they are not yet proved to interpret the constructed scope pool or
-to match the compiled source meanings. Literal native topological frontier
+At that layer, native normal-value, combined-fault and presentation leaves are
+supplied operations. The fixed value construction below instantiates them and
+proves their local compiled-source equations. Literal native topological frontier
 construction, address deduplication representation and map/vector layout/order
 remain separate extraction boundaries. The scope model uses full-act duplicate
 removal under identity consistency; it does not establish Rust allocation order
 or performance. A repeated-freezer executable regression distinguishes duplicate
 delivery from competing roots; a mutation removing deduplication fails it.
+
+`StateReaderValues.lean` constructs typed normal, fault and frozen-presentation
+operations from resolved installed rules and the actual indexed scope pool.
+Primitive sources call `sourceRead` at that scope; histogram/sum consume the
+completed dependency payload; full-observation freeze errors are unioned with
+normal source errors before historical reads. Frozen wrappers and exclusions
+come from the selected accepted freezer and current scoped contributors.
+`prepared_fixed_cache` combines prepared compilation, scope construction and
+memoization with these fixed operations, without caller-supplied leaf classifiers.
+
+`source_scoped_refinement` and `derived_scoped_refinement` establish local
+complete-observation equations to `StateNativeReader`. `freeze_error_refinement`
+retains both witness sets, and `cached_freeze_scoped` establishes the complete
+cached freeze adapter's value/error equation on closed contained scopes.
+`scoped_clear` and `cut_clear` ensure historical redirection cannot conceal a
+source fault. Prepared original source fields are proved to lie in the supported
+primitive/derived inventory; threshold-output entries remain separate.
+
+The remaining whole-reader obligation identifies the fixed operations' recursive
+cache reference with the compiled clause observations. It must establish
+reachability only through allocated scope indices and admitted original source
+field names. The current helper returns empty history at an invalid index and
+pending for unsupported IR forms; those fallbacks do not model Rust's indexing
+or unknown-field no-insert branch. Local adapter equations and fixed construction
+are not evidence that this final recursive/request-domain theorem is complete.
+Typed semantic wrappers also do not prove public serialized rendering or
+literal Rust value representation.
 
 These theorems operate at explicit typed boundaries. They do not prove Rust
 source-code extraction, canonical rendering order, diagnostics, or wire parsing.

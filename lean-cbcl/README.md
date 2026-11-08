@@ -466,8 +466,13 @@ factory through successful preparation and source-relative resolution.
 `StateScopePool` constructs the actual indexed cut pool, reuses freezer identities,
 normalizes duplicate deliveries and derives active-plan membership.
 `prepared_scoped_cache` combines those constructions with cache execution.
-Native normal/fault/wrapper leaves and literal Rust graph/map/vector extraction
-remain explicit refinement boundaries. Executable cache
+`StateReaderValues` constructs those normal/fault/wrapper operations from actual
+scope data and resolved source rules. Its source, derived and complete cached
+freeze adapter equations match `StateNativeReader`, including both fault witness
+sets and historical payloads. `prepared_fixed_cache` needs no supplied leaf
+callbacks. The remaining recursive whole-reader equation must restrict reachable
+requests to allocated scopes and admitted source fields; literal Rust value,
+graph/map/vector extraction and rendering remain boundaries. Executable cache
 witnesses and focused mutations exercise aliasing, wrapper and cut mistakes.
 
 The live [state-kernel oracle](../docs/state-kernel-oracle.md) executes the proved

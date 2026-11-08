@@ -400,3 +400,24 @@
 ;; verified-by lint passes, and vault comparison adds no unresolved reference
 ;; pairs or syntax/SPL errors. Fresh proof and artifact re-review found no new
 ;; substantive issue after the duplicate-freezer correction.
+
+;; Fixed native-value continuation for [[SPEC-038-lvar-state-kernel#TEST-3806]]:
+;; StateReaderValues constructs sourceRead/nativeDerived normal values at the
+;; concrete scope pool, unioned normal/global-freeze faults, and fixed wrapper/
+;; exclusion presentation. Source and derived scoped equations, complete cached
+;; freeze adapter refinement and scoped/cut-clear lemmas connect these pieces
+;; to StateNativeReader. prepared_fixed_cache combines prepared compilation,
+;; scope certificate and memoization without supplied leaf classifiers.
+;; Original prepared fields are within the supported source/derived inventory.
+;; The whole recursive cache-reference/compiled-clause equation remains open,
+;; including valid-scope/source-name reachability. Invalid scope/unsupported IR
+;; fallbacks are helper totals, not Rust indexing/unknown-field semantics.
+;; Public rendering, literal Rust value/graph/map/vector extraction, and rank/
+;; identity boundaries remain explicit. Fresh review found no logical defect
+;; and confirmed the remaining request-domain obligations.
+;; Fixed-value verification: full Lean build and Batteries linter pass; axiom
+;; audit reports 1387 theorems with allowed axioms only. All six focused mutations
+;; fail the intended source/fault/wrapper/cut equation or concrete scoped-value
+;; witness. verified-by lint passes; vault comparison adds no unresolved reference
+;; pairs or syntax/SPL errors. Fresh proof and artifact review found no defect
+;; within the documented local-equation scope.

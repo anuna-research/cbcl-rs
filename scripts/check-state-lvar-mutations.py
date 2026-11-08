@@ -314,6 +314,17 @@ suites.append(("StateScopePool", (root / "lean-cbcl/LeanCbcl/StateScopePool.lean
     ("scope-plan-always-active", "history.any (fun act => act.addr == root)", "true", "active_iff"),
 ]))
 
+values_source = (root / "lean-cbcl/LeanCbcl/StateReaderValues.lean").read_text()
+values_tests = (root / "lean-cbcl/LeanCbcl/StateReaderValuesTests.lean").read_text().split("\n",1)[1]
+suites.append(("StateReaderValues", values_source + "\n" + values_tests, [
+    ("typed-unfrozen-payload-dropped", "| .data (.frozen _ value _) => .data (.snapshot value)", "| .data (.frozen _ _ _) => .data .pending", "derived_unfrozen"),
+    ("typed-freeze-normal-fault-hidden", "unionError (sourceError normal) own", "unionError none own", "combined_two_faults"),
+    ("typed-freeze-own-fault-hidden", "unionError (sourceError normal) own", "unionError (sourceError normal) none", "combined_two_faults"),
+    ("typed-wrapper-freezer-substituted", "| some value => .data (.frozen root value excluded)", "| some value => .data (.frozen 0 value excluded)", "frozen_data_refinement"),
+    ("typed-scope-zero-used-for-cut", "scopes[key.1]?", "scopes[0]?", "cut_value_witness"),
+    ("typed-freeze-cut-data-replaced-by-current", "fun cut => sourceData (source cut)", "fun _ => sourceData (source scope)", "cached_freeze_scoped"),
+]))
+
 # Preserve the full default gate while allowing a focused continuation check.
 import argparse
 parser = argparse.ArgumentParser(description=__doc__)

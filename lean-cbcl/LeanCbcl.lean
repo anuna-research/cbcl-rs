@@ -229,3 +229,5 @@ import LeanCbcl.StateMemoizedReaderTests
 import LeanCbcl.StateReaderIndices
 
 import LeanCbcl.StateAuthoredDependencies
+
+import LeanCbcl.StateReaderValuesTests

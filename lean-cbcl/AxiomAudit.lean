@@ -1,3 +1,4 @@
+import LeanCbcl.StateReaderValuesTests
 import LeanCbcl.StateAuthoredDependencies
 import LeanCbcl.StateReaderIndices
 import LeanCbcl.StateMemoizedReaderTests
@@ -2158,3 +2159,31 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateAuthoredDependencies.lowered_compiled_clause
 #print axioms CBCL.StateAuthoredDependencies.prepared_native_cache
 #print axioms CBCL.StateAuthoredDependencies.prepared_scoped_cache
+
+#print axioms CBCL.StateReaderValues.derived_unfrozen
+#print axioms CBCL.StateReaderValues.source_error
+#print axioms CBCL.StateReaderValues.source_value
+#print axioms CBCL.StateReaderValues.source_scoped_refinement
+#print axioms CBCL.StateReaderValues.derived_scoped_refinement
+#print axioms CBCL.StateReaderValues.combined_two_faults
+#print axioms CBCL.StateReaderValues.combined_no_freeze
+#print axioms CBCL.StateReaderValues.derived_frozen
+#print axioms CBCL.StateReaderValues.frozen_unfrozen
+#print axioms CBCL.StateReaderValues.frozen_nested
+#print axioms CBCL.StateReaderValues.scoped_error
+#print axioms CBCL.StateReaderValues.freeze_error_refinement
+#print axioms CBCL.StateReaderValues.frozen_data_refinement
+#print axioms CBCL.StateReaderValues.scoped_clear
+#print axioms CBCL.StateReaderValues.cut_clear
+#print axioms CBCL.StateReaderValues.cached_freeze_scoped
+#print axioms CBCL.StateReaderValues.operations_fixed
+#print axioms CBCL.StateReaderValues.normal_source
+#print axioms CBCL.StateReaderValues.normal_derived
+#print axioms CBCL.StateReaderValues.supported_definition
+#print axioms CBCL.StateReaderValues.prepared_supported
+#print axioms CBCL.StateReaderValues.prepared_fixed_cache
+#print axioms CBCL.StateReaderValuesTests.cut_value_witness
+#print axioms CBCL.StateReaderValuesTests.whole_value_witness
+#print axioms CBCL.StateReaderValuesTests.unwrapped_value_witness
+#print axioms CBCL.StateReaderValuesTests.outer_wrapper_witness
+#print axioms CBCL.StateReaderValuesTests.fault_union_witness
