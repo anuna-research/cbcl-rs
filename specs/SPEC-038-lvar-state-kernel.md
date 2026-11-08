@@ -1375,8 +1375,22 @@ deliveries, and an explicit branch missing the opener produces a fault.
 business-predecessor condition and causal rank. Its conditional uniqueness and
 locality results remain valid, but that structural check is not inferred from
 literal R5/R6 admission and is not required by the domain-support proof above.
-General source-policy locality and complete native installation correspondence
-remain separate composition obligations.
+`StateFiniteFreezePolicy.lean` composes that selected-history equality with the
+actual finite source's state, closed query admission, upward reach and pair
+compatibility checks. For every admitted alternative list, a prior successful
+finite query remains the same successful answer or faults after growth and an
+exact fault-policy freeze. The proof observes the concrete frozen finite source
+plan and derives guard clarity and non-top state; neither healthy-source status
+nor raw-state equality is supplied as a premise. `output_success_or_fault`
+connects this result to compiled query code, normalization, unique-root selection
+and the public output adapter. Fixtures compute a checked three-element table,
+non-bottom prior success, mixed initializer/roster domains, reverse/duplicate
+delivery and the bypassed-initializer fault.
+
+This composition starts from a validated finite field and a selected unique
+freezer. Complete authored source-plan lookup/extraction, unselected/no-root
+outputs, other native source policies and complete native installation
+correspondence remain separate composition obligations.
 Literal Rust value representation and public serialized
 rendering remain separate boundaries. Helpers remain total outside the admitted
 request domain, which does not model Rust's indexing or unknown-field no-insert

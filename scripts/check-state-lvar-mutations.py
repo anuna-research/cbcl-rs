@@ -401,6 +401,14 @@ suites.append(("StateDomainSupportLocality", (root / "lean-cbcl/LeanCbcl/StateDo
      "(StateAuthoredBindings.contributes domains whole (.rawVerbs names)) true none whole = none)\n    (domain : Domain)", "domain_allowed_cut"),
 ]))
 
+suites.append(("StateFiniteFreezePolicy", (root / "lean-cbcl/LeanCbcl/StateFiniteFreezePolicy.lean").read_text(), [
+    ("finite-cut-policy-changed-to-supersede", "(.verbs [field.verb]),true⟩", "(.verbs [field.verb]),false⟩", "compiled_success_or_fault"),
+    ("finite-frozen-source-guards-removed", ".freeze (freezeSpec field whole verb) (sourcePlan (StateInstalledFinite.source field))",
+     ".freeze (freezeSpec field whole verb) (.snapshot (fun _ => .element (.scalar (.bool true))))", "compiled_success_or_fault"),
+    ("finite-output-uses-empty-raw-history", "causalCut (fun act => act ∈ StateScopePool.normalize B) (StateScopePool.normalize B) root := by",
+     "[] := by", "output_success_or_fault"),
+]))
+
 # Preserve the full default gate while allowing a focused continuation check.
 import argparse
 parser = argparse.ArgumentParser(description=__doc__)

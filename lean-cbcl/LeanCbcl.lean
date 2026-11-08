@@ -253,3 +253,5 @@ import LeanCbcl.StateCausalCheckCompleteTests
 import LeanCbcl.StateOpenerLocalityTests
 
 import LeanCbcl.StateDomainSupportLocalityTests
+
+import LeanCbcl.StateFiniteFreezePolicyTests

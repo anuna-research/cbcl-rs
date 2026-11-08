@@ -1,3 +1,4 @@
+import LeanCbcl.StateFiniteFreezePolicyTests
 import LeanCbcl.StateDomainSupportLocalityTests
 import LeanCbcl.StateOpenerLocalityTests
 import LeanCbcl.StateCausalCheckCompleteTests
@@ -2372,3 +2373,18 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateDomainSupportLocalityTests.healthy
 #print axioms CBCL.StateDomainSupportLocalityTests.mixed_domain_count_local
 #print axioms CBCL.StateDomainSupportLocalityTests.branch_faults
+
+#print axioms CBCL.StateFiniteFreezePolicy.state_cut
+#print axioms CBCL.StateFiniteFreezePolicy.compiled_singleton
+#print axioms CBCL.StateFiniteFreezePolicy.compiled_alternatives
+#print axioms CBCL.StateFiniteFreezePolicy.find_unique
+#print axioms CBCL.StateFiniteFreezePolicy.compiled_success_or_fault
+#print axioms CBCL.StateFiniteFreezePolicy.output_success_or_fault
+
+#print axioms CBCL.StateFiniteFreezePolicyTests.prior_reached
+#print axioms CBCL.StateFiniteFreezePolicyTests.policy_checked
+#print axioms CBCL.StateFiniteFreezePolicyTests.compiled_mixed_domain_stability
+#print axioms CBCL.StateFiniteFreezePolicyTests.bypass_source_faults
+
+#print axioms CBCL.StateFiniteFreezePolicyTests.normalized_source_clear
+#print axioms CBCL.StateFiniteFreezePolicyTests.compiled_mixed_domain_reached

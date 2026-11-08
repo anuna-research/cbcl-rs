@@ -668,3 +668,26 @@
 ;; defect. Verified-by lint passes; no added unresolved vault pairs or syntax/SPL
 ;; diagnostics. General source-policy locality, native installation/extraction
 ;; and representation/rendering obligations remain open; the task stays active.
+
+;; Finite compiled-output stability for
+;; [[SPEC-038-lvar-state-kernel#TEST-3806]]: StateFiniteFreezePolicy composes
+;; domain-support selected-history locality with actual finite carrier folding,
+;; closed source-owned query compilation, upward reach and checked pair
+;; incompatibility. Every admitted alternative list preserves the same prior
+;; reached answer or exposes a fault after growth and an exact fault-policy cut.
+;; Source/freeze clarity and non-top state follow from observing the concrete
+;; frozen source plan; no healthy-source or carrier-equality premise is supplied.
+;; output_success_or_fault reaches the public compiled adapter with actual
+;; normalization and unique-root selection. A computed three-element table and
+;; mixed initializer/roster fixture construct non-bottom prior success and actual
+;; emitted reached output under reverse/duplicate delivery. A bypassed initializer
+;; makes the concrete frozen source fault. Independent review's request for an
+;; explicit healthy success assertion is addressed by normalized_source_clear
+;; and compiled_mixed_domain_reached; final review finds no defect/overstatement.
+;; Verification: aggregate build and Batteries env-linter pass; 1553 theorems
+;; pass the allowlisted axiom audit. Three focused mutations fail the named
+;; compiled stability/adapter theorem: supersede policy, removed finite guards,
+;; and empty raw scope. Verified-by lint passes; no new unresolved vault pairs
+;; or syntax/SPL diagnostics. Validated-field and selected unique-freezer
+;; boundaries are explicit. Complete authored plan lookup, no-root outputs,
+;; other source policies and native extraction/rendering remain open.
