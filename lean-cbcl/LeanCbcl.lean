@@ -347,3 +347,7 @@ import LeanCbcl.StateWitnessReplayTests
 import LeanCbcl.StateResourceReplay
 
 import LeanCbcl.StateResourceReplayTests
+
+import LeanCbcl.StateContextReplay
+
+import LeanCbcl.StateContextReplayTests

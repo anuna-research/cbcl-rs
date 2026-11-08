@@ -1,3 +1,5 @@
+import LeanCbcl.StateContextReplayTests
+import LeanCbcl.StateContextReplay
 import LeanCbcl.StateResourceReplayTests
 import LeanCbcl.StateResourceReplay
 import LeanCbcl.StateWitnessReplayTests
@@ -3130,3 +3132,21 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateResourceReplayTests.malformed_root_is_named
 #print axioms CBCL.StateResourceReplayTests.foreign_not_relevant
 #print axioms CBCL.StateResourceReplayTests.foreign_dependency_is_named
+
+#print axioms CBCL.StateContextReplay.root_replays
+#print axioms CBCL.StateContextReplay.mixed_replays
+#print axioms CBCL.StateContextReplay.opener_replays
+#print axioms CBCL.StateContextReplay.join_replays
+#print axioms CBCL.StateContextReplay.context_spec_replays
+#print axioms CBCL.StateContextReplay.opener_fault_has_named_act
+#print axioms CBCL.StateContextReplay.opener_replays_of_ancestry
+#print axioms CBCL.StateContextReplay.context_spec_replays_of_ancestry
+#print axioms CBCL.StateContextReplay.replica_context_replays
+#print axioms CBCL.StateContextReplay.root_ancestor
+#print axioms CBCL.StateContextReplay.rooted_openers_of_dependencies
+#print axioms CBCL.StateContextReplay.replica_context_replays_of_dependencies
+
+#print axioms CBCL.StateContextReplayTests.opener_fault
+#print axioms CBCL.StateContextReplayTests.rootless_receiver_pending
+#print axioms CBCL.StateContextReplayTests.rootless_receiver_accepts_witness
+#print axioms CBCL.StateContextReplayTests.rootless_receiver_not_closed

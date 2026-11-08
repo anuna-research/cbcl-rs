@@ -97,3 +97,19 @@ non-resource dependency are named only by citations, not direct relevance.
 Removing all cited context fails both assertions; retaining only protocol
 predecessor citations fails the funding-dependency assertion while the root
 case still passes. The unmodified extracted-definition baseline passes.
+
+`StateContextReplay` proves replay for the actual root, mixed-thread, opener
+and combined context guards. A reported opener's causal ancestry restores the
+receiver's root. `root_ancestor` derives that ancestry from `ValidHistory` rank
+and dependency closure plus `CausalDependencies`, the explicit coverage of cited
+predecessors by the dependency certificate. Replica validity and causal admission
+supply the remaining history premises. Coverage is not inferred from rank alone;
+native cast/address binding remains the separate BUG-011 boundary.
+
+The context regression observes the actual opener guard: a root plus two
+openers faults with both opener identities; a receiver retaining both named
+openers but omitting the root is pending and fails causal closure. Bypassing the
+root gate makes the unchanged pending assertion fail, while the original source
+fault still passes. Independent review found no defect or masking in these
+proofs and tests. Remaining installed finite/domain guard certificates and
+structural caller bindings still prevent closing BUG-016.
