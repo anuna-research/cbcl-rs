@@ -378,3 +378,25 @@
 ;; pass; check-axioms audits 1324 theorems with allowed axioms only. Both focused
 ;; mutation suites pass, verified-by lint passes, and the spec amendment adds no
 ;; unresolved reference pairs or syntax/SPL errors relative to its prior version.
+
+;; Prepared dependency/scope continuation for [[SPEC-038-lvar-state-kernel#TEST-3806]]:
+;; StateAuthoredDependencies.bind_references proves the exact inventory for all
+;; concrete source factories, including preservation/no spurious reads. Static
+;; preparation and source resolution construct the installed clause and discharge
+;; the previous native-dependency extraction premise. StateScopePool interns
+;; accepted freezer cuts, preserves prior indices and reuses shared roots; active
+;; membership and cut callbacks are constructed from the shared indexed pool.
+;; prepared_scoped_cache conjoins this scope certificate and memoized execution.
+;; Fresh review caught raw duplicate-freezer occurrences being counted as several
+;; roots. Normalization plus deduplicated earliest selection, completeness proof,
+;; and a named repeated-freezer executable regression fix it; removing dedup kills
+;; that witness. Scope/cut certificate uses ranked/content-consistent deliveries.
+;; Native normal/fault/wrapper semantics are still supplied leaves and not yet
+;; proved against these pool reads/compiled source meanings. Literal native graph
+;; frontier/address/map/vector representation and order/cost remain boundaries.
+;; Final dependency/scope checks: full Lean build and Batteries linter pass;
+;; check-axioms reports 1360 theorems with allowed axioms only. Both focused
+;; proof-mutation suites reject all intended changes in named theorems,
+;; verified-by lint passes, and vault comparison adds no unresolved reference
+;; pairs or syntax/SPL errors. Fresh proof and artifact re-review found no new
+;; substantive issue after the duplicate-freezer correction.

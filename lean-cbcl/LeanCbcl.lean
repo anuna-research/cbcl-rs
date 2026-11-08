@@ -227,3 +227,5 @@ import LeanCbcl.StateExecutableContext
 import LeanCbcl.StateMemoizedReaderTests
 
 import LeanCbcl.StateReaderIndices
+
+import LeanCbcl.StateAuthoredDependencies

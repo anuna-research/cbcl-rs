@@ -1192,14 +1192,43 @@ successful installed-clause compilation. `compiled_native_cache` constructs the
 numeric dependency ranking from concrete field positions and composes it with
 the operational cache theorem. The secondary rank decreases when a field
 redirects into its own planned cut; it does not require scope IDs to be ordered.
-Typed dependency-to-IR-reference extraction remains a premise, including the
-obligation that no native dependency is omitted. Typed normal/fault/wrapper
-operations, active-plan detection and actual scope construction remain separate
+At that layer, typed dependency-to-IR-reference extraction is a premise. The
+concrete authored-dependency construction below discharges it for the recognized
+source inventory. Typed normal/fault/wrapper operations remain separate
 boundaries. This orchestration models known compiled fields: Rust's unknown-field
 branch returns absent without inserting a cache entry. The association-list
 cache proves lookup/result semantics, not ordered-map representation or cost.
 Executable witnesses distinguish source sum 2 from derived cut value 7 and
 preserve terminal witness lists without reading the faulted field's cut.
+
+`StateAuthoredDependencies.lean` derives the exact native field dependency
+inventory from original concrete declarations. `bind_references` proves both
+preservation and absence of spurious references for every source factory:
+histogram and sum each retain their authored source; other heads have no field
+dependency. The result survives auxiliary entries, declaration lowering,
+observation specialization and source-relative resolution. Successful preparation
+constructs the installed field clause, its namespace and cache ordering instead
+of accepting a detached dependency-to-IR relation.
+
+`StateScopePool.lean` constructs scope zero and interned causal-cut scopes from
+typed freeze declarations and full accepted history. Repeated freezer identities
+reuse indices; appending cuts preserves earlier lookups. Root selection removes
+duplicate deliveries, accepts exactly a unique semantic earliest freezer, and
+returns no scope for absent or concurrent roots. Cut values refine the proved
+executable causal cut. Normalization preserves the accepted set and derives
+unique addresses under content-identity consistency. The active callback tests
+freezer membership in the actual indexed scope; it is not supplied by a caller.
+`prepared_scoped_cache` composes the scope certificate with prepared dependencies
+and operational cache execution under ranked, consistent delivery premises.
+
+Native normal-value, combined-fault and presentation leaves are still supplied
+operations; they are not yet proved to interpret the constructed scope pool or
+to match the compiled source meanings. Literal native topological frontier
+construction, address deduplication representation and map/vector layout/order
+remain separate extraction boundaries. The scope model uses full-act duplicate
+removal under identity consistency; it does not establish Rust allocation order
+or performance. A repeated-freezer executable regression distinguishes duplicate
+delivery from competing roots; a mutation removing deduplication fails it.
 
 These theorems operate at explicit typed boundaries. They do not prove Rust
 source-code extraction, canonical rendering order, diagnostics, or wire parsing.

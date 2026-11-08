@@ -461,8 +461,13 @@ shared cache reuse. Its native request body keeps dependencies at the current
 scope, unwraps frozen payloads, returns faults before reading historical cuts,
 and redirects each field into its own preplanned cut. `StateReaderIndices`
 constructs the request ranking from successful installed-field compilation.
-Typed dependency/leaf extraction, scope construction and the literal Rust map
-representation remain explicit refinement boundaries. Executable cache
+`StateAuthoredDependencies` derives exact dependencies from every concrete source
+factory through successful preparation and source-relative resolution.
+`StateScopePool` constructs the actual indexed cut pool, reuses freezer identities,
+normalizes duplicate deliveries and derives active-plan membership.
+`prepared_scoped_cache` combines those constructions with cache execution.
+Native normal/fault/wrapper leaves and literal Rust graph/map/vector extraction
+remain explicit refinement boundaries. Executable cache
 witnesses and focused mutations exercise aliasing, wrapper and cut mistakes.
 
 The live [state-kernel oracle](../docs/state-kernel-oracle.md) executes the proved

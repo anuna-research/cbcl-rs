@@ -301,6 +301,19 @@ suites.append(("StateReaderIndices", (root / "lean-cbcl/LeanCbcl/StateReaderIndi
     ("field-index-source-and-target-reversed", "(fields.map Prod.fst).idxOf source < (fields.map Prod.fst).idxOf name := by", "(fields.map Prod.fst).idxOf name < (fields.map Prod.fst).idxOf source := by", "reference_index"),
 ]))
 
+suites.append(("StateAuthoredDependencies", (root / "lean-cbcl/LeanCbcl/StateAuthoredDependencies.lean").read_text(), [
+    ("sum-native-dependency-omitted", "| .legacy (.histogram source) | .legacy (.sum source) => some source", "| .legacy (.histogram source) => some source", "bind_references"),
+    ("context-spurious-dependency", "| _ => none\n\n/-- Native field lookup", '| .context _ => some "ghost"\n  | _ => none\n\n/-- Native field lookup', "bind_references"),
+]))
+suites.append(("StateScopePool", (root / "lean-cbcl/LeanCbcl/StateScopePool.lean").read_text(), [
+    ("scope-pool-duplicate-freezer-counted-twice", "match FinSet.dedup (whole.filter (StateExecutableFreeze.earliest whole verb)) with", "match whole.filter (StateExecutableFreeze.earliest whole verb) with", "duplicate_freezer_witness"),
+    ("scope-pool-wrong-returned-index", "(pool.scopes.length,⟨pool.scopes ++ [cut root]", "(pool.scopes.length+1,⟨pool.scopes ++ [cut root]", "intern_refinement"),
+    ("scope-pool-cut-not-appended", "⟨pool.scopes ++ [cut root],(root,pool.scopes.length)::pool.indices⟩", "⟨pool.scopes,(root,pool.scopes.length)::pool.indices⟩", "intern_refinement"),
+    ("scope-pool-cached-index-erased", "| some scope => (scope,pool)", "| some _ => (0,pool)", "intern_refinement"),
+    ("scope-pool-cut-contains-sibling", "| some freezer => StateExecutableFreeze.cut whole freezer", "| some _ => whole", "cutAt_refinement"),
+    ("scope-plan-always-active", "history.any (fun act => act.addr == root)", "true", "active_iff"),
+]))
+
 # Preserve the full default gate while allowing a focused continuation check.
 import argparse
 parser = argparse.ArgumentParser(description=__doc__)

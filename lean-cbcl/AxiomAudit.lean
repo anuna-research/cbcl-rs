@@ -1,3 +1,4 @@
+import LeanCbcl.StateAuthoredDependencies
 import LeanCbcl.StateReaderIndices
 import LeanCbcl.StateMemoizedReaderTests
 import LeanCbcl.StateMemoizedReader
@@ -2119,3 +2120,41 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateReaderIndices.compiled_scoping
 #print axioms CBCL.StateReaderIndices.compiled_dependency_ordering
 #print axioms CBCL.StateReaderIndices.compiled_native_cache
+
+
+#print axioms CBCL.StateScopePool.normalize_setEq
+#print axioms CBCL.StateScopePool.normalize_unique
+#print axioms CBCL.StateScopePool.normalize_ranked
+#print axioms CBCL.StateScopePool.initial_valid
+#print axioms CBCL.StateScopePool.lookup_append
+#print axioms CBCL.StateScopePool.intern_refinement
+#print axioms CBCL.StateScopePool.intern_reuse
+#print axioms CBCL.StateScopePool.intern_preserves_lookup
+#print axioms CBCL.StateScopePool.allocate_preserves_lookup
+#print axioms CBCL.StateScopePool.allocate_refinement
+#print axioms CBCL.StateScopePool.cutAt_refinement
+#print axioms CBCL.StateScopePool.native_cut_closed
+#print axioms CBCL.StateScopePool.related_member
+#print axioms CBCL.StateScopePool.native_scopes_refinement
+#print axioms CBCL.StateScopePool.active_iff
+#print axioms CBCL.StateScopePool.allocated_cut_complete
+#print axioms CBCL.StateScopePool.uniqueRoot_accepted
+#print axioms CBCL.StateScopePool.uniqueRoot_complete
+#print axioms CBCL.StateScopePool.selectedRoots_accepted
+#print axioms CBCL.StateScopePool.declared_scopes_refinement
+#print axioms CBCL.StateScopePool.normalized_scopes_sound
+#print axioms CBCL.StateScopePool.uniqueRoot_earliest
+#print axioms CBCL.StateScopePool.shared_scope_witness
+#print axioms CBCL.StateScopePool.causal_scope_witness
+#print axioms CBCL.StateScopePool.duplicate_freezer_witness
+#print axioms CBCL.StateAuthoredDependencies.primitive_references
+#print axioms CBCL.StateAuthoredDependencies.bind_references
+#print axioms CBCL.StateAuthoredDependencies.declaration_dependencies
+#print axioms CBCL.StateAuthoredDependencies.resolve_field
+#print axioms CBCL.StateAuthoredDependencies.static_dependencies
+#print axioms CBCL.StateAuthoredDependencies.prepared_dependencies
+#print axioms CBCL.StateAuthoredDependencies.extracted_reference
+#print axioms CBCL.StateAuthoredDependencies.resolve_names
+#print axioms CBCL.StateAuthoredDependencies.lowered_compiled_clause
+#print axioms CBCL.StateAuthoredDependencies.prepared_native_cache
+#print axioms CBCL.StateAuthoredDependencies.prepared_scoped_cache
