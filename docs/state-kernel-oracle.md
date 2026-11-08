@@ -431,3 +431,21 @@ that includes the funding act and the competing owner branch. Both observations
 are independently compared with Lean, source-address rows are checked for
 inclusion, and an earlier fault must retain its status and every earlier witness.
 The growth step changes inclusion flags only, preserving existing source acts.
+
+The resource graph also accepts optional boolean `context` and `cited_context`
+flags, defaulting to false only when absent. The former includes a non-resource
+core `tell` act; the latter makes the funding transfer cite it causally. These
+are oracle transport controls, not dialect keywords. Present nonboolean flag
+values are rejected before observation.
+
+`resource::cited_context_evidence_matches_lean` exercises all presence/citation
+combinations and generated funding/spending graphs. A present cited context
+identity enters the fault witness; an absent citation and an unrelated accepted
+context act do not. The native contextual act is outside the resource projection
+but remains visible to the accepted-identity lookup. Lean retains its typed
+non-resource fact for the same contextual-evidence selection. Both raw evidence
+bytes and fixed-ID membership are compared, including growth and duplicate
+replay. This remains below admission; intentionally absent cited context is not
+claimed to be a causally closed protocol-admitted history. Mutations deleting
+causal-context retention or reporting absent cited identities fail executed
+assertions in this suite.

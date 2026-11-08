@@ -51,6 +51,12 @@ def run (j : Json) : Except String Json := do
   let facts := (if hasRoot then [root] else []) ++ (if hasOpener then [opener] else []) ++ [operation]
   observeFacts j facts
 
+/-- Optional transport flags default only when absent; present values stay typed. -/
+def optionalFlag (j : Json) (name : String) : Except String Bool :=
+  match j.getObjVal? name with
+  | .error _ => pure false
+  | .ok value => value.getBool?
+
 /-- A funding transfer and dependent burn exercise retained resource cones.
 Missing funding, omitted dependencies and an independent same-owner fork are
 explicit fixture choices, not expected-result inputs. -/
@@ -62,9 +68,12 @@ def graphRun (j : Json) : Except String Json := do
   let included ← (← j.getObjVal? "included").getBool?
   let dependency ← (← j.getObjVal? "dependency").getBool?
   let fork ← (← j.getObjVal? "fork").getBool?
-  let payment : ResourceFact := {burn with id := 4, data := {burn.data with signer := "@treasury", kind := .transfer, amount := funding, selected := {burn.data.selected with verb := "pay", authenticatedFrom := .value "@treasury", recipient := some "@alice", recipientStatus := .recognized}}}
+  let context ← optionalFlag j "context"
+  let citedContext ← optionalFlag j "cited_context"
+  let note : ResourceFact := ⟨6,{signer := "@treasury",kind := .other,amount := 0,prev := none,deps := [],selected := {resource := "coins",verb := "tell",predecessors := [2]}}⟩
+  let payment : ResourceFact := {burn with id := 4, data := {burn.data with signer := "@treasury", kind := .transfer, amount := funding, selected := {burn.data.selected with verb := "pay", authenticatedFrom := .value "@treasury", recipient := some "@alice", recipientStatus := .recognized, predecessors := [2] ++ (if citedContext then [6] else [])}}}
   let spent : ResourceFact := {burn with data := {burn.data with amount := spend, deps := if dependency then [4] else [], selected := {burn.data.selected with predecessors := if dependency then [2,4] else [2]}}}
   let competing : ResourceFact := {spent with id := 5, data := {spent.data with amount := 1}}
-  observeFacts j ([root,opener,spent] ++ (if included then [payment] else []) ++ (if fork then [competing] else []))
+  observeFacts j ([root,opener,spent] ++ (if included then [payment] else []) ++ (if fork then [competing] else []) ++ (if context then [note] else []))
 
 end CBCL.StateResourceOracle

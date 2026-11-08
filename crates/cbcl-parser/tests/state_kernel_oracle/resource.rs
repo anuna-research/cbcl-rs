@@ -92,18 +92,23 @@ fn decrement_verifier_matches_lean() {
 fn native_graph(dialect: &cbcl_core::dialect::Dialect, case: &mut Value) -> Value {
     let (root,opener) = initial();
     let funding = case["funding"].as_i64().unwrap();
+    let context = case.get("context").map(|value| value.as_bool().unwrap()).unwrap_or(false);
+    let cited_context = case.get("cited_context").map(|value| value.as_bool().unwrap()).unwrap_or(false);
+    let note = Act::from_message(parse_message(&parse(&format!("(signed @treasury (tell :content \"context\" :thread \"coin-1\" :caused-by {}))",opener.address)).unwrap()).unwrap(),"@treasury").unwrap();
+    let payment_causes = if cited_context { format!("({} {})",opener.address,note.address) } else { opener.address.clone() };
     let spend = case["spend"].as_i64().unwrap();
-    let payment = Act::from_message(parse_message(&parse(&format!("(signed @treasury (lang example-coin (pay (@alice @bob @treasury) :recipient @alice :amount {funding} :from @treasury :thread \"coin-1\" :caused-by {} :escrow-prev {} :escrow-deps ())))",opener.address,opener.address)).unwrap()).unwrap(),"@treasury").unwrap();
+    let payment = Act::from_message(parse_message(&parse(&format!("(signed @treasury (lang example-coin (pay (@alice @bob @treasury) :recipient @alice :amount {funding} :from @treasury :thread \"coin-1\" :caused-by {payment_causes} :escrow-prev {} :escrow-deps ())))",opener.address)).unwrap()).unwrap(),"@treasury").unwrap();
     let dependency = case["dependency"].as_bool().unwrap();
     let deps = if dependency { payment.address.clone() } else { String::new() };
     let causes = if dependency { format!("({} {})",opener.address,payment.address) } else { opener.address.clone() };
     let spent = Act::from_message(parse_message(&parse(&format!("(signed @alice (lang example-coin (burn (@alice @bob @treasury) :amount {spend} :from @alice :thread \"coin-1\" :caused-by {causes} :escrow-prev {} :escrow-deps ({deps}))))",opener.address)).unwrap()).unwrap(),"@alice").unwrap();
     let competing = Act::from_message(parse_message(&parse(&format!("(signed @alice (lang example-coin (burn (@alice @bob @treasury) :amount 1 :from @alice :thread \"coin-1\" :caused-by {causes} :escrow-prev {} :escrow-deps ({deps}) :escrow-nonce \"fork\")))",opener.address)).unwrap()).unwrap(),"@alice").unwrap();
-    let ids = BTreeMap::from([(root.address.clone(),1),(opener.address.clone(),2),(spent.address.clone(),3),(payment.address.clone(),4),(competing.address.clone(),5)]);
-    assert_eq!(ids.len(),5,"fixture address projection must be injective");
+    let ids = BTreeMap::from([(root.address.clone(),1),(opener.address.clone(),2),(spent.address.clone(),3),(payment.address.clone(),4),(competing.address.clone(),5),(note.address.clone(),6)]);
+    assert_eq!(ids.len(),6,"fixture address projection must be injective");
     let mut acts = vec![root,opener,spent];
     if case["included"].as_bool().unwrap() { acts.push(payment); }
     if case["fork"].as_bool().unwrap() { acts.push(competing); }
+    if context { acts.push(note); }
     case["addresses"] = json!(acts.iter().map(|act| json!([ids[&act.address],act.address])).collect::<Vec<_>>());
     let result = observed(dialect,&acts,&ids);
     acts.reverse(); acts.extend(acts.clone());
@@ -150,6 +155,39 @@ fn funding_graph_matches_lean() {
     let amount = prop_oneof![any::<i64>(),-2i64..1003];
     runner.run(&(amount.clone(),amount,any::<bool>(),any::<bool>(),any::<bool>()), |(funding,spend,included,dependency,fork)| {
         let mut case = json!({"profile":"resource-graph","funding":funding,"spend":spend,"included":included,"dependency":dependency,"fork":fork});
+        compare_graph_growth(&oracle,&dialect,&mut case);
+        Ok(())
+    }).unwrap();
+}
+
+#[test]
+#[ignore = "requires lake build cbcl-state-oracle; explicitly run in Lean CI"]
+fn cited_context_evidence_matches_lean() {
+    let dialect = cbcl_parser::parse_dialect(&parse(include_str!("../../../../dialects/example-coin.cbcl")).unwrap()).unwrap();
+    let mut registry = cbcl_core::dialect::DialectRegistry::new();
+    registry.install(dialect.clone()).unwrap();
+    let oracle = RefCell::new(Oracle::start());
+    for context in [false,true] { for cited_context in [false,true] {
+        let mut case = json!({"profile":"resource-graph","funding":5,"spend":6,"included":true,"dependency":true,"fork":false,"context":context,"cited_context":cited_context});
+        let observed = native_graph(&dialect,&mut case);
+        assert_eq!(observed,oracle.borrow_mut().request(&case),"resource cited context={case}");
+        assert_eq!(observed["status"],"fault");
+        assert_eq!(observed["evidence"].as_array().unwrap().contains(&json!(6)),context && cited_context,
+            "only accepted cited context belongs in the witness; case={case}");
+        compare_graph_growth(&oracle,&dialect,&mut case);
+    } }
+    for key in ["context","cited_context"] {
+        let mut case = json!({"profile":"resource-graph","funding":5,"spend":6,"included":true,"dependency":true,"fork":false});
+        let _ = native_graph(&dialect,&mut case);
+        case[key] = json!("true");
+        assert!(oracle.borrow_mut().response(&case).get("error").is_some());
+    }
+    let mut config = proptest::test_runner::Config::default();
+    if std::env::var_os("PROPTEST_CASES").is_none() { config.cases = 512; }
+    let mut runner = proptest::test_runner::TestRunner::new(config);
+    runner.run(&(-2i64..1003,-2i64..1003,any::<bool>(),any::<bool>(),any::<bool>(),any::<bool>(),any::<bool>()),
+        |(funding,spend,included,dependency,fork,context,cited_context)| {
+        let mut case = json!({"profile":"resource-graph","funding":funding,"spend":spend,"included":included,"dependency":dependency,"fork":fork,"context":context,"cited_context":cited_context});
         compare_graph_growth(&oracle,&dialect,&mut case);
         Ok(())
     }).unwrap();

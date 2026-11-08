@@ -16,6 +16,7 @@ root = Path(__file__).resolve().parents[1]
 oracle = root / "lean-cbcl/.lake/build/bin/cbcl-state-oracle"
 if not oracle.is_file():
     raise SystemExit("Build first: cd lean-cbcl && lake build cbcl-state-oracle")
+resource_context_test = "resource::cited_context_evidence_matches_lean"
 resource_graph_test = "resource::funding_graph_matches_lean"
 resource_test = "resource::decrement_verifier_matches_lean"
 finite_test = "finite_kernel_matches_live_lean_oracle"
@@ -52,6 +53,8 @@ with tempfile.TemporaryDirectory(prefix="cbcl-live-oracle-") as directory:
                               text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=300)
 
     mutants = [
+        ("resource-cited-context-hidden", "escrow.rs", "evidence.extend(fact.predecessors.iter().filter(|id| present(id)).cloned());", "", resource_context_test),
+        ("resource-absent-context-reported", "escrow.rs", "evidence.extend(fact.predecessors.iter().filter(|id| present(id)).cloned());", "evidence.extend(fact.predecessors.iter().cloned());", resource_context_test),
         ("resource-evidence-json-spacing", "state.rs", "Value::List(items) => {\n                out.push('[');", "Value::List(items) => {\n                out.push_str(\"[ \");", resource_graph_test),
         ("resource-evidence-json-order-reversed", "escrow.rs", "Value::List(evidence.iter().map(|s| text(s)).collect())", "Value::List(evidence.iter().rev().map(|s| text(s)).collect())", resource_graph_test),
         ("resource-contextual-facts-hidden", "escrow.rs", "evidence.extend(all.keys().cloned());", "", resource_graph_test),
@@ -132,7 +135,8 @@ with tempfile.TemporaryDirectory(prefix="cbcl-live-oracle-") as directory:
         assertion = ("assertion" in result.stdout
                      or (test == admission_test and "ambiguous amount admitted:" in result.stdout)
                      or (test == fault_test and "native fault fold panicked; case=" in result.stdout)
-                     or (test in [resource_test,resource_graph_test] and "duplicate native resource witness" in result.stdout))
+                     or (test in [resource_test,resource_graph_test] and "duplicate native resource witness" in result.stdout)
+                     or (test == resource_context_test and "resource evidence names an absent act" in result.stdout))
         if result.returncode == 0 or f"test {test} ... FAILED" not in result.stdout or not assertion:
             print(result.stdout)
             raise SystemExit(f"FAIL: {name} not rejected by executed regression assertion")
