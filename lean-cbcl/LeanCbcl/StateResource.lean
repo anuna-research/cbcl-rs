@@ -15,6 +15,9 @@ def Included (A B : List α) : Prop := ∀ a ∈ A, a ∈ B
 
 def i128 (n : Int) : Prop := -(2^127) ≤ n ∧ n < 2^127
 
+instance (n : Int) : Decidable (i128 n) :=
+  inferInstanceAs (Decidable (-(2^127) ≤ n ∧ n < 2^127))
+
 def natural64 (n : Int) : Prop := 0 ≤ n ∧ n < 2^63
 
 def checked (n : Int) : Option Int := if -(2^127) ≤ n ∧ n < 2^127 then some n else none
@@ -63,8 +66,14 @@ def bindings : ResourceField (List ResourceRoleBinding) → List ResourceRoleBin
 def allocation (xs : ResourceAccounts) (owner : String) : Int :=
   (xs.lookup owner).getD 0
 
+def accountName (name : String) : Prop := name.toList.head? = some '@' ∧ 1 < name.length
+
+instance (name : String) : Decidable (accountName name) :=
+  inferInstanceAs (Decidable (name.toList.head? = some '@' ∧ 1 < name.length))
+
 def validAccounts (field : ResourceField ResourceAccounts) : Prop :=
-  ∃ xs, field = .value xs ∧ (xs.map Prod.fst).Nodup ∧ ∀ x ∈ xs, natural64 x.2
+  ∃ xs, field = .value xs ∧ xs ≠ [] ∧ (xs.map Prod.fst).Nodup ∧
+    ∀ x ∈ xs, accountName x.1 ∧ natural64 x.2
 
 def members (root : ResourceFact) : List String :=
   (bindings root.data.selected.bindings).flatMap ResourceRoleBinding.accounts
@@ -84,18 +93,29 @@ def links (a : ResourceFact) : List Nat := a.data.prev.toList ++ a.data.deps
 
 def rootOf (op root : ResourceFact) : Prop := op.data.selected.predecessors = [root.id]
 
+/-- Exact checked initialization arithmetic, including the native allocation
+parser and the intermediate totals before adding the floor or ceiling. -/
+def InitialBudget (c : ResourceConfig) (op : ResourceFact) (value : Int) : Prop :=
+  validAccounts op.data.selected.initialAllocations ∧
+  i128 (((accounts op.data.selected.initialAllocations).map Prod.snd).sum) ∧
+  value = ((accounts op.data.selected.initialAllocations).map Prod.snd).sum + c.floor ∧
+  i128 value ∧
+  ∀ ceiling, c.ceiling = some ceiling → c.floor ≤ ceiling ∧ c.headroomKey.isSome ∧
+    validAccounts op.data.selected.headroomAllocations ∧
+    i128 (((accounts op.data.selected.headroomAllocations).map Prod.snd).sum) ∧
+    i128 (((accounts op.data.selected.headroomAllocations).map Prod.snd).sum + value) ∧
+    ((accounts op.data.selected.headroomAllocations).map Prod.snd).sum + value = ceiling
+
 def validInitial (c : ResourceConfig) (op root : ResourceFact) : Prop :=
-  (∃ xs, root.data.selected.bindings = .value xs) ∧
+  (∃ xs, root.data.selected.bindings = .value xs ∧
+    ∀ role ∈ xs, ∀ account ∈ role.accounts, accountName account) ∧
   op.data.signer ∈ members root ∧ validAccounts op.data.selected.initialAllocations ∧
   (∀ p ∈ accounts op.data.selected.initialAllocations, p.1 ∈ members root) ∧
   (∀ owner ∈ issuers c root, owner ∈ (accounts op.data.selected.initialAllocations).map Prod.fst) ∧
   (c.headroomKey.isSome → validAccounts op.data.selected.headroomAllocations ∧
     ∀ owner, owner ∈ (accounts op.data.selected.headroomAllocations).map Prod.fst ↔
       owner ∈ (accounts op.data.selected.initialAllocations).map Prod.fst) ∧
-  i128 (((accounts op.data.selected.initialAllocations).map Prod.snd).sum + c.floor) ∧
-  (∀ ceiling, c.ceiling = some ceiling → c.floor ≤ ceiling ∧
-    ((accounts op.data.selected.initialAllocations).map Prod.snd).sum + c.floor +
-    ((accounts op.data.selected.headroomAllocations).map Prod.snd).sum = ceiling)
+  ∃ value, InitialBudget c op value
 
 def kindMatches (c : ResourceConfig) (a : ResourceFact) : Prop :=
   (a.data.kind = .increment ∧ a.data.selected.verb = c.increment.verb) ∨

@@ -181,3 +181,12 @@
 ;; 3. Prove installed-rule compilation to typed plans, especially domain /
 ;;    context source carriers and threshold contribution/source coherence.
 ;; The generic theorems cannot be used as substitutes for those refinements.
+
+;; Native refinement continuation: executable allocations/root/operation and
+;; checked initialization predicates now have certificate iff proofs. Native
+;; Summary::record folds refine sequence/cumulative arithmetic; grouped incoming
+;; sums refine flat sums given the owner-tip partition. Direct read-adapter
+;; refinements and a concrete stable domain/count source are proved.
+;; TEST-3806 still requires Kahn state/termination/prefix coverage, classification
+;; of every final native outcome, and the complete installed-clause compiler
+;; refinement (including the remaining validated source/query instances).

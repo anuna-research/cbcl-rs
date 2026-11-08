@@ -92,3 +92,5 @@ import LeanCbcl.CheckpointKernelTests
 import LeanCbcl.CheckpointAllTests
 
 import LeanCbcl.StateResourceTests
+
+import LeanCbcl.StateNativeRefinementTests

@@ -28,6 +28,7 @@ inductive Plan : Type → Type 1 where
   | resource {V : Type} (config : CheckpointEvidence.ResourceConfig)
       (decode : Act → CheckpointEvidence.ResourceData) (source : Plan V) : Plan V
   | threshold {V : Type} (spec : ThresholdSpec) (source : Plan V) : Plan spec.Carrier
+  | thresholdOn {V Q : Type} (alternatives : List Q) (test : Q → V → Bool) (source : Plan V) : Plan Q
   | freeze {V : Type} (spec : FreezeSpec) (source : Plan V) : Plan V
 
 def path : {V : Type} → Plan V → Path
@@ -39,6 +40,7 @@ def path : {V : Type} → Plan V → Path
   | _, .guardDomain opener field source => .join (.domain opener field) (path source)
   | _, .resource config decode source => .join (.resource config decode) (path source)
   | _, .threshold spec source => .join (.threshold spec) (path source)
+  | _, .thresholdOn _ _ source => path source
   | _, .freeze spec source => .freeze spec.verb spec.contributes spec.policy (path source)
 
 def mapData {V W : Type} (f : V → W) (source : Data V) : Data W :=
@@ -76,6 +78,12 @@ noncomputable def data (world : Act → Prop) : {V : Type} → Plan V → List A
           (errors world (path source) A).isSome (rawHistory A) with
       | .pending | .fault _ => .pending
       | .reached q => .reached q
+  | _, .thresholdOn alternatives test source, A =>
+      match (data world source A).payload with
+      | none => .pending
+      | some value => match alternatives.find? (fun q => test q value) with
+          | none => .pending
+          | some q => .reached q
   | _, .freeze spec source, A => frozenData (freezeRead world spec.verb spec.contributes spec.policy
       (errors world (path source) A) (fun C => data world source C) A)
 
@@ -148,6 +156,7 @@ theorem data_setEq {V : Type} (world : Act → Prop) (plan : Plan V) {A B : List
   | threshold spec source ih =>
     letI := spec.algebra
     simp only [data,lift_setEq spec.contribution same,errors_setEq world (path source) same,rawHistory_setEq same]
+  | thresholdOn alternatives test source ih => simp only [data,ih ua ub same]
   | freeze spec source ih =>
     apply congrArg frozenData
     exact freezeRead_setEq_unique same ua ub (fun C => data world source C)
@@ -255,5 +264,11 @@ theorem threshold_dependency_fault_first {V : Type} (world : Act → Prop) (spec
   cases h : thresholdError spec A with
   | none => exact ⟨e,by simp [observe,path,errors,h,fault,unionError],fun _ h => h⟩
   | some f => exact ⟨f ∪ e,by simp [observe,path,errors,h,fault,unionError],fun _ h => Or.inr h⟩
+
+theorem thresholdOn_dependency_fault_first {V Q : Type} (world : Act → Prop)
+    (alternatives : List Q) (test : Q → V → Bool) (source : Plan V) (A : List Act) (e : Evidence)
+    (fault : errors world (path source) A = some e) :
+    observe world (.thresholdOn alternatives test source) A = .fault e := by
+  simp [observe,path,fault]
 
 end CBCL.StateObservationPlan

@@ -944,6 +944,24 @@ arithmetic. `StateObservationPlan.lean` adds typed value dependencies, nested
 freezes, reached/context tags, dependency-fault-first thresholds and a composed
 replica theorem. The mutation harness includes these modules.
 
+`StateResourceNative.lean` proves executable recognition and checked
+initialization/operation checks equivalent to their certificate predicates. It
+also proves grouped incoming checked arithmetic agrees with a flat fact fold,
+including negative starting budgets, given the owner-prefix partition.
+`StateResourceSummary.lean` proves successful native record folds have the exact
+sequence, cumulative counters and per-recipient transfers of their supplied
+prefixes. Native worklist association with those complete prefixes is still an
+obligation. Empty allocation recognition and explicit account spelling are part
+of the certificate model.
+
+`StateRuleRefinement.lean` proves the value-level domain/context/derived/freeze
+adapters and source-linked closure thresholds agree with their typed plan
+interpretations. `StateCountRefinement.lean` supplies a concrete installed
+single-domain count source, matches its display to the address carrier, and
+proves reached-or-fault stability under accepted-set growth. These adapter and
+source-instance refinements do not constitute the complete installed-clause
+compilation theorem, and arbitrary source-linked queries are not assumed stable.
+
 These are model-level proofs, not a completed native refinement. The concrete
 certificate checker is not yet proved equivalent to `escrow::observe_facts`:
 owner-prefix/tip-summary arithmetic and final aggregate checks remain to be

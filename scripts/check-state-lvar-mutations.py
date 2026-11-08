@@ -47,6 +47,34 @@ suites.extend([
          "| _, .threshold spec _ => .threshold spec", "threshold_dependency_fault_first"),
     ]),
 ])
+native_tests = (root / "lean-cbcl/LeanCbcl/StateNativeRefinementTests.lean").read_text()
+linked_reached = re.search(r"theorem source_linked_threshold_reached[\s\S]*?(?=\ntheorem)", native_tests).group(0)
+linked_source = (root / "lean-cbcl/LeanCbcl/StateObservationPlan.lean").read_text()
+linked_source += "\nnamespace CBCL.StateNativeRefinementTests\nopen State StateObservationPlan\n" + linked_reached + "\nend CBCL.StateNativeRefinementTests\n"
+suites.extend([
+    ("StateResourceNative", (root / "lean-cbcl/LeanCbcl/StateResourceNative.lean").read_text(), [
+        ("empty-native-allocation-accepted", "!rows.isEmpty && rowsCheck rows", "rowsCheck rows", "empty_allocations_rejected"),
+        ("native-account-prefix-ignored", "decide (s.toList.head? = some '@') && decide (1 < s.length)",
+         "decide (1 < s.length)", "accountCheck_iff"),
+        ("native-incoming-chunk-discarded", "let total ← checkedSum ownerAmounts", "let total := (0 : Int)", "addIncoming_eq"),
+    ]),
+    ("StateResourceSummary", (root / "lean-cbcl/LeanCbcl/StateResourceSummary.lean").read_text(), [
+        ("native-sequence-not-incremented", "let next := {summary with sequence := summary.sequence + 1}",
+         "let next := summary", "record_refinement"),
+        ("native-recipient-substituted", "update summary.sentRights recipient amount",
+         "update summary.sentRights node.data.signer amount", "record_refinement"),
+    ]),
+    ("StateObservationPlan", linked_source, [
+        ("source-linked-threshold-no-longer-reads-source", "alternatives.find? (fun q => test q value)",
+         "alternatives.find? (fun _ => false)", "source_linked_threshold_reached"),
+        ("source-linked-threshold-fault-discarded", "| _, .thresholdOn _ _ source => path source",
+         "| _, .thresholdOn _ _ _ => .clear", "thresholdOn_dependency_fault_first"),
+    ]),
+    ("StateRuleRefinement", (root / "lean-cbcl/LeanCbcl/StateRuleRefinement.lean").read_text(), [
+        ("native-freeze-recomputes-current-source", "(fun C => sourceData (source C)) A",
+         "(fun _ => sourceData (source A)) A", "freeze_source_refinement"),
+    ]),
+])
 for module, source, mutants in suites:
     with tempfile.TemporaryDirectory(prefix="cbcl-state-lvar-") as directory:
         path = Path(directory) / f"{module}.lean"

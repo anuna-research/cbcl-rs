@@ -10,21 +10,21 @@ def config : ResourceConfig := {
   transfer := some ⟨"pay","amount",some "recipient"⟩, transferHeadroom := none }
 
 def root : ResourceFact := ⟨1,{
-  signer := "treasury",kind := .castRoot,amount := 0,prev := none,deps := [],
+  signer := "@treasury",kind := .castRoot,amount := 0,prev := none,deps := [],
   selected := { resource := "coins",bindings := .value [
-    ⟨"issuer",["treasury"]⟩,⟨"holder",["treasury","alice","bob"]⟩] } }⟩
+    ⟨"issuer",["@treasury"]⟩,⟨"holder",["@treasury","@alice","@bob"]⟩] } }⟩
 
 def opener : ResourceFact := ⟨2,{
-  signer := "treasury",kind := .initialize,amount := 0,prev := none,deps := [],
+  signer := "@treasury",kind := .initialize,amount := 0,prev := none,deps := [],
   selected := {
     resource := "coins",verb := "open",predecessors := [1],
-    initialAllocations := .value [("treasury",1000),("alice",0),("bob",0)] } }⟩
+    initialAllocations := .value [("@treasury",1000),("@alice",0),("@bob",0)] } }⟩
 
 def burn : ResourceFact := ⟨3,{
-  signer := "alice",kind := .decrement,amount := 1,prev := some 2,deps := [],
+  signer := "@alice",kind := .decrement,amount := 1,prev := some 2,deps := [],
   selected := {
     resource := "coins",verb := "burn",predecessors := [2],
-    authenticatedFrom := .value "alice",amountStatus := .recognized,
+    authenticatedFrom := .value "@alice",amountStatus := .recognized,
     previousStatus := .recognized,dependenciesStatus := .recognized } }⟩
 
 theorem checked_overflow : checkedAdd (2^127 - 1) 1 = none := by decide
@@ -35,19 +35,26 @@ theorem insufficient_budget : localBudget opener burn [burn] false = some 0 := b
   simp [localBudget,ownTotal,ordered,burn,opener,accounts,allocation,checkedSum,checkedAdd,checkedSub,checked,List.lookup]
 
 theorem valid_opener : validInitial config opener root := by
-  simp [validInitial,validAccounts,config,opener,root,bindings,members,issuers,accounts,natural64,i128]
+  have ht : accountName "@treasury" := by decide
+  have ha : accountName "@alice" := by decide
+  have hb : accountName "@bob" := by decide
+  simp [validInitial,InitialBudget,validAccounts,config,opener,root,bindings,members,issuers,accounts,natural64,ht,ha,hb,i128]
   rintro a b (⟨rfl,rfl⟩ | ⟨rfl,rfl⟩ | ⟨rfl,rfl⟩) <;> decide
 
 theorem reordered_headroom_valid : validInitial
     {config with ceiling := some 1000,headroomKey := some "space"}
     {opener with data := {opener.data with selected := {opener.data.selected with
-      headroomAllocations := .value [("bob",0),("alice",0),("treasury",0)]}}} root := by
-  simp [validInitial,validAccounts,config,opener,root,bindings,members,issuers,accounts,natural64,i128,
+      headroomAllocations := .value [("@bob",0),("@alice",0),("@treasury",0)]}}} root := by
+  have ht : accountName "@treasury" := by decide
+  have ha : accountName "@alice" := by decide
+  have hb : accountName "@bob" := by decide
+  simp [validInitial,InitialBudget,validAccounts,config,opener,root,bindings,members,issuers,accounts,natural64,ht,ha,hb,i128,
     or_assoc,or_left_comm,or_comm]
-  constructor <;> rintro a b (⟨rfl,rfl⟩ | ⟨rfl,rfl⟩ | ⟨rfl,rfl⟩) <;> decide
+  repeat' constructor
+  all_goals rintro a b (⟨rfl,rfl⟩ | ⟨rfl,rfl⟩ | ⟨rfl,rfl⟩) <;> decide
 
 theorem valid_burn_shape : validOperation config opener root burn := by
-  simp [validOperation,kindMatches,config,opener,root,burn,accounts,natural64,issuers,bindings]
+  simp [validOperation,kindMatches,config,opener,root,burn,accounts,natural64,accountName,issuers,bindings]
 
 theorem burn_cone : ExactCone opener burn [burn] := by
   refine ⟨by simp,by simp [burn],?_,?_⟩
