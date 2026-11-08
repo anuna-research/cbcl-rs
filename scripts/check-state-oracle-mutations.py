@@ -11,7 +11,8 @@ root = Path(__file__).resolve().parents[1]
 oracle = root / "lean-cbcl/.lake/build/bin/cbcl-state-oracle"
 if not oracle.is_file():
     raise SystemExit("Build first: cd lean-cbcl && lake build cbcl-state-oracle")
-test = "finite_kernel_matches_live_lean_oracle"
+finite_test = "finite_kernel_matches_live_lean_oracle"
+freeze_test = "freeze_kernel_matches_live_lean_oracle"
 with tempfile.TemporaryDirectory(prefix="cbcl-live-oracle-") as directory:
     isolated = Path(directory)
     (isolated / "crates").mkdir()
@@ -28,19 +29,24 @@ with tempfile.TemporaryDirectory(prefix="cbcl-live-oracle-") as directory:
     env = dict(os.environ, CBCL_STATE_ORACLE=str(oracle), PROPTEST_CASES="32", PROPTEST_RNG_SEED="380038",
                CARGO_TARGET_DIR=str(isolated / "target"), CARGO_INCREMENTAL="0", CARGO_PROFILE_TEST_DEBUG="0")
 
-    def run():
+    def run(test):
         return subprocess.run(["cargo", "test", "--offline", "-p", "cbcl-parser", "--test", "state_kernel_oracle",
                                test, "--", "--ignored", "--exact"], cwd=isolated, env=env,
                               text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=300)
 
-    baseline = run()
-    if baseline.returncode or f"test {test} ... ok" not in baseline.stdout:
-        print(baseline.stdout)
-        raise SystemExit("FAIL: live-oracle baseline")
-    print("PASS: live-oracle baseline", flush=True)
-    for name, filename, before, after in [
-        ("only-first-finite-contribution", "lattice.rs", ".fold(table.bottom, |a, b| table.merge(a, b))", ".next().unwrap_or(table.bottom)"),
-        ("threshold-source-fault-hidden", "state.rs", "n == field && v.fault_evidence().is_some()", "false && n == field && v.fault_evidence().is_some()"),
+    for test in [finite_test,freeze_test]:
+        baseline = run(test)
+        if baseline.returncode or f"test {test} ... ok" not in baseline.stdout:
+            print(baseline.stdout)
+            raise SystemExit(f"FAIL: live-oracle baseline {test}")
+        print(f"PASS: live-oracle baseline {test}", flush=True)
+    for name, filename, before, after, test in [
+        ("only-first-finite-contribution", "lattice.rs", ".fold(table.bottom, |a, b| table.merge(a, b))", ".next().unwrap_or(table.bottom)", finite_test),
+        ("threshold-source-fault-hidden", "state.rs", "n == field && v.fault_evidence().is_some()", "false && n == field && v.fault_evidence().is_some()", finite_test),
+        ("freeze-cut-ignored", "freeze.rs", ".filter(|a| cut.contains(&a.address))", ".filter(|_| true)", freeze_test),
+        ("freeze-fault-policy-hidden", "freeze.rs", "if p.policy == FreezePolicy::Fault && !p.late.is_empty() {", "if false {", freeze_test),
+        ("concurrent-freezers-hidden", "freeze.rs", "if frontier.len() > 1 {", "if false {", freeze_test),
+        ("raw-fault-hides-freeze-evidence", "freeze.rs", "evidence.extend(fault.fault_evidence().unwrap_or_default());", "let _ = fault;", freeze_test),
     ]:
         path = isolated / "crates/cbcl-core/src" / filename
         source = path.read_text()
@@ -48,7 +54,7 @@ with tempfile.TemporaryDirectory(prefix="cbcl-live-oracle-") as directory:
             raise SystemExit(f"FAIL: {name} anchor missing or ambiguous")
         try:
             path.write_text(source.replace(before, after))
-            result = run()
+            result = run(test)
         finally:
             path.write_text(source)
         if result.returncode == 0 or f"test {test} ... FAILED" not in result.stdout or "assertion" not in result.stdout:

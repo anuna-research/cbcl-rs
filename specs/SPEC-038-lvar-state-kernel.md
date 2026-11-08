@@ -856,6 +856,19 @@ operation domains reject at installation. Validates
 [[SPEC-038-lvar-state-kernel#REQ-3806]] and
 [[SPEC-038-lvar-state-kernel#REQ-3808]].
 
+The live causal-DAG oracle executes a freeze read proved equal to the existing
+Lean `freezeRead`. Its checked topological identities supply the ancestry
+search bound; executable ancestry, exact cuts, earliest freezers and complete
+conflict evidence are connected to their semantic definitions. Native fold
+comparisons cover both freeze policies, repeated/concurrent freezers,
+multi-parent ancestry, late contributions, raw top faults and unioned raw/freeze
+evidence. Missing predecessors and ambiguous identity/keyword inputs reject
+at the oracle boundary. Isolated native cut/policy/concurrency/evidence mutations
+must fail these comparisons. Generated DAGs are bounded fold inputs; this does
+not establish protocol admission or mutable-reader extraction. Validates
+[[SPEC-038-lvar-state-kernel#REQ-3803]] and
+[[SPEC-038-lvar-state-kernel#REQ-3806]].
+
 ## TEST-3805: Snapshot marking
 
 `state_schema` marks every field that is neither threshold nor frozen as
@@ -901,8 +914,8 @@ outcomes. The property test `state_kernel_oracle` compares installation,
 projected values, pending/reached thresholds and fault evidence under forward,
 reversed and duplicate delivery. Proptest shrinks mismatches and persists
 replay seeds. Directed numeric/Boolean cases and isolated Rust mutations guard
-against a vacuous comparison. The bounded initial profile excludes domains,
-context, resources, protocol admission, freezes and canonical diagnostics;
+against a vacuous comparison. The bounded profiles exclude domains,
+context, resources, protocol admission and canonical diagnostics;
 those paths retain their separate obligations. Validates
 [[SPEC-038-lvar-state-kernel#REQ-3802]],
 [[SPEC-038-lvar-state-kernel#REQ-3804]] and

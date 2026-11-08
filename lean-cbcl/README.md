@@ -460,7 +460,10 @@ finite reference functions against generated Rust installation/fold cases.
 Build it with `lake build cbcl-state-oracle`; CI runs the seeded differential
 property test. Its initial profile covers finite tables, projections,
 contributions, scalar thresholds and fault evidence, with shrinking and replay.
-Other kernel paths remain outside that profile.
+`StateExecutableFreeze` supplies a computable freeze read proved equal to the
+existing semantics; a causal-DAG profile compares roots, cuts, superseded sets
+and raw/freeze fault unions against the real Rust fold. Domain/context/resource
+and admission paths remain outside these profiles.
 
 The Batteries gate remains enabled in CI. Intentional constant contribution
 arguments and uniform prepared-state receivers have local, explained

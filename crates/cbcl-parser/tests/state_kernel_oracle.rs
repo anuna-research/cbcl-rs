@@ -57,7 +57,7 @@ impl Oracle {
         }
     }
 
-    fn request(&mut self, case: &Value) -> Value {
+    fn response(&mut self, case: &Value) -> Value {
         writeln!(self.input, "{case}").unwrap();
         self.input.flush().unwrap();
         let line = self
@@ -66,6 +66,10 @@ impl Oracle {
             .expect("Lean oracle exited or failed to respond within 10 seconds")
             .expect("Lean oracle stdout error");
         let reply: Value = serde_json::from_str(&line).expect("Lean JSON response");
+        reply
+    }
+    fn request(&mut self, case: &Value) -> Value {
+        let reply = self.response(case);
         assert!(
             reply.get("error").is_none(),
             "oracle input error: {reply}; input={case}"
@@ -244,7 +248,39 @@ fn dialect(case: &Value) -> String {
             )
         })
         .unwrap_or_default();
-    format!("(define oracle-demo (cbcl) @a (extend open (to) (tell to)) (extend mark (to phase amount flag) (tell to :phase phase :amount amount :flag flag)) (shape mark (require :phase string) (require :amount number) (require :flag bool)) (protocol (then begin open) (then open mark)) (state (lattice rank (elements {names}) (bottom e0) (top {}) (join {joins})) (value (lift mark (into rank) (contribute {rows}) {projection})) {threshold}))",table["top"].as_str().unwrap())
+    let has_freeze = case["freeze"].is_boolean();
+    let freeze = if has_freeze {
+        format!(
+            "(freeze value close {})",
+            if case["freeze"] == true {
+                "fault"
+            } else {
+                "supersede"
+            }
+        )
+    } else {
+        String::new()
+    };
+    let source = format!("(define oracle-demo (cbcl) @a (extend open (to) (tell to)) (extend mark (to phase amount flag) (tell to :phase phase :amount amount :flag flag)) (shape mark (require :phase string) (require :amount number) (require :flag bool)) (protocol (then begin open) (then open mark)) (state (lattice rank (elements {names}) (bottom e0) (top {}) (join {joins})) (value (lift mark (into rank) (contribute {rows}) {projection})) {threshold} {freeze}))",table["top"].as_str().unwrap());
+    if has_freeze {
+        source
+            .replace("@a (extend open", "@a (:roles (owner)) (extend open")
+            .replace(
+                "(extend open (to)",
+                "(extend open (to) :from owner :to owner",
+            )
+            .replace(
+                "(extend mark (to phase amount flag)",
+                "(extend mark (to phase amount flag) :from owner :to owner",
+            )
+            .replace(
+                "(shape mark",
+                "(extend close (to) :from owner :to owner (tell to)) (shape mark",
+            )
+            .replace("(then open mark)", "(then open (repeat 16 mark close))")
+    } else {
+        source
+    }
 }
 fn make_act(text: &str) -> Act {
     Act::from_message(parse_message(&parse(text).unwrap()).unwrap(), "@a").unwrap()
@@ -260,6 +296,48 @@ fn normalize_fault(value: &Value, ids: &BTreeMap<String, u64>) -> Value {
     evidence.dedup();
     json!({"status":"fault", "evidence":evidence})
 }
+fn graph_acts(case: &Value) -> (BTreeMap<String, u64>, Vec<Act>) {
+    let rows = case["acts"].as_array().unwrap();
+    let mut ordered = rows.clone();
+    ordered.sort_by_key(|a| a[0].as_u64().unwrap());
+    let mut built: BTreeMap<u64, Act> = BTreeMap::new();
+    for row in ordered {
+        let id = row[0].as_u64().unwrap();
+        if built.contains_key(&id) {
+            continue;
+        }
+        let verb = row[1].as_str().unwrap();
+        let parents = row[2]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|p| built[&p.as_u64().unwrap()].address.clone())
+            .collect::<Vec<_>>();
+        let cause = match parents.as_slice() {
+            [] => "begin".to_owned(),
+            [one] => one.clone(),
+            _ => format!("({})", parents.join(" ")),
+        };
+        let fields = row[3]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|p| format!(":{} {}", p[0].as_str().unwrap(), wire(&p[1])))
+            .collect::<Vec<_>>()
+            .join(" ");
+        built.insert(id,make_act(&format!("(lang oracle-demo ({verb} @all {fields} :nonce {id} :caused-by {cause} :thread \"t\" :from @a))")));
+    }
+    let ids = built
+        .iter()
+        .map(|(id, a)| (a.address.clone(), *id))
+        .collect();
+    let delivered = rows
+        .iter()
+        .map(|row| built[&row[0].as_u64().unwrap()].clone())
+        .collect();
+    (ids, delivered)
+}
+
 fn native(case: &Value) -> Value {
     let text = dialect(case);
     let Ok(sexpr) = parse(&text) else {
@@ -275,21 +353,32 @@ fn native(case: &Value) -> Value {
         }
     };
     let d = registry.iter().last().unwrap();
-    let open = make_act("(lang oracle-demo (open @all :caused-by begin :thread \"t\" :from @a))");
-    let mut ids = BTreeMap::new();
-    let mut acts = vec![open.clone()];
-    for a in case["acts"].as_array().unwrap() {
-        let fields = a[1]
-            .as_array()
-            .unwrap()
-            .iter()
-            .map(|p| format!(":{} {}", p[0].as_str().unwrap(), wire(&p[1])))
-            .collect::<Vec<_>>()
-            .join(" ");
-        let act = make_act(&format!("(lang oracle-demo (mark @all {fields} :nonce {} :caused-by {} :thread \"t\" :from @a))",a[0],open.address));
-        ids.insert(act.address.clone(), a[0].as_u64().unwrap());
-        acts.push(act);
-    }
+    let (ids, acts) = if case["acts"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|a| a.as_array().unwrap().len() == 4)
+    {
+        graph_acts(case)
+    } else {
+        let open =
+            make_act("(lang oracle-demo (open @all :caused-by begin :thread \"t\" :from @a))");
+        let mut ids = BTreeMap::new();
+        let mut acts = vec![open.clone()];
+        for a in case["acts"].as_array().unwrap() {
+            let fields = a[1]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|p| format!(":{} {}", p[0].as_str().unwrap(), wire(&p[1])))
+                .collect::<Vec<_>>()
+                .join(" ");
+            let act = make_act(&format!("(lang oracle-demo (mark @all {fields} :nonce {} :caused-by {} :thread \"t\" :from @a))",a[0],open.address));
+            ids.insert(act.address.clone(), a[0].as_u64().unwrap());
+            acts.push(act);
+        }
+        (ids, acts)
+    };
     let state: Value = serde_json::from_str(&render_json(&fold(
         d.state.as_ref().unwrap(),
         d.causal_protocol.as_ref(),
@@ -298,6 +387,16 @@ fn native(case: &Value) -> Value {
     .unwrap();
     let observation = if state["value"]["status"] == "fault" {
         normalize_fault(&state["value"], &ids)
+    } else if state["value"].get("frozen").is_some() {
+        let mut excluded: Vec<_> = state["value"]["superseded"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| ids[v.as_str().unwrap()])
+            .collect();
+        excluded.sort();
+        excluded.dedup();
+        json!({"status":"frozen","freezer":ids[state["value"]["frozen"].as_str().unwrap()],"excluded":excluded,"value":state["value"]["value"]})
     } else {
         json!({"status":"snapshot","value":state["value"]})
     };
@@ -422,4 +521,236 @@ fn finite_kernel_matches_live_lean_oracle() {
         })
         .unwrap();
     eprintln!("Live Lean oracle: {} comparisons passed", comparisons.get());
+}
+
+#[derive(Clone, Debug)]
+struct FreezeCase {
+    finite: Case,
+    fault: bool,
+    graph: Vec<(bool, u8, u8, bool)>,
+    with_threshold: bool,
+}
+fn freeze_cases() -> impl Strategy<Value = FreezeCase> {
+    (
+        cases(),
+        any::<bool>(),
+        proptest::collection::vec(
+            (any::<bool>(), any::<u8>(), any::<u8>(), any::<bool>()),
+            0..16,
+        ),
+        any::<bool>(),
+    )
+        .prop_map(|(finite, fault, graph, with_threshold)| FreezeCase {
+            finite,
+            fault,
+            graph,
+            with_threshold,
+        })
+}
+impl FreezeCase {
+    fn request(&self) -> Value {
+        let mut request = self.finite.request();
+        request["freeze"] = json!(self.fault);
+        if !self.with_threshold {
+            request["queries"] = Value::Null;
+        }
+        let mut graph = vec![json!([0, "open", [], []])];
+        for (offset, (close, a, b, two)) in self.graph.iter().enumerate() {
+            let id = offset + 1;
+            let parent = usize::from(*a) % id;
+            let mut parents = vec![parent];
+            let second = usize::from(*b) % id;
+            if *two && second != parent {
+                parents.push(second);
+            }
+            let fields = if *close {
+                vec![]
+            } else {
+                vec![
+                    json!(["phase", format!("p{}", a % 3)]),
+                    json!(["amount", i16::from(*b) % 7 - 3]),
+                    json!(["flag", two]),
+                ]
+            };
+            graph.push(json!([
+                id,
+                if *close { "close" } else { "mark" },
+                parents,
+                fields
+            ]));
+        }
+        request["acts"] = json!(graph);
+        request
+    }
+}
+fn freeze_directed() -> Vec<Value> {
+    let mut finite = directed_cases()[0].clone();
+    finite.fan = false;
+    let mut base = finite.request();
+    base["queries"] = Value::Null;
+    base["freeze"] = json!(false);
+    base["acts"] = json!([
+        [0, "open", [], []],
+        [
+            1,
+            "mark",
+            [0],
+            [["phase", "p0"], ["amount", 1], ["flag", false]]
+        ],
+        [2, "close", [1], []],
+        [
+            3,
+            "mark",
+            [0],
+            [["phase", "p1"], ["amount", 0], ["flag", false]]
+        ]
+    ]);
+    let mut fault = base.clone();
+    fault["freeze"] = json!(true);
+    fault["queries"] = json!(["e1"]);
+    let mut repeated = base.clone();
+    repeated["acts"]
+        .as_array_mut()
+        .unwrap()
+        .push(json!([4, "close", [2], []]));
+    let mut concurrent = base.clone();
+    concurrent["acts"]
+        .as_array_mut()
+        .unwrap()
+        .push(json!([4, "close", [0], []]));
+    let mut top = base.clone();
+    top["contributions"][0][2] = json!("e3");
+    let mut no_freezer = base.clone();
+    no_freezer["acts"].as_array_mut().unwrap().remove(2);
+    let mut concurrent_fault = concurrent.clone();
+    concurrent_fault["freeze"] = json!(true);
+    concurrent_fault["queries"] = json!(["e1"]);
+    let mut multi_parent = base.clone();
+    multi_parent["acts"]
+        .as_array_mut()
+        .unwrap()
+        .push(json!([4, "close", [2, 3], []]));
+    let mut combined_fault = concurrent_fault.clone();
+    combined_fault["contributions"][0][2] = json!("e3");
+    let mut non_writer_fields = top.clone();
+    non_writer_fields["acts"][2][3] = json!([["phase", "p0"]]);
+    vec![
+        base,
+        fault,
+        repeated,
+        concurrent,
+        top,
+        no_freezer,
+        concurrent_fault,
+        multi_parent,
+        combined_fault,
+        non_writer_fields,
+    ]
+}
+
+#[test]
+#[ignore = "requires lake build cbcl-state-oracle; explicitly run in Lean CI"]
+fn freeze_kernel_matches_live_lean_oracle() {
+    let oracle = RefCell::new(Oracle::start());
+    for (index, request) in freeze_directed().iter().enumerate() {
+        let expected = oracle.borrow_mut().request(request);
+        assert_eq!(
+            native(request),
+            expected,
+            "directed freeze request={request}"
+        );
+        assert_eq!(expected["installed"], true);
+        let status = match index {
+            0 | 2 | 7 => "frozen",
+            1 | 3 | 4 | 6 | 8 | 9 => "fault",
+            5 => "snapshot",
+            _ => unreachable!("unclassified directed freeze case"),
+        };
+        assert_eq!(expected["observation"]["status"], status);
+        if index == 0 || index == 2 {
+            assert_eq!(expected["observation"]["freezer"], 2);
+            assert_eq!(expected["observation"]["excluded"], json!([3]));
+            assert_eq!(expected["observation"]["value"], "e1");
+        }
+        if index == 9 {
+            assert_eq!(expected["observation"]["evidence"], json!([1, 3]));
+        }
+        if index == 6 || index == 8 {
+            assert_eq!(expected["observation"]["evidence"], json!([1, 2, 3, 4]));
+        }
+        if index == 1 || index == 6 {
+            assert_eq!(expected["threshold"], expected["observation"]);
+        }
+    }
+    let mut config = proptest::test_runner::Config::default();
+    if std::env::var_os("PROPTEST_CASES").is_none() {
+        config.cases = 512;
+    }
+    config.failure_persistence = Some(Box::new(
+        proptest::test_runner::FileFailurePersistence::Direct(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/tests/state_freeze_oracle.proptest-regressions"
+        )),
+    ));
+    let mut runner = proptest::test_runner::TestRunner::new(config);
+    let comparisons = Cell::new(0usize);
+    runner
+        .run(&freeze_cases(), |generated| {
+            let mut request = generated.request();
+            for delivery in 0..3 {
+                if delivery == 1 {
+                    request["acts"].as_array_mut().unwrap().reverse();
+                }
+                if delivery == 2 {
+                    let extra = request["acts"].as_array().unwrap().clone();
+                    request["acts"].as_array_mut().unwrap().extend(extra);
+                }
+                let expected = oracle.borrow_mut().request(&request);
+                let actual = native(&request);
+                comparisons.set(comparisons.get() + 1);
+                prop_assert_eq!(
+                    actual,
+                    expected,
+                    "delivery={}, request={}",
+                    delivery,
+                    request
+                );
+            }
+            Ok(())
+        })
+        .unwrap();
+    eprintln!(
+        "Live Lean freeze oracle: {} comparisons passed",
+        comparisons.get()
+    );
+}
+
+#[test]
+#[ignore = "requires lake build cbcl-state-oracle; explicitly run in Lean CI"]
+fn oracle_rejects_ambiguous_or_nonclosed_graphs() {
+    let mut oracle = Oracle::start();
+    let base = freeze_directed()[0].clone();
+    let mut missing = base.clone();
+    missing["acts"].as_array_mut().unwrap().remove(1);
+    assert!(oracle.response(&missing)["error"]
+        .as_str()
+        .unwrap()
+        .contains("missing predecessor"));
+    let mut duplicate = base.clone();
+    let mut conflicting = duplicate["acts"][0].clone();
+    conflicting[1] = json!("close");
+    duplicate["acts"].as_array_mut().unwrap().push(conflicting);
+    assert!(oracle.response(&duplicate)["error"]
+        .as_str()
+        .unwrap()
+        .contains("conflicting identity"));
+    let mut keyword = base;
+    keyword["acts"][1][3]
+        .as_array_mut()
+        .unwrap()
+        .push(json!(["phase", "p1"]));
+    assert!(oracle.response(&keyword)["error"]
+        .as_str()
+        .unwrap()
+        .contains("duplicate field"));
 }

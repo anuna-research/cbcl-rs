@@ -262,6 +262,15 @@ suites.append(("StateInstalledRecognition", (root / "lean-cbcl/LeanCbcl/StateIns
     ("recognition-tail-check-bypassed", "check (extend definitions declaration) (declaration.name::names) rest", "true", "check_iff"),
 ]))
 
+suites.append(("StateExecutableFreeze", (root / "lean-cbcl/LeanCbcl/StateExecutableFreeze.lean").read_text(), [
+    ("executable-ancestor-omits-self", "(a == f || A.any", "(false || A.any", "reachable_complete"),
+    ("executable-cut-ignored", "def cut (A : List Act) (freezer : Act) : List Act := A.filter (fun a => ancestor A a freezer)", "def cut (A : List Act) (freezer : Act) : List Act := A", "cut_refinement"),
+    ("executable-late-policy-ignored", "&& !ancestor A b a && policy)", "&& !ancestor A b a && true)", "conflict_iff"),
+    ("executable-witness-writer-dropped", "flatMap (fun (a,b) => [a.addr,b.addr])", "flatMap (fun (a,b) => [a.addr])", "evidence_member"),
+    ("executable-read-raw-fault-hidden", "if rawFault.isSome || !(conflicts", "if false || !(conflicts", "read_refinement"),
+    ("executable-read-cut-ignored", "(evaluate (cut A freezer))", "(evaluate A)", "read_refinement"),
+]))
+
 # Preserve the full default gate while allowing a focused continuation check.
 import argparse
 parser = argparse.ArgumentParser(description=__doc__)

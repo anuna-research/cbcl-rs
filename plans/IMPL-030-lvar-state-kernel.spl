@@ -315,3 +315,14 @@
 ;; shrinking, replay seeds, child timeout and explicit CI execution are wired.
 ;; Scope is initially finite data/read paths; domains/context/resources/freeze,
 ;; protocol admission and canonical diagnostic serialization remain separate.
+
+;; Live freeze oracle continuation: StateExecutableFreeze proves checked bounded
+;; ancestry, exact cuts/earliest selection and complete conflict/evidence
+;; enumeration, then full executable read_refinement to StateLVar.freezeRead
+;; including raw fault unions. The JSON-lines oracle uses that implementation;
+;; native real-message DAG tests compare cuts/root/exclusions and dependent
+;; thresholds under order/duplicate variants. Directed cases cover no/sequential/
+;; concurrent/multi-parent freeze, both policies and combined raw/freeze faults.
+;; Input checks reject missing predecessors, ambiguous IDs and field keywords;
+;; source-verb filtering excludes unrelated raw finite witnesses. Profiles remain
+;; bounded fold inputs, not admission or full Rust extraction proofs.

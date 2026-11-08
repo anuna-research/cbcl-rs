@@ -1,10 +1,12 @@
 import Lean
 import LeanCbcl.StateFiniteRead
+import LeanCbcl.StateExecutableFreeze
 
 /-! JSON-lines differential oracle. Inputs contain only authored finite data and
 histories, never expected Rust results. Evaluation calls the same checked table,
 projection, contribution, state and read functions used by the Lean proofs.
-This initial profile has no domains, context, resources or freezes. -/
+The profile has finite data/read paths and causal freezes; domains, context
+and resources remain separate. -/
 open Lean CBCL.State CBCL.StateFiniteTable CBCL.StateInstalledFinite
 namespace StateKernelOracle
 
@@ -53,17 +55,21 @@ def contribution (j : Json) : Check CBCL.StateFiniteProjection.Contribution := d
   | _ => throw "expected contribution triple"
 
 def act (j : Json) : Check Act := do
-  let (address,fields) ← pair j
-  let fields ← (← array fields).mapM fun field => do
+  let (address,verb,preds,rawFields) ← match ← array j with
+    | [address,fields] => pure (address,"mark",[],fields)
+    | [address,verb,preds,fields] => do pure (address,← verb.getStr?,← (← array preds).mapM Json.getNat?,fields)
+    | _ => throw "expected identity/fields pair or identity/verb/predecessors/fields tuple"
+  let fields ← (← array rawFields).mapM fun field => do
     let (key,value) ← pair field
     return (← key.getStr?,← scalar value)
-  return ⟨← address.getNat?,"mark","@a",[],fields,[]⟩
+  return ⟨← address.getNat?,verb,"@a",preds,fields,[]⟩
 
 structure Input where
   definition : Definition
   declaration : CBCL.StateInstalledFinite.Declaration
   queries : Option (List Val)
   history : List Act
+  freeze : Option Bool
 
 def input (j : Json) : Check Input := do
   let definition ← table (← j.getObjVal? "table")
@@ -71,7 +77,16 @@ def input (j : Json) : Check Input := do
   let projection ← projection (← j.getObjVal? "projection")
   let rawQueries ← j.getObjVal? "queries"
   let queries ← if rawQueries == .null then pure none else (array rawQueries >>= fun qs => qs.mapM scalar).map some
-  return ⟨definition,⟨"mark",rows,projection⟩,queries,← (← array (← j.getObjVal? "acts")).mapM act⟩
+  let history ← (← array (← j.getObjVal? "acts")).mapM act
+  let freeze ← match j.getObjVal? "freeze" with
+    | .error _ => pure none
+    | .ok .null => pure none
+    | .ok value => value.getBool?.map some
+  if !CBCL.StateExecutableFreeze.rankedCheck history then throw "predecessor identities must decrease"
+  if !history.all (fun a => history.all (fun b => a.addr != b.addr || a == b)) then throw "conflicting identity payloads"
+  if !history.all (fun a => a.preds.all (fun reference => history.any (fun parent => parent.addr == reference))) then throw "missing predecessor"
+  if !history.all (fun a => decide (a.fields.map Prod.fst).Nodup) then throw "duplicate field keyword"
+  return ⟨definition,⟨"mark",rows,projection⟩,queries,history,freeze⟩
 
 def schema : CBCL.StateInstalledDomains.Schema :=
   ⟨["mark"],[(("mark","phase"),.string),(("mark","amount"),.number),(("mark","flag"),.boolean)]⟩
@@ -83,15 +98,25 @@ def evaluate (request : Input) : Json := Id.run do
   if request.queries.any (fun qs => !CBCL.StateFiniteRead.check field qs) then return rejected
   let current := state field request.history
   let fault : Bool := current == field.table.table.top
-  let evidence := ((request.history.filter (fun a => CBCL.StateInstalledFinite.contribution field a != field.table.table.bottom)).map Act.addr).eraseDups
+  let evidence := ((request.history.filter (fun a => a.verb == "mark" && CBCL.StateInstalledFinite.contribution field a != field.table.table.bottom)).map Act.addr).eraseDups
   let evidence := evidence.mergeSort (fun a b => decide (a ≤ b))
-  let observation := if fault then Json.mkObj [("status",.str "fault"),("evidence",toJson evidence)] else
-    Json.mkObj [("status",.str "snapshot"),("value",scalarJson (display field current))]
+  if request.freeze == some false && request.queries.isSome then return rejected
+  let sorted (addresses : List Nat) := addresses.eraseDups.mergeSort (fun a b => decide (a ≤ b))
+  let frozen := match request.freeze with
+    | none => if fault then CBCL.StateExecutableFreeze.Read.fault evidence else .snapshot (display field current)
+    | some policy => CBCL.StateExecutableFreeze.read request.history "close" (fun a => a.verb == "mark") policy
+        (if fault then some evidence else none) (fun scope => display field (state field scope))
+  let observation := match frozen with
+    | .snapshot value => Json.mkObj [("status",.str "snapshot"),("value",scalarJson value)]
+    | .fault addresses => Json.mkObj [("status",.str "fault"),("evidence",toJson (sorted addresses))]
+    | .frozen root value excluded => Json.mkObj [("status",.str "frozen"),("freezer",toJson root),
+        ("excluded",toJson (sorted (excluded.map Act.addr))),("value",scalarJson value)]
   let threshold := request.queries.map fun qs =>
-    if fault then Json.mkObj [("status",.str "fault"),("evidence",toJson evidence)] else
-      match qs.find? (fun q => CBCL.StateFiniteRead.test field q current) with
-      | none => Json.mkObj [("status",.str "pending")]
-      | some q => Json.mkObj [("status",.str "reached"),("element",scalarJson q)]
+    match frozen with
+    | .fault addresses => Json.mkObj [("status",.str "fault"),("evidence",toJson (sorted addresses))]
+    | _ => match qs.find? (fun q => CBCL.StateFiniteRead.test field q current) with
+        | none => Json.mkObj [("status",.str "pending")]
+        | some q => Json.mkObj [("status",.str "reached"),("element",scalarJson q)]
   return Json.mkObj [("installed",.bool true),("observation",observation),("threshold",threshold.getD .null)]
 
 end StateKernelOracle

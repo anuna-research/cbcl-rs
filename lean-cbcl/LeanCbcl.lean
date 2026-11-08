@@ -217,3 +217,5 @@ import LeanCbcl.StateFinitePairLoop
 import LeanCbcl.StateInstalledRecognition
 
 import LeanCbcl.StateAuthoredCompletion
+
+import LeanCbcl.StateExecutableFreeze

@@ -1,3 +1,4 @@
+import LeanCbcl.StateExecutableFreeze
 import LeanCbcl.StateAuthoredCompletion
 import LeanCbcl.StateInstalledRecognition
 import LeanCbcl.StateFinitePairLoop
@@ -2056,3 +2057,18 @@ editing only this file is enough to extend the audit.
 
 #print axioms CBCL.StateAuthoredCompletion.prepared_readers_complete
 #print axioms CBCL.StateAuthoredCompletion.cached_observations_setEq
+
+#print axioms CBCL.StateExecutableFreeze.rankedCheck_sound
+#print axioms CBCL.StateExecutableFreeze.ancestor_trans
+#print axioms CBCL.StateExecutableFreeze.ancestor_last
+#print axioms CBCL.StateExecutableFreeze.reachable_sound
+#print axioms CBCL.StateExecutableFreeze.reachable_complete
+#print axioms CBCL.StateExecutableFreeze.ancestor_iff
+#print axioms CBCL.StateExecutableFreeze.cut_refinement
+#print axioms CBCL.StateExecutableFreeze.earliest_iff
+#print axioms CBCL.StateExecutableFreeze.conflict_iff
+#print axioms CBCL.StateExecutableFreeze.conflicts_member
+#print axioms CBCL.StateExecutableFreeze.evidence_member
+#print axioms CBCL.StateExecutableFreeze.has_conflict
+#print axioms CBCL.StateExecutableFreeze.evidence_set
+#print axioms CBCL.StateExecutableFreeze.read_refinement

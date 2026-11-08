@@ -4,6 +4,8 @@ The differential test sends generated authored inputs to two implementations:
 the real Rust parser/installer/fold and a persistent Lean executable. Lean
 receives no expected Rust results. Its oracle calls the same finite-table,
 projection, contribution, state and threshold functions used by the proofs.
+The executable causal-freeze evaluator is proved equal to `StateLVar.freezeRead`,
+including exact cuts, exclusions and unioned raw/freeze fault evidence.
 
 From `lean-cbcl/`, build once:
 
@@ -20,7 +22,8 @@ PROPTEST_RNG_SEED=380038 PROPTEST_CASES=512 \
 
 For a larger campaign, increase `PROPTEST_CASES` and change the seed. Proptest
 shrinks mismatches and persists their seeds in
-`crates/cbcl-parser/tests/state_kernel_oracle.proptest-regressions`. The failure
+`crates/cbcl-parser/tests/state_kernel_oracle.proptest-regressions` and the
+corresponding `state_freeze_oracle.proptest-regressions` file. The failure
 report includes the complete JSON request and delivery variant. Replay that
 request directly through `lean-cbcl/.lake/build/bin/cbcl-state-oracle`, or rerun
 the Rust test to replay saved seeds. `CBCL_STATE_ORACLE` can select an alternate
@@ -35,22 +38,35 @@ scalar threshold admission and compatibility, empty histories, pending/reached
 reads, top faults and attributable evidence. Directed cases independently
 require pending, reached, fault and rejection outcomes, including numeric and
 Boolean success. Each random case compares forward, reversed and duplicated
-delivery. The CI workflow builds the oracle explicitly and runs this ignored
-test; a normal Cargo run does not silently require Lean.
+delivery. A separate causal-DAG profile covers no freezer, sequential and
+concurrent freezers, multi-parent cuts, both policies, late writes, dependent
+thresholds, raw top faults and combined fault witness sets. Directed cases also
+ensure unrelated-verb fields cannot enter raw finite fault evidence. The CI
+workflow builds the oracle explicitly and runs these ignored tests; a normal
+Cargo run does not silently require Lean.
 
 The JSON-lines request contains `table` (named elements, bottom, top and join
 triples), `projection` (null or stability plus scalar rows), `contributions`
 (keyword/literal/target triples), `queries` (null or scalar alternatives), and
 `acts` (numeric identity plus keyword/scalar pairs). Scalars are JSON strings,
 integers or booleans. The harness translates JSON booleans to CBCL `#t`/`#f`
-and preserves identity across duplicate delivery. Responses distinguish input
-errors from installation rejection and report semantic observations.
+and preserves identity across duplicate delivery. Freeze requests add a Boolean
+`freeze` policy (`true` = fault, `false` = supersede) and encode acts as
+`[identity, verb, predecessor-identities, keyword/scalar-pairs]`. Identities
+increase along causal edges. The oracle rejects missing predecessors,
+conflicting identity payloads and repeated field keywords. Generated DAGs are
+bounded; backward search is a semantic reference, not the native cost model.
+Responses distinguish input errors from installation rejection and report
+semantic observations.
 
 Fault comparison preserves evidence membership through an injective mapping
 from actual content addresses to test identities. It intentionally ignores
 canonical evidence ordering, repeated evidence entries and diagnostic strings.
-This initial profile has no domains, context, resources, protocol admission or
-freezes. It is a live implementation cross-check for the proved finite kernel,
+Frozen root identities and superseded witness membership are compared as well.
+The profiles have no domains, context, resources or protocol admission; generated
+DAGs are fold inputs, not a claim about protocol-valid execution. Nested derived
+field dependencies are not yet generated. It is a live
+implementation cross-check for finite state and causal-freeze semantics,
 not a proof of Rust extraction or coverage of the entire state language.
 
 Verify that the comparison catches real implementation regressions:
@@ -62,4 +78,6 @@ python3 scripts/check-state-oracle-mutations.py
 That command builds isolated Rust copies, verifies a passing live-oracle
 baseline, then requires actual assertion failures when all matching finite
 contributions are replaced by first-match behavior and when a threshold hides
-its source fault. It leaves the worktree untouched.
+its source fault. Freeze mutants ignore the causal cut, suppress the fault
+policy, hide concurrent freezers or discard freeze evidence when a raw fault
+already exists. It leaves the worktree untouched.
