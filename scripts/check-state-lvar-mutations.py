@@ -181,6 +181,46 @@ suites.extend([
         ("supersede-threshold-source-allowed", "match freezes.lookup source with | none => true | some spec => spec.policy", "true", "supersede_threshold_source_rejected"),
     ]),
 ])
+finite_projection_tests = (root / "lean-cbcl/LeanCbcl/StateFiniteProjectionTests.lean").read_text()
+finite_projection_tests = "\n".join(line for line in finite_projection_tests.splitlines() if not line.startswith("import "))
+suites.extend([
+    ("StateFiniteTable", (root / "lean-cbcl/LeanCbcl/StateFiniteTable.lean").read_text(), [
+        ("finite-totality-check-bypassed", "completeCheck table && lawCheck table", "true && lawCheck table", "check_iff"),
+        ("finite-duplicate-input-check-bypassed", "decide (table.rows.map Prod.fst).Nodup", "true", "check_iff"),
+    ]),
+    ("StateFiniteProjection", (root / "lean-cbcl/LeanCbcl/StateFiniteProjection.lean").read_text() + "\n" + finite_projection_tests, [
+        ("finite-stable-order-check-bypassed", "if projection.stable then", "if false then", "check_iff"),
+        ("finite-projection-totality-bypassed", "(indices table).all (fun i => (projection.rows.lookup i).isSome)", "true", "check_iff"),
+        ("finite-projection-scalar-check-bypassed", "projection.rows.all (fun row => scalarCheck row.2)", "true", "check_iff"),
+        ("finite-contribution-first-match-only", "rows.filter (fun row => act.get row.key == some row.literal)", "(rows.take 1).filter (fun row => act.get row.key == some row.literal)", "every_matching_row_contributes"),
+    ]),
+    ("StateInstalledFinite", (root / "lean-cbcl/LeanCbcl/StateInstalledFinite.lean").read_text(), [
+        ("finite-source-fault-guard-discarded", "guards := [.certified (errorSpec field)]", "guards := []", "concrete_finite_read_refinement"),
+        ("finite-native-domain-writers-discarded", "| some evidence => some (evidence ∪ writers field A)\n  | none => (topErrorSpec field).read A", "| some evidence => some evidence\n  | none => (topErrorSpec field).read A", "native_error_refinement"),
+    ]),
+])
+
+finite_read_tests = (root / "lean-cbcl/LeanCbcl/StateFiniteReadTests.lean").read_text()
+finite_read_tests = "\n".join(line for line in finite_read_tests.splitlines() if not line.startswith("import "))
+suites.append(("StateFiniteRead", "import LeanCbcl.StateFiniteProjectionTests\n" +
+    (root / "lean-cbcl/LeanCbcl/StateFiniteRead.lean").read_text() + "\n" + finite_read_tests, [
+    ("finite-top-read-allowed", "current != field.table.table.top && reaches field query current", "reaches field query current", "test_top"),
+    ("finite-common-upper-check-bypassed", "current == field.table.table.top || !(reaches field left current && reaches field right current)", "true", "pairCheck_iff"),
+    ("finite-empty-read-accepted", "!queries.isEmpty && decide queries.Nodup", "true && decide queries.Nodup", "empty_query_rejected"),
+    ("finite-raw-query-state-discarded", "test field element (state field (StateInstalledLegacy.history carrier))", "test field element field.table.table.bottom", "policy_actual_history"),
+]))
+
+# Preserve the full default gate while allowing a focused continuation check.
+import argparse
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument("--module", action="append", help="Run only this module (repeatable)")
+options = parser.parse_args()
+if options.module:
+    unknown = set(options.module) - {name for name, _, _ in suites}
+    if unknown:
+        parser.error("unknown modules: " + ", ".join(sorted(unknown)))
+    suites = [suite for suite in suites if suite[0] in options.module]
+
 for module, source, mutants in suites:
     with tempfile.TemporaryDirectory(prefix="cbcl-state-lvar-") as directory:
         path = Path(directory) / f"{module}.lean"

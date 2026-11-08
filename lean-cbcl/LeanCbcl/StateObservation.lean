@@ -89,9 +89,19 @@ noncomputable def freezeFault (world : Act → Prop) (verb : String)
   exact if raw.isSome ∨ ∃ a b, FreezeConflict world verb contributes policy A a b
     then some (raw.getD ∅ ∪ freezeEvidence world verb contributes policy A) else none
 
+/-- A native primitive can join the closed error-path algebra after its
+executable checker has proved set extensionality and witness growth. Concrete
+factories provide these proofs; no history classifier law is an axiom. -/
+structure ErrorSpec where
+  /-- Read data only when the compositional error channel is clear. -/
+  read : List Act → Error
+  equiv : ∀ {A B}, SetEq A B → read A = read B
+  grow : ∀ {A B}, (∀ a ∈ A, a ∈ B) → Grows (read A) (read B)
+
 /-- A compositional observation path with persistent error guards. -/
 inductive Path where
   | clear
+  | certified (spec : ErrorSpec)
   | context (decode : Act → Option Val)
   | domain (opener field : String)
   | resource (config : CheckpointEvidence.ResourceConfig) (decode : Act → CheckpointEvidence.ResourceData)
@@ -102,6 +112,7 @@ inductive Path where
 /-- Collect and union terminal fault evidence along an observation path. -/
 noncomputable def errors (world : Act → Prop) : Path → List Act → Error
   | .clear, _ => none
+  | .certified spec, A => spec.read A
   | .context decode, A => contextError (StateContext.read decode A)
   | .domain opener field, A => domainError opener field A
   | .resource config decode, A => StateResource.faultRead config decode A
@@ -162,6 +173,7 @@ theorem errors_persist (world : Act → Prop) (path : Path) {A B : List Act}
   classical
   induction path with
   | clear => intro e h; contradiction
+  | certified spec => exact spec.grow growth
   | context decode =>
     intro e fault
     have actual : StateContext.read decode A = .fault e := by
@@ -226,6 +238,7 @@ theorem errors_setEq (world : Act → Prop) (path : Path) {A B : List Act} (same
   classical
   induction path with
   | clear => rfl
+  | certified spec => exact spec.equiv same
   | context decode => simp only [errors,StateContext.read_setEq decode same]
   | resource config decode => exact StateResource.faultRead_setEq config decode same
   | domain opener field => simp only [errors,domainError,initialCarrier_invariant same]

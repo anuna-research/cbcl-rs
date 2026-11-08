@@ -412,9 +412,16 @@ scoping remain implementation work. Wire parsing, signature authentication,
 clock/signer mapping, canonical rendering, and a universal Rust-driver refinement
 also remain separate boundaries.
 
-Further work includes concrete retained-history source factories and full
-native-read equivalence. These are outside the completion claim above;
-SPEC-038's acceptance status remains partial.
+Concrete factories now cover legacy primitives, the typed native resource
+reader, closed context paths, initializer/roster domains, and finite contribution
+and projection tables. `StateResourceReadEquivalence` proves equality of the
+modeled pending/ready/fault read under fact permutation, including aggregate
+value, rights, and headroom. `StateFiniteRead` proves upward-closed finite reads
+and distinct-success conflict using actual domain-selected source state.
+These results still need whole authored-clause lowering and refinement against
+native observation-dependent freeze contributors and scoped readers. Native
+missing-link lists, owner tips, diagnostic reasons and canonical serialization
+are outside the modeled resource read. SPEC-038 acceptance remains partial.
 
 The implementation documents its current collection and freeze costs rather
 than claiming strict linear evaluation: ordered collections take `O(n log n)`,

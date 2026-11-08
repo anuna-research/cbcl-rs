@@ -294,6 +294,45 @@ impl Definition {
             ("roles", roles),
         ])
     }
+    // REQ-3806: diagnostic precedence must not replace an earlier context
+    // witness. Keep independent mixed-thread and opener-fork evidence even
+    // when root validation returns a different fault first.
+    fn retain_fault_evidence(&self, path: &[String], acts: &[Act], value: Value) -> Value {
+        let Some(mut evidence) = value.fault_evidence() else {
+            return value;
+        };
+        if let Some(root) = acts.iter().find(|a| a.predecessors.is_empty()) {
+            if acts
+                .iter()
+                .any(|a| a.simple().thread() != root.simple().thread())
+            {
+                evidence.extend(acts.iter().map(|a| a.address.clone()));
+            }
+            let observes_opener = path.is_empty()
+                || (path.first().is_some_and(|p| p == "thread")
+                    && (path.len() == 1 || (path.len() == 2 && path[1] == "opener")));
+            if observes_opener {
+                let openers: BTreeSet<&str> = acts
+                    .iter()
+                    .filter(|a| self.opener.as_ref().is_some_and(|v| *v == a.verb))
+                    .map(|a| a.address.as_str())
+                    .collect();
+                if openers.len() > 1 {
+                    evidence.extend(openers.into_iter().map(String::from));
+                }
+            }
+        }
+        let reason = match &value {
+            Value::Map(entries) => entries.iter().find_map(|(key, value)| match (key, value) {
+                (Value::Str(key), Value::Str(reason)) if key == "reason" => Some(reason.as_str()),
+                _ => None,
+            }),
+            _ => None,
+        }
+        .unwrap_or("context conflicts");
+        crate::state::conflict_top(reason, evidence)
+    }
+
     pub fn read(&self, path: &[String], acts: &[Act]) -> Value {
         let observation = || {
             obj([
@@ -334,7 +373,7 @@ impl Definition {
             None => {
                 let thread = thread();
                 if thread.fault_evidence().is_some() {
-                    return thread;
+                    return self.retain_fault_evidence(path, acts, thread);
                 }
                 obj([
                     ("dialect", self.dialect()),
@@ -344,8 +383,10 @@ impl Definition {
             }
             _ => return Value::Absent,
         };
-        path.iter()
+        let value = path
+            .iter()
             .skip(1)
-            .fold(full, |value, key| lookup(&value, key))
+            .fold(full, |value, key| lookup(&value, key));
+        self.retain_fault_evidence(path, acts, value)
     }
 }

@@ -22,6 +22,8 @@ def Data.payload {V : Type} : Data V → Option V
 /-- A compositional observation plan retaining both data and fault channels. -/
 inductive Plan : Type → Type 1 where
   | snapshot {V : Type} (display : FinSet Act → V) : Plan V
+  | read {V : Type} (contextual : Bool) (value : FinSet Act → Option V) : Plan V
+  | guardCertified {V : Type} (spec : ErrorSpec) (source : Plan V) : Plan V
   | context (decode : Act → Option Val) : Plan Val
   | contextAs {V : Type} (decode : Act → Option Val) (embed : Val → V) : Plan V
   | guardThreshold {V : Type} (spec : ThresholdSpec) (source : Plan V) : Plan V
@@ -34,12 +36,16 @@ inductive Plan : Type → Type 1 where
   | resource {V : Type} (config : CheckpointEvidence.ResourceConfig)
       (decode : Act → CheckpointEvidence.ResourceData) (source : Plan V) : Plan V
   | threshold {V : Type} (spec : ThresholdSpec) (source : Plan V) : Plan spec.Carrier
+  | thresholdRaw {V C Q : Type} (alternatives : List Q) (test : Q → C → Bool)
+      (state : FinSet Act → C) (source : Plan V) : Plan Q
   | thresholdOn {V Q : Type} (alternatives : List Q) (test : Q → V → Bool) (source : Plan V) : Plan Q
   | freeze {V : Type} (spec : FreezeSpec) (source : Plan V) : Plan V
 
 /-- Extract the compositional fault path of a plan. -/
 def path : {V : Type} → Plan V → Path
   | _, .snapshot _ => .clear
+  | _, .read _ _ => .clear
+  | _, .guardCertified spec source => .join (.certified spec) (path source)
   | _, .context decode => .context decode
   | _, .contextAs decode _ => .context decode
   | _, .guardThreshold spec source => .join (.threshold spec) (path source)
@@ -50,8 +56,14 @@ def path : {V : Type} → Plan V → Path
   | _, .guardDomain opener field source => .join (.domain opener field) (path source)
   | _, .resource config decode source => .join (.resource config decode) (path source)
   | _, .threshold spec source => .join (.threshold spec) (path source)
+  | _, .thresholdRaw _ _ _ source => path source
   | _, .thresholdOn _ _ source => path source
   | _, .freeze spec source => .freeze spec.verb spec.contributes spec.policy (path source)
+
+/-- Render an optional value as a pending, contextual, or snapshot observation. -/
+def optionalData {V : Type} (contextual : Bool) : Option V → Data V
+  | none => .pending
+  | some value => if contextual then .context value else .snapshot value
 
 /-- Apply a value projection while preserving observation status. -/
 def mapData {V W : Type} (f : V → W) (source : Data V) : Data W :=
@@ -86,6 +98,8 @@ def frozenData {V : Type} : FreezeRead (Data V) → Data V
 /-- Evaluate the plan's data channel on the supplied accepted history. -/
 noncomputable def data (world : Act → Prop) : {V : Type} → Plan V → List Act → Data V
   | _, .snapshot display, A => .snapshot (display (rawHistory A))
+  | _, .read contextual value, A => optionalData contextual (value (rawHistory A))
+  | _, .guardCertified _ source, A => data world source A
   | _, .context decode, A => match StateContext.read decode A with
       | .pending | .fault _ => .pending
       | .value v => .context v
@@ -106,6 +120,10 @@ noncomputable def data (world : Act → Prop) : {V : Type} → Plan V → List A
           (errors world (path source) A).isSome (rawHistory A) with
       | .pending | .fault _ => .pending
       | .reached q => .reached q
+  | _, .thresholdRaw alternatives test state _, A =>
+      match alternatives.find? (fun q => test q (state (rawHistory A))) with
+      | none => .pending
+      | some q => .reached q
   | _, .thresholdOn alternatives test source, A =>
       match (data world source A).payload with
       | none => .pending
@@ -172,6 +190,8 @@ theorem data_setEq {V : Type} (world : Act → Prop) (plan : Plan V) {A B : List
   classical
   induction plan generalizing A B with
   | snapshot display => simp only [data,rawHistory_setEq same]
+  | read contextual value => simp only [data,rawHistory_setEq same]
+  | guardCertified _ source ih => exact ih ua ub same
   | context decode => simp only [data,StateContext.read_setEq decode same]
   | contextAs decode embed => simp only [data,StateContext.read_setEq decode same]
   | guardThreshold _ source ih => exact ih ua ub same
@@ -189,6 +209,7 @@ theorem data_setEq {V : Type} (world : Act → Prop) (plan : Plan V) {A B : List
   | threshold spec source ih =>
     letI := spec.algebra
     simp only [data,lift_setEq spec.contribution same,errors_setEq world (path source) same,rawHistory_setEq same]
+  | thresholdRaw alternatives test state source ih => simp only [data,rawHistory_setEq same]
   | thresholdOn alternatives test source ih => simp only [data,ih ua ub same]
   | freeze spec source ih =>
     apply congrArg frozenData

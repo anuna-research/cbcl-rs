@@ -163,3 +163,37 @@ import LeanCbcl.StateInstalledLattice
 import LeanCbcl.StateInstalledLowering
 
 import LeanCbcl.StateInstalledLoweringTests
+
+import LeanCbcl.StateResourceCompletion
+
+import LeanCbcl.StateResourceReadEquivalence
+
+import LeanCbcl.StateInstalledLegacy
+
+import LeanCbcl.StateInstalledResource
+
+import LeanCbcl.StateInstalledLegacyTests
+
+import LeanCbcl.StateInstalledTerm
+
+import LeanCbcl.StateContextEvidence
+
+import LeanCbcl.StateInstalledContext
+
+import LeanCbcl.StateInstalledDomains
+
+import LeanCbcl.StateFiniteTable
+
+import LeanCbcl.StateFiniteProjection
+
+import LeanCbcl.StateFiniteProjectionTests
+
+import LeanCbcl.StateInstalledFinite
+
+import LeanCbcl.StateFiniteRead
+
+import LeanCbcl.StateFiniteReadTests
+
+import LeanCbcl.StateObservation
+
+import LeanCbcl.StateObservationPlan

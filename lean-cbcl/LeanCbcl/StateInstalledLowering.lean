@@ -1,4 +1,5 @@
 import LeanCbcl.StateInstalledLattice
+import LeanCbcl.StateInstalledTerm
 
 /-! Installed source-relative lowering. Threshold declarations contain only a
 source name and elements: they cannot supply a detached contribution or test.
@@ -11,15 +12,12 @@ open StateInstalledCompiler
 
 /-- Native closure-specific admissibility check retained from installation.
 The compiler invokes it on the declared alternatives before emitting a read. -/
-structure NativeRead (V : Type) where
-  /-- Test one threshold alternative against the observed source value. -/
-  test : V → V → Bool
-  /-- Check the complete list of installed threshold alternatives. -/
-  check : List V → Bool
+abbrev NativeRead (V : Type) := StateInstalledTerm.Policy V V
 
 /-- The source metadata and admissible threshold policy retained during lowering. -/
 inductive Definition (V : Type) where
   | native (source : Source V) (read : Option (NativeRead V))
+  | factored (term : StateInstalledTerm.Term V) (read : Option (StateInstalledTerm.Policy V term.Carrier))
   | lattice (field : StateInstalledLattice.Field V)
   | derived (post : V → V) (name : String)
   | pair (combine : V → V → V) (left right : String)
@@ -44,6 +42,7 @@ def extend {V : Type} (definitions : Definitions V) : Declaration V → Definiti
 /-- Construct retained source metadata for one authored declaration. -/
 noncomputable def lowerDefinition {V : Type} : Definition V → StateInstalledCompiler.Rule V
   | .native source _ => .source source
+  | .factored term _ => .source (StateInstalledTerm.source term)
   | .lattice field => .source (StateInstalledLattice.source field)
   | .derived post name => .derived post name
   | .pair combine left right => .pair combine left right
@@ -56,6 +55,8 @@ noncomputable def lowerRule {V : Type} (definitions : Definitions V) : Declarati
       | none => none
       | some definition => match definition with
         | .native _ (some policy) => if policy.check elements then some (.threshold elements policy.test source) else none
+        | .factored term (some policy) => if policy.check elements then
+            some (.thresholdRaw elements policy.test term.state source) else none
         | .lattice field => match StateInstalledLattice.prepareQuery field elements with
           | none => none
           | some query => some (StateInstalledLattice.queryRule query source)
@@ -73,6 +74,7 @@ noncomputable def resolve {V : Type} (earlier : Definitions V) :
 /-- Independent native execution of one recognized source definition. -/
 noncomputable def nativeDefinition {V : Type} (readers : Readers V) : Definition V → Option (Reader V)
   | .native source _ => some (sourceRead source)
+  | .factored term _ => some (sourceRead (StateInstalledTerm.source term))
   | .lattice field => some (sourceRead (StateInstalledLattice.source field))
   | .derived post name => do
       let source ← readers.lookup name
@@ -94,6 +96,10 @@ noncomputable def nativeRule {V : Type} (definitions : Definitions V) (readers :
         | .native _ (some policy) => if policy.check elements then do
             let reader ← readers.lookup source
             return fun A => nativeClosureThreshold elements policy.test (reader A)
+          else none
+        | .factored term (some policy) => if policy.check elements then do
+            let reader ← readers.lookup source
+            return fun A => nativeRawThreshold elements policy.test (term.state (rawHistory A)) (reader A)
           else none
         | .lattice field => do
             let query ← StateInstalledLattice.prepareQuery field elements
@@ -120,6 +126,9 @@ theorem lower_rule_refinement {V : Type} (world : Act → Prop) (definitions : D
         | none => simp [lowerRule,nativeRule,found]
         | some policy => cases checked : policy.check elements <;> simp [lowerRule,nativeRule,found,checked,interpretRule]
       | derived _ _ | pair _ _ _ => simp [lowerRule,nativeRule,found]
+      | factored term read => cases read with
+        | none => simp [lowerRule,nativeRule,found]
+        | some policy => cases checked : policy.check elements <;> simp [lowerRule,nativeRule,found,checked,interpretRule]
       | lattice field =>
         cases query : StateInstalledLattice.prepareQuery field elements <;>
           simp [lowerRule,nativeRule,found,query,StateInstalledLattice.queryRule,interpretRule]
@@ -228,7 +237,7 @@ theorem native_installed_compiler_refinement {V : Type} (world : Act → Prop) (
 
 /-- The names referenced by this installed declaration. -/
 def references {V : Type} : Declaration V → List String
-  | .field _ (.native ..) | .field _ (.lattice _) => []
+  | .field _ (.native ..) | .field _ (.factored ..) | .field _ (.lattice _) => []
   | .field _ (.derived _ name) => [name]
   | .field _ (.pair _ left right) => [left,right]
   | .threshold _ source _ => [source]
@@ -238,6 +247,9 @@ inductive Recognized {V : Type} (definitions : Definitions V) : Declaration V �
   | field (name) (definition : Definition V) : Recognized definitions (.field name definition)
   | native (name source elements) (data : Source V) (policy : NativeRead V)
       (found : definitions.lookup source = some (.native data (some policy)))
+      (checked : policy.check elements = true) : Recognized definitions (.threshold name source elements)
+  | factored (name source elements) (term : StateInstalledTerm.Term V) (policy : StateInstalledTerm.Policy V term.Carrier)
+      (found : definitions.lookup source = some (.factored term (some policy)))
       (checked : policy.check elements = true) : Recognized definitions (.threshold name source elements)
   | lattice (name source elements) (field : StateInstalledLattice.Field V) (query : StateInstalledLattice.Query field)
       (found : definitions.lookup source = some (.lattice field))
@@ -259,6 +271,8 @@ theorem recognized_complete {V : Type} {definitions : Definitions V} {declaratio
   | field name definition => exact ⟨lowerDefinition definition,rfl⟩
   | native name source elements data policy found checked =>
     exact ⟨.threshold elements policy.test source,by simp [lowerRule,found,checked]⟩
+  | factored name source elements term policy found checked =>
+    exact ⟨.thresholdRaw elements policy.test term.state source,by simp [lowerRule,found,checked]⟩
   | lattice name source elements field query found checked =>
     exact ⟨StateInstalledLattice.queryRule query source,by simp [lowerRule,found,checked]⟩
 
@@ -277,6 +291,13 @@ theorem lowered_references {V : Type} {definitions : Definitions V} {declaration
       cases definition with
       | derived _ _ | pair _ _ _ => simp [lowerRule,found] at lowered
       | native data policy =>
+        cases policy with
+        | none => simp [lowerRule,found] at lowered
+        | some policy =>
+          cases checked : policy.check elements <;> simp [lowerRule,found,checked] at lowered
+          subst rule
+          rfl
+      | factored term policy =>
         cases policy with
         | none => simp [lowerRule,found] at lowered
         | some policy =>

@@ -87,8 +87,10 @@ Load-bearing: [[SPEC-038-lvar-state-kernel#REQ-3800]] every field is a term ·
 quasi-determinism · [[SPEC-038-lvar-state-kernel#NFR-3800]] explicit evaluation cost bounds.
 
 Open: the remaining whole-kernel proof bridges are owned by the SPEC-038
-implementer: resource-verifier witness persistence and composition of context,
-freeze and threshold observations. Progress and the escrow function
+implementer: complete literal installed-rule bindings and their whole-clause
+refinement, including observation-dependent freeze contributors and scoped
+native readers. Typed resource fault/certificate equivalence and generic
+observation-plan composition are proved; they do not alone close these bindings. Progress and the escrow function
 `bounded-counter` retain their
 author-facing forms over the shared history-backed kernel path
 ([[SPEC-038-lvar-state-kernel#ADR-3806]]). Sequence lattices are out of scope.
@@ -893,7 +895,10 @@ thresholds under normal role admission. Reject unknown paths/roles and unintende
 policy-specific forms. Verify schema stability markers, canonical cache exclusion
 and install-time cache rebuilding. A frozen context observation includes late
 accepted acts even when an application domain excludes them, and cannot hide
-later root conflicts. Mutation checks detect bypassed pin validation, missing
+later root conflicts. Extending an already-faulted context with a conflicting
+root retains the earlier mixed-thread and relevant opener-fork witnesses; roster
+projections do not acquire unrelated opener witnesses.
+Mutation checks detect bypassed pin validation, missing
 stability marking and dropped observation contributors.
 Validates [[SPEC-038-lvar-state-kernel#REQ-3811]].
 
@@ -1014,13 +1019,48 @@ Representation embedding preserves reached/context tags; derived maps consume
 frozen payloads and produce snapshot values. Regression and mutation checks
 cover these distinctions and late freeze attachment.
 
+`StateResourceCompletion.lean` and `StateResourceReadEquivalence.lean` extend
+fault classification to equality of the complete modeled pending/ready/fault
+read, including value, rights and headroom under fact permutation. Missing
+operation dependencies can still leave a checked history pending; the accepted
+root theorem concerns preflight only. The modeled read omits native missing-link
+lists, owner tips, diagnostic reasons and serialization.
+
+`StateInstalledLegacy.lean`, `StateInstalledResource.lean`,
+`StateInstalledContext.lean` and `StateInstalledDomains.lean` supply concrete
+retained-history source factories. Displays and raw queries share the retained
+term state. Legacy eligibility rejects revisable member queries; context paths,
+cast cardinality/completeness, pins, domain verb/key/source typing and relevant
+fault scopes are checked explicitly. Resource snapshots invoke the typed native
+verifier and are proved equal to its read on actual accepted history.
+
+`StateFiniteTable.lean` constructs the bounded semilattice from resolved total,
+single-valued rows and exhaustive law checks. `StateFiniteProjection.lean`
+checks scalar rows, projection totality and stable integer/boolean order,
+including top. Contribution rows retain proof of scalar recognition and join
+all simultaneous matches. `StateInstalledFinite.lean` resolves authored source
+metadata and connects domain/top errors to the exact native writer witness
+sets, preserving evidence under diagnostic precedence. `StateFiniteRead.lean`
+binds named and stable projected scalar queries to the same raw source state;
+its non-top common-upper-state check entails quasi-determinism even when union
+enables additional domain-selected contributions. These executable typed
+reference checks establish semantics, not equivalence of their traversal costs
+or first-error diagnostics with the optimized Rust validators.
+
+Native context regressions additionally cover a later root fault replacing an
+earlier mixed-thread or opener-fork diagnostic. Independent fault witnesses
+remain in evidence; opener witnesses affect only whole-context, whole-thread
+and opener projections. Role-roster projections retain their narrower scope.
+
 These theorems operate at explicit typed boundaries. They do not prove Rust
 source-code extraction, canonical rendering order, diagnostics, or wire parsing.
 The installed semantic IR still receives native closure implementations and
-recognized immutable metadata as leaf parameters. Instantiating every concrete
-installed Rust rule, its finite-table projection checks, and the full context /
-domain metadata vocabulary remains acceptance work; generic IR correctness is
-not evidence that those literal source bindings are already complete. The
+recognized immutable metadata as leaf parameters. The concrete factories above still need a complete authored-clause lowerer
+covering every installed rule and composition with native observation-dependent
+freeze contributors and scoped memoized readers. Typed metadata extraction must
+preserve native scalar distinctions, including quoted strings versus symbols.
+Generic IR correctness and individual factories are not evidence that this full
+literal source binding and composition theorem is complete. The
 legacy resource closure port also remains separate from the new concrete
 native-certificate bridge.
 

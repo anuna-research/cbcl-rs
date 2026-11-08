@@ -1,3 +1,18 @@
+import LeanCbcl.StateFiniteReadTests
+import LeanCbcl.StateFiniteRead
+import LeanCbcl.StateInstalledFinite
+import LeanCbcl.StateFiniteProjectionTests
+import LeanCbcl.StateFiniteProjection
+import LeanCbcl.StateFiniteTable
+import LeanCbcl.StateInstalledDomains
+import LeanCbcl.StateInstalledContext
+import LeanCbcl.StateContextEvidence
+import LeanCbcl.StateInstalledTerm
+import LeanCbcl.StateResourceCompletion
+import LeanCbcl.StateResourceReadEquivalence
+import LeanCbcl.StateInstalledLegacy
+import LeanCbcl.StateInstalledResource
+import LeanCbcl.StateInstalledLegacyTests
 import LeanCbcl.StateInstalledLattice
 import LeanCbcl.StateInstalledLowering
 import LeanCbcl.StateInstalledLoweringTests
@@ -1576,3 +1591,281 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateInstalledCompiler.lift_threshold_refinement
 
 #print axioms CBCL.StateInstalledClause.attached_fields_complete
+
+#print axioms CBCL.StateResourceCompletion.closed_known_processed
+
+#print axioms CBCL.StateResourceCompletion.all_processed_closed
+
+#print axioms CBCL.StateResourceCompletion.saturated_size_iff_closed
+
+#print axioms CBCL.StateResourceCompletion.validated_ready_iff_closed
+
+#print axioms CBCL.StateResourceCompletion.finishBalances_maps
+
+#print axioms CBCL.StateResourceCompletion.validated_ready_finish
+
+#print axioms CBCL.StateResourceCompletion.validated_ready_headroom
+
+#print axioms CBCL.StateResourceCompletion.accountBalance_perm
+
+#print axioms CBCL.StateResourceCompletion.closedKnown_equiv
+
+#print axioms CBCL.StateResourceCompletion.budgetWitness_equiv
+
+#print axioms CBCL.StateResourceCompletion.ready_snapshot_eq
+
+#print axioms CBCL.StateResourceCompletion.validated_observe_perm
+
+#print axioms CBCL.StateResourceReadEquivalence.accepted_root_prevents_pending
+
+#print axioms CBCL.StateResourceReadEquivalence.checked_of_root_and_no_cause
+
+#print axioms CBCL.StateResourceReadEquivalence.observe_fault_iff_cause
+
+#print axioms CBCL.StateResourceReadEquivalence.native_observe_perm
+
+#print axioms CBCL.StateInstalledLegacy.history_member
+
+#print axioms CBCL.StateInstalledLegacy.history_setEq
+
+#print axioms CBCL.StateInstalledLegacy.unique_of_consistent
+
+#print axioms CBCL.StateInstalledLegacy.history_unique
+
+#print axioms CBCL.StateInstalledLegacy.snapshot_value_refinement
+
+#print axioms CBCL.StateInstalledLegacy.guardSources_clear
+
+#print axioms CBCL.StateInstalledLegacy.kernel_source_value_refinement
+
+#print axioms CBCL.StateInstalledLegacy.primitive_native_binding
+
+#print axioms CBCL.StateInstalledLegacy.lower_rule_complete
+
+#print axioms CBCL.StateInstalledLegacy.lower_fields_complete
+
+#print axioms CBCL.StateInstalledLegacy.derived_frozen_sum_sound
+
+#print axioms CBCL.StateInstalledLegacy.derived_frozen_histogram_sound
+
+#print axioms CBCL.StateInstalledLegacy.lookup_name_member
+
+#print axioms CBCL.StateInstalledLegacy.original_references_scoped
+
+#print axioms CBCL.StateInstalledLegacy.lower_rule_references
+
+#print axioms CBCL.StateInstalledLegacy.lower_fields_wellFormed
+
+#print axioms CBCL.StateInstalledLegacy.concrete_installed_refinement
+
+#print axioms CBCL.StateInstalledLegacy.lower_fields_metadata
+
+#print axioms CBCL.StateInstalledLegacy.concrete_installed_complete
+
+#print axioms CBCL.StateInstalledResource.makeInput_complete
+
+#print axioms CBCL.StateInstalledResource.snapshot_native_refinement
+
+#print axioms CBCL.StateInstalledResource.source_native_fault_refinement
+
+#print axioms CBCL.StateInstalledResource.canonical_input
+
+#print axioms CBCL.StateInstalledResource.snapshot_actual_history_refinement
+
+#print axioms CBCL.StateInstalledResource.concrete_resource_read_refinement
+
+#print axioms CBCL.StateInstalledLegacyTests.revisable_values_member_rejected
+
+#print axioms CBCL.StateInstalledLegacyTests.observed_set_member_rejected
+
+#print axioms CBCL.StateInstalledLegacyTests.arrival_member_accepted
+
+#print axioms CBCL.StateInstalledLegacyTests.duplicate_count_alternatives_rejected
+
+#print axioms CBCL.StateInstalledLegacyTests.structured_member_rejected
+
+#print axioms CBCL.StateInstalledLegacyTests.signed_events_sum_rejected
+
+#print axioms CBCL.StateInstalledLegacyTests.optional_nonnegative_sum_rejected
+
+#print axioms CBCL.StateInstalledLegacyTests.mandatory_nonnegative_sum_accepted
+
+#print axioms CBCL.StateInstalledLegacyTests.oversized_count_rejected
+
+#print axioms CBCL.StateInstalledLegacyTests.negative_event_sum_bound_accepted
+
+#print axioms CBCL.StateInstalledLegacyTests.empty_registry_clause_compiles
+
+#print axioms CBCL.StateInstalledTerm.guard_data
+
+#print axioms CBCL.StateInstalledTerm.source_state_coherence
+
+#print axioms CBCL.StateInstalledTerm.accepted_history_merge
+
+#print axioms CBCL.StateInstalledLegacy.kernelTerm_source
+
+#print axioms CBCL.StateInstalledResource.source_unfold
+
+#print axioms CBCL.StateContextEvidence.vacuous_closed
+
+#print axioms CBCL.StateContextEvidence.mixedCheck_iff
+
+#print axioms CBCL.StateContextEvidence.mixed_setEq
+
+#print axioms CBCL.StateContextEvidence.soleError_grows
+
+#print axioms CBCL.StateContextEvidence.hasRoot_iff
+
+#print axioms CBCL.StateContextEvidence.normalization_eq_union
+
+#print axioms CBCL.StateContextEvidence.native_context_witness_refinement
+
+#print axioms CBCL.StateContextEvidence.native_context_fault_persists
+
+#print axioms CBCL.StateContextEvidence.mixedCheck_first_root
+
+#print axioms CBCL.StateInstalledContext.openerValue_setEq
+
+#print axioms CBCL.StateInstalledContext.thread_setEq
+
+#print axioms CBCL.StateInstalledContext.frontier_setEq
+
+#print axioms CBCL.StateInstalledContext.observation_setEq
+
+#print axioms CBCL.StateInstalledContext.value_setEq
+
+#print axioms CBCL.StateInstalledContext.concrete_context_read_refinement
+
+#print axioms CBCL.StateInstalledContext.roster_query_only
+
+#print axioms CBCL.StateInstalledDomains.allowed_setEq
+
+#print axioms CBCL.StateInstalledDomains.allowed_grows
+
+#print axioms CBCL.StateInstalledDomains.eligible_setEq
+
+#print axioms CBCL.StateInstalledDomains.eligible_grows
+
+#print axioms CBCL.StateInstalledDomains.selected_setEq
+
+#print axioms CBCL.StateInstalledDomains.selected_grows
+
+#print axioms CBCL.StateInstalledDomains.roster_source_recognized
+
+#print axioms CBCL.StateFiniteTable.all_indices
+
+#print axioms CBCL.StateFiniteTable.lawCheck_iff
+
+#print axioms CBCL.StateFiniteTable.check_iff
+
+#print axioms CBCL.StateFiniteTable.compile_sound
+
+#print axioms CBCL.StateFiniteTable.compile_complete
+
+#print axioms CBCL.StateFiniteTable.empty_elements_rejected
+
+#print axioms CBCL.StateFiniteProjection.check_iff
+
+#print axioms CBCL.StateFiniteProjection.value_row
+
+#print axioms CBCL.StateFiniteProjection.stable_value_order
+
+#print axioms CBCL.StateFiniteProjection.contribution_lift
+
+#print axioms CBCL.StateFiniteProjection.numeric_read_upward
+
+#print axioms CBCL.StateFiniteProjection.compile_sound
+
+#print axioms CBCL.StateFiniteProjection.compile_complete
+
+#print axioms CBCL.StateFiniteProjection.boolean_read_upward
+
+#print axioms CBCL.StateFiniteProjectionTests.native_table_checks
+
+#print axioms CBCL.StateFiniteProjectionTests.numeric_projection_accepted
+
+#print axioms CBCL.StateFiniteProjectionTests.boolean_projection_accepted
+
+#print axioms CBCL.StateFiniteProjectionTests.decreasing_projection_rejected
+
+#print axioms CBCL.StateFiniteProjectionTests.string_stable_projection_rejected
+
+#print axioms CBCL.StateFiniteProjectionTests.mixed_stable_projection_rejected
+
+#print axioms CBCL.StateFiniteProjectionTests.snapshot_string_projection_accepted
+
+#print axioms CBCL.StateFiniteProjectionTests.top_row_required
+
+#print axioms CBCL.StateFiniteProjectionTests.duplicate_row_rejected
+
+#print axioms CBCL.StateFiniteProjectionTests.structured_projection_rejected
+
+#print axioms CBCL.StateFiniteProjectionTests.oversized_literal_rejected
+
+#print axioms CBCL.StateFiniteProjectionTests.unknown_contribution_rejected
+
+#print axioms CBCL.StateFiniteProjectionTests.structured_contribution_rejected
+
+#print axioms CBCL.StateFiniteProjectionTests.every_matching_row_contributes
+
+#print axioms CBCL.StateFiniteProjectionTests.nonmatching_row_contributes_bottom
+
+#print axioms CBCL.StateInstalledFinite.selected_setEq
+
+#print axioms CBCL.StateInstalledFinite.selected_grows
+
+#print axioms CBCL.StateInstalledFinite.selected_inside
+
+#print axioms CBCL.StateInstalledFinite.state_setEq
+
+#print axioms CBCL.StateInstalledFinite.state_grows
+
+#print axioms CBCL.StateInstalledFinite.writers_setEq
+
+#print axioms CBCL.StateInstalledFinite.writers_grows
+
+#print axioms CBCL.StateInstalledFinite.native_error_refinement
+
+#print axioms CBCL.StateInstalledFinite.concrete_finite_read_refinement
+
+#print axioms CBCL.StateFiniteRead.pairCheck_iff
+
+#print axioms CBCL.StateFiniteRead.reaches_upward
+
+#print axioms CBCL.StateFiniteRead.distinct_reads_force_top
+
+#print axioms CBCL.StateFiniteRead.policy_actual_history
+
+#print axioms CBCL.StateFiniteRead.definition_guard_coherence
+
+#print axioms CBCL.StateFiniteReadTests.named_bottom_accepted
+
+#print axioms CBCL.StateFiniteReadTests.named_top_rejected
+
+#print axioms CBCL.StateFiniteReadTests.numeric_projection_accepted
+
+#print axioms CBCL.StateFiniteReadTests.mixed_query_common_upper_rejected
+
+#print axioms CBCL.StateFiniteReadTests.duplicate_query_rejected
+
+#print axioms CBCL.StateFiniteReadTests.empty_query_rejected
+
+#print axioms CBCL.StateFiniteReadTests.boolean_query_on_numeric_projection_rejected
+
+#print axioms CBCL.StateFiniteReadTests.unknown_named_query_rejected
+
+#print axioms CBCL.StateFiniteReadTests.oversized_numeric_query_rejected
+
+#print axioms CBCL.StateFiniteReadTests.invalid_literal_factory_rejected
+
+#print axioms CBCL.StateFiniteReadTests.unknown_keyword_factory_rejected
+
+#print axioms CBCL.StateFiniteReadTests.empty_contributions_factory_rejected
+
+#print axioms CBCL.StateFiniteReadTests.valid_literal_factory_accepted
+
+#print axioms CBCL.StateInstalledCompiler.raw_threshold_refinement
+
+#print axioms CBCL.StateFiniteRead.test_top
+
+#print axioms CBCL.StateFiniteRead.test_non_top

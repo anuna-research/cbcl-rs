@@ -230,3 +230,18 @@
 ;; rule and its validated native closure/finite/context/domain metadata, and
 ;; retain the explicit wire/rank/renderer correspondence boundaries. The
 ;; parametric installed-IR result does not discharge those literal bindings.
+
+;; Concrete factory continuation (TEST-3806 remains partial): full modeled
+;; native read permutation now covers pending/ready/fault, value, rights and
+;; headroom. Closed legacy/resource/context/domain factories share retained
+;; raw state; finite tables/projections derive laws and order from executable
+;; checks, all matching rows contribute, and raw finite policies prove distinct
+;; successes force combined top. Native context precedence retains prior
+;; mixed-thread/opener witnesses with projection-specific scope.
+;; Remaining: whole authored-clause lowering of all concrete source families,
+;; observation-indexed freeze contributors and native scoped-reader refinement;
+;; wire/scalar extraction, diagnostic/renderer and optimized-check correspondence
+;; retain their explicit boundaries. Generic IR alone cannot finish this task.
+;; Separate maintainer direction: authenticated signer-set source and set
+;; cardinality thresholds are agreed in discussion, but still require their
+;; own SPEC-038 contract/test/runtime/proof work before executable examples.

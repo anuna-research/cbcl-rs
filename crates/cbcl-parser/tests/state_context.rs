@@ -302,3 +302,72 @@ fn unknown_context_paths_and_policy_specific_forms_are_rejected() {
         assert!(result.is_err(), "installed invalid context: {bad}");
     }
 }
+
+// REQ-3806 / TEST-3806 / TEST-3809: a later context conflict must retain
+// the evidence of a fault already exposed by the same projection.
+fn retains_fault_witness(before: &Value, after: &Value) {
+    assert_eq!(before["status"], "fault");
+    assert_eq!(after["status"], "fault");
+    let retained = after["evidence"].as_array().unwrap();
+    for witness in before["evidence"].as_array().unwrap() {
+        assert!(
+            retained.contains(witness),
+            "lost {witness}: {before} -> {after}"
+        );
+    }
+}
+
+#[test]
+fn root_conflict_retains_an_existing_context_opener_fork() {
+    let src = source(None).replace(
+        "(identity (context dialect))",
+        "(whole-thread (context thread)) (opening (context thread opener)) (identity (context dialect))",
+    );
+    let root = root_act("");
+    let first = open(&root);
+    let second = act(
+        &format!(
+            r#"(signed @chair (lang review (open (@a @b) :from @chair :thread "t" :caused-by {})))"#,
+            root.address
+        ),
+        "@chair",
+    );
+    let mut history = vec![root, first.clone(), second.clone()];
+    let before = read(&src, &history);
+    history.push(root_act("\"later root\""));
+    let after = read(&src, &history);
+    for field in ["meta", "whole-thread", "opening"] {
+        retains_fault_witness(&before[field], &after[field]);
+    }
+    // Role projections never depended on the opener fork.
+    let roster_evidence = after["reviewers"]["evidence"].as_array().unwrap();
+    assert!(!roster_evidence.contains(&json!(first.address)));
+    assert!(!roster_evidence.contains(&json!(second.address)));
+    history.reverse();
+    history.extend(history.clone());
+    assert_eq!(read(&src, &history), after);
+}
+
+#[test]
+fn root_conflict_retains_an_existing_mixed_thread_context_witness() {
+    let src = source(None);
+    let root = root_act("");
+    let opening = open(&root);
+    let foreign = act(
+        &format!(
+            r#"(signed @a (lang review (approve @chair :target "@b" :from @a :thread "other" :caused-by {})))"#,
+            opening.address
+        ),
+        "@a",
+    );
+    let mut history = vec![root, opening, foreign];
+    let before = read(&src, &history);
+    history.push(root_act("\"later root\""));
+    let after = read(&src, &history);
+    for field in ["meta", "reviewers", "eligible", "arrivals"] {
+        retains_fault_witness(&before[field], &after[field]);
+    }
+    history.reverse();
+    history.extend(history.clone());
+    assert_eq!(read(&src, &history), after);
+}

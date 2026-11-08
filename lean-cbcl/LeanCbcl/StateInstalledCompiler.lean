@@ -11,6 +11,8 @@ open State StateLift StateLVar StateObservation StateObservationPlan StateRuleRe
 /-- An installed primitive source with its data and error guards. -/
 inductive Source (V : Type) where
   | snapshot (display : FinSet Act → V)
+  | read (contextual : Bool) (value : FinSet Act → Option V)
+  | guardCertified (spec : ErrorSpec) (source : Source V)
   | context (decode : Act → Option Val) (embed : Val → V)
   | domain (verb key opener field : String) (display : FinSet Act → V)
   | resource (config : CheckpointEvidence.ResourceConfig)
@@ -21,6 +23,8 @@ inductive Source (V : Type) where
 /-- Compile an installed source to its observation plan. -/
 def sourcePlan {V : Type} : Source V → Plan V
   | .snapshot display => .snapshot display
+  | .read contextual value => .read contextual value
+  | .guardCertified spec source => .guardCertified spec (sourcePlan source)
   | .context decode embed => .contextAs decode embed
   | .domain v k o f display => .domain v k o f display
   | .resource c decode source => .resource c decode (sourcePlan source)
@@ -36,6 +40,8 @@ def nativeGuard {V : Type} (guard : Error) (source : StateObservationPlan.Observ
 /-- Interpret an installed source independently of plan compilation. -/
 noncomputable def sourceRead {V : Type} : Source V → List Act → StateObservationPlan.Observation V
   | .snapshot display, A => .data (.snapshot (display (rawHistory A)))
+  | .read contextual value, A => .data (optionalData contextual (value (rawHistory A)))
+  | .guardCertified spec source, A => nativeGuard (spec.read A) (sourceRead source A)
   | .context decode embed, A => match StateContext.read decode A with
       | .pending => .data .pending
       | .fault e => .fault e
@@ -51,6 +57,11 @@ theorem source_refinement {V : Type} (world : Act → Prop) (source : Source V) 
     observe world (sourcePlan source) A = sourceRead source A := by
   induction source with
   | snapshot display => rfl
+  | read contextual value => rfl
+  | guardCertified spec source ih =>
+    simp only [sourcePlan,sourceRead,← ih]
+    cases a : spec.read A <;> cases b : errors world (path (sourcePlan source)) A <;>
+      simp [observe,path,errors,nativeGuard,sourceError,unionError,data,a,b]
   | context decode embed =>
     cases h : StateContext.read decode A <;> simp [sourcePlan,sourceRead,observe,path,errors,contextError,data,h]
   | domain v k o f display => exact domain_source_refinement world v k o f display A
@@ -75,6 +86,7 @@ inductive Rule (V : Type) where
   | derived (post : V → V) (name : String)
   | pair (combine : V → V → V) (left right : String)
   | threshold (alternatives : List V) (test : V → V → Bool) (name : String)
+  | thresholdRaw {C : Type} (alternatives : List V) (test : V → C → Bool) (state : FinSet Act → C) (name : String)
   | thresholdLift (spec : ThresholdSpec) (embed : spec.Carrier → V) (name : String)
   | freeze (spec : FreezeSpec) (name : String)
 
@@ -95,6 +107,7 @@ def compileRule {V : Type} (earlier : Plans V) : Rule V → Option (Plan V)
       let r ← earlier.lookup right
       return .map (fun (a,b) => combine a b) (.pair l r)
   | .threshold alternatives test name => do return .thresholdOn alternatives test (← earlier.lookup name)
+  | .thresholdRaw alternatives test state name => do return .thresholdRaw alternatives test state (← earlier.lookup name)
   | .thresholdLift spec embed name => do return .embed embed (.threshold spec (← earlier.lookup name))
   | .freeze spec name => do return .freeze spec (← earlier.lookup name)
 
@@ -121,6 +134,16 @@ noncomputable def nativeLiftThreshold {V : Type} (spec : ThresholdSpec)
       | .pending | .fault _ => .data .pending
       | .reached value => .data (.reached (embed value))
 
+/-- Factored reads use current raw state, while faults come from the actual
+completed source observation (which may have been frozen). -/
+def nativeRawThreshold {V C : Type} (alternatives : List V) (test : V → C → Bool) (current : C)
+    (source : StateObservationPlan.Observation V) : StateObservationPlan.Observation V :=
+  match source with
+  | .fault evidence => .fault evidence
+  | .data _ => match alternatives.find? (fun q => test q current) with
+      | none => .data .pending
+      | some query => .data (.reached query)
+
 /-- Interpret one installed rule using the previously installed readers. -/
 noncomputable def interpretRule {V : Type} (world : Act → Prop) (earlier : Readers V) :
     Rule V → Option (Reader V)
@@ -136,6 +159,9 @@ noncomputable def interpretRule {V : Type} (world : Act → Prop) (earlier : Rea
   | .threshold alternatives test name => do
       let source ← earlier.lookup name
       return fun A => nativeClosureThreshold alternatives test (source A)
+  | .thresholdRaw alternatives test state name => do
+      let source ← earlier.lookup name
+      return fun A => nativeRawThreshold alternatives test (state (rawHistory A)) (source A)
   | .thresholdLift spec embed name => do
       let source ← earlier.lookup name
       return fun A => nativeLiftThreshold spec embed (source A) A
@@ -193,6 +219,14 @@ theorem lift_threshold_refinement {V : Type} (world : Act → Prop) (spec : Thre
     cases thresholdRead spec.alternatives (lift spec.contribution A)
       (errors world (path source) A).isSome (rawHistory A) <;> rfl
 
+theorem raw_threshold_refinement {V C : Type} (world : Act → Prop) (alternatives : List V)
+    (test : V → C → Bool) (state : FinSet Act → C) (source : Plan V) (A : List Act) :
+    observe world (.thresholdRaw alternatives test state source) A =
+      nativeRawThreshold alternatives test (state (rawHistory A)) (observe world source A) := by
+  cases error : errors world (path source) A <;>
+    simp [observe,path,data,error,nativeRawThreshold]
+  cases alternatives.find? (fun q => test q (state (rawHistory A))) <;> rfl
+
 /-- Exact per-rule refinement, including rejection of unresolved references. -/
 theorem compile_rule_refinement {V : Type} (world : Act → Prop) {plans : Plans V} {readers : Readers V}
     (related : Related world plans readers) (rule : Rule V) :
@@ -212,6 +246,12 @@ theorem compile_rule_refinement {V : Type} (world : Act → Prop) {plans : Plans
       simp [hp,hr,Corresponds] at same <;> simp [compileRule,interpretRule,hp,hr,Corresponds]
     intro A closed
     rw [← compileClosureThreshold,closure_threshold_refinement,same A closed]
+  | thresholdRaw alternatives test state name =>
+    have same := related name
+    cases hp : plans.lookup name <;> cases hr : readers.lookup name <;>
+      simp [hp,hr,Corresponds] at same <;> simp [compileRule,interpretRule,hp,hr,Corresponds]
+    intro A closed
+    rw [raw_threshold_refinement,same A closed]
   | thresholdLift spec embed name =>
     have same := related name
     cases hp : plans.lookup name <;> cases hr : readers.lookup name <;>
@@ -332,7 +372,7 @@ theorem installed_rule_plan_refinement {V : Type} (world : Act → Prop)
 /-- Independent name-dependency inventory of the installed IR. -/
 def references {V : Type} : Rule V → List String
   | .source _ => []
-  | .earlier name | .derived _ name | .threshold _ _ name | .thresholdLift _ _ name | .freeze _ name => [name]
+  | .earlier name | .derived _ name | .threshold _ _ name | .thresholdRaw _ _ _ name | .thresholdLift _ _ name | .freeze _ name => [name]
   | .pair _ left right => [left,right]
 
 /-- All rule references resolve to earlier declared fields. -/
@@ -368,6 +408,9 @@ theorem compile_rule_complete {V : Type} (plans : Plans V) (rule : Rule V)
   | threshold alternatives test name =>
     obtain ⟨p,h⟩ := lookup name (by simp [references])
     exact ⟨.thresholdOn alternatives test p,by simp [compileRule,h]⟩
+  | thresholdRaw alternatives test state name =>
+    obtain ⟨p,h⟩ := lookup name (by simp [references])
+    exact ⟨.thresholdRaw alternatives test state p,by simp [compileRule,h]⟩
   | thresholdLift spec embed name =>
     obtain ⟨p,h⟩ := lookup name (by simp [references])
     exact ⟨.embed embed (.threshold spec p),by simp [compileRule,h]⟩
