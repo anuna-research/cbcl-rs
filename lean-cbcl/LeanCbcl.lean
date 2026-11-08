@@ -301,3 +301,5 @@ import LeanCbcl.StateContextWrapperSyntaxTests
 import LeanCbcl.StateContextMessageTests
 
 import LeanCbcl.StateKeywordExtractionTests
+
+import LeanCbcl.StateJsonValueTests

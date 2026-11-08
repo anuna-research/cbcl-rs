@@ -1,5 +1,6 @@
 import Lean
 import LeanCbcl.StateShapeOracle
+import LeanCbcl.StateJsonOracle
 import LeanCbcl.StateContextOracle
 import LeanCbcl.StateFiniteRead
 import LeanCbcl.StateFiniteDenseCache
@@ -214,6 +215,7 @@ def run (j : Json) : Check Json :=
   match j.getObjVal? "profile" with
   | .ok (.str "nonnegative-shape") => CBCL.StateShapeOracle.run j
   | .ok (.str "keyword-extraction") => CBCL.StateShapeOracle.keywordRun j
+  | .ok (.str "state-render") => CBCL.StateJsonOracle.run j
   | .ok (.str "context") => StateContextOracle.run j
   | .ok (.str "context-wrapper") => StateContextOracle.wrapperRun j
   | .ok (.str "events-sum") => nestedInput j >>= evaluateNested

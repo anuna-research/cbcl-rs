@@ -222,3 +222,25 @@ proof that every native admitted message satisfies that construction. Arbitrary
 nested native values, full native AST projection, authentication and protocol
 admission remain outside this campaign. Mutants changing a native numeric value
 or allowing duplicate data keys are checked against the live Lean result.
+
+The `state-render` profile checks exact emitted UTF-8 strings. Its required
+`value` and `state` inputs use a closed native-value tree: `["absent"]`,
+`["str",text]`, `["int",canonicalDecimalText]`, `["bool",flag]`,
+`["list",items]`, `["set",items]`, `["map",keyValuePairs]`, or
+`["event",signer,value]`. `state` is an ordered array of `[name,value]` rows.
+Integers must be canonical signed decimals in the native i128 range; nested
+values are limited to depth 32. Unknown value constructors and extra constructor
+arguments reject.
+Stored order and duplicates are preserved by this serializer campaign; normal
+state constructors establish their own set/map invariants.
+
+The Lean oracle runs the operational buffer emitter proved equal to a separate
+declarative spelling. It returns native-value and whole-state renderings as
+JSON string values. Rust compares these exact strings with `Value::render` and
+`render_json`, then separately checks that native output parses as JSON. It does
+not parse the rendered strings before equality. C0/short escapes, Unicode,
+non-string map keys, nested events/containers, i128 extrema and nonalphabetic
+clause order are covered. Native uppercase-control-hex and reversed-field-order
+mutants fail this comparison despite retaining equivalent parsed objects/string
+values. Formal native Rust extraction, integer-formatting correspondence and
+constructor sorting remain outside this profile.

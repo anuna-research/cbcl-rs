@@ -455,6 +455,15 @@ correspondence to this parameter/typed-field projection remains open. The live
 `keyword-extraction` profile separately tests strict parsing, R7, shapes and
 actual native amount lookup, including the duplicate-key ambiguity regression.
 
+`StateJsonString` proves lossless canonical quote/escape encoding and appending
+to any output buffer. `StateJsonValue` proves operational emission equals a
+separate declarative spelling for every native value variant and complete state
+objects, preserving stored container and clause order. `StateJsonOracle` powers
+an exact-byte comparison with native `Value::render` and `render_json`; it catches
+uppercase control-escape and field-order changes that parsed JSON can conceal.
+Constructor sorting, Rust extraction and native integer-formatting correspondence
+remain open; no root-identity change is part of these renderer proofs.
+
 The implementation documents its current collection and freeze costs rather
 than claiming strict linear evaluation: ordered collections take `O(n log n)`,
 and retaining all concurrent-freeze witnesses can add `O(n f)` work for `f`

@@ -22,6 +22,7 @@ nested_test = "nested_kernel_matches_live_lean_oracle"
 context_test = "context::context_kernel_matches_live_lean_oracle"
 admission_test = "duplicate_amount_cannot_hide_a_negative_state_contribution"
 keyword_test = "shape::keyword_extraction_matches_lean"
+render_test = "render::native_json_bytes_match_lean"
 with tempfile.TemporaryDirectory(prefix="cbcl-live-oracle-") as directory:
     isolated = Path(directory)
     (isolated / "crates").mkdir()
@@ -46,6 +47,8 @@ with tempfile.TemporaryDirectory(prefix="cbcl-live-oracle-") as directory:
                               text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=300)
 
     mutants = [
+        ("json-control-hex-uppercase", "state.rs", "{:04x}", "{:04X}", render_test),
+        ("json-state-clause-order-reversed", "state.rs", "for (i, (name, value)) in state.iter().enumerate() {", "for (i, (name, value)) in state.iter().rev().enumerate() {", render_test),
         ("keyword-extraction-value-changed", "state.rs", "out.insert(k.clone(), params[i + 1].clone());", "out.insert(k.clone(), match &params[i + 1] { crate::sexpr::SExpr::Atom(crate::sexpr::Atom::Num(n)) => crate::sexpr::SExpr::Atom(crate::sexpr::Atom::Num(*n + 1)), value => value.clone() });", keyword_test),
         ("keyword-extraction-duplicate-gate-bypassed", "r7.rs", "&& !seen_fields.insert(k)", "&& (!seen_fields.insert(k) && false)", keyword_test),
         ("duplicate-state-keyword-accepted", "r7.rs", "&& !seen_fields.insert(k)", "&& (!seen_fields.insert(k) && false)", admission_test),

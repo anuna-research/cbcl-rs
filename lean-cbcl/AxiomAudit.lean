@@ -1,3 +1,4 @@
+import LeanCbcl.StateJsonValueTests
 import LeanCbcl.StateKeywordExtractionTests
 import LeanCbcl.StateContextMessageTests
 import LeanCbcl.StateContextWrapperSyntaxTests
@@ -2835,3 +2836,28 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateKeywordExtractionTests.malformed_rejected
 #print axioms CBCL.StateKeywordExtractionTests.keyword_value_does_not_forge
 #print axioms CBCL.StateKeywordExtractionTests.checked_amount
+
+#print axioms CBCL.StateJsonString.control_roundtrip
+#print axioms CBCL.StateJsonString.escape_roundtrip
+#print axioms CBCL.StateJsonString.escape_injective
+#print axioms CBCL.StateJsonString.control_prefix
+#print axioms CBCL.StateJsonString.escape_prefix
+#print axioms CBCL.StateJsonString.contents_roundtrip
+#print axioms CBCL.StateJsonString.quote_roundtrip
+#print axioms CBCL.StateJsonString.quote_injective
+#print axioms CBCL.StateJsonString.append_contents
+#print axioms CBCL.StateJsonString.emit_refinement
+#print axioms CBCL.StateJsonValue.emit_refinement
+#print axioms CBCL.StateJsonValue.sequence_refinement
+#print axioms CBCL.StateJsonValue.key_refinement
+#print axioms CBCL.StateJsonValue.members_refinement
+#print axioms CBCL.StateJsonValue.empty_buffer
+#print axioms CBCL.StateJsonValue.state_refinement
+#print axioms CBCL.StateJsonValueTests.lowercase_control
+#print axioms CBCL.StateJsonValueTests.short_escapes
+#print axioms CBCL.StateJsonValueTests.raw_unicode
+#print axioms CBCL.StateJsonValueTests.unescaped_control_rejected
+#print axioms CBCL.StateJsonValueTests.stored_set_order
+#print axioms CBCL.StateJsonValueTests.event_layout
+#print axioms CBCL.StateJsonValueTests.key_layout
+#print axioms CBCL.StateJsonValueTests.clause_order

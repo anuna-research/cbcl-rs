@@ -733,6 +733,23 @@ suites.append(("StateKeywordExtraction", (root / "lean-cbcl/LeanCbcl/StateKeywor
     ("keyword-materialization-changes-name", "(dataRows rows).reverse.filterMap (fun (key,value) => (decode value).map (key,·))", '(dataRows rows).reverse.filterMap (fun (_,value) => (decode value).map ("other",·))', "field_member"),
 ]))
 
+suites.append(('StateJsonString', (root / "lean-cbcl/LeanCbcl/StateJsonString.lean").read_text(), [
+    ('json-quote-unescaped', '  if c = \'"\' then [\'\\\\\',\'"\'] else', '  if c = \'"\' then [\'"\'] else', 'escape_roundtrip'),
+    ('json-newline-becomes-carriage', "  if c = '\\n' then ['\\\\','n'] else", "  if c = '\\n' then ['\\\\','r'] else", 'escape_roundtrip'),
+    ('json-control-hex-uppercase', 'else 87+n', 'else 55+n', 'control_roundtrip'),
+    ('json-raw-control-emitted', '  if c.toNat < 32 then control c.toNat else [c]', '  if c.toNat < 16 then control c.toNat else [c]', 'escape_roundtrip'),
+    ('json-closing-quote-dropped', 'def quote (text : String) : String := String.ofList (\'"\'::(contents text.toList ++ [\'"\']))', 'def quote (text : String) : String := String.ofList (\'"\'::contents text.toList)', 'quote_roundtrip'),
+    ('json-string-buffer-dropped', '  String.ofList (appendContents (buffer.toList ++ [\'"\']) text.toList ++ [\'"\'])', '  String.ofList (appendContents ([\'"\']) text.toList ++ [\'"\'])', 'emit_refinement'),
+]))
+
+suites.append(('StateJsonValue', (root / "lean-cbcl/LeanCbcl/StateJsonValue.lean").read_text(), [
+    ('json-container-order-reversed', '  | .list items, buffer | .set items, buffer => emitSequence true items (buffer ++ "[") ++ "]"', '  | .list items, buffer | .set items, buffer => emitSequence true items.reverse (buffer ++ "[") ++ "]"', 'emit_refinement'),
+    ('json-integer-emission-offset', '  | .int number, buffer => buffer ++ toString number', '  | .int number, buffer => buffer ++ toString (number+1)', 'emit_refinement'),
+    ('json-map-key-double-quoted', '      let named := StateJsonString.emit (if first then buffer else buffer ++ ",") (emitKey key)', '      let named := StateJsonString.emit (if first then buffer else buffer ++ ",") (StateJsonString.quote (emitKey key))', 'members_refinement'),
+    ('json-state-clause-order-reversed', '  emit (.map (fields.map (fun (name,value) => (.str name,value)))) buffer', '  emit (.map (fields.reverse.map (fun (name,value) => (.str name,value)))) buffer', 'state_refinement'),
+    ('json-event-signer-dropped', '      emit value (StateJsonString.emit (buffer ++ "{\\"by\\":") signer ++ ",\\"value\\":") ++ "}"', '      emit value (StateJsonString.emit (buffer ++ "{\\"by\\":") "" ++ ",\\"value\\":") ++ "}"', 'emit_refinement'),
+]))
+
 # Preserve the full default gate while allowing a focused continuation check.
 import argparse
 parser = argparse.ArgumentParser(description=__doc__)

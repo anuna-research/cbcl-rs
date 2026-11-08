@@ -1,0 +1,81 @@
+//! Exact UTF-8 serialization comparison, preserving stored container/clause order.
+use super::*;
+use cbcl_core::state::Value as Native;
+
+fn value(tag: &Value) -> Native {
+    match tag[0].as_str().unwrap() {
+        "absent" => Native::Absent,
+        "str" => Native::Str(tag[1].as_str().unwrap().into()),
+        "int" => Native::Int(tag[1].as_str().unwrap().parse().unwrap()),
+        "bool" => Native::Bool(tag[1].as_bool().unwrap()),
+        "list" => Native::List(tag[1].as_array().unwrap().iter().map(value).collect()),
+        "set" => Native::Set(tag[1].as_array().unwrap().iter().map(value).collect()),
+        "map" => Native::Map(tag[1].as_array().unwrap().iter().map(|row| (value(&row[0]),value(&row[1]))).collect()),
+        "event" => Native::Pair { by: tag[1].as_str().unwrap().into(), value: Box::new(value(&tag[2])) },
+        _ => panic!("invalid test value"),
+    }
+}
+fn native(case: &Value) -> Value {
+    let fields = case["state"].as_array().unwrap().iter()
+        .map(|row| (row[0].as_str().unwrap().to_owned(),value(&row[1]))).collect::<Vec<_>>();
+    json!({"rendered":value(&case["value"]).render(),"state":render_json(&fields)})
+}
+fn text() -> BoxedStrategy<String> {
+    prop_oneof![
+        prop::collection::vec(any::<char>(),0..24).prop_map(|chars| chars.into_iter().collect()),
+        prop::collection::vec(0u8..32,0..24).prop_map(|chars| chars.into_iter().map(char::from).collect()),
+        Just("quote\"slash\\\n\r\t\u{8}\u{c}".to_owned()),
+    ].boxed()
+}
+fn tree() -> BoxedStrategy<Value> {
+    let leaf = prop_oneof![
+        Just(json!(["absent"])), text().prop_map(|s| json!(["str",s])),
+        any::<i128>().prop_map(|n| json!(["int",n.to_string()])),
+        any::<bool>().prop_map(|b| json!(["bool",b])),
+    ];
+    leaf.prop_recursive(4,96,8,|inner| prop_oneof![
+        prop::collection::vec(inner.clone(),0..6).prop_map(|values| json!(["list",values])),
+        prop::collection::vec(inner.clone(),0..6).prop_map(|values| json!(["set",values])),
+        prop::collection::vec((inner.clone(),inner.clone()),0..6).prop_map(|rows| json!(["map",rows])),
+        (text(),inner).prop_map(|(by,value)| json!(["event",by,value])),
+    ]).boxed()
+}
+#[test]
+#[ignore = "requires lake build cbcl-state-oracle; explicitly run in Lean CI"]
+fn native_json_bytes_match_lean() {
+    let oracle = RefCell::new(Oracle::start());
+    let controls = (0u8..32).map(char::from).collect::<String>();
+    for value in [
+        json!(["absent"]), json!(["str",controls]), json!(["str","é𝄞🌍é"]),
+        json!(["int",i128::MIN.to_string()]),json!(["int",i128::MAX.to_string()]),
+        json!(["set",[["int","2"],["int","1"],["int","1"]]]),
+        json!(["map",[[["int","2"],["str","x"]],[["str","quoted\"key"],["absent"]]]]),
+        json!(["event","@a",["list",[["int","2"],["bool",true]]]]),
+        json!(["map",[[["list",[["str","key"]]],["map",[]]]]]),
+    ] {
+        let case = json!({"profile":"state-render","value":value,"state":[["z",value],["a",["bool",true]]]});
+        assert_eq!(native(&case),oracle.borrow_mut().request(&case),"render case={case}");
+    }
+    for invalid in [json!(["int","170141183460469231731687303715884105728"]),
+        json!(["int","-170141183460469231731687303715884105729"]),json!(["int","01"]),
+        json!(["int","-0"]),json!(["unknown"]),json!(["bool",true,"extra"])] {
+        let case = json!({"profile":"state-render","value":invalid,"state":[]});
+        assert!(oracle.borrow_mut().response(&case).get("error").is_some(),"invalid renderer transport={case}");
+    }
+    let mut deep = json!(["absent"]);
+    for _ in 0..33 { deep = json!(["list",[deep]]); }
+    assert!(oracle.borrow_mut().response(&json!({"profile":"state-render","value":deep,"state":[]})).get("error").is_some());
+    let mut config = proptest::test_runner::Config::default();
+    if std::env::var_os("PROPTEST_CASES").is_none() { config.cases = 512; }
+    config.failure_persistence = Some(Box::new(proptest::test_runner::FileFailurePersistence::Direct(
+        concat!(env!("CARGO_MANIFEST_DIR"),"/tests/state_json_render.proptest-regressions"))));
+    let mut runner = proptest::test_runner::TestRunner::new(config);
+    runner.run(&(tree(),prop::collection::vec((text(),tree()),0..6)), |(value,fields)| {
+        let case = json!({"profile":"state-render","value":value,"state":fields});
+        let actual = native(&case);
+        prop_assert_eq!(&actual,&oracle.borrow_mut().request(&case),"render case={}",case);
+        prop_assert!(serde_json::from_str::<Value>(actual["rendered"].as_str().unwrap()).is_ok());
+        prop_assert!(serde_json::from_str::<Value>(actual["state"].as_str().unwrap()).is_ok());
+        Ok(())
+    }).unwrap();
+}

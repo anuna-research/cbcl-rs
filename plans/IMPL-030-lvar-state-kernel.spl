@@ -1394,3 +1394,36 @@
   (description "A reproduced native identity/compatibility conflict is ready for human contract choice")
   (source "SPEC-038-lvar-state-kernel#REQ-3807"))
 (given (requires lean-quasi-determinism root-cast-identity-contract))
+
+;; Independent JSON emission checkpoint (REQ-3807 / TEST-3807).
+;; BUG-011 human root-contract decision remains pending; no address migration or
+;; immutable-host premise was inferred. This work does not depend on that choice.
+;; StateJsonString defines native canonical escapes and an independent fragment/
+;; stream decoder. Control arithmetic exhaustively checked for all32 C0 scalars;
+;; escape_prefix composes arbitrary adjoining fragments, contents/quote roundtrip
+;; preserve all Unicode scalar sequences, quote is injective. Explicit buffer
+;; loop append_contents/emit_refinement preserve any prior output string.
+;; StateJsonValue models all native Value variants, with separate declarative
+;; compact spelling and operational append-buffer loops. Mutual refinement proves
+;; strings, integers, booleans, arrays/sets, map key text, event pairs and whole
+;; state emission preserve exact bytes relative to the declarative formatter.
+;; Stored container/clause order is retained; construction owns sorting/dedup.
+;; StateJsonOracle exposes state-render tagged values with canonical signed
+;; decimal/i128 validation and depth32. Exact UTF8 rendering strings are compared
+;; to public Rust Value::render/render_json, without parsing rendered strings
+;; before equality. Additional JSON-validity assertions are separate. Directed
+;; and generated cases cover all variants, all C0 controls, Unicode, i128 extrema,
+;; nested/nonstring map keys, event payloads, stored duplicates and clause order.
+;; Verification: aggregate library/oracle build, Batteries env-linter and1944
+;; allowlisted theorem audits pass. Eleven focused proof mutants fail escaping,
+;; lowercase controls, buffer/closing quotes, value/array/map/event/state emission.
+;; Native uppercase-control-hex and reversed whole-state order mutants both fail
+;; exact live comparison; parsed JSON equality can hide those representation changes.
+;; All eight live suites pass at512 cases/seed380038. Verified-by/diff checks pass;
+;; no new unresolved vault pairs, zero syntax/SPL diagnostics. Independent read-only
+;; proof/harness review found no defect and confirmed exact-string comparison.
+;; Integer formatting remains a shared model primitive whose native correspondence
+;; is tested, not proved. Native Rust extraction, semantic-value representation,
+;; constructor canonical ordering/evidence sorting and full serializer composition
+;; remain obligations. General admission/installed/scoped-reader and BUG-011 root
+;; binding decisions keep full SPEC-038 acceptance open. No completion asserted.

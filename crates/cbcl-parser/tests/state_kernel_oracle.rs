@@ -1081,3 +1081,6 @@ mod context;
 
 #[path = "state_kernel_oracle/shape.rs"]
 mod shape;
+
+#[path = "state_kernel_oracle/render.rs"]
+mod render;

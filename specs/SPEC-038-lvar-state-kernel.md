@@ -1753,8 +1753,25 @@ The fixture metadata decoder remains typed, not literal native wire extraction.
 
 Full admission/extraction and native installation correspondence remain separate obligations at the typed
 authored boundary.
-Literal Rust value representation and public serialized
-rendering remain separate boundaries. Helpers remain total outside the admitted
+`StateJsonString.lean` proves canonical string fragments prefix-decodable,
+complete quote roundtrip/injectivity and correct emission into any existing
+buffer. It covers short escapes, lowercase C0 controls and arbitrary Unicode
+scalar sequences. `StateJsonValue.lean` relates a separate declarative spelling
+to operational append emission for every native value variant and whole state
+objects. Stored list/set/map order and clause order are retained; non-string
+map keys use rendered text, with keys quoted once. These emitter proofs do not
+establish constructor sorting/deduplication or native Rust extraction.
+
+The `state-render` oracle compares exact emitted UTF-8 strings for values and
+whole states, rather than parsing those strings before equality. Its closed
+tagged transport preserves every stored order, limits recursion and validates
+canonical integer text in the native i128 range. Directed and generated cases
+exercise all native variants, C0 controls, Unicode, nested keys, integer extrema
+and clause order. Native mutations using uppercase control hex and reversed
+state field order fail the exact comparison, even though parsed JSON equality
+can conceal those differences. Integer formatting and full native semantic-value
+to-serialized-output correspondence remain separate proof boundaries.
+Literal Rust value representation remains a separate boundary. Helpers remain total outside the admitted
 request domain, which does not model Rust's indexing or unknown-field no-insert
 branch.
 
