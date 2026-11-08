@@ -1199,3 +1199,28 @@
 ;; Remaining: literal Rust installation/cache extraction, metadata/admission,
 ;; general repeat bodies, mutable reader, strict wire/renderer correspondence,
 ;; formatted diagnostics, allocation/runtime costs. No full completion asserted.
+
+;; Dense finite cache composition checkpoint (REQ-3802 / REQ-3810).
+;; StateFiniteDenseCache uses UInt32/UInt64 row-major offsets to access the
+;; checked dense join vector. merge_refinement excludes fallback and preserves
+;; the exact semantic join. denseMaxima filters non-top principal upper sets
+;; using those accesses and derives the same stored maxima vector.
+;; Construct that vector at gate entry and explicitly thread it through named,
+;; mixed/numeric compatibility, duplicate-first reasons and both indexed loops.
+;; Complete gate equality and source-owned policy/query-compiler refinement follow
+;; without assuming a cache oracle or changing original scalar identity/indices.
+;; Both-width fixtures cover mixed incompatibility rejection, later duplicate
+;; indices1,2, singleton acceptance and empty rejection. Oracle now computes both
+;; gates for every admitted finite query list; backend disagreement is an error
+;; before comparison with native. This repairs review's masking/short-circuit
+;; finding against the first OR-combined backend rejection harness.
+;; Verification: aggregate library/oracle build and Batteries env-linter pass;
+;; 1856 theorem audits allowlisted; six substantive proof mutants rejected at
+;; lookup, top exclusion, named compatibility, duplicate precedence, inner index
+;; and empty-query obligations. All six live Rust/Lean suites pass at512 cases,
+;; RNG_SEED380038. Fresh read-only re-review found no remaining defect. Verified-by
+;; and diff checks pass; no new unresolved vault pairs, zero syntax/SPL errors.
+;; This closes composition of the typed dense arithmetic/cache stage. Literal
+;; Rust extraction, allocation/runtime costs and formatted diagnostics are still
+;; separate obligations, along with remaining native metadata/admission/mutable
+;; reader/general wire/renderer boundaries. Full SPEC completion is not asserted.

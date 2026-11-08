@@ -695,6 +695,15 @@ suites.append(("StateFiniteIndexBounds", (root / "lean-cbcl/LeanCbcl/StateFinite
      "(UInt32.ofNat index + 2).toNat = index+1 := by", "next32"),
 ]))
 
+suites.append(("StateFiniteDenseCache", (root / "lean-cbcl/LeanCbcl/StateFiniteDenseCache.lean").read_text(), [
+    ("dense-native-table-ignores-offset", "[offset word verified.table a b]?", "[0]?", "merge_refinement"),
+    ("dense-upper-cache-includes-top", "current != field.table.table.top && denseMerge", "true && denseMerge", "maxima_refinement"),
+    ("dense-named-compatibility-inverted", "denseMerge word field.table a b != field.table.table.top", "denseMerge word field.table a b == field.table.table.top", "compatible_refinement"),
+    ("dense-duplicate-precedence-dropped", "if a.1 == b.1 then some .duplicate else", "if false then some .duplicate else", "reason_refinement"),
+    ("dense-inner-index-skips", "| none => denseRow word field cache left (index+1) rest", "| none => denseRow word field cache left (index+2) rest", "row_refinement"),
+    ("dense-empty-query-accepted", "!queries.isEmpty && queries.all", "true && queries.all", "check_refinement"),
+]))
+
 # Preserve the full default gate while allowing a focused continuation check.
 import argparse
 parser = argparse.ArgumentParser(description=__doc__)

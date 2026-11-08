@@ -2,7 +2,7 @@ import Lean
 import LeanCbcl.StateShapeOracle
 import LeanCbcl.StateContextOracle
 import LeanCbcl.StateFiniteRead
-import LeanCbcl.StateFiniteReadCache
+import LeanCbcl.StateFiniteDenseCache
 import LeanCbcl.StateExecutableFreeze
 import LeanCbcl.StateCausalRank
 import LeanCbcl.StateExecutableObservation
@@ -131,7 +131,11 @@ def evaluate (request : Input) : Json := Id.run do
   if !CBCL.StateInstalledBounds.check ⟨32,request.limit,1000000000000,2048⟩ then return rejected
   let some verified := CBCL.StateFiniteTable.compile request.limit request.definition | return rejected
   let some field := make schema verified [] request.declaration | return rejected
-  if request.queries.any (fun qs => !CBCL.StateFiniteReadCache.check field qs) then return rejected
+  let gates := request.queries.map (fun qs =>
+    (CBCL.StateFiniteDenseCache.check .bits64 field qs,CBCL.StateFiniteDenseCache.check .bits32 field qs))
+  if gates.any (fun gate => gate.1 != gate.2) then
+    return Json.mkObj [("error",.str "finite machine backends disagree")]
+  if gates.any (fun gate => !gate.1) then return rejected
   let current := state field request.history
   let fault : Bool := current == field.table.table.top
   let evidence := ((request.history.filter (fun a => a.verb == "mark" && CBCL.StateInstalledFinite.contribution field a != field.table.table.bottom)).map Act.addr).eraseDups

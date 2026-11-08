@@ -1,3 +1,4 @@
+import LeanCbcl.StateFiniteDenseCacheTests
 import LeanCbcl.StateInstalledBoundsTests
 import LeanCbcl.StateFiniteReadCacheTests
 import LeanCbcl.StateAuthoredResourceTests
@@ -2747,3 +2748,18 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateAuthoredSourceProvenance.prepared_bounds
 
 #print axioms CBCL.StateAuthoredBindingsTests.invalid_bounds_rejected
+
+#print axioms CBCL.StateFiniteDenseCache.merge_refinement
+#print axioms CBCL.StateFiniteDenseCache.maxima_refinement
+#print axioms CBCL.StateFiniteDenseCache.compatible_refinement
+#print axioms CBCL.StateFiniteDenseCache.reason_refinement
+#print axioms CBCL.StateFiniteDenseCache.row_refinement
+#print axioms CBCL.StateFiniteDenseCache.pairs_refinement
+#print axioms CBCL.StateFiniteDenseCache.check_refinement
+#print axioms CBCL.StateFiniteDenseCacheTests.mixed_rejected
+#print axioms CBCL.StateFiniteDenseCacheTests.later_duplicate
+#print axioms CBCL.StateFiniteDenseCacheTests.singleton_accepted
+#print axioms CBCL.StateFiniteDenseCacheTests.empty_rejected
+
+#print axioms CBCL.StateFiniteDenseCache.policy_refinement
+#print axioms CBCL.StateFiniteDenseCache.compiled_query_refinement

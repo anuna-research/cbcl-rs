@@ -1213,6 +1213,15 @@ arithmetic layer, not full Rust source extraction or arbitrary unvalidated publi
 table construction. Native diagnostic formatting and allocation/runtime cost
 correspondence remain separate obligations.
 
+`StateFiniteDenseCache.lean` composes those machine-width offsets through
+executable dense table access, non-top upper-set maxima, named/mixed/numeric
+compatibility branches and once-decoded first-pair diagnostics. Both supported
+word widths preserve the complete finite gate and source-owned query compiler,
+including empty/invalid rejection and raw scalar duplicate precedence. The live
+finite oracle evaluates both backends. These are executable typed refinements;
+they do not establish literal Rust extraction, physical allocation limits or
+formatted diagnostic correspondence.
+
 `StateInstalledRecognition.lean` proves exact lowerer acceptance from the
 modeled metadata, source policy and backward-reference checks. Authored
 preparation now performs those checks before returning success;
