@@ -23,7 +23,8 @@ PROPTEST_RNG_SEED=380038 PROPTEST_CASES=512 \
 For a larger campaign, increase `PROPTEST_CASES` and change the seed. Proptest
 shrinks mismatches and persists their seeds in
 `crates/cbcl-parser/tests/state_kernel_oracle.proptest-regressions` and the
-corresponding `state_freeze_oracle.proptest-regressions` file. The failure
+corresponding `state_freeze_oracle.proptest-regressions` and
+`state_nested_oracle.proptest-regressions` files. The failure
 report includes the complete JSON request and delivery variant. Replay that
 request directly through `lean-cbcl/.lake/build/bin/cbcl-state-oracle`, or rerun
 the Rust test to replay saved seeds. `CBCL_STATE_ORACLE` can select an alternate
@@ -45,6 +46,16 @@ ensure unrelated-verb fields cannot enter raw finite fault evidence. The CI
 workflow builds the oracle explicitly and runs these ignored tests; a normal
 Cargo run does not silently require Lean.
 
+The `events-sum` profile adds an event map and a derived sum with independently
+optional source and derived freezes. `StateExecutableObservation` proves its
+map/error/presentation/freeze adapters agree with the existing semantic adapters.
+The reference recomputes source values at the requested cut; Rust uses its real
+scoped cache. A directed example freezes source events whose sum is 2, then
+freezes the derived sum at an incomparable cut where the result must be 7.
+That distinguishes a `(scope, field)` cache from a field-only cache. Both source
+and derived snapshots, frozen metadata and fault propagation are compared.
+Generated graphs use bounded integer amounts; this is not overflow testing.
+
 The JSON-lines request contains `table` (named elements, bottom, top and join
 triples), `projection` (null or stability plus scalar rows), `contributions`
 (keyword/literal/target triples), `queries` (null or scalar alternatives), and
@@ -59,13 +70,18 @@ bounded; backward search is a semantic reference, not the native cost model.
 Responses distinguish input errors from installation rejection and report
 semantic observations.
 
+The `events-sum` request selects `"profile":"events-sum"`, supplies the same
+causal `acts`, and uses nullable Boolean `source_freeze` and `derived_freeze`
+policies for the `close` and `seal` verbs. It has no finite table or queries.
+
 Fault comparison preserves evidence membership through an injective mapping
 from actual content addresses to test identities. It intentionally ignores
 canonical evidence ordering, repeated evidence entries and diagnostic strings.
 Frozen root identities and superseded witness membership are compared as well.
 The profiles have no domains, context, resources or protocol admission; generated
-DAGs are fold inputs, not a claim about protocol-valid execution. Nested derived
-field dependencies are not yet generated. It is a live
+DAGs are fold inputs, not a claim about protocol-valid execution. The nested
+profile has one source and one derived layer; arbitrary dependency graphs are
+not generated. It is a live
 implementation cross-check for finite state and causal-freeze semantics,
 not a proof of Rust extraction or coverage of the entire state language.
 
@@ -80,4 +96,6 @@ baseline, then requires actual assertion failures when all matching finite
 contributions are replaced by first-match behavior and when a threshold hides
 its source fault. Freeze mutants ignore the causal cut, suppress the fault
 policy, hide concurrent freezers or discard freeze evidence when a raw fault
-already exists. It leaves the worktree untouched.
+already exists. Nested mutants erase the cache scope or field, use whole history
+for a dependency, stop unwrapping frozen payloads, or discard inherited source
+faults. It leaves the worktree untouched.

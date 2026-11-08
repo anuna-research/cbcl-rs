@@ -339,6 +339,9 @@ fn graph_acts(case: &Value) -> (BTreeMap<String, u64>, Vec<Act>) {
 }
 
 fn native(case: &Value) -> Value {
+    if case["profile"] == "events-sum" {
+        return native_nested(case);
+    }
     let text = dialect(case);
     let Ok(sexpr) = parse(&text) else {
         return json!({"installed":false});
@@ -753,4 +756,231 @@ fn oracle_rejects_ambiguous_or_nonclosed_graphs() {
         .as_str()
         .unwrap()
         .contains("duplicate field"));
+}
+
+fn normalize_view(
+    value: &Value,
+    ids: &BTreeMap<String, u64>,
+    render: impl Fn(&Value) -> Value,
+) -> Value {
+    if value["status"] == "fault" {
+        return normalize_fault(value, ids);
+    }
+    if let Some(root) = value.get("frozen") {
+        let mut excluded: Vec<_> = value["superseded"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| ids[v.as_str().unwrap()])
+            .collect();
+        excluded.sort();
+        excluded.dedup();
+        json!({"status":"frozen","freezer":ids[root.as_str().unwrap()],"excluded":excluded,"value":render(&value["value"])})
+    } else {
+        json!({"status":"snapshot","value":render(value)})
+    }
+}
+fn native_nested(case: &Value) -> Value {
+    let freeze = |field: &str, verb: &str, policy: &Value| {
+        if policy.is_null() {
+            String::new()
+        } else {
+            format!(
+                "(freeze {field} {verb} {})",
+                if *policy == true {
+                    "fault"
+                } else {
+                    "supersede"
+                }
+            )
+        }
+    };
+    let source = format!(
+        "(define oracle-demo (cbcl) @a (:roles (owner))
+      (extend open (to) :from owner :to owner (tell to))
+      (extend mark (to amount) :from owner :to owner (tell to :amount amount))
+      (extend close (to) :from owner :to owner (tell to))
+      (extend seal (to) :from owner :to owner (tell to))
+      (shape mark (require :amount number))
+      (protocol (then begin open) (then open (repeat 16 mark close seal)))
+      (state (source (events mark :amount)) (total (sum source)) {} {}))",
+        freeze("source", "close", &case["source_freeze"]),
+        freeze("total", "seal", &case["derived_freeze"])
+    );
+    let registry = state_exports::parse_and_install_dialect(&parse(&source).unwrap())
+        .expect("generated events/sum profile installs");
+    let d = registry.iter().last().unwrap();
+    let (ids, acts) = graph_acts(case);
+    let state: Value = serde_json::from_str(&render_json(&fold(
+        d.state.as_ref().unwrap(),
+        d.causal_protocol.as_ref(),
+        &acts,
+    )))
+    .unwrap();
+    let source = normalize_view(&state["source"], &ids, |events| {
+        let mut entries: Vec<_> = events
+            .as_object()
+            .expect("events map")
+            .iter()
+            .map(|(id, event)| (ids[id], event.clone()))
+            .collect();
+        entries.sort_by_key(|(id, _)| *id);
+        json!(entries)
+    });
+    let derived = normalize_view(&state["total"], &ids, Value::clone);
+    json!({"installed":true,"source":source,"derived":derived})
+}
+
+#[derive(Clone, Debug)]
+struct NestedCase {
+    source_policy: Option<bool>,
+    derived_policy: Option<bool>,
+    graph: Vec<(u8, u8, u8, bool, i8)>,
+}
+fn nested_cases() -> impl Strategy<Value = NestedCase> {
+    (
+        proptest::option::of(any::<bool>()),
+        proptest::option::of(any::<bool>()),
+        proptest::collection::vec(
+            (0u8..5, any::<u8>(), any::<u8>(), any::<bool>(), -8i8..12),
+            0..16,
+        ),
+    )
+        .prop_map(|(source_policy, derived_policy, graph)| NestedCase {
+            source_policy,
+            derived_policy,
+            graph,
+        })
+}
+impl NestedCase {
+    fn request(&self) -> Value {
+        let mut graph = vec![json!([0, "open", [], []])];
+        for (offset, (kind, a, b, two, amount)) in self.graph.iter().enumerate() {
+            let id = offset + 1;
+            let parent = usize::from(*a) % id;
+            let other = usize::from(*b) % id;
+            let mut parents = vec![parent];
+            if *two && parent != other {
+                parents.push(other);
+            }
+            let verb = match kind {
+                0 => "close",
+                1 => "seal",
+                _ => "mark",
+            };
+            let fields = if verb == "mark" {
+                vec![json!(["amount", amount])]
+            } else {
+                vec![]
+            };
+            graph.push(json!([id, verb, parents, fields]));
+        }
+        json!({"profile":"events-sum","source_freeze":self.source_policy,"derived_freeze":self.derived_policy,"acts":graph})
+    }
+}
+fn nested_directed() -> Vec<Value> {
+    let base = json!({"profile":"events-sum","source_freeze":false,"derived_freeze":false,
+        "acts":[[0,"open",[],[]],[1,"mark",[0],[["amount",2]]],[2,"close",[1],[]],
+          [3,"mark",[0],[["amount",7]]],[4,"seal",[3],[]]]});
+    let mut inherited_fault = base.clone();
+    inherited_fault["source_freeze"] = json!(true);
+    let mut own_fault = base.clone();
+    own_fault["derived_freeze"] = json!(true);
+    let mut both_fault = inherited_fault.clone();
+    both_fault["derived_freeze"] = json!(true);
+    let mut source_in_cut = base.clone();
+    source_in_cut["acts"][4][2] = json!([2, 3]);
+    let mut no_target = base.clone();
+    no_target["acts"].as_array_mut().unwrap().pop();
+    let mut plain = base.clone();
+    plain["source_freeze"] = Value::Null;
+    plain["derived_freeze"] = Value::Null;
+    let mut concurrent_source = base.clone();
+    concurrent_source["acts"]
+        .as_array_mut()
+        .unwrap()
+        .push(json!([5, "close", [0], []]));
+    vec![
+        base,
+        inherited_fault,
+        own_fault,
+        both_fault,
+        source_in_cut,
+        no_target,
+        plain,
+        concurrent_source,
+    ]
+}
+
+#[test]
+#[ignore = "requires lake build cbcl-state-oracle; explicitly run in Lean CI"]
+fn nested_kernel_matches_live_lean_oracle() {
+    let oracle = RefCell::new(Oracle::start());
+    for (index, request) in nested_directed().iter().enumerate() {
+        let expected = oracle.borrow_mut().request(request);
+        assert_eq!(
+            native(request),
+            expected,
+            "directed nested request={request}"
+        );
+        assert_eq!(expected["installed"], true);
+        match index {
+            0 => {
+                assert_eq!(
+                    expected["source"]["value"],
+                    json!([[1,{"by":"@a","value":2}]])
+                );
+                assert_eq!(
+                    expected["derived"],
+                    json!({"status":"frozen","freezer":4,"excluded":[1],"value":7})
+                );
+            }
+            1 | 2 | 3 | 7 => assert_eq!(expected["derived"]["status"], "fault"),
+            4 => assert_eq!(expected["derived"]["value"], 2),
+            5 => assert_eq!(expected["derived"], json!({"status":"snapshot","value":2})),
+            6 => assert_eq!(expected["derived"], json!({"status":"snapshot","value":9})),
+            _ => unreachable!(),
+        }
+    }
+    let mut config = proptest::test_runner::Config::default();
+    if std::env::var_os("PROPTEST_CASES").is_none() {
+        config.cases = 512;
+    }
+    config.failure_persistence = Some(Box::new(
+        proptest::test_runner::FileFailurePersistence::Direct(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/tests/state_nested_oracle.proptest-regressions"
+        )),
+    ));
+    let mut runner = proptest::test_runner::TestRunner::new(config);
+    let comparisons = Cell::new(0usize);
+    runner
+        .run(&nested_cases(), |generated| {
+            let mut request = generated.request();
+            for delivery in 0..3 {
+                if delivery == 1 {
+                    request["acts"].as_array_mut().unwrap().reverse();
+                }
+                if delivery == 2 {
+                    let extra = request["acts"].as_array().unwrap().clone();
+                    request["acts"].as_array_mut().unwrap().extend(extra);
+                }
+                let expected = oracle.borrow_mut().request(&request);
+                let actual = native(&request);
+                comparisons.set(comparisons.get() + 1);
+                prop_assert_eq!(
+                    actual,
+                    expected,
+                    "delivery={}, request={}",
+                    delivery,
+                    request
+                );
+            }
+            Ok(())
+        })
+        .unwrap();
+    eprintln!(
+        "Live Lean nested oracle: {} comparisons passed",
+        comparisons.get()
+    );
 }

@@ -1,3 +1,4 @@
+import LeanCbcl.StateExecutableObservation
 import LeanCbcl.StateExecutableFreeze
 import LeanCbcl.StateAuthoredCompletion
 import LeanCbcl.StateInstalledRecognition
@@ -2072,3 +2073,9 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateExecutableFreeze.has_conflict
 #print axioms CBCL.StateExecutableFreeze.evidence_set
 #print axioms CBCL.StateExecutableFreeze.read_refinement
+
+#print axioms CBCL.StateExecutableObservation.map_refinement
+#print axioms CBCL.StateExecutableObservation.error_refinement
+#print axioms CBCL.StateExecutableObservation.map_read
+#print axioms CBCL.StateExecutableObservation.present_refinement
+#print axioms CBCL.StateExecutableObservation.freeze_refinement

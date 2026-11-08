@@ -869,6 +869,18 @@ not establish protocol admission or mutable-reader extraction. Validates
 [[SPEC-038-lvar-state-kernel#REQ-3803]] and
 [[SPEC-038-lvar-state-kernel#REQ-3806]].
 
+The live `events-sum` profile adds a separately frozen event source and derived
+sum. Its executable map/error/presentation/freeze adapters refine the semantic
+native adapters. Real native cache comparisons include a directed split-cut
+case: the source's frozen events sum to 2, while the derived field's own frozen
+cut must yield 7. Erasing scope or field from the cache key, evaluating a
+dependency at whole history, retaining a source's freeze wrapper, or dropping
+its fault must fail the live comparison. The profile covers one derived layer
+and bounded integer payloads, not arbitrary graphs or overflow. Validates
+[[SPEC-038-lvar-state-kernel#REQ-3803]],
+[[SPEC-038-lvar-state-kernel#REQ-3806]] and
+[[SPEC-038-lvar-state-kernel#REQ-3809]].
+
 ## TEST-3805: Snapshot marking
 
 `state_schema` marks every field that is neither threshold nor frozen as

@@ -13,6 +13,7 @@ if not oracle.is_file():
     raise SystemExit("Build first: cd lean-cbcl && lake build cbcl-state-oracle")
 finite_test = "finite_kernel_matches_live_lean_oracle"
 freeze_test = "freeze_kernel_matches_live_lean_oracle"
+nested_test = "nested_kernel_matches_live_lean_oracle"
 with tempfile.TemporaryDirectory(prefix="cbcl-live-oracle-") as directory:
     isolated = Path(directory)
     (isolated / "crates").mkdir()
@@ -34,13 +35,18 @@ with tempfile.TemporaryDirectory(prefix="cbcl-live-oracle-") as directory:
                                test, "--", "--ignored", "--exact"], cwd=isolated, env=env,
                               text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=300)
 
-    for test in [finite_test,freeze_test]:
+    for test in [finite_test,freeze_test,nested_test]:
         baseline = run(test)
         if baseline.returncode or f"test {test} ... ok" not in baseline.stdout:
             print(baseline.stdout)
             raise SystemExit(f"FAIL: live-oracle baseline {test}")
         print(f"PASS: live-oracle baseline {test}", flush=True)
     for name, filename, before, after, test in [
+        ("reader-scope-cache-key-erased", "freeze.rs", "let key = (scope, name.to_string());", "let key = (0, name.to_string());", nested_test),
+        ("reader-field-cache-key-erased", "freeze.rs", "let key = (scope, name.to_string());", "let key = (scope, String::new());", nested_test),
+        ("reader-dependency-uses-whole-history", "freeze.rs", "let v = self.field(scope, &source);", "let v = self.field(0, &source);", nested_test),
+        ("reader-frozen-dependency-not-unwrapped", "freeze.rs", "done.push((source, v.unfrozen().clone()));", "done.push((source, v.clone()));", nested_test),
+        ("derived-source-fault-hidden", "lattice.rs", "earlier.filter(|v| v.fault_evidence().is_some())", "earlier.filter(|_| false)", nested_test),
         ("only-first-finite-contribution", "lattice.rs", ".fold(table.bottom, |a, b| table.merge(a, b))", ".next().unwrap_or(table.bottom)", finite_test),
         ("threshold-source-fault-hidden", "state.rs", "n == field && v.fault_evidence().is_some()", "false && n == field && v.fault_evidence().is_some()", finite_test),
         ("freeze-cut-ignored", "freeze.rs", ".filter(|a| cut.contains(&a.address))", ".filter(|_| true)", freeze_test),

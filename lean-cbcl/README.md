@@ -462,7 +462,10 @@ property test. Its initial profile covers finite tables, projections,
 contributions, scalar thresholds and fault evidence, with shrinking and replay.
 `StateExecutableFreeze` supplies a computable freeze read proved equal to the
 existing semantics; a causal-DAG profile compares roots, cuts, superseded sets
-and raw/freeze fault unions against the real Rust fold. Domain/context/resource
+and raw/freeze fault unions against the real Rust fold.
+`StateExecutableObservation` connects executable derived/freeze adapters to the
+semantic adapters; the events/sum profile exercises separately frozen source
+and derived fields against Rust's actual scoped cache. Domain/context/resource
 and admission paths remain outside these profiles.
 
 The Batteries gate remains enabled in CI. Intentional constant contribution

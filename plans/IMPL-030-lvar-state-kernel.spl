@@ -326,3 +326,14 @@
 ;; Input checks reject missing predecessors, ambiguous IDs and field keywords;
 ;; source-verb filtering excludes unrelated raw finite witnesses. Profiles remain
 ;; bounded fold inputs, not admission or full Rust extraction proofs.
+
+;; Nested cache oracle continuation: StateExecutableObservation refines
+;; executable map/error/presentation/freeze adapters to native semantic adapters.
+;; The events-sum profile recomputes event maps/sums at nested cuts; real Rust
+;; observations use the existing mutable scoped cache. Directed split-cut case
+;; requires source sum 2 versus derived frozen value 7. Mutants erasing scope or
+;; field cache key, forcing dependency scope0, retaining frozen wrapper, and
+;; hiding inherited faults fail actual live comparisons. A 10000-case nested
+;; campaign seed380041 passed 30000 comparisons; fresh review found no defect.
+;; Profile is one source/derived layer with bounded amounts, not arbitrary
+;; dependency graphs, overflow or admission/context/resource coverage.

@@ -271,6 +271,14 @@ suites.append(("StateExecutableFreeze", (root / "lean-cbcl/LeanCbcl/StateExecuta
     ("executable-read-cut-ignored", "(evaluate (cut A freezer))", "(evaluate A)", "read_refinement"),
 ]))
 
+suites.append(("StateExecutableObservation", (root / "lean-cbcl/LeanCbcl/StateExecutableObservation.lean").read_text(), [
+    ("executable-map-frozen-payload-hidden", "| .snapshot value | .frozen _ value _ => .snapshot (post value)", "| .snapshot value => .snapshot (post value)\n  | .frozen _ _ _ => .pending", "map_refinement"),
+    ("executable-map-fault-hidden", "| .fault evidence => .fault evidence\n\n/-- Computable derived fields", "| .fault _ => .pending\n\n/-- Computable derived fields", "map_refinement"),
+    ("executable-source-error-hidden", "| .fault evidence => some evidence", "| .fault _ => none", "error_refinement"),
+    ("executable-present-root-substituted", "=> .frozen root payload excluded", "=> .frozen 0 payload excluded", "present_refinement"),
+    ("executable-freeze-raw-error-hidden", "policy (source A).error source", "policy none source", "freeze_refinement"),
+]))
+
 # Preserve the full default gate while allowing a focused continuation check.
 import argparse
 parser = argparse.ArgumentParser(description=__doc__)

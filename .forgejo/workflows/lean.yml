@@ -112,7 +112,7 @@ jobs:
         working-directory: lean-cbcl
         run: lake build cbcl-state-oracle
 
-      - name: Differential fuzz finite kernel and causal freezes against Lean
+      - name: Differential fuzz kernel, freezes and derived reads against Lean
         env:
           PROPTEST_RNG_SEED: '380038'
           PROPTEST_CASES: '512'

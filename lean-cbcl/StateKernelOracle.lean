@@ -1,12 +1,13 @@
 import Lean
 import LeanCbcl.StateFiniteRead
 import LeanCbcl.StateExecutableFreeze
+import LeanCbcl.StateExecutableObservation
 
 /-! JSON-lines differential oracle. Inputs contain only authored finite data and
 histories, never expected Rust results. Evaluation calls the same checked table,
 projection, contribution, state and read functions used by the Lean proofs.
-The profile has finite data/read paths and causal freezes; domains, context
-and resources remain separate. -/
+Profiles cover finite reads, causal freezes and observed events/sums;
+domains, context and resources remain separate. -/
 open Lean CBCL.State CBCL.StateFiniteTable CBCL.StateInstalledFinite
 namespace StateKernelOracle
 
@@ -64,6 +65,13 @@ def act (j : Json) : Check Act := do
     return (← key.getStr?,← scalar value)
   return ⟨← address.getNat?,verb,"@a",preds,fields,[]⟩
 
+def validateHistory (history : List Act) : Check Unit := do
+  if !CBCL.StateExecutableFreeze.rankedCheck history then throw "predecessor identities must decrease"
+  if !history.all (fun a => history.all (fun b => a.addr != b.addr || a == b)) then throw "conflicting identity payloads"
+  if !history.all (fun a => a.preds.all (fun reference => history.any (fun parent => parent.addr == reference))) then throw "missing predecessor"
+  if !history.all (fun a => decide (a.fields.map Prod.fst).Nodup) then throw "duplicate field keyword"
+  return ()
+
 structure Input where
   definition : Definition
   declaration : CBCL.StateInstalledFinite.Declaration
@@ -82,10 +90,7 @@ def input (j : Json) : Check Input := do
     | .error _ => pure none
     | .ok .null => pure none
     | .ok value => value.getBool?.map some
-  if !CBCL.StateExecutableFreeze.rankedCheck history then throw "predecessor identities must decrease"
-  if !history.all (fun a => history.all (fun b => a.addr != b.addr || a == b)) then throw "conflicting identity payloads"
-  if !history.all (fun a => a.preds.all (fun reference => history.any (fun parent => parent.addr == reference))) then throw "missing predecessor"
-  if !history.all (fun a => decide (a.fields.map Prod.fst).Nodup) then throw "duplicate field keyword"
+  validateHistory history
   return ⟨definition,⟨"mark",rows,projection⟩,queries,history,freeze⟩
 
 def schema : CBCL.StateInstalledDomains.Schema :=
@@ -119,6 +124,63 @@ def evaluate (request : Input) : Json := Id.run do
         | some q => Json.mkObj [("status",.str "reached"),("element",scalarJson q)]
   return Json.mkObj [("installed",.bool true),("observation",observation),("threshold",threshold.getD .null)]
 
+structure NestedInput where
+  history : List Act
+  sourcePolicy : Option Bool
+  derivedPolicy : Option Bool
+
+def optionalPolicy (j : Json) (name : String) : Check (Option Bool) := do
+  match ← j.getObjVal? name with
+  | .null => return none
+  | value => value.getBool?.map some
+
+def nestedInput (j : Json) : Check NestedInput := do
+  let history ← (← array (← j.getObjVal? "acts")).mapM act
+  validateHistory history
+  return ⟨history,← optionalPolicy j "source_freeze",← optionalPolicy j "derived_freeze"⟩
+
+def eventMap (history : List Act) : CBCL.StateKernelQueries.FiniteMap :=
+  CBCL.StateKernelQueries.evalMap (fun _ _ => none) (fun _ => 0) history
+    ⟨.withField (.verb "mark") "amount",.address,.address,"amount",true⟩
+
+def eventsJson (events : CBCL.StateKernelQueries.FiniteMap) : Check Json := do
+  let rows ← events.keys.mapM fun key => do
+    match key,events.read key with
+    | .int identity,.event signer value =>
+      if identity < 0 then throw "negative event identity" else
+      return (identity.toNat,Json.mkObj [("by",.str signer),("value",scalarJson value)])
+    | _,_ => throw "unexpected event support or payload"
+  return toJson ((rows.mergeSort (fun a b => decide (a.1 ≤ b.1))).map (fun (id,value) => Json.arr #[toJson id,value]))
+
+def viewJson {V : Type} (render : V → Check Json) : CBCL.StateExecutableObservation.View V → Check Json
+  | .pending => pure (Json.mkObj [("status",.str "pending")])
+  | .snapshot value => do return Json.mkObj [("status",.str "snapshot"),("value",← render value)]
+  | .fault evidence => pure (Json.mkObj [("status",.str "fault"),
+      ("evidence",toJson (evidence.eraseDups.mergeSort (fun a b => decide (a ≤ b))))])
+  | .frozen root value excluded => do return Json.mkObj [("status",.str "frozen"),("freezer",toJson root),
+      ("excluded",toJson ((excluded.map Act.addr).eraseDups.mergeSort (fun a b => decide (a ≤ b)))),("value",← render value)]
+
+def nestedSource (request : NestedInput) (scope : List Act) :
+    CBCL.StateExecutableObservation.View CBCL.StateKernelQueries.FiniteMap :=
+  match request.sourcePolicy with
+  | none => .snapshot (eventMap scope)
+  | some policy => CBCL.StateExecutableObservation.freeze scope "close" (fun a => a.verb == "mark") policy
+      (fun cut => .snapshot (eventMap cut))
+
+def evaluateNested (request : NestedInput) : Check Json := do
+  let normal := fun scope => (nestedSource request scope).map CBCL.StateKernelAggregates.mapSum
+  let derived := match request.derivedPolicy with
+    | none => normal request.history
+    | some policy => CBCL.StateExecutableObservation.freeze request.history "seal" (fun a => a.verb == "mark") policy normal
+  return Json.mkObj [("installed",.bool true),("source",← viewJson eventsJson (nestedSource request request.history)),
+    ("derived",← viewJson (fun value => pure (toJson value)) derived)]
+
+def run (j : Json) : Check Json :=
+  match j.getObjVal? "profile" with
+  | .ok (.str "events-sum") => nestedInput j >>= evaluateNested
+  | .error _ | .ok (.str "finite") => input j |>.map evaluate
+  | _ => .error "unknown oracle profile"
+
 end StateKernelOracle
 
 def main : IO Unit := do
@@ -127,8 +189,8 @@ def main : IO Unit := do
   repeat
     let line ← stdin.getLine
     if line.isEmpty then break
-    let answer := match Json.parse line >>= StateKernelOracle.input with
+    let answer := match Json.parse line >>= StateKernelOracle.run with
       | .error error => Json.mkObj [("error",.str error)]
-      | .ok request => StateKernelOracle.evaluate request
+      | .ok response => response
     stdout.putStrLn answer.compress
     stdout.flush
