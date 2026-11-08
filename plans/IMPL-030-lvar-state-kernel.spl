@@ -990,3 +990,29 @@
 ;; typed extraction; concrete successive full-program sum trace; closure progress
 ;; and remaining native installation/extraction correspondence. Projection oracle
 ;; trees are typed expanded messages, not strict wire grammar or full shape DSL.
+
+;; Concrete authored sum trace checkpoint (REQ-3802 / REQ-3809).
+;; StateAuthoredSumTrace computes exact static preparation and proves compiler
+;; history/freeze retention. compiled_reached derives actual named funded success
+;; from actual emitted query execution and a native total, without an assumed
+;; earlier-output member. With no domain/freezer guards the source is healthy.
+;; successive_trace constructs both complete authored programs: singleton writer
+;; amount5, then reverse duplicate [laterWriter(amount2),writer5,laterWriter2].
+;; It computes checked expanded messages and proves numeric extraction for both
+;; identities; later_total computes seven after normalization. Actual earlier
+;; reached success feeds StateNonnegativeAdmission.successive_compiled, yielding
+;; actual later named reached-or-fault without a conditional earlier antecedent.
+;; This concrete trace has no freeze declaration and does not claim native
+;; protocol admission; generic factory results retain all-root freeze scope.
+;; Verification: aggregate build and Batteries env-linter pass; 1723 audited
+;; theorems use allowlisted axioms. Five focused mutants fail named preparation,
+;; earlier-answer, extraction, duplicate-total and preservation obligations.
+;; Verified-by lint and diff check pass; no new unresolved vault pairs, zero
+;; syntax/SPL diagnostics. Independent proof/fixture/artifact review clean.
+;; Next progress composition: Context.causal_ext only proves equal-set store
+;; equality; it cannot establish Repeat.Extends for arbitrary Context.causal.
+;; Reconstruct the evidence store from retained accepted acts and immutable typed
+;; metadata, derive extension under consistent history growth, then compose the
+;; existing Repeat.resolve_stable/StateProgress.progress_monotone results.
+;; Full native admission/extraction and general repeat-body correspondence remain
+;; explicit boundaries; do not call a single-verb resolver a universal refinement.

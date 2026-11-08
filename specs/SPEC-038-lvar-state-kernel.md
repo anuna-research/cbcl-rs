@@ -1579,8 +1579,18 @@ require/optional rules, using tagged expanded-message trees that preserve scalar
 kinds. It covers the recognized mandatory/nonnegative projection, not general
 child/depth/type validation or the strict wire grammar. Full native admission
 implying the projected checks, and faithful extraction for every native accepted
-message, remain separate proof boundaries. A concrete successive full-program
-sum trace remains to be added beyond the typed installation/raw-query fixtures.
+message, remain separate proof boundaries.
+
+`StateAuthoredSumTrace.successive_trace` supplies a concrete successive
+full-program sum trace. Static preparation and both complete compiled programs
+are constructed. Its earlier named `funded` reached output follows from the
+actual emitted query and a computed native total, without an earlier-output
+premise. The later reversed, duplicate-delivery history has computed shape
+checks, proved numeric extraction and normalized total seven; checked-shape
+authored preservation then proves its actual later named reached-or-fault
+result. This concrete fixture has no freeze declaration and does not assert
+native protocol admission. The generic factory/preservation theorems above
+retain their all-root fault-freeze scope.
 
 Full admission/extraction correspondence, closure progress
 and native installation correspondence remain separate obligations at the typed

@@ -577,6 +577,19 @@ suites.append(("StateNonnegativeAdmission", shape_source, [
      "(outputName,.data (.reached (.element (.sum (bound+1))))) ∈ later.observe ∨", "successive_compiled"),
 ]))
 
+suites.append(("StateAuthoredSumTrace", (root / "lean-cbcl/LeanCbcl/StateAuthoredSumTrace.lean").read_text(), [
+    ("sum-trace-preparation-changes-bound", '.threshold "funded" "credits" [.element (.sum 5)]],[],[]⟩',
+     '.threshold "funded" "credits" [.element (.sum 6)]],[],[]⟩', "preparation"),
+    ("sum-trace-invents-earlier-answer", '("funded",.data (.reached (.element (.sum 5)))) ∈ program.observe := by',
+     '("funded",.data (.reached (.element (.sum 6)))) ∈ program.observe := by', "compiled_reached"),
+    ("sum-trace-extraction-changes-amount", 'def laterMessage : SExpr := .list [.atom (.symbol "mint"),.atom (.keyword "amount"),.atom (.num 2)]',
+     'def laterMessage : SExpr := .list [.atom (.symbol "mint"),.atom (.keyword "amount"),.atom (.num 3)]', "later_extracted"),
+    ("sum-trace-counts-delivery-twice", '(StateScopePool.normalize laterHistory)) = 7 := by decide',
+     '(StateScopePool.normalize laterHistory)) = 9 := by decide', "later_total"),
+    ("sum-trace-preservation-changes-answer", '(("funded",.data (.reached (.element (.sum 5)))) ∈ later.observe ∨',
+     '(("funded",.data (.reached (.element (.sum 6)))) ∈ later.observe ∨', "successive_trace"),
+]))
+
 # Preserve the full default gate while allowing a focused continuation check.
 import argparse
 parser = argparse.ArgumentParser(description=__doc__)

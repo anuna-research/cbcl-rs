@@ -1,3 +1,4 @@
+import LeanCbcl.StateAuthoredSumTrace
 import LeanCbcl.StateNonnegativeAdmissionTests
 import LeanCbcl.StateAuthoredEventSumTests
 import LeanCbcl.StateEventMapTotalTests
@@ -2595,3 +2596,11 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateNonnegativeAdmissionTests.positive_first_retained
 #print axioms CBCL.StateNonnegativeAdmissionTests.dangling_rejected
 #print axioms CBCL.StateNonnegativeAdmissionTests.quoted_number_rejected
+
+#print axioms CBCL.StateAuthoredSumTrace.preparation
+#print axioms CBCL.StateAuthoredSumTrace.compiled_metadata
+#print axioms CBCL.StateAuthoredSumTrace.compiled_reached
+#print axioms CBCL.StateAuthoredSumTrace.later_extracted
+#print axioms CBCL.StateAuthoredSumTrace.later_checked
+#print axioms CBCL.StateAuthoredSumTrace.later_total
+#print axioms CBCL.StateAuthoredSumTrace.successive_trace
