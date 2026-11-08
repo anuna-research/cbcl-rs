@@ -467,6 +467,21 @@ suites.append(("StateAuthoredFinitePreservation", (root / "lean-cbcl/LeanCbcl/St
      '(outputName ++ "-wrong",.data (.reached (.element (.scalar query)))) ∈ later.observe ∨', "successive_compiled"),
 ]))
 
+suites.append(("StateNativeDataPolicies", (root / "lean-cbcl/LeanCbcl/StateNativeDataPolicies.lean").read_text(), [
+    ("native-count-counts-deliveries", "(selected domains names (history (rawHistory A))).length = FinSet.card",
+     "(selected domains names A).length = FinSet.card", "canonical_count"),
+    ("native-count-bound-shifted", "if bound ≤ FinSet.card (FinSet.mk (selected domains [verb] A)) then",
+     "if bound + 1 ≤ FinSet.card (FinSet.mk (selected domains [verb] A)) then", "compiled_count"),
+    ("native-existence-predicate-inverted", "if (selected domains [verb] A).isEmpty then .data .pending",
+     "if !(selected domains [verb] A).isEmpty then .data .pending", "compiled_exists"),
+]))
+suites.append(("StateNativeDataFreeze", (root / "lean-cbcl/LeanCbcl/StateNativeDataFreeze.lean").read_text(), [
+    ("native-freeze-domain-support-omitted", "(.verbs names),true⟩", "(.rawVerbs names),true⟩", "selected_scope"),
+    ("native-freeze-policy-revisable", "(.verbs names),true⟩", "(.verbs names),false⟩", "selected_scope"),
+    ("native-source-freeze-decoration-removed", "StateCompiledFieldEquations.decorate (declaration.map (spec domains names whole)) bare",
+     "bare", "selected_scope"),
+]))
+
 # Preserve the full default gate while allowing a focused continuation check.
 import argparse
 parser = argparse.ArgumentParser(description=__doc__)

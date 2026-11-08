@@ -1,3 +1,4 @@
+import LeanCbcl.StateNativeDataPoliciesTests
 import LeanCbcl.StateAuthoredFinitePreservationTests
 import LeanCbcl.StateAuthoredFiniteStabilityTests
 import LeanCbcl.StateAuthoredSourceProvenanceTests
@@ -2459,3 +2460,24 @@ editing only this file is enough to extend the audit.
 
 #print axioms CBCL.StateAuthoredFinitePreservation.authored_output_names_unique
 #print axioms CBCL.StateAuthoredFinitePreservation.quasi_determinism
+
+#print axioms CBCL.StateNativeDataPolicies.selected_setEq
+#print axioms CBCL.StateNativeDataPolicies.count_grows
+#print axioms CBCL.StateNativeDataPolicies.canonical_count
+#print axioms CBCL.StateNativeDataPolicies.admitted_nil
+#print axioms CBCL.StateNativeDataPolicies.count_value
+#print axioms CBCL.StateNativeDataPolicies.exists_value
+#print axioms CBCL.StateNativeDataPolicies.compiled_count
+#print axioms CBCL.StateNativeDataPolicies.compiled_exists
+
+#print axioms CBCL.StateNativeDataFreeze.query_fault
+#print axioms CBCL.StateNativeDataFreeze.selected_scope
+#print axioms CBCL.StateNativeDataFreeze.count_success_or_fault
+#print axioms CBCL.StateNativeDataFreeze.exists_success_or_fault
+
+#print axioms CBCL.StateNativeDataPoliciesTests.duplicate_count
+#print axioms CBCL.StateNativeDataPoliciesTests.duplicate_exists
+#print axioms CBCL.StateNativeDataPoliciesTests.count_pending_payload
+#print axioms CBCL.StateNativeDataPoliciesTests.exists_pending_payload
+#print axioms CBCL.StateNativeDataPoliciesTests.oversized_count_rejected
+#print axioms CBCL.StateNativeDataPoliciesTests.count_freeze_constructed

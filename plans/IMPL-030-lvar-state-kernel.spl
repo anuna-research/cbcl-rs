@@ -800,3 +800,30 @@
 ;; count, set/event membership, shaped nonnegative event sums and closure progress;
 ;; their actual authored observation paths still need matching composition.
 ;; The full quasi-determinism task remains outstanding.
+
+;; Native count/existence factory composition for
+;; [[SPEC-038-lvar-state-kernel#TEST-3806]]: StateNativeDataPolicies identifies
+;; the actual domain-aware kernel count with distinct selected-act cardinality
+;; on canonical retained history, and existence with the same selected history.
+;; Cardinality growth requires no duplicate-free delivery premise. Actual
+;; primitive source-owned policies compile into raw-query code with the proved
+;; cardinality/nonempty predicates; displayed payloads are not substituted.
+;; StateNativeDataFreeze reuses installed plan decoration, derives all-root
+;; selected-scope equality from observed source freeze clarity, and preserves
+;; earlier count/existence success under growth or exposes an actual sourcefault.
+;; No selected root, healthy source or cut-locality result is an external premise.
+;; Fixtures compute one count/true existence for mixed initializer/roster domains
+;; under reverse/duplicate delivery, actual compiled queries reach from pending
+;; payloads, oversized count rejects, and frozen count output success-or-fault
+;; is constructed. This does not assert the healthy reached branch of that last
+;; fixture or full arbitrary authored native-program preservation.
+;; Verification: aggregate build and Batteries env-linter pass; 1626 theorem
+;; audits use only allowlisted axioms. Six focused proof mutations fail intended
+;; canonical count, count bound, existence predicate, domain support, fault-policy
+;; and actual source decoration obligations. Verified-by lint passes; no new
+;; unresolved vault pairs or syntax/SPL diagnostics. Independent proof/fixture/
+;; artifact review finds no defect/overstatement. Next recover these legacy
+;; source/footprint identities from actual authored binding, reuse generic
+;; prefix/output occurrence provenance and compose successive compiled programs.
+;; Set/event membership, shaped sums, progress and literal native extraction
+;; remain open; the full quasi-determinism task stays outstanding.

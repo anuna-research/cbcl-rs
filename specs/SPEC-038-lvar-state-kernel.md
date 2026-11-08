@@ -1461,9 +1461,26 @@ output-name uniqueness excludes two distinct reached results in the joint
 program. This proves the finite-policy quasi-determinism consequence through
 actual authored compilation and program observations.
 
-Other native source policies and complete native installation/extraction
-correspondence remain separate obligations; these results cover the finite-policy
-fragment at the typed authored boundary.
+`StateNativeDataPolicies.lean` connects the actual count/existence kernel
+projections and source-owned query policies to emitted raw-query code. Count
+canonicalization identifies native count with the cardinality of distinct
+selected acts, without a duplicate-free delivery-list premise; existence uses
+the same domain-aware selection. `StateNativeDataFreeze.lean` reuses installed
+source-plan decoration and derives selected-history equality from the actual
+observed freeze error channel for every root-selection outcome. Its count and
+existence output theorems preserve an earlier cardinality/nonempty predicate or
+expose an actual source fault after growth. Healthy source status, root selection
+and locality are not supplied as premises. Fixtures cover mixed initializer and
+roster domains, reverse/duplicate delivery, raw queries with pending displayed
+payloads, oversized count rejection and constructed frozen count output.
+
+These count/existence results concern the closed source factories and their
+constructed dispatch metadata, rather than arbitrary authored-program or
+successive compiled-observation preservation. Completing those authored paths,
+set/event membership, shaped nonnegative event sums, closure progress and native
+installation/extraction correspondence remain separate obligations. The complete
+successive compiled-observation and quasi-determinism results above currently
+cover the finite-policy fragment at the typed authored boundary.
 Literal Rust value representation and public serialized
 rendering remain separate boundaries. Helpers remain total outside the admitted
 request domain, which does not model Rust's indexing or unknown-field no-insert

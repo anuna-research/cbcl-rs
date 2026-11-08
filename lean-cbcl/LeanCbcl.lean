@@ -263,3 +263,5 @@ import LeanCbcl.StateAuthoredSourceProvenanceTests
 import LeanCbcl.StateAuthoredFiniteStabilityTests
 
 import LeanCbcl.StateAuthoredFinitePreservationTests
+
+import LeanCbcl.StateNativeDataPoliciesTests
