@@ -509,6 +509,15 @@ order on every content-consistent ranked history. Recognition is equivalent to
 separate-rank existence and invariant under accepted-set-equivalent delivery.
 Predecessor closure is independently checked by the outer validators; literal
 native admission-to-rank extraction remains a boundary.
+`StateOpenerLocality` derives business-opener ancestry from an executable local
+predecessor check and a separate causal rank, allowing metadata roots outside
+the protocol inventory. Clear initializer evidence then stays inside freezer
+cuts; a healthy fault freeze preserves domain-selected history and count.
+A prior count success survives growth and the historical cut. Fixtures construct
+healthy evidence and reject the acyclic-but-unrooted counterexample.
+Literal R5/R6 admission-to-check correspondence, multiple/context domains and
+general source-policy locality remain open; R7 opener recognition alone does not
+prove that interface.
 Literal Rust value/graph/map/vector extraction and rendering remain boundaries. Executable cache
 witnesses and focused mutations exercise aliasing, wrapper and cut mistakes.
 

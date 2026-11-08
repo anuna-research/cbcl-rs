@@ -625,3 +625,24 @@
 ;; Native R7 inspection also confirms initial/domain initializer sources must be
 ;; the unique protocol opener; deriving its ancestry through R5/R6 admission is
 ;; the next locality obligation, not a law of arbitrary ranked fold inputs.
+
+;; Opener support locality for [[SPEC-038-lvar-state-kernel#TEST-3806]]:
+;; StateOpenerLocality uses a checked business-predecessor gate, not supplied
+;; opener ancestry. Separate causal rank gives an opener ancestor for every
+;; relevant business act; metadata outside protocol inventory is exempt. Clear
+;; initializer evidence plus content consistency gives unique opener support in
+;; each accepted business freezer cut. domain_cut restricts full domain selection
+;; to ancestors; healthy fault freezes retain every selected contributor, giving
+;; exact full/cut selection and raw count equality. count_success_at_fault_cut
+;; composes the result with growth monotonicity to preserve prior count success.
+;; Fixtures construct healthy metadata-rooted descending/reverse/duplicate reads;
+;; an acyclic unrooted case gives full count1/cut0 and fails the gate.
+;; Literal R5/R6-to-check extraction remains required: native begin alternatives
+;; mean R7 opener recognition alone does not supply this premise. Root/thread
+;; semantics, multiple/context domains and general source-policy locality remain
+;; open, alongside literal extraction/rendering. No native instability claimed.
+;; Verification: full build and Batteries env-linter pass; 1526 theorems pass
+;; the axiom audit. Three mutations fail intended local-parent, ancestor-cut and
+;; fault-policy locality theorems. Verified-by lint passes; vault adds no new
+;; unresolved pairs or syntax/SPL errors. Independent proof, healthy fixture and
+;; artifact review found no defect or overstatement in the conditional scope.

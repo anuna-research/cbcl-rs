@@ -263,6 +263,12 @@ suites.append(("StateInstalledRecognition", (root / "lean-cbcl/LeanCbcl/StateIns
     ("recognition-tail-check-bypassed", "check (extend definitions declaration) (declaration.name::names) rest", "true", "check_iff"),
 ]))
 
+suites.append(("StateOpenerLocality", (root / "lean-cbcl/LeanCbcl/StateOpenerLocality.lean").read_text(), [
+    ("business-parent-edge-not-checked", "verbs.contains parent.verb && act.preds.contains parent.addr", "verbs.contains parent.verb", "rooted_parent"),
+    ("domain-cut-selection-assumed-full", "filter (fun act => decide (Ancestor (fun node => node ∈ history) act freezer)))", "filter (fun _ => true))", "domain_cut"),
+    ("supersede-policy-claims-full-count-locality", "true none history = none) :\n    initialDomain", "false none history = none) :\n    initialDomain", "fault_domain_cut"),
+]))
+
 suites.append(("StateOutputCompiler", (root / "lean-cbcl/LeanCbcl/StateOutputCompiler.lean").read_text(), [
     ("compiled-output-policy-unchecked", "if policy.check elements then some (.raw", "if true then some (.raw", "compile_query_refinement"),
     ("compiled-output-raw-cut-erased", "query.run (referenceScope whole freezes sourceName)", "query.run (StateScopePool.normalize whole)", "compile_one_refinement"),

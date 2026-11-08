@@ -1,3 +1,4 @@
+import LeanCbcl.StateOpenerLocalityTests
 import LeanCbcl.StateCausalCheckCompleteTests
 import LeanCbcl.StateCausalRankIntegrationTests
 import LeanCbcl.StateOutputCompilerTests
@@ -2333,3 +2334,22 @@ editing only this file is enough to extend the audit.
 
 #print axioms CBCL.StateFiniteProjection.row_literal_not_list
 #print axioms CBCL.StateFiniteProjection.row_ignores_opaque
+
+#print axioms CBCL.StateOpenerLocality.rooted_parent
+#print axioms CBCL.StateOpenerLocality.opener_ancestor
+#print axioms CBCL.StateOpenerLocality.initializer_unique
+#print axioms CBCL.StateOpenerLocality.opener_cut_setEq
+#print axioms CBCL.StateOpenerLocality.initializer_cut
+#print axioms CBCL.StateOpenerLocality.domain_cut
+#print axioms CBCL.StateOpenerLocality.fault_domain_cut
+#print axioms CBCL.StateOpenerLocality.fault_domain_count
+#print axioms CBCL.StateOpenerLocalityTests.metadata_root_permitted
+#print axioms CBCL.StateOpenerLocalityTests.initializer_local
+#print axioms CBCL.StateOpenerLocalityTests.unrooted_acyclic
+#print axioms CBCL.StateOpenerLocalityTests.missing_business_parent_rejected
+#print axioms CBCL.StateOpenerLocalityTests.unrooted_full_count
+#print axioms CBCL.StateOpenerLocalityTests.unrooted_cut_count
+
+#print axioms CBCL.StateOpenerLocalityTests.healthy_domain_count_local
+
+#print axioms CBCL.StateOpenerLocality.count_success_at_fault_cut

@@ -1357,6 +1357,26 @@ the frozen source remains zero and its threshold pending. Replacing the threshol
 context with full history makes that executed regression fail. The fixture
 exercises typed-history fold, not protocol admission. Absence of late contributing
 writes alone does not prove raw-carrier locality.
+
+`StateOpenerLocality.lean` derives opener ancestry from a checked present
+business-predecessor condition and separate causal rank. Metadata outside the
+installed protocol verb inventory is exempt. Clear initializer evidence plus
+content consistency makes the opener unique, so every business freezer cut
+contains all initializer evidence. `domain_cut` identifies the cut selection
+with full domain selection restricted to ancestors; `fault_domain_cut` and
+`fault_domain_count` establish exact selection/count equality for a healthy
+fault freeze over those selected contributors. `count_success_at_fault_cut`
+then proves a prior count lower bound survives growth and that historical read.
+
+These locality results require the explicit structural check; they do not yet
+extract it from literal R5/R6 admission. The R7 opener rule alone is insufficient
+to establish that interface: the native causal verifier also allows `begin` in
+an alternative predecessor group, requiring analysis of root/thread constraints.
+No native accepted-history counterexample is claimed. Multiple/context domains
+and general source-policy locality remain separate composition obligations.
+Fixtures construct metadata-rooted, descending-address, reverse/duplicate histories
+and healthy count reads; an acyclic history lacking business ancestry has full
+count one/cut count zero and is rejected by the structural check.
 Literal Rust value representation and public serialized
 rendering remain separate boundaries. Helpers remain total outside the admitted
 request domain, which does not model Rust's indexing or unknown-field no-insert

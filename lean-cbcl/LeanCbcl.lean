@@ -249,3 +249,5 @@ import LeanCbcl.StateOutputCompilerTests
 import LeanCbcl.StateCausalRankIntegrationTests
 
 import LeanCbcl.StateCausalCheckCompleteTests
+
+import LeanCbcl.StateOpenerLocalityTests
