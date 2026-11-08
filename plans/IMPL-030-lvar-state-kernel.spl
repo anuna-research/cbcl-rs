@@ -1457,3 +1457,20 @@
 ;; Final axiom audit: 1981 theorems, all allowlisted. Verified-by/diff checks
 ;; pass. Native source and oracle behavior are unchanged in this proof slice;
 ;; the preceding nine-suite/512-case native evidence remains applicable.
+
+;; Counting/scatter arithmetic continuation: StateAddressCounting derives exact
+;; occurrence counts from bucket increment folds, prefix offsets from the native
+;; recurrence and scatter cursors from the actual processed-prefix increments.
+;; Bucket ends fit scratch length; destinations stay inside their bucket; equal
+;; keys preserve occurrence order; distinct bucket ranges are disjoint. Any two
+;; distinct occurrence positions target different cells, even duplicate indices.
+;; Counts/offsets/partial cursors fit a word whenever input length does. Four
+;; proof mutations fail the count, prefix or cursor refinement theorem. Build
+;; and env-linter pass; independent review found no concrete defect. Remaining:
+;; Nat function-counter to native array/usize extraction, scratch permutation,
+;; complete LSD pass ordering, and the other full SPEC-038 correspondence ports.
+;; Isolated native regression baseline passes; reversing native scatter input
+;; order within equal buckets fails the executed exact-string Lean comparison.
+;; This supplies live stability evidence, not a proof of scratch permutation.
+;; Final audit passes 1997 theorems, all axioms allowlisted; verified-by and
+;; whitespace checks pass. No production algorithm or identity changes here.

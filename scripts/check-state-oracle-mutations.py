@@ -48,6 +48,7 @@ with tempfile.TemporaryDirectory(prefix="cbcl-live-oracle-") as directory:
                               text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=300)
 
     mutants = [
+        ("radix-scatter-equal-bucket-order-reversed", "state.rs", "for &i in &order {\n            let k = key(i);", "for &i in order.iter().rev() {\n            let k = key(i);", fault_test),
         ("fault-zero-byte-sentinel-lost", "state.rs", ".map(|b| *b as usize + 1)", ".map(|b| *b as usize)", fault_test),
         ("fault-evidence-duplicates-retained", "state.rs", "evidence.dedup();", "// evidence duplicates retained", fault_test),
         ("json-control-hex-uppercase", "state.rs", "{:04x}", "{:04X}", render_test),

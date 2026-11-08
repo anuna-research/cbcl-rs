@@ -766,6 +766,13 @@ suites.append(("StateAddressDigits", (root / "lean-cbcl/LeanCbcl/StateAddressDig
     ("radix-adjacent-duplicates-retained", "if a = b then adjacent (b::rest) else a :: adjacent (b::rest)", "a :: adjacent (b::rest)", "adjacent_refinement"),
 ]))
 
+suites.append(("StateAddressCounting", (root / "lean-cbcl/LeanCbcl/StateAddressCounting.lean").read_text(), [
+    ("radix-count-increment-skipped", "then counts target + 1 else counts target", "then counts target else counts target", "countLoop_refinement"),
+    ("radix-count-increment-doubled", "then counts target + 1 else counts target", "then counts target + 2 else counts target", "countLoop_refinement"),
+    ("radix-prefix-uses-next-bucket", "offsets counts bucket + counts bucket", "offsets counts bucket + counts (bucket+1)", "offsets_refinement"),
+    ("radix-scatter-cursor-not-advanced", "countLoop key processed (offsets (countLoop key order (fun _ => 0))) bucket", "offsets (countLoop key order (fun _ => 0)) bucket", "cursor_refinement"),
+]))
+
 # Preserve the full default gate while allowing a focused continuation check.
 import argparse
 parser = argparse.ArgumentParser(description=__doc__)

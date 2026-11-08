@@ -1,3 +1,4 @@
+import LeanCbcl.StateAddressCounting
 import LeanCbcl.StateAddressDigits
 import LeanCbcl.StateFaultRenderingTests
 import LeanCbcl.StateJsonValueTests
@@ -2902,3 +2903,20 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateAddressDigits.sorted_result_refinement
 #print axioms CBCL.StateAddressDigits.adjacent_result_refinement
 #print axioms CBCL.StateAddressDigits.sorted_fault_bytes
+
+#print axioms CBCL.StateAddressCounting.countLoop_refinement
+#print axioms CBCL.StateAddressCounting.before_succ
+#print axioms CBCL.StateAddressCounting.offsets_refinement
+#print axioms CBCL.StateAddressCounting.cursor_refinement
+#print axioms CBCL.StateAddressCounting.bucket_end_bound
+#print axioms CBCL.StateAddressCounting.cursor_inside_bucket
+#print axioms CBCL.StateAddressCounting.scatter_index_bound
+#print axioms CBCL.StateAddressCounting.equal_key_stability
+#print axioms CBCL.StateAddressCounting.bucket_separation
+#print axioms CBCL.StateAddressCounting.cursor_after_start
+#print axioms CBCL.StateAddressCounting.distinct_key_order
+#print axioms CBCL.StateAddressCounting.scatter_no_collision
+#print axioms CBCL.StateAddressCounting.cursor_bound
+#print axioms CBCL.StateAddressCounting.counts_bound
+#print axioms CBCL.StateAddressCounting.offsets_bound
+#print axioms CBCL.StateAddressCounting.word_bounds

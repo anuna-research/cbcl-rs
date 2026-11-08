@@ -307,3 +307,5 @@ import LeanCbcl.StateJsonValueTests
 import LeanCbcl.StateFaultRenderingTests
 
 import LeanCbcl.StateAddressDigits
+
+import LeanCbcl.StateAddressCounting

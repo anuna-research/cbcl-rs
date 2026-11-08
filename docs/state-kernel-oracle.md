@@ -269,3 +269,9 @@ computed-width key ordering and adjacent duplicate normalization. These compose
 with exact fault JSON emission once the counting/scatter output is shown to be
 a permutation ordered by those keys. Those mutable-pass premises and machine
 index/count safety remain unproved; the live campaign tests native behavior.
+
+`StateAddressCounting` additionally derives operational bucket counts, prefix
+offsets and scatter cursor arithmetic. Its destination bounds and collision
+freedom concern occurrence positions, so repeated indices are covered. Numeric
+word bounds require a representable input length. Array/usize extraction,
+scratch permutation and full LSD ordering remain separate proof obligations.

@@ -661,3 +661,11 @@ set normalization and composes that result with fault JSON emission. The final
 result takes permutation and digit ordering as explicit premises. Establishing
 those premises for native mutable counting/scatter passes, including machine
 index/count safety, remains open.
+
+`StateAddressCounting` derives bucket counts, prefix offsets and scatter cursors
+from their operational folds and recurrence. It proves destination bounds,
+stable placement of equal-key occurrences, disjoint bucket ranges and collision
+freedom for distinct occurrence positions. Counts, offsets and partial cursors
+fit any word width that represents the input length. Counters are Nat-valued
+functions here: array/usize extraction, scratch permutation and complete
+least-significant-digit pass ordering remain open.
