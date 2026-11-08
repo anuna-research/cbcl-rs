@@ -1370,6 +1370,14 @@ correspondence, literal finite-validator extraction/integration correspondence, 
 the literal Rust scoped/memoized reader. The functional cached plan-reader
 composition is proved, including faulted reads. Typed metadata extraction must
 preserve native scalar distinctions, including quoted strings versus symbols.
+The finite live-oracle profile now generates real bare symbols alongside
+same-spelling strings and rejects authored symbolic contribution/projection
+literals. Its bounded tagged-symbol adapter retains a non-scalar value;
+`row_literal_not_list` and `row_ignores_opaque` prove that value cannot match a
+verified scalar row. The directed bottom/pending case and a native mutation
+that converts symbols to strings test the actual contribution distinction.
+This adapter does not establish general metadata extraction or protocol admission;
+other live profiles retain their stated scalar contracts.
 Generic IR correctness and individual factories are not evidence that this full
 literal source binding and composition theorem is complete. The
 legacy resource closure port also remains separate from the new concrete

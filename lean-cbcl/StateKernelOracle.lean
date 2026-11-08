@@ -29,6 +29,24 @@ def scalar (j : Json) : Check Val :=
   | .num _ => j.getInt?.map Val.int
   | _ => throw "expected scalar"
 
+/-- Finite-profile opaque symbols cannot equal any verified scalar row. The
+bounded token grammar is [a-z][a-z0-9_-]*; this is not a general wire decoder. -/
+def finiteLiteral (j : Json) : Check Val := do
+  match j with
+  | .arr _ =>
+    match ← array j with
+    | [.str "symbol",.str name] =>
+      let lower := fun c : Char => decide ('a' ≤ c ∧ c ≤ 'z')
+      let digit := fun c : Char => decide ('0' ≤ c ∧ c ≤ '9')
+      match name.toList with
+      | [] => throw "empty finite symbol token"
+      | head::tail =>
+        if lower head && tail.all (fun c => lower c || digit c || c == '_' || c == '-') then
+          return .list [.str "symbol",.str name]
+        else throw "finite symbol token requires [a-z][a-z0-9_-]*"
+    | _ => throw "expected finite symbol token [symbol,name]"
+  | _ => scalar j
+
 def scalarJson : Val → Json
   | .str s => .str s
   | .int n => toJson n
@@ -49,23 +67,26 @@ def projection (j : Json) : Check (Option CBCL.StateFiniteProjection.Declaration
   let stable ← (← j.getObjVal? "stable").getBool?
   let rows ← (← array (← j.getObjVal? "rows")).mapM fun row => do
     let (name,value) ← pair row
-    return (← name.getStr?,← scalar value)
+    return (← name.getStr?,← finiteLiteral value)
   return some ⟨stable,rows⟩
 
 def contribution (j : Json) : Check CBCL.StateFiniteProjection.Contribution := do
   match ← array j with
-  | [key,value,element] => return ⟨← key.getStr?,← scalar value,← element.getStr?⟩
+  | [key,value,element] => return ⟨← key.getStr?,← finiteLiteral value,← element.getStr?⟩
   | _ => throw "expected contribution triple"
 
-def act (j : Json) : Check Act := do
+def actWith (decode : Json → Check Val) (j : Json) : Check Act := do
   let (address,verb,preds,rawFields) ← match ← array j with
     | [address,fields] => pure (address,"mark",[],fields)
     | [address,verb,preds,fields] => do pure (address,← verb.getStr?,← (← array preds).mapM Json.getNat?,fields)
     | _ => throw "expected identity/fields pair or identity/verb/predecessors/fields tuple"
   let fields ← (← array rawFields).mapM fun field => do
     let (key,value) ← pair field
-    return (← key.getStr?,← scalar value)
+    return (← key.getStr?,← decode value)
   return ⟨← address.getNat?,verb,"@a",preds,fields,[]⟩
+
+/-- Other profiles retain their existing scalar-only input contract. -/
+def act (j : Json) : Check Act := actWith scalar j
 
 def validateHistory (history : List Act) : Check Unit := do
   if !history.all (fun a => history.all (fun b => a.addr != b.addr || a == b)) then throw "conflicting identity payloads"
@@ -87,7 +108,7 @@ def input (j : Json) : Check Input := do
   let projection ← projection (← j.getObjVal? "projection")
   let rawQueries ← j.getObjVal? "queries"
   let queries ← if rawQueries == .null then pure none else (array rawQueries >>= fun qs => qs.mapM scalar).map some
-  let history ← (← array (← j.getObjVal? "acts")).mapM act
+  let history ← (← array (← j.getObjVal? "acts")).mapM (actWith finiteLiteral)
   let freeze ← match j.getObjVal? "freeze" with
     | .error _ => pure none
     | .ok .null => pure none

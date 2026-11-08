@@ -43,6 +43,7 @@ with tempfile.TemporaryDirectory(prefix="cbcl-live-oracle-") as directory:
             raise SystemExit(f"FAIL: live-oracle baseline {test}")
         print(f"PASS: live-oracle baseline {test}", flush=True)
     for name, filename, before, after, test in [
+        ("finite-symbol-string-confused", "lattice.rs", "act.fields.get(&row.key) == Some(&row.value)", "act.fields.get(&row.key).map(|value| match value { SExpr::Atom(Atom::Symbol(name)) => SExpr::Atom(Atom::Str(name.clone())), other => other.clone() }).as_ref() == Some(&row.value)", finite_test),
         ("reader-scope-cache-key-erased", "freeze.rs", "let key = (scope, name.to_string());", "let key = (0, name.to_string());", nested_test),
         ("reader-field-cache-key-erased", "freeze.rs", "let key = (scope, name.to_string());", "let key = (scope, String::new());", nested_test),
         ("reader-dependency-uses-whole-history", "freeze.rs", "let v = self.field(scope, &source);", "let v = self.field(0, &source);", nested_test),

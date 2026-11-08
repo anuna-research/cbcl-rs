@@ -2330,3 +2330,6 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateCausalCheckCompleteTests.empty_complete
 
 #print axioms CBCL.StateCausalCheckCompleteTests.closure_is_separate
+
+#print axioms CBCL.StateFiniteProjection.row_literal_not_list
+#print axioms CBCL.StateFiniteProjection.row_ignores_opaque

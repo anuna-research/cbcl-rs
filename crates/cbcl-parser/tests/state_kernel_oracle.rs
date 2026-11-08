@@ -107,7 +107,7 @@ fn cases() -> impl Strategy<Value = Case> {
         0u8..5, any::<bool>(), proptest::collection::vec(-4i8..8, n),
         proptest::collection::vec((0u8..3, -3i8..4, 0u8..8), 1..9),
         prop_oneof![2 => Just(None), 3 => proptest::collection::vec((0u8..4, -4i8..8), 0..4).prop_map(Some)],
-        proptest::collection::vec((0u8..3, -3i8..4, any::<bool>()), 0..18),
+        proptest::collection::vec((0u8..6, -3i8..4, any::<bool>()), 0..18),
     )).prop_map(|(n, fan, mutation, table_edit, projection, stable, values, rows, queries, history)|
         Case { n, fan, mutation, table_edit, projection, stable, values, rows, queries, history })
 }
@@ -125,6 +125,13 @@ fn wire(value: &Value) -> String {
     match value {
         Value::Bool(true) => "#t".into(),
         Value::Bool(false) => "#f".into(),
+        Value::Array(parts) if parts.len() == 2 && parts[0] == "symbol" => {
+            let token = parts[1].as_str().unwrap();
+            assert!(
+                matches!(parse(token), Ok(cbcl_core::sexpr::SExpr::Atom(cbcl_core::sexpr::Atom::Symbol(ref name))) if name == token)
+            );
+            token.to_owned()
+        }
         _ => value.to_string(),
     }
 }
@@ -183,7 +190,7 @@ impl Case {
             "projection":projection,
             "contributions":self.rows.iter().map(|(k,v,e)| json!([key(*k), literal(*k,*v), format!("e{}", usize::from(*e) % self.n)])).collect::<Vec<_>>(),
             "queries":queries,
-            "acts": self.history.iter().enumerate().map(|(i,(p,n,b))| json!([i, [["phase",format!("p{p}")],["amount",n],["flag",b]]])).collect::<Vec<_>>()})
+            "acts": self.history.iter().enumerate().map(|(i,(p,n,b))| json!([i, [["phase",if *p < 3 {json!(format!("p{p}"))} else {json!(["symbol",format!("p{}",p-3)])}],["amount",n],["flag",b]]])).collect::<Vec<_>>()})
     }
 }
 fn dialect(case: &Value) -> String {
@@ -497,6 +504,33 @@ fn finite_kernel_matches_live_lean_oracle() {
             .map(String::from)
             .collect()
     );
+    // Equal spelling is insufficient: bare p0 must not match a "p0" row.
+    let mut symbolic = directed_cases()[1].request();
+    symbolic["acts"][0][1][0][1] = json!(["symbol", "p0"]);
+    let expected = oracle.borrow_mut().request(&symbolic);
+    assert_eq!(
+        native(&symbolic),
+        expected,
+        "symbolic field request={symbolic}"
+    );
+    assert_eq!(expected["observation"]["value"], "e0");
+    assert_eq!(expected["threshold"]["status"], "pending");
+    let mut symbolic_row = directed_cases()[1].request();
+    symbolic_row["contributions"][0][1] = json!(["symbol", "p0"]);
+    assert_eq!(
+        oracle.borrow_mut().request(&symbolic_row),
+        json!({"installed":false})
+    );
+    assert_eq!(native(&symbolic_row), json!({"installed":false}));
+    let mut symbolic_projection = directed_cases()[3].request();
+    symbolic_projection["projection"]["stable"] = json!(false);
+    symbolic_projection["projection"]["rows"][0][1] = json!(["symbol", "p0"]);
+    symbolic_projection["queries"] = Value::Null;
+    assert_eq!(
+        oracle.borrow_mut().request(&symbolic_projection),
+        json!({"installed":false})
+    );
+    assert_eq!(native(&symbolic_projection), json!({"installed":false}));
     let mut config = proptest::test_runner::Config::default();
     if std::env::var_os("PROPTEST_CASES").is_none() {
         config.cases = 512;
@@ -583,7 +617,14 @@ impl FreezeCase {
                 vec![]
             } else {
                 vec![
-                    json!(["phase", format!("p{}", a % 3)]),
+                    json!([
+                        "phase",
+                        if a & 128 == 0 {
+                            json!(format!("p{}", a % 3))
+                        } else {
+                            json!(["symbol", format!("p{}", a % 3)])
+                        }
+                    ]),
                     json!(["amount", i16::from(*b) % 7 - 3]),
                     json!(["flag", two]),
                 ]
@@ -746,6 +787,14 @@ fn freeze_kernel_matches_live_lean_oracle() {
 fn oracle_rejects_ambiguous_or_nonclosed_graphs() {
     let mut oracle = Oracle::start();
     let base = freeze_directed()[0].clone();
+    for malformed in [json!(["symbol", "p0)"]), json!(["symbol", "p0", "extra"])] {
+        let mut bad_symbol = base.clone();
+        bad_symbol["acts"][1][3][0][1] = malformed;
+        assert!(oracle.response(&bad_symbol)["error"]
+            .as_str()
+            .unwrap()
+            .contains("finite symbol"));
+    }
     let mut cycle = base.clone();
     cycle["acts"][0][2] = json!([2]);
     assert!(oracle.response(&cycle)["error"]

@@ -142,6 +142,23 @@ structure Row (table : StateFiniteTable.Resolved) where
   element : Fin table.elements.length
   validLiteral : scalarCheck literal = true
 
+/-- Verified scalar rows cannot match an opaque structured field value. This
+lets bounded wire adapters retain symbol/string distinctions without treating
+an unrecognized symbol as the equally spelled string literal. -/
+theorem row_literal_not_list (table : StateFiniteTable.Resolved) (row : Row table) (values : List Scalar) :
+    row.literal ≠ .list values := by
+  intro equal
+  have recognized := row.validLiteral
+  simp [equal,scalarCheck] at recognized
+
+/-- An opaque finite-profile input cannot trigger any valid scalar row. -/
+theorem row_ignores_opaque (table : StateFiniteTable.Resolved) (row : Row table) (act : Act) (values : List Scalar)
+    (fieldValue : act.get row.key = some (.list values)) : (act.get row.key == some row.literal) = false := by
+  rw [fieldValue]
+  apply beq_eq_false_iff_ne.mpr
+  intro equal
+  exact row_literal_not_list table row values (Option.some.inj equal).symm
+
 /-- Reject structured/non-native literals and unknown contribution targets. -/
 def resolveRow (table : StateFiniteTable.Resolved) (row : Contribution) : Option (Row table) := do
   if recognized : scalarCheck row.literal = true then

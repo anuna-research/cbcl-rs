@@ -189,6 +189,7 @@ suites.extend([
         ("finite-duplicate-input-check-bypassed", "decide (table.rows.map Prod.fst).Nodup", "true", "check_iff"),
     ]),
     ("StateFiniteProjection", (root / "lean-cbcl/LeanCbcl/StateFiniteProjection.lean").read_text() + "\n" + finite_projection_tests, [
+        ("finite-opaque-field-treated-as-scalar", "| _ => false\n\n/-- Native stable projection order", "| .list _ => true\n\n/-- Native stable projection order", "row_literal_not_list"),
         ("finite-stable-order-check-bypassed", "if projection.stable then", "if false then", "check_iff"),
         ("finite-projection-totality-bypassed", "(indices table).all (fun i => (projection.rows.lookup i).isSome)", "true", "check_iff"),
         ("finite-projection-scalar-check-bypassed", "projection.rows.all (fun row => scalarCheck row.2)", "true", "check_iff"),

@@ -61,8 +61,17 @@ The JSON-lines request contains `table` (named elements, bottom, top and join
 triples), `projection` (null or stability plus scalar rows), `contributions`
 (keyword/literal/target triples), `queries` (null or scalar alternatives), and
 `acts` (numeric identity plus keyword/scalar pairs). Scalars are JSON strings,
-integers or booleans. The harness translates JSON booleans to CBCL `#t`/`#f`
-and preserves identity across duplicate delivery. Freeze requests add a Boolean
+integers or booleans. The finite profile also accepts `["symbol", "p0"]` in
+message fields and contribution/projection literal positions. Its bounded token
+grammar is `[a-z][a-z0-9_-]*`; queries retain the scalar-only input contract.
+The Rust harness emits a real strict-parser symbol. Lean retains an opaque
+non-scalar value, which `row_literal_not_list` and `row_ignores_opaque` prove
+cannot match a verified scalar contribution row. Thus bare `p0` cannot trigger
+a `"p0"` row. Authored symbolic row/projection values are rejected by installation.
+This is a finite-profile comparison adapter, not a general symbol decoder or
+admission check; structured message values remain outside this input contract.
+Other profiles retain their existing scalar contracts. The harness translates
+JSON booleans to CBCL `#t`/`#f` and preserves identity across duplicate delivery. Freeze requests add a Boolean
 `freeze` policy (`true` = fault, `false` = supersede) and encode acts as
 `[identity, verb, predecessor-identities, keyword/scalar-pairs]`. Identities
 are independent of causal order. A bounded Kahn pass proposes an order, then

@@ -604,3 +604,24 @@
 ;; intended tests, including rejecting quoted pins and bypassing pin validation.
 ;; Verified-by lint passes; vault adds no unresolved pairs or syntax/SPL errors.
 ;; Independent review found no validation/compatibility defect or overstatement.
+
+;; Finite metadata distinction continuation for
+;; [[SPEC-038-lvar-state-kernel#TEST-3806]]: the finite oracle accepts bounded
+;; tagged symbols in fields and contribution/projection literal positions.
+;; Rust emits strict-parser symbols; Lean retains a non-scalar opaque value.
+;; row_literal_not_list/row_ignores_opaque prove it cannot match verified scalar
+;; rows. Generated finite/freeze fields include same-spelling strings/symbols;
+;; the directed p0-versus-quoted-p0 case observes bottom/pending and authored
+;; symbolic row literals reject. Malformed tags/tokens reject before evaluation.
+;; This is not a general symbol decoder, admission check or full native metadata
+;; extraction proof. Queries and other profiles retain scalar input contracts.
+;; Verification: full Lean/oracle build and Batteries env-linter pass; 1510
+;; theorems pass the axiom audit. All five live-oracle tests pass at CI size;
+;; finite campaign passes 10000 generated cases with three delivery variants.
+;; Five focused finite projection proof mutations and nineteen isolated native
+;; mutations fail intended checks, including actual symbol-to-string conversion.
+;; Verified-by lint and vault comparison pass with no added unresolved pairs or
+;; syntax/SPL errors. Independent proof/profile/artifact review finds no defect.
+;; Native R7 inspection also confirms initial/domain initializer sources must be
+;; the unique protocol opener; deriving its ancestry through R5/R6 admission is
+;; the next locality obligation, not a law of arbitrary ranked fold inputs.
