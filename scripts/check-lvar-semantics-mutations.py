@@ -18,6 +18,10 @@ def main():
     freeze_pair_test = ("freeze_reads", "repeated_causal_freezes_keep_the_first_cut_but_concurrent_freezes_fault")
     freeze_initial_test = ("freeze_reads", "freeze_cannot_hide_a_later_initializer_conflict")
     mutations = [
+        ("quoted-pin-wire-path-rejected", "role.rs",
+         'SExpr::Atom(Atom::Str(pin) | Atom::Symbol(pin)) => pin,',
+         'SExpr::Atom(Atom::Symbol(pin)) => pin,',
+         ("state_context", "quoted_dialect_pins_cross_the_strict_wire_boundary")),
         ("frozen-threshold-uses-full-history", "freeze.rs",
          'let ctx = crate::lattice::Ctx::new(clause, &reader.scopes[scope]);',
          'let ctx = crate::lattice::Ctx::new(clause, &reader.scopes[0]);',

@@ -582,13 +582,21 @@ path := dialect [address|body-address|name|author|roles [role]|bounds [bound]]
       | thread [id|root|initiator|opener|roles [role]]
       | observation [accepted-count|frontier]
 bound := max-fields | max-list | max-number | max-string
+root-pin := :dialect string
+  ; decoded string is exactly "sha256:" followed by 64 lowercase hex digits
 ```
 
 An empty path returns the complete map. Nested role names must be declared.
 `address` is the dialect signing hash used by pins; `body-address` is its
 self-addressed body name, independent of an authored alias. `name` is the
 installed dialect name. The root's cast is recognized using the existing role
-recognizer, including optional dialect pin validation. Unknown paths are
+recognizer, including optional dialect pin validation. The strict-wire form is
+`:dialect "sha256:<hex64>"` in the cast wrapper's existing pin position; malformed
+prefixes, lengths and non-lowercase-hex digests fault without normalization.
+Existing typed symbol pins remain supported for in-process compatibility; the
+strict lexer symbol alphabet is unchanged. This additive wire form extends the
+optional pin of [[SPEC-014-role-layer-endpoint-projection#REQ-628]] without
+changing existing accepted forms or addresses. Unknown paths are
 installation errors. Missing root evidence is absent; malformed casts and
 incompatible roots/bindings render the standard attributable fault.
 
@@ -957,9 +965,11 @@ fault evidence to `StateInstalledContext.nativeRead`. The Rust differential
 harness compares every closed context path, sealed roster membership reads,
 metadata/schema markers and combined root/mixed-thread/opener witnesses under
 forward, reversed and duplicate delivery. Lean context request validation requires
-consistent identities and present earlier predecessors. Canonical hashes and
-act addresses are normalized only on exact equality; strict-wire pin recognition
-(BUG-006), hashing, signature checks and admission are outside this profile.
+consistent identities, present predecessors and a checked separate causal rank.
+Quoted dialect pins cross the strict parser and native message parser before
+cast/context evaluation. Canonical hashes and act addresses are normalized only
+on exact equality; hash correctness, signature checks and protocol admission
+remain outside this profile. Literal parser extraction is not formally proved.
 Context freeze/domain composition remains covered by native tests rather than
 this live profile. The executable serializer reports depth exhaustion as an
 input error instead of truncating an observation. Predicate-set serialization
@@ -1366,9 +1376,11 @@ legacy resource closure port also remains separate from the new concrete
 native-certificate bridge.
 
 [[SPEC-038-lvar-state-kernel#TEST-3806]] remains partial at those literal
-installation and wire/rank/renderer boundaries. Context pin tests cover the
-typed message boundary; the existing
-[[BUG-006-envelope-wire-form-unparseable-by-the-real-parser]] remains open.
+installation, admission, wire-proof and renderer boundaries. Context pin tests
+and the live oracle exercise the strict wire parser using quoted digest strings.
+[[BUG-006-envelope-wire-form-unparseable-by-the-real-parser]] remains open for
+its envelope and suite-qualified key cases; the dialect-pin context path no
+longer relies on the lax parser.
 The specification stays `draft` until those acceptance obligations are resolved.
 
 ## Changelog

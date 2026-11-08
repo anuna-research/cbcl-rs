@@ -152,21 +152,14 @@ fn cast_validation_and_pins_are_not_bypassed_by_context_reads() {
         r#"(with-roles ((chair @chair)) (signed @chair (hello :thread "t" :caused-by begin)))"#,
         "@chair",
     );
-    // BUG-006: the strict wire lexer splits bare sha256:<hex> symbols.
-    // Exercise the existing typed cast boundary explicitly for pin semantics;
-    // this test does not claim that the legacy pin spelling round-trips on wire.
     let pinned_root = |pin: &str| {
-        let tree: cbcl_core::sexpr::SExpr = format!(
-            r#"(with-roles ((chair @chair) (reviewer @a @b @c)) :dialect {pin}
+        act(
+            &format!(
+                r#"(with-roles ((chair @chair) (reviewer @a @b @c)) :dialect {pin:?}
             (signed @chair (hello :thread "t" :caused-by begin)))"#
-        )
-        .parse()
-        .unwrap();
-        Act::from_message(
-            cbcl_core::message::Message::try_from(&tree).unwrap(),
+            ),
             "@chair",
         )
-        .unwrap()
     };
     let wrong = pinned_root(&format!("sha256:{}", "0".repeat(64)));
     for bad in [malformed, wrong] {
@@ -370,4 +363,35 @@ fn root_conflict_retains_an_existing_mixed_thread_context_witness() {
     history.reverse();
     history.extend(history.clone());
     assert_eq!(read(&src, &history), after);
+}
+
+#[test]
+fn quoted_dialect_pins_cross_the_strict_wire_boundary() {
+    let src = source(None);
+    let dialect = parse_dialect(&parse(&src).unwrap()).unwrap();
+    let hash = cbcl_core::canonical::dialect_hash(&dialect);
+    let pinned = |pin: &str| {
+        act(
+            &format!(
+                r#"(with-roles ((chair @chair) (reviewer @a @b @c)) :dialect {pin:?}
+          (signed @chair (hello :thread "t" :caused-by begin)))"#
+            ),
+            "@chair",
+        )
+    };
+    let value = read(&src, &[pinned(&hash)]);
+    assert_eq!(value["reviewers"], json!(["@a", "@b", "@c"]));
+    assert_eq!(value["eligible"]["status"], "reached");
+    for pin in [
+        format!("sha256:{}", "0".repeat(64)),
+        "sha256:abc".to_owned(),
+        format!("sha256:{}", "A".repeat(64)),
+        format!("md5:{}", "a".repeat(64)),
+    ] {
+        assert_eq!(
+            read(&src, &[pinned(&pin)])["reviewers"]["status"],
+            "fault",
+            "pin={pin}"
+        );
+    }
 }

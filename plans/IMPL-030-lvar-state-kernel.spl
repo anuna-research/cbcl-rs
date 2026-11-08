@@ -585,3 +585,22 @@
 ;; and an extra duplicate-delivery rejection. Verified-by lint passes; vault
 ;; adds no unresolved pairs or syntax/SPL errors. Independent proof, fixture and
 ;; artifact review found no defect; present-edge versus closure scope is explicit.
+
+;; Strict-wire context pin continuation for
+;; [[SPEC-038-lvar-state-kernel#TEST-3809]]: add quoted sha256 digest strings to
+;; the shared pin recognizer while retaining typed symbol compatibility and
+;; identical prefix/length/lowercase-hex validation. Lexer alphabet and existing
+;; forms/canonicalization are unchanged. Context tests and live oracle now use
+;; strict S-expression plus native message parsing, including correct/wrong pins.
+;; The new regression was observed red before recognition changed, then green.
+;; This closes the context-pin workaround only; BUG-006 envelope/suite-key cases
+;; and BUG-005 recognizer duplication remain open, as do formal native extraction
+;; and cryptographic/admission boundaries. SPEC-014's implemented grammar is not
+;; rewritten; the additive pin form is documented by draft CON-3804 and EBNF.
+;; Verification: all 13 context integration tests, 29 role unit tests and four
+;; state-vector factorization tests pass. Strict-wire context oracle campaign
+;; passes 10000 generated cases with three delivery variants. All 28 isolated
+;; semantic mutations and 18 live-oracle native mutations fail their executed
+;; intended tests, including rejecting quoted pins and bypassing pin validation.
+;; Verified-by lint passes; vault adds no unresolved pairs or syntax/SPL errors.
+;; Independent review found no validation/compatibility defect or overstatement.

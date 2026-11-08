@@ -138,19 +138,16 @@ fn native_context(case: &Value) -> Value {
             _ => unreachable!(),
         };
         let pin = match f["pin"].as_str() {
-            Some("correct") => format!(":dialect {hash}"),
-            Some("wrong") => format!(":dialect sha256:{}", "0".repeat(64)),
+            Some("correct") => format!(":dialect {hash:?}"),
+            Some("wrong") => format!(":dialect {:?}", format!("sha256:{}", "0".repeat(64))),
             Some("malformed") => ":dialect #t".to_owned(),
             _ => String::new(),
         };
         let wire = cast
             .map(|c| format!("(with-roles {c} {pin} {signed})"))
             .unwrap_or(signed);
-        // BUG-006: use the typed message boundary because the strict wire lexer
-        // splits sha256 pins. Hashing, signature verification and admission are
-        // outside this oracle profile; casts and projections use native code.
-        let expr: cbcl_core::sexpr::SExpr = wire.parse().unwrap();
-        let message = cbcl_core::message::Message::try_from(&expr).unwrap();
+        let expr = parse(&wire).expect("context message crosses the strict wire parser");
+        let message = parse_message(&expr).unwrap();
         built.insert(id, Act::from_message(message, signer).unwrap());
     }
     let ids: BTreeMap<_, _> = built

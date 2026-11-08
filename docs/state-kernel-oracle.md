@@ -109,11 +109,14 @@ completeness is a profile boundary rather than a separate proved theorem. It err
 if a value exceeds its explicit depth bound; it does not silently truncate.
 
 The Rust context harness builds actual content-addressed messages and calls the
-native parser, installer and fold. It uses the typed message boundary because
-the strict wire lexer currently splits bare `sha256:` pins (BUG-006). Canonical
-dialect/body hashes and act addresses are mapped to independent reference tokens
-only on exact equality. Hash correctness, wire recognition, cryptographic
-signature verification and protocol admission are outside this profile. Fault
+strict S-expression parser, native message parser, installer and fold. Dialect
+pins use the quoted `:dialect "sha256:<hex64>"` form. Existing typed-symbol pin
+callers remain supported; the lexer alphabet and canonicalization are unchanged.
+BUG-006 remains open for envelopes and suite-qualified keys, while context pins
+now cross the real wire parser. Canonical dialect/body hashes and act addresses
+are mapped to independent reference tokens only on exact equality. Hash
+correctness, a formal parser-extraction proof, cryptographic signature
+verification and protocol admission remain outside this profile. Fault
 reasons and presentation order remain outside the comparison. Context under
 freeze, domains and arbitrarily composed dependencies remains outside this
 context campaign; the native context tests cover some of those combinations.

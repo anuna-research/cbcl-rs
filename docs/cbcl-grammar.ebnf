@@ -211,6 +211,9 @@ wrapper-param   = expression ;
 (* with-roles carries the thread cast (SPEC-014 CON-601, REQ-628):     *)
 (*   (with-roles (<binding>+) [:dialect <pin>] <inner-message>)        *)
 (*   binding = "(" role-name , key , { key } , ")"                     *)
+(* pin is a string whose decoded payload is "sha256:" plus exactly    *)
+(* 64 lowercase hex digits: :dialect "sha256:0123...". Typed symbol    *)
+(* pins remain an in-process compatibility form, not wire syntax.    *)
 (* A singleton role takes exactly one key; an indexed role one or more.*)
 
 
