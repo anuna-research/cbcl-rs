@@ -1309,9 +1309,22 @@ common successful output list, composing source observations, source-owned
 threshold policies and exact raw cuts in declaration order. A concrete authored
 context/count/threshold/freeze fixture constructs both installation and outputs.
 
-This output reference uses corrected cut-scoped threshold dispatch. It is not
-equivalence with the older full-history `thresholdRaw` plan constructor; updating
-the installed output-plan compiler and its refinement remains required. A native
+`StateOutputCompiler.lean` compiles source-owned closure, raw-term and checked
+finite query policies into a closed output-code inventory. Each instruction
+captures its complete original source plan; the program retains the clause's
+freeze metadata. `compile_outputs_refinement` relates that code to independent
+cut-scoped output execution. `authored_compiler_refinement` constructs successful
+compiled output code from actual preparation and connects its complete vector
+to the actual empty-cache source transcript and output adapter.
+
+Authored preparation specializes source and contributor metadata to an
+observation history. `CompiledObservation` retains that history and its public
+`observe` takes no replacement history; history growth requires fresh preparation.
+The concrete compiler fixture constructs preparation, code and cache/output
+execution rather than assuming them. Older generic full-history `thresholdRaw`
+plans remain source-dictionary/checking machinery; they are not emitted as native
+output instructions, and no equivalence with their raw-history output semantics
+is asserted. A native
 fold regression reproduces why the distinction matters: a concurrent domain
 initializer outside the freezer cut enables a full-history count of one while
 the frozen source remains zero and its threshold pending. Replacing the threshold

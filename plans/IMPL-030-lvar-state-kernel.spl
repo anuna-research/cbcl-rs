@@ -523,3 +523,23 @@
 ;; theorems. Verified-by lint passes; vault adds no unresolved pairs or syntax/SPL
 ;; errors. Independent proof, fixture and artifact review found no defect or
 ;; overstatement in the explicitly bounded output-reference composition.
+
+;; Output compiler continuation for [[SPEC-038-lvar-state-kernel#TEST-3806]]:
+;; StateOutputCompiler compiles source-owned closure/raw/checked finite policies
+;; to a closed Query inventory. Output instructions capture completed original
+;; source plans; Program retains clause freeze metadata. Ordered compilation
+;; refines independent cut-scoped output evaluation. authored_compiler_refinement
+;; constructs actual code from preparation and connects its entire vector to
+;; actual successful empty-cache reads and output adaptation.
+;; CompiledObservation captures the preparation history. Its observe method
+;; accepts no replacement history; history growth requires fresh preparation.
+;; A concrete authored fixture constructs preparation, code and cache outputs.
+;; Older generic full-history thresholdRaw plans remain source dictionary/check
+;; machinery and are not emitted native output instructions. No equivalence to
+;; their raw-history output semantics is claimed. Separate-rank scope integration
+;; and literal Rust installation/extraction/rendering remain open boundaries.
+;; Verification: full Lean build and Batteries env-linter pass; 1484 theorems
+;; pass the axiom audit. Four output compiler mutations fail intended policy,
+;; cut, fault and captured-history theorems. Verified-by lint passes; vault adds
+;; no unresolved reference pairs or syntax/SPL errors. Independent proof, API,
+;; concrete fixture and artifact review found no remaining defect in stated scope.

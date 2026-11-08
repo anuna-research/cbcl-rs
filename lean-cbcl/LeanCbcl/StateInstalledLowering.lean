@@ -5,7 +5,11 @@ import LeanCbcl.StateInstalledTerm
 source name and elements: they cannot supply a detached contribution or test.
 The source definition selects its raw-lattice or native-display read strategy.
 Native closure implementations and typed metadata extraction remain explicit
-leaf parameters; this is not a proof about the Rust parser or serialized AST. -/
+leaf parameters; this is not a proof about the Rust parser or serialized AST.
+The generic per-declaration threshold plans in this module use the supplied
+history for raw state. Freeze-aware native output code is compiled separately
+by StateOutputCompiler, which retains source plans but replaces that output
+strategy with source-cut dispatch. -/
 namespace CBCL.StateInstalledLowering
 open State StateLift StateLVar StateObservation StateObservationPlan StateRuleRefinement
 open StateInstalledCompiler

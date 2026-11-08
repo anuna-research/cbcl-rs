@@ -490,9 +490,13 @@ freezer cuts. `StatePreparedOutputs.prepared_cache_outputs` composes actual
 empty-cache source transcripts into successful output lists using source-owned
 native, factored and finite query policies. A concrete authored fixture constructs
 installation and outputs; missing/extra transcript values fail explicitly.
-The output reference uses corrected cut-scoped dispatch. Equivalence with the
-older full-history `thresholdRaw` output plans is not claimed; updating that
-compiler and refinement remains required.
+`StateOutputCompiler` now compiles those source-owned policies to closed output
+instructions capturing complete source plans and clause freezes.
+`authored_compiler_refinement` constructs actual code and proves its complete
+output vector equal to actual empty-cache execution plus output adaptation.
+`CompiledObservation` retains the preparation history; observing a grown history
+requires fresh preparation. Older generic full-history `thresholdRaw` plans are
+used for source dictionary construction/checks, not emitted output semantics.
 `StateCausalRank` proves address-independent bounded ancestry and exact cuts
 under a recognized topological history order. Its descending-address witness
 preserves semantic addresses; integrating this search into the scope pool and

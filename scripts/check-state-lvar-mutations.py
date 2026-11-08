@@ -262,6 +262,13 @@ suites.append(("StateInstalledRecognition", (root / "lean-cbcl/LeanCbcl/StateIns
     ("recognition-tail-check-bypassed", "check (extend definitions declaration) (declaration.name::names) rest", "true", "check_iff"),
 ]))
 
+suites.append(("StateOutputCompiler", (root / "lean-cbcl/LeanCbcl/StateOutputCompiler.lean").read_text(), [
+    ("compiled-output-policy-unchecked", "if policy.check elements then some (.raw", "if true then some (.raw", "compile_query_refinement"),
+    ("compiled-output-raw-cut-erased", "query.run (referenceScope whole freezes sourceName)", "query.run (StateScopePool.normalize whole)", "compile_one_refinement"),
+    ("compiled-finite-source-fault-hidden", "| .fault evidence => .fault evidence", "| .fault _ => .data .pending", "compile_query_refinement"),
+    ("compiled-observation-history-substituted", "return ⟨whole,program⟩", "return ⟨[],program⟩", "authored_compiler_refinement"),
+]))
+
 suites.append(("StatePreparedOutputs", (root / "lean-cbcl/LeanCbcl/StatePreparedOutputs.lean").read_text(), [
     ("output-threshold-requests-output-name", "| .threshold _ source _ => source", "| .threshold name _ _ => name", "prepared_output_admitted"),
     ("output-transcript-payload-discarded", "| .field _ _ => some value", "| .field _ _ => some (.data .pending)", "evaluate_values_map"),

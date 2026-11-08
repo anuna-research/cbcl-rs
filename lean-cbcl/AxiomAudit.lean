@@ -1,3 +1,4 @@
+import LeanCbcl.StateOutputCompilerTests
 import LeanCbcl.StatePreparedOutputsTests
 import LeanCbcl.StateThresholdDispatchTests
 import LeanCbcl.StateCausalRank
@@ -2291,3 +2292,12 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StatePreparedOutputs.prepared_outputs
 #print axioms CBCL.StatePreparedOutputs.prepared_cache_outputs
 #print axioms CBCL.StatePreparedOutputsTests.concrete_cache_outputs
+
+#print axioms CBCL.StateOutputCompiler.compile_query_refinement
+#print axioms CBCL.StateOutputCompiler.compile_one_refinement
+#print axioms CBCL.StateOutputCompiler.evaluate_cons_one
+#print axioms CBCL.StateOutputCompiler.compile_outputs_refinement
+#print axioms CBCL.StateOutputCompiler.prepared_sources_known
+#print axioms CBCL.StateOutputCompiler.prepared_compiler_cache_refinement
+#print axioms CBCL.StateOutputCompiler.authored_compiler_refinement
+#print axioms CBCL.StateOutputCompilerTests.concrete_compiled_outputs
