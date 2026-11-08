@@ -44,6 +44,16 @@ fn request(facts: Vec<Value>, path: &[&str], query: Value) -> Value {
     json!({"profile":"context","name":"oracle-context","path":path,"query":query,"facts":facts})
 }
 
+fn native_wrapper(params: &str) -> Value {
+    use cbcl_core::role::{parse_wrapper_cast, RoleCardinality, RoleDecl};
+    let cbcl_core::sexpr::SExpr::List(params) = parse(params).expect("wrapper transport parses") else {
+        panic!("wrapper params must be a list");
+    };
+    let roles = [RoleDecl {name:"chair".into(),cardinality:RoleCardinality::Singleton},
+        RoleDecl {name:"reviewer".into(),cardinality:RoleCardinality::Indexed}];
+    json!({"recognized":parse_wrapper_cast(&params,&roles).is_ok()})
+}
+
 fn native_context(case: &Value) -> Value {
     let name = case["name"].as_str().unwrap();
     let path = case["path"]
@@ -144,9 +154,22 @@ fn native_context(case: &Value) -> Value {
             Some("malformed") => ":dialect #t".to_owned(),
             _ => String::new(),
         };
-        let wire = cast
+        let wire = if let Some(text) = f["wrapper-params"].as_str() {
+            use cbcl_core::sexpr::{Atom, SExpr};
+            let SExpr::List(mut params) = parse(text).expect("wrapper transport parses") else {
+                panic!("wrapper params must be a list");
+            };
+            // Exact identity-token normalization at the pin value slot only.
+            let reference = format!("sha256:{}", "a".repeat(64));
+            if let Some(SExpr::Atom(Atom::Str(pin))) = params.get_mut(2) {
+                if *pin == reference { *pin = hash.clone(); }
+            }
+            format!("(with-roles {} {signed})", params.iter().map(ToString::to_string).collect::<Vec<_>>().join(" "))
+        } else {
+            cast
             .map(|c| format!("(with-roles {c} {pin} {signed})"))
-            .unwrap_or(signed);
+            .unwrap_or(signed)
+        };
         let expr = parse(&wire).expect("context message crosses the strict wire parser");
         let message = parse_message(&expr).unwrap();
         built.insert(id, Act::from_message(message, signer).unwrap());
@@ -245,6 +268,35 @@ fn context_kernel_matches_live_lean_oracle() {
     unparseable_root["cast"] = json!({"syntax":"("});
     assert!(oracle.response(&request(vec![unparseable_root], &["thread"], Value::Null)).get("error").is_some(),
         "unparseable cast text is outside the oracle transport domain");
+    let cast_params = "((chair @chair) (reviewer @a @b))";
+    let digest = format!("sha256:{}", "a".repeat(64));
+    let wrong = format!("sha256:{}", "0".repeat(64));
+    let wrappers = vec![
+        (format!("({cast_params})"), true, true),
+        (format!("({cast_params} :dialect {digest:?})"), true, true),
+        (format!("({cast_params} :dialect {wrong:?})"), true, false),
+        (format!("({cast_params} :dialect #t)"), false, false),
+        (format!("({cast_params} :dialect \"sha256:abc\")"), false, false),
+        (format!("({cast_params} :dialect {:?})", format!("sha256:{}", "A".repeat(64))), false, false),
+        (format!("({cast_params} :dialect {:?})", format!("sha256:{}", "𝟘".repeat(64))), false, false),
+        (format!("({cast_params} :dialect {:?})", format!("sha512:{}", "a".repeat(64))), false, false),
+        (format!("({cast_params} :other {digest:?})"), false, false),
+        (format!("({cast_params} \"dialect\" {digest:?})"), false, false),
+        (format!("({cast_params} :dialect {digest:?} extra)"), false, false),
+        (format!("(:dialect {digest:?} {cast_params})"), false, false),
+        ("()".to_owned(), false, false),
+    ];
+    for (params, recognized, valid) in &wrappers {
+        let parsed = oracle.request(&json!({"profile":"context-wrapper","params":params}));
+        assert_eq!(native_wrapper(params), parsed, "wrapper params={params}");
+        assert_eq!(parsed["recognized"], *recognized, "wrapper params={params}");
+        let mut wrapped_root = root.clone();
+        wrapped_root["wrapper-params"] = json!(params);
+        let case = request(vec![wrapped_root], &["thread","roles","reviewer"], json!("@a"));
+        let expected = oracle.request(&case);
+        assert_eq!(native_context(&case), expected, "wrapper params={params}");
+        assert_eq!(expected["value"]["status"] == "fault", !*valid, "wrapper params={params}");
+    }
     // Raw casts cross both real S-expression parsers before semantic role checks.
     for (syntax, valid) in [
         ("((chair @chair) (reviewer @a @b))", true),
@@ -388,6 +440,7 @@ fn context_kernel_matches_live_lean_oracle() {
         any::<bool>(),
         0u8..4,
         prop::collection::vec(0usize..4, 0..7),
+        0usize..wrappers.len() + 4,
     );
     let mut config = proptest::test_runner::Config::default();
     if std::env::var_os("PROPTEST_CASES").is_none() {
@@ -403,7 +456,7 @@ fn context_kernel_matches_live_lean_oracle() {
     runner
         .run(
             &strategy,
-            |(path, cast, pin, nodes, root_present, alias, query, roster)| {
+            |(path, cast, pin, nodes, root_present, alias, query, roster, wrapper)| {
                 let generated_cast = json!([
                     ["chair", ["@chair"]],
                     [
@@ -427,6 +480,11 @@ fn context_kernel_matches_live_lean_oracle() {
                 } else {
                     vec![]
                 };
+                if root_present {
+                    if let Some((params, _, _)) = wrappers.get(wrapper) {
+                        facts[0]["wrapper-params"] = json!(params);
+                    }
+                }
                 for (verb, a, b, thread) in nodes {
                     let id = facts.len() as u64;
                     let parents = if id == 0 || verb == 3 {

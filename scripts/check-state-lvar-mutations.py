@@ -711,6 +711,14 @@ suites.append(("StateContextCastSyntax", (root / "lean-cbcl/LeanCbcl/StateContex
     ("context-cast-semantic-gate-bypassed", "  if bindingsCheck definition rows then some rows else none\n", "  some rows\n", "recognize_encoded"),
 ]))
 
+suites.append(("StateContextWrapperSyntax", (root / "lean-cbcl/LeanCbcl/StateContextWrapperSyntax.lean").read_text(), [
+    ("context-pin-prefix-ignored", "decide (text.toList.take 7 = pinPrefix) &&", "true &&", "pinCheck_iff"),
+    ("context-pin-length-ignored", "decide ((text.toList.drop 7).length = 64) &&", "true &&", "pinCheck_iff"),
+    ("context-wrapper-quoted-keyword-accepted", '| [raw,.atom (.keyword "dialect"),value] => do', '| [raw,.atom (.keyword "dialect"),value] | [raw,.atom (.str "dialect"),value] => do', "quoted_keyword_rejected"),
+    ("context-wrapper-wrong-pin-accepted", "if digest.any (fun text => text != definition.address) then none else", "if false then none else", "installed_cast"),
+    ("context-wrapper-malformed-becomes-absent", "⟨thread,.malformed .malformedBinding,.absent⟩", "⟨thread,.absent,.absent⟩", "installed_cast"),
+]))
+
 # Preserve the full default gate while allowing a focused continuation check.
 import argparse
 parser = argparse.ArgumentParser(description=__doc__)

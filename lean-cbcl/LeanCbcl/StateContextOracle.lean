@@ -2,6 +2,7 @@ import Lean
 import LeanCbcl.StateExecutableContext
 import LeanCbcl.StateCausalRank
 import LeanCbcl.StateContextCastSyntax
+import LeanCbcl.StateContextWrapperSyntax
 import LeanCbcl.Parser
 
 /-! Context profile for the live oracle. Canonical address hashing and wire
@@ -44,10 +45,32 @@ def parsePin (value : Json) : Check (ResourceField String) :=
   | .str "malformed" => pure (.malformed .wrongType)
   | _ => .error "unknown pin variant"
 
+/-- Digest token used only for exact hash-identity normalization in this oracle.
+The native harness substitutes its actual installed hash at the pin value slot. -/
+def referencePin : String := "sha256:" ++ String.ofList (List.replicate 64 'a')
+
+/-- Raw parameter transport is parsed before the complete wrapper recognizer. -/
+def wrapperMetadata (thread : Option String) (text : String) : Check MessageMetadata := do
+  let raw ← CBCL.parse text
+  let .list params := raw | throw "wrapper-params must be a parameter list"
+  let result := CBCL.StateContextWrapperSyntax.metadata thread params
+  -- Preserve all wrong pins. Only the declared exact reference digest maps to
+  -- the existing independent installed-identity token.
+  return {result with pin := match result.pin with
+    | .value digest => .value (if digest == referencePin then "dialect" else digest)
+    | other => other}
+
 def fact (j : Json) : Check Fact := do
+  let thread ← fromJson? (← j.getObjVal? "thread")
+  let metadata : MessageMetadata ← match j.getObjVal? "wrapper-params" with
+    | .ok value => wrapperMetadata thread (← value.getStr?)
+    | .error _ => do
+      let cast ← parseCast (← j.getObjVal? "cast")
+      let pin ← parsePin (← j.getObjVal? "pin")
+      pure ({thread := thread,cast := cast,pin := pin} : MessageMetadata)
   return ⟨← (← j.getObjVal? "id").getNat?,← (← j.getObjVal? "verb").getStr?,
     ← (← j.getObjVal? "signer").getStr?,← fromJson? (← j.getObjVal? "parents"),
-    ← fromJson? (← j.getObjVal? "thread"),← parseCast (← j.getObjVal? "cast"),← parsePin (← j.getObjVal? "pin")⟩
+    thread,metadata.cast,metadata.pin⟩
 
 structure Input where
   name : String
@@ -113,6 +136,17 @@ def evaluate (request : Input) : Check Json := do
       else Json.mkObj [("status",.str "pending")]
   return Json.mkObj [("installed",.bool true),("value",value),("threshold",threshold.getD .null),
     ("schema",.str (if stablePath request.path then "context" else "snapshot"))]
+
+/-- Raw role wrapper recognition before the independent dialect-identity gate.
+This profile observes pin grammar failures even when identity rejection would
+otherwise mask a permissive parser regression. -/
+def wrapperRun (j : Json) : Check Json := do
+  let raw ← CBCL.parse (← (← j.getObjVal? "params").getStr?)
+  let .list params := raw | throw "wrapper params must be a list"
+  let recognized := match CBCL.StateContextWrapperSyntax.decode params with
+    | none => false
+    | some (rows,_) => bindingsCheck (definition "wrapper") rows
+  return Json.mkObj [("recognized",.bool recognized)]
 
 def run (j : Json) : Check Json := input j >>= evaluate
 end StateContextOracle

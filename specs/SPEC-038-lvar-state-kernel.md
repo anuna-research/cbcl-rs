@@ -1754,8 +1754,17 @@ malformed field; unparseable transport text is an oracle input error. The contex
 uses the verified S-expression parser, and compares strict native wire parsing
 for quoted-role/key, keyword, duplicate, cardinality and completeness cases.
 A native mutation accepting quoted account strings is rejected by this
-comparison. Wrapper traversal, pin recognition and general per-message metadata
-extraction remain separate boundaries.
+comparison. `StateContextWrapperSyntax.lean` recognizes the exact with-roles
+parameter forms and `sha256:` lowercase-hex64 pins, preserving typed-symbol pin
+compatibility. Its complete installed-cast equation includes malformed wrapper
+parameters, absent/matching/wrong pins and semantic role errors. Pin success
+retains the original spelling; no repair or clamping occurs. The live oracle
+checks raw wrapper parameters and context reads, with a separate parser-only
+profile so dialect-identity rejection cannot mask permissive grammar errors.
+An isolated native mutation bypassing pin length/alphabet checks fails that
+comparison. Exact reference-digest normalization in the oracle is an explicit
+hash-identity boundary. Whole-message wrapper traversal and general per-message
+metadata extraction remain separate obligations.
 
 The finite-symbol adapter does not establish general metadata extraction or protocol admission;
 other live profiles retain their stated scalar contracts.

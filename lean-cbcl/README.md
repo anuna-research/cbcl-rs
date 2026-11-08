@@ -549,8 +549,12 @@ result to installed context casting with an absent pin. Raw cast oracle cases
 cross both S-expression parsers; quoted role/account strings remain distinct
 from symbols. Unparseable transport text is an input error; invalid parsed casts
 are malformed metadata. The native pin path uses quoted `sha256:` strings with
-the strict parser; formal wrapper/pin extraction remains open. BUG-006 remains
-open for envelopes and suite-qualified keys.
+the strict parser. `StateContextWrapperSyntax` recognizes complete role-wrapper
+parameters and exact lowercase-hex64 pins; its installed-cast equation includes
+optional pin identity and malformed syntax. The oracle compares parser acceptance
+before the independent identity gate, catching native pin grammar bypasses.
+Whole-message traversal and general native extraction remain open. BUG-006
+remains open for envelopes and suite-qualified keys.
 
 The Batteries gate remains enabled in CI. Intentional constant contribution
 arguments and uniform prepared-state receivers have local, explained

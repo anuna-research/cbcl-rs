@@ -123,8 +123,24 @@ binding grammar and the installed context gate checks cardinality, completeness
 and duplicates. Quoted roles/accounts and keyword keys are rejected as cast
 metadata. Unparseable text is a transport input error. The Rust side embeds the
 same raw cast in an actual wrapper and uses the strict parser. The grammar
-roundtrip and absent-pin connection to installed casting are proved; wrapper
-traversal and general metadata extraction are still boundaries.
+roundtrip and absent-pin connection to installed casting are proved.
+
+A fact can instead supply `"wrapper-params"` as a parsed parameter-list string,
+such as `"(((chair @chair) (reviewer @a @b)))"`. This overrides its separate cast
+and pin fields. `StateContextWrapperSyntax` recognizes exactly a bindings list,
+optionally followed by `:dialect` and a checked `sha256:` lowercase-hex64 pin.
+The installed-cast proof includes pin identity and malformed wrapper syntax.
+For a matching-pin test, the digest consisting of 64 lowercase `a` characters
+is the reference identity token: the native harness substitutes its actual
+dialect hash only at that exact pin value position, while Lean maps the same
+checked digest to its independent dialect token. Other pin spellings are retained.
+This normalization does not prove hashing.
+
+The `context-wrapper` oracle profile takes a `params` string and compares the
+wrapper parser's acceptance before checking dialect identity. This prevents the
+identity gate from concealing malformed digest acceptance. The existing context
+campaign covers both this parser result and the resulting full context read.
+Whole-message wrapper traversal and general metadata extraction remain boundaries.
 
 The Rust context harness builds actual content-addressed messages and calls the
 strict S-expression parser, native message parser, installer and fold. Dialect
@@ -164,7 +180,8 @@ its source fault. Freeze mutants ignore the causal cut, suppress the fault
 policy, hide concurrent freezers or discard freeze evidence when a raw fault
 already exists. Nested mutants erase the cache scope or field, use whole history
 for a dependency, stop unwrapping frozen payloads, or discard inherited source
-faults. Context mutants accept quoted account strings or duplicate roster occupants, bypass pin validation,
+faults. Context mutants accept quoted account strings or duplicate roster occupants,
+bypass pin grammar or identity validation,
 mislabel fixed metadata, drop mixed-thread or opener-fork
 witnesses, alter the accepted count and hide the frontier. It leaves the
 worktree untouched.

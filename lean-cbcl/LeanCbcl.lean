@@ -295,3 +295,5 @@ import LeanCbcl.StateInstalledBoundsTests
 import LeanCbcl.StateFiniteDenseCacheTests
 
 import LeanCbcl.StateContextCastSyntaxTests
+
+import LeanCbcl.StateContextWrapperSyntaxTests

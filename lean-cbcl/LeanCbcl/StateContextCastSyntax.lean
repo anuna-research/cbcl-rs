@@ -1,7 +1,7 @@
 import LeanCbcl.StateInstalledContext
 import LeanCbcl.SExpr
 
-/-! Context cast raw before semantic role validation. The accepted grammar is
+/-! Context cast syntax before semantic role validation. The accepted grammar is
 bindings := (binding*), binding := (symbol symbol*). Cardinality, completeness,
 unknown roles and duplicates are checked by the installed context gate. Quoted
 strings and keywords never become role/account symbols. -/
@@ -24,7 +24,7 @@ def bindings : SExpr → Option (List ResourceRoleBinding)
   | .list rows => rows.mapM binding
   | _ => none
 
-/-- Preserve malformed raw as a fault-bearing field, never absence. -/
+/-- Preserve malformed syntax as a fault-bearing field, never absence. -/
 def field (raw : SExpr) : ResourceField (List ResourceRoleBinding) :=
   match bindings raw with
   | some rows => .value rows
@@ -64,7 +64,7 @@ theorem bindings_roundtrip (rows : List ResourceRoleBinding) : bindings (encode 
     | cons row rest ih => simp [binding_roundtrip,ih]
   exact sequence rows
 
-/-- The new raw raw path preserves every existing typed semantic gate. -/
+/-- The new raw syntax path preserves every existing typed semantic gate. -/
 theorem recognize_encoded (definition : Definition) (rows : List ResourceRoleBinding) :
     recognize definition (encode rows) = if bindingsCheck definition rows then some rows else none := by
   simp [recognize,bindings_roundtrip]
@@ -78,8 +78,8 @@ theorem recognize_iff (definition : Definition) (raw : SExpr) (rows : List Resou
     cases checked : bindingsCheck definition found <;> simp [recognize,parsed,checked] <;>
       rintro rfl <;> exact checked
 
-/-- The source-owned context decoder consumes raw cast raw directly. With
-no pin, raw plus semantic recognition is exactly the installed cast result. -/
+/-- The source-owned context decoder consumes raw cast syntax directly. With
+no pin, syntax plus semantic recognition is exactly the installed cast result. -/
 theorem installed_cast (definition : Definition) (raw : SExpr) (address : Nat) (thread : Option String) :
     cast ⟨definition,(fun _ => ⟨thread,field raw,.absent⟩),(fun _ => "")⟩ address = recognize definition raw := by
   cases parsed : bindings raw with

@@ -1250,3 +1250,33 @@
 ;; Remaining: wrapper traversal and pin syntax, general message metadata/admission,
 ;; literal Rust installation/mutable reader/wire/renderer correspondence. The
 ;; raw binding-tree bridge does not discharge these or full SPEC acceptance.
+
+;; Context wrapper/pin checkpoint (REQ-3811 / TEST-3809).
+;; StateContextWrapperSyntax recognizes exactly bindings or bindings :dialect
+;; pin. pinCheck_iff and pin_length establish exact sha256 prefix, lowercase
+;; ASCII hex64 and total character length71. String and typed-symbol forms
+;; agree; successful pin parsing retains its original spelling. No repair.
+;; metadata retains parsed malformed parameters as an explicit malformed cast.
+;; installed_cast composes whole parameter recognition to actual context casting,
+;; including absent/matching/wrong pins and all installed semantic role checks.
+;; unpinned reduces to prior raw-cast gate; matching/wrong-pin and fixed-parameter
+;; theorems derive rejection/acceptance without an external typed-pin assumption.
+;; Context oracle wrapper-params traverses both strict S-expression parsers and
+;; native message parsing/fold. Exact reference digest at the pin value slot maps
+;; to native installed hash and independent Lean identity token. All other pins
+;; remain unchanged; cryptographic identity normalization remains a boundary.
+;; Added context-wrapper parser-only profile to compare native parse_wrapper_cast
+;; acceptance before the independent context identity gate can mask a permissive
+;; grammar regression. Directed and generated complete context cases use raw
+;; parameters, good/wrong pins, uppercase/Unicode, bad prefix/length, nontext pins,
+;; misplaced/quoted/unknown keywords and extra parameters.
+;; Verification: aggregate library/oracle build, Batteries env-linter and 1889
+;; allowlisted theorem audits pass. Five proof mutants fail prefix/length checks,
+;; quoted keyword rejection, wrong-pin identity and malformed-vs-absent equations.
+;; Actual isolated native pin grammar bypass fails parser-only live comparison;
+;; all six live suites pass at512 cases/seed380038. Verified-by/diff checks pass;
+;; no new unresolved vault pairs and zero syntax/SPL diagnostics. Independent
+;; read-only review found no defect in proofs, normalization, harness or scope.
+;; General whole-message wrapper traversal, metadata extraction/authentication,
+;; literal native installation/mutable reader/wire/renderer proofs still remain.
+;; These parameter-level results do not establish full SPEC-038 completion.

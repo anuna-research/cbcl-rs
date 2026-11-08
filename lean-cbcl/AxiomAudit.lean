@@ -1,3 +1,4 @@
+import LeanCbcl.StateContextWrapperSyntaxTests
 import LeanCbcl.StateContextCastSyntaxTests
 import LeanCbcl.StateFiniteDenseCacheTests
 import LeanCbcl.StateInstalledBoundsTests
@@ -2778,3 +2779,24 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateContextCastSyntaxTests.missing_rejected
 #print axioms CBCL.StateContextCastSyntaxTests.empty_rejected
 #print axioms CBCL.StateContextCastSyntaxTests.malformed_not_absent
+
+#print axioms CBCL.StateContextWrapperSyntax.pinCheck_iff
+#print axioms CBCL.StateContextWrapperSyntax.pin_length
+#print axioms CBCL.StateContextWrapperSyntax.pin_string_iff
+#print axioms CBCL.StateContextWrapperSyntax.pin_symbol
+#print axioms CBCL.StateContextWrapperSyntax.installed_cast
+#print axioms CBCL.StateContextWrapperSyntax.unpinned
+#print axioms CBCL.StateContextWrapperSyntax.pinned_decode
+#print axioms CBCL.StateContextWrapperSyntax.wrong_pin
+#print axioms CBCL.StateContextWrapperSyntax.matching_pin
+#print axioms CBCL.StateContextWrapperSyntax.quoted_keyword_rejected
+#print axioms CBCL.StateContextWrapperSyntax.extra_parameter_rejected
+#print axioms CBCL.StateContextWrapperSyntaxTests.valid_digest
+#print axioms CBCL.StateContextWrapperSyntaxTests.pin_kinds
+#print axioms CBCL.StateContextWrapperSyntaxTests.wrong_prefix
+#print axioms CBCL.StateContextWrapperSyntaxTests.wrong_length
+#print axioms CBCL.StateContextWrapperSyntaxTests.invalid_alphabet
+#print axioms CBCL.StateContextWrapperSyntaxTests.bool_pin_rejected
+#print axioms CBCL.StateContextWrapperSyntaxTests.wrapper_accepted
+#print axioms CBCL.StateContextWrapperSyntaxTests.unknown_keyword
+#print axioms CBCL.StateContextWrapperSyntaxTests.malformed_wrapper
