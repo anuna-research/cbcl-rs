@@ -1,3 +1,5 @@
+import LeanCbcl.StatePreparedOutputsTests
+import LeanCbcl.StateThresholdDispatchTests
 import LeanCbcl.StateCausalRank
 import LeanCbcl.StateFrozenBodyEquationsTests
 import LeanCbcl.StateCompiledFieldEquationsTests
@@ -2269,3 +2271,23 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateCausalRank.cut_refinement
 #print axioms CBCL.StateCausalRank.descending_check
 #print axioms CBCL.StateCausalRank.descending_cut
+
+#print axioms CBCL.StateThresholdDispatch.raw_scope_refinement
+#print axioms CBCL.StateThresholdDispatch.dispatch_refinement
+#print axioms CBCL.StateThresholdDispatch.prepared_threshold_reference
+#print axioms CBCL.StateThresholdDispatchTests.allocated_raw_cut
+#print axioms CBCL.StateThresholdDispatchTests.pending_source_reaches
+#print axioms CBCL.StateThresholdDispatchTests.display_does_not_replace_raw
+
+#print axioms CBCL.StateThresholdDispatch.installed_factored_rejects
+#print axioms CBCL.StateThresholdDispatch.installed_scope_refinement
+
+#print axioms CBCL.StatePreparedOutputs.threshold_available
+#print axioms CBCL.StatePreparedOutputs.evaluate_complete
+#print axioms CBCL.StatePreparedOutputs.evaluate_values_map
+#print axioms CBCL.StatePreparedOutputs.evaluate_congr
+#print axioms CBCL.StatePreparedOutputs.initial_keys_shapes
+#print axioms CBCL.StatePreparedOutputs.prepared_output_admitted
+#print axioms CBCL.StatePreparedOutputs.prepared_outputs
+#print axioms CBCL.StatePreparedOutputs.prepared_cache_outputs
+#print axioms CBCL.StatePreparedOutputsTests.concrete_cache_outputs

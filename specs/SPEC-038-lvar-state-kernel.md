@@ -1295,15 +1295,29 @@ retaining original semantic addresses. Its descending-address fixture preserves
 an edge from address 99 to address 2. This search is not yet wired into the
 scope pool or live oracle; constructing a topological order from arbitrary native
 history order and composing it with those readers remain required.
-Threshold-output adaptation also remains open: source-request equality includes
-threshold source reads, but does not establish the subsequent raw-state scope.
-A native fold regression now reproduces the domain-initialization distinction:
-a concurrent initializer outside the freezer cut enables a full-history count
-of one while the frozen source remains zero and its threshold pending. Replacing
-the threshold context with the full history makes that executed regression fail.
-The fixture exercises typed-history fold, not protocol admission. The remaining
-composition must select the frozen cut or prove the necessary locality; absence
-of late contributing writes alone does not establish it.
+`StateThresholdDispatch.lean` now proves that allocated raw-threshold scope is
+exactly the semantic selected-freezer cut. Completed source faults are preserved;
+healthy raw reads do not require a displayed payload or full-history locality.
+`installedAt` takes policies, tests and carriers from the named installed source,
+covering native closure, factored raw-term and checked finite-lattice queries.
+
+`StatePreparedOutputs.lean` walks the actual prepared declarations with evolving
+source definitions. `evaluate_complete` constructs successful outputs from
+successful lowering, excluding equality caused by two failed output walks.
+`prepared_cache_outputs` connects the actual empty-cache source transcript to a
+common successful output list, composing source observations, source-owned
+threshold policies and exact raw cuts in declaration order. A concrete authored
+context/count/threshold/freeze fixture constructs both installation and outputs.
+
+This output reference uses corrected cut-scoped threshold dispatch. It is not
+equivalence with the older full-history `thresholdRaw` plan constructor; updating
+the installed output-plan compiler and its refinement remains required. A native
+fold regression reproduces why the distinction matters: a concurrent domain
+initializer outside the freezer cut enables a full-history count of one while
+the frozen source remains zero and its threshold pending. Replacing the threshold
+context with full history makes that executed regression fail. The fixture
+exercises typed-history fold, not protocol admission. Absence of late contributing
+writes alone does not prove raw-carrier locality.
 Literal Rust value representation and public serialized
 rendering remain separate boundaries. Helpers remain total outside the admitted
 request domain, which does not model Rust's indexing or unknown-field no-insert

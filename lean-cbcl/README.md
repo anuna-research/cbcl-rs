@@ -484,9 +484,15 @@ reference and complete initial source-request transcript/cache equal the compile
 plan meanings for prepared clauses with freezes. Concrete fixtures cover
 incomparable cuts and a prepared context/count/threshold/freeze clause.
 These results require content-consistent histories with numeric addresses ranking
-causal edges. Address-independent graph coverage and final threshold-output
-adaptation remain open; threshold source reads alone do not prove raw-state scope
-selection for the final output.
+causal edges. Address-independent graph integration remains open.
+`StateThresholdDispatch` now identifies allocated raw scopes with exact semantic
+freezer cuts. `StatePreparedOutputs.prepared_cache_outputs` composes actual
+empty-cache source transcripts into successful output lists using source-owned
+native, factored and finite query policies. A concrete authored fixture constructs
+installation and outputs; missing/extra transcript values fail explicitly.
+The output reference uses corrected cut-scoped dispatch. Equivalence with the
+older full-history `thresholdRaw` output plans is not claimed; updating that
+compiler and refinement remains required.
 `StateCausalRank` proves address-independent bounded ancestry and exact cuts
 under a recognized topological history order. Its descending-address witness
 preserves semantic addresses; integrating this search into the scope pool and

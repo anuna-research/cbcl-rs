@@ -501,3 +501,25 @@
 ;; syntax/SPL errors; verified-by lint passes. Threshold-output composition and
 ;; literal native extraction/installation/rendering boundaries remain open.
 ;; Axiom audit: 1459 theorems, all dependencies allowlisted.
+
+;; Complete output-walk continuation for [[SPEC-038-lvar-state-kernel#TEST-3806]]:
+;; StateThresholdDispatch constructs exact allocated raw scope versus semantic
+;; selected cut. Source faults survive; raw queries also evaluate pending data.
+;; installedAt obtains policy/test/carrier from the named source metadata and
+;; supports native closure, factored raw-term and checked finite queries.
+;; StatePreparedOutputs walks actual prepared declarations with evolving source
+;; metadata. evaluate_complete constructs successful outputs from resolve;
+;; prepared_cache_outputs consumes the actual empty-cache source transcript and
+;; produces the same successful outputs as the corrected cut-scoped reference.
+;; Concrete authored context/count/threshold/freeze fixture constructs both
+;; successful preparation and output execution. Adapter-only fixtures separately
+;; distinguish raw carrier from pending/misleading displayed source payloads.
+;; This does not equate new output semantics with old full-history thresholdRaw
+;; plans: installed output-plan compiler/refinement still requires correction.
+;; Separate causal-rank scope integration and literal Rust installation/extraction
+;; and serialized output correspondence remain explicit obligations.
+;; Verification: full build and Batteries env-linter pass; 1476 theorems pass
+;; the axiom audit. Seven focused mutants fail intended scope/policy/transcript
+;; theorems. Verified-by lint passes; vault adds no unresolved pairs or syntax/SPL
+;; errors. Independent proof, fixture and artifact review found no defect or
+;; overstatement in the explicitly bounded output-reference composition.

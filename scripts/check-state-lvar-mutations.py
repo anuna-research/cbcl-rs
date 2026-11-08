@@ -262,6 +262,19 @@ suites.append(("StateInstalledRecognition", (root / "lean-cbcl/LeanCbcl/StateIns
     ("recognition-tail-check-bypassed", "check (extend definitions declaration) (declaration.name::names) rest", "true", "check_iff"),
 ]))
 
+suites.append(("StatePreparedOutputs", (root / "lean-cbcl/LeanCbcl/StatePreparedOutputs.lean").read_text(), [
+    ("output-threshold-requests-output-name", "| .threshold _ source _ => source", "| .threshold name _ _ => name", "prepared_output_admitted"),
+    ("output-transcript-payload-discarded", "| .field _ _ => some value", "| .field _ _ => some (.data .pending)", "evaluate_values_map"),
+    ("output-policy-environment-not-extended", "let tail ← evaluate scopes read (extend definitions declaration) rest", "let tail ← evaluate scopes read definitions rest", "evaluate_complete"),
+]))
+
+suites.append(("StateThresholdDispatch", (root / "lean-cbcl/LeanCbcl/StateThresholdDispatch.lean").read_text(), [
+    ("threshold-raw-scope-index-erased", "(((StateReaderValues.operations entries whole fields freezes).cut name).getD 0,name)", "(0,name)", "raw_scope_refinement"),
+    ("threshold-semantic-cut-ignored", "causalCut (fun act => act ∈ normalize whole) (normalize whole) root", "normalize whole", "raw_scope_refinement"),
+    ("threshold-factored-policy-unchecked", "if policy.check elements then some (nativeRawThreshold", "if true then some (nativeRawThreshold", "installed_factored_rejects"),
+    ("threshold-dispatch-uses-full-history", "rawHistory (rawScope entries whole fields freezes name)", "rawHistory (normalize whole)", "dispatch_refinement"),
+]))
+
 suites.append(("StateCausalRank", (root / "lean-cbcl/LeanCbcl/StateCausalRank.lean").read_text(), [
     ("causal-rank-search-uses-address-fuel", "reachable (history.length + 1) history a freezer", "reachable (freezer.addr + 1) history a freezer", "ancestor_iff"),
     ("causal-rank-cut-ignored", "history.filter (fun a => ancestor history a freezer)", "history", "cut_refinement"),

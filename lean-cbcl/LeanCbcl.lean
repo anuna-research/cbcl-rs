@@ -239,3 +239,7 @@ import LeanCbcl.StateCompiledFieldEquationsTests
 import LeanCbcl.StateFrozenBodyEquationsTests
 
 import LeanCbcl.StateCausalRank
+
+import LeanCbcl.StateThresholdDispatchTests
+
+import LeanCbcl.StatePreparedOutputsTests
