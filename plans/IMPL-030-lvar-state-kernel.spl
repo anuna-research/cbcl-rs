@@ -691,3 +691,30 @@
 ;; or syntax/SPL diagnostics. Validated-field and selected unique-freezer
 ;; boundaries are explicit. Complete authored plan lookup, no-root outputs,
 ;; other source policies and native extraction/rendering remain open.
+
+;; Finite output stability across all root outcomes for
+;; [[SPEC-038-lvar-state-kernel#TEST-3806]]: StateFiniteOutputStability handles
+;; optional fault-freeze metadata and every actual unique-root outcome. Healthy
+;; unfrozen/absent-root reads use normalized full history; selected roots derive
+;; exact finite state locality. The actual observed source supplies domain/top
+;; and freeze faults, including concurrent roots whose unique selector is none.
+;; General output_success_or_fault no longer takes a selected-root premise;
+;; output_reached establishes actual emitted success when its source is clear.
+;; Fixtures prove unfrozen/waiting output success, explicit absent selectors,
+;; and actual emitted concurrent-freezer fault under reverse/duplicate delivery.
+;; installed_threshold_success_or_fault derives final guarded source lookup
+;; from successful installed field compilation, the original finite source rule
+;; and named freeze metadata. The actual compileOne emits the threshold; other
+;; fields/freezes coexist. A fixture constructs the dictionary then emitted
+;; output without assuming the final source-plan lookup. Original resolved-rule,
+;; retained-definition and freeze identifications remain premises; their full
+;; extraction from arbitrary authored preparation remains required.
+;; Verification: aggregate build and Batteries env-linter pass; 1567 theorem
+;; audits use only allowlisted axioms. Five focused mutations fail intended
+;; source-clarity, scope-state and installed-output theorems: erased source
+;; guard, erased freeze decoration, unintended unfrozen cut, mismatched original
+;; source guard and disconnected freeze metadata. Verified-by lint passes;
+;; no new unresolved vault pairs or syntax/SPL diagnostics. Independent proof,
+;; fixture and evidence-scope review finds no defect/overstatement. Other native
+;; policies, arbitrary authored extraction and native representation/rendering
+;; remain open; the outstanding quasi-determinism task is not completed.

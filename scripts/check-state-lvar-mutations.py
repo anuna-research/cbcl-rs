@@ -409,6 +409,19 @@ suites.append(("StateFiniteFreezePolicy", (root / "lean-cbcl/LeanCbcl/StateFinit
      "[] := by", "output_success_or_fault"),
 ]))
 
+suites.append(("StateFiniteOutputStability", (root / "lean-cbcl/LeanCbcl/StateFiniteOutputStability.lean").read_text(), [
+    ("installed-finite-source-guard-assumed-away", "(original : clause.fields.lookup sourceName = some (.source (StateInstalledFinite.source field)))",
+     "(original : clause.fields.lookup sourceName = some (.source (.snapshot (fun _ => .element (.scalar (.bool true))))))", "installed_threshold_success_or_fault"),
+    ("installed-finite-freeze-metadata-disconnected", "(metadata : clause.freezes.lookup sourceName = declaration.map (freezeSpec field (StateScopePool.normalize B)))",
+     "(metadata : clause.freezes.lookup sourceName = none)", "installed_threshold_success_or_fault"),
+    ("unfrozen-finite-source-guard-removed", "| none => sourcePlan (StateInstalledFinite.source field)",
+     "| none => .snapshot (fun _ => .element (.scalar (.bool true)))", "source_clear"),
+    ("finite-freeze-source-decoration-removed", "| some verb => frozenPlan field whole verb",
+     "| some _ => sourcePlan (StateInstalledFinite.source field)", "scope_state"),
+    ("unfrozen-finite-output-dispatches-a-cut", "| none => []\n  | some verb => [(name,freezeSpec field whole verb)]",
+     '| none => [(name,freezeSpec field whole "close")]\n  | some verb => [(name,freezeSpec field whole verb)]', "scope_state"),
+]))
+
 # Preserve the full default gate while allowing a focused continuation check.
 import argparse
 parser = argparse.ArgumentParser(description=__doc__)

@@ -1,3 +1,4 @@
+import LeanCbcl.StateFiniteOutputStabilityTests
 import LeanCbcl.StateFiniteFreezePolicyTests
 import LeanCbcl.StateDomainSupportLocalityTests
 import LeanCbcl.StateOpenerLocalityTests
@@ -2388,3 +2389,20 @@ editing only this file is enough to extend the audit.
 
 #print axioms CBCL.StateFiniteFreezePolicyTests.normalized_source_clear
 #print axioms CBCL.StateFiniteFreezePolicyTests.compiled_mixed_domain_reached
+
+#print axioms CBCL.StateFiniteOutputStability.source_clear
+#print axioms CBCL.StateFiniteOutputStability.non_top
+#print axioms CBCL.StateFiniteOutputStability.scope_state
+#print axioms CBCL.StateFiniteOutputStability.run_reached
+#print axioms CBCL.StateFiniteOutputStability.output_success_or_fault
+#print axioms CBCL.StateFiniteOutputStability.output_reached
+
+#print axioms CBCL.StateFiniteOutputStabilityTests.waiting_root_absent
+#print axioms CBCL.StateFiniteOutputStabilityTests.before_clear
+#print axioms CBCL.StateFiniteOutputStabilityTests.unfrozen_output_reached
+#print axioms CBCL.StateFiniteOutputStabilityTests.waiting_output_reached
+#print axioms CBCL.StateFiniteOutputStabilityTests.concurrent_root_absent
+#print axioms CBCL.StateFiniteOutputStabilityTests.concurrent_output_faults
+
+#print axioms CBCL.StateFiniteOutputStability.installed_threshold_success_or_fault
+#print axioms CBCL.StateFiniteOutputStabilityTests.installed_dictionary_output

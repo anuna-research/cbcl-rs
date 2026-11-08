@@ -255,3 +255,5 @@ import LeanCbcl.StateOpenerLocalityTests
 import LeanCbcl.StateDomainSupportLocalityTests
 
 import LeanCbcl.StateFiniteFreezePolicyTests
+
+import LeanCbcl.StateFiniteOutputStabilityTests

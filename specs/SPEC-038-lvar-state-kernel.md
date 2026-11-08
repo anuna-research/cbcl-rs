@@ -1387,10 +1387,28 @@ and the public output adapter. Fixtures compute a checked three-element table,
 non-bottom prior success, mixed initializer/roster domains, reverse/duplicate
 delivery and the bypassed-initializer fault.
 
-This composition starts from a validated finite field and a selected unique
-freezer. Complete authored source-plan lookup/extraction, unselected/no-root
-outputs, other native source policies and complete native installation
-correspondence remain separate composition obligations.
+`StateFiniteOutputStability.lean` generalizes the composition over optional
+fault-freeze declarations and every actual root-selection outcome. Unfrozen and
+unselected-root reads use normalized full history; selected roots use the exact
+cut. The observed source retains all domain/top and freeze guards, so concurrent
+earliest freezers fault even when the unique-root selector returns none.
+`output_success_or_fault` no longer requires a selected root; `output_reached`
+proves actual success when the complete source is clear. Fixtures establish
+emitted success without a freeze declaration and while awaiting a freezer, and
+an emitted fault under concurrent closes, including the absent-root checks.
+
+`installed_threshold_success_or_fault` also derives the final guarded source
+lookup from the original finite source rule and successful installed-field
+compilation. It invokes the actual one-declaration output compiler and permits
+other fields and freeze declarations in the same clause. Its fixture constructs
+the final dictionary before compiling the threshold; no compiled source-plan
+lookup is assumed.
+
+These compositions start from a validated finite field. The installed connection
+identifies its original resolved source rule, retained query definition and
+matching freeze metadata. Extracting those identifications from arbitrary
+authored preparation, other native source policies and complete native
+installation correspondence remain separate composition obligations.
 Literal Rust value representation and public serialized
 rendering remain separate boundaries. Helpers remain total outside the admitted
 request domain, which does not model Rust's indexing or unknown-field no-insert
