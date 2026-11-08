@@ -262,3 +262,13 @@
 ;; cached-upper-set equivalence, authored completeness without prepared WF
 ;; premises, and explicit installation/wire/rank/renderer correspondence. This
 ;; is verified progress, not the task's completion evidence.
+
+;; Native scoped-reader continuation: StateNativeReader independently evaluates
+;; scoped error and value passes with global freeze plans. Full error equality
+;; covers faulted histories; clear-history cut induction closes nested values,
+;; yielding native_reader_refinement on closed unique histories. Fresh read-only
+;; review found no proof defect and confirmed this is a functional Plan-reader
+;; theorem, not a mutable Rust cache/dependency-lookup extraction theorem.
+;; Focused mutations reject lost freeze faults, ignored cuts and hidden fault
+;; headers at the named proof obligations. Literal Rust reader correspondence
+;; and the previously recorded installation/optimized-check boundaries remain.

@@ -1079,8 +1079,12 @@ evidence inclusion plus `eventual_authored_fault` using actual replica witness
 dissemination. The latter disseminates the finite source accepted history, not
 an extracted minimal witness. `StateFreezeScopes.lean` proves closed-scope
 freezer selection, equality of cached global cuts, and
-`cached_plan_data_refinement` for globally clear source/freeze paths. The
-faulting cases and complete native recursive-reader composition remain open.
+`cached_plan_data_refinement` for globally clear source/freeze paths.
+`StateNativeReader.lean` independently evaluates scoped error and value passes
+using full-history freeze plans. `native_reader_refinement` proves complete
+observation equality, including faults and nested freezes, on closed histories
+with unique addresses. This is the functional plan-reader composition;
+correspondence to Rust mutable cache entries and dependency lookup remains open.
 
 A native regression found that a data-domain-excluded tick could evade progress
 freeze evidence although progress reads raw history. The Rust selector and
@@ -1097,7 +1101,8 @@ The installed semantic IR still receives native closure implementations and
 recognized immutable metadata as leaf parameters. The authored lowering above still needs complete native installation-gate
 correspondence, authored completeness without relying on prepared-reference
 premises, the optimized cached-upper-set checker bridge, and composition with
-the complete faulting native scoped/memoized reader. Typed metadata extraction must
+the literal Rust scoped/memoized reader. The functional cached plan-reader
+composition is proved, including faulted reads. Typed metadata extraction must
 preserve native scalar distinctions, including quoted strings versus symbols.
 Generic IR correctness and individual factories are not evidence that this full
 literal source binding and composition theorem is complete. The

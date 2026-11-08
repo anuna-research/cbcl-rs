@@ -207,3 +207,5 @@ import LeanCbcl.StateFreezeGrowth
 import LeanCbcl.StateFreezeScopes
 
 import LeanCbcl.StateCompiledFreezeGrowth
+
+import LeanCbcl.StateNativeReader

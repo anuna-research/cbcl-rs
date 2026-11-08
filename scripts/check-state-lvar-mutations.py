@@ -233,6 +233,12 @@ suites.extend([
     ]),
 ])
 
+suites.append(("StateNativeReader", (root / "lean-cbcl/LeanCbcl/StateNativeReader.lean").read_text(), [
+    ("native-reader-freeze-fault-dropped", "(freezeFault world spec.verb spec.contributes spec.policy none whole)", "none", "full_error_refinement"),
+    ("native-reader-freeze-cut-ignored", "| _, .freeze spec source, scope => frozenData (cachedFreeze world spec (fun cut => value world whole source cut) whole scope)", "| _, .freeze spec source, scope => frozenData (cachedFreeze world spec (fun _ => value world whole source whole) whole scope)", "scoped_value_refinement"),
+    ("native-reader-fault-header-hidden", "| some evidence => .fault evidence", "| some _ => .data (value world whole plan whole)", "native_reader_refinement"),
+]))
+
 # Preserve the full default gate while allowing a focused continuation check.
 import argparse
 parser = argparse.ArgumentParser(description=__doc__)

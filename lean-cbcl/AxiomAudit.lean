@@ -1,3 +1,4 @@
+import LeanCbcl.StateNativeReader
 import LeanCbcl.StateCompiledFreezeGrowth
 import LeanCbcl.StateFreezeScopes
 import LeanCbcl.StateFreezeGrowth
@@ -1992,3 +1993,12 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateCompiledFreezeGrowth.authored_fault_grows
 
 #print axioms CBCL.StateCompiledFreezeGrowth.eventual_authored_fault
+
+#print axioms CBCL.StateNativeReader.freeze_error_union
+#print axioms CBCL.StateNativeReader.full_error_refinement
+#print axioms CBCL.StateNativeReader.union_clear
+#print axioms CBCL.StateNativeReader.freeze_clear
+#print axioms CBCL.StateNativeReader.scoped_error_clear
+#print axioms CBCL.StateNativeReader.cached_congr
+#print axioms CBCL.StateNativeReader.scoped_value_refinement
+#print axioms CBCL.StateNativeReader.native_reader_refinement

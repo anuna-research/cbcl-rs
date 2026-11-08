@@ -423,9 +423,10 @@ lowering, with history-independent metadata checks and observation-specific
 freeze templates. `StateCompiledFreezeGrowth` reflects actual compiled error
 paths and proves named fault growth and eventual dissemination while plans are
 regenerated. `StateFreezeScopes` connects clear global cached cuts to nested
-plan data. Complete faulting native-reader recursion, optimized upper-set check
-correspondence, and authored completeness beyond prepared-reference premises
-remain open. Native
+plan data. `StateNativeReader` proves complete functional cached plan-reader
+equality, including faulted reads and nested freeze dependencies. Literal Rust
+mutable-reader/cache correspondence, optimized upper-set check correspondence,
+and authored completeness beyond prepared-reference premises remain open. Native
 missing-link lists, owner tips, diagnostic reasons and canonical serialization
 are outside the modeled resource read. SPEC-038 acceptance remains partial.
 
