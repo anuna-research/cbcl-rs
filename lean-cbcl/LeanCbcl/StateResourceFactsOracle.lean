@@ -4,7 +4,14 @@ import LeanCbcl.StateResourceOracle
 Address aliases and common instance tags are fixture representations, not native
 message, signature, content-hash or admission extraction. -/
 namespace CBCL.StateResourceFactsOracle
-open Lean State CheckpointEvidence StateResource StateResourceTests
+open Lean State CheckpointEvidence StateResource StateResourceTests StateResourcePreflight StateResourceAggregate
+
+/-- Capped configuration enables actual headroom transfers alongside rights. -/
+def capped : ResourceConfig := {config with ceiling := some 2000,headroomKey := some "space",transferHeadroom := some ⟨"space","amount",some "recipient"⟩}
+
+/-- The capped fixture satisfies numeric installation bounds and unique verbs. -/
+theorem capped_configuration : NativeConfiguration capped ∧ (capped.initialVerb :: operationNames capped).Nodup := by
+  exact ⟨(configurationCheck_iff capped).mp (by decide),by decide⟩
 
 /-- Decimal padded aliases satisfy native state-address spelling for bounded IDs. -/
 def address (id : Nat) : String :=
@@ -45,6 +52,7 @@ def operation (id : Nat) (j : Json) : Except String ResourceFact := do
     | "burn" => pure ResourceKind.decrement
     | "pay" => pure ResourceKind.transfer
     | "tell" => pure ResourceKind.other
+    | "space" => pure ResourceKind.transferHeadroom
     | _ => throw "unknown resource operation"
   let signer ← owner (← j.getObjVal? "owner")
   let recipient ← owner (← j.getObjVal? "recipient")
@@ -56,23 +64,30 @@ def operation (id : Nat) (j : Json) : Except String ResourceFact := do
     | other => (reference other).map some
   let deps ← references (← j.getObjVal? "deps")
   let causes ← references (← j.getObjVal? "causes")
-  let selected : ResourceSelected := {resource := "coins",verb := verb,predecessors := causes,authenticatedFrom := .value signer,amountStatus := .recognized,previousStatus := if prev.isSome then .recognized else .absent,dependenciesStatus := .recognized,recipient := if verb == "pay" then some recipient else none,recipientStatus := if verb == "pay" then .recognized else .absent}
+  let selected : ResourceSelected := {resource := "coins",verb := verb,predecessors := causes,authenticatedFrom := .value signer,amountStatus := .recognized,previousStatus := if prev.isSome then .recognized else .absent,dependenciesStatus := .recognized,recipient := if verb == "pay" || verb == "space" then some recipient else none,recipientStatus := if verb == "pay" || verb == "space" then .recognized else .absent}
   return ⟨id,{signer := signer,kind := kind,amount := amount,prev := prev,deps := deps,selected := selected}⟩
 
 /-- Execute the full verifier on up to sixteen typed operations, including cycles,
 missing evidence, cross-owner links, forks, transfers and causal context. -/
 def run (j : Json) : Except String Json := do
-  keys ["profile","root","opener","reverse","nodes"] j
+  keys ["profile","root","opener","reverse","nodes","bounded"] j
+  let bounded ← StateResourceOracle.optionalFlag j "bounded"
   let hasRoot ← (← j.getObjVal? "root").getBool?
   let hasOpener ← (← j.getObjVal? "opener").getBool?
   let reverse ← (← j.getObjVal? "reverse").getBool?
   let nodes ← (← j.getObjVal? "nodes").getArr?
   if nodes.size > 16 then throw "resource nodes exceed 16"
   let operations ← nodes.toList.zipIdx.mapM (fun (node,index) => operation (index + 3) node)
-  let facts := (if hasRoot then [root] else []) ++ (if hasOpener then [opener] else []) ++ operations
+  let selectedOpener := if bounded then {opener with data := {opener.data with selected := {opener.data.selected with headroomAllocations := .value [("@treasury",1000),("@alice",0),("@bob",0)]}}} else opener
+  let facts := (if hasRoot then [root] else []) ++ (if hasOpener then [selectedOpener] else []) ++ operations
   let facts := if reverse then facts.reverse else facts
-  let names := facts.map (fun fact => (fact.id,address fact.id))
-  let request := Json.mkObj [("addresses",toJson names)]
-  StateResourceOracle.observeFacts request facts
+  let c := if bounded then capped else config
+  let input ← if bounded then StateResourceOracle.checkedInputWith capped facts (fun _ => capped_configuration)
+    else StateResourceOracle.checkedInput facts
+  let current := StateResourceVerifier.observe input
+  let output ← StateResourceOracle.readJson c facts address current
+  match current with
+  | .ready snapshot => return Json.mkObj (("ready_bytes",.str (StateJsonValue.emit (StateResourceOracle.readyValue snapshot) ""))::(← output.getObj?).toList)
+  | _ => pure output
 
 end CBCL.StateResourceFactsOracle

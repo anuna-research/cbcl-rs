@@ -1,3 +1,4 @@
+import LeanCbcl.StateResourceFactsOracle
 import LeanCbcl.StateResourceRendering
 import LeanCbcl.StateResourceOracle
 import LeanCbcl.StateFreezeRendering
@@ -3072,3 +3073,5 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateResourceRendering.witnesses_grow
 #print axioms CBCL.StateResourceRendering.names_grow
 #print axioms CBCL.StateResourceRendering.serialized_fault_persists
+
+#print axioms CBCL.StateResourceFactsOracle.capped_configuration

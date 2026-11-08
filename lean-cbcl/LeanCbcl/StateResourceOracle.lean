@@ -14,21 +14,29 @@ theorem installed : NativeConfiguration config ∧ (config.initialVerb :: operat
   exact ⟨(configurationCheck_iff config).mp (by decide),by decide⟩
 
 /-- Recognize the physical bounds required by the complete resource verifier. -/
-def checkedInput (facts : Facts) : Except String StateResourceVerifier.Input := do
+def checkedInputWith (c : ResourceConfig) (facts : Facts)
+    (installation : unsupportedCheck c = false → NativeConfiguration c ∧ (c.initialVerb :: operationNames c).Nodup) :
+    Except String StateResourceVerifier.Input := do
   if unique : (facts.map Fact.id).Nodup then
     if bounded : facts.length ≤ 2^63 - 1 then
       if allocations : facts.all (fun node => decide (((accounts node.data.selected.initialAllocations).map Prod.fst).length ≤ 2^63 - 1)) = true then
-        return ⟨config,facts,unique,bounded,(fun _ => installed),
+        return ⟨c,facts,unique,bounded,installation,
           fun node member => of_decide_eq_true (List.all_eq_true.mp allocations node member)⟩
       else throw "account slice exceeds native bound"
     else throw "fact slice exceeds native bound"
   else throw "duplicate fact identity"
 
-/-- Fixed unbounded-resource snapshot in the native ordered map representation. -/
+/-- Use the proved unbounded fixture configuration for source-message profiles. -/
+def checkedInput (facts : Facts) : Except String StateResourceVerifier.Input :=
+  checkedInputWith config facts (fun _ => installed)
+
+/-- Three-account snapshot in native ordered map form, including optional headroom. -/
 def readyValue (snapshot : StateResourceFinalize.AggregateSnapshot) : StateJsonValue.Value :=
-  .map [(.str "rights",.map (["@alice","@bob","@treasury"].map (fun owner =>
-    (StateJsonValue.Value.str owner,StateJsonValue.Value.int (snapshot.rights owner))))),
+  let balances := fun balance : String → Int => StateJsonValue.Value.map
+    (["@alice","@bob","@treasury"].map (fun owner => (.str owner,.int (balance owner))))
+  let ordinary := [(StateJsonValue.Value.str "rights",balances snapshot.rights),
     (.str "status",.str "ready"),(.str "value",.int snapshot.value)]
+  .map (match snapshot.headroom with | none => ordinary | some space => (.str "headroom",balances space)::ordinary)
 
 /-- Normalize complete computed witnesses, comparing membership and raw array bytes. -/
 def faultJson (address : Nat → String) (ids : List Nat) : Except String Json := do
@@ -38,9 +46,9 @@ def faultJson (address : Nat → String) (ids : List Nat) : Except String Json :
     ("witness_bytes",.str (StateJsonValue.emit (.list (names.map StateJsonValue.Value.str)) ""))]
 
 /-- Present the actual full-history verifier read without a frozen wrapper. -/
-def readJson (facts : Facts) (address : Nat → String) : StateResourceValidated.Read → Except String Json
+def readJson (c : ResourceConfig) (facts : Facts) (address : Nat → String) : StateResourceValidated.Read → Except String Json
   | .pending => pure (Json.mkObj [("status",.str "pending")])
-  | .fault => faultJson address (StateResourceRendering.witnesses config facts)
+  | .fault => faultJson address (StateResourceRendering.witnesses c facts)
   | .ready snapshot => Json.parse (StateJsonValue.render (readyValue snapshot))
 
 /-- Execute the complete checked verifier and optional pay-triggered freeze.
@@ -54,7 +62,7 @@ def observeFacts (j : Json) (facts : Facts) (freeze : Bool := false) : Except St
   let address := fun id => (names.lookup id).getD ""
   let input ← checkedInput facts
   let current := StateResourceVerifier.observe input
-  if !freeze then return ← readJson facts address current
+  if !freeze then return ← readJson config facts address current
   let policy ← (← j.getObjVal? "fault_policy").getBool?
   let acts : List Act := facts.map (fun fact => ⟨fact.id,fact.data.selected.verb,fact.data.signer,fact.data.selected.predecessors,[],[]⟩)
   let raw := if StateResourceValidated.isFault current then some (StateResourceRendering.witnesses config facts) else none
@@ -66,7 +74,7 @@ def observeFacts (j : Json) (facts : Facts) (freeze : Bool := false) : Except St
     pure (readyValue snapshot)
   match StateExecutableFreeze.read acts "pay"
       (fun act => act.verb == config.initialVerb || StateResourceCycle.operationVerbCheck config act.verb) policy raw evaluate with
-  | .snapshot _ => readJson facts address current
+  | .snapshot _ => readJson config facts address current
   | .fault ids => faultJson address ids
   | .frozen root captured excluded => do
     let value ← captured

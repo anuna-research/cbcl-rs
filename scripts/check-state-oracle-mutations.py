@@ -55,6 +55,9 @@ with tempfile.TemporaryDirectory(prefix="cbcl-live-oracle-") as directory:
                               text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=300)
 
     mutants = [
+        ("resource-large-ready-unit-error", "escrow.rs", 'entries.insert(String::from("value"), Value::Int(s.value));', 'entries.insert(String::from("value"), Value::Int(if s.value > u64::MAX as i128 { s.value + 1 } else { s.value }));', resource_facts_test),
+        ("resource-space-charges-rights-budget", "escrow.rs", "let budget = if matches!(n.kind, Kind::Increment | Kind::Headroom) {", "let budget = if matches!(n.kind, Kind::Increment) {", resource_facts_test),
+        ("resource-burn-headroom-not-restored", "escrow.rs", "Kind::Decrement => {\n            add(rights, owner, -amount)?;\n            if let Some(h) = headroom {\n                add(h, owner, amount)?;", "Kind::Decrement => {\n            add(rights, owner, -amount)?;\n            if let Some(h) = headroom {\n                add(h, owner, 0)?;", resource_facts_test),
         ("resource-typed-cycle-accepted", "escrow.rs", "if summaries.len() != nodes.len() {", "if false {", resource_facts_test),
         ("resource-missing-evidence-hides-closed-fault", "escrow.rs", "let mut summaries: BTreeMap<String, Summary> = BTreeMap::new();", "if !missing.is_empty() { return Outcome::Pending(missing.into_iter().collect()); }\n    let mut summaries: BTreeMap<String, Summary> = BTreeMap::new();", resource_facts_test),
         ("resource-freeze-full-history-fault-hidden", "freeze.rs", "match (normal.fault_evidence(), freeze_fault)", "match (None::<Vec<String>>, freeze_fault)", resource_freeze_test),

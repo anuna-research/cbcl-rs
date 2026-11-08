@@ -480,20 +480,20 @@ funding/spend topology. Its closed JSON-value grammar is:
 
 ```text
 Request ::= { profile: "resource-facts", root: Bool, opener: Bool,
-              reverse: Bool, nodes: Node[0..16] }
+              reverse: Bool, nodes: Node[0..16], [bounded: Bool] }
 Node    ::= { kind: Kind, owner: Account, recipient: Account, amount: Amount,
               prev: null | Ref, deps: Ref[0..16], causes: Ref[0..16] }
 Bool    ::= true | false
-Kind    ::= "mint" | "burn" | "pay" | "tell"
+Kind    ::= "mint" | "burn" | "pay" | "tell" | "space"
 Account ::= 0 | 1 | 2 | 3
 Ref     ::= integer in [0,32]
 Amount  ::= integer in [-2^63,2^63-1]
 ```
 
-Object field order is immaterial; every listed field is required and extra fields
-are rejected. Accounts select treasury, Alice, Bob or an unauthorized outsider.
-The fixed installed configuration retains treasury's initial 1000 rights and
-zero initial rights for Alice and Bob. Root and opener have IDs 1 and 2; node
+Object field order is immaterial; every unbracketed field is required and extra
+fields are rejected. Optional `bounded` defaults to false only when absent. Accounts select treasury, Alice, Bob or an unauthorized outsider.
+The fixture configurations retain treasury's initial 1000 rights and zero initial
+rights for Alice and Bob. Root and opener have IDs 1 and 2; node
 IDs are assigned from 3 in original row order, before optional enumeration
 reversal. References may be absent, duplicate, self-referential or cyclic: those
 are verifier inputs, not recognizer errors. Malformed types and out-of-bound
@@ -521,3 +521,27 @@ include owner forks, dependency cycles, wrong-owner previous links, duplicate
 dependencies and an independently closed budget fault beside missing evidence.
 Mutations accepting cycles or allowing missing evidence to hide that closed
 fault are rejected by executed comparisons.
+
+With `bounded: true`, the typed resource fixture has ceiling 2000, initial
+headroom 1000 at treasury and zero at Alice and Bob, plus a `space` headroom
+transfer verb. The unbounded configuration treats `space` as nonresource context,
+matching native projection. `capped_configuration` proves the capped fixture's
+numeric configuration bounds and unique operation names. The shared input
+constructor still checks identity uniqueness and physical slice bounds; no
+resource verdict or witness classifier is supplied. Counter configuration and
+initializer headroom are explicit typed fixture data, not a complete capped
+dialect installation or source-message extraction proof.
+
+Ready snapshots now compare exact `ready_bytes` as well as parsed fields,
+including ordered rights and headroom maps. [[BUG-014-resource-oracle-can-round-large-ready-aggregates]]
+records why parsed numeric equality alone was insufficient for i128 aggregates.
+A valid chain of maximum signed-64-bit mints produces a value above the
+unsigned-64-bit range; an isolated one-unit native rendering mutation is caught
+by the exact byte comparison. The profile does not change public state JSON.
+
+Directed capped graphs cover exact/insufficient headroom, burn-restored capacity,
+headroom roundtrips between owners and minting against returned headroom with
+and without the required dependency frontier. Generated graphs mix both
+configurations and both rights/headroom transfers. Mutations charging a
+headroom transfer to rights or omitting a burn's restored headroom are rejected
+by executed comparisons.
