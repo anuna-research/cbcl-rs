@@ -2,7 +2,7 @@ import Lean
 import LeanCbcl.StateResourceVerifier
 import LeanCbcl.StateResourceTests
 
-/-! Live resource profile with one decrement and fixed account configuration.
+/-! Live resource profile with fixed account configuration and explicit decrement/funding graphs.
 Typed extraction is explicit; this profile does not establish native admission,
 wire extraction, or complete resource witness-byte correspondence. -/
 namespace CBCL.StateResourceOracle
@@ -12,16 +12,8 @@ open Lean State CheckpointEvidence StateResource StateResourcePreflight StateRes
 theorem installed : NativeConfiguration config ∧ (config.initialVerb :: operationNames config).Nodup := by
   exact ⟨(configurationCheck_iff config).mp (by decide),by decide⟩
 
-/-- Compare complete verifier status and ready balances, with explicit input bounds. -/
-def run (j : Json) : Except String Json := do
-  let amount ← (← j.getObjVal? "amount").getInt?
-  if amount < -(2^63) || amount ≥ 2^63 then throw "amount outside signed native wire integer"
-  let owner ← (← j.getObjVal? "owner").getStr?
-  if !["@treasury","@alice","@bob","@outsider"].contains owner then throw "unknown fixture account"
-  let hasRoot ← (← j.getObjVal? "root").getBool?
-  let hasOpener ← (← j.getObjVal? "opener").getBool?
-  let operation : ResourceFact := {burn with data := {burn.data with signer := owner, amount := amount, selected := {burn.data.selected with authenticatedFrom := .value owner}}}
-  let facts := (if hasRoot then [root] else []) ++ (if hasOpener then [opener] else []) ++ [operation]
+/-- Execute the complete checked verifier on a recognized finite fixture. -/
+def observeFacts (facts : Facts) : Except String Json := do
   if unique : (facts.map Fact.id).Nodup then
     if bounded : facts.length ≤ 2^63 - 1 then
       if allocations : facts.all (fun node => decide (((accounts node.data.selected.initialAllocations).map Prod.fst).length ≤ 2^63 - 1)) = true then
@@ -35,5 +27,34 @@ def run (j : Json) : Except String Json := do
       else throw "account slice exceeds native bound"
     else throw "fact slice exceeds native bound"
   else throw "duplicate fact identity"
+
+
+/-- Compare complete verifier status and ready balances, with explicit input bounds. -/
+def run (j : Json) : Except String Json := do
+  let amount ← (← j.getObjVal? "amount").getInt?
+  if amount < -(2^63) || amount ≥ 2^63 then throw "amount outside signed native wire integer"
+  let owner ← (← j.getObjVal? "owner").getStr?
+  if !["@treasury","@alice","@bob","@outsider"].contains owner then throw "unknown fixture account"
+  let hasRoot ← (← j.getObjVal? "root").getBool?
+  let hasOpener ← (← j.getObjVal? "opener").getBool?
+  let operation : ResourceFact := {burn with data := {burn.data with signer := owner, amount := amount, selected := {burn.data.selected with authenticatedFrom := .value owner}}}
+  let facts := (if hasRoot then [root] else []) ++ (if hasOpener then [opener] else []) ++ [operation]
+  observeFacts facts
+
+/-- A funding transfer and dependent burn exercise retained resource cones.
+Missing funding, omitted dependencies and an independent same-owner fork are
+explicit fixture choices, not expected-result inputs. -/
+def graphRun (j : Json) : Except String Json := do
+  let funding ← (← j.getObjVal? "funding").getInt?
+  let spend ← (← j.getObjVal? "spend").getInt?
+  if funding < -(2^63) || funding ≥ 2^63 || spend < -(2^63) || spend ≥ 2^63 then
+    throw "amount outside signed native wire integer"
+  let included ← (← j.getObjVal? "included").getBool?
+  let dependency ← (← j.getObjVal? "dependency").getBool?
+  let fork ← (← j.getObjVal? "fork").getBool?
+  let payment : ResourceFact := {burn with id := 4, data := {burn.data with signer := "@treasury", kind := .transfer, amount := funding, selected := {burn.data.selected with verb := "pay", authenticatedFrom := .value "@treasury", recipient := some "@alice", recipientStatus := .recognized}}}
+  let spent : ResourceFact := {burn with data := {burn.data with amount := spend, deps := if dependency then [4] else [], selected := {burn.data.selected with predecessors := if dependency then [2,4] else [2]}}}
+  let competing : ResourceFact := {spent with id := 5, data := {spent.data with amount := 1}}
+  observeFacts ([root,opener,spent] ++ (if included then [payment] else []) ++ (if fork then [competing] else []))
 
 end CBCL.StateResourceOracle

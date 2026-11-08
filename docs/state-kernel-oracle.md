@@ -366,3 +366,20 @@ fault witness bytes nor establishes general multi-operation, transfer, ceiling,
 certificate-runtime, native metadata-extraction or admission correspondence.
 The mutation runner checks zero-amount acceptance, rejection of exact-budget
 spends, and decrement arithmetic that credits rather than debits rights.
+
+The `resource-graph` profile extends that fixed configuration to a treasury
+transfer funding an Alice decrement. Inputs choose both signed wire amounts,
+whether the funding act is present, whether the spend names it as a dependency,
+and whether a distinct Alice decrement forks from the same opener. The fork
+shares the declared funding dependency when present; it is not made harmless by
+an independent insufficient-budget failure. Native fork messages have a distinct
+nonce, while the recognized facts carry a distinct identity.
+
+Both implementations evaluate the actual dependency graph. Directed cases cover
+missing funding, present-but-undeclared funding, exact and insufficient funding,
+nonpositive amounts and funded owner forks. The complete verifier supplies the
+Lean result; no expected status, balance or certificate enters the request.
+Ready balances and statuses are compared after native reorder and duplicate
+delivery. Mutations suppressing the owner-fork check and dependency-tip credit
+must fail executed comparisons. This is a two-operation fixture with an optional
+fork, not general graph, ceiling, witness-byte or admission correspondence.

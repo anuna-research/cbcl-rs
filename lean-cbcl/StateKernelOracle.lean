@@ -13,8 +13,8 @@ import LeanCbcl.StateExecutableObservation
 histories, never expected Rust results. Evaluation calls the same checked table,
 projection, contribution, state and read functions used by the Lean proofs.
 Profiles cover finite reads, causal freezes, observed events/sums, immutable
-context, mandatory/nonnegative shape projections, and a single-decrement
-resource verifier profile. Resource admission/extraction remain explicit boundaries. -/
+context, mandatory/nonnegative shape projections, and decrement/funding/fork
+resource verifier profiles. Resource admission/extraction remain explicit boundaries. -/
 open Lean CBCL.State CBCL.StateFiniteTable CBCL.StateInstalledFinite
 namespace StateKernelOracle
 
@@ -215,6 +215,7 @@ def evaluateNested (request : NestedInput) : Check Json := do
 
 def run (j : Json) : Check Json :=
   match j.getObjVal? "profile" with
+  | .ok (.str "resource-graph") => CBCL.StateResourceOracle.graphRun j
   | .ok (.str "resource-decrement") => CBCL.StateResourceOracle.run j
   | .ok (.str "nonnegative-shape") => CBCL.StateShapeOracle.run j
   | .ok (.str "keyword-extraction") => CBCL.StateShapeOracle.keywordRun j

@@ -16,6 +16,7 @@ root = Path(__file__).resolve().parents[1]
 oracle = root / "lean-cbcl/.lake/build/bin/cbcl-state-oracle"
 if not oracle.is_file():
     raise SystemExit("Build first: cd lean-cbcl && lake build cbcl-state-oracle")
+resource_graph_test = "resource::funding_graph_matches_lean"
 resource_test = "resource::decrement_verifier_matches_lean"
 finite_test = "finite_kernel_matches_live_lean_oracle"
 freeze_test = "freeze_kernel_matches_live_lean_oracle"
@@ -51,6 +52,8 @@ with tempfile.TemporaryDirectory(prefix="cbcl-live-oracle-") as directory:
                               text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=300)
 
     mutants = [
+        ("resource-owner-fork-hidden", "escrow.rs", "if let Some(other) = children.insert((a.signer.clone(), prev.into()), a.address.clone()) {", "if let Some(other) = None::<String> {", resource_graph_test),
+        ("resource-dependency-credit-hidden", "escrow.rs", "for dep in &n.deps {", "for dep in core::iter::empty::<&String>() {", resource_graph_test),
         ("resource-zero-decrement-accepted", "escrow.rs", "number(amount).filter(|n| *n > 0)", "number(amount).filter(|n| *n >= 0)", resource_test),
         ("resource-exact-budget-rejected", "escrow.rs", "budget.is_some_and(|b| b < n.amount)", "budget.is_some_and(|b| b <= n.amount)", resource_test),
         ("resource-decrement-credits-rights", "escrow.rs", "Kind::Decrement => {\n            add(rights, owner, -amount)?;", "Kind::Decrement => {\n            add(rights, owner, amount)?;", resource_test),
