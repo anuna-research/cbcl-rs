@@ -285,6 +285,22 @@ suites.append(("StateExecutableContext", (root / "lean-cbcl/LeanCbcl/StateExecut
     ("context-count-zero", "number (FinSet.card (lift StateLift.address A))", "number 0", "observation_refinement"),
 ]))
 
+memo_source = (root / "lean-cbcl/LeanCbcl/StateMemoizedReader.lean").read_text()
+memo_tests = (root / "lean-cbcl/LeanCbcl/StateMemoizedReaderTests.lean").read_text().split("\n",1)[1]
+suites.append(("StateMemoizedReader", memo_source + "\n" + memo_tests, [
+    ("cache-hit-scope-erased", "match cache.lookup key with", "match cache.lookup (0,key.2) with", "read_refinement"),
+    ("cache-hit-field-erased", "match cache.lookup key with", 'match cache.lookup (key.1,"") with', "read_refinement"),
+    ("dependency-not-unwrapped", "some (ops.unfrozen value)", "some value", "incomparable_cut_values"),
+    ("terminal-fault-bypassed", "match ops.fault key normal with", "match (none : Option V) with", "fault_shortcircuit"),
+    ("cache-result-inserted-at-wrong-scope", "return (value,(key,value)::after)", "return (value,((0,key.2),value)::after)", "read_refinement"),
+    ("dependency-scope-erased", ".request (key.1,source)", ".request (0,source)", "incomparable_cut_values"),
+    ("same-field-cut-redirection-removed", "else .request (scope,key.2) (fun value => .done (ops.frozen key (ops.unfrozen value)))", "else .done (ops.frozen key normal)", "incomparable_cut_values"),
+]))
+
+suites.append(("StateReaderIndices", (root / "lean-cbcl/LeanCbcl/StateReaderIndices.lean").read_text(), [
+    ("field-index-source-and-target-reversed", "(fields.map Prod.fst).idxOf source < (fields.map Prod.fst).idxOf name := by", "(fields.map Prod.fst).idxOf name < (fields.map Prod.fst).idxOf source := by", "reference_index"),
+]))
+
 # Preserve the full default gate while allowing a focused continuation check.
 import argparse
 parser = argparse.ArgumentParser(description=__doc__)

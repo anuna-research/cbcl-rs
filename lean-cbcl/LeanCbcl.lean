@@ -223,3 +223,7 @@ import LeanCbcl.StateExecutableFreeze
 import LeanCbcl.StateExecutableObservation
 
 import LeanCbcl.StateExecutableContext
+
+import LeanCbcl.StateMemoizedReaderTests
+
+import LeanCbcl.StateReaderIndices

@@ -1176,6 +1176,31 @@ metadata. Restoring domain filtering makes the named regression fail. Resource
 operations already prohibit such domains at installation; that rejection is
 also modeled in authored preparation.
 
+`StateMemoizedReader.lean` adds an operational cache model with exact
+`(scope, field)` lookup keys, dynamically branching dependency continuations,
+cache insertion after completion and shared state across top-level requests.
+Its well-founded uncached recursion constructs the independent reference
+meaning; `read_refinement` preserves valid entries, and
+`native_reads_refinement` starts from the empty cache rather than assuming
+correct cached values. Native orchestration requests earlier dependencies in
+the current scope, unwraps their frozen payloads, checks combined faults before
+historical redirection, and requests the same field at its globally planned
+cut before adding the current scope's metadata.
+
+`StateReaderIndices.lean` derives unique field names and backward scoping from
+successful installed-clause compilation. `compiled_native_cache` constructs the
+numeric dependency ranking from concrete field positions and composes it with
+the operational cache theorem. The secondary rank decreases when a field
+redirects into its own planned cut; it does not require scope IDs to be ordered.
+Typed dependency-to-IR-reference extraction remains a premise, including the
+obligation that no native dependency is omitted. Typed normal/fault/wrapper
+operations, active-plan detection and actual scope construction remain separate
+boundaries. This orchestration models known compiled fields: Rust's unknown-field
+branch returns absent without inserting a cache entry. The association-list
+cache proves lookup/result semantics, not ordered-map representation or cost.
+Executable witnesses distinguish source sum 2 from derived cut value 7 and
+preserve terminal witness lists without reading the faulted field's cut.
+
 These theorems operate at explicit typed boundaries. They do not prove Rust
 source-code extraction, canonical rendering order, diagnostics, or wire parsing.
 The installed semantic IR still receives native closure implementations and

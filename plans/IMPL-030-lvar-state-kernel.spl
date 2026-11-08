@@ -357,3 +357,24 @@
 ;; same-thread malformed-root fork case closes that gap. Fresh read-only review
 ;; found no substantive defect within the documented typed profile. Serialization
 ;; support completeness remains a profile assumption rather than a proved lemma.
+
+;; Operational cache continuation for [[SPEC-038-lvar-state-kernel#TEST-3806]]:
+;; StateMemoizedReader defines dynamically branching request bodies, an
+;; independent well-founded uncached reference, and exact scope/field lookup,
+;; post-completion insertion and sequential shared-cache execution. Validity is
+;; constructed from empty state and preserved through cache hits/misses.
+;; Native body evaluates same-scope earlier dependencies, unwraps, returns
+;; combined faults before cut redirection, and rewraps the selected payload.
+;; StateReaderIndices derives numeric ordering from successful installed-clause
+;; compilation and composes the cache theorem. Typed extraction must still
+;; identify every actual dependency and native normal/fault/wrapper operation;
+;; actual scope construction and literal Rust ordered-map representation remain
+;; boundaries. Unknown-field no-insert behavior is outside this known-field body.
+;; Executable witnesses and named proof mutations verify scope/field separation,
+;; missing unwrap, wrong insertion scope, erased dependency scope, omitted cut
+;; request, fault bypass and reversed compiler indices. Fresh review found no
+;; logical defect within those boundaries. Verification is recorded in Elephant.
+;; Final cache checkpoint verification: full Lean build and Batteries env-linter
+;; pass; check-axioms audits 1324 theorems with allowed axioms only. Both focused
+;; mutation suites pass, verified-by lint passes, and the spec amendment adds no
+;; unresolved reference pairs or syntax/SPL errors relative to its prior version.

@@ -455,6 +455,16 @@ python3 ../scripts/check-state-lift-mutation.py
 python3 ../scripts/check-state-lvar-mutations.py
 ```
 
+`StateMemoizedReader` proves exact scope/field memoization from an empty cache
+against an independent uncached recursion, including branching requests and
+shared cache reuse. Its native request body keeps dependencies at the current
+scope, unwraps frozen payloads, returns faults before reading historical cuts,
+and redirects each field into its own preplanned cut. `StateReaderIndices`
+constructs the request ranking from successful installed-field compilation.
+Typed dependency/leaf extraction, scope construction and the literal Rust map
+representation remain explicit refinement boundaries. Executable cache
+witnesses and focused mutations exercise aliasing, wrapper and cut mistakes.
+
 The live [state-kernel oracle](../docs/state-kernel-oracle.md) executes the proved
 finite reference functions against generated Rust installation/fold cases.
 Build it with `lake build cbcl-state-oracle`; CI runs the seeded differential

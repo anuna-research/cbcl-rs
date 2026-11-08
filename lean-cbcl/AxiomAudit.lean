@@ -1,3 +1,6 @@
+import LeanCbcl.StateReaderIndices
+import LeanCbcl.StateMemoizedReaderTests
+import LeanCbcl.StateMemoizedReader
 import LeanCbcl.StateExecutableContext
 import LeanCbcl.StateExecutableObservation
 import LeanCbcl.StateExecutableFreeze
@@ -2091,3 +2094,28 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateExecutableContext.observation_refinement
 #print axioms CBCL.StateExecutableContext.value_refinement
 #print axioms CBCL.StateExecutableContext.read_refinement
+
+#print axioms CBCL.StateMemoizedReader.below_meaning_eq
+#print axioms CBCL.StateMemoizedReader.reference_equation
+#print axioms CBCL.StateMemoizedReader.empty_valid
+#print axioms CBCL.StateMemoizedReader.insert_valid
+#print axioms CBCL.StateMemoizedReader.body_run_refinement
+#print axioms CBCL.StateMemoizedReader.read_refinement
+#print axioms CBCL.StateMemoizedReader.empty_read
+#print axioms CBCL.StateMemoizedReader.operational_refinement
+#print axioms CBCL.StateMemoizedReader.reads_refinement
+#print axioms CBCL.StateMemoizedReader.redirect_rank
+#print axioms CBCL.StateMemoizedReader.dependency_rank
+#print axioms CBCL.StateMemoizedReader.finish_ranked
+#print axioms CBCL.StateMemoizedReader.body_ranked
+#print axioms CBCL.StateMemoizedReader.native_reads_refinement
+
+#print axioms CBCL.StateMemoizedReaderTests.incomparable_cut_values
+#print axioms CBCL.StateMemoizedReaderTests.different_request_order
+#print axioms CBCL.StateMemoizedReaderTests.fault_shortcircuit
+
+#print axioms CBCL.StateReaderIndices.reference_prefix
+#print axioms CBCL.StateReaderIndices.reference_index
+#print axioms CBCL.StateReaderIndices.compiled_scoping
+#print axioms CBCL.StateReaderIndices.compiled_dependency_ordering
+#print axioms CBCL.StateReaderIndices.compiled_native_cache
