@@ -286,6 +286,14 @@ suites.append(("StateFiniteCausalRank", (root / "lean-cbcl/LeanCbcl/StateFiniteC
     ("compressed-rank-includes-self", "decide (rank act < value)", "decide (rank act ≤ value)", "below_bound"),
 ]))
 
+causal_complete_source = (root / "lean-cbcl/LeanCbcl/StateCausalRank.lean").read_text() + "\n" + re.sub(
+    r"^import [^\n]+\n", "", (root / "lean-cbcl/LeanCbcl/StateCausalCheckComplete.lean").read_text(), flags=re.M)
+suites.append(("StateCausalCheckComplete", causal_complete_source, [
+    ("causal-sort-discards-pending-vertices", "orderFuel fuel (pending.filter (fun act => act != root)) (ordered ++ [root])", "orderFuel fuel [] (ordered ++ [root])", "order_complete"),
+    ("causal-sort-empty-fuel-rejected", "| 0, [], ordered => some ordered", "| 0, [], _ => none", "order_complete"),
+    ("causal-check-rejects-duplicate-delivery", "history.all order.contains && order.all history.contains && check order", "history.all order.contains && order.all history.contains && check order && decide (history.length = order.length)", "causalCheck_complete"),
+]))
+
 suites.append(("StateCausalRank", (root / "lean-cbcl/LeanCbcl/StateCausalRank.lean").read_text(), [
     ("causal-rank-search-uses-address-fuel", "reachable (history.length + 1) history a freezer", "reachable (freezer.addr + 1) history a freezer", "ancestor_iff"),
     ("causal-order-not-recognized", "order.all history.contains && check order", "order.all history.contains && true", "causalCheck_sound"),

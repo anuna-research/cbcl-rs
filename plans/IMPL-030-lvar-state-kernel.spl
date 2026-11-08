@@ -566,3 +566,22 @@
 ;; eighteen isolated native mutations fail executed intended checks. Verified-by
 ;; lint passes; vault adds no unresolved pairs or syntax/SPL errors. Independent
 ;; proof, integration fixture and artifact review found no defect/overstatement.
+
+;; Causal checker completeness for [[SPEC-038-lvar-state-kernel#TEST-3806]]:
+;; StateCausalCheckComplete proves minimum-rank ready selection and actual
+;; orderFuel termination/construction with exact accepted-vertex coverage,
+;; unique addresses and successful edge-order recognition. Content consistency
+;; and existence of a separate causal rank suffice, without delivery/address
+;; ordering. causalCheck_iff closes soundness/completeness; causalCheck_setEq
+;; proves recognition invariant under duplicate and reordered accepted sets.
+;; The duplicate/reversed descending fixture obtains rank independently of the
+;; checker under test. Empty history is accepted; a separate fixture demonstrates
+;; that rank recognition does not replace the outer predecessor-closure check.
+;; Literal native admission/address/installation/extraction/rendering boundaries
+;; remain required; this does not complete the full native correspondence goal.
+;; Verification: full build and Batteries env-linter pass; 1508 theorems pass
+;; the axiom audit. Three mutations of the actual checker/order implementation
+;; fail intended completeness theorems: discarded vertices, rejected empty work
+;; and an extra duplicate-delivery rejection. Verified-by lint passes; vault
+;; adds no unresolved pairs or syntax/SPL errors. Independent proof, fixture and
+;; artifact review found no defect; present-edge versus closure scope is explicit.

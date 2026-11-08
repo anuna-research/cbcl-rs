@@ -503,8 +503,12 @@ used for source dictionary construction/checks, not emitted output semantics.
 for arbitrary delivery order. Its checker supplies the proof premise to freeze
 and context oracle validators; generated labels deliberately decrease along
 edges. A reversed, duplicated descending-address fixture constructs complete
-authored compiler/cache outputs. Checker soundness is proved; completeness on
-all finite DAGs and literal native admission-to-rank extraction remain open.
+authored compiler/cache outputs. `StateCausalCheckComplete` now proves that the
+actual Kahn implementation constructs exact coverage and a checked unique-address
+order on every content-consistent ranked history. Recognition is equivalent to
+separate-rank existence and invariant under accepted-set-equivalent delivery.
+Predecessor closure is independently checked by the outer validators; literal
+native admission-to-rank extraction remains a boundary.
 Literal Rust value/graph/map/vector extraction and rendering remain boundaries. Executable cache
 witnesses and focused mutations exercise aliasing, wrapper and cut mistakes.
 

@@ -1,3 +1,4 @@
+import LeanCbcl.StateCausalCheckCompleteTests
 import LeanCbcl.StateCausalRankIntegrationTests
 import LeanCbcl.StateOutputCompilerTests
 import LeanCbcl.StatePreparedOutputsTests
@@ -2312,3 +2313,20 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateCausalRank.descending_integrated_cut
 #print axioms CBCL.StateCausalRank.cycle_rejected
 #print axioms CBCL.StateCausalRankIntegrationTests.descending_duplicate_compiled_outputs
+
+#print axioms CBCL.StateCausalCheckComplete.minimum_rank
+#print axioms CBCL.StateCausalCheckComplete.ready_exists
+#print axioms CBCL.StateCausalCheckComplete.remove_shorter
+#print axioms CBCL.StateCausalCheckComplete.order_prefix
+#print axioms CBCL.StateCausalCheckComplete.check_of_positions
+#print axioms CBCL.StateCausalCheckComplete.ready_no_parent
+#print axioms CBCL.StateCausalCheckComplete.check_cons
+#print axioms CBCL.StateCausalCheckComplete.order_complete
+#print axioms CBCL.StateCausalCheckComplete.causalCheck_complete
+#print axioms CBCL.StateCausalCheckComplete.causalCheck_iff
+#print axioms CBCL.StateCausalCheckComplete.ranked_setEq
+#print axioms CBCL.StateCausalCheckComplete.causalCheck_setEq
+#print axioms CBCL.StateCausalCheckCompleteTests.duplicate_delivery_complete
+#print axioms CBCL.StateCausalCheckCompleteTests.empty_complete
+
+#print axioms CBCL.StateCausalCheckCompleteTests.closure_is_separate

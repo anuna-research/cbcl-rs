@@ -72,7 +72,10 @@ addresses or delivery order. The oracle rejects missing predecessors, cycles,
 conflicting identity payloads and repeated field keywords. Generated freeze IDs
 deliberately decrease along causal edges. DAGs are bounded; backward search can
 revisit shared paths exponentially and is not the native cost model. Checker
-soundness is proved; completeness for every finite DAG is not yet proved.
+soundness and completeness for content-consistent, separately ranked histories
+are proved. Recognition is invariant under reordered and duplicate delivery.
+This rank check concerns present edges; missing predecessors are rejected by the
+separate closure check before it.
 Responses distinguish input errors from installation rejection and report
 semantic observations.
 

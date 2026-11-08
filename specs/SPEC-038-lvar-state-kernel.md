@@ -1299,8 +1299,14 @@ or address renumbering is needed for execution.
 
 `StateCausalRank.lean` constructs a candidate topological order and independently
 recognizes its vertex coverage and edge order. `causalCheck_sound` constructs the
-rank premise from successful recognition. Checker completeness for every finite
-DAG is not yet proved. Freeze and context live-oracle validators use this checker;
+rank premise from successful recognition. `StateCausalCheckComplete.lean` proves
+that the actual Kahn implementation constructs exact vertex coverage, unique
+addresses and a checked edge order for every content-consistent ranked history.
+`causalCheck_iff` establishes recognition equivalence with a separate causal rank;
+`causalCheck_setEq` proves recognition invariant under reordered and duplicate
+delivery. These statements concern edges between present vertices. Predecessor
+closure remains a separate validator check, with a fixture distinguishing the
+two obligations. Freeze and context live-oracle validators use this checker;
 generated vertex labels decrease along edges, with reversed and duplicate delivery.
 The authored integration fixture constructs complete compiled/cache outputs for
 a descending-address, reversed, duplicated history. Rank extraction from literal
