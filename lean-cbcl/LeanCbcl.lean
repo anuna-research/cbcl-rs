@@ -305,3 +305,5 @@ import LeanCbcl.StateKeywordExtractionTests
 import LeanCbcl.StateJsonValueTests
 
 import LeanCbcl.StateFaultRenderingTests
+
+import LeanCbcl.StateAddressDigits

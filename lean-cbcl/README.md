@@ -652,3 +652,12 @@ sorting remains open. The live `fault-evidence` profile exercises native
 concurrent-freeze faults, including repeated writer witnesses, against that
 reference using exact strings. Arbitrary UTF-8 aliases operate below admission
 and do not establish content-hash identity or resolve root-cast binding.
+
+`StateAddressDigits` refines the radix sorter's key representation: zero is the
+missing-byte sentinel, bytes occupy buckets 1–256, and the computed maximum
+width makes padded digit comparison exactly equal raw UTF-8 byte comparison.
+It also proves that adjacent duplicate removal on sorted output equals finite
+set normalization and composes that result with fault JSON emission. The final
+result takes permutation and digit ordering as explicit premises. Establishing
+those premises for native mutable counting/scatter passes, including machine
+index/count safety, remains open.

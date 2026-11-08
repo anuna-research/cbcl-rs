@@ -1443,3 +1443,17 @@
 ;; Clean-store what-if checks independently omit each new prerequisite: docs
 ;; readiness is false without semantic-alignment, context-map or the root
 ;; contract; it is true when all six explicit prerequisites are completed.
+
+;; Native radix representation continuation: StateAddressDigits proves the
+;; exact getElem?/byte+1/missing-zero digit law, 257-bucket bound, fixed-width
+;; lookup and byte-comparison equality, maximum-width coverage and injectivity.
+;; On ordered output, adjacent duplicate removal equals canonical finite-set
+;; normalization. Permutation plus padded-key ordering therefore implies exact
+;; canonical fault evidence and emitted JSON. Those two premises remain the
+;; counting/scatter pass obligations, with native machine-index/count safety.
+;; Five targeted mutations fail their named digit, padding, ordering, width or
+;; adjacent-dedup proofs. Library/oracle build and Batteries env-linter pass;
+;; independent read-only review found no concrete defect and confirmed scope.
+;; Final axiom audit: 1981 theorems, all allowlisted. Verified-by/diff checks
+;; pass. Native source and oracle behavior are unchanged in this proof slice;
+;; the preceding nine-suite/512-case native evidence remains applicable.

@@ -263,3 +263,9 @@ These aliases deliberately bypass identity validation: this checks evidence
 presentation, not admission or content-address integrity. The associated Lean
 proof composes finite freeze witnesses with reference canonicalization and JSON
 emission; native radix-sort refinement and reason derivation remain open.
+
+`StateAddressDigits` now proves the sorter's missing-byte sentinel, bucket bound,
+computed-width key ordering and adjacent duplicate normalization. These compose
+with exact fault JSON emission once the counting/scatter output is shown to be
+a permutation ordered by those keys. Those mutable-pass premises and machine
+index/count safety remain unproved; the live campaign tests native behavior.

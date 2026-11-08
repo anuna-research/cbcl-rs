@@ -758,6 +758,14 @@ suites.append(("StateFaultRendering", (root / "lean-cbcl/LeanCbcl/StateFaultRend
     ("fault-status-changed", '(.str "status",.str "fault")', '(.str "status",.str "pending")', "fault_layout"),
 ]))
 
+suites.append(("StateAddressDigits", (root / "lean-cbcl/LeanCbcl/StateAddressDigits.lean").read_text(), [
+    ("radix-byte-offset-lost", "((data[position]?).map (fun byte => byte.toNat + 1)).getD 0", "((data[position]?).map (fun byte => byte.toNat)).getD 0", "digit_zero"),
+    ("radix-padding-bucket-one", "| width+1, [] => 0 :: keys width []", "| width+1, [] => 1 :: keys width []", "keys_lookup"),
+    ("radix-key-offset-lost", "| width+1, byte::rest => (byte.toNat+1) :: keys width rest", "| width+1, byte::rest => byte.toNat :: keys width rest", "keys_compare"),
+    ("radix-maximum-width-truncated", ".foldl max 0", ".foldl min 0", "width_covers"),
+    ("radix-adjacent-duplicates-retained", "if a = b then adjacent (b::rest) else a :: adjacent (b::rest)", "a :: adjacent (b::rest)", "adjacent_refinement"),
+]))
+
 # Preserve the full default gate while allowing a focused continuation check.
 import argparse
 parser = argparse.ArgumentParser(description=__doc__)

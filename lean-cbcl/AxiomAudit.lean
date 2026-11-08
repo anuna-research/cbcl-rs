@@ -1,3 +1,4 @@
+import LeanCbcl.StateAddressDigits
 import LeanCbcl.StateFaultRenderingTests
 import LeanCbcl.StateJsonValueTests
 import LeanCbcl.StateKeywordExtractionTests
@@ -2886,3 +2887,18 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateFaultRenderingTests.raw_byte_order
 #print axioms CBCL.StateFaultRenderingTests.unicode_order
 #print axioms CBCL.StateFaultRenderingTests.fault_layout
+
+#print axioms CBCL.StateAddressDigits.digit_bound
+#print axioms CBCL.StateAddressDigits.digit_zero
+#print axioms CBCL.StateAddressDigits.byte_compare
+#print axioms CBCL.StateAddressDigits.keys_length
+#print axioms CBCL.StateAddressDigits.keys_lookup
+#print axioms CBCL.StateAddressDigits.keys_compare
+#print axioms CBCL.StateAddressDigits.keys_injective
+#print axioms CBCL.StateAddressDigits.width_covers
+#print axioms CBCL.StateAddressDigits.native_key_order
+#print axioms CBCL.StateAddressDigits.dedup_sublist
+#print axioms CBCL.StateAddressDigits.adjacent_refinement
+#print axioms CBCL.StateAddressDigits.sorted_result_refinement
+#print axioms CBCL.StateAddressDigits.adjacent_result_refinement
+#print axioms CBCL.StateAddressDigits.sorted_fault_bytes
