@@ -309,7 +309,15 @@ indices/loops and literal Rust correspondence remain explicit boundaries.
 `StateAddressControl` refines source-index iteration to USize-valued count/scatter
 loops and performs native in-place prefix updates at positions 1–256. Its table
 and subtraction proofs compose to `controlSort`, which the finite source-pool
-sorter now calls directly. Outer digit-range generation and literal Rust
-correspondence remain open. The live native profile asserts that valid fold
+sorter now calls directly. Native outer-range execution is established below; literal Rust
+correspondence remains open. The live native profile asserts that valid fold
 inputs do not panic, so malformed prefix-index mutations fail an executed
 assertion as well as ordering/equality mutants.
+
+
+`StateAddressRange` closes the modeled outer digit-range boundary. Its actual
+USize cursor stops at zero and yields each exact predecessor, with termination
+proved from the decoded cursor rather than an external fuel assumption. Decoded
+positions equal the reversed half-open range; folding the native passes refines
+the complete sort. The finite source-pool driver executes this path directly.
+Literal Rust extraction and wider kernel correspondence remain open.

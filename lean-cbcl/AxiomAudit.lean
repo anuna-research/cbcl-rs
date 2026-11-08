@@ -1,3 +1,4 @@
+import LeanCbcl.StateAddressRange
 import LeanCbcl.StateAddressControl
 import LeanCbcl.StateAddressPool
 import LeanCbcl.StateAddressWords
@@ -3037,3 +3038,13 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateAddressControl.checkedNativePass_refinement
 #print axioms CBCL.StateAddressControl.controlSort_refinement
 #print axioms CBCL.StateAddressPool.control_pool_bound
+
+#print axioms CBCL.StateAddressRange.cursor_positive
+#print axioms CBCL.StateAddressRange.previous_exact
+#print axioms CBCL.StateAddressRange.reverseRange_refinement
+#print axioms CBCL.StateAddressRange.reverseRange_decoded
+#print axioms CBCL.StateAddressRange.emitted_bound
+#print axioms CBCL.StateAddressRange.controlSort_fold
+#print axioms CBCL.StateAddressRange.rangeSort_refinement
+#print axioms CBCL.StateAddressRange.checkedRangeSort_refinement
+#print axioms CBCL.StateAddressPool.range_pool_bound

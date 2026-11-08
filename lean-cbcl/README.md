@@ -721,8 +721,8 @@ Word scratch destination decoding, updates and complete readback refine the
 Nat-array execution, including source multiplicities. A checked implementation
 preserves the full generic input semantics and composes to the established radix
 sort. The oracle explicitly executes `wordSort`, confirmed in generated C.
-Source-pool extraction and word-index iteration are refined below. The outer
-digit-range producer and literal Rust correspondence remain open.
+Source-pool extraction and word-index iteration are refined below. The outer digit-range bridge is established below; literal Rust correspondence
+remains open.
 
 
 `StateAddressPool` models the destructive `Option::take` address move loop.
@@ -732,8 +732,8 @@ Duplicate address strings in distinct source slots are preserved until adjacent
 deduplication. Concrete finite-pool sorting, moves, deduplication and JSON now
 refine canonical fault bytes without an externally supplied total address
 callback or pool certificate. The oracle executes that complete path directly.
-The word-index/prefix bridge is established below; outer digit-range generation
-and literal Rust correspondence remain open.
+The word-index/prefix and outer-range bridges are established below; literal
+Rust correspondence remains open.
 
 
 `StateAddressControl` iterates over actual `USize` source indices and writes the
@@ -741,10 +741,20 @@ original word index to scratch. It proves byte-bucket conversion, decoded-index
 iteration and in-place prefix updates at word positions `1 ≤ k < 257`. Safe
 predecessor subtraction and the fixed 257-slot table refine the previous word
 prefix semantics. Complete `controlSort` equals the established radix path, and
-the source-pool oracle executes it directly, confirmed in generated C. The outer
-digit-range producer and literal Rust correspondence remain open.
+the source-pool oracle executes it directly, confirmed in generated C. The outer digit-range bridge is established below; literal Rust correspondence
+remains open.
 
 The Elephant plan separately requires `lean-ci-green` before `docs-status` can
 mark SPEC-038 implemented. CI evidence must identify the tested revision and be
 rechecked after relevant pushes; passing local proof gates does not establish CI
 success.
+
+
+`StateAddressRange` executes the outer digit range with a directly recursive
+`USize` cursor. The zero guard, exact decrement and decoded decreasing measure
+prove termination and the complete descending half-open sequence without supplied
+fuel. Native digit-pass execution equals the existing control-sort fold. Width
+recognition preserves generic semantics outside the native representable domain,
+and the concrete source-pool driver now calls this range implementation,
+confirmed in generated C. Literal Rust extraction and the broader kernel
+admission/installed-reader ports remain open.

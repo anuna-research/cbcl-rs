@@ -1,4 +1,4 @@
-import LeanCbcl.StateAddressControl
+import LeanCbcl.StateAddressRange
 
 /-! Destructive address extraction by a proved index permutation. Every lookup
 is partial and checked; no fallback string stands in for a missing pool entry. -/
@@ -134,11 +134,17 @@ theorem control_pool_bound (source : Array String) (digits : List (Nat → Nat))
   rw [StateAddressControl.controlSort_refinement] at member
   exact word_pool_bound source digits index member
 
+/-- Native outer-range execution preserves the concrete source-pool domain. -/
+theorem range_pool_bound (source : Array String) (width : Nat) (index : Nat)
+    (member : index ∈ StateAddressRange.checkedRangeSort (fun index => source[index]!) width (List.range source.size)) :
+    index < source.size := by
+  rw [StateAddressRange.checkedRangeSort_refinement] at member
+  exact control_pool_bound source _ index member
+
 /-- Actual source-pool radix indices, starting from the native 0..len order. -/
 def indices (source : Array String) : List Nat :=
-  StateAddressControl.controlSort
-    (StateAddressRadix.addressDigits (StateAddressDigits.maximumWidth source.toList) (fun index => source[index]!))
-    (List.range source.size)
+  StateAddressRange.checkedRangeSort (fun index => source[index]!)
+    (StateAddressDigits.maximumWidth source.toList) (List.range source.size)
 
 /-- Complete native-style destructive address sorting. -/
 def sortPool (source : Array String) : Option (List String) :=
@@ -151,10 +157,10 @@ theorem sortPool_refinement (source : Array String) :
     sortPool source = some (StateAddressRadix.radix (fun index => source[index]!) (List.range source.size)) := by
   obtain ⟨values,finished,computed,looked,_⟩ := word_radix_moves source
     (StateAddressRadix.addressDigits (StateAddressDigits.maximumWidth source.toList) (fun index => source[index]!))
-  rw [← StateAddressControl.controlSort_refinement] at computed looked
+  rw [← StateAddressControl.controlSort_refinement,← StateAddressRange.checkedRangeSort_refinement] at computed looked
   change takeMany (source.map some) (indices source) = some (values,finished) at computed
   change lookupMany source (indices source) = some values at looked
-  have valid : ∀ index ∈ indices source, index < source.size := fun index member => control_pool_bound source _ index member
+  have valid : ∀ index ∈ indices source, index < source.size := fun index member => range_pool_bound source _ index member
   have expected := lookupMany_mapping source (indices source) valid
   have same : values = (indices source).map (fun index => source[index]!) := Option.some.inj (looked.symm.trans expected)
   unfold sortPool
@@ -162,7 +168,7 @@ theorem sortPool_refinement (source : Array String) :
   simp only [Option.map_some]
   rw [same]
   unfold indices StateAddressRadix.radix
-  rw [StateAddressControl.controlSort_refinement,StateAddressWords.wordSort_refinement,source_enumeration]
+  rw [StateAddressRange.checkedRangeSort_refinement,StateAddressControl.controlSort_refinement,StateAddressWords.wordSort_refinement,source_enumeration]
 
 /-- Complete finite source-pool sorting and adjacent deduplication produces
 exact canonical evidence, including repeated address strings at distinct slots. -/

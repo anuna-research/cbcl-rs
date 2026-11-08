@@ -1626,3 +1626,19 @@
 ;; in16.43s, six proof mutants and seven native prefix/pool/radix mutants reject.
 ;; Full allowlisted audit passes2099 theorems; verified-by/diff checks pass. No
 ;; CI success/completion is asserted; local evidence is distinct from that gate.
+
+;; Outer-range continuation: StateAddressRange directly recurses on USize
+;; cursor, stopping at zero and yielding cursor-1. Positive decoded cursor and
+;; exact subtraction prove termination without supplied fuel, then full encoded/
+;; decoded reverse-range equality and emitted-position bounds. Folding the
+;; actual word positions through checkedNativePass equals the complete control
+;; sort. Guarded width conversion preserves generic unrepresentable Nat widths.
+;; Source-pool indices execute checkedRangeSort; generated C confirms that call.
+;; Five proof mutations reject current-cursor/forward-order emission, shifted or
+;; truncated digits and bypassed width recognition. Build/env-linter and fresh
+;; read-only review pass. Literal Rust extraction, wider kernel correspondence,
+;; root identity and required latest-revision CI gates remain open.
+;; Final range checkpoint: all nine live suites pass512 cases/seed380038
+;; in10.68s; five range proof mutants and nine native range/prefix/pool/radix
+;; mutants reject. Full allowlisted audit passes2108 theorems; verified-by/diff
+;; checks pass. Latest-revision CI and root contract remain unfulfilled gates.

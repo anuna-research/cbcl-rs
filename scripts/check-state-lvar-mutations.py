@@ -831,6 +831,14 @@ suites.append(("StateAddressControl", (root / "lean-cbcl/LeanCbcl/StateAddressCo
     ("radix-control-prefix-order-reversed", "((List.range 256).map (fun index => USize.ofNat (index+1)))", "((List.range 256).reverse.map (fun index => USize.ofNat (index+1)))", "prefixNative_refinement"),
 ]))
 
+suites.append(("StateAddressRange", (root / "lean-cbcl/LeanCbcl/StateAddressRange.lean").read_text(), [
+    ("radix-range-emits-current-cursor", "(cursor-1) :: reverseRange (cursor-1)", "cursor :: reverseRange (cursor-1)", "reverseRange_refinement"),
+    ("radix-range-emits-forward-order", "(cursor-1) :: reverseRange (cursor-1)", "reverseRange (cursor-1) ++ [cursor-1]", "reverseRange_refinement"),
+    ("radix-range-digit-offset-shifted", "position.toNat) current", "(position.toNat+1)) current", "rangeSort_refinement"),
+    ("radix-range-digit-truncated", "position.toNat) current", "(position.toNat % 256)) current", "rangeSort_refinement"),
+    ("radix-range-width-check-bypassed", "if width < USize.size then", "if true then", "checkedRangeSort_refinement"),
+]))
+
 # Preserve the full default gate while allowing a focused continuation check.
 import argparse
 parser = argparse.ArgumentParser(description=__doc__)
