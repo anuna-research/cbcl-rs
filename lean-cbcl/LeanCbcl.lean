@@ -325,3 +325,5 @@ import LeanCbcl.StateAddressPool
 import LeanCbcl.StateAddressControl
 
 import LeanCbcl.StateAddressRange
+
+import LeanCbcl.StateFreezeRendering

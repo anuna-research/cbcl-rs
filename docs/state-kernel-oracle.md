@@ -321,3 +321,14 @@ proved from the decoded cursor rather than an external fuel assumption. Decoded
 positions equal the reversed half-open range; folding the native passes refines
 the complete sort. The finite source-pool driver executes this path directly.
 Literal Rust extraction and wider kernel correspondence remain open.
+
+`StateFreezeRendering.frozen_serialized` extends exact serialization to frozen
+observations. It derives the exclusion enumeration from the executable freeze
+read, proves that enumeration is a sublist of the accepted scope, and derives
+unique exclusion names from the scope's explicit unique-address premise. The
+operational wrapper uses the proved address-pool sort and JSON emitter for the
+`frozen`, `superseded`, and `value` fields. It does not add deduplication to the
+native wrapper: duplicate delivery must already have been normalized in the
+accepted scope. The payload and address projection remain explicit inputs; this
+theorem does not establish their extraction from native acts. The existing live
+fault-byte campaign does not yet exercise this frozen-wrapper composition.

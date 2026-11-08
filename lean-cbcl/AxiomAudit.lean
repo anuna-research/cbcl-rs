@@ -1,3 +1,4 @@
+import LeanCbcl.StateFreezeRendering
 import LeanCbcl.StateAddressRange
 import LeanCbcl.StateAddressControl
 import LeanCbcl.StateAddressPool
@@ -3048,3 +3049,10 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateAddressRange.rangeSort_refinement
 #print axioms CBCL.StateAddressRange.checkedRangeSort_refinement
 #print axioms CBCL.StateAddressPool.range_pool_bound
+
+#print axioms CBCL.StateFreezeRendering.exclusions_mk
+#print axioms CBCL.StateFreezeRendering.sort_unique
+#print axioms CBCL.StateFreezeRendering.emit_refinement
+#print axioms CBCL.StateFreezeRendering.frozen_sublist
+#print axioms CBCL.StateFreezeRendering.frozen_enumerated
+#print axioms CBCL.StateFreezeRendering.frozen_serialized
