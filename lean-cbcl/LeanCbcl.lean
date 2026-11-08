@@ -233,3 +233,5 @@ import LeanCbcl.StateAuthoredDependencies
 import LeanCbcl.StateReaderValuesTests
 
 import LeanCbcl.StateReaderReachabilityTests
+
+import LeanCbcl.StateCompiledFieldEquationsTests

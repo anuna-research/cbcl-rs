@@ -1,3 +1,4 @@
+import LeanCbcl.StateCompiledFieldEquationsTests
 import LeanCbcl.StateReaderReachabilityTests
 import LeanCbcl.StateReaderValuesTests
 import LeanCbcl.StateAuthoredDependencies
@@ -2215,3 +2216,26 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateReaderReachability.reference_on_domain
 #print axioms CBCL.StateReaderReachabilityTests.review_request_keys
 #print axioms CBCL.StateReaderReachabilityTests.review_requests_admitted
+
+
+#print axioms CBCL.StateCompiledFieldEquations.compile_field_equation
+#print axioms CBCL.StateCompiledFieldEquations.compile_rule_congr
+#print axioms CBCL.StateCompiledFieldEquations.compile_rule_completed
+#print axioms CBCL.StateCompiledFieldEquations.compile_fields_names
+#print axioms CBCL.StateCompiledFieldEquations.fields_equations
+#print axioms CBCL.StateCompiledFieldEquations.installed_equation
+#print axioms CBCL.StateCompiledFieldEquations.source_equation
+#print axioms CBCL.StateCompiledFieldEquations.derived_equation
+#print axioms CBCL.StateCompiledFieldEquations.prepared_unique
+#print axioms CBCL.StateCompiledFieldEquations.dependency_equation
+#print axioms CBCL.StateCompiledFieldEquations.prepared_body_normal
+#print axioms CBCL.StateCompiledFieldEquations.missing_freeze_root
+#print axioms CBCL.StateCompiledFieldEquations.finish_without_freeze
+#print axioms CBCL.StateCompiledFieldEquations.prepared_unfrozen_body
+#print axioms CBCL.StateCompiledFieldEquations.prepared_no_freeze_reference
+#print axioms CBCL.StateCompiledFieldEquations.prepared_no_freeze_cache
+#print axioms CBCL.StateCompiledFieldEquations.finish_faulting
+#print axioms CBCL.StateCompiledFieldEquations.prepared_fault_body
+#print axioms CBCL.StateCompiledFieldEquationsTests.derived_keeps_frozen_source
+#print axioms CBCL.StateCompiledFieldEquationsTests.counted_prepares
+#print axioms CBCL.StateCompiledFieldEquationsTests.counted_freezes

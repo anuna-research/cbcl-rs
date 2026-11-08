@@ -334,6 +334,13 @@ suites.append(("StateReaderReachability", reach_source + "\n" + reach_tests, [
     ("dependency-domain-guard-dropped", "| .request key next => allowed key ∧ ∀ value, Within allowed (next value)", "| .request _ next => True ∧ ∀ value, Within allowed (next value)", "run_within"),
 ]))
 
+suites.append(("StateCompiledFieldEquations", (root / "lean-cbcl/LeanCbcl/StateCompiledFieldEquations.lean").read_text(), [
+    ("compiled-own-freeze-erased", "| some spec => .freeze spec source", "| some _ => source", "compile_field_equation"),
+    ("compiled-own-freeze-policy-overwritten", "| some spec => .freeze spec source", "| some spec => .freeze {spec with policy := true} source", "compile_field_equation"),
+    ("compiled-meaning-scope-erased", "plan (StateReaderValues.scope whole freezes key)", "plan (StateReaderValues.scope whole freezes (0,key.2))", "prepared_body_normal"),
+    ("compiled-derived-post-applied-twice", "some (decorate (clause.freezes.lookup name) (.map post prior))", "some (decorate (clause.freezes.lookup name) (.map (fun value => post (post value)) prior))", "derived_equation"),
+]))
+
 # Preserve the full default gate while allowing a focused continuation check.
 import argparse
 parser = argparse.ArgumentParser(description=__doc__)

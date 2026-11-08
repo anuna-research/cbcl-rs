@@ -442,3 +442,31 @@
 ;; mutations fail their intended request-inventory/domain/provenance theorem.
 ;; verified-by lint passes; vault comparison adds no unresolved reference pairs
 ;; or syntax/SPL errors. Fresh proof and artifact review found no logical defect.
+
+;; Compiled-body continuation for [[SPEC-038-lvar-state-kernel#TEST-3806]]:
+;; StateCompiledFieldEquations derives exact final-dictionary rule/field lookup
+;; equations from successful compilation, preserving earlier source plans and
+;; clause-wide freeze attachment. Operational dependency options equal the full
+;; concrete reference inventory. prepared_body_normal binds every admitted field
+;; to its actual compiled normal step, leaving own-freeze finishing explicit.
+;; prepared_unfrozen_body proves the complete no-own-freeze step (even with a
+;; separately frozen dependency); prepared_no_freeze_reference/cache prove actual
+;; recursive reference and initial request transcript/cache equality for prepared
+;; clauses with no freezes, retaining faults and threshold source reads.
+;; General own-freeze finishing and threshold-output adaptation remain open;
+;; literal Rust values/graph/map/vector representations and rendering remain
+;; explicit boundaries. Fresh review found no logical defect or vacuity in the
+;; stated scope; concrete fixtures preserve a derived dependency's supersede
+;; freeze and construct no-freeze admission/metadata rather than assume success.
+;; Fault-case extension: finish_faulting/prepared_fault_body return the exact
+;; compiled terminal error before historical calls, including own-freeze and
+;; inherited witness unions. This is a body equation under compiled dependency
+;; meanings, not independent recursive cache fault equivalence: the successful
+;; own-freeze data case is still required for the general induction. Fresh
+;; read-only review found no defect in that stated scope.
+;; Final compiled-field checks: full Lean build and Batteries linter pass;
+;; check-axioms audits 1433 theorems with allowed axioms only. Four focused
+;; mutants reject erased/overwritten freezes, lost scopes and doubled derived
+;; post operations in named theorems. verified-by lint passes; vault comparison
+;; adds no unresolved reference pairs or syntax/SPL errors. Fresh proof/artifact
+;; review found no defect within the explicitly limited case-equation scope.

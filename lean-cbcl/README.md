@@ -474,9 +474,14 @@ callbacks. `StateReaderReachability` now constructs that request-domain restrict
 successful preparation: native initial reads include threshold sources, every
 continuation stays within original source fields and allocated scopes, and
 cache provenance excludes unsupported helper fallbacks. A non-vacuous concrete
-fixture exercises the complete initial request inventory. The remaining recursive
-whole-reader equation must identify the fixed cache reference with compiled
-observations; `reference_on_domain` supplies induction over admitted requests.
+fixture exercises the complete initial request inventory. `StateCompiledFieldEquations` now derives completed-dictionary source/derived
+lookup equations and binds every normal body step to its bare compiled plan.
+It proves the complete equation for fields without their own freeze, and recursive
+cache/transcript equality for prepared clauses with no freezes, including faults
+and threshold source reads. The terminal-fault body case also closes, including inherited and own-freeze
+witness unions. Successful own-freeze finishing and threshold-output adaptation
+remain to extend that result to the complete native fold; `reference_on_domain`
+supplies induction over admitted requests.
 Literal Rust value/graph/map/vector extraction and rendering remain boundaries. Executable cache
 witnesses and focused mutations exercise aliasing, wrapper and cut mistakes.
 

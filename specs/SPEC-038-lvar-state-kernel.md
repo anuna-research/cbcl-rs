@@ -1259,14 +1259,39 @@ therefore excluded from these admitted requests. A concrete context/count/
 threshold/freeze fixture establishes preparation and request admission without
 assuming that the installation succeeds.
 
-The remaining whole-reader obligation identifies the fixed operations' recursive
-cache reference with the compiled clause observations. `reference_on_domain`
+`StateCompiledFieldEquations.lean` derives exact lookup equations from successful
+installed compilation. Every rule resolves the same earlier source plan in the
+completed unique dictionary; source and derived fields retain their attached
+freeze decoration. The concrete operational dependency option equals the entire
+resolved reference inventory, including the no-dependency case.
+`prepared_body_normal` identifies every admitted field's normal body step with
+the actual bare compiled scoped plan. Own-freeze finishing is kept explicit.
+
+`prepared_unfrozen_body` closes the complete body equation for a field without
+its own freeze, including faults and derived reads of separately frozen source
+plans. `prepared_no_freeze_reference` and `prepared_no_freeze_cache` establish
+recursive reference and native initial field-request transcript/cache equality
+to the compiled meanings for successfully prepared clauses with no freezes.
+The transcript includes threshold source reads; it is not a theorem about the
+subsequent threshold-output adaptation or serialized clause rendering. Concrete
+fixtures retain a supersede freeze inside a derived source and construct an
+admitted threshold-bearing clause with empty freeze metadata.
+
+`finish_faulting` and `prepared_fault_body` close the complete body equation
+for terminal compiled faults, including own-freeze conflicts and inherited
+witness unions. Dependencies in that equation are evaluated using the compiled
+target meaning; recursive cache fault equivalence does not follow independently
+until the successful own-freeze data case also closes.
+
+The remaining whole-reader obligation closes that successful own-freeze
+finishing case and composes threshold-output adaptation.
+`reference_on_domain`
 allows that equation to be proved solely for admitted requests by well-founded
 induction. It transports an independently established body equation; it does
-not itself prove the compiled-clause body equation. Helpers remain total outside
+not itself prove the remaining successful own-freeze body equation. Helpers remain total outside
 the admitted domain, which does not model Rust's indexing or unknown-field
-no-insert branch. Local adapter equations, request safety and fixed construction
-are not evidence that this final recursive observation theorem is complete.
+no-insert branch. Local adapter equations, request safety, fixed construction
+and the no-freeze result are not evidence that the general recursive observation theorem is complete.
 Typed semantic wrappers also do not prove public serialized rendering or
 literal Rust value representation.
 
