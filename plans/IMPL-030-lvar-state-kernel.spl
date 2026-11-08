@@ -1427,3 +1427,21 @@
 ;; constructor canonical ordering/evidence sorting and full serializer composition
 ;; remain obligations. General admission/installed/scoped-reader and BUG-011 root
 ;; binding decisions keep full SPEC-038 acceptance open. No completion asserted.
+
+;; Canonical fault evidence continuation: StateFaultRendering proves exact
+;; membership, uniqueness, UTF-8 byte order, finite-realization independence and
+;; semantic freeze fault serialization from executable witness enumeration.
+;; Fixed reason/address representation are explicit; recovering identities also
+;; requires injectivity. Reference merge sort does not prove native radix sorting.
+;; Live fault-evidence comparison passes 512 cases/seed380038 with reordered and
+;; duplicated delivery, concurrent freezer roots and repeated writer evidence.
+;; Native radix property now includes arbitrary Unicode, empty and NUL addresses.
+;; Four proof mutants and two native sorting/dedup mutants are rejected by their
+;; named proof obligations or executed exact-string comparisons. All nine live
+;; suites pass; library/oracle build and Batteries env-linter pass. Independent
+;; read-only review found no substantive defect. Full acceptance remains open:
+;; native AST/admission/installed-reader refinement, native representation and
+;; radix-sort correspondence, integer formatting and BUG-011 root contract.
+;; Axiom audit passes 1967 theorems, all allowlisted. Strict hence validation
+;; still reports pre-existing undefined failure-state literals and missing source
+;; annotations; baseline HEAD and this comment-only continuation share that debt.

@@ -79,3 +79,62 @@ fn native_json_bytes_match_lean() {
         Ok(())
     }).unwrap();
 }
+
+// Address aliases deliberately exercise arbitrary UTF-8 ordering below admission;
+// this profile makes no claim about content-hash identity or root-cast binding.
+fn native_fault(case: &Value) -> Value {
+    use cbcl_core::state::{Entry, FreezePolicy, Rule, StateClause};
+    let clause = StateClause { entries: vec![
+        Entry::Field { name: "observed".into(), rule: Rule::Count { verb: "tick".into() } },
+        Entry::Freeze { field: "observed".into(), verb: "close".into(), policy: FreezePolicy::Fault },
+    ] };
+    let mut acts = Vec::new();
+    for (key,verb) in [("freezers","close"),("writers","tick")] {
+        for address in case[key].as_array().unwrap() {
+            let mut act = make_act(&format!("(lang fault-demo ({verb}))"));
+            act.address = address.as_str().unwrap().into();
+            acts.push(act);
+        }
+    }
+    json!({"rendered":fold(&clause,None,&acts)[0].1.render()})
+}
+
+#[test]
+#[ignore = "requires lake build cbcl-state-oracle; explicitly run in Lean CI"]
+fn fault_evidence_bytes_match_lean() {
+    let oracle = RefCell::new(Oracle::start());
+    for (freezers,writers) in [
+        (vec!["z","a"],vec!["m"]), (vec!["\0",""],vec!["w"]),
+        (vec!["a\0","a","aa"],vec!["b"]), (vec!["[","\""],vec!["β","\n"]),
+        (vec!["😀","é","a","a"],vec!["β","β"]),
+    ] {
+        let case = json!({"profile":"fault-evidence","freezers":freezers,"writers":writers});
+        assert_eq!(native_fault(&case),oracle.borrow_mut().request(&case),"fault case={case}");
+    }
+    for case in [json!({"freezers":[],"writers":[]}),json!({"freezers":["a","a"],"writers":[]}),
+        json!({"freezers":["a","b"],"writers":["a"]})] {
+        let mut case = case;
+        case["profile"] = json!("fault-evidence");
+        assert!(oracle.borrow_mut().response(&case).get("error").is_some());
+    }
+    let mut config = proptest::test_runner::Config::default();
+    if std::env::var_os("PROPTEST_CASES").is_none() { config.cases = 512; }
+    config.failure_persistence = Some(Box::new(proptest::test_runner::FileFailurePersistence::Direct(
+        concat!(env!("CARGO_MANIFEST_DIR"),"/tests/state_fault_evidence.proptest-regressions"))));
+    let mut runner = proptest::test_runner::TestRunner::new(config);
+    runner.run(&(prop::collection::vec(text(),0..12),prop::collection::vec(text(),0..12)), |(fs,ws)| {
+        let mut freezers = vec!["f:0".to_owned(),"f:1".to_owned()];
+        freezers.extend(fs.into_iter().map(|s|format!("f:{s}")));
+        let mut writers = vec!["w:0".to_owned()];
+        writers.extend(ws.into_iter().map(|s|format!("w:{s}")));
+        let case = json!({"profile":"fault-evidence","freezers":freezers,"writers":writers});
+        let expected = oracle.borrow_mut().request(&case);
+        prop_assert_eq!(native_fault(&case),expected.clone(),"fault case={}",case);
+        freezers.reverse(); writers.reverse();
+        freezers.extend(freezers.clone()); writers.extend(writers.clone());
+        let repeated = json!({"profile":"fault-evidence","freezers":freezers,"writers":writers});
+        prop_assert_eq!(native_fault(&repeated),expected.clone());
+        prop_assert_eq!(oracle.borrow_mut().request(&repeated),expected);
+        Ok(())
+    }).unwrap();
+}

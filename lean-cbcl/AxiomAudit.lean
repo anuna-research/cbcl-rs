@@ -1,3 +1,4 @@
+import LeanCbcl.StateFaultRenderingTests
 import LeanCbcl.StateJsonValueTests
 import LeanCbcl.StateKeywordExtractionTests
 import LeanCbcl.StateContextMessageTests
@@ -2861,3 +2862,27 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateJsonValueTests.event_layout
 #print axioms CBCL.StateJsonValueTests.key_layout
 #print axioms CBCL.StateJsonValueTests.clause_order
+
+#print axioms CBCL.StateFaultRendering.bytes_injective
+#print axioms CBCL.StateFaultRendering.byte_trans
+#print axioms CBCL.StateFaultRendering.byte_total
+#print axioms CBCL.StateFaultRendering.byte_antisymm
+#print axioms CBCL.StateFaultRendering.canonical_member
+#print axioms CBCL.StateFaultRendering.canonical_unique
+#print axioms CBCL.StateFaultRendering.canonical_order
+#print axioms CBCL.StateFaultRendering.canonical_setEq
+#print axioms CBCL.StateFaultRendering.canonical_idempotent
+#print axioms CBCL.StateFaultRendering.fromSet_mk
+#print axioms CBCL.StateFaultRendering.fault_setEq
+#print axioms CBCL.StateFaultRendering.fault_bytes
+#print axioms CBCL.StateFaultRendering.realization_independent
+#print axioms CBCL.StateFaultRendering.realization_member
+#print axioms CBCL.StateFaultRendering.canonical_growth
+#print axioms CBCL.StateFaultRendering.realized_fault
+#print axioms CBCL.StateFaultRendering.freeze_fault_enumerated
+#print axioms CBCL.StateFaultRendering.freeze_fault_serialized
+#print axioms CBCL.StateFaultRenderingTests.ascii_order
+#print axioms CBCL.StateFaultRenderingTests.nul_prefix_order
+#print axioms CBCL.StateFaultRenderingTests.raw_byte_order
+#print axioms CBCL.StateFaultRenderingTests.unicode_order
+#print axioms CBCL.StateFaultRenderingTests.fault_layout

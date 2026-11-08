@@ -244,3 +244,22 @@ clause order are covered. Native uppercase-control-hex and reversed-field-order
 mutants fail this comparison despite retaining equivalent parsed objects/string
 values. Formal native Rust extraction, integer-formatting correspondence and
 constructor sorting remain outside this profile.
+
+The `fault-evidence` profile accepts `freezers` and `writers` arrays of UTF-8
+address aliases. At least two distinct freezer aliases are required; writer
+and freezer identities must be disjoint. Duplicate deliveries within either
+array are accepted. The oracle constructs independent root acts, runs executable
+freeze evaluation with fault policy, maps its computed witnesses back to aliases,
+and returns `rendered`, the complete canonical fault JSON string. The reason is
+fixed to `concurrent freezes` in this profile.
+
+Rust evaluates a count field with a fault-policy freeze through public `fold`.
+Concurrent freezers cause writer evidence to be collected repeatedly, exercising
+native sorting and duplicate removal before serialization. Exact-string checks
+include empty addresses, NUL/prefix ordering, quote/bracket ordering and Unicode,
+plus generated reordered and duplicated deliveries. Mutants dropping the
+missing-byte sentinel or retaining duplicate evidence fail executed comparisons.
+These aliases deliberately bypass identity validation: this checks evidence
+presentation, not admission or content-address integrity. The associated Lean
+proof composes finite freeze witnesses with reference canonicalization and JSON
+emission; native radix-sort refinement and reason derivation remain open.

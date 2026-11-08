@@ -216,6 +216,7 @@ def run (j : Json) : Check Json :=
   | .ok (.str "nonnegative-shape") => CBCL.StateShapeOracle.run j
   | .ok (.str "keyword-extraction") => CBCL.StateShapeOracle.keywordRun j
   | .ok (.str "state-render") => CBCL.StateJsonOracle.run j
+  | .ok (.str "fault-evidence") => CBCL.StateJsonOracle.faultRun j
   | .ok (.str "context") => StateContextOracle.run j
   | .ok (.str "context-wrapper") => StateContextOracle.wrapperRun j
   | .ok (.str "events-sum") => nestedInput j >>= evaluateNested

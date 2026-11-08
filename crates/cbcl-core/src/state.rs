@@ -934,7 +934,12 @@ mod address_sort_tests {
     proptest! {
         #[test]
         fn radix_address_order_matches_byte_lexicographic_order(
-            mut addresses in proptest::collection::vec("[a-f0-9]{0,71}", 0..64)
+            mut addresses in proptest::collection::vec(prop_oneof![
+                "[a-f0-9]{0,71}",
+                proptest::collection::vec(any::<char>(), 0..24)
+                    .prop_map(|chars| chars.into_iter().collect::<String>()),
+                Just(String::new()), Just(String::from("\0")), Just(String::from("a\0")),
+            ], 0..64)
         ) {
             let mut expected = addresses.clone();
             expected.sort();

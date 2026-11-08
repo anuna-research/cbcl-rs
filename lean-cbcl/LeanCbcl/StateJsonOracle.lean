@@ -1,5 +1,6 @@
 import Lean
 import LeanCbcl.StateJsonValue
+import LeanCbcl.StateFaultRendering
 
 /-! Exact byte-spelling oracle for public native state Value/render_json.
 Inputs retain every container's stored order. No state admission, constructor
@@ -41,5 +42,21 @@ def run (j : Json) : Except String Json := do
     | [.str name,data] => return (name,← value 32 data)
     | _ => throw "expected named state field")
   return Json.mkObj [("rendered",.str (emit current "")),("state",.str (emitState fields ""))]
+
+/-- Concurrent independent freezers exercise the existing freeze witness
+semantics before canonical presentation. Address strings are explicit aliases,
+not a claim about content hashing, authentication or native act admission. -/
+def faultRun (j : Json) : Except String Json := do
+  let freezers : List String ← fromJson? (← j.getObjVal? "freezers")
+  let writers : List String ← fromJson? (← j.getObjVal? "writers")
+  if (StateFaultRendering.canonical freezers).length < 2 then throw "need at least two distinct concurrent freezers"
+  if freezers.any (fun name => writers.contains name) then throw "freezer/writer identities must be disjoint"
+  let names := StateFaultRendering.canonical (freezers ++ writers)
+  let acts : List State.Act := (names.zipIdx).map (fun (name,id) =>
+    ⟨id,(if freezers.contains name then "close" else "tick"),"@a",[],[],[]⟩)
+  let observed := StateExecutableFreeze.read acts "close" (fun act => act.verb == "tick") true none (fun _ => (0 : Nat))
+  let .fault ids := observed | throw "expected semantic concurrent-freeze fault"
+  let evidence ← ids.mapM (fun id => match names[id]? with | some name => pure name | none => throw "witness outside source address pool")
+  return Json.mkObj [("rendered",.str (StateJsonValue.emit (StateFaultRendering.fault "concurrent freezes" evidence) ""))]
 
 end CBCL.StateJsonOracle

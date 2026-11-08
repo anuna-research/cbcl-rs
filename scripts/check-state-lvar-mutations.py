@@ -750,6 +750,14 @@ suites.append(('StateJsonValue', (root / "lean-cbcl/LeanCbcl/StateJsonValue.lean
     ('json-event-signer-dropped', '      emit value (StateJsonString.emit (buffer ++ "{\\"by\\":") signer ++ ",\\"value\\":") ++ "}"', '      emit value (StateJsonString.emit (buffer ++ "{\\"by\\":") "" ++ ",\\"value\\":") ++ "}"', 'emit_refinement'),
 ]))
 
+fault_tests = (root / "lean-cbcl/LeanCbcl/StateFaultRenderingTests.lean").read_text().split("\n",1)[1]
+suites.append(("StateFaultRendering", (root / "lean-cbcl/LeanCbcl/StateFaultRendering.lean").read_text() + "\n" + fault_tests, [
+    ("fault-evidence-duplicates-retained", "(FinSet.dedup addresses).mergeSort byteLE", "addresses.mergeSort byteLE", "canonical_unique"),
+    ("fault-empty-address-discarded", "(FinSet.dedup addresses).mergeSort byteLE", '(FinSet.dedup (addresses.filter (fun text => text != ""))).mergeSort byteLE', "canonical_member"),
+    ("fault-byte-order-reversed", "(compare (bytes a) (bytes b)).isLE", "(compare (bytes b) (bytes a)).isLE", "ascii_order"),
+    ("fault-status-changed", '(.str "status",.str "fault")', '(.str "status",.str "pending")', "fault_layout"),
+]))
+
 # Preserve the full default gate while allowing a focused continuation check.
 import argparse
 parser = argparse.ArgumentParser(description=__doc__)

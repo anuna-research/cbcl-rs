@@ -641,3 +641,14 @@ See the [checkpoint validation guide](../proofs/cached-checkpoints/README.md)
 for recorded acceptance, reproducible trust-zero checks and the exact scope of
 bounded Rust/Lean correspondence. Detailed reports are generated locally and
 are not checked in.
+
+`StateFaultRendering` proves exact witness membership, uniqueness and UTF-8
+byte ordering for canonical fault evidence, then composes executable freeze
+witness enumeration with complete fault JSON emission. Equal witness sets yield
+identical bytes for a fixed reason and address representation. Recovering
+semantic identities from rendered addresses requires injectivity explicitly.
+The reference uses merge sort; formal refinement of native radix/count/scatter
+sorting remains open. The live `fault-evidence` profile exercises native
+concurrent-freeze faults, including repeated writer witnesses, against that
+reference using exact strings. Arbitrary UTF-8 aliases operate below admission
+and do not establish content-hash identity or resolve root-cast binding.
