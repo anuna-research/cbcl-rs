@@ -719,6 +719,13 @@ suites.append(("StateContextWrapperSyntax", (root / "lean-cbcl/LeanCbcl/StateCon
     ("context-wrapper-malformed-becomes-absent", "⟨thread,.malformed .malformedBinding,.absent⟩", "⟨thread,.absent,.absent⟩", "installed_cast"),
 ]))
 
+suites.append(("StateContextMessage", (root / "lean-cbcl/LeanCbcl/StateContextMessage.lean").read_text(), [
+    ("context-outer-cast-skipped", "| .wrapped .withRoles params _ => some params", "| .wrapped .withRoles _ inner => nomination inner", "outermost"),
+    ("context-thread-stops-at-cast", "| .dialect _ inner | .wrapped _ _ inner => thread inner", "| .wrapped .withRoles _ _ => none\n  | .dialect _ inner | .wrapped _ _ inner => thread inner", "sealed_thread"),
+    ("context-message-malformed-becomes-absent", "| some params => StateContextWrapperSyntax.metadata (thread message) params", "| some _ => ⟨thread message,.absent,.absent⟩", "cast_refinement"),
+    ("context-missing-role-cast-accepted", "if definition.roles.isEmpty then some [] else none", "some []", "cast_refinement"),
+]))
+
 # Preserve the full default gate while allowing a focused continuation check.
 import argparse
 parser = argparse.ArgumentParser(description=__doc__)

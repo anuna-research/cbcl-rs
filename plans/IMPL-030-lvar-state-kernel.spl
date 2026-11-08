@@ -1280,3 +1280,35 @@
 ;; General whole-message wrapper traversal, metadata extraction/authentication,
 ;; literal native installation/mutable reader/wire/renderer proofs still remain.
 ;; These parameter-level results do not establish full SPEC-038 completion.
+
+;; Typed context message traversal checkpoint (REQ-3811 / TEST-3809).
+;; StateContextMessage retains the four native message categories and four
+;; wrapper kinds. nomination selects outermost with-roles parameters, including
+;; malformed ones; thread independently reaches the simple message below it.
+;; nativeCast independently expresses native context cast traversal. By structural
+;; induction, extracted metadata and installed casting agree for every typed tree;
+;; profile_cast and root_decoder derive the actual installed context interfaces
+;; from immutable message projections, without supplied cast/pin classifiers.
+;; Tests cover all transparent wrapper kinds/dialect nodes, malformed outer
+;; shadowing, thread below shadowed casts, required/missing casts and role-free
+;; definitions (still reject malformed explicit nominations).
+;; Context oracle message-wrappers descriptors are outermost-first, parsed before
+;; construction, bounded to32. Native harness encloses complete messages and uses
+;; strict S-expression/native message parsing. Hash-token substitution is restricted
+;; to with-roles pin positions, not transparent wrapper parameters. Fixed cases
+;; exercise outermost precedence and ignored wrapper thread keywords; property
+;; generation also composes arbitrary up-to8 layers from all four transparent
+;; forms and valid/malformed role nominations. Invalid descriptor kind/nonlist
+;; params/depth33 are input-error cases, not accepted histories.
+;; Verification: aggregate library/oracle build, Batteries env-linter, 1900
+;; allowlisted theorem audits pass. Four proof mutants fail nomination precedence,
+;; thread traversal, malformed metadata and missing-role-cast equations. Actual
+;; isolated Rust context traversal mutation stopping at a transparent wrapper
+;; fails the live Lean comparison. All six live suites pass at512 cases/seed380038
+;; after adding generated nesting. Independent read-only proof/harness review
+;; found no defect, including the final generator delta. Verified-by/diff checks
+;; pass; no new unresolved vault pairs, zero syntax/SPL diagnostics. Docs updated.
+;; This proves typed category traversal and exact installed profile/root decoding;
+;; general projection from full native AST and wire recognition/authentication/
+;; admission are not proved by descriptor construction. Remaining literal native
+;; installation/mutable reader/renderer boundaries keep full SPEC acceptance open.

@@ -42,6 +42,7 @@ with tempfile.TemporaryDirectory(prefix="cbcl-live-oracle-") as directory:
                               text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=300)
 
     mutants = [
+        ("context-sealed-cast-traversal-stops-at-wrapper", "context.rs", "crate::message::Message::Wrapped { content, .. } => message = content,", 'crate::message::Message::Wrapped { .. } => return Err("lost enclosed cast".into()),', context_test),
         ("context-pin-grammar-bypassed", "role.rs", "if hex.len() != PIN_HEX_LEN || !hex.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f')) {", "if false {", context_test),
         ("context-quoted-account-accepted", "role.rs", "let SExpr::Atom(Atom::Symbol(k)) = key else {", "let SExpr::Atom(Atom::Symbol(k) | Atom::Str(k)) = key else {", context_test),
         ("state-bound-default-gate-bypassed", "r7.rs", "|| b.max_list > defaults.max_list", "|| false", finite_test),

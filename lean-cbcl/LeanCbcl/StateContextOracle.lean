@@ -3,6 +3,7 @@ import LeanCbcl.StateExecutableContext
 import LeanCbcl.StateCausalRank
 import LeanCbcl.StateContextCastSyntax
 import LeanCbcl.StateContextWrapperSyntax
+import LeanCbcl.StateContextMessage
 import LeanCbcl.Parser
 
 /-! Context profile for the live oracle. Canonical address hashing and wire
@@ -49,25 +50,52 @@ def parsePin (value : Json) : Check (ResourceField String) :=
 The native harness substitutes its actual installed hash at the pin value slot. -/
 def referencePin : String := "sha256:" ++ String.ofList (List.replicate 64 'a')
 
+/-- Normalize exactly the designated reference digest, preserving wrong pins. -/
+def normalizeMetadata (result : MessageMetadata) : MessageMetadata :=
+  {result with pin := match result.pin with
+    | .value digest => .value (if digest == referencePin then "dialect" else digest)
+    | other => other}
+
 /-- Raw parameter transport is parsed before the complete wrapper recognizer. -/
 def wrapperMetadata (thread : Option String) (text : String) : Check MessageMetadata := do
   let raw ← CBCL.parse text
   let .list params := raw | throw "wrapper-params must be a parameter list"
-  let result := CBCL.StateContextWrapperSyntax.metadata thread params
-  -- Preserve all wrong pins. Only the declared exact reference digest maps to
-  -- the existing independent installed-identity token.
-  return {result with pin := match result.pin with
-    | .value digest => .value (if digest == referencePin then "dialect" else digest)
-    | other => other}
+  return normalizeMetadata (CBCL.StateContextWrapperSyntax.metadata thread params)
+
+/-- Closed descriptor grammar for context-relevant native message projection. -/
+def messageLayer (j : Json) : Check (CBCL.StateContextMessage.Message → CBCL.StateContextMessage.Message) := do
+  let kind ← (← j.getObjVal? "kind").getStr?
+  if kind == "lang" then
+    return .dialect (← (← j.getObjVal? "name").getStr?)
+  let wrapper ← match kind with
+    | "envelope" => pure CBCL.StateContextMessage.Wrapper.envelope
+    | "signed" => pure .signed
+    | "with-limits" => pure .withLimits
+    | "with-roles" => pure .withRoles
+    | _ => throw "unknown message wrapper"
+  let raw ← CBCL.parse (← (← j.getObjVal? "params").getStr?)
+  let .list params := raw | throw "message wrapper params must be a list"
+  return .wrapped wrapper params
+
+/-- Decode descriptors outermost-first; context semantics, not a callback,
+selects the nomination and underlying thread from the constructed message. -/
+def messageMetadata (thread : Option String) (j : Json) : Check MessageMetadata := do
+  let descriptors ← j.getArr?
+  if descriptors.size > 32 then throw "message wrapper depth exceeds 32"
+  let layers ← descriptors.toList.mapM messageLayer
+  let message := layers.foldr (fun layer inner => layer inner) (.simple thread)
+  return normalizeMetadata (CBCL.StateContextMessage.metadata message)
 
 def fact (j : Json) : Check Fact := do
   let thread ← fromJson? (← j.getObjVal? "thread")
-  let metadata : MessageMetadata ← match j.getObjVal? "wrapper-params" with
-    | .ok value => wrapperMetadata thread (← value.getStr?)
-    | .error _ => do
-      let cast ← parseCast (← j.getObjVal? "cast")
-      let pin ← parsePin (← j.getObjVal? "pin")
-      pure ({thread := thread,cast := cast,pin := pin} : MessageMetadata)
+  let metadata : MessageMetadata ← match j.getObjVal? "message-wrappers" with
+    | .ok value => messageMetadata thread value
+    | .error _ => match j.getObjVal? "wrapper-params" with
+      | .ok value => wrapperMetadata thread (← value.getStr?)
+      | .error _ => do
+        let cast ← parseCast (← j.getObjVal? "cast")
+        let pin ← parsePin (← j.getObjVal? "pin")
+        pure ({thread := thread,cast := cast,pin := pin} : MessageMetadata)
   return ⟨← (← j.getObjVal? "id").getNat?,← (← j.getObjVal? "verb").getStr?,
     ← (← j.getObjVal? "signer").getStr?,← fromJson? (← j.getObjVal? "parents"),
     thread,metadata.cast,metadata.pin⟩

@@ -1763,8 +1763,17 @@ checks raw wrapper parameters and context reads, with a separate parser-only
 profile so dialect-identity rejection cannot mask permissive grammar errors.
 An isolated native mutation bypassing pin length/alphabet checks fails that
 comparison. Exact reference-digest normalization in the oracle is an explicit
-hash-identity boundary. Whole-message wrapper traversal and general per-message
-metadata extraction remain separate obligations.
+hash-identity boundary. `StateContextMessage.lean` derives nomination and thread
+metadata from a typed projection of all native message categories. Outermost
+sealed nomination takes precedence even when malformed; transparent wrappers
+and dialect nodes preserve cast search, while thread extraction independently
+reaches the simple message. The installed profile cast and root-decoder equations
+are derived from these message projections rather than supplied metadata.
+The context oracle now compares strict parsed wrapper nesting, including a
+malformed outer cast shadowing a valid inner cast and arbitrary bounded nesting.
+This establishes typed traversal and executable cross-checks. General projection
+from the full native AST, wire grammar, authentication and admission remain
+separate obligations.
 
 The finite-symbol adapter does not establish general metadata extraction or protocol admission;
 other live profiles retain their stated scalar contracts.

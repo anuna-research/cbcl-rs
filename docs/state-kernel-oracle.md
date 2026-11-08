@@ -140,7 +140,20 @@ The `context-wrapper` oracle profile takes a `params` string and compares the
 wrapper parser's acceptance before checking dialect identity. This prevents the
 identity gate from concealing malformed digest acceptance. The existing context
 campaign covers both this parser result and the resulting full context read.
-Whole-message wrapper traversal and general metadata extraction remain boundaries.
+A fact can also override its cast/pin transport with `message-wrappers`: an
+outermost-first array of descriptors. A transparent or role wrapper has a `kind`
+(`signed`, `envelope`, `with-limits`, `with-roles`) and a `params` string containing
+a parameter list; a dialect node has `kind: "lang"` and a `name`. At most 32
+descriptors are accepted. The harness encloses the simple message in these
+wrappers and passes the complete text through the native parsers. The Lean side
+builds the corresponding typed message projection and calls its metadata
+extractor. `StateContextMessage` proves that outermost cast selection and
+independent simple-thread lookup compose with installed profile/root decoding.
+Malformed outer role wrappers shadow valid inner ones. Raw parameters and hash
+normalization retain the rules above, with substitution confined to role wrappers.
+The campaign includes fixed and generated nesting plus invalid descriptor tests.
+Projection from arbitrary full native ASTs, authentication/admission and general
+wire correspondence remain boundaries.
 
 The Rust context harness builds actual content-addressed messages and calls the
 strict S-expression parser, native message parser, installer and fold. Dialect
@@ -181,7 +194,7 @@ policy, hide concurrent freezers or discard freeze evidence when a raw fault
 already exists. Nested mutants erase the cache scope or field, use whole history
 for a dependency, stop unwrapping frozen payloads, or discard inherited source
 faults. Context mutants accept quoted account strings or duplicate roster occupants,
-bypass pin grammar or identity validation,
+bypass pin grammar or identity validation, stop cast search at transparent wrappers,
 mislabel fixed metadata, drop mixed-thread or opener-fork
 witnesses, alter the accepted count and hide the frontier. It leaves the
 worktree untouched.

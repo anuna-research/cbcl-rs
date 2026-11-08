@@ -553,8 +553,12 @@ the strict parser. `StateContextWrapperSyntax` recognizes complete role-wrapper
 parameters and exact lowercase-hex64 pins; its installed-cast equation includes
 optional pin identity and malformed syntax. The oracle compares parser acceptance
 before the independent identity gate, catching native pin grammar bypasses.
-Whole-message traversal and general native extraction remain open. BUG-006
-remains open for envelopes and suite-qualified keys.
+`StateContextMessage` derives cast/thread traversal over typed native message
+categories, installed profile casting and root decoding. Its outermost cast
+wins even when malformed; thread lookup independently reaches the simple
+message. The oracle tests strict parsed nesting and generated envelope chains.
+General projection from the full native AST, authentication and admission
+remain open. BUG-006 remains open for envelopes and suite-qualified keys.
 
 The Batteries gate remains enabled in CI. Intentional constant contribution
 arguments and uniform prepared-state receivers have local, explained

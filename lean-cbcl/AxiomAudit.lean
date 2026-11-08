@@ -1,3 +1,4 @@
+import LeanCbcl.StateContextMessageTests
 import LeanCbcl.StateContextWrapperSyntaxTests
 import LeanCbcl.StateContextCastSyntaxTests
 import LeanCbcl.StateFiniteDenseCacheTests
@@ -2800,3 +2801,15 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateContextWrapperSyntaxTests.wrapper_accepted
 #print axioms CBCL.StateContextWrapperSyntaxTests.unknown_keyword
 #print axioms CBCL.StateContextWrapperSyntaxTests.malformed_wrapper
+
+#print axioms CBCL.StateContextMessage.outermost
+#print axioms CBCL.StateContextMessage.sealed_thread
+#print axioms CBCL.StateContextMessage.cast_refinement
+#print axioms CBCL.StateContextMessage.metadata_thread
+#print axioms CBCL.StateContextMessage.profile_cast
+#print axioms CBCL.StateContextMessage.root_decoder
+#print axioms CBCL.StateContextMessageTests.transparent_wrappers
+#print axioms CBCL.StateContextMessageTests.malformed_outer_shadows
+#print axioms CBCL.StateContextMessageTests.shadowed_thread
+#print axioms CBCL.StateContextMessageTests.missing_cast_rejected
+#print axioms CBCL.StateContextMessageTests.role_free

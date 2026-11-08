@@ -54,6 +54,20 @@ fn native_wrapper(params: &str) -> Value {
     json!({"recognized":parse_wrapper_cast(&params,&roles).is_ok()})
 }
 
+fn message_wrapper_params(text: &str, hash: &str, normalize_pin: bool) -> String {
+    use cbcl_core::sexpr::{Atom, SExpr};
+    let SExpr::List(mut params) = parse(text).expect("wrapper transport parses") else {
+        panic!("wrapper params must be a list");
+    };
+    if normalize_pin {
+        let reference = format!("sha256:{}", "a".repeat(64));
+        if let Some(SExpr::Atom(Atom::Str(pin))) = params.get_mut(2) {
+            if *pin == reference { *pin = hash.to_owned(); }
+        }
+    }
+    params.iter().map(ToString::to_string).collect::<Vec<_>>().join(" ")
+}
+
 fn native_context(case: &Value) -> Value {
     let name = case["name"].as_str().unwrap();
     let path = case["path"]
@@ -154,21 +168,22 @@ fn native_context(case: &Value) -> Value {
             Some("malformed") => ":dialect #t".to_owned(),
             _ => String::new(),
         };
-        let wire = if let Some(text) = f["wrapper-params"].as_str() {
-            use cbcl_core::sexpr::{Atom, SExpr};
-            let SExpr::List(mut params) = parse(text).expect("wrapper transport parses") else {
-                panic!("wrapper params must be a list");
-            };
-            // Exact identity-token normalization at the pin value slot only.
-            let reference = format!("sha256:{}", "a".repeat(64));
-            if let Some(SExpr::Atom(Atom::Str(pin))) = params.get_mut(2) {
-                if *pin == reference { *pin = hash.clone(); }
-            }
-            format!("(with-roles {} {signed})", params.iter().map(ToString::to_string).collect::<Vec<_>>().join(" "))
+        let wire = if let Some(wrappers) = f["message-wrappers"].as_array() {
+            assert!(wrappers.len() <= 32);
+            wrappers.iter().rev().fold(signed, |inner, layer| {
+                let kind = layer["kind"].as_str().unwrap();
+                if kind == "lang" {
+                    format!("(lang {} {inner})", layer["name"].as_str().unwrap())
+                } else {
+                    assert!(["envelope", "signed", "with-limits", "with-roles"].contains(&kind));
+                    let params = message_wrapper_params(layer["params"].as_str().unwrap(), &hash, kind == "with-roles");
+                    format!("({kind} {params} {inner})")
+                }
+            })
+        } else if let Some(text) = f["wrapper-params"].as_str() {
+            format!("(with-roles {} {signed})", message_wrapper_params(text, &hash, true))
         } else {
-            cast
-            .map(|c| format!("(with-roles {c} {pin} {signed})"))
-            .unwrap_or(signed)
+            cast.map(|c| format!("(with-roles {c} {pin} {signed})")).unwrap_or(signed)
         };
         let expr = parse(&wire).expect("context message crosses the strict wire parser");
         let message = parse_message(&expr).unwrap();
@@ -268,6 +283,14 @@ fn context_kernel_matches_live_lean_oracle() {
     unparseable_root["cast"] = json!({"syntax":"("});
     assert!(oracle.response(&request(vec![unparseable_root], &["thread"], Value::Null)).get("error").is_some(),
         "unparseable cast text is outside the oracle transport domain");
+    for invalid in [json!([{"kind":"unknown","params":"()"}]),
+        json!([{"kind":"signed","params":"#t"}]),
+        json!(vec![json!({"kind":"signed","params":"()"});33])] {
+        let mut invalid_root = root.clone();
+        invalid_root["message-wrappers"] = invalid;
+        assert!(oracle.response(&request(vec![invalid_root], &["thread"], Value::Null)).get("error").is_some(),
+            "invalid message descriptor is outside the transport domain");
+    }
     let cast_params = "((chair @chair) (reviewer @a @b))";
     let digest = format!("sha256:{}", "a".repeat(64));
     let wrong = format!("sha256:{}", "0".repeat(64));
@@ -296,6 +319,29 @@ fn context_kernel_matches_live_lean_oracle() {
         let expected = oracle.request(&case);
         assert_eq!(native_context(&case), expected, "wrapper params={params}");
         assert_eq!(expected["value"]["status"] == "fault", !*valid, "wrapper params={params}");
+    }
+    let sealed = json!({"kind":"with-roles","params":format!("({cast_params})")});
+    let broken = json!({"kind":"with-roles","params":"()"});
+    let message_wrappers = vec![
+        (json!([sealed.clone()]), true),
+        (json!([{"kind":"envelope","params":"()"}, {"kind":"lang","name":"outer-scope"},
+            {"kind":"signed","params":"(@outer :thread \"ignored\")"},
+            {"kind":"with-limits","params":"()"}, sealed.clone()]), true),
+        (json!([sealed.clone(), {"kind":"signed","params":"(@outer)"}, {"kind":"lang","name":"inner-scope"}]), true),
+        (json!([broken.clone(), sealed.clone()]), false),
+        (json!([sealed.clone(), broken.clone()]), true),
+        (json!([]), false),
+        (json!([{"kind":"signed","params":"(@outer)"}, broken.clone(), sealed.clone()]), false),
+    ];
+    for (layers, valid) in &message_wrappers {
+        for path in [vec!["thread", "roles", "reviewer"], vec!["thread", "id"]] {
+            let mut wrapped_root = root.clone();
+            wrapped_root["message-wrappers"] = layers.clone();
+            let case = request(vec![wrapped_root], &path, Value::Null);
+            let expected = oracle.request(&case);
+            assert_eq!(native_context(&case), expected, "message wrappers={layers}");
+            assert_eq!(expected["value"]["status"] == "fault", !*valid, "message wrappers={layers}");
+        }
     }
     // Raw casts cross both real S-expression parsers before semantic role checks.
     for (syntax, valid) in [
@@ -440,7 +486,8 @@ fn context_kernel_matches_live_lean_oracle() {
         any::<bool>(),
         0u8..4,
         prop::collection::vec(0usize..4, 0..7),
-        0usize..wrappers.len() + 4,
+        0usize..wrappers.len() + message_wrappers.len() + 4,
+        prop::collection::vec(0u8..6, 0..9),
     );
     let mut config = proptest::test_runner::Config::default();
     if std::env::var_os("PROPTEST_CASES").is_none() {
@@ -456,7 +503,7 @@ fn context_kernel_matches_live_lean_oracle() {
     runner
         .run(
             &strategy,
-            |(path, cast, pin, nodes, root_present, alias, query, roster, wrapper)| {
+            |(path, cast, pin, nodes, root_present, alias, query, roster, wrapper, nesting)| {
                 let generated_cast = json!([
                     ["chair", ["@chair"]],
                     [
@@ -483,6 +530,18 @@ fn context_kernel_matches_live_lean_oracle() {
                 if root_present {
                     if let Some((params, _, _)) = wrappers.get(wrapper) {
                         facts[0]["wrapper-params"] = json!(params);
+                    } else if let Some((layers, _)) = message_wrappers.get(wrapper - wrappers.len()) {
+                        facts[0]["message-wrappers"] = layers.clone();
+                    } else if wrapper % 2 == 0 {
+                        let layers = nesting.iter().map(|kind| match kind {
+                            0 => json!({"kind":"signed","params":"(@outer)"}),
+                            1 => json!({"kind":"envelope","params":"()"}),
+                            2 => json!({"kind":"with-limits","params":"()"}),
+                            3 => json!({"kind":"lang","name":"generated-scope"}),
+                            4 => sealed.clone(),
+                            _ => broken.clone(),
+                        }).collect::<Vec<_>>();
+                        facts[0]["message-wrappers"] = json!(layers);
                     }
                 }
                 for (verb, a, b, thread) in nodes {
