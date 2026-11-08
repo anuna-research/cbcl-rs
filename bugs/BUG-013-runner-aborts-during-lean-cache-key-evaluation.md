@@ -3,7 +3,7 @@ id: BUG-013
 title: Runner aborts before the Lean cache action starts
 severity: S3
 priority: P1
-status: in-progress
+status: resolved
 reported-date: 2026-11-09
 assigned-to: SPEC-038 implementer
 component: .forgejo/workflows/lean.yml
@@ -46,14 +46,17 @@ binary digests, then hash that concatenation. On the current source this gives
 `1378afe6a4b5a1282e28ca2e2c36a734f9cbf551590ae1a218696eb4e14ce6ae`,
 matching run 299's restored cache key. Existing caches remain usable.
 
-## Acceptance evidence and remaining check
+## Acceptance evidence
 
 `node --test scripts/test-ci-lean-cache-key.mjs` passes its fixed digest vector,
 content invalidation and missing-input cases. Missing input fails before any
 cache digest is published. The script resolves inputs relative to itself,
 independently of the process working directory.
 
-The next pushed revision must run the explicit calculation, restore the cache,
-and finish the required Lean job successfully before this issue or the
-Elephant `lean-ci-green` task can be completed. Local key tests alone do not
-prove that acceptance condition.
+[Run 301, job 0](https://git.anuna.io/anuna-research/cbcl-rs/actions/runs/301/jobs/0)
+on commit `619bf67` ran the explicit calculation, passed all cache-key tests,
+restored the existing cache and verified Lean 4.27.0. The complete required Lean
+job then passed, including its oracle, Batteries linter and axiom-audit gates.
+This resolves the repository mitigation; the original runner-internal cause
+remains unknown. Later revisions still require their own successful CI result
+before the broader SPEC-038 implementation or `lean-ci-green` task is complete.
