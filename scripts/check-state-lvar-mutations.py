@@ -325,6 +325,15 @@ suites.append(("StateReaderValues", values_source + "\n" + values_tests, [
     ("typed-freeze-cut-data-replaced-by-current", "fun cut => sourceData (source cut)", "fun _ => sourceData (source scope)", "cached_freeze_scoped"),
 ]))
 
+reach_source = "import LeanCbcl.StateAuthoredBindingsTests\n" + (root / "lean-cbcl/LeanCbcl/StateReaderReachability.lean").read_text()
+reach_tests = re.sub(r"^import [^\n]+\n", "", (root / "lean-cbcl/LeanCbcl/StateReaderReachabilityTests.lean").read_text(), flags=re.M)
+suites.append(("StateReaderReachability", reach_source + "\n" + reach_tests, [
+    ("threshold-output-requested-as-source", "| .threshold _ source _ => some (0,source)", "| .threshold name _ _ => some (0,name)", "review_request_keys"),
+    ("top-level-source-uses-unallocated-scope", "| .field name _ => some (0,name)", "| .field name _ => some (999,name)", "initial_keys_admitted"),
+    ("request-domain-allows-threshold-outputs", "key.2 ∈ (rawFields entries).map Prod.fst ∧", "key.2 ∈ declaredNames entries ∧", "admitted_rule"),
+    ("dependency-domain-guard-dropped", "| .request key next => allowed key ∧ ∀ value, Within allowed (next value)", "| .request _ next => True ∧ ∀ value, Within allowed (next value)", "run_within"),
+]))
+
 # Preserve the full default gate while allowing a focused continuation check.
 import argparse
 parser = argparse.ArgumentParser(description=__doc__)

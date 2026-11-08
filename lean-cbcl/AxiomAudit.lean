@@ -1,3 +1,4 @@
+import LeanCbcl.StateReaderReachabilityTests
 import LeanCbcl.StateReaderValuesTests
 import LeanCbcl.StateAuthoredDependencies
 import LeanCbcl.StateReaderIndices
@@ -2187,3 +2188,30 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateReaderValuesTests.unwrapped_value_witness
 #print axioms CBCL.StateReaderValuesTests.outer_wrapper_witness
 #print axioms CBCL.StateReaderValuesTests.fault_union_witness
+
+
+#print axioms CBCL.StateReaderReachability.bind_dependency_known
+#print axioms CBCL.StateReaderReachability.declarations_known
+#print axioms CBCL.StateReaderReachability.static_known
+#print axioms CBCL.StateReaderReachability.prepared_known
+#print axioms CBCL.StateReaderReachability.cut_allocated
+#print axioms CBCL.StateReaderReachability.finish_within
+#print axioms CBCL.StateReaderReachability.body_within
+#print axioms CBCL.StateReaderReachability.run_within
+#print axioms CBCL.StateReaderReachability.read_within
+#print axioms CBCL.StateReaderReachability.reads_within
+#print axioms CBCL.StateReaderReachability.initial_admitted
+#print axioms CBCL.StateReaderReachability.admitted_scope
+#print axioms CBCL.StateReaderReachability.lookup_original
+#print axioms CBCL.StateReaderReachability.admitted_rule
+#print axioms CBCL.StateReaderReachability.declaration_shapes
+#print axioms CBCL.StateReaderReachability.lowering_witness
+#print axioms CBCL.StateReaderReachability.prepared_shapes
+#print axioms CBCL.StateReaderReachability.resolved_threshold_source
+#print axioms CBCL.StateReaderReachability.prepared_threshold_known
+#print axioms CBCL.StateReaderReachability.initial_keys_admitted
+#print axioms CBCL.StateReaderReachability.prepared_reachable_cache
+#print axioms CBCL.StateReaderReachability.meaning_congr
+#print axioms CBCL.StateReaderReachability.reference_on_domain
+#print axioms CBCL.StateReaderReachabilityTests.review_request_keys
+#print axioms CBCL.StateReaderReachabilityTests.review_requests_admitted

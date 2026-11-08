@@ -1247,13 +1247,26 @@ cached freeze adapter's value/error equation on closed contained scopes.
 source fault. Prepared original source fields are proved to lie in the supported
 primitive/derived inventory; threshold-output entries remain separate.
 
+`StateReaderReachability.lean` constructs the full native initial request list,
+including threshold sources rather than threshold-output names. Successful
+preparation proves aggregate and threshold sources are original source fields.
+Every dependency continuation preserves this inventory and allocated scopes,
+including value-dependent and fault-dependent branches. `prepared_reachable_cache`
+combines fixed execution, scope soundness, cache validity and provenance; every
+stored key retrieves an allocated history and an exactly looked-up supported
+primitive/derived rule. Invalid-scope and unsupported-IR helper fallbacks are
+therefore excluded from these admitted requests. A concrete context/count/
+threshold/freeze fixture establishes preparation and request admission without
+assuming that the installation succeeds.
+
 The remaining whole-reader obligation identifies the fixed operations' recursive
-cache reference with the compiled clause observations. It must establish
-reachability only through allocated scope indices and admitted original source
-field names. The current helper returns empty history at an invalid index and
-pending for unsupported IR forms; those fallbacks do not model Rust's indexing
-or unknown-field no-insert branch. Local adapter equations and fixed construction
-are not evidence that this final recursive/request-domain theorem is complete.
+cache reference with the compiled clause observations. `reference_on_domain`
+allows that equation to be proved solely for admitted requests by well-founded
+induction. It transports an independently established body equation; it does
+not itself prove the compiled-clause body equation. Helpers remain total outside
+the admitted domain, which does not model Rust's indexing or unknown-field
+no-insert branch. Local adapter equations, request safety and fixed construction
+are not evidence that this final recursive observation theorem is complete.
 Typed semantic wrappers also do not prove public serialized rendering or
 literal Rust value representation.
 

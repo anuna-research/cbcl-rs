@@ -470,9 +470,14 @@ normalizes duplicate deliveries and derives active-plan membership.
 scope data and resolved source rules. Its source, derived and complete cached
 freeze adapter equations match `StateNativeReader`, including both fault witness
 sets and historical payloads. `prepared_fixed_cache` needs no supplied leaf
-callbacks. The remaining recursive whole-reader equation must restrict reachable
-requests to allocated scopes and admitted source fields; literal Rust value,
-graph/map/vector extraction and rendering remain boundaries. Executable cache
+callbacks. `StateReaderReachability` now constructs that request-domain restriction from
+successful preparation: native initial reads include threshold sources, every
+continuation stays within original source fields and allocated scopes, and
+cache provenance excludes unsupported helper fallbacks. A non-vacuous concrete
+fixture exercises the complete initial request inventory. The remaining recursive
+whole-reader equation must identify the fixed cache reference with compiled
+observations; `reference_on_domain` supplies induction over admitted requests.
+Literal Rust value/graph/map/vector extraction and rendering remain boundaries. Executable cache
 witnesses and focused mutations exercise aliasing, wrapper and cut mistakes.
 
 The live [state-kernel oracle](../docs/state-kernel-oracle.md) executes the proved

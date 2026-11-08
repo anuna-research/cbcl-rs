@@ -421,3 +421,24 @@
 ;; witness. verified-by lint passes; vault comparison adds no unresolved reference
 ;; pairs or syntax/SPL errors. Fresh proof and artifact review found no defect
 ;; within the documented local-equation scope.
+
+;; Request-domain continuation for [[SPEC-038-lvar-state-kernel#TEST-3806]]:
+;; StateReaderReachability proves aggregate binds reference earlier originals,
+;; threshold metadata resolves to original sources, and initialKeys follows the
+;; actual source-field/threshold-source native fold requests. Within quantifies
+;; over every request and every value continuation, not merely final cache keys.
+;; Run/read/batch provenance and prepared_reachable_cache exclude invalid scopes
+;; and unsupported IR source forms throughout admitted execution. Concrete review
+;; fixture derives preparation existence and exact initial keys without assuming
+;; installation success. reference_on_domain transports an independently proved
+;; body equation by well-founded induction over admitted lower requests only.
+;; The actual compiled-clause body equation and final recursive whole-observation
+;; equality remain open, as do literal Rust value/graph/map/vector and rendering
+;; boundaries. Fresh read-only review found no logical defect; its wording fix
+;; clarifies that the domain induction avoids equations outside the domain,
+;; rather than establishing semantics for invalid requests.
+;; Reachability verification: full Lean build and Batteries linter pass;
+;; check-axioms audits 1412 theorems with allowed axioms only. Four focused
+;; mutations fail their intended request-inventory/domain/provenance theorem.
+;; verified-by lint passes; vault comparison adds no unresolved reference pairs
+;; or syntax/SPL errors. Fresh proof and artifact review found no logical defect.
