@@ -1,3 +1,4 @@
+import LeanCbcl.StateInstalledRecognition
 import LeanCbcl.StateFiniteRead
 import LeanCbcl.StateInstalledResource
 
@@ -250,8 +251,8 @@ structure Prepared where
   /-- Resolved global freeze targets, verbs and source footprints. -/
   freezes : List FreezeTemplate
 
-/-- Validate and lower every authored entry without evaluating a history. -/
-noncomputable def prepareStatic (environment : Environment) (entries : List Entry) : Option Prepared :=
+/-- Lower concrete authored entries before source-relative installation validation. -/
+noncomputable def lowerStatic (environment : Environment) (entries : List Entry) : Option Prepared :=
   if !metadataCheck environment entries then none else
   match domains environment entries with
   | none => none
@@ -262,6 +263,67 @@ noncomputable def prepareStatic (environment : Environment) (entries : List Entr
           | some (lowered,bindings) => match freezeTemplates environment bindings entries with
               | none => none
               | some resolvedFreezes => some ⟨lowered,resolvedDomains,resolvedFreezes⟩
+
+/-- Materialize the statically lowered clause at one observation. -/
+def clauseAt (prepared : Prepared) (history : List Act) : StateInstalledLowering.Clause Value :=
+  ⟨prepared.declarations,materialize prepared.domains history prepared.freezes⟩
+
+/-- Freeze policies are independent of observation-specific contributor sets. -/
+theorem stable_source_history (resolvedDomains : List StateInstalledDomains.Domain)
+    (templates : List FreezeTemplate) (A B : List Act) (name : String) :
+    StateInstalledLowering.stableSource (materialize resolvedDomains A templates) name =
+      StateInstalledLowering.stableSource (materialize resolvedDomains B templates) name := by
+  induction templates with
+  | nil => rfl
+  | cons template rest ih =>
+    by_cases same : name = template.field
+    · subst name; simp [StateInstalledLowering.stableSource,materialize]
+    · simpa [StateInstalledLowering.stableSource,materialize,List.lookup,beq_eq_false_iff_ne.mpr same] using ih
+
+/-- Complete metadata validation can run once, before observation specialization. -/
+theorem metadata_history (prepared : Prepared) (A B : List Act) :
+    StateInstalledLowering.ValidMetadata (clauseAt prepared A) ↔ StateInstalledLowering.ValidMetadata (clauseAt prepared B) := by
+  have names : (materialize prepared.domains A prepared.freezes).map Prod.fst =
+      (materialize prepared.domains B prepared.freezes).map Prod.fst := by
+    simp [materialize,List.map_map,Function.comp_def]
+  have stable : StateInstalledLowering.stableDeclarations (materialize prepared.domains A prepared.freezes) prepared.declarations =
+      StateInstalledLowering.stableDeclarations (materialize prepared.domains B prepared.freezes) prepared.declarations := by
+    unfold StateInstalledLowering.stableDeclarations
+    apply congrArg (fun predicate => prepared.declarations.all predicate)
+    funext declaration
+    cases declaration with
+    | field _ _ => rfl
+    | threshold _ source _ => exact stable_source_history prepared.domains prepared.freezes A B source
+  simp only [clauseAt,StateInstalledLowering.ValidMetadata]
+  rw [names,stable]
+
+/-- Check policy admission, backward references and all freeze/name metadata
+without constructing or executing any observation plan. -/
+noncomputable def preparedCheck (prepared : Prepared) : Bool :=
+  decide (StateInstalledLowering.ValidMetadata (clauseAt prepared [])) &&
+    StateInstalledRecognition.check [] [] prepared.declarations
+
+/-- Complete history-independent validation of modeled authored metadata,
+source policies and backward references; native parser/R7 extraction is separate. -/
+noncomputable def prepareStatic (environment : Environment) (entries : List Entry) : Option Prepared :=
+  (lowerStatic environment entries).filter preparedCheck
+
+/-- Successful static installation supplies every compiler premise at every history. -/
+theorem static_preparation_sound (environment : Environment) (entries : List Entry) (prepared : Prepared)
+    (accepted : prepareStatic environment entries = some prepared) (history : List Act) :
+    StateInstalledLowering.ValidMetadata (clauseAt prepared history) ∧
+      StateInstalledLowering.WellFormed [] [] prepared.declarations := by
+  cases lowered : lowerStatic environment entries with
+  | none => simp [prepareStatic,lowered] at accepted
+  | some raw =>
+    by_cases checked : preparedCheck raw = true
+    · have same : raw = prepared := by simpa [prepareStatic,lowered,Option.filter,checked] using accepted
+      subst prepared
+      have parts : StateInstalledLowering.ValidMetadata (clauseAt raw []) ∧
+          StateInstalledRecognition.check [] [] raw.declarations = true := by
+        simpa only [preparedCheck,Bool.and_eq_true,decide_eq_true_eq] using checked
+      exact ⟨(metadata_history raw [] history).mp parts.1,(StateInstalledRecognition.check_iff _ _ _).mp parts.2⟩
+    · simp [prepareStatic,lowered,Option.filter,checked] at accepted
 
 /-- Prepare the full concrete source clause for one accepted observation. -/
 noncomputable def prepare (environment : Environment) (entries : List Entry) (history : List Act) :
@@ -287,15 +349,51 @@ theorem authored_binding_refinement (world : Act → Prop) (environment : Enviro
   | some clause =>
     simpa [compile,interpret,prepared] using StateInstalledLowering.native_installed_compiler_refinement world clause
 
-/-- Successfully prepared concrete clauses compile whenever the checked
-installed metadata and backward-reference conditions hold. -/
+/-- Successful authored preparation compiles without assumed metadata or
+reference well-formedness; installation has constructed those obligations. -/
 theorem prepared_compiler_complete (environment : Environment) (entries : List Entry) (history : List Act)
-    (clause : StateInstalledLowering.Clause Value) (prepared : prepare environment entries history = some clause)
-    (metadata : StateInstalledLowering.ValidMetadata clause)
-    (wellFormed : StateInstalledLowering.WellFormed [] [] clause.declarations) :
+    (clause : StateInstalledLowering.Clause Value) (prepared : prepare environment entries history = some clause) :
     ∃ plans, compile environment entries history = some plans := by
-  obtain ⟨plans,compiled⟩ := StateInstalledLowering.native_installed_compiler_complete clause metadata wellFormed
-  exact ⟨plans,by simpa [compile,prepared] using compiled⟩
+  cases installed : prepareStatic environment entries with
+  | none => simp [prepare,installed] at prepared
+  | some metadata =>
+    have same : clauseAt metadata history = clause := by simpa [prepare,installed,clauseAt] using prepared
+    obtain ⟨valid,wellFormed⟩ := static_preparation_sound environment entries metadata installed history
+    rw [same] at valid
+    have references : StateInstalledLowering.WellFormed [] [] clause.declarations := by simpa [← same,clauseAt] using wellFormed
+    obtain ⟨plans,compiled⟩ := StateInstalledLowering.native_installed_compiler_complete clause valid references
+    exact ⟨plans,by simpa [compile,prepared] using compiled⟩
+
+/-- Authored preparation and compilation accept exactly the same clauses. -/
+theorem preparation_compilation_iff (environment : Environment) (entries : List Entry) (history : List Act) :
+    (prepare environment entries history).isSome = (compile environment entries history).isSome := by
+  cases prepared : prepare environment entries history with
+  | none => simp [compile,prepared]
+  | some clause =>
+    obtain ⟨plans,compiled⟩ := prepared_compiler_complete environment entries history clause prepared
+    simp [compiled]
+
+/-- Strengthening static preparation preserves every result of the earlier
+partial-lowering pipeline, including rejection; no compilable clause is lost. -/
+theorem preparation_preserves_compilation (environment : Environment) (entries : List Entry) (history : List Act) :
+    compile environment entries history = (lowerStatic environment entries).bind
+      (fun prepared => StateInstalledLowering.compile (clauseAt prepared history)) := by
+  cases lowered : lowerStatic environment entries with
+  | none => simp [compile,prepare,prepareStatic,lowered]
+  | some raw =>
+    by_cases checked : preparedCheck raw = true
+    · simp [compile,prepare,prepareStatic,lowered,Option.filter,checked,clauseAt]
+    · have rejected : StateInstalledLowering.compile (clauseAt raw history) = none := by
+        cases compiled : StateInstalledLowering.compile (clauseAt raw history) with
+        | none => rfl
+        | some plans =>
+          have valid := (StateInstalledRecognition.compile_iff (clauseAt raw history)).mp (by simp [compiled])
+          have staticValid := (metadata_history raw history []).mp valid.1
+          have accepted : preparedCheck raw = true := by
+            simp only [preparedCheck,Bool.and_eq_true,decide_eq_true_eq]
+            exact ⟨staticValid,valid.2⟩
+          exact False.elim (checked accepted)
+      simp [compile,prepare,prepareStatic,lowered,Option.filter,checked,rejected]
 
 /-- Fixed contributor metadata respects full-observation set equality. -/
 theorem contributes_setEq (resolvedDomains : List StateInstalledDomains.Domain) {A B : List Act}

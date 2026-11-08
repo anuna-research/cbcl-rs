@@ -293,3 +293,16 @@
 ;; and installation integration, formatted strings, runtime cost correspondence
 ;; (Rust stores decoded reads, model decodes per pair), plus prior authored
 ;; completeness and Rust Reader obligations. TEST-3806 remains partial.
+
+;; Authored preparation completion: StateInstalledRecognition proves exact
+;; lowerer acceptance iff metadata and policy/backward-reference checks pass.
+;; prepareStatic now performs these checks; prepared_compiler_complete no
+;; longer assumes metadata/WF, and preparation_preserves_compilation proves
+;; every prior successful plan and rejection unchanged. Positive review fixture
+;; still prepares/compiles; forward, empty and supersede thresholds now reject
+;; at preparation. StateAuthoredCompletion constructs plans/independent readers
+;; from preparation and composes full functional cached observations including
+;; faults and equal-set frozen/evidence equality. Fresh adversarial reviews
+;; found no defect or correctness-oracle premise. Reference checks remain
+;; noncomputable Lean definitions; literal native R7 extraction/integration and
+;; mutable Rust Reader correspondence remain open. TEST-3806 stays partial.

@@ -213,3 +213,7 @@ import LeanCbcl.StateNativeReader
 import LeanCbcl.StateFiniteUpperCache
 
 import LeanCbcl.StateFinitePairLoop
+
+import LeanCbcl.StateInstalledRecognition
+
+import LeanCbcl.StateAuthoredCompletion

@@ -1101,6 +1101,18 @@ formatted diagnostics, and allocation/runtime cost correspondence remain
 separate boundaries; the model decodes per pair while Rust stores a reads
 vector. No cache complexity theorem is claimed.
 
+`StateInstalledRecognition.lean` proves exact lowerer acceptance from the
+modeled metadata, source policy and backward-reference checks. Authored
+preparation now performs those checks before returning success;
+`prepared_compiler_complete` constructs compiled plans without separately
+assuming metadata validity or reference well-formedness.
+`preparation_preserves_compilation` proves every previous successful plan and
+rejection is preserved. `StateAuthoredCompletion.lean` composes successful
+preparation through concrete readers and the functional cached reader,
+including faults, and preserves complete observations on equal accepted sets.
+These reference validators remain `noncomputable` Lean definitions; extraction
+to the actual native installer and mutable Rust reader is not claimed.
+
 A native regression found that a data-domain-excluded tick could evade progress
 freeze evidence although progress reads raw history. The Rust selector and
 concrete authored footprint now retain every accepted tick of the selected
@@ -1114,8 +1126,7 @@ These theorems operate at explicit typed boundaries. They do not prove Rust
 source-code extraction, canonical rendering order, diagnostics, or wire parsing.
 The installed semantic IR still receives native closure implementations and
 recognized immutable metadata as leaf parameters. The authored lowering above still needs complete native installation-gate
-correspondence, authored completeness without relying on prepared-reference
-premises, literal finite-validator extraction/integration correspondence, and composition with
+correspondence, literal finite-validator extraction/integration correspondence, and composition with
 the literal Rust scoped/memoized reader. The functional cached plan-reader
 composition is proved, including faulted reads. Typed metadata extraction must
 preserve native scalar distinctions, including quoted strings versus symbols.

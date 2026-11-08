@@ -214,6 +214,8 @@ authored_tests = (root / "lean-cbcl/LeanCbcl/StateAuthoredBindingsTests.lean").r
 authored_tests = "\n".join(line for line in authored_tests.splitlines() if not line.startswith("import "))
 suites.extend([
     ("StateAuthoredBindings", (root / "lean-cbcl/LeanCbcl/StateAuthoredBindings.lean").read_text() + "\n" + authored_tests, [
+        ("authored-preparation-guard-bypassed", "(lowerStatic environment entries).filter preparedCheck", "lowerStatic environment entries", "static_preparation_sound"),
+        ("authored-preparation-rejects-all", "decide (StateInstalledLowering.ValidMetadata (clauseAt prepared [])) &&\n    StateInstalledRecognition.check [] [] prepared.declarations", "false", "preparation_preserves_compilation"),
         ("authored-freeze-contributors-use-empty-history", "contributes resolvedDomains history template.footprint", "contributes resolvedDomains [] template.footprint", "materialized_progress_contributor"),
         ("authored-progress-domain-filtered", "| .progress verb => .rawVerbs [verb]", "| .progress verb => .verbs [verb]", "progress_raw_contributor"),
         ("authored-duplicate-namespace-allowed", "decide names.Nodup", "true", "lattice_and_field_namespace_shared"),
@@ -252,6 +254,12 @@ suites.append(("StateFinitePairLoop", (root / "lean-cbcl/LeanCbcl/StateFinitePai
     ("pair-loop-duplicate-ignored", "if left == right then some .duplicate", "if false then some .duplicate", "reason_clear"),
     ("pair-loop-index-off-by-one", "some (index,other,why)", "some (index,index,why)", "pairs_reference"),
     ("pair-loop-skips-later-rows", "| none => pairs compatible (index + 1) rest", "| none => none", "pairs_clear"),
+]))
+
+suites.append(("StateInstalledRecognition", (root / "lean-cbcl/LeanCbcl/StateInstalledRecognition.lean").read_text(), [
+    ("recognition-policy-check-bypassed", "(lowerRule definitions declaration).isSome &&", "true &&", "check_iff"),
+    ("recognition-backward-check-bypassed", "(StateInstalledLowering.references declaration).all names.contains &&", "true &&", "check_iff"),
+    ("recognition-tail-check-bypassed", "check (extend definitions declaration) (declaration.name::names) rest", "true", "check_iff"),
 ]))
 
 # Preserve the full default gate while allowing a focused continuation check.

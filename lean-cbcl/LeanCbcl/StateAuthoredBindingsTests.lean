@@ -110,4 +110,20 @@ theorem materialized_progress_contributor
   exact ⟨⟨"close",contributes domains A (.rawVerbs ["tick"]),true⟩,rfl,
     ⟨act,member,by simp [verb],rfl⟩⟩
 
+/-- Forward references reject during complete preparation, before plan construction. -/
+theorem forward_threshold_preparation_rejected (context : StateKernelSEC.Context) :
+    (prepareStatic (environment context)
+      [.threshold "enough" "votes" [.element (.count 1)],.field "votes" (.legacy (.count "vote"))]).isNone = true := by rfl
+
+/-- Revisable supersede sources cannot install a stable threshold policy. -/
+theorem supersede_threshold_preparation_rejected (context : StateKernelSEC.Context) :
+    (prepareStatic (environment context)
+      [.field "votes" (.legacy (.count "vote")),.threshold "enough" "votes" [.element (.count 1)],
+       .freeze "votes" "close" false]).isNone = true := by rfl
+
+/-- Empty alternatives reject during source-relative policy admission. -/
+theorem empty_threshold_preparation_rejected (context : StateKernelSEC.Context) :
+    (prepareStatic (environment context)
+      [.field "votes" (.legacy (.count "vote")),.threshold "enough" "votes" []]).isNone = true := by rfl
+
 end CBCL.StateAuthoredBindingsTests

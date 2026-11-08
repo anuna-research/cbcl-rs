@@ -1,3 +1,5 @@
+import LeanCbcl.StateAuthoredCompletion
+import LeanCbcl.StateInstalledRecognition
 import LeanCbcl.StateFinitePairLoop
 import LeanCbcl.StateFiniteUpperCache
 import LeanCbcl.StateNativeReader
@@ -2035,3 +2037,22 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateFinitePairLoop.duplicate_precedence
 #print axioms CBCL.StateFinitePairLoop.candidate_indices
 #print axioms CBCL.StateFinitePairLoop.diagnostic_sound
+
+#print axioms CBCL.StateInstalledRecognition.compile_rule_sound
+#print axioms CBCL.StateInstalledRecognition.attached_fields_sound
+#print axioms CBCL.StateInstalledRecognition.recognized_iff
+#print axioms CBCL.StateInstalledRecognition.check_iff
+#print axioms CBCL.StateInstalledRecognition.resolve_sound
+#print axioms CBCL.StateInstalledRecognition.compile_sound
+#print axioms CBCL.StateInstalledRecognition.compile_iff
+#print axioms CBCL.StateAuthoredBindings.stable_source_history
+#print axioms CBCL.StateAuthoredBindings.metadata_history
+#print axioms CBCL.StateAuthoredBindings.static_preparation_sound
+#print axioms CBCL.StateAuthoredBindings.preparation_compilation_iff
+#print axioms CBCL.StateAuthoredBindings.preparation_preserves_compilation
+#print axioms CBCL.StateAuthoredBindingsTests.forward_threshold_preparation_rejected
+#print axioms CBCL.StateAuthoredBindingsTests.supersede_threshold_preparation_rejected
+#print axioms CBCL.StateAuthoredBindingsTests.empty_threshold_preparation_rejected
+
+#print axioms CBCL.StateAuthoredCompletion.prepared_readers_complete
+#print axioms CBCL.StateAuthoredCompletion.cached_observations_setEq
