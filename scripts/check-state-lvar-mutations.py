@@ -726,6 +726,13 @@ suites.append(("StateContextMessage", (root / "lean-cbcl/LeanCbcl/StateContextMe
     ("context-missing-role-cast-accepted", "if definition.roles.isEmpty then some [] else none", "some []", "cast_refinement"),
 ]))
 
+suites.append(("StateKeywordExtraction", (root / "lean-cbcl/LeanCbcl/StateKeywordExtraction.lean").read_text(), [
+    ("keyword-routing-fields-retained", "def dataRows (rows : Rows) : Rows := rows.filter (fun row => !routing row.1)", "def dataRows (rows : Rows) : Rows := rows", "routing_absent"),
+    ("keyword-numeric-value-changed", "| .atom (.num n) => some (.int n)", "| .atom (.num n) => some (.int (n+1))", "numeric_member"),
+    ("keyword-duplicate-gate-bypassed", "if Unique rows then some (fields rows) else none", "some (fields rows)", "extract_sound"),
+    ("keyword-materialization-changes-name", "(dataRows rows).reverse.filterMap (fun (key,value) => (decode value).map (key,·))", '(dataRows rows).reverse.filterMap (fun (_,value) => (decode value).map ("other",·))', "field_member"),
+]))
+
 # Preserve the full default gate while allowing a focused continuation check.
 import argparse
 parser = argparse.ArgumentParser(description=__doc__)

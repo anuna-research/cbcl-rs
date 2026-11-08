@@ -1641,8 +1641,29 @@ shape lookup and last-value state extraction must not admit different values.
 The strict-parser/public-admission regression reproduces a positive first
 amount hiding a negative last amount, which would retract a reached sum after
 acceptance. Low-level folding retains its total behavior outside the admitted
-domain. This guard repairs the executable admission mismatch; the general
-unambiguous-keyword extraction theorem remains an explicit obligation.
+domain. This guard repairs the executable admission mismatch.
+
+`StateKeywordExtraction.lean` derives numeric agreement from recognized
+keyword/value pairs and unique nonrouting data keys. Numeric shape matches
+must come from real parameter rows, including when another value is a keyword
+atom. The extracted field lookup retains that exact number. Routing metadata
+is excluded and contributes zero to numeric state amounts. A clean positional
+header cannot change these results. `extract_sound` constructs the raw rows,
+complete grammar and uniqueness evidence from successful extraction;
+`checked_amount` derives nonnegativity without an independently supplied
+`NumericExtraction` premise. `successive_compiled` composes those checked source
+parameters with actual authored sum preservation, including stable reached
+results or subsequent fault evidence.
+
+The `keyword-extraction` live oracle compares strict parsing, native R7 and
+shape checks, and the amount read from actual native act fields. Its closed
+campaign uses `amount`, `other` and string-valued `thread` parameters and checks
+native amount bounds; it covers duplicates, routing repetitions, malformed
+parameters and scalar kinds. Native mutations changing numeric extraction or
+bypassing duplicate rejection are detected. The scalar/scalar-list field
+projection does not claim arbitrary nested native values or serialized map
+order. General full-native AST/admission correspondence to the recognized
+parameter and typed-field construction remains an obligation.
 
 `StateAuthoredSumTrace.successive_trace` supplies a concrete successive
 full-program sum trace. Static preparation and both complete compiled programs

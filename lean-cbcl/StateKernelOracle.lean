@@ -213,6 +213,7 @@ def evaluateNested (request : NestedInput) : Check Json := do
 def run (j : Json) : Check Json :=
   match j.getObjVal? "profile" with
   | .ok (.str "nonnegative-shape") => CBCL.StateShapeOracle.run j
+  | .ok (.str "keyword-extraction") => CBCL.StateShapeOracle.keywordRun j
   | .ok (.str "context") => StateContextOracle.run j
   | .ok (.str "context-wrapper") => StateContextOracle.wrapperRun j
   | .ok (.str "events-sum") => nestedInput j >>= evaluateNested

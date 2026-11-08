@@ -445,6 +445,16 @@ strings and allocation/runtime cost correspondence remain separate boundaries. N
 missing-link lists, owner tips, diagnostic reasons and canonical serialization
 are outside the modeled resource read. SPEC-038 acceptance remains partial.
 
+`StateKeywordExtraction` recognizes complete keyword/value parameters and
+checks R7's unique nonrouting-data keys before constructing typed fields.
+Shape's first numeric match is proved to equal the extracted state's numeric
+value; routing fields are excluded. The resulting checked amount theorem and
+complete authored sum-preservation theorem consume source syntax and successful
+extraction, with no independent numeric-field oracle. Native AST/admission
+correspondence to this parameter/typed-field projection remains open. The live
+`keyword-extraction` profile separately tests strict parsing, R7, shapes and
+actual native amount lookup, including the duplicate-key ambiguity regression.
+
 The implementation documents its current collection and freeze costs rather
 than claiming strict linear evaluation: ordered collections take `O(n log n)`,
 and retaining all concurrent-freeze witnesses can add `O(n f)` work for `f`

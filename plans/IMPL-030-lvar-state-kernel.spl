@@ -1338,3 +1338,32 @@
 ;; General NumericExtraction must still be derived from recognized unambiguous
 ;; native parameters and actual field conversion; this repair supplies a missing
 ;; native admission premise, not that whole theorem. Full SPEC stays open.
+
+;; Shape-to-state numeric extraction checkpoint (REQ-3802 / TEST-3806).
+;; StateKeywordExtraction recognizes complete keyword/value parameters and
+;; validates unique nonrouting data keys before materializing typed state fields.
+;; parse_sound derives exact source rows; shape_member/after_value prove a numeric
+;; first-match cannot be fabricated by a keyword-looking value. fields_unique and
+;; numeric_member derive exact last-first field lookup under the R7 uniqueness
+;; condition. Routing exclusion is explicit, with routing_absent/zero amounts.
+;; clean positional headers preserve lookup. extract_sound derives grammar,
+;; uniqueness and field identities from successful extraction. checked_amount
+;; derives actual nonnegativity without NumericExtraction; successive_compiled
+;; composes it into complete authored sum preservation with reached-or-fault.
+;; Fixtures cover exact numeric extraction, duplicate equal/signed values,
+;; routing repetition, positional/dangling rejection and keyword-valued atoms.
+;; New keyword-extraction profile compares strict wire/message parsing, native
+;; R7/shape checks and amount from actual native Act fields. Closed campaign keys
+;; are amount/other/thread; thread strings are the explicit transport contract,
+;; native amount bounds checked. This profile is not full protocol admission.
+;; Verification: aggregate library/oracle build and Batteries env-linter pass;
+;; 1920 theorem audits allowlisted. Four proof mutants fail routing exclusion,
+;; numeric preservation, duplicate gate and original-key identity obligations.
+;; Actual native numeric-value corruption and duplicate-guard bypass both fail
+;; live comparisons. All seven live suites pass at512 cases/seed380038. Verified-by
+;; and diff checks pass, no new unresolved vault pairs, zero syntax/SPL diagnostics.
+;; Independent read-only review found no concrete defect/overclaim. Docs updated.
+;; Scalar/scalar-list projection does not represent arbitrary nested native
+;; values or canonical field ordering. General full native AST/parser/admission
+;; correspondence to these recognized parameters/typed fields remains required;
+;; remaining installed/mutable-reader/wire/renderer obligations keep SPEC open.

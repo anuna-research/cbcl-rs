@@ -204,3 +204,21 @@ The same runner includes the native admission regression
 lets duplicate data keywords through R7, reproducing disagreement between
 first-match shape validation and last-value state extraction. This check is a
 native admission regression, separately labeled from the live Lean comparisons.
+
+The `keyword-extraction` profile compares the combined state-shape and field
+extraction path, beyond the standalone first-keyword shape projection. It takes
+`params` as a tagged S-expression list, using the same tags as the shape profile.
+Its campaign uses `amount` and `other` data keys and string-valued `thread`
+metadata. Unknown keys reject; out-of-contract thread values are input errors;
+amounts enforce native state bounds. Complete pair grammar and duplicate-data
+rejection run before shape checking and amount extraction. The native harness
+uses a fixed empty content/header, strict wire/message parsing, installation,
+R7 state-shape validation, declared shapes and actual `Act` field lookup.
+
+`StateKeywordExtraction` proves numeric agreement from recognized grammar,
+unique data keys and actual field construction, and composes it with complete
+authored sum preservation. This is a typed parameter-extraction theorem, not a
+proof that every native admitted message satisfies that construction. Arbitrary
+nested native values, full native AST projection, authentication and protocol
+admission remain outside this campaign. Mutants changing a native numeric value
+or allowing duplicate data keys are checked against the live Lean result.

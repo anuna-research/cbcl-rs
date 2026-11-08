@@ -299,3 +299,5 @@ import LeanCbcl.StateContextCastSyntaxTests
 import LeanCbcl.StateContextWrapperSyntaxTests
 
 import LeanCbcl.StateContextMessageTests
+
+import LeanCbcl.StateKeywordExtractionTests

@@ -1,3 +1,4 @@
+import LeanCbcl.StateKeywordExtractionTests
 import LeanCbcl.StateContextMessageTests
 import LeanCbcl.StateContextWrapperSyntaxTests
 import LeanCbcl.StateContextCastSyntaxTests
@@ -2813,3 +2814,24 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateContextMessageTests.shadowed_thread
 #print axioms CBCL.StateContextMessageTests.missing_cast_rejected
 #print axioms CBCL.StateContextMessageTests.role_free
+
+#print axioms CBCL.StateKeywordExtraction.parse_encode
+#print axioms CBCL.StateKeywordExtraction.parse_sound
+#print axioms CBCL.StateKeywordExtraction.lookup_member
+#print axioms CBCL.StateKeywordExtraction.field_member
+#print axioms CBCL.StateKeywordExtraction.fields_unique
+#print axioms CBCL.StateKeywordExtraction.numeric_member
+#print axioms CBCL.StateKeywordExtraction.after_value
+#print axioms CBCL.StateKeywordExtraction.shape_member
+#print axioms CBCL.StateKeywordExtraction.shape_numeric
+#print axioms CBCL.StateKeywordExtraction.header_lookup
+#print axioms CBCL.StateKeywordExtraction.routing_absent
+#print axioms CBCL.StateKeywordExtraction.extract_sound
+#print axioms CBCL.StateKeywordExtraction.checked_amount
+#print axioms CBCL.StateKeywordExtraction.successive_compiled
+#print axioms CBCL.StateKeywordExtractionTests.numeric_extracted
+#print axioms CBCL.StateKeywordExtractionTests.duplicates_rejected
+#print axioms CBCL.StateKeywordExtractionTests.routing_repetitions
+#print axioms CBCL.StateKeywordExtractionTests.malformed_rejected
+#print axioms CBCL.StateKeywordExtractionTests.keyword_value_does_not_forge
+#print axioms CBCL.StateKeywordExtractionTests.checked_amount
