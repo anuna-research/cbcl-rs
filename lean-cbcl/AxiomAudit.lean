@@ -1,3 +1,4 @@
+import LeanCbcl.StateResourceOracle
 import LeanCbcl.StateFreezeRendering
 import LeanCbcl.StateAddressRange
 import LeanCbcl.StateAddressControl
@@ -3056,3 +3057,5 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateFreezeRendering.frozen_sublist
 #print axioms CBCL.StateFreezeRendering.frozen_enumerated
 #print axioms CBCL.StateFreezeRendering.frozen_serialized
+
+#print axioms CBCL.StateResourceOracle.installed

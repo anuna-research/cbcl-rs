@@ -1117,3 +1117,6 @@ mod shape;
 
 #[path = "state_kernel_oracle/render.rs"]
 mod render;
+
+#[path = "state_kernel_oracle/resource.rs"]
+mod resource;

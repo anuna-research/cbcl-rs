@@ -343,3 +343,26 @@ predecessor and independent-writer identities before interpreting the history.
 It remains a below-admission profile, separate from content-hash identity and
 sealed-cast binding. Native root, exclusion-order and captured-value mutations
 are covered by the mutation runner.
+
+The `resource-decrement` profile exercises
+[[SPEC-038-lvar-state-kernel#REQ-3808]] and
+[[SPEC-038-lvar-state-kernel#TEST-3806]]. It compares the native bounded counter with
+`StateResourceVerifier.observe`, including preflight, budget traversal and
+aggregate finalization. It fixes the checked account configuration from the
+resource proof fixture: treasury has 1000 rights and Alice and Bob have none.
+Inputs choose one decrement amount, its signer, and whether the cast root and
+initializer are present. Native messages carry the corresponding escrow and
+causal links; Lean constructs the independently recognized typed facts. Missing
+root/initializer histories are intentional pending cases below protocol
+admission. Amounts are signed 64-bit wire integers and signer choices form a
+closed fixture dictionary.
+
+The comparison checks pending/fault status and, for ready results, exact value
+and all account balances. Native histories are also reordered and delivered
+twice. Directed cases cover integer extrema, nonpositive amounts, exact budget,
+overspend and unknown accounts; generated inputs mix arbitrary wire integers
+with values around the authorization boundary. The profile neither compares
+fault witness bytes nor establishes general multi-operation, transfer, ceiling,
+certificate-runtime, native metadata-extraction or admission correspondence.
+The mutation runner checks zero-amount acceptance, rejection of exact-budget
+spends, and decrement arithmetic that credits rather than debits rights.

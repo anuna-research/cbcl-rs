@@ -16,6 +16,7 @@ root = Path(__file__).resolve().parents[1]
 oracle = root / "lean-cbcl/.lake/build/bin/cbcl-state-oracle"
 if not oracle.is_file():
     raise SystemExit("Build first: cd lean-cbcl && lake build cbcl-state-oracle")
+resource_test = "resource::decrement_verifier_matches_lean"
 finite_test = "finite_kernel_matches_live_lean_oracle"
 freeze_test = "freeze_kernel_matches_live_lean_oracle"
 nested_test = "nested_kernel_matches_live_lean_oracle"
@@ -50,6 +51,9 @@ with tempfile.TemporaryDirectory(prefix="cbcl-live-oracle-") as directory:
                               text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=300)
 
     mutants = [
+        ("resource-zero-decrement-accepted", "escrow.rs", "number(amount).filter(|n| *n > 0)", "number(amount).filter(|n| *n >= 0)", resource_test),
+        ("resource-exact-budget-rejected", "escrow.rs", "budget.is_some_and(|b| b < n.amount)", "budget.is_some_and(|b| b <= n.amount)", resource_test),
+        ("resource-decrement-credits-rights", "escrow.rs", "Kind::Decrement => {\n            add(rights, owner, -amount)?;", "Kind::Decrement => {\n            add(rights, owner, amount)?;", resource_test),
         ("frozen-wrapper-root-altered", "freeze.rs", '(Value::Str("frozen".into()), Value::Str(root))', '(Value::Str("frozen".into()), Value::Str(root + "x"))', frozen_render_test),
         ("frozen-wrapper-exclusion-order-reversed", "freeze.rs", "state::sort_addresses(&mut excluded);", "state::sort_addresses(&mut excluded); excluded.reverse();", frozen_render_test),
         ("frozen-wrapper-payload-discarded", "freeze.rs", '(Value::Str("value".into()), value)', '(Value::Str("value".into()), Value::Int(0))', frozen_render_test),
