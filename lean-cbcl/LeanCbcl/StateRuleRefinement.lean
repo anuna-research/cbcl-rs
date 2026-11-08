@@ -24,6 +24,7 @@ def nativeClosureThreshold {V Q : Type} (alternatives : List Q) (test : Q → V 
       | none => .data .pending
       | some q => .data (.reached q)
 
+/-- Compile a native closure threshold into the observation plan. -/
 def compileClosureThreshold {V Q : Type} (alternatives : List Q) (test : Q → V → Bool)
     (source : Plan V) : Plan Q := .thresholdOn alternatives test source
 
@@ -57,6 +58,7 @@ theorem context_source_refinement (world : Act → Prop) (decode : Act → Optio
       | .value value => .data (.context value) := by
   cases h : StateContext.read decode A <;> simp [observe,path,errors,contextError,data,h]
 
+/-- Apply a derived state function to the observed source value. -/
 def nativeDerived {V W : Type} (function : V → W)
     (source : StateObservationPlan.Observation V) : StateObservationPlan.Observation W :=
   match source with
@@ -68,10 +70,12 @@ theorem derived_source_refinement {V W : Type} (world : Act → Prop) (function 
     observe world (.map function source) A = nativeDerived function (observe world source A) := by
   cases h : errors world (path source) A <;> simp [observe,path,data,nativeDerived,h]
 
+/-- Extract the observed source's fault channel. -/
 def sourceError {V : Type} : StateObservationPlan.Observation V → Error
   | .fault e => some e
   | .data _ => none
 
+/-- Extract the observed source's data channel. -/
 def sourceData {V : Type} : StateObservationPlan.Observation V → Data V
   | .fault _ => .pending
   | .data value => value
@@ -101,11 +105,13 @@ theorem clear_cut {world : Act → Prop} {A : List Act} (closed : CausallyClosed
     rw [clear] at h
     contradiction
 
+/-- Render the frozen source value and excluded contributors. -/
 def presentFreeze {V : Type} : FreezeRead (Data V) → StateObservationPlan.Observation V
   | .fault e => .fault e
   | .snapshot value => .data value
   | .frozen freezer value excluded => .data (frozenData (.frozen freezer value excluded))
 
+/-- Interpret a freeze using its causal cut and terminal fault evidence. -/
 noncomputable def nativeFreeze {V : Type} (world : Act → Prop) (spec : FreezeSpec)
     (source : List Act → StateObservationPlan.Observation V) (A : List Act) :
     StateObservationPlan.Observation V :=

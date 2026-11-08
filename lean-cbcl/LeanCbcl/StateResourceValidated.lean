@@ -7,11 +7,13 @@ assumption that the completed resource observation is ordinary. -/
 namespace CBCL.StateResourceValidated
 open State CheckpointEvidence StateResource StateResourceWitness StateResourceWorklist StateResourceAggregate StateResourceFinalize
 
+/-- The validated resource result: pending, fault evidence, or aggregate snapshot. -/
 inductive Read where
   | pending
   | ready (snapshot : AggregateSnapshot)
   | fault
 
+/-- Run the checked budget worklist and finalize the aggregate snapshot. -/
 def observe (e : Environment) : Read :=
   match StateResourceWorklist.run e with
   | .fault _ _ _ _ | .internalError => .fault
@@ -22,6 +24,7 @@ def observe (e : Environment) : Read :=
       | none => .fault
     else .pending
 
+/-- Test whether a resource read or traversal result is faulted. -/
 def isFault : Read → Bool
   | .fault => true
   | _ => false

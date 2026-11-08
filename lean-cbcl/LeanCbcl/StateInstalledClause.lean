@@ -8,14 +8,19 @@ namespace CBCL.StateInstalledClause
 open State StateLift StateLVar StateObservation StateObservationPlan StateRuleRefinement
 open StateInstalledCompiler
 
+/-- An installed state source and its metadata. -/
 structure Field (V : Type) where
+  /-- The installed rule defining this field. -/
   rule : StateInstalledCompiler.Rule V
+  /-- The freeze decoration attached before resolving dependencies. -/
   freeze : Option FreezeSpec := none
 
+/-- Compile a field after attaching its clause-wide freeze decoration. -/
 def compileField {V : Type} (earlier : Plans V) (field : Field V) : Option (Plan V) := do
   let source ← compileRule earlier field.rule
   return match field.freeze with | none => source | some spec => .freeze spec source
 
+/-- Interpret a field after attaching its clause-wide freeze decoration. -/
 noncomputable def interpretField {V : Type} (world : Act → Prop) (earlier : Readers V)
     (field : Field V) : Option (Reader V) := do
   let source ← interpretRule world earlier field.rule
@@ -35,6 +40,7 @@ theorem compile_field_refinement {V : Type} (world : Act → Prop) {plans : Plan
       rw [freeze_source_refinement world spec p closed]
       exact nativeFreeze_congr world spec _ _ head closed
 
+/-- Compile the ordered fields using only earlier definitions. -/
 def compileFields {V : Type} (earlier : Plans V) : List (String × Field V) → Option (Plans V)
   | [] => some []
   | (name,field)::rest => do
@@ -42,6 +48,7 @@ def compileFields {V : Type} (earlier : Plans V) : List (String × Field V) → 
       let tail ← compileFields ((name,plan)::earlier) rest
       return (name,plan)::tail
 
+/-- Interpret the ordered fields using only earlier definitions. -/
 noncomputable def interpretFields {V : Type} (world : Act → Prop) (earlier : Readers V) :
     List (String × Field V) → Option (Readers V)
   | [] => some []
@@ -72,8 +79,11 @@ compiled. No new public field or alias is introduced. -/
 def attach {V : Type} (freezes : List (String × FreezeSpec)) (fields : List (String × StateInstalledCompiler.Rule V)) :
     List (String × Field V) := fields.map (fun (name,rule) => (name,⟨rule,freezes.lookup name⟩))
 
+/-- An installed state clause with its ordered fields and freezes. -/
 structure Clause (V : Type) where
+  /-- The ordered installed state fields. -/
   fields : List (String × StateInstalledCompiler.Rule V)
+  /-- The clause-wide freeze declarations. -/
   freezes : List (String × FreezeSpec)
 
 /-- Each target occurs exactly once, and names an existing source. Semantic
@@ -86,9 +96,11 @@ instance {V : Type} (clause : Clause V) : Decidable (ValidMetadata clause) := by
   unfold ValidMetadata
   infer_instance
 
+/-- Compile the whole installed clause after attaching all source freezes. -/
 def compile {V : Type} (clause : Clause V) : Option (Plans V) :=
   if ValidMetadata clause then compileFields [] (attach clause.freezes clause.fields) else none
 
+/-- Interpret the whole installed clause with freezes attached before dependency resolution. -/
 noncomputable def interpret {V : Type} (world : Act → Prop) (clause : Clause V) : Option (Readers V) :=
   if ValidMetadata clause then interpretFields world [] (attach clause.freezes clause.fields) else none
 

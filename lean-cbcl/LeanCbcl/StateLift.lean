@@ -1,3 +1,4 @@
+import Batteries.Tactic.Lint
 import LeanCbcl.State
 import LeanCbcl.Lattice.Store
 import LeanCbcl.HlcRegister
@@ -558,6 +559,8 @@ end Sole
 /-! ## Contributions (`lattice::Contribute`) -/
 
 /-- `Contribute::Flag`: presence. -/
+-- The uniform contribution API takes an act even for constant presence.
+@[nolint unusedArguments]
 def flag (_ : Act) : Bool := true
 
 /-- `Contribute::Address`: the act's address. -/
@@ -657,13 +660,16 @@ not a proof of the wire parser or of the signer-byte rank mapping.
 
 namespace HlcLift
 
+/-- The causal and address stamp of a chain candidate. -/
 abbrev Stamp := Nat × Nat × Nat
+/-- A candidate value paired with its causal stamp. -/
 abbrev Candidate := HlcRegister.Candidate Act
 
 /-- An act contributes only if its supplied clock was recognized. -/
 def candidate (clock : Act → Option Stamp) (a : Act) : Option Candidate :=
   (clock a).map fun stamp => HlcRegister.decorate (fun _ => stamp) a
 
+/-- The lattice element contributed by one accepted act. -/
 def contribution (clock : Act → Option Stamp) (a : Act) : FinSet Candidate :=
   FinSet.ofOption (candidate clock a)
 
@@ -1297,17 +1303,21 @@ byte serialization is outside these value-level statements.
 
 namespace HlcFields
 
+/-- Read the field from the greatest recognized HLC candidate. -/
 def scalar (clock : Act → Option HlcLift.Stamp) (field : String) (T : List Act) : Option Val :=
   (HlcRegister.pick (T.filterMap (HlcLift.candidate clock))).bind (fun c => c.value.get field)
 
+/-- Read one nonempty HLC group, distinguishing an absent field from an empty group. -/
 def group (clock : Act → Option HlcLift.Stamp) (field : String) (T : List Act) :
     Option (Option Val) :=
   if T.isEmpty then none else some (scalar clock field T)
 
+/-- Read the current HLC candidate separately for each signer. -/
 def perSigner (clock : Act → Option HlcLift.Stamp) (verb field : String) (A : List Act) :
     String → Option (Option Val) :=
   fun signer => group clock field ((currentOwn verb A).filter (fun a => a.signer == signer))
 
+/-- Read the current HLC candidate separately for each key. -/
 def keyed (clock : Act → Option HlcLift.Stamp) (verb key field : String) (delete : Option String)
     (A : List Act) : Val → Option (Option Val) :=
   fun x => group clock field ((current verb (some key) delete A).filter (fun a => a.get key == some x))

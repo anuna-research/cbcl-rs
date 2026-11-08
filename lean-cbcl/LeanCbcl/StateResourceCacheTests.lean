@@ -4,7 +4,9 @@ import LeanCbcl.StateResourceTests
 namespace CBCL.StateResourceCacheTests
 open State CheckpointEvidence StateResource StateResourceSummary StateResourceCache StateResourceTests
 
+/-- Test fixture for the second case. -/
 def second : ResourceFact := {burn with id := 4,data := {burn.data with amount := 2,prev := some 3}}
+/-- Test fixture for the other Owner case. -/
 def otherOwner : ResourceFact := {burn with id := 5,data := {burn.data with signer := "@bob",amount := 7}}
 
 /-- Interleaved owners must not contaminate each other's cumulative prefix.

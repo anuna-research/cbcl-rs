@@ -12,34 +12,43 @@ open StateInstalledCompiler
 /-- Native closure-specific admissibility check retained from installation.
 The compiler invokes it on the declared alternatives before emitting a read. -/
 structure NativeRead (V : Type) where
+  /-- Test one threshold alternative against the observed source value. -/
   test : V → V → Bool
+  /-- Check the complete list of installed threshold alternatives. -/
   check : List V → Bool
 
+/-- The source metadata and admissible threshold policy retained during lowering. -/
 inductive Definition (V : Type) where
   | native (source : Source V) (read : Option (NativeRead V))
   | lattice (field : StateInstalledLattice.Field V)
   | derived (post : V → V) (name : String)
   | pair (combine : V → V → V) (left right : String)
 
+/-- A named source, derived value, or threshold declaration. -/
 inductive Declaration (V : Type) where
   | field (name : String) (definition : Definition V)
   | threshold (name source : String) (elements : List V)
 
+/-- The installed state field name. -/
 def Declaration.name {V : Type} : Declaration V → String
   | .field name _ | .threshold name _ _ => name
 
+/-- The previously lowered source metadata indexed by field name. -/
 abbrev Definitions (V : Type) := List (String × Definition V)
 
+/-- Extend metadata with one successfully lowered declaration. -/
 def extend {V : Type} (definitions : Definitions V) : Declaration V → Definitions V
   | .field name definition => (name,definition)::definitions
   | .threshold .. => definitions
 
+/-- Construct retained source metadata for one authored declaration. -/
 noncomputable def lowerDefinition {V : Type} : Definition V → StateInstalledCompiler.Rule V
   | .native source _ => .source source
   | .lattice field => .source (StateInstalledLattice.source field)
   | .derived post name => .derived post name
   | .pair combine left right => .pair combine left right
 
+/-- Lower an authored rule using previously installed source metadata. -/
 noncomputable def lowerRule {V : Type} (definitions : Definitions V) : Declaration V → Option (StateInstalledCompiler.Rule V)
   | .field _ definition => some (lowerDefinition definition)
   | .threshold _ source elements =>
@@ -52,6 +61,7 @@ noncomputable def lowerRule {V : Type} (definitions : Definitions V) : Declarati
           | some query => some (StateInstalledLattice.queryRule query source)
         | _ => none
 
+/-- Resolve an authored declaration to its installed rule. -/
 noncomputable def resolve {V : Type} (earlier : Definitions V) :
     List (Declaration V) → Option (List (String × StateInstalledCompiler.Rule V))
   | [] => some []
@@ -114,12 +124,14 @@ theorem lower_rule_refinement {V : Type} (world : Act → Prop) (definitions : D
         cases query : StateInstalledLattice.prepareQuery field elements <;>
           simp [lowerRule,nativeRule,found,query,StateInstalledLattice.queryRule,interpretRule]
 
+/-- Attach all matching freeze declarations to an installed source. -/
 noncomputable def decorate {V : Type} (world : Act → Prop) (freezes : List (String × FreezeSpec))
     (name : String) (reader : Reader V) : Reader V :=
   match freezes.lookup name with
   | none => reader
   | some spec => nativeFreeze world spec reader
 
+/-- Read the ordered fields using the independent native interpreter. -/
 noncomputable def nativeFields {V : Type} (world : Act → Prop) (freezes : List (String × FreezeSpec))
     (definitions : Definitions V) (earlier : Readers V) : List (Declaration V) → Option (Readers V)
   | [] => some []
@@ -159,8 +171,11 @@ theorem resolve_native_refinement {V : Type} (world : Act → Prop) (freezes : L
           interpret_attached_head,nativeFields,← head,← ih,resolved]
         cases interpretRule world earlier rule <;> rfl
 
+/-- An installed state clause with its ordered fields and freezes. -/
 structure Clause (V : Type) where
+  /-- The ordered source declarations. -/
   declarations : List (Declaration V)
+  /-- The clause-wide freeze declarations. -/
   freezes : List (String × FreezeSpec)
 
 /-- Supersede freezes can revise a source; thresholds may only observe an
@@ -168,11 +183,13 @@ unfrozen source or one using the terminal-fault policy. -/
 def stableSource (freezes : List (String × FreezeSpec)) (source : String) : Bool :=
   match freezes.lookup source with | none => true | some spec => spec.policy
 
+/-- Attach source freeze metadata before compiling dependent declarations. -/
 def stableDeclarations {V : Type} (freezes : List (String × FreezeSpec)) (declarations : List (Declaration V)) : Bool :=
   declarations.all (fun declaration => match declaration with
     | .field .. => true
     | .threshold _ source _ => stableSource freezes source)
 
+/-- Each declaration has the source metadata required by its read policy. -/
 def ValidMetadata {V : Type} (clause : Clause V) : Prop :=
   (clause.declarations.map Declaration.name).Nodup ∧ (clause.freezes.map Prod.fst).Nodup ∧
     (∀ name ∈ clause.freezes.map Prod.fst, name ∈ clause.declarations.map Declaration.name) ∧
@@ -182,12 +199,14 @@ instance {V : Type} (clause : Clause V) : Decidable (ValidMetadata clause) := by
   unfold ValidMetadata
   infer_instance
 
+/-- Lower source metadata and compile the complete authored clause. -/
 noncomputable def compile {V : Type} (clause : Clause V) : Option (Plans V) := do
   if ValidMetadata clause then
     let fields ← resolve [] clause.declarations
     StateInstalledClause.compileFields [] (StateInstalledClause.attach clause.freezes fields)
   else none
 
+/-- Read the authored clause through the independent native field interpreter. -/
 noncomputable def interpret {V : Type} (world : Act → Prop) (clause : Clause V) : Option (Readers V) :=
   if ValidMetadata clause then nativeFields world clause.freezes [] [] clause.declarations else none
 
@@ -207,6 +226,7 @@ theorem native_installed_compiler_refinement {V : Type} (world : Act → Prop) (
         (fun _ => True.intro) (StateInstalledClause.attach clause.freezes fields)
   · trivial
 
+/-- The names referenced by this installed declaration. -/
 def references {V : Type} : Declaration V → List String
   | .field _ (.native ..) | .field _ (.lattice _) => []
   | .field _ (.derived _ name) => [name]
@@ -224,6 +244,7 @@ inductive Recognized {V : Type} (definitions : Definitions V) : Declaration V �
       (checked : StateInstalledLattice.prepareQuery field elements = some query) :
       Recognized definitions (.threshold name source elements)
 
+/-- All references resolve and every declaration has valid source metadata. -/
 inductive WellFormed {V : Type} : Definitions V → List String → List (Declaration V) → Prop where
   | nil (definitions names) : WellFormed definitions names []
   | cons (definitions names declaration rest)

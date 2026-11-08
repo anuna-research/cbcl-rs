@@ -7,6 +7,7 @@ namespace CBCL.StateResourceWitness
 open State CheckpointEvidence StateResource StateResourceSummary StateResourceCache StateResourceStructure
 open StateResourceFrontier StateResourceDependency StateResourceOwnPrefix StateResourceLocalBudget StateResourceBudget
 
+/-- A dependency-closed operation whose causal budget is insufficient. -/
 def BudgetWitness (c : ResourceConfig) (op node : ResourceFact) (known : Facts) : Prop :=
   ∃ cone, Included cone known ∧ ExactCone op node cone ∧ budgetFault c op node cone
 

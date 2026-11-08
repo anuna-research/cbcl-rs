@@ -17,6 +17,7 @@ theorem chain_owner (owner : String) (opener : Nat) (chain : Facts)
     · exact meaning.1
     · exact ih first.id meaning.2.2 tail
 
+/-- A dependency graph equipped with a strictly decreasing parent rank. -/
 def Ranked (known : Facts) (rank : ResourceFact → Nat) : Prop :=
   ∀ child ∈ known, ∀ parent ∈ known, parent.id ∈ links child → rank parent < rank child
 

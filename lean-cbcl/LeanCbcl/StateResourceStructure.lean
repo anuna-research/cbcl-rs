@@ -6,6 +6,7 @@ initializer; absent references are handled separately as pending evidence. -/
 namespace CBCL.StateResourceStructure
 open State CheckpointEvidence StateResource StateResourceSummary StateResourceCache
 
+/-- Check that recognized previous links preserve account ownership. -/
 def previousOwnerCheck (opener : Nat) (known : Facts) : Bool :=
   known.all fun node => known.all fun parent =>
     if node.data.prev == some parent.id && parent.id != opener then
@@ -23,14 +24,17 @@ theorem previousOwnerCheck_iff (opener : Nat) (known : Facts) :
       simpa using checked node hn parent hp condition.1 condition.2
     · rfl
 
+/-- Check that an owner's previous identity has at most one successor. -/
 def forkCheck (known : Facts) : Bool :=
   known.all fun left => known.all fun right =>
     if left.data.signer == right.data.signer && left.data.prev == right.data.prev then
       left.id == right.id else true
 
+/-- Equal accepted identities name equal resource facts. -/
 def IdentityConsistent (known : Facts) : Prop :=
   ∀ left ∈ known, ∀ right ∈ known, left.id = right.id → left = right
 
+/-- Each owner has at most one successor for a given previous identity. -/
 def Nonforking (known : Facts) : Prop :=
   ∀ left ∈ known, ∀ right ∈ known, left.data.signer = right.data.signer →
     left.data.prev = right.data.prev → left = right
@@ -62,6 +66,7 @@ theorem checked_native_cached_prefix (opener : Nat) (known schedule : Facts) (ca
     scheduled success address node summary found
 
 
+/-- A finite witness of competing same-owner successors. -/
 def ForkCertificate (known : Facts) : Prop :=
   ∃ left ∈ known, ∃ right ∈ known, left.data.signer = right.data.signer ∧
     left.data.prev = right.data.prev ∧ left.id ≠ right.id
@@ -71,6 +76,7 @@ theorem fork_rejection_iff (known : Facts) : forkCheck known = false ↔ ForkCer
   simp [forkCheck,ForkCertificate,List.all_eq_true,Bool.eq_false_iff,and_assoc]
 
 
+/-- A finite witness of a cross-owner previous link. -/
 def ForeignOwnerCertificate (opener : Nat) (known : Facts) : Prop :=
   ∃ node ∈ known, ∃ parent ∈ known, node.data.prev = some parent.id ∧ parent.id ≠ opener ∧
     parent.data.signer ≠ node.data.signer

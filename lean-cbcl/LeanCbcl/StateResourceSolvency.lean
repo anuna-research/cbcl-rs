@@ -9,6 +9,7 @@ open StateResourceStructure StateResourceFrontier StateResourcePartition StateRe
 open StateResourceLocalBudget StateResourceWitness StateResourceMachine StateResourceAuthorization StateResourceCoupling
 open StateResourceWorklist StateResourceAggregate StateResourceAccounting StateResourceBudget
 
+/-- The recognized facts whose identities have been processed. -/
 def processedFacts (e : Environment) (worklist : StateResourceCounters.Worklist) : Facts :=
   e.known.filter (fun node => worklist.processed.contains node.id)
 
@@ -37,7 +38,7 @@ theorem cached_prefix (e : Environment) (worklist : StateResourceCounters.Workli
 
 theorem past_in_processed (e : Environment) (node : ResourceFact) (worklist : StateResourceCounters.Worklist)
     (machine : Machine) (ghost : Ghost) (invariant : Joint e worklist machine ghost)
-    (parents : List (ResourceFact × Facts)) (accepted : node ∈ e.known)
+    (parents : List (ResourceFact × Facts))
     (fresh : machine.summaries node.id = none)
     (lookups : StateResourceCones.gather e.opener ghost.cones (links node) = some parents) :
     Included ((StateResourceCones.unionCone e.known node parents).filter (fun entry => entry.id != node.id)) (processedFacts e worklist) := by
@@ -120,13 +121,14 @@ theorem local_budget_le_processed (e : Environment) (node : ResourceFact) (workl
   have uniqueCone : cone.Nodup := uniqueKnown.sublist List.filter_sublist
   apply account_balance_mono _ headroom node.data.signer past (processedFacts e worklist)
     (uniqueCone.sublist List.filter_sublist) (uniqueKnown.sublist List.filter_sublist)
-    (past_in_processed e node worklist machine ghost invariant parents accepted fresh lookups)
+    (past_in_processed e node worklist machine ghost invariant parents fresh lookups)
   · intro entry member outside sameOwner
     exact outside (processed_own_in_past e node worklist machine ghost invariant parents own accepted fresh lookups previous entry member sameOwner)
   · intro entry member
     obtain ⟨_,_,_,_,_,_,amount,_⟩ := e.operations entry (List.mem_filter.mp member).1
     exact amount
 
+/-- Whether an operation spends the selected rights or headroom budget. -/
 def Spends (headroom : Bool) (node : ResourceFact) : Prop :=
   if headroom then node.data.kind = .increment ∨ node.data.kind = .transferHeadroom
     else node.data.kind = .decrement ∨ node.data.kind = .transfer
@@ -224,9 +226,11 @@ theorem processed_balance_after (e : Environment) (node : ResourceFact) (worklis
   rw [sum]
   simp [List.map_append,List.sum_append,Int.add_assoc]
 
+/-- The initial allocation of the selected balance side. -/
 def initialSide (e : Environment) (headroom : Bool) : String → Int :=
   allocation (accounts (if headroom then e.opener.data.selected.headroomAllocations else e.opener.data.selected.initialAllocations))
 
+/-- The global nonnegativity conditions for processed account balances. -/
 def Economic (e : Environment) (worklist : StateResourceCounters.Worklist) : Prop :=
   ∀ headroom, (headroom = true → e.config.headroomKey.isSome = true) → ∀ owner,
     0 ≤ accountBalance (initialSide e headroom) headroom (processedFacts e worklist) owner
@@ -278,6 +282,7 @@ theorem initial_economic (e : Environment) : Economic e (initialWorklist e) := b
   have nonnegative := (initial_side_natural e headroom active owner).1
   simpa [empty,accountBalance] using nonnegative
 
+/-- The worklist invariant together with global account solvency. -/
 def VerifiedEconomic (e : Environment) : StateResourceWorklist.Outcome → Prop
   | .complete worklist _ _ => Economic e worklist
   | .fault _ _ _ _ => True

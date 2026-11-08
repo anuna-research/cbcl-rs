@@ -9,19 +9,24 @@ namespace CBCL.StateResourceVerifier
 open State CheckpointEvidence StateResource StateResourceNative StateResourceStructure StateResourceCycle StateResourceDependency
 open StateResourcePreflight StateResourceAggregate StateResourceWorklist
 
+/-- Accepted typed facts with the installed configuration and representation bounds. -/
 structure Input where
+  /-- The installed resource configuration. -/
   config : ResourceConfig
+  /-- The accepted typed resource facts. -/
   facts : Facts
   unique : (facts.map Fact.id).Nodup
   sliceBound : facts.length ≤ 2^63 - 1
   installed : unsupportedCheck config = false → NativeConfiguration config ∧ (config.initialVerb :: operationNames config).Nodup
   accountSlice : ∀ node ∈ facts, ((accounts node.data.selected.initialAllocations).map Prod.fst).length ≤ 2^63 - 1
 
+/-- The native preflight result: pending, faulted, or ready for budget checking. -/
 inductive Preparation (c : ResourceConfig) (F : Facts) where
   | fault (certificate : Cause c F)
   | pending (noCertificate : ¬Cause c F)
   | checked (prepared : Prepared c F)
 
+/-- Perform native preflight checks before budget traversal. -/
 def prepare (input : Input) : Preparation input.config input.facts :=
   let c := input.config
   let F := input.facts
@@ -85,6 +90,7 @@ def prepare (input : Input) : Preparation input.config input.facts :=
         exact absent (by simp [equal])
       exact .openers acceptedFirst.1 acceptedSecond.1 acceptedFirst.2 acceptedSecond.2 different)
 
+/-- Run native preflight, budget verification, and snapshot finalization. -/
 def observe (input : Input) : StateResourceValidated.Read :=
   match prepare input with
   | .fault _ => .fault
@@ -140,6 +146,7 @@ theorem fault_iff_complete_cause (c : ResourceConfig) (decode : Act → Resource
   · intro cause
     exact ⟨A,(fun _ member => member),cause⟩
 
+/-- The addresses of the supplied typed resource facts. -/
 def factsEvidence (c : ResourceConfig) (F : Facts) : Lattice.Set Nat :=
   fun address => unsupportedCheck c = false ∧ ∃ node ∈ F, node.id = address ∧
     (relevant c node ∨ ∃ parent ∈ F, relevant c parent ∧ cited parent address)
@@ -165,6 +172,7 @@ theorem evidence_projection (c : ResourceConfig) (decode : Act → ResourceData)
     · exact ⟨(supported_iff c).mpr supported,⟨act.addr,decode act⟩,List.mem_map.mpr ⟨act,member,rfl⟩,addressEq,
         Or.inr ⟨⟨parent.addr,decode parent⟩,List.mem_map.mpr ⟨parent,parentMember,rfl⟩,parentRelevant,link⟩⟩
 
+/-- Translate the native verifier's fault result to the common evidence channel. -/
 def nativeFaultRead (input : Input) : Option (Lattice.Set Nat) :=
   if StateResourceValidated.isFault (observe input) then some (factsEvidence input.config input.facts) else none
 

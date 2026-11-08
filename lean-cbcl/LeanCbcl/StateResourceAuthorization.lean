@@ -9,12 +9,14 @@ open State CheckpointEvidence StateResource StateResourceSummary StateResourceCa
 open StateResourceFrontier StateResourceDependency StateResourceOwnPrefix StateResourceLocalBudget StateResourceWitness
 open StateResourceMachine
 
+/-- The native authorization result, including the updated summary or fault. -/
 inductive Result where
   | done (machine : Machine) (ghost : Ghost)
   | blocked (node : ResourceFact) (machine : Machine) (ghost : Ghost)
   | budgetFault (node : ResourceFact) (machine : Machine) (ghost : Ghost)
   | recordFault (node : ResourceFact) (machine : Machine) (ghost : Ghost)
 
+/-- Check authorization and execute one native resource step. -/
 def checkedStep (c : ResourceConfig) (op node : ResourceFact) (known : Facts) (machine : Machine) (ghost : Ghost) : Result :=
   match StateResourceCones.gather op ghost.cones (links node), previousSummary op.id machine.summaries node with
   | some parents,some own =>
@@ -85,6 +87,7 @@ theorem checkedStep_budget_certificate (c : ResourceConfig) (op root node : Reso
     structural sliceBound).mp rejected
 
 
+/-- A step result with its authorization safety condition. -/
 def SafeResult (c : ResourceConfig) (op : ResourceFact) (known : Facts) : Result → Prop
   | .done machine ghost => Invariant op known machine ghost
   | .blocked _ machine ghost => Invariant op known machine ghost
@@ -124,6 +127,7 @@ theorem checkedStep_safe (c : ResourceConfig) (op root node : ResourceFact) (kno
           have valid := recordStep_invariant op node known machine next ghost after invariant fresh nonforking accepted unique foreignChecked structural recorded
           simpa [checkedStep,lookups,previous,decision,recorded,SafeResult] using valid
 
+/-- Execute the checked authorization steps over the supplied operations. -/
 def execute (c : ResourceConfig) (op : ResourceFact) (known : Facts) : Facts → Machine → Ghost → Result
   | [],machine,ghost => .done machine ghost
   | node :: rest,machine,ghost => match checkedStep c op node known machine ghost with

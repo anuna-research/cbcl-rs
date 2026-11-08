@@ -69,6 +69,7 @@ theorem count_grows {A B : List Act} (growth : ∀ a ∈ A, a ∈ B)
   have bounded := sub.length_le
   omega
 
+/-- Compile a count threshold into the history-backed observation plan. -/
 def compileCountThreshold (verb key opener field : String) (bound : Nat) : Plan Nat :=
   compileClosureThreshold [bound] (fun required observed : Nat => decide (required ≤ observed))
     (.domain verb key opener field FinSet.card)

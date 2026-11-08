@@ -5,19 +5,25 @@ lookups, not supplied to the arithmetic theorem. Dependency-frontier tips are
 separate and are not established by this invariant. -/
 namespace CBCL.StateResourceCache
 open State CheckpointEvidence StateResource StateResourceSummary
+/-- An address-indexed cache of resource facts and cumulative owner summaries. -/
 abbrev Cache := Nat → Option (ResourceFact × Summary)
+/-- The cache with no processed resource facts. -/
 def emptyCache : Cache := fun _ => none
+/-- The final identity in an owner chain, or the opener for an empty chain. -/
 def tipId (opener : Nat) (chain : Facts) : Nat := chain.foldl (fun _ node => node.id) opener
+/-- Each cached summary represents an accepted, same-owner previous chain. -/
 def Valid (opener : Nat) (known : Facts) (cache : Cache) : Prop :=
   ∀ address node summary, cache address = some (node,summary) →
     node.id = address ∧ ∃ chain, OwnerChain node.data.signer opener chain ∧
       tipId opener chain = node.id ∧ run chain empty = some summary ∧
       Included chain known ∧ chain.getLast? = some node
 
+/-- Read the previous owner summary, using the empty summary at the opener. -/
 def previousSummary (opener : Nat) (cache : Cache) (node : ResourceFact) : Option Summary := do
   let previous ← node.data.prev
   if previous = opener then some empty else (cache previous).map Prod.snd
 
+/-- Record a fact's cumulative owner summary in the cache. -/
 def advance (opener : Nat) (cache : Cache) (node : ResourceFact) : Option Cache := do
   let own ← previousSummary opener cache node
   let next ← record own node
@@ -101,9 +107,11 @@ theorem advance_valid (opener : Nat) (known : Facts) (cache next : Cache) (node 
           by simp⟩
       · exact valid address cachedNode cachedSummary (by simpa [inserted] using found)
 
+/-- Every cached owner prefix lies inside the accepted facts. -/
 def Inside (known : Facts) (cache : Cache) : Prop :=
   ∀ address node summary, cache address = some (node,summary) → node ∈ known
 
+/-- Every resolved previous link preserves the operation owner. -/
 def SameOwnerPrevious (opener : Nat) (known : Facts) : Prop :=
   ∀ node ∈ known, ∀ parent ∈ known, node.data.prev = some parent.id → parent.id ≠ opener →
     parent.data.signer = node.data.signer
@@ -133,6 +141,7 @@ theorem advance_inside (opener : Nat) (known : Facts) (cache next : Cache) (node
         simpa [← pair.1] using member
       · exact inside address cachedNode cachedSummary (by simpa [inserted] using found)
 
+/-- Fold native cache updates over an operation sequence. -/
 def execute (opener : Nat) (schedule : Facts) (cache : Cache) : Option Cache :=
   schedule.foldlM (advance opener) cache
 

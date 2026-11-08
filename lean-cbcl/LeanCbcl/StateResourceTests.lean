@@ -3,23 +3,27 @@ import LeanCbcl.StateObservationPlan
 namespace CBCL.StateResourceTests
 open State StateLift CheckpointEvidence StateResource
 
+/-- Test fixture for the config case. -/
 def config : ResourceConfig := {
   ownership := .account, certification := .legacy, floor := 0, ceiling := none,
   initialVerb := "open", initialKey := "allocations", headroomKey := none, issuerRole := "issuer",
   increment := ⟨"mint","amount",none⟩, decrement := ⟨"burn","amount",none⟩,
   transfer := some ⟨"pay","amount",some "recipient"⟩, transferHeadroom := none }
 
+/-- Test fixture for the root case. -/
 def root : ResourceFact := ⟨1,{
   signer := "@treasury",kind := .castRoot,amount := 0,prev := none,deps := [],
   selected := { resource := "coins",bindings := .value [
     ⟨"issuer",["@treasury"]⟩,⟨"holder",["@treasury","@alice","@bob"]⟩] } }⟩
 
+/-- Test fixture for the opener case. -/
 def opener : ResourceFact := ⟨2,{
   signer := "@treasury",kind := .initialize,amount := 0,prev := none,deps := [],
   selected := {
     resource := "coins",verb := "open",predecessors := [1],
     initialAllocations := .value [("@treasury",1000),("@alice",0),("@bob",0)] } }⟩
 
+/-- Test fixture for the burn case. -/
 def burn : ResourceFact := ⟨3,{
   signer := "@alice",kind := .decrement,amount := 1,prev := some 2,deps := [],
   selected := {
@@ -97,10 +101,12 @@ theorem no_opener_no_cause (F : Facts) (none : ∀ f ∈ F, ¬initial config f) 
   | cycle ho _ i _ _ _ _ _ _ _ => exact none _ ho i
   | budget ho _ i _ _ _ _ _ _ => exact none _ ho i
 
+/-- Test fixture for the act case. -/
 def act (f : ResourceFact) : Act := {
   addr := f.id,verb := f.data.selected.verb,signer := f.data.signer,
   preds := f.data.selected.predecessors,fields := [],replaces := [] }
 
+/-- Test fixture for the decode case. -/
 def decode (a : Act) : ResourceData :=
   if a.addr = 1 then root.data else if a.addr = 2 then opener.data else burn.data
 

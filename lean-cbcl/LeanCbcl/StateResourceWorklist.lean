@@ -8,10 +8,15 @@ open State CheckpointEvidence StateResource StateResourceNative StateResourceSum
 open StateResourceStructure StateResourceFrontier StateResourceDependency StateResourceLocalBudget StateResourceWitness
 open StateResourceMachine StateResourceAuthorization StateResourceCoupling
 
+/-- The checked resource configuration and dependency graph used by the worklist. -/
 structure Environment where
+  /-- The installed resource configuration. -/
   config : ResourceConfig
+  /-- The accepted resource opener. -/
   opener : ResourceFact
+  /-- The accepted thread root. -/
   root : ResourceFact
+  /-- The recognized resource operation facts. -/
   known : Facts
   unique : (known.map Fact.id).Nodup
   initialization : initializationCheck config opener root = true
@@ -39,9 +44,11 @@ theorem uniqueParents (e : Environment) : ∀ address ∈ e.known.map Fact.id,
 
 end Environment
 
+/-- Every processed operation passed its exact-cone budget check. -/
 def Authorized (e : Environment) (worklist : StateResourceCounters.Worklist) : Prop :=
   ∀ node ∈ e.known, node.id ∈ worklist.processed → ¬BudgetWitness e.config e.opener node e.known
 
+/-- The coupled worklist, machine, and ghost invariants. -/
 structure Joint (e : Environment) (worklist : StateResourceCounters.Worklist) (machine : Machine) (ghost : Ghost) : Prop where
   counters : StateResourceCounters.Invariant (e.known.map Fact.id) (StateResourceGraph.parents e.opener e.known) worklist
   cache : StateResourceMachine.Invariant e.opener e.known machine ghost
@@ -50,6 +57,7 @@ structure Joint (e : Environment) (worklist : StateResourceCounters.Worklist) (m
   processedUnique : worklist.processed.Nodup
   processedKnown : worklist.processed ⊆ e.known.map Fact.id
 
+/-- The initialized native resource budget worklist. -/
 def initialWorklist (e : Environment) : StateResourceCounters.Worklist :=
   StateResourceCounters.initWorklist (e.known.map Fact.id) (StateResourceGraph.parents e.opener e.known)
 
@@ -107,11 +115,13 @@ theorem done_joint (e : Environment) (node : ResourceFact) (worklist : StateReso
     · exact invariant.processedKnown old
 
 
+/-- A native worklist result, either a budget fault or a completed traversal. -/
 inductive Outcome where
   | complete (worklist : StateResourceCounters.Worklist) (machine : Machine) (ghost : Ghost)
   | fault (node : ResourceFact) (worklist : StateResourceCounters.Worklist) (machine : Machine) (ghost : Ghost)
   | internalError
 
+/-- Run at most the supplied number of worklist steps. -/
 def runFuel (e : Environment) : Nat → StateResourceCounters.Worklist → Machine → Ghost → Outcome
   | 0,worklist,machine,ghost => .complete worklist machine ghost
   | fuel+1,worklist,machine,ghost =>
@@ -122,6 +132,7 @@ def runFuel (e : Environment) : Nat → StateResourceCounters.Worklist → Machi
       | .budgetFault bad mid annotations => .fault bad worklist mid annotations
       | .blocked _ _ _ | .recordFault _ _ _ => .internalError
 
+/-- An execution outcome with its maintained worklist invariants. -/
 def Verified (e : Environment) : Outcome → Prop
   | .complete worklist machine ghost => Joint e worklist machine ghost ∧
       StateResourceCounters.Saturated (e.known.map Fact.id) worklist
@@ -188,6 +199,7 @@ theorem runFuel_verified (e : Environment) (fuel : Nat) (worklist : StateResourc
         have impossible : False := by simpa [step,SafeResult] using safe
         exact False.elim impossible
 
+/-- Execute the native budget worklist using its accepted-node fuel bound. -/
 def run (e : Environment) : Outcome :=
   runFuel e e.known.length (initialWorklist e) StateResourceMachine.initial initialGhost
 
@@ -239,6 +251,7 @@ theorem closed_cone_processed (e : Environment) (worklist : StateResourceCounter
   have selected := List.mem_filter.mp (complete member)
   simpa using selected.2
 
+/-- Test whether a resource read or traversal result is faulted. -/
 def isFault : Outcome → Bool
   | .fault _ _ _ _ => true
   | _ => false

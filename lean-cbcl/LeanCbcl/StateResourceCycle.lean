@@ -6,6 +6,7 @@ certificate adapter carries those actual opener/root identities explicitly. -/
 namespace CBCL.StateResourceCycle
 open State CheckpointEvidence StateResource
 
+/-- Recognize a configured resource operation verb. -/
 def operationVerbCheck (c : ResourceConfig) (verb : String) : Bool :=
   verb == c.increment.verb || verb == c.decrement.verb ||
     c.transfer.any (fun t => verb == t.verb) || c.transferHeadroom.any (fun t => verb == t.verb)
@@ -14,8 +15,10 @@ theorem operationVerbCheck_iff (c : ResourceConfig) (node : ResourceFact) :
     operationVerbCheck c node.data.selected.verb = true ↔ operation c node := by
   simp [operationVerbCheck,operation,Option.any_eq_true,or_assoc]
 
+/-- Select the recognized resource operations from accepted facts. -/
 def nodes (c : ResourceConfig) (F : Facts) : Facts := F.filter (fun f => operationVerbCheck c f.data.selected.verb)
 
+/-- The dependency identities used by this module's graph traversal. -/
 def parents (known : Facts) (node : ResourceFact) : Facts :=
   known.filter (fun parent => (links node).contains parent.id)
 
@@ -45,6 +48,7 @@ theorem resource_reach_extend {F : Facts} {a b : ResourceFact} (path : Reaches F
   | @step a parent b member link _ ih =>
     exact ih (initial.trans (.edge initial.target member ((parent_iff F a parent).mpr ⟨member,link⟩)))
 
+/-- A finite certificate of a cycle among accepted resource operations. -/
 def CycleCertificate (c : ResourceConfig) (F : Facts) : Prop :=
   ∃ C a b, Included C F ∧ (∀ node ∈ C, operation c node) ∧
     a ∈ C ∧ b ∈ C ∧ b.id ∈ links a ∧ Reaches C b a
@@ -70,6 +74,7 @@ theorem graph_cycle_iff_certificate (c : ResourceConfig) (F : Facts) :
       .edge (subset a ha) (subset b hb) ((parent_iff _ _ _).mpr ⟨subset b hb,link⟩)
     exact ⟨a,resource_reach_extend (reaches_mono subset back) first⟩
 
+/-- The native structural cycle check. -/
 def nativeCycleCheck (c : ResourceConfig) (F : Facts) : Bool :=
   (StateResourceKahn.nativeKahn (parents (nodes c F)) (nodes c F)).isEmpty
 

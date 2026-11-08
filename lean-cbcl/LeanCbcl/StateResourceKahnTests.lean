@@ -4,8 +4,11 @@ import LeanCbcl.StateResourceTests
 namespace CBCL.StateResourceKahnTests
 open StateResourceKahn
 
+/-- Test fixture for the chain Parents case. -/
 def chainParents (node : Nat) : List Nat := if node = 2 then [1] else []
+/-- Test fixture for the cycle Parents case. -/
 def cycleParents (node : Nat) : List Nat := if node = 1 then [2] else if node = 2 then [1] else []
+/-- Test fixture for the missing Parents case. -/
 def missingParents (node : Nat) : List Nat := if node = 2 then [3] else []
 
 theorem acyclic_pass_removes_all : nativeKahn chainParents [1,2] = [] := by decide

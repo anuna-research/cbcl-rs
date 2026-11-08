@@ -224,6 +224,7 @@ theorem budgetDecision_false_iff (bounded usesHeadroom : Bool) (amount : Int) (r
   cases bounded <;> cases usesHeadroom <;> cases rights <;> cases space <;> simp [budgetDecision]
   all_goals omega
 
+/-- Check the operation's available budget from native cached summaries. -/
 def nativeBudgetCheck (c : ResourceConfig) (op node : ResourceFact) (own : Summary) (cache : Cache) (tips : Tips) : Bool :=
   budgetDecision c.headroomKey.isSome (decide (node.data.kind = .increment ∨ node.data.kind = .transferHeadroom))
     node.data.amount (nativeLocalBudget op node own cache tips false) (nativeLocalBudget op node own cache tips true)

@@ -6,14 +6,18 @@ bridge, not a renamed premise or a supplied classifier. -/
 namespace CBCL.StateResourceNative
 open State StateLift CheckpointEvidence StateResource
 
+/-- Check account identifier syntax. -/
 def accountCheck (s : String) : Bool := decide (s.toList.head? = some '@') && decide (1 < s.length)
+/-- Check a nonnegative native operation amount. -/
 def amountCheck (n : Int) : Bool := decide (0 ≤ n) && decide (n < 2^63)
 
+/-- Check allocation rows for distinct accounts and valid amounts. -/
 def rowsCheck : ResourceAccounts → Bool
   | [] => true
   | (name,amount) :: rest => accountCheck name && amountCheck amount &&
       !(rest.map Prod.fst).contains name && rowsCheck rest
 
+/-- Check allocation fields against installed bounds and accounts. -/
 def allocationsCheck : ResourceField ResourceAccounts → Bool
   | .value rows => !rows.isEmpty && rowsCheck rows
   | _ => false
@@ -129,6 +133,7 @@ theorem empty_allocations_rejected : allocationsCheck (.value []) = false := rfl
 
 theorem malformed_account_rejected : allocationsCheck (.value [("alice",1)]) = false := by decide
 
+/-- Check the resource thread root and role bindings. -/
 def rootCheck (field : ResourceField (List ResourceRoleBinding)) : Bool :=
   match field with
   | .value rows => rows.all (fun role => role.accounts.all accountCheck)
@@ -138,6 +143,7 @@ theorem rootCheck_iff (field : ResourceField (List ResourceRoleBinding)) : rootC
     ∃ rows, field = .value rows ∧ ∀ role ∈ rows, ∀ account ∈ role.accounts, accountName account := by
   cases field <;> simp [rootCheck,accountCheck_iff]
 
+/-- Check the selected resource operation kind. -/
 def kindCheck (c : ResourceConfig) (a : ResourceFact) : Bool :=
   (a.data.kind == .increment && a.data.selected.verb == c.increment.verb) ||
   (a.data.kind == .decrement && a.data.selected.verb == c.decrement.verb) ||
@@ -240,6 +246,7 @@ theorem headroomCheck_iff (c : ResourceConfig) (op : ResourceFact) : headroomChe
     exact ⟨fun owner amount h => (same owner).mp ⟨amount,h⟩,
       fun owner amount h => (same owner).mpr ⟨amount,h⟩⟩
 
+/-- Check root, allocation, and configuration consistency at initialization. -/
 def initializationCheck (c : ResourceConfig) (op root : ResourceFact) : Bool :=
   rootCheck root.data.selected.bindings && (members root).contains op.data.signer &&
   allocationsCheck op.data.selected.initialAllocations &&
@@ -276,6 +283,7 @@ theorem operation_rejection_certificate (c : ResourceConfig) (F : Facts) (op roo
     (rejected : operationCheck c op root a = false) : Cause c F :=
   .malformed opAccepted rootAccepted accepted opener parent operates ((operation_rejection_iff c op root a).mp rejected)
 
+/-- Add an incoming transfer using checked arithmetic. -/
 def addIncoming (balance : Int) (ownerAmounts : List Int) : Option Int := do
   let total ← checkedSum ownerAmounts
   checkedAdd balance total

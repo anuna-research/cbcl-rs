@@ -7,14 +7,21 @@ namespace CBCL.StateResourceMachine
 open State CheckpointEvidence StateResource StateResourceSummary StateResourceCache StateResourceStructure
 open StateResourceFrontier StateResourceDependency StateResourceOwnPrefix
 
+/-- The erased native summary cache and frontier maps. -/
 structure Machine where
+  /-- The cached cumulative owner summaries. -/
   summaries : Cache
+  /-- The dependency frontier maps indexed by processed identity. -/
   tips : Nat → Tips
 
+/-- Proof-only exact dependency cones and owner prefixes. -/
 structure Ghost where
+  /-- The exact dependency cones indexed by processed identity. -/
   cones : StateResourceCones.ConeCache
+  /-- The exact owner-prefix maps indexed by processed identity. -/
   prefixes : Nat → Prefixes
 
+/-- Cached summaries and frontiers agree with exact ghost cones and owner prefixes. -/
 structure Invariant (op : ResourceFact) (known : Facts) (machine : Machine) (ghost : Ghost) : Prop where
   summaries : StateResourceCache.Valid op.id known machine.summaries
   parents : ParentInvariant op known machine.summaries ghost.cones machine.tips ghost.prefixes
@@ -24,7 +31,9 @@ structure Invariant (op : ResourceFact) (known : Facts) (machine : Machine) (gho
   processed : ∀ address node cone, ghost.cones address = some (node,cone) →
     ∀ entry ∈ cone, ∃ summary, machine.summaries entry.id = some (entry,summary)
 
+/-- The native machine with empty summary and frontier stores. -/
 def initial : Machine := ⟨emptyCache,fun _ => emptyTips⟩
+/-- The empty proof-only cone and prefix stores. -/
 def initialGhost : Ghost := ⟨fun _ => none,fun _ => emptyPrefixes⟩
 
 theorem initial_invariant (op : ResourceFact) (known : Facts) : Invariant op known initial initialGhost := by
@@ -37,6 +46,7 @@ theorem initial_invariant (op : ResourceFact) (known : Facts) : Invariant op kno
   · intro _ _ _ impossible; contradiction
   · intro _ _ _ impossible; contradiction
 
+/-- Record the updated summary, frontier, cone, and owner prefix. -/
 def recordResult (node : ResourceFact) (known : Facts) (machine : Machine) (ghost : Ghost)
     (parents : List (ResourceFact × Facts)) (updated : Summary) : Machine × Ghost :=
   let tips := mergedTips machine.summaries machine.tips parents
@@ -47,6 +57,7 @@ def recordResult (node : ResourceFact) (known : Facts) (machine : Machine) (ghos
     ⟨fun address => if address = node.id then some (node,cone) else ghost.cones address,
       fun address => if address = node.id then setOwnPrefix prefixes node else ghost.prefixes address⟩)
 
+/-- Gather parents and record one resource operation. -/
 def recordStep (op node : ResourceFact) (known : Facts) (machine : Machine) (ghost : Ghost) : Option (Machine × Ghost) := do
   let parents ← StateResourceCones.gather op ghost.cones (links node)
   let own ← previousSummary op.id machine.summaries node
@@ -235,9 +246,11 @@ theorem recordStep_unchanged (op node : ResourceFact) (known : Facts) (machine n
         have value := congrArg (fun pair : Machine × Ghost => pair.1.summaries address) result
         simpa [recordResult,different] using value.symm
 
+/-- The operation has no previously cached summary. -/
 def Absent (schedule : Facts) (machine : Machine) : Prop :=
   ∀ node ∈ schedule, machine.summaries node.id = none
 
+/-- Fold native machine transitions and their ghost updates. -/
 def execute (op : ResourceFact) (known schedule : Facts) (state : Machine × Ghost) : Option (Machine × Ghost) :=
   schedule.foldlM (fun state node => recordStep op node known state.1 state.2) state
 

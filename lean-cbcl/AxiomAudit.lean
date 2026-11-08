@@ -1209,13 +1209,13 @@ editing only this file is enough to extend the audit.
 
 #print axioms CBCL.StateResourceCounters.native_closed_component_processed
 
-#print axioms CBCL.StateResourceWorklist.operations
+#print axioms CBCL.StateResourceWorklist.Environment.operations
 
-#print axioms CBCL.StateResourceWorklist.initialValid
+#print axioms CBCL.StateResourceWorklist.Environment.initialValid
 
-#print axioms CBCL.StateResourceWorklist.nonforking
+#print axioms CBCL.StateResourceWorklist.Environment.nonforking
 
-#print axioms CBCL.StateResourceWorklist.uniqueParents
+#print axioms CBCL.StateResourceWorklist.Environment.uniqueParents
 
 #print axioms CBCL.StateResourceWorklist.initial_joint
 
@@ -1413,17 +1413,17 @@ editing only this file is enough to extend the audit.
 
 #print axioms CBCL.StateResourcePreflight.unsupportedCheck_iff
 
-#print axioms CBCL.StateResourcePreflight.known_inside
+#print axioms CBCL.StateResourcePreflight.Prepared.known_inside
 
-#print axioms CBCL.StateResourcePreflight.known_operation
+#print axioms CBCL.StateResourcePreflight.Prepared.known_operation
 
-#print axioms CBCL.StateResourcePreflight.operation_known
+#print axioms CBCL.StateResourcePreflight.Prepared.operation_known
 
-#print axioms CBCL.StateResourcePreflight.known_unique
+#print axioms CBCL.StateResourcePreflight.Prepared.known_unique
 
-#print axioms CBCL.StateResourcePreflight.opener_excluded
+#print axioms CBCL.StateResourcePreflight.Prepared.opener_excluded
 
-#print axioms CBCL.StateResourcePreflight.root_unique
+#print axioms CBCL.StateResourcePreflight.Prepared.root_unique
 
 #print axioms CBCL.StateResourcePreflight.prepared_cause_is_budget
 

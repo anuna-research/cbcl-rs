@@ -7,11 +7,16 @@ namespace CBCL.StateResourceFinalize
 open State CheckpointEvidence StateResource StateResourceNative StateResourceSummary StateResourceBudget
 open StateResourceMachine StateResourceWorklist StateResourceAggregate StateResourceSolvency
 
+/-- The finalized aggregate value, rights, and optional headroom. -/
 structure AggregateSnapshot where
+  /-- The aggregate resource value. -/
   value : Int
+  /-- The resource rights indexed by account. -/
   rights : String → Int
+  /-- The optional bounded-counter headroom indexed by account. -/
   headroom : Option (String → Int)
 
+/-- Finalize account balances after checked aggregation. -/
 def finishBalances (c : ResourceConfig) (owners : List String) (rights : String → Int)
     (headroom : Option (String → Int)) : Option AggregateSnapshot :=
   if owners.any (fun owner => decide (rights owner < 0)) ||
@@ -25,6 +30,7 @@ def finishBalances (c : ResourceConfig) (owners : List String) (rights : String 
       let totalSpace ← checkedSum (owners.map space)
       if checkedAdd value totalSpace == some cap then some ⟨value,rights,headroom⟩ else none
 
+/-- Finalize a native resource snapshot from the completed worklist. -/
 def finish (c : ResourceConfig) (op : ResourceFact) (facts : Facts) : Option AggregateSnapshot := do
   let owners := (accounts op.data.selected.initialAllocations).map Prod.fst
   let rights ← applySideAll owners false facts (allocation (accounts op.data.selected.initialAllocations))

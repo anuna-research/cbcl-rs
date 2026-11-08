@@ -8,6 +8,7 @@ their dependencies at the causal cut. -/
 namespace CBCL.StateInstalledCompiler
 open State StateLift StateLVar StateObservation StateObservationPlan StateRuleRefinement
 
+/-- An installed primitive source with its data and error guards. -/
 inductive Source (V : Type) where
   | snapshot (display : FinSet Act → V)
   | context (decode : Act → Option Val) (embed : Val → V)
@@ -17,6 +18,7 @@ inductive Source (V : Type) where
   | guardDomain (opener field : String) (source : Source V)
   | guardThreshold (spec : ThresholdSpec) (source : Source V)
 
+/-- Compile an installed source to its observation plan. -/
 def sourcePlan {V : Type} : Source V → Plan V
   | .snapshot display => .snapshot display
   | .context decode embed => .contextAs decode embed
@@ -25,11 +27,13 @@ def sourcePlan {V : Type} : Source V → Plan V
   | .guardDomain opener field source => .guardDomain opener field (sourcePlan source)
   | .guardThreshold spec source => .guardThreshold spec (sourcePlan source)
 
+/-- Propagate source errors before rendering the guarded value. -/
 def nativeGuard {V : Type} (guard : Error) (source : StateObservationPlan.Observation V) : StateObservationPlan.Observation V :=
   match unionError guard (sourceError source) with
   | some evidence => .fault evidence
   | none => source
 
+/-- Interpret an installed source independently of plan compilation. -/
 noncomputable def sourceRead {V : Type} : Source V → List Act → StateObservationPlan.Observation V
   | .snapshot display, A => .data (.snapshot (display (rawHistory A)))
   | .context decode embed, A => match StateContext.read decode A with
@@ -64,6 +68,7 @@ theorem source_refinement {V : Type} (world : Act → Prop) (source : Source V) 
       simp [observe,path,errors,nativeGuard,sourceError,unionError,data,a,b]
 
 
+/-- The installed source, dependency, threshold, and freeze rule forms. -/
 inductive Rule (V : Type) where
   | source (source : Source V)
   | earlier (name : String)
@@ -73,10 +78,14 @@ inductive Rule (V : Type) where
   | thresholdLift (spec : ThresholdSpec) (embed : spec.Carrier → V) (name : String)
   | freeze (spec : FreezeSpec) (name : String)
 
+/-- The previously compiled named plans. -/
 abbrev Plans (V : Type) := List (String × Plan V)
+/-- A history-indexed native observation reader. -/
 abbrev Reader (V : Type) := List Act → StateObservationPlan.Observation V
+/-- The previously installed named readers. -/
 abbrev Readers (V : Type) := List (String × Reader V)
 
+/-- Resolve one installed rule against previously compiled plans. -/
 def compileRule {V : Type} (earlier : Plans V) : Rule V → Option (Plan V)
   | .source source => some (sourcePlan source)
   | .earlier name => earlier.lookup name
@@ -89,6 +98,7 @@ def compileRule {V : Type} (earlier : Plans V) : Rule V → Option (Plan V)
   | .thresholdLift spec embed name => do return .embed embed (.threshold spec (← earlier.lookup name))
   | .freeze spec name => do return .freeze spec (← earlier.lookup name)
 
+/-- Combine native observations, retaining both sources' fault evidence. -/
 def nativePair {V : Type} (combine : V → V → V)
     (left right : StateObservationPlan.Observation V) : StateObservationPlan.Observation V :=
   match left, right with
@@ -111,6 +121,7 @@ noncomputable def nativeLiftThreshold {V : Type} (spec : ThresholdSpec)
       | .pending | .fault _ => .data .pending
       | .reached value => .data (.reached (embed value))
 
+/-- Interpret one installed rule using the previously installed readers. -/
 noncomputable def interpretRule {V : Type} (world : Act → Prop) (earlier : Readers V) :
     Rule V → Option (Reader V)
   | .source source => some (sourceRead source)
@@ -132,14 +143,17 @@ noncomputable def interpretRule {V : Type} (world : Act → Prop) (earlier : Rea
       let source ← earlier.lookup name
       return nativeFreeze world spec source
 
+/-- A plan and native reader agree on every accepted history. -/
 def Agrees {V : Type} (world : Act → Prop) (p : Plan V) (r : Reader V) : Prop :=
   ∀ A, CausallyClosed world A → observe world p A = r A
 
+/-- Named plans and readers agree at every lookup. -/
 def Corresponds {V : Type} (world : Act → Prop) : Option (Plan V) → Option (Reader V) → Prop
   | none, none => True
   | some p, some r => Agrees world p r
   | _, _ => False
 
+/-- A plan and reader have matching optional lookup results. -/
 def Related {V : Type} (world : Act → Prop) (plans : Plans V) (readers : Readers V) : Prop :=
   ∀ name, Corresponds world (plans.lookup name) (readers.lookup name)
 
@@ -230,6 +244,7 @@ def compileFields {V : Type} (earlier : Plans V) : List (String × Rule V) → O
       let tail ← compileFields ((name,plan) :: earlier) rest
       return (name,plan) :: tail
 
+/-- Interpret the ordered fields using only earlier definitions. -/
 noncomputable def interpretFields {V : Type} (world : Act → Prop) (earlier : Readers V) :
     List (String × Rule V) → Option (Readers V)
   | [] => some []
@@ -238,9 +253,11 @@ noncomputable def interpretFields {V : Type} (world : Act → Prop) (earlier : R
       let tail ← interpretFields world ((name,reader) :: earlier) rest
       return (name,reader) :: tail
 
+/-- Compiled plans and installed readers have matching names and order. -/
 def Aligned {V : Type} (world : Act → Prop) (plans : Plans V) (readers : Readers V) : Prop :=
   List.Forall₂ (fun p r => p.1 = r.1 ∧ Agrees world p.2 r.2) plans readers
 
+/-- The ordered compiled fields agree with their native readers. -/
 def FieldsCorrespond {V : Type} (world : Act → Prop) : Option (Plans V) → Option (Readers V) → Prop
   | none,none => True
   | some plans,some readers => Aligned world plans readers
@@ -278,6 +295,7 @@ references. Decoders/closures are already recognized immutable metadata. -/
 def compileClause {V : Type} (fields : List (String × Rule V)) : Option (Plans V) :=
   if (fields.map Prod.fst).Nodup then compileFields [] fields else none
 
+/-- Interpret all fields of an installed state clause. -/
 noncomputable def interpretClause {V : Type} (world : Act → Prop)
     (fields : List (String × Rule V)) : Option (Readers V) :=
   if (fields.map Prod.fst).Nodup then interpretFields world [] fields else none
@@ -317,6 +335,7 @@ def references {V : Type} : Rule V → List String
   | .earlier name | .derived _ name | .threshold _ _ name | .thresholdLift _ _ name | .freeze _ name => [name]
   | .pair _ left right => [left,right]
 
+/-- All rule references resolve to earlier declared fields. -/
 def WellScoped {V : Type} : List String → List (String × Rule V) → Prop
   | _,[] => True
   | names,(name,rule)::rest => (∀ reference ∈ references rule, reference ∈ names) ∧ WellScoped (name::names) rest

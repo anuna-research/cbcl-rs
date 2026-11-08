@@ -7,9 +7,11 @@ namespace CBCL.StateResourceBudget
 open State CheckpointEvidence StateResource StateResourceSummary StateResourceNative StateResourceCache
 open StateResourceStructure StateResourceFrontier StateResourcePartition
 
+/-- Extract the selected signed operation amounts. -/
 def amounts (predicate : ResourceFact → Bool) (facts : Facts) : List Int :=
   (facts.filter predicate).map (fun node => node.data.amount)
 
+/-- Partition incoming amounts by their contributing owner prefixes. -/
 def chunks (owners : List String) (prefixes : Prefixes) (predicate : ResourceFact → Bool) : List (List Int) :=
   owners.map (fun owner => amounts predicate (prefixes owner))
 
@@ -30,7 +32,7 @@ theorem selected_sum_bound (known selected : Facts) (predicate : ResourceFact �
   have amountLength : (amounts predicate selected).length ≤ known.length := by
     simp only [amounts,List.length_map]
     omega
-  have bounds := sum_bounds (2^63 - 1) (by decide) (amounts predicate selected) (by
+  have bounds := sum_bounds (2^63 - 1) (amounts predicate selected) (by
     intro value member
     obtain ⟨node,hn,rfl⟩ := List.mem_map.mp member
     have bound := recognized node (inside node (List.mem_filter.mp hn).1)
@@ -77,6 +79,7 @@ theorem frontier_incoming_refinement (opener : Nat) (known cone : Facts) (cache 
   · exact startBound
 
 
+/-- Select incoming transfers to the requested account. -/
 def incomingPredicate (recipient : String) (headroom : Bool) (node : ResourceFact) : Bool :=
   node.data.signer != recipient &&
     node.data.kind == (if headroom then ResourceKind.transferHeadroom else ResourceKind.transfer) &&
@@ -141,6 +144,7 @@ theorem readIncoming_refinement (opener : Nat) (known : Facts) (cache : Cache) (
         simp [readIncoming,own,selected,cached,same,← counters.2]
 
 
+/-- Compute incoming transfers using the native frontier summaries. -/
 def nativeIncoming (cache : Cache) (tips : Tips) (recipient : String) (headroom : Bool)
     (owners : List String) (start : Int) : Option Int :=
   owners.foldlM (fun balance owner => do

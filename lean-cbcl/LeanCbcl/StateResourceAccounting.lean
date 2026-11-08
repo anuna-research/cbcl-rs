@@ -6,10 +6,13 @@ value rather than replacing a checked computation with an unchecked one. -/
 namespace CBCL.StateResourceAccounting
 open State CheckpointEvidence StateResource StateResourceNative StateResourceSummary StateResourceBudget StateResourceAggregate
 
+/-- Select credits contributing to the account balance. -/
 def creditPredicate (headroom : Bool) (owner : String) (node : ResourceFact) : Bool :=
   node.data.signer == owner && node.data.kind == (if headroom then ResourceKind.decrement else ResourceKind.increment)
+/-- Select debits contributing to the account balance. -/
 def debitPredicate (headroom : Bool) (owner : String) (node : ResourceFact) : Bool :=
   node.data.signer == owner && node.data.kind == (if headroom then ResourceKind.increment else ResourceKind.decrement)
+/-- Select outgoing transfers for the account. -/
 def outgoingPredicate (headroom : Bool) (owner : String) (node : ResourceFact) : Bool :=
   node.data.signer == owner && node.data.kind == (if headroom then ResourceKind.transferHeadroom else ResourceKind.transfer)
 

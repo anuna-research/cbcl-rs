@@ -8,6 +8,7 @@ namespace CBCL.StateResourceCoupling
 open State CheckpointEvidence StateResource StateResourceSummary StateResourceCache StateResourceStructure
 open StateResourceMachine StateResourceFrontier StateResourceDependency StateResourceAuthorization StateResourceLocalBudget
 
+/-- The resource worklist and erased native machine advance together. -/
 def Coupled (worklist : StateResourceCounters.Worklist) (machine : Machine) : Prop :=
   ∀ address, (∃ node summary, machine.summaries address = some (node,summary)) ↔ address ∈ worklist.processed
 

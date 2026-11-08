@@ -7,13 +7,16 @@ fold and the budget worklist, rather than becoming assumed classifiers. -/
 namespace CBCL.StateResourceAggregate
 open State CheckpointEvidence StateResource StateResourceNative StateResourceSummary StateResourceBudget
 
+/-- The signed 64-bit range of native operation amounts. -/
 def signed64 (value : Int) : Prop := -(2^63) ≤ value ∧ value < 2^63
 instance (value : Int) : Decidable (signed64 value) := inferInstanceAs (Decidable (-(2^63) ≤ value ∧ value < 2^63))
 
+/-- Check the numeric bounds of the installed resource configuration. -/
 def configurationCheck (c : ResourceConfig) : Bool :=
   decide (signed64 c.floor) && c.ceiling.all (fun cap => decide (signed64 cap ∧ c.floor ≤ cap)) &&
     (c.ceiling.isSome == c.headroomKey.isSome) && (c.transferHeadroom.isNone || c.ceiling.isSome)
 
+/-- The installed numeric bounds required by native arithmetic. -/
 def NativeConfiguration (c : ResourceConfig) : Prop :=
   signed64 c.floor ∧ (∀ cap, c.ceiling = some cap → signed64 cap ∧ c.floor ≤ cap) ∧
     c.ceiling.isSome = c.headroomKey.isSome ∧ (c.transferHeadroom.isSome → c.ceiling.isSome)
@@ -35,6 +38,7 @@ theorem allocation_natural64 (rows : ResourceAccounts) (recognized : ∀ row ∈
       simpa [allocation,List.lookup,different] using
         ih (fun row member => recognized row (by simp [member]))
 
+/-- The signed change contributed by one fact to one account. -/
 def delta (headroom : Bool) (owner : String) (node : ResourceFact) : Int :=
   if headroom then headroomDelta owner node else rightsDelta owner node
 
@@ -45,6 +49,7 @@ theorem delta_bound (headroom : Bool) (owner : String) (node : ResourceFact)
     cases headroom <;> cases kind : node.data.kind <;>
     simp [delta,rightsDelta,headroomDelta,same,recipient,kind] <;> unfold natural64 at recognized <;> omega
 
+/-- The account balance obtained from initial allocations and accepted deltas. -/
 def accountBalance (initial : String → Int) (headroom : Bool) (facts : Facts) (owner : String) : Int :=
   initial owner + (facts.map (delta headroom owner)).sum
 
@@ -58,7 +63,7 @@ i128. This derives the bound from actual recognized amounts and slice length. -/
 theorem account_balance_i128 (initial : String → Int) (headroom : Bool) (facts : Facts) (owner : String)
     (allocationBound : natural64 (initial owner)) (sliceBound : facts.length ≤ 2^63 - 1)
     (recognized : ∀ node ∈ facts, natural64 node.data.amount) : i128 (accountBalance initial headroom facts owner) := by
-  have bounds := sum_bounds (2^63) (by decide) (facts.map (delta headroom owner)) (by
+  have bounds := sum_bounds (2^63) (facts.map (delta headroom owner)) (by
     intro value member
     obtain ⟨node,hn,rfl⟩ := List.mem_map.mp member
     exact delta_bound headroom owner node (recognized node hn))
@@ -71,9 +76,11 @@ theorem account_balance_i128 (initial : String → Int) (headroom : Bool) (facts
   constructor <;> omega
 
 
+/-- Apply an operation's signed change to the aggregate value. -/
 def changeValue (values : String → Int) (owner : String) (amount : Int) : String → Int :=
   fun key => if key = owner then values key + amount else values key
 
+/-- Apply a checked delta to one account. -/
 def addAccount (owners : List String) (values : String → Int) (owner : String) (amount : Int) : Option (String → Int) := do
   if owners.contains owner then
     let value ← checkedAdd (values owner) amount
@@ -90,6 +97,7 @@ theorem addAccount_success (owners : List String) (values : String → Int) (own
     by_cases same : key = owner <;> simp [update,changeValue,same]
   simp [addAccount,member,checked,equal]
 
+/-- Apply a checked transfer between two accounts. -/
 def transferAccounts (owners : List String) (values : String → Int) (source recipient : String) (amount : Int) : Option (String → Int) := do
   let debited ← addAccount owners values source (-amount)
   addAccount owners debited recipient amount
@@ -104,6 +112,7 @@ theorem transferAccounts_success (owners : List String) (values : String → Int
     (by simpa [changeValue,different] using creditBound)
   simp [transferAccounts,debit,credit]
 
+/-- Apply one operation to rights or headroom balances. -/
 def applySide (owners : List String) (headroom : Bool) (node : ResourceFact) (values : String → Int) : Option (String → Int) :=
   match node.data.kind with
   | .increment => addAccount owners values node.data.signer (if headroom then -node.data.amount else node.data.amount)
@@ -119,6 +128,7 @@ def applySide (owners : List String) (headroom : Bool) (node : ResourceFact) (va
     else some values
   | _ => none
 
+/-- The account effect of one operation on the selected balance side. -/
 def sideEffect (values : String → Int) (headroom : Bool) (node : ResourceFact) : String → Int :=
   fun owner => values owner + delta headroom owner node
 
@@ -211,6 +221,7 @@ theorem applySide_complete (c : ResourceConfig) (op root node : ResourceFact) (h
       exact active_transfer_complete owners values true node recipient kind selected sourceMember member different bounded
 
 
+/-- Fold operations over the selected balance side. -/
 def applySideAll (owners : List String) (headroom : Bool) (facts : Facts) (values : String → Int) : Option (String → Int) :=
   facts.foldlM (fun values node => applySide owners headroom node values) values
 
@@ -290,6 +301,7 @@ theorem native_headroom_fold (c : ResourceConfig) (op root : ResourceFact) (know
   · exact operations
   · exact sliceBound
 
+/-- The net aggregate change of an operation. -/
 def netDelta (headroom : Bool) (node : ResourceFact) : Int :=
   match node.data.kind with
   | .increment => if headroom then -node.data.amount else node.data.amount
@@ -452,13 +464,13 @@ theorem partial_total_i128 (initial : String → Int) (headroom : Bool) (facts :
     (factSlice : facts.length ≤ 2^63 - 1) (accountSlice : owners.length ≤ 2^63 - 1)
     (recognized : ∀ node ∈ facts, natural64 node.data.amount) (floorRange : signed64 floor) :
     i128 ((owners.map (accountBalance initial headroom facts)).sum + floor) := by
-  have initialBounds := sum_bounds (2^63) (by decide) (owners.map initial) (by
+  have initialBounds := sum_bounds (2^63) (owners.map initial) (by
     intro value member
     obtain ⟨owner,_,rfl⟩ := List.mem_map.mp member
     have range := allocationBound owner
     unfold natural64 at range
     constructor <;> omega)
-  have deltaBounds := sum_bounds (2^63) (by decide)
+  have deltaBounds := sum_bounds (2^63)
     (facts.map (fun node => (owners.map (fun owner => delta headroom owner node)).sum)) (by
       intro value member
       obtain ⟨node,hn,rfl⟩ := List.mem_map.mp member

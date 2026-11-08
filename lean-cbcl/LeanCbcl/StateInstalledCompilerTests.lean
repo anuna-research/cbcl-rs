@@ -4,8 +4,11 @@ namespace CBCL.StateInstalledCompilerTests
 open State StateLift StateLVar StateObservation StateObservationPlan
 open StateInstalledCompiler StateInstalledClause
 
+/-- Test fixture for the source case. -/
 def source : Source Nat := .snapshot FinSet.card
+/-- Test fixture for the sealing case. -/
 def sealing : FreezeSpec := ⟨"close",fun a => a.verb = "vote",false⟩
+/-- Test fixture for the clause case. -/
 def clause : Clause Nat := ⟨[("votes",.source source),("next",.derived Nat.succ "votes")],[("votes",sealing)]⟩
 
 /-- The source is decorated before the derived declaration is compiled, even

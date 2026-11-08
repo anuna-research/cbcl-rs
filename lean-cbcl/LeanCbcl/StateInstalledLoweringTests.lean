@@ -4,14 +4,18 @@ namespace CBCL.StateInstalledLoweringTests
 open State StateLift StateLVar StateObservation StateObservationPlan StateInstalledCompiler
 open StateInstalledLattice StateInstalledLowering StateRuleRefinement
 
+/-- Test fixture for the quiet case. -/
 def quiet : StateInstalledLattice.Field (WithTop Bool) :=
   ⟨WithTop Bool,inferInstance,inferInstance,(fun _ => .of false),id,id,some,by intros; rfl⟩
 
+/-- Test fixture for the active case. -/
 def active : StateInstalledLattice.Field (WithTop Bool) :=
   {quiet with contribution := fun _ => .of true}
 
+/-- Test fixture for the active Query case. -/
 def activeQuery : Query active := ⟨[.of true],by decide⟩
 
+/-- Test fixture for the vote case. -/
 def vote : Act := ⟨1,"vote","@alice",[],[],[]⟩
 
 theorem empty_query_rejected : (prepareQuery quiet []).isSome = false := by decide

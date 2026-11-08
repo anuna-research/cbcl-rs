@@ -6,17 +6,22 @@ whose union supplies cone arithmetic. -/
 namespace CBCL.StateResourceFrontier
 open State CheckpointEvidence StateResource StateResourceSummary StateResourceCache StateResourceStructure
 
+/-- The frontier tip identities indexed by account owner. -/
 abbrev Tips := String → Option Nat
+/-- The exact owner-prefix fact lists indexed by owner. -/
 abbrev Prefixes := String → Facts
 
+/-- Merge two owner-tip frontiers. -/
 def merge (cache : Cache) (left right : Tips) : Tips := fun owner =>
   match left owner,right owner with
   | none,incoming => incoming
   | old,none => old
   | some old,some incoming => chooseTip cache old incoming
 
+/-- Merge two owner-prefix maps. -/
 def mergePrefixes (left right : Prefixes) : Prefixes := fun owner => mergeOwnerTips (left owner) (right owner)
 
+/-- The frontier tips represent the corresponding exact owner prefixes. -/
 def Represents (opener : Nat) (known : Facts) (cache : Cache) (tips : Tips) (prefixes : Prefixes) : Prop :=
   ∀ owner, match tips owner with
   | none => prefixes owner = []
@@ -85,6 +90,7 @@ theorem represented_chain (opener : Nat) (known : Facts) (cache : Cache) (tips :
     obtain ⟨_,_,_,_,_,chain,inside,_⟩ := meaning
     exact ⟨chain,inside⟩
 
+/-- The represented prefixes cover the required dependency cone. -/
 def Covers (prefixes : Prefixes) (cone : Facts) : Prop :=
   ∀ node, node ∈ cone ↔ ∃ owner, node ∈ prefixes owner
 
@@ -144,10 +150,12 @@ theorem dependency_own_prefix_before_current (owner : String) (opener : Nat) (kn
   exact longer_owner_prefix owner known nf dependency prefixChain insideDependency insideC length
 
 
+/-- Merge a list of owner-tip frontiers. -/
 def mergeAll (cache : Cache) : Tips → List Tips → Tips
   | initial,[] => initial
   | initial,tip :: rest => mergeAll cache (merge cache initial tip) rest
 
+/-- Merge a list of owner-prefix maps. -/
 def mergeAllPrefixes : Prefixes → List Prefixes → Prefixes
   | initial,[] => initial
   | initial,tip :: rest => mergeAllPrefixes (mergePrefixes initial tip) rest
@@ -218,9 +226,11 @@ theorem represents_cache_extension (opener : Nat) (known extended : Facts) (cach
     exact ⟨node,summary,preserved address node summary cached,same,tip,chain,
       fun entry member => inside entry (part entry member),folded⟩
 
+/-- Replace the current owner's frontier tip with the new fact. -/
 def setOwn (tips : Tips) (node : ResourceFact) : Tips :=
   fun owner => if owner = node.data.signer then some node.id else tips owner
 
+/-- Append the current fact to its owner prefix. -/
 def setOwnPrefix (prefixes : Prefixes) (node : ResourceFact) : Prefixes :=
   fun owner => if owner = node.data.signer then prefixes owner ++ [node] else prefixes owner
 

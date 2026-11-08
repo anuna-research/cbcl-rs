@@ -5,14 +5,18 @@ is a kernel term interpretation, not a replica-local host callback. Fields and
 derived dependencies compile to this closed fault-path algebra. -/
 namespace CBCL.StateObservation
 open State StateLift StateLVar
+/-- A set of act addresses witnessing a terminal fault. -/
 abbrev Evidence := Lattice.Set Nat
+/-- An optional terminal fault witness. -/
 abbrev Error := Option Evidence
 
+/-- Combine independent fault channels by unioning their evidence. -/
 def unionError : Error → Error → Error
   | none, b => b
   | a, none => a
   | some a, some b => some (a ∪ b)
 
+/-- Evidence inclusion from an earlier fault observation to a later one. -/
 def Grows (a b : Error) : Prop :=
   ∀ e, a = some e → ∃ f, b = some f ∧ ∀ id ∈ e, id ∈ f
 
@@ -41,39 +45,51 @@ theorem unionError_grows {a b c d : Error} (ac : Grows a c) (bd : Grows b d) :
       exact ⟨f ∪ g,by simp [unionError,hf,hg],fun id hi => hi.elim
         (fun hx => Or.inl (includes id hx)) (fun hy => Or.inr (includesY id hy))⟩
 
+/-- The addresses of the accepted acts in a history. -/
 def acceptedEvidence (A : List Act) : Evidence := fun id => ∃ a ∈ A, a.addr = id
 
+/-- A carrier, contribution function, and incompatible threshold alternatives. -/
 structure ThresholdSpec where
+  /-- The lattice carrier used by this source. -/
   Carrier : Type
+  /-- The join and bottom operations, with their lattice laws. -/
   algebra : BoundedJoinSemilattice Carrier
+  /-- The lattice element contributed by one accepted act. -/
   contribution : Act → Carrier
+  /-- The installed alternatives of the threshold read. -/
   alternatives : List Carrier
   incompatible : letI := algebra; Incompatible (fun q => q ∈ alternatives)
 
+/-- Fault evidence when the accumulated threshold carrier reaches top. -/
 noncomputable def thresholdError (s : ThresholdSpec) (A : List Act) : Error := by
   classical
   letI := s.algebra
   exact if lift s.contribution A = ⊤ then some (acceptedEvidence A) else none
 
+/-- The first installed threshold alternative reached by the carrier. -/
 noncomputable def thresholdValue (s : ThresholdSpec) (A : List Act) : ThresholdRead s.Carrier :=
   letI := s.algebra
   thresholdRead s.alternatives (lift s.contribution A) false (rawHistory A)
 
+/-- Fault evidence from conflicting context roots. -/
 def contextError : StateContext.Read → Error
   | .fault e => some e
   | _ => none
 
+/-- Fault evidence from conflicting initializer values. -/
 def domainError (opener field : String) (A : List Act) : Error :=
   match initialCarrier opener field A with
   | .top e => some e
   | _ => none
 
+/-- Fault evidence for conflicting freezes or forbidden late contributions. -/
 noncomputable def freezeFault (world : Act → Prop) (verb : String)
     (contributes : Act → Prop) (policy : Bool) (raw : Error) (A : List Act) : Error := by
   classical
   exact if raw.isSome ∨ ∃ a b, FreezeConflict world verb contributes policy A a b
     then some (raw.getD ∅ ∪ freezeEvidence world verb contributes policy A) else none
 
+/-- A compositional observation path with persistent error guards. -/
 inductive Path where
   | clear
   | context (decode : Act → Option Val)
@@ -83,6 +99,7 @@ inductive Path where
   | join (left right : Path)
   | freeze (verb : String) (contributes : Act → Prop) (policy : Bool) (source : Path)
 
+/-- Collect and union terminal fault evidence along an observation path. -/
 noncomputable def errors (world : Act → Prop) : Path → List Act → Error
   | .clear, _ => none
   | .context decode, A => contextError (StateContext.read decode A)
@@ -219,9 +236,13 @@ theorem errors_setEq (world : Act → Prop) (path : Path) {A B : List Act} (same
   | freeze verb contributes policy source ih =>
     simp only [errors,freezeFault,ih,freezeConflict_setEq same,freezeEvidence_setEq same]
 
+/-- The freeze verb, contributing-act predicate, and late-write policy. -/
 structure FreezeSpec where
+  /-- The contributing verb name. -/
   verb : String
+  /-- Whether an accepted act contributes to the frozen source. -/
   contributes : Act → Prop
+  /-- The installed handling of contributions after the freeze. -/
   policy : Bool
 
 end CBCL.StateObservation

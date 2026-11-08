@@ -6,15 +6,23 @@ validation or classification premise is hidden in the summary transition. -/
 namespace CBCL.StateResourceSummary
 open State StateLift CheckpointEvidence StateResource StateResourceNative
 
+/-- A checked cumulative summary of one owner's operation chain. -/
 structure Summary where
+  /-- The length of the summarized owner chain. -/
   sequence : Nat
+  /-- The cumulative credited amount. -/
   credited : Int
+  /-- The cumulative debited amount. -/
   debited : Int
+  /-- The cumulative transferred rights. -/
   sentRights : String → Int
+  /-- The cumulative transferred headroom. -/
   sentHeadroom : String → Int
 
+/-- The empty owner summary. -/
 def empty : Summary := ⟨0,0,0,fun _ => 0,fun _ => 0⟩
 
+/-- Apply one fact to a cumulative owner summary. -/
 def update (values : String → Int) (recipient : String) (value : Int) : String → Int :=
   fun owner => if owner = recipient then value else values owner
 
@@ -105,6 +113,7 @@ theorem record_refinement (summary out : Summary) (node : ResourceFact)
           simp [effect,kind,recipient,same.2,update_add]
   · contradiction
 
+/-- Fold checked owner-summary updates over the supplied chain. -/
 def run (chain : Facts) (initial : Summary := empty) : Option Summary := chain.foldlM record initial
 
 theorem run_refinement (chain : Facts) (initial out : Summary)

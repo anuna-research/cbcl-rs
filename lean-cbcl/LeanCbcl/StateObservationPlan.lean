@@ -6,6 +6,7 @@ source payload, including a frozen source's historical value. -/
 namespace CBCL.StateObservationPlan
 open State StateLift StateLVar StateObservation
 
+/-- The pending, snapshot, contextual, reached, and frozen data observations. -/
 inductive Data (V : Type) where
   | pending
   | snapshot (value : V)
@@ -13,10 +14,12 @@ inductive Data (V : Type) where
   | reached (value : V)
   | frozen (freezer : Nat) (value : V) (excluded : FinSet Act)
 
+/-- Extract the rendered value from a data observation when available. -/
 def Data.payload {V : Type} : Data V → Option V
   | .pending => none
   | .snapshot v | .context v | .reached v | .frozen _ v _ => some v
 
+/-- A compositional observation plan retaining both data and fault channels. -/
 inductive Plan : Type → Type 1 where
   | snapshot {V : Type} (display : FinSet Act → V) : Plan V
   | context (decode : Act → Option Val) : Plan Val
@@ -34,6 +37,7 @@ inductive Plan : Type → Type 1 where
   | thresholdOn {V Q : Type} (alternatives : List Q) (test : Q → V → Bool) (source : Plan V) : Plan Q
   | freeze {V : Type} (spec : FreezeSpec) (source : Plan V) : Plan V
 
+/-- Extract the compositional fault path of a plan. -/
 def path : {V : Type} → Plan V → Path
   | _, .snapshot _ => .clear
   | _, .context decode => .context decode
@@ -49,6 +53,7 @@ def path : {V : Type} → Plan V → Path
   | _, .thresholdOn _ _ source => path source
   | _, .freeze spec source => .freeze spec.verb spec.contributes spec.policy (path source)
 
+/-- Apply a value projection while preserving observation status. -/
 def mapData {V W : Type} (f : V → W) (source : Data V) : Data W :=
   match source.payload with
   | none => .pending
@@ -63,11 +68,13 @@ def embedData {V W : Type} (f : V → W) : Data V → Data W
   | .reached v => .reached (f v)
   | .frozen freezer v excluded => .frozen freezer (f v) excluded
 
+/-- Pair data observations while preserving pending and fault-independent status. -/
 def pairData {V W : Type} (left : Data V) (right : Data W) : Data (V × W) :=
   match left.payload, right.payload with
   | some l, some r => .snapshot (l,r)
   | _, _ => .pending
 
+/-- Render a causal-cut observation with its freeze metadata. -/
 def frozenData {V : Type} : FreezeRead (Data V) → Data V
   | .snapshot value => value
   | .fault _ => .pending -- The separate fault channel is rendered first.
@@ -76,6 +83,7 @@ def frozenData {V : Type} : FreezeRead (Data V) → Data V
     | none => .pending
     | some v => .frozen freezer v excluded
 
+/-- Evaluate the plan's data channel on the supplied accepted history. -/
 noncomputable def data (world : Act → Prop) : {V : Type} → Plan V → List Act → Data V
   | _, .snapshot display, A => .snapshot (display (rawHistory A))
   | _, .context decode, A => match StateContext.read decode A with
@@ -107,10 +115,12 @@ noncomputable def data (world : Act → Prop) : {V : Type} → Plan V → List A
   | _, .freeze spec source, A => frozenData (freezeRead world spec.verb spec.contributes spec.policy
       (errors world (path source) A) (fun C => data world source C) A)
 
+/-- The combined terminal-error and data channels of an observation. -/
 inductive Observation (V : Type) where
   | data (value : Data V)
   | fault (evidence : Evidence)
 
+/-- Read the plan's combined data and terminal-error channels. -/
 noncomputable def observe {V : Type} (world : Act → Prop) (plan : Plan V) (A : List Act) : Observation V :=
   match errors world (path plan) A with
   | some e => .fault e
@@ -190,6 +200,7 @@ theorem observe_setEq {V : Type} (world : Act → Prop) (plan : Plan V) {A B : L
   unfold observe
   rw [errors_setEq world (path plan) same,data_setEq world plan ua ub same]
 
+/-- Read every compiled field in declaration order. -/
 noncomputable def observeClause {Index : Type} {Value : Index → Type}
     (world : Act → Prop) (plans : (i : Index) → Plan (Value i)) (A : List Act) :=
   fun i => observe world (plans i) A

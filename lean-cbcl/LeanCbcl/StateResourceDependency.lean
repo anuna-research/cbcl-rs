@@ -9,7 +9,9 @@ namespace CBCL.StateResourceDependency
 open State CheckpointEvidence StateResource StateResourceSummary StateResourceCache StateResourceStructure
 open StateResourceFrontier
 
+/-- The owner-tip map with no recognized prefixes. -/
 def emptyTips : Tips := fun _ => none
+/-- The owner-prefix map with empty prefixes. -/
 def emptyPrefixes : Prefixes := fun _ => []
 
 theorem empty_represents (opener : Nat) (known : Facts) (cache : Cache) :
@@ -23,9 +25,11 @@ def ParentInvariant (op : ResourceFact) (known : Facts) (cache : Cache)
     ∀ address node cone, cones address = some (node,cone) →
       Represents op.id known cache (tips address) (prefixes address) ∧ Covers (prefixes address) cone
 
+/-- Merge the cached parent frontier tips. -/
 def mergedTips (cache : Cache) (tips : Nat → Tips) (parents : List (ResourceFact × Facts)) : Tips :=
   mergeAll cache emptyTips (parents.map (fun entry => tips entry.1.id))
 
+/-- Merge the cached parent owner prefixes. -/
 def mergedPrefixes (prefixes : Nat → Prefixes) (parents : List (ResourceFact × Facts)) : Prefixes :=
   mergeAllPrefixes emptyPrefixes (parents.map (fun entry => prefixes entry.1.id))
 

@@ -6,10 +6,12 @@ The proof is schedule-independent and therefore also applies after the budget
 pass has already removed some dependency-closed components. -/
 namespace CBCL.StateResourceKahn
 
+/-- Nonempty reachability along resource dependency edges. -/
 inductive Reach {α : Type} (parents : α → List α) (nodes : List α) : α → α → Prop where
   | edge {a b} : a ∈ nodes → b ∈ nodes → b ∈ parents a → Reach parents nodes a b
   | cons {a b c} : a ∈ nodes → b ∈ parents a → Reach parents nodes b c → Reach parents nodes a c
 
+/-- Existence of a directed dependency cycle. -/
 def HasCycle {α : Type} (parents : α → List α) (nodes : List α) : Prop :=
   ∃ node, Reach parents nodes node node
 
@@ -34,6 +36,7 @@ theorem Reach.mono {α : Type} {parents : α → List α} {A B : List α}
   | edge ha hb link => exact .edge (inside ha) (inside hb) link
   | cons ha link _ ih => exact .cons (inside ha) link ih
 
+/-- A finite dependency walk witnessing reachability. -/
 def walk {α : Type} (next : α → α) : α → Nat → List α
   | node, 0 => [node]
   | node, n+1 => node :: walk next (next node) n
@@ -112,9 +115,11 @@ theorem closed_parent_cycle {α : Type} [DecidableEq α] {parents : α → List 
       have long := walk_length next start (start :: rest).length
       omega
 
+/-- An identity whose dependencies have all been released. -/
 def Ready {α : Type} (parents : α → List α) (remaining : List α) (node : α) : Prop :=
   node ∈ remaining ∧ ∀ parent ∈ remaining, parent ∉ parents node
 
+/-- No further eligible worklist step remains. -/
 def Saturated {α : Type} (parents : α → List α) (remaining : List α) : Prop :=
   ∀ node, ¬Ready parents remaining node
 
@@ -152,6 +157,7 @@ theorem cycle_erase_ready {α : Type} [DecidableEq α] {parents : α → List α
       exact ready_cannot_reach ready path
     exact ⟨node,reach_erase_ready ready different different path⟩
 
+/-- A trace of dependency-ready removals. -/
 inductive RemovalTrace {α : Type} [DecidableEq α] (parents : α → List α) : List α → List α → Prop where
   | start (nodes) : RemovalTrace parents nodes nodes
   | remove {initial remaining node} : RemovalTrace parents initial remaining → Ready parents remaining node →
@@ -182,6 +188,7 @@ theorem native_kahn_cycle_iff {α : Type} [DecidableEq α] {parents : α → Lis
     remaining ≠ [] ↔ HasCycle parents initial :=
   (saturated_cycle_iff_nonempty saturated).symm.trans trace.cycle_iff
 
+/-- Executable test that all dependencies have been released. -/
 def readyCheck {α : Type} [DecidableEq α] (parents : α → List α)
     (remaining : List α) (node : α) : Bool :=
   (parents node).all (fun parent => !remaining.contains parent)
@@ -196,6 +203,7 @@ theorem readyCheck_iff {α : Type} [DecidableEq α] (parents : α → List α)
   · intro noParent parent link inside
     exact noParent parent inside link
 
+/-- Run the structural removal pass for bounded fuel. -/
 def reduceFuel {α : Type} [DecidableEq α] (parents : α → List α) : Nat → List α → List α
   | 0, remaining => remaining
   | fuel+1, remaining => match remaining.find? (readyCheck parents remaining) with
@@ -268,6 +276,7 @@ theorem closed_component_processed {α : Type} {parents : α → List α} {nodes
         parent (closed current hc parent edge) rfl
   exact all (rank node) node member rfl
 
+/-- The identities removed by the structural traversal. -/
 def removalOrder {α : Type} [DecidableEq α] (parents : α → List α) : Nat → List α → List α
   | 0, _ => []
   | fuel+1, remaining => match remaining.find? (readyCheck parents remaining) with
@@ -285,6 +294,7 @@ theorem order_partition {α : Type} [DecidableEq α] (parents : α → List α) 
     | some node =>
       exact (List.perm_cons_erase (List.mem_of_find?_eq_some found)).trans ((ih (nodes.erase node)).cons node)
 
+/-- The removal order respects accepted dependency edges. -/
 def Topological {α : Type} (parents : α → List α) : List α → Prop
   | [] => True
   | node :: rest => (∀ parent ∈ node :: rest, parent ∉ parents node) ∧ Topological parents rest
@@ -360,12 +370,14 @@ def budgetReadyCheck {α : Type} [DecidableEq α] (parents : α → List α)
     (known remaining : List α) (node : α) : Bool :=
   (parents node).all (fun parent => known.contains parent && !remaining.contains parent)
 
+/-- Run the budget traversal without releasing missing external parents. -/
 def budgetReduceFuel {α : Type} [DecidableEq α] (parents : α → List α) (known : List α) : Nat → List α → List α
   | 0, remaining => remaining
   | fuel+1, remaining => match remaining.find? (budgetReadyCheck parents known remaining) with
     | none => remaining
     | some node => budgetReduceFuel parents known fuel (remaining.erase node)
 
+/-- No known budget-ready identity remains unprocessed. -/
 def BudgetSaturated {α : Type} [DecidableEq α] (parents : α → List α) (known remaining : List α) : Prop :=
   ∀ node ∈ remaining, budgetReadyCheck parents known remaining node = false
 
@@ -389,9 +401,11 @@ theorem budget_reduce_saturated {α : Type} [DecidableEq α] (parents : α → L
       have length := List.length_erase_of_mem (List.mem_of_find?_eq_some found)
       exact ih (remaining.erase node) (by omega)
 
+/-- The known identities left by the native budget traversal. -/
 def nativeBudgetRemaining {α : Type} [DecidableEq α] (parents : α → List α) (known : List α) : List α :=
   budgetReduceFuel parents known known.length known
 
+/-- The identities processed by the native budget traversal. -/
 def nativeBudgetProcessed {α : Type} [DecidableEq α] (parents : α → List α) (known : List α) : List α :=
   known.filter (fun node => !(nativeBudgetRemaining parents known).contains node)
 

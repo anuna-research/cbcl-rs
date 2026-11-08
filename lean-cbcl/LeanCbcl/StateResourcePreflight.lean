@@ -1,4 +1,5 @@
 import LeanCbcl.StateResourceValidated
+import Batteries.Tactic.Lint
 
 /-! Native preflight cross-reference validation on complete accepted typed
 facts. A reference absent from the accepted set remains pending; an accepted
@@ -6,6 +7,7 @@ non-resource reference is a foreign-link fault. -/
 namespace CBCL.StateResourcePreflight
 open State CheckpointEvidence StateResource StateResourceNative StateResourceStructure StateResourceCycle StateResourceDependency
 
+/-- The configured names of resource operation verbs. -/
 def operationNames (c : ResourceConfig) : List String :=
   [c.increment.verb,c.decrement.verb] ++ (c.transfer.toList.map ResourceOperation.verb) ++
     (c.transferHeadroom.toList.map ResourceOperation.verb)
@@ -15,6 +17,7 @@ theorem operation_names (c : ResourceConfig) (node : ResourceFact) :
   simp [operation,operationNames,Option.mem_toList]
   grind
 
+/-- Check accepted references for foreign verbs and cross-owner previous links. -/
 def foreignCheck (c : ResourceConfig) (op : ResourceFact) (F known : Facts) : Bool :=
   known.all fun node => (links node).all fun address =>
     if address = op.id then true else match StateResourceGraph.lookup F address with
@@ -22,6 +25,7 @@ def foreignCheck (c : ResourceConfig) (op : ResourceFact) (F known : Facts) : Bo
     | some parent => operationVerbCheck c parent.data.selected.verb &&
         (if node.data.prev == some address then node.data.signer == parent.data.signer else true)
 
+/-- All accepted dependency references are resource operations with valid owners. -/
 def NoForeign (c : ResourceConfig) (op : ResourceFact) (F known : Facts) : Prop :=
   ∀ node ∈ known, ∀ parent ∈ F, parent.id ∈ links node → parent.id ≠ op.id →
     operation c parent ∧ (node.data.prev = some parent.id → node.data.signer = parent.data.signer)
@@ -86,6 +90,7 @@ theorem foreign_implies_previous_check (c : ResourceConfig) (op : ResourceFact) 
   exact (relation.2 previous).symm
 
 
+/-- Reject collective ownership and quorum certification profiles. -/
 def unsupportedCheck (c : ResourceConfig) : Bool :=
   c.ownership == .collective || match c.certification with
     | .legacy => false
@@ -95,8 +100,11 @@ theorem unsupportedCheck_iff (c : ResourceConfig) :
     unsupportedCheck c = true ↔ c.ownership = .collective ∨ ∃ policy, c.certification = .quorum policy := by
   cases mode : c.certification <;> simp [unsupportedCheck,mode]
 
+/-- The checked opener, root, and structural preconditions for resource execution. -/
 structure Prepared (c : ResourceConfig) (F : Facts) where
+  /-- The accepted resource opener. -/
   opener : ResourceFact
+  /-- The accepted thread root. -/
   root : ResourceFact
   openerAccepted : opener ∈ F
   rootAccepted : root ∈ F
@@ -110,19 +118,32 @@ structure Prepared (c : ResourceConfig) (F : Facts) where
   foreign : foreignCheck c opener F (nodes c F) = true
   structural : StateResourceKahn.nativeKahn (StateResourceCycle.parents (nodes c F)) (nodes c F) = []
 
+-- Lean generates this injectivity lemma for a dependent record with many
+-- proof fields. Batteries simpNF exhausts its recursion budget preprocessing
+-- the generated type; the lemma itself is kernel-generated, not a rewrite loop.
+attribute [nolint simpNF] Prepared.mk.injEq
+
 namespace Prepared
 
+-- Retain the prepared receiver for dot-notation alongside the other checked helpers.
+@[nolint unusedArguments]
 theorem known_inside {c : ResourceConfig} {F : Facts} (_p : Prepared c F) : Included (nodes c F) F :=
   fun _ member => (List.mem_filter.mp member).1
 
+-- Retain the prepared receiver for dot-notation alongside the other checked helpers.
+@[nolint unusedArguments]
 theorem known_operation {c : ResourceConfig} {F : Facts} (_p : Prepared c F) :
     ∀ node ∈ nodes c F, operation c node :=
   fun node member => (operationVerbCheck_iff c node).mp (List.mem_filter.mp member).2
 
+-- Retain the prepared receiver for dot-notation alongside the other checked helpers.
+@[nolint unusedArguments]
 theorem operation_known {c : ResourceConfig} {F : Facts} (_p : Prepared c F) (node : ResourceFact)
     (member : node ∈ F) (selected : operation c node) : node ∈ nodes c F :=
   List.mem_filter.mpr ⟨member,(operationVerbCheck_iff c node).mpr selected⟩
 
+-- Retain the prepared receiver for dot-notation alongside the other checked helpers.
+@[nolint unusedArguments]
 theorem known_unique {c : ResourceConfig} {F : Facts} (_p : Prepared c F) (unique : (F.map Fact.id).Nodup) :
     ((nodes c F).map Fact.id).Nodup := unique.sublist (List.Sublist.map Fact.id List.filter_sublist)
 
@@ -136,6 +157,7 @@ theorem opener_excluded {c : ResourceConfig} {F : Facts} (p : Prepared c F)
   have opener : p.opener.data.selected.verb = c.initialVerb := p.isOpener
   exact distinct (by simpa [same,initial,opener] using name)
 
+/-- Build the verified worklist environment from successful native preflight checks. -/
 def environment {c : ResourceConfig} {F : Facts} (p : Prepared c F)
     (unique : (F.map Fact.id).Nodup) (distinct : c.initialVerb ∉ operationNames c) (sliceBound : F.length ≤ 2^63 - 1) :
     StateResourceWorklist.Environment := {
@@ -233,6 +255,7 @@ theorem prepared_native_certificate_iff {c : ResourceConfig} {F : Facts} (p : Pr
     exact prepared_cause_is_budget p unique cause
 
 
+/-- Select the resource opener facts. -/
 def initialNodes (c : ResourceConfig) (F : Facts) : Facts :=
   F.filter (fun node => node.data.selected.verb == c.initialVerb)
 

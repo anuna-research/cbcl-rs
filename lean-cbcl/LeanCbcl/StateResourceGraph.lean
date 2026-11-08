@@ -7,8 +7,10 @@ in parent lists and therefore block the first budget pass. -/
 namespace CBCL.StateResourceGraph
 open State CheckpointEvidence StateResource StateResourceStructure StateResourceDependency
 
+/-- Look up an accepted fact by its address. -/
 def lookup (known : Facts) (address : Nat) : Option ResourceFact := known.find? (fun node => node.id == address)
 
+/-- The dependency identities used by this module's graph traversal. -/
 def parents (op : ResourceFact) (known : Facts) (address : Nat) : List Nat :=
   ((lookup known address).map links).getD [] |>.filter (fun parent => parent != op.id)
 

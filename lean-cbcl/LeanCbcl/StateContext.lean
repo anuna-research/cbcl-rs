@@ -12,11 +12,13 @@ a minimal blame set. -/
 namespace CBCL.StateContext
 open State StateLift StateLVar
 
+/-- A context read: pending, one coherent root value, or conflicting-root evidence. -/
 inductive Read where
   | pending
   | value (data : Val)
   | fault (evidence : Lattice.Set Nat)
 
+/-- Extract the value of a coherent context root. -/
 def display : Sole → Read
   | .bot => .pending
   | .one _ (some value) => .value value
@@ -28,8 +30,10 @@ No ordinary application act can modify that contribution. -/
 def contribution (decode : Act → Option Val) (a : Act) : Sole :=
   if a.preds.isEmpty then .one a.addr (decode a) else .bot
 
+/-- Fold accepted context roots into the sole-value lattice. -/
 def carrier (decode : Act → Option Val) (A : List Act) : Sole := lift (contribution decode) A
 
+/-- Read the context carrier, retaining conflicting-root evidence. -/
 def read (decode : Act → Option Val) (A : List Act) : Read := display (carrier decode A)
 
 theorem carrier_union (decode : Act → Option Val) (A B : List Act) :

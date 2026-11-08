@@ -8,16 +8,25 @@ channel first. -/
 namespace CBCL.StateInstalledLattice
 open State StateLift StateLVar StateObservation StateObservationPlan StateInstalledCompiler
 
+/-- An installed state source and its metadata. -/
 structure Field (V : Type) where
+  /-- The lattice carrier used by this source. -/
   Carrier : Type
+  /-- The join and bottom operations, with their lattice laws. -/
   algebra : BoundedJoinSemilattice Carrier
+  /-- Decidable equality for carrier elements. -/
   equality : DecidableEq Carrier
+  /-- The lattice element contributed by one accepted act. -/
   contribution : Act → Carrier
+  /-- Render the retained carrier as the displayed value. -/
   project : Carrier → V
+  /-- Render a threshold element in the author-facing value type. -/
   renderElement : Carrier → V
+  /-- Decode an author-facing threshold element, rejecting unsupported values. -/
   decodeElement : V → Option Carrier
   renderDecode : ∀ q, (letI := algebra; q ≠ ⊤) → decodeElement (renderElement q) = some q
 
+/-- Fold source contributions over the retained accepted-act set. -/
 noncomputable def foldSet {V : Type} (field : Field V) (history : FinSet Act) : field.Carrier := by
   letI := field.algebra
   exact Quotient.lift (s := listSetoid Act) (fun A => lift field.contribution A)
@@ -28,9 +37,11 @@ theorem foldSet_history {V : Type} (field : Field V) (A : List Act) :
   rw [rawHistory_eq]
   rfl
 
+/-- The top-error guard derived from the source's own lattice metadata. -/
 def guardSpec {V : Type} (field : Field V) : ThresholdSpec :=
   ⟨field.Carrier,field.algebra,field.contribution,[],by simp [Incompatible]⟩
 
+/-- Construct the guarded observation source from retained source metadata. -/
 noncomputable def source {V : Type} (field : Field V) : Source V :=
   .guardThreshold (guardSpec field) (.snapshot (fun history => field.project (foldSet field history)))
 
@@ -61,6 +72,7 @@ theorem pairCheck_iff {V : Type} (field : Field V) (queries : List field.Carrier
     · exact Or.inl same
     · exact Or.inr (incompatible a b ha hb same)
 
+/-- Check that threshold alternatives are nonempty, distinct, non-top, and pairwise incompatible. -/
 def alternativesCheck {V : Type} (field : Field V) (queries : List field.Carrier) : Bool := by
   letI := field.algebra
   letI := field.equality
@@ -77,10 +89,13 @@ theorem alternativesCheck_iff {V : Type} (field : Field V) (queries : List field
     decide_eq_true_eq,pairCheck_iff,and_assoc]
   cases queries.isEmpty <;> simp
 
+/-- Threshold alternatives with successful installed admissibility checks. -/
 structure Query {V : Type} (field : Field V) where
+  /-- The installed alternatives of the threshold read. -/
   alternatives : List field.Carrier
   checked : alternativesCheck field alternatives = true
 
+/-- Construct the checked threshold specification. -/
 def Query.spec {V : Type} {field : Field V} (query : Query field) : ThresholdSpec :=
   ⟨field.Carrier,field.algebra,field.contribution,query.alternatives,
     ((alternativesCheck_iff field query.alternatives).mp query.checked).2.2.2⟩
@@ -90,6 +105,7 @@ def prepareQuery {V : Type} (field : Field V) (elements : List V) : Option (Quer
   let alternatives ← elements.mapM field.decodeElement
   if checked : alternativesCheck field alternatives = true then some ⟨alternatives,checked⟩ else none
 
+/-- Construct a threshold rule from checked source-relative alternatives. -/
 def queryRule {V : Type} {field : Field V} (query : Query field) (name : String) : StateInstalledCompiler.Rule V :=
   .thresholdLift query.spec field.renderElement name
 

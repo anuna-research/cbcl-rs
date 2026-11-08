@@ -27,6 +27,7 @@ theorem recipient_indicator (owners : List String) (unique : owners.Nodup) (targ
       simp [ih tailUnique,absent]
     · simp [ih tailUnique,equal]
 
+/-- Extract the amounts sent to the requested recipient. -/
 def recipientAmounts (kind : ResourceKind) (recipient : String) (chain : Facts) : List Int :=
   chain.map (fun node => if node.data.kind = kind ∧ node.data.selected.recipient = some recipient then node.data.amount else 0)
 
@@ -51,6 +52,7 @@ theorem recipient_partition_sum (owners : List String) (kind : ResourceKind) (ch
       simp [amounts,selected,value,recipient_indicator owners unique recipient node.data.amount,member]
     · simp [amounts,selected,sum_map_zero]
 
+/-- Compute outgoing transfers from native owner summaries. -/
 def nativeOutgoing (owners : List String) (summary : Summary) (headroom : Bool) : Option Int :=
   checkedSum (owners.map (fun recipient => if headroom then summary.sentHeadroom recipient else summary.sentRights recipient))
 

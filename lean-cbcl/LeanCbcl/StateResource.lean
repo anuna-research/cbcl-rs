@@ -9,17 +9,22 @@ is a separate obligation; this module does not assert that refinement by fiat. -
 namespace CBCL.StateResource
 open State StateLift StateLVar CheckpointEvidence
 
+/-- The accepted list of typed resource facts. -/
 abbrev Facts := List ResourceFact
 
+/-- Membership inclusion between fact lists. -/
 def Included (A B : List α) : Prop := ∀ a ∈ A, a ∈ B
 
+/-- The signed 128-bit range used by checked native arithmetic. -/
 def i128 (n : Int) : Prop := -(2^127) ≤ n ∧ n < 2^127
 
 instance (n : Int) : Decidable (i128 n) :=
   inferInstanceAs (Decidable (-(2^127) ≤ n ∧ n < 2^127))
 
+/-- The nonnegative portion of the signed 64-bit amount range. -/
 def natural64 (n : Int) : Prop := 0 ≤ n ∧ n < 2^63
 
+/-- Return an integer only when it fits the native signed 128-bit range. -/
 def checked (n : Int) : Option Int := if -(2^127) ≤ n ∧ n < 2^127 then some n else none
 
 /-- Native amount recognition is i64. A successful native slice allocation
@@ -40,7 +45,7 @@ theorem aggregate_i128_bound (n accounts : Int)
 
 /-- Bounds for a signed fold, including every intermediate prefix. Each act
 contributes at most once to a selected account/total. -/
-theorem sum_bounds (bound : Int) (nonnegative : 0 ≤ bound) (xs : List Int)
+theorem sum_bounds (bound : Int) (xs : List Int)
     (recognized : ∀ x ∈ xs, -bound ≤ x ∧ x ≤ bound) :
     -((xs.length : Int) * bound) ≤ xs.sum ∧ xs.sum ≤ (xs.length : Int) * bound := by
   induction xs with
@@ -51,46 +56,59 @@ theorem sum_bounds (bound : Int) (nonnegative : 0 ≤ bound) (xs : List Int)
     simp only [List.sum_cons,List.length_cons,Int.natCast_add,Int.natCast_one,Int.add_mul,Int.one_mul]
     omega
 
+/-- Checked signed 128-bit addition. -/
 def checkedAdd (a b : Int) : Option Int := checked (a + b)
 
+/-- Checked signed 128-bit subtraction. -/
 def checkedSub (a b : Int) : Option Int := checked (a - b)
 
+/-- Extract account allocations, using an empty list for an absent or malformed field. -/
 def accounts : ResourceField ResourceAccounts → ResourceAccounts
   | .value xs => xs
   | _ => []
 
+/-- Extract role bindings, using an empty list for an absent or malformed field. -/
 def bindings : ResourceField (List ResourceRoleBinding) → List ResourceRoleBinding
   | .value xs => xs
   | _ => []
 
+/-- Look up an account allocation, defaulting to zero. -/
 def allocation (xs : ResourceAccounts) (owner : String) : Int :=
   (xs.lookup owner).getD 0
 
+/-- A nonempty account identifier beginning with `@`. -/
 def accountName (name : String) : Prop := name.toList.head? = some '@' ∧ 1 < name.length
 
 instance (name : String) : Decidable (accountName name) :=
   inferInstanceAs (Decidable (name.toList.head? = some '@' ∧ 1 < name.length))
 
+/-- Well-formed, nonempty, uniquely named account allocations. -/
 def validAccounts (field : ResourceField ResourceAccounts) : Prop :=
   ∃ xs, field = .value xs ∧ xs ≠ [] ∧ (xs.map Prod.fst).Nodup ∧
     ∀ x ∈ xs, accountName x.1 ∧ natural64 x.2
 
+/-- The accounts named by the root role bindings. -/
 def members (root : ResourceFact) : List String :=
   (bindings root.data.selected.bindings).flatMap ResourceRoleBinding.accounts
 
+/-- The accounts authorized to issue resources. -/
 def issuers (c : ResourceConfig) (root : ResourceFact) : List String :=
   ((bindings root.data.selected.bindings).filter (fun r => r.role == c.issuerRole)).flatMap ResourceRoleBinding.accounts
 
+/-- Whether a fact selects the configured resource opener verb. -/
 def initial (c : ResourceConfig) (a : ResourceFact) : Prop :=
   a.data.selected.verb = c.initialVerb
 
+/-- Whether a fact selects one of the configured resource operation verbs. -/
 def operation (c : ResourceConfig) (a : ResourceFact) : Prop :=
   a.data.selected.verb = c.increment.verb ∨ a.data.selected.verb = c.decrement.verb ∨
   (∃ t, c.transfer = some t ∧ a.data.selected.verb = t.verb) ∨
   (∃ t, c.transferHeadroom = some t ∧ a.data.selected.verb = t.verb)
 
+/-- The previous and dependency addresses cited by a fact. -/
 def links (a : ResourceFact) : List Nat := a.data.prev.toList ++ a.data.deps
 
+/-- Whether a root fact is the opener's referenced thread root. -/
 def rootOf (op root : ResourceFact) : Prop := op.data.selected.predecessors = [root.id]
 
 /-- Exact checked initialization arithmetic, including the native allocation
@@ -106,6 +124,7 @@ def InitialBudget (c : ResourceConfig) (op : ResourceFact) (value : Int) : Prop 
     i128 (((accounts op.data.selected.headroomAllocations).map Prod.snd).sum + value) ∧
     ((accounts op.data.selected.headroomAllocations).map Prod.snd).sum + value = ceiling
 
+/-- The resource initializer validity conditions. -/
 def validInitial (c : ResourceConfig) (op root : ResourceFact) : Prop :=
   (∃ xs, root.data.selected.bindings = .value xs ∧
     ∀ role ∈ xs, ∀ account ∈ role.accounts, accountName account) ∧
@@ -117,12 +136,14 @@ def validInitial (c : ResourceConfig) (op root : ResourceFact) : Prop :=
       owner ∈ (accounts op.data.selected.initialAllocations).map Prod.fst) ∧
   ∃ value, InitialBudget c op value
 
+/-- Whether a typed operation matches its installed operation kind. -/
 def kindMatches (c : ResourceConfig) (a : ResourceFact) : Prop :=
   (a.data.kind = .increment ∧ a.data.selected.verb = c.increment.verb) ∨
   (a.data.kind = .decrement ∧ a.data.selected.verb = c.decrement.verb) ∨
   (a.data.kind = .transfer ∧ ∃ t, c.transfer = some t ∧ a.data.selected.verb = t.verb) ∨
   (a.data.kind = .transferHeadroom ∧ ∃ t, c.transferHeadroom = some t ∧ a.data.selected.verb = t.verb)
 
+/-- The configured resource operation validity conditions. -/
 def validOperation (c : ResourceConfig) (op root a : ResourceFact) : Prop :=
   kindMatches c a ∧ a.data.selected.thread = op.data.selected.thread ∧
   a.data.selected.language = op.data.selected.language ∧
@@ -254,6 +275,7 @@ theorem merge_owner_tips_union (owner : String) (F : Facts)
     have pre := longer_owner_prefix owner F nonforking right left insideD insideC (by omega)
     exact ⟨fun h => Or.inl h,fun h => h.elim id (fun h => pre.subset h)⟩
 
+/-- The effect of a fact on one account's resource rights. -/
 def rightsDelta (owner : String) (a : ResourceFact) : Int :=
   (if a.data.signer = owner then
     match a.data.kind with
@@ -263,6 +285,7 @@ def rightsDelta (owner : String) (a : ResourceFact) : Int :=
    else 0) +
   (if a.data.kind = .transfer ∧ a.data.selected.recipient = some owner then a.data.amount else 0)
 
+/-- The effect of a fact on one account's bounded-counter headroom. -/
 def headroomDelta (owner : String) (a : ResourceFact) : Int :=
   (if a.data.signer = owner then
     match a.data.kind with
@@ -292,8 +315,10 @@ theorem ordered_of_perm {C D : Facts} (perm : C.Perm D)
   intro a b ha hb ab ba
   exact identity a (List.mem_mergeSort.mp ha) b (List.mem_mergeSort.mp hb) (Nat.le_antisymm ab ba)
 
+/-- Fold amounts using checked native arithmetic. -/
 def checkedSum (xs : List Int) : Option Int := xs.foldlM checkedAdd 0
 
+/-- The cumulative total of one owner's operations. -/
 def ownTotal (C : Facts) (owner : String) (kind : ResourceKind) : Option Int :=
   checkedSum (((ordered C).filter (fun a => a.data.signer == owner && a.data.kind == kind)).map (fun a => a.data.amount))
 
@@ -339,6 +364,7 @@ theorem localBudget_cone_unique {C D : Facts} {op a : ResourceFact}
     ((List.perm_ext_iff_of_nodup nodupC nodupD).mpr (exact_cone_unique left right excludeC excludeD identity))
     identity headroom
 
+/-- A certificate of invalid owner-summary arithmetic. -/
 def summaryFault (a : ResourceFact) (C : Facts) : Prop :=
   let ownCount := (C.filter (fun n => n.data.signer == a.data.signer)).length
   -- This model targets the repository's 64-bit native profile.
@@ -348,6 +374,7 @@ def summaryFault (a : ResourceFact) (C : Facts) : Prop :=
       n.data.signer == a.data.signer && n.data.kind == a.data.kind &&
       n.data.selected.recipient == some recipient)).map (fun n => n.data.amount)) = none
 
+/-- A certificate that an operation exceeds its available causal budget. -/
 def budgetFault (c : ResourceConfig) (op a : ResourceFact) (C : Facts) : Prop :=
   let usesHeadroom := a.data.kind = .increment ∨ a.data.kind = .transferHeadroom
   summaryFault a C ∨ localBudget op a C false = none ∨
@@ -391,9 +418,11 @@ The cause carries its closed cone; no global completeness premise is needed. -/
 def Fault (c : ResourceConfig) (decode : Act → ResourceData) (A : List Act) : Prop :=
   ∃ support : List Act, Included support A ∧ Cause c (project decode support)
 
+/-- Whether a fact contributes to the resource configuration. -/
 def relevant (c : ResourceConfig) (a : ResourceFact) : Prop :=
   initial c a ∨ operation c a ∨ a.data.selected.bindings ≠ .absent
 
+/-- Whether an address occurs among the fact's references. -/
 def cited (a : ResourceFact) (id : Nat) : Prop :=
   id ∈ a.data.selected.predecessors ∨ id ∈ links a
 
@@ -406,6 +435,7 @@ def evidence (c : ResourceConfig) (decode : Act → ResourceData) (A : List Act)
     (relevant c ⟨a.addr, decode a⟩ ∨
       ∃ b ∈ A, relevant c ⟨b.addr, decode b⟩ ∧ cited ⟨b.addr, decode b⟩ id)
 
+/-- Read the independently checkable resource fault evidence. -/
 noncomputable def faultRead (c : ResourceConfig) (decode : Act → ResourceData)
     (A : List Act) : Option (Lattice.Set Nat) := by
   classical

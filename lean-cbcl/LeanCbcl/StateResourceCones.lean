@@ -6,11 +6,14 @@ cones, and the new cone is their union with the operation being evaluated. -/
 namespace CBCL.StateResourceCones
 open State CheckpointEvidence StateResource StateResourceCache StateResourceStructure
 
+/-- An address-indexed cache of exact dependency cones. -/
 abbrev ConeCache := Nat → Option (ResourceFact × Facts)
 
+/-- A gathered parent entry agrees with the accepted dependency graph. -/
 def ParentEntryValid (op : ResourceFact) (cache : ConeCache) : Prop :=
   ∀ address node cone, cache address = some (node,cone) → node.id = address ∧ ExactCone op node cone
 
+/-- Resolve parent entries from the cache, treating the opener as an empty prefix. -/
 def gather (op : ResourceFact) (cache : ConeCache) : List Nat →
     Option (List (ResourceFact × Facts))
   | [] => some []
@@ -20,6 +23,7 @@ def gather (op : ResourceFact) (cache : ConeCache) : List Nat →
       let entries ← gather op cache references
       some (entry :: entries)
 
+/-- Build the exact cone from the current fact and its gathered parent cones. -/
 def unionCone (known : Facts) (node : ResourceFact) (parents : List (ResourceFact × Facts)) : Facts :=
   known.filter fun entry => entry == node || parents.any (fun parent => parent.2.contains entry)
 
@@ -107,10 +111,12 @@ theorem gather_lookup (op : ResourceFact) (cache : ConeCache) (references : List
               · exact Or.inl isRoot
               · exact Or.inr ⟨entry,by simp [he],found⟩
 
+/-- Each cached cone agrees with exact accepted dependency ancestry. -/
 def Valid (op : ResourceFact) (known : Facts) (cache : ConeCache) : Prop :=
   ∀ address node cone, cache address = some (node,cone) →
     node.id = address ∧ node ∈ known ∧ Included cone known ∧ ExactCone op node cone
 
+/-- Reconstruct a dependency cone from the processed parent entries. -/
 def reconstruct (op : ResourceFact) (known : Facts) (cache : ConeCache) (node : ResourceFact) : Option Facts := do
   let parents ← gather op cache (links node)
   some (unionCone known node parents)
@@ -142,6 +148,7 @@ theorem reconstruct_exact (op node : ResourceFact) (known : Facts) (cache : Cone
       · exact Or.inr ⟨parent,member,(valid address parent.1 parent.2 cached).1⟩
 
 
+/-- Insert the reconstructed dependency cone into the cache. -/
 def insert (op : ResourceFact) (known : Facts) (cache : ConeCache) (node : ResourceFact) : Option ConeCache := do
   let cone ← reconstruct op known cache node
   some (fun address => if address = node.id then some (node,cone) else cache address)
@@ -170,6 +177,7 @@ theorem insert_valid (op node : ResourceFact) (known : Facts) (cache next : Cone
         exact ((unionCone_member known node entry entries).mp member).1
     · exact valid address entry C (by simpa [current] using found)
 
+/-- Fold exact-cone reconstruction over an operation sequence. -/
 def execute (op : ResourceFact) (known schedule : Facts) (cache : ConeCache) : Option ConeCache :=
   schedule.foldlM (insert op known) cache
 

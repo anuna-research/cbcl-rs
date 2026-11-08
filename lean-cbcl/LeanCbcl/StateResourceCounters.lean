@@ -5,6 +5,7 @@ The waiting-map child lists are the inverse of the recognized, deduplicated
 parent lists; popping a parent decrements each listed child exactly once. -/
 namespace CBCL.StateResourceCounters
 
+/-- Count parent identities that have not yet been processed. -/
 def outstanding (parents processed : List Nat) : Nat :=
   (parents.filter (fun parent => !processed.contains parent)).length
 
@@ -49,12 +50,15 @@ theorem outstanding_after_pop (parents processed : List Nat) (parent : Nat)
       · by_cases prior : first ∈ processed <;>
           simp [outstanding_cons,prior,same,unequal,member] at tail ⊢ <;> omega
 
+/-- The unprocessed children waiting for a given parent identity. -/
 def waiting (known : List Nat) (parents : Nat → List Nat) (processed : List Nat) (parent : Nat) : List Nat :=
   if parent ∈ processed then [] else known.filter (fun child => (parents child).contains parent)
 
+/-- Decrement one child's outstanding-parent counter. -/
 def decrement (counts : Nat → Nat) (child : Nat) : Nat → Nat :=
   fun address => if address = child then counts address - 1 else counts address
 
+/-- Decrement the counters of every waiting child. -/
 def decrementAll (counts : Nat → Nat) (children : List Nat) : Nat → Nat := children.foldl decrement counts
 
 theorem decrementAll_value (counts : Nat → Nat) (children : List Nat) (address : Nat) :
@@ -82,6 +86,7 @@ theorem count_unique (values : List Nat) (unique : values.Nodup) (address : Nat)
       simp [List.count_cons_self,ih tailUnique,absent]
     · simp [List.count_cons,beq_eq_false_iff_ne.mpr (Ne.symm same),ih tailUnique,same]
 
+/-- Mutable counters equal the number of unprocessed dependencies. -/
 def CountersAgree (known : List Nat) (parents : Nat → List Nat) (processed : List Nat) (counts : Nat → Nat) : Prop :=
   ∀ child ∈ known, counts child = outstanding (parents child) processed
 
@@ -123,12 +128,15 @@ theorem waiting_decrement_safe (known : List Nat) (parents : Nat → List Nat) (
   exact outstanding_positive (parents child) processed parent selected.2 fresh
 
 
+/-- The processed identities are closed under dependencies. -/
 def ProcessedClosed (parents : Nat → List Nat) (processed : List Nat) : Prop :=
   ∀ child ∈ processed, ∀ parent ∈ parents child, parent ∈ processed
 
+/-- The mutable ready queue agrees with zero outstanding counters. -/
 def ReadyAgree (known processed : List Nat) (counts : Nat → Nat) (ready : Nat → Bool) : Prop :=
   ∀ child ∈ known, ready child = true ↔ child ∉ processed ∧ counts child = 0
 
+/-- Update the ready queue after releasing a parent. -/
 def readyAfterPop (ready : Nat → Bool) (counts : Nat → Nat) (children : List Nat) (parent : Nat) : Nat → Bool :=
   fun child => if child = parent then false else
     ready child || (children.contains child && decide (decrementAll counts children child = 0))
@@ -182,22 +190,30 @@ theorem ready_pop_refinement (known : List Nat) (parents : Nat → List Nat) (pr
       simpa [ReadyAgree,readyAfterPop,same,waitingChild,unchanged,children] using before
 
 
+/-- The native mutable Kahn worklist state. -/
 structure Worklist where
+  /-- The identities already released by the worklist. -/
   processed : List Nat
+  /-- The outstanding-parent counters indexed by child identity. -/
   counts : Nat → Nat
+  /-- The inverse dependency lists indexed by parent identity. -/
   waiters : Nat → List Nat
+  /-- The identities queued for processing. -/
   ready : Nat → Bool
 
+/-- Counters, waiters, readiness, and processed closure agree with the dependency graph. -/
 structure Invariant (known : List Nat) (parents : Nat → List Nat) (state : Worklist) : Prop where
   counters : CountersAgree known parents state.processed state.counts
   waiting : ∀ parent, state.waiters parent = StateResourceCounters.waiting known parents state.processed parent
   readiness : ReadyAgree known state.processed state.counts state.ready
   closed : ProcessedClosed parents state.processed
 
+/-- Initialize counters, waiting lists, and the ready queue. -/
 def initWorklist (known : List Nat) (parents : Nat → List Nat) : Worklist :=
   ⟨[],fun child => (parents child).length,waiting known parents [],
     fun child => known.contains child && decide ((parents child).length = 0)⟩
 
+/-- Release one identity and update its waiting children. -/
 def pop (state : Worklist) (parent : Nat) : Worklist :=
   let children := state.waiters parent
   ⟨parent :: state.processed,decrementAll state.counts children,
@@ -230,6 +246,7 @@ theorem pop_invariant (known : List Nat) (parents : Nat → List Nat) (state : W
   · exact processed_closed_after_pop known parents state.processed state.counts state.ready parent
       invariant.counters invariant.readiness invariant.closed accepted selected
 
+/-- Run at most the supplied number of worklist steps. -/
 def runFuel (known : List Nat) : Nat → Worklist → Worklist
   | 0,state => state
   | fuel+1,state => match known.find? state.ready with
@@ -258,6 +275,7 @@ theorem native_counters_invariant (known : List Nat) (parents : Nat → List Nat
   runFuel_invariant known parents known.length (initWorklist known parents) (initialize_invariant known parents) unique uniqueParents
 
 
+/-- No further eligible worklist step remains. -/
 def Saturated (known : List Nat) (state : Worklist) : Prop :=
   ∀ child ∈ known, state.ready child = false
 
@@ -336,7 +354,7 @@ without requiring or constructing a resource summary for that identity. -/
 theorem release_missing_invariant (known : List Nat) (parents : Nat → List Nat) (state : Worklist) (parent : Nat)
     (invariant : Invariant known parents state) (unique : known.Nodup)
     (uniqueParents : ∀ child ∈ known, (parents child).Nodup)
-    (missing : parent ∉ known) (noOutgoing : parents parent = []) (fresh : parent ∉ state.processed) :
+    (noOutgoing : parents parent = []) (fresh : parent ∉ state.processed) :
     Invariant known parents (pop state parent) := by
   have children := invariant.waiting parent
   constructor

@@ -38,6 +38,7 @@ theorem top_below {a : L} (h : Below (⊤ : L) a) : a = ⊤ := by
   rw [top_join] at h
   exact h.symm
 
+/-- Distinct readable alternatives join to the error top. -/
 def Incompatible (Q : L → Prop) : Prop :=
   ∀ a b, Q a → Q b → a ≠ b → a ⊔ b = ⊤
 
@@ -139,6 +140,7 @@ inductive DomainRead where
   | value (selected : FinSet Act)
   | fault (evidence : Lattice.Set Nat)
 
+/-- Read an initializer-backed domain from the accepted history. -/
 def domainRead (verb key opener field : String) (A : List Act) : DomainRead :=
   match initialCarrier opener field A with
   | .top evidence => .fault evidence
@@ -263,6 +265,7 @@ theorem ancestor_accepted {world : Act → Prop} {A : List Act}
   | self _ => exact freezer
   | @step a p f valid edge path ih => exact closed p (ih freezer) a valid edge
 
+/-- The accepted ancestors visible at the selected freeze act. -/
 noncomputable def causalCut (world : Act → Prop) (A : List Act) (f : Act) : List Act := by
   classical
   exact A.filter (fun a => decide (Ancestor world a f))
@@ -662,6 +665,7 @@ def selectionVerbs : Selection → List String
   | .current v _ delete => v :: delete.toList
   | .byKey source _ _ | .bySigner source _ | .withField source _ => selectionVerbs source
 
+/-- The verbs contributing to a state expression. -/
 def expressionVerbs (resourceVerbs : String → List String) : Expr → List String
   | .initial _ _ => []
   | .progress v => [v]
@@ -679,17 +683,21 @@ def initializerSources (resourceVerbs : String → List String) (domains : List 
     ((domains.filter (fun d => (expressionVerbs resourceVerbs expression).contains d.verb)).map
       (fun d => (d.opener, d.field)))
 
+/-- Whether distinct accepted initializers disagree. -/
 def initializerConflict (sources : List (String × String)) (A : List Act) : Prop :=
   ∃ source ∈ sources, ∃ e, initialCarrier source.1 source.2 A = .top e
 
+/-- The accepted initializer addresses supporting a conflict. -/
 def initializerEvidence (sources : List (String × String)) (A : List Act) : Lattice.Set Nat :=
   fun address => ∃ source ∈ sources, ∃ e,
     initialCarrier source.1 source.2 A = .top e ∧ address ∈ e
 
+/-- The observation associated with an installed field. -/
 inductive FieldObservation where
   | value (observation : Observation)
   | fault (evidence : Lattice.Set Nat)
 
+/-- Equality of installed field observations. -/
 def FieldEquivalent : FieldObservation → FieldObservation → Prop
   | .value a, .value b => Equivalent a b
   | .fault a, .fault b => a = b
@@ -781,7 +789,9 @@ theorem evaluateField_forget (context : Context) (resourceVerbs : String → Lis
 /-- A legacy compiled field has the full accepted-set carrier. The summarizing
 per-head lifts in StateLift refine this identity carrier where possible. -/
 structure CompiledTerm where
+  /-- Evaluate a state expression through its history-backed carrier. -/
   expression : Expr
+  /-- The retained accepted-act lattice underlying expression evaluation. -/
   carrier : FinSet Act
 
 /-- Interpretation is independent of which unique accepted-history
