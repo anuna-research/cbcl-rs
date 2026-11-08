@@ -478,10 +478,15 @@ fixture exercises the complete initial request inventory. `StateCompiledFieldEqu
 lookup equations and binds every normal body step to its bare compiled plan.
 It proves the complete equation for fields without their own freeze, and recursive
 cache/transcript equality for prepared clauses with no freezes, including faults
-and threshold source reads. The terminal-fault body case also closes, including inherited and own-freeze
-witness unions. Successful own-freeze finishing and threshold-output adaptation
-remain to extend that result to the complete native fold; `reference_on_domain`
-supplies induction over admitted requests.
+and threshold source reads. `StateScopeProperties` and `StateFrozenBodyEquations` now close both terminal
+fault and successful own-freeze body equations. The independent recursive
+reference and complete initial source-request transcript/cache equal the compiled
+plan meanings for prepared clauses with freezes. Concrete fixtures cover
+incomparable cuts and a prepared context/count/threshold/freeze clause.
+These results require content-consistent histories with numeric addresses ranking
+causal edges. Address-independent graph coverage and final threshold-output
+adaptation remain open; threshold source reads alone do not prove raw-state scope
+selection for the final output.
 Literal Rust value/graph/map/vector extraction and rendering remain boundaries. Executable cache
 witnesses and focused mutations exercise aliasing, wrapper and cut mistakes.
 

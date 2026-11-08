@@ -470,3 +470,17 @@
 ;; post operations in named theorems. verified-by lint passes; vault comparison
 ;; adds no unresolved reference pairs or syntax/SPL errors. Fresh proof/artifact
 ;; review found no defect within the explicitly limited case-equation scope.
+
+;; Own-freeze continuation for [[SPEC-038-lvar-state-kernel#TEST-3806]]:
+;; StateScopeProperties constructs scope closure/containment/uniqueness and
+;; exact selected-root, activity, cut and excluded-evidence metadata.
+;; StateFrozenBodyEquations closes successful own-freeze finishing and composes
+;; all body cases into independent recursive reference and initial source-request
+;; transcript/cache equivalence for prepared clauses with freezes. Numeric
+;; address-ranked, content-consistent histories remain a prerequisite. Separate
+;; causal ranks preserving semantic addresses and final threshold-output scope
+;; composition remain required; this checkpoint does not complete native fold.
+;; Full Lean build and Batteries env-linter pass; 1453 theorems pass the axiom
+;; audit. Three targeted mutants fail their named scope/wrapper/body theorems;
+;; verified-by lint passes. Fresh independent proof review found no logical
+;; defect or vacuity and confirmed the stated transcript/output boundary.

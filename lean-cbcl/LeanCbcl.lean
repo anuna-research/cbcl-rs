@@ -235,3 +235,5 @@ import LeanCbcl.StateReaderValuesTests
 import LeanCbcl.StateReaderReachabilityTests
 
 import LeanCbcl.StateCompiledFieldEquationsTests
+
+import LeanCbcl.StateFrozenBodyEquationsTests

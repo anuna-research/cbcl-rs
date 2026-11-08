@@ -341,6 +341,14 @@ suites.append(("StateCompiledFieldEquations", (root / "lean-cbcl/LeanCbcl/StateC
     ("compiled-derived-post-applied-twice", "some (decorate (clause.freezes.lookup name) (.map post prior))", "some (decorate (clause.freezes.lookup name) (.map (fun value => post (post value)) prior))", "derived_equation"),
 ]))
 
+suites.append(("StateScopeProperties", (root / "lean-cbcl/LeanCbcl/StateScopeProperties.lean").read_text(), [
+    ("scope-wrapper-exclusion-negation-erased", "spec.contributes act ∧ ¬Ancestor (fun a => a ∈ normalize whole) act root", "spec.contributes act ∧ Ancestor (fun a => a ∈ normalize whole) act root", "selected_root_metadata"),
+]))
+suites.append(("StateFrozenBodyEquations", (root / "lean-cbcl/LeanCbcl/StateFrozenBodyEquations.lean").read_text(), [
+    ("frozen-selected-value-uses-current-scope", "(scopedObserve world whole source (causalCut world whole root)))", "(scopedObserve world whole source scope))", "freeze_selected_equation"),
+    ("frozen-selected-root-substituted", "(frozen root.addr (FinSet.mk", "(frozen (root.addr+1) (FinSet.mk", "freeze_selected_equation"),
+]))
+
 # Preserve the full default gate while allowing a focused continuation check.
 import argparse
 parser = argparse.ArgumentParser(description=__doc__)

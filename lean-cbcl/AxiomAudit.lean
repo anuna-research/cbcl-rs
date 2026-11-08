@@ -1,3 +1,4 @@
+import LeanCbcl.StateFrozenBodyEquationsTests
 import LeanCbcl.StateCompiledFieldEquationsTests
 import LeanCbcl.StateReaderReachabilityTests
 import LeanCbcl.StateReaderValuesTests
@@ -2239,3 +2240,24 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateCompiledFieldEquationsTests.derived_keeps_frozen_source
 #print axioms CBCL.StateCompiledFieldEquationsTests.counted_prepares
 #print axioms CBCL.StateCompiledFieldEquationsTests.counted_freezes
+
+#print axioms CBCL.StateScopeProperties.intern_property
+#print axioms CBCL.StateScopeProperties.allocate_property
+#print axioms CBCL.StateScopeProperties.scope_origin
+#print axioms CBCL.StateScopeProperties.scope_properties
+#print axioms CBCL.StateScopeProperties.root_lookup
+#print axioms CBCL.StateScopeProperties.root_find
+#print axioms CBCL.StateScopeProperties.compiled_freezes_unique
+#print axioms CBCL.StateScopeProperties.admitted_properties
+#print axioms CBCL.StateScopeProperties.absent_root_metadata
+#print axioms CBCL.StateScopeProperties.selected_root_metadata
+#print axioms CBCL.StateFrozenBodyEquations.freeze_selected_equation
+#print axioms CBCL.StateFrozenBodyEquations.freeze_absent_equation
+#print axioms CBCL.StateFrozenBodyEquations.finish_clear_refinement
+#print axioms CBCL.StateFrozenBodyEquations.prepared_body_equation
+#print axioms CBCL.StateFrozenBodyEquations.prepared_reference_equivalence
+#print axioms CBCL.StateFrozenBodyEquations.prepared_cache_equivalence
+#print axioms CBCL.StateFrozenBodyEquations.initial_meaning
+#print axioms CBCL.StateFrozenBodyEquationsTests.incomparable_active_witness
+#print axioms CBCL.StateFrozenBodyEquationsTests.allocated_cuts_witness
+#print axioms CBCL.StateFrozenBodyEquationsTests.concrete_cache_transcript

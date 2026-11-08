@@ -1277,23 +1277,30 @@ subsequent threshold-output adaptation or serialized clause rendering. Concrete
 fixtures retain a supersede freeze inside a derived source and construct an
 admitted threshold-bearing clause with empty freeze metadata.
 
-`finish_faulting` and `prepared_fault_body` close the complete body equation
-for terminal compiled faults, including own-freeze conflicts and inherited
-witness unions. Dependencies in that equation are evaluated using the compiled
-target meaning; recursive cache fault equivalence does not follow independently
-until the successful own-freeze data case also closes.
+`StateScopeProperties.lean` constructs closed, contained, address-unique allocated
+scopes and relates executable freezer selection, cut indices, activity and
+excluded evidence to the semantic plan. `StateFrozenBodyEquations.lean` closes
+the successful own-freeze finishing equation, including absent roots, inactive
+roots, same-scope cuts and historical recursive reads. Fault and data cases
+compose in `prepared_body_equation`; `prepared_reference_equivalence` and
+`prepared_cache_equivalence` establish the independent recursive reference and
+complete initial source-request transcript/cache equality for prepared clauses
+with freezes. Concrete fixtures construct incomparable cuts and a prepared
+context/count/threshold/freeze clause.
 
-The remaining whole-reader obligation closes that successful own-freeze
-finishing case and composes threshold-output adaptation.
-`reference_on_domain`
-allows that equation to be proved solely for admitted requests by well-founded
-induction. It transports an independently established body equation; it does
-not itself prove the remaining successful own-freeze body equation. Helpers remain total outside
-the admitted domain, which does not model Rust's indexing or unknown-field
-no-insert branch. Local adapter equations, request safety, fixed construction
-and the no-freeze result are not evidence that the general recursive observation theorem is complete.
-Typed semantic wrappers also do not prove public serialized rendering or
-literal Rust value representation.
+These results require content-consistent histories whose numeric addresses rank
+causal edges. Content hashes do not generally have that ordering. Extending
+executable reachability to a separate causal rank while preserving semantic
+addresses remains required for arbitrary native histories. Threshold-output
+adaptation also remains open: source-request equality includes threshold source
+reads, but does not establish the subsequent choice of raw-state scope. In
+particular, domain initialization outside a freezer cut requires a locality
+argument or corrected composition; absence of late contributing writes alone
+has not established that argument. This is a proof obligation, not a reproduced
+native runtime defect. Literal Rust value representation and public serialized
+rendering remain separate boundaries. Helpers remain total outside the admitted
+request domain, which does not model Rust's indexing or unknown-field no-insert
+branch.
 
 These theorems operate at explicit typed boundaries. They do not prove Rust
 source-code extraction, canonical rendering order, diagnostics, or wire parsing.
