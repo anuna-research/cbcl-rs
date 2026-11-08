@@ -435,6 +435,21 @@ suites.append(("StateAuthoredSourceProvenance", (root / "lean-cbcl/LeanCbcl/Stat
      "domains environment [] = some prepared.domains ∧", "static_trace"),
 ]))
 
+suites.append(("StateAuthoredOutputProvenance", (root / "lean-cbcl/LeanCbcl/StateAuthoredOutputProvenance.lean").read_text(), [
+    ("prefix-source-provenance-erased", "∀ name definition, (name,definition) ∈ definitions → Declaration.field name definition ∈ full",
+     "∀ name definition, (name,definition) ∈ definitions → True", "finite_emitted"),
+    ("emitted-output-uses-empty-environment", "Origins full priorDefinitions ∧ output ∈ code ∧ compileOne plans priorDefinitions declaration = some output",
+     "Origins full priorDefinitions ∧ output ∈ code ∧ compileOne plans [] declaration = some output", "emitted_origin"),
+    ("finite-prefix-admission-inverted", "StateFiniteRead.check field queries = true ∧\n      output =",
+     "StateFiniteRead.check field queries = false ∧\n      output =", "finite_emitted"),
+]))
+suites.append(("StateAuthoredFiniteStability", (root / "lean-cbcl/LeanCbcl/StateAuthoredFiniteStability.lean").read_text(), [
+    ("actual-program-drops-first-output", "let program : CompiledObservation := ⟨B,⟨(clauseAt prepared B).freezes,code⟩⟩",
+     "let program : CompiledObservation := ⟨B,⟨(clauseAt prepared B).freezes,code.tail⟩⟩", "authored_program_stability"),
+    ("actual-program-renames-reached-output", '(outputName,.data (.reached (.element (.scalar query)))) ∈ program.observe ∨',
+     '(outputName ++ "-wrong",.data (.reached (.element (.scalar query)))) ∈ program.observe ∨', "authored_program_stability"),
+]))
+
 # Preserve the full default gate while allowing a focused continuation check.
 import argparse
 parser = argparse.ArgumentParser(description=__doc__)

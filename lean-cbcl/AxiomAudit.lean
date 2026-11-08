@@ -1,3 +1,4 @@
+import LeanCbcl.StateAuthoredFiniteStabilityTests
 import LeanCbcl.StateAuthoredSourceProvenanceTests
 import LeanCbcl.StateFiniteOutputStabilityTests
 import LeanCbcl.StateFiniteFreezePolicyTests
@@ -2427,3 +2428,16 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateAuthoredSourceProvenanceTests.installation_succeeds
 #print axioms CBCL.StateAuthoredSourceProvenanceTests.supersede_rejected
 #print axioms CBCL.StateAuthoredSourceProvenanceTests.complete_source_lookup
+
+#print axioms CBCL.StateAuthoredOutputProvenance.extend_origins
+#print axioms CBCL.StateAuthoredOutputProvenance.unique_definition
+#print axioms CBCL.StateAuthoredOutputProvenance.emitted_origin
+#print axioms CBCL.StateAuthoredOutputProvenance.decode_queries
+#print axioms CBCL.StateAuthoredOutputProvenance.finite_emitted
+
+#print axioms CBCL.StateAuthoredFiniteStability.freeze_spec_setEq
+#print axioms CBCL.StateAuthoredFiniteStability.source_setEq
+#print axioms CBCL.StateAuthoredFiniteStability.authored_program_stability
+
+#print axioms CBCL.StateAuthoredFiniteStabilityTests.actual_authored_program
+#print axioms CBCL.StateAuthoredFiniteStabilityTests.prefix_query_actually_reaches

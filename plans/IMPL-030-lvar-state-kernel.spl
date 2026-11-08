@@ -743,3 +743,31 @@
 ;; lookup and final emitted threshold membership remain the next finite output
 ;; composition steps; other native policies and native representation/extraction
 ;; remain open. The quasi-determinism task is not marked complete.
+
+;; Complete authored finite output composition for
+;; [[SPEC-038-lvar-state-kernel#TEST-3806]]: StateAuthoredOutputProvenance follows
+;; actual compileDeclarations environments and emitted occurrences. Origins plus
+;; validated name uniqueness identifies the exact original finite definition;
+;; finite_emitted derives query admission and actual raw-query code from
+;; successful compileOne. No prefix policy lookup or emitted occurrence is an
+;; external premise. StateAuthoredFiniteStability.authored_program_stability
+;; composes factory/source/freeze provenance, normalized contribution predicates,
+;; actual source-owned query compilation and every freezer outcome. It constructs
+;; complete compileAuthored code and proves that earlier native finite-test
+;; success persists after growth as the same named reached result or a named
+;; fault in the actual program observation vector. Prior success is native-test
+;; success on the recovered field; successive compiled-observation stability is
+;; still a separate step. Actual authored compilation is constructed in a mixed
+;; domain fixture. A separate complete emitted walk actually reaches ready with
+;; an unrelated false displayed payload, exercising actual prefix/raw dispatch.
+;; Verification: aggregate build and Batteries env-linter pass; 1595 theorem
+;; audits use only allowlisted axioms. Five focused proof mutations fail named
+;; obligations for erased prefix provenance, empty query environment, inverted
+;; admission, dropped actual program output and renamed reached result.
+;; Verified-by lint passes; no added unresolved vault pairs or syntax/SPL errors.
+;; Independent proof/fixture/artifact review finds no defect/overstatement.
+;; Next finite composition step: invert earlier compiled reached output, show
+;; unique output names identify the actual threshold occurrence, recover raw
+;; native-test success and transfer between source factory witnesses by probing
+;; equal stored definitions. Other policies and literal native extraction remain
+;; open. The quasi-determinism task remains outstanding.

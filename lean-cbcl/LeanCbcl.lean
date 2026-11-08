@@ -259,3 +259,5 @@ import LeanCbcl.StateFiniteFreezePolicyTests
 import LeanCbcl.StateFiniteOutputStabilityTests
 
 import LeanCbcl.StateAuthoredSourceProvenanceTests
+
+import LeanCbcl.StateAuthoredFiniteStabilityTests

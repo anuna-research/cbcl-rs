@@ -1417,10 +1417,29 @@ compiled dictionary as premises. The fixture installs mixed initializer/roster
 domains, a forward initializer reference and late freeze metadata, and rejects
 the same threshold with a supersede freeze.
 
-The remaining finite output connection must identify the source-owned policy
-in the evolving declaration-prefix environment and the final emitted threshold
-in the complete authored program. Other native source policies and complete
-native installation/extraction correspondence remain separate obligations.
+`StateAuthoredOutputProvenance.lean` follows the actual ordered output compiler's
+evolving source definitions. Validated name uniqueness ties a threshold's
+source definition to the original finite field, and successful one-declaration
+compilation derives the source-owned alternative check and emitted raw-query
+code. Every original declaration is connected to an actual occurrence in the
+complete emitted code list.
+
+`StateAuthoredFiniteStability.authored_program_stability` composes those results
+with source/freeze provenance, normalization and the all-root finite stability
+proof. Starting from successful authored preparation, literal finite-field and
+threshold membership, and a ranked content-consistent typed history, it
+constructs the complete actual `compileAuthored` program. For the recovered
+finite field, any earlier native finite-test success survives accepted growth
+as the same named reached output or a named fault in that program's actual
+observation vector. Query admission, successful output compilation, source-policy
+lookup and emitted output membership are derived rather than supplied.
+Fixtures construct the complete authored program and a separate complete output
+walk whose raw query actually reaches despite an unrelated displayed payload.
+
+This theorem starts from earlier native finite-test success, not an earlier
+compiled observation. Connecting successive compiled observations, the other
+native source policies and complete native installation/extraction correspondence
+remain separate obligations.
 Literal Rust value representation and public serialized
 rendering remain separate boundaries. Helpers remain total outside the admitted
 request domain, which does not model Rust's indexing or unknown-field no-insert
