@@ -143,3 +143,65 @@ fn fault_evidence_bytes_match_lean() {
         Ok(())
     }).unwrap();
 }
+
+fn native_frozen(case: &Value) -> Value {
+    use cbcl_core::state::{Entry, FreezePolicy, Rule, StateClause};
+    let clause = StateClause { entries: vec![
+        Entry::Field { name: "observed".into(), rule: Rule::Count { verb: "tick".into() } },
+        Entry::Freeze { field: "observed".into(), verb: "close".into(), policy: FreezePolicy::Supersede },
+    ] };
+    let mut acts = Vec::new();
+    for group in ["before","after"] {
+        for name in case[group].as_array().unwrap() {
+            let mut act = make_act("(lang frozen-demo (tick))");
+            act.address = name.as_str().unwrap().into();
+            acts.push(act);
+        }
+    }
+    let mut root = make_act("(lang frozen-demo (close))");
+    root.address = case["freezer"].as_str().unwrap().into();
+    root.predecessors = case["before"].as_array().unwrap().iter()
+        .map(|name| name.as_str().unwrap().to_owned()).collect();
+    root.predecessors.sort();
+    root.predecessors.dedup();
+    acts.push(root);
+    json!({"rendered":fold(&clause,None,&acts)[0].1.render()})
+}
+
+#[test]
+#[ignore = "requires lake build cbcl-state-oracle; explicitly run in Lean CI"]
+fn frozen_wrapper_bytes_match_lean() {
+    let oracle = RefCell::new(Oracle::start());
+    for (freezer,before,after) in [
+        ("root",vec![],vec![]), ("",vec!["z"],vec!["a","a\0","aa"]),
+        ("β",vec!["😀","é"],vec!["[","\"","\0"]),
+        ("z",vec!["a","a"],vec!["m","b","m"]),
+    ] {
+        let case = json!({"profile":"frozen-wrapper","freezer":freezer,"before":before,"after":after});
+        assert_eq!(native_frozen(&case),oracle.borrow_mut().request(&case),"frozen case={case}");
+    }
+    for case in [json!({"freezer":"r","before":["r"],"after":[]}),
+        json!({"freezer":"r","before":[],"after":["r"]}),
+        json!({"freezer":"r","before":["a"],"after":["a"]})] {
+        let mut case = case;
+        case["profile"] = json!("frozen-wrapper");
+        assert!(oracle.borrow_mut().response(&case).get("error").is_some());
+    }
+    let mut config = proptest::test_runner::Config::default();
+    if std::env::var_os("PROPTEST_CASES").is_none() { config.cases = 512; }
+    let mut runner = proptest::test_runner::TestRunner::new(config);
+    runner.run(&(text(),prop::collection::vec(text(),0..12),prop::collection::vec(text(),0..12)), |(root,bs,as_)| {
+        let freezer = format!("root:{root}");
+        let mut before = bs.into_iter().map(|name|format!("before:{name}")).collect::<Vec<_>>();
+        let mut after = as_.into_iter().map(|name|format!("after:{name}")).collect::<Vec<_>>();
+        let case = json!({"profile":"frozen-wrapper","freezer":freezer,"before":before,"after":after});
+        let expected = oracle.borrow_mut().request(&case);
+        prop_assert_eq!(native_frozen(&case),expected.clone(),"frozen case={}",case);
+        before.reverse(); after.reverse();
+        before.extend(before.clone()); after.extend(after.clone());
+        let repeated = json!({"profile":"frozen-wrapper","freezer":freezer,"before":before,"after":after});
+        prop_assert_eq!(native_frozen(&repeated),expected.clone());
+        prop_assert_eq!(oracle.borrow_mut().request(&repeated),expected);
+        Ok(())
+    }).unwrap();
+}

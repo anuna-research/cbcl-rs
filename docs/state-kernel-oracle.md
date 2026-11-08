@@ -330,5 +330,13 @@ operational wrapper uses the proved address-pool sort and JSON emitter for the
 `frozen`, `superseded`, and `value` fields. It does not add deduplication to the
 native wrapper: duplicate delivery must already have been normalized in the
 accepted scope. The payload and address projection remain explicit inputs; this
-theorem does not establish their extraction from native acts. The existing live
-fault-byte campaign does not yet exercise this frozen-wrapper composition.
+theorem does not establish their extraction from native acts. The `frozen-wrapper` live profile exercises this composition against native
+`fold` with a count field and supersede freeze policy: predecessor writers
+supply the captured value, independent writers supply exclusions, and address
+aliases exercise raw UTF-8 ordering. Directed cases include an empty exclusion
+set and duplicates; generated cases reverse and duplicate writer deliveries.
+Comparisons retain exact JSON strings. The profile rejects overlapping freezer,
+predecessor and independent-writer identities before interpreting the history.
+It remains a below-admission profile, separate from content-hash identity and
+sealed-cast binding. Native root, exclusion-order and captured-value mutations
+are covered by the mutation runner.

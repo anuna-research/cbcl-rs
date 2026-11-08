@@ -25,6 +25,7 @@ keyword_test = "shape::keyword_extraction_matches_lean"
 transport_test = "oracle_transport_failure_rejects_late_replies"
 fault_test = "render::fault_evidence_bytes_match_lean"
 render_test = "render::native_json_bytes_match_lean"
+frozen_render_test = "render::frozen_wrapper_bytes_match_lean"
 with tempfile.TemporaryDirectory(prefix="cbcl-live-oracle-") as directory:
     isolated = Path(directory)
     (isolated / "crates").mkdir()
@@ -49,6 +50,9 @@ with tempfile.TemporaryDirectory(prefix="cbcl-live-oracle-") as directory:
                               text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=300)
 
     mutants = [
+        ("frozen-wrapper-root-altered", "freeze.rs", '(Value::Str("frozen".into()), Value::Str(root))', '(Value::Str("frozen".into()), Value::Str(root + "x"))', frozen_render_test),
+        ("frozen-wrapper-exclusion-order-reversed", "freeze.rs", "state::sort_addresses(&mut excluded);", "state::sort_addresses(&mut excluded); excluded.reverse();", frozen_render_test),
+        ("frozen-wrapper-payload-discarded", "freeze.rs", '(Value::Str("value".into()), value)', '(Value::Str("value".into()), Value::Int(0))', frozen_render_test),
         ("radix-outer-digit-order-forward", "state.rs", "for digit in (0..width).rev() {", "for digit in 0..width {", fault_test),
         ("radix-outer-leading-digit-skipped", "state.rs", "for digit in (0..width).rev() {", "for digit in (1..width).rev() {", fault_test),
         ("radix-prefix-control-order-reversed", "state.rs", "for k in 1..257 {", "for k in (1..257).rev() {", fault_test),

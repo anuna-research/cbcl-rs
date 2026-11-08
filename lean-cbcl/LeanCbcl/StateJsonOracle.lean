@@ -2,6 +2,7 @@ import Lean
 import LeanCbcl.StateJsonValue
 import LeanCbcl.StateFaultRendering
 import LeanCbcl.StateAddressPool
+import LeanCbcl.StateFreezeRendering
 
 /-! Exact byte-spelling oracle for public native state Value/render_json.
 Inputs retain every container's stored order. No state admission, constructor
@@ -60,6 +61,29 @@ def faultRun (j : Json) : Except String Json := do
   let evidence ← ids.mapM (fun id => match names[id]? with | some name => pure name | none => throw "witness outside source address pool")
   let some rendered := StateAddressPool.faultBytes "concurrent freezes" evidence.toArray
     | throw "native source-pool move failed"
+  return Json.mkObj [("rendered",.str rendered)]
+
+/-- One freezer captures predecessor counts and excludes independent writers.
+Names are transport aliases below admission; duplicate deliveries normalize first. -/
+def frozenRun (j : Json) : Except String Json := do
+  let root ← (← j.getObjVal? "freezer").getStr?
+  let before : List String ← fromJson? (← j.getObjVal? "before")
+  let after : List String ← fromJson? (← j.getObjVal? "after")
+  if before.contains root || after.contains root || before.any after.contains then
+    throw "freezer/before/after identities must be disjoint"
+  let names := StateFaultRendering.canonical (root :: before ++ after)
+  let predecessors := (names.zipIdx).filterMap (fun (name,id) => if before.contains name then some id else none)
+  let acts : List State.Act := (names.zipIdx).map (fun (name,id) =>
+    ⟨id,(if name == root then "close" else "tick"),"@a",
+      (if name == root then predecessors else []),[],[]⟩)
+  let observed := StateExecutableFreeze.read acts "close" (fun act => act.verb == "tick") false none
+    (fun scope => Value.int (Int.ofNat (scope.filter (fun act => act.verb == "tick")).length))
+  let .frozen freezer payload excluded := observed | throw "expected frozen observation"
+  -- Validate the complete fixed address pool before the total projection below.
+  if !(freezer < names.length) || excluded.any (fun act => !(act.addr < names.length)) then
+    throw "frozen identity outside source address pool"
+  let some rendered := StateFreezeRendering.emitFrozen (fun id => names[id]!) freezer payload excluded
+    | throw "native frozen source-pool move failed"
   return Json.mkObj [("rendered",.str rendered)]
 
 end CBCL.StateJsonOracle
