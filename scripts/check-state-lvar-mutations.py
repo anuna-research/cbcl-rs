@@ -75,6 +75,64 @@ suites.extend([
          "(fun _ => sourceData (source A)) A", "freeze_source_refinement"),
     ]),
 ])
+kahn_tests = (root / "lean-cbcl/LeanCbcl/StateResourceKahnTests.lean").read_text()
+kahn_tests = "\n".join(line for line in kahn_tests.splitlines() if not line.startswith("import "))
+suites.extend([
+    ("StateResourceKahn", (root / "lean-cbcl/LeanCbcl/StateResourceKahn.lean").read_text() + "\n" + kahn_tests, [
+        ("structural-cycle-discarded", "  reduceFuel parents nodes.length nodes\n", "  ([] : List α)\n", "cycle_pass_retains_nodes"),
+        ("missing-reference-released-by-budget-pass", "(parents node).all (fun parent => known.contains parent && !remaining.contains parent)", "(parents node).all (fun parent => !remaining.contains parent)", "budget_pass_keeps_missing_reference"),
+    ]),
+    ("StateResourceCycle", (root / "lean-cbcl/LeanCbcl/StateResourceCycle.lean").read_text(), [
+        ("native-cycle-check-always-accepts", "(StateResourceKahn.nativeKahn (parents (nodes c F)) (nodes c F)).isEmpty", "true", "native_cycle_certificate_iff"),
+    ]),
+])
+suites.append(("StateResourceCache", (root / "lean-cbcl/LeanCbcl/StateResourceCache.lean").read_text(), [
+    ("cache-uses-empty-owner-prefix", "else (cache previous).map Prod.snd", "else some empty", "previous_prefix"),
+    ("cache-tip-keeps-shorter-prefix", "left.2.sequence < right.2.sequence", "right.2.sequence < left.2.sequence", "cached_tip_union"),
+    ("cache-stores-parent-summary", "some (node,next) else cache address", "some (node,own) else cache address", "advance_valid"),
+]))
+suites.append(("StateResourceStructure", (root / "lean-cbcl/LeanCbcl/StateResourceStructure.lean").read_text(), [
+    ("foreign-owner-check-accepts-all", "parent.data.signer == node.data.signer else true", "true else true", "previousOwnerCheck_iff"),
+    ("fork-check-accepts-all", "left.id == right.id else true", "true else true", "forkCheck_iff"),
+]))
+suites.extend([
+    ("StateResourceCones", (root / "lean-cbcl/LeanCbcl/StateResourceCones.lean").read_text(), [
+        ("dependency-cone-discarded", "entry == node || parents.any (fun parent => parent.2.contains entry)", "entry == node", "unionCone_member"),
+        ("all-dependency-lookups-skipped", "if address = op.id then gather op cache references else do", "if true then gather op cache references else do", "gather_lookup"),
+    ]),
+    ("StateResourceFrontier", (root / "lean-cbcl/LeanCbcl/StateResourceFrontier.lean").read_text(), [
+        ("dependency-frontier-not-merged", "| some old,some incoming => chooseTip cache old incoming", "| some old,some _ => some old", "merge_represents"),
+    ]),
+    ("StateResourceBudget", (root / "lean-cbcl/LeanCbcl/StateResourceBudget.lean").read_text(), [
+        ("incoming-headroom-map-substituted", "if headroom then entry.2.sentHeadroom recipient else entry.2.sentRights recipient", "entry.2.sentRights recipient", "readIncoming_refinement"),
+    ]),
+])
+suites.extend([
+    ("StateResourceOutgoing", (root / "lean-cbcl/LeanCbcl/StateResourceOutgoing.lean").read_text(), [
+        ("outgoing-map-side-substituted", "  checkedSum (owners.map (fun recipient => if headroom then summary.sentHeadroom recipient else summary.sentRights recipient))\n", "  checkedSum (owners.map (fun recipient => summary.sentRights recipient))\n", "native_outgoing_refinement"),
+    ]),
+    ("StateResourceLocalBudget", (root / "lean-cbcl/LeanCbcl/StateResourceLocalBudget.lean").read_text(), [
+        ("local-budget-credit-debit-reversed", "let raised ← checkedAdd initial (if headroom then own.debited else own.credited)", "let raised ← checkedAdd initial (if headroom then own.credited else own.debited)", "native_local_budget_refinement"),
+    ]),
+])
+suites.extend([
+    ("StateResourceMachine", (root / "lean-cbcl/LeanCbcl/StateResourceMachine.lean").read_text(), [
+        ("recorded-node-own-tip-not-updated", "setOwn tips node else machine.tips address", "tips else machine.tips address", "recordResult_invariant"),
+    ]),
+])
+suites.append(("StateResourceCounters", (root / "lean-cbcl/LeanCbcl/StateResourceCounters.lean").read_text(), [
+    ("native-waiting-count-not-decremented", "if address = child then counts address - 1 else counts address", "counts address", "decrementAll_value"),
+    ("native-parent-waiting-list-not-removed", "if address = parent then [] else state.waiters address", "state.waiters address", "pop_invariant"),
+    ("native-ready-child-not-enqueued", "ready child || (children.contains child && decide (decrementAll counts children child = 0))", "ready child", "ready_pop_refinement"),
+]))
+suites.extend([
+    ("StateResourceAuthorization", (root / "lean-cbcl/LeanCbcl/StateResourceAuthorization.lean").read_text(), [
+        ("authorization-always-faults", "if nativeBudgetCheck c op node own machine.summaries (mergedTips machine.summaries machine.tips parents) then", "if false then", "checkedStep_budget_fault"),
+    ]),
+    ("StateResourceWorklist", (root / "lean-cbcl/LeanCbcl/StateResourceWorklist.lean").read_text(), [
+        ("budget-worklist-skipped", "runFuel e e.known.length (initialWorklist e) StateResourceMachine.initial initialGhost", "runFuel e 0 (initialWorklist e) StateResourceMachine.initial initialGhost", "native_worklist_verified"),
+    ]),
+])
 for module, source, mutants in suites:
     with tempfile.TemporaryDirectory(prefix="cbcl-state-lvar-") as directory:
         path = Path(directory) / f"{module}.lean"

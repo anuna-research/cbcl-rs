@@ -297,3 +297,49 @@ fn every_matching_contribution_row_is_joined() {
         read(&src, &acts)["phase"].to_string()
     );
 }
+
+#[test]
+fn initializer_fork_preserves_an_existing_finite_fault_witness() {
+    // SPEC-038 REQ-3806: an initializer diagnosis cannot erase the finite
+    // contributors that already established a terminal conflict.
+    let src = source(4, "", "(threshold ready phase \"e1\")")
+        .replace("(e1 e2 e2)", "(e1 e2 e3)")
+        .replace("(e2 e1 e2)", "(e2 e1 e3)")
+        .replace(
+            "(extend open (to) (tell to))",
+            "(extend open (to choices) (tell to :choices choices))",
+        )
+        .replace(
+            "(shape mark",
+            "(shape open (require :choices list)) (shape mark",
+        )
+        .replace(
+            "(state (lattice",
+            "(state (choices (initial open :choices)) (domain mark :phase choices) (lattice",
+        );
+    install(&src).unwrap();
+    let opener = act("(lang finite-demo (open @room :choices (\"e1\" \"e2\") :caused-by begin :thread \"t\" :from @a))", "@a");
+    let mut acts = vec![opener.clone()];
+    for (phase, signer) in [("e1", "@a"), ("e2", "@b")] {
+        acts.push(act(&format!("(lang finite-demo (mark @room :phase \"{phase}\" :caused-by {} :thread \"t\" :from {signer}))", opener.address), signer));
+    }
+    let before = read(&src, &acts);
+    assert_eq!(before["phase"]["status"], "fault");
+    assert_eq!(before["phase"]["evidence"].as_array().unwrap().len(), 2);
+    acts.push(act("(lang finite-demo (open @room :choices (\"e2\") :caused-by begin :thread \"t\" :from @fork))", "@fork"));
+    let after = read(&src, &acts);
+    assert_eq!(after["phase"]["status"], "fault");
+    for address in before["phase"]["evidence"].as_array().unwrap() {
+        assert!(
+            after["phase"]["evidence"]
+                .as_array()
+                .unwrap()
+                .contains(address),
+            "lost {address}: {before} -> {after}"
+        );
+    }
+    assert_eq!(after["ready"], after["phase"]);
+    acts.reverse();
+    acts.extend(acts.clone());
+    assert_eq!(read(&src, &acts), after);
+}

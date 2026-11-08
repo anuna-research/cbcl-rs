@@ -18,6 +18,14 @@ def main():
     freeze_pair_test = ("freeze_reads", "repeated_causal_freezes_keep_the_first_cut_but_concurrent_freezes_fault")
     freeze_initial_test = ("freeze_reads", "freeze_cannot_hide_a_later_initializer_conflict")
     mutations = [
+        ("unsupported-profile-gains-context", "escrow.rs",
+         'if c.ownership == Ownership::Collective || c.certification.is_quorum() {',
+         'if false {',
+         ("bounded_counter", "unsupported_resource_profiles_keep_projection_fault_evidence")),
+        ("initializer-fault-erases-finite-writers", "lattice.rs",
+         'if initializer_fault && matches!(contribution, Contribute::Finite { .. }) {',
+         'if false {',
+         ("finite_lattices", "initializer_fork_preserves_an_existing_finite_fault_witness")),
         ("missing-dependency-hides-resource-fault", "escrow.rs",
          '    // Validate every dependency-closed component before reporting missing',
          '    if !missing.is_empty() { return Outcome::Pending(missing.into_iter().collect()); }\n    // Validate every dependency-closed component before reporting missing',

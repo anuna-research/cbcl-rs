@@ -1,3 +1,23 @@
+import LeanCbcl.StateResourceRecordBounds
+import LeanCbcl.StateResourceGraph
+import LeanCbcl.StateResourceCoupling
+import LeanCbcl.StateResourceWorklist
+import LeanCbcl.StateResourceAuthorization
+import LeanCbcl.StateResourceCounters
+import LeanCbcl.StateResourceWitness
+import LeanCbcl.StateResourceMachine
+import LeanCbcl.StateResourceDependency
+import LeanCbcl.StateResourceOwnPrefix
+import LeanCbcl.StateResourceOutgoing
+import LeanCbcl.StateResourceLocalBudget
+import LeanCbcl.StateResourceCones
+import LeanCbcl.StateResourceFrontier
+import LeanCbcl.StateResourcePartition
+import LeanCbcl.StateResourceBudget
+import LeanCbcl.StateResourceCacheTests
+import LeanCbcl.StateResourceStructure
+import LeanCbcl.StateResourceCache
+import LeanCbcl.StateResourceKahnTests
 import LeanCbcl.StateNativeRefinementTests
 import LeanCbcl.StateResourceTests
 import LeanCbcl.CheckpointKernel
@@ -859,3 +879,377 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateNativeRefinementTests.frozen_closure_threshold
 #print axioms CBCL.StateNativeRefinementTests.fault_closure_threshold
 #print axioms CBCL.StateObservationPlan.thresholdOn_dependency_fault_first
+
+#print axioms CBCL.StateResourceKahn.Reach
+
+#print axioms CBCL.StateResourceKahn.Reach
+
+#print axioms CBCL.StateResourceKahn.Reach
+
+#print axioms CBCL.StateResourceKahn.Reach
+
+#print axioms CBCL.StateResourceKahn.walk_length
+
+#print axioms CBCL.StateResourceKahn.walk_inside
+
+#print axioms CBCL.StateResourceKahn.walk_reaches
+
+#print axioms CBCL.StateResourceKahn.walk_nodup_without_cycles
+
+#print axioms CBCL.StateResourceKahn.closed_parent_cycle
+
+#print axioms CBCL.StateResourceKahn.ready_cannot_reach
+
+#print axioms CBCL.StateResourceKahn.reach_erase_ready
+
+#print axioms CBCL.StateResourceKahn.cycle_erase_ready
+
+#print axioms CBCL.StateResourceKahn.RemovalTrace
+
+#print axioms CBCL.StateResourceKahn.saturated_cycle_iff_nonempty
+
+#print axioms CBCL.StateResourceKahn.native_kahn_cycle_iff
+
+#print axioms CBCL.StateResourceKahn.readyCheck_iff
+
+#print axioms CBCL.StateResourceKahn.RemovalTrace
+
+#print axioms CBCL.StateResourceKahn.reduce_trace
+
+#print axioms CBCL.StateResourceKahn.reduce_saturated
+
+#print axioms CBCL.StateResourceKahn.nativeKahn_cycle_iff
+
+#print axioms CBCL.StateResourceKahn.closed_component_processed
+
+#print axioms CBCL.StateResourceKahn.order_partition
+
+#print axioms CBCL.StateResourceKahn.removalOrder_topological
+
+#print axioms CBCL.StateResourceKahn.topological_rank
+
+#print axioms CBCL.StateResourceKahn.nativeKahn_rank
+
+#print axioms CBCL.StateResourceKahn.native_closed_component_processed
+
+#print axioms CBCL.StateResourceKahn.budget_reduce_saturated
+
+#print axioms CBCL.StateResourceKahn.native_budget_saturation
+
+#print axioms CBCL.StateResourceKahn.native_no_hidden_closed_component
+
+#print axioms CBCL.StateResourceCycle.operationVerbCheck_iff
+
+#print axioms CBCL.StateResourceCycle.parent_iff
+
+#print axioms CBCL.StateResourceCycle.reaches_mono
+
+#print axioms CBCL.StateResourceCycle.native_reach_resource
+
+#print axioms CBCL.StateResourceCycle.resource_reach_extend
+
+#print axioms CBCL.StateResourceCycle.graph_cycle_iff_certificate
+
+#print axioms CBCL.StateResourceCycle.native_cycle_certificate_iff
+
+#print axioms CBCL.StateResourceCycle.native_cycle_rejection_cause
+
+#print axioms CBCL.StateResourceKahnTests.acyclic_pass_removes_all
+
+#print axioms CBCL.StateResourceKahnTests.cycle_pass_retains_nodes
+
+#print axioms CBCL.StateResourceKahnTests.cycle_pass_has_witness
+
+#print axioms CBCL.StateResourceKahnTests.missing_reference_is_not_a_cycle
+
+#print axioms CBCL.StateResourceKahnTests.budget_pass_keeps_missing_reference
+
+#print axioms CBCL.StateResourceKahnTests.budget_pass_processes_independent_component
+
+#print axioms CBCL.StateResourceCache.empty_valid
+
+#print axioms CBCL.StateResourceCache.tipId_append
+
+#print axioms CBCL.StateResourceCache.ownerChain_append
+
+#print axioms CBCL.StateResourceCache.run_append_one
+
+#print axioms CBCL.StateResourceCache.previous_prefix
+
+#print axioms CBCL.StateResourceCache.advance_valid
+
+#print axioms CBCL.StateResourceCache.previous_owner
+
+#print axioms CBCL.StateResourceCache.advance_inside
+
+#print axioms CBCL.StateResourceCache.execute_valid
+
+#print axioms CBCL.StateResourceCache.native_cached_prefix
+
+#print axioms CBCL.StateResourceCache.cached_tip_union
+
+#print axioms CBCL.StateResourceCacheTests.cached_owner_sequence_and_debit
+
+#print axioms CBCL.StateResourceCacheTests.cached_other_owner_sequence_and_debit
+
+#print axioms CBCL.StateResourceCacheTests.actual_cached_tip_chooses_longer_prefix
+
+#print axioms CBCL.StateResourceCacheTests.absent_previous_prevents_cache_insertion
+
+#print axioms CBCL.StateResourceStructure.previousOwnerCheck_iff
+
+#print axioms CBCL.StateResourceStructure.forkCheck_iff
+
+#print axioms CBCL.StateResourceStructure.checked_native_cached_prefix
+
+#print axioms CBCL.StateResourceStructure.fork_rejection_iff
+
+#print axioms CBCL.StateResourceStructure.foreign_owner_rejection_iff
+
+#print axioms CBCL.StateResourceStructure.fork_rejection_cause
+
+#print axioms CBCL.StateResourceStructure.foreign_owner_rejection_cause
+
+#print axioms CBCL.StateResourceCones.unionCone_member
+
+#print axioms CBCL.StateResourceCones.reaches_enlarge
+
+#print axioms CBCL.StateResourceCones.unionCone_exact
+
+#print axioms CBCL.StateResourceCones.gather_lookup
+
+#print axioms CBCL.StateResourceCones.reconstruct_exact
+
+#print axioms CBCL.StateResourceCones.insert_valid
+
+#print axioms CBCL.StateResourceCones.execute_valid
+
+#print axioms CBCL.StateResourceCones.executed_cone_exact
+
+#print axioms CBCL.StateResourceFrontier.merge_represents
+
+#print axioms CBCL.StateResourceFrontier.represented_chain
+
+#print axioms CBCL.StateResourceFrontier.merge_prefix_members
+
+#print axioms CBCL.StateResourceFrontier.merge_covers
+
+#print axioms CBCL.StateResourceFrontier.dependency_own_prefix_before_current
+
+#print axioms CBCL.StateResourcePartition.chain_owner
+
+#print axioms CBCL.StateResourcePartition.chain_rank_after
+
+#print axioms CBCL.StateResourcePartition.chain_ids_unique
+
+#print axioms CBCL.StateResourcePartition.native_prefix_ids_unique
+
+#print axioms CBCL.StateResourcePartition.grouped_prefixes_nodup
+
+#print axioms CBCL.StateResourcePartition.frontier_partition
+
+#print axioms CBCL.StateResourceBudget.chunks_flatten
+
+#print axioms CBCL.StateResourceBudget.selected_sum_bound
+
+#print axioms CBCL.StateResourceBudget.frontier_incoming_refinement
+
+#print axioms CBCL.StateResourceBudget.amounts_sum
+
+#print axioms CBCL.StateResourceBudget.readIncoming_refinement
+
+#print axioms CBCL.StateResourceBudget.nativeIncoming_as_totals
+
+#print axioms CBCL.StateResourceBudget.native_incoming_cone_refinement
+
+#print axioms CBCL.StateResourceCache.same_cached_prefix
+
+#print axioms CBCL.StateResourceFrontier.mergeAll_represents
+
+#print axioms CBCL.StateResourceFrontier.mergeAll_members
+
+#print axioms CBCL.StateResourceDependency.empty_represents
+
+#print axioms CBCL.StateResourceDependency.parent_frontier_union
+
+#print axioms CBCL.StateResourceDependency.unionCone_past
+
+#print axioms CBCL.StateResourceDependency.pre_record_frontier_exact
+
+#print axioms CBCL.StateResourceDependency.unique_ids_consistent
+
+#print axioms CBCL.StateResourceDependency.dependency_incoming_exact_cone
+
+#print axioms CBCL.StateResourceOwnPrefix.cached_parent_prefix
+
+#print axioms CBCL.StateResourceOwnPrefix.prefix_eq_of_subset
+
+#print axioms CBCL.StateResourceOwnPrefix.merged_previous_prefix
+
+#print axioms CBCL.StateResourceOutgoing.sum_map_add
+
+#print axioms CBCL.StateResourceOutgoing.sum_map_zero
+
+#print axioms CBCL.StateResourceOutgoing.recipient_indicator
+
+#print axioms CBCL.StateResourceOutgoing.recipient_partition_sum
+
+#print axioms CBCL.StateResourceOutgoing.native_outgoing_refinement
+
+#print axioms CBCL.StateResourceLocalBudget.owner_prefix_partition
+
+#print axioms CBCL.StateResourceLocalBudget.ownTotal_prefix
+
+#print axioms CBCL.StateResourceLocalBudget.own_credited_debited
+
+#print axioms CBCL.StateResourceLocalBudget.native_local_budget_refinement
+
+#print axioms CBCL.StateResourceLocalBudget.dependency_local_budgets_exact
+
+#print axioms CBCL.StateResource.unsupported_empty_evidence
+
+#print axioms CBCL.StateResourceCache.advance_preserves_old
+
+#print axioms CBCL.StateResourceFrontier.represents_cache_extension
+
+#print axioms CBCL.StateResourceFrontier.record_frontier_represents
+
+#print axioms CBCL.StateResourceFrontier.record_frontier_covers
+
+#print axioms CBCL.StateResourceBudget.checked_selected_present
+
+#print axioms CBCL.StateResourceBudget.summaryFault_unreachable
+
+#print axioms CBCL.StateResourceBudget.budgetFault_perm
+
+#print axioms CBCL.StateResourceBudget.budgetFault_cone_unique
+
+#print axioms CBCL.StateResourceLocalBudget.budgetDecision_false_iff
+
+#print axioms CBCL.StateResourceLocalBudget.native_budget_rejection_iff
+
+#print axioms CBCL.StateResourceWitness.native_budget_certificate_iff
+
+#print axioms CBCL.StateResourceWitness.budget_witness_cause
+
+#print axioms CBCL.StateResourceMachine.initial_invariant
+
+#print axioms CBCL.StateResourceMachine.fresh_excludes_parent_cones
+
+#print axioms CBCL.StateResourceMachine.recordStep_preserves_old
+
+#print axioms CBCL.StateResourceMachine.recordResult_invariant
+
+#print axioms CBCL.StateResourceMachine.recordStep_invariant
+
+#print axioms CBCL.StateResourceMachine.recordStep_unchanged
+
+#print axioms CBCL.StateResourceMachine.execute_invariant
+
+#print axioms CBCL.StateResourceMachine.native_execution_invariant
+
+#print axioms CBCL.StateResourceAuthorization.checkedStep_done_record
+
+#print axioms CBCL.StateResourceAuthorization.checkedStep_budget_fault
+
+#print axioms CBCL.StateResourceAuthorization.checkedStep_budget_certificate
+
+#print axioms CBCL.StateResourceCounters.outstanding_cons
+
+#print axioms CBCL.StateResourceCounters.outstanding_nil
+
+#print axioms CBCL.StateResourceCounters.outstanding_positive
+
+#print axioms CBCL.StateResourceCounters.outstanding_after_pop
+
+#print axioms CBCL.StateResourceCounters.decrementAll_value
+
+#print axioms CBCL.StateResourceCounters.count_unique
+
+#print axioms CBCL.StateResourceCounters.waiting_pop_refinement
+
+#print axioms CBCL.StateResourceCounters.waiting_after_pop
+
+#print axioms CBCL.StateResourceCounters.zero_count_ready
+
+#print axioms CBCL.StateResourceCounters.waiting_decrement_safe
+
+#print axioms CBCL.StateResourceCounters.processed_closed_after_pop
+
+#print axioms CBCL.StateResourceCounters.ready_pop_refinement
+
+#print axioms CBCL.StateResourceCounters.initialize_invariant
+
+#print axioms CBCL.StateResourceCounters.pop_invariant
+
+#print axioms CBCL.StateResourceCounters.runFuel_invariant
+
+#print axioms CBCL.StateResourceCounters.native_counters_invariant
+
+#print axioms CBCL.StateResourceCounters.runFuel_saturated
+
+#print axioms CBCL.StateResourceCounters.native_saturated
+
+#print axioms CBCL.StateResourceCounters.saturated_processes_ready
+
+#print axioms CBCL.StateResourceCounters.native_closed_component_processed
+
+#print axioms CBCL.StateResourceWorklist.operations
+
+#print axioms CBCL.StateResourceWorklist.initialValid
+
+#print axioms CBCL.StateResourceWorklist.nonforking
+
+#print axioms CBCL.StateResourceWorklist.uniqueParents
+
+#print axioms CBCL.StateResourceWorklist.initial_joint
+
+#print axioms CBCL.StateResourceWorklist.done_authorized
+
+#print axioms CBCL.StateResourceWorklist.done_joint
+
+#print axioms CBCL.StateResourceWorklist.runFuel_verified
+
+#print axioms CBCL.StateResourceWorklist.native_worklist_verified
+
+#print axioms CBCL.StateResourceWorklist.closed_cone_processed
+
+#print axioms CBCL.StateResourceWorklist.native_budget_worklist_certificate_iff
+
+#print axioms CBCL.StateResourceCoupling.initial_coupled
+
+#print axioms CBCL.StateResourceCoupling.gather_available
+
+#print axioms CBCL.StateResourceCoupling.ready_lookups
+
+#print axioms CBCL.StateResourceCoupling.ready_fresh
+
+#print axioms CBCL.StateResourceCoupling.coupled_after_record
+
+#print axioms CBCL.StateResourceCoupling.ready_not_blocked
+
+#print axioms CBCL.StateResourceGraph.lookup_known
+
+#print axioms CBCL.StateResourceGraph.parents_known
+
+#print axioms CBCL.StateResourceGraph.unknown_has_no_outgoing
+
+#print axioms CBCL.StateResourceGraph.recognized_links_unique
+
+#print axioms CBCL.StateResourceGraph.native_parent_lists_unique
+
+#print axioms CBCL.StateResourceAuthorization.checkedStep_safe
+
+#print axioms CBCL.StateResourceAuthorization.execute_safe
+
+#print axioms CBCL.StateResourceAuthorization.native_budget_worklist_safe
+
+#print axioms CBCL.StateResourceAuthorization.checkedStep_budget_identity
+
+#print axioms CBCL.StateResourceRecordBounds.amounts_append_one
+
+#print axioms CBCL.StateResourceRecordBounds.native_record_complete
+
+#print axioms CBCL.StateResourceRecordBounds.machine_record_complete
+
+#print axioms CBCL.StateResourceCounters.release_missing_invariant

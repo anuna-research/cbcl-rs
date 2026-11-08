@@ -818,3 +818,43 @@ fn missing_dependency_cannot_hide_an_independent_resource_fault() {
             .contains(address));
     }
 }
+
+// SPEC-038 REQ-3806: all public resource observation paths retain the same
+// evidence. Profiles delegated to certificate runtimes keep constant faults.
+#[test]
+fn unsupported_resource_profiles_keep_projection_fault_evidence() {
+    use cbcl_core::certification::Certification;
+    use cbcl_core::escrow::{self, Outcome, Ownership};
+    let d = dialect();
+    let history = initial(&d);
+    for collective in [true, false] {
+        let mut rule = counter(&d).clone();
+        if collective {
+            rule.ownership = Ownership::Collective;
+        } else {
+            rule.certification = Certification::QuorumBudget {
+                validators: None,
+                faults: None,
+            };
+        }
+        let facts = history
+            .iter()
+            .filter_map(|act| {
+                escrow::project_resource_fact(&rule, act)
+                    .unwrap()
+                    .map(|fact| (fact.address.clone(), fact))
+            })
+            .collect();
+        let present = |id: &str| history.iter().any(|act| act.address == id);
+        match (
+            escrow::observe(&rule, &history),
+            escrow::observe_facts(&rule, &facts, present),
+        ) {
+            (Outcome::Fault { evidence: a, .. }, Outcome::Fault { evidence: b, .. }) => {
+                assert!(b.is_empty());
+                assert_eq!(a, b);
+            }
+            other => panic!("expected equivalent faults, got {other:?}"),
+        }
+    }
+}

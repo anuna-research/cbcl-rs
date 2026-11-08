@@ -94,3 +94,42 @@ import LeanCbcl.CheckpointAllTests
 import LeanCbcl.StateResourceTests
 
 import LeanCbcl.StateNativeRefinementTests
+
+import LeanCbcl.StateResourceKahnTests
+
+import LeanCbcl.StateResourceCache
+
+import LeanCbcl.StateResourceCacheTests
+import LeanCbcl.StateResourceStructure
+
+import LeanCbcl.StateResourceCones
+
+import LeanCbcl.StateResourceFrontier
+
+import LeanCbcl.StateResourcePartition
+
+import LeanCbcl.StateResourceBudget
+
+import LeanCbcl.StateResourceDependency
+
+import LeanCbcl.StateResourceOwnPrefix
+
+import LeanCbcl.StateResourceOutgoing
+
+import LeanCbcl.StateResourceLocalBudget
+
+import LeanCbcl.StateResourceWitness
+
+import LeanCbcl.StateResourceMachine
+
+import LeanCbcl.StateResourceAuthorization
+
+import LeanCbcl.StateResourceCounters
+
+import LeanCbcl.StateResourceRecordBounds
+
+import LeanCbcl.StateResourceGraph
+
+import LeanCbcl.StateResourceCoupling
+
+import LeanCbcl.StateResourceWorklist

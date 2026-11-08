@@ -950,9 +950,32 @@ also proves grouped incoming checked arithmetic agrees with a flat fact fold,
 including negative starting budgets, given the owner-prefix partition.
 `StateResourceSummary.lean` proves successful native record folds have the exact
 sequence, cumulative counters and per-recipient transfers of their supplied
-prefixes. Native worklist association with those complete prefixes is still an
-obligation. Empty allocation recognition and explicit account spelling are part
-of the certificate model.
+prefixes. `StateResourceCache.lean` recovers those prefixes from actual previous
+lookups. `StateResourceKahn.lean` and `StateResourceCycle.lean` establish executable
+cycle-certificate equivalence and processing of closed components despite
+unrelated missing references. `StateResourceCones.lean`, `StateResourceFrontier.lean`
+and `StateResourcePartition.lean` reconstruct cones and derive the owner partition.
+`StateResourceBudget.lean`, `StateResourceOutgoing.lean` and
+`StateResourceLocalBudget.lean` connect actual cached counters, recipient totals
+and both checked local-budget sides to that cone. Native representation bounds
+discharge selected-total and summary overflow obligations.
+`StateResourceWitness.lean` proves per-operation budget rejection iff a supported
+finite budget witness exists. `StateResourceMachine.lean` preserves the joint
+summary/cone/frontier invariant from empty state over a successful fresh record
+schedule. `StateResourceCounters.lean` verifies mutable waiting-map decrements,
+ready-queue updates, saturation and structural missing-reference release.
+`StateResourceGraph.lean` derives the identity-indexed dependency graph from
+recognized operation facts; `StateResourceCoupling.lean` connects readiness to
+actual summary and cone availability. `StateResourceRecordBounds.lean` proves
+recognized record overflow unreachable. `StateResourceAuthorization.lean` and
+`StateResourceWorklist.lean` interleave authorization with those queues and
+caches. Their `native_budget_worklist_certificate_iff` theorem proves budget
+worklist fault iff an accepted finite budget witness exists under the executable
+phase checks, including a closed witness beside unrelated missing references.
+Empty allocation recognition and
+explicit account spelling are part of the certificate model. Unsupported native
+profiles retain their history-independent empty fault evidence; supported
+profiles retain contextual accepted evidence.
 
 `StateRuleRefinement.lean` proves the value-level domain/context/derived/freeze
 adapters and source-linked closure thresholds agree with their typed plan
@@ -964,8 +987,11 @@ compilation theorem, and arbitrary source-linked queries are not assumed stable.
 
 These are model-level proofs, not a completed native refinement. The concrete
 certificate checker is not yet proved equivalent to `escrow::observe_facts`:
-owner-prefix/tip-summary arithmetic and final aggregate checks remain to be
-connected. The typed observation plan is not yet a proved compilation of every
+final aggregate application/conservation and complete phase classification
+remain to be connected to the proved budget worklist. Global overflow bounds
+must include the installed Rust floor/ceiling i64 ranges; the typed certificate
+configuration's unrestricted integers do not imply those ranges.
+The finite native-map representation also needs its Rust correspondence bridge. The typed observation plan is not yet a proved compilation of every
 installed Rust rule: threshold contribution/source coherence and complete
 context/domain source refinements remain. Those bridges are acceptance work,
 not assumptions discharged by the generic convergence theorem.

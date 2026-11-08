@@ -708,7 +708,8 @@ impl<'a> Ctx<'a> {
 
     fn collect_term_faults(&self, term: &Term, evidence: &mut BTreeSet<String>) {
         match term {
-            Term::Lift(selects, _) => {
+            Term::Lift(selects, contribution) => {
+                let mut initializer_fault = false;
                 for s in selects.iter().filter(|s| !s.raw) {
                     for (_, fault) in self
                         .domain_faults
@@ -716,7 +717,24 @@ impl<'a> Ctx<'a> {
                         .filter(|(verb, _)| *verb == s.verb)
                     {
                         if let Some(addresses) = fault.fault_evidence() {
+                            initializer_fault = true;
                             evidence.extend(addresses);
+                        }
+                    }
+                }
+                if initializer_fault && matches!(contribution, Contribute::Finite { .. }) {
+                    // REQ-3806: conflicting domain evidence must not replace
+                    // writers that established a finite top before the fork.
+                    // The domain is no longer uniquely selectable; retain the
+                    // finite contributions from raw accepted source history.
+                    for select in selects {
+                        for act in self.acts.values().filter(|a| a.verb == select.verb) {
+                            if let L::Finite {
+                                evidence: writers, ..
+                            } = Self::contribute(act, contribution)
+                            {
+                                evidence.extend(writers);
+                            }
                         }
                     }
                 }

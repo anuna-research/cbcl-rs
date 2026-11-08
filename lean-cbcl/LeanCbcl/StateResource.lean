@@ -398,9 +398,11 @@ def cited (a : ResourceFact) (id : Nat) : Prop :=
   id ∈ a.data.selected.predecessors ∨ id ∈ links a
 
 /-- Match the contextual certificate convention: all resource facts and
-accepted cited context, not just the first diagnostic's minimal blame. -/
+accepted cited context, not just the first diagnostic's minimal blame.
+Unsupported native profiles retain their history-independent empty fault. -/
 def evidence (c : ResourceConfig) (decode : Act → ResourceData) (A : List Act) : Lattice.Set Nat :=
-  fun id => ∃ a ∈ A, a.addr = id ∧
+  fun id => ¬(c.ownership = .collective ∨ ∃ p, c.certification = .quorum p) ∧
+    ∃ a ∈ A, a.addr = id ∧
     (relevant c ⟨a.addr, decode a⟩ ∨
       ∃ b ∈ A, relevant c ⟨b.addr, decode b⟩ ∧ cited ⟨b.addr, decode b⟩ id)
 
@@ -416,6 +418,17 @@ theorem unsupported_fault (c : ResourceConfig) (decode : Act → ResourceData) (
   have cause : Fault c decode A := ⟨[],by simp [Included],Cause.unsupported bad⟩
   simp [faultRead,cause]
 
+theorem unsupported_empty_evidence (c : ResourceConfig) (decode : Act → ResourceData) (A : List Act)
+    (bad : c.ownership = .collective ∨ ∃ p, c.certification = .quorum p) :
+    evidence c decode A = ∅ := by
+  funext id
+  apply propext
+  constructor
+  · intro ⟨supported,_⟩
+    exact False.elim (supported bad)
+  · intro impossible
+    exact False.elim impossible
+
 theorem fault_growth (c : ResourceConfig) (decode : Act → ResourceData) {A B : List Act}
     (growth : Included A B) (fault : Fault c decode A) : Fault c decode B := by
   obtain ⟨support, inside, cause⟩ := fault
@@ -428,9 +441,9 @@ theorem fault_setEq (c : ResourceConfig) (decode : Act → ResourceData) {A B : 
 
 theorem evidence_growth (c : ResourceConfig) (decode : Act → ResourceData) {A B : List Act}
     (growth : Included A B) : ∀ id ∈ evidence c decode A, id ∈ evidence c decode B := by
-  rintro id ⟨a, ha, address, relevantA | ⟨b, hb, relevantB, link⟩⟩
-  · exact ⟨a, growth a ha, address, Or.inl relevantA⟩
-  · exact ⟨a, growth a ha, address, Or.inr ⟨b, growth b hb, relevantB, link⟩⟩
+  rintro id ⟨supported,a, ha, address, relevantA | ⟨b, hb, relevantB, link⟩⟩
+  · exact ⟨supported,a, growth a ha, address, Or.inl relevantA⟩
+  · exact ⟨supported,a, growth a ha, address, Or.inr ⟨b, growth b hb, relevantB, link⟩⟩
 
 theorem evidence_setEq (c : ResourceConfig) (decode : Act → ResourceData) {A B : List Act}
     (same : SetEq A B) : evidence c decode A = evidence c decode B := by
@@ -460,7 +473,7 @@ theorem faultRead_persists (c : ResourceConfig) (decode : Act → ResourceData) 
 contextual witness is finite even though the evidence representation is a set. -/
 theorem evidence_accepted (c : ResourceConfig) (decode : Act → ResourceData) (A : List Act)
     {id : Nat} (member : id ∈ evidence c decode A) : id ∈ A.map Act.addr := by
-  obtain ⟨a, ha, rfl, _⟩ := member
+  obtain ⟨_, a, ha, rfl, _⟩ := member
   exact List.mem_map.mpr ⟨a, ha, rfl⟩
 
 open StateKernelDelivery AdmissionStratification

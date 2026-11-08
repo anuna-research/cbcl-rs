@@ -612,6 +612,11 @@ pub fn observe_facts<F: Fn(&str) -> bool>(
     present: F,
 ) -> Outcome {
     let mut outcome = observe_facts_inner(c, all, &present);
+    // Unsupported profiles have a history-independent native fault. Preserve
+    // that boundary (and compact checkpoint compatibility) across projections.
+    if c.ownership == Ownership::Collective || c.certification.is_quorum() {
+        return outcome;
+    }
     if let Outcome::Fault { evidence, .. } = &mut outcome {
         // SPEC-038 REQ-3806: a later diagnosis must not erase an earlier
         // witness. Evidence is a contextual certificate, not a minimal blame

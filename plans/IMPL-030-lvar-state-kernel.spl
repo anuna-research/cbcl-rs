@@ -190,3 +190,29 @@
 ;; TEST-3806 still requires Kahn state/termination/prefix coverage, classification
 ;; of every final native outcome, and the complete installed-clause compiler
 ;; refinement (including the remaining validated source/query instances).
+
+;; Native dependency/budget continuation: executable Kahn cycle rejection iff
+;; a finite cycle certificate, native previous-prefix cache invariants, full
+;; dependency-tip merge union, ghost exact-cone reconstruction, owner partition,
+;; actual cached incoming counters, outgoing recipient-map totals and both
+;; checked local-budget sides now have compositional refinements.
+;; dependency_local_budgets_exact derives the new operation's cone, frontier
+;; coverage and previous-prefix equality from parent-cache invariants and native
+;; lookups. Remaining TEST-3806 work includes preserving those joint invariants
+;; over the complete faulting worklist, final aggregate classification, and
+;; the complete installed-clause compiler refinement. No completion is claimed.
+;; Native record execution now preserves the joint summary/cone/frontier
+;; invariant from empty state. This is not yet the faulting budget worklist:
+;; recordStep intentionally follows authorization and can record an unbudgeted
+;; act in isolation. Finite writer evidence survives initializer forks;
+;; unsupported resource profiles preserve constant empty evidence across full,
+;; projected and checkpoint observation paths.
+
+;; Budget-worklist equivalence checkpoint: StateResourceWorklist derives joint
+;; counter/cache/cone/frontier/authorization invariants from empty state, rules
+;; out blocked ready selections and recognized record overflow, and proves
+;; native_budget_worklist_certificate_iff under executable phase checks.
+;; Remaining top-level obligations: native final aggregate/conservation checks,
+;; full phase classification and installed-rule/plan compiler refinement.
+;; Native floor and ceiling are i64; the Lean ResourceConfig Int fields require
+;; the installed range predicate before proving aggregate overflow unreachable.
