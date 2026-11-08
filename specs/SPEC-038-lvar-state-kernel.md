@@ -894,6 +894,20 @@ is rejected; the installation check completes within the `O(n³)` bound on a
 64-element lattice. A field over the accepted lattice passes TEST-3800's
 display and morphism checks. Validates REQ-3810, NFR-3800.
 
+The live Lean oracle supplements these finite checks with generated authored
+inputs, native installation and actual Rust folds. `StateKernelOracle.lean`
+executes the proved reference functions, without consuming expected Rust
+outcomes. The property test `state_kernel_oracle` compares installation,
+projected values, pending/reached thresholds and fault evidence under forward,
+reversed and duplicate delivery. Proptest shrinks mismatches and persists
+replay seeds. Directed numeric/Boolean cases and isolated Rust mutations guard
+against a vacuous comparison. The bounded initial profile excludes domains,
+context, resources, protocol admission, freezes and canonical diagnostics;
+those paths retain their separate obligations. Validates
+[[SPEC-038-lvar-state-kernel#REQ-3802]],
+[[SPEC-038-lvar-state-kernel#REQ-3804]] and
+[[SPEC-038-lvar-state-kernel#REQ-3810]].
+
 ## TEST-3809: Context as ordinary kernel data
 
 Core: read the complete map and supported typed paths; verify signing hash,

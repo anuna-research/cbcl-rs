@@ -295,6 +295,7 @@ See the [proof guide](lean-cbcl/README.md#cached-checkpoint-continuation) for th
 and reproducible checks.
 
 For proof changes, install Lean via elan and run `lake build` and `lake exe runLinter LeanCbcl` from `lean-cbcl/`. Run `scripts/check-axioms.sh` from the repository root. For mutation testing, see [mutation-testing guide](docs/mutation-testing.md).
+Use the [live Lean state-kernel oracle](docs/state-kernel-oracle.md) for differential fuzzing with shrinking and replay.
 
 Contributions are welcome. Specs live under `specs/`, implementation plans under `plans/`, and bug reports under `bugs/`. Link changes to their governing requirements and verification evidence.
 

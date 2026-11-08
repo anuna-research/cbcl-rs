@@ -431,8 +431,7 @@ all metadata and reference premises, with unchanged compilation results.
 `StateAuthoredCompletion` constructs concrete plans/readers from preparation
 and connects them to complete functional cached-reader observations, including
 faults and equality on equal accepted sets. `StateFiniteUpperCache` proves the
-optimized
-upper-set maximum formulas and admitted scalar decoding equal the reference
+optimized upper-set maximum formulas and admitted scalar decoding equal the reference
 finite gate. `StateFinitePairLoop` proves stored cache-vector lookups, unordered
 early-exit traversal, duplicate precedence and first-error indices tied to the
 original scalar queries. Literal R7 extraction/integration, formatted diagnostic
@@ -455,6 +454,13 @@ lake exe runLinter LeanCbcl
 python3 ../scripts/check-state-lift-mutation.py
 python3 ../scripts/check-state-lvar-mutations.py
 ```
+
+The live [state-kernel oracle](../docs/state-kernel-oracle.md) executes the proved
+finite reference functions against generated Rust installation/fold cases.
+Build it with `lake build cbcl-state-oracle`; CI runs the seeded differential
+property test. Its initial profile covers finite tables, projections,
+contributions, scalar thresholds and fault evidence, with shrinking and replay.
+Other kernel paths remain outside that profile.
 
 The Batteries gate remains enabled in CI. Intentional constant contribution
 arguments and uniform prepared-state receivers have local, explained

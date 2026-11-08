@@ -306,3 +306,12 @@
 ;; found no defect or correctness-oracle premise. Reference checks remain
 ;; noncomputable Lean definitions; literal native R7 extraction/integration and
 ;; mutable Rust Reader correspondence remain open. TEST-3806 stays partial.
+
+;; Live oracle direction: maintainer requested Lean as a fuzz oracle. The
+;; compiled JSON-lines StateKernelOracle executes the proved finite reference
+;; functions without Rust expected outcomes. Native parser/install/fold property
+;; cases compare acceptance, projections, thresholds and top evidence across
+;; order/duplicate variants; directed numeric/Boolean and outcome coverage,
+;; shrinking, replay seeds, child timeout and explicit CI execution are wired.
+;; Scope is initially finite data/read paths; domains/context/resources/freeze,
+;; protocol admission and canonical diagnostic serialization remain separate.
