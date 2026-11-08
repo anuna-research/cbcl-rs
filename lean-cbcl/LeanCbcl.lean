@@ -273,3 +273,5 @@ import LeanCbcl.StateAuthoredMembershipTests
 import LeanCbcl.StateAuthoredEventMembershipTests
 
 import LeanCbcl.StateEventMapTotalTests
+
+import LeanCbcl.StateAuthoredEventSumTests

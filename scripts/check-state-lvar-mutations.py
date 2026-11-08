@@ -547,6 +547,23 @@ suites.append(("StateEventMapTotal", (root / "lean-cbcl/LeanCbcl/StateEventMapTo
      "decide (bound + 1 ≤ sumField field (StateDomainSupportLocality.selected domains [verb] A)) := by", "native_sum"),
 ]))
 
+suites.append(("StateNativeEventSum", (root / "lean-cbcl/LeanCbcl/StateNativeEventSum.lean").read_text(), [
+    ("event-sum-growth-made-strict", "sumField field (selected domains [verb] A) ≤ sumField field (selected domains [verb] B) := by",
+     "sumField field (selected domains [verb] A) < sumField field (selected domains [verb] B) := by", "sum_grows"),
+    ("event-sum-query-bound-shifted", "if bound ≤ sumField field (selected domains [verb] A) then",
+     "if bound + 1 ≤ sumField field (selected domains [verb] A) then", "compiled_sum"),
+    ("event-sum-freeze-changes-answer", "output = (outputName,.data (.reached (.element (.sum bound)))) ∨",
+     "output = (outputName,.data (.reached (.element (.sum (bound+1))))) ∨", "sum_success_or_fault"),
+]))
+suites.append(("StateAuthoredEventSum", (root / "lean-cbcl/LeanCbcl/StateAuthoredEventSum.lean").read_text(), [
+    ("event-sum-admission-loses-lower-endpoint", "(-(2^63) ≤ bound ∧ bound < 2^63) ∧ mandatoryNonnegative",
+     "(-(2^63) < bound ∧ bound < 2^63) ∧ mandatoryNonnegative", "admitted_sum"),
+    ("event-sum-inversion-invents-unit", "bound ≤ sumField field (StateDomainSupportLocality.selected prepared.domains [verb] (StateScopePool.normalize A)) := by",
+     "bound + 1 ≤ sumField field (StateDomainSupportLocality.selected prepared.domains [verb] (StateScopePool.normalize A)) := by", "native_success"),
+    ("event-sum-preservation-changes-answer", "(outputName,.data (.reached (.element (.sum bound)))) ∈ later.observe ∨",
+     "(outputName,.data (.reached (.element (.sum (bound+1))))) ∈ later.observe ∨", "successive_compiled"),
+]))
+
 # Preserve the full default gate while allowing a focused continuation check.
 import argparse
 parser = argparse.ArgumentParser(description=__doc__)

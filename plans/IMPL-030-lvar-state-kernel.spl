@@ -933,3 +933,30 @@
 ;; Native TypeConstraint::matches Nonnegative checks an Atom::Num n with n >= 0;
 ;; metadata mandatoryNonnegative alone does not establish this for history acts.
 ;; Closure progress and literal native extraction remain open.
+
+;; Authored event-sum composition checkpoint (REQ-3802 / REQ-3809).
+;; StateNativeEventSum compiles the actual source-owned singleton sum query,
+;; proves selected-total growth with explicit accepted nonnegative amounts, and
+;; derives normalized dispatch-scope uniqueness for every freezer-root outcome.
+;; sum_success_or_fault composes the actual observed error channel and exact cut.
+;; StateAuthoredEventSum derives bound/mandatory-shape policy from successful
+;; query compilation, constructs actual complete authored programs, inverts an
+;; earlier named reached output, and proves successive same-answer-or-fault.
+;; Earlier witnesses use normalized histories so delivery duplicates add no weight.
+;; Accepted later writer nonnegativity is an explicit external admission premise;
+;; this is not derived from installation metadata or claimed native extraction.
+;; Fixtures compute shaped installation, unshaped/out-of-range/supersede rejection,
+;; writer nonnegativity and actual emitted success from pending payload. Reviewer
+;; identified missing mint/amount schema metadata; fixture now declares it.
+;; Fixtures do not construct a concrete successive whole-program sum trace.
+;; Verification: aggregate build and Batteries env-linter pass; 1705 theorem
+;; audits allowlisted. Six focused source mutants fail named obligations:
+;; strict growth, query-bound shift, freeze-answer shift, lower-bound endpoint
+;; exclusion, invented inversion unit and changed later answer. Verified-by lint
+;; and diff check pass; no new vault unresolved pairs, zero syntax/SPL diagnostics.
+;; Independent proof/fixture/artifact review found no proof defect; stale open
+;; sum wording narrowed to actual admission-shape enforcement.
+;; Next: native state_exports::admit runs verify_state_shape then all matching
+;; ShapeConstraint::check before its causal stage. Bridge those successful checks
+;; to typed nonnegative amounts and strengthen concrete successive sum fixtures.
+;; Closure progress and literal native installation/extraction remain open.

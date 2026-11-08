@@ -1,3 +1,4 @@
+import LeanCbcl.StateAuthoredEventSumTests
 import LeanCbcl.StateEventMapTotalTests
 import LeanCbcl.StateAuthoredEventMembershipTests
 import LeanCbcl.StateAuthoredMembershipTests
@@ -2563,3 +2564,20 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateEventMapTotalTests.exact_total
 #print axioms CBCL.StateEventMapTotalTests.threshold_boundary
 #print axioms CBCL.StateEventMapTotalTests.threshold_above
+
+#print axioms CBCL.StateNativeEventSum.sum_grows
+#print axioms CBCL.StateNativeEventSum.compiled_sum
+#print axioms CBCL.StateNativeEventSum.raw_unique
+#print axioms CBCL.StateNativeEventSum.sum_success_or_fault
+
+#print axioms CBCL.StateAuthoredEventSum.admitted_sum
+#print axioms CBCL.StateAuthoredEventSum.program_stability
+#print axioms CBCL.StateAuthoredEventSum.native_success
+#print axioms CBCL.StateAuthoredEventSum.successive_compiled
+
+#print axioms CBCL.StateAuthoredEventSumTests.installation_succeeds
+#print axioms CBCL.StateAuthoredEventSumTests.unshaped_rejected
+#print axioms CBCL.StateAuthoredEventSumTests.upper_bound_rejected
+#print axioms CBCL.StateAuthoredEventSumTests.supersede_rejected
+#print axioms CBCL.StateAuthoredEventSumTests.writer_nonnegative
+#print axioms CBCL.StateAuthoredEventSumTests.pending_payload_reaches

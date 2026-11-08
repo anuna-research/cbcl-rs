@@ -1549,11 +1549,23 @@ invariant. Arithmetic fixtures include equal positives, a negative, a missing
 field, a nonnumeric field and an unrelated verb, and compute both the exact
 threshold boundary and the next pending bound. These are typed arithmetic
 fixtures, not protocol-admission traces or nonnegative stability evidence.
-This exact-total bridge does not yet compose sum-query compilation, authored
-preservation or admission's enforcement of nonnegative writer shapes.
+`StateNativeEventSum.lean` connects this total to actual source-owned sum-query
+compilation with its required signed bound and mandatory nonnegative shape
+policy. Its factory theorem covers all fault-freeze root outcomes. The
+`StateAuthoredEventSum.successive_compiled` theorem composes actual authored
+source provenance, bound/shape-policy admission, emitted instructions and earlier named-output inversion into
+later reached-or-fault preservation. Earlier totals use normalized histories so
+repeated delivery adds no weight. This result requires actual nonnegative
+amounts for accepted later writers as an explicit premise, separately from
+installation's shape-policy metadata; it does not yet derive that premise from
+protocol admission. Sum fixtures check bounded shaped preparation, rejection of
+missing shapes, an out-of-range bound and supersede freezes, computed per-writer
+nonnegativity, and emitted query success from a pending payload. They exercise
+typed installation and raw-query execution, not a concrete successive
+whole-program trace or native admission/extraction correspondence.
 
-Shaped nonnegative event sums, closure progress and native
-installation/extraction correspondence remain separate obligations at the typed
+Protocol admission’s enforcement of nonnegative writer shapes, closure progress
+and native installation/extraction correspondence remain separate obligations at the typed
 authored boundary.
 Literal Rust value representation and public serialized
 rendering remain separate boundaries. Helpers remain total outside the admitted
