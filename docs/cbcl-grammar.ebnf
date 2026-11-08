@@ -378,27 +378,92 @@ optional-rule   = "(" , "optional" , ws , keyword , [ ws , type-name ] ,
 
 depth-rule      = "(" , "max-depth" , ws , number , ")" ;
 
-type-name       = "string" | "number" | "bool"
+type-name       = "string" | "number" | "nonnegative" | "bool"
                 | "symbol" | "keyword" | "list" ;
 
 default-value   = expression ;
 
 
-(* State-rule extension, SPEC-019 v2 CON-1908/1909. Ordinary state rules
-   remain specified in SPEC-019 R.1. Options below are shown in canonical
-   order; the recognizer accepts any order, rejects duplicate/unknown options,
-   and requires ceiling and initial-headroom to occur together. *)
-state-clause = "(" , "state" , ( ws , state-entry ) , { ws , state-entry } , ")" ;
-state-entry = "(" , symbol , ws , state-rule , ")"
-            | "(" , "domain" , ws , perf-name , ws , keyword , ws , symbol , ")" ;
-state-rule = bounded-counter-rule | ordinary-state-rule ;
-ordinary-state-rule = ? SPEC-019 R.1 fixed ordinary rule productions ? ;
+(* ================================================================== *)
+(* State declarations: SPEC-019, SPEC-035 and SPEC-038                   *)
+(* Author reference: docs/reference/state-language.md.                 *)
+(* Reference: crates/cbcl-parser/src/state_parser.rs.                   *)
+(* Grammar describes recognition; the installation checks described   *)
+(* in the author reference additionally constrain names and types.     *)
+(* ================================================================== *)
+
+state-clause = "(" , "state" , ws , state-entry , { ws , state-entry } , ")" ;
+state-entry = field-entry | domain-entry | threshold-entry | freeze-entry
+            | lattice-entry ;
+field-entry = "(" , state-name , ws , state-rule , ")" ;
+state-name = symbol ; (* installation: [a-z][a-z0-9-]{0,47} *)
+state-rule = ordinary-state-rule | context-rule | finite-lift-rule
+           | bounded-counter-rule ;
+ordinary-state-rule
+    = "(" , "initial" , ws , perf-name , ws , keyword , ")"
+    | "(" , ( "exists" | "count" | "progress" ) , ws , perf-name , ")"
+    | "(" , ( "events" | "set-union" | "values" | "multi-value-register" ) ,
+        ws , perf-name , ws , keyword , ")"
+    | "(" , ( "values-per-key" | "multi-value-map" ) , ws , perf-name ,
+        ws , keyword , ws , keyword , [ ws , perf-name ] , ")"
+    | "(" , ( "lww-register" | "lww-per-signer" ) , ws , perf-name ,
+        ws , keyword , ws , keyword , ")"
+    | "(" , "lww-map" , ws , perf-name , ws , keyword , ws , keyword ,
+        ws , keyword , [ ws , perf-name ] , ")"
+    | "(" , ( "observed-set" | "counter" ) , ws , perf-name ,
+        ws , perf-name , ws , keyword , ")"
+    | "(" , ( "histogram" | "sum" ) , ws , state-name , ")" ;
+domain-entry = "(" , "domain" , ws , perf-name , ws , keyword , ws , state-name , ")" ;
+threshold-entry = "(" , "threshold" , ws , state-name , ws , state-name ,
+    ws , threshold-element , { ws , threshold-element } , ")" ;
+threshold-element = scalar
+    | "(" , ( "count" | "sum" | "progress" ) , ws , number , ")"
+    | "(" , "member" , ws , scalar , ")" ;
+scalar = string | number | boolean ;
+(* `fault` is a terminal outcome, never a threshold alternative. *)
+freeze-entry = "(" , "freeze" , ws , state-name , ws , perf-name ,
+    [ ws , ( "supersede" | "fault" ) ] , ")" ;
+
+context-rule = "(" , "context" , [ ws , context-path ] , ")" ;
+context-path = "dialect" , [ ws , dialect-path ]
+             | "thread" , [ ws , thread-path ]
+             | "observation" , [ ws , ( "accepted-count" | "frontier" ) ] ;
+dialect-path = "address" | "body-address" | "name" | "author"
+             | "roles" , [ ws , role-name ]
+             | "bounds" , [ ws , state-bound-name ] ;
+thread-path = "id" | "root" | "initiator" | "opener"
+            | "roles" , [ ws , role-name ] ;
+(* Nested role paths must name roles declared by this dialect. *)
+
+lattice-entry = "(" , "lattice" , ws , state-name ,
+    ws , "(" , "elements" , ws , state-name , { ws , state-name } , ")" ,
+    ws , "(" , "bottom" , ws , state-name , ")" ,
+    ws , "(" , "top" , ws , state-name , ")" ,
+    ws , "(" , "join" , { ws , join-row } , ")" , ")" ;
+join-row = "(" , state-name , ws , state-name , ws , state-name , ")" ;
+finite-lift-rule = "(" , "lift" , ws , perf-name ,
+    ws , "(" , "into" , ws , state-name , ")" ,
+    ws , "(" , "contribute" , ws , contribution-row ,
+        { ws , contribution-row } , ")" , [ ws , projection ] , ")" ;
+contribution-row = "(" , keyword , ws , scalar , ws , state-name , ")" ;
+projection = "(" , "project" , [ ws , "stable" ] ,
+    ws , "(" , projection-row , { ws , projection-row } , ")" , ")" ;
+projection-row = "(" , state-name , ws , scalar , ")" ;
+
 state-bounds-clause = "(" , ":state-bounds" , { ws , state-bound } , ")" ;
-state-bound = "(" , ( "max-string" | "max-list" | "max-number" | "max-fields" ) , ws , positive-number , ")" ;
-bounded-counter-rule = "(" , "bounded-counter" , ws , floor-option ,
-    [ ws , ceiling-option ] , ws , rights-option , [ ws , headroom-option ] ,
-    ws , issuer-option , ws , increment-option , ws , decrement-option ,
-    ws , transfer-option , [ ws , transfer-headroom-option ] , ")" ;
+state-bound = "(" , state-bound-name , ws , positive-number , ")" ;
+state-bound-name = "max-string" | "max-list" | "max-number" | "max-fields" ;
+
+(* Resource options may appear in any order. Unknown and duplicate     *)
+(* options reject. Account mode requires floor, initial-rights, issuers,*)
+(* increment, decrement and transfer. Collective mode uses initial,    *)
+(* requires quorum-budget, and forbids account allocations/transfers.  *)
+(* Account ceiling and initial-headroom must occur together.           *)
+bounded-counter-rule = "(" , "bounded-counter" , { ws , counter-option } , ")" ;
+counter-option = floor-option | ceiling-option | rights-option | headroom-option
+    | issuer-option | increment-option | decrement-option | transfer-option
+    | transfer-headroom-option | ownership-option | scalar-initial-option
+    | certification-option ;
 floor-option = "(" , "floor" , ws , number , ")" ;
 ceiling-option = "(" , "ceiling" , ws , number , ")" ;
 rights-option = "(" , "initial-rights" , ws , perf-name , ws , keyword , ")" ;
@@ -408,6 +473,13 @@ increment-option = "(" , "increment" , ws , perf-name , ws , keyword , ")" ;
 decrement-option = "(" , "decrement" , ws , perf-name , ws , keyword , ")" ;
 transfer-option = "(" , "transfer" , ws , perf-name , ws , keyword , ws , keyword , ")" ;
 transfer-headroom-option = "(" , "transfer-headroom" , ws , perf-name , ws , keyword , ws , keyword , ")" ;
+ownership-option = "(" , "ownership" , ws , ( "account" | "collective" ) , ")" ;
+scalar-initial-option = "(" , "initial" , ws , perf-name , ws , keyword , ")" ;
+certification-option = "(" , "certification" , ws ,
+    ( "host-gate" | "quorum-budget" , { ws , certification-setting } ) , ")" ;
+certification-setting = "(" , "validators" , ws , symbol , { ws , symbol } , ")"
+    | "(" , "faults" , ws , number , ")" ;
+(* quorum-budget requires both settings; faults is nonnegative u32.    *)
 (* Transfer keywords are recipient then amount. Escrow data references use
    sha256-<64 lowercase hex>, separately from protocol caused-by references.
    Initial allocation/headroom values are nonempty lists of distinct

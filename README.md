@@ -94,6 +94,12 @@ cargo run -p cbcl-cli -- --help
 
 Custom performatives require an explicit `(lang …)` scope; installed dialects do not provide an unscoped fallback.
 
+For dialect authors, start with the [language EBNF](docs/cbcl-grammar.ebnf) and
+[state language reference](docs/reference/state-language.md), which lists the
+state keywords, argument syntax, installation checks, and read semantics.
+See also [roles and casts](docs/concepts/role-cast.md) and
+[protocol progress](docs/concepts/protocol-progress.md).
+
 For bindings, see [JavaScript/TypeScript](js/README.md), [WebAssembly](README-WASM.md), and [Erlang/BEAM](crates/cbcl-erl/README.md). The JavaScript/TypeScript package includes a JSON-authored object runtime.
 
 ## Current capabilities
