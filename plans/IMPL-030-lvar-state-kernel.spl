@@ -1312,3 +1312,29 @@
 ;; general projection from full native AST and wire recognition/authentication/
 ;; admission are not proved by descriptor construction. Remaining literal native
 ;; installation/mutable reader/renderer boundaries keep full SPEC acceptance open.
+
+;; Native shape/state keyword ambiguity repair (REQ-3802 / ADR-3805).
+;; Auditing NumericExtraction exposed BUG-010: native shape lookup reads the
+;; first matching keyword, while state::keyword_fields retains the last. Strict
+;; parsing and public state_exports::admit accepted amount10 followed by amount-1
+;; under a nonnegative shape. With prior accepted positive10, raw folded funded
+;; changed reached->pending. Regression was observed red with Admission::Accepted.
+;; R7 closed-field recognition now tracks nonrouting data keys and rejects
+;; duplicates on state-bearing verbs. Unique-key messages retain prior behavior;
+;; ordinary low-level folding stays total/last-value outside the admitted domain.
+;; Regression validates ordinary positive admission, original before/after fold,
+;; ambiguous candidate rejection, and duplicate equal/positive/reversed values.
+;; SPEC-019 R4 now states the unambiguous data-key condition; SPEC-038 and author
+;; reference explain the shared-value invariant. BUG-010 records mechanism/fix.
+;; Existing isolated native mutation runner now also supports the exact normal
+;; threshold_reads regression (without --ignored), labels native admission evidence
+;; separately, and still requires actual executed test/assertion failures. Bypassing
+;; only the duplicate guard reproduces the failure; original source is restored.
+;; Verification: 206 selected parser/threshold/state/export/corpus/finite tests
+;; and all881 core unit tests pass; six live oracle suites pass at512 cases and
+;; seed380038. Guard mutant caught, verified-by/diff checks pass; no new unresolved
+;; vault pairs, zero syntax/SPL diagnostics. Independent read-only review found
+;; no defect or scope overclaim. Lean sources unchanged in this native repair.
+;; General NumericExtraction must still be derived from recognized unambiguous
+;; native parameters and actual field conversion; this repair supplies a missing
+;; native admission premise, not that whole theorem. Full SPEC stays open.

@@ -268,3 +268,7 @@ unknown, duplicate and out-of-range bounds reject.
 SPEC-038 remains draft: implemented syntax and executable checks do not imply
 that every concrete Rust source binding has a completed universal refinement
 proof. See the [Lean proof status](../../lean-cbcl/README.md#lvar-state-kernel).
+
+State-bearing messages must use each data keyword once. Repeated data keywords
+are rejected during state-shape validation, including repetitions with equal
+values, so shape checks and state rules interpret the same value.

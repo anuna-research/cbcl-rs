@@ -162,6 +162,33 @@ fn a_threshold_is_pending_then_reached_with_its_element() {
     );
 }
 
+// REQ-3802: shape validation must constrain the same numeric value the fold reads.
+#[test]
+fn duplicate_amount_cannot_hide_a_negative_state_contribution() {
+    let d = parse_dialect(&parse(DEMO).unwrap()).unwrap();
+    let o = open();
+    let candidate = demo("mint", " :amount 10 :amount -1", &o.address, "@a");
+    assert_eq!(candidate.fields["amount"].to_string(), "-1");
+    let positive = demo("mint", " :amount 10", &o.address, "@b");
+    assert!(matches!(
+        state_exports::admit(&d, &cbcl_core::store::ThreadId("t".into()), &[o.clone()], &positive),
+        Admission::Accepted
+    ));
+    let before = state_of(DEMO, &[o.clone(), positive.clone()]);
+    let after = state_of(DEMO, &[o.clone(), positive.clone(), candidate.clone()]);
+    assert_eq!(before["funded"]["status"], "reached");
+    assert_eq!(after["funded"]["status"], "pending");
+    let verdict = state_exports::admit(
+        &d, &cbcl_core::store::ThreadId("t".into()), &[o.clone(), positive], &candidate,
+    );
+    assert!(matches!(verdict, Admission::Rejected(_)), "ambiguous amount admitted: {verdict:?}");
+    for params in [" :amount 10 :amount 10", " :amount 0 :amount 1", " :amount -1 :amount 10"] {
+        let duplicate = demo("mint", params, &o.address, "@a");
+        let error = cbcl_core::r7::verify_state_shape(&d, &duplicate.message).unwrap_err();
+        assert!(error.to_string().contains("duplicate state keyword"));
+    }
+}
+
 /// REQ-3802 / ADR-3805: nonnegative amounts are recognized before admission;
 /// signed net balances retain their snapshot meaning.
 #[test]

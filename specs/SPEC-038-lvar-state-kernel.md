@@ -1635,7 +1635,14 @@ require/optional rules, using tagged expanded-message trees that preserve scalar
 kinds. It covers the recognized mandatory/nonnegative projection, not general
 child/depth/type validation or the strict wire grammar. Full native admission
 implying the projected checks, and faithful extraction for every native accepted
-message, remain separate proof boundaries.
+message, remain separate proof boundaries. Native R7 state-shape recognition
+rejects duplicate nonrouting data keywords on state-bearing verbs: first-match
+shape lookup and last-value state extraction must not admit different values.
+The strict-parser/public-admission regression reproduces a positive first
+amount hiding a negative last amount, which would retract a reached sum after
+acceptance. Low-level folding retains its total behavior outside the admitted
+domain. This guard repairs the executable admission mismatch; the general
+unambiguous-keyword extraction theorem remains an explicit obligation.
 
 `StateAuthoredSumTrace.successive_trace` supplies a concrete successive
 full-program sum trace. Static preparation and both complete compiled programs

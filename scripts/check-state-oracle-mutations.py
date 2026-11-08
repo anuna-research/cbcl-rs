@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""SPEC-038: prove the live Lean oracle detects real Rust regressions, in copies."""
+"""SPEC-038: test live Lean comparisons and native admission guards, in copies."""
 from pathlib import Path
 import argparse
 import os
@@ -20,6 +20,7 @@ finite_test = "finite_kernel_matches_live_lean_oracle"
 freeze_test = "freeze_kernel_matches_live_lean_oracle"
 nested_test = "nested_kernel_matches_live_lean_oracle"
 context_test = "context::context_kernel_matches_live_lean_oracle"
+admission_test = "duplicate_amount_cannot_hide_a_negative_state_contribution"
 with tempfile.TemporaryDirectory(prefix="cbcl-live-oracle-") as directory:
     isolated = Path(directory)
     (isolated / "crates").mkdir()
@@ -37,11 +38,14 @@ with tempfile.TemporaryDirectory(prefix="cbcl-live-oracle-") as directory:
                CARGO_TARGET_DIR=str(isolated / "target"), CARGO_INCREMENTAL="0", CARGO_PROFILE_TEST_DEBUG="0")
 
     def run(test):
-        return subprocess.run(["cargo", "test", "--offline", "-p", "cbcl-parser", "--test", "state_kernel_oracle",
-                               test, "--", "--ignored", "--exact"], cwd=isolated, env=env,
+        binary = "threshold_reads" if test == admission_test else "state_kernel_oracle"
+        flags = ["--exact"] if test == admission_test else ["--ignored", "--exact"]
+        return subprocess.run(["cargo", "test", "--offline", "-p", "cbcl-parser", "--test", binary,
+                               test, "--", *flags], cwd=isolated, env=env,
                               text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=300)
 
     mutants = [
+        ("duplicate-state-keyword-accepted", "r7.rs", "&& !seen_fields.insert(k)", "&& (!seen_fields.insert(k) && false)", admission_test),
         ("context-sealed-cast-traversal-stops-at-wrapper", "context.rs", "crate::message::Message::Wrapped { content, .. } => message = content,", 'crate::message::Message::Wrapped { .. } => return Err("lost enclosed cast".into()),', context_test),
         ("context-pin-grammar-bypassed", "role.rs", "if hex.len() != PIN_HEX_LEN || !hex.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f')) {", "if false {", context_test),
         ("context-quoted-account-accepted", "role.rs", "let SExpr::Atom(Atom::Symbol(k)) = key else {", "let SExpr::Atom(Atom::Symbol(k) | Atom::Str(k)) = key else {", context_test),
@@ -76,8 +80,9 @@ with tempfile.TemporaryDirectory(prefix="cbcl-live-oracle-") as directory:
         baseline = run(test)
         if baseline.returncode or f"test {test} ... ok" not in baseline.stdout:
             print(baseline.stdout)
-            raise SystemExit(f"FAIL: live-oracle baseline {test}")
-        print(f"PASS: live-oracle baseline {test}", flush=True)
+            raise SystemExit(f"FAIL: regression baseline {test}")
+        kind = "native-admission" if test == admission_test else "live-oracle"
+        print(f"PASS: {kind} baseline {test}", flush=True)
     for name, filename, before, after, test in mutants:
         path = isolated / "crates/cbcl-core/src" / filename
         source = path.read_text()
@@ -88,7 +93,9 @@ with tempfile.TemporaryDirectory(prefix="cbcl-live-oracle-") as directory:
             result = run(test)
         finally:
             path.write_text(source)
-        if result.returncode == 0 or f"test {test} ... FAILED" not in result.stdout or "assertion" not in result.stdout:
+        assertion = "assertion" in result.stdout or (test == admission_test and "ambiguous amount admitted:" in result.stdout)
+        if result.returncode == 0 or f"test {test} ... FAILED" not in result.stdout or not assertion:
             print(result.stdout)
-            raise SystemExit(f"FAIL: {name} not rejected by executed oracle comparison")
-        print(f"PASS: {name} rejected by live Lean comparison", flush=True)
+            raise SystemExit(f"FAIL: {name} not rejected by executed regression assertion")
+        evidence = "native admission regression" if test == admission_test else "live Lean comparison"
+        print(f"PASS: {name} rejected by {evidence}", flush=True)

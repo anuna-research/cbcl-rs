@@ -378,7 +378,9 @@ integers (`i64` in a field, exact and unbounded as a total).
 ### R.4 Receipt (R7 state shape, part of the shape stage of admission)
 
 For an act of any verb the state clause names: no keyword field beyond the
-shape's declared fields plus `:caused-by :thread :from :to`; strings ≤
+shape's declared fields plus `:caused-by :thread :from :to`; each nonrouting
+data keyword occurs at most once, so shape validation and state extraction
+refer to the same field value; strings ≤
 `max-string` bytes, lists ≤ `max-list` scalar elements, numbers ≤
 `max-number` in magnitude, for every field a rule or domain names;
 `:replaces`, when present, a list of ≤ `max-list` distinct `sha256-<64hex>`

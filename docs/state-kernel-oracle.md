@@ -198,3 +198,9 @@ bypass pin grammar or identity validation, stop cast search at transparent wrapp
 mislabel fixed metadata, drop mixed-thread or opener-fork
 witnesses, alter the accepted count and hide the frontier. It leaves the
 worktree untouched.
+
+The same runner includes the native admission regression
+`duplicate_amount_cannot_hide_a_negative_state_contribution`. Its guard mutant
+lets duplicate data keywords through R7, reproducing disagreement between
+first-match shape validation and last-value state extraction. This check is a
+native admission regression, separately labeled from the live Lean comparisons.

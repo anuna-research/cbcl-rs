@@ -856,12 +856,18 @@ pub fn verify_state_shape(d: &Dialect, msg: &Message) -> Result<(), ShapeViolati
     let declared = declared_keywords(&d.shapes, &verb);
     let fields = keyword_fields(simple);
 
-    // Closed field set.
+    // Closed field set. Shape lookup reads the first keyword while state
+    // extraction keeps the last: reject ambiguous data fields before either
+    // interpretation can admit a different value (SPEC-038 REQ-3802).
     if let Message::Simple { params, .. } = simple {
+        let mut seen_fields = BTreeSet::new();
         let mut i = 0;
         while i < params.len() {
             match &params[i] {
                 SExpr::Atom(Atom::Keyword(k)) => {
+                    if !ROUTING_KEYWORDS.contains(&k.as_str()) && !seen_fields.insert(k) {
+                        return Err(violation("closed", Some(k), "duplicate state keyword".into()));
+                    }
                     if !declared.contains(k) && !ROUTING_KEYWORDS.contains(&k.as_str()) {
                         return Err(violation(
                             "closed",
