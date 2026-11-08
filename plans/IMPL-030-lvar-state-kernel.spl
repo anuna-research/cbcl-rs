@@ -122,7 +122,7 @@
 (given (task docs-status))
 (given (task-description docs-status "Update docs/concepts/bounded-counter.md and hlc-registers.md with the term reading of each head and the snapshot/threshold/frozen vocabulary; set SPEC-038 status to implemented; zetl check clean."))
 (given (task-acceptance docs-status "zetl check --dead-links --fail-on error clean; SPEC-038 status implemented with verified-by annotations reconciled to what landed; docs and rustdoc use the SPEC-038 Vocabulary (lift, display, LVar, put, threshold, frozen, snapshot, stable) with fold retained only as the API name."))
-(normally r-ready-docs-status (and (task docs-status) (completed snapshot-marking) (completed user-lattices) (completed lean-quasi-determinism) (completed semantic-alignment) (completed context-map) (completed root-cast-identity-contract) (completed lean-ci-green) (completed product-read-composition)) (ready docs-status))
+(normally r-ready-docs-status (and (task docs-status) (completed snapshot-marking) (completed user-lattices) (completed lean-quasi-determinism) (completed semantic-alignment) (completed context-map) (completed root-cast-identity-contract) (completed lean-ci-green) (completed product-read-composition) (completed finite-evidence-support)) (ready docs-status))
 (meta r-ready-docs-status (source "SPEC-038-lvar-state-kernel#REQ-3807"))
 
 (given (task context-map))
@@ -1655,3 +1655,14 @@
 (given (task-acceptance product-read-composition "REQ-3809/TEST-3800/TEST-3801: approved closed operations and any required authored grammar work end to end with positive/rejection/growth/fault/freeze/duplicate-delivery checks, native/Lean comparison and semantic mutants; docs match the selected scope."))
 (normally r-ready-product-read-composition (and (task product-read-composition) (completed product-read-contract)) (ready product-read-composition))
 (meta r-ready-product-read-composition (source "SPEC-038-lvar-state-kernel#REQ-3809"))
+
+;; REQ-3806 scope audit: model finite witnesses, rather than literal extraction.
+;; BUG-015 has a kernel-checked generic ErrorSpec counterexample; actual concrete
+;; factories reviewed so far retain accepted identities. The normative capstone
+;; needs this support law before it can certify finite reported evidence.
+(given (task finite-evidence-support))
+(given (task-description finite-evidence-support "Close BUG-015: require accepted-act support at the certified error boundary, prove all concrete factories and closed error paths preserve it, and construct exact finite evidence for the model capstone. Preserve native observations."))
+(given (task-acceptance finite-evidence-support "REQ-3806/TEST-3806: the all-addresses-on-empty-history guard is rejected; all concrete guards and composed paths prove accepted support; returned evidence has an exact finite enumeration; build/lint/axiom audit, semantic mutants and independent review pass. Do not conflate support with witness-only replay sufficiency."))
+(given (no-deps finite-evidence-support))
+(normally r-ready-finite-evidence-support (and (task finite-evidence-support) (no-deps finite-evidence-support)) (ready finite-evidence-support))
+(meta r-ready-finite-evidence-support (source "SPEC-038-lvar-state-kernel#REQ-3806"))
