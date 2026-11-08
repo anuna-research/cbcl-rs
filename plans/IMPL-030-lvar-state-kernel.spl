@@ -122,7 +122,7 @@
 (given (task docs-status))
 (given (task-description docs-status "Update docs/concepts/bounded-counter.md and hlc-registers.md with the term reading of each head and the snapshot/threshold/frozen vocabulary; set SPEC-038 status to implemented; zetl check clean."))
 (given (task-acceptance docs-status "zetl check --dead-links --fail-on error clean; SPEC-038 status implemented with verified-by annotations reconciled to what landed; docs and rustdoc use the SPEC-038 Vocabulary (lift, display, LVar, put, threshold, frozen, snapshot, stable) with fold retained only as the API name."))
-(normally r-ready-docs-status (and (task docs-status) (completed snapshot-marking) (completed user-lattices) (completed lean-quasi-determinism) (completed semantic-alignment) (completed context-map) (completed root-cast-identity-contract) (completed lean-ci-green)) (ready docs-status))
+(normally r-ready-docs-status (and (task docs-status) (completed snapshot-marking) (completed user-lattices) (completed lean-quasi-determinism) (completed semantic-alignment) (completed context-map) (completed root-cast-identity-contract) (completed lean-ci-green) (completed product-read-composition)) (ready docs-status))
 (meta r-ready-docs-status (source "SPEC-038-lvar-state-kernel#REQ-3807"))
 
 (given (task context-map))
@@ -1642,3 +1642,16 @@
 ;; in10.68s; five range proof mutants and nine native range/prefix/pool/radix
 ;; mutants reject. Full allowlisted audit passes2108 theorems; verified-by/diff
 ;; checks pass. Latest-revision CI and root contract remain unfulfilled gates.
+
+;; REQ-3809 audit: BUG-012 records the missing post operations/authored contract.
+(given (task product-read-contract))
+(given (task-description product-read-contract "Dialect API maintainer resolves BUG-012: decide authored versus internal-only conjunction/comparison scope, record recognized grammar/result shape and monotonic comparison restrictions in the applicable contracts. Proposed authored conjunction is reviewable in BUG-012."))
+(given (task-acceptance product-read-contract "REQ-3809/CON-3800/CON-3801: explicit scope decision and complete amended contract, including comparison restrictions and observation shape; no inferred approval or silent deferral."))
+(given (no-deps product-read-contract))
+(normally r-ready-product-read-contract (and (task product-read-contract) (no-deps product-read-contract)) (ready product-read-contract))
+(meta r-ready-product-read-contract (source "SPEC-038-lvar-state-kernel#REQ-3809"))
+(given (task product-read-composition))
+(given (task-description product-read-composition "Implement the approved closed conjunction/comparison contract through its required native and Lean paths; preserve existing syntax and addresses and reuse source-relative stable-read policies and dependency faults."))
+(given (task-acceptance product-read-composition "REQ-3809/TEST-3800/TEST-3801: approved closed operations and any required authored grammar work end to end with positive/rejection/growth/fault/freeze/duplicate-delivery checks, native/Lean comparison and semantic mutants; docs match the selected scope."))
+(normally r-ready-product-read-composition (and (task product-read-composition) (completed product-read-contract)) (ready product-read-composition))
+(meta r-ready-product-read-composition (source "SPEC-038-lvar-state-kernel#REQ-3809"))
