@@ -133,6 +133,54 @@ suites.extend([
         ("budget-worklist-skipped", "runFuel e e.known.length (initialWorklist e) StateResourceMachine.initial initialGhost", "runFuel e 0 (initialWorklist e) StateResourceMachine.initial initialGhost", "native_worklist_verified"),
     ]),
 ])
+aggregate_tests = (root / "lean-cbcl/LeanCbcl/StateResourceAggregateTests.lean").read_text()
+aggregate_tests = "\n".join(line for line in aggregate_tests.splitlines() if not line.startswith("import "))
+finalize_source = "import LeanCbcl.StateResourceTests\n" + (root / "lean-cbcl/LeanCbcl/StateResourceFinalize.lean").read_text() + "\n" + aggregate_tests
+suites.extend([
+    ("StateResourceAggregate", (root / "lean-cbcl/LeanCbcl/StateResourceAggregate.lean").read_text(), [
+        ("aggregate-transfer-credit-discarded", "addAccount owners debited recipient amount", "addAccount owners debited recipient 0", "transferAccounts_success"),
+    ]),
+    ("StateResourceFinalize", finalize_source, [
+        ("aggregate-capacity-always-rejected", "if checkedAdd value totalSpace == some cap then", "if false then", "finishBalances_bounded"),
+        ("aggregate-floor-discarded", "let value ← checkedAdd totalRights c.floor", "let value := totalRights", "finishBalances_unbounded"),
+        ("aggregate-negative-guard-discarded", "if owners.any (fun owner => decide (rights owner < 0)) ||\n      headroom.any (fun space => owners.any (fun owner => decide (space owner < 0))) then none else do", "if false then none else do", "negative_final_budget_rejected"),
+    ]),
+])
+installed_tests = (root / "lean-cbcl/LeanCbcl/StateInstalledCompilerTests.lean").read_text()
+installed_tests = "\n".join(line for line in installed_tests.splitlines() if not line.startswith("import "))
+suites.extend([
+    ("StateResourcePreflight", (root / "lean-cbcl/LeanCbcl/StateResourcePreflight.lean").read_text(), [
+        ("accepted-foreign-parent-ignored", "operationVerbCheck c parent.data.selected.verb", "true", "foreignCheck_iff"),
+    ]),
+    ("StateResourceVerifier", (root / "lean-cbcl/LeanCbcl/StateResourceVerifier.lean").read_text(), [
+        ("native-preflight-fault-hidden", "| .fault _ => .fault", "| .fault _ => .pending", "native_verifier_certificate_iff"),
+    ]),
+    ("StateInstalledCompiler", (root / "lean-cbcl/LeanCbcl/StateInstalledCompiler.lean").read_text(), [
+        ("installed-post-discarded", "return .map post (← earlier.lookup name)", "return .map id (← earlier.lookup name)", "compile_rule_refinement"),
+    ]),
+    ("StateInstalledClause", (root / "lean-cbcl/LeanCbcl/StateInstalledClause.lean").read_text() + "\n" + installed_tests, [
+        ("installed-freeze-discarded", "return match field.freeze with | none => source | some spec => .freeze spec source", "return source", "compile_field_refinement"),
+        ("late-freeze-declaration-ignored", "fields.map (fun (name,rule) => (name,⟨rule,freezes.lookup name⟩))", "fields.map (fun (name,rule) => (name,⟨rule,none⟩))", "late_freeze_attaches_before_dependencies"),
+    ]),
+])
+lowering_tests = (root / "lean-cbcl/LeanCbcl/StateInstalledLoweringTests.lean").read_text()
+lowering_tests = "\n".join(line for line in lowering_tests.splitlines() if not line.startswith("import "))
+suites.extend([
+    ("StateObservationPlan", (root / "lean-cbcl/LeanCbcl/StateObservationPlan.lean").read_text(), [
+        ("reached-embedding-becomes-snapshot", "| .reached v => .reached (f v)", "| .reached v => .snapshot (f v)", "embed_preserves_reached"),
+        ("context-embedding-becomes-snapshot", "| .value v => .context (embed v)", "| .value v => .snapshot (embed v)", "contextAs_value"),
+    ]),
+    ("StateInstalledLattice", (root / "lean-cbcl/LeanCbcl/StateInstalledLattice.lean").read_text(), [
+        ("query-empty-alternatives-allowed", "!queries.isEmpty && decide queries.Nodup", "true && decide queries.Nodup", "alternativesCheck_iff"),
+        ("query-duplicate-alternatives-allowed", "decide queries.Nodup", "true", "alternativesCheck_iff"),
+        ("query-conflict-top-allowed", "queries.all (fun q => decide (q ≠ ⊤))", "true", "alternativesCheck_iff"),
+        ("query-detached-from-source-carrier", "field.algebra,field.contribution,query.alternatives", "field.algebra,(fun _ => @BoundedJoinSemilattice.top field.Carrier field.algebra),query.alternatives", "query_source_coherence"),
+    ]),
+    ("StateInstalledLowering", (root / "lean-cbcl/LeanCbcl/StateInstalledLowering.lean").read_text() + "\n" + lowering_tests, [
+        ("query-source-recognition-bypassed", "if policy.check elements then some (.threshold elements policy.test source)", "if true then some (.threshold elements policy.test source)", "lower_rule_refinement"),
+        ("supersede-threshold-source-allowed", "match freezes.lookup source with | none => true | some spec => spec.policy", "true", "supersede_threshold_source_rejected"),
+    ]),
+])
 for module, source, mutants in suites:
     with tempfile.TemporaryDirectory(prefix="cbcl-state-lvar-") as directory:
         path = Path(directory) / f"{module}.lean"

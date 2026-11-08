@@ -1,3 +1,18 @@
+import LeanCbcl.StateInstalledLattice
+import LeanCbcl.StateInstalledLowering
+import LeanCbcl.StateInstalledLoweringTests
+import LeanCbcl.StateResourceVerifierTests
+import LeanCbcl.StateInstalledCompiler
+import LeanCbcl.StateInstalledClause
+import LeanCbcl.StateInstalledCompilerTests
+import LeanCbcl.StateResourcePreflight
+import LeanCbcl.StateResourceVerifier
+import LeanCbcl.StateResourceAggregate
+import LeanCbcl.StateResourceAccounting
+import LeanCbcl.StateResourceSolvency
+import LeanCbcl.StateResourceFinalize
+import LeanCbcl.StateResourceValidated
+import LeanCbcl.StateResourceAggregateTests
 import LeanCbcl.StateResourceRecordBounds
 import LeanCbcl.StateResourceGraph
 import LeanCbcl.StateResourceCoupling
@@ -1253,3 +1268,311 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateResourceRecordBounds.machine_record_complete
 
 #print axioms CBCL.StateResourceCounters.release_missing_invariant
+
+#print axioms CBCL.StateResourceAggregate.configurationCheck_iff
+
+#print axioms CBCL.StateResourceAggregate.allocation_natural64
+
+#print axioms CBCL.StateResourceAggregate.delta_bound
+
+#print axioms CBCL.StateResourceAggregate.account_balance_append
+
+#print axioms CBCL.StateResourceAggregate.account_balance_i128
+
+#print axioms CBCL.StateResourceAggregate.addAccount_success
+
+#print axioms CBCL.StateResourceAggregate.transferAccounts_success
+
+#print axioms CBCL.StateResourceAggregate.unary_effect
+
+#print axioms CBCL.StateResourceAggregate.transfer_effect
+
+#print axioms CBCL.StateResourceAggregate.active_transfer_complete
+
+#print axioms CBCL.StateResourceAggregate.applySide_complete
+
+#print axioms CBCL.StateResourceAggregate.applySideAll_prefix
+
+#print axioms CBCL.StateResourceAggregate.native_account_fold_refinement
+
+#print axioms CBCL.StateResourceAggregate.native_rights_fold
+
+#print axioms CBCL.StateResourceAggregate.native_headroom_fold
+
+#print axioms CBCL.StateResourceAggregate.total_delta
+
+#print axioms CBCL.StateResourceAggregate.sum_swap
+
+#print axioms CBCL.StateResourceAggregate.total_account_balance
+
+#print axioms CBCL.StateResourceAggregate.global_total_refinement
+
+#print axioms CBCL.StateResourceAggregate.net_delta_duality
+
+#print axioms CBCL.StateResourceAggregate.allocation_row
+
+#print axioms CBCL.StateResourceAggregate.initial_roster_total
+
+#print axioms CBCL.StateResourceAggregate.aggregate_conservation
+
+#print axioms CBCL.StateResourceAggregate.partial_delta_bound
+
+#print axioms CBCL.StateResourceAggregate.partial_total_i128
+
+#print axioms CBCL.StateResourceAggregate.checkedRosterFold_prefix
+
+#print axioms CBCL.StateResourceAggregate.native_total_refinement
+
+#print axioms CBCL.StateResourceAggregate.headroom_transfer_requires_active
+
+#print axioms CBCL.StateResourceAccounting.delta_components
+
+#print axioms CBCL.StateResourceAccounting.sum_map_sub
+
+#print axioms CBCL.StateResourceAccounting.balance_components
+
+#print axioms CBCL.StateResourceAccounting.checkedFold_value
+
+#print axioms CBCL.StateResourceAccounting.ownTotal_value
+
+#print axioms CBCL.StateResourceAccounting.localBudget_value
+
+#print axioms CBCL.StateResourceAccounting.delta_other_nonnegative
+
+#print axioms CBCL.StateResourceAccounting.sum_map_partition
+
+#print axioms CBCL.StateResourceAccounting.account_balance_mono
+
+#print axioms CBCL.StateResourceSolvency.cached_prefix
+
+#print axioms CBCL.StateResourceSolvency.past_in_processed
+
+#print axioms CBCL.StateResourceSolvency.processed_own_in_past
+
+#print axioms CBCL.StateResourceSolvency.local_budget_le_processed
+
+#print axioms CBCL.StateResourceSolvency.decision_spending
+
+#print axioms CBCL.StateResourceSolvency.done_spending_covered
+
+#print axioms CBCL.StateResourceSolvency.sender_spending_delta
+
+#print axioms CBCL.StateResourceSolvency.sender_other_delta_nonnegative
+
+#print axioms CBCL.StateResourceSolvency.processed_after_permutation
+
+#print axioms CBCL.StateResourceSolvency.processed_balance_after
+
+#print axioms CBCL.StateResourceSolvency.done_economic
+
+#print axioms CBCL.StateResourceSolvency.initial_side_natural
+
+#print axioms CBCL.StateResourceSolvency.initial_economic
+
+#print axioms CBCL.StateResourceSolvency.runFuel_economic
+
+#print axioms CBCL.StateResourceSolvency.native_worklist_solvency
+
+#print axioms CBCL.StateResourceSolvency.completed_balances_nonnegative
+
+#print axioms CBCL.StateResourceSolvency.all_processed_of_size
+
+#print axioms CBCL.StateResourceSolvency.completed_size_balances_nonnegative
+
+#print axioms CBCL.StateResourceFinalize.no_negative_check
+
+#print axioms CBCL.StateResourceFinalize.signed64_i128
+
+#print axioms CBCL.StateResourceFinalize.finishBalances_unbounded
+
+#print axioms CBCL.StateResourceFinalize.finishBalances_bounded
+
+#print axioms CBCL.StateResourceFinalize.native_aggregate_finishes
+
+#print axioms CBCL.StateResourceValidated.native_validated_certificate_iff
+
+#print axioms CBCL.StateResourceValidated.ready_aggregate_value
+
+#print axioms CBCL.StateResourceAggregateTests.unbounded_mint_value
+
+#print axioms CBCL.StateResourceAggregateTests.funded_address_order
+
+#print axioms CBCL.StateResourceAggregateTests.negative_final_budget_rejected
+
+#print axioms CBCL.StateResourceAggregateTests.bounded_burn_conservation
+
+#print axioms CBCL.StateResourceAggregateTests.broken_conservation_rejected
+
+#print axioms CBCL.StateResourcePreflight.operation_names
+
+#print axioms CBCL.StateResourcePreflight.foreignCheck_iff
+
+#print axioms CBCL.StateResourcePreflight.foreign_rejection_cause
+
+#print axioms CBCL.StateResourcePreflight.foreign_implies_previous_check
+
+#print axioms CBCL.StateResourcePreflight.unsupportedCheck_iff
+
+#print axioms CBCL.StateResourcePreflight.known_inside
+
+#print axioms CBCL.StateResourcePreflight.known_operation
+
+#print axioms CBCL.StateResourcePreflight.operation_known
+
+#print axioms CBCL.StateResourcePreflight.known_unique
+
+#print axioms CBCL.StateResourcePreflight.opener_excluded
+
+#print axioms CBCL.StateResourcePreflight.root_unique
+
+#print axioms CBCL.StateResourcePreflight.prepared_cause_is_budget
+
+#print axioms CBCL.StateResourcePreflight.prepared_native_certificate_iff
+
+#print axioms CBCL.StateResourcePreflight.initial_member
+
+#print axioms CBCL.StateResourcePreflight.check_false
+
+#print axioms CBCL.StateResourcePreflight.rejected_item
+
+#print axioms CBCL.StateResourcePreflight.no_opener_no_cause
+
+#print axioms CBCL.StateResourcePreflight.missing_root_no_cause
+
+#print axioms CBCL.StateResourceVerifier.native_verifier_certificate_iff
+
+#print axioms CBCL.StateResourceVerifier.cause_mono
+
+#print axioms CBCL.StateResourceVerifier.fault_iff_complete_cause
+
+#print axioms CBCL.StateResourceVerifier.supported_iff
+
+#print axioms CBCL.StateResourceVerifier.evidence_projection
+
+#print axioms CBCL.StateResourceVerifier.native_certificate_read_refinement
+
+#print axioms CBCL.StateResourceVerifier.native_fault_persists
+
+#print axioms CBCL.StateResourceVerifierTests.absent_opener_pending
+
+#print axioms CBCL.StateResourceVerifierTests.absent_root_pending
+
+#print axioms CBCL.StateResourceVerifierTests.empty_resource_ready
+
+#print axioms CBCL.StateResourceVerifierTests.unfunded_burn_fault
+
+#print axioms CBCL.StateResourceVerifierTests.closed_funding_ready
+
+#print axioms CBCL.StateInstalledCompiler.source_refinement
+
+#print axioms CBCL.StateInstalledCompiler.pair_refinement
+
+#print axioms CBCL.StateInstalledCompiler.nativeFreeze_congr
+
+#print axioms CBCL.StateInstalledCompiler.compile_rule_refinement
+
+#print axioms CBCL.StateInstalledCompiler.related_cons
+
+#print axioms CBCL.StateInstalledCompiler.compile_fields_refinement
+
+#print axioms CBCL.StateInstalledCompiler.installed_clause_refinement
+
+#print axioms CBCL.StateInstalledCompiler.installed_rule_plan_refinement
+
+#print axioms CBCL.StateInstalledCompiler.lookup_present
+
+#print axioms CBCL.StateInstalledCompiler.compile_rule_complete
+
+#print axioms CBCL.StateInstalledCompiler.compile_fields_complete
+
+#print axioms CBCL.StateInstalledCompiler.installed_clause_complete
+
+#print axioms CBCL.StateInstalledCompiler.installed_observations_setEq
+
+#print axioms CBCL.StateInstalledClause.compile_field_refinement
+
+#print axioms CBCL.StateInstalledClause.compile_fields_refinement
+
+#print axioms CBCL.StateInstalledClause.installed_clause_refinement
+
+#print axioms CBCL.StateInstalledClause.attached_freeze_compilation
+
+#print axioms CBCL.StateInstalledClause.native_resource_source_refinement
+
+#print axioms CBCL.StateInstalledCompilerTests.late_freeze_attaches_before_dependencies
+
+#print axioms CBCL.StateInstalledCompilerTests.forward_reference_rejected
+
+#print axioms CBCL.StateInstalledCompilerTests.duplicate_fields_rejected
+
+#print axioms CBCL.StateInstalledCompilerTests.absent_freeze_target_rejected
+
+#print axioms CBCL.StateInstalledCompilerTests.simultaneous_pair_faults
+
+#print axioms CBCL.StateInstalledCompilerTests.compiled_derived_reads_frozen_payload
+
+#print axioms CBCL.StateInstalledLattice.foldSet_history
+
+#print axioms CBCL.StateInstalledLattice.source_data
+
+#print axioms CBCL.StateInstalledLattice.pairCheck_iff
+
+#print axioms CBCL.StateInstalledLattice.alternativesCheck_iff
+
+#print axioms CBCL.StateInstalledLattice.query_source_coherence
+
+#print axioms CBCL.StateInstalledLattice.query_refinement
+
+#print axioms CBCL.StateInstalledLattice.query_quasi_determinism
+
+#print axioms CBCL.StateInstalledLowering.lower_definition_refinement
+
+#print axioms CBCL.StateInstalledLowering.lower_rule_refinement
+
+#print axioms CBCL.StateInstalledLowering.interpret_attached_head
+
+#print axioms CBCL.StateInstalledLowering.resolve_native_refinement
+
+#print axioms CBCL.StateInstalledLowering.native_installed_compiler_refinement
+
+#print axioms CBCL.StateInstalledLowering.recognized_complete
+
+#print axioms CBCL.StateInstalledLowering.lowered_references
+
+#print axioms CBCL.StateInstalledLowering.resolve_complete
+
+#print axioms CBCL.StateInstalledLowering.native_installed_compiler_complete
+
+#print axioms CBCL.StateInstalledLowering.native_installed_observations_refinement
+
+#print axioms CBCL.StateInstalledLowering.native_installed_observations_setEq
+
+#print axioms CBCL.StateInstalledLowering.native_installed_strong_eventual_consistency
+
+#print axioms CBCL.StateInstalledLowering.aligned_reader
+
+#print axioms CBCL.StateInstalledLowering.native_installed_eventual_fault
+
+#print axioms CBCL.StateInstalledLoweringTests.empty_query_rejected
+
+#print axioms CBCL.StateInstalledLoweringTests.duplicate_query_rejected
+
+#print axioms CBCL.StateInstalledLoweringTests.conflict_top_query_rejected
+
+#print axioms CBCL.StateInstalledLoweringTests.compatible_alternatives_rejected
+
+#print axioms CBCL.StateInstalledLoweringTests.native_lattice_read_reached
+
+#print axioms CBCL.StateInstalledLoweringTests.supersede_threshold_source_rejected
+
+#print axioms CBCL.StateInstalledLoweringTests.fault_threshold_source_accepted_metadata
+
+#print axioms CBCL.StateObservationPlan.contextAs_value
+
+#print axioms CBCL.StateObservationPlan.guardThreshold_top_fault
+
+#print axioms CBCL.StateObservationPlan.embed_preserves_reached
+
+#print axioms CBCL.StateInstalledCompiler.lift_threshold_refinement
+
+#print axioms CBCL.StateInstalledClause.attached_fields_complete

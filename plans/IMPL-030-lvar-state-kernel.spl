@@ -216,3 +216,17 @@
 ;; full phase classification and installed-rule/plan compiler refinement.
 ;; Native floor and ceiling are i64; the Lean ResourceConfig Int fields require
 ;; the installed range predicate before proving aggregate overflow unreachable.
+
+;; Top-level typed verifier continuation: checked aggregate application,
+;; conservation, signed-width bounds and final solvency now compose with the
+;; exact-cone authorization worklist. StateResourceVerifier proves complete
+;; native typed fault iff certificate and exact contextual evidence refinement.
+;; Ordered installed semantic-IR compiler/refinement/completeness now composes
+;; with replica SEC and fault dissemination. Global freezes attach before
+;; dependencies resolve; lattice queries share source contribution metadata;
+;; query installation excludes empty/duplicate/top/compatible alternatives and
+;; supersede-frozen sources. Representation embedding preserves reached tags.
+;; Remaining TEST-3806 acceptance: instantiate every concrete installed Rust
+;; rule and its validated native closure/finite/context/domain metadata, and
+;; retain the explicit wire/rank/renderer correspondence boundaries. The
+;; parametric installed-IR result does not discharge those literal bindings.

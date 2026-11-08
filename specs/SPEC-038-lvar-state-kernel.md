@@ -985,22 +985,48 @@ proves reached-or-fault stability under accepted-set growth. These adapter and
 source-instance refinements do not constitute the complete installed-clause
 compilation theorem, and arbitrary source-linked queries are not assumed stable.
 
-These are model-level proofs, not a completed native refinement. The concrete
-certificate checker is not yet proved equivalent to `escrow::observe_facts`:
-final aggregate application/conservation and complete phase classification
-remain to be connected to the proved budget worklist. Global overflow bounds
-must include the installed Rust floor/ceiling i64 ranges; the typed certificate
-configuration's unrestricted integers do not imply those ranges.
-The finite native-map representation also needs its Rust correspondence bridge. The typed observation plan is not yet a proved compilation of every
-installed Rust rule: threshold contribution/source coherence and complete
-context/domain source refinements remain. Those bridges are acceptance work,
-not assumptions discharged by the generic convergence theorem.
+`StateResourceAggregate.lean`, `StateResourceAccounting.lean` and
+`StateResourceSolvency.lean` connect checked native aggregate folds to the
+worklist's actual successful authorizations. Signed intermediates are retained;
+final account nonnegativity and bounded conservation are derived. Installed i64
+floor/ceiling checks and physical representation bounds discharge every final
+aggregate overflow branch. `StateResourceFinalize.lean` and
+`StateResourceValidated.lean` compose that result with the budget worklist.
+`StateResourcePreflight.lean` and `StateResourceVerifier.lean` then prove
+`native_verifier_certificate_iff` for the complete typed classifier and
+`native_certificate_read_refinement` for its exact contextual evidence set.
+Unsupported profiles retain constant empty evidence. Native fault persistence
+is a consequence of that equivalence, rather than a supplied classifier law.
 
-[[SPEC-038-lvar-state-kernel#TEST-3806]] remains partial. The legacy resource
-closure port supplies extensionality rather than a proof of the Rust verifier's
-witness classification and persistence. Composition of all context, freeze and
-threshold paths, and wire/rank/renderer correspondence, remain explicit proof
-boundaries. Context pin tests cover the typed message boundary; the existing
+`StateInstalledCompiler.lean` proves ordered installed-IR name resolution and
+interpretation equivalent to typed plans, including rejection and completeness.
+Its independent readers retain history-indexed dependencies.
+`StateInstalledClause.lean` attaches global freeze metadata before compiling
+dependencies and connects resource leaves to the verified native classifier.
+`StateInstalledLattice.lean` generates display and raw-query carriers from the
+same source metadata, checks nonempty distinct non-top incompatible alternatives,
+and retains element rendering/decoding consistency.
+`StateInstalledLowering.lean` resolves each threshold's strategy from its named
+source, invokes native closure query checks, rejects supersede-frozen threshold
+sources, and proves whole installed semantic-IR refinement, completeness,
+finite-history strong eventual consistency and attributable fault dissemination.
+Representation embedding preserves reached/context tags; derived maps consume
+frozen payloads and produce snapshot values. Regression and mutation checks
+cover these distinctions and late freeze attachment.
+
+These theorems operate at explicit typed boundaries. They do not prove Rust
+source-code extraction, canonical rendering order, diagnostics, or wire parsing.
+The installed semantic IR still receives native closure implementations and
+recognized immutable metadata as leaf parameters. Instantiating every concrete
+installed Rust rule, its finite-table projection checks, and the full context /
+domain metadata vocabulary remains acceptance work; generic IR correctness is
+not evidence that those literal source bindings are already complete. The
+legacy resource closure port also remains separate from the new concrete
+native-certificate bridge.
+
+[[SPEC-038-lvar-state-kernel#TEST-3806]] remains partial at those literal
+installation and wire/rank/renderer boundaries. Context pin tests cover the
+typed message boundary; the existing
 [[BUG-006-envelope-wire-form-unparseable-by-the-real-parser]] remains open.
 The specification stays `draft` until those acceptance obligations are resolved.
 

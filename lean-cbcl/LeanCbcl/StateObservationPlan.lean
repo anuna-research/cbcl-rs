@@ -20,8 +20,11 @@ def Data.payload {V : Type} : Data V → Option V
 inductive Plan : Type → Type 1 where
   | snapshot {V : Type} (display : FinSet Act → V) : Plan V
   | context (decode : Act → Option Val) : Plan Val
+  | contextAs {V : Type} (decode : Act → Option Val) (embed : Val → V) : Plan V
+  | guardThreshold {V : Type} (spec : ThresholdSpec) (source : Plan V) : Plan V
   | domain {V : Type} (verb key opener field : String)
       (display : FinSet Act → V) : Plan V
+  | embed {V W : Type} (function : V → W) (source : Plan V) : Plan W
   | map {V W : Type} (function : V → W) (source : Plan V) : Plan W
   | pair {V W : Type} (left : Plan V) (right : Plan W) : Plan (V × W)
   | guardDomain {V : Type} (opener field : String) (source : Plan V) : Plan V
@@ -34,7 +37,10 @@ inductive Plan : Type → Type 1 where
 def path : {V : Type} → Plan V → Path
   | _, .snapshot _ => .clear
   | _, .context decode => .context decode
+  | _, .contextAs decode _ => .context decode
+  | _, .guardThreshold spec source => .join (.threshold spec) (path source)
   | _, .domain _ _ opener field _ => .domain opener field
+  | _, .embed _ source => path source
   | _, .map _ source => path source
   | _, .pair left right => .join (path left) (path right)
   | _, .guardDomain opener field source => .join (.domain opener field) (path source)
@@ -47,6 +53,15 @@ def mapData {V W : Type} (f : V → W) (source : Data V) : Data W :=
   match source.payload with
   | none => .pending
   | some v => .snapshot (f v)
+
+/-- Literal representation embedding preserves the public observation tag;
+derived functions deliberately use mapData instead. -/
+def embedData {V W : Type} (f : V → W) : Data V → Data W
+  | .pending => .pending
+  | .snapshot v => .snapshot (f v)
+  | .context v => .context (f v)
+  | .reached v => .reached (f v)
+  | .frozen freezer v excluded => .frozen freezer (f v) excluded
 
 def pairData {V W : Type} (left : Data V) (right : Data W) : Data (V × W) :=
   match left.payload, right.payload with
@@ -66,8 +81,13 @@ noncomputable def data (world : Act → Prop) : {V : Type} → Plan V → List A
   | _, .context decode, A => match StateContext.read decode A with
       | .pending | .fault _ => .pending
       | .value v => .context v
+  | _, .contextAs decode embed, A => match StateContext.read decode A with
+      | .pending | .fault _ => .pending
+      | .value v => .context (embed v)
+  | _, .guardThreshold _ source, A => data world source A
   | _, .domain verb key opener field display, A =>
       .snapshot (display (FinSet.mk (initialDomain verb key opener field A)))
+  | _, .embed f source, A => embedData f (data world source A)
   | _, .map f source, A => mapData f (data world source A)
   | _, .pair left right, A => pairData (data world left A) (data world right A)
   | _, .guardDomain _ _ source, A => data world source A
@@ -143,12 +163,15 @@ theorem data_setEq {V : Type} (world : Act → Prop) (plan : Plan V) {A B : List
   induction plan generalizing A B with
   | snapshot display => simp only [data,rawHistory_setEq same]
   | context decode => simp only [data,StateContext.read_setEq decode same]
+  | contextAs decode embed => simp only [data,StateContext.read_setEq decode same]
+  | guardThreshold _ source ih => exact ih ua ub same
   | domain verb key opener field display =>
     apply congrArg (fun carrier => Data.snapshot (display carrier))
     apply FinSet.ext
     intro a
     simp only [FinSet.mem_mk]
     exact initialDomain_invariant same verb key opener field a
+  | embed f source ih => simp only [data,ih ua ub same]
   | map f source ih => simp only [data,ih ua ub same]
   | pair left right il ir => simp only [data,il ua ub same,ir ua ub same]
   | guardDomain _ _ source ih => exact ih ua ub same
@@ -270,5 +293,29 @@ theorem thresholdOn_dependency_fault_first {V Q : Type} (world : Act → Prop)
     (fault : errors world (path source) A = some e) :
     observe world (.thresholdOn alternatives test source) A = .fault e := by
   simp [observe,path,fault]
+
+/-- Embedding immutable context metadata preserves its public read tag. -/
+theorem contextAs_value {V : Type} (world : Act → Prop) (decode : Act → Option Val)
+    (embed : Val → V) (A : List Act) (value : Val) (read : StateContext.read decode A = .value value) :
+    observe world (.contextAs decode embed) A = .data (.context (embed value)) := by
+  simp [observe,path,errors,contextError,data,read]
+
+/-- A top carrier remains a fault even when only its projection is displayed. -/
+theorem guardThreshold_top_fault {V : Type} (world : Act → Prop) (spec : ThresholdSpec)
+    (source : Plan V) (A : List Act) (top : letI := spec.algebra; lift spec.contribution A = ⊤) :
+    ∃ evidence, observe world (.guardThreshold spec source) A = .fault evidence := by
+  cases e : errors world (path source) A with
+  | none => exact ⟨acceptedEvidence A,by simp [observe,path,errors,thresholdError,top,e,unionError]⟩
+  | some evidence => exact ⟨acceptedEvidence A ∪ evidence,by simp [observe,path,errors,thresholdError,top,e,unionError]⟩
+
+theorem embed_preserves_reached {V W : Type} (world : Act → Prop) (embed : V → W)
+    (source : Plan V) (A : List Act) (value : V)
+    (reached : observe world source A = .data (.reached value)) :
+    observe world (.embed embed source) A = .data (.reached (embed value)) := by
+  cases e : errors world (path source) A with
+  | some evidence => simp [observe,e] at reached
+  | none =>
+    have read : data world source A = .reached value := by simpa [observe,e] using reached
+    simp [observe,path,data,e,read,embedData]
 
 end CBCL.StateObservationPlan
