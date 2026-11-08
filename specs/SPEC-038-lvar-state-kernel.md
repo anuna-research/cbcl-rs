@@ -1608,7 +1608,23 @@ zero, and prove actual kernel/closure-query success. Their evidence decoder is
 an explicit typed fixture convention; it does not establish native thread/cause
 parsing or general repeat-body refinement. The result applies to contexts built
 with this history-backed constructor, not arbitrary `Context.causal` functions.
-Full authored closure/freeze observation composition remains open.
+`StateProgressLocality.lean` transfers actual single-verb causal-position
+witnesses under verb-restricted history inclusion, rather than requiring every
+accepted act inside a freeze cut. The immutable evidence decoder must preserve
+each act's source verb. `StateProgressFreeze.healthy_payload` derives the
+actual displayed full/cut scope from the observed error channel and the existing
+freeze reader, including no-root and selected-root outcomes. Healthy fault
+freezes retain every contributing-verb act. `success_or_fault` combines that
+scope with causal witness transfer and the actual source-owned compiled closure
+query, proving its observed output stays the same reached result or becomes an
+actual source fault, for arbitrary optional fault-freeze declarations and global
+dispatch metadata. It does not assume a selected root, healthy final payload or
+progress-locality equation. Fixtures compute semantic freeze health from the
+executable conflict checker, prove an exact cut that drops an unrelated act,
+and specialize factory preservation from computed earlier progress. They do not
+establish complete authored-program execution.
+Full authored progress source/freeze provenance, earlier-output inversion and
+successive complete-observation composition remain open.
 
 Full admission/extraction correspondence, authored closure progress composition
 and native installation correspondence remain separate obligations at the typed

@@ -605,6 +605,23 @@ suites.append(("StateProgressStore", (root / "lean-cbcl/LeanCbcl/StateProgressSt
      "if bound + 1 ≤ protocolProgress (store decode A) environment.context.thread verb (environment.context.limit verb) A", "compiled_query"),
 ]))
 
+suites.append(("StateProgressLocality", (root / "lean-cbcl/LeanCbcl/StateProgressLocality.lean").read_text(), [
+    ("progress-locality-looks-up-empty-store", "store decode B address = some evidence := by",
+     "store decode [] address = some evidence := by", "verb_lookup"),
+    ("progress-locality-invents-next-position", "Repeat.At (store decode B) thread verb limit address position := by",
+     "Repeat.At (store decode B) thread verb limit address (position+1) := by", "at_transfer"),
+    ("progress-locality-growth-made-strict", "protocolProgress (store decode A) thread verb limit A ≤ protocolProgress (store decode B) thread verb limit B := by",
+     "protocolProgress (store decode A) thread verb limit A < protocolProgress (store decode B) thread verb limit B := by", "progress_restricted"),
+]))
+suites.append(("StateProgressFreeze", (root / "lean-cbcl/LeanCbcl/StateProgressFreeze.lean").read_text(), [
+    ("progress-freeze-policy-revisable", '⟨freezeVerb,StateAuthoredBindings.contributes domains whole (.rawVerbs [verb]),true⟩',
+     '⟨freezeVerb,StateAuthoredBindings.contributes domains whole (.rawVerbs [verb]),false⟩', "healthy_payload"),
+    ("progress-freeze-changes-query-tag", '.data (.reached (.element (.progress bound))) := by',
+     '.data (.reached (.element (.count bound))) := by', "run_payload"),
+    ("progress-freeze-invents-later-answer", 'output = (outputName,.data (.reached (.element (.progress bound)))) ∨',
+     'output = (outputName,.data (.reached (.element (.progress (bound+1))))) ∨', "success_or_fault"),
+]))
+
 # Preserve the full default gate while allowing a focused continuation check.
 import argparse
 parser = argparse.ArgumentParser(description=__doc__)

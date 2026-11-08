@@ -1044,3 +1044,32 @@
 ;; Do not infer this law for arbitrary decoders: they can assign tick evidence to
 ;; non-tick acts outside the footprint. General repeat bodies and literal native
 ;; admission/metadata/installation/extraction remain explicit proof boundaries.
+
+;; Progress fault-freeze factory checkpoint (REQ-3802 / REQ-3809).
+;; StateProgressLocality derives contributing-verb lookup preservation, source
+;; provenance of actual Repeat.At witnesses, witness transfer and progress order
+;; under verb-restricted inclusion. Immutable decode must preserve act.verb;
+;; unrelated accepted acts need not be retained by a progress cut.
+;; StateProgressFreeze uses actual rawVerbs authored footprint and existing
+;; installed field decoration. healthy_payload derives the displayed full/cut
+;; scope from actual observed freeze clarity and freezeRead's earliest selection,
+;; covering absent declaration, absent earliest root and selected earliest root.
+;; No root/rank/locality/value callback is an external premise. run_payload handles
+;; snapshot/frozen presentations; success_or_fault compiles actual closure code
+;; and proves same reached output or actual source fault with arbitrary optional
+;; fault-freeze declaration and arbitrary global dispatch metadata.
+;; Typed fixtures compute coherent decoding, executable conflict absence, semantic
+;; freeze health, exact cut dropping an unrelated note, and specialize factory
+;; preservation from computed earlier progress. They do not establish complete
+;; authored program execution or native admission/decoding/general repeat bodies.
+;; Verification: aggregate build and Batteries env-linter pass; 1758 theorem
+;; audits allowlisted. Six focused mutants fail named empty lookup, invented
+;; position, strict growth, revisable policy, query-tag and later-answer obligations.
+;; Verified-by lint and diff check pass; no new unresolved vault pairs and zero
+;; syntax/SPL diagnostics. Independent proof/fixture/artifact review clean.
+;; Next authored progress source/freeze provenance and earlier-output inversion.
+;; Existing Head metadata hardcodes .verbs, unlike progress .rawVerbs; generalize
+;; proof head footprint/spec/decoration and shared provenance without changing
+;; existing count/existence/set/event runtime semantics. Then compose actual
+;; emitted occurrence and inversion into successive complete authored outputs.
+;; Full native decoder/admission/installation extraction remain explicit boundaries.

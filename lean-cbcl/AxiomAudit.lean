@@ -1,3 +1,4 @@
+import LeanCbcl.StateProgressFreezeTests
 import LeanCbcl.StateProgressStoreTests
 import LeanCbcl.StateAuthoredSumTrace
 import LeanCbcl.StateNonnegativeAdmissionTests
@@ -2627,3 +2628,21 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateProgressStoreTests.kernel_three
 #print axioms CBCL.StateProgressStoreTests.compiled_reaches
 #print axioms CBCL.StateProgressStoreTests.kernel_preserves
+
+#print axioms CBCL.StateProgressLocality.verb_lookup
+#print axioms CBCL.StateProgressLocality.at_origin
+#print axioms CBCL.StateProgressLocality.at_transfer
+#print axioms CBCL.StateProgressLocality.progress_restricted
+
+#print axioms CBCL.StateProgressFreeze.bare_data
+#print axioms CBCL.StateProgressFreeze.healthy_payload
+#print axioms CBCL.StateProgressFreeze.run_payload
+#print axioms CBCL.StateProgressFreeze.success_or_fault
+
+#print axioms CBCL.StateProgressFreezeTests.coherent
+#print axioms CBCL.StateProgressFreezeTests.unique
+#print axioms CBCL.StateProgressFreezeTests.ranked
+#print axioms CBCL.StateProgressFreezeTests.footprint
+#print axioms CBCL.StateProgressFreezeTests.healthy
+#print axioms CBCL.StateProgressFreezeTests.exact_cut
+#print axioms CBCL.StateProgressFreezeTests.compiled_preserves
