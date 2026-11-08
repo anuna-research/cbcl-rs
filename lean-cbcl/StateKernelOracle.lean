@@ -1,4 +1,5 @@
 import Lean
+import LeanCbcl.StateShapeOracle
 import LeanCbcl.StateContextOracle
 import LeanCbcl.StateFiniteRead
 import LeanCbcl.StateExecutableFreeze
@@ -8,8 +9,8 @@ import LeanCbcl.StateExecutableObservation
 /-! JSON-lines differential oracle. Inputs contain only authored finite data and
 histories, never expected Rust results. Evaluation calls the same checked table,
 projection, contribution, state and read functions used by the Lean proofs.
-Profiles cover finite reads, causal freezes and observed events/sums;
-domains, context and resources remain separate. -/
+Profiles cover finite reads, causal freezes, observed events/sums, immutable
+context and mandatory/nonnegative shape projections; resources remain separate. -/
 open Lean CBCL.State CBCL.StateFiniteTable CBCL.StateInstalledFinite
 namespace StateKernelOracle
 
@@ -200,6 +201,7 @@ def evaluateNested (request : NestedInput) : Check Json := do
 
 def run (j : Json) : Check Json :=
   match j.getObjVal? "profile" with
+  | .ok (.str "nonnegative-shape") => CBCL.StateShapeOracle.run j
   | .ok (.str "context") => StateContextOracle.run j
   | .ok (.str "events-sum") => nestedInput j >>= evaluateNested
   | .error _ | .ok (.str "finite") => input j |>.map evaluate

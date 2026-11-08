@@ -1055,3 +1055,6 @@ fn nested_kernel_matches_live_lean_oracle() {
 
 #[path = "state_kernel_oracle/context.rs"]
 mod context;
+
+#[path = "state_kernel_oracle/shape.rs"]
+mod shape;

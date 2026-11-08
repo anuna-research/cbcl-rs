@@ -564,6 +564,19 @@ suites.append(("StateAuthoredEventSum", (root / "lean-cbcl/LeanCbcl/StateAuthore
      "(outputName,.data (.reached (.element (.sum (bound+1))))) ∈ later.observe ∨", "successive_compiled"),
 ]))
 
+shape_source = "import LeanCbcl.StateAuthoredEventSumTests\n" + (root / "lean-cbcl/LeanCbcl/StateNonnegativeAdmission.lean").read_text()
+shape_source += "\n" + (root / "lean-cbcl/LeanCbcl/StateNonnegativeAdmissionTests.lean").read_text().split("\n", 2)[2]
+suites.append(("StateNonnegativeAdmission", shape_source, [
+    ("shape-negative-numbers-accepted", "| .atom (.num n) => decide (0 ≤ n)",
+     "| .atom (.num _) => true", "checked_numeric"),
+    ("shape-missing-required-accepted", "| none => !shape.required", "| none => true", "checked_numeric"),
+    ("shape-first-keyword-skipped", "if key == field then rest.head? else findItems field rest",
+     "if key == field then findItems field rest else findItems field rest", "positive_first_retained"),
+    ("shape-checked-amount-made-strict", "(extracted : NumericExtraction act message) :\n    0 ≤ amount field act := by", "(extracted : NumericExtraction act message) :\n    0 < amount field act := by", "checked_amount"),
+    ("shape-preservation-changes-answer", "(outputName,.data (.reached (.element (.sum bound)))) ∈ later.observe ∨",
+     "(outputName,.data (.reached (.element (.sum (bound+1))))) ∈ later.observe ∨", "successive_compiled"),
+]))
+
 # Preserve the full default gate while allowing a focused continuation check.
 import argparse
 parser = argparse.ArgumentParser(description=__doc__)

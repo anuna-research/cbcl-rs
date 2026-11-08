@@ -960,3 +960,33 @@
 ;; ShapeConstraint::check before its causal stage. Bridge those successful checks
 ;; to typed nonnegative amounts and strengthen concrete successive sum fixtures.
 ;; Closure progress and literal native installation/extraction remain open.
+
+;; Shape-stage numeric evidence checkpoint (REQ-3802 / REQ-3809).
+;; StateNonnegativeAdmission models native first-top-level-keyword lookup and
+;; the necessary required/nonnegative projection of recognized WriterShape data.
+;; Given mandatory nonnegative metadata, checked_numeric derives a present numeric
+;; atom and nonnegative value. NumericExtraction retains the explicit expanded
+;; numeric lookup -> typed state field boundary. checked_amount/checked_history
+;; derive the old sum premise; successive_compiled composes actual authored sum
+;; preservation from per-message checks and extraction, not assumed positivity.
+;; This does not prove full native admission implies these checks/extraction.
+;; Fixtures compute checks, prove concrete extraction, reject negative-first,
+;; missing/dangling/quoted numeric values, and retain positive-first duplicates.
+;; StateShapeOracle plus live Rust module compares the Lean projection to actual
+;; ShapeConstraint::check with Require/Optional/Nonnegative rules, preserving atom
+;; tags and conjunction/verb selection. Seven directed and 512 generated cases
+;; pass (PROPTEST_RNG_SEED=380038), plus malformed-tag and depth-limit rejections.
+;; A native >=0 -> >0 mutation fails the live assertion on zero; source restored
+;; and final differential rerun passes. The first attempted test ran before the
+;; new oracle finished linking and saw the old binary; after terminal successful
+;; build it passed. No semantic failure is inferred from that stale-binary run.
+;; Aggregate build and Batteries env-linter pass; 1716 theorem audits allowlisted.
+;; Five focused proof mutants fail named obligations: negative acceptance,
+;; missing-required acceptance, skipped first keyword, strict positivity and
+;; changed preserved answer. Verified-by lint and diff check pass; no new vault
+;; unresolved pairs and zero syntax/SPL diagnostics. Independent review finds no
+;; proof defect; documentation now states the mandatory-metadata premise.
+;; Still required: general shape validation/admission implication and literal
+;; typed extraction; concrete successive full-program sum trace; closure progress
+;; and remaining native installation/extraction correspondence. Projection oracle
+;; trees are typed expanded messages, not strict wire grammar or full shape DSL.

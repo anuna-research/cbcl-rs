@@ -275,3 +275,5 @@ import LeanCbcl.StateAuthoredEventMembershipTests
 import LeanCbcl.StateEventMapTotalTests
 
 import LeanCbcl.StateAuthoredEventSumTests
+
+import LeanCbcl.StateNonnegativeAdmissionTests

@@ -1564,8 +1564,26 @@ nonnegativity, and emitted query success from a pending payload. They exercise
 typed installation and raw-query execution, not a concrete successive
 whole-program trace or native admission/extraction correspondence.
 
-Protocol admission’s enforcement of nonnegative writer shapes, closure progress
-and native installation/extraction correspondence remain separate obligations at the typed
+`StateNonnegativeAdmission.lean` makes the necessary mandatory/nonnegative
+shape-stage projection executable over expanded S-expressions. Lookup stops at
+the first matching top-level keyword, including a dangling match. With mandatory nonnegative
+metadata, successful checks for all matching recognized writer shapes yield a present nonnegative
+numeric atom. `NumericExtraction` explicitly relates that atom to the typed
+state field; `checked_history` derives the amount premise, and
+`successive_compiled` composes it with actual authored sum preservation.
+Concrete fixtures prove both projected checks and extraction for their expanded
+writer, and distinguish duplicate keyword order, missing values and quoted
+numerals. The live `nonnegative-shape` oracle compares these executable Lean
+checks with Rust's actual `ShapeConstraint::check` on the corresponding
+require/optional rules, using tagged expanded-message trees that preserve scalar
+kinds. It covers the recognized mandatory/nonnegative projection, not general
+child/depth/type validation or the strict wire grammar. Full native admission
+implying the projected checks, and faithful extraction for every native accepted
+message, remain separate proof boundaries. A concrete successive full-program
+sum trace remains to be added beyond the typed installation/raw-query fixtures.
+
+Full admission/extraction correspondence, closure progress
+and native installation correspondence remain separate obligations at the typed
 authored boundary.
 Literal Rust value representation and public serialized
 rendering remain separate boundaries. Helpers remain total outside the admitted

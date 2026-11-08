@@ -1,3 +1,4 @@
+import LeanCbcl.StateNonnegativeAdmissionTests
 import LeanCbcl.StateAuthoredEventSumTests
 import LeanCbcl.StateEventMapTotalTests
 import LeanCbcl.StateAuthoredEventMembershipTests
@@ -2581,3 +2582,16 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateAuthoredEventSumTests.supersede_rejected
 #print axioms CBCL.StateAuthoredEventSumTests.writer_nonnegative
 #print axioms CBCL.StateAuthoredEventSumTests.pending_payload_reaches
+
+#print axioms CBCL.StateNonnegativeAdmission.checked_numeric
+#print axioms CBCL.StateNonnegativeAdmission.checked_amount
+#print axioms CBCL.StateNonnegativeAdmission.checked_history
+#print axioms CBCL.StateNonnegativeAdmission.successive_compiled
+
+#print axioms CBCL.StateNonnegativeAdmissionTests.checked
+#print axioms CBCL.StateNonnegativeAdmissionTests.extracted
+#print axioms CBCL.StateNonnegativeAdmissionTests.checked_writer_amount
+#print axioms CBCL.StateNonnegativeAdmissionTests.negative_first_rejected
+#print axioms CBCL.StateNonnegativeAdmissionTests.positive_first_retained
+#print axioms CBCL.StateNonnegativeAdmissionTests.dangling_rejected
+#print axioms CBCL.StateNonnegativeAdmissionTests.quoted_number_rejected
