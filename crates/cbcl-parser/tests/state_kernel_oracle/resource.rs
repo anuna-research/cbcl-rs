@@ -7,26 +7,38 @@ fn initial() -> (Act,Act) {
     (root,opener)
 }
 
+fn observed(dialect: &cbcl_core::dialect::Dialect, acts: &[Act], ids: &BTreeMap<String,u64>) -> Value {
+    let state: Value = serde_json::from_str(&render_json(&fold(dialect.state.as_ref().unwrap(),dialect.causal_protocol.as_ref(),acts))).unwrap();
+    let coins = &state["coins"];
+    if coins["status"] == "ready" {
+        json!({"status":"ready","value":coins["value"],"rights":coins["rights"]})
+    } else if coins["status"] == "fault" {
+        let mut evidence = coins["evidence"].as_array().unwrap().iter().map(|name| {
+            let name = name.as_str().unwrap();
+            assert!(acts.iter().any(|act| act.address == name),"resource evidence names an absent act");
+            ids[name]
+        }).collect::<Vec<_>>();
+        evidence.sort(); // Normalize the fixed hash/ordinal representation only.
+        assert!(evidence.windows(2).all(|pair| pair[0] != pair[1]),"duplicate native resource witness");
+        json!({"status":"fault","evidence":evidence})
+    } else { json!({"status":coins["status"]}) }
+}
+
 fn native(dialect: &cbcl_core::dialect::Dialect, case: &Value) -> Value {
     let (root,opener) = initial();
     let owner = case["owner"].as_str().unwrap();
     let amount = case["amount"].as_i64().unwrap();
     let operation = Act::from_message(parse_message(&parse(&format!("(signed {owner} (lang example-coin (burn (@alice @bob @treasury) :amount {amount} :from {owner} :thread \"coin-1\" :caused-by {} :escrow-prev {} :escrow-deps ())))",opener.address,opener.address)).unwrap()).unwrap(),owner).unwrap();
+    let ids = BTreeMap::from([(root.address.clone(),1),(opener.address.clone(),2),(operation.address.clone(),3)]);
+    assert_eq!(ids.len(),3,"fixture address projection must be injective");
     let mut acts = vec![operation];
     if case["root"].as_bool().unwrap() { acts.push(root); }
     if case["opener"].as_bool().unwrap() { acts.push(opener); }
-    let state = |acts: &[Act]| {
-        let state: Value = serde_json::from_str(&render_json(&fold(dialect.state.as_ref().unwrap(),dialect.causal_protocol.as_ref(),acts))).unwrap();
-        let coins = &state["coins"];
-        if coins["status"] == "ready" {
-            json!({"status":"ready","value":coins["value"],"rights":coins["rights"]})
-        } else { json!({"status":coins["status"]}) }
-    };
-    let observed = state(&acts);
+    let result = observed(dialect,&acts,&ids);
     acts.reverse();
     acts.extend(acts.clone());
-    assert_eq!(state(&acts),observed,"resource reorder/duplicate case={case}");
-    observed
+    assert_eq!(observed(dialect,&acts,&ids),result,"resource reorder/duplicate case={case}");
+    result
 }
 
 #[test]
@@ -71,20 +83,15 @@ fn native_graph(dialect: &cbcl_core::dialect::Dialect, case: &Value) -> Value {
     let causes = if dependency { format!("({} {})",opener.address,payment.address) } else { opener.address.clone() };
     let spent = Act::from_message(parse_message(&parse(&format!("(signed @alice (lang example-coin (burn (@alice @bob @treasury) :amount {spend} :from @alice :thread \"coin-1\" :caused-by {causes} :escrow-prev {} :escrow-deps ({deps}))))",opener.address)).unwrap()).unwrap(),"@alice").unwrap();
     let competing = Act::from_message(parse_message(&parse(&format!("(signed @alice (lang example-coin (burn (@alice @bob @treasury) :amount 1 :from @alice :thread \"coin-1\" :caused-by {causes} :escrow-prev {} :escrow-deps ({deps}) :escrow-nonce \"fork\")))",opener.address)).unwrap()).unwrap(),"@alice").unwrap();
+    let ids = BTreeMap::from([(root.address.clone(),1),(opener.address.clone(),2),(spent.address.clone(),3),(payment.address.clone(),4),(competing.address.clone(),5)]);
+    assert_eq!(ids.len(),5,"fixture address projection must be injective");
     let mut acts = vec![root,opener,spent];
     if case["included"].as_bool().unwrap() { acts.push(payment); }
     if case["fork"].as_bool().unwrap() { acts.push(competing); }
-    let state = |acts: &[Act]| {
-        let state: Value = serde_json::from_str(&render_json(&fold(dialect.state.as_ref().unwrap(),dialect.causal_protocol.as_ref(),acts))).unwrap();
-        let coins = &state["coins"];
-        if coins["status"] == "ready" {
-            json!({"status":"ready","value":coins["value"],"rights":coins["rights"]})
-        } else { json!({"status":coins["status"]}) }
-    };
-    let observed = state(&acts);
+    let result = observed(dialect,&acts,&ids);
     acts.reverse(); acts.extend(acts.clone());
-    assert_eq!(state(&acts),observed,"resource graph reorder/duplicate case={case}");
-    observed
+    assert_eq!(observed(dialect,&acts,&ids),result,"resource graph reorder/duplicate case={case}");
+    result
 }
 
 #[test]

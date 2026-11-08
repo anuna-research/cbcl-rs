@@ -52,6 +52,8 @@ with tempfile.TemporaryDirectory(prefix="cbcl-live-oracle-") as directory:
                               text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=300)
 
     mutants = [
+        ("resource-contextual-facts-hidden", "escrow.rs", "evidence.extend(all.keys().cloned());", "", resource_graph_test),
+        ("resource-witness-dedup-skipped", "escrow.rs", "evidence.dedup();", "", resource_graph_test),
         ("resource-owner-fork-hidden", "escrow.rs", "if let Some(other) = children.insert((a.signer.clone(), prev.into()), a.address.clone()) {", "if let Some(other) = None::<String> {", resource_graph_test),
         ("resource-dependency-credit-hidden", "escrow.rs", "for dep in &n.deps {", "for dep in core::iter::empty::<&String>() {", resource_graph_test),
         ("resource-zero-decrement-accepted", "escrow.rs", "number(amount).filter(|n| *n > 0)", "number(amount).filter(|n| *n >= 0)", resource_test),
@@ -127,7 +129,8 @@ with tempfile.TemporaryDirectory(prefix="cbcl-live-oracle-") as directory:
         # Recognize only the named guard, after requiring this test to execute.
         assertion = ("assertion" in result.stdout
                      or (test == admission_test and "ambiguous amount admitted:" in result.stdout)
-                     or (test == fault_test and "native fault fold panicked; case=" in result.stdout))
+                     or (test == fault_test and "native fault fold panicked; case=" in result.stdout)
+                     or (test in [resource_test,resource_graph_test] and "duplicate native resource witness" in result.stdout))
         if result.returncode == 0 or f"test {test} ... FAILED" not in result.stdout or not assertion:
             print(result.stdout)
             raise SystemExit(f"FAIL: {name} not rejected by executed regression assertion")

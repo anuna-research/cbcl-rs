@@ -329,3 +329,5 @@ import LeanCbcl.StateAddressRange
 import LeanCbcl.StateFreezeRendering
 
 import LeanCbcl.StateResourceOracle
+
+import LeanCbcl.StateResourceRendering

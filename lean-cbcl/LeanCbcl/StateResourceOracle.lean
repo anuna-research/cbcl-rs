@@ -1,5 +1,5 @@
 import Lean
-import LeanCbcl.StateResourceVerifier
+import LeanCbcl.StateResourceRendering
 import LeanCbcl.StateResourceTests
 
 /-! Live resource profile with fixed account configuration and explicit decrement/funding graphs.
@@ -21,7 +21,7 @@ def observeFacts (facts : Facts) : Except String Json := do
           fun node member => of_decide_eq_true (List.all_eq_true.mp allocations node member)⟩
         match StateResourceVerifier.observe input with
         | .pending => return Json.mkObj [("status",.str "pending")]
-        | .fault => return Json.mkObj [("status",.str "fault")]
+        | .fault => return Json.mkObj [("status",.str "fault"),("evidence",toJson ((StateResourceRendering.witnesses config facts).mergeSort (fun a b => decide (a ≤ b))))]
         | .ready snapshot => return Json.mkObj [("status",.str "ready"),("value",toJson snapshot.value),
             ("rights",Json.mkObj (["@treasury","@alice","@bob"].map (fun account => (account,toJson (snapshot.rights account)))))]
       else throw "account slice exceeds native bound"

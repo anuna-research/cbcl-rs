@@ -357,8 +357,8 @@ root/initializer histories are intentional pending cases below protocol
 admission. Amounts are signed 64-bit wire integers and signer choices form a
 closed fixture dictionary.
 
-The comparison checks pending/fault status and, for ready results, exact value
-and all account balances. Native histories are also reordered and delivered
+The comparison checks pending/fault status, complete fault witness membership,
+and, for ready results, exact value and all account balances. Native histories are also reordered and delivered
 twice. Directed cases cover integer extrema, nonpositive amounts, exact budget,
 overspend and unknown accounts; generated inputs mix arbitrary wire integers
 with values around the authorization boundary. The profile neither compares
@@ -379,7 +379,24 @@ Both implementations evaluate the actual dependency graph. Directed cases cover
 missing funding, present-but-undeclared funding, exact and insufficient funding,
 nonpositive amounts and funded owner forks. The complete verifier supplies the
 Lean result; no expected status, balance or certificate enters the request.
-Ready balances and statuses are compared after native reorder and duplicate
-delivery. Mutations suppressing the owner-fork check and dependency-tip credit
+Ready balances, statuses and complete fault witness membership are compared
+after native reorder and duplicate delivery. Mutations suppressing the owner-fork check and dependency-tip credit
 must fail executed comparisons. This is a two-operation fixture with an optional
 fork, not general graph, ceiling, witness-byte or admission correspondence.
+
+`StateResourceRendering.witnesses_realize` proves an executable enumeration of
+the complete contextual resource witness set: present relevant facts and present
+context named by relevant facts' causal, owner-previous or dependency links.
+Unsupported profiles retain empty evidence. The enumerator does not require a
+caller-selected support or an ordering certificate. `certificate_serialized`
+composes the concrete resource cause, actual verifier classification, witness
+enumeration and proved address-pool renderer into canonical fault JSON.
+Diagnostic reason and address encoding remain explicit representation inputs;
+interpreting encoded names as distinct identities requires an injective encoding.
+
+Both live resource profiles now compare those executable witnesses with native
+fault evidence. Native hashes are translated to fixed recognized fixture IDs,
+then sorted without deduplication. The harness rejects witnesses naming absent
+acts and duplicate native witnesses. This checks exact semantic membership,
+rather than raw native reason or fault-byte spelling. Mutations deleting
+contextual fact retention or evidence deduplication fail executed comparisons.
