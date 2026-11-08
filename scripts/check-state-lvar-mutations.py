@@ -246,6 +246,14 @@ suites.append(("StateFiniteUpperCache", (root / "lean-cbcl/LeanCbcl/StateFiniteU
     ("upper-cache-bool-true-zero", "| .bool true => some (.numeric 1)", "| .bool true => some (.numeric 0)", "decode_reaches"),
 ]))
 
+suites.append(("StateFinitePairLoop", (root / "lean-cbcl/LeanCbcl/StateFinitePairLoop.lean").read_text(), [
+    ("stored-maxima-root-discarded", "(projected field)[current]) root)", "(projected field)[current]) field.table.table.bottom)", "maxima_lookup"),
+    ("stored-pair-cache-index-discarded", "cache[a].isSome && decide (threshold ≤ cache[a].getD 0)", "cache[field.table.table.bottom].isSome && decide (threshold ≤ cache[field.table.table.bottom].getD 0)", "stored_compatible_refinement"),
+    ("pair-loop-duplicate-ignored", "if left == right then some .duplicate", "if false then some .duplicate", "reason_clear"),
+    ("pair-loop-index-off-by-one", "some (index,other,why)", "some (index,index,why)", "pairs_reference"),
+    ("pair-loop-skips-later-rows", "| none => pairs compatible (index + 1) rest", "| none => none", "pairs_clear"),
+]))
+
 # Preserve the full default gate while allowing a focused continuation check.
 import argparse
 parser = argparse.ArgumentParser(description=__doc__)

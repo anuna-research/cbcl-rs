@@ -281,3 +281,15 @@
 ;; boundaries. Mutations for included top, discarded named root, min threshold,
 ;; and Boolean true=zero all fail their named theorem obligations. Cache cost is
 ;; not proved by these functional definitions; TEST-3806 remains partial.
+
+;; Stored cache and unordered-loop continuation: StateFinitePairLoop constructs
+;; projected/maxima vectors, proves lookup and compatibility refinement, and
+;; models actual early-exit i<j traversal. Its gate equals StateFiniteRead for
+;; every input. First diagnostics agree with row-major candidate enumeration;
+;; indices are bounded and select the original scalars; duplicates precede
+;; compatibility. Fresh review found no defect. Mutations kill incorrect cache
+;; roots, pair cache indices, ignored duplicates, off-by-one diagnostic indices,
+;; and skipped later rows at named theorems. Remaining: literal R7 extraction
+;; and installation integration, formatted strings, runtime cost correspondence
+;; (Rust stores decoded reads, model decodes per pair), plus prior authored
+;; completeness and Rust Reader obligations. TEST-3806 remains partial.

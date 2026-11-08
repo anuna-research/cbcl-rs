@@ -1,3 +1,4 @@
+import LeanCbcl.StateFinitePairLoop
 import LeanCbcl.StateFiniteUpperCache
 import LeanCbcl.StateNativeReader
 import LeanCbcl.StateCompiledFreezeGrowth
@@ -2015,3 +2016,22 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateFiniteUpperCache.cached_compatible_iff
 #print axioms CBCL.StateFiniteUpperCache.cached_pair_refinement
 #print axioms CBCL.StateFiniteUpperCache.cached_check_refinement
+
+#print axioms CBCL.StateFinitePairLoop.projected_lookup
+#print axioms CBCL.StateFinitePairLoop.maxima_lookup
+#print axioms CBCL.StateFinitePairLoop.stored_compatible_refinement
+#print axioms CBCL.StateFinitePairLoop.stored_scalar_refinement
+#print axioms CBCL.StateFinitePairLoop.reason_clear
+#print axioms CBCL.StateFinitePairLoop.row_clear
+#print axioms CBCL.StateFinitePairLoop.pairs_clear
+#print axioms CBCL.StateFinitePairLoop.pairwise_symmetric
+#print axioms CBCL.StateFinitePairLoop.compatible_symmetric
+#print axioms CBCL.StateFinitePairLoop.scalar_symmetric
+#print axioms CBCL.StateFinitePairLoop.stored_pairs_refinement
+#print axioms CBCL.StateFinitePairLoop.check_refinement
+#print axioms CBCL.StateFinitePairLoop.row_reference
+#print axioms CBCL.StateFinitePairLoop.pairs_reference
+#print axioms CBCL.StateFinitePairLoop.first_diagnostic
+#print axioms CBCL.StateFinitePairLoop.duplicate_precedence
+#print axioms CBCL.StateFinitePairLoop.candidate_indices
+#print axioms CBCL.StateFinitePairLoop.diagnostic_sound

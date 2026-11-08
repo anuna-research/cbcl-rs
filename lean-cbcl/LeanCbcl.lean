@@ -211,3 +211,5 @@ import LeanCbcl.StateCompiledFreezeGrowth
 import LeanCbcl.StateNativeReader
 
 import LeanCbcl.StateFiniteUpperCache
+
+import LeanCbcl.StateFinitePairLoop

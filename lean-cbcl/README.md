@@ -428,8 +428,10 @@ equality, including faulted reads and nested freeze dependencies. Literal Rust
 mutable-reader/cache correspondence and authored completeness beyond prepared
 reference premises remain open. `StateFiniteUpperCache` proves the optimized
 upper-set maximum formulas and admitted scalar decoding equal the reference
-finite gate; stored cache-vector construction, Rust unordered pair traversal
-and diagnostic ordering remain separate boundaries. Native
+finite gate. `StateFinitePairLoop` proves stored cache-vector lookups, unordered
+early-exit traversal, duplicate precedence and first-error indices tied to the
+original scalar queries. Literal R7 extraction/integration, formatted diagnostic
+strings and allocation/runtime cost correspondence remain separate boundaries. Native
 missing-link lists, owner tips, diagnostic reasons and canonical serialization
 are outside the modeled resource read. SPEC-038 acceptance remains partial.
 
