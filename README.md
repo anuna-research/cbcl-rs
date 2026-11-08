@@ -127,7 +127,51 @@ sets, events and aggregates combine evidence according to their rules. Explicit
 supersession and timestamp arbitration are separate: `lww-map` removes replaced
 writes before choosing a survivor, and deletion leaves unobserved concurrent
 writes intact. Bounded counters add separate resource authorization. See
-[[hlc-registers#Choosing a state rule|choosing a state rule]] for examples and assumptions.
+[choosing a state rule](docs/concepts/hlc-registers.md#choosing-a-state-rule) for examples and assumptions.
+
+### LVar reads, freezes, and context
+
+State rules share an [LVar state kernel](specs/SPEC-038-lvar-state-kernel.md):
+accepted acts accumulate by join, and a display interprets the retained evidence.
+For dialect authors, the read forms have different guarantees:
+
+- A **snapshot** reports the current value and may change as more acts arrive.
+- A **threshold** reports a stable fact. Once reached, it keeps the same answer
+  unless later evidence produces a terminal fault; it never silently returns to
+  pending. Installation checks the source type and alternative compatibility.
+- A **freeze** reads the source at the earliest freezer's causal cut. Later or
+  concurrent contributions are excluded under the default `supersede` policy,
+  or fault the read under `fault`. Concurrent earliest freezers also fault.
+- A **fault** carries evidence of the inconsistent history and persists as
+  accepted history grows.
+
+For example, these declarations belong inside a dialect's `(state …)` clause,
+with `approve` and `close` defined by its protocol:
+
+```lisp
+(approvals (count approve))
+(threshold enough approvals (count 3))
+(sealed-approvals (count approve))
+(freeze sealed-approvals close supersede)
+```
+
+The count is a snapshot. `enough` reads the current raw approval carrier;
+`sealed-approvals` becomes an exact causal-cut read after `close`. Installation
+rejects thresholds on `supersede`-frozen sources, so these use separate fields.
+
+`(context)` exposes a read-only map of installed dialect metadata, sealed thread
+metadata and role rosters, and current observation metadata. Paths such as
+`(context thread roles reviewer)` expose a declared role's roster; rosters can
+supply domains and membership thresholds. Observation metadata such as
+`(context observation frontier)` remains a snapshot. Context supplies ordinary
+kernel data; the dialect defines its quorum policy.
+
+The original state heads remain available. `progress` and `bounded-counter`
+retain accepted history in the kernel and reuse the protocol-position and
+resource-DAG validators. Authors can also declare finite lattices and
+contribution tables, whose lattice laws and read policies are checked at
+installation. Thresholds and freezes do not provide an exactly-once external
+effect contract; hosts still handle effect deduplication and recovery.
 
 The **bounded-counter primitive** represents transferable rights over constrained resources, supporting balances, quotas, credits, and inventory. These escrow rights are bound to authenticated accounts: each account can decrement within its allocation, and transferring rights changes who can spend without changing the total. An optional ceiling adds per-account headroom for increments. Concurrent operations are authorized against these allocations rather than a global observed balance.
 
@@ -137,7 +181,7 @@ The **bounded-counter primitive** represents transferable rights over constraine
 | Decrement | Lowers the value; consumes the signer's rights |
 | Transfer | Moves rights between accounts; preserves the value |
 
-Account ownership and collective ownership support individual allocations and pools consumed by distinct authorized signers. Examples: `dialects/example-coin.cbcl`, `dialects/example-capped-coin.cbcl`, and `dialects/example-collective-tickets.cbcl`. See [bounded-counter guide](docs/concepts/bounded-counter.md) for declarations and invariants.
+Account ownership supports individual allocations. Collective pools and quorum-budget certification require the explicit certificate runtime; the plain state fold reports an unsupported-profile fault for those modes. Examples: `dialects/example-coin.cbcl`, `dialects/example-capped-coin.cbcl`, and `dialects/example-collective-tickets.cbcl`. See [bounded-counter guide](docs/concepts/bounded-counter.md) for declarations and invariants.
 
 The built-in checkpoint companion dialect supports cached member-certified state
 opening through `cbcl-checkpoint`. It reuses native signed endorsements, verifies
@@ -191,7 +235,9 @@ The source account of every operation is the authenticated signer, never a calle
 
 `cbcl-core` and `cbcl-parser` form the deterministic `no_std + alloc` core and forbid unsafe code. CLI, WASM, C FFI, and Erlang NIF crates provide the effectful interfaces.
 
-Lean proofs live in `lean-cbcl/`, including R1–R5 properties, endpoint-projection correspondence, finite-time delivery results, and R6 DCFL preservation. Splicing and selective-disclosure results concern abstract predecessor-type evidence; concrete field-opening authentication remains a separate refinement obligation. Explicit host-HLC LWW registers and conflict-preserving aliases are described in [HLC registers](docs/concepts/hlc-registers.md); their clock honesty premise is separate from resource certification. State-fold and binder properties are proved in `State.lean`; [conditional strong eventual consistency](specs/SPEC-037-state-kernel-sec.md) connects equal-set observations to fair admission and eventual delivery; [whole typed kernel correctness](specs/SPEC-036-state-kernel-correctness.md) additionally proves independent denotational correctness and elaboration completeness for arbitrary finite supported clauses, with resource-verifier classification explicitly outside the theorem; corpus tests check Rust/model correspondence, while universal Rust-driver refinement remains open. The concrete R6 checks are tested in Rust; their semantic guarantees are mechanised in Lean. The axiom audit allowlist includes explicit content-hash and causal-accessor assumptions. For proof boundaries, see [proof design notes](proofs/epp-correspondence/design.md) and `scripts/check-axioms.sh`.
+Lean proofs live in `lean-cbcl/`, including R1–R5 properties, endpoint-projection correspondence, finite-time delivery results, and R6 DCFL preservation. Splicing and selective-disclosure results concern abstract predecessor-type evidence; concrete field-opening authentication remains a separate refinement obligation. Explicit host-HLC LWW registers and conflict-preserving aliases are described in [HLC registers](docs/concepts/hlc-registers.md); their clock honesty premise is separate from resource certification. State-fold and binder properties are proved in `State.lean`; [conditional strong eventual consistency](specs/SPEC-037-state-kernel-sec.md) connects equal-set observations to fair admission and eventual delivery; [whole typed kernel correctness](specs/SPEC-036-state-kernel-correctness.md) additionally proves independent denotational correctness and elaboration completeness for arbitrary finite supported clauses, with resource-verifier classification explicitly outside the theorem; corpus tests check Rust/model correspondence, while universal Rust-driver refinement remains open. The concrete R6 checks are tested in Rust; their semantic guarantees are mechanised in Lean. The axiom audit allowlist includes explicit content-hash and causal-accessor assumptions.
+
+SPEC-038 additionally proves typed native resource-verifier/certificate equivalence and installed semantic-rule/plan refinement. Concrete source bindings and universal Rust-driver correspondence remain incomplete; see the [Lean proof status](lean-cbcl/README.md#lvar-state-kernel) for the boundary. For other proof boundaries, see [proof design notes](proofs/epp-correspondence/design.md) and `scripts/check-axioms.sh`.
 
 ## API reference
 

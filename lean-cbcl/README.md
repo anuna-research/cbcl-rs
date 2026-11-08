@@ -375,6 +375,70 @@ providers are insufficient. See SPEC-037 and
 python3 ../scripts/check-state-kernel-sec.py
 ```
 
+## LVar state kernel
+
+[SPEC-038](../specs/SPEC-038-lvar-state-kernel.md) remains **draft**. The committed
+proofs cover the following typed-model layers:
+
+- `StateLift` proves accepted-set lift invariance and the union/join law.
+  `StateLVar` and `StateObservation` compose threshold, domain, context, resource,
+  and freeze fault paths; `StateObservationPlan` combines those paths with data
+  observations. Snapshots may revise; threshold answers are stable or faulted.
+- `StateResourceCones`, `StateResourceFrontier`, `StateResourceCounters`, and
+  `StateResourceWorklist` connect native dependency traversal and budget checks
+  to exact cones. `StateResourceAggregate`, `StateResourceAccounting`, and
+  `StateResourceSolvency` discharge checked aggregate arithmetic and account
+  solvency before finalization.
+- `StateResourceVerifier.native_verifier_certificate_iff` proves the full typed
+  native fault classifier is equivalent to an accepted resource certificate.
+  `native_certificate_read_refinement` connects its fault read to the exact
+  certificate evidence channel. Preflight, budget verification, and aggregate
+  checks are composed; classifier correctness and fault persistence are proved.
+  Unsupported collective/quorum profiles have constant empty fault evidence.
+- `StateInstalledCompiler`, `StateInstalledClause`, `StateInstalledLattice`, and
+  `StateInstalledLowering` prove refinement and completeness of the installed
+  semantic IR against independent readers. They cover backward references,
+  whole-clause freeze attachment, source-relative threshold dispatch and
+  admissibility, observation tags, conditional eventual agreement, and fault
+  dissemination.
+
+These results extend the resource-classifier boundary of SPEC-036/037; those
+older theorems still have their stated provider premises. The new compiler
+results retain native closure implementations and recognized immutable metadata
+as explicit leaf parameters. They do not establish equivalence with every
+concrete Rust rule factory, finite-table projection validator, or authored
+context/domain declaration. Full literal source bindings and native freeze
+scoping remain implementation work. Wire parsing, signature authentication,
+clock/signer mapping, canonical rendering, and a universal Rust-driver refinement
+also remain separate boundaries.
+
+Further work includes concrete retained-history source factories and full
+native-read equivalence. These are outside the completion claim above;
+SPEC-038's acceptance status remains partial.
+
+The implementation documents its current collection and freeze costs rather
+than claiming strict linear evaluation: ordered collections take `O(n log n)`,
+and retaining all concurrent-freeze witnesses can add `O(n f)` work for `f`
+earliest freezers. See SPEC-038 NFR-3800 for the full clause/cut bounds and
+separate native-validator costs.
+
+From `lean-cbcl/`, run:
+
+```sh
+lake build LeanCbcl
+lake exe runLinter LeanCbcl
+../scripts/check-axioms.sh
+python3 ../scripts/check-state-lift-mutation.py
+python3 ../scripts/check-state-lvar-mutations.py
+```
+
+The Batteries gate remains enabled in CI. Intentional constant contribution
+arguments and uniform prepared-state receivers have local, explained
+`unusedArguments` exceptions. The kernel-generated injectivity lemma for the
+large dependent `Prepared` record has a targeted `simpNF` exception because
+Batteries exhausts its recursion budget inspecting its type. No module-wide
+linter suppression is used.
+
 ## Cached checkpoint continuation
 
 `CheckpointAll.render_advance_checkpoint` proves the continuation law for all
