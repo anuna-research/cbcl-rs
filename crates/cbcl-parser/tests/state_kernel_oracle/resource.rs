@@ -1,7 +1,7 @@
 //! Resource decrement/funding/fork profiles; no native admission claim.
 use super::*;
 
-fn initial() -> (Act,Act) {
+pub(super) fn initial() -> (Act,Act) {
     let root = Act::from_message(parse_message(&parse("(with-roles ((issuer @treasury) (holder @treasury @alice @bob)) (signed @treasury (hello :thread \"coin-1\" :caused-by begin)))").unwrap()).unwrap(),"@treasury").unwrap();
     let opener = Act::from_message(parse_message(&parse(&format!("(signed @treasury (lang example-coin (open (@alice @bob @treasury) :name \"Example Coin\" :allocations ((@treasury 1000) (@alice 0) (@bob 0)) :from @treasury :thread \"coin-1\" :caused-by {})))",root.address)).unwrap()).unwrap(),"@treasury").unwrap();
     (root,opener)

@@ -1,4 +1,5 @@
 import Lean
+import LeanCbcl.StateResourceFactsOracle
 import LeanCbcl.StateResourceOracle
 import LeanCbcl.StateShapeOracle
 import LeanCbcl.StateJsonOracle
@@ -215,6 +216,7 @@ def evaluateNested (request : NestedInput) : Check Json := do
 
 def run (j : Json) : Check Json :=
   match j.getObjVal? "profile" with
+  | .ok (.str "resource-facts") => CBCL.StateResourceFactsOracle.run j
   | .ok (.str "resource-freeze") => CBCL.StateResourceOracle.graphRun j true
   | .ok (.str "resource-graph") => CBCL.StateResourceOracle.graphRun j
   | .ok (.str "resource-decrement") => CBCL.StateResourceOracle.run j

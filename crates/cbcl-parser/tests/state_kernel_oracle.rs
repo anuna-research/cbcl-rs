@@ -1120,3 +1120,6 @@ mod render;
 
 #[path = "state_kernel_oracle/resource.rs"]
 mod resource;
+
+#[path = "state_kernel_oracle/resource_facts.rs"]
+mod resource_facts;

@@ -473,3 +473,51 @@ rejected with an otherwise valid source dictionary. Mutations hiding full-histor
 faults, discarding raw witnesses during conflict union or ignoring the causal cut
 fail executed comparisons. This fixed-profile composition does not establish
 general installation/AST extraction or diagnostic-reason correspondence.
+
+The `resource-facts` profile compares the full native `escrow::observe_facts`
+verifier with Lean on bounded arbitrary operation graphs, rather than a fixed
+funding/spend topology. Its closed JSON-value grammar is:
+
+```text
+Request ::= { profile: "resource-facts", root: Bool, opener: Bool,
+              reverse: Bool, nodes: Node[0..16] }
+Node    ::= { kind: Kind, owner: Account, recipient: Account, amount: Amount,
+              prev: null | Ref, deps: Ref[0..16], causes: Ref[0..16] }
+Bool    ::= true | false
+Kind    ::= "mint" | "burn" | "pay" | "tell"
+Account ::= 0 | 1 | 2 | 3
+Ref     ::= integer in [0,32]
+Amount  ::= integer in [-2^63,2^63-1]
+```
+
+Object field order is immaterial; every listed field is required and extra fields
+are rejected. Accounts select treasury, Alice, Bob or an unauthorized outsider.
+The fixed installed configuration retains treasury's initial 1000 rights and
+zero initial rights for Alice and Bob. Root and opener have IDs 1 and 2; node
+IDs are assigned from 3 in original row order, before optional enumeration
+reversal. References may be absent, duplicate, self-referential or cyclic: those
+are verifier inputs, not recognizer errors. Malformed types and out-of-bound
+sizes/values fail recognition before evaluation. Address aliases use a valid
+native state-address prefix and 64 decimal digits padded with zeros. They are
+explicit fixture names, not cryptographic commitments.
+
+The native side constructs resource projections and calls `observe_facts`
+directly. Nonresource `tell` rows enter accepted-identity lookup but are excluded
+from the native resource map; Lean retains their typed context facts. Native
+identity bytes and common instance tags are explicit fixture representations.
+This campaign does not prove provenance, full native metadata extraction,
+content hashing or protocol admission. The existing signed-message profiles
+exercise their separate source projections.
+
+Random generation mixes arbitrary malformed/missing-reference graphs with
+structured owner histories whose declared dependency frontiers cite the latest
+other-owner tips. It therefore exercises authorization as well as preflight.
+The generator uses up to eight nodes and appends one contextual node during
+growth; the recognizer's sixteen-node boundary has its own accepted/rejected
+cases. Comparisons cover status, ready balances, complete fault membership and
+raw evidence-array bytes. Reversing enumeration preserves IDs, and adding a
+context node must retain any existing fault and witnesses. Directed cases
+include owner forks, dependency cycles, wrong-owner previous links, duplicate
+dependencies and an independently closed budget fault beside missing evidence.
+Mutations accepting cycles or allowing missing evidence to hide that closed
+fault are rejected by executed comparisons.

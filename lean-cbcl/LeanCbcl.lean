@@ -331,3 +331,5 @@ import LeanCbcl.StateFreezeRendering
 import LeanCbcl.StateResourceOracle
 
 import LeanCbcl.StateResourceRendering
+
+import LeanCbcl.StateResourceFactsOracle

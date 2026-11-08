@@ -16,6 +16,7 @@ root = Path(__file__).resolve().parents[1]
 oracle = root / "lean-cbcl/.lake/build/bin/cbcl-state-oracle"
 if not oracle.is_file():
     raise SystemExit("Build first: cd lean-cbcl && lake build cbcl-state-oracle")
+resource_facts_test = "resource_facts::arbitrary_resource_graphs_match_lean"
 resource_freeze_test = "resource::resource_freeze_matches_lean"
 resource_context_test = "resource::cited_context_evidence_matches_lean"
 resource_graph_test = "resource::funding_graph_matches_lean"
@@ -54,6 +55,8 @@ with tempfile.TemporaryDirectory(prefix="cbcl-live-oracle-") as directory:
                               text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=300)
 
     mutants = [
+        ("resource-typed-cycle-accepted", "escrow.rs", "if summaries.len() != nodes.len() {", "if false {", resource_facts_test),
+        ("resource-missing-evidence-hides-closed-fault", "escrow.rs", "let mut summaries: BTreeMap<String, Summary> = BTreeMap::new();", "if !missing.is_empty() { return Outcome::Pending(missing.into_iter().collect()); }\n    let mut summaries: BTreeMap<String, Summary> = BTreeMap::new();", resource_facts_test),
         ("resource-freeze-full-history-fault-hidden", "freeze.rs", "match (normal.fault_evidence(), freeze_fault)", "match (None::<Vec<String>>, freeze_fault)", resource_freeze_test),
         ("resource-freeze-raw-witnesses-discarded", "freeze.rs", "evidence.extend(fault.fault_evidence().unwrap_or_default());", "evidence = fault.fault_evidence().unwrap_or_default();", resource_freeze_test),
         ("resource-freeze-cut-ignored", "freeze.rs", ".filter(|a| cut.contains(&a.address))", ".filter(|_| true)", resource_freeze_test),
