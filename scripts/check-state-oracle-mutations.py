@@ -52,6 +52,8 @@ with tempfile.TemporaryDirectory(prefix="cbcl-live-oracle-") as directory:
                               text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=300)
 
     mutants = [
+        ("resource-evidence-json-spacing", "state.rs", "Value::List(items) => {\n                out.push('[');", "Value::List(items) => {\n                out.push_str(\"[ \");", resource_graph_test),
+        ("resource-evidence-json-order-reversed", "escrow.rs", "Value::List(evidence.iter().map(|s| text(s)).collect())", "Value::List(evidence.iter().rev().map(|s| text(s)).collect())", resource_graph_test),
         ("resource-contextual-facts-hidden", "escrow.rs", "evidence.extend(all.keys().cloned());", "", resource_graph_test),
         ("resource-witness-dedup-skipped", "escrow.rs", "evidence.dedup();", "", resource_graph_test),
         ("resource-owner-fork-hidden", "escrow.rs", "if let Some(other) = children.insert((a.signer.clone(), prev.into()), a.address.clone()) {", "if let Some(other) = None::<String> {", resource_graph_test),

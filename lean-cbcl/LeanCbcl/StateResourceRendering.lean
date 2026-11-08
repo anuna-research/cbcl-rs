@@ -54,6 +54,18 @@ theorem witnesses_realize (c : ResourceConfig) (facts : Facts) :
       subst id
       exact ⟨node,⟨member,selected⟩,rfl⟩
 
+/-- Serialize only the complete evidence array with the same operational pool
+sorting and deduplication used by the full fault wrapper. -/
+def evidenceBytes (c : ResourceConfig) (facts : Facts) (address : Nat → String) : Option String :=
+  ((StateAddressPool.sortPool ((witnesses c facts).map address).toArray).map StateAddressDigits.adjacent).map
+    (fun names => StateJsonValue.emit (.list (names.map StateJsonValue.Value.str)) "")
+
+/-- Operational evidence bytes match the exact canonical witness presentation. -/
+theorem evidence_bytes (c : ResourceConfig) (facts : Facts) (address : Nat → String) :
+    evidenceBytes c facts address = some (StateJsonValue.render (.list
+      ((StateFaultRendering.canonical ((witnesses c facts).map address)).map StateJsonValue.Value.str))) := by
+  simp only [evidenceBytes,StateAddressPool.canonical_output,Option.map_some,StateJsonValue.empty_buffer]
+
 /-- Native-shaped witness normalization and byte emission after actual verifier
 classification, using the proved operational address-pool implementation. -/
 def faultBytes (input : Input) (reason : String) (address : Nat → String) : Option String :=

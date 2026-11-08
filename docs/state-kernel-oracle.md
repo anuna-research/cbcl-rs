@@ -361,9 +361,9 @@ The comparison checks pending/fault status, complete fault witness membership,
 and, for ready results, exact value and all account balances. Native histories are also reordered and delivered
 twice. Directed cases cover integer extrema, nonpositive amounts, exact budget,
 overspend and unknown accounts; generated inputs mix arbitrary wire integers
-with values around the authorization boundary. The profile neither compares
-fault witness bytes nor establishes general multi-operation, transfer, ceiling,
-certificate-runtime, native metadata-extraction or admission correspondence.
+with values around the authorization boundary. The profile compares evidence-array bytes but does not establish general
+multi-operation, transfer, ceiling, certificate-runtime, native metadata-extraction
+or admission correspondence.
 The mutation runner checks zero-amount acceptance, rejection of exact-budget
 spends, and decrement arithmetic that credits rather than debits rights.
 
@@ -382,7 +382,7 @@ Lean result; no expected status, balance or certificate enters the request.
 Ready balances, statuses and complete fault witness membership are compared
 after native reorder and duplicate delivery. Mutations suppressing the owner-fork check and dependency-tip credit
 must fail executed comparisons. This is a two-operation fixture with an optional
-fork, not general graph, ceiling, witness-byte or admission correspondence.
+fork, not general graph, ceiling, complete fault-reason or admission correspondence.
 
 `StateResourceRendering.witnesses_realize` proves an executable enumeration of
 the complete contextual resource witness set: present relevant facts and present
@@ -394,9 +394,24 @@ enumeration and proved address-pool renderer into canonical fault JSON.
 Diagnostic reason and address encoding remain explicit representation inputs;
 interpreting encoded names as distinct identities requires an injective encoding.
 
-Both live resource profiles now compare those executable witnesses with native
-fault evidence. Native hashes are translated to fixed recognized fixture IDs,
-then sorted without deduplication. The harness rejects witnesses naming absent
-acts and duplicate native witnesses. This checks exact semantic membership,
-rather than raw native reason or fault-byte spelling. Mutations deleting
-contextual fact retention or evidence deduplication fail executed comparisons.
+Both live resource profiles compare those executable witnesses with native
+fault evidence in two independent representations. Native hashes are translated
+to fixed recognized fixture IDs, then sorted without deduplication. The harness
+rejects witnesses naming absent acts and duplicate native witnesses. Separately,
+it renders the evidence value produced by `escrow::Outcome::value` directly
+and compares its exact bytes with
+`StateResourceRendering.evidenceBytes`, whose canonical rendering theorem is
+`evidence_bytes`. Native diagnostic reason text remains outside this comparison.
+Mutations deleting contextual fact retention or evidence deduplication fail
+executed comparisons, as do mutations adding JSON whitespace or reversing the
+native evidence array even though logical witness membership is unchanged.
+
+The resource request's `addresses` field is a list of `[id, name]` rows generated
+from the source acts, before observing their result. It carries neither expected
+witnesses nor a native outcome. The recognizer requires unique nonnegative IDs,
+unique string names, and exactly the accepted fixture's identity coverage.
+Missing, extra, duplicate, conflicting-name and malformed rows are rejected
+before verifier evaluation. The fixed lookup projection is total on every
+accepted identity, and all enumerated witnesses come from that source set.
+This dictionary is an explicit representation boundary, not a content-hash or
+wire-extraction proof.

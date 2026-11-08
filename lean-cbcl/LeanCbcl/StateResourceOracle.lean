@@ -4,7 +4,7 @@ import LeanCbcl.StateResourceTests
 
 /-! Live resource profile with fixed account configuration and explicit decrement/funding graphs.
 Typed extraction is explicit; this profile does not establish native admission,
-wire extraction, or complete resource witness-byte correspondence. -/
+wire extraction, or complete native fault-reason correspondence. -/
 namespace CBCL.StateResourceOracle
 open Lean State CheckpointEvidence StateResource StateResourcePreflight StateResourceAggregate StateResourceTests
 
@@ -13,7 +13,14 @@ theorem installed : NativeConfiguration config ∧ (config.initialVerb :: operat
   exact ⟨(configurationCheck_iff config).mp (by decide),by decide⟩
 
 /-- Execute the complete checked verifier on a recognized finite fixture. -/
-def observeFacts (facts : Facts) : Except String Json := do
+def observeFacts (j : Json) (facts : Facts) : Except String Json := do
+  let names : List (Nat × String) ← fromJson? (← j.getObjVal? "addresses")
+  if !(decide (names.map Prod.fst).Nodup) || !(decide (names.map Prod.snd).Nodup) then
+    throw "address dictionary must have unique identities and names"
+  if names.length != facts.length || !(facts.all (fun node => (names.lookup node.id).isSome)) then
+    throw "address dictionary must cover exactly the accepted fixture identities"
+  let address := fun id => (names.lookup id).getD ""
+
   if unique : (facts.map Fact.id).Nodup then
     if bounded : facts.length ≤ 2^63 - 1 then
       if allocations : facts.all (fun node => decide (((accounts node.data.selected.initialAllocations).map Prod.fst).length ≤ 2^63 - 1)) = true then
@@ -21,7 +28,10 @@ def observeFacts (facts : Facts) : Except String Json := do
           fun node member => of_decide_eq_true (List.all_eq_true.mp allocations node member)⟩
         match StateResourceVerifier.observe input with
         | .pending => return Json.mkObj [("status",.str "pending")]
-        | .fault => return Json.mkObj [("status",.str "fault"),("evidence",toJson ((StateResourceRendering.witnesses config facts).mergeSort (fun a b => decide (a ≤ b))))]
+        | .fault =>
+          let some bytes := StateResourceRendering.evidenceBytes config facts address
+            | throw "resource evidence pool move failed"
+          return Json.mkObj [("status",.str "fault"),("evidence",toJson ((StateResourceRendering.witnesses config facts).mergeSort (fun a b => decide (a ≤ b)))),("witness_bytes",.str bytes)]
         | .ready snapshot => return Json.mkObj [("status",.str "ready"),("value",toJson snapshot.value),
             ("rights",Json.mkObj (["@treasury","@alice","@bob"].map (fun account => (account,toJson (snapshot.rights account)))))]
       else throw "account slice exceeds native bound"
@@ -39,7 +49,7 @@ def run (j : Json) : Except String Json := do
   let hasOpener ← (← j.getObjVal? "opener").getBool?
   let operation : ResourceFact := {burn with data := {burn.data with signer := owner, amount := amount, selected := {burn.data.selected with authenticatedFrom := .value owner}}}
   let facts := (if hasRoot then [root] else []) ++ (if hasOpener then [opener] else []) ++ [operation]
-  observeFacts facts
+  observeFacts j facts
 
 /-- A funding transfer and dependent burn exercise retained resource cones.
 Missing funding, omitted dependencies and an independent same-owner fork are
@@ -55,6 +65,6 @@ def graphRun (j : Json) : Except String Json := do
   let payment : ResourceFact := {burn with id := 4, data := {burn.data with signer := "@treasury", kind := .transfer, amount := funding, selected := {burn.data.selected with verb := "pay", authenticatedFrom := .value "@treasury", recipient := some "@alice", recipientStatus := .recognized}}}
   let spent : ResourceFact := {burn with data := {burn.data with amount := spend, deps := if dependency then [4] else [], selected := {burn.data.selected with predecessors := if dependency then [2,4] else [2]}}}
   let competing : ResourceFact := {spent with id := 5, data := {spent.data with amount := 1}}
-  observeFacts ([root,opener,spent] ++ (if included then [payment] else []) ++ (if fork then [competing] else []))
+  observeFacts j ([root,opener,spent] ++ (if included then [payment] else []) ++ (if fork then [competing] else []))
 
 end CBCL.StateResourceOracle
