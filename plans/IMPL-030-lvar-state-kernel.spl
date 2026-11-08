@@ -912,3 +912,24 @@
 ;; test exercises state_exports::admit rejection, so metadata-only shape evidence
 ;; must not substitute for that admission bridge. Closure progress and literal
 ;; native installation/extraction remain outstanding; full task remains open.
+
+;; Exact event-total bridge checkpoint (REQ-3802 / REQ-3809).
+;; StateEventMapTotal.keys_perm proves supported keys are precisely the unique
+;; present-field source writers' addresses. map_total derives actual mapSum =
+;; native sumField; present_sum removes missing fields without changing totals.
+;; native_sum carries the equality through canonical history and domain selection
+;; into the kernel sum threshold test, under explicit unique-address input.
+;; Fixtures count equal payloads twice, keep a negative signed, omit missing and
+;; nonnumeric fields and ignore other verbs; exact bound 9 reaches and 10 fails.
+;; These typed arithmetic fixtures do not claim admission or sum stability.
+;; Verification: aggregate build and Batteries env-linter pass; 1691 audited
+;; theorems use allowlisted axioms. Four focused source mutants fail named
+;; obligations (inverted presence filter, signer keys, extra total unit, shifted
+;; threshold bound). Verified-by lint and diff check pass; no new unresolved
+;; vault pairs and zero syntax/SPL diagnostics. Independent proof/fixture/artifact
+;; review finds no defect or overclaim.
+;; Next compose actual sum-query compilation and all-root freeze preservation;
+;; obtain accepted nonnegative writer evidence from the real admission boundary.
+;; Native TypeConstraint::matches Nonnegative checks an Atom::Num n with n >= 0;
+;; metadata mandatoryNonnegative alone does not establish this for history acts.
+;; Closure progress and literal native extraction remain open.

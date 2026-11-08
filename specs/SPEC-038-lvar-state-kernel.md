@@ -1539,6 +1539,19 @@ trace. The complete authored fixture constructs both programs with mixed domains
 and specializes preservation conditional on earlier reached membership; it does
 not assert that antecedent.
 
+`StateEventMapTotal.lean` proves that supported event keys enumerate the unique
+present-field writers' addresses, and that the actual map aggregate equals
+`sumField` over source writers. Missing fields and nonnumeric payloads contribute
+zero; equal numeric payloads at different addresses contribute independently.
+The `native_sum` theorem carries this exact total through canonical history and
+domain selection into the actual kernel sum test, under the store's unique-address
+invariant. Arithmetic fixtures include equal positives, a negative, a missing
+field, a nonnumeric field and an unrelated verb, and compute both the exact
+threshold boundary and the next pending bound. These are typed arithmetic
+fixtures, not protocol-admission traces or nonnegative stability evidence.
+This exact-total bridge does not yet compose sum-query compilation, authored
+preservation or admission's enforcement of nonnegative writer shapes.
+
 Shaped nonnegative event sums, closure progress and native
 installation/extraction correspondence remain separate obligations at the typed
 authored boundary.

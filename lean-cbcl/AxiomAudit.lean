@@ -1,3 +1,4 @@
+import LeanCbcl.StateEventMapTotalTests
 import LeanCbcl.StateAuthoredEventMembershipTests
 import LeanCbcl.StateAuthoredMembershipTests
 import LeanCbcl.StateAuthoredDataPreservationTests
@@ -2552,3 +2553,13 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateAuthoredEventMembershipTests.duplicate_native_member
 #print axioms CBCL.StateAuthoredEventMembershipTests.pending_payload_reaches
 #print axioms CBCL.StateAuthoredEventMembershipTests.constructed_programs_preserve_member
+
+#print axioms CBCL.StateEventMapTotal.present_sum
+#print axioms CBCL.StateEventMapTotal.keys_perm
+#print axioms CBCL.StateEventMapTotal.map_total
+#print axioms CBCL.StateEventMapTotal.native_sum
+
+#print axioms CBCL.StateEventMapTotalTests.unique
+#print axioms CBCL.StateEventMapTotalTests.exact_total
+#print axioms CBCL.StateEventMapTotalTests.threshold_boundary
+#print axioms CBCL.StateEventMapTotalTests.threshold_above

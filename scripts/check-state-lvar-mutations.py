@@ -536,6 +536,17 @@ suites.append(("StateAuthoredEventMembership", (root / "lean-cbcl/LeanCbcl/State
      '(outputName,.data (.reached (.element (.member (.str "ghost"))))) ∈ later.observe ∨', "successive_compiled"),
 ]))
 
+suites.append(("StateEventMapTotal", (root / "lean-cbcl/LeanCbcl/StateEventMapTotal.lean").read_text(), [
+    ("event-total-drops-missing-filter", "sumField field (A.filter (fun a => (a.get field).isSome)) = sumField field A",
+     "sumField field (A.filter (fun a => !(a.get field).isSome)) = sumField field A", "present_sum"),
+    ("event-total-keys-use-signer", "(fun a => Val.int a.addr)) := by",
+     "(fun a => Val.str a.signer)) := by", "keys_perm"),
+    ("event-total-adds-extra-unit", "mapSum (evalMap clock rank A (plan verb field)) = sumField field (acts verb A) := by",
+     "mapSum (evalMap clock rank A (plan verb field)) = sumField field (acts verb A) + 1 := by", "map_total"),
+    ("event-sum-bound-shifted", "decide (bound ≤ sumField field (StateDomainSupportLocality.selected domains [verb] A)) := by",
+     "decide (bound + 1 ≤ sumField field (StateDomainSupportLocality.selected domains [verb] A)) := by", "native_sum"),
+]))
+
 # Preserve the full default gate while allowing a focused continuation check.
 import argparse
 parser = argparse.ArgumentParser(description=__doc__)
