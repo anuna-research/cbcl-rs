@@ -42,4 +42,18 @@ theorem trigger_guard_not_replayable : ¬ Replays guard.read [trigger] [] := by
   rw [support_does_not_imply_replay.2] at current
   contradiction
 
+/-- An accepted act outside the fault certificate is irrelevant to replay. -/
+def unrelated : Act := ⟨8,"tell","@b",[],[],[]⟩
+
+/-- Replay premises transfer the named act without quietly requiring the full
+source history. This also distinguishes exact act receipt from address aliases. -/
+theorem accepts_only_named_act : Accepts [trigger,unrelated] {trigger.addr} [trigger] := by
+  intro act member named
+  simp only [List.mem_cons,List.not_mem_nil,or_false] at member
+  rcases member with equal | equal
+  · subst act
+    simp
+  · subst act
+    simp [trigger,unrelated] at named
+
 end CBCL.StateWitnessReplayTests

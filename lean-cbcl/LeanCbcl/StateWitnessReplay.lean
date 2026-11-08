@@ -120,4 +120,138 @@ theorem freeze_replays (world : Act → Prop) (verb : String)
     · exact Or.inr (freezeGrows id freezeMember)
   · contradiction
 
+/-- Any evidence contributed by an accepted act survives its carrier join. -/
+theorem sole_member_evidence (contribution : Act → Sole) {A : List Act}
+    {act : Act} (member : act ∈ A) {id : Nat}
+    (evidence : id ∈ Sole.evidence (contribution act)) :
+    id ∈ Sole.evidence (lift contribution A) := by
+  have absorbed := join_lift_of_mem contribution member
+  rw [← absorbed,sole_evidence_join]
+  exact Or.inl evidence
+
+/-- Named non-bottom contributions suffice to reproduce the entire sole-value
+carrier. Unnamed bottom contributions need not be delivered. -/
+theorem sole_carrier_replays (contribution : Act → Sole)
+    (identity : ∀ act, contribution act ≠ .bot → act.addr ∈ Sole.evidence (contribution act))
+    {A B : List Act} (accepted : Accepts A (Sole.evidence (lift contribution A)) B) :
+    lift contribution A ⊔ lift contribution B = lift contribution B := by
+  apply lift_join_of_forall
+  intro act member
+  by_cases empty : contribution act = .bot
+  · rw [empty]
+    exact bot_join _
+  · exact join_lift_of_mem contribution (accepted act member
+      (sole_member_evidence contribution member (identity act empty)))
+
+/-- A reproduced top carrier retains every original reported identity. -/
+theorem sole_top_replays {old current : Sole} {e : Evidence}
+    (observed : old = .top e) (absorbed : old ⊔ current = current) :
+    ∃ enlarged, current = .top enlarged ∧ ∀ id ∈ e, id ∈ enlarged := by
+  rw [observed] at absorbed
+  change Sole.join (.top e) current = current at absorbed
+  cases current with
+  | bot | one _ _ => simp [Sole.join] at absorbed
+  | top enlarged =>
+    have same : e ∪ enlarged = enlarged := by simpa [Sole.join] using absorbed
+    refine ⟨enlarged,rfl,?_⟩
+    intro id member
+    rw [← same]
+    exact Or.inl member
+
+/-- Checked thresholds report every accepted address on conflict, so their
+reported witness already transfers the complete required carrier context. -/
+theorem threshold_replays (spec : ThresholdSpec) (A B : List Act) :
+    Replays (thresholdError spec) A B := by
+  classical
+  intro e fault accepted
+  unfold thresholdError at fault
+  split at fault
+  · rename_i conflict
+    have same := Option.some.inj fault
+    subst e
+    have includes : ∀ act ∈ A, act ∈ B := by
+      intro act member
+      exact accepted act member ⟨act,member,rfl⟩
+    exact errors_persist (fun _ => False) (.threshold spec)
+      (by intro child member parent impossible edge; contradiction) includes _ (by simp [errors,thresholdError,conflict])
+  · contradiction
+
+/-- Initializer faults replay from the reported opener acts. Other accepted
+verbs contribute nothing and need not be delivered. -/
+theorem domain_replays (opener field : String) (A B : List Act) :
+    Replays (domainError opener field) A B := by
+  intro e fault accepted
+  cases old : initialCarrier opener field A with
+  | bot | one _ _ => simp [domainError,old] at fault
+  | top original =>
+    have same : original = e := by simpa [domainError,old] using fault
+    subst e
+    have includes : ∀ act ∈ acts opener A, act ∈ acts opener B := by
+      intro act member
+      have source := List.mem_filter.mp member
+      have verb : act.verb = opener := by simpa using source.2
+      have evidence : act.addr ∈ original := by
+        have inside := (opener_evidence opener field A act.addr).mpr ⟨act,source.1,verb,rfl⟩
+        simpa [old,Sole.evidence] using inside
+      exact List.mem_filter.mpr ⟨accepted act source.1 evidence,source.2⟩
+    have absorbed : initialCarrier opener field A ⊔ initialCarrier opener field B = initialCarrier opener field B :=
+      lift_join_of_forall (sole field) (fun act member => join_lift_of_mem _ (includes act member))
+    obtain ⟨enlarged,current,contains⟩ := sole_top_replays old absorbed
+    exact ⟨enlarged,by simp [domainError,current],contains⟩
+
+/-- Root-context faults replay from their reported roots, including the single
+malformed-root case. No unrelated application act is required. -/
+theorem context_replays (decode : Act → Option Val) (A B : List Act) :
+    Replays (fun history => contextError (StateContext.read decode history)) A B := by
+  intro e fault accepted
+  have observed : StateContext.read decode A = .fault e := by
+    cases current : StateContext.read decode A with
+    | pending | value _ => simp [current,contextError] at fault
+    | fault original =>
+      have same : original = e := by simpa [current,contextError] using fault
+      simpa [same] using current
+  have evidence : e = Sole.evidence (lift (StateContext.contribution decode) A) := StateContext.fault_evidence observed
+  have acceptedRoots : Accepts A (Sole.evidence (lift (StateContext.contribution decode) A)) B := by
+    rw [← evidence]
+    exact accepted
+  have absorbed := sole_carrier_replays (StateContext.contribution decode) (by
+    intro act nonempty
+    unfold StateContext.contribution at nonempty ⊢
+    split
+    · simp [Sole.evidence]
+    · simp_all) acceptedRoots
+  obtain ⟨enlarged,current,contains⟩ := StateContext.fault_join
+    (b := StateContext.carrier decode B) observed
+  change StateContext.display (lift (StateContext.contribution decode) A ⊔
+    lift (StateContext.contribution decode) B) = .fault enlarged at current
+  rw [absorbed] at current
+  exact ⟨enlarged,by simp [StateContext.read,StateContext.carrier,current,contextError],contains⟩
+
+/-- Remaining primitive obligations for a closed observation path. Concrete
+certified guards and resource readers must prove replay in admissible context;
+all other constructors have structural replay laws. -/
+def PrimitiveReplay (A B : List Act) : Path → Prop
+  | .certified spec => Replays spec.read A B
+  | .resource config decode => Replays (StateResource.faultRead config decode) A B
+  | .join left right => PrimitiveReplay A B left ∧ PrimitiveReplay A B right
+  | .freeze _ _ _ source => PrimitiveReplay A B source
+  | _ => True
+
+/-- All observation paths compose witness replay from their concrete extension
+and resource certificates. Source causal closure supports freeze witnesses. -/
+theorem errors_replay (world : Act → Prop) (path : Path) {A B : List Act}
+    (closed : CausallyClosed world A) (primitive : PrimitiveReplay A B path) :
+    Replays (errors world path) A B := by
+  induction path with
+  | clear => intro e impossible accepted; contradiction
+  | certified spec => exact primitive
+  | context decode => exact context_replays decode A B
+  | domain opener field => exact domain_replays opener field A B
+  | resource config decode => exact primitive
+  | threshold spec => exact threshold_replays spec A B
+  | join left right ihLeft ihRight =>
+    exact union_replays _ _ (ihLeft primitive.1) (ihRight primitive.2)
+  | freeze verb contributes policy source ih =>
+    exact freeze_replays world verb contributes policy _ closed (ih primitive)
+
 end CBCL.StateWitnessReplay

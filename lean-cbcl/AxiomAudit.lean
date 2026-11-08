@@ -3108,3 +3108,13 @@ editing only this file is enough to extend the audit.
 
 #print axioms CBCL.StateWitnessReplayTests.support_does_not_imply_replay
 #print axioms CBCL.StateWitnessReplayTests.trigger_guard_not_replayable
+#print axioms CBCL.StateWitnessReplay.sole_member_evidence
+#print axioms CBCL.StateWitnessReplay.sole_carrier_replays
+#print axioms CBCL.StateWitnessReplay.sole_top_replays
+#print axioms CBCL.StateWitnessReplay.threshold_replays
+#print axioms CBCL.StateWitnessReplay.domain_replays
+#print axioms CBCL.StateWitnessReplay.context_replays
+#print axioms CBCL.StateWitnessReplay.errors_replay
+#print axioms CBCL.StateQuasiDeterminism.fault_of_accepting_witness
+#print axioms CBCL.StateQuasiDeterminism.witness_only_dissemination
+#print axioms CBCL.StateWitnessReplayTests.accepts_only_named_act

@@ -1,4 +1,4 @@
-import LeanCbcl.StateEvidenceSupport
+import LeanCbcl.StateWitnessReplay
 
 /-! Finite evidence and delivery for complete typed observation plans.
 A replay certificate retains the source history as context; reported witness
@@ -78,5 +78,52 @@ theorem threshold_agreement_or_finite_fault {V : Type} (world : Act → Prop)
   · obtain ⟨ids,exactIds⟩ := StateEvidenceSupport.observation_finite world _ _ e fault
     have support := StateEvidenceSupport.observation_supported world _ _ e fault
     exact Or.inr ⟨e,fault,ids,exactIds,fun id member => support id ((exactIds id).mp member)⟩
+
+/-- A typed observation reproduces from its reported witness acts when its
+concrete primitive guards carry replay certificates. -/
+theorem fault_of_accepting_witness {V : Type} (world : Act → Prop)
+    (plan : Plan V) {A B : List Act} {e : Evidence}
+    (closed : CausallyClosed world A)
+    (primitive : StateWitnessReplay.PrimitiveReplay A B (path plan))
+    (accepted : StateWitnessReplay.Accepts A e B)
+    (fault : observe world plan A = .fault e) :
+    ∃ enlarged, observe world plan B = .fault enlarged ∧ ∀ id ∈ e, id ∈ enlarged := by
+  have original : errors world (path plan) A = some e := by
+    cases current : errors world (path plan) A with
+    | none => simp [observe,current] at fault
+    | some actual =>
+      have same : actual = e := by simpa [observe,current] using fault
+      simpa [same] using current
+  obtain ⟨enlarged,current,contains⟩ :=
+    StateWitnessReplay.errors_replay world (path plan) closed primitive e original accepted
+  exact ⟨enlarged,by simp [observe,current],contains⟩
+
+/-- Reliable replica delivery need transfer only acts selected by the reported
+witness. Primitive replay certificates retain their explicit admissible-context
+obligation at each receiving state. -/
+theorem witness_only_dissemination {adm : Admission} {auth : Act → Prop}
+    {H : ValidHistory adm} (left right : Replica adm auth H)
+    (admission : PredecessorAdmission adm H.contains) {V : Type}
+    (plan : Plan V) (atTime : Nat) {e : Evidence}
+    (primitive : ∀ n, StateWitnessReplay.PrimitiveReplay (left.run atTime).accepted
+      (right.run n).accepted (path plan))
+    (fault : observe H.contains plan (left.run atTime).accepted = .fault e) :
+    ∃ witness : List Act,
+      (∀ act, act ∈ witness ↔ act ∈ (left.run atTime).accepted ∧ act.addr ∈ e) ∧
+      ∃ t, ∀ n, t ≤ n → ∃ enlarged,
+        observe H.contains plan (right.run n).accepted = .fault enlarged ∧
+        ∀ id ∈ e, id ∈ enlarged := by
+  classical
+  let witness := (left.run atTime).accepted.filter (fun act => decide (act.addr ∈ e))
+  have exactWitness : ∀ act, act ∈ witness ↔ act ∈ (left.run atTime).accepted ∧ act.addr ∈ e := by
+    intro act
+    simp [witness]
+  obtain ⟨t,delivered⟩ := witness_dissemination left right witness atTime
+    (fun act member => ((exactWitness act).mp member).1)
+  refine ⟨witness,exactWitness,t,fun n hn => ?_⟩
+  apply fault_of_accepting_witness H.contains plan
+    (replica_causal_closed left admission atTime) (primitive n) _ fault
+  intro act member named
+  exact delivered n hn act ((exactWitness act).mpr ⟨member,named⟩)
 
 end CBCL.StateQuasiDeterminism

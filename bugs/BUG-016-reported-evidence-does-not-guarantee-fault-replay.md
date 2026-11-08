@@ -69,3 +69,17 @@ constant empty-evidence fault, whose guard definition independently compiled;
 the unchanged regression then failed at its `False` proof obligation. Thus
 the regression distinguishes a trigger-dependent fault from an unconditional,
 replayable fault, rather than merely checking elaboration or a missing import.
+
+The next checkpoint proves `threshold_replays`, `domain_replays` and
+`context_replays`, including malformed roots, from the actual reported acts.
+`errors_replay` composes all closed paths with the remaining certified/resource
+obligations exposed by `PrimitiveReplay`. The typed
+`fault_of_accepting_witness` and replica `witness_only_dissemination` now transfer
+only the source acts whose identities occur in evidence; they do not substitute
+the full source history. The latter retains explicit primitive replay premises
+for receiving states. These premises still need concrete installed proofs.
+
+`accepts_only_named_act` proves acceptance can omit an unrelated source act.
+Its standalone baseline passes; replacing the extracted acceptance condition
+with unconditional whole-history inclusion makes the same proof fail. Independent
+review found no defect in the new primitive, path and delivery proofs.
