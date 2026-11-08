@@ -857,3 +857,34 @@
 ;; nonnegative event sums; progress requires its concrete causal-store bridge.
 ;; Native installation/extraction correspondence remains open. The full
 ;; quasi-determinism task is not completed.
+
+;; Set-union membership through actual authored observations for
+;; [[SPEC-038-lvar-state-kernel#TEST-3806]]: the proof-only Head inventory now
+;; includes the existing set-union rule and distinct-value expression. Existing
+;; binding/final-plan/freeze/prefix provenance automatically covers this head;
+;; no new dialect syntax or source callback is introduced. StateNativeMembership
+;; connects canonical domain-aware kernel projection to whole field-value
+;; membership, proves witness growth and actual source-owned raw-query behavior,
+;; and composes every fault-freeze root outcome. StateAuthoredMembership derives
+;; scalar admission, constructs complete program occurrences, inverts actual
+;; earlier reached outputs and proves successive_compiled: same named member
+;; result or named fault in the later actual compiled vector. No prior native
+;; membership or detached policy lookup is a premise. This is singleton scalar
+;; member over set-union; event maps remain separate.
+;; Fixtures compute duplicate/reverse native success and actual emitted query
+;; success with pending payload, reject structured queries and supersede freeze,
+;; construct both authored programs alongside count/existence with mixed domains,
+;; and compute an earlier native witness. Preservation remains conditional on
+;; an earlier compiled reached member; the full fixture does not assert it.
+;; Verification: aggregate build and Batteries env-linter pass; 1663 theorem
+;; audits use only allowlisted axioms. Six focused proof mutations fail named
+;; obligations for replacement-filtered set-union, inverted membership, wrong
+;; query tag, inverted scalar admission, invented native value and changed later
+;; answer. Verified-by lint passes; no new unresolved vault pairs or syntax/SPL
+;; errors. Independent proof/fixture/artifact review finds no defect/overstatement.
+;; Next event membership bridge: map_correct gives per-address selected cells;
+;; content consistency identifies each address-group winner with its originating
+;; writer, yielding field membership despite canonicalization. Event sums also
+;; need address-key total correspondence and actual nonnegative-shape evidence.
+;; Progress and literal native installation/extraction remain open; full task
+;; remains outstanding.

@@ -1497,7 +1497,27 @@ one, and specialize preservation conditional on the earlier compiled reached
 results. They also compute supersede rejection; they do not assert those earlier
 reached results for the complete authored fixture.
 
-Set/event membership, shaped nonnegative event sums, closure progress and native
+`StateNativeMembership.lean` connects set-union membership to the actual kernel
+projection of whole selected field values. It does not flatten list-valued
+fields or discard superseded values. Source-owned query code tests the raw kernel state independently of its displayed
+payload; the authored proof derives scalar admission from successful query
+compilation. Witness growth and the observed freeze error channel establish
+factory-level membership preservation for every freezer-root outcome.
+`StateAuthoredMembership.successive_compiled` composes the shared authored
+provenance/output path and inversion from an earlier actual named reached result.
+A singleton scalar-member threshold stays the same named reached result or a
+named fault in the later actual compiled vector, for accepted-set growth between
+ranked content-consistent typed histories. Native membership and detached policy
+lookups are not external premises.
+
+Membership fixtures compute reverse/duplicate native success and emitted query
+success with a pending payload, reject structured queries and supersede freezes,
+and construct both authored programs with count/existence and mixed domains.
+The earlier native witness is computed; the preservation implication remains
+conditional on an earlier compiled reached result, which the complete authored
+fixture does not assert.
+
+Event membership, shaped nonnegative event sums, closure progress and native
 installation/extraction correspondence remain separate obligations at the typed
 authored boundary.
 Literal Rust value representation and public serialized

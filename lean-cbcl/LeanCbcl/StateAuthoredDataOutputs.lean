@@ -1,6 +1,6 @@
 import LeanCbcl.StateAuthoredDataProvenance
 
-/-! Native count/existence queries in complete actual authored output programs.
+/-! Native data queries in complete actual authored output programs.
 Source identity, query ownership, freeze metadata and output occurrence are
 recovered from the existing compiler. No successful code walk is a premise. -/
 set_option autoImplicit false

@@ -501,6 +501,22 @@ suites.append(("StateAuthoredDataPreservation", (root / "lean-cbcl/LeanCbcl/Stat
      "(outputName,.data (.reached (.element (.scalar (.bool false))))) ∈ later.observe ∨", "exists_successive"),
 ]))
 
+suites.append(("StateNativeMembership", (root / "lean-cbcl/LeanCbcl/StateNativeMembership.lean").read_text(), [
+    ("set-union-discards-replaced-values", "StateInstalledDomains.evaluate context domains (.distinct (.verb verb) field) (rawHistory A) =",
+     "StateInstalledDomains.evaluate context domains (.distinct (.current verb none none) field) (rawHistory A) =", "member_value"),
+    ("set-union-member-predicate-inverted", "if has field (selected domains [verb] A) value then",
+     "if !(has field (selected domains [verb] A) value) then", "compiled_member"),
+    ("set-union-freeze-returns-scalar-query", "output = (outputName,.data (.reached (.element (.member value)))) ∨",
+     "output = (outputName,.data (.reached (.element (.scalar value)))) ∨", "member_success_or_fault"),
+]))
+suites.append(("StateAuthoredMembership", (root / "lean-cbcl/LeanCbcl/StateAuthoredMembership.lean").read_text(), [
+    ("structured-member-admission-inverted", "scalar value = true := by", "scalar value = false := by", "admitted_member"),
+    ("member-inversion-invents-another-value", "has field (StateDomainSupportLocality.selected prepared.domains [verb] A) value = true := by",
+     'has field (StateDomainSupportLocality.selected prepared.domains [verb] A) (.str "ghost") = true := by', "native_success"),
+    ("member-preservation-changes-answer", "(outputName,.data (.reached (.element (.member value)))) ∈ later.observe ∨",
+     '(outputName,.data (.reached (.element (.member (.str "ghost"))))) ∈ later.observe ∨', "successive_compiled"),
+]))
+
 # Preserve the full default gate while allowing a focused continuation check.
 import argparse
 parser = argparse.ArgumentParser(description=__doc__)

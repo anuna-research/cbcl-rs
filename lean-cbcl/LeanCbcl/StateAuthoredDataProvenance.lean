@@ -1,6 +1,6 @@
 import LeanCbcl.StateNativeDataFreeze
 
-/-! Authored count/existence source identity and freeze provenance. The closed
+/-! Authored native data source identity and freeze provenance. The closed
 head inventory is proof metadata, not new dialect syntax or a supplied source
 factory. Every binding equation is checked against the existing lowerer. -/
 set_option autoImplicit false
@@ -12,20 +12,23 @@ open StateInstalledLegacy StateInstalledLowering StateAuthoredBindings StateAuth
 inductive Head where
   | count (verb : String)
   | existsRule (verb : String)
+  | setUnion (verb field : String)
 
 /-- The single source performative retained by each head. -/
 def Head.verb : Head → String
-  | .count verb | .existsRule verb => verb
+  | .count verb | .existsRule verb | .setUnion verb _ => verb
 
 /-- The original dialect rule, using the existing rule inventory. -/
 def Head.rule : Head → StateKernelClause.Rule
   | .count verb => .count verb
   | .existsRule verb => .existsRule verb
+  | .setUnion verb field => .setUnion verb field
 
 /-- The actual expression emitted by the existing kernel rule compiler. -/
 def Head.expression : Head → StateKernel.Expr
   | .count verb => .count (.verb verb)
   | .existsRule verb => .existsRule (.verb verb)
+  | .setUnion verb field => .distinct (.verb verb) field
 
 /-- The existing source factory, not a callback stored by this proof. -/
 noncomputable def Head.definition (head : Head) (environment : Environment) (domains : List StateInstalledDomains.Domain) : Definition Value :=

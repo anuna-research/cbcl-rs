@@ -1,3 +1,4 @@
+import LeanCbcl.StateAuthoredMembershipTests
 import LeanCbcl.StateAuthoredDataPreservationTests
 import LeanCbcl.StateNativeDataPoliciesTests
 import LeanCbcl.StateAuthoredFinitePreservationTests
@@ -2509,3 +2510,20 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateAuthoredDataPreservationTests.installation_succeeds
 #print axioms CBCL.StateAuthoredDataPreservationTests.supersede_rejected
 #print axioms CBCL.StateAuthoredDataPreservationTests.constructed_programs_preserve_both
+
+#print axioms CBCL.StateNativeMembership.member_value
+#print axioms CBCL.StateNativeMembership.member_grows
+#print axioms CBCL.StateNativeMembership.compiled_member
+#print axioms CBCL.StateNativeMembership.member_success_or_fault
+
+#print axioms CBCL.StateAuthoredMembership.admitted_member
+#print axioms CBCL.StateAuthoredMembership.program_stability
+#print axioms CBCL.StateAuthoredMembership.native_success
+#print axioms CBCL.StateAuthoredMembership.successive_compiled
+
+#print axioms CBCL.StateAuthoredMembershipTests.installation_succeeds
+#print axioms CBCL.StateAuthoredMembershipTests.structured_member_rejected
+#print axioms CBCL.StateAuthoredMembershipTests.supersede_rejected
+#print axioms CBCL.StateAuthoredMembershipTests.duplicate_native_member
+#print axioms CBCL.StateAuthoredMembershipTests.pending_payload_reaches
+#print axioms CBCL.StateAuthoredMembershipTests.constructed_programs_preserve_member
