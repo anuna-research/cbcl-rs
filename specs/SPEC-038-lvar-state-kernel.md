@@ -857,8 +857,9 @@ operation domains reject at installation. Validates
 [[SPEC-038-lvar-state-kernel#REQ-3808]].
 
 The live causal-DAG oracle executes a freeze read proved equal to the existing
-Lean `freezeRead`. Its checked topological identities supply the ancestry
-search bound; executable ancestry, exact cuts, earliest freezers and complete
+Lean `freezeRead`. A separately checked causal rank supplies a compressed
+history-length search bound without ordering semantic identities; executable
+ancestry, exact cuts, earliest freezers and complete
 conflict evidence are connected to their semantic definitions. Native fold
 comparisons cover both freeze policies, repeated/concurrent freezers,
 multi-parent ancestry, late contributions, raw top faults and unioned raw/freeze
@@ -1288,13 +1289,22 @@ complete initial source-request transcript/cache equality for prepared clauses
 with freezes. Concrete fixtures construct incomparable cuts and a prepared
 context/count/threshold/freeze clause.
 
-These results require content-consistent histories whose numeric addresses rank
-causal edges. Content hashes do not generally have that ordering. `StateCausalRank.lean` separately proves the same bounded search complete under
-a recognized topological list order, using positions solely as search ranks and
-retaining original semantic addresses. Its descending-address fixture preserves
-an edge from address 99 to address 2. This search is not yet wired into the
-scope pool or live oracle; constructing a topological order from arbitrary native
-history order and composing it with those readers remain required.
+These results require content-consistent histories admitting a separate causal
+rank. `StateFiniteCausalRank.lean` compresses any such rank into counts below
+its values, proving strict decrease and a bound below history length even with
+duplicate delivery. `StateExecutableFreeze.ancestor` uses history-length fuel;
+its exact ancestry/cut proofs and the actual scope, cache and output compiler
+pipeline preserve semantic addresses and arbitrary delivery order. No sorting
+or address renumbering is needed for execution.
+
+`StateCausalRank.lean` constructs a candidate topological order and independently
+recognizes its vertex coverage and edge order. `causalCheck_sound` constructs the
+rank premise from successful recognition. Checker completeness for every finite
+DAG is not yet proved. Freeze and context live-oracle validators use this checker;
+generated vertex labels decrease along edges, with reversed and duplicate delivery.
+The authored integration fixture constructs complete compiled/cache outputs for
+a descending-address, reversed, duplicated history. Rank extraction from literal
+native admission and cryptographic address representation remain boundaries.
 `StateThresholdDispatch.lean` now proves that allocated raw-threshold scope is
 exactly the semantic selected-freezer cut. Completed source faults are preserved;
 healthy raw reads do not require a displayed payload or full-history locality.

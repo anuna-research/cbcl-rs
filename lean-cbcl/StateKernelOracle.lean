@@ -2,6 +2,7 @@ import Lean
 import LeanCbcl.StateContextOracle
 import LeanCbcl.StateFiniteRead
 import LeanCbcl.StateExecutableFreeze
+import LeanCbcl.StateCausalRank
 import LeanCbcl.StateExecutableObservation
 
 /-! JSON-lines differential oracle. Inputs contain only authored finite data and
@@ -67,9 +68,9 @@ def act (j : Json) : Check Act := do
   return ⟨← address.getNat?,verb,"@a",preds,fields,[]⟩
 
 def validateHistory (history : List Act) : Check Unit := do
-  if !CBCL.StateExecutableFreeze.rankedCheck history then throw "predecessor identities must decrease"
   if !history.all (fun a => history.all (fun b => a.addr != b.addr || a == b)) then throw "conflicting identity payloads"
   if !history.all (fun a => a.preds.all (fun reference => history.any (fun parent => parent.addr == reference))) then throw "missing predecessor"
+  if !CBCL.StateCausalRank.causalCheck history then throw "causal cycle or invalid topological witness"
   if !history.all (fun a => decide (a.fields.map Prod.fst).Nodup) then throw "duplicate field keyword"
   return ()
 

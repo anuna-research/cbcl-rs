@@ -543,3 +543,26 @@
 ;; cut, fault and captured-history theorems. Verified-by lint passes; vault adds
 ;; no unresolved reference pairs or syntax/SPL errors. Independent proof, API,
 ;; concrete fixture and artifact review found no remaining defect in stated scope.
+
+;; Address-independent graph integration for
+;; [[SPEC-038-lvar-state-kernel#TEST-3806]]: StateFiniteCausalRank compresses any
+;; separate causal rank via lower-set counts, strictly increasing across edges
+;; and bounded below history length even with duplicates. Executable ancestor
+;; now uses history-length fuel; Ranked means a separate rank exists, never
+;; address order. Existing exact scope/cache/output proofs inherit this premise.
+;; No semantic addresses, HLC tie keys or delivery order are rewritten.
+;; StateCausalRank's Kahn candidate is independently checked for vertex coverage
+;; and edge ordering; causalCheck_sound supplies Ranked to freeze/context oracle
+;; validators. Rust test builders follow dependencies and restore delivery order;
+;; generated IDs deliberately descend along edges. Cycle rejection is covered.
+;; A concrete reversed/duplicated descending-address authored fixture constructs
+;; compilation, cache execution and complete output equality. Checker soundness
+;; is proved; checker completeness for all DAGs and literal native admission/rank
+;; extraction remain open, alongside native representation/rendering boundaries.
+;; Verification: full Lean/oracle build and Batteries env-linter pass; 1493
+;; theorems pass the axiom audit. All five live oracle tests pass at 512 generated
+;; cases; descending-label freeze and context campaigns each pass 10000 generated
+;; cases with three delivery variants. Twelve focused graph proof mutations and
+;; eighteen isolated native mutations fail executed intended checks. Verified-by
+;; lint passes; vault adds no unresolved pairs or syntax/SPL errors. Independent
+;; proof, integration fixture and artifact review found no defect/overstatement.

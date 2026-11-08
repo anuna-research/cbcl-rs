@@ -1,5 +1,6 @@
 import Lean
 import LeanCbcl.StateExecutableContext
+import LeanCbcl.StateCausalRank
 
 /-! Context profile for the live oracle. Canonical address hashing and wire
 recognition remain input/normalization boundaries; cast validation, projection
@@ -51,8 +52,9 @@ structure Input where
 def input (j : Json) : Check Input := do
   let facts ← (← (← j.getObjVal? "facts").getArr?).toList.mapM fact
   if !facts.all (fun a => facts.all (fun b => a.id != b.id || a == b)) then throw "conflicting context identity"
-  if !facts.all (fun child => child.parents.all (fun parent => decide (parent < child.id) && facts.any (fun a => a.id == parent))) then
-    throw "context graph requires present earlier predecessors"
+  if !facts.all (fun child => child.parents.all (fun parent => facts.any (fun a => a.id == parent))) then
+    throw "context graph requires present predecessors"
+  if !CBCL.StateCausalRank.causalCheck (facts.map Fact.act) then throw "context graph contains a causal cycle"
   return ⟨← (← j.getObjVal? "name").getStr?,← fromJson? (← j.getObjVal? "path"),
     ← fromJson? (← j.getObjVal? "query"),facts⟩
 

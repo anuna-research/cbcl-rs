@@ -245,3 +245,5 @@ import LeanCbcl.StateThresholdDispatchTests
 import LeanCbcl.StatePreparedOutputsTests
 
 import LeanCbcl.StateOutputCompilerTests
+
+import LeanCbcl.StateCausalRankIntegrationTests

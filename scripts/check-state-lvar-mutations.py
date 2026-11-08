@@ -282,12 +282,19 @@ suites.append(("StateThresholdDispatch", (root / "lean-cbcl/LeanCbcl/StateThresh
     ("threshold-dispatch-uses-full-history", "rawHistory (rawScope entries whole fields freezes name)", "rawHistory (normalize whole)", "dispatch_refinement"),
 ]))
 
+suites.append(("StateFiniteCausalRank", (root / "lean-cbcl/LeanCbcl/StateFiniteCausalRank.lean").read_text(), [
+    ("compressed-rank-includes-self", "decide (rank act < value)", "decide (rank act ≤ value)", "below_bound"),
+]))
+
 suites.append(("StateCausalRank", (root / "lean-cbcl/LeanCbcl/StateCausalRank.lean").read_text(), [
     ("causal-rank-search-uses-address-fuel", "reachable (history.length + 1) history a freezer", "reachable (freezer.addr + 1) history a freezer", "ancestor_iff"),
+    ("causal-order-not-recognized", "order.all history.contains && check order", "order.all history.contains && true", "causalCheck_sound"),
+    ("causal-order-builder-no-ready-node", "pending.find? (ready pending)", "(none : Option Act)", "descending_reverse_checked"),
     ("causal-rank-cut-ignored", "history.filter (fun a => ancestor history a freezer)", "history", "cut_refinement"),
 ]))
 
 suites.append(("StateExecutableFreeze", (root / "lean-cbcl/LeanCbcl/StateExecutableFreeze.lean").read_text(), [
+    ("integrated-search-uses-address-fuel", "reachable (A.length + 1) A a f", "reachable (f.addr + 1) A a f", "ancestor_iff"),
     ("executable-ancestor-omits-self", "(a == f || A.any", "(false || A.any", "reachable_complete"),
     ("executable-cut-ignored", "def cut (A : List Act) (freezer : Act) : List Act := A.filter (fun a => ancestor A a freezer)", "def cut (A : List Act) (freezer : Act) : List Act := A", "cut_refinement"),
     ("executable-late-policy-ignored", "&& !ancestor A b a && policy)", "&& !ancestor A b a && true)", "conflict_iff"),

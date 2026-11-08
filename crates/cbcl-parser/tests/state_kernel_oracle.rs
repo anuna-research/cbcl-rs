@@ -298,10 +298,20 @@ fn normalize_fault(value: &Value, ids: &BTreeMap<String, u64>) -> Value {
 }
 fn graph_acts(case: &Value) -> (BTreeMap<String, u64>, Vec<Act>) {
     let rows = case["acts"].as_array().unwrap();
-    let mut ordered = rows.clone();
-    ordered.sort_by_key(|a| a[0].as_u64().unwrap());
+    let mut pending = rows.clone();
     let mut built: BTreeMap<u64, Act> = BTreeMap::new();
-    for row in ordered {
+    while !pending.is_empty() {
+        let ready = pending
+            .iter()
+            .position(|row| {
+                row[2]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .all(|parent| built.contains_key(&parent.as_u64().unwrap()))
+            })
+            .expect("oracle test history must be closed and acyclic");
+        let row = pending.remove(ready);
         let id = row[0].as_u64().unwrap();
         if built.contains_key(&id) {
             continue;
@@ -557,14 +567,17 @@ impl FreezeCase {
         if !self.with_threshold {
             request["queries"] = Value::Null;
         }
-        let mut graph = vec![json!([0, "open", [], []])];
+        // Labels deliberately decrease along edges. They identify semantic
+        // vertices rather than encode the test builder's causal order.
+        let label = |id: usize| (self.graph.len() + 1 - id) * 17 + 11;
+        let mut graph = vec![json!([label(0), "open", [], []])];
         for (offset, (close, a, b, two)) in self.graph.iter().enumerate() {
             let id = offset + 1;
             let parent = usize::from(*a) % id;
-            let mut parents = vec![parent];
+            let mut parents = vec![label(parent)];
             let second = usize::from(*b) % id;
             if *two && second != parent {
-                parents.push(second);
+                parents.push(label(second));
             }
             let fields = if *close {
                 vec![]
@@ -576,7 +589,7 @@ impl FreezeCase {
                 ]
             };
             graph.push(json!([
-                id,
+                label(id),
                 if *close { "close" } else { "mark" },
                 parents,
                 fields
@@ -733,6 +746,12 @@ fn freeze_kernel_matches_live_lean_oracle() {
 fn oracle_rejects_ambiguous_or_nonclosed_graphs() {
     let mut oracle = Oracle::start();
     let base = freeze_directed()[0].clone();
+    let mut cycle = base.clone();
+    cycle["acts"][0][2] = json!([2]);
+    assert!(oracle.response(&cycle)["error"]
+        .as_str()
+        .unwrap()
+        .contains("causal cycle"));
     let mut missing = base.clone();
     missing["acts"].as_array_mut().unwrap().remove(1);
     assert!(oracle.response(&missing)["error"]

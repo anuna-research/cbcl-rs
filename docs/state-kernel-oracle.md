@@ -65,9 +65,14 @@ integers or booleans. The harness translates JSON booleans to CBCL `#t`/`#f`
 and preserves identity across duplicate delivery. Freeze requests add a Boolean
 `freeze` policy (`true` = fault, `false` = supersede) and encode acts as
 `[identity, verb, predecessor-identities, keyword/scalar-pairs]`. Identities
-increase along causal edges. The oracle rejects missing predecessors,
-conflicting identity payloads and repeated field keywords. Generated DAGs are
-bounded; backward search is a semantic reference, not the native cost model.
+are independent of causal order. A bounded Kahn pass proposes an order, then
+independent coverage/edge checks construct the separate causal-rank premise.
+Rank compression proves history-length search fuel sufficient without changing
+addresses or delivery order. The oracle rejects missing predecessors, cycles,
+conflicting identity payloads and repeated field keywords. Generated freeze IDs
+deliberately decrease along causal edges. DAGs are bounded; backward search can
+revisit shared paths exponentially and is not the native cost model. Checker
+soundness is proved; completeness for every finite DAG is not yet proved.
 Responses distinguish input errors from installation rejection and report
 semantic observations.
 
@@ -92,6 +97,10 @@ nullable `cast` (role/account-list pairs or the string `"malformed"`), and
 nullable `pin` (`"correct"`, `"wrong"` or `"malformed"`). The fixed dialect
 has singleton `chair`, indexed `reviewer`, and an `open` opener. Lean request identity and
 closed-graph checks reject conflicting repeated facts or absent predecessors.
+The same independently checked causal-rank witness rejects cycles without
+requiring IDs to increase. Generated context IDs deliberately decrease along
+edges. Rust constructs messages by dependencies and restores requested delivery
+order, preserving all IDs and duplicate deliveries.
 The serializer enumerates roster/frontier support from input facts; support
 completeness is a profile boundary rather than a separate proved theorem. It errors
 if a value exceeds its explicit depth bound; it does not silently truncate.

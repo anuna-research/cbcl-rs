@@ -1,21 +1,26 @@
-import LeanCbcl.StateLVar
+import LeanCbcl.StateFiniteCausalRank
 
-/-! Executable finite causal queries for the live oracle. Topological numeric
-identities bound backward search; proofs connect the search to the existing
-inductive ancestor, cut and earliest-freezer semantics. -/
+/-! Executable finite causal queries for the live oracle and scope pool.
+Finite rank compression bounds backward search independently of semantic
+addresses, input order and duplicate delivery. -/
 set_option autoImplicit false
 namespace CBCL.StateExecutableFreeze
 open State StateLift StateLVar
 
-/-- Test identities increase along every present causal edge. -/
-def Ranked (A : List Act) : Prop := ∀ child ∈ A, ∀ parent ∈ A,
-  parent.addr ∈ child.preds → parent.addr < child.addr
+/-- A separate causal rank decreases on every backward present edge. -/
+def RankedBy (A : List Act) (rank : Act → Nat) : Prop := ∀ child ∈ A, ∀ parent ∈ A,
+  parent.addr ∈ child.preds → rank parent < rank child
+
+/-- Finite causal histories admit a rank; semantic addresses need not rank edges.
+The witness is proof-only and never renumbers acts or changes HLC tie keys. -/
+def Ranked (A : List Act) : Prop := ∃ rank : Act → Nat, RankedBy A rank
 
 /-- Input recognition checks every cited predecessor identity decreases. -/
 def rankedCheck (A : List Act) : Bool := A.all (fun child => child.preds.all (fun parent => decide (parent < child.addr)))
 
 /-- A successful executable rank check supplies the finite-search premise. -/
 theorem rankedCheck_sound (A : List Act) (checked : rankedCheck A = true) : Ranked A := by
+  refine ⟨Act.addr,?_⟩
   intro child member parent _ edge
   have childChecked := List.all_eq_true.mp checked child member
   exact of_decide_eq_true (List.all_eq_true.mp childChecked parent.addr edge)
@@ -58,9 +63,9 @@ theorem reachable_sound (fuel : Nat) (A : List Act) (a f : Act)
     · have edge : parent.addr ∈ f.preds := by simpa using edge
       exact ancestor_trans (ih parent earlier) (.step present edge (.self member))
 
-/-- A topological identity bounds every path; no successful path is truncated. -/
-theorem reachable_complete (fuel : Nat) (A : List Act) (ranked : Ranked A) (a f : Act)
-    (member : f ∈ A) (path : Ancestor (fun act => act ∈ A) a f) (bound : f.addr < fuel) :
+/-- A separate causal rank bounds every path; no successful path is truncated. -/
+theorem reachable_complete (fuel : Nat) (A : List Act) (rank : Act → Nat) (ranked : RankedBy A rank) (a f : Act)
+    (member : f ∈ A) (path : Ancestor (fun act => act ∈ A) a f) (bound : rank f < fuel) :
     reachable fuel A a f = true := by
   induction fuel generalizing f with
   | zero => omega
@@ -72,13 +77,23 @@ theorem reachable_complete (fuel : Nat) (A : List Act) (ranked : Ranked A) (a f 
     · have lower := ranked f member parent present edge
       exact Or.inr ⟨parent,present,by simpa using edge,ih parent present earlier (by omega)⟩
 
-/-- The executable ancestor query allocates enough fuel from the freezer identity. -/
-def ancestor (A : List Act) (a f : Act) : Bool := reachable (f.addr + 1) A a f
+/-- History length bounds search independently of semantic address magnitude. -/
+def ancestor (A : List Act) (a f : Act) : Bool := reachable (A.length + 1) A a f
 
 /-- Executable and inductive ancestry agree on every ranked finite history. -/
 theorem ancestor_iff (A : List Act) (ranked : Ranked A) (a f : Act) (member : f ∈ A) :
-    ancestor A a f = true ↔ Ancestor (fun act => act ∈ A) a f :=
-  ⟨reachable_sound _ _ _ _,fun path => reachable_complete _ A ranked a f member path (by omega)⟩
+    ancestor A a f = true ↔ Ancestor (fun act => act ∈ A) a f := by
+  constructor
+  · exact reachable_sound _ _ _ _
+  · intro path
+    obtain ⟨rank,ordered⟩ := ranked
+    let compressed := fun act => StateFiniteCausalRank.below A rank (rank act)
+    have compressedRanked : RankedBy A compressed := by
+      intro child childIn parent parentIn edge
+      exact StateFiniteCausalRank.below_strict A rank parent parentIn (rank child)
+        (ordered child childIn parent parentIn edge)
+    have bound := StateFiniteCausalRank.below_bound A rank f member
+    exact reachable_complete _ A compressed compressedRanked a f member path (by simpa [compressed] using Nat.lt_trans bound (Nat.lt_succ_self A.length))
 
 /-- A directly executable exact causal cut. -/
 def cut (A : List Act) (freezer : Act) : List Act := A.filter (fun a => ancestor A a freezer)

@@ -483,8 +483,10 @@ fault and successful own-freeze body equations. The independent recursive
 reference and complete initial source-request transcript/cache equal the compiled
 plan meanings for prepared clauses with freezes. Concrete fixtures cover
 incomparable cuts and a prepared context/count/threshold/freeze clause.
-These results require content-consistent histories with numeric addresses ranking
-causal edges. Address-independent graph integration remains open.
+These results require content-consistent histories with a separate causal rank.
+Finite rank compression now bounds actual ancestry search by history length,
+without sorting delivery or renumbering semantic addresses. Scope, cache and
+output compiler proofs inherit this generalized premise.
 `StateThresholdDispatch` now identifies allocated raw scopes with exact semantic
 freezer cuts. `StatePreparedOutputs.prepared_cache_outputs` composes actual
 empty-cache source transcripts into successful output lists using source-owned
@@ -497,10 +499,12 @@ output vector equal to actual empty-cache execution plus output adaptation.
 `CompiledObservation` retains the preparation history; observing a grown history
 requires fresh preparation. Older generic full-history `thresholdRaw` plans are
 used for source dictionary construction/checks, not emitted output semantics.
-`StateCausalRank` proves address-independent bounded ancestry and exact cuts
-under a recognized topological history order. Its descending-address witness
-preserves semantic addresses; integrating this search into the scope pool and
-recognizing/sorting arbitrary native delivery orders remain required.
+`StateCausalRank` constructs and independently checks a topological rank witness
+for arbitrary delivery order. Its checker supplies the proof premise to freeze
+and context oracle validators; generated labels deliberately decrease along
+edges. A reversed, duplicated descending-address fixture constructs complete
+authored compiler/cache outputs. Checker soundness is proved; completeness on
+all finite DAGs and literal native admission-to-rank extraction remain open.
 Literal Rust value/graph/map/vector extraction and rendering remain boundaries. Executable cache
 witnesses and focused mutations exercise aliasing, wrapper and cut mistakes.
 

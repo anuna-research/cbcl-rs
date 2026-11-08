@@ -70,11 +70,63 @@ theorem cut_refinement (history : List Act) (checked : check history = true)
   have same := ancestor_iff history checked act freezer member
   cases computed : ancestor history act freezer <;> simp_all
 
+/-- A checked topological witness establishes causal rank for any delivery order
+with the same accepted vertices. Addresses and history order are untouched. -/
+theorem ranked_from_order (history order : List Act) (checked : check order = true)
+    (covered : ∀ act ∈ history, act ∈ order) : StateExecutableFreeze.Ranked history := by
+  refine ⟨position order,?_⟩
+  intro child childIn parent parentIn edge
+  exact check_sound order checked child (covered child childIn) parent (covered parent parentIn) edge
+
+/-- A vertex is ready when no cited predecessor remains in the pending graph. -/
+def ready (pending : List Act) (act : Act) : Bool :=
+  act.preds.all (fun address => !(pending.any (fun parent => parent.addr == address)))
+
+/-- Bounded Kahn witness construction; the result is checked independently.
+This proof-oracle helper does not replace the native graph algorithm. -/
+def orderFuel : Nat → List Act → List Act → Option (List Act)
+  | 0, [], ordered => some ordered
+  | 0, _::_, _ => none
+  | _+1, [], ordered => some ordered
+  | fuel+1, pending, ordered =>
+    match pending.find? (ready pending) with
+    | none => none
+    | some root => orderFuel fuel (pending.filter (fun act => act != root)) (ordered ++ [root])
+
+/-- Recognize a checked finite causal rank without imposing address ordering.
+Both coverage directions and the candidate order are recognized before use. -/
+def causalCheck (history : List Act) : Bool :=
+  match orderFuel (history.length+1) history [] with
+  | none => false
+  | some order => history.all order.contains && order.all history.contains && check order
+
+/-- A successful graph recognition constructs the actual search rank premise. -/
+theorem causalCheck_sound (history : List Act) (checked : causalCheck history = true) :
+    StateExecutableFreeze.Ranked history := by
+  cases ordered : orderFuel (history.length+1) history [] with
+  | none => simp [causalCheck,ordered] at checked
+  | some order =>
+    have recognized : (history.all order.contains = true ∧ order.all history.contains = true) ∧ check order = true := by
+      simpa only [causalCheck,ordered,Bool.and_eq_true] using checked
+    apply ranked_from_order history order recognized.2
+    intro act member
+    exact List.contains_iff_mem.mp (List.all_eq_true.mp recognized.1.1 act member)
+
 /-- Descending semantic addresses still admit a valid causal order. -/
 def descending : List Act := [⟨99,"open","@a",[],[],[]⟩,⟨2,"close","@a",[99],[],[]⟩]
 
 theorem descending_check : check descending = true := by decide
 
 theorem descending_cut : (cut descending descending[1]).map Act.addr = [99,2] := by decide
+
+/-- The integrated checker accepts descending addresses in reverse delivery. -/
+theorem descending_reverse_checked : causalCheck descending.reverse = true := by decide
+
+/-- Integrated production scope queries preserve original descending addresses. -/
+theorem descending_integrated_cut :
+    (StateExecutableFreeze.cut descending.reverse descending[1]).map Act.addr = [2,99] := by decide
+
+/-- A causal cycle is rejected instead of manufacturing a finite rank. -/
+theorem cycle_rejected : causalCheck [⟨9,"open","@a",[2],[],[]⟩,⟨2,"close","@a",[9],[],[]⟩] = false := by decide
 
 end CBCL.StateCausalRank

@@ -28,8 +28,10 @@ theorem normalize_unique (whole : List Act)
 /-- Ranking is preserved when repeated deliveries are removed. -/
 theorem normalize_ranked (whole : List Act) (ranked : StateExecutableFreeze.Ranked whole) :
     StateExecutableFreeze.Ranked (normalize whole) := by
+  obtain ⟨rank,ordered⟩ := ranked
+  refine ⟨rank,?_⟩
   intro child childMember parent parentMember edge
-  exact ranked child (FinSet.mem_dedup.mp childMember) parent (FinSet.mem_dedup.mp parentMember) edge
+  exact ordered child (FinSet.mem_dedup.mp childMember) parent (FinSet.mem_dedup.mp parentMember) edge
 
 /-- Concrete vector of scope values and freezer-address-to-index cache. -/
 structure Pool (V : Type) where

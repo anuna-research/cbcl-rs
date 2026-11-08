@@ -1,3 +1,4 @@
+import LeanCbcl.StateCausalRankIntegrationTests
 import LeanCbcl.StateOutputCompilerTests
 import LeanCbcl.StatePreparedOutputsTests
 import LeanCbcl.StateThresholdDispatchTests
@@ -2301,3 +2302,13 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateOutputCompiler.prepared_compiler_cache_refinement
 #print axioms CBCL.StateOutputCompiler.authored_compiler_refinement
 #print axioms CBCL.StateOutputCompilerTests.concrete_compiled_outputs
+
+#print axioms CBCL.StateFiniteCausalRank.below_mono
+#print axioms CBCL.StateFiniteCausalRank.below_strict
+#print axioms CBCL.StateFiniteCausalRank.below_bound
+#print axioms CBCL.StateCausalRank.ranked_from_order
+#print axioms CBCL.StateCausalRank.causalCheck_sound
+#print axioms CBCL.StateCausalRank.descending_reverse_checked
+#print axioms CBCL.StateCausalRank.descending_integrated_cut
+#print axioms CBCL.StateCausalRank.cycle_rejected
+#print axioms CBCL.StateCausalRankIntegrationTests.descending_duplicate_compiled_outputs

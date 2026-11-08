@@ -74,10 +74,20 @@ fn native_context(case: &Value) -> Value {
     let hash = cbcl_core::canonical::dialect_hash(dialect);
     let body = cbcl_core::canonical::dialect_name(dialect);
     let rows = case["facts"].as_array().unwrap();
-    let mut ordered = rows.clone();
-    ordered.sort_by_key(|f| f["id"].as_u64().unwrap());
+    let mut pending = rows.clone();
     let mut built: BTreeMap<u64, Act> = BTreeMap::new();
-    for f in ordered {
+    while !pending.is_empty() {
+        let ready = pending
+            .iter()
+            .position(|fact| {
+                fact["parents"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .all(|parent| built.contains_key(&parent.as_u64().unwrap()))
+            })
+            .expect("context oracle test history must be closed and acyclic");
+        let f = pending.remove(ready);
         let id = f["id"].as_u64().unwrap();
         if built.contains_key(&id) {
             continue;
@@ -430,6 +440,20 @@ fn context_kernel_matches_live_lean_oracle() {
                             json!("@b")
                         };
                     }
+                }
+                // Separate semantic identities from causal construction order.
+                let size = case["facts"].as_array().unwrap().len() as u64;
+                let label = |id: u64| 101 + (size - id) * 13;
+                for fact in case["facts"].as_array_mut().unwrap() {
+                    let id = fact["id"].as_u64().unwrap();
+                    let parents = fact["parents"]
+                        .as_array()
+                        .unwrap()
+                        .iter()
+                        .map(|parent| label(parent.as_u64().unwrap()))
+                        .collect::<Vec<_>>();
+                    fact["id"] = json!(label(id));
+                    fact["parents"] = json!(parents);
                 }
                 for delivery in 0..3 {
                     if delivery == 1 {
