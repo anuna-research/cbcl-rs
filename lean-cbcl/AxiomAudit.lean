@@ -1,3 +1,4 @@
+import LeanCbcl.StateAuthoredSourceProvenanceTests
 import LeanCbcl.StateFiniteOutputStabilityTests
 import LeanCbcl.StateFiniteFreezePolicyTests
 import LeanCbcl.StateDomainSupportLocalityTests
@@ -2406,3 +2407,23 @@ editing only this file is enough to extend the audit.
 
 #print axioms CBCL.StateFiniteOutputStability.installed_threshold_success_or_fault
 #print axioms CBCL.StateFiniteOutputStabilityTests.installed_dictionary_output
+
+#print axioms CBCL.StateAuthoredSourceProvenance.declaration_origin
+#print axioms CBCL.StateAuthoredSourceProvenance.bindings_origin
+#print axioms CBCL.StateAuthoredSourceProvenance.raw_names_sublist
+#print axioms CBCL.StateAuthoredSourceProvenance.static_trace
+#print axioms CBCL.StateAuthoredSourceProvenance.finite_binding
+#print axioms CBCL.StateAuthoredSourceProvenance.prepared_finite_source
+#print axioms CBCL.StateAuthoredSourceProvenance.mapM_origin
+#print axioms CBCL.StateAuthoredSourceProvenance.freeze_origin
+#print axioms CBCL.StateAuthoredSourceProvenance.prepared_raw_unique
+#print axioms CBCL.StateAuthoredSourceProvenance.prepared_finite_freeze
+#print axioms CBCL.StateAuthoredSourceProvenance.finite_factory_identity
+#print axioms CBCL.StateAuthoredSourceProvenance.prepared_finite_metadata
+#print axioms CBCL.StateAuthoredSourceProvenance.declaration_threshold
+#print axioms CBCL.StateAuthoredSourceProvenance.authored_finite_source
+#print axioms CBCL.StateAuthoredSourceProvenance.authored_finite_plan
+
+#print axioms CBCL.StateAuthoredSourceProvenanceTests.installation_succeeds
+#print axioms CBCL.StateAuthoredSourceProvenanceTests.supersede_rejected
+#print axioms CBCL.StateAuthoredSourceProvenanceTests.complete_source_lookup

@@ -1404,11 +1404,23 @@ other fields and freeze declarations in the same clause. Its fixture constructs
 the final dictionary before compiling the threshold; no compiled source-plan
 lookup is assumed.
 
-These compositions start from a validated finite field. The installed connection
-identifies its original resolved source rule, retained query definition and
-matching freeze metadata. Extracting those identifications from arbitrary
-authored preparation, other native source policies and complete native
-installation correspondence remain separate composition obligations.
+`StateAuthoredSourceProvenance.lean` recovers the finite source identifications
+from successful authored preparation: actual domain/table resolution, successful
+field binding and finite factory result, the stored source-owned definition,
+and the final binding used by freeze templates. Namespace uniqueness ties that
+binding to the original authored finite field. The threshold stability gate
+supplies the optional fault-policy freeze; resolved source-rule and final guarded
+source-plan lookup follow from actual resolution and compilation.
+`authored_finite_plan` constructs source compilation and the exact final plan
+without requiring a resolved rule, table, finite field, freeze identity or
+compiled dictionary as premises. The fixture installs mixed initializer/roster
+domains, a forward initializer reference and late freeze metadata, and rejects
+the same threshold with a supersede freeze.
+
+The remaining finite output connection must identify the source-owned policy
+in the evolving declaration-prefix environment and the final emitted threshold
+in the complete authored program. Other native source policies and complete
+native installation/extraction correspondence remain separate obligations.
 Literal Rust value representation and public serialized
 rendering remain separate boundaries. Helpers remain total outside the admitted
 request domain, which does not model Rust's indexing or unknown-field no-insert

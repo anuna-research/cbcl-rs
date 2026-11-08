@@ -422,6 +422,19 @@ suites.append(("StateFiniteOutputStability", (root / "lean-cbcl/LeanCbcl/StateFi
      '| none => [(name,freezeSpec field whole "close")]\n  | some verb => [(name,freezeSpec field whole verb)]', "scope_state"),
 ]))
 
+suites.append(("StateAuthoredSourceProvenance", (root / "lean-cbcl/LeanCbcl/StateAuthoredSourceProvenance.lean").read_text(), [
+    ("authored-finite-binding-uses-raw-footprint", "binding = ⟨.finite lattice declaration,StateFiniteRead.definition field,.verbs [declaration.verb]⟩",
+     "binding = ⟨.finite lattice declaration,StateFiniteRead.definition field,.rawVerbs [declaration.verb]⟩", "finite_binding"),
+    ("authored-freeze-footprint-detached", "template.footprint = binding.footprint ∧",
+     "template.footprint = .all ∧", "freeze_origin"),
+    ("authored-source-guard-detached", "fields.lookup name = some (.source (StateInstalledFinite.source field)) ∧",
+     "fields.lookup name = some (.source (.snapshot (fun _ => .element (.scalar (.bool true))))) ∧", "authored_finite_source"),
+    ("authored-plan-specialized-to-empty-history", "plans.lookup name = some (StateFiniteOutputStability.source field history freezeDeclaration) ∧",
+     "plans.lookup name = some (StateFiniteOutputStability.source field [] freezeDeclaration) ∧", "authored_finite_plan"),
+    ("authored-domain-trace-detached", "domains environment entries = some prepared.domains ∧",
+     "domains environment [] = some prepared.domains ∧", "static_trace"),
+]))
+
 # Preserve the full default gate while allowing a focused continuation check.
 import argparse
 parser = argparse.ArgumentParser(description=__doc__)

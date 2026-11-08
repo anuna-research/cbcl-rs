@@ -718,3 +718,28 @@
 ;; fixture and evidence-scope review finds no defect/overstatement. Other native
 ;; policies, arbitrary authored extraction and native representation/rendering
 ;; remain open; the outstanding quasi-determinism task is not completed.
+
+;; Authored finite source provenance for
+;; [[SPEC-038-lvar-state-kernel#TEST-3806]]: successful prepareStatic exposes
+;; actual domain/table resolution, source binding and finite make execution.
+;; declaration_origin and bindings_origin retain the actual successful factory
+;; calls; validated raw-name uniqueness ties final freeze bindings to the
+;; original authored finite field. freeze_origin retains the actual target and
+;; binding footprint. finite_factory_identity pins verb and resolved domains;
+;; the threshold stability gate derives optional fault-freeze metadata.
+;; authored_finite_source derives original resolved source lookup; authored_finite_plan
+;; constructs source compilation and final guarded source-plan lookup without
+;; supplied table, finite field, resolved source rule, freeze identity or final
+;; dictionary. Literal authored threshold arguments are preserved through the
+;; ordered lowering pass. A real authored three-element table fixture installs
+;; mixed initializer/roster domains, a forward initializer source and late freeze,
+;; computes supersede-threshold rejection and derives the complete source lookup.
+;; Verification: aggregate build and Batteries env-linter pass; 1585 theorem
+;; audits use only allowlisted axioms. Five focused proof-boundary mutations
+;; fail intended finite-binding, freeze-origin, resolved-source, final-plan and
+;; static-domain-trace obligations. Verified-by lint passes; no added unresolved
+;; vault pairs or syntax/SPL diagnostics. Independent provenance/fixture/artifact
+;; review finds no defect or overstatement. Evolving-prefix source-owned policy
+;; lookup and final emitted threshold membership remain the next finite output
+;; composition steps; other native policies and native representation/extraction
+;; remain open. The quasi-determinism task is not marked complete.
