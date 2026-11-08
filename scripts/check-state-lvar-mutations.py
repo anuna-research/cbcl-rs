@@ -590,6 +590,21 @@ suites.append(("StateAuthoredSumTrace", (root / "lean-cbcl/LeanCbcl/StateAuthore
      '(("funded",.data (.reached (.element (.sum 6)))) ∈ later.observe ∨', "successive_trace"),
 ]))
 
+suites.append(("StateProgressStore", (root / "lean-cbcl/LeanCbcl/StateProgressStore.lean").read_text(), [
+    ("progress-store-discards-lookup", "fun address => ((history (rawHistory A)).find? (fun act => act.addr == address)).map decode",
+     "fun address => ((history (rawHistory A)).find? (fun act => act.addr == address && false)).map decode", "lookup"),
+    ("progress-store-growth-reversed", "Repeat.Extends (store decode A) (store decode B) := by",
+     "Repeat.Extends (store decode B) (store decode A) := by", "store_growth"),
+    ("progress-kernel-invents-position", ".integer (Int.ofNat (protocolProgress (store decode A) base.thread verb (base.limit verb) A)) := by",
+     ".integer (Int.ofNat (protocolProgress (store decode A) base.thread verb (base.limit verb) A) + 1) := by", "kernel_value"),
+    ("progress-growth-made-strict", "protocolProgress (store decode A) thread verb limit A ≤ protocolProgress (store decode B) thread verb limit B := by",
+     "protocolProgress (store decode A) thread verb limit A < protocolProgress (store decode B) thread verb limit B := by", "progress_grows"),
+    ("progress-test-bound-shifted", "decide (bound ≤ protocolProgress (store decode A) base.thread verb (base.limit verb) A) := by",
+     "decide (bound + 1 ≤ protocolProgress (store decode A) base.thread verb (base.limit verb) A) := by", "kernel_test"),
+    ("progress-closure-query-bound-shifted", "if bound ≤ protocolProgress (store decode A) environment.context.thread verb (environment.context.limit verb) A",
+     "if bound + 1 ≤ protocolProgress (store decode A) environment.context.thread verb (environment.context.limit verb) A", "compiled_query"),
+]))
+
 # Preserve the full default gate while allowing a focused continuation check.
 import argparse
 parser = argparse.ArgumentParser(description=__doc__)

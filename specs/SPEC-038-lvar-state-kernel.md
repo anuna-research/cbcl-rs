@@ -1592,7 +1592,25 @@ result. This concrete fixture has no freeze declaration and does not assert
 native protocol admission. The generic factory/preservation theorems above
 retain their all-root fault-freeze scope.
 
-Full admission/extraction correspondence, closure progress
+`StateProgressStore.lean` reconstructs causal address lookup from the retained
+accepted-act carrier and an immutable per-act evidence decoder. Lookup provenance
+and content consistency derive `Repeat.Extends` under accepted-history growth;
+no whole-history store-monotonicity callback is supplied. Equal accepted sets
+produce equal stores, and consistent histories agree with executable list lookup.
+The `context` constructor installs that reconstruction into the actual kernel
+context. `kernel_value`, `kernel_test` and `kernel_test_stable` connect actual
+domain-aware kernel progress to the existing single-verb resolver's monotonicity.
+`compiled_query` proves the existing progress source emits its closure-query
+strategy over the computed kernel display, rather than raw query dispatch.
+Fixtures compute two then three causal positions, exclude foreign-thread evidence,
+avoid inflation from competing and duplicate acts, leave missing ancestry at
+zero, and prove actual kernel/closure-query success. Their evidence decoder is
+an explicit typed fixture convention; it does not establish native thread/cause
+parsing or general repeat-body refinement. The result applies to contexts built
+with this history-backed constructor, not arbitrary `Context.causal` functions.
+Full authored closure/freeze observation composition remains open.
+
+Full admission/extraction correspondence, authored closure progress composition
 and native installation correspondence remain separate obligations at the typed
 authored boundary.
 Literal Rust value representation and public serialized

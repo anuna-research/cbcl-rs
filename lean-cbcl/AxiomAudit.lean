@@ -1,3 +1,4 @@
+import LeanCbcl.StateProgressStoreTests
 import LeanCbcl.StateAuthoredSumTrace
 import LeanCbcl.StateNonnegativeAdmissionTests
 import LeanCbcl.StateAuthoredEventSumTests
@@ -2604,3 +2605,25 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateAuthoredSumTrace.later_checked
 #print axioms CBCL.StateAuthoredSumTrace.later_total
 #print axioms CBCL.StateAuthoredSumTrace.successive_trace
+
+#print axioms CBCL.StateProgressStore.origin
+#print axioms CBCL.StateProgressStore.lookup
+#print axioms CBCL.StateProgressStore.store_setEq
+#print axioms CBCL.StateProgressStore.store_growth
+#print axioms CBCL.StateProgressStore.find_agreement
+#print axioms CBCL.StateProgressStore.executable_store
+#print axioms CBCL.StateProgressStore.kernel_value
+#print axioms CBCL.StateProgressStore.progress_grows
+#print axioms CBCL.StateProgressStore.kernel_test
+#print axioms CBCL.StateProgressStore.kernel_test_stable
+#print axioms CBCL.StateProgressStore.compiled_query
+
+#print axioms CBCL.StateProgressStoreTests.world_unique
+#print axioms CBCL.StateProgressStoreTests.after_consistent
+#print axioms CBCL.StateProgressStoreTests.before_consistent
+#print axioms CBCL.StateProgressStoreTests.before_progress
+#print axioms CBCL.StateProgressStoreTests.after_progress
+#print axioms CBCL.StateProgressStoreTests.missing_ancestor
+#print axioms CBCL.StateProgressStoreTests.kernel_three
+#print axioms CBCL.StateProgressStoreTests.compiled_reaches
+#print axioms CBCL.StateProgressStoreTests.kernel_preserves

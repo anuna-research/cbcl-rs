@@ -279,3 +279,5 @@ import LeanCbcl.StateAuthoredEventSumTests
 import LeanCbcl.StateNonnegativeAdmissionTests
 
 import LeanCbcl.StateAuthoredSumTrace
+
+import LeanCbcl.StateProgressStoreTests

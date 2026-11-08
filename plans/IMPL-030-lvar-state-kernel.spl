@@ -1016,3 +1016,31 @@
 ;; existing Repeat.resolve_stable/StateProgress.progress_monotone results.
 ;; Full native admission/extraction and general repeat-body correspondence remain
 ;; explicit boundaries; do not call a single-verb resolver a universal refinement.
+
+;; Concrete history-backed progress store checkpoint (REQ-3802 / REQ-3809).
+;; StateProgressStore reconstructs causal address lookup from history(rawHistoryA)
+;; and immutable per-act Repeat.Evidence decoding. origin/lookup derive provenance
+;; and content-consistent identity. store_setEq is unconditional on delivery order;
+;; store_growth derives Repeat.Extends from accepted growth and later consistency.
+;; find_agreement/executable_store expose the computable delivery-list lookup
+;; under consistency. context installs this concrete interpretation into kernel
+;; Context; kernel_value/test/stable connect actual domain-aware raw progress to
+;; StateProgress resolver monotonicity. compiled_query proves actual source-owned
+;; progress compilation uses closure dispatch over the computed display.
+;; No arbitrary whole-history monotonicity callback or final-result law is assumed.
+;; Typed fixtures compute causal progress2->3 despite reverse duplicate/competing
+;; delivery, exclude foreign-thread evidence, leave missing ancestry0, and compute
+;; actual kernel/query success plus stable raw test. Decoder convention is explicit
+;; and is not claimed to be native thread/cause parsing or protocol admission.
+;; Verification: aggregate build and Batteries env-linter pass; 1743 audited
+;; theorems use allowlisted axioms. Six focused mutants fail named lookup, reversed
+;; store growth, invented kernel position, strict growth, test-bound and query-bound
+;; obligations. Verified-by lint and diff check pass; no new unresolved vault pairs,
+;; zero syntax/SPL diagnostics. Independent proof/fixture/artifact review clean.
+;; Next authored closure/freeze composition: healthy progress footprint retains
+;; contributing verb acts rather than every accepted act. Transfer Repeat.At
+;; witnesses across verb-restricted inclusion, with decoded verb = source act verb
+;; as an explicit extraction law, then combine actual all-root freeze selection.
+;; Do not infer this law for arbitrary decoders: they can assign tick evidence to
+;; non-tick acts outside the footprint. General repeat bodies and literal native
+;; admission/metadata/installation/extraction remain explicit proof boundaries.
