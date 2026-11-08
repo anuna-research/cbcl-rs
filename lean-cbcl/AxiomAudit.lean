@@ -1,3 +1,6 @@
+import LeanCbcl.StateWitnessReplayTests
+import LeanCbcl.StateWitnessReplay
+import LeanCbcl.StateQuasiDeterminism
 import LeanCbcl.StateResourceFactsOracle
 import LeanCbcl.StateResourceRendering
 import LeanCbcl.StateResourceOracle
@@ -3091,3 +3094,17 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateEvidenceSupport.certified_empty_evidence
 #print axioms CBCL.StateEvidenceSupport.observation_supported
 #print axioms CBCL.StateEvidenceSupport.observation_finite
+
+#print axioms CBCL.StateQuasiDeterminism.fault_of_accepting_history
+#print axioms CBCL.StateQuasiDeterminism.finite_fault_dissemination
+#print axioms CBCL.StateQuasiDeterminism.conflict_free_strong_eventual_consistency
+#print axioms CBCL.StateQuasiDeterminism.threshold_agreement_or_finite_fault
+
+#print axioms CBCL.StateWitnessReplay.accepts_union_left
+#print axioms CBCL.StateWitnessReplay.accepts_union_right
+#print axioms CBCL.StateWitnessReplay.freeze_evidence_replays
+#print axioms CBCL.StateWitnessReplay.union_replays
+#print axioms CBCL.StateWitnessReplay.freeze_replays
+
+#print axioms CBCL.StateWitnessReplayTests.support_does_not_imply_replay
+#print axioms CBCL.StateWitnessReplayTests.trigger_guard_not_replayable

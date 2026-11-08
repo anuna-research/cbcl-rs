@@ -1666,3 +1666,12 @@
 (given (no-deps finite-evidence-support))
 (normally r-ready-finite-evidence-support (and (task finite-evidence-support) (no-deps finite-evidence-support)) (ready finite-evidence-support))
 (meta r-ready-finite-evidence-support (source "SPEC-038-lvar-state-kernel#REQ-3806"))
+
+;; BUG-016: finite provenance is distinct from replay sufficiency.
+(given (task witness-replay))
+(given (task-description witness-replay "Close BUG-016: prove reported-witness replay sufficiency under explicit identity, admission and context premises for installed guards and composed observation paths. Whole-history dissemination alone does not satisfy this task."))
+(given (task-acceptance witness-replay "REQ-3806/TEST-3806: a trigger-dependent guard reporting empty evidence cannot qualify as replayable; concrete installed guards compose sufficient replay certificates; accepting the witness reproduces fault with containing evidence; build/lint/audit, semantic mutants and independent review pass."))
+(given (requires lean-quasi-determinism witness-replay))
+(given (no-deps witness-replay))
+(normally r-ready-witness-replay (and (task witness-replay) (no-deps witness-replay)) (ready witness-replay))
+(meta r-ready-witness-replay (source "SPEC-038-lvar-state-kernel#REQ-3806"))

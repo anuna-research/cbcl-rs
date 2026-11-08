@@ -337,3 +337,9 @@ import LeanCbcl.StateResourceFactsOracle
 import LeanCbcl.StateEvidenceSupport
 
 import LeanCbcl.StateEvidenceSupportTests
+
+import LeanCbcl.StateQuasiDeterminism
+
+import LeanCbcl.StateWitnessReplay
+
+import LeanCbcl.StateWitnessReplayTests
