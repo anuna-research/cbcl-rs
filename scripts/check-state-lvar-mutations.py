@@ -773,6 +773,14 @@ suites.append(("StateAddressCounting", (root / "lean-cbcl/LeanCbcl/StateAddressC
     ("radix-scatter-cursor-not-advanced", "countLoop key processed (offsets (countLoop key order (fun _ => 0))) bucket", "offsets (countLoop key order (fun _ => 0)) bucket", "cursor_refinement"),
 ]))
 
+suites.append(("StateAddressScatter", (root / "lean-cbcl/LeanCbcl/StateAddressScatter.lean").read_text(), [
+    ("radix-scratch-wrong-value", "then index else state.cells position", "then index+1 else state.cells position", "occurrence_retained"),
+    ("radix-scratch-wrong-destination", "position = state.next (key index)", "position = state.next (key index)+1", "occurrence_retained"),
+    ("radix-scratch-unrelated-cell-erased", "else state.cells position", "else 0", "run_preserves"),
+    ("radix-scatter-next-not-incremented", "⟨bump (key index) state.next,", "⟨state.next,", "next_refinement"),
+    ("radix-scratch-readback-reversed", "  (List.range order.length).map (run key order (initial key order cells)).cells", "  (List.range order.length).reverse.map (run key order (initial key order cells)).cells", "scatter_bucket_order"),
+]))
+
 # Preserve the full default gate while allowing a focused continuation check.
 import argparse
 parser = argparse.ArgumentParser(description=__doc__)

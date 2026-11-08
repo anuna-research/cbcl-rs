@@ -1,3 +1,4 @@
+import LeanCbcl.StateAddressScatter
 import LeanCbcl.StateAddressCounting
 import LeanCbcl.StateAddressDigits
 import LeanCbcl.StateFaultRenderingTests
@@ -2920,3 +2921,19 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateAddressCounting.counts_bound
 #print axioms CBCL.StateAddressCounting.offsets_bound
 #print axioms CBCL.StateAddressCounting.word_bounds
+
+#print axioms CBCL.StateAddressScatter.count_append
+#print axioms CBCL.StateAddressScatter.next_refinement
+#print axioms CBCL.StateAddressScatter.run_append
+#print axioms CBCL.StateAddressScatter.run_preserves
+#print axioms CBCL.StateAddressScatter.occurrence_retained
+#print axioms CBCL.StateAddressScatter.writes_length
+#print axioms CBCL.StateAddressScatter.writes_values
+#print axioms CBCL.StateAddressScatter.write_member
+#print axioms CBCL.StateAddressScatter.destinations_unique
+#print axioms CBCL.StateAddressScatter.destinations_bounded
+#print axioms CBCL.StateAddressScatter.destination_permutation
+#print axioms CBCL.StateAddressScatter.writes_retained
+#print axioms CBCL.StateAddressScatter.scatter_permutation
+#print axioms CBCL.StateAddressScatter.scratch_origin
+#print axioms CBCL.StateAddressScatter.scatter_bucket_order

@@ -309,3 +309,5 @@ import LeanCbcl.StateFaultRenderingTests
 import LeanCbcl.StateAddressDigits
 
 import LeanCbcl.StateAddressCounting
+
+import LeanCbcl.StateAddressScatter

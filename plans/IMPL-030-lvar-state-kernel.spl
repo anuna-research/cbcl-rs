@@ -1474,3 +1474,17 @@
 ;; This supplies live stability evidence, not a proof of scratch permutation.
 ;; Final audit passes 1997 theorems, all axioms allowlisted; verified-by and
 ;; whitespace checks pass. No production algorithm or identity changes here.
+
+;; Operational scratch continuation: StateAddressScatter writes at the current
+;; next pointer before incrementing it, and folds those steps in input order.
+;; Count-loop pointer refinement plus collision freedom proves every occurrence
+;; survives all later writes. Computed write destinations are distinct, bounded
+;; and a permutation of scratch positions. Final readback is therefore an input
+;; permutation with multiplicities, independent of initial cell contents, and
+;; has ascending bucket keys. No permutation/ordering certificate is supplied.
+;; Five mutations fail pointer, write-value/destination, untouched-cell or
+;; readback-order proofs. Build/env-linter pass; independent review finds no
+;; concrete defect. Function cells/Nat counters still need native Array/usize
+;; extraction; equal-key secondary stability and full LSD composition remain.
+;; Final axiom audit passes 2012 theorems, all allowlisted. Verified-by and
+;; whitespace checks pass. Production native behavior is unchanged.

@@ -669,3 +669,11 @@ freedom for distinct occurrence positions. Counts, offsets and partial cursors
 fit any word width that represents the input length. Counters are Nat-valued
 functions here: array/usize extraction, scratch permutation and complete
 least-significant-digit pass ordering remain open.
+
+`StateAddressScatter` executes scratch writes using pre-increment bucket pointers
+and derives pointer refinement, retention of every occurrence, destination
+coverage and complete pass permutation with multiplicities. It proves ascending
+bucket order without supplied permutation or ordering premises and independently
+of initial scratch contents. Cells and counters are functions over Nat; native
+Array/usize extraction, equal-key secondary-order stability and full LSD
+composition remain open.

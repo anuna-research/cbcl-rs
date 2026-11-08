@@ -275,3 +275,9 @@ offsets and scatter cursor arithmetic. Its destination bounds and collision
 freedom concern occurrence positions, so repeated indices are covered. Numeric
 word bounds require a representable input length. Array/usize extraction,
 scratch permutation and full LSD ordering remain separate proof obligations.
+
+`StateAddressScatter` models the actual write-then-increment loop and reads
+scratch slots in increasing index order. It derives occurrence retention,
+complete destination coverage, permutation with multiplicities and bucket
+ordering without supplied permutation/injectivity premises. Native array/usize
+execution and stable secondary-order/full radix composition remain open.
