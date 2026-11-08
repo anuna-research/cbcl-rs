@@ -19,13 +19,13 @@ theorem authored_reached (head : Head) (environment : Environment) (entries : Li
     (program : CompiledObservation) (compiled : compileAuthored environment entries A = some program)
     (result : StateReaderValues.Result Value) (reached : (outputName,result) ∈ program.observe) :
     ∃ declaration query, compileQuery elements (head.definition environment prepared.domains) = some query ∧
-      (Output.threshold outputName name query (StateNativeDataFreeze.decorate prepared.domains [head.verb] A declaration
+      (Output.threshold outputName name query (head.decorate prepared.domains A declaration
         (head.bare environment prepared.domains))).observe A program.program.freezes = (outputName,result) := by
   obtain ⟨declaration,query,built,builtCompiled,queryCompiled,member,history,metadata⟩ := authored_emitted head environment entries prepared
     accepted name outputName present elements threshold A ranked consistent
   have same : program = built := Option.some.inj (compiled.symm.trans builtCompiled)
   subst program
-  let output := Output.threshold outputName name query (StateNativeDataFreeze.decorate prepared.domains [head.verb] A declaration
+  let output := Output.threshold outputName name query (head.decorate prepared.domains A declaration
     (head.bare environment prepared.domains))
   have inProgram : output.observe A built.program.freezes ∈ built.observe := by
     simp only [CompiledObservation.observe,Program.observe,history]

@@ -89,6 +89,24 @@ theorem run_payload (base : StateKernelSEC.Context) (decode : Act → Repeat.Evi
   cases current <;> simp_all [StateOutputCompiler.Query.run,StateReaderValues.unfrozen,
     StateRuleRefinement.nativeClosureThreshold,Data.payload]
 
+/-- Invert an actual reached closure output to its computed progress predicate,
+including a frozen displayed payload. -/
+theorem payload_success (base : StateKernelSEC.Context) (decode : Act → Repeat.Evidence)
+    (domains : List StateInstalledDomains.Domain) (verb : String) (bound : Nat) (scope raw : List Act)
+    (current : Data Value)
+    (payload : current.payload = some (.kernel (StateInstalledDomains.evaluate (context base decode) domains (.progress verb) (rawHistory scope))))
+    (success : (StateOutputCompiler.Query.closure [.element (.progress bound)] readTest).run raw (.data current) =
+      .data (.reached (.element (.progress bound)))) :
+    bound ≤ protocolProgress (store decode scope) base.thread verb (base.limit verb) scope := by
+  apply Classical.byContradiction
+  intro failure
+  have test : readTest (.element (.progress bound)) (.kernel
+      (StateInstalledDomains.evaluate (context base decode) domains (.progress verb) (rawHistory scope))) = false := by
+    rw [kernel_test]
+    exact decide_eq_false failure
+  cases current <;> simp_all [StateOutputCompiler.Query.run,StateReaderValues.unfrozen,
+    StateRuleRefinement.nativeClosureThreshold,Data.payload]
+
 /-- Earlier concrete progress reaches the same closure query through every
 optional fault-freeze outcome, or the actual source reports a terminal fault. -/
 theorem success_or_fault (environment : StateAuthoredBindings.Environment) (decode : Act → Repeat.Evidence)

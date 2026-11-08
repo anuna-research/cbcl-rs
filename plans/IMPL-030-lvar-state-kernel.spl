@@ -1073,3 +1073,36 @@
 ;; existing count/existence/set/event runtime semantics. Then compose actual
 ;; emitted occurrence and inversion into successive complete authored outputs.
 ;; Full native decoder/admission/installation extraction remain explicit boundaries.
+
+;; Complete typed authored progress composition checkpoint (REQ-3802 / REQ-3809).
+;; Shared proof-only Head now includes existing progress and its actual rawVerbs
+;; footprint; other heads retain verbs/domain support. Head.spec/decorate/metadata
+;; and head_spec_setEq/head_decorate_setEq generalize existing compiler provenance,
+;; emitted occurrence, normalized decoration and named reached inversion. No runtime
+;; syntax or algorithm changes. Existing count/existence/set/event paths build.
+;; StateAuthoredProgress.admitted_query derives bound and closure strategy from
+;; actual compilation. native_success recovers actual displayed healthy scope,
+;; inverts the compiled closure result through payload_success, and lifts native
+;; progress to full accepted history by reconstructed-store growth. program_stability
+;; constructs the actual later emitted vector and composes all-root factory
+;; freeze preservation. successive_compiled joins real earlier/later programs.
+;; Premises remain fixed prepared dialect, constructor-backed context, coherent
+;; immutable decoder, ranked content-consistent histories and accepted growth;
+;; no native predicate, detached policy/source lookup or chosen cut is supplied.
+;; Fixtures compute installation/bound/supersede checks; earlier_reaches constructs
+;; actual named complete nofreeze output from computed native progress. Its
+;; successive_trace uses actual reached antecedent under reverse duplicate growth.
+;; Frozen fixture constructs both complete programs with actual freeze footprint
+;; and specializes preservation conditional on earlier reached membership.
+;; Verification: aggregate build and Batteries env-linter pass; 1772 audited
+;; theorems allowlisted. Eleven focused mutants fail named shared-data/progress
+;; obligations, including raw footprint, fault policy, endpoint, inversion and
+;; answer identity. Verified-by lint and diff check pass; no new unresolved vault
+;; pairs and zero syntax/SPL diagnostics. Independent proof/fixture/artifact review
+;; found no defect, vacuity, backward-compatibility issue or overclaim.
+;; Next audit remaining literal acceptance obligations from TEST-3806 and current
+;; SPEC proof boundary inventory: native installation gate/finite validator,
+;; immutable metadata decoding/general repeat bodies, Rust scoped/memoized reader,
+;; resource closure-to-certificate path, strict wire and rendering correspondence.
+;; BUG-006 envelope/key cases remain open. Typed progress completion does not
+;; establish those literal boundaries or complete the full SPEC-038 objective.

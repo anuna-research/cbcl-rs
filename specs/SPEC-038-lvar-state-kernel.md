@@ -1623,11 +1623,32 @@ progress-locality equation. Fixtures compute semantic freeze health from the
 executable conflict checker, prove an exact cut that drops an unrelated act,
 and specialize factory preservation from computed earlier progress. They do not
 establish complete authored-program execution.
-Full authored progress source/freeze provenance, earlier-output inversion and
-successive complete-observation composition remain open.
+The shared `StateAuthoredDataProvenance.Head` proof inventory now retains each
+source's actual footprint: selected verbs and domain support for application
+data, raw verbs for progress. Head-specific freeze specifications, decoration
+and metadata feed the same authored preparation, emitted occurrence and named
+output inversion proofs; they introduce no new dialect syntax or runtime rule.
+`StateAuthoredProgress.successive_compiled` closes the typed authored progress
+path. Bound admission, the closure strategy, source identity, freeze footprint
+and emitted instruction are derived from actual compilation. An earlier named
+reached output yields its real displayed scope and native progress predicate;
+reconstructed-store growth lifts it to full history. The factory freeze theorem
+then supplies the same later named reached result or an actual named fault in
+the complete compiled vector. The result covers singleton progress thresholds
+with a fixed prepared dialect, constructor-backed causal context, immutable
+verb-preserving decoding, ranked content-consistent histories and accepted-set
+growth. A prior native predicate, detached source policy, or chosen cut is not
+an external premise.
 
-Full admission/extraction correspondence, authored closure progress composition
-and native installation correspondence remain separate obligations at the typed
+Progress fixtures compute admission and bound/supersede rejection. The complete
+no-freeze trace proves actual earlier named reached membership and feeds it into
+successive preservation under reverse duplicate delivery. A separate fixture
+constructs both actual fault-frozen programs and specializes preservation
+conditional on earlier reached membership; it does not prove that antecedent for
+the frozen fixture. Native decoding, general repeat-body refinement and native
+protocol admission are not established by these typed fixtures.
+
+Full admission/extraction and native installation correspondence remain separate obligations at the typed
 authored boundary.
 Literal Rust value representation and public serialized
 rendering remain separate boundaries. Helpers remain total outside the admitted

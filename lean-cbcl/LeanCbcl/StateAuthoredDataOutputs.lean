@@ -19,10 +19,10 @@ theorem authored_emitted (head : Head) (environment : Environment) (entries : Li
     ∃ declaration query program,
       compileAuthored environment entries B = some program ∧
       compileQuery elements (head.definition environment prepared.domains) = some query ∧
-      Output.threshold outputName name query (StateNativeDataFreeze.decorate prepared.domains [head.verb] B declaration
+      Output.threshold outputName name query (head.decorate prepared.domains B declaration
         (head.bare environment prepared.domains)) ∈ program.program.outputs ∧
       program.history = B ∧ program.program.freezes.lookup name =
-        declaration.map (StateNativeDataFreeze.spec prepared.domains [head.verb] B) := by
+        declaration.map (head.spec prepared.domains B) := by
   have preparedAt : prepare environment entries B = some (clauseAt prepared B) := by simp [prepare,accepted,clauseAt]
   obtain ⟨declaration,sourcePlans,sourceCompiled,lookup,metadata,declared⟩ := authored_plan head environment entries prepared accepted
     name outputName present elements threshold B
@@ -57,37 +57,49 @@ theorem decorate_setEq {V : Type} (domains : List StateInstalledDomains.Domain) 
     StateNativeDataFreeze.decorate domains names A declaration bare = StateNativeDataFreeze.decorate domains names B declaration bare := by
   simp only [StateNativeDataFreeze.decorate,spec_setEq domains names same]
 
+/-- Every actual source footprint commutes with equal accepted histories. -/
+theorem head_spec_setEq (head : Head) (domains : List StateInstalledDomains.Domain) {A B : List Act} (same : SetEq A B) :
+    head.spec domains A = head.spec domains B := by
+  funext verb
+  simp only [Head.spec,contributes_setEq domains same]
+
+/-- Head-specific source decoration also commutes with normalization. -/
+theorem head_decorate_setEq (head : Head) (domains : List StateInstalledDomains.Domain) {A B : List Act}
+    (same : SetEq A B) (declaration : Option String) (bare : Plan Value) :
+    head.decorate domains A declaration bare = head.decorate domains B declaration bare := by
+  simp only [Head.decorate,head_spec_setEq head domains same]
+
 /-- Transfer a constructed source-cut output to the actual emitted occurrence
 in the complete program. Global unrelated freezes cannot alter its named scope. -/
 theorem dispatch_member (head : Head) (environment : Environment) (domains : List StateInstalledDomains.Domain)
     (B : List Act) (declaration : Option String) (name outputName : String) (query : Query Value)
     (program : CompiledObservation) (member : Output.threshold outputName name query
-      (StateNativeDataFreeze.decorate domains [head.verb] B declaration (head.bare environment domains)) ∈ program.program.outputs)
+      (head.decorate domains B declaration (head.bare environment domains)) ∈ program.program.outputs)
     (history : program.history = B)
-    (metadata : program.program.freezes.lookup name = declaration.map (StateNativeDataFreeze.spec domains [head.verb] B))
+    (metadata : program.program.freezes.lookup name = declaration.map (head.spec domains B))
     (result : StateReaderValues.Result Value)
     (observed : (Output.threshold outputName name query
-      (StateNativeDataFreeze.decorate domains [head.verb] (StateScopePool.normalize B) declaration (head.bare environment domains))).observe B
-      (StateNativeDataFreeze.metadata domains [head.verb] (StateScopePool.normalize B) name declaration) = (outputName,result)) :
+      (head.decorate domains (StateScopePool.normalize B) declaration (head.bare environment domains))).observe B
+      (head.metadata domains (StateScopePool.normalize B) name declaration) = (outputName,result)) :
     (outputName,result) ∈ program.observe := by
   have normalized := StateScopePool.normalize_setEq B
-  have sourceEq := decorate_setEq domains [head.verb] normalized declaration (head.bare environment domains)
-  have specs := spec_setEq domains [head.verb] (fun act => (normalized act).symm)
+  have sourceEq := head_decorate_setEq head domains normalized declaration (head.bare environment domains)
+  have specs := head_spec_setEq head domains (fun act => (normalized act).symm)
   rw [specs] at metadata
   have sameMetadata : program.program.freezes.lookup name =
-      (StateNativeDataFreeze.metadata domains [head.verb] (StateScopePool.normalize B) name declaration).lookup name := by
+      (head.metadata domains (StateScopePool.normalize B) name declaration).lookup name := by
     rw [metadata]
-    cases declaration <;> simp [StateNativeDataFreeze.metadata]
+    cases declaration <;> simp [Head.metadata]
   have scope : StateThresholdDispatch.referenceScope B program.program.freezes name =
-      StateThresholdDispatch.referenceScope B (StateNativeDataFreeze.metadata domains [head.verb] (StateScopePool.normalize B) name declaration) name := by
+      StateThresholdDispatch.referenceScope B (head.metadata domains (StateScopePool.normalize B) name declaration) name := by
     simp only [StateThresholdDispatch.referenceScope,sameMetadata]
   have outputEq : (Output.threshold outputName name query
-      (StateNativeDataFreeze.decorate domains [head.verb] B declaration (head.bare environment domains))).observe B program.program.freezes =
+      (head.decorate domains B declaration (head.bare environment domains))).observe B program.program.freezes =
         (outputName,result) := by
     rw [← sourceEq]
     simpa only [Output.observe,scope] using observed
   have inProgram : (Output.threshold outputName name query
-      (StateNativeDataFreeze.decorate domains [head.verb] B declaration (head.bare environment domains))).observe B program.program.freezes ∈ program.observe := by
+      (head.decorate domains B declaration (head.bare environment domains))).observe B program.program.freezes ∈ program.observe := by
     simp only [CompiledObservation.observe,Program.observe,history]
     exact List.mem_map.mpr ⟨_,member,rfl⟩
   simpa only [outputEq] using inProgram

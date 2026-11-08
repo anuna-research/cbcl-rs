@@ -283,3 +283,5 @@ import LeanCbcl.StateAuthoredSumTrace
 import LeanCbcl.StateProgressStoreTests
 
 import LeanCbcl.StateProgressFreezeTests
+
+import LeanCbcl.StateAuthoredProgressTests

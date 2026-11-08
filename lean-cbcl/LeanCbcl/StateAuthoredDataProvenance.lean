@@ -14,10 +14,11 @@ inductive Head where
   | existsRule (verb : String)
   | setUnion (verb field : String)
   | events (verb field : String)
+  | progress (verb : String)
 
 /-- The single source performative retained by each head. -/
 def Head.verb : Head → String
-  | .count verb | .existsRule verb | .setUnion verb _ | .events verb _ => verb
+  | .count verb | .existsRule verb | .setUnion verb _ | .events verb _ | .progress verb => verb
 
 /-- The original dialect rule, using the existing rule inventory. -/
 def Head.rule : Head → StateKernelClause.Rule
@@ -25,6 +26,7 @@ def Head.rule : Head → StateKernelClause.Rule
   | .existsRule verb => .existsRule verb
   | .setUnion verb field => .setUnion verb field
   | .events verb field => .events verb field
+  | .progress verb => .progress verb
 
 /-- The actual expression emitted by the existing kernel rule compiler. -/
 def Head.expression : Head → StateKernel.Expr
@@ -32,6 +34,26 @@ def Head.expression : Head → StateKernel.Expr
   | .existsRule verb => .existsRule (.verb verb)
   | .setUnion verb field => .distinct (.verb verb) field
   | .events verb field => .mapped ⟨.withField (.verb verb) field,.address,.address,field,true⟩
+  | .progress verb => .progress verb
+
+/-- Progress retains raw verbs; application data retains selected writers and
+all their domain support. This is actual binding metadata, not a new policy. -/
+def Head.footprint (head : Head) : Footprint :=
+  match head with | .progress verb => .rawVerbs [verb] | _ => .verbs [head.verb]
+
+/-- Fault-freeze identity generated from the original source's actual footprint. -/
+def Head.spec (head : Head) (domains : List StateInstalledDomains.Domain) (whole : List Act) (verb : String) : FreezeSpec :=
+  ⟨verb,contributes domains whole head.footprint,true⟩
+
+/-- Existing source decoration, with its head-specific contributor footprint. -/
+def Head.decorate (head : Head) (domains : List StateInstalledDomains.Domain) (whole : List Act)
+    (declaration : Option String) (bare : Plan Value) : Plan Value :=
+  StateCompiledFieldEquations.decorate (declaration.map (head.spec domains whole)) bare
+
+/-- Matching global source-name metadata for the same optional declaration. -/
+def Head.metadata (head : Head) (domains : List StateInstalledDomains.Domain) (whole : List Act)
+    (name : String) (declaration : Option String) : List (String × FreezeSpec) :=
+  declaration.toList.map (fun verb => (name,head.spec domains whole verb))
 
 /-- The existing source factory, not a callback stored by this proof. -/
 noncomputable def Head.definition (head : Head) (environment : Environment) (domains : List StateInstalledDomains.Domain) : Definition Value :=
@@ -45,7 +67,7 @@ noncomputable def Head.bare (head : Head) (environment : Environment) (domains :
 theorem binding (head : Head) (environment : Environment) (domains : List StateInstalledDomains.Domain)
     (tables : List (String × StateFiniteTable.Verified)) (earlier : List (String × Binding)) :
     StateAuthoredBindings.bind environment domains tables earlier (.legacy head.rule) =
-      some ⟨.legacy head.rule,head.definition environment domains,.verbs [head.verb]⟩ := by
+      some ⟨.legacy head.rule,head.definition environment domains,head.footprint⟩ := by
   cases head <;> rfl
 
 /-- Original source definitions lower to exactly the guarded kernel plan. -/
@@ -72,7 +94,7 @@ theorem prepared_footprint (head : Head) (environment : Environment) (entries : 
     (accepted : prepareStatic environment entries = some prepared) (name : String)
     (present : (name,StateAuthoredBindings.Rule.legacy head.rule) ∈ rawFields entries)
     (template : FreezeTemplate) (frozen : template ∈ prepared.freezes) (target : template.field = name) :
-    template.footprint = .verbs [head.verb] := by
+    template.footprint = head.footprint := by
   obtain ⟨tables,bindings,_,_,lowered,freezesBuilt⟩ := static_trace environment entries prepared accepted
   obtain ⟨selected,found,footprint,_⟩ := freeze_origin environment bindings entries prepared.freezes freezesBuilt template frozen
   rw [target] at found
@@ -97,7 +119,7 @@ theorem prepared_metadata (head : Head) (environment : Environment) (entries : L
     (present : (name,StateAuthoredBindings.Rule.legacy head.rule) ∈ rawFields entries) (elements : List Value)
     (threshold : Entry.threshold outputName name elements ∈ entries) (history : List Act) :
     ∃ declaration : Option String, (materialize prepared.domains history prepared.freezes).lookup name =
-      declaration.map (StateNativeDataFreeze.spec prepared.domains [head.verb] history) := by
+      declaration.map (head.spec prepared.domains history) := by
   obtain ⟨tables,bindings,_,_,lowered,_⟩ := static_trace environment entries prepared accepted
   have thresholdMember := declaration_threshold environment prepared.domains tables entries [] prepared.declarations bindings lowered
     outputName name elements threshold
@@ -128,10 +150,10 @@ theorem authored_plan (head : Head) (environment : Environment) (entries : List 
     (present : (name,StateAuthoredBindings.Rule.legacy head.rule) ∈ rawFields entries) (elements : List Value)
     (threshold : Entry.threshold outputName name elements ∈ entries) (history : List Act) :
     ∃ declaration plans, StateAuthoredBindings.compile environment entries history = some plans ∧
-      plans.lookup name = some (StateNativeDataFreeze.decorate prepared.domains [head.verb] history declaration
+      plans.lookup name = some (head.decorate prepared.domains history declaration
         (head.bare environment prepared.domains)) ∧
       (materialize prepared.domains history prepared.freezes).lookup name =
-        declaration.map (StateNativeDataFreeze.spec prepared.domains [head.verb] history) ∧
+        declaration.map (head.spec prepared.domains history) ∧
       Declaration.field name (head.definition environment prepared.domains) ∈ prepared.declarations := by
   have declared := prepared_source head environment entries prepared accepted name present
   obtain ⟨declaration,metadata⟩ := prepared_metadata head environment entries prepared accepted name outputName present elements threshold history

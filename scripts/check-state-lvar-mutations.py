@@ -483,8 +483,8 @@ suites.append(("StateNativeDataFreeze", (root / "lean-cbcl/LeanCbcl/StateNativeD
 ]))
 
 suites.append(("StateAuthoredDataProvenance", (root / "lean-cbcl/LeanCbcl/StateAuthoredDataProvenance.lean").read_text(), [
-    ("authored-data-binding-loses-domain-footprint", "some ⟨.legacy head.rule,head.definition environment domains,.verbs [head.verb]⟩",
-     "some ⟨.legacy head.rule,head.definition environment domains,.rawVerbs [head.verb]⟩", "binding"),
+    ("authored-data-binding-loses-domain-footprint", "some ⟨.legacy head.rule,head.definition environment domains,head.footprint⟩",
+     "some ⟨.legacy head.rule,head.definition environment domains,.all⟩", "binding"),
     ("authored-data-query-alternatives-disconnected", "∃ query, compileQuery elements definition = some query ∧",
      "∃ query, compileQuery [] definition = some query ∧", "emitted_policy"),
 ]))
@@ -620,6 +620,21 @@ suites.append(("StateProgressFreeze", (root / "lean-cbcl/LeanCbcl/StateProgressF
      '.data (.reached (.element (.count bound))) := by', "run_payload"),
     ("progress-freeze-invents-later-answer", 'output = (outputName,.data (.reached (.element (.progress bound)))) ∨',
      'output = (outputName,.data (.reached (.element (.progress (bound+1))))) ∨', "success_or_fault"),
+]))
+
+suites.append(("StateAuthoredProgress", (root / "lean-cbcl/LeanCbcl/StateAuthoredProgress.lean").read_text(), [
+    ("authored-progress-excludes-admitted-endpoint", "bound < 2^63 ∧ query = .closure",
+     "bound < 2^63-1 ∧ query = .closure", "admitted_query"),
+    ("authored-progress-inversion-invents-position", "bound ≤ protocolProgress (store decode A) environment.context.thread verb (environment.context.limit verb) A := by",
+     "bound + 1 ≤ protocolProgress (store decode A) environment.context.thread verb (environment.context.limit verb) A := by", "native_success"),
+    ("authored-progress-changes-preserved-answer", "(outputName,.data (.reached (.element (.progress bound)))) ∈ later.observe ∨",
+     "(outputName,.data (.reached (.element (.progress (bound+1))))) ∈ later.observe ∨", "successive_compiled"),
+]))
+suites.append(("StateAuthoredDataProvenanceProgress", (root / "lean-cbcl/LeanCbcl/StateAuthoredDataProvenance.lean").read_text(), [
+    ("progress-binding-loses-raw-footprint", "match head with | .progress verb => .rawVerbs [verb] | _ => .verbs [head.verb]",
+     "match head with | .progress verb => .verbs [verb] | _ => .verbs [head.verb]", "binding"),
+    ("head-freeze-spec-revisable", "⟨verb,contributes domains whole head.footprint,true⟩",
+     "⟨verb,contributes domains whole head.footprint,false⟩", "prepared_metadata"),
 ]))
 
 # Preserve the full default gate while allowing a focused continuation check.
