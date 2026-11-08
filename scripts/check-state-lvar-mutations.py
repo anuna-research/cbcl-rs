@@ -279,6 +279,12 @@ suites.append(("StateExecutableObservation", (root / "lean-cbcl/LeanCbcl/StateEx
     ("executable-freeze-raw-error-hidden", "policy (source A).error source", "policy none source", "freeze_refinement"),
 ]))
 
+suites.append(("StateExecutableContext", (root / "lean-cbcl/LeanCbcl/StateExecutableContext.lean").read_text(), [
+    ("context-root-witness-hidden", "some (identities (fun act => act.preds.isEmpty) A)", "some []", "root_error_refinement"),
+    ("context-frontier-includes-ancestors", "!(A.any (fun child => child.preds.contains act.addr))", "true", "frontier_refinement"),
+    ("context-count-zero", "number (FinSet.card (lift StateLift.address A))", "number 0", "observation_refinement"),
+]))
+
 # Preserve the full default gate while allowing a focused continuation check.
 import argparse
 parser = argparse.ArgumentParser(description=__doc__)

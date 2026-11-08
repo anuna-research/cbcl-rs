@@ -1,4 +1,5 @@
 import Lean
+import LeanCbcl.StateContextOracle
 import LeanCbcl.StateFiniteRead
 import LeanCbcl.StateExecutableFreeze
 import LeanCbcl.StateExecutableObservation
@@ -177,6 +178,7 @@ def evaluateNested (request : NestedInput) : Check Json := do
 
 def run (j : Json) : Check Json :=
   match j.getObjVal? "profile" with
+  | .ok (.str "context") => StateContextOracle.run j
   | .ok (.str "events-sum") => nestedInput j >>= evaluateNested
   | .error _ | .ok (.str "finite") => input j |>.map evaluate
   | _ => .error "unknown oracle profile"

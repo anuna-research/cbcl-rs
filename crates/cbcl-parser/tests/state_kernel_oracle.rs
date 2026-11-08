@@ -984,3 +984,6 @@ fn nested_kernel_matches_live_lean_oracle() {
         comparisons.get()
     );
 }
+
+#[path = "state_kernel_oracle/context.rs"]
+mod context;

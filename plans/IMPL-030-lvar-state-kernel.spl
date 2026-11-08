@@ -337,3 +337,23 @@
 ;; campaign seed380041 passed 30000 comparisons; fresh review found no defect.
 ;; Profile is one source/derived layer with bounded amounts, not arbitrary
 ;; dependency graphs, overflow or admission/context/resource coverage.
+
+;; Context oracle continuation for [[SPEC-038-lvar-state-kernel#TEST-3809]]:
+;; StateExecutableContext computes full root/mixed-thread/opener witness unions
+;; and finite frontiers; read_refinement proves equivalence to installed native
+;; context semantics. JSON-lines context profile and Rust real-message harness
+;; compare complete closed path grammar, metadata, rosters, membership queries,
+;; schema markers and order/duplicate delivery. Typed message input intentionally
+;; excludes strict-wire sha256 pin BUG-006; canonical hashing/signatures/admission
+;; and context freeze/domain composition remain outside this live profile.
+;; Mutation/fuzz and fresh review evidence are recorded in the Elephant theory.
+;; Verified continuation: full Lean build and Batteries linter pass; axiom
+;; audit reports 1302 theorems with allowed axioms only. Final seed380040
+;; context campaign passes 10000 generated histories, each under three delivery
+;; variants; all five live-oracle tests pass at CI's 512 setting. Isolated real
+;; native mutations (including seven context regressions) and three executable
+;; context proof mutations all fail their intended assertions/theorems. Initial
+;; opener-witness mutant survived due to a masking mixed-thread channel; the
+;; same-thread malformed-root fork case closes that gap. Fresh read-only review
+;; found no substantive defect within the documented typed profile. Serialization
+;; support completeness remains a profile assumption rather than a proved lemma.

@@ -949,6 +949,21 @@ root retains the earlier mixed-thread and relevant opener-fork witnesses; roster
 projections do not acquire unrelated opener witnesses.
 Mutation checks detect bypassed pin validation, missing
 stability marking and dropped observation contributors.
+
+The live context profile executes `StateExecutableContext.read`, whose
+`read_refinement` theorem equates computed projections and complete enumerable
+fault evidence to `StateInstalledContext.nativeRead`. The Rust differential
+harness compares every closed context path, sealed roster membership reads,
+metadata/schema markers and combined root/mixed-thread/opener witnesses under
+forward, reversed and duplicate delivery. Lean context request validation requires
+consistent identities and present earlier predecessors. Canonical hashes and
+act addresses are normalized only on exact equality; strict-wire pin recognition
+(BUG-006), hashing, signature checks and admission are outside this profile.
+Context freeze/domain composition remains covered by native tests rather than
+this live profile. The executable serializer reports depth exhaustion as an
+input error instead of truncating an observation. Predicate-set serialization
+uses the input-supported roster/frontier identities; support completeness is a
+profile boundary rather than a separate proved theorem.
 Validates [[SPEC-038-lvar-state-kernel#REQ-3811]].
 
 ## Purity Boundary Map

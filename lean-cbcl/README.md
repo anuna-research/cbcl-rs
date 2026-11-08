@@ -465,8 +465,14 @@ existing semantics; a causal-DAG profile compares roots, cuts, superseded sets
 and raw/freeze fault unions against the real Rust fold.
 `StateExecutableObservation` connects executable derived/freeze adapters to the
 semantic adapters; the events/sum profile exercises separately frozen source
-and derived fields against Rust's actual scoped cache. Domain/context/resource
-and admission paths remain outside these profiles.
+and derived fields against Rust's actual scoped cache.
+`StateExecutableContext.read_refinement` connects computable metadata, sealed
+rosters, frontiers and complete context fault witnesses to the installed
+context reader. Its live profile checks all supported paths, membership queries,
+schema markers and combined failures under reordered/duplicate delivery.
+Application domains, resources, context freezes and admission remain outside
+these profiles; the context profile uses the typed message boundary for pins
+while strict-wire `sha256:` recognition remains an explicit BUG-006 boundary.
 
 The Batteries gate remains enabled in CI. Intentional constant contribution
 arguments and uniform prepared-state receivers have local, explained

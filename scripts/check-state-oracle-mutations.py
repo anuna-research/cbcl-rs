@@ -14,6 +14,7 @@ if not oracle.is_file():
 finite_test = "finite_kernel_matches_live_lean_oracle"
 freeze_test = "freeze_kernel_matches_live_lean_oracle"
 nested_test = "nested_kernel_matches_live_lean_oracle"
+context_test = "context::context_kernel_matches_live_lean_oracle"
 with tempfile.TemporaryDirectory(prefix="cbcl-live-oracle-") as directory:
     isolated = Path(directory)
     (isolated / "crates").mkdir()
@@ -35,7 +36,7 @@ with tempfile.TemporaryDirectory(prefix="cbcl-live-oracle-") as directory:
                                test, "--", "--ignored", "--exact"], cwd=isolated, env=env,
                               text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=300)
 
-    for test in [finite_test,freeze_test,nested_test]:
+    for test in [finite_test,freeze_test,nested_test,context_test]:
         baseline = run(test)
         if baseline.returncode or f"test {test} ... ok" not in baseline.stdout:
             print(baseline.stdout)
@@ -53,6 +54,13 @@ with tempfile.TemporaryDirectory(prefix="cbcl-live-oracle-") as directory:
         ("freeze-fault-policy-hidden", "freeze.rs", "if p.policy == FreezePolicy::Fault && !p.late.is_empty() {", "if false {", freeze_test),
         ("concurrent-freezers-hidden", "freeze.rs", "if frontier.len() > 1 {", "if false {", freeze_test),
         ("raw-fault-hides-freeze-evidence", "freeze.rs", "evidence.extend(fault.fault_evidence().unwrap_or_default());", "let _ = fault;", freeze_test),
+        ("context-duplicate-roster-accepted", "role.rs", "if !key_set.insert(AgentKey(k.clone())) {", "if !key_set.insert(AgentKey(k.clone())) && false {", context_test),
+        ("context-dialect-marked-snapshot", "context.rs", 'Some("dialect") => true,', 'Some("dialect") => false,', context_test),
+        ("context-pin-check-hidden", "context.rs", ".is_some_and(|pin| *pin != self.address)", ".is_some_and(|_| false)", context_test),
+        ("context-mixed-witness-hidden", "context.rs", "evidence.extend(acts.iter().map(|a| a.address.clone()));", "let _ = acts;", context_test),
+        ("context-opener-witness-hidden", "context.rs", "evidence.extend(openers.into_iter().map(String::from));", "let _ = openers;", context_test),
+        ("context-count-includes-delivery-duplicates", "context.rs", "acts.iter()\n                            .map(|a| &a.address)\n                            .collect::<BTreeSet<_>>()\n                            .len()", "acts.len()", context_test),
+        ("context-frontier-hidden", "context.rs", "crate::state::frontier(acts)", "Vec::<String>::new()", context_test),
     ]:
         path = isolated / "crates/cbcl-core/src" / filename
         source = path.read_text()

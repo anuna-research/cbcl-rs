@@ -1,3 +1,4 @@
+import LeanCbcl.StateExecutableContext
 import LeanCbcl.StateExecutableObservation
 import LeanCbcl.StateExecutableFreeze
 import LeanCbcl.StateAuthoredCompletion
@@ -2079,3 +2080,14 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateExecutableObservation.map_read
 #print axioms CBCL.StateExecutableObservation.present_refinement
 #print axioms CBCL.StateExecutableObservation.freeze_refinement
+
+#print axioms CBCL.StateExecutableContext.identities_evidence
+#print axioms CBCL.StateExecutableContext.root_error_refinement
+#print axioms CBCL.StateExecutableContext.mixed_error_refinement
+#print axioms CBCL.StateExecutableContext.opener_error_refinement
+#print axioms CBCL.StateExecutableContext.join_refinement
+#print axioms CBCL.StateExecutableContext.error_refinement
+#print axioms CBCL.StateExecutableContext.frontier_refinement
+#print axioms CBCL.StateExecutableContext.observation_refinement
+#print axioms CBCL.StateExecutableContext.value_refinement
+#print axioms CBCL.StateExecutableContext.read_refinement
