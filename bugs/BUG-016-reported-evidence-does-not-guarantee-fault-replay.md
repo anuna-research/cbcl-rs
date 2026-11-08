@@ -83,3 +83,17 @@ for receiving states. These premises still need concrete installed proofs.
 Its standalone baseline passes; replacing the extracted acceptance condition
 with unconditional whole-history inclusion makes the same proof fail. Independent
 review found no defect in the new primitive, path and delivery proofs.
+
+`StateResourceReplay.resource_replays` now proves the actual resource
+`faultRead` sufficient from its reported witness. `cause_replays` transfers
+every constructor of the concrete certificate grammar, including funding
+cones, cited roots and foreign dependencies. Unsupported profiles retain
+history-independent faults with empty evidence. `paths_replay` discharges
+built-in resource readers, leaving only certified extension guards as caller
+obligations. Independent review found no defect in this transfer.
+
+`StateResourceReplayTests` proves a malformed binding-free root and a foreign
+non-resource dependency are named only by citations, not direct relevance.
+Removing all cited context fails both assertions; retaining only protocol
+predecessor citations fails the funding-dependency assertion while the root
+case still passes. The unmodified extracted-definition baseline passes.

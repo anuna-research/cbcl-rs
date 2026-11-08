@@ -1,3 +1,5 @@
+import LeanCbcl.StateResourceReplayTests
+import LeanCbcl.StateResourceReplay
 import LeanCbcl.StateWitnessReplayTests
 import LeanCbcl.StateWitnessReplay
 import LeanCbcl.StateQuasiDeterminism
@@ -3118,3 +3120,13 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateQuasiDeterminism.fault_of_accepting_witness
 #print axioms CBCL.StateQuasiDeterminism.witness_only_dissemination
 #print axioms CBCL.StateWitnessReplayTests.accepts_only_named_act
+
+#print axioms CBCL.StateResourceReplay.cause_replays
+#print axioms CBCL.StateResourceReplay.resource_replays
+#print axioms CBCL.StateResourceReplay.primitive_replay
+#print axioms CBCL.StateResourceReplay.paths_replay
+
+#print axioms CBCL.StateResourceReplayTests.malformed_root_not_relevant
+#print axioms CBCL.StateResourceReplayTests.malformed_root_is_named
+#print axioms CBCL.StateResourceReplayTests.foreign_not_relevant
+#print axioms CBCL.StateResourceReplayTests.foreign_dependency_is_named

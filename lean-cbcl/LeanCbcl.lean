@@ -343,3 +343,7 @@ import LeanCbcl.StateQuasiDeterminism
 import LeanCbcl.StateWitnessReplay
 
 import LeanCbcl.StateWitnessReplayTests
+
+import LeanCbcl.StateResourceReplay
+
+import LeanCbcl.StateResourceReplayTests
