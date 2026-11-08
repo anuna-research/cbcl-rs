@@ -425,8 +425,11 @@ paths and proves named fault growth and eventual dissemination while plans are
 regenerated. `StateFreezeScopes` connects clear global cached cuts to nested
 plan data. `StateNativeReader` proves complete functional cached plan-reader
 equality, including faulted reads and nested freeze dependencies. Literal Rust
-mutable-reader/cache correspondence, optimized upper-set check correspondence,
-and authored completeness beyond prepared-reference premises remain open. Native
+mutable-reader/cache correspondence and authored completeness beyond prepared
+reference premises remain open. `StateFiniteUpperCache` proves the optimized
+upper-set maximum formulas and admitted scalar decoding equal the reference
+finite gate; stored cache-vector construction, Rust unordered pair traversal
+and diagnostic ordering remain separate boundaries. Native
 missing-link lists, owner tips, diagnostic reasons and canonical serialization
 are outside the modeled resource read. SPEC-038 acceptance remains partial.
 

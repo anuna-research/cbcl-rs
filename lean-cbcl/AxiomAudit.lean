@@ -1,3 +1,4 @@
+import LeanCbcl.StateFiniteUpperCache
 import LeanCbcl.StateNativeReader
 import LeanCbcl.StateCompiledFreezeGrowth
 import LeanCbcl.StateFreezeScopes
@@ -2002,3 +2003,15 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateNativeReader.cached_congr
 #print axioms CBCL.StateNativeReader.scoped_value_refinement
 #print axioms CBCL.StateNativeReader.native_reader_refinement
+
+#print axioms CBCL.StateFiniteUpperCache.maximum_ge
+#print axioms CBCL.StateFiniteUpperCache.upperMaximum_ge
+#print axioms CBCL.StateFiniteUpperCache.optional_test
+#print axioms CBCL.StateFiniteUpperCache.named_common
+#print axioms CBCL.StateFiniteUpperCache.numeric_common
+#print axioms CBCL.StateFiniteUpperCache.compatible_iff
+#print axioms CBCL.StateFiniteUpperCache.value_kind
+#print axioms CBCL.StateFiniteUpperCache.decode_reaches
+#print axioms CBCL.StateFiniteUpperCache.cached_compatible_iff
+#print axioms CBCL.StateFiniteUpperCache.cached_pair_refinement
+#print axioms CBCL.StateFiniteUpperCache.cached_check_refinement

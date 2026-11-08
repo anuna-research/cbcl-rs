@@ -239,6 +239,13 @@ suites.append(("StateNativeReader", (root / "lean-cbcl/LeanCbcl/StateNativeReade
     ("native-reader-fault-header-hidden", "| some evidence => .fault evidence", "| some _ => .data (value world whole plan whole)", "native_reader_refinement"),
 ]))
 
+suites.append(("StateFiniteUpperCache", (root / "lean-cbcl/LeanCbcl/StateFiniteUpperCache.lean").read_text(), [
+    ("upper-cache-top-included", "current != verified.table.top && merge verified.table root current == current", "merge verified.table root current == current", "upperMaximum_ge"),
+    ("upper-cache-named-root-discarded", "(upperMaximum verified project a).isSome &&", "(upperMaximum verified project verified.table.bottom).isSome &&", "compatible_iff"),
+    ("upper-cache-numeric-minimum", "decide (max a b ≤ (upperMaximum verified project verified.table.bottom).getD 0)", "decide (min a b ≤ (upperMaximum verified project verified.table.bottom).getD 0)", "compatible_iff"),
+    ("upper-cache-bool-true-zero", "| .bool true => some (.numeric 1)", "| .bool true => some (.numeric 0)", "decode_reaches"),
+]))
+
 # Preserve the full default gate while allowing a focused continuation check.
 import argparse
 parser = argparse.ArgumentParser(description=__doc__)

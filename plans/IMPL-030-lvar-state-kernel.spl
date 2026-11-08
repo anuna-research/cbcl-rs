@@ -272,3 +272,12 @@
 ;; Focused mutations reject lost freeze faults, ignored cuts and hidden fault
 ;; headers at the named proof obligations. Literal Rust reader correspondence
 ;; and the previously recorded installation/optimized-check boundaries remain.
+
+;; Finite upper-cache continuation: StateFiniteUpperCache proves optional maxima
+;; and non-top upper-set witness equivalence, all native compatibility formulas,
+;; admitted integer/Boolean scalar decoding, and normalized pair/full gate
+;; equality against StateFiniteRead. Fresh review found no logical defect and
+;; confirmed the remaining stored-vector, unordered-pair traversal and diagnostic
+;; boundaries. Mutations for included top, discarded named root, min threshold,
+;; and Boolean true=zero all fail their named theorem obligations. Cache cost is
+;; not proved by these functional definitions; TEST-3806 remains partial.

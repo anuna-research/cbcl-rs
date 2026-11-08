@@ -1086,6 +1086,15 @@ observation equality, including faults and nested freezes, on closed histories
 with unique addresses. This is the functional plan-reader composition;
 correspondence to Rust mutable cache entries and dependency lookup remains open.
 
+`StateFiniteUpperCache.lean` proves optional upper-set maxima preserve exactly
+non-top numeric witnesses, then proves named/named, mixed and numeric/numeric
+compatibility against common successful upper states. Admitted authored scalar
+decoding preserves integer and Boolean projection semantics. Its normalized
+cached pair and complete admission gates equal the exhaustive finite reference
+gates on all inputs. This proves the optimized formulas; stored cache-vector
+construction, the Rust unordered pair loop, and diagnostic indices/order remain
+separate correspondence obligations. No cache complexity theorem is claimed.
+
 A native regression found that a data-domain-excluded tick could evade progress
 freeze evidence although progress reads raw history. The Rust selector and
 concrete authored footprint now retain every accepted tick of the selected
@@ -1100,7 +1109,7 @@ source-code extraction, canonical rendering order, diagnostics, or wire parsing.
 The installed semantic IR still receives native closure implementations and
 recognized immutable metadata as leaf parameters. The authored lowering above still needs complete native installation-gate
 correspondence, authored completeness without relying on prepared-reference
-premises, the optimized cached-upper-set checker bridge, and composition with
+premises, the cached-vector and unordered-pair-loop checker correspondence, and composition with
 the literal Rust scoped/memoized reader. The functional cached plan-reader
 composition is proved, including faulted reads. Typed metadata extraction must
 preserve native scalar distinctions, including quoted strings versus symbols.
