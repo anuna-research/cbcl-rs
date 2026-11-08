@@ -197,3 +197,13 @@ import LeanCbcl.StateFiniteReadTests
 import LeanCbcl.StateObservation
 
 import LeanCbcl.StateObservationPlan
+
+import LeanCbcl.StateAuthoredBindings
+
+import LeanCbcl.StateAuthoredBindingsTests
+
+import LeanCbcl.StateFreezeGrowth
+
+import LeanCbcl.StateFreezeScopes
+
+import LeanCbcl.StateCompiledFreezeGrowth

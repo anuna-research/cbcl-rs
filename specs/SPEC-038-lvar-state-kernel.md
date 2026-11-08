@@ -87,11 +87,12 @@ Load-bearing: [[SPEC-038-lvar-state-kernel#REQ-3800]] every field is a term ·
 quasi-determinism · [[SPEC-038-lvar-state-kernel#NFR-3800]] explicit evaluation cost bounds.
 
 Open: the remaining whole-kernel proof bridges are owned by the SPEC-038
-implementer: complete literal installed-rule bindings and their whole-clause
-refinement, including observation-dependent freeze contributors and scoped
-native readers. Typed resource fault/certificate equivalence and generic
-observation-plan composition are proved; they do not alone close these bindings. Progress and the escrow function
-`bounded-counter` retain their
+implementer: compose the faulting native cached reader with the concrete
+authored compiler, close cached-upper-set validator correspondence, and retain
+the explicit installation/wire/rank/renderer boundaries. Whole concrete source
+binding, regenerated-selector fault growth, and clear-history cached cuts are
+proved; they do not alone establish complete native reader correspondence.
+Progress and the escrow function `bounded-counter` retain their
 author-facing forms over the shared history-backed kernel path
 ([[SPEC-038-lvar-state-kernel#ADR-3806]]). Sequence lattices are out of scope.
 
@@ -846,6 +847,15 @@ ready balance, but cannot suppress independently established faults. Validate
 that restoring the early missing-reference return makes this regression fail.
 Validates REQ-3804 and REQ-3806.
 
+A `progress` source over a domain-filtered tick verb still observes every
+accepted tick. A late domain-excluded tick faults a `fault`-frozen progress read
+and its dependent threshold, retaining both addresses; `supersede` lists that
+tick as excluded. The ordinary `count` still honors its domain. Resource
+operation domains reject at installation. Validates
+[[SPEC-038-lvar-state-kernel#REQ-3803]],
+[[SPEC-038-lvar-state-kernel#REQ-3806]] and
+[[SPEC-038-lvar-state-kernel#REQ-3808]].
+
 ## TEST-3805: Snapshot marking
 
 `state_schema` marks every field that is neither threshold nor frozen as
@@ -1052,12 +1062,42 @@ earlier mixed-thread or opener-fork diagnostic. Independent fault witnesses
 remain in evidence; opener witnesses affect only whole-context, whole-thread
 and opener projections. Role-roster projections retain their narrower scope.
 
+`StateAuthoredBindings.lean` binds the complete legacy/context/finite/resource
+source inventory and source-relative thresholds, collects domain/lattice
+metadata clause-wide, preserves earlier aggregate references, and validates
+freeze targets against actual source fields. Its static preparation and freeze
+templates isolate history-independent checks from full-observation contributor
+specialization. Progress contributors bypass application domains; resource
+operation domains reject before execution. Regenerating the same templates on
+equal accepted sets yields equal compiled observations.
+
+`StateFreezeGrowth.lean` transfers the same freeze witnesses when both history
+and contributor selectors grow. `StateCompiledFreezeGrowth.lean` reflects
+literal rule/field compilation to its exact error paths, preserves successful
+compilation under observation growth, and proves named whole-clause fault
+evidence inclusion plus `eventual_authored_fault` using actual replica witness
+dissemination. The latter disseminates the finite source accepted history, not
+an extracted minimal witness. `StateFreezeScopes.lean` proves closed-scope
+freezer selection, equality of cached global cuts, and
+`cached_plan_data_refinement` for globally clear source/freeze paths. The
+faulting cases and complete native recursive-reader composition remain open.
+
+A native regression found that a data-domain-excluded tick could evade progress
+freeze evidence although progress reads raw history. The Rust selector and
+concrete authored footprint now retain every accepted tick of the selected
+verb. Under `fault`, the frozen source and dependent reached threshold fault
+with freezer/tick evidence; under `supersede`, the tick appears in exclusion
+metadata. Restoring domain filtering makes the named regression fail. Resource
+operations already prohibit such domains at installation; that rejection is
+also modeled in authored preparation.
+
 These theorems operate at explicit typed boundaries. They do not prove Rust
 source-code extraction, canonical rendering order, diagnostics, or wire parsing.
 The installed semantic IR still receives native closure implementations and
-recognized immutable metadata as leaf parameters. The concrete factories above still need a complete authored-clause lowerer
-covering every installed rule and composition with native observation-dependent
-freeze contributors and scoped memoized readers. Typed metadata extraction must
+recognized immutable metadata as leaf parameters. The authored lowering above still needs complete native installation-gate
+correspondence, authored completeness without relying on prepared-reference
+premises, the optimized cached-upper-set checker bridge, and composition with
+the complete faulting native scoped/memoized reader. Typed metadata extraction must
 preserve native scalar distinctions, including quoted strings versus symbols.
 Generic IR correctness and individual factories are not evidence that this full
 literal source binding and composition theorem is complete. The

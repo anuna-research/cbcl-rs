@@ -245,3 +245,20 @@
 ;; Separate maintainer direction: authenticated signer-set source and set
 ;; cardinality thresholds are agreed in discussion, but still require their
 ;; own SPEC-038 contract/test/runtime/proof work before executable examples.
+
+;; Authored compilation / regenerated freeze continuation: StateAuthoredBindings
+;; concretely binds all current source families and clause-wide domains/tables,
+;; backward thresholds/aggregates and validated source freezes. Static preparation
+;; and templates isolate H-independent checks; materialization fixes contributors
+;; from the full observation. StateCompiledFreezeGrowth reflects actual compiled
+;; error paths, derives metadata invariance and successful recompilation, and
+;; proves named fault growth plus replica eventual fault dissemination with
+;; regenerated selectors. StateFreezeScopes connects clear global cached cuts
+;; to actual nested plan data. Fresh review found no defect in these claims.
+;; A real progress/domain freeze witness bug was reproduced then repaired;
+;; its regression fails when the raw tick selector is removed. Resource domains
+;; are already rejected natively and the concrete binding enforces that rule.
+;; Remaining TEST-3806: complete faulting native Reader recursion, optimized
+;; cached-upper-set equivalence, authored completeness without prepared WF
+;; premises, and explicit installation/wire/rank/renderer correspondence. This
+;; is verified progress, not the task's completion evidence.

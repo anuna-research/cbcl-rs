@@ -41,7 +41,10 @@ and never traverses an edge into another thread.
 
 This rule observes protocol metadata over all accepted acts. Application-data
 `domain` filters continue to apply to data rules such as `count`; they do not
-hide causal progress. This distinction prevents changes in a data projection
+hide causal progress. Freeze contributor selection likewise retains every
+accepted act of the progress verb: a domain-excluded late tick faults a `fault`
+freeze, or is recorded as excluded under `supersede`. This distinction prevents
+changes in a data projection
 from moving protocol progress backwards. The acceptance monitor never reads
 this state field: the protocol constrains acceptance, and the state observes it.
 

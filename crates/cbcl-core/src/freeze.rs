@@ -116,6 +116,17 @@ fn contributors(clause: &StateClause, field: &str, acts: &[Act]) -> HashSet<Stri
         // application contribution is excluded by a data domain.
         return acts.iter().map(|a| a.address.clone()).collect();
     }
+    if matches!(rule, Rule::Progress { .. }) {
+        // REQ-3803/3808: progress reads raw causal history. Data domains
+        // must not erase a late tick from its freeze evidence. Resource
+        // operation domains are rejected separately at installation.
+        let contributing = rule.verbs();
+        return acts
+            .iter()
+            .filter(|act| contributing.contains(&act.verb.as_str()))
+            .map(|act| act.address.clone())
+            .collect();
+    }
     state::contribution_addresses(clause, acts, &verbs(clause, rule))
 }
 

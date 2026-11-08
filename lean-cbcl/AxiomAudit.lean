@@ -1,3 +1,8 @@
+import LeanCbcl.StateCompiledFreezeGrowth
+import LeanCbcl.StateFreezeScopes
+import LeanCbcl.StateFreezeGrowth
+import LeanCbcl.StateAuthoredBindingsTests
+import LeanCbcl.StateAuthoredBindings
 import LeanCbcl.StateFiniteReadTests
 import LeanCbcl.StateFiniteRead
 import LeanCbcl.StateInstalledFinite
@@ -1869,3 +1874,121 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateFiniteRead.test_top
 
 #print axioms CBCL.StateFiniteRead.test_non_top
+
+#print axioms CBCL.StateAuthoredBindings.authored_binding_refinement
+
+#print axioms CBCL.StateAuthoredBindings.prepared_compiler_complete
+
+#print axioms CBCL.StateAuthoredBindings.contributes_setEq
+
+#print axioms CBCL.StateAuthoredBindings.contributes_grows
+
+#print axioms CBCL.StateAuthoredBindings.freezes_setEq
+
+#print axioms CBCL.StateAuthoredBindings.prepare_setEq
+
+#print axioms CBCL.StateAuthoredBindings.compile_setEq
+
+#print axioms CBCL.StateAuthoredBindings.authored_observations_setEq
+
+#print axioms CBCL.StateAuthoredBindingsTests.rendered_bound_counts_thresholds
+
+#print axioms CBCL.StateAuthoredBindingsTests.lattice_and_field_namespace_shared
+
+#print axioms CBCL.StateAuthoredBindingsTests.unicode_field_name_rejected
+
+#print axioms CBCL.StateAuthoredBindingsTests.upper_case_field_name_rejected
+
+#print axioms CBCL.StateAuthoredBindingsTests.domain_can_reference_later_initializer
+
+#print axioms CBCL.StateAuthoredBindingsTests.domain_unknown_role_rejected
+
+#print axioms CBCL.StateAuthoredBindingsTests.review_prepares
+
+#print axioms CBCL.StateAuthoredBindingsTests.review_compiles
+
+#print axioms CBCL.StateAuthoredBindingsTests.whole_context_contributor
+
+#print axioms CBCL.StateAuthoredBindingsTests.role_projection_has_no_write_contributors
+
+#print axioms CBCL.StateAuthoredBindingsTests.progress_raw_contributor
+
+#print axioms CBCL.StateAuthoredBindingsTests.forward_threshold_rejected
+
+#print axioms CBCL.StateAuthoredBindingsTests.supersede_threshold_source_rejected
+
+#print axioms CBCL.StateAuthoredBindingsTests.threshold_output_cannot_be_frozen
+
+#print axioms CBCL.StateAuthoredBindingsTests.resource_operation_domain_rejected
+
+#print axioms CBCL.StateFreezeGrowth.conflict_transfer
+
+#print axioms CBCL.StateFreezeGrowth.evidence_grows
+
+#print axioms CBCL.StateFreezeGrowth.fault_grows
+
+#print axioms CBCL.StateFreezeGrowth.related_errors_grow
+
+#print axioms CBCL.StateFreezeGrowth.authored_freeze_grows
+
+#print axioms CBCL.StateFreezeScopes.causal_cut_closed
+
+#print axioms CBCL.StateFreezeScopes.earliest_scope
+
+#print axioms CBCL.StateFreezeScopes.scoped_conflict_global
+
+#print axioms CBCL.StateFreezeScopes.global_cut_in_scope
+
+#print axioms CBCL.StateFreezeScopes.absent_global_freezer_no_scoped_freezer
+
+#print axioms CBCL.StateFreezeScopes.excluded_restriction
+
+#print axioms CBCL.StateAuthoredBindingsTests.freeze_without_sender_role_rejected
+
+#print axioms CBCL.StateFreezeScopes.selected_freezer_scope
+
+#print axioms CBCL.StateFreezeScopes.cached_freeze_refinement
+
+#print axioms CBCL.StateFreezeScopes.source_clear_in_scope
+
+#print axioms CBCL.StateFreezeScopes.cached_plan_data_refinement
+
+#print axioms CBCL.StateCompiledFreezeGrowth.lookup_paths
+
+#print axioms CBCL.StateCompiledFreezeGrowth.compile_rule_path
+
+#print axioms CBCL.StateCompiledFreezeGrowth.match_map
+
+#print axioms CBCL.StateCompiledFreezeGrowth.match_join
+
+#print axioms CBCL.StateCompiledFreezeGrowth.rule_path_related
+
+#print axioms CBCL.StateCompiledFreezeGrowth.decorate_related
+
+#print axioms CBCL.StateCompiledFreezeGrowth.extend_related
+
+#print axioms CBCL.StateCompiledFreezeGrowth.fields_related
+
+#print axioms CBCL.StateCompiledFreezeGrowth.compile_field_path
+
+#print axioms CBCL.StateCompiledFreezeGrowth.compile_fields_path
+
+#print axioms CBCL.StateCompiledFreezeGrowth.compiled_error_growth
+
+#print axioms CBCL.StateAuthoredBindingsTests.materialized_progress_contributor
+
+#print axioms CBCL.StateCompiledFreezeGrowth.authored_decorations
+
+#print axioms CBCL.StateCompiledFreezeGrowth.authored_compiled_error_growth
+
+#print axioms CBCL.StateCompiledFreezeGrowth.materialized_stable_source
+
+#print axioms CBCL.StateCompiledFreezeGrowth.materialized_metadata
+
+#print axioms CBCL.StateCompiledFreezeGrowth.authored_compiles_after_growth
+
+#print axioms CBCL.StateCompiledFreezeGrowth.named_fault_transfer
+
+#print axioms CBCL.StateCompiledFreezeGrowth.authored_fault_grows
+
+#print axioms CBCL.StateCompiledFreezeGrowth.eventual_authored_fault

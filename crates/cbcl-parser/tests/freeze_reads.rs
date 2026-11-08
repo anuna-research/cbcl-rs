@@ -499,3 +499,91 @@ fn an_earlier_derived_freeze_cannot_hide_a_later_source_fault() {
     assert_eq!(after["total"]["status"], "fault");
     assert_eq!(after["total"]["evidence"], after["values"]["evidence"]);
 }
+
+/// SPEC-038 REQ-3803/3806/3808: data domains cannot hide raw progress
+/// contributors from a fault freeze or its dependent threshold.
+#[test]
+fn progress_fault_freeze_retains_domain_excluded_ticks() {
+    let src = r#"(define raw-progress (cbcl) @author
+      (:roles (owner))
+      (extend open (to options) :from owner :to owner (tell to :options options))
+      (extend tick (to target) :from owner :to owner (tell to :target target))
+      (extend close (to) :from owner :to owner (tell to))
+      (shape open (require :options list))
+      (shape tick (require :target string))
+      (protocol (then begin open) (then open (repeat 2 tick close)))
+      (state (allowed (initial open :options))
+        (domain tick :target allowed)
+        (stage (progress tick)) (arrivals (count tick))
+        (freeze stage close fault)
+        (threshold first-stage stage (progress 1))))"#;
+    state_exports::parse_and_install_dialect(&parse(src).unwrap()).unwrap();
+    let make = |verb: &str, fields: &str, predecessor: &str| {
+        Act::from_message(
+            parse_message(&parse(&format!(
+                "(signed @owner (lang raw-progress ({verb} @owner{fields} :from @owner :thread \"t\" :caused-by {predecessor})))"
+            )).unwrap()).unwrap(), "@owner"
+        ).unwrap()
+    };
+    let open = make("open", " :options (\"included\")", "begin");
+    let tick = make("tick", " :target \"included\"", &open.address);
+    let close = make("close", "", &tick.address);
+    let late = make("tick", " :target \"excluded\"", &close.address);
+    let before = read(src, &[open.clone(), tick.clone(), close.clone()]);
+    assert_eq!(before["stage"]["value"], 1);
+    assert_eq!(before["first-stage"]["status"], "reached");
+    let mut history = vec![open, tick, close.clone(), late.clone()];
+    let after = read(src, &history);
+    assert_eq!(
+        after["arrivals"], 1,
+        "the data count still honors its domain"
+    );
+    assert_eq!(after["stage"]["status"], "fault");
+    assert_eq!(after["first-stage"]["status"], "fault");
+    let evidence = after["stage"]["evidence"].as_array().unwrap();
+    assert!(evidence.contains(&json!(close.address)));
+    assert!(evidence.contains(&json!(late.address)));
+    history.reverse();
+    history.extend(history.clone());
+    assert_eq!(read(src, &history), after);
+
+    // Supersede also retains the raw tick in its excluded-write metadata.
+    // Its source cannot have a threshold, so remove that declaration here.
+    let supersede = src
+        .replace(
+            "(freeze stage close fault)",
+            "(freeze stage close supersede)",
+        )
+        .replace("(threshold first-stage stage (progress 1))", "");
+    state_exports::parse_and_install_dialect(&parse(&supersede).unwrap()).unwrap();
+    let sealed = read(&supersede, &history);
+    assert_eq!(sealed["stage"]["value"], 1);
+    assert_eq!(sealed["stage"]["superseded"], json!([late.address]));
+    assert_eq!(sealed["arrivals"], 1);
+}
+
+/// Resource operation domains reject at installation, before freeze evaluation.
+#[test]
+fn resource_domains_cannot_hide_freeze_contributors() {
+    let src = r#"(define raw-resource (cbcl) @author
+      (:roles (owner))
+      (extend open (to allocations options) :from owner :to owner (tell to :allocations allocations :options options))
+      (extend mint (to amount target) :from owner :to owner (tell to :amount amount :target target))
+      (extend burn (to amount) :from owner :to owner (tell to :amount amount))
+      (extend pay (to recipient amount) :from owner :to owner (tell to :recipient recipient :amount amount))
+      (extend close (to) :from owner :to owner (tell to))
+      (shape open (require :allocations list) (require :options list))
+      (shape mint (require :amount number) (require :target string))
+      (shape burn (require :amount number))
+      (shape pay (require :recipient symbol) (require :amount number))
+      (protocol (then begin open) (then open (repeat 2 mint close)) (then open burn) (then open pay))
+      (state (allowed (initial open :options)) (domain mint :target allowed)
+        (coins (bounded-counter (floor 0) (initial-rights open :allocations)
+          (issuers owner) (increment mint :amount) (decrement burn :amount) (transfer pay :recipient :amount)))
+        (arrivals (count mint)) (freeze coins close fault)))"#;
+    let error = state_exports::parse_and_install_dialect(&parse(src).unwrap()).unwrap_err();
+    assert!(
+        error.contains("domain may not hide resource acts of 'mint'"),
+        "{error}"
+    );
+}

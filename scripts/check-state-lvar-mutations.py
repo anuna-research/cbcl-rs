@@ -210,6 +210,29 @@ suites.append(("StateFiniteRead", "import LeanCbcl.StateFiniteProjectionTests\n"
     ("finite-raw-query-state-discarded", "test field element (state field (StateInstalledLegacy.history carrier))", "test field element field.table.table.bottom", "policy_actual_history"),
 ]))
 
+authored_tests = (root / "lean-cbcl/LeanCbcl/StateAuthoredBindingsTests.lean").read_text()
+authored_tests = "\n".join(line for line in authored_tests.splitlines() if not line.startswith("import "))
+suites.extend([
+    ("StateAuthoredBindings", (root / "lean-cbcl/LeanCbcl/StateAuthoredBindings.lean").read_text() + "\n" + authored_tests, [
+        ("authored-freeze-contributors-use-empty-history", "contributes resolvedDomains history template.footprint", "contributes resolvedDomains [] template.footprint", "materialized_progress_contributor"),
+        ("authored-progress-domain-filtered", "| .progress verb => .rawVerbs [verb]", "| .progress verb => .verbs [verb]", "progress_raw_contributor"),
+        ("authored-duplicate-namespace-allowed", "decide names.Nodup", "true", "lattice_and_field_namespace_shared"),
+        ("authored-domain-source-environment-discarded", "environment.schema (domainFields entries)", "environment.schema []", "domain_can_reference_later_initializer"),
+        ("authored-freeze-sender-role-bypassed", "if senderRole.isEmpty || !environment.schema.verbs.contains verb then", "if false then", "freeze_without_sender_role_rejected"),
+    ]),
+    ("StateFreezeGrowth", (root / "lean-cbcl/LeanCbcl/StateFreezeGrowth.lean").read_text(), [
+        ("growing-freeze-evidence-discarded", "⟨a,b,conflict_transfer closed growth contributors conflict,which⟩", "⟨a,a,conflict_transfer closed growth contributors conflict,which⟩", "evidence_grows"),
+    ]),
+    ("StateFreezeScopes", (root / "lean-cbcl/LeanCbcl/StateFreezeScopes.lean").read_text(), [
+        ("cached-freeze-uses-entire-history", ".frozen freezer.addr (evaluate (causalCut world whole freezer))", ".frozen freezer.addr (evaluate whole)", "cached_freeze_refinement"),
+        ("cached-freezer-applied-outside-scope", "some freezer => if freezer ∈ scope then", "some freezer => if True then", "cached_freeze_refinement"),
+    ]),
+    ("StateCompiledFreezeGrowth", (root / "lean-cbcl/LeanCbcl/StateCompiledFreezeGrowth.lean").read_text(), [
+        ("compiled-pair-error-path-discarded", "| .pair _ left right => do return .join (← earlier.lookup left) (← earlier.lookup right)", "| .pair _ left _ => earlier.lookup left", "compile_rule_path"),
+        ("compiled-global-freeze-path-discarded", "| some spec => .freeze spec.verb spec.contributes spec.policy source", "| some _ => source", "compile_field_path"),
+    ]),
+])
+
 # Preserve the full default gate while allowing a focused continuation check.
 import argparse
 parser = argparse.ArgumentParser(description=__doc__)
