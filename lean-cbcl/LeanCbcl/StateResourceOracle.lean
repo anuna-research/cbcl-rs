@@ -1,5 +1,6 @@
 import Lean
 import LeanCbcl.StateResourceRendering
+import LeanCbcl.StateFreezeRendering
 import LeanCbcl.StateResourceTests
 
 /-! Live resource profile with fixed account configuration and explicit decrement/funding graphs.
@@ -12,31 +13,66 @@ open Lean State CheckpointEvidence StateResource StateResourcePreflight StateRes
 theorem installed : NativeConfiguration config ∧ (config.initialVerb :: operationNames config).Nodup := by
   exact ⟨(configurationCheck_iff config).mp (by decide),by decide⟩
 
-/-- Execute the complete checked verifier on a recognized finite fixture. -/
-def observeFacts (j : Json) (facts : Facts) : Except String Json := do
+/-- Recognize the physical bounds required by the complete resource verifier. -/
+def checkedInput (facts : Facts) : Except String StateResourceVerifier.Input := do
+  if unique : (facts.map Fact.id).Nodup then
+    if bounded : facts.length ≤ 2^63 - 1 then
+      if allocations : facts.all (fun node => decide (((accounts node.data.selected.initialAllocations).map Prod.fst).length ≤ 2^63 - 1)) = true then
+        return ⟨config,facts,unique,bounded,(fun _ => installed),
+          fun node member => of_decide_eq_true (List.all_eq_true.mp allocations node member)⟩
+      else throw "account slice exceeds native bound"
+    else throw "fact slice exceeds native bound"
+  else throw "duplicate fact identity"
+
+/-- Fixed unbounded-resource snapshot in the native ordered map representation. -/
+def readyValue (snapshot : StateResourceFinalize.AggregateSnapshot) : StateJsonValue.Value :=
+  .map [(.str "rights",.map (["@alice","@bob","@treasury"].map (fun owner =>
+    (StateJsonValue.Value.str owner,StateJsonValue.Value.int (snapshot.rights owner))))),
+    (.str "status",.str "ready"),(.str "value",.int snapshot.value)]
+
+/-- Normalize complete computed witnesses, comparing membership and raw array bytes. -/
+def faultJson (address : Nat → String) (ids : List Nat) : Except String Json := do
+  let some names := (StateAddressPool.sortPool (ids.map address).toArray).map StateAddressDigits.adjacent
+    | throw "resource evidence pool move failed"
+  return Json.mkObj [("status",.str "fault"),("evidence",toJson ((StateLift.FinSet.dedup ids).mergeSort (fun a b => decide (a ≤ b)))),
+    ("witness_bytes",.str (StateJsonValue.emit (.list (names.map StateJsonValue.Value.str)) ""))]
+
+/-- Present the actual full-history verifier read without a frozen wrapper. -/
+def readJson (facts : Facts) (address : Nat → String) : StateResourceValidated.Read → Except String Json
+  | .pending => pure (Json.mkObj [("status",.str "pending")])
+  | .fault => faultJson address (StateResourceRendering.witnesses config facts)
+  | .ready snapshot => Json.parse (StateJsonValue.render (readyValue snapshot))
+
+/-- Execute the complete checked verifier and optional pay-triggered freeze.
+Raw authorization faults are supplied to the common executable freeze read. -/
+def observeFacts (j : Json) (facts : Facts) (freeze : Bool := false) : Except String Json := do
   let names : List (Nat × String) ← fromJson? (← j.getObjVal? "addresses")
   if !(decide (names.map Prod.fst).Nodup) || !(decide (names.map Prod.snd).Nodup) then
     throw "address dictionary must have unique identities and names"
   if names.length != facts.length || !(facts.all (fun node => (names.lookup node.id).isSome)) then
     throw "address dictionary must cover exactly the accepted fixture identities"
   let address := fun id => (names.lookup id).getD ""
-
-  if unique : (facts.map Fact.id).Nodup then
-    if bounded : facts.length ≤ 2^63 - 1 then
-      if allocations : facts.all (fun node => decide (((accounts node.data.selected.initialAllocations).map Prod.fst).length ≤ 2^63 - 1)) = true then
-        let input : StateResourceVerifier.Input := ⟨config,facts,unique,bounded,(fun _ => installed),
-          fun node member => of_decide_eq_true (List.all_eq_true.mp allocations node member)⟩
-        match StateResourceVerifier.observe input with
-        | .pending => return Json.mkObj [("status",.str "pending")]
-        | .fault =>
-          let some bytes := StateResourceRendering.evidenceBytes config facts address
-            | throw "resource evidence pool move failed"
-          return Json.mkObj [("status",.str "fault"),("evidence",toJson ((StateResourceRendering.witnesses config facts).mergeSort (fun a b => decide (a ≤ b)))),("witness_bytes",.str bytes)]
-        | .ready snapshot => return Json.mkObj [("status",.str "ready"),("value",toJson snapshot.value),
-            ("rights",Json.mkObj (["@treasury","@alice","@bob"].map (fun account => (account,toJson (snapshot.rights account)))))]
-      else throw "account slice exceeds native bound"
-    else throw "fact slice exceeds native bound"
-  else throw "duplicate fact identity"
+  let input ← checkedInput facts
+  let current := StateResourceVerifier.observe input
+  if !freeze then return ← readJson facts address current
+  let policy ← (← j.getObjVal? "fault_policy").getBool?
+  let acts : List Act := facts.map (fun fact => ⟨fact.id,fact.data.selected.verb,fact.data.signer,fact.data.selected.predecessors,[],[]⟩)
+  let raw := if StateResourceValidated.isFault current then some (StateResourceRendering.witnesses config facts) else none
+  let evaluate := fun scope : List Act => do
+    let cutFacts := facts.filter (fun fact => scope.any (fun act => act.addr == fact.id))
+    let cutInput ← checkedInput cutFacts
+    let .ready snapshot := StateResourceVerifier.observe cutInput
+      | throw "freezer cut has no ready resource snapshot in this fixture"
+    pure (readyValue snapshot)
+  match StateExecutableFreeze.read acts "pay"
+      (fun act => act.verb == config.initialVerb || StateResourceCycle.operationVerbCheck config act.verb) policy raw evaluate with
+  | .snapshot _ => readJson facts address current
+  | .fault ids => faultJson address ids
+  | .frozen root captured excluded => do
+    let value ← captured
+    let some bytes := StateFreezeRendering.emitFrozen address root value excluded
+      | throw "frozen resource evidence pool move failed"
+    return Json.mkObj [("status",.str "frozen"),("rendered",.str bytes)]
 
 
 /-- Compare complete verifier status and ready balances, with explicit input bounds. -/
@@ -60,7 +96,7 @@ def optionalFlag (j : Json) (name : String) : Except String Bool :=
 /-- A funding transfer and dependent burn exercise retained resource cones.
 Missing funding, omitted dependencies and an independent same-owner fork are
 explicit fixture choices, not expected-result inputs. -/
-def graphRun (j : Json) : Except String Json := do
+def graphRun (j : Json) (freeze : Bool := false) : Except String Json := do
   let funding ← (← j.getObjVal? "funding").getInt?
   let spend ← (← j.getObjVal? "spend").getInt?
   if funding < -(2^63) || funding ≥ 2^63 || spend < -(2^63) || spend ≥ 2^63 then
@@ -74,6 +110,6 @@ def graphRun (j : Json) : Except String Json := do
   let payment : ResourceFact := {burn with id := 4, data := {burn.data with signer := "@treasury", kind := .transfer, amount := funding, selected := {burn.data.selected with verb := "pay", authenticatedFrom := .value "@treasury", recipient := some "@alice", recipientStatus := .recognized, predecessors := [2] ++ (if citedContext then [6] else [])}}}
   let spent : ResourceFact := {burn with data := {burn.data with amount := spend, deps := if dependency then [4] else [], selected := {burn.data.selected with predecessors := if dependency then [2,4] else [2]}}}
   let competing : ResourceFact := {spent with id := 5, data := {spent.data with amount := 1}}
-  observeFacts j ([root,opener,spent] ++ (if included then [payment] else []) ++ (if fork then [competing] else []) ++ (if context then [note] else []))
+  observeFacts j ([root,opener,spent] ++ (if included then [payment] else []) ++ (if fork then [competing] else []) ++ (if context then [note] else [])) freeze
 
 end CBCL.StateResourceOracle

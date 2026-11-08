@@ -215,6 +215,7 @@ def evaluateNested (request : NestedInput) : Check Json := do
 
 def run (j : Json) : Check Json :=
   match j.getObjVal? "profile" with
+  | .ok (.str "resource-freeze") => CBCL.StateResourceOracle.graphRun j true
   | .ok (.str "resource-graph") => CBCL.StateResourceOracle.graphRun j
   | .ok (.str "resource-decrement") => CBCL.StateResourceOracle.run j
   | .ok (.str "nonnegative-shape") => CBCL.StateShapeOracle.run j

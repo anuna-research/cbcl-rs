@@ -11,7 +11,10 @@ fn observed(dialect: &cbcl_core::dialect::Dialect, acts: &[Act], ids: &BTreeMap<
     let folded = fold(dialect.state.as_ref().unwrap(),dialect.causal_protocol.as_ref(),acts);
     let state: Value = serde_json::from_str(&render_json(&folded)).unwrap();
     let coins = &state["coins"];
-    if coins["status"] == "ready" {
+    if coins.get("frozen").is_some() {
+        let bytes = folded.iter().find(|(name,_)| name == "coins").unwrap().1.render();
+        json!({"status":"frozen","rendered":bytes})
+    } else if coins["status"] == "ready" {
         json!({"status":"ready","value":coins["value"],"rights":coins["rights"]})
     } else if coins["status"] == "fault" {
         let mut evidence = coins["evidence"].as_array().unwrap().iter().map(|name| {
@@ -191,4 +194,58 @@ fn cited_context_evidence_matches_lean() {
         compare_graph_growth(&oracle,&dialect,&mut case);
         Ok(())
     }).unwrap();
+}
+
+#[test]
+#[ignore = "requires lake build cbcl-state-oracle; explicitly run in Lean CI"]
+fn resource_freeze_matches_lean() {
+    use cbcl_core::state::{Entry, FreezePolicy};
+    let oracle = RefCell::new(Oracle::start());
+    for fault_policy in [false,true] {
+        let mut dialect = cbcl_parser::parse_dialect(&parse(include_str!("../../../../dialects/example-coin.cbcl")).unwrap()).unwrap();
+        dialect.state.as_mut().unwrap().entries.push(Entry::Freeze {
+            field:"coins".into(),verb:"pay".into(),
+            policy:if fault_policy { FreezePolicy::Fault } else { FreezePolicy::Supersede },
+        });
+        let mut registry = cbcl_core::dialect::DialectRegistry::new();
+        registry.install(dialect.clone()).unwrap();
+        for (funding,spend,included,dependency,fork) in [
+            (5,1,true,true,false),(5,5,true,true,false),(5,6,true,true,false),
+            (5,1,true,false,false),(5,1,false,true,false),(5,1,true,true,true),
+            (0,1,true,true,false),(1001,1,true,true,false),
+        ] {
+            let mut case = json!({"profile":"resource-freeze","funding":funding,"spend":spend,"included":included,"dependency":dependency,"fork":fork,"fault_policy":fault_policy});
+            let observed = native_graph(&dialect,&mut case);
+            assert_eq!(observed,oracle.borrow_mut().request(&case),"resource freeze={case}");
+            if funding == 5 && spend == 1 && included && dependency && !fork {
+                if fault_policy {
+                    assert_eq!(observed["status"],"fault");
+                    assert_eq!(observed["evidence"],json!([3,4]));
+                } else {
+                    assert_eq!(observed["status"],"frozen");
+                    let wrapper: Value = serde_json::from_str(observed["rendered"].as_str().unwrap()).unwrap();
+                    assert_eq!(wrapper["value"]["value"],1000);
+                    assert_eq!(wrapper["value"]["rights"]["@alice"],5);
+                    assert_eq!(wrapper["superseded"].as_array().unwrap().len(),1);
+                }
+            }
+            if funding == 5 && spend == 6 { assert_eq!(observed["status"],"fault"); }
+            compare_graph_growth(&oracle,&dialect,&mut case);
+        }
+        for invalid in [json!("true"),Value::Null,json!(1)] {
+            let mut case = json!({"profile":"resource-freeze","funding":5,"spend":1,"included":true,"dependency":true,"fork":false,"fault_policy":fault_policy});
+            let _ = native_graph(&dialect,&mut case);
+            case["fault_policy"] = invalid;
+            assert!(oracle.borrow_mut().response(&case).get("error").is_some(),"invalid freeze policy transport={case}");
+        }
+        let mut config = proptest::test_runner::Config::default();
+        if std::env::var_os("PROPTEST_CASES").is_none() { config.cases = 512; }
+        let mut runner = proptest::test_runner::TestRunner::new(config);
+        runner.run(&(-2i64..1003,-2i64..1003,any::<bool>(),any::<bool>(),any::<bool>(),any::<bool>(),any::<bool>()),
+            |(funding,spend,included,dependency,fork,context,cited_context)| {
+            let mut case = json!({"profile":"resource-freeze","funding":funding,"spend":spend,"included":included,"dependency":dependency,"fork":fork,"context":context,"cited_context":cited_context,"fault_policy":fault_policy});
+            compare_graph_growth(&oracle,&dialect,&mut case);
+            Ok(())
+        }).unwrap();
+    }
 }

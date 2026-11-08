@@ -449,3 +449,27 @@ replay. This remains below admission; intentionally absent cited context is not
 claimed to be a causally closed protocol-admitted history. Mutations deleting
 causal-context retention or reporting absent cited identities fail executed
 assertions in this suite.
+
+The `resource-freeze` profile composes the same complete resource verifier with
+`StateExecutableFreeze.read`. An installed freeze declaration seals `coins` at
+the funding `pay` act; required boolean `fault_policy` selects fault or supersede
+handling for outside contributions. The full-history verifier supplies raw fault
+witnesses to the common freeze read, which combines them with freeze conflicts.
+For a healthy frozen read, the evaluator runs the complete verifier on facts
+selected by the actual causal cut. The unbounded fixture's ready resource value
+uses native ordered map keys and balances; `StateFreezeRendering.emitFrozen`
+then emits the full wrapper, root and sorted superseded identities. An unexpected
+non-ready cut is an oracle error, not a fabricated frozen payload.
+
+`resource::resource_freeze_matches_lean` installs both policies through the native
+registry. Directed cases establish that a valid late spend is excluded from the
+captured resource value under supersede policy; fault policy instead reports the
+freezer and late-spend witnesses. An overspend remains a raw resource fault under
+both policies. Generated cases also cover funding presence, declared dependencies,
+forks and cited non-resource context, with source-preserving growth and duplicate
+replay. Frozen output comparisons retain exact wrapper bytes; fault output compares
+complete witness membership and evidence-array bytes. Malformed policy values are
+rejected with an otherwise valid source dictionary. Mutations hiding full-history
+faults, discarding raw witnesses during conflict union or ignoring the causal cut
+fail executed comparisons. This fixed-profile composition does not establish
+general installation/AST extraction or diagnostic-reason correspondence.
