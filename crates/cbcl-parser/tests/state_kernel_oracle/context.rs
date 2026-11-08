@@ -118,6 +118,7 @@ fn native_context(case: &Value) -> Value {
         let cast = match &f["cast"] {
             Value::Null => None,
             Value::String(_) => Some("#t".to_owned()),
+            Value::Object(_) => Some(f["cast"]["syntax"].as_str().unwrap().to_owned()),
             Value::Array(bindings) => Some(format!(
                 "({})",
                 bindings
@@ -240,6 +241,31 @@ fn context_kernel_matches_live_lean_oracle() {
             "context boundary accepted {malformed}"
         );
     }
+    let mut unparseable_root = root.clone();
+    unparseable_root["cast"] = json!({"syntax":"("});
+    assert!(oracle.response(&request(vec![unparseable_root], &["thread"], Value::Null)).get("error").is_some(),
+        "unparseable cast text is outside the oracle transport domain");
+    // Raw casts cross both real S-expression parsers before semantic role checks.
+    for (syntax, valid) in [
+        ("((chair @chair) (reviewer @a @b))", true),
+        ("((reviewer @b @a) (chair @chair))", true),
+        ("((\"chair\" @chair) (reviewer @a @b))", false),
+        ("((chair \"@chair\") (reviewer @a @b))", false),
+        ("((chair @chair) (reviewer @a \"@b\"))", false),
+        ("((chair @chair) (reviewer :account))", false),
+        ("((chair @chair) (reviewer @a @a))", false),
+        ("((chair @chair) (reviewer))", false),
+        ("((chair @chair))", false),
+        ("((unknown @chair) (reviewer @a))", false),
+        ("#t", false),
+    ] {
+        let mut raw_root = root.clone();
+        raw_root["cast"] = json!({"syntax":syntax});
+        let case = request(vec![raw_root], &["thread", "roles", "reviewer"], json!("@a"));
+        let expected = oracle.request(&case);
+        assert_eq!(native_context(&case), expected, "raw cast={syntax}");
+        assert_eq!(expected["value"]["status"] == "fault", !valid, "raw cast={syntax}");
+    }
     let open = fact(1, "open", vec![0], Value::Null, Value::Null, json!("t"));
     let child = fact(2, "approve", vec![1], Value::Null, Value::Null, json!("t"));
     for path in paths() {
@@ -272,6 +298,11 @@ fn context_kernel_matches_live_lean_oracle() {
         json!([["chair", ["@a"]], ["reviewer", ["@a"]], ["chair", ["@a"]]]),
         json!([["chair", ["@a"]], ["reviewer", ["@a"]], ["unknown", ["@a"]]]),
         good_cast(),
+        json!({"syntax":"((chair @chair) (reviewer @b @a))"}),
+        json!({"syntax":"((chair \"@chair\") (reviewer @a))"}),
+        json!({"syntax":"((chair @chair) (reviewer @a \"@b\"))"}),
+        json!({"syntax":"((\"chair\" @chair) (reviewer @a))"}),
+        json!({"syntax":"((chair @chair) (reviewer :account))"}),
     ];
     let mut histories = Vec::new();
     for cast in casts.iter() {

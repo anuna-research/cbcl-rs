@@ -434,7 +434,13 @@ faults and equality on equal accepted sets. `StateFiniteUpperCache` proves the
 optimized upper-set maximum formulas and admitted scalar decoding equal the reference
 finite gate. `StateFinitePairLoop` proves stored cache-vector lookups, unordered
 early-exit traversal, duplicate precedence and first-error indices tied to the
-original scalar queries. Literal R7 extraction/integration, formatted diagnostic
+original scalar queries. `StateFiniteReadCache` constructs aligned once-decoded
+query arrays. `StateInstalledBounds` enforces native positive default-tightening
+limits; `StateFiniteIndexBounds` proves dense lookup with exact UInt32/UInt64
+offsets. `StateFiniteDenseCache` composes both backends through stored upper-set
+maxima and first-pair diagnostics to the complete source-owned query compiler.
+The live oracle rejects disagreement between backends before comparing with Rust.
+Literal R7 extraction/integration, formatted diagnostic
 strings and allocation/runtime cost correspondence remain separate boundaries. Native
 missing-link lists, owner tips, diagnostic reasons and canonical serialization
 are outside the modeled resource read. SPEC-038 acceptance remains partial.
@@ -537,8 +543,14 @@ rosters, frontiers and complete context fault witnesses to the installed
 context reader. Its live profile checks all supported paths, membership queries,
 schema markers and combined failures under reordered/duplicate delivery.
 Application domains, resources, context freezes and admission remain outside
-these profiles; the context profile uses the typed message boundary for pins
-while strict-wire `sha256:` recognition remains an explicit BUG-006 boundary.
+these profiles. `StateContextCastSyntax` recognizes role/key symbols from raw
+binding trees, preserves duplicates for semantic validation and connects the
+result to installed context casting with an absent pin. Raw cast oracle cases
+cross both S-expression parsers; quoted role/account strings remain distinct
+from symbols. Unparseable transport text is an input error; invalid parsed casts
+are malformed metadata. The native pin path uses quoted `sha256:` strings with
+the strict parser; formal wrapper/pin extraction remains open. BUG-006 remains
+open for envelopes and suite-qualified keys.
 
 The Batteries gate remains enabled in CI. Intentional constant contribution
 arguments and uniform prepared-state receivers have local, explained

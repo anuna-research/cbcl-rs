@@ -1,6 +1,8 @@
 import Lean
 import LeanCbcl.StateExecutableContext
 import LeanCbcl.StateCausalRank
+import LeanCbcl.StateContextCastSyntax
+import LeanCbcl.Parser
 
 /-! Context profile for the live oracle. Canonical address hashing and wire
 recognition remain input/normalization boundaries; cast validation, projection
@@ -26,6 +28,10 @@ def parseCast (value : Json) : Check (ResourceField (List ResourceRoleBinding)) 
   match value with
   | .null => return .absent
   | .str "malformed" => return .malformed .wrongType
+  | .obj _ =>
+    let text ← (← value.getObjVal? "syntax").getStr?
+    let raw ← CBCL.parse text
+    return CBCL.StateContextCastSyntax.field raw
   | _ =>
     let bindings : List (String × List String) ← fromJson? value
     return .value (bindings.map (fun (role,accounts) => ⟨role,accounts⟩))

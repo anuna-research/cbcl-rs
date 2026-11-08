@@ -1,3 +1,4 @@
+import LeanCbcl.StateContextCastSyntaxTests
 import LeanCbcl.StateFiniteDenseCacheTests
 import LeanCbcl.StateInstalledBoundsTests
 import LeanCbcl.StateFiniteReadCacheTests
@@ -2763,3 +2764,17 @@ editing only this file is enough to extend the audit.
 
 #print axioms CBCL.StateFiniteDenseCache.policy_refinement
 #print axioms CBCL.StateFiniteDenseCache.compiled_query_refinement
+
+#print axioms CBCL.StateContextCastSyntax.symbols_roundtrip
+#print axioms CBCL.StateContextCastSyntax.binding_roundtrip
+#print axioms CBCL.StateContextCastSyntax.bindings_roundtrip
+#print axioms CBCL.StateContextCastSyntax.recognize_encoded
+#print axioms CBCL.StateContextCastSyntax.recognize_iff
+#print axioms CBCL.StateContextCastSyntax.installed_cast
+#print axioms CBCL.StateContextCastSyntax.quoted_role_rejected
+#print axioms CBCL.StateContextCastSyntax.quoted_key_rejected
+#print axioms CBCL.StateContextCastSyntaxTests.valid_cast
+#print axioms CBCL.StateContextCastSyntaxTests.duplicate_rejected
+#print axioms CBCL.StateContextCastSyntaxTests.missing_rejected
+#print axioms CBCL.StateContextCastSyntaxTests.empty_rejected
+#print axioms CBCL.StateContextCastSyntaxTests.malformed_not_absent

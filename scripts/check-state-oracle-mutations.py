@@ -42,6 +42,7 @@ with tempfile.TemporaryDirectory(prefix="cbcl-live-oracle-") as directory:
                               text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=300)
 
     mutants = [
+        ("context-quoted-account-accepted", "role.rs", "let SExpr::Atom(Atom::Symbol(k)) = key else {", "let SExpr::Atom(Atom::Symbol(k) | Atom::Str(k)) = key else {", context_test),
         ("state-bound-default-gate-bypassed", "r7.rs", "|| b.max_list > defaults.max_list", "|| false", finite_test),
         ("finite-read-cache-wrong-right-index", "r7.rs", "match (reads[i], reads[j])", "match (reads[i], reads[0])", finite_test),
         ("finite-symbol-string-confused", "lattice.rs", "act.fields.get(&row.key) == Some(&row.value)", "act.fields.get(&row.key).map(|value| match value { SExpr::Atom(Atom::Symbol(name)) => SExpr::Atom(Atom::Str(name.clone())), other => other.clone() }).as_ref() == Some(&row.value)", finite_test),

@@ -1744,7 +1744,20 @@ literals. Its bounded tagged-symbol adapter retains a non-scalar value;
 `row_literal_not_list` and `row_ignores_opaque` prove that value cannot match a
 verified scalar row. The directed bottom/pending case and a native mutation
 that converts symbols to strings test the actual contribution distinction.
-This adapter does not establish general metadata extraction or protocol admission;
+`StateContextCastSyntax.lean` recognizes raw role-binding S-expressions before
+the installed context validator: both roles and account keys must be symbol
+atoms. Its grammar roundtrip preserves order and duplicates, successful
+recognition derives syntax plus semantic validity, and `installed_cast` connects
+the raw recognizer to the source-owned context decoder when the pin is absent.
+A successfully parsed but grammatically invalid cast remains an explicit
+malformed field; unparseable transport text is an oracle input error. The context live oracle accepts raw cast syntax,
+uses the verified S-expression parser, and compares strict native wire parsing
+for quoted-role/key, keyword, duplicate, cardinality and completeness cases.
+A native mutation accepting quoted account strings is rejected by this
+comparison. Wrapper traversal, pin recognition and general per-message metadata
+extraction remain separate boundaries.
+
+The finite-symbol adapter does not establish general metadata extraction or protocol admission;
 other live profiles retain their stated scalar contracts.
 Generic IR correctness and individual factories are not evidence that this full
 literal source binding and composition theorem is complete. The

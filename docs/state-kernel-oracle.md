@@ -117,6 +117,15 @@ The serializer enumerates roster/frontier support from input facts; support
 completeness is a profile boundary rather than a separate proved theorem. It errors
 if a value exceeds its explicit depth bound; it does not silently truncate.
 
+The context profile also accepts a cast as `{"syntax":"((chair @chair) (reviewer @a @b))"}`.
+The Lean parser recognizes this text before `StateContextCastSyntax` checks the
+binding grammar and the installed context gate checks cardinality, completeness
+and duplicates. Quoted roles/accounts and keyword keys are rejected as cast
+metadata. Unparseable text is a transport input error. The Rust side embeds the
+same raw cast in an actual wrapper and uses the strict parser. The grammar
+roundtrip and absent-pin connection to installed casting are proved; wrapper
+traversal and general metadata extraction are still boundaries.
+
 The Rust context harness builds actual content-addressed messages and calls the
 strict S-expression parser, native message parser, installer and fold. Dialect
 pins use the quoted `:dialect "sha256:<hex64>"` form. Existing typed-symbol pin
@@ -155,7 +164,7 @@ its source fault. Freeze mutants ignore the causal cut, suppress the fault
 policy, hide concurrent freezers or discard freeze evidence when a raw fault
 already exists. Nested mutants erase the cache scope or field, use whole history
 for a dependency, stop unwrapping frozen payloads, or discard inherited source
-faults. Context mutants accept duplicate roster occupants, bypass pin validation,
+faults. Context mutants accept quoted account strings or duplicate roster occupants, bypass pin validation,
 mislabel fixed metadata, drop mixed-thread or opener-fork
 witnesses, alter the accepted count and hide the frontier. It leaves the
 worktree untouched.

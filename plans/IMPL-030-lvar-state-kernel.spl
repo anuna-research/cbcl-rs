@@ -1224,3 +1224,29 @@
 ;; Rust extraction, allocation/runtime costs and formatted diagnostics are still
 ;; separate obligations, along with remaining native metadata/admission/mutable
 ;; reader/general wire/renderer boundaries. Full SPEC completion is not asserted.
+
+;; Context cast syntax checkpoint (REQ-3811 / REQ-3810 / TEST-3809).
+;; StateContextCastSyntax recognizes native binding-tree grammar before semantic
+;; context validation: symbol role, symbol keys; raw strings/keywords never coerce.
+;; Roundtrip preserves exact rows/order/duplicates. recognize_iff derives both
+;; grammar and installed bindingsCheck from success. installed_cast connects raw
+;; metadata to source-owned context casting with an absent pin. Malformed parsed
+;; trees remain explicit malformed fields; parse failure is a transport input error.
+;; Context oracle accepts raw cast text, runs CBCL.parse and this recognizer, then
+;; uses the existing proved context reader. Native harness embeds identical text
+;; in actual with-roles/signed/lang messages and uses strict parser/install/fold.
+;; Directed and generated cases cover valid/reordered, quoted role/key, keyword,
+;; duplicate, empty, unknown and incomplete bindings. Input error for unparseable
+;; text is checked separately. Existing typed cases and pin variants remain.
+;; Verification: aggregate library/oracle build and Batteries env-linter pass;
+;; 1869 audited theorems use allowlisted axioms. Four proof mutants fail quoted
+;; key/role, malformed-vs-absent and semantic-gate obligations. Isolated actual
+;; Rust parse_cast quoted-account acceptance mutation fails live comparison.
+;; All six live oracle suites pass at512 cases/seed380038; final context rerun
+;; also covers the added transport-error assertion. Verified-by and diff checks
+;; pass; no new unresolved vault pairs, zero syntax/SPL diagnostics.
+;; Read-only review found no proof defect; clarified absent-pin theorem scope and
+;; parsed-invalid versus unparseable text. Updated Lean README/oracle guide.
+;; Remaining: wrapper traversal and pin syntax, general message metadata/admission,
+;; literal Rust installation/mutable reader/wire/renderer correspondence. The
+;; raw binding-tree bridge does not discharge these or full SPEC acceptance.

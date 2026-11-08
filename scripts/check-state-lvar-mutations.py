@@ -704,6 +704,13 @@ suites.append(("StateFiniteDenseCache", (root / "lean-cbcl/LeanCbcl/StateFiniteD
     ("dense-empty-query-accepted", "!queries.isEmpty && queries.all", "true && queries.all", "check_refinement"),
 ]))
 
+suites.append(("StateContextCastSyntax", (root / "lean-cbcl/LeanCbcl/StateContextCastSyntax.lean").read_text(), [
+    ("context-quoted-key-coerced-to-symbol", "| .atom (.symbol name) => some name", "| .atom (.symbol name) | .atom (.str name) => some name", "quoted_key_rejected"),
+    ("context-quoted-role-coerced-to-symbol", "| .list (.atom (.symbol role)::keys) =>", "| .list (.atom (.symbol role)::keys) | .list (.atom (.str role)::keys) =>", "quoted_role_rejected"),
+    ("context-malformed-cast-becomes-absent", "| none => .malformed .malformedBinding", "| none => .absent", "installed_cast"),
+    ("context-cast-semantic-gate-bypassed", "  if bindingsCheck definition rows then some rows else none\n", "  some rows\n", "recognize_encoded"),
+]))
+
 # Preserve the full default gate while allowing a focused continuation check.
 import argparse
 parser = argparse.ArgumentParser(description=__doc__)
