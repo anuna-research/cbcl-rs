@@ -43,6 +43,8 @@ on:
       - 'scripts/check-axioms.sh'
       - 'scripts/check-verified-by.sh'
       - 'scripts/ci-install-rust.sh'
+      - 'scripts/ci-install-lean.sh'
+      - 'scripts/test-ci-install-lean.py'
       - '.forgejo/workflows/lean.yml'
   pull_request:
     paths:
@@ -62,6 +64,8 @@ on:
       - 'scripts/check-axioms.sh'
       - 'scripts/check-verified-by.sh'
       - 'scripts/ci-install-rust.sh'
+      - 'scripts/ci-install-lean.sh'
+      - 'scripts/test-ci-install-lean.py'
       - '.forgejo/workflows/lean.yml'
 
 jobs:
@@ -71,10 +75,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install elan (Lean toolchain manager)
-        run: |
-          curl -sSf https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh \
-            | sh -s -- -y --default-toolchain none
-          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+        run: bash scripts/ci-install-lean.sh
 
       - name: Show toolchain
         working-directory: lean-cbcl
