@@ -888,3 +888,27 @@
 ;; need address-key total correspondence and actual nonnegative-shape evidence.
 ;; Progress and literal native installation/extraction remain open; full task
 ;; remains outstanding.
+
+;; Event membership authored composition checkpoint (REQ-3802 / REQ-3809).
+;; StateEventMapKernel derives actual source writers and signer/value cells from
+;; map_correct and address-content consistency, without a winner/cell premise.
+;; Canonical selected histories yield exact event-member/native-field agreement.
+;; Source-owned query compilation and all-root fault-freeze composition feed
+;; StateAuthoredEventMembership.successive_compiled: actual earlier/later authored
+;; programs preserve a singleton scalar member or expose the actual named fault.
+;; Native success is inverted from the actual earlier compiled reached output.
+;; Fixtures compute equal-payload distinct-address cells with signers, duplicate
+;; delivery, pending-payload query success, and structured/supersede rejection.
+;; The alternate signer fixture is low-level typed history, not admitted trace;
+;; the complete authored fixture leaves earlier compiled reached conditional.
+;; Verification: aggregate build and Batteries env-linter pass; 1683 theorem
+;; audits allowlisted. Six focused source mutations fail named obligations:
+;; signer grouping, clock selection, signer projection, inverted predicate,
+;; invented inversion value and changed later answer. Verified-by lint passes.
+;; Vault unresolved source/target pairs unchanged; syntax/SPL diagnostics unchanged.
+;; Independent proof, fixture, evidence and mutation review finds no defect.
+;; Next: exact event-map totals by address-key/writer correspondence, then actual
+;; accepted nonnegative-shape evidence. Native threshold_reads negative-credit
+;; test exercises state_exports::admit rejection, so metadata-only shape evidence
+;; must not substitute for that admission bridge. Closure progress and literal
+;; native installation/extraction remain outstanding; full task remains open.

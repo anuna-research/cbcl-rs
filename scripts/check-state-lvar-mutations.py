@@ -517,6 +517,25 @@ suites.append(("StateAuthoredMembership", (root / "lean-cbcl/LeanCbcl/StateAutho
      '(outputName,.data (.reached (.element (.member (.str "ghost"))))) ∈ later.observe ∨', "successive_compiled"),
 ]))
 
+suites.append(("StateEventMapKernel", (root / "lean-cbcl/LeanCbcl/StateEventMapKernel.lean").read_text(), [
+    ("event-keys-grouped-by-signer", "⟨.withField (.verb verb) field,.address,.address,field,true⟩",
+     "⟨.withField (.verb verb) field,.signer,.address,field,true⟩", "key_origin"),
+    ("event-selection-requires-clock", "⟨.withField (.verb verb) field,.address,.address,field,true⟩",
+     '⟨.withField (.verb verb) field,.address,.hlc "clock",field,true⟩', "read_event"),
+    ("event-signer-projection-discarded", "⟨.withField (.verb verb) field,.address,.address,field,true⟩",
+     "⟨.withField (.verb verb) field,.address,.address,field,false⟩", "read_event"),
+]))
+suites.append(("StateNativeEventMembership", (root / "lean-cbcl/LeanCbcl/StateNativeEventMembership.lean").read_text(), [
+    ("event-member-predicate-inverted", "if has field (selected domains [verb] A) value then",
+     "if !(has field (selected domains [verb] A) value) then", "compiled_member"),
+]))
+suites.append(("StateAuthoredEventMembership", (root / "lean-cbcl/LeanCbcl/StateAuthoredEventMembership.lean").read_text(), [
+    ("event-inversion-invents-value", "has field (StateDomainSupportLocality.selected prepared.domains [verb] A) value = true := by",
+     'has field (StateDomainSupportLocality.selected prepared.domains [verb] A) (.str "ghost") = true := by', "native_success"),
+    ("event-preservation-changes-answer", "(outputName,.data (.reached (.element (.member value)))) ∈ later.observe ∨",
+     '(outputName,.data (.reached (.element (.member (.str "ghost"))))) ∈ later.observe ∨', "successive_compiled"),
+]))
+
 # Preserve the full default gate while allowing a focused continuation check.
 import argparse
 parser = argparse.ArgumentParser(description=__doc__)

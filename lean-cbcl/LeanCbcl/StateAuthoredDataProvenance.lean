@@ -13,22 +13,25 @@ inductive Head where
   | count (verb : String)
   | existsRule (verb : String)
   | setUnion (verb field : String)
+  | events (verb field : String)
 
 /-- The single source performative retained by each head. -/
 def Head.verb : Head → String
-  | .count verb | .existsRule verb | .setUnion verb _ => verb
+  | .count verb | .existsRule verb | .setUnion verb _ | .events verb _ => verb
 
 /-- The original dialect rule, using the existing rule inventory. -/
 def Head.rule : Head → StateKernelClause.Rule
   | .count verb => .count verb
   | .existsRule verb => .existsRule verb
   | .setUnion verb field => .setUnion verb field
+  | .events verb field => .events verb field
 
 /-- The actual expression emitted by the existing kernel rule compiler. -/
 def Head.expression : Head → StateKernel.Expr
   | .count verb => .count (.verb verb)
   | .existsRule verb => .existsRule (.verb verb)
   | .setUnion verb field => .distinct (.verb verb) field
+  | .events verb field => .mapped ⟨.withField (.verb verb) field,.address,.address,field,true⟩
 
 /-- The existing source factory, not a callback stored by this proof. -/
 noncomputable def Head.definition (head : Head) (environment : Environment) (domains : List StateInstalledDomains.Domain) : Definition Value :=

@@ -269,3 +269,5 @@ import LeanCbcl.StateNativeDataPoliciesTests
 import LeanCbcl.StateAuthoredDataPreservationTests
 
 import LeanCbcl.StateAuthoredMembershipTests
+
+import LeanCbcl.StateAuthoredEventMembershipTests

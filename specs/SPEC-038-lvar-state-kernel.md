@@ -1517,7 +1517,29 @@ The earlier native witness is computed; the preservation implication remains
 conditional on an earlier compiled reached result, which the complete authored
 fixture does not assert.
 
-Event membership, shaped nonnegative event sums, closure progress and native
+`StateEventMapKernel.lean` derives the actual address-keyed event map's source
+writers and signer/value cells from map correctness and address-content
+consistency. The proof does not assume a clock winner or a projected cell.
+Canonical history and domain selection preserve that consistency, giving exact
+agreement between the kernel event-member test and selected native field
+membership. `StateNativeEventMembership.lean` connects this equality to the
+source-owned query compiler and every outcome of the fault-freeze root selector.
+`StateAuthoredEventMembership.successive_compiled` then derives admission,
+source provenance and earlier native success from actual authored compilation
+and its named reached output. Under accepted-set growth between ranked,
+content-consistent typed histories, a singleton scalar event-member threshold
+remains the same named reached output or becomes a named fault. Neither a prior
+native predicate nor a detached policy lookup is an external premise.
+
+Event fixtures compute distinct address entries with equal payloads and retained
+signers, duplicate-safe native membership, query success from a pending payload,
+and rejection of structured members and supersede freezes. The alternate-signer
+identity fixture is a low-level typed-history example, not a protocol-admission
+trace. The complete authored fixture constructs both programs with mixed domains
+and specializes preservation conditional on earlier reached membership; it does
+not assert that antecedent.
+
+Shaped nonnegative event sums, closure progress and native
 installation/extraction correspondence remain separate obligations at the typed
 authored boundary.
 Literal Rust value representation and public serialized

@@ -1,3 +1,4 @@
+import LeanCbcl.StateAuthoredEventMembershipTests
 import LeanCbcl.StateAuthoredMembershipTests
 import LeanCbcl.StateAuthoredDataPreservationTests
 import LeanCbcl.StateNativeDataPoliciesTests
@@ -2527,3 +2528,27 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateAuthoredMembershipTests.duplicate_native_member
 #print axioms CBCL.StateAuthoredMembershipTests.pending_payload_reaches
 #print axioms CBCL.StateAuthoredMembershipTests.constructed_programs_preserve_member
+
+#print axioms CBCL.StateEventMapKernel.key_origin
+#print axioms CBCL.StateEventMapKernel.read_event
+#print axioms CBCL.StateEventMapKernel.member_value
+#print axioms CBCL.StateEventMapKernel.native_member
+
+#print axioms CBCL.StateNativeEventMembership.compiled_member
+#print axioms CBCL.StateNativeEventMembership.member_success_or_fault
+
+#print axioms CBCL.StateAuthoredEventMembership.admitted_member
+#print axioms CBCL.StateAuthoredEventMembership.program_stability
+#print axioms CBCL.StateAuthoredEventMembership.native_success
+#print axioms CBCL.StateAuthoredEventMembership.successive_compiled
+
+#print axioms CBCL.StateAuthoredEventMembershipTests.installation_succeeds
+#print axioms CBCL.StateAuthoredEventMembershipTests.structured_member_rejected
+#print axioms CBCL.StateAuthoredEventMembershipTests.supersede_rejected
+#print axioms CBCL.StateAuthoredEventMembershipTests.event_consistent
+#print axioms CBCL.StateAuthoredEventMembershipTests.two_address_entries
+#print axioms CBCL.StateAuthoredEventMembershipTests.first_event_retained
+#print axioms CBCL.StateAuthoredEventMembershipTests.other_event_retained
+#print axioms CBCL.StateAuthoredEventMembershipTests.duplicate_native_member
+#print axioms CBCL.StateAuthoredEventMembershipTests.pending_payload_reaches
+#print axioms CBCL.StateAuthoredEventMembershipTests.constructed_programs_preserve_member
