@@ -23,6 +23,30 @@ suites = [(module, source, mutants), ("StateContext",
     ("context-fault-hidden", "| .top evidence => .fault evidence", "| .top _ => .pending", "display_quasi"),
     ("context-evidence-dropped", "| .top evidence => .fault evidence", "| .top _ => .fault {}", "fault_evidence"),
 ])]
+resource_source = (root / "lean-cbcl/LeanCbcl/StateResource.lean").read_text()
+resource_tests = (root / "lean-cbcl/LeanCbcl/StateResourceTests.lean").read_text().split("\n", 1)[1]
+suites.extend([
+    ("StateResource", resource_source + "\n" + resource_tests, [
+        ("resource-cause-hidden", "exact if Fault c decode A then", "exact if False then", "unsupported_fault"),
+        ("resource-budget-invented", "checkedAdd initial (if headroom then debited else credited)",
+         "checkedAdd (initial + 100) (if headroom then debited else credited)", "insufficient_budget"),
+        ("resource-shorter-tip-selected", "if C.length < D.length then D else C",
+         "if C.length < D.length then C else D", "merge_owner_tips_union"),
+        ("headroom-key-order-matters", "∀ owner, owner ∈ (accounts op.data.selected.headroomAllocations).map Prod.fst ↔\n      owner ∈ (accounts op.data.selected.initialAllocations).map Prod.fst",
+         "(accounts op.data.selected.headroomAllocations).map Prod.fst = (accounts op.data.selected.initialAllocations).map Prod.fst", "reordered_headroom_valid"),
+        ("resource-overflow-ignored", "if -(2^127) ≤ n ∧ n < 2^127 then", "if True then", "checked_overflow"),
+    ]),
+    ("StateObservation", (root / "lean-cbcl/LeanCbcl/StateObservation.lean").read_text(), [
+        ("product-fault-witness-discarded", "| some a, some b => some (a ∪ b)",
+         "| some a, some _ => some a", "unionError_grows"),
+    ]),
+    ("StateObservationPlan", (root / "lean-cbcl/LeanCbcl/StateObservationPlan.lean").read_text(), [
+        ("derived-frozen-value-discarded", "| .snapshot v | .context v | .reached v | .frozen _ v _ => some v",
+         "| .snapshot v | .context v | .reached v => some v\n  | .frozen _ _ _ => none", "derived_frozen_payload"),
+        ("threshold-dependency-fault-discarded", "| _, .threshold spec source => .join (.threshold spec) (path source)",
+         "| _, .threshold spec _ => .threshold spec", "threshold_dependency_fault_first"),
+    ]),
+])
 for module, source, mutants in suites:
     with tempfile.TemporaryDirectory(prefix="cbcl-state-lvar-") as directory:
         path = Path(directory) / f"{module}.lean"

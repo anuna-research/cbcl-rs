@@ -90,3 +90,5 @@ import LeanCbcl.StateKernelSECTests
 
 import LeanCbcl.CheckpointKernelTests
 import LeanCbcl.CheckpointAllTests
+
+import LeanCbcl.StateResourceTests

@@ -169,3 +169,15 @@
 ;; The broader lean-quasi-determinism task stays partial: legacy fault-aware
 ;; finite clause convergence is proved, while resource-verifier witness
 ;; classification/persistence and full new-observation composition remain.
+
+;; Resource/composition proof continuation (TEST-3806 remains unfulfilled):
+;; StateResource proves concrete certificate persistence, exact closed-cone
+;; uniqueness and dissemination, without a supplied resource classifier.
+;; StateObservationPlan proves typed value dependency / nested-freeze SEC.
+;; Outstanding native acceptance bridges, owned by the SPEC-038 implementer:
+;; 1. Prove native owner-prefix/tip summaries equal closed-cone arithmetic;
+;;    cover every final aggregate check or prove it unreachable under bounds.
+;; 2. Establish native fault iff an accepted concrete certificate exists.
+;; 3. Prove installed-rule compilation to typed plans, especially domain /
+;;    context source carriers and threshold contribution/source coherence.
+;; The generic theorems cannot be used as substitutes for those refinements.

@@ -935,6 +935,23 @@ fault dissemination. `scripts/check-state-lvar-mutations.py` checks that the
 concrete proof obligations reject altered fault, cut and root behaviour. The
 full Lean build and allowlisted axiom audit pass at this checkpoint.
 
+`StateResource.lean` adds concrete finite certificates for initialization,
+recognition, owner forks, foreign links, cycles and closed-cone budget failures.
+It proves cone uniqueness, evidence growth and actual-replica dissemination,
+with explicit i128 and native-size bounds. `StateResourceTests.lean` checks a
+concrete insufficient-rights certificate, no-opener precedence and checked
+arithmetic. `StateObservationPlan.lean` adds typed value dependencies, nested
+freezes, reached/context tags, dependency-fault-first thresholds and a composed
+replica theorem. The mutation harness includes these modules.
+
+These are model-level proofs, not a completed native refinement. The concrete
+certificate checker is not yet proved equivalent to `escrow::observe_facts`:
+owner-prefix/tip-summary arithmetic and final aggregate checks remain to be
+connected. The typed observation plan is not yet a proved compilation of every
+installed Rust rule: threshold contribution/source coherence and complete
+context/domain source refinements remain. Those bridges are acceptance work,
+not assumptions discharged by the generic convergence theorem.
+
 [[SPEC-038-lvar-state-kernel#TEST-3806]] remains partial. The legacy resource
 closure port supplies extensionality rather than a proof of the Rust verifier's
 witness classification and persistence. Composition of all context, freeze and

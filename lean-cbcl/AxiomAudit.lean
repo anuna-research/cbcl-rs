@@ -1,3 +1,4 @@
+import LeanCbcl.StateResourceTests
 import LeanCbcl.CheckpointKernel
 import LeanCbcl.CheckpointAll
 import LeanCbcl.StateKernelSECTests
@@ -748,3 +749,50 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateContext.eventual_context_fault
 
 #print axioms CBCL.StateLVar.fault_aware_strong_eventual_consistency
+
+#print axioms CBCL.StateResource.reaches_in_closed
+#print axioms CBCL.StateResource.exact_cone_unique
+#print axioms CBCL.StateResource.unsupported_fault
+#print axioms CBCL.StateResource.fault_growth
+#print axioms CBCL.StateResource.fault_setEq
+#print axioms CBCL.StateResource.evidence_growth
+#print axioms CBCL.StateResource.evidence_setEq
+#print axioms CBCL.StateResource.faultRead_setEq
+#print axioms CBCL.StateResource.faultRead_persists
+#print axioms CBCL.StateResource.evidence_accepted
+#print axioms CBCL.StateResource.eventual_resource_fault
+#print axioms CBCL.StateObservation.unionError_grows
+#print axioms CBCL.StateObservation.freezeEvidence_grows
+#print axioms CBCL.StateObservation.freezeFault_grows
+#print axioms CBCL.StateObservation.errors_persist
+#print axioms CBCL.StateObservation.acceptedEvidence_setEq
+#print axioms CBCL.StateObservation.errors_setEq
+#print axioms CBCL.StateObservationPlan.freezeRead_setEq_unique
+#print axioms CBCL.StateObservationPlan.data_setEq
+#print axioms CBCL.StateObservationPlan.observe_setEq
+#print axioms CBCL.StateObservationPlan.composed_strong_eventual_consistency
+#print axioms CBCL.StateObservationPlan.eventual_composed_fault
+#print axioms CBCL.StateObservationPlan.frozen_source_agreement
+#print axioms CBCL.StateObservationPlan.threshold_read_of_success
+#print axioms CBCL.StateObservationPlan.threshold_quasi_determinism
+#print axioms CBCL.StateObservationPlan.derived_frozen_payload
+#print axioms CBCL.StateObservationPlan.threshold_dependency_fault_first
+#print axioms CBCL.StateResourceTests.checked_overflow
+#print axioms CBCL.StateResourceTests.checked_underflow
+#print axioms CBCL.StateResourceTests.insufficient_budget
+#print axioms CBCL.StateResourceTests.valid_opener
+#print axioms CBCL.StateResourceTests.valid_burn_shape
+#print axioms CBCL.StateResourceTests.burn_cone
+#print axioms CBCL.StateResourceTests.burn_budget_fault
+#print axioms CBCL.StateResourceTests.concrete_budget_cause
+#print axioms CBCL.StateResourceTests.no_opener_no_cause
+#print axioms CBCL.StateResourceTests.concrete_fault
+#print axioms CBCL.StateResource.aggregate_i128_bound
+#print axioms CBCL.StateResource.sum_bounds
+#print axioms CBCL.StateResource.owner_chains_comparable
+#print axioms CBCL.StateResource.longer_owner_prefix
+#print axioms CBCL.StateResource.merge_owner_tips_union
+#print axioms CBCL.StateResource.ordered_of_perm
+#print axioms CBCL.StateResource.localBudget_perm
+#print axioms CBCL.StateResource.localBudget_cone_unique
+#print axioms CBCL.StateResourceTests.reordered_headroom_valid
