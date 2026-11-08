@@ -1367,3 +1367,30 @@
 ;; values or canonical field ordering. General full native AST/parser/admission
 ;; correspondence to these recognized parameters/typed fields remains required;
 ;; remaining installed/mutable-reader/wire/renderer obligations keep SPEC open.
+
+;; Native root metadata identity conflict (BUG-011 / REQ-3811 / REQ-3807).
+;; Actual strict-parser/public-admission reproduction: distinct sealed rosters
+;; share one Act.address (innermost-simple hash); each is accepted in a fresh
+;; history and returns a different reviewer set. Full Acts retain different
+;; messages, so this is not claimed as SEC failure over equal complete Act sets.
+;; Independent review confirmed the fixed per-address metadata proof blocker and
+;; SPEC-014 REQ-625 whole-wrapper commitment versus SPEC-038 address preservation.
+;; Prepared a concrete review-only root-commitment patch, applied temporarily and
+;; tested: all15 context tests pass including the new commitment regression;
+;; bounded-ceiling corpus then fails an actual golden root address. No vectors
+;; rewritten. Production source/test fully restored; original14 context tests and
+;; corpus pass again. Patch and reproducible evidence live in BUG-011 artefacts.
+;; Human contract question submitted with three explicit alternatives below.
+;; Do not apply the migration or infer an immutable-host premise from silence.
+;; Unrelated work may continue; full goal stays active, not completed or paused.
+(given (task root-cast-identity-contract))
+(given (task-description root-cast-identity-contract "User/protocol maintainer chooses role-root identity contract after reviewing BUG-011 reproduction and concrete review-only patch. Existing root address does not commit sealed cast; wrapper commitment prototype changes a golden address."))
+(given (task-acceptance root-cast-identity-contract "REQ-3807/REQ-3811/TEST-3806: explicit user choice recorded for wrapper-hash migration, immutable host binding, or conflict-aware cast variants; amend applicable contract and derive implementation acceptance from that choice. No inferred approval."))
+(given (no-deps root-cast-identity-contract))
+(normally r-ready-root-cast-identity-contract
+  (and (task root-cast-identity-contract) (no-deps root-cast-identity-contract))
+  (ready root-cast-identity-contract))
+(meta r-ready-root-cast-identity-contract
+  (description "A reproduced native identity/compatibility conflict is ready for human contract choice")
+  (source "SPEC-038-lvar-state-kernel#REQ-3807"))
+(given (requires lean-quasi-determinism root-cast-identity-contract))
