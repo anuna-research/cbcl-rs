@@ -1,3 +1,4 @@
+import LeanCbcl.StateAddressArrayScatter
 import LeanCbcl.StateAddressTables
 import LeanCbcl.StateAddressRadix
 import LeanCbcl.StateAddressScatter
@@ -2966,3 +2967,17 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateAddressTables.cachedPass_refinement
 #print axioms CBCL.StateAddressTables.cachedSort_refinement
 #print axioms CBCL.StateAddressTables.sort_compiled
+
+#print axioms CBCL.StateAddressArrayScatter.step_sizes
+#print axioms CBCL.StateAddressArrayScatter.read_set
+#print axioms CBCL.StateAddressArrayScatter.next_modify
+#print axioms CBCL.StateAddressArrayScatter.step_refinement
+#print axioms CBCL.StateAddressArrayScatter.initial_refinement
+#print axioms CBCL.StateAddressArrayScatter.run_suffix_refinement
+#print axioms CBCL.StateAddressArrayScatter.run_refinement
+#print axioms CBCL.StateAddressArrayScatter.run_sizes
+#print axioms CBCL.StateAddressArrayScatter.array_readback
+#print axioms CBCL.StateAddressArrayScatter.pass_refinement
+#print axioms CBCL.StateAddressArrayScatter.pass_permutation
+#print axioms CBCL.StateAddressArrayScatter.checkedPass_refinement
+#print axioms CBCL.StateAddressArrayScatter.arraySort_refinement

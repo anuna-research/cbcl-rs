@@ -1532,3 +1532,22 @@
 ;; Nat-array counters/prefixes are now refined; scratch native array, usize and
 ;; pool representation plus broader native AST/admission/installed-reader ports
 ;; and BUG-011 root identity contract keep full SPEC-038 acceptance open.
+
+;; Native finite-array scatter continuation: StateAddressArrayScatter refines
+;; next-array increments and scratch writes, with array lengths preserved.
+;; Complete processed-prefix refinement derives every valid bucket/destination
+;; access from byte-key bounds and scratch allocation, rather than assuming
+;; per-step safety. Full run/readback transfers permutation with multiplicities
+;; and composes arraySort to the complete radix semantics. Arbitrary initial
+;; scratch contents of the required size are covered. Six mutations fail step,
+;; initialization, readback or allocation refinement. Build/env-linter pass;
+;; independent review finds no concrete defect. Oracle explicitly calls the
+;; proved arraySort; generated C confirms the target. The earlier attempted
+;; imported compiler substitution left cachedSort in observed C, so no claim
+;; about compiler rewrite chaining is used. Native usize, pool and literal Rust
+;; correspondence remain ports; wider admission/installed-reader and BUG-011
+;; root contract obligations still prevent full SPEC-038 acceptance.
+;; Final array checkpoint: all nine live suites pass512 cases/seed380038
+;; in10.62s; three native radix mutations are rejected. Full allowlisted axiom
+;; audit passes2050 theorems; verified-by/whitespace checks and final wiring
+;; review pass. No production Rust algorithm or identity change is included.

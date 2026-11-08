@@ -315,3 +315,5 @@ import LeanCbcl.StateAddressScatter
 import LeanCbcl.StateAddressRadix
 
 import LeanCbcl.StateAddressTables
+
+import LeanCbcl.StateAddressArrayScatter

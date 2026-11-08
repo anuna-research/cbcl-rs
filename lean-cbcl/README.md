@@ -693,9 +693,21 @@ this implementation in compiled oracle code; generated C confirms that call.
 The byte-key guard recognizes the finite domain, while generic keys and
 out-of-table observations retain the original semantics. The live seeded
 512-case campaign passes without changing its cases or response deadline.
-Scratch-array and native `usize`/pool refinement remain open.
+The finite scratch-array bridge is established below; native `usize`/pool
+and literal Rust correspondence remain open.
 
 The Rust oracle harness poisons a session before each request and restores it
 only after a complete JSON reply. Timeout/disconnection kills the child; later
 shrink attempts cannot reuse a late response. An executed regression and two
 transport mutations cover that boundary.
+
+
+`StateAddressArrayScatter` refines complete Nat-array execution of next-pointer
+and scratch writes to functional scatter. Bucket membership and allocation
+length establish a processed-prefix invariant that derives every destination
+bound; out-of-bounds no-op behavior is not used to justify writes. Readback
+therefore preserves input multiplicities and composes to the complete radix
+semantics for arbitrary initial scratch contents of the required length. The
+oracle explicitly calls this proved array implementation; generated C confirms
+that call. Native `usize`, source-pool representation and literal Rust extraction
+remain separate obligations.

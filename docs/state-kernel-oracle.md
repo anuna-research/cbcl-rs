@@ -276,14 +276,15 @@ The live profile now executes that operational radix composition followed by
 adjacent duplicate removal directly; reference merge sort does not clean up
 its output. Every initial index is checked against the alias pool before digit
 lookup; permutation preserves that domain, and final pool lookups are checked
-again. Native array/usize and address-pool representation refinement remain open;
+again. Native usize, address-pool representation and literal Rust refinement remain open;
 word bounds in the arithmetic model require a representable input length.
 
 
-The compiled operational radix oracle uses `StateAddressTables`: finite Nat-array
-counts and one-time prefix entries proved equal to the original functional
-semantics, then substituted by a proved compiler-simplification theorem. The
-finite byte-key domain is checked; generic inputs retain the original behavior.
+The compiled operational radix oracle uses `StateAddressArrayScatter` directly:
+finite count/prefix/next/scratch arrays proved equal to the original functional
+semantics. Every destination bound is derived from the processed-prefix
+invariant, and initial scratch contents do not affect readback. The finite
+byte-key domain is checked; generic inputs retain the original behavior.
 The response deadline remains ten seconds. A failed transport poisons the
 session, preventing proptest shrinking from comparing a late reply to a newer
 request. Its regression queues a late reply after failure and verifies that it

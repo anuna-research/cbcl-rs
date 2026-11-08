@@ -796,6 +796,15 @@ suites.append(("StateAddressTables", (root / "lean-cbcl/LeanCbcl/StateAddressTab
     ("radix-cached-head-digit-ignored", "| key::rest => cachedPass key (cachedSort rest order) (fun _ => 0)", "| _::rest => cachedSort rest order", "cachedSort_refinement"),
 ]))
 
+suites.append(("StateAddressArrayScatter", (root / "lean-cbcl/LeanCbcl/StateAddressArrayScatter.lean").read_text(), [
+    ("radix-array-next-not-incremented", "state.next.modify bucket (·+1)", "state.next.modify bucket (·+0)", "step_refinement"),
+    ("radix-array-write-wrong-index", "state.scratch.setIfInBounds destination index", "state.scratch.setIfInBounds destination (index+1)", "step_refinement"),
+    ("radix-array-write-after-increment", "let destination := read state.next bucket", "let destination := read state.next bucket + 1", "step_refinement"),
+    ("radix-array-prefix-table-truncated", "⟨prefixes (counts key order (Array.replicate 257 0)) 256,scratch⟩", "⟨prefixes (counts key order (Array.replicate 257 0)) 255,scratch⟩", "initial_refinement"),
+    ("radix-array-readback-reversed", "(runArray key order (initialArray key order scratch)).scratch.toList", "(runArray key order (initialArray key order scratch)).scratch.toList.reverse", "pass_refinement"),
+    ("radix-array-scratch-extra-slot", "then passArray key order (Array.replicate order.length 0)", "then passArray key order (Array.replicate (order.length+1) 0)", "checkedPass_refinement"),
+]))
+
 # Preserve the full default gate while allowing a focused continuation check.
 import argparse
 parser = argparse.ArgumentParser(description=__doc__)
