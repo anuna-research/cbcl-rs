@@ -482,6 +482,25 @@ suites.append(("StateNativeDataFreeze", (root / "lean-cbcl/LeanCbcl/StateNativeD
      "bare", "selected_scope"),
 ]))
 
+suites.append(("StateAuthoredDataProvenance", (root / "lean-cbcl/LeanCbcl/StateAuthoredDataProvenance.lean").read_text(), [
+    ("authored-data-binding-loses-domain-footprint", "some ⟨.legacy head.rule,head.definition environment domains,.verbs [head.verb]⟩",
+     "some ⟨.legacy head.rule,head.definition environment domains,.rawVerbs [head.verb]⟩", "binding"),
+    ("authored-data-query-alternatives-disconnected", "∃ query, compileQuery elements definition = some query ∧",
+     "∃ query, compileQuery [] definition = some query ∧", "emitted_policy"),
+]))
+suites.append(("StateAuthoredDataOutputs", (root / "lean-cbcl/LeanCbcl/StateAuthoredDataOutputs.lean").read_text(), [
+    ("authored-data-program-drops-output", "let program : CompiledObservation := ⟨B,⟨(clauseAt prepared B).freezes,code⟩⟩",
+     "let program : CompiledObservation := ⟨B,⟨(clauseAt prepared B).freezes,code.tail⟩⟩", "authored_emitted"),
+    ("authored-count-result-bound-corrupted", "(outputName,.data (.reached (.element (.count bound)))) ∈ program.observe ∨",
+     "(outputName,.data (.reached (.element (.count (bound+1))))) ∈ program.observe ∨", "count_program_stability"),
+]))
+suites.append(("StateAuthoredDataPreservation", (root / "lean-cbcl/LeanCbcl/StateAuthoredDataPreservation.lean").read_text(), [
+    ("native-count-inversion-invents-extra-act", "bound ≤ FinSet.card (FinSet.mk (StateDomainSupportLocality.selected prepared.domains [verb] A)) := by",
+     "bound + 1 ≤ FinSet.card (FinSet.mk (StateDomainSupportLocality.selected prepared.domains [verb] A)) := by", "count_native"),
+    ("native-existence-preservation-flips-answer", "(outputName,.data (.reached (.element (.scalar (.bool true))))) ∈ later.observe ∨",
+     "(outputName,.data (.reached (.element (.scalar (.bool false))))) ∈ later.observe ∨", "exists_successive"),
+]))
+
 # Preserve the full default gate while allowing a focused continuation check.
 import argparse
 parser = argparse.ArgumentParser(description=__doc__)

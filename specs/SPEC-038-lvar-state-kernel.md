@@ -1474,13 +1474,32 @@ and locality are not supplied as premises. Fixtures cover mixed initializer and
 roster domains, reverse/duplicate delivery, raw queries with pending displayed
 payloads, oversized count rejection and constructed frozen count output.
 
-These count/existence results concern the closed source factories and their
-constructed dispatch metadata, rather than arbitrary authored-program or
-successive compiled-observation preservation. Completing those authored paths,
-set/event membership, shaped nonnegative event sums, closure progress and native
-installation/extraction correspondence remain separate obligations. The complete
-successive compiled-observation and quasi-determinism results above currently
-cover the finite-policy fragment at the typed authored boundary.
+`StateAuthoredDataProvenance.lean` derives the count/existence binding, guarded
+source plan and dependency footprint from actual authored preparation. The
+proof-only head inventory maps directly to existing rule and kernel expression
+constructors; it adds no dialect syntax or source callbacks. The stable-source
+installation gate supplies optional fault-freeze metadata.
+`StateAuthoredDataOutputs.lean` recovers real emitted instructions and source-owned
+query code from the complete compiler, derives count-bound admission, reconciles
+normalization, and transfers the factory results to actual named program outputs.
+
+`StateAuthoredDataPreservation.count_successive` and `exists_successive` invert
+earlier named reached results in actual compiled observation vectors. Native
+scope success lifts to full-history cardinality/nonempty success and then
+preserves the same named result or a named fault in the later actual compiled
+program. Prior native predicates, detached policy lookups and successful code
+walks are not external premises. These results cover singleton count-bound and
+singleton true-existence thresholds, with the same prepared dialect and ranked
+content-consistent histories related by accepted-set growth. Fixtures install
+both policies with mixed domains, a forward initializer and late freezes,
+construct both compiled programs, verify the earlier selected cardinality is
+one, and specialize preservation conditional on the earlier compiled reached
+results. They also compute supersede rejection; they do not assert those earlier
+reached results for the complete authored fixture.
+
+Set/event membership, shaped nonnegative event sums, closure progress and native
+installation/extraction correspondence remain separate obligations at the typed
+authored boundary.
 Literal Rust value representation and public serialized
 rendering remain separate boundaries. Helpers remain total outside the admitted
 request domain, which does not model Rust's indexing or unknown-field no-insert

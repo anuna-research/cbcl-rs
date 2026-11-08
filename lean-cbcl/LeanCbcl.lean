@@ -265,3 +265,5 @@ import LeanCbcl.StateAuthoredFiniteStabilityTests
 import LeanCbcl.StateAuthoredFinitePreservationTests
 
 import LeanCbcl.StateNativeDataPoliciesTests
+
+import LeanCbcl.StateAuthoredDataPreservationTests

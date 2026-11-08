@@ -1,3 +1,4 @@
+import LeanCbcl.StateAuthoredDataPreservationTests
 import LeanCbcl.StateNativeDataPoliciesTests
 import LeanCbcl.StateAuthoredFinitePreservationTests
 import LeanCbcl.StateAuthoredFiniteStabilityTests
@@ -2481,3 +2482,30 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateNativeDataPoliciesTests.exists_pending_payload
 #print axioms CBCL.StateNativeDataPoliciesTests.oversized_count_rejected
 #print axioms CBCL.StateNativeDataPoliciesTests.count_freeze_constructed
+
+#print axioms CBCL.StateAuthoredDataProvenance.binding
+#print axioms CBCL.StateAuthoredDataProvenance.lower_definition
+#print axioms CBCL.StateAuthoredDataProvenance.prepared_source
+#print axioms CBCL.StateAuthoredDataProvenance.prepared_footprint
+#print axioms CBCL.StateAuthoredDataProvenance.prepared_metadata
+#print axioms CBCL.StateAuthoredDataProvenance.authored_plan
+#print axioms CBCL.StateAuthoredDataProvenance.emitted_policy
+
+#print axioms CBCL.StateAuthoredDataOutputs.authored_emitted
+#print axioms CBCL.StateAuthoredDataOutputs.spec_setEq
+#print axioms CBCL.StateAuthoredDataOutputs.decorate_setEq
+#print axioms CBCL.StateAuthoredDataOutputs.dispatch_member
+#print axioms CBCL.StateAuthoredDataOutputs.count_program_stability
+#print axioms CBCL.StateAuthoredDataOutputs.exists_program_stability
+
+#print axioms CBCL.StateAuthoredDataPreservation.authored_reached
+#print axioms CBCL.StateAuthoredDataPreservation.raw_inside
+#print axioms CBCL.StateAuthoredDataPreservation.count_admitted
+#print axioms CBCL.StateAuthoredDataPreservation.count_native
+#print axioms CBCL.StateAuthoredDataPreservation.exists_native
+#print axioms CBCL.StateAuthoredDataPreservation.count_successive
+#print axioms CBCL.StateAuthoredDataPreservation.exists_successive
+
+#print axioms CBCL.StateAuthoredDataPreservationTests.installation_succeeds
+#print axioms CBCL.StateAuthoredDataPreservationTests.supersede_rejected
+#print axioms CBCL.StateAuthoredDataPreservationTests.constructed_programs_preserve_both

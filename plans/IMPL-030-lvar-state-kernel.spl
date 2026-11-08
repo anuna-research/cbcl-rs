@@ -827,3 +827,33 @@
 ;; prefix/output occurrence provenance and compose successive compiled programs.
 ;; Set/event membership, shaped sums, progress and literal native extraction
 ;; remain open; the full quasi-determinism task stays outstanding.
+
+;; Actual authored count/existence preservation for
+;; [[SPEC-038-lvar-state-kernel#TEST-3806]]: StateAuthoredDataProvenance recovers
+;; actual source definitions, dependency footprints, guarded finalplans and
+;; optional fault-freeze metadata from successful preparation. Its closed proof
+;; Head index adds no dialect syntax/callback. Generic emitted_policy identifies
+;; source-owned code from the actual compiler prefix. StateAuthoredDataOutputs
+;; constructs complete programs and named instruction membership, derives count
+;; bound admission and reconciles normalized dispatch metadata. Its count and
+;; existence output laws transfer the previously proved kernel/factory laws into
+;; actual complete observation vectors. StateAuthoredDataPreservation inverts
+;; actual earlier named reached outputs to full-history count/nonempty predicates
+;; and proves count_successive/exists_successive between actual compiled programs.
+;; No prior native predicate or detached policy/occurrence lookup is a premise.
+;; These forms are singleton count-bound and singleton true-existence thresholds.
+;; Fixtures install both with mixed initial/roster domains, forward initializer
+;; and late freezes; supersede rejects. Both programs are constructed and earlier
+;; selected cardinality is computed as one. Preservation implications remain
+;; conditional on earlier compiled reached membership; fixture does not assert
+;; those antecedents for the complete authored programs.
+;; Verification: aggregate build and Batteries env-linter pass; 1649 theorem
+;; audits use only allowlisted axioms. Six focused proof mutations fail named
+;; binding-footprint, alternative ownership, actual program membership, count
+;; answer/bound inversion and existence-answer preservation obligations.
+;; Verified-by lint passes; no new unresolved vault pairs or syntax/SPL errors.
+;; Independent proof/fixture/artifact review finds no defect/overstatement.
+;; Next reuse the provenance/output path for set/event membership and shaped
+;; nonnegative event sums; progress requires its concrete causal-store bridge.
+;; Native installation/extraction correspondence remains open. The full
+;; quasi-determinism task is not completed.
