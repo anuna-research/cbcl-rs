@@ -311,3 +311,7 @@ import LeanCbcl.StateAddressDigits
 import LeanCbcl.StateAddressCounting
 
 import LeanCbcl.StateAddressScatter
+
+import LeanCbcl.StateAddressRadix
+
+import LeanCbcl.StateAddressTables

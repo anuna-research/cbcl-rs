@@ -261,23 +261,30 @@ plus generated reordered and duplicated deliveries. Mutants dropping the
 missing-byte sentinel or retaining duplicate evidence fail executed comparisons.
 These aliases deliberately bypass identity validation: this checks evidence
 presentation, not admission or content-address integrity. The associated Lean
-proof composes finite freeze witnesses with reference canonicalization and JSON
-emission; native radix-sort refinement and reason derivation remain open.
+proof composes finite freeze witnesses with canonicalization and JSON emission;
+native array/word/pool refinement and reason derivation remain open.
 
-`StateAddressDigits` now proves the sorter's missing-byte sentinel, bucket bound,
-computed-width key ordering and adjacent duplicate normalization. These compose
-with exact fault JSON emission once the counting/scatter output is shown to be
-a permutation ordered by those keys. Those mutable-pass premises and machine
-index/count safety remain unproved; the live campaign tests native behavior.
+`StateAddressDigits` proves sentinel encoding, bucket bounds, computed-width
+key order and adjacent duplicate normalization. `StateAddressCounting` derives
+counts, offsets, cursor bounds and collision freedom. `StateAddressScatter`
+derives occurrence retention, scratch coverage, pass permutation and bucket
+ordering. `StateAddressRadix` establishes equal-key secondary stability and
+composes the reversed-digit passes into complete lexicographic ordering and
+exact fault JSON bytes without supplied sorter-correctness premises.
 
-`StateAddressCounting` additionally derives operational bucket counts, prefix
-offsets and scatter cursor arithmetic. Its destination bounds and collision
-freedom concern occurrence positions, so repeated indices are covered. Numeric
-word bounds require a representable input length. Array/usize extraction,
-scratch permutation and full LSD ordering remain separate proof obligations.
+The live profile now executes that operational radix composition followed by
+adjacent duplicate removal directly; reference merge sort does not clean up
+its output. Every initial index is checked against the alias pool before digit
+lookup; permutation preserves that domain, and final pool lookups are checked
+again. Native array/usize and address-pool representation refinement remain open;
+word bounds in the arithmetic model require a representable input length.
 
-`StateAddressScatter` models the actual write-then-increment loop and reads
-scratch slots in increasing index order. It derives occurrence retention,
-complete destination coverage, permutation with multiplicities and bucket
-ordering without supplied permutation/injectivity premises. Native array/usize
-execution and stable secondary-order/full radix composition remain open.
+
+The compiled operational radix oracle uses `StateAddressTables`: finite Nat-array
+counts and one-time prefix entries proved equal to the original functional
+semantics, then substituted by a proved compiler-simplification theorem. The
+finite byte-key domain is checked; generic inputs retain the original behavior.
+The response deadline remains ten seconds. A failed transport poisons the
+session, preventing proptest shrinking from comparing a late reply to a newer
+request. Its regression queues a late reply after failure and verifies that it
+remains unread; disabling either poisoning or its guard fails that regression.

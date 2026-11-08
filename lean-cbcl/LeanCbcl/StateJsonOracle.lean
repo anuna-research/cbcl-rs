@@ -1,6 +1,7 @@
 import Lean
 import LeanCbcl.StateJsonValue
 import LeanCbcl.StateFaultRendering
+import LeanCbcl.StateAddressTables
 
 /-! Exact byte-spelling oracle for public native state Value/render_json.
 Inputs retain every container's stored order. No state admission, constructor
@@ -57,6 +58,13 @@ def faultRun (j : Json) : Except String Json := do
   let observed := StateExecutableFreeze.read acts "close" (fun act => act.verb == "tick") true none (fun _ => (0 : Nat))
   let .fault ids := observed | throw "expected semantic concurrent-freeze fault"
   let evidence ← ids.mapM (fun id => match names[id]? with | some name => pure name | none => throw "witness outside source address pool")
-  return Json.mkObj [("rendered",.str (StateJsonValue.emit (StateFaultRendering.fault "concurrent freezes" evidence) ""))]
+  -- Every initial index is checked above. sort_permutation ensures every pass
+  -- retains those indices, so the bounds-checked native pool lookup cannot fail.
+  let width := StateAddressDigits.maximumWidth evidence
+  let sorted := StateAddressRadix.sort (StateAddressRadix.addressDigits width (fun id => names[id]!)) ids
+  let addresses ← sorted.mapM (fun id => match names[id]? with | some name => pure name | none => throw "radix result outside source address pool")
+  let value : StateJsonValue.Value := .map [(.str "evidence",.list ((StateAddressDigits.adjacent addresses).map StateJsonValue.Value.str)),
+    (.str "reason",.str "concurrent freezes"),(.str "status",.str "fault")]
+  return Json.mkObj [("rendered",.str (StateJsonValue.emit value ""))]
 
 end CBCL.StateJsonOracle

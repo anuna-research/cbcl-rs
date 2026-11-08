@@ -647,10 +647,9 @@ byte ordering for canonical fault evidence, then composes executable freeze
 witness enumeration with complete fault JSON emission. Equal witness sets yield
 identical bytes for a fixed reason and address representation. Recovering
 semantic identities from rendered addresses requires injectivity explicitly.
-The reference uses merge sort; formal refinement of native radix/count/scatter
-sorting remains open. The live `fault-evidence` profile exercises native
-concurrent-freeze faults, including repeated writer witnesses, against that
-reference using exact strings. Arbitrary UTF-8 aliases operate below admission
+The declarative reference uses merge sort. The live `fault-evidence` profile
+executes the operational radix composition proved equal to that reference, and
+compares native concurrent-freeze fault strings, including repeated witnesses. Arbitrary UTF-8 aliases operate below admission
 and do not establish content-hash identity or resolve root-cast binding.
 
 `StateAddressDigits` refines the radix sorter's key representation: zero is the
@@ -658,22 +657,45 @@ missing-byte sentinel, bytes occupy buckets 1–256, and the computed maximum
 width makes padded digit comparison exactly equal raw UTF-8 byte comparison.
 It also proves that adjacent duplicate removal on sorted output equals finite
 set normalization and composes that result with fault JSON emission. The final
-result takes permutation and digit ordering as explicit premises. Establishing
-those premises for native mutable counting/scatter passes, including machine
-index/count safety, remains open.
+result takes permutation and digit ordering as explicit premises; the following
+counting/scatter/radix composition derives them in the Nat/function-cell model.
 
 `StateAddressCounting` derives bucket counts, prefix offsets and scatter cursors
 from their operational folds and recurrence. It proves destination bounds,
 stable placement of equal-key occurrences, disjoint bucket ranges and collision
 freedom for distinct occurrence positions. Counts, offsets and partial cursors
 fit any word width that represents the input length. Counters are Nat-valued
-functions here: array/usize extraction, scratch permutation and complete
-least-significant-digit pass ordering remain open.
+functions here; the following modules establish scratch permutation and full
+least-significant-digit order. Native array/usize extraction remains open.
 
 `StateAddressScatter` executes scratch writes using pre-increment bucket pointers
 and derives pointer refinement, retention of every occurrence, destination
 coverage and complete pass permutation with multiplicities. It proves ascending
 bucket order without supplied permutation or ordering premises and independently
-of initial scratch contents. Cells and counters are functions over Nat; native
-Array/usize extraction, equal-key secondary-order stability and full LSD
-composition remain open.
+of initial scratch contents. Cells and counters are functions over Nat;
+`StateAddressRadix` supplies equal-key secondary stability and full LSD ordering.
+
+
+`StateAddressRadix` proves secondary-relation stability from operational write
+order, equivalence to the reversed-digit fold, complete radix permutation and
+lexicographic digit order. It composes native sentinel digit encoding, computed
+width, adjacent duplicate removal and JSON emission into exact canonical fault
+bytes without caller-supplied sorting or permutation certificates. Initial
+scratch contents are unobservable. The oracle now executes this counting/scatter
+composition directly, with no reference sorting afterward. Native array/usize
+and address-pool representation refinement remain open.
+
+
+`StateAddressTables` executes counts in a finite Nat array and computes prefix
+entries once. It proves full equality with functional initialization, then with
+each pass and the complete radix sort. A proved `csimp` substitution selects
+this implementation in compiled oracle code; generated C confirms that call.
+The byte-key guard recognizes the finite domain, while generic keys and
+out-of-table observations retain the original semantics. The live seeded
+512-case campaign passes without changing its cases or response deadline.
+Scratch-array and native `usize`/pool refinement remain open.
+
+The Rust oracle harness poisons a session before each request and restores it
+only after a complete JSON reply. Timeout/disconnection kills the child; later
+shrink attempts cannot reuse a late response. An executed regression and two
+transport mutations cover that boundary.

@@ -8,7 +8,8 @@ namespace CBCL.StateAddressCounting
 
 /-- Increment the one bucket selected by the current address index. -/
 def bump (bucket : Nat) (counts : Nat → Nat) : Nat → Nat :=
-  fun target => if target = bucket then counts target + 1 else counts target
+  let updated := counts bucket + 1
+  fun target => if target = bucket then updated else counts target
 
 /-- The native count/scatter-cursor increment loop over an index order. -/
 def countLoop (key : Nat → Nat) (order : List Nat) (initial : Nat → Nat) : Nat → Nat :=

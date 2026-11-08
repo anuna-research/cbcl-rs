@@ -767,18 +767,33 @@ suites.append(("StateAddressDigits", (root / "lean-cbcl/LeanCbcl/StateAddressDig
 ]))
 
 suites.append(("StateAddressCounting", (root / "lean-cbcl/LeanCbcl/StateAddressCounting.lean").read_text(), [
-    ("radix-count-increment-skipped", "then counts target + 1 else counts target", "then counts target else counts target", "countLoop_refinement"),
-    ("radix-count-increment-doubled", "then counts target + 1 else counts target", "then counts target + 2 else counts target", "countLoop_refinement"),
+    ("radix-count-increment-skipped", "let updated := counts bucket + 1", "let updated := counts bucket", "countLoop_refinement"),
+    ("radix-count-increment-doubled", "let updated := counts bucket + 1", "let updated := counts bucket + 2", "countLoop_refinement"),
     ("radix-prefix-uses-next-bucket", "offsets counts bucket + counts bucket", "offsets counts bucket + counts (bucket+1)", "offsets_refinement"),
     ("radix-scatter-cursor-not-advanced", "countLoop key processed (offsets (countLoop key order (fun _ => 0))) bucket", "offsets (countLoop key order (fun _ => 0)) bucket", "cursor_refinement"),
 ]))
 
 suites.append(("StateAddressScatter", (root / "lean-cbcl/LeanCbcl/StateAddressScatter.lean").read_text(), [
     ("radix-scratch-wrong-value", "then index else state.cells position", "then index+1 else state.cells position", "occurrence_retained"),
-    ("radix-scratch-wrong-destination", "position = state.next (key index)", "position = state.next (key index)+1", "occurrence_retained"),
+    ("radix-scratch-wrong-destination", "position = destination", "position = destination+1", "occurrence_retained"),
     ("radix-scratch-unrelated-cell-erased", "else state.cells position", "else 0", "run_preserves"),
-    ("radix-scatter-next-not-incremented", "⟨bump (key index) state.next,", "⟨state.next,", "next_refinement"),
+    ("radix-scatter-next-not-incremented", "let next := bump bucket state.next", "let next := state.next", "next_refinement"),
     ("radix-scratch-readback-reversed", "  (List.range order.length).map (run key order (initial key order cells)).cells", "  (List.range order.length).reverse.map (run key order (initial key order cells)).cells", "scatter_bucket_order"),
+]))
+
+suites.append(("StateAddressRadix", (root / "lean-cbcl/LeanCbcl/StateAddressRadix.lean").read_text(), [
+    ("radix-current-digit-sorted-first", "| key::rest => pass key (sort rest order) (fun _ => 0)", "| key::rest => sort rest (pass key order (fun _ => 0))", "sort_order"),
+    ("radix-head-digit-ignored", "| key::rest => pass key (sort rest order) (fun _ => 0)", "| _::rest => sort rest order", "sort_order"),
+    ("radix-byte-digit-sequence-reversed", "(List.range width).map (fun position index =>", "(List.range width).reverse.map (fun position index =>", "digit_sequence"),
+]))
+
+suites.append(("StateAddressTables", (root / "lean-cbcl/LeanCbcl/StateAddressTables.lean").read_text(), [
+    ("radix-array-count-increment-doubled", "current.modify (key index) (· + 1)", "current.modify (key index) (· + 2)", "counts_refinement"),
+    ("radix-prefix-table-starts-at-one", "| 0 => #[0]", "| 0 => #[1]", "prefixes_refinement"),
+    ("radix-prefix-table-uses-next-count", "read previous width + read table width", "read previous width + read table (width+1)", "prefixes_refinement"),
+    ("radix-finite-key-domain-check-bypassed", "if byteKeys key order then", "if true then", "initialize_refinement"),
+    ("radix-cached-readback-reversed", "(List.range order.length).map (run key order (initBuffer key order cells)).cells", "(List.range order.length).reverse.map (run key order (initBuffer key order cells)).cells", "cachedPass_refinement"),
+    ("radix-cached-head-digit-ignored", "| key::rest => cachedPass key (cachedSort rest order) (fun _ => 0)", "| _::rest => cachedSort rest order", "cachedSort_refinement"),
 ]))
 
 # Preserve the full default gate while allowing a focused continuation check.

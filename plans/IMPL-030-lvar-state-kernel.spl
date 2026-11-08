@@ -1488,3 +1488,47 @@
 ;; extraction; equal-key secondary stability and full LSD composition remain.
 ;; Final axiom audit passes 2012 theorems, all allowlisted. Verified-by and
 ;; whitespace checks pass. Production native behavior is unchanged.
+
+;; Stable/full radix continuation: StateAddressRadix derives equal-key secondary
+;; relation preservation from source write-log order and strict destinations.
+;; Operational LSD composition equals reversed-digit fold; every pass retains
+;; the input multiset, and composed passes establish full lexicographic order.
+;; Sentinel digit sequence equality and adjacent dedup refinement close exact
+;; canonical fault evidence/JSON without supplied sorting/permutation premises.
+;; Initial scratch is unobservable. The fault oracle now executes this radix
+;; path directly, with prechecked pool indices and checked final lookups; no
+;; merge-sort cleanup masks its output. Three targeted semantic proof mutations
+;; fail ordering/sequence obligations. Native array/usize and address-pool
+;; representation extraction remain ports, alongside the other SPEC-038 gaps.
+;; Operational execution caches each selected bucket's updated value and each
+;; scratch write's pre-increment destination outside functional lookup closures.
+;; This matches native once-per-step evaluation and avoids repeatedly traversing
+;; historical pointer chains during readback. Existing proof statements and full
+;; library rebuild pass unchanged. Initial slow live/native-mutant runs were
+;; explicitly interrupted, not treated as passing evidence; cached runs replace
+;; them. Independent read-only review confirms the caching equivalence.
+;; The cached operational live campaign is NOT passing: complex repeated-witness
+;; inputs exceed the harness's 10-second reply deadline. Proptest catches that
+;; panic and previously reused the same channel, consuming late replies while
+;; shrinking and reporting false cross-request mismatches. Oracle transport now
+;; poisons the session until a complete valid reply and kills on receive failure.
+;; Do not classify the shrunk empty-vector persistence entry as a semantic bug.
+;; Runtime sampling confirms repeated functional counter/prefix evaluation;
+;; generated C shows bump eta-expansion defeats the attempted value binding.
+;; Next implement a proved finite counter/prefix representation, matching native
+;; indexed arrays, then rerun all live and mutation gates. No checkpoint commit
+;; or full acceptance is claimed from the failed/interrupt verification runs.
+
+;; Finite-table completion of the slow operational oracle: StateAddressTables
+;; proves Array.modify count-loop refinement, prefix-table size and every entry,
+;; complete finite initialization equality including generic/out-of-table cases,
+;; cached pass and LSD equality. sort_compiled is a proved csimp substitution;
+;; generated C calls cachedSort. The full nine-suite live campaign now passes
+;; 512 cases/seed380038 in22.70s with the same10-second response deadline. Six
+;; table mutations, the earlier12 counting/scatter/radix proof mutations, three
+;; native radix mutations and two poison/guard transport mutations are rejected.
+;; The poison regression passes; library/oracle build, env-linter,2037-theorem
+;; allowlisted audit, verified-by/diff checks and independent review pass.
+;; Nat-array counters/prefixes are now refined; scratch native array, usize and
+;; pool representation plus broader native AST/admission/installed-reader ports
+;; and BUG-011 root identity contract keep full SPEC-038 acceptance open.

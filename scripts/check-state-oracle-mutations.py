@@ -22,6 +22,7 @@ nested_test = "nested_kernel_matches_live_lean_oracle"
 context_test = "context::context_kernel_matches_live_lean_oracle"
 admission_test = "duplicate_amount_cannot_hide_a_negative_state_contribution"
 keyword_test = "shape::keyword_extraction_matches_lean"
+transport_test = "oracle_transport_failure_rejects_late_replies"
 fault_test = "render::fault_evidence_bytes_match_lean"
 render_test = "render::native_json_bytes_match_lean"
 with tempfile.TemporaryDirectory(prefix="cbcl-live-oracle-") as directory:
@@ -42,12 +43,14 @@ with tempfile.TemporaryDirectory(prefix="cbcl-live-oracle-") as directory:
 
     def run(test):
         binary = "threshold_reads" if test == admission_test else "state_kernel_oracle"
-        flags = ["--exact"] if test == admission_test else ["--ignored", "--exact"]
+        flags = ["--exact"] if test in [admission_test, transport_test] else ["--ignored", "--exact"]
         return subprocess.run(["cargo", "test", "--offline", "-p", "cbcl-parser", "--test", binary,
                                test, "--", *flags], cwd=isolated, env=env,
                               text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=300)
 
     mutants = [
+        ("oracle-transport-failure-not-poisoned", "state_kernel_oracle.rs", "self.healthy = false;", "self.healthy = true;", transport_test),
+        ("oracle-poison-guard-bypassed", "state_kernel_oracle.rs", "assert!(self.healthy,", "assert!(true,", transport_test),
         ("radix-scatter-equal-bucket-order-reversed", "state.rs", "for &i in &order {\n            let k = key(i);", "for &i in order.iter().rev() {\n            let k = key(i);", fault_test),
         ("fault-zero-byte-sentinel-lost", "state.rs", ".map(|b| *b as usize + 1)", ".map(|b| *b as usize)", fault_test),
         ("fault-evidence-duplicates-retained", "state.rs", "evidence.dedup();", "// evidence duplicates retained", fault_test),
@@ -91,10 +94,10 @@ with tempfile.TemporaryDirectory(prefix="cbcl-live-oracle-") as directory:
         if baseline.returncode or f"test {test} ... ok" not in baseline.stdout:
             print(baseline.stdout)
             raise SystemExit(f"FAIL: regression baseline {test}")
-        kind = "native-admission" if test == admission_test else "live-oracle"
+        kind = "native-admission" if test == admission_test else "transport-regression" if test == transport_test else "live-oracle"
         print(f"PASS: {kind} baseline {test}", flush=True)
     for name, filename, before, after, test in mutants:
-        path = isolated / "crates/cbcl-core/src" / filename
+        path = (isolated / "crates/cbcl-parser/tests" / filename) if filename == "state_kernel_oracle.rs" else (isolated / "crates/cbcl-core/src" / filename)
         source = path.read_text()
         if source.count(before) != 1:
             raise SystemExit(f"FAIL: {name} anchor missing or ambiguous")
@@ -107,5 +110,5 @@ with tempfile.TemporaryDirectory(prefix="cbcl-live-oracle-") as directory:
         if result.returncode == 0 or f"test {test} ... FAILED" not in result.stdout or not assertion:
             print(result.stdout)
             raise SystemExit(f"FAIL: {name} not rejected by executed regression assertion")
-        evidence = "native admission regression" if test == admission_test else "live Lean comparison"
+        evidence = "native admission regression" if test == admission_test else "transport regression" if test == transport_test else "live Lean comparison"
         print(f"PASS: {name} rejected by {evidence}", flush=True)

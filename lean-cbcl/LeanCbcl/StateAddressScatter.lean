@@ -15,8 +15,10 @@ structure Buffer where
 
 /-- One native scratch write followed by its bucket-pointer increment. -/
 def step (key : Nat → Nat) (state : Buffer) (index : Nat) : Buffer :=
-  ⟨bump (key index) state.next,
-    fun position => if position = state.next (key index) then index else state.cells position⟩
+  let bucket := key index
+  let destination := state.next bucket
+  let next := bump bucket state.next
+  ⟨next,fun position => if position = destination then index else state.cells position⟩
 
 /-- Execute the scatter loop in input order. -/
 def run (key : Nat → Nat) (order : List Nat) (state : Buffer) : Buffer :=

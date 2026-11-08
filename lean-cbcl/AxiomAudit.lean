@@ -1,3 +1,5 @@
+import LeanCbcl.StateAddressTables
+import LeanCbcl.StateAddressRadix
 import LeanCbcl.StateAddressScatter
 import LeanCbcl.StateAddressCounting
 import LeanCbcl.StateAddressDigits
@@ -2937,3 +2939,30 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateAddressScatter.scatter_permutation
 #print axioms CBCL.StateAddressScatter.scratch_origin
 #print axioms CBCL.StateAddressScatter.scatter_bucket_order
+
+#print axioms CBCL.StateAddressRadix.writes_stable
+#print axioms CBCL.StateAddressRadix.stable_reflect
+#print axioms CBCL.StateAddressRadix.scratch_row
+#print axioms CBCL.StateAddressRadix.pass_stable
+#print axioms CBCL.StateAddressRadix.pass_initial_independent
+#print axioms CBCL.StateAddressRadix.sort_fold
+#print axioms CBCL.StateAddressRadix.sort_permutation
+#print axioms CBCL.StateAddressRadix.digit_cons
+#print axioms CBCL.StateAddressRadix.sort_order
+#print axioms CBCL.StateAddressRadix.digit_sequence
+#print axioms CBCL.StateAddressRadix.radix_permutation
+#print axioms CBCL.StateAddressRadix.radix_digit_order
+#print axioms CBCL.StateAddressRadix.canonical_refinement
+#print axioms CBCL.StateAddressRadix.fault_bytes
+
+#print axioms CBCL.StateAddressTables.counts_size
+#print axioms CBCL.StateAddressTables.read_modify
+#print axioms CBCL.StateAddressTables.counts_refinement
+#print axioms CBCL.StateAddressTables.read_zero
+#print axioms CBCL.StateAddressTables.prefixes_size
+#print axioms CBCL.StateAddressTables.prefixes_refinement
+#print axioms CBCL.StateAddressTables.byteKeys_sound
+#print axioms CBCL.StateAddressTables.initialize_refinement
+#print axioms CBCL.StateAddressTables.cachedPass_refinement
+#print axioms CBCL.StateAddressTables.cachedSort_refinement
+#print axioms CBCL.StateAddressTables.sort_compiled

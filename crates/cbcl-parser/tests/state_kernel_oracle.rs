@@ -10,6 +10,7 @@ use std::io::{BufRead, BufReader, Write};
 use std::process::{Child, ChildStdin, Command, Stdio};
 
 struct Oracle {
+    healthy: bool,
     child: Child,
     input: ChildStdin,
     output: std::sync::mpsc::Receiver<Result<String, String>>,
@@ -50,6 +51,7 @@ impl Oracle {
             }
         });
         Self {
+            healthy: true,
             input: child.stdin.take().unwrap(),
             output: receive,
             worker: Some(worker),
@@ -58,14 +60,21 @@ impl Oracle {
     }
 
     fn response(&mut self, case: &Value) -> Value {
+        assert!(self.healthy, "Lean oracle session poisoned by an earlier transport failure");
+        // A panic caught by proptest must not leave a late reply available to
+        // the next shrink attempt. Restore health only after a complete frame.
+        self.healthy = false;
         writeln!(self.input, "{case}").unwrap();
         self.input.flush().unwrap();
-        let line = self
-            .output
-            .recv_timeout(std::time::Duration::from_secs(10))
-            .expect("Lean oracle exited or failed to respond within 10 seconds")
-            .expect("Lean oracle stdout error");
+        let line = match self.output.recv_timeout(std::time::Duration::from_secs(10)) {
+            Ok(line) => line.expect("Lean oracle stdout error"),
+            Err(error) => {
+                let _ = self.child.kill();
+                panic!("Lean oracle transport failed; session poisoned: {error}");
+            }
+        };
         let reply: Value = serde_json::from_str(&line).expect("Lean JSON response");
+        self.healthy = true;
         reply
     }
     fn request(&mut self, case: &Value) -> Value {
@@ -85,6 +94,30 @@ impl Drop for Oracle {
             let _ = worker.join();
         }
     }
+}
+
+#[test]
+fn oracle_transport_failure_rejects_late_replies() {
+    let mut child = Command::new("cat").stdin(Stdio::piped())
+        .stdout(Stdio::null()).stderr(Stdio::null()).spawn().unwrap();
+    let input = child.stdin.take().unwrap();
+    let (sender, output) = std::sync::mpsc::channel();
+    drop(sender); // Immediate transport failure, without waiting ten seconds.
+    let mut oracle = Oracle { healthy: true, child, input, output, worker: None };
+    let failed = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| oracle.response(&json!({}))));
+    assert!(failed.is_err());
+    assert!(!oracle.healthy);
+    let _ = oracle.child.wait();
+    let mut replacement = Command::new("cat").stdin(Stdio::piped())
+        .stdout(Stdio::null()).stderr(Stdio::null()).spawn().unwrap();
+    oracle.input = replacement.stdin.take().unwrap();
+    oracle.child = replacement;
+    let (late, output) = std::sync::mpsc::channel();
+    late.send(Ok("{\"stale\":true}\n".to_owned())).unwrap();
+    oracle.output = output;
+    let rejected = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| oracle.response(&json!({}))));
+    assert!(rejected.is_err());
+    assert_eq!(oracle.output.try_recv().unwrap().unwrap(), "{\"stale\":true}\n");
 }
 
 #[derive(Clone, Debug)]
