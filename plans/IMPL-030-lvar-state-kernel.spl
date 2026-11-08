@@ -1143,3 +1143,37 @@
 ;; Next select a literal installation/cache boundary against its current Rust
 ;; source and existing executable Lean model; do not claim full SPEC completion
 ;; from individual factories or this no-domain/no-freeze specialization.
+
+;; Native finite reads-cache/policy integration checkpoint (REQ-3802 / REQ-3810).
+;; Audited Rust r7.rs740-797: it builds projected/maxima vectors and predecodes
+;; reads once before indexed i<j scanning. Existing LeanPairLoop decoded scalars
+;; perpair, so that stage was missing despite cache/compatibility proofs.
+;; StateFiniteReadCache.compileReads now builds original-scalar/typed-query rows;
+;; reads_sound, reads_complete and reads_index derive value/order/length/alignment
+;; and actual decoder identity, including admission's expect/unreachable safety.
+;; projected_display connects stored numeric projections with actual scalar kinds.
+;; reason/row/pairs refinement preserves exact row-major first diagnostic, duplicate
+;; precedence and original indices. check_refinement proves cached complete gate
+;; equals exhaustive reference; policy_refinement and compiled_query_refinement
+;; connect it to actual source-owned policy and exact query compiler behavior.
+;; Raw-stage tests distinguish bool true from int1 despite equal cached numeric1;
+;; actual admission separately rejects the heterogeneous query pair. Other fixtures
+;; cover unknown/false/top/oversized/empty rejection, mixed/negative compatibility
+;; and a later duplicate at original indices1,2.
+;; Live finite oracle now calls cached check. Added a directed incompatible named
+;; pair exercising both cached read indices. Isolated native reads[j]->reads[0]
+;; mutation is caught by the actual Rust/Lean assertion; source restored by runner.
+;; Added --mutant selection to existing isolated runner; default retains all old
+;; mutants/baselines and unknown names reject instead of silently doing no work.
+;; Verification: full library and oracle build plus Batteries env-linter pass;
+;; 1813 theorem audits allowlisted; seven focused proof mutants fail alignment,
+;; decoding, indices, empty admission and scalar/duplicate-identity obligations.
+;; All six live oracle tests pass at PROPTEST_CASES=512/RNG_SEED=380038 after the
+;; cached-gate substitution (finite, freeze, nested, context, shape and malformed
+;; input coverage). Verified-by lint/diff check pass, no new unresolved vault
+;; pairs and zero syntax/SPL diagnostics. Independent review found no defect or
+;; overclaim in proofs, fixtures, native mutant, runner filtering or evidence.
+;; Remaining: literal Rust extraction and usize/index representation, formatted
+;; diagnostics and allocation/runtime cost are not inferred from typed caches.
+;; Full native install/metadata/admission/mutable reader/wire/renderer boundaries
+;; remain required; this checkpoint does not establish full SPEC-038 completion.

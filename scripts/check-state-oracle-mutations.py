@@ -1,11 +1,16 @@
 #!/usr/bin/env python3
 """SPEC-038: prove the live Lean oracle detects real Rust regressions, in copies."""
 from pathlib import Path
+import argparse
 import os
 import re
 import shutil
 import subprocess
 import tempfile
+
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument("--mutant", action="append", help="Run only this mutant (repeatable)")
+options = parser.parse_args()
 
 root = Path(__file__).resolve().parents[1]
 oracle = root / "lean-cbcl/.lake/build/bin/cbcl-state-oracle"
@@ -36,13 +41,8 @@ with tempfile.TemporaryDirectory(prefix="cbcl-live-oracle-") as directory:
                                test, "--", "--ignored", "--exact"], cwd=isolated, env=env,
                               text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=300)
 
-    for test in [finite_test,freeze_test,nested_test,context_test]:
-        baseline = run(test)
-        if baseline.returncode or f"test {test} ... ok" not in baseline.stdout:
-            print(baseline.stdout)
-            raise SystemExit(f"FAIL: live-oracle baseline {test}")
-        print(f"PASS: live-oracle baseline {test}", flush=True)
-    for name, filename, before, after, test in [
+    mutants = [
+        ("finite-read-cache-wrong-right-index", "r7.rs", "match (reads[i], reads[j])", "match (reads[i], reads[0])", finite_test),
         ("finite-symbol-string-confused", "lattice.rs", "act.fields.get(&row.key) == Some(&row.value)", "act.fields.get(&row.key).map(|value| match value { SExpr::Atom(Atom::Symbol(name)) => SExpr::Atom(Atom::Str(name.clone())), other => other.clone() }).as_ref() == Some(&row.value)", finite_test),
         ("reader-scope-cache-key-erased", "freeze.rs", "let key = (scope, name.to_string());", "let key = (0, name.to_string());", nested_test),
         ("reader-field-cache-key-erased", "freeze.rs", "let key = (scope, name.to_string());", "let key = (scope, String::new());", nested_test),
@@ -62,7 +62,19 @@ with tempfile.TemporaryDirectory(prefix="cbcl-live-oracle-") as directory:
         ("context-opener-witness-hidden", "context.rs", "evidence.extend(openers.into_iter().map(String::from));", "let _ = openers;", context_test),
         ("context-count-includes-delivery-duplicates", "context.rs", "acts.iter()\n                            .map(|a| &a.address)\n                            .collect::<BTreeSet<_>>()\n                            .len()", "acts.len()", context_test),
         ("context-frontier-hidden", "context.rs", "crate::state::frontier(acts)", "Vec::<String>::new()", context_test),
-    ]:
+    ]
+    if options.mutant:
+        unknown = set(options.mutant) - {item[0] for item in mutants}
+        if unknown:
+            parser.error("unknown mutants: " + ", ".join(sorted(unknown)))
+        mutants = [item for item in mutants if item[0] in options.mutant]
+    for test in dict.fromkeys(item[4] for item in mutants):
+        baseline = run(test)
+        if baseline.returncode or f"test {test} ... ok" not in baseline.stdout:
+            print(baseline.stdout)
+            raise SystemExit(f"FAIL: live-oracle baseline {test}")
+        print(f"PASS: live-oracle baseline {test}", flush=True)
+    for name, filename, before, after, test in mutants:
         path = isolated / "crates/cbcl-core/src" / filename
         source = path.read_text()
         if source.count(before) != 1:

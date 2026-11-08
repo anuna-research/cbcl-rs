@@ -1163,8 +1163,29 @@ rejected candidate in row-major order, with duplicate precedence and indices
 selecting the original authored scalars. These close the modeled cache and
 pair-loop semantic obligations. Typed extraction and integration into R7,
 formatted diagnostics, and allocation/runtime cost correspondence remain
-separate boundaries; the model decodes per pair while Rust stores a reads
-vector. No cache complexity theorem is claimed.
+separate boundaries. No cache complexity theorem is claimed.
+
+`StateFiniteReadCache.lean` now models Rust R7's once-only reads-vector stage
+before the indexed pair scan. `compileReads` constructs original scalar/decoded
+query rows; soundness, completeness under actual scalar admission, and in-range
+lookup proofs establish order, length, index alignment and decoder identity.
+The cached pair loop preserves the exact first diagnostic and original indices,
+including duplicate precedence over compatibility. Equal decoded values do not
+collapse distinct authored scalar kinds. The cached complete gate equals the
+exhaustive verified reference, its scalar wrapper equals the actual installed
+source policy, and using it preserves exact query compilation, including
+rejection and retained raw-carrier strategy. Stored numeric projection lookup
+also agrees with the rendered scalar kind and default named display.
+
+The live finite oracle now executes this once-decoded cached gate. A directed
+incompatible named pair exercises both cached read indices; changing Rust's
+right read from `reads[j]` to `reads[0]` is rejected by the live comparison.
+Proof fixtures cover scalar-kind identity versus admission, undecodable names
+and false booleans, duplicate/compatible precedence, a later rejected pair,
+negative thresholds, empty alternatives, top and signed-range rejection.
+These close the typed reads-cache/ref-checker and policy integration gaps.
+They do not prove literal Rust extraction, `usize` arithmetic/representation,
+formatted native diagnostics or allocation/runtime cost correspondence.
 
 `StateInstalledRecognition.lean` proves exact lowerer acceptance from the
 modeled metadata, source policy and backward-reference checks. Authored

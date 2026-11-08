@@ -658,6 +658,24 @@ suites.append(("StateAuthoredResourceTests", (root / "lean-cbcl/LeanCbcl/StateAu
      "StateResourceValidated.isFault (StateResourceVerifier.observe (input [root,opener,burn])) = false := by decide", "burn_fault"),
 ]))
 
+suites.append(("StateFiniteReadCache", (root / "lean-cbcl/LeanCbcl/StateFiniteReadCache.lean").read_text(), [
+    ("finite-read-cache-reverses-scalars", "reads.map Prod.fst = queries ∧", "reads.map Prod.fst = queries.reverse ∧", "reads_sound"),
+    ("finite-read-cache-invents-next-index", "queries[index]? = some item.1 ∧ reads[index]? = some item ∧",
+     "queries[index+1]? = some item.1 ∧ reads[index]? = some item ∧", "reads_index"),
+    ("finite-read-cache-hides-false-decode", "| query :: rest => do\n    let decoded ← decode field query",
+     "| query :: rest => do\n    let decoded ← decode field (.bool false)", "reads_complete"),
+    ("finite-read-cache-reports-wrong-right-index", "| some (other,why) => some (index,other,why)",
+     "| some (other,why) => some (index,other+1,why)", "pairs_refinement"),
+    ("finite-read-cache-admits-empty", "!queries.isEmpty && queries.all (StateFiniteRead.admitted field) &&",
+     "queries.all (StateFiniteRead.admitted field) &&", "check_refinement"),
+]))
+suites.append(("StateFiniteReadCacheTests", (root / "lean-cbcl/LeanCbcl/StateFiniteReadCacheTests.lean").read_text(), [
+    ("finite-read-cache-invents-typed-duplicate", "diagnostic field [.bool true,.int 1] = some none := by decide",
+     "diagnostic field [.bool true,.int 1] = some (some (0,1,.duplicate)) := by decide", "decoded_equality_not_duplicate"),
+    ("finite-read-cache-loses-duplicate-precedence", "diagnostic field [.int 0,.int 0] = some (some (0,1,.duplicate)) := by decide",
+     "diagnostic field [.int 0,.int 0] = some (some (0,1,.compatible)) := by decide", "duplicate_first"),
+]))
+
 # Preserve the full default gate while allowing a focused continuation check.
 import argparse
 parser = argparse.ArgumentParser(description=__doc__)

@@ -2,6 +2,7 @@ import Lean
 import LeanCbcl.StateShapeOracle
 import LeanCbcl.StateContextOracle
 import LeanCbcl.StateFiniteRead
+import LeanCbcl.StateFiniteReadCache
 import LeanCbcl.StateExecutableFreeze
 import LeanCbcl.StateCausalRank
 import LeanCbcl.StateExecutableObservation
@@ -124,7 +125,7 @@ def evaluate (request : Input) : Json := Id.run do
   let rejected := Json.mkObj [("installed",.bool false)]
   let some verified := CBCL.StateFiniteTable.compile 64 request.definition | return rejected
   let some field := make schema verified [] request.declaration | return rejected
-  if request.queries.any (fun qs => !CBCL.StateFiniteRead.check field qs) then return rejected
+  if request.queries.any (fun qs => !CBCL.StateFiniteReadCache.check field qs) then return rejected
   let current := state field request.history
   let fault : Bool := current == field.table.table.top
   let evidence := ((request.history.filter (fun a => a.verb == "mark" && CBCL.StateInstalledFinite.contribution field a != field.table.table.bottom)).map Act.addr).eraseDups

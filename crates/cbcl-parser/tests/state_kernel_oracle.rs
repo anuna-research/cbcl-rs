@@ -531,6 +531,15 @@ fn finite_kernel_matches_live_lean_oracle() {
         json!({"installed":false})
     );
     assert_eq!(native(&symbolic_projection), json!({"installed":false}));
+    // Distinct incompatible named alternatives exercise the predecoded read
+    // vector's right index; substituting reads[0] must change installation.
+    let mut cached_pair = directed_cases()[0].clone();
+    cached_pair.queries = Some(vec![(0, 1), (0, 2)]);
+    let request = cached_pair.request();
+    let expected = oracle.borrow_mut().request(&request);
+    assert_eq!(expected["installed"], true);
+    assert_eq!(native(&request), expected, "cached read indices: {request}");
+
     let mut config = proptest::test_runner::Config::default();
     if std::env::var_os("PROPTEST_CASES").is_none() {
         config.cases = 512;

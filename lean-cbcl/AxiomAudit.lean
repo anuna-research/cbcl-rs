@@ -1,3 +1,4 @@
+import LeanCbcl.StateFiniteReadCacheTests
 import LeanCbcl.StateAuthoredResourceTests
 import LeanCbcl.StateAuthoredProgressTests
 import LeanCbcl.StateProgressFreezeTests
@@ -2683,3 +2684,30 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateAuthoredResourceTests.burn_fault
 #print axioms CBCL.StateAuthoredResourceTests.ready_program
 #print axioms CBCL.StateAuthoredResourceTests.fault_program
+
+#print axioms CBCL.StateFiniteReadCache.reads_sound
+#print axioms CBCL.StateFiniteReadCache.reads_index
+#print axioms CBCL.StateFiniteReadCache.projected_display
+#print axioms CBCL.StateFiniteReadCache.reads_complete
+#print axioms CBCL.StateFiniteReadCache.reason_refinement
+#print axioms CBCL.StateFiniteReadCache.row_refinement
+#print axioms CBCL.StateFiniteReadCache.pairs_refinement
+#print axioms CBCL.StateFiniteReadCache.diagnostic_refinement
+#print axioms CBCL.StateFiniteReadCache.check_refinement
+#print axioms CBCL.StateFiniteReadCache.diagnostic_sound
+#print axioms CBCL.StateFiniteReadCache.policy_refinement
+#print axioms CBCL.StateFiniteReadCache.compiled_query_refinement
+
+#print axioms CBCL.StateFiniteReadCacheTests.scalar_identity_retained
+#print axioms CBCL.StateFiniteReadCacheTests.decoded_equality_not_duplicate
+#print axioms CBCL.StateFiniteReadCacheTests.mixed_kinds_rejected
+#print axioms CBCL.StateFiniteReadCacheTests.false_not_decoded
+#print axioms CBCL.StateFiniteReadCacheTests.unknown_not_decoded
+#print axioms CBCL.StateFiniteReadCacheTests.duplicate_first
+#print axioms CBCL.StateFiniteReadCacheTests.mixed_pair_compatible
+#print axioms CBCL.StateFiniteReadCacheTests.later_duplicate
+#print axioms CBCL.StateFiniteReadCacheTests.negative_compatible
+#print axioms CBCL.StateFiniteReadCacheTests.empty_rejected
+#print axioms CBCL.StateFiniteReadCacheTests.top_rejected
+#print axioms CBCL.StateFiniteReadCacheTests.oversized_rejected
+#print axioms CBCL.StateFiniteReadCacheTests.wrapped_policy_rejects
