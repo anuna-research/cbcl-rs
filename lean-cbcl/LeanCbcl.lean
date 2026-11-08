@@ -237,3 +237,5 @@ import LeanCbcl.StateReaderReachabilityTests
 import LeanCbcl.StateCompiledFieldEquationsTests
 
 import LeanCbcl.StateFrozenBodyEquationsTests
+
+import LeanCbcl.StateCausalRank

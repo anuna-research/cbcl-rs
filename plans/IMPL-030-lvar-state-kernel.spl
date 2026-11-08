@@ -484,3 +484,20 @@
 ;; audit. Three targeted mutants fail their named scope/wrapper/body theorems;
 ;; verified-by lint passes. Fresh independent proof review found no logical
 ;; defect or vacuity and confirmed the stated transcript/output boundary.
+
+;; Separate-rank and threshold-scope continuation for
+;; [[SPEC-038-lvar-state-kernel#TEST-3806]]: StateCausalRank proves bounded
+;; ancestry/cuts under recognized topological list positions, preserving act
+;; identities and semantic address order, including a descending-address edge.
+;; Topological sorting and scope-pool/oracle migration remain required.
+;; Native fold regression reproduces a concurrent domain initializer outside a
+;; freezer cut: full count one/reached versus frozen zero/pending, with reversed
+;; and duplicate delivery. It explicitly does not claim protocol admission.
+;; A deliberate full-history raw-threshold scope mutant fails this executed
+;; test; the same mutant is retained in the isolated semantic mutation harness.
+;; All 18 freeze tests pass. Full Lean build and Batteries env-linter pass;
+;; two separate-rank proof mutants fail their intended theorem. Independent
+;; review finds no logical defect or vacuity. No new vault reference pairs or
+;; syntax/SPL errors; verified-by lint passes. Threshold-output composition and
+;; literal native extraction/installation/rendering boundaries remain open.
+;; Axiom audit: 1459 theorems, all dependencies allowlisted.

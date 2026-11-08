@@ -487,6 +487,10 @@ These results require content-consistent histories with numeric addresses rankin
 causal edges. Address-independent graph coverage and final threshold-output
 adaptation remain open; threshold source reads alone do not prove raw-state scope
 selection for the final output.
+`StateCausalRank` proves address-independent bounded ancestry and exact cuts
+under a recognized topological history order. Its descending-address witness
+preserves semantic addresses; integrating this search into the scope pool and
+recognizing/sorting arbitrary native delivery orders remain required.
 Literal Rust value/graph/map/vector extraction and rendering remain boundaries. Executable cache
 witnesses and focused mutations exercise aliasing, wrapper and cut mistakes.
 

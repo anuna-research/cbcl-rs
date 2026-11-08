@@ -1289,15 +1289,22 @@ with freezes. Concrete fixtures construct incomparable cuts and a prepared
 context/count/threshold/freeze clause.
 
 These results require content-consistent histories whose numeric addresses rank
-causal edges. Content hashes do not generally have that ordering. Extending
-executable reachability to a separate causal rank while preserving semantic
-addresses remains required for arbitrary native histories. Threshold-output
-adaptation also remains open: source-request equality includes threshold source
-reads, but does not establish the subsequent choice of raw-state scope. In
-particular, domain initialization outside a freezer cut requires a locality
-argument or corrected composition; absence of late contributing writes alone
-has not established that argument. This is a proof obligation, not a reproduced
-native runtime defect. Literal Rust value representation and public serialized
+causal edges. Content hashes do not generally have that ordering. `StateCausalRank.lean` separately proves the same bounded search complete under
+a recognized topological list order, using positions solely as search ranks and
+retaining original semantic addresses. Its descending-address fixture preserves
+an edge from address 99 to address 2. This search is not yet wired into the
+scope pool or live oracle; constructing a topological order from arbitrary native
+history order and composing it with those readers remain required.
+Threshold-output adaptation also remains open: source-request equality includes
+threshold source reads, but does not establish the subsequent raw-state scope.
+A native fold regression now reproduces the domain-initialization distinction:
+a concurrent initializer outside the freezer cut enables a full-history count
+of one while the frozen source remains zero and its threshold pending. Replacing
+the threshold context with the full history makes that executed regression fail.
+The fixture exercises typed-history fold, not protocol admission. The remaining
+composition must select the frozen cut or prove the necessary locality; absence
+of late contributing writes alone does not establish it.
+Literal Rust value representation and public serialized
 rendering remain separate boundaries. Helpers remain total outside the admitted
 request domain, which does not model Rust's indexing or unknown-field no-insert
 branch.

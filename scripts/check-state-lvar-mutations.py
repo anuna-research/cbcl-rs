@@ -262,6 +262,11 @@ suites.append(("StateInstalledRecognition", (root / "lean-cbcl/LeanCbcl/StateIns
     ("recognition-tail-check-bypassed", "check (extend definitions declaration) (declaration.name::names) rest", "true", "check_iff"),
 ]))
 
+suites.append(("StateCausalRank", (root / "lean-cbcl/LeanCbcl/StateCausalRank.lean").read_text(), [
+    ("causal-rank-search-uses-address-fuel", "reachable (history.length + 1) history a freezer", "reachable (freezer.addr + 1) history a freezer", "ancestor_iff"),
+    ("causal-rank-cut-ignored", "history.filter (fun a => ancestor history a freezer)", "history", "cut_refinement"),
+]))
+
 suites.append(("StateExecutableFreeze", (root / "lean-cbcl/LeanCbcl/StateExecutableFreeze.lean").read_text(), [
     ("executable-ancestor-omits-self", "(a == f || A.any", "(false || A.any", "reachable_complete"),
     ("executable-cut-ignored", "def cut (A : List Act) (freezer : Act) : List Act := A.filter (fun a => ancestor A a freezer)", "def cut (A : List Act) (freezer : Act) : List Act := A", "cut_refinement"),

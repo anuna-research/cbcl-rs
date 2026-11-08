@@ -1,3 +1,4 @@
+import LeanCbcl.StateCausalRank
 import LeanCbcl.StateFrozenBodyEquationsTests
 import LeanCbcl.StateCompiledFieldEquationsTests
 import LeanCbcl.StateReaderReachabilityTests
@@ -2261,3 +2262,10 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateFrozenBodyEquationsTests.incomparable_active_witness
 #print axioms CBCL.StateFrozenBodyEquationsTests.allocated_cuts_witness
 #print axioms CBCL.StateFrozenBodyEquationsTests.concrete_cache_transcript
+
+#print axioms CBCL.StateCausalRank.reachable_complete_by
+#print axioms CBCL.StateCausalRank.check_sound
+#print axioms CBCL.StateCausalRank.ancestor_iff
+#print axioms CBCL.StateCausalRank.cut_refinement
+#print axioms CBCL.StateCausalRank.descending_check
+#print axioms CBCL.StateCausalRank.descending_cut

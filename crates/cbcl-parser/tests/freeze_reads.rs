@@ -587,3 +587,35 @@ fn resource_domains_cannot_hide_freeze_contributors() {
         "{error}"
     );
 }
+
+/// TEST-3806: fold's typed-history boundary permits a domain initializer outside
+/// the freezer's cut. This is not a protocol-admission fixture. Raw threshold
+/// state must use the same cut as the frozen source even without late writers.
+#[test]
+fn frozen_threshold_raw_state_keeps_domain_initialization_inside_its_cut() {
+    let src = source("fault")
+        .replace("(extend open (to) :from owner :to owner (tell to))",
+            "(extend open (to options) :from owner :to owner (tell to :options options)) (shape open (require :options list))")
+        .replace("(values (values write :value))",
+            "(options (initial open :options)) (domain write :value options) (values (count write)) (threshold quorum values (count 1))");
+    state_exports::parse_and_install_dialect(&parse(&src).unwrap()).unwrap();
+    let write = act("write", "x", "begin");
+    let close = act("close", "", &write.address);
+    let open = Act::from_message(
+        parse_message(&parse(
+            "(lang sealed (open @owner :options (\"x\") :caused-by begin :thread \"t\" :from @owner))"
+        ).unwrap()).unwrap(), "@owner"
+    ).unwrap();
+    let history = vec![write, close.clone(), open];
+    let frozen = read(&src, &history);
+    assert_eq!(frozen["values"]["frozen"], close.address);
+    assert_eq!(frozen["values"]["value"], json!(0));
+    assert_eq!(frozen["quorum"]["status"], "pending");
+    let unfrozen = read(&src.replace("(freeze values close fault)", ""), &history);
+    assert_eq!(unfrozen["values"], json!(1));
+    assert_eq!(unfrozen["quorum"]["status"], "reached");
+    let mut duplicated = history.clone();
+    duplicated.reverse();
+    duplicated.extend(history);
+    assert_eq!(read(&src, &duplicated), frozen);
+}
