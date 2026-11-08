@@ -155,6 +155,9 @@ fn native_frozen(case: &Value) -> Value {
         for name in case[group].as_array().unwrap() {
             let mut act = make_act("(lang frozen-demo (tick))");
             act.address = name.as_str().unwrap().into();
+            if group == "after" && case["descendants"].as_bool().unwrap() {
+                act.predecessors = vec![case["freezer"].as_str().unwrap().into()];
+            }
             acts.push(act);
         }
     }
@@ -177,29 +180,36 @@ fn frozen_wrapper_bytes_match_lean() {
         ("β",vec!["😀","é"],vec!["[","\"","\0"]),
         ("z",vec!["a","a"],vec!["m","b","m"]),
     ] {
-        let case = json!({"profile":"frozen-wrapper","freezer":freezer,"before":before,"after":after});
-        assert_eq!(native_frozen(&case),oracle.borrow_mut().request(&case),"frozen case={case}");
+        for descendants in [false,true] {
+            let case = json!({"profile":"frozen-wrapper","descendants":descendants,"freezer":freezer,"before":before,"after":after});
+            assert_eq!(native_frozen(&case),oracle.borrow_mut().request(&case),"frozen case={case}");
+        }
     }
     for case in [json!({"freezer":"r","before":["r"],"after":[]}),
         json!({"freezer":"r","before":[],"after":["r"]}),
         json!({"freezer":"r","before":["a"],"after":["a"]})] {
         let mut case = case;
         case["profile"] = json!("frozen-wrapper");
+        case["descendants"] = json!(false);
+        assert!(oracle.borrow_mut().response(&case).get("error").is_some());
+    }
+    for invalid in [json!("true"),json!(0),Value::Null] {
+        let case = json!({"profile":"frozen-wrapper","descendants":invalid,"freezer":"r","before":[],"after":[]});
         assert!(oracle.borrow_mut().response(&case).get("error").is_some());
     }
     let mut config = proptest::test_runner::Config::default();
     if std::env::var_os("PROPTEST_CASES").is_none() { config.cases = 512; }
     let mut runner = proptest::test_runner::TestRunner::new(config);
-    runner.run(&(text(),prop::collection::vec(text(),0..12),prop::collection::vec(text(),0..12)), |(root,bs,as_)| {
+    runner.run(&(text(),prop::collection::vec(text(),0..12),prop::collection::vec(text(),0..12),any::<bool>()), |(root,bs,as_,descendants)| {
         let freezer = format!("root:{root}");
         let mut before = bs.into_iter().map(|name|format!("before:{name}")).collect::<Vec<_>>();
         let mut after = as_.into_iter().map(|name|format!("after:{name}")).collect::<Vec<_>>();
-        let case = json!({"profile":"frozen-wrapper","freezer":freezer,"before":before,"after":after});
+        let case = json!({"profile":"frozen-wrapper","descendants":descendants,"freezer":freezer,"before":before,"after":after});
         let expected = oracle.borrow_mut().request(&case);
         prop_assert_eq!(native_frozen(&case),expected.clone(),"frozen case={}",case);
         before.reverse(); after.reverse();
         before.extend(before.clone()); after.extend(after.clone());
-        let repeated = json!({"profile":"frozen-wrapper","freezer":freezer,"before":before,"after":after});
+        let repeated = json!({"profile":"frozen-wrapper","descendants":descendants,"freezer":freezer,"before":before,"after":after});
         prop_assert_eq!(native_frozen(&repeated),expected.clone());
         prop_assert_eq!(oracle.borrow_mut().request(&repeated),expected);
         Ok(())

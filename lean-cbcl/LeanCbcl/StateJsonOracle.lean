@@ -67,6 +67,7 @@ def faultRun (j : Json) : Except String Json := do
 Names are transport aliases below admission; duplicate deliveries normalize first. -/
 def frozenRun (j : Json) : Except String Json := do
   let root ← (← j.getObjVal? "freezer").getStr?
+  let descendants ← (← j.getObjVal? "descendants").getBool?
   let before : List String ← fromJson? (← j.getObjVal? "before")
   let after : List String ← fromJson? (← j.getObjVal? "after")
   if before.contains root || after.contains root || before.any after.contains then
@@ -75,7 +76,7 @@ def frozenRun (j : Json) : Except String Json := do
   let predecessors := (names.zipIdx).filterMap (fun (name,id) => if before.contains name then some id else none)
   let acts : List State.Act := (names.zipIdx).map (fun (name,id) =>
     ⟨id,(if name == root then "close" else "tick"),"@a",
-      (if name == root then predecessors else []),[],[]⟩)
+      (if name == root then predecessors else if descendants && after.contains name then [names.idxOf root] else []),[],[]⟩)
   let observed := StateExecutableFreeze.read acts "close" (fun act => act.verb == "tick") false none
     (fun scope => Value.int (Int.ofNat (scope.filter (fun act => act.verb == "tick")).length))
   let .frozen freezer payload excluded := observed | throw "expected frozen observation"
