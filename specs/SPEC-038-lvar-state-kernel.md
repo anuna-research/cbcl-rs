@@ -1436,10 +1436,34 @@ lookup and emitted output membership are derived rather than supplied.
 Fixtures construct the complete authored program and a separate complete output
 walk whose raw query actually reaches despite an unrelated displayed payload.
 
-This theorem starts from earlier native finite-test success, not an earlier
-compiled observation. Connecting successive compiled observations, the other
-native source policies and complete native installation/extraction correspondence
-remain separate obligations.
+`StateCompiledFiniteInversion.lean` recovers native finite-test success from an
+actual reached compiled output. The complete ordered output-name vector
+identifies the unique threshold occurrence. Raw-query success recovers its
+declared alternative and native scope test; actual observed source guards
+exclude full-history top, so scope containment and upward reach recover native
+full-history success. Equal stored finite definitions yield equal native tests,
+connecting separately recovered factory witnesses.
+
+`StateAuthoredFinitePreservation.successive_compiled` applies that inversion to
+successive actual `compileAuthored` observations. For the same successfully
+prepared finite threshold and ranked content-consistent typed histories related
+by accepted-set growth, a named reached result in the earlier program stays the
+same named reached result or becomes a named fault in the later program. Neither
+earlier native success nor query membership is an external premise. The
+fixtures invert a concrete reached waiting-freezer output and construct both
+authored programs before specializing the preservation implication.
+
+The same module's `quasi_determinism` composes successive preservation for two
+actual compiled observations. If they reach distinct alternatives of the same
+finite threshold, every ranked content-consistent compiled joint history that
+contains both accepted sets exposes that named threshold as a fault. Validated
+output-name uniqueness excludes two distinct reached results in the joint
+program. This proves the finite-policy quasi-determinism consequence through
+actual authored compilation and program observations.
+
+Other native source policies and complete native installation/extraction
+correspondence remain separate obligations; these results cover the finite-policy
+fragment at the typed authored boundary.
 Literal Rust value representation and public serialized
 rendering remain separate boundaries. Helpers remain total outside the admitted
 request domain, which does not model Rust's indexing or unknown-field no-insert

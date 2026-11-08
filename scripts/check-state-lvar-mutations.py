@@ -450,6 +450,23 @@ suites.append(("StateAuthoredFiniteStability", (root / "lean-cbcl/LeanCbcl/State
      '(outputName ++ "-wrong",.data (.reached (.element (.scalar query)))) ∈ program.observe ∨', "authored_program_stability"),
 ]))
 
+suites.append(("StateCompiledFiniteInversion", (root / "lean-cbcl/LeanCbcl/StateCompiledFiniteInversion.lean").read_text(), [
+    ("compiled-threshold-output-name-corrupted", "| .field name _ | .threshold name _ _ _ => name",
+     '| .field name _ => name\n  | .threshold name _ _ _ => name ++ "-wrong"', "compile_one_name"),
+    ("native-inversion-invents-another-query", "query ∈ queries ∧ StateFiniteRead.test field query (StateInstalledFinite.state field raw) = true ∧",
+     'Val.str "ghost" ∈ queries ∧ StateFiniteRead.test field query (StateInstalledFinite.state field raw) = true ∧', "raw_success"),
+    ("inversion-drops-full-source-guards", "(StateFiniteOutputStability.source field whole declaration)).observe whole freezes =",
+     "(.snapshot (fun _ => .element (.scalar (.bool false))))).observe whole freezes =", "output_native_success"),
+]))
+suites.append(("StateAuthoredFinitePreservation", (root / "lean-cbcl/LeanCbcl/StateAuthoredFinitePreservation.lean").read_text(), [
+    ("prior-output-name-is-detached", '(reached : (outputName,.data (.reached (.element (.scalar query)))) ∈ program.observe)',
+     '(reached : (outputName ++ "-wrong",.data (.reached (.element (.scalar query)))) ∈ program.observe)', "authored_reached_native"),
+    ("joint-finite-fault-name-disconnected", '∃ evidence, (outputName,.fault evidence) ∈ joint.observe := by',
+     '∃ evidence, ("wrong",.fault evidence) ∈ joint.observe := by', "quasi_determinism"),
+    ("later-preservation-renames-answer", '(outputName,.data (.reached (.element (.scalar query)))) ∈ later.observe ∨',
+     '(outputName ++ "-wrong",.data (.reached (.element (.scalar query)))) ∈ later.observe ∨', "successive_compiled"),
+]))
+
 # Preserve the full default gate while allowing a focused continuation check.
 import argparse
 parser = argparse.ArgumentParser(description=__doc__)

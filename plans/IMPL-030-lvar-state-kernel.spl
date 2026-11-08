@@ -771,3 +771,32 @@
 ;; native-test success and transfer between source factory witnesses by probing
 ;; equal stored definitions. Other policies and literal native extraction remain
 ;; open. The quasi-determinism task remains outstanding.
+
+;; Successive actual finite observations and finite quasi-determinism for
+;; [[SPEC-038-lvar-state-kernel#TEST-3806]]: StateCompiledFiniteInversion
+;; preserves complete output names, recovers the actual raw-query alternative,
+;; native scope success and source data from reached code, then derives native
+;; full-history success via observed source guards, scope containment and upward
+;; reach. Equal stored definitions transfer tests across recovered factory
+;; witnesses. StateAuthoredFinitePreservation identifies the actual threshold
+;; occurrence by validated observation-name uniqueness; successive_compiled
+;; starts from a named reached member of the earlier actual compiled vector,
+;; rather than a supplied native-success/query-membership premise, and proves
+;; same named reached or named fault in the later actual compiled vector.
+;; quasi_determinism composes preservation for two distinct earlier successes
+;; into a named fault in any ranked/content-consistent actual compiled joint
+;; history containing both accepted sets. No concrete two-alternative authored
+;; fixture is claimed: fixtures invert an actual reached waiting-freezer output
+;; and construct two successful authored programs before specializing the
+;; preservation implication. Other native policies and literal Rust extraction
+;; remain outside this finite typed-boundary result.
+;; Verification: aggregate build and Batteries env-linter pass; 1608 theorem
+;; audits use only allowlisted axioms. Six focused proof mutations fail intended
+;; obligations for corrupted output names, invented query, erased source guards,
+;; detached earlier name, detached joint fault name and renamed later answer.
+;; Verified-by lint passes; no new unresolved vault pairs or syntax/SPL errors.
+;; Independent inversion/preservation/quasi-determinism and fixture/artifact
+;; review finds no defect/overstatement. Next native policies are existence,
+;; count, set/event membership, shaped nonnegative event sums and closure progress;
+;; their actual authored observation paths still need matching composition.
+;; The full quasi-determinism task remains outstanding.

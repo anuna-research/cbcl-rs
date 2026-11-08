@@ -1,3 +1,4 @@
+import LeanCbcl.StateAuthoredFinitePreservationTests
 import LeanCbcl.StateAuthoredFiniteStabilityTests
 import LeanCbcl.StateAuthoredSourceProvenanceTests
 import LeanCbcl.StateFiniteOutputStabilityTests
@@ -2441,3 +2442,20 @@ editing only this file is enough to extend the audit.
 
 #print axioms CBCL.StateAuthoredFiniteStabilityTests.actual_authored_program
 #print axioms CBCL.StateAuthoredFiniteStabilityTests.prefix_query_actually_reaches
+
+#print axioms CBCL.StateCompiledFiniteInversion.compile_one_name
+#print axioms CBCL.StateCompiledFiniteInversion.compiled_names
+#print axioms CBCL.StateCompiledFiniteInversion.observed_names
+#print axioms CBCL.StateCompiledFiniteInversion.raw_success
+#print axioms CBCL.StateCompiledFiniteInversion.scope_inside
+#print axioms CBCL.StateCompiledFiniteInversion.output_native_success
+#print axioms CBCL.StateCompiledFiniteInversion.definition_tests
+
+#print axioms CBCL.StateAuthoredFinitePreservation.authored_reached_native
+#print axioms CBCL.StateAuthoredFinitePreservation.successive_compiled
+
+#print axioms CBCL.StateAuthoredFinitePreservationTests.waiting_output_inverts
+#print axioms CBCL.StateAuthoredFinitePreservationTests.constructed_successive_programs
+
+#print axioms CBCL.StateAuthoredFinitePreservation.authored_output_names_unique
+#print axioms CBCL.StateAuthoredFinitePreservation.quasi_determinism
