@@ -92,4 +92,47 @@ theorem certificate_serialized (input : Input) (reason : String) (address : Nat 
         ⟨witnesses input.config input.facts,witnesses_realize input.config input.facts⟩)) :=
   fault_serialized input reason address ((native_verifier_certificate_iff input).mpr cause)
 
+/-- Growth of immutable accepted facts retains every executable witness,
+including context that becomes relevant only through a later citation. -/
+theorem witnesses_grow (c : ResourceConfig) {A B : Facts} (inside : Included A B) :
+    ∀ id ∈ witnesses c A, id ∈ witnesses c B := by
+  intro id member
+  apply (witnesses_realize c B id).mpr
+  obtain ⟨supported,node,accepted,same,selected⟩ := (witnesses_realize c A id).mp member
+  refine ⟨supported,node,inside node accepted,same,?_⟩
+  rcases selected with direct | ⟨parent,parentAccepted,parentRelevant,citation⟩
+  · exact Or.inl direct
+  · exact Or.inr ⟨parent,inside parent parentAccepted,parentRelevant,citation⟩
+
+/-- Sorting and deduplication retain all previously emitted witness names under
+one fixed address representation; no ordering or uniqueness oracle is supplied. -/
+theorem names_grow (c : ResourceConfig) {A B : Facts} (inside : Included A B) (address : Nat → String) :
+    ∀ name ∈ StateFaultRendering.canonical ((witnesses c A).map address),
+      name ∈ StateFaultRendering.canonical ((witnesses c B).map address) := by
+  apply StateFaultRendering.canonical_growth
+  intro name member
+  obtain ⟨id,insideA,rfl⟩ := List.mem_map.mp member
+  exact List.mem_map.mpr ⟨id,witnesses_grow c inside id insideA,rfl⟩
+
+/-- A real serialized resource fault cannot disappear under accepted growth.
+The later diagnostic reason may differ; canonical evidence retains every earlier
+name. Configuration and immutable address projection remain fixed. -/
+theorem serialized_fault_persists (left right : Input) (sameConfig : right.config = left.config)
+    (inside : Included left.facts right.facts) (leftReason rightReason : String) (address : Nat → String)
+    (bytes : String) (emitted : faultBytes left leftReason address = some bytes) :
+    ∃ later, faultBytes right rightReason address = some later ∧
+      ∀ name ∈ StateFaultRendering.canonical ((witnesses left.config left.facts).map address),
+        name ∈ StateFaultRendering.canonical ((witnesses right.config right.facts).map address) := by
+  have faulted : StateResourceValidated.isFault (StateResourceVerifier.observe left) = true := by
+    cases checked : StateResourceValidated.isFault (StateResourceVerifier.observe left) with
+    | false => simp [faultBytes,checked] at emitted
+    | true => rfl
+  have cause := (native_verifier_certificate_iff left).mp faulted
+  have enlarged : Cause right.config right.facts := by
+    rw [sameConfig]
+    exact cause_mono left.config inside cause
+  refine ⟨_,certificate_serialized right rightReason address enlarged,?_⟩
+  rw [sameConfig]
+  exact names_grow left.config inside address
+
 end CBCL.StateResourceRendering

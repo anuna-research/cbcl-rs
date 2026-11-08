@@ -111,6 +111,26 @@ fn native_graph(dialect: &cbcl_core::dialect::Dialect, case: &mut Value) -> Valu
     result
 }
 
+fn compare_graph_growth(oracle: &RefCell<Oracle>, dialect: &cbcl_core::dialect::Dialect, case: &mut Value) {
+    let earlier = native_graph(dialect,case);
+    assert_eq!(earlier,oracle.borrow_mut().request(case),"resource graph={case}");
+    let mut grown = case.clone();
+    grown["included"] = json!(true);
+    grown["fork"] = json!(true);
+    let later = native_graph(dialect,&mut grown);
+    for earlier_source in case["addresses"].as_array().unwrap() {
+        assert!(grown["addresses"].as_array().unwrap().contains(earlier_source),"growth changed an earlier source identity; before={case}; after={grown}");
+    }
+    assert_eq!(later,oracle.borrow_mut().request(&grown),"grown resource graph={grown}");
+    if earlier["status"] == "fault" {
+        assert_eq!(later["status"],"fault","resource fault disappeared; before={case}; after={grown}");
+        for witness in earlier["evidence"].as_array().unwrap() {
+            assert!(later["evidence"].as_array().unwrap().contains(witness),
+                "resource fault witness disappeared; witness={witness}; before={case}; after={grown}");
+        }
+    }
+}
+
 #[test]
 #[ignore = "requires lake build cbcl-state-oracle; explicitly run in Lean CI"]
 fn funding_graph_matches_lean() {
@@ -121,7 +141,7 @@ fn funding_graph_matches_lean() {
     for (funding,spend) in [(5,1),(5,5),(5,6),(1000,1000),(1001,1),(0,1),(5,0),(-1,1),(5,-1),(i64::MAX,1),(1,i64::MAX)] {
         for included in [false,true] { for dependency in [false,true] { for fork in [false,true] {
             let mut case = json!({"profile":"resource-graph","funding":funding,"spend":spend,"included":included,"dependency":dependency,"fork":fork});
-            assert_eq!(native_graph(&dialect,&mut case),oracle.borrow_mut().request(&case),"resource graph={case}");
+            compare_graph_growth(&oracle,&dialect,&mut case);
         } } }
     }
     let mut config = proptest::test_runner::Config::default();
@@ -130,7 +150,7 @@ fn funding_graph_matches_lean() {
     let amount = prop_oneof![any::<i64>(),-2i64..1003];
     runner.run(&(amount.clone(),amount,any::<bool>(),any::<bool>(),any::<bool>()), |(funding,spend,included,dependency,fork)| {
         let mut case = json!({"profile":"resource-graph","funding":funding,"spend":spend,"included":included,"dependency":dependency,"fork":fork});
-        prop_assert_eq!(native_graph(&dialect,&mut case),oracle.borrow_mut().request(&case),"resource graph={}",case);
+        compare_graph_growth(&oracle,&dialect,&mut case);
         Ok(())
     }).unwrap();
 }

@@ -415,3 +415,19 @@ before verifier evaluation. The fixed lookup projection is total on every
 accepted identity, and all enumerated witnesses come from that source set.
 This dictionary is an explicit representation boundary, not a content-hash or
 wire-extraction proof.
+
+`StateResourceRendering.serialized_fault_persists` starts with an actual emitted
+fault string. With a fixed configuration and address representation, adding
+immutable accepted facts produces another serialized fault and retains every
+previous canonical witness name. The proof derives fault classification from the
+actual emitter result, derives a resource cause from the complete verifier, and
+extends that cause to the larger accepted set. `witnesses_grow` and `names_grow`
+connect contextual evidence inclusion to executable enumeration and canonical
+presentation. Diagnostic reasons may change; the theorem does not assert equality
+of whole fault strings across growth.
+
+Every directed and generated resource-graph case also evaluates a larger history
+that includes the funding act and the competing owner branch. Both observations
+are independently compared with Lean, source-address rows are checked for
+inclusion, and an earlier fault must retain its status and every earlier witness.
+The growth step changes inclusion flags only, preserving existing source acts.

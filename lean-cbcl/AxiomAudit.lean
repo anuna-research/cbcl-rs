@@ -3068,3 +3068,7 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateResourceRendering.certificate_serialized
 
 #print axioms CBCL.StateResourceRendering.evidence_bytes
+
+#print axioms CBCL.StateResourceRendering.witnesses_grow
+#print axioms CBCL.StateResourceRendering.names_grow
+#print axioms CBCL.StateResourceRendering.serialized_fault_persists
