@@ -637,6 +637,27 @@ suites.append(("StateAuthoredDataProvenanceProgress", (root / "lean-cbcl/LeanCbc
      "⟨verb,contributes domains whole head.footprint,false⟩", "prepared_metadata"),
 ]))
 
+suites.append(("StateAuthoredResource", (root / "lean-cbcl/LeanCbcl/StateAuthoredResource.lean").read_text(), [
+    ("resource-binding-drops-certificate-guard", "{native with guards := native.guards ++ StateInstalledDomains.guards domains (resourceVerbs environment name)}",
+     "{native with guards := StateInstalledDomains.guards domains (resourceVerbs environment name)}", "source_shape"),
+    ("resource-binding-invents-threshold-policy", ": Definition Value := .factored (term environment domains name resource) none",
+     ": Definition Value := .factored (term environment domains name resource) (some ⟨(fun _ _ => true),(fun _ => true)⟩)", "binding"),
+    ("resource-native-read-hides-fault", "nativeGuard (StateResourceVerifier.nativeFaultRead input)\n        (sourceRead ((StateInstalledDomains.guards domains",
+     "nativeGuard none\n        (sourceRead ((StateInstalledDomains.guards domains", "native_read"),
+    ("resource-source-drops-authored-freeze", "plans.lookup name = some (StateCompiledFieldEquations.decorate\n        ((materialize prepared.domains A prepared.freezes).lookup name)",
+     "plans.lookup name = some (StateCompiledFieldEquations.decorate\n        none", "authored_plan"),
+    ("resource-field-emits-wrong-name", "Output.field name source ∈ code := by",
+     'Output.field "ghost" source ∈ code := by', "field_emitted"),
+    ("resource-full-output-hides-fault", "(name,nativeGuard (StateResourceVerifier.nativeFaultRead input)",
+     "(name,nativeGuard none", "authored_native_read"),
+]))
+suites.append(("StateAuthoredResourceTests", (root / "lean-cbcl/LeanCbcl/StateAuthoredResourceTests.lean").read_text(), [
+    ("resource-ready-total-corrupted", "some snapshot.value | _ => none) = some 1000 := by decide",
+     "some snapshot.value | _ => none) = some 1001 := by decide", "ready_value"),
+    ("resource-budget-fault-hidden", "StateResourceValidated.isFault (StateResourceVerifier.observe (input [root,opener,burn])) = true := by decide",
+     "StateResourceValidated.isFault (StateResourceVerifier.observe (input [root,opener,burn])) = false := by decide", "burn_fault"),
+]))
+
 # Preserve the full default gate while allowing a focused continuation check.
 import argparse
 parser = argparse.ArgumentParser(description=__doc__)

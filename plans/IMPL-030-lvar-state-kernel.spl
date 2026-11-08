@@ -1106,3 +1106,40 @@
 ;; resource closure-to-certificate path, strict wire and rendering correspondence.
 ;; BUG-006 envelope/key cases remain open. Typed progress completion does not
 ;; establish those literal boundaries or complete the full SPEC-038 objective.
+
+;; Audit-driven concrete authored resource bridge (REQ-3800 / REQ-3808 / REQ-3809).
+;; Audit read the current TEST-3806/REQ-3806 acceptance, closure-head requirement,
+;; installed resource native/certificate read, authored binder and boundary inventory.
+;; Confirmed gap: individual concrete factory equivalence did not identify its
+;; actual authored source and emitted complete-program field. Implemented that path.
+;; StateAuthoredResource.binding recovers actual native term/certificate guard,
+;; absent threshold policy and raw operation footprint from original resource lookup.
+;; native_read composes exact native verifier snapshot/certificate equality with
+;; all extra domain guards. prepared_source/authored_plan derive original resource
+;; definition and completed plan with exact clause-wide freeze attachment.
+;; field_emitted derives actual instruction membership from successful code walk;
+;; authored_emitted constructs complete compilation and named source observation
+;; without supplying that walk/source lookup/final output as premises.
+;; authored_native_read specializes no-domain/no-freeze complete output to actual
+;; native read plus exact certificate evidence from config/projection identities.
+;; Fixtures construct native profile/input bounds/typed projection and complete
+;; programs for ready value1000 and unfunded budget fault with exact native evidence;
+;; resource threshold rejected. Frozen/domain cases retain exact source composition,
+;; not a false verifier-only outcome that omits those guards or freeze semantics.
+;; Verification: aggregate build and Batteries env-linter pass; final 1788 theorem
+;; audits allowlisted. Eight focused mutants fail certificate guard, policy, fault,
+;; freeze, field identity, complete read, ready value and budget-fault obligations.
+;; Linter initially found an unused supported-config premise in a fixed fixture;
+;; removed the premise from its theorem and retained conditional profile field via
+;; an explicit lambda. Rebuilt, re-linted, re-audited and reran all eight mutants.
+;; Verified-by lint/diff check pass; no new unresolved vault pairs, zero syntax/SPL
+;; diagnostics. Independent proof/fixture/artifact review found no defect/overclaim.
+;; Remaining audit inventory: literal native installation and cached upper-set
+;; validator correspondence; per-act native metadata/signature/admission extraction,
+;; general repeat bodies; Rust mutable scoped/memoized reader; strict wire and
+;; renderer correspondence. BUG-006 envelope/key parser forms remain open. The
+;; legacy kernel resource callback port remains distinct; actual authored resource
+;; bindings now use the concrete verifier-to-output path proved here.
+;; Next select a literal installation/cache boundary against its current Rust
+;; source and existing executable Lean model; do not claim full SPEC completion
+;; from individual factories or this no-domain/no-freeze specialization.

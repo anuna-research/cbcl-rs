@@ -1,3 +1,4 @@
+import LeanCbcl.StateAuthoredResourceTests
 import LeanCbcl.StateAuthoredProgressTests
 import LeanCbcl.StateProgressFreezeTests
 import LeanCbcl.StateProgressStoreTests
@@ -2664,3 +2665,21 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateProgressFreeze.payload_success
 #print axioms CBCL.StateAuthoredDataOutputs.head_spec_setEq
 #print axioms CBCL.StateAuthoredDataOutputs.head_decorate_setEq
+
+#print axioms CBCL.StateAuthoredResource.source_shape
+#print axioms CBCL.StateAuthoredResource.guard_reads
+#print axioms CBCL.StateAuthoredResource.native_read
+#print axioms CBCL.StateAuthoredResource.binding
+#print axioms CBCL.StateAuthoredResource.prepared_source
+#print axioms CBCL.StateAuthoredResource.authored_plan
+#print axioms CBCL.StateAuthoredResource.field_emitted
+#print axioms CBCL.StateAuthoredResource.authored_emitted
+#print axioms CBCL.StateAuthoredResource.authored_native_read
+
+#print axioms CBCL.StateAuthoredResourceTests.installed_config
+#print axioms CBCL.StateAuthoredResourceTests.preparation
+#print axioms CBCL.StateAuthoredResourceTests.threshold_rejected
+#print axioms CBCL.StateAuthoredResourceTests.ready_value
+#print axioms CBCL.StateAuthoredResourceTests.burn_fault
+#print axioms CBCL.StateAuthoredResourceTests.ready_program
+#print axioms CBCL.StateAuthoredResourceTests.fault_program

@@ -1648,6 +1648,25 @@ conditional on earlier reached membership; it does not prove that antecedent for
 the frozen fixture. Native decoding, general repeat-body refinement and native
 protocol admission are not established by these typed fixtures.
 
+`StateAuthoredResource.lean` connects the actual authored `bounded-counter`
+binding to the concrete native verifier term and certificate-backed terminal
+fault guard. Its `native_read` theorem retains the extra installed domain
+guards rather than assuming they are clear. Original resource configuration
+lookup and authored preparation derive the source definition, raw operation
+footprint, completed source-plan lookup and exact attached freeze. A generic
+field-emission theorem then connects that source to its named member in an
+actual complete compiled observation, without an assumed successful code walk
+or caller-supplied resource classifier. `authored_native_read` specializes the
+complete output to no domains or freezes: the field equals the verified native
+read with its native certificate evidence, given only the actual configuration
+and normalized accepted-projection identities. Concrete fixtures construct the
+profile and native input bounds, compute a ready value of 1000 and an unfunded
+budget fault, and derive the corresponding actual complete-program ready/fault
+members. They also reject a successful threshold over the resource snapshot.
+Frozen/domain cases establish exact guarded source composition; they do not
+claim a verifier-only output after removing those guards or freeze semantics.
+The fixture metadata decoder remains typed, not literal native wire extraction.
+
 Full admission/extraction and native installation correspondence remain separate obligations at the typed
 authored boundary.
 Literal Rust value representation and public serialized
@@ -1673,8 +1692,9 @@ This adapter does not establish general metadata extraction or protocol admissio
 other live profiles retain their stated scalar contracts.
 Generic IR correctness and individual factories are not evidence that this full
 literal source binding and composition theorem is complete. The
-legacy resource closure port also remains separate from the new concrete
-native-certificate bridge.
+legacy kernel resource closure port remains separate from the new concrete
+native-certificate bridge; actual authored resources now follow the concrete
+factory-to-output path above.
 
 [[SPEC-038-lvar-state-kernel#TEST-3806]] remains partial at those literal
 installation, admission, wire-proof and renderer boundaries. Context pin tests
