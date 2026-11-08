@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Exercise Lean bootstrap retries offline, including elan's internal download."""
+"""Exercise Lean bootstrap retries offline, with pinned assets, checksum verification and API fallback."""
 import os
 from pathlib import Path
 import subprocess
@@ -17,7 +17,7 @@ printf '%s' "$count" > "$CI_LEAN_TEST_DIR/{name}"
 
 
 class BootstrapTests(unittest.TestCase):
-    def run_bootstrap(self, download=0, installer=0, toolchain=0, existing=False):
+    def run_bootstrap(self, download=0, installer=0, toolchain=0, existing=False, cached=False, checksum=False, arch="x86_64"):
         with tempfile.TemporaryDirectory(prefix="cbcl-lean-bootstrap-") as directory:
             root = Path(directory)
             fake_bin = root / "bin"
@@ -34,7 +34,9 @@ class BootstrapTests(unittest.TestCase):
                        'if [[ "$1 $2" == "toolchain install" ]]; then\n'
                        + COUNTER.format(name="toolchain")
                        + '  if (( count <= CI_LEAN_TEST_TOOLCHAIN_FAILURES )); then exit 1; fi\n'
+                       '  touch "$CI_LEAN_TEST_DIR/ready"\n'
                        'elif [[ "$1" == "run" ]]; then\n'
+                       '  [ -f "$CI_LEAN_TEST_DIR/ready" ] || exit 1\n'
                        '  printf "%s\\n" "$2" >> "$CI_LEAN_TEST_DIR/versions"\n'
                        'fi\n')
             bootstrap = root / "installer-script"
@@ -49,8 +51,14 @@ class BootstrapTests(unittest.TestCase):
                        + 'if [ "$count" -le "$CI_LEAN_TEST_DOWNLOAD_FAILURES" ]; then exit 22; fi\n'
                        'output=""\nwhile [ "$#" -gt 0 ]; do\n'
                        '  if [ "$1" = "-o" ]; then shift; output="$1"; fi\n'
+                       '  printf "%s\\n" "$1" >> "$CI_LEAN_TEST_DIR/urls"\n'
                        '  shift\ndone\ncp "$CI_LEAN_TEST_INSTALLER" "$output"\n')
             executable(fake_bin / "sleep", '#!/bin/sh\nexit 0\n')
+            executable(fake_bin / 'uname', '#!/bin/sh\nif [ "$1" = -s ]; then echo Linux; else echo "$CI_LEAN_TEST_ARCH"; fi\n')
+            executable(fake_bin / 'sha256sum', '#!/bin/sh\ncat >/dev/null\nexit "$CI_LEAN_TEST_CHECKSUM"\n')
+            executable(fake_bin / 'tar', '#!/bin/sh\ncp "$CI_LEAN_TEST_INSTALLER" "$4/elan-init"\n')
+            if cached:
+                (root / 'ready').touch()
             if existing:
                 executable(home / "bin/elan", stub.read_text())
             path_file = root / "github-path"
@@ -59,9 +67,10 @@ class BootstrapTests(unittest.TestCase):
                        CI_LEAN_TEST_STUB=str(stub), CI_LEAN_TEST_INSTALLER=str(bootstrap),
                        CI_LEAN_TEST_DOWNLOAD_FAILURES=str(download),
                        CI_LEAN_TEST_INSTALLER_FAILURES=str(installer),
-                       CI_LEAN_TEST_TOOLCHAIN_FAILURES=str(toolchain))
+                       CI_LEAN_TEST_TOOLCHAIN_FAILURES=str(toolchain), CI_LEAN_TEST_CHECKSUM=str(int(checksum)), CI_LEAN_TEST_ARCH=arch)
             result = subprocess.run(["bash", str(ROOT / "scripts/ci-install-lean.sh")],
                                     env=env, text=True, capture_output=True, timeout=10)
+            self.urls = (root / "urls").read_text() if (root / "urls").exists() else ""
             counts = {name: int((root / name).read_text()) if (root / name).exists() else 0
                       for name in ["download", "installer", "toolchain"]}
             paths = path_file.read_text().splitlines() if path_file.exists() else []
@@ -72,14 +81,16 @@ class BootstrapTests(unittest.TestCase):
         result, counts, exported, versions = self.run_bootstrap(download=2, installer=2, toolchain=2)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(counts, dict(download=3, installer=3, toolchain=3))
+        self.assertIn("/download/v4.2.4/elan-x86_64-unknown-linux-gnu.tar.gz", self.urls)
+        self.assertNotIn("latest", self.urls)
         self.assertTrue(exported)
         self.assertEqual(versions, [ROOT.joinpath("lean-cbcl/lean-toolchain").read_text().strip()] * 2)
 
     def test_permanent_initial_download_failure_stays_fatal(self):
         result, counts, _, _ = self.run_bootstrap(download=10)
         self.assertNotEqual(result.returncode, 0)
-        self.assertEqual(counts, dict(download=5, installer=0, toolchain=0))
-        self.assertIn("FAIL: elan installer download after 5 attempts", result.stderr)
+        self.assertEqual(counts, dict(download=10, installer=0, toolchain=0))
+        self.assertIn("FAIL: pinned elan API asset download after 5 attempts", result.stderr)
 
     def test_permanent_installer_failure_stays_fatal(self):
         result, counts, _, _ = self.run_bootstrap(installer=10)
@@ -96,6 +107,30 @@ class BootstrapTests(unittest.TestCase):
         result, counts, exported, _ = self.run_bootstrap(existing=True)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(counts, dict(download=0, installer=0, toolchain=1))
+        self.assertTrue(exported)
+
+    def test_api_fallback_after_primary_endpoint_failure(self):
+        result, counts, _, _ = self.run_bootstrap(download=5)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(counts, dict(download=6, installer=1, toolchain=1))
+        self.assertIn("/releases/assets/529114798", self.urls)
+        self.assertNotIn("latest", self.urls)
+
+    def test_arm_asset_selection(self):
+        result, _, _, _ = self.run_bootstrap(arch="aarch64", download=5)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("/releases/assets/529114794", self.urls)
+
+    def test_checksum_failure_never_executes_installer(self):
+        result, counts, _, _ = self.run_bootstrap(checksum=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(counts, dict(download=10, installer=0, toolchain=0))
+        self.assertIn("checksum mismatch", result.stderr)
+
+    def test_cached_toolchain_needs_no_download(self):
+        result, counts, exported, _ = self.run_bootstrap(existing=True, cached=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(counts, dict(download=0, installer=0, toolchain=0))
         self.assertTrue(exported)
 
 

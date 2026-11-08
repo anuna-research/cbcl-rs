@@ -74,6 +74,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Cache elan and pinned Lean toolchain
+        uses: actions/cache@v4
+        with:
+          path: ~/.elan
+          key: ${{ runner.os }}-${{ runner.arch }}-elan-${{ hashFiles('lean-cbcl/lean-toolchain', 'scripts/ci-install-lean.sh') }}
+
       - name: Install elan (Lean toolchain manager)
         run: bash scripts/ci-install-lean.sh
 
