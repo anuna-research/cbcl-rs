@@ -495,10 +495,19 @@ pub fn parse_state_bounds(sexpr: &SExpr) -> Result<StateBounds, String> {
         }
         seen.push(name.clone());
         match name.as_str() {
-            "max-string" => b.max_string = n as u32,
-            "max-list" => b.max_list = n as u32,
+            "max-string" => {
+                b.max_string = u32::try_from(n)
+                    .map_err(|_| alloc::format!("bound {name} exceeds unsigned 32-bit range"))?;
+            }
+            "max-list" => {
+                b.max_list = u32::try_from(n)
+                    .map_err(|_| alloc::format!("bound {name} exceeds unsigned 32-bit range"))?;
+            }
             "max-number" => b.max_number = n,
-            "max-fields" => b.max_fields = n as u32,
+            "max-fields" => {
+                b.max_fields = u32::try_from(n)
+                    .map_err(|_| alloc::format!("bound {name} exceeds unsigned 32-bit range"))?;
+            }
             other => return Err(alloc::format!("unknown bound '{other}'")),
         }
     }

@@ -1,3 +1,4 @@
+import LeanCbcl.StateInstalledBounds
 import LeanCbcl.StateInstalledRecognition
 import LeanCbcl.StateFiniteRead
 import LeanCbcl.StateInstalledResource
@@ -83,7 +84,8 @@ def metadataCheck (environment : Environment) (entries : List Entry) : Bool :=
   let names := declaredNames entries
   let fields := entries.filter (fun entry => match entry with | .field .. | .threshold .. => true | _ => false)
   names.all nameCheck && decide names.Nodup && !fields.isEmpty &&
-    decide (fields.length ≤ environment.profile.definition.bounds.maxFields)
+    decide (fields.length ≤ environment.profile.definition.bounds.maxFields) &&
+    StateInstalledBounds.check environment.profile.definition.bounds
 
 /-- Extract raw field metadata over the whole clause, before domain resolution. -/
 def rawFields (entries : List Entry) : List (String × Rule) :=

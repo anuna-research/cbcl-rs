@@ -244,6 +244,19 @@ theorem freeze_origin (environment : Environment) (bindings : List (String × Bi
       cases same
       exact ⟨binding,found,rfl,original⟩
 
+/-- Actual authored preparation establishes the native positive/default-bound
+installation gate before constructing source metadata or finite tables. -/
+theorem prepared_bounds (environment : Environment) (entries : List Entry) (prepared : Prepared)
+    (accepted : prepareStatic environment entries = some prepared) :
+    StateInstalledBounds.check environment.profile.definition.bounds = true := by
+  have checked : metadataCheck environment entries = true := by
+    by_cases result : metadataCheck environment entries = true
+    · exact result
+    · have absent : lowerStatic environment entries = none := by simp [lowerStatic,result]
+      simp [prepareStatic,absent] at accepted
+  simp only [metadataCheck,Bool.and_eq_true] at checked
+  exact checked.2
+
 /-- Authored namespace validation supplies uniqueness of original source names. -/
 theorem prepared_raw_unique (environment : Environment) (entries : List Entry) (prepared : Prepared)
     (accepted : prepareStatic environment entries = some prepared) : ((rawFields entries).map Prod.fst).Nodup := by
@@ -254,7 +267,7 @@ theorem prepared_raw_unique (environment : Environment) (entries : List Entry) (
       simp [prepareStatic,absent] at accepted
   have parts := checked
   simp only [metadataCheck,Bool.and_eq_true,decide_eq_true_eq] at parts
-  exact (raw_names_sublist entries).nodup parts.1.1.2
+  exact (raw_names_sublist entries).nodup parts.1.1.1.2
 
 /-- Freeze targets of original finite fields recover the exact factory field,
 source-owned definition and authored dependency footprint from preparation. -/

@@ -215,6 +215,8 @@ authored_tests = (root / "lean-cbcl/LeanCbcl/StateAuthoredBindingsTests.lean").r
 authored_tests = "\n".join(line for line in authored_tests.splitlines() if not line.startswith("import "))
 suites.extend([
     ("StateAuthoredBindings", (root / "lean-cbcl/LeanCbcl/StateAuthoredBindings.lean").read_text() + "\n" + authored_tests, [
+        ("authored-native-bounds-gate-bypassed", "StateInstalledBounds.check environment.profile.definition.bounds",
+         "true", "invalid_bounds_rejected"),
         ("authored-preparation-guard-bypassed", "(lowerStatic environment entries).filter preparedCheck", "lowerStatic environment entries", "static_preparation_sound"),
         ("authored-preparation-rejects-all", "decide (StateInstalledLowering.ValidMetadata (clauseAt prepared [])) &&\n    StateInstalledRecognition.check [] [] prepared.declarations", "false", "preparation_preserves_compilation"),
         ("authored-freeze-contributors-use-empty-history", "contributes resolvedDomains history template.footprint", "contributes resolvedDomains [] template.footprint", "materialized_progress_contributor"),
@@ -674,6 +676,23 @@ suites.append(("StateFiniteReadCacheTests", (root / "lean-cbcl/LeanCbcl/StateFin
      "diagnostic field [.bool true,.int 1] = some (some (0,1,.duplicate)) := by decide", "decoded_equality_not_duplicate"),
     ("finite-read-cache-loses-duplicate-precedence", "diagnostic field [.int 0,.int 0] = some (some (0,1,.duplicate)) := by decide",
      "diagnostic field [.int 0,.int 0] = some (some (0,1,.compatible)) := by decide", "duplicate_first"),
+]))
+
+suites.append(("StateInstalledBounds", (root / "lean-cbcl/LeanCbcl/StateInstalledBounds.lean").read_text(), [
+    ("installed-bounds-list-default-raised", "def defaults : Bounds := ⟨32,64,1000000000000,2048⟩",
+     "def defaults : Bounds := ⟨32,65,1000000000000,2048⟩", "check_iff"),
+    ("installed-bounds-zero-accepted", "decide (0 < bounds.maxString ∧ 0 < bounds.maxList ∧ 0 < bounds.maxNumber ∧ 0 < bounds.maxFields)",
+     "decide (0 < bounds.maxString ∧ 0 ≤ bounds.maxList ∧ 0 < bounds.maxNumber ∧ 0 < bounds.maxFields)", "check_iff"),
+]))
+suites.append(("StateFiniteIndexBounds", (root / "lean-cbcl/LeanCbcl/StateFiniteIndexBounds.lean").read_text(), [
+    ("finite-table-offset-next-column", "(UInt32.ofNat left.val * UInt32.ofNat verified.table.elements.length + UInt32.ofNat right.val).toNat =",
+     "(UInt32.ofNat left.val * UInt32.ofNat verified.table.elements.length + UInt32.ofNat (right.val+1)).toNat =", "offset32"),
+    ("finite-table-offset-wrong-stride", "(UInt64.ofNat left.val * UInt64.ofNat verified.table.elements.length + UInt64.ofNat right.val).toNat =",
+     "(UInt64.ofNat left.val * UInt64.ofNat (verified.table.elements.length+1) + UInt64.ofNat right.val).toNat =", "offset64"),
+    ("finite-table-vector-count-corrupted", "(denseRows table).length = table.elements.length * table.elements.length := by",
+     "(denseRows table).length = table.elements.length * table.elements.length + 1 := by", "dense_length"),
+    ("finite-table-pair-index-skips", "(UInt32.ofNat index + 1).toNat = index+1 := by",
+     "(UInt32.ofNat index + 2).toNat = index+1 := by", "next32"),
 ]))
 
 # Preserve the full default gate while allowing a focused continuation check.

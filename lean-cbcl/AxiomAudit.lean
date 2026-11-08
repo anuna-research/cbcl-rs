@@ -1,3 +1,4 @@
+import LeanCbcl.StateInstalledBoundsTests
 import LeanCbcl.StateFiniteReadCacheTests
 import LeanCbcl.StateAuthoredResourceTests
 import LeanCbcl.StateAuthoredProgressTests
@@ -2711,3 +2712,38 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateFiniteReadCacheTests.top_rejected
 #print axioms CBCL.StateFiniteReadCacheTests.oversized_rejected
 #print axioms CBCL.StateFiniteReadCacheTests.wrapped_policy_rejects
+
+#print axioms CBCL.StateInstalledBounds.check_iff
+#print axioms CBCL.StateInstalledBounds.native_gate_refinement
+#print axioms CBCL.StateInstalledBounds.list_bound
+
+#print axioms CBCL.StateFiniteIndexBounds.carrier_bound
+#print axioms CBCL.StateFiniteIndexBounds.flat_bound
+#print axioms CBCL.StateFiniteIndexBounds.square_bound
+#print axioms CBCL.StateFiniteIndexBounds.word_bounds
+#print axioms CBCL.StateFiniteIndexBounds.offset32
+#print axioms CBCL.StateFiniteIndexBounds.offset64
+#print axioms CBCL.StateFiniteIndexBounds.dense_length
+#print axioms CBCL.StateFiniteIndexBounds.range_lookup
+#print axioms CBCL.StateFiniteIndexBounds.dense_lookup
+#print axioms CBCL.StateFiniteIndexBounds.dense_lookup32
+#print axioms CBCL.StateFiniteIndexBounds.dense_lookup64
+#print axioms CBCL.StateFiniteIndexBounds.next_index
+#print axioms CBCL.StateFiniteIndexBounds.next32
+#print axioms CBCL.StateFiniteIndexBounds.next64
+
+#print axioms CBCL.StateInstalledBoundsTests.defaults_accepted
+#print axioms CBCL.StateInstalledBoundsTests.tightening_accepted
+#print axioms CBCL.StateInstalledBoundsTests.larger_list_rejected
+#print axioms CBCL.StateInstalledBoundsTests.zero_list_rejected
+#print axioms CBCL.StateInstalledBoundsTests.larger_fields_rejected
+#print axioms CBCL.StateInstalledBoundsTests.negative_number_rejected
+#print axioms CBCL.StateInstalledBoundsTests.larger_string_rejected
+#print axioms CBCL.StateInstalledBoundsTests.maximum_offset32
+#print axioms CBCL.StateInstalledBoundsTests.maximum_offset64
+#print axioms CBCL.StateInstalledBoundsTests.final_next32
+#print axioms CBCL.StateInstalledBoundsTests.final_next64
+
+#print axioms CBCL.StateAuthoredSourceProvenance.prepared_bounds
+
+#print axioms CBCL.StateAuthoredBindingsTests.invalid_bounds_rejected

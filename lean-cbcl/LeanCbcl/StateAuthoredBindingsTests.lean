@@ -12,7 +12,7 @@ def environment (context : StateKernelSEC.Context) : Environment := {
   context := context
   profile := {
     definition := ⟨"review","dialect-address","body-address",some "@author",
-      [⟨"chair",false⟩,⟨"reviewer",true⟩],⟨64,64,1000000,4096⟩,some "open"⟩
+      [⟨"chair",false⟩,⟨"reviewer",true⟩],⟨32,64,1000000,2048⟩,some "open"⟩
     metadata := fun _ => ⟨some "thread",.absent,.absent⟩
     address := fun _ => "act" }
   schema := ⟨["open","vote","close","mark"],
@@ -31,7 +31,7 @@ def review : List Entry := [
 
 theorem rendered_bound_counts_thresholds (context : StateKernelSEC.Context) :
     metadataCheck {environment context with profile := { (environment context).profile with
-      definition := { (environment context).profile.definition with bounds := ⟨3,64,1000000,4096⟩ } }} review = false := by rfl
+      definition := { (environment context).profile.definition with bounds := ⟨3,64,1000000,2048⟩ } }} review = false := by rfl
 
 theorem lattice_and_field_namespace_shared (context : StateKernelSEC.Context) :
     metadataCheck (environment context) [.field "phase" (.legacy (.count "mark")),
@@ -125,5 +125,11 @@ theorem supersede_threshold_preparation_rejected (context : StateKernelSEC.Conte
 theorem empty_threshold_preparation_rejected (context : StateKernelSEC.Context) :
     (prepareStatic (environment context)
       [.field "votes" (.legacy (.count "vote")),.threshold "enough" "votes" []]).isNone = true := by rfl
+
+/-- R7 bound validation precedes even a simple non-finite source. -/
+theorem invalid_bounds_rejected (context : StateKernelSEC.Context) :
+    prepareStatic {environment context with profile := { (environment context).profile with
+      definition := { (environment context).profile.definition with bounds := ⟨32,65,1000000000000,2048⟩ } }}
+      [.field "votes" (.legacy (.count "vote"))] = none := by rfl
 
 end CBCL.StateAuthoredBindingsTests

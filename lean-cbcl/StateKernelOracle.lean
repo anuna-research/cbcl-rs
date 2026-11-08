@@ -98,6 +98,7 @@ def validateHistory (history : List Act) : Check Unit := do
   return ()
 
 structure Input where
+  limit : Nat
   definition : Definition
   declaration : CBCL.StateInstalledFinite.Declaration
   queries : Option (List Val)
@@ -105,6 +106,10 @@ structure Input where
   freeze : Option Bool
 
 def input (j : Json) : Check Input := do
+  let limit ← match j.getObjVal? "max-list" with
+    | .error _ => pure 64
+    | .ok value => value.getNat?
+  if limit > 2^32-1 then throw "max-list exceeds native u32 range"
   let definition ← table (← j.getObjVal? "table")
   let rows ← (← array (← j.getObjVal? "contributions")).mapM contribution
   let projection ← projection (← j.getObjVal? "projection")
@@ -116,14 +121,15 @@ def input (j : Json) : Check Input := do
     | .ok .null => pure none
     | .ok value => value.getBool?.map some
   validateHistory history
-  return ⟨definition,⟨"mark",rows,projection⟩,queries,history,freeze⟩
+  return ⟨limit,definition,⟨"mark",rows,projection⟩,queries,history,freeze⟩
 
 def schema : CBCL.StateInstalledDomains.Schema :=
   ⟨["mark"],[(("mark","phase"),.string),(("mark","amount"),.number),(("mark","flag"),.boolean)]⟩
 
 def evaluate (request : Input) : Json := Id.run do
   let rejected := Json.mkObj [("installed",.bool false)]
-  let some verified := CBCL.StateFiniteTable.compile 64 request.definition | return rejected
+  if !CBCL.StateInstalledBounds.check ⟨32,request.limit,1000000000000,2048⟩ then return rejected
+  let some verified := CBCL.StateFiniteTable.compile request.limit request.definition | return rejected
   let some field := make schema verified [] request.declaration | return rejected
   if request.queries.any (fun qs => !CBCL.StateFiniteReadCache.check field qs) then return rejected
   let current := state field request.history

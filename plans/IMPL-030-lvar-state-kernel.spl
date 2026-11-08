@@ -1177,3 +1177,25 @@
 ;; diagnostics and allocation/runtime cost are not inferred from typed caches.
 ;; Full native install/metadata/admission/mutable reader/wire/renderer boundaries
 ;; remain required; this checkpoint does not establish full SPEC-038 completion.
+
+;; Installed bounds / finite machine-index checkpoint (REQ-3810 / TEST-3806).
+;; BUG-008: authored metadata gate omitted native positive/default-tightening
+;; bounds validation. Four-element table under max-list65 exposed Lean/Rust
+;; disagreement; StateInstalledBounds now models exact native rejection predicate,
+;; preparation derives bounds validity, finite oracle admits configured limits.
+;; Earlier suspected wrong 64-element cap was disproved by native R7 rejection;
+;; retain the cap. Correct old synthetic fixtures that exceeded other defaults.
+;; BUG-009: strict parser cast positive i64 to u32, accepting 2^32+default via
+;; wraparound. Checked conversions now reject oversized list/fields/string values.
+;; Actual strict-wire regression covers all three; restoring max-list truncation
+;; makes it fail. Native R7 guard-bypass mutant fails live Lean comparison.
+;; StateFiniteIndexBounds proves dense row-major length/lookup and UInt32/UInt64
+;; offset arithmetic under checked carrier bound; successor proofs retain explicit
+;; physical query-length premise. Query alternatives are not capped at64 by this.
+;; Verification: aggregate build, env-linter, 1843 allowlisted theorem audits;
+;; 191 selected native tests; all six live oracle suites at512 cases/seed380038;
+;; 14 focused proof mutants rejected. Verified-by/diff checks pass. Vault comparison
+;; adds no unresolved source/target pairs; syntax/SPL diagnostics remain empty.
+;; Remaining: literal Rust installation/cache extraction, metadata/admission,
+;; general repeat bodies, mutable reader, strict wire/renderer correspondence,
+;; formatted diagnostics, allocation/runtime costs. No full completion asserted.

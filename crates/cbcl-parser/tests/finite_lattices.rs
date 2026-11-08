@@ -210,6 +210,17 @@ fn projection_stability_is_verified_and_snapshot_projection_stays_available() {
     );
 }
 
+// SPEC-038 installation correspondence: a wire bound must not wrap into a
+// smaller native bound before R7 checks it against the defaults.
+#[test]
+fn oversized_state_bounds_do_not_wrap_into_defaults() {
+    for (name, wrapped_default) in [("max-list", 64u64), ("max-fields", 32), ("max-string", 2048)] {
+        let oversized = (1u64 << 32) + wrapped_default;
+        let dialect = source(3, "", "").replace("(state", &format!("(:state-bounds ({name} {oversized})) (state"));
+        assert!(install(&dialect).is_err(), "{name}={oversized} wrapped into {wrapped_default}");
+    }
+}
+
 #[test]
 fn element_count_is_bounded_and_a_64_element_lattice_installs() {
     let bounded = source(4, "", "").replace("(state", "(:state-bounds (max-list 3)) (state");

@@ -1184,8 +1184,34 @@ Proof fixtures cover scalar-kind identity versus admission, undecodable names
 and false booleans, duplicate/compatible precedence, a later rejected pair,
 negative thresholds, empty alternatives, top and signed-range rejection.
 These close the typed reads-cache/ref-checker and policy integration gaps.
-They do not prove literal Rust extraction, `usize` arithmetic/representation,
-formatted native diagnostics or allocation/runtime cost correspondence.
+They do not prove literal Rust extraction, formatted native diagnostics or
+allocation/runtime cost correspondence.
+
+`StateInstalledBounds.lean` recognizes the actual R7 positive/default-tightening
+bounds and proves equality with its disjunctive rejection conditions. The gate
+now precedes actual typed authored preparation, and `prepared_bounds` derives
+its success from compilation. The finite oracle carries the configured list
+bound and checks this gate before table validation. A four-element table under
+`max-list = 65` previously exposed a Lean/native installation mismatch; zero,
+over-default and configured element-count limits are now compared explicitly.
+The carrier cap remains 64: native R7 rejects increasing the list default.
+A hypothesis that the cap was itself incorrect was disproved before changing it.
+The authored fixture previously using over-default field/string bounds now uses
+native defaults; its field-count rejection fixture still violates only field count.
+
+The same audit found native wire bounds cast from positive `i64` to `u32`
+without a range check. Values 2^32 plus a default wrapped into an accepted
+bound. Checked parser conversion now rejects those literals for `max-list`,
+`max-fields` and `max-string`, with a strict parser/installer regression.
+`StateFiniteIndexBounds.lean` proves the installed dense row-major join vector
+has exactly the square carrier length, that each offset reads the original join
+result, and that the offset is below 4096. Actual UInt32 and UInt64 arithmetic
+therefore yields the exact same table offset and lookup. Pair-loop increment
+proofs separately require physical query-slice length: logical alternatives are
+not assumed bounded by the carrier size. These establish the stated 32/64-bit
+arithmetic layer, not full Rust source extraction or arbitrary unvalidated public
+table construction. Native diagnostic formatting and allocation/runtime cost
+correspondence remain separate obligations.
 
 `StateInstalledRecognition.lean` proves exact lowerer acceptance from the
 modeled metadata, source policy and backward-reference checks. Authored

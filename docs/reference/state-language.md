@@ -255,8 +255,10 @@ does not establish their finality. See [bounded counters](../concepts/bounded-co
 certification, and recovery contracts.
 
 The separate dialect clause `(:state-bounds (max-string n) (max-list n)
-(max-number n) (max-fields n))` sets positive bounds. Options may be omitted to
-use defaults; unknown or duplicate bounds reject.
+(max-number n) (max-fields n))` can tighten the defaults: 2048 for strings,
+64 for lists, 10^12 for numbers and 32 for fields. Every bound must be positive
+and no greater than its default. Options may be omitted to use defaults;
+unknown, duplicate and out-of-range bounds reject.
 
 ## Contracts and implementation status
 

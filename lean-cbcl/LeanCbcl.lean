@@ -289,3 +289,5 @@ import LeanCbcl.StateAuthoredProgressTests
 import LeanCbcl.StateAuthoredResourceTests
 
 import LeanCbcl.StateFiniteReadCacheTests
+
+import LeanCbcl.StateInstalledBoundsTests
