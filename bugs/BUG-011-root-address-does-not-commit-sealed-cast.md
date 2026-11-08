@@ -65,7 +65,8 @@ capture; the production test suite is not left failing.
 ## Concrete repair proposal and compatibility evidence
 
 `bugs/BUG-011-root-cast-identity-proposal.patch` is a review-only patch, not
-applied production code. It hashes the outermost sealed wrapper for role roots,
+applied production code. It is a zero-context review patch; validate applicability
+with `git apply --unidiff-zero --check` before applying it. It hashes the outermost sealed wrapper for role roots,
 updates both construction and identity validation, and adds a root commitment
 regression. Nonroot and role-free hashing policies remain unchanged. Reissuing
 messages with new root/predecessor references can change descendant addresses

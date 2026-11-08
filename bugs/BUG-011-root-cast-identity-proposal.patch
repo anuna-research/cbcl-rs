@@ -1,38 +1,18 @@
-diff --git a/crates/cbcl-core/src/state.rs b/crates/cbcl-core/src/state.rs
-index 53b2e98..cffe9d9 100644
 --- a/crates/cbcl-core/src/state.rs
 +++ b/crates/cbcl-core/src/state.rs
-@@ -485,7 +485,7 @@ pub fn opener_verb(protocol: &CausalProtocol) -> Option<&str> {
- #[derive(Debug, Clone, PartialEq, Eq)]
- #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
- pub struct Act {
+@@ -488 +488 @@
 -    /// `message_content_hash` of the innermost simple message.
 +    /// Sealed-root wrapper hash for role roots; innermost simple hash otherwise.
-     pub address: String,
-     pub verb: String,
-     pub signer: String,
-@@ -520,7 +520,7 @@ impl Act {
-             .map(String::from)
-             .collect();
-         let fields = keyword_fields(simple);
+@@ -523 +523 @@
 -        let address = wire_address(simple);
 +        let address = wire_address(state_identity_message(&message, simple));
-         Ok(Act {
-             address,
-             verb,
-@@ -570,7 +570,7 @@ impl Act {
-                 .all(|(k, v)| self.fields.get(k) == Some(v));
-         let recipients = simple.recipient_set();
-         let recipients_match = self.recipients.iter().map(String::as_str).eq(recipients);
+@@ -573 +573 @@
 -        let address = wire_address(simple);
 +        let address = wire_address(state_identity_message(&self.message, simple));
-         if self.address != address
-             || self.verb != verb.name()
-             || !predecessors_match
-@@ -590,6 +590,24 @@ impl Act {
-     }
- }
- 
+@@ -589,0 +590,18 @@
++    }
++}
++
 +// REVIEW PROPOSAL ONLY: changes existing role-root addresses.
 +// Commit the outermost sealed nomination for causal roots, retaining ordinary
 +// business-act and role-free addresses. Authentication remains host-supplied.
@@ -48,20 +28,9 @@ index 53b2e98..cffe9d9 100644
 +            Message::Dialect { inner, .. } => current = inner,
 +            _ => return simple,
 +        }
-+    }
-+}
-+
- /// The content address of an act as it is spelled on the wire:
- /// `sha256-<64 lowercase hex>`. The digest is `message_content_hash`'s
- /// (SPEC-017); the separator differs because the wire lexer reads `:` as
-diff --git a/crates/cbcl-parser/tests/state_context.rs b/crates/cbcl-parser/tests/state_context.rs
-index 02a8a1d..b16d880 100644
 --- a/crates/cbcl-parser/tests/state_context.rs
 +++ b/crates/cbcl-parser/tests/state_context.rs
-@@ -425,3 +425,20 @@ fn domain_roster_root_outside_cut_is_retained_as_freeze_support() {
-     assert_eq!(after["quorum"]["status"], "fault");
-     assert_eq!(after["quorum"]["evidence"], json!(evidence));
- }
+@@ -427,0 +428,17 @@
 +
 +#[test]
 +fn sealed_cast_root_identity_commits_roster() {
