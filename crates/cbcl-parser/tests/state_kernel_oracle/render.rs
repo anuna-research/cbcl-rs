@@ -83,6 +83,11 @@ fn native_json_bytes_match_lean() {
 // Address aliases deliberately exercise arbitrary UTF-8 ordering below admission;
 // this profile makes no claim about content-hash identity or root-cast binding.
 fn native_fault(case: &Value) -> Value {
+    let result = std::panic::catch_unwind(|| native_fault_unchecked(case));
+    assert!(result.is_ok(), "native fault fold panicked; case={case}");
+    result.unwrap()
+}
+fn native_fault_unchecked(case: &Value) -> Value {
     use cbcl_core::state::{Entry, FreezePolicy, Rule, StateClause};
     let clause = StateClause { entries: vec![
         Entry::Field { name: "observed".into(), rule: Rule::Count { verb: "tick".into() } },

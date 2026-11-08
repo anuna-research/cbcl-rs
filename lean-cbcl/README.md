@@ -721,9 +721,8 @@ Word scratch destination decoding, updates and complete readback refine the
 Nat-array execution, including source multiplicities. A checked implementation
 preserves the full generic input semantics and composes to the established radix
 sort. The oracle explicitly executes `wordSort`, confirmed in generated C.
-Lean array/control indices and loops remain Nat-based. Source-pool extraction
-is established below; native control-loop and literal Rust correspondence are
-still open.
+Source-pool extraction and word-index iteration are refined below. The outer
+digit-range producer and literal Rust correspondence remain open.
 
 
 `StateAddressPool` models the destructive `Option::take` address move loop.
@@ -733,4 +732,19 @@ Duplicate address strings in distinct source slots are preserved until adjacent
 deduplication. Concrete finite-pool sorting, moves, deduplication and JSON now
 refine canonical fault bytes without an externally supplied total address
 callback or pool certificate. The oracle executes that complete path directly.
-Machine control-loop and literal Rust correspondence remain open.
+The word-index/prefix bridge is established below; outer digit-range generation
+and literal Rust correspondence remain open.
+
+
+`StateAddressControl` iterates over actual `USize` source indices and writes the
+original word index to scratch. It proves byte-bucket conversion, decoded-index
+iteration and in-place prefix updates at word positions `1 ≤ k < 257`. Safe
+predecessor subtraction and the fixed 257-slot table refine the previous word
+prefix semantics. Complete `controlSort` equals the established radix path, and
+the source-pool oracle executes it directly, confirmed in generated C. The outer
+digit-range producer and literal Rust correspondence remain open.
+
+The Elephant plan separately requires `lean-ci-green` before `docs-status` can
+mark SPEC-038 implemented. CI evidence must identify the tested revision and be
+rechecked after relevant pushes; passing local proof gates does not establish CI
+success.

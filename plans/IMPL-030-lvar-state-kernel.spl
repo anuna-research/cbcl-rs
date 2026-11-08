@@ -122,7 +122,7 @@
 (given (task docs-status))
 (given (task-description docs-status "Update docs/concepts/bounded-counter.md and hlc-registers.md with the term reading of each head and the snapshot/threshold/frozen vocabulary; set SPEC-038 status to implemented; zetl check clean."))
 (given (task-acceptance docs-status "zetl check --dead-links --fail-on error clean; SPEC-038 status implemented with verified-by annotations reconciled to what landed; docs and rustdoc use the SPEC-038 Vocabulary (lift, display, LVar, put, threshold, frozen, snapshot, stable) with fold retained only as the API name."))
-(normally r-ready-docs-status (and (task docs-status) (completed snapshot-marking) (completed user-lattices) (completed lean-quasi-determinism) (completed semantic-alignment) (completed context-map) (completed root-cast-identity-contract)) (ready docs-status))
+(normally r-ready-docs-status (and (task docs-status) (completed snapshot-marking) (completed user-lattices) (completed lean-quasi-determinism) (completed semantic-alignment) (completed context-map) (completed root-cast-identity-contract) (completed lean-ci-green)) (ready docs-status))
 (meta r-ready-docs-status (source "SPEC-038-lvar-state-kernel#REQ-3807"))
 
 (given (task context-map))
@@ -1591,3 +1591,38 @@
 ;; rejected. Allowlisted audit passes2082 theorems; verified-by/diff checks pass.
 ;; CI status is not claimed green: latest Lean job277 failed6s and its current
 ;; step log remains pending. No production Rust algorithm/identity change here.
+
+;; The reported CI failure is an explicit required completion gate. Current
+;; runner log remains pending; local proof checks do not replace PR CI evidence.
+(given (task lean-ci-green))
+(given (task-description lean-ci-green "Resolve the PR Lean job failing before the proof build; identify the current failing step from runner logs, fix the failure without suppressing installation/build/lint/audit checks, and verify the latest pushed revision."))
+(given (task-acceptance lean-ci-green "TEST-3806: the latest PR revision reports success for the required Lean install, build, oracle, env-linter and axiom-audit job. Root cause and applicable regression evidence are recorded; no continue-on-error masks required checks."))
+(given (no-deps lean-ci-green))
+(normally r-ready-lean-ci-green (and (task lean-ci-green) (no-deps lean-ci-green)) (ready lean-ci-green))
+(meta r-ready-lean-ci-green (source "SPEC-038-lvar-state-kernel#TEST-3806"))
+
+;; Word-index/prefix control continuation: StateAddressControl proves actual
+;; USize source-index count/scatter iteration equals the decoded-index loops,
+;; retaining word identity. prefixStep updates next[k] from next[k-1]+counts[k-1]
+;; at word positions1≤k<257; safe subtraction, table size and each processed
+;; prefix entry refine the prior word-prefix array. Ascending iteration and full
+;; table equality compose to controlSort/wordSort equality; source-pool indices
+;; execute controlSort directly, confirmed in C. Six proof mutations reject key,
+;; count, source-index, predecessor, target-slot and prefix-order changes.
+;; The live profile catches native fold panics and asserts the valid input must
+;; render. The first native mutation run executed that guard but the runner's
+;; text classifier missed Rust custom assert messages; classification now accepts
+;; only this named guard text for the fault test, with nonzero status and the
+;; exact executed test FAILED marker still mandatory. Fresh review confirms this
+;; does not accept compile/import failures. Outer digit-range/literal Rust and
+;; wider SPEC-038 proof ports remain open.
+;; Clean-store plan readiness/provenance checks pass: docs-status waits for each
+;; of context-map, semantic-alignment, root contract and lean-ci-green when that
+;; prerequisite is independently omitted. It becomes ready with all seven
+;; prerequisites completed. Independent plan review passes. CI evidence must be
+;; revision-bound and reconsidered after relevant pushes; no CI completion fact
+;; has been asserted while the current error log remains pending.
+;; Final control checkpoint: all nine live suites pass512 cases/seed380038
+;; in16.43s, six proof mutants and seven native prefix/pool/radix mutants reject.
+;; Full allowlisted audit passes2099 theorems; verified-by/diff checks pass. No
+;; CI success/completion is asserted; local evidence is distinct from that gate.

@@ -49,6 +49,8 @@ with tempfile.TemporaryDirectory(prefix="cbcl-live-oracle-") as directory:
                               text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=300)
 
     mutants = [
+        ("radix-prefix-control-order-reversed", "state.rs", "for k in 1..257 {", "for k in (1..257).rev() {", fault_test),
+        ("radix-prefix-control-count-index-shifted", "state.rs", "next[k - 1] + counts[k - 1]", "next[k - 1] + counts[k]", fault_test),
         ("fault-source-pool-order-reversed", "state.rs", "addresses.extend(order.into_iter().map(|i| values[i].take().unwrap()));", "addresses.extend(order.into_iter().rev().map(|i| values[i].take().unwrap()));", fault_test),
         ("fault-source-pool-address-altered", "state.rs", "values[i].take().unwrap()", 'values[i].take().unwrap() + "x"', fault_test),
         ("oracle-transport-failure-not-poisoned", "state_kernel_oracle.rs", "self.healthy = false;", "self.healthy = true;", transport_test),
@@ -108,7 +110,11 @@ with tempfile.TemporaryDirectory(prefix="cbcl-live-oracle-") as directory:
             result = run(test)
         finally:
             path.write_text(source)
-        assertion = "assertion" in result.stdout or (test == admission_test and "ambiguous amount admitted:" in result.stdout)
+        # Rust assert! with a custom message omits the word "assertion".
+        # Recognize only the named guard, after requiring this test to execute.
+        assertion = ("assertion" in result.stdout
+                     or (test == admission_test and "ambiguous amount admitted:" in result.stdout)
+                     or (test == fault_test and "native fault fold panicked; case=" in result.stdout))
         if result.returncode == 0 or f"test {test} ... FAILED" not in result.stdout or not assertion:
             print(result.stdout)
             raise SystemExit(f"FAIL: {name} not rejected by executed regression assertion")

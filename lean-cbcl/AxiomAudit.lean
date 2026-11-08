@@ -1,3 +1,4 @@
+import LeanCbcl.StateAddressControl
 import LeanCbcl.StateAddressPool
 import LeanCbcl.StateAddressWords
 import LeanCbcl.StateAddressArrayScatter
@@ -3018,3 +3019,21 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateAddressPool.sortPool_refinement
 #print axioms CBCL.StateAddressPool.canonical_output
 #print axioms CBCL.StateAddressPool.faultBytes_refinement
+
+#print axioms CBCL.StateAddressControl.key_exact
+#print axioms CBCL.StateAddressControl.countsIndex_refinement
+#print axioms CBCL.StateAddressControl.stepIndex_refinement
+#print axioms CBCL.StateAddressControl.runIndex_refinement
+#print axioms CBCL.StateAddressControl.prefix_position
+#print axioms CBCL.StateAddressControl.prefixLoop_size
+#print axioms CBCL.StateAddressControl.prefixesWord_size
+#print axioms CBCL.StateAddressControl.prefixLoop_observation
+#print axioms CBCL.StateAddressControl.prefixLoop_fold
+#print axioms CBCL.StateAddressControl.prefixNative_refinement
+#print axioms CBCL.StateAddressControl.index_roundtrip
+#print axioms CBCL.StateAddressControl.encoded_bounds
+#print axioms CBCL.StateAddressControl.initialNative_refinement
+#print axioms CBCL.StateAddressControl.passNative_refinement
+#print axioms CBCL.StateAddressControl.checkedNativePass_refinement
+#print axioms CBCL.StateAddressControl.controlSort_refinement
+#print axioms CBCL.StateAddressPool.control_pool_bound

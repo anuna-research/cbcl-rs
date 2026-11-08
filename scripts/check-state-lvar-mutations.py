@@ -822,6 +822,15 @@ suites.append(("StateAddressPool", (root / "lean-cbcl/LeanCbcl/StateAddressPool.
     ("radix-pool-move-first-slot-dropped", "(takeMany (source.map some) (indices source)).map Prod.fst", "(takeMany (source.map some) (indices source).tail).map Prod.fst", "sortPool_refinement"),
 ]))
 
+suites.append(("StateAddressControl", (root / "lean-cbcl/LeanCbcl/StateAddressControl.lean").read_text(), [
+    ("radix-control-bucket-offset-changed", "USize.ofNat (key index.toNat)", "USize.ofNat (key index.toNat + 1)", "key_exact"),
+    ("radix-control-count-increment-doubled", "current.modify (key index).toNat (·+1)", "current.modify (key index).toNat (·+2)", "countsIndex_refinement"),
+    ("radix-control-scratch-index-changed", "state.scratch.setIfInBounds destination index", "state.scratch.setIfInBounds destination (index+1)", "stepIndex_refinement"),
+    ("radix-control-prefix-predecessor-reversed", "let previous := (position-1).toNat", "let previous := (position+1).toNat", "prefixLoop_observation"),
+    ("radix-control-prefix-target-shifted", "next.setIfInBounds position.toNat", "next.setIfInBounds (position.toNat+1)", "prefixLoop_observation"),
+    ("radix-control-prefix-order-reversed", "((List.range 256).map (fun index => USize.ofNat (index+1)))", "((List.range 256).reverse.map (fun index => USize.ofNat (index+1)))", "prefixNative_refinement"),
+]))
+
 # Preserve the full default gate while allowing a focused continuation check.
 import argparse
 parser = argparse.ArgumentParser(description=__doc__)

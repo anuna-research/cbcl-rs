@@ -304,3 +304,12 @@ through word sorting, destructive checked moves, normalization and exact JSON.
 The source-pool callback boundary is discharged in this model: no caller supplies
 lookup success, an output permutation or an ordering certificate. Native control
 indices/loops and literal Rust correspondence remain explicit boundaries.
+
+
+`StateAddressControl` refines source-index iteration to USize-valued count/scatter
+loops and performs native in-place prefix updates at positions 1–256. Its table
+and subtraction proofs compose to `controlSort`, which the finite source-pool
+sorter now calls directly. Outer digit-range generation and literal Rust
+correspondence remain open. The live native profile asserts that valid fold
+inputs do not panic, so malformed prefix-index mutations fail an executed
+assertion as well as ordering/equality mutants.
