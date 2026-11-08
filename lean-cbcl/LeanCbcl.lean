@@ -319,3 +319,5 @@ import LeanCbcl.StateAddressTables
 import LeanCbcl.StateAddressArrayScatter
 
 import LeanCbcl.StateAddressWords
+
+import LeanCbcl.StateAddressPool

@@ -693,8 +693,8 @@ this implementation in compiled oracle code; generated C confirms that call.
 The byte-key guard recognizes the finite domain, while generic keys and
 out-of-table observations retain the original semantics. The live seeded
 512-case campaign passes without changing its cases or response deadline.
-The finite scratch-array bridge is established below; native `usize`/pool
-and literal Rust correspondence remain open.
+Finite scratch/word arrays and source-pool extraction are established below;
+native control-loop and literal Rust correspondence remain open.
 
 The Rust oracle harness poisons a session before each request and restores it
 only after a complete JSON reply. Timeout/disconnection kills the child; later
@@ -709,8 +709,8 @@ bound; out-of-bounds no-op behavior is not used to justify writes. Readback
 therefore preserves input multiplicities and composes to the complete radix
 semantics for arbitrary initial scratch contents of the required length. The
 oracle explicitly calls this proved array implementation; generated C confirms
-that call. Word-valued array refinement is established below. Native control indices,
-source-pool representation and literal Rust extraction remain separate obligations.
+that call. Word-valued array refinement is established below. Word and source-pool refinement are established below; native control indices
+and literal Rust extraction remain separate obligations.
 
 
 `StateAddressWords` encodes finite Nat arrays into actual `USize` arrays and
@@ -721,5 +721,16 @@ Word scratch destination decoding, updates and complete readback refine the
 Nat-array execution, including source multiplicities. A checked implementation
 preserves the full generic input semantics and composes to the established radix
 sort. The oracle explicitly executes `wordSort`, confirmed in generated C.
-Lean array/control indices and loops remain Nat-based; native control-loop,
-source-pool and literal Rust correspondence are still open.
+Lean array/control indices and loops remain Nat-based. Source-pool extraction
+is established below; native control-loop and literal Rust correspondence are
+still open.
+
+
+`StateAddressPool` models the destructive `Option::take` address move loop.
+Radix permutation supplies every index bound and excludes repeated consumption;
+checked source lookups prove exact returned values and complete pool clearing.
+Duplicate address strings in distinct source slots are preserved until adjacent
+deduplication. Concrete finite-pool sorting, moves, deduplication and JSON now
+refine canonical fault bytes without an externally supplied total address
+callback or pool certificate. The oracle executes that complete path directly.
+Machine control-loop and literal Rust correspondence remain open.

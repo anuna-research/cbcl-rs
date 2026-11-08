@@ -814,6 +814,14 @@ suites.append(("StateAddressWords", (root / "lean-cbcl/LeanCbcl/StateAddressWord
     ("radix-word-source-index-bound-bypassed", "order.all (fun index => index < USize.size)", "true", "checkedWordPass_refinement"),
 ]))
 
+suites.append(("StateAddressPool", (root / "lean-cbcl/LeanCbcl/StateAddressPool.lean").read_text(), [
+    ("radix-pool-lookup-next-slot", "let entry ← pool[index]?", "let entry ← pool[index+1]?", "takeOne_present"),
+    ("radix-pool-invents-address", "return (value,pool.setIfInBounds index none)", 'return (value ++ "x",pool.setIfInBounds index none)', "takeOne_present"),
+    ("radix-pool-slot-not-cleared", "return (value,pool.setIfInBounds index none)", "return (value,pool.setIfInBounds index (some value))", "takeOne_present"),
+    ("radix-pool-move-order-reversed", "(takeMany (source.map some) (indices source)).map Prod.fst", "(takeMany (source.map some) (indices source).reverse).map Prod.fst", "sortPool_refinement"),
+    ("radix-pool-move-first-slot-dropped", "(takeMany (source.map some) (indices source)).map Prod.fst", "(takeMany (source.map some) (indices source).tail).map Prod.fst", "sortPool_refinement"),
+]))
+
 # Preserve the full default gate while allowing a focused continuation check.
 import argparse
 parser = argparse.ArgumentParser(description=__doc__)

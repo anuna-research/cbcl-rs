@@ -1,3 +1,4 @@
+import LeanCbcl.StateAddressPool
 import LeanCbcl.StateAddressWords
 import LeanCbcl.StateAddressArrayScatter
 import LeanCbcl.StateAddressTables
@@ -3005,3 +3006,15 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateAddressWords.wordSort_refinement
 
 #print axioms CBCL.StateAddressWords.byte_digit_exact
+
+#print axioms CBCL.StateAddressPool.takeOne_present
+#print axioms CBCL.StateAddressPool.takeMany_refinement
+#print axioms CBCL.StateAddressPool.fresh_available
+#print axioms CBCL.StateAddressPool.permutation_moves
+#print axioms CBCL.StateAddressPool.word_radix_moves
+#print axioms CBCL.StateAddressPool.source_enumeration
+#print axioms CBCL.StateAddressPool.lookupMany_mapping
+#print axioms CBCL.StateAddressPool.word_pool_bound
+#print axioms CBCL.StateAddressPool.sortPool_refinement
+#print axioms CBCL.StateAddressPool.canonical_output
+#print axioms CBCL.StateAddressPool.faultBytes_refinement

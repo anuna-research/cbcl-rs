@@ -1569,3 +1569,25 @@
 ;; Final word-array checkpoint: all nine live suites pass512 cases/seed380038
 ;; in16.33s; three native radix mutants are rejected. Allowlisted audit passes
 ;;2071 theorems; verified-by/diff checks pass. No production Rust/identity change.
+
+;; Source-pool continuation: StateAddressPool proves checked takeOne and complete
+;; takeMany lookup/frame/cleared-slot semantics. Word radix permutation derives
+;; source bounds, availability and distinct consumption for fresh pool slots.
+;; Universal suffix bounds justify native direct source indexing; enumeration
+;; recovers the original finite source sequence. Concrete sortPool and complete
+;; faultBytes execution refine exact canonical evidence/JSON with no supplied
+;; total-address callback, successful lookup, permutation or sortedness premise.
+;; Oracle evidence occurrences form distinct source slots (duplicate strings
+;; remain separate occurrences), matching the native evidence vector's range
+;; indices. It executes destructive moves rather than remapping shared witness
+;; IDs. Build/env-linter/review pass; five proof mutations are checked against
+;; the earliest relevant take or sort contract. The first mutation run correctly
+;; rejected missing clearing at takeOne_present; its recorded rejection target
+;; was corrected from a downstream theorem that used that invalid lemma.
+;; Native control indices/loops, literal Rust extraction and wider SPEC-038
+;; acceptance ports remain open; CI job277 fails6s with logs still requested.
+;; Final source-pool checkpoint: all nine live suites pass512 cases/seed380038
+;; in11.03s; five pool proof mutants and five native pool/radix mutants are
+;; rejected. Allowlisted audit passes2082 theorems; verified-by/diff checks pass.
+;; CI status is not claimed green: latest Lean job277 failed6s and its current
+;; step log remains pending. No production Rust algorithm/identity change here.

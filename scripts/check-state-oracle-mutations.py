@@ -49,6 +49,8 @@ with tempfile.TemporaryDirectory(prefix="cbcl-live-oracle-") as directory:
                               text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=300)
 
     mutants = [
+        ("fault-source-pool-order-reversed", "state.rs", "addresses.extend(order.into_iter().map(|i| values[i].take().unwrap()));", "addresses.extend(order.into_iter().rev().map(|i| values[i].take().unwrap()));", fault_test),
+        ("fault-source-pool-address-altered", "state.rs", "values[i].take().unwrap()", 'values[i].take().unwrap() + "x"', fault_test),
         ("oracle-transport-failure-not-poisoned", "state_kernel_oracle.rs", "self.healthy = false;", "self.healthy = true;", transport_test),
         ("oracle-poison-guard-bypassed", "state_kernel_oracle.rs", "assert!(self.healthy,", "assert!(true,", transport_test),
         ("radix-scatter-equal-bucket-order-reversed", "state.rs", "for &i in &order {\n            let k = key(i);", "for &i in order.iter().rev() {\n            let k = key(i);", fault_test),

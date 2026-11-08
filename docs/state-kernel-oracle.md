@@ -272,15 +272,16 @@ ordering. `StateAddressRadix` establishes equal-key secondary stability and
 composes the reversed-digit passes into complete lexicographic ordering and
 exact fault JSON bytes without supplied sorter-correctness premises.
 
-The live profile now executes that operational radix composition followed by
-adjacent duplicate removal directly; reference merge sort does not clean up
-its output. Every initial index is checked against the alias pool before digit
-lookup; permutation preserves that domain, and final pool lookups are checked
-again. Native usize, address-pool representation and literal Rust refinement remain open;
+The live profile executes operational radix sorting, destructive source-pool
+moves and adjacent duplicate removal directly; reference merge sort does not
+clean up its output. Evidence occurrences form distinct pool slots, including
+repeated address strings. Derived index permutation preserves bounds and ensures
+every checked take succeeds without consuming a slot twice. Native usize, address-pool representation and literal Rust refinement remain open;
 word bounds in the arithmetic model require a representable input length.
 
 
-The compiled operational radix oracle uses `StateAddressWords` directly:
+The compiled operational radix oracle uses `StateAddressPool`, including the
+`StateAddressWords` sorter:
 `USize`-valued count/prefix/next/scratch arrays proved equal to the Nat-array
 and original functional semantics. Every destination bound is derived from the processed-prefix
 invariant, and initial scratch contents do not affect readback. The finite
@@ -295,5 +296,11 @@ Word arithmetic encoding is modular in general. Exact decoding is proved from
 the total-length and source-index bounds, with each scatter destination derived
 from its operational prefix. The checked word path enforces those bounds before
 execution, preserving the generic Nat semantics outside that domain. Lean array
-and loop indices still use Nat; complete native control-loop, pool and literal
-Rust correspondence remain open.
+and loop indices still use Nat; complete native control-loop and literal Rust correspondence remain open.
+
+
+`StateAddressPool.faultBytes_refinement` covers a concrete finite address array
+through word sorting, destructive checked moves, normalization and exact JSON.
+The source-pool callback boundary is discharged in this model: no caller supplies
+lookup success, an output permutation or an ordering certificate. Native control
+indices/loops and literal Rust correspondence remain explicit boundaries.
