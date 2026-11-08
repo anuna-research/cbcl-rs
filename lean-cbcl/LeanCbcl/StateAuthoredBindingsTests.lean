@@ -68,7 +68,7 @@ theorem whole_context_contributor (context : StateKernelSEC.Context) (domains : 
 theorem role_projection_has_no_write_contributors (context : StateKernelSEC.Context)
     (domains : List StateInstalledDomains.Domain) (A : List Act) (act : Act) :
     ¬contributes domains A (contextFootprint (environment context) ["thread","roles","reviewer"]) act := by
-  simp [contextFootprint,environment,contributes]
+  simp [contextFootprint,contributes,StateInstalledDomains.support]
 
 /-- Domain filters cannot erase a raw progress contributor from freeze evidence. -/
 theorem progress_raw_contributor (context : StateKernelSEC.Context) (domains : List StateInstalledDomains.Domain)

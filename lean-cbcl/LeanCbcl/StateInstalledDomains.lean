@@ -50,6 +50,35 @@ structure Domain where
   /-- The authored source field name or the resolved domain source. -/
   source : DomainSource
 
+/-- Raw initializer/root evidence supporting a domain, including malformed
+support whose error evidence must remain visible through a freeze. -/
+def supports (source : DomainSource) (act : Act) : Bool :=
+  match source with
+  | .initial opener _ => act.verb == opener
+  | .roster _ _ => act.preds.isEmpty
+
+/-- Addresses supporting any domain that governs the selected source verbs. -/
+def support (domains : List Domain) (names : List String) (A : List Act) (act : Act) : Prop :=
+  ∃ domain ∈ domains, domain.verb ∈ names ∧ ∃ witness ∈ A,
+    supports domain.source witness = true ∧ witness.addr = act.addr
+
+/-- Retained domain support is independent of delivery order and duplicates. -/
+theorem support_setEq (domains : List Domain) (names : List String) {A B : List Act} (same : SetEq A B) :
+    support domains names A = support domains names B := by
+  funext act
+  apply propext
+  constructor
+  · rintro ⟨domain,declared,verb,witness,accepted,selected,address⟩
+    exact ⟨domain,declared,verb,witness,(same witness).mp accepted,selected,address⟩
+  · rintro ⟨domain,declared,verb,witness,accepted,selected,address⟩
+    exact ⟨domain,declared,verb,witness,(same witness).mpr accepted,selected,address⟩
+
+/-- Adding accepted evidence cannot erase domain support from a freeze witness. -/
+theorem support_grows (domains : List Domain) (names : List String) {A B : List Act}
+    (growth : ∀ act ∈ A, act ∈ B) : ∀ act, support domains names A act → support domains names B act := by
+  rintro act ⟨domain,declared,verb,witness,accepted,selected,address⟩
+  exact ⟨domain,declared,verb,witness,growth witness accepted,selected,address⟩
+
 /-- Test domain membership for the targeted verb, leaving other verbs eligible. -/
 def eligible (domain : Domain) (A : List Act) (act : Act) : Bool :=
   if act.verb == domain.verb then match act.get domain.key with

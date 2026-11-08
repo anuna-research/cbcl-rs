@@ -203,8 +203,8 @@ def contributes (resolvedDomains : List StateInstalledDomains.Domain) (history :
   match footprint with
   | .all => fun act => act.addr ∈ history.map Act.addr
   | .rawVerbs names => fun act => ∃ writer ∈ history, writer.verb ∈ names ∧ writer.addr = act.addr
-  | .verbs names => fun act => ∃ writer ∈ StateInstalledDomains.select resolvedDomains history,
-      writer.verb ∈ names ∧ writer.addr = act.addr
+  | .verbs names => fun act => (∃ writer ∈ StateInstalledDomains.select resolvedDomains history,
+      writer.verb ∈ names ∧ writer.addr = act.addr) ∨ StateInstalledDomains.support resolvedDomains names history act
 
 /-- History-independent freeze metadata resolved from actual source fields. -/
 structure FreezeTemplate where
@@ -414,7 +414,8 @@ theorem contributes_setEq (resolvedDomains : List StateInstalledDomains.Domain) 
     have selected := StateInstalledDomains.selected_setEq resolvedDomains same
     have membership : ∀ act, act ∈ StateInstalledDomains.select resolvedDomains A ↔
       act ∈ StateInstalledDomains.select resolvedDomains B := selected
-    simp only [contributes,membership]
+    have supportEqual := StateInstalledDomains.support_setEq resolvedDomains names same
+    simp only [contributes,membership,supportEqual]
 
 /-- Native retained contributor sets can only gain witnesses with accepted history. -/
 theorem contributes_grows (resolvedDomains : List StateInstalledDomains.Domain) {A B : List Act}
@@ -429,8 +430,9 @@ theorem contributes_grows (resolvedDomains : List StateInstalledDomains.Domain) 
     obtain ⟨writer,inside,verb,address⟩ := member
     exact ⟨writer,growth writer inside,verb,address⟩
   | verbs names =>
-    obtain ⟨writer,inside,verb,address⟩ := member
-    exact ⟨writer,StateInstalledDomains.selected_grows resolvedDomains growth writer inside,verb,address⟩
+    rcases member with ⟨writer,inside,verb,address⟩ | supporting
+    · exact .inl ⟨writer,StateInstalledDomains.selected_grows resolvedDomains growth writer inside,verb,address⟩
+    · exact .inr (StateInstalledDomains.support_grows resolvedDomains names growth act supporting)
 
 /-- Equal accepted sets generate exactly equal global freeze decorations. -/
 theorem freezes_setEq (environment : Environment) (resolvedDomains : List StateInstalledDomains.Domain)

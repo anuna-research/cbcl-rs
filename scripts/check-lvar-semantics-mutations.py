@@ -18,6 +18,12 @@ def main():
     freeze_pair_test = ("freeze_reads", "repeated_causal_freezes_keep_the_first_cut_but_concurrent_freezes_fault")
     freeze_initial_test = ("freeze_reads", "freeze_cannot_hide_a_later_initializer_conflict")
     mutations = [
+        ("initializer-domain-support-omitted", "state.rs",
+         'support.insert(act.address.clone());', 'let _ = &act.address;',
+         ("freeze_reads", "admitted_domain_initializer_outside_freeze_cut_preserves_threshold_or_fault")),
+        ("roster-domain-support-omitted", "state.rs",
+         'support.insert(root.address.clone());', 'let _ = &root.address;',
+         ("state_context", "domain_roster_root_outside_cut_is_retained_as_freeze_support")),
         ("quoted-pin-wire-path-rejected", "role.rs",
          'SExpr::Atom(Atom::Str(pin) | Atom::Symbol(pin)) => pin,',
          'SExpr::Atom(Atom::Symbol(pin)) => pin,',

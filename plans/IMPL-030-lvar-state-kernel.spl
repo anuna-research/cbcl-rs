@@ -646,3 +646,25 @@
 ;; fault-policy locality theorems. Verified-by lint passes; vault adds no new
 ;; unresolved pairs or syntax/SPL errors. Independent proof, healthy fixture and
 ;; artifact review found no defect or overstatement in the conditional scope.
+
+;; Domain-support repair for [[SPEC-038-lvar-state-kernel#TEST-3806]]:
+;; The prior no-native-instability observation is superseded by an executed
+;; AdmissionMonitor counterexample: metadata-root references satisfy alternative
+;; begin predecessors, allowing an initialized-domain writer and freezer whose
+;; cone omits the initializer. Before repair reached changed to pending without
+;; fault. BUG-007 records this omitted dependency and the conditional fixture
+;; authentication boundary. Native/model footprints now retain initializer and
+;; roster-root support, including malformed/noncontributing source evidence.
+;; StateDomainSupportLocality proves allowed-set and exact selected-history
+;; locality for healthy fault cuts with multiple initial/roster domains, then
+;; count growth and prior-success preservation. No opener-dominance premise is
+;; needed. StateOpenerLocality remains a conditional helper, not an admission law.
+;; Verification: aggregate build and Batteries environment linter pass; 1541
+;; theorems pass the axiom audit. Native freeze/context suites pass 19/14 tests,
+;; including admitted reached-to-fault and reverse/duplicate delivery. All 30
+;; isolated semantic mutations fail intended executed tests; separate initializer
+;; and roster omissions are caught. A focused proof mutation removing domain
+;; support fails domain_allowed_cut. Independent review finds no code/proof/doc
+;; defect. Verified-by lint passes; no added unresolved vault pairs or syntax/SPL
+;; diagnostics. General source-policy locality, native installation/extraction
+;; and representation/rendering obligations remain open; the task stays active.

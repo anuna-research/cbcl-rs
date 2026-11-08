@@ -396,6 +396,11 @@ suites.append(("StateFrozenBodyEquations", (root / "lean-cbcl/LeanCbcl/StateFroz
     ("frozen-selected-root-substituted", "(frozen root.addr (FinSet.mk", "(frozen (root.addr+1) (FinSet.mk", "freeze_selected_equation"),
 ]))
 
+suites.append(("StateDomainSupportLocality", (root / "lean-cbcl/LeanCbcl/StateDomainSupportLocality.lean").read_text(), [
+    ("domain-cut-omits-domain-support", "(StateAuthoredBindings.contributes domains whole (.verbs names)) true none whole = none)\n    (domain : Domain)",
+     "(StateAuthoredBindings.contributes domains whole (.rawVerbs names)) true none whole = none)\n    (domain : Domain)", "domain_allowed_cut"),
+]))
+
 # Preserve the full default gate while allowing a focused continuation check.
 import argparse
 parser = argparse.ArgumentParser(description=__doc__)

@@ -395,3 +395,33 @@ fn quoted_dialect_pins_cross_the_strict_wire_boundary() {
         );
     }
 }
+
+/// Low-level fold support fixture: the missing-parent input is deliberately not
+/// an admission trace. Roster root evidence still belongs to the freeze footprint.
+#[test]
+fn domain_roster_root_outside_cut_is_retained_as_freeze_support() {
+    let src = source(None).replace("(arrivals (count approve))",
+        "(arrivals (count approve)) (freeze arrivals close fault) (threshold quorum arrivals (count 1))");
+    state_exports::parse_and_install_dialect(&parse(&src).unwrap()).unwrap();
+    let root = root_act("");
+    let writer = act(
+        r#"(signed @a (lang review (approve @chair :target "@a" :from @a :thread "t" :caused-by "missing-parent")))"#,
+        "@a",
+    );
+    let close = act(
+        &format!(
+            r#"(signed @chair (lang review (close (@a @b @c) :from @chair :thread "t" :caused-by {})))"#,
+            writer.address
+        ),
+        "@chair",
+    );
+    assert_eq!(
+        read(&src, &[root.clone(), writer.clone()])["quorum"]["status"],
+        "reached"
+    );
+    let after = read(&src, &[root.clone(), writer, close.clone()]);
+    let mut evidence = vec![root.address, close.address];
+    evidence.sort();
+    assert_eq!(after["quorum"]["status"], "fault");
+    assert_eq!(after["quorum"]["evidence"], json!(evidence));
+}

@@ -151,6 +151,13 @@ carrier after checking source errors; installation rejects a threshold on a
 `supersede`-frozen source. Use separate fields, as in the example, or a `fault`
 freeze where appropriate.
 
+A domain-filtered field retains its domain sources as freeze contributions too:
+all matching initializer acts and role-roster roots, including malformed or
+currently noncontributing evidence. If a source lies outside the cut, `fault`
+reports its address together with the freezer; `supersede` records its exclusion.
+The freezer must therefore follow the domain evidence as well as its writers to
+produce a healthy exact read.
+
 ### Domains
 
 ```lisp

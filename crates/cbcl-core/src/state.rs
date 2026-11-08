@@ -1436,6 +1436,10 @@ pub(crate) fn contribution_addresses(
     acts: &[Act],
     verbs: &[String],
 ) -> hashbrown::HashSet<String> {
+    // A field also depends on its domain's initializer or sealed roster root.
+    // A freezer missing that support must fault/supersede it, rather than make
+    // an already reached threshold pending when the domain disappears at cut.
+    let mut support = hashbrown::HashSet::new();
     // Freeze witnesses must survive a later initializer fork. Retain every
     // contribution admitted by any observed initializer, rather than applying
     // the now-faulting domain's empty successful display.
@@ -1450,6 +1454,7 @@ pub(crate) fn contribution_addresses(
             }) = clause.rule_of(field)
             {
                 for act in acts.iter().filter(|a| a.verb == *opener) {
+                    support.insert(act.address.clone());
                     if let Some(SExpr::List(values)) = act.fields.get(source) {
                         allowed.extend(values.iter().map(|v| Value::from_sexpr(v).render()));
                     }
@@ -1461,6 +1466,7 @@ pub(crate) fn contribution_addresses(
             }) = clause.rule_of(field)
             {
                 for root in acts.iter().filter(|a| a.predecessors.is_empty()) {
+                    support.insert(root.address.clone());
                     if let Value::Set(members) = metadata.read(path, core::slice::from_ref(root)) {
                         allowed.extend(members.iter().map(Value::render));
                     }
@@ -1469,7 +1475,8 @@ pub(crate) fn contribution_addresses(
             (verb, key, allowed)
         })
         .collect();
-    acts.iter()
+    let writers: hashbrown::HashSet<String> = acts
+        .iter()
         .filter(|a| verbs.contains(&a.verb))
         .filter(|a| {
             domains.iter().all(|(verb, key, allowed)| {
@@ -1480,7 +1487,9 @@ pub(crate) fn contribution_addresses(
             })
         })
         .map(|a| a.address.clone())
-        .collect()
+        .collect();
+    support.extend(writers);
+    support
 }
 
 /// A threshold read (SPEC-038 REQ-3802, CON-3801): the unique element of the

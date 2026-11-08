@@ -589,16 +589,18 @@ fn resource_domains_cannot_hide_freeze_contributors() {
 }
 
 /// TEST-3806: fold's typed-history boundary permits a domain initializer outside
-/// the freezer's cut. This is not a protocol-admission fixture. Raw threshold
-/// state must use the same cut as the frozen source even without late writers.
+/// the freezer's cut. This directly exercises a non-installable supersede
+/// threshold adapter; installed fault-policy sources also track that support.
 #[test]
 fn frozen_threshold_raw_state_keeps_domain_initialization_inside_its_cut() {
-    let src = source("fault")
+    let src = source("supersede")
         .replace("(extend open (to) :from owner :to owner (tell to))",
             "(extend open (to options) :from owner :to owner (tell to :options options)) (shape open (require :options list))")
         .replace("(values (values write :value))",
             "(options (initial open :options)) (domain write :value options) (values (count write)) (threshold quorum values (count 1))");
-    state_exports::parse_and_install_dialect(&parse(&src).unwrap()).unwrap();
+    // Exercise the generic scoped output adapter directly. Installation rejects
+    // thresholds over supersede sources because their success can revise.
+    assert!(state_exports::parse_and_install_dialect(&parse(&src).unwrap()).is_err());
     let write = act("write", "x", "begin");
     let close = act("close", "", &write.address);
     let open = Act::from_message(
@@ -611,11 +613,118 @@ fn frozen_threshold_raw_state_keeps_domain_initialization_inside_its_cut() {
     assert_eq!(frozen["values"]["frozen"], close.address);
     assert_eq!(frozen["values"]["value"], json!(0));
     assert_eq!(frozen["quorum"]["status"], "pending");
-    let unfrozen = read(&src.replace("(freeze values close fault)", ""), &history);
+    assert_eq!(
+        frozen["values"]["superseded"],
+        json!([history[2].address.clone()])
+    );
+    let unfrozen = read(
+        &src.replace("(freeze values close supersede)", ""),
+        &history,
+    );
     assert_eq!(unfrozen["values"], json!(1));
     assert_eq!(unfrozen["quorum"]["status"], "reached");
     let mut duplicated = history.clone();
     duplicated.reverse();
     duplicated.extend(history);
     assert_eq!(read(&src, &duplicated), frozen);
+}
+
+/// REQ-3802/3803: the complete admission monitor can admit a writer through a
+/// begin alternative concurrently with the domain initializer. A later freeze
+/// must fault rather than retract the already reached threshold.
+#[test]
+fn admitted_domain_initializer_outside_freeze_cut_preserves_threshold_or_fault() {
+    use cbcl_core::admission::{AdmissionGate, AdmissionMonitor, AdmissionState};
+    use cbcl_core::message::Message;
+    use cbcl_core::role::Endpoint;
+    use cbcl_core::store::ContentHash;
+    struct FixtureGate(Vec<Message>);
+    impl AdmissionGate for FixtureGate {
+        fn authenticate(&self, message: &Message) -> Result<ContentHash, String> {
+            // Exact pre-authenticated fixture envelopes, with state/wire
+            // identity spelling. This is not deployment cryptography.
+            if !self.0.contains(message) {
+                return Err("message is outside the authenticated fixture corpus".into());
+            }
+            Ok(ContentHash(
+                Act::from_message(message.clone(), "@owner")
+                    .unwrap()
+                    .address,
+            ))
+        }
+    }
+    let src = source("fault")
+        .replace("(extend open (to) :from owner :to owner (tell to))",
+            "(extend open (to options) :from owner :to owner (tell to :options options)) (shape open (require :options list))")
+        .replace("(protocol (then begin open) (then open (repeat 2 write close)))",
+            "(protocol (then begin open) (then (any begin open) write) (then write close))")
+        .replace("(values (values write :value))",
+            "(options (initial open :options)) (domain write :value options) (values (count write)) (threshold quorum values (count 1))");
+    let registry = state_exports::parse_and_install_dialect(&parse(&src).unwrap()).unwrap();
+    let dialect = registry.iter().last().unwrap().clone();
+    let pin = dialect.hash.as_ref().unwrap();
+    let root_message = parse_message(&parse(&format!(
+        "(with-roles ((owner @owner)) :dialect {pin:?} (signed @owner \"sig\" (hello :thread \"t\" :caused-by begin)))"
+    )).unwrap()).unwrap();
+    let root = Act::from_message(root_message.clone(), "@owner").unwrap();
+    let open = Act::from_message(parse_message(&parse(&format!(
+        "(signed @owner \"sig\" (lang sealed (open @owner :options (\"x\") :from @owner :thread \"t\" :caused-by {})))", root.address
+    )).unwrap()).unwrap(), "@owner").unwrap();
+    let write = act("write", "x", &root.address);
+    let close = act("close", "", &write.address);
+    let gate = FixtureGate(vec![
+        root_message.clone(),
+        open.message.clone(),
+        write.message.clone(),
+        close.message.clone(),
+    ]);
+    let mut monitor = AdmissionMonitor::new(
+        dialect,
+        Endpoint {
+            role: "owner".into(),
+            occupant: None,
+        },
+        root_message,
+        gate,
+    )
+    .unwrap();
+    assert!(monitor
+        .drain_ready()
+        .iter()
+        .all(|event| event.state == AdmissionState::Accepted));
+    for candidate in [&open, &write] {
+        monitor.receive(candidate.message.clone()).unwrap();
+        assert!(monitor
+            .drain_ready()
+            .iter()
+            .all(|event| event.state == AdmissionState::Accepted));
+        assert_eq!(
+            monitor.state(&ContentHash(candidate.address.clone())),
+            Some(&AdmissionState::Accepted)
+        );
+    }
+    let mut history = vec![root, open.clone(), write];
+    assert_eq!(read(&src, &history)["quorum"]["status"], "reached");
+    monitor.receive(close.message.clone()).unwrap();
+    assert!(monitor
+        .drain_ready()
+        .iter()
+        .all(|event| event.state == AdmissionState::Accepted));
+    assert_eq!(
+        monitor.state(&ContentHash(close.address.clone())),
+        Some(&AdmissionState::Accepted)
+    );
+    history.push(close.clone());
+    let after = read(&src, &history);
+    assert_eq!(
+        after["quorum"]["status"], "fault",
+        "a reached threshold must not return to pending: {after}"
+    );
+    let mut evidence = vec![open.address, close.address];
+    evidence.sort();
+    assert_eq!(after["quorum"]["evidence"], json!(evidence));
+    history.reverse();
+    assert_eq!(read(&src, &history), after);
+    history.extend(history.clone());
+    assert_eq!(read(&src, &history), after);
 }

@@ -1350,33 +1350,33 @@ The concrete compiler fixture constructs preparation, code and cache/output
 execution rather than assuming them. Older generic full-history `thresholdRaw`
 plans remain source-dictionary/checking machinery; they are not emitted as native
 output instructions, and no equivalence with their raw-history output semantics
-is asserted. A native
-fold regression reproduces why the distinction matters: a concurrent domain
-initializer outside the freezer cut enables a full-history count of one while
-the frozen source remains zero and its threshold pending. Replacing the threshold
-context with full history makes that executed regression fail. The fixture
-exercises typed-history fold, not protocol admission. Absence of late contributing
-writes alone does not prove raw-carrier locality.
+is asserted. A low-level supersede fixture retains the full-history versus
+cut-scoped threshold distinction; it explicitly cannot install a threshold over
+that revisable source. A separate admitted fault-policy regression installs an
+actual dialect and runs AdmissionMonitor: a domain initializer outside a
+freezer's cone must produce a fault with initializer/freezer evidence, preserving
+the earlier successful threshold as success-or-fault. Metadata-root references
+can satisfy an alternative `begin` predecessor, so opener-only declarations do
+not imply that every writer descends from the opener.
 
-`StateOpenerLocality.lean` derives opener ancestry from a checked present
-business-predecessor condition and separate causal rank. Metadata outside the
-installed protocol verb inventory is exempt. Clear initializer evidence plus
-content consistency makes the opener unique, so every business freezer cut
-contains all initializer evidence. `domain_cut` identifies the cut selection
-with full domain selection restricted to ancestors; `fault_domain_cut` and
-`fault_domain_count` establish exact selection/count equality for a healthy
-fault freeze over those selected contributors. `count_success_at_fault_cut`
-then proves a prior count lower bound survives growth and that historical read.
+Domain-filtered freeze footprints retain both eligible writers and all applicable
+domain sources: matching initializer acts and sealed-roster roots, including
+malformed or currently noncontributing source evidence. These are dependencies
+of the field's retained carrier. Fault-policy freezes expose any such evidence
+outside their cone; superseding freezes record its exclusion.
+`StateDomainSupportLocality.lean` proves that healthy fault-policy cuts preserve
+exact allowed sets and selected writers for multiple initializer and roster
+domains. Its count growth and `count_success_at_cut` theorems connect earlier
+count thresholds to that equality without assuming business-opener dominance.
+Fixtures construct mixed domains with descending addresses and reverse/duplicate
+deliveries, and an explicit branch missing the opener produces a fault.
 
-These locality results require the explicit structural check; they do not yet
-extract it from literal R5/R6 admission. The R7 opener rule alone is insufficient
-to establish that interface: the native causal verifier also allows `begin` in
-an alternative predecessor group, requiring analysis of root/thread constraints.
-No native accepted-history counterexample is claimed. Multiple/context domains
-and general source-policy locality remain separate composition obligations.
-Fixtures construct metadata-rooted, descending-address, reverse/duplicate histories
-and healthy count reads; an acyclic history lacking business ancestry has full
-count one/cut count zero and is rejected by the structural check.
+`StateOpenerLocality.lean` separately derives opener ancestry from a checked
+business-predecessor condition and causal rank. Its conditional uniqueness and
+locality results remain valid, but that structural check is not inferred from
+literal R5/R6 admission and is not required by the domain-support proof above.
+General source-policy locality and complete native installation correspondence
+remain separate composition obligations.
 Literal Rust value representation and public serialized
 rendering remain separate boundaries. Helpers remain total outside the admitted
 request domain, which does not model Rust's indexing or unknown-field no-insert

@@ -163,6 +163,8 @@ Dialect authors choose the read guarantee explicitly:
 - A **freeze** reads the source at the earliest freezer's causal cut. Later or
   concurrent contributions are excluded under the default `supersede` policy,
   or fault the read under `fault`. Concurrent earliest freezers also fault.
+  Domain dependencies count as contributions too: an initializer or roster root
+  outside the cut can fault a field that depends on it.
 - A **fault** carries evidence of the inconsistent history and persists as
   accepted history grows.
 

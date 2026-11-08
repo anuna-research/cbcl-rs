@@ -1,3 +1,4 @@
+import LeanCbcl.StateDomainSupportLocalityTests
 import LeanCbcl.StateOpenerLocalityTests
 import LeanCbcl.StateCausalCheckCompleteTests
 import LeanCbcl.StateCausalRankIntegrationTests
@@ -2353,3 +2354,21 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateOpenerLocalityTests.healthy_domain_count_local
 
 #print axioms CBCL.StateOpenerLocality.count_success_at_fault_cut
+
+#print axioms CBCL.StateInstalledDomains.support_setEq
+#print axioms CBCL.StateInstalledDomains.support_grows
+
+#print axioms CBCL.StateDomainSupportLocality.contribution_supported
+#print axioms CBCL.StateDomainSupportLocality.allowed_support_locality
+#print axioms CBCL.StateDomainSupportLocality.healthy_contributor_cut
+#print axioms CBCL.StateDomainSupportLocality.domain_allowed_cut
+#print axioms CBCL.StateDomainSupportLocality.selected_cut
+#print axioms CBCL.StateDomainSupportLocality.selected_grows
+#print axioms CBCL.StateDomainSupportLocality.count_grows
+#print axioms CBCL.StateDomainSupportLocality.count_success_at_cut
+
+#print axioms CBCL.StateDomainSupportLocalityTests.initializer_contributes
+#print axioms CBCL.StateDomainSupportLocalityTests.roster_root_contributes
+#print axioms CBCL.StateDomainSupportLocalityTests.healthy
+#print axioms CBCL.StateDomainSupportLocalityTests.mixed_domain_count_local
+#print axioms CBCL.StateDomainSupportLocalityTests.branch_faults
