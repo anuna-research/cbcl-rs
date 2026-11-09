@@ -1,3 +1,4 @@
+import LeanCbcl.StateCondition
 import LeanCbcl.StateInstalledBounds
 import LeanCbcl.StateInstalledRecognition
 import LeanCbcl.StateFiniteRead
@@ -30,6 +31,7 @@ inductive Rule where
 inductive Entry where
   | field (name : String) (rule : Rule)
   | threshold (name source : String) (elements : List Value)
+  | condition (name : String) (expression : StateCondition.Condition Value)
   | domain (declaration : StateInstalledDomains.Declaration)
   | lattice (declaration : StateFiniteTable.Definition)
   | freeze (field verb : String) (fault : Bool)
@@ -75,14 +77,14 @@ def nameCheck (name : String) : Bool :=
 /-- Fields, thresholds and lattices share the native installed name namespace. -/
 def declaredNames (entries : List Entry) : List String :=
   entries.filterMap (fun entry => match entry with
-    | .field name _ | .threshold name _ _ => some name
+    | .field name _ | .threshold name _ _ | .condition name _ => some name
     | .lattice declaration => some declaration.name
     | _ => none)
 
 /-- Executable source namespace and rendered-field bound checks. -/
 def metadataCheck (environment : Environment) (entries : List Entry) : Bool :=
   let names := declaredNames entries
-  let fields := entries.filter (fun entry => match entry with | .field .. | .threshold .. => true | _ => false)
+  let fields := entries.filter (fun entry => match entry with | .field .. | .threshold .. | .condition .. => true | _ => false)
   names.all nameCheck && decide names.Nodup && !fields.isEmpty &&
     decide (fields.length ≤ environment.profile.definition.bounds.maxFields) &&
     StateInstalledBounds.check environment.profile.definition.bounds
@@ -244,6 +246,48 @@ def freezes (environment : Environment) (resolvedDomains : List StateInstalledDo
     (history : List Act) (bindings : List (String × Binding)) (entries : List Entry) : Option (List (String × FreezeSpec)) :=
   (freezeTemplates environment bindings entries).map (materialize resolvedDomains history)
 
+/-- Condition elements retain native scalar bounds and reject non-scalar payloads. -/
+def conditionElementBound (bounds : StateInstalledContext.Bounds) : Value → Bool
+  | .element element =>
+    let scalar : Val → Bool := fun value => match value with
+      | .str text => decide (text.toUTF8.size ≤ bounds.maxString)
+      | .int number => decide (-bounds.maxNumber ≤ number ∧ number ≤ bounds.maxNumber)
+      | .bool _ => true
+      | .list _ => false
+    match element with
+    | .scalar value | .member value => scalar value
+    | .count bound | .progress bound => decide ((bound : Int) ≤ bounds.maxNumber)
+    | .sum bound => decide (-bounds.maxNumber ≤ bound ∧ bound ≤ bounds.maxNumber)
+  | _ => false
+
+/-- Every leaf uses an earlier actual source definition and its singleton read
+policy. The complete freeze inventory is checked before selecting any history. -/
+noncomputable def conditionSourceCheck (environment : Environment) (templates : List FreezeTemplate)
+    (earlier : StateInstalledLowering.Definitions Value) : StateCondition.Condition Value → Bool :=
+  StateCondition.Condition.fold
+    (fun field element => conditionElementBound environment.profile.definition.bounds element &&
+      templates.all (fun template => if template.field == field then template.policy else true) &&
+      (StateInstalledLowering.lowerRule earlier (.threshold "" field [element])).isSome)
+    (fun children checked => decide (2 ≤ children.length) && checked.all id)
+
+/-- Check condition entries against the exact ordered source lowering, without
+adding observations to the source dictionary or consulting accepted state. -/
+noncomputable def conditionsCheck (environment : Environment) (templates : List FreezeTemplate) :
+    List Entry → List (StateInstalledLowering.Declaration Value) → StateInstalledLowering.Definitions Value → Bool
+  | [], [], _ => true
+  | .condition _ expression :: rest, lowered, earlier =>
+      decide (expression.size ≤ environment.profile.definition.bounds.maxList) &&
+      conditionSourceCheck environment templates earlier expression &&
+      conditionsCheck environment templates rest lowered earlier
+  | .field name _ :: rest, declaration :: lowered, earlier
+  | .threshold name _ _ :: rest, declaration :: lowered, earlier =>
+      (name == declaration.name) && conditionsCheck environment templates rest lowered
+        (StateInstalledLowering.extend earlier declaration)
+  | .domain _ :: rest, lowered, earlier
+  | .lattice _ :: rest, lowered, earlier
+  | .freeze _ _ _ :: rest, lowered, earlier => conditionsCheck environment templates rest lowered earlier
+  | _, _, _ => false
+
 /-- Concrete source lowering before full-observation freeze specialization. -/
 structure Prepared where
   /-- Ordered concrete source declarations and source-relative thresholds. -/
@@ -264,7 +308,9 @@ noncomputable def lowerStatic (environment : Environment) (entries : List Entry)
           | none => none
           | some (lowered,bindings) => match freezeTemplates environment bindings entries with
               | none => none
-              | some resolvedFreezes => some ⟨lowered,resolvedDomains,resolvedFreezes⟩
+              | some resolvedFreezes =>
+                  if conditionsCheck environment resolvedFreezes entries lowered [] then
+                    some ⟨lowered,resolvedDomains,resolvedFreezes⟩ else none
 
 /-- Materialize the statically lowered clause at one observation. -/
 def clauseAt (prepared : Prepared) (history : List Act) : StateInstalledLowering.Clause Value :=

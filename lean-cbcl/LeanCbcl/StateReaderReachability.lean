@@ -76,7 +76,7 @@ theorem declarations_known (environment : Environment) (resolvedDomains : List S
         simp [declarations,tail] at lowered
         rcases lowered with ⟨rfl,rfl⟩
         simpa [rawFields] using ih earlier more last tail
-    | domain _ | lattice _ | freeze _ _ _ =>
+    | condition _ _ | domain _ | lattice _ | freeze _ _ _ =>
       simpa [rawFields] using ih earlier loweredFields bindings (by simpa [declarations] using lowered)
 
 /-- Successful static lowering admits dependencies only from original source
@@ -373,7 +373,7 @@ theorem declaration_shapes (environment : Environment) (resolvedDomains : List S
         simp [declarations,tail] at lowered
         rcases lowered with ⟨rfl,rfl⟩
         simpa [entryShape,declarationShape] using congrArg (fun shapes => (thresholdName,some source)::shapes) (ih earlier more last tail)
-    | domain _ | lattice _ | freeze _ _ _ =>
+    | condition _ _ | domain _ | lattice _ | freeze _ _ _ =>
       simpa [entryShape] using ih earlier loweredFields bindings (by simpa [declarations] using lowered)
 
 /-- Successful static lowering exposes the source-lowering execution used by
@@ -396,7 +396,7 @@ theorem lowering_witness (environment : Environment) (entries : List Entry) (pre
           | none => simp [lowerStatic,checked,domainResult,tableResult,declResult,freezeResult] at lowered
           | some _ =>
             simp [lowerStatic,checked,domainResult,tableResult,declResult,freezeResult] at lowered
-            subst prepared
+            rcases lowered with ⟨_,rfl⟩
             exact ⟨resolvedDomains,resolvedTables,bindings,declResult⟩
   · simp [lowerStatic,checked] at lowered
 
@@ -485,7 +485,7 @@ theorem prepared_threshold_known (environment : Environment) (entries : List Ent
       simp [entryShape] at shape
       subst fieldName
       exact List.mem_map.mpr ⟨(source,raw),List.mem_filterMap.mpr ⟨.field source raw,inEntries,rfl⟩,rfl⟩
-    | threshold _ _ _ | domain _ | lattice _ | freeze _ _ _ => simp [entryShape] at shape
+    | threshold _ _ _ | condition _ _ | domain _ | lattice _ | freeze _ _ _ => simp [entryShape] at shape
 
 /-- The exact top-level field requests made by native fold: source fields and
 threshold sources, preserving entry order and shared-cache reuse. -/
@@ -513,7 +513,7 @@ theorem initial_keys_admitted (environment : Environment) (entries : List Entry)
     subst key
     exact initial_admitted entries whole clause.freezes ranked consistent source
       (prepared_threshold_known environment entries whole clause prepared name source elements member)
-  | domain _ | lattice _ | freeze _ _ _ => simp at selected
+  | condition _ _ | domain _ | lattice _ | freeze _ _ _ => simp at selected
 
 /-- Complete native request-domain theorem: preparation constructs the actual
 initial request list, every branch stays in admitted source/scopes, and the

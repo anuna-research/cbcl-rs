@@ -1,4 +1,4 @@
-import LeanCbcl.StatePreparedOutputs
+import LeanCbcl.StateConditionCompiler
 
 /-! Installed output compilation retains complete source plans and compiles
 source-owned query policies into a closed dispatch inventory. Raw query history
@@ -8,57 +8,11 @@ namespace CBCL.StateOutputCompiler
 open State StateLift StateObservation StateObservationPlan StateInstalledCompiler
 open StateInstalledLowering StateThresholdDispatch StatePreparedOutputs
 
-/-- The closed installed threshold strategy inventory. -/
-inductive Query (V : Type) : Type 1 where
-  | closure (alternatives : List V) (test : V → V → Bool)
-  | raw {C : Type} (alternatives : List V) (test : V → C → Bool) (state : FinSet Act → C)
-  | finite (spec : ThresholdSpec) (embed : spec.Carrier → V)
-
-/-- Execute compiled query code, preserving completed source faults. -/
-noncomputable def Query.run {V : Type} : Query V → List Act → StateReaderValues.Result V → StateReaderValues.Result V
-  | .closure alternatives test, _, value =>
-    StateRuleRefinement.nativeClosureThreshold alternatives test (StateReaderValues.unfrozen value)
-  | .raw alternatives test state, history, value => nativeRawThreshold alternatives test (state (StateLVar.rawHistory history)) value
-  | .finite spec embed, history, value => match value with
-    | .fault evidence => .fault evidence
-    | .data _ => nativeLiftThreshold spec embed (StateReaderValues.unfrozen value) history
-
-/-- Validate and compile the policy retained by the original source definition. -/
-noncomputable def compileQuery {V : Type} (elements : List V) : Definition V → Option (Query V)
-  | .native _ (some policy) => if policy.check elements then some (.closure elements policy.test) else none
-  | .factored term (some policy) => if policy.check elements then some (.raw elements policy.test term.state) else none
-  | .lattice field => match StateInstalledLattice.prepareQuery field elements with
-    | none => none
-    | some query => some (.finite query.spec field.renderElement)
-  | _ => none
-
-/-- Query compilation preserves independent installed-policy dispatch. -/
-theorem compile_query_refinement {V : Type} (definitions : Definitions V) (source : String)
-    (elements : List V) (raw : List Act) (value : StateReaderValues.Result V) :
-    ((definitions.lookup source).bind (compileQuery elements)).map (fun query => query.run raw value) =
-      installedAt definitions source elements raw value := by
-  cases found : definitions.lookup source with
-  | none => simp [installedAt,found]
-  | some definition =>
-    cases definition with
-    | native data policy => cases policy <;> simp [compileQuery,installedAt,found,Query.run]
-    | factored term policy => cases policy <;> simp [compileQuery,installedAt,found,Query.run]
-    | lattice field =>
-      cases query : StateInstalledLattice.prepareQuery field elements with
-      | none => simp [compileQuery,installedAt,found,query]
-      | some queryValue =>
-        simp only [compileQuery,found,Option.bind_some,query,Option.map_some,Query.run,installedAt]
-        cases value <;> rfl
-    | derived _ _ | pair _ _ _ => simp [compileQuery,installedAt,found]
-
 /-- Output code captures the complete source plan and its query strategy. -/
 inductive Output (V : Type) : Type 1 where
   | field (name : String) (source : Plan V)
   | threshold (name sourceName : String) (query : Query V) (source : Plan V)
-
-/-- A complete installed source observation at normalized full history. -/
-noncomputable def sourceValue {V : Type} (whole : List Act) (source : Plan V) : StateReaderValues.Result V :=
-  observe (fun act => act ∈ StateScopePool.normalize whole) source (StateScopePool.normalize whole)
+  | condition (name : String) (truth : V) (code : StateConditionCompiler.Code V)
 
 /-- Execute an output plan with the clause's retained freeze metadata. -/
 noncomputable def Output.observe {V : Type} (whole : List Act) (freezes : List (String × FreezeSpec)) :
@@ -66,6 +20,8 @@ noncomputable def Output.observe {V : Type} (whole : List Act) (freezes : List (
   | .field name source => (name,sourceValue whole source)
   | .threshold name sourceName query source =>
     (name,query.run (referenceScope whole freezes sourceName) (sourceValue whole source))
+  | .condition name truth code =>
+    (name,StateConditionCompiler.truthResult truth (code.observe whole freezes))
 
 /-- Compile one declaration against completed original source plans. -/
 noncomputable def compileOne {V : Type} (plans : Plans V) (definitions : Definitions V) : Declaration V → Option (Output V)
@@ -225,6 +181,27 @@ noncomputable def compileClause {V : Type} (clause : Clause V) : Option (Program
   let outputs ← compileDeclarations sources [] clause.declarations
   return ⟨clause.freezes,outputs⟩
 
+/-- Reinsert condition observations in original authored order while retaining
+base source/query instructions and the exact earlier definition prefix. -/
+noncomputable def emitAuthored (maxNodes : Nat) (plans : Plans StateInstalledLegacy.Value) :
+    List StateAuthoredBindings.Entry → List (Declaration StateInstalledLegacy.Value) →
+      List (Output StateInstalledLegacy.Value) → Definitions StateInstalledLegacy.Value →
+        Option (List (Output StateInstalledLegacy.Value))
+  | [], [], [], _ => some []
+  | .condition name expression :: rest, declarations, outputs, earlier => do
+      let code ← StateConditionCompiler.compile maxNodes plans earlier expression
+      let tail ← emitAuthored maxNodes plans rest declarations outputs earlier
+      return .condition name (.element (.scalar (.bool true))) code :: tail
+  | .field name _ :: rest, declaration :: declarations, output :: outputs, earlier
+  | .threshold name _ _ :: rest, declaration :: declarations, output :: outputs, earlier =>
+      if name != declaration.name then none else do
+        let tail ← emitAuthored maxNodes plans rest declarations outputs (extend earlier declaration)
+        return output :: tail
+  | .domain _ :: rest, declarations, outputs, earlier
+  | .lattice _ :: rest, declarations, outputs, earlier
+  | .freeze _ _ _ :: rest, declarations, outputs, earlier => emitAuthored maxNodes plans rest declarations outputs earlier
+  | _, _, _, _ => none
+
 /-- Source preparation is observation-specific. Retain that history so the
 compiled authored result cannot silently evaluate a different observation. -/
 structure CompiledObservation where
@@ -237,16 +214,17 @@ structure CompiledObservation where
 noncomputable def CompiledObservation.observe (compiled : CompiledObservation) :
     List (String × StateReaderValues.Result StateInstalledLegacy.Value) := compiled.program.observe compiled.history
 
-/-- The authored output compiler recognizes actual declarations before emitting
-code; it has no caller-supplied source policy or freeze metadata. -/
+/-- Base authored source/threshold compilation, before condition interleaving.
+StateAuthoredConditionOutputs.compileAuthored assembles the full v0.4 inventory;
+this base stage has no caller-supplied source policy or freeze metadata. -/
 noncomputable def compileAuthored (environment : StateAuthoredBindings.Environment)
     (entries : List StateAuthoredBindings.Entry) (whole : List Act) : Option CompiledObservation := do
   let clause ← StateAuthoredBindings.prepare environment entries whole
   let program ← compileClause clause
   return ⟨whole,program⟩
 
-/-- Top-level authored output compiler and actual empty-cache execution agree
-on a complete successful vector, including every installed threshold strategy. -/
+/-- The base source/threshold output stage agrees with actual empty-cache
+execution. Full v0.4 condition assembly is refined separately. -/
 theorem authored_compiler_refinement (environment : StateAuthoredBindings.Environment)
     (entries : List StateAuthoredBindings.Entry) (whole : List Act)
     (clause : Clause StateInstalledLegacy.Value)
@@ -267,3 +245,18 @@ theorem authored_compiler_refinement (environment : StateAuthoredBindings.Enviro
   simp [compileAuthored,prepared,compileClause,sourceCompiled,codeCompiled]
 
 end CBCL.StateOutputCompiler
+
+namespace CBCL.StateConditionCompiler
+open State StateLift StateObservation StateObservationPlan StateInstalledCompiler
+open StateInstalledLowering StateOutputCompiler StateCondition StateThresholdDispatch
+
+/-- A compiled leaf is exactly the existing source-owned threshold output,
+followed by condition-only Boolean normalization. -/
+theorem leaf_observe {V : Type} (whole : List Act) (freezes : List (String × FreezeSpec))
+    (field : String) (query : Query V) (source : Plan V) :
+    Code.observe whole freezes (.read field query source) =
+      boolean ((Output.threshold "" field query source).observe whole freezes).2 := by
+  simp only [Code.observe,Output.observe]
+
+
+end CBCL.StateConditionCompiler

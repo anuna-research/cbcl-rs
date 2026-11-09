@@ -12,10 +12,61 @@ inductive Condition (V : Type) where
   | read (field : String) (element : V)
   | all (children : List (Condition V))
 
+universe u
+
+/-- Kernel-recursive fold over recognized syntax and its ordered child list. -/
+noncomputable def Condition.fold {V : Type} {W : Type u}
+    (read : String → V → W) (node : List (Condition V) → List W → W) : Condition V → W :=
+  Condition.rec (motive_1 := fun _ => W) (motive_2 := fun _ => List W)
+    read node [] (fun _ _ value rest => value :: rest)
+
+/-- The nested recursor retains precisely the original child order. -/
+theorem Condition.fold_list {V : Type} {W : Type u}
+    (read : String → V → W) (node : List (Condition V) → List W → W) (children : List (Condition V)) :
+    Condition.rec_1 (motive_1 := fun _ => W) (motive_2 := fun _ => List W)
+      read node [] (fun _ _ value rest => value :: rest) children = children.map (Condition.fold read node) := by
+  induction children with
+  | nil => rfl
+  | cons head tail ih => exact congrArg (List.cons (Condition.fold read node head)) ih
+
+/-- A leaf fold evaluates only its authored fixed-bound source request. -/
+@[simp] theorem Condition.fold_read {V : Type} {W : Type u}
+    (read : String → V → W) (node : List (Condition V) → List W → W) (field : String) (element : V) :
+    Condition.fold read node (.read field element) = read field element := rfl
+
+/-- A conjunction fold visits every child in its authored order. -/
+@[simp] theorem Condition.fold_all {V : Type} {W : Type u}
+    (read : String → V → W) (node : List (Condition V) → List W → W) (children : List (Condition V)) :
+    Condition.fold read node (.all children) = node children (children.map (Condition.fold read node)) := by
+  exact congrArg (node children) (Condition.fold_list read node children)
+
 /-- A read counts once; a conjunction counts itself and every child. -/
-def Condition.size {V : Type} : Condition V → Nat
-  | .read _ _ => 1
-  | .all children => 1 + (children.map Condition.size).sum
+noncomputable def Condition.size {V : Type} : Condition V → Nat :=
+  Condition.rec (motive_1 := fun _ => Nat) (motive_2 := fun _ => Nat)
+    (fun _ _ => 1) (fun _ total => 1 + total) 0 (fun _ _ value total => value + total)
+
+/-- Kernel-recursive size agrees with the authored sum-of-child-sizes contract. -/
+theorem Condition.size_all {V : Type} (children : List (Condition V)) :
+    (Condition.all children).size = 1 + (children.map Condition.size).sum := by
+  induction children with
+  | nil => rfl
+  | cons child rest ih =>
+    simp only [Condition.size,List.map_cons,List.sum_cons] at *
+    omega
+
+/-- Every child fits within the complete conjunction's node budget. -/
+theorem Condition.child_size_le {V : Type} (children : List (Condition V)) :
+    ∀ child ∈ children, child.size ≤ (Condition.all children).size := by
+  induction children with
+  | nil => intro child impossible; simp at impossible
+  | cons first rest ih =>
+    intro child member
+    rw [Condition.size_all,List.map_cons,List.sum_cons]
+    rcases List.mem_cons.mp member with same | inside
+    · subst child; omega
+    · have smaller := ih child inside
+      rw [Condition.size_all] at smaller
+      omega
 
 /-- Constructor validation retains the parser's conjunction arity rule. -/
 def Condition.arity {V : Type} : Condition V → Bool

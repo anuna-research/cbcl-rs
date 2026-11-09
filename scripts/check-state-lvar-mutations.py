@@ -271,10 +271,13 @@ suites.append(("StateOpenerLocality", (root / "lean-cbcl/LeanCbcl/StateOpenerLoc
     ("supersede-policy-claims-full-count-locality", "true none history = none) :\n    initialDomain", "false none history = none) :\n    initialDomain", "fault_domain_cut"),
 ]))
 
-suites.append(("StateOutputCompiler", (root / "lean-cbcl/LeanCbcl/StateOutputCompiler.lean").read_text(), [
+suites.append(("StateOutputQuery", (root / "lean-cbcl/LeanCbcl/StateOutputQuery.lean").read_text(), [
     ("compiled-output-policy-unchecked", "if policy.check elements then some (.raw", "if true then some (.raw", "compile_query_refinement"),
-    ("compiled-output-raw-cut-erased", "query.run (referenceScope whole freezes sourceName)", "query.run (StateScopePool.normalize whole)", "compile_one_refinement"),
     ("compiled-finite-source-fault-hidden", "| .fault evidence => .fault evidence", "| .fault _ => .data .pending", "compile_query_refinement"),
+]))
+
+suites.append(("StateOutputCompiler", (root / "lean-cbcl/LeanCbcl/StateOutputCompiler.lean").read_text(), [
+    ("compiled-output-raw-cut-erased", "query.run (referenceScope whole freezes sourceName)", "query.run (StateScopePool.normalize whole)", "compile_one_refinement"),
     ("compiled-observation-history-substituted", "return ⟨whole,program⟩", "return ⟨[],program⟩", "authored_compiler_refinement"),
 ]))
 
@@ -913,9 +916,15 @@ suites.append(("StateCondition", (root / "lean-cbcl/LeanCbcl/StateCondition.lean
 ]))
 
 suites.append(("StateConditionCompiler", (root / "lean-cbcl/LeanCbcl/StateConditionCompiler.lean").read_text(), [
-    ("condition-leaf-uses-full-history", "| .read field query source => boolean (query.run (referenceScope whole freezes field) (sourceValue whole source))", "| .read field query source => boolean (query.run whole (sourceValue whole source))", "leaf_observe"),
+    ("condition-leaf-uses-full-history", "| .read field query source => boolean (query.run (referenceScope whole freezes field) (sourceValue whole source))", "| .read field query source => boolean (query.run whole (sourceValue whole source))", "compile_leaf_refinement"),
     ("condition-compiled-bound-discarded", "let query ← compileQuery [element] definition", "let query ← compileQuery [] definition", "compile_read_origin"),
     ("condition-compiler-size-guard-skipped", "if maxNodes < (Condition.all children).size ∨ children.length < 2 then none else do", "if children.length < 2 then none else do", "compile_refinement"),
+]))
+
+suites.append(("StateConditionFaults", (root / "lean-cbcl/LeanCbcl/StateConditionFaults.lean").read_text(), [
+    ("condition-dependency-product-drops-source", ".pair source rest", ".pair rest rest", "product_evidence"),
+    ("condition-dependency-leaf-replaced-by-snapshot", "Code.fold (fun _ _ source => source)",
+     "Code.fold (fun _ _ _ => .snapshot (fun _ => truth))", "dependencies_evidence"),
 ]))
 
 import argparse

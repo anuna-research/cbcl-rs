@@ -9,7 +9,7 @@ open StateInstalledLowering StateOutputCompiler
 
 /-- The name retained by each emitted output instruction. -/
 def nameOf {V : Type} : Output V → String
-  | .field name _ | .threshold name _ _ _ => name
+  | .field name _ | .threshold name _ _ _ | .condition name _ _ => name
 
 /-- One-declaration output compilation preserves its exact authored name. -/
 theorem compile_one_name {V : Type} (plans : Plans V) (definitions : Definitions V)

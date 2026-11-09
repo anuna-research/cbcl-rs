@@ -1,10 +1,10 @@
 import LeanCbcl.StateCondition
-import LeanCbcl.StateOutputCompiler
+import LeanCbcl.StateOutputQuery
 
 /-! Closed condition code binds each leaf to an actual completed source plan and
 its compiled singleton query. Observation dispatch reuses the source-owned scope
-of StateOutputCompiler; no common condition cut is introduced. Integration into
-the authored declaration walk remains a separate obligation. -/
+of StateOutputCompiler; no common condition cut is introduced. The full authored
+assembly lives in StateAuthoredConditionOutputs. -/
 set_option autoImplicit false
 namespace CBCL.StateConditionCompiler
 open State StateLift StateObservation StateObservationPlan StateInstalledCompiler
@@ -15,25 +15,81 @@ inductive Code (V : Type) : Type 1 where
   | read (field : String) (query : Query V) (source : Plan V)
   | all (children : List (Code V))
 
+universe u
+
+/-- Kernel-recursive traversal of actual compiled leaves, preserving child order. -/
+noncomputable def Code.fold {V : Type} {W : Type u}
+    (read : String → Query V → Plan V → W) (node : List (Code V) → List W → W) : Code V → W :=
+  Code.rec (motive_1 := fun _ => W) (motive_2 := fun _ => List W)
+    read node [] (fun _ _ value rest => value :: rest)
+
+/-- Compiled-code recursion retains precisely the actual child list. -/
+theorem Code.fold_list {V : Type} {W : Type u}
+    (read : String → Query V → Plan V → W) (node : List (Code V) → List W → W) (children : List (Code V)) :
+    Code.rec_1 (motive_1 := fun _ => W) (motive_2 := fun _ => List W)
+      read node [] (fun _ _ value rest => value :: rest) children = children.map (Code.fold read node) := by
+  induction children with
+  | nil => rfl
+  | cons head tail ih => exact congrArg (List.cons (Code.fold read node head)) ih
+
+/-- A compiled read traversal consumes its real name, policy and source plan. -/
+@[simp] theorem Code.fold_read {V : Type} {W : Type u}
+    (read : String → Query V → Plan V → W) (node : List (Code V) → List W → W)
+    (name : String) (query : Query V) (source : Plan V) :
+    Code.fold read node (.read name query source) = read name query source := rfl
+
+/-- Conjunction traversals consume every actual child. -/
+@[simp] theorem Code.fold_all {V : Type} {W : Type u}
+    (read : String → Query V → Plan V → W) (node : List (Code V) → List W → W) (children : List (Code V)) :
+    Code.fold read node (.all children) = node children (children.map (Code.fold read node)) := by
+  exact congrArg (node children) (Code.fold_list read node children)
+
+/-- Condition query identity retains the complete authored tree and every
+source-owned policy, independently of freshly captured source plans. -/
+inductive QueryTree (V : Type) : Type 1 where
+  | read (field : String) (query : Query V)
+  | all (children : List (QueryTree V))
+
+/-- Extract all actual condition queries without discarding nested structure. -/
+noncomputable def Code.queryIdentity {V : Type} : Code V → QueryTree V :=
+  Code.fold (fun field query _ => .read field query) (fun _ children => .all children)
+
+/-- A condition leaf identity retains its actual source name and compiled query. -/
+theorem Code.query_identity_read {V : Type} (field : String) (query : Query V) (source : Plan V) :
+    Code.queryIdentity (.read field query source) = .read field query := rfl
+
+/-- Every nested condition child remains represented in query identity. -/
+theorem Code.query_identity_all {V : Type} (children : List (Code V)) :
+    Code.queryIdentity (.all children) = .all (children.map Code.queryIdentity) := by
+  simp only [Code.queryIdentity,Code.fold_all]
+
 /-- Compile only recognized conjunction shapes, admitted singleton queries and
 actual completed source lookups. Bounds apply to the complete syntax tree. -/
 noncomputable def compile {V : Type} (maxNodes : Nat) (plans : Plans V)
-    (definitions : Definitions V) : Condition V → Option (Code V)
-  | .read field element => if maxNodes = 0 then none else do
+    (definitions : Definitions V) : Condition V → Option (Code V) :=
+  Condition.fold
+    (fun field element => if maxNodes = 0 then none else do
       let source ← plans.lookup field
       let definition ← definitions.lookup field
       let query ← compileQuery [element] definition
-      return .read field query source
-  | .all children =>
+      return .read field query source)
+    (fun children compiled =>
       if maxNodes < (Condition.all children).size ∨ children.length < 2 then none else do
-        let compiled ← (children.map (compile maxNodes plans definitions)).mapM id
-        return .all compiled
+        let values ← compiled.mapM id
+        return .all values)
 
 /-- Every leaf executes at its own retained source scope and complete fault pass. -/
 noncomputable def Code.observe {V : Type} (whole : List Act) (freezes : List (String × FreezeSpec)) :
     Code V → Observation Bool
   | .read field query source => boolean (query.run (referenceScope whole freezes field) (sourceValue whole source))
   | .all children => combine (children.map (Code.observe whole freezes))
+
+/-- Embed Boolean condition success in the target field-value representation.
+The authored caller supplies its fixed true literal, never a read predicate. -/
+def truthResult {V : Type} (truth : V) : Observation Bool → Observation V
+  | .fault ids => .fault ids
+  | .data (.reached _) => .data (.reached truth)
+  | .data _ => .data .pending
 
 /-- Independent syntax interpretation dispatches each original source policy. -/
 noncomputable def interpret {V : Type} (maxNodes : Nat) (plans : Plans V) (definitions : Definitions V)
@@ -44,16 +100,8 @@ noncomputable def interpret {V : Type} (maxNodes : Nat) (plans : Plans V) (defin
       if maxNodes < (Condition.all children).size ∨ children.length < 2 then none else
         ((children.map (interpret maxNodes plans definitions whole freezes)).mapM id).map combine
 
-/-- A compiled leaf is exactly the existing source-owned threshold output,
-followed by condition-only Boolean normalization. -/
-theorem leaf_observe {V : Type} (whole : List Act) (freezes : List (String × FreezeSpec))
-    (field : String) (query : Query V) (source : Plan V) :
-    Code.observe whole freezes (.read field query source) =
-      boolean ((Output.threshold "" field query source).observe whole freezes).2 := by
-  simp only [Code.observe,Output.observe]
-
 /-- A missing source plan rejects; declaration-order and source-kind eligibility
-are enforced by the pending authored integration, not by this lookup lemma. -/
+are enforced by authored preparation, not by this lookup lemma. -/
 theorem absent_source {V : Type} (maxNodes : Nat) (plans : Plans V) (definitions : Definitions V)
     (field : String) (element : V) (absent : plans.lookup field = none) :
     compile maxNodes plans definitions (.read field element) = none := by
@@ -141,7 +189,7 @@ theorem all_success {V : Type} (whole : List Act) (freezes : List (String × Fre
     (success : Code.observe whole freezes (.all children) = .data (.reached value)) : value = true := by
   exact combine_success (children.map (Code.observe whole freezes)) value (by simpa only [Code.observe] using success)
 
-universe u v
+universe v
 
 /-- Option traversal commutes with the fixed observation of each completed leaf. -/
 theorem sequence_map {α : Type u} {β : Type v} (values : List (Option α)) (function : α → β) :
@@ -184,10 +232,18 @@ theorem compile_refinement {V : Type} (maxNodes : Nat) (plans : Plans V) (defini
     cases assembled : (children.map (compile maxNodes plans definitions)).mapM id with
     | none =>
       simp only [assembled,Option.map_none] at sequence
-      simp [compile,interpret,invalid,assembled,← sequence]
+      simp only [compile,Condition.fold_all,interpret,invalid,↓reduceIte,← sequence]
+      change (((children.map (compile maxNodes plans definitions)).mapM id).bind
+        (fun values => some (Code.all values))).map (Code.observe whole freezes) = none
+      rw [assembled]
+      rfl
     | some codes =>
       simp only [assembled,Option.map_some] at sequence
-      simp [compile,interpret,invalid,assembled,← sequence,Code.observe]
+      simp only [compile,Condition.fold_all,interpret,invalid,↓reduceIte,← sequence]
+      change (((children.map (compile maxNodes plans definitions)).mapM id).bind
+        (fun values => some (Code.all values))).map (Code.observe whole freezes) = _
+      rw [assembled]
+      simp only [Option.bind_some,Option.map_some,Code.observe]
   · intro child impossible
     simp at impossible
   · intro head tail headProof tailProof child member

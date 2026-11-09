@@ -134,7 +134,7 @@ theorem declarations_plain (environment : Environment) (domains : List StateInst
         · subst declaration
           trivial
         · exact remaining declaration later
-    | domain _ | lattice _ | freeze _ _ _ =>
+    | condition _ _ | domain _ | lattice _ | freeze _ _ _ =>
       exact ih earlier output bindings (by simpa [declarations] using lowered)
 
 /-- Static preparation supplies the actual plain-query declaration inventory. -/
@@ -437,10 +437,10 @@ theorem related_output_fault (world : Act → Prop) (domains : List StateInstall
   obtain ⟨enlarged,current,contains⟩ := StateReplayPaths.related_replays world domains A B unique closedA closedB paired.2
     e original accepted
   have sourceCurrent := (observation_fault_iff world (outputSource right) B enlarged).mpr current
-  have emitted := output_preserves_source_fault right B second enlarged
+  obtain ⟨emittedEvidence,emitted,retained⟩ := output_preserves_source_fault right B second enlarged
     ((source_value_fault_iff world B validB closedB (outputSource right) enlarged).mpr sourceCurrent)
   have targetName : outputName right = name := paired.1.symm.trans nameEqual
-  exact ⟨enlarged,by simpa [targetName] using emitted,contains⟩
+  exact ⟨emittedEvidence,by simpa [targetName] using emitted,fun id member => retained id (contains id member)⟩
 
 /-- Complete ordered output vectors preserve every named fault and previous
 identity when the receiving program uses its freshly compiled source plans. -/

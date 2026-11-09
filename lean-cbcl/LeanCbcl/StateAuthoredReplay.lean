@@ -164,7 +164,7 @@ theorem declarations_certified (world : Act → Prop) (environment : Environment
         · subst declaration
           trivial
         · exact remaining declaration later
-    | domain _ | lattice _ | freeze _ _ _ =>
+    | condition _ _ | domain _ | lattice _ | freeze _ _ _ =>
       exact ih earlier output bindings (by simpa [declarations] using lowered)
 
 /-- Source-relative query dispatch introduces no new certified primitive. -/

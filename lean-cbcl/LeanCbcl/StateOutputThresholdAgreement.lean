@@ -285,7 +285,7 @@ theorem declarations_classified (environment : Environment) (domains : List Stat
         · subst declaration
           trivial
         · exact remaining declaration later
-    | domain _ | lattice _ | freeze _ _ _ =>
+    | condition _ _ | domain _ | lattice _ | freeze _ _ _ =>
       exact ih earlier output bindings (by simpa [declarations] using lowered)
 
 /-- Static preparation supplies the actual plain-query declaration inventory. -/
@@ -335,6 +335,8 @@ theorem compile_query_classified (elements : List StateInstalledLegacy.Value)
 def ClassifiedOutput : Output StateInstalledLegacy.Value → Prop
   | .field .. => True
   | .threshold _ _ query _ => ClassifiedQuery query
+  | .condition _ _ code => StateConditionCompiler.Code.fold
+      (fun _ query _ => ClassifiedQuery query) (fun _ children => ∀ value ∈ children, value) code
 
 /-- Compiling one output preserves its source-owned policy classification. -/
 theorem compile_one_classified (plans : StateInstalledCompiler.Plans StateInstalledLegacy.Value) (definitions : Definitions StateInstalledLegacy.Value)

@@ -1,5 +1,6 @@
 import LeanCbcl.StateReplayPaths
 import LeanCbcl.StateOutputCompiler
+import LeanCbcl.StateConditionFaults
 
 /-! Fault observations bridge the immutable replica world to the local,
 normalized world used by emitted output instructions. -/
@@ -123,64 +124,39 @@ theorem source_value_fault_iff {V : Type} (world : Act → Prop) (A : List Act)
     sourceValue A source = .fault e ↔ observe world source A = .fault e := by
   rw [observation_fault_iff,sourceValue,observation_fault_iff,normalized_errors world A valid closed]
 
-/-- Authored native and factored sources compile closure/raw query adapters.
-Generic lattice-query code is distinguished because it can add a top fault. -/
-def PlainQuery {V : Type} : Query V → Prop
-  | .closure .. | .raw .. => True
-  | .finite .. => False
-
-/-- Every emitted query strategy preserves an existing source fault exactly. -/
-theorem query_preserves_fault {V : Type} (query : Query V) (history : List Act) (e : Evidence) :
-    query.run history (.fault e) = .fault e := by
-  cases query <;> rfl
-
-/-- Plain source-owned query adapters cannot invent a fault or change its
-identities, including when the source carries a frozen display wrapper. -/
-theorem plain_query_fault_iff {V : Type} (query : Query V) (plain : PlainQuery query)
-    (history : List Act) (value : StateReaderValues.Result V) (e : Evidence) :
-    query.run history value = .fault e ↔ value = .fault e := by
-  cases query with
-  | finite spec embed => contradiction
-  | closure alternatives test =>
-    cases value with
-    | fault _ => rfl
-    | data current =>
-      cases current <;>
-        simp only [Query.run,StateReaderValues.unfrozen,StateRuleRefinement.nativeClosureThreshold,Data.payload]
-      all_goals first | exact iff_of_false (by contradiction) (by contradiction) | (split <;> simp)
-  | raw alternatives test state =>
-    cases value with
-    | fault _ => rfl
-    | data current =>
-      simp only [Query.run,StateInstalledCompiler.nativeRawThreshold]
-      split <;> simp
-
 /-- The rendered name retained by either output instruction. -/
 def outputName {V : Type} : Output V → String
-  | .field name _ | .threshold name _ _ _ => name
+  | .field name _ | .threshold name _ _ _ | .condition name _ _ => name
 
 /-- The complete compiled source retained by either output instruction. -/
-def outputSource {V : Type} : Output V → Plan V
+noncomputable def outputSource {V : Type} : Output V → Plan V
   | .field _ source | .threshold _ _ _ source => source
+  | .condition _ truth code => StateConditionFaults.dependencies truth code
 
 /-- An output's query strategy adds no independent top fault. -/
 def PlainOutput {V : Type} : Output V → Prop
   | .field .. => True
   | .threshold _ _ query _ => PlainQuery query
+  | .condition _ _ code => StateConditionFaults.Plain code
 
-/-- Every output instruction preserves its completed source fault, regardless
-of query scope or strategy. -/
+/-- Every instruction preserves completed source evidence; conjunctions may
+add independent query witnesses but never erase the original fault. -/
 theorem output_preserves_source_fault {V : Type} (output : Output V) (whole : List Act)
     (freezes : List (String × FreezeSpec)) (e : Evidence)
     (fault : sourceValue whole (outputSource output) = .fault e) :
-    output.observe whole freezes = (outputName output,.fault e) := by
+    ∃ enlarged, output.observe whole freezes = (outputName output,.fault enlarged) ∧
+      ∀ id ∈ e, id ∈ enlarged := by
   cases output with
-  | field name source => exact congrArg (fun value => (name,value)) fault
+  | field name source => exact ⟨e,congrArg (fun value => (name,value)) fault,fun _ member => member⟩
   | threshold name sourceName query source =>
+    refine ⟨e,?_,fun _ member => member⟩
     change sourceValue whole source = .fault e at fault
     change (name,query.run _ (sourceValue whole source)) = _
     rw [fault,query_preserves_fault]
     rfl
+  | condition name truth code =>
+    obtain ⟨enlarged,current,contains⟩ := StateConditionFaults.preserves_fault truth whole freezes code e fault
+    exact ⟨enlarged,congrArg (fun value => (name,value)) current,contains⟩
 
 /-- For a plain emitted output, a fault is exactly the globally interpreted
 source-plan fault. Local normalization and query scope introduce no new fault. -/
@@ -196,5 +172,9 @@ theorem output_fault_iff {V : Type} (world : Act → Prop) (A : List Act)
     simp only [Output.observe,outputName,outputSource,Prod.mk.injEq,true_and]
     rw [plain_query_fault_iff query plain]
     exact source_value_fault_iff world A valid closed source e
+  | condition name truth code =>
+    simp only [Output.observe,outputName,outputSource,Prod.mk.injEq,true_and]
+    rw [StateConditionFaults.plain_fault_iff truth A freezes code plain e]
+    exact source_value_fault_iff world A valid closed (StateConditionFaults.dependencies truth code) e
 
 end CBCL.StateOutputWitnessReplay

@@ -112,6 +112,36 @@ theorem query_run_setEq {V : Type} (query : Query V) {A B : List Act} (same : Se
       simp only [Query.run,StateInstalledCompiler.nativeLiftThreshold]
       rw [thresholdSame,lift_setEq spec.contribution same,rawHistory_setEq same]
 
+/-- Complete condition trees preserve source-owned raw cuts and every result
+channel under equal accepted sets, including duplicate delivery. -/
+theorem condition_observe_setEq {V : Type} (code : StateConditionCompiler.Code V) {A B : List Act}
+    (rankedA : Ranked A) (rankedB : Ranked B)
+    (consistentA : ∀ a ∈ A, ∀ b ∈ A, a.addr = b.addr → a = b)
+    (consistentB : ∀ a ∈ B, ∀ b ∈ B, a.addr = b.addr → a = b)
+    (same : SetEq A B) (freezes : List (String × FreezeSpec)) :
+    code.observe A freezes = code.observe B freezes := by
+  let P := fun code : StateConditionCompiler.Code V => code.observe A freezes = code.observe B freezes
+  apply StateConditionCompiler.Code.rec (motive_1 := P)
+    (motive_2 := fun children => ∀ child ∈ children, P child) ?_ ?_ ?_ ?_ code
+  · intro field query source
+    dsimp only [P]
+    simp only [StateConditionCompiler.Code.observe]
+    rw [source_value_setEq source consistentA consistentB same,
+      query_run_setEq query (reference_scope_setEq rankedA rankedB same freezes field)]
+  · intro children ih
+    dsimp only [P]
+    simp only [StateConditionCompiler.Code.observe]
+    apply congrArg StateCondition.combine
+    apply List.map_congr_left
+    intro child member
+    exact ih child member
+  · intro child impossible
+    simp at impossible
+  · intro head tail headProof tailProof child member
+    rcases List.mem_cons.mp member with equal | member
+    · simpa only [equal] using headProof
+    · exact tailProof child member
+
 /-- Corrected emitted instructions preserve exact observations on equal sets;
 raw thresholds use equal source cuts rather than silently reading full history. -/
 theorem output_observe_setEq {V : Type} (output : Output V) {A B : List Act}
@@ -126,6 +156,9 @@ theorem output_observe_setEq {V : Type} (output : Output V) {A B : List Act}
     simp only [Output.observe]
     rw [source_value_setEq source consistentA consistentB same,
       query_run_setEq query (reference_scope_setEq rankedA rankedB same freezes sourceName)]
+  | condition name truth code =>
+    simp only [Output.observe]
+    rw [condition_observe_setEq code rankedA rankedB consistentA consistentB same freezes]
 
 /-- The complete corrected emitted vector, not only its source plans or error
 projection, is exactly invariant under accepted-set equality. -/

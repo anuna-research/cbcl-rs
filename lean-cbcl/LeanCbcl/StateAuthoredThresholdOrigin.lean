@@ -219,7 +219,7 @@ theorem declarations_source_exists (environment : Environment) (domains : List S
         intro name definition member
         obtain ⟨rule,inside⟩ := ih earlier more last tail name definition (by simpa using member)
         exact ⟨rule,by simpa [rawFields] using inside⟩
-    | domain _ | lattice _ | freeze _ _ _ =>
+    | condition _ _ | domain _ | lattice _ | freeze _ _ _ =>
       intro name definition member
       obtain ⟨rule,inside⟩ := ih earlier output bindings (by simpa [declarations] using lowered) name definition member
       exact ⟨rule,by simpa [rawFields] using inside⟩

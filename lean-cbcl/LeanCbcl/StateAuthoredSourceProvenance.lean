@@ -50,7 +50,7 @@ theorem declaration_origin (environment : Environment) (resolvedDomains : List S
         intro name rule member
         obtain ⟨prior,binding,bound,present⟩ := ih earlier more last tail name rule (by simpa [rawFields] using member)
         exact ⟨prior,binding,bound,List.mem_cons_of_mem _ present⟩
-    | domain _ | lattice _ | freeze _ _ _ =>
+    | condition _ _ | domain _ | lattice _ | freeze _ _ _ =>
       exact ih earlier loweredFields bindings (by simpa [declarations] using lowered)
 
 /-- Final source bindings come from the initial environment or an actual
@@ -98,7 +98,7 @@ theorem bindings_origin (environment : Environment) (resolvedDomains : List Stat
         rcases ih earlier more last tail name binding member with old | ⟨prior,rule,inside,bound⟩
         · exact Or.inl old
         · exact Or.inr ⟨prior,rule,by simpa [rawFields] using inside,bound⟩
-    | domain _ | lattice _ | freeze _ _ _ =>
+    | condition _ _ | domain _ | lattice _ | freeze _ _ _ =>
       intro name binding member
       rcases ih earlier loweredFields bindings (by simpa [declarations] using lowered) name binding member with old | ⟨prior,rule,inside,bound⟩
       · exact Or.inl old
@@ -111,7 +111,7 @@ theorem raw_names_sublist (entries : List Entry) : List.Sublist ((rawFields entr
   | cons entry rest ih =>
     cases entry with
     | field name rule => simpa only [rawFields,declaredNames,List.filterMap_cons,List.map_cons] using List.Sublist.cons₂ name ih
-    | threshold name _ _ => simpa only [rawFields,declaredNames,List.filterMap_cons] using List.Sublist.cons name ih
+    | threshold name _ _ | condition name _ => simpa only [rawFields,declaredNames,List.filterMap_cons] using List.Sublist.cons name ih
     | lattice declaration => simpa only [rawFields,declaredNames,List.filterMap_cons] using List.Sublist.cons declaration.name ih
     | domain _ | freeze _ _ _ => simpa only [rawFields,declaredNames,List.filterMap_cons] using ih
 
@@ -147,9 +147,8 @@ theorem static_trace (environment : Environment) (entries : List Entry) (prepare
           cases freezeResult : freezeTemplates environment bindings entries with
           | none => simp [lowerStatic,checked,domainResult,tableResult,declResult,freezeResult] at lowered
           | some templates =>
-            have same : (⟨loweredFields,resolvedDomains,templates⟩ : Prepared) = prepared := by
-              simpa [lowerStatic,checked,domainResult,tableResult,declResult,freezeResult] using lowered
-            cases same
+            simp [lowerStatic,checked,domainResult,tableResult,declResult,freezeResult] at lowered
+            rcases lowered with ⟨_,rfl⟩
             exact ⟨resolvedTables,bindings,rfl,rfl,declResult,freezeResult⟩
   · simp [lowerStatic,checked] at lowered
 
@@ -399,7 +398,7 @@ theorem declaration_threshold (environment : Environment) (resolvedDomains : Lis
         rcases List.mem_cons.mp member with same | inside
         · cases same; exact List.mem_cons_self
         · exact List.mem_cons_of_mem _ (ih earlier more last tail inside)
-    | domain _ | lattice _ | freeze _ _ _ =>
+    | condition _ _ | domain _ | lattice _ | freeze _ _ _ =>
       exact ih earlier loweredFields bindings (by simpa [declarations] using lowered) (by simpa using member)
 
 /-- Successful authored preparation recovers the resolved source rule and

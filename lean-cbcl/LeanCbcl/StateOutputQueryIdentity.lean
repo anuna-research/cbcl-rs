@@ -6,9 +6,10 @@ set_option autoImplicit false
 namespace CBCL.StateOutputQueryIdentity
 open State StateOutputCompiler StateInstalledLowering StateAuthoredBindings
 
-/-- Query identity retains field names, threshold source names and actual code. -/
+/-- Single-source query identity retains names, threshold sources and code.
+Condition trees have a separate multi-leaf identity and are not single queries. -/
 def queryIdentity {V : Type} : Output V → String × Option (String × Query V)
-  | .field name _ => (name,none)
+  | .field name _ | .condition name _ _ => (name,none)
   | .threshold name source query _ => (name,some (source,query))
 
 /-- Successful compilation of the same declaration retains identical query code,

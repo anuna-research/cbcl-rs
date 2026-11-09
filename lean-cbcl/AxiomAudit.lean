@@ -1,3 +1,10 @@
+import LeanCbcl.StateAuthoredConditionConvergence
+import LeanCbcl.StateAuthoredConditionPlain
+import LeanCbcl.StateAuthoredConditionTests
+import LeanCbcl.StateAuthoredConditionPreparation
+import LeanCbcl.StateAuthoredConditionOutputs
+import LeanCbcl.StateConditionFaults
+import LeanCbcl.StateOutputQuery
 import LeanCbcl.StateConditionCompiler
 import LeanCbcl.StateCondition
 import LeanCbcl.StateAuthoredQuasiDeterminism
@@ -3376,3 +3383,54 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateConditionCompiler.all_success
 #print axioms CBCL.StateConditionCompiler.sequence_map
 #print axioms CBCL.StateConditionCompiler.compile_refinement
+
+#print axioms CBCL.StateConditionFaults.source_evidence
+#print axioms CBCL.StateConditionFaults.product_evidence
+#print axioms CBCL.StateConditionFaults.query_grows
+#print axioms CBCL.StateConditionFaults.query_evidence
+#print axioms CBCL.StateConditionFaults.dependencies_evidence
+#print axioms CBCL.StateConditionFaults.evidence_fault_iff
+#print axioms CBCL.StateConditionFaults.truth_evidence
+#print axioms CBCL.StateConditionFaults.plain_fault_iff
+#print axioms CBCL.StateConditionFaults.fold_grows
+#print axioms CBCL.StateConditionFaults.dependencies_grow
+#print axioms CBCL.StateConditionFaults.preserves_fault
+#print axioms CBCL.StateAuthoredConditionOutputs.compiled_parts
+#print axioms CBCL.StateAuthoredConditionPreparation.admitted_query
+#print axioms CBCL.StateAuthoredConditionPreparation.checked_leaf_query
+#print axioms CBCL.StateAuthoredConditionPreparation.checked_leaf_freezes
+#print axioms CBCL.StateAuthoredConditionPreparation.checked_leaf_compiles
+#print axioms CBCL.StateAuthoredConditionTests.installs
+#print axioms CBCL.StateAuthoredConditionTests.condition_emitted
+#print axioms CBCL.StateAuthoredConditionTests.later_source_rejected
+#print axioms CBCL.StateAuthoredConditionTests.output_order
+#print axioms CBCL.StateAuthoredConditionTests.fixed_true_literal
+#print axioms CBCL.StateAuthoredConditionTests.condition_output_source_rejected
+#print axioms CBCL.StateAuthoredConditionTests.later_supersede_rejected
+#print axioms CBCL.StateAuthoredConditionTests.condition_freeze_rejected
+#print axioms CBCL.StateAuthoredConditionTests.unary_rejected
+#print axioms CBCL.StateAuthoredConditionTests.compatible_bounds_install
+#print axioms CBCL.StateAuthoredConditionTests.oversized_bound_rejected
+#print axioms CBCL.StateAuthoredConditionPlain.mapM_property
+#print axioms CBCL.StateAuthoredConditionPlain.compile_plain
+#print axioms CBCL.StateAuthoredConditionPlain.emit_plain
+#print axioms CBCL.StateAuthoredConditionPlain.authored_plain
+#print axioms CBCL.StateAuthoredConditionPlain.authored_fault_refinement
+#print axioms CBCL.StateAuthoredConditionConvergence.authored_observations_setEq
+#print axioms CBCL.StateCondition.Condition.fold_list
+#print axioms CBCL.StateCondition.Condition.fold_read
+#print axioms CBCL.StateCondition.Condition.fold_all
+#print axioms CBCL.StateCondition.Condition.size_all
+#print axioms CBCL.StateCondition.Condition.child_size_le
+#print axioms CBCL.StateConditionCompiler.Code.fold_list
+#print axioms CBCL.StateConditionCompiler.Code.fold_read
+#print axioms CBCL.StateConditionCompiler.Code.fold_all
+#print axioms CBCL.StateConditionCompiler.Code.query_identity_read
+#print axioms CBCL.StateConditionCompiler.Code.query_identity_all
+#print axioms CBCL.StateOutputConvergence.condition_observe_setEq
+
+#print axioms CBCL.StateAuthoredConditionPreparation.checked_children
+
+#print axioms CBCL.StateAuthoredConditionPreparation.mapM_available
+
+#print axioms CBCL.StateAuthoredConditionPreparation.checked_tree_compiles

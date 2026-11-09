@@ -92,7 +92,7 @@ theorem declaration_dependencies (environment : Environment) (resolvedDomains : 
         intro name rule member
         obtain ⟨definition,present,exactDeps⟩ := ih earlier more last tail name rule (by simpa [rawFields] using member)
         exact ⟨definition,by simp [present],exactDeps⟩
-    | domain _ | lattice _ | freeze _ _ _ =>
+    | condition _ _ | domain _ | lattice _ | freeze _ _ _ =>
       exact ih earlier loweredFields bindings (by simpa [declarations] using lowered)
 
 /-- Source-relative resolution preserves every concrete field definition and
@@ -141,7 +141,7 @@ theorem static_dependencies (environment : Environment) (entries : List Entry) (
           | none => simp [lowerStatic,checked,domainResult,tableResult,declResult,freezeResult] at lowered
           | some templates =>
             simp [lowerStatic,checked,domainResult,tableResult,declResult,freezeResult] at lowered
-            subst prepared
+            rcases lowered with ⟨_,rfl⟩
             exact declaration_dependencies environment resolvedDomains resolvedTables entries [] loweredFields bindings declResult
   · simp [lowerStatic,checked] at lowered
 
