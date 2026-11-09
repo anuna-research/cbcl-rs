@@ -3,7 +3,7 @@ id: BUG-016
 title: Reported conflict evidence lacks a replay-sufficiency certificate
 severity: S2
 priority: P1
-status: new
+status: resolved
 reported-date: 2026-11-09
 assigned-to: SPEC-038 implementer
 component: crates/cbcl-core/src/lattice.rs and lean-cbcl/LeanCbcl/StateObservation.lean
@@ -264,3 +264,35 @@ Independent review found no defect in these bridges. Actual authored-query
 inventory and paired emitted programs still need to establish the plain-output
 premise and connect source-plan replay to same-named output replay. The generic
 finite-query exclusion is not silently assumed for arbitrary installed IR.
+
+## Resolution: actual emitted authored outputs
+
+`StateAuthoredOutputReplay` derives the authored query inventory from every
+successful binder case and ordered declaration metadata. Actual authored finite
+lifts use factored source-owned policies; generic installed lattice-query
+adapters are not assumed to be plain. Successful output compilation therefore
+constructs the strategy premise needed by exact fault inversion.
+
+Both actual emitted programs are paired through source-plan lookup, common
+validated query definitions and ordered instruction compilation. The complete
+output-vector replay theorem transfers the same named fault across fresh
+receiver compilation, preserving all earlier evidence without caller-supplied
+source, strategy or instruction-pairing certificates.
+
+`eventual_authored_output_witness_fault` constructs a finite list of precisely
+the reported actual source acts and proves that its mapped identities equal the
+original evidence. Reliable delivery transfers only that witness. Receiver rank
+and output-compilation existence are derived from dependency coverage, closure
+and accepted-address uniqueness using the existing complete output/cache compiler.
+Every later freshly compiled receiver output vector faults under the same name
+with evidence containing the original set. These are typed authored-output model
+results under explicit predecessor-admission and causal-dependency premises;
+native immutable identity binding remains the separate BUG-011 issue.
+
+The full build and Batteries linter pass; all 2,283 audited theorems use only
+allowlisted axioms. Mutations admitting generic lattice queries to the authored
+inventory, pairing an output with its old source instead of its receiver source,
+and ranking causal edges by semantic addresses each fail the named proof
+obligation. Independent review found no defect and confirmed that this closes
+BUG-016's replay-certificate acceptance obligation. Broader quasi-determinism
+success/convergence composition and the full SPEC-038 completion audit remain.

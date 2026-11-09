@@ -1,3 +1,4 @@
+import LeanCbcl.StateAuthoredOutputReplay
 import LeanCbcl.StateOutputWitnessReplay
 import LeanCbcl.StateReplayPaths
 import LeanCbcl.StateFreezeWitnessReplay
@@ -3242,3 +3243,26 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateOutputWitnessReplay.plain_query_fault_iff
 #print axioms CBCL.StateOutputWitnessReplay.output_preserves_source_fault
 #print axioms CBCL.StateOutputWitnessReplay.output_fault_iff
+
+#print axioms CBCL.StateAuthoredOutputReplay.primitive_plain
+#print axioms CBCL.StateAuthoredOutputReplay.context_definition_plain
+#print axioms CBCL.StateAuthoredOutputReplay.bind_plain
+#print axioms CBCL.StateAuthoredOutputReplay.declarations_plain
+#print axioms CBCL.StateAuthoredOutputReplay.prepared_declarations_plain
+#print axioms CBCL.StateAuthoredOutputReplay.extend_plain
+#print axioms CBCL.StateAuthoredOutputReplay.compile_query_plain
+#print axioms CBCL.StateAuthoredOutputReplay.compile_one_plain
+#print axioms CBCL.StateAuthoredOutputReplay.compile_declarations_plain
+#print axioms CBCL.StateAuthoredOutputReplay.compile_authored_plain
+#print axioms CBCL.StateAuthoredOutputReplay.related_lookup
+#print axioms CBCL.StateAuthoredOutputReplay.compile_one_related
+#print axioms CBCL.StateAuthoredOutputReplay.compile_declarations_related
+#print axioms CBCL.StateAuthoredOutputReplay.compile_authored_parts
+#print axioms CBCL.StateAuthoredOutputReplay.authored_outputs_related
+#print axioms CBCL.StateAuthoredOutputReplay.related_output_fault
+#print axioms CBCL.StateAuthoredOutputReplay.code_fault_replays
+#print axioms CBCL.StateAuthoredOutputReplay.authored_output_fault_replays
+#print axioms CBCL.StateAuthoredOutputReplay.authored_output_evidence_supported
+#print axioms CBCL.StateAuthoredOutputReplay.authored_output_recompiles
+#print axioms CBCL.StateAuthoredOutputReplay.replica_ranked
+#print axioms CBCL.StateAuthoredOutputReplay.eventual_authored_output_witness_fault

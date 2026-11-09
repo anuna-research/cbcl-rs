@@ -852,6 +852,13 @@ suites.append(("StateOutputWitnessReplay", (root / "lean-cbcl/LeanCbcl/StateOutp
      "errors (fun _ => False) source (StateScopePool.normalize A) = errors world source A", "normalized_errors"),
 ]))
 
+suites.append(("StateAuthoredOutputReplay", (root / "lean-cbcl/LeanCbcl/StateAuthoredOutputReplay.lean").read_text(), [
+    ("authored-query-inventory-admits-generic-lattice", "| .lattice _ => False", "| .lattice _ => True", "compile_query_plain"),
+    ("emitted-replay-pairs-source-with-itself", "(path (outputSource left)) (path (outputSource right))",
+     "(path (outputSource left)) (path (outputSource left))", "related_output_fault"),
+    ("output-receiver-rank-uses-addresses", "refine ⟨H.rank,?_⟩", "refine ⟨Act.addr,?_⟩", "replica_ranked"),
+]))
+
 import argparse
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--module", action="append", help="Run only this module (repeatable)")
