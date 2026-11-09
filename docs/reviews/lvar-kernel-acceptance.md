@@ -113,6 +113,19 @@ it explicitly. Open: the SPEC-038 implementer owns correcting and validating
 that configuration before wiring it into the mutation command. This defect does
 not explain run 324's independently confirmed baseline failure.
 
+[Lean run 330](https://git.anuna.io/anuna-research/cbcl-rs/actions/runs/330/jobs/0)
+for `da1e013` exposed a separate bootstrap gap: every Lean 4.27.0 toolchain
+request through `releases.lean-lang.org` returned HTTP 504. The existing fallback
+covered elan's own installer, not the Lean distribution. The bootstrap now falls
+back to the pinned official Lean ZIP, verifies its release SHA-256, and links the
+persistent distribution under the original repository toolchain name. Direct
+GitHub and API-asset paths are supported for Linux x86_64 and aarch64. Failed
+downloads, checksum mismatch and extraction failure remain fatal. An offline
+regression first reproduced the missing fallback; the expanded installer suite
+passes, including retention of the linked distribution after download cleanup.
+The required Lean workflow runs these installer regressions before bootstrap.
+This fix requires its own successful remote run.
+
 Installer, cache-key and mutation-score-gate regression suites pass locally.
 A current green Lean run does not verify the still-uncommitted condition changes
 or establish a completed mutation score.

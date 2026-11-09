@@ -86,6 +86,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Test Lean bootstrap and verified fallback paths
+        run: python3 scripts/test-ci-install-lean.py
+
       # The Forgejo runner can abort between output calculation and cache restore
       # without reporting an action error. Bootstrap directly so an optional cache
       # cannot prevent Lean verification from running.
