@@ -457,16 +457,22 @@ pub fn parse_cast(bindings: &SExpr, roles: &[RoleDecl]) -> Result<Cast, R6Violat
 const PIN_HEX_LEN: usize = 64;
 
 /// Parse the value of a `with-roles` `:dialect` field (REQ-628): exactly
-/// the symbol `sha256:<lowercase-hex64>`, the form [`Dialect::hash`] takes
-/// at install. Fail closed (LangSec principle 4): a bad prefix, a wrong
-/// digest length, or a non-hex character is rejected, never repaired.
+/// the string `"sha256:<lowercase-hex64>"` on the strict wire path. Typed
+/// symbol atoms remain accepted for existing in-process callers. The digest
+/// is the form [`Dialect::hash`] takes at install. A bad prefix, wrong digest
+/// length or non-hex character is rejected, never repaired (LangSec principle 4).
 ///
 /// [`Dialect::hash`]: crate::dialect::Dialect::hash
 pub fn parse_dialect_pin(value: &SExpr) -> Result<String, R6Violation> {
-    let SExpr::Atom(Atom::Symbol(pin)) = value else {
-        return Err(R6Violation::MalformedCast {
-            detail: format!(":dialect value must be a sha256:<hex64> symbol, got {value}"),
-        });
+    let pin = match value {
+        SExpr::Atom(Atom::Str(pin) | Atom::Symbol(pin)) => pin,
+        _ => {
+            return Err(R6Violation::MalformedCast {
+                detail: format!(
+                    ":dialect value must be a sha256:<hex64> string or typed symbol, got {value}"
+                ),
+            })
+        }
     };
     let Some(hex) = pin.strip_prefix("sha256:") else {
         return Err(R6Violation::MalformedCast {
@@ -485,7 +491,7 @@ pub fn parse_dialect_pin(value: &SExpr) -> Result<String, R6Violation> {
 
 /// Parse a `with-roles` wrapper's parameter list into a [`Cast`] (CON-601,
 /// REQ-628): the bindings list, optionally followed by
-/// `:dialect sha256:<hex64>` in that fixed position. Any other shape —
+/// `:dialect "sha256:<hex64>"` in that fixed position. Any other shape —
 /// extra fields, a misplaced pin, an unknown keyword — is rejected, never
 /// repaired (LangSec principle 4).
 pub fn parse_wrapper_cast(params: &[SExpr], roles: &[RoleDecl]) -> Result<Cast, R6Violation> {
@@ -804,7 +810,7 @@ mod tests {
     }
 
     #[test]
-    fn pin_negative_non_symbol_value() {
+    fn pin_negative_non_text_value() {
         assert!(matches!(
             parse_dialect_pin(&sx("(sha256 x)")),
             Err(R6Violation::MalformedCast { .. })

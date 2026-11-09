@@ -375,6 +375,238 @@ providers are insufficient. See SPEC-037 and
 python3 ../scripts/check-state-kernel-sec.py
 ```
 
+<a id="lvar-state-kernel"></a>
+
+## Causal Lattice Observation Kernel (CLOK)
+
+[SPEC-038](../specs/SPEC-038-lvar-state-kernel.md) remains **draft**. The committed
+proofs cover the following typed-model layers for the prior single-source
+observation inventory. SPEC-038 v0.4 adds approved condition observations and a
+sealed-root migration. Native root migration is implemented and verified;
+native conditions are implemented, while their installed compiler/oracle
+correspondence and extended proof acceptance remain pending. `StateCondition`
+provides the initial fault-first Boolean algebra; it is not the completed
+authored-condition compiler refinement.
+`StateConditionCompiler` proves closed condition-tree refinement to the existing
+installed-policy dispatcher using separate source scopes. Connecting that code
+to authored preparation and extending the full observation guarantees remains
+unfinished.
+
+- `StateLift` proves accepted-set lift invariance and the union/join law.
+  `StateLVar` and `StateObservation` compose threshold, domain, context, resource,
+  and freeze fault paths; `StateObservationPlan` combines those paths with data
+  observations. Snapshots may revise; threshold answers are stable or faulted.
+- `StateResourceCones`, `StateResourceFrontier`, `StateResourceCounters`, and
+  `StateResourceWorklist` connect native dependency traversal and budget checks
+  to exact cones. `StateResourceAggregate`, `StateResourceAccounting`, and
+  `StateResourceSolvency` discharge checked aggregate arithmetic and account
+  solvency before finalization.
+- `StateResourceVerifier.native_verifier_certificate_iff` proves the full typed
+  native fault classifier is equivalent to an accepted resource certificate.
+  `native_certificate_read_refinement` connects its fault read to the exact
+  certificate evidence channel. Preflight, budget verification, and aggregate
+  checks are composed; classifier correctness and fault persistence are proved.
+  Unsupported collective/quorum profiles have constant empty fault evidence.
+- `StateInstalledCompiler`, `StateInstalledClause`, `StateInstalledLattice`, and
+  `StateInstalledLowering` prove refinement and completeness of the installed
+  semantic IR against independent readers. They cover backward references,
+  whole-clause freeze attachment, source-relative threshold dispatch and
+  admissibility, observation tags, conditional eventual agreement, and fault
+  dissemination.
+
+`StateAuthoredQuasiDeterminism.authored_quasi_determinism` assembles the complete
+typed authored agreement guarantee. It covers actual emitted threshold and
+same-freezer value agreement, exact equal-set observations, immediate accepted
+witness replay, finite-witness dissemination, finite-history convergence and
+no-top full-data SEC. `StateAuthoredFrozenAgreement` derives output/source
+pairing through fresh compilation; `StateDataLocalWorld` connects normalized
+local interpretation to the common causal world. Excluded metadata may grow
+without changing a successful frozen value.
+
+These results extend the resource-classifier boundary of SPEC-036/037; those
+older theorems retain their stated provider premises. Concrete typed factories,
+finite validators, authored context/domain binding and functional cached freeze
+scopes are composed. Literal Rust AST/wire extraction, authentication,
+clock/signer mapping, mutable-driver execution and universal native
+canonical-renderer extraction remain explicit proof boundaries. The specification remains draft for implementation of the approved sealed-root
+migration and authored product conditions. The existing typed agreement proof is
+complete for its prior observation inventory; TEST-3815 extends it to conditions. Ongoing threshold preservation is also proved in its existing concrete
+preservation modules.
+
+Concrete factories now cover legacy primitives, the typed native resource
+reader, closed context paths, initializer/roster domains, and finite contribution
+and projection tables. `StateResourceReadEquivalence` proves equality of the
+modeled pending/ready/fault read under fact permutation, including aggregate
+value, rights, and headroom. `StateFiniteRead` proves upward-closed finite reads
+and distinct-success conflict using actual domain-selected source state.
+`StateAuthoredBindings` now combines those factories into whole-clause source
+lowering, with history-independent metadata checks and observation-specific
+freeze templates. `StateCompiledFreezeGrowth` reflects actual compiled error
+paths and proves named fault growth and eventual dissemination while plans are
+regenerated. `StateFreezeScopes` connects clear global cached cuts to nested
+plan data. `StateNativeReader` proves complete functional cached plan-reader
+equality, including faulted reads and nested freeze dependencies. Literal Rust
+mutable-reader/cache correspondence remains open. `StateInstalledRecognition`
+proves exact reference compiler acceptance; authored preparation now supplies
+all metadata and reference premises, with unchanged compilation results.
+`StateAuthoredCompletion` constructs concrete plans/readers from preparation
+and connects them to complete functional cached-reader observations, including
+faults and equality on equal accepted sets. `StateFiniteUpperCache` proves the
+optimized upper-set maximum formulas and admitted scalar decoding equal the reference
+finite gate. `StateFinitePairLoop` proves stored cache-vector lookups, unordered
+early-exit traversal, duplicate precedence and first-error indices tied to the
+original scalar queries. `StateFiniteReadCache` constructs aligned once-decoded
+query arrays. `StateInstalledBounds` enforces native positive default-tightening
+limits; `StateFiniteIndexBounds` proves dense lookup with exact UInt32/UInt64
+offsets. `StateFiniteDenseCache` composes both backends through stored upper-set
+maxima and first-pair diagnostics to the complete source-owned query compiler.
+The live oracle rejects disagreement between backends before comparing with Rust.
+Literal R7 extraction/integration, formatted diagnostic
+strings and allocation/runtime cost correspondence remain separate boundaries. Native
+missing-link lists, owner tips, diagnostic reasons and canonical serialization
+are outside the modeled resource read. SPEC-038 acceptance remains partial.
+
+`StateKeywordExtraction` recognizes complete keyword/value parameters and
+checks R7's unique nonrouting-data keys before constructing typed fields.
+Shape's first numeric match is proved to equal the extracted state's numeric
+value; routing fields are excluded. The resulting checked amount theorem and
+complete authored sum-preservation theorem consume source syntax and successful
+extraction, with no independent numeric-field oracle. Native AST/admission
+correspondence to this parameter/typed-field projection remains open. The live
+`keyword-extraction` profile separately tests strict parsing, R7, shapes and
+actual native amount lookup, including the duplicate-key ambiguity regression.
+
+`StateJsonString` proves lossless canonical quote/escape encoding and appending
+to any output buffer. `StateJsonValue` proves operational emission equals a
+separate declarative spelling for every native value variant and complete state
+objects, preserving stored container and clause order. `StateJsonOracle` powers
+an exact-byte comparison with native `Value::render` and `render_json`; it catches
+uppercase control-escape and field-order changes that parsed JSON can conceal.
+Constructor sorting, Rust extraction and native integer-formatting correspondence
+remain open; no root-identity change is part of these renderer proofs.
+
+The implementation documents its current collection and freeze costs rather
+than claiming strict linear evaluation: ordered collections take `O(n log n)`,
+and retaining all concurrent-freeze witnesses can add `O(n f)` work for `f`
+earliest freezers. See SPEC-038 NFR-3800 for the full clause/cut bounds and
+separate native-validator costs.
+
+From `lean-cbcl/`, run:
+
+```sh
+lake build LeanCbcl
+lake exe runLinter LeanCbcl
+../scripts/check-axioms.sh
+python3 ../scripts/check-state-lift-mutation.py
+python3 ../scripts/check-state-lvar-mutations.py
+```
+
+`StateMemoizedReader` proves exact scope/field memoization from an empty cache
+against an independent uncached recursion, including branching requests and
+shared cache reuse. Its native request body keeps dependencies at the current
+scope, unwraps frozen payloads, returns faults before reading historical cuts,
+and redirects each field into its own preplanned cut. `StateReaderIndices`
+constructs the request ranking from successful installed-field compilation.
+`StateAuthoredDependencies` derives exact dependencies from every concrete source
+factory through successful preparation and source-relative resolution.
+`StateScopePool` constructs the actual indexed cut pool, reuses freezer identities,
+normalizes duplicate deliveries and derives active-plan membership.
+`prepared_scoped_cache` combines those constructions with cache execution.
+`StateReaderValues` constructs those normal/fault/wrapper operations from actual
+scope data and resolved source rules. Its source, derived and complete cached
+freeze adapter equations match `StateNativeReader`, including both fault witness
+sets and historical payloads. `prepared_fixed_cache` needs no supplied leaf
+callbacks. `StateReaderReachability` now constructs that request-domain restriction from
+successful preparation: native initial reads include threshold sources, every
+continuation stays within original source fields and allocated scopes, and
+cache provenance excludes unsupported helper fallbacks. A non-vacuous concrete
+fixture exercises the complete initial request inventory. `StateCompiledFieldEquations` now derives completed-dictionary source/derived
+lookup equations and binds every normal body step to its bare compiled plan.
+It proves the complete equation for fields without their own freeze, and recursive
+cache/transcript equality for prepared clauses with no freezes, including faults
+and threshold source reads. `StateScopeProperties` and `StateFrozenBodyEquations` now close both terminal
+fault and successful own-freeze body equations. The independent recursive
+reference and complete initial source-request transcript/cache equal the compiled
+plan meanings for prepared clauses with freezes. Concrete fixtures cover
+incomparable cuts and a prepared context/count/threshold/freeze clause.
+These results require content-consistent histories with a separate causal rank.
+Finite rank compression now bounds actual ancestry search by history length,
+without sorting delivery or renumbering semantic addresses. Scope, cache and
+output compiler proofs inherit this generalized premise.
+`StateThresholdDispatch` now identifies allocated raw scopes with exact semantic
+freezer cuts. `StatePreparedOutputs.prepared_cache_outputs` composes actual
+empty-cache source transcripts into successful output lists using source-owned
+native, factored and finite query policies. A concrete authored fixture constructs
+installation and outputs; missing/extra transcript values fail explicitly.
+`StateOutputCompiler` now compiles those source-owned policies to closed output
+instructions capturing complete source plans and clause freezes.
+`authored_compiler_refinement` constructs actual code and proves its complete
+output vector equal to actual empty-cache execution plus output adaptation.
+`CompiledObservation` retains the preparation history; observing a grown history
+requires fresh preparation. Older generic full-history `thresholdRaw` plans are
+used for source dictionary construction/checks, not emitted output semantics.
+`StateCausalRank` constructs and independently checks a topological rank witness
+for arbitrary delivery order. Its checker supplies the proof premise to freeze
+and context oracle validators; generated labels deliberately decrease along
+edges. A reversed, duplicated descending-address fixture constructs complete
+authored compiler/cache outputs. `StateCausalCheckComplete` now proves that the
+actual Kahn implementation constructs exact coverage and a checked unique-address
+order on every content-consistent ranked history. Recognition is equivalent to
+separate-rank existence and invariant under accepted-set-equivalent delivery.
+Predecessor closure is independently checked by the outer validators; literal
+native admission-to-rank extraction remains a boundary.
+`StateOpenerLocality` derives business-opener ancestry from an executable local
+predecessor check and a separate causal rank, allowing metadata roots outside
+the protocol inventory. Clear initializer evidence then stays inside freezer
+cuts; a healthy fault freeze preserves domain-selected history and count.
+A prior count success survives growth and the historical cut. Fixtures construct
+healthy evidence and reject the acyclic-but-unrooted counterexample.
+Literal R5/R6 admission-to-check correspondence, multiple/context domains and
+general source-policy locality remain open; R7 opener recognition alone does not
+prove that interface.
+Literal Rust value/graph/map/vector extraction and rendering remain boundaries. Executable cache
+witnesses and focused mutations exercise aliasing, wrapper and cut mistakes.
+
+The live [state-kernel oracle](../docs/state-kernel-oracle.md) executes the proved
+finite reference functions against generated Rust installation/fold cases.
+Build it with `lake build cbcl-state-oracle`; CI runs the seeded differential
+property test. Its initial profile covers finite tables, projections,
+contributions, scalar thresholds and fault evidence, with shrinking and replay.
+`StateExecutableFreeze` supplies a computable freeze read proved equal to the
+existing semantics; a causal-DAG profile compares roots, cuts, superseded sets
+and raw/freeze fault unions against the real Rust fold.
+`StateExecutableObservation` connects executable derived/freeze adapters to the
+semantic adapters; the events/sum profile exercises separately frozen source
+and derived fields against Rust's actual scoped cache.
+`StateExecutableContext.read_refinement` connects computable metadata, sealed
+rosters, frontiers and complete context fault witnesses to the installed
+context reader. Its live profile checks all supported paths, membership queries,
+schema markers and combined failures under reordered/duplicate delivery.
+Application domains, resources, context freezes and admission remain outside
+these profiles. `StateContextCastSyntax` recognizes role/key symbols from raw
+binding trees, preserves duplicates for semantic validation and connects the
+result to installed context casting with an absent pin. Raw cast oracle cases
+cross both S-expression parsers; quoted role/account strings remain distinct
+from symbols. Unparseable transport text is an input error; invalid parsed casts
+are malformed metadata. The native pin path uses quoted `sha256:` strings with
+the strict parser. `StateContextWrapperSyntax` recognizes complete role-wrapper
+parameters and exact lowercase-hex64 pins; its installed-cast equation includes
+optional pin identity and malformed syntax. The oracle compares parser acceptance
+before the independent identity gate, catching native pin grammar bypasses.
+`StateContextMessage` derives cast/thread traversal over typed native message
+categories, installed profile casting and root decoding. Its outermost cast
+wins even when malformed; thread lookup independently reaches the simple
+message. The oracle tests strict parsed nesting and generated envelope chains.
+General projection from the full native AST, authentication and admission
+remain open. BUG-006 remains open for envelopes and suite-qualified keys.
+
+The Batteries gate remains enabled in CI. Intentional constant contribution
+arguments and uniform prepared-state receivers have local, explained
+`unusedArguments` exceptions. The kernel-generated injectivity lemma for the
+large dependent `Prepared` record has a targeted `simpNF` exception because
+Batteries exhausts its recursion budget inspecting its type. No module-wide
+linter suppression is used.
+
 ## Cached checkpoint continuation
 
 `CheckpointAll.render_advance_checkpoint` proves the continuation law for all
@@ -430,3 +662,134 @@ See the [checkpoint validation guide](../proofs/cached-checkpoints/README.md)
 for recorded acceptance, reproducible trust-zero checks and the exact scope of
 bounded Rust/Lean correspondence. Detailed reports are generated locally and
 are not checked in.
+
+`StateFaultRendering` proves exact witness membership, uniqueness and UTF-8
+byte ordering for canonical fault evidence, then composes executable freeze
+witness enumeration with complete fault JSON emission. Equal witness sets yield
+identical bytes for a fixed reason and address representation. Recovering
+semantic identities from rendered addresses requires injectivity explicitly.
+The declarative reference uses merge sort. The live `fault-evidence` profile
+executes the operational radix composition proved equal to that reference, and
+compares native concurrent-freeze fault strings, including repeated witnesses. Arbitrary UTF-8 aliases operate below admission
+and do not establish content-hash identity or resolve root-cast binding.
+
+`StateAddressDigits` refines the radix sorter's key representation: zero is the
+missing-byte sentinel, bytes occupy buckets 1–256, and the computed maximum
+width makes padded digit comparison exactly equal raw UTF-8 byte comparison.
+It also proves that adjacent duplicate removal on sorted output equals finite
+set normalization and composes that result with fault JSON emission. The final
+result takes permutation and digit ordering as explicit premises; the following
+counting/scatter/radix composition derives them in the Nat/function-cell model.
+
+`StateAddressCounting` derives bucket counts, prefix offsets and scatter cursors
+from their operational folds and recurrence. It proves destination bounds,
+stable placement of equal-key occurrences, disjoint bucket ranges and collision
+freedom for distinct occurrence positions. Counts, offsets and partial cursors
+fit any word width that represents the input length. Counters are Nat-valued
+functions here; the following modules establish scratch permutation and full
+least-significant-digit order. Native array/usize extraction remains open.
+
+`StateAddressScatter` executes scratch writes using pre-increment bucket pointers
+and derives pointer refinement, retention of every occurrence, destination
+coverage and complete pass permutation with multiplicities. It proves ascending
+bucket order without supplied permutation or ordering premises and independently
+of initial scratch contents. Cells and counters are functions over Nat;
+`StateAddressRadix` supplies equal-key secondary stability and full LSD ordering.
+
+
+`StateAddressRadix` proves secondary-relation stability from operational write
+order, equivalence to the reversed-digit fold, complete radix permutation and
+lexicographic digit order. It composes native sentinel digit encoding, computed
+width, adjacent duplicate removal and JSON emission into exact canonical fault
+bytes without caller-supplied sorting or permutation certificates. Initial
+scratch contents are unobservable. The oracle now executes this counting/scatter
+composition directly, with no reference sorting afterward. Native array/usize
+and address-pool representation refinement remain open.
+
+
+`StateAddressTables` executes counts in a finite Nat array and computes prefix
+entries once. It proves full equality with functional initialization, then with
+each pass and the complete radix sort. A proved `csimp` substitution selects
+this implementation in compiled oracle code; generated C confirms that call.
+The byte-key guard recognizes the finite domain, while generic keys and
+out-of-table observations retain the original semantics. The live seeded
+512-case campaign passes without changing its cases or response deadline.
+Finite scratch/word arrays and source-pool extraction are established below;
+native control-loop and literal Rust correspondence remain open.
+
+The Rust oracle harness poisons a session before each request and restores it
+only after a complete JSON reply. Timeout/disconnection kills the child; later
+shrink attempts cannot reuse a late response. An executed regression and two
+transport mutations cover that boundary.
+
+
+`StateAddressArrayScatter` refines complete Nat-array execution of next-pointer
+and scratch writes to functional scatter. Bucket membership and allocation
+length establish a processed-prefix invariant that derives every destination
+bound; out-of-bounds no-op behavior is not used to justify writes. Readback
+therefore preserves input multiplicities and composes to the complete radix
+semantics for arbitrary initial scratch contents of the required length. The
+oracle explicitly calls this proved array implementation; generated C confirms
+that call. Word-valued array refinement is established below. Word and source-pool refinement are established below; native control indices
+and literal Rust extraction remain separate obligations.
+
+
+`StateAddressWords` encodes finite Nat arrays into actual `USize` arrays and
+proves counter increments and prefix addition commute with that encoding.
+Operational input-length bounds establish exact, non-wrapping decoding; byte
+conversion plus the sentinel offset is exact on both supported word widths.
+Word scratch destination decoding, updates and complete readback refine the
+Nat-array execution, including source multiplicities. A checked implementation
+preserves the full generic input semantics and composes to the established radix
+sort. The oracle explicitly executes `wordSort`, confirmed in generated C.
+Source-pool extraction and word-index iteration are refined below. The outer digit-range bridge is established below; literal Rust correspondence
+remains open.
+
+
+`StateAddressPool` models the destructive `Option::take` address move loop.
+Radix permutation supplies every index bound and excludes repeated consumption;
+checked source lookups prove exact returned values and complete pool clearing.
+Duplicate address strings in distinct source slots are preserved until adjacent
+deduplication. Concrete finite-pool sorting, moves, deduplication and JSON now
+refine canonical fault bytes without an externally supplied total address
+callback or pool certificate. The oracle executes that complete path directly.
+The word-index/prefix and outer-range bridges are established below; literal
+Rust correspondence remains open.
+
+
+`StateAddressControl` iterates over actual `USize` source indices and writes the
+original word index to scratch. It proves byte-bucket conversion, decoded-index
+iteration and in-place prefix updates at word positions `1 ≤ k < 257`. Safe
+predecessor subtraction and the fixed 257-slot table refine the previous word
+prefix semantics. Complete `controlSort` equals the established radix path, and
+the source-pool oracle executes it directly, confirmed in generated C. The outer digit-range bridge is established below; literal Rust correspondence
+remains open.
+
+The Elephant plan separately requires `lean-ci-green` before `docs-status` can
+mark SPEC-038 implemented. CI evidence must identify the tested revision and be
+rechecked after relevant pushes; passing local proof gates does not establish CI
+success.
+
+
+`StateAddressRange` executes the outer digit range with a directly recursive
+`USize` cursor. The zero guard, exact decrement and decoded decreasing measure
+prove termination and the complete descending half-open sequence without supplied
+fuel. Native digit-pass execution equals the existing control-sort fold. Width
+recognition preserves generic semantics outside the native representable domain,
+and the concrete source-pool driver now calls this range implementation,
+confirmed in generated C. Literal Rust extraction and the broader kernel
+admission/installed-reader ports remain open.
+
+
+The complete v0.4 authored-condition capstone is
+`StateAuthoredConditionQuasiDeterminism.authored_quasi_determinism`.
+`StateAuthoredConditionPreparation` derives actual source availability and full
+output compilation from preparation; `StateAuthoredConditionReplay` composes
+exact finite witness replay across freshly compiled condition dependency trees.
+`StateAuthoredConditionProjection` preserves base observations and unique names,
+including threshold/frozen agreement and fixed-true condition success. Full
+condition-bearing programs converge on equal accepted sets and under finite
+history delivery; no-top execution retains the complete data vector.
+`StateExecutableCondition` supplies the proved enumerable fault algebra executed
+by the mixed-leaf live oracle. Native extraction and authentication remain model
+boundaries; required latest-revision CI remains a separate status gate.

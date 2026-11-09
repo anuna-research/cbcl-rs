@@ -81,3 +81,14 @@ npm run build        # dist/: ES modules, .d.ts, the wasm, LICENSE
 Apache-2.0, as cbcl-rs.
 
 `c.progress('tick')` compiles to `(progress tick)`: the maximum established protocol occurrence, defaulting to zero. Competing ticks at the same occurrence do not inflate it. Installation rejects missing or incomparable occurrences. This reads causal metadata over accepted acts independently of application-data domain filters. See [protocol progress](../docs/concepts/protocol-progress.md) for semantics and the Lean proof boundary.
+
+
+State observations (SPEC-038): `state_schema` marks current field values with
+`"observation":"snapshot"`. An external effect fired on a snapshot has no
+finality guarantee from the kernel. Use a reached threshold to establish a
+stable successful fact, or wait for the declared freeze and inspect the folded
+`{frozen, superseded, value}` result for its exact causal cut. A `freeze` entry
+in the schema describes that capability; before the freezer arrives the value
+is still a snapshot. Thresholds and frozen reads can report a terminal fault;
+handle its evidence explicitly. The host remains responsible for effect
+idempotency, delivery and any external transaction or finality policy.

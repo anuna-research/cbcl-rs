@@ -249,8 +249,10 @@ the shape of every writer of `lww-per-signer`. It also adds the field to writers
 `observed-set`. An author SHALL NOT declare it; no rule reads it as data.
 
 `initial` MUST name the unique protocol opener. Its raw candidate set is deduplicated
-by content address before testing uniqueness. It returns Absent for empty or ambiguous
-evidence, including when only one of several candidates carries the requested field.
+by content address before testing uniqueness. It returns Absent for no candidate, the
+candidate's field (Absent when the payload is missing) for exactly one, and the conflict
+top of [[SPEC-038-lvar-state-kernel#REQ-3804]], a `fault` naming every candidate's
+address, for several.
 Domains cannot filter the opener. Retired heads `last`, `lww-per-signer`,
 `latest-per-key`, and `register-per-key` are parse errors, not aliases.
 LWW clocks are required `hlc` fields, encoded as strings spelled `hlc-` + 16 lowercase hexadecimal
@@ -376,7 +378,9 @@ integers (`i64` in a field, exact and unbounded as a total).
 ### R.4 Receipt (R7 state shape, part of the shape stage of admission)
 
 For an act of any verb the state clause names: no keyword field beyond the
-shape's declared fields plus `:caused-by :thread :from :to`; strings ≤
+shape's declared fields plus `:caused-by :thread :from :to`; each nonrouting
+data keyword occurs at most once, so shape validation and state extraction
+refer to the same field value; strings ≤
 `max-string` bytes, lists ≤ `max-list` scalar elements, numbers ≤
 `max-number` in magnitude, for every field a rule or domain names;
 `:replaces`, when present, a list of ≤ `max-list` distinct `sha256-<64hex>`
@@ -1159,7 +1163,9 @@ wrapped by the same WASM, FFI and Erlang surfaces as existing state exports.
 An already included candidate is a duplicate and does not add another effect.
 An already faulted accepted history faults resource-check before judging the
 candidate. Binding and exported observation pin dialect, thread, opener and cast;
-conflicting casts sharing an innermost root address fault under every ordering.
+conflicting casts fault under every ordering. Sealed role-root identity follows
+the committed outermost wrapper and explicit migration in
+[[SPEC-038-lvar-state-kernel#REQ-3807]].
 
 A pure `issue` helper combines `intend` with a required host `IssuanceGate`.
 The host atomically persists the complete candidate against the expected previous
@@ -1382,8 +1388,11 @@ owner signing, submission, certificate verification, dependency validation, and
 finalization. The local gate can still help honest clients avoid self-conflicts.
 It is no longer the only barrier against a malicious owner.
 
-**An act hash alone is insufficient context.** `state::Act` addresses the
-innermost simple act; wrappers and casts are checked separately. Use the same act
+**An act hash alone is insufficient context.** `state::Act` commits the
+outermost sealed wrapper for causal role roots under
+[[SPEC-038-lvar-state-kernel#REQ-3807]]; other acts retain the innermost-simple
+policy. Authentication, wrapper validity and cast permission are still checked
+separately. Use the same act
 address, plus a separately committed certification context.
 The signed statement binds the domain tag, suite, expected genesis, committee
 policy, dialect identity, and authenticated root/cast commitment.

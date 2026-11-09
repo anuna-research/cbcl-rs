@@ -67,6 +67,11 @@ fn json_of_sexpr(s: &SExpr) -> Json {
 
 /// A rule of the state clause as JSON's spelling: `[op, arg…]`, keys without their colon.
 fn rule_json(rule: &Rule) -> Json {
+    if let Rule::Lift(lift) = rule {
+        let mut args = alloc::vec![SExpr::Atom(Atom::Symbol("lift".into()))];
+        args.extend(lift.arguments());
+        return json_of_sexpr(&SExpr::List(args));
+    }
     if let Rule::BoundedCounter(c) = rule {
         return json!([
             "boundedCounter",
@@ -77,7 +82,7 @@ fn rule_json(rule: &Rule) -> Json {
         ]);
     }
     let (op, args): (&str, Vec<&str>) = match rule {
-        Rule::BoundedCounter(_) => unreachable!("handled above"),
+        Rule::BoundedCounter(_) | Rule::Lift(_) => unreachable!("handled above"),
         Rule::LwwRegister { verb, key, clock } => ("lwwRegister", alloc::vec![verb, key, clock]),
         Rule::LwwPerSigner { verb, key, clock } => ("lwwPerSigner", alloc::vec![verb, key, clock]),
         Rule::LwwMap {
@@ -93,6 +98,7 @@ fn rule_json(rule: &Rule) -> Json {
             }
             ("lwwMap", args)
         }
+        Rule::Context { path, .. } => ("context", path.iter().map(String::as_str).collect()),
         Rule::Initial { verb, key } => ("initial", alloc::vec![verb, key]),
 
         Rule::Exists { verb } => ("exists", alloc::vec![verb]),
@@ -184,14 +190,41 @@ pub fn describe(d: &Dialect, text: &str) -> Json {
     }
     let mut state = Map::new();
     let mut domains = Vec::new();
+    let mut thresholds = Vec::new();
+    let mut freezes = Vec::new();
+    let mut lattices = Vec::new();
     if let Some(clause) = &d.state {
         for entry in &clause.entries {
             match entry {
+                Entry::Lattice(definition) => lattices.push(json_of_sexpr(&definition.to_sexpr())),
+                Entry::Freeze {
+                    field,
+                    verb,
+                    policy,
+                } => {
+                    freezes.push(json!({"field":field,"verb":verb,"policy":policy.as_str()}));
+                }
                 Entry::Field { name, rule } => {
                     state.insert(name.clone(), rule_json(rule));
                 }
                 Entry::Domain { verb, key, field } => {
                     domains.push(json!({ "verb": verb, "key": key, "field": field }));
+                }
+                Entry::Condition { name, condition } => {
+                    let condition: Json =
+                        serde_json::from_str(&condition.schema().render()).unwrap();
+                    thresholds.push(json!({"name":name,"condition":condition}));
+                }
+                Entry::Threshold {
+                    name,
+                    field,
+                    elements,
+                } => {
+                    let elements: Vec<Json> = elements
+                        .iter()
+                        .map(|e| serde_json::from_str(&e.render().render()).unwrap_or(Json::Null))
+                        .collect();
+                    thresholds.push(json!({ "name": name, "field": field, "elements": elements }));
                 }
             }
         }
@@ -210,6 +243,9 @@ pub fn describe(d: &Dialect, text: &str) -> Json {
         "roles": roles,
         "state": state,
         "domains": domains,
+        "thresholds": thresholds,
+        "freezes": freezes,
+        "lattices": lattices,
         "bounds": bounds,
         "text": text,
     })

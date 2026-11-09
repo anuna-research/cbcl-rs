@@ -13,6 +13,10 @@
 //! - `cbcl_read` — the parser's tree of one S-expression as JSON
 //! - `cbcl_compile_contract` — SPEC-087: a JSON contract → its self-addressed dialect
 //! - `cbcl_define_text`, `cbcl_describe_dialect`, `cbcl_read_act` — reads for hosts
+//!
+//! State observations are snapshots until a threshold is reached or a freeze
+//! result supplies its causal cut. External effects fired on snapshots have no
+//! kernel finality guarantee. See this crate’s README for the host obligation.
 
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;

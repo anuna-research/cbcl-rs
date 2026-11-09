@@ -31,7 +31,10 @@ def main():
     runtime = set(re.findall(r'=> "([a-z-]+)"', block))
     source = (MODULES / 'StateKernelClause.lean').read_text()
     heads = set(re.findall(r'=> "([a-z-]+)"', source.split('def Rule.head', 1)[1].split('/--', 1)[0]))
-    if len(runtime) != 16 or heads != runtime:
+    # SPEC-038 extensions have separate StateLift/StateContext proofs and Rust
+    # correspondence tests; the legacy typed AST below still covers its 16 heads.
+    extensions = {'lift', 'context'}
+    if len(heads) != 16 or runtime != heads | extensions:
         raise SystemExit(f'Coverage mismatch: Rust={runtime}, Lean={heads}')
     parser_source = (ROOT / 'crates/cbcl-parser/src/state_parser.rs').read_text()
     for alias in ('multi-value-register', 'multi-value-map'):
@@ -84,7 +87,8 @@ def main():
             if not code or not proof_failure or any(x in output.lower() for x in rejected):
                 raise SystemExit(f'{name}: survived or infrastructure failure:\n{output}')
             results.append({'mutation': name, 'killed': True, 'evidence': output})
-    report = {'runtime_heads': sorted(runtime), 'coverage': '16/16 heads and 2 aliases; names only',
+    report = {'runtime_heads': sorted(runtime), 'coverage': '16 legacy heads and 2 aliases; names only',
+              'separately_verified_extensions': sorted(extensions),
               'baseline': 'passed', 'mutations': results}
     if args.output:
         args.output.write_text(json.dumps(report, indent=2) + '\n')

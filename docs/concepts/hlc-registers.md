@@ -15,9 +15,12 @@ Use `initial` for immutable opener fields; it never arbitrates between writers.
 ```
 
 Installation requires the protocol's opener verb. A sole distinct raw accepted
-opener supplies the field; no opener or several candidates yields Absent. Repeated
-receipt of the same opener preserves its value. Missing payloads do not reduce the
-candidate count. No hash winner is selected, and domains use the same raw evidence.
+opener supplies the field; no opener yields Absent; two or more distinct openers
+are the conflict top, rendered as `{"evidence":[addresses],"reason":"opener fork","status":"fault"}`
+and never cleared by later acts ([[SPEC-038-lvar-state-kernel#REQ-3804]]).
+Repeated receipt of the same opener preserves its value. Missing payloads do not
+reduce the candidate count. No hash winner is selected, and domains use the same
+raw evidence.
 
 ## Choosing a state rule
 
@@ -35,7 +38,7 @@ from deterministic rules over the same accepted set, not from trusting time.
 
 | Approach | Rules | Meaning and assumptions |
 |----------|-------|-------------------------|
-| Immutable initialization | `initial` | Read the sole distinct opener; multiple candidates yield Absent. |
+| Immutable initialization | `initial` | Read the sole distinct opener; multiple candidates yield a sticky `fault` with their addresses as evidence. |
 | Preserve conflicts | `multi-value-register`, `multi-value-map` (canonical `values`, `values-per-key`) | Remove explicitly superseded writes, then expose distinct surviving values. No clock is required. Applications choose how to resolve competing values. |
 | Choose a timestamp winner | `lww-register`, `lww-per-signer`, `lww-map` | Select one candidate per register, signer or key by HLC, signer, then address. Meaningful recency assumes trusted hosts generate, merge and persist clocks correctly. |
 | Combine evidence | `events`, `exists`, `count`, `set-union`, `observed-set`, `counter`, `histogram`, `sum` | Record events, derive membership or aggregate values according to the declared rule. These rules do not select a timestamp winner; observed-set removal uses explicit replacement evidence. An unrestricted counter does not enforce bounds. |

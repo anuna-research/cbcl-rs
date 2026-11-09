@@ -28,12 +28,21 @@ pub const SELF_ADDRESS_PREFIX: &str = "sha256-";
 pub enum R7Violation {
     Malformed(String),
     UnknownVerb(String),
-    UnknownField { verb: String, field: String },
+    UnknownField {
+        verb: String,
+        field: String,
+    },
     Typing(String),
     Replaces(String),
     Domain(String),
     Bounds(String),
-    Name { expected: String, found: String },
+    Name {
+        expected: String,
+        found: String,
+    },
+    /// A threshold read not admitted by its field's carrier, or a set that
+    /// is not pairwise incompatible (SPEC-038 REQ-3802, CON-3801).
+    Threshold(String),
 }
 
 impl fmt::Display for R7Violation {
@@ -53,6 +62,7 @@ impl fmt::Display for R7Violation {
             R7Violation::Replaces(s) => write!(f, ":replaces: {s}"),
             R7Violation::Domain(s) => write!(f, "domain: {s}"),
             R7Violation::Bounds(s) => write!(f, "state bounds: {s}"),
+            R7Violation::Threshold(s) => write!(f, "threshold {s}"),
             R7Violation::Name { expected, found } => {
                 write!(
                     f,
@@ -195,6 +205,7 @@ fn is_scalar(tc: &TypeConstraint) -> bool {
         TypeConstraint::String
             | TypeConstraint::Hlc
             | TypeConstraint::Number
+            | TypeConstraint::Nonnegative
             | TypeConstraint::Bool
     )
 }
@@ -231,8 +242,15 @@ pub fn r7_violations(d: &Dialect) -> Vec<R7Violation> {
         return out;
     };
 
-    // REQ-1904: at most max-fields fields.
-    let field_count = clause.fields().count();
+    // REQ-1904: at most max-fields fields; a threshold renders as a field
+    // (SPEC-038 CON-3801) and counts as one.
+    let field_count = clause.fields().count()
+        + clause.thresholds().count()
+        + clause
+            .entries
+            .iter()
+            .filter(|entry| matches!(entry, crate::state::Entry::Condition { .. }))
+            .count();
     if field_count == 0 {
         out.push(R7Violation::Malformed(String::from(
             "a state clause declares at least one field",
@@ -248,6 +266,65 @@ pub fn r7_violations(d: &Dialect) -> Vec<R7Violation> {
     for (name, _) in clause.fields() {
         if !names.insert(name) {
             out.push(R7Violation::Malformed(format!("duplicate field '{name}'")));
+        }
+    }
+    for definition in clause.lattices() {
+        if !names.insert(&definition.name) {
+            out.push(R7Violation::Malformed(format!(
+                "duplicate lattice/field name '{}'",
+                definition.name
+            )));
+        }
+        if let Err(reason) = definition.validate(bounds.max_list as usize) {
+            out.push(R7Violation::Typing(format!(
+                "lattice '{}': {reason}",
+                definition.name
+            )));
+        }
+    }
+    for (field, rule) in clause.fields() {
+        if let Rule::Lift(lift) = rule {
+            match &lift.table {
+                None => out.push(R7Violation::Typing(format!(
+                    "field '{field}' references undefined or invalid lattice '{}'",
+                    lift.lattice
+                ))),
+                Some(table) => {
+                    if let Err(reason) = lift.validate(table) {
+                        out.push(R7Violation::Typing(format!("lift '{field}': {reason}")));
+                    }
+                }
+            }
+        }
+    }
+    for (field, rule) in clause.fields() {
+        match rule {
+            Rule::Context { path, definition } => {
+                if !definition.as_ref().is_some_and(|d| d.valid_path(path)) {
+                    out.push(R7Violation::Typing(format!(
+                        "context '{field}' names an unknown path or role"
+                    )));
+                }
+            }
+            _ => {}
+        }
+    }
+    check_thresholds(d, clause, &mut names, &mut out);
+    let mut frozen_fields = BTreeSet::new();
+    for (field, verb, _) in clause.freezes() {
+        if clause.rule_of(field).is_none() || !frozen_fields.insert(field) {
+            out.push(R7Violation::Malformed(format!(
+                "freeze field '{field}' is undefined or has multiple freeze declarations"
+            )));
+        }
+        if !d
+            .performatives
+            .iter()
+            .any(|p| p.name == verb && p.role.as_ref().is_some_and(|r| !r.from.is_empty()))
+        {
+            out.push(R7Violation::Malformed(format!(
+                "freeze verb '{verb}' must be defined with a :from role"
+            )));
         }
     }
 
@@ -369,7 +446,7 @@ pub fn r7_violations(d: &Dialect) -> Vec<R7Violation> {
                 }
                 for v in [inc, dec] {
                     if let Some(tc) = ty(v, key) {
-                        if tc != TypeConstraint::Number {
+                        if !matches!(tc, TypeConstraint::Number | TypeConstraint::Nonnegative) {
                             out.push(R7Violation::Typing(format!(
                                 "counter '{name}': :{key} of '{v}' must be a number"
                             )));
@@ -404,10 +481,10 @@ pub fn r7_violations(d: &Dialect) -> Vec<R7Violation> {
                         if matches!(rule, Rule::Sum { .. }) {
                             let numeric = match r {
                                 Rule::LwwPerSigner { verb, key, .. } | Rule::Events { verb, key } => {
-                                    ty(verb, key) == Some(TypeConstraint::Number)
+                                    matches!(ty(verb, key), Some(TypeConstraint::Number | TypeConstraint::Nonnegative))
                                 }
                                 Rule::LwwMap { verb, value, .. }  => {
-                                    ty(verb, value) == Some(TypeConstraint::Number)
+                                    matches!(ty(verb, value), Some(TypeConstraint::Number | TypeConstraint::Nonnegative))
                                 }
                                 _ => false,
                             };
@@ -530,6 +607,7 @@ pub fn r7_violations(d: &Dialect) -> Vec<R7Violation> {
             None => out.push(R7Violation::Domain(format!(
                 "domain names undefined field '{field}'"
             ))),
+            Some(Rule::Context { path, .. }) if crate::context::roster_role(path).is_some() => {}
             Some(rule) => {
                 let over_opener = rule.verbs().iter().all(|v| Some(*v) == opener.as_deref());
                 if !over_opener || rule.verbs().is_empty() {
@@ -560,6 +638,240 @@ pub fn r7_violations(d: &Dialect) -> Vec<R7Violation> {
         check_name(d, &mut out);
     }
     out
+}
+
+/// SPEC-038 REQ-3802 / CON-3801 at installation: a threshold's name is unique
+/// among fields and thresholds; its field is declared earlier in the clause
+/// and has a carrier; every element is admitted by that carrier, never by
+/// the display (REQ-3809); and the elements are pairwise incompatible, in
+/// `O(k²)` comparisons (NFR-3800). Fail closed: the message names the
+/// offending element and carrier.
+fn check_thresholds<'a>(
+    dialect: &Dialect,
+    clause: &'a StateClause,
+    names: &mut BTreeSet<&'a str>,
+    out: &mut Vec<R7Violation>,
+) {
+    use crate::state::{Condition, Entry};
+    let mut declared: BTreeSet<&str> = BTreeSet::new();
+    for entry in &clause.entries {
+        let name = match entry {
+            Entry::Field { name, .. } => {
+                declared.insert(name.as_str());
+                continue;
+            }
+            Entry::Threshold { name, .. } | Entry::Condition { name, .. } => name,
+            _ => continue,
+        };
+        if !names.insert(name) {
+            out.push(R7Violation::Malformed(format!(
+                "duplicate field '{name}' (a threshold shares the field namespace)"
+            )));
+        }
+        match entry {
+            Entry::Threshold {
+                field, elements, ..
+            } => check_threshold_source(dialect, clause, name, field, elements, &declared, out),
+            Entry::Condition { condition, .. } => {
+                let bounds = bounds_of(dialect);
+                if condition.size() > bounds.max_list as usize {
+                    out.push(R7Violation::Bounds(format!(
+                        "{name}: condition exceeds max-list {}",
+                        bounds.max_list
+                    )));
+                }
+                fn arity(condition: &Condition) -> bool {
+                    match condition {
+                        Condition::Read { .. } => true,
+                        Condition::And(children) => {
+                            children.len() >= 2 && children.iter().all(arity)
+                        }
+                    }
+                }
+                if !arity(condition) {
+                    out.push(R7Violation::Threshold(format!(
+                        "{name}: and requires at least two children"
+                    )));
+                }
+                let mut leaves = Vec::new();
+                condition.leaves(&mut leaves);
+                for (field, element) in leaves {
+                    fn bounded(expr: &SExpr, bounds: &StateBounds) -> bool {
+                        match expr {
+                            SExpr::Atom(Atom::Str(s)) => s.len() <= bounds.max_string as usize,
+                            SExpr::Atom(Atom::Num(n)) => {
+                                n.unsigned_abs() <= bounds.max_number as u64
+                            }
+                            SExpr::List(items) => items.iter().all(|item| bounded(item, bounds)),
+                            _ => true,
+                        }
+                    }
+                    if !bounded(&element.to_sexpr(), &bounds) {
+                        out.push(R7Violation::Bounds(format!(
+                            "{name}: condition element exceeds scalar bounds"
+                        )));
+                    }
+                    check_threshold_source(
+                        dialect,
+                        clause,
+                        name,
+                        field,
+                        core::slice::from_ref(element),
+                        &declared,
+                        out,
+                    );
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+fn check_threshold_source(
+    dialect: &Dialect,
+    clause: &StateClause,
+    name: &str,
+    field: &str,
+    elements: &[crate::lattice::Element],
+    declared: &BTreeSet<&str>,
+    out: &mut Vec<R7Violation>,
+) {
+    use crate::lattice::{carrier_of, pairwise, relation};
+    let rule = if declared.contains(field) {
+        clause.rule_of(field)
+    } else if clause.rule_of(field).is_some() {
+        out.push(R7Violation::Threshold(format!(
+            "{name}: field '{field}' is declared after the threshold; declare it earlier in the clause"
+        )));
+        None
+    } else {
+        out.push(R7Violation::Threshold(format!(
+            "{name}: names undefined field '{field}'"
+        )));
+        None
+    };
+    let Some(rule) = rule else {
+        return;
+    };
+    if clause
+        .freezes()
+        .any(|(f, _, policy)| f == field && policy == crate::state::FreezePolicy::Supersede)
+    {
+        out.push(R7Violation::Threshold(format!(
+            "{name}: supersede freeze can revise '{field}'; use a separate unfrozen arrival field or the fault freeze policy"
+        )));
+        return;
+    }
+    let Some(carrier) = carrier_of(rule) else {
+        out.push(R7Violation::Threshold(format!(
+            "{name}: field '{field}' is a derived display with no carrier of its own"
+        )));
+        return;
+    };
+    let mut typed = true;
+    for e in elements {
+        if matches!(e, crate::lattice::Element::Sum(_)) {
+            let monotone = match rule {
+                Rule::Events { verb, key } => dialect
+                    .shapes
+                    .iter()
+                    .filter(|s| s.performative == *verb)
+                    .flat_map(|s| &s.rules)
+                    .any(|r| {
+                        matches!(r, ShapeRule::Require {
+                        keyword, type_constraint: Some(TypeConstraint::Nonnegative), ..
+                    } if keyword == key)
+                    }),
+                _ => false,
+            };
+            if !monotone {
+                typed = false;
+                out.push(R7Violation::Threshold(format!(
+                    "{name}: (sum …) on '{field}' can be revised; use a snapshot, freeze, or an events source whose writer requires nonnegative amounts"
+                )));
+                continue;
+            }
+        }
+        if !e.admitted_by(&carrier) {
+            typed = false;
+            out.push(R7Violation::Threshold(format!(
+                "{name}: element {} is not admitted by carrier {} of field '{field}'",
+                e.wire(),
+                carrier.name()
+            )));
+        }
+    }
+    if !typed {
+        return;
+    }
+    let compatibility = if let Rule::Lift(lift) = rule {
+        if let Some(table) = &lift.table {
+            // Precompute the largest stable projected value in each
+            // principal upper set, excluding conflict top. This takes
+            // O(n²) table comparisons once, independent of threshold count;
+            // every threshold pair below then takes constant work.
+            let projected: Vec<Option<i128>> = (0..table.elements.len())
+                .map(
+                    |i| match crate::finite::project(&lift.projection, table, i) {
+                        crate::state::Value::Int(n) => Some(n),
+                        crate::state::Value::Bool(b) => Some(i128::from(b)),
+                        _ => None,
+                    },
+                )
+                .collect();
+            let maxima: Vec<Option<i128>> = (0..table.elements.len())
+                .map(|a| {
+                    (0..table.elements.len())
+                        .filter(|&b| b != table.top && table.le(a, b))
+                        .filter_map(|b| projected[b])
+                        .max()
+                })
+                .collect();
+            let reads: Vec<Result<usize, i128>> = elements
+                .iter()
+                .map(|e| match e {
+                    crate::lattice::Element::Scalar(crate::state::Value::Str(name)) => {
+                        Ok(table.index(name).expect("typed finite element"))
+                    }
+                    crate::lattice::Element::Scalar(crate::state::Value::Int(n)) => Err(*n),
+                    crate::lattice::Element::Scalar(crate::state::Value::Bool(true)) => Err(1),
+                    _ => unreachable!("typed finite element"),
+                })
+                .collect();
+            let mut result = Ok(());
+            'pairs: for i in 0..elements.len() {
+                for j in i + 1..elements.len() {
+                    let why = if elements[i] == elements[j] {
+                        Some("duplicate")
+                    } else if match (reads[i], reads[j]) {
+                        (Ok(a), Ok(b)) => table.merge(a, b) != table.top,
+                        (Ok(a), Err(n)) | (Err(n), Ok(a)) => maxima[a].is_some_and(|v| v >= n),
+                        (Err(a), Err(b)) => maxima[table.bottom].is_some_and(|v| v >= a.max(b)),
+                    } {
+                        Some("compatible")
+                    } else {
+                        None
+                    };
+                    if let Some(why) = why {
+                        result = Err((i, j, why));
+                        break 'pairs;
+                    }
+                }
+            }
+            result
+        } else {
+            Ok(())
+        }
+    } else {
+        pairwise(elements, relation)
+    };
+    if let Err((i, j, why)) = compatibility {
+        out.push(R7Violation::Threshold(format!(
+            "{name}: elements {} and {} are {why}",
+            elements[i].wire(),
+            elements[j].wire()
+        )));
+    }
 }
 
 fn check_name(d: &Dialect, out: &mut Vec<R7Violation>) {
@@ -613,12 +925,22 @@ pub fn verify_state_shape(d: &Dialect, msg: &Message) -> Result<(), ShapeViolati
     let declared = declared_keywords(&d.shapes, &verb);
     let fields = keyword_fields(simple);
 
-    // Closed field set.
+    // Closed field set. Shape lookup reads the first keyword while state
+    // extraction keeps the last: reject ambiguous data fields before either
+    // interpretation can admit a different value (SPEC-038 REQ-3802).
     if let Message::Simple { params, .. } = simple {
+        let mut seen_fields = BTreeSet::new();
         let mut i = 0;
         while i < params.len() {
             match &params[i] {
                 SExpr::Atom(Atom::Keyword(k)) => {
+                    if !ROUTING_KEYWORDS.contains(&k.as_str()) && !seen_fields.insert(k) {
+                        return Err(violation(
+                            "closed",
+                            Some(k),
+                            "duplicate state keyword".into(),
+                        ));
+                    }
                     if !declared.contains(k) && !ROUTING_KEYWORDS.contains(&k.as_str()) {
                         return Err(violation(
                             "closed",

@@ -59,6 +59,7 @@ pub mod evaluator;
 pub mod gossip;
 pub mod intend;
 pub mod keyid;
+pub mod lattice;
 pub mod message;
 pub mod msg_tag;
 pub mod pattern;
@@ -131,3 +132,6 @@ pub mod quorum;
 
 /// Pure host-supplied hybrid logical clock evidence (SPEC-035).
 pub mod hlc;
+mod freeze;
+pub mod finite;
+pub mod context;

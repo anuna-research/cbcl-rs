@@ -611,6 +611,47 @@ pub fn observe_facts<F: Fn(&str) -> bool>(
     all: &BTreeMap<String, ResourceFact>,
     present: F,
 ) -> Outcome {
+    let mut outcome = observe_facts_inner(c, all, &present);
+    // Unsupported profiles have a history-independent native fault. Preserve
+    // that boundary (and compact checkpoint compatibility) across projections.
+    if c.ownership == Ownership::Collective || c.certification.is_quorum() {
+        return outcome;
+    }
+    if let Outcome::Fault { evidence, .. } = &mut outcome {
+        // SPEC-038 REQ-3806: a later diagnosis must not erase an earlier
+        // witness. Evidence is a contextual certificate, not a minimal blame
+        // set: retain all accepted resource facts and accepted cited context.
+        evidence.extend(all.keys().cloned());
+        for fact in all.values() {
+            evidence.extend(fact.predecessors.iter().filter(|id| present(id)).cloned());
+            if let Some(id) = fact
+                .fields
+                .get(PREV)
+                .and_then(text)
+                .filter(|id| present(id))
+            {
+                evidence.push(id.to_string());
+            }
+            if let Some(SExpr::List(deps)) = fact.fields.get(DEPS) {
+                evidence.extend(
+                    deps.iter()
+                        .filter_map(text)
+                        .filter(|id| present(id))
+                        .map(String::from),
+                );
+            }
+        }
+        crate::state::sort_addresses(evidence);
+        evidence.dedup();
+    }
+    outcome
+}
+
+fn observe_facts_inner<F: Fn(&str) -> bool>(
+    c: &CounterRule,
+    all: &BTreeMap<String, ResourceFact>,
+    present: F,
+) -> Outcome {
     if c.ownership == Ownership::Collective {
         return fault(
             "collective counter requires the certificate runtime",
@@ -840,9 +881,9 @@ pub fn observe_facts<F: Fn(&str) -> bool>(
             }
         }
     }
-    if !missing.is_empty() {
-        return Outcome::Pending(missing.into_iter().collect());
-    }
+    // Validate every dependency-closed component before reporting missing
+    // evidence elsewhere. Otherwise an unrelated pending account could hide
+    // an already established budget fault (SPEC-038 REQ-3806).
     // Kahn traversal plus bounded account frontiers. Each summary stores only
     // the latest observed operation per account and that owner's cumulative
     // transfers. Installed profiles bound accounts and dependencies by max-list;
@@ -927,6 +968,42 @@ pub fn observe_facts<F: Fn(&str) -> bool>(
                 }
             }
         }
+    }
+    if !missing.is_empty() {
+        // Missing references block budget evaluation, but cannot hide an
+        // independent cycle. Release their graph edges without inventing
+        // resource summaries, then finish the structural Kahn traversal.
+        for dependency in &missing {
+            if let Some(children) = waiting.remove(dependency) {
+                for child in children {
+                    let count = remaining.get_mut(&child).expect("known dependent");
+                    *count -= 1;
+                    if *count == 0 {
+                        ready.insert(child);
+                    }
+                }
+            }
+        }
+        let mut reached = summaries.len();
+        while let Some(address) = ready.pop_first() {
+            reached += 1;
+            if let Some(children) = waiting.remove(&address) {
+                for child in children {
+                    let count = remaining.get_mut(&child).expect("known dependent");
+                    *count -= 1;
+                    if *count == 0 {
+                        ready.insert(child);
+                    }
+                }
+            }
+        }
+        if reached != nodes.len() {
+            return fault(
+                "cyclic escrow dependencies",
+                nodes.keys().cloned().collect(),
+            );
+        }
+        return Outcome::Pending(missing.into_iter().collect());
     }
     if summaries.len() != nodes.len() {
         return fault(

@@ -191,3 +191,15 @@ simply does not follow it.
    Audit the remaining `parse::<SExpr>()` sites in `tests/` for the same claim.
 4. Add a negative test asserting that `@ed25519:alice` in a recipient position
    is a **rejection**, not a silent truncation to `@ed25519`.
+
+## Partial remediation: dialect pins (2026-11-09)
+
+[[SPEC-038-lvar-state-kernel#CON-3804]] adds the strict-wire dialect-pin form
+`:dialect "sha256:<hex64>"`. The shared pin recognizer accepts string atoms and
+retains typed symbol compatibility, with identical digest validation. Context
+integration tests and the live Lean differential oracle now use the strict
+S-expression and native message parsers for these pins. The quoted-pin regression
+was observed failing before the recognizer change.
+
+This does not resolve the envelope or suite-qualified key cases above, or the
+duplicate-recognizer issue in [[BUG-005]]. The bug remains open.

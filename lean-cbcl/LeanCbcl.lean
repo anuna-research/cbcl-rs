@@ -46,6 +46,9 @@ import LeanCbcl.InstalledLexerTests
 import LeanCbcl.State
 import LeanCbcl.AdmissionStratification
 import LeanCbcl.StateRefinement
+import LeanCbcl.StateLift
+import LeanCbcl.StateLVar
+import LeanCbcl.StateContext
 
 import LeanCbcl.Repeat
 
@@ -87,3 +90,308 @@ import LeanCbcl.StateKernelSECTests
 
 import LeanCbcl.CheckpointKernelTests
 import LeanCbcl.CheckpointAllTests
+
+import LeanCbcl.StateResourceTests
+
+import LeanCbcl.StateNativeRefinementTests
+
+import LeanCbcl.StateResourceKahnTests
+
+import LeanCbcl.StateResourceCache
+
+import LeanCbcl.StateResourceCacheTests
+import LeanCbcl.StateResourceStructure
+
+import LeanCbcl.StateResourceCones
+
+import LeanCbcl.StateResourceFrontier
+
+import LeanCbcl.StateResourcePartition
+
+import LeanCbcl.StateResourceBudget
+
+import LeanCbcl.StateResourceDependency
+
+import LeanCbcl.StateResourceOwnPrefix
+
+import LeanCbcl.StateResourceOutgoing
+
+import LeanCbcl.StateResourceLocalBudget
+
+import LeanCbcl.StateResourceWitness
+
+import LeanCbcl.StateResourceMachine
+
+import LeanCbcl.StateResourceAuthorization
+
+import LeanCbcl.StateResourceCounters
+
+import LeanCbcl.StateResourceRecordBounds
+
+import LeanCbcl.StateResourceGraph
+
+import LeanCbcl.StateResourceCoupling
+
+import LeanCbcl.StateResourceWorklist
+
+import LeanCbcl.StateResourceAggregate
+
+import LeanCbcl.StateResourceAccounting
+
+import LeanCbcl.StateResourceSolvency
+
+import LeanCbcl.StateResourceFinalize
+
+import LeanCbcl.StateResourceValidated
+
+import LeanCbcl.StateResourceAggregateTests
+
+import LeanCbcl.StateResourcePreflight
+
+import LeanCbcl.StateResourceVerifier
+
+import LeanCbcl.StateResourceVerifierTests
+
+import LeanCbcl.StateInstalledCompiler
+
+import LeanCbcl.StateInstalledClause
+
+import LeanCbcl.StateInstalledCompilerTests
+
+import LeanCbcl.StateInstalledLattice
+
+import LeanCbcl.StateInstalledLowering
+
+import LeanCbcl.StateInstalledLoweringTests
+
+import LeanCbcl.StateResourceCompletion
+
+import LeanCbcl.StateResourceReadEquivalence
+
+import LeanCbcl.StateInstalledLegacy
+
+import LeanCbcl.StateInstalledResource
+
+import LeanCbcl.StateInstalledLegacyTests
+
+import LeanCbcl.StateInstalledTerm
+
+import LeanCbcl.StateContextEvidence
+
+import LeanCbcl.StateInstalledContext
+
+import LeanCbcl.StateInstalledDomains
+
+import LeanCbcl.StateFiniteTable
+
+import LeanCbcl.StateFiniteProjection
+
+import LeanCbcl.StateFiniteProjectionTests
+
+import LeanCbcl.StateInstalledFinite
+
+import LeanCbcl.StateFiniteRead
+
+import LeanCbcl.StateFiniteReadTests
+
+import LeanCbcl.StateObservation
+
+import LeanCbcl.StateObservationPlan
+
+import LeanCbcl.StateAuthoredBindings
+
+import LeanCbcl.StateAuthoredBindingsTests
+
+import LeanCbcl.StateFreezeGrowth
+
+import LeanCbcl.StateFreezeScopes
+
+import LeanCbcl.StateCompiledFreezeGrowth
+
+import LeanCbcl.StateNativeReader
+
+import LeanCbcl.StateFiniteUpperCache
+
+import LeanCbcl.StateFinitePairLoop
+
+import LeanCbcl.StateInstalledRecognition
+
+import LeanCbcl.StateAuthoredCompletion
+
+import LeanCbcl.StateExecutableFreeze
+
+import LeanCbcl.StateExecutableObservation
+
+import LeanCbcl.StateExecutableContext
+
+import LeanCbcl.StateMemoizedReaderTests
+
+import LeanCbcl.StateReaderIndices
+
+import LeanCbcl.StateAuthoredDependencies
+
+import LeanCbcl.StateReaderValuesTests
+
+import LeanCbcl.StateReaderReachabilityTests
+
+import LeanCbcl.StateCompiledFieldEquationsTests
+
+import LeanCbcl.StateFrozenBodyEquationsTests
+
+import LeanCbcl.StateCausalRank
+
+import LeanCbcl.StateThresholdDispatchTests
+
+import LeanCbcl.StatePreparedOutputsTests
+
+import LeanCbcl.StateOutputCompilerTests
+
+import LeanCbcl.StateCausalRankIntegrationTests
+
+import LeanCbcl.StateCausalCheckCompleteTests
+
+import LeanCbcl.StateOpenerLocalityTests
+
+import LeanCbcl.StateDomainSupportLocalityTests
+
+import LeanCbcl.StateFiniteFreezePolicyTests
+
+import LeanCbcl.StateFiniteOutputStabilityTests
+
+import LeanCbcl.StateAuthoredSourceProvenanceTests
+
+import LeanCbcl.StateAuthoredFiniteStabilityTests
+
+import LeanCbcl.StateAuthoredFinitePreservationTests
+
+import LeanCbcl.StateNativeDataPoliciesTests
+
+import LeanCbcl.StateAuthoredDataPreservationTests
+
+import LeanCbcl.StateAuthoredMembershipTests
+
+import LeanCbcl.StateAuthoredEventMembershipTests
+
+import LeanCbcl.StateEventMapTotalTests
+
+import LeanCbcl.StateAuthoredEventSumTests
+
+import LeanCbcl.StateNonnegativeAdmissionTests
+
+import LeanCbcl.StateAuthoredSumTrace
+
+import LeanCbcl.StateProgressStoreTests
+
+import LeanCbcl.StateProgressFreezeTests
+
+import LeanCbcl.StateAuthoredProgressTests
+
+import LeanCbcl.StateAuthoredResourceTests
+
+import LeanCbcl.StateFiniteReadCacheTests
+
+import LeanCbcl.StateInstalledBoundsTests
+
+import LeanCbcl.StateFiniteDenseCacheTests
+
+import LeanCbcl.StateContextCastSyntaxTests
+
+import LeanCbcl.StateContextWrapperSyntaxTests
+
+import LeanCbcl.StateContextMessageTests
+
+import LeanCbcl.StateKeywordExtractionTests
+
+import LeanCbcl.StateJsonValueTests
+
+import LeanCbcl.StateFaultRenderingTests
+
+import LeanCbcl.StateAddressDigits
+
+import LeanCbcl.StateAddressCounting
+
+import LeanCbcl.StateAddressScatter
+
+import LeanCbcl.StateAddressRadix
+
+import LeanCbcl.StateAddressTables
+
+import LeanCbcl.StateAddressArrayScatter
+
+import LeanCbcl.StateAddressWords
+
+import LeanCbcl.StateAddressPool
+
+import LeanCbcl.StateAddressControl
+
+import LeanCbcl.StateAddressRange
+
+import LeanCbcl.StateFreezeRendering
+
+import LeanCbcl.StateResourceOracle
+
+import LeanCbcl.StateResourceRendering
+
+import LeanCbcl.StateResourceFactsOracle
+
+import LeanCbcl.StateEvidenceSupport
+
+import LeanCbcl.StateEvidenceSupportTests
+
+import LeanCbcl.StateQuasiDeterminism
+
+import LeanCbcl.StateWitnessReplay
+
+import LeanCbcl.StateWitnessReplayTests
+
+import LeanCbcl.StateResourceReplay
+
+import LeanCbcl.StateResourceReplayTests
+
+import LeanCbcl.StateContextReplay
+
+import LeanCbcl.StateContextReplayTests
+
+import LeanCbcl.StateFiniteReplay
+
+import LeanCbcl.StateFiniteReplayTests
+
+import LeanCbcl.StateInstalledReplay
+
+import LeanCbcl.StateAuthoredReplay
+
+import LeanCbcl.StateFreezeWitnessReplay
+
+import LeanCbcl.StateReplayPaths
+
+import LeanCbcl.StateOutputWitnessReplay
+
+import LeanCbcl.StateAuthoredOutputReplay
+
+import LeanCbcl.StateOutputConvergence
+import LeanCbcl.StateOutputThresholdAgreement
+import LeanCbcl.StateOutputQueryIdentity
+import LeanCbcl.StateAuthoredThresholdOrigin
+import LeanCbcl.StateFrozenPayload
+import LeanCbcl.StateFrozenCompilation
+import LeanCbcl.StateFrozenSuccess
+import LeanCbcl.StateDataLocalWorld
+import LeanCbcl.StateAuthoredFrozenAgreement
+import LeanCbcl.StateAuthoredQuasiDeterminism
+
+import LeanCbcl.StateCondition
+
+import LeanCbcl.StateConditionCompiler
+
+import LeanCbcl.StateOutputQuery
+import LeanCbcl.StateConditionFaults
+import LeanCbcl.StateAuthoredConditionOutputs
+import LeanCbcl.StateAuthoredConditionPreparation
+import LeanCbcl.StateAuthoredConditionTests
+import LeanCbcl.StateAuthoredConditionPlain
+import LeanCbcl.StateAuthoredConditionConvergence
+import LeanCbcl.StateAuthoredConditionReplay
+import LeanCbcl.StateAuthoredConditionProjection
+import LeanCbcl.StateAuthoredConditionQuasiDeterminism
+
+import LeanCbcl.StateExecutableCondition

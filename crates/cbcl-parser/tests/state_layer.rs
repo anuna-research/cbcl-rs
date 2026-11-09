@@ -268,7 +268,7 @@ fn state_schema_of_the_checklist() {
     let schema = state_schema(d.state.as_ref().unwrap(), &d.shapes);
     assert_eq!(
         cbcl_core::state::render_schema(&schema),
-        "{\"title\":{\"type\":\"opt-scalar\",\"of\":\"string\"},\"items\":{\"type\":\"map\",\"key\":\"string\",\"value\":{\"type\":\"opt-scalar\",\"of\":\"bool\"}}}"
+        "{\"title\":{\"type\":\"opt-scalar\",\"of\":\"string\",\"observation\":\"snapshot\"},\"items\":{\"type\":\"map\",\"key\":\"string\",\"value\":{\"type\":\"opt-scalar\",\"of\":\"bool\"},\"observation\":\"snapshot\"}}"
     );
 }
 

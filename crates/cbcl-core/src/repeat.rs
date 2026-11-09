@@ -434,8 +434,9 @@ pub(crate) fn accepted_positions(
             continue;
         };
         // Fold acts use the state/wire address spelling, whereas native causal
-        // headers use message_content_hash. Both name the same immutable bytes.
-        // Index both aliases; never change the supplied act or its causal edges.
+        // headers historically use the simple-message hash. Retain that lookup
+        // alias, but resolve pinned role roots using their actual state identity.
+        // Never change the supplied act or its causal edges.
         store.append(
             ContentHash(crate::equivocation::message_content_hash(act.simple())),
             ThreadId(String::from(thread)),
@@ -453,12 +454,9 @@ pub(crate) fn accepted_positions(
         let thread = ThreadId(thread);
         let root = members
             .iter()
-            .filter(|a| {
-                a.message.wrapper_type() == Some(crate::message::WrapperType::WithRoles)
-                    && a.predecessors.is_empty()
-            })
+            .filter(|a| crate::state::is_role_root(a))
             .min_by(|a, b| a.address.cmp(&b.address))
-            .map(|a| ContentHash(crate::equivocation::message_content_hash(a.simple())));
+            .map(|a| ContentHash(a.address.clone()));
         let resolution = Resolution::new(
             &store,
             protocol,

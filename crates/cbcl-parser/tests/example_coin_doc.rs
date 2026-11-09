@@ -13,9 +13,9 @@ use std::collections::BTreeMap;
 const DOC: &str = include_str!("../../../docs/concepts/example-coin.md");
 const COIN: &str = include_str!("../../../dialects/example-coin.cbcl");
 
-const ROOT_ADDR: &str = "sha256-6655c6fbcd385dd84414cad93d6cad9a1ed650f4c2834790d9043f543051d407";
-const OPEN_ADDR: &str = "sha256-a9d6de157c34d0473ad88f651a6701c40415978732593f22bf77b4fb0a448ca5";
-const PAY_ADDR: &str = "sha256-fb89b8805e64de1ea5696aabe3462339a1ead4a68a10948754161ab403859162";
+const ROOT_ADDR: &str = "sha256-67bb33cf1e30749bc9175826525393ce0a0f4a45315c94338714edb31a8849c6";
+const OPEN_ADDR: &str = "sha256-4b71616f32e13ae6fb47e0dc1bb3c721af42ff804a851f2d03b138c9128fa907";
+const PAY_ADDR: &str = "sha256-05304c57d6f9a0b0cfc408800de682e4d55fe24067f094d020d240bf672755a7";
 
 /// Every fenced block in the document tagged with `lang`, in order.
 fn blocks(lang: &str) -> Vec<String> {
@@ -34,7 +34,11 @@ fn act(source: &str, signer: &str) -> Act {
 fn documented_messages_parse_address_and_fold_as_claimed() {
     let lisp = blocks("lisp");
     assert_eq!(lisp.len(), 4, "dialect, root, open, pay");
-    assert_eq!(lisp[0].trim(), COIN.trim(), "README quotes the dialect verbatim");
+    assert_eq!(
+        lisp[0].trim(),
+        COIN.trim(),
+        "README quotes the dialect verbatim"
+    );
 
     let dialect = parse_dialect(&parse(&lisp[0]).unwrap()).unwrap();
     let mut registry = cbcl_core::dialect::DialectRegistry::new();
@@ -43,11 +47,25 @@ fn documented_messages_parse_address_and_fold_as_claimed() {
     let root = act(&lisp[1], "@treasury");
     let open = act(&lisp[2], "@treasury");
     let pay = act(&lisp[3], "@treasury");
-    assert_eq!(root.address, ROOT_ADDR, "root address matches the test vector");
-    assert_eq!(open.address, OPEN_ADDR, "open address matches the test vector");
+    assert_eq!(
+        root.address, ROOT_ADDR,
+        "root address matches the test vector"
+    );
+    assert_eq!(
+        open.address, OPEN_ADDR,
+        "open address matches the test vector"
+    );
     assert_eq!(pay.address, PAY_ADDR, "pay address matches the test vector");
-    assert_eq!(open.predecessors, vec![ROOT_ADDR.to_string()], "open cites the root");
-    assert_eq!(pay.predecessors, vec![OPEN_ADDR.to_string()], "pay cites open");
+    assert_eq!(
+        open.predecessors,
+        vec![ROOT_ADDR.to_string()],
+        "open cites the root"
+    );
+    assert_eq!(
+        pay.predecessors,
+        vec![OPEN_ADDR.to_string()],
+        "pay cites open"
+    );
 
     let acts = vec![root.clone(), open.clone(), pay.clone()];
     let state: serde_json::Value = serde_json::from_str(&render_json(&fold(
@@ -67,11 +85,17 @@ fn documented_messages_parse_address_and_fold_as_claimed() {
     let accepted = vec![root, open];
     let inst = Instance::new(&dialect, ThreadId("coin-1".into()), &accepted).unwrap();
     let fields = BTreeMap::from([
-        ("recipient".to_string(), SExpr::Atom(Atom::Symbol("@alice".into()))),
+        (
+            "recipient".to_string(),
+            SExpr::Atom(Atom::Symbol("@alice".into())),
+        ),
         ("amount".to_string(), SExpr::Atom(Atom::Num(100))),
     ]);
     let built = intend(&inst, &AgentKey("@treasury".into()), "pay", fields).unwrap();
     let built = Act::from_message(built, "@treasury").unwrap();
-    assert_eq!(built.address, pay.address, "intend output equals the documented pay act");
+    assert_eq!(
+        built.address, pay.address,
+        "intend output equals the documented pay act"
+    );
     assert_eq!(built.fields, pay.fields);
 }

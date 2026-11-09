@@ -14,7 +14,7 @@ use alloc::string::String;
 use alloc::vec::Vec;
 use core::fmt;
 
-/// The seven recognised type constraints for shape rules (REQ-221).
+/// Recognised type constraints for shape rules (REQ-221, SPEC-038 CON-3801).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum TypeConstraint {
@@ -22,6 +22,8 @@ pub enum TypeConstraint {
     /// Canonical host-supplied hybrid logical clock evidence, encoded as a string.
     Hlc,
     Number,
+    /// Integer >= 0, recognized before admission (SPEC-038 ADR-3805).
+    Nonnegative,
     Bool,
     Symbol,
     Keyword,
@@ -36,6 +38,7 @@ impl TypeConstraint {
             "string" => Some(TypeConstraint::String),
             "hlc" => Some(TypeConstraint::Hlc),
             "number" => Some(TypeConstraint::Number),
+            "nonnegative" => Some(TypeConstraint::Nonnegative),
             "bool" => Some(TypeConstraint::Bool),
             "symbol" => Some(TypeConstraint::Symbol),
             "keyword" => Some(TypeConstraint::Keyword),
@@ -49,6 +52,9 @@ impl TypeConstraint {
         if *self == TypeConstraint::Hlc {
             return matches!(sexpr, SExpr::Atom(Atom::Str(text)) if crate::hlc::Hlc::parse(text).is_some());
         }
+        if *self == TypeConstraint::Nonnegative {
+            return matches!(sexpr, SExpr::Atom(Atom::Num(n)) if *n >= 0);
+        }
         matches!(
             (self, sexpr),
             (TypeConstraint::String, SExpr::Atom(Atom::Str(_)))
@@ -61,12 +67,33 @@ impl TypeConstraint {
     }
 }
 
+#[cfg(test)]
+mod nonnegative_tests {
+    use super::*;
+
+    #[test]
+    fn nonnegative_recognizes_only_unsigned_integer_values() {
+        let ty = TypeConstraint::from_str("nonnegative").unwrap();
+        for value in [0, 1, i64::MAX] {
+            assert!(ty.matches(&SExpr::Atom(Atom::Num(value))));
+        }
+        for value in [i64::MIN, -1] {
+            assert!(!ty.matches(&SExpr::Atom(Atom::Num(value))));
+        }
+        assert!(!ty.matches(&SExpr::Atom(Atom::Bool(true))));
+        assert!(!ty.matches(&SExpr::Atom(Atom::Str("0".into()))));
+        assert!(!ty.matches(&SExpr::List(Vec::new())));
+        assert_eq!(ty.to_string(), "nonnegative");
+    }
+}
+
 impl fmt::Display for TypeConstraint {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let s = match self {
             TypeConstraint::String => "string",
             TypeConstraint::Hlc => "hlc",
             TypeConstraint::Number => "number",
+            TypeConstraint::Nonnegative => "nonnegative",
             TypeConstraint::Bool => "bool",
             TypeConstraint::Symbol => "symbol",
             TypeConstraint::Keyword => "keyword",

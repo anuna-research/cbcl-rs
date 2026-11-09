@@ -132,6 +132,7 @@ pub fn parse_dialect(sexpr: &SExpr) -> Result<Dialect, String> {
         shapes,
     };
     cbcl_core::r7::insert_replaces(&mut d);
+    cbcl_core::context::resolve(&mut d);
     Ok(d)
 }
 

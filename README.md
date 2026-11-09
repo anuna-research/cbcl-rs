@@ -12,59 +12,39 @@ These guarantees concern observable interactions. They do not establish that an 
 
 ## How it works
 
-CBCL defines interaction protocols over sets of recorded speech acts. Each participant holds a set of signed, content-addressed acts; sets merge by union, acts cite the acts they respond to, and a dialect says which citations are valid.
+CBCL separates recognised inputs, authenticated received records and accepted
+acts. Each participant maintains its own evidence; replicas merge records by set
+union, and acts cite their predecessors rather than relying on arrival order.
 
-```text
-   incoming messages, any bytes
-                 |
-                 v
- (0) full recognition: is it in L_E?
-     L_E = the language the installed
-           environment E recognises
-        |      \
-        | yes   no -> rejected
-        v
-   Alice {p, a}       Bob {p, c}
-          \             /
-           +-----------+
-                 |  set union
-                 v
- (1) S = {p, a, c}  received records
-                 |
-                 v
- (2) proposal -> approval -> completion
-     arrow reads "cited as evidence by"
-                 |
-                 v
- (3) check against dialect D
-     +----------------------------+
-     | Types   what act is this?  |
-     | Roles   who may perform it?|
-     | Causes  what must it cite? |
-     +----------------------------+
-        |          |          |
-     Unknown     Valid     Violation
-     evidence    check     breach
-     missing;    passes    established
-     wait and
-     recheck
-                 |
-                 v
- (4) A, the accepted subset of S
-                 |
-                 v
- (5) State = f_D(A)
-     approvals, balances, progress
-```
+![Stratified admission model: recognised inputs contain authenticated received records, which contain accepted acts. Accepted acts feed CLOK's lattice interpretation and its snapshot, threshold and causal-freeze read interface.](docs/diagrams/stratified-admission-model.svg)
 
-0. **Full recognition.** L_E is a deterministic context-free language. Every message is recognised in full before any semantic action; anything outside L_E is rejected and never recorded. Installing a dialect extends L_E without losing this property.
-1. **Union.** Duplicates change nothing and no global arrival order is required.
-2. **Citations.** Dependencies come from what an act cites, not from the order records arrive.
-3. **Check.** Verdicts follow strong Kleene logic, ordered `Violation < Unknown < Valid`; `all` takes the least and `any` the greatest. `Unknown` is kept until evidence resolves it, and a terminal verdict never changes.
-4. **Admission.** Acceptance requires authenticated acts and accepted predecessors. One passed causal check alone does not admit an act.
-5. **State.** The same accepted acts under the same fixed rules give the same derived state.
+1. **Recognition.** The installed environment defines a deterministic context-free
+   language, L_E. Every input is recognised in full before semantic processing;
+   inputs outside L_E are rejected. Installing a dialect extends recognition
+   while preserving existing declarations.
+2. **Receipt.** Content addresses and host authentication establish the received
+   set S. Unauthenticated inputs do not enter S. Merging these sets by union
+   tolerates duplicates and requires no global delivery order.
+3. **Admission.** The accepted subset A contains acts whose roles and protocol
+   checks pass and whose required predecessors are already accepted. `Unknown`
+   waits for evidence; `Violation` records remain in S but are excluded from A.
+   One passed causal check alone does not admit an act.
+4. **Lattice interpretation.** The Causal Lattice Observation Kernel (CLOK)
+   joins contributions from A into lattice-valued evidence. Equal accepted sets
+   under the same fixed dialect and authenticated metadata give equal kernel
+   values, regardless of delivery order.
+5. **Observation.** The read interface distinguishes revisable snapshots, stable
+   threshold successes that may later expose explicit conflict, and exact values
+   at causal freeze cuts. The underlying lattice evidence grows even when a
+   displayed snapshot changes non-monotonically.
 
-Transport delivers records, cryptography authenticates authors and integrity, and CBCL defines and verifies interaction rules. Authentication establishes who said what, not that the statement is true. Bounded resources need rights plus issuance discipline; set union alone does not prevent double spending. A larger diagram is in [docs/diagrams/cbcl-architecture.svg](docs/diagrams/cbcl-architecture.svg) and the model as a theorem is in [protocol model](docs/concepts/protocol-model.md).
+Transport delivers records, cryptography authenticates authors and integrity,
+and CBCL verifies interaction rules. Authentication establishes who said what,
+not that the statement is true. Bounded resources need rights plus issuance
+discipline; set union alone does not prevent double spending. See the
+[full architecture diagram](docs/diagrams/cbcl-architecture.svg) and the
+[protocol model](docs/concepts/protocol-model.md) for the broader system and its
+formal guarantees.
 
 ## Quick start
 
@@ -94,6 +74,12 @@ cargo run -p cbcl-cli -- --help
 
 Custom performatives require an explicit `(lang …)` scope; installed dialects do not provide an unscoped fallback.
 
+For dialect authors, start with the [language EBNF](docs/cbcl-grammar.ebnf) and
+[state language reference](docs/reference/state-language.md), which lists the
+state keywords, argument syntax, installation checks, and read semantics.
+See also [roles and casts](docs/concepts/role-cast.md) and
+[protocol progress](docs/concepts/protocol-progress.md).
+
 For bindings, see [JavaScript/TypeScript](js/README.md), [WebAssembly](README-WASM.md), and [Erlang/BEAM](crates/cbcl-erl/README.md). The JavaScript/TypeScript package includes a JSON-authored object runtime.
 
 ## Current capabilities
@@ -115,19 +101,80 @@ Receipt alone does not mean acceptance. The admission monitor separates pending 
 
 ## State and bounded counters
 
-An optional `(state …)` declaration gives a protocol's messages a shared state interpretation. Registers, sets, maps, and counters are derived from the accepted acts in a thread. The same accepted set produces the same state regardless of arrival order or duplicate delivery. `fold` computes that state; `intend` binds a proposed act against it. These primitives are exposed through the Rust, JavaScript/TypeScript, WASM, C, and Erlang interfaces.
+An optional `(state …)` declaration defines what a dialect author can observe
+from a thread's accepted acts. Every field uses the shared
+[Causal Lattice Observation Kernel (CLOK)](specs/SPEC-038-lvar-state-kernel.md): accepted evidence
+accumulates by lattice join, and the field's read rule determines its observable
+value. With the same installed dialect and interpretation of authenticated
+metadata, equal accepted sets give equal observations regardless of arrival
+order or duplicate delivery.
 
-The state layer interprets the accepted interactions of the multiparty protocol;
-protocol and role checks govern admission, while state rules govern observations.
-An HLC orders eligible state writes, not protocol execution. State fields choose
-different concurrency policies: `initial` reads immutable
-opener data; multi-value registers/maps preserve concurrent surviving values;
-explicit `lww-*` registers choose a winner using trusted-host HLC evidence; and
-sets, events and aggregates combine evidence according to their rules. Explicit
-supersession and timestamp arbitration are separate: `lww-map` removes replaced
-writes before choosing a survivor, and deletion leaves unobserved concurrent
-writes intact. Bounded counters add separate resource authorization. See
-[[hlc-registers#Choosing a state rule|choosing a state rule]] for examples and assumptions.
+The read guarantee matters as much as the value: a snapshot may revise, a
+threshold establishes a stable fact unless the history faults, and a freeze
+reads an exact causal cut. A displayed count or balance alone does not establish
+finality. `fold` evaluates these observations; `intend` uses the current accepted
+history to bind a proposed act. These APIs are exposed through Rust,
+JavaScript/TypeScript, WASM, C, and Erlang.
+
+Protocol and role checks govern admission; state rules interpret the admitted
+history. Authors can compose registers, sets, maps, counters, progress, and
+read-only context, or declare a finite lattice with contribution and projection
+tables checked at installation. Progress and resource fields retain history in
+the kernel so their reads can follow causal dependencies.
+
+Each source defines how its evidence is displayed. `initial` reads opener data
+and faults on competing openers. Multi-value registers and maps retain concurrent
+surviving values; explicit `lww-*` rules select a winner using trusted-host HLC
+metadata. An HLC orders eligible writes within those rules. Explicit supersession
+removes named writes before winner selection, and deletion leaves unobserved
+concurrent writes intact. Resource counters additionally check spending rights
+and issuance authority against causal evidence. See
+[choosing a state rule](docs/concepts/hlc-registers.md#choosing-a-state-rule)
+for examples and assumptions.
+
+### LVar reads, freezes, and context
+
+Dialect authors choose the read guarantee explicitly:
+
+- A **snapshot** reports the current value and may change as more acts arrive.
+- A **threshold** reports a stable fact. Once reached, it keeps the same answer
+  unless later evidence produces a terminal fault; it never silently returns to
+  pending. Installation checks the source type and alternative compatibility.
+- A **freeze** reads the source at the earliest freezer's causal cut. Later or
+  concurrent contributions are excluded under the default `supersede` policy,
+  or fault the read under `fault`. Concurrent earliest freezers also fault.
+  Domain dependencies count as contributions too: an initializer or roster root
+  outside the cut can fault a field that depends on it.
+- A **fault** carries evidence of the inconsistent history and persists as
+  accepted history grows.
+
+For example, these declarations belong inside a dialect's `(state …)` clause,
+with `approve` and `close` defined by its protocol:
+
+```lisp
+(approvals (count approve))
+(threshold enough approvals (count 3))
+(sealed-approvals (count approve))
+(freeze sealed-approvals close supersede)
+```
+
+The count is a snapshot. `enough` reads the current raw approval carrier;
+`sealed-approvals` becomes an exact causal-cut read after `close`. Installation
+rejects thresholds on `supersede`-frozen sources, so these use separate fields.
+
+`(context)` exposes a read-only map of installed dialect metadata, sealed thread
+metadata and role rosters, and current observation metadata. Paths such as
+`(context thread roles reviewer)` expose a declared role's roster; rosters can
+supply domains and membership thresholds. Observation metadata such as
+`(context observation frontier)` remains a snapshot. Context supplies ordinary
+kernel data; the dialect defines its quorum policy.
+
+The original state heads remain available. `progress` and `bounded-counter`
+retain accepted history in the kernel and reuse the protocol-position and
+resource-DAG validators. Authors can also declare finite lattices and
+contribution tables, whose lattice laws and read policies are checked at
+installation. Thresholds and freezes do not provide an exactly-once external
+effect contract; hosts still handle effect deduplication and recovery.
 
 The **bounded-counter primitive** represents transferable rights over constrained resources, supporting balances, quotas, credits, and inventory. These escrow rights are bound to authenticated accounts: each account can decrement within its allocation, and transferring rights changes who can spend without changing the total. An optional ceiling adds per-account headroom for increments. Concurrent operations are authorized against these allocations rather than a global observed balance.
 
@@ -137,7 +184,7 @@ The **bounded-counter primitive** represents transferable rights over constraine
 | Decrement | Lowers the value; consumes the signer's rights |
 | Transfer | Moves rights between accounts; preserves the value |
 
-Account ownership and collective ownership support individual allocations and pools consumed by distinct authorized signers. Examples: `dialects/example-coin.cbcl`, `dialects/example-capped-coin.cbcl`, and `dialects/example-collective-tickets.cbcl`. See [bounded-counter guide](docs/concepts/bounded-counter.md) for declarations and invariants.
+Account ownership supports individual allocations. Collective pools and quorum-budget certification require the explicit certificate runtime; the plain state fold reports an unsupported-profile fault for those modes. Examples: `dialects/example-coin.cbcl`, `dialects/example-capped-coin.cbcl`, and `dialects/example-collective-tickets.cbcl`. See [bounded-counter guide](docs/concepts/bounded-counter.md) for declarations and invariants.
 
 The built-in checkpoint companion dialect supports cached member-certified state
 opening through `cbcl-checkpoint`. It reuses native signed endorsements, verifies
@@ -191,7 +238,9 @@ The source account of every operation is the authenticated signer, never a calle
 
 `cbcl-core` and `cbcl-parser` form the deterministic `no_std + alloc` core and forbid unsafe code. CLI, WASM, C FFI, and Erlang NIF crates provide the effectful interfaces.
 
-Lean proofs live in `lean-cbcl/`, including R1–R5 properties, endpoint-projection correspondence, finite-time delivery results, and R6 DCFL preservation. Splicing and selective-disclosure results concern abstract predecessor-type evidence; concrete field-opening authentication remains a separate refinement obligation. Explicit host-HLC LWW registers and conflict-preserving aliases are described in [HLC registers](docs/concepts/hlc-registers.md); their clock honesty premise is separate from resource certification. State-fold and binder properties are proved in `State.lean`; [conditional strong eventual consistency](specs/SPEC-037-state-kernel-sec.md) connects equal-set observations to fair admission and eventual delivery; [whole typed kernel correctness](specs/SPEC-036-state-kernel-correctness.md) additionally proves independent denotational correctness and elaboration completeness for arbitrary finite supported clauses, with resource-verifier classification explicitly outside the theorem; corpus tests check Rust/model correspondence, while universal Rust-driver refinement remains open. The concrete R6 checks are tested in Rust; their semantic guarantees are mechanised in Lean. The axiom audit allowlist includes explicit content-hash and causal-accessor assumptions. For proof boundaries, see [proof design notes](proofs/epp-correspondence/design.md) and `scripts/check-axioms.sh`.
+Lean proofs live in `lean-cbcl/`, including R1–R5 properties, endpoint-projection correspondence, finite-time delivery results, and R6 DCFL preservation. Splicing and selective-disclosure results concern abstract predecessor-type evidence; concrete field-opening authentication remains a separate refinement obligation. Explicit host-HLC LWW registers and conflict-preserving aliases are described in [HLC registers](docs/concepts/hlc-registers.md); their clock honesty premise is separate from resource certification. State-fold and binder properties are proved in `State.lean`; [conditional strong eventual consistency](specs/SPEC-037-state-kernel-sec.md) connects equal-set observations to fair admission and eventual delivery; [whole typed kernel correctness](specs/SPEC-036-state-kernel-correctness.md) additionally proves independent denotational correctness and elaboration completeness for arbitrary finite supported clauses, with resource-verifier classification explicitly outside the theorem; corpus tests check Rust/model correspondence, while universal Rust-driver refinement remains open. The concrete R6 checks are tested in Rust; their semantic guarantees are mechanised in Lean. The axiom audit allowlist includes explicit content-hash and causal-accessor assumptions.
+
+SPEC-038 additionally proves typed native resource-verifier/certificate equivalence, concrete typed authored source binding, installed-rule/plan refinement and complete authored agreement for the implemented single-source observation inventory. Its v0.4 sealed-root migration is implemented; native condition thresholds are implemented, while their extended Lean compiler/oracle and proof coverage remain in progress. Universal native Rust extraction and mutable-driver correspondence remain proof boundaries; see the [Lean proof status](lean-cbcl/README.md#causal-lattice-observation-kernel-clok). The [acceptance evidence](docs/reviews/lvar-kernel-acceptance.md) records tested requirements and unresolved contracts. For other proof boundaries, see [proof design notes](proofs/epp-correspondence/design.md) and `scripts/check-axioms.sh`.
 
 ## API reference
 
@@ -228,6 +277,7 @@ See the [proof guide](lean-cbcl/README.md#cached-checkpoint-continuation) for th
 and reproducible checks.
 
 For proof changes, install Lean via elan and run `lake build` and `lake exe runLinter LeanCbcl` from `lean-cbcl/`. Run `scripts/check-axioms.sh` from the repository root. For mutation testing, see [mutation-testing guide](docs/mutation-testing.md).
+Use the [live Lean state-kernel oracle](docs/state-kernel-oracle.md) for differential fuzzing with shrinking and replay.
 
 Contributions are welcome. Specs live under `specs/`, implementation plans under `plans/`, and bug reports under `bugs/`. Link changes to their governing requirements and verification evidence.
 

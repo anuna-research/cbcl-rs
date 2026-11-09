@@ -1,32 +1,15 @@
 name: mutation-testing
 
-# USDD Phase 3 gate: mutation testing is mandatory for AI-synthesised
-# specifications (the SPEC-014 role layer among them). `cargo-mutants`
-# corrupts each critical-path module and checks that the test suite kills
-# the mutant; a surviving mutant is a tautological gap in the tests. The
-# kill-rate threshold (90%) and the mutated file set live in
-# `scripts/run-mutation-tests.sh` and `mutants.toml`.
+# Manual full mutation campaign. The maintainer paused automatic PR and weekly
+# runs after run 333 exhausted the three-hour job limit. Parser nontermination
+# mutants each consumed 385 seconds, and surviving mutants remain coverage work.
+# This pause is not a passing mutation result. Keep the score gate intact for
+# manual runs; targeted CLOK semantic mutation scripts remain available.
 #
-# Runs on PRs that touch the mutated crates or the mutation config, and on
-# a weekly schedule so drift in the suite's discriminating power is caught
-# even without a source change. Mutation runs are slow, so this is a
-# separate workflow from the fast per-push checks.
+# Restore automatic runs after bounding campaign runtime, fixing configuration
+# loading and resolving the surviving-mutant coverage gaps.
 on:
-  pull_request:
-    paths:
-      - 'crates/cbcl-core/**'
-      - 'crates/cbcl-parser/**'
-      - 'Cargo.toml'
-      - 'Cargo.lock'
-      - 'mutants.toml'
-      - 'scripts/run-mutation-tests.sh'
-      - 'scripts/check-mutation-results.py'
-      - 'scripts/test-mutation-gate.py'
-      - 'scripts/ci-install-rust.sh'
-      - '.forgejo/workflows/mutation.yml'
-  schedule:
-    # Mondays 04:00 UTC.
-    - cron: '0 4 * * 1'
+  workflow_dispatch:
 
 jobs:
   mutation:

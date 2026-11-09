@@ -1,0 +1,972 @@
+#!/usr/bin/env python3
+"""SPEC-038: exercise concrete observation proof obligations in isolated copies."""
+from pathlib import Path
+import re
+import subprocess
+import tempfile
+
+root = Path(__file__).resolve().parents[1]
+module = "StateLVar"
+source = (root / f"lean-cbcl/LeanCbcl/{module}.lean").read_text()
+mutants = [
+    ("dependency-fault-ignored", "if dependencyFault = true ∨ state = ⊤ then", "if state = ⊤ then", "thresholdRead_fault_first"),
+    ("raw-history-discarded", "lift (fun a => FinSet.mk [a]) A", "FinSet.mk []", "rawHistory_eq"),
+    ("initializer-fault-hidden", "| .top evidence => .fault evidence", "| .top _ => .value (FinSet.mk [])", "domain_fork_fault"),
+    ("freeze-cut-ignored", "exact A.filter (fun a => decide (Ancestor world a f))", "exact A", "causalCut_agreement"),
+    ("freezer-excluded-from-cut", "decide (Ancestor world a f)", "decide (Ancestor world a f ∧ a ≠ f)", "freezer_in_cut"),
+    ("freeze-witness-address-dropped", "(address = a.addr ∨ address = b.addr)", "address = a.addr", "eventual_freeze_conflict"),
+]
+suites = [(module, source, mutants), ("StateContext",
+    (root / "lean-cbcl/LeanCbcl/StateContext.lean").read_text(), [
+    ("root-contribution-dropped", "if a.preds.isEmpty then", "if false then", "recognized_root_value"),
+    ("invalid-root-hidden", "| .one address none => .fault {address}", "| .one _ none => .pending", "invalid_root_faults"),
+    ("context-fault-hidden", "| .top evidence => .fault evidence", "| .top _ => .pending", "display_quasi"),
+    ("context-evidence-dropped", "| .top evidence => .fault evidence", "| .top _ => .fault {}", "fault_evidence"),
+])]
+resource_source = (root / "lean-cbcl/LeanCbcl/StateResource.lean").read_text()
+resource_tests = (root / "lean-cbcl/LeanCbcl/StateResourceTests.lean").read_text().split("\n", 1)[1]
+suites.extend([
+    ("StateResource", resource_source + "\n" + resource_tests, [
+        ("resource-cause-hidden", "exact if Fault c decode A then", "exact if False then", "unsupported_fault"),
+        ("resource-budget-invented", "checkedAdd initial (if headroom then debited else credited)",
+         "checkedAdd (initial + 100) (if headroom then debited else credited)", "insufficient_budget"),
+        ("resource-shorter-tip-selected", "if C.length < D.length then D else C",
+         "if C.length < D.length then C else D", "merge_owner_tips_union"),
+        ("headroom-key-order-matters", "∀ owner, owner ∈ (accounts op.data.selected.headroomAllocations).map Prod.fst ↔\n      owner ∈ (accounts op.data.selected.initialAllocations).map Prod.fst",
+         "(accounts op.data.selected.headroomAllocations).map Prod.fst = (accounts op.data.selected.initialAllocations).map Prod.fst", "reordered_headroom_valid"),
+        ("resource-overflow-ignored", "if -(2^127) ≤ n ∧ n < 2^127 then", "if True then", "checked_overflow"),
+    ]),
+    ("StateObservation", (root / "lean-cbcl/LeanCbcl/StateObservation.lean").read_text(), [
+        ("product-fault-witness-discarded", "| some a, some b => some (a ∪ b)",
+         "| some a, some _ => some a", "unionError_grows"),
+    ]),
+    ("StateObservationPlan", (root / "lean-cbcl/LeanCbcl/StateObservationPlan.lean").read_text(), [
+        ("derived-frozen-value-discarded", "| .snapshot v | .context v | .reached v | .frozen _ v _ => some v",
+         "| .snapshot v | .context v | .reached v => some v\n  | .frozen _ _ _ => none", "derived_frozen_payload"),
+        ("threshold-dependency-fault-discarded", "| _, .threshold spec source => .join (.threshold spec) (path source)",
+         "| _, .threshold spec _ => .threshold spec", "threshold_dependency_fault_first"),
+    ]),
+])
+native_tests = (root / "lean-cbcl/LeanCbcl/StateNativeRefinementTests.lean").read_text()
+linked_reached = re.search(r"theorem source_linked_threshold_reached[\s\S]*?(?=\ntheorem)", native_tests).group(0)
+linked_source = (root / "lean-cbcl/LeanCbcl/StateObservationPlan.lean").read_text()
+linked_source += "\nnamespace CBCL.StateNativeRefinementTests\nopen State StateObservationPlan\n" + linked_reached + "\nend CBCL.StateNativeRefinementTests\n"
+suites.extend([
+    ("StateResourceNative", (root / "lean-cbcl/LeanCbcl/StateResourceNative.lean").read_text(), [
+        ("empty-native-allocation-accepted", "!rows.isEmpty && rowsCheck rows", "rowsCheck rows", "empty_allocations_rejected"),
+        ("native-account-prefix-ignored", "decide (s.toList.head? = some '@') && decide (1 < s.length)",
+         "decide (1 < s.length)", "accountCheck_iff"),
+        ("native-incoming-chunk-discarded", "let total ← checkedSum ownerAmounts", "let total := (0 : Int)", "addIncoming_eq"),
+    ]),
+    ("StateResourceSummary", (root / "lean-cbcl/LeanCbcl/StateResourceSummary.lean").read_text(), [
+        ("native-sequence-not-incremented", "let next := {summary with sequence := summary.sequence + 1}",
+         "let next := summary", "record_refinement"),
+        ("native-recipient-substituted", "update summary.sentRights recipient amount",
+         "update summary.sentRights node.data.signer amount", "record_refinement"),
+    ]),
+    ("StateObservationPlan", linked_source, [
+        ("source-linked-threshold-no-longer-reads-source", "alternatives.find? (fun q => test q value)",
+         "alternatives.find? (fun _ => false)", "source_linked_threshold_reached"),
+        ("source-linked-threshold-fault-discarded", "| _, .thresholdOn _ _ source => path source",
+         "| _, .thresholdOn _ _ _ => .clear", "thresholdOn_dependency_fault_first"),
+    ]),
+    ("StateRuleRefinement", (root / "lean-cbcl/LeanCbcl/StateRuleRefinement.lean").read_text(), [
+        ("native-freeze-recomputes-current-source", "(fun C => sourceData (source C)) A",
+         "(fun _ => sourceData (source A)) A", "freeze_source_refinement"),
+    ]),
+])
+kahn_tests = (root / "lean-cbcl/LeanCbcl/StateResourceKahnTests.lean").read_text()
+kahn_tests = "\n".join(line for line in kahn_tests.splitlines() if not line.startswith("import "))
+suites.extend([
+    ("StateResourceKahn", (root / "lean-cbcl/LeanCbcl/StateResourceKahn.lean").read_text() + "\n" + kahn_tests, [
+        ("structural-cycle-discarded", "  reduceFuel parents nodes.length nodes\n", "  ([] : List α)\n", "cycle_pass_retains_nodes"),
+        ("missing-reference-released-by-budget-pass", "(parents node).all (fun parent => known.contains parent && !remaining.contains parent)", "(parents node).all (fun parent => !remaining.contains parent)", "budget_pass_keeps_missing_reference"),
+    ]),
+    ("StateResourceCycle", (root / "lean-cbcl/LeanCbcl/StateResourceCycle.lean").read_text(), [
+        ("native-cycle-check-always-accepts", "(StateResourceKahn.nativeKahn (parents (nodes c F)) (nodes c F)).isEmpty", "true", "native_cycle_certificate_iff"),
+    ]),
+])
+suites.append(("StateResourceCache", (root / "lean-cbcl/LeanCbcl/StateResourceCache.lean").read_text(), [
+    ("cache-uses-empty-owner-prefix", "else (cache previous).map Prod.snd", "else some empty", "previous_prefix"),
+    ("cache-tip-keeps-shorter-prefix", "left.2.sequence < right.2.sequence", "right.2.sequence < left.2.sequence", "cached_tip_union"),
+    ("cache-stores-parent-summary", "some (node,next) else cache address", "some (node,own) else cache address", "advance_valid"),
+]))
+suites.append(("StateResourceStructure", (root / "lean-cbcl/LeanCbcl/StateResourceStructure.lean").read_text(), [
+    ("foreign-owner-check-accepts-all", "parent.data.signer == node.data.signer else true", "true else true", "previousOwnerCheck_iff"),
+    ("fork-check-accepts-all", "left.id == right.id else true", "true else true", "forkCheck_iff"),
+]))
+suites.extend([
+    ("StateResourceCones", (root / "lean-cbcl/LeanCbcl/StateResourceCones.lean").read_text(), [
+        ("dependency-cone-discarded", "entry == node || parents.any (fun parent => parent.2.contains entry)", "entry == node", "unionCone_member"),
+        ("all-dependency-lookups-skipped", "if address = op.id then gather op cache references else do", "if true then gather op cache references else do", "gather_lookup"),
+    ]),
+    ("StateResourceFrontier", (root / "lean-cbcl/LeanCbcl/StateResourceFrontier.lean").read_text(), [
+        ("dependency-frontier-not-merged", "| some old,some incoming => chooseTip cache old incoming", "| some old,some _ => some old", "merge_represents"),
+    ]),
+    ("StateResourceBudget", (root / "lean-cbcl/LeanCbcl/StateResourceBudget.lean").read_text(), [
+        ("incoming-headroom-map-substituted", "if headroom then entry.2.sentHeadroom recipient else entry.2.sentRights recipient", "entry.2.sentRights recipient", "readIncoming_refinement"),
+    ]),
+])
+suites.extend([
+    ("StateResourceOutgoing", (root / "lean-cbcl/LeanCbcl/StateResourceOutgoing.lean").read_text(), [
+        ("outgoing-map-side-substituted", "  checkedSum (owners.map (fun recipient => if headroom then summary.sentHeadroom recipient else summary.sentRights recipient))\n", "  checkedSum (owners.map (fun recipient => summary.sentRights recipient))\n", "native_outgoing_refinement"),
+    ]),
+    ("StateResourceLocalBudget", (root / "lean-cbcl/LeanCbcl/StateResourceLocalBudget.lean").read_text(), [
+        ("local-budget-credit-debit-reversed", "let raised ← checkedAdd initial (if headroom then own.debited else own.credited)", "let raised ← checkedAdd initial (if headroom then own.credited else own.debited)", "native_local_budget_refinement"),
+    ]),
+])
+suites.extend([
+    ("StateResourceMachine", (root / "lean-cbcl/LeanCbcl/StateResourceMachine.lean").read_text(), [
+        ("recorded-node-own-tip-not-updated", "setOwn tips node else machine.tips address", "tips else machine.tips address", "recordResult_invariant"),
+    ]),
+])
+suites.append(("StateResourceCounters", (root / "lean-cbcl/LeanCbcl/StateResourceCounters.lean").read_text(), [
+    ("native-waiting-count-not-decremented", "if address = child then counts address - 1 else counts address", "counts address", "decrementAll_value"),
+    ("native-parent-waiting-list-not-removed", "if address = parent then [] else state.waiters address", "state.waiters address", "pop_invariant"),
+    ("native-ready-child-not-enqueued", "ready child || (children.contains child && decide (decrementAll counts children child = 0))", "ready child", "ready_pop_refinement"),
+]))
+suites.extend([
+    ("StateResourceAuthorization", (root / "lean-cbcl/LeanCbcl/StateResourceAuthorization.lean").read_text(), [
+        ("authorization-always-faults", "if nativeBudgetCheck c op node own machine.summaries (mergedTips machine.summaries machine.tips parents) then", "if false then", "checkedStep_budget_fault"),
+    ]),
+    ("StateResourceWorklist", (root / "lean-cbcl/LeanCbcl/StateResourceWorklist.lean").read_text(), [
+        ("budget-worklist-skipped", "runFuel e e.known.length (initialWorklist e) StateResourceMachine.initial initialGhost", "runFuel e 0 (initialWorklist e) StateResourceMachine.initial initialGhost", "native_worklist_verified"),
+    ]),
+])
+aggregate_tests = (root / "lean-cbcl/LeanCbcl/StateResourceAggregateTests.lean").read_text()
+aggregate_tests = "\n".join(line for line in aggregate_tests.splitlines() if not line.startswith("import "))
+finalize_source = "import LeanCbcl.StateResourceTests\n" + (root / "lean-cbcl/LeanCbcl/StateResourceFinalize.lean").read_text() + "\n" + aggregate_tests
+suites.extend([
+    ("StateResourceAggregate", (root / "lean-cbcl/LeanCbcl/StateResourceAggregate.lean").read_text(), [
+        ("aggregate-transfer-credit-discarded", "addAccount owners debited recipient amount", "addAccount owners debited recipient 0", "transferAccounts_success"),
+    ]),
+    ("StateResourceFinalize", finalize_source, [
+        ("aggregate-capacity-always-rejected", "if checkedAdd value totalSpace == some cap then", "if false then", "finishBalances_bounded"),
+        ("aggregate-floor-discarded", "let value ← checkedAdd totalRights c.floor", "let value := totalRights", "finishBalances_unbounded"),
+        ("aggregate-negative-guard-discarded", "if owners.any (fun owner => decide (rights owner < 0)) ||\n      headroom.any (fun space => owners.any (fun owner => decide (space owner < 0))) then none else do", "if false then none else do", "negative_final_budget_rejected"),
+    ]),
+])
+installed_tests = (root / "lean-cbcl/LeanCbcl/StateInstalledCompilerTests.lean").read_text()
+installed_tests = "\n".join(line for line in installed_tests.splitlines() if not line.startswith("import "))
+suites.extend([
+    ("StateResourcePreflight", (root / "lean-cbcl/LeanCbcl/StateResourcePreflight.lean").read_text(), [
+        ("accepted-foreign-parent-ignored", "operationVerbCheck c parent.data.selected.verb", "true", "foreignCheck_iff"),
+    ]),
+    ("StateResourceVerifier", (root / "lean-cbcl/LeanCbcl/StateResourceVerifier.lean").read_text(), [
+        ("native-preflight-fault-hidden", "| .fault _ => .fault", "| .fault _ => .pending", "native_verifier_certificate_iff"),
+    ]),
+    ("StateInstalledCompiler", (root / "lean-cbcl/LeanCbcl/StateInstalledCompiler.lean").read_text(), [
+        ("installed-post-discarded", "return .map post (← earlier.lookup name)", "return .map id (← earlier.lookup name)", "compile_rule_refinement"),
+    ]),
+    ("StateInstalledClause", (root / "lean-cbcl/LeanCbcl/StateInstalledClause.lean").read_text() + "\n" + installed_tests, [
+        ("installed-freeze-discarded", "return match field.freeze with | none => source | some spec => .freeze spec source", "return source", "compile_field_refinement"),
+        ("late-freeze-declaration-ignored", "fields.map (fun (name,rule) => (name,⟨rule,freezes.lookup name⟩))", "fields.map (fun (name,rule) => (name,⟨rule,none⟩))", "late_freeze_attaches_before_dependencies"),
+    ]),
+])
+lowering_tests = (root / "lean-cbcl/LeanCbcl/StateInstalledLoweringTests.lean").read_text()
+lowering_tests = "\n".join(line for line in lowering_tests.splitlines() if not line.startswith("import "))
+suites.extend([
+    ("StateObservationPlan", (root / "lean-cbcl/LeanCbcl/StateObservationPlan.lean").read_text(), [
+        ("reached-embedding-becomes-snapshot", "| .reached v => .reached (f v)", "| .reached v => .snapshot (f v)", "embed_preserves_reached"),
+        ("context-embedding-becomes-snapshot", "| .value v => .context (embed v)", "| .value v => .snapshot (embed v)", "contextAs_value"),
+    ]),
+    ("StateInstalledLattice", (root / "lean-cbcl/LeanCbcl/StateInstalledLattice.lean").read_text(), [
+        ("query-empty-alternatives-allowed", "!queries.isEmpty && decide queries.Nodup", "true && decide queries.Nodup", "alternativesCheck_iff"),
+        ("query-duplicate-alternatives-allowed", "decide queries.Nodup", "true", "alternativesCheck_iff"),
+        ("query-conflict-top-allowed", "queries.all (fun q => decide (q ≠ ⊤))", "true", "alternativesCheck_iff"),
+        ("query-detached-from-source-carrier", "field.algebra,field.contribution,query.alternatives", "field.algebra,(fun _ => @BoundedJoinSemilattice.top field.Carrier field.algebra),query.alternatives", "query_source_coherence"),
+    ]),
+    ("StateInstalledLowering", (root / "lean-cbcl/LeanCbcl/StateInstalledLowering.lean").read_text() + "\n" + lowering_tests, [
+        ("query-source-recognition-bypassed", "if policy.check elements then some (.threshold elements policy.test source)", "if true then some (.threshold elements policy.test source)", "lower_rule_refinement"),
+        ("supersede-threshold-source-allowed", "match freezes.lookup source with | none => true | some spec => spec.policy", "true", "supersede_threshold_source_rejected"),
+    ]),
+])
+finite_projection_tests = (root / "lean-cbcl/LeanCbcl/StateFiniteProjectionTests.lean").read_text()
+finite_projection_tests = "\n".join(line for line in finite_projection_tests.splitlines() if not line.startswith("import "))
+suites.extend([
+    ("StateFiniteTable", (root / "lean-cbcl/LeanCbcl/StateFiniteTable.lean").read_text(), [
+        ("finite-totality-check-bypassed", "completeCheck table && lawCheck table", "true && lawCheck table", "check_iff"),
+        ("finite-duplicate-input-check-bypassed", "decide (table.rows.map Prod.fst).Nodup", "true", "check_iff"),
+    ]),
+    ("StateFiniteProjection", (root / "lean-cbcl/LeanCbcl/StateFiniteProjection.lean").read_text() + "\n" + finite_projection_tests, [
+        ("finite-opaque-field-treated-as-scalar", "| _ => false\n\n/-- Native stable projection order", "| .list _ => true\n\n/-- Native stable projection order", "row_literal_not_list"),
+        ("finite-stable-order-check-bypassed", "if projection.stable then", "if false then", "check_iff"),
+        ("finite-projection-totality-bypassed", "(indices table).all (fun i => (projection.rows.lookup i).isSome)", "true", "check_iff"),
+        ("finite-projection-scalar-check-bypassed", "projection.rows.all (fun row => scalarCheck row.2)", "true", "check_iff"),
+        ("finite-contribution-first-match-only", "rows.filter (fun row => act.get row.key == some row.literal)", "(rows.take 1).filter (fun row => act.get row.key == some row.literal)", "every_matching_row_contributes"),
+    ]),
+    ("StateInstalledFinite", (root / "lean-cbcl/LeanCbcl/StateInstalledFinite.lean").read_text(), [
+        ("finite-source-fault-guard-discarded", "guards := [.certified (errorSpec field)]", "guards := []", "concrete_finite_read_refinement"),
+        ("finite-native-domain-writers-discarded", "| some evidence => some (evidence ∪ writers field A)\n  | none => (topErrorSpec field).read A", "| some evidence => some evidence\n  | none => (topErrorSpec field).read A", "native_error_refinement"),
+    ]),
+])
+
+finite_read_tests = (root / "lean-cbcl/LeanCbcl/StateFiniteReadTests.lean").read_text()
+finite_read_tests = "\n".join(line for line in finite_read_tests.splitlines() if not line.startswith("import "))
+suites.append(("StateFiniteRead", "import LeanCbcl.StateFiniteProjectionTests\n" +
+    (root / "lean-cbcl/LeanCbcl/StateFiniteRead.lean").read_text() + "\n" + finite_read_tests, [
+    ("finite-top-read-allowed", "current != field.table.table.top && reaches field query current", "reaches field query current", "test_top"),
+    ("finite-common-upper-check-bypassed", "current == field.table.table.top || !(reaches field left current && reaches field right current)", "true", "pairCheck_iff"),
+    ("finite-empty-read-accepted", "!queries.isEmpty && decide queries.Nodup", "true && decide queries.Nodup", "empty_query_rejected"),
+    ("finite-raw-query-state-discarded", "test field element (state field (StateInstalledLegacy.history carrier))", "test field element field.table.table.bottom", "policy_actual_history"),
+]))
+
+authored_tests = (root / "lean-cbcl/LeanCbcl/StateAuthoredBindingsTests.lean").read_text()
+authored_tests = "\n".join(line for line in authored_tests.splitlines() if not line.startswith("import "))
+suites.extend([
+    ("StateAuthoredBindings", (root / "lean-cbcl/LeanCbcl/StateAuthoredBindings.lean").read_text() + "\n" + authored_tests, [
+        ("authored-native-bounds-gate-bypassed", "StateInstalledBounds.check environment.profile.definition.bounds",
+         "true", "invalid_bounds_rejected"),
+        ("authored-preparation-guard-bypassed", "(lowerStatic environment entries).filter preparedCheck", "lowerStatic environment entries", "static_preparation_sound"),
+        ("authored-preparation-rejects-all", "decide (StateInstalledLowering.ValidMetadata (clauseAt prepared [])) &&\n    StateInstalledRecognition.check [] [] prepared.declarations", "false", "preparation_preserves_compilation"),
+        ("authored-freeze-contributors-use-empty-history", "contributes resolvedDomains history template.footprint", "contributes resolvedDomains [] template.footprint", "materialized_progress_contributor"),
+        ("authored-progress-domain-filtered", "| .progress verb => .rawVerbs [verb]", "| .progress verb => .verbs [verb]", "progress_raw_contributor"),
+        ("authored-duplicate-namespace-allowed", "decide names.Nodup", "true", "lattice_and_field_namespace_shared"),
+        ("authored-domain-source-environment-discarded", "environment.schema (domainFields entries)", "environment.schema []", "domain_can_reference_later_initializer"),
+        ("authored-freeze-sender-role-bypassed", "if senderRole.isEmpty || !environment.schema.verbs.contains verb then", "if false then", "freeze_without_sender_role_rejected"),
+    ]),
+    ("StateFreezeGrowth", (root / "lean-cbcl/LeanCbcl/StateFreezeGrowth.lean").read_text(), [
+        ("growing-freeze-evidence-discarded", "⟨a,b,conflict_transfer closed growth contributors conflict,which⟩", "⟨a,a,conflict_transfer closed growth contributors conflict,which⟩", "evidence_grows"),
+    ]),
+    ("StateFreezeScopes", (root / "lean-cbcl/LeanCbcl/StateFreezeScopes.lean").read_text(), [
+        ("cached-freeze-uses-entire-history", ".frozen freezer.addr (evaluate (causalCut world whole freezer))", ".frozen freezer.addr (evaluate whole)", "cached_freeze_refinement"),
+        ("cached-freezer-applied-outside-scope", "some freezer => if freezer ∈ scope then", "some freezer => if True then", "cached_freeze_refinement"),
+    ]),
+    ("StateCompiledFreezeGrowth", (root / "lean-cbcl/LeanCbcl/StateCompiledFreezeGrowth.lean").read_text(), [
+        ("compiled-pair-error-path-discarded", "| .pair _ left right => do return .join (← earlier.lookup left) (← earlier.lookup right)", "| .pair _ left _ => earlier.lookup left", "compile_rule_path"),
+        ("compiled-global-freeze-path-discarded", "| some spec => .freeze spec.verb spec.contributes spec.policy source", "| some _ => source", "compile_field_path"),
+    ]),
+])
+
+suites.append(("StateNativeReader", (root / "lean-cbcl/LeanCbcl/StateNativeReader.lean").read_text(), [
+    ("native-reader-freeze-fault-dropped", "(freezeFault world spec.verb spec.contributes spec.policy none whole)", "none", "full_error_refinement"),
+    ("native-reader-freeze-cut-ignored", "| _, .freeze spec source, scope => frozenData (cachedFreeze world spec (fun cut => value world whole source cut) whole scope)", "| _, .freeze spec source, scope => frozenData (cachedFreeze world spec (fun _ => value world whole source whole) whole scope)", "scoped_value_refinement"),
+    ("native-reader-fault-header-hidden", "| some evidence => .fault evidence", "| some _ => .data (value world whole plan whole)", "native_reader_refinement"),
+]))
+
+suites.append(("StateFiniteUpperCache", (root / "lean-cbcl/LeanCbcl/StateFiniteUpperCache.lean").read_text(), [
+    ("upper-cache-top-included", "current != verified.table.top && merge verified.table root current == current", "merge verified.table root current == current", "upperMaximum_ge"),
+    ("upper-cache-named-root-discarded", "(upperMaximum verified project a).isSome &&", "(upperMaximum verified project verified.table.bottom).isSome &&", "compatible_iff"),
+    ("upper-cache-numeric-minimum", "decide (max a b ≤ (upperMaximum verified project verified.table.bottom).getD 0)", "decide (min a b ≤ (upperMaximum verified project verified.table.bottom).getD 0)", "compatible_iff"),
+    ("upper-cache-bool-true-zero", "| .bool true => some (.numeric 1)", "| .bool true => some (.numeric 0)", "decode_reaches"),
+]))
+
+suites.append(("StateFinitePairLoop", (root / "lean-cbcl/LeanCbcl/StateFinitePairLoop.lean").read_text(), [
+    ("stored-maxima-root-discarded", "(projected field)[current]) root)", "(projected field)[current]) field.table.table.bottom)", "maxima_lookup"),
+    ("stored-pair-cache-index-discarded", "cache[a].isSome && decide (threshold ≤ cache[a].getD 0)", "cache[field.table.table.bottom].isSome && decide (threshold ≤ cache[field.table.table.bottom].getD 0)", "stored_compatible_refinement"),
+    ("pair-loop-duplicate-ignored", "if left == right then some .duplicate", "if false then some .duplicate", "reason_clear"),
+    ("pair-loop-index-off-by-one", "some (index,other,why)", "some (index,index,why)", "pairs_reference"),
+    ("pair-loop-skips-later-rows", "| none => pairs compatible (index + 1) rest", "| none => none", "pairs_clear"),
+]))
+
+suites.append(("StateInstalledRecognition", (root / "lean-cbcl/LeanCbcl/StateInstalledRecognition.lean").read_text(), [
+    ("recognition-policy-check-bypassed", "(lowerRule definitions declaration).isSome &&", "true &&", "check_iff"),
+    ("recognition-backward-check-bypassed", "(StateInstalledLowering.references declaration).all names.contains &&", "true &&", "check_iff"),
+    ("recognition-tail-check-bypassed", "check (extend definitions declaration) (declaration.name::names) rest", "true", "check_iff"),
+]))
+
+suites.append(("StateOpenerLocality", (root / "lean-cbcl/LeanCbcl/StateOpenerLocality.lean").read_text(), [
+    ("business-parent-edge-not-checked", "verbs.contains parent.verb && act.preds.contains parent.addr", "verbs.contains parent.verb", "rooted_parent"),
+    ("domain-cut-selection-assumed-full", "filter (fun act => decide (Ancestor (fun node => node ∈ history) act freezer)))", "filter (fun _ => true))", "domain_cut"),
+    ("supersede-policy-claims-full-count-locality", "true none history = none) :\n    initialDomain", "false none history = none) :\n    initialDomain", "fault_domain_cut"),
+]))
+
+suites.append(("StateOutputQuery", (root / "lean-cbcl/LeanCbcl/StateOutputQuery.lean").read_text(), [
+    ("compiled-output-policy-unchecked", "if policy.check elements then some (.raw", "if true then some (.raw", "compile_query_refinement"),
+    ("compiled-finite-source-fault-hidden", "| .fault evidence => .fault evidence", "| .fault _ => .data .pending", "compile_query_refinement"),
+]))
+
+suites.append(("StateOutputCompiler", (root / "lean-cbcl/LeanCbcl/StateOutputCompiler.lean").read_text(), [
+    ("compiled-output-raw-cut-erased", "query.run (referenceScope whole freezes sourceName)", "query.run (StateScopePool.normalize whole)", "compile_one_refinement"),
+    ("compiled-observation-history-substituted", "return ⟨whole,program⟩", "return ⟨[],program⟩", "authored_compiler_refinement"),
+]))
+
+suites.append(("StatePreparedOutputs", (root / "lean-cbcl/LeanCbcl/StatePreparedOutputs.lean").read_text(), [
+    ("output-threshold-requests-output-name", "| .threshold _ source _ => source", "| .threshold name _ _ => name", "prepared_output_admitted"),
+    ("output-transcript-payload-discarded", "| .field _ _ => some value", "| .field _ _ => some (.data .pending)", "evaluate_values_map"),
+    ("output-policy-environment-not-extended", "let tail ← evaluate scopes read (extend definitions declaration) rest", "let tail ← evaluate scopes read definitions rest", "evaluate_complete"),
+]))
+
+suites.append(("StateThresholdDispatch", (root / "lean-cbcl/LeanCbcl/StateThresholdDispatch.lean").read_text(), [
+    ("threshold-raw-scope-index-erased", "(((StateReaderValues.operations entries whole fields freezes).cut name).getD 0,name)", "(0,name)", "raw_scope_refinement"),
+    ("threshold-semantic-cut-ignored", "causalCut (fun act => act ∈ normalize whole) (normalize whole) root", "normalize whole", "raw_scope_refinement"),
+    ("threshold-factored-policy-unchecked", "if policy.check elements then some (nativeRawThreshold", "if true then some (nativeRawThreshold", "installed_factored_rejects"),
+    ("threshold-dispatch-uses-full-history", "rawHistory (rawScope entries whole fields freezes name)", "rawHistory (normalize whole)", "dispatch_refinement"),
+]))
+
+suites.append(("StateFiniteCausalRank", (root / "lean-cbcl/LeanCbcl/StateFiniteCausalRank.lean").read_text(), [
+    ("compressed-rank-includes-self", "decide (rank act < value)", "decide (rank act ≤ value)", "below_bound"),
+]))
+
+causal_complete_source = (root / "lean-cbcl/LeanCbcl/StateCausalRank.lean").read_text() + "\n" + re.sub(
+    r"^import [^\n]+\n", "", (root / "lean-cbcl/LeanCbcl/StateCausalCheckComplete.lean").read_text(), flags=re.M)
+suites.append(("StateCausalCheckComplete", causal_complete_source, [
+    ("causal-sort-discards-pending-vertices", "orderFuel fuel (pending.filter (fun act => act != root)) (ordered ++ [root])", "orderFuel fuel [] (ordered ++ [root])", "order_complete"),
+    ("causal-sort-empty-fuel-rejected", "| 0, [], ordered => some ordered", "| 0, [], _ => none", "order_complete"),
+    ("causal-check-rejects-duplicate-delivery", "history.all order.contains && order.all history.contains && check order", "history.all order.contains && order.all history.contains && check order && decide (history.length = order.length)", "causalCheck_complete"),
+]))
+
+suites.append(("StateCausalRank", (root / "lean-cbcl/LeanCbcl/StateCausalRank.lean").read_text(), [
+    ("causal-rank-search-uses-address-fuel", "reachable (history.length + 1) history a freezer", "reachable (freezer.addr + 1) history a freezer", "ancestor_iff"),
+    ("causal-order-not-recognized", "order.all history.contains && check order", "order.all history.contains && true", "causalCheck_sound"),
+    ("causal-order-builder-no-ready-node", "pending.find? (ready pending)", "(none : Option Act)", "descending_reverse_checked"),
+    ("causal-rank-cut-ignored", "history.filter (fun a => ancestor history a freezer)", "history", "cut_refinement"),
+]))
+
+suites.append(("StateExecutableFreeze", (root / "lean-cbcl/LeanCbcl/StateExecutableFreeze.lean").read_text(), [
+    ("integrated-search-uses-address-fuel", "reachable (A.length + 1) A a f", "reachable (f.addr + 1) A a f", "ancestor_iff"),
+    ("executable-ancestor-omits-self", "(a == f || A.any", "(false || A.any", "reachable_complete"),
+    ("executable-cut-ignored", "def cut (A : List Act) (freezer : Act) : List Act := A.filter (fun a => ancestor A a freezer)", "def cut (A : List Act) (freezer : Act) : List Act := A", "cut_refinement"),
+    ("executable-late-policy-ignored", "&& !ancestor A b a && policy)", "&& !ancestor A b a && true)", "conflict_iff"),
+    ("executable-witness-writer-dropped", "flatMap (fun (a,b) => [a.addr,b.addr])", "flatMap (fun (a,b) => [a.addr])", "evidence_member"),
+    ("executable-read-raw-fault-hidden", "if rawFault.isSome || !(conflicts", "if false || !(conflicts", "read_refinement"),
+    ("executable-read-cut-ignored", "(evaluate (cut A freezer))", "(evaluate A)", "read_refinement"),
+]))
+
+suites.append(("StateExecutableObservation", (root / "lean-cbcl/LeanCbcl/StateExecutableObservation.lean").read_text(), [
+    ("executable-map-frozen-payload-hidden", "| .snapshot value | .frozen _ value _ => .snapshot (post value)", "| .snapshot value => .snapshot (post value)\n  | .frozen _ _ _ => .pending", "map_refinement"),
+    ("executable-map-fault-hidden", "| .fault evidence => .fault evidence\n\n/-- Computable derived fields", "| .fault _ => .pending\n\n/-- Computable derived fields", "map_refinement"),
+    ("executable-source-error-hidden", "| .fault evidence => some evidence", "| .fault _ => none", "error_refinement"),
+    ("executable-present-root-substituted", "=> .frozen root payload excluded", "=> .frozen 0 payload excluded", "present_refinement"),
+    ("executable-freeze-raw-error-hidden", "policy (source A).error source", "policy none source", "freeze_refinement"),
+]))
+
+suites.append(("StateExecutableContext", (root / "lean-cbcl/LeanCbcl/StateExecutableContext.lean").read_text(), [
+    ("context-root-witness-hidden", "some (identities (fun act => act.preds.isEmpty) A)", "some []", "root_error_refinement"),
+    ("context-frontier-includes-ancestors", "!(A.any (fun child => child.preds.contains act.addr))", "true", "frontier_refinement"),
+    ("context-count-zero", "number (FinSet.card (lift StateLift.address A))", "number 0", "observation_refinement"),
+]))
+
+memo_source = (root / "lean-cbcl/LeanCbcl/StateMemoizedReader.lean").read_text()
+memo_tests = (root / "lean-cbcl/LeanCbcl/StateMemoizedReaderTests.lean").read_text().split("\n",1)[1]
+suites.append(("StateMemoizedReader", memo_source + "\n" + memo_tests, [
+    ("cache-hit-scope-erased", "match cache.lookup key with", "match cache.lookup (0,key.2) with", "read_refinement"),
+    ("cache-hit-field-erased", "match cache.lookup key with", 'match cache.lookup (key.1,"") with', "read_refinement"),
+    ("dependency-not-unwrapped", "some (ops.unfrozen value)", "some value", "incomparable_cut_values"),
+    ("terminal-fault-bypassed", "match ops.fault key normal with", "match (none : Option V) with", "fault_shortcircuit"),
+    ("cache-result-inserted-at-wrong-scope", "return (value,(key,value)::after)", "return (value,((0,key.2),value)::after)", "read_refinement"),
+    ("dependency-scope-erased", ".request (key.1,source)", ".request (0,source)", "incomparable_cut_values"),
+    ("same-field-cut-redirection-removed", "else .request (scope,key.2) (fun value => .done (ops.frozen key (ops.unfrozen value)))", "else .done (ops.frozen key normal)", "incomparable_cut_values"),
+]))
+
+suites.append(("StateReaderIndices", (root / "lean-cbcl/LeanCbcl/StateReaderIndices.lean").read_text(), [
+    ("field-index-source-and-target-reversed", "(fields.map Prod.fst).idxOf source < (fields.map Prod.fst).idxOf name := by", "(fields.map Prod.fst).idxOf name < (fields.map Prod.fst).idxOf source := by", "reference_index"),
+]))
+
+suites.append(("StateAuthoredDependencies", (root / "lean-cbcl/LeanCbcl/StateAuthoredDependencies.lean").read_text(), [
+    ("sum-native-dependency-omitted", "| .legacy (.histogram source) | .legacy (.sum source) => some source", "| .legacy (.histogram source) => some source", "bind_references"),
+    ("context-spurious-dependency", "| _ => none\n\n/-- Native field lookup", '| .context _ => some "ghost"\n  | _ => none\n\n/-- Native field lookup', "bind_references"),
+]))
+suites.append(("StateScopePool", (root / "lean-cbcl/LeanCbcl/StateScopePool.lean").read_text(), [
+    ("scope-pool-duplicate-freezer-counted-twice", "match FinSet.dedup (whole.filter (StateExecutableFreeze.earliest whole verb)) with", "match whole.filter (StateExecutableFreeze.earliest whole verb) with", "duplicate_freezer_witness"),
+    ("scope-pool-wrong-returned-index", "(pool.scopes.length,⟨pool.scopes ++ [cut root]", "(pool.scopes.length+1,⟨pool.scopes ++ [cut root]", "intern_refinement"),
+    ("scope-pool-cut-not-appended", "⟨pool.scopes ++ [cut root],(root,pool.scopes.length)::pool.indices⟩", "⟨pool.scopes,(root,pool.scopes.length)::pool.indices⟩", "intern_refinement"),
+    ("scope-pool-cached-index-erased", "| some scope => (scope,pool)", "| some _ => (0,pool)", "intern_refinement"),
+    ("scope-pool-cut-contains-sibling", "| some freezer => StateExecutableFreeze.cut whole freezer", "| some _ => whole", "cutAt_refinement"),
+    ("scope-plan-always-active", "history.any (fun act => act.addr == root)", "true", "active_iff"),
+]))
+
+values_source = (root / "lean-cbcl/LeanCbcl/StateReaderValues.lean").read_text()
+values_tests = (root / "lean-cbcl/LeanCbcl/StateReaderValuesTests.lean").read_text().split("\n",1)[1]
+suites.append(("StateReaderValues", values_source + "\n" + values_tests, [
+    ("typed-unfrozen-payload-dropped", "| .data (.frozen _ value _) => .data (.snapshot value)", "| .data (.frozen _ _ _) => .data .pending", "derived_unfrozen"),
+    ("typed-freeze-normal-fault-hidden", "unionError (sourceError normal) own", "unionError none own", "combined_two_faults"),
+    ("typed-freeze-own-fault-hidden", "unionError (sourceError normal) own", "unionError (sourceError normal) none", "combined_two_faults"),
+    ("typed-wrapper-freezer-substituted", "| some value => .data (.frozen root value excluded)", "| some value => .data (.frozen 0 value excluded)", "frozen_data_refinement"),
+    ("typed-scope-zero-used-for-cut", "scopes[key.1]?", "scopes[0]?", "cut_value_witness"),
+    ("typed-freeze-cut-data-replaced-by-current", "fun cut => sourceData (source cut)", "fun _ => sourceData (source scope)", "cached_freeze_scoped"),
+]))
+
+reach_source = "import LeanCbcl.StateAuthoredBindingsTests\n" + (root / "lean-cbcl/LeanCbcl/StateReaderReachability.lean").read_text()
+reach_tests = re.sub(r"^import [^\n]+\n", "", (root / "lean-cbcl/LeanCbcl/StateReaderReachabilityTests.lean").read_text(), flags=re.M)
+suites.append(("StateReaderReachability", reach_source + "\n" + reach_tests, [
+    ("threshold-output-requested-as-source", "| .threshold _ source _ => some (0,source)", "| .threshold name _ _ => some (0,name)", "review_request_keys"),
+    ("top-level-source-uses-unallocated-scope", "| .field name _ => some (0,name)", "| .field name _ => some (999,name)", "initial_keys_admitted"),
+    ("request-domain-allows-threshold-outputs", "key.2 ∈ (rawFields entries).map Prod.fst ∧", "key.2 ∈ declaredNames entries ∧", "admitted_rule"),
+    ("dependency-domain-guard-dropped", "| .request key next => allowed key ∧ ∀ value, Within allowed (next value)", "| .request _ next => True ∧ ∀ value, Within allowed (next value)", "run_within"),
+]))
+
+suites.append(("StateCompiledFieldEquations", (root / "lean-cbcl/LeanCbcl/StateCompiledFieldEquations.lean").read_text(), [
+    ("compiled-own-freeze-erased", "| some spec => .freeze spec source", "| some _ => source", "compile_field_equation"),
+    ("compiled-own-freeze-policy-overwritten", "| some spec => .freeze spec source", "| some spec => .freeze {spec with policy := true} source", "compile_field_equation"),
+    ("compiled-meaning-scope-erased", "plan (StateReaderValues.scope whole freezes key)", "plan (StateReaderValues.scope whole freezes (0,key.2))", "prepared_body_normal"),
+    ("compiled-derived-post-applied-twice", "some (decorate (clause.freezes.lookup name) (.map post prior))", "some (decorate (clause.freezes.lookup name) (.map (fun value => post (post value)) prior))", "derived_equation"),
+]))
+
+suites.append(("StateScopeProperties", (root / "lean-cbcl/LeanCbcl/StateScopeProperties.lean").read_text(), [
+    ("scope-wrapper-exclusion-negation-erased", "spec.contributes act ∧ ¬Ancestor (fun a => a ∈ normalize whole) act root", "spec.contributes act ∧ Ancestor (fun a => a ∈ normalize whole) act root", "selected_root_metadata"),
+]))
+suites.append(("StateFrozenBodyEquations", (root / "lean-cbcl/LeanCbcl/StateFrozenBodyEquations.lean").read_text(), [
+    ("frozen-selected-value-uses-current-scope", "(scopedObserve world whole source (causalCut world whole root)))", "(scopedObserve world whole source scope))", "freeze_selected_equation"),
+    ("frozen-selected-root-substituted", "(frozen root.addr (FinSet.mk", "(frozen (root.addr+1) (FinSet.mk", "freeze_selected_equation"),
+]))
+
+suites.append(("StateDomainSupportLocality", (root / "lean-cbcl/LeanCbcl/StateDomainSupportLocality.lean").read_text(), [
+    ("domain-cut-omits-domain-support", "(StateAuthoredBindings.contributes domains whole (.verbs names)) true none whole = none)\n    (domain : Domain)",
+     "(StateAuthoredBindings.contributes domains whole (.rawVerbs names)) true none whole = none)\n    (domain : Domain)", "domain_allowed_cut"),
+]))
+
+suites.append(("StateFiniteFreezePolicy", (root / "lean-cbcl/LeanCbcl/StateFiniteFreezePolicy.lean").read_text(), [
+    ("finite-cut-policy-changed-to-supersede", "(.verbs [field.verb]),true⟩", "(.verbs [field.verb]),false⟩", "compiled_success_or_fault"),
+    ("finite-frozen-source-guards-removed", ".freeze (freezeSpec field whole verb) (sourcePlan (StateInstalledFinite.source field))",
+     ".freeze (freezeSpec field whole verb) (.snapshot (fun _ => .element (.scalar (.bool true))))", "compiled_success_or_fault"),
+    ("finite-output-uses-empty-raw-history", "causalCut (fun act => act ∈ StateScopePool.normalize B) (StateScopePool.normalize B) root := by",
+     "[] := by", "output_success_or_fault"),
+]))
+
+suites.append(("StateFiniteOutputStability", (root / "lean-cbcl/LeanCbcl/StateFiniteOutputStability.lean").read_text(), [
+    ("installed-finite-source-guard-assumed-away", "(original : clause.fields.lookup sourceName = some (.source (StateInstalledFinite.source field)))",
+     "(original : clause.fields.lookup sourceName = some (.source (.snapshot (fun _ => .element (.scalar (.bool true))))))", "installed_threshold_success_or_fault"),
+    ("installed-finite-freeze-metadata-disconnected", "(metadata : clause.freezes.lookup sourceName = declaration.map (freezeSpec field (StateScopePool.normalize B)))",
+     "(metadata : clause.freezes.lookup sourceName = none)", "installed_threshold_success_or_fault"),
+    ("unfrozen-finite-source-guard-removed", "| none => sourcePlan (StateInstalledFinite.source field)",
+     "| none => .snapshot (fun _ => .element (.scalar (.bool true)))", "source_clear"),
+    ("finite-freeze-source-decoration-removed", "| some verb => frozenPlan field whole verb",
+     "| some _ => sourcePlan (StateInstalledFinite.source field)", "scope_state"),
+    ("unfrozen-finite-output-dispatches-a-cut", "| none => []\n  | some verb => [(name,freezeSpec field whole verb)]",
+     '| none => [(name,freezeSpec field whole "close")]\n  | some verb => [(name,freezeSpec field whole verb)]', "scope_state"),
+]))
+
+suites.append(("StateAuthoredSourceProvenance", (root / "lean-cbcl/LeanCbcl/StateAuthoredSourceProvenance.lean").read_text(), [
+    ("authored-finite-binding-uses-raw-footprint", "binding = ⟨.finite lattice declaration,StateFiniteRead.definition field,.verbs [declaration.verb]⟩",
+     "binding = ⟨.finite lattice declaration,StateFiniteRead.definition field,.rawVerbs [declaration.verb]⟩", "finite_binding"),
+    ("authored-freeze-footprint-detached", "template.footprint = binding.footprint ∧",
+     "template.footprint = .all ∧", "freeze_origin"),
+    ("authored-source-guard-detached", "fields.lookup name = some (.source (StateInstalledFinite.source field)) ∧",
+     "fields.lookup name = some (.source (.snapshot (fun _ => .element (.scalar (.bool true))))) ∧", "authored_finite_source"),
+    ("authored-plan-specialized-to-empty-history", "plans.lookup name = some (StateFiniteOutputStability.source field history freezeDeclaration) ∧",
+     "plans.lookup name = some (StateFiniteOutputStability.source field [] freezeDeclaration) ∧", "authored_finite_plan"),
+    ("authored-domain-trace-detached", "domains environment entries = some prepared.domains ∧",
+     "domains environment [] = some prepared.domains ∧", "static_trace"),
+]))
+
+suites.append(("StateAuthoredOutputProvenance", (root / "lean-cbcl/LeanCbcl/StateAuthoredOutputProvenance.lean").read_text(), [
+    ("prefix-source-provenance-erased", "∀ name definition, (name,definition) ∈ definitions → Declaration.field name definition ∈ full",
+     "∀ name definition, (name,definition) ∈ definitions → True", "finite_emitted"),
+    ("emitted-output-uses-empty-environment", "Origins full priorDefinitions ∧ output ∈ code ∧ compileOne plans priorDefinitions declaration = some output",
+     "Origins full priorDefinitions ∧ output ∈ code ∧ compileOne plans [] declaration = some output", "emitted_origin"),
+    ("finite-prefix-admission-inverted", "StateFiniteRead.check field queries = true ∧\n      output =",
+     "StateFiniteRead.check field queries = false ∧\n      output =", "finite_emitted"),
+]))
+suites.append(("StateAuthoredFiniteStability", (root / "lean-cbcl/LeanCbcl/StateAuthoredFiniteStability.lean").read_text(), [
+    ("actual-program-drops-first-output", "let program : CompiledObservation := ⟨B,⟨(clauseAt prepared B).freezes,code⟩⟩",
+     "let program : CompiledObservation := ⟨B,⟨(clauseAt prepared B).freezes,code.tail⟩⟩", "authored_program_stability"),
+    ("actual-program-renames-reached-output", '(outputName,.data (.reached (.element (.scalar query)))) ∈ program.observe ∨',
+     '(outputName ++ "-wrong",.data (.reached (.element (.scalar query)))) ∈ program.observe ∨', "authored_program_stability"),
+]))
+
+suites.append(("StateCompiledFiniteInversion", (root / "lean-cbcl/LeanCbcl/StateCompiledFiniteInversion.lean").read_text(), [
+    ("compiled-threshold-output-name-corrupted", "| .field name _ | .threshold name _ _ _ => name",
+     '| .field name _ => name\n  | .threshold name _ _ _ => name ++ "-wrong"', "compile_one_name"),
+    ("native-inversion-invents-another-query", "query ∈ queries ∧ StateFiniteRead.test field query (StateInstalledFinite.state field raw) = true ∧",
+     'Val.str "ghost" ∈ queries ∧ StateFiniteRead.test field query (StateInstalledFinite.state field raw) = true ∧', "raw_success"),
+    ("inversion-drops-full-source-guards", "(StateFiniteOutputStability.source field whole declaration)).observe whole freezes =",
+     "(.snapshot (fun _ => .element (.scalar (.bool false))))).observe whole freezes =", "output_native_success"),
+]))
+suites.append(("StateAuthoredFinitePreservation", (root / "lean-cbcl/LeanCbcl/StateAuthoredFinitePreservation.lean").read_text(), [
+    ("prior-output-name-is-detached", '(reached : (outputName,.data (.reached (.element (.scalar query)))) ∈ program.observe)',
+     '(reached : (outputName ++ "-wrong",.data (.reached (.element (.scalar query)))) ∈ program.observe)', "authored_reached_native"),
+    ("joint-finite-fault-name-disconnected", '∃ evidence, (outputName,.fault evidence) ∈ joint.observe := by',
+     '∃ evidence, ("wrong",.fault evidence) ∈ joint.observe := by', "quasi_determinism"),
+    ("later-preservation-renames-answer", '(outputName,.data (.reached (.element (.scalar query)))) ∈ later.observe ∨',
+     '(outputName ++ "-wrong",.data (.reached (.element (.scalar query)))) ∈ later.observe ∨', "successive_compiled"),
+]))
+
+suites.append(("StateNativeDataPolicies", (root / "lean-cbcl/LeanCbcl/StateNativeDataPolicies.lean").read_text(), [
+    ("native-count-counts-deliveries", "(selected domains names (history (rawHistory A))).length = FinSet.card",
+     "(selected domains names A).length = FinSet.card", "canonical_count"),
+    ("native-count-bound-shifted", "if bound ≤ FinSet.card (FinSet.mk (selected domains [verb] A)) then",
+     "if bound + 1 ≤ FinSet.card (FinSet.mk (selected domains [verb] A)) then", "compiled_count"),
+    ("native-existence-predicate-inverted", "if (selected domains [verb] A).isEmpty then .data .pending",
+     "if !(selected domains [verb] A).isEmpty then .data .pending", "compiled_exists"),
+]))
+suites.append(("StateNativeDataFreeze", (root / "lean-cbcl/LeanCbcl/StateNativeDataFreeze.lean").read_text(), [
+    ("native-freeze-domain-support-omitted", "(.verbs names),true⟩", "(.rawVerbs names),true⟩", "selected_scope"),
+    ("native-freeze-policy-revisable", "(.verbs names),true⟩", "(.verbs names),false⟩", "selected_scope"),
+    ("native-source-freeze-decoration-removed", "StateCompiledFieldEquations.decorate (declaration.map (spec domains names whole)) bare",
+     "bare", "selected_scope"),
+]))
+
+suites.append(("StateAuthoredDataProvenance", (root / "lean-cbcl/LeanCbcl/StateAuthoredDataProvenance.lean").read_text(), [
+    ("authored-data-binding-loses-domain-footprint", "some ⟨.legacy head.rule,head.definition environment domains,head.footprint⟩",
+     "some ⟨.legacy head.rule,head.definition environment domains,.all⟩", "binding"),
+    ("authored-data-query-alternatives-disconnected", "∃ query, compileQuery elements definition = some query ∧",
+     "∃ query, compileQuery [] definition = some query ∧", "emitted_policy"),
+]))
+suites.append(("StateAuthoredDataOutputs", (root / "lean-cbcl/LeanCbcl/StateAuthoredDataOutputs.lean").read_text(), [
+    ("authored-data-program-drops-output", "let program : CompiledObservation := ⟨B,⟨(clauseAt prepared B).freezes,code⟩⟩",
+     "let program : CompiledObservation := ⟨B,⟨(clauseAt prepared B).freezes,code.tail⟩⟩", "authored_emitted"),
+    ("authored-count-result-bound-corrupted", "(outputName,.data (.reached (.element (.count bound)))) ∈ program.observe ∨",
+     "(outputName,.data (.reached (.element (.count (bound+1))))) ∈ program.observe ∨", "count_program_stability"),
+]))
+suites.append(("StateAuthoredDataPreservation", (root / "lean-cbcl/LeanCbcl/StateAuthoredDataPreservation.lean").read_text(), [
+    ("native-count-inversion-invents-extra-act", "bound ≤ FinSet.card (FinSet.mk (StateDomainSupportLocality.selected prepared.domains [verb] A)) := by",
+     "bound + 1 ≤ FinSet.card (FinSet.mk (StateDomainSupportLocality.selected prepared.domains [verb] A)) := by", "count_native"),
+    ("native-existence-preservation-flips-answer", "(outputName,.data (.reached (.element (.scalar (.bool true))))) ∈ later.observe ∨",
+     "(outputName,.data (.reached (.element (.scalar (.bool false))))) ∈ later.observe ∨", "exists_successive"),
+]))
+
+suites.append(("StateNativeMembership", (root / "lean-cbcl/LeanCbcl/StateNativeMembership.lean").read_text(), [
+    ("set-union-discards-replaced-values", "StateInstalledDomains.evaluate context domains (.distinct (.verb verb) field) (rawHistory A) =",
+     "StateInstalledDomains.evaluate context domains (.distinct (.current verb none none) field) (rawHistory A) =", "member_value"),
+    ("set-union-member-predicate-inverted", "if has field (selected domains [verb] A) value then",
+     "if !(has field (selected domains [verb] A) value) then", "compiled_member"),
+    ("set-union-freeze-returns-scalar-query", "output = (outputName,.data (.reached (.element (.member value)))) ∨",
+     "output = (outputName,.data (.reached (.element (.scalar value)))) ∨", "member_success_or_fault"),
+]))
+suites.append(("StateAuthoredMembership", (root / "lean-cbcl/LeanCbcl/StateAuthoredMembership.lean").read_text(), [
+    ("structured-member-admission-inverted", "scalar value = true := by", "scalar value = false := by", "admitted_member"),
+    ("member-inversion-invents-another-value", "has field (StateDomainSupportLocality.selected prepared.domains [verb] A) value = true := by",
+     'has field (StateDomainSupportLocality.selected prepared.domains [verb] A) (.str "ghost") = true := by', "native_success"),
+    ("member-preservation-changes-answer", "(outputName,.data (.reached (.element (.member value)))) ∈ later.observe ∨",
+     '(outputName,.data (.reached (.element (.member (.str "ghost"))))) ∈ later.observe ∨', "successive_compiled"),
+]))
+
+suites.append(("StateEventMapKernel", (root / "lean-cbcl/LeanCbcl/StateEventMapKernel.lean").read_text(), [
+    ("event-keys-grouped-by-signer", "⟨.withField (.verb verb) field,.address,.address,field,true⟩",
+     "⟨.withField (.verb verb) field,.signer,.address,field,true⟩", "key_origin"),
+    ("event-selection-requires-clock", "⟨.withField (.verb verb) field,.address,.address,field,true⟩",
+     '⟨.withField (.verb verb) field,.address,.hlc "clock",field,true⟩', "read_event"),
+    ("event-signer-projection-discarded", "⟨.withField (.verb verb) field,.address,.address,field,true⟩",
+     "⟨.withField (.verb verb) field,.address,.address,field,false⟩", "read_event"),
+]))
+suites.append(("StateNativeEventMembership", (root / "lean-cbcl/LeanCbcl/StateNativeEventMembership.lean").read_text(), [
+    ("event-member-predicate-inverted", "if has field (selected domains [verb] A) value then",
+     "if !(has field (selected domains [verb] A) value) then", "compiled_member"),
+]))
+suites.append(("StateAuthoredEventMembership", (root / "lean-cbcl/LeanCbcl/StateAuthoredEventMembership.lean").read_text(), [
+    ("event-inversion-invents-value", "has field (StateDomainSupportLocality.selected prepared.domains [verb] A) value = true := by",
+     'has field (StateDomainSupportLocality.selected prepared.domains [verb] A) (.str "ghost") = true := by', "native_success"),
+    ("event-preservation-changes-answer", "(outputName,.data (.reached (.element (.member value)))) ∈ later.observe ∨",
+     '(outputName,.data (.reached (.element (.member (.str "ghost"))))) ∈ later.observe ∨', "successive_compiled"),
+]))
+
+suites.append(("StateEventMapTotal", (root / "lean-cbcl/LeanCbcl/StateEventMapTotal.lean").read_text(), [
+    ("event-total-drops-missing-filter", "sumField field (A.filter (fun a => (a.get field).isSome)) = sumField field A",
+     "sumField field (A.filter (fun a => !(a.get field).isSome)) = sumField field A", "present_sum"),
+    ("event-total-keys-use-signer", "(fun a => Val.int a.addr)) := by",
+     "(fun a => Val.str a.signer)) := by", "keys_perm"),
+    ("event-total-adds-extra-unit", "mapSum (evalMap clock rank A (plan verb field)) = sumField field (acts verb A) := by",
+     "mapSum (evalMap clock rank A (plan verb field)) = sumField field (acts verb A) + 1 := by", "map_total"),
+    ("event-sum-bound-shifted", "decide (bound ≤ sumField field (StateDomainSupportLocality.selected domains [verb] A)) := by",
+     "decide (bound + 1 ≤ sumField field (StateDomainSupportLocality.selected domains [verb] A)) := by", "native_sum"),
+]))
+
+suites.append(("StateNativeEventSum", (root / "lean-cbcl/LeanCbcl/StateNativeEventSum.lean").read_text(), [
+    ("event-sum-growth-made-strict", "sumField field (selected domains [verb] A) ≤ sumField field (selected domains [verb] B) := by",
+     "sumField field (selected domains [verb] A) < sumField field (selected domains [verb] B) := by", "sum_grows"),
+    ("event-sum-query-bound-shifted", "if bound ≤ sumField field (selected domains [verb] A) then",
+     "if bound + 1 ≤ sumField field (selected domains [verb] A) then", "compiled_sum"),
+    ("event-sum-freeze-changes-answer", "output = (outputName,.data (.reached (.element (.sum bound)))) ∨",
+     "output = (outputName,.data (.reached (.element (.sum (bound+1))))) ∨", "sum_success_or_fault"),
+]))
+suites.append(("StateAuthoredEventSum", (root / "lean-cbcl/LeanCbcl/StateAuthoredEventSum.lean").read_text(), [
+    ("event-sum-admission-loses-lower-endpoint", "(-(2^63) ≤ bound ∧ bound < 2^63) ∧ mandatoryNonnegative",
+     "(-(2^63) < bound ∧ bound < 2^63) ∧ mandatoryNonnegative", "admitted_sum"),
+    ("event-sum-inversion-invents-unit", "bound ≤ sumField field (StateDomainSupportLocality.selected prepared.domains [verb] (StateScopePool.normalize A)) := by",
+     "bound + 1 ≤ sumField field (StateDomainSupportLocality.selected prepared.domains [verb] (StateScopePool.normalize A)) := by", "native_success"),
+    ("event-sum-preservation-changes-answer", "(outputName,.data (.reached (.element (.sum bound)))) ∈ later.observe ∨",
+     "(outputName,.data (.reached (.element (.sum (bound+1))))) ∈ later.observe ∨", "successive_compiled"),
+]))
+
+shape_source = "import LeanCbcl.StateAuthoredEventSumTests\n" + (root / "lean-cbcl/LeanCbcl/StateNonnegativeAdmission.lean").read_text()
+shape_source += "\n" + (root / "lean-cbcl/LeanCbcl/StateNonnegativeAdmissionTests.lean").read_text().split("\n", 2)[2]
+suites.append(("StateNonnegativeAdmission", shape_source, [
+    ("shape-negative-numbers-accepted", "| .atom (.num n) => decide (0 ≤ n)",
+     "| .atom (.num _) => true", "checked_numeric"),
+    ("shape-missing-required-accepted", "| none => !shape.required", "| none => true", "checked_numeric"),
+    ("shape-first-keyword-skipped", "if key == field then rest.head? else findItems field rest",
+     "if key == field then findItems field rest else findItems field rest", "positive_first_retained"),
+    ("shape-checked-amount-made-strict", "(extracted : NumericExtraction act message) :\n    0 ≤ amount field act := by", "(extracted : NumericExtraction act message) :\n    0 < amount field act := by", "checked_amount"),
+    ("shape-preservation-changes-answer", "(outputName,.data (.reached (.element (.sum bound)))) ∈ later.observe ∨",
+     "(outputName,.data (.reached (.element (.sum (bound+1))))) ∈ later.observe ∨", "successive_compiled"),
+]))
+
+suites.append(("StateAuthoredSumTrace", (root / "lean-cbcl/LeanCbcl/StateAuthoredSumTrace.lean").read_text(), [
+    ("sum-trace-preparation-changes-bound", '.threshold "funded" "credits" [.element (.sum 5)]],[],[]⟩',
+     '.threshold "funded" "credits" [.element (.sum 6)]],[],[]⟩', "preparation"),
+    ("sum-trace-invents-earlier-answer", '("funded",.data (.reached (.element (.sum 5)))) ∈ program.observe := by',
+     '("funded",.data (.reached (.element (.sum 6)))) ∈ program.observe := by', "compiled_reached"),
+    ("sum-trace-extraction-changes-amount", 'def laterMessage : SExpr := .list [.atom (.symbol "mint"),.atom (.keyword "amount"),.atom (.num 2)]',
+     'def laterMessage : SExpr := .list [.atom (.symbol "mint"),.atom (.keyword "amount"),.atom (.num 3)]', "later_extracted"),
+    ("sum-trace-counts-delivery-twice", '(StateScopePool.normalize laterHistory)) = 7 := by decide',
+     '(StateScopePool.normalize laterHistory)) = 9 := by decide', "later_total"),
+    ("sum-trace-preservation-changes-answer", '(("funded",.data (.reached (.element (.sum 5)))) ∈ later.observe ∨',
+     '(("funded",.data (.reached (.element (.sum 6)))) ∈ later.observe ∨', "successive_trace"),
+]))
+
+suites.append(("StateProgressStore", (root / "lean-cbcl/LeanCbcl/StateProgressStore.lean").read_text(), [
+    ("progress-store-discards-lookup", "fun address => ((history (rawHistory A)).find? (fun act => act.addr == address)).map decode",
+     "fun address => ((history (rawHistory A)).find? (fun act => act.addr == address && false)).map decode", "lookup"),
+    ("progress-store-growth-reversed", "Repeat.Extends (store decode A) (store decode B) := by",
+     "Repeat.Extends (store decode B) (store decode A) := by", "store_growth"),
+    ("progress-kernel-invents-position", ".integer (Int.ofNat (protocolProgress (store decode A) base.thread verb (base.limit verb) A)) := by",
+     ".integer (Int.ofNat (protocolProgress (store decode A) base.thread verb (base.limit verb) A) + 1) := by", "kernel_value"),
+    ("progress-growth-made-strict", "protocolProgress (store decode A) thread verb limit A ≤ protocolProgress (store decode B) thread verb limit B := by",
+     "protocolProgress (store decode A) thread verb limit A < protocolProgress (store decode B) thread verb limit B := by", "progress_grows"),
+    ("progress-test-bound-shifted", "decide (bound ≤ protocolProgress (store decode A) base.thread verb (base.limit verb) A) := by",
+     "decide (bound + 1 ≤ protocolProgress (store decode A) base.thread verb (base.limit verb) A) := by", "kernel_test"),
+    ("progress-closure-query-bound-shifted", "if bound ≤ protocolProgress (store decode A) environment.context.thread verb (environment.context.limit verb) A",
+     "if bound + 1 ≤ protocolProgress (store decode A) environment.context.thread verb (environment.context.limit verb) A", "compiled_query"),
+]))
+
+suites.append(("StateProgressLocality", (root / "lean-cbcl/LeanCbcl/StateProgressLocality.lean").read_text(), [
+    ("progress-locality-looks-up-empty-store", "store decode B address = some evidence := by",
+     "store decode [] address = some evidence := by", "verb_lookup"),
+    ("progress-locality-invents-next-position", "Repeat.At (store decode B) thread verb limit address position := by",
+     "Repeat.At (store decode B) thread verb limit address (position+1) := by", "at_transfer"),
+    ("progress-locality-growth-made-strict", "protocolProgress (store decode A) thread verb limit A ≤ protocolProgress (store decode B) thread verb limit B := by",
+     "protocolProgress (store decode A) thread verb limit A < protocolProgress (store decode B) thread verb limit B := by", "progress_restricted"),
+]))
+suites.append(("StateProgressFreeze", (root / "lean-cbcl/LeanCbcl/StateProgressFreeze.lean").read_text(), [
+    ("progress-freeze-policy-revisable", '⟨freezeVerb,StateAuthoredBindings.contributes domains whole (.rawVerbs [verb]),true⟩',
+     '⟨freezeVerb,StateAuthoredBindings.contributes domains whole (.rawVerbs [verb]),false⟩', "healthy_payload"),
+    ("progress-freeze-changes-query-tag", '.data (.reached (.element (.progress bound))) := by',
+     '.data (.reached (.element (.count bound))) := by', "run_payload"),
+    ("progress-freeze-invents-later-answer", 'output = (outputName,.data (.reached (.element (.progress bound)))) ∨',
+     'output = (outputName,.data (.reached (.element (.progress (bound+1))))) ∨', "success_or_fault"),
+]))
+
+suites.append(("StateAuthoredProgress", (root / "lean-cbcl/LeanCbcl/StateAuthoredProgress.lean").read_text(), [
+    ("authored-progress-excludes-admitted-endpoint", "bound < 2^63 ∧ query = .closure",
+     "bound < 2^63-1 ∧ query = .closure", "admitted_query"),
+    ("authored-progress-inversion-invents-position", "bound ≤ protocolProgress (store decode A) environment.context.thread verb (environment.context.limit verb) A := by",
+     "bound + 1 ≤ protocolProgress (store decode A) environment.context.thread verb (environment.context.limit verb) A := by", "native_success"),
+    ("authored-progress-changes-preserved-answer", "(outputName,.data (.reached (.element (.progress bound)))) ∈ later.observe ∨",
+     "(outputName,.data (.reached (.element (.progress (bound+1))))) ∈ later.observe ∨", "successive_compiled"),
+]))
+suites.append(("StateAuthoredDataProvenanceProgress", (root / "lean-cbcl/LeanCbcl/StateAuthoredDataProvenance.lean").read_text(), [
+    ("progress-binding-loses-raw-footprint", "match head with | .progress verb => .rawVerbs [verb] | _ => .verbs [head.verb]",
+     "match head with | .progress verb => .verbs [verb] | _ => .verbs [head.verb]", "binding"),
+    ("head-freeze-spec-revisable", "⟨verb,contributes domains whole head.footprint,true⟩",
+     "⟨verb,contributes domains whole head.footprint,false⟩", "prepared_metadata"),
+]))
+
+suites.append(("StateAuthoredResource", (root / "lean-cbcl/LeanCbcl/StateAuthoredResource.lean").read_text(), [
+    ("resource-binding-drops-certificate-guard", "{native with guards := native.guards ++ StateInstalledDomains.guards domains (resourceVerbs environment name)}",
+     "{native with guards := StateInstalledDomains.guards domains (resourceVerbs environment name)}", "source_shape"),
+    ("resource-binding-invents-threshold-policy", ": Definition Value := .factored (term environment domains name resource) none",
+     ": Definition Value := .factored (term environment domains name resource) (some ⟨(fun _ _ => true),(fun _ => true)⟩)", "binding"),
+    ("resource-native-read-hides-fault", "nativeGuard (StateResourceVerifier.nativeFaultRead input)\n        (sourceRead ((StateInstalledDomains.guards domains",
+     "nativeGuard none\n        (sourceRead ((StateInstalledDomains.guards domains", "native_read"),
+    ("resource-source-drops-authored-freeze", "plans.lookup name = some (StateCompiledFieldEquations.decorate\n        ((materialize prepared.domains A prepared.freezes).lookup name)",
+     "plans.lookup name = some (StateCompiledFieldEquations.decorate\n        none", "authored_plan"),
+    ("resource-field-emits-wrong-name", "Output.field name source ∈ code := by",
+     'Output.field "ghost" source ∈ code := by', "field_emitted"),
+    ("resource-full-output-hides-fault", "(name,nativeGuard (StateResourceVerifier.nativeFaultRead input)",
+     "(name,nativeGuard none", "authored_native_read"),
+]))
+suites.append(("StateAuthoredResourceTests", (root / "lean-cbcl/LeanCbcl/StateAuthoredResourceTests.lean").read_text(), [
+    ("resource-ready-total-corrupted", "some snapshot.value | _ => none) = some 1000 := by decide",
+     "some snapshot.value | _ => none) = some 1001 := by decide", "ready_value"),
+    ("resource-budget-fault-hidden", "StateResourceValidated.isFault (StateResourceVerifier.observe (input [root,opener,burn])) = true := by decide",
+     "StateResourceValidated.isFault (StateResourceVerifier.observe (input [root,opener,burn])) = false := by decide", "burn_fault"),
+]))
+
+suites.append(("StateFiniteReadCache", (root / "lean-cbcl/LeanCbcl/StateFiniteReadCache.lean").read_text(), [
+    ("finite-read-cache-reverses-scalars", "reads.map Prod.fst = queries ∧", "reads.map Prod.fst = queries.reverse ∧", "reads_sound"),
+    ("finite-read-cache-invents-next-index", "queries[index]? = some item.1 ∧ reads[index]? = some item ∧",
+     "queries[index+1]? = some item.1 ∧ reads[index]? = some item ∧", "reads_index"),
+    ("finite-read-cache-hides-false-decode", "| query :: rest => do\n    let decoded ← decode field query",
+     "| query :: rest => do\n    let decoded ← decode field (.bool false)", "reads_complete"),
+    ("finite-read-cache-reports-wrong-right-index", "| some (other,why) => some (index,other,why)",
+     "| some (other,why) => some (index,other+1,why)", "pairs_refinement"),
+    ("finite-read-cache-admits-empty", "!queries.isEmpty && queries.all (StateFiniteRead.admitted field) &&",
+     "queries.all (StateFiniteRead.admitted field) &&", "check_refinement"),
+]))
+suites.append(("StateFiniteReadCacheTests", (root / "lean-cbcl/LeanCbcl/StateFiniteReadCacheTests.lean").read_text(), [
+    ("finite-read-cache-invents-typed-duplicate", "diagnostic field [.bool true,.int 1] = some none := by decide",
+     "diagnostic field [.bool true,.int 1] = some (some (0,1,.duplicate)) := by decide", "decoded_equality_not_duplicate"),
+    ("finite-read-cache-loses-duplicate-precedence", "diagnostic field [.int 0,.int 0] = some (some (0,1,.duplicate)) := by decide",
+     "diagnostic field [.int 0,.int 0] = some (some (0,1,.compatible)) := by decide", "duplicate_first"),
+]))
+
+suites.append(("StateInstalledBounds", (root / "lean-cbcl/LeanCbcl/StateInstalledBounds.lean").read_text(), [
+    ("installed-bounds-list-default-raised", "def defaults : Bounds := ⟨32,64,1000000000000,2048⟩",
+     "def defaults : Bounds := ⟨32,65,1000000000000,2048⟩", "check_iff"),
+    ("installed-bounds-zero-accepted", "decide (0 < bounds.maxString ∧ 0 < bounds.maxList ∧ 0 < bounds.maxNumber ∧ 0 < bounds.maxFields)",
+     "decide (0 < bounds.maxString ∧ 0 ≤ bounds.maxList ∧ 0 < bounds.maxNumber ∧ 0 < bounds.maxFields)", "check_iff"),
+]))
+suites.append(("StateFiniteIndexBounds", (root / "lean-cbcl/LeanCbcl/StateFiniteIndexBounds.lean").read_text(), [
+    ("finite-table-offset-next-column", "(UInt32.ofNat left.val * UInt32.ofNat verified.table.elements.length + UInt32.ofNat right.val).toNat =",
+     "(UInt32.ofNat left.val * UInt32.ofNat verified.table.elements.length + UInt32.ofNat (right.val+1)).toNat =", "offset32"),
+    ("finite-table-offset-wrong-stride", "(UInt64.ofNat left.val * UInt64.ofNat verified.table.elements.length + UInt64.ofNat right.val).toNat =",
+     "(UInt64.ofNat left.val * UInt64.ofNat (verified.table.elements.length+1) + UInt64.ofNat right.val).toNat =", "offset64"),
+    ("finite-table-vector-count-corrupted", "(denseRows table).length = table.elements.length * table.elements.length := by",
+     "(denseRows table).length = table.elements.length * table.elements.length + 1 := by", "dense_length"),
+    ("finite-table-pair-index-skips", "(UInt32.ofNat index + 1).toNat = index+1 := by",
+     "(UInt32.ofNat index + 2).toNat = index+1 := by", "next32"),
+]))
+
+suites.append(("StateFiniteDenseCache", (root / "lean-cbcl/LeanCbcl/StateFiniteDenseCache.lean").read_text(), [
+    ("dense-native-table-ignores-offset", "[offset word verified.table a b]?", "[0]?", "merge_refinement"),
+    ("dense-upper-cache-includes-top", "current != field.table.table.top && denseMerge", "true && denseMerge", "maxima_refinement"),
+    ("dense-named-compatibility-inverted", "denseMerge word field.table a b != field.table.table.top", "denseMerge word field.table a b == field.table.table.top", "compatible_refinement"),
+    ("dense-duplicate-precedence-dropped", "if a.1 == b.1 then some .duplicate else", "if false then some .duplicate else", "reason_refinement"),
+    ("dense-inner-index-skips", "| none => denseRow word field cache left (index+1) rest", "| none => denseRow word field cache left (index+2) rest", "row_refinement"),
+    ("dense-empty-query-accepted", "!queries.isEmpty && queries.all", "true && queries.all", "check_refinement"),
+]))
+
+suites.append(("StateContextCastSyntax", (root / "lean-cbcl/LeanCbcl/StateContextCastSyntax.lean").read_text(), [
+    ("context-quoted-key-coerced-to-symbol", "| .atom (.symbol name) => some name", "| .atom (.symbol name) | .atom (.str name) => some name", "quoted_key_rejected"),
+    ("context-quoted-role-coerced-to-symbol", "| .list (.atom (.symbol role)::keys) =>", "| .list (.atom (.symbol role)::keys) | .list (.atom (.str role)::keys) =>", "quoted_role_rejected"),
+    ("context-malformed-cast-becomes-absent", "| none => .malformed .malformedBinding", "| none => .absent", "installed_cast"),
+    ("context-cast-semantic-gate-bypassed", "  if bindingsCheck definition rows then some rows else none\n", "  some rows\n", "recognize_encoded"),
+]))
+
+suites.append(("StateContextWrapperSyntax", (root / "lean-cbcl/LeanCbcl/StateContextWrapperSyntax.lean").read_text(), [
+    ("context-pin-prefix-ignored", "decide (text.toList.take 7 = pinPrefix) &&", "true &&", "pinCheck_iff"),
+    ("context-pin-length-ignored", "decide ((text.toList.drop 7).length = 64) &&", "true &&", "pinCheck_iff"),
+    ("context-wrapper-quoted-keyword-accepted", '| [raw,.atom (.keyword "dialect"),value] => do', '| [raw,.atom (.keyword "dialect"),value] | [raw,.atom (.str "dialect"),value] => do', "quoted_keyword_rejected"),
+    ("context-wrapper-wrong-pin-accepted", "if digest.any (fun text => text != definition.address) then none else", "if false then none else", "installed_cast"),
+    ("context-wrapper-malformed-becomes-absent", "⟨thread,.malformed .malformedBinding,.absent⟩", "⟨thread,.absent,.absent⟩", "installed_cast"),
+]))
+
+suites.append(("StateContextMessage", (root / "lean-cbcl/LeanCbcl/StateContextMessage.lean").read_text(), [
+    ("context-outer-cast-skipped", "| .wrapped .withRoles params _ => some params", "| .wrapped .withRoles _ inner => nomination inner", "outermost"),
+    ("context-thread-stops-at-cast", "| .dialect _ inner | .wrapped _ _ inner => thread inner", "| .wrapped .withRoles _ _ => none\n  | .dialect _ inner | .wrapped _ _ inner => thread inner", "sealed_thread"),
+    ("context-message-malformed-becomes-absent", "| some params => StateContextWrapperSyntax.metadata (thread message) params", "| some _ => ⟨thread message,.absent,.absent⟩", "cast_refinement"),
+    ("context-missing-role-cast-accepted", "if definition.roles.isEmpty then some [] else none", "some []", "cast_refinement"),
+]))
+
+suites.append(("StateKeywordExtraction", (root / "lean-cbcl/LeanCbcl/StateKeywordExtraction.lean").read_text(), [
+    ("keyword-routing-fields-retained", "def dataRows (rows : Rows) : Rows := rows.filter (fun row => !routing row.1)", "def dataRows (rows : Rows) : Rows := rows", "routing_absent"),
+    ("keyword-numeric-value-changed", "| .atom (.num n) => some (.int n)", "| .atom (.num n) => some (.int (n+1))", "numeric_member"),
+    ("keyword-duplicate-gate-bypassed", "if Unique rows then some (fields rows) else none", "some (fields rows)", "extract_sound"),
+    ("keyword-materialization-changes-name", "(dataRows rows).reverse.filterMap (fun (key,value) => (decode value).map (key,·))", '(dataRows rows).reverse.filterMap (fun (_,value) => (decode value).map ("other",·))', "field_member"),
+]))
+
+suites.append(('StateJsonString', (root / "lean-cbcl/LeanCbcl/StateJsonString.lean").read_text(), [
+    ('json-quote-unescaped', '  if c = \'"\' then [\'\\\\\',\'"\'] else', '  if c = \'"\' then [\'"\'] else', 'escape_roundtrip'),
+    ('json-newline-becomes-carriage', "  if c = '\\n' then ['\\\\','n'] else", "  if c = '\\n' then ['\\\\','r'] else", 'escape_roundtrip'),
+    ('json-control-hex-uppercase', 'else 87+n', 'else 55+n', 'control_roundtrip'),
+    ('json-raw-control-emitted', '  if c.toNat < 32 then control c.toNat else [c]', '  if c.toNat < 16 then control c.toNat else [c]', 'escape_roundtrip'),
+    ('json-closing-quote-dropped', 'def quote (text : String) : String := String.ofList (\'"\'::(contents text.toList ++ [\'"\']))', 'def quote (text : String) : String := String.ofList (\'"\'::contents text.toList)', 'quote_roundtrip'),
+    ('json-string-buffer-dropped', '  String.ofList (appendContents (buffer.toList ++ [\'"\']) text.toList ++ [\'"\'])', '  String.ofList (appendContents ([\'"\']) text.toList ++ [\'"\'])', 'emit_refinement'),
+]))
+
+suites.append(('StateJsonValue', (root / "lean-cbcl/LeanCbcl/StateJsonValue.lean").read_text(), [
+    ('json-container-order-reversed', '  | .list items, buffer | .set items, buffer => emitSequence true items (buffer ++ "[") ++ "]"', '  | .list items, buffer | .set items, buffer => emitSequence true items.reverse (buffer ++ "[") ++ "]"', 'emit_refinement'),
+    ('json-integer-emission-offset', '  | .int number, buffer => buffer ++ toString number', '  | .int number, buffer => buffer ++ toString (number+1)', 'emit_refinement'),
+    ('json-map-key-double-quoted', '      let named := StateJsonString.emit (if first then buffer else buffer ++ ",") (emitKey key)', '      let named := StateJsonString.emit (if first then buffer else buffer ++ ",") (StateJsonString.quote (emitKey key))', 'members_refinement'),
+    ('json-state-clause-order-reversed', '  emit (.map (fields.map (fun (name,value) => (.str name,value)))) buffer', '  emit (.map (fields.reverse.map (fun (name,value) => (.str name,value)))) buffer', 'state_refinement'),
+    ('json-event-signer-dropped', '      emit value (StateJsonString.emit (buffer ++ "{\\"by\\":") signer ++ ",\\"value\\":") ++ "}"', '      emit value (StateJsonString.emit (buffer ++ "{\\"by\\":") "" ++ ",\\"value\\":") ++ "}"', 'emit_refinement'),
+]))
+
+fault_tests = (root / "lean-cbcl/LeanCbcl/StateFaultRenderingTests.lean").read_text().split("\n",1)[1]
+suites.append(("StateFaultRendering", (root / "lean-cbcl/LeanCbcl/StateFaultRendering.lean").read_text() + "\n" + fault_tests, [
+    ("fault-evidence-duplicates-retained", "(FinSet.dedup addresses).mergeSort byteLE", "addresses.mergeSort byteLE", "canonical_unique"),
+    ("fault-empty-address-discarded", "(FinSet.dedup addresses).mergeSort byteLE", '(FinSet.dedup (addresses.filter (fun text => text != ""))).mergeSort byteLE', "canonical_member"),
+    ("fault-byte-order-reversed", "(compare (bytes a) (bytes b)).isLE", "(compare (bytes b) (bytes a)).isLE", "ascii_order"),
+    ("fault-status-changed", '(.str "status",.str "fault")', '(.str "status",.str "pending")', "fault_layout"),
+]))
+
+suites.append(("StateAddressDigits", (root / "lean-cbcl/LeanCbcl/StateAddressDigits.lean").read_text(), [
+    ("radix-byte-offset-lost", "((data[position]?).map (fun byte => byte.toNat + 1)).getD 0", "((data[position]?).map (fun byte => byte.toNat)).getD 0", "digit_zero"),
+    ("radix-padding-bucket-one", "| width+1, [] => 0 :: keys width []", "| width+1, [] => 1 :: keys width []", "keys_lookup"),
+    ("radix-key-offset-lost", "| width+1, byte::rest => (byte.toNat+1) :: keys width rest", "| width+1, byte::rest => byte.toNat :: keys width rest", "keys_compare"),
+    ("radix-maximum-width-truncated", ".foldl max 0", ".foldl min 0", "width_covers"),
+    ("radix-adjacent-duplicates-retained", "if a = b then adjacent (b::rest) else a :: adjacent (b::rest)", "a :: adjacent (b::rest)", "adjacent_refinement"),
+]))
+
+suites.append(("StateAddressCounting", (root / "lean-cbcl/LeanCbcl/StateAddressCounting.lean").read_text(), [
+    ("radix-count-increment-skipped", "let updated := counts bucket + 1", "let updated := counts bucket", "countLoop_refinement"),
+    ("radix-count-increment-doubled", "let updated := counts bucket + 1", "let updated := counts bucket + 2", "countLoop_refinement"),
+    ("radix-prefix-uses-next-bucket", "offsets counts bucket + counts bucket", "offsets counts bucket + counts (bucket+1)", "offsets_refinement"),
+    ("radix-scatter-cursor-not-advanced", "countLoop key processed (offsets (countLoop key order (fun _ => 0))) bucket", "offsets (countLoop key order (fun _ => 0)) bucket", "cursor_refinement"),
+]))
+
+suites.append(("StateAddressScatter", (root / "lean-cbcl/LeanCbcl/StateAddressScatter.lean").read_text(), [
+    ("radix-scratch-wrong-value", "then index else state.cells position", "then index+1 else state.cells position", "occurrence_retained"),
+    ("radix-scratch-wrong-destination", "position = destination", "position = destination+1", "occurrence_retained"),
+    ("radix-scratch-unrelated-cell-erased", "else state.cells position", "else 0", "run_preserves"),
+    ("radix-scatter-next-not-incremented", "let next := bump bucket state.next", "let next := state.next", "next_refinement"),
+    ("radix-scratch-readback-reversed", "  (List.range order.length).map (run key order (initial key order cells)).cells", "  (List.range order.length).reverse.map (run key order (initial key order cells)).cells", "scatter_bucket_order"),
+]))
+
+suites.append(("StateAddressRadix", (root / "lean-cbcl/LeanCbcl/StateAddressRadix.lean").read_text(), [
+    ("radix-current-digit-sorted-first", "| key::rest => pass key (sort rest order) (fun _ => 0)", "| key::rest => sort rest (pass key order (fun _ => 0))", "sort_order"),
+    ("radix-head-digit-ignored", "| key::rest => pass key (sort rest order) (fun _ => 0)", "| _::rest => sort rest order", "sort_order"),
+    ("radix-byte-digit-sequence-reversed", "(List.range width).map (fun position index =>", "(List.range width).reverse.map (fun position index =>", "digit_sequence"),
+]))
+
+suites.append(("StateAddressTables", (root / "lean-cbcl/LeanCbcl/StateAddressTables.lean").read_text(), [
+    ("radix-array-count-increment-doubled", "current.modify (key index) (· + 1)", "current.modify (key index) (· + 2)", "counts_refinement"),
+    ("radix-prefix-table-starts-at-one", "| 0 => #[0]", "| 0 => #[1]", "prefixes_refinement"),
+    ("radix-prefix-table-uses-next-count", "read previous width + read table width", "read previous width + read table (width+1)", "prefixes_refinement"),
+    ("radix-finite-key-domain-check-bypassed", "if byteKeys key order then", "if true then", "initialize_refinement"),
+    ("radix-cached-readback-reversed", "(List.range order.length).map (run key order (initBuffer key order cells)).cells", "(List.range order.length).reverse.map (run key order (initBuffer key order cells)).cells", "cachedPass_refinement"),
+    ("radix-cached-head-digit-ignored", "| key::rest => cachedPass key (cachedSort rest order) (fun _ => 0)", "| _::rest => cachedSort rest order", "cachedSort_refinement"),
+]))
+
+suites.append(("StateAddressArrayScatter", (root / "lean-cbcl/LeanCbcl/StateAddressArrayScatter.lean").read_text(), [
+    ("radix-array-next-not-incremented", "state.next.modify bucket (·+1)", "state.next.modify bucket (·+0)", "step_refinement"),
+    ("radix-array-write-wrong-index", "state.scratch.setIfInBounds destination index", "state.scratch.setIfInBounds destination (index+1)", "step_refinement"),
+    ("radix-array-write-after-increment", "let destination := read state.next bucket", "let destination := read state.next bucket + 1", "step_refinement"),
+    ("radix-array-prefix-table-truncated", "⟨prefixes (counts key order (Array.replicate 257 0)) 256,scratch⟩", "⟨prefixes (counts key order (Array.replicate 257 0)) 255,scratch⟩", "initial_refinement"),
+    ("radix-array-readback-reversed", "(runArray key order (initialArray key order scratch)).scratch.toList", "(runArray key order (initialArray key order scratch)).scratch.toList.reverse", "pass_refinement"),
+    ("radix-array-scratch-extra-slot", "then passArray key order (Array.replicate order.length 0)", "then passArray key order (Array.replicate (order.length+1) 0)", "checkedPass_refinement"),
+]))
+
+suites.append(("StateAddressWords", (root / "lean-cbcl/LeanCbcl/StateAddressWords.lean").read_text(), [
+    ("radix-word-count-increment-doubled", "current.modify (key index) (· + 1)", "current.modify (key index) (· + 2)", "counts_encode"),
+    ("radix-word-prefix-next-bucket", "readWord previous width + readWord table width", "readWord previous width + readWord table (width+1)", "prefixes_encode"),
+    ("radix-word-scratch-next-slot", "let destination := (readWord state.next bucket).toNat", "let destination := (readWord state.next bucket).toNat + 1", "step_encode"),
+    ("radix-word-scratch-wrong-value", "state.scratch.setIfInBounds destination (USize.ofNat index)", "state.scratch.setIfInBounds destination (USize.ofNat (index+1))", "step_encode"),
+    ("radix-word-next-increment-skipped", "state.next.modify bucket (·+1)", "state.next.modify bucket (·+0)", "step_encode"),
+    ("radix-word-source-index-bound-bypassed", "order.all (fun index => index < USize.size)", "true", "checkedWordPass_refinement"),
+]))
+
+suites.append(("StateAddressPool", (root / "lean-cbcl/LeanCbcl/StateAddressPool.lean").read_text(), [
+    ("radix-pool-lookup-next-slot", "let entry ← pool[index]?", "let entry ← pool[index+1]?", "takeOne_present"),
+    ("radix-pool-invents-address", "return (value,pool.setIfInBounds index none)", 'return (value ++ "x",pool.setIfInBounds index none)', "takeOne_present"),
+    ("radix-pool-slot-not-cleared", "return (value,pool.setIfInBounds index none)", "return (value,pool.setIfInBounds index (some value))", "takeOne_present"),
+    ("radix-pool-move-order-reversed", "(takeMany (source.map some) (indices source)).map Prod.fst", "(takeMany (source.map some) (indices source).reverse).map Prod.fst", "sortPool_refinement"),
+    ("radix-pool-move-first-slot-dropped", "(takeMany (source.map some) (indices source)).map Prod.fst", "(takeMany (source.map some) (indices source).tail).map Prod.fst", "sortPool_refinement"),
+]))
+
+suites.append(("StateAddressControl", (root / "lean-cbcl/LeanCbcl/StateAddressControl.lean").read_text(), [
+    ("radix-control-bucket-offset-changed", "USize.ofNat (key index.toNat)", "USize.ofNat (key index.toNat + 1)", "key_exact"),
+    ("radix-control-count-increment-doubled", "current.modify (key index).toNat (·+1)", "current.modify (key index).toNat (·+2)", "countsIndex_refinement"),
+    ("radix-control-scratch-index-changed", "state.scratch.setIfInBounds destination index", "state.scratch.setIfInBounds destination (index+1)", "stepIndex_refinement"),
+    ("radix-control-prefix-predecessor-reversed", "let previous := (position-1).toNat", "let previous := (position+1).toNat", "prefixLoop_observation"),
+    ("radix-control-prefix-target-shifted", "next.setIfInBounds position.toNat", "next.setIfInBounds (position.toNat+1)", "prefixLoop_observation"),
+    ("radix-control-prefix-order-reversed", "((List.range 256).map (fun index => USize.ofNat (index+1)))", "((List.range 256).reverse.map (fun index => USize.ofNat (index+1)))", "prefixNative_refinement"),
+]))
+
+suites.append(("StateAddressRange", (root / "lean-cbcl/LeanCbcl/StateAddressRange.lean").read_text(), [
+    ("radix-range-emits-current-cursor", "(cursor-1) :: reverseRange (cursor-1)", "cursor :: reverseRange (cursor-1)", "reverseRange_refinement"),
+    ("radix-range-emits-forward-order", "(cursor-1) :: reverseRange (cursor-1)", "reverseRange (cursor-1) ++ [cursor-1]", "reverseRange_refinement"),
+    ("radix-range-digit-offset-shifted", "position.toNat) current", "(position.toNat+1)) current", "rangeSort_refinement"),
+    ("radix-range-digit-truncated", "position.toNat) current", "(position.toNat % 256)) current", "rangeSort_refinement"),
+    ("radix-range-width-check-bypassed", "if width < USize.size then", "if true then", "checkedRangeSort_refinement"),
+]))
+
+# Preserve the full default gate while allowing a focused continuation check.
+suites.append(("StateReplayPaths", (root / "lean-cbcl/LeanCbcl/StateReplayPaths.lean").read_text(), [
+    ("replay-keeps-stale-contributors", "(.freeze verb (contributes domains B footprint) policy right)",
+     "(.freeze verb (contributes domains A footprint) policy right)", "related_replays"),
+    ("replay-product-drops-right-error", "(.join leftA rightA) (.join leftB rightB)",
+     "(.join leftA rightA) (.join leftB leftB)", "related_replays"),
+]))
+
+suites.append(("StateOutputWitnessReplay", (root / "lean-cbcl/LeanCbcl/StateOutputWitnessReplay.lean").read_text(), [
+    ("output-normalization-uses-empty-world", "errors (fun act => act ∈ StateScopePool.normalize A) source (StateScopePool.normalize A) = errors world source A",
+     "errors (fun _ => False) source (StateScopePool.normalize A) = errors world source A", "normalized_errors"),
+]))
+
+suites.append(("StateAuthoredOutputReplay", (root / "lean-cbcl/LeanCbcl/StateAuthoredOutputReplay.lean").read_text(), [
+    ("authored-query-inventory-admits-generic-lattice", "| .lattice _ => False", "| .lattice _ => True", "compile_query_plain"),
+    ("emitted-replay-pairs-source-with-itself", "(path (outputSource left)) (path (outputSource right))",
+     "(path (outputSource left)) (path (outputSource left))", "related_output_fault"),
+    ("output-receiver-rank-uses-addresses", "refine ⟨H.rank,?_⟩", "refine ⟨Act.addr,?_⟩", "replica_ranked"),
+]))
+
+suites.append(("StateFrozenSuccess", (root / "lean-cbcl/LeanCbcl/StateFrozenSuccess.lean").read_text(), [
+    ("frozen-success-changes-right-freezer-address",
+     "(rightFrozen : data world right B = .frozen freezer.addr rightValue rightExcluded)",
+     "(rightFrozen : data world right B = .frozen (freezer.addr + 1) rightValue rightExcluded)",
+     "related_frozen_agreement"),
+]))
+suites.append(("StateDataLocalWorld", (root / "lean-cbcl/LeanCbcl/StateDataLocalWorld.lean").read_text(), [
+    ("emitted-source-normalization-erased",
+     "StateOutputCompiler.sourceValue A source = observe world source (StateScopePool.normalize A)",
+     "StateOutputCompiler.sourceValue A source = observe world source A",
+     "source_value_global"),
+]))
+suites.append(("StateAuthoredFrozenAgreement", (root / "lean-cbcl/LeanCbcl/StateAuthoredFrozenAgreement.lean").read_text(), [
+    ("frozen-success-pairs-different-output-names",
+     "(rightFrozen : (name,.data (.frozen freezer.addr rightValue rightExcluded)) ∈ right.observe)",
+     '(rightFrozen : (name ++ "-wrong",.data (.frozen freezer.addr rightValue rightExcluded)) ∈ right.observe)',
+     "authored_frozen_agreement"),
+]))
+suites.append(("StateFrozenPayload", (root / "lean-cbcl/LeanCbcl/StateFrozenPayload.lean").read_text(), [
+    ("related-freeze-changes-selected-verb",
+     "(.freeze ⟨verb,rightContribution,policy⟩ right)",
+     '(.freeze ⟨verb ++ "-wrong",rightContribution,policy⟩ right)',
+     "related_payload"),
+]))
+suites.append(("StateFrozenCompilation", (root / "lean-cbcl/LeanCbcl/StateFrozenCompilation.lean").read_text(), [
+    ("source-compilation-discards-left-freeze",
+     "Match (StateInstalledClause.compileField left ⟨rule,first⟩)",
+     "Match (StateInstalledClause.compileField left ⟨rule,none⟩)",
+     "field_related"),
+]))
+suites.append(("StateOutputQueryIdentity", (root / "lean-cbcl/LeanCbcl/StateOutputQueryIdentity.lean").read_text(), [
+    ("query-identity-discards-actual-query",
+     "| .threshold name source query _ => (name,some (source,query))",
+     "| .threshold name _ _ _ => (name,none)",
+     "threshold_query_eq"),
+]))
+suites.append(("StateOutputThresholdAgreement", (root / "lean-cbcl/LeanCbcl/StateOutputThresholdAgreement.lean").read_text(), [
+    ("compiled-query-alternatives-discarded",
+     "| .closure elements _ | .raw elements _ _ => some elements",
+     "| .closure _ _ | .raw _ _ _ => some []",
+     "compiled_alternatives"),
+]))
+suites.append(("StateOutputConvergence", (root / "lean-cbcl/LeanCbcl/StateOutputConvergence.lean").read_text(), [
+    ("no-top-data-projection-drops-frozen-observations", "| .data value => some (name,value) | .fault _ => none",
+     "| .data (.frozen _ _ _) => none | .data value => some (name,value) | .fault _ => none", "data_vector_complete"),
+]))
+
+suites.append(("StateCondition", (root / "lean-cbcl/LeanCbcl/StateCondition.lean").read_text(), [
+    ("condition-pending-hides-right-fault", "| _, .fault ids => .fault ids", "| _, .fault _ => .data .pending", "pending_fault"),
+    ("condition-union-discards-right-evidence", "| .fault left, .fault right => .fault (left ∪ right)", "| .fault left, .fault _ => .fault left", "fault_union"),
+    ("condition-success-returns-false", "| .data (.reached true), .data (.reached true) => .data (.reached true)", "| .data (.reached true), .data (.reached true) => .data (.reached false)", "merge_success"),
+]))
+
+suites.append(("StateConditionCompiler", (root / "lean-cbcl/LeanCbcl/StateConditionCompiler.lean").read_text(), [
+    ("condition-leaf-uses-full-history", "| .read field query source => boolean (query.run (referenceScope whole freezes field) (sourceValue whole source))", "| .read field query source => boolean (query.run whole (sourceValue whole source))", "compile_leaf_refinement"),
+    ("condition-compiled-bound-discarded", "let query ← compileQuery [element] definition", "let query ← compileQuery [] definition", "compile_read_origin"),
+    ("condition-compiler-size-guard-skipped", "if maxNodes < (Condition.all children).size ∨ children.length < 2 then none else do", "if children.length < 2 then none else do", "compile_refinement"),
+]))
+
+suites.append(("StateConditionFaults", (root / "lean-cbcl/LeanCbcl/StateConditionFaults.lean").read_text(), [
+    ("condition-dependency-product-drops-source", ".pair source rest", ".pair rest rest", "product_evidence"),
+    ("condition-dependency-leaf-replaced-by-snapshot", "Code.fold (fun _ _ source => source)",
+     "Code.fold (fun _ _ _ => .snapshot (fun _ => truth))", "dependencies_evidence"),
+]))
+
+suites.append(("StateExecutableCondition", (root / "lean-cbcl/LeanCbcl/StateExecutableCondition.lean").read_text(), [
+    ("condition-executable-evidence-overwritten", "| .fault a, .fault b => .fault (a ++ b)", "| .fault a, .fault _ => .fault a", "merge_refinement"),
+    ("condition-executable-pending-hides-fault", "| _, .fault b => .fault b", "| _, .fault _ => .pending", "merge_refinement"),
+    ("condition-executable-empty-conjunction-pending", "| [] => .reached", "| [] => .pending", "combine_refinement"),
+]))
+
+import argparse
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument("--module", action="append", help="Run only this module (repeatable)")
+options = parser.parse_args()
+if options.module:
+    unknown = set(options.module) - {name for name, _, _ in suites}
+    if unknown:
+        parser.error("unknown modules: " + ", ".join(sorted(unknown)))
+    suites = [suite for suite in suites if suite[0] in options.module]
+
+for module, source, mutants in suites:
+    with tempfile.TemporaryDirectory(prefix="cbcl-state-lvar-") as directory:
+        path = Path(directory) / f"{module}.lean"
+        def compile_copy(text):
+            path.write_text(text)
+            return subprocess.run(["lake", "env", "lean", str(path)], cwd=root / "lean-cbcl",
+                                  text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=180)
+        baseline = compile_copy(source)
+        if baseline.returncode:
+            print(baseline.stdout)
+            raise SystemExit("FAIL: baseline does not compile")
+        print("PASS: baseline compiles", flush=True)
+        for name, original, replacement, theorem in mutants:
+            if source.count(original) != 1:
+                raise SystemExit(f"FAIL: {name} anchor missing or ambiguous")
+            broken = source.replace(original, replacement)
+            result = compile_copy(broken)
+            start = broken.index(f"theorem {theorem}")
+            next_decl = re.search(r"\n(?:theorem|def|noncomputable def|end) ", broken[start:])
+            end = start + next_decl.start() if next_decl else len(broken)
+            first, last = broken[:start].count("\n") + 1, broken[:end].count("\n") + 1
+            errors = [line for line in result.stdout.splitlines() if "error:" in line and
+                      any(f"{module}.lean:{n}:" in line for n in range(first, last))]
+            if not result.returncode or not errors:
+                print(result.stdout)
+                raise SystemExit(f"FAIL: {name} did not fail {theorem}")
+            print(f"PASS: {name} rejected by {theorem}", flush=True)

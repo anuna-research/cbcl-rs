@@ -187,10 +187,13 @@ fn funding_evidence_pending_replay_and_forks() {
         &[("recipient", sym("@bob")), ("amount", num(101))],
     )
     .unwrap();
-    acts.push(fork);
+    acts.push(fork.clone());
     let s = state(&d, &acts);
     assert_eq!(s["coins"]["reason"], "owner fork");
-    assert_eq!(s["coins"]["evidence"].as_array().unwrap().len(), 2);
+    let evidence = s["coins"]["evidence"].as_array().unwrap();
+    for witness in [&funding.address, &fork.address] {
+        assert!(evidence.contains(&serde_json::json!(witness)));
+    }
     acts.reverse();
     assert_eq!(state(&d, &acts), s);
     // Duplicate authentication with a different claimed signer cannot be hidden by fold dedup.
@@ -529,9 +532,13 @@ fn pinned_context_and_conflicting_root_casts() {
     .unwrap();
     assert_eq!(s["coins"]["status"], "fault");
     let other_root=act("(with-roles ((issuer @alice) (holder @treasury @alice @bob)) (signed @treasury (hello :thread \"coin-1\" :caused-by begin)))","@treasury");
-    assert_eq!(other_root.address, history[0].address);
+    // SPEC-038 ADR-3807: distinct sealed casts no longer alias. Preserve
+    // the separate same-address authenticated-signer conflict regression.
+    assert_ne!(other_root.address, history[0].address);
+    let mut conflicting_identity = history[0].clone();
+    conflicting_identity.signer = "@alice".into();
     let mut conflict = history.clone();
-    conflict.push(other_root);
+    conflict.push(conflicting_identity);
     let s = state(&d, &conflict);
     assert_eq!(s["coins"]["reason"], "conflicting authenticated identity");
     conflict.reverse();
@@ -742,4 +749,116 @@ fn headroom_must_be_in_the_increment_causal_past() {
         state(&d, &history)["coins"]["reason"],
         "insufficient headroom"
     );
+}
+
+#[test]
+fn resource_fault_evidence_keeps_prior_witnesses_when_another_fork_arrives() {
+    let d = dialect();
+    let base = initial(&d);
+    let mut siblings = Vec::new();
+    for amount in [10, 11, 12] {
+        let mut branch = base.clone();
+        siblings.push(
+            emit(
+                &d,
+                &mut branch,
+                "@treasury",
+                "pay",
+                &[("recipient", sym("@alice")), ("amount", num(amount))],
+            )
+            .unwrap(),
+        );
+    }
+    siblings.sort_by(|a, b| a.address.cmp(&b.address));
+    let mut history = base;
+    history.extend([siblings[1].clone(), siblings[2].clone()]);
+    let before = state(&d, &history);
+    assert_eq!(before["coins"]["status"], "fault");
+    history.push(siblings[0].clone());
+    let after = state(&d, &history);
+    for address in before["coins"]["evidence"].as_array().unwrap() {
+        assert!(
+            after["coins"]["evidence"]
+                .as_array()
+                .unwrap()
+                .contains(address),
+            "lost {address}: {before} -> {after}"
+        );
+    }
+}
+
+#[test]
+fn missing_dependency_cannot_hide_an_independent_resource_fault() {
+    // SPEC-038 REQ-3806: independent missing evidence cannot retract a fault.
+    let d = dialect();
+    let mut history = initial(&d);
+    let opener = history[1].address.clone();
+    let burn = |signer: &str, dependencies: &str| {
+        act(&format!(
+        "(signed {signer} (lang {} (burn (@alice @bob @treasury) :amount 1 :from {signer} :thread \"coin-1\" :caused-by {opener} :escrow-prev {opener} :escrow-deps ({dependencies}))))", d.name), signer)
+    };
+    let first = burn("@alice", "");
+    let verdict =
+        cbcl_parser::state_exports::admit(&d, &ThreadId("coin-1".into()), &history, &first);
+    assert!(
+        matches!(verdict, cbcl_parser::state_exports::Admission::Accepted),
+        "{verdict:?}"
+    );
+    history.push(first);
+    let before = state(&d, &history);
+    assert_eq!(before["coins"]["reason"], "insufficient rights");
+    let later = burn("@bob", &format!("sha256-{}", "f".repeat(64)));
+    assert!(matches!(
+        cbcl_parser::state_exports::admit(&d, &ThreadId("coin-1".into()), &history, &later),
+        cbcl_parser::state_exports::Admission::Accepted
+    ));
+    history.push(later);
+    let after = state(&d, &history);
+    assert_eq!(after["coins"]["status"], "fault", "{before} -> {after}");
+    for address in before["coins"]["evidence"].as_array().unwrap() {
+        assert!(after["coins"]["evidence"]
+            .as_array()
+            .unwrap()
+            .contains(address));
+    }
+}
+
+// SPEC-038 REQ-3806: all public resource observation paths retain the same
+// evidence. Profiles delegated to certificate runtimes keep constant faults.
+#[test]
+fn unsupported_resource_profiles_keep_projection_fault_evidence() {
+    use cbcl_core::certification::Certification;
+    use cbcl_core::escrow::{self, Outcome, Ownership};
+    let d = dialect();
+    let history = initial(&d);
+    for collective in [true, false] {
+        let mut rule = counter(&d).clone();
+        if collective {
+            rule.ownership = Ownership::Collective;
+        } else {
+            rule.certification = Certification::QuorumBudget {
+                validators: None,
+                faults: None,
+            };
+        }
+        let facts = history
+            .iter()
+            .filter_map(|act| {
+                escrow::project_resource_fact(&rule, act)
+                    .unwrap()
+                    .map(|fact| (fact.address.clone(), fact))
+            })
+            .collect();
+        let present = |id: &str| history.iter().any(|act| act.address == id);
+        match (
+            escrow::observe(&rule, &history),
+            escrow::observe_facts(&rule, &facts, present),
+        ) {
+            (Outcome::Fault { evidence: a, .. }, Outcome::Fault { evidence: b, .. }) => {
+                assert!(b.is_empty());
+                assert_eq!(a, b);
+            }
+            other => panic!("expected equivalent faults, got {other:?}"),
+        }
+    }
 }

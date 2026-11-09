@@ -9,6 +9,10 @@
 //! - `verify_dialect` — parse and verify a dialect definition against R1/R2/R3
 //! - `create_agent` — create a new agent with base dialect
 //! - `send_message` — construct a tell message and evaluate it
+//!
+//! State observations are snapshots until a threshold is reached or a freeze
+//! result supplies its causal cut. External effects fired on snapshots have no
+//! kernel finality guarantee. See this crate’s README for the host obligation.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 

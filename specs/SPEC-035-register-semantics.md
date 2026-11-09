@@ -15,7 +15,8 @@ The user rejects content-address arbitration as the primary register policy and
 has explicitly confirmed content address only as an exact HLC/signer tie-break.
 The current register/initializer heads are `lww-register`, `lww-per-signer`, `lww-map`, and `initial`.
 `initial` reads the sole distinct raw opener; it never arbitrates between writers.
-Missing or several opener candidates yield Absent, before projecting the field.
+A missing opener yields Absent; several candidates yield the sticky conflict top of
+[[SPEC-038-lvar-state-kernel#REQ-3804]], a `fault` naming every candidate.
 Repeated receipt of one opener preserves its value. Conflict-preserving forms are
 `multi-value-register` and `multi-value-map` (aliases of `values` and `values-per-key`).
 LWW selects the greatest tuple of HLC, authenticated signer, then content address. LWW clocks have declared shape type `hlc`, with a canonical string wire value.
@@ -79,7 +80,8 @@ Trace: [[SPEC-035-register-semantics#TEST-3502]].
 
 `(initial opener key)` MUST install only for the protocol's unique opener verb.
 It reads raw distinct accepted candidates without application-data domains.
-No candidate or several candidates means Absent. Duplicate receipt of the same
+No candidate means Absent; several candidates mean the conflict top
+([[SPEC-038-lvar-state-kernel#REQ-3804]]). Duplicate receipt of the same
 opener preserves the field. Missing payloads do not reduce the candidate count.
 Domains MUST read the same raw initializer and cannot filter the opener itself.
 Trace: [[SPEC-035-register-semantics#TEST-3500]], [[SPEC-035-register-semantics#TEST-3504]].
@@ -151,8 +153,10 @@ Clock evidence remains explicit trusted-host data, with declared shape type `hlc
 
 Introduce `(initial opener keyword)` and `c.initial(opener, field)`. Installation
 requires the protocol's unique opener. The fold returns that act's field, or
-Absent if no unique opener candidate exists. This total low-level behavior chooses
-no winner from ambiguous evidence. Domains use the same raw-opener initializer.
+Absent if there is no candidate, or the conflict top of
+[[SPEC-038-lvar-state-kernel#REQ-3804]] if there are several. This total low-level
+behavior chooses no winner from ambiguous evidence. Domains use the same raw-opener
+initializer.
 Valid accepted protocol histories supply at most one opener.
 
 Keep replacement, deletion and conflict-preserving rules unchanged. All migrated

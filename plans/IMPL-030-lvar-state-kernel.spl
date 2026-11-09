@@ -1,0 +1,1719 @@
+;; IMPL-030: the state kernel as a store of lattice variables (SPEC-038 v0.4.0).
+;; Maintainer accepted ADR-3805 on 2026-11-08: stable thresholds, revisable
+;; snapshots, separate terminal faults, and full domain carrier evidence.
+;; Earlier lattice-algebra completion is reopened for v0.2.0 acceptance.
+;; Slice 1 lands the pure lattice algebra and the factorisation tests with no
+;; wire change; later slices add threshold reads, freeze, the conflict top,
+;; bindings, and the Lean capstone. Acceptance criteria quote SPEC-038 TESTs.
+
+(meta plan
+  (id "IMPL-030")
+  (title "Causal Lattice Observation Kernel (CLOK; SPEC-038 v0.4.1): stable facts, product conditions and sealed-root migration")
+  (version "0.4.0")
+  (status "active")
+  (created "2026-11-07")
+  (author "agent:claude")
+  (spec "SPEC-038, depends on SPEC-019, SPEC-036, SPEC-037")
+  (description "Deliver crates/cbcl-core/src/lattice.rs (CON-3800) with differential and morphism tests (TEST-3800); then threshold observations (CON-3801, TEST-3801/3803), the conflict top (REQ-3804, TEST-3804), freeze (CON-3802, TEST-3802), snapshot marking (REQ-3805), the Lean lift theorem and quasi-determinism capstone (REQ-3806, TEST-3806), and docs/status."))
+
+;; Task metadata
+
+(meta task-lattice-algebra
+  (description "CON-3800: crates/cbcl-core/src/lattice.rs with carriers, join, per-act contributions, factor(&Rule) for all installed heads, with explicit history carriers and native closure projections for progress and bounded-counter, evaluate and display matching state::fold; module rustdoc cites SPEC-038.")
+  (acceptance "TEST-3800: crates/cbcl-parser/tests/lattice_factorisation.rs passes on every state vector: display equals fold in forward, reversed and duplicated delivery; L(A1 ∪ A2) = L(A1) ⊔ L(A2) for parity and halves partitions; the closure heads use history carriers and participate in the same partition union law."))
+
+(meta task-threshold-reads
+  (description "CON-3801 / ADR-3805: stable thresholds over count, members, nonnegative event sums and progress; reject signed net balances and fault alternatives; render successful, pending or separate terminal fault outcomes.")
+  (acceptance "TEST-3801/3803/3804: properties and rejection tests pass; negative nonnegative-shaped inputs fail before admission; signed balances remain snapshots; conflicting initializers fault dependent lift/closure fields and thresholds; TEST-3807 conflict-free vectors unchanged."))
+
+(meta task-semantic-alignment
+  (description "ADR-3805: preserve raw initializer/contribution evidence under domain-carrier union; propagate initializer faults to dependent displays and thresholds; install nonnegative events sum thresholds without reinterpreting signed counters.")
+  (acceptance "TEST-3800 distinct-opener admitted-history union law, TEST-3801 threshold stability or explicit fault, TEST-3803 signed source and fault alternative rejection, TEST-3804 derived and closure dependency faults; fresh-context review and isolated semantic mutants pass."))
+
+;; Current Elephant task convention. This amendment is also in theory spec-038.
+(given (task semantic-alignment))
+(given (task-description semantic-alignment "Implement maintainer-approved ADR-3805 read semantics and repair domain carrier evidence."))
+(given (task-acceptance semantic-alignment "TEST-3800/3801/3803/3804 pass, including admitted opener forks, negative-source rejection, derived and closure fault propagation, and semantic mutations."))
+(given (no-deps semantic-alignment))
+(normally r-ready-semantic-alignment (and (task semantic-alignment) (no-deps semantic-alignment)) (ready semantic-alignment))
+(meta r-ready-semantic-alignment (source "SPEC-038-lvar-state-kernel#ADR-3805"))
+
+(meta task-conflict-top
+  (description "ADR-3803 / REQ-3804: add the sole carrier's top to the fold rendering of initial as {status: fault, evidence: [...]}, uniform with the resource fault; keep Absent for no opener.")
+  (acceptance "TEST-3804 for initial and bounded-counter passes; vectors without conflicts are byte-identical (TEST-3807)."))
+
+(meta task-freeze
+  (description "CON-3802 / ADR-3802: parse (freeze field verb [policy]); fold excludes contributions causally after the freeze under supersede or joins to top under fault; render frozen with the freezing address; install checks field and verb.")
+  (acceptance "TEST-3802 passes for both policies including the concurrent-write case; TEST-3804's freeze clause passes."))
+
+(meta task-user-lattices
+  (description "CON-3803 / REQ-3810: parse (lattice …) declarations and (lift … (into name) (contribute …) [(project [stable] …)]) rules; verify join totality, commutativity, associativity, idempotence, bottom identity and top absorption, contribution range, and monotonicity of stable projections at install; evaluate as a lift in lattice.rs; render project tables.")
+  (acceptance "TEST-3808 passes including every rejection with its named witness; a field over an accepted user lattice passes TEST-3800; vectors unchanged (TEST-3807)."))
+
+(meta task-snapshot-marking
+  (description "REQ-3805: state_schema marks fields that are neither threshold nor frozen as snapshot; bindings' READMEs state the host obligation for effects.")
+  (acceptance "TEST-3805 passes; js, wasm, erl and ffi docs updated."))
+
+(meta task-lean-lift-theorem
+  (description "Lean: define the carrier lattices and the lift; prove one theorem that any lifted term is a join-homomorphism, and derive the per-rule invariance of State.lean for the thirteen lift heads from it.")
+  (acceptance "lake build green; scripts/check-axioms.sh allowlisted; the thirteen fold_perm_invariant conjuncts follow from the lift theorem without sorry."))
+
+(meta task-lean-quasi-determinism
+  (description "REQ-3806 / TEST-3806 / TEST-3815: extend the actual authored quasi-determinism capstone to v0.4 condition observations; retain threshold/frozen agreement, exact finite witness replay, complete output convergence and no-top SEC.")
+  (acceptance "All actual condition output paths compose into the capstone without caller result/fault callbacks; full lake build/lint/axiom audit and condition/top-stickiness semantic mutants pass with independent review."))
+
+(meta task-docs-status
+  (description "Update docs/concepts/bounded-counter.md and hlc-registers.md with the term reading of each head and the snapshot/threshold/frozen vocabulary; set SPEC-038 status to implemented; zetl check clean.")
+  (acceptance "zetl check --dead-links --fail-on error clean; SPEC-038 status implemented with verified-by annotations reconciled to what landed; docs and rustdoc use the SPEC-038 Vocabulary (lift, display, LVar, put, threshold, frozen, snapshot, stable) with fold retained only as the API name."))
+
+;; Executable task graph mirrors the active Elephant theory. Signed promises,
+;; completion evidence and retractions remain in Elephant, not forged claims
+;; wrappers in this source file. Inspect with elephant next -t spec-038 --json.
+
+(given (task lattice-algebra))
+(given (task-description lattice-algebra "CON-3800: crates/cbcl-core/src/lattice.rs with carriers, join, per-act contributions, factor(&Rule) for all installed heads, with explicit history carriers and native closure projections for progress and bounded-counter, evaluate and display matching state::fold; module rustdoc cites SPEC-038."))
+(given (task-acceptance lattice-algebra "TEST-3800: crates/cbcl-parser/tests/lattice_factorisation.rs passes on every state vector: display equals fold in forward, reversed and duplicated delivery; L(A1 ∪ A2) = L(A1) ⊔ L(A2) for parity and halves partitions; the closure heads use history carriers and participate in the same partition union law."))
+(given (no-deps lattice-algebra))
+(normally r-ready-lattice-algebra (and (task lattice-algebra) (no-deps lattice-algebra)) (ready lattice-algebra))
+(meta r-ready-lattice-algebra (source "SPEC-038-lvar-state-kernel#REQ-3800"))
+
+(given (task threshold-reads))
+(given (task-description threshold-reads "CON-3801 / ADR-3805: stable thresholds over count, members, nonnegative event sums and progress; reject signed net balances and fault alternatives; render successful, pending or separate terminal fault outcomes."))
+(given (task-acceptance threshold-reads "TEST-3801/3803/3804: properties and rejection tests pass; negative nonnegative-shaped inputs fail before admission; signed balances remain snapshots; conflicting initializers fault dependent lift/closure fields and thresholds; TEST-3807 conflict-free vectors unchanged."))
+(normally r-ready-threshold-reads (and (task threshold-reads) (completed lattice-algebra)) (ready threshold-reads))
+(meta r-ready-threshold-reads (source "SPEC-038-lvar-state-kernel#REQ-3802"))
+
+(given (task conflict-top))
+(given (task-description conflict-top "ADR-3803 / REQ-3804: add the sole carrier's top to the fold rendering of initial as {status: fault, evidence: [...]}, uniform with the resource fault; keep Absent for no opener."))
+(given (task-acceptance conflict-top "TEST-3804 for initial and bounded-counter passes; vectors without conflicts are byte-identical (TEST-3807)."))
+(normally r-ready-conflict-top (and (task conflict-top) (completed lattice-algebra)) (ready conflict-top))
+(meta r-ready-conflict-top (source "SPEC-038-lvar-state-kernel#REQ-3804"))
+
+(given (task freeze))
+(given (task-description freeze "CON-3802 / ADR-3802: parse (freeze field verb [policy]); fold excludes contributions causally after the freeze under supersede or joins to top under fault; render frozen with the freezing address; install checks field and verb."))
+(given (task-acceptance freeze "TEST-3802 passes for both policies including the concurrent-write case; TEST-3804's freeze clause passes."))
+(normally r-ready-freeze (and (task freeze) (completed conflict-top)) (ready freeze))
+(meta r-ready-freeze (source "SPEC-038-lvar-state-kernel#REQ-3803"))
+
+(given (task user-lattices))
+(given (task-description user-lattices "CON-3803 / REQ-3810: parse (lattice …) declarations and (lift … (into name) (contribute …) [(project [stable] …)]) rules; verify join totality, commutativity, associativity, idempotence, bottom identity and top absorption, contribution range, and monotonicity of stable projections at install; evaluate as a lift in lattice.rs; render project tables."))
+(given (task-acceptance user-lattices "TEST-3808 passes including every rejection with its named witness; a field over an accepted user lattice passes TEST-3800; vectors unchanged (TEST-3807)."))
+(normally r-ready-user-lattices (and (task user-lattices) (completed threshold-reads)) (ready user-lattices))
+(meta r-ready-user-lattices (source "SPEC-038-lvar-state-kernel#REQ-3810"))
+
+(given (task snapshot-marking))
+(given (task-description snapshot-marking "REQ-3805: state_schema marks fields that are neither threshold nor frozen as snapshot; bindings' READMEs state the host obligation for effects."))
+(given (task-acceptance snapshot-marking "TEST-3805 passes; js, wasm, erl and ffi docs updated."))
+(normally r-ready-snapshot-marking (and (task snapshot-marking) (completed threshold-reads) (completed freeze)) (ready snapshot-marking))
+(meta r-ready-snapshot-marking (source "SPEC-038-lvar-state-kernel#REQ-3805"))
+
+(given (task lean-lift-theorem))
+(given (task-description lean-lift-theorem "Lean: define the carrier lattices and the lift; prove one theorem that any lifted term is a join-homomorphism, and derive the per-rule invariance of State.lean for the thirteen lift heads from it."))
+(given (task-acceptance lean-lift-theorem "lake build green; scripts/check-axioms.sh allowlisted; the thirteen fold_perm_invariant conjuncts follow from the lift theorem without sorry."))
+(normally r-ready-lean-lift-theorem (and (task lean-lift-theorem) (completed lattice-algebra)) (ready lean-lift-theorem))
+(meta r-ready-lean-lift-theorem (source "SPEC-038-lvar-state-kernel#REQ-3800"))
+
+(given (task lean-quasi-determinism))
+(given (task-description lean-quasi-determinism "REQ-3806 / TEST-3806 / TEST-3815: extend the actual authored quasi-determinism capstone to v0.4 condition observations; retain threshold/frozen agreement, exact finite witness replay, complete output convergence and no-top SEC."))
+(given (task-acceptance lean-quasi-determinism "All actual condition output paths compose into the capstone without caller result/fault callbacks; full lake build/lint/axiom audit and condition/top-stickiness semantic mutants pass with independent review."))
+(normally r-ready-lean-quasi-determinism (and (task lean-quasi-determinism) (completed lean-lift-theorem) (completed conflict-top) (completed freeze) (completed product-read-composition)) (ready lean-quasi-determinism))
+(meta r-ready-lean-quasi-determinism (source "SPEC-038-lvar-state-kernel#REQ-3806"))
+
+(given (task docs-status))
+(given (task-description docs-status "Update docs/concepts/bounded-counter.md and hlc-registers.md with the term reading of each head and the snapshot/threshold/frozen vocabulary; set SPEC-038 status to implemented; zetl check clean."))
+(given (task-acceptance docs-status "zetl check --dead-links --fail-on error clean; SPEC-038 status implemented with verified-by annotations reconciled to what landed; docs and rustdoc use the SPEC-038 Vocabulary (lift, display, LVar, put, threshold, frozen, snapshot, stable) with fold retained only as the API name."))
+(normally r-ready-docs-status (and (task docs-status) (completed snapshot-marking) (completed user-lattices) (completed lean-quasi-determinism) (completed semantic-alignment) (completed context-map) (completed root-cast-identity-contract) (completed lean-ci-green) (completed product-read-composition) (completed finite-evidence-support) (completed acceptance-audit) (completed byte-compatibility) (completed root-cast-migration)) (ready docs-status))
+(meta r-ready-docs-status (source "SPEC-038-lvar-state-kernel#REQ-3807"))
+
+(given (task context-map))
+(given (task-description context-map "REQ-3811 / CON-3804: expose installed dialect, sealed thread and current observation metadata as read-only typed kernel data; existing domains and membership reads consume sealed role rosters."))
+(given (task-acceptance context-map "TEST-3809: role admission unchanged, missing/conflicting roots and pins, domains, freeze integration, schema/canonical cache checks and semantic mutations pass; no dedicated quorum policy forms are introduced."))
+(normally r-ready-context-map (and (task context-map) (completed lattice-algebra)) (ready context-map))
+(meta r-ready-context-map (source "SPEC-038-lvar-state-kernel#REQ-3811"))
+
+;; Maintainer extension: generic context access; policy composition remains separate.
+(meta task-context-map
+  (description "REQ-3811 / CON-3804: expose installed dialect, sealed thread and current observation metadata as read-only typed kernel data; existing domains and membership reads consume sealed role rosters.")
+  (acceptance "TEST-3809: role admission unchanged, missing/conflicting roots and pins, domains, freeze integration, schema/canonical cache checks and semantic mutations pass; no dedicated quorum policy forms are introduced."))
+
+;; 2026-11-08 context-map acceptance checkpoint: state_context integration
+;; tests and isolated Rust/Lean semantic mutants pass; role admission and
+;; existing vectors remain covered by the core/parser suites. StateContext's
+;; root-projection proof passed independent review; its typed recognition
+;; boundary and BUG-006 wire limitation are explicit in SPEC-038.
+;; The broader lean-quasi-determinism task stays partial: legacy fault-aware
+;; finite clause convergence is proved, while resource-verifier witness
+;; classification/persistence and full new-observation composition remain.
+
+;; Resource/composition proof continuation (TEST-3806 remains unfulfilled):
+;; StateResource proves concrete certificate persistence, exact closed-cone
+;; uniqueness and dissemination, without a supplied resource classifier.
+;; StateObservationPlan proves typed value dependency / nested-freeze SEC.
+;; Outstanding native acceptance bridges, owned by the SPEC-038 implementer:
+;; 1. Prove native owner-prefix/tip summaries equal closed-cone arithmetic;
+;;    cover every final aggregate check or prove it unreachable under bounds.
+;; 2. Establish native fault iff an accepted concrete certificate exists.
+;; 3. Prove installed-rule compilation to typed plans, especially domain /
+;;    context source carriers and threshold contribution/source coherence.
+;; The generic theorems cannot be used as substitutes for those refinements.
+
+;; Native refinement continuation: executable allocations/root/operation and
+;; checked initialization predicates now have certificate iff proofs. Native
+;; Summary::record folds refine sequence/cumulative arithmetic; grouped incoming
+;; sums refine flat sums given the owner-tip partition. Direct read-adapter
+;; refinements and a concrete stable domain/count source are proved.
+;; TEST-3806 still requires Kahn state/termination/prefix coverage, classification
+;; of every final native outcome, and the complete installed-clause compiler
+;; refinement (including the remaining validated source/query instances).
+
+;; Native dependency/budget continuation: executable Kahn cycle rejection iff
+;; a finite cycle certificate, native previous-prefix cache invariants, full
+;; dependency-tip merge union, ghost exact-cone reconstruction, owner partition,
+;; actual cached incoming counters, outgoing recipient-map totals and both
+;; checked local-budget sides now have compositional refinements.
+;; dependency_local_budgets_exact derives the new operation's cone, frontier
+;; coverage and previous-prefix equality from parent-cache invariants and native
+;; lookups. Remaining TEST-3806 work includes preserving those joint invariants
+;; over the complete faulting worklist, final aggregate classification, and
+;; the complete installed-clause compiler refinement. No completion is claimed.
+;; Native record execution now preserves the joint summary/cone/frontier
+;; invariant from empty state. This is not yet the faulting budget worklist:
+;; recordStep intentionally follows authorization and can record an unbudgeted
+;; act in isolation. Finite writer evidence survives initializer forks;
+;; unsupported resource profiles preserve constant empty evidence across full,
+;; projected and checkpoint observation paths.
+
+;; Budget-worklist equivalence checkpoint: StateResourceWorklist derives joint
+;; counter/cache/cone/frontier/authorization invariants from empty state, rules
+;; out blocked ready selections and recognized record overflow, and proves
+;; native_budget_worklist_certificate_iff under executable phase checks.
+;; Remaining top-level obligations: native final aggregate/conservation checks,
+;; full phase classification and installed-rule/plan compiler refinement.
+;; Native floor and ceiling are i64; the Lean ResourceConfig Int fields require
+;; the installed range predicate before proving aggregate overflow unreachable.
+
+;; Top-level typed verifier continuation: checked aggregate application,
+;; conservation, signed-width bounds and final solvency now compose with the
+;; exact-cone authorization worklist. StateResourceVerifier proves complete
+;; native typed fault iff certificate and exact contextual evidence refinement.
+;; Ordered installed semantic-IR compiler/refinement/completeness now composes
+;; with replica SEC and fault dissemination. Global freezes attach before
+;; dependencies resolve; lattice queries share source contribution metadata;
+;; query installation excludes empty/duplicate/top/compatible alternatives and
+;; supersede-frozen sources. Representation embedding preserves reached tags.
+;; Remaining TEST-3806 acceptance: instantiate every concrete installed Rust
+;; rule and its validated native closure/finite/context/domain metadata, and
+;; retain the explicit wire/rank/renderer correspondence boundaries. The
+;; parametric installed-IR result does not discharge those literal bindings.
+
+;; Concrete factory continuation (TEST-3806 remains partial): full modeled
+;; native read permutation now covers pending/ready/fault, value, rights and
+;; headroom. Closed legacy/resource/context/domain factories share retained
+;; raw state; finite tables/projections derive laws and order from executable
+;; checks, all matching rows contribute, and raw finite policies prove distinct
+;; successes force combined top. Native context precedence retains prior
+;; mixed-thread/opener witnesses with projection-specific scope.
+;; Remaining: whole authored-clause lowering of all concrete source families,
+;; observation-indexed freeze contributors and native scoped-reader refinement;
+;; wire/scalar extraction, diagnostic/renderer and optimized-check correspondence
+;; retain their explicit boundaries. Generic IR alone cannot finish this task.
+;; Separate maintainer direction: authenticated signer-set source and set
+;; cardinality thresholds are agreed in discussion, but still require their
+;; own SPEC-038 contract/test/runtime/proof work before executable examples.
+
+;; Authored compilation / regenerated freeze continuation: StateAuthoredBindings
+;; concretely binds all current source families and clause-wide domains/tables,
+;; backward thresholds/aggregates and validated source freezes. Static preparation
+;; and templates isolate H-independent checks; materialization fixes contributors
+;; from the full observation. StateCompiledFreezeGrowth reflects actual compiled
+;; error paths, derives metadata invariance and successful recompilation, and
+;; proves named fault growth plus replica eventual fault dissemination with
+;; regenerated selectors. StateFreezeScopes connects clear global cached cuts
+;; to actual nested plan data. Fresh review found no defect in these claims.
+;; A real progress/domain freeze witness bug was reproduced then repaired;
+;; its regression fails when the raw tick selector is removed. Resource domains
+;; are already rejected natively and the concrete binding enforces that rule.
+;; Remaining TEST-3806: complete faulting native Reader recursion, optimized
+;; cached-upper-set equivalence, authored completeness without prepared WF
+;; premises, and explicit installation/wire/rank/renderer correspondence. This
+;; is verified progress, not the task's completion evidence.
+
+;; Native scoped-reader continuation: StateNativeReader independently evaluates
+;; scoped error and value passes with global freeze plans. Full error equality
+;; covers faulted histories; clear-history cut induction closes nested values,
+;; yielding native_reader_refinement on closed unique histories. Fresh read-only
+;; review found no proof defect and confirmed this is a functional Plan-reader
+;; theorem, not a mutable Rust cache/dependency-lookup extraction theorem.
+;; Focused mutations reject lost freeze faults, ignored cuts and hidden fault
+;; headers at the named proof obligations. Literal Rust reader correspondence
+;; and the previously recorded installation/optimized-check boundaries remain.
+
+;; Finite upper-cache continuation: StateFiniteUpperCache proves optional maxima
+;; and non-top upper-set witness equivalence, all native compatibility formulas,
+;; admitted integer/Boolean scalar decoding, and normalized pair/full gate
+;; equality against StateFiniteRead. Fresh review found no logical defect and
+;; confirmed the remaining stored-vector, unordered-pair traversal and diagnostic
+;; boundaries. Mutations for included top, discarded named root, min threshold,
+;; and Boolean true=zero all fail their named theorem obligations. Cache cost is
+;; not proved by these functional definitions; TEST-3806 remains partial.
+
+;; Stored cache and unordered-loop continuation: StateFinitePairLoop constructs
+;; projected/maxima vectors, proves lookup and compatibility refinement, and
+;; models actual early-exit i<j traversal. Its gate equals StateFiniteRead for
+;; every input. First diagnostics agree with row-major candidate enumeration;
+;; indices are bounded and select the original scalars; duplicates precede
+;; compatibility. Fresh review found no defect. Mutations kill incorrect cache
+;; roots, pair cache indices, ignored duplicates, off-by-one diagnostic indices,
+;; and skipped later rows at named theorems. Remaining: literal R7 extraction
+;; and installation integration, formatted strings, runtime cost correspondence
+;; (Rust stores decoded reads, model decodes per pair), plus prior authored
+;; completeness and Rust Reader obligations. TEST-3806 remains partial.
+
+;; Authored preparation completion: StateInstalledRecognition proves exact
+;; lowerer acceptance iff metadata and policy/backward-reference checks pass.
+;; prepareStatic now performs these checks; prepared_compiler_complete no
+;; longer assumes metadata/WF, and preparation_preserves_compilation proves
+;; every prior successful plan and rejection unchanged. Positive review fixture
+;; still prepares/compiles; forward, empty and supersede thresholds now reject
+;; at preparation. StateAuthoredCompletion constructs plans/independent readers
+;; from preparation and composes full functional cached observations including
+;; faults and equal-set frozen/evidence equality. Fresh adversarial reviews
+;; found no defect or correctness-oracle premise. Reference checks remain
+;; noncomputable Lean definitions; literal native R7 extraction/integration and
+;; mutable Rust Reader correspondence remain open. TEST-3806 stays partial.
+
+;; Live oracle direction: maintainer requested Lean as a fuzz oracle. The
+;; compiled JSON-lines StateKernelOracle executes the proved finite reference
+;; functions without Rust expected outcomes. Native parser/install/fold property
+;; cases compare acceptance, projections, thresholds and top evidence across
+;; order/duplicate variants; directed numeric/Boolean and outcome coverage,
+;; shrinking, replay seeds, child timeout and explicit CI execution are wired.
+;; Scope is initially finite data/read paths; domains/context/resources/freeze,
+;; protocol admission and canonical diagnostic serialization remain separate.
+
+;; Live freeze oracle continuation: StateExecutableFreeze proves checked bounded
+;; ancestry, exact cuts/earliest selection and complete conflict/evidence
+;; enumeration, then full executable read_refinement to StateLVar.freezeRead
+;; including raw fault unions. The JSON-lines oracle uses that implementation;
+;; native real-message DAG tests compare cuts/root/exclusions and dependent
+;; thresholds under order/duplicate variants. Directed cases cover no/sequential/
+;; concurrent/multi-parent freeze, both policies and combined raw/freeze faults.
+;; Input checks reject missing predecessors, ambiguous IDs and field keywords;
+;; source-verb filtering excludes unrelated raw finite witnesses. Profiles remain
+;; bounded fold inputs, not admission or full Rust extraction proofs.
+
+;; Nested cache oracle continuation: StateExecutableObservation refines
+;; executable map/error/presentation/freeze adapters to native semantic adapters.
+;; The events-sum profile recomputes event maps/sums at nested cuts; real Rust
+;; observations use the existing mutable scoped cache. Directed split-cut case
+;; requires source sum 2 versus derived frozen value 7. Mutants erasing scope or
+;; field cache key, forcing dependency scope0, retaining frozen wrapper, and
+;; hiding inherited faults fail actual live comparisons. A 10000-case nested
+;; campaign seed380041 passed 30000 comparisons; fresh review found no defect.
+;; Profile is one source/derived layer with bounded amounts, not arbitrary
+;; dependency graphs, overflow or admission/context/resource coverage.
+
+;; Context oracle continuation for [[SPEC-038-lvar-state-kernel#TEST-3809]]:
+;; StateExecutableContext computes full root/mixed-thread/opener witness unions
+;; and finite frontiers; read_refinement proves equivalence to installed native
+;; context semantics. JSON-lines context profile and Rust real-message harness
+;; compare complete closed path grammar, metadata, rosters, membership queries,
+;; schema markers and order/duplicate delivery. Typed message input intentionally
+;; excludes strict-wire sha256 pin BUG-006; canonical hashing/signatures/admission
+;; and context freeze/domain composition remain outside this live profile.
+;; Mutation/fuzz and fresh review evidence are recorded in the Elephant theory.
+;; Verified continuation: full Lean build and Batteries linter pass; axiom
+;; audit reports 1302 theorems with allowed axioms only. Final seed380040
+;; context campaign passes 10000 generated histories, each under three delivery
+;; variants; all five live-oracle tests pass at CI's 512 setting. Isolated real
+;; native mutations (including seven context regressions) and three executable
+;; context proof mutations all fail their intended assertions/theorems. Initial
+;; opener-witness mutant survived due to a masking mixed-thread channel; the
+;; same-thread malformed-root fork case closes that gap. Fresh read-only review
+;; found no substantive defect within the documented typed profile. Serialization
+;; support completeness remains a profile assumption rather than a proved lemma.
+
+;; Operational cache continuation for [[SPEC-038-lvar-state-kernel#TEST-3806]]:
+;; StateMemoizedReader defines dynamically branching request bodies, an
+;; independent well-founded uncached reference, and exact scope/field lookup,
+;; post-completion insertion and sequential shared-cache execution. Validity is
+;; constructed from empty state and preserved through cache hits/misses.
+;; Native body evaluates same-scope earlier dependencies, unwraps, returns
+;; combined faults before cut redirection, and rewraps the selected payload.
+;; StateReaderIndices derives numeric ordering from successful installed-clause
+;; compilation and composes the cache theorem. Typed extraction must still
+;; identify every actual dependency and native normal/fault/wrapper operation;
+;; actual scope construction and literal Rust ordered-map representation remain
+;; boundaries. Unknown-field no-insert behavior is outside this known-field body.
+;; Executable witnesses and named proof mutations verify scope/field separation,
+;; missing unwrap, wrong insertion scope, erased dependency scope, omitted cut
+;; request, fault bypass and reversed compiler indices. Fresh review found no
+;; logical defect within those boundaries. Verification is recorded in Elephant.
+;; Final cache checkpoint verification: full Lean build and Batteries env-linter
+;; pass; check-axioms audits 1324 theorems with allowed axioms only. Both focused
+;; mutation suites pass, verified-by lint passes, and the spec amendment adds no
+;; unresolved reference pairs or syntax/SPL errors relative to its prior version.
+
+;; Prepared dependency/scope continuation for [[SPEC-038-lvar-state-kernel#TEST-3806]]:
+;; StateAuthoredDependencies.bind_references proves the exact inventory for all
+;; concrete source factories, including preservation/no spurious reads. Static
+;; preparation and source resolution construct the installed clause and discharge
+;; the previous native-dependency extraction premise. StateScopePool interns
+;; accepted freezer cuts, preserves prior indices and reuses shared roots; active
+;; membership and cut callbacks are constructed from the shared indexed pool.
+;; prepared_scoped_cache conjoins this scope certificate and memoized execution.
+;; Fresh review caught raw duplicate-freezer occurrences being counted as several
+;; roots. Normalization plus deduplicated earliest selection, completeness proof,
+;; and a named repeated-freezer executable regression fix it; removing dedup kills
+;; that witness. Scope/cut certificate uses ranked/content-consistent deliveries.
+;; Native normal/fault/wrapper semantics are still supplied leaves and not yet
+;; proved against these pool reads/compiled source meanings. Literal native graph
+;; frontier/address/map/vector representation and order/cost remain boundaries.
+;; Final dependency/scope checks: full Lean build and Batteries linter pass;
+;; check-axioms reports 1360 theorems with allowed axioms only. Both focused
+;; proof-mutation suites reject all intended changes in named theorems,
+;; verified-by lint passes, and vault comparison adds no unresolved reference
+;; pairs or syntax/SPL errors. Fresh proof and artifact re-review found no new
+;; substantive issue after the duplicate-freezer correction.
+
+;; Fixed native-value continuation for [[SPEC-038-lvar-state-kernel#TEST-3806]]:
+;; StateReaderValues constructs sourceRead/nativeDerived normal values at the
+;; concrete scope pool, unioned normal/global-freeze faults, and fixed wrapper/
+;; exclusion presentation. Source and derived scoped equations, complete cached
+;; freeze adapter refinement and scoped/cut-clear lemmas connect these pieces
+;; to StateNativeReader. prepared_fixed_cache combines prepared compilation,
+;; scope certificate and memoization without supplied leaf classifiers.
+;; Original prepared fields are within the supported source/derived inventory.
+;; The whole recursive cache-reference/compiled-clause equation remains open,
+;; including valid-scope/source-name reachability. Invalid scope/unsupported IR
+;; fallbacks are helper totals, not Rust indexing/unknown-field semantics.
+;; Public rendering, literal Rust value/graph/map/vector extraction, and rank/
+;; identity boundaries remain explicit. Fresh review found no logical defect
+;; and confirmed the remaining request-domain obligations.
+;; Fixed-value verification: full Lean build and Batteries linter pass; axiom
+;; audit reports 1387 theorems with allowed axioms only. All six focused mutations
+;; fail the intended source/fault/wrapper/cut equation or concrete scoped-value
+;; witness. verified-by lint passes; vault comparison adds no unresolved reference
+;; pairs or syntax/SPL errors. Fresh proof and artifact review found no defect
+;; within the documented local-equation scope.
+
+;; Request-domain continuation for [[SPEC-038-lvar-state-kernel#TEST-3806]]:
+;; StateReaderReachability proves aggregate binds reference earlier originals,
+;; threshold metadata resolves to original sources, and initialKeys follows the
+;; actual source-field/threshold-source native fold requests. Within quantifies
+;; over every request and every value continuation, not merely final cache keys.
+;; Run/read/batch provenance and prepared_reachable_cache exclude invalid scopes
+;; and unsupported IR source forms throughout admitted execution. Concrete review
+;; fixture derives preparation existence and exact initial keys without assuming
+;; installation success. reference_on_domain transports an independently proved
+;; body equation by well-founded induction over admitted lower requests only.
+;; The actual compiled-clause body equation and final recursive whole-observation
+;; equality remain open, as do literal Rust value/graph/map/vector and rendering
+;; boundaries. Fresh read-only review found no logical defect; its wording fix
+;; clarifies that the domain induction avoids equations outside the domain,
+;; rather than establishing semantics for invalid requests.
+;; Reachability verification: full Lean build and Batteries linter pass;
+;; check-axioms audits 1412 theorems with allowed axioms only. Four focused
+;; mutations fail their intended request-inventory/domain/provenance theorem.
+;; verified-by lint passes; vault comparison adds no unresolved reference pairs
+;; or syntax/SPL errors. Fresh proof and artifact review found no logical defect.
+
+;; Compiled-body continuation for [[SPEC-038-lvar-state-kernel#TEST-3806]]:
+;; StateCompiledFieldEquations derives exact final-dictionary rule/field lookup
+;; equations from successful compilation, preserving earlier source plans and
+;; clause-wide freeze attachment. Operational dependency options equal the full
+;; concrete reference inventory. prepared_body_normal binds every admitted field
+;; to its actual compiled normal step, leaving own-freeze finishing explicit.
+;; prepared_unfrozen_body proves the complete no-own-freeze step (even with a
+;; separately frozen dependency); prepared_no_freeze_reference/cache prove actual
+;; recursive reference and initial request transcript/cache equality for prepared
+;; clauses with no freezes, retaining faults and threshold source reads.
+;; General own-freeze finishing and threshold-output adaptation remain open;
+;; literal Rust values/graph/map/vector representations and rendering remain
+;; explicit boundaries. Fresh review found no logical defect or vacuity in the
+;; stated scope; concrete fixtures preserve a derived dependency's supersede
+;; freeze and construct no-freeze admission/metadata rather than assume success.
+;; Fault-case extension: finish_faulting/prepared_fault_body return the exact
+;; compiled terminal error before historical calls, including own-freeze and
+;; inherited witness unions. This is a body equation under compiled dependency
+;; meanings, not independent recursive cache fault equivalence: the successful
+;; own-freeze data case is still required for the general induction. Fresh
+;; read-only review found no defect in that stated scope.
+;; Final compiled-field checks: full Lean build and Batteries linter pass;
+;; check-axioms audits 1433 theorems with allowed axioms only. Four focused
+;; mutants reject erased/overwritten freezes, lost scopes and doubled derived
+;; post operations in named theorems. verified-by lint passes; vault comparison
+;; adds no unresolved reference pairs or syntax/SPL errors. Fresh proof/artifact
+;; review found no defect within the explicitly limited case-equation scope.
+
+;; Own-freeze continuation for [[SPEC-038-lvar-state-kernel#TEST-3806]]:
+;; StateScopeProperties constructs scope closure/containment/uniqueness and
+;; exact selected-root, activity, cut and excluded-evidence metadata.
+;; StateFrozenBodyEquations closes successful own-freeze finishing and composes
+;; all body cases into independent recursive reference and initial source-request
+;; transcript/cache equivalence for prepared clauses with freezes. Numeric
+;; address-ranked, content-consistent histories remain a prerequisite. Separate
+;; causal ranks preserving semantic addresses and final threshold-output scope
+;; composition remain required; this checkpoint does not complete native fold.
+;; Full Lean build and Batteries env-linter pass; 1453 theorems pass the axiom
+;; audit. Three targeted mutants fail their named scope/wrapper/body theorems;
+;; verified-by lint passes. Fresh independent proof review found no logical
+;; defect or vacuity and confirmed the stated transcript/output boundary.
+
+;; Separate-rank and threshold-scope continuation for
+;; [[SPEC-038-lvar-state-kernel#TEST-3806]]: StateCausalRank proves bounded
+;; ancestry/cuts under recognized topological list positions, preserving act
+;; identities and semantic address order, including a descending-address edge.
+;; Topological sorting and scope-pool/oracle migration remain required.
+;; Native fold regression reproduces a concurrent domain initializer outside a
+;; freezer cut: full count one/reached versus frozen zero/pending, with reversed
+;; and duplicate delivery. It explicitly does not claim protocol admission.
+;; A deliberate full-history raw-threshold scope mutant fails this executed
+;; test; the same mutant is retained in the isolated semantic mutation harness.
+;; All 18 freeze tests pass. Full Lean build and Batteries env-linter pass;
+;; two separate-rank proof mutants fail their intended theorem. Independent
+;; review finds no logical defect or vacuity. No new vault reference pairs or
+;; syntax/SPL errors; verified-by lint passes. Threshold-output composition and
+;; literal native extraction/installation/rendering boundaries remain open.
+;; Axiom audit: 1459 theorems, all dependencies allowlisted.
+
+;; Complete output-walk continuation for [[SPEC-038-lvar-state-kernel#TEST-3806]]:
+;; StateThresholdDispatch constructs exact allocated raw scope versus semantic
+;; selected cut. Source faults survive; raw queries also evaluate pending data.
+;; installedAt obtains policy/test/carrier from the named source metadata and
+;; supports native closure, factored raw-term and checked finite queries.
+;; StatePreparedOutputs walks actual prepared declarations with evolving source
+;; metadata. evaluate_complete constructs successful outputs from resolve;
+;; prepared_cache_outputs consumes the actual empty-cache source transcript and
+;; produces the same successful outputs as the corrected cut-scoped reference.
+;; Concrete authored context/count/threshold/freeze fixture constructs both
+;; successful preparation and output execution. Adapter-only fixtures separately
+;; distinguish raw carrier from pending/misleading displayed source payloads.
+;; This does not equate new output semantics with old full-history thresholdRaw
+;; plans: installed output-plan compiler/refinement still requires correction.
+;; Separate causal-rank scope integration and literal Rust installation/extraction
+;; and serialized output correspondence remain explicit obligations.
+;; Verification: full build and Batteries env-linter pass; 1476 theorems pass
+;; the axiom audit. Seven focused mutants fail intended scope/policy/transcript
+;; theorems. Verified-by lint passes; vault adds no unresolved pairs or syntax/SPL
+;; errors. Independent proof, fixture and artifact review found no defect or
+;; overstatement in the explicitly bounded output-reference composition.
+
+;; Output compiler continuation for [[SPEC-038-lvar-state-kernel#TEST-3806]]:
+;; StateOutputCompiler compiles source-owned closure/raw/checked finite policies
+;; to a closed Query inventory. Output instructions capture completed original
+;; source plans; Program retains clause freeze metadata. Ordered compilation
+;; refines independent cut-scoped output evaluation. authored_compiler_refinement
+;; constructs actual code from preparation and connects its entire vector to
+;; actual successful empty-cache reads and output adaptation.
+;; CompiledObservation captures the preparation history. Its observe method
+;; accepts no replacement history; history growth requires fresh preparation.
+;; A concrete authored fixture constructs preparation, code and cache outputs.
+;; Older generic full-history thresholdRaw plans remain source dictionary/check
+;; machinery and are not emitted native output instructions. No equivalence to
+;; their raw-history output semantics is claimed. Separate-rank scope integration
+;; and literal Rust installation/extraction/rendering remain open boundaries.
+;; Verification: full Lean build and Batteries env-linter pass; 1484 theorems
+;; pass the axiom audit. Four output compiler mutations fail intended policy,
+;; cut, fault and captured-history theorems. Verified-by lint passes; vault adds
+;; no unresolved reference pairs or syntax/SPL errors. Independent proof, API,
+;; concrete fixture and artifact review found no remaining defect in stated scope.
+
+;; Address-independent graph integration for
+;; [[SPEC-038-lvar-state-kernel#TEST-3806]]: StateFiniteCausalRank compresses any
+;; separate causal rank via lower-set counts, strictly increasing across edges
+;; and bounded below history length even with duplicates. Executable ancestor
+;; now uses history-length fuel; Ranked means a separate rank exists, never
+;; address order. Existing exact scope/cache/output proofs inherit this premise.
+;; No semantic addresses, HLC tie keys or delivery order are rewritten.
+;; StateCausalRank's Kahn candidate is independently checked for vertex coverage
+;; and edge ordering; causalCheck_sound supplies Ranked to freeze/context oracle
+;; validators. Rust test builders follow dependencies and restore delivery order;
+;; generated IDs deliberately descend along edges. Cycle rejection is covered.
+;; A concrete reversed/duplicated descending-address authored fixture constructs
+;; compilation, cache execution and complete output equality. Checker soundness
+;; is proved; checker completeness for all DAGs and literal native admission/rank
+;; extraction remain open, alongside native representation/rendering boundaries.
+;; Verification: full Lean/oracle build and Batteries env-linter pass; 1493
+;; theorems pass the axiom audit. All five live oracle tests pass at 512 generated
+;; cases; descending-label freeze and context campaigns each pass 10000 generated
+;; cases with three delivery variants. Twelve focused graph proof mutations and
+;; eighteen isolated native mutations fail executed intended checks. Verified-by
+;; lint passes; vault adds no unresolved pairs or syntax/SPL errors. Independent
+;; proof, integration fixture and artifact review found no defect/overstatement.
+
+;; Causal checker completeness for [[SPEC-038-lvar-state-kernel#TEST-3806]]:
+;; StateCausalCheckComplete proves minimum-rank ready selection and actual
+;; orderFuel termination/construction with exact accepted-vertex coverage,
+;; unique addresses and successful edge-order recognition. Content consistency
+;; and existence of a separate causal rank suffice, without delivery/address
+;; ordering. causalCheck_iff closes soundness/completeness; causalCheck_setEq
+;; proves recognition invariant under duplicate and reordered accepted sets.
+;; The duplicate/reversed descending fixture obtains rank independently of the
+;; checker under test. Empty history is accepted; a separate fixture demonstrates
+;; that rank recognition does not replace the outer predecessor-closure check.
+;; Literal native admission/address/installation/extraction/rendering boundaries
+;; remain required; this does not complete the full native correspondence goal.
+;; Verification: full build and Batteries env-linter pass; 1508 theorems pass
+;; the axiom audit. Three mutations of the actual checker/order implementation
+;; fail intended completeness theorems: discarded vertices, rejected empty work
+;; and an extra duplicate-delivery rejection. Verified-by lint passes; vault
+;; adds no unresolved pairs or syntax/SPL errors. Independent proof, fixture and
+;; artifact review found no defect; present-edge versus closure scope is explicit.
+
+;; Strict-wire context pin continuation for
+;; [[SPEC-038-lvar-state-kernel#TEST-3809]]: add quoted sha256 digest strings to
+;; the shared pin recognizer while retaining typed symbol compatibility and
+;; identical prefix/length/lowercase-hex validation. Lexer alphabet and existing
+;; forms/canonicalization are unchanged. Context tests and live oracle now use
+;; strict S-expression plus native message parsing, including correct/wrong pins.
+;; The new regression was observed red before recognition changed, then green.
+;; This closes the context-pin workaround only; BUG-006 envelope/suite-key cases
+;; and BUG-005 recognizer duplication remain open, as do formal native extraction
+;; and cryptographic/admission boundaries. SPEC-014's implemented grammar is not
+;; rewritten; the additive pin form is documented by draft CON-3804 and EBNF.
+;; Verification: all 13 context integration tests, 29 role unit tests and four
+;; state-vector factorization tests pass. Strict-wire context oracle campaign
+;; passes 10000 generated cases with three delivery variants. All 28 isolated
+;; semantic mutations and 18 live-oracle native mutations fail their executed
+;; intended tests, including rejecting quoted pins and bypassing pin validation.
+;; Verified-by lint passes; vault adds no unresolved pairs or syntax/SPL errors.
+;; Independent review found no validation/compatibility defect or overstatement.
+
+;; Finite metadata distinction continuation for
+;; [[SPEC-038-lvar-state-kernel#TEST-3806]]: the finite oracle accepts bounded
+;; tagged symbols in fields and contribution/projection literal positions.
+;; Rust emits strict-parser symbols; Lean retains a non-scalar opaque value.
+;; row_literal_not_list/row_ignores_opaque prove it cannot match verified scalar
+;; rows. Generated finite/freeze fields include same-spelling strings/symbols;
+;; the directed p0-versus-quoted-p0 case observes bottom/pending and authored
+;; symbolic row literals reject. Malformed tags/tokens reject before evaluation.
+;; This is not a general symbol decoder, admission check or full native metadata
+;; extraction proof. Queries and other profiles retain scalar input contracts.
+;; Verification: full Lean/oracle build and Batteries env-linter pass; 1510
+;; theorems pass the axiom audit. All five live-oracle tests pass at CI size;
+;; finite campaign passes 10000 generated cases with three delivery variants.
+;; Five focused finite projection proof mutations and nineteen isolated native
+;; mutations fail intended checks, including actual symbol-to-string conversion.
+;; Verified-by lint and vault comparison pass with no added unresolved pairs or
+;; syntax/SPL errors. Independent proof/profile/artifact review finds no defect.
+;; Native R7 inspection also confirms initial/domain initializer sources must be
+;; the unique protocol opener; deriving its ancestry through R5/R6 admission is
+;; the next locality obligation, not a law of arbitrary ranked fold inputs.
+
+;; Opener support locality for [[SPEC-038-lvar-state-kernel#TEST-3806]]:
+;; StateOpenerLocality uses a checked business-predecessor gate, not supplied
+;; opener ancestry. Separate causal rank gives an opener ancestor for every
+;; relevant business act; metadata outside protocol inventory is exempt. Clear
+;; initializer evidence plus content consistency gives unique opener support in
+;; each accepted business freezer cut. domain_cut restricts full domain selection
+;; to ancestors; healthy fault freezes retain every selected contributor, giving
+;; exact full/cut selection and raw count equality. count_success_at_fault_cut
+;; composes the result with growth monotonicity to preserve prior count success.
+;; Fixtures construct healthy metadata-rooted descending/reverse/duplicate reads;
+;; an acyclic unrooted case gives full count1/cut0 and fails the gate.
+;; Literal R5/R6-to-check extraction remains required: native begin alternatives
+;; mean R7 opener recognition alone does not supply this premise. Root/thread
+;; semantics, multiple/context domains and general source-policy locality remain
+;; open, alongside literal extraction/rendering. No native instability claimed.
+;; Verification: full build and Batteries env-linter pass; 1526 theorems pass
+;; the axiom audit. Three mutations fail intended local-parent, ancestor-cut and
+;; fault-policy locality theorems. Verified-by lint passes; vault adds no new
+;; unresolved pairs or syntax/SPL errors. Independent proof, healthy fixture and
+;; artifact review found no defect or overstatement in the conditional scope.
+
+;; Domain-support repair for [[SPEC-038-lvar-state-kernel#TEST-3806]]:
+;; The prior no-native-instability observation is superseded by an executed
+;; AdmissionMonitor counterexample: metadata-root references satisfy alternative
+;; begin predecessors, allowing an initialized-domain writer and freezer whose
+;; cone omits the initializer. Before repair reached changed to pending without
+;; fault. BUG-007 records this omitted dependency and the conditional fixture
+;; authentication boundary. Native/model footprints now retain initializer and
+;; roster-root support, including malformed/noncontributing source evidence.
+;; StateDomainSupportLocality proves allowed-set and exact selected-history
+;; locality for healthy fault cuts with multiple initial/roster domains, then
+;; count growth and prior-success preservation. No opener-dominance premise is
+;; needed. StateOpenerLocality remains a conditional helper, not an admission law.
+;; Verification: aggregate build and Batteries environment linter pass; 1541
+;; theorems pass the axiom audit. Native freeze/context suites pass 19/14 tests,
+;; including admitted reached-to-fault and reverse/duplicate delivery. All 30
+;; isolated semantic mutations fail intended executed tests; separate initializer
+;; and roster omissions are caught. A focused proof mutation removing domain
+;; support fails domain_allowed_cut. Independent review finds no code/proof/doc
+;; defect. Verified-by lint passes; no added unresolved vault pairs or syntax/SPL
+;; diagnostics. General source-policy locality, native installation/extraction
+;; and representation/rendering obligations remain open; the task stays active.
+
+;; Finite compiled-output stability for
+;; [[SPEC-038-lvar-state-kernel#TEST-3806]]: StateFiniteFreezePolicy composes
+;; domain-support selected-history locality with actual finite carrier folding,
+;; closed source-owned query compilation, upward reach and checked pair
+;; incompatibility. Every admitted alternative list preserves the same prior
+;; reached answer or exposes a fault after growth and an exact fault-policy cut.
+;; Source/freeze clarity and non-top state follow from observing the concrete
+;; frozen source plan; no healthy-source or carrier-equality premise is supplied.
+;; output_success_or_fault reaches the public compiled adapter with actual
+;; normalization and unique-root selection. A computed three-element table and
+;; mixed initializer/roster fixture construct non-bottom prior success and actual
+;; emitted reached output under reverse/duplicate delivery. A bypassed initializer
+;; makes the concrete frozen source fault. Independent review's request for an
+;; explicit healthy success assertion is addressed by normalized_source_clear
+;; and compiled_mixed_domain_reached; final review finds no defect/overstatement.
+;; Verification: aggregate build and Batteries env-linter pass; 1553 theorems
+;; pass the allowlisted axiom audit. Three focused mutations fail the named
+;; compiled stability/adapter theorem: supersede policy, removed finite guards,
+;; and empty raw scope. Verified-by lint passes; no new unresolved vault pairs
+;; or syntax/SPL diagnostics. Validated-field and selected unique-freezer
+;; boundaries are explicit. Complete authored plan lookup, no-root outputs,
+;; other source policies and native extraction/rendering remain open.
+
+;; Finite output stability across all root outcomes for
+;; [[SPEC-038-lvar-state-kernel#TEST-3806]]: StateFiniteOutputStability handles
+;; optional fault-freeze metadata and every actual unique-root outcome. Healthy
+;; unfrozen/absent-root reads use normalized full history; selected roots derive
+;; exact finite state locality. The actual observed source supplies domain/top
+;; and freeze faults, including concurrent roots whose unique selector is none.
+;; General output_success_or_fault no longer takes a selected-root premise;
+;; output_reached establishes actual emitted success when its source is clear.
+;; Fixtures prove unfrozen/waiting output success, explicit absent selectors,
+;; and actual emitted concurrent-freezer fault under reverse/duplicate delivery.
+;; installed_threshold_success_or_fault derives final guarded source lookup
+;; from successful installed field compilation, the original finite source rule
+;; and named freeze metadata. The actual compileOne emits the threshold; other
+;; fields/freezes coexist. A fixture constructs the dictionary then emitted
+;; output without assuming the final source-plan lookup. Original resolved-rule,
+;; retained-definition and freeze identifications remain premises; their full
+;; extraction from arbitrary authored preparation remains required.
+;; Verification: aggregate build and Batteries env-linter pass; 1567 theorem
+;; audits use only allowlisted axioms. Five focused mutations fail intended
+;; source-clarity, scope-state and installed-output theorems: erased source
+;; guard, erased freeze decoration, unintended unfrozen cut, mismatched original
+;; source guard and disconnected freeze metadata. Verified-by lint passes;
+;; no new unresolved vault pairs or syntax/SPL diagnostics. Independent proof,
+;; fixture and evidence-scope review finds no defect/overstatement. Other native
+;; policies, arbitrary authored extraction and native representation/rendering
+;; remain open; the outstanding quasi-determinism task is not completed.
+
+;; Authored finite source provenance for
+;; [[SPEC-038-lvar-state-kernel#TEST-3806]]: successful prepareStatic exposes
+;; actual domain/table resolution, source binding and finite make execution.
+;; declaration_origin and bindings_origin retain the actual successful factory
+;; calls; validated raw-name uniqueness ties final freeze bindings to the
+;; original authored finite field. freeze_origin retains the actual target and
+;; binding footprint. finite_factory_identity pins verb and resolved domains;
+;; the threshold stability gate derives optional fault-freeze metadata.
+;; authored_finite_source derives original resolved source lookup; authored_finite_plan
+;; constructs source compilation and final guarded source-plan lookup without
+;; supplied table, finite field, resolved source rule, freeze identity or final
+;; dictionary. Literal authored threshold arguments are preserved through the
+;; ordered lowering pass. A real authored three-element table fixture installs
+;; mixed initializer/roster domains, a forward initializer source and late freeze,
+;; computes supersede-threshold rejection and derives the complete source lookup.
+;; Verification: aggregate build and Batteries env-linter pass; 1585 theorem
+;; audits use only allowlisted axioms. Five focused proof-boundary mutations
+;; fail intended finite-binding, freeze-origin, resolved-source, final-plan and
+;; static-domain-trace obligations. Verified-by lint passes; no added unresolved
+;; vault pairs or syntax/SPL diagnostics. Independent provenance/fixture/artifact
+;; review finds no defect or overstatement. Evolving-prefix source-owned policy
+;; lookup and final emitted threshold membership remain the next finite output
+;; composition steps; other native policies and native representation/extraction
+;; remain open. The quasi-determinism task is not marked complete.
+
+;; Complete authored finite output composition for
+;; [[SPEC-038-lvar-state-kernel#TEST-3806]]: StateAuthoredOutputProvenance follows
+;; actual compileDeclarations environments and emitted occurrences. Origins plus
+;; validated name uniqueness identifies the exact original finite definition;
+;; finite_emitted derives query admission and actual raw-query code from
+;; successful compileOne. No prefix policy lookup or emitted occurrence is an
+;; external premise. StateAuthoredFiniteStability.authored_program_stability
+;; composes factory/source/freeze provenance, normalized contribution predicates,
+;; actual source-owned query compilation and every freezer outcome. It constructs
+;; complete compileAuthored code and proves that earlier native finite-test
+;; success persists after growth as the same named reached result or a named
+;; fault in the actual program observation vector. Prior success is native-test
+;; success on the recovered field; successive compiled-observation stability is
+;; still a separate step. Actual authored compilation is constructed in a mixed
+;; domain fixture. A separate complete emitted walk actually reaches ready with
+;; an unrelated false displayed payload, exercising actual prefix/raw dispatch.
+;; Verification: aggregate build and Batteries env-linter pass; 1595 theorem
+;; audits use only allowlisted axioms. Five focused proof mutations fail named
+;; obligations for erased prefix provenance, empty query environment, inverted
+;; admission, dropped actual program output and renamed reached result.
+;; Verified-by lint passes; no added unresolved vault pairs or syntax/SPL errors.
+;; Independent proof/fixture/artifact review finds no defect/overstatement.
+;; Next finite composition step: invert earlier compiled reached output, show
+;; unique output names identify the actual threshold occurrence, recover raw
+;; native-test success and transfer between source factory witnesses by probing
+;; equal stored definitions. Other policies and literal native extraction remain
+;; open. The quasi-determinism task remains outstanding.
+
+;; Successive actual finite observations and finite quasi-determinism for
+;; [[SPEC-038-lvar-state-kernel#TEST-3806]]: StateCompiledFiniteInversion
+;; preserves complete output names, recovers the actual raw-query alternative,
+;; native scope success and source data from reached code, then derives native
+;; full-history success via observed source guards, scope containment and upward
+;; reach. Equal stored definitions transfer tests across recovered factory
+;; witnesses. StateAuthoredFinitePreservation identifies the actual threshold
+;; occurrence by validated observation-name uniqueness; successive_compiled
+;; starts from a named reached member of the earlier actual compiled vector,
+;; rather than a supplied native-success/query-membership premise, and proves
+;; same named reached or named fault in the later actual compiled vector.
+;; quasi_determinism composes preservation for two distinct earlier successes
+;; into a named fault in any ranked/content-consistent actual compiled joint
+;; history containing both accepted sets. No concrete two-alternative authored
+;; fixture is claimed: fixtures invert an actual reached waiting-freezer output
+;; and construct two successful authored programs before specializing the
+;; preservation implication. Other native policies and literal Rust extraction
+;; remain outside this finite typed-boundary result.
+;; Verification: aggregate build and Batteries env-linter pass; 1608 theorem
+;; audits use only allowlisted axioms. Six focused proof mutations fail intended
+;; obligations for corrupted output names, invented query, erased source guards,
+;; detached earlier name, detached joint fault name and renamed later answer.
+;; Verified-by lint passes; no new unresolved vault pairs or syntax/SPL errors.
+;; Independent inversion/preservation/quasi-determinism and fixture/artifact
+;; review finds no defect/overstatement. Next native policies are existence,
+;; count, set/event membership, shaped nonnegative event sums and closure progress;
+;; their actual authored observation paths still need matching composition.
+;; The full quasi-determinism task remains outstanding.
+
+;; Native count/existence factory composition for
+;; [[SPEC-038-lvar-state-kernel#TEST-3806]]: StateNativeDataPolicies identifies
+;; the actual domain-aware kernel count with distinct selected-act cardinality
+;; on canonical retained history, and existence with the same selected history.
+;; Cardinality growth requires no duplicate-free delivery premise. Actual
+;; primitive source-owned policies compile into raw-query code with the proved
+;; cardinality/nonempty predicates; displayed payloads are not substituted.
+;; StateNativeDataFreeze reuses installed plan decoration, derives all-root
+;; selected-scope equality from observed source freeze clarity, and preserves
+;; earlier count/existence success under growth or exposes an actual sourcefault.
+;; No selected root, healthy source or cut-locality result is an external premise.
+;; Fixtures compute one count/true existence for mixed initializer/roster domains
+;; under reverse/duplicate delivery, actual compiled queries reach from pending
+;; payloads, oversized count rejects, and frozen count output success-or-fault
+;; is constructed. This does not assert the healthy reached branch of that last
+;; fixture or full arbitrary authored native-program preservation.
+;; Verification: aggregate build and Batteries env-linter pass; 1626 theorem
+;; audits use only allowlisted axioms. Six focused proof mutations fail intended
+;; canonical count, count bound, existence predicate, domain support, fault-policy
+;; and actual source decoration obligations. Verified-by lint passes; no new
+;; unresolved vault pairs or syntax/SPL diagnostics. Independent proof/fixture/
+;; artifact review finds no defect/overstatement. Next recover these legacy
+;; source/footprint identities from actual authored binding, reuse generic
+;; prefix/output occurrence provenance and compose successive compiled programs.
+;; Set/event membership, shaped sums, progress and literal native extraction
+;; remain open; the full quasi-determinism task stays outstanding.
+
+;; Actual authored count/existence preservation for
+;; [[SPEC-038-lvar-state-kernel#TEST-3806]]: StateAuthoredDataProvenance recovers
+;; actual source definitions, dependency footprints, guarded finalplans and
+;; optional fault-freeze metadata from successful preparation. Its closed proof
+;; Head index adds no dialect syntax/callback. Generic emitted_policy identifies
+;; source-owned code from the actual compiler prefix. StateAuthoredDataOutputs
+;; constructs complete programs and named instruction membership, derives count
+;; bound admission and reconciles normalized dispatch metadata. Its count and
+;; existence output laws transfer the previously proved kernel/factory laws into
+;; actual complete observation vectors. StateAuthoredDataPreservation inverts
+;; actual earlier named reached outputs to full-history count/nonempty predicates
+;; and proves count_successive/exists_successive between actual compiled programs.
+;; No prior native predicate or detached policy/occurrence lookup is a premise.
+;; These forms are singleton count-bound and singleton true-existence thresholds.
+;; Fixtures install both with mixed initial/roster domains, forward initializer
+;; and late freezes; supersede rejects. Both programs are constructed and earlier
+;; selected cardinality is computed as one. Preservation implications remain
+;; conditional on earlier compiled reached membership; fixture does not assert
+;; those antecedents for the complete authored programs.
+;; Verification: aggregate build and Batteries env-linter pass; 1649 theorem
+;; audits use only allowlisted axioms. Six focused proof mutations fail named
+;; binding-footprint, alternative ownership, actual program membership, count
+;; answer/bound inversion and existence-answer preservation obligations.
+;; Verified-by lint passes; no new unresolved vault pairs or syntax/SPL errors.
+;; Independent proof/fixture/artifact review finds no defect/overstatement.
+;; Next reuse the provenance/output path for set/event membership and shaped
+;; nonnegative event sums; progress requires its concrete causal-store bridge.
+;; Native installation/extraction correspondence remains open. The full
+;; quasi-determinism task is not completed.
+
+;; Set-union membership through actual authored observations for
+;; [[SPEC-038-lvar-state-kernel#TEST-3806]]: the proof-only Head inventory now
+;; includes the existing set-union rule and distinct-value expression. Existing
+;; binding/final-plan/freeze/prefix provenance automatically covers this head;
+;; no new dialect syntax or source callback is introduced. StateNativeMembership
+;; connects canonical domain-aware kernel projection to whole field-value
+;; membership, proves witness growth and actual source-owned raw-query behavior,
+;; and composes every fault-freeze root outcome. StateAuthoredMembership derives
+;; scalar admission, constructs complete program occurrences, inverts actual
+;; earlier reached outputs and proves successive_compiled: same named member
+;; result or named fault in the later actual compiled vector. No prior native
+;; membership or detached policy lookup is a premise. This is singleton scalar
+;; member over set-union; event maps remain separate.
+;; Fixtures compute duplicate/reverse native success and actual emitted query
+;; success with pending payload, reject structured queries and supersede freeze,
+;; construct both authored programs alongside count/existence with mixed domains,
+;; and compute an earlier native witness. Preservation remains conditional on
+;; an earlier compiled reached member; the full fixture does not assert it.
+;; Verification: aggregate build and Batteries env-linter pass; 1663 theorem
+;; audits use only allowlisted axioms. Six focused proof mutations fail named
+;; obligations for replacement-filtered set-union, inverted membership, wrong
+;; query tag, inverted scalar admission, invented native value and changed later
+;; answer. Verified-by lint passes; no new unresolved vault pairs or syntax/SPL
+;; errors. Independent proof/fixture/artifact review finds no defect/overstatement.
+;; Next event membership bridge: map_correct gives per-address selected cells;
+;; content consistency identifies each address-group winner with its originating
+;; writer, yielding field membership despite canonicalization. Event sums also
+;; need address-key total correspondence and actual nonnegative-shape evidence.
+;; Progress and literal native installation/extraction remain open; full task
+;; remains outstanding.
+
+;; Event membership authored composition checkpoint (REQ-3802 / REQ-3809).
+;; StateEventMapKernel derives actual source writers and signer/value cells from
+;; map_correct and address-content consistency, without a winner/cell premise.
+;; Canonical selected histories yield exact event-member/native-field agreement.
+;; Source-owned query compilation and all-root fault-freeze composition feed
+;; StateAuthoredEventMembership.successive_compiled: actual earlier/later authored
+;; programs preserve a singleton scalar member or expose the actual named fault.
+;; Native success is inverted from the actual earlier compiled reached output.
+;; Fixtures compute equal-payload distinct-address cells with signers, duplicate
+;; delivery, pending-payload query success, and structured/supersede rejection.
+;; The alternate signer fixture is low-level typed history, not admitted trace;
+;; the complete authored fixture leaves earlier compiled reached conditional.
+;; Verification: aggregate build and Batteries env-linter pass; 1683 theorem
+;; audits allowlisted. Six focused source mutations fail named obligations:
+;; signer grouping, clock selection, signer projection, inverted predicate,
+;; invented inversion value and changed later answer. Verified-by lint passes.
+;; Vault unresolved source/target pairs unchanged; syntax/SPL diagnostics unchanged.
+;; Independent proof, fixture, evidence and mutation review finds no defect.
+;; Next: exact event-map totals by address-key/writer correspondence, then actual
+;; accepted nonnegative-shape evidence. Native threshold_reads negative-credit
+;; test exercises state_exports::admit rejection, so metadata-only shape evidence
+;; must not substitute for that admission bridge. Closure progress and literal
+;; native installation/extraction remain outstanding; full task remains open.
+
+;; Exact event-total bridge checkpoint (REQ-3802 / REQ-3809).
+;; StateEventMapTotal.keys_perm proves supported keys are precisely the unique
+;; present-field source writers' addresses. map_total derives actual mapSum =
+;; native sumField; present_sum removes missing fields without changing totals.
+;; native_sum carries the equality through canonical history and domain selection
+;; into the kernel sum threshold test, under explicit unique-address input.
+;; Fixtures count equal payloads twice, keep a negative signed, omit missing and
+;; nonnumeric fields and ignore other verbs; exact bound 9 reaches and 10 fails.
+;; These typed arithmetic fixtures do not claim admission or sum stability.
+;; Verification: aggregate build and Batteries env-linter pass; 1691 audited
+;; theorems use allowlisted axioms. Four focused source mutants fail named
+;; obligations (inverted presence filter, signer keys, extra total unit, shifted
+;; threshold bound). Verified-by lint and diff check pass; no new unresolved
+;; vault pairs and zero syntax/SPL diagnostics. Independent proof/fixture/artifact
+;; review finds no defect or overclaim.
+;; Next compose actual sum-query compilation and all-root freeze preservation;
+;; obtain accepted nonnegative writer evidence from the real admission boundary.
+;; Native TypeConstraint::matches Nonnegative checks an Atom::Num n with n >= 0;
+;; metadata mandatoryNonnegative alone does not establish this for history acts.
+;; Closure progress and literal native extraction remain open.
+
+;; Authored event-sum composition checkpoint (REQ-3802 / REQ-3809).
+;; StateNativeEventSum compiles the actual source-owned singleton sum query,
+;; proves selected-total growth with explicit accepted nonnegative amounts, and
+;; derives normalized dispatch-scope uniqueness for every freezer-root outcome.
+;; sum_success_or_fault composes the actual observed error channel and exact cut.
+;; StateAuthoredEventSum derives bound/mandatory-shape policy from successful
+;; query compilation, constructs actual complete authored programs, inverts an
+;; earlier named reached output, and proves successive same-answer-or-fault.
+;; Earlier witnesses use normalized histories so delivery duplicates add no weight.
+;; Accepted later writer nonnegativity is an explicit external admission premise;
+;; this is not derived from installation metadata or claimed native extraction.
+;; Fixtures compute shaped installation, unshaped/out-of-range/supersede rejection,
+;; writer nonnegativity and actual emitted success from pending payload. Reviewer
+;; identified missing mint/amount schema metadata; fixture now declares it.
+;; Fixtures do not construct a concrete successive whole-program sum trace.
+;; Verification: aggregate build and Batteries env-linter pass; 1705 theorem
+;; audits allowlisted. Six focused source mutants fail named obligations:
+;; strict growth, query-bound shift, freeze-answer shift, lower-bound endpoint
+;; exclusion, invented inversion unit and changed later answer. Verified-by lint
+;; and diff check pass; no new vault unresolved pairs, zero syntax/SPL diagnostics.
+;; Independent proof/fixture/artifact review found no proof defect; stale open
+;; sum wording narrowed to actual admission-shape enforcement.
+;; Next: native state_exports::admit runs verify_state_shape then all matching
+;; ShapeConstraint::check before its causal stage. Bridge those successful checks
+;; to typed nonnegative amounts and strengthen concrete successive sum fixtures.
+;; Closure progress and literal native installation/extraction remain open.
+
+;; Shape-stage numeric evidence checkpoint (REQ-3802 / REQ-3809).
+;; StateNonnegativeAdmission models native first-top-level-keyword lookup and
+;; the necessary required/nonnegative projection of recognized WriterShape data.
+;; Given mandatory nonnegative metadata, checked_numeric derives a present numeric
+;; atom and nonnegative value. NumericExtraction retains the explicit expanded
+;; numeric lookup -> typed state field boundary. checked_amount/checked_history
+;; derive the old sum premise; successive_compiled composes actual authored sum
+;; preservation from per-message checks and extraction, not assumed positivity.
+;; This does not prove full native admission implies these checks/extraction.
+;; Fixtures compute checks, prove concrete extraction, reject negative-first,
+;; missing/dangling/quoted numeric values, and retain positive-first duplicates.
+;; StateShapeOracle plus live Rust module compares the Lean projection to actual
+;; ShapeConstraint::check with Require/Optional/Nonnegative rules, preserving atom
+;; tags and conjunction/verb selection. Seven directed and 512 generated cases
+;; pass (PROPTEST_RNG_SEED=380038), plus malformed-tag and depth-limit rejections.
+;; A native >=0 -> >0 mutation fails the live assertion on zero; source restored
+;; and final differential rerun passes. The first attempted test ran before the
+;; new oracle finished linking and saw the old binary; after terminal successful
+;; build it passed. No semantic failure is inferred from that stale-binary run.
+;; Aggregate build and Batteries env-linter pass; 1716 theorem audits allowlisted.
+;; Five focused proof mutants fail named obligations: negative acceptance,
+;; missing-required acceptance, skipped first keyword, strict positivity and
+;; changed preserved answer. Verified-by lint and diff check pass; no new vault
+;; unresolved pairs and zero syntax/SPL diagnostics. Independent review finds no
+;; proof defect; documentation now states the mandatory-metadata premise.
+;; Still required: general shape validation/admission implication and literal
+;; typed extraction; concrete successive full-program sum trace; closure progress
+;; and remaining native installation/extraction correspondence. Projection oracle
+;; trees are typed expanded messages, not strict wire grammar or full shape DSL.
+
+;; Concrete authored sum trace checkpoint (REQ-3802 / REQ-3809).
+;; StateAuthoredSumTrace computes exact static preparation and proves compiler
+;; history/freeze retention. compiled_reached derives actual named funded success
+;; from actual emitted query execution and a native total, without an assumed
+;; earlier-output member. With no domain/freezer guards the source is healthy.
+;; successive_trace constructs both complete authored programs: singleton writer
+;; amount5, then reverse duplicate [laterWriter(amount2),writer5,laterWriter2].
+;; It computes checked expanded messages and proves numeric extraction for both
+;; identities; later_total computes seven after normalization. Actual earlier
+;; reached success feeds StateNonnegativeAdmission.successive_compiled, yielding
+;; actual later named reached-or-fault without a conditional earlier antecedent.
+;; This concrete trace has no freeze declaration and does not claim native
+;; protocol admission; generic factory results retain all-root freeze scope.
+;; Verification: aggregate build and Batteries env-linter pass; 1723 audited
+;; theorems use allowlisted axioms. Five focused mutants fail named preparation,
+;; earlier-answer, extraction, duplicate-total and preservation obligations.
+;; Verified-by lint and diff check pass; no new unresolved vault pairs, zero
+;; syntax/SPL diagnostics. Independent proof/fixture/artifact review clean.
+;; Next progress composition: Context.causal_ext only proves equal-set store
+;; equality; it cannot establish Repeat.Extends for arbitrary Context.causal.
+;; Reconstruct the evidence store from retained accepted acts and immutable typed
+;; metadata, derive extension under consistent history growth, then compose the
+;; existing Repeat.resolve_stable/StateProgress.progress_monotone results.
+;; Full native admission/extraction and general repeat-body correspondence remain
+;; explicit boundaries; do not call a single-verb resolver a universal refinement.
+
+;; Concrete history-backed progress store checkpoint (REQ-3802 / REQ-3809).
+;; StateProgressStore reconstructs causal address lookup from history(rawHistoryA)
+;; and immutable per-act Repeat.Evidence decoding. origin/lookup derive provenance
+;; and content-consistent identity. store_setEq is unconditional on delivery order;
+;; store_growth derives Repeat.Extends from accepted growth and later consistency.
+;; find_agreement/executable_store expose the computable delivery-list lookup
+;; under consistency. context installs this concrete interpretation into kernel
+;; Context; kernel_value/test/stable connect actual domain-aware raw progress to
+;; StateProgress resolver monotonicity. compiled_query proves actual source-owned
+;; progress compilation uses closure dispatch over the computed display.
+;; No arbitrary whole-history monotonicity callback or final-result law is assumed.
+;; Typed fixtures compute causal progress2->3 despite reverse duplicate/competing
+;; delivery, exclude foreign-thread evidence, leave missing ancestry0, and compute
+;; actual kernel/query success plus stable raw test. Decoder convention is explicit
+;; and is not claimed to be native thread/cause parsing or protocol admission.
+;; Verification: aggregate build and Batteries env-linter pass; 1743 audited
+;; theorems use allowlisted axioms. Six focused mutants fail named lookup, reversed
+;; store growth, invented kernel position, strict growth, test-bound and query-bound
+;; obligations. Verified-by lint and diff check pass; no new unresolved vault pairs,
+;; zero syntax/SPL diagnostics. Independent proof/fixture/artifact review clean.
+;; Next authored closure/freeze composition: healthy progress footprint retains
+;; contributing verb acts rather than every accepted act. Transfer Repeat.At
+;; witnesses across verb-restricted inclusion, with decoded verb = source act verb
+;; as an explicit extraction law, then combine actual all-root freeze selection.
+;; Do not infer this law for arbitrary decoders: they can assign tick evidence to
+;; non-tick acts outside the footprint. General repeat bodies and literal native
+;; admission/metadata/installation/extraction remain explicit proof boundaries.
+
+;; Progress fault-freeze factory checkpoint (REQ-3802 / REQ-3809).
+;; StateProgressLocality derives contributing-verb lookup preservation, source
+;; provenance of actual Repeat.At witnesses, witness transfer and progress order
+;; under verb-restricted inclusion. Immutable decode must preserve act.verb;
+;; unrelated accepted acts need not be retained by a progress cut.
+;; StateProgressFreeze uses actual rawVerbs authored footprint and existing
+;; installed field decoration. healthy_payload derives the displayed full/cut
+;; scope from actual observed freeze clarity and freezeRead's earliest selection,
+;; covering absent declaration, absent earliest root and selected earliest root.
+;; No root/rank/locality/value callback is an external premise. run_payload handles
+;; snapshot/frozen presentations; success_or_fault compiles actual closure code
+;; and proves same reached output or actual source fault with arbitrary optional
+;; fault-freeze declaration and arbitrary global dispatch metadata.
+;; Typed fixtures compute coherent decoding, executable conflict absence, semantic
+;; freeze health, exact cut dropping an unrelated note, and specialize factory
+;; preservation from computed earlier progress. They do not establish complete
+;; authored program execution or native admission/decoding/general repeat bodies.
+;; Verification: aggregate build and Batteries env-linter pass; 1758 theorem
+;; audits allowlisted. Six focused mutants fail named empty lookup, invented
+;; position, strict growth, revisable policy, query-tag and later-answer obligations.
+;; Verified-by lint and diff check pass; no new unresolved vault pairs and zero
+;; syntax/SPL diagnostics. Independent proof/fixture/artifact review clean.
+;; Next authored progress source/freeze provenance and earlier-output inversion.
+;; Existing Head metadata hardcodes .verbs, unlike progress .rawVerbs; generalize
+;; proof head footprint/spec/decoration and shared provenance without changing
+;; existing count/existence/set/event runtime semantics. Then compose actual
+;; emitted occurrence and inversion into successive complete authored outputs.
+;; Full native decoder/admission/installation extraction remain explicit boundaries.
+
+;; Complete typed authored progress composition checkpoint (REQ-3802 / REQ-3809).
+;; Shared proof-only Head now includes existing progress and its actual rawVerbs
+;; footprint; other heads retain verbs/domain support. Head.spec/decorate/metadata
+;; and head_spec_setEq/head_decorate_setEq generalize existing compiler provenance,
+;; emitted occurrence, normalized decoration and named reached inversion. No runtime
+;; syntax or algorithm changes. Existing count/existence/set/event paths build.
+;; StateAuthoredProgress.admitted_query derives bound and closure strategy from
+;; actual compilation. native_success recovers actual displayed healthy scope,
+;; inverts the compiled closure result through payload_success, and lifts native
+;; progress to full accepted history by reconstructed-store growth. program_stability
+;; constructs the actual later emitted vector and composes all-root factory
+;; freeze preservation. successive_compiled joins real earlier/later programs.
+;; Premises remain fixed prepared dialect, constructor-backed context, coherent
+;; immutable decoder, ranked content-consistent histories and accepted growth;
+;; no native predicate, detached policy/source lookup or chosen cut is supplied.
+;; Fixtures compute installation/bound/supersede checks; earlier_reaches constructs
+;; actual named complete nofreeze output from computed native progress. Its
+;; successive_trace uses actual reached antecedent under reverse duplicate growth.
+;; Frozen fixture constructs both complete programs with actual freeze footprint
+;; and specializes preservation conditional on earlier reached membership.
+;; Verification: aggregate build and Batteries env-linter pass; 1772 audited
+;; theorems allowlisted. Eleven focused mutants fail named shared-data/progress
+;; obligations, including raw footprint, fault policy, endpoint, inversion and
+;; answer identity. Verified-by lint and diff check pass; no new unresolved vault
+;; pairs and zero syntax/SPL diagnostics. Independent proof/fixture/artifact review
+;; found no defect, vacuity, backward-compatibility issue or overclaim.
+;; Next audit remaining literal acceptance obligations from TEST-3806 and current
+;; SPEC proof boundary inventory: native installation gate/finite validator,
+;; immutable metadata decoding/general repeat bodies, Rust scoped/memoized reader,
+;; resource closure-to-certificate path, strict wire and rendering correspondence.
+;; BUG-006 envelope/key cases remain open. Typed progress completion does not
+;; establish those literal boundaries or complete the full SPEC-038 objective.
+
+;; Audit-driven concrete authored resource bridge (REQ-3800 / REQ-3808 / REQ-3809).
+;; Audit read the current TEST-3806/REQ-3806 acceptance, closure-head requirement,
+;; installed resource native/certificate read, authored binder and boundary inventory.
+;; Confirmed gap: individual concrete factory equivalence did not identify its
+;; actual authored source and emitted complete-program field. Implemented that path.
+;; StateAuthoredResource.binding recovers actual native term/certificate guard,
+;; absent threshold policy and raw operation footprint from original resource lookup.
+;; native_read composes exact native verifier snapshot/certificate equality with
+;; all extra domain guards. prepared_source/authored_plan derive original resource
+;; definition and completed plan with exact clause-wide freeze attachment.
+;; field_emitted derives actual instruction membership from successful code walk;
+;; authored_emitted constructs complete compilation and named source observation
+;; without supplying that walk/source lookup/final output as premises.
+;; authored_native_read specializes no-domain/no-freeze complete output to actual
+;; native read plus exact certificate evidence from config/projection identities.
+;; Fixtures construct native profile/input bounds/typed projection and complete
+;; programs for ready value1000 and unfunded budget fault with exact native evidence;
+;; resource threshold rejected. Frozen/domain cases retain exact source composition,
+;; not a false verifier-only outcome that omits those guards or freeze semantics.
+;; Verification: aggregate build and Batteries env-linter pass; final 1788 theorem
+;; audits allowlisted. Eight focused mutants fail certificate guard, policy, fault,
+;; freeze, field identity, complete read, ready value and budget-fault obligations.
+;; Linter initially found an unused supported-config premise in a fixed fixture;
+;; removed the premise from its theorem and retained conditional profile field via
+;; an explicit lambda. Rebuilt, re-linted, re-audited and reran all eight mutants.
+;; Verified-by lint/diff check pass; no new unresolved vault pairs, zero syntax/SPL
+;; diagnostics. Independent proof/fixture/artifact review found no defect/overclaim.
+;; Remaining audit inventory: literal native installation and cached upper-set
+;; validator correspondence; per-act native metadata/signature/admission extraction,
+;; general repeat bodies; Rust mutable scoped/memoized reader; strict wire and
+;; renderer correspondence. BUG-006 envelope/key parser forms remain open. The
+;; legacy kernel resource callback port remains distinct; actual authored resource
+;; bindings now use the concrete verifier-to-output path proved here.
+;; Next select a literal installation/cache boundary against its current Rust
+;; source and existing executable Lean model; do not claim full SPEC completion
+;; from individual factories or this no-domain/no-freeze specialization.
+
+;; Native finite reads-cache/policy integration checkpoint (REQ-3802 / REQ-3810).
+;; Audited Rust r7.rs740-797: it builds projected/maxima vectors and predecodes
+;; reads once before indexed i<j scanning. Existing LeanPairLoop decoded scalars
+;; perpair, so that stage was missing despite cache/compatibility proofs.
+;; StateFiniteReadCache.compileReads now builds original-scalar/typed-query rows;
+;; reads_sound, reads_complete and reads_index derive value/order/length/alignment
+;; and actual decoder identity, including admission's expect/unreachable safety.
+;; projected_display connects stored numeric projections with actual scalar kinds.
+;; reason/row/pairs refinement preserves exact row-major first diagnostic, duplicate
+;; precedence and original indices. check_refinement proves cached complete gate
+;; equals exhaustive reference; policy_refinement and compiled_query_refinement
+;; connect it to actual source-owned policy and exact query compiler behavior.
+;; Raw-stage tests distinguish bool true from int1 despite equal cached numeric1;
+;; actual admission separately rejects the heterogeneous query pair. Other fixtures
+;; cover unknown/false/top/oversized/empty rejection, mixed/negative compatibility
+;; and a later duplicate at original indices1,2.
+;; Live finite oracle now calls cached check. Added a directed incompatible named
+;; pair exercising both cached read indices. Isolated native reads[j]->reads[0]
+;; mutation is caught by the actual Rust/Lean assertion; source restored by runner.
+;; Added --mutant selection to existing isolated runner; default retains all old
+;; mutants/baselines and unknown names reject instead of silently doing no work.
+;; Verification: full library and oracle build plus Batteries env-linter pass;
+;; 1813 theorem audits allowlisted; seven focused proof mutants fail alignment,
+;; decoding, indices, empty admission and scalar/duplicate-identity obligations.
+;; All six live oracle tests pass at PROPTEST_CASES=512/RNG_SEED=380038 after the
+;; cached-gate substitution (finite, freeze, nested, context, shape and malformed
+;; input coverage). Verified-by lint/diff check pass, no new unresolved vault
+;; pairs and zero syntax/SPL diagnostics. Independent review found no defect or
+;; overclaim in proofs, fixtures, native mutant, runner filtering or evidence.
+;; Remaining: literal Rust extraction and usize/index representation, formatted
+;; diagnostics and allocation/runtime cost are not inferred from typed caches.
+;; Full native install/metadata/admission/mutable reader/wire/renderer boundaries
+;; remain required; this checkpoint does not establish full SPEC-038 completion.
+
+;; Installed bounds / finite machine-index checkpoint (REQ-3810 / TEST-3806).
+;; BUG-008: authored metadata gate omitted native positive/default-tightening
+;; bounds validation. Four-element table under max-list65 exposed Lean/Rust
+;; disagreement; StateInstalledBounds now models exact native rejection predicate,
+;; preparation derives bounds validity, finite oracle admits configured limits.
+;; Earlier suspected wrong 64-element cap was disproved by native R7 rejection;
+;; retain the cap. Correct old synthetic fixtures that exceeded other defaults.
+;; BUG-009: strict parser cast positive i64 to u32, accepting 2^32+default via
+;; wraparound. Checked conversions now reject oversized list/fields/string values.
+;; Actual strict-wire regression covers all three; restoring max-list truncation
+;; makes it fail. Native R7 guard-bypass mutant fails live Lean comparison.
+;; StateFiniteIndexBounds proves dense row-major length/lookup and UInt32/UInt64
+;; offset arithmetic under checked carrier bound; successor proofs retain explicit
+;; physical query-length premise. Query alternatives are not capped at64 by this.
+;; Verification: aggregate build, env-linter, 1843 allowlisted theorem audits;
+;; 191 selected native tests; all six live oracle suites at512 cases/seed380038;
+;; 14 focused proof mutants rejected. Verified-by/diff checks pass. Vault comparison
+;; adds no unresolved source/target pairs; syntax/SPL diagnostics remain empty.
+;; Remaining: literal Rust installation/cache extraction, metadata/admission,
+;; general repeat bodies, mutable reader, strict wire/renderer correspondence,
+;; formatted diagnostics, allocation/runtime costs. No full completion asserted.
+
+;; Dense finite cache composition checkpoint (REQ-3802 / REQ-3810).
+;; StateFiniteDenseCache uses UInt32/UInt64 row-major offsets to access the
+;; checked dense join vector. merge_refinement excludes fallback and preserves
+;; the exact semantic join. denseMaxima filters non-top principal upper sets
+;; using those accesses and derives the same stored maxima vector.
+;; Construct that vector at gate entry and explicitly thread it through named,
+;; mixed/numeric compatibility, duplicate-first reasons and both indexed loops.
+;; Complete gate equality and source-owned policy/query-compiler refinement follow
+;; without assuming a cache oracle or changing original scalar identity/indices.
+;; Both-width fixtures cover mixed incompatibility rejection, later duplicate
+;; indices1,2, singleton acceptance and empty rejection. Oracle now computes both
+;; gates for every admitted finite query list; backend disagreement is an error
+;; before comparison with native. This repairs review's masking/short-circuit
+;; finding against the first OR-combined backend rejection harness.
+;; Verification: aggregate library/oracle build and Batteries env-linter pass;
+;; 1856 theorem audits allowlisted; six substantive proof mutants rejected at
+;; lookup, top exclusion, named compatibility, duplicate precedence, inner index
+;; and empty-query obligations. All six live Rust/Lean suites pass at512 cases,
+;; RNG_SEED380038. Fresh read-only re-review found no remaining defect. Verified-by
+;; and diff checks pass; no new unresolved vault pairs, zero syntax/SPL errors.
+;; This closes composition of the typed dense arithmetic/cache stage. Literal
+;; Rust extraction, allocation/runtime costs and formatted diagnostics are still
+;; separate obligations, along with remaining native metadata/admission/mutable
+;; reader/general wire/renderer boundaries. Full SPEC completion is not asserted.
+
+;; Context cast syntax checkpoint (REQ-3811 / REQ-3810 / TEST-3809).
+;; StateContextCastSyntax recognizes native binding-tree grammar before semantic
+;; context validation: symbol role, symbol keys; raw strings/keywords never coerce.
+;; Roundtrip preserves exact rows/order/duplicates. recognize_iff derives both
+;; grammar and installed bindingsCheck from success. installed_cast connects raw
+;; metadata to source-owned context casting with an absent pin. Malformed parsed
+;; trees remain explicit malformed fields; parse failure is a transport input error.
+;; Context oracle accepts raw cast text, runs CBCL.parse and this recognizer, then
+;; uses the existing proved context reader. Native harness embeds identical text
+;; in actual with-roles/signed/lang messages and uses strict parser/install/fold.
+;; Directed and generated cases cover valid/reordered, quoted role/key, keyword,
+;; duplicate, empty, unknown and incomplete bindings. Input error for unparseable
+;; text is checked separately. Existing typed cases and pin variants remain.
+;; Verification: aggregate library/oracle build and Batteries env-linter pass;
+;; 1869 audited theorems use allowlisted axioms. Four proof mutants fail quoted
+;; key/role, malformed-vs-absent and semantic-gate obligations. Isolated actual
+;; Rust parse_cast quoted-account acceptance mutation fails live comparison.
+;; All six live oracle suites pass at512 cases/seed380038; final context rerun
+;; also covers the added transport-error assertion. Verified-by and diff checks
+;; pass; no new unresolved vault pairs, zero syntax/SPL diagnostics.
+;; Read-only review found no proof defect; clarified absent-pin theorem scope and
+;; parsed-invalid versus unparseable text. Updated Lean README/oracle guide.
+;; Remaining: wrapper traversal and pin syntax, general message metadata/admission,
+;; literal Rust installation/mutable reader/wire/renderer correspondence. The
+;; raw binding-tree bridge does not discharge these or full SPEC acceptance.
+
+;; Context wrapper/pin checkpoint (REQ-3811 / TEST-3809).
+;; StateContextWrapperSyntax recognizes exactly bindings or bindings :dialect
+;; pin. pinCheck_iff and pin_length establish exact sha256 prefix, lowercase
+;; ASCII hex64 and total character length71. String and typed-symbol forms
+;; agree; successful pin parsing retains its original spelling. No repair.
+;; metadata retains parsed malformed parameters as an explicit malformed cast.
+;; installed_cast composes whole parameter recognition to actual context casting,
+;; including absent/matching/wrong pins and all installed semantic role checks.
+;; unpinned reduces to prior raw-cast gate; matching/wrong-pin and fixed-parameter
+;; theorems derive rejection/acceptance without an external typed-pin assumption.
+;; Context oracle wrapper-params traverses both strict S-expression parsers and
+;; native message parsing/fold. Exact reference digest at the pin value slot maps
+;; to native installed hash and independent Lean identity token. All other pins
+;; remain unchanged; cryptographic identity normalization remains a boundary.
+;; Added context-wrapper parser-only profile to compare native parse_wrapper_cast
+;; acceptance before the independent context identity gate can mask a permissive
+;; grammar regression. Directed and generated complete context cases use raw
+;; parameters, good/wrong pins, uppercase/Unicode, bad prefix/length, nontext pins,
+;; misplaced/quoted/unknown keywords and extra parameters.
+;; Verification: aggregate library/oracle build, Batteries env-linter and 1889
+;; allowlisted theorem audits pass. Five proof mutants fail prefix/length checks,
+;; quoted keyword rejection, wrong-pin identity and malformed-vs-absent equations.
+;; Actual isolated native pin grammar bypass fails parser-only live comparison;
+;; all six live suites pass at512 cases/seed380038. Verified-by/diff checks pass;
+;; no new unresolved vault pairs and zero syntax/SPL diagnostics. Independent
+;; read-only review found no defect in proofs, normalization, harness or scope.
+;; General whole-message wrapper traversal, metadata extraction/authentication,
+;; literal native installation/mutable reader/wire/renderer proofs still remain.
+;; These parameter-level results do not establish full SPEC-038 completion.
+
+;; Typed context message traversal checkpoint (REQ-3811 / TEST-3809).
+;; StateContextMessage retains the four native message categories and four
+;; wrapper kinds. nomination selects outermost with-roles parameters, including
+;; malformed ones; thread independently reaches the simple message below it.
+;; nativeCast independently expresses native context cast traversal. By structural
+;; induction, extracted metadata and installed casting agree for every typed tree;
+;; profile_cast and root_decoder derive the actual installed context interfaces
+;; from immutable message projections, without supplied cast/pin classifiers.
+;; Tests cover all transparent wrapper kinds/dialect nodes, malformed outer
+;; shadowing, thread below shadowed casts, required/missing casts and role-free
+;; definitions (still reject malformed explicit nominations).
+;; Context oracle message-wrappers descriptors are outermost-first, parsed before
+;; construction, bounded to32. Native harness encloses complete messages and uses
+;; strict S-expression/native message parsing. Hash-token substitution is restricted
+;; to with-roles pin positions, not transparent wrapper parameters. Fixed cases
+;; exercise outermost precedence and ignored wrapper thread keywords; property
+;; generation also composes arbitrary up-to8 layers from all four transparent
+;; forms and valid/malformed role nominations. Invalid descriptor kind/nonlist
+;; params/depth33 are input-error cases, not accepted histories.
+;; Verification: aggregate library/oracle build, Batteries env-linter, 1900
+;; allowlisted theorem audits pass. Four proof mutants fail nomination precedence,
+;; thread traversal, malformed metadata and missing-role-cast equations. Actual
+;; isolated Rust context traversal mutation stopping at a transparent wrapper
+;; fails the live Lean comparison. All six live suites pass at512 cases/seed380038
+;; after adding generated nesting. Independent read-only proof/harness review
+;; found no defect, including the final generator delta. Verified-by/diff checks
+;; pass; no new unresolved vault pairs, zero syntax/SPL diagnostics. Docs updated.
+;; This proves typed category traversal and exact installed profile/root decoding;
+;; general projection from full native AST and wire recognition/authentication/
+;; admission are not proved by descriptor construction. Remaining literal native
+;; installation/mutable reader/renderer boundaries keep full SPEC acceptance open.
+
+;; Native shape/state keyword ambiguity repair (REQ-3802 / ADR-3805).
+;; Auditing NumericExtraction exposed BUG-010: native shape lookup reads the
+;; first matching keyword, while state::keyword_fields retains the last. Strict
+;; parsing and public state_exports::admit accepted amount10 followed by amount-1
+;; under a nonnegative shape. With prior accepted positive10, raw folded funded
+;; changed reached->pending. Regression was observed red with Admission::Accepted.
+;; R7 closed-field recognition now tracks nonrouting data keys and rejects
+;; duplicates on state-bearing verbs. Unique-key messages retain prior behavior;
+;; ordinary low-level folding stays total/last-value outside the admitted domain.
+;; Regression validates ordinary positive admission, original before/after fold,
+;; ambiguous candidate rejection, and duplicate equal/positive/reversed values.
+;; SPEC-019 R4 now states the unambiguous data-key condition; SPEC-038 and author
+;; reference explain the shared-value invariant. BUG-010 records mechanism/fix.
+;; Existing isolated native mutation runner now also supports the exact normal
+;; threshold_reads regression (without --ignored), labels native admission evidence
+;; separately, and still requires actual executed test/assertion failures. Bypassing
+;; only the duplicate guard reproduces the failure; original source is restored.
+;; Verification: 206 selected parser/threshold/state/export/corpus/finite tests
+;; and all881 core unit tests pass; six live oracle suites pass at512 cases and
+;; seed380038. Guard mutant caught, verified-by/diff checks pass; no new unresolved
+;; vault pairs, zero syntax/SPL diagnostics. Independent read-only review found
+;; no defect or scope overclaim. Lean sources unchanged in this native repair.
+;; General NumericExtraction must still be derived from recognized unambiguous
+;; native parameters and actual field conversion; this repair supplies a missing
+;; native admission premise, not that whole theorem. Full SPEC stays open.
+
+;; Shape-to-state numeric extraction checkpoint (REQ-3802 / TEST-3806).
+;; StateKeywordExtraction recognizes complete keyword/value parameters and
+;; validates unique nonrouting data keys before materializing typed state fields.
+;; parse_sound derives exact source rows; shape_member/after_value prove a numeric
+;; first-match cannot be fabricated by a keyword-looking value. fields_unique and
+;; numeric_member derive exact last-first field lookup under the R7 uniqueness
+;; condition. Routing exclusion is explicit, with routing_absent/zero amounts.
+;; clean positional headers preserve lookup. extract_sound derives grammar,
+;; uniqueness and field identities from successful extraction. checked_amount
+;; derives actual nonnegativity without NumericExtraction; successive_compiled
+;; composes it into complete authored sum preservation with reached-or-fault.
+;; Fixtures cover exact numeric extraction, duplicate equal/signed values,
+;; routing repetition, positional/dangling rejection and keyword-valued atoms.
+;; New keyword-extraction profile compares strict wire/message parsing, native
+;; R7/shape checks and amount from actual native Act fields. Closed campaign keys
+;; are amount/other/thread; thread strings are the explicit transport contract,
+;; native amount bounds checked. This profile is not full protocol admission.
+;; Verification: aggregate library/oracle build and Batteries env-linter pass;
+;; 1920 theorem audits allowlisted. Four proof mutants fail routing exclusion,
+;; numeric preservation, duplicate gate and original-key identity obligations.
+;; Actual native numeric-value corruption and duplicate-guard bypass both fail
+;; live comparisons. All seven live suites pass at512 cases/seed380038. Verified-by
+;; and diff checks pass, no new unresolved vault pairs, zero syntax/SPL diagnostics.
+;; Independent read-only review found no concrete defect/overclaim. Docs updated.
+;; Scalar/scalar-list projection does not represent arbitrary nested native
+;; values or canonical field ordering. General full native AST/parser/admission
+;; correspondence to these recognized parameters/typed fields remains required;
+;; remaining installed/mutable-reader/wire/renderer obligations keep SPEC open.
+
+;; Native root metadata identity conflict (BUG-011 / REQ-3811 / REQ-3807).
+;; Actual strict-parser/public-admission reproduction: distinct sealed rosters
+;; share one Act.address (innermost-simple hash); each is accepted in a fresh
+;; history and returns a different reviewer set. Full Acts retain different
+;; messages, so this is not claimed as SEC failure over equal complete Act sets.
+;; Independent review confirmed the fixed per-address metadata proof blocker and
+;; SPEC-014 REQ-625 whole-wrapper commitment versus SPEC-038 address preservation.
+;; Prepared a concrete review-only root-commitment patch, applied temporarily and
+;; tested: all15 context tests pass including the new commitment regression;
+;; bounded-ceiling corpus then fails an actual golden root address. No vectors
+;; rewritten. Production source/test fully restored; original14 context tests and
+;; corpus pass again. Patch and reproducible evidence live in BUG-011 artefacts.
+;; Human contract question submitted with three explicit alternatives below.
+;; Do not apply the migration or infer an immutable-host premise from silence.
+;; Unrelated work may continue; full goal stays active, not completed or paused.
+(given (task root-cast-identity-contract))
+(given (task-description root-cast-identity-contract "User/protocol maintainer chooses role-root identity contract after reviewing BUG-011 reproduction and concrete review-only patch. Existing root address does not commit sealed cast; wrapper commitment prototype changes a golden address."))
+(given (task-acceptance root-cast-identity-contract "REQ-3807/REQ-3811/TEST-3806: explicit user choice recorded for wrapper-hash migration, immutable host binding, or conflict-aware cast variants; amend applicable contract and derive implementation acceptance from that choice. No inferred approval."))
+(given (no-deps root-cast-identity-contract))
+(normally r-ready-root-cast-identity-contract
+  (and (task root-cast-identity-contract) (no-deps root-cast-identity-contract))
+  (ready root-cast-identity-contract))
+(meta r-ready-root-cast-identity-contract
+  (description "A reproduced native identity/compatibility conflict is ready for human contract choice")
+  (source "SPEC-038-lvar-state-kernel#REQ-3807"))
+(given (requires lean-quasi-determinism root-cast-identity-contract))
+
+;; Independent JSON emission checkpoint (REQ-3807 / TEST-3807).
+;; BUG-011 human root-contract decision remains pending; no address migration or
+;; immutable-host premise was inferred. This work does not depend on that choice.
+;; StateJsonString defines native canonical escapes and an independent fragment/
+;; stream decoder. Control arithmetic exhaustively checked for all32 C0 scalars;
+;; escape_prefix composes arbitrary adjoining fragments, contents/quote roundtrip
+;; preserve all Unicode scalar sequences, quote is injective. Explicit buffer
+;; loop append_contents/emit_refinement preserve any prior output string.
+;; StateJsonValue models all native Value variants, with separate declarative
+;; compact spelling and operational append-buffer loops. Mutual refinement proves
+;; strings, integers, booleans, arrays/sets, map key text, event pairs and whole
+;; state emission preserve exact bytes relative to the declarative formatter.
+;; Stored container/clause order is retained; construction owns sorting/dedup.
+;; StateJsonOracle exposes state-render tagged values with canonical signed
+;; decimal/i128 validation and depth32. Exact UTF8 rendering strings are compared
+;; to public Rust Value::render/render_json, without parsing rendered strings
+;; before equality. Additional JSON-validity assertions are separate. Directed
+;; and generated cases cover all variants, all C0 controls, Unicode, i128 extrema,
+;; nested/nonstring map keys, event payloads, stored duplicates and clause order.
+;; Verification: aggregate library/oracle build, Batteries env-linter and1944
+;; allowlisted theorem audits pass. Eleven focused proof mutants fail escaping,
+;; lowercase controls, buffer/closing quotes, value/array/map/event/state emission.
+;; Native uppercase-control-hex and reversed whole-state order mutants both fail
+;; exact live comparison; parsed JSON equality can hide those representation changes.
+;; All eight live suites pass at512 cases/seed380038. Verified-by/diff checks pass;
+;; no new unresolved vault pairs, zero syntax/SPL diagnostics. Independent read-only
+;; proof/harness review found no defect and confirmed exact-string comparison.
+;; Integer formatting remains a shared model primitive whose native correspondence
+;; is tested, not proved. Native Rust extraction, semantic-value representation,
+;; constructor canonical ordering/evidence sorting and full serializer composition
+;; remain obligations. General admission/installed/scoped-reader and BUG-011 root
+;; binding decisions keep full SPEC-038 acceptance open. No completion asserted.
+
+;; Canonical fault evidence continuation: StateFaultRendering proves exact
+;; membership, uniqueness, UTF-8 byte order, finite-realization independence and
+;; semantic freeze fault serialization from executable witness enumeration.
+;; Fixed reason/address representation are explicit; recovering identities also
+;; requires injectivity. Reference merge sort does not prove native radix sorting.
+;; Live fault-evidence comparison passes 512 cases/seed380038 with reordered and
+;; duplicated delivery, concurrent freezer roots and repeated writer evidence.
+;; Native radix property now includes arbitrary Unicode, empty and NUL addresses.
+;; Four proof mutants and two native sorting/dedup mutants are rejected by their
+;; named proof obligations or executed exact-string comparisons. All nine live
+;; suites pass; library/oracle build and Batteries env-linter pass. Independent
+;; read-only review found no substantive defect. Full acceptance remains open:
+;; native AST/admission/installed-reader refinement, native representation and
+;; radix-sort correspondence, integer formatting and BUG-011 root contract.
+;; Axiom audit passes 1967 theorems, all allowlisted. Strict hence validation
+;; still reports pre-existing undefined failure-state literals and missing source
+;; annotations; baseline HEAD and this comment-only continuation share that debt.
+
+;; Plan graph reconciliation: removed obsolete flat-name readiness, agent
+;; assignments and generated lifecycle/failure rules. Current parameterized
+;; readiness and provenance are copied from elephant describe, with descriptions
+;; and TEST-derived acceptance from the task ledger. Runtime completion remains
+;; signed journal state rather than a fabricated claims wrapper.
+;; Hence 0.7 strict source warnings reproduce on a minimal source-annotated rule:
+;; its validator unconditionally warns for every non-lifecycle rule, ignoring
+;; (meta rule (source ...)). Elephant describe/next remain the provenance gate.
+;; A clean Elephant store recognizes this graph. Initially next offers
+;; lattice-algebra, semantic-alignment and root-cast-identity-contract; asserting
+;; completed lattice-algebra enables threshold-reads, conflict-top,
+;; lean-lift-theorem and context-map, while the capstone stays unready. Every
+;; readiness rule resolves source provenance through describe. Hence 0.7 also
+;; treats parameterized completed/1 as an undefined flat literal; no dummy
+;; completion fact is added to satisfy that incompatible lifecycle recognizer.
+
+;; Fresh review closes the docs-status dependency gap: context-map, semantic
+;; alignment and root-cast-identity-contract completion are required before
+;; the task can mark the full specification implemented. Live rule reconciled.
+;; Clean-store what-if checks independently omit each new prerequisite: docs
+;; readiness is false without semantic-alignment, context-map or the root
+;; contract; it is true when all six explicit prerequisites are completed.
+
+;; Native radix representation continuation: StateAddressDigits proves the
+;; exact getElem?/byte+1/missing-zero digit law, 257-bucket bound, fixed-width
+;; lookup and byte-comparison equality, maximum-width coverage and injectivity.
+;; On ordered output, adjacent duplicate removal equals canonical finite-set
+;; normalization. Permutation plus padded-key ordering therefore implies exact
+;; canonical fault evidence and emitted JSON. Those two premises remain the
+;; counting/scatter pass obligations, with native machine-index/count safety.
+;; Five targeted mutations fail their named digit, padding, ordering, width or
+;; adjacent-dedup proofs. Library/oracle build and Batteries env-linter pass;
+;; independent read-only review found no concrete defect and confirmed scope.
+;; Final axiom audit: 1981 theorems, all allowlisted. Verified-by/diff checks
+;; pass. Native source and oracle behavior are unchanged in this proof slice;
+;; the preceding nine-suite/512-case native evidence remains applicable.
+
+;; Counting/scatter arithmetic continuation: StateAddressCounting derives exact
+;; occurrence counts from bucket increment folds, prefix offsets from the native
+;; recurrence and scatter cursors from the actual processed-prefix increments.
+;; Bucket ends fit scratch length; destinations stay inside their bucket; equal
+;; keys preserve occurrence order; distinct bucket ranges are disjoint. Any two
+;; distinct occurrence positions target different cells, even duplicate indices.
+;; Counts/offsets/partial cursors fit a word whenever input length does. Four
+;; proof mutations fail the count, prefix or cursor refinement theorem. Build
+;; and env-linter pass; independent review found no concrete defect. Remaining:
+;; Nat function-counter to native array/usize extraction, scratch permutation,
+;; complete LSD pass ordering, and the other full SPEC-038 correspondence ports.
+;; Isolated native regression baseline passes; reversing native scatter input
+;; order within equal buckets fails the executed exact-string Lean comparison.
+;; This supplies live stability evidence, not a proof of scratch permutation.
+;; Final audit passes 1997 theorems, all axioms allowlisted; verified-by and
+;; whitespace checks pass. No production algorithm or identity changes here.
+
+;; Operational scratch continuation: StateAddressScatter writes at the current
+;; next pointer before incrementing it, and folds those steps in input order.
+;; Count-loop pointer refinement plus collision freedom proves every occurrence
+;; survives all later writes. Computed write destinations are distinct, bounded
+;; and a permutation of scratch positions. Final readback is therefore an input
+;; permutation with multiplicities, independent of initial cell contents, and
+;; has ascending bucket keys. No permutation/ordering certificate is supplied.
+;; Five mutations fail pointer, write-value/destination, untouched-cell or
+;; readback-order proofs. Build/env-linter pass; independent review finds no
+;; concrete defect. Function cells/Nat counters still need native Array/usize
+;; extraction; equal-key secondary stability and full LSD composition remain.
+;; Final axiom audit passes 2012 theorems, all allowlisted. Verified-by and
+;; whitespace checks pass. Production native behavior is unchanged.
+
+;; Stable/full radix continuation: StateAddressRadix derives equal-key secondary
+;; relation preservation from source write-log order and strict destinations.
+;; Operational LSD composition equals reversed-digit fold; every pass retains
+;; the input multiset, and composed passes establish full lexicographic order.
+;; Sentinel digit sequence equality and adjacent dedup refinement close exact
+;; canonical fault evidence/JSON without supplied sorting/permutation premises.
+;; Initial scratch is unobservable. The fault oracle now executes this radix
+;; path directly, with prechecked pool indices and checked final lookups; no
+;; merge-sort cleanup masks its output. Three targeted semantic proof mutations
+;; fail ordering/sequence obligations. Native array/usize and address-pool
+;; representation extraction remain ports, alongside the other SPEC-038 gaps.
+;; Operational execution caches each selected bucket's updated value and each
+;; scratch write's pre-increment destination outside functional lookup closures.
+;; This matches native once-per-step evaluation and avoids repeatedly traversing
+;; historical pointer chains during readback. Existing proof statements and full
+;; library rebuild pass unchanged. Initial slow live/native-mutant runs were
+;; explicitly interrupted, not treated as passing evidence; cached runs replace
+;; them. Independent read-only review confirms the caching equivalence.
+;; The cached operational live campaign is NOT passing: complex repeated-witness
+;; inputs exceed the harness's 10-second reply deadline. Proptest catches that
+;; panic and previously reused the same channel, consuming late replies while
+;; shrinking and reporting false cross-request mismatches. Oracle transport now
+;; poisons the session until a complete valid reply and kills on receive failure.
+;; Do not classify the shrunk empty-vector persistence entry as a semantic bug.
+;; Runtime sampling confirms repeated functional counter/prefix evaluation;
+;; generated C shows bump eta-expansion defeats the attempted value binding.
+;; Next implement a proved finite counter/prefix representation, matching native
+;; indexed arrays, then rerun all live and mutation gates. No checkpoint commit
+;; or full acceptance is claimed from the failed/interrupt verification runs.
+
+;; Finite-table completion of the slow operational oracle: StateAddressTables
+;; proves Array.modify count-loop refinement, prefix-table size and every entry,
+;; complete finite initialization equality including generic/out-of-table cases,
+;; cached pass and LSD equality. sort_compiled is a proved csimp substitution;
+;; generated C calls cachedSort. The full nine-suite live campaign now passes
+;; 512 cases/seed380038 in22.70s with the same10-second response deadline. Six
+;; table mutations, the earlier12 counting/scatter/radix proof mutations, three
+;; native radix mutations and two poison/guard transport mutations are rejected.
+;; The poison regression passes; library/oracle build, env-linter,2037-theorem
+;; allowlisted audit, verified-by/diff checks and independent review pass.
+;; Nat-array counters/prefixes are now refined; scratch native array, usize and
+;; pool representation plus broader native AST/admission/installed-reader ports
+;; and BUG-011 root identity contract keep full SPEC-038 acceptance open.
+
+;; Native finite-array scatter continuation: StateAddressArrayScatter refines
+;; next-array increments and scratch writes, with array lengths preserved.
+;; Complete processed-prefix refinement derives every valid bucket/destination
+;; access from byte-key bounds and scratch allocation, rather than assuming
+;; per-step safety. Full run/readback transfers permutation with multiplicities
+;; and composes arraySort to the complete radix semantics. Arbitrary initial
+;; scratch contents of the required size are covered. Six mutations fail step,
+;; initialization, readback or allocation refinement. Build/env-linter pass;
+;; independent review finds no concrete defect. Oracle explicitly calls the
+;; proved arraySort; generated C confirms the target. The earlier attempted
+;; imported compiler substitution left cachedSort in observed C, so no claim
+;; about compiler rewrite chaining is used. Native usize, pool and literal Rust
+;; correspondence remain ports; wider admission/installed-reader and BUG-011
+;; root contract obligations still prevent full SPEC-038 acceptance.
+;; Final array checkpoint: all nine live suites pass512 cases/seed380038
+;; in10.62s; three native radix mutations are rejected. Full allowlisted axiom
+;; audit passes2050 theorems; verified-by/whitespace checks and final wiring
+;; review pass. No production Rust algorithm or identity change is included.
+
+;; Native-word array continuation: StateAddressWords proves USize encoding
+;; commutes with indexed count increments and prefix additions; exact decoding
+;; follows operational total-length bounds. Byte conversion plus sentinel offset
+;; is exact on supported word widths. WordStorage decodes actual word next
+;; pointers for scratch writes, then increments word pointers. Derived prefix
+;; cursors establish every reachable destination's representability. Complete
+;; word loop/initializer/readback and checked wordSort refine the Nat-array and
+;; full radix semantics, including multiplicities. Generic bounds guards retain
+;; total semantics outside the native domain. Oracle explicitly executes
+;; wordSort, confirmed in C. Six mutations fail word counts/prefixes/pointers/
+;; scratch/source-index recognition. Build/env-linter and independent review pass.
+;; This is word-valued array refinement: Lean array/control indices and loops
+;; still use Nat. Native control-loop/pool/literal Rust and broader SPEC-038 ports
+;; remain open; the pending BUG-011 contract is unchanged.
+;; Final word-array checkpoint: all nine live suites pass512 cases/seed380038
+;; in16.33s; three native radix mutants are rejected. Allowlisted audit passes
+;;2071 theorems; verified-by/diff checks pass. No production Rust/identity change.
+
+;; Source-pool continuation: StateAddressPool proves checked takeOne and complete
+;; takeMany lookup/frame/cleared-slot semantics. Word radix permutation derives
+;; source bounds, availability and distinct consumption for fresh pool slots.
+;; Universal suffix bounds justify native direct source indexing; enumeration
+;; recovers the original finite source sequence. Concrete sortPool and complete
+;; faultBytes execution refine exact canonical evidence/JSON with no supplied
+;; total-address callback, successful lookup, permutation or sortedness premise.
+;; Oracle evidence occurrences form distinct source slots (duplicate strings
+;; remain separate occurrences), matching the native evidence vector's range
+;; indices. It executes destructive moves rather than remapping shared witness
+;; IDs. Build/env-linter/review pass; five proof mutations are checked against
+;; the earliest relevant take or sort contract. The first mutation run correctly
+;; rejected missing clearing at takeOne_present; its recorded rejection target
+;; was corrected from a downstream theorem that used that invalid lemma.
+;; Native control indices/loops, literal Rust extraction and wider SPEC-038
+;; acceptance ports remain open; CI job277 fails6s with logs still requested.
+;; Final source-pool checkpoint: all nine live suites pass512 cases/seed380038
+;; in11.03s; five pool proof mutants and five native pool/radix mutants are
+;; rejected. Allowlisted audit passes2082 theorems; verified-by/diff checks pass.
+;; CI status is not claimed green: latest Lean job277 failed6s and its current
+;; step log remains pending. No production Rust algorithm/identity change here.
+
+;; The reported CI failure is an explicit required completion gate. Current
+;; runner log remains pending; local proof checks do not replace PR CI evidence.
+(given (task lean-ci-green))
+(given (task-description lean-ci-green "Resolve the PR Lean job failing before the proof build; identify the current failing step from runner logs, fix the failure without suppressing installation/build/lint/audit checks, and verify the latest pushed revision."))
+(given (task-acceptance lean-ci-green "TEST-3806: the latest PR revision reports success for the required Lean install, build, oracle, env-linter and axiom-audit job. Root cause and applicable regression evidence are recorded; no continue-on-error masks required checks."))
+(given (no-deps lean-ci-green))
+(normally r-ready-lean-ci-green (and (task lean-ci-green) (no-deps lean-ci-green)) (ready lean-ci-green))
+(meta r-ready-lean-ci-green (source "SPEC-038-lvar-state-kernel#TEST-3806"))
+
+;; Word-index/prefix control continuation: StateAddressControl proves actual
+;; USize source-index count/scatter iteration equals the decoded-index loops,
+;; retaining word identity. prefixStep updates next[k] from next[k-1]+counts[k-1]
+;; at word positions1≤k<257; safe subtraction, table size and each processed
+;; prefix entry refine the prior word-prefix array. Ascending iteration and full
+;; table equality compose to controlSort/wordSort equality; source-pool indices
+;; execute controlSort directly, confirmed in C. Six proof mutations reject key,
+;; count, source-index, predecessor, target-slot and prefix-order changes.
+;; The live profile catches native fold panics and asserts the valid input must
+;; render. The first native mutation run executed that guard but the runner's
+;; text classifier missed Rust custom assert messages; classification now accepts
+;; only this named guard text for the fault test, with nonzero status and the
+;; exact executed test FAILED marker still mandatory. Fresh review confirms this
+;; does not accept compile/import failures. Outer digit-range/literal Rust and
+;; wider SPEC-038 proof ports remain open.
+;; Clean-store plan readiness/provenance checks pass: docs-status waits for each
+;; of context-map, semantic-alignment, root contract and lean-ci-green when that
+;; prerequisite is independently omitted. It becomes ready with all seven
+;; prerequisites completed. Independent plan review passes. CI evidence must be
+;; revision-bound and reconsidered after relevant pushes; no CI completion fact
+;; has been asserted while the current error log remains pending.
+;; Final control checkpoint: all nine live suites pass512 cases/seed380038
+;; in16.43s, six proof mutants and seven native prefix/pool/radix mutants reject.
+;; Full allowlisted audit passes2099 theorems; verified-by/diff checks pass. No
+;; CI success/completion is asserted; local evidence is distinct from that gate.
+
+;; Outer-range continuation: StateAddressRange directly recurses on USize
+;; cursor, stopping at zero and yielding cursor-1. Positive decoded cursor and
+;; exact subtraction prove termination without supplied fuel, then full encoded/
+;; decoded reverse-range equality and emitted-position bounds. Folding the
+;; actual word positions through checkedNativePass equals the complete control
+;; sort. Guarded width conversion preserves generic unrepresentable Nat widths.
+;; Source-pool indices execute checkedRangeSort; generated C confirms that call.
+;; Five proof mutations reject current-cursor/forward-order emission, shifted or
+;; truncated digits and bypassed width recognition. Build/env-linter and fresh
+;; read-only review pass. Literal Rust extraction, wider kernel correspondence,
+;; root identity and required latest-revision CI gates remain open.
+;; Final range checkpoint: all nine live suites pass512 cases/seed380038
+;; in10.68s; five range proof mutants and nine native range/prefix/pool/radix
+;; mutants reject. Full allowlisted audit passes2108 theorems; verified-by/diff
+;; checks pass. Latest-revision CI and root contract remain unfulfilled gates.
+
+;; REQ-3809 audit: BUG-012 records the missing post operations/authored contract.
+(given (task product-read-contract))
+(given (task-description product-read-contract "Dialect API maintainer resolves BUG-012: decide authored versus internal-only conjunction/comparison scope, record recognized grammar/result shape and monotonic comparison restrictions in the applicable contracts. Proposed authored conjunction is reviewable in BUG-012."))
+(given (task-acceptance product-read-contract "REQ-3809/CON-3800/CON-3801: explicit scope decision and complete amended contract, including comparison restrictions and observation shape; no inferred approval or silent deferral."))
+(given (no-deps product-read-contract))
+(normally r-ready-product-read-contract (and (task product-read-contract) (no-deps product-read-contract)) (ready product-read-contract))
+(meta r-ready-product-read-contract (source "SPEC-038-lvar-state-kernel#REQ-3809"))
+(given (task product-read-composition))
+(given (task-description product-read-composition "Implement approved authored conjunctions and fixed-bound source reads through native parser/installation/kernel/schema/bindings and Lean/oracle paths; preserve existing single-source syntax and identities outside the authorized sealed-root migration."))
+(given (task-acceptance product-read-composition "REQ-3809/CON-3805/TEST-3810/TEST-3811/TEST-3812/TEST-3813/TEST-3815: authored fixed-bound conjunctions work end to end through native recognition, installation, source-owned scopes, fault-first evaluation, schema and bindings; the actual authored compiler and all condition observation paths have Lean refinement, witness replay, convergence and agreement proofs; directed and generated live Lean comparisons plus native/proof semantic mutants pass; docs and EBNF match the implemented scope."))
+(normally r-ready-product-read-composition (and (task product-read-composition) (completed product-read-contract)) (ready product-read-composition))
+(meta r-ready-product-read-composition (source "SPEC-038-lvar-state-kernel#REQ-3809"))
+
+;; REQ-3806 scope audit: model finite witnesses, rather than literal extraction.
+;; BUG-015 has a kernel-checked generic ErrorSpec counterexample; actual concrete
+;; factories reviewed so far retain accepted identities. The normative capstone
+;; needs this support law before it can certify finite reported evidence.
+(given (task finite-evidence-support))
+(given (task-description finite-evidence-support "Close BUG-015: require accepted-act support at the certified error boundary, prove all concrete factories and closed error paths preserve it, and construct exact finite evidence for the model capstone. Preserve native observations."))
+(given (task-acceptance finite-evidence-support "REQ-3806/TEST-3806: the all-addresses-on-empty-history guard is rejected; all concrete guards and composed paths prove accepted support; returned evidence has an exact finite enumeration; build/lint/axiom audit, semantic mutants and independent review pass. Do not conflate support with witness-only replay sufficiency."))
+(given (no-deps finite-evidence-support))
+(normally r-ready-finite-evidence-support (and (task finite-evidence-support) (no-deps finite-evidence-support)) (ready finite-evidence-support))
+(meta r-ready-finite-evidence-support (source "SPEC-038-lvar-state-kernel#REQ-3806"))
+
+;; BUG-016: finite provenance is distinct from replay sufficiency.
+(given (task witness-replay))
+(given (task-description witness-replay "Close BUG-016: prove reported-witness replay sufficiency under explicit identity, admission and context premises for installed guards and composed observation paths. Whole-history dissemination alone does not satisfy this task."))
+(given (task-acceptance witness-replay "REQ-3806/TEST-3806: a trigger-dependent guard reporting empty evidence cannot qualify as replayable; concrete installed guards compose sufficient replay certificates; accepting the witness reproduces fault with containing evidence; build/lint/audit, semantic mutants and independent review pass."))
+(given (requires lean-quasi-determinism witness-replay))
+(given (no-deps witness-replay))
+(normally r-ready-witness-replay (and (task witness-replay) (no-deps witness-replay)) (ready witness-replay))
+(meta r-ready-witness-replay (source "SPEC-038-lvar-state-kernel#REQ-3806"))
+
+;; Audit completion records an honest evidence matrix, not implementation completion.
+(given (task acceptance-audit))
+(given (task-description acceptance-audit "Audit every SPEC-038 REQ/NFR/CON/TEST against current implementation, proof, tests, docs and latest PR state. Preserve unresolved identity/product decisions explicitly; do not equate a completed audit with completed implementation."))
+(given (task-acceptance acceptance-audit "A durable requirement-to-evidence matrix identifies each requirement as proved, tested, incomplete, blocked or unverified; includes current targeted native/parser and live-oracle results, proof gates, documentation/grammar references and latest-SHA CI. Independent review checks scope and omissions. Unresolved rows remain visibly incomplete."))
+(given (no-deps acceptance-audit))
+(normally r-ready-acceptance-audit (and (task acceptance-audit) (no-deps acceptance-audit)) (ready acceptance-audit))
+(meta r-ready-acceptance-audit (source "SPEC-038-lvar-state-kernel#TEST-3806"))
+
+;; TEST-3807 requires historical raw bytes, not JSON-normalized equality.
+(given (task byte-compatibility))
+(given (task-description byte-compatibility "Maintain the immutable pre-SPEC raw-byte baseline; compare unaffected inputs exactly and verify explicit sealed-root reissue mappings and preserved business observations/verdicts for affected vectors under ADR-3807. Keep authorized conflict-rendering changes explicit."))
+(given (task-acceptance byte-compatibility "Raw baseline provenance and all original vectors stay immutable; unaffected observations compare exact bytes, addresses and verdicts; every affected sealed-root case has an explicit reviewed reissue/mapping check preserving business observations modulo identities. Byte-only mutations fail and no blanket migration exemption is used; native regression and independent review pass."))
+(normally r-ready-byte-compatibility (and (task byte-compatibility) (completed root-cast-migration)) (ready byte-compatibility))
+(meta r-ready-byte-compatibility (source "SPEC-038-lvar-state-kernel#TEST-3807"))
+
+;; Maintainer selections recorded 2026-11-09: v0.4 contracts precede implementation.
+(given (decided root-cast-identity-contract "Hash outermost sealed role-root wrappers and migrate affected root/descendant references; original historical baselines remain immutable, and migration cases must be explicit."))
+(given (decided product-read-contract "Implement authored condition-form thresholds using read leaves and nested and nodes, fixed-bound leaf checks, Boolean success, fault-first union and each leaf source scope."))
+(given (task root-cast-migration))
+(given (task-description root-cast-migration "Implement the approved sealed-wrapper role-root identity policy consistently in construction/validation; explicitly reissue and map affected conformance records, preserve unaffected historical bytes, and document real signed-history migration."))
+(given (task-acceptance root-cast-migration "REQ-3807/TEST-3807/TEST-3814: cast-only changes change root identity; nested outermost wrapper policy agrees between construction and validation; affected root and descendant hashes/references have explicit reviewed migration fixtures; unrelated hashes/raw historical bytes unchanged; context/admission/corpus/oracle regressions and semantic mutants pass. No rewriting immutable signed history or blanket baseline exemption."))
+(normally r-ready-root-cast-migration (and (task root-cast-migration) (completed root-cast-identity-contract)) (ready root-cast-migration))
+(meta r-ready-root-cast-migration (source "SPEC-038-lvar-state-kernel#TEST-3814"))
+(given (requires byte-compatibility root-cast-migration))
+(given (requires lean-quasi-determinism product-read-composition))
+
+;; Condition completion continuation: actual preparation now derives earlier
+;; source-plan availability from ordered base compilation. Complete v0.4 programs
+;; pair condition dependency trees across fresh source compilation and construct
+;; exact finite accepted witnesses with containing-fault replay. Ordered base
+;; projection and unique full output names preserve source threshold/frozen
+;; agreement; condition success returns fixed true. The new full v0.4 capstone
+;; composes these with complete convergence and no-top SEC. Mixed count/exists/
+;; membership/finite live comparisons cover schema, source scopes, pending/fault
+;; union, expression bounds, order and duplicates via a proved enumerable
+;; condition adapter. Native text extraction/authentication remain boundaries.
+;; Required revision-bound CI remains open; no docs-status completion is asserted.
+
+;; Maintainer naming decision, 2026-11-09: Causal Lattice Observation Kernel
+;; (CLOK) is the architectural name. LVars remain the threshold-read foundation.
+;; Existing document paths, source references and task identifiers stay stable.

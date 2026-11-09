@@ -378,12 +378,43 @@ fn state_to_sexpr(clause: &crate::state::StateClause) -> SExpr {
     let mut items = vec![sym("state")];
     for e in &clause.entries {
         match e {
+            Entry::Lattice(definition) => items.push(definition.to_sexpr()),
+            Entry::Freeze {
+                field,
+                verb,
+                policy,
+            } => {
+                items.push(SExpr::List(vec![
+                    sym("freeze"),
+                    s(field),
+                    s(verb),
+                    sym(policy.as_str()),
+                ]));
+            }
             Entry::Domain { verb, key, field } => {
                 items.push(SExpr::List(vec![sym("domain"), s(verb), s(key), s(field)]));
+            }
+            Entry::Condition { name, condition } => {
+                items.push(SExpr::List(vec![
+                    sym("threshold"),
+                    s(name),
+                    condition.to_sexpr(),
+                ]));
+            }
+            Entry::Threshold {
+                name,
+                field,
+                elements,
+            } => {
+                let mut t = vec![sym("threshold"), s(name), s(field)];
+                t.extend(elements.iter().map(|e| e.to_sexpr()));
+                items.push(SExpr::List(t));
             }
             Entry::Field { name, rule } => {
                 let mut r = vec![sym(rule.head())];
                 match rule {
+                    Rule::Context { path, .. } => r.extend(path.iter().map(|p| s(p))),
+                    Rule::Lift(lift) => r.extend(lift.arguments()),
                     Rule::BoundedCounter(c) => r.extend(c.canonical_options()),
                     Rule::LwwRegister { verb, key, clock }
                     | Rule::LwwPerSigner { verb, key, clock } => {
@@ -644,6 +675,7 @@ fn type_constraint_to_sexpr(tc: &Option<TypeConstraint>) -> SExpr {
             TypeConstraint::String => "string",
             TypeConstraint::Hlc => "hlc",
             TypeConstraint::Number => "number",
+            TypeConstraint::Nonnegative => "nonnegative",
             TypeConstraint::Bool => "bool",
             TypeConstraint::Symbol => "symbol",
             TypeConstraint::Keyword => "keyword",

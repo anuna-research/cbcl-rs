@@ -63,7 +63,7 @@ Every later act names the dialect with `(lang example-coin …)`. A performative
       :allocations ((@treasury 1000) (@alice 0) (@bob 0))
       :from @treasury
       :thread "coin-1"
-      :caused-by sha256-6655c6fbcd385dd84414cad93d6cad9a1ed650f4c2834790d9043f543051d407)))
+      :caused-by sha256-67bb33cf1e30749bc9175826525393ce0a0f4a45315c94338714edb31a8849c6)))
 ```
 
 A payment cites the `open` act. The binder adds `:escrow-prev` and `:escrow-deps`, which record resource causality separately from the protocol's `:caused-by`:
@@ -74,11 +74,11 @@ A payment cites the `open` act. The binder adds `:escrow-prev` and `:escrow-deps
     (pay (@alice @bob @treasury) ()
       :amount 100
       :recipient @alice
-      :escrow-prev sha256-a9d6de157c34d0473ad88f651a6701c40415978732593f22bf77b4fb0a448ca5
+      :escrow-prev sha256-4b71616f32e13ae6fb47e0dc1bb3c721af42ff804a851f2d03b138c9128fa907
       :escrow-deps ()
       :from @treasury
       :thread "coin-1"
-      :caused-by sha256-a9d6de157c34d0473ad88f651a6701c40415978732593f22bf77b4fb0a448ca5)))
+      :caused-by sha256-4b71616f32e13ae6fb47e0dc1bb3c721af42ff804a851f2d03b138c9128fa907)))
 ```
 
 Keyword order is part of the content address, so a hand-written act with the same fields in a different order is a different act. Hosts do not write these by hand: `intend` completes a verb and its business fields into the canonical act above, ready for the host to sign and publish:

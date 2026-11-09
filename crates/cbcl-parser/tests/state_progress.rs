@@ -363,27 +363,28 @@ fn progress_uses_pinned_role_root_and_accepts_competing_members() {
     let parse_act = |s: &str, who: &str| {
         Act::from_message(parse_message(&parse(s).unwrap()).unwrap(), who).unwrap()
     };
-    let root = parse_act(
-        "(with-roles ((member @a @b @c)) (signed @a (hello :thread \"t\" :caused-by begin)))",
-        "@a",
-    );
-    let signed = |pred: &str, who: &str| {
-        parse_act(&format!("(signed {who} (lang demo (tick (@a @b @c) :caused-by {pred} :thread \"t\" :from {who})))"),who)
-    };
-    let a = signed(&root.address, "@a");
-    let b = signed(&a.address, "@b");
-    let c = signed(&a.address, "@c");
-    accept(d, &[], &root);
-    accept(d, &[root.clone()], &a);
-    accept(d, &[root.clone(), a.clone()], &b);
-    accept(d, &[root.clone(), a.clone()], &c);
-    let mut accepted = vec![root, a, b, c];
-    assert_eq!(
-        state(d, &accepted),
-        serde_json::json!({"number":2,"messages":3})
-    );
-    accepted.reverse();
-    assert_eq!(state(d, &accepted)["number"], 2);
+    let sealed =
+        "(with-roles ((member @a @b @c)) (signed @a (hello :thread \"t\" :caused-by begin)))";
+    for root_text in [sealed.to_string(), format!("(signed @a {sealed})")] {
+        let root = parse_act(&root_text, "@a");
+        let signed = |pred: &str, who: &str| {
+            parse_act(&format!("(signed {who} (lang demo (tick (@a @b @c) :caused-by {pred} :thread \"t\" :from {who})))"),who)
+        };
+        let a = signed(&root.address, "@a");
+        let b = signed(&a.address, "@b");
+        let c = signed(&a.address, "@c");
+        accept(d, &[], &root);
+        accept(d, &[root.clone()], &a);
+        accept(d, &[root.clone(), a.clone()], &b);
+        accept(d, &[root.clone(), a.clone()], &c);
+        let mut accepted = vec![root, a, b, c];
+        assert_eq!(
+            state(d, &accepted),
+            serde_json::json!({"number":2,"messages":3})
+        );
+        accepted.reverse();
+        assert_eq!(state(d, &accepted)["number"], 2);
+    }
 }
 
 #[test]

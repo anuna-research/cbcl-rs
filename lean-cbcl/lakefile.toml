@@ -13,3 +13,7 @@ name = "LeanCbcl"
 [[lean_exe]]
 name = "cbcl-parse"
 root = "Main"
+
+[[lean_exe]]
+name = "cbcl-state-oracle"
+root = "StateKernelOracle"
