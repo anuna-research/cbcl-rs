@@ -1,3 +1,4 @@
+import LeanCbcl.StateOutputThresholdAgreement
 import LeanCbcl.StateOutputConvergence
 import LeanCbcl.StateAuthoredOutputReplay
 import LeanCbcl.StateOutputWitnessReplay
@@ -3280,3 +3281,10 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateOutputConvergence.finite_history_output_convergence
 #print axioms CBCL.StateOutputConvergence.data_vector_complete
 #print axioms CBCL.StateOutputConvergence.conflict_free_output_SEC
+
+#print axioms CBCL.StateOutputThresholdAgreement.closure_reached_member
+#print axioms CBCL.StateOutputThresholdAgreement.raw_reached_member
+#print axioms CBCL.StateOutputThresholdAgreement.read_check_singleton
+#print axioms CBCL.StateOutputThresholdAgreement.reached_member
+#print axioms CBCL.StateOutputThresholdAgreement.compiled_alternatives
+#print axioms CBCL.StateOutputThresholdAgreement.compiled_singleton_success_agreement
