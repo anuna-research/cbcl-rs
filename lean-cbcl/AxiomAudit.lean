@@ -1,3 +1,4 @@
+import LeanCbcl.StateAuthoredThresholdOrigin
 import LeanCbcl.StateOutputQueryIdentity
 import LeanCbcl.StateOutputThresholdAgreement
 import LeanCbcl.StateOutputConvergence
@@ -3304,3 +3305,12 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateOutputQueryIdentity.authored_query_identity
 #print axioms CBCL.StateOutputQueryIdentity.threshold_query_eq
 #print axioms CBCL.StateOutputQueryIdentity.paired_singleton_success_agreement
+#print axioms CBCL.StateAuthoredThresholdOrigin.reached_origin
+#print axioms CBCL.StateAuthoredThresholdOrigin.reached_member
+#print axioms CBCL.StateAuthoredThresholdOrigin.decode_inverse
+#print axioms CBCL.StateAuthoredThresholdOrigin.decode_list_inverse
+#print axioms CBCL.StateAuthoredThresholdOrigin.source_policy
+#print axioms CBCL.StateAuthoredThresholdOrigin.quasi_determinism
+#print axioms CBCL.StateAuthoredThresholdOrigin.source_quasi_determinism
+#print axioms CBCL.StateAuthoredThresholdOrigin.declarations_source_exists
+#print axioms CBCL.StateAuthoredThresholdOrigin.reached_source_exists

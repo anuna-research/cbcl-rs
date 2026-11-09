@@ -132,9 +132,16 @@ dependency coverage and a fixed installed environment. Native binding of sealed
 root metadata to an address remains the identity-contract issue in
 [[BUG-011-root-address-does-not-commit-sealed-cast]].
 
-The complete authored threshold-success and shared-freezer value agreement
-proofs remain separate obligations. These convergence and witness results do not
-by themselves close [[SPEC-038-lvar-state-kernel#REQ-3806]].
+`StateAuthoredThresholdOrigin.quasi_determinism` covers every authored threshold
+source rule. It recovers the actual source-owned query from successful compiled
+output, then proves that successful results agree or a containing joint history
+reports a fault under the same output name. Source existence and singleton or
+finite policy classification follow from installation rather than caller
+callbacks. Ranked, content-consistent histories and successful compilation remain
+explicit premises.
+
+Shared-freezer underlying-value agreement remains a separate obligation. These
+results do not by themselves close [[SPEC-038-lvar-state-kernel#REQ-3806]].
 
 ## Writing a dialect
 

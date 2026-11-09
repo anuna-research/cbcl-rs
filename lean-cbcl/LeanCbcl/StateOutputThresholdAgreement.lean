@@ -170,7 +170,8 @@ theorem bind_query_classification (environment : StateAuthoredBindings.Environme
     (rule : StateAuthoredBindings.Rule) (binding : StateAuthoredBindings.Binding)
     (bound : StateAuthoredBindings.bind environment domains tables earlier rule = some binding) :
     SingletonPolicy binding.definition ∨
-      ∃ field, binding.definition = StateFiniteRead.definition field := by
+      ∃ lattice declaration field, rule = .finite lattice declaration ∧
+        binding.definition = StateFiniteRead.definition field := by
   cases rule with
   | context projection =>
     cases installed : StateInstalledContext.make environment.profile projection with
@@ -190,7 +191,7 @@ theorem bind_query_classification (environment : StateAuthoredBindings.Environme
         have same : (⟨.finite lattice declaration,StateFiniteRead.definition source,.verbs [declaration.verb]⟩ : StateAuthoredBindings.Binding) = binding := by
           simpa [StateAuthoredBindings.bind,table,field] using bound
         subst binding
-        exact Or.inr ⟨source,rfl⟩
+        exact Or.inr ⟨lattice,declaration,source,rfl,rfl⟩
   | legacy rule =>
     apply Or.inl
     cases rule
@@ -259,9 +260,12 @@ theorem declarations_classified (environment : Environment) (domains : List Stat
           obtain ⟨more,last⟩ := result
           simp [declarations,head,tail] at lowered
           rcases lowered with ⟨rfl,rfl⟩
-          have current : ClassifiedDefinition binding.definition :=
-            ⟨StateAuthoredOutputReplay.bind_plain environment domains tables earlier rule binding head,
-             bind_query_classification environment domains tables earlier rule binding head⟩
+          have classification := bind_query_classification environment domains tables earlier rule binding head
+          have current : ClassifiedDefinition binding.definition := by
+            refine ⟨StateAuthoredOutputReplay.bind_plain environment domains tables earlier rule binding head,?_⟩
+            rcases classification with singleton | ⟨lattice,finiteDeclaration,field,_,same⟩
+            · exact Or.inl singleton
+            · exact Or.inr ⟨field,same⟩
           have remaining := ih ((name,binding)::earlier) more last tail
           intro declaration member
           rcases List.mem_cons.mp member with equal | later
