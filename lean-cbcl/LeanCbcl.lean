@@ -355,3 +355,5 @@ import LeanCbcl.StateContextReplayTests
 import LeanCbcl.StateFiniteReplay
 
 import LeanCbcl.StateFiniteReplayTests
+
+import LeanCbcl.StateInstalledReplay

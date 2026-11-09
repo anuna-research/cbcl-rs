@@ -1,3 +1,4 @@
+import LeanCbcl.StateInstalledReplay
 import LeanCbcl.StateFiniteReplayTests
 import LeanCbcl.StateFiniteReplay
 import LeanCbcl.StateContextReplayTests
@@ -3172,3 +3173,17 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateInstalledFinite.domain_evidence_setEq
 #print axioms CBCL.StateInstalledFinite.domain_evidence_supported
 #print axioms CBCL.StateInstalledFinite.writers_supported
+
+#print axioms CBCL.StateInstalledReplay.guard_errors
+#print axioms CBCL.StateInstalledReplay.guard_certified
+#print axioms CBCL.StateInstalledReplay.term_certified
+#print axioms CBCL.StateInstalledReplay.domain_guards_certified
+#print axioms CBCL.StateInstalledReplay.finite_source_certified
+#print axioms CBCL.StateInstalledReplay.finite_source_replays
+#print axioms CBCL.StateInstalledReplay.domain_term_certified
+#print axioms CBCL.StateInstalledReplay.context_source_certified
+#print axioms CBCL.StateInstalledReplay.resource_source_certified
+#print axioms CBCL.StateInstalledReplay.append_domain_guards_certified
+#print axioms CBCL.StateInstalledReplay.compiled_rule_certified
+#print axioms CBCL.StateInstalledReplay.compiled_field_certified
+#print axioms CBCL.StateInstalledReplay.compiled_fields_certified

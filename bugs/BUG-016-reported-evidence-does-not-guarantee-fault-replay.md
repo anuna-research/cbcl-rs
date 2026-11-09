@@ -149,3 +149,22 @@ roster context and raw writers under initializer-fault precedence; each fails
 its executed semantic test. This repairs the concrete finite-domain witness
 gap. Installed guard provenance/composition and the remaining structural caller
 premises still need the top-level audit before closing this overall issue.
+
+## Installed factory and clause composition
+
+`StateInstalledReplay` now carries the concrete finite, resource, context and
+resolved-domain certificates into the source plans emitted by their factories.
+Term guard folding and the authored resource factory's appended domain guards
+retain their actual certificates. An exact `guard_errors` equation separately
+asserts retention of the complete attached error channel; it detects guard
+omission independently of the replay predicate. A temporary semantic mutant
+removing a certified guard from the extracted attachment function fails that
+unchanged equation, while the baseline compiles.
+
+Successful `compileRule`, clause-wide freeze attachment and ordered
+`compileFields` now preserve the certificates for every emitted plan, including
+references, maps, both product dependencies, raw/checked thresholds and freezes.
+The proof maintains the actual extended-prefix lookup invariant. Independent
+review found no defect in the factory or compilation proofs. These results
+still require the concrete source certificates at authored binding and do not
+yet claim full authored-output coverage or close this issue.
