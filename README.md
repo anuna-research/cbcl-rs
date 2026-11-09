@@ -314,3 +314,7 @@ Shape types `float` and `decimal` distinguish them; the existing `number` and
 The canonical atom tags are `F` and `D`; existing integer encodings are unchanged.
 NIF floats are BEAM floats; decimals are `{decimal, <<"12.34">>}`. JSON state and
 act views carry decimals as `{"decimal":"12.34"}` to preserve precision in browsers.
+
+Causal protocols accept chains: `(protocol (then begin one two three))`
+is equivalent to `(protocol (then begin one) (then one two) (then two three))`.
+Each adjacent pair forms a causal edge; use separate `then` clauses for branches.
