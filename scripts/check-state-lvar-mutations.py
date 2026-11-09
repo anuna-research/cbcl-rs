@@ -912,6 +912,12 @@ suites.append(("StateCondition", (root / "lean-cbcl/LeanCbcl/StateCondition.lean
     ("condition-success-returns-false", "| .data (.reached true), .data (.reached true) => .data (.reached true)", "| .data (.reached true), .data (.reached true) => .data (.reached false)", "merge_success"),
 ]))
 
+suites.append(("StateConditionCompiler", (root / "lean-cbcl/LeanCbcl/StateConditionCompiler.lean").read_text(), [
+    ("condition-leaf-uses-full-history", "| .read field query source => boolean (query.run (referenceScope whole freezes field) (sourceValue whole source))", "| .read field query source => boolean (query.run whole (sourceValue whole source))", "leaf_observe"),
+    ("condition-compiled-bound-discarded", "let query ← compileQuery [element] definition", "let query ← compileQuery [] definition", "compile_read_origin"),
+    ("condition-compiler-size-guard-skipped", "if maxNodes < (Condition.all children).size ∨ children.length < 2 then none else do", "if children.length < 2 then none else do", "compile_refinement"),
+]))
+
 import argparse
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--module", action="append", help="Run only this module (repeatable)")

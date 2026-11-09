@@ -385,6 +385,10 @@ native conditions are implemented, while their installed compiler/oracle
 correspondence and extended proof acceptance remain pending. `StateCondition`
 provides the initial fault-first Boolean algebra; it is not the completed
 authored-condition compiler refinement.
+`StateConditionCompiler` proves closed condition-tree refinement to the existing
+installed-policy dispatcher using separate source scopes. Connecting that code
+to authored preparation and extending the full observation guarantees remains
+unfinished.
 
 - `StateLift` proves accepted-set lift invariance and the union/join law.
   `StateLVar` and `StateObservation` compose threshold, domain, context, resource,

@@ -380,3 +380,5 @@ import LeanCbcl.StateAuthoredFrozenAgreement
 import LeanCbcl.StateAuthoredQuasiDeterminism
 
 import LeanCbcl.StateCondition
+
+import LeanCbcl.StateConditionCompiler

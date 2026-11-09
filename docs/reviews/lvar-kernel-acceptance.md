@@ -82,6 +82,17 @@ oracle, witness replay, convergence and full agreement capstone remains required
 by [[SPEC-038-lvar-state-kernel#TEST-3815]]. No v0.4 completion is inferred from the
 prior single-source capstone or this algebra checkpoint.
 
+`StateConditionCompiler` now binds each leaf to an actual completed source plan
+and singleton query, dispatches it with that source's `referenceScope`, and proves
+whole-tree refinement to independent installed-policy interpretation. It rejects
+empty/unary conjunctions and excess node budgets. Independent proof review found
+no concrete defect; three additional proof mutants reject full-history scope
+substitution, discarded fixed bounds and skipped compiler size checks. Full Lean
+build and Batteries environment lint pass; the axiom audit reports 2381 theorems,
+all allowlisted. Earlier-source eligibility and alignment between prepared
+source plans/definitions still need to be derived through the actual authored
+walk, then the emitted observation proofs and oracle must be extended.
+
 ## Requirement evidence
 
 “Tested” records executed native checks, not a universal Rust source-extraction

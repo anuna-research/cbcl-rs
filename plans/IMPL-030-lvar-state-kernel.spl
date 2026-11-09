@@ -1652,7 +1652,7 @@
 (meta r-ready-product-read-contract (source "SPEC-038-lvar-state-kernel#REQ-3809"))
 (given (task product-read-composition))
 (given (task-description product-read-composition "Implement approved authored conjunctions and fixed-bound source reads through native parser/installation/kernel/schema/bindings and Lean/oracle paths; preserve existing single-source syntax and identities outside the authorized sealed-root migration."))
-(given (task-acceptance product-read-composition "REQ-3809/TEST-3800/TEST-3801: approved closed operations and any required authored grammar work end to end with positive/rejection/growth/fault/freeze/duplicate-delivery checks, native/Lean comparison and semantic mutants; docs match the selected scope."))
+(given (task-acceptance product-read-composition "REQ-3809/CON-3805/TEST-3810/TEST-3811/TEST-3812/TEST-3813/TEST-3815: authored fixed-bound conjunctions work end to end through native recognition, installation, source-owned scopes, fault-first evaluation, schema and bindings; the actual authored compiler and all condition observation paths have Lean refinement, witness replay, convergence and agreement proofs; directed and generated live Lean comparisons plus native/proof semantic mutants pass; docs and EBNF match the implemented scope."))
 (normally r-ready-product-read-composition (and (task product-read-composition) (completed product-read-contract)) (ready product-read-composition))
 (meta r-ready-product-read-composition (source "SPEC-038-lvar-state-kernel#REQ-3809"))
 

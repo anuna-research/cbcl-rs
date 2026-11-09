@@ -1,3 +1,4 @@
+import LeanCbcl.StateConditionCompiler
 import LeanCbcl.StateCondition
 import LeanCbcl.StateAuthoredQuasiDeterminism
 import LeanCbcl.StateFrozenCompilation
@@ -3362,3 +3363,16 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateCondition.combine_success
 #print axioms CBCL.StateCondition.boolean_fault
 #print axioms CBCL.StateCondition.combine_grows
+
+#print axioms CBCL.StateConditionCompiler.leaf_observe
+#print axioms CBCL.StateConditionCompiler.absent_source
+#print axioms CBCL.StateConditionCompiler.zero_budget
+#print axioms CBCL.StateConditionCompiler.empty_rejected
+#print axioms CBCL.StateConditionCompiler.unary_rejected
+#print axioms CBCL.StateConditionCompiler.compile_read_origin
+#print axioms CBCL.StateConditionCompiler.compile_leaf_refinement
+#print axioms CBCL.StateConditionCompiler.two_source_scopes
+#print axioms CBCL.StateConditionCompiler.all_evidence
+#print axioms CBCL.StateConditionCompiler.all_success
+#print axioms CBCL.StateConditionCompiler.sequence_map
+#print axioms CBCL.StateConditionCompiler.compile_refinement
