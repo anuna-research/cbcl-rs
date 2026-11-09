@@ -242,3 +242,25 @@ Proof mutations retaining stale contributor predicates or dropping the right
 product error fail `related_replays`. Emitted `StateOutputCompiler` instructions,
 query adapters and their local normalized-world bridge remain to be composed;
 this result is not silently substituted for that output-level theorem.
+
+## Output-local world and adapter bridge
+
+`StateOutputWitnessReplay` derives exact ancestry, earliest-freezer and conflict
+agreement between the immutable replica world and a valid causally closed
+accepted history used as the interpreter's local world. Every error path and
+its complete evidence agree. `normalized_errors` then derives the same result
+for the actual output normalizer from accepted-set equality, reconstructing
+normalized validity and closure rather than assuming them.
+
+`source_value_fault_iff` connects actual emitted source instructions to the
+globally interpreted compiled plans. All query strategies preserve an existing
+source fault exactly. Closure and raw query adapters additionally have exact
+fault inversion, including frozen-wrapper unwrapping and arbitrary raw query
+scope. Generic finite-query code is explicitly excluded from that inversion
+because it can introduce a separate top fault. `output_fault_iff` connects
+plain emitted field/threshold instructions to their global source faults.
+
+Independent review found no defect in these bridges. Actual authored-query
+inventory and paired emitted programs still need to establish the plain-output
+premise and connect source-plan replay to same-named output replay. The generic
+finite-query exclusion is not silently assumed for arbitrary installed IR.

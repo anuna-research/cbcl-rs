@@ -847,6 +847,11 @@ suites.append(("StateReplayPaths", (root / "lean-cbcl/LeanCbcl/StateReplayPaths.
      "(.join leftA rightA) (.join leftB leftB)", "related_replays"),
 ]))
 
+suites.append(("StateOutputWitnessReplay", (root / "lean-cbcl/LeanCbcl/StateOutputWitnessReplay.lean").read_text(), [
+    ("output-normalization-uses-empty-world", "errors (fun act => act ∈ StateScopePool.normalize A) source (StateScopePool.normalize A) = errors world source A",
+     "errors (fun _ => False) source (StateScopePool.normalize A) = errors world source A", "normalized_errors"),
+]))
+
 import argparse
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--module", action="append", help="Run only this module (repeatable)")
