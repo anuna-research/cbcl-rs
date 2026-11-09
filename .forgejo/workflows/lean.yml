@@ -30,6 +30,9 @@ on:
       - 'lean-cbcl/**'
       - 'crates/cbcl-core/**'
       - 'crates/cbcl-parser/**'
+      - 'test-vectors/state/**'
+      - 'test-vectors/state-pre-lvar-bytes.json'
+      - 'scripts/generate-state-byte-baseline.py'
       - 'Cargo.toml'
       - 'Cargo.lock'
       - 'specs/SPEC-002-*'
@@ -53,6 +56,9 @@ on:
       - 'lean-cbcl/**'
       - 'crates/cbcl-core/**'
       - 'crates/cbcl-parser/**'
+      - 'test-vectors/state/**'
+      - 'test-vectors/state-pre-lvar-bytes.json'
+      - 'scripts/generate-state-byte-baseline.py'
       - 'Cargo.toml'
       - 'Cargo.lock'
       - 'specs/SPEC-002-*'
@@ -106,6 +112,9 @@ jobs:
 
       - name: Install Rust for live projection refinement
         run: bash scripts/ci-install-rust.sh
+
+      - name: Check state corpus and historical render bytes (TEST-3807)
+        run: cargo test -p cbcl-parser --test state_corpus
 
       - name: Compare real Rust projection with kernel-reduced Lean
         run: cargo test -p cbcl-core --test projection_refinement -- --ignored
