@@ -140,8 +140,20 @@ finite policy classification follow from installation rather than caller
 callbacks. Ranked, content-consistent histories and successful compilation remain
 explicit premises.
 
-Shared-freezer underlying-value agreement remains a separate obligation. These
-results do not by themselves close [[SPEC-038-lvar-state-kernel#REQ-3806]].
+`StateAuthoredFrozenAgreement.authored_frozen_agreement` compares successful
+frozen results in complete, freshly compiled output vectors. It derives their
+source-plan correspondence, preserves local causal interpretation through
+normalization, and proves equal underlying values for the same actual freezer
+accepted by both replicas. Excluded-contribution metadata may differ.
+
+`StateAuthoredQuasiDeterminism.authored_quasi_determinism` assembles threshold
+agreement, frozen-value agreement, exact equal-set observations, immediate
+witness replay, eventual witness dissemination, finite-history convergence and
+conditional no-fault SEC. These establish the typed-model agreement obligations
+of [[SPEC-038-lvar-state-kernel#REQ-3806]]. Ongoing threshold preservation also
+uses the existing authored data, membership, event-sum, progress and finite
+preservation proofs. Native syntax extraction, authentication and immutable
+identity binding remain explicit model boundaries.
 
 ## Writing a dialect
 

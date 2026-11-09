@@ -374,3 +374,7 @@ import LeanCbcl.StateOutputQueryIdentity
 import LeanCbcl.StateAuthoredThresholdOrigin
 import LeanCbcl.StateFrozenPayload
 import LeanCbcl.StateFrozenCompilation
+import LeanCbcl.StateFrozenSuccess
+import LeanCbcl.StateDataLocalWorld
+import LeanCbcl.StateAuthoredFrozenAgreement
+import LeanCbcl.StateAuthoredQuasiDeterminism

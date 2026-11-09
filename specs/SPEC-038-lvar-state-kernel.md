@@ -3,7 +3,7 @@ id: SPEC-038
 title: LVar state kernel
 status: draft
 version: 0.3.0
-last-updated: 2026-11-08
+last-updated: 2026-11-09
 ---
 
 # LVar state kernel
@@ -1828,13 +1828,32 @@ legacy kernel resource closure port remains separate from the new concrete
 native-certificate bridge; actual authored resources now follow the concrete
 factory-to-output path above.
 
-[[SPEC-038-lvar-state-kernel#TEST-3806]] remains partial at those literal
-installation, admission, wire-proof and renderer boundaries. Context pin tests
-and the live oracle exercise the strict wire parser using quoted digest strings.
+The typed-model agreement obligations of
+[[SPEC-038-lvar-state-kernel#REQ-3806]] and
+[[SPEC-038-lvar-state-kernel#TEST-3806]] are assembled by
+`StateAuthoredQuasiDeterminism.authored_quasi_determinism`. Its components concern
+actual authored compiled output vectors: successful thresholds agree or expose
+a named joint conflict; successful frozen values agree for the same actual
+freezer; equal accepted sets yield equal complete observations; accepting a
+reported finite witness reproduces a containing fault; finite-history delivery
+yields eventual equality; and no-top execution recovers conditional SEC.
+Source-rule classification, query identity, source-plan correspondence and
+normalized local-world interpretation are derived by the component proofs.
+Ongoing successful threshold preservation also uses the existing authored
+preservation modules.
+
+Literal native AST and wire extraction, authentication, admission and rendering
+remain the declared typed model's boundaries; the agreement theorem does not
+establish universal Rust source extraction correctness. Context pin tests and
+the live oracle exercise the strict wire parser using quoted digest strings.
 [[BUG-006-envelope-wire-form-unparseable-by-the-real-parser]] remains open for
 its envelope and suite-qualified key cases; the dialect-pin context path no
 longer relies on the lax parser.
-The specification stays `draft` until those acceptance obligations are resolved.
+
+The specification stays `draft` while the native root identity decision in
+[[BUG-011-root-address-does-not-commit-sealed-cast]] and the authored product-read
+contract in [[BUG-012-product-read-composition-has-no-authored-contract]] remain
+unresolved. Model-level agreement completion does not choose either contract.
 
 ## Changelog
 

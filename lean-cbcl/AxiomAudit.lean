@@ -1,3 +1,4 @@
+import LeanCbcl.StateAuthoredQuasiDeterminism
 import LeanCbcl.StateFrozenCompilation
 import LeanCbcl.StateAuthoredThresholdOrigin
 import LeanCbcl.StateOutputQueryIdentity
@@ -3329,3 +3330,23 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateFrozenCompilation.fields_related
 #print axioms CBCL.StateFrozenCompilation.compiled_plans_related
 #print axioms CBCL.StateFrozenCompilation.authored_plans_related
+#print axioms CBCL.StateFrozenSuccess.source_not_frozen
+#print axioms CBCL.StateFrozenSuccess.embed_frozen_inverse
+#print axioms CBCL.StateFrozenSuccess.frozen_inverse
+#print axioms CBCL.StateFrozenSuccess.freeze_data_clear
+#print axioms CBCL.StateFrozenSuccess.related_frozen_agreement
+#print axioms CBCL.StateDataLocalWorld.scope_closed_local
+#print axioms CBCL.StateDataLocalWorld.earliest_scope_local
+#print axioms CBCL.StateDataLocalWorld.errors_scope_local
+#print axioms CBCL.StateDataLocalWorld.healthy_data_local
+#print axioms CBCL.StateDataLocalWorld.observation_local
+#print axioms CBCL.StateDataLocalWorld.source_value_global
+#print axioms CBCL.StateAuthoredFrozenAgreement.related_lookup
+#print axioms CBCL.StateAuthoredFrozenAgreement.compile_one_related
+#print axioms CBCL.StateAuthoredFrozenAgreement.compile_declarations_related
+#print axioms CBCL.StateAuthoredFrozenAgreement.authored_outputs_related
+#print axioms CBCL.StateAuthoredFrozenAgreement.paired_member
+#print axioms CBCL.StateAuthoredFrozenAgreement.plain_query_not_frozen
+#print axioms CBCL.StateAuthoredFrozenAgreement.source_frozen_global
+#print axioms CBCL.StateAuthoredFrozenAgreement.authored_frozen_agreement
+#print axioms CBCL.StateAuthoredQuasiDeterminism.authored_quasi_determinism

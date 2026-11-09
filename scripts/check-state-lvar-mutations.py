@@ -859,6 +859,24 @@ suites.append(("StateAuthoredOutputReplay", (root / "lean-cbcl/LeanCbcl/StateAut
     ("output-receiver-rank-uses-addresses", "refine ⟨H.rank,?_⟩", "refine ⟨Act.addr,?_⟩", "replica_ranked"),
 ]))
 
+suites.append(("StateFrozenSuccess", (root / "lean-cbcl/LeanCbcl/StateFrozenSuccess.lean").read_text(), [
+    ("frozen-success-changes-right-freezer-address",
+     "(rightFrozen : data world right B = .frozen freezer.addr rightValue rightExcluded)",
+     "(rightFrozen : data world right B = .frozen (freezer.addr + 1) rightValue rightExcluded)",
+     "related_frozen_agreement"),
+]))
+suites.append(("StateDataLocalWorld", (root / "lean-cbcl/LeanCbcl/StateDataLocalWorld.lean").read_text(), [
+    ("emitted-source-normalization-erased",
+     "StateOutputCompiler.sourceValue A source = observe world source (StateScopePool.normalize A)",
+     "StateOutputCompiler.sourceValue A source = observe world source A",
+     "source_value_global"),
+]))
+suites.append(("StateAuthoredFrozenAgreement", (root / "lean-cbcl/LeanCbcl/StateAuthoredFrozenAgreement.lean").read_text(), [
+    ("frozen-success-pairs-different-output-names",
+     "(rightFrozen : (name,.data (.frozen freezer.addr rightValue rightExcluded)) ∈ right.observe)",
+     '(rightFrozen : (name ++ "-wrong",.data (.frozen freezer.addr rightValue rightExcluded)) ∈ right.observe)',
+     "authored_frozen_agreement"),
+]))
 suites.append(("StateFrozenPayload", (root / "lean-cbcl/LeanCbcl/StateFrozenPayload.lean").read_text(), [
     ("related-freeze-changes-selected-verb",
      "(.freeze ⟨verb,rightContribution,policy⟩ right)",
