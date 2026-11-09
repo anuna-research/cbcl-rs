@@ -3288,3 +3288,13 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateOutputThresholdAgreement.reached_member
 #print axioms CBCL.StateOutputThresholdAgreement.compiled_alternatives
 #print axioms CBCL.StateOutputThresholdAgreement.compiled_singleton_success_agreement
+#print axioms CBCL.StateOutputThresholdAgreement.primitive_singleton
+#print axioms CBCL.StateOutputThresholdAgreement.context_singleton
+#print axioms CBCL.StateOutputThresholdAgreement.bind_query_classification
+#print axioms CBCL.StateOutputThresholdAgreement.declarations_classified
+#print axioms CBCL.StateOutputThresholdAgreement.prepared_declarations_classified
+#print axioms CBCL.StateOutputThresholdAgreement.extend_classified
+#print axioms CBCL.StateOutputThresholdAgreement.compile_query_classified
+#print axioms CBCL.StateOutputThresholdAgreement.compile_one_classified
+#print axioms CBCL.StateOutputThresholdAgreement.compile_declarations_classified
+#print axioms CBCL.StateOutputThresholdAgreement.compile_authored_classified
