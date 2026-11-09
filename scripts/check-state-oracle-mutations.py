@@ -28,6 +28,7 @@ context_test = "context::context_kernel_matches_live_lean_oracle"
 admission_test = "duplicate_amount_cannot_hide_a_negative_state_contribution"
 keyword_test = "shape::keyword_extraction_matches_lean"
 transport_test = "oracle_transport_failure_rejects_late_replies"
+byte_baseline_test = "pre_lvar_vectors_preserve_exact_render_bytes"
 fault_test = "render::fault_evidence_bytes_match_lean"
 render_test = "render::native_json_bytes_match_lean"
 frozen_render_test = "render::frozen_wrapper_bytes_match_lean"
@@ -37,6 +38,7 @@ with tempfile.TemporaryDirectory(prefix="cbcl-live-oracle-") as directory:
     for name in ["cbcl-core", "cbcl-parser"]:
         shutil.copytree(root / "crates" / name, isolated / "crates" / name)
     shutil.copytree(root / "dialects", isolated / "dialects")
+    shutil.copytree(root / "test-vectors", isolated / "test-vectors")
     for name in ["Cargo.lock", "rust-toolchain.toml"]:
         shutil.copy2(root / name, isolated / name)
     manifest, count = re.subn(r"members = \[.*?\]", 'members = ["crates/cbcl-core", "crates/cbcl-parser"]',
@@ -48,13 +50,16 @@ with tempfile.TemporaryDirectory(prefix="cbcl-live-oracle-") as directory:
                CARGO_TARGET_DIR=str(isolated / "target"), CARGO_INCREMENTAL="0", CARGO_PROFILE_TEST_DEBUG="0")
 
     def run(test):
-        binary = "threshold_reads" if test == admission_test else "state_kernel_oracle"
-        flags = ["--exact"] if test in [admission_test, transport_test] else ["--ignored", "--exact"]
+        binary = "threshold_reads" if test == admission_test else "state_corpus" if test == byte_baseline_test else "state_kernel_oracle"
+        flags = ["--exact"] if test in [admission_test, transport_test, byte_baseline_test] else ["--ignored", "--exact"]
         return subprocess.run(["cargo", "test", "--offline", "-p", "cbcl-parser", "--test", binary,
                                test, "--", *flags], cwd=isolated, env=env,
                               text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=300)
 
     mutants = [
+        ("pre-spec-render-bytes-add-whitespace", "state.rs",
+         'pub fn render_json(state: &[(String, Value)]) -> String {\n    let mut out = String::from("{");',
+         'pub fn render_json(state: &[(String, Value)]) -> String {\n    let mut out = String::from(" {");', byte_baseline_test),
         ("resource-large-ready-unit-error", "escrow.rs", 'entries.insert(String::from("value"), Value::Int(s.value));', 'entries.insert(String::from("value"), Value::Int(if s.value > u64::MAX as i128 { s.value + 1 } else { s.value }));', resource_facts_test),
         ("resource-space-charges-rights-budget", "escrow.rs", "let budget = if matches!(n.kind, Kind::Increment | Kind::Headroom) {", "let budget = if matches!(n.kind, Kind::Increment) {", resource_facts_test),
         ("resource-burn-headroom-not-restored", "escrow.rs", "Kind::Decrement => {\n            add(rights, owner, -amount)?;\n            if let Some(h) = headroom {\n                add(h, owner, amount)?;", "Kind::Decrement => {\n            add(rights, owner, -amount)?;\n            if let Some(h) = headroom {\n                add(h, owner, 0)?;", resource_facts_test),
@@ -128,7 +133,7 @@ with tempfile.TemporaryDirectory(prefix="cbcl-live-oracle-") as directory:
         if baseline.returncode or f"test {test} ... ok" not in baseline.stdout:
             print(baseline.stdout)
             raise SystemExit(f"FAIL: regression baseline {test}")
-        kind = "native-admission" if test == admission_test else "transport-regression" if test == transport_test else "live-oracle"
+        kind = "native-admission" if test == admission_test else "transport-regression" if test == transport_test else "historical-byte-baseline" if test == byte_baseline_test else "live-oracle"
         print(f"PASS: {kind} baseline {test}", flush=True)
     for name, filename, before, after, test in mutants:
         path = (isolated / "crates/cbcl-parser/tests" / filename) if filename == "state_kernel_oracle.rs" else (isolated / "crates/cbcl-core/src" / filename)
@@ -150,5 +155,5 @@ with tempfile.TemporaryDirectory(prefix="cbcl-live-oracle-") as directory:
         if result.returncode == 0 or f"test {test} ... FAILED" not in result.stdout or not assertion:
             print(result.stdout)
             raise SystemExit(f"FAIL: {name} not rejected by executed regression assertion")
-        evidence = "native admission regression" if test == admission_test else "transport regression" if test == transport_test else "live Lean comparison"
+        evidence = "native admission regression" if test == admission_test else "transport regression" if test == transport_test else "historical raw-byte comparison" if test == byte_baseline_test else "live Lean comparison"
         print(f"PASS: {name} rejected by {evidence}", flush=True)
