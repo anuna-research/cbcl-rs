@@ -1,3 +1,4 @@
+import LeanCbcl.StateAuthoredReplay
 import LeanCbcl.StateInstalledReplay
 import LeanCbcl.StateFiniteReplayTests
 import LeanCbcl.StateFiniteReplay
@@ -3187,3 +3188,16 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateInstalledReplay.compiled_rule_certified
 #print axioms CBCL.StateInstalledReplay.compiled_field_certified
 #print axioms CBCL.StateInstalledReplay.compiled_fields_certified
+
+#print axioms CBCL.StateAuthoredReplay.primitive_certified
+#print axioms CBCL.StateAuthoredReplay.finite_definition_certified
+#print axioms CBCL.StateAuthoredReplay.resource_definition_certified
+#print axioms CBCL.StateAuthoredReplay.context_definition_certified
+#print axioms CBCL.StateAuthoredReplay.bind_certified
+#print axioms CBCL.StateAuthoredReplay.declarations_certified
+#print axioms CBCL.StateAuthoredReplay.lower_rule_certified
+#print axioms CBCL.StateAuthoredReplay.resolve_certified
+#print axioms CBCL.StateAuthoredReplay.prepared_declarations_certified
+#print axioms CBCL.StateAuthoredReplay.prepared_plans_certified
+#print axioms CBCL.StateAuthoredReplay.compile_certified
+#print axioms CBCL.StateAuthoredReplay.authored_plan_fault_replays

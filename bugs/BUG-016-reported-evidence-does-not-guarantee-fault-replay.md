@@ -168,3 +168,26 @@ The proof maintains the actual extended-prefix lookup invariant. Independent
 review found no defect in the factory or compilation proofs. These results
 still require the concrete source certificates at authored binding and do not
 yet claim full authored-output coverage or close this issue.
+
+## Authored source provenance
+
+`StateAuthoredReplay.bind_certified` covers every successful concrete authored
+binding, including all legacy heads, finite lifts, context paths and resources.
+Declaration lowering, source-relative query dispatch, ordered resolution and
+freeze attachment preserve those certificates. `compile_certified` consequently
+certifies every actual plan returned by authored compilation without a
+caller-supplied source replay law. Context's immutable-world, receiver closure
+and opener-root premises remain explicit.
+
+`authored_plan_fault_replays` connects this provenance to fault reproduction
+from reported actual acts for the same compiled plan. It deliberately does not
+substitute that plan for a newly materialized receiver plan. Contributor replay
+across fresh freeze materialization and actual emitted query/output instructions
+remain substantive obligations before closing this issue.
+
+The checkpoint passes the full Lean build, Batteries linter and 2,226-theorem
+axiom audit. Eleven existing source-provenance/resource proof mutations fail
+their named obligations, including guard removal, wrong freeze footprint,
+empty-history specialization and hidden native/output faults. Independent
+review found no defect in the binding-to-plan certificate chain or its stated
+same-plan boundary.
