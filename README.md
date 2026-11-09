@@ -12,59 +12,39 @@ These guarantees concern observable interactions. They do not establish that an 
 
 ## How it works
 
-CBCL defines interaction protocols over sets of recorded speech acts. Each participant holds a set of signed, content-addressed acts; sets merge by union, acts cite the acts they respond to, and a dialect says which citations are valid.
+CBCL separates recognised inputs, authenticated received records and accepted
+acts. Each participant maintains its own evidence; replicas merge records by set
+union, and acts cite their predecessors rather than relying on arrival order.
 
-```text
-   incoming messages, any bytes
-                 |
-                 v
- (0) full recognition: is it in L_E?
-     L_E = the language the installed
-           environment E recognises
-        |      \
-        | yes   no -> rejected
-        v
-   Alice {p, a}       Bob {p, c}
-          \             /
-           +-----------+
-                 |  set union
-                 v
- (1) S = {p, a, c}  received records
-                 |
-                 v
- (2) proposal -> approval -> completion
-     arrow reads "cited as evidence by"
-                 |
-                 v
- (3) check against dialect D
-     +----------------------------+
-     | Types   what act is this?  |
-     | Roles   who may perform it?|
-     | Causes  what must it cite? |
-     +----------------------------+
-        |          |          |
-     Unknown     Valid     Violation
-     evidence    check     breach
-     missing;    passes    established
-     wait and
-     recheck
-                 |
-                 v
- (4) A, the accepted subset of S
-                 |
-                 v
- (5) State = f_D(A)
-     approvals, balances, progress
-```
+![Stratified admission model: recognised inputs contain authenticated received records, which contain accepted acts. Accepted acts feed CLOK's lattice interpretation and its snapshot, threshold and causal-freeze read interface.](docs/diagrams/stratified-admission-model.svg)
 
-0. **Full recognition.** L_E is a deterministic context-free language. Every message is recognised in full before any semantic action; anything outside L_E is rejected and never recorded. Installing a dialect extends L_E without losing this property.
-1. **Union.** Duplicates change nothing and no global arrival order is required.
-2. **Citations.** Dependencies come from what an act cites, not from the order records arrive.
-3. **Check.** Verdicts follow strong Kleene logic, ordered `Violation < Unknown < Valid`; `all` takes the least and `any` the greatest. `Unknown` is kept until evidence resolves it, and a terminal verdict never changes.
-4. **Admission.** Acceptance requires authenticated acts and accepted predecessors. One passed causal check alone does not admit an act.
-5. **State.** The same accepted acts under the same fixed rules give the same derived state.
+1. **Recognition.** The installed environment defines a deterministic context-free
+   language, L_E. Every input is recognised in full before semantic processing;
+   inputs outside L_E are rejected. Installing a dialect extends recognition
+   while preserving existing declarations.
+2. **Receipt.** Content addresses and host authentication establish the received
+   set S. Unauthenticated inputs do not enter S. Merging these sets by union
+   tolerates duplicates and requires no global delivery order.
+3. **Admission.** The accepted subset A contains acts whose roles and protocol
+   checks pass and whose required predecessors are already accepted. `Unknown`
+   waits for evidence; `Violation` records remain in S but are excluded from A.
+   One passed causal check alone does not admit an act.
+4. **Lattice interpretation.** The Causal Lattice Observation Kernel (CLOK)
+   joins contributions from A into lattice-valued evidence. Equal accepted sets
+   under the same fixed dialect and authenticated metadata give equal kernel
+   values, regardless of delivery order.
+5. **Observation.** The read interface distinguishes revisable snapshots, stable
+   threshold successes that may later expose explicit conflict, and exact values
+   at causal freeze cuts. The underlying lattice evidence grows even when a
+   displayed snapshot changes non-monotonically.
 
-Transport delivers records, cryptography authenticates authors and integrity, and CBCL defines and verifies interaction rules. Authentication establishes who said what, not that the statement is true. Bounded resources need rights plus issuance discipline; set union alone does not prevent double spending. A larger diagram is in [docs/diagrams/cbcl-architecture.svg](docs/diagrams/cbcl-architecture.svg) and the model as a theorem is in [protocol model](docs/concepts/protocol-model.md).
+Transport delivers records, cryptography authenticates authors and integrity,
+and CBCL verifies interaction rules. Authentication establishes who said what,
+not that the statement is true. Bounded resources need rights plus issuance
+discipline; set union alone does not prevent double spending. See the
+[full architecture diagram](docs/diagrams/cbcl-architecture.svg) and the
+[protocol model](docs/concepts/protocol-model.md) for the broader system and its
+formal guarantees.
 
 ## Quick start
 
