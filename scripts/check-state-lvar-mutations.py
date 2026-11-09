@@ -859,6 +859,11 @@ suites.append(("StateAuthoredOutputReplay", (root / "lean-cbcl/LeanCbcl/StateAut
     ("output-receiver-rank-uses-addresses", "refine ⟨H.rank,?_⟩", "refine ⟨Act.addr,?_⟩", "replica_ranked"),
 ]))
 
+suites.append(("StateOutputConvergence", (root / "lean-cbcl/LeanCbcl/StateOutputConvergence.lean").read_text(), [
+    ("no-top-data-projection-drops-frozen-observations", "| .data value => some (name,value) | .fault _ => none",
+     "| .data (.frozen _ _ _) => none | .data value => some (name,value) | .fault _ => none", "data_vector_complete"),
+]))
+
 import argparse
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--module", action="append", help="Run only this module (repeatable)")

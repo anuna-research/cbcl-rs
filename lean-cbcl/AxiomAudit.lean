@@ -1,3 +1,4 @@
+import LeanCbcl.StateOutputConvergence
 import LeanCbcl.StateAuthoredOutputReplay
 import LeanCbcl.StateOutputWitnessReplay
 import LeanCbcl.StateReplayPaths
@@ -3266,3 +3267,16 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateAuthoredOutputReplay.authored_output_recompiles
 #print axioms CBCL.StateAuthoredOutputReplay.replica_ranked
 #print axioms CBCL.StateAuthoredOutputReplay.eventual_authored_output_witness_fault
+
+#print axioms CBCL.StateOutputConvergence.unique_root_iff
+#print axioms CBCL.StateOutputConvergence.unique_root_setEq
+#print axioms CBCL.StateOutputConvergence.reference_scope_setEq
+#print axioms CBCL.StateOutputConvergence.source_value_setEq
+#print axioms CBCL.StateOutputConvergence.query_run_setEq
+#print axioms CBCL.StateOutputConvergence.output_observe_setEq
+#print axioms CBCL.StateOutputConvergence.program_observe_setEq
+#print axioms CBCL.StateOutputConvergence.authored_observations_setEq
+#print axioms CBCL.StateOutputConvergence.prepared_output_exists
+#print axioms CBCL.StateOutputConvergence.finite_history_output_convergence
+#print axioms CBCL.StateOutputConvergence.data_vector_complete
+#print axioms CBCL.StateOutputConvergence.conflict_free_output_SEC

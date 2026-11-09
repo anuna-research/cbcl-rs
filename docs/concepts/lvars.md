@@ -117,6 +117,25 @@ signed, content-addressed and admitted against a cast and a causal protocol
 ([[protocol-model]]); a freeze that is an attributable act by a role; and a ⊤
 that carries the addresses in conflict as evidence.
 
+## What the Lean model establishes
+
+`StateOutputConvergence` proves equality of complete compiled observation vectors
+for equal accepted act sets, including duplicate delivery. Its replica theorem
+uses finite-history stabilization to obtain successful fresh compilation and
+eventual equality. The no-fault corollary preserves every data status, including
+pending and frozen results; it does not discard metadata to obtain agreement.
+
+`StateAuthoredOutputReplay` proves that delivering the actual acts named by an
+emitted fault's evidence is sufficient for a freshly compiled receiving replica
+to report a fault containing that evidence. The model assumes explicit causal
+dependency coverage and a fixed installed environment. Native binding of sealed
+root metadata to an address remains the identity-contract issue in
+[[BUG-011-root-address-does-not-commit-sealed-cast]].
+
+The complete authored threshold-success and shared-freezer value agreement
+proofs remain separate obligations. These convergence and witness results do not
+by themselves close [[SPEC-038-lvar-state-kernel#REQ-3806]].
+
 ## Writing a dialect
 
 A threshold establishes a stable successful fact. A snapshot describes the
