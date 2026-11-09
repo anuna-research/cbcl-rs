@@ -171,7 +171,12 @@ fn duplicate_amount_cannot_hide_a_negative_state_contribution() {
     assert_eq!(candidate.fields["amount"].to_string(), "-1");
     let positive = demo("mint", " :amount 10", &o.address, "@b");
     assert!(matches!(
-        state_exports::admit(&d, &cbcl_core::store::ThreadId("t".into()), &[o.clone()], &positive),
+        state_exports::admit(
+            &d,
+            &cbcl_core::store::ThreadId("t".into()),
+            &[o.clone()],
+            &positive
+        ),
         Admission::Accepted
     ));
     let before = state_of(DEMO, &[o.clone(), positive.clone()]);
@@ -179,10 +184,20 @@ fn duplicate_amount_cannot_hide_a_negative_state_contribution() {
     assert_eq!(before["funded"]["status"], "reached");
     assert_eq!(after["funded"]["status"], "pending");
     let verdict = state_exports::admit(
-        &d, &cbcl_core::store::ThreadId("t".into()), &[o.clone(), positive], &candidate,
+        &d,
+        &cbcl_core::store::ThreadId("t".into()),
+        &[o.clone(), positive],
+        &candidate,
     );
-    assert!(matches!(verdict, Admission::Rejected(_)), "ambiguous amount admitted: {verdict:?}");
-    for params in [" :amount 10 :amount 10", " :amount 0 :amount 1", " :amount -1 :amount 10"] {
+    assert!(
+        matches!(verdict, Admission::Rejected(_)),
+        "ambiguous amount admitted: {verdict:?}"
+    );
+    for params in [
+        " :amount 10 :amount 10",
+        " :amount 0 :amount 1",
+        " :amount -1 :amount 10",
+    ] {
         let duplicate = demo("mint", params, &o.address, "@a");
         let error = cbcl_core::r7::verify_state_shape(&d, &duplicate.message).unwrap_err();
         assert!(error.to_string().contains("duplicate state keyword"));
@@ -658,4 +673,303 @@ fn elements_render_round_trip_the_wire_form() {
         assert_eq!(e.wire(), wire);
         assert_eq!(e.render().render(), json);
     }
+}
+
+// TEST-3810/3812: authored conditions use fixed-bound source reads; they do
+// not turn compatible bounds into competing alternatives or count a leaf twice.
+fn condition_source(condition: &str) -> String {
+    DEMO.replace(
+        "(threshold quorum approvals (count 2))",
+        &format!("(seen (exists approve)) (threshold quorum {condition})"),
+    )
+}
+
+#[test]
+fn authored_condition_conjunction_reaches_boolean_after_every_leaf() {
+    let source = condition_source(
+        "(and (read approvals (count 2)) (and (read seen #t) (read approvals (count 3)) (read approvals (count 2))))",
+    );
+    assert_eq!(install(&source), Ok(()));
+    let opener = open();
+    let mut history = vec![opener.clone()];
+    for index in 0..3 {
+        assert_eq!(
+            state_of(&source, &history)["quorum"],
+            json!({"status":"pending"})
+        );
+        history.push(demo(
+            "approve",
+            "",
+            &opener.address,
+            &format!("@reviewer{index}"),
+        ));
+    }
+    let expected = json!({"status":"reached","element":true});
+    assert_eq!(state_of(&source, &history)["quorum"], expected);
+    history.reverse();
+    history.extend(history.clone());
+    assert_eq!(state_of(&source, &history)["quorum"], expected);
+    // The direct syntax retains its scalar/count result.
+    assert_eq!(
+        state_of(DEMO, &history)["quorum"],
+        json!({"status":"reached","element":{"count":2}})
+    );
+}
+
+#[test]
+fn authored_condition_single_read_returns_boolean() {
+    let source = condition_source("(read approvals (count 2))");
+    assert_eq!(install(&source), Ok(()));
+    let opener = open();
+    let history = vec![
+        opener.clone(),
+        demo("approve", "", &opener.address, "@a"),
+        demo("approve", "", &opener.address, "@b"),
+    ];
+    assert_eq!(
+        state_of(&source, &history)["quorum"],
+        json!({"status":"reached","element":true})
+    );
+}
+
+#[test]
+fn authored_condition_rejects_unrecognized_or_ineligible_sources() {
+    let late_condition = |condition: &str| {
+        DEMO.replace(
+            "(threshold done stage (progress 2))",
+            &format!("(threshold done {condition})"),
+        )
+    };
+    let signed = late_condition("(read balance (sum 1))");
+    assert!(install(&signed).is_err());
+    let negative_events = late_condition("(read credits (sum 1))").replace(
+        "(shape mint (require :amount nonnegative))",
+        "(shape mint (require :amount number))",
+    );
+    let error = install(&negative_events).unwrap_err();
+    assert!(error.contains("nonnegative"), "{error}");
+    let bounded_string = late_condition("(read tags (member \"long\"))").replacen(
+        "(cbcl) @anuna",
+        "(cbcl) @anuna (:state-bounds (max-string 3))",
+        1,
+    );
+    let error = install(&bounded_string).unwrap_err();
+    assert!(error.contains("scalar bounds"), "{error}");
+    for malformed in [
+        "(and)",
+        "(and (read approvals (count 1)))",
+        "(or (read approvals (count 1)) (read approvals (count 2)))",
+        "(read approvals)",
+        "(read approvals (count 1) extra)",
+    ] {
+        assert!(
+            parse_dialect(&parse(&condition_source(malformed)).unwrap()).is_err(),
+            "recognition: {malformed}"
+        );
+    }
+    for condition in [
+        "(and)",
+        "(and (read approvals (count 1)))",
+        "(or (read approvals (count 1)) (read approvals (count 2)))",
+        "(read approvals)",
+        "(read approvals (count 1) extra)",
+        "(read missing (count 1))",
+        "(read tags (member \"x\"))",
+        "(read approvals #t)",
+        "(read quorum #t)",
+        "(read balance (sum 1))",
+        "(>= approvals stage)",
+        "(read approvals (count stage))",
+    ] {
+        assert!(
+            install(&condition_source(condition)).is_err(),
+            "{condition}"
+        );
+    }
+    let condition = "(and (read approvals (count 1)) (read seen #t))";
+    let source = condition_source(condition);
+    assert_eq!(install(&source), Ok(()));
+    let bounded = |options: &str, source: &str| {
+        source.replacen(
+            "(cbcl) @anuna",
+            &format!("(cbcl) @anuna (:state-bounds {options})"),
+            1,
+        )
+    };
+    assert!(install(&bounded("(max-list 2)", &source)).is_err());
+    assert_eq!(install(&bounded("(max-list 3)", &source)), Ok(()));
+    assert!(install(&bounded("(max-fields 9)", &source)).is_err());
+    assert_eq!(install(&bounded("(max-fields 10)", &source)), Ok(()));
+    assert!(install(&bounded(
+        "(max-number 1)",
+        &condition_source("(read approvals (count 2))")
+    ))
+    .is_err());
+    assert!(
+        install(&source.replace("(read approvals (count 1))", "(read credits (sum 1))")).is_err()
+    );
+}
+
+#[test]
+fn authored_condition_schema_and_canonical_round_trip() {
+    let source = condition_source("(and (read approvals (count 2)) (read seen #t))");
+    let registry = parse_and_install_dialect(&parse(&source).unwrap()).unwrap();
+    let d = registry.iter().last().unwrap();
+    let schema: Value = serde_json::from_str(&render_schema(&state_schema(
+        d.state.as_ref().unwrap(),
+        &d.shapes,
+    )))
+    .unwrap();
+    assert_eq!(
+        schema["quorum"],
+        json!({"type":"threshold","of":"bool","condition":{"op":"and","conditions":[{"op":"read","field":"approvals","element":{"count":2}},{"op":"read","field":"seen","element":true}]}})
+    );
+    let condition = d
+        .state
+        .as_ref()
+        .unwrap()
+        .entries
+        .iter()
+        .find_map(|entry| match entry {
+            cbcl_core::state::Entry::Condition { condition, .. } => Some(condition),
+            _ => None,
+        })
+        .unwrap();
+    let round_source = condition_source(&condition.to_sexpr().to_string());
+    let registry = parse_and_install_dialect(&parse(&round_source).unwrap()).unwrap();
+    let round = registry.iter().last().unwrap();
+    assert_eq!(
+        cbcl_core::canonical::dialect_name(d),
+        cbcl_core::canonical::dialect_name(round)
+    );
+    let different =
+        parse_dialect(&parse(&source.replace("(count 2)", "(count 3)")).unwrap()).unwrap();
+    assert_ne!(
+        cbcl_core::canonical::dialect_name(d),
+        cbcl_core::canonical::dialect_name(&different)
+    );
+    let described = cbcl_parser::describe::describe(&d, &source);
+    assert_eq!(
+        described["thresholds"][0]["condition"],
+        schema["quorum"]["condition"]
+    );
+}
+
+#[test]
+fn authored_condition_faults_dominate_pending_and_union_every_leaf() {
+    let source = "(define products (cbcl) @anuna
+      (extend open (to) (tell to)) (extend vote (to) (tell to))
+      (extend alpha (to flag) (tell to :flag flag)) (extend beta (to flag) (tell to :flag flag))
+      (shape alpha (require :flag bool)) (shape beta (require :flag bool))
+      (protocol (then begin open) (then open vote) (then open alpha) (then open beta))
+      (state (lattice checks (elements idle invalid) (bottom idle) (top invalid)
+        (join (idle idle idle) (idle invalid invalid) (invalid idle invalid) (invalid invalid invalid)))
+        (votes (count vote))
+        (left (lift alpha (into checks) (contribute (:flag #t invalid))))
+        (right (lift beta (into checks) (contribute (:flag #t invalid))))
+        (threshold ready (and (read votes (count 10)) (read left \"idle\") (read right \"idle\")))))";
+    assert_eq!(install(source), Ok(()));
+    let opener = act(
+        "(lang products (open @room :caused-by begin :thread \"t\" :from @a))",
+        "@a",
+    );
+    let write = |verb: &str, signer: &str| {
+        act(&format!("(lang products ({verb} @room :flag #t :caused-by {} :thread \"t\" :from {signer}))",opener.address),signer)
+    };
+    let left = write("alpha", "@a");
+    let right = write("beta", "@b");
+    let extra = write("alpha", "@c");
+    let mut history = vec![opener.clone(), left.clone(), right.clone()];
+    for evidence in [
+        vec![left.address.clone(), right.address.clone()],
+        vec![
+            left.address.clone(),
+            right.address.clone(),
+            extra.address.clone(),
+        ],
+    ] {
+        let mut evidence = evidence;
+        evidence.sort();
+        let result = state_of(source, &history);
+        assert_eq!(result["votes"], 0);
+        assert_eq!(result["ready"]["status"], "fault");
+        assert_eq!(result["ready"]["evidence"], json!(evidence));
+        history.push(extra.clone());
+        history.reverse();
+    }
+}
+
+#[test]
+fn authored_condition_uses_each_sources_freeze_scope_and_full_history_faults() {
+    let source = "(define scopes (cbcl) @anuna (:roles (owner))
+      (extend open (to) :from owner :to owner (tell to))
+      (extend alpha (to) :from owner :to owner (tell to))
+      (extend beta (to) :from owner :to owner (tell to))
+      (extend seal-alpha (to) :from owner :to owner (tell to))
+      (extend seal-beta (to) :from owner :to owner (tell to))
+      (protocol (then begin open) (then open alpha) (then alpha seal-alpha) (then seal-alpha beta) (then beta seal-beta))
+      (state (first (count alpha)) (second (count beta))
+        (threshold ready (and (read first (count 1)) (read second (count 1))))
+        (freeze first seal-alpha fault) (freeze second seal-beta fault)))";
+    assert_eq!(install(source), Ok(()));
+    let root = act(
+        "(with-roles ((owner @owner)) (signed @owner (hello :thread \"t\" :caused-by begin)))",
+        "@owner",
+    );
+    let next = |verb: &str, pred: &Act| {
+        act(&format!("(signed @owner (lang scopes ({verb} @owner :from @owner :thread \"t\" :caused-by {})))",pred.address), "@owner")
+    };
+    let opener = next("open", &root);
+    let alpha = next("alpha", &opener);
+    let seal_alpha = next("seal-alpha", &alpha);
+    let beta = next("beta", &seal_alpha);
+    let seal_beta = next("seal-beta", &beta);
+    let mut history = vec![
+        root,
+        opener.clone(),
+        alpha,
+        seal_alpha.clone(),
+        beta,
+        seal_beta.clone(),
+    ];
+    let d = parse_dialect(&parse(source).unwrap()).unwrap();
+    for index in 0..history.len() {
+        assert!(matches!(
+            state_exports::admit(
+                &d,
+                &cbcl_core::store::ThreadId("t".into()),
+                &history[..index],
+                &history[index]
+            ),
+            Admission::Accepted
+        ));
+    }
+    let state = state_of(source, &history);
+    assert_eq!(state["first"]["frozen"], seal_alpha.address);
+    assert_eq!(state["second"]["frozen"], seal_beta.address);
+    assert_eq!(state["ready"], json!({"status":"reached","element":true}));
+    history.reverse();
+    history.extend(history.clone());
+    assert_eq!(state_of(source, &history), state);
+    let late = act(&format!("(signed @owner (lang scopes (alpha @owner (second) :from @owner :thread \"t\" :caused-by {})))", opener.address), "@owner");
+    assert!(matches!(
+        state_exports::admit(&d, &cbcl_core::store::ThreadId("t".into()), &history, &late),
+        Admission::Accepted
+    ));
+    history.push(late.clone());
+    let mut evidence = vec![seal_alpha.address.clone(), late.address];
+    evidence.sort();
+    let fault = state_of(source, &history);
+    assert_eq!(fault["ready"]["status"], "fault");
+    assert_eq!(fault["ready"]["evidence"], json!(evidence));
+    let forbidden = source.replace(
+        "(freeze first seal-alpha fault)",
+        "(freeze first seal-alpha supersede)",
+    );
+    assert!(install(&forbidden).is_err());
+    let earlier = forbidden
+        .replace("(freeze first seal-alpha supersede)", "")
+        .replace("(state ", "(state (freeze first seal-alpha supersede) ");
+    assert!(install(&earlier).is_err());
+    assert!(install(&source.replace("freeze first", "freeze ready")).is_err());
 }

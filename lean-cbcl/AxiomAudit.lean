@@ -1,3 +1,4 @@
+import LeanCbcl.StateCondition
 import LeanCbcl.StateAuthoredQuasiDeterminism
 import LeanCbcl.StateFrozenCompilation
 import LeanCbcl.StateAuthoredThresholdOrigin
@@ -3350,3 +3351,14 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateAuthoredFrozenAgreement.source_frozen_global
 #print axioms CBCL.StateAuthoredFrozenAgreement.authored_frozen_agreement
 #print axioms CBCL.StateAuthoredQuasiDeterminism.authored_quasi_determinism
+
+#print axioms CBCL.StateCondition.pending_fault
+#print axioms CBCL.StateCondition.fault_union
+#print axioms CBCL.StateCondition.merge_success
+#print axioms CBCL.StateCondition.boolean_evidence
+#print axioms CBCL.StateCondition.merge_evidence
+#print axioms CBCL.StateCondition.read_success
+#print axioms CBCL.StateCondition.combine_evidence
+#print axioms CBCL.StateCondition.combine_success
+#print axioms CBCL.StateCondition.boolean_fault
+#print axioms CBCL.StateCondition.combine_grows

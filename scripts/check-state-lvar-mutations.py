@@ -906,6 +906,12 @@ suites.append(("StateOutputConvergence", (root / "lean-cbcl/LeanCbcl/StateOutput
      "| .data (.frozen _ _ _) => none | .data value => some (name,value) | .fault _ => none", "data_vector_complete"),
 ]))
 
+suites.append(("StateCondition", (root / "lean-cbcl/LeanCbcl/StateCondition.lean").read_text(), [
+    ("condition-pending-hides-right-fault", "| _, .fault ids => .fault ids", "| _, .fault _ => .data .pending", "pending_fault"),
+    ("condition-union-discards-right-evidence", "| .fault left, .fault right => .fault (left ∪ right)", "| .fault left, .fault _ => .fault left", "fault_union"),
+    ("condition-success-returns-false", "| .data (.reached true), .data (.reached true) => .data (.reached true)", "| .data (.reached true), .data (.reached true) => .data (.reached false)", "merge_success"),
+]))
+
 import argparse
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--module", action="append", help="Run only this module (repeatable)")

@@ -134,6 +134,38 @@ Evidence therefore includes replay context; it is not necessarily a minimal
 list of offending messages. An initializer can supply domain membership even
 when it is concurrent with the writer.
 
+### Conditions over several sources
+
+```lisp
+(approvals (count approve))
+(closed (exists close))
+(threshold ready (and (read approvals (count 2)) (read closed #t)))
+```
+
+Every `read` names an earlier actual source field and uses that field's existing
+threshold element checks. `and` takes at least two children; nesting and repeated
+leaves are allowed. Compatible fixed bounds such as `(count 2)` and `(count 3)`
+may be conjoined. Repeating a leaf does not add approvals, and independently
+growing fields cannot be compared with each other.
+
+The result stays pending until every leaf succeeds, then reaches
+`{"status":"reached","element":true}`. Even a standalone condition-form
+`(threshold ready (read approvals (count 2)))` returns Boolean true; the direct
+form `(threshold ready approvals (count 2))` retains its authored count element.
+Faults take precedence over pending siblings, and evidence from every faulting
+leaf is unioned and sorted. Each leaf uses its own source's freezer scope;
+conditions introduce no shared cut and cannot themselves be freeze targets.
+Supersede-frozen sources remain ineligible for stable reads regardless of where
+the freeze declaration occurs.
+
+A `read` contributes one condition node; an `and` contributes one plus all child
+nodes. The total must fit `max-list`, and element strings/numbers retain the
+installed scalar bounds. The schema marks the Boolean threshold with `of: bool`
+and a recursive `condition` tree of `read` or `and` nodes. See
+[[SPEC-038-lvar-state-kernel#CON-3805]]. Native condition execution is implemented;
+the extended Lean model, live oracle coverage and full v0.4 proof acceptance
+remain in progress.
+
 ### Freezes
 
 ```lisp
@@ -306,8 +338,8 @@ See [[SPEC-038-lvar-state-kernel#ADR-3807]].
 SPEC-038 v0.4 remains draft. Native sealed-root identity and its explicit fixture
 migration are implemented and under verification;
 [authored product reads](../../bugs/BUG-012-product-read-composition-has-no-authored-contract.md)
-are pending. Authored conjunction/comparison of several threshold sources is unavailable;
-internal product lattices do not add that syntax. The typed authored agreement
+have native implementation under verification; extended condition proofs and
+oracle coverage remain pending. The typed authored agreement
 proof for the prior single-source inventory is complete, with native extraction and identity premises stated in the
 [Lean proof status](../../lean-cbcl/README.md#lvar-state-kernel).
 

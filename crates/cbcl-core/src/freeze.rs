@@ -139,6 +139,22 @@ struct Reader<'a> {
 }
 
 impl Reader<'_> {
+    fn threshold(&mut self, field: &str, elements: &[crate::lattice::Element]) -> Value {
+        let value = self.field(0, field);
+        let scope = if value.fault_evidence().is_some() {
+            0
+        } else {
+            self.plans.get(field).map(|p| p.scope).unwrap_or(0)
+        };
+        let ctx = crate::lattice::Ctx::new(self.clause, &self.scopes[scope]);
+        state::threshold_read(
+            &ctx,
+            self.clause,
+            field,
+            elements,
+            &[(field.to_string(), value.unfrozen().clone())],
+        )
+    }
     fn field(&mut self, scope: usize, name: &str) -> Value {
         let key = (scope, name.to_string());
         if let Some(v) = self.values.get(&key) {
@@ -307,20 +323,13 @@ pub(crate) fn fold(
                 field,
                 elements,
             } => {
-                let value = reader.field(0, field);
-                let scope = if value.fault_evidence().is_some() {
-                    0
-                } else {
-                    reader.plans.get(field).map(|p| p.scope).unwrap_or(0)
-                };
-                let ctx = crate::lattice::Ctx::new(clause, &reader.scopes[scope]);
-                let result = state::threshold_read(
-                    &ctx,
-                    clause,
-                    field,
-                    elements,
-                    &[(field.clone(), value.unfrozen().clone())],
-                );
+                let result = reader.threshold(field, elements);
+                out.push((name.clone(), result));
+            }
+            Entry::Condition { name, condition } => {
+                let result = condition.evaluate(&mut |field, element| {
+                    reader.threshold(field, core::slice::from_ref(element))
+                });
                 out.push((name.clone(), result));
             }
             _ => {}

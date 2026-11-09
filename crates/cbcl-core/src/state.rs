@@ -327,11 +327,106 @@ pub enum Entry {
         field: String,
         elements: Vec<crate::lattice::Element>,
     },
+    /// Authored Boolean conjunction/read observation (CON-3805).
+    Condition {
+        name: String,
+        condition: Condition,
+    },
     Freeze {
         field: String,
         verb: String,
         policy: FreezePolicy,
     },
+}
+
+/// Closed authored threshold expressions (SPEC-038 CON-3805).
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum Condition {
+    Read {
+        field: String,
+        element: crate::lattice::Element,
+    },
+    And(Vec<Condition>),
+}
+
+impl Condition {
+    pub fn size(&self) -> usize {
+        match self {
+            Self::Read { .. } => 1,
+            Self::And(children) => 1 + children.iter().map(Self::size).sum::<usize>(),
+        }
+    }
+    pub fn leaves<'a>(&'a self, out: &mut Vec<(&'a str, &'a crate::lattice::Element)>) {
+        match self {
+            Self::Read { field, element } => out.push((field, element)),
+            Self::And(children) => {
+                for child in children {
+                    child.leaves(out);
+                }
+            }
+        }
+    }
+    pub fn to_sexpr(&self) -> SExpr {
+        let sym = |s: &str| SExpr::Atom(Atom::Symbol(s.into()));
+        match self {
+            Self::Read { field, element } => {
+                SExpr::List(alloc::vec![sym("read"), sym(field), element.to_sexpr()])
+            }
+            Self::And(children) => SExpr::List(
+                core::iter::once(sym("and"))
+                    .chain(children.iter().map(Self::to_sexpr))
+                    .collect(),
+            ),
+        }
+    }
+    pub fn schema(&self) -> Value {
+        let text = |s: &str| Value::Str(s.into());
+        match self {
+            Self::Read { field, element } => Value::Map(alloc::vec![
+                (text("op"), text("read")),
+                (text("field"), text(field)),
+                (text("element"), element.render())
+            ]),
+            Self::And(children) => Value::Map(alloc::vec![
+                (text("op"), text("and")),
+                (
+                    text("conditions"),
+                    Value::List(children.iter().map(Self::schema).collect())
+                )
+            ]),
+        }
+    }
+    // Evaluate every leaf before deciding: pending never hides a sibling fault.
+    pub(crate) fn evaluate(
+        &self,
+        read: &mut impl FnMut(&str, &crate::lattice::Element) -> Value,
+    ) -> Value {
+        let mut leaves = Vec::new();
+        self.leaves(&mut leaves);
+        let mut reached = true;
+        let mut fault = false;
+        let mut evidence = Vec::new();
+        for (field, element) in leaves {
+            let value = read(field, element);
+            if let Some(found) = value.fault_evidence() {
+                fault = true;
+                evidence.extend(found);
+            }
+            reached &= matches!(&value, Value::Map(entries) if entries.iter().any(|(k,v)| matches!((k,v), (Value::Str(k),Value::Str(v)) if k == "status" && v == "reached")));
+        }
+        if fault {
+            return conflict_top("state conflicts", evidence);
+        }
+        let mut entries = alloc::vec![(
+            Value::Str("status".into()),
+            Value::Str(if reached { "reached" } else { "pending" }.into())
+        )];
+        if reached {
+            entries.push((Value::Str("element".into()), Value::Bool(true)));
+        }
+        Value::Map(entries)
+    }
 }
 
 /// The parsed `(state …)` clause (SPEC-019 R.1).
@@ -1383,6 +1478,12 @@ pub(crate) fn fold_unfrozen(
                     .unwrap_or(Value::Absent);
                 done.push((name.clone(), v));
             }
+            Entry::Condition { name, condition } => {
+                let value = condition.evaluate(&mut |field, element| {
+                    threshold_read(&ctx, clause, field, core::slice::from_ref(element), &done)
+                });
+                done.push((name.clone(), value));
+            }
             Entry::Domain { .. } | Entry::Freeze { .. } | Entry::Lattice(_) => {}
             Entry::Threshold {
                 name,
@@ -1444,6 +1545,12 @@ pub fn fold_reference(
                 elements,
             } => {
                 let value = threshold_read(&ctx, clause, field, elements, &done);
+                done.push((name.clone(), value));
+            }
+            Entry::Condition { name, condition } => {
+                let value = condition.evaluate(&mut |field, element| {
+                    threshold_read(&ctx, clause, field, core::slice::from_ref(element), &done)
+                });
                 done.push((name.clone(), value));
             }
             _ => {}
@@ -1694,6 +1801,8 @@ pub enum StateType {
     Histogram(ScalarType),
     /// The referenced field's type could not be derived.
     Unknown,
+    /// Boolean condition threshold (SPEC-038 CON-3805).
+    Condition(Condition),
     /// A threshold read over `field` (SPEC-038 CON-3801).
     Threshold {
         field: String,
@@ -1729,6 +1838,10 @@ impl StateType {
                 out.push('}');
                 out
             }
+            StateType::Condition(condition) => format!(
+                "{{\"type\":\"threshold\",\"of\":\"bool\",\"condition\":{}}}",
+                condition.schema().render()
+            ),
             StateType::Threshold { field, elements } => {
                 let mut out = String::from("{\"type\":\"threshold\",\"field\":");
                 json_string(field, &mut out);
@@ -1810,6 +1923,10 @@ pub fn state_schema(
     for entry in &clause.entries {
         let (name, rule) = match entry {
             Entry::Field { name, rule } => (name, rule),
+            Entry::Condition { name, condition } => {
+                out.push((name.clone(), StateType::Condition(condition.clone())));
+                continue;
+            }
             Entry::Domain { .. } | Entry::Freeze { .. } | Entry::Lattice(_) => continue,
             Entry::Threshold {
                 name,
@@ -1898,7 +2015,7 @@ pub fn state_schema(
     }
     out.into_iter()
         .map(|(name, ty)| {
-            if matches!(ty, StateType::Threshold { .. }) {
+            if matches!(ty, StateType::Threshold { .. } | StateType::Condition(_)) {
                 (name, ty)
             } else if matches!(clause.rule_of(&name),Some(Rule::Context {path,..}) if crate::context::stable_path(path)) {
                 (name,StateType::Context(alloc::boxed::Box::new(ty)))

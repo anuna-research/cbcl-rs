@@ -378,3 +378,5 @@ import LeanCbcl.StateFrozenSuccess
 import LeanCbcl.StateDataLocalWorld
 import LeanCbcl.StateAuthoredFrozenAgreement
 import LeanCbcl.StateAuthoredQuasiDeterminism
+
+import LeanCbcl.StateCondition

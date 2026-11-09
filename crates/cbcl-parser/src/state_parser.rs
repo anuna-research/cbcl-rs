@@ -12,7 +12,7 @@ use alloc::string::String;
 use alloc::vec::Vec;
 use cbcl_core::lattice::Element;
 use cbcl_core::sexpr::{Atom, SExpr};
-use cbcl_core::state::{Entry, Rule, StateBounds, StateClause, Value};
+use cbcl_core::state::{Condition, Entry, Rule, StateBounds, StateClause, Value};
 
 fn symbol(s: &SExpr, what: &str) -> Result<String, String> {
     match s {
@@ -250,6 +250,17 @@ pub fn parse_state(sexpr: &SExpr) -> Result<StateClause, String> {
             continue;
         }
         if parts[0].is_symbol("threshold") {
+            if parts.len() == 3 {
+                let name = symbol(&parts[1], "threshold name")?;
+                if !is_field_name(&name) {
+                    return Err(String::from("invalid threshold name"));
+                }
+                entries.push(Entry::Condition {
+                    name,
+                    condition: parse_condition(&parts[2])?,
+                });
+                continue;
+            }
             if parts.len() < 4 {
                 return Err(String::from("threshold takes: name field element…"));
             }
@@ -411,6 +422,26 @@ fn parse_finite_lift(args: &[SExpr]) -> Result<cbcl_core::finite::Lift, String> 
         projection,
         table: None,
     })
+}
+
+fn parse_condition(input: &SExpr) -> Result<Condition, String> {
+    match input {
+        SExpr::List(parts) if parts.len() == 3 && parts[0].is_symbol("read") => {
+            Ok(Condition::Read {
+                field: symbol(&parts[1], "condition field")?,
+                element: parse_element(&parts[2])?,
+            })
+        }
+        SExpr::List(parts) if parts.len() >= 3 && parts[0].is_symbol("and") => Ok(Condition::And(
+            parts[1..]
+                .iter()
+                .map(parse_condition)
+                .collect::<Result<Vec<_>, _>>()?,
+        )),
+        _ => Err(String::from(
+            "condition is (read field element) or (and condition condition+)",
+        )),
+    }
 }
 
 /// Parse one threshold element (SPEC-038 CON-3801):

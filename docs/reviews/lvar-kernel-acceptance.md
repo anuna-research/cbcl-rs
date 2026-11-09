@@ -8,8 +8,9 @@ mode: reference
 The implementation is **not complete**. This matrix records the v0.3 acceptance
 checkpoint: typed agreement for the prior single-source inventory is complete.
 The maintainer has since approved v0.4 sealed-wrapper migration and authored
-product conditions; their implementation and new TEST-3810 through TEST-3815
-coverage remain pending. The older rows below are evidence for the checkpoint,
+product conditions. Native root migration and native condition execution are
+implemented; extended compiler/oracle proofs and full TEST-3815 acceptance
+remain pending. The older rows below are evidence for the checkpoint,
 not completed acceptance of the expanded v0.4 inventory. This audit concerns [[SPEC-038-lvar-state-kernel]] and the
 execution plan [[IMPL-030-lvar-state-kernel]]. Completing the audit does not
 complete either specification or plan.
@@ -17,8 +18,8 @@ complete either specification or plan.
 The audited v0.3 runtime/proof revision is `63b8431`; the rows below retain that
 checkpoint's scope. Subsequent work preserves the original historical-byte
 snapshot and implements the approved v0.4 sealed-root migration. Its separate
-verification record follows; authored conjunctions and their proof extension
-remain outstanding.
+verification record follows; authored conjunction proof/oracle integration
+remains outstanding.
 
 ## Sealed-root migration verification
 
@@ -53,6 +54,33 @@ mutation rejection.
 Remote required Lean build/audit and parity jobs succeeded for contract commit
 `1aac6ee` (run 321). That run predates the runtime migration and does not verify
 these runtime changes or the outstanding authored conditions.
+
+## Authored condition implementation checkpoint
+
+The native `Condition` tree recognizes exact `read` forms and nested `and` forms
+with at least two children. Installation reuses existing singleton source checks
+for every leaf, preserves earlier-source ordering and clause-wide freeze
+eligibility, and checks expression size/scalar bounds and rendered-field limits.
+Evaluation collects every fault before normal success and uses each leaf's own
+source scope. Conditions render Boolean true on success; direct thresholds retain
+their authored alternative. Canonical hashing, schema output, description output
+and the EBNF include the new form.
+
+The threshold suite passes 21 tests, including six new authored-condition cases.
+The complete committed parser inventory passes 491 tests. Five native semantic
+mutants are rejected: pending short-circuit, overwritten evidence, shared freezer
+scope, unary recognition and skipped condition-size checking. Independent review
+found no concrete native defect. The previous 15 live Lean oracle suites still
+pass (seed 380038/cases 512); those suites do **not** yet exercise authored
+conditions.
+
+`StateCondition` supplies reviewed Boolean/fault algebra lemmas. Its module lint
+passes, and three proof mutants are rejected by the pending/fault, evidence-union
+and successful-Boolean theorems. This module does not establish installed leaf
+query or scope correspondence. Extending the actual authored compiler, live
+oracle, witness replay, convergence and full agreement capstone remains required
+by [[SPEC-038-lvar-state-kernel#TEST-3815]]. No v0.4 completion is inferred from the
+prior single-source capstone or this algebra checkpoint.
 
 ## Requirement evidence
 

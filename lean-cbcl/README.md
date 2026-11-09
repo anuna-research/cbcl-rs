@@ -381,7 +381,10 @@ python3 ../scripts/check-state-kernel-sec.py
 proofs cover the following typed-model layers for the prior single-source
 observation inventory. SPEC-038 v0.4 adds approved condition observations and a
 sealed-root migration. Native root migration is implemented and verified;
-condition implementation and extended proof acceptance remain pending.
+native conditions are implemented, while their installed compiler/oracle
+correspondence and extended proof acceptance remain pending. `StateCondition`
+provides the initial fault-first Boolean algebra; it is not the completed
+authored-condition compiler refinement.
 
 - `StateLift` proves accepted-set lift invariance and the union/join law.
   `StateLVar` and `StateObservation` compose threshold, domain, context, resource,

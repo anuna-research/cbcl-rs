@@ -418,7 +418,11 @@ ordinary-state-rule
     | "(" , ( "histogram" | "sum" ) , ws , state-name , ")" ;
 domain-entry = "(" , "domain" , ws , perf-name , ws , keyword , ws , state-name , ")" ;
 threshold-entry = "(" , "threshold" , ws , state-name , ws , state-name ,
-    ws , threshold-element , { ws , threshold-element } , ")" ;
+    ws , threshold-element , { ws , threshold-element } , ")"
+    | "(" , "threshold" , ws , state-name , ws , threshold-condition , ")" ;
+threshold-condition = "(" , "read" , ws , state-name , ws , threshold-element , ")"
+    | "(" , "and" , ws , threshold-condition , ws , threshold-condition ,
+        { ws , threshold-condition } , ")" ;
 threshold-element = scalar
     | "(" , ( "count" | "sum" | "progress" ) , ws , number , ")"
     | "(" , "member" , ws , scalar , ")" ;

@@ -210,6 +210,11 @@ pub fn describe(d: &Dialect, text: &str) -> Json {
                 Entry::Domain { verb, key, field } => {
                     domains.push(json!({ "verb": verb, "key": key, "field": field }));
                 }
+                Entry::Condition { name, condition } => {
+                    let condition: Json =
+                        serde_json::from_str(&condition.schema().render()).unwrap();
+                    thresholds.push(json!({"name":name,"condition":condition}));
+                }
                 Entry::Threshold {
                     name,
                     field,

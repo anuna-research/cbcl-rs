@@ -394,6 +394,13 @@ fn state_to_sexpr(clause: &crate::state::StateClause) -> SExpr {
             Entry::Domain { verb, key, field } => {
                 items.push(SExpr::List(vec![sym("domain"), s(verb), s(key), s(field)]));
             }
+            Entry::Condition { name, condition } => {
+                items.push(SExpr::List(vec![
+                    sym("threshold"),
+                    s(name),
+                    condition.to_sexpr(),
+                ]));
+            }
             Entry::Threshold {
                 name,
                 field,
