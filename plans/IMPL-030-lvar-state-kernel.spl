@@ -122,7 +122,7 @@
 (given (task docs-status))
 (given (task-description docs-status "Update docs/concepts/bounded-counter.md and hlc-registers.md with the term reading of each head and the snapshot/threshold/frozen vocabulary; set SPEC-038 status to implemented; zetl check clean."))
 (given (task-acceptance docs-status "zetl check --dead-links --fail-on error clean; SPEC-038 status implemented with verified-by annotations reconciled to what landed; docs and rustdoc use the SPEC-038 Vocabulary (lift, display, LVar, put, threshold, frozen, snapshot, stable) with fold retained only as the API name."))
-(normally r-ready-docs-status (and (task docs-status) (completed snapshot-marking) (completed user-lattices) (completed lean-quasi-determinism) (completed semantic-alignment) (completed context-map) (completed root-cast-identity-contract) (completed lean-ci-green) (completed product-read-composition) (completed finite-evidence-support)) (ready docs-status))
+(normally r-ready-docs-status (and (task docs-status) (completed snapshot-marking) (completed user-lattices) (completed lean-quasi-determinism) (completed semantic-alignment) (completed context-map) (completed root-cast-identity-contract) (completed lean-ci-green) (completed product-read-composition) (completed finite-evidence-support) (completed acceptance-audit) (completed byte-compatibility)) (ready docs-status))
 (meta r-ready-docs-status (source "SPEC-038-lvar-state-kernel#REQ-3807"))
 
 (given (task context-map))
@@ -1675,3 +1675,19 @@
 (given (no-deps witness-replay))
 (normally r-ready-witness-replay (and (task witness-replay) (no-deps witness-replay)) (ready witness-replay))
 (meta r-ready-witness-replay (source "SPEC-038-lvar-state-kernel#REQ-3806"))
+
+;; Audit completion records an honest evidence matrix, not implementation completion.
+(given (task acceptance-audit))
+(given (task-description acceptance-audit "Audit every SPEC-038 REQ/NFR/CON/TEST against current implementation, proof, tests, docs and latest PR state. Preserve unresolved identity/product decisions explicitly; do not equate a completed audit with completed implementation."))
+(given (task-acceptance acceptance-audit "A durable requirement-to-evidence matrix identifies each requirement as proved, tested, incomplete, blocked or unverified; includes current targeted native/parser and live-oracle results, proof gates, documentation/grammar references and latest-SHA CI. Independent review checks scope and omissions. Unresolved rows remain visibly incomplete."))
+(given (no-deps acceptance-audit))
+(normally r-ready-acceptance-audit (and (task acceptance-audit) (no-deps acceptance-audit)) (ready acceptance-audit))
+(meta r-ready-acceptance-audit (source "SPEC-038-lvar-state-kernel#TEST-3806"))
+
+;; TEST-3807 requires historical raw bytes, not JSON-normalized equality.
+(given (task byte-compatibility))
+(given (task-description byte-compatibility "Close TEST-3807 raw-byte acceptance gap: generate state-render bytes from verified pre-SPEC revision on its original conformance inputs, and compare current runtime addresses, verdicts and rendered bytes. Keep authorized conflict-rendering changes explicit."))
+(given (task-acceptance byte-compatibility "Raw baseline provenance identifies pre-SPEC commit and original input vectors; current conflict-free observations compare exact bytes without JSON normalization; permitted conflict changes are explicit and scoped. Deliberate byte-only mutation must fail; native regression and independent review pass."))
+(given (no-deps byte-compatibility))
+(normally r-ready-byte-compatibility (and (task byte-compatibility) (no-deps byte-compatibility)) (ready byte-compatibility))
+(meta r-ready-byte-compatibility (source "SPEC-038-lvar-state-kernel#TEST-3807"))

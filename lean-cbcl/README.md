@@ -402,15 +402,24 @@ proofs cover the following typed-model layers:
   admissibility, observation tags, conditional eventual agreement, and fault
   dissemination.
 
+`StateAuthoredQuasiDeterminism.authored_quasi_determinism` assembles the complete
+typed authored agreement guarantee. It covers actual emitted threshold and
+same-freezer value agreement, exact equal-set observations, immediate accepted
+witness replay, finite-witness dissemination, finite-history convergence and
+no-top full-data SEC. `StateAuthoredFrozenAgreement` derives output/source
+pairing through fresh compilation; `StateDataLocalWorld` connects normalized
+local interpretation to the common causal world. Excluded metadata may grow
+without changing a successful frozen value.
+
 These results extend the resource-classifier boundary of SPEC-036/037; those
-older theorems still have their stated provider premises. The new compiler
-results retain native closure implementations and recognized immutable metadata
-as explicit leaf parameters. They do not establish equivalence with every
-concrete Rust rule factory, finite-table projection validator, or authored
-context/domain declaration. Full literal source bindings and native freeze
-scoping remain implementation work. Wire parsing, signature authentication,
-clock/signer mapping, canonical rendering, and a universal Rust-driver refinement
-also remain separate boundaries.
+older theorems retain their stated provider premises. Concrete typed factories,
+finite validators, authored context/domain binding and functional cached freeze
+scopes are composed. Literal Rust AST/wire extraction, authentication,
+clock/signer mapping, mutable-driver execution and universal native
+canonical-renderer extraction remain explicit proof boundaries. The specification remains draft for the native root
+identity and authored product-read contracts, not an unfinished typed agreement
+proof. Ongoing threshold preservation is also proved in its existing concrete
+preservation modules.
 
 Concrete factories now cover legacy primitives, the typed native resource
 reader, closed context paths, initializer/roster domains, and finite contribution

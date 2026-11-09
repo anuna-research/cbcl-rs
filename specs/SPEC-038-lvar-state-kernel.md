@@ -86,12 +86,13 @@ Load-bearing: [[SPEC-038-lvar-state-kernel#REQ-3800]] every field is a term ·
 [[SPEC-038-lvar-state-kernel#REQ-3803]] freeze · [[SPEC-038-lvar-state-kernel#REQ-3806]]
 quasi-determinism · [[SPEC-038-lvar-state-kernel#NFR-3800]] explicit evaluation cost bounds.
 
-Open: the remaining whole-kernel proof bridges are owned by the SPEC-038
-implementer: compose the faulting native cached reader with the concrete
-authored compiler, close cached-upper-set validator correspondence, and retain
-the explicit installation/wire/rank/renderer boundaries. Whole concrete source
-binding, regenerated-selector fault growth, and clear-history cached cuts are
-proved; they do not alone establish complete native reader correspondence.
+Open: the protocol and dialect API maintainers must resolve the native root
+identity and authored product-read contracts recorded at the end of this
+specification. The typed whole-kernel agreement proof, concrete authored source
+binding, faulting functional cached-reader composition and finite upper-set
+validator correspondence are complete. Installation metadata, wire extraction,
+authentication, causal admission and rendering retain their explicit model
+boundaries; the typed theorem does not establish universal Rust source extraction.
 Progress and the escrow function `bounded-counter` retain their
 author-facing forms over the shared history-backed kernel path
 ([[SPEC-038-lvar-state-kernel#ADR-3806]]). Sequence lattices are out of scope.

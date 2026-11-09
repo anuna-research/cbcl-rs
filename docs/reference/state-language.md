@@ -270,9 +270,12 @@ unknown, duplicate and out-of-range bounds reject.
 [SPEC-019](../../specs/SPEC-019-state-rules.md) defines the base state contract;
 [SPEC-035](../../specs/SPEC-035-register-semantics.md) covers HLC registers;
 [SPEC-038](../../specs/SPEC-038-lvar-state-kernel.md) covers the LVar extensions.
-SPEC-038 remains draft: implemented syntax and executable checks do not imply
-that every concrete Rust source binding has a completed universal refinement
-proof. See the [Lean proof status](../../lean-cbcl/README.md#lvar-state-kernel).
+SPEC-038 remains draft for two unresolved contracts: [native root identity](../../bugs/BUG-011-root-address-does-not-commit-sealed-cast.md)
+and [authored product reads](../../bugs/BUG-012-product-read-composition-has-no-authored-contract.md).
+Authored conjunction/comparison of several threshold sources is unavailable;
+internal product lattices do not add that syntax. The typed authored agreement
+proof is complete, with native extraction and identity premises stated in the
+[Lean proof status](../../lean-cbcl/README.md#lvar-state-kernel).
 
 State-bearing messages must use each data keyword once. Repeated data keywords
 are rejected during state-shape validation, including repetitions with equal
