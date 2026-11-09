@@ -1,3 +1,4 @@
+import LeanCbcl.StateReplayPaths
 import LeanCbcl.StateFreezeWitnessReplay
 import LeanCbcl.StateAuthoredReplay
 import LeanCbcl.StateInstalledReplay
@@ -3209,3 +3210,21 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateFreezeWitnessReplay.conflict_replays
 #print axioms CBCL.StateFreezeWitnessReplay.evidence_replays
 #print axioms CBCL.StateFreezeWitnessReplay.freeze_fault_replays
+
+#print axioms CBCL.StateReplayPaths.union_cross_replays
+#print axioms CBCL.StateReplayPaths.freeze_cross_replays
+#print axioms CBCL.StateReplayPaths.related_replays
+#print axioms CBCL.StateReplayPaths.match_map
+#print axioms CBCL.StateReplayPaths.match_join
+#print axioms CBCL.StateReplayPaths.rule_path_related
+#print axioms CBCL.StateReplayPaths.decorate_related
+#print axioms CBCL.StateReplayPaths.extend_related
+#print axioms CBCL.StateReplayPaths.fields_related
+#print axioms CBCL.StateReplayPaths.authored_decorations
+#print axioms CBCL.StateReplayPaths.compiled_paths_related
+#print axioms CBCL.StateReplayPaths.authored_paths_related
+#print axioms CBCL.StateReplayPaths.named_fault_transfer
+#print axioms CBCL.StateReplayPaths.authored_fault_replays
+#print axioms CBCL.StateReplayPaths.authored_recompiles
+#print axioms CBCL.StateReplayPaths.authored_fault_recompiles
+#print axioms CBCL.StateReplayPaths.eventual_authored_witness_fault

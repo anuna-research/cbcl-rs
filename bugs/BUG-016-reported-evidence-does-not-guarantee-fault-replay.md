@@ -218,3 +218,27 @@ identity, including with reverse/duplicate receipt. This is a low-level state
 fixture, not an admission theorem. Removing domain support fails its executed
 replay assertion; all 20 native freeze tests pass. Independent review found no
 defect in the local transfer laws or their stated boundary.
+
+## Whole authored plan recompilation
+
+`StateReplayPaths` now relates complete error paths between separately compiled
+histories. Static primitive sources consume concrete authored certificates;
+joins retain both dependencies; fixed freezes transfer their original pairs;
+materialized freezes use the fresh-contributor transfer above. Ordered name
+resolution and clause-wide attachment preserve this relation through the exact
+`compile_fields_path` projection of actual compiler results.
+
+`authored_fault_recompiles` constructs a successful receiver compilation and a
+same-named fault containing the original evidence from acceptance of the reported
+actual acts. Full source-history inclusion is absent. The end-to-end
+`eventual_authored_witness_fault` filters exactly those acts, invokes reliable
+witness delivery only on that finite list, and proves a containing fault in every
+later freshly compiled receiver plan. Replica validity, address uniqueness,
+causal closure and opener ancestry are derived from the explicit
+predecessor-admission and causal-dependency-coverage premises.
+
+Independent review found no defect in this complete typed-plan transfer.
+Proof mutations retaining stale contributor predicates or dropping the right
+product error fail `related_replays`. Emitted `StateOutputCompiler` instructions,
+query adapters and their local normalized-world bridge remain to be composed;
+this result is not silently substituted for that output-level theorem.

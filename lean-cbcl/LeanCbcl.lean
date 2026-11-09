@@ -361,3 +361,5 @@ import LeanCbcl.StateInstalledReplay
 import LeanCbcl.StateAuthoredReplay
 
 import LeanCbcl.StateFreezeWitnessReplay
+
+import LeanCbcl.StateReplayPaths

@@ -840,6 +840,13 @@ suites.append(("StateAddressRange", (root / "lean-cbcl/LeanCbcl/StateAddressRang
 ]))
 
 # Preserve the full default gate while allowing a focused continuation check.
+suites.append(("StateReplayPaths", (root / "lean-cbcl/LeanCbcl/StateReplayPaths.lean").read_text(), [
+    ("replay-keeps-stale-contributors", "(.freeze verb (contributes domains B footprint) policy right)",
+     "(.freeze verb (contributes domains A footprint) policy right)", "related_replays"),
+    ("replay-product-drops-right-error", "(.join leftA rightA) (.join leftB rightB)",
+     "(.join leftA rightA) (.join leftB leftB)", "related_replays"),
+]))
+
 import argparse
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--module", action="append", help="Run only this module (repeatable)")
