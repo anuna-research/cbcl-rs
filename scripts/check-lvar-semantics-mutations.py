@@ -22,6 +22,9 @@ def main():
     freeze_pair_test = ("freeze_reads", "repeated_causal_freezes_keep_the_first_cut_but_concurrent_freezes_fault")
     freeze_initial_test = ("freeze_reads", "freeze_cannot_hide_a_later_initializer_conflict")
     mutations = [
+        ("fresh-freeze-replay-domain-support-omitted", "state.rs",
+         'support.insert(act.address.clone());', 'let _ = &act.address;',
+         ("freeze_reads", "fresh_freeze_plans_replay_domain_witness_without_unrelated_history")),
         ("finite-witness-roster-context-omitted", "lattice.rs",
          '                        evidence.extend(crate::state::domain_support_addresses(',
          '                        let _ = (crate::state::domain_support_addresses(',

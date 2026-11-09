@@ -1,3 +1,4 @@
+import LeanCbcl.StateFreezeWitnessReplay
 import LeanCbcl.StateAuthoredReplay
 import LeanCbcl.StateInstalledReplay
 import LeanCbcl.StateFiniteReplayTests
@@ -3201,3 +3202,10 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateAuthoredReplay.prepared_plans_certified
 #print axioms CBCL.StateAuthoredReplay.compile_certified
 #print axioms CBCL.StateAuthoredReplay.authored_plan_fault_replays
+
+#print axioms CBCL.StateFreezeWitnessReplay.domain_support_received
+#print axioms CBCL.StateFreezeWitnessReplay.selected_received
+#print axioms CBCL.StateFreezeWitnessReplay.contributor_received
+#print axioms CBCL.StateFreezeWitnessReplay.conflict_replays
+#print axioms CBCL.StateFreezeWitnessReplay.evidence_replays
+#print axioms CBCL.StateFreezeWitnessReplay.freeze_fault_replays

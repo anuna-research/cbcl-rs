@@ -191,3 +191,30 @@ their named obligations, including guard removal, wrong freeze footprint,
 empty-history specialization and hidden native/output faults. Independent
 review found no defect in the binding-to-plan certificate chain or its stated
 same-plan boundary.
+
+## Fresh contributor materialization
+
+`StateFreezeWitnessReplay` proves the local transfer needed when a receiver
+rebuilds its contributor predicate. For a reported late writer, each required
+domain support is either in the freezer's causal past, and therefore restored
+by receiver causal closure, or lies outside that cut and is itself reported
+as a late-contribution witness. Eligibility is reconstructed from actual
+support contributions, including concurrent initializers.
+
+The proof handles all/raw-verb/domain-selected footprints, resolves within-source
+address aliases using accepted-address uniqueness, and transfers every concurrent
+or late freeze pair under both histories' causal-closure premises.
+`freeze_fault_replays` preserves raw cross-path errors and all collected freeze
+evidence while the contributor predicate changes from the source history to
+the receiver history. It does not require full source-history inclusion.
+Raw dependency-path replay and lifting this local result through full authored
+plan recompilation and emitted output remain separate obligations.
+
+The native state fixture
+`fresh_freeze_plans_replay_domain_witness_without_unrelated_history` rebuilds
+actual domains, scopes and freeze plans from its reported witness, omitting an
+unrelated accepted writer. Fault evidence survives and contains every previous
+identity, including with reverse/duplicate receipt. This is a low-level state
+fixture, not an admission theorem. Removing domain support fails its executed
+replay assertion; all 20 native freeze tests pass. Independent review found no
+defect in the local transfer laws or their stated boundary.

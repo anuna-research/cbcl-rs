@@ -359,3 +359,5 @@ import LeanCbcl.StateFiniteReplayTests
 import LeanCbcl.StateInstalledReplay
 
 import LeanCbcl.StateAuthoredReplay
+
+import LeanCbcl.StateFreezeWitnessReplay

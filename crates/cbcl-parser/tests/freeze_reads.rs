@@ -728,3 +728,59 @@ fn admitted_domain_initializer_outside_freeze_cut_preserves_threshold_or_fault()
     history.extend(history.clone());
     assert_eq!(read(&src, &history), after);
 }
+
+#[test]
+fn fresh_freeze_plans_replay_domain_witness_without_unrelated_history() {
+    let src = source("fault")
+        .replace(
+            "(shape write",
+            "(shape open (require :choices list)) (shape write",
+        )
+        .replace(
+            "(extend open (to) :from owner :to owner (tell to))",
+            "(extend open (to choices) :from owner :to owner (tell to :choices choices))",
+        )
+        .replace(
+            "(state (values",
+            "(state (choices (initial open :choices)) (domain write :value choices) (values",
+        );
+    state_exports::parse_and_install_dialect(&parse(&src).unwrap()).unwrap();
+    let opener = Act::from_message(parse_message(&parse(
+        "(signed @owner (lang sealed (open @owner :choices (\"late\") :caused-by begin :thread \"t\" :from @owner)))"
+    ).unwrap()).unwrap(), "@owner").unwrap();
+    let close = act("close", "", "begin");
+    let late = act("write", "late", "begin");
+    let unrelated = act("write", "ineligible", &opener.address);
+    let acts = vec![
+        opener.clone(),
+        close.clone(),
+        late.clone(),
+        unrelated.clone(),
+    ];
+    let before = read(&src, &acts);
+    assert_eq!(before["values"]["status"], "fault");
+    let evidence = before["values"]["evidence"].as_array().unwrap();
+    assert!(!evidence.contains(&json!(unrelated.address)));
+    let witness: Vec<_> = acts
+        .iter()
+        .filter(|a| evidence.contains(&json!(a.address)))
+        .cloned()
+        .collect();
+    assert!(witness.len() < acts.len());
+    // fold rebuilds domains, contributor sets, scopes and freeze plans here.
+    let replay = read(&src, &witness);
+    assert_eq!(replay["values"]["status"], "fault");
+    for named in [&opener, &close, &late] {
+        assert!(evidence.contains(&json!(named.address)));
+    }
+    for id in evidence {
+        assert!(replay["values"]["evidence"]
+            .as_array()
+            .unwrap()
+            .contains(id));
+    }
+    let mut delivered = witness.clone();
+    delivered.reverse();
+    delivered.extend(witness);
+    assert_eq!(read(&src, &delivered)["values"], replay["values"]);
+}
