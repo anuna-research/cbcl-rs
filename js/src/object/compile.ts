@@ -11,7 +11,7 @@ export const CONTRACT_VERSION = 3;
 export const MAX_CONTRACT_BYTES = 16384;
 
 /** A dialect named by its self-address (SPEC-019 R.6). */
-export const isSDKDialect = (name: unknown): name is string => /^sha256-[0-9a-f]{64}$/.test(String(name));
+export const isSDKDialect = (name: unknown): name is string => /^f1220[0-9a-f]{64}$/.test(String(name));
 
 /** The core control performatives a view may never cause, plus `lang`. */
 export const CORE_PERFORMATIVES: ReadonlySet<string> = new Set(['tell', 'ask', 'reply', 'error', 'ok', 'cancel', 'hello', 'bye', 'lang']);

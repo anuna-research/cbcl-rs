@@ -287,7 +287,7 @@ pub unsafe extern "C" fn cbcl_frontier(input: *const c_char) -> CbclResult {
     state_export(input, cbcl_parser::state_exports::frontier_str)
 }
 
-/// A dialect's self-address `sha256-<hex>` (SPEC-019 R.6).
+/// A dialect's self-address `f1220<hex>` (SPEC-019 R.6).
 ///
 /// Input: a `(define …)`. Free with `cbcl_string_free`.
 ///
@@ -690,12 +690,9 @@ mod tests {
         let (e, s) = take(unsafe {
             cbcl_frontier(cstr(&format!("(frontier {LUNCH} \"v1\" {acts})")).as_ptr())
         });
-        assert!(e == 0 && s.starts_with("{\"instance\":\"sha256-"), "{s}");
+        assert!(e == 0 && s.starts_with("{\"instance\":\"f1220"), "{s}");
         let (e, s) = take(unsafe { cbcl_dialect_hash(cstr(LUNCH).as_ptr()) });
-        assert!(
-            e == 0 && s.starts_with("sha256-") && s.len() == 7 + 64,
-            "{s}"
-        );
+        assert!(e == 0 && s.starts_with("f1220") && s.len() == 5 + 64, "{s}");
         let (e, s) = take(unsafe {
             cbcl_verify_state_shape(cstr(&format!("(verify-state-shape {LUNCH} (lang lunch-vote (vote @lunch :choice \"x\" :extra 1 :caused-by begin :thread \"v1\" :from @bo)))")).as_ptr())
         });

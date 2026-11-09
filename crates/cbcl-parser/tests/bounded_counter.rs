@@ -807,7 +807,7 @@ fn missing_dependency_cannot_hide_an_independent_resource_fault() {
     history.push(first);
     let before = state(&d, &history);
     assert_eq!(before["coins"]["reason"], "insufficient rights");
-    let later = burn("@bob", &format!("sha256-{}", "f".repeat(64)));
+    let later = burn("@bob", &format!("f1220{}", "f".repeat(64)));
     assert!(matches!(
         cbcl_parser::state_exports::admit(&d, &ThreadId("coin-1".into()), &history, &later),
         cbcl_parser::state_exports::Admission::Accepted

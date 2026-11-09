@@ -1232,7 +1232,7 @@ mod tests {
         let h = parse_install_hash(
             "(define greeting-dialect (cbcl) @author (extend greet () (effect greet-action)))",
         );
-        let hex = h.strip_prefix("sha256:").expect("sha256: prefix");
+        let hex = h.strip_prefix("f1220").expect("f1220 prefix");
         assert_eq!(hex.len(), 64);
         assert!(hex
             .chars()

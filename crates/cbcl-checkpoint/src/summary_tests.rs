@@ -299,7 +299,7 @@ fn domains_and_bad_references_fail_closed_atomically() {
         "put",
         "x",
         "",
-        &[alloc::format!("sha256:{}", "1".repeat(64))],
+        &[alloc::format!("f1320{}", "1".repeat(64))],
         1,
         "@a",
         1,

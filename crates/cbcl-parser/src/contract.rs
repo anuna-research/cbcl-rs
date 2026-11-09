@@ -6,7 +6,7 @@
 //! contract (SPEC-087 REQ-001, REQ-002).
 //!
 //! ```text
-//! compile_contract(<json>) → {"name": "sha256-…", "label": …, "dialect": "(define sha256-… …)"}
+//! compile_contract(<json>) → {"name": "f1220…", "label": …, "dialect": "(define f1220… …)"}
 //! ```
 //!
 //! Recognition (CON-001) rejects a malformed record before anything is

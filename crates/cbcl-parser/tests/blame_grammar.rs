@@ -19,32 +19,27 @@ fn fully_populated_shape_error() -> ViolationError {
         found: Some(String::from("number")),
         detail: String::from(":route expected string, found number"),
     };
-    ViolationError::from_shape_violation(&sv, Some(String::from("sha256:msg")), None, None)
+    ViolationError::from_shape_violation(&sv, Some(String::from("f1220msg")), None, None)
         .with_recipient("@sender")
         .with_verifier("@receiver")
         .with_dialect_context(
             "logistics",
             Some("@consortium"),
-            Some("sha256:abc"),
+            Some("f1220abc"),
             Some("track-shipment"),
         )
 }
 
 fn populated_causal_error() -> ViolationError {
     let cv = CausalViolation::InvalidPredecessor {
-        caused_by: String::from("sha256:pred"),
+        caused_by: String::from("f1220pred"),
         expected: alloc_vec(&["pause"]),
         found: String::from("ack"),
     };
-    ViolationError::from_causal_violation(&cv, Some(String::from("sha256:msg")), None)
+    ViolationError::from_causal_violation(&cv, Some(String::from("f1220msg")), None)
         .with_recipient("@sender")
         .with_verifier("@receiver")
-        .with_dialect_context(
-            "compaction",
-            Some("@author"),
-            Some("sha256:def"),
-            Some("ack"),
-        )
+        .with_dialect_context("compaction", Some("@author"), Some("f1220def"), Some("ack"))
 }
 
 fn alloc_vec(items: &[&str]) -> Vec<String> {

@@ -492,7 +492,7 @@ pub fn dialect_body_hash(d: &Dialect) -> String {
     out
 }
 
-/// The name a self-addressed dialect carries: `sha256-` plus its body
+/// The name a self-addressed dialect carries: `f1220` plus its body
 /// hash (SPEC-019 REQ-1927), spelled like every other content address.
 pub fn dialect_name(d: &Dialect) -> String {
     let mut out = String::from(crate::r7::SELF_ADDRESS_PREFIX);
@@ -703,7 +703,7 @@ pub fn dialect_canonical_bytes(d: &Dialect) -> Vec<u8> {
     canonical_encode(&to_signable_sexpr(d))
 }
 
-/// Compute a dialect's canonical content hash: `sha256:<lowercase-hex64>`
+/// Compute a dialect's canonical content hash: `f1220<lowercase-hex64>`
 /// over [`dialect_canonical_bytes`] (SPEC-014 REQ-628).
 ///
 /// This follows the same discipline as message content hashing (SPEC-003
@@ -715,14 +715,7 @@ pub fn dialect_canonical_bytes(d: &Dialect) -> Vec<u8> {
 pub fn dialect_hash(d: &Dialect) -> String {
     use sha2::{Digest, Sha256};
     let digest = Sha256::digest(dialect_canonical_bytes(d));
-    const HEX: &[u8; 16] = b"0123456789abcdef";
-    let mut out = String::with_capacity(7 + 64);
-    out.push_str("sha256:");
-    for b in digest {
-        out.push(HEX[(b >> 4) as usize] as char);
-        out.push(HEX[(b & 0x0f) as usize] as char);
-    }
-    out
+    crate::multihash::encode(&digest.into())
 }
 
 // ---------------------------------------------------------------------------
@@ -1062,7 +1055,7 @@ mod tests {
             },
             examples: vec![],
             signature: Some(vec![0xAA]),
-            hash: Some(String::from("sha256:abc")),
+            hash: Some(String::from("f1220abc")),
             protocol: Some(String::from("ed25519")),
             causal_protocol: None,
             shapes: Vec::new(),
@@ -1213,7 +1206,7 @@ mod tests {
             },
             examples: vec![SExpr::Atom(Atom::Str("example".into()))],
             signature: Some(vec![0xFF]),
-            hash: Some(String::from("sha256:xxx")),
+            hash: Some(String::from("f1220xxx")),
             protocol: Some(String::from("ed25519")),
             causal_protocol: None,
             shapes: Vec::new(),
@@ -1740,7 +1733,7 @@ mod tests {
     #[test]
     fn dialect_hash_has_sha256_hex64_form() {
         let h = dialect_hash(&test_dialect("t"));
-        let hex = h.strip_prefix("sha256:").expect("sha256: prefix");
+        let hex = h.strip_prefix("f1220").expect("f1220 prefix");
         assert_eq!(hex.len(), 64);
         assert!(hex
             .chars()

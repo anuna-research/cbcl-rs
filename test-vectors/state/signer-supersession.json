@@ -17,23 +17,23 @@
       "signer": "@owner"
     },
     {
-      "canonical": "(lang signer-register (write @room () :value \"old\" :op 0 :replaces () :from @a :clock \"hlc-0000000000000000-00000000\" :thread \"s1\" :caused-by sha256-fe3baedf97239bd0eafd18cc17a5e2b9c472ad53ed73b353acccca071db3f972))",
+      "canonical": "(lang signer-register (write @room () :value \"old\" :op 0 :replaces () :from @a :clock \"hlc-0000000000000000-00000000\" :thread \"s1\" :caused-by f1220fe3baedf97239bd0eafd18cc17a5e2b9c472ad53ed73b353acccca071db3f972))",
       "signer": "@a"
     },
     {
-      "canonical": "(lang signer-register (write @room () :value \"new\" :op 1 :replaces (sha256-02adb70d7284d489d0e2b9f342276920491181854fc0878c6dc4b9da2fb4bb6a) :from @a :clock \"hlc-0000000000000000-00000000\" :thread \"s1\" :caused-by sha256-fe3baedf97239bd0eafd18cc17a5e2b9c472ad53ed73b353acccca071db3f972))",
+      "canonical": "(lang signer-register (write @room () :value \"new\" :op 1 :replaces (f1220820a23d866520d623c809eca8de49b0c0e99aa5c77c91436d3edd86016058c24) :from @a :clock \"hlc-0000000000000000-00000000\" :thread \"s1\" :caused-by f1220fe3baedf97239bd0eafd18cc17a5e2b9c472ad53ed73b353acccca071db3f972))",
       "signer": "@a"
     },
     {
-      "canonical": "(lang signer-register (write @room () :value \"left\" :op 0 :replaces () :from @b :clock \"hlc-0000000000000000-00000000\" :thread \"s1\" :caused-by sha256-fe3baedf97239bd0eafd18cc17a5e2b9c472ad53ed73b353acccca071db3f972))",
+      "canonical": "(lang signer-register (write @room () :value \"left\" :op 0 :replaces () :from @b :clock \"hlc-0000000000000000-00000000\" :thread \"s1\" :caused-by f1220fe3baedf97239bd0eafd18cc17a5e2b9c472ad53ed73b353acccca071db3f972))",
       "signer": "@b"
     },
     {
-      "canonical": "(lang signer-register (write @room () :value \"right\" :op 1 :replaces () :from @b :clock \"hlc-0000000000000000-00000000\" :thread \"s1\" :caused-by sha256-fe3baedf97239bd0eafd18cc17a5e2b9c472ad53ed73b353acccca071db3f972))",
+      "canonical": "(lang signer-register (write @room () :value \"right\" :op 1 :replaces () :from @b :clock \"hlc-0000000000000000-00000000\" :thread \"s1\" :caused-by f1220fe3baedf97239bd0eafd18cc17a5e2b9c472ad53ed73b353acccca071db3f972))",
       "signer": "@b"
     },
     {
-      "canonical": "(lang signer-register (write @room () :value \"hostile\" :op 0 :replaces (sha256-5e2a8a47649124d5c2df27dc58b704c7f7a6994ebcecaeec0378e217dc11b9dd) :from @c :clock \"hlc-0000000000000000-00000000\" :thread \"s1\" :caused-by sha256-fe3baedf97239bd0eafd18cc17a5e2b9c472ad53ed73b353acccca071db3f972))",
+      "canonical": "(lang signer-register (write @room () :value \"hostile\" :op 0 :replaces (f12204f6724f2db287609f819135b65ec68ffa59a882ab01942cde0924ed78cc3a568) :from @c :clock \"hlc-0000000000000000-00000000\" :thread \"s1\" :caused-by f1220fe3baedf97239bd0eafd18cc17a5e2b9c472ad53ed73b353acccca071db3f972))",
       "signer": "@c"
     }
   ],
@@ -68,60 +68,60 @@
   ],
   "expect": {
     "addresses": [
-      "sha256-fe3baedf97239bd0eafd18cc17a5e2b9c472ad53ed73b353acccca071db3f972",
-      "sha256-02adb70d7284d489d0e2b9f342276920491181854fc0878c6dc4b9da2fb4bb6a",
-      "sha256-1c46ea822b433413adf9d0ebcc5b607e3d349e003647e90e802798201d89e94b",
-      "sha256-5e2a8a47649124d5c2df27dc58b704c7f7a6994ebcecaeec0378e217dc11b9dd",
-      "sha256-f00112cbc53feed96c0d3a741050af4fe381fff6517648c1d6eef85e3b59cf3d",
-      "sha256-440d37a133355c618dbd793fafe3456cc418d9ad828d394671c4cfad33a1653d"
+      "f1220fe3baedf97239bd0eafd18cc17a5e2b9c472ad53ed73b353acccca071db3f972",
+      "f1220820a23d866520d623c809eca8de49b0c0e99aa5c77c91436d3edd86016058c24",
+      "f122099bad54e245f4d112f75223a61487ea2006d5bb79002ac331c50684a70fb1771",
+      "f12204f6724f2db287609f819135b65ec68ffa59a882ab01942cde0924ed78cc3a568",
+      "f1220421c768991b43f001600e28bf3f5861b848c8feedca15c44b5e4e75d0a07cdc8",
+      "f12201ef1fef9e1eb9c6cf8102d0d55e6fcd607eb626d8fe2cb43127e5c36ac93a29c"
     ],
     "verdicts": {
-      "sha256-fe3baedf97239bd0eafd18cc17a5e2b9c472ad53ed73b353acccca071db3f972": "accepted",
-      "sha256-02adb70d7284d489d0e2b9f342276920491181854fc0878c6dc4b9da2fb4bb6a": "accepted",
-      "sha256-1c46ea822b433413adf9d0ebcc5b607e3d349e003647e90e802798201d89e94b": "accepted",
-      "sha256-5e2a8a47649124d5c2df27dc58b704c7f7a6994ebcecaeec0378e217dc11b9dd": "accepted",
-      "sha256-f00112cbc53feed96c0d3a741050af4fe381fff6517648c1d6eef85e3b59cf3d": "accepted",
-      "sha256-440d37a133355c618dbd793fafe3456cc418d9ad828d394671c4cfad33a1653d": "accepted"
+      "f1220fe3baedf97239bd0eafd18cc17a5e2b9c472ad53ed73b353acccca071db3f972": "accepted",
+      "f1220820a23d866520d623c809eca8de49b0c0e99aa5c77c91436d3edd86016058c24": "accepted",
+      "f122099bad54e245f4d112f75223a61487ea2006d5bb79002ac331c50684a70fb1771": "accepted",
+      "f12204f6724f2db287609f819135b65ec68ffa59a882ab01942cde0924ed78cc3a568": "accepted",
+      "f1220421c768991b43f001600e28bf3f5861b848c8feedca15c44b5e4e75d0a07cdc8": "accepted",
+      "f12201ef1fef9e1eb9c6cf8102d0d55e6fcd607eb626d8fe2cb43127e5c36ac93a29c": "accepted"
     },
     "state": {
       "title": "Register",
       "entries": {
         "@a": "new",
-        "@b": "right",
+        "@b": "left",
         "@c": "hostile"
       },
       "all": {
-        "sha256-02adb70d7284d489d0e2b9f342276920491181854fc0878c6dc4b9da2fb4bb6a": {
-          "by": "@a",
-          "value": "old"
-        },
-        "sha256-1c46ea822b433413adf9d0ebcc5b607e3d349e003647e90e802798201d89e94b": {
-          "by": "@a",
-          "value": "new"
-        },
-        "sha256-440d37a133355c618dbd793fafe3456cc418d9ad828d394671c4cfad33a1653d": {
+        "f12201ef1fef9e1eb9c6cf8102d0d55e6fcd607eb626d8fe2cb43127e5c36ac93a29c": {
           "by": "@c",
           "value": "hostile"
         },
-        "sha256-5e2a8a47649124d5c2df27dc58b704c7f7a6994ebcecaeec0378e217dc11b9dd": {
+        "f1220421c768991b43f001600e28bf3f5861b848c8feedca15c44b5e4e75d0a07cdc8": {
+          "by": "@b",
+          "value": "right"
+        },
+        "f12204f6724f2db287609f819135b65ec68ffa59a882ab01942cde0924ed78cc3a568": {
           "by": "@b",
           "value": "left"
         },
-        "sha256-f00112cbc53feed96c0d3a741050af4fe381fff6517648c1d6eef85e3b59cf3d": {
-          "by": "@b",
-          "value": "right"
+        "f1220820a23d866520d623c809eca8de49b0c0e99aa5c77c91436d3edd86016058c24": {
+          "by": "@a",
+          "value": "old"
+        },
+        "f122099bad54e245f4d112f75223a61487ea2006d5bb79002ac331c50684a70fb1771": {
+          "by": "@a",
+          "value": "new"
         }
       }
     },
     "intents": [
       {
-        "canonical": "(lang signer-register (write @room () :clock \"hlc-0000000000000000-00000000\" :op 10001 :value \"third\" :replaces (sha256-1c46ea822b433413adf9d0ebcc5b607e3d349e003647e90e802798201d89e94b) :from @a :thread \"s1\" :caused-by sha256-fe3baedf97239bd0eafd18cc17a5e2b9c472ad53ed73b353acccca071db3f972))"
+        "canonical": "(lang signer-register (write @room () :clock \"hlc-0000000000000000-00000000\" :op 10001 :value \"third\" :replaces (f122099bad54e245f4d112f75223a61487ea2006d5bb79002ac331c50684a70fb1771) :from @a :thread \"s1\" :caused-by f1220fe3baedf97239bd0eafd18cc17a5e2b9c472ad53ed73b353acccca071db3f972))"
       },
       {
-        "canonical": "(lang signer-register (write @room () :clock \"hlc-0000000000000000-00000000\" :op 10002 :value \"merged\" :replaces (sha256-5e2a8a47649124d5c2df27dc58b704c7f7a6994ebcecaeec0378e217dc11b9dd sha256-f00112cbc53feed96c0d3a741050af4fe381fff6517648c1d6eef85e3b59cf3d) :from @b :thread \"s1\" :caused-by sha256-fe3baedf97239bd0eafd18cc17a5e2b9c472ad53ed73b353acccca071db3f972))"
+        "canonical": "(lang signer-register (write @room () :clock \"hlc-0000000000000000-00000000\" :op 10002 :value \"merged\" :replaces (f1220421c768991b43f001600e28bf3f5861b848c8feedca15c44b5e4e75d0a07cdc8 f12204f6724f2db287609f819135b65ec68ffa59a882ab01942cde0924ed78cc3a568) :from @b :thread \"s1\" :caused-by f1220fe3baedf97239bd0eafd18cc17a5e2b9c472ad53ed73b353acccca071db3f972))"
       },
       {
-        "canonical": "(lang signer-register (write @room () :clock \"hlc-0000000000000000-00000000\" :op 10003 :value \"first\" :replaces () :from @new :thread \"s1\" :caused-by sha256-fe3baedf97239bd0eafd18cc17a5e2b9c472ad53ed73b353acccca071db3f972))"
+        "canonical": "(lang signer-register (write @room () :clock \"hlc-0000000000000000-00000000\" :op 10003 :value \"first\" :replaces () :from @new :thread \"s1\" :caused-by f1220fe3baedf97239bd0eafd18cc17a5e2b9c472ad53ed73b353acccca071db3f972))"
       }
     ]
   }

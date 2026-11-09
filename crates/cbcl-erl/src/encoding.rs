@@ -667,8 +667,8 @@ mod tests {
             Some(CausedBy::Begin).as_ref(),
             Some(CausedBy::Begin)
         ));
-        if let Some(CausedBy::Single(h)) = Some(CausedBy::Single("sha256:abc".into())).as_ref() {
-            assert_eq!(h, "sha256:abc");
+        if let Some(CausedBy::Single(h)) = Some(CausedBy::Single("f1220abc".into())).as_ref() {
+            assert_eq!(h, "f1220abc");
         } else {
             panic!("expected Single");
         }
@@ -860,12 +860,12 @@ mod tests {
         OwnedEnv::new().run(|env| {
             let mut m = simple_msg(Performative::Core(CorePerformative::Reply));
             if let Message::Simple { caused_by, .. } = &mut m {
-                *caused_by = Some(CausedBy::Single("sha256:abc".into()));
+                *caused_by = Some(CausedBy::Single("f1220abc".into()));
             }
             let cb = caused_by_term(env, &m);
             assert!(cb.is_list());
             let v: Vec<String> = cb.decode().expect("list of binaries");
-            assert_eq!(v, vec!["sha256:abc".to_string()]);
+            assert_eq!(v, vec!["f1220abc".to_string()]);
         });
     }
 

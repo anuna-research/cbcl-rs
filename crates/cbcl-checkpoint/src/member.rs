@@ -38,7 +38,7 @@ pub struct Step {
     pub message: SignedMessage,
     pub ancestry: Vec<(SignedMessage, Proof)>,
     pub identity: Proof,
-    /// Sorted unique state addresses (`sha256-`); all proofs use the PRE-root.
+    /// Sorted unique state addresses (`f1220`); all proofs use the PRE-root.
     pub replacements: Vec<(String, Proof)>,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

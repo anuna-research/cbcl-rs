@@ -128,7 +128,7 @@ roundtrip and absent-pin connection to installed casting are proved.
 A fact can instead supply `"wrapper-params"` as a parsed parameter-list string,
 such as `"(((chair @chair) (reviewer @a @b)))"`. This overrides its separate cast
 and pin fields. `StateContextWrapperSyntax` recognizes exactly a bindings list,
-optionally followed by `:dialect` and a checked `sha256:` lowercase-hex64 pin.
+optionally followed by `:dialect` and a checked `f1220` lowercase-hex64 pin.
 The installed-cast proof includes pin identity and malformed wrapper syntax.
 For a matching-pin test, the digest consisting of 64 lowercase `a` characters
 is the reference identity token: the native harness substitutes its actual
@@ -157,7 +157,7 @@ wire correspondence remain boundaries.
 
 The Rust context harness builds actual content-addressed messages and calls the
 strict S-expression parser, native message parser, installer and fold. Dialect
-pins use the quoted `:dialect "sha256:<hex64>"` form. Existing typed-symbol pin
+pins use the quoted `:dialect "f1220<hex64>"` form. Existing typed-symbol pin
 callers remain supported; the lexer alphabet and canonicalization are unchanged.
 BUG-006 remains open for envelopes and suite-qualified keys, while context pins
 now cross the real wire parser. Canonical dialect/body hashes and act addresses

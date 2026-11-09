@@ -360,6 +360,6 @@ mod tests {
         assert_eq!(v["thread"], "t");
         assert_eq!(v["from"], "@b");
         assert_eq!(v["causedBy"], "begin");
-        assert!(v["address"].as_str().unwrap().starts_with("sha256-"));
+        assert!(v["address"].as_str().unwrap().starts_with("f1220"));
     }
 }

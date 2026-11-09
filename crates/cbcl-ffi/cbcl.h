@@ -131,7 +131,7 @@ struct CbclResult cbcl_may_send(const char *input);
 struct CbclResult cbcl_frontier(const char *input);
 
 /**
- * A dialect's self-address `sha256-<hex>` (SPEC-019 R.6).
+ * A dialect's self-address `f1220<hex>` (SPEC-019 R.6).
  *
  * Input: a `(define …)`. Free with `cbcl_string_free`.
  *

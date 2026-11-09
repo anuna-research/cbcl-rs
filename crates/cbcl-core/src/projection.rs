@@ -285,7 +285,7 @@ fn verify_cast_wrapper<S: MessageStore>(
         unreachable!("guarded by wrapper_type");
     };
     // Exact shape (CON-601, REQ-628): the wrapper is `(with-roles
-    // (<bindings>) [:dialect sha256:<hex64>] <signed-form>)` — the bindings
+    // (<bindings>) [:dialect f1220<hex64>] <signed-form>)` — the bindings
     // list, then at most the optional dialect pin, no more. A malformed pin
     // is a parse rejection, never repaired (LangSec principle 4).
     let parsed = match parse_wrapper_cast(params, &d.roles) {
@@ -1221,7 +1221,7 @@ mod tests {
         // the verifier installed: the typed REQ-628 violation fires for the
         // wrapper and for every subsequent message of the thread.
         let d = hashed_oauth();
-        let stale = format!("sha256:{}", "0".repeat(64));
+        let stale = format!("f1220{}", "0".repeat(64));
         let root = pinned_h0(&stale);
         let cast = pinned_cast(&d, &root);
         let mut store = ThreadedMessageStore::new();
@@ -1292,7 +1292,7 @@ mod tests {
         let cast = oauth_cast(&d);
         let store = ThreadedMessageStore::new();
         for bad in [
-            "(with-roles ((server @srv) (client @cli) (authoriser @as)) :dialect sha256:abc (signed @srv \"sig\" (hello :caused-by begin)))",
+            "(with-roles ((server @srv) (client @cli) (authoriser @as)) :dialect f1220abc (signed @srv \"sig\" (hello :caused-by begin)))",
             "(with-roles ((server @srv) (client @cli) (authoriser @as)) :dialect md5:0000 (signed @srv \"sig\" (hello :caused-by begin)))",
         ] {
             assert!(matches!(

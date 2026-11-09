@@ -256,7 +256,7 @@ fn choose_replaces(rep: u64, candidates: &[&Act]) -> Vec<String> {
         .map(|(_, a)| a.address.clone())
         .collect();
     if rep % 7 == 0 {
-        out.push(format!("sha256-{}", "f".repeat(64)));
+        out.push(format!("f1220{}", "f".repeat(64)));
     }
     out.sort();
     out.dedup();
@@ -269,7 +269,7 @@ fn build(raws: &[Raw]) -> Vec<Act> {
     let mut acts: Vec<Act> = Vec::new();
     let mut seen: BTreeSet<String> = BTreeSet::new();
     for raw in raws {
-        let addr = format!("sha256-{:064x}", raw.addr);
+        let addr = format!("f1220{:064x}", raw.addr);
         if !seen.insert(addr.clone()) {
             continue;
         }
@@ -607,7 +607,7 @@ proptest! {
         let total0 = as_int(field(&base, "total"));
         let balance0 = as_int(field(&base, "balance"));
 
-        let addr = format!("sha256-{fresh:064x}");
+        let addr = format!("f1220{fresh:064x}");
         if acts.iter().all(|a| a.address != addr) {
             let credit = mk_act(&addr, "credit", "@a", &[], &[("amount", num(amount)), ("op", str_("op1"))]);
             let mut with = acts.clone();
@@ -946,7 +946,7 @@ fn signer_clause() -> StateClause {
 
 fn signer_write(n: u64, signer: &str, value: &str, replaces: &[String]) -> Act {
     mk_act(
-        &format!("sha256-{n:064x}"),
+        &format!("f1220{n:064x}"),
         "check",
         signer,
         &[],
@@ -991,7 +991,7 @@ fn signer_domain_and_verb_guards() {
     let mut wrong_verb = signer_write(2, "@a", "allowed", &[old.address.clone()]);
     wrong_verb.verb = "other".into();
     let open = mk_act(
-        "sha256-open",
+        "f1220open",
         "open",
         "@a",
         &[],

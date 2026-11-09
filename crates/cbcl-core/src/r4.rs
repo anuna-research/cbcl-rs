@@ -300,12 +300,12 @@ mod tests {
             },
             examples: vec![],
             signature: Some(b"sig123".to_vec()),
-            hash: Some(String::from("sha256:abcd1234")),
+            hash: Some(String::from("f1220abcd1234")),
             protocol: Some(String::from("ed25519")),
             causal_protocol: None,
             shapes: Vec::new(),
         };
-        assert_eq!(d.hash.as_deref(), Some("sha256:abcd1234"));
+        assert_eq!(d.hash.as_deref(), Some("f1220abcd1234"));
         assert_eq!(d.signature.as_deref(), Some(b"sig123".as_slice()));
         assert_eq!(d.protocol.as_deref(), Some("ed25519"));
     }

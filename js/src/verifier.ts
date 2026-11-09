@@ -74,13 +74,13 @@ export function parse(text: string): string { return refusal(() => wasmParse(tex
 /** A message's canonical form. Throws with the parser's reason. */
 export function parseMessage(text: string): string { return refusal(() => parse_message(text)); }
 
-/** CBCL's canonical content address of a message (`sha256:<hex>`). */
+/** CBCL's canonical content address of a message (`f1220<hex>`). */
 export function messageHash(message: string): string { return refusal(() => message_hash(message)); }
 
-/** The same digest as the wire spells it in `:caused-by` and `:replaces` (`sha256-<hex>`). */
-export function wireAddress(message: string): string { return messageHash(message).replace(/^sha256:/, 'sha256-'); }
+/** The same digest as the wire spells it in `:caused-by` and `:replaces` (`f1220<hex>`). */
+export function wireAddress(message: string): string { return messageHash(message); }
 
-/** A dialect's self-address `sha256-<hex>` (SPEC-019 R.6): the hash of its body, name excluded. */
+/** A dialect's self-address `f1220<hex>` (SPEC-019 R.6): the hash of its body, name excluded. */
 export function dialectHash(define: string): string { return refusal(() => dialect_hash(define)); }
 
 /** Install a dialect through R1–R7; throws with cbcl-rs's reason when it is refused. */
@@ -114,7 +114,7 @@ export type CausalVerdict = 'Valid' | 'Unknown' | 'Violation';
  */
 export function verifyProtocol(dialect: string, thread: string, message: string, history: [string, string][] = []): CausalVerdict {
   guard();
-  // History is keyed by the canonical `sha256:` hash, quoted: the lexer reads a bare colon as a keyword.
+  // History is keyed by the canonical multibase multihash.
   const entries = history.map(([hash, text]) => `(${JSON.stringify(hash)} ${text})`).join(' ');
   const frame = `(verify-protocol ${dialect} ${JSON.stringify(thread)} ${message}${entries ? ` (history ${entries})` : ''})`;
   const { ok, result } = outcome(() => verify_protocol(frame));
@@ -200,7 +200,7 @@ export type FieldValue = string | number | boolean | FieldValue[];
 /** An act as the parser and the state layer read it. */
 export interface ActInfo {
   dialect: string | null;
-  /** The wire address `sha256-<hex>`. */
+  /** The wire address `f1220<hex>`. */
   address: string;
   verb: string;
   recipients: string[];

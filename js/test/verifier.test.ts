@@ -38,9 +38,9 @@ test('read is the parser: comments, escapes, and malformed input', () => {
 test('canonical form, addresses, and the self-address', () => {
   const message = '(tell @bo "hi" :from @a)';
   assert.equal(parse(message), parseMessage(message));
-  assert.match(messageHash(message), /^sha256:[0-9a-f]{64}$/);
-  assert.equal(wireAddress(message), messageHash(message).replace('sha256:', 'sha256-'));
-  assert.match(dialectHash(LUNCH), /^sha256-[0-9a-f]{64}$/);
+  assert.match(messageHash(message), /^f1220[0-9a-f]{64}$/);
+  assert.equal(wireAddress(message), messageHash(message).replace('f1220', 'f1220'));
+  assert.match(dialectHash(LUNCH), /^f1220[0-9a-f]{64}$/);
   assert.doesNotThrow(() => verifyDialect(LUNCH));
   assert.throws(() => verifyDialect(LUNCH.replace('(then propose vote)', '(then missing vote)')), /verification failed/);
 });
@@ -53,7 +53,7 @@ test('shape, state shape, and protocol verdicts are cbcl-rs blame', () => {
   const opener = '(lang lunch-vote (propose @lunch :question "Q" :options ("a") :caused-by begin :thread "v" :from @a))';
   assert.equal(verifyProtocol(LUNCH, 'v', opener), 'Valid');
   // verify-protocol predates the state layer: it keys history by the canonical
-  // `sha256:` hash, quoted in :caused-by because the lexer reads `:` as a keyword.
+  // `f1220` hash, quoted in :caused-by because the lexer reads `:` as a keyword.
   const vote = `(lang lunch-vote (vote @lunch :choice "a" :clock "hlc-0000000000000000-00000000" :replaces () :caused-by ${JSON.stringify(messageHash(opener))} :thread "v" :from @b))`;
   assert.equal(verifyProtocol(LUNCH, 'v', vote, [[messageHash(opener), opener]]), 'Valid');
   assert.equal(verifyProtocol(LUNCH, 'v', vote), 'Unknown');

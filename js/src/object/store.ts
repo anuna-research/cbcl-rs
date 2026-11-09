@@ -2,7 +2,7 @@
 // cbcl-rs `ThreadedMessageStore`. Merge is set union with dedup by address;
 // `:caused-by` links form the causal DAG. State is not stored here; it is
 // the fold over the accepted acts, recomputed on demand. Addresses are the
-// wire spelling `sha256-<hex>` (SPEC-019 R.6). Pure data, order-independent.
+// wire spelling `f1220<hex>` (SPEC-019 R.6). Pure data, order-independent.
 import type { FieldValue } from '../verifier.ts';
 
 /** A stored act: its wire address, verb, authenticated signer, thread, predecessors, display fields, and full text. */

@@ -13,28 +13,28 @@
   ],
   "expect": {
     "addresses": [
-      "sha256-03d8c78f5c0e195f03a1dbf829b288786c01e4229381cc739234e68edcb31a2a",
-      "sha256-d14916c8c459a2d7fe6061173d92337e676095d90162434672be7874228a0374",
-      "sha256-f4e0caa14f5d51b1fd82f25f238749f37d9303b4d37052177ef6d75e899dcea3",
-      "sha256-05433b7868ad022e31b6c912d37cd233271cfdadad22faf2da78490205484cd5",
-      "sha256-908fc58180a2fc0a3b1733050341278ebc959bef2b751f56a7661a62e49a365c",
-      "sha256-e853a0aa0b8311c8b7f7c6d55872ad6ddd026fcc5dc460c6c0367fa3c4686abc",
-      "sha256-60ef4d37dc523344089061f32222564db25b0f5fac8d9b739225ff68763eb59a",
-      "sha256-5ea14ff58b7eb1bfeba97745d4f85825866c096ea112477c5d0995d728d69fd1",
-      "sha256-69f7fc5789ce84c9302f4703cd9172a502e76a02092f89e5172d7928f5f9f97d",
-      "sha256-75d8edbedc8fd654ca28dfc88703813f6db6f7e08362c77bbb7e006cfbd58d80"
+      "f122003d8c78f5c0e195f03a1dbf829b288786c01e4229381cc739234e68edcb31a2a",
+      "f1220ffe9f89d63c8e63de5946460e259ccfb32129198cfd65fcb407dfe5836bbac47",
+      "f1220724b9fffd3d045b5cab8b610edbf7212e1e172806c4aecfa9f3fa4a9553a20c2",
+      "f1220b89a6d559cb218a929ba6f6a9aacbc94c5fda38a6bbdfce0b41c799d84b1a722",
+      "f1220b204034a94bfd949a00049021f29d5d126e1b9d56d1ece52e7488f530f600d74",
+      "f1220361a5ad6b8d53048be0b7e567598e0d8f36a29c88aec9235b8ad72c7d53cb92a",
+      "f12200465bacf3494bc2d958894f1f3cfab3a81384af8c2e31b744413e5da625d1022",
+      "f1220d47d9b10b8641faab2d43e403d661d8ef631a76af63b70f93fbcec5b030d040c",
+      "f122043bf24f3f50cdd50dc2406b855d4208e56c86a8ad4b77336500f8378b889eef3",
+      "f122075d8edbedc8fd654ca28dfc88703813f6db6f7e08362c77bbb7e006cfbd58d80"
     ],
     "verdicts": {
-      "sha256-03d8c78f5c0e195f03a1dbf829b288786c01e4229381cc739234e68edcb31a2a": "accepted",
-      "sha256-d14916c8c459a2d7fe6061173d92337e676095d90162434672be7874228a0374": "accepted",
-      "sha256-f4e0caa14f5d51b1fd82f25f238749f37d9303b4d37052177ef6d75e899dcea3": "accepted",
-      "sha256-05433b7868ad022e31b6c912d37cd233271cfdadad22faf2da78490205484cd5": "accepted",
-      "sha256-908fc58180a2fc0a3b1733050341278ebc959bef2b751f56a7661a62e49a365c": "accepted",
-      "sha256-e853a0aa0b8311c8b7f7c6d55872ad6ddd026fcc5dc460c6c0367fa3c4686abc": "accepted",
-      "sha256-60ef4d37dc523344089061f32222564db25b0f5fac8d9b739225ff68763eb59a": "accepted",
-      "sha256-5ea14ff58b7eb1bfeba97745d4f85825866c096ea112477c5d0995d728d69fd1": "rejected",
-      "sha256-69f7fc5789ce84c9302f4703cd9172a502e76a02092f89e5172d7928f5f9f97d": "rejected",
-      "sha256-75d8edbedc8fd654ca28dfc88703813f6db6f7e08362c77bbb7e006cfbd58d80": "pending"
+      "f122003d8c78f5c0e195f03a1dbf829b288786c01e4229381cc739234e68edcb31a2a": "accepted",
+      "f1220ffe9f89d63c8e63de5946460e259ccfb32129198cfd65fcb407dfe5836bbac47": "accepted",
+      "f1220724b9fffd3d045b5cab8b610edbf7212e1e172806c4aecfa9f3fa4a9553a20c2": "accepted",
+      "f1220b89a6d559cb218a929ba6f6a9aacbc94c5fda38a6bbdfce0b41c799d84b1a722": "accepted",
+      "f1220b204034a94bfd949a00049021f29d5d126e1b9d56d1ece52e7488f530f600d74": "accepted",
+      "f1220361a5ad6b8d53048be0b7e567598e0d8f36a29c88aec9235b8ad72c7d53cb92a": "accepted",
+      "f12200465bacf3494bc2d958894f1f3cfab3a81384af8c2e31b744413e5da625d1022": "accepted",
+      "f1220d47d9b10b8641faab2d43e403d661d8ef631a76af63b70f93fbcec5b030d040c": "rejected",
+      "f122043bf24f3f50cdd50dc2406b855d4208e56c86a8ad4b77336500f8378b889eef3": "rejected",
+      "f122075d8edbedc8fd654ca28dfc88703813f6db6f7e08362c77bbb7e006cfbd58d80": "pending"
     },
     "state": {
       "title": "Launch tasks",
@@ -45,13 +45,13 @@
     },
     "intents": [
       {
-        "canonical": "(lang checklist (check (@aria @bo @cy) () :clock \"hlc-0000000000000000-00000000\" :done #t :item \"venue\" :replaces (sha256-60ef4d37dc523344089061f32222564db25b0f5fac8d9b739225ff68763eb59a sha256-908fc58180a2fc0a3b1733050341278ebc959bef2b751f56a7661a62e49a365c) :from @bo :thread \"list-1\" :caused-by sha256-d14916c8c459a2d7fe6061173d92337e676095d90162434672be7874228a0374))"
+        "canonical": "(lang checklist (check (@aria @bo @cy) () :clock \"hlc-0000000000000000-00000000\" :done #t :item \"venue\" :replaces (f12200465bacf3494bc2d958894f1f3cfab3a81384af8c2e31b744413e5da625d1022 f1220b204034a94bfd949a00049021f29d5d126e1b9d56d1ece52e7488f530f600d74) :from @bo :thread \"list-1\" :caused-by f1220ffe9f89d63c8e63de5946460e259ccfb32129198cfd65fcb407dfe5836bbac47))"
       },
       {
         "reject": "role"
       },
       {
-        "canonical": "(lang checklist (drop (@aria @bo @cy) () :item \"venue\" :replaces (sha256-908fc58180a2fc0a3b1733050341278ebc959bef2b751f56a7661a62e49a365c) :from @aria :thread \"list-1\" :caused-by sha256-d14916c8c459a2d7fe6061173d92337e676095d90162434672be7874228a0374))"
+        "canonical": "(lang checklist (drop (@aria @bo @cy) () :item \"venue\" :replaces (f1220b204034a94bfd949a00049021f29d5d126e1b9d56d1ece52e7488f530f600d74) :from @aria :thread \"list-1\" :caused-by f1220ffe9f89d63c8e63de5946460e259ccfb32129198cfd65fcb407dfe5836bbac47))"
       },
       {
         "reject": "nothing-to-delete"
@@ -120,35 +120,35 @@
       "signer": "@aria"
     },
     {
-      "canonical": "(signed @aria (lang checklist (open (@aria @bo @cy) () :title \"Launch tasks\" :from @aria :thread \"list-1\" :caused-by sha256-03d8c78f5c0e195f03a1dbf829b288786c01e4229381cc739234e68edcb31a2a)))",
+      "canonical": "(signed @aria (lang checklist (open (@aria @bo @cy) () :title \"Launch tasks\" :from @aria :thread \"list-1\" :caused-by f122003d8c78f5c0e195f03a1dbf829b288786c01e4229381cc739234e68edcb31a2a)))",
       "signer": "@aria"
     },
     {
-      "canonical": "(signed @bo (lang checklist (check (@aria @bo @cy) () :item \"venue\" :done #f :replaces () :from @bo :clock \"hlc-0000000000000000-00000000\" :thread \"list-1\" :caused-by sha256-d14916c8c459a2d7fe6061173d92337e676095d90162434672be7874228a0374)))",
+      "canonical": "(signed @bo (lang checklist (check (@aria @bo @cy) () :item \"venue\" :done #f :replaces () :from @bo :clock \"hlc-0000000000000000-00000000\" :thread \"list-1\" :caused-by f1220ffe9f89d63c8e63de5946460e259ccfb32129198cfd65fcb407dfe5836bbac47)))",
       "signer": "@bo"
     },
     {
-      "canonical": "(signed @bo (lang checklist (check (@aria @bo @cy) () :item \"venue\" :done #t :replaces (sha256-f4e0caa14f5d51b1fd82f25f238749f37d9303b4d37052177ef6d75e899dcea3) :from @bo :clock \"hlc-0000000000000000-00000000\" :thread \"list-1\" :caused-by sha256-d14916c8c459a2d7fe6061173d92337e676095d90162434672be7874228a0374)))",
+      "canonical": "(signed @bo (lang checklist (check (@aria @bo @cy) () :item \"venue\" :done #t :replaces (f1220724b9fffd3d045b5cab8b610edbf7212e1e172806c4aecfa9f3fa4a9553a20c2) :from @bo :clock \"hlc-0000000000000000-00000000\" :thread \"list-1\" :caused-by f1220ffe9f89d63c8e63de5946460e259ccfb32129198cfd65fcb407dfe5836bbac47)))",
       "signer": "@bo"
     },
     {
-      "canonical": "(signed @cy (lang checklist (check (@aria @bo @cy) () :item \"venue\" :done #f :replaces (sha256-f4e0caa14f5d51b1fd82f25f238749f37d9303b4d37052177ef6d75e899dcea3) :from @cy :clock \"hlc-0000000000000000-00000000\" :thread \"list-1\" :caused-by sha256-d14916c8c459a2d7fe6061173d92337e676095d90162434672be7874228a0374)))",
+      "canonical": "(signed @cy (lang checklist (check (@aria @bo @cy) () :item \"venue\" :done #f :replaces (f1220724b9fffd3d045b5cab8b610edbf7212e1e172806c4aecfa9f3fa4a9553a20c2) :from @cy :clock \"hlc-0000000000000000-00000000\" :thread \"list-1\" :caused-by f1220ffe9f89d63c8e63de5946460e259ccfb32129198cfd65fcb407dfe5836bbac47)))",
       "signer": "@cy"
     },
     {
-      "canonical": "(signed @bo (lang checklist (check (@aria @bo @cy) () :item \"cake\" :done #f :replaces () :from @bo :clock \"hlc-0000000000000000-00000000\" :thread \"list-1\" :caused-by sha256-d14916c8c459a2d7fe6061173d92337e676095d90162434672be7874228a0374)))",
+      "canonical": "(signed @bo (lang checklist (check (@aria @bo @cy) () :item \"cake\" :done #f :replaces () :from @bo :clock \"hlc-0000000000000000-00000000\" :thread \"list-1\" :caused-by f1220ffe9f89d63c8e63de5946460e259ccfb32129198cfd65fcb407dfe5836bbac47)))",
       "signer": "@bo"
     },
     {
-      "canonical": "(signed @aria (lang checklist (drop (@aria @bo @cy) () :item \"venue\" :replaces (sha256-05433b7868ad022e31b6c912d37cd233271cfdadad22faf2da78490205484cd5) :from @aria :thread \"list-1\" :caused-by sha256-d14916c8c459a2d7fe6061173d92337e676095d90162434672be7874228a0374)))",
+      "canonical": "(signed @aria (lang checklist (drop (@aria @bo @cy) () :item \"venue\" :replaces (f1220b89a6d559cb218a929ba6f6a9aacbc94c5fda38a6bbdfce0b41c799d84b1a722) :from @aria :thread \"list-1\" :caused-by f1220ffe9f89d63c8e63de5946460e259ccfb32129198cfd65fcb407dfe5836bbac47)))",
       "signer": "@aria"
     },
     {
-      "canonical": "(signed @bo (lang checklist (drop (@aria @bo @cy) () :item \"cake\" :replaces () :from @bo :thread \"list-1\" :caused-by sha256-d14916c8c459a2d7fe6061173d92337e676095d90162434672be7874228a0374)))",
+      "canonical": "(signed @bo (lang checklist (drop (@aria @bo @cy) () :item \"cake\" :replaces () :from @bo :thread \"list-1\" :caused-by f1220ffe9f89d63c8e63de5946460e259ccfb32129198cfd65fcb407dfe5836bbac47)))",
       "signer": "@bo"
     },
     {
-      "canonical": "(signed @bo (lang checklist (check (@aria @bo @cy) () :item \"cake\" :done #t :note \"x\" :replaces () :from @bo :clock \"hlc-0000000000000000-00000000\" :thread \"list-1\" :caused-by sha256-d14916c8c459a2d7fe6061173d92337e676095d90162434672be7874228a0374)))",
+      "canonical": "(signed @bo (lang checklist (check (@aria @bo @cy) () :item \"cake\" :done #t :note \"x\" :replaces () :from @bo :clock \"hlc-0000000000000000-00000000\" :thread \"list-1\" :caused-by f1220ffe9f89d63c8e63de5946460e259ccfb32129198cfd65fcb407dfe5836bbac47)))",
       "signer": "@bo"
     },
     {

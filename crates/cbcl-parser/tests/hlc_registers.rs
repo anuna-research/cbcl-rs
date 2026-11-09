@@ -35,8 +35,8 @@ fn explicit_hlc_rules_install_and_newer_clock_beats_greater_hash() {
     let mut old = act("old", 1, "@alice");
     let mut new = act("new", 2, "@alice");
     // Isolate ordering from the content hash; real-address coverage is in the corpus.
-    old.address = format!("sha256-{}", "f".repeat(64));
-    new.address = format!("sha256-{}", "0".repeat(64));
+    old.address = format!("f1220{}", "f".repeat(64));
+    new.address = format!("f1220{}", "0".repeat(64));
     let state = cbcl_core::state::render_json(&fold(d.state.as_ref().unwrap(), None, &[old, new]));
     let state: serde_json::Value = serde_json::from_str(&state).unwrap();
     assert!(

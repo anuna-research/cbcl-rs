@@ -301,19 +301,8 @@ pub fn project_resource_fact(c: &CounterRule, a: &Act) -> Result<Option<Resource
     }
     Ok(project_unchecked(c, a))
 }
-/// Canonical state-index spelling for native resource links. Transport accepts
-/// native colon addresses as well as state-wire dash addresses; verification
-/// must resolve both against Act::address rather than classify an alias missing.
+/// Native and state resource links now share one canonical multihash spelling.
 pub fn resource_state_id(id: &str) -> String {
-    if let Some(hex) = id.strip_prefix("sha256:") {
-        if hex.len() == 64
-            && hex
-                .bytes()
-                .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
-        {
-            return format!("sha256-{hex}");
-        }
-    }
     id.into()
 }
 fn projected_link(x: &SExpr) -> SExpr {
