@@ -859,6 +859,12 @@ suites.append(("StateAuthoredOutputReplay", (root / "lean-cbcl/LeanCbcl/StateAut
     ("output-receiver-rank-uses-addresses", "refine ⟨H.rank,?_⟩", "refine ⟨Act.addr,?_⟩", "replica_ranked"),
 ]))
 
+suites.append(("StateOutputQueryIdentity", (root / "lean-cbcl/LeanCbcl/StateOutputQueryIdentity.lean").read_text(), [
+    ("query-identity-discards-actual-query",
+     "| .threshold name source query _ => (name,some (source,query))",
+     "| .threshold name _ _ _ => (name,none)",
+     "threshold_query_eq"),
+]))
 suites.append(("StateOutputThresholdAgreement", (root / "lean-cbcl/LeanCbcl/StateOutputThresholdAgreement.lean").read_text(), [
     ("compiled-query-alternatives-discarded",
      "| .closure elements _ | .raw elements _ _ => some elements",

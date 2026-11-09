@@ -1,3 +1,4 @@
+import LeanCbcl.StateOutputQueryIdentity
 import LeanCbcl.StateOutputThresholdAgreement
 import LeanCbcl.StateOutputConvergence
 import LeanCbcl.StateAuthoredOutputReplay
@@ -3298,3 +3299,8 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateOutputThresholdAgreement.compile_one_classified
 #print axioms CBCL.StateOutputThresholdAgreement.compile_declarations_classified
 #print axioms CBCL.StateOutputThresholdAgreement.compile_authored_classified
+#print axioms CBCL.StateOutputQueryIdentity.compile_one_identity
+#print axioms CBCL.StateOutputQueryIdentity.compile_declarations_identity
+#print axioms CBCL.StateOutputQueryIdentity.authored_query_identity
+#print axioms CBCL.StateOutputQueryIdentity.threshold_query_eq
+#print axioms CBCL.StateOutputQueryIdentity.paired_singleton_success_agreement
