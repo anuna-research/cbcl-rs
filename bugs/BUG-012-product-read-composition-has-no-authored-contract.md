@@ -3,7 +3,7 @@ id: BUG-012
 title: Product-read composition is promised without an authored contract
 severity: S3
 priority: P1
-status: new
+status: in-progress
 reported-date: 2026-11-09
 assigned-to: SPEC-038 implementer and dialect API maintainer
 component: specs/SPEC-038-lvar-state-kernel.md
@@ -54,7 +54,7 @@ inventories in `crates/cbcl-core/src/state.rs` and
 `crates/cbcl-core/src/lattice.rs`, and the threshold dispatcher in
 `crates/cbcl-parser/src/state_parser.rs`.
 
-## Reviewable authored proposal — not approved grammar
+## Approved authored proposal — implementation pending
 
 Retain every existing single-field declaration and add a named conjunction of
 existing, independently typed leaf reads:
@@ -107,11 +107,10 @@ contract must be explicit before implementing them.
 
 ## Decisions and acceptance
 
-The dialect API maintainer chooses whether conjunction/comparison is an authored
-capability in this specification, or only a closed internal algebra capability
-with authored exposure reserved for a later contract. The latter requires an
-explicit clarification of the example and scope in
-[[SPEC-038-lvar-state-kernel#REQ-3809]]; it is not an inferred deferral.
+The dialect API maintainer selected authored conjunctions and fixed-bound
+comparisons. The closed-internal-only alternative was not selected.
+[[SPEC-038-lvar-state-kernel#REQ-3809]] and
+[[SPEC-038-lvar-state-kernel#CON-3805]] now carry the amended contract.
 
 For authored support, amend the two contracts with recognized grammar, result
 shape, comparison restrictions and dependency/freeze rules, then implement the
@@ -121,7 +120,16 @@ path. Acceptance extends [[SPEC-038-lvar-state-kernel#TEST-3800]] and
 propagation, earlier-field/type rejection, revisable/signed source rejection,
 freeze scopes, duplicate delivery and deliberate semantic mutants.
 
-The implementer keeps the contract-dependent slice unimplemented until that
-choice is recorded. Independent work on existing requirements continues. Full
+The choice is recorded; implementation proceeds under the amended contract.
+Independent work on existing requirements remains valid for its prior inventory. Full
 SPEC-038 completion must not treat the current primitive inventory as satisfying
 this unresolved requirement.
+
+## Decision recorded — 2026-11-09
+
+The maintainer explicitly selected authored conjunctions with fixed-bound
+comparisons. [[SPEC-038-lvar-state-kernel#CON-3805]] records recognized syntax,
+Boolean success, fault-first evidence union, leaf scope/eligibility and size
+checks. This resolves the scope choice, not implementation: native parsing,
+installation, schema, kernel evaluation, bindings, proofs and live oracle must
+still satisfy the new acceptance cases.

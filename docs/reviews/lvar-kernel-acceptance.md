@@ -5,9 +5,12 @@ mode: reference
 
 # LVar kernel acceptance evidence
 
-The implementation is **not complete**. The typed authored agreement proof is
-complete; the native root identity contract and authored product-read contract
-remain unresolved. This audit concerns [[SPEC-038-lvar-state-kernel]] and the
+The implementation is **not complete**. This matrix records the v0.3 acceptance
+checkpoint: typed agreement for the prior single-source inventory is complete.
+The maintainer has since approved v0.4 sealed-wrapper migration and authored
+product conditions; their implementation and new TEST-3810 through TEST-3815
+coverage remain pending. The older rows below are evidence for the checkpoint,
+not completed acceptance of the expanded v0.4 inventory. This audit concerns [[SPEC-038-lvar-state-kernel]] and the
 execution plan [[IMPL-030-lvar-state-kernel]]. Completing the audit does not
 complete either specification or plan.
 
@@ -15,8 +18,9 @@ The audited runtime/proof revision is `63b8431`. Subsequent acceptance work
 adds historical-byte fixtures, tests and their reproduction/mutation scripts,
 plus documentation and plan records. Rust runtime sources are unchanged since
 `7d2a055`; the intervening Rust change adds the fresh-freeze witness regression.
-The implementation keeps existing addresses while the root identity choice is
-pending. No proposed identity migration patch is applied.
+At this checkpoint the implementation still uses existing addresses. The
+maintainer has authorized sealed-wrapper commitment and migration, but the
+prototype identity patch has not yet been applied.
 
 ## Requirement evidence
 
@@ -24,7 +28,7 @@ pending. No proposed identity migration patch is applied.
 proof. “Proved” refers to the typed Lean model with its explicit structural
 premises. A green test does not resolve a conflicting contract.
 
-| Requirement | Current evidence | Acceptance state |
+| Requirement | Checkpoint evidence | v0.3 acceptance state |
 |---|---|---|
 | [[SPEC-038-lvar-state-kernel#REQ-3800]] | `StateLift`, concrete installed factories and authored source lowering; `lattice_factorisation` checks forward/reverse/duplicate display and partition union, including conflicting domain initializers. `progress` and resources use history terms. | Proved and tested for the closed inventory. Product-read extension is separately incomplete below. |
 | [[SPEC-038-lvar-state-kernel#REQ-3801]] | Shared lattice contribution/join path in `lattice.rs`; generic lift/set-union theorems and factorisation suite. Duplicate delivery is also exercised by native thresholds, context and the live oracle. | Proved and tested. |
@@ -33,11 +37,11 @@ premises. A green test does not resolve a conflicting contract.
 | [[SPEC-038-lvar-state-kernel#REQ-3804]] | Core initializer/resource/freeze faults and dependent propagation; missing-resource-reference regression; finite/domain/freeze witness replay tests. `StateEvidenceSupport`, concrete replay certificates, and actual authored output replay establish finite accepted evidence and containing faults. | Proved and tested. |
 | [[SPEC-038-lvar-state-kernel#REQ-3805]] | `state_schema` and `state_exports`, threshold/freeze/context schema checks; snapshot-effect warnings in JS, WASM, C and Erlang READMEs. Immutable context paths are marked separately from changing observations. | Tested; required host documentation present. |
 | [[SPEC-038-lvar-state-kernel#REQ-3806]] | `StateAuthoredQuasiDeterminism.authored_quasi_determinism` aggregates actual output threshold/frozen agreement, exact equal-set vectors, immediate accepted-witness replay, finite witness dissemination, finite-history convergence and no-top complete-data SEC. Ongoing threshold preservation remains in the concrete preservation modules. | Typed model proved; full build/lint/axiom gates, semantic mutations and independent review pass. Native identity/extraction assumptions remain explicit. |
-| [[SPEC-038-lvar-state-kernel#REQ-3807]] | `state_corpus` checks current vectors against their expectations, and all eight original pre-SPEC vectors against literal historical render bytes, addresses, verdicts and applicable intents; current implementation preserves wire identity. [[BUG-011-root-address-does-not-commit-sealed-cast]] records the conflict with wrapper commitment required by [[SPEC-014-role-layer-endpoint-projection#REQ-625]]. | Existing vectors tested. Overall contract unresolved; no migration authorized. |
+| [[SPEC-038-lvar-state-kernel#REQ-3807]] | `state_corpus` checks current vectors against their expectations, and all eight original pre-SPEC vectors against literal historical render bytes, addresses, verdicts and applicable intents; current implementation preserves wire identity. [[BUG-011-root-address-does-not-commit-sealed-cast]] records the conflict with wrapper commitment required by [[SPEC-014-role-layer-endpoint-projection#REQ-625]]. | Existing vectors tested at v0.3. Migration is now authorized; implementation and explicit mapping evidence are pending. |
 | [[SPEC-038-lvar-state-kernel#REQ-3808]] | History-backed `progress`/`bounded-counter` terms retain their specialized algorithms. Progress native/Lean comparison and resource oracle profiles run; concrete resource cone/frontier/budget, aggregate/solvency and verifier-certificate equivalence proofs remain composed. | Proved and tested for supported profiles; unsupported collective profiles retain their documented fault behavior. |
-| [[SPEC-038-lvar-state-kernel#REQ-3809]] | Internal pair lattices, dependent sum/histogram, native scoped composition and their proofs exist. The closed authored menu lacks conjunction/comparison syntax and semantics promised by this requirement. [[BUG-012-product-read-composition-has-no-authored-contract]] contains a concrete proposal. | **Incomplete; contract decision required.** Internal products do not satisfy the missing authored operation. |
+| [[SPEC-038-lvar-state-kernel#REQ-3809]] | Internal pair lattices, dependent sum/histogram, native scoped composition and their proofs exist. The closed authored menu lacks conjunction/comparison syntax and semantics promised by this requirement. [[BUG-012-product-read-composition-has-no-authored-contract]] contains a concrete proposal. | **Incomplete; authored contract approved, implementation pending.** Internal products do not satisfy the missing authored operation. |
 | [[SPEC-038-lvar-state-kernel#REQ-3810]] | `finite_lattices`, concrete finite-table/contribution/projection validation, actual finite-query preservation, dense/upper-cache refinement, live finite oracle and cubic validation counter test. | Proved and tested. |
-| [[SPEC-038-lvar-state-kernel#REQ-3811]] | `state_context` and live context oracle cover typed paths, role rosters, metadata, malformed/conflicting evidence, pins, markers and receipt order. Whole context changes remain snapshots; no quorum policy is introduced. | Data access tested and typed model proved. Native immutable per-address root binding remains unresolved under [[BUG-011-root-address-does-not-commit-sealed-cast]]. |
+| [[SPEC-038-lvar-state-kernel#REQ-3811]] | `state_context` and live context oracle cover typed paths, role rosters, metadata, malformed/conflicting evidence, pins, markers and receipt order. Whole context changes remain snapshots; no quorum policy is introduced. | Data access tested and typed model proved. Native wrapper commitment remains unimplemented under [[BUG-011-root-address-does-not-commit-sealed-cast]]. |
 | [[SPEC-038-lvar-state-kernel#NFR-3800]] | Documented `O(t n log(n+1))` ordinary work and `O(t(d+1)n log(n+1)+tnf)` frozen work; complete concurrent witnesses may be quadratic. Validators retain separate bounds. Exact pair-count and `n³` associativity-count tests pass; upper-set preprocessing is separated from pair checks. | Source operation bounds and counter tests checked. No end-to-end linear or wall-clock claim, and no mechanized runtime-complexity theorem claimed. |
 
 ## Contracts and tests
@@ -169,13 +173,12 @@ Lean README and concept guide distinguish typed-model proofs from their native
 input boundaries. The approval-count example explicitly counts distinct acts;
 it does not claim a distinct-reviewer `signers` primitive exists.
 
-Required remaining implementation work is governed by the decisions in
+Required remaining implementation work follows the approved decisions recorded in
 [[BUG-011-root-address-does-not-commit-sealed-cast]] and
 [[BUG-012-product-read-composition-has-no-authored-contract]]. The review-only
 identity patch is not an applied implementation. Product read composition is not
-waived or replaced by a finite-lattice workaround. After contract decisions,
-implement the chosen forms, refresh grammar/docs/tests and rerun affected gates.
-Only then can final documentation/status acceptance close.
+waived or replaced by a finite-lattice workaround. Implement the chosen forms, refresh grammar/docs/tests and rerun affected gates.
+Only then can the v0.4 audit and final documentation/status acceptance close.
 
 Latest-SHA CI is a separate gate. At this audit checkpoint the required run for
 `c781617` passed; after pushing `63b8431`, required Lean run 319 and mutation run

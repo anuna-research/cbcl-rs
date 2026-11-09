@@ -1163,7 +1163,9 @@ wrapped by the same WASM, FFI and Erlang surfaces as existing state exports.
 An already included candidate is a duplicate and does not add another effect.
 An already faulted accepted history faults resource-check before judging the
 candidate. Binding and exported observation pin dialect, thread, opener and cast;
-conflicting casts sharing an innermost root address fault under every ordering.
+conflicting casts fault under every ordering. Sealed role-root identity follows
+the committed outermost wrapper and explicit migration in
+[[SPEC-038-lvar-state-kernel#REQ-3807]].
 
 A pure `issue` helper combines `intend` with a required host `IssuanceGate`.
 The host atomically persists the complete candidate against the expected previous
@@ -1386,8 +1388,11 @@ owner signing, submission, certificate verification, dependency validation, and
 finalization. The local gate can still help honest clients avoid self-conflicts.
 It is no longer the only barrier against a malicious owner.
 
-**An act hash alone is insufficient context.** `state::Act` addresses the
-innermost simple act; wrappers and casts are checked separately. Use the same act
+**An act hash alone is insufficient context.** `state::Act` commits the
+outermost sealed wrapper for causal role roots under
+[[SPEC-038-lvar-state-kernel#REQ-3807]]; other acts retain the innermost-simple
+policy. Authentication, wrapper validity and cast permission are still checked
+separately. Use the same act
 address, plus a separately committed certification context.
 The signed statement binds the domain tag, suite, expected genesis, committee
 policy, dialect identity, and authenticated root/cast commitment.

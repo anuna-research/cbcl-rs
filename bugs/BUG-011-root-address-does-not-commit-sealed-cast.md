@@ -3,7 +3,7 @@ id: BUG-011
 title: State root identity omits the sealed cast it interprets
 severity: S2
 priority: P1
-status: new
+status: in-progress
 reported-date: 2026-11-09
 assigned-to: SPEC-038 implementer and protocol maintainer
 component: crates/cbcl-core/src/state.rs
@@ -83,10 +83,10 @@ The corpus stops at this first incompatibility; it does not prove the scope of
 all migration effects. No vectors were rewritten to hide the failure. The patch
 is a narrow mechanism prototype, not a completed migration implementation.
 
-## Decision needed
+## Decision alternatives
 
-Owner: protocol maintainer/user. Choose the contract before changing native
-identity or claiming the per-address metadata proof:
+Owner: protocol maintainer/user. The alternatives considered before the
+recorded maintainer selection were:
 
 1. Commit role-root identity to the sealed wrapper, explicitly authorize the
    address/predecessor migration, and amend the compatibility requirement.
@@ -101,3 +101,13 @@ independently accepted branches. Independent read-only review confirmed this
 mechanism and the compatibility conflict; it did not claim a general native
 security or SEC theorem. Unrelated proof/implementation work may continue while
 this identity contract is decided.
+
+## Decision recorded — 2026-11-09
+
+The maintainer explicitly selected hashing the sealed wrapper and migrating
+addresses. [[SPEC-038-lvar-state-kernel#REQ-3807]] and
+[[SPEC-038-lvar-state-kernel#ADR-3807]] record the amended compatibility contract.
+The review-only patch remains a prototype until applied and verified; signed
+history is not edited in place. Original historical baselines remain immutable,
+and affected role-root cases require explicit reissue/mapping evidence.
+Implementation and migration acceptance remain open.

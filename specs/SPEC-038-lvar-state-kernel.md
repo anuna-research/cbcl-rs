@@ -2,7 +2,7 @@
 id: SPEC-038
 title: LVar state kernel
 status: draft
-version: 0.3.0
+version: 0.4.0
 last-updated: 2026-11-09
 ---
 
@@ -34,10 +34,27 @@ later conflicting evidence can instead fault the computation. A conflicting
 opener faults dependent tallies rather than making their votes disappear.
 These rules are specified by [[SPEC-038-lvar-state-kernel#ADR-3805]].
 
+Authors may conjoin fixed source reads, for example
+`(threshold ready (and (read approvals (count 2)) (read closed #t)))`.
+The condition reaches Boolean true when every leaf succeeds; a fault in any leaf
+dominates pending siblings and retains all dependency evidence. Leaves keep
+their own source freezer cuts; the condition introduces no shared cut. It cannot
+compare two independently growing fields or count repeated leaves as extra
+approvals. [[SPEC-038-lvar-state-kernel#CON-3805]] defines this form.
+
+Sealed role-root identity commits the outermost cast wrapper. Changing the cast
+changes the root address, and reissuing its references may change descendant
+addresses and signatures. Unaffected history retains its exact byte baseline;
+affected role threads require explicit reissue/migration evidence. Historical
+signed records are not edited in place. The authorized exception is
+[[SPEC-038-lvar-state-kernel#ADR-3807]].
+
 Controls: installation rejects revisable sum thresholds and `fault` as a
 threshold alternative; nonnegative contributions are checked before admission;
 initializer conflicts propagate to dependent fields; raw carrier evidence is
-retained under merge. A host still supplies its own external-effect finality,
+retained under merge. Condition leaves must name earlier eligible source fields;
+conjunctions are bounded and have at least two children. Sealed root metadata is
+committed by its wrapper identity. A host still supplies external-effect finality,
 deduplication and recovery contract: a threshold is not an exactly-once effect.
 
 The read-only context map exposes installed dialect identity, sealed thread
@@ -78,21 +95,25 @@ Decisions: [[SPEC-038-lvar-state-kernel#ADR-3800]] LVars as the kernel model ·
 [[SPEC-038-lvar-state-kernel#ADR-3802]] freeze against a concurrent write: supersede by
 default, fault by declaration · [[SPEC-038-lvar-state-kernel#ADR-3803]] a conflict top in
 every lattice · [[SPEC-038-lvar-state-kernel#ADR-3804]] the sixteen heads stay as
-abbreviations, no wire change.
+abbreviations · [[SPEC-038-lvar-state-kernel#ADR-3805]] stable successful facts and
+revisable snapshots · [[SPEC-038-lvar-state-kernel#ADR-3806]] history terms for
+closure heads · [[SPEC-038-lvar-state-kernel#ADR-3807]] sealed-root identity migration.
 
 Load-bearing: [[SPEC-038-lvar-state-kernel#REQ-3800]] every field is a term ·
 [[SPEC-038-lvar-state-kernel#REQ-3809]] derived fields over the product, contributions never read revisable fields ·
 [[SPEC-038-lvar-state-kernel#REQ-3802]] threshold reads ·
 [[SPEC-038-lvar-state-kernel#REQ-3803]] freeze · [[SPEC-038-lvar-state-kernel#REQ-3806]]
-quasi-determinism · [[SPEC-038-lvar-state-kernel#NFR-3800]] explicit evaluation cost bounds.
+quasi-determinism · [[SPEC-038-lvar-state-kernel#REQ-3807]] explicit identity compatibility/migration ·
+[[SPEC-038-lvar-state-kernel#CON-3805]] product threshold syntax and semantics ·
+[[SPEC-038-lvar-state-kernel#NFR-3800]] explicit evaluation cost bounds.
 
-Open: the protocol and dialect API maintainers must resolve the native root
-identity and authored product-read contracts recorded at the end of this
-specification. The typed whole-kernel agreement proof, concrete authored source
-binding, faulting functional cached-reader composition and finite upper-set
-validator correspondence are complete. Installation metadata, wire extraction,
-authentication, causal admission and rendering retain their explicit model
-boundaries; the typed theorem does not establish universal Rust source extraction.
+Open: the implementer owns the approved sealed-wrapper identity migration and
+authored product-condition execution, schema, oracle and proof extension. The
+prior supported observation inventory has complete typed agreement, concrete
+authored source binding, faulting functional cached-reader composition and finite
+upper-set validator correspondence. Condition observations must extend these
+results under [[SPEC-038-lvar-state-kernel#TEST-3815]]. Literal native extraction,
+authentication and causal admission retain their explicit model boundaries.
 Progress and the escrow function `bounded-counter` retain their
 author-facing forms over the shared history-backed kernel path
 ([[SPEC-038-lvar-state-kernel#ADR-3806]]). Sequence lattices are out of scope.
@@ -112,17 +133,20 @@ artifacts. No amendment may silently reinterpret a signed balance as gross
 credits, discard conflict evidence, or claim external-effect finality from a
 threshold alone.
 
-This specification authorises a new pure module in `cbcl-core` that denotes
-existing rules as lattice terms and is checked against the shipped fold, two
-new optional state-clause forms (`threshold`, `freeze`), a conflict marker in
-rendered fields, and new Lean theorems. It does not authorise changes to
-addresses, to the admission monitor, to the verdict algebra of
-[[SPEC-003-verification-lattice]], or to the wire form of any existing clause.
-Any such change is a separate specification.
+This specification authorises the pure lattice kernel, optional threshold,
+freeze, finite-lattice and context forms, explicit conflict observations and
+their Lean proofs. The approved condition grammar extends threshold observations
+without changing existing single-source syntax. Sealed role-root hashing and
+reference reissue are authorized only under
+[[SPEC-038-lvar-state-kernel#REQ-3807]] and
+[[SPEC-038-lvar-state-kernel#ADR-3807]]. Identity validation must use that same
+policy. Protocol permissions, the admission monitor's protocol rules and the
+verdict algebra of [[SPEC-003-verification-lattice]] do not otherwise change.
 
-It also authorises the additive `nonnegative` integer shape type required to
-recognize monotone amount contributions. Existing `number` shapes retain their
-signed meaning and existing wire forms retain their addresses.
+The additive `nonnegative` integer shape type recognizes monotone amount
+contributions. Existing `number` shapes retain their signed meaning. Wire and
+address compatibility outside the explicit sealed-root migration remains
+required.
 
 ## Background
 
@@ -331,17 +355,31 @@ consistency ([[SPEC-037-state-kernel-sec#REQ-3702]]) SHALL be recovered as the
 case in which ⊤ never occurs. The proof SHALL introduce no sorry or custom axiom.
 Trace: [[SPEC-038-lvar-state-kernel#TEST-3806]].
 
-## REQ-3807: No change to existing wire forms or addresses
+## REQ-3807: Compatibility and sealed-root identity migration
 
-Every existing dialect SHALL parse, install and fold identically. Every
-conformance vector in `test-vectors/state/` SHALL produce byte-identical
-addresses and verdicts, and identical rendered state except for the additive
-`frozen`, `fault` and threshold members this specification introduces. A fault
-SHALL also appear when existing initializer or resource semantics detect a
-conflict, and SHALL propagate to dependent fields; no declaration is required
-to make an inconsistent history visibly fail. Conflict-free existing vectors
-SHALL remain unchanged.
-Trace: [[SPEC-038-lvar-state-kernel#TEST-3807]].
+Existing role-free dialects and messages SHALL retain their wire forms,
+addresses, verdicts and conflict-free rendered bytes. Sealed role roots SHALL
+instead commit the canonical outermost `with-roles` wrapper, as required by
+[[SPEC-014-role-layer-endpoint-projection#REQ-625]]. Changing its cast metadata
+therefore changes root identity. Nonroot acts retain the innermost-simple
+hashing algorithm; reissuing their predecessor references can change their
+addresses and signatures. The migration SHALL reissue affected root and
+descendant records with updated references; signed records are not edited in
+place, and authenticated replacements require their authors' signatures.
+
+The original pre-SPEC corpus SHALL remain an immutable historical baseline.
+Unaffected vectors SHALL compare exact historical rendered bytes, addresses and
+verdicts. Each affected sealed-root vector SHALL have an explicit migration
+mapping and reissued input vector; its verdicts and business observations are
+preserved modulo the declared identity substitution. No blanket compatibility
+exemption or silent rewriting of old expected addresses is permitted.
+
+Additive `frozen`, `fault` and threshold observations follow this specification.
+Existing initializer/resource conflicts SHALL render faults and propagate to
+dependent reads without a new declaration. See
+[[SPEC-038-lvar-state-kernel#ADR-3807]] for the migration boundary.
+Trace: [[SPEC-038-lvar-state-kernel#TEST-3807]],
+[[SPEC-038-lvar-state-kernel#TEST-3814]].
 
 ## REQ-3808: Closure heads
 
@@ -368,8 +406,9 @@ The state of a clause SHALL be the product lattice `∏_F L_F` of its fields, an
 a field MAY be *derived*: a post-map over earlier fields of the same clause, in
 clause order, as `histogram` and `sum` already are. A derived field's post-map
 SHALL come from the closed menu of [[SPEC-038-lvar-state-kernel#CON-3800]]
-extended with conjunction and comparison of monotone reads, so that a threshold
-over several fields, for example `(and (count approvals 2) (exists closed))`,
+extended with conjunction of source-relative monotone reads against fixed
+bounds or elements. An authored condition such as
+`(threshold ready (and (read approvals (count 2)) (read closed #t)))`
 is a threshold on the product and inherits the stability of
 [[SPEC-038-lvar-state-kernel#REQ-3802]]. A contribution `g` SHALL NOT read any
 state field; initializer evidence SHALL instead be retained in the carrier
@@ -461,6 +500,7 @@ contribute   := flag | address | field(key) | entry(key) | amount(key)
 group        := none | signer | field(key)
 select       := (verb, raw?)                          ; raw ignores domain filters
 post         := identity | size | difference
+              | monotone-test(earlier(field), element) | conjunction(condition, condition+)
               | current(post) | group-by(group, post) | pick-lww(value-key, clock-key)
               | distinct(key) | histogram(earlier) | sum(earlier)
               | closure(progress | bounded-counter)  ; existing native validators
@@ -483,6 +523,9 @@ S-expression recogniser and checked at install, no new lexical forms:
 
 ```text
 entry     := … | "(" "threshold" name field element+ ")"
+              | "(" "threshold" name condition ")"
+condition := "(" "read" field element ")"
+           | "(" "and" condition condition+ ")"
 element   := scalar | "(" "count" integer ")" | "(" "member" scalar ")"
            | "(" "sum" integer ")" | "(" "progress" integer ")"
 shape-type := … | "nonnegative"                       ; integer >= 0, existing numeric bounds apply
@@ -504,7 +547,9 @@ pairs. Rendering: `{"status":"reached","element":…}`,
 `{"status":"fault","evidence":[…]}` as a field named `name` in clause order.
 The `nonnegative` shape type recognizes only integers >= 0 before admission;
 no clamping, omission or conversion of negative contributions is permitted.
-Implements: [[SPEC-038-lvar-state-kernel#REQ-3802]].
+The condition form follows [[SPEC-038-lvar-state-kernel#CON-3805]]; it does not
+change existing single-source alternative semantics.
+Implements: [[SPEC-038-lvar-state-kernel#REQ-3802]], [[SPEC-038-lvar-state-kernel#REQ-3809]].
 Verified by: [[SPEC-038-lvar-state-kernel#TEST-3801]], [[SPEC-038-lvar-state-kernel#TEST-3803]].
 
 ## CON-3802: Freeze clause
@@ -612,6 +657,49 @@ context-root conflict. Quorum policy and new arithmetic operators are outside
 this context-access contract.
 Implements: [[SPEC-038-lvar-state-kernel#REQ-3811]].
 Verified by: [[SPEC-038-lvar-state-kernel#TEST-3809]].
+
+## CON-3805: Authored product threshold conditions
+
+Interface: the `condition` alternative of
+[[SPEC-038-lvar-state-kernel#CON-3801]]. Recognition consumes the entire form
+before installation or evaluation. A leaf is `(read field element)`. An `and`
+node has at least two condition children; empty and unary nodes reject.
+Nested conjunctions and repeated leaves are permitted.
+
+Every leaf names an actual earlier source-field declaration and uses exactly
+that source's existing element typing, monotonicity, bounds and freeze-policy
+checks. Threshold observations, including condition observations, are not new
+source fields. A leaf has one alternative; compatibility between leaves is not
+an alternative-set rejection. Thus two reads of the same count at different
+fixed bounds can be conjoined. Comparing independently growing fields, such as
+`a >= b`, is not recognized. No new selector or contribution reads state.
+
+Define `size(read field element) = 1` and
+`size(and children) = 1 + sum(size(child))`. The complete condition fits the
+installed `max-list`; existing lexical-depth and scalar/string/numeric bounds
+also apply. Unknown operators, unknown or later sources, mistyped elements,
+revisable/signed-ineligible sources and supersede-frozen threshold sources reject.
+Clause-wide freeze collection precedes these checks, preserving declaration-order
+independence for freeze policy eligibility.
+
+Evaluation uses each leaf's source-owned read and freezer scope. A condition
+introduces no shared cut. Every dependency is checked for faults even when
+another child is pending; all fault evidence is unioned canonically. Without a
+fault, the condition is pending until every leaf is reached, then renders
+`{"status":"reached","element":true}`. This Boolean result applies to every
+condition-form entry, including a single wrapped `read`; existing direct
+single-source entries continue returning their authored alternative. Repeated
+leaves do not establish additional distinct approvals. A freeze targeting the
+condition observation's name rejects; authors freeze its source fields.
+
+The schema marks the result as a Boolean threshold and exposes its condition as
+`{"op":"read","field":name,"element":element}` or
+`{"op":"and","conditions":[condition,...]}`. Cached compilation is rebuilt
+from recognized dialect input and remains excluded from wire identity.
+Implements: [[SPEC-038-lvar-state-kernel#REQ-3802]], [[SPEC-038-lvar-state-kernel#REQ-3809]].
+Verified by: [[SPEC-038-lvar-state-kernel#TEST-3810]],
+[[SPEC-038-lvar-state-kernel#TEST-3811]], [[SPEC-038-lvar-state-kernel#TEST-3812]],
+[[SPEC-038-lvar-state-kernel#TEST-3813]], [[SPEC-038-lvar-state-kernel#TEST-3815]].
 
 ## ADR-3800: LVars as the model of the state kernel
 
@@ -796,6 +884,51 @@ Trace: [[SPEC-038-lvar-state-kernel#REQ-3800]],
 [[SPEC-038-lvar-state-kernel#REQ-3806]],
 [[SPEC-038-lvar-state-kernel#REQ-3808]].
 
+## ADR-3807: Sealed role-root identity migration
+
+Decision (maintainer, 2026-11-09): hash the canonical outermost sealed
+`with-roles` wrapper for causal role roots and migrate affected references.
+This commits the cast interpreted by the context kernel and satisfies
+[[SPEC-014-role-layer-endpoint-projection#REQ-625]]. The former simple-message
+identity allowed distinct interpreted casts under one address, as reproduced in
+[[BUG-011-root-address-does-not-commit-sealed-cast]].
+
+Keeping addresses with a trusted host cast registry or retaining conflicting
+cast variants were considered; the maintainer selected cryptographic wrapper
+commitment instead. [[SPEC-038-lvar-state-kernel#REQ-3807]] now explicitly
+exempts this identity migration from unchanged-address compatibility. The
+original historical baseline remains immutable; migration fixtures document
+each affected case. There is no implicit dual-identity acceptance path.
+Role-free roots retain their identity policy. Nonroot hashing remains the same
+algorithm, while reissued dependency references may change descendant hashes.
+Existing signed records remain historical artifacts; replacement records must
+be reauthenticated and signed by their authors. Native migration documentation
+must describe this boundary before release.
+
+Operational identity selection uses the innermost simple message's reconstructed
+predecessor vector. It is a causal root exactly when that vector is empty:
+absent `:caused-by` and explicit `:caused-by begin` are equivalent here. A
+recognized typed empty multiple-predecessor sequence also has this predicate;
+this rule does not relax wire recognition. Construction and validation derive
+the predicate from the message, never from unverified cached Act metadata.
+
+For such a root, walk inward through dialect/language shells and non-role
+wrapper contents. Select the first `with-roles` node encountered and hash that
+node's complete canonical subtree, including its bindings and nested content.
+Transparent wrappers outside that selected node are excluded from this state
+identity selection; their validity and authentication checks still apply.
+If no sealed role wrapper exists, hash the innermost simple message. For a
+nonroot, retain the innermost-simple policy regardless of wrapper placement.
+This matches the context layer's predecessor-free root classification and does
+not rely on a top-level wrapper-type check.
+
+The `begin` predecessor marker is constant and supplies no instance freshness.
+Identical sealed root content intentionally has the same content address.
+Opening distinct instances with otherwise identical cast/dialect content requires
+fresh authenticated root data, such as the existing `:thread` value or an
+explicit nonce inside the selected subtree. This identity policy does not insert
+hidden entropy or read a local clock into the kernel.
+
 ## TEST-3800: Factorisation and morphism law
 
 For every conformance vector in `test-vectors/state/` and every field whose head
@@ -907,14 +1040,18 @@ reaches ⊤ with evidence containing that witness. Equal accepted sets yield
 equal evidence; complete finite-history delivery yields eventual equality of
 the entire observation. Validates REQ-3806.
 
-## TEST-3807: Vectors unchanged
+## TEST-3807: Historical bytes and explicit migration
 
-Every vector's addresses, verdicts and rendered state are byte-identical to
-`main` before this specification on conflict-free histories, except for members
-the vector's dialect explicitly declares. Conflicting initializer/resource
-histories render explicit faults and propagate dependent faults under
-[[SPEC-038-lvar-state-kernel#REQ-3804]], without requiring a new declaration.
-Validates REQ-3807.
+Every unaffected pre-SPEC state vector SHALL preserve exact historical rendered
+bytes, addresses and verdicts on its original inputs, without JSON normalization.
+The immutable baseline names its pre-SPEC revision and retains all original
+vectors. Every affected sealed-root case has a separately identified migration
+mapping and reissued records with updated dependency references; its permitted
+identity changes are explicit. Check preserved business observations and
+verdicts under that mapping, not a blanket exemption. Additive conflict rendering
+follows [[SPEC-038-lvar-state-kernel#REQ-3804]]. A byte-only native renderer
+mutation must fail the unaffected historical comparison.
+Validates [[SPEC-038-lvar-state-kernel#REQ-3807]].
 
 ## TEST-3808: User-defined lattices
 
@@ -977,6 +1114,62 @@ input error instead of truncating an observation. Predicate-set serialization
 uses the input-supported roster/frontier identities; support completeness is a
 profile boundary rather than a separate proved theorem.
 Validates [[SPEC-038-lvar-state-kernel#REQ-3811]].
+
+## TEST-3810: Authored conjunction success
+
+A condition over count and exists leaves stays pending until both succeed,
+then reaches Boolean true. Nested and repeated leaves preserve this result
+under growth, permutations and duplicate delivery. Compatible fixed-bound reads
+on one source can be conjoined; they are not competing alternatives.
+Validates [[SPEC-038-lvar-state-kernel#REQ-3809]].
+
+## TEST-3811: Fault-first condition composition
+
+A faulting leaf dominates pending siblings and unions every dependency's exact
+evidence. Adding accepted conflicts preserves prior witnesses. Deliberately
+short-circuiting on a pending child or dropping one fault must fail native and
+Lean comparisons. Validates [[SPEC-038-lvar-state-kernel#REQ-3804]] and
+[[SPEC-038-lvar-state-kernel#REQ-3809]].
+
+## TEST-3812: Condition recognition and source checks
+
+Reject incomplete/trailing forms, unknown operators, empty/unary conjunctions,
+unknown/later/threshold-output sources, mistyped elements, signed or revisable
+ineligible sources, excessive condition size and forbidden source freeze policy.
+Reject comparisons between two growing fields. Preserve existing direct
+single-source threshold rendering; condition-form leaves render Boolean true.
+Validates [[SPEC-038-lvar-state-kernel#CON-3805]].
+
+## TEST-3813: Independent leaf freeze scopes
+
+Construct leaves with different source freezer cuts and verify each reads its
+own exact scope, including nested derived dependencies and full-history faults.
+A condition has no implicit common cut and cannot itself be frozen. Freeze
+metadata declaration order cannot bypass leaf eligibility checks. Erasing a leaf
+scope or dependency fault must fail. Validates
+[[SPEC-038-lvar-state-kernel#REQ-3803]] and [[SPEC-038-lvar-state-kernel#REQ-3809]].
+
+## TEST-3814: Sealed-wrapper commitment and migration
+
+Changing only a role-root cast changes its address, including nested wrappers.
+Construction and identity validation use the same outermost sealed-wrapper
+policy. Role-free roots and nonroot hashing retain their algorithm. Reissue
+an affected conformance thread with updated predecessor/resource references;
+verify declared old/new mappings and preserved verdict/business observations.
+Do not mutate historical signed bytes or silently overwrite their baseline.
+Validates [[SPEC-038-lvar-state-kernel#REQ-3807]].
+
+## TEST-3815: Compound authored proof and live oracle
+
+Extend the actual authored compiler, emitted observations, finite witness
+replay, equal-set agreement and threshold-preservation proofs to condition
+observations. The live oracle executes the proved condition semantics over
+count/exists/membership/finite leaves, pending siblings, multiple faults and
+independent freeze scopes. Compare actual Rust parser/install/fold/schema
+results under permutations and duplication; semantic mutants must fail.
+No caller-provided condition result or error classifier discharges the proof.
+Validates [[SPEC-038-lvar-state-kernel#REQ-3806]] and
+[[SPEC-038-lvar-state-kernel#REQ-3809]].
 
 ## Purity Boundary Map
 
@@ -1829,8 +2022,8 @@ legacy kernel resource closure port remains separate from the new concrete
 native-certificate bridge; actual authored resources now follow the concrete
 factory-to-output path above.
 
-The typed-model agreement obligations of
-[[SPEC-038-lvar-state-kernel#REQ-3806]] and
+For the prior supported observation inventory, the typed-model agreement
+obligations of [[SPEC-038-lvar-state-kernel#REQ-3806]] and
 [[SPEC-038-lvar-state-kernel#TEST-3806]] are assembled by
 `StateAuthoredQuasiDeterminism.authored_quasi_determinism`. Its components concern
 actual authored compiled output vectors: successful thresholds agree or expose
@@ -1851,12 +2044,21 @@ the live oracle exercise the strict wire parser using quoted digest strings.
 its envelope and suite-qualified key cases; the dialect-pin context path no
 longer relies on the lax parser.
 
-The specification stays `draft` while the native root identity decision in
-[[BUG-011-root-address-does-not-commit-sealed-cast]] and the authored product-read
-contract in [[BUG-012-product-read-composition-has-no-authored-contract]] remain
-unresolved. Model-level agreement completion does not choose either contract.
+The specification stays `draft` until the approved sealed-wrapper migration
+and authored product-condition extension are implemented and verified. The
+existing typed agreement theorem covers the prior supported observation
+inventory; [[SPEC-038-lvar-state-kernel#TEST-3815]] extends it to condition
+observations. The maintainer's decisions resolve the contracts recorded in
+[[BUG-011-root-address-does-not-commit-sealed-cast]] and
+[[BUG-012-product-read-composition-has-no-authored-contract]]; they do not by
+themselves complete their implementation.
 
 ## Changelog
+
+- 0.4.0 (2026-11-09): maintainer selected sealed-wrapper role-root commitment
+  with explicit address/reference migration and authored conjunctions of
+  fixed-bound source reads. Added the condition contract, migration decision
+  and acceptance cases; retained historical compatibility evidence.
 
 - 0.3.0 (2026-11-08): maintainer requested the read-only dialect/thread context
   map as ordinary kernel input, keeping policy-specific quorum forms outside

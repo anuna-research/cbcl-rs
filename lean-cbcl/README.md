@@ -378,7 +378,10 @@ python3 ../scripts/check-state-kernel-sec.py
 ## LVar state kernel
 
 [SPEC-038](../specs/SPEC-038-lvar-state-kernel.md) remains **draft**. The committed
-proofs cover the following typed-model layers:
+proofs cover the following typed-model layers for the prior single-source
+observation inventory. SPEC-038 v0.4 adds approved condition observations and a
+sealed-root migration; their implementation and extended proof acceptance are
+pending.
 
 - `StateLift` proves accepted-set lift invariance and the union/join law.
   `StateLVar` and `StateObservation` compose threshold, domain, context, resource,
@@ -416,9 +419,9 @@ older theorems retain their stated provider premises. Concrete typed factories,
 finite validators, authored context/domain binding and functional cached freeze
 scopes are composed. Literal Rust AST/wire extraction, authentication,
 clock/signer mapping, mutable-driver execution and universal native
-canonical-renderer extraction remain explicit proof boundaries. The specification remains draft for the native root
-identity and authored product-read contracts, not an unfinished typed agreement
-proof. Ongoing threshold preservation is also proved in its existing concrete
+canonical-renderer extraction remain explicit proof boundaries. The specification remains draft for implementation of the approved sealed-root
+migration and authored product conditions. The existing typed agreement proof is
+complete for its prior observation inventory; TEST-3815 extends it to conditions. Ongoing threshold preservation is also proved in its existing concrete
 preservation modules.
 
 Concrete factories now cover legacy primitives, the typed native resource

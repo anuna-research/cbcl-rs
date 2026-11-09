@@ -150,9 +150,11 @@ accepted by both replicas. Excluded-contribution metadata may differ.
 agreement, frozen-value agreement, exact equal-set observations, immediate
 witness replay, eventual witness dissemination, finite-history convergence and
 conditional no-fault SEC. These establish the typed-model agreement obligations
-of [[SPEC-038-lvar-state-kernel#REQ-3806]]. Ongoing threshold preservation also
-uses the existing authored data, membership, event-sum, progress and finite
-preservation proofs. Native syntax extraction, authentication and immutable
+of [[SPEC-038-lvar-state-kernel#REQ-3806]] for the implemented single-source
+observation inventory. The approved v0.4 condition-threshold extension must
+extend that guarantee under [[SPEC-038-lvar-state-kernel#TEST-3815]]. Ongoing
+threshold preservation also uses the existing authored data, membership,
+event-sum, progress and finite preservation proofs. Native syntax extraction, authentication and immutable
 identity binding remain explicit model boundaries.
 
 ## Writing a dialect
