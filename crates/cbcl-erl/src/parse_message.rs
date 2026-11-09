@@ -257,3 +257,37 @@ mod tests {
         );
     }
 }
+
+/// Canonical audience accessor shared with WASM.
+pub fn recipient_of_pure(bytes: &[u8]) -> Result<String, String> {
+    let input = core::str::from_utf8(bytes).map_err(|_| String::from("invalid utf-8"))?;
+    cbcl_parser::recipient_of(input)
+}
+
+#[rustler::nif]
+fn recipient_of<'a>(env: Env<'a>, bytes: Binary<'a>) -> Term<'a> {
+    match recipient_of_pure(bytes.as_slice()) {
+        Ok(value) => (atom::ok(), make_binary(env, value)).encode(env),
+        Err(reason) => (atom::error(), make_binary(env, reason)).encode(env),
+    }
+}
+
+#[cfg(test)]
+mod recipient_parity {
+    #[test]
+    fn binding_uses_shared_recipient_rule() {
+        for text in [
+            "(tell @bob hello)",
+            "(lang d (ask @bob hello))",
+            "(reply hello)",
+            "(meta (teach @bob (define d (cbcl) @author)))",
+            "(tell (@a @b) hello)",
+            "(envelope :to @room (tell @bob hello))",
+        ] {
+            assert_eq!(
+                super::recipient_of_pure(text.as_bytes()),
+                cbcl_parser::recipient_of(text)
+            );
+        }
+    }
+}

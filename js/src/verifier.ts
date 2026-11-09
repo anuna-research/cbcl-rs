@@ -10,7 +10,7 @@
 // ceremony; a browser awaits `ready()` (or its own `init` of the same module,
 // which is idempotent) before its first frame.
 import init, {
-  initSync, parse as wasmParse, parse_message, message_hash, verify_dialect, verify_message_shape,
+  initSync, parse as wasmParse, recipient_of, recipient_of_lax, parse_message, message_hash, verify_dialect, verify_message_shape,
   verify_protocol, fold, intend, verify_state_shape, state_schema, may_send, frontier, dialect_hash,
   admit, read as wasmRead, compile_contract, define_text, describe_dialect, read_act,
 } from './cbcl_wasm.js';
@@ -73,6 +73,12 @@ export function parse(text: string): string { return refusal(() => wasmParse(tex
 
 /** A message's canonical form. Throws with the parser's reason. */
 export function parseMessage(text: string): string { return refusal(() => parse_message(text)); }
+
+/** Canonical signed-frame audience, retaining @. Throws for frames without one. */
+export function recipientOf(message: string): string { return refusal(() => recipient_of(message)); }
+
+/** Audience for bare host control verbs; the host must authorize the verb. */
+export function recipientOfLax(message: string): string { return refusal(() => recipient_of_lax(message)); }
 
 /** CBCL's canonical content address of a message (`sha256:<hex>`). */
 export function messageHash(message: string): string { return refusal(() => message_hash(message)); }

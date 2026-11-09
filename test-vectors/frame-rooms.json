@@ -1,0 +1,120 @@
+{
+  "about": "SPEC-100 CON-009 / TEST-048: one table of frames and the room each has. The hub (cbcl-core-msg:room, eunit cbcl-core-msg-tests) and the client (recipientOf over role-frame.mjs frameRoom, node role-frame.test.mjs) both read it, so the two rules cannot drift apart unseen. room null = no room: the hub refuses the frame.",
+  "rows": [
+    {
+      "name": "a bare (lang ...) act",
+      "frame": "(lang lunch-vote (propose @general :title \"Lunch\" :from @aria :thread \"object-1\" :caused-by begin))",
+      "room": "@general"
+    },
+    {
+      "name": "a tell",
+      "frame": "(tell @general \"hi\" :from @aria)",
+      "room": "@general"
+    },
+    {
+      "name": "a hello",
+      "frame": "(hello @general :from @aria)",
+      "room": "@general"
+    },
+    {
+      "name": "a history request",
+      "frame": "(history @general :limit 500 :from @aria)",
+      "room": "@general"
+    },
+    {
+      "name": "a (lang ...) act with the account proof",
+      "frame": "(lang lunch-vote (propose @general :title \"Lunch\" :from @aria :thread \"object-1\" :caused-by begin) :signing-key \"K\" :selfsame \"P\")",
+      "room": "@general"
+    },
+    {
+      "name": "the root",
+      "frame": "(with-roles ((x @aria) (o @bo)) (signed @aria (lang tic-tac-toe (hello @general () :nonce \"0123456789abcdef0123456789abcdef\" :from @aria :thread \"object-6c6dd8d9ef57b7da3a44bbb2918ee97a\" :caused-by begin))))",
+      "room": "@general"
+    },
+    {
+      "name": "a role step",
+      "frame": "(envelope :to @general (signed @aria (lang tic-tac-toe (open (@aria @bo) () :title \"Game 1\" :from @aria :thread \"object-6c6dd8d9ef57b7da3a44bbb2918ee97a\" :caused-by sha256-a791cd1c45d052b6484c9dae3cca2a68c84e5bbd31fe4dee8fdaf6028bbcce95))))",
+      "room": "@general"
+    },
+    {
+      "name": "a role step with the account proof",
+      "frame": "(envelope :to @general (signed @aria (lang tic-tac-toe (open (@aria @bo) () :title \"Game 1\" :from @aria :thread \"object-6c6dd8d9ef57b7da3a44bbb2918ee97a\" :caused-by begin))) :signing-key \"K\" :selfsame \"P\")",
+      "room": "@general"
+    },
+    {
+      "name": "an envelope around a canonical single-handle role act uses its envelope room",
+      "frame": "(envelope :to @other (signed @aria (lang lunch-vote (propose @general :title \"Lunch\" :from @aria :thread \"object-1\" :caused-by begin))))",
+      "room": "@other"
+    },
+    {
+      "name": "a list recipient with no envelope",
+      "frame": "(lang tic-tac-toe (open (@aria @bo) () :title \"Game 1\" :from @aria :thread \"object-6c\" :caused-by begin))",
+      "room": null
+    },
+    {
+      "name": "an envelope :to that is a string",
+      "frame": "(envelope :to \"@general\" (signed @aria (lang tic-tac-toe (open (@aria @bo) () :title \"Game 1\" :from @aria :thread \"object-6c\" :caused-by begin))))",
+      "room": null
+    },
+    {
+      "name": "an envelope nested inside signed",
+      "frame": "(signed @aria (envelope :to @general (lang tic-tac-toe (open (@aria @bo) () :title \"Game 1\" :from @aria :thread \"object-6c\" :caused-by begin))))",
+      "room": null
+    },
+    {
+      "name": "an envelope with no :to",
+      "frame": "(envelope :via @general (signed @aria (lang tic-tac-toe (open (@aria @bo) () :title \"Game 1\" :from @aria :thread \"object-6c\" :caused-by begin))))",
+      "room": null
+    },
+    {
+      "name": "a (lang ...) wraps its first list: a trailing list is not the act",
+      "frame": "(lang lunch-vote (propose @general :title \"Lunch\" :from @aria :thread \"object-1\" :caused-by begin) (vote @evil :from @mal))",
+      "room": "@general"
+    },
+    {
+      "name": "another wrapper wraps its last list, a keyword's value included",
+      "frame": "(signed @aria (lang lunch-vote (propose @general :title \"Lunch\" :from @aria :thread \"object-1\" :caused-by begin)) :k (tell @evil \"x\" :from @aria))",
+      "room": "@evil"
+    },
+    {
+      "name": "an envelope's trailing keyword list is its last list too",
+      "frame": "(envelope :to @general (signed @aria (lang tic-tac-toe (open (@aria @bo) () :title \"G\" :from @aria :thread \"object-6c\" :caused-by begin))) :k (tell @evil \"x\" :from @aria))",
+      "room": "@general"
+    },
+    {
+      "name": "with-limits wraps its last list, after its limits",
+      "frame": "(with-limits ((max-depth 3)) (tell @general \"hi\" :from @aria))",
+      "room": "@general"
+    },
+    {
+      "name": "signed with a signature string wraps its last list",
+      "frame": "(signed @aria \"sig\" (tell @general \"hi\" :from @aria))",
+      "room": "@general"
+    },
+    {
+      "name": "an envelope's :to among other keywords",
+      "frame": "(envelope :to @general :via @other (signed @aria (lang tic-tac-toe (open (@aria @bo) () :title \"G\" :from @aria :thread \"object-6c\" :caused-by begin))))",
+      "room": "@general"
+    },
+    {
+      "name": "a quoted-string recipient has no room",
+      "frame": "(tell \"@general\" \"hi\" :from @aria)",
+      "room": null
+    },
+    {
+      "name": "a quoted-string recipient inside (lang ...) has no room",
+      "frame": "(lang lunch-vote (propose \"@general\" :title \"Lunch\" :from @aria :thread \"object-1\" :caused-by begin))",
+      "room": null
+    },
+    {
+      "name": "a singleton settings proposal addresses its object owner and routes to the room",
+      "frame": "(envelope :to @general (signed @agent (lang settings (propose @owner () :setting \"theme.density\" :value \"\\\"compact\\\"\" :registry \"sha-256=checked\" :from @agent :thread \"object-1\" :caused-by begin))))",
+      "room": "@general"
+    },
+    {
+      "name": "an empty role recipient cannot acquire an envelope room",
+      "frame": "(envelope :to @general (signed @owner (lang settings (set () () :setting \"x\" :value \"true\" :from @owner :thread \"object-1\" :caused-by begin))))",
+      "room": null
+    }
+  ]
+}

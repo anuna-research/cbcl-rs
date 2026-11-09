@@ -295,6 +295,45 @@ impl Message {
         }
     }
 
+    /// Canonical signed-envelope audience, retaining the `@` sigil.
+    /// Descends wrappers to the act. An outermost envelope routes a non-empty
+    /// recipient position through its single symbol `:to` (cbcl-bus SPEC-100
+    /// CON-009). Recipient-less, ambiguous and un-enveloped multicast frames
+    /// fail closed. Meta operations have no message recipient.
+    pub fn canonical_recipient(&self) -> Result<&str, &'static str> {
+        let simple = self.innermost_simple().ok_or("message has no recipient")?;
+        if simple.recipient_set().is_empty() {
+            return Err("message has no recipient");
+        }
+        if let Message::Wrapped {
+            wrapper: WrapperType::Envelope,
+            params,
+            ..
+        } = self
+        {
+            let mut audience = None;
+            let mut iter = params.iter();
+            while let Some(param) = iter.next() {
+                if let SExpr::Atom(Atom::Keyword(key)) = param {
+                    let value = iter.next();
+                    if key == "to" {
+                        if audience.is_some() {
+                            return Err("ambiguous envelope recipient");
+                        }
+                        audience = Some(match value {
+                            Some(SExpr::Atom(Atom::Symbol(s))) if s.starts_with('@') => s.as_str(),
+                            _ => return Err("envelope :to must be a recipient symbol"),
+                        });
+                    }
+                }
+            }
+            return audience.ok_or("envelope requires :to");
+        }
+        simple
+            .recipient()
+            .ok_or("message must have exactly one recipient")
+    }
+
     /// Returns all recipients of a Simple message as a normalized set
     /// (empty when the recipient position is absent) — SPEC-014 REQ-622.
     pub fn recipient_set(&self) -> alloc::collections::BTreeSet<&str> {
