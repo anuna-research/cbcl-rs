@@ -78,18 +78,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Compute Lean toolchain cache key
-        id: lean-cache-key
-        run: |
-          node --test scripts/test-ci-lean-cache-key.mjs
-          node scripts/ci-lean-cache-key.mjs
-
-      - name: Cache elan and pinned Lean toolchain
-        uses: actions/cache@v4
-        with:
-          path: ~/.elan
-          key: ${{ runner.os }}-${{ runner.arch }}-elan-${{ steps.lean-cache-key.outputs.digest }}
-
+      # The Forgejo runner can abort between output calculation and cache restore
+      # without reporting an action error. Bootstrap directly so an optional cache
+      # cannot prevent Lean verification from running.
       - name: Install elan (Lean toolchain manager)
         run: bash scripts/ci-install-lean.sh
 

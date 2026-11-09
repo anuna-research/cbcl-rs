@@ -50,3 +50,16 @@ test('missing input fails before publishing any digest', t => {
   assert.match(run.stderr, /ci-install-lean\.sh/);
   assert.equal(existsSync(f.output), false);
 });
+
+// Runner output records must be newline-delimited, including when appended.
+test('publishes a parseable output record after an existing record', t => {
+  const f = fixture(t);
+  writeFileSync(f.output, 'previous=ok\n');
+  const run = f.run();
+  assert.equal(run.status, 0, run.stderr);
+  const records = readFileSync(f.output, 'utf8').split('\n');
+  assert.equal(records.length, 3);
+  assert.equal(records[0], 'previous=ok');
+  assert.match(records[1], /^digest=[0-9a-f]{64}$/);
+  assert.equal(records[2], '');
+});
