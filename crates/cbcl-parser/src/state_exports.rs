@@ -288,6 +288,9 @@ pub enum Admission {
 /// binding and for the corpus runner, so the accepted set a consumer folds is
 /// the one the corpus expects.
 pub fn admit(d: &Dialect, thread: &ThreadId, accepted: &[Act], act: &Act) -> Admission {
+    if let Err(reason) = act.validate_identity() {
+        return Admission::Rejected(format!("act identity: {reason}"));
+    }
     let Some(protocol) = d.causal_protocol.as_ref() else {
         return Admission::Rejected(String::from("dialect has no protocol clause"));
     };

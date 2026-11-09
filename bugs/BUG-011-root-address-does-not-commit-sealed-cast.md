@@ -3,7 +3,7 @@ id: BUG-011
 title: State root identity omits the sealed cast it interprets
 severity: S2
 priority: P1
-status: in-progress
+status: resolved
 reported-date: 2026-11-09
 assigned-to: SPEC-038 implementer and protocol maintainer
 component: crates/cbcl-core/src/state.rs
@@ -11,7 +11,7 @@ component: crates/cbcl-core/src/state.rs
 
 # BUG-011: State root address does not bind immutable cast metadata
 
-`Act::from_message` hashes the innermost simple message. Its identity validator
+Before the repair, `Act::from_message` hashed the innermost simple message. Its identity validator
 repeats that policy. Context casting reads the outer `with-roles` wrapper.
 Changing only the reviewer roster therefore changes context metadata without
 changing the state root address. Both variants are accepted into separate fresh
@@ -110,4 +110,20 @@ addresses. [[SPEC-038-lvar-state-kernel#REQ-3807]] and
 The review-only patch remains a prototype until applied and verified; signed
 history is not edited in place. Original historical baselines remain immutable,
 and affected role-root cases require explicit reissue/mapping evidence.
-Implementation and migration acceptance remain open.
+The implementation and migration acceptance are recorded below; the preceding prototype evidence is historical.
+
+## Resolution — 2026-11-09
+
+Implemented and independently reviewed under
+[[SPEC-038-lvar-state-kernel#TEST-3814]]. Native library and state integration
+suites pass, including transport-wrapped root admission and progress. The
+explicit migration manifest preserves the immutable historical snapshot and
+checks exact original state bytes. Live Lean oracle and progress comparisons
+pass. Executed semantic mutants reject cast omission, the wrong root predicate,
+stale candidate identity, transport-stopping discovery, legacy progress pinning,
+and raw-render whitespace drift. Compiler or disk-space failures were not
+counted as mutation rejection; the final isolated gate passed after regenerable
+build caches were removed.
+
+This resolves the root identity/discovery implementation defect; authored
+condition thresholds and the full v0.4 acceptance audit remain separate work.

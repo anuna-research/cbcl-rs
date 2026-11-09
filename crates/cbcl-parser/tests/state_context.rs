@@ -464,3 +464,124 @@ fn finite_fault_witness_retains_domain_roster_root_for_replay() {
     delivered.extend(witness);
     assert_eq!(read(&src, &delivered)["arrivals"], replay["arrivals"]);
 }
+
+#[test]
+fn sealed_cast_root_identity_commits_roster() {
+    let src = source(None);
+    let d = parse_dialect(&parse(&src).unwrap()).unwrap();
+    let first = root_act("");
+    let second = act(
+        r#"(with-roles ((chair @chair) (reviewer @x @y @z)) (signed @chair (hello :thread "t" :caused-by begin)))"#,
+        "@chair",
+    );
+    assert_ne!(
+        first.address, second.address,
+        "sealed root identity must commit its cast"
+    );
+    let thread = cbcl_core::store::ThreadId("t".into());
+    let a = state_exports::admit(&d, &thread, &[], &first);
+    let b = state_exports::admit(&d, &thread, &[], &second);
+    assert!(
+        matches!(a, state_exports::Admission::Accepted),
+        "first={a:?}"
+    );
+    assert!(
+        matches!(b, state_exports::Admission::Accepted),
+        "second={b:?}"
+    );
+    let a = read(&src, &[first]);
+    let b = read(&src, &[second]);
+    assert_ne!(
+        a["reviewers"], b["reviewers"],
+        "distinct roots retain distinct rosters"
+    );
+}
+
+#[test]
+fn sealed_root_identity_uses_explicit_instance_freshness() {
+    let first = root_act("100");
+    let same = root_act("100");
+    let fresh = root_act("101");
+    assert_eq!(first.address, same.address, "identical roots deduplicate");
+    assert_ne!(
+        first.address, fresh.address,
+        "committed fresh data distinguishes instances"
+    );
+}
+
+#[test]
+fn sealed_root_identity_selects_exact_wrapper_and_root_predicate() {
+    use cbcl_core::message::{CausedBy, Message, WrapperType};
+    use cbcl_core::state::wire_address;
+    fn set_cause(message: &mut Message, cause: Option<CausedBy>) {
+        match message {
+            Message::Simple { caused_by, .. } => *caused_by = cause,
+            Message::Wrapped { content, .. } => set_cause(content, cause),
+            Message::Dialect { inner, .. } => set_cause(inner, cause),
+            Message::Meta { .. } => panic!("test root must contain a simple message"),
+        }
+    }
+    let original = root_act("100");
+    let parent = root_act("parent").address;
+    for cause in [
+        None,
+        Some(CausedBy::Begin),
+        Some(CausedBy::Multiple(vec![])),
+    ] {
+        let mut message = original.message.clone();
+        set_cause(&mut message, cause);
+        let expected = wire_address(&message);
+        let wrapped = Message::Dialect {
+            dialect_name: "review".into(),
+            inner: Box::new(Message::Wrapped {
+                wrapper: WrapperType::WithLimits,
+                params: vec![],
+                content: Box::new(message),
+            }),
+        };
+        let received = Act::from_message(wrapped, "@chair").unwrap();
+        assert!(received.predecessors.is_empty());
+        assert_eq!(
+            received.address, expected,
+            "transparent ancestors are excluded"
+        );
+    }
+    for cause in [
+        CausedBy::Single(parent.clone()),
+        CausedBy::Multiple(vec![parent]),
+    ] {
+        let mut message = original.message.clone();
+        set_cause(&mut message, Some(cause));
+        let expected = wire_address(message.innermost_simple().unwrap());
+        assert_eq!(
+            Act::from_message(message, "@chair").unwrap().address,
+            expected
+        );
+    }
+    let Message::Wrapped { params, .. } = original.message else {
+        panic!("sealed test root")
+    };
+    let nested = Message::Wrapped {
+        wrapper: WrapperType::WithRoles,
+        params,
+        content: Box::new(root_act("nested").message),
+    };
+    let expected = wire_address(&nested);
+    assert_eq!(
+        Act::from_message(nested, "@chair").unwrap().address,
+        expected,
+        "the complete outermost sealed subtree is committed"
+    );
+}
+
+#[test]
+fn sealed_root_identity_validation_rejects_cached_simple_address() {
+    let d = parse_dialect(&parse(&source(None)).unwrap()).unwrap();
+    let mut root = root_act("100");
+    root.address = cbcl_core::state::wire_address(root.simple());
+    let verdict = state_exports::admit(&d, &cbcl_core::store::ThreadId("t".into()), &[], &root);
+    assert!(
+        matches!(verdict, state_exports::Admission::Rejected(_)),
+        "an old simple-message address cannot validate a sealed root: {verdict:?}"
+    );
+}

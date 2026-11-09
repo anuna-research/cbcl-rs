@@ -128,9 +128,10 @@ pending and frozen results; it does not discard metadata to obtain agreement.
 `StateAuthoredOutputReplay` proves that delivering the actual acts named by an
 emitted fault's evidence is sufficient for a freshly compiled receiving replica
 to report a fault containing that evidence. The model assumes explicit causal
-dependency coverage and a fixed installed environment. Native binding of sealed
-root metadata to an address remains the identity-contract issue in
-[[BUG-011-root-address-does-not-commit-sealed-cast]].
+dependency coverage and a fixed installed environment. Native root identity now hashes the selected sealed role wrapper; the explicit
+migration and its verification are described in the
+[state reference](../reference/state-language.md#root-addresses-and-migration)
+and tracked by [[BUG-011-root-address-does-not-commit-sealed-cast]].
 
 `StateAuthoredThresholdOrigin.quasi_determinism` covers every authored threshold
 source rule. It recovers the actual source-owned query from successful compiled

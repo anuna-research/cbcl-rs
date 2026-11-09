@@ -12,6 +12,7 @@
 
 use cbcl_core::dialect::Dialect;
 use cbcl_core::intend::{intend, Instance};
+use cbcl_core::message::{CausedBy, Message};
 use cbcl_core::role::AgentKey;
 use cbcl_core::sexpr::{Atom, SExpr};
 use cbcl_core::state::{fold, render_json, Act};
@@ -239,9 +240,161 @@ fn every_vector_passes_forward_reversed_and_duplicated() {
     }
 }
 
-/// TEST-3807: run the original pre-SPEC inputs, including original addresses and
-/// verdicts, against literal render bytes captured from that pinned revision.
-/// Keeping the inputs here prevents edited modern vectors from hiding a break.
+const ROLE_MIGRATIONS: [&str; 3] = [
+    "bounded-ceiling.json",
+    "bounded-coin.json",
+    "checklist-roles.json",
+];
+
+fn migration_path() -> PathBuf {
+    corpus_dir()
+        .parent()
+        .unwrap()
+        .join("state-role-root-migration.json")
+}
+
+// Only typed predecessor fields and the declared state-reference parameters
+// change. In particular, strings/content/role rosters are never substituted.
+fn reissue_message(message: &mut Message, addresses: &BTreeMap<String, String>) {
+    fn reference(expr: &mut SExpr, addresses: &BTreeMap<String, String>) {
+        match expr {
+            SExpr::Atom(Atom::Symbol(address)) => {
+                if let Some(new) = addresses.get(address) {
+                    *address = new.clone();
+                }
+            }
+            SExpr::List(items) => {
+                for item in items {
+                    reference(item, addresses);
+                }
+            }
+            _ => {}
+        }
+    }
+    match message {
+        Message::Dialect { inner, .. } => reissue_message(inner, addresses),
+        Message::Wrapped { content, .. } => reissue_message(content, addresses),
+        Message::Simple {
+            caused_by, params, ..
+        } => {
+            match caused_by {
+                Some(CausedBy::Single(address)) => {
+                    if let Some(new) = addresses.get(address) {
+                        *address = new.clone();
+                    }
+                }
+                Some(CausedBy::Multiple(preds)) => {
+                    for address in preds.iter_mut() {
+                        if let Some(new) = addresses.get(address) {
+                            *address = new.clone();
+                        }
+                    }
+                    preds.sort();
+                }
+                _ => {}
+            }
+            for pair in params.chunks_exact_mut(2) {
+                if matches!(&pair[0], SExpr::Atom(Atom::Keyword(key))
+                    if matches!(key.as_str(), "escrow-prev" | "escrow-deps" | "replaces"))
+                {
+                    reference(&mut pair[1], addresses);
+                    if let SExpr::List(items) = &mut pair[1] {
+                        items.sort();
+                    }
+                }
+            }
+        }
+        Message::Meta { .. } => panic!("migration fixture must contain acts"),
+    }
+}
+
+fn reissued_vector(original: &Value) -> (Value, Value) {
+    let mut result = original.clone();
+    let mut addresses = BTreeMap::new();
+    let mut mappings = Vec::new();
+    for (index, record) in result["messages"]
+        .as_array_mut()
+        .unwrap()
+        .iter_mut()
+        .enumerate()
+    {
+        let mut message =
+            parse_message(&parse(record["canonical"].as_str().unwrap()).unwrap()).unwrap();
+        let old = original["expect"]["addresses"][index].as_str().unwrap();
+        let old_act =
+            Act::from_message(message.clone(), record["signer"].as_str().unwrap()).unwrap();
+        assert_eq!(
+            cbcl_core::state::wire_address(old_act.simple()),
+            old,
+            "original address must use the historical simple policy"
+        );
+        reissue_message(&mut message, &addresses);
+        let new = Act::from_message(message.clone(), record["signer"].as_str().unwrap())
+            .unwrap()
+            .address;
+        record["canonical"] = cbcl_core::intend::canonical_text(&message).into();
+        assert!(addresses.insert(old.to_string(), new.clone()).is_none());
+        mappings.push(json!({"old": old, "new": new}));
+    }
+    result["expect"]["addresses"] =
+        Value::Array(mappings.iter().map(|entry| entry["new"].clone()).collect());
+    let verdicts = original["expect"]["verdicts"]
+        .as_object()
+        .unwrap()
+        .iter()
+        .map(|(old, verdict)| (addresses[old].clone(), verdict.clone()))
+        .collect::<Map<_, _>>();
+    result["expect"]["verdicts"] = Value::Object(verdicts);
+    for intent in result["expect"]["intents"].as_array_mut().unwrap() {
+        if let Some(canonical) = intent["canonical"].as_str() {
+            let mut message = parse_message(&parse(canonical).unwrap()).unwrap();
+            reissue_message(&mut message, &addresses);
+            intent["canonical"] = cbcl_core::intend::canonical_text(&message).into();
+        }
+    }
+    (result, Value::Array(mappings))
+}
+
+/// Explicit fixture authoring, never part of normal tests. The pinned historical
+/// snapshot is read only; review the generated address manifest before committing.
+#[test]
+#[ignore = "explicitly author the approved SPEC-038 sealed-root migration"]
+fn write_role_root_migration() {
+    let baseline: Value = serde_json::from_str(
+        &std::fs::read_to_string(
+            corpus_dir()
+                .parent()
+                .unwrap()
+                .join("state-pre-lvar-bytes.json"),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    let mut cases = Vec::new();
+    for case in baseline["cases"].as_array().unwrap() {
+        let file = case["file"].as_str().unwrap();
+        if ROLE_MIGRATIONS.contains(&file) {
+            let (vector, mappings) = reissued_vector(&case["vector"]);
+            std::fs::write(
+                corpus_dir().join(file),
+                serde_json::to_string_pretty(&vector).unwrap() + "\n",
+            )
+            .unwrap();
+            cases.push(json!({"file": file, "addresses": mappings}));
+        }
+    }
+    let manifest = json!({"format": 1, "baseline_revision": baseline["baseline_revision"],
+        "contract": "SPEC-038 ADR-3807", "cases": cases});
+    std::fs::write(
+        migration_path(),
+        serde_json::to_string_pretty(&manifest).unwrap() + "\n",
+    )
+    .unwrap();
+}
+
+/// TEST-3807/3814: retain every original pre-SPEC input and literal render byte.
+/// Role-free cases retain original addresses; the three sealed-root histories
+/// require exact declared reference migrations and preserve original verdicts.
 #[test]
 fn pre_lvar_vectors_preserve_exact_render_bytes() {
     let path = PathBuf::from(concat!(
@@ -274,11 +427,42 @@ fn pre_lvar_vectors_preserve_exact_render_bytes() {
         ],
         "every original pre-SPEC vector must be retained"
     );
+    let migration: Value =
+        serde_json::from_str(&std::fs::read_to_string(migration_path()).unwrap()).unwrap();
+    assert_eq!(migration["format"], 1);
+    assert_eq!(
+        migration["baseline_revision"],
+        baseline["baseline_revision"]
+    );
+    assert_eq!(migration["contract"], "SPEC-038 ADR-3807");
+    let migrated = migration["cases"].as_array().unwrap();
+    assert_eq!(
+        migrated
+            .iter()
+            .map(|case| case["file"].as_str().unwrap())
+            .collect::<Vec<_>>(),
+        ROLE_MIGRATIONS
+    );
     for case in cases {
-        run_vector_data(
-            &path,
-            &case["vector"],
-            Some(case["state_bytes"].as_str().unwrap()),
-        );
+        let file = case["file"].as_str().unwrap();
+        let vector = if ROLE_MIGRATIONS.contains(&file) {
+            let (reissued, addresses) = reissued_vector(&case["vector"]);
+            let declared = migrated.iter().find(|entry| entry["file"] == file).unwrap();
+            assert_eq!(
+                addresses, declared["addresses"],
+                "{file}: explicit migration mapping"
+            );
+            let current: Value =
+                serde_json::from_str(&std::fs::read_to_string(corpus_dir().join(file)).unwrap())
+                    .unwrap();
+            assert_eq!(
+                current, reissued,
+                "{file}: only declared reference/address changes permitted"
+            );
+            current
+        } else {
+            case["vector"].clone()
+        };
+        run_vector_data(&path, &vector, Some(case["state_bytes"].as_str().unwrap()));
     }
 }

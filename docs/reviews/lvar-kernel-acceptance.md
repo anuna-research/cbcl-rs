@@ -14,13 +14,45 @@ not completed acceptance of the expanded v0.4 inventory. This audit concerns [[S
 execution plan [[IMPL-030-lvar-state-kernel]]. Completing the audit does not
 complete either specification or plan.
 
-The audited runtime/proof revision is `63b8431`. Subsequent acceptance work
-adds historical-byte fixtures, tests and their reproduction/mutation scripts,
-plus documentation and plan records. Rust runtime sources are unchanged since
-`7d2a055`; the intervening Rust change adds the fresh-freeze witness regression.
-At this checkpoint the implementation still uses existing addresses. The
-maintainer has authorized sealed-wrapper commitment and migration, but the
-prototype identity patch has not yet been applied.
+The audited v0.3 runtime/proof revision is `63b8431`; the rows below retain that
+checkpoint's scope. Subsequent work preserves the original historical-byte
+snapshot and implements the approved v0.4 sealed-root migration. Its separate
+verification record follows; authored conjunctions and their proof extension
+remain outstanding.
+
+## Sealed-root migration verification
+
+Construction and cached identity validation hash exactly the selected outermost
+sealed wrapper for causal role roots. Public candidate admission now rejects
+stale cached identities before appending a candidate. Root discovery and progress
+share the transparent-wrapper traversal, and progress pins the actual state root
+address. The discovered failures are [[BUG-017-native-admission-trusts-cached-act-identity]]
+and [[BUG-018-state-root-discovery-stops-at-transport-wrapper]].
+
+`test-vectors/state-role-root-migration.json` declares every old/new message
+address for bounded-ceiling, bounded-coin and checklist-roles. The original
+`state-pre-lvar-bytes.json` remains unchanged. The corpus compares the full
+reissued vectors to typed reference-only transformations, including sorted
+address sets, verdict keys and bound intent results; every original literal
+state byte remains checked. Unaffected histories retain original addresses.
+See the [migration procedure](../reference/state-language.md#root-addresses-and-migration).
+
+Local verification after the migration: core library 881 and parser library 164
+pass; native integration suites pass (context 19, admission 5, corpus 2,
+exports 2, state layer 12, resource 15, finite 13, freeze 20, factorisation 4,
+progress 11, thresholds 15). The live Lean oracle passes all 15 suites with
+seed 380038/cases 512, plus the separate kernel-reduced Lean progress comparison.
+The pinned-source baseline generator reproduces all eight original snapshots.
+Independent semantic review found no concrete defect in the migration or its
+root-discovery/progress integration. The final isolated mutation gate rejects six executed mutants: cast omission,
+wrong root predicate, skipped candidate validation, transport-stopping discovery,
+legacy progress pinning and raw-render whitespace drift. An earlier disk-space
+failure was discarded as infrastructure failure; no compiler failure counts as
+mutation rejection.
+
+Remote required Lean build/audit and parity jobs succeeded for contract commit
+`1aac6ee` (run 321). That run predates the runtime migration and does not verify
+these runtime changes or the outstanding authored conditions.
 
 ## Requirement evidence
 

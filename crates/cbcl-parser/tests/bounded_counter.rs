@@ -532,9 +532,13 @@ fn pinned_context_and_conflicting_root_casts() {
     .unwrap();
     assert_eq!(s["coins"]["status"], "fault");
     let other_root=act("(with-roles ((issuer @alice) (holder @treasury @alice @bob)) (signed @treasury (hello :thread \"coin-1\" :caused-by begin)))","@treasury");
-    assert_eq!(other_root.address, history[0].address);
+    // SPEC-038 ADR-3807: distinct sealed casts no longer alias. Preserve
+    // the separate same-address authenticated-signer conflict regression.
+    assert_ne!(other_root.address, history[0].address);
+    let mut conflicting_identity = history[0].clone();
+    conflicting_identity.signer = "@alice".into();
     let mut conflict = history.clone();
-    conflict.push(other_root);
+    conflict.push(conflicting_identity);
     let s = state(&d, &conflict);
     assert_eq!(s["coins"]["reason"], "conflicting authenticated identity");
     conflict.reverse();

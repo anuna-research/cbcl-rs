@@ -265,13 +265,47 @@ The separate dialect clause `(:state-bounds (max-string n) (max-list n)
 and no greater than its default. Options may be omitted to use defaults;
 unknown, duplicate and out-of-range bounds reject.
 
+## Root addresses and migration
+
+A causal root carrying `with-roles` is identified by hashing the canonical
+outermost `with-roles` subtree. That includes the sealed role roster and every
+wrapper/message inside it. Dialect and transport wrappers outside that selected
+subtree do not enter the state identity. Roots without a role wrapper and acts
+with predecessors retain the simple-message hash. Root classification uses the
+reconstructed predecessor vector: no cause, `begin`, and a typed empty predecessor
+vector are roots; this does not extend the accepted wire grammar.
+
+Identical sealed roots have identical addresses. For distinct thread instances,
+put a fresh authenticated `:thread` value or nonce inside the selected subtree.
+The kernel does not add randomness or read a clock to generate identity.
+
+This changes existing role-root addresses. Reissue each descendant that cites a
+changed address, including `:caused-by`, `:replaces`, `:escrow-prev`, and
+`:escrow-deps`, then propagate its new address through subsequent acts. Address
+sets must be sorted again after substitution. Recompute intent expectations and
+revalidate admission and observations; changed hashes can affect address-based
+tie-breaking. Authors must authenticate and sign replacement records. Historical
+signed records remain immutable; this is an explicit migration to a new history.
+
+The checked-in [migration manifest](../../test-vectors/state-role-root-migration.json)
+records every old/new address for the affected unsigned conformance fixtures.
+The [original snapshot](../../test-vectors/state-pre-lvar-bytes.json) retains all
+original inputs and literal state bytes. The corpus checks the unaffected
+histories unchanged and checks the reissued histories against declared mappings,
+original admission verdicts and exact original state bytes. To reproduce only
+the approved fixture migration, run
+`cargo test -p cbcl-parser --test state_corpus write_role_root_migration -- --ignored --exact`
+and review the manifest and three changed vectors before committing.
+See [[SPEC-038-lvar-state-kernel#ADR-3807]].
+
 ## Contracts and implementation status
 
 [SPEC-019](../../specs/SPEC-019-state-rules.md) defines the base state contract;
 [SPEC-035](../../specs/SPEC-035-register-semantics.md) covers HLC registers;
 [SPEC-038](../../specs/SPEC-038-lvar-state-kernel.md) covers the LVar extensions.
-SPEC-038 v0.4 remains draft while the approved implementations of [native root identity](../../bugs/BUG-011-root-address-does-not-commit-sealed-cast.md)
-and [authored product reads](../../bugs/BUG-012-product-read-composition-has-no-authored-contract.md)
+SPEC-038 v0.4 remains draft. Native sealed-root identity and its explicit fixture
+migration are implemented and under verification;
+[authored product reads](../../bugs/BUG-012-product-read-composition-has-no-authored-contract.md)
 are pending. Authored conjunction/comparison of several threshold sources is unavailable;
 internal product lattices do not add that syntax. The typed authored agreement
 proof for the prior single-source inventory is complete, with native extraction and identity premises stated in the

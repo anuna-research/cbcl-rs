@@ -380,8 +380,8 @@ python3 ../scripts/check-state-kernel-sec.py
 [SPEC-038](../specs/SPEC-038-lvar-state-kernel.md) remains **draft**. The committed
 proofs cover the following typed-model layers for the prior single-source
 observation inventory. SPEC-038 v0.4 adds approved condition observations and a
-sealed-root migration; their implementation and extended proof acceptance are
-pending.
+sealed-root migration. Native root migration is implemented and verified;
+condition implementation and extended proof acceptance remain pending.
 
 - `StateLift` proves accepted-set lift invariance and the union/join law.
   `StateLVar` and `StateObservation` compose threshold, domain, context, resource,

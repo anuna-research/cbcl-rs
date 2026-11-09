@@ -29,6 +29,11 @@ admission_test = "duplicate_amount_cannot_hide_a_negative_state_contribution"
 keyword_test = "shape::keyword_extraction_matches_lean"
 transport_test = "oracle_transport_failure_rejects_late_replies"
 byte_baseline_test = "pre_lvar_vectors_preserve_exact_render_bytes"
+root_cast_test = "sealed_cast_root_identity_commits_roster"
+root_predicate_test = "sealed_root_identity_selects_exact_wrapper_and_root_predicate"
+root_validation_test = "sealed_root_identity_validation_rejects_cached_simple_address"
+progress_root_test = "progress_uses_pinned_role_root_and_accepts_competing_members"
+root_tests = [root_cast_test, root_predicate_test, root_validation_test, progress_root_test]
 fault_test = "render::fault_evidence_bytes_match_lean"
 render_test = "render::native_json_bytes_match_lean"
 frozen_render_test = "render::frozen_wrapper_bytes_match_lean"
@@ -50,13 +55,19 @@ with tempfile.TemporaryDirectory(prefix="cbcl-live-oracle-") as directory:
                CARGO_TARGET_DIR=str(isolated / "target"), CARGO_INCREMENTAL="0", CARGO_PROFILE_TEST_DEBUG="0")
 
     def run(test):
-        binary = "threshold_reads" if test == admission_test else "state_corpus" if test == byte_baseline_test else "state_kernel_oracle"
-        flags = ["--exact"] if test in [admission_test, transport_test, byte_baseline_test] else ["--ignored", "--exact"]
+        binary = "state_progress" if test == progress_root_test else "state_context" if test in root_tests else "threshold_reads" if test == admission_test else "state_corpus" if test == byte_baseline_test else "state_kernel_oracle"
+        flags = ["--exact"] if test in [admission_test, transport_test, byte_baseline_test, *root_tests] else ["--ignored", "--exact"]
         return subprocess.run(["cargo", "test", "--offline", "-p", "cbcl-parser", "--test", binary,
                                test, "--", *flags], cwd=isolated, env=env,
                               text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=300)
 
     mutants = [
+        ("sealed-root-discovery-stops-at-transport", "state.rs", "        .filter(|a| is_role_root(a))", "        .filter(|a| a.predecessors.is_empty() && a.message.wrapper_type() == Some(crate::message::WrapperType::WithRoles))", progress_root_test),
+        ("progress-pins-legacy-simple-root", "repeat.rs", ".map(|a| ContentHash(a.address.clone()));", ".map(|a| ContentHash(crate::equivocation::message_content_hash(a.simple())));", progress_root_test),
+        ("sealed-root-cast-ignored", "state.rs", "} => return current,", "} => return simple,", root_cast_test),
+        ("sealed-root-empty-multiple-ignored", "state.rs", "Some(CausedBy::Multiple(predecessors)) => predecessors.is_empty(),", "Some(CausedBy::Multiple(_)) => false,", root_predicate_test),
+        ("candidate-identity-validation-skipped", "parser/state_exports.rs",
+         '    if let Err(reason) = act.validate_identity() {\n        return Admission::Rejected(format!("act identity: {reason}"));\n    }\n', "", root_validation_test),
         ("pre-spec-render-bytes-add-whitespace", "state.rs",
          'pub fn render_json(state: &[(String, Value)]) -> String {\n    let mut out = String::from("{");',
          'pub fn render_json(state: &[(String, Value)]) -> String {\n    let mut out = String::from(" {");', byte_baseline_test),
@@ -133,10 +144,10 @@ with tempfile.TemporaryDirectory(prefix="cbcl-live-oracle-") as directory:
         if baseline.returncode or f"test {test} ... ok" not in baseline.stdout:
             print(baseline.stdout)
             raise SystemExit(f"FAIL: regression baseline {test}")
-        kind = "native-admission" if test == admission_test else "transport-regression" if test == transport_test else "historical-byte-baseline" if test == byte_baseline_test else "live-oracle"
+        kind = "native-identity" if test in root_tests else "native-admission" if test == admission_test else "transport-regression" if test == transport_test else "historical-byte-baseline" if test == byte_baseline_test else "live-oracle"
         print(f"PASS: {kind} baseline {test}", flush=True)
     for name, filename, before, after, test in mutants:
-        path = (isolated / "crates/cbcl-parser/tests" / filename) if filename == "state_kernel_oracle.rs" else (isolated / "crates/cbcl-core/src" / filename)
+        path = (isolated / "crates/cbcl-parser/src" / filename.removeprefix("parser/")) if filename.startswith("parser/") else (isolated / "crates/cbcl-parser/tests" / filename) if filename == "state_kernel_oracle.rs" else (isolated / "crates/cbcl-core/src" / filename)
         source = path.read_text()
         if source.count(before) != 1:
             raise SystemExit(f"FAIL: {name} anchor missing or ambiguous")
@@ -148,6 +159,7 @@ with tempfile.TemporaryDirectory(prefix="cbcl-live-oracle-") as directory:
         # Rust assert! with a custom message omits the word "assertion".
         # Recognize only the named guard, after requiring this test to execute.
         assertion = ("assertion" in result.stdout
+                     or (test == root_validation_test and "an old simple-message address cannot validate a sealed root:" in result.stdout)
                      or (test == admission_test and "ambiguous amount admitted:" in result.stdout)
                      or (test == fault_test and "native fault fold panicked; case=" in result.stdout)
                      or (test in [resource_test,resource_graph_test] and "duplicate native resource witness" in result.stdout)
@@ -155,5 +167,5 @@ with tempfile.TemporaryDirectory(prefix="cbcl-live-oracle-") as directory:
         if result.returncode == 0 or f"test {test} ... FAILED" not in result.stdout or not assertion:
             print(result.stdout)
             raise SystemExit(f"FAIL: {name} not rejected by executed regression assertion")
-        evidence = "native admission regression" if test == admission_test else "transport regression" if test == transport_test else "historical raw-byte comparison" if test == byte_baseline_test else "live Lean comparison"
+        evidence = "native identity regression" if test in root_tests else "native admission regression" if test == admission_test else "transport regression" if test == transport_test else "historical raw-byte comparison" if test == byte_baseline_test else "live Lean comparison"
         print(f"PASS: {name} rejected by {evidence}", flush=True)

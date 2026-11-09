@@ -485,7 +485,7 @@ pub fn opener_verb(protocol: &CausalProtocol) -> Option<&str> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Act {
-    /// `message_content_hash` of the innermost simple message.
+    /// Canonical sealed-wrapper hash for causal role roots; simple-message hash otherwise.
     pub address: String,
     pub verb: String,
     pub signer: String,
@@ -520,7 +520,7 @@ impl Act {
             .map(String::from)
             .collect();
         let fields = keyword_fields(simple);
-        let address = wire_address(simple);
+        let address = wire_address(state_identity_message(&message, simple));
         Ok(Act {
             address,
             verb,
@@ -534,7 +534,7 @@ impl Act {
 
     /// Check derived metadata against the message without cloning an owned Act.
     /// The signer remains host-supplied; this check does not authenticate it.
-    pub(crate) fn validate_identity(&self) -> Result<(), String> {
+    pub fn validate_identity(&self) -> Result<(), String> {
         let simple = self
             .message
             .innermost_simple()
@@ -570,7 +570,7 @@ impl Act {
                 .all(|(k, v)| self.fields.get(k) == Some(v));
         let recipients = simple.recipient_set();
         let recipients_match = self.recipients.iter().map(String::as_str).eq(recipients);
-        let address = wire_address(simple);
+        let address = wire_address(state_identity_message(&self.message, simple));
         if self.address != address
             || self.verb != verb.name()
             || !predecessors_match
@@ -590,14 +590,41 @@ impl Act {
     }
 }
 
+// SPEC-038 ADR-3807: identity commits exactly the cast subtree interpreted by
+// the context kernel. Root classification mirrors reconstructed predecessors,
+// including typed empty Multiple; never consult unverified cached Act metadata.
+fn state_identity_message<'a>(message: &'a Message, simple: &'a Message) -> &'a Message {
+    let root = match simple.caused_by() {
+        None | Some(CausedBy::Begin) => true,
+        Some(CausedBy::Multiple(predecessors)) => predecessors.is_empty(),
+        Some(CausedBy::Single(_)) => false,
+    };
+    if !root {
+        return simple;
+    }
+    let mut current = message;
+    loop {
+        match current {
+            Message::Wrapped {
+                wrapper: crate::message::WrapperType::WithRoles,
+                ..
+            } => return current,
+            Message::Wrapped { content, .. } => current = content,
+            Message::Dialect { inner, .. } => current = inner,
+            _ => return simple,
+        }
+    }
+}
+
 /// The content address of an act as it is spelled on the wire:
 /// `sha256-<64 lowercase hex>`. The digest is `message_content_hash`'s
 /// (SPEC-017); the separator differs because the wire lexer reads `:` as
 /// the start of a keyword, so `sha256:<hex>` cannot appear in a message.
 /// Every address the state layer stores, compares, or emits uses this
-/// spelling (SPEC-019 R.6).
-pub fn wire_address(simple: &Message) -> String {
-    let h = message_content_hash(simple);
+/// spelling (SPEC-019 R.6). This helper hashes the supplied message; Act
+/// construction/validation select its identity subtree under SPEC-038 ADR-3807.
+pub fn wire_address(message: &Message) -> String {
+    let h = message_content_hash(message);
     match h.strip_prefix("sha256:") {
         Some(hex) => format!("sha256-{hex}"),
         None => h,
@@ -653,11 +680,21 @@ pub fn opener<'a>(protocol: &CausalProtocol, acts: &'a [Act]) -> Option<&'a Act>
 /// wrapper (the cast) and no predecessor. `None` for a role-free thread.
 pub fn root(acts: &[Act]) -> Option<&Act> {
     acts.iter()
-        .filter(|a| {
-            a.predecessors.is_empty()
-                && a.message.wrapper_type() == Some(crate::message::WrapperType::WithRoles)
-        })
+        .filter(|a| is_role_root(a))
         .min_by(|a, b| a.address.cmp(&b.address))
+}
+
+// Root discovery follows the same transparent-wrapper policy as identity and
+// cast extraction, including when a transport wrapper encloses the sealed cast.
+pub(crate) fn is_role_root(act: &Act) -> bool {
+    act.predecessors.is_empty()
+        && matches!(
+            state_identity_message(&act.message, act.simple()),
+            Message::Wrapped {
+                wrapper: crate::message::WrapperType::WithRoles,
+                ..
+            }
+        )
 }
 
 /// The frontier: addresses no accepted act names in `:caused-by`, sorted.
