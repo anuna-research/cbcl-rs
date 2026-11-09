@@ -1,3 +1,4 @@
+import LeanCbcl.StateFrozenCompilation
 import LeanCbcl.StateAuthoredThresholdOrigin
 import LeanCbcl.StateOutputQueryIdentity
 import LeanCbcl.StateOutputThresholdAgreement
@@ -3314,3 +3315,17 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateAuthoredThresholdOrigin.source_quasi_determinism
 #print axioms CBCL.StateAuthoredThresholdOrigin.declarations_source_exists
 #print axioms CBCL.StateAuthoredThresholdOrigin.reached_source_exists
+#print axioms CBCL.StateFrozenPayload.embed_payload
+#print axioms CBCL.StateFrozenPayload.frozen_payload
+#print axioms CBCL.StateFrozenPayload.freeze_payload_clear
+#print axioms CBCL.StateFrozenPayload.related_payload
+#print axioms CBCL.StateFrozenPayload.related_payload_setEq
+#print axioms CBCL.StateFrozenPayload.same_freezer_source_payload
+#print axioms CBCL.StateFrozenCompilation.match_map
+#print axioms CBCL.StateFrozenCompilation.match_pair
+#print axioms CBCL.StateFrozenCompilation.rule_related
+#print axioms CBCL.StateFrozenCompilation.field_related
+#print axioms CBCL.StateFrozenCompilation.extend_related
+#print axioms CBCL.StateFrozenCompilation.fields_related
+#print axioms CBCL.StateFrozenCompilation.compiled_plans_related
+#print axioms CBCL.StateFrozenCompilation.authored_plans_related

@@ -859,6 +859,18 @@ suites.append(("StateAuthoredOutputReplay", (root / "lean-cbcl/LeanCbcl/StateAut
     ("output-receiver-rank-uses-addresses", "refine ⟨H.rank,?_⟩", "refine ⟨Act.addr,?_⟩", "replica_ranked"),
 ]))
 
+suites.append(("StateFrozenPayload", (root / "lean-cbcl/LeanCbcl/StateFrozenPayload.lean").read_text(), [
+    ("related-freeze-changes-selected-verb",
+     "(.freeze ⟨verb,rightContribution,policy⟩ right)",
+     '(.freeze ⟨verb ++ "-wrong",rightContribution,policy⟩ right)',
+     "related_payload"),
+]))
+suites.append(("StateFrozenCompilation", (root / "lean-cbcl/LeanCbcl/StateFrozenCompilation.lean").read_text(), [
+    ("source-compilation-discards-left-freeze",
+     "Match (StateInstalledClause.compileField left ⟨rule,first⟩)",
+     "Match (StateInstalledClause.compileField left ⟨rule,none⟩)",
+     "field_related"),
+]))
 suites.append(("StateOutputQueryIdentity", (root / "lean-cbcl/LeanCbcl/StateOutputQueryIdentity.lean").read_text(), [
     ("query-identity-discards-actual-query",
      "| .threshold name source query _ => (name,some (source,query))",

@@ -372,3 +372,5 @@ import LeanCbcl.StateOutputConvergence
 import LeanCbcl.StateOutputThresholdAgreement
 import LeanCbcl.StateOutputQueryIdentity
 import LeanCbcl.StateAuthoredThresholdOrigin
+import LeanCbcl.StateFrozenPayload
+import LeanCbcl.StateFrozenCompilation
