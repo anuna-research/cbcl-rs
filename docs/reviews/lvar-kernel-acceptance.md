@@ -86,6 +86,23 @@ axiom audit. Mutation run 329 is still running; it passed its unmutated baseline
 and has reported surviving mutants. Local working-tree changes have no remote
 CI result. The specification stays draft until its required CI gate closes.
 
+## Full mutation campaign paused
+
+The maintainer explicitly paused automatic full mutation campaigns after
+[run 333](https://git.anuna.io/anuna-research/cbcl-rs/actions/runs/333/jobs/0)
+failed at the three-hour job limit. Parser nontermination mutations each consumed
+385 seconds; the numeric-parser `<` to `<=` mutation survived. Timeouts count as
+detected under the existing score policy, but the interrupted campaign supplies
+no complete passing score.
+
+The mutation workflow now supports manual dispatch only. The wrapper, its 90%
+score gate and the targeted CLOK semantic mutation checks remain available.
+Weekly scheduling changes take effect when this workflow reaches the default
+branch. This is an explicit gate pause, not mutation acceptance. The implementer
+owns runtime bounds, configuration loading and surviving-mutant coverage before
+automatic campaigns resume. Required Lean build/audit and Rust parity for
+`d08a404` passed in run 332.
+
 ## CI failure investigation
 
 The run history distinguishes failed checks from cancellation by newer pushes.
