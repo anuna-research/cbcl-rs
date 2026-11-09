@@ -120,6 +120,8 @@ pub fn atom_to_octets(atom: &Atom) -> Vec<u8> {
             v.extend_from_slice(s.as_bytes());
             v
         }
+        Atom::Float(n) => alloc::format!("F{n}").into_bytes(),
+        Atom::Decimal(n) => alloc::format!("D{}", n.as_str()).into_bytes(),
         Atom::Num(n) => {
             use alloc::format;
             let s = format!("{n}");
@@ -163,6 +165,8 @@ pub(crate) fn encode_to(sexpr: &SExpr, sink: &mut impl FnMut(&[u8])) {
             Atom::Keyword(s) => encode_tagged_to(b'K', s.as_bytes(), sink),
             Atom::Str(s) => encode_tagged_to(b'Q', s.as_bytes(), sink),
             Atom::Bool(b) => encode_tagged_to(b'B', if *b { b"t" } else { b"f" }, sink),
+            Atom::Float(n) => encode_tagged_to(b'F', alloc::format!("{n}").as_bytes(), sink),
+            Atom::Decimal(n) => encode_tagged_to(b'D', n.as_str().as_bytes(), sink),
             Atom::Num(n) => {
                 // unsigned_abs also handles i64::MIN without overflow.
                 let mut digits = [0u8; 21];
@@ -674,6 +678,8 @@ fn type_constraint_to_sexpr(tc: &Option<TypeConstraint>) -> SExpr {
         let name = match t {
             TypeConstraint::String => "string",
             TypeConstraint::Hlc => "hlc",
+            TypeConstraint::Float => "float",
+            TypeConstraint::Decimal => "decimal",
             TypeConstraint::Number => "number",
             TypeConstraint::Nonnegative => "nonnegative",
             TypeConstraint::Bool => "bool",

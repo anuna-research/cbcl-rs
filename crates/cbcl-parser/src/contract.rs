@@ -345,7 +345,14 @@ fn recognize(json: &Json) -> Result<Contract<'_>, String> {
                 Json::String(t)
                     if matches!(
                         t.as_str(),
-                        "string" | "hlc" | "number" | "bool" | "list" | "symbol"
+                        "string"
+                            | "hlc"
+                            | "number"
+                            | "float"
+                            | "decimal"
+                            | "bool"
+                            | "list"
+                            | "symbol"
                     ) =>
                 {
                     fields.push((field.as_str(), t.as_str(), None))

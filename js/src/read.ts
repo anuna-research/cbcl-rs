@@ -30,12 +30,13 @@ export function asText(v: Tree | undefined): string | undefined {
 }
 
 /** A plain field value: quoted strings unwrap, `#t`/`#f` are booleans, integer text is a number, lists map. */
-export type Plain = string | number | boolean | Plain[];
+export type Plain = string | number | boolean | { decimal: string } | Plain[];
 export function readValue(v: Tree): Plain {
   if (typeof v === 'object' && !Array.isArray(v) && 'str' in v) return v.str;
   if (Array.isArray(v)) return v.map(readValue);
   if (v === '#t') return true;
   if (v === '#f') return false;
-  if (/^-?\d+$/.test(v)) return parseInt(v, 10);
+  if (/^-?\d+(?:\.\d+)?m$/.test(v)) return { decimal: v.slice(0, -1) };
+  if (/^-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?$/.test(v)) return Number(v);
   return v;
 }

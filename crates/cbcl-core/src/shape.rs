@@ -22,6 +22,8 @@ pub enum TypeConstraint {
     /// Canonical host-supplied hybrid logical clock evidence, encoded as a string.
     Hlc,
     Number,
+    Float,
+    Decimal,
     /// Integer >= 0, recognized before admission (SPEC-038 ADR-3805).
     Nonnegative,
     Bool,
@@ -37,6 +39,8 @@ impl TypeConstraint {
         match s {
             "string" => Some(TypeConstraint::String),
             "hlc" => Some(TypeConstraint::Hlc),
+            "float" => Some(TypeConstraint::Float),
+            "decimal" => Some(TypeConstraint::Decimal),
             "number" => Some(TypeConstraint::Number),
             "nonnegative" => Some(TypeConstraint::Nonnegative),
             "bool" => Some(TypeConstraint::Bool),
@@ -59,6 +63,8 @@ impl TypeConstraint {
             (self, sexpr),
             (TypeConstraint::String, SExpr::Atom(Atom::Str(_)))
                 | (TypeConstraint::Number, SExpr::Atom(Atom::Num(_)))
+                | (TypeConstraint::Float, SExpr::Atom(Atom::Float(_)))
+                | (TypeConstraint::Decimal, SExpr::Atom(Atom::Decimal(_)))
                 | (TypeConstraint::Bool, SExpr::Atom(Atom::Bool(_)))
                 | (TypeConstraint::Symbol, SExpr::Atom(Atom::Symbol(_)))
                 | (TypeConstraint::Keyword, SExpr::Atom(Atom::Keyword(_)))
@@ -92,6 +98,8 @@ impl fmt::Display for TypeConstraint {
         let s = match self {
             TypeConstraint::String => "string",
             TypeConstraint::Hlc => "hlc",
+            TypeConstraint::Float => "float",
+            TypeConstraint::Decimal => "decimal",
             TypeConstraint::Number => "number",
             TypeConstraint::Nonnegative => "nonnegative",
             TypeConstraint::Bool => "bool",
@@ -313,6 +321,8 @@ fn find_keyword_value<'a>(sexpr: &'a SExpr, keyword: &str) -> Option<&'a SExpr> 
 fn describe_type(sexpr: &SExpr) -> String {
     match sexpr {
         SExpr::Atom(Atom::Str(_)) => String::from("string"),
+        SExpr::Atom(Atom::Float(_)) => String::from("float"),
+        SExpr::Atom(Atom::Decimal(_)) => String::from("decimal"),
         SExpr::Atom(Atom::Num(_)) => String::from("number"),
         SExpr::Atom(Atom::Bool(_)) => String::from("bool"),
         SExpr::Atom(Atom::Symbol(_)) => String::from("symbol"),

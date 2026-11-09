@@ -195,7 +195,7 @@ export interface DialectInfo {
 export function describeDialect(input: string): DialectInfo { return refusal(() => JSON.parse(describe_dialect(input)) as DialectInfo); }
 
 /** A field value as an act carries it. */
-export type FieldValue = string | number | boolean | FieldValue[];
+export type FieldValue = string | number | boolean | { decimal: string } | FieldValue[];
 
 /** An act as the parser and the state layer read it. */
 export interface ActInfo {

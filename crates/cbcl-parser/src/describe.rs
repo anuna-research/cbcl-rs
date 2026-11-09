@@ -60,6 +60,8 @@ fn json_of_sexpr(s: &SExpr) -> Json {
         SExpr::List(items) => Json::Array(items.iter().map(json_of_sexpr).collect()),
         SExpr::Atom(Atom::Str(x)) | SExpr::Atom(Atom::Symbol(x)) => Json::String(x.clone()),
         SExpr::Atom(Atom::Keyword(k)) => Json::String(alloc::format!(":{k}")),
+        SExpr::Atom(Atom::Float(n)) => json!(n.get()),
+        SExpr::Atom(Atom::Decimal(n)) => json!({"decimal": n.as_str()}),
         SExpr::Atom(Atom::Num(n)) => json!(n),
         SExpr::Atom(Atom::Bool(b)) => Json::Bool(*b),
     }

@@ -303,3 +303,14 @@ Apache-2.0; see LICENSE.
   url       = {https://www.computer.org/csdl/proceedings-article/spw/2026/107000a039/2hIfzFiEfjG}
 }
 ```
+
+Numeric atoms include integers (`42`), finite IEEE 754 binary64 floats (`1.25`,
+`1e-3`), and exact arbitrary-precision decimals with an `m` suffix (`12.3400m`).
+Floats canonicalize to their shortest round-tripping value; signed zero becomes
+`0.0`. Decimals remove leading/trailing zeroes without passing through binary
+floating point (`12.3400m` becomes `12.34m`). Decimal exponents are not accepted.
+Shape types `float` and `decimal` distinguish them; the existing `number` and
+`nonnegative` types and counter arithmetic retain their integer semantics.
+The canonical atom tags are `F` and `D`; existing integer encodings are unchanged.
+NIF floats are BEAM floats; decimals are `{decimal, <<"12.34">>}`. JSON state and
+act views carry decimals as `{"decimal":"12.34"}` to preserve precision in browsers.

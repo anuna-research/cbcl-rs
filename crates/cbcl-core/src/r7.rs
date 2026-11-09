@@ -205,6 +205,8 @@ fn is_scalar(tc: &TypeConstraint) -> bool {
         TypeConstraint::String
             | TypeConstraint::Hlc
             | TypeConstraint::Number
+            | TypeConstraint::Float
+            | TypeConstraint::Decimal
             | TypeConstraint::Nonnegative
             | TypeConstraint::Bool
     )
@@ -901,7 +903,9 @@ fn violation(rule: &str, field: Option<&str>, detail: String) -> ShapeViolation 
 fn is_scalar_value(v: &SExpr) -> bool {
     matches!(
         v,
-        SExpr::Atom(Atom::Str(_)) | SExpr::Atom(Atom::Num(_)) | SExpr::Atom(Atom::Bool(_))
+        SExpr::Atom(
+            Atom::Str(_) | Atom::Num(_) | Atom::Float(_) | Atom::Decimal(_) | Atom::Bool(_)
+        )
     )
 }
 
@@ -1155,6 +1159,31 @@ fn check_bounds(
                         ":{key} of '{verb}' exceeds max-string {}",
                         bounds.max_string
                     ),
+                ));
+            }
+        }
+        SExpr::Atom(Atom::Float(n)) => {
+            if n.get() < -(bounds.max_number as f64) || n.get() > bounds.max_number as f64 {
+                return Err(violation(
+                    "size",
+                    Some(key),
+                    format!(":{key} of '{verb}' exceeds max-number"),
+                ));
+            }
+        }
+        SExpr::Atom(Atom::Decimal(n)) => {
+            let absolute = n.as_str().trim_start_matches('-');
+            let whole = absolute.split('.').next().unwrap();
+            let limit = bounds.max_number.to_string();
+            if n.as_str().len() > bounds.max_string as usize
+                || whole.len() > limit.len()
+                || (whole.len() == limit.len()
+                    && (whole > limit.as_str() || (whole == limit && absolute.contains('.'))))
+            {
+                return Err(violation(
+                    "size",
+                    Some(key),
+                    format!(":{key} of '{verb}' exceeds numeric bounds"),
                 ));
             }
         }
