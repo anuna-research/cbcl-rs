@@ -303,3 +303,7 @@ Apache-2.0; see LICENSE.
   url       = {https://www.computer.org/csdl/proceedings-article/spw/2026/107000a039/2hIfzFiEfjG}
 }
 ```
+
+Causal protocols accept chains: `(protocol (then begin one two three))`
+is equivalent to `(protocol (then begin one) (then one two) (then two three))`.
+Each adjacent pair forms a causal edge; use separate `then` clauses for branches.
