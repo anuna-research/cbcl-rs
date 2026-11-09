@@ -390,3 +390,8 @@ import LeanCbcl.StateAuthoredConditionPreparation
 import LeanCbcl.StateAuthoredConditionTests
 import LeanCbcl.StateAuthoredConditionPlain
 import LeanCbcl.StateAuthoredConditionConvergence
+import LeanCbcl.StateAuthoredConditionReplay
+import LeanCbcl.StateAuthoredConditionProjection
+import LeanCbcl.StateAuthoredConditionQuasiDeterminism
+
+import LeanCbcl.StateExecutableCondition

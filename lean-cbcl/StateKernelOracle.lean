@@ -1,4 +1,5 @@
 import Lean
+import LeanCbcl.StateExecutableCondition
 import LeanCbcl.StateResourceFactsOracle
 import LeanCbcl.StateResourceOracle
 import LeanCbcl.StateShapeOracle
@@ -214,8 +215,87 @@ def evaluateNested (request : NestedInput) : Check Json := do
   return Json.mkObj [("installed",.bool true),("source",← viewJson eventsJson (nestedSource request request.history)),
     ("derived",← viewJson (fun value => pure (toJson value)) derived)]
 
+
+/-- Render recognized authored condition schema independently of Rust. -/
+def conditionSchema : Nat → Json → Check Json
+  | 0,_ => throw "condition schema exceeds depth bound"
+  | fuel+1,node => do
+    let parts ← array node
+    match parts with
+    | [.str "read",.str field,element] => return Json.mkObj [("op",.str "read"),("field",.str field),("element",element)]
+    | .str "and" :: children => return Json.mkObj [("op",.str "and"),("conditions",toJson (← children.mapM (conditionSchema fuel)))]
+    | _ => throw "unrecognized condition schema"
+
+/-- Closed authored-condition transport over two earlier finite-lift sources.
+The native side installs real source and threshold syntax. This executable
+profile uses the checked finite kernel and each source's own freeze; native
+text extraction and authentication remain outside this profile. -/
+def has (value : Json) (key : String) (expected : Json) : Bool :=
+  (value.getObjVal? key).toOption == some expected
+
+def conditionRun (j : Json) : Check Json := do
+  let base ← input j
+  let secondFreeze ← match j.getObjVal? "second-freeze" with
+    | .error _ | .ok .null => pure none
+    | .ok value => value.getBool?.map some
+  let rejected := Json.mkObj [("installed",.bool false)]
+  -- Validate unused source declarations as well as all queried leaves.
+  if !has (evaluate {base with queries := none}) "installed" (.bool true) then return rejected
+  if !has (evaluate {base with queries := none, freeze := secondFreeze}) "installed" (.bool true) then return rejected
+  let rec walk (fuel : Nat) (node : Json) : Check (Nat × Json) := do
+    match fuel with
+    | 0 => throw "condition transport exceeds depth 64"
+    | fuel+1 =>
+      let parts ← array node
+      match parts with
+      | [.str "read",.str field,query] =>
+        if ["votes","seen","members"].contains field then
+          let input : CBCL.StateKernel.Input := ⟨base.history,"open",fun _ _ => none,fun _ => 0,fun _ => none,0,fun _ => 0,fun _ => .pending []⟩
+          let element : Option CBCL.StateInstalledLegacy.Element :=
+            if field == "votes" then (query.getObjVal? "count" >>= Json.getNat?).toOption.bind (fun n => if n ≤ 1000000000000 then some (.count n) else none)
+            else if field == "seen" then if query == .bool true then some (.scalar (.bool true)) else none
+            else (query.getObjVal? "member" >>= scalar).toOption.map .member
+          let some element := element | return (1,rejected)
+          let expression := if field == "votes" then CBCL.StateKernel.Expr.count (.verb "mark")
+            else if field == "seen" then .existsRule (.verb "mark") else .distinct (.verb "mark") "phase"
+          let reached := CBCL.StateInstalledLegacy.readTest (.element element)
+            (.kernel (CBCL.StateKernel.evaluate input [] expression))
+          return (1,if reached then Json.mkObj [("status",.str "reached"),("element",.bool true)]
+            else Json.mkObj [("status",.str "pending")])
+        if field != "value" && field != "second" then return (1,rejected)
+        let q ← scalar query
+        let history := if field == "second" then base.history.map (fun a =>
+          {a with verb := if a.verb == "close" then "seal" else if a.verb == "seal" then "close" else a.verb}) else base.history
+        let result := evaluate {base with queries := some [q],history := history, freeze := if field == "second" then secondFreeze else base.freeze}
+        if !has result "installed" (.bool true) then return (1,rejected)
+        let value ← result.getObjVal? "threshold"
+        let value := if has value "status" (.str "reached") then
+          Json.mkObj [("status",.str "reached"),("element",.bool true)] else value
+        return (1,value)
+      | .str "and" :: children =>
+        if children.length < 2 then return (1,rejected)
+        let values ← children.mapM (walk fuel)
+        let size := 1 + (values.map Prod.fst).sum
+        if values.any (fun (_,v) => has v "installed" (.bool false)) then return (size,rejected)
+        let outcomes ← values.mapM fun (_,v) => do
+          if has v "status" (.str "fault") then
+            return CBCL.StateExecutableCondition.Result.fault (← (← array (← v.getObjVal? "evidence")).mapM Json.getNat?)
+          else if has v "status" (.str "reached") then return .reached
+          else return .pending
+        let result := CBCL.StateExecutableCondition.combine outcomes
+        match result with
+        | .fault evidence => return (size,Json.mkObj [("status",.str "fault"),("evidence",toJson (evidence.eraseDups.mergeSort (fun a b => decide (a ≤ b))))])
+        | .reached => return (size,Json.mkObj [("status",.str "reached"),("element",.bool true)])
+        | .pending => return (size,Json.mkObj [("status",.str "pending")])
+      | _ => return (1,rejected)
+  let (size,value) ← walk 64 (← j.getObjVal? "condition")
+  if size > base.limit || has value "installed" (.bool false) then return rejected
+  return Json.mkObj [("installed",.bool true),("condition",value),("schema",Json.mkObj [
+    ("type",.str "threshold"),("of",.str "bool"),("condition",← conditionSchema 64 (← j.getObjVal? "condition"))])]
+
 def run (j : Json) : Check Json :=
   match j.getObjVal? "profile" with
+  | .ok (.str "authored-condition") => conditionRun j
   | .ok (.str "resource-facts") => CBCL.StateResourceFactsOracle.run j
   | .ok (.str "resource-freeze") => CBCL.StateResourceOracle.graphRun j true
   | .ok (.str "resource-graph") => CBCL.StateResourceOracle.graphRun j

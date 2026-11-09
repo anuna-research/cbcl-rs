@@ -369,7 +369,7 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.State.actsDom_setEq
 #print axioms CBCL.State.actsDom_excluded
 #print axioms CBCL.State.excluded_not_mem
--- LVar state kernel, the lift theorem (SPEC-038 REQ-3800, REQ-3801;
+-- Causal Lattice Observation Kernel (CLOK), the lift theorem (SPEC-038 REQ-3800, REQ-3801;
 -- StateLift.lean): the lift of any contribution into any carrier is a set
 -- function and a join-homomorphism; the shipped heads are displays of
 -- lifts, so R7 follows from the algebra rather than per rule.

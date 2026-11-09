@@ -927,6 +927,12 @@ suites.append(("StateConditionFaults", (root / "lean-cbcl/LeanCbcl/StateConditio
      "Code.fold (fun _ _ _ => .snapshot (fun _ => truth))", "dependencies_evidence"),
 ]))
 
+suites.append(("StateExecutableCondition", (root / "lean-cbcl/LeanCbcl/StateExecutableCondition.lean").read_text(), [
+    ("condition-executable-evidence-overwritten", "| .fault a, .fault b => .fault (a ++ b)", "| .fault a, .fault _ => .fault a", "merge_refinement"),
+    ("condition-executable-pending-hides-fault", "| _, .fault b => .fault b", "| _, .fault _ => .pending", "merge_refinement"),
+    ("condition-executable-empty-conjunction-pending", "| [] => .reached", "| [] => .pending", "combine_refinement"),
+]))
+
 import argparse
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--module", action="append", help="Run only this module (repeatable)")

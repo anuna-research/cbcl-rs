@@ -5,8 +5,8 @@ mode: explanation
 
 # LVars
 
-Lattice variables, the model [[SPEC-038-lvar-state-kernel]] takes for the state
-kernel. Sources verified on 7 November 2026 through Crossref and the authors'
+Lattice variables supply the threshold-read foundation of the
+**Causal Lattice Observation Kernel (CLOK)** in [[SPEC-038-lvar-state-kernel]]. Sources verified on 7 November 2026 through Crossref and the authors'
 texts; section numbers refer to those texts.
 
 ## The model
@@ -31,6 +31,16 @@ quasi-determinism: in a language whose communication goes only through these
 variables, every run either produces the same answer or raises an error. The
 `freeze-after` pattern, freeze once a handler pool has quiesced, is how the
 authors make freezing usable.
+
+## LVars and CRDTs
+
+[Lindsey Kuper’s comparison](https://decomposition.al/blog/2015/05/29/whats-the-difference-between-lvars-and-crdts/)
+places the distinction at observation: ordinary CRDT queries may return different
+values as updates arrive, while LVar threshold reads wait for a stable answer.
+It also explains that inflationary, commuting writes can suffice for LVars;
+joining every write is not their defining distinction. CLOK combines replicated
+lattice evidence with explicit observation rules and causal freeze cuts. Its
+name describes that composition; LVars name a foundation.
 
 ## Distributed relatives
 
@@ -95,12 +105,12 @@ shape of a term, whether an observation is stable, which
 10.1145/2391229.2391230): lattice-valued Datalog with morphism tracking and
 explicit barriers at non-monotone points.
 
-## What the CBCL kernel takes, and what it answers
+## What CLOK takes, and what it answers
 
-The kernel takes LVish whole: put as the join of an accepted act's contribution,
-threshold reads with pairwise-incompatible sets, freeze, handlers as the
-execution layer's subscriptions, ⊤ as conflict, and quasi-determinism as the
-theorem to prove.
+CLOK draws on LVish: puts join accepted contributions, threshold reads use
+pairwise-incompatible sets, and freeze permits exact observations. Conflict
+evidence and quasi-determinism govern the observation guarantees. Host
+subscriptions occupy the role of handlers at the execution boundary.
 
 It answers Lasp's two objections by construction rather than by weakening the
 read. The carriers are a closed, known algebra ([[SPEC-038-lvar-state-kernel#CON-3800]]),
@@ -110,7 +120,8 @@ so a threshold over an observed-remove set is stated on the grow-only halves,
 "this address was added", "this address was removed", which are monotone, and
 never on membership, which is not. Lasp's monotonic read is, in the kernel's
 vocabulary, a snapshot taken after a threshold: readable, but without the
-exactly-once property ([[SPEC-038-lvar-state-kernel#REQ-3805]]).
+stable-result guarantee ([[SPEC-038-lvar-state-kernel#REQ-3805]]).
+Threshold reads alone do not guarantee exactly-once external effects.
 
 What none of these systems has, and the kernel adds underneath: puts that are
 signed, content-addressed and admitted against a cast and a causal protocol

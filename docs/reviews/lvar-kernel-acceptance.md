@@ -1,25 +1,121 @@
 ---
-title: LVar kernel acceptance evidence
+title: CLOK acceptance evidence
 mode: reference
 ---
 
-# LVar kernel acceptance evidence
+# Causal Lattice Observation Kernel (CLOK) acceptance evidence
 
-The implementation is **not complete**. This matrix records the v0.3 acceptance
-checkpoint: typed agreement for the prior single-source inventory is complete.
-The maintainer has since approved v0.4 sealed-wrapper migration and authored
-product conditions. Native root migration and native condition execution are
-implemented; extended compiler/oracle proofs and full TEST-3815 acceptance
-remain pending. The older rows below are evidence for the checkpoint,
-not completed acceptance of the expanded v0.4 inventory. This audit concerns [[SPEC-038-lvar-state-kernel]] and the
-execution plan [[IMPL-030-lvar-state-kernel]]. Completing the audit does not
-complete either specification or plan.
+The v0.4 authored condition implementation now includes source availability,
+complete witness replay and the full authored agreement capstone. Local proof,
+native integration and live oracle verification are recorded below. Final
+specification status still requires revision-bound required CI success. The
+historical v0.3 matrix remains a checkpoint; its pending statements do not describe
+the current condition implementation.
 
-The audited v0.3 runtime/proof revision is `63b8431`; the rows below retain that
-checkpoint's scope. Subsequent work preserves the original historical-byte
-snapshot and implements the approved v0.4 sealed-root migration. Its separate
-verification record follows; authored conjunction proof/oracle integration
-remains outstanding.
+This audit concerns [[SPEC-038-lvar-state-kernel]] and
+[[IMPL-030-lvar-state-kernel]].
+
+## Complete authored condition composition
+
+`StateAuthoredConditionPreparation.prepared_output_exists` constructs complete
+output code from successful original preparation. The ordered base compiler
+supplies every earlier source lookup, including through intervening conditions;
+query eligibility and tree bounds come from the original installation checks.
+No source-availability callback remains at this boundary.
+
+`StateAuthoredConditionReplay` pairs every actual condition dependency path across
+fresh source compilation. Exact source evidence, support and witness-only replay
+compose through nested conjunctions, including terminal empty faults. The
+receiving replica recompiles from its own accepted history. Exact finite witness
+delivery reproduces a same-named fault containing the original evidence.
+
+`StateAuthoredConditionProjection` proves ordered inclusion of the unchanged base
+instructions and uniqueness of the full authored names. These facts transfer
+original threshold and frozen agreement to complete condition-bearing programs.
+Successful original condition entries return exactly Boolean true.
+`StateAuthoredConditionQuasiDeterminism.authored_quasi_determinism` assembles those
+results with full-vector accepted-set equality, exact finite witness replay,
+finite-history convergence and no-top SEC. Original source preservation modules
+remain in force through the base projection.
+
+The live `authored-condition` profile installs actual Rust dialect syntax and
+compares installation, nested Boolean observations, complete fault evidence and
+condition schema. Leaves include count, exists, membership and finite reads;
+directed histories exercise success, pending, multiple faults and independent
+source freezes. Boundaries distinguish an admitted tree from an oversized tree.
+Generated cases exercise delivery order and duplication. Lean executes checked
+finite source readers, the native typed kernel/read predicate for primitive
+leaves, and `StateExecutableCondition.combine`. Its refinement theorem equates
+status and exact list-evidence sets with the proved condition algebra. This is
+an executable adapter with an explicit JSON transport boundary, not universal
+native text-parser or compiler extraction.
+
+Reproduction:
+
+```sh
+cd lean-cbcl
+lake build cbcl-state-oracle
+lake build
+lake exe runLinter LeanCbcl
+bash ../scripts/check-axioms.sh
+cd ..
+CARGO_INCREMENTAL=0 CARGO_PROFILE_TEST_DEBUG=0 PROPTEST_RNG_SEED=380038 PROPTEST_CASES=512 \
+  cargo test -p cbcl-parser --test state_kernel_oracle -- --ignored
+python3 scripts/check-state-lvar-mutations.py --module StateCondition \
+  --module StateConditionCompiler --module StateConditionFaults --module StateExecutableCondition
+python3 scripts/check-state-oracle-mutations.py \
+  --mutant live-condition-pending-short-circuit --mutant live-condition-fault-evidence-overwritten \
+  --mutant live-condition-shares-first-freezer-scope --mutant live-condition-size-bound-skipped
+```
+
+Local results: the full Lean build and Batteries environment linter pass. The
+axiom audit reports `OK: 2428 theorem(s) audited; all axioms allowlisted.` Core
+and parser library tests pass, as do the affected native threshold, freeze,
+context, corpus and export suites. All live profiles pass with seed `380038`
+and `PROPTEST_CASES=512`; after adding schema and bound assertions, the focused
+condition profile also passes at that setting. The condition algebra, compiler,
+dependency and executable-adapter proof mutants are rejected. Each of the four
+listed native live mutants is rejected by an executed differential assertion.
+
+Independent review found missing primitive leaf coverage, schema comparison and
+size-bound cases in the initial oracle extension. Those cases were added. Review
+found no concrete logical defect in the preparation, replay or capstone premises.
+The subsequent CI investigation confirms required Lean run 328 for parent
+revision `92a577b` succeeded, including parity, live oracle, Batteries lint and
+axiom audit. Mutation run 329 is still running; it passed its unmutated baseline
+and has reported surviving mutants. Local working-tree changes have no remote
+CI result. The specification stays draft until its required CI gate closes.
+
+## CI failure investigation
+
+The run history distinguishes failed checks from cancellation by newer pushes.
+The following causes were read from the actual runner logs:
+
+| Evidence | Failure and current disposition |
+|---|---|
+| [Lean run 129](https://git.anuna.io/anuna-research/cbcl-rs/actions/runs/129/jobs/0), [run 143](https://git.anuna.io/anuna-research/cbcl-rs/actions/runs/143/jobs/0) | Batteries lint rejected missing declaration docstrings and unused arguments. These were code-quality failures after the proof build, rather than download failures. Current full Lean CI passes. |
+| [Lean run 171](https://git.anuna.io/anuna-research/cbcl-rs/actions/runs/171/jobs/0) | Elan's GitHub latest-release download returned HTTP 504 through all retry attempts. The current installer pins verified release assets and supplies an API-asset fallback. |
+| [Lean run 289](https://git.anuna.io/anuna-research/cbcl-rs/actions/runs/289/jobs/0), [run 313](https://git.anuna.io/anuna-research/cbcl-rs/actions/runs/313/jobs/0) | The runner aborted around optional cache setup before Lean installation. Run 289 ends after runner hashfiles execution; run 313 passes all key-calculation tests and prints the digest, then skips the cache step because success is false. The logs do not expose the runner-internal exception. Commit `7a0aa39` removes the optional Lean cache from the critical path. |
+| [Mutation run 324](https://git.anuna.io/anuna-research/cbcl-rs/actions/runs/324/jobs/0) | The unmutated baseline fails `documented_messages_parse_address_and_fold_as_claimed` at the root-address assertion. The sealed-root migration changed the actual root to `sha256-67bb33…` while the documentation test expected `sha256-6655c6…`. Exact historical commit `8fc267f` reproduces this failure in an isolated checkout/target. Commit `c2e9bca` updates the executable documentation and expected root/descendant addresses; the current focused test passes. No mutant was scored in the failed baseline run. |
+| [Mutation run 326](https://git.anuna.io/anuna-research/cbcl-rs/actions/runs/326/jobs/0) | The log ends with context cancellation at the time the next revision starts. It was interrupted, rather than completing a failing score calculation. |
+| [Lean run 328](https://git.anuna.io/anuna-research/cbcl-rs/actions/runs/328/jobs/0) | Complete success for `92a577b`: build, projection/repeat/progress checks, live oracle, Batteries lint, axiom audit and annotation lint. |
+| [Mutation run 329](https://git.anuna.io/anuna-research/cbcl-rs/actions/runs/329/jobs/0) | The baseline succeeds. Live logs report survivors in effect-action Boolean extraction and role projection/repeat-fanin paths. The overall kill rate is not yet known because the run is incomplete. |
+
+A separate configuration defect was reproduced during investigation:
+`run-mutation-tests.sh` never passes `--config`, while the installed
+cargo-mutants defaults to `.cargo/mutants.toml` and this repository keeps its
+file at the root. Thus the declared timeout multiplier is not being used.
+Simply passing the existing root file is also incorrect: its `examine_re`
+patterns end with `.rs$`, but the tool matches complete mutant descriptions,
+which include line numbers and mutation text after the filename. An evaluator
+listing produces 27 mutants without that configuration and zero when loading
+it explicitly. Open: the SPEC-038 implementer owns correcting and validating
+that configuration before wiring it into the mutation command. This defect does
+not explain run 324's independently confirmed baseline failure.
+
+Installer, cache-key and mutation-score-gate regression suites pass locally.
+A current green Lean run does not verify the still-uncommitted condition changes
+or establish a completed mutation score.
 
 ## Sealed-root migration verification
 

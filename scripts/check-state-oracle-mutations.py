@@ -37,6 +37,7 @@ root_tests = [root_cast_test, root_predicate_test, root_validation_test, progres
 condition_fault_test = "authored_condition_faults_dominate_pending_and_union_every_leaf"
 condition_scope_test = "authored_condition_uses_each_sources_freeze_scope_and_full_history_faults"
 condition_recognition_test = "authored_condition_rejects_unrecognized_or_ineligible_sources"
+condition_live_test = "condition::authored_conditions_match_live_lean_oracle"
 condition_tests = [condition_fault_test, condition_scope_test, condition_recognition_test]
 fault_test = "render::fault_evidence_bytes_match_lean"
 render_test = "render::native_json_bytes_match_lean"
@@ -66,6 +67,11 @@ with tempfile.TemporaryDirectory(prefix="cbcl-live-oracle-") as directory:
                               text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=300)
 
     mutants = [
+        ("live-condition-pending-short-circuit", "state.rs", "        for (field, element) in leaves {", "        for (field, element) in leaves { if !reached { break; }", condition_live_test),
+        ("live-condition-fault-evidence-overwritten", "state.rs", "                evidence.extend(found);", "                evidence = found;", condition_live_test),
+        ("live-condition-shares-first-freezer-scope", "freeze.rs", "self.plans.get(field).map(|p| p.scope).unwrap_or(0)", "self.plans.values().next().map(|p| p.scope).unwrap_or(0)", condition_live_test),
+        ("live-condition-size-bound-skipped", "r7.rs", "if condition.size() > bounds.max_list as usize {", "if false {", condition_live_test),
+
         ("condition-pending-short-circuit", "state.rs", "        for (field, element) in leaves {", "        for (field, element) in leaves { if !reached { break; }", condition_fault_test),
         ("condition-fault-evidence-overwritten", "state.rs", "                evidence.extend(found);", "                evidence = found;", condition_fault_test),
         ("condition-shares-first-freezer-scope", "freeze.rs", "self.plans.get(field).map(|p| p.scope).unwrap_or(0)", "self.plans.values().next().map(|p| p.scope).unwrap_or(0)", condition_scope_test),

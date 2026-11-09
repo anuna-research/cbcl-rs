@@ -3,8 +3,8 @@ import LeanCbcl.StateOutputCompiler
 /-! Complete v0.4 output assembly over the actual authored Entry inventory.
 The existing source/threshold compiler remains the base stage; this final walk
 reinserts Boolean conditions using the completed original source dictionary and
-the exact earlier-definition prefix. Cache and convergence refinements for this
-expanded observation vector are separate obligations. -/
+the exact earlier-definition prefix. Preparation, witness replay, projection and convergence refinements for this
+expanded vector are composed by StateAuthoredConditionQuasiDeterminism. -/
 set_option autoImplicit false
 namespace CBCL.StateAuthoredConditionOutputs
 open State StateLift StateLVar StateObservation StateObservationPlan StateInstalledCompiler

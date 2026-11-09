@@ -375,7 +375,9 @@ providers are insufficient. See SPEC-037 and
 python3 ../scripts/check-state-kernel-sec.py
 ```
 
-## LVar state kernel
+<a id="lvar-state-kernel"></a>
+
+## Causal Lattice Observation Kernel (CLOK)
 
 [SPEC-038](../specs/SPEC-038-lvar-state-kernel.md) remains **draft**. The committed
 proofs cover the following typed-model layers for the prior single-source
@@ -777,3 +779,17 @@ recognition preserves generic semantics outside the native representable domain,
 and the concrete source-pool driver now calls this range implementation,
 confirmed in generated C. Literal Rust extraction and the broader kernel
 admission/installed-reader ports remain open.
+
+
+The complete v0.4 authored-condition capstone is
+`StateAuthoredConditionQuasiDeterminism.authored_quasi_determinism`.
+`StateAuthoredConditionPreparation` derives actual source availability and full
+output compilation from preparation; `StateAuthoredConditionReplay` composes
+exact finite witness replay across freshly compiled condition dependency trees.
+`StateAuthoredConditionProjection` preserves base observations and unique names,
+including threshold/frozen agreement and fixed-true condition success. Full
+condition-bearing programs converge on equal accepted sets and under finite
+history delivery; no-top execution retains the complete data vector.
+`StateExecutableCondition` supplies the proved enumerable fault algebra executed
+by the mixed-leaf live oracle. Native extraction and authentication remain model
+boundaries; required latest-revision CI remains a separate status gate.

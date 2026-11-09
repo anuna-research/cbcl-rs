@@ -8,7 +8,7 @@
 
 (meta plan
   (id "IMPL-030")
-  (title "LVar state kernel (SPEC-038 v0.4.0): stable facts, product conditions and sealed-root migration")
+  (title "Causal Lattice Observation Kernel (CLOK; SPEC-038 v0.4.1): stable facts, product conditions and sealed-root migration")
   (version "0.4.0")
   (status "active")
   (created "2026-11-07")
@@ -1701,3 +1701,19 @@
 (meta r-ready-root-cast-migration (source "SPEC-038-lvar-state-kernel#TEST-3814"))
 (given (requires byte-compatibility root-cast-migration))
 (given (requires lean-quasi-determinism product-read-composition))
+
+;; Condition completion continuation: actual preparation now derives earlier
+;; source-plan availability from ordered base compilation. Complete v0.4 programs
+;; pair condition dependency trees across fresh source compilation and construct
+;; exact finite accepted witnesses with containing-fault replay. Ordered base
+;; projection and unique full output names preserve source threshold/frozen
+;; agreement; condition success returns fixed true. The new full v0.4 capstone
+;; composes these with complete convergence and no-top SEC. Mixed count/exists/
+;; membership/finite live comparisons cover schema, source scopes, pending/fault
+;; union, expression bounds, order and duplicates via a proved enumerable
+;; condition adapter. Native text extraction/authentication remain boundaries.
+;; Required revision-bound CI remains open; no docs-status completion is asserted.
+
+;; Maintainer naming decision, 2026-11-09: Causal Lattice Observation Kernel
+;; (CLOK) is the architectural name. LVars remain the threshold-read foundation.
+;; Existing document paths, source references and task identifiers stay stable.

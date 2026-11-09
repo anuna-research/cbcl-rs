@@ -334,14 +334,14 @@ See [[SPEC-038-lvar-state-kernel#ADR-3807]].
 
 [SPEC-019](../../specs/SPEC-019-state-rules.md) defines the base state contract;
 [SPEC-035](../../specs/SPEC-035-register-semantics.md) covers HLC registers;
-[SPEC-038](../../specs/SPEC-038-lvar-state-kernel.md) covers the LVar extensions.
+[SPEC-038](../../specs/SPEC-038-lvar-state-kernel.md) specifies the Causal Lattice Observation Kernel (CLOK).
 SPEC-038 v0.4 remains draft. Native sealed-root identity and its explicit fixture
 migration are implemented and under verification;
 [authored product reads](../../bugs/BUG-012-product-read-composition-has-no-authored-contract.md)
 have native implementation under verification; extended condition proofs and
 oracle coverage remain pending. The typed authored agreement
 proof for the prior single-source inventory is complete, with native extraction and identity premises stated in the
-[Lean proof status](../../lean-cbcl/README.md#lvar-state-kernel).
+[Lean proof status](../../lean-cbcl/README.md#causal-lattice-observation-kernel-clok).
 
 State-bearing messages must use each data keyword once. Repeated data keywords
 are rejected during state-shape validation, including repetitions with equal

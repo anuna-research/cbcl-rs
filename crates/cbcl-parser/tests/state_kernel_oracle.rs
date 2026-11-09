@@ -1123,3 +1123,6 @@ mod resource;
 
 #[path = "state_kernel_oracle/resource_facts.rs"]
 mod resource_facts;
+
+#[path = "state_kernel_oracle/condition.rs"]
+mod condition;

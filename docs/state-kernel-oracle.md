@@ -545,3 +545,20 @@ and without the required dependency frontier. Generated graphs mix both
 configurations and both rights/headroom transfers. Mutations charging a
 headroom transfer to rights or omitting a burn's restored headroom are rejected
 by executed comparisons.
+
+
+The `authored-condition` profile covers [[SPEC-038-lvar-state-kernel#TEST-3815]].
+It installs real Rust condition syntax over count, exists, set membership and
+finite sources. Nested conjunctions compare Boolean success, pending, exact fault
+evidence and schema under source-specific freezes, permutation and duplication.
+Directed bounds admit a small tree and reject an oversized tree without rejecting
+the underlying finite table first. The executable Lean condition adapter proves
+exact agreement with `StateCondition.combine`; primitive leaves execute the typed
+kernel and finite leaves execute the checked finite reader. JSON recognition,
+native text extraction and authentication remain explicit boundaries.
+
+Run the focused profile with `cargo test -p cbcl-parser --test state_kernel_oracle
+condition::authored_conditions_match_live_lean_oracle -- --ignored --exact` after
+building `cbcl-state-oracle`. The mutation runner includes `live-condition-*`
+mutants for pending short-circuit, lost witnesses, shared freezer scope and the
+condition-size installation guard.

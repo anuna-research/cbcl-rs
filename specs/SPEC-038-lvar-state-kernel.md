@@ -1,17 +1,17 @@
 ---
 id: SPEC-038
-title: LVar state kernel
+title: Causal Lattice Observation Kernel
 status: draft
-version: 0.4.0
+version: 0.4.1
 last-updated: 2026-11-09
 ---
 
-# LVar state kernel
+# Causal Lattice Observation Kernel
 
 ## Orientation
 
-Intent: an LVar state kernel. Each state field is a lattice variable in the
-sense of [[LVars]], written only by joining the contributions of
+Intent: a Causal Lattice Observation Kernel (CLOK). Each state field is a
+lattice variable in the sense of [[LVars]], written only by joining the contributions of
 authenticated, admitted acts. Authors may inspect revisable snapshots; only
 stable threshold facts and attributable frozen values reach the execution
 layer. Replicas with equal accepted sets observe equal values. Successful
@@ -107,13 +107,11 @@ quasi-determinism · [[SPEC-038-lvar-state-kernel#REQ-3807]] explicit identity c
 [[SPEC-038-lvar-state-kernel#CON-3805]] product threshold syntax and semantics ·
 [[SPEC-038-lvar-state-kernel#NFR-3800]] explicit evaluation cost bounds.
 
-Open: the implementer owns the approved sealed-wrapper identity migration and
-authored product-condition execution, schema, oracle and proof extension. The
-prior supported observation inventory has complete typed agreement, concrete
-authored source binding, faulting functional cached-reader composition and finite
-upper-set validator correspondence. Condition observations must extend these
-results under [[SPEC-038-lvar-state-kernel#TEST-3815]]. Literal native extraction,
-authentication and causal admission retain their explicit model boundaries.
+Open: the implementer owns revision-bound required CI acceptance. Sealed-wrapper
+migration and authored condition source availability, exact witness replay,
+complete output convergence and agreement composition have local implementation
+evidence in [[lvar-kernel-acceptance]]. Literal native extraction, authentication
+and causal admission retain their explicit model boundaries.
 Progress and the escrow function `bounded-counter` retain their
 author-facing forms over the shared history-backed kernel path
 ([[SPEC-038-lvar-state-kernel#ADR-3806]]). Sequence lattices are out of scope.
@@ -147,6 +145,19 @@ The additive `nonnegative` integer shape type recognizes monotone amount
 contributions. Existing `number` shapes retain their signed meaning. Wire and
 address compatibility outside the explicit sealed-root migration remains
 required.
+
+## Architectural name
+
+**Causal Lattice Observation Kernel (CLOK)** names the architecture. Causal
+admission determines its accepted evidence and freeze cuts; lattice joins retain
+contributions and conflicts; observation rules distinguish snapshots, stable
+threshold facts and attributable frozen values. [[LVars]] supply the threshold
+read model, while replicated joins supply convergence. The name identifies both
+parts without treating every state read as an LVar threshold read.
+
+Existing document paths, requirement identifiers and implementation symbols retain
+their established names for traceability. “LVar state kernel” is the former
+architectural name.
 
 ## Background
 
@@ -439,7 +450,7 @@ Trace: [[SPEC-038-lvar-state-kernel#TEST-3808]], [[SPEC-038-lvar-state-kernel#CO
 
 A dialect author SHALL be able to read installed dialect metadata, validated
 thread metadata and the current accepted-set observation through a typed,
-read-only context map in the LVar kernel. Context supplies ordinary data to
+read-only context map in CLOK. Context supplies ordinary data to
 kernel operations; it SHALL NOT introduce quorum policies or change admission
 permissions. Sealed role rosters SHALL support existing domains and membership
 thresholds without duplicating the cast in business payload fields.
@@ -2044,16 +2055,26 @@ the live oracle exercise the strict wire parser using quoted digest strings.
 its envelope and suite-qualified key cases; the dialect-pin context path no
 longer relies on the lax parser.
 
-The specification stays `draft` until the approved sealed-wrapper migration
-and authored product-condition extension are implemented and verified. The
-existing typed agreement theorem covers the prior supported observation
-inventory; [[SPEC-038-lvar-state-kernel#TEST-3815]] extends it to condition
-observations. The maintainer's decisions resolve the contracts recorded in
-[[BUG-011-root-address-does-not-commit-sealed-cast]] and
-[[BUG-012-product-read-composition-has-no-authored-contract]]; they do not by
-themselves complete their implementation.
+The complete condition-bearing inventory is assembled by
+`StateAuthoredConditionQuasiDeterminism.authored_quasi_determinism`.
+`StateAuthoredConditionPreparation` derives earlier-source availability from the
+ordered base compiler. `StateAuthoredConditionReplay` constructs exact finite
+reported witnesses and proves replay against freshly compiled receiver programs.
+`StateAuthoredConditionProjection` preserves base threshold/frozen observations,
+proves unique full output names and fixes successful condition results to true.
+The executable condition adapter refines the same fault-first algebra used by
+the mixed-leaf live oracle. Local validation and its transport/model boundaries
+are recorded in [[lvar-kernel-acceptance]].
+
+The specification stays `draft` until revision-bound required CI acceptance.
+The approved sealed-wrapper migration and product-condition implementation do
+not turn local test evidence into remote CI evidence.
 
 ## Changelog
+
+- 0.4.1 (2026-11-09): maintainer renamed the architecture to Causal Lattice
+  Observation Kernel (CLOK). LVars remain the threshold-read foundation;
+  contracts, identifiers and implementation behavior are unchanged.
 
 - 0.4.0 (2026-11-09): maintainer selected sealed-wrapper role-root commitment
   with explicit address/reference migration and authored conjunctions of

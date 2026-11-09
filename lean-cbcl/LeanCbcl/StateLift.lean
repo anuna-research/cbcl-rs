@@ -5,7 +5,7 @@ import LeanCbcl.HlcRegister
 import LeanCbcl.StateKernelSemantics
 
 /-!
-# SPEC-038 LVar state kernel — the lift theorem (REQ-3800, REQ-3801)
+# SPEC-038 Causal Lattice Observation Kernel (CLOK) — the lift theorem (REQ-3800, REQ-3801)
 
 Every state field is a *term*: a selector on accepted acts, a per-act
 *contribution* `g : Act → L` into a bounded join-semilattice *carrier* `L`,

@@ -1,10 +1,10 @@
 import LeanCbcl.StateAuthoredSourceProvenance
 import LeanCbcl.StateConditionCompiler
+import LeanCbcl.StateAuthoredConditionOutputs
 
 /-! Bridge the actual authored condition installation gate to closed singleton
-query compilation. Earlier-definition provenance and completed-plan existence
-remain explicit at this layer; connecting their availability to the complete
-authored walk remains a separate completeness obligation. -/
+query compilation. The ordered base compiler supplies source availability;
+successful preparation constructs the complete condition output inventory. -/
 set_option autoImplicit false
 namespace CBCL.StateAuthoredConditionPreparation
 open StateCondition State StateLift StateObservation StateObservationPlan StateInstalledCompiler
@@ -133,5 +133,110 @@ theorem checked_tree_compiles (environment : Environment) (templates : List Free
     rcases List.mem_cons.mp member with equal | inside
     · simpa only [equal] using headProof
     · exact tailProof child inside
+
+
+/-- Successful preparation retains the exact ordered condition validation. -/
+theorem prepared_conditions (environment : Environment) (entries : List Entry) (prepared : Prepared)
+    (accepted : prepareStatic environment entries = some prepared) :
+    conditionsCheck environment prepared.freezes entries prepared.declarations [] = true := by
+  have lowered : lowerStatic environment entries = some prepared := by
+    cases h : lowerStatic environment entries with
+    | none => simp [prepareStatic,h] at accepted
+    | some p =>
+      by_cases checked : preparedCheck p = true
+      · have same : p = prepared := by simpa [prepareStatic,h,Option.filter,checked] using accepted
+        subst p
+        rfl
+      · simp [prepareStatic,h,Option.filter,checked] at accepted
+  unfold lowerStatic at lowered
+  split at lowered
+  · contradiction
+  · split at lowered
+    · contradiction
+    · split at lowered
+      · contradiction
+      · split at lowered
+        · contradiction
+        · split at lowered
+          · contradiction
+          · split at lowered
+            · cases Option.some.inj lowered
+              assumption
+            · contradiction
+
+/-- The ordered base compiler supplies every newly introduced source plan.
+Condition compilation therefore needs no external source-availability premise. -/
+theorem emit_complete (environment : Environment) (templates : List FreezeTemplate)
+    (plans : Plans Value) (entries : List Entry) (declarations : List (Declaration Value))
+    (earlier : Definitions Value) (base : List (Output Value))
+    (sources : ∀ field definition, earlier.lookup field = some definition → ∃ source, plans.lookup field = some source)
+    (checked : conditionsCheck environment templates entries declarations earlier = true)
+    (built : compileDeclarations plans earlier declarations = some base) :
+    ∃ outputs, emitAuthored environment.profile.definition.bounds.maxList plans entries declarations base earlier = some outputs := by
+  induction entries generalizing declarations earlier base with
+  | nil =>
+    cases declarations <;> simp [conditionsCheck] at checked
+    have empty : base = [] := (Option.some.inj built).symm
+    subst base
+    exact ⟨[],rfl⟩
+  | cons entry rest ih =>
+    cases entry with
+    | condition name expression =>
+      simp only [conditionsCheck,Bool.and_eq_true,decide_eq_true_eq] at checked
+      obtain ⟨code,compiled⟩ := checked_tree_compiles environment templates earlier plans sources expression
+        environment.profile.definition.bounds.maxList checked.1.1 checked.1.2
+      obtain ⟨outputs,emitted⟩ := ih declarations earlier base sources checked.2 built
+      exact ⟨.condition name (.element (.scalar (.bool true))) code :: outputs,
+        by simp [emitAuthored,compiled,emitted]⟩
+    | field name rule | threshold name field elements =>
+      cases declarations with
+      | nil => simp [conditionsCheck] at checked
+      | cons declaration later =>
+        simp only [conditionsCheck,Bool.and_eq_true,beq_iff_eq] at checked
+        obtain ⟨output,first,after⟩ := Option.bind_eq_some_iff.mp built
+        obtain ⟨remaining,tail,final⟩ := Option.bind_eq_some_iff.mp after
+        have same : output :: remaining = base := Option.some.inj final
+        subst base
+        have extended : ∀ field definition, (extend earlier declaration).lookup field = some definition →
+            ∃ source, plans.lookup field = some source := by
+          cases declaration with
+          | threshold _ _ _ => exact sources
+          | field fieldName definition =>
+            cases found : plans.lookup fieldName with
+            | none => simp [compileOne,found] at first
+            | some plan =>
+              intro field selected lookup
+              by_cases equal : fieldName = field
+              · subst field
+                exact ⟨plan,found⟩
+              · have different : (field == fieldName) = false := by simp [Ne.symm equal]
+                exact sources field selected (by simpa [extend,List.lookup_cons,different] using lookup)
+        obtain ⟨outputs,emitted⟩ := ih later (extend earlier declaration) remaining extended checked.2 tail
+        exact ⟨output :: outputs,by simp [emitAuthored,checked.1,emitted]⟩
+    | domain _ | lattice _ | freeze _ _ _ =>
+      exact ih declarations earlier base sources (by simpa [conditionsCheck] using checked) built
+
+/-- Every accepted authored clause constructs its complete condition inventory
+at any ranked, content-consistent history. -/
+theorem prepared_output_exists (environment : Environment) (entries : List Entry) (prepared : Prepared)
+    (installed : prepareStatic environment entries = some prepared) (whole : List Act)
+    (ranked : StateExecutableFreeze.Ranked whole)
+    (consistent : ∀ a ∈ whole, ∀ b ∈ whole, a.addr = b.addr → a = b) :
+    ∃ observation, StateAuthoredConditionOutputs.compileAuthored environment entries whole = some observation := by
+  have ready : prepare environment entries whole = some (clauseAt prepared whole) := by
+    simp [prepare,installed,clauseAt]
+  obtain ⟨sources,fields,base,compiled,resolved,built,cache⟩ :=
+    prepared_compiler_cache_refinement environment entries whole (clauseAt prepared whole) ready ranked consistent
+  have sourceBuilt : StateInstalledLowering.compile (clauseAt prepared whole) = some sources := by
+    simpa [StateAuthoredBindings.compile,ready] using compiled
+  obtain ⟨outputs,emitted⟩ := emit_complete environment prepared.freezes sources entries prepared.declarations [] base
+    (by intro field definition impossible; simp at impossible)
+    (prepared_conditions environment entries prepared installed) built
+  exact ⟨⟨whole,⟨(clauseAt prepared whole).freezes,outputs⟩⟩,
+    by
+      simp [StateAuthoredConditionOutputs.compileAuthored,ready,sourceBuilt,built]
+      change (emitAuthored _ _ _ prepared.declarations base []).bind _ = _
+      rw [emitted]
+      rfl⟩
 
 end CBCL.StateAuthoredConditionPreparation
