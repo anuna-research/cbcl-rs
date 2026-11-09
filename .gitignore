@@ -7,6 +7,12 @@
 **/.lake/
 *.olean
 *.ilean
+/lean-cbcl/build.log
+
+# Local Python caches and Erlang crash output
+**/__pycache__/
+*.pyc
+/erl_crash.dump
 
 # macOS metadata
 **/.DS_Store

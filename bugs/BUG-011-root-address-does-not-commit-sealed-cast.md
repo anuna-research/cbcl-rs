@@ -64,11 +64,11 @@ capture; the production test suite is not left failing.
 
 ## Concrete repair proposal and compatibility evidence
 
-`bugs/BUG-011-root-cast-identity-proposal.patch` is a review-only patch, not
-applied production code. It is a zero-context review patch; validate applicability
-with `git apply --unidiff-zero --check` before applying it. It hashes the outermost sealed wrapper for role roots,
-updates both construction and identity validation, and adds a root commitment
-regression. Nonroot and role-free hashing policies remain unchanged. Reissuing
+The historical review-only prototype is retained in commit `020f2f5`; the
+standalone patch was removed after the production repair superseded it. It
+proposed hashing the outermost sealed wrapper for role roots, updating both
+construction and identity validation, and adding a root commitment regression.
+Nonroot and role-free hashing policies remained unchanged. Reissuing
 messages with new root/predecessor references can change descendant addresses
 and signatures even though the business-act hashing algorithm is unchanged.
 
@@ -107,8 +107,8 @@ this identity contract is decided.
 The maintainer explicitly selected hashing the sealed wrapper and migrating
 addresses. [[SPEC-038-lvar-state-kernel#REQ-3807]] and
 [[SPEC-038-lvar-state-kernel#ADR-3807]] record the amended compatibility contract.
-The review-only patch remains a prototype until applied and verified; signed
-history is not edited in place. Original historical baselines remain immutable,
+The review-only patch was a prototype; the production repair and verification
+are recorded below. Signed history is not edited in place. Original historical baselines remain immutable,
 and affected role-root cases require explicit reissue/mapping evidence.
 The implementation and migration acceptance are recorded below; the preceding prototype evidence is historical.
 
