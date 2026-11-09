@@ -128,6 +128,11 @@ Rendered thresholds use `{"status":"pending"}` or
 `{"element":…,"status":"reached"}`. Faults use
 `{"evidence":[addresses],"reason":…,"status":"fault"}`. Unsupported resource
 profiles may have empty evidence; an empty list does not turn a fault into pending.
+A finite-lattice fault includes its contributing writers and the applicable
+domain initializers or sealed roster roots needed to interpret those writers.
+Evidence therefore includes replay context; it is not necessarily a minimal
+list of offending messages. An initializer can supply domain membership even
+when it is concurrent with the writer.
 
 ### Freezes
 

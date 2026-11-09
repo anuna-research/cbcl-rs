@@ -1384,6 +1384,19 @@ pub fn fold_reference(
                 });
                 let value = fault.unwrap_or_else(|| match rule {
                     Rule::BoundedCounter(c) => crate::escrow::observe(c, acts).value(),
+                    Rule::Lift(lift) => {
+                        let value = kernel.eval(rule, &done, protocol);
+                        if let Some(mut evidence) = value.fault_evidence() {
+                            evidence.extend(domain_support_addresses(
+                                clause,
+                                acts,
+                                core::slice::from_ref(&lift.verb),
+                            ));
+                            conflict_top("finite lattice conflict", evidence)
+                        } else {
+                            value
+                        }
+                    }
                     _ => kernel.eval(rule, &done, protocol),
                 });
                 done.push((name.clone(), value));
@@ -1434,6 +1447,41 @@ pub(crate) fn closure_value(
         Rule::BoundedCounter(c) => crate::escrow::observe(c, acts).value(),
         _ => Value::Absent,
     }
+}
+
+/// Context needed to replay domain-filtered source writes from a fault witness.
+pub(crate) fn domain_support_addresses(
+    clause: &StateClause,
+    acts: &[Act],
+    verbs: &[String],
+) -> hashbrown::HashSet<String> {
+    let mut support = hashbrown::HashSet::new();
+    for (_, _, field) in clause
+        .domains()
+        .filter(|(verb, _, _)| verbs.iter().any(|v| v == verb))
+    {
+        match clause.rule_of(field) {
+            Some(Rule::Initial { verb, .. }) => {
+                support.extend(
+                    acts.iter()
+                        .filter(|a| a.verb == *verb)
+                        .map(|a| a.address.clone()),
+                );
+            }
+            Some(Rule::Context {
+                definition: Some(_),
+                ..
+            }) => {
+                support.extend(
+                    acts.iter()
+                        .filter(|a| a.predecessors.is_empty())
+                        .map(|a| a.address.clone()),
+                );
+            }
+            _ => {}
+        }
+    }
+    support
 }
 
 pub(crate) fn contribution_addresses(

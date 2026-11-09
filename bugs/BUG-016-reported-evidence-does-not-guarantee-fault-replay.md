@@ -1,12 +1,12 @@
 ---
 id: BUG-016
 title: Reported conflict evidence lacks a replay-sufficiency certificate
-severity: S3
+severity: S2
 priority: P1
 status: new
 reported-date: 2026-11-09
 assigned-to: SPEC-038 implementer
-component: lean-cbcl/LeanCbcl/StateObservation.lean
+component: crates/cbcl-core/src/lattice.rs and lean-cbcl/LeanCbcl/StateObservation.lean
 ---
 
 # BUG-016: Accepted evidence support does not establish witness replay
@@ -113,3 +113,39 @@ root gate makes the unchanged pending assertion fail, while the original source
 fault still passes. Independent review found no defect or masking in these
 proofs and tests. Remaining installed finite/domain guard certificates and
 structural caller bindings still prevent closing BUG-016.
+
+## Native finite-domain defect and repair
+
+Further review found that domain-support ancestry cannot be assumed: BUG-007's
+admitted graph permits a writer whose initializer is concurrent. A temporary
+conditional finite replay proof and local ancestry checker were therefore
+replaced, rather than used to narrow the admitted histories covered by replay.
+
+The durable regression
+`finite_fault_witness_retains_domain_initializer_for_replay` reproduced a native
+fault whose evidence named only a writer. Folding exactly its named acts removed
+the initializer, lost domain eligibility and returned bottom (`e0`) instead of a
+fault. The failing assertion was captured in
+`/tmp/spec038-finite-witness-red.log`. A parallel roster regression checks the
+sealed root required by a finite writer.
+
+Finite-top evidence now includes applicable domain initializer and roster-root
+identities, in addition to selected non-bottom writers. Finite domain-fault
+evidence likewise retains all applicable domain support with its raw writers.
+The factored native reader and independent reference reader agree on the added
+context. Successful values, wire forms and addresses are unchanged.
+
+The Lean `domainEvidence` factory follows the same support rule and proves
+accepted provenance, growth and set equality. `StateFiniteReplay` restores
+eligibility directly from reported supporting contributions; its finite-guard
+replay theorem is unconditional on causal-domain dominance. The checker and
+ancestry premise were removed. Mixed initializer/roster tests explicitly cover
+a selected writer concurrent with its initializer. Independent review found no
+defect in the revised native/model alignment or unconditional proof.
+
+The new native regressions verify fault reproduction, containing evidence and
+reverse/duplicate receipt. Mutation checks remove finite initializer context,
+roster context and raw writers under initializer-fault precedence; each fails
+its executed semantic test. This repairs the concrete finite-domain witness
+gap. Installed guard provenance/composition and the remaining structural caller
+premises still need the top-level audit before closing this overall issue.

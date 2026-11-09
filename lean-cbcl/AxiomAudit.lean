@@ -1,3 +1,5 @@
+import LeanCbcl.StateFiniteReplayTests
+import LeanCbcl.StateFiniteReplay
 import LeanCbcl.StateContextReplayTests
 import LeanCbcl.StateContextReplay
 import LeanCbcl.StateResourceReplayTests
@@ -3150,3 +3152,23 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateContextReplayTests.rootless_receiver_pending
 #print axioms CBCL.StateContextReplayTests.rootless_receiver_accepts_witness
 #print axioms CBCL.StateContextReplayTests.rootless_receiver_not_closed
+
+
+#print axioms CBCL.StateFiniteReplay.domain_source_replays
+#print axioms CBCL.StateFiniteReplay.domain_spec_replays
+#print axioms CBCL.StateFiniteReplay.contribution_supports
+#print axioms CBCL.StateFiniteReplay.domain_evidence_replays
+#print axioms CBCL.StateFiniteReplay.selected_replays
+#print axioms CBCL.StateFiniteReplay.domain_error_replays
+#print axioms CBCL.StateFiniteReplay.top_error_replays
+#print axioms CBCL.StateFiniteReplay.finite_error_replays
+
+#print axioms CBCL.StateFiniteReplayTests.concurrent_writer_selected
+#print axioms CBCL.StateFiniteReplayTests.concurrent_initializer_reported
+#print axioms CBCL.StateFiniteReplayTests.roster_root_reported
+#print axioms CBCL.StateFiniteReplayTests.concurrent_finite_replay
+
+#print axioms CBCL.StateInstalledFinite.domain_evidence_grows
+#print axioms CBCL.StateInstalledFinite.domain_evidence_setEq
+#print axioms CBCL.StateInstalledFinite.domain_evidence_supported
+#print axioms CBCL.StateInstalledFinite.writers_supported

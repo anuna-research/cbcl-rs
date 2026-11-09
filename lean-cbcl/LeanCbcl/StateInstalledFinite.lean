@@ -80,94 +80,131 @@ theorem writers_grows (field : Field) {A B : List Act} (growth : ∀ act ∈ A, 
   rintro address ⟨act,member,identity,verb,nonbottom⟩
   exact ⟨act,growth act member,identity,verb,nonbottom⟩
 
-/-- A domain fault retains all raw writer addresses before data selection. -/
+/-- Applicable initializer and roster identities required to replay eligibility. -/
+def domainEvidence (field : Field) (A : List Act) : Evidence := fun id =>
+  ∃ domain ∈ field.domains, domain.verb = field.verb ∧ ∃ act ∈ A,
+    StateInstalledDomains.supports domain.source act = true ∧ act.addr = id
+
+/-- Domain support is monotone under receipt of accepted acts. -/
+theorem domain_evidence_grows (field : Field) {A B : List Act} (growth : ∀ act ∈ A, act ∈ B) :
+    ∀ id ∈ domainEvidence field A, id ∈ domainEvidence field B := by
+  rintro id ⟨domain,declared,verb,act,inside,supports,identity⟩
+  exact ⟨domain,declared,verb,act,growth act inside,supports,identity⟩
+
+/-- Equal accepted sets give exactly equal domain support evidence. -/
+theorem domain_evidence_setEq (field : Field) {A B : List Act} (same : SetEq A B) :
+    domainEvidence field A = domainEvidence field B := by
+  funext id
+  exact propext ⟨domain_evidence_grows field (fun act member => (same act).mp member) id,
+    domain_evidence_grows field (fun act member => (same act).mpr member) id⟩
+
+/-- Domain witnesses name actual accepted supporting acts. -/
+theorem domain_evidence_supported (field : Field) (A : List Act) :
+    StateEvidenceSupport.Supported A (domainEvidence field A) := by
+  rintro id ⟨domain,declared,verb,act,inside,supports,identity⟩
+  exact List.mem_map.mpr ⟨act,inside,identity⟩
+
+/-- Writer witnesses name actual accepted source acts. -/
+theorem writers_supported (field : Field) (A : List Act) :
+    StateEvidenceSupport.Supported A (writers field A) := by
+  rintro id ⟨act,inside,identity,_,_⟩
+  exact List.mem_map.mpr ⟨act,inside,identity⟩
+
+/-- A domain fault retains raw writers and every applicable domain support. -/
 def domainErrorSpec (field : Field) : ErrorSpec := {
   support := by
     intro A e fault
     cases old : (domainSpec field).read A with
     | none => simp [old] at fault
     | some initial =>
-      have same : initial ∪ writers field A = e := by simpa [old] using fault
+      have same : initial ∪ (writers field A ∪ domainEvidence field A) = e := by simpa [old] using fault
       subst e
-      apply StateEvidenceSupport.union_supported ((domainSpec field).support old)
-      rintro id ⟨act,accepted,identity,_,_⟩
-      exact List.mem_map.mpr ⟨act,accepted,identity⟩
+      exact StateEvidenceSupport.union_supported ((domainSpec field).support old)
+        (StateEvidenceSupport.union_supported (writers_supported field A) (domain_evidence_supported field A))
   read := fun A => match (domainSpec field).read A with
     | none => none
-    | some evidence => some (evidence ∪ writers field A)
+    | some evidence => some (evidence ∪ (writers field A ∪ domainEvidence field A))
   equiv := by
     intro A B same
-    rw [(domainSpec field).equiv same,writers_setEq field same]
+    rw [(domainSpec field).equiv same,writers_setEq field same,domain_evidence_setEq field same]
   grow := by
     intro A B growth evidence fault
     cases old : (domainSpec field).read A with
     | none => simp [old] at fault
     | some initial =>
-      have equal : initial ∪ writers field A = evidence := by simpa [old] using fault
+      have equal : initial ∪ (writers field A ∪ domainEvidence field A) = evidence := by simpa [old] using fault
       subst evidence
       obtain ⟨later,current,persist⟩ := (domainSpec field).grow growth initial old
-      refine ⟨later ∪ writers field B,by simp [current],?_⟩
+      refine ⟨later ∪ (writers field B ∪ domainEvidence field B),by simp [current],?_⟩
       intro address member
-      exact member.elim (fun old => Or.inl (persist address old)) (fun old => Or.inr (writers_grows field growth address old)) }
+      rcases member with old | writer | support
+      · exact Or.inl (persist address old)
+      · exact Or.inr (Or.inl (writers_grows field growth address writer))
+      · exact Or.inr (Or.inr (domain_evidence_grows field growth address support)) }
 
-/-- Finite top retains precisely the selected non-bottom writer addresses. -/
+/-- Finite top retains selected non-bottom writers and replay domain context. -/
 def topErrorSpec (field : Field) : ErrorSpec := {
   support := by
     intro A e fault
     split at fault
     · have same := Option.some.inj fault
       subst e
-      rintro id ⟨act,accepted,identity,_,_⟩
-      exact List.mem_map.mpr ⟨act,selected_inside field A act accepted,identity⟩
+      apply StateEvidenceSupport.union_supported
+      · rintro id ⟨act,accepted,identity,_,_⟩
+        exact List.mem_map.mpr ⟨act,selected_inside field A act accepted,identity⟩
+      · exact domain_evidence_supported field A
     · contradiction
-  read := fun A => if state field A = field.table.table.top then some (writers field (selected field A)) else none
+  read := fun A => if state field A = field.table.table.top then
+    some (writers field (selected field A) ∪ domainEvidence field A) else none
   equiv := by
     intro A B same
-    rw [state_setEq field same,writers_setEq field (selected_setEq field same)]
+    rw [state_setEq field same,writers_setEq field (selected_setEq field same),domain_evidence_setEq field same]
   grow := by
     intro A B growth evidence fault
     split at fault
     · rename_i conflict
-      have equal : writers field (selected field A) = evidence := Option.some.inj fault
+      have equal : writers field (selected field A) ∪ domainEvidence field A = evidence := Option.some.inj fault
       subst evidence
       have conflictB : state field B = field.table.table.top := by
         letI := StateFiniteTable.algebra field.table
         have grows := state_grows field growth
         rw [conflict] at grows
         exact top_below grows
-      exact ⟨writers field (selected field B),by simp [conflictB],
-        writers_grows field (selected_grows field growth)⟩
+      refine ⟨writers field (selected field B) ∪ domainEvidence field B,by simp [conflictB],?_⟩
+      intro id member
+      exact member.elim (fun writer => Or.inl (writers_grows field (selected_grows field growth) id writer))
+        (fun support => Or.inr (domain_evidence_grows field growth id support))
     · contradiction }
 
 /-- Independent monotone witness channels compose before rendering. -/
 def errorSpec (field : Field) : ErrorSpec :=
   StateContextEvidence.joinSpec (domainErrorSpec field) (topErrorSpec field)
 
-/-- Native diagnostic precedence reports raw writers on domain failure. -/
+/-- Native diagnostic precedence reports raw writers and support on domain failure. -/
 def nativeError (field : Field) (A : List Act) : Error :=
   match (domainSpec field).read A with
-  | some evidence => some (evidence ∪ writers field A)
+  | some evidence => some (evidence ∪ (writers field A ∪ domainEvidence field A))
   | none => (topErrorSpec field).read A
 
-/-- Adding the top channel cannot change a domain fault's native witness set. -/
+/-- Adding top cannot change a domain fault's complete native witness set. -/
 theorem native_error_refinement (field : Field) (A : List Act) : (errorSpec field).read A = nativeError field A := by
   unfold errorSpec StateContextEvidence.joinSpec nativeError domainErrorSpec
   cases domain : (domainSpec field).read A with
   | none => simp [domain,unionError]
   | some evidence =>
     simp only [domain]
-    change unionError (some (evidence ∪ writers field A))
-      (if state field A = field.table.table.top then some (writers field (selected field A)) else none) = _
+    change unionError (some (evidence ∪ (writers field A ∪ domainEvidence field A)))
+      (if state field A = field.table.table.top then some (writers field (selected field A) ∪ domainEvidence field A) else none) = _
     split
-    · change some ((evidence ∪ writers field A) ∪ writers field (selected field A)) = _
-      apply congrArg some
+    · apply congrArg some
       funext address
       apply propext
       constructor
       · intro member
-        rcases member with old | writer
+        rcases member with old | writer | support
         · exact old
-        · exact Or.inr (writers_grows field (selected_inside field A) address writer)
+        · exact Or.inr (Or.inl (writers_grows field (selected_inside field A) address writer))
+        · exact Or.inr (Or.inr support)
       · exact Or.inl
     · rfl
 

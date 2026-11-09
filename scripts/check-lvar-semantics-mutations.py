@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """SPEC-038 TEST-3800/3801/3803/3804: mutate isolated Rust copies only."""
 from pathlib import Path
+import argparse
 import os
 import re
 import shutil
@@ -9,6 +10,9 @@ import tempfile
 
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--mutant", action="append", help="Run only this mutant (repeatable)")
+    options = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
     domain_test = ("lattice_factorisation", "domain_lift_obeys_union_law_across_distinct_openers")
     sum_test = ("threshold_reads", "negative_credits_are_rejected_and_signed_balances_remain_snapshots")
@@ -18,6 +22,14 @@ def main():
     freeze_pair_test = ("freeze_reads", "repeated_causal_freezes_keep_the_first_cut_but_concurrent_freezes_fault")
     freeze_initial_test = ("freeze_reads", "freeze_cannot_hide_a_later_initializer_conflict")
     mutations = [
+        ("finite-witness-roster-context-omitted", "lattice.rs",
+         '                        evidence.extend(crate::state::domain_support_addresses(',
+         '                        let _ = (crate::state::domain_support_addresses(',
+         ("state_context", "finite_fault_witness_retains_domain_roster_root_for_replay")),
+        ("finite-witness-domain-context-omitted", "lattice.rs",
+         '                        evidence.extend(crate::state::domain_support_addresses(',
+         '                        let _ = (crate::state::domain_support_addresses(',
+         ("finite_lattices", "finite_fault_witness_retains_domain_initializer_for_replay")),
         ("initializer-domain-support-omitted", "state.rs",
          'support.insert(act.address.clone());', 'let _ = &act.address;',
          ("freeze_reads", "admitted_domain_initializer_outside_freeze_cut_preserves_threshold_or_fault")),
@@ -108,6 +120,11 @@ def main():
          '(Some(_), None) => normal,',
          '(Some(_), None) => Value::Absent,', freeze_initial_test),
     ]
+    if options.mutant:
+        unknown = set(options.mutant) - {item[0] for item in mutations}
+        if unknown:
+            parser.error("unknown mutants: " + ", ".join(sorted(unknown)))
+        mutations = [item for item in mutations if item[0] in options.mutant]
     with tempfile.TemporaryDirectory(prefix="cbcl-lvar-semantics-") as directory:
         isolated = Path(directory)
         (isolated / "crates").mkdir()

@@ -214,10 +214,20 @@ fn projection_stability_is_verified_and_snapshot_projection_stays_available() {
 // smaller native bound before R7 checks it against the defaults.
 #[test]
 fn oversized_state_bounds_do_not_wrap_into_defaults() {
-    for (name, wrapped_default) in [("max-list", 64u64), ("max-fields", 32), ("max-string", 2048)] {
+    for (name, wrapped_default) in [
+        ("max-list", 64u64),
+        ("max-fields", 32),
+        ("max-string", 2048),
+    ] {
         let oversized = (1u64 << 32) + wrapped_default;
-        let dialect = source(3, "", "").replace("(state", &format!("(:state-bounds ({name} {oversized})) (state"));
-        assert!(install(&dialect).is_err(), "{name}={oversized} wrapped into {wrapped_default}");
+        let dialect = source(3, "", "").replace(
+            "(state",
+            &format!("(:state-bounds ({name} {oversized})) (state"),
+        );
+        assert!(
+            install(&dialect).is_err(),
+            "{name}={oversized} wrapped into {wrapped_default}"
+        );
     }
 }
 
@@ -336,7 +346,7 @@ fn initializer_fork_preserves_an_existing_finite_fault_witness() {
     }
     let before = read(&src, &acts);
     assert_eq!(before["phase"]["status"], "fault");
-    assert_eq!(before["phase"]["evidence"].as_array().unwrap().len(), 2);
+    assert_eq!(before["phase"]["evidence"].as_array().unwrap().len(), 3);
     acts.push(act("(lang finite-demo (open @room :choices (\"e2\") :caused-by begin :thread \"t\" :from @fork))", "@fork"));
     let after = read(&src, &acts);
     assert_eq!(after["phase"]["status"], "fault");
@@ -353,4 +363,57 @@ fn initializer_fork_preserves_an_existing_finite_fault_witness() {
     acts.reverse();
     acts.extend(acts.clone());
     assert_eq!(read(&src, &acts), after);
+}
+
+#[test]
+fn finite_fault_witness_retains_domain_initializer_for_replay() {
+    let src = source(3, "", "")
+        .replace(
+            "(extend open (to) (tell to))",
+            "(extend open (to choices) (tell to :choices choices))",
+        )
+        .replace(
+            "(shape mark",
+            "(shape open (require :choices list)) (shape mark",
+        )
+        .replace(
+            "(state (lattice",
+            "(state (choices (initial open :choices)) (domain mark :phase choices) (lattice",
+        );
+    install(&src).unwrap();
+    let opener = act(
+        "(lang finite-demo (open @room :choices (\"e2\") :caused-by begin :thread \"t\" :from @a))",
+        "@a",
+    );
+    // The writer need not cite its domain source. This isolates state replay;
+    // BUG-007 separately exercises an admitted graph with the same omission.
+    let writer = act(
+        "(lang finite-demo (mark @room :phase \"e2\" :caused-by begin :thread \"t\" :from @b))",
+        "@b",
+    );
+    let acts = vec![opener.clone(), writer];
+    let before = read(&src, &acts);
+    assert_eq!(before["phase"]["status"], "fault");
+    let evidence = before["phase"]["evidence"].as_array().unwrap();
+    let witness: Vec<_> = acts
+        .iter()
+        .filter(|a| evidence.contains(&json!(a.address)))
+        .cloned()
+        .collect();
+    let replay = read(&src, &witness);
+    assert_eq!(
+        replay["phase"]["status"], "fault",
+        "reported witness lost domain eligibility: {before} -> {replay}"
+    );
+    assert!(
+        evidence.contains(&json!(opener.address)),
+        "initializer is necessary replay context"
+    );
+    for id in evidence {
+        assert!(replay["phase"]["evidence"].as_array().unwrap().contains(id));
+    }
+    let mut delivered = witness.clone();
+    delivered.reverse();
+    delivered.extend(witness);
+    assert_eq!(read(&src, &delivered)["phase"], replay["phase"]);
 }

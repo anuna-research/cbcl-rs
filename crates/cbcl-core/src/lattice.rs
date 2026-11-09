@@ -646,10 +646,32 @@ impl<'a> Ctx<'a> {
     /// Callers check dependency faults before interpreting this carrier.
     pub fn read_carrier(&self, term: &Term) -> L {
         match term {
-            Term::Lift(selects, c) => selects
-                .iter()
-                .flat_map(|s| self.selected(s))
-                .fold(Self::bottom(c), |acc, a| acc.join(Self::contribute(a, c))),
+            Term::Lift(selects, c) => {
+                let mut carrier = selects
+                    .iter()
+                    .flat_map(|s| self.selected(s))
+                    .fold(Self::bottom(c), |acc, a| acc.join(Self::contribute(a, c)));
+                if let L::Finite {
+                    table,
+                    index,
+                    evidence,
+                } = &mut carrier
+                {
+                    if *index == table.top {
+                        let verbs: Vec<_> = selects
+                            .iter()
+                            .filter(|s| !s.raw)
+                            .map(|s| s.verb.clone())
+                            .collect();
+                        evidence.extend(crate::state::domain_support_addresses(
+                            self.clause,
+                            self.raw_acts,
+                            &verbs,
+                        ));
+                    }
+                }
+                carrier
+            }
             Term::Pair(a, b) => L::Pair(
                 Box::new(self.read_carrier(a)),
                 Box::new(self.read_carrier(b)),
@@ -723,6 +745,16 @@ impl<'a> Ctx<'a> {
                     }
                 }
                 if initializer_fault && matches!(contribution, Contribute::Finite { .. }) {
+                    let verbs: Vec<_> = selects
+                        .iter()
+                        .filter(|s| !s.raw)
+                        .map(|s| s.verb.clone())
+                        .collect();
+                    evidence.extend(crate::state::domain_support_addresses(
+                        self.clause,
+                        self.raw_acts,
+                        &verbs,
+                    ));
                     // REQ-3806: conflicting domain evidence must not replace
                     // writers that established a finite top before the fork.
                     // The domain is no longer uniquely selectable; retain the

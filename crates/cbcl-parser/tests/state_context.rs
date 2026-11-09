@@ -425,3 +425,42 @@ fn domain_roster_root_outside_cut_is_retained_as_freeze_support() {
     assert_eq!(after["quorum"]["status"], "fault");
     assert_eq!(after["quorum"]["evidence"], json!(evidence));
 }
+
+#[test]
+fn finite_fault_witness_retains_domain_roster_root_for_replay() {
+    let src = source(None).replace(
+        "(arrivals (count approve))",
+        r#"(lattice flags (elements quiet conflict) (bottom quiet) (top conflict)
+          (join (quiet quiet quiet) (quiet conflict conflict)
+                (conflict quiet conflict) (conflict conflict conflict)))
+        (arrivals (lift approve (into flags) (contribute (:target "@a" conflict))))"#,
+    );
+    state_exports::parse_and_install_dialect(&parse(&src).unwrap()).unwrap();
+    let root = root_act("");
+    let writer = approve("@a", "@a", &root);
+    let acts = vec![root.clone(), writer];
+    let before = read(&src, &acts);
+    assert_eq!(before["arrivals"]["status"], "fault");
+    let evidence = before["arrivals"]["evidence"].as_array().unwrap();
+    assert!(
+        evidence.contains(&json!(root.address)),
+        "roster root supplies replay eligibility"
+    );
+    let witness: Vec<_> = acts
+        .iter()
+        .filter(|a| evidence.contains(&json!(a.address)))
+        .cloned()
+        .collect();
+    let replay = read(&src, &witness);
+    assert_eq!(replay["arrivals"]["status"], "fault");
+    for id in evidence {
+        assert!(replay["arrivals"]["evidence"]
+            .as_array()
+            .unwrap()
+            .contains(id));
+    }
+    let mut delivered = witness.clone();
+    delivered.reverse();
+    delivered.extend(witness);
+    assert_eq!(read(&src, &delivered)["arrivals"], replay["arrivals"]);
+}
