@@ -127,3 +127,14 @@ build caches were removed.
 
 This resolves the root identity/discovery implementation defect; authored
 condition thresholds and the full v0.4 acceptance audit remain separate work.
+
+### Downstream documentation fixture follow-up
+
+The remote mutation job at `8fc267f` found one omitted consumer: the executable
+coin guide still used the historical root/open/pay addresses. Its unmutated
+baseline failed `documented_messages_parse_address_and_fold_as_claimed`, so no
+mutant result from that failed job counts as evidence. The guide and test now
+use only the substitutions already declared by the bounded-coin migration
+manifest. Independent review confirmed those exact substitutions. The document
+regression and the complete committed parser test inventory pass locally after
+the repair (33 integration targets and the library; 491 passing tests).

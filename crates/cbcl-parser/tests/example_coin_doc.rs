@@ -13,9 +13,9 @@ use std::collections::BTreeMap;
 const DOC: &str = include_str!("../../../docs/concepts/example-coin.md");
 const COIN: &str = include_str!("../../../dialects/example-coin.cbcl");
 
-const ROOT_ADDR: &str = "sha256-6655c6fbcd385dd84414cad93d6cad9a1ed650f4c2834790d9043f543051d407";
-const OPEN_ADDR: &str = "sha256-a9d6de157c34d0473ad88f651a6701c40415978732593f22bf77b4fb0a448ca5";
-const PAY_ADDR: &str = "sha256-fb89b8805e64de1ea5696aabe3462339a1ead4a68a10948754161ab403859162";
+const ROOT_ADDR: &str = "sha256-67bb33cf1e30749bc9175826525393ce0a0f4a45315c94338714edb31a8849c6";
+const OPEN_ADDR: &str = "sha256-4b71616f32e13ae6fb47e0dc1bb3c721af42ff804a851f2d03b138c9128fa907";
+const PAY_ADDR: &str = "sha256-05304c57d6f9a0b0cfc408800de682e4d55fe24067f094d020d240bf672755a7";
 
 /// Every fenced block in the document tagged with `lang`, in order.
 fn blocks(lang: &str) -> Vec<String> {
