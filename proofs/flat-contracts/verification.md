@@ -23,9 +23,7 @@ Independent arithmetic and ASCII-format property oracles supplement explicit Uni
 Normal tests never rewrite fixtures. The signing fixture has an explicit ignored authoring command.
 
 The initial parser run failed five new acceptance cases before integration.
-[Initial failing output](red-run.log) and [mutation evidence](mutations.json) retain the observed failures.
-The mutation logs are [reservation](mutation-reservation.log), [full match](mutation-full-match.log), and [state mask](mutation-symbol-state-mask.log).
-They record three deliberately broken guards that made their targeted tests fail:
+[Mutation evidence](mutations.json) records three deliberately broken guards that made their targeted tests fail:
 whole-check reservation, full-string regex anchoring, and mixed-symbol state rejection.
 Restoring the implementation returned the contract suite to green.
 
