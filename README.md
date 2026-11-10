@@ -382,32 +382,3 @@ Licensed under the [Apache License 2.0](LICENSE).
   url       = {https://www.computer.org/csdl/proceedings-article/spw/2026/107000a039/2hIfzFiEfjG}
 }
 ```
-
-Content addresses use SHA2-256 multihashes in canonical multibase base16:
-`f1220` followed by 64 lowercase hex digits (`f` = base16, `12` = SHA2-256,
-`20` = 32 digest bytes). Message roots, dialect hashes, self-addressed names,
-state references and checkpoint IDs use the same symbol-safe representation.
-The codec rejects unsupported algorithms, wrong lengths and noncanonical case.
-
-This replaces `sha256:<hex>` and `sha256-<hex>` and is a wire-format break.
-Reissue histories and signatures: address bytes occur inside subsequent acts,
-so replacing a prefix alone does not produce valid descendants. Address-based
-LWW tie breakers can also change winners after rehashing. The frozen historical
-corpus is retained; `test-vectors/state-multihash-migration.json` records the
-explicit old/new address map and new canonical state bytes for all eight traces.
-The multihash golden vector follows the [multiformats specification](https://github.com/multiformats/multihash).
-
-Message keyword fields may be written in any order. Creation, serialisation,
-signing and addressing use lexical keyword order; receipt and folding do not
-require declaration order. Ordinary data lists and positional parameters retain
-their order. Dialect creation similarly normalises sibling shape declarations.
-This boundary rule advances the dialect signing form to version 7 and the typed
-address form to version 2. Affected signatures and histories require reissue;
-the preserved historical corpus and
-`test-vectors/state-boundary-canonicalisation-migration.json` record the explicit
-address migration and resulting state bytes. See
-[boundary canonicalisation](specs/SPEC-042-boundary-canonicalisation.md).
-
-Causal protocols accept chains: `(protocol (then begin one two three))`
-is equivalent to `(protocol (then begin one) (then one two) (then two three))`.
-Each adjacent pair forms a causal edge; use separate `then` clauses for branches.
