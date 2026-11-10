@@ -3,8 +3,8 @@ id: SPEC-043
 title: CBCL Language Editions and Bounded Evolution
 status: draft
 mode: reference
-version: 0.2.0
-last-updated: 2026-11-10
+version: 0.2.1
+last-updated: 2026-11-11
 owner: CBCL maintainer
 ---
 
@@ -560,3 +560,34 @@ evidence, not a proof for all binary64 values or verification of decimal parsing
 
 Trace: [[SPEC-043-explicit-cbcl-release#REQ-4310]],
 [[SPEC-043-explicit-cbcl-release#TEST-4310]].
+
+
+## ADR-4303 — Retain no_std and the W3C public-key payload
+
+The maintainer explicitly selected preservation of `no_std` and the W3C payload
+format on 2026-11-11 after considering the published `multi-key` crate. This
+supersedes the interim suggestion to adopt its top-level container grammar.
+
+The crate is not a wire-compatible replacement for
+[[SPEC-043-explicit-cbcl-release#CON-4301]]. W3C public-key payloads contain a
+key-codec varint followed directly by public-key bytes. The crate's container
+instead carries a Multikey sigil, key codec, length-prefixed comment, attribute
+count and length-prefixed attributes. Substituting that grammar would change the
+accepted payloads and the key identities derived from them.
+
+Published-source inspection found that `multi-key` 3.1.0 uses `std` and requires
+Rust 1.99; 2.1.0 also uses `std` and requires Rust 1.96. The older 1.0.2 container
+also imports `std`. Disabling default features does not make these releases
+`no_std`. These are dependency-evaluation observations, not permanent claims about
+future upstream releases. Sources: https://docs.rs/crate/multi-key/3.1.0/source/Cargo.toml
+and https://docs.rs/crate/multi-key/3.1.0/source/src/mk.rs.
+
+Decision: retain the small W3C public-key boundary, using the existing `bs58` and
+`unsigned-varint` dependencies for base encoding and varint recognition. CBCL owns
+only its public-codec allowlist, input bounds, key-shape checks and explicit identity
+conversion policy. It does not implement cryptographic algorithms or the alternative
+key container. A future host keystore may use `multi-key` behind an explicit adapter,
+but neither host integration nor container-format migration is part of this choice.
+
+Trace: [[SPEC-043-explicit-cbcl-release#REQ-4308]],
+[[SPEC-043-explicit-cbcl-release#TEST-4308]].

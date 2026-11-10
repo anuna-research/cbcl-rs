@@ -31,7 +31,10 @@ The executable ledger is `IMPL-043-longevity.spl`, theory `cbcl-longevity`.
 
 ## Decisions for each audit issue
 
-1. Crypto: reuse W3C Multikey payloads (multicodec varint plus public-key bytes,
+1. Crypto: retain `no_std` and W3C payload compatibility as explicitly selected by
+   the maintainer on 2026-11-11. The `multi-key` container was evaluated and is not
+   a drop-in replacement; see [[SPEC-043-explicit-cbcl-release#ADR-4303]].
+   Reuse W3C Multikey payloads (multicodec varint plus public-key bytes,
    base58btc). Add a pure bounded codec and an explicit `KeyId::from_multikey` API adapter.
    Existing suite-explicit canonical spelling stays unchanged. Unsupported suites
    fail closed; no unimplemented post-quantum verification is advertised. Key

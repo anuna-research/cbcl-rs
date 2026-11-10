@@ -52,6 +52,13 @@ cargo run -p cbcl-cli -- multikey z6MkmM42vxfqZQsv4ehtTjFFxQ4sQKS2w6WR7emozFAn5c
 The JSON result includes the codec, public bytes and supported signing identity
 (or `null` for a recognized key without a supported signing suite).
 
+The similarly named [`multi-key` crate](https://crates.io/crates/multi-key) uses
+an extended container with a sigil, comments and attributes. That container is
+not the W3C public-key payload above. The evaluated releases also require `std`.
+CBCL retains the W3C format and its `no_std` core, composing `bs58` and
+`unsigned-varint` with CBCL's bounded public-key validation policy. See the
+[dependency decision](../../specs/SPEC-043-explicit-cbcl-release.md#adr-4303--retain-no_std-and-the-w3c-public-key-payload).
+
 ## Identity and algorithm renewal
 
 A dialect's self-name hashes its canonical body with the designated name slot
