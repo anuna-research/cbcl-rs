@@ -2,6 +2,11 @@
 
 # CBCL
 
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
+[![Latest release: v0.1.1](https://img.shields.io/badge/release-v0.1.1-blue)](https://git.anuna.io/anuna-research/cbcl-rs/releases/tag/v0.1.1)
+[![Stage: pre-1.0](https://img.shields.io/badge/stage-pre--1.0-orange)](CHANGELOG.md#unreleased)
+[![Rust: 1.75+](https://img.shields.io/badge/rust-1.75%2B-orange)](Cargo.toml)
+
 **A language for composing multi-agent protocols.**
 
 CBCL (Common Business Communication Language) lets agents define, exchange, and participate in multiparty protocols at runtime, without a central coordinator or a shared global message order. This repository provides the Rust implementation and Lean proofs.
@@ -9,6 +14,9 @@ CBCL (Common Business Communication Language) lets agents define, exchange, and 
 Agents teach each other new interaction vocabularies as messages. Protocols can also define shared state and bounded resources: replicas derive state from accepted acts, while escrow rights constrain concurrent spending. Signed, content-addressed evidence supports verification of public protocol behaviour and detection of equivocation.
 
 These guarantees concern observable interactions. They do not establish that an agent’s claims are true or that compliant actions are beneficial.
+
+CBCL is in pre-1.0 development. See the [changelog](CHANGELOG.md) for released
+features, unreleased changes, and migration notes.
 
 ## How it works
 
@@ -358,7 +366,7 @@ State conformance vectors live in `test-vectors/state/`. For client-observed cer
 
 The theoretical framework is published in the [2026 IEEE Symposium on Security and Privacy Workshops (SPW)](https://www.computer.org/csdl/proceedings-article/spw/2026/107000a039/2hIfzFiEfjG), pp. 39–48. A [preprint](https://arxiv.org/abs/2604.14512) is also available. The original prototype is the [Scheme implementation](https://github.com/anuna-research/cbcl).
 
-Apache-2.0; see LICENSE.
+Licensed under the [Apache License 2.0](LICENSE).
 
 ## Citation
 
@@ -374,32 +382,3 @@ Apache-2.0; see LICENSE.
   url       = {https://www.computer.org/csdl/proceedings-article/spw/2026/107000a039/2hIfzFiEfjG}
 }
 ```
-
-Content addresses use SHA2-256 multihashes in canonical multibase base16:
-`f1220` followed by 64 lowercase hex digits (`f` = base16, `12` = SHA2-256,
-`20` = 32 digest bytes). Message roots, dialect hashes, self-addressed names,
-state references and checkpoint IDs use the same symbol-safe representation.
-The codec rejects unsupported algorithms, wrong lengths and noncanonical case.
-
-This replaces `sha256:<hex>` and `sha256-<hex>` and is a wire-format break.
-Reissue histories and signatures: address bytes occur inside subsequent acts,
-so replacing a prefix alone does not produce valid descendants. Address-based
-LWW tie breakers can also change winners after rehashing. The frozen historical
-corpus is retained; `test-vectors/state-multihash-migration.json` records the
-explicit old/new address map and new canonical state bytes for all eight traces.
-The multihash golden vector follows the [multiformats specification](https://github.com/multiformats/multihash).
-
-Message keyword fields may be written in any order. Creation, serialisation,
-signing and addressing use lexical keyword order; receipt and folding do not
-require declaration order. Ordinary data lists and positional parameters retain
-their order. Dialect creation similarly normalises sibling shape declarations.
-This boundary rule advances the dialect signing form to version 7 and the typed
-address form to version 2. Affected signatures and histories require reissue;
-the preserved historical corpus and
-`test-vectors/state-boundary-canonicalisation-migration.json` record the explicit
-address migration and resulting state bytes. See
-[boundary canonicalisation](specs/SPEC-042-boundary-canonicalisation.md).
-
-Causal protocols accept chains: `(protocol (then begin one two three))`
-is equivalent to `(protocol (then begin one) (then one two) (then two three))`.
-Each adjacent pair forms a causal edge; use separate `then` clauses for branches.
