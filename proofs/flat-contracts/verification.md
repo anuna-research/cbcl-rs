@@ -84,3 +84,8 @@ No formal equivalence or universal performance claim is made.
 
 [SPEC-041 mechanisation](mechanisation.md) adds kernel-checked contract semantics, finite resolution, and live Rust/Lean comparisons on this branch.
 It records the named regex hypothesis and remaining Rust refinement boundary separately from the implementation checks above.
+
+## External I-Regexp conformance
+
+[Upstream fixtures and independent-engine comparisons](iregexp-conformance.md) now cover RFC syntax and matching through the actual checker.
+The finite corpus strengthens the regex evidence; complete RFC/engine equivalence remains outside the proof boundary.

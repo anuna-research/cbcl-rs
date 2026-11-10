@@ -23,3 +23,13 @@
 (given (completed formal-model))
 (given (completed oracle))
 (given (completed proof-review))
+
+; Extend existing TEST-4003 conformance evidence without changing contract semantics.
+(given (task iregexp-conformance))
+(given (task-description iregexp-conformance "Audit pinned upstream I-Regexp fixtures and execute independent matching conformance cases"))
+(given (task-acceptance iregexp-conformance "SPEC-040 TEST-4003: upstream syntax/matching goldens, documented anchor corrections, independent generated cases, caught semantic mutation, and independent review"))
+(given (no-deps iregexp-conformance))
+(normally r-ready-iregexp-conformance (and (task iregexp-conformance) (no-deps iregexp-conformance)) (ready iregexp-conformance))
+(meta r-ready-iregexp-conformance (source "SPEC-040-numeric-and-refinement-types#REQ-4003"))
+; Acceptance: scripts/check-iregexp-conformance.sh and proofs/flat-contracts/iregexp-conformance.md.
+(given (completed iregexp-conformance))

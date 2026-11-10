@@ -1,0 +1,3 @@
+# Preserve upstream hashes across platforms, including the original CRLF license.
+* -text
+jsonpath/LICENSE whitespace=cr-at-eol,-blank-at-eof
