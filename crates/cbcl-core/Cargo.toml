@@ -27,6 +27,10 @@ regex-syntax = { version = "=0.8.11", default-features = false, features = ["uni
 regex-automata = { version = "=0.4.14", default-features = false, features = ["alloc", "syntax", "unicode", "nfa-pikevm"] }
 num-bigint = { version = "0.4.6", default-features = false }
 
+# W3C public Multikey payloads: bounded base58btc and canonical unsigned varints.
+bs58 = { version = "0.5.1", default-features = false, features = ["alloc"] }
+unsigned-varint = { version = "0.8.0", default-features = false }
+
 [dev-dependencies]
 proptest = "1"
 criterion.workspace = true

@@ -3,11 +3,20 @@
 This directory contains the IETF Internet-Draft specification for CBCL (Common
 Business Communication Language).
 
-The draft is the **normative prose specification** of the language. Its ABNF is
-derived from the reference implementation in `crates/`, not from the LangSec
-paper; where the two disagree, the implementation is the source of truth and the
-divergence is recorded in the draft's "Divergences from this specification"
-appendix (which the RFC Editor removes before publication).
+The draft is the developing prose specification, not a ratified language edition.
+Its ABNF was derived from the reference implementation in `crates/`. Current
+feature contracts live under `specs/`; discrepancies among those contracts, this
+draft, generated grammar and implementations must be resolved explicitly before
+edition ratification. Implementation behavior does not silently override a published
+language contract.
+
+The draft still contains historical wire examples, including `sha256:`/`sha256-`
+addresses and typed-address v1 tags. Current code uses canonical base16 multihashes
+and typed-address form 2. Do not mechanically replace prefixes in old signed objects:
+canonical forms, signatures and descendant references must be validated together.
+The original historical examples remain available until an explicit reconciled
+vector migration is reviewed. See the [edition design](../specs/SPEC-043-explicit-cbcl-release.md)
+and [longevity plan](../plans/IMPL-043-longevity.md) for the ratification gates.
 
 ## Files
 
