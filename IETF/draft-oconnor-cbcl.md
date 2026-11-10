@@ -555,18 +555,17 @@ or a symbol; a number, boolean, keyword, or nested list is an error.
 Implementations MUST store multiple references in ascending lexicographic order
 so that the encoding is canonical.
 
-Content addresses contain a `:` separator ({{content-addressing}}), which is
-**not** a `symbol-char`. Content addresses therefore MUST be written as strings
-on the wire:
+Canonical content addresses use the symbol-safe lowercase multihash spelling
+defined in {{content-addressing}}. They MAY be written as symbols or strings;
+implementations MUST resolve both forms to the same address value:
 
 ~~~
-(tell @bob "hi" :caused-by "sha256:2b7f0e…")
-(tell @bob "hi" :caused-by ("sha256:2b7f0e…" "sha256:91ac4d…"))
+(tell @bob "hi" :caused-by f12202b7f0e…)
+(tell @bob "hi" :caused-by (f12202b7f0e… f122091ac4d…))
 ~~~
 
-Writing a content address as a bare symbol produces two tokens (the symbol
-`sha256` and the keyword `:2b7f0e…`) and MUST be rejected. See
-{{divergences}}.
+Legacy `sha256:<hex>` and `sha256-<hex>` spellings are noncanonical and MUST be
+rejected at boundaries. See {{divergences}}.
 
 ## Core Performatives {#core-performatives}
 
@@ -645,7 +644,7 @@ Multicast with a causal reference, scoped to the dialect defining `announce`:
 (lang auction
   (announce (@bob @carol) "round 2 open"
             :thread auction-9
-            :caused-by "sha256:2b7f0e…"))
+            :caused-by f12202b7f0e…))
 ~~~
 
 Envelope with metadata:
@@ -1647,9 +1646,10 @@ Because every rule is a function of the accepted set, the state of an instance
 is independent of arrival order and of duplicate delivery, and two participants
 holding the same accepted messages compute the same state without coordination.
 A dialect's identity, for the purpose of naming it by content address, is the
-hash of its canonical form with the name slot empty, spelled `sha256-` followed
-by the lowercase hexadecimal digest; a name beginning with `sha256-` claims to
-be that self-address and installation MUST reject it unless it is.
+SHA2-256 hash of its canonical form with the name slot empty, rendered in the
+canonical multihash form `f1220` followed by the lowercase hexadecimal digest;
+a name of that form claims to be the self-address and installation MUST reject
+it unless it is.
 
 ### Certified Causal-Cut Checkpoints {#state-checkpoints}
 
@@ -1731,7 +1731,7 @@ The wrapper MAY carry a dialect pin immediately after the bindings, committing
 the thread to one exact dialect version:
 
 ~~~
-(with-roles (…) :dialect "sha256:9f2c…" (signed "…" (…)))
+(with-roles (…) :dialect f12209f2c… (signed "…" (…)))
 ~~~
 
 If the pin differs from the content hash of the installed dialect, the thread
@@ -1842,15 +1842,20 @@ For messages, canonical field extraction operates on the structured message,
 not on an arbitrary surface spelling. Multicast recipient sets and
 multi-element `:caused-by` lists use ascending lexicographic order. In a simple
 message, the reserved sender and thread fields are represented internally as
-strings; causal references are represented as symbols, including a hash whose
-wire representation is a string. This internal symbol is an encoding value,
-not an instruction to parse a colon-bearing symbol from wire text.
+strings; causal references are represented canonically as symbols. A parser
+MAY accept an equivalent string atom at the surface boundary, but canonical
+encoding uses the decoded address value and is independent of that choice.
 
 ## Content Addresses
 
-A message's content address is the typed Merkle root defined below, rendered
-as `sha256:` and exactly 64 lowercase hexadecimal characters. It is a string
-on the wire. It is not the flat SHA-256 hash of the serialized message.
+A message's content address is the typed Merkle root defined below, encoded as
+a canonical SHA2-256 multihash in lowercase base16.  The binary multihash is the
+unsigned-varint algorithm code `0x12`, the unsigned-varint digest length
+`0x20`, and the 32 root octets.  Its wire text is therefore the multibase base16
+prefix `f`, followed by `1220`, followed by exactly 64 lowercase hexadecimal
+digits: `f1220<hex64>`.  It is not the flat SHA-256 hash of the serialized
+message. Unknown algorithms, bases, uppercase encodings, truncated values, and
+trailing octets MUST be rejected.
 
 For a simple message, construct these six field values in order. `opt(x)` is
 the one-element list `(x)` when present and the empty list `()` when absent.
@@ -1897,7 +1902,7 @@ For the simple message `(tell "hi")`, the six field values are the symbol
 `"hi"`, respectively. Its address is:
 
 ~~~
-sha256:51ab48a6af30fb4e0023222c4bc90d788c0748a34faac9b7609eaaf844ad7a05
+f122051ab48a6af30fb4e0023222c4bc90d788c0748a34faac9b7609eaaf844ad7a05
 ~~~
 
 For example, opening its thread field (index 4, value `()`) has these two
@@ -2675,8 +2680,8 @@ A conforming trace, with each message citing its predecessor by content address:
 
 ~~~
 (lang escrow (offer  "d-1" (100 "AUD") :caused-by "begin"))
-(lang escrow (accept "d-1"             :caused-by "sha256:2b7f0e…"))
-(lang escrow (settle "d-1" (receipt-7) :caused-by "sha256:91ac4d…"))
+(lang escrow (accept "d-1"             :caused-by f12202b7f0e…))
+(lang escrow (settle "d-1" (receipt-7) :caused-by f122091ac4d…))
 ~~~
 
 ## A Role-Bearing Dialect

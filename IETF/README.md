@@ -111,6 +111,8 @@ the R6 role checks, so role-bearing examples need the library call.
     and verified finite table-defined lattices
   - Updated the normative state ABNF to the implemented parser surface and
     retained the complete non-normative EBNF as an implementation cross-check
+  - Replaced legacy SHA-256 address spellings with canonical lowercase-base16
+    SHA2-256 multihashes (`f1220` followed by 64 hexadecimal digits)
   - Documented HLC register arbitration, all sixteen ordinary native fold
     heads and the separately handled resource constructs, conditional strong
     eventual consistency, and certified causal-cut checkpoint semantics

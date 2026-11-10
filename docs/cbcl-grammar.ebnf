@@ -41,8 +41,8 @@ list            = "(" , { ws , expression } , ws , ")" ;
 symbol          = symbol-char , { symbol-char } ;
 
 (* NOTE: ':' , ';' , '#' , '&' , '[' , ']' and '\' are NOT symbol      *)
-(* characters. A content hash "sha256:<hex64>" therefore cannot be a   *)
-(* symbol and must be written as a string. See bugs/BUG-006.           *)
+(* characters. Canonical content addresses use the symbol-safe SHA2-256 *)
+(* multihash spelling "f1220" followed by 64 lowercase hex digits.     *)
 symbol-char     = letter | digit
                 | "_" | "-" | "." | "/" | "!" | "?"
                 | "+" | "*" | "<" | ">" | "=" | "@" ;
@@ -174,9 +174,8 @@ caused-by-value = begin-ref | hash-ref | hash-list ;
 
 begin-ref       = "begin" | '"begin"' ;
 
-hash-ref        = string | symbol ;    (* a content address; in practice
-                                          a string, since ':' is not a
-                                          symbol-char *)
+hash-ref        = string | symbol ;    (* a content address; canonical wire
+                                          text is f1220<64 lowercase hex> *)
 
 hash-list       = "(" , hash-ref , { ws , hash-ref } , ")" ;  (* non-empty;
                      stored in ascending lexicographic order *)
@@ -228,9 +227,8 @@ wrapper-param   = expression ;
 (* with-roles carries the thread cast (SPEC-014 CON-601, REQ-628):     *)
 (*   (with-roles (<binding>+) [:dialect <pin>] <inner-message>)        *)
 (*   binding = "(" role-name , key , { key } , ")"                     *)
-(* pin is a string whose decoded payload is "sha256:" plus exactly    *)
-(* 64 lowercase hex digits: :dialect "sha256:0123...". Typed symbol    *)
-(* pins remain an in-process compatibility form, not wire syntax.    *)
+(* pin is a string or symbol whose value is canonical SHA2-256         *)
+(* multihash text: "f1220" plus exactly 64 lowercase hex digits.       *)
 (* A singleton role takes exactly one key; an indexed role one or more.*)
 
 
@@ -520,6 +518,6 @@ certification-setting = "(" , "validators" , ws , symbol , { ws , symbol } , ")"
     | "(" , "faults" , ws , number , ")" ;
 (* quorum-budget requires both settings; faults is nonnegative u32.    *)
 (* Transfer keywords are recipient then amount. Escrow data references use
-   sha256-<64 lowercase hex>, separately from protocol caused-by references.
+   f1220<64 lowercase hex>, the canonical state/native multihash spelling.
    Initial allocation/headroom values are nonempty lists of distinct
    (account natural-integer) pairs, checked before resource interpretation. *)
