@@ -17,14 +17,9 @@ use alloc::string::String;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
 
-// State wire addresses and native causal identities share digest bytes. Only
-// the recognized state prefix is translated; no arbitrary identifier aliases.
+// Native and state causal identities use the same multihash spelling.
 fn native_reference(id: &str) -> Cow<'_, str> {
-    if let Some(hex) = id.strip_prefix("sha256-") {
-        Cow::Owned(alloc::format!("sha256:{hex}"))
-    } else {
-        Cow::Borrowed(id)
-    }
+    Cow::Borrowed(id)
 }
 
 pub(crate) fn has_repeat(protocol: &CausalProtocol) -> bool {
@@ -242,12 +237,7 @@ impl<'a, S: MessageStore> Resolution<'a, S> {
     pub(crate) fn step(&self, step: &StepDecl, caused_by: Option<&CausedBy>) -> VerificationResult {
         let rewritten;
         let caused_by = match (caused_by, self.root) {
-            (Some(CausedBy::Single(h)), Some(root))
-                if h == &root.0
-                    || h.strip_prefix("sha256-")
-                        .zip(root.0.strip_prefix("sha256:"))
-                        .is_some_and(|(a, b)| a == b) =>
-            {
+            (Some(CausedBy::Single(h)), Some(root)) if h == &root.0 => {
                 rewritten = CausedBy::Begin;
                 Some(&rewritten)
             }

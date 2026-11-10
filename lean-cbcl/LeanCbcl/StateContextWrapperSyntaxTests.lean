@@ -7,7 +7,7 @@ open StateContextWrapperSyntax
 open StateContextCastSyntax (encode)
 
 /-- Fixed valid digest, independent of cryptographic computation. -/
-def digest : String := "sha256:" ++ String.ofList (List.replicate 64 'a')
+def digest : String := "f1220" ++ String.ofList (List.replicate 64 'a')
 
 /-- Exact native prefix/length/alphabet is recognized. -/
 theorem valid_digest : pinCheck digest = true := by decide
@@ -19,13 +19,13 @@ theorem pin_kinds : pin (.atom (.str digest)) = some digest ∧ pin (.atom (.sym
 theorem wrong_prefix : pinCheck ("sha512:" ++ String.ofList (List.replicate 64 'a')) = false := by decide
 
 /-- Digest length is exact in both directions. -/
-theorem wrong_length : pinCheck ("sha256:" ++ String.ofList (List.replicate 63 'a')) = false ∧
-    pinCheck ("sha256:" ++ String.ofList (List.replicate 65 'a')) = false := by decide
+theorem wrong_length : pinCheck ("f1220" ++ String.ofList (List.replicate 63 'a')) = false ∧
+    pinCheck ("f1220" ++ String.ofList (List.replicate 65 'a')) = false := by decide
 
 set_option maxRecDepth 2048 in
 /-- Uppercase and Unicode lookalikes are outside the ASCII digest grammar. -/
-theorem invalid_alphabet : pinCheck ("sha256:" ++ String.ofList (List.replicate 64 'A')) = false ∧
-    pinCheck ("sha256:" ++ String.ofList (List.replicate 64 '𝟘')) = false := by decide
+theorem invalid_alphabet : pinCheck ("f1220" ++ String.ofList (List.replicate 64 'A')) = false ∧
+    pinCheck ("f1220" ++ String.ofList (List.replicate 64 '𝟘')) = false := by decide
 
 /-- Nontext atoms never become digest strings. -/
 theorem bool_pin_rejected : pin (.atom (.bool true)) = none := rfl

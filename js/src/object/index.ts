@@ -3,7 +3,7 @@
 //
 // An agent writes a JSON contract (verbs, fields, state rules); cbcl-rs
 // compiles it to one CBCL dialect carrying the `(state …)` clause (SPEC-019),
-// named by its self-address `sha256-<body hash>`, installed through R1–R7,
+// named by its self-address `f1220<body hash>`, installed through R1–R7,
 // and folds it with `fold`. Presentation is a separate concern of the host.
 import { ready, verifyShape, verifyStateShape, type State } from '../verifier.ts';
 import { compile, openerText, c, enumOf, isSDKDialect, readDialect, literal, keywordText, CONTRACT_VERSION, MAX_CONTRACT_BYTES, CORE_PERFORMATIVES, ROUTING_KEYWORDS, type Contract, type DialectInfo, type Rule, type VerbSpec, type FieldSpec } from './compile.ts';

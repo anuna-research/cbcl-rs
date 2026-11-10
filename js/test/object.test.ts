@@ -161,7 +161,7 @@ test('cbcl-rs judges every received act; unknown predecessors wait', async () =>
   assert.equal(verdict(check(':item "Ship" :done #t :replaces ()')), 'accepted');
   assert.equal(verdict(check(':item "Ship" :done "yes" :replaces ()')), 'rejected');
   assert.equal(verdict(check(':item "Ship" :done #t :note "x" :replaces ()')), 'rejected');
-  assert.equal(verdict(check(':item "Ship" :done #t :replaces ()', 'sha256-' + 'f'.repeat(64))), 'pending');
+  assert.equal(verdict(check(':item "Ship" :done #t :replaces ()', 'f1220' + 'f'.repeat(64))), 'pending');
   assert.equal(wireAddress(root.canonical), root.cid);
 });
 

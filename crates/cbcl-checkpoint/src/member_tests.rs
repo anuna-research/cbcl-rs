@@ -6,8 +6,8 @@ fn proof_footprint_failure_is_atomic_and_floor_checks_final_root() {
     let clause = cbcl_core::state::StateClause { entries: vec![] };
     let summary = Summary::new(&clause, None).unwrap();
     let mut index = Coverage::default();
-    let left = alloc::format!("sha256:{}", "1".repeat(64));
-    let right = alloc::format!("sha256:{}", "2".repeat(64));
+    let left = alloc::format!("f1220{}", "1".repeat(64));
+    let right = alloc::format!("f1220{}", "2".repeat(64));
     index.insert(&left);
     let mut client = Client {
         context: [3; 32],
@@ -201,7 +201,7 @@ fn older_known_cut_derives_independently_unknown_and_tampered_cuts_decline() {
     let e = f.endorsement(&members[0], &old);
     e.authenticate(&f.keys).unwrap();
     let mut unknown = old.clone();
-    unknown.frontier = vec![format!("sha256:{}", "a".repeat(64))];
+    unknown.frontier = vec![format!("f1220{}", "a".repeat(64))];
     assert!(matches!(
         members[0].derive(&unknown.frontier, c, &f.keys),
         Err(Error::Missing(_))

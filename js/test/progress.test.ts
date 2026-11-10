@@ -19,7 +19,7 @@ test('three agents converge at 100 despite competing final ticks',()=>{
   assert.equal(bound.ok,true,JSON.stringify(bound));
   if(!bound.ok)throw new Error(bound.reason);
   const message=actRecord(bound.canonical,agent.signer);
-  assert.match(message.canonical,/:caused-by sha256-/);
+  assert.match(message.canonical,/:caused-by f1220/);
   return message;
  };
  deliver(actRecord('(lang count-to-one-hundred (tick @all :caused-by begin :thread "progress-demo" :from @a))','@a'));

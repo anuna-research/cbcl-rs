@@ -807,7 +807,7 @@ fn missing_dependency_cannot_hide_an_independent_resource_fault() {
     history.push(first);
     let before = state(&d, &history);
     assert_eq!(before["coins"]["reason"], "insufficient rights");
-    let later = burn("@bob", &format!("sha256-{}", "f".repeat(64)));
+    let later = burn("@bob", &format!("f1220{}", "f".repeat(64)));
     assert!(matches!(
         cbcl_parser::state_exports::admit(&d, &ThreadId("coin-1".into()), &history, &later),
         cbcl_parser::state_exports::Admission::Accepted
@@ -860,5 +860,25 @@ fn unsupported_resource_profiles_keep_projection_fault_evidence() {
             }
             other => panic!("expected equivalent faults, got {other:?}"),
         }
+    }
+}
+
+#[test]
+fn resource_frames_follow_the_reissued_multihash_corpus() {
+    for (frame, expected) in [
+        (
+            include_str!("../../../test-vectors/state/resource-check.sexp"),
+            1245,
+        ),
+        (
+            include_str!("../../../test-vectors/state/resource-check-capped.sexp"),
+            10,
+        ),
+    ] {
+        let result: serde_json::Value =
+            serde_json::from_str(&cbcl_parser::state_exports::resource_check_str(frame).unwrap())
+                .unwrap();
+        assert_eq!(result["status"], "ready", "{result}");
+        assert_eq!(result["value"], expected, "{result}");
     }
 }

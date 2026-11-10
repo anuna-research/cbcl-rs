@@ -136,6 +136,8 @@ mod freeze;
 /// Pure host-supplied hybrid logical clock evidence (SPEC-035).
 pub mod hlc;
 
+pub mod multihash;
+
 pub mod numeric;
 
 pub mod contracts;

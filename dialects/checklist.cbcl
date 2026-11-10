@@ -6,7 +6,7 @@
 ;
 ; This is the checklist the cbcl-bus object SDK authors as a JSON contract
 ; (cbcl-bus SPEC-085 CON-001), written as one dialect. The name shown is
-; illustrative; a deployed copy is named sha256-<hash of its body>, the same
+; illustrative; a deployed copy is named f1220<hash of its body>, the same
 ; spelling as every content address on the wire
 ; (SPEC-019 R.6).
 ;
@@ -76,28 +76,28 @@
 ; set is its :to roles resolved through that cast (SPEC-019 R.5 step 3).
 ;
 ; M0  teach — the author distributes the dialect, R4-signed (R.6):
-;   (meta (teach (define sha256-<body> ...)))
+;   (meta (teach (define f1220<body> ...)))
 ;
 ; M0  root: the cast           by @aria; cast: owner=@aria, member={@bo @cy}
-;   (with-roles ((owner @aria) (member @bo @cy)) :dialect sha256:<hash>
+;   (with-roles ((owner @aria) (member @bo @cy)) :dialect f1220<hash>
 ;     (signed @aria (hello :thread "list-1" :caused-by begin)))
 ;   The root is typed as `begin` (SPEC-014 REQ-623); the opener follows it.
 ;
 ; M1  root -> open             by @aria (owner)
-;   (signed @aria (lang sha256-<body> (open (@aria @bo @cy) :title "Launch tasks"
-;     :caused-by sha256-<M0> :thread "list-1" :from @aria)))
+;   (signed @aria (lang f1220<body> (open (@aria @bo @cy) :title "Launch tasks"
+;     :caused-by f1220<M0> :thread "list-1" :from @aria)))
 ;
 ; M2  open -> check            by @bo (member); no current write for "venue"
-;   (signed @bo (lang sha256-<body> (check (@aria @bo @cy) :item "venue" :done #f :clock "hlc-0000000000000000-00000000" :replaces ()
-;     :caused-by sha256-<M1> :thread "list-1" :from @bo)))
+;   (signed @bo (lang f1220<body> (check (@aria @bo @cy) :item "venue" :done #f :clock "hlc-0000000000000000-00000000" :replaces ()
+;     :caused-by f1220<M1> :thread "list-1" :from @bo)))
 ;
 ; M3  open -> check            by @bo; the binder fills :replaces (M2)
-;   (signed @bo (lang sha256-<body> (check (@aria @bo @cy) :item "venue" :done #t :clock "hlc-0000000000000000-00000000" :replaces (sha256-<M2>)
-;     :caused-by sha256-<M1> :thread "list-1" :from @bo)))
+;   (signed @bo (lang f1220<body> (check (@aria @bo @cy) :item "venue" :done #t :clock "hlc-0000000000000000-00000000" :replaces (f1220<M2>)
+;     :caused-by f1220<M1> :thread "list-1" :from @bo)))
 ;
 ; M4  open -> drop             by @aria (owner); fills :replaces (M3)
-;   (signed @aria (lang sha256-<body> (drop (@aria @bo @cy) :item "venue" :replaces (sha256-<M3>)
-;     :caused-by sha256-<M1> :thread "list-1" :from @aria)))
+;   (signed @aria (lang f1220<body> (drop (@aria @bo @cy) :item "venue" :replaces (f1220<M3>)
+;     :caused-by f1220<M1> :thread "list-1" :from @aria)))
 ;
 ; A `drop` intent from @bo is rejected by the binder before signing: drop
 ; is :from owner and the cast binds owner to @aria alone (Role(owner)).

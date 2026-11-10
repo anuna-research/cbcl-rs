@@ -16,10 +16,10 @@ import { ready, read, parseMessage, messageHash, wireAddress, dialectHash, verif
 
 await ready();
 read('(tell @bo "hi" :n 3)');            // ['tell', '@bo', {str: 'hi'}, ':n', '3']
-wireAddress('(tell @bo "hi")');          // 'sha256-…', as :caused-by and :replaces spell it
+wireAddress('(tell @bo "hi")');          // 'f1220…', as :caused-by and :replaces spell it
 verifyDialect(defineText);               // throws with cbcl-rs's blame when refused (R1–R7)
 verifyShape(defineText, 'vote', '(vote @r :choice "x")');   // {ok: true} | {ok: false, reason}
-compileContract(json);                   // {name: 'sha256-…', label, dialect}   (SPEC-087)
+compileContract(json);                   // {name: 'f1220…', label, dialect}   (SPEC-087)
 ```
 
 Also exported: `parseSexpr`, `kwargs`, `asText`, `readValue`, `sliceForm` (reading helpers over `read`), and the state-layer frames `foldState`, `intendAct`, `admitAct`, `maySend`, `frontierOf`, `stateSchema` (SPEC-019 R.7), each taking the S-expression frame and returning typed results.
@@ -43,7 +43,7 @@ const poll = await defineContract({
   },
 });
 
-poll.name;     // 'sha256-…', the dialect's self-address
+poll.name;     // 'f1220…', the dialect's self-address
 poll.dialect;  // the (define …) text to declare to a room
 const opener = poll.open({ room: '@general', thread: 'lunch-1', from: '@me', fields: { question: 'Lunch?', options: ['Sushi', 'Pizza'] } });
 

@@ -20,7 +20,7 @@ use core::fmt;
 
 /// The prefix of a self-addressed dialect name (SPEC-019 R.6): the same
 /// spelling as every content address on the wire.
-pub const SELF_ADDRESS_PREFIX: &str = "sha256-";
+pub const SELF_ADDRESS_PREFIX: &str = crate::multihash::TEXT_PREFIX;
 
 /// An R7 installation violation (SPEC-019 CON-1905).
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1143,12 +1143,9 @@ pub fn verify_state_shape(d: &Dialect, msg: &Message) -> Result<(), ShapeViolati
     Ok(())
 }
 
-/// A content address as the wire spells it: `sha256-` plus 64 lowercase hex.
+/// A content address as the wire spells it: `f1220` plus 64 lowercase hex.
 pub fn is_address(s: &str) -> bool {
-    let Some(hex) = s.strip_prefix("sha256-") else {
-        return false;
-    };
-    hex.len() == 64 && hex.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'))
+    crate::multihash::decode(s).is_some()
 }
 
 #[allow(clippy::collapsible_match)]

@@ -7,7 +7,7 @@
 //! {error, Reason :: binary()}`. Results are the shared implementation's
 //! bytes verbatim: JSON for `fold`, `state_schema`, `may_send`, `frontier`;
 //! the canonical act text for `intend`; `<<"ok">>` for `verify_state_shape`;
-//! `sha256-<hex>` for `dialect_hash`; `{"verdict":…}` JSON for `admit`. A rejected intent is `{error, JSON}`
+//! `f1220<hex>` for `dialect_hash`; `{"verdict":…}` JSON for `admit`. A rejected intent is `{error, JSON}`
 //! with `{"reject": kind, "reason": text}`, and a state-shape violation is
 //! `{error, BlameSExpr}`.
 //!
@@ -259,10 +259,7 @@ mod tests {
             "{schema}"
         );
         let name = dialect_hash_pure(LUNCH.as_bytes()).unwrap();
-        assert!(
-            name.starts_with("sha256-") && name.len() == 7 + 64,
-            "{name}"
-        );
+        assert!(name.starts_with("f1220") && name.len() == 5 + 64, "{name}");
     }
 
     #[test]
@@ -285,13 +282,13 @@ mod tests {
             may_send_pure(format!("(may-send {LUNCH} \"v1\" {acts} @bo)").as_bytes()).unwrap();
         assert_eq!(verbs, "[\"vote\"]");
         let fr = frontier_pure(format!("(frontier {LUNCH} \"v1\" {acts})").as_bytes()).unwrap();
-        assert!(fr.starts_with("{\"instance\":\"sha256-"), "{fr}");
+        assert!(fr.starts_with("{\"instance\":\"f1220"), "{fr}");
         let root = fr.split('"').nth(3).unwrap().to_string();
         let vote = format!("(lang lunch-vote (vote @lunch :choice \"Sushi\" :clock \"hlc-0000000000000000-00000000\" :replaces () :caused-by {root} :thread \"v1\" :from @bo))");
         let admitted =
             admit_pure(format!("(admit {LUNCH} \"v1\" {acts} (@bo {vote}))").as_bytes()).unwrap();
         assert_eq!(admitted, "{\"verdict\":\"accepted\"}");
-        let orphan = "(lang lunch-vote (vote @lunch :choice \"Sushi\" :clock \"hlc-0000000000000000-00000000\" :replaces () :caused-by sha256-ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff :thread \"v1\" :from @bo))";
+        let orphan = "(lang lunch-vote (vote @lunch :choice \"Sushi\" :clock \"hlc-0000000000000000-00000000\" :replaces () :caused-by f1220ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff :thread \"v1\" :from @bo))";
         let pending =
             admit_pure(format!("(admit {LUNCH} \"v1\" {acts} (@bo {orphan}))").as_bytes()).unwrap();
         assert_eq!(pending, "{\"verdict\":\"pending\"}");

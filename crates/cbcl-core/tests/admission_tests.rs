@@ -14,7 +14,7 @@ use sha2::{Digest, Sha256};
 struct TestGate;
 fn identity(m: &Message) -> ContentHash {
     let digest = Sha256::digest(canonical_encode(&SExpr::from(m.clone())));
-    ContentHash(format!("sha256:{digest:x}"))
+    ContentHash(format!("f1220{digest:x}"))
 }
 impl AdmissionGate for TestGate {
     fn authenticate(&self, m: &Message) -> Result<ContentHash, String> {
@@ -296,7 +296,7 @@ fn new_arrivals_do_not_starve_an_enabled_candidate() {
     let (d, root, trace) = fixture();
     let mut m = monitor(&d, &root, "a");
     m.drain_ready();
-    let missing = act("left", "@b", "@a @c", "missing", "sha256:missing");
+    let missing = act("left", "@b", "@a @c", "missing", "f1220missing");
     m.receive(missing).unwrap();
     m.receive(trace[0].clone()).unwrap();
     for i in 0..3 {

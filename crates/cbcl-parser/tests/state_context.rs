@@ -161,7 +161,7 @@ fn cast_validation_and_pins_are_not_bypassed_by_context_reads() {
             "@chair",
         )
     };
-    let wrong = pinned_root(&format!("sha256:{}", "0".repeat(64)));
+    let wrong = pinned_root(&format!("f1220{}", "0".repeat(64)));
     for bad in [malformed, wrong] {
         assert_eq!(read(&src, &[bad.clone()])["reviewers"]["status"], "fault");
         assert_eq!(
@@ -383,9 +383,9 @@ fn quoted_dialect_pins_cross_the_strict_wire_boundary() {
     assert_eq!(value["reviewers"], json!(["@a", "@b", "@c"]));
     assert_eq!(value["eligible"]["status"], "reached");
     for pin in [
-        format!("sha256:{}", "0".repeat(64)),
-        "sha256:abc".to_owned(),
-        format!("sha256:{}", "A".repeat(64)),
+        format!("f1220{}", "0".repeat(64)),
+        "f1220abc".to_owned(),
+        format!("f1220{}", "A".repeat(64)),
         format!("md5:{}", "a".repeat(64)),
     ] {
         assert_eq!(

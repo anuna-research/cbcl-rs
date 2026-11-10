@@ -63,15 +63,15 @@ use core::fmt;
 // Shared: content hashing and choice-point extraction
 // ---------------------------------------------------------------------------
 
-/// Canonical content hash of a message: `sha256:<lowercase-hex64>`, the
+/// Canonical content hash of a message: `f1220<lowercase-hex64>`, the
 /// single content-address hub for every content-addressed message (attestation
 /// headers, envelope redaction, equivocation, `:caused-by` references, and the
 /// wasm binding's message hashing, SPEC-003 REQ-314).
 ///
 /// SPEC-017 Stage 1 (hub flip): this is the canonical **typed Merkle root**
 /// over the message's fields ([`crate::typed_addr::typed_root`]), not the older
-/// flat `sha256:H(canonical-bytes)`. The return shape is unchanged
-/// (`sha256:<hex64>`, a drop-in content address) and the root is deterministic
+/// flat `f1220H(canonical-bytes)`. The return shape is unchanged
+/// (`f1220<hex64>`, a drop-in content address) and the root is deterministic
 /// and injective under SHA-256 collision resistance exactly as the flat hash
 /// was, so every property that held of the flat hash (determinism,
 /// content-sensitivity, opaque injectivity — the Lean `contentHash_injective`
@@ -321,7 +321,7 @@ pub struct EquivocationProof {
     pub key: KeyId,
     /// The thread both members must carry.
     pub thread: String,
-    /// Content hash of the governing dialect (`sha256:<hex64>`).
+    /// Content hash of the governing dialect (`f1220<hex64>`).
     pub dialect_hash: String,
     /// The offending pair.
     pub first: ProofMember,
@@ -1164,7 +1164,7 @@ mod tests {
             msg("refuse", "@alice", "t1", "b"),
         );
         proof.dialect_hash =
-            "sha256:0000000000000000000000000000000000000000000000000000000000000000".to_string();
+            "f12200000000000000000000000000000000000000000000000000000000000000000".to_string();
         assert!(matches!(
             verify_equivocation_proof(&proof, &d, &ALICE_SIGNER),
             Err(EquivocationProofError::DialectHashMismatch { .. })
@@ -1586,6 +1586,6 @@ mod tests {
         let h1 = message_content_hash(&m1);
         assert_eq!(h1, message_content_hash(&m1), "deterministic");
         assert_ne!(h1, message_content_hash(&m2), "content-sensitive");
-        assert!(h1.starts_with("sha256:") && h1.len() == 7 + 64);
+        assert!(h1.starts_with("f1220") && h1.len() == 5 + 64);
     }
 }

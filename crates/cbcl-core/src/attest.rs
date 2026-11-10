@@ -86,7 +86,7 @@ pub const ATTEST_V3_DOMAIN_TAG: &str = "cbcl-attest-v3";
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct AttestationHeader {
-    /// Content hash of the message being vouched for (`sha256:<hex64>`).
+    /// Content hash of the message being vouched for (`f1220<hex64>`).
     pub content_hash: String,
     /// Performative name.
     pub performative: String,
@@ -154,7 +154,7 @@ pub fn attestation_preimage(h: &AttestationHeader) -> Vec<u8> {
 /// The suite is named explicitly (REQ-708): a v3 signature can never be
 /// re-interpreted under a different suite, and the two paths (sign, verify)
 /// reconstruct identical bytes from `(suite, root)` alone. `root` is the
-/// `sha256:<hex64>` rendering of the typed root, carried verbatim as a
+/// `f1220<hex64>` rendering of the typed root, carried verbatim as a
 /// symbol atom — the same spelling `typed_addr::typed_root` produces.
 pub fn attestation_v3_sexpr(suite: &SignatureSuite, root: &str) -> SExpr {
     use alloc::vec;
@@ -308,7 +308,7 @@ pub fn verify_attestation_v2(
 /// Sign the v3 typed-root attestation (SPEC-017 REQ-812).
 ///
 /// `signer` embodies the private key whose suite is `suite`; `root` is the
-/// typed content-address root (`sha256:<hex64>`). The signature covers the
+/// typed content-address root (`f1220<hex64>`). The signature covers the
 /// domain-tagged, suite-named commitment `(cbcl-attest-v3 <suite> <root>)`
 /// and nothing else — because the root already commits every field, this one
 /// signature authenticates the whole message (header fields recoverable as
@@ -459,14 +459,14 @@ mod tests {
         to.insert(key("@carol"));
         AttestationHeader {
             content_hash: String::from(
-                "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "f1220aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
             ),
             performative: String::from("reveal-bid"),
             from: key("@alice"),
             to,
             thread: String::from("conv-7"),
             caused_by: Some(CausedBy::Single(String::from(
-                "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                "f1220bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
             ))),
         }
     }
@@ -509,8 +509,8 @@ mod tests {
         begin.caused_by = Some(CausedBy::Begin);
         let mut multi = header();
         multi.caused_by = Some(CausedBy::Multiple(alloc::vec![
-            "sha256:b".to_string(),
-            "sha256:c".to_string(),
+            "f1220b".to_string(),
+            "f1220c".to_string(),
         ]));
         let mut none = header();
         none.caused_by = None;
@@ -566,7 +566,7 @@ mod tests {
         let sig = sign_attestation_v2(&ALICE, &h).unwrap();
         let mut tampered = h.clone();
         tampered.content_hash =
-            String::from("sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc");
+            String::from("f1220cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc");
         assert_eq!(
             verify_attestation_v2(&ALICE, &key("@alice"), &tampered, &sig),
             Err(AttestError::InvalidSignature)
@@ -592,7 +592,7 @@ mod tests {
 
         let mut caused = h.clone();
         caused.caused_by = Some(CausedBy::Single(String::from(
-            "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "f1220dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
         )));
 
         let mut caused_dropped = h.clone();
@@ -754,7 +754,7 @@ mod tests {
 
     // ---- SPEC-017 REQ-812 Stage 2: v3 sign-the-root discipline ----
 
-    const ROOT: &str = "sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
+    const ROOT: &str = "f12201234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
 
     #[test]
     fn v3_preimage_is_domain_tagged_and_names_the_suite() {
@@ -781,7 +781,7 @@ mod tests {
     #[test]
     fn v3_tampered_root_fails() {
         let sig = sign_attestation_v3(&SignatureSuite::Ed25519, ROOT, &ALICE).unwrap();
-        let other = "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
+        let other = "f1220ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
         assert_eq!(
             verify_attestation_v3(&SignatureSuite::Ed25519, other, &sig, &ALICE),
             Err(AttestError::InvalidSignature)

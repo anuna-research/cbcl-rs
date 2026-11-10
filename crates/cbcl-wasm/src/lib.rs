@@ -99,7 +99,7 @@ pub fn parse_message_bytes(input: &[u8]) -> Result<Vec<u8>, Vec<u8>> {
         .map_err(|e| e.into_bytes())
 }
 
-/// Compute a message's canonical content hash (`sha256:<hex>`).
+/// Compute a message's canonical content hash (`f1220<hex>`).
 ///
 /// Input: UTF-8 bytes of a message S-expression; wrapped (`lang`, `envelope`,
 /// `signed`, `with-limits`) messages are addressed by their innermost simple
@@ -123,7 +123,7 @@ pub fn message_hash_bytes(input: &[u8]) -> Result<Vec<u8>, Vec<u8>> {
 /// Returns "ok" only if *every* dialect in the chain installs cleanly; any
 /// failure (R1–R5 violation, parse error, or `:hash` mismatch on any link)
 /// short-circuits with an error. If a dialect in the chain declares a
-/// `(:hash "sha256:...")` field, the wrapper recomputes the canonical hash
+/// `(:hash "f1220...")` field, the wrapper recomputes the canonical hash
 /// and rejects on mismatch — so a frame cannot install a dialect with a
 /// fabricated hash that downstream callers might later treat as
 /// authoritative.
@@ -175,10 +175,10 @@ pub fn verify_message_shape_bytes(input: &[u8]) -> Result<Vec<u8>, Vec<u8>> {
 /// undefined predecessor performative — fails fast instead of being driven
 /// to "ok" by a matching history entry.
 /// The optional `history` block populates a per-call `ThreadedMessageStore` so
-/// hash-linked predecessors (`:caused-by sha256:...`) resolve under the supplied
+/// hash-linked predecessors (`:caused-by f1220...`) resolve under the supplied
 /// `<thread-id>`; without it only `:caused-by begin` and protocol-unconstrained
 /// messages can succeed. Each `<hash>` in `history` must equal the canonical
-/// content hash (`sha256:<hex>`) of its paired predecessor message — caller-
+/// content hash (`f1220<hex>`) of its paired predecessor message — caller-
 /// supplied hashes that don't match are rejected, so a fabricated `:caused-by`
 /// cannot be satisfied by an unrelated history entry.
 ///
@@ -267,15 +267,15 @@ fn parse_and_install_dialect(dialect_sexpr: &SExpr) -> Result<DialectRegistry, S
 }
 
 /// Compute the canonical content hash of a message in the form
-/// `sha256:<lowercase-hex>`, matching the format the rest of the codebase
+/// `f1220<lowercase-hex>`, matching the format the rest of the codebase
 /// uses for `:caused-by` references and dialect `:hash` fields.
 ///
 /// SPEC-017 Stage 1 (hub flip): delegates to the shared content-address hub,
 /// the typed Merkle root over the message's fields
 /// (`cbcl_core::typed_addr::typed_root`), so the wasm binding and the core
 /// (`equivocation::message_content_hash`) can never disagree on a message's
-/// address. Return shape unchanged (`sha256:<hex64>`); only the digest value
-/// differs from the older flat `sha256:H(canonical-bytes)`.
+/// address. Return shape unchanged (`f1220<hex64>`); only the digest value
+/// differs from the older flat `f1220H(canonical-bytes)`.
 fn compute_canonical_message_hash(msg: &cbcl_core::message::Message) -> String {
     cbcl_core::typed_addr::typed_root(msg)
 }
@@ -381,7 +381,7 @@ pub fn frontier_bytes(input: &[u8]) -> Result<Vec<u8>, Vec<u8>> {
         .map(|s| s.into_bytes())
         .map_err(|e| e.into_bytes())
 }
-/// A `(define …)` → its self-addressed name `sha256-<hex>`.
+/// A `(define …)` → its self-addressed name `f1220<hex>`.
 pub fn dialect_hash_bytes(input: &[u8]) -> Result<Vec<u8>, Vec<u8>> {
     let s = core::str::from_utf8(input).map_err(|e| format!("invalid UTF-8: {e}").into_bytes())?;
     state_layer::dialect_hash_str(s)
@@ -414,7 +414,7 @@ fn verify_message_shape_str(input: &str) -> Result<String, String> {
 /// `ThreadedMessageStore`'s thread isolation (ADR-008).
 ///
 /// The caller-supplied `<hash>` for each entry must equal the canonical
-/// content hash of the inner Simple (`sha256:<lowercase-hex>`). Without this
+/// content hash of the inner Simple (`f1220<lowercase-hex>`). Without this
 /// binding, a frame could pair a fabricated `:caused-by "X"` with a
 /// `(history ("X" <unrelated-msg>))` and have `verify_causal` return Valid
 /// against arbitrary content — defeating the content-addressed causal
@@ -670,7 +670,7 @@ mod wasm_bindgen_api {
         parse_message_str(input)
     }
 
-    /// Canonical content hash (`sha256:<hex>`) of a message's innermost simple
+    /// Canonical content hash (`f1220<hex>`) of a message's innermost simple
     /// message: the address `verify_protocol` history entries must carry.
     #[wasm_bindgen]
     pub fn message_hash(input: &str) -> Result<String, String> {
@@ -723,7 +723,7 @@ mod wasm_bindgen_api {
     pub fn frontier(input: &str) -> Result<String, String> {
         state_layer::frontier_str(input)
     }
-    /// SPEC-019 R.6: a `(define …)` → its self-addressed name `sha256-<hex>`.
+    /// SPEC-019 R.6: a `(define …)` → its self-addressed name `f1220<hex>`.
     #[wasm_bindgen]
     pub fn dialect_hash(input: &str) -> Result<String, String> {
         state_layer::dialect_hash_str(input)
@@ -929,7 +929,7 @@ mod c_abi {
     /// Canonical content hash of a message's innermost simple message.
     ///
     /// Input: UTF-8 bytes of a message S-expression.
-    /// Returns 0 on success (`sha256:<hex>` in result buf), 1 on error.
+    /// Returns 0 on success (`f1220<hex>` in result buf), 1 on error.
     #[no_mangle]
     pub unsafe extern "C" fn cbcl_message_hash(ptr: *const u8, len: usize) -> i32 {
         let input = core::slice::from_raw_parts(ptr, len);
@@ -1135,7 +1135,7 @@ mod tests {
         // shape/protocol endpoints — a fabricated `:hash` would otherwise
         // install fine and propagate downstream.
         let dialect = "(define h-d (cbcl) @author \
-            (:hash \"sha256:0000000000000000000000000000000000000000000000000000000000000000\") \
+            (:hash \"f12200000000000000000000000000000000000000000000000000000000000000000\") \
             (extend greet (name) (effect greet-action)))";
         let result = verify_dialect_str(dialect);
         assert!(result.is_err());
@@ -1286,7 +1286,7 @@ mod tests {
         // any verification result is produced, otherwise REQ-233 blame would
         // attribute verdicts to a hash the dialect never actually had.
         let dialect = "(define h-d (cbcl) @author \
-            (:hash \"sha256:0000000000000000000000000000000000000000000000000000000000000000\") \
+            (:hash \"f12200000000000000000000000000000000000000000000000000000000000000000\") \
             (extend greet (name) (effect greet-action)))";
         let frame = format!("(verify-shape {dialect} greet (greet-action :name \"a\"))");
         let result = verify_message_shape_str(&frame);
@@ -1302,7 +1302,7 @@ mod tests {
     fn parse_and_install_dialect_accepts_matching_claimed_hash() {
         // Compute the canonical hash of a dialect, embed it as :hash, and
         // confirm the wrapper accepts it. Sanity-checks that the helper agrees
-        // with `dialect_canonical_bytes` + SHA-256 + `sha256:<hex>` formatting.
+        // with `dialect_canonical_bytes` + SHA-256 + `f1220<hex>` formatting.
         let dialect_no_hash = "(define h-d (cbcl) @author \
             (extend greet (name) (effect greet-action)))";
         let parsed = cbcl_parser::parse_dialect(&parser::parse(dialect_no_hash).unwrap()).unwrap();
@@ -1490,10 +1490,10 @@ mod tests {
 
     #[test]
     fn verify_protocol_unknown_when_predecessor_not_in_store() {
-        // Hash provided as a string literal so the parser keeps `sha256:...`
+        // Hash provided as a string literal so the parser keeps `f1220...`
         // as a single atom rather than tokenising on `:`.
         let frame = format!(
-            "(verify-protocol {PROTOCOL_DIALECT} \"t1\" (lang greet-d (greet :caused-by \"sha256:nonexistent\")))"
+            "(verify-protocol {PROTOCOL_DIALECT} \"t1\" (lang greet-d (greet :caused-by \"f1220nonexistent\")))"
         );
         let result = verify_protocol_str(&frame);
         assert!(result.is_err());
@@ -1545,7 +1545,7 @@ mod tests {
         (protocol (then begin query) (then query respond)))";
 
     /// Test helper: parse a predecessor message S-expression and return its
-    /// canonical content hash in `sha256:<hex>` form, matching what
+    /// canonical content hash in `f1220<hex>` form, matching what
     /// `load_history_into_store` recomputes and binds against the
     /// caller-supplied hash.
     fn predecessor_hash(msg_str: &str) -> String {
@@ -1559,7 +1559,7 @@ mod tests {
         let pred = "(lang convo-d (query :q \"hi\" :caused-by begin))";
         let h = message_hash_str(pred).unwrap();
         assert_eq!(h, predecessor_hash(pred));
-        assert!(h.starts_with("sha256:") && h.len() == "sha256:".len() + 64);
+        assert!(h.starts_with("f1220") && h.len() == "f1220".len() + 64);
         // The exported hash is exactly what verify_protocol binds history to.
         let frame = format!(
             "(verify-protocol {QUERY_DIALECT} \"t1\" \
@@ -1635,7 +1635,7 @@ mod tests {
         // `:caused-by "fake"` paired with `(history ("fake" <msg>))` cannot
         // satisfy verify_causal.
         let frame = format!(
-            "(verify-protocol {QUERY_DIALECT} \"t1\" (lang convo-d (respond :a \"ok\" :caused-by \"sha256:deadbeef\")) (history (\"sha256:deadbeef\" (lang convo-d (query :q \"hi\" :caused-by begin)))))"
+            "(verify-protocol {QUERY_DIALECT} \"t1\" (lang convo-d (respond :a \"ok\" :caused-by \"f1220deadbeef\")) (history (\"f1220deadbeef\" (lang convo-d (query :q \"hi\" :caused-by begin)))))"
         );
         let result = verify_protocol_str(&frame);
         assert!(result.is_err());

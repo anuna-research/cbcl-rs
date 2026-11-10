@@ -2,35 +2,35 @@ import LeanCbcl.StateContextCastSyntax
 
 /-! Recognition of with-roles parameters before context casting:
 params := bindings | bindings :dialect pin;
-pin := string(sha256: [0-9a-f]{64}), or the same typed symbol for in-process
+pin := string(f1220 [0-9a-f]{64}), or the same typed symbol for in-process
 compatibility. This does not recognize whole messages or authenticate wrappers. -/
 set_option autoImplicit false
 namespace CBCL.StateContextWrapperSyntax
 open CheckpointEvidence StateInstalledContext StateContextCastSyntax
 
 /-- The literal digest algorithm prefix accepted by native role parsing. -/
-def pinPrefix : List Char := "sha256:".toList
+def pinPrefix : List Char := "f1220".toList
 
 /-- Exact lowercase ASCII hex; Unicode digits and uppercase letters reject. -/
 def hex (c : Char) : Bool := decide ('0' ≤ c ∧ c ≤ '9' ∨ 'a' ≤ c ∧ c ≤ 'f')
 
 /-- Recognize the exact algorithm, digest length and alphabet. -/
 def pinCheck (text : String) : Bool :=
-  decide (text.toList.take 7 = pinPrefix) && decide ((text.toList.drop 7).length = 64) && (text.toList.drop 7).all hex
+  decide (text.toList.take 5 = pinPrefix) && decide ((text.toList.drop 5).length = 64) && (text.toList.drop 5).all hex
 
 /-- Declarative grammar for the native digest spelling. -/
-def Pin (text : String) : Prop := text.toList.take 7 = pinPrefix ∧
-  (text.toList.drop 7).length = 64 ∧ ∀ c ∈ text.toList.drop 7, hex c = true
+def Pin (text : String) : Prop := text.toList.take 5 = pinPrefix ∧
+  (text.toList.drop 5).length = 64 ∧ ∀ c ∈ text.toList.drop 5, hex c = true
 
 /-- The executable recognizer accepts exactly the specified digest grammar. -/
 theorem pinCheck_iff (text : String) : pinCheck text = true ↔ Pin text := by
   simp [pinCheck,Pin,List.all_eq_true,and_assoc]
 
 /-- Accepted digests have exactly the prefix and 64 ASCII-hex positions. -/
-theorem pin_length (text : String) (valid : Pin text) : text.toList.length = 71 := by
-  have prefixLength : (text.toList.take 7).length = 7 := by rw [valid.1]; decide
+theorem pin_length (text : String) (valid : Pin text) : text.toList.length = 69 := by
+  have prefixLength : (text.toList.take 5).length = 5 := by rw [valid.1]; decide
   have suffixLength := valid.2.1
-  have total := congrArg List.length (List.take_append_drop 7 text.toList)
+  have total := congrArg List.length (List.take_append_drop 5 text.toList)
   simp only [List.length_append] at total
   omega
 

@@ -1286,12 +1286,12 @@ mod tests {
             sym("reply"),
             str_expr("done"),
             kw("caused-by"),
-            sym("sha256:abc123"),
+            sym("f1220abc123"),
         ]);
         let msg = Message::try_from(&sexpr).unwrap();
         assert_eq!(
             msg.caused_by(),
-            Some(&CausedBy::Single(String::from("sha256:abc123")))
+            Some(&CausedBy::Single(String::from("f1220abc123")))
         );
     }
 
@@ -1301,12 +1301,12 @@ mod tests {
             sym("reply"),
             str_expr("done"),
             kw("caused-by"),
-            str_expr("sha256:abc123"),
+            str_expr("f1220abc123"),
         ]);
         let msg = Message::try_from(&sexpr).unwrap();
         assert_eq!(
             msg.caused_by(),
-            Some(&CausedBy::Single(String::from("sha256:abc123")))
+            Some(&CausedBy::Single(String::from("f1220abc123")))
         );
     }
 
@@ -1316,15 +1316,15 @@ mod tests {
             sym("ok"),
             str_expr("ack"),
             kw("caused-by"),
-            list(vec![sym("sha256:bbb"), sym("sha256:aaa")]),
+            list(vec![sym("f1220bbb"), sym("f1220aaa")]),
         ]);
         let msg = Message::try_from(&sexpr).unwrap();
         // Multiple hashes are sorted lexicographically
         assert_eq!(
             msg.caused_by(),
             Some(&CausedBy::Multiple(vec![
-                String::from("sha256:aaa"),
-                String::from("sha256:bbb"),
+                String::from("f1220aaa"),
+                String::from("f1220bbb"),
             ]))
         );
     }
@@ -1405,7 +1405,7 @@ mod tests {
             sym("reply"),
             str_expr("done"),
             kw("caused-by"),
-            sym("sha256:abc"),
+            sym("f1220abc"),
         ]);
         let msg = Message::try_from(&original).unwrap();
         let back = SExpr::from(msg);
@@ -1457,14 +1457,14 @@ mod tests {
             kw("sender"),
             sym("@alice"),
             kw("caused-by"),
-            sym("sha256:xyz"),
+            sym("f1220xyz"),
         ]);
         let msg = Message::try_from(&sexpr).unwrap();
         assert_eq!(msg.thread(), Some("conv-1"));
         assert_eq!(msg.sender(), Some("@alice"));
         assert_eq!(
             msg.caused_by(),
-            Some(&CausedBy::Single(String::from("sha256:xyz")))
+            Some(&CausedBy::Single(String::from("f1220xyz")))
         );
     }
 
@@ -1652,10 +1652,10 @@ mod tests {
 
     #[test]
     fn with_roles_dialect_pin_parses_into_cast() {
-        // SPEC-014 REQ-628: the optional `:dialect sha256:<hex64>` field
+        // SPEC-014 REQ-628: the optional `:dialect f1220<hex64>` field
         // travels in the wrapper params and lands on `Cast::dialect_pin`.
         use crate::role::{parse_roles, parse_wrapper_cast};
-        let pin = alloc::format!("sha256:{}", "a".repeat(64));
+        let pin = alloc::format!("f1220{}", "a".repeat(64));
         let sexpr: SExpr = alloc::format!(
             "(with-roles ((auctioneer @auc) (bidder @b1 @b2)) :dialect {pin} (signed @auc \"sig\" (hello :caused-by begin)))"
         )

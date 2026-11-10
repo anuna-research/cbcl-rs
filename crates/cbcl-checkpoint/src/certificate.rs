@@ -345,18 +345,12 @@ pub fn unhex(s: &str) -> Result<Vec<u8>> {
         .collect()
 }
 pub fn native_id(s: &str) -> Result<()> {
-    if s.strip_prefix("sha256:").is_some_and(|s| {
-        s.len() == 64
-            && s.bytes()
-                .all(|c| c.is_ascii_digit() || (b'a'..=b'f').contains(&c))
-    }) {
-        Ok(())
-    } else {
-        Err(Error::Invalid("native id"))
-    }
+    cbcl_core::multihash::decode(s)
+        .map(|_| ())
+        .ok_or(Error::Invalid("native id"))
 }
 pub fn native(s: &str) -> String {
-    s.replacen("sha256-", "sha256:", 1)
+    s.into()
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

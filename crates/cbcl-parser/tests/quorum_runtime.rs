@@ -670,7 +670,7 @@ fn corrupted_recovery_and_duplicate_wire_fields_reject() {
     n.j.logs
         .get_mut(&key)
         .unwrap()
-        .push(Event::Effect("sha256-missing".into()));
+        .push(Event::Effect("f1220missing".into()));
     assert!(Replica::recover(n.ctx.clone(), "@v0", Limits::default(), &n.j, &n.auth).is_err());
     n.j.logs.insert(key.clone(), original);
     for event in n.j.logs.get_mut(&key).unwrap().iter_mut() {

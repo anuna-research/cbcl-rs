@@ -375,6 +375,20 @@ Apache-2.0; see LICENSE.
 }
 ```
 
+Content addresses use SHA2-256 multihashes in canonical multibase base16:
+`f1220` followed by 64 lowercase hex digits (`f` = base16, `12` = SHA2-256,
+`20` = 32 digest bytes). Message roots, dialect hashes, self-addressed names,
+state references and checkpoint IDs use the same symbol-safe representation.
+The codec rejects unsupported algorithms, wrong lengths and noncanonical case.
+
+This replaces `sha256:<hex>` and `sha256-<hex>` and is a wire-format break.
+Reissue histories and signatures: address bytes occur inside subsequent acts,
+so replacing a prefix alone does not produce valid descendants. Address-based
+LWW tie breakers can also change winners after rehashing. The frozen historical
+corpus is retained; `test-vectors/state-multihash-migration.json` records the
+explicit old/new address map and new canonical state bytes for all eight traces.
+The multihash golden vector follows the [multiformats specification](https://github.com/multiformats/multihash).
+
 Causal protocols accept chains: `(protocol (then begin one two three))`
 is equivalent to `(protocol (then begin one) (then one two) (then two three))`.
 Each adjacent pair forms a causal edge; use separate `then` clauses for branches.

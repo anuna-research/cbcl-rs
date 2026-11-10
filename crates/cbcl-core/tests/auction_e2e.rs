@@ -105,9 +105,9 @@ fn tid() -> ThreadId {
 fn trace() -> Vec<(&'static str, Message)> {
     vec![
         ("h0", msg("(with-roles ((auctioneer @auc) (bidder @b1 @b2 @b3)) (signed @auc \"sig\" (hello :thread \"conv-7\" :caused-by begin)))")),
-        ("h1", msg("(signed @b1 \"sig\" (lang auction (commit @auc \"sha256:9f\" :caused-by h0)))")),
-        ("h2", msg("(signed @b2 \"sig\" (lang auction (commit @auc \"sha256:3a\" :caused-by h0)))")),
-        ("h3", msg("(signed @b3 \"sig\" (lang auction (commit @auc \"sha256:c7\" :caused-by h0)))")),
+        ("h1", msg("(signed @b1 \"sig\" (lang auction (commit @auc \"f12209f\" :caused-by h0)))")),
+        ("h2", msg("(signed @b2 \"sig\" (lang auction (commit @auc \"f12203a\" :caused-by h0)))")),
+        ("h3", msg("(signed @b3 \"sig\" (lang auction (commit @auc \"f1220c7\" :caused-by h0)))")),
         ("h4", msg("(signed @b1 \"sig\" (lang auction (reveal @auc 42 :caused-by h1)))")),
         ("h5", msg("(signed @b2 \"sig\" (lang auction (reveal @auc 17 :caused-by h2)))")),
         ("h6", msg("(signed @b3 \"sig\" (lang auction (reveal @auc 55 :caused-by h3)))")),

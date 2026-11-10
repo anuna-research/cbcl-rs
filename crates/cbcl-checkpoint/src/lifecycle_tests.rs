@@ -60,7 +60,7 @@ fn native_certificate_roundtrip_threshold_scope_and_no_companion_history() {
                         ))
                     {
                         pair[1] = cbcl_core::sexpr::SExpr::Atom(cbcl_core::sexpr::Atom::Str(
-                            format!("sha256:{}", "0".repeat(64)),
+                            format!("f1220{}", "0".repeat(64)),
                         ));
                     }
                 }
@@ -846,7 +846,7 @@ fn caller_target_coverage_is_proved_explicitly_and_never_promoted_from_hints() {
     )
     .unwrap();
     assert!(prepared.requested_target().is_none());
-    let unknown = format!("sha256:{}", "0".repeat(64));
+    let unknown = format!("f1220{}", "0".repeat(64));
     let absent = members[0].coverage().proof(&unknown);
     assert!(prepared
         .verify_requested_target(std::slice::from_ref(&unknown), &[(unknown.clone(), absent)])

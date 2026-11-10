@@ -210,7 +210,7 @@ pub struct Dialect {
     pub resources: ResourceBounds,
     pub examples: Vec<SExpr>,
     pub signature: Option<Vec<u8>>,
-    /// Canonical content hash, `sha256:<lowercase-hex64>` over
+    /// Canonical content hash, `f1220<lowercase-hex64>` over
     /// [`crate::canonical::dialect_canonical_bytes`] (SPEC-014 REQ-628).
     ///
     /// Invariant: every dialect installed into a [`DialectRegistry`] has
@@ -1459,7 +1459,7 @@ mod tests {
         let installed = reg.find_by_name("hashed").unwrap();
         let h = installed.hash.as_deref().expect("install must set hash");
         assert_eq!(h, expected);
-        let hex = h.strip_prefix("sha256:").expect("sha256: prefix");
+        let hex = h.strip_prefix("f1220").expect("f1220 prefix");
         assert_eq!(hex.len(), 64);
         assert!(hex
             .chars()
@@ -1498,12 +1498,12 @@ mod tests {
         // A declared :hash claim is kept verbatim so wrappers can compare it
         // against the computed value and reject mismatches.
         let mut d = hashless_dialect("claimed");
-        d.hash = Some(String::from("sha256:abcd1234"));
+        d.hash = Some(String::from("f1220abcd1234"));
         let mut reg = DialectRegistry::new();
         reg.install(d).unwrap();
         assert_eq!(
             reg.find_by_name("claimed").unwrap().hash.as_deref(),
-            Some("sha256:abcd1234")
+            Some("f1220abcd1234")
         );
     }
 

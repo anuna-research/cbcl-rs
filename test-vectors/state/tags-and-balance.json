@@ -12,27 +12,27 @@
   ],
   "expect": {
     "addresses": [
-      "sha256-0a00637fda555fccf70a8c0978eac294050de34397c8a89d029002d621f7f155",
-      "sha256-2a92b081f026a1e7ecb4a197597412b45d92ebef1954f61a68b314c7d21c0378",
-      "sha256-72dc4a4e3d2852e80849ce054d54b223a5ed06b9c87fe195bdcfc9ca40c4e3b0",
-      "sha256-e7f85057b8e8550e0d163161ec8b686faffc6254166353aa7937e0f1fac1d94e",
-      "sha256-64c3ae87875b26850ca6b0ffdadde6d92adad2ba440574c2ebe852b1f9a9a79d",
-      "sha256-3b4012f37c7f14195ea73d0f02e20f00c5bfb3b2de0af5d9a795982a08a71627",
-      "sha256-3f5190e71f5834cb97a91c632323a4ceeaae1b583da5fcb8109e27620e78c064",
-      "sha256-fa419c1e639b3dd0769af603c1f84b22e41307ba4cd813a82103cf5be9637033",
-      "sha256-d4bb52156b8c7f53bcd72f9de67eb96f720f01ff48ce7cc57f486c7f0d79343e",
-      "sha256-3f5190e71f5834cb97a91c632323a4ceeaae1b583da5fcb8109e27620e78c064"
+      "f12200a00637fda555fccf70a8c0978eac294050de34397c8a89d029002d621f7f155",
+      "f122078b3f701c99f8ae5cf163088c4f69195298024c01a9796e2926c4cc0789ddcbe",
+      "f12206d962104cde1bddc164c92514834ea7d12822c1aab91c1cf3999efd0913de358",
+      "f12204efd494cc8331fb97355de1f05d181538386bcd5217078781fa53f3705b0ab7e",
+      "f1220be9c03c587de46191aa197b6ea9789ab14303550901ec62839a66e3d9bc157c4",
+      "f12206384310551b8fcb9197cf3e3dbbc9da1ebd0920d605ae00abe192567f1131dec",
+      "f1220077c860c1f0ec9bfe7f4df2431b7fd8beb3b33249b182f56be070269c686115f",
+      "f1220b57382c510a7e92c9634d774a8c8070a9ba4160a5b73f4d2d39457595eaeefbc",
+      "f1220f0005cc5f942c63f1f75ba2476f78c4b2502ff89e04f8b25f1b0a7530258516f",
+      "f1220077c860c1f0ec9bfe7f4df2431b7fd8beb3b33249b182f56be070269c686115f"
     ],
     "verdicts": {
-      "sha256-0a00637fda555fccf70a8c0978eac294050de34397c8a89d029002d621f7f155": "accepted",
-      "sha256-2a92b081f026a1e7ecb4a197597412b45d92ebef1954f61a68b314c7d21c0378": "accepted",
-      "sha256-72dc4a4e3d2852e80849ce054d54b223a5ed06b9c87fe195bdcfc9ca40c4e3b0": "accepted",
-      "sha256-e7f85057b8e8550e0d163161ec8b686faffc6254166353aa7937e0f1fac1d94e": "accepted",
-      "sha256-64c3ae87875b26850ca6b0ffdadde6d92adad2ba440574c2ebe852b1f9a9a79d": "accepted",
-      "sha256-3b4012f37c7f14195ea73d0f02e20f00c5bfb3b2de0af5d9a795982a08a71627": "accepted",
-      "sha256-3f5190e71f5834cb97a91c632323a4ceeaae1b583da5fcb8109e27620e78c064": "accepted",
-      "sha256-fa419c1e639b3dd0769af603c1f84b22e41307ba4cd813a82103cf5be9637033": "accepted",
-      "sha256-d4bb52156b8c7f53bcd72f9de67eb96f720f01ff48ce7cc57f486c7f0d79343e": "accepted"
+      "f12200a00637fda555fccf70a8c0978eac294050de34397c8a89d029002d621f7f155": "accepted",
+      "f122078b3f701c99f8ae5cf163088c4f69195298024c01a9796e2926c4cc0789ddcbe": "accepted",
+      "f12206d962104cde1bddc164c92514834ea7d12822c1aab91c1cf3999efd0913de358": "accepted",
+      "f12204efd494cc8331fb97355de1f05d181538386bcd5217078781fa53f3705b0ab7e": "accepted",
+      "f1220be9c03c587de46191aa197b6ea9789ab14303550901ec62839a66e3d9bc157c4": "accepted",
+      "f12206384310551b8fcb9197cf3e3dbbc9da1ebd0920d605ae00abe192567f1131dec": "accepted",
+      "f1220077c860c1f0ec9bfe7f4df2431b7fd8beb3b33249b182f56be070269c686115f": "accepted",
+      "f1220b57382c510a7e92c9634d774a8c8070a9ba4160a5b73f4d2d39457595eaeefbc": "accepted",
+      "f1220f0005cc5f942c63f1f75ba2476f78c4b2502ff89e04f8b25f1b0a7530258516f": "accepted"
     },
     "state": {
       "title": "Board",
@@ -40,11 +40,11 @@
         "urgent"
       ],
       "credits": {
-        "sha256-3f5190e71f5834cb97a91c632323a4ceeaae1b583da5fcb8109e27620e78c064": {
+        "f1220077c860c1f0ec9bfe7f4df2431b7fd8beb3b33249b182f56be070269c686115f": {
           "by": "@a",
           "value": 100
         },
-        "sha256-fa419c1e639b3dd0769af603c1f84b22e41307ba4cd813a82103cf5be9637033": {
+        "f1220b57382c510a7e92c9634d774a8c8070a9ba4160a5b73f4d2d39457595eaeefbc": {
           "by": "@b",
           "value": 250
         }
@@ -55,13 +55,13 @@
     },
     "intents": [
       {
-        "canonical": "(lang tags (remove @room () :tag \"urgent\" :replaces (sha256-72dc4a4e3d2852e80849ce054d54b223a5ed06b9c87fe195bdcfc9ca40c4e3b0) :from @d :thread \"b1\" :caused-by sha256-0a00637fda555fccf70a8c0978eac294050de34397c8a89d029002d621f7f155))"
+        "canonical": "(lang tags (remove @room () :tag \"urgent\" :replaces (f12206d962104cde1bddc164c92514834ea7d12822c1aab91c1cf3999efd0913de358) :from @d :thread \"b1\" :caused-by f12200a00637fda555fccf70a8c0978eac294050de34397c8a89d029002d621f7f155))"
       },
       {
         "reject": "nothing-to-delete"
       },
       {
-        "canonical": "(lang tags (credit @room () :amount 5 :op \"c3\" :from @d :thread \"b1\" :caused-by sha256-0a00637fda555fccf70a8c0978eac294050de34397c8a89d029002d621f7f155))"
+        "canonical": "(lang tags (credit @room () :amount 5 :op \"c3\" :from @d :thread \"b1\" :caused-by f12200a00637fda555fccf70a8c0978eac294050de34397c8a89d029002d621f7f155))"
       }
     ]
   },
@@ -92,43 +92,43 @@
   ],
   "messages": [
     {
-      "canonical": "(lang tags (open @room :title \"Board\" :caused-by begin :thread \"b1\" :from @a))",
+      "canonical": "(lang tags (open @room () :title \"Board\" :from @a :thread \"b1\" :caused-by begin))",
       "signer": "@a"
     },
     {
-      "canonical": "(lang tags (add @room :tag \"urgent\" :op \"1\" :caused-by sha256-0a00637fda555fccf70a8c0978eac294050de34397c8a89d029002d621f7f155 :thread \"b1\" :from @b))",
+      "canonical": "(lang tags (add @room () :tag \"urgent\" :op \"1\" :from @b :thread \"b1\" :caused-by f12200a00637fda555fccf70a8c0978eac294050de34397c8a89d029002d621f7f155))",
       "signer": "@b"
     },
     {
-      "canonical": "(lang tags (add @room :tag \"urgent\" :op \"2\" :caused-by sha256-0a00637fda555fccf70a8c0978eac294050de34397c8a89d029002d621f7f155 :thread \"b1\" :from @c))",
+      "canonical": "(lang tags (add @room () :tag \"urgent\" :op \"2\" :from @c :thread \"b1\" :caused-by f12200a00637fda555fccf70a8c0978eac294050de34397c8a89d029002d621f7f155))",
       "signer": "@c"
     },
     {
-      "canonical": "(lang tags (remove @room :tag \"urgent\" :replaces (sha256-2a92b081f026a1e7ecb4a197597412b45d92ebef1954f61a68b314c7d21c0378) :caused-by sha256-0a00637fda555fccf70a8c0978eac294050de34397c8a89d029002d621f7f155 :thread \"b1\" :from @a))",
+      "canonical": "(lang tags (remove @room () :tag \"urgent\" :replaces (f122078b3f701c99f8ae5cf163088c4f69195298024c01a9796e2926c4cc0789ddcbe) :from @a :thread \"b1\" :caused-by f12200a00637fda555fccf70a8c0978eac294050de34397c8a89d029002d621f7f155))",
       "signer": "@a"
     },
     {
-      "canonical": "(lang tags (add @room :tag \"later\" :op \"3\" :caused-by sha256-0a00637fda555fccf70a8c0978eac294050de34397c8a89d029002d621f7f155 :thread \"b1\" :from @b))",
+      "canonical": "(lang tags (add @room () :tag \"later\" :op \"3\" :from @b :thread \"b1\" :caused-by f12200a00637fda555fccf70a8c0978eac294050de34397c8a89d029002d621f7f155))",
       "signer": "@b"
     },
     {
-      "canonical": "(lang tags (remove @room :tag \"later\" :replaces (sha256-64c3ae87875b26850ca6b0ffdadde6d92adad2ba440574c2ebe852b1f9a9a79d) :caused-by sha256-0a00637fda555fccf70a8c0978eac294050de34397c8a89d029002d621f7f155 :thread \"b1\" :from @c))",
+      "canonical": "(lang tags (remove @room () :tag \"later\" :replaces (f1220be9c03c587de46191aa197b6ea9789ab14303550901ec62839a66e3d9bc157c4) :from @c :thread \"b1\" :caused-by f12200a00637fda555fccf70a8c0978eac294050de34397c8a89d029002d621f7f155))",
       "signer": "@c"
     },
     {
-      "canonical": "(lang tags (credit @room :amount 100 :op \"c1\" :caused-by sha256-0a00637fda555fccf70a8c0978eac294050de34397c8a89d029002d621f7f155 :thread \"b1\" :from @a))",
+      "canonical": "(lang tags (credit @room () :amount 100 :op \"c1\" :from @a :thread \"b1\" :caused-by f12200a00637fda555fccf70a8c0978eac294050de34397c8a89d029002d621f7f155))",
       "signer": "@a"
     },
     {
-      "canonical": "(lang tags (credit @room :amount 250 :op \"c2\" :caused-by sha256-0a00637fda555fccf70a8c0978eac294050de34397c8a89d029002d621f7f155 :thread \"b1\" :from @b))",
+      "canonical": "(lang tags (credit @room () :amount 250 :op \"c2\" :from @b :thread \"b1\" :caused-by f12200a00637fda555fccf70a8c0978eac294050de34397c8a89d029002d621f7f155))",
       "signer": "@b"
     },
     {
-      "canonical": "(lang tags (debit @room :amount 50 :op \"d1\" :caused-by sha256-0a00637fda555fccf70a8c0978eac294050de34397c8a89d029002d621f7f155 :thread \"b1\" :from @a))",
+      "canonical": "(lang tags (debit @room () :amount 50 :op \"d1\" :from @a :thread \"b1\" :caused-by f12200a00637fda555fccf70a8c0978eac294050de34397c8a89d029002d621f7f155))",
       "signer": "@a"
     },
     {
-      "canonical": "(lang tags (credit @room :amount 100 :op \"c1\" :caused-by sha256-0a00637fda555fccf70a8c0978eac294050de34397c8a89d029002d621f7f155 :thread \"b1\" :from @a))",
+      "canonical": "(lang tags (credit @room () :amount 100 :op \"c1\" :from @a :thread \"b1\" :caused-by f12200a00637fda555fccf70a8c0978eac294050de34397c8a89d029002d621f7f155))",
       "signer": "@a"
     }
   ],

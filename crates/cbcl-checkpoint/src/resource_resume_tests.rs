@@ -272,13 +272,13 @@ fn projected_cycle_uses_native_cycle_fault_not_a_balance_shortcut() {
 }
 
 #[test]
-fn native_colon_links_resolve_to_state_wire_facts_without_false_wrong_type() {
+fn multihash_links_resolve_to_state_wire_facts_without_false_wrong_type() {
     let c = rule();
     let base = bootstrap();
     let root = base[0].clone();
     let native_root = crate::certificate::native(&root.address);
     let open=signed(&format!("(lang resource (open (@m0 @m1) :alloc ((@m0 10) (@m1 0)) :room ((@m0 5) (@m1 5)) :from @m0 :sender @m0 :thread \"resource\" :caused-by {native_root}))"),"@m0");
-    assert_ne!(open.predecessors[0], root.address);
+    assert_eq!(open.predecessors[0], root.address);
     // Before the shared projection's alias correction, native observe looked
     // this colon spelling up directly in the dash-keyed Act index and stayed pending.
     let pay = operation(

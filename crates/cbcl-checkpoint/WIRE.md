@@ -46,7 +46,7 @@ it contains no message body, signature, causal header or unrelated field.
 A pending reference is `bytes(scope), string(target)`; scope is empty for the
 unscoped case or the canonical selected scope expression.
 
-Contribution/event IDs use `sha256-<64 lowercase hexadecimal characters>` and are
+Contribution/event IDs use `f1220<64 lowercase hexadecimal characters>` and are
 strictly increasing. Pending records sort by their complete encoded bytes.
 Set-union values sort by canonical expression bytes. Duplicate entries and
 noncanonical expressions are invalid. Only rule-read contribution fields may be
@@ -70,8 +70,8 @@ cause := u32(0)                         // absent
 ```
 
 The fields following the presence tag occur only for tag 1. Metadata IDs and
-the root use `sha256:<64 lowercase hexadecimal characters>`. Parent references
-also accept the corresponding `sha256-` state-wire spelling; the native resolver
+the root use `f1220<64 lowercase hexadecimal characters>`. Parent references
+also accept the corresponding `f1220` state-wire spelling; the native resolver
 normalizes that alias. Multi-parent lists are nonempty, sorted and unique, with
 at most 256 entries. Metadata records sort by ID. Positions are recomputed from
 these headers under the independently pinned protocol; ranks are never encoded.
@@ -112,8 +112,8 @@ list of strings. Language/thread/from/bindings are zero-or-one-element lists;
 bindings, when present, contain the native cast binding list. Fields is a sorted
 list of `(string-key selected-expression)` pairs, without duplicate keys.
 Only that rule's data fields and escrow previous/dependency fields are allowed.
-Valid native colon-address links normalize to state-wire addresses; malformed
-links remain data for the native fault classifier, rather than proof queries.
+Native and state links use the same canonical multibase multihash spelling.
+Malformed links remain data for the native fault classifier rather than proof queries.
 
 The record is limited to 16 MiB, 65,536 facts and 65,536 known references, with
 256 KiB per fact. Fact IDs/references are limited to 128 bytes, signer/verb strings

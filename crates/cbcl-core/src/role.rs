@@ -70,7 +70,7 @@ pub struct AgentKey(pub String);
 pub struct Cast {
     pub singleton: BTreeMap<String, AgentKey>,
     pub indexed: BTreeMap<String, BTreeSet<AgentKey>>,
-    /// REQ-628: the `sha256:<hex64>` content hash of the dialect that
+    /// REQ-628: the `f1220<hex64>` content hash of the dialect that
     /// governs the thread, from the wrapper's optional `:dialect` field.
     /// `None` for an unpinned root (accepted during the spec's
     /// warn-then-reject transition window).
@@ -453,11 +453,11 @@ pub fn parse_cast(bindings: &SExpr, roles: &[RoleDecl]) -> Result<Cast, R6Violat
     Ok(cast)
 }
 
-/// Length of the lowercase-hex digest in a `sha256:<hex64>` pin (REQ-628).
+/// Length of the lowercase-hex digest in a `f1220<hex64>` pin (REQ-628).
 const PIN_HEX_LEN: usize = 64;
 
 /// Parse the value of a `with-roles` `:dialect` field (REQ-628): exactly
-/// the string `"sha256:<lowercase-hex64>"` on the strict wire path. Typed
+/// the string `"f1220<lowercase-hex64>"` on the strict wire path. Typed
 /// symbol atoms remain accepted for existing in-process callers. The digest
 /// is the form [`Dialect::hash`] takes at install. A bad prefix, wrong digest
 /// length or non-hex character is rejected, never repaired (LangSec principle 4).
@@ -469,14 +469,14 @@ pub fn parse_dialect_pin(value: &SExpr) -> Result<String, R6Violation> {
         _ => {
             return Err(R6Violation::MalformedCast {
                 detail: format!(
-                    ":dialect value must be a sha256:<hex64> string or typed symbol, got {value}"
+                    ":dialect value must be a f1220<hex64> string or typed symbol, got {value}"
                 ),
             })
         }
     };
-    let Some(hex) = pin.strip_prefix("sha256:") else {
+    let Some(hex) = pin.strip_prefix("f1220") else {
         return Err(R6Violation::MalformedCast {
-            detail: format!(":dialect value must start with 'sha256:', got '{pin}'"),
+            detail: format!(":dialect value must start with 'f1220', got '{pin}'"),
         });
     };
     if hex.len() != PIN_HEX_LEN || !hex.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f')) {
@@ -491,7 +491,7 @@ pub fn parse_dialect_pin(value: &SExpr) -> Result<String, R6Violation> {
 
 /// Parse a `with-roles` wrapper's parameter list into a [`Cast`] (CON-601,
 /// REQ-628): the bindings list, optionally followed by
-/// `:dialect "sha256:<hex64>"` in that fixed position. Any other shape —
+/// `:dialect "f1220<hex64>"` in that fixed position. Any other shape —
 /// extra fields, a misplaced pin, an unknown keyword — is rejected, never
 /// repaired (LangSec principle 4).
 pub fn parse_wrapper_cast(params: &[SExpr], roles: &[RoleDecl]) -> Result<Cast, R6Violation> {
@@ -504,7 +504,7 @@ pub fn parse_wrapper_cast(params: &[SExpr], roles: &[RoleDecl]) -> Result<Cast, 
             return Err(R6Violation::MalformedCast {
                 detail: String::from(
                     "with-roles wrapper must carry exactly one bindings list, \
-                     optionally followed by :dialect sha256:<hex64> (CON-601, REQ-628)",
+                     optionally followed by :dialect f1220<hex64> (CON-601, REQ-628)",
                 ),
             })
         }
@@ -762,7 +762,7 @@ mod tests {
 
     #[test]
     fn wrapper_cast_with_wellformed_pin_carries_it() {
-        let pin = alloc::format!("sha256:{}", hex64('a'));
+        let pin = alloc::format!("f1220{}", hex64('a'));
         let cast = parse_wrapper_cast(
             &[
                 sx("((auctioneer @auc) (bidder @b1))"),
@@ -786,11 +786,11 @@ mod tests {
     #[test]
     fn pin_negative_wrong_length() {
         assert!(matches!(
-            parse_dialect_pin(&sx("sha256:abc")),
+            parse_dialect_pin(&sx("f1220abc")),
             Err(R6Violation::MalformedCast { .. })
         ));
         assert!(matches!(
-            parse_dialect_pin(&sx(&alloc::format!("sha256:{}a", hex64('a')))),
+            parse_dialect_pin(&sx(&alloc::format!("f1220{}a", hex64('a')))),
             Err(R6Violation::MalformedCast { .. })
         ));
     }
@@ -800,11 +800,11 @@ mod tests {
         // 'g' is outside the hex alphabet; 'A' is uppercase — both rejected,
         // never case-folded or repaired (LangSec principle 4).
         assert!(matches!(
-            parse_dialect_pin(&sx(&alloc::format!("sha256:{}", hex64('g')))),
+            parse_dialect_pin(&sx(&alloc::format!("f1220{}", hex64('g')))),
             Err(R6Violation::MalformedCast { .. })
         ));
         assert!(matches!(
-            parse_dialect_pin(&sx(&alloc::format!("sha256:{}", hex64('A')))),
+            parse_dialect_pin(&sx(&alloc::format!("f1220{}", hex64('A')))),
             Err(R6Violation::MalformedCast { .. })
         ));
     }
@@ -819,7 +819,7 @@ mod tests {
 
     #[test]
     fn wrapper_cast_negative_extra_fields() {
-        let pin = alloc::format!("sha256:{}", hex64('a'));
+        let pin = alloc::format!("f1220{}", hex64('a'));
         // Trailing garbage after the pin.
         assert!(matches!(
             parse_wrapper_cast(

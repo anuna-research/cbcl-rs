@@ -387,7 +387,7 @@ fn quorum_budget_has_one_dag_protocol_and_rejects_legacy_wire_types() {
         text("1"),
     ]));
     let hash = Sha256::digest(old_domain);
-    let mut old_id = String::from("sha256-");
+    let mut old_id = String::from("f1220");
     for b in hash {
         old_id.push_str(&format!("{b:02x}"));
     }
@@ -1396,7 +1396,7 @@ fn cached_genesis_roots_preserve_identity_scope_and_empty_books() {
                     .collect(),
             ));
             let expected = format!(
-                "sha256-{}",
+                "f1220{}",
                 Sha256::digest(bytes)
                     .iter()
                     .map(|b| format!("{b:02x}"))

@@ -887,13 +887,13 @@ mod tests {
             detail: String::from(":route expected string, found number"),
         };
         let err =
-            ViolationError::from_shape_violation(&sv, Some(String::from("sha256:msg")), None, None)
+            ViolationError::from_shape_violation(&sv, Some(String::from("f1220msg")), None, None)
                 .with_recipient("@sender")
                 .with_verifier("@receiver")
                 .with_dialect_context(
                     "logistics",
                     Some("@consortium"),
-                    Some("sha256:abc"),
+                    Some("f1220abc"),
                     Some("track-shipment"),
                 );
         let s = alloc::format!("{}", err.to_sexpr());
@@ -919,7 +919,7 @@ mod tests {
     #[test]
     fn to_sexpr_causal_includes_caused_by() {
         let cv = CausalViolation::UnknownPredecessor {
-            caused_by: String::from("sha256:pred"),
+            caused_by: String::from("f1220pred"),
         };
         let err = ViolationError::from_causal_violation(&cv, None, None)
             .with_recipient("@sender")
@@ -927,7 +927,7 @@ mod tests {
         let s = alloc::format!("{}", err.to_sexpr());
         assert!(s.starts_with("(error @sender \"causal-violation\""));
         assert!(s.contains(":caused-by"));
-        assert!(s.contains("\"sha256:pred\""));
+        assert!(s.contains("\"f1220pred\""));
         assert!(s.contains(":blamed sender"));
     }
 
@@ -937,15 +937,15 @@ mod tests {
     #[test]
     fn to_sexpr_causal_invalid_predecessor_includes_caused_by() {
         let cv = CausalViolation::InvalidPredecessor {
-            caused_by: String::from("sha256:bad"),
+            caused_by: String::from("f1220bad"),
             expected: alloc::vec![String::from("pause")],
             found: String::from("ack"),
         };
         let err = ViolationError::from_causal_violation(&cv, None, None);
-        assert_eq!(err.caused_by.as_deref(), Some("sha256:bad"));
+        assert_eq!(err.caused_by.as_deref(), Some("f1220bad"));
         let s = alloc::format!("{}", err.to_sexpr());
         assert!(s.contains(":caused-by"));
-        assert!(s.contains("\"sha256:bad\""));
+        assert!(s.contains("\"f1220bad\""));
     }
 
     /// REQ-230 + REQ-233: unsatisfiable shape blames DialectAuthor *and*
@@ -1037,8 +1037,8 @@ mod tests {
     fn with_message_hash_sets_message_hash() {
         let cv = CausalViolation::MissingCausedBy;
         let err =
-            ViolationError::from_causal_violation(&cv, None, None).with_message_hash("sha256:msg");
-        assert_eq!(err.message_hash.as_deref(), Some("sha256:msg"));
+            ViolationError::from_causal_violation(&cv, None, None).with_message_hash("f1220msg");
+        assert_eq!(err.message_hash.as_deref(), Some("f1220msg"));
     }
 
     #[test]

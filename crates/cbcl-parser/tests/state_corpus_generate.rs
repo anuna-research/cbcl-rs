@@ -74,7 +74,7 @@ fn generate_checklist_with_roles() {
     // Rejected: a member may not drop (R6); rejected: undeclared field (R7 closed); pending: unknown predecessor.
     let bad_role = format!("(signed @bo (lang {n} (drop (@aria @bo @cy) :item \"cake\" :replaces () :caused-by {a1} :thread \"list-1\" :from @bo)))");
     let bad_field = format!("(signed @bo (lang {n} (check (@aria @bo @cy) :item \"cake\" :done #t :note \"x\" :replaces () :caused-by {a1} :clock \"hlc-0000000000000000-00000000\" :thread \"list-1\" :from @bo)))");
-    let pending = format!("(signed @bo (lang {n} (check (@aria @bo @cy) :item \"cake\" :done #t :replaces () :caused-by sha256-{} :clock \"hlc-0000000000000000-00000000\" :thread \"list-1\" :from @bo)))", "f".repeat(64));
+    let pending = format!("(signed @bo (lang {n} (check (@aria @bo @cy) :item \"cake\" :done #t :replaces () :caused-by f1220{} :clock \"hlc-0000000000000000-00000000\" :thread \"list-1\" :from @bo)))", "f".repeat(64));
     let messages = [
         (&m0, "@aria"),
         (&m1, "@aria"),
@@ -292,7 +292,7 @@ fn generate_progress_fork() {
     let b_id = address(&b);
     let c = make(&format!(":caused-by {a_id}"), "@c");
     let late = make(&format!(":caused-by {b_id}"), "@a");
-    let missing = make(&format!(":caused-by sha256-{}", "f".repeat(64)), "@b");
+    let missing = make(&format!(":caused-by f1220{}", "f".repeat(64)), "@b");
     let absent = make("", "@c");
     let messages = [
         (&a, "@a", "accepted"),

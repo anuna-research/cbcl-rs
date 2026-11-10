@@ -763,7 +763,7 @@ mod tests {
 
     fn violation2() -> VerificationResult {
         VerificationResult::Violation(CausalViolation::UnknownPredecessor {
-            caused_by: "sha256:test".into(),
+            caused_by: "f1220test".into(),
         })
     }
 
@@ -972,9 +972,9 @@ mod tests {
         assert_eq!(v.to_string(), "missing :caused-by");
 
         let v = CausalViolation::UnknownPredecessor {
-            caused_by: "sha256:abc".into(),
+            caused_by: "f1220abc".into(),
         };
-        assert_eq!(v.to_string(), "unknown predecessor: sha256:abc");
+        assert_eq!(v.to_string(), "unknown predecessor: f1220abc");
     }
 
     #[test]

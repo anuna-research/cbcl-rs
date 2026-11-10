@@ -60,7 +60,7 @@ fn message_wrapper_params(text: &str, hash: &str, normalize_pin: bool) -> String
         panic!("wrapper params must be a list");
     };
     if normalize_pin {
-        let reference = format!("sha256:{}", "a".repeat(64));
+        let reference = format!("f1220{}", "a".repeat(64));
         if let Some(SExpr::Atom(Atom::Str(pin))) = params.get_mut(2) {
             if *pin == reference { *pin = hash.to_owned(); }
         }
@@ -164,7 +164,7 @@ fn native_context(case: &Value) -> Value {
         };
         let pin = match f["pin"].as_str() {
             Some("correct") => format!(":dialect {hash:?}"),
-            Some("wrong") => format!(":dialect {:?}", format!("sha256:{}", "0".repeat(64))),
+            Some("wrong") => format!(":dialect {:?}", format!("f1220{}", "0".repeat(64))),
             Some("malformed") => ":dialect #t".to_owned(),
             _ => String::new(),
         };
@@ -292,16 +292,16 @@ fn context_kernel_matches_live_lean_oracle() {
             "invalid message descriptor is outside the transport domain");
     }
     let cast_params = "((chair @chair) (reviewer @a @b))";
-    let digest = format!("sha256:{}", "a".repeat(64));
-    let wrong = format!("sha256:{}", "0".repeat(64));
+    let digest = format!("f1220{}", "a".repeat(64));
+    let wrong = format!("f1220{}", "0".repeat(64));
     let wrappers = vec![
         (format!("({cast_params})"), true, true),
         (format!("({cast_params} :dialect {digest:?})"), true, true),
         (format!("({cast_params} :dialect {wrong:?})"), true, false),
         (format!("({cast_params} :dialect #t)"), false, false),
-        (format!("({cast_params} :dialect \"sha256:abc\")"), false, false),
-        (format!("({cast_params} :dialect {:?})", format!("sha256:{}", "A".repeat(64))), false, false),
-        (format!("({cast_params} :dialect {:?})", format!("sha256:{}", "𝟘".repeat(64))), false, false),
+        (format!("({cast_params} :dialect \"f1220abc\")"), false, false),
+        (format!("({cast_params} :dialect {:?})", format!("f1220{}", "A".repeat(64))), false, false),
+        (format!("({cast_params} :dialect {:?})", format!("f1220{}", "𝟘".repeat(64))), false, false),
         (format!("({cast_params} :dialect {:?})", format!("sha512:{}", "a".repeat(64))), false, false),
         (format!("({cast_params} :other {digest:?})"), false, false),
         (format!("({cast_params} \"dialect\" {digest:?})"), false, false),

@@ -16,29 +16,29 @@
     },
     {
       "signer": "@treasury",
-      "canonical": "(signed @treasury (lang example-capped-coin (open (@alice @bob @treasury) () :name \"Capped\" :allocations ((@treasury 2) (@alice 2) (@bob 0)) :space ((@treasury 3) (@alice 3) (@bob 0)) :from @treasury :thread \"coin-1\" :caused-by sha256-00e5135405fae01e3135ee94a3a7e57f1f35fe19de5203d42462307db3585131)))"
+      "canonical": "(signed @treasury (lang example-capped-coin (open (@alice @bob @treasury) () :name \"Capped\" :allocations ((@treasury 2) (@alice 2) (@bob 0)) :space ((@treasury 3) (@alice 3) (@bob 0)) :from @treasury :thread \"coin-1\" :caused-by f122000e5135405fae01e3135ee94a3a7e57f1f35fe19de5203d42462307db3585131)))"
     },
     {
       "signer": "@treasury",
-      "canonical": "(signed @treasury (lang example-capped-coin (mint (@alice @bob @treasury) () :amount 3 :escrow-prev sha256-184bec2b98c9abd34da10df8b4a124de53da54c94e9617cda20885b9c842aeaa :escrow-deps () :from @treasury :thread \"coin-1\" :caused-by sha256-184bec2b98c9abd34da10df8b4a124de53da54c94e9617cda20885b9c842aeaa)))"
+      "canonical": "(signed @treasury (lang example-capped-coin (mint (@alice @bob @treasury) () :amount 3 :escrow-prev f1220c21244e8301548f8f6bb6dd97011bda50ed8861df799938ddbbc02dc5db3f22e :escrow-deps () :from @treasury :thread \"coin-1\" :caused-by f1220c21244e8301548f8f6bb6dd97011bda50ed8861df799938ddbbc02dc5db3f22e)))"
     },
     {
       "signer": "@alice",
-      "canonical": "(signed @alice (lang example-capped-coin (mint (@alice @bob @treasury) () :amount 3 :escrow-prev sha256-184bec2b98c9abd34da10df8b4a124de53da54c94e9617cda20885b9c842aeaa :escrow-deps () :from @alice :thread \"coin-1\" :caused-by sha256-184bec2b98c9abd34da10df8b4a124de53da54c94e9617cda20885b9c842aeaa)))"
+      "canonical": "(signed @alice (lang example-capped-coin (mint (@alice @bob @treasury) () :amount 3 :escrow-prev f1220c21244e8301548f8f6bb6dd97011bda50ed8861df799938ddbbc02dc5db3f22e :escrow-deps () :from @alice :thread \"coin-1\" :caused-by f1220c21244e8301548f8f6bb6dd97011bda50ed8861df799938ddbbc02dc5db3f22e)))"
     }
   ],
   "expect": {
     "addresses": [
-      "sha256-00e5135405fae01e3135ee94a3a7e57f1f35fe19de5203d42462307db3585131",
-      "sha256-184bec2b98c9abd34da10df8b4a124de53da54c94e9617cda20885b9c842aeaa",
-      "sha256-35c2b163df9fee63a5abc05a0b0480bcd59495f90848ecd9aeca900d6f23e8c3",
-      "sha256-a55f5ab0f0526469ec379c0ac5a0f34f4199024bd38d14467bf6acaecfd58bf0"
+      "f122000e5135405fae01e3135ee94a3a7e57f1f35fe19de5203d42462307db3585131",
+      "f1220c21244e8301548f8f6bb6dd97011bda50ed8861df799938ddbbc02dc5db3f22e",
+      "f122051ec66e646df61d5a823e7e817f028724bf23f32ab7385bdba0805ee0dfad4d6",
+      "f122082dc2c3de4972c7294589c938d64c5b4e211ea1c21ea8c7a58d4bed8c3338adf"
     ],
     "verdicts": {
-      "sha256-00e5135405fae01e3135ee94a3a7e57f1f35fe19de5203d42462307db3585131": "accepted",
-      "sha256-184bec2b98c9abd34da10df8b4a124de53da54c94e9617cda20885b9c842aeaa": "accepted",
-      "sha256-35c2b163df9fee63a5abc05a0b0480bcd59495f90848ecd9aeca900d6f23e8c3": "accepted",
-      "sha256-a55f5ab0f0526469ec379c0ac5a0f34f4199024bd38d14467bf6acaecfd58bf0": "accepted"
+      "f122000e5135405fae01e3135ee94a3a7e57f1f35fe19de5203d42462307db3585131": "accepted",
+      "f1220c21244e8301548f8f6bb6dd97011bda50ed8861df799938ddbbc02dc5db3f22e": "accepted",
+      "f122051ec66e646df61d5a823e7e817f028724bf23f32ab7385bdba0805ee0dfad4d6": "accepted",
+      "f122082dc2c3de4972c7294589c938d64c5b4e211ea1c21ea8c7a58d4bed8c3338adf": "accepted"
     },
     "state": {
       "name": "Capped",

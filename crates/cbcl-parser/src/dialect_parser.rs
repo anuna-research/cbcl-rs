@@ -29,7 +29,7 @@ use cbcl_core::state::{StateBounds, StateClause, RESERVED_REPLACES};
 ///   (:resource-requirements ((max-depth . N) (max-expansion-size . N) (verification-time . N)))
 ///   (:examples ...)
 ///   (:signature sig)
-///   (:hash "sha256:...")
+///   (:hash "f1220...")
 ///   (:protocol "ed25519"))
 /// ```
 pub fn parse_dialect(sexpr: &SExpr) -> Result<Dialect, String> {
@@ -573,12 +573,12 @@ mod tests {
             sym("my-dialect"),
             list(vec![sym("cbcl")]),
             sym("@author"),
-            list(vec![kw("hash"), str_expr("sha256:abcd1234")]),
+            list(vec![kw("hash"), str_expr("f1220abcd1234")]),
             list(vec![kw("signature"), sym("sig123")]),
             list(vec![kw("protocol"), str_expr("ed25519")]),
         ]);
         let d = parse_dialect(&def).unwrap();
-        assert_eq!(d.hash, Some(String::from("sha256:abcd1234")));
+        assert_eq!(d.hash, Some(String::from("f1220abcd1234")));
         assert!(d.signature.is_some());
         assert_eq!(d.protocol, Some(String::from("ed25519")));
     }
@@ -604,7 +604,7 @@ mod tests {
             list(vec![kw("protocol"), str_expr("ed25519")]),
             list(vec![
                 kw("hash"),
-                str_expr("sha256:planning-dialect-v1.0-hash"),
+                str_expr("f1220planning-dialect-v1.0-hash"),
             ]),
             list(vec![kw("signature"), sym("planning-consortium-key-2024")]),
         ]);
