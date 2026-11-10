@@ -14,27 +14,27 @@
   "expect": {
     "addresses": [
       "f122003d8c78f5c0e195f03a1dbf829b288786c01e4229381cc739234e68edcb31a2a",
-      "f1220ffe9f89d63c8e63de5946460e259ccfb32129198cfd65fcb407dfe5836bbac47",
-      "f1220724b9fffd3d045b5cab8b610edbf7212e1e172806c4aecfa9f3fa4a9553a20c2",
-      "f1220b89a6d559cb218a929ba6f6a9aacbc94c5fda38a6bbdfce0b41c799d84b1a722",
-      "f1220b204034a94bfd949a00049021f29d5d126e1b9d56d1ece52e7488f530f600d74",
-      "f1220361a5ad6b8d53048be0b7e567598e0d8f36a29c88aec9235b8ad72c7d53cb92a",
-      "f12200465bacf3494bc2d958894f1f3cfab3a81384af8c2e31b744413e5da625d1022",
-      "f1220d47d9b10b8641faab2d43e403d661d8ef631a76af63b70f93fbcec5b030d040c",
-      "f122043bf24f3f50cdd50dc2406b855d4208e56c86a8ad4b77336500f8378b889eef3",
-      "f122075d8edbedc8fd654ca28dfc88703813f6db6f7e08362c77bbb7e006cfbd58d80"
+      "f122082228478aae30c06d024cf3a31af487ab4f3c42548d7f40b0fa1266bcd22d416",
+      "f12204e8dafa543b6696bf52ee78ba249dfe004c5c795e1aac38226bd1dcec14ed1cc",
+      "f1220378dfa166550738933a0ffbb3c8c91b54e3be2d6c14192f6ad8739086c7d45b0",
+      "f122084fbd8b830daa54d8bddfe89f940f738953e9d9048b99ea53deeb72cbf347482",
+      "f1220a5c662531d2be9f6d8fda7662e77d7fa5c78a5e99e277f7545100bdbab4b1236",
+      "f12203131ebd6836e8acf6f283ca619b618eff2781dde241fcb8d9222d07361f74ec5",
+      "f1220be1e4244c648c8ca01d24c474ddde1d12fec5514a3d82607ca52ed84578ddd11",
+      "f122092cb1e9dd61d2e4003125f4720e53131a5a3a2d83d8f41c1eaeda60eeac130e7",
+      "f1220252787a2e94dcc2a7549b3720643ad87bd82118fa2d909ce6c5548523f2cc9e3"
     ],
     "verdicts": {
       "f122003d8c78f5c0e195f03a1dbf829b288786c01e4229381cc739234e68edcb31a2a": "accepted",
-      "f1220ffe9f89d63c8e63de5946460e259ccfb32129198cfd65fcb407dfe5836bbac47": "accepted",
-      "f1220724b9fffd3d045b5cab8b610edbf7212e1e172806c4aecfa9f3fa4a9553a20c2": "accepted",
-      "f1220b89a6d559cb218a929ba6f6a9aacbc94c5fda38a6bbdfce0b41c799d84b1a722": "accepted",
-      "f1220b204034a94bfd949a00049021f29d5d126e1b9d56d1ece52e7488f530f600d74": "accepted",
-      "f1220361a5ad6b8d53048be0b7e567598e0d8f36a29c88aec9235b8ad72c7d53cb92a": "accepted",
-      "f12200465bacf3494bc2d958894f1f3cfab3a81384af8c2e31b744413e5da625d1022": "accepted",
-      "f1220d47d9b10b8641faab2d43e403d661d8ef631a76af63b70f93fbcec5b030d040c": "rejected",
-      "f122043bf24f3f50cdd50dc2406b855d4208e56c86a8ad4b77336500f8378b889eef3": "rejected",
-      "f122075d8edbedc8fd654ca28dfc88703813f6db6f7e08362c77bbb7e006cfbd58d80": "pending"
+      "f122082228478aae30c06d024cf3a31af487ab4f3c42548d7f40b0fa1266bcd22d416": "accepted",
+      "f12204e8dafa543b6696bf52ee78ba249dfe004c5c795e1aac38226bd1dcec14ed1cc": "accepted",
+      "f1220378dfa166550738933a0ffbb3c8c91b54e3be2d6c14192f6ad8739086c7d45b0": "accepted",
+      "f122084fbd8b830daa54d8bddfe89f940f738953e9d9048b99ea53deeb72cbf347482": "accepted",
+      "f1220a5c662531d2be9f6d8fda7662e77d7fa5c78a5e99e277f7545100bdbab4b1236": "accepted",
+      "f12203131ebd6836e8acf6f283ca619b618eff2781dde241fcb8d9222d07361f74ec5": "accepted",
+      "f1220be1e4244c648c8ca01d24c474ddde1d12fec5514a3d82607ca52ed84578ddd11": "rejected",
+      "f122092cb1e9dd61d2e4003125f4720e53131a5a3a2d83d8f41c1eaeda60eeac130e7": "rejected",
+      "f1220252787a2e94dcc2a7549b3720643ad87bd82118fa2d909ce6c5548523f2cc9e3": "pending"
     },
     "state": {
       "title": "Launch tasks",
@@ -45,13 +45,13 @@
     },
     "intents": [
       {
-        "canonical": "(lang checklist (check (@aria @bo @cy) () :clock \"hlc-0000000000000000-00000000\" :done #t :item \"venue\" :replaces (f12200465bacf3494bc2d958894f1f3cfab3a81384af8c2e31b744413e5da625d1022 f1220b204034a94bfd949a00049021f29d5d126e1b9d56d1ece52e7488f530f600d74) :from @bo :thread \"list-1\" :caused-by f1220ffe9f89d63c8e63de5946460e259ccfb32129198cfd65fcb407dfe5836bbac47))"
+        "canonical": "(lang checklist (check (@aria @bo @cy) () :clock \"hlc-0000000000000000-00000000\" :done #t :from @bo :item \"venue\" :replaces (f12203131ebd6836e8acf6f283ca619b618eff2781dde241fcb8d9222d07361f74ec5 f122084fbd8b830daa54d8bddfe89f940f738953e9d9048b99ea53deeb72cbf347482) :thread \"list-1\" :caused-by f122082228478aae30c06d024cf3a31af487ab4f3c42548d7f40b0fa1266bcd22d416))"
       },
       {
         "reject": "role"
       },
       {
-        "canonical": "(lang checklist (drop (@aria @bo @cy) () :item \"venue\" :replaces (f1220b204034a94bfd949a00049021f29d5d126e1b9d56d1ece52e7488f530f600d74) :from @aria :thread \"list-1\" :caused-by f1220ffe9f89d63c8e63de5946460e259ccfb32129198cfd65fcb407dfe5836bbac47))"
+        "canonical": "(lang checklist (drop (@aria @bo @cy) () :from @aria :item \"venue\" :replaces (f122084fbd8b830daa54d8bddfe89f940f738953e9d9048b99ea53deeb72cbf347482) :thread \"list-1\" :caused-by f122082228478aae30c06d024cf3a31af487ab4f3c42548d7f40b0fa1266bcd22d416))"
       },
       {
         "reject": "nothing-to-delete"
@@ -120,39 +120,39 @@
       "signer": "@aria"
     },
     {
-      "canonical": "(signed @aria (lang checklist (open (@aria @bo @cy) () :title \"Launch tasks\" :from @aria :thread \"list-1\" :caused-by f122003d8c78f5c0e195f03a1dbf829b288786c01e4229381cc739234e68edcb31a2a)))",
+      "canonical": "(signed @aria (lang checklist (open (@aria @bo @cy) () :from @aria :title \"Launch tasks\" :thread \"list-1\" :caused-by f122003d8c78f5c0e195f03a1dbf829b288786c01e4229381cc739234e68edcb31a2a)))",
       "signer": "@aria"
     },
     {
-      "canonical": "(signed @bo (lang checklist (check (@aria @bo @cy) () :item \"venue\" :done #f :replaces () :from @bo :clock \"hlc-0000000000000000-00000000\" :thread \"list-1\" :caused-by f1220ffe9f89d63c8e63de5946460e259ccfb32129198cfd65fcb407dfe5836bbac47)))",
+      "canonical": "(signed @bo (lang checklist (check (@aria @bo @cy) () :clock \"hlc-0000000000000000-00000000\" :done #f :from @bo :item \"venue\" :replaces () :thread \"list-1\" :caused-by f122082228478aae30c06d024cf3a31af487ab4f3c42548d7f40b0fa1266bcd22d416)))",
       "signer": "@bo"
     },
     {
-      "canonical": "(signed @bo (lang checklist (check (@aria @bo @cy) () :item \"venue\" :done #t :replaces (f1220724b9fffd3d045b5cab8b610edbf7212e1e172806c4aecfa9f3fa4a9553a20c2) :from @bo :clock \"hlc-0000000000000000-00000000\" :thread \"list-1\" :caused-by f1220ffe9f89d63c8e63de5946460e259ccfb32129198cfd65fcb407dfe5836bbac47)))",
+      "canonical": "(signed @bo (lang checklist (check (@aria @bo @cy) () :clock \"hlc-0000000000000000-00000000\" :done #t :from @bo :item \"venue\" :replaces (f12204e8dafa543b6696bf52ee78ba249dfe004c5c795e1aac38226bd1dcec14ed1cc) :thread \"list-1\" :caused-by f122082228478aae30c06d024cf3a31af487ab4f3c42548d7f40b0fa1266bcd22d416)))",
       "signer": "@bo"
     },
     {
-      "canonical": "(signed @cy (lang checklist (check (@aria @bo @cy) () :item \"venue\" :done #f :replaces (f1220724b9fffd3d045b5cab8b610edbf7212e1e172806c4aecfa9f3fa4a9553a20c2) :from @cy :clock \"hlc-0000000000000000-00000000\" :thread \"list-1\" :caused-by f1220ffe9f89d63c8e63de5946460e259ccfb32129198cfd65fcb407dfe5836bbac47)))",
+      "canonical": "(signed @cy (lang checklist (check (@aria @bo @cy) () :clock \"hlc-0000000000000000-00000000\" :done #f :from @cy :item \"venue\" :replaces (f12204e8dafa543b6696bf52ee78ba249dfe004c5c795e1aac38226bd1dcec14ed1cc) :thread \"list-1\" :caused-by f122082228478aae30c06d024cf3a31af487ab4f3c42548d7f40b0fa1266bcd22d416)))",
       "signer": "@cy"
     },
     {
-      "canonical": "(signed @bo (lang checklist (check (@aria @bo @cy) () :item \"cake\" :done #f :replaces () :from @bo :clock \"hlc-0000000000000000-00000000\" :thread \"list-1\" :caused-by f1220ffe9f89d63c8e63de5946460e259ccfb32129198cfd65fcb407dfe5836bbac47)))",
+      "canonical": "(signed @bo (lang checklist (check (@aria @bo @cy) () :clock \"hlc-0000000000000000-00000000\" :done #f :from @bo :item \"cake\" :replaces () :thread \"list-1\" :caused-by f122082228478aae30c06d024cf3a31af487ab4f3c42548d7f40b0fa1266bcd22d416)))",
       "signer": "@bo"
     },
     {
-      "canonical": "(signed @aria (lang checklist (drop (@aria @bo @cy) () :item \"venue\" :replaces (f1220b89a6d559cb218a929ba6f6a9aacbc94c5fda38a6bbdfce0b41c799d84b1a722) :from @aria :thread \"list-1\" :caused-by f1220ffe9f89d63c8e63de5946460e259ccfb32129198cfd65fcb407dfe5836bbac47)))",
+      "canonical": "(signed @aria (lang checklist (drop (@aria @bo @cy) () :from @aria :item \"venue\" :replaces (f1220378dfa166550738933a0ffbb3c8c91b54e3be2d6c14192f6ad8739086c7d45b0) :thread \"list-1\" :caused-by f122082228478aae30c06d024cf3a31af487ab4f3c42548d7f40b0fa1266bcd22d416)))",
       "signer": "@aria"
     },
     {
-      "canonical": "(signed @bo (lang checklist (drop (@aria @bo @cy) () :item \"cake\" :replaces () :from @bo :thread \"list-1\" :caused-by f1220ffe9f89d63c8e63de5946460e259ccfb32129198cfd65fcb407dfe5836bbac47)))",
+      "canonical": "(signed @bo (lang checklist (drop (@aria @bo @cy) () :from @bo :item \"cake\" :replaces () :thread \"list-1\" :caused-by f122082228478aae30c06d024cf3a31af487ab4f3c42548d7f40b0fa1266bcd22d416)))",
       "signer": "@bo"
     },
     {
-      "canonical": "(signed @bo (lang checklist (check (@aria @bo @cy) () :item \"cake\" :done #t :note \"x\" :replaces () :from @bo :clock \"hlc-0000000000000000-00000000\" :thread \"list-1\" :caused-by f1220ffe9f89d63c8e63de5946460e259ccfb32129198cfd65fcb407dfe5836bbac47)))",
+      "canonical": "(signed @bo (lang checklist (check (@aria @bo @cy) () :clock \"hlc-0000000000000000-00000000\" :done #t :from @bo :item \"cake\" :note \"x\" :replaces () :thread \"list-1\" :caused-by f122082228478aae30c06d024cf3a31af487ab4f3c42548d7f40b0fa1266bcd22d416)))",
       "signer": "@bo"
     },
     {
-      "canonical": "(signed @bo (lang checklist (check (@aria @bo @cy) () :item \"cake\" :done #t :replaces () :from @bo :clock \"hlc-0000000000000000-00000000\" :thread \"list-1\" :caused-by sha256-ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff)))",
+      "canonical": "(signed @bo (lang checklist (check (@aria @bo @cy) () :clock \"hlc-0000000000000000-00000000\" :done #t :from @bo :item \"cake\" :replaces () :thread \"list-1\" :caused-by sha256-ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff)))",
       "signer": "@bo"
     }
   ],

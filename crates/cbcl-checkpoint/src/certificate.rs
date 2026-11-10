@@ -848,8 +848,8 @@ pub fn recognize_coordination(message: &Message, d: &Dialect) -> Result<()> {
             }
         }
     }
-    if fields != expected {
-        return Err(Error::Invalid("closed ordered coordination fields"));
+    if fields.len() != expected.len() || fields.iter().any(|field| !expected.contains(field)) {
+        return Err(Error::Invalid("closed coordination fields"));
     }
     for shape in d.shapes.iter().filter(|s| s.performative == perf) {
         shape

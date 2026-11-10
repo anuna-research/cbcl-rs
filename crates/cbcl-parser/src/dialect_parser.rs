@@ -148,6 +148,7 @@ pub fn parse_dialect(sexpr: &SExpr) -> Result<Dialect, String> {
     cbcl_core::contracts::install(&mut d)?;
     cbcl_core::r7::insert_replaces(&mut d);
     cbcl_core::context::resolve(&mut d);
+    cbcl_core::canonical::canonicalise_dialect(&mut d);
     Ok(d)
 }
 

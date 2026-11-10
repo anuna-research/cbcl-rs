@@ -707,7 +707,7 @@ fn intend_impl(
         performative: Performative::Custom(String::from(verb)),
         recipient,
         content: SExpr::List(Vec::new()),
-        params,
+        params: crate::canonical::canonical_params(&params),
         thread: Some(inst.thread.0.clone()),
         sender: None,
         caused_by: Some(caused_by),

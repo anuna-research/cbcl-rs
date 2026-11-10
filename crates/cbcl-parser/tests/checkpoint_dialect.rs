@@ -50,7 +50,7 @@ fn code_pin_matches_known_vector_and_ignores_source_formatting() {
     let d = checkpoint_dialect::builtin().unwrap();
     assert_eq!(
         dialect_hash(&d),
-        "f1220a343dda553fa4f700d71b9154fc50dd2e6e9308d9d495b2b63af4c6ff89f8e4b"
+        "f1220729efa828e4352aae5969f75d1f6df047ce6504ca729c23caa66b4c9fbee4a84"
     );
     let reformatted = format!("; another comment\n{}\n", checkpoint_dialect::SOURCE);
     let mut form = parse(&reformatted).unwrap();

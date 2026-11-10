@@ -74,6 +74,10 @@ The migration contract remains in [[SPEC-017-typed-content-addresses#REQ-813]].
 
 ## Context
 
+The payload's message keyword mapping uses the boundary representation in
+[[SPEC-042-boundary-canonicalisation#CON-4200]]. Keyword permutations therefore
+produce identical payload leaves and roots; positional data remains ordered.
+
 | Layer | Address today | Address here |
 |---|---|---|
 | Content address | flat `sha256:H(canonical-bytes)`, type-opaque | Merkle root over six fields; any field opens against the root |

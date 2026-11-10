@@ -389,6 +389,17 @@ corpus is retained; `test-vectors/state-multihash-migration.json` records the
 explicit old/new address map and new canonical state bytes for all eight traces.
 The multihash golden vector follows the [multiformats specification](https://github.com/multiformats/multihash).
 
+Message keyword fields may be written in any order. Creation, serialisation,
+signing and addressing use lexical keyword order; receipt and folding do not
+require declaration order. Ordinary data lists and positional parameters retain
+their order. Dialect creation similarly normalises sibling shape declarations.
+This boundary rule advances the dialect signing form to version 7 and the typed
+address form to version 2. Affected signatures and histories require reissue;
+the preserved historical corpus and
+`test-vectors/state-boundary-canonicalisation-migration.json` record the explicit
+address migration and resulting state bytes. See
+[boundary canonicalisation](specs/SPEC-042-boundary-canonicalisation.md).
+
 Causal protocols accept chains: `(protocol (then begin one two three))`
 is equivalent to `(protocol (then begin one) (then one two) (then two three))`.
 Each adjacent pair forms a causal edge; use separate `then` clauses for branches.

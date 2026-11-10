@@ -74,14 +74,14 @@ A payment cites the `open` act. The binder adds `:escrow-prev` and `:escrow-deps
     (pay (@alice @bob @treasury) ()
       :amount 100
       :recipient @alice
-      :escrow-prev f12206cb665125c407ef5b342519f806c8ded7e05efcd26aa5501d620b5b3f0829e4f
+      :escrow-prev f1220400baa8fa18604fedff1606554d3d3fc922b89391f627640a4d7a749ba482963
       :escrow-deps ()
       :from @treasury
       :thread "coin-1"
-      :caused-by f12206cb665125c407ef5b342519f806c8ded7e05efcd26aa5501d620b5b3f0829e4f)))
+      :caused-by f1220400baa8fa18604fedff1606554d3d3fc922b89391f627640a4d7a749ba482963)))
 ```
 
-Keyword order is part of the content address, so a hand-written act with the same fields in a different order is a different act. Hosts do not write these by hand: `intend` completes a verb and its business fields into the canonical act above, ready for the host to sign and publish:
+Authors may write keyword fields in any order. CBCL canonicalises them when creating, serialising, signing, or addressing a message, so the same fields have one identity. `intend` completes a verb and its business fields into a canonical act, ready for the host to sign and publish:
 
 ```rust
 let inst = Instance::new(&dialect, ThreadId("coin-1".into()), &accepted_acts)?;

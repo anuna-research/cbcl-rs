@@ -1,0 +1,21 @@
+; Ledger: implementer owns boundaries and migration; independent reviewer owns review.
+; Source: SPEC-042-boundary-canonicalisation; acceptance: TEST-4200 through TEST-4205.
+(predicate task-description ((id symbol) (text symbol)) (kind state))
+(predicate task-acceptance ((id symbol) (text symbol)) (kind state))
+(given (task boundaries))
+(given (task-description boundaries "Canonicalise message and dialect shape boundaries without receipt repair"))
+(given (task-acceptance boundaries "TEST-4200 through TEST-4205: regression failures observed, implementation and fixture migration pass, ordering mutation is caught"))
+(given (no-deps boundaries))
+(normally r-ready-boundaries (and (task boundaries) (no-deps boundaries)) (ready boundaries))
+(meta r-ready-boundaries (source "SPEC-042-boundary-canonicalisation#CON-4200"))
+(given (task review))
+(given (task-description review "Independent adversarial review of boundary coverage, positional preservation and migration"))
+(given (task-acceptance review "TEST-4200 through TEST-4205: reviewer findings resolved or recorded with explicit limits"))
+(normally r-ready-review (and (task review) (completed boundaries)) (ready review))
+(meta r-ready-review (source "SPEC-042-boundary-canonicalisation#Acceptance tests"))
+
+; Evidence: SPEC-042 Verification status; independent canonical_review session.
+(given (verified boundaries))
+(given (completed boundaries))
+(given (verified review))
+(given (completed review))
