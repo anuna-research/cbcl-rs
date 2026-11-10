@@ -116,7 +116,7 @@ use sha2::{Digest, Sha256};
 
 /// Version of the typed-address construction. Bump on any change to the field
 /// schema, leaf framing, or tree shape (mirrors `CANONICAL_FORM_VERSION`).
-pub const TYPED_ADDR_VERSION: u32 = 1;
+pub const TYPED_ADDR_VERSION: u32 = 2;
 
 const LEAF_PREFIX: u8 = 0x00;
 const NODE_PREFIX: u8 = 0x01;
@@ -229,7 +229,7 @@ pub fn field_sexpr(msg: &Message, id: FieldId) -> SExpr {
                 .map(|t| SExpr::Atom(Atom::Str(String::from(t))))),
             FieldId::Payload => {
                 let mut items = vec![content.clone()];
-                items.extend(params.clone());
+                items.extend(crate::canonical::canonical_params(params));
                 SExpr::List(items)
             }
         },

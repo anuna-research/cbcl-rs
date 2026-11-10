@@ -252,7 +252,7 @@ fn migration_path() -> PathBuf {
     corpus_dir()
         .parent()
         .unwrap()
-        .join("state-multihash-migration.json")
+        .join("state-boundary-canonicalisation-migration.json")
 }
 
 // Only typed predecessor fields and the declared state-reference parameters
@@ -311,6 +311,36 @@ fn reissue_message(message: &mut Message, addresses: &BTreeMap<String, String>) 
 }
 
 fn reissued_vector(original: &Value) -> (Value, Value) {
+    // Retain the previous published migration as evidence and expose the
+    // immediate pre-boundary address as well as the historical original.
+    let previous: Value = serde_json::from_str(
+        &std::fs::read_to_string(
+            corpus_dir()
+                .parent()
+                .unwrap()
+                .join("state-multihash-migration.json"),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    let file = format!("{}.json", original["id"].as_str().unwrap());
+    let previous_case = previous["cases"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|case| case["file"] == file)
+        .unwrap();
+    let previous_addresses: BTreeMap<&str, &str> = previous_case["addresses"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|entry| {
+            (
+                entry["old"].as_str().unwrap(),
+                entry["new"].as_str().unwrap(),
+            )
+        })
+        .collect();
     let mut result = original.clone();
     if let Some(source) = result["contract"].as_str() {
         result["contract"] = source.replace(" number)", " integer)").into();
@@ -326,13 +356,9 @@ fn reissued_vector(original: &Value) -> (Value, Value) {
         let mut message =
             parse_message(&parse(record["canonical"].as_str().unwrap()).unwrap()).unwrap();
         let old = original["expect"]["addresses"][index].as_str().unwrap();
-        let old_act =
-            Act::from_message(message.clone(), record["signer"].as_str().unwrap()).unwrap();
-        assert_eq!(
-            cbcl_core::state::wire_address(old_act.simple()).replacen("f1220", "sha256-", 1),
-            old,
-            "original address must use the historical simple policy"
-        );
+        // Historical input and addresses are pinned in the immutable archive.
+        // The current boundary cannot reproduce an old order-sensitive digest.
+        assert!(old.starts_with("sha256-") && old.len() == 71);
         reissue_message(&mut message, &addresses);
         let new = Act::from_message(message.clone(), record["signer"].as_str().unwrap())
             .unwrap()
@@ -341,7 +367,7 @@ fn reissued_vector(original: &Value) -> (Value, Value) {
         if let Some(previous) = addresses.insert(old.to_string(), new.clone()) {
             assert_eq!(previous, new, "duplicate act retains its identity");
         }
-        mappings.push(json!({"old": old, "new": new}));
+        mappings.push(json!({"old": old, "previous": previous_addresses[old], "new": new}));
     }
     result["expect"]["addresses"] =
         Value::Array(mappings.iter().map(|entry| entry["new"].clone()).collect());
@@ -388,8 +414,8 @@ fn reissued_vector(original: &Value) -> (Value, Value) {
 /// Explicit fixture authoring, never part of normal tests. The pinned historical
 /// snapshot is read only; review the generated address manifest before committing.
 #[test]
-#[ignore = "explicitly author the multihash wire-format migration"]
-fn write_role_root_migration() {
+#[ignore = "explicitly author the boundary canonicalisation migration"]
+fn write_boundary_migration() {
     let baseline: Value = serde_json::from_str(
         &std::fs::read_to_string(
             corpus_dir()
@@ -436,7 +462,7 @@ fn write_role_root_migration() {
         }
     }
     let manifest = json!({"format": 1, "baseline_revision": baseline["baseline_revision"],
-        "contract": "cbcl-rs #26 multihash", "cases": cases});
+        "contract": "SPEC-042 boundary canonicalisation", "previous_revision": "0eaf685dc815d181c5a5e3fed12265de1227a906", "cases": cases});
     std::fs::write(
         migration_path(),
         serde_json::to_string_pretty(&manifest).unwrap() + "\n",
@@ -486,7 +512,11 @@ fn pre_lvar_vectors_preserve_exact_render_bytes() {
         migration["baseline_revision"],
         baseline["baseline_revision"]
     );
-    assert_eq!(migration["contract"], "cbcl-rs #26 multihash");
+    assert_eq!(migration["contract"], "SPEC-042 boundary canonicalisation");
+    assert_eq!(
+        migration["previous_revision"],
+        "0eaf685dc815d181c5a5e3fed12265de1227a906"
+    );
     let migrated = migration["cases"].as_array().unwrap();
     assert_eq!(
         migrated

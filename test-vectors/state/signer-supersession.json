@@ -13,27 +13,27 @@
   ],
   "messages": [
     {
-      "canonical": "(lang signer-register (open @room () :title \"Register\" :from @owner :thread \"s1\" :caused-by begin))",
+      "canonical": "(lang signer-register (open @room () :from @owner :title \"Register\" :thread \"s1\" :caused-by begin))",
       "signer": "@owner"
     },
     {
-      "canonical": "(lang signer-register (write @room () :value \"old\" :op 0 :replaces () :from @a :clock \"hlc-0000000000000000-00000000\" :thread \"s1\" :caused-by f1220fe3baedf97239bd0eafd18cc17a5e2b9c472ad53ed73b353acccca071db3f972))",
+      "canonical": "(lang signer-register (write @room () :clock \"hlc-0000000000000000-00000000\" :from @a :op 0 :replaces () :value \"old\" :thread \"s1\" :caused-by f12208520b7bf92c7421c97d821391d287fa62b120a38793c88d68afe4eec2d430ac3))",
       "signer": "@a"
     },
     {
-      "canonical": "(lang signer-register (write @room () :value \"new\" :op 1 :replaces (f1220820a23d866520d623c809eca8de49b0c0e99aa5c77c91436d3edd86016058c24) :from @a :clock \"hlc-0000000000000000-00000000\" :thread \"s1\" :caused-by f1220fe3baedf97239bd0eafd18cc17a5e2b9c472ad53ed73b353acccca071db3f972))",
+      "canonical": "(lang signer-register (write @room () :clock \"hlc-0000000000000000-00000000\" :from @a :op 1 :replaces (f1220a01b580f7e942dc62fa03d9d4b80dc0c2541daef556bb9a5ff6d13378d5347f0) :value \"new\" :thread \"s1\" :caused-by f12208520b7bf92c7421c97d821391d287fa62b120a38793c88d68afe4eec2d430ac3))",
       "signer": "@a"
     },
     {
-      "canonical": "(lang signer-register (write @room () :value \"left\" :op 0 :replaces () :from @b :clock \"hlc-0000000000000000-00000000\" :thread \"s1\" :caused-by f1220fe3baedf97239bd0eafd18cc17a5e2b9c472ad53ed73b353acccca071db3f972))",
+      "canonical": "(lang signer-register (write @room () :clock \"hlc-0000000000000000-00000000\" :from @b :op 0 :replaces () :value \"left\" :thread \"s1\" :caused-by f12208520b7bf92c7421c97d821391d287fa62b120a38793c88d68afe4eec2d430ac3))",
       "signer": "@b"
     },
     {
-      "canonical": "(lang signer-register (write @room () :value \"right\" :op 1 :replaces () :from @b :clock \"hlc-0000000000000000-00000000\" :thread \"s1\" :caused-by f1220fe3baedf97239bd0eafd18cc17a5e2b9c472ad53ed73b353acccca071db3f972))",
+      "canonical": "(lang signer-register (write @room () :clock \"hlc-0000000000000000-00000000\" :from @b :op 1 :replaces () :value \"right\" :thread \"s1\" :caused-by f12208520b7bf92c7421c97d821391d287fa62b120a38793c88d68afe4eec2d430ac3))",
       "signer": "@b"
     },
     {
-      "canonical": "(lang signer-register (write @room () :value \"hostile\" :op 0 :replaces (f12204f6724f2db287609f819135b65ec68ffa59a882ab01942cde0924ed78cc3a568) :from @c :clock \"hlc-0000000000000000-00000000\" :thread \"s1\" :caused-by f1220fe3baedf97239bd0eafd18cc17a5e2b9c472ad53ed73b353acccca071db3f972))",
+      "canonical": "(lang signer-register (write @room () :clock \"hlc-0000000000000000-00000000\" :from @c :op 0 :replaces (f12206a6baaaf8408f7a3b82e78ceea708c286b11b23002e486c2feabe722a1495878) :value \"hostile\" :thread \"s1\" :caused-by f12208520b7bf92c7421c97d821391d287fa62b120a38793c88d68afe4eec2d430ac3))",
       "signer": "@c"
     }
   ],
@@ -68,20 +68,20 @@
   ],
   "expect": {
     "addresses": [
-      "f1220fe3baedf97239bd0eafd18cc17a5e2b9c472ad53ed73b353acccca071db3f972",
-      "f1220820a23d866520d623c809eca8de49b0c0e99aa5c77c91436d3edd86016058c24",
-      "f122099bad54e245f4d112f75223a61487ea2006d5bb79002ac331c50684a70fb1771",
-      "f12204f6724f2db287609f819135b65ec68ffa59a882ab01942cde0924ed78cc3a568",
-      "f1220421c768991b43f001600e28bf3f5861b848c8feedca15c44b5e4e75d0a07cdc8",
-      "f12201ef1fef9e1eb9c6cf8102d0d55e6fcd607eb626d8fe2cb43127e5c36ac93a29c"
+      "f12208520b7bf92c7421c97d821391d287fa62b120a38793c88d68afe4eec2d430ac3",
+      "f1220a01b580f7e942dc62fa03d9d4b80dc0c2541daef556bb9a5ff6d13378d5347f0",
+      "f12201fe542a553e67decfa4d0d3d33a6daf6260403bbb0e7635b7ba120cc3062ccde",
+      "f12206a6baaaf8408f7a3b82e78ceea708c286b11b23002e486c2feabe722a1495878",
+      "f122016176b4200435a759b5b6c695799c7430ca587cf3d2c415800736c9b15f11fd0",
+      "f12204d98b06841b3fe819b61461f3a55423a1805ffd048ae020ebd27a25da86af9c6"
     ],
     "verdicts": {
-      "f1220fe3baedf97239bd0eafd18cc17a5e2b9c472ad53ed73b353acccca071db3f972": "accepted",
-      "f1220820a23d866520d623c809eca8de49b0c0e99aa5c77c91436d3edd86016058c24": "accepted",
-      "f122099bad54e245f4d112f75223a61487ea2006d5bb79002ac331c50684a70fb1771": "accepted",
-      "f12204f6724f2db287609f819135b65ec68ffa59a882ab01942cde0924ed78cc3a568": "accepted",
-      "f1220421c768991b43f001600e28bf3f5861b848c8feedca15c44b5e4e75d0a07cdc8": "accepted",
-      "f12201ef1fef9e1eb9c6cf8102d0d55e6fcd607eb626d8fe2cb43127e5c36ac93a29c": "accepted"
+      "f12208520b7bf92c7421c97d821391d287fa62b120a38793c88d68afe4eec2d430ac3": "accepted",
+      "f1220a01b580f7e942dc62fa03d9d4b80dc0c2541daef556bb9a5ff6d13378d5347f0": "accepted",
+      "f12201fe542a553e67decfa4d0d3d33a6daf6260403bbb0e7635b7ba120cc3062ccde": "accepted",
+      "f12206a6baaaf8408f7a3b82e78ceea708c286b11b23002e486c2feabe722a1495878": "accepted",
+      "f122016176b4200435a759b5b6c695799c7430ca587cf3d2c415800736c9b15f11fd0": "accepted",
+      "f12204d98b06841b3fe819b61461f3a55423a1805ffd048ae020ebd27a25da86af9c6": "accepted"
     },
     "state": {
       "title": "Register",
@@ -91,37 +91,37 @@
         "@c": "hostile"
       },
       "all": {
-        "f12201ef1fef9e1eb9c6cf8102d0d55e6fcd607eb626d8fe2cb43127e5c36ac93a29c": {
-          "by": "@c",
-          "value": "hostile"
-        },
-        "f1220421c768991b43f001600e28bf3f5861b848c8feedca15c44b5e4e75d0a07cdc8": {
+        "f122016176b4200435a759b5b6c695799c7430ca587cf3d2c415800736c9b15f11fd0": {
           "by": "@b",
           "value": "right"
         },
-        "f12204f6724f2db287609f819135b65ec68ffa59a882ab01942cde0924ed78cc3a568": {
+        "f12201fe542a553e67decfa4d0d3d33a6daf6260403bbb0e7635b7ba120cc3062ccde": {
+          "by": "@a",
+          "value": "new"
+        },
+        "f12204d98b06841b3fe819b61461f3a55423a1805ffd048ae020ebd27a25da86af9c6": {
+          "by": "@c",
+          "value": "hostile"
+        },
+        "f12206a6baaaf8408f7a3b82e78ceea708c286b11b23002e486c2feabe722a1495878": {
           "by": "@b",
           "value": "left"
         },
-        "f1220820a23d866520d623c809eca8de49b0c0e99aa5c77c91436d3edd86016058c24": {
+        "f1220a01b580f7e942dc62fa03d9d4b80dc0c2541daef556bb9a5ff6d13378d5347f0": {
           "by": "@a",
           "value": "old"
-        },
-        "f122099bad54e245f4d112f75223a61487ea2006d5bb79002ac331c50684a70fb1771": {
-          "by": "@a",
-          "value": "new"
         }
       }
     },
     "intents": [
       {
-        "canonical": "(lang signer-register (write @room () :clock \"hlc-0000000000000000-00000000\" :op 10001 :value \"third\" :replaces (f122099bad54e245f4d112f75223a61487ea2006d5bb79002ac331c50684a70fb1771) :from @a :thread \"s1\" :caused-by f1220fe3baedf97239bd0eafd18cc17a5e2b9c472ad53ed73b353acccca071db3f972))"
+        "canonical": "(lang signer-register (write @room () :clock \"hlc-0000000000000000-00000000\" :from @a :op 10001 :replaces (f12201fe542a553e67decfa4d0d3d33a6daf6260403bbb0e7635b7ba120cc3062ccde) :value \"third\" :thread \"s1\" :caused-by f12208520b7bf92c7421c97d821391d287fa62b120a38793c88d68afe4eec2d430ac3))"
       },
       {
-        "canonical": "(lang signer-register (write @room () :clock \"hlc-0000000000000000-00000000\" :op 10002 :value \"merged\" :replaces (f1220421c768991b43f001600e28bf3f5861b848c8feedca15c44b5e4e75d0a07cdc8 f12204f6724f2db287609f819135b65ec68ffa59a882ab01942cde0924ed78cc3a568) :from @b :thread \"s1\" :caused-by f1220fe3baedf97239bd0eafd18cc17a5e2b9c472ad53ed73b353acccca071db3f972))"
+        "canonical": "(lang signer-register (write @room () :clock \"hlc-0000000000000000-00000000\" :from @b :op 10002 :replaces (f122016176b4200435a759b5b6c695799c7430ca587cf3d2c415800736c9b15f11fd0 f12206a6baaaf8408f7a3b82e78ceea708c286b11b23002e486c2feabe722a1495878) :value \"merged\" :thread \"s1\" :caused-by f12208520b7bf92c7421c97d821391d287fa62b120a38793c88d68afe4eec2d430ac3))"
       },
       {
-        "canonical": "(lang signer-register (write @room () :clock \"hlc-0000000000000000-00000000\" :op 10003 :value \"first\" :replaces () :from @new :thread \"s1\" :caused-by f1220fe3baedf97239bd0eafd18cc17a5e2b9c472ad53ed73b353acccca071db3f972))"
+        "canonical": "(lang signer-register (write @room () :clock \"hlc-0000000000000000-00000000\" :from @new :op 10003 :replaces () :value \"first\" :thread \"s1\" :caused-by f12208520b7bf92c7421c97d821391d287fa62b120a38793c88d68afe4eec2d430ac3))"
       }
     ]
   }

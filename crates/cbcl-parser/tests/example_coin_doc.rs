@@ -14,8 +14,8 @@ const DOC: &str = include_str!("../../../docs/concepts/example-coin.md");
 const COIN: &str = include_str!("../../../dialects/example-coin.cbcl");
 
 const ROOT_ADDR: &str = "f122067bb33cf1e30749bc9175826525393ce0a0f4a45315c94338714edb31a8849c6";
-const OPEN_ADDR: &str = "f12206cb665125c407ef5b342519f806c8ded7e05efcd26aa5501d620b5b3f0829e4f";
-const PAY_ADDR: &str = "f122031662c15f7bd725c2e714cc9b7392d28c2d549a3fe9b5ef0c3cc81307c2c438c";
+const OPEN_ADDR: &str = "f1220400baa8fa18604fedff1606554d3d3fc922b89391f627640a4d7a749ba482963";
+const PAY_ADDR: &str = "f1220de5e5d7d66a0e12c00785cbeb8e6fe12b851c5b4f3c45596e702622532be70b2";
 
 /// Every fenced block in the document tagged with `lang`, in order.
 fn blocks(lang: &str) -> Vec<String> {

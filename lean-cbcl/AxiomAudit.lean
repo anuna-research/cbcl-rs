@@ -44,6 +44,7 @@ import LeanCbcl.StateAddressCounting
 import LeanCbcl.StateAddressDigits
 import LeanCbcl.StateFaultRenderingTests
 import LeanCbcl.StateJsonValueTests
+import LeanCbcl.BoundaryCanonicalOracle
 import LeanCbcl.StateKeywordExtractionTests
 import LeanCbcl.StateContextMessageTests
 import LeanCbcl.StateContextWrapperSyntaxTests
@@ -3434,3 +3435,39 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateAuthoredConditionPreparation.mapM_available
 
 #print axioms CBCL.StateAuthoredConditionPreparation.checked_tree_compiles
+
+-- SPEC-042: complete boundary canonicalisation and recursive shape preservation.
+#print axioms CBCL.BoundaryCanonical.ordered_perm
+#print axioms CBCL.BoundaryCanonical.ordered_sorted
+#print axioms CBCL.BoundaryCanonical.ordered_idempotent
+#print axioms CBCL.BoundaryCanonical.layout_replace
+#print axioms CBCL.BoundaryCanonical.fields_replace
+#print axioms CBCL.BoundaryCanonical.determined
+#print axioms CBCL.BoundaryCanonical.canonical_layout
+#print axioms CBCL.BoundaryCanonical.canonical_fields
+#print axioms CBCL.BoundaryCanonical.canonical_preserves
+#print axioms CBCL.BoundaryCanonical.canonical_idempotent
+#print axioms CBCL.BoundaryCanonical.unique_row
+#print axioms CBCL.BoundaryCanonical.ordered_permutation
+#print axioms CBCL.BoundaryCanonical.canonical_permutation
+#print axioms CBCL.BoundaryCanonical.canonical_eq_iff
+#print axioms CBCL.BoundaryCanonical.scan_flatten
+#print axioms CBCL.BoundaryCanonical.canonical_clean
+#print axioms CBCL.BoundaryCanonical.tokens_idempotent
+#print axioms CBCL.BoundaryCanonical.tokens_permutation
+#print axioms CBCL.BoundaryCanonical.tokens_eq_iff
+#print axioms CBCL.BoundaryShapeCanonical.height_member
+#print axioms CBCL.BoundaryShapeCanonical.forestHeight_le
+#print axioms CBCL.BoundaryShapeCanonical.forestHeight_perm
+#print axioms CBCL.BoundaryShapeCanonical.order_perm
+#print axioms CBCL.BoundaryShapeCanonical.order_idempotent
+#print axioms CBCL.BoundaryShapeCanonical.normalize_complete
+#print axioms CBCL.BoundaryShapeCanonical.normalize_idempotent
+#print axioms CBCL.BoundaryShapeCanonical.normalize_height
+#print axioms CBCL.BoundaryShapeCanonical.complete_ordered
+#print axioms CBCL.BoundaryShapeCanonical.complete_idempotent
+#print axioms CBCL.BoundaryShapeCanonical.equivalent_refl
+#print axioms CBCL.BoundaryShapeCanonical.children_map
+#print axioms CBCL.BoundaryShapeCanonical.normalize_preserves
+#print axioms CBCL.BoundaryShapeCanonical.complete_preserves
+#print axioms CBCL.BoundaryCanonicalOracle.keyword_keyToken

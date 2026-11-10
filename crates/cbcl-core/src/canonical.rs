@@ -81,7 +81,76 @@ use alloc::vec::Vec;
 ///   cannot be stripped or rewritten in gossip under an intact signature.
 /// - `6` (SPEC-040): unconditionally binds the type-profile and sorted type
 ///   environment. Explicit signature/self-address reissue is required.
-pub const CANONICAL_FORM_VERSION: u32 = 6;
+/// - `7` (SPEC-042): canonicalises sibling shape declarations recursively.
+pub const CANONICAL_FORM_VERSION: u32 = 7;
+
+/// Canonical parameter representation at message construction/encoding boundaries.
+/// Sort whole keyword/value pairs, retaining positional slots and opaque values.
+/// No fields are dropped or merged. Message recognition rejects missing values
+/// and duplicate keys before calling this representation function.
+/// SPEC-042's `BoundaryCanonical.canonicalTokens` is the proved algorithm model;
+/// the live `canonical::parameter_function_matches_formal_model` campaign checks
+/// this function directly, including mixed positional slots and opaque values.
+pub fn canonical_params(params: &[SExpr]) -> Vec<SExpr> {
+    let mut pairs = Vec::new();
+    let mut slots = Vec::new();
+    let mut i = 0;
+    while i < params.len() {
+        if let SExpr::Atom(Atom::Keyword(key)) = &params[i] {
+            if let Some(value) = params.get(i + 1) {
+                slots.push(i);
+                pairs.push((key, value));
+                i += 2;
+                continue;
+            }
+        }
+        i += 1;
+    }
+    pairs.sort_by(|a, b| a.0.cmp(b.0));
+    let mut out = params.to_vec();
+    for (slot, (key, value)) in slots.into_iter().zip(pairs) {
+        out[slot] = SExpr::Atom(Atom::Keyword(key.clone()));
+        out[slot + 1] = value.clone();
+    }
+    out
+}
+
+/// Normalise unordered shape declarations once at dialect creation. Signing and
+/// hashing use the same projection for dialects built directly by Rust callers.
+/// SPEC-042's `BoundaryShapeCanonical.complete` proves recursive fixed-point,
+/// ordering and structural preservation; its native key adapter is checked by
+/// `canonical::dialect_function_matches_formal_model`.
+pub fn canonicalise_dialect(d: &mut Dialect) {
+    canonicalise_shapes(&mut d.shapes);
+}
+
+fn canonicalise_shapes(shapes: &mut [ShapeConstraint]) {
+    fn normalise(rules: &mut [ShapeRule]) {
+        for rule in rules.iter_mut() {
+            if let ShapeRule::Require { children, .. } | ShapeRule::Optional { children, .. } = rule
+            {
+                normalise(children);
+            }
+        }
+        rules.sort_by_cached_key(|r| {
+            let (kind, key) = match r {
+                ShapeRule::Require { keyword, .. } | ShapeRule::Optional { keyword, .. } => {
+                    (0, keyword.as_str())
+                }
+                ShapeRule::MaxDepth(_) => (1, ""),
+            };
+            (
+                kind,
+                String::from(key),
+                canonical_encode(&shape_rule_to_sexpr(r)),
+            )
+        });
+    }
+    for shape in shapes.iter_mut() {
+        normalise(&mut shape.rules);
+    }
+    shapes.sort_by_cached_key(|s| (s.performative.clone(), canonical_encode(&shape_to_sexpr(s))));
+}
 
 // ---------------------------------------------------------------------------
 // Atom-to-octet-string mapping
@@ -625,14 +694,14 @@ fn node_ref_to_sexpr(nr: &NodeRef) -> SExpr {
     }
 }
 
-/// Encode a slice of `ShapeConstraint`s deterministically, preserving the
-/// order in which they were declared (REQ-220 — multiple constraints on the
-/// same performative compose by conjunction, but order is part of the
-/// signed body so re-ordering yields different bytes).
+/// Encode unordered shape conjunctions in the creation boundary's order.
 fn shapes_to_sexpr(shapes: &[ShapeConstraint]) -> SExpr {
     use alloc::vec;
     let mut items = vec![SExpr::Atom(Atom::Symbol(String::from("shapes")))];
-    for s in shapes {
+    // Use the creation projection for direct Rust construction as well.
+    let mut canonical = shapes.to_vec();
+    canonicalise_shapes(&mut canonical);
+    for s in &canonical {
         items.push(shape_to_sexpr(s));
     }
     SExpr::List(items)
@@ -1587,9 +1656,9 @@ mod tests {
     }
 
     #[test]
-    fn canonical_form_version_is_six() {
+    fn canonical_form_version_is_seven() {
         // Pin the version constant so changes are deliberate.
-        assert_eq!(CANONICAL_FORM_VERSION, 6);
+        assert_eq!(CANONICAL_FORM_VERSION, 7);
     }
 
     // ---- SPEC-015 REQ-709: causal-locality mode is signature-bound ----

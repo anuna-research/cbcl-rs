@@ -426,7 +426,7 @@ impl From<Message> for SExpr {
                     None => {}
                 }
                 items.push(content);
-                items.extend(params);
+                items.extend(crate::canonical::canonical_params(&params));
                 if let Some(t) = thread {
                     items.push(SExpr::Atom(Atom::Keyword(String::from("thread"))));
                     items.push(SExpr::Atom(Atom::Str(t)));
@@ -473,7 +473,7 @@ impl From<Message> for SExpr {
                 content,
             } => {
                 let mut items = vec![SExpr::Atom(Atom::Symbol(String::from(wrapper.as_str())))];
-                items.extend(params);
+                items.extend(crate::canonical::canonical_params(&params));
                 items.push(SExpr::from(*content));
                 SExpr::List(items)
             }
@@ -610,10 +610,17 @@ fn parse_wrapped(
     let inner_idx = tail.iter().rposition(|item| matches!(item, SExpr::List(_)));
     match inner_idx {
         Some(idx) => {
+            if idx + 1 != tail.len() {
+                return Err(MessageParseError(String::from(
+                    "wrapper inner message must be last",
+                )));
+            }
             // A wrapper neither establishes nor discards a lang scope; it
             // carries through whatever it was found in.
             let inner = parse_message_scoped(&tail[idx], scope)?;
-            let params = tail[..idx].to_vec();
+            let params = &tail[..idx];
+            validate_param_keywords(params)?;
+            let params = crate::canonical::canonical_params(params);
             Ok(Message::Wrapped {
                 wrapper,
                 params,
@@ -629,6 +636,30 @@ fn parse_wrapped(
 /// Whether an S-expression is a single address token (`@key`).
 fn is_address(s: &SExpr) -> bool {
     matches!(s, SExpr::Atom(Atom::Symbol(sym)) if sym.starts_with('@'))
+}
+
+/// Recognise parameter structure before normalising it (SPEC-042 REQ-4201).
+fn validate_param_keywords(params: &[SExpr]) -> Result<(), MessageParseError> {
+    let mut seen = alloc::collections::BTreeSet::new();
+    let mut i = 0;
+    while i < params.len() {
+        if let SExpr::Atom(Atom::Keyword(key)) = &params[i] {
+            if i + 1 == params.len() {
+                return Err(MessageParseError(alloc::format!(
+                    "keyword :{key} missing value"
+                )));
+            }
+            if !seen.insert(key) {
+                return Err(MessageParseError(alloc::format!(
+                    "duplicate keyword :{key}"
+                )));
+            }
+            i += 2;
+        } else {
+            i += 1;
+        }
+    }
+    Ok(())
 }
 
 /// Whether an S-expression is an *address group*: a single address `@x` or a
@@ -650,6 +681,7 @@ fn parse_simple(
     tail: &[SExpr],
     scope: LangScope,
 ) -> Result<Message, MessageParseError> {
+    validate_param_keywords(tail)?;
     let performative = match CorePerformative::parse(head) {
         Some(cp) => Performative::Core(cp),
         // A custom performative outside a `(lang …)` wrapper has no
@@ -749,7 +781,7 @@ fn parse_simple(
         performative,
         recipient,
         content: content.unwrap_or(SExpr::List(Vec::new())),
-        params,
+        params: crate::canonical::canonical_params(&params),
         thread,
         sender: sender_val,
         caused_by,

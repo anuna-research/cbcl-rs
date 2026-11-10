@@ -38,11 +38,14 @@ def run (j : Json) : Except String Json := do
 
 /-- Closed state-shape/extraction campaign. All keys are drawn from amount,
 other and routing fields, and generated numbers stay inside native state bounds.
-This checks the state-shape stage, not protocol or authentication admission. -/
+This checks message-boundary recognition/canonicalisation followed by the
+state-shape stage, not protocol or authentication admission. -/
 def keywordRun (j : Json) : Except String Json := do
   let .list params ← tree 32 (← j.getObjVal? "params") | throw "params must be a tagged list"
   let rejected := Json.mkObj [("accepted",.bool false)]
-  let some rows := StateKeywordExtraction.parse params | return rejected
+  let some authored := StateKeywordExtraction.parseBoundary params | return rejected
+  let rows := StateKeywordExtraction.canonicalRows authored
+  let params := StateKeywordExtraction.encode rows
   if rows.any (fun row => !["amount","other","thread"].contains row.1) then return rejected
   if rows.any (fun row => row.1 == "thread" && match row.2 with | .atom (.str _) => false | _ => true) then
     throw "keyword profile thread values must be strings"

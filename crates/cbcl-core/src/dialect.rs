@@ -413,6 +413,7 @@ impl DialectRegistry {
             dialect = %d.name,
             "dialect_install_count"
         );
+        crate::canonical::canonicalise_dialect(&mut d);
         self.dialects.push(d);
         Ok(())
     }
@@ -598,6 +599,7 @@ impl DialectRegistry {
             r4_result = ?r4,
             "dialect_install_count"
         );
+        crate::canonical::canonicalise_dialect(&mut d);
         self.dialects.push(d);
         Ok(r4)
     }
