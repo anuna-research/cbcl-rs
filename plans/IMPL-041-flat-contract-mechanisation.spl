@@ -1,0 +1,25 @@
+; Primary agent: Lean model and oracle. Independent agents: comprehension/proof/evidence reviews.
+; Governing acceptance: SPEC-041 TEST-4100 and TEST-4101.
+(predicate task-description ((id symbol) (text symbol)) (kind state))
+(predicate task-acceptance ((id symbol) (text symbol)) (kind state))
+(given (task formal-model))
+(given (task-description formal-model "Prove exact tagged contract checking, resolution, and resource properties in Lean"))
+(given (task-acceptance formal-model "TEST-4100 preliminary model-build portion: pinned Lean build and explicit axiom audit; independent final acceptance belongs to proof-review"))
+(given (no-deps formal-model))
+(normally r-ready-formal-model (and (task formal-model) (no-deps formal-model)) (ready formal-model))
+(meta r-ready-formal-model (source "SPEC-041-flat-contract-mechanisation#REQ-4100"))
+(given (task oracle))
+(given (task-description oracle "Connect the executable Lean model to live Rust installation and checking"))
+(given (task-acceptance oracle "TEST-4101 actual cross-language comparison and caught Rust mutation pass"))
+(normally r-ready-oracle (and (task oracle) (completed formal-model)) (ready oracle))
+(meta r-ready-oracle (source "SPEC-041-flat-contract-mechanisation#REQ-4102"))
+(given (task proof-review))
+(given (task-description proof-review "Independently audit theorem scope, assumptions, and execution evidence"))
+(given (task-acceptance proof-review "TEST-4100/4101 substantive review findings resolved and proof boundary recorded"))
+(normally r-ready-proof-review (and (task proof-review) (completed oracle)) (ready proof-review))
+(meta r-ready-proof-review (source "SPEC-041-flat-contract-mechanisation#Trust boundary"))
+
+; Verified with scripts/check-flat-contract-proofs.sh; evidence: proofs/flat-contracts/mechanisation.md.
+(given (completed formal-model))
+(given (completed oracle))
+(given (completed proof-review))

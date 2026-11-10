@@ -79,3 +79,8 @@ Maintainer-owned depth follow-up: differential testing against a separate comple
 The existing ignored Lean and BEAM VM tests retain their documented infrastructure requirements.
 The Rust contract checker and signing form 6 are not covered by an additional Lean proof here.
 No formal equivalence or universal performance claim is made.
+
+## Formal contract model
+
+[SPEC-041 mechanisation](mechanisation.md) adds kernel-checked contract semantics, finite resolution, and live Rust/Lean comparisons on this branch.
+It records the named regex hypothesis and remaining Rust refinement boundary separately from the implementation checks above.

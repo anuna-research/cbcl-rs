@@ -662,7 +662,9 @@ Racket supplies contract-system inspiration; this proposal makes no assertion of
 Implementation evidence: [SPEC-040 verification](../proofs/flat-contracts/verification.md).
 The initial draft passed independent comprehension and design review before implementation was authorized.
 Implementation reviews covered core semantics, resource safety, schemas, grammar, and binding coverage; substantive findings were corrected.
-No formal proof or full independent-engine regex equivalence claim is made.
+[[SPEC-041-flat-contract-mechanisation]] now mechanises the contract model, exact comparisons, finite resolution, and reservation guards.
+[Mechanisation evidence](../proofs/flat-contracts/mechanisation.md) records theorems, executable Rust agreement, and remaining implementation boundaries.
+Full Rust refinement and general independent-engine regex equivalence remain unproved.
 
 Comprehension reviewer `type_spec_comprehension` read only the Orientation and correctly predicted the numeric, postal-code, ordering, and signature rules.
 Independent reviewer `type_spec_review` identified budget-order ambiguity and unclear separation of signed limits from local resource availability.
