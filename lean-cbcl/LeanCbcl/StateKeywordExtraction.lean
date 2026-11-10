@@ -47,6 +47,34 @@ theorem parse_sound (params : List SExpr) (rows : Rows) (parsed : parse params =
       simp [encode,ih found tail]
   | case3 params => simp [parse] at parsed
 
+/-- Message-boundary recognition rejects all duplicate keywords, including
+lifted routing metadata. This is stronger than the R7 data-only gate below. -/
+def parseBoundary (params : List SExpr) : Option Rows := do
+  let rows ← parse params
+  if (rows.map Prod.fst).Nodup then some rows else none
+
+/-- The boundary recognizes the complete input with no duplicate keyword names. -/
+theorem parseBoundary_sound (params : List SExpr) (rows : Rows)
+    (accepted : parseBoundary params = some rows) :
+    encode rows = params ∧ (rows.map Prod.fst).Nodup := by
+  cases parsed : parse params with
+  | none => simp [parseBoundary,parsed] at accepted
+  | some found =>
+    by_cases unique : (found.map Prod.fst).Nodup
+    · have same : found = rows := by simpa [parseBoundary,parsed,unique] using accepted
+      subst rows
+      exact ⟨parse_sound params found parsed,unique⟩
+    · simp [parseBoundary,parsed,unique] at accepted
+
+/-- Canonical message-boundary order. Whole rows move; values stay opaque.
+The oracle's closed profile has only keyword/value rows, no positional slots. -/
+def canonicalRows (rows : Rows) : Rows :=
+  rows.mergeSort (fun a b => decide (a.1 ≤ b.1))
+
+/-- Boundary ordering preserves the exact multiset of keyword/value rows. -/
+theorem canonicalRows_perm (rows : Rows) : (canonicalRows rows).Perm rows :=
+  List.mergeSort_perm rows _
+
 /-- State-bearing data rows after the native routing-key exclusion. -/
 def dataRows (rows : Rows) : Rows := rows.filter (fun row => !routing row.1)
 

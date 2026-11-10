@@ -203,3 +203,28 @@ change their address-keyed entries; application values remain unchanged.
 Next actor: maintainer reviews the branch and coordinates reissue with downstream
 signers and stores before adoption. The existing checkpoint baseline defects
 remain maintainer-owned follow-up work, outside this boundary rule.
+
+### Oracle parity follow-up
+
+Lean's keyword-extraction campaign previously modelled only R7's duplicate
+nonrouting-key gate. Its wrapper called native message recognition on the Rust
+side, so repeated `:thread` keys disagreed after boundary rejection was introduced.
+Its shape scan also used authored row order, disagreeing on keyword-looking
+values after Rust canonicalised the message. These are boundary-model gaps,
+not reasons to relax [[SPEC-042-boundary-canonicalisation#REQ-4201]].
+
+The oracle now applies complete keyword-row recognition and all-key uniqueness,
+then canonicalises whole rows before shape checks and extraction. Lower-level
+R7 extraction and its existing proofs are unchanged. New Lean lemmas establish
+boundary recognition soundness and preservation of the row multiset by sorting;
+their scope is the keyword-only profile, not the full native message grammar.
+Routing-duplicate and order-sensitive literal regressions run natively without
+Lean and against the live oracle. Independent session `keyword_oracle_review`
+found no concrete defects in this follow-up.
+
+Validation: `lake build cbcl-state-oracle LeanCbcl.StateKeywordExtractionTests`
+passes. `cargo test -p cbcl-parser --test state_kernel_oracle -- --include-ignored`
+passes all executed campaigns. The original failing routing-duplicate case was
+observed red against the previous oracle before the fix. An axiom audit of the
+new boundary lemmas, their fixtures, and the existing checked-amount theorem
+finds only `propext`, `Classical.choice`, and `Quot.sound`.
