@@ -441,7 +441,8 @@ Core: repeat checks under identical installed inputs and compare outcomes while 
 Assert no I/O, callbacks, mutable-state reads, field rewriting, or other-field inspection.
 Exercise repeated aliases and composition under a total-work budget without exponential tree expansion.
 Compare `(or expensive-string-type string)` with its operand permutation using identical values and available work.
-Assert equal reservation requirements and successful results when provisioned; insufficient reservation returns `resource-limit` before either predicate runs.
+With sufficient work, assert equal reservation requirements and successful results.
+With insufficient work, assert `resource-limit` before either predicate runs.
 Compare sufficiently provisioned bindings with a host that refuses local work; distinguish resource unavailability from value mismatch.
 Trace: [[SPEC-040-numeric-and-refinement-types#REQ-4004]], [[SPEC-040-numeric-and-refinement-types#NFR-4000]].
 
