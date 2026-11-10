@@ -3,7 +3,7 @@ id: SPEC-040
 title: Numeric Types and Named Flat Contracts
 status: draft
 mode: reference
-version: 0.1.0
+version: 0.2.0
 last-updated: 2026-11-10
 owner: CBCL maintainer
 ---
@@ -23,6 +23,8 @@ owner: CBCL maintainer
 Intent: give dialect authors precise numeric names and reusable value checks without requiring them to order their declarations.
 The [[SPEC-040-numeric-and-refinement-types#Vocabulary|flat contract]] model draws inspiration from [[SPEC-040-numeric-and-refinement-types#Racket inspiration|Racket contracts]].
 A named contract validates an existing value; it does not execute author code, construct a new wire value, or coerce representations.
+Numeric refinements support inclusive and exclusive literal bounds without changing the checked representation.
+Regex refinements use [[SPEC-040-numeric-and-refinement-types#RFC 9485|RFC 9485 I-Regexp]], with checking, full-string matching, and explicit resource limits.
 
 ```lisp
 (type postal-code (string (matches "[0-9]{4}")))
@@ -33,13 +35,14 @@ A named contract validates an existing value; it does not execute author code, c
 ```
 
 `integer` accepts signed 64-bit integer atoms. `float` accepts finite binary64 atoms, and `decimal` accepts exact decimal atoms.
-`number` accepts any of those representations without conversion.
+`number` accepts any of those representations without conversion; examples are integer `12`, float `12.0`, and decimal `12m`.
 `postal-code` accepts `"2000"`, rejects `2000`, and rejects `"x2000y"` because matching covers the entire string.
 Shapes can precede their type declarations. Installation gathers declarations and resolves references before checking any message.
 
 Decisions: [[SPEC-040-numeric-and-refinement-types#ADR-4000]] uses flat declarative contracts;
 [[SPEC-040-numeric-and-refinement-types#ADR-4001]] resolves names across the complete dialect;
-[[SPEC-040-numeric-and-refinement-types#ADR-4002]] binds type semantics into signed dialects.
+[[SPEC-040-numeric-and-refinement-types#ADR-4002]] binds type semantics into signed dialects;
+[[SPEC-040-numeric-and-refinement-types#ADR-4003]] adopts the documented I-Regexp language.
 
 Load-bearing: [[SPEC-040-numeric-and-refinement-types#REQ-4000]] numeric hierarchy;
 [[SPEC-040-numeric-and-refinement-types#REQ-4001]] named composition;
@@ -50,7 +53,7 @@ Load-bearing: [[SPEC-040-numeric-and-refinement-types#REQ-4000]] numeric hierarc
 Controls:
 - [[SPEC-040-numeric-and-refinement-types#REQ-4000]] forbids coercion and fractional values in integer-only arithmetic positions.
 - [[SPEC-040-numeric-and-refinement-types#REQ-4002]] rejects duplicate, unknown, shadowed, cyclic, or ill-typed definitions before installation.
-- [[SPEC-040-numeric-and-refinement-types#REQ-4003]] rejects unsupported regex syntax; compile and input budgets apply before matching.
+- [[SPEC-040-numeric-and-refinement-types#REQ-4003]] requires checking I-Regexp recognition; compile and input budgets apply before matching.
 - [[SPEC-040-numeric-and-refinement-types#REQ-4004]] prohibits author procedures, I/O, callbacks, mutable-state reads, and value rewriting.
 - [[SPEC-040-numeric-and-refinement-types#REQ-4005]] prohibits using old signatures under changed type semantics.
 - [[SPEC-040-numeric-and-refinement-types#REQ-4006]] rejects invalid values and defaults at their defined boundary with attributable diagnostics.
@@ -58,7 +61,7 @@ Controls:
 Open: [[SPEC-040-numeric-and-refinement-types#Open decisions]] assigns the optional-default migration, implementation placement, and numeric budget ratification to the maintainer.
 This document is a draft. Its acceptance tests are proposed, and the PR's existing implementation does not yet satisfy this specification.
 
-Detail: [[SPEC-040-numeric-and-refinement-types#CON-4000]] defines type declarations;
+Detail: [[SPEC-040-numeric-and-refinement-types#CON-4000]] defines type declarations and numeric range syntax;
 [[SPEC-040-numeric-and-refinement-types#CON-4001]] defines the bounded regex language;
 [[SPEC-040-numeric-and-refinement-types#CON-4002]] defines installation and boundary checks.
 
@@ -147,7 +150,7 @@ Trace: [[SPEC-040-numeric-and-refinement-types#CON-4000]], [[SPEC-040-numeric-an
 
 ### REQ-4001
 
-A dialect SHALL support names for aliases, bounded string refinements, intersections, and unions under [[SPEC-040-numeric-and-refinement-types#CON-4000]].
+A dialect SHALL support names for aliases, numeric range refinements, bounded string refinements, intersections, and unions under [[SPEC-040-numeric-and-refinement-types#CON-4000]].
 A named type SHALL check the underlying value without adding a wire tag or changing its canonical bytes.
 
 Acceptance: a value satisfying `postal-code` remains an ordinary string; an alias and its target accept the same bounded values.
@@ -166,7 +169,7 @@ Trace: [[SPEC-040-numeric-and-refinement-types#CON-4002]], [[SPEC-040-numeric-an
 
 ### REQ-4003
 
-`matches` SHALL validate a decoded string with full-string semantics under [[SPEC-040-numeric-and-refinement-types#CON-4001]].
+`matches` SHALL validate a decoded string under RFC 9485 syntax and semantics, as adopted in [[SPEC-040-numeric-and-refinement-types#CON-4001]].
 The implementation SHALL compile each distinct installed pattern before accepting the dialect and enforce finite compilation and matching budgets.
 
 Acceptance: `[0-9]{4}` accepts `"2000"`, rejects `"x2000y"`, and rejects `"2000\n"`.
@@ -186,7 +189,7 @@ Trace: [[SPEC-040-numeric-and-refinement-types#CON-4002]], [[SPEC-040-numeric-an
 ### REQ-4005
 
 Canonical signed dialect data SHALL bind the numeric and contract semantics profile and the complete declared type environment.
-Changing a type name, base contract, regex, composition, or profile SHALL change the signed commitment.
+Changing a type name, base contract, numeric bound or comparator, regex, composition, or profile SHALL change the signed commitment.
 
 The changed meaning of `number` SHALL NOT reuse old signatures under the old integer-only interpretation.
 Compiled matcher state and caches SHALL NOT replace the source definition in the signed commitment.
@@ -228,10 +231,14 @@ The proposed structural grammar uses the existing CBCL lexical productions for s
 type-decl   = "(" , "type" , ws , type-name , ws , type-expr , ")" ;
 type-expr   = builtin | type-name
             | "(" , "string" , ws , matches , { ws , matches } , ")"
+            | "(" , numeric-base , ws , bound , { ws , bound } , ")"
             | "(" , "and" , ws , type-expr , ws , type-expr ,
                 { ws , type-expr } , ")"
             | "(" , "or" , ws , type-expr , ws , type-expr ,
                 { ws , type-expr } , ")" ;
+numeric-base = "number" | "integer" | "float" | "decimal" ;
+bound       = "(" , comparator , ws , numeric-literal , ")" ;
+comparator  = ">=" | ">" | "<=" | "<" ;
 matches     = "(" , "matches" , ws , string , ")" ;
 builtin     = "number" | "integer" | "float" | "decimal" | "nonnegative"
             | "string" | "hlc" | "bool" | "symbol" | "keyword" | "list" ;
@@ -254,6 +261,29 @@ An `and` whose representation sets are disjoint rejects installation; `number` i
 No general regex-language inclusion or emptiness decision is required by this representation check.
 A syntactically valid regex accepting no strings remains a legal contract that rejects every value.
 
+Numeric refinements combine their base representation with every declared bound:
+
+```lisp
+(type percentage (number (>= 0) (<= 100)))
+(type positive-count (integer (> 0)))
+(type price (decimal (>= 0m) (< 10000m)))
+```
+
+`numeric-literal` is an existing integer, finite float, or decimal literal; expressions and references are not bounds.
+Each comparator applies to the checked value and its literal bound in that order.
+Bounds compare exact mathematical values across representations, without rounding either operand or rewriting the checked atom.
+A float contributes its exact represented binary64 value; its printed decimal approximation does not replace that value.
+For example, float `0.1` is greater than decimal `0.1m`, while integer `1`, float `1.0`, and decimal `1m` compare equal.
+Signed zeros compare equal. The base contract still determines which representations are accepted.
+Thus `percentage` admits integer, float, and decimal values; `price` admits only decimals, even with an integer bound.
+`>=` and `<=` include their endpoints; `>` and `<` exclude them. A single bound permits an open-ended interval.
+Comparisons SHALL NOT convert values to binary64 as a common intermediate representation.
+Exact comparison work and temporary storage count toward the signed profile's installation and checking budgets.
+The installer derives the tightest lower and upper bounds, treating an exclusive bound as tighter at an equal endpoint.
+It SHALL reject reversed endpoints and equal endpoints with either endpoint excluded.
+Other empty domains, such as `(integer (> 0) (< 1))`, SHALL remain valid contracts that reject every value.
+These checks introduce no arithmetic expressions, step sizes, units, coercion, or cross-field comparisons.
+
 The proposed `default` clause makes optional defaults explicit:
 
 ```lisp
@@ -272,45 +302,49 @@ Verified by: [[SPEC-040-numeric-and-refinement-types#TEST-4000]], [[SPEC-040-num
 
 ### CON-4001
 
-Interface: the `matches` string denotes the following bounded regular language after exactly one CBCL string-unescape operation.
-This is a proposed portability profile, not a promise of compatibility with every Racket, JavaScript, or Rust regex feature.
+Interface: the decoded `matches` pattern is an I-Regexp under [[SPEC-040-numeric-and-refinement-types#RFC 9485]].
+Section 3 and Figure 1 supply the grammar; section 4 supplies the Boolean semantics through its normative XSD references.
+CBCL adopts that documented language by reference and removes its bespoke regex EBNF.
 
-```ebnf
-regex       = concat , { "|" , concat } ;
-concat      = { repeated } ;
-repeated    = primary , [ quantifier ] ;
-primary     = literal | "." | escaped | class | "(" , regex , ")" ;
-quantifier  = "*" | "+" | "?" | "{" , natural , "}"
-            | "{" , natural , "," , natural , "}" ;
-class       = "[" , [ "^" ] , class-item , { class-item } , "]" ;
-class-item  = class-char , [ "-" , class-char ] | escaped ;
-natural     = digit , { digit } ;
-```
+The implementation SHALL be checking in the sense of RFC 9485 section 3.1.
+It SHALL recognize the entire I-Regexp before adapting or compiling it, rejecting syntax outside that language.
+Host-library acceptance alone is not sufficient evidence of I-Regexp validity.
 
-A `literal` is a Unicode scalar excluding backslash, controls, and regex metacharacters `.[](){}|*+?^$`.
-A `class-char` is a printable ASCII character excluding `]`, `-`, backslash, and `^`.
-`escaped` is backslash followed by a regex metacharacter, hyphen, or backslash; it denotes that character without special meaning.
-Ranges are ASCII, inclusive, and ascending. Negated classes complement their accepted scalars within the Unicode scalar domain.
-`.` matches any one Unicode scalar, including a newline. Grouping has no externally visible capture semantics.
+The following distinctions matter for CBCL authors and adapters:
 
-Quantifier counts are nonnegative integers; an upper bound smaller than its lower bound rejects installation.
-Compiler limits apply before repetition is materialized, including very large counted repetitions.
-The matcher begins at the first scalar and succeeds only after consuming the last scalar.
-The empty regex accepts only the empty string. Alternation permits empty branches under these same full-match rules.
+| Rule | Required interpretation |
+|---|---|
+| Input | Unicode scalar sequences, including the RFC's required character properties; no ASCII-only fallback |
+| Match | The complete string, with no implicit substring search or extracted captures |
+| Dot | Any scalar except LF and CR; a decoded newline is not normalized away |
+| `^` and `$` | Ordinary literal characters under I-Regexp, not host-engine anchors |
+| Repetition | The RFC's exact, bounded, and open-ended counted forms, subject to explicit resource limits |
+| Escapes | The RFC's permitted escapes and Unicode categories; no engine-specific shorthand extension |
 
-Lookaround, backreferences, recursion, named captures, embedded flags, lazy quantifiers, anchors, and shorthand character classes are outside this profile.
-Unsupported syntax rejects rather than approximating another engine's interpretation.
-The implementation composes an existing grammar-derived regular-expression parser and automaton implementation when it can enforce this exact profile.
-If its library accepts a larger language, an explicit recognizer rejects constructs outside this grammar before compilation.
+Backreferences, lookaround, and engine-specific flags are not accepted as additional syntax.
+The RFC's grammar, including its character-class restrictions, decides recognition rather than an informal feature checklist.
 
-Input limits count UTF-8 bytes; matching semantics operate on decoded Unicode scalars without normalization or locale-sensitive behavior.
-A newline in a value remains a newline. `[0-9]{4}` rejects a trailing newline without relying on an engine's `$` convention.
-Pattern source and signed-profile limits have deterministic meanings across bindings.
-Local host availability is not a different interpretation of those limits.
+CBCL string unescaping occurs once before I-Regexp recognition. Pattern source is retained for signing and diagnostics.
+An author writing a regex backslash therefore escapes it in CBCL, such as `(matches "\\p{Nd}{4}")`.
+The signed semantics profile fixes the Unicode property-data version used by every binding; using host-default tables is not permitted.
+That version is a maintainer-owned implementation gate rather than an ambient library choice.
 
-Preconditions: the structural `matches` clause and string escape syntax have already been recognized.
-Postconditions: a checked immutable matcher accepts exactly the declared full-string language within the configured resource budget.
-Error model: invalid patterns, unsupported constructs, wrong ranges, compile exhaustion, or input-budget exhaustion produce typed failures.
+An adapter composes an existing regex implementation with an I-Regexp recognizer and semantic translation where needed.
+RFC 9485 section 5 gives informative mapping guidance; the normative grammar and Boolean semantics remain authoritative.
+The adapter SHALL preserve literal metacharacters, dot behavior, Unicode categories, and the full-input boundary.
+Wrapping raw source in host anchors alone does not establish conformance.
+
+Compiled regexes and translated host patterns are implementation artifacts. They never replace the original pattern in signed dialect data.
+Runtime bindings share the core implementation; browser or NIF consumers do not independently interpret the source with host regex defaults.
+
+CBCL retains the explicit compilation, input, and whole-check reservation limits in [[SPEC-040-numeric-and-refinement-types#NFR-4000]].
+Those are resource policy, not an alternate regex dialect or permission to approximate the accepted language.
+Counted repetition is admitted only within the profile's resource limits; exhaustion is distinct from malformed syntax or value mismatch.
+A constrained target unable to support the required Unicode data reports unsupported capability; it does not accept a weaker ASCII contract.
+
+Preconditions: the structural `matches` clause and CBCL string escape syntax are recognized; the signed semantics profile is supported.
+Postconditions: within admitted budgets, the compiled check yields the RFC's Boolean result and preserves the original string.
+Error model: invalid I-Regexp is a definition error; value mismatch is a contract violation; exhausted resources use the separate operational category.
 Implements: [[SPEC-040-numeric-and-refinement-types#REQ-4003]], [[SPEC-040-numeric-and-refinement-types#REQ-4004]].
 Verified by: [[SPEC-040-numeric-and-refinement-types#TEST-4003]], [[SPEC-040-numeric-and-refinement-types#TEST-4004]].
 
@@ -329,7 +363,7 @@ The canonical type segment binds each name and expression together, preventing c
 
 The signed body also includes a fixed type-semantics identifier, proposed as `cbcl-flat-v1`.
 The compiler inserts this identifier; dialect authors do not supply or order it.
-Its definition covers the numeric hierarchy, contract grammar, and regex semantics in this document.
+Its definition covers the numeric hierarchy, contract grammar, RFC 9485 semantics, pinned Unicode property data, and resource limits in this document.
 The signing-form version changes, and verification binds the profile rather than relying on an informational version constant alone.
 Existing development signatures and self-addressed dialect identities require reissue under this explicit format change.
 Existing historical records remain available as evidence; no silent migration or permissive legacy alias is introduced.
@@ -373,9 +407,9 @@ A regex-refined string remains a string, and a numeric supertype does not conver
 
 Rationale: authors need reusable constraints on exchanged data, not executable dialect extensions or higher-order function boundaries.
 Racket's naming and composition concepts fit that need without importing its procedure-based extensibility.
-Enums, numeric intervals, recursive containers, and cross-field constraints remain future proposals with their own grammars.
+Enums, recursive containers, and cross-field constraints remain future proposals with their own grammars.
 
-Trade-off: the initial refinement predicate is string matching. The grammar intentionally rejects other predicate forms.
+Trade-off: initial refinements are string matching and literal numeric bounds. Other predicate forms require a separate grammar decision.
 
 ### ADR-4001
 
@@ -398,6 +432,19 @@ Source pattern strings and profile identity support deterministic interpretation
 Trade-off: this is a deliberate development-time compatibility break; signatures and dialect self-addresses require explicit reissue.
 The maintainer approves the exact canonical segment and updated golden vectors before merging the implementation.
 
+### ADR-4003
+
+Decision: adopt RFC 9485 I-Regexp for the regex language, with mandatory checking and the resource policy in this specification.
+The implementation composes an existing engine through a verified semantic adapter rather than publishing its native dialect as CBCL syntax.
+
+Rationale: authors need a documented, portable language for Boolean validation. A bespoke regex grammar duplicates established interoperability work.
+Engine syntax, Unicode tables, and default matching modes cannot silently define signed contract semantics.
+
+Trade-off: adapters must preserve the documented language even where a host engine differs.
+The implementation plan must select the Unicode-data version, supply adaptation vectors, and demonstrate budget enforcement before claiming conformance.
+
+Trace: [[SPEC-040-numeric-and-refinement-types#REQ-4003]], [[SPEC-040-numeric-and-refinement-types#CON-4001]], [[SPEC-040-numeric-and-refinement-types#TEST-4003]].
+
 ## Acceptance tests
 
 These are proposed tests, not evidence of implementation. The implementer owns runnable core tests before claiming conformance.
@@ -416,6 +463,12 @@ Trace: [[SPEC-040-numeric-and-refinement-types#REQ-4000]].
 
 Core: check named aliases, refined strings, intersections, and unions with positive and negative values.
 Verify full-string behavior and unchanged canonical message bytes.
+Check inclusive and exclusive numeric endpoints, one-sided bounds, negative bounds, and mixed representations.
+Accept `0`, `0.0`, and `0m` as percentages; reject values below zero or above one hundred.
+Reject a float under a decimal base, even when it satisfies the bounds.
+Compare float `0.1` above decimal `0.1m`; compare a large integer beyond binary64 precision without rounding.
+Reject nonnumeric bounds, reversed endpoints, and equal endpoints with an exclusive bound.
+Exercise numeric comparison work and storage limits; preserve operational `resource-limit` outcomes.
 Reject nested list contracts, executable predicates, and unknown combinator heads.
 Trace: [[SPEC-040-numeric-and-refinement-types#REQ-4001]].
 
@@ -428,11 +481,16 @@ Trace: [[SPEC-040-numeric-and-refinement-types#REQ-4002]].
 
 ### TEST-4003
 
-Core: test every regex production and its rejection boundaries, including counted repetition and ASCII ranges.
+Core: derive recognition cases from RFC 9485 Figure 1 and its additional character-class restriction.
 Verify `"2000"` passes and `"x2000y"`, integer `2000`, and `"2000\n"` fail the postal-code contract.
-Reject lookaround, backreferences, anchors, shorthand classes, malformed escapes, and invalid repetition bounds.
+Check open-ended repetition, escaped literals, character ranges, Unicode properties, and empty patterns.
+Assert `.` rejects LF and CR but accepts a supplementary Unicode scalar.
+Match pattern `^x$` against literal text `"^x$"`; reject `"x"` to detect accidental host-anchor interpretation.
+Verify `\p{Nd}{4}` accepts non-ASCII decimal digits, while `[0-9]{4}` rejects them.
+Reject invalid classes, unsupported shorthand, lookaround, backreferences, embedded flags, malformed escapes, and invalid repetition bounds.
 Exercise compile and input budgets at their limit and just beyond it.
-Depth: measure nested quantifiers and large counted repetitions against the agreed worst-case bounds without exponential backtracking.
+Run identical vectors through native, WASM, and NIF with the pinned Unicode data.
+Depth: test engine adaptations against an independent I-Regexp reference and adversarial counted repetitions under agreed resource limits.
 Trace: [[SPEC-040-numeric-and-refinement-types#REQ-4003]], [[SPEC-040-numeric-and-refinement-types#NFR-4000]].
 
 ### TEST-4004
@@ -448,7 +506,7 @@ Trace: [[SPEC-040-numeric-and-refinement-types#REQ-4004]], [[SPEC-040-numeric-an
 
 ### TEST-4005
 
-Core: mutate a name, regex, base, operand, or profile and verify the signed commitment changes.
+Core: mutate a name, numeric bound, comparator, regex, base, operand, or profile and verify the signed commitment changes.
 Reorder declarations and verify the canonical type segment remains equal. Reorder composition and retain its specified signed diagnostic order.
 Reject a signature produced for the old integer-only `number` interpretation under the new semantics.
 Depth: regenerate self-addressed dialect fixtures with an explicit old/new identity map and native cross-binding golden vectors.
@@ -476,7 +534,8 @@ Trace: [[SPEC-040-numeric-and-refinement-types#REQ-4000]], [[SPEC-040-numeric-an
 
 - Maintainer: approve the proposed explicit `(default value)` syntax and migration from positional optional defaults before changing recognition.
 - Maintainer: ratify pattern, compiled-state, input, declaration, dependency, and total-work limits with cross-target measurements.
-- Implementer: select an existing regex parser and automaton implementation that enforces the declared portable profile across supported targets.
+- Implementer: select an I-Regexp checking recognizer, existing engine, and semantic adapter across supported targets.
+- Maintainer: pin the Unicode property-data version and RFC conformance/adaptation vectors in the signed semantics profile.
 - Maintainer: approve the exact signed type-profile segment, signing-version change, and development fixture reissue before implementation merges.
 - Implementer: plan the resolved type representation, state-schema changes, numeric supertype checks, and JSON authoring/binding surface.
 
@@ -497,6 +556,14 @@ Approval of this specification and an implementation plan precede custom-type co
 
 ## Sources
 
+### RFC 9485
+
+I-Regexp: An Interoperable Regular Expression Format. Sections 3–4 define the adopted grammar and semantics.
+Section 5 gives informative engine-mapping guidance; section 8 discusses resource limits and untrusted patterns.
+URL: https://www.rfc-editor.org/rfc/rfc9485.html
+
+### Racket contracts
+
 The Racket Guide, Contracts: the source suggested by the user.
 URL: https://docs.racket-lang.org/guide/contracts.html
 
@@ -509,7 +576,8 @@ URL: https://docs.racket-lang.org/guide/contract-func.html
 Building New Contracts: the distinction between flat contracts and higher-order projections.
 URL: https://docs.racket-lang.org/guide/Building_New_Contracts.html
 
-The proposed grammar, regex subset, budgets, and signed profile are CBCL design choices, not assertions of Racket compatibility.
+The type-declaration grammar, budgets, signed profile, and mandatory checking are CBCL choices. The regex language is the adopted I-Regexp standard.
+Racket supplies contract-system inspiration; this proposal makes no assertion of Racket compatibility.
 
 ## Review status
 
@@ -523,11 +591,16 @@ The revision adds whole-check work reservation, profile-fixed limits, and a sepa
 The reviewer re-read the revision and reported no remaining substantive objection.
 That review does not establish implementation feasibility, runtime conformance, or the unratified numeric limits.
 
+The 0.2.0 comprehension review confirmed numeric spellings and ownership of range syntax after Orientation clarification.
+Independent review checked RFC 9485 semantics and numeric ranges, resolving stale scope text, endpoint handling, and signed-bound coverage.
+Empty numeric-domain installation remains deterministic; range and regex tests are still proposed.
+
 ## Changelog
 
 <details>
 <summary>Revision history</summary>
 
+- 0.2.0 — 2026-11-10: adopt RFC 9485 I-Regexp, remove bespoke regex syntax, specify Unicode and adapter conformance obligations, and add exact numeric range refinements.
 - 0.1.0 — 2026-11-10: draft the numeric hierarchy and named flat-contract model on the numeric-types branch, inspired by Racket contracts.
 
 </details>
