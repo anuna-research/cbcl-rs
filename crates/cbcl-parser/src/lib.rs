@@ -41,3 +41,25 @@ pub use shape_exports::verify_message_shape_str;
 pub use shape_parser::parse_shape;
 pub use state_exports::parse_and_install_dialect;
 pub use state_parser::{parse_state, parse_state_bounds};
+
+/// Parse once and return the canonical signed-envelope audience (`@` retained).
+/// No dialect installation or field declaration order is required.
+pub fn recipient_of(input: &str) -> Result<alloc::string::String, alloc::string::String> {
+    let form = parse(input).map_err(|e| alloc::format!("parse error: {e}"))?;
+    let message = parse_message(&form)?;
+    message
+        .canonical_recipient()
+        .map(alloc::string::String::from)
+        .map_err(alloc::string::String::from)
+}
+
+/// Audience accessor for hosts that already allow bare custom control verbs.
+/// This recognizes syntax only; the host must still authorize the verb.
+pub fn recipient_of_lax(input: &str) -> Result<alloc::string::String, alloc::string::String> {
+    let form = parse(input).map_err(|e| alloc::format!("parse error: {e}"))?;
+    let message = parse_message_lax(&form)?;
+    message
+        .canonical_recipient()
+        .map(alloc::string::String::from)
+        .map_err(alloc::string::String::from)
+}

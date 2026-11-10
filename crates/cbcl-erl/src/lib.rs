@@ -38,7 +38,7 @@ mod versions;
 #[allow(dead_code)]
 mod tracing_hooks;
 
-pub use parse_message::parse_message_pure;
+pub use parse_message::{parse_message_pure, recipient_of_pure};
 pub use parse_message_lax::parse_message_lax_pure;
 pub use state::{
     admit_pure, compile_contract_pure, define_text_pure, describe_dialect_pure, dialect_hash_pure,

@@ -50,7 +50,7 @@ test('a contract compiles to a self-addressed dialect the verifier accepts', asy
   assert.doesNotThrow(() => verifyDialect(object.dialect));
   assert.equal((await importObject(object.serialized)).name, object.name);
   assert.equal(object.info.opener, 'open');
-  assert.deepEqual(Object.keys(object.info.verbs.check.fields), ['item', 'done', 'clock']);
+  assert.deepEqual(Object.keys(object.info.verbs.check.fields), ['clock', 'done', 'item']);
   await assert.rejects(defineContract({ ...checklist, verbs: { ...checklist.verbs, check: { ...checklist.verbs.check, after: ['open', 'check'] } } }), /R5/);
   await assert.rejects(defineContract({ ...checklist, view: [] } as never), /host package/);
   for (const field of ['from', 'replaces', 'key']) {

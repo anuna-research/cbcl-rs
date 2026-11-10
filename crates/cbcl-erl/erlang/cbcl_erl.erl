@@ -53,7 +53,8 @@
 
 -module(cbcl_erl).
 
--export([parse_message/1,
+-export([recipient_of/1,
+         parse_message/1,
          parse_message_lax/1,
          verify_dialect/1,
          verify_message_shape/1,
@@ -109,3 +110,6 @@ read(_Bytes)               -> erlang:nif_error(nif_not_loaded).
 %% Separate escrow authorization; protocol admission and issuance remain host duties.
 -spec resource_check(binary()) -> {ok, binary()} | {error, binary()}.
 resource_check(_) -> erlang:nif_error(nif_not_loaded).
+
+-spec recipient_of(binary()) -> {ok, binary()} | {error, binary()}.
+recipient_of(_Bytes) -> erlang:nif_error(nif_not_loaded).

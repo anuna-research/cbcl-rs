@@ -24,6 +24,15 @@ compileContract(json);                   // {name: 'f1220…', label, dialect}  
 
 Also exported: `parseSexpr`, `kwargs`, `asText`, `readValue`, `sliceForm` (reading helpers over `read`), and the state-layer frames `foldState`, `intendAct`, `admitAct`, `maySend`, `frontierOf`, `stateSchema` (SPEC-019 R.7), each taking the S-expression frame and returning typed results.
 
+Audience extraction is available as `recipientOf(message)` and
+`recipientOfLax(message)`, both backed by the compiled Rust parser. The strict
+accessor requires dialect-scoped custom verbs; the lax accessor also recognizes
+bare host control verbs, which the host must authorize. Both retain `@`, honor
+the outer envelope's routing `:to`, and throw on missing or ambiguous audiences.
+They enforce current parser grammar, including a final wrapper body. Legacy
+post-body proof fields and keyword-value bodies are rejected; the routing corpus
+records these compatibility differences explicitly.
+
 ## `cbcl/object`
 
 A JSON contract (verbs, fields, state rules) compiles to one CBCL dialect carrying the state clause, named by its self-address; every host installs it through R1–R7 and folds it with cbcl-rs.

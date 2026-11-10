@@ -662,9 +662,19 @@ mod wasm_bindgen_api {
         }
     }
 
-    /// Parse an S-expression into a CBCL message and return its canonical form.
-    ///
-    /// Matches `wasm-parse-cbcl-message` from `wasm-cbcl-wrapper.scm`.
+    /// Canonical signed-envelope audience, with `@` retained.
+    #[wasm_bindgen]
+    pub fn recipient_of(input: &str) -> Result<String, String> {
+        cbcl_parser::recipient_of(input)
+    }
+
+    /// Audience for host-authorized bare custom control verbs.
+    #[wasm_bindgen]
+    pub fn recipient_of_lax(input: &str) -> Result<String, String> {
+        cbcl_parser::recipient_of_lax(input)
+    }
+
+    /// Parse a CBCL message and return its canonical form.
     #[wasm_bindgen]
     pub fn parse_message(input: &str) -> Result<String, String> {
         parse_message_str(input)
@@ -1867,6 +1877,26 @@ mod bounded_counter_binding_tests {
             assert_eq!(
                 super::resource_check_bytes(frame.as_bytes()).unwrap(),
                 expected.into_bytes()
+            );
+        }
+    }
+}
+
+#[cfg(all(test, feature = "bindgen"))]
+mod recipient_parity {
+    #[test]
+    fn wasm_uses_shared_recipient_rule() {
+        for text in [
+            "(tell @bob hello)",
+            "(lang d (ask @bob hello))",
+            "(reply hello)",
+            "(meta (teach @bob (define d (cbcl) @author)))",
+            "(tell (@a @b) hello)",
+            "(envelope :to @room (tell @bob hello))",
+        ] {
+            assert_eq!(
+                super::wasm_bindgen_api::recipient_of(text),
+                cbcl_parser::recipient_of(text)
             );
         }
     }
