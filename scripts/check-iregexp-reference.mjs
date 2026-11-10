@@ -77,7 +77,14 @@ const unique = new Map(asts.map(ast => [iregexp(ast),ast]));
 const cases = [...unique].map(([pattern,ast]) => ({ pattern, matches: words.map(text => engine(ast).test(text) ? '1' : '0').join('') }));
 const result = { profile: 'rfc9485-ast-reference-v1', samples: words, cases };
 if (process.argv.includes('--write')) {
-  writeFileSync(destination, JSON.stringify({ ...result, generated_by: { node: process.version, v8: process.versions.v8, unicode: process.versions.unicode } }, null, 2)+'\n');
+  // One pattern per line; each result bit corresponds to the shared sample array.
+  const metadata = { node: process.version, v8: process.versions.v8, unicode: process.versions.unicode };
+  writeFileSync(destination, [
+    '{', `  "profile": ${JSON.stringify(result.profile)},`,
+    `  "generated_by": ${JSON.stringify(metadata)},`,
+    `  "samples": ${JSON.stringify(words)},`, '  "cases": [',
+    cases.map(row => `    ${JSON.stringify(row)}`).join(',\n'), '  ]', '}', '',
+  ].join('\n'));
 } else {
   const golden = JSON.parse(readFileSync(destination, 'utf8'));
   delete golden.generated_by;

@@ -69,7 +69,12 @@ for test in json.loads((ROOT / "upstream/jsonpath/match.json").read_text())["tes
         row = {"origin": f"jsonpath/match.json:{name}[{i}]", "pattern": pattern, "text": value, "matches": expected}
         if correction: row["correction"] = "https://github.com/jsonpath-standard/jsonpath-compliance-test-suite/issues/122"
         matching.append(row)
-output = json.dumps({"syntax": syntax, "matching": matching, "excluded_jsonpath_tests": sorted(skipped)}, ensure_ascii=True, indent=2) + "\n"
+# One case per line keeps fixtures reviewable without thousands of padding lines.
+output = "{\n" + ",\n".join(
+    '  ' + json.dumps(key) + ': [\n' +
+    ",\n".join("    " + json.dumps(row, ensure_ascii=True) for row in rows) + "\n  ]"
+    for key, rows in [("syntax", syntax), ("matching", matching), ("excluded_jsonpath_tests", sorted(skipped))]
+) + "\n}\n"
 destination = ROOT / "upstream-cases.json"
 if "--check" in sys.argv:
     assert destination.read_text() == output, "run scripts/import-iregexp-fixtures.py to refresh"
