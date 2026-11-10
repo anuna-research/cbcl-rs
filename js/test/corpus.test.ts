@@ -4,8 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readdir, readFile } from 'node:fs/promises';
-import { wireAddress } from '../src/index.ts';
-import { createRuntime } from '../src/object/index.ts';
+import { createRuntime, actRecord } from '../src/object/index.ts';
 
 const dir = new URL('../../test-vectors/state/', import.meta.url);
 const vectors = (await readdir(dir)).filter(name => name.endsWith('.json')).sort();
@@ -21,7 +20,8 @@ for (const name of vectors) {
   test(`corpus ${name}: verdicts, state, and intents match cbcl-rs`, async () => {
     const vector = JSON.parse(await readFile(new URL(name, dir), 'utf8')) as Vector;
     const thread = vector.thread ?? 't';
-    const messages = vector.messages.map(m => ({ cid: wireAddress(m.canonical), signer: m.signer, canonical: m.canonical, thread }));
+    // Act identity includes the cast-bearing root, which a bare message hash omits.
+    const messages = vector.messages.map(m => ({ ...actRecord(m.canonical, m.signer), thread }));
     assert.deepEqual(messages.map(m => m.cid), vector.expect.addresses);
     const runtime = createRuntime(vector.contract);
     assert.deepEqual(Object.fromEntries(runtime.verdicts(thread, messages)), vector.expect.verdicts);

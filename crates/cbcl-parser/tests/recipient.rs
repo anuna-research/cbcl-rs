@@ -28,11 +28,14 @@ fn current_hub_room_corpus() {
     for row in corpus["rows"].as_array().unwrap() {
         let result = cbcl_parser::recipient_of_lax(row["frame"].as_str().unwrap());
         assert_eq!(
-            result.ok().as_deref(),
-            row["room"].as_str(),
+            result.as_ref().ok().map(String::as_str),
+            row.get("parserRoom").unwrap_or(&row["room"]).as_str(),
             "{}",
             row["name"]
         );
+        if let Some(expected) = row["parserErrorContains"].as_str() {
+            assert!(result.unwrap_err().contains(expected), "{}", row["name"]);
+        }
     }
 }
 
@@ -45,4 +48,10 @@ fn envelope_keywords_can_be_in_any_order_and_duplicates_fail_closed() {
         assert_eq!(recipient_of(text).as_deref(), Ok("@room"));
     }
     assert!(recipient_of("(envelope :to @one :to @two (tell @bob hello))").is_err());
+    assert!(recipient_of("(envelope :to @one :to @one (tell @bob hello))").is_err());
+    let raw = "(envelope :via @other :to @room (tell @bob hello))";
+    let canonical = cbcl_core::serializer::serialize(&cbcl_core::sexpr::SExpr::from(
+        &cbcl_parser::parse_message(&cbcl_parser::parse(raw).unwrap()).unwrap(),
+    ));
+    assert_eq!(recipient_of(raw), recipient_of(&canonical));
 }

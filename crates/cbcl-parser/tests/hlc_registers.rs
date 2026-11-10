@@ -35,8 +35,8 @@ fn explicit_hlc_rules_install_and_newer_clock_beats_greater_hash() {
     let mut old = act("old", 1, "@alice");
     let mut new = act("new", 2, "@alice");
     // Isolate ordering from the content hash; real-address coverage is in the corpus.
-    old.address = format!("sha256-{}", "f".repeat(64));
-    new.address = format!("sha256-{}", "0".repeat(64));
+    old.address = format!("f1220{}", "f".repeat(64));
+    new.address = format!("f1220{}", "0".repeat(64));
     let state = cbcl_core::state::render_json(&fold(d.state.as_ref().unwrap(), None, &[old, new]));
     let state: serde_json::Value = serde_json::from_str(&state).unwrap();
     assert!(
@@ -170,7 +170,7 @@ fn malformed_clocks_fail_receipt_and_bad_clock_declarations_fail_installation() 
     }
     for source in [
         D.replace("(require :clock hlc)", "(require :clock string)"),
-        D.replace("(require :clock hlc)", "(require :clock number)"),
+        D.replace("(require :clock hlc)", "(require :clock integer)"),
         D.replace("(require :clock hlc)", "(optional :clock hlc)"),
         D.replace(
             "(lww-register write :value :clock)",
@@ -380,7 +380,7 @@ fn domain_excluded_high_clock_replacer_changes_neither_values_nor_replacements()
 fn authoring_and_description_support_new_rules_without_changing_contract_version() {
     let contract = serde_json::json!({"version":3,"kind":"contract","name":"clock-demo","author":"@a",
        "verbs":{"open":{"after":["begin"],"fields":{"title":"string"}},
-                "write":{"after":["open"],"fields":{"item":"string","value":"number","clock":"hlc"}},
+                "write":{"after":["open"],"fields":{"item":"string","value":"integer","clock":"hlc"}},
                 "drop":{"after":["open"],"fields":{"item":"string"}}},
        "state":{"lww":["lwwRegister","write","value","clock"],
                 "own":["lwwPerSigner","write","value","clock"],

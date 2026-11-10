@@ -39,7 +39,9 @@
     {
       "name": "a role step with the account proof",
       "frame": "(envelope :to @general (signed @aria (lang tic-tac-toe (open (@aria @bo) () :title \"Game 1\" :from @aria :thread \"object-6c6dd8d9ef57b7da3a44bbb2918ee97a\" :caused-by begin))) :signing-key \"K\" :selfsame \"P\")",
-      "room": "@general"
+      "room": "@general",
+      "parserRoom": null,
+      "parserErrorContains": "wrapper inner message must be last"
     },
     {
       "name": "an envelope around a canonical single-handle role act uses its envelope room",
@@ -74,12 +76,16 @@
     {
       "name": "another wrapper wraps its last list, a keyword's value included",
       "frame": "(signed @aria (lang lunch-vote (propose @general :title \"Lunch\" :from @aria :thread \"object-1\" :caused-by begin)) :k (tell @evil \"x\" :from @aria))",
-      "room": "@evil"
+      "room": "@evil",
+      "parserRoom": null,
+      "parserErrorContains": "keyword :k missing value"
     },
     {
       "name": "an envelope's trailing keyword list is its last list too",
       "frame": "(envelope :to @general (signed @aria (lang tic-tac-toe (open (@aria @bo) () :title \"G\" :from @aria :thread \"object-6c\" :caused-by begin))) :k (tell @evil \"x\" :from @aria))",
-      "room": "@general"
+      "room": "@general",
+      "parserRoom": null,
+      "parserErrorContains": "keyword :k missing value"
     },
     {
       "name": "with-limits wraps its last list, after its limits",
@@ -116,5 +122,6 @@
       "frame": "(envelope :to @general (signed @owner (lang settings (set () () :setting \"x\" :value \"true\" :from @owner :thread \"object-1\" :caused-by begin))))",
       "room": null
     }
-  ]
+  ],
+  "parserCompatibility": "room retains the legacy hub routing result. parserRoom, when present, records an intentional stricter parser result after SPEC-042: a wrapper body must be final and cannot be consumed as a keyword value. The shared audience accessors fail closed on these invalid frames."
 }

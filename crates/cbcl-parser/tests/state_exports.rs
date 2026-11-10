@@ -141,7 +141,7 @@ fn frames_reproduce_every_vector() {
         );
         let name = cbcl_parser::state_exports::dialect_hash_str(contract).unwrap();
         assert!(
-            name.starts_with("sha256-") && name.len() == 7 + 64,
+            name.starts_with("f1220") && name.len() == 5 + 64,
             "{id}: {name}"
         );
         for m in vector["messages"].as_array().unwrap() {

@@ -19,7 +19,7 @@
 use super::*;
 use alloc::{format, vec};
 fn id(i: usize) -> alloc::string::String {
-    format!("sha256:{i:064x}")
+    format!("f1220{i:064x}")
 }
 fn hex(h: Hash) -> alloc::string::String {
     h.iter().map(|b| format!("{b:02x}")).collect()
@@ -35,11 +35,11 @@ fn fixed_cross_language_vectors() {
     );
     assert_eq!(
         hex(key(&id(0))),
-        "985aabd2c6e6a4ae012477c0df8bd9ddcc045e660f3fdcf4f19e92c24ad38c3a"
+        "130e0e26e49573303f2a1ee205966092e093843a16e35648318e9f86a8f727f0"
     );
     assert_eq!(
         hex(set.insert(&id(0))),
-        "94998fe7390b19a09a319b25120f69e92356fadb71b733ffc3138b9679b11eaa"
+        "fbd49fe15745d5a3fae203718fc62e682f47c61ddc4d952ca770b07b8b382ded"
     );
 }
 #[test]

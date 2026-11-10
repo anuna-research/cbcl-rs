@@ -50,10 +50,10 @@ fn fixture() -> Fixture {
       (extend drop (to item) :from member :to member (tell to :item item))
       (extend pay (to recipient amount) :from member :to member (tell to :recipient recipient :amount amount))
       (extend burn (to value) :from member :to member (tell to :value value))
-      (shape pay (require :recipient symbol) (require :amount number))
-      (shape burn (require :value number))
+      (shape pay (require :recipient symbol) (require :amount integer))
+      (shape burn (require :value integer))
       (shape open (require :title string) (require :allocations list))
-      (shape write (require :item string) (require :value number) (require :clock hlc) (require :unused string))
+      (shape write (require :item string) (require :value integer) (require :clock hlc) (require :unused string))
       (shape drop (require :item string))
       (protocol (then begin open) (then open (repeat 8 write)) (then open drop) (then open pay) (then open burn))
       (state
@@ -91,7 +91,7 @@ fn all_sixteen_installed_heads_resume_native_certificates_at_every_cut() {
     for i in 1..=8 {
         let message = SignedMessage::sign(parse(&format!(
             "(lang {} (write (@m0 @m1 @m2 @m3) :item \"shape\" :value {} :clock \"hlc-{:016x}-00000000\" :replaces ({}) :unused \"discard-me\" :escrow-prev {} :escrow-deps () :from @m0 :sender @m0 :thread \"target\" :caused-by \"{}\"))",
-            f.context.target().name, i, i, messages.last().map(|m: &SignedMessage|m.authenticate(&f.keys).unwrap().address).unwrap_or_default(), previous.replace("sha256:", "sha256-"), previous
+            f.context.target().name, i, i, messages.last().map(|m: &SignedMessage|m.authenticate(&f.keys).unwrap().address).unwrap_or_default(), previous.replace("f1220", "f1220"), previous
         )), "@m0", &f.keys).unwrap();
         previous = message.id().unwrap();
         messages.push(message);

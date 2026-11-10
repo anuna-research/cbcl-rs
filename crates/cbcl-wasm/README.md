@@ -16,3 +16,9 @@ ambiguous envelope recipients, and multicast without an envelope return errors.
 No dialect installation or declaration order is needed.
 `recipient_of_lax(text)` additionally recognizes bare custom host control verbs;
 the host remains responsible for authorizing those verbs.
+
+Both accessors enforce the current message grammar. A wrapper body must be its
+final item, and a keyword value cannot serve as the body. Legacy frames carrying
+proof fields after the body are rejected, rather than routed from a partially
+parsed frame. `test-vectors/frame-rooms.json` preserves legacy hub answers in
+`room` and explicitly records these stricter results in `parserRoom`.

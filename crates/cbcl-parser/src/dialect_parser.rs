@@ -29,7 +29,7 @@ use cbcl_core::state::{StateBounds, StateClause, RESERVED_REPLACES};
 ///   (:resource-requirements ((max-depth . N) (max-expansion-size . N) (verification-time . N)))
 ///   (:examples ...)
 ///   (:signature sig)
-///   (:hash "sha256:...")
+///   (:hash "f1220...")
 ///   (:protocol "ed25519"))
 /// ```
 pub fn parse_dialect(sexpr: &SExpr) -> Result<Dialect, String> {
@@ -80,7 +80,20 @@ pub fn parse_dialect(sexpr: &SExpr) -> Result<Dialect, String> {
     let mut state: Option<StateClause> = None;
     let mut state_bounds: Option<StateBounds> = None;
 
+    let mut types = alloc::collections::BTreeMap::new();
     for clause in &items[4..] {
+        if let SExpr::List(xs) = clause {
+            if xs.first().is_some_and(|x| x.is_symbol("type")) {
+                if xs.len() != 3 {
+                    return Err("type requires a name and expression".into());
+                }
+                let name = extract_symbol(&xs[1], "type name")?;
+                if types.insert(name, xs[2].clone()).is_some() {
+                    return Err("duplicate type name".into());
+                }
+                continue;
+            }
+        }
         parse_clause(
             clause,
             &mut performatives,
@@ -115,6 +128,7 @@ pub fn parse_dialect(sexpr: &SExpr) -> Result<Dialect, String> {
     }
 
     let mut d = Dialect {
+        types,
         roles,
         causal_locality,
         state,
@@ -131,8 +145,10 @@ pub fn parse_dialect(sexpr: &SExpr) -> Result<Dialect, String> {
         causal_protocol,
         shapes,
     };
+    cbcl_core::contracts::install(&mut d)?;
     cbcl_core::r7::insert_replaces(&mut d);
     cbcl_core::context::resolve(&mut d);
+    cbcl_core::canonical::canonicalise_dialect(&mut d);
     Ok(d)
 }
 
@@ -558,12 +574,12 @@ mod tests {
             sym("my-dialect"),
             list(vec![sym("cbcl")]),
             sym("@author"),
-            list(vec![kw("hash"), str_expr("sha256:abcd1234")]),
+            list(vec![kw("hash"), str_expr("f1220abcd1234")]),
             list(vec![kw("signature"), sym("sig123")]),
             list(vec![kw("protocol"), str_expr("ed25519")]),
         ]);
         let d = parse_dialect(&def).unwrap();
-        assert_eq!(d.hash, Some(String::from("sha256:abcd1234")));
+        assert_eq!(d.hash, Some(String::from("f1220abcd1234")));
         assert!(d.signature.is_some());
         assert_eq!(d.protocol, Some(String::from("ed25519")));
     }
@@ -589,7 +605,7 @@ mod tests {
             list(vec![kw("protocol"), str_expr("ed25519")]),
             list(vec![
                 kw("hash"),
-                str_expr("sha256:planning-dialect-v1.0-hash"),
+                str_expr("f1220planning-dialect-v1.0-hash"),
             ]),
             list(vec![kw("signature"), sym("planning-consortium-key-2024")]),
         ]);

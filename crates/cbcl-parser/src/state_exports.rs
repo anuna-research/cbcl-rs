@@ -4,7 +4,7 @@
 //!
 //! Frames are S-expressions, like every other export; state, schema, and
 //! rejections come back as canonical JSON (SPEC-019 R.3), a canonical act as
-//! its wire text, and a self-address as `sha256-<hex>`.
+//! its wire text, and a self-address as `f1220<hex>`.
 //!
 //! ```text
 //! (fold               <dialect> <thread> (acts (<signer> <message>) …))        → state JSON
@@ -14,7 +14,7 @@
 //! (may-send           <dialect> <thread> (acts …) <signer>)                    → JSON array of verbs
 //! (frontier           <dialect> <thread> (acts …))                             → {"instance","frontier"}
 //! (admit              <dialect> <thread> (acts …) (<signer> <message>))        → {"verdict":…}
-//! (define …)                                                                   → sha256-<hex>   (dialect_hash)
+//! (define …)                                                                   → f1220<hex>   (dialect_hash)
 //! ```
 //!
 //! `<dialect>` is a `(define …)` or a `(dialects <ancestor>* <leaf>)` chain,
@@ -209,9 +209,16 @@ pub fn verify_state_shape_str(input: &str) -> Result<String, String> {
     match cbcl_core::r7::verify_state_shape(&d, &message) {
         Ok(()) => Ok(String::from("ok")),
         Err(v) => {
-            let blame =
-                ViolationError::from_shape_violation(&v, None, None, Some(items[1].clone()))
-                    .with_dialect_context(&d.name, d.author.as_deref(), d.hash.as_deref(), None);
+            let blame = ViolationError::from_shape_violation(&v, None, None, None)
+                .with_dialect_context(
+                    &d.name,
+                    d.author.as_deref(),
+                    d.hash.as_deref(),
+                    message
+                        .innermost_simple()
+                        .and_then(|m| m.performative())
+                        .map(|p| p.name()),
+                );
             Err(serialize(&blame.to_sexpr()))
         }
     }
@@ -384,7 +391,7 @@ pub fn admit_str(input: &str) -> Result<String, String> {
     })
 }
 
-/// A `(define …)` → its self-addressed name `sha256-<hex>` (SPEC-019 R.6).
+/// A `(define …)` → its self-addressed name `f1220<hex>` (SPEC-019 R.6).
 pub fn dialect_hash_str(input: &str) -> Result<String, String> {
     let sexpr = crate::parser::parse(input).map_err(|e| format!("parse error: {e}"))?;
     let d = crate::parse_dialect(&sexpr).map_err(|e| format!("dialect parse error: {e}"))?;

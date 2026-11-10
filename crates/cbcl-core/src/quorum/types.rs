@@ -5,7 +5,6 @@ use crate::{
 };
 use alloc::{
     collections::{BTreeMap, BTreeSet},
-    format,
     string::{String, ToString},
     vec::Vec,
 };
@@ -22,11 +21,7 @@ pub(crate) fn strings(xs: &BTreeSet<String>) -> SExpr {
 pub(crate) fn digest(xs: Vec<SExpr>) -> String {
     let bytes = canonical_encode(&SExpr::List(xs));
     let hash = Sha256::digest(&bytes);
-    let mut out = String::from("sha256-");
-    for b in hash {
-        out.push_str(&format!("{b:02x}"));
-    }
-    out
+    crate::multihash::encode(&hash.into())
 }
 /// Verification authenticates keys, not merely the presence of a signed wrapper.
 pub trait Authentication {

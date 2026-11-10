@@ -1,0 +1,23 @@
+[
+  {
+    "file": "bounded-ceiling.json",
+    "baselineRevision": "179e7da",
+    "old": "sha256-6655c6fbcd385dd84414cad93d6cad9a1ed650f4c2834790d9043f543051d407",
+    "current": "sha256-6655c6fbcd385dd84414cad93d6cad9a1ed650f4c2834790d9043f543051d407",
+    "fixture": "sha256-00e5135405fae01e3135ee94a3a7e57f1f35fe19de5203d42462307db3585131"
+  },
+  {
+    "file": "bounded-coin.json",
+    "baselineRevision": "179e7da",
+    "old": "sha256-6655c6fbcd385dd84414cad93d6cad9a1ed650f4c2834790d9043f543051d407",
+    "current": "sha256-6655c6fbcd385dd84414cad93d6cad9a1ed650f4c2834790d9043f543051d407",
+    "fixture": "sha256-67bb33cf1e30749bc9175826525393ce0a0f4a45315c94338714edb31a8849c6"
+  },
+  {
+    "file": "checklist-roles.json",
+    "baselineRevision": "179e7da",
+    "old": "sha256-482c9b2855fdb98df32c3472fd8648da48fc5cf5594f77627283af7e9c927b3c",
+    "current": "sha256-482c9b2855fdb98df32c3472fd8648da48fc5cf5594f77627283af7e9c927b3c",
+    "fixture": "sha256-03d8c78f5c0e195f03a1dbf829b288786c01e4229381cc739234e68edcb31a2a"
+  }
+]

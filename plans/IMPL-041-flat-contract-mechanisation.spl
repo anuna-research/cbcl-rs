@@ -1,0 +1,45 @@
+; Primary agent: Lean model and oracle. Independent agents: comprehension/proof/evidence reviews.
+; Governing acceptance: SPEC-041 TEST-4100 and TEST-4101.
+(predicate task-description ((id symbol) (text symbol)) (kind state))
+(predicate task-acceptance ((id symbol) (text symbol)) (kind state))
+(given (task formal-model))
+(given (task-description formal-model "Prove exact tagged contract checking, resolution, and resource properties in Lean"))
+(given (task-acceptance formal-model "TEST-4100 preliminary model-build portion: pinned Lean build and explicit axiom audit; independent final acceptance belongs to proof-review"))
+(given (no-deps formal-model))
+(normally r-ready-formal-model (and (task formal-model) (no-deps formal-model)) (ready formal-model))
+(meta r-ready-formal-model (source "SPEC-041-flat-contract-mechanisation#REQ-4100"))
+(given (task oracle))
+(given (task-description oracle "Connect the executable Lean model to live Rust installation and checking"))
+(given (task-acceptance oracle "TEST-4101 actual cross-language comparison and caught Rust mutation pass"))
+(normally r-ready-oracle (and (task oracle) (completed formal-model)) (ready oracle))
+(meta r-ready-oracle (source "SPEC-041-flat-contract-mechanisation#REQ-4102"))
+(given (task proof-review))
+(given (task-description proof-review "Independently audit theorem scope, assumptions, and execution evidence"))
+(given (task-acceptance proof-review "TEST-4100/4101 substantive review findings resolved and proof boundary recorded"))
+(normally r-ready-proof-review (and (task proof-review) (completed oracle)) (ready proof-review))
+(meta r-ready-proof-review (source "SPEC-041-flat-contract-mechanisation#Trust boundary"))
+
+; Verified with scripts/check-flat-contract-proofs.sh; evidence: proofs/flat-contracts/mechanisation.md.
+(given (completed formal-model))
+(given (completed oracle))
+(given (completed proof-review))
+
+; Extend existing TEST-4003 conformance evidence without changing contract semantics.
+(given (task iregexp-conformance))
+(given (task-description iregexp-conformance "Audit pinned upstream I-Regexp fixtures and execute independent matching conformance cases"))
+(given (task-acceptance iregexp-conformance "SPEC-040 TEST-4003: upstream syntax/matching goldens, documented anchor corrections, independent generated cases, caught semantic mutation, and independent review"))
+(given (no-deps iregexp-conformance))
+(normally r-ready-iregexp-conformance (and (task iregexp-conformance) (no-deps iregexp-conformance)) (ready iregexp-conformance))
+(meta r-ready-iregexp-conformance (source "SPEC-040-numeric-and-refinement-types#REQ-4003"))
+; Acceptance: scripts/check-iregexp-conformance.sh and proofs/flat-contracts/iregexp-conformance.md.
+(given (completed iregexp-conformance))
+
+; Diagnostic usability under existing REQ-4006, with unchanged contract verdicts.
+(given (task contract-diagnostics))
+(given (task-description contract-diagnostics "Explain failed contract clauses, composition branches, regex source positions, and resource refusal without exposing field values"))
+(given (task-acceptance contract-diagnostics "SPEC-040 TEST-4006: alias/branch/refinement/location/resource diagnostics, privacy cases, unchanged verdict conformance, and independent review"))
+(given (no-deps contract-diagnostics))
+(normally r-ready-contract-diagnostics (and (task contract-diagnostics) (no-deps contract-diagnostics)) (ready contract-diagnostics))
+(meta r-ready-contract-diagnostics (source "SPEC-040-numeric-and-refinement-types#REQ-4006"))
+; Acceptance: contract_diagnostics (9 tests), conformance, Lean oracle, shared binding unit suites; evidence in proofs/flat-contracts/verification.md.
+(given (completed contract-diagnostics))

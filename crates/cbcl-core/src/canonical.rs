@@ -14,7 +14,7 @@
 //!
 //! # CBCL Atom-to-Octet-String Mapping
 //!
-//! CBCL has typed atoms (Symbol, Keyword, Num, Bool, Str) while SPKI
+//! CBCL has typed atoms (Symbol, Keyword, Num, Float, Decimal, Bool, Str) while SPKI
 //! S-expressions are fundamentally octet-strings plus lists. This module
 //! defines a stable, injective mapping from CBCL atoms to octet strings
 //! that becomes part of the protocol:
@@ -25,11 +25,13 @@
 //! | `Keyword(k)`   | `K`  | `b"K"` ++ UTF-8 bytes of `k`          |
 //! | `Str(s)`       | `Q`  | `b"Q"` ++ UTF-8 bytes of `s`          |
 //! | `Num(n)`       | `N`  | `b"N"` ++ ASCII decimal of `n`        |
+//! | `Float(f)`     | `F`  | `b"F"` ++ canonical finite float text     |
+//! | `Decimal(d)`   | `D`  | `b"D"` ++ normalized text without `m`     |
 //! | `Bool(true)`   | `B`  | `b"Bt"`                                |
 //! | `Bool(false)`  | `B`  | `b"Bf"`                                |
 //!
 //! **Injectivity**: Each variant uses a distinct single-byte type tag prefix
-//! (`S`, `K`, `Q`, `N`, `B`), guaranteeing that no value of one variant can
+//! (`S`, `K`, `Q`, `N`, `F`, `D`, `B`), guaranteeing that no value of one variant can
 //! collide with a value of a different variant.
 //!
 //! The mapping is stable and MUST NOT change once published. It is a
@@ -51,7 +53,7 @@ use alloc::vec::Vec;
 /// for any input dialect. Existing signatures are produced over a specific
 /// version's bytes; a bump means a re-sign is required for verifying
 /// implementations to interop. The version is informational — it is not
-/// itself part of the signed body — but mismatched versions across CBCL
+/// itself part of the signed body; v6 additionally signs the type profile. Mismatched versions across CBCL
 /// implementations should fail loudly at integration time.
 ///
 /// History:
@@ -73,11 +75,82 @@ use alloc::vec::Vec;
 ///   the mode is load-bearing: without it a relay could flip a signed
 ///   `reject` dialect to `derive`, silently enlarging delivery obligations
 ///   under an intact signature.
-/// - `5` (current): adds the `(state …)` and `(state-bounds …)` segments
+/// - `5`: adds the `(state …)` and `(state-bounds …)` segments
 ///   (SPEC-019 REQ-1903), gated on presence, so dialects without a state
 ///   layer produce v4-identical bytes. The fold is signature-bound: it
 ///   cannot be stripped or rewritten in gossip under an intact signature.
-pub const CANONICAL_FORM_VERSION: u32 = 5;
+/// - `6` (SPEC-040): unconditionally binds the type-profile and sorted type
+///   environment. Explicit signature/self-address reissue is required.
+/// - `7` (SPEC-042): canonicalises sibling shape declarations recursively.
+pub const CANONICAL_FORM_VERSION: u32 = 7;
+
+/// Canonical parameter representation at message construction/encoding boundaries.
+/// Sort whole keyword/value pairs, retaining positional slots and opaque values.
+/// No fields are dropped or merged. Message recognition rejects missing values
+/// and duplicate keys before calling this representation function.
+/// SPEC-042's `BoundaryCanonical.canonicalTokens` is the proved algorithm model;
+/// the live `canonical::parameter_function_matches_formal_model` campaign checks
+/// this function directly, including mixed positional slots and opaque values.
+pub fn canonical_params(params: &[SExpr]) -> Vec<SExpr> {
+    let mut pairs = Vec::new();
+    let mut slots = Vec::new();
+    let mut i = 0;
+    while i < params.len() {
+        if let SExpr::Atom(Atom::Keyword(key)) = &params[i] {
+            if let Some(value) = params.get(i + 1) {
+                slots.push(i);
+                pairs.push((key, value));
+                i += 2;
+                continue;
+            }
+        }
+        i += 1;
+    }
+    pairs.sort_by(|a, b| a.0.cmp(b.0));
+    let mut out = params.to_vec();
+    for (slot, (key, value)) in slots.into_iter().zip(pairs) {
+        out[slot] = SExpr::Atom(Atom::Keyword(key.clone()));
+        out[slot + 1] = value.clone();
+    }
+    out
+}
+
+/// Normalise unordered shape declarations once at dialect creation. Signing and
+/// hashing use the same projection for dialects built directly by Rust callers.
+/// SPEC-042's `BoundaryShapeCanonical.complete` proves recursive fixed-point,
+/// ordering and structural preservation; its native key adapter is checked by
+/// `canonical::dialect_function_matches_formal_model`.
+pub fn canonicalise_dialect(d: &mut Dialect) {
+    canonicalise_shapes(&mut d.shapes);
+}
+
+fn canonicalise_shapes(shapes: &mut [ShapeConstraint]) {
+    fn normalise(rules: &mut [ShapeRule]) {
+        for rule in rules.iter_mut() {
+            if let ShapeRule::Require { children, .. } | ShapeRule::Optional { children, .. } = rule
+            {
+                normalise(children);
+            }
+        }
+        rules.sort_by_cached_key(|r| {
+            let (kind, key) = match r {
+                ShapeRule::Require { keyword, .. } | ShapeRule::Optional { keyword, .. } => {
+                    (0, keyword.as_str())
+                }
+                ShapeRule::MaxDepth(_) => (1, ""),
+            };
+            (
+                kind,
+                String::from(key),
+                canonical_encode(&shape_rule_to_sexpr(r)),
+            )
+        });
+    }
+    for shape in shapes.iter_mut() {
+        normalise(&mut shape.rules);
+    }
+    shapes.sort_by_cached_key(|s| (s.performative.clone(), canonical_encode(&shape_to_sexpr(s))));
+}
 
 // ---------------------------------------------------------------------------
 // Atom-to-octet-string mapping
@@ -94,12 +167,13 @@ pub const CANONICAL_FORM_VERSION: u32 = 5;
 /// | `Keyword(k)`   | `K`  | `b"K"` ++ UTF-8 bytes of `k`   |
 /// | `Str(s)`       | `Q`  | `b"Q"` ++ UTF-8 bytes of `s`   |
 /// | `Num(n)`       | `N`  | `b"N"` ++ ASCII decimal of `n`  |
+/// | `Float(f)`     | `F`  | `b"F"` ++ canonical finite float text     |
+/// | `Decimal(d)`   | `D`  | `b"D"` ++ normalized text without `m`     |
 /// | `Bool(true)`   | `B`  | `b"Bt"`                         |
 /// | `Bool(false)`  | `B`  | `b"Bf"`                         |
 ///
 /// The tag bytes are chosen to be distinct ASCII uppercase letters.
-/// This ensures that no Symbol, Keyword, Str, Num, or Bool value can
-/// collide with a value of a different variant.
+/// Distinct type tags prevent collisions between different atom variants.
 pub fn atom_to_octets(atom: &Atom) -> Vec<u8> {
     match atom {
         Atom::Symbol(s) => {
@@ -120,6 +194,8 @@ pub fn atom_to_octets(atom: &Atom) -> Vec<u8> {
             v.extend_from_slice(s.as_bytes());
             v
         }
+        Atom::Float(n) => alloc::format!("F{n}").into_bytes(),
+        Atom::Decimal(n) => alloc::format!("D{}", n.as_str()).into_bytes(),
         Atom::Num(n) => {
             use alloc::format;
             let s = format!("{n}");
@@ -163,6 +239,8 @@ pub(crate) fn encode_to(sexpr: &SExpr, sink: &mut impl FnMut(&[u8])) {
             Atom::Keyword(s) => encode_tagged_to(b'K', s.as_bytes(), sink),
             Atom::Str(s) => encode_tagged_to(b'Q', s.as_bytes(), sink),
             Atom::Bool(b) => encode_tagged_to(b'B', if *b { b"t" } else { b"f" }, sink),
+            Atom::Float(n) => encode_tagged_to(b'F', alloc::format!("{n}").as_bytes(), sink),
+            Atom::Decimal(n) => encode_tagged_to(b'D', n.as_str().as_bytes(), sink),
             Atom::Num(n) => {
                 // unsigned_abs also handles i64::MIN without overflow.
                 let mut digits = [0u8; 21];
@@ -251,6 +329,8 @@ pub(crate) fn reference_encode(sexpr: &SExpr) -> Vec<u8> {
 ///
 /// ```text
 /// (dialect <name>
+///   (type-profile "cbcl-flat-v1-unicode16")
+///   (types (<name> <expression>)*)
 ///   (extends <parent>*)
 ///   (author <author>?)
 ///   (performatives (perf <name> (params <p>*) <template>)*)
@@ -266,7 +346,8 @@ pub(crate) fn reference_encode(sexpr: &SExpr) -> Vec<u8> {
 /// `causal_protocol` and `shapes` are *only* appended when present so a
 /// dialect that omits them produces the same canonical bytes as before
 /// these fields existed — existing signatures over such dialects keep
-/// verifying. Dialects that *do* declare a protocol or shapes get those
+/// verifying through v5. Version 6 deliberately requires reissue for every dialect.
+/// Dialects that *do* declare a protocol or shapes get those
 /// fields fully bound by the signature.
 pub fn to_signable_sexpr(d: &Dialect) -> SExpr {
     use alloc::vec;
@@ -275,6 +356,19 @@ pub fn to_signable_sexpr(d: &Dialect) -> SExpr {
         SExpr::Atom(Atom::Symbol(String::from("dialect"))),
         SExpr::Atom(Atom::Str(d.name.clone())),
     ];
+
+    top.push(SExpr::List(vec![
+        SExpr::Atom(Atom::Symbol("type-profile".into())),
+        SExpr::Atom(Atom::Str(crate::contracts::PROFILE.into())),
+    ]));
+    let mut types = vec![SExpr::Atom(Atom::Symbol("types".into()))];
+    for (name, expression) in &d.types {
+        types.push(SExpr::List(vec![
+            SExpr::Atom(Atom::Symbol(name.clone())),
+            expression.clone(),
+        ]));
+    }
+    top.push(SExpr::List(types));
 
     // extends
     let mut extends_list = vec![SExpr::Atom(Atom::Symbol(String::from("extends")))];
@@ -492,7 +586,7 @@ pub fn dialect_body_hash(d: &Dialect) -> String {
     out
 }
 
-/// The name a self-addressed dialect carries: `sha256-` plus its body
+/// The name a self-addressed dialect carries: `f1220` plus its body
 /// hash (SPEC-019 REQ-1927), spelled like every other content address.
 pub fn dialect_name(d: &Dialect) -> String {
     let mut out = String::from(crate::r7::SELF_ADDRESS_PREFIX);
@@ -600,14 +694,14 @@ fn node_ref_to_sexpr(nr: &NodeRef) -> SExpr {
     }
 }
 
-/// Encode a slice of `ShapeConstraint`s deterministically, preserving the
-/// order in which they were declared (REQ-220 — multiple constraints on the
-/// same performative compose by conjunction, but order is part of the
-/// signed body so re-ordering yields different bytes).
+/// Encode unordered shape conjunctions in the creation boundary's order.
 fn shapes_to_sexpr(shapes: &[ShapeConstraint]) -> SExpr {
     use alloc::vec;
     let mut items = vec![SExpr::Atom(Atom::Symbol(String::from("shapes")))];
-    for s in shapes {
+    // Use the creation projection for direct Rust construction as well.
+    let mut canonical = shapes.to_vec();
+    canonicalise_shapes(&mut canonical);
+    for s in &canonical {
         items.push(shape_to_sexpr(s));
     }
     SExpr::List(items)
@@ -674,6 +768,13 @@ fn type_constraint_to_sexpr(tc: &Option<TypeConstraint>) -> SExpr {
         let name = match t {
             TypeConstraint::String => "string",
             TypeConstraint::Hlc => "hlc",
+            TypeConstraint::Float => "float",
+            TypeConstraint::Decimal => "decimal",
+            TypeConstraint::Integer => "integer",
+            TypeConstraint::Contract(c) => {
+                v.push(c.source().clone());
+                return SExpr::List(v);
+            }
             TypeConstraint::Number => "number",
             TypeConstraint::Nonnegative => "nonnegative",
             TypeConstraint::Bool => "bool",
@@ -703,7 +804,7 @@ pub fn dialect_canonical_bytes(d: &Dialect) -> Vec<u8> {
     canonical_encode(&to_signable_sexpr(d))
 }
 
-/// Compute a dialect's canonical content hash: `sha256:<lowercase-hex64>`
+/// Compute a dialect's canonical content hash: `f1220<lowercase-hex64>`
 /// over [`dialect_canonical_bytes`] (SPEC-014 REQ-628).
 ///
 /// This follows the same discipline as message content hashing (SPEC-003
@@ -715,14 +816,7 @@ pub fn dialect_canonical_bytes(d: &Dialect) -> Vec<u8> {
 pub fn dialect_hash(d: &Dialect) -> String {
     use sha2::{Digest, Sha256};
     let digest = Sha256::digest(dialect_canonical_bytes(d));
-    const HEX: &[u8; 16] = b"0123456789abcdef";
-    let mut out = String::with_capacity(7 + 64);
-    out.push_str("sha256:");
-    for b in digest {
-        out.push(HEX[(b >> 4) as usize] as char);
-        out.push(HEX[(b & 0x0f) as usize] as char);
-    }
-    out
+    crate::multihash::encode(&digest.into())
 }
 
 // ---------------------------------------------------------------------------
@@ -1039,6 +1133,7 @@ mod tests {
 
     fn test_dialect(name: &str) -> Dialect {
         Dialect {
+            types: Default::default(),
             roles: Vec::new(),
             state: None,
             state_bounds: None,
@@ -1062,7 +1157,7 @@ mod tests {
             },
             examples: vec![],
             signature: Some(vec![0xAA]),
-            hash: Some(String::from("sha256:abc")),
+            hash: Some(String::from("f1220abc")),
             protocol: Some(String::from("ed25519")),
             causal_protocol: None,
             shapes: Vec::new(),
@@ -1163,6 +1258,7 @@ mod tests {
     #[test]
     fn signable_empty_dialect() {
         let d = Dialect {
+            types: Default::default(),
             roles: Vec::new(),
             state: None,
             state_bounds: None,
@@ -1193,6 +1289,7 @@ mod tests {
     #[test]
     fn signable_all_optional_fields() {
         let d = Dialect {
+            types: Default::default(),
             roles: Vec::new(),
             state: None,
             state_bounds: None,
@@ -1213,7 +1310,7 @@ mod tests {
             },
             examples: vec![SExpr::Atom(Atom::Str("example".into()))],
             signature: Some(vec![0xFF]),
-            hash: Some(String::from("sha256:xxx")),
+            hash: Some(String::from("f1220xxx")),
             protocol: Some(String::from("ed25519")),
             causal_protocol: None,
             shapes: Vec::new(),
@@ -1406,6 +1503,7 @@ mod tests {
     /// verifying.
     fn snapshot_legacy_dialect() -> Dialect {
         Dialect {
+            types: Default::default(),
             roles: Vec::new(),
             state: None,
             state_bounds: None,
@@ -1440,7 +1538,7 @@ mod tests {
         // Snapshot. If this fails the encoding has changed; investigate
         // whether it's deliberate (and bump CANONICAL_FORM_VERSION) or
         // accidental.
-        let expected = "(8:Sdialect7:Qlegacy(8:Sextends5:Qcbcl)(7:Sauthor11:Q@authority)\
+        let expected = "(8:Sdialect7:Qlegacy(13:Stype-profile23:Qcbcl-flat-v1-unicode16)(6:Stypes)(8:Sextends5:Qcbcl)(7:Sauthor11:Q@authority)\
              (14:Sperformatives(5:Sperf4:Qact(7:Sparams2:Sx)3:Sdo))\
              (10:Sresources2:N84:N5123:N10)(9:Sexamples))";
         // Strip whitespace from the literal — the actual bytes have none.
@@ -1487,7 +1585,7 @@ mod tests {
         let s = core::str::from_utf8(&bytes).expect("canonical bytes are UTF-8 today");
         // Note: BTreeMap::values() iterates sorted by key, so `act` appears
         // before `begin` despite the insertion order above.
-        let expected = "(8:Sdialect7:Qlegacy(8:Sextends5:Qcbcl)(7:Sauthor11:Q@authority)\
+        let expected = "(8:Sdialect7:Qlegacy(13:Stype-profile23:Qcbcl-flat-v1-unicode16)(6:Stypes)(8:Sextends5:Qcbcl)(7:Sauthor11:Q@authority)\
              (14:Sperformatives(5:Sperf4:Qact(7:Sparams2:Sx)3:Sdo))\
              (10:Sresources2:N84:N5123:N10)(9:Sexamples)\
              (16:Scausal-protocol\
@@ -1558,9 +1656,9 @@ mod tests {
     }
 
     #[test]
-    fn canonical_form_version_is_five() {
+    fn canonical_form_version_is_seven() {
         // Pin the version constant so changes are deliberate.
-        assert_eq!(CANONICAL_FORM_VERSION, 5);
+        assert_eq!(CANONICAL_FORM_VERSION, 7);
     }
 
     // ---- SPEC-015 REQ-709: causal-locality mode is signature-bound ----
@@ -1740,7 +1838,7 @@ mod tests {
     #[test]
     fn dialect_hash_has_sha256_hex64_form() {
         let h = dialect_hash(&test_dialect("t"));
-        let hex = h.strip_prefix("sha256:").expect("sha256: prefix");
+        let hex = h.strip_prefix("f1220").expect("f1220 prefix");
         assert_eq!(hex.len(), 64);
         assert!(hex
             .chars()

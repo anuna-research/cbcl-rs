@@ -106,14 +106,14 @@
 
   (shape cat
     (require :path string)
-    (require :bytes-max number))
+    (require :bytes-max integer))
 
   (shape localtime
     (require :format string))
 
   (shape git-log
     (require :repo string)
-    (require :n number)))
+    (require :n integer)))
 
 ; --- Worked example: ls round trip from SF -> Singapore -> Sydney ---
 ;

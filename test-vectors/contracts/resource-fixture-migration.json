@@ -1,0 +1,20 @@
+{
+  "format": 1,
+  "reason": "explicit integer declarations and refreshed accepted sealed-root history from the authoritative state corpus",
+  "files": [
+    {
+      "file": "resource-check.sexp",
+      "sourceCorpus": "bounded-coin.json",
+      "oldSha256": "182b4a5c06c730b01b47f5c413e56b6fa9fcbd438501e9b8e92bfac74c2977fb",
+      "newSha256": "a995adbb00f654b99926eabf4743f0dc36672c7420f215ed8710260ef36c602a",
+      "afterMultihashSha256": "ba8b05ce035cbcf5d9268938b87af710efa3a53538646fd8be51b8997b80ed06"
+    },
+    {
+      "file": "resource-check-capped.sexp",
+      "sourceCorpus": "bounded-ceiling.json",
+      "oldSha256": "c19646348f8a225128e1203482229ed514cb134c63523441d3efe3787d5b8d3c",
+      "newSha256": "c36499aa7701aaa81257268498edc80ef3dd1da04e632e70c05e0833f56acf05",
+      "afterMultihashSha256": "25e765a292babea93d3c24aca58fc6fa005d0f0b0d0f4fcda0e5e06401222eea"
+    }
+  ]
+}

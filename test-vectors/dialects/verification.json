@@ -17,7 +17,7 @@
     "description": "Dialect with integrity fields verifies",
     "input": {
       "dialect_name": "test-integrity",
-      "hash": "sha256:abcd1234",
+      "hash": "f1220abcd1234",
       "signature": "sig123",
       "protocol": "ed25519"
     },

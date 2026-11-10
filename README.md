@@ -80,6 +80,77 @@ state keywords, argument syntax, installation checks, and read semantics.
 See also [roles and casts](docs/concepts/role-cast.md) and
 [protocol progress](docs/concepts/protocol-progress.md).
 
+### Numeric atoms
+
+`integer` accepts signed 64-bit integer atoms. `number` accepts integers, finite
+floats, and exact decimals without converting their representations.
+
+| Type | Literal examples | Shape type |
+|---|---|---|
+| Signed 64-bit integer | `42`, `-7` | `integer`; `nonnegative` additionally requires a value ≥ 0 |
+| Finite IEEE 754 binary64 float | `1.25`, `1.`, `1e-3`, `1E+2` | `float` |
+| Exact arbitrary-precision decimal | `12m`, `12.3400m`, `-0.01m` | `decimal` |
+
+Numeric literals start with a digit or `-` followed by a digit. The decimal suffix
+is lowercase `m`; decimal exponents and `1.m` are rejected. `+1.0`, `.5`, and
+`-.5` are symbols rather than numeric literals. Floats must decode to finite
+binary64 values; an overflowing literal such as `1e9999` is rejected.
+
+Serialization normalizes values: `1e2` becomes `100.0`, `-0.0` becomes `0.0`,
+and `0012.3400m` becomes `12.34m`. Floats use fixed-point decimal text with
+round-tripping digits and retain `.0` for integral values. Decimals remove
+redundant zeroes without passing through binary floating point; their storage
+grows with the normalized text rather than using a fixed-width decimal format.
+
+Inside a dialect, declare reusable contracts and use them in shapes:
+
+```lisp
+(type postal-code (string (matches "[0-9]{4}")))
+(type percentage (number (>= 0) (<= 100)))
+(type currency (one-of :AUD :USD :EUR))
+(type display-name (string (length (>= 1) (<= 80))))
+(type batch (list (length (> 0) (<= 100))))
+(shape quote
+  (require :quantity integer)
+  (require :price decimal)
+  (require :postcode postal-code)
+  (optional :currency currency (default :AUD)))
+```
+
+Types can reference later declarations. Use `and` for intersections and `or` for
+alternatives; cycles, unknown names, and duplicate definitions reject installation.
+These are pure value checks: they preserve the value and run no author code.
+Numeric bounds compare exact represented values; decimal `0.1m` is exactly one tenth.
+Regexes use RFC 9485 I-Regexp with full-string matching and Unicode 16.0.0 properties.
+String lengths count Unicode scalars; list lengths count immediate elements.
+Enumeration membership preserves atom representations, so `(one-of 1)` rejects `1.0`.
+Resource exhaustion reports `resource-limit`, separately from a contract violation.
+
+Errors identify the declared type, failed refinement, numbered composition branch,
+and nested field path. For example, a postal-code mismatch explains
+`type postal-code: refinement clause 1 failed: matches "[0-9]{4}" (whole string)`;
+a length failure names its bound, such as `length (<= 100)`.
+An unsuccessful `or` summarizes its alternatives instead of reporting only the first failure.
+Malformed regexes report one-based Unicode character positions in the decoded pattern.
+Resource errors explain required/available work or the exceeded input limit.
+Field contents are omitted; constraint literals come from the authored declaration.
+
+[SPEC-040](specs/SPEC-040-numeric-and-refinement-types.md) defines the profile and limits.
+Signing form 6 binds `cbcl-flat-v1-unicode16` and all local type definitions.
+Existing dialect signatures and self-addresses require explicit reissue; old
+integer-only `number` declarations should be rewritten as `integer`. Optional
+defaults now use `(default value)` explicitly.
+
+The [EBNF](docs/cbcl-grammar.ebnf) distinguishes numeric atoms from integer-only
+`number` grammar productions. `integer` and `nonnegative` shapes, counter arithmetic,
+resource bounds, repeat counts, finite-lattice tables, and threshold literals
+retain their integer semantics. The `number` shape category accepts all three
+numeric representations, including ordinary float and decimal state data.
+
+Canonical atom tags are `F` and `D`; existing integer encodings are unchanged.
+NIF floats are BEAM floats; decimals are `{decimal, <<"12.34">>}`. JSON state and
+act views carry decimals as `{"decimal":"12.34"}` to preserve precision in browsers.
+
 For bindings, see [JavaScript/TypeScript](js/README.md), [WebAssembly](README-WASM.md), and [Erlang/BEAM](crates/cbcl-erl/README.md). The JavaScript/TypeScript package includes a JSON-authored object runtime.
 
 ## Current capabilities
@@ -211,9 +282,9 @@ neither resource-release authority nor global freshness. See
   (extend pay (to recipient amount) :from holder :to (issuer holder)
     (tell to :recipient recipient :amount amount))
   (shape open (require :name string) (require :allocations list))
-  (shape mint (require :amount number))
-  (shape burn (require :amount number))
-  (shape pay (require :recipient symbol) (require :amount number))
+  (shape mint (require :amount integer))
+  (shape burn (require :amount integer))
+  (shape pay (require :recipient symbol) (require :amount integer))
   (protocol (then begin open) (then open mint) (then open burn) (then open pay))
   (state
     (name (initial open :name))
@@ -303,6 +374,31 @@ Apache-2.0; see LICENSE.
   url       = {https://www.computer.org/csdl/proceedings-article/spw/2026/107000a039/2hIfzFiEfjG}
 }
 ```
+
+Content addresses use SHA2-256 multihashes in canonical multibase base16:
+`f1220` followed by 64 lowercase hex digits (`f` = base16, `12` = SHA2-256,
+`20` = 32 digest bytes). Message roots, dialect hashes, self-addressed names,
+state references and checkpoint IDs use the same symbol-safe representation.
+The codec rejects unsupported algorithms, wrong lengths and noncanonical case.
+
+This replaces `sha256:<hex>` and `sha256-<hex>` and is a wire-format break.
+Reissue histories and signatures: address bytes occur inside subsequent acts,
+so replacing a prefix alone does not produce valid descendants. Address-based
+LWW tie breakers can also change winners after rehashing. The frozen historical
+corpus is retained; `test-vectors/state-multihash-migration.json` records the
+explicit old/new address map and new canonical state bytes for all eight traces.
+The multihash golden vector follows the [multiformats specification](https://github.com/multiformats/multihash).
+
+Message keyword fields may be written in any order. Creation, serialisation,
+signing and addressing use lexical keyword order; receipt and folding do not
+require declaration order. Ordinary data lists and positional parameters retain
+their order. Dialect creation similarly normalises sibling shape declarations.
+This boundary rule advances the dialect signing form to version 7 and the typed
+address form to version 2. Affected signatures and histories require reissue;
+the preserved historical corpus and
+`test-vectors/state-boundary-canonicalisation-migration.json` record the explicit
+address migration and resulting state bytes. See
+[boundary canonicalisation](specs/SPEC-042-boundary-canonicalisation.md).
 
 Causal protocols accept chains: `(protocol (then begin one two three))`
 is equivalent to `(protocol (then begin one) (then one two) (then two three))`.

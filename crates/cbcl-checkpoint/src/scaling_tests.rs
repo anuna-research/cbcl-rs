@@ -95,7 +95,7 @@ fn chain_draft(ticks: usize) -> Dialect {
             performative: name.clone(),
             rules: vec![ShapeRule::Require {
                 keyword: "lane".into(),
-                type_constraint: Some(TypeConstraint::Number),
+                type_constraint: Some(TypeConstraint::Integer),
                 children: vec![],
             }],
         });

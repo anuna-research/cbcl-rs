@@ -23,7 +23,7 @@ const collections = {
   name: 'collections',
   verbs: {
     open: { after: ['begin'], fields: { title: 'string' } }, add: { after: ['open'], fields: { tag: 'string', op: 'string', clock: "hlc" } }, remove: { after: ['open'], fields: { tag: 'string' } },
-    credit: { after: ['open'], fields: { amount: 'number' as const, op: 'string' } }, debit: { after: ['open'], fields: { amount: 'number' as const, op: 'string' } }, write: { after: ['open'], fields: { text: 'string' } },
+    credit: { after: ['open'], fields: { amount: 'integer' as const, op: 'string' } }, debit: { after: ['open'], fields: { amount: 'integer' as const, op: 'string' } }, write: { after: ['open'], fields: { text: 'string' } },
   },
   state: { tags: c.observedSet('add', 'remove', 'tag'), seen: c.setUnion('add', 'tag'), adds: c.count('add'), credits: c.events('credit', 'amount'), total: c.sum('credits'), balance: c.counter('credit', 'debit', 'amount'), choices: c.values('write', 'text'), ops: c.lwwMap('add', 'tag', 'op', 'clock') },
 };
@@ -50,7 +50,7 @@ test('a contract compiles to a self-addressed dialect the verifier accepts', asy
   assert.doesNotThrow(() => verifyDialect(object.dialect));
   assert.equal((await importObject(object.serialized)).name, object.name);
   assert.equal(object.info.opener, 'open');
-  assert.deepEqual(Object.keys(object.info.verbs.check.fields), ['item', 'done', 'clock']);
+  assert.deepEqual(Object.keys(object.info.verbs.check.fields), ['clock', 'done', 'item']);
   await assert.rejects(defineContract({ ...checklist, verbs: { ...checklist.verbs, check: { ...checklist.verbs.check, after: ['open', 'check'] } } }), /R5/);
   await assert.rejects(defineContract({ ...checklist, view: [] } as never), /host package/);
   for (const field of ['from', 'replaces', 'key']) {
@@ -161,7 +161,7 @@ test('cbcl-rs judges every received act; unknown predecessors wait', async () =>
   assert.equal(verdict(check(':item "Ship" :done #t :replaces ()')), 'accepted');
   assert.equal(verdict(check(':item "Ship" :done "yes" :replaces ()')), 'rejected');
   assert.equal(verdict(check(':item "Ship" :done #t :note "x" :replaces ()')), 'rejected');
-  assert.equal(verdict(check(':item "Ship" :done #t :replaces ()', 'sha256-' + 'f'.repeat(64))), 'pending');
+  assert.equal(verdict(check(':item "Ship" :done #t :replaces ()', 'f1220' + 'f'.repeat(64))), 'pending');
   assert.equal(wireAddress(root.canonical), root.cid);
 });
 

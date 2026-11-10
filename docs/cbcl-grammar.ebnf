@@ -31,7 +31,7 @@ expression      = list
                 | string
                 | boolean
                 | keyword
-                | number
+                | numeric
                 | symbol ;
 
 list            = "(" , { ws , expression } , ws , ")" ;
@@ -47,11 +47,28 @@ symbol-char     = letter | digit
                 | "_" | "-" | "." | "/" | "!" | "?"
                 | "+" | "*" | "<" | ">" | "=" | "@" ;
 
-(* A token starting with a digit, or with '-' followed by a digit, is  *)
-(* lexed as a maximal run of [-0-9] and must then parse as i64.        *)
-(* So "1-2" and "--3" are errors, not symbols; "-", "-a", "->" are     *)
-(* symbols, because '-' is not followed by a digit.                    *)
-number          = [ "-" ] , digit , { digit } ;              (* i64 *)
+(* Digit-led tokens (including '-' followed by a digit) consume to    *)
+(* whitespace, a parenthesis, a quote, a comment marker, or EOF.       *)
+(* The whole token must match numeric, with the range checks below.   *)
+(* '-' not followed by a digit starts a symbol: '-', '-a', '--3',      *)
+(* and '->' are symbols. '+1.0', '.5', and '-.5' are symbols too.       *)
+numeric         = number | float | decimal ;
+number          = [ "-" ] , digits ;                         (* i64 *)
+float           = [ "-" ] , digits ,
+                  ( fraction , [ exponent ] | exponent ) ;
+fraction        = "." , { digit } ;
+exponent        = ( "e" | "E" ) , [ "+" | "-" ] , digits ;
+decimal         = [ "-" ] , digits , [ "." , digits ] , "m" ;
+digits          = digit , { digit } ;
+
+(* Floats decode to finite IEEE 754 binary64; overflow is rejected.    *)
+(* Examples: 1.25, 1., 1.e2, 1e-3. Decimals are exact, arbitrary-     *)
+(* precision values: 12m, 12.3400m. The suffix is lowercase 'm';       *)
+(* decimal exponents and a trailing decimal point are rejected.      *)
+(* 'number' remains integer-only in resource bounds, counter amounts, *)
+(* repeat counts, finite-lattice tables and threshold forms.         *)
+(* The current Lean atom/parser model covers the integer fragment;    *)
+(* float/decimal recognition and canonicalization are Rust extensions.*)
 
 string          = '"' , { string-char | escape } , '"' ;
 
@@ -240,6 +257,7 @@ author          = symbol | string ;      (* conventionally "@name" *)
 dialect-clause  = extend-clause
                 | protocol-clause
                 | shape-clause
+                | type-decl
                 | resource-clause
                 | examples-clause
                 | signature-clause
@@ -373,18 +391,33 @@ shape-clause    = "(" , "shape" , ws , perf-name ,
 
 shape-rule      = require-rule | optional-rule | depth-rule ;
 
-require-rule    = "(" , "require" , ws , keyword , [ ws , type-name ] ,
+require-rule    = "(" , "require" , ws , keyword , [ ws , type-expr ] ,
                         { ws , shape-rule } , ")" ;
 
-optional-rule   = "(" , "optional" , ws , keyword , [ ws , type-name ] ,
+optional-rule   = "(" , "optional" , ws , keyword , [ ws , type-expr ] ,
                         [ ws , default-value ] , { ws , shape-rule } , ")" ;
 
 depth-rule      = "(" , "max-depth" , ws , number , ")" ;
 
-type-name       = "string" | "number" | "nonnegative" | "bool"
-                | "symbol" | "keyword" | "list" ;
-
-default-value   = expression ;
+type-decl       = "(" , "type" , ws , local-type-name , ws , type-expr , ")" ;
+type-expr       = builtin-type | local-type-name
+                | "(" , "one-of" , ws , scalar-literal , { ws , scalar-literal } , ")"
+                | "(" , "string" , ws , string-rule , { ws , string-rule } , ")"
+                | "(" , "list" , ws , length-rule , { ws , length-rule } , ")"
+                | "(" , numeric-base , ws , numeric-bound , { ws , numeric-bound } , ")"
+                | "(" , ( "and" | "or" ) , ws , type-expr , ws , type-expr , { ws , type-expr } , ")" ;
+builtin-type    = "string" | "hlc" | "number" | "integer" | "float" | "decimal"
+                | "nonnegative" | "bool" | "symbol" | "keyword" | "list" ;
+local-type-name = symbol ; (* [a-z][a-z0-9-]{0,47}, excluding reserved names *)
+scalar-literal  = string | boolean | keyword | numeric | symbol ; (* list values are excluded; symbols are literal here *)
+numeric-base    = "number" | "integer" | "float" | "decimal" ;
+comparator      = ">=" | ">" | "<=" | "<" ;
+numeric-bound   = "(" , comparator , ws , numeric , ")" ;
+string-rule     = matches-rule | length-rule ;
+matches-rule    = "(" , "matches" , ws , string , ")" ; (* RFC 9485 I-Regexp *)
+length-rule     = "(" , "length" , ws , length-bound , { ws , length-bound } , ")" ;
+length-bound    = "(" , comparator , ws , number , ")" ; (* nonnegative i64 *)
+default-value   = "(" , "default" , ws , expression , ")" ;
 
 
 (* ================================================================== *)

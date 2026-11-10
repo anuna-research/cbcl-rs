@@ -258,9 +258,9 @@ fn all_fanin_is_copy_specific_and_preserves_iteration_seams() {
         Admission::Rejected(_)
     ));
     // Missing evidence is Unknown; known wrong evidence dominates missing evidence.
-    let missing = linked("z", &format!("({} sha256-missing)", history[4].address));
+    let missing = linked("z", &format!("({} f1220missing)", history[4].address));
     assert_eq!(admit(&d, &thread(), &history, &missing), Admission::Pending);
-    let wrong = linked("z", &format!("({} sha256-missing)", history[3].address));
+    let wrong = linked("z", &format!("({} f1220missing)", history[3].address));
     assert!(matches!(
         admit(&d, &thread(), &history, &wrong),
         Admission::Rejected(_)
@@ -407,7 +407,7 @@ fn native_repeat_verdicts_match_kernel_reduced_lean() {
             .map(|(i, a)| (i, a.clone()))
             .chain([
                 (999, act("tick", "", "@a")),
-                (1000, tick("sha256-missing", "@a")),
+                (1000, tick("f1220missing", "@a")),
             ]);
         for (h, a) in vectors {
             let actual = verify_causal(
@@ -488,7 +488,7 @@ fn repeat_positions_use_authenticated_redacted_and_opened_causal_headers() {
         .unwrap();
         // Envelope shelves use the typed-root ':' spelling; keep the test's
         // content-address index and references in that same spelling.
-        a.address = a.address.replacen("sha256-", "sha256:", 1);
+        a.address = a.address.replacen("f1220", "f1220", 1);
         a
     };
     let first = wire_tick("begin", "@a");

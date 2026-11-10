@@ -162,10 +162,10 @@ fn signed(text: &str, signer: &str) -> Act {
         .unwrap()
 }
 fn native_id(a: &Act) -> String {
-    a.address.replacen("sha256-", "sha256:", 1)
+    a.address.replacen("f1220", "f1220", 1)
 }
 fn wire_id(id: &str) -> String {
-    id.replacen("sha256:", "sha256-", 1)
+    id.replacen("f1220", "f1220", 1)
 }
 // Fixture mirrors independent native edit fields; no production API is introduced.
 #[allow(clippy::too_many_arguments)]

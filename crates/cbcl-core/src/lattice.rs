@@ -1117,6 +1117,8 @@ impl Element {
         fn scalar(v: &Value) -> SExpr {
             match v {
                 Value::Str(s) => SExpr::Atom(Atom::Str(s.clone())),
+                Value::Float(n) => SExpr::Atom(Atom::Float(*n)),
+                Value::Decimal(n) => SExpr::Atom(Atom::Decimal(n.clone())),
                 Value::Int(n) => SExpr::Atom(Atom::Num(*n as i64)),
                 Value::Bool(b) => SExpr::Atom(Atom::Bool(*b)),
                 other => SExpr::Atom(Atom::Str(other.render())),
@@ -1160,7 +1162,14 @@ impl Element {
             (Element::Scalar(Value::Bool(true)), Carrier::Bool) => true,
             (Element::Count(n), Carrier::Addrs) => *n >= 0,
             (Element::Member(v), Carrier::Vals | Carrier::Entries) => {
-                matches!(v, Value::Str(_) | Value::Int(_) | Value::Bool(_))
+                matches!(
+                    v,
+                    Value::Str(_)
+                        | Value::Int(_)
+                        | Value::Float(_)
+                        | Value::Decimal(_)
+                        | Value::Bool(_)
+                )
             }
             (Element::Sum(_), Carrier::Entries) => true,
             (Element::Progress(n), Carrier::Progress) => *n >= 0,

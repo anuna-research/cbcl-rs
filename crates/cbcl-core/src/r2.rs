@@ -380,6 +380,7 @@ mod tests {
         verification_time_ms: u32,
     ) -> crate::dialect::Dialect {
         crate::dialect::Dialect {
+            types: Default::default(),
             roles: Vec::new(),
             state: None,
             state_bounds: None,

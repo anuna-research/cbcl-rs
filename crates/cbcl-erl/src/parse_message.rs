@@ -266,10 +266,10 @@ pub fn recipient_of_pure(bytes: &[u8]) -> Result<String, String> {
 
 #[rustler::nif]
 fn recipient_of<'a>(env: Env<'a>, bytes: Binary<'a>) -> Term<'a> {
-    match recipient_of_pure(bytes.as_slice()) {
+    crate::panic_guard::catch(env, || match recipient_of_pure(bytes.as_slice()) {
         Ok(value) => (atom::ok(), make_binary(env, value)).encode(env),
         Err(reason) => (atom::error(), make_binary(env, reason)).encode(env),
-    }
+    })
 }
 
 #[cfg(test)]

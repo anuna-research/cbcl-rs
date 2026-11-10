@@ -475,6 +475,23 @@ extraction, with no independent numeric-field oracle. Native AST/admission
 correspondence to this parameter/typed-field projection remains open. The live
 `keyword-extraction` profile separately tests strict parsing, R7, shapes and
 actual native amount lookup, including the duplicate-key ambiguity regression.
+Its message-boundary stage rejects duplicate routing keys as well as data keys,
+then sorts complete keyword/value rows before shape checks and extraction.
+The lower-level R7 extraction model still excludes routing fields independently;
+it does not substitute for message recognition. The boundary-row soundness and
+sorting-permutation lemmas cover this keyword-only profile, not arbitrary native
+message syntax or its positional slots.
+
+`BoundaryCanonical` separately proves the complete canonicalisation algorithm
+with mixed positional and pair slots: preservation, UTF-8 ordering, idempotence,
+and equality of normal forms exactly for equivalent recognized unique mappings.
+`BoundaryShapeCanonical` proves full-height recursive ordering, structural
+preservation and computed-budget idempotence. `BoundaryCanonicalOracle` exposes
+these definitions to direct Rust-function conformance tests in the canonical
+state-oracle campaign. Typed atom octets and native AST/key correspondence remain
+tested adapters; the model proofs are not a deductive proof of Rust execution.
+The CI mutation gate deliberately breaks native ordering, values, slots and
+recursive normalization and requires the conformance tests to catch each change.
 
 `StateJsonString` proves lossless canonical quote/escape encoding and appending
 to any output buffer. `StateJsonValue` proves operational emission equals a

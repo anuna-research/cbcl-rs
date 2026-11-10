@@ -113,7 +113,7 @@ fn bench_parse_dialect(c: &mut Criterion) {
          (extend propose-step (step-id action achieves) (effect propose)) \
          (:resource-requirements ((max-depth 16) (max-expansion-size 1024) (verification-time 50))) \
          (:protocol \"ed25519\") \
-         (:hash \"sha256:planning-dialect-v1.0-hash\") \
+         (:hash \"f1220planning-dialect-v1.0-hash\") \
          (:signature planning-consortium-key-2024))",
     )
     .unwrap();
@@ -179,7 +179,7 @@ fn bench_parse_shape(c: &mut Criterion) {
            (require :route string) \
            (require :sender symbol) \
            (optional :priority string \"normal\") \
-           (optional :weight number) \
+           (optional :weight integer) \
            (require :destination string) \
            (optional :fragile bool) \
            (max-depth 6))",

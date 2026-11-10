@@ -1,0 +1,40 @@
+; SPEC-040 implementation ledger: Primary agent owns implementation and core acceptance; independent reviewer owns final review.
+; TEST-4003 separate-engine depth is maintainer-owned follow-up; adversarial core and adapter vectors run here.
+; TEST-4005 fixture identity map and binding vectors are mandatory verification evidence.
+(predicate task-description ((id symbol) (text symbol)) (kind state))
+(predicate task-acceptance ((id symbol) (text symbol)) (kind state))
+(given (task profile))
+(given (task-description profile "Settle profile limits, regex adapter and explicit-default migration"))
+(given (task-acceptance profile "ADR4002/4003 concrete profile decisions and fixed limits recorded"))
+(given (no-deps profile))
+(normally r-ready-profile (and (task profile) (no-deps profile)) (ready profile))
+(meta r-ready-profile (source "SPEC-040-numeric-and-refinement-types#ADR-4003"))
+(given (task contracts))
+(given (task-description contracts "Implement numeric and declarative contract checker"))
+(given (task-acceptance contracts "TEST-4000/4001/4003/4004 direct core checks and mutation fail then pass"))
+(normally r-ready-contracts (and (task contracts) (completed profile)) (ready contracts))
+(meta r-ready-contracts (source "SPEC-040-numeric-and-refinement-types#CON-4000"))
+(given (task integration))
+(given (task-description integration "Resolve dialect types, defaults, signatures, state and binding schemas"))
+(given (task-acceptance integration "TEST-4002/4005/4006 parser registry signing and shared exports pass"))
+(normally r-ready-integration (and (task integration) (completed contracts)) (ready integration))
+(meta r-ready-integration (source "SPEC-040-numeric-and-refinement-types#CON-4002"))
+(given (task verification))
+(given (task-description verification "Verify contracts across supported targets and document final behavior"))
+(given (task-acceptance verification "TEST-4000 through TEST-4006 core and binding vectors, worst-case measurements, Unicode pin and old/new fixture map pass"))
+(normally r-ready-verification (and (task verification) (completed integration)) (ready verification))
+(meta r-ready-verification (source "SPEC-040-numeric-and-refinement-types#NFR-4000"))
+
+(given (task review))
+(given (task-description review "Independent reviewer checks implementation and resolves substantive findings"))
+(given (task-acceptance review "TEST-4000 through TEST-4006 evidence, adversarial review and findings disposition recorded"))
+(normally r-ready-review (and (task review) (completed verification)) (ready review))
+(meta r-ready-review (source "SPEC-040-numeric-and-refinement-types#Acceptance tests"))
+
+; Acceptance evidence: proofs/flat-contracts/verification.md.
+(given (completed profile))
+(given (completed contracts))
+(given (completed integration))
+(given (completed verification))
+; Independent final reviews: impl040_core_review, impl040_completeness_review, impl040_plan_review.
+(given (completed review))

@@ -16,7 +16,7 @@ theorem capped_configuration : NativeConfiguration capped ∧ (capped.initialVer
 /-- Decimal padded aliases satisfy native state-address spelling for bounded IDs. -/
 def address (id : Nat) : String :=
   let digits := toString id
-  "sha256-" ++ String.ofList (List.replicate (64 - digits.length) '0') ++ digits
+  "f1220" ++ String.ofList (List.replicate (64 - digits.length) '0') ++ digits
 
 /-- Recognize bounded reference IDs, including accepted-absent references. -/
 def reference (j : Json) : Except String Nat := do

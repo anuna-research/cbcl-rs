@@ -1,0 +1,34 @@
+{
+  "sources": [
+    {
+      "file": "upstream/cabo/simple.irl",
+      "url": "https://github.com/cabo/iregexp/blob/e27fe69da658558bf0b160e8fecf3f99a545c1cb/test-data/simple.irl",
+      "sha256": "886568aea0bb2bbd107959e17de32db1f082fef6410112de9478010527ec8184",
+      "license": "MIT"
+    },
+    {
+      "file": "upstream/cabo/simple.out",
+      "url": "https://github.com/cabo/iregexp/blob/e27fe69da658558bf0b160e8fecf3f99a545c1cb/test-data/simple.out",
+      "sha256": "7961a667d462d11e7d1df3c80846ab5dcf8e97d606e1e1bedb2d0146172f1558",
+      "license": "MIT"
+    },
+    {
+      "file": "upstream/cabo/iregexp.gemspec",
+      "url": "https://github.com/cabo/iregexp/blob/e27fe69da658558bf0b160e8fecf3f99a545c1cb/iregexp.gemspec",
+      "sha256": "addd6d5a90a3f6fd8d98fb54f51523da336b5e4995c3446f51f1b1dd21c8e0db",
+      "license": "MIT"
+    },
+    {
+      "file": "upstream/jsonpath/match.json",
+      "url": "https://github.com/jsonpath-standard/jsonpath-compliance-test-suite/blob/20ebdcce5008c8a777ee9c80ad853ecf606950b5/tests/functions/match.json",
+      "sha256": "b98be7545b491f70dc3ad2efb64040f83335d43a2c10e7169165ed384408afc6",
+      "license": "BSD-2-Clause"
+    },
+    {
+      "file": "upstream/jsonpath/LICENSE",
+      "url": "https://github.com/jsonpath-standard/jsonpath-compliance-test-suite/blob/20ebdcce5008c8a777ee9c80ad853ecf606950b5/LICENSE",
+      "sha256": "0a76d5e15eeff92346a8783de64d5164c4d527a163f8599733e4e0ab941b59c0",
+      "license": "BSD-2-Clause"
+    }
+  ]
+}

@@ -20,7 +20,7 @@ use core::fmt;
 
 /// The prefix of a self-addressed dialect name (SPEC-019 R.6): the same
 /// spelling as every content address on the wire.
-pub const SELF_ADDRESS_PREFIX: &str = "sha256-";
+pub const SELF_ADDRESS_PREFIX: &str = crate::multihash::TEXT_PREFIX;
 
 /// An R7 installation violation (SPEC-019 CON-1905).
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -200,11 +200,17 @@ pub fn declared_keywords(shapes: &[ShapeConstraint], verb: &str) -> BTreeSet<Str
 }
 
 fn is_scalar(tc: &TypeConstraint) -> bool {
+    if let TypeConstraint::Contract(c) = tc {
+        return c.representations() != 0 && c.representations() & !(1 | 2 | 4 | 8 | 16) == 0;
+    }
     matches!(
         tc,
         TypeConstraint::String
             | TypeConstraint::Hlc
+            | TypeConstraint::Integer
             | TypeConstraint::Number
+            | TypeConstraint::Float
+            | TypeConstraint::Decimal
             | TypeConstraint::Nonnegative
             | TypeConstraint::Bool
     )
@@ -377,6 +383,11 @@ pub fn r7_violations(d: &Dialect) -> Vec<R7Violation> {
                     "field :{key} of '{verb}' is a symbol or keyword; state-bearing fields are string, number, bool, or list"
                 )));
             }
+            Some(TypeConstraint::Contract(c)) if c.representations() & (32 | 64) != 0 => {
+                out.push(R7Violation::Typing(format!(
+                    "field :{key} of '{verb}' contract admits symbols or keywords"
+                )));
+            }
             Some(_) => {}
         }
     }
@@ -384,7 +395,7 @@ pub fn r7_violations(d: &Dialect) -> Vec<R7Violation> {
         clause.fields().map(|(n, r)| (String::from(n), r)).collect();
     for (name, rule) in &field_types {
         if let Some((verb, clock)) = rule.clock_field() {
-            if ty(verb, clock) != Some(TypeConstraint::Hlc) || !d.shapes.iter().filter(|s| s.performative == verb).any(|s| s.rules.iter().any(|r| matches!(r, ShapeRule::Require { keyword, type_constraint: Some(TypeConstraint::Hlc), .. } if keyword == clock))) {
+            if ty(verb, clock) != Some(TypeConstraint::Hlc) || !d.shapes.iter().filter(|s| s.performative == verb).any(|s| s.rules.iter().any(|r| matches!(r, ShapeRule::Require { keyword, type_constraint: Some(tc), .. } if keyword == clock && tc.representation() == Some(TypeConstraint::Hlc)))) {
                 out.push(R7Violation::Typing(format!("LWW clock :{clock} of '{verb}' must be a required hlc field")));
             }
             if bounds.max_string < crate::hlc::WIRE_LEN as u32 {
@@ -446,9 +457,9 @@ pub fn r7_violations(d: &Dialect) -> Vec<R7Violation> {
                 }
                 for v in [inc, dec] {
                     if let Some(tc) = ty(v, key) {
-                        if !matches!(tc, TypeConstraint::Number | TypeConstraint::Nonnegative) {
+                        if !matches!(tc, TypeConstraint::Integer | TypeConstraint::Nonnegative) {
                             out.push(R7Violation::Typing(format!(
-                                "counter '{name}': :{key} of '{v}' must be a number"
+                                "counter '{name}': :{key} of '{v}' must be an integer"
                             )));
                         }
                     }
@@ -481,10 +492,10 @@ pub fn r7_violations(d: &Dialect) -> Vec<R7Violation> {
                         if matches!(rule, Rule::Sum { .. }) {
                             let numeric = match r {
                                 Rule::LwwPerSigner { verb, key, .. } | Rule::Events { verb, key } => {
-                                    matches!(ty(verb, key), Some(TypeConstraint::Number | TypeConstraint::Nonnegative))
+                                    matches!(ty(verb, key), Some(TypeConstraint::Integer | TypeConstraint::Nonnegative))
                                 }
                                 Rule::LwwMap { verb, value, .. }  => {
-                                    matches!(ty(verb, value), Some(TypeConstraint::Number | TypeConstraint::Nonnegative))
+                                    matches!(ty(verb, value), Some(TypeConstraint::Integer | TypeConstraint::Nonnegative))
                                 }
                                 _ => false,
                             };
@@ -901,7 +912,9 @@ fn violation(rule: &str, field: Option<&str>, detail: String) -> ShapeViolation 
 fn is_scalar_value(v: &SExpr) -> bool {
     matches!(
         v,
-        SExpr::Atom(Atom::Str(_)) | SExpr::Atom(Atom::Num(_)) | SExpr::Atom(Atom::Bool(_))
+        SExpr::Atom(
+            Atom::Str(_) | Atom::Num(_) | Atom::Float(_) | Atom::Decimal(_) | Atom::Bool(_)
+        )
     )
 }
 
@@ -950,11 +963,11 @@ pub fn verify_state_shape(d: &Dialect, msg: &Message) -> Result<(), ShapeViolati
                     }
                     i += 2;
                 }
-                other => {
+                _other => {
                     return Err(violation(
                         "closed",
                         None,
-                        format!("positional parameter {other} on '{verb}'"),
+                        format!("unexpected positional parameter on '{verb}'"),
                     ));
                 }
             }
@@ -968,7 +981,7 @@ pub fn verify_state_shape(d: &Dialect, msg: &Message) -> Result<(), ShapeViolati
             if writer == verb {
                 let valid = fields
                     .get(clock)
-                    .is_some_and(|value| TypeConstraint::Hlc.matches(value));
+                    .is_some_and(|value| TypeConstraint::Hlc.matches_builtin(value));
                 if !valid {
                     return Err(violation(
                         "hlc",
@@ -1115,14 +1128,14 @@ pub fn verify_state_shape(d: &Dialect, msg: &Message) -> Result<(), ShapeViolati
                 return Err(violation(
                     "replaces",
                     Some(RESERVED_REPLACES),
-                    format!("'{text}' is not a content address"),
+                    "invalid content address".into(),
                 ));
             }
             if !seen.insert(text) {
                 return Err(violation(
                     "replaces",
                     Some(RESERVED_REPLACES),
-                    format!("'{text}' named twice"),
+                    "content address named twice".into(),
                 ));
             }
         }
@@ -1130,12 +1143,9 @@ pub fn verify_state_shape(d: &Dialect, msg: &Message) -> Result<(), ShapeViolati
     Ok(())
 }
 
-/// A content address as the wire spells it: `sha256-` plus 64 lowercase hex.
+/// A content address as the wire spells it: `f1220` plus 64 lowercase hex.
 pub fn is_address(s: &str) -> bool {
-    let Some(hex) = s.strip_prefix("sha256-") else {
-        return false;
-    };
-    hex.len() == 64 && hex.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'))
+    crate::multihash::decode(s).is_some()
 }
 
 #[allow(clippy::collapsible_match)]
@@ -1155,6 +1165,31 @@ fn check_bounds(
                         ":{key} of '{verb}' exceeds max-string {}",
                         bounds.max_string
                     ),
+                ));
+            }
+        }
+        SExpr::Atom(Atom::Float(n)) => {
+            if n.get() < -(bounds.max_number as f64) || n.get() > bounds.max_number as f64 {
+                return Err(violation(
+                    "size",
+                    Some(key),
+                    format!(":{key} of '{verb}' exceeds max-number"),
+                ));
+            }
+        }
+        SExpr::Atom(Atom::Decimal(n)) => {
+            let absolute = n.as_str().trim_start_matches('-');
+            let whole = absolute.split('.').next().unwrap();
+            let limit = bounds.max_number.to_string();
+            if n.as_str().len() > bounds.max_string as usize
+                || whole.len() > limit.len()
+                || (whole.len() == limit.len()
+                    && (whole > limit.as_str() || (whole == limit && absolute.contains('.'))))
+            {
+                return Err(violation(
+                    "size",
+                    Some(key),
+                    format!(":{key} of '{verb}' exceeds numeric bounds"),
                 ));
             }
         }

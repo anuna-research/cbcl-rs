@@ -80,13 +80,13 @@ export function recipientOf(message: string): string { return refusal(() => reci
 /** Audience for bare host control verbs; the host must authorize the verb. */
 export function recipientOfLax(message: string): string { return refusal(() => recipient_of_lax(message)); }
 
-/** CBCL's canonical content address of a message (`sha256:<hex>`). */
+/** CBCL's canonical content address of a message (`f1220<hex>`). */
 export function messageHash(message: string): string { return refusal(() => message_hash(message)); }
 
-/** The same digest as the wire spells it in `:caused-by` and `:replaces` (`sha256-<hex>`). */
-export function wireAddress(message: string): string { return messageHash(message).replace(/^sha256:/, 'sha256-'); }
+/** The same digest as the wire spells it in `:caused-by` and `:replaces` (`f1220<hex>`). */
+export function wireAddress(message: string): string { return messageHash(message); }
 
-/** A dialect's self-address `sha256-<hex>` (SPEC-019 R.6): the hash of its body, name excluded. */
+/** A dialect's self-address `f1220<hex>` (SPEC-019 R.6): the hash of its body, name excluded. */
 export function dialectHash(define: string): string { return refusal(() => dialect_hash(define)); }
 
 /** Install a dialect through R1–R7; throws with cbcl-rs's reason when it is refused. */
@@ -120,7 +120,7 @@ export type CausalVerdict = 'Valid' | 'Unknown' | 'Violation';
  */
 export function verifyProtocol(dialect: string, thread: string, message: string, history: [string, string][] = []): CausalVerdict {
   guard();
-  // History is keyed by the canonical `sha256:` hash, quoted: the lexer reads a bare colon as a keyword.
+  // History is keyed by the canonical multibase multihash.
   const entries = history.map(([hash, text]) => `(${JSON.stringify(hash)} ${text})`).join(' ');
   const frame = `(verify-protocol ${dialect} ${JSON.stringify(thread)} ${message}${entries ? ` (history ${entries})` : ''})`;
   const { ok, result } = outcome(() => verify_protocol(frame));
@@ -185,10 +185,12 @@ export type Rule = [string, ...string[]];
 
 /** What a host or a view needs to know about a dialect, read from cbcl-rs's installed structures. */
 export interface DialectInfo {
+  typeProfile: string;
+  types: Record<string, { source: string; representations: string[] }>;
   name: string;
   author: string | null;
   opener: string | null;
-  verbs: Record<string, { params: string[]; fields: Record<string, string>; after: string[]; from?: string; to?: string[] }>;
+  verbs: Record<string, { params: string[]; fields: Record<string, string>; contracts: Record<string, { source: string; representations: string[]; required: boolean; default: string | null }>; after: string[]; from?: string; to?: string[] }>;
   roles: Record<string, 'singleton' | 'indexed'>;
   state: Record<string, Rule>;
   domains: { verb: string; key: string; field: string }[];
@@ -201,12 +203,12 @@ export interface DialectInfo {
 export function describeDialect(input: string): DialectInfo { return refusal(() => JSON.parse(describe_dialect(input)) as DialectInfo); }
 
 /** A field value as an act carries it. */
-export type FieldValue = string | number | boolean | FieldValue[];
+export type FieldValue = string | number | boolean | { decimal: string } | FieldValue[];
 
 /** An act as the parser and the state layer read it. */
 export interface ActInfo {
   dialect: string | null;
-  /** The wire address `sha256-<hex>`. */
+  /** The wire address `f1220<hex>`. */
   address: string;
   verb: string;
   recipients: string[];

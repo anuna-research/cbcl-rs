@@ -48,7 +48,7 @@ def parsePin (value : Json) : Check (ResourceField String) :=
 
 /-- Digest token used only for exact hash-identity normalization in this oracle.
 The native harness substitutes its actual installed hash at the pin value slot. -/
-def referencePin : String := "sha256:" ++ String.ofList (List.replicate 64 'a')
+def referencePin : String := "f1220" ++ String.ofList (List.replicate 64 'a')
 
 /-- Normalize exactly the designated reference digest, preserving wrong pins. -/
 def normalizeMetadata (result : MessageMetadata) : MessageMetadata :=

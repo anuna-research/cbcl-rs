@@ -10,20 +10,20 @@
   ],
   "expect": {
     "addresses": [
-      "sha256-5baf2223ddfaeb4fada57b5edd42129d80c7c26b111b6263c2f60f212b118dd5",
-      "sha256-97e1aaff0a8a375bd9facb0a14d4222e716c57099f96ad524be7b8bbc57354b2",
-      "sha256-5ff24f5635e2b81d155780c25b8f5110bccb613bda44bc27e8f7086b511ef1b9",
-      "sha256-d1449ee574e8ec9072520a31b598bcca4158e966053c53c6f8624f155ca3606f",
-      "sha256-1171ce5384f9d13f53635de0f67a46c983c76fa7292f3857e4ef685192b8f9e2",
-      "sha256-0cec4be111c4f1eab4770ff67149dcc4a653f1d1c0a9f4436d404b5ced219d18"
+      "f1220a61723c20e35e5168655c7b28c699199a60dcd9988fb5db4e109966fdca7a400",
+      "f12207b1102d8fe93dd526e8971ac7a9384eabfd225614fc3e15dc60aa84234413f26",
+      "f1220dcde6a20f6cc973c1be0c3b12d562eb567070eb6bbb5816982ad7d6081590ada",
+      "f1220920d273a33bff31f45c5583afc96064a83b13977109043dfba4fa52d8a286cb3",
+      "f12204171fae02c424fb78fd11274d1a3c090f808548b268527d7851b23e92a8bb922",
+      "f122064959d930ab9876c53580c3757d6d484851cd6cd3083f121e02aeac749cf5b24"
     ],
     "verdicts": {
-      "sha256-5baf2223ddfaeb4fada57b5edd42129d80c7c26b111b6263c2f60f212b118dd5": "accepted",
-      "sha256-97e1aaff0a8a375bd9facb0a14d4222e716c57099f96ad524be7b8bbc57354b2": "accepted",
-      "sha256-5ff24f5635e2b81d155780c25b8f5110bccb613bda44bc27e8f7086b511ef1b9": "accepted",
-      "sha256-d1449ee574e8ec9072520a31b598bcca4158e966053c53c6f8624f155ca3606f": "accepted",
-      "sha256-1171ce5384f9d13f53635de0f67a46c983c76fa7292f3857e4ef685192b8f9e2": "accepted",
-      "sha256-0cec4be111c4f1eab4770ff67149dcc4a653f1d1c0a9f4436d404b5ced219d18": "rejected"
+      "f1220a61723c20e35e5168655c7b28c699199a60dcd9988fb5db4e109966fdca7a400": "accepted",
+      "f12207b1102d8fe93dd526e8971ac7a9384eabfd225614fc3e15dc60aa84234413f26": "accepted",
+      "f1220dcde6a20f6cc973c1be0c3b12d562eb567070eb6bbb5816982ad7d6081590ada": "accepted",
+      "f1220920d273a33bff31f45c5583afc96064a83b13977109043dfba4fa52d8a286cb3": "accepted",
+      "f12204171fae02c424fb78fd11274d1a3c090f808548b268527d7851b23e92a8bb922": "accepted",
+      "f122064959d930ab9876c53580c3757d6d484851cd6cd3083f121e02aeac749cf5b24": "rejected"
     },
     "state": {
       "question": "Lunch?",
@@ -42,7 +42,7 @@
     },
     "intents": [
       {
-        "canonical": "(lang lunch-vote (vote @lunch () :choice \"Sushi\" :clock \"hlc-0000000000000000-00000000\" :replaces (sha256-1171ce5384f9d13f53635de0f67a46c983c76fa7292f3857e4ef685192b8f9e2) :from @dan :thread \"v1\" :caused-by sha256-5baf2223ddfaeb4fada57b5edd42129d80c7c26b111b6263c2f60f212b118dd5))"
+        "canonical": "(lang lunch-vote (vote @lunch () :choice \"Sushi\" :clock \"hlc-0000000000000000-00000000\" :from @dan :replaces (f12204171fae02c424fb78fd11274d1a3c090f808548b268527d7851b23e92a8bb922) :thread \"v1\" :caused-by f1220a61723c20e35e5168655c7b28c699199a60dcd9988fb5db4e109966fdca7a400))"
       },
       {
         "reject": "domain"
@@ -70,27 +70,27 @@
   ],
   "messages": [
     {
-      "canonical": "(lang lunch-vote (propose @lunch () :question \"Lunch?\" :options (\"Pizza\" \"Sushi\") :from @aria :thread \"v1\" :caused-by begin))",
+      "canonical": "(lang lunch-vote (propose @lunch () :from @aria :options (\"Pizza\" \"Sushi\") :question \"Lunch?\" :thread \"v1\" :caused-by begin))",
       "signer": "@aria"
     },
     {
-      "canonical": "(lang lunch-vote (vote @lunch () :choice \"Pizza\" :replaces () :from @bo :clock \"hlc-0000000000000000-00000000\" :thread \"v1\" :caused-by sha256-5baf2223ddfaeb4fada57b5edd42129d80c7c26b111b6263c2f60f212b118dd5))",
+      "canonical": "(lang lunch-vote (vote @lunch () :choice \"Pizza\" :clock \"hlc-0000000000000000-00000000\" :from @bo :replaces () :thread \"v1\" :caused-by f1220a61723c20e35e5168655c7b28c699199a60dcd9988fb5db4e109966fdca7a400))",
       "signer": "@bo"
     },
     {
-      "canonical": "(lang lunch-vote (vote @lunch () :choice \"Sushi\" :replaces (sha256-97e1aaff0a8a375bd9facb0a14d4222e716c57099f96ad524be7b8bbc57354b2) :from @bo :clock \"hlc-0000000000000000-00000000\" :thread \"v1\" :caused-by sha256-5baf2223ddfaeb4fada57b5edd42129d80c7c26b111b6263c2f60f212b118dd5))",
+      "canonical": "(lang lunch-vote (vote @lunch () :choice \"Sushi\" :clock \"hlc-0000000000000000-00000000\" :from @bo :replaces (f12207b1102d8fe93dd526e8971ac7a9384eabfd225614fc3e15dc60aa84234413f26) :thread \"v1\" :caused-by f1220a61723c20e35e5168655c7b28c699199a60dcd9988fb5db4e109966fdca7a400))",
       "signer": "@bo"
     },
     {
-      "canonical": "(lang lunch-vote (vote @lunch () :choice \"Tacos\" :replaces () :from @cy :clock \"hlc-0000000000000000-00000000\" :thread \"v1\" :caused-by sha256-5baf2223ddfaeb4fada57b5edd42129d80c7c26b111b6263c2f60f212b118dd5))",
+      "canonical": "(lang lunch-vote (vote @lunch () :choice \"Tacos\" :clock \"hlc-0000000000000000-00000000\" :from @cy :replaces () :thread \"v1\" :caused-by f1220a61723c20e35e5168655c7b28c699199a60dcd9988fb5db4e109966fdca7a400))",
       "signer": "@cy"
     },
     {
-      "canonical": "(lang lunch-vote (vote @lunch () :choice \"Pizza\" :replaces () :from @dan :clock \"hlc-0000000000000000-00000000\" :thread \"v1\" :caused-by sha256-5baf2223ddfaeb4fada57b5edd42129d80c7c26b111b6263c2f60f212b118dd5))",
+      "canonical": "(lang lunch-vote (vote @lunch () :choice \"Pizza\" :clock \"hlc-0000000000000000-00000000\" :from @dan :replaces () :thread \"v1\" :caused-by f1220a61723c20e35e5168655c7b28c699199a60dcd9988fb5db4e109966fdca7a400))",
       "signer": "@dan"
     },
     {
-      "canonical": "(lang lunch-vote (propose @lunch () :question \"qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq\" :options (\"a\") :from @eve :thread \"v1\" :caused-by begin))",
+      "canonical": "(lang lunch-vote (propose @lunch () :from @eve :options (\"a\") :question \"qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq\" :thread \"v1\" :caused-by begin))",
       "signer": "@eve"
     }
   ],

@@ -116,7 +116,7 @@ end Lattice
 
 /-- Opaque canonical-form content hash. Real CBCL: the typed Merkle root
     over the message's canonical field encodings (SPEC-017), rendered
-    `sha256:<hex>`. The model needs only that it is opaque and injective;
+    `f1220<hex>`. The model needs only that it is opaque and injective;
     the concrete construction (flat SHA-256 vs. Merkle-over-fields) is
     immaterial here. -/
 axiom ContentHash : Type

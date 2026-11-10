@@ -3,7 +3,7 @@ use super::*;
 use cbcl_core::{escrow,sexpr::{Atom,SExpr},state::Rule};
 use std::collections::BTreeSet;
 
-fn address(id: u64) -> String { format!("sha256-{id:064}") }
+fn address(id: u64) -> String { format!("f1220{id:064}") }
 fn owner(index: &Value) -> String {
     ["@treasury","@alice","@bob","@outsider"][index.as_u64().unwrap() as usize].into()
 }

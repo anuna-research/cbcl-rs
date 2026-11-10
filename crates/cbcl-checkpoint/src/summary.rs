@@ -1,5 +1,5 @@
 //! Version-2 per-rule checkpoint summaries. Inputs must already be authenticated
-//! and admitted. Coverage queries use wire (`sha256-`) identities at the pre-root.
+//! and admitted. Coverage queries use wire (`f1220`) identities at the pre-root.
 //! Stored contributions are semantic projections, never Message/signature evidence.
 //! Binary and serde recognition establish structure, not accepted-history authority.
 use crate::{Error, Hash, Result};
@@ -147,7 +147,7 @@ impl<'de> Deserialize<'de> for Summary {
     }
 }
 fn wire_id(s: &str) -> bool {
-    s.strip_prefix("sha256-").is_some_and(|s| {
+    s.strip_prefix("f1220").is_some_and(|s| {
         s.len() == 64
             && s.bytes()
                 .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))

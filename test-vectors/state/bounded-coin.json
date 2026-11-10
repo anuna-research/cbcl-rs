@@ -2,7 +2,7 @@
   "id": "bounded-coin",
   "version": "2.0.0",
   "thread": "coin-1",
-  "contract": "; Bounded-counter example. Amounts are integer base units, not decimals.\n; Hosts authenticate acts and serialize issuance per account before publication.\n(define example-coin (cbcl) @coin-author\n  (:resource-requirements ((max-depth 16) (max-expansion-size 4096) (verification-time 1000)))\n  (:roles (issuer (* holder)))\n  (extend open (to name allocations) :from issuer :to (issuer holder)\n    (tell to :name name :allocations allocations))\n  (extend mint (to amount) :from issuer :to (issuer holder)\n    (tell to :amount amount))\n  (extend burn (to amount) :from holder :to (issuer holder)\n    (tell to :amount amount))\n  (extend pay (to recipient amount) :from holder :to (issuer holder)\n    (tell to :recipient recipient :amount amount))\n  (shape open (require :name string) (require :allocations list))\n  (shape mint (require :amount number))\n  (shape burn (require :amount number))\n  (shape pay (require :recipient symbol) (require :amount number))\n  (protocol (then begin open) (then open mint) (then open burn) (then open pay))\n  (state\n    (name (initial open :name))\n    (coins (bounded-counter\n      (floor 0)\n      (initial-rights open :allocations)\n      (issuers issuer)\n      (increment mint :amount)\n      (decrement burn :amount)\n      (transfer pay :recipient :amount)))))\n",
+  "contract": "; Bounded-counter example. Amounts are integer base units, not decimals.\n; Hosts authenticate acts and serialize issuance per account before publication.\n(define example-coin (cbcl) @coin-author\n  (:resource-requirements ((max-depth 16) (max-expansion-size 4096) (verification-time 1000)))\n  (:roles (issuer (* holder)))\n  (extend open (to name allocations) :from issuer :to (issuer holder)\n    (tell to :name name :allocations allocations))\n  (extend mint (to amount) :from issuer :to (issuer holder)\n    (tell to :amount amount))\n  (extend burn (to amount) :from holder :to (issuer holder)\n    (tell to :amount amount))\n  (extend pay (to recipient amount) :from holder :to (issuer holder)\n    (tell to :recipient recipient :amount amount))\n  (shape open (require :name string) (require :allocations list))\n  (shape mint (require :amount integer))\n  (shape burn (require :amount integer))\n  (shape pay (require :recipient symbol) (require :amount integer))\n  (protocol (then begin open) (then open mint) (then open burn) (then open pay))\n  (state\n    (name (initial open :name))\n    (coins (bounded-counter\n      (floor 0)\n      (initial-rights open :allocations)\n      (issuers issuer)\n      (increment mint :amount)\n      (decrement burn :amount)\n      (transfer pay :recipient :amount)))))\n",
   "covers": [
     "bounded-counter",
     "transfer",
@@ -17,41 +17,41 @@
     },
     {
       "signer": "@treasury",
-      "canonical": "(signed @treasury (lang example-coin (open (@alice @bob @treasury) () :name \"Example Coin\" :allocations ((@treasury 1000) (@alice 0) (@bob 0)) :from @treasury :thread \"coin-1\" :caused-by sha256-67bb33cf1e30749bc9175826525393ce0a0f4a45315c94338714edb31a8849c6)))"
+      "canonical": "(signed @treasury (lang example-coin (open (@alice @bob @treasury) () :allocations ((@treasury 1000) (@alice 0) (@bob 0)) :from @treasury :name \"Example Coin\" :thread \"coin-1\" :caused-by f122067bb33cf1e30749bc9175826525393ce0a0f4a45315c94338714edb31a8849c6)))"
     },
     {
       "signer": "@treasury",
-      "canonical": "(signed @treasury (lang example-coin (pay (@alice @bob @treasury) () :amount 100 :recipient @alice :escrow-prev sha256-4b71616f32e13ae6fb47e0dc1bb3c721af42ff804a851f2d03b138c9128fa907 :escrow-deps () :from @treasury :thread \"coin-1\" :caused-by sha256-4b71616f32e13ae6fb47e0dc1bb3c721af42ff804a851f2d03b138c9128fa907)))"
+      "canonical": "(signed @treasury (lang example-coin (pay (@alice @bob @treasury) () :amount 100 :escrow-deps () :escrow-prev f1220400baa8fa18604fedff1606554d3d3fc922b89391f627640a4d7a749ba482963 :from @treasury :recipient @alice :thread \"coin-1\" :caused-by f1220400baa8fa18604fedff1606554d3d3fc922b89391f627640a4d7a749ba482963)))"
     },
     {
       "signer": "@alice",
-      "canonical": "(signed @alice (lang example-coin (pay (@alice @bob @treasury) () :amount 25 :recipient @bob :escrow-prev sha256-4b71616f32e13ae6fb47e0dc1bb3c721af42ff804a851f2d03b138c9128fa907 :escrow-deps (sha256-05304c57d6f9a0b0cfc408800de682e4d55fe24067f094d020d240bf672755a7) :from @alice :thread \"coin-1\" :caused-by sha256-4b71616f32e13ae6fb47e0dc1bb3c721af42ff804a851f2d03b138c9128fa907)))"
+      "canonical": "(signed @alice (lang example-coin (pay (@alice @bob @treasury) () :amount 25 :escrow-deps (f1220de5e5d7d66a0e12c00785cbeb8e6fe12b851c5b4f3c45596e702622532be70b2) :escrow-prev f1220400baa8fa18604fedff1606554d3d3fc922b89391f627640a4d7a749ba482963 :from @alice :recipient @bob :thread \"coin-1\" :caused-by f1220400baa8fa18604fedff1606554d3d3fc922b89391f627640a4d7a749ba482963)))"
     },
     {
       "signer": "@bob",
-      "canonical": "(signed @bob (lang example-coin (burn (@alice @bob @treasury) () :amount 5 :escrow-prev sha256-4b71616f32e13ae6fb47e0dc1bb3c721af42ff804a851f2d03b138c9128fa907 :escrow-deps (sha256-05304c57d6f9a0b0cfc408800de682e4d55fe24067f094d020d240bf672755a7 sha256-5d8f3db41bf2573cbfd1f354f0cc629b0d66fb5fe1be7e1ac42cc4eaeb74127a) :from @bob :thread \"coin-1\" :caused-by sha256-4b71616f32e13ae6fb47e0dc1bb3c721af42ff804a851f2d03b138c9128fa907)))"
+      "canonical": "(signed @bob (lang example-coin (burn (@alice @bob @treasury) () :amount 5 :escrow-deps (f1220a421729c7c48a026038c056228c84f31677ec5d0ef055b53f36bc412b829e8c5 f1220de5e5d7d66a0e12c00785cbeb8e6fe12b851c5b4f3c45596e702622532be70b2) :escrow-prev f1220400baa8fa18604fedff1606554d3d3fc922b89391f627640a4d7a749ba482963 :from @bob :thread \"coin-1\" :caused-by f1220400baa8fa18604fedff1606554d3d3fc922b89391f627640a4d7a749ba482963)))"
     },
     {
       "signer": "@treasury",
-      "canonical": "(signed @treasury (lang example-coin (mint (@alice @bob @treasury) () :amount 250 :escrow-prev sha256-05304c57d6f9a0b0cfc408800de682e4d55fe24067f094d020d240bf672755a7 :escrow-deps (sha256-595da13037ca4a5f8ec5727289d117a852da2e3ef13d11fbb0f04abced6fda58 sha256-5d8f3db41bf2573cbfd1f354f0cc629b0d66fb5fe1be7e1ac42cc4eaeb74127a) :from @treasury :thread \"coin-1\" :caused-by sha256-4b71616f32e13ae6fb47e0dc1bb3c721af42ff804a851f2d03b138c9128fa907)))"
+      "canonical": "(signed @treasury (lang example-coin (mint (@alice @bob @treasury) () :amount 250 :escrow-deps (f1220a421729c7c48a026038c056228c84f31677ec5d0ef055b53f36bc412b829e8c5 f1220e865d90099100d749df293b72500184673916ca9f1e868522dd7408746c19bde) :escrow-prev f1220de5e5d7d66a0e12c00785cbeb8e6fe12b851c5b4f3c45596e702622532be70b2 :from @treasury :thread \"coin-1\" :caused-by f1220400baa8fa18604fedff1606554d3d3fc922b89391f627640a4d7a749ba482963)))"
     }
   ],
   "expect": {
     "addresses": [
-      "sha256-67bb33cf1e30749bc9175826525393ce0a0f4a45315c94338714edb31a8849c6",
-      "sha256-4b71616f32e13ae6fb47e0dc1bb3c721af42ff804a851f2d03b138c9128fa907",
-      "sha256-05304c57d6f9a0b0cfc408800de682e4d55fe24067f094d020d240bf672755a7",
-      "sha256-5d8f3db41bf2573cbfd1f354f0cc629b0d66fb5fe1be7e1ac42cc4eaeb74127a",
-      "sha256-595da13037ca4a5f8ec5727289d117a852da2e3ef13d11fbb0f04abced6fda58",
-      "sha256-7236a58cab1ea9260b310c8f1a8fc1d985a41a96007df1686d3cc4b17e721031"
+      "f122067bb33cf1e30749bc9175826525393ce0a0f4a45315c94338714edb31a8849c6",
+      "f1220400baa8fa18604fedff1606554d3d3fc922b89391f627640a4d7a749ba482963",
+      "f1220de5e5d7d66a0e12c00785cbeb8e6fe12b851c5b4f3c45596e702622532be70b2",
+      "f1220a421729c7c48a026038c056228c84f31677ec5d0ef055b53f36bc412b829e8c5",
+      "f1220e865d90099100d749df293b72500184673916ca9f1e868522dd7408746c19bde",
+      "f1220acc3ff577911f62dfa36ee7c3b7e07bba4ac33a63edcaff5b9e4c1be522ff15a"
     ],
     "verdicts": {
-      "sha256-67bb33cf1e30749bc9175826525393ce0a0f4a45315c94338714edb31a8849c6": "accepted",
-      "sha256-4b71616f32e13ae6fb47e0dc1bb3c721af42ff804a851f2d03b138c9128fa907": "accepted",
-      "sha256-05304c57d6f9a0b0cfc408800de682e4d55fe24067f094d020d240bf672755a7": "accepted",
-      "sha256-5d8f3db41bf2573cbfd1f354f0cc629b0d66fb5fe1be7e1ac42cc4eaeb74127a": "accepted",
-      "sha256-595da13037ca4a5f8ec5727289d117a852da2e3ef13d11fbb0f04abced6fda58": "accepted",
-      "sha256-7236a58cab1ea9260b310c8f1a8fc1d985a41a96007df1686d3cc4b17e721031": "accepted"
+      "f122067bb33cf1e30749bc9175826525393ce0a0f4a45315c94338714edb31a8849c6": "accepted",
+      "f1220400baa8fa18604fedff1606554d3d3fc922b89391f627640a4d7a749ba482963": "accepted",
+      "f1220de5e5d7d66a0e12c00785cbeb8e6fe12b851c5b4f3c45596e702622532be70b2": "accepted",
+      "f1220a421729c7c48a026038c056228c84f31677ec5d0ef055b53f36bc412b829e8c5": "accepted",
+      "f1220e865d90099100d749df293b72500184673916ca9f1e868522dd7408746c19bde": "accepted",
+      "f1220acc3ff577911f62dfa36ee7c3b7e07bba4ac33a63edcaff5b9e4c1be522ff15a": "accepted"
     },
     "state": {
       "name": "Example Coin",

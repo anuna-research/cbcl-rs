@@ -31,7 +31,7 @@ const DEMO: &str = "(define threshold-demo (cbcl) @anuna \
   (extend burn (to amount) (tell to :amount amount)) \
   (shape tag (require :label string)) \
   (shape mint (require :amount nonnegative)) \
-  (shape burn (require :amount number)) \
+  (shape burn (require :amount integer)) \
   (protocol (then begin open) (then open (repeat 3 tick)) (then open approve) (then open tag) (then open mint) (then open burn)) \
   (state \
     (approvals (count approve)) \
@@ -165,9 +165,31 @@ fn a_threshold_is_pending_then_reached_with_its_element() {
 // REQ-3802: shape validation must constrain the same numeric value the fold reads.
 #[test]
 fn duplicate_amount_cannot_hide_a_negative_state_contribution() {
+    // Boundary recognition rejects duplicates; retain R7 defence-in-depth for
+    // callers that construct a typed Message directly.
+    fn raw_duplicate(params: &str, parent: &str) -> Act {
+        fn inject(message: &mut cbcl_core::message::Message, fields: Vec<cbcl_core::sexpr::SExpr>) {
+            use cbcl_core::message::Message;
+            match message {
+                Message::Simple { params, .. } => {
+                    params.splice(0..2, fields);
+                }
+                Message::Dialect { inner, .. } => inject(inner, fields),
+                Message::Wrapped { content, .. } => inject(content, fields),
+                _ => panic!("expected simple"),
+            }
+        }
+        let mut message = demo("mint", " :amount 0", parent, "@a").message;
+        let cbcl_core::sexpr::SExpr::List(fields) = parse(&format!("({params})")).unwrap() else {
+            panic!()
+        };
+        inject(&mut message, fields);
+        Act::from_message(message, "@a").unwrap()
+    }
+    assert!(parse_message(&parse("(lang demo (mint () :amount 10 :amount -1))").unwrap()).is_err());
     let d = parse_dialect(&parse(DEMO).unwrap()).unwrap();
     let o = open();
-    let candidate = demo("mint", " :amount 10 :amount -1", &o.address, "@a");
+    let candidate = raw_duplicate(" :amount 10 :amount -1", &o.address);
     assert_eq!(candidate.fields["amount"].to_string(), "-1");
     let positive = demo("mint", " :amount 10", &o.address, "@b");
     assert!(matches!(
@@ -198,7 +220,7 @@ fn duplicate_amount_cannot_hide_a_negative_state_contribution() {
         " :amount 0 :amount 1",
         " :amount -1 :amount 10",
     ] {
-        let duplicate = demo("mint", params, &o.address, "@a");
+        let duplicate = raw_duplicate(params, &o.address);
         let error = cbcl_core::r7::verify_state_shape(&d, &duplicate.message).unwrap_err();
         assert!(error.to_string().contains("duplicate state keyword"));
     }
@@ -225,7 +247,7 @@ fn negative_credits_are_rejected_and_signed_balances_remain_snapshots() {
         Admission::Rejected(_)
     ));
     let signed = DEMO
-        .replace("(require :amount nonnegative)", "(require :amount number)")
+        .replace("(require :amount nonnegative)", "(require :amount integer)")
         .replace("(threshold funded credits (sum 10))", "");
     assert_eq!(install(&signed), Ok(()));
     assert_eq!(
@@ -524,7 +546,7 @@ fn coin(thresholds: &str) -> String {
           (extend tag (to label) (tell to :label label)) \
           (extend close (to) (tell to)) \
           (shape mint (require :amount nonnegative)) \
-          (shape burn (require :amount number)) \
+          (shape burn (require :amount integer)) \
           (shape tag (require :label string)) \
           (protocol (then begin open) (then open mint) (then open burn) (then open tag) (then open close)) \
           (state (coins (events mint :amount)) (balance (counter mint burn :amount)) (flag (exists close)) \
@@ -744,7 +766,7 @@ fn authored_condition_rejects_unrecognized_or_ineligible_sources() {
     assert!(install(&signed).is_err());
     let negative_events = late_condition("(read credits (sum 1))").replace(
         "(shape mint (require :amount nonnegative))",
-        "(shape mint (require :amount number))",
+        "(shape mint (require :amount integer))",
     );
     let error = install(&negative_events).unwrap_err();
     assert!(error.contains("nonnegative"), "{error}");

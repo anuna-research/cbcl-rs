@@ -34,7 +34,7 @@
 //! ```text
 //! envelope    := "(" "envelope" hash perf-name "(" key ")" "(" key* ")"
 //!                    thread sig [":caused-by" caused-ref] ")"
-//! hash        := "sha256:" hex64
+//! hash        := "f1220" hex64
 //! thread      := string | symbol
 //! key         := "@" [suite ":"] symbol   ; omitted suite → ed25519 (REQ-708)
 //! sig         := string                   ; lowercase hex of the v2 signature
@@ -92,7 +92,7 @@ pub struct RedactedEnvelope {
 }
 
 impl RedactedEnvelope {
-    /// Content hash of the message this envelope redacts (`sha256:<hex64>`).
+    /// Content hash of the message this envelope redacts (`f1220<hex64>`).
     pub fn content_hash(&self) -> &str {
         &self.header.content_hash
     }
@@ -203,7 +203,7 @@ pub enum EnvelopeParseError {
     NotAnEnvelopeForm,
     /// Wrong number of items: 7 (no `:caused-by`) or 9 (with it).
     WrongArity { found: usize },
-    /// The `hash` position is not a well-formed `sha256:<hex64>` symbol.
+    /// The `hash` position is not a well-formed `f1220<hex64>` symbol.
     MalformedHash,
     /// The `perf-name` position is not a symbol.
     MalformedPerformative,
@@ -233,7 +233,7 @@ impl fmt::Display for EnvelopeParseError {
             Self::WrongArity { found } => {
                 write!(f, "envelope must have 7 or 9 items, found {found}")
             }
-            Self::MalformedHash => f.write_str("envelope hash is not sha256:<hex64>"),
+            Self::MalformedHash => f.write_str("envelope hash is not f1220<hex64>"),
             Self::MalformedPerformative => f.write_str("envelope performative is not a symbol"),
             Self::MalformedFromList => {
                 f.write_str("envelope sender is not a list of exactly one key")
@@ -260,10 +260,10 @@ impl fmt::Display for EnvelopeParseError {
     }
 }
 
-/// Whether `s` is a CON-700 `hash`: `sha256:` followed by exactly 64
+/// Whether `s` is a CON-700 `hash`: `f1220` followed by exactly 64
 /// lowercase hex digits.
 pub fn is_content_hash(s: &str) -> bool {
-    match s.strip_prefix("sha256:") {
+    match s.strip_prefix("f1220") {
         Some(hex) => {
             hex.len() == 64
                 && hex
@@ -479,7 +479,7 @@ pub const HEADER_FIELDS: [FieldId; 5] = [
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct OpenedEnvelope {
     /// The typed Merkle root — the message's content address
-    /// (`sha256:<hex64>`), which the v3 signature commits to.
+    /// (`f1220<hex64>`), which the v3 signature commits to.
     pub root: String,
     /// Signature suite named in the v3 attestation preimage (REQ-708): a v3
     /// signature can never be re-read under a different suite.
@@ -492,7 +492,7 @@ pub struct OpenedEnvelope {
 }
 
 impl OpenedEnvelope {
-    /// The content address the v3 signature vouches for (`sha256:<hex64>`).
+    /// The content address the v3 signature vouches for (`f1220<hex64>`).
     pub fn content_hash(&self) -> &str {
         &self.root
     }
@@ -682,7 +682,7 @@ mod tests {
     }
 
     fn hash64(c: char) -> String {
-        format!("sha256:{}", c.to_string().repeat(64))
+        format!("f1220{}", c.to_string().repeat(64))
     }
 
     fn sample_message(caused_by: Option<CausedBy>) -> Message {
@@ -752,7 +752,7 @@ mod tests {
                 Just(Some(CausedBy::Begin)),
                 prop::collection::vec("[0-9a-f]{64}", 1..4).prop_map(|hs| {
                     let mut hashes: Vec<String> =
-                        hs.into_iter().map(|h| format!("sha256:{h}")).collect();
+                        hs.into_iter().map(|h| format!("f1220{h}")).collect();
                     hashes.sort();
                     Some(if hashes.len() == 1 {
                         CausedBy::Single(hashes.pop().unwrap())
@@ -947,10 +947,10 @@ mod tests {
     #[test]
     fn malformed_hash_is_rejected_never_repaired() {
         for bad in [
-            "sha256:abc",                          // short
-            "md5:0000",                            // wrong algo
-            &format!("sha256:{}", "A".repeat(64)), // uppercase
-            &format!("sha256:{}", "g".repeat(64)), // non-hex
+            "f1220abc",                          // short
+            "md5:0000",                          // wrong algo
+            &format!("f1220{}", "A".repeat(64)), // uppercase
+            &format!("f1220{}", "g".repeat(64)), // non-hex
         ] {
             let mut items = valid_items();
             items[1] = SExpr::Atom(Atom::Symbol(bad.to_string()));
@@ -1156,7 +1156,7 @@ mod tests {
         let m = sample_message(None);
         let mut env = opened(&m, &ALICE);
         env.root =
-            "sha256:0000000000000000000000000000000000000000000000000000000000000000".to_string();
+            "f12200000000000000000000000000000000000000000000000000000000000000000".to_string();
         assert_eq!(
             verify_opened(&env, &ALICE),
             Err(OpenedError::Attestation(AttestError::InvalidSignature))

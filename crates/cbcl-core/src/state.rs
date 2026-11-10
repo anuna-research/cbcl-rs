@@ -711,19 +711,11 @@ fn state_identity_message<'a>(message: &'a Message, simple: &'a Message) -> &'a 
     }
 }
 
-/// The content address of an act as it is spelled on the wire:
-/// `sha256-<64 lowercase hex>`. The digest is `message_content_hash`'s
-/// (SPEC-017); the separator differs because the wire lexer reads `:` as
-/// the start of a keyword, so `sha256:<hex>` cannot appear in a message.
-/// Every address the state layer stores, compares, or emits uses this
-/// spelling (SPEC-019 R.6). This helper hashes the supplied message; Act
-/// construction/validation select its identity subtree under SPEC-038 ADR-3807.
+/// The content address of an act as a canonical multibase SHA2-256 multihash.
+/// The same symbol-safe spelling is used for native and state references.
+/// Act construction selects its identity subtree under SPEC-038 ADR-3807.
 pub fn wire_address(message: &Message) -> String {
-    let h = message_content_hash(message);
-    match h.strip_prefix("sha256:") {
-        Some(hex) => format!("sha256-{hex}"),
-        None => h,
-    }
+    message_content_hash(message)
 }
 
 /// The keyword parameters of a simple message as a map, routing keywords
@@ -819,6 +811,8 @@ pub enum Value {
     Absent,
     Str(String),
     Int(i128),
+    Float(crate::numeric::Float),
+    Decimal(crate::numeric::Decimal),
     Bool(bool),
     /// A scalar list as a field value (never sorted; it is data).
     List(Vec<Value>),
@@ -885,6 +879,8 @@ impl Value {
     pub fn from_sexpr(s: &SExpr) -> Value {
         match s {
             SExpr::Atom(Atom::Str(x)) => Value::Str(x.clone()),
+            SExpr::Atom(Atom::Float(n)) => Value::Float(*n),
+            SExpr::Atom(Atom::Decimal(n)) => Value::Decimal(n.clone()),
             SExpr::Atom(Atom::Num(n)) => Value::Int(*n as i128),
             SExpr::Atom(Atom::Bool(b)) => Value::Bool(*b),
             SExpr::Atom(Atom::Symbol(x)) => Value::Str(x.clone()),
@@ -904,6 +900,12 @@ impl Value {
         match self {
             Value::Absent => out.push_str("null"),
             Value::Str(s) => json_string(s, out),
+            Value::Float(n) => out.push_str(&n.to_string()),
+            Value::Decimal(n) => {
+                out.push_str("{\"decimal\":");
+                json_string(n.as_str(), out);
+                out.push('}');
+            }
             Value::Int(n) => out.push_str(&n.to_string()),
             Value::Bool(b) => out.push_str(if *b { "true" } else { "false" }),
             Value::List(items) => {
@@ -1748,6 +1750,10 @@ pub enum ScalarType {
     Str,
     Hlc,
     Int,
+    Float,
+    Decimal,
+    Number,
+    Value,
     Bool,
     /// A list of scalars (a `list` shape type).
     List,
@@ -1756,9 +1762,17 @@ pub enum ScalarType {
 impl ScalarType {
     pub fn from_constraint(tc: &TypeConstraint) -> Option<ScalarType> {
         match tc {
+            TypeConstraint::Float => Some(ScalarType::Float),
+            TypeConstraint::Decimal => Some(ScalarType::Decimal),
             TypeConstraint::String => Some(ScalarType::Str),
             TypeConstraint::Hlc => Some(ScalarType::Hlc),
-            TypeConstraint::Number | TypeConstraint::Nonnegative => Some(ScalarType::Int),
+            TypeConstraint::Integer | TypeConstraint::Nonnegative => Some(ScalarType::Int),
+            TypeConstraint::Number => Some(ScalarType::Number),
+            TypeConstraint::Contract(c) => c
+                .representation()
+                .as_ref()
+                .and_then(Self::from_constraint)
+                .or(Some(ScalarType::Value)),
             TypeConstraint::Bool => Some(ScalarType::Bool),
             TypeConstraint::List => Some(ScalarType::List),
             TypeConstraint::Symbol | TypeConstraint::Keyword => None,
@@ -1769,7 +1783,11 @@ impl ScalarType {
         match self {
             ScalarType::Str => "string",
             ScalarType::Hlc => "hlc",
-            ScalarType::Int => "number",
+            ScalarType::Float => "float",
+            ScalarType::Decimal => "decimal",
+            ScalarType::Int => "integer",
+            ScalarType::Number => "number",
+            ScalarType::Value => "value",
             ScalarType::Bool => "bool",
             ScalarType::List => "list",
         }
@@ -1898,7 +1916,9 @@ pub fn field_type(
                     ..
                 } => {
                     if keyword == key {
-                        return *type_constraint;
+                        return type_constraint
+                            .as_ref()
+                            .and_then(TypeConstraint::representation);
                     }
                 }
                 ShapeRule::MaxDepth(_) => {}
@@ -2124,12 +2144,12 @@ mod tests {
 
     #[test]
     fn register_replaced_never_wins_and_delete_removes_key() {
-        let m1 = act("sha256:1", "open", "@aria", &[], &[("title", s("Launch"))]);
+        let m1 = act("f12201", "open", "@aria", &[], &[("title", s("Launch"))]);
         let m2 = act(
-            "sha256:2",
+            "f12202",
             "check",
             "@bo",
-            &["sha256:1"],
+            &["f12201"],
             &[
                 ("item", s("venue")),
                 ("done", b(false)),
@@ -2137,22 +2157,22 @@ mod tests {
             ],
         );
         let m3 = act(
-            "sha256:3",
+            "f12203",
             "check",
             "@bo",
-            &["sha256:1"],
+            &["f12201"],
             &[
                 ("item", s("venue")),
                 ("done", b(true)),
-                ("replaces", addrs(&["sha256:2"])),
+                ("replaces", addrs(&["f12202"])),
             ],
         );
         let m4 = act(
-            "sha256:4",
+            "f12204",
             "drop",
             "@aria",
-            &["sha256:1"],
-            &[("item", s("venue")), ("replaces", addrs(&["sha256:3"]))],
+            &["f12201"],
+            &[("item", s("venue")), ("replaces", addrs(&["f12203"]))],
         );
         let clause = checklist();
         let st = fold(&clause, None, &[m1.clone(), m2.clone(), m3.clone()]);
@@ -2180,21 +2200,21 @@ mod tests {
 
     #[test]
     fn frontier_and_opener() {
-        let m1 = act("sha256:1", "open", "@aria", &[], &[("title", s("Launch"))]);
+        let m1 = act("f12201", "open", "@aria", &[], &[("title", s("Launch"))]);
         let m2 = act(
-            "sha256:2",
+            "f12202",
             "check",
             "@bo",
-            &["sha256:1"],
+            &["f12201"],
             &[("item", s("venue")), ("done", b(false))],
         );
         assert_eq!(
             frontier(&[m1.clone(), m2.clone()]),
-            alloc::vec![String::from("sha256:2")]
+            alloc::vec![String::from("f12202")]
         );
         assert_eq!(
             frontier(core::slice::from_ref(&m1)),
-            alloc::vec![String::from("sha256:1")]
+            alloc::vec![String::from("f12201")]
         );
     }
 
@@ -2231,31 +2251,31 @@ mod tests {
             ],
         };
         let p = act(
-            "sha256:1",
+            "f12201",
             "propose",
             "@aria",
             &[],
             &[("options", SExpr::List(alloc::vec![s("Pizza"), s("Sushi")]))],
         );
         let v1 = act(
-            "sha256:2",
+            "f12202",
             "vote",
             "@bo",
-            &["sha256:1"],
+            &["f12201"],
             &[("choice", s("Pizza"))],
         );
         let v2 = act(
-            "sha256:3",
+            "f12203",
             "vote",
             "@bo",
-            &["sha256:1"],
+            &["f12201"],
             &[("choice", s("Sushi"))],
         ); // greater address wins
         let v3 = act(
-            "sha256:4",
+            "f12204",
             "vote",
             "@cy",
-            &["sha256:1"],
+            &["f12201"],
             &[("choice", s("Tacos"))],
         ); // out of domain
         let st = fold(&clause, None, &[p, v1, v2, v3]);

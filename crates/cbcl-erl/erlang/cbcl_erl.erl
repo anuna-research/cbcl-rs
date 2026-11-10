@@ -20,7 +20,7 @@
 %%   holding the export's S-expression frame (cbcl_parser::state_exports)
 %%   and returns {ok, Bin} | {error, Bin}: JSON for fold, state_schema,
 %%   may_send, frontier; the canonical act for intend; <<"ok">> for
-%%   verify_state_shape; sha256-<hex> for dialect_hash.
+%%   verify_state_shape; f1220<hex> for dialect_hash.
 %%     fold/1               :: binary() -> {ok, binary()} | {error, binary()}
 %%     intend/1             :: binary() -> {ok, binary()} | {error, binary()}
 %%     verify_state_shape/1 :: binary() -> {ok, binary()} | {error, binary()}

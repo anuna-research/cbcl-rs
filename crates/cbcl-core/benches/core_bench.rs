@@ -41,6 +41,7 @@ fn valid_bounds() -> ResourceBounds {
 
 fn make_dialect(name: &str, perfs: Vec<PerformativeDef>) -> Dialect {
     Dialect {
+        types: Default::default(),
         roles: Vec::new(),
         state: None,
         state_bounds: None,
@@ -70,6 +71,7 @@ fn make_perf(name: &str, template_str: &str) -> PerformativeDef {
 
 fn test_dialect(name: &str) -> Dialect {
     Dialect {
+        types: Default::default(),
         roles: Vec::new(),
         state: None,
         state_bounds: None,
@@ -162,6 +164,7 @@ fn bench_r2(c: &mut Criterion) {
     });
 
     let invalid_dialect = Dialect {
+        types: Default::default(),
         resources: ResourceBounds {
             max_depth: 100,
             max_expansion_size: 512,
@@ -367,6 +370,7 @@ fn bench_eval(c: &mut Criterion) {
     let mut custom_registry = DialectRegistry::new();
     custom_registry
         .install(Dialect {
+            types: Default::default(),
             roles: Vec::new(),
             state: None,
             state_bounds: None,
@@ -609,7 +613,7 @@ fn bench_shape_check(c: &mut Criterion) {
             },
             ShapeRule::Optional {
                 keyword: String::from("weight"),
-                type_constraint: Some(TypeConstraint::Number),
+                type_constraint: Some(TypeConstraint::Integer),
                 default: None,
                 children: vec![],
             },

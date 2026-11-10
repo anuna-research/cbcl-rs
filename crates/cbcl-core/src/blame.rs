@@ -59,6 +59,8 @@ impl fmt::Display for BlameParty {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum ViolationKind {
+    /// Operational exhaustion is not a value mismatch or sender fault.
+    ResourceLimit,
     /// Shape constraint violation (REQ-223).
     Shape,
     /// Causal protocol violation (CON-202).
@@ -71,6 +73,7 @@ impl ViolationKind {
     /// Short symbol name (used for tracing labels and `Display`).
     pub fn as_str(&self) -> &'static str {
         match self {
+            ViolationKind::ResourceLimit => "resource-limit",
             ViolationKind::Shape => "shape",
             ViolationKind::Causal => "causal",
             ViolationKind::R5 => "r5",
@@ -81,6 +84,7 @@ impl ViolationKind {
     /// REQ-233 ABNF (`"shape-violation"` / `"causal-violation"` / `"r5-violation"`).
     pub fn as_violation_type(&self) -> &'static str {
         match self {
+            ViolationKind::ResourceLimit => "resource-limit",
             ViolationKind::Shape => "shape-violation",
             ViolationKind::Causal => "causal-violation",
             ViolationKind::R5 => "r5-violation",
@@ -271,6 +275,18 @@ impl ViolationError {
         thread_id: Option<String>,
         evidence: Option<SExpr>,
     ) -> Self {
+        if violation.rule == "resource-limit" {
+            let mut err = Self::new(
+                ViolationKind::ResourceLimit,
+                violation.detail.clone(),
+                alloc::vec![],
+            );
+            err.field = violation.field.clone();
+            err.rule = Some("resource-limit".into());
+            err.message_hash = message_hash;
+            err.thread_id = thread_id;
+            return err;
+        }
         let reason = alloc::format!(
             "shape rule '{}' violated: {}",
             violation.rule,
@@ -514,6 +530,7 @@ impl ViolationError {
     /// verification is not applicable (wrong kind, no evidence, no constraint).
     pub fn verify_blame(&self, shape_constraint: Option<&ShapeConstraint>) -> bool {
         match self.kind {
+            ViolationKind::ResourceLimit => false,
             ViolationKind::Shape => self.verify_shape_blame(shape_constraint),
             ViolationKind::Causal => self.verify_causal_blame(),
             ViolationKind::R5 => self.verify_r5_blame(),
@@ -531,7 +548,7 @@ impl ViolationError {
         // the shape constraint.
         for entry in &self.blame_chain {
             if let Some(ref evidence) = entry.evidence {
-                if constraint.check(evidence).is_err() {
+                if matches!(constraint.check(evidence), Err(ref e) if e.rule != "resource-limit") {
                     return true;
                 }
             }
@@ -870,13 +887,13 @@ mod tests {
             detail: String::from(":route expected string, found number"),
         };
         let err =
-            ViolationError::from_shape_violation(&sv, Some(String::from("sha256:msg")), None, None)
+            ViolationError::from_shape_violation(&sv, Some(String::from("f1220msg")), None, None)
                 .with_recipient("@sender")
                 .with_verifier("@receiver")
                 .with_dialect_context(
                     "logistics",
                     Some("@consortium"),
-                    Some("sha256:abc"),
+                    Some("f1220abc"),
                     Some("track-shipment"),
                 );
         let s = alloc::format!("{}", err.to_sexpr());
@@ -902,7 +919,7 @@ mod tests {
     #[test]
     fn to_sexpr_causal_includes_caused_by() {
         let cv = CausalViolation::UnknownPredecessor {
-            caused_by: String::from("sha256:pred"),
+            caused_by: String::from("f1220pred"),
         };
         let err = ViolationError::from_causal_violation(&cv, None, None)
             .with_recipient("@sender")
@@ -910,7 +927,7 @@ mod tests {
         let s = alloc::format!("{}", err.to_sexpr());
         assert!(s.starts_with("(error @sender \"causal-violation\""));
         assert!(s.contains(":caused-by"));
-        assert!(s.contains("\"sha256:pred\""));
+        assert!(s.contains("\"f1220pred\""));
         assert!(s.contains(":blamed sender"));
     }
 
@@ -920,15 +937,15 @@ mod tests {
     #[test]
     fn to_sexpr_causal_invalid_predecessor_includes_caused_by() {
         let cv = CausalViolation::InvalidPredecessor {
-            caused_by: String::from("sha256:bad"),
+            caused_by: String::from("f1220bad"),
             expected: alloc::vec![String::from("pause")],
             found: String::from("ack"),
         };
         let err = ViolationError::from_causal_violation(&cv, None, None);
-        assert_eq!(err.caused_by.as_deref(), Some("sha256:bad"));
+        assert_eq!(err.caused_by.as_deref(), Some("f1220bad"));
         let s = alloc::format!("{}", err.to_sexpr());
         assert!(s.contains(":caused-by"));
-        assert!(s.contains("\"sha256:bad\""));
+        assert!(s.contains("\"f1220bad\""));
     }
 
     /// REQ-230 + REQ-233: unsatisfiable shape blames DialectAuthor *and*
@@ -1020,8 +1037,8 @@ mod tests {
     fn with_message_hash_sets_message_hash() {
         let cv = CausalViolation::MissingCausedBy;
         let err =
-            ViolationError::from_causal_violation(&cv, None, None).with_message_hash("sha256:msg");
-        assert_eq!(err.message_hash.as_deref(), Some("sha256:msg"));
+            ViolationError::from_causal_violation(&cv, None, None).with_message_hash("f1220msg");
+        assert_eq!(err.message_hash.as_deref(), Some("f1220msg"));
     }
 
     #[test]

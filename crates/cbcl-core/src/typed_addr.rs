@@ -1,7 +1,7 @@
 //! SPEC-017 seed (architecture spike — NOT wired into any hash path).
 //!
 //! A standalone prototype validating that CBCL's content address can move
-//! from a flat `sha256:H(canonical-bytes)` (see
+//! from a flat `f1220H(canonical-bytes)` (see
 //! `equivocation::message_content_hash`) to a **canonical Merkle commitment
 //! over a message's fields**, enabling authenticated *selective disclosure*
 //! (field-openings) and subsuming the SPEC-015 redacted-envelope header
@@ -81,7 +81,7 @@
 //!   development's `contentHash_injective` axiom already make — no new
 //!   weakest link (SPEC-015 ADR-700 security accounting).
 //!
-//! The root is still rendered `sha256:<hex64>` on the wire ([`typed_root`]),
+//! The root is still rendered `f1220<hex64>` on the wire ([`typed_root`]),
 //! so it is a drop-in content address.
 //!
 //! # 3. Signature over the root
@@ -116,7 +116,7 @@ use sha2::{Digest, Sha256};
 
 /// Version of the typed-address construction. Bump on any change to the field
 /// schema, leaf framing, or tree shape (mirrors `CANONICAL_FORM_VERSION`).
-pub const TYPED_ADDR_VERSION: u32 = 1;
+pub const TYPED_ADDR_VERSION: u32 = 2;
 
 const LEAF_PREFIX: u8 = 0x00;
 const NODE_PREFIX: u8 = 0x01;
@@ -229,7 +229,7 @@ pub fn field_sexpr(msg: &Message, id: FieldId) -> SExpr {
                 .map(|t| SExpr::Atom(Atom::Str(String::from(t))))),
             FieldId::Payload => {
                 let mut items = vec![content.clone()];
-                items.extend(params.clone());
+                items.extend(crate::canonical::canonical_params(params));
                 SExpr::List(items)
             }
         },
@@ -337,6 +337,7 @@ fn build_tree(msg: &Message) -> Tree {
 // Public API
 // ---------------------------------------------------------------------------
 
+#[cfg(test)]
 fn hex32(bytes: &[u8; 32]) -> String {
     const HEX: &[u8; 16] = b"0123456789abcdef";
     let mut out = String::with_capacity(64);
@@ -348,12 +349,9 @@ fn hex32(bytes: &[u8; 32]) -> String {
 }
 
 /// The typed content address of `msg`: the Merkle root, rendered
-/// `sha256:<hex64>` — a drop-in replacement for the flat content hash.
+/// `f1220<hex64>` — a drop-in replacement for the flat content hash.
 pub fn typed_root(msg: &Message) -> String {
-    let mut out = String::with_capacity(7 + 64);
-    out.push_str("sha256:");
-    out.push_str(&hex32(&build_tree(msg).root));
-    out
+    crate::multihash::encode(&build_tree(msg).root)
 }
 
 /// Produce an authenticated-disclosure [`Opening`] for one field of `msg`.
@@ -399,7 +397,7 @@ pub fn open(msg: &Message, field: FieldId) -> Opening {
 /// Verify a field-opening against a root alone.
 ///
 /// Recomputes the leaf from `(field_id, value)`, folds the sibling path, and
-/// checks the reconstructed root equals `root` (`sha256:<hex64>`). Returns
+/// checks the reconstructed root equals `root` (`f1220<hex64>`). Returns
 /// `false` on any mismatch — tampered value, wrong path, or wrong root.
 pub fn verify_opening(root: &str, field_id: FieldId, value: &SExpr, opening: &Opening) -> bool {
     if opening.field != field_id {
@@ -412,11 +410,7 @@ pub fn verify_opening(root: &str, field_id: FieldId, value: &SExpr, opening: &Op
             Side::Right => node_hash(&cur, sibling),
         };
     }
-    let expected = match root.strip_prefix("sha256:") {
-        Some(hex) => hex,
-        None => return false,
-    };
-    hex32(&cur) == expected
+    crate::multihash::decode(root).is_some_and(|expected| expected == cur)
 }
 
 // ---------------------------------------------------------------------------
@@ -441,7 +435,7 @@ mod tests {
             params: Vec::new(),
             thread: Some("conv-7".to_string()),
             sender: Some("@alice".to_string()),
-            caused_by: Some(CausedBy::Single("sha256:beef".to_string())),
+            caused_by: Some(CausedBy::Single("f1220beef".to_string())),
         }
     }
 
@@ -503,7 +497,7 @@ mod tests {
             let root = node_hash(&left, &node_hash(&leaves[4], &leaves[5]));
             assert_eq!(
                 typed_root(&message),
-                alloc::format!("sha256:{}", hex32(&root))
+                alloc::format!("f1220{}", hex32(&root))
             );
             for field in FIELD_ORDER {
                 let opening = open(&message, field);
@@ -530,7 +524,7 @@ mod tests {
     #[test]
     fn root_has_sha256_hex64_form() {
         let r = typed_root(&sample("x"));
-        let hex = r.strip_prefix("sha256:").expect("prefix");
+        let hex = r.strip_prefix("f1220").expect("prefix");
         assert_eq!(hex.len(), 64);
         assert!(hex
             .chars()
@@ -555,8 +549,8 @@ mod tests {
                 thread: Some("conv-7".to_string()),
                 sender: Some("@alice".to_string()),
                 caused_by: Some(CausedBy::Multiple(vec![
-                    "sha256:aaa".to_string(),
-                    "sha256:bbb".to_string(),
+                    "f1220aaa".to_string(),
+                    "f1220bbb".to_string(),
                 ])),
             }
         };
@@ -820,7 +814,7 @@ mod tests {
             params: Vec::new(),
             thread: Some("conv-7".to_string()),
             sender: Some("@alice".to_string()),
-            caused_by: Some(CausedBy::Single("sha256:beef".to_string())),
+            caused_by: Some(CausedBy::Single("f1220beef".to_string())),
         };
         let forged_to = open(&forged_msg, FieldId::To);
         // Presented against the genuine signed root, the forged opening fails.

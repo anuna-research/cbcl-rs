@@ -155,12 +155,12 @@
     (require :proto string)
     (require :role symbol)
     (require :outcome list)
-    (require :utility number))
+    (require :utility integer))
 
   (shape request-policy
     (require :proto string)
     (require :role symbol)
-    (require :bound number))
+    (require :bound integer))
 
   (shape commit-policy
     (require :proto string)
@@ -198,29 +198,29 @@
 ; M2  propose-choreography -> prefer
 ;   (lang cbcl-pact
 ;     (prefer "ult-1" proposer (accepted 70 30) 0.7
-;       :caused-by "sha256:H1..."))
+;       :caused-by "f1220H1..."))
 ;
 ; M3  fan-in: (all propose-choreography prefer) -> request-policy
 ;   (lang cbcl-pact
 ;     (request-policy "ult-1" proposer 3
-;       :caused-by ("sha256:H1..." "sha256:H2...")))
+;       :caused-by ("f1220H1..." "f1220H2...")))
 ;
 ; M4  request-policy -> commit-policy
 ;   (lang cbcl-pact
 ;     (commit-policy "ult-1" proposer (offer 70 30)
-;       :caused-by "sha256:H3..."))
+;       :caused-by "f1220H3..."))
 ;
 ; M5  commit-policy -> (any at choose)        ; proposer enacts `at`
 ;   (lang cbcl-pact
 ;     (at "ult-1" "s1" proposer (offer 70 30)
-;       :caused-by "sha256:H4..."))
+;       :caused-by "f1220H4..."))
 ;
 ; M6  (any at choose) -> observe-outcome
 ;   (lang cbcl-pact
 ;     (observe-outcome "ult-1" "s1" (offered 70 30)
-;       :caused-by "sha256:H5..."))
+;       :caused-by "f1220H5..."))
 ;
 ; M7  observe-outcome -> terminate
 ;   (lang cbcl-pact
 ;     (terminate "ult-1" (accepted 70 30)
-;       :caused-by "sha256:H6..."))
+;       :caused-by "f1220H6..."))

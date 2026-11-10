@@ -124,7 +124,7 @@ checks(Lunch) ->
     BadVote = <<"(lang lunch-vote (vote @lunch :choice \"Sushi\" :replaces () :extra 1 "
                 ":caused-by begin :thread \"v1\" :from @bo))">>,
     Orphan = <<"(lang lunch-vote (vote @lunch :choice \"Sushi\" :replaces () :caused-by "
-               "sha256-ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff "
+               "f1220ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff "
                ":thread \"v1\" :from @bo))">>,
     [
      {"versions/0",
@@ -190,13 +190,13 @@ checks(Lunch) ->
       fun err/1},
      {"frontier/1",
       fun() -> cbcl_erl:frontier(Frame(<<"frontier">>, <<>>)) end,
-      fun({ok, <<"{\"instance\":\"sha256-", _/binary>>}) -> true; (_) -> false end},
+      fun({ok, <<"{\"instance\":\"f1220", _/binary>>}) -> true; (_) -> false end},
      {"frontier/1 malformed",
       fun() -> cbcl_erl:frontier(<<"(frontier">>) end,
       fun err/1},
      {"dialect_hash/1",
       fun() -> cbcl_erl:dialect_hash(Lunch) end,
-      fun({ok, <<"sha256-", Hex:64/binary>>}) -> hex(Hex); (_) -> false end},
+      fun({ok, <<"f1220", Hex:64/binary>>}) -> hex(Hex); (_) -> false end},
      {"dialect_hash/1 malformed",
       fun() -> cbcl_erl:dialect_hash(<<"(nope)">>) end,
       fun err/1},
@@ -217,7 +217,7 @@ checks(Lunch) ->
       fun err/1},
      {"compile_contract/1 compiles a contract to a self-addressed dialect",
       fun() -> cbcl_erl:compile_contract(<<"{\"version\":3,\"kind\":\"contract\",\"name\":\"c\",\"verbs\":{\"open\":{\"after\":[\"begin\"],\"fields\":{\"title\":\"string\"}}},\"state\":{\"title\":[\"last\",\"open\",\"title\"]}}">>) end,
-      fun({ok, <<"{\"name\":\"sha256-", _/binary>>}) -> true; (_) -> false end},
+      fun({ok, <<"{\"name\":\"f1220", _/binary>>}) -> true; (_) -> false end},
      {"compile_contract/1 refuses a malformed contract",
       fun() -> cbcl_erl:compile_contract(<<"{\"version\":2}">>) end,
       fun err/1},

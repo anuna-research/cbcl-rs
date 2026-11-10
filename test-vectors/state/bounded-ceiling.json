@@ -2,7 +2,7 @@
   "id": "bounded-ceiling",
   "version": "2.0.0",
   "thread": "coin-1",
-  "contract": "; Capped profile: initial allocations sum to 4, initial :space sums to 6.\n; Example cast: issuer={@treasury,@alice}, holder={@treasury,@alice,@bob}.\n; Bounded-counter example. Amounts are integer base units, not decimals.\n; Hosts authenticate acts and serialize issuance per account before publication.\n(define example-capped-coin (cbcl) @coin-author\n  (:resource-requirements ((max-depth 16) (max-expansion-size 4096) (verification-time 1000)))\n  (:roles ((* issuer) (* holder)))\n  (extend open (to name allocations space) :from issuer :to (issuer holder)\n    (tell to :name name :allocations allocations :space space))\n  (extend mint (to amount) :from issuer :to (issuer holder)\n    (tell to :amount amount))\n  (extend burn (to amount) :from holder :to (issuer holder)\n    (tell to :amount amount))\n  (extend pay (to recipient amount) :from holder :to (issuer holder)\n    (tell to :recipient recipient :amount amount))\n  (shape open (require :name string) (require :allocations list) (require :space list))\n  (shape mint (require :amount number))\n  (shape burn (require :amount number))\n  (shape pay (require :recipient symbol) (require :amount number))\n  (extend share-space (to recipient amount) :from holder :to (issuer holder)\n    (tell to :recipient recipient :amount amount))\n  (shape share-space (require :recipient symbol) (require :amount number))\n  (protocol (then open share-space) (then begin open) (then open mint) (then open burn) (then open pay))\n  (state\n    (name (initial open :name))\n    (coins (bounded-counter\n      (floor 0)\n      (ceiling 10)\n      (initial-headroom open :space)\n      (transfer-headroom share-space :recipient :amount)\n      (initial-rights open :allocations)\n      (issuers issuer)\n      (increment mint :amount)\n      (decrement burn :amount)\n      (transfer pay :recipient :amount)))))\n",
+  "contract": "; Capped profile: initial allocations sum to 4, initial :space sums to 6.\n; Example cast: issuer={@treasury,@alice}, holder={@treasury,@alice,@bob}.\n; Bounded-counter example. Amounts are integer base units, not decimals.\n; Hosts authenticate acts and serialize issuance per account before publication.\n(define example-capped-coin (cbcl) @coin-author\n  (:resource-requirements ((max-depth 16) (max-expansion-size 4096) (verification-time 1000)))\n  (:roles ((* issuer) (* holder)))\n  (extend open (to name allocations space) :from issuer :to (issuer holder)\n    (tell to :name name :allocations allocations :space space))\n  (extend mint (to amount) :from issuer :to (issuer holder)\n    (tell to :amount amount))\n  (extend burn (to amount) :from holder :to (issuer holder)\n    (tell to :amount amount))\n  (extend pay (to recipient amount) :from holder :to (issuer holder)\n    (tell to :recipient recipient :amount amount))\n  (shape open (require :name string) (require :allocations list) (require :space list))\n  (shape mint (require :amount integer))\n  (shape burn (require :amount integer))\n  (shape pay (require :recipient symbol) (require :amount integer))\n  (extend share-space (to recipient amount) :from holder :to (issuer holder)\n    (tell to :recipient recipient :amount amount))\n  (shape share-space (require :recipient symbol) (require :amount integer))\n  (protocol (then open share-space) (then begin open) (then open mint) (then open burn) (then open pay))\n  (state\n    (name (initial open :name))\n    (coins (bounded-counter\n      (floor 0)\n      (ceiling 10)\n      (initial-headroom open :space)\n      (transfer-headroom share-space :recipient :amount)\n      (initial-rights open :allocations)\n      (issuers issuer)\n      (increment mint :amount)\n      (decrement burn :amount)\n      (transfer pay :recipient :amount)))))\n",
   "covers": [
     "bounded-counter",
     "ceiling",
@@ -16,29 +16,29 @@
     },
     {
       "signer": "@treasury",
-      "canonical": "(signed @treasury (lang example-capped-coin (open (@alice @bob @treasury) () :name \"Capped\" :allocations ((@treasury 2) (@alice 2) (@bob 0)) :space ((@treasury 3) (@alice 3) (@bob 0)) :from @treasury :thread \"coin-1\" :caused-by sha256-00e5135405fae01e3135ee94a3a7e57f1f35fe19de5203d42462307db3585131)))"
+      "canonical": "(signed @treasury (lang example-capped-coin (open (@alice @bob @treasury) () :allocations ((@treasury 2) (@alice 2) (@bob 0)) :from @treasury :name \"Capped\" :space ((@treasury 3) (@alice 3) (@bob 0)) :thread \"coin-1\" :caused-by f122000e5135405fae01e3135ee94a3a7e57f1f35fe19de5203d42462307db3585131)))"
     },
     {
       "signer": "@treasury",
-      "canonical": "(signed @treasury (lang example-capped-coin (mint (@alice @bob @treasury) () :amount 3 :escrow-prev sha256-184bec2b98c9abd34da10df8b4a124de53da54c94e9617cda20885b9c842aeaa :escrow-deps () :from @treasury :thread \"coin-1\" :caused-by sha256-184bec2b98c9abd34da10df8b4a124de53da54c94e9617cda20885b9c842aeaa)))"
+      "canonical": "(signed @treasury (lang example-capped-coin (mint (@alice @bob @treasury) () :amount 3 :escrow-deps () :escrow-prev f12200e4a030ffb1bfd2fc881001c96ee1fce9fdeefad26619d4af13bd9d01079804b :from @treasury :thread \"coin-1\" :caused-by f12200e4a030ffb1bfd2fc881001c96ee1fce9fdeefad26619d4af13bd9d01079804b)))"
     },
     {
       "signer": "@alice",
-      "canonical": "(signed @alice (lang example-capped-coin (mint (@alice @bob @treasury) () :amount 3 :escrow-prev sha256-184bec2b98c9abd34da10df8b4a124de53da54c94e9617cda20885b9c842aeaa :escrow-deps () :from @alice :thread \"coin-1\" :caused-by sha256-184bec2b98c9abd34da10df8b4a124de53da54c94e9617cda20885b9c842aeaa)))"
+      "canonical": "(signed @alice (lang example-capped-coin (mint (@alice @bob @treasury) () :amount 3 :escrow-deps () :escrow-prev f12200e4a030ffb1bfd2fc881001c96ee1fce9fdeefad26619d4af13bd9d01079804b :from @alice :thread \"coin-1\" :caused-by f12200e4a030ffb1bfd2fc881001c96ee1fce9fdeefad26619d4af13bd9d01079804b)))"
     }
   ],
   "expect": {
     "addresses": [
-      "sha256-00e5135405fae01e3135ee94a3a7e57f1f35fe19de5203d42462307db3585131",
-      "sha256-184bec2b98c9abd34da10df8b4a124de53da54c94e9617cda20885b9c842aeaa",
-      "sha256-35c2b163df9fee63a5abc05a0b0480bcd59495f90848ecd9aeca900d6f23e8c3",
-      "sha256-a55f5ab0f0526469ec379c0ac5a0f34f4199024bd38d14467bf6acaecfd58bf0"
+      "f122000e5135405fae01e3135ee94a3a7e57f1f35fe19de5203d42462307db3585131",
+      "f12200e4a030ffb1bfd2fc881001c96ee1fce9fdeefad26619d4af13bd9d01079804b",
+      "f1220cb4ae2f7e5ac121a9fd7f00a29e352acc4995b04531addf3128bd1265ab06b65",
+      "f122022c8966d505abb727630a9bc6cb25dc1114025081556dbca5cd4d8bd241a5128"
     ],
     "verdicts": {
-      "sha256-00e5135405fae01e3135ee94a3a7e57f1f35fe19de5203d42462307db3585131": "accepted",
-      "sha256-184bec2b98c9abd34da10df8b4a124de53da54c94e9617cda20885b9c842aeaa": "accepted",
-      "sha256-35c2b163df9fee63a5abc05a0b0480bcd59495f90848ecd9aeca900d6f23e8c3": "accepted",
-      "sha256-a55f5ab0f0526469ec379c0ac5a0f34f4199024bd38d14467bf6acaecfd58bf0": "accepted"
+      "f122000e5135405fae01e3135ee94a3a7e57f1f35fe19de5203d42462307db3585131": "accepted",
+      "f12200e4a030ffb1bfd2fc881001c96ee1fce9fdeefad26619d4af13bd9d01079804b": "accepted",
+      "f1220cb4ae2f7e5ac121a9fd7f00a29e352acc4995b04531addf3128bd1265ab06b65": "accepted",
+      "f122022c8966d505abb727630a9bc6cb25dc1114025081556dbca5cd4d8bd241a5128": "accepted"
     },
     "state": {
       "name": "Capped",

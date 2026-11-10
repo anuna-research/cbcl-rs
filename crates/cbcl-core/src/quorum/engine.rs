@@ -448,7 +448,7 @@ impl Replica {
     fn bound_relay_vote(&self, vote: &Vote) -> Result<()> {
         if vote.signature.len() > self.limits.signature_bytes
             || vote.context != self.context.id
-            || vote.payload.len() > 71
+            || vote.payload.len() > crate::multihash::TEXT_LEN
         {
             return Err("relay vote domain or signature limit exceeded".into());
         }
@@ -471,11 +471,11 @@ impl Replica {
         {
             return Err("relay manifest scope or count limit exceeded".into());
         }
-        // Existing act/version identity functions emit 71-byte digest IDs.
+        // Act/version identity functions emit canonical multihash IDs.
         // Match ordinary collection bounds; do not impose a new aggregate-byte
         // ceiling that could strand already admitted cumulative metadata.
         for ids in [&m.parents, &m.held, &m.refunded, &m.credited] {
-            if ids.iter().any(|id| id.len() > 71) {
+            if ids.iter().any(|id| id.len() > crate::multihash::TEXT_LEN) {
                 return Err("relay identifier limit exceeded".into());
             }
         }
@@ -491,7 +491,9 @@ impl Replica {
             RelayItem::Version(v) => self.bound_relay_version(v),
             RelayItem::Owned(r) => self.bound_seal_request(r),
             RelayItem::Certificate(c) => {
-                if c.votes.len() > self.context.committee.validators.len() || c.payload.len() > 71 {
+                if c.votes.len() > self.context.committee.validators.len()
+                    || c.payload.len() > crate::multihash::TEXT_LEN
+                {
                     return Err("relay certificate count or payload limit exceeded".into());
                 }
                 for v in &c.votes {

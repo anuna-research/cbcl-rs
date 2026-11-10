@@ -74,7 +74,7 @@ fn generate_checklist_with_roles() {
     // Rejected: a member may not drop (R6); rejected: undeclared field (R7 closed); pending: unknown predecessor.
     let bad_role = format!("(signed @bo (lang {n} (drop (@aria @bo @cy) :item \"cake\" :replaces () :caused-by {a1} :thread \"list-1\" :from @bo)))");
     let bad_field = format!("(signed @bo (lang {n} (check (@aria @bo @cy) :item \"cake\" :done #t :note \"x\" :replaces () :caused-by {a1} :clock \"hlc-0000000000000000-00000000\" :thread \"list-1\" :from @bo)))");
-    let pending = format!("(signed @bo (lang {n} (check (@aria @bo @cy) :item \"cake\" :done #t :replaces () :caused-by sha256-{} :clock \"hlc-0000000000000000-00000000\" :thread \"list-1\" :from @bo)))", "f".repeat(64));
+    let pending = format!("(signed @bo (lang {n} (check (@aria @bo @cy) :item \"cake\" :done #t :replaces () :caused-by f1220{} :clock \"hlc-0000000000000000-00000000\" :thread \"list-1\" :from @bo)))", "f".repeat(64));
     let messages = [
         (&m0, "@aria"),
         (&m1, "@aria"),
@@ -159,8 +159,8 @@ fn generate_tags_and_balance() {
   (shape open (require :title string))
   (shape add (require :tag string) (require :op string))
   (shape remove (require :tag string))
-  (shape credit (require :amount number) (require :op string))
-  (shape debit (require :amount number) (require :op string))
+  (shape credit (require :amount integer) (require :op string))
+  (shape debit (require :amount integer) (require :op string))
   (protocol (then begin open) (then open add) (then open remove) (then open credit) (then open debit))
   (state (title (initial open :title))
          (tags (observed-set add remove :tag))
@@ -235,7 +235,7 @@ fn generate_signer_supersession() {
       (extend open (to title) (tell to :title title))
       (extend write (to value op clock) (tell to :value value :op op :clock clock))
       (shape open (require :title string))
-      (shape write (require :clock hlc) (require :value string) (require :op number))
+      (shape write (require :clock hlc) (require :value string) (require :op integer))
       (protocol (then begin open) (then open write))
       (state (title (initial open :title)) (entries (lww-per-signer write :value :clock)) (all (events write :value))))";
     let root = "(lang signer-register (open @room :title \"Register\" :caused-by begin :thread \"s1\" :from @owner))";
@@ -292,7 +292,7 @@ fn generate_progress_fork() {
     let b_id = address(&b);
     let c = make(&format!(":caused-by {a_id}"), "@c");
     let late = make(&format!(":caused-by {b_id}"), "@a");
-    let missing = make(&format!(":caused-by sha256-{}", "f".repeat(64)), "@b");
+    let missing = make(&format!(":caused-by f1220{}", "f".repeat(64)), "@b");
     let absent = make("", "@c");
     let messages = [
         (&a, "@a", "accepted"),

@@ -130,8 +130,14 @@ pub mod prelude {
 /// Consensus-free quorum-budget runtime.
 pub mod quorum;
 
+pub mod context;
+pub mod finite;
+mod freeze;
 /// Pure host-supplied hybrid logical clock evidence (SPEC-035).
 pub mod hlc;
-mod freeze;
-pub mod finite;
-pub mod context;
+
+pub mod multihash;
+
+pub mod numeric;
+
+pub mod contracts;

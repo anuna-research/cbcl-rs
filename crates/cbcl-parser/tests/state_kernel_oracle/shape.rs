@@ -135,8 +135,8 @@ fn mandatory_nonnegative_shapes_match_lean() {
     }).unwrap();
 }
 
-// State-shape receipt plus native field extraction, deliberately distinct from
-// the first-keyword ShapeConstraint projection campaign above.
+// Message-boundary recognition/canonicalisation, state-shape receipt and native
+// extraction, distinct from the raw ShapeConstraint projection above.
 fn native_keywords(case: &Value) -> Value {
     let source = "(define keyword-demo (cbcl) @a (extend open (to) (tell to)) \
         (extend mint (to amount) (tell to :amount amount)) \
@@ -157,10 +157,34 @@ fn native_keywords(case: &Value) -> Value {
     json!({"accepted":true,"amount":amount})
 }
 
+fn boundary_cases() -> Vec<(Value, Value)> {
+    vec![
+        (json!(["list", [["keyword","thread"],["str","a"],["keyword","amount"],["num",5],["keyword","thread"],["str","b"]]]), json!({"accepted":false})),
+        (json!(["list", [["keyword","thread"],["str","a"],["keyword","amount"],["num",5],["keyword","thread"],["str","a"]]]), json!({"accepted":false})),
+        (json!(["list", [["keyword","thread"],["str","a"],["keyword","amount"],["num",5]]]), json!({"accepted":true,"amount":5})),
+        (json!(["list", [["keyword","other"],["keyword","amount"],["keyword","amount"],["num",5]]]), json!({"accepted":true,"amount":5})),
+        (json!(["list", [["keyword","amount"],["num",5],["keyword","other"],["keyword","amount"]]]), json!({"accepted":true,"amount":5})),
+    ]
+}
+
+/// SPEC-042: run boundary regressions even when the Lean oracle is unavailable.
+#[test]
+fn keyword_boundary_regressions() {
+    for (params, expected) in boundary_cases() {
+        let case = json!({"profile":"keyword-extraction","params":params});
+        assert_eq!(native_keywords(&case), expected, "keyword case={case}");
+    }
+}
+
 #[test]
 #[ignore = "requires lake build cbcl-state-oracle; explicitly run in Lean CI"]
 fn keyword_extraction_matches_lean() {
     let oracle = RefCell::new(Oracle::start());
+    for (params, expected) in boundary_cases() {
+        let case = json!({"profile":"keyword-extraction","params":params});
+        assert_eq!(native_keywords(&case), expected, "keyword case={case}");
+        assert_eq!(oracle.borrow_mut().request(&case), expected, "keyword case={case}");
+    }
     for params in [
         json!(["list", [["keyword","amount"],["num",5]]]),
         json!(["list", [["keyword","amount"],["num",10],["keyword","amount"],["num",-1]]]),

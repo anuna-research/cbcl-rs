@@ -391,6 +391,10 @@ sender. No rule here reads history.
 
 ### R.5 The binder
 
+Keyword order is canonicalised by the construction, encoding, and addressing
+boundaries under [[SPEC-042-boundary-canonicalisation]]. R7 receipt does not
+require declaration order and does not rewrite accepted messages.
+
 `intend(instance, signer, verb, fields)`, pure, where `instance` = dialect,
 thread, `acc(t)`, opener, and under R6 the root and its cast. The root is
 the cast-bearing `with-roles` wrapper around a `hello` that opens the

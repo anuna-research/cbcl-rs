@@ -47,13 +47,13 @@
     "description": "Dialect with hash, signature, and protocol fields",
     "input": {
       "dialect_name": "test-integrity-fields",
-      "hash": "sha256:abcd1234",
+      "hash": "f1220abcd1234",
       "signature": "sig123",
       "protocol": "ed25519"
     },
     "expected": {
       "type": "success",
-      "hash": "sha256:abcd1234",
+      "hash": "f1220abcd1234",
       "signature": "sig123",
       "protocol": "ed25519"
     },

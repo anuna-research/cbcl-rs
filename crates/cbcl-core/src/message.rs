@@ -465,7 +465,7 @@ impl From<Message> for SExpr {
                     None => {}
                 }
                 items.push(content);
-                items.extend(params);
+                items.extend(crate::canonical::canonical_params(&params));
                 if let Some(t) = thread {
                     items.push(SExpr::Atom(Atom::Keyword(String::from("thread"))));
                     items.push(SExpr::Atom(Atom::Str(t)));
@@ -512,7 +512,7 @@ impl From<Message> for SExpr {
                 content,
             } => {
                 let mut items = vec![SExpr::Atom(Atom::Symbol(String::from(wrapper.as_str())))];
-                items.extend(params);
+                items.extend(crate::canonical::canonical_params(&params));
                 items.push(SExpr::from(*content));
                 SExpr::List(items)
             }
@@ -649,10 +649,17 @@ fn parse_wrapped(
     let inner_idx = tail.iter().rposition(|item| matches!(item, SExpr::List(_)));
     match inner_idx {
         Some(idx) => {
+            if idx + 1 != tail.len() {
+                return Err(MessageParseError(String::from(
+                    "wrapper inner message must be last",
+                )));
+            }
             // A wrapper neither establishes nor discards a lang scope; it
             // carries through whatever it was found in.
             let inner = parse_message_scoped(&tail[idx], scope)?;
-            let params = tail[..idx].to_vec();
+            let params = &tail[..idx];
+            validate_param_keywords(params)?;
+            let params = crate::canonical::canonical_params(params);
             Ok(Message::Wrapped {
                 wrapper,
                 params,
@@ -668,6 +675,30 @@ fn parse_wrapped(
 /// Whether an S-expression is a single address token (`@key`).
 fn is_address(s: &SExpr) -> bool {
     matches!(s, SExpr::Atom(Atom::Symbol(sym)) if sym.starts_with('@'))
+}
+
+/// Recognise parameter structure before normalising it (SPEC-042 REQ-4201).
+fn validate_param_keywords(params: &[SExpr]) -> Result<(), MessageParseError> {
+    let mut seen = alloc::collections::BTreeSet::new();
+    let mut i = 0;
+    while i < params.len() {
+        if let SExpr::Atom(Atom::Keyword(key)) = &params[i] {
+            if i + 1 == params.len() {
+                return Err(MessageParseError(alloc::format!(
+                    "keyword :{key} missing value"
+                )));
+            }
+            if !seen.insert(key) {
+                return Err(MessageParseError(alloc::format!(
+                    "duplicate keyword :{key}"
+                )));
+            }
+            i += 2;
+        } else {
+            i += 1;
+        }
+    }
+    Ok(())
 }
 
 /// Whether an S-expression is an *address group*: a single address `@x` or a
@@ -689,6 +720,7 @@ fn parse_simple(
     tail: &[SExpr],
     scope: LangScope,
 ) -> Result<Message, MessageParseError> {
+    validate_param_keywords(tail)?;
     let performative = match CorePerformative::parse(head) {
         Some(cp) => Performative::Core(cp),
         // A custom performative outside a `(lang …)` wrapper has no
@@ -788,7 +820,7 @@ fn parse_simple(
         performative,
         recipient,
         content: content.unwrap_or(SExpr::List(Vec::new())),
-        params,
+        params: crate::canonical::canonical_params(&params),
         thread,
         sender: sender_val,
         caused_by,
@@ -1325,12 +1357,12 @@ mod tests {
             sym("reply"),
             str_expr("done"),
             kw("caused-by"),
-            sym("sha256:abc123"),
+            sym("f1220abc123"),
         ]);
         let msg = Message::try_from(&sexpr).unwrap();
         assert_eq!(
             msg.caused_by(),
-            Some(&CausedBy::Single(String::from("sha256:abc123")))
+            Some(&CausedBy::Single(String::from("f1220abc123")))
         );
     }
 
@@ -1340,12 +1372,12 @@ mod tests {
             sym("reply"),
             str_expr("done"),
             kw("caused-by"),
-            str_expr("sha256:abc123"),
+            str_expr("f1220abc123"),
         ]);
         let msg = Message::try_from(&sexpr).unwrap();
         assert_eq!(
             msg.caused_by(),
-            Some(&CausedBy::Single(String::from("sha256:abc123")))
+            Some(&CausedBy::Single(String::from("f1220abc123")))
         );
     }
 
@@ -1355,15 +1387,15 @@ mod tests {
             sym("ok"),
             str_expr("ack"),
             kw("caused-by"),
-            list(vec![sym("sha256:bbb"), sym("sha256:aaa")]),
+            list(vec![sym("f1220bbb"), sym("f1220aaa")]),
         ]);
         let msg = Message::try_from(&sexpr).unwrap();
         // Multiple hashes are sorted lexicographically
         assert_eq!(
             msg.caused_by(),
             Some(&CausedBy::Multiple(vec![
-                String::from("sha256:aaa"),
-                String::from("sha256:bbb"),
+                String::from("f1220aaa"),
+                String::from("f1220bbb"),
             ]))
         );
     }
@@ -1444,7 +1476,7 @@ mod tests {
             sym("reply"),
             str_expr("done"),
             kw("caused-by"),
-            sym("sha256:abc"),
+            sym("f1220abc"),
         ]);
         let msg = Message::try_from(&original).unwrap();
         let back = SExpr::from(msg);
@@ -1496,14 +1528,14 @@ mod tests {
             kw("sender"),
             sym("@alice"),
             kw("caused-by"),
-            sym("sha256:xyz"),
+            sym("f1220xyz"),
         ]);
         let msg = Message::try_from(&sexpr).unwrap();
         assert_eq!(msg.thread(), Some("conv-1"));
         assert_eq!(msg.sender(), Some("@alice"));
         assert_eq!(
             msg.caused_by(),
-            Some(&CausedBy::Single(String::from("sha256:xyz")))
+            Some(&CausedBy::Single(String::from("f1220xyz")))
         );
     }
 
@@ -1691,10 +1723,10 @@ mod tests {
 
     #[test]
     fn with_roles_dialect_pin_parses_into_cast() {
-        // SPEC-014 REQ-628: the optional `:dialect sha256:<hex64>` field
+        // SPEC-014 REQ-628: the optional `:dialect f1220<hex64>` field
         // travels in the wrapper params and lands on `Cast::dialect_pin`.
         use crate::role::{parse_roles, parse_wrapper_cast};
-        let pin = alloc::format!("sha256:{}", "a".repeat(64));
+        let pin = alloc::format!("f1220{}", "a".repeat(64));
         let sexpr: SExpr = alloc::format!(
             "(with-roles ((auctioneer @auc) (bidder @b1 @b2)) :dialect {pin} (signed @auc \"sig\" (hello :caused-by begin)))"
         )
