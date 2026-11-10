@@ -82,6 +82,11 @@ See also [roles and casts](docs/concepts/role-cast.md) and
 
 ### Numeric atoms
 
+The next type-system revision is drafted in [SPEC-040](specs/SPEC-040-numeric-and-refinement-types.md):
+explicit `integer`, a general `number` category, and named declarative contracts.
+That specification is proposed behavior; the implementation below retains its
+current naming until the specification-first migration is implemented.
+
 | Type | Literal examples | Shape type |
 |---|---|---|
 | Signed 64-bit integer | `42`, `-7` | `number`; `nonnegative` additionally requires a value ≥ 0 |

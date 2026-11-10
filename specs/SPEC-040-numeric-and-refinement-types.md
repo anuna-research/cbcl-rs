@@ -1,0 +1,532 @@
+---
+id: SPEC-040
+title: Numeric Types and Named Flat Contracts
+status: draft
+mode: reference
+version: 0.1.0
+last-updated: 2026-11-10
+owner: CBCL maintainer
+---
+
+# Numeric Types and Named Flat Contracts
+
+| Field | Value |
+|---|---|
+| ID | SPEC-040 |
+| Title | Numeric Types and Named Flat Contracts |
+| Status | Specification first; proposed behavior awaiting design approval |
+| Branch | feat/issue-21-numeric-types; PR 29 |
+| Next actor | Maintainer: review the syntax, signed semantics profile, and regex limits before implementation |
+
+## Orientation
+
+Intent: give dialect authors precise numeric names and reusable value checks without requiring them to order their declarations.
+The [[SPEC-040-numeric-and-refinement-types#Vocabulary|flat contract]] model draws inspiration from [[SPEC-040-numeric-and-refinement-types#Racket inspiration|Racket contracts]].
+A named contract validates an existing value; it does not execute author code, construct a new wire value, or coerce representations.
+
+```lisp
+(type postal-code (string (matches "[0-9]{4}")))
+(type quantity integer)
+(shape quote (require :quantity quantity)
+             (require :price number)
+             (require :postcode postal-code))
+```
+
+`integer` accepts signed 64-bit integer atoms. `float` accepts finite binary64 atoms, and `decimal` accepts exact decimal atoms.
+`number` accepts any of those representations without conversion.
+`postal-code` accepts `"2000"`, rejects `2000`, and rejects `"x2000y"` because matching covers the entire string.
+Shapes can precede their type declarations. Installation gathers declarations and resolves references before checking any message.
+
+Decisions: [[SPEC-040-numeric-and-refinement-types#ADR-4000]] uses flat declarative contracts;
+[[SPEC-040-numeric-and-refinement-types#ADR-4001]] resolves names across the complete dialect;
+[[SPEC-040-numeric-and-refinement-types#ADR-4002]] binds type semantics into signed dialects.
+
+Load-bearing: [[SPEC-040-numeric-and-refinement-types#REQ-4000]] numeric hierarchy;
+[[SPEC-040-numeric-and-refinement-types#REQ-4001]] named composition;
+[[SPEC-040-numeric-and-refinement-types#REQ-4002]] declaration order;
+[[SPEC-040-numeric-and-refinement-types#REQ-4003]] full-string matching;
+[[SPEC-040-numeric-and-refinement-types#REQ-4005]] signed semantics.
+
+Controls:
+- [[SPEC-040-numeric-and-refinement-types#REQ-4000]] forbids coercion and fractional values in integer-only arithmetic positions.
+- [[SPEC-040-numeric-and-refinement-types#REQ-4002]] rejects duplicate, unknown, shadowed, cyclic, or ill-typed definitions before installation.
+- [[SPEC-040-numeric-and-refinement-types#REQ-4003]] rejects unsupported regex syntax; compile and input budgets apply before matching.
+- [[SPEC-040-numeric-and-refinement-types#REQ-4004]] prohibits author procedures, I/O, callbacks, mutable-state reads, and value rewriting.
+- [[SPEC-040-numeric-and-refinement-types#REQ-4005]] prohibits using old signatures under changed type semantics.
+- [[SPEC-040-numeric-and-refinement-types#REQ-4006]] rejects invalid values and defaults at their defined boundary with attributable diagnostics.
+
+Open: [[SPEC-040-numeric-and-refinement-types#Open decisions]] assigns the optional-default migration, implementation placement, and numeric budget ratification to the maintainer.
+This document is a draft. Its acceptance tests are proposed, and the PR's existing implementation does not yet satisfy this specification.
+
+Detail: [[SPEC-040-numeric-and-refinement-types#CON-4000]] defines type declarations;
+[[SPEC-040-numeric-and-refinement-types#CON-4001]] defines the bounded regex language;
+[[SPEC-040-numeric-and-refinement-types#CON-4002]] defines installation and boundary checks.
+
+## Context and user intent
+
+The named failure is **a type name that obscures which values a contract permits**.
+Calling only integers `number` prevents an author from requesting either a specific representation or the general numeric category.
+Repeating unnamed validation in each host creates a second failure: replicas can disagree about whether a string satisfies the same declared requirement.
+
+The user requests `integer` as a specific type, `number` as its numeric supertype, and reusable types such as regex-constrained strings.
+The user also requires type declarations to work without imposing a declaration order on dialect authors.
+They request the design on the numeric-types branch before custom-type implementation.
+
+The design extends shape constraints from [[SPEC-002-structural-contracts]] and state-field typing from [[SPEC-019-state-rules]].
+It preserves the distinction between shape validation and causal admission in [[SPEC-003-verification-lattice]].
+It does not add executable predicates or general-purpose dialect code.
+
+### Racket inspiration
+
+Racket presents contracts as checks at communication boundaries and provides named predicates plus composition through `and/c` and `or/c`.
+Its guide also discusses regular expressions as contracts and distinguishes ordinary value checks from higher-order monitoring.
+Source links appear in [[SPEC-040-numeric-and-refinement-types#Sources]].
+
+CBCL adopts the naming, composition, boundary checking, and diagnostic ideas.
+This proposal restricts contracts to a finite declarative data language over one existing value.
+It does not import Racket procedures, function contracts, wrappers, execution semantics, or its regex syntax wholesale.
+A contract's failure identifies the violated promise; it does not establish that an authenticated sender is malicious.
+
+## Vocabulary
+
+| Term | Meaning |
+|---|---|
+| Representation | The existing integer, float, decimal, string, boolean, symbol, keyword, or list atom/value kind |
+| Numeric category | `number`, the union of integer, float, and decimal representations |
+| Flat contract | A total, pure yes/no check of one bounded existing value without delayed wrappers or callbacks |
+| Named type | A dialect-local name for a flat contract; it adds no wire constructor or nominal brand |
+| Refinement | A contract accepting only a subset of values accepted by its base contract |
+| Base representations | The finite set of value kinds that a contract can accept, derived conservatively at installation |
+| Type environment | The immutable installed map from local names to checked contract definitions |
+| Full match | A regex accepts exactly the entire decoded string, including its final scalar |
+| Semantics profile | A fixed identifier binding numeric meanings, contract syntax, regex rules, and deterministic interpretation |
+
+## User paths
+
+An author declares a postal code once and references it from several shapes.
+They move declarations for readability without changing acceptance or resolving names differently.
+A host authenticates a message, then applies the installed checks to each required field without running author code.
+An implementer verifies that string validation gives the same answer in native Rust, WASM, and NIF consumers.
+
+The example is a dialect fragment; the surrounding `define`, performatives, and protocol remain ordinary CBCL declarations.
+The following order also works:
+
+```lisp
+(shape address (require :postcode postal-code))
+(type postal-code (string (matches "[0-9]{4}")))
+```
+
+Composition is explicit and remains flat:
+
+```lisp
+(type invoice-id (string (matches "INV-[0-9]+")))
+(type reference (or postal-code invoice-id))
+(type local-postcode (and postal-code (string (matches "2[0-9]{3}"))))
+```
+
+`reference` accepts either complete format. `local-postcode` must satisfy both contracts.
+These examples specify proposed syntax; they are not accepted by the current parser.
+
+## Requirements
+
+### REQ-4000
+
+`number` SHALL accept exactly integer, finite binary64, and exact decimal atoms while preserving their representations.
+`integer`, `float`, and `decimal` SHALL each accept only their respective representations.
+
+Counters, sums, repetition counts, resource bounds, and existing finite-lattice numeric parameters SHALL retain integer-only requirements.
+A broad `number` contract SHALL NOT satisfy an integer-only declaration requirement.
+A contract proven to accept only integers can satisfy that representation requirement; runtime positivity and range checks still apply.
+
+`nonnegative` remains an explicitly documented shorthand for a nonnegative integer contract in this revision.
+It does not become an unrestricted numeric representation or admit fractional atoms.
+
+Acceptance: `12`, `12.0`, and `12m` satisfy `number`; only `12` satisfies `integer`.
+Boolean `#t` satisfies neither. No check converts an accepted decimal into a float or integer.
+Trace: [[SPEC-040-numeric-and-refinement-types#CON-4000]], [[SPEC-040-numeric-and-refinement-types#TEST-4000]], [[SPEC-040-numeric-and-refinement-types#OBS-4000]].
+
+### REQ-4001
+
+A dialect SHALL support names for aliases, bounded string refinements, intersections, and unions under [[SPEC-040-numeric-and-refinement-types#CON-4000]].
+A named type SHALL check the underlying value without adding a wire tag or changing its canonical bytes.
+
+Acceptance: a value satisfying `postal-code` remains an ordinary string; an alias and its target accept the same bounded values.
+Intersection requires every operand; union requires at least one operand. Branch order does not change successful acceptance or the required worst-case work reservation.
+Trace: [[SPEC-040-numeric-and-refinement-types#CON-4000]], [[SPEC-040-numeric-and-refinement-types#TEST-4001]], [[SPEC-040-numeric-and-refinement-types#OBS-4000]].
+
+### REQ-4002
+
+Installation SHALL resolve type references against the complete dialect declaration set before committing the installed dialect.
+It SHALL reject duplicate names, built-in shadowing, unknown names, cycles, and invalid refinement domains atomically.
+
+Acceptance: moving type or shape declarations does not change the resolved environment or validation results.
+Failure leaves the registry unchanged. An unknown type SHALL NOT be reinterpreted as an optional default or unchecked value.
+This requirement introduces no new ordering requirement for dialect fields or type declarations.
+Trace: [[SPEC-040-numeric-and-refinement-types#CON-4002]], [[SPEC-040-numeric-and-refinement-types#TEST-4002]], [[SPEC-040-numeric-and-refinement-types#OBS-4000]].
+
+### REQ-4003
+
+`matches` SHALL validate a decoded string with full-string semantics under [[SPEC-040-numeric-and-refinement-types#CON-4001]].
+The implementation SHALL compile each distinct installed pattern before accepting the dialect and enforce finite compilation and matching budgets.
+
+Acceptance: `[0-9]{4}` accepts `"2000"`, rejects `"x2000y"`, and rejects `"2000\n"`.
+A non-string fails its base type without invoking a string matcher.
+Unsupported constructs, invalid ranges, malformed patterns, and resource exhaustion reject without permissive fallback.
+Trace: [[SPEC-040-numeric-and-refinement-types#CON-4001]], [[SPEC-040-numeric-and-refinement-types#TEST-4003]], [[SPEC-040-numeric-and-refinement-types#OBS-4000]].
+
+### REQ-4004
+
+User types SHALL NOT call author procedures, perform I/O, read mutable state, inspect other message fields, or rewrite the checked value.
+Contract composition SHALL NOT introduce higher-order wrappers, recursion, implicit type conversions, or dialect expansion callbacks.
+
+Acceptance: checking the same value under the same installed type environment gives the same answer without host capabilities.
+Matching a string does not trim, normalize, decode again, or replace it.
+Trace: [[SPEC-040-numeric-and-refinement-types#CON-4002]], [[SPEC-040-numeric-and-refinement-types#TEST-4004]], [[SPEC-040-numeric-and-refinement-types#OBS-4000]].
+
+### REQ-4005
+
+Canonical signed dialect data SHALL bind the numeric and contract semantics profile and the complete declared type environment.
+Changing a type name, base contract, regex, composition, or profile SHALL change the signed commitment.
+
+The changed meaning of `number` SHALL NOT reuse old signatures under the old integer-only interpretation.
+Compiled matcher state and caches SHALL NOT replace the source definition in the signed commitment.
+
+Acceptance: an old signed integer-only `number` dialect fails verification under the new semantics unless explicitly reissued.
+Type declaration order does not change the canonical type-environment segment; existing ordering rules for other signed clauses remain explicit.
+Trace: [[SPEC-040-numeric-and-refinement-types#CON-4002]], [[SPEC-040-numeric-and-refinement-types#TEST-4005]], [[SPEC-040-numeric-and-refinement-types#OBS-4000]].
+
+### REQ-4006
+
+The installed contract SHALL check message fields at their existing shape boundary and declared defaults before installation succeeds.
+Failures SHALL identify the dialect, performative, field path, declared type, and failed rule or invalid-definition reason.
+
+Acceptance: native, WASM, and NIF surfaces share the core result and preserve the same failure category.
+Diagnostics omit raw field values by default. Domain validators do not become an independent JavaScript or host regex implementation.
+Trace: [[SPEC-040-numeric-and-refinement-types#CON-4002]], [[SPEC-040-numeric-and-refinement-types#TEST-4006]], [[SPEC-040-numeric-and-refinement-types#OBS-4000]].
+
+### NFR-4000
+
+Installation and checking SHALL have explicit finite limits for declaration count, dependency depth, expression nodes, pattern bytes, compiled states, and input bytes.
+The signed semantics profile fixes the pattern, input, dependency, and compiled-size caps.
+The installer derives a conservative worst-case work bound that includes composition and repeated references.
+Equivalent operand permutations have the same reservation requirement. Host availability limits remain separate operational limits.
+
+Compiled checks SHALL use an algorithm without input-dependent exponential backtracking.
+The implementation plan SHALL ratify numeric caps and demonstrate worst-case work against the configured pattern and input limits.
+Host resource exhaustion returns a distinct `resource-limit` outcome; it is neither successful acceptance nor proof of a contract violation.
+
+Trace: [[SPEC-040-numeric-and-refinement-types#TEST-4003]], [[SPEC-040-numeric-and-refinement-types#TEST-4004]], [[SPEC-040-numeric-and-refinement-types#OBS-4000]].
+
+## Contracts
+
+### CON-4000
+
+Interface: type declarations inside a dialect and type expressions in existing shape type slots.
+The proposed structural grammar uses the existing CBCL lexical productions for symbols, keywords, strings, and values.
+
+```ebnf
+type-decl   = "(" , "type" , ws , type-name , ws , type-expr , ")" ;
+type-expr   = builtin | type-name
+            | "(" , "string" , ws , matches , { ws , matches } , ")"
+            | "(" , "and" , ws , type-expr , ws , type-expr ,
+                { ws , type-expr } , ")"
+            | "(" , "or" , ws , type-expr , ws , type-expr ,
+                { ws , type-expr } , ")" ;
+matches     = "(" , "matches" , ws , string , ")" ;
+builtin     = "number" | "integer" | "float" | "decimal" | "nonnegative"
+            | "string" | "hlc" | "bool" | "symbol" | "keyword" | "list" ;
+require     = "(" , "require" , ws , keyword , [ ws , type-expr ] ,
+                { ws , child-rule } , ")" ;
+optional    = "(" , "optional" , ws , keyword , [ ws , type-expr ] ,
+                [ ws , default ] , { ws , child-rule } , ")" ;
+default     = "(" , "default" , ws , value , ")" ;
+```
+
+`value` is the existing `expression` production; `child-rule` is `require`, `optional`, or the existing `max-depth` rule.
+A user `type-name` matches `[a-z][a-z0-9-]{0,47}` and excludes built-ins and reserved expression heads.
+Names are local to the declaring dialect in this initial design; no implicit registry lookup or imported type namespace is introduced.
+Existing `hlc` and `nonnegative` remain named built-ins with their current narrower contracts.
+`list` remains the existing structural kind; this proposal adds no recursive list-element type constructor.
+
+Refinements are intersections with their base kind. Multiple `matches` clauses all apply to the same complete string.
+Expressions using `and` or `or` have at least two operands and retain their declared diagnostic order.
+An `and` whose representation sets are disjoint rejects installation; `number` intersected with `integer` remains integer-only.
+No general regex-language inclusion or emptiness decision is required by this representation check.
+A syntactically valid regex accepting no strings remains a legal contract that rejects every value.
+
+The proposed `default` clause makes optional defaults explicit:
+
+```lisp
+(optional :postcode postal-code (default "2000"))
+```
+
+The installer validates that default against its declared contract.
+Bare symbols in a type slot are always type references, including unresolved references.
+The legacy positional-default syntax therefore requires an explicit migration decision before implementation; it cannot mask a misspelled type name.
+
+Preconditions: the complete dialect syntax is recognized under the chosen type-system profile.
+Postconditions: recognized expressions have unique structural interpretation before name resolution or pattern compilation.
+Error model: unknown heads, invalid arities, reserved names, wrong argument kinds, and ambiguous defaults reject the definition.
+Implements: [[SPEC-040-numeric-and-refinement-types#REQ-4000]], [[SPEC-040-numeric-and-refinement-types#REQ-4001]], [[SPEC-040-numeric-and-refinement-types#REQ-4002]].
+Verified by: [[SPEC-040-numeric-and-refinement-types#TEST-4000]], [[SPEC-040-numeric-and-refinement-types#TEST-4001]], [[SPEC-040-numeric-and-refinement-types#TEST-4002]].
+
+### CON-4001
+
+Interface: the `matches` string denotes the following bounded regular language after exactly one CBCL string-unescape operation.
+This is a proposed portability profile, not a promise of compatibility with every Racket, JavaScript, or Rust regex feature.
+
+```ebnf
+regex       = concat , { "|" , concat } ;
+concat      = { repeated } ;
+repeated    = primary , [ quantifier ] ;
+primary     = literal | "." | escaped | class | "(" , regex , ")" ;
+quantifier  = "*" | "+" | "?" | "{" , natural , "}"
+            | "{" , natural , "," , natural , "}" ;
+class       = "[" , [ "^" ] , class-item , { class-item } , "]" ;
+class-item  = class-char , [ "-" , class-char ] | escaped ;
+natural     = digit , { digit } ;
+```
+
+A `literal` is a Unicode scalar excluding backslash, controls, and regex metacharacters `.[](){}|*+?^$`.
+A `class-char` is a printable ASCII character excluding `]`, `-`, backslash, and `^`.
+`escaped` is backslash followed by a regex metacharacter, hyphen, or backslash; it denotes that character without special meaning.
+Ranges are ASCII, inclusive, and ascending. Negated classes complement their accepted scalars within the Unicode scalar domain.
+`.` matches any one Unicode scalar, including a newline. Grouping has no externally visible capture semantics.
+
+Quantifier counts are nonnegative integers; an upper bound smaller than its lower bound rejects installation.
+Compiler limits apply before repetition is materialized, including very large counted repetitions.
+The matcher begins at the first scalar and succeeds only after consuming the last scalar.
+The empty regex accepts only the empty string. Alternation permits empty branches under these same full-match rules.
+
+Lookaround, backreferences, recursion, named captures, embedded flags, lazy quantifiers, anchors, and shorthand character classes are outside this profile.
+Unsupported syntax rejects rather than approximating another engine's interpretation.
+The implementation composes an existing grammar-derived regular-expression parser and automaton implementation when it can enforce this exact profile.
+If its library accepts a larger language, an explicit recognizer rejects constructs outside this grammar before compilation.
+
+Input limits count UTF-8 bytes; matching semantics operate on decoded Unicode scalars without normalization or locale-sensitive behavior.
+A newline in a value remains a newline. `[0-9]{4}` rejects a trailing newline without relying on an engine's `$` convention.
+Pattern source and signed-profile limits have deterministic meanings across bindings.
+Local host availability is not a different interpretation of those limits.
+
+Preconditions: the structural `matches` clause and string escape syntax have already been recognized.
+Postconditions: a checked immutable matcher accepts exactly the declared full-string language within the configured resource budget.
+Error model: invalid patterns, unsupported constructs, wrong ranges, compile exhaustion, or input-budget exhaustion produce typed failures.
+Implements: [[SPEC-040-numeric-and-refinement-types#REQ-4003]], [[SPEC-040-numeric-and-refinement-types#REQ-4004]].
+Verified by: [[SPEC-040-numeric-and-refinement-types#TEST-4003]], [[SPEC-040-numeric-and-refinement-types#TEST-4004]].
+
+### CON-4002
+
+Interface: installation produces an immutable type environment; message validation consumes that environment and the existing value.
+
+Installation first collects all type declarations and shape references from the complete dialect.
+It recognizes each expression, rejects duplicate and reserved names, builds the reference graph, and rejects unknown names and cycles.
+It then resolves the graph, derives representation sets, validates refinement domains, and compiles patterns under explicit budgets.
+Defaults pass the resolved contracts before the registry changes. Any failure discards the entire candidate installation.
+
+Aliases retain their declared names for diagnostics. Canonical type declarations are sorted by name, independently of source declaration order.
+Their definitions retain source strings and explicit composition order; compiled automata and cache layouts are excluded from signed data.
+The canonical type segment binds each name and expression together, preventing changes through name rebinding.
+
+The signed body also includes a fixed type-semantics identifier, proposed as `cbcl-flat-v1`.
+The compiler inserts this identifier; dialect authors do not supply or order it.
+Its definition covers the numeric hierarchy, contract grammar, and regex semantics in this document.
+The signing-form version changes, and verification binds the profile rather than relying on an informational version constant alone.
+Existing development signatures and self-addressed dialect identities require reissue under this explicit format change.
+Existing historical records remain available as evidence; no silent migration or permissive legacy alias is introduced.
+
+The semantics profile fixes the allowed pattern, input, dependency, expression-size, and compiled-state limits.
+Their numeric values are ratified before implementation and bound through the signed profile identifier.
+A host lacking those capabilities can refuse installation with an explicit local resource failure; it cannot silently weaken the installed contract.
+
+The compiled environment supplies a conservative work bound for each contract over every permitted input size.
+The bound includes each distinct predicate, composition node, and referenced definition, without exponential alias expansion.
+Before evaluating any predicate, the checker reserves that complete bound against the caller's available work allowance.
+Operand permutations have equal reservation requirements; successful short-circuiting does not bypass this reservation.
+A rejected reservation returns `resource-limit` without a partial contract decision.
+
+A pure check takes `(installed-type, value, available-work)` and returns success, structured contract violation, or `resource-limit`.
+Available work is an operational allowance, not part of the predicate's meaning.
+If reservation succeeds and input fits profile limits, the bound covers the entire check regardless of operand order.
+Sufficiently provisioned native, WASM, and NIF checks therefore agree on success or violation for the same installed contract and value.
+Profile input limits and local work exhaustion produce `resource-limit`, never a false value-mismatch or a dropped refinement.
+It preserves the complete input value and performs no effectful operation.
+Representation checks precede any representation-specific predicate. Composition uses bounded evaluation without recursively expanding aliases into unbounded copied trees.
+Unions and intersections have ordinary Boolean semantics; a failure diagnostic chooses the first relevant operand in declared order.
+
+The checker runs at the existing message-shape boundary and is shared by native, WASM, NIF, and other bindings.
+The authoring pipeline checks the intended value against the same core contract before producing a message to sign.
+Validation does not bypass authentication, role checks, causal admission, state bounds, or host effect policy.
+The type schema exposes the declared name, resolved contract, and representation set, including `number` as the numeric union.
+
+Preconditions: the semantics profile is supported and the supplied installation and value-check budgets are finite.
+Postconditions: installation is atomic; a successful value check preserves bytes and representation under the signed installed definitions.
+Error model: invalid definitions are installation failures; invalid values are shape violations; resource exhaustion is a separate operational result.
+Implements: [[SPEC-040-numeric-and-refinement-types#REQ-4002]], [[SPEC-040-numeric-and-refinement-types#REQ-4004]], [[SPEC-040-numeric-and-refinement-types#REQ-4005]], [[SPEC-040-numeric-and-refinement-types#REQ-4006]].
+Verified by: [[SPEC-040-numeric-and-refinement-types#TEST-4002]], [[SPEC-040-numeric-and-refinement-types#TEST-4004]], [[SPEC-040-numeric-and-refinement-types#TEST-4005]], [[SPEC-040-numeric-and-refinement-types#TEST-4006]].
+
+## Decisions
+
+### ADR-4000
+
+Decision: use named, composable flat contracts as the user-type model.
+A regex-refined string remains a string, and a numeric supertype does not convert its accepted members.
+
+Rationale: authors need reusable constraints on exchanged data, not executable dialect extensions or higher-order function boundaries.
+Racket's naming and composition concepts fit that need without importing its procedure-based extensibility.
+Enums, numeric intervals, recursive containers, and cross-field constraints remain future proposals with their own grammars.
+
+Trade-off: the initial refinement predicate is string matching. The grammar intentionally rejects other predicate forms.
+
+### ADR-4001
+
+Decision: use complete-dialect name collection followed by bounded dependency resolution at installation.
+
+Rationale: authors can organize declarations for readability without maintaining a manual dependency order.
+Forward references work; cycles and unknown names are definition failures rather than runtime surprises.
+Signed type declarations use name order; ordinary unrelated dialect-clause ordering retains its existing semantics.
+
+Trade-off: local type names require an installed environment, so the current closed enum and parser extraction paths need an implementation plan.
+
+### ADR-4002
+
+Decision: bind a fixed type-semantics profile into every signed dialect under the new signing-form version.
+
+Rationale: changing `number` from integer-only to a union changes a promise even when the old source text is unchanged.
+An unchanged valid signature cannot authorize both meanings implicitly.
+Source pattern strings and profile identity support deterministic interpretation independently of the compiled regex representation.
+
+Trade-off: this is a deliberate development-time compatibility break; signatures and dialect self-addresses require explicit reissue.
+The maintainer approves the exact canonical segment and updated golden vectors before merging the implementation.
+
+## Acceptance tests
+
+These are proposed tests, not evidence of implementation. The implementer owns runnable core tests before claiming conformance.
+Core tests use the actual parser, installer, shared checker, and binding helpers without network services.
+Depth tests add adversarial pattern corpora and cross-target performance measurement.
+
+### TEST-4000
+
+Core: exercise each numeric representation against `integer`, `float`, `decimal`, and `number`. Reject booleans and quoted numeric strings.
+Verify that acceptance preserves each atom and its canonical tag.
+Reject broad `number` shapes on integer-only counters and sums; reject fractional repetition counts and bounds.
+Accept aliases proven to be integer-only and retain their separate runtime range checks.
+Trace: [[SPEC-040-numeric-and-refinement-types#REQ-4000]].
+
+### TEST-4001
+
+Core: check named aliases, refined strings, intersections, and unions with positive and negative values.
+Verify full-string behavior and unchanged canonical message bytes.
+Reject nested list contracts, executable predicates, and unknown combinator heads.
+Trace: [[SPEC-040-numeric-and-refinement-types#REQ-4001]].
+
+### TEST-4002
+
+Core: permute type and shape declarations and compare the installed environment, canonical type segment, and value-check results.
+Reject direct and indirect cycles, unknown names, duplicates, and attempts to shadow built-ins.
+Test optional-default disambiguation and assert no registry changes after a failing installation.
+Trace: [[SPEC-040-numeric-and-refinement-types#REQ-4002]].
+
+### TEST-4003
+
+Core: test every regex production and its rejection boundaries, including counted repetition and ASCII ranges.
+Verify `"2000"` passes and `"x2000y"`, integer `2000`, and `"2000\n"` fail the postal-code contract.
+Reject lookaround, backreferences, anchors, shorthand classes, malformed escapes, and invalid repetition bounds.
+Exercise compile and input budgets at their limit and just beyond it.
+Depth: measure nested quantifiers and large counted repetitions against the agreed worst-case bounds without exponential backtracking.
+Trace: [[SPEC-040-numeric-and-refinement-types#REQ-4003]], [[SPEC-040-numeric-and-refinement-types#NFR-4000]].
+
+### TEST-4004
+
+Core: repeat checks under identical installed inputs and compare outcomes while recording all effect hooks.
+Assert no I/O, callbacks, mutable-state reads, field rewriting, or other-field inspection.
+Exercise repeated aliases and composition under a total-work budget without exponential tree expansion.
+Compare `(or expensive-string-type string)` with its operand permutation using identical values and available work.
+Assert equal reservation requirements and successful results when provisioned; insufficient reservation returns `resource-limit` before either predicate runs.
+Compare sufficiently provisioned bindings with a host that refuses local work; distinguish resource unavailability from value mismatch.
+Trace: [[SPEC-040-numeric-and-refinement-types#REQ-4004]], [[SPEC-040-numeric-and-refinement-types#NFR-4000]].
+
+### TEST-4005
+
+Core: mutate a name, regex, base, operand, or profile and verify the signed commitment changes.
+Reorder declarations and verify the canonical type segment remains equal. Reorder composition and retain its specified signed diagnostic order.
+Reject a signature produced for the old integer-only `number` interpretation under the new semantics.
+Depth: regenerate self-addressed dialect fixtures with an explicit old/new identity map and native cross-binding golden vectors.
+Trace: [[SPEC-040-numeric-and-refinement-types#REQ-4005]].
+
+### TEST-4006
+
+Core: reject invalid declared defaults during installation and invalid field values at the existing message-shape boundary.
+Compare native, WASM, and NIF failure categories, named types, and field paths.
+Assert diagnostics omit raw values by default and validation leaves authentication and causal admission obligations intact.
+Trace: [[SPEC-040-numeric-and-refinement-types#REQ-4006]].
+
+## Observability
+
+### OBS-4000
+
+Installation diagnostics record the semantics profile, type name, structural path, and definition-error category.
+Message violations record the dialect, performative, field path, declared type, and failed rule without raw values by default.
+Resource failures distinguish pattern compilation, input limits, dependency depth, and total check work.
+Bindings expose the same core categories; no independent host validator supplies a conflicting answer.
+
+Trace: [[SPEC-040-numeric-and-refinement-types#REQ-4000]], [[SPEC-040-numeric-and-refinement-types#REQ-4001]], [[SPEC-040-numeric-and-refinement-types#REQ-4002]], [[SPEC-040-numeric-and-refinement-types#REQ-4003]], [[SPEC-040-numeric-and-refinement-types#REQ-4004]], [[SPEC-040-numeric-and-refinement-types#REQ-4005]], [[SPEC-040-numeric-and-refinement-types#REQ-4006]].
+
+## Open decisions
+
+- Maintainer: approve the proposed explicit `(default value)` syntax and migration from positional optional defaults before changing recognition.
+- Maintainer: ratify pattern, compiled-state, input, declaration, dependency, and total-work limits with cross-target measurements.
+- Implementer: select an existing regex parser and automaton implementation that enforces the declared portable profile across supported targets.
+- Maintainer: approve the exact signed type-profile segment, signing-version change, and development fixture reissue before implementation merges.
+- Implementer: plan the resolved type representation, state-schema changes, numeric supertype checks, and JSON authoring/binding surface.
+
+These decisions gate implementation. This draft does not mark the current PR's numeric naming or custom types as complete.
+
+## Reading paths
+
+Reviewer: [[SPEC-040-numeric-and-refinement-types#Orientation]] → [[SPEC-040-numeric-and-refinement-types#Decisions]] → [[SPEC-040-numeric-and-refinement-types#Open decisions]].
+Implementer: [[SPEC-040-numeric-and-refinement-types#Contracts]] → [[SPEC-040-numeric-and-refinement-types#Acceptance tests]] → [[SPEC-040-numeric-and-refinement-types#Requirements]].
+Stakeholder: [[SPEC-040-numeric-and-refinement-types#User paths]] → [[SPEC-040-numeric-and-refinement-types#Racket inspiration]].
+
+## Amendment Channels
+
+The CBCL maintainer amends this draft through a recorded type-system decision or reviewed specification revision.
+Remote data, regex contents, message fields, and host callbacks cannot amend validation rules or resource budgets.
+Hard stops are the representation, installation, bounded matching, purity, signed-semantics, and boundary controls in [[SPEC-040-numeric-and-refinement-types#Orientation]].
+Approval of this specification and an implementation plan precede custom-type code changes.
+
+## Sources
+
+The Racket Guide, Contracts: the source suggested by the user.
+URL: https://docs.racket-lang.org/guide/contracts.html
+
+Contracts and Boundaries: value checks at boundaries and attribution of contract violations.
+URL: https://docs.racket-lang.org/guide/contract-boundaries.html
+
+Simple Contracts on Functions, especially Rolling Your Own Contracts: named predicates, `and/c`, `or/c`, and regular-expression contracts.
+URL: https://docs.racket-lang.org/guide/contract-func.html
+
+Building New Contracts: the distinction between flat contracts and higher-order projections.
+URL: https://docs.racket-lang.org/guide/Building_New_Contracts.html
+
+The proposed grammar, regex subset, budgets, and signed profile are CBCL design choices, not assertions of Racket compatibility.
+
+## Review status
+
+Draft only. Independent comprehension and adversarial review are required before this document is treated as approved.
+No custom-type implementation, acceptance execution, or formal proof is claimed.
+The integer/number migration is specified here before the PR changes those semantics.
+
+Comprehension reviewer `type_spec_comprehension` read only the Orientation and correctly predicted the numeric, postal-code, ordering, and signature rules.
+Independent reviewer `type_spec_review` identified budget-order ambiguity and unclear separation of signed limits from local resource availability.
+The revision adds whole-check work reservation, profile-fixed limits, and a separate resource-limit result before a Boolean contract decision.
+The reviewer re-read the revision and reported no remaining substantive objection.
+That review does not establish implementation feasibility, runtime conformance, or the unratified numeric limits.
+
+## Changelog
+
+<details>
+<summary>Revision history</summary>
+
+- 0.1.0 — 2026-11-10: draft the numeric hierarchy and named flat-contract model on the numeric-types branch, inspired by Racket contracts.
+
+</details>
