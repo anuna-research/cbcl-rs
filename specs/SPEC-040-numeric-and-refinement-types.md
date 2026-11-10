@@ -3,7 +3,7 @@ id: SPEC-040
 title: Numeric Types and Named Flat Contracts
 status: draft
 mode: reference
-version: 0.2.0
+version: 0.3.0
 last-updated: 2026-11-10
 owner: CBCL maintainer
 ---
@@ -23,6 +23,8 @@ owner: CBCL maintainer
 Intent: give dialect authors precise numeric names and reusable value checks without requiring them to order their declarations.
 The [[SPEC-040-numeric-and-refinement-types#Vocabulary|flat contract]] model draws inspiration from [[SPEC-040-numeric-and-refinement-types#Racket inspiration|Racket contracts]].
 A named contract validates an existing value; it does not execute author code, construct a new wire value, or coerce representations.
+Enumerations admit explicit scalar values using canonical identity, preserving distinctions between numeric representations.
+Length bounds constrain Unicode scalar counts or immediate list-element counts, with inclusive and exclusive endpoints.
 Numeric refinements support inclusive and exclusive literal bounds without changing the checked representation.
 Regex refinements use [[SPEC-040-numeric-and-refinement-types#RFC 9485|RFC 9485 I-Regexp]], with checking, full-string matching, and explicit resource limits.
 
@@ -61,7 +63,7 @@ Controls:
 Open: [[SPEC-040-numeric-and-refinement-types#Open decisions]] assigns the optional-default migration, implementation placement, and numeric budget ratification to the maintainer.
 This document is a draft. Its acceptance tests are proposed, and the PR's existing implementation does not yet satisfy this specification.
 
-Detail: [[SPEC-040-numeric-and-refinement-types#CON-4000]] defines type declarations and numeric range syntax;
+Detail: [[SPEC-040-numeric-and-refinement-types#CON-4000]] defines type declarations, enumerations, length bounds, and numeric range syntax;
 [[SPEC-040-numeric-and-refinement-types#CON-4001]] defines the bounded regex language;
 [[SPEC-040-numeric-and-refinement-types#CON-4002]] defines installation and boundary checks.
 
@@ -150,7 +152,7 @@ Trace: [[SPEC-040-numeric-and-refinement-types#CON-4000]], [[SPEC-040-numeric-an
 
 ### REQ-4001
 
-A dialect SHALL support names for aliases, numeric range refinements, bounded string refinements, intersections, and unions under [[SPEC-040-numeric-and-refinement-types#CON-4000]].
+A dialect SHALL support names for aliases, enumerations, length bounds, numeric range refinements, bounded string refinements, intersections, and unions under [[SPEC-040-numeric-and-refinement-types#CON-4000]].
 A named type SHALL check the underlying value without adding a wire tag or changing its canonical bytes.
 
 Acceptance: a value satisfying `postal-code` remains an ordinary string; an alias and its target accept the same bounded values.
@@ -189,7 +191,7 @@ Trace: [[SPEC-040-numeric-and-refinement-types#CON-4002]], [[SPEC-040-numeric-an
 ### REQ-4005
 
 Canonical signed dialect data SHALL bind the numeric and contract semantics profile and the complete declared type environment.
-Changing a type name, base contract, numeric bound or comparator, regex, composition, or profile SHALL change the signed commitment.
+Changing a type name, base contract, numeric bound or comparator, enumeration member or order, length clause, regex, composition, or profile SHALL change the signed commitment.
 
 The changed meaning of `number` SHALL NOT reuse old signatures under the old integer-only interpretation.
 Compiled matcher state and caches SHALL NOT replace the source definition in the signed commitment.
@@ -210,7 +212,8 @@ Trace: [[SPEC-040-numeric-and-refinement-types#CON-4002]], [[SPEC-040-numeric-an
 ### NFR-4000
 
 Installation and checking SHALL have explicit finite limits for declaration count, dependency depth, expression nodes, pattern bytes, compiled states, and input bytes.
-The signed semantics profile fixes the pattern, input, dependency, and compiled-size caps.
+Enumeration member count and total literal bytes SHALL also have profile-fixed caps.
+The signed semantics profile fixes these caps.
 The installer derives a conservative worst-case work bound that includes composition and repeated references.
 Equivalent operand permutations have the same reservation requirement. Host availability limits remain separate operational limits.
 
@@ -230,7 +233,9 @@ The proposed structural grammar uses the existing CBCL lexical productions for s
 ```ebnf
 type-decl   = "(" , "type" , ws , type-name , ws , type-expr , ")" ;
 type-expr   = builtin | type-name
-            | "(" , "string" , ws , matches , { ws , matches } , ")"
+            | "(" , "one-of" , ws , scalar-literal , { ws , scalar-literal } , ")"
+            | "(" , "string" , ws , string-rule , { ws , string-rule } , ")"
+            | "(" , "list" , ws , length , { ws , length } , ")"
             | "(" , numeric-base , ws , bound , { ws , bound } , ")"
             | "(" , "and" , ws , type-expr , ws , type-expr ,
                 { ws , type-expr } , ")"
@@ -239,6 +244,9 @@ type-expr   = builtin | type-name
 numeric-base = "number" | "integer" | "float" | "decimal" ;
 bound       = "(" , comparator , ws , numeric-literal , ")" ;
 comparator  = ">=" | ">" | "<=" | "<" ;
+string-rule = matches | length ;
+length      = "(" , "length" , ws , length-bound , { ws , length-bound } , ")" ;
+length-bound = "(" , comparator , ws , nonnegative-integer-literal , ")" ;
 matches     = "(" , "matches" , ws , string , ")" ;
 builtin     = "number" | "integer" | "float" | "decimal" | "nonnegative"
             | "string" | "hlc" | "bool" | "symbol" | "keyword" | "list" ;
@@ -260,6 +268,42 @@ Expressions using `and` or `or` have at least two operands and retain their decl
 An `and` whose representation sets are disjoint rejects installation; `number` intersected with `integer` remains integer-only.
 No general regex-language inclusion or emptiness decision is required by this representation check.
 A syntactically valid regex accepting no strings remains a legal contract that rejects every value.
+
+Enumerations specify one or more literal scalar members:
+
+```lisp
+(type currency (one-of :AUD :USD :EUR))
+(type response (one-of "yes" "no"))
+```
+
+`scalar-literal` is an existing integer, float, decimal, string, boolean, symbol, or keyword atom; lists are excluded.
+Bare symbols in `one-of` member positions denote literal symbols, never type references or evaluated expressions.
+Membership SHALL use canonical atom identity (the existing canonical signing encoding), including representation, rather than numeric range equality or text conversion.
+Thus `(one-of 1)` rejects `1.0` and `1m`; `(one-of :AUD)` rejects string `"AUD"` and symbol `AUD`.
+Installation SHALL reject empty enumerations and duplicate canonical members, including differently spelled literals that normalize identically.
+The inferred representation set is the union of member representations; mixed scalar kinds are permitted explicitly.
+Member order is preserved in signed source definitions; reordered members accept the same values but change the signed commitment.
+
+Length constraints compose with other refinements:
+
+```lisp
+(type display-name (string (length (>= 1) (<= 80))))
+(type short-postcode (and postal-code (string (length (<= 4)))))
+(type batch (list (length (> 0) (<= 100))))
+```
+
+Every length bound SHALL use a nonnegative integer literal within the existing signed 64-bit integer range.
+String length counts decoded Unicode scalar values, not UTF-8 bytes, grapheme clusters, or displayed characters.
+No Unicode normalization occurs: precomposed and decomposed text can have different lengths.
+List length counts immediate elements; nested lists each count as one element without recursive checking.
+The base representation is checked first; neither strings nor lists are converted to the other representation.
+All length clauses apply conjunctively, including when mixed with `matches` inside a string refinement.
+Within each string or list refinement, installation combines its length clauses and SHALL reject an interval containing no nonnegative integer.
+No general emptiness proof across named contracts, `and`, or `or` is required; their checks still compose conjunctively or disjunctively.
+For example, `(length (> 0) (< 1))` and `(length (< 0))` are definition errors.
+Explicit byte and input-size resource caps apply independently of semantic length bounds.
+Enumeration member count, literal bytes, and length scanning SHALL be covered by profile-fixed caps and whole-check work reservation.
+These clauses add neither list-element contracts nor record constructors.
 
 Numeric refinements combine their base representation with every declared bound:
 
@@ -368,7 +412,7 @@ The signing-form version changes, and verification binds the profile rather than
 Existing development signatures and self-addressed dialect identities require reissue under this explicit format change.
 Existing historical records remain available as evidence; no silent migration or permissive legacy alias is introduced.
 
-The semantics profile fixes the allowed pattern, input, dependency, expression-size, and compiled-state limits.
+The semantics profile fixes pattern, input, dependency, expression-size, compiled-state, enumeration-member, and literal-byte limits.
 Their numeric values are ratified before implementation and bound through the signed profile identifier.
 A host lacking those capabilities can refuse installation with an explicit local resource failure; it cannot silently weaken the installed contract.
 
@@ -407,9 +451,9 @@ A regex-refined string remains a string, and a numeric supertype does not conver
 
 Rationale: authors need reusable constraints on exchanged data, not executable dialect extensions or higher-order function boundaries.
 Racket's naming and composition concepts fit that need without importing its procedure-based extensibility.
-Enums, recursive containers, and cross-field constraints remain future proposals with their own grammars.
+Recursive containers and cross-field constraints remain future proposals with their own grammars.
 
-Trade-off: initial refinements are string matching and literal numeric bounds. Other predicate forms require a separate grammar decision.
+Trade-off: initial refinements are scalar enumerations, string matching, literal numeric bounds, and string/list length bounds. Other predicate forms require a separate grammar decision.
 
 ### ADR-4001
 
@@ -462,6 +506,14 @@ Trace: [[SPEC-040-numeric-and-refinement-types#REQ-4000]].
 ### TEST-4001
 
 Core: check named aliases, refined strings, intersections, and unions with positive and negative values.
+Check singleton and mixed-kind enumerations; distinguish keywords, symbols, strings, and numeric representations.
+Reject empty enumerations, list members, and duplicate members after canonical normalization.
+Verify literal symbols are not type references; infer integer-only enumerations for integer-only declaration checks.
+Check zero, inclusive, exclusive, and one-sided string/list lengths and combinations with regex constraints.
+Count supplementary Unicode scalars once; distinguish composed and decomposed text without normalization.
+Combine multiple length clauses directly and through named `and` operands; verify every bound applies.
+Count a nested list as one immediate element; reject wrong base kinds and fractional or negative length bounds.
+Reject impossible integer length domains; exercise enumeration-size, literal-byte, and scanning work limits.
 Verify full-string behavior and unchanged canonical message bytes.
 Check inclusive and exclusive numeric endpoints, one-sided bounds, negative bounds, and mixed representations.
 Accept `0`, `0.0`, and `0m` as percentages; reject values below zero or above one hundred.
@@ -506,7 +558,8 @@ Trace: [[SPEC-040-numeric-and-refinement-types#REQ-4004]], [[SPEC-040-numeric-an
 
 ### TEST-4005
 
-Core: mutate a name, numeric bound, comparator, regex, base, operand, or profile and verify the signed commitment changes.
+Core: mutate a name, numeric bound, comparator, regex, base, operand, or profile; verify the signed commitment changes.
+Mutate enumeration members, their order, and length clauses; verify each changes the signed commitment.
 Reorder declarations and verify the canonical type segment remains equal. Reorder composition and retain its specified signed diagnostic order.
 Reject a signature produced for the old integer-only `number` interpretation under the new semantics.
 Depth: regenerate self-addressed dialect fixtures with an explicit old/new identity map and native cross-binding golden vectors.
@@ -533,7 +586,7 @@ Trace: [[SPEC-040-numeric-and-refinement-types#REQ-4000]], [[SPEC-040-numeric-an
 ## Open decisions
 
 - Maintainer: approve the proposed explicit `(default value)` syntax and migration from positional optional defaults before changing recognition.
-- Maintainer: ratify pattern, compiled-state, input, declaration, dependency, and total-work limits with cross-target measurements.
+- Maintainer: ratify pattern, compiled-state, input, declaration, enumeration-member, literal-byte, dependency, and total-work limits with cross-target measurements.
 - Implementer: select an I-Regexp checking recognizer, existing engine, and semantic adapter across supported targets.
 - Maintainer: pin the Unicode property-data version and RFC conformance/adaptation vectors in the signed semantics profile.
 - Maintainer: approve the exact signed type-profile segment, signing-version change, and development fixture reissue before implementation merges.
@@ -595,11 +648,16 @@ The 0.2.0 comprehension review confirmed numeric spellings and ownership of rang
 Independent review checked RFC 9485 semantics and numeric ranges, resolving stale scope text, endpoint handling, and signed-bound coverage.
 Empty numeric-domain installation remains deterministic; range and regex tests are still proposed.
 
+The 0.3.0 independent review found no substantive enumeration or length issues and requested explicit multi-clause composition coverage.
+Those acceptance cases are specified; runtime conformance remains unclaimed.
+The Orientation-only comprehension review confirmed enumeration identity, endpoint inclusion, length measures, and the owning syntax contract.
+
 ## Changelog
 
 <details>
 <summary>Revision history</summary>
 
+- 0.3.0 — 2026-11-10: add scalar enumerations and Unicode-scalar/string and immediate-element/list length constraints.
 - 0.2.0 — 2026-11-10: adopt RFC 9485 I-Regexp, remove bespoke regex syntax, specify Unicode and adapter conformance obligations, and add exact numeric range refinements.
 - 0.1.0 — 2026-11-10: draft the numeric hierarchy and named flat-contract model on the numeric-types branch, inspired by Racket contracts.
 
