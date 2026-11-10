@@ -126,6 +126,15 @@ String lengths count Unicode scalars; list lengths count immediate elements.
 Enumeration membership preserves atom representations, so `(one-of 1)` rejects `1.0`.
 Resource exhaustion reports `resource-limit`, separately from a contract violation.
 
+Errors identify the declared type, failed refinement, numbered composition branch,
+and nested field path. For example, a postal-code mismatch explains
+`type postal-code: refinement clause 1 failed: matches "[0-9]{4}" (whole string)`;
+a length failure names its bound, such as `length (<= 100)`.
+An unsuccessful `or` summarizes its alternatives instead of reporting only the first failure.
+Malformed regexes report one-based Unicode character positions in the decoded pattern.
+Resource errors explain required/available work or the exceeded input limit.
+Field contents are omitted; constraint literals come from the authored declaration.
+
 [SPEC-040](specs/SPEC-040-numeric-and-refinement-types.md) defines the profile and limits.
 Signing form 6 binds `cbcl-flat-v1-unicode16` and all local type definitions.
 Existing dialect signatures and self-addresses require explicit reissue; old

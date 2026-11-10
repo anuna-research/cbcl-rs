@@ -278,7 +278,7 @@ impl ViolationError {
         if violation.rule == "resource-limit" {
             let mut err = Self::new(
                 ViolationKind::ResourceLimit,
-                "resource-limit".into(),
+                violation.detail.clone(),
                 alloc::vec![],
             );
             err.field = violation.field.clone();

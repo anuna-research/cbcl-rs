@@ -64,7 +64,25 @@ impl TypeConstraint {
         if self.matches_builtin(value) {
             Ok(())
         } else {
-            Err(crate::contracts::CheckError::Violation(self.to_string()))
+            Err(crate::contracts::CheckError::Violation(alloc::format!(
+                "expected {self}; found {}",
+                describe_type(value)
+            )))
+        }
+    }
+    pub(crate) fn resource_detail(&self, value: &SExpr, available: u64) -> String {
+        let required = match self {
+            Self::Contract(c) => c.required_work().unwrap_or(1),
+            _ => 1,
+        };
+        if available < required {
+            return alloc::format!(
+                "resource-limit: work requires {required} units; available {available}"
+            );
+        }
+        match crate::contracts::check_input(value) {
+            Err(reason) => alloc::format!("resource-limit: {reason}"),
+            Ok(()) => String::from("resource-limit"),
         }
     }
     pub fn representation(&self) -> Option<Self> {
@@ -280,6 +298,12 @@ pub(crate) fn check_rule(rule: &ShapeRule, sexpr: &SExpr, work: u64) -> Result<(
             })?;
             if let Some(tc) = type_constraint {
                 if let Err(check_error) = tc.check(value, work) {
+                    let diagnostic =
+                        if matches!(check_error, crate::contracts::CheckError::ResourceLimit) {
+                            tc.resource_detail(value, work)
+                        } else {
+                            check_error.to_string()
+                        };
                     return Err(ShapeViolation {
                         rule: if matches!(check_error, crate::contracts::CheckError::ResourceLimit)
                         {
@@ -290,10 +314,20 @@ pub(crate) fn check_rule(rule: &ShapeRule, sexpr: &SExpr, work: u64) -> Result<(
                         field: Some(alloc::format!(":{keyword}")),
                         expected: Some(alloc::format!("{tc}")),
                         found: Some(describe_type(value)),
-                        detail: alloc::format!(
-                            "parameter :{keyword} failed {tc}: {check_error}; found {}",
-                            describe_type(value)
-                        ),
+                        detail: if matches!(
+                            check_error,
+                            crate::contracts::CheckError::ResourceLimit
+                        ) {
+                            alloc::format!(
+                                "parameter :{keyword}: {diagnostic}; found {}",
+                                describe_type(value)
+                            )
+                        } else {
+                            alloc::format!(
+                                "parameter :{keyword} failed {tc}: {diagnostic}; found {}",
+                                describe_type(value)
+                            )
+                        },
                     });
                 }
             }
@@ -314,6 +348,12 @@ pub(crate) fn check_rule(rule: &ShapeRule, sexpr: &SExpr, work: u64) -> Result<(
             if let Some(value) = find_keyword_value(sexpr, keyword) {
                 if let Some(tc) = type_constraint {
                     if let Err(check_error) = tc.check(value, work) {
+                        let diagnostic =
+                            if matches!(check_error, crate::contracts::CheckError::ResourceLimit) {
+                                tc.resource_detail(value, work)
+                            } else {
+                                check_error.to_string()
+                            };
                         return Err(ShapeViolation {
                             rule: if matches!(
                                 check_error,
@@ -326,10 +366,20 @@ pub(crate) fn check_rule(rule: &ShapeRule, sexpr: &SExpr, work: u64) -> Result<(
                             field: Some(alloc::format!(":{keyword}")),
                             expected: Some(alloc::format!("{tc}")),
                             found: Some(describe_type(value)),
-                            detail: alloc::format!(
-                                "parameter :{keyword} failed {tc}: {check_error}; found {}",
-                                describe_type(value)
-                            ),
+                            detail: if matches!(
+                                check_error,
+                                crate::contracts::CheckError::ResourceLimit
+                            ) {
+                                alloc::format!(
+                                    "parameter :{keyword}: {diagnostic}; found {}",
+                                    describe_type(value)
+                                )
+                            } else {
+                                alloc::format!(
+                                    "parameter :{keyword} failed {tc}: {diagnostic}; found {}",
+                                    describe_type(value)
+                                )
+                            },
                         });
                     }
                 }
@@ -380,7 +430,7 @@ fn find_keyword_value<'a>(sexpr: &'a SExpr, keyword: &str) -> Option<&'a SExpr> 
 }
 
 /// Describe the type of an S-expression value for error messages.
-fn describe_type(sexpr: &SExpr) -> String {
+pub(crate) fn describe_type(sexpr: &SExpr) -> String {
     match sexpr {
         SExpr::Atom(Atom::Str(_)) => String::from("string"),
         SExpr::Atom(Atom::Float(_)) => String::from("float"),

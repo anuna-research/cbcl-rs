@@ -89,3 +89,23 @@ It records the named regex hypothesis and remaining Rust refinement boundary sep
 
 [Upstream fixtures and independent-engine comparisons](iregexp-conformance.md) now cover RFC syntax and matching through the actual checker.
 The finite corpus strengthens the regex evidence; complete RFC/engine equivalence remains outside the proof boundary.
+
+## Actionable contract diagnostics
+
+SPEC-040 REQ-4006 now reports alias names, numbered `and`/`or` branches, failed refinement clauses, numeric/length bounds, and full-string regex constraints.
+Definition errors include dialect/performative/field context where applicable, with one-based Unicode character positions for recognizer errors in decoded regex patterns.
+Invalid ranges are diagnosed at their source endpoints before host adaptation.
+Resource details explain required/available work or the input storage, decimal-size, or nesting limit; public shape errors retain the operational category.
+
+Nine [diagnostic acceptance tests](../../crates/cbcl-parser/tests/contract_diagnostics.rs) pass, including nested fields, default-child resource classification, shared alias DAGs, Unicode truncation, and private field contents.
+Four of the original five cases failed against the previous messages before implementation.
+Deliberate privacy-leak and default-child category mutations each compiled and failed the intended assertion; both were restored.
+Existing contract and upstream/reference conformance suites pass, and all 8,986 live Lean-oracle comparisons retain their verdicts.
+Final all-features library checks pass: core 881, parser 164, WASM 68, and Erlang 43 tests, with 19 existing VM-dependent tests ignored.
+Core/parser checks without default features also pass.
+No signed source, canonical format, contract acceptance rule, or portable work reservation changed.
+
+Internal failure reasons are capped at 2048 UTF-8 bytes, with at most eight expanded `or` alternatives and an omitted-branch count.
+Public shape metadata can additionally contain the full authored contract; the cap is not a bound on that entire response.
+Direct `CheckError::ResourceLimit` remains a stable typed category; the shape boundary supplies its contextual explanation.
+Independent review verified the code, final runs, and both mutation logs; no execution logs are committed.

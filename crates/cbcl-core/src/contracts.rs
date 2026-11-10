@@ -191,39 +191,74 @@ fn atom_mask(a: &Atom) -> u16 {
     }
 }
 pub(crate) fn input_fits(e: &SExpr) -> bool {
-    fn size(e: &SExpr, depth: usize, left: &mut usize) -> bool {
+    check_input(e).is_ok()
+}
+pub(crate) fn check_input(e: &SExpr) -> Result<(), &'static str> {
+    fn size(e: &SExpr, depth: usize, left: &mut usize) -> Result<(), &'static str> {
         if depth > MAX_DEPTH {
-            return false;
+            return Err("input nesting exceeds 32 levels");
         }
         let bytes = match e {
             SExpr::Atom(Atom::Str(s) | Atom::Symbol(s) | Atom::Keyword(s)) => s.len() + 1,
             SExpr::Atom(Atom::Decimal(d)) => {
                 if d.as_str().len() > MAX_NUMERIC_BYTES {
-                    return false;
+                    return Err("decimal representation exceeds 4096 bytes");
                 }
                 d.as_str().len() + 1
             }
             SExpr::Atom(_) => 32,
             SExpr::List(v) => {
                 if v.len() > MAX_INPUT_BYTES {
-                    return false;
+                    return Err("input storage exceeds 65536 bytes");
                 }
                 for x in v {
-                    if !size(x, depth + 1, left) {
-                        return false;
-                    }
+                    size(x, depth + 1, left)?;
                 }
                 1
             }
         };
         if bytes > *left {
-            false
+            Err("input storage exceeds 65536 bytes")
         } else {
             *left -= bytes;
-            true
+            Ok(())
         }
     }
     size(e, 0, &mut { MAX_INPUT_BYTES })
+}
+// Diagnostics are bounded even when a shared alias DAG has many failing paths.
+const MAX_DIAGNOSTIC_BYTES: usize = 2048;
+fn concise(mut text: String, limit: usize) -> String {
+    if text.len() > limit {
+        let mut end = limit.saturating_sub(3);
+        while !text.is_char_boundary(end) {
+            end -= 1;
+        }
+        text.truncate(end);
+        text.push_str("...");
+    }
+    text
+}
+fn violation(text: String) -> CheckError {
+    CheckError::Violation(concise(text, MAX_DIAGNOSTIC_BYTES))
+}
+fn context(error: String, location: &str) -> String {
+    let text = if let Some(reason) = error.strip_prefix("resource-limit:") {
+        format!("resource-limit: {location}:{}", reason)
+    } else {
+        format!("{location}: {error}")
+    };
+    concise(text, MAX_DIAGNOSTIC_BYTES)
+}
+impl core::fmt::Display for Op {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.write_str(match self {
+            Self::Gt => ">",
+            Self::Ge => ">=",
+            Self::Lt => "<",
+            Self::Le => "<=",
+        })
+    }
 }
 impl Node {
     fn representation(&self) -> Option<TypeConstraint> {
@@ -254,52 +289,84 @@ impl Node {
         v: &SExpr,
         memo: &mut BTreeMap<usize, Result<(), CheckError>>,
     ) -> Result<(), CheckError> {
-        let fail = || CheckError::Violation("value does not satisfy declared rule".into());
+        let fail = || {
+            violation(format!(
+                "expected declared representation; found {}",
+                crate::shape::describe_type(v)
+            ))
+        };
+        let wrong_type = |t: &TypeConstraint| {
+            violation(format!(
+                "expected {t}; found {}",
+                crate::shape::describe_type(v)
+            ))
+        };
         match &self.kind {
             Kind::Builtin(t) => {
                 if t.matches_builtin(v) {
                     Ok(())
                 } else {
-                    Err(fail())
+                    Err(wrong_type(t))
                 }
             }
             Kind::Named(name, n) => n.check_cached(v, memo).map_err(|e| match e {
-                CheckError::Violation(rule) => CheckError::Violation(format!("{name}: {rule}")),
+                CheckError::Violation(rule) => violation(format!("type {name}: {rule}")),
                 e => e,
             }),
             Kind::All(ns) => {
-                for n in ns {
-                    n.check_cached(v, memo)?
+                for (index, n) in ns.iter().enumerate() {
+                    n.check_cached(v, memo).map_err(|error| match error {
+                        CheckError::Violation(reason) => {
+                            violation(format!("and branch {}: {reason}", index + 1))
+                        }
+                        other => other,
+                    })?;
                 }
                 Ok(())
             }
             Kind::Any(ns) => {
-                let mut first = None;
-                for n in ns {
+                let mut reasons = Vec::new();
+                for (index, n) in ns.iter().enumerate() {
                     match n.check_cached(v, memo) {
                         Ok(()) => return Ok(()),
-                        Err(e @ CheckError::Violation(_)) => {
-                            if first.is_none() {
-                                first = Some(e)
+                        Err(CheckError::Violation(reason)) => {
+                            if reasons.len() < 8 {
+                                reasons.push(format!(
+                                    "branch {}: {}",
+                                    index + 1,
+                                    concise(reason, 224)
+                                ));
                             }
                         }
-                        Err(e) => return Err(e),
+                        Err(error) => return Err(error),
                     }
                 }
-                Err(first.unwrap_or_else(fail))
+                let omitted = if ns.len() > reasons.len() {
+                    format!("; {} further branches failed", ns.len() - reasons.len())
+                } else {
+                    String::new()
+                };
+                Err(violation(format!(
+                    "or: no alternative matched; {}{omitted}",
+                    reasons.join("; ")
+                )))
             }
             Kind::Enum(xs) => {
                 if matches!(v,SExpr::Atom(a) if xs.contains(a)) {
                     Ok(())
                 } else {
-                    Err(CheckError::Violation("one-of".into()))
+                    Err(violation(format!(
+                        "one-of: expected one of {} declared scalar literals; found {}",
+                        xs.len(),
+                        crate::shape::describe_type(v)
+                    )))
                 }
             }
             Kind::Refined(t, ps) => {
                 if !t.matches_builtin(v) {
-                    return Err(fail());
+                    return Err(wrong_type(t));
                 }
-                for p in ps {
+                for (index, p) in ps.iter().enumerate() {
                     let ok = match p {
                         Predicate::Bound(op, b) => {
                             if let SExpr::Atom(a) = v {
@@ -325,11 +392,29 @@ impl Node {
                         }
                     };
                     if !ok {
-                        return Err(CheckError::Violation(match p {
-                            Predicate::Bound(op, b) => format!("numeric bound {op:?} {b}"),
-                            Predicate::Length(_) => "length".into(),
-                            Predicate::Pattern(_) => "matches".into(),
-                        }));
+                        let reason = match p {
+                            Predicate::Bound(op, b) => format!("numeric bound ({op} {b})"),
+                            Predicate::Length(bounds) => {
+                                let length = match v {
+                                    SExpr::Atom(Atom::Str(s)) => s.chars().count(),
+                                    SExpr::List(xs) => xs.len(),
+                                    _ => 0,
+                                };
+                                let (op, bound) = bounds
+                                    .iter()
+                                    .find(|(op, bound)| !op.accepts((length as i64).cmp(bound)))
+                                    .expect("failed length bound");
+                                format!("length ({op} {bound})")
+                            }
+                            Predicate::Pattern(pattern) => format!(
+                                "matches {} (whole string)",
+                                SExpr::Atom(Atom::Str(pattern.source().into()))
+                            ),
+                        };
+                        return Err(violation(format!(
+                            "refinement clause {} failed: {reason}",
+                            index + 1
+                        )));
                     }
                 }
                 Ok(())
@@ -402,29 +487,39 @@ impl<'a> Compiler<'a> {
             return Ok(n.clone());
         }
         if self.visiting.iter().any(|n| n == name) {
-            return Err(format!("cyclic type {name}"));
+            return Err(format!(
+                "cyclic type dependency: {} -> {name}",
+                self.visiting.join(" -> ")
+            ));
         }
         let source = self
             .definitions
             .get(name)
             .ok_or_else(|| format!("unknown type {name}"))?;
-        if !input_fits(source) {
-            return Err("resource-limit: contract source".into());
-        }
+        check_input(source)
+            .map_err(|reason| format!("resource-limit: contract source: {reason}"))?;
         let source = source.clone();
         self.visiting.push(name.into());
-        let node = self.compile(&source, depth + 1)?;
+        let node = self
+            .compile(&source, depth + 1)
+            .map_err(|error| context(error, &format!("type {name}")))?;
         self.visiting.pop();
         self.ready.insert(name.into(), node.clone());
         Ok(node)
     }
     fn compile(&mut self, e: &SExpr, depth: usize) -> Result<Arc<Node>, String> {
-        if !input_fits(e) {
-            return Err("resource-limit: contract source".into());
-        }
+        check_input(e).map_err(|reason| format!("resource-limit: contract source: {reason}"))?;
         self.nodes += 1;
-        if depth > MAX_DEPTH || self.nodes > MAX_NODES {
-            return Err("resource-limit: contract depth/nodes".into());
+        if depth > MAX_DEPTH {
+            return Err(format!(
+                "resource-limit: contract depth {depth} exceeds {MAX_DEPTH}"
+            ));
+        }
+        if self.nodes > MAX_NODES {
+            return Err(format!(
+                "resource-limit: contract nodes {} exceed {MAX_NODES}",
+                self.nodes
+            ));
         }
         if let Some(name) = symbol(e) {
             if let Some(t) = TypeConstraint::from_str(name) {
@@ -455,8 +550,10 @@ impl<'a> Compiler<'a> {
             let mut ns = Vec::new();
             let mut m = if head == "and" { 255 } else { 0 };
             let mut work = 1u64;
-            for x in &xs[1..] {
-                let n = self.compile(x, depth + 1)?;
+            for (index, x) in xs[1..].iter().enumerate() {
+                let n = self
+                    .compile(x, depth + 1)
+                    .map_err(|error| context(error, &format!("{head} branch {}", index + 1)))?;
                 if head == "and" {
                     m &= n.mask
                 } else {
@@ -525,7 +622,7 @@ impl<'a> Compiler<'a> {
         let mut all_lengths = Vec::new();
         let mut bounds = Vec::new();
         let mut work = 1u64;
-        for x in &xs[1..] {
+        for (index, x) in xs[1..].iter().enumerate() {
             let clause = list(x)?;
             let op = clause
                 .first()
@@ -538,7 +635,9 @@ impl<'a> Compiler<'a> {
                 let p = if let Some(p) = self.patterns.get(pattern) {
                     p.clone()
                 } else {
-                    let p = iregexp::Pattern::compile(pattern)?;
+                    let p = iregexp::Pattern::compile(pattern).map_err(|error| {
+                        context(error, &format!("matches refinement clause {}", index + 1))
+                    })?;
                     self.patterns.insert(pattern.clone(), p.clone());
                     p
                 };
@@ -659,10 +758,22 @@ pub fn install(d: &mut crate::dialect::Dialect) -> Result<(), String> {
     }
     let mut compiler = Compiler::new(&d.types);
     for name in d.types.keys() {
-        compiler.named(name, 0)?;
+        compiler
+            .named(name, 0)
+            .map_err(|error| context(error, &format!("dialect {}", d.name)))?;
     }
-    fn rules(rs: &mut [ShapeRule], compiler: &mut Compiler<'_>) -> Result<(), String> {
+    fn rules(
+        rs: &mut [ShapeRule],
+        compiler: &mut Compiler<'_>,
+        parent: &str,
+    ) -> Result<(), String> {
         for r in rs {
+            let location = match &*r {
+                ShapeRule::Require { keyword, .. } | ShapeRule::Optional { keyword, .. } => {
+                    format!("{parent}/:{keyword}")
+                }
+                ShapeRule::MaxDepth(_) => String::from(parent),
+            };
             match r {
                 ShapeRule::Require {
                     type_constraint,
@@ -675,9 +786,13 @@ pub fn install(d: &mut crate::dialect::Dialect) -> Result<(), String> {
                     ..
                 } => {
                     if let Some(TypeConstraint::Contract(c)) = type_constraint {
-                        c.compiled = Some(compiler.compile(&c.source, 0)?)
+                        c.compiled = Some(
+                            compiler
+                                .compile(&c.source, 0)
+                                .map_err(|error| context(error, &location))?,
+                        )
                     }
-                    rules(children, compiler)?;
+                    rules(children, compiler, &location)?;
                 }
                 ShapeRule::MaxDepth(_) => {}
             }
@@ -691,18 +806,24 @@ pub fn install(d: &mut crate::dialect::Dialect) -> Result<(), String> {
                 if let Some(t) = type_constraint {
                     t.check(v, DEFAULT_WORK).map_err(|e| {
                         if e == CheckError::ResourceLimit {
-                            "resource-limit: default checking".into()
+                            context(
+                                t.resource_detail(v, DEFAULT_WORK),
+                                &format!("default {location}"),
+                            )
                         } else {
-                            format!("invalid default: {e}")
+                            context(format!("invalid default: {e}"), &location)
                         }
                     })?;
                 }
                 for child in children {
                     crate::shape::check_rule(child, v, DEFAULT_WORK).map_err(|e| {
                         if e.rule == "resource-limit" {
-                            "resource-limit: default child checking".into()
+                            context(
+                                format!("resource-limit: {}", e.detail),
+                                &format!("default {location}"),
+                            )
                         } else {
-                            format!("invalid default child: {e}")
+                            context(format!("invalid default child: {e}"), &location)
                         }
                     })?;
                 }
@@ -711,7 +832,8 @@ pub fn install(d: &mut crate::dialect::Dialect) -> Result<(), String> {
         Ok(())
     }
     for shape in &mut d.shapes {
-        rules(&mut shape.rules, &mut compiler)?;
+        let location = format!("dialect {} shape {}", d.name, shape.performative);
+        rules(&mut shape.rules, &mut compiler, &location)?;
     }
     Ok(())
 }

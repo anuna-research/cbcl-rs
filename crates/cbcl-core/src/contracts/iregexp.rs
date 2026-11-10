@@ -10,6 +10,7 @@ use regex_automata::nfa::thompson::{self, pikevm::PikeVM};
 pub(super) struct Pattern {
     vm: Arc<PikeVM>,
     states: usize,
+    source: Arc<str>,
 }
 impl Pattern {
     pub fn compile(source: &str) -> Result<Self, String> {
@@ -22,7 +23,7 @@ impl Pattern {
         };
         let translated = p.regexp(0)?;
         if p.pos != p.chars.len() {
-            return Err("invalid I-Regexp trailing syntax".into());
+            return Err(p.error("invalid I-Regexp trailing syntax"));
         }
         let hir = regex_syntax::ParserBuilder::new()
             .nest_limit((MAX_DEPTH * 4) as u32)
@@ -58,7 +59,11 @@ impl Pattern {
         Ok(Self {
             vm: Arc::new(vm),
             states,
+            source: Arc::from(source),
         })
+    }
+    pub fn source(&self) -> &str {
+        &self.source
     }
     pub fn work(&self) -> u64 {
         (self.states as u64 + 1) * (MAX_INPUT_BYTES as u64 + 1) * 16
@@ -73,19 +78,40 @@ struct Recognizer {
     pos: usize,
 }
 impl Recognizer {
+    fn error(&self, message: &str) -> String {
+        Self::error_at(self.pos, message)
+    }
+    fn error_at(position: usize, message: &str) -> String {
+        format!("{message} at character {}", position + 1)
+    }
+    fn decoded(c: char) -> Option<char> {
+        Some(match c {
+            'n' => '\n',
+            'r' => '\r',
+            't' => '\t',
+            '(' | ')' | '*' | '+' | '-' | '.' | '?' | '[' | '\\' | ']' | '^' | '{' | '|' | '}' => c,
+            _ => return None,
+        })
+    }
     fn peek(&self) -> Option<char> {
         self.chars.get(self.pos).copied()
     }
     fn take(&mut self) -> Result<char, String> {
-        let c = self.peek().ok_or("incomplete I-Regexp")?;
+        let c = self
+            .peek()
+            .ok_or_else(|| self.error("incomplete I-Regexp"))?;
         self.pos += 1;
         Ok(c)
     }
     fn expect(&mut self, c: char) -> Result<(), String> {
+        let position = self.pos;
         if self.take()? == c {
             Ok(())
         } else {
-            Err("invalid I-Regexp delimiter".into())
+            Err(Self::error_at(
+                position,
+                &format!("expected delimiter {c:?}"),
+            ))
         }
     }
     fn literal(c: char) -> String {
@@ -93,7 +119,7 @@ impl Recognizer {
     }
     fn regexp(&mut self, depth: usize) -> Result<String, String> {
         if depth > MAX_DEPTH {
-            return Err("resource-limit: pattern nesting".into());
+            return Err(self.error("resource-limit: pattern nesting"));
         }
         let mut out = String::new();
         while let Some(c) = self.peek() {
@@ -117,8 +143,10 @@ impl Recognizer {
                     self.pos += 1;
                     String::from(r"[^\n\r]")
                 }
-                '\\' => self.escape(true)?,
-                '*' | '+' | '?' | '{' | '}' | ']' => return Err("invalid I-Regexp atom".into()),
+                '\\' => self.escape()?,
+                '*' | '+' | '?' | '{' | '}' | ']' => {
+                    return Err(self.error("invalid I-Regexp atom"))
+                }
                 _ => {
                     self.pos += 1;
                     Self::literal(c)
@@ -138,7 +166,7 @@ impl Recognizer {
                         if self.peek() != Some('}') {
                             let hi = self.count()?;
                             if hi < lo {
-                                return Err("invalid repetition bounds".into());
+                                return Err(self.error("invalid repetition bounds"));
                             }
                             out.push_str(&hi.to_string())
                         }
@@ -159,23 +187,24 @@ impl Recognizer {
             n = n
                 .checked_mul(10)
                 .and_then(|n| n.checked_add(c as u32 - '0' as u32))
-                .ok_or("resource-limit: repetition count")?;
+                .ok_or_else(|| self.error("resource-limit: repetition count"))?;
         }
         if self.pos == start {
-            return Err("missing repetition count".into());
+            return Err(self.error("missing repetition count"));
         }
         Ok(n)
     }
-    fn escape(&mut self, property: bool) -> Result<String, String> {
+    fn escape(&mut self) -> Result<String, String> {
+        let start = self.pos;
         self.expect('\\')?;
         let c = self.take()?;
-        if property && (c == 'p' || c == 'P') {
+        if c == 'p' || c == 'P' {
             self.expect('{')?;
             let mut cat = String::new();
             while self.peek() != Some('}') {
                 cat.push(self.take()?);
                 if cat.len() > 2 {
-                    return Err("unsupported Unicode property".into());
+                    return Err(self.error("unsupported Unicode property"));
                 }
             }
             self.expect('}')?;
@@ -217,26 +246,26 @@ impl Recognizer {
                     | "Cn"
                     | "Co"
             ) {
-                return Err("unsupported Unicode category".into());
+                return Err(Self::error_at(start, "unsupported Unicode category"));
             }
             return Ok(format!("\\{c}{{{cat}}}"));
         }
-        let decoded = match c {
-            'n' => '\n',
-            'r' => '\r',
-            't' => '\t',
-            '(' | ')' | '*' | '+' | '-' | '.' | '?' | '[' | '\\' | ']' | '^' | '{' | '|' | '}' => c,
-            _ => return Err("invalid I-Regexp escape".into()),
-        };
+        let decoded = Self::decoded(c)
+            .ok_or_else(|| Self::error_at(self.pos - 1, "invalid I-Regexp escape"))?;
         Ok(Self::literal(decoded))
     }
-    fn ccchar(&mut self) -> Result<String, String> {
+    fn ccchar(&mut self) -> Result<char, String> {
         match self.peek() {
-            Some('\\') => self.escape(false),
-            Some('-' | '[' | ']') | None => Err("invalid I-Regexp class character".into()),
+            Some('\\') => {
+                self.pos += 1;
+                let c = self.take()?;
+                Self::decoded(c)
+                    .ok_or_else(|| Self::error_at(self.pos - 1, "invalid I-Regexp class escape"))
+            }
+            Some('-' | '[' | ']') | None => Err(self.error("invalid I-Regexp class character")),
             Some(c) => {
                 self.pos += 1;
-                Ok(Self::literal(c))
+                Ok(c)
             }
         }
     }
@@ -255,7 +284,7 @@ impl Recognizer {
         }
         while self.peek() != Some(']') {
             if self.peek().is_none() {
-                return Err("unclosed I-Regexp class".into());
+                return Err(self.error("unclosed I-Regexp class"));
             }
             if self.peek() == Some('-') && self.chars.get(self.pos + 1) == Some(&']') {
                 self.pos += 1;
@@ -265,21 +294,27 @@ impl Recognizer {
             }
             if self.peek() == Some('\\') && matches!(self.chars.get(self.pos + 1), Some('p' | 'P'))
             {
-                out.push_str(&self.escape(true)?);
+                out.push_str(&self.escape()?);
                 count += 1;
                 continue;
             }
-            out.push_str(&self.ccchar()?);
+            let start = self.pos;
+            let lower = self.ccchar()?;
+            out.push_str(&Self::literal(lower));
             count += 1;
             if self.peek() == Some('-') && self.chars.get(self.pos + 1) != Some(&']') {
                 self.pos += 1;
                 out.push('-');
-                out.push_str(&self.ccchar()?)
+                let upper = self.ccchar()?;
+                if upper < lower {
+                    return Err(Self::error_at(start, "reversed character range"));
+                }
+                out.push_str(&Self::literal(upper))
             }
         }
         self.expect(']')?;
         if count == 0 {
-            return Err("empty I-Regexp class".into());
+            return Err(self.error("empty I-Regexp class"));
         }
         out.push(']');
         Ok(out)
