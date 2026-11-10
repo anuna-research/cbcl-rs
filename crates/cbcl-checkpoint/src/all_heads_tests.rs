@@ -50,10 +50,10 @@ fn fixture() -> Fixture {
       (extend drop (to item) :from member :to member (tell to :item item))
       (extend pay (to recipient amount) :from member :to member (tell to :recipient recipient :amount amount))
       (extend burn (to value) :from member :to member (tell to :value value))
-      (shape pay (require :recipient symbol) (require :amount number))
-      (shape burn (require :value number))
+      (shape pay (require :recipient symbol) (require :amount integer))
+      (shape burn (require :value integer))
       (shape open (require :title string) (require :allocations list))
-      (shape write (require :item string) (require :value number) (require :clock hlc) (require :unused string))
+      (shape write (require :item string) (require :value integer) (require :clock hlc) (require :unused string))
       (shape drop (require :item string))
       (protocol (then begin open) (then open (repeat 8 write)) (then open drop) (then open pay) (then open burn))
       (state

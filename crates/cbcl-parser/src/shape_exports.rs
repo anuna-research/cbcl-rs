@@ -57,18 +57,13 @@ pub fn verify_message_shape_str(input: &str) -> Result<String, String> {
                 continue;
             }
             if let Err(violation) = shape.check(message_sexpr) {
-                let blame = ViolationError::from_shape_violation(
-                    &violation,
-                    None,
-                    None,
-                    Some(message_sexpr.clone()),
-                )
-                .with_dialect_context(
-                    &d.name,
-                    d.author.as_deref(),
-                    d.hash.as_deref(),
-                    Some(&performative),
-                );
+                let blame = ViolationError::from_shape_violation(&violation, None, None, None)
+                    .with_dialect_context(
+                        &d.name,
+                        d.author.as_deref(),
+                        d.hash.as_deref(),
+                        Some(&performative),
+                    );
                 return Err(serialize(&blame.to_sexpr()));
             }
         }

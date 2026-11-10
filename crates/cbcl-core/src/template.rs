@@ -81,20 +81,14 @@ pub fn expand_template_with_bindings(
 
 /// Evaluate a type predicate: `(type? var type-name)`.
 ///
-/// Supported type names: `number`, `string`, `agent`, `symbol`, `bool`.
-/// Agent values are symbols starting with `@`.
+/// Built-in shape type names share the same representation predicates.
+/// `agent` additionally recognizes symbols starting with `@`; local contracts
+/// apply at shape boundaries rather than as executable template predicates.
 pub fn eval_type_predicate(value: &SExpr, type_name: &str) -> bool {
-    match type_name {
-        "number" => matches!(value, SExpr::Atom(Atom::Num(_))),
-        "string" => matches!(value, SExpr::Atom(Atom::Str(_))),
-        "symbol" => matches!(value, SExpr::Atom(Atom::Symbol(_))),
-        "bool" => matches!(value, SExpr::Atom(Atom::Bool(_))),
-        "agent" => match value {
-            SExpr::Atom(Atom::Symbol(s)) => s.starts_with('@'),
-            _ => false,
-        },
-        _ => false,
+    if let Some(ty) = crate::shape::TypeConstraint::from_str(type_name) {
+        return ty.matches_builtin(value);
     }
+    type_name == "agent" && matches!(value, SExpr::Atom(Atom::Symbol(s)) if s.starts_with('@'))
 }
 
 // ---------------------------------------------------------------------------

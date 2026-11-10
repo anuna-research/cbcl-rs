@@ -630,6 +630,7 @@ mod tests {
 
     fn valid_custom_dialect(name: &str) -> Dialect {
         Dialect {
+            types: Default::default(),
             roles: Vec::new(),
             state: None,
             state_bounds: None,
@@ -747,6 +748,7 @@ mod tests {
     fn install_bad_dialect_rejected() {
         let mut agent = Agent::new("a");
         let bad = Dialect {
+            types: Default::default(),
             roles: Vec::new(),
             state: None,
             state_bounds: None,
@@ -961,6 +963,7 @@ mod tests {
         let proto = CausalProtocol { steps };
 
         Dialect {
+            types: Default::default(),
             roles: Vec::new(),
             state: None,
             state_bounds: None,
@@ -1132,6 +1135,7 @@ mod tests {
             ]),
         };
         Dialect {
+            types: Default::default(),
             roles: Vec::new(),
             state: None,
             state_bounds: None,
@@ -1377,6 +1381,7 @@ mod tests {
             },
         );
         Dialect {
+            types: Default::default(),
             roles: Vec::new(),
             state: None,
             state_bounds: None,
@@ -1452,6 +1457,7 @@ mod tests {
         );
         agent
             .install_dialect(Dialect {
+                types: Default::default(),
                 roles: Vec::new(),
                 state: None,
                 state_bounds: None,
@@ -1578,6 +1584,7 @@ mod tests {
             },
         );
         Dialect {
+            types: Default::default(),
             roles: Vec::new(),
             state: None,
             state_bounds: None,
@@ -1622,6 +1629,7 @@ mod tests {
             },
         );
         Dialect {
+            types: Default::default(),
             roles: Vec::new(),
             state: None,
             state_bounds: None,
@@ -1685,6 +1693,7 @@ mod tests {
             },
         );
         Dialect {
+            types: Default::default(),
             roles: Vec::new(),
             state: None,
             state_bounds: None,

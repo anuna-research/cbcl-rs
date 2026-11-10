@@ -332,7 +332,7 @@ pub fn run_pipeline_full<S: MessageStore>(
                                 &sv,
                                 None,
                                 thread.clone(),
-                                Some(eval_result.expanded.clone()),
+                                None,
                             )
                             .with_dialect_context(
                                 &dialect.name,
@@ -671,6 +671,7 @@ mod tests {
 
         registry
             .install(cbcl_core::dialect::Dialect {
+                types: Default::default(),
                 roles: Vec::new(),
                 state: None,
                 state_bounds: None,
@@ -720,6 +721,7 @@ mod tests {
         // Install dialect with shape constraint requiring :target string
         registry
             .install(cbcl_core::dialect::Dialect {
+                types: Default::default(),
                 roles: Vec::new(),
                 state: None,
                 state_bounds: None,
@@ -795,6 +797,7 @@ mod tests {
 
         registry
             .install(cbcl_core::dialect::Dialect {
+                types: Default::default(),
                 roles: Vec::new(),
                 state: None,
                 state_bounds: None,
@@ -901,6 +904,7 @@ mod tests {
 
         registry
             .install(cbcl_core::dialect::Dialect {
+                types: Default::default(),
                 roles: Vec::new(),
                 state: None,
                 state_bounds: None,
@@ -1005,6 +1009,7 @@ mod tests {
 
         registry
             .install(cbcl_core::dialect::Dialect {
+                types: Default::default(),
                 roles: Vec::new(),
                 state: None,
                 state_bounds: None,
@@ -1081,6 +1086,7 @@ mod tests {
         );
         registry
             .install(cbcl_core::dialect::Dialect {
+                types: Default::default(),
                 roles: Vec::new(),
                 state: None,
                 state_bounds: None,
@@ -1127,6 +1133,7 @@ mod tests {
         // First install a parent dialect that defines `notify`.
         registry
             .install(cbcl_core::dialect::Dialect {
+                types: Default::default(),
                 roles: Vec::new(),
                 state: None,
                 state_bounds: None,
@@ -1274,6 +1281,7 @@ mod tests {
         let mut registry = DialectRegistry::new();
         registry
             .install(cbcl_core::dialect::Dialect {
+                types: Default::default(),
                 roles: Vec::new(),
                 state: None,
                 state_bounds: None,

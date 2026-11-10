@@ -140,6 +140,7 @@ mod tests {
 
     fn test_dialect(performatives: Vec<&str>, shapes: Vec<ShapeConstraint>) -> Dialect {
         Dialect {
+            types: Default::default(),
             roles: Vec::new(),
             state: None,
             state_bounds: None,
@@ -189,7 +190,7 @@ mod tests {
                     },
                     ShapeRule::Optional {
                         keyword: String::from("priority"),
-                        type_constraint: Some(TypeConstraint::Number),
+                        type_constraint: Some(TypeConstraint::Integer),
                         default: None,
                         children: vec![],
                     },
@@ -445,6 +446,7 @@ mod tests {
 
     fn protocol_dialect(performatives: Vec<&str>, proto: CausalProtocol) -> Dialect {
         Dialect {
+            types: Default::default(),
             roles: Vec::new(),
             state: None,
             state_bounds: None,

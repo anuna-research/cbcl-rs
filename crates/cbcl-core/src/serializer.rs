@@ -49,6 +49,14 @@ fn write_atom(atom: &Atom, buf: &mut String) {
             }
             buf.push('"');
         }
+        Atom::Float(n) => {
+            use core::fmt::Write;
+            let _ = write!(buf, "{n}");
+        }
+        Atom::Decimal(n) => {
+            use core::fmt::Write;
+            let _ = write!(buf, "{n}");
+        }
         Atom::Num(n) => {
             use alloc::format;
             buf.push_str(&format!("{n}"));

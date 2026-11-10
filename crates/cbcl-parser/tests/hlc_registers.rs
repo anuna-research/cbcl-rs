@@ -170,7 +170,7 @@ fn malformed_clocks_fail_receipt_and_bad_clock_declarations_fail_installation() 
     }
     for source in [
         D.replace("(require :clock hlc)", "(require :clock string)"),
-        D.replace("(require :clock hlc)", "(require :clock number)"),
+        D.replace("(require :clock hlc)", "(require :clock integer)"),
         D.replace("(require :clock hlc)", "(optional :clock hlc)"),
         D.replace(
             "(lww-register write :value :clock)",
@@ -380,7 +380,7 @@ fn domain_excluded_high_clock_replacer_changes_neither_values_nor_replacements()
 fn authoring_and_description_support_new_rules_without_changing_contract_version() {
     let contract = serde_json::json!({"version":3,"kind":"contract","name":"clock-demo","author":"@a",
        "verbs":{"open":{"after":["begin"],"fields":{"title":"string"}},
-                "write":{"after":["open"],"fields":{"item":"string","value":"number","clock":"hlc"}},
+                "write":{"after":["open"],"fields":{"item":"string","value":"integer","clock":"hlc"}},
                 "drop":{"after":["open"],"fields":{"item":"string"}}},
        "state":{"lww":["lwwRegister","write","value","clock"],
                 "own":["lwwPerSigner","write","value","clock"],

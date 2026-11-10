@@ -578,6 +578,7 @@ mod tests {
         steps: Vec<(String, StepDecl)>,
     ) -> Dialect {
         Dialect {
+            types: Default::default(),
             roles: parse_roles(&roles_src.parse::<SExpr>().unwrap()).unwrap(),
             state: None,
             state_bounds: None,

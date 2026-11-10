@@ -1,0 +1,17 @@
+[
+  {
+    "mutation": "reservation",
+    "test": "reserve_before_branch_evaluation",
+    "caught": true
+  },
+  {
+    "mutation": "full-match",
+    "test": "iregexp_semantics",
+    "caught": true
+  },
+  {
+    "mutation": "symbol-state-mask",
+    "test": "state_integer_proofs_and_symbol_restrictions",
+    "caught": true
+  }
+]

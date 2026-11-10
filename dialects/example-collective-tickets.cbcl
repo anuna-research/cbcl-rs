@@ -8,9 +8,9 @@
     (tell to :amount amount))
   (extend sell (to buyer amount) :from seller :to (organizer seller)
     (tell to :buyer buyer :amount amount))
-  (shape open (require :available number))
-  (shape restock (require :amount number))
-  (shape sell (require :buyer symbol) (require :amount number))
+  (shape open (require :available integer))
+  (shape restock (require :amount integer))
+  (shape sell (require :buyer symbol) (require :amount integer))
   (protocol (then begin open) (then open restock) (then open sell))
   (state
     (tickets (bounded-counter

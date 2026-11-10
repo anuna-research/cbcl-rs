@@ -56,6 +56,7 @@ fn auction_dialect() -> Dialect {
         ),
     );
     Dialect {
+        types: Default::default(),
         state: None,
         state_bounds: None,
         causal_locality: Default::default(),

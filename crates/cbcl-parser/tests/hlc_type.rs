@@ -9,7 +9,12 @@ const CLOCK: &str = "hlc-000001a3185c5000-00000000";
 fn hlc_type_recognizes_canonical_strings_without_clock_field_conventions() {
     assert_eq!(TypeConstraint::from_str("hlc"), Some(TypeConstraint::Hlc));
     assert_eq!(TypeConstraint::Hlc.to_string(), "hlc");
-    assert!(TypeConstraint::Hlc.matches(&SExpr::Atom(Atom::Str(CLOCK.into()))));
+    assert!(TypeConstraint::Hlc
+        .check(
+            &SExpr::Atom(Atom::Str(CLOCK.into())),
+            cbcl_core::contracts::DEFAULT_WORK
+        )
+        .is_ok());
     for malformed in [
         "",
         "ordinary string",
@@ -17,14 +22,21 @@ fn hlc_type_recognizes_canonical_strings_without_clock_field_conventions() {
         "hlc-000001A3185c5000-00000000",
         "hlc-000001a3185c5000-00000000x",
     ] {
-        assert!(!TypeConstraint::Hlc.matches(&SExpr::Atom(Atom::Str(malformed.into()))));
+        assert!(!TypeConstraint::Hlc
+            .check(
+                &SExpr::Atom(Atom::Str(malformed.into())),
+                cbcl_core::contracts::DEFAULT_WORK
+            )
+            .is_ok());
     }
     for malformed in [
         SExpr::Atom(Atom::Symbol(CLOCK.into())),
         SExpr::Atom(Atom::Num(12)),
         SExpr::List(vec![]),
     ] {
-        assert!(!TypeConstraint::Hlc.matches(&malformed));
+        assert!(!TypeConstraint::Hlc
+            .check(&malformed, cbcl_core::contracts::DEFAULT_WORK)
+            .is_ok());
     }
 }
 

@@ -36,6 +36,8 @@ fn json(expr: &SExpr, out: &mut String) {
             text.push_str(k);
             out.push_str(&Value::Str(text).render());
         }
+        SExpr::Atom(Atom::Float(n)) => out.push_str(&Value::Str(alloc::format!("{n}")).render()),
+        SExpr::Atom(Atom::Decimal(n)) => out.push_str(&Value::Str(alloc::format!("{n}")).render()),
         SExpr::Atom(Atom::Num(n)) => out.push_str(&Value::Str(alloc::format!("{n}")).render()),
         SExpr::Atom(Atom::Bool(b)) => out.push_str(if *b { "\"#t\"" } else { "\"#f\"" }),
     }
