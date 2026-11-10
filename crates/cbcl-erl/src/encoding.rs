@@ -184,6 +184,8 @@ fn encode_atom<'a>(env: Env<'a>, a: &Atom) -> Term<'a> {
         Atom::Symbol(s) => tagged_binary(env, "symbol", s),
         Atom::Keyword(s) => tagged_binary(env, "keyword", s),
         Atom::Str(s) => s.as_str().encode(env),
+        Atom::Float(n) => n.get().encode(env),
+        Atom::Decimal(n) => tagged_binary(env, "decimal", n.as_str()),
         Atom::Num(n) => n.encode(env),
         Atom::Bool(b) => b.encode(env),
     }

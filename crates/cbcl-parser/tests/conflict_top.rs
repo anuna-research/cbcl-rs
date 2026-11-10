@@ -153,9 +153,9 @@ const COIN: &str = "(define example-coin (cbcl) @coin-author \
   (extend burn (to amount) :from holder :to (issuer holder) (tell to :amount amount)) \
   (extend pay (to recipient amount) :from holder :to (issuer holder) (tell to :recipient recipient :amount amount)) \
   (shape open (require :name string) (require :allocations list)) \
-  (shape mint (require :amount number)) \
-  (shape burn (require :amount number)) \
-  (shape pay (require :recipient symbol) (require :amount number)) \
+  (shape mint (require :amount integer)) \
+  (shape burn (require :amount integer)) \
+  (shape pay (require :recipient symbol) (require :amount integer)) \
   (protocol (then begin open) (then open mint) (then open burn) (then open pay)) \
   (state (name (initial open :name)) \
     (coins (bounded-counter (floor 0) (initial-rights open :allocations) (issuers issuer) \

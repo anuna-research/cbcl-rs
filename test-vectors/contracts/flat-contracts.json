@@ -1,0 +1,154 @@
+[
+  {
+    "id": "numeric-0",
+    "frame": "(verify-shape (define validation (cbcl) @author (extend submit (to value) (tell to :value value)) (shape submit (require :value contract)) (type contract number)) submit (submit :value 1))",
+    "accept": true
+  },
+  {
+    "id": "numeric-1",
+    "frame": "(verify-shape (define validation (cbcl) @author (extend submit (to value) (tell to :value value)) (shape submit (require :value contract)) (type contract number)) submit (submit :value 1.0))",
+    "accept": true
+  },
+  {
+    "id": "numeric-2",
+    "frame": "(verify-shape (define validation (cbcl) @author (extend submit (to value) (tell to :value value)) (shape submit (require :value contract)) (type contract number)) submit (submit :value 1m))",
+    "accept": true
+  },
+  {
+    "id": "numeric-3",
+    "frame": "(verify-shape (define validation (cbcl) @author (extend submit (to value) (tell to :value value)) (shape submit (require :value contract)) (type contract number)) submit (submit :value #t))",
+    "accept": false
+  },
+  {
+    "id": "numeric-4",
+    "frame": "(verify-shape (define validation (cbcl) @author (extend submit (to value) (tell to :value value)) (shape submit (require :value contract)) (type contract number)) submit (submit :value \"1\"))",
+    "accept": false
+  },
+  {
+    "id": "integer-5",
+    "frame": "(verify-shape (define validation (cbcl) @author (extend submit (to value) (tell to :value value)) (shape submit (require :value contract)) (type contract integer)) submit (submit :value 1))",
+    "accept": true
+  },
+  {
+    "id": "integer-6",
+    "frame": "(verify-shape (define validation (cbcl) @author (extend submit (to value) (tell to :value value)) (shape submit (require :value contract)) (type contract integer)) submit (submit :value 1.0))",
+    "accept": false
+  },
+  {
+    "id": "integer-7",
+    "frame": "(verify-shape (define validation (cbcl) @author (extend submit (to value) (tell to :value value)) (shape submit (require :value contract)) (type contract integer)) submit (submit :value 1m))",
+    "accept": false
+  },
+  {
+    "id": "percentage-8",
+    "frame": "(verify-shape (define validation (cbcl) @author (extend submit (to value) (tell to :value value)) (shape submit (require :value contract)) (type contract (number (>= 0) (<= 100)))) submit (submit :value 0))",
+    "accept": true
+  },
+  {
+    "id": "percentage-9",
+    "frame": "(verify-shape (define validation (cbcl) @author (extend submit (to value) (tell to :value value)) (shape submit (require :value contract)) (type contract (number (>= 0) (<= 100)))) submit (submit :value 100m))",
+    "accept": true
+  },
+  {
+    "id": "percentage-10",
+    "frame": "(verify-shape (define validation (cbcl) @author (extend submit (to value) (tell to :value value)) (shape submit (require :value contract)) (type contract (number (>= 0) (<= 100)))) submit (submit :value 1.5))",
+    "accept": true
+  },
+  {
+    "id": "percentage-11",
+    "frame": "(verify-shape (define validation (cbcl) @author (extend submit (to value) (tell to :value value)) (shape submit (require :value contract)) (type contract (number (>= 0) (<= 100)))) submit (submit :value -1))",
+    "accept": false
+  },
+  {
+    "id": "percentage-12",
+    "frame": "(verify-shape (define validation (cbcl) @author (extend submit (to value) (tell to :value value)) (shape submit (require :value contract)) (type contract (number (>= 0) (<= 100)))) submit (submit :value 100.1m))",
+    "accept": false
+  },
+  {
+    "id": "currency-13",
+    "frame": "(verify-shape (define validation (cbcl) @author (extend submit (to value) (tell to :value value)) (shape submit (require :value contract)) (type contract (one-of :AUD :USD))) submit (submit :value :AUD))",
+    "accept": true
+  },
+  {
+    "id": "currency-14",
+    "frame": "(verify-shape (define validation (cbcl) @author (extend submit (to value) (tell to :value value)) (shape submit (require :value contract)) (type contract (one-of :AUD :USD))) submit (submit :value \"AUD\"))",
+    "accept": false
+  },
+  {
+    "id": "currency-15",
+    "frame": "(verify-shape (define validation (cbcl) @author (extend submit (to value) (tell to :value value)) (shape submit (require :value contract)) (type contract (one-of :AUD :USD))) submit (submit :value AUD))",
+    "accept": false
+  },
+  {
+    "id": "name-16",
+    "frame": "(verify-shape (define validation (cbcl) @author (extend submit (to value) (tell to :value value)) (shape submit (require :value contract)) (type contract (string (length (>= 1) (<= 2))))) submit (submit :value \"😀\"))",
+    "accept": true
+  },
+  {
+    "id": "name-17",
+    "frame": "(verify-shape (define validation (cbcl) @author (extend submit (to value) (tell to :value value)) (shape submit (require :value contract)) (type contract (string (length (>= 1) (<= 2))))) submit (submit :value \"é\"))",
+    "accept": true
+  },
+  {
+    "id": "name-18",
+    "frame": "(verify-shape (define validation (cbcl) @author (extend submit (to value) (tell to :value value)) (shape submit (require :value contract)) (type contract (string (length (>= 1) (<= 2))))) submit (submit :value \"\"))",
+    "accept": false
+  },
+  {
+    "id": "name-19",
+    "frame": "(verify-shape (define validation (cbcl) @author (extend submit (to value) (tell to :value value)) (shape submit (require :value contract)) (type contract (string (length (>= 1) (<= 2))))) submit (submit :value \"abc\"))",
+    "accept": false
+  },
+  {
+    "id": "batch-20",
+    "frame": "(verify-shape (define validation (cbcl) @author (extend submit (to value) (tell to :value value)) (shape submit (require :value contract)) (type contract (list (length (> 0) (<= 2))))) submit (submit :value ((1 2 3))))",
+    "accept": true
+  },
+  {
+    "id": "batch-21",
+    "frame": "(verify-shape (define validation (cbcl) @author (extend submit (to value) (tell to :value value)) (shape submit (require :value contract)) (type contract (list (length (> 0) (<= 2))))) submit (submit :value ()))",
+    "accept": false
+  },
+  {
+    "id": "batch-22",
+    "frame": "(verify-shape (define validation (cbcl) @author (extend submit (to value) (tell to :value value)) (shape submit (require :value contract)) (type contract (list (length (> 0) (<= 2))))) submit (submit :value (1 2 3)))",
+    "accept": false
+  },
+  {
+    "id": "postal-23",
+    "frame": "(verify-shape (define validation (cbcl) @author (extend submit (to value) (tell to :value value)) (shape submit (require :value contract)) (type contract (string (matches \"[0-9]{4}\")))) submit (submit :value \"2000\"))",
+    "accept": true
+  },
+  {
+    "id": "postal-24",
+    "frame": "(verify-shape (define validation (cbcl) @author (extend submit (to value) (tell to :value value)) (shape submit (require :value contract)) (type contract (string (matches \"[0-9]{4}\")))) submit (submit :value \"٢٠٠٠\"))",
+    "accept": false
+  },
+  {
+    "id": "postal-25",
+    "frame": "(verify-shape (define validation (cbcl) @author (extend submit (to value) (tell to :value value)) (shape submit (require :value contract)) (type contract (string (matches \"[0-9]{4}\")))) submit (submit :value \"2000\\n\"))",
+    "accept": false
+  },
+  {
+    "id": "literal-anchor-26",
+    "frame": "(verify-shape (define validation (cbcl) @author (extend submit (to value) (tell to :value value)) (shape submit (require :value contract)) (type contract (string (matches \"^x$\")))) submit (submit :value \"^x$\"))",
+    "accept": true
+  },
+  {
+    "id": "literal-anchor-27",
+    "frame": "(verify-shape (define validation (cbcl) @author (extend submit (to value) (tell to :value value)) (shape submit (require :value contract)) (type contract (string (matches \"^x$\")))) submit (submit :value \"x\"))",
+    "accept": false
+  },
+  {
+    "id": "portable-cost-8000",
+    "frame": "(verify-shape (define complexity (cbcl) @author (extend submit (to value) (tell to :value value)) (shape submit (require :value (string (matches \"a{8000}\"))))) submit (submit :value \"\"))",
+    "accept": false,
+    "errorContains": "shape-violation"
+  },
+  {
+    "id": "portable-cost-8300",
+    "frame": "(verify-shape (define complexity (cbcl) @author (extend submit (to value) (tell to :value value)) (shape submit (require :value (string (matches \"a{8300}\"))))) submit (submit :value \"\"))",
+    "accept": false,
+    "errorContains": "resource-limit"
+  }
+]

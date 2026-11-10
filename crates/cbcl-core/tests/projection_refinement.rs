@@ -140,6 +140,7 @@ fn fixture(seed: usize) -> (Dialect, Endpoint, Option<Cast>) {
         _ => Some(CausalProtocol { steps }),
     };
     let d = Dialect {
+        types: Default::default(),
         name: "projection-refinement".into(),
         extends: vec![],
         author: None,

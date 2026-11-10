@@ -209,9 +209,16 @@ pub fn verify_state_shape_str(input: &str) -> Result<String, String> {
     match cbcl_core::r7::verify_state_shape(&d, &message) {
         Ok(()) => Ok(String::from("ok")),
         Err(v) => {
-            let blame =
-                ViolationError::from_shape_violation(&v, None, None, Some(items[1].clone()))
-                    .with_dialect_context(&d.name, d.author.as_deref(), d.hash.as_deref(), None);
+            let blame = ViolationError::from_shape_violation(&v, None, None, None)
+                .with_dialect_context(
+                    &d.name,
+                    d.author.as_deref(),
+                    d.hash.as_deref(),
+                    message
+                        .innermost_simple()
+                        .and_then(|m| m.performative())
+                        .map(|p| p.name()),
+                );
             Err(serialize(&blame.to_sexpr()))
         }
     }

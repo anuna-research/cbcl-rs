@@ -1123,17 +1123,17 @@ pub fn declaration_errors(d: &crate::dialect::Dialect) -> Vec<String> {
                 c.initial_verb.as_str(),
                 c.initial_key.as_str(),
                 alloc::vec![if c.ownership == Ownership::Collective {
-                    T::Number
+                    T::Integer
                 } else {
                     T::List
                 }]
             ),
-            (&c.increment.0, &c.increment.1, alloc::vec![T::Number]),
-            (&c.decrement.0, &c.decrement.1, alloc::vec![T::Number])
+            (&c.increment.0, &c.increment.1, alloc::vec![T::Integer]),
+            (&c.decrement.0, &c.decrement.1, alloc::vec![T::Integer])
         ];
         if let Some((v, r, k)) = &c.transfer {
             expected.push((v, r, alloc::vec![T::Symbol, T::String]));
-            expected.push((v, k, alloc::vec![T::Number]));
+            expected.push((v, k, alloc::vec![T::Integer]));
             if r == k {
                 errors.push("counter data fields must be distinct".into());
             }
@@ -1149,13 +1149,13 @@ pub fn declaration_errors(d: &crate::dialect::Dialect) -> Vec<String> {
                 errors.push("headroom recipient and amount fields must differ".into());
             }
             expected.push((v, r, alloc::vec![T::Symbol, T::String]));
-            expected.push((v, k, alloc::vec![T::Number]));
+            expected.push((v, k, alloc::vec![T::Integer]));
         }
         for (v, k, types) in expected {
             if reserved(k) {
                 errors.push(format!("counter data may not read reserved :{k}"));
             }
-            if !d.shapes.iter().filter(|shape|shape.performative==v).any(|shape|shape.rules.iter().any(|rule|matches!(rule,crate::shape::ShapeRule::Require{keyword,type_constraint:Some(t),..} if keyword==k&&types.contains(t)))) {
+            if !d.shapes.iter().filter(|shape|shape.performative==v).any(|shape|shape.rules.iter().any(|rule|matches!(rule,crate::shape::ShapeRule::Require{keyword,type_constraint:Some(t),..} if keyword==k&&t.representation().as_ref().is_some_and(|base|types.contains(base) || types.contains(&T::Integer) && *base == T::Nonnegative)))) {
                 errors.push(format!(
                     "counter '{name}': '{v}' requires an appropriately typed :{k}"
                 ));

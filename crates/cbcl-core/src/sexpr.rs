@@ -18,6 +18,8 @@ pub enum Atom {
     Symbol(String),
     Str(String),
     Num(i64),
+    Float(crate::numeric::Float),
+    Decimal(crate::numeric::Decimal),
     Bool(bool),
     Keyword(String),
 }
@@ -46,6 +48,8 @@ impl SExpr {
         match self {
             SExpr::Atom(a) => match a {
                 Atom::Symbol(s) | Atom::Str(s) | Atom::Keyword(s) => s.len(),
+                Atom::Float(n) => alloc::format!("{n}").len(),
+                Atom::Decimal(n) => n.as_str().len() + 1,
                 Atom::Num(_) => core::mem::size_of::<i64>(),
                 Atom::Bool(_) => 1,
             },
@@ -89,6 +93,8 @@ impl fmt::Display for Atom {
                 }
                 f.write_str("\"")
             }
+            Atom::Float(n) => write!(f, "{n}"),
+            Atom::Decimal(n) => write!(f, "{n}"),
             Atom::Num(n) => write!(f, "{n}"),
             Atom::Bool(b) => f.write_str(if *b { "#t" } else { "#f" }),
             Atom::Keyword(k) => {
@@ -286,6 +292,12 @@ fn parse_num_or_symbol(input: &str) -> Result<(SExpr, &str), ParseSExprError> {
     }
     let token = &input[..end];
     let rest = &input[end..];
+
+    if let Some(atom) =
+        crate::numeric::parse_atom(token).map_err(|e| ParseSExprError(String::from(e)))?
+    {
+        return Ok((SExpr::Atom(atom), rest));
+    }
 
     // Try to parse as integer
     if let Ok(n) = token.parse::<i64>() {

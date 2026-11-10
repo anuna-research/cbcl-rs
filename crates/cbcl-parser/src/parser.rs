@@ -29,6 +29,9 @@ pub enum ParseError {
         offset: usize,
         sequence: char,
     },
+    InvalidNumber {
+        offset: usize,
+    },
     IntegerOverflow {
         offset: usize,
     },
@@ -61,6 +64,9 @@ impl fmt::Display for ParseError {
                     f,
                     "at byte {offset}: invalid escape sequence '\\{sequence}'"
                 )
+            }
+            ParseError::InvalidNumber { offset } => {
+                write!(f, "at byte {offset}: invalid or non-finite number")
             }
             ParseError::IntegerOverflow { offset } => {
                 write!(f, "at byte {offset}: integer overflow")
@@ -288,15 +294,18 @@ impl<'a> ParserState<'a> {
     }
 
     fn parse_integer(&mut self, start: usize, offset: usize) -> Result<SExpr, ParseError> {
-        // Consume all valid integer chars
         while let Some(ch) = self.peek() {
-            if ch == '-' || ch.is_ascii_digit() {
-                self.advance();
-            } else {
+            if ch.is_ascii_whitespace() || matches!(ch, '(' | ')' | ';' | '"') {
                 break;
             }
+            self.advance();
         }
         let text = &self.input[start..self.pos];
+        if let Some(atom) = cbcl_core::numeric::parse_atom(text)
+            .map_err(|_| ParseError::InvalidNumber { offset })?
+        {
+            return Ok(SExpr::Atom(atom));
+        }
         match text.parse::<i64>() {
             Ok(n) => Ok(SExpr::Atom(Atom::Num(n))),
             Err(_) => Err(ParseError::IntegerOverflow { offset }),

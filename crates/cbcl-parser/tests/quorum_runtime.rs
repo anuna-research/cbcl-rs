@@ -740,9 +740,9 @@ fn json_contract_and_text_roundtrips_use_certification_options() {
         "roles":{"issuer":"singleton","holder":"indexed"},
         "verbs":{
             "open":{"after":["begin"],"fields":{"allocations":"list"},"from":"issuer","to":["issuer","holder"]},
-            "mint":{"after":["open"],"fields":{"amount":"number"},"from":"issuer","to":["issuer","holder"]},
-            "burn":{"after":["open"],"fields":{"amount":"number"},"from":"holder","to":["issuer","holder"]},
-            "pay":{"after":["open"],"fields":{"recipient":"symbol","amount":"number"},"from":"holder","to":["issuer","holder"]}},
+            "mint":{"after":["open"],"fields":{"amount":"integer"},"from":"issuer","to":["issuer","holder"]},
+            "burn":{"after":["open"],"fields":{"amount":"integer"},"from":"holder","to":["issuer","holder"]},
+            "pay":{"after":["open"],"fields":{"recipient":"symbol","amount":"integer"},"from":"holder","to":["issuer","holder"]}},
         "state":{"coins":["boundedCounter",[["floor",0],["certification","quorum-budget",["validators","@v3","@v1","@v0","@v2"]],["initial-rights","open",":allocations"],["issuers","issuer"],["increment","mint",":amount"],["decrement","burn",":amount"],["transfer","pay",":recipient",":amount"]]]}});
     let result = cbcl_parser::compile_contract_str(&contract.to_string()).unwrap();
     let result: serde_json::Value = serde_json::from_str(&result).unwrap();
@@ -864,7 +864,7 @@ fn headroom_transfers_and_burn_credits_are_independent_resources() {
         .replace("(to name allocations)","(to name allocations capacity)")
         .replace(":allocations allocations))",":allocations allocations :capacity capacity))")
         .replace("(require :allocations list)","(require :allocations list) (require :capacity list)")
-        .replace("  (shape open", "  (extend share-space (to recipient amount) :from holder :to (issuer holder) (tell to :recipient recipient :amount amount))\n  (shape share-space (require :recipient symbol) (require :amount number))\n  (shape open")
+        .replace("  (shape open", "  (extend share-space (to recipient amount) :from holder :to (issuer holder) (tell to :recipient recipient :amount amount))\n  (shape share-space (require :recipient symbol) (require :amount integer))\n  (shape open")
         .replace("(then open pay)","(then open pay) (then open share-space)");
     let mut n = Net::source(src, true);
     let space = n.make("@treasury", "share-space", Some("@alice"), 200, "space");
@@ -1232,9 +1232,9 @@ fn collective_json_contract_uses_shared_rule_recognizer() {
     let contract = serde_json::json!({"version":3,"kind":"contract","name":"json-tickets","author":"@author",
         "roles":{"organizer":"singleton","seller":"indexed"},
         "verbs":{
-            "open":{"after":["begin"],"fields":{"available":"number"},"from":"organizer","to":["organizer","seller"]},
-            "restock":{"after":["open"],"fields":{"amount":"number"},"from":"organizer","to":["organizer","seller"]},
-            "sell":{"after":["open"],"fields":{"buyer":"symbol","amount":"number"},"from":"seller","to":["organizer","seller"]}},
+            "open":{"after":["begin"],"fields":{"available":"integer"},"from":"organizer","to":["organizer","seller"]},
+            "restock":{"after":["open"],"fields":{"amount":"integer"},"from":"organizer","to":["organizer","seller"]},
+            "sell":{"after":["open"],"fields":{"buyer":"symbol","amount":"integer"},"from":"seller","to":["organizer","seller"]}},
         "state":{"tickets":["boundedCounter",[["ownership","collective"],["certification","quorum-budget"],["floor",0],["ceiling",100],["initial","open",":available"],["issuers","organizer"],["increment","restock",":amount"],["decrement","sell",":amount"]]]}});
     let compiled: serde_json::Value =
         serde_json::from_str(&cbcl_parser::compile_contract_str(&contract.to_string()).unwrap())

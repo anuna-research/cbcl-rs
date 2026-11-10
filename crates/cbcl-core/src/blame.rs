@@ -59,6 +59,8 @@ impl fmt::Display for BlameParty {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum ViolationKind {
+    /// Operational exhaustion is not a value mismatch or sender fault.
+    ResourceLimit,
     /// Shape constraint violation (REQ-223).
     Shape,
     /// Causal protocol violation (CON-202).
@@ -71,6 +73,7 @@ impl ViolationKind {
     /// Short symbol name (used for tracing labels and `Display`).
     pub fn as_str(&self) -> &'static str {
         match self {
+            ViolationKind::ResourceLimit => "resource-limit",
             ViolationKind::Shape => "shape",
             ViolationKind::Causal => "causal",
             ViolationKind::R5 => "r5",
@@ -81,6 +84,7 @@ impl ViolationKind {
     /// REQ-233 ABNF (`"shape-violation"` / `"causal-violation"` / `"r5-violation"`).
     pub fn as_violation_type(&self) -> &'static str {
         match self {
+            ViolationKind::ResourceLimit => "resource-limit",
             ViolationKind::Shape => "shape-violation",
             ViolationKind::Causal => "causal-violation",
             ViolationKind::R5 => "r5-violation",
@@ -271,6 +275,18 @@ impl ViolationError {
         thread_id: Option<String>,
         evidence: Option<SExpr>,
     ) -> Self {
+        if violation.rule == "resource-limit" {
+            let mut err = Self::new(
+                ViolationKind::ResourceLimit,
+                violation.detail.clone(),
+                alloc::vec![],
+            );
+            err.field = violation.field.clone();
+            err.rule = Some("resource-limit".into());
+            err.message_hash = message_hash;
+            err.thread_id = thread_id;
+            return err;
+        }
         let reason = alloc::format!(
             "shape rule '{}' violated: {}",
             violation.rule,
@@ -514,6 +530,7 @@ impl ViolationError {
     /// verification is not applicable (wrong kind, no evidence, no constraint).
     pub fn verify_blame(&self, shape_constraint: Option<&ShapeConstraint>) -> bool {
         match self.kind {
+            ViolationKind::ResourceLimit => false,
             ViolationKind::Shape => self.verify_shape_blame(shape_constraint),
             ViolationKind::Causal => self.verify_causal_blame(),
             ViolationKind::R5 => self.verify_r5_blame(),
@@ -531,7 +548,7 @@ impl ViolationError {
         // the shape constraint.
         for entry in &self.blame_chain {
             if let Some(ref evidence) = entry.evidence {
-                if constraint.check(evidence).is_err() {
+                if matches!(constraint.check(evidence), Err(ref e) if e.rule != "resource-limit") {
                     return true;
                 }
             }

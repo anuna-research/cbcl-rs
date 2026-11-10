@@ -129,6 +129,7 @@ mod tests {
 
     fn test_dialect(name: &str) -> Dialect {
         Dialect {
+            types: Default::default(),
             roles: Vec::new(),
             state: None,
             state_bounds: None,
@@ -285,6 +286,7 @@ mod tests {
     #[test]
     fn r4_004_integrity_fields_preserved() {
         let d = Dialect {
+            types: Default::default(),
             roles: Vec::new(),
             state: None,
             state_bounds: None,

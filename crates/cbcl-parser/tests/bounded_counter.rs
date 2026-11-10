@@ -247,8 +247,8 @@ fn canonical_binding_and_reserved_fields() {
     )
     .is_err());
     let malformed = COIN.replace(
-        "(require :amount number)",
-        "(require :amount number) (require :escrow-deps list)",
+        "(require :amount integer)",
+        "(require :amount integer) (require :escrow-deps list)",
     );
     assert!(parse_dialect(&parse(&malformed).unwrap())
         .unwrap_err()
@@ -581,9 +581,9 @@ fn json_authoring_uses_the_same_counter_recognizer() {
         "roles":{"issuer":"singleton","holder":"indexed"},
         "verbs":{
             "open":{"after":["begin"],"fields":{"allocations":"list"},"from":"issuer","to":["issuer","holder"]},
-            "mint":{"after":["open"],"fields":{"amount":"number"},"from":"issuer","to":["issuer","holder"]},
-            "burn":{"after":["open"],"fields":{"amount":"number"},"from":"holder","to":["issuer","holder"]},
-            "pay":{"after":["open"],"fields":{"recipient":"symbol","amount":"number"},"from":"holder","to":["issuer","holder"]}},
+            "mint":{"after":["open"],"fields":{"amount":"integer"},"from":"issuer","to":["issuer","holder"]},
+            "burn":{"after":["open"],"fields":{"amount":"integer"},"from":"holder","to":["issuer","holder"]},
+            "pay":{"after":["open"],"fields":{"recipient":"symbol","amount":"integer"},"from":"holder","to":["issuer","holder"]}},
         "state":{"coins":["boundedCounter",[["floor",0],["initial-rights","open",":allocations"],["issuers","issuer"],["increment","mint",":amount"],["decrement","burn",":amount"],["transfer","pay",":recipient",":amount"]]]}});
     let result = cbcl_parser::compile_contract_str(&contract.to_string()).unwrap();
     let result: serde_json::Value = serde_json::from_str(&result).unwrap();
@@ -860,5 +860,25 @@ fn unsupported_resource_profiles_keep_projection_fault_evidence() {
             }
             other => panic!("expected equivalent faults, got {other:?}"),
         }
+    }
+}
+
+#[test]
+fn resource_frames_follow_the_reissued_multihash_corpus() {
+    for (frame, expected) in [
+        (
+            include_str!("../../../test-vectors/state/resource-check.sexp"),
+            1245,
+        ),
+        (
+            include_str!("../../../test-vectors/state/resource-check-capped.sexp"),
+            10,
+        ),
+    ] {
+        let result: serde_json::Value =
+            serde_json::from_str(&cbcl_parser::state_exports::resource_check_str(frame).unwrap())
+                .unwrap();
+        assert_eq!(result["status"], "ready", "{result}");
+        assert_eq!(result["value"], expected, "{result}");
     }
 }

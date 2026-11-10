@@ -44,6 +44,10 @@ impl ResourceBounds {
 /// Error returned when dialect installation fails.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DialectInstallError {
+    ResourceLimit {
+        dialect_name: String,
+        detail: String,
+    },
     /// A performative template references its own name (R1 violation).
     R1Violation {
         dialect_name: String,
@@ -91,6 +95,10 @@ pub enum DialectInstallError {
 impl fmt::Display for DialectInstallError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            DialectInstallError::ResourceLimit {
+                dialect_name,
+                detail,
+            } => write!(f, "resource-limit: dialect {dialect_name}: {detail}"),
             DialectInstallError::R1Violation {
                 dialect_name,
                 recursive,
@@ -192,6 +200,8 @@ pub struct PerformativeDef {
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Dialect {
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub types: alloc::collections::BTreeMap<String, SExpr>,
     pub name: String,
     /// Parent dialect names (Lean: `extends_ : List String`).
     pub extends: Vec<String>,
@@ -274,6 +284,7 @@ const CORE_EFFECT_ACTIONS: [(&str, &str); 8] = [
 /// `Dialect.lean:53–68`.
 pub fn base_dialect() -> Dialect {
     Dialect {
+        types: Default::default(),
         state: None,
         state_bounds: None,
         causal_locality: CausalLocality::Reject,
@@ -339,6 +350,19 @@ impl DialectRegistry {
     /// the R2 precondition from `R2ResourceBounds.lean:59–63`,
     /// and the R3 precondition from `R3CorePreservation.lean:57`.
     pub fn install(&mut self, mut d: Dialect) -> Result<(), DialectInstallError> {
+        crate::contracts::install(&mut d).map_err(|error| {
+            if error.starts_with("resource-limit:") {
+                DialectInstallError::ResourceLimit {
+                    dialect_name: d.name.clone(),
+                    detail: error,
+                }
+            } else {
+                DialectInstallError::R5Violation {
+                    dialect_name: d.name.clone(),
+                    shape_errors: alloc::vec![error],
+                }
+            }
+        })?;
         if let Some(state) = &mut d.state {
             state.resolve_lattices();
         }
@@ -509,6 +533,19 @@ impl DialectRegistry {
         mut d: Dialect,
         signer: &dyn Signer,
     ) -> Result<R4Result, DialectInstallError> {
+        crate::contracts::install(&mut d).map_err(|error| {
+            if error.starts_with("resource-limit:") {
+                DialectInstallError::ResourceLimit {
+                    dialect_name: d.name.clone(),
+                    detail: error,
+                }
+            } else {
+                DialectInstallError::R5Violation {
+                    dialect_name: d.name.clone(),
+                    shape_errors: alloc::vec![error],
+                }
+            }
+        })?;
         // R1–R3 checks (same as install)
         if !verify_r1_dialect(&d) {
             return Err(DialectInstallError::R1Violation {
@@ -738,6 +775,7 @@ mod tests {
     fn registry_install_appends() {
         let mut reg = DialectRegistry::new();
         let planning = Dialect {
+            types: Default::default(),
             roles: Vec::new(),
             state: None,
             state_bounds: None,
@@ -772,6 +810,7 @@ mod tests {
     /// A dialect defining a single custom performative `greet`.
     fn greeter(name: &str) -> Dialect {
         Dialect {
+            types: Default::default(),
             roles: Vec::new(),
             state: None,
             state_bounds: None,
@@ -833,6 +872,7 @@ mod tests {
     fn registry_install_rejects_r3_violation() {
         let mut reg = DialectRegistry::new();
         let bad = Dialect {
+            types: Default::default(),
             roles: Vec::new(),
             state: None,
             state_bounds: None,
@@ -877,6 +917,7 @@ mod tests {
     fn registry_install_rejects_r2_violation() {
         let mut reg = DialectRegistry::new();
         let bad = Dialect {
+            types: Default::default(),
             roles: Vec::new(),
             state: None,
             state_bounds: None,
@@ -912,6 +953,7 @@ mod tests {
     fn registry_install_rejects_zero_bounds() {
         let mut reg = DialectRegistry::new();
         let bad = Dialect {
+            types: Default::default(),
             roles: Vec::new(),
             state: None,
             state_bounds: None,
@@ -961,6 +1003,7 @@ mod tests {
             "cbcl-artifacts",
         ] {
             reg.install(Dialect {
+                types: Default::default(),
                 roles: Vec::new(),
                 state: None,
                 state_bounds: None,
@@ -1019,6 +1062,7 @@ mod tests {
     fn registry_install_with_signer_accepts_unsigned() {
         let mut reg = DialectRegistry::new();
         let d = Dialect {
+            types: Default::default(),
             roles: Vec::new(),
             state: None,
             state_bounds: None,
@@ -1048,6 +1092,7 @@ mod tests {
     fn registry_install_with_signer_accepts_valid_signature() {
         let mut reg = DialectRegistry::new();
         let d = Dialect {
+            types: Default::default(),
             roles: Vec::new(),
             state: None,
             state_bounds: None,
@@ -1077,6 +1122,7 @@ mod tests {
     fn registry_install_with_signer_rejects_invalid_signature() {
         let mut reg = DialectRegistry::new();
         let d = Dialect {
+            types: Default::default(),
             roles: Vec::new(),
             state: None,
             state_bounds: None,
@@ -1113,6 +1159,7 @@ mod tests {
         let mut reg = DialectRegistry::new();
         // R3 violation: redefines "tell"
         let d = Dialect {
+            types: Default::default(),
             roles: Vec::new(),
             state: None,
             state_bounds: None,
@@ -1194,6 +1241,7 @@ mod tests {
             },
         );
         Dialect {
+            types: Default::default(),
             roles: Vec::new(),
             state: None,
             state_bounds: None,
@@ -1303,7 +1351,7 @@ mod tests {
         if let Some(shape) = tampered.shapes.first_mut() {
             shape.rules.push(ShapeRule::Require {
                 keyword: String::from("priority"),
-                type_constraint: Some(TypeConstraint::Number),
+                type_constraint: Some(TypeConstraint::Integer),
                 children: vec![],
             });
         }
@@ -1345,6 +1393,7 @@ mod tests {
             },
         );
         let d = Dialect {
+            types: Default::default(),
             roles: Vec::new(),
             state: None,
             state_bounds: None,
@@ -1373,6 +1422,7 @@ mod tests {
 
     fn hashless_dialect(name: &str) -> Dialect {
         Dialect {
+            types: Default::default(),
             roles: Vec::new(),
             state: None,
             state_bounds: None,

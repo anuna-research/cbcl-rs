@@ -17,3 +17,7 @@ root = "Main"
 [[lean_exe]]
 name = "cbcl-state-oracle"
 root = "StateKernelOracle"
+
+[[lean_exe]]
+name = "cbcl-flat-contract-oracle"
+root = "FlatContractsOracle"

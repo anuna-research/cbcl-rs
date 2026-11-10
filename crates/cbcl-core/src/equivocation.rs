@@ -787,6 +787,7 @@ mod tests {
         steps: Vec<(String, StepDecl)>,
     ) -> Dialect {
         let mut d = Dialect {
+            types: Default::default(),
             roles: roles
                 .iter()
                 .map(|n| RoleDecl {

@@ -57,6 +57,7 @@ mod tests {
 
     fn test_dialect_with(perf_names: &[&str]) -> Dialect {
         Dialect {
+            types: Default::default(),
             roles: Vec::new(),
             state: None,
             state_bounds: None,

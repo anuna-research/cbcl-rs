@@ -44,6 +44,13 @@ performative, and `:key` is a message keyword. State field and lattice names mat
 `[a-z][a-z0-9-]{0,47}`. Strings use quotes, integers are signed 64-bit literals,
 and booleans are `#t` and `#f`. Keywords, symbols, and strings are different atom
 types: `:target`, `target`, and `"target"` are not interchangeable.
+Ordinary data fields also support finite binary64 literals (`1.25`, `1e-3`) with
+shape type `float`, and exact decimal literals (`12.34m`) with shape type
+`decimal`. The `m` suffix is lowercase; decimal exponents are unsupported.
+`integer` and `nonnegative` remain integer-only; `number` accepts all three numeric representations.
+Counters and sums require a contract proven integer-only, including named refinements. Decimal JSON values use `{"decimal":"12.34"}` to preserve precision.
+See [numeric atoms](../../README.md#numeric-atoms) for syntax and normalization.
+
 
 Each ordinary field is `(name (rule arguments…))`. Field names must be unique.
 Derived fields and thresholds reference earlier source fields; an unknown or
@@ -117,7 +124,9 @@ incompatible: two different answers cannot both be reached without conflict.
 | `"element-name"` | A finite `lift`: its carrier has reached that named non-top element or something above it. |
 | Integer or `#t` on a finite projection | A checked `stable` projection of uniform integer or boolean type: projected value at least the integer, or true. |
 
-`scalar` means string, integer, or boolean. A bare `fault` is never an alternative.
+For threshold and finite-lattice forms, `scalar` means string, integer, or
+boolean; float and decimal literals are not accepted in these forms.
+A bare `fault` is never an alternative.
 For an ordinary growing count, `(count 2)` and `(count 3)` cannot be alternatives
 in one read: both can hold without conflict. Signed counters, balances, removable
 sets, and displayed LWW winners are not generally stable threshold sources.

@@ -301,7 +301,7 @@ fn dialect(case: &Value) -> String {
     } else {
         String::new()
     };
-    let source = format!("(define oracle-demo (cbcl) @a (extend open (to) (tell to)) (extend mark (to phase amount flag) (tell to :phase phase :amount amount :flag flag)) (shape mark (require :phase string) (require :amount number) (require :flag bool)) (protocol (then begin open) (then open mark)) (state (lattice rank (elements {names}) (bottom e0) (top {}) (join {joins})) (value (lift mark (into rank) (contribute {rows}) {projection})) {threshold} {freeze}))",table["top"].as_str().unwrap());
+    let source = format!("(define oracle-demo (cbcl) @a (extend open (to) (tell to)) (extend mark (to phase amount flag) (tell to :phase phase :amount amount :flag flag)) (shape mark (require :phase string) (require :amount integer) (require :flag bool)) (protocol (then begin open) (then open mark)) (state (lattice rank (elements {names}) (bottom e0) (top {}) (join {joins})) (value (lift mark (into rank) (contribute {rows}) {projection})) {threshold} {freeze}))",table["top"].as_str().unwrap());
     let source = if let Some(limit) = case.get("max-list").and_then(Value::as_u64) {
         source.replace("(state", &format!("(:state-bounds (max-list {limit})) (state"))
     } else { source };
@@ -925,7 +925,7 @@ fn native_nested(case: &Value) -> Value {
       (extend mark (to amount) :from owner :to owner (tell to :amount amount))
       (extend close (to) :from owner :to owner (tell to))
       (extend seal (to) :from owner :to owner (tell to))
-      (shape mark (require :amount number))
+      (shape mark (require :amount integer))
       (protocol (then begin open) (then open (repeat 16 mark close seal)))
       (state (source (events mark :amount)) (total (sum source)) {} {}))",
         freeze("source", "close", &case["source_freeze"]),

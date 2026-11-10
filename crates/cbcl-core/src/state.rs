@@ -811,6 +811,8 @@ pub enum Value {
     Absent,
     Str(String),
     Int(i128),
+    Float(crate::numeric::Float),
+    Decimal(crate::numeric::Decimal),
     Bool(bool),
     /// A scalar list as a field value (never sorted; it is data).
     List(Vec<Value>),
@@ -877,6 +879,8 @@ impl Value {
     pub fn from_sexpr(s: &SExpr) -> Value {
         match s {
             SExpr::Atom(Atom::Str(x)) => Value::Str(x.clone()),
+            SExpr::Atom(Atom::Float(n)) => Value::Float(*n),
+            SExpr::Atom(Atom::Decimal(n)) => Value::Decimal(n.clone()),
             SExpr::Atom(Atom::Num(n)) => Value::Int(*n as i128),
             SExpr::Atom(Atom::Bool(b)) => Value::Bool(*b),
             SExpr::Atom(Atom::Symbol(x)) => Value::Str(x.clone()),
@@ -896,6 +900,12 @@ impl Value {
         match self {
             Value::Absent => out.push_str("null"),
             Value::Str(s) => json_string(s, out),
+            Value::Float(n) => out.push_str(&n.to_string()),
+            Value::Decimal(n) => {
+                out.push_str("{\"decimal\":");
+                json_string(n.as_str(), out);
+                out.push('}');
+            }
             Value::Int(n) => out.push_str(&n.to_string()),
             Value::Bool(b) => out.push_str(if *b { "true" } else { "false" }),
             Value::List(items) => {
@@ -1740,6 +1750,10 @@ pub enum ScalarType {
     Str,
     Hlc,
     Int,
+    Float,
+    Decimal,
+    Number,
+    Value,
     Bool,
     /// A list of scalars (a `list` shape type).
     List,
@@ -1748,9 +1762,17 @@ pub enum ScalarType {
 impl ScalarType {
     pub fn from_constraint(tc: &TypeConstraint) -> Option<ScalarType> {
         match tc {
+            TypeConstraint::Float => Some(ScalarType::Float),
+            TypeConstraint::Decimal => Some(ScalarType::Decimal),
             TypeConstraint::String => Some(ScalarType::Str),
             TypeConstraint::Hlc => Some(ScalarType::Hlc),
-            TypeConstraint::Number | TypeConstraint::Nonnegative => Some(ScalarType::Int),
+            TypeConstraint::Integer | TypeConstraint::Nonnegative => Some(ScalarType::Int),
+            TypeConstraint::Number => Some(ScalarType::Number),
+            TypeConstraint::Contract(c) => c
+                .representation()
+                .as_ref()
+                .and_then(Self::from_constraint)
+                .or(Some(ScalarType::Value)),
             TypeConstraint::Bool => Some(ScalarType::Bool),
             TypeConstraint::List => Some(ScalarType::List),
             TypeConstraint::Symbol | TypeConstraint::Keyword => None,
@@ -1761,7 +1783,11 @@ impl ScalarType {
         match self {
             ScalarType::Str => "string",
             ScalarType::Hlc => "hlc",
-            ScalarType::Int => "number",
+            ScalarType::Float => "float",
+            ScalarType::Decimal => "decimal",
+            ScalarType::Int => "integer",
+            ScalarType::Number => "number",
+            ScalarType::Value => "value",
             ScalarType::Bool => "bool",
             ScalarType::List => "list",
         }
@@ -1890,7 +1916,9 @@ pub fn field_type(
                     ..
                 } => {
                     if keyword == key {
-                        return *type_constraint;
+                        return type_constraint
+                            .as_ref()
+                            .and_then(TypeConstraint::representation);
                     }
                 }
                 ShapeRule::MaxDepth(_) => {}

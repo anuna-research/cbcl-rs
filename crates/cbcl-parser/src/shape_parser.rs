@@ -97,10 +97,19 @@ fn parse_optional_rule(items: &[SExpr]) -> Result<ShapeRule, String> {
     let mut idx = 2;
     let type_constraint = extract_type_constraint_at(items, &mut idx);
 
-    // Default value: any non-list S-expression that isn't a type constraint symbol
-    // or a child rule list. We consume it if it's an atom (not a list starting with
-    // require/optional/max-depth).
-    let default = extract_default_value(items, &mut idx);
+    let default = if let Some(SExpr::List(clause)) = items.get(idx) {
+        if clause.first().is_some_and(|e| e.is_symbol("default")) {
+            if clause.len() != 2 {
+                return Err("default requires exactly one value".into());
+            }
+            idx += 1;
+            Some(clause[1].clone())
+        } else {
+            None
+        }
+    } else {
+        None
+    };
     let children = parse_child_rules(items, idx)?;
 
     Ok(ShapeRule::Optional {
@@ -117,7 +126,9 @@ fn parse_max_depth_rule(items: &[SExpr]) -> Result<ShapeRule, String> {
         return Err(String::from("max-depth rule requires exactly one number"));
     }
     match &items[1] {
-        SExpr::Atom(Atom::Num(n)) if *n > 0 => Ok(ShapeRule::MaxDepth(*n as u32)),
+        SExpr::Atom(Atom::Num(n)) if *n > 0 => Ok(ShapeRule::MaxDepth(
+            u32::try_from(*n).map_err(|_| "max-depth exceeds u32")?,
+        )),
         SExpr::Atom(Atom::Num(n)) => Err(alloc::format!("max-depth must be positive, got {n}")),
         _ => Err(String::from("max-depth value must be a number")),
     }
@@ -133,43 +144,24 @@ fn extract_keyword(sexpr: &SExpr) -> Result<String, String> {
 
 /// Try to extract a type constraint at position `idx`, advancing `idx` if found.
 fn extract_type_constraint_at(items: &[SExpr], idx: &mut usize) -> Option<TypeConstraint> {
-    if *idx < items.len() {
-        if let SExpr::Atom(Atom::Symbol(s)) = &items[*idx] {
-            if let Some(tc) = TypeConstraint::from_str(s) {
-                *idx += 1;
-                return Some(tc);
-            }
-        }
+    let value = items.get(*idx)?;
+    let is_child = matches!(value, SExpr::List(xs) if xs.first().is_some_and(|x| ["require", "optional", "max-depth", "default"].iter().any(|h|x.is_symbol(h))));
+    if is_child {
+        return None;
+    }
+    if let SExpr::Atom(Atom::Symbol(name)) = value {
+        *idx += 1;
+        return Some(TypeConstraint::from_str(name).unwrap_or_else(|| {
+            TypeConstraint::Contract(cbcl_core::contracts::Contract::unresolved(value.clone()))
+        }));
+    }
+    if matches!(value, SExpr::List(_)) {
+        *idx += 1;
+        return Some(TypeConstraint::Contract(
+            cbcl_core::contracts::Contract::unresolved(value.clone()),
+        ));
     }
     None
-}
-
-/// Try to extract a default value at position `idx`, advancing `idx` if found.
-///
-/// A default value is any S-expression that is not a child rule (i.e., not a list
-/// starting with require/optional/max-depth).
-fn extract_default_value(items: &[SExpr], idx: &mut usize) -> Option<SExpr> {
-    if *idx >= items.len() {
-        return None;
-    }
-    // If it's a list that looks like a child rule, don't consume it as a default.
-    if is_child_rule(&items[*idx]) {
-        return None;
-    }
-    // Consume as default value.
-    let val = items[*idx].clone();
-    *idx += 1;
-    Some(val)
-}
-
-/// Check if an S-expression looks like a child shape rule.
-fn is_child_rule(sexpr: &SExpr) -> bool {
-    if let SExpr::List(items) = sexpr {
-        if let Some(SExpr::Atom(Atom::Symbol(s))) = items.first() {
-            return matches!(s.as_str(), "require" | "optional" | "max-depth");
-        }
-    }
-    false
 }
 
 /// Parse remaining items as child rules.
@@ -249,7 +241,7 @@ mod tests {
                 sym("optional"),
                 kw("priority"),
                 sym("string"),
-                str_expr("normal"),
+                list(vec![sym("default"), str_expr("normal")]),
             ]),
             list(vec![sym("max-depth"), num(4)]),
         ]);
@@ -433,7 +425,7 @@ mod tests {
 
     #[test]
     fn parse_from_text() {
-        let input = "(shape track-shipment (require :package string) (optional :priority string \"normal\") (max-depth 4))";
+        let input = "(shape track-shipment (require :package string) (optional :priority string (default \"normal\")) (max-depth 4))";
         let sexpr: SExpr = input.parse().unwrap();
         let shape = parse_shape(&sexpr).unwrap();
         assert_eq!(shape.performative, "track-shipment");

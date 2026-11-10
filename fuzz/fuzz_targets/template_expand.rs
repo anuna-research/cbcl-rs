@@ -63,6 +63,7 @@ fn arb_dialect(u: &mut Unstructured) -> arbitrary::Result<Dialect> {
     let max_depth: u32 = u.int_in_range(2..=16)?;
     let max_expansion_size: u32 = u.int_in_range(64..=2048)?;
     Ok(Dialect {
+        types: Default::default(),
         name,
         extends: vec!["cbcl".into()],
         author: None,

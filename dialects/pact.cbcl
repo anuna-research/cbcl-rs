@@ -155,12 +155,12 @@
     (require :proto string)
     (require :role symbol)
     (require :outcome list)
-    (require :utility number))
+    (require :utility integer))
 
   (shape request-policy
     (require :proto string)
     (require :role symbol)
-    (require :bound number))
+    (require :bound integer))
 
   (shape commit-policy
     (require :proto string)

@@ -179,7 +179,7 @@ fn bench_parse_shape(c: &mut Criterion) {
            (require :route string) \
            (require :sender symbol) \
            (optional :priority string \"normal\") \
-           (optional :weight number) \
+           (optional :weight integer) \
            (require :destination string) \
            (optional :fragile bool) \
            (max-depth 6))",

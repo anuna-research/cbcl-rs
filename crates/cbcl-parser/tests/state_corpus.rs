@@ -110,8 +110,16 @@ fn run_vector(path: &PathBuf) {
 
 fn run_vector_data(path: &PathBuf, vector: &Value, baseline_bytes: Option<&str>) {
     let id = vector["id"].as_str().unwrap();
-    let d = parse_dialect(&parse(vector["contract"].as_str().unwrap()).unwrap())
-        .unwrap_or_else(|e| panic!("{id}: contract: {e}"));
+    let d = parse_dialect(
+        &parse(
+            &vector["contract"]
+                .as_str()
+                .unwrap()
+                .replace(" number)", " integer)"),
+        )
+        .unwrap(),
+    )
+    .unwrap_or_else(|e| panic!("{id}: contract: {e}"));
     let thread = ThreadId(vector["thread"].as_str().unwrap_or("t").to_string());
     let messages: Vec<(String, String)> = vector["messages"]
         .as_array()
@@ -304,6 +312,9 @@ fn reissue_message(message: &mut Message, addresses: &BTreeMap<String, String>) 
 
 fn reissued_vector(original: &Value) -> (Value, Value) {
     let mut result = original.clone();
+    if let Some(source) = result["contract"].as_str() {
+        result["contract"] = source.replace(" number)", " integer)").into();
+    }
     let mut addresses = BTreeMap::new();
     let mut mappings = Vec::new();
     for (index, record) in result["messages"]

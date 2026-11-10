@@ -179,10 +179,12 @@ export type Rule = [string, ...string[]];
 
 /** What a host or a view needs to know about a dialect, read from cbcl-rs's installed structures. */
 export interface DialectInfo {
+  typeProfile: string;
+  types: Record<string, { source: string; representations: string[] }>;
   name: string;
   author: string | null;
   opener: string | null;
-  verbs: Record<string, { params: string[]; fields: Record<string, string>; after: string[]; from?: string; to?: string[] }>;
+  verbs: Record<string, { params: string[]; fields: Record<string, string>; contracts: Record<string, { source: string; representations: string[]; required: boolean; default: string | null }>; after: string[]; from?: string; to?: string[] }>;
   roles: Record<string, 'singleton' | 'indexed'>;
   state: Record<string, Rule>;
   domains: { verb: string; key: string; field: string }[];
@@ -195,7 +197,7 @@ export interface DialectInfo {
 export function describeDialect(input: string): DialectInfo { return refusal(() => JSON.parse(describe_dialect(input)) as DialectInfo); }
 
 /** A field value as an act carries it. */
-export type FieldValue = string | number | boolean | FieldValue[];
+export type FieldValue = string | number | boolean | { decimal: string } | FieldValue[];
 
 /** An act as the parser and the state layer read it. */
 export interface ActInfo {

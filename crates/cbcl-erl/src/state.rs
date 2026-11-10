@@ -338,3 +338,27 @@ mod bounded_counter_binding_tests {
         }
     }
 }
+
+#[cfg(test)]
+mod spec040_vectors {
+    #[test]
+    fn flat_contract_binding_vectors() {
+        let cases: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../test-vectors/contracts/flat-contracts.json"
+        ))
+        .unwrap();
+        for case in cases.as_array().unwrap() {
+            let result =
+                super::verify_message_shape_pure(case["frame"].as_str().unwrap().as_bytes());
+            assert_eq!(
+                result.is_ok(),
+                case["accept"].as_bool().unwrap(),
+                "{}: {result:?}",
+                case["id"]
+            );
+            if let Some(expected) = case["errorContains"].as_str() {
+                assert!(result.unwrap_err().contains(expected));
+            }
+        }
+    }
+}

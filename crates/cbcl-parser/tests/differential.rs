@@ -559,6 +559,7 @@ fn differential_r1_no_recursion() {
 
 fn make_test_dialect(name: &str, bounds: ResourceBounds) -> Dialect {
     Dialect {
+        types: Default::default(),
         roles: Vec::new(),
         state: None,
         state_bounds: None,
@@ -680,6 +681,7 @@ fn differential_r3_core_preservation() {
             // should fail R3 if it's a core performative
             if expected_core {
                 let d = Dialect {
+                    types: Default::default(),
                     roles: Vec::new(),
                     state: None,
                     state_bounds: None,
@@ -783,6 +785,7 @@ fn differential_r4_signatures() {
         // r4-004: Dialect with integrity fields
         if let Some(hash) = input.get("hash") {
             let d = Dialect {
+                types: Default::default(),
                 roles: Vec::new(),
                 state: None,
                 state_bounds: None,

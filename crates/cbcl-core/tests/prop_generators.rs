@@ -195,6 +195,7 @@ pub fn arb_valid_dialect() -> impl Strategy<Value = Dialect> {
                 .collect();
 
             Dialect {
+                types: Default::default(),
                 roles: Vec::new(),
                 state: None,
                 state_bounds: None,
@@ -222,6 +223,7 @@ pub fn arb_r3_violating_dialect() -> impl Strategy<Value = Dialect> {
         prop::sample::select(CORE_PERFORMATIVE_NAMES),
     )
         .prop_map(|(dialect_name, resources, core_name)| Dialect {
+            types: Default::default(),
             roles: Vec::new(),
             state: None,
             state_bounds: None,

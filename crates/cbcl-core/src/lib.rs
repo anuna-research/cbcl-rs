@@ -137,3 +137,7 @@ mod freeze;
 pub mod hlc;
 
 pub mod multihash;
+
+pub mod numeric;
+
+pub mod contracts;
