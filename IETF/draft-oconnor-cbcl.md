@@ -301,7 +301,7 @@ s-expr       = list / atom
 
 list         = %s"(" *( WS s-expr ) WS %s")"
 
-atom         = string / boolean / keyword / number / symbol
+atom         = string / boolean / keyword / numeric / symbol
 
 ; -- Whitespace and comments -------------------------------------
 
@@ -326,10 +326,16 @@ symbol-char  = ALPHA / DIGIT / %s"_" / %s"-" / %s"." / %s"/"
 
 ; -- Numbers -----------------------------------------------------
 ;
-; Numbers are 64-bit signed integers. See the tokenization note
-; below: a token beginning with DIGIT, or with "-" followed by
-; DIGIT, is lexed as a number token and MUST match this rule.
+; Digit-led tokens, including "-" followed by DIGIT, MUST match
+; numeric. The number production remains integer-only wherever used
+; for bounds, repetition, arithmetic, or threshold parameters.
+numeric      = number / float / decimal
 number       = [ %s"-" ] 1*DIGIT
+float        = [ %s"-" ] 1*DIGIT
+               ( float-frac [ float-exp ] / float-exp )
+float-frac   = %s"." *DIGIT
+float-exp    = ( %s"e" / %s"E" ) [ %s"+" / %s"-" ] 1*DIGIT
+decimal      = [ %s"-" ] 1*DIGIT [ %s"." 1*DIGIT ] %s"m"
 
 ; -- Strings -----------------------------------------------------
 
@@ -361,12 +367,16 @@ scanner. Three of its rules are not expressible in ABNF alone and are normative:
    `"` a string; `#` a boolean; `:` a keyword; a DIGIT, or `-` followed by a
    DIGIT, a number; any other character a symbol.
 
-2. **Number tokens are maximal.** Once a token is recognized as a number, the
-   scanner consumes the maximal run of DIGIT and `-` characters and the result
-   MUST match `number` and MUST be representable as a 64-bit signed integer.
-   Consequently `1-2`, `1-`, and integers outside the 64-bit signed range
-   are errors, not symbols. A `-` **not** followed by a DIGIT begins a symbol, so
-   `-`, `-a`, `--3`, and `->` are symbols.
+2. **Numeric tokens are maximal.** After digit-led dispatch, the scanner
+   consumes through the next delimiter or end of input. The complete token
+   MUST match `numeric`. Integers MUST fit the signed 64-bit range; floats MUST
+   decode to finite IEEE 754 binary64 values. Decimals retain arbitrary
+   precision without conversion through binary floating point. The decimal
+   suffix is lowercase `m`, and decimal exponents are not permitted.
+   Consequently `1-2`, `1-`, `1e`, `1e9999`, `1.m`, and `1e2m` are errors,
+   not symbols. A `-` **not** followed by a DIGIT begins a symbol, so `-`,
+   `-a`, `--3`, and `->` are symbols. Leading `+` and leading decimal points
+   also select symbol recognition: `+1.0`, `.5`, and `-.5` are symbols.
 
 3. **Boolean literals require a following delimiter.** `#` MUST be followed by
    exactly `t` or `f` and then by a delimiter or end of input. `#true`, `#tx`,
@@ -767,7 +777,8 @@ optional-rule = %s"(" %s"optional" WS keyword [ WS type-name ]
 
 depth-rule   = %s"(" %s"max-depth" WS number %s")"
 
-type-name    = %s"string" / %s"number" / %s"bool"
+type-name    = %s"string" / %s"hlc" / %s"number" / %s"float"
+             / %s"decimal" / %s"nonnegative" / %s"bool"
              / %s"symbol" / %s"keyword" / %s"list"
 
 default-value = s-expr
@@ -1196,8 +1207,12 @@ performative must carry, with optional type constraints:
 
 `require` demands the parameter be present; `optional` permits it and MAY supply
 a default; `max-depth` bounds the nesting of the checked message. Rules may nest,
-constraining structure within a parameter's value. The six type names are
-`string`, `number`, `bool`, `symbol`, `keyword`, and `list`.
+constraining structure within a parameter's value. Type names are `string`,
+`hlc`, `number`, `float`, `decimal`, `nonnegative`, `bool`, `symbol`, `keyword`,
+and `list`. `number` accepts signed 64-bit integer atoms; `nonnegative` further
+requires an integer value greater than or equal to zero. `float` and `decimal`
+accept their respective numeric atoms without cross-type coercion. `hlc` checks
+the canonical host-supplied hybrid logical clock string format.
 
 Shape checking is applied to the *expanded* message, non-recursively. Dialect
 authors should therefore surface contract-relevant keyword parameters at the top
@@ -1596,14 +1611,25 @@ All text is UTF-8; lengths count octets, including the type-tag octet.
 | keyword `:k` | ASCII `K` followed by the bytes of `k`, without the colon |
 | string `s` | ASCII `Q` followed by the decoded bytes of `s` |
 | integer `n` | ASCII `N` followed by minimal signed decimal ASCII of `n` |
+| float `f` | ASCII `F` followed by the canonical float text specified below |
+| decimal `d` | ASCII `D` followed by the normalized exact decimal text, without `m` |
 | boolean true / false | ASCII `Bt` / `Bf` |
 
 An atom is encoded as its octet-string length in decimal ASCII with no leading
 zeros, a colon, and the octet string. Zero is spelled `0`; integers have no
 leading plus or zeros, and negative zero normalizes to zero. A list is `(`,
 the concatenated canonical encodings of its children, and `)`, with no spaces.
+Floats serialize in fixed-point decimal notation with shortest round-tripping
+digits for their binary64 value. Integral float values retain `.0`, and negative
+zero normalizes to `0.0`; for example, `1e2` serializes as `100.0`.
+Decimals remove leading integer zeroes and trailing fractional zeroes, discard an
+empty fractional part, and normalize negative zero to zero. Their human-readable
+serialization retains `m`; their canonical tagged octets omit that suffix.
+Thus `001.2500m` serializes as `1.25m` and contributes octets `D1.25`.
+
 Strings are not Unicode-normalized. A symbol and a string with the same text
-MUST remain distinct. For example:
+MUST remain distinct. Integer, float, and decimal atoms also remain distinct
+even when their mathematical values agree. For example:
 
 | Input | Canonical octets, shown as ASCII |
 |---|---|
@@ -1611,6 +1637,8 @@ MUST remain distinct. For example:
 | `"alice"` | `6:Qalice` |
 | `:x` | `2:Kx` |
 | `-0` | `2:N0` |
+| `1.25` | `5:F1.25` |
+| `001.2500m` | `5:D1.25` |
 | `#t` | `2:Bt` |
 | `(tell "hi")` | `(5:Stell3:Qhi)` |
 
@@ -2291,7 +2319,8 @@ Conformant CBCL parsers MUST:
 - Reject malformed messages with clear error indications
 - Complete parsing in bounded time
 - Reject, never repair, malformed input. In particular an unrecognized escape
-  sequence, an unterminated string, an out-of-range integer, and a character
+  sequence, an unterminated string, an out-of-range integer, an overflowing float,
+  a malformed decimal, and a character
   outside the symbol alphabet are all errors.
 
 ## Dialect Registry
@@ -2601,6 +2630,10 @@ the causal-verification monotonicity results, the endpoint-projection
 correspondence, the splicing analysis, a temporal bridge to conformant
 executions, and DCFL preservation at the role layer. A verified parser binary is
 extracted from the proofs.
+
+The current Lean atom and parser models cover the integer numeric fragment.
+The reference Rust implementation additionally recognizes float and decimal atoms;
+those extensions do not yet carry equivalent Lean parser and canonicalization proofs.
 
 Implementation repository: https://git.anuna.io/anuna-research/cbcl-rs
 

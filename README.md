@@ -80,6 +80,41 @@ state keywords, argument syntax, installation checks, and read semantics.
 See also [roles and casts](docs/concepts/role-cast.md) and
 [protocol progress](docs/concepts/protocol-progress.md).
 
+### Numeric atoms
+
+| Type | Literal examples | Shape type |
+|---|---|---|
+| Signed 64-bit integer | `42`, `-7` | `number`; `nonnegative` additionally requires a value ≥ 0 |
+| Finite IEEE 754 binary64 float | `1.25`, `1.`, `1e-3`, `1E+2` | `float` |
+| Exact arbitrary-precision decimal | `12m`, `12.3400m`, `-0.01m` | `decimal` |
+
+Numeric literals start with a digit or `-` followed by a digit. The decimal suffix
+is lowercase `m`; decimal exponents and `1.m` are rejected. `+1.0`, `.5`, and
+`-.5` are symbols rather than numeric literals. Floats must decode to finite
+binary64 values; an overflowing literal such as `1e9999` is rejected.
+
+Serialization normalizes values: `1e2` becomes `100.0`, `-0.0` becomes `0.0`,
+and `0012.3400m` becomes `12.34m`. Floats use fixed-point decimal text with
+round-tripping digits and retain `.0` for integral values. Decimals remove
+redundant zeroes without passing through binary floating point; their storage
+grows with the normalized text rather than using a fixed-width decimal format.
+
+```lisp
+(shape quote (require :quantity number)
+             (require :ratio float)
+             (require :price decimal))
+```
+
+The [EBNF](docs/cbcl-grammar.ebnf) distinguishes numeric atoms from integer-only
+`number` positions. Existing `number` and `nonnegative` shapes, counter arithmetic,
+resource bounds, repeat counts, finite-lattice tables, and threshold literals
+retain their integer semantics. Floats and decimals are available as ordinary
+message and state data; their shape types remain distinct from `number`.
+
+Canonical atom tags are `F` and `D`; existing integer encodings are unchanged.
+NIF floats are BEAM floats; decimals are `{decimal, <<"12.34">>}`. JSON state and
+act views carry decimals as `{"decimal":"12.34"}` to preserve precision in browsers.
+
 For bindings, see [JavaScript/TypeScript](js/README.md), [WebAssembly](README-WASM.md), and [Erlang/BEAM](crates/cbcl-erl/README.md). The JavaScript/TypeScript package includes a JSON-authored object runtime.
 
 ## Current capabilities
@@ -303,17 +338,6 @@ Apache-2.0; see LICENSE.
   url       = {https://www.computer.org/csdl/proceedings-article/spw/2026/107000a039/2hIfzFiEfjG}
 }
 ```
-
-Numeric atoms include integers (`42`), finite IEEE 754 binary64 floats (`1.25`,
-`1e-3`), and exact arbitrary-precision decimals with an `m` suffix (`12.3400m`).
-Floats canonicalize to their shortest round-tripping value; signed zero becomes
-`0.0`. Decimals remove leading/trailing zeroes without passing through binary
-floating point (`12.3400m` becomes `12.34m`). Decimal exponents are not accepted.
-Shape types `float` and `decimal` distinguish them; the existing `number` and
-`nonnegative` types and counter arithmetic retain their integer semantics.
-The canonical atom tags are `F` and `D`; existing integer encodings are unchanged.
-NIF floats are BEAM floats; decimals are `{decimal, <<"12.34">>}`. JSON state and
-act views carry decimals as `{"decimal":"12.34"}` to preserve precision in browsers.
 
 Causal protocols accept chains: `(protocol (then begin one two three))`
 is equivalent to `(protocol (then begin one) (then one two) (then two three))`.

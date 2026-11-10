@@ -14,7 +14,7 @@
 //!
 //! # CBCL Atom-to-Octet-String Mapping
 //!
-//! CBCL has typed atoms (Symbol, Keyword, Num, Bool, Str) while SPKI
+//! CBCL has typed atoms (Symbol, Keyword, Num, Float, Decimal, Bool, Str) while SPKI
 //! S-expressions are fundamentally octet-strings plus lists. This module
 //! defines a stable, injective mapping from CBCL atoms to octet strings
 //! that becomes part of the protocol:
@@ -25,11 +25,13 @@
 //! | `Keyword(k)`   | `K`  | `b"K"` ++ UTF-8 bytes of `k`          |
 //! | `Str(s)`       | `Q`  | `b"Q"` ++ UTF-8 bytes of `s`          |
 //! | `Num(n)`       | `N`  | `b"N"` ++ ASCII decimal of `n`        |
+//! | `Float(f)`     | `F`  | `b"F"` ++ canonical finite float text     |
+//! | `Decimal(d)`   | `D`  | `b"D"` ++ normalized text without `m`     |
 //! | `Bool(true)`   | `B`  | `b"Bt"`                                |
 //! | `Bool(false)`  | `B`  | `b"Bf"`                                |
 //!
 //! **Injectivity**: Each variant uses a distinct single-byte type tag prefix
-//! (`S`, `K`, `Q`, `N`, `B`), guaranteeing that no value of one variant can
+//! (`S`, `K`, `Q`, `N`, `F`, `D`, `B`), guaranteeing that no value of one variant can
 //! collide with a value of a different variant.
 //!
 //! The mapping is stable and MUST NOT change once published. It is a
@@ -94,12 +96,13 @@ pub const CANONICAL_FORM_VERSION: u32 = 5;
 /// | `Keyword(k)`   | `K`  | `b"K"` ++ UTF-8 bytes of `k`   |
 /// | `Str(s)`       | `Q`  | `b"Q"` ++ UTF-8 bytes of `s`   |
 /// | `Num(n)`       | `N`  | `b"N"` ++ ASCII decimal of `n`  |
+/// | `Float(f)`     | `F`  | `b"F"` ++ canonical finite float text     |
+/// | `Decimal(d)`   | `D`  | `b"D"` ++ normalized text without `m`     |
 /// | `Bool(true)`   | `B`  | `b"Bt"`                         |
 /// | `Bool(false)`  | `B`  | `b"Bf"`                         |
 ///
 /// The tag bytes are chosen to be distinct ASCII uppercase letters.
-/// This ensures that no Symbol, Keyword, Str, Num, or Bool value can
-/// collide with a value of a different variant.
+/// Distinct type tags prevent collisions between different atom variants.
 pub fn atom_to_octets(atom: &Atom) -> Vec<u8> {
     match atom {
         Atom::Symbol(s) => {
