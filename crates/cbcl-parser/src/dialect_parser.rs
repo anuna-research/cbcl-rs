@@ -80,7 +80,20 @@ pub fn parse_dialect(sexpr: &SExpr) -> Result<Dialect, String> {
     let mut state: Option<StateClause> = None;
     let mut state_bounds: Option<StateBounds> = None;
 
+    let mut types = alloc::collections::BTreeMap::new();
     for clause in &items[4..] {
+        if let SExpr::List(xs) = clause {
+            if xs.first().is_some_and(|x| x.is_symbol("type")) {
+                if xs.len() != 3 {
+                    return Err("type requires a name and expression".into());
+                }
+                let name = extract_symbol(&xs[1], "type name")?;
+                if types.insert(name, xs[2].clone()).is_some() {
+                    return Err("duplicate type name".into());
+                }
+                continue;
+            }
+        }
         parse_clause(
             clause,
             &mut performatives,
@@ -115,6 +128,7 @@ pub fn parse_dialect(sexpr: &SExpr) -> Result<Dialect, String> {
     }
 
     let mut d = Dialect {
+        types,
         roles,
         causal_locality,
         state,
@@ -131,6 +145,7 @@ pub fn parse_dialect(sexpr: &SExpr) -> Result<Dialect, String> {
         causal_protocol,
         shapes,
     };
+    cbcl_core::contracts::install(&mut d)?;
     cbcl_core::r7::insert_replaces(&mut d);
     cbcl_core::context::resolve(&mut d);
     Ok(d)

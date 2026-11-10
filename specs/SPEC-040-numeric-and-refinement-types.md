@@ -1,9 +1,9 @@
 ---
 id: SPEC-040
 title: Numeric Types and Named Flat Contracts
-status: draft
+status: implemented
 mode: reference
-version: 0.3.0
+version: 1.0.0
 last-updated: 2026-11-10
 owner: CBCL maintainer
 ---
@@ -14,9 +14,9 @@ owner: CBCL maintainer
 |---|---|
 | ID | SPEC-040 |
 | Title | Numeric Types and Named Flat Contracts |
-| Status | Specification first; proposed behavior awaiting design approval |
+| Status | Implemented on PR 29; verification evidence linked below |
 | Branch | feat/issue-21-numeric-types; PR 29 |
-| Next actor | Maintainer: review the syntax, signed semantics profile, and regex limits before implementation |
+| Next actor | Maintainer: review PR 29 and the recorded verification evidence |
 
 ## Orientation
 
@@ -60,8 +60,8 @@ Controls:
 - [[SPEC-040-numeric-and-refinement-types#REQ-4005]] prohibits using old signatures under changed type semantics.
 - [[SPEC-040-numeric-and-refinement-types#REQ-4006]] rejects invalid values and defaults at their defined boundary with attributable diagnostics.
 
-Open: [[SPEC-040-numeric-and-refinement-types#Open decisions]] assigns the optional-default migration, implementation placement, and numeric budget ratification to the maintainer.
-This document is a draft. Its acceptance tests are proposed, and the PR's existing implementation does not yet satisfy this specification.
+Profile: [[SPEC-040-numeric-and-refinement-types#Implementation profile]] fixes the default migration, engine, Unicode data, and resource accounting.
+The implementation uses the shared core checker across native and binding surfaces. Verification evidence records core coverage and explicit depth follow-up.
 
 Detail: [[SPEC-040-numeric-and-refinement-types#CON-4000]] defines type declarations, enumerations, length bounds, and numeric range syntax;
 [[SPEC-040-numeric-and-refinement-types#CON-4001]] defines the bounded regex language;
@@ -130,7 +130,7 @@ Composition is explicit and remains flat:
 ```
 
 `reference` accepts either complete format. `local-postcode` must satisfy both contracts.
-These examples specify proposed syntax; they are not accepted by the current parser.
+These examples are accepted by the dialect parser and checked at installation.
 
 ## Requirements
 
@@ -228,7 +228,7 @@ Trace: [[SPEC-040-numeric-and-refinement-types#TEST-4003]], [[SPEC-040-numeric-a
 ### CON-4000
 
 Interface: type declarations inside a dialect and type expressions in existing shape type slots.
-The proposed structural grammar uses the existing CBCL lexical productions for symbols, keywords, strings, and values.
+The structural grammar uses the existing CBCL lexical productions for symbols, keywords, strings, and values.
 
 ```ebnf
 type-decl   = "(" , "type" , ws , type-name , ws , type-expr , ")" ;
@@ -310,7 +310,7 @@ Numeric refinements combine their base representation with every declared bound:
 ```lisp
 (type percentage (number (>= 0) (<= 100)))
 (type positive-count (integer (> 0)))
-(type price (decimal (>= 0m) (< 10000m)))
+(type price (decimal (>= 0) (< 10000)))
 ```
 
 `numeric-literal` is an existing integer, finite float, or decimal literal; expressions and references are not bounds.
@@ -328,7 +328,7 @@ It SHALL reject reversed endpoints and equal endpoints with either endpoint excl
 Other empty domains, such as `(integer (> 0) (< 1))`, SHALL remain valid contracts that reject every value.
 These checks introduce no arithmetic expressions, step sizes, units, coercion, or cross-field comparisons.
 
-The proposed `default` clause makes optional defaults explicit:
+The `default` clause makes optional defaults explicit:
 
 ```lisp
 (optional :postcode postal-code (default "2000"))
@@ -336,7 +336,7 @@ The proposed `default` clause makes optional defaults explicit:
 
 The installer validates that default against its declared contract.
 Bare symbols in a type slot are always type references, including unresolved references.
-The legacy positional-default syntax therefore requires an explicit migration decision before implementation; it cannot mask a misspelled type name.
+Legacy positional defaults require rewriting as explicit clauses; they cannot mask a misspelled type name.
 
 Preconditions: the complete dialect syntax is recognized under the chosen type-system profile.
 Postconditions: recognized expressions have unique structural interpretation before name resolution or pattern compilation.
@@ -405,7 +405,7 @@ Aliases retain their declared names for diagnostics. Canonical type declarations
 Their definitions retain source strings and explicit composition order; compiled automata and cache layouts are excluded from signed data.
 The canonical type segment binds each name and expression together, preventing changes through name rebinding.
 
-The signed body also includes a fixed type-semantics identifier, proposed as `cbcl-flat-v1`.
+The signed body also includes a fixed type-semantics identifier, `cbcl-flat-v1-unicode16`.
 The compiler inserts this identifier; dialect authors do not supply or order it.
 Its definition covers the numeric hierarchy, contract grammar, RFC 9485 semantics, pinned Unicode property data, and resource limits in this document.
 The signing-form version changes, and verification binds the profile rather than relying on an informational version constant alone.
@@ -474,7 +474,7 @@ An unchanged valid signature cannot authorize both meanings implicitly.
 Source pattern strings and profile identity support deterministic interpretation independently of the compiled regex representation.
 
 Trade-off: this is a deliberate development-time compatibility break; signatures and dialect self-addresses require explicit reissue.
-The maintainer approves the exact canonical segment and updated golden vectors before merging the implementation.
+The implementation profile fixes the canonical segment; PR review includes updated golden vectors and an explicit identity migration fixture.
 
 ### ADR-4003
 
@@ -485,13 +485,14 @@ Rationale: authors need a documented, portable language for Boolean validation. 
 Engine syntax, Unicode tables, and default matching modes cannot silently define signed contract semantics.
 
 Trade-off: adapters must preserve the documented language even where a host engine differs.
-The implementation plan must select the Unicode-data version, supply adaptation vectors, and demonstrate budget enforcement before claiming conformance.
+The implementation pins Unicode data, supplies adaptation vectors, and records budget enforcement in the linked verification evidence.
 
 Trace: [[SPEC-040-numeric-and-refinement-types#REQ-4003]], [[SPEC-040-numeric-and-refinement-types#CON-4001]], [[SPEC-040-numeric-and-refinement-types#TEST-4003]].
 
 ## Acceptance tests
 
-These are proposed tests, not evidence of implementation. The implementer owns runnable core tests before claiming conformance.
+Core acceptance is executable in `crates/cbcl-parser/tests/flat_contracts.rs` and shared native/WASM/NIF binding vectors.
+The verification record links results, mutation evidence, explicit fixture migration, and depth follow-up.
 Core tests use the actual parser, installer, shared checker, and binding helpers without network services.
 Depth tests add adversarial pattern corpora and cross-target performance measurement.
 
@@ -583,29 +584,53 @@ Bindings expose the same core categories; no independent host validator supplies
 
 Trace: [[SPEC-040-numeric-and-refinement-types#REQ-4000]], [[SPEC-040-numeric-and-refinement-types#REQ-4001]], [[SPEC-040-numeric-and-refinement-types#REQ-4002]], [[SPEC-040-numeric-and-refinement-types#REQ-4003]], [[SPEC-040-numeric-and-refinement-types#REQ-4004]], [[SPEC-040-numeric-and-refinement-types#REQ-4005]], [[SPEC-040-numeric-and-refinement-types#REQ-4006]].
 
-## Open decisions
+## Implementation profile
 
-- Maintainer: approve the proposed explicit `(default value)` syntax and migration from positional optional defaults before changing recognition.
-- Maintainer: ratify pattern, compiled-state, input, declaration, enumeration-member, literal-byte, dependency, and total-work limits with cross-target measurements.
-- Implementer: select an I-Regexp checking recognizer, existing engine, and semantic adapter across supported targets.
-- Maintainer: pin the Unicode property-data version and RFC conformance/adaptation vectors in the signed semantics profile.
-- Maintainer: approve the exact signed type-profile segment, signing-version change, and development fixture reissue before implementation merges.
-- Implementer: plan the resolved type representation, state-schema changes, numeric supertype checks, and JSON authoring/binding surface.
+The maintainer's implementation instruction approves the declarative design and authorizes the following concrete development choices.
+The compiler inserts `cbcl-flat-v1-unicode16`; signing form 6 binds that profile on every dialect, including dialects without custom types.
+Explicit `(default value)` replaces positional defaults; legacy sources require an explicit rewrite, with no ambiguous symbol fallback.
+RFC recognition precedes translation into regex-syntax 0.8.11 HIR and regex-automata 0.4.14 Thompson PikeVM execution.
+The pinned Unicode property tables are version 16.0.0; upgrades require a new signed profile.
 
-These decisions gate implementation. This draft does not mark the current PR's numeric naming or custom types as complete.
+| Limit | Value |
+|---|---|
+| Named declarations | 128 |
+| Compiled expression nodes | 512 |
+| Dependency and expression depth | 32 |
+| Pattern UTF-8 bytes | 1024 |
+| Check input storage budget | 65536 bytes, with fixed per-atom/node overhead |
+| Decimal digit storage per value | 4096 bytes |
+| Total literal canonical bytes | 65536 |
+| Members per enumeration | 256 |
+| Portable compiled NFA cost units | 262144 |
+| States per compiled NFA | 16384 |
+| Default local work allowance | 34359738368 units |
+
+Portable NFA cost sums fixed-width state and transition costs, independent of native pointer sizes.
+Sparse states cost 16 plus 8 per transition; dense states cost 16 plus 4 per transition.
+Union states cost 16 plus 4 per alternate; fail/match states cost 16; other states cost 32.
+A separate 16 MiB compiler allocation guard is operational, not the signed complexity metric.
+The type schema exposes source definitions, resolved representation sets, and the complete local name environment as an acyclic contract graph.
+Optional field metadata includes requiredness and default source; validators continue to use the shared core.
+
+Whole-check reservation sums worst-case predicate costs over composition before evaluation, including repeated named references without copying their programs.
+Numeric bounds reserve a conservative quadratic digit-work allowance; regex checks reserve state-count times maximum-input work.
+Local callers can lower their work allowance and receive `resource-limit` without a contract verdict.
+Measurements, adapter conformance vectors, signing fixture migration, and independent implementation review are acceptance evidence, not consequences of these choices.
+Depth testing against a separate full I-Regexp implementation remains maintainer-owned follow-up; core independent semantic vectors are mandatory here.
 
 ## Reading paths
 
-Reviewer: [[SPEC-040-numeric-and-refinement-types#Orientation]] → [[SPEC-040-numeric-and-refinement-types#Decisions]] → [[SPEC-040-numeric-and-refinement-types#Open decisions]].
+Reviewer: [[SPEC-040-numeric-and-refinement-types#Orientation]] → [[SPEC-040-numeric-and-refinement-types#Decisions]] → [[SPEC-040-numeric-and-refinement-types#Implementation profile]].
 Implementer: [[SPEC-040-numeric-and-refinement-types#Contracts]] → [[SPEC-040-numeric-and-refinement-types#Acceptance tests]] → [[SPEC-040-numeric-and-refinement-types#Requirements]].
 Stakeholder: [[SPEC-040-numeric-and-refinement-types#User paths]] → [[SPEC-040-numeric-and-refinement-types#Racket inspiration]].
 
 ## Amendment Channels
 
-The CBCL maintainer amends this draft through a recorded type-system decision or reviewed specification revision.
+The CBCL maintainer amends this specification through a recorded type-system decision or reviewed specification revision.
 Remote data, regex contents, message fields, and host callbacks cannot amend validation rules or resource budgets.
 Hard stops are the representation, installation, bounded matching, purity, signed-semantics, and boundary controls in [[SPEC-040-numeric-and-refinement-types#Orientation]].
-Approval of this specification and an implementation plan precede custom-type code changes.
+The maintainer authorized implementation after reviewing the design; the SPL ledger records acceptance dependencies.
 
 ## Sources
 
@@ -634,22 +659,23 @@ Racket supplies contract-system inspiration; this proposal makes no assertion of
 
 ## Review status
 
-Draft only. Independent comprehension and adversarial review are required before this document is treated as approved.
-No custom-type implementation, acceptance execution, or formal proof is claimed.
-The integer/number migration is specified here before the PR changes those semantics.
+Implementation evidence: [SPEC-040 verification](../proofs/flat-contracts/verification.md).
+The initial draft passed independent comprehension and design review before implementation was authorized.
+Implementation reviews covered core semantics, resource safety, schemas, grammar, and binding coverage; substantive findings were corrected.
+No formal proof or full independent-engine regex equivalence claim is made.
 
 Comprehension reviewer `type_spec_comprehension` read only the Orientation and correctly predicted the numeric, postal-code, ordering, and signature rules.
 Independent reviewer `type_spec_review` identified budget-order ambiguity and unclear separation of signed limits from local resource availability.
 The revision adds whole-check work reservation, profile-fixed limits, and a separate resource-limit result before a Boolean contract decision.
 The reviewer re-read the revision and reported no remaining substantive objection.
-That review does not establish implementation feasibility, runtime conformance, or the unratified numeric limits.
+That initial design review preceded the concrete implementation profile and runtime acceptance evidence.
 
 The 0.2.0 comprehension review confirmed numeric spellings and ownership of range syntax after Orientation clarification.
 Independent review checked RFC 9485 semantics and numeric ranges, resolving stale scope text, endpoint handling, and signed-bound coverage.
-Empty numeric-domain installation remains deterministic; range and regex tests are still proposed.
+Empty numeric-domain installation remains deterministic; range and regex cases subsequently became executable acceptance tests.
 
 The 0.3.0 independent review found no substantive enumeration or length issues and requested explicit multi-clause composition coverage.
-Those acceptance cases are specified; runtime conformance remains unclaimed.
+Those composition cases are included in core acceptance.
 The Orientation-only comprehension review confirmed enumeration identity, endpoint inclusion, length measures, and the owning syntax contract.
 
 ## Changelog
@@ -657,6 +683,7 @@ The Orientation-only comprehension review confirmed enumeration identity, endpoi
 <details>
 <summary>Revision history</summary>
 
+- 1.0.0 — 2026-11-10: implement the shared contract system, pin its portable profile, migrate signing format, and record executable acceptance evidence.
 - 0.3.0 — 2026-11-10: add scalar enumerations and Unicode-scalar/string and immediate-element/list length constraints.
 - 0.2.0 — 2026-11-10: adopt RFC 9485 I-Regexp, remove bespoke regex syntax, specify Unicode and adapter conformance obligations, and add exact numeric range refinements.
 - 0.1.0 — 2026-11-10: draft the numeric hierarchy and named flat-contract model on the numeric-types branch, inspired by Racket contracts.

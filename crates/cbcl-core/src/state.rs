@@ -1760,6 +1760,8 @@ pub enum ScalarType {
     Int,
     Float,
     Decimal,
+    Number,
+    Value,
     Bool,
     /// A list of scalars (a `list` shape type).
     List,
@@ -1772,7 +1774,13 @@ impl ScalarType {
             TypeConstraint::Decimal => Some(ScalarType::Decimal),
             TypeConstraint::String => Some(ScalarType::Str),
             TypeConstraint::Hlc => Some(ScalarType::Hlc),
-            TypeConstraint::Number | TypeConstraint::Nonnegative => Some(ScalarType::Int),
+            TypeConstraint::Integer | TypeConstraint::Nonnegative => Some(ScalarType::Int),
+            TypeConstraint::Number => Some(ScalarType::Number),
+            TypeConstraint::Contract(c) => c
+                .representation()
+                .as_ref()
+                .and_then(Self::from_constraint)
+                .or(Some(ScalarType::Value)),
             TypeConstraint::Bool => Some(ScalarType::Bool),
             TypeConstraint::List => Some(ScalarType::List),
             TypeConstraint::Symbol | TypeConstraint::Keyword => None,
@@ -1785,7 +1793,9 @@ impl ScalarType {
             ScalarType::Hlc => "hlc",
             ScalarType::Float => "float",
             ScalarType::Decimal => "decimal",
-            ScalarType::Int => "number",
+            ScalarType::Int => "integer",
+            ScalarType::Number => "number",
+            ScalarType::Value => "value",
             ScalarType::Bool => "bool",
             ScalarType::List => "list",
         }
@@ -1914,7 +1924,9 @@ pub fn field_type(
                     ..
                 } => {
                     if keyword == key {
-                        return *type_constraint;
+                        return type_constraint
+                            .as_ref()
+                            .and_then(TypeConstraint::representation);
                     }
                 }
                 ShapeRule::MaxDepth(_) => {}

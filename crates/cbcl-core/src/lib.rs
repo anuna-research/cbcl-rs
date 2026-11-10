@@ -137,3 +137,5 @@ mod freeze;
 pub mod hlc;
 
 pub mod numeric;
+
+pub mod contracts;

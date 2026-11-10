@@ -18,8 +18,9 @@ export const CORE_PERFORMATIVES: ReadonlySet<string> = new Set(['tell', 'ask', '
 /** Keywords the binder owns: never a contract field, never set by a view. */
 export const ROUTING_KEYWORDS: ReadonlySet<string> = new Set(['from', 'thread', 'dialect', 'caused-by', 'to', 'sender', 'replaces', 'audience', 'sig', 'key', 'signing-key']);
 
-export type FieldType = 'string' | 'hlc' | 'number' | 'float' | 'decimal' | 'bool' | 'list';
-export type FieldSpec = FieldType | { enumOf: string };
+export type FieldType = 'string' | 'hlc' | 'integer' | 'number' | 'float' | 'decimal' | 'bool' | 'list';
+/** A built-in name, local type name, or CBCL contract expression; validated by the shared core. */
+export type FieldSpec = FieldType | (string & {}) | { enumOf: string };
 export type RuleOp = 'lwwRegister' | 'lwwMap' | 'lwwPerSigner' | 'multiValueRegister' | 'multiValueMap' | 'initial' | 'exists' | 'count' | 'progress' | 'events' | 'setUnion'
   | 'values' | 'valuesPerKey' | 'observedSet' | 'counter' | 'histogram' | 'sum';
 
@@ -33,6 +34,8 @@ export interface Contract {
   author?: string;
   requirements?: { maxDepth?: number; maxExpansionSize?: number; verificationTime?: number };
   bounds?: { maxString?: number; maxList?: number; maxNumber?: number; maxFields?: number };
+  /** Local named flat contracts, expressed as CBCL type-expression text. */
+  types?: Record<string, string>;
   roles?: Record<string, 'singleton' | 'indexed'>;
   verbs: Record<string, VerbSpec>;
   state: Record<string, Rule>;

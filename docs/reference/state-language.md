@@ -47,8 +47,8 @@ types: `:target`, `target`, and `"target"` are not interchangeable.
 Ordinary data fields also support finite binary64 literals (`1.25`, `1e-3`) with
 shape type `float`, and exact decimal literals (`12.34m`) with shape type
 `decimal`. The `m` suffix is lowercase; decimal exponents are unsupported.
-The existing `number` and `nonnegative` types and integer arithmetic remain
-integer-only. Decimal JSON values use `{"decimal":"12.34"}` to preserve precision.
+`integer` and `nonnegative` remain integer-only; `number` accepts all three numeric representations.
+Counters and sums require a contract proven integer-only, including named refinements. Decimal JSON values use `{"decimal":"12.34"}` to preserve precision.
 See [numeric atoms](../../README.md#numeric-atoms) for syntax and normalization.
 
 

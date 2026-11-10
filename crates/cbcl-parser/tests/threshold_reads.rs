@@ -31,7 +31,7 @@ const DEMO: &str = "(define threshold-demo (cbcl) @anuna \
   (extend burn (to amount) (tell to :amount amount)) \
   (shape tag (require :label string)) \
   (shape mint (require :amount nonnegative)) \
-  (shape burn (require :amount number)) \
+  (shape burn (require :amount integer)) \
   (protocol (then begin open) (then open (repeat 3 tick)) (then open approve) (then open tag) (then open mint) (then open burn)) \
   (state \
     (approvals (count approve)) \
@@ -225,7 +225,7 @@ fn negative_credits_are_rejected_and_signed_balances_remain_snapshots() {
         Admission::Rejected(_)
     ));
     let signed = DEMO
-        .replace("(require :amount nonnegative)", "(require :amount number)")
+        .replace("(require :amount nonnegative)", "(require :amount integer)")
         .replace("(threshold funded credits (sum 10))", "");
     assert_eq!(install(&signed), Ok(()));
     assert_eq!(
@@ -524,7 +524,7 @@ fn coin(thresholds: &str) -> String {
           (extend tag (to label) (tell to :label label)) \
           (extend close (to) (tell to)) \
           (shape mint (require :amount nonnegative)) \
-          (shape burn (require :amount number)) \
+          (shape burn (require :amount integer)) \
           (shape tag (require :label string)) \
           (protocol (then begin open) (then open mint) (then open burn) (then open tag) (then open close)) \
           (state (coins (events mint :amount)) (balance (counter mint burn :amount)) (flag (exists close)) \
@@ -744,7 +744,7 @@ fn authored_condition_rejects_unrecognized_or_ineligible_sources() {
     assert!(install(&signed).is_err());
     let negative_events = late_condition("(read credits (sum 1))").replace(
         "(shape mint (require :amount nonnegative))",
-        "(shape mint (require :amount number))",
+        "(shape mint (require :amount integer))",
     );
     let error = install(&negative_events).unwrap_err();
     assert!(error.contains("nonnegative"), "{error}");

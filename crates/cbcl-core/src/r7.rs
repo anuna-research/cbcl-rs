@@ -200,10 +200,14 @@ pub fn declared_keywords(shapes: &[ShapeConstraint], verb: &str) -> BTreeSet<Str
 }
 
 fn is_scalar(tc: &TypeConstraint) -> bool {
+    if let TypeConstraint::Contract(c) = tc {
+        return c.representations() != 0 && c.representations() & !(1 | 2 | 4 | 8 | 16) == 0;
+    }
     matches!(
         tc,
         TypeConstraint::String
             | TypeConstraint::Hlc
+            | TypeConstraint::Integer
             | TypeConstraint::Number
             | TypeConstraint::Float
             | TypeConstraint::Decimal
@@ -379,6 +383,11 @@ pub fn r7_violations(d: &Dialect) -> Vec<R7Violation> {
                     "field :{key} of '{verb}' is a symbol or keyword; state-bearing fields are string, number, bool, or list"
                 )));
             }
+            Some(TypeConstraint::Contract(c)) if c.representations() & (32 | 64) != 0 => {
+                out.push(R7Violation::Typing(format!(
+                    "field :{key} of '{verb}' contract admits symbols or keywords"
+                )));
+            }
             Some(_) => {}
         }
     }
@@ -386,7 +395,7 @@ pub fn r7_violations(d: &Dialect) -> Vec<R7Violation> {
         clause.fields().map(|(n, r)| (String::from(n), r)).collect();
     for (name, rule) in &field_types {
         if let Some((verb, clock)) = rule.clock_field() {
-            if ty(verb, clock) != Some(TypeConstraint::Hlc) || !d.shapes.iter().filter(|s| s.performative == verb).any(|s| s.rules.iter().any(|r| matches!(r, ShapeRule::Require { keyword, type_constraint: Some(TypeConstraint::Hlc), .. } if keyword == clock))) {
+            if ty(verb, clock) != Some(TypeConstraint::Hlc) || !d.shapes.iter().filter(|s| s.performative == verb).any(|s| s.rules.iter().any(|r| matches!(r, ShapeRule::Require { keyword, type_constraint: Some(tc), .. } if keyword == clock && tc.representation() == Some(TypeConstraint::Hlc)))) {
                 out.push(R7Violation::Typing(format!("LWW clock :{clock} of '{verb}' must be a required hlc field")));
             }
             if bounds.max_string < crate::hlc::WIRE_LEN as u32 {
@@ -448,9 +457,9 @@ pub fn r7_violations(d: &Dialect) -> Vec<R7Violation> {
                 }
                 for v in [inc, dec] {
                     if let Some(tc) = ty(v, key) {
-                        if !matches!(tc, TypeConstraint::Number | TypeConstraint::Nonnegative) {
+                        if !matches!(tc, TypeConstraint::Integer | TypeConstraint::Nonnegative) {
                             out.push(R7Violation::Typing(format!(
-                                "counter '{name}': :{key} of '{v}' must be a number"
+                                "counter '{name}': :{key} of '{v}' must be an integer"
                             )));
                         }
                     }
@@ -483,10 +492,10 @@ pub fn r7_violations(d: &Dialect) -> Vec<R7Violation> {
                         if matches!(rule, Rule::Sum { .. }) {
                             let numeric = match r {
                                 Rule::LwwPerSigner { verb, key, .. } | Rule::Events { verb, key } => {
-                                    matches!(ty(verb, key), Some(TypeConstraint::Number | TypeConstraint::Nonnegative))
+                                    matches!(ty(verb, key), Some(TypeConstraint::Integer | TypeConstraint::Nonnegative))
                                 }
                                 Rule::LwwMap { verb, value, .. }  => {
-                                    matches!(ty(verb, value), Some(TypeConstraint::Number | TypeConstraint::Nonnegative))
+                                    matches!(ty(verb, value), Some(TypeConstraint::Integer | TypeConstraint::Nonnegative))
                                 }
                                 _ => false,
                             };
@@ -954,11 +963,11 @@ pub fn verify_state_shape(d: &Dialect, msg: &Message) -> Result<(), ShapeViolati
                     }
                     i += 2;
                 }
-                other => {
+                _other => {
                     return Err(violation(
                         "closed",
                         None,
-                        format!("positional parameter {other} on '{verb}'"),
+                        format!("unexpected positional parameter on '{verb}'"),
                     ));
                 }
             }
@@ -972,7 +981,7 @@ pub fn verify_state_shape(d: &Dialect, msg: &Message) -> Result<(), ShapeViolati
             if writer == verb {
                 let valid = fields
                     .get(clock)
-                    .is_some_and(|value| TypeConstraint::Hlc.matches(value));
+                    .is_some_and(|value| TypeConstraint::Hlc.matches_builtin(value));
                 if !valid {
                     return Err(violation(
                         "hlc",
@@ -1119,14 +1128,14 @@ pub fn verify_state_shape(d: &Dialect, msg: &Message) -> Result<(), ShapeViolati
                 return Err(violation(
                     "replaces",
                     Some(RESERVED_REPLACES),
-                    format!("'{text}' is not a content address"),
+                    "invalid content address".into(),
                 ));
             }
             if !seen.insert(text) {
                 return Err(violation(
                     "replaces",
                     Some(RESERVED_REPLACES),
-                    format!("'{text}' named twice"),
+                    "content address named twice".into(),
                 ));
             }
         }

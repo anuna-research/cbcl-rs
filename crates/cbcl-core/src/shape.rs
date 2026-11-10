@@ -10,18 +10,20 @@
 #![forbid(unsafe_code)]
 
 use crate::sexpr::{Atom, SExpr};
-use alloc::string::String;
+use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use core::fmt;
 
 /// Recognised type constraints for shape rules (REQ-221, SPEC-038 CON-3801).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum TypeConstraint {
     String,
     /// Canonical host-supplied hybrid logical clock evidence, encoded as a string.
     Hlc,
+    Integer,
     Number,
+    Contract(crate::contracts::Contract),
     Float,
     Decimal,
     /// Integer >= 0, recognized before admission (SPEC-038 ADR-3805).
@@ -41,6 +43,7 @@ impl TypeConstraint {
             "hlc" => Some(TypeConstraint::Hlc),
             "float" => Some(TypeConstraint::Float),
             "decimal" => Some(TypeConstraint::Decimal),
+            "integer" => Some(TypeConstraint::Integer),
             "number" => Some(TypeConstraint::Number),
             "nonnegative" => Some(TypeConstraint::Nonnegative),
             "bool" => Some(TypeConstraint::Bool),
@@ -51,8 +54,36 @@ impl TypeConstraint {
         }
     }
 
+    pub fn check(&self, value: &SExpr, work: u64) -> Result<(), crate::contracts::CheckError> {
+        if work == 0 || !crate::contracts::input_fits(value) {
+            return Err(crate::contracts::CheckError::ResourceLimit);
+        }
+        if let Self::Contract(c) = self {
+            return c.check(value, work);
+        }
+        if self.matches_builtin(value) {
+            Ok(())
+        } else {
+            Err(crate::contracts::CheckError::Violation(self.to_string()))
+        }
+    }
+    pub fn representation(&self) -> Option<Self> {
+        if let Self::Contract(c) = self {
+            c.representation().or_else(|| Some(self.clone()))
+        } else {
+            Some(self.clone())
+        }
+    }
+    pub fn source(&self) -> SExpr {
+        if let Self::Contract(c) = self {
+            c.source().clone()
+        } else {
+            SExpr::Atom(Atom::Symbol(self.to_string()))
+        }
+    }
+
     /// Check whether an S-expression satisfies this type constraint.
-    pub fn matches(&self, sexpr: &SExpr) -> bool {
+    pub(crate) fn matches_builtin(&self, sexpr: &SExpr) -> bool {
         if *self == TypeConstraint::Hlc {
             return matches!(sexpr, SExpr::Atom(Atom::Str(text)) if crate::hlc::Hlc::parse(text).is_some());
         }
@@ -62,7 +93,14 @@ impl TypeConstraint {
         matches!(
             (self, sexpr),
             (TypeConstraint::String, SExpr::Atom(Atom::Str(_)))
-                | (TypeConstraint::Number, SExpr::Atom(Atom::Num(_)))
+                | (
+                    TypeConstraint::Integer | TypeConstraint::Number,
+                    SExpr::Atom(Atom::Num(_))
+                )
+                | (
+                    TypeConstraint::Number,
+                    SExpr::Atom(Atom::Float(_) | Atom::Decimal(_))
+                )
                 | (TypeConstraint::Float, SExpr::Atom(Atom::Float(_)))
                 | (TypeConstraint::Decimal, SExpr::Atom(Atom::Decimal(_)))
                 | (TypeConstraint::Bool, SExpr::Atom(Atom::Bool(_)))
@@ -81,14 +119,14 @@ mod nonnegative_tests {
     fn nonnegative_recognizes_only_unsigned_integer_values() {
         let ty = TypeConstraint::from_str("nonnegative").unwrap();
         for value in [0, 1, i64::MAX] {
-            assert!(ty.matches(&SExpr::Atom(Atom::Num(value))));
+            assert!(ty.matches_builtin(&SExpr::Atom(Atom::Num(value))));
         }
         for value in [i64::MIN, -1] {
-            assert!(!ty.matches(&SExpr::Atom(Atom::Num(value))));
+            assert!(!ty.matches_builtin(&SExpr::Atom(Atom::Num(value))));
         }
-        assert!(!ty.matches(&SExpr::Atom(Atom::Bool(true))));
-        assert!(!ty.matches(&SExpr::Atom(Atom::Str("0".into()))));
-        assert!(!ty.matches(&SExpr::List(Vec::new())));
+        assert!(!ty.matches_builtin(&SExpr::Atom(Atom::Bool(true))));
+        assert!(!ty.matches_builtin(&SExpr::Atom(Atom::Str("0".into()))));
+        assert!(!ty.matches_builtin(&SExpr::List(Vec::new())));
         assert_eq!(ty.to_string(), "nonnegative");
     }
 }
@@ -100,6 +138,8 @@ impl fmt::Display for TypeConstraint {
             TypeConstraint::Hlc => "hlc",
             TypeConstraint::Float => "float",
             TypeConstraint::Decimal => "decimal",
+            TypeConstraint::Integer => "integer",
+            TypeConstraint::Contract(c) => return write!(f, "{}", c.source()),
             TypeConstraint::Number => "number",
             TypeConstraint::Nonnegative => "nonnegative",
             TypeConstraint::Bool => "bool",
@@ -168,8 +208,12 @@ impl ShapeConstraint {
     /// The `sexpr` should be the fully expanded message (after template expansion).
     /// Returns `Ok(())` if all rules are satisfied, or `Err` with the first violation.
     pub fn check(&self, sexpr: &SExpr) -> Result<(), ShapeViolation> {
+        self.check_with_work(sexpr, crate::contracts::DEFAULT_WORK)
+    }
+
+    pub fn check_with_work(&self, sexpr: &SExpr, work: u64) -> Result<(), ShapeViolation> {
         for rule in &self.rules {
-            check_rule(rule, sexpr)?;
+            check_rule(rule, sexpr, work)?;
         }
         Ok(())
     }
@@ -220,7 +264,7 @@ fn collect_max_depths(rules: &[ShapeRule], out: &mut Vec<u32>) {
 }
 
 /// Check a single rule against an S-expression.
-fn check_rule(rule: &ShapeRule, sexpr: &SExpr) -> Result<(), ShapeViolation> {
+pub(crate) fn check_rule(rule: &ShapeRule, sexpr: &SExpr, work: u64) -> Result<(), ShapeViolation> {
     match rule {
         ShapeRule::Require {
             keyword,
@@ -235,21 +279,29 @@ fn check_rule(rule: &ShapeRule, sexpr: &SExpr) -> Result<(), ShapeViolation> {
                 detail: alloc::format!("required parameter :{keyword} is missing"),
             })?;
             if let Some(tc) = type_constraint {
-                if !tc.matches(value) {
+                if let Err(check_error) = tc.check(value, work) {
                     return Err(ShapeViolation {
-                        rule: alloc::format!("require :{keyword} {tc}"),
+                        rule: if matches!(check_error, crate::contracts::CheckError::ResourceLimit)
+                        {
+                            "resource-limit".into()
+                        } else {
+                            alloc::format!("require :{keyword} {tc}")
+                        },
                         field: Some(alloc::format!(":{keyword}")),
                         expected: Some(alloc::format!("{tc}")),
                         found: Some(describe_type(value)),
                         detail: alloc::format!(
-                            "parameter :{keyword} expected type {tc}, found {}",
+                            "parameter :{keyword} failed {tc}: {check_error}; found {}",
                             describe_type(value)
                         ),
                     });
                 }
             }
             for child in children {
-                check_rule(child, value)?;
+                check_rule(child, value, work).map_err(|mut err| {
+                    err.field = err.field.map(|field| alloc::format!(":{keyword}/{field}"));
+                    err
+                })?;
             }
             Ok(())
         }
@@ -261,21 +313,31 @@ fn check_rule(rule: &ShapeRule, sexpr: &SExpr) -> Result<(), ShapeViolation> {
         } => {
             if let Some(value) = find_keyword_value(sexpr, keyword) {
                 if let Some(tc) = type_constraint {
-                    if !tc.matches(value) {
+                    if let Err(check_error) = tc.check(value, work) {
                         return Err(ShapeViolation {
-                            rule: alloc::format!("optional :{keyword} {tc}"),
+                            rule: if matches!(
+                                check_error,
+                                crate::contracts::CheckError::ResourceLimit
+                            ) {
+                                "resource-limit".into()
+                            } else {
+                                alloc::format!("optional :{keyword} {tc}")
+                            },
                             field: Some(alloc::format!(":{keyword}")),
                             expected: Some(alloc::format!("{tc}")),
                             found: Some(describe_type(value)),
                             detail: alloc::format!(
-                                "parameter :{keyword} expected type {tc}, found {}",
+                                "parameter :{keyword} failed {tc}: {check_error}; found {}",
                                 describe_type(value)
                             ),
                         });
                     }
                 }
                 for child in children {
-                    check_rule(child, value)?;
+                    check_rule(child, value, work).map_err(|mut err| {
+                        err.field = err.field.map(|field| alloc::format!(":{keyword}/{field}"));
+                        err
+                    })?;
                 }
             }
             Ok(())
@@ -323,7 +385,7 @@ fn describe_type(sexpr: &SExpr) -> String {
         SExpr::Atom(Atom::Str(_)) => String::from("string"),
         SExpr::Atom(Atom::Float(_)) => String::from("float"),
         SExpr::Atom(Atom::Decimal(_)) => String::from("decimal"),
-        SExpr::Atom(Atom::Num(_)) => String::from("number"),
+        SExpr::Atom(Atom::Num(_)) => String::from("integer"),
         SExpr::Atom(Atom::Bool(_)) => String::from("bool"),
         SExpr::Atom(Atom::Symbol(_)) => String::from("symbol"),
         SExpr::Atom(Atom::Keyword(_)) => String::from("keyword"),
@@ -418,14 +480,14 @@ mod tests {
 
     #[test]
     fn type_constraint_matches() {
-        assert!(TypeConstraint::String.matches(&str_expr("hello")));
-        assert!(!TypeConstraint::String.matches(&num(42)));
-        assert!(TypeConstraint::Number.matches(&num(42)));
-        assert!(TypeConstraint::Bool.matches(&SExpr::Atom(Atom::Bool(true))));
-        assert!(TypeConstraint::Symbol.matches(&sym("x")));
-        assert!(TypeConstraint::Keyword.matches(&kw("key")));
-        assert!(TypeConstraint::List.matches(&list(vec![sym("a")])));
-        assert!(!TypeConstraint::List.matches(&sym("a")));
+        assert!(TypeConstraint::String.matches_builtin(&str_expr("hello")));
+        assert!(!TypeConstraint::String.matches_builtin(&num(42)));
+        assert!(TypeConstraint::Number.matches_builtin(&num(42)));
+        assert!(TypeConstraint::Bool.matches_builtin(&SExpr::Atom(Atom::Bool(true))));
+        assert!(TypeConstraint::Symbol.matches_builtin(&sym("x")));
+        assert!(TypeConstraint::Keyword.matches_builtin(&kw("key")));
+        assert!(TypeConstraint::List.matches_builtin(&list(vec![sym("a")])));
+        assert!(!TypeConstraint::List.matches_builtin(&sym("a")));
     }
 
     #[test]
@@ -484,7 +546,7 @@ mod tests {
         let msg = list(vec![sym("track-shipment"), kw("package"), num(42)]);
         let err = shape.check(&msg).unwrap_err();
         assert_eq!(err.expected, Some(String::from("string")));
-        assert_eq!(err.found, Some(String::from("number")));
+        assert_eq!(err.found, Some(String::from("integer")));
     }
 
     #[test]

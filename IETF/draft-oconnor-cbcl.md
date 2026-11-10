@@ -36,6 +36,7 @@ normative:
   RFC8032:
   RFC6234:
   RFC9804:
+  RFC9485:
   RFC3629:
 
 informative:
@@ -685,7 +686,7 @@ extends-list = %s"(" *( WS symbol ) %s")"
 
 author       = symbol / string
 
-dialect-clause = extend-clause / protocol-clause / shape-clause
+dialect-clause = extend-clause / protocol-clause / shape-clause / type-decl
                / state-clause / state-bounds-clause
                / resource-clause / examples-clause
                / signature-clause / hash-clause
@@ -769,19 +770,33 @@ shape-clause = %s"(" %s"shape" WS perf-name 1*( WS shape-rule ) %s")"
 
 shape-rule   = require-rule / optional-rule / depth-rule
 
-require-rule = %s"(" %s"require" WS keyword [ WS type-name ]
+require-rule = %s"(" %s"require" WS keyword [ WS type-expr ]
                    *( WS shape-rule ) %s")"
 
-optional-rule = %s"(" %s"optional" WS keyword [ WS type-name ]
+optional-rule = %s"(" %s"optional" WS keyword [ WS type-expr ]
                     [ WS default-value ] *( WS shape-rule ) %s")"
 
 depth-rule   = %s"(" %s"max-depth" WS number %s")"
 
-type-name    = %s"string" / %s"hlc" / %s"number" / %s"float"
-             / %s"decimal" / %s"nonnegative" / %s"bool"
+type-decl    = %s"(" %s"type" WS local-type-name WS type-expr %s")"
+type-expr    = builtin-type / local-type-name
+             / %s"(" %s"one-of" 1*( WS atom ) %s")"
+             / %s"(" %s"string" 1*( WS string-rule ) %s")"
+             / %s"(" %s"list" 1*( WS length-rule ) %s")"
+             / %s"(" numeric-base 1*( WS numeric-bound ) %s")"
+             / %s"(" ( %s"and" / %s"or" ) 2*( WS type-expr ) %s")"
+builtin-type = %s"string" / %s"hlc" / %s"number" / %s"integer"
+             / %s"float" / %s"decimal" / %s"nonnegative" / %s"bool"
              / %s"symbol" / %s"keyword" / %s"list"
-
-default-value = s-expr
+local-type-name = symbol  ; bounded lowercase name, excluding reserved names
+numeric-base = %s"number" / %s"integer" / %s"float" / %s"decimal"
+comparator   = %s">=" / %s">" / %s"<=" / %s"<"
+numeric-bound = %s"(" comparator WS numeric %s")"
+string-rule  = matches-rule / length-rule
+matches-rule = %s"(" %s"matches" WS string %s")"
+length-rule  = %s"(" %s"length" 1*( WS length-bound ) %s")"
+length-bound = %s"(" comparator WS number %s")" ; nonnegative i64
+default-value = %s"(" %s"default" WS s-expr %s")"
 ~~~
 
 A clause whose head is an unrecognized keyword MUST be rejected. Implementations
@@ -976,7 +991,7 @@ of {{r2}}.
    - `(member var (value …))` — the bound value of `var` equals some listed
      value
    - `(type? var type-name)` — the bound value of `var` has the named type, one
-     of `string`, `number`, `bool`, `symbol`, `keyword`, `list`
+     of `string`, `integer`, `number`, `float`, `decimal`, `bool`, `symbol`, `keyword`, `list`
 
    A test of any other form is false.
 
@@ -1202,17 +1217,29 @@ performative must carry, with optional type constraints:
   (require :proto string)
   (require :role symbol)
   (require :outcome list)
-  (require :utility number))
+  (require :utility integer))
 ~~~
 
 `require` demands the parameter be present; `optional` permits it and MAY supply
 a default; `max-depth` bounds the nesting of the checked message. Rules may nest,
 constraining structure within a parameter's value. Type names are `string`,
-`hlc`, `number`, `float`, `decimal`, `nonnegative`, `bool`, `symbol`, `keyword`,
-and `list`. `number` accepts signed 64-bit integer atoms; `nonnegative` further
+`hlc`, `integer`, `number`, `float`, `decimal`, `nonnegative`, `bool`, `symbol`, `keyword`,
+and `list`. `integer` accepts signed 64-bit integer atoms; `nonnegative` further
 requires an integer value greater than or equal to zero. `float` and `decimal`
 accept their respective numeric atoms without cross-type coercion. `hlc` checks
 the canonical host-supplied hybrid logical clock string format.
+
+`number` accepts integer, float, and decimal atoms without conversion. Local
+`type` declarations introduce aliases, `one-of` scalar enumerations, numeric
+bounds, string patterns, string/list lengths, and `and`/`or` composition.
+Declarations resolve from the complete dialect; authors need not order them.
+Patterns follow I-Regexp ({{RFC9485}}), with full-string matching and pinned Unicode
+16.0.0 properties. String length counts Unicode scalar values; list length counts
+immediate elements. Defaults use `(default value)` and are checked at installation.
+The SPEC-040 profile imposes finite compilation, input, and work limits; resource
+exhaustion is an operational `resource-limit`, not a failed value predicate.
+Signing form 6 binds the profile and type definitions, requiring explicit signature
+and self-address reissue for existing development dialects.
 
 Shape checking is applied to the *expanded* message, non-recursively. Dialect
 authors should therefore surface contract-relevant keyword parameters at the top
@@ -1466,7 +1493,7 @@ application state; it may still require accepted causal predecessors.
 installation MUST verify that every performative a rule names is defined by the
 dialect; that every keyword a rule reads is a required keyword of that
 performative's shape, with a scalar type where the rule requires a scalar
-(`number` for `counter` and `sum`); that the dialect declares a protocol with
+(`integer`, or a contract proven integer-only, for `counter` and `sum`); that the dialect declares a protocol with
 exactly one opener; that `histogram` and `sum` name a map-valued field defined
 earlier in the clause; that no author-declared shape carries `:replaces`; and
 that a delete performative carries exactly its key. A dialect failing any check

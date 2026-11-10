@@ -725,6 +725,7 @@ mod tests {
 
     fn test_dialect(name: &str) -> Dialect {
         Dialect {
+            types: Default::default(),
             roles: Vec::new(),
             state: None,
             state_bounds: None,
@@ -978,6 +979,7 @@ mod tests {
         let mut net = GossipNetwork::with_defaults();
         net.add_agent("alice");
         let bad = Dialect {
+            types: Default::default(),
             roles: Vec::new(),
             state: None,
             state_bounds: None,
@@ -1013,6 +1015,7 @@ mod tests {
         let mut net = GossipNetwork::with_defaults();
         net.add_agent("alice");
         let bad = Dialect {
+            types: Default::default(),
             roles: Vec::new(),
             state: None,
             state_bounds: None,

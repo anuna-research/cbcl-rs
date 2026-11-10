@@ -82,14 +82,12 @@ See also [roles and casts](docs/concepts/role-cast.md) and
 
 ### Numeric atoms
 
-The next type-system revision is drafted in [SPEC-040](specs/SPEC-040-numeric-and-refinement-types.md):
-explicit `integer`, a general `number` category, and named declarative contracts.
-That specification is proposed behavior; the implementation below retains its
-current naming until the specification-first migration is implemented.
+`integer` accepts signed 64-bit integer atoms. `number` accepts integers, finite
+floats, and exact decimals without converting their representations.
 
 | Type | Literal examples | Shape type |
 |---|---|---|
-| Signed 64-bit integer | `42`, `-7` | `number`; `nonnegative` additionally requires a value ≥ 0 |
+| Signed 64-bit integer | `42`, `-7` | `integer`; `nonnegative` additionally requires a value ≥ 0 |
 | Finite IEEE 754 binary64 float | `1.25`, `1.`, `1e-3`, `1E+2` | `float` |
 | Exact arbitrary-precision decimal | `12m`, `12.3400m`, `-0.01m` | `decimal` |
 
@@ -104,17 +102,41 @@ round-tripping digits and retain `.0` for integral values. Decimals remove
 redundant zeroes without passing through binary floating point; their storage
 grows with the normalized text rather than using a fixed-width decimal format.
 
+Inside a dialect, declare reusable contracts and use them in shapes:
+
 ```lisp
-(shape quote (require :quantity number)
-             (require :ratio float)
-             (require :price decimal))
+(type postal-code (string (matches "[0-9]{4}")))
+(type percentage (number (>= 0) (<= 100)))
+(type currency (one-of :AUD :USD :EUR))
+(type display-name (string (length (>= 1) (<= 80))))
+(type batch (list (length (> 0) (<= 100))))
+(shape quote
+  (require :quantity integer)
+  (require :price decimal)
+  (require :postcode postal-code)
+  (optional :currency currency (default :AUD)))
 ```
 
+Types can reference later declarations. Use `and` for intersections and `or` for
+alternatives; cycles, unknown names, and duplicate definitions reject installation.
+These are pure value checks: they preserve the value and run no author code.
+Numeric bounds compare exact represented values; decimal `0.1m` is exactly one tenth.
+Regexes use RFC 9485 I-Regexp with full-string matching and Unicode 16.0.0 properties.
+String lengths count Unicode scalars; list lengths count immediate elements.
+Enumeration membership preserves atom representations, so `(one-of 1)` rejects `1.0`.
+Resource exhaustion reports `resource-limit`, separately from a contract violation.
+
+[SPEC-040](specs/SPEC-040-numeric-and-refinement-types.md) defines the profile and limits.
+Signing form 6 binds `cbcl-flat-v1-unicode16` and all local type definitions.
+Existing dialect signatures and self-addresses require explicit reissue; old
+integer-only `number` declarations should be rewritten as `integer`. Optional
+defaults now use `(default value)` explicitly.
+
 The [EBNF](docs/cbcl-grammar.ebnf) distinguishes numeric atoms from integer-only
-`number` positions. Existing `number` and `nonnegative` shapes, counter arithmetic,
+`number` grammar productions. `integer` and `nonnegative` shapes, counter arithmetic,
 resource bounds, repeat counts, finite-lattice tables, and threshold literals
-retain their integer semantics. Floats and decimals are available as ordinary
-message and state data; their shape types remain distinct from `number`.
+retain their integer semantics. The `number` shape category accepts all three
+numeric representations, including ordinary float and decimal state data.
 
 Canonical atom tags are `F` and `D`; existing integer encodings are unchanged.
 NIF floats are BEAM floats; decimals are `{decimal, <<"12.34">>}`. JSON state and
@@ -251,9 +273,9 @@ neither resource-release authority nor global freshness. See
   (extend pay (to recipient amount) :from holder :to (issuer holder)
     (tell to :recipient recipient :amount amount))
   (shape open (require :name string) (require :allocations list))
-  (shape mint (require :amount number))
-  (shape burn (require :amount number))
-  (shape pay (require :recipient symbol) (require :amount number))
+  (shape mint (require :amount integer))
+  (shape burn (require :amount integer))
+  (shape pay (require :recipient symbol) (require :amount integer))
   (protocol (then begin open) (then open mint) (then open burn) (then open pay))
   (state
     (name (initial open :name))

@@ -206,6 +206,7 @@ fn positive_int(value: &Json, what: &str) -> Result<u64, String> {
 
 /// A recognised contract, ready to emit.
 struct Contract<'a> {
+    types: Vec<(&'a str, cbcl_core::sexpr::SExpr)>,
     name: &'a str,
     author: &'a str,
     resources: Vec<(&'static str, u64)>,
@@ -220,7 +221,7 @@ struct Contract<'a> {
 struct Verb<'a> {
     name: &'a str,
     after: Vec<&'a str>,
-    fields: Vec<(&'a str, &'a str, Option<&'a str>)>, // (field, type, enumOf)
+    fields: Vec<(&'a str, String, Option<&'a str>)>, // (field, type, enumOf)
     from: Option<&'a str>,
     to: Vec<&'a str>,
 }
@@ -229,12 +230,29 @@ fn recognize(json: &Json) -> Result<Contract<'_>, String> {
     let top = record(
         json,
         &["version", "kind", "name", "verbs", "state"],
-        &["author", "requirements", "bounds", "roles"],
+        &["author", "requirements", "bounds", "roles", "types"],
         "contract",
     )?;
     if top["version"].as_u64() != Some(CONTRACT_VERSION) || top["kind"].as_str() != Some("contract")
     {
         return err("unsupported contract version");
+    }
+    let mut types = Vec::new();
+    if let Some(definitions) = top.get("types") {
+        let map = definitions
+            .as_object()
+            .ok_or("contract: types must be a record")?;
+        for (name, expression) in map {
+            if !identifier(name) {
+                return err("invalid type name");
+            }
+            let text = expression
+                .as_str()
+                .ok_or("contract: type definition must be CBCL expression text")?;
+            let parsed = crate::parser::parse(text)
+                .map_err(|e| format!("contract: type expression: {e}"))?;
+            types.push((name.as_str(), parsed));
+        }
     }
     let name = top["name"].as_str().filter(|n| identifier(n));
     let Some(name) = name else {
@@ -342,26 +360,20 @@ fn recognize(json: &Json) -> Result<Contract<'_>, String> {
                 return err(format!("invalid field name {field}"));
             }
             match ty {
-                Json::String(t)
-                    if matches!(
-                        t.as_str(),
-                        "string"
-                            | "hlc"
-                            | "number"
-                            | "float"
-                            | "decimal"
-                            | "bool"
-                            | "list"
-                            | "symbol"
-                    ) =>
-                {
-                    fields.push((field.as_str(), t.as_str(), None))
+                Json::String(t) => {
+                    let expression = crate::parser::parse(t)
+                        .map_err(|e| format!("contract: field type: {e}"))?;
+                    fields.push((
+                        field.as_str(),
+                        cbcl_core::serializer::serialize(&expression),
+                        None,
+                    ));
                 }
                 Json::Object(_) => {
                     let m = record(ty, &["enumOf"], &[], field)?;
                     match m["enumOf"].as_str() {
                         Some(target) if identifier(target) => {
-                            fields.push((field.as_str(), "string", Some(target)))
+                            fields.push((field.as_str(), "string".into(), Some(target)))
                         }
                         _ => return err("invalid domain"),
                     }
@@ -468,6 +480,7 @@ fn recognize(json: &Json) -> Result<Contract<'_>, String> {
         }
     }
     Ok(Contract {
+        types,
         name,
         author,
         resources,
@@ -516,6 +529,12 @@ fn emit(c: &Contract<'_>, name: &str) -> String {
             })
             .collect();
         out.push_str(&format!("  (:roles ({}))\n", roles.join(" ")));
+    }
+    for (name, expression) in &c.types {
+        out.push_str(&format!(
+            "  (type {name} {})\n",
+            cbcl_core::serializer::serialize(expression)
+        ));
     }
     for v in &c.verbs {
         let params: Vec<&str> = v.fields.iter().map(|f| f.0).collect();

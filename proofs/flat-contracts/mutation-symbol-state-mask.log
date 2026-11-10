@@ -1,0 +1,32 @@
+
+running 1 test
+test state_integer_proofs_and_symbol_restrictions ... FAILED
+
+failures:
+
+---- state_integer_proofs_and_symbol_restrictions stdout ----
+
+thread 'state_integer_proofs_and_symbol_restrictions' (19131958) panicked at crates/cbcl-parser/tests/flat_contracts.rs:298:14:
+called `Result::unwrap_err()` on an `Ok` value: ()
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    state_integer_proofs_and_symbol_restrictions
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 15 filtered out; finished in 0.00s
+
+   Compiling cbcl-core v0.1.1 (<repo>/crates/cbcl-core)
+warning: unused variable: `c`
+   --> crates/cbcl-core/src/r7.rs:384:43
+    |
+384 |             Some(TypeConstraint::Contract(c)) if false => {
+    |                                           ^ help: if this is intentional, prefix it with an underscore: `_c`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+   Compiling cbcl-parser v0.1.1 (<repo>/crates/cbcl-parser)
+warning: `cbcl-core` (lib) generated 1 warning (run `cargo fix --lib -p cbcl-core` to apply 1 suggestion)
+    Finished `test` profile [unoptimized] target(s) in 2.91s
+     Running tests/flat_contracts.rs (<target>/debug/deps/flat_contracts-b40e2dc79a90b5bd)
+error: test failed, to rerun pass `-p cbcl-parser --test flat_contracts`

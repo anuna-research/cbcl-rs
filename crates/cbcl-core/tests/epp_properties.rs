@@ -95,6 +95,7 @@ impl ChainProtocol {
             );
         }
         Dialect {
+            types: Default::default(),
             state: None,
             state_bounds: None,
             causal_locality: Default::default(),
@@ -473,6 +474,7 @@ fn test_637_operation_count_within_bound() {
             );
         }
         Dialect {
+            types: Default::default(),
             state: None,
             state_bounds: None,
             causal_locality: Default::default(),
@@ -567,6 +569,7 @@ fn test_635_converse_witness() {
             },
         );
         Dialect {
+            types: Default::default(),
             state: None,
             state_bounds: None,
             causal_locality: Default::default(),

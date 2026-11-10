@@ -50,7 +50,7 @@ fn code_pin_matches_known_vector_and_ignores_source_formatting() {
     let d = checkpoint_dialect::builtin().unwrap();
     assert_eq!(
         dialect_hash(&d),
-        "sha256:f9442fb571db6e0c752c09fe97ea2d1cb319512745049316c0aea6d82f2549e0"
+        "sha256:59d337319e0df5acf2f99488e6c4509cd8902c90d38c8fe1bdd87d81a45acd2a"
     );
     let reformatted = format!("; another comment\n{}\n", checkpoint_dialect::SOURCE);
     let mut form = parse(&reformatted).unwrap();
@@ -73,7 +73,7 @@ fn source_alias_is_not_the_builtin_authority() {
     assert_ne!(alias.name, d.name);
     assert_ne!(dialect_hash(alias), dialect_hash(&d));
     let changed = checkpoint_dialect::SOURCE
-        .replace("(require :manifest string)", "(require :manifest number)");
+        .replace("(require :manifest string)", "(require :manifest integer)");
     assert_ne!(
         dialect_name(&parse_dialect(&parse(&changed).unwrap()).unwrap()),
         d.name

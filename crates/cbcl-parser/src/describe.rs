@@ -138,9 +138,15 @@ pub fn describe(d: &Dialect, text: &str) -> Json {
     for p in &d.performatives {
         let params: Vec<Json> = p.params.iter().map(json_of_sexpr).collect();
         let mut fields = Map::new();
+        let mut contracts = Map::new();
         for shape in d.shapes.iter().filter(|s| s.performative == p.name) {
             for rule in &shape.rules {
                 if let ShapeRule::Require {
+                    keyword,
+                    type_constraint,
+                    ..
+                }
+                | ShapeRule::Optional {
                     keyword,
                     type_constraint,
                     ..
@@ -149,8 +155,14 @@ pub fn describe(d: &Dialect, text: &str) -> Json {
                     if keyword == RESERVED_REPLACES {
                         continue;
                     }
-                    let ty = type_constraint.map(|t| t.to_string()).unwrap_or_default();
+                    let ty = type_constraint
+                        .as_ref()
+                        .map(|t| t.to_string())
+                        .unwrap_or_default();
                     fields.insert(keyword.clone(), Json::String(ty));
+                    if let Some(tc) = type_constraint {
+                        contracts.insert(keyword.clone(), json!({"source":serialize(&tc.source()), "representations":cbcl_core::contracts::representation_names(tc), "required":matches!(rule,ShapeRule::Require {..}), "default":match rule { ShapeRule::Optional {default:Some(value),..}=>Some(serialize(value)),_=>None }}));
+                    }
                 }
             }
         }
@@ -169,7 +181,8 @@ pub fn describe(d: &Dialect, text: &str) -> Json {
                     .collect()
             })
             .unwrap_or_default();
-        let mut entry = json!({ "params": params, "fields": fields, "after": after });
+        let mut entry =
+            json!({ "params": params, "fields": fields, "contracts":contracts, "after": after });
         if let Some(ann) = &p.role {
             entry["from"] = Json::String(ann.from.clone());
             entry["to"] = Json::Array(ann.to.iter().cloned().map(Json::String).collect());
@@ -237,7 +250,21 @@ pub fn describe(d: &Dialect, text: &str) -> Json {
         }
         None => json!({}),
     };
+    let mut types = Map::new();
+    match cbcl_core::contracts::type_schema(d) {
+        Ok(entries) => {
+            for (name, expression, representations) in entries {
+                types.insert(
+                    name,
+                    json!({"source":serialize(&expression), "representations":representations}),
+                );
+            }
+        }
+        Err(error) => return json!({"error":error}),
+    }
     json!({
+        "typeProfile": cbcl_core::contracts::PROFILE,
+        "types": types,
         "name": d.name,
         "author": d.author,
         "opener": opener,

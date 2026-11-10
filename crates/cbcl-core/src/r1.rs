@@ -151,6 +151,7 @@ mod tests {
 
     fn make_dialect(name: &str, perfs: Vec<PerformativeDef>) -> Dialect {
         Dialect {
+            types: Default::default(),
             roles: Vec::new(),
             state: None,
             state_bounds: None,

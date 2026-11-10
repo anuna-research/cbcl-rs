@@ -19,7 +19,7 @@
     (tell to :target target :context context :policy policy :profile profile :manifest manifest :certificate certificate :locations locations))
   (shape open
     (require :target string) (require :context string)
-    (require :policy string) (require :profile string) (require :version number))
+    (require :policy string) (require :profile string) (require :version integer))
   (shape propose
     (require :target string) (require :context string)
     (require :policy string) (require :profile string)

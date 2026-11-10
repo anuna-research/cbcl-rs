@@ -685,6 +685,7 @@ fn perf(name: &str, params: &[&str]) -> PerformativeDef {
 fn checklist() -> Dialect {
     let s = String::from;
     let mut d = Dialect {
+        types: Default::default(),
         name: s("checklist"),
         extends: Vec::new(),
         author: Some(s("@anuna")),

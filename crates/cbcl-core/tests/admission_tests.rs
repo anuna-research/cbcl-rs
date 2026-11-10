@@ -68,6 +68,7 @@ fn dialect() -> Dialect {
         ),
     ];
     let mut d = Dialect {
+        types: Default::default(),
         name: "admission".into(),
         extends: vec![],
         author: None,

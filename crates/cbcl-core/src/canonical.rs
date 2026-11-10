@@ -53,7 +53,7 @@ use alloc::vec::Vec;
 /// for any input dialect. Existing signatures are produced over a specific
 /// version's bytes; a bump means a re-sign is required for verifying
 /// implementations to interop. The version is informational — it is not
-/// itself part of the signed body — but mismatched versions across CBCL
+/// itself part of the signed body; v6 additionally signs the type profile. Mismatched versions across CBCL
 /// implementations should fail loudly at integration time.
 ///
 /// History:
@@ -75,11 +75,13 @@ use alloc::vec::Vec;
 ///   the mode is load-bearing: without it a relay could flip a signed
 ///   `reject` dialect to `derive`, silently enlarging delivery obligations
 ///   under an intact signature.
-/// - `5` (current): adds the `(state …)` and `(state-bounds …)` segments
+/// - `5`: adds the `(state …)` and `(state-bounds …)` segments
 ///   (SPEC-019 REQ-1903), gated on presence, so dialects without a state
 ///   layer produce v4-identical bytes. The fold is signature-bound: it
 ///   cannot be stripped or rewritten in gossip under an intact signature.
-pub const CANONICAL_FORM_VERSION: u32 = 5;
+/// - `6` (SPEC-040): unconditionally binds the type-profile and sorted type
+///   environment. Explicit signature/self-address reissue is required.
+pub const CANONICAL_FORM_VERSION: u32 = 6;
 
 // ---------------------------------------------------------------------------
 // Atom-to-octet-string mapping
@@ -258,6 +260,8 @@ pub(crate) fn reference_encode(sexpr: &SExpr) -> Vec<u8> {
 ///
 /// ```text
 /// (dialect <name>
+///   (type-profile "cbcl-flat-v1-unicode16")
+///   (types (<name> <expression>)*)
 ///   (extends <parent>*)
 ///   (author <author>?)
 ///   (performatives (perf <name> (params <p>*) <template>)*)
@@ -273,7 +277,8 @@ pub(crate) fn reference_encode(sexpr: &SExpr) -> Vec<u8> {
 /// `causal_protocol` and `shapes` are *only* appended when present so a
 /// dialect that omits them produces the same canonical bytes as before
 /// these fields existed — existing signatures over such dialects keep
-/// verifying. Dialects that *do* declare a protocol or shapes get those
+/// verifying through v5. Version 6 deliberately requires reissue for every dialect.
+/// Dialects that *do* declare a protocol or shapes get those
 /// fields fully bound by the signature.
 pub fn to_signable_sexpr(d: &Dialect) -> SExpr {
     use alloc::vec;
@@ -282,6 +287,19 @@ pub fn to_signable_sexpr(d: &Dialect) -> SExpr {
         SExpr::Atom(Atom::Symbol(String::from("dialect"))),
         SExpr::Atom(Atom::Str(d.name.clone())),
     ];
+
+    top.push(SExpr::List(vec![
+        SExpr::Atom(Atom::Symbol("type-profile".into())),
+        SExpr::Atom(Atom::Str(crate::contracts::PROFILE.into())),
+    ]));
+    let mut types = vec![SExpr::Atom(Atom::Symbol("types".into()))];
+    for (name, expression) in &d.types {
+        types.push(SExpr::List(vec![
+            SExpr::Atom(Atom::Symbol(name.clone())),
+            expression.clone(),
+        ]));
+    }
+    top.push(SExpr::List(types));
 
     // extends
     let mut extends_list = vec![SExpr::Atom(Atom::Symbol(String::from("extends")))];
@@ -683,6 +701,11 @@ fn type_constraint_to_sexpr(tc: &Option<TypeConstraint>) -> SExpr {
             TypeConstraint::Hlc => "hlc",
             TypeConstraint::Float => "float",
             TypeConstraint::Decimal => "decimal",
+            TypeConstraint::Integer => "integer",
+            TypeConstraint::Contract(c) => {
+                v.push(c.source().clone());
+                return SExpr::List(v);
+            }
             TypeConstraint::Number => "number",
             TypeConstraint::Nonnegative => "nonnegative",
             TypeConstraint::Bool => "bool",
@@ -1048,6 +1071,7 @@ mod tests {
 
     fn test_dialect(name: &str) -> Dialect {
         Dialect {
+            types: Default::default(),
             roles: Vec::new(),
             state: None,
             state_bounds: None,
@@ -1172,6 +1196,7 @@ mod tests {
     #[test]
     fn signable_empty_dialect() {
         let d = Dialect {
+            types: Default::default(),
             roles: Vec::new(),
             state: None,
             state_bounds: None,
@@ -1202,6 +1227,7 @@ mod tests {
     #[test]
     fn signable_all_optional_fields() {
         let d = Dialect {
+            types: Default::default(),
             roles: Vec::new(),
             state: None,
             state_bounds: None,
@@ -1415,6 +1441,7 @@ mod tests {
     /// verifying.
     fn snapshot_legacy_dialect() -> Dialect {
         Dialect {
+            types: Default::default(),
             roles: Vec::new(),
             state: None,
             state_bounds: None,
@@ -1449,7 +1476,7 @@ mod tests {
         // Snapshot. If this fails the encoding has changed; investigate
         // whether it's deliberate (and bump CANONICAL_FORM_VERSION) or
         // accidental.
-        let expected = "(8:Sdialect7:Qlegacy(8:Sextends5:Qcbcl)(7:Sauthor11:Q@authority)\
+        let expected = "(8:Sdialect7:Qlegacy(13:Stype-profile23:Qcbcl-flat-v1-unicode16)(6:Stypes)(8:Sextends5:Qcbcl)(7:Sauthor11:Q@authority)\
              (14:Sperformatives(5:Sperf4:Qact(7:Sparams2:Sx)3:Sdo))\
              (10:Sresources2:N84:N5123:N10)(9:Sexamples))";
         // Strip whitespace from the literal — the actual bytes have none.
@@ -1496,7 +1523,7 @@ mod tests {
         let s = core::str::from_utf8(&bytes).expect("canonical bytes are UTF-8 today");
         // Note: BTreeMap::values() iterates sorted by key, so `act` appears
         // before `begin` despite the insertion order above.
-        let expected = "(8:Sdialect7:Qlegacy(8:Sextends5:Qcbcl)(7:Sauthor11:Q@authority)\
+        let expected = "(8:Sdialect7:Qlegacy(13:Stype-profile23:Qcbcl-flat-v1-unicode16)(6:Stypes)(8:Sextends5:Qcbcl)(7:Sauthor11:Q@authority)\
              (14:Sperformatives(5:Sperf4:Qact(7:Sparams2:Sx)3:Sdo))\
              (10:Sresources2:N84:N5123:N10)(9:Sexamples)\
              (16:Scausal-protocol\
@@ -1567,9 +1594,9 @@ mod tests {
     }
 
     #[test]
-    fn canonical_form_version_is_five() {
+    fn canonical_form_version_is_six() {
         // Pin the version constant so changes are deliberate.
-        assert_eq!(CANONICAL_FORM_VERSION, 5);
+        assert_eq!(CANONICAL_FORM_VERSION, 6);
     }
 
     // ---- SPEC-015 REQ-709: causal-locality mode is signature-bound ----

@@ -1,0 +1,34 @@
+
+running 1 test
+test reserve_before_branch_evaluation ... FAILED
+
+failures:
+
+---- reserve_before_branch_evaluation stdout ----
+
+thread 'reserve_before_branch_evaluation' (19131388) panicked at crates/cbcl-parser/tests/flat_contracts.rs:147:9:
+assertion `left == right` failed
+  left: Ok(())
+ right: Err(ResourceLimit)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    reserve_before_branch_evaluation
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 15 filtered out; finished in 0.00s
+
+   Compiling cbcl-core v0.1.1 (<repo>/crates/cbcl-core)
+warning: unused variable: `available_work`
+  --> crates/cbcl-core/src/contracts.rs:77:40
+   |
+77 |     pub fn check(&self, value: &SExpr, available_work: u64) -> Result<(), CheckError> {
+   |                                        ^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_available_work`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+   Compiling cbcl-parser v0.1.1 (<repo>/crates/cbcl-parser)
+warning: `cbcl-core` (lib) generated 1 warning (run `cargo fix --lib -p cbcl-core` to apply 1 suggestion)
+    Finished `test` profile [unoptimized] target(s) in 3.44s
+     Running tests/flat_contracts.rs (<target>/debug/deps/flat_contracts-b40e2dc79a90b5bd)
+error: test failed, to rerun pass `-p cbcl-parser --test flat_contracts`

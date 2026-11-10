@@ -449,6 +449,7 @@ mod tests {
     fn make_registry_with_custom() -> DialectRegistry {
         let mut reg = DialectRegistry::new();
         reg.install(Dialect {
+            types: Default::default(),
             roles: Vec::new(),
             state: None,
             state_bounds: None,
@@ -487,6 +488,7 @@ mod tests {
     fn make_registry_with_duplicate_customs() -> DialectRegistry {
         let mut reg = make_registry_with_custom();
         reg.install(Dialect {
+            types: Default::default(),
             roles: Vec::new(),
             state: None,
             state_bounds: None,
@@ -1080,6 +1082,7 @@ mod tests {
         // Template: (ship-effect :package <pkg> :dest <dst>)
         // Params bind: pkg = args[0], dst = args[1]
         reg.install(Dialect {
+            types: Default::default(),
             roles: Vec::new(),
             state: None,
             state_bounds: None,
@@ -1199,6 +1202,7 @@ mod tests {
         // Two shape constraints on same performative compose via conjunction (REQ-224)
         let mut reg = DialectRegistry::new();
         reg.install(Dialect {
+            types: Default::default(),
             roles: Vec::new(),
             state: None,
             state_bounds: None,
@@ -1275,6 +1279,7 @@ mod tests {
     fn shape_check_max_depth() {
         let mut reg = DialectRegistry::new();
         reg.install(Dialect {
+            types: Default::default(),
             roles: Vec::new(),
             state: None,
             state_bounds: None,
