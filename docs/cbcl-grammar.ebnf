@@ -489,7 +489,6 @@ contribution-row = "(" , keyword , ws , scalar , ws , state-name , ")" ;
 projection = "(" , "project" , [ ws , "stable" ] ,
     ws , "(" , projection-row , { ws , projection-row } , ")" , ")" ;
 projection-row = "(" , state-name , ws , scalar , ")" ;
-
 state-bounds-clause = "(" , ":state-bounds" , { ws , state-bound } , ")" ;
 state-bound = "(" , state-bound-name , ws , positive-number , ")" ;
 state-bound-name = "max-string" | "max-list" | "max-number" | "max-fields" ;

@@ -2,7 +2,7 @@
 title: "Common Business Communication Language (CBCL): Safe Self-Extending Agent Communication"
 abbrev: "CBCL"
 category: info
-docname: draft-oconnor-cbcl-01
+docname: draft-oconnor-cbcl-02
 submissiontype: IETF
 number:
 date:
@@ -115,13 +115,15 @@ mechanism for agents to define, exchange, and adopt domain-specific dialect
 extensions at runtime without centralized coordination. All messages, including
 dialect definitions, are S-expressions constrained to the deterministic
 context-free language (DCFL) class, so message validity remains decidable as
-the vocabulary grows. Six safety invariants are enforced by the same recognizer
-that handles ordinary communication: three structural (no recursion, resource
+the vocabulary grows. Seven safety invariants are enforced by the verification
+pipeline that handles ordinary communication: three structural (no recursion, resource
 bounds, core preservation), one cryptographic (integrity), one for optional
 message contracts, and one for an optional multiparty role layer that supports
-coordination-free endpoint projection. This specification defines CBCL message
-syntax, dialect extension, contract and role semantics, content addressing, and
-registers the application/cbcl media type.
+coordination-free endpoint projection, and one for an optional state layer.  The
+state layer is a causal lattice observation kernel: a closed vocabulary of pure
+observations over an authenticated, accepted message set.  This specification
+defines CBCL message syntax, dialect extension, contract, role, and state
+semantics, content addressing, and the application/cbcl media type.
 
 --- middle
 
@@ -686,7 +688,8 @@ extends-list = %s"(" *( WS symbol ) %s")"
 
 author       = symbol / string
 
-dialect-clause = extend-clause / protocol-clause / shape-clause / type-decl
+dialect-clause = extend-clause / protocol-clause / shape-clause
+               / type-decl
                / state-clause / state-bounds-clause
                / resource-clause / examples-clause
                / signature-clause / hash-clause
@@ -788,7 +791,8 @@ type-expr    = builtin-type / local-type-name
 builtin-type = %s"string" / %s"hlc" / %s"number" / %s"integer"
              / %s"float" / %s"decimal" / %s"nonnegative" / %s"bool"
              / %s"symbol" / %s"keyword" / %s"list"
-local-type-name = symbol  ; bounded lowercase name, excluding reserved names
+; bounded lowercase name, excluding reserved names
+local-type-name = symbol
 numeric-base = %s"number" / %s"integer" / %s"float" / %s"decimal"
 comparator   = %s">=" / %s">" / %s"<=" / %s"<"
 numeric-bound = %s"(" comparator WS numeric %s")"
@@ -1137,7 +1141,7 @@ The receiving agent MUST:
 
 1. Verify the cryptographic signature (if present)
 2. Check that the author matches the signing key
-3. Verify the applicable safety invariants (R1-R3, and R5-R6 if declared)
+3. Verify the applicable safety invariants (R1-R3, and R5-R7 if declared)
 4. Apply local trust policies
 
 The receiving agent MAY reject the dialect based on:
@@ -1325,7 +1329,37 @@ not follow from the tables alone. A coordination-free convergence argument
 using CALM {{CALM}} requires a monotone computation over growing evidence;
 these tables alone do not establish that premise.
 
-## State Rules {#state}
+## Causal Lattice Observation Kernel {#state}
+
+The optional CBCL state layer is the **Causal Lattice Observation Kernel**
+(CLOK).  The stratified admission model separates all byte strings, recognized
+messages, authenticated receipts, and accepted acts.  Only accepted acts enter
+CLOK.  For one thread they form a grow-only evidence set ordered by inclusion.
+
+For dialect `D` and accepted set `A`, `K_D(A)` is lattice-valued evidence from
+which a read policy derives an observation.  A snapshot read is revisable.  A
+threshold read reports stable success or an explicit conflict.  A freeze read
+is exact for a named causal cut.  The read policy is part of the interpretation
+context; a snapshot MUST NOT be presented as a stable threshold or frozen fact.
+
+State clauses declare pure, deterministic interpretations of accepted evidence.
+Arrival order and duplicate delivery do not affect the result.  Admission, role
+authority, resource certification, and observation remain distinct checks.  A
+displayed value alone does not authorize an external effect.
+
+For a fixed dialect, thread context, read policy, and set-extensional evidence
+providers, equal accepted sets produce equal observations.  Under eventual
+delivery, fair processing, finite ranked dependencies, and no false rejection,
+replicas eventually accept the same finite valid history and thereafter agree.
+This conditional strong eventual consistency claim does not establish transport
+liveness, clock honesty, resource finality, or a final value for infinite input.
+
+### State Declaration Grammar
+
+The following grammar uses ABNF as specified by {{RFC5234}} and case-sensitive
+strings from {{RFC7405}}.  It is normative for post-parse S-expression forms.
+Each `symbol` and `keyword` is one Layer 1 token.  `WS` separates adjacent
+elements.
 
 A dialect MAY declare a `state` clause naming the fields of an instance's state
 and, for each, one rule from a closed vocabulary that says how accepted
@@ -1339,16 +1373,25 @@ state-clause   = %s"(" %s"state" 1*( WS state-entry ) %s")"
 state-entry    = %s"(" field WS rule %s")"
                / %s"(" %s"domain" WS perf-name WS keyword WS field
                %s")"
+               / threshold-entry / freeze-entry / lattice-entry
 ; [a-z][a-z0-9-]{0,47}, unique in the clause
 field          = symbol
 
 rule           = bounded-counter-rule
-               / %s"(" %s"last"              WS perf-name WS keyword
+               / context-rule / finite-lift-rule
+               / %s"(" %s"initial"           WS perf-name WS keyword
                %s")"
-               / %s"(" %s"latest-per-signer" WS perf-name WS keyword
-               %s")"
-               / %s"(" %s"latest-per-key"    WS perf-name WS keyword
+               / %s"(" %s"lww-register"      WS perf-name WS keyword
                WS keyword %s")"
+               / %s"(" %s"lww-per-signer"    WS perf-name WS keyword
+               WS keyword %s")"
+               / %s"(" %s"lww-map"           WS perf-name WS keyword
+               WS keyword WS keyword [ WS perf-name ] %s")"
+               / %s"(" %s"multi-value-register" WS perf-name
+               WS keyword
+               %s")"
+               / %s"(" %s"multi-value-map" WS perf-name WS keyword
+               WS keyword [ WS perf-name ] %s")"
                / %s"(" %s"exists"            WS perf-name %s")"
                / %s"(" %s"count"             WS perf-name %s")"
                / %s"(" %s"progress"          WS perf-name %s")"
@@ -1359,9 +1402,6 @@ rule           = bounded-counter-rule
                / %s"(" %s"values"            WS perf-name WS keyword
                %s")"
                / %s"(" %s"values-per-key"    WS perf-name WS keyword
-               WS keyword
-                                         [ WS perf-name ] %s")"
-               / %s"(" %s"register-per-key"  WS perf-name WS keyword
                WS keyword
                                          [ WS perf-name ] %s")"
                / %s"(" %s"observed-set"      WS perf-name WS
@@ -1405,8 +1445,100 @@ state-bounds-clause = %s"(" %s":state-bounds" *( WS state-bound )
                %s")"
 state-bound    = %s"(" ( %s"max-string" / %s"max-list" /
                %s"max-number"
-                     / %s"max-fields" ) WS number %s")"
+                     / %s"max-fields" ) WS positive-number %s")"
+
+threshold-entry = %s"(" %s"threshold" WS field WS field
+                  1*( WS threshold-element ) %s")"
+                / %s"(" %s"threshold" WS field WS
+                  threshold-condition %s")"
+threshold-condition = %s"(" %s"read" WS field WS threshold-element
+                      %s")"
+                    / %s"(" %s"and"
+                      2*( WS threshold-condition ) %s")"
+threshold-element = scalar
+                  / %s"(" ( %s"count" / %s"sum" / %s"progress" )
+                    WS number %s")"
+                  / %s"(" %s"member" WS scalar %s")"
+
+freeze-entry   = %s"(" %s"freeze" WS field WS perf-name
+                 [ WS ( %s"supersede" / %s"fault" ) ] %s")"
+
+context-rule   = %s"(" %s"context" [ WS context-path ] %s")"
+context-path   = %s"dialect" [ WS dialect-path ]
+               / %s"thread" [ WS thread-path ]
+               / %s"observation" [ WS ( %s"accepted-count" /
+                 %s"frontier" ) ]
+dialect-path   = %s"address" / %s"body-address" / %s"name"
+               / %s"author"
+               / %s"roles" [ WS role-name ]
+               / %s"bounds" [ WS state-bound-name ]
+thread-path    = %s"id" / %s"root" / %s"initiator" / %s"opener"
+               / %s"roles" [ WS role-name ]
+state-bound-name = %s"max-string" / %s"max-list" / %s"max-number"
+                 / %s"max-fields"
+
+lattice-entry  = %s"(" %s"lattice" WS field
+                 WS %s"(" %s"elements" 1*( WS field ) %s")"
+                 WS %s"(" %s"bottom" WS field %s")"
+                 WS %s"(" %s"top" WS field %s")"
+                 WS %s"(" %s"join" *( WS join-row ) %s")" %s")"
+join-row       = %s"(" field WS field WS field %s")"
+
+finite-lift-rule = %s"(" %s"lift" WS perf-name
+                   WS %s"(" %s"into" WS field %s")"
+                   WS %s"(" %s"contribute"
+                   1*( WS contribution-row ) %s")"
+                   [ WS projection ] %s")"
+contribution-row = %s"(" keyword WS scalar WS field %s")"
+projection     = %s"(" %s"project" [ WS %s"stable" ]
+                 WS %s"(" projection-row
+                 *( WS projection-row ) %s")" %s")"
+projection-row = %s"(" field WS scalar %s")"
+scalar         = string / number / boolean
+
+hlc-value      = DQUOTE %s"hlc-" 16HEXDIG-LC %s"-" 8HEXDIG-LC DQUOTE
+HEXDIG-LC      = DIGIT / %x61-66
 ~~~
+
+`multi-value-register` and `multi-value-map` are accepted aliases for
+`values` and `values-per-key`; canonical descriptions use the latter names.
+The retired `last`, `latest-per-signer`, `latest-per-key`, and
+`register-per-key` heads MUST be rejected.  A shape field used as an LWW clock
+MUST have type `hlc` and match `hlc-value`.  The physical component is an
+unsigned 64-bit hexadecimal millisecond value.  The logical component is an
+unsigned 32-bit hexadecimal counter.  Canonical strings use lowercase digits
+and fixed widths.
+
+`threshold` is a stable read over an earlier source.  It begins pending,
+reaches one authored alternative, or faults.  Later evidence MUST NOT change a
+successful answer to a different successful answer or back to pending.  Later
+inconsistent evidence MAY change it to a fault.  Direct threshold alternatives
+MUST be nonempty, distinct, correctly typed, and pairwise incompatible.  The
+condition form combines two or more source-owned reads with `and`; every leaf
+retains its own source and freeze scope.
+
+Threshold and finite-lattice `scalar` values are strings, signed 64-bit
+integers, or booleans.  Float and decimal atoms MUST NOT appear in these finite
+tables.  Ordinary shaped data fields can carry integer, finite binary64 float,
+or exact decimal atoms as described by {{sexpr-grammar}} and {{contracts}}.
+
+`freeze` reads its source at the exact causal cut selected by the earliest
+accepted freezer.  A later causally ordered freezer does not change the cut.
+Concurrent earliest freezers fault.  The default `supersede` policy reports
+later or concurrent contributions as excluded; `fault` instead makes them a
+terminal fault.  The freezer performative MUST declare an explicit sender role.
+
+`lattice` declares a finite carrier, bottom, top, and complete join table.
+Installation MUST verify closure, bottom identity, top absorption,
+associativity, commutativity, and idempotence.  `lift` joins every matching
+contribution row; it is not a first-match branch.  A `stable` projection MUST
+map every carrier element exactly once and preserve the lattice order into the
+Boolean or integer order.  Reaching top is a fault.
+
+`context` exposes only installed dialect metadata, sealed thread metadata, and
+current observation metadata named by `context-path`.  It supplies no mutable
+host state, clock, quorum formula, or authorization override.  Snapshot context
+paths MUST NOT be used as stable threshold sources.
 
 The bounded-counter declaration has two ownership modes. Omitted ownership
 means `account`; omitted certification means `host-gate`. Options MUST NOT be
@@ -1449,27 +1581,36 @@ set of accepted messages of performative `v` in the thread, minus those a
 `domain` entry excludes; `current v k d` is the subset of `acts v` that no
 accepted message of `v`, or of the delete performative `d`, names in its
 `:replaces` field for the same key `k`. A reduction picks the message of
-greatest content address, counts a set, tests membership of a value, collects
-distinct values, or sums an integer field. These data reductions do not consult a clock or timestamp; content-address
-order breaks ties. `progress` instead observes established protocol positions,
-as defined below.
+greatest declared HLC, counts a set, tests membership of a value, collects
+distinct values, or sums an integer field.  HLC comparisons use physical
+milliseconds, logical counter, authenticated signer bytes, then content address.
+The final two components are deterministic tie-breakers, not evidence of fair or
+honest time.  Rules without an HLC operand do not consult a clock.  `progress`
+instead observes established protocol positions, as defined below.
 
 `:replaces` is a reserved keyword of type `list` that installation adds to the
-shape of every performative a `latest-per-signer`, `values`, `values-per-key`,
-`register-per-key`, or `observed-set` rule names as a writer, delete, or remove performative. An author
+shape of every performative a `lww-per-signer`, `lww-map`, `values`,
+`values-per-key`, or `observed-set` rule names as a writer, delete, or remove performative. An author
 MUST NOT declare it, a rule MUST NOT read it, and a sending host fills it with
 the content addresses of the current writes for the message's key. A message
 that carries `:replaces` is thereby a replacement of those writes; a write no
 accepted message names stays current whatever else is accepted.
 
-For `latest-per-signer`, replacement is scoped to the authenticated signer:
+For `lww-per-signer`, replacement is scoped to the authenticated signer:
 only another accepted write of the same performative by the same signer can
 supersede a cited write. A different signer naming that address cannot remove
 it. The host supplies the signer's observed current write addresses in
 `:replaces`; unseen concurrent writes remain current. The result is a map
-from signer to the selected field of that signer's greatest-address current
-write. Thus a causally replacing write supersedes its target even when its
-address sorts lower; address order resolves only the remaining concurrent ties.
+from signer to the selected field of that signer's greatest-HLC current write.
+Thus a replacing write supersedes its target even when the target has a later
+clock.  HLC, signer, and address order resolve only surviving concurrent ties.
+
+`lww-register` chooses one write across all admitted writes of its performative.
+`lww-map` applies replacement per key and then chooses one surviving write per
+key.  An optional delete performative removes only candidates it names; an
+unseen concurrent write survives.  Clock recognition does not authenticate
+time.  Applications that cannot accept timestamp arbitration use `values` or
+`values-per-key` and resolve the exposed alternatives explicitly.
 
 `(progress v)` returns the greatest established occurrence rank of `v` in the
 expanded finite protocol, or zero if none is established. R7 MUST reject it
@@ -1509,6 +1650,34 @@ A dialect's identity, for the purpose of naming it by content address, is the
 hash of its canonical form with the name slot empty, spelled `sha256-` followed
 by the lowercase hexadecimal digest; a name beginning with `sha256-` claims to
 be that self-address and installation MUST reject it unless it is.
+
+### Certified Causal-Cut Checkpoints {#state-checkpoints}
+
+A checkpoint is a cached observation of an accepted, causally downward-closed
+cut.  Its frontier names the cut's maximal acts.  A checkpoint context binds the
+target root, installed dialect and role projection, authentication and address
+versions, state-summary profile, coverage scheme, and endorsement policy.
+
+The current reference implementation supports all sixteen ordinary native fold
+heads.  Context, lift, and bounded-counter resource constructs are handled
+separately.  Its version 2 summary retains the evidence needed to continue each rule,
+including live replacement-sensitive contributions, protocol positions, and
+projected resource facts.  A rendered JSON value alone is not a continuation
+summary.  Event output, frontier width, protocol metadata, resource evidence,
+and provider archives can grow; checkpointing does not promise constant space.
+
+Checkpoint certificates use ordinary CBCL acts in a companion dialect.  Each
+endorser independently reconstructs and verifies the exact target cut before
+signing.  A client verifies the pinned context, native signatures, coverage,
+summary profile, causal tail, and its durable local-history floor before an
+atomic install.  An old valid certificate proves neither global freshness nor
+that later local acts can be discarded.
+
+This document specifies the semantic requirements above, but it does not define
+the reference implementation's binary summary or coverage-proof encoding as an
+interoperable CBCL wire format.  Implementations claiming checkpoint
+interoperability require a separately versioned profile that defines those
+encodings and their resource limits.
 
 # Multiparty Role Layer {#roles}
 
@@ -2628,13 +2797,14 @@ Special thanks to my family for their support.
 Note to RFC Editor: Please remove this section before publication.
 
 A reference implementation in Rust (cbcl-rs) is available as a Cargo workspace of
-six crates:
+seven crates:
 
 | Crate | Role |
 |---|---|
-| cbcl-core | types, safety invariants R1-R6, role layer and projection, contracts, template expansion, content addressing, gossip, evaluator |
-| cbcl-parser | S-expression, message, dialect, protocol and shape parsers; verified pipeline |
-| cbcl-cli | command-line interface: parse, verify, agent REPL, gossip simulation |
+| cbcl-core | numeric and message types, safety invariants R1-R7, CLOK, role projection, contracts, content addressing, and evaluation |
+| cbcl-parser | S-expression, message, dialect, protocol, type-contract, shape, and state parsers; verified pipeline |
+| cbcl-checkpoint | certified causal-cut checkpoints and all-head continuation summaries |
+| cbcl-cli | command-line interface: parse, verify, checkpoint, agent REPL, and gossip simulation |
 | cbcl-wasm | WebAssembly bindings |
 | cbcl-ffi | C FFI bindings |
 | cbcl-erl | Erlang/BEAM NIF bindings |
@@ -2642,21 +2812,18 @@ six crates:
 The core crates are `no_std + alloc` compatible and use `#![forbid(unsafe_code)]`.
 Effectful code lives in shell crates that import the core, never the reverse.
 
-At the revision this draft was prepared against, the workspace comprises roughly
-38,000 lines under `crates/*/src` including inline unit tests, and its suite runs
-1,350 tests across 32 suites with none failing. Testing includes property-based
-tests, differential tests against the Lean-extracted parser, libFuzzer targets on
-the parser trust boundary, and mutation testing on critical-path modules.
+Testing includes property-based and differential suites, parser fuzzing,
+canonical vectors, mutation gates, and native-to-Lean parity checks.  The state
+suite covers lattice laws, threshold stability, causal freezes, context
+projections, HLC registers, resource counters, and checkpoint continuation.
 
-A Lean 4 formalization accompanies it: 32 files, roughly 10,500 lines, 342
-theorems and 664 declarations in total, with zero `sorry` gaps and no custom
-axioms (only `propext`, `Classical.choice`, and `Quot.sound`). It covers parser
-soundness and completeness, the R1-R3 checkers against their contracts, template
-expansion termination, pipeline totality, deterministic-union DCFL preservation,
-the causal-verification monotonicity results, the endpoint-projection
-correspondence, the splicing analysis, a temporal bridge to conformant
-executions, and DCFL preservation at the role layer. A verified parser binary is
-extracted from the proofs.
+A Lean 4 formalization accompanies the implementation.  It covers parser and
+canonical-boundary properties, the R1-R3 checkers, template termination,
+deterministic-union DCFL preservation, causal verification, endpoint projection,
+state-kernel denotational correctness, finite lattice tables, causal freezes,
+conditional strong eventual consistency, and checkpoint continuation.  Proof
+boundaries for host scheduling, clock honesty, resource certification, and wire
+correspondence are stated separately rather than inferred from kernel proofs.
 
 The current Lean atom and parser models cover the integer numeric fragment.
 The reference Rust implementation additionally recognizes float and decimal atoms;

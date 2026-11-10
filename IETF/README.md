@@ -63,7 +63,9 @@ Structure:
 - Frontmatter: metadata, authors, normative and informative references
 - Abstract, Introduction, Layering, Terminology
 - **Core**: message format (three ABNF layers), dialect extension, R1–R4
-- **Contracts**: causal protocols, shape constraints, R5, verification verdicts
+- **Contracts**: causal protocols, shape and named type constraints, R5, verification verdicts
+- **State**: the Causal Lattice Observation Kernel, R7, thresholds, freezes,
+  finite lattices, resource counters, and checkpoint semantics
 - **Roles**: role annotations, casts, R6, endpoint projection, splicing boundary
 - Content addressing, attestation disciplines, redacted envelopes
 - Core semantics, conformance, security considerations, IANA registration
@@ -83,7 +85,7 @@ Two rules, learned the hard way:
 2. **Anchors must be unique.** `xml2rfc` fails on a duplicate `anchor`, and the
    error names the second use, not the collision.
 
-Note that `cbcl-cli verify` covers R1, R2, R3 and R5 only — it does **not** run
+Note that `cbcl-cli verify` covers R1, R2, R3, R5, and R7. It does **not** run
 the R6 role checks, so role-bearing examples need the library call.
 
 ## Submission
@@ -100,6 +102,18 @@ the R6 role checks, so role-bearing examples need the library call.
 - [RFC 7991 — xml2rfc v3 Vocabulary](https://www.rfc-editor.org/rfc/rfc7991.html)
 
 ## Version History
+
+- **draft-oconnor-cbcl-02** (2026-11-10): reconciled with latest `main`.
+  - Added integer, finite binary64 float, and exact decimal atoms, plus named
+    refinement contracts and I-Regexp string constraints
+  - Named and specified the Causal Lattice Observation Kernel (CLOK), including
+    snapshots, stable thresholds, exact causal freezes, context projections,
+    and verified finite table-defined lattices
+  - Updated the normative state ABNF to the implemented parser surface and
+    retained the complete non-normative EBNF as an implementation cross-check
+  - Documented HLC register arbitration, all sixteen ordinary native fold
+    heads and the separately handled resource constructs, conditional strong
+    eventual consistency, and certified causal-cut checkpoint semantics
 
 - **draft-oconnor-cbcl-01** (2026-08-13): brought in line with the reference
     implementation based on `febc669`, with mandatory `lang` scoping added.
