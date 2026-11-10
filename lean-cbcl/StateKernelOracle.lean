@@ -3,6 +3,7 @@ import LeanCbcl.StateExecutableCondition
 import LeanCbcl.StateResourceFactsOracle
 import LeanCbcl.StateResourceOracle
 import LeanCbcl.StateShapeOracle
+import LeanCbcl.BoundaryCanonicalOracle
 import LeanCbcl.StateJsonOracle
 import LeanCbcl.StateContextOracle
 import LeanCbcl.StateFiniteRead
@@ -295,6 +296,7 @@ def conditionRun (j : Json) : Check Json := do
 
 def run (j : Json) : Check Json :=
   match j.getObjVal? "profile" with
+  | .ok (.str "canonicalisation") => CBCL.BoundaryCanonicalOracle.run j
   | .ok (.str "authored-condition") => conditionRun j
   | .ok (.str "resource-facts") => CBCL.StateResourceFactsOracle.run j
   | .ok (.str "resource-freeze") => CBCL.StateResourceOracle.graphRun j true

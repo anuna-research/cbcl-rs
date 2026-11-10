@@ -482,6 +482,17 @@ it does not substitute for message recognition. The boundary-row soundness and
 sorting-permutation lemmas cover this keyword-only profile, not arbitrary native
 message syntax or its positional slots.
 
+`BoundaryCanonical` separately proves the complete canonicalisation algorithm
+with mixed positional and pair slots: preservation, UTF-8 ordering, idempotence,
+and equality of normal forms exactly for equivalent recognized unique mappings.
+`BoundaryShapeCanonical` proves full-height recursive ordering, structural
+preservation and computed-budget idempotence. `BoundaryCanonicalOracle` exposes
+these definitions to direct Rust-function conformance tests in the canonical
+state-oracle campaign. Typed atom octets and native AST/key correspondence remain
+tested adapters; the model proofs are not a deductive proof of Rust execution.
+The CI mutation gate deliberately breaks native ordering, values, slots and
+recursive normalization and requires the conformance tests to catch each change.
+
 `StateJsonString` proves lossless canonical quote/escape encoding and appending
 to any output buffer. `StateJsonValue` proves operational emission equals a
 separate declarative spelling for every native value variant and complete state

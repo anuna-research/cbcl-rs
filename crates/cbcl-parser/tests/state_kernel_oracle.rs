@@ -1126,3 +1126,6 @@ mod resource_facts;
 
 #[path = "state_kernel_oracle/condition.rs"]
 mod condition;
+
+#[path = "state_kernel_oracle/canonical.rs"]
+mod canonical;

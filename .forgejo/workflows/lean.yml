@@ -43,8 +43,10 @@ on:
       - 'specs/SPEC-015-*'
       - 'specs/SPEC-019-*'
       - 'specs/SPEC-038-*'
+      - 'specs/SPEC-042-*'
       - 'proofs/epp-correspondence/**'
       - 'scripts/check-axioms.sh'
+      - 'scripts/check-boundary-canonicalisation-mutations.py'
       - 'scripts/check-verified-by.sh'
       - 'scripts/ci-install-rust.sh'
       - 'scripts/ci-install-lean.sh'
@@ -70,8 +72,10 @@ on:
       - 'specs/SPEC-015-*'
       - 'specs/SPEC-019-*'
       - 'specs/SPEC-038-*'
+      - 'specs/SPEC-042-*'
       - 'proofs/epp-correspondence/**'
       - 'scripts/check-axioms.sh'
+      - 'scripts/check-boundary-canonicalisation-mutations.py'
       - 'scripts/check-verified-by.sh'
       - 'scripts/ci-install-rust.sh'
       - 'scripts/ci-install-lean.sh'
@@ -134,11 +138,17 @@ jobs:
         working-directory: lean-cbcl
         run: lake build cbcl-state-oracle
 
-      - name: Differential fuzz kernel, freezes and derived reads against Lean
+      - name: Compare native canonicalisation, kernels, freezes and derived reads against Lean
         env:
           PROPTEST_RNG_SEED: '380038'
           PROPTEST_CASES: '512'
         run: cargo test -p cbcl-parser --test state_kernel_oracle -- --ignored
+
+      - name: Require canonicalisation conformance to catch native mutations
+        env:
+          PROPTEST_RNG_SEED: '420042'
+          PROPTEST_CASES: '32'
+        run: python3 scripts/check-boundary-canonicalisation-mutations.py
 
       - name: Batteries env-linter (keep LeanCbcl lint-clean)
         working-directory: lean-cbcl

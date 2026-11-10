@@ -88,6 +88,9 @@ pub const CANONICAL_FORM_VERSION: u32 = 7;
 /// Sort whole keyword/value pairs, retaining positional slots and opaque values.
 /// No fields are dropped or merged. Message recognition rejects missing values
 /// and duplicate keys before calling this representation function.
+/// SPEC-042's `BoundaryCanonical.canonicalTokens` is the proved algorithm model;
+/// the live `canonical::parameter_function_matches_formal_model` campaign checks
+/// this function directly, including mixed positional slots and opaque values.
 pub fn canonical_params(params: &[SExpr]) -> Vec<SExpr> {
     let mut pairs = Vec::new();
     let mut slots = Vec::new();
@@ -114,6 +117,9 @@ pub fn canonical_params(params: &[SExpr]) -> Vec<SExpr> {
 
 /// Normalise unordered shape declarations once at dialect creation. Signing and
 /// hashing use the same projection for dialects built directly by Rust callers.
+/// SPEC-042's `BoundaryShapeCanonical.complete` proves recursive fixed-point,
+/// ordering and structural preservation; its native key adapter is checked by
+/// `canonical::dialect_function_matches_formal_model`.
 pub fn canonicalise_dialect(d: &mut Dialect) {
     canonicalise_shapes(&mut d.shapes);
 }

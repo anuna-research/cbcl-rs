@@ -19,3 +19,23 @@
 (given (completed boundaries))
 (given (verified review))
 (given (completed review))
+
+; Formal assurance extension: primary implements proofs and conformance;
+; independent fresh-context reviewer checks theorem statements and bridge scope.
+(given (task canonical-proofs))
+(given (task-description canonical-proofs "Prove canonical ordering, preservation, idempotence and permutation independence, including recursive sibling normalisation"))
+(given (task-acceptance canonical-proofs "TEST-4206 kernel build and axiom audit pass without sorry or new axioms"))
+(given (no-deps canonical-proofs))
+(normally r-ready-canonical-proofs (and (task canonical-proofs) (no-deps canonical-proofs)) (ready canonical-proofs))
+(meta r-ready-canonical-proofs (source "SPEC-042-boundary-canonicalisation#REQ-4206"))
+(given (task canonical-conformance))
+(given (task-description canonical-conformance "Compare actual Rust canonicalisation with executable formal model and kill ordering/preservation mutations"))
+(given (task-acceptance canonical-conformance "TEST-4207 direct conformance and mutations pass in mandatory Lean CI"))
+(normally r-ready-canonical-conformance (and (task canonical-conformance) (completed canonical-proofs)) (ready canonical-conformance))
+(meta r-ready-canonical-conformance (source "SPEC-042-boundary-canonicalisation#REQ-4207"))
+
+; Evidence: SPEC-042 Formal canonicalisation assurance; canonical_formal_review.
+(given (verified canonical-proofs))
+(given (completed canonical-proofs))
+(given (verified canonical-conformance))
+(given (completed canonical-conformance))

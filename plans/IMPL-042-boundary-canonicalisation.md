@@ -21,6 +21,8 @@ loaded in Elephant theory `cbcl-boundary-canonicalisation`.
 |---|---|---|---|
 | boundaries | Implementer | Maintainer boundary decision | [[SPEC-042-boundary-canonicalisation#TEST-4200]] through [[SPEC-042-boundary-canonicalisation#TEST-4205]]: regression, migration, integration and deliberate mutation evidence |
 | review | Independent reviewer | Boundaries verified | Review boundary coverage, positional preservation, duplicate rejection and migration; resolve findings |
+| canonical-proofs | Implementer | Maintainer formal-assurance request | [[SPEC-042-boundary-canonicalisation#TEST-4206]]: kernel proofs, complete-height recursion and allowlisted axiom dependencies |
+| canonical-conformance | Implementer; independent reviewer challenges scope | Proofs built | [[SPEC-042-boundary-canonicalisation#TEST-4207]]: direct native/model comparison and deliberately broken native implementations are caught |
 
 Message recognition and the authoring binder normalise once. Serialization and
 addressing use the same projection for directly constructed Rust objects. The

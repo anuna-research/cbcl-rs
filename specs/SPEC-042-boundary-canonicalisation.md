@@ -3,7 +3,7 @@ id: SPEC-042
 title: Boundary Canonicalisation
 status: implemented
 mode: reference
-version: 1.0.0
+version: 1.1.0
 last-updated: 2026-11-10
 owner: CBCL maintainer
 ---
@@ -31,11 +31,28 @@ no installed dialect is needed to compute an address. Reordering a positional
 argument or an ordinary list remains a meaningful change. Reordering sibling
 shape declarations does not change a dialect's signing bytes or self-address.
 
+[[SPEC-042-boundary-canonicalisation#REQ-4206]] requires kernel-checked algorithm
+properties, including positional-slot preservation and idempotence.
+For recognized unique keyword mappings, equality of complete normal forms is
+proved equivalent to equality of positional layouts and complete row mappings.
+Recursive shape proofs cover idempotence, structural preservation, and ordering
+at every descendant. The checked wrapper computes the input tree's full height
+and uses it as the recursion budget; callers do not supply a coverage assumption.
+[[SPEC-042-boundary-canonicalisation#REQ-4207]] requires a CI comparison calling
+the actual Rust functions against that executable model. The model proof and
+the executable conformance check are distinct assurance layers; neither claims
+verification of the Rust compiler or its standard library.
+The check covers mixed positional slots, opaque values of every Rust atom kind,
+prefix/Unicode keys, recursive shape metadata and complete-key tie breakers.
+
 Controls: [[SPEC-042-boundary-canonicalisation#REQ-4201]] prohibits duplicate or
 valueless message keywords; [[SPEC-042-boundary-canonicalisation#REQ-4202]]
 preserves positional parameter data and values; [[SPEC-042-boundary-canonicalisation#REQ-4204]]
 prohibits receipt-time rewriting and order rejection;
-[[SPEC-042-boundary-canonicalisation#REQ-4205]] requires explicit identity migration.
+[[SPEC-042-boundary-canonicalisation#REQ-4205]] requires explicit identity migration;
+[[SPEC-042-boundary-canonicalisation#REQ-4206]] prohibits `sorry`, new axioms and
+circular proof premises; [[SPEC-042-boundary-canonicalisation#REQ-4207]] requires
+native/model CI conformance and prohibits claiming deductive Rust verification.
 
 Reading paths: maintainers read the decision and migration; implementers traverse
 [[SPEC-042-boundary-canonicalisation#CON-4200]] to the test table; reviewers
@@ -99,6 +116,26 @@ causal references require reissue; implementations SHALL NOT retry an older
 ordering when signature verification fails.
 Trace: [[SPEC-042-boundary-canonicalisation#TEST-4205]].
 
+### REQ-4206
+
+The canonicalisation algorithm SHALL have kernel-checked proofs of idempotence,
+canonical ordering, preservation of complete keyword/value pairs and positional
+slots, and permutation independence for unique keyword mappings with identical
+positional layouts. Recursive dialect sibling normalisation SHALL have a
+kernel-checked fixed-point and preservation argument. Proofs SHALL NOT use
+`sorry`, new axioms, or a premise asserting the property being proved.
+Trace: [[SPEC-042-boundary-canonicalisation#TEST-4206]].
+
+### REQ-4207
+
+CI SHALL compare the actual Rust canonicalisation functions directly against the
+executable formal model, including mixed positional slots, opaque nested values,
+prefix and Unicode keys, and recursive shapes. The conformance check SHALL fail
+under deliberate mutations of sorting and slot/value preservation. This check is
+executable conformance evidence; it SHALL NOT be described as a deductive proof
+of the Rust compiler, standard library sort, or complete Rust implementation.
+Trace: [[SPEC-042-boundary-canonicalisation#TEST-4207]].
+
 ## ADR-4200
 
 Use lexical keyword ordering in the shared core boundary representation. Reuse
@@ -138,6 +175,8 @@ and checkpoint suites supply integration coverage.
 | TEST-4203 | [[SPEC-042-boundary-canonicalisation#REQ-4203]] | Permuted nested shapes produce equal dialect identities and valid cross-order signatures; changed constraints invalidate signatures |
 | TEST-4204 | [[SPEC-042-boundary-canonicalisation#REQ-4204]] | R7 accepts both field orders without mutating typed messages; checkpoint corpus still passes |
 | TEST-4205 | [[SPEC-042-boundary-canonicalisation#REQ-4205]] | Version assertions and regenerated fixture comparisons pass; deliberate mutation of ordering makes acceptance fail |
+| TEST-4206 | [[SPEC-042-boundary-canonicalisation#REQ-4206]] | Build canonicalisation theorem module and audit all its proof dependencies |
+| TEST-4207 | [[SPEC-042-boundary-canonicalisation#REQ-4207]] | Direct Rust/formal-model conformance campaign and deliberate mutations |
 
 ## Migration and enable path
 
@@ -228,3 +267,83 @@ passes all executed campaigns. The original failing routing-duplicate case was
 observed red against the previous oracle before the fix. An axiom audit of the
 new boundary lemmas, their fixtures, and the existing checked-amount theorem
 finds only `propext`, `Classical.choice`, and `Quot.sound`.
+
+### Formal canonicalisation assurance
+
+The failure addressed by [[SPEC-042-boundary-canonicalisation#REQ-4206]] is that
+example permutations and a row-sorting lemma leave the complete transformation
+unchecked: collection can split a key from its value, replacement can move a
+positional argument, and recursive shape normalisation can stop before a child.
+The maintainer requested a formalised check of the canonicalisation function.
+
+`BoundaryCanonical` models the actual collect/sort/replace algorithm over opaque
+values, followed by its scanner/flat-token representation. Its kernel-checked
+contracts include:
+
+| Theorem | Property |
+|---|---|
+| `canonical_layout` | Every positional value and pair-slot position is retained |
+| `canonical_fields`, `canonical_preserves` | Exactly the original complete rows are emitted, in prescribed UTF-8 key order, with multiplicity retained |
+| `canonical_idempotent`, `tokens_idempotent` | Reapplying the complete transformation changes nothing |
+| `canonical_permutation`, `tokens_permutation` | Unique keyword mappings with the same positional layout have one normal form |
+| `canonical_eq_iff`, `tokens_eq_iff` | Equal complete normal forms are equivalent to equal positional layouts and complete row mappings; different values cannot be collapsed |
+| `scan_flatten` | Recognized pair/positional structure is reconstructed without treating keyword-looking values as keys |
+
+The flat-token results require the explicit recognizer/keyword-constructor law
+and a recognized positional layout. The concrete JSON adapter proves its
+keyword-constructor law. Duplicate rejection remains the recognition contract;
+the row sorter does not discard or merge duplicates.
+
+`BoundaryShapeCanonical` proves recursive structural preservation modulo sibling
+permutations, exact height preservation, and complete ordering/idempotence for
+the wrapper that computes its own tree-height budget. The comparator's complete
+native key remains a conformance boundary: generic tree properties do not prove
+the native shape encoder injective or independently prove shape permutation
+independence under that encoding.
+
+The `canonicalisation` oracle profile executes these exact definitions. The
+native campaign calls `canonical_params` and `canonicalise_dialect` directly;
+no message parser or receipt substitutes for either function. Parameter cases
+include every permutation/positional layout of a fixed unique-row example and
+generated mixed slots, all native atom kinds as opaque values, duplicates,
+dangling keys, nested data, prefixes and arbitrary Unicode keys. Shape cases
+include recursive require/optional children, distinct same-name declarations,
+constructor/type/default/max-depth/descendant tie breakers and deep metadata.
+The adapter independently computes byte-length framing and complete subtree
+keys from transported typed atom octets. Shape transport rejects trees beyond
+its explicit depth budget of 16 and metadata beyond 32; encoding accepted trees
+is structural and never truncates or silently substitutes empty keys.
+
+CI builds the proof modules through `LeanCbcl`, audits every named theorem in
+the existing axiom allowlist gate, and runs the native/model campaigns in the
+mandatory state-oracle suite. It also runs the reproducible
+`scripts/check-boundary-canonicalisation-mutations.py`: removing pair sorting,
+changing opaque values, changing positional slots, skipping recursive child
+normalisation, and skipping top-level shape sorting must each fail an executed
+conformance test. Sources are restored and clean-code conformance is required
+afterward; compile and recognized oracle-infrastructure failures do not count
+as mutation kills.
+
+The verified model has unbounded algorithm theorems. The native atom-octet map,
+typed-AST transport, concrete native comparator/key construction, compiler and
+standard-library implementation are tested boundaries, not deductively verified
+Rust. This distinction is part of the acceptance contract, not a deferred proof
+silently treated as complete.
+
+Acceptance evidence: `lake build cbcl-state-oracle LeanCbcl` passes; the existing
+`scripts/check-axioms.sh` gate passes with all new theorem entries included.
+The new theorem dependency set contains only `propext`, `Classical.choice`, and
+`Quot.sound`. Batteries lint passes separately for `BoundaryCanonical`,
+`BoundaryShapeCanonical`, and `BoundaryCanonicalOracle`. The complete
+state-kernel oracle suite and boundary regressions pass with the CI seed and
+case configuration. The reproducible mutation script rejects every listed
+mutant and passes the restored implementation. No production representation
+changes are introduced by this assurance extension.
+
+Independent session `canonical_formal_review` challenged the model, theorem
+premises, computed-depth wrapper, transport and CI. Findings about truncated
+metadata, depth coverage, audit inventory, workflow triggers and deterministic
+tie-break cases were resolved. Final re-review found no concrete blocker.
+Fresh-context session `canonical_orientation` confirmed the distinction between
+proved generic properties and tested native correspondence; the Orientation
+explicitly identifies the wrapper that supplies complete depth coverage.
