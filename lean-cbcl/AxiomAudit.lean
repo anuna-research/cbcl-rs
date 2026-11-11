@@ -172,6 +172,7 @@ import LeanCbcl.R6DCFLPreservation
 import LeanCbcl.State
 import LeanCbcl.StateLift
 import LeanCbcl.StateLVar
+import LeanCbcl.StateOperationalQuasiDeterminism
 import LeanCbcl.StateContext
 import LeanCbcl.AdmissionStratification
 import LeanCbcl.StateRefinement
@@ -3471,3 +3472,17 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.BoundaryShapeCanonical.normalize_preserves
 #print axioms CBCL.BoundaryShapeCanonical.complete_preserves
 #print axioms CBCL.BoundaryCanonicalOracle.keyword_keyToken
+
+-- SPEC-038 operational quasi-determinism for concurrent threshold programs.
+#print axioms CBCL.StateOperational.successful_unique
+#print axioms CBCL.StateOperational.Along.linear
+#print axioms CBCL.StateOperational.Along.mono
+#print axioms CBCL.StateOperational.Run.view_below_evidence
+#print axioms CBCL.StateOperational.Run.self_justified
+#print axioms CBCL.StateOperational.Run.dominated
+#print axioms CBCL.StateOperational.clean_run_decides
+#print axioms CBCL.StateOperational.operational_quasi_determinism
+#print axioms CBCL.StateOperational.different_results_expose_conflict
+#print axioms CBCL.StateOperational.clean_run_dominates
+#print axioms CBCL.StateOperational.Sharp.results_can_differ_under_conflict
+#print axioms CBCL.StateOperational.Sharp.solo_is_deterministic
