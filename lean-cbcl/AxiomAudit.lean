@@ -179,6 +179,7 @@ import LeanCbcl.StateRefinement
 import LeanCbcl.MonitoredDCFL
 
 import LeanCbcl.EPPCompletion
+import LeanCbcl.RoleProgress
 import LeanCbcl.ProtocolProjection
 import LeanCbcl.ConcreteProjection
 import LeanCbcl.Splice
@@ -3486,3 +3487,22 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.StateOperational.clean_run_dominates
 #print axioms CBCL.StateOperational.Sharp.results_can_differ_under_conflict
 #print axioms CBCL.StateOperational.Sharp.solo_is_deterministic
+
+-- Role-model enabledness, deadlock freedom and fair-run completion.
+#print axioms LeanCbcl.RoleProgress.enabled_persistent
+#print axioms LeanCbcl.RoleProgress.extend_safe_closed
+#print axioms LeanCbcl.RoleProgress.enabled_locally
+#print axioms LeanCbcl.RoleProgress.enabled_of_realizable
+#print axioms LeanCbcl.RoleProgress.deadlock_free
+#print axioms LeanCbcl.RoleProgress.incomplete_has_enabled
+#print axioms LeanCbcl.RoleProgress.Run.safe_closed
+#print axioms LeanCbcl.RoleProgress.Run.eventually_present
+#print axioms LeanCbcl.RoleProgress.Run.eventually_discharged
+#print axioms LeanCbcl.RoleProgress.Run.eventually_complete
+#print axioms LeanCbcl.RoleProgress.realizing_of_complete
+#print axioms LeanCbcl.RoleProgress.not_realizable_of_noInitial
+#print axioms LeanCbcl.RoleProgress.Run.stuck_of_noInitial
+#print axioms LeanCbcl.RoleProgress.realizable_of_perfRealizable
+#print axioms LeanCbcl.RoleProgress.realizing_of_perfRealizable
+#print axioms LeanCbcl.RoleProgress.RequestReply.completes
+#print axioms LeanCbcl.RoleProgress.RequestReply.not_noInitial

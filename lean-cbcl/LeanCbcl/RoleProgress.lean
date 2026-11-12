@@ -28,8 +28,10 @@
     Participants outside `J` are unconstrained except that the store admits only valid
     messages.
   * NECESSITY (`realizing_of_complete`): if predecessors are well-founded and finite,
-    any `pComplete` configuration witnesses `Realizing`. Hence, for such protocols,
-    completion is reachable exactly when the static condition holds.
+    any `pComplete` configuration witnesses `Realizing`, taking its present messages
+    as the undertaken work. Together with the fair-run results above, this gives a
+    necessary condition for complete configurations and a sufficient condition for
+    completion under the stated run and finite-obligation hypotheses.
   * HONESTY IS NOT ENOUGH (`Run.stuck_of_noInitial`): if every clause demands some
     predecessor, no message is ever admitted from the empty store, so every run — however
     honest and fair — is stuck with all obligations pending.
