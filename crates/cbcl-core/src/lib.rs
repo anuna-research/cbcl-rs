@@ -62,6 +62,7 @@ pub mod keyid;
 pub mod lattice;
 pub mod message;
 pub mod msg_tag;
+pub mod multikey;
 pub mod pattern;
 pub mod policy;
 pub mod projection;

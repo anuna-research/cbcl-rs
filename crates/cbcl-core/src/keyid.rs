@@ -110,6 +110,23 @@ pub struct KeyId {
 }
 
 impl KeyId {
+    /// Explicit opt-in conversion from public Multikey material to a signing
+    /// identity. Existing parsed principals and attestation preimages are not
+    /// reinterpreted. Recognition does not establish possession or host trust.
+    pub fn from_multikey(
+        key: &crate::multikey::Multikey,
+    ) -> Result<Self, crate::multikey::MultikeyError> {
+        if key.codec() != crate::multikey::PublicKeyCodec::Ed25519 {
+            return Err(crate::multikey::MultikeyError::UnsupportedSigningCodec(
+                key.codec().code(),
+            ));
+        }
+        Ok(Self {
+            suite: SignatureSuite::Ed25519,
+            name: key.to_multibase(),
+        })
+    }
+
     /// Parse `@[suite:]name` into canonical identity (CON-700).
     ///
     /// An omitted suite normalises to `ed25519` here, at parse — no later

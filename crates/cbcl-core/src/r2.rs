@@ -32,7 +32,7 @@ impl ResourceState {
     /// Uses strict `<` matching `ResourceState.enterDepth` in
     /// `R2ResourceBounds.lean:36–40`.
     pub fn enter_depth(&self) -> Option<ResourceState> {
-        let new_depth = self.current_depth + 1;
+        let new_depth = self.current_depth.checked_add(1)?;
         if new_depth < self.max_depth {
             Some(ResourceState {
                 current_depth: new_depth,
@@ -48,7 +48,7 @@ impl ResourceState {
     /// Uses strict `<` matching `ResourceState.addExpansion` in
     /// `R2ResourceBounds.lean:43–47`.
     pub fn add_expansion(&self, size: u32) -> Option<ResourceState> {
-        let new_size = self.expansion_size + size;
+        let new_size = self.expansion_size.checked_add(size)?;
         if new_size < self.max_exp_size {
             Some(ResourceState {
                 expansion_size: new_size,

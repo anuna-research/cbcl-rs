@@ -31,6 +31,11 @@ enum Command {
         /// Input dialect definition (reads from stdin if omitted)
         input: Option<String>,
     },
+    /// Inspect a public Multikey payload (does not establish authorization)
+    Multikey {
+        /// Canonical base58btc public key, starting with z
+        input: String,
+    },
     /// Run an interactive agent REPL
     Agent {
         /// Agent identifier
@@ -66,6 +71,7 @@ fn main() {
         Command::Parse { input, sexpr } => cmd_parse(input, sexpr),
         Command::Verify { input } => cmd_verify(input),
         Command::Agent { id } => cmd_agent(id),
+        Command::Multikey { input } => cmd_multikey(&input),
         Command::Simulate {
             agents,
             probability,
@@ -77,6 +83,28 @@ fn main() {
     };
 
     std::process::exit(exit_code);
+}
+
+fn cmd_multikey(input: &str) -> i32 {
+    match cbcl_core::multikey::Multikey::parse(input) {
+        Ok(key) => {
+            let identity = cbcl_core::keyid::KeyId::from_multikey(&key)
+                .ok()
+                .map(|id| id.canonical_spelling());
+            let output = serde_json::json!({
+                "multikey": key.to_multibase(),
+                "codec": key.codec().code(),
+                "public_key": key.public_key_bytes(),
+                "signing_identity": identity,
+            });
+            println!("{output}");
+            0
+        }
+        Err(error) => {
+            eprintln!("multikey error: {error}");
+            1
+        }
+    }
 }
 
 fn read_input(arg: Option<String>) -> String {

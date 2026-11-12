@@ -12,9 +12,11 @@
 (*            crates/cbcl-parser/src/shape_parser.rs    (contracts)    *)
 (*            lean-cbcl/LeanCbcl/Parser.lean            (formal model) *)
 (*                                                                     *)
-(* The normative prose specification is IETF/draft-oconnor-cbcl.md.    *)
-(* Where this file and the draft disagree, the draft is authoritative; *)
-(* where either disagrees with the sources above, they are.            *)
+(* This describes the current implementation, not a ratified edition. *)
+(* Governing feature specifications live in specs/; the IETF draft is  *)
+(* being reconciled with them. Disagreements are conformance findings, *)
+(* not permission to silently change signed meaning. A ratified       *)
+(* edition report will define the enduring language contract.         *)
 (* ================================================================== *)
 
 
