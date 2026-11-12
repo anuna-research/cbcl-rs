@@ -8,6 +8,11 @@ in pre-1.0 development, and compatibility changes are called out explicitly.
 
 ### Added
 
+- Bounded public Multikey payload recognition for Ed25519, X25519 and compressed
+  P-256/P-384 keys, explicit Ed25519 identity conversion, and CLI inspection.
+- Long-lived language-edition design and guidance for offline evidence, identity,
+  resource portability, and historical trust boundaries.
+
 - Finite binary64 float and exact arbitrary-precision decimal atoms, alongside
   signed 64-bit integers, with canonical serialization and binding support.
 - Named declarative flat contracts: numeric ranges, RFC 9485 I-Regexp matching
@@ -43,6 +48,9 @@ in pre-1.0 development, and compatibility changes are called out explicitly.
   `(then begin one two three)` expands to adjacent causal edges.
 
 ### Fixed
+
+- Resource depth and expansion arithmetic now refuses overflow consistently in
+  debug and release builds.
 
 - Aligned verdict composition with strong Kleene three-valued logic.
 - Restored the `no_std` build of `blame.rs` and added it to `make check`.

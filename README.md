@@ -336,6 +336,9 @@ Generate local Rust documentation with `cargo doc --workspace --no-deps`. Start 
 | Open committed fields | `cbcl_core::typed_addr::{typed_root, open, verify_opening}` |
 | Authenticate disclosed evidence | `cbcl_core::envelope::{build_opened, verify_opened}` |
 
+For the proposed long-lived language editions, public Multikey APIs, and archival
+compatibility boundaries, see [long-lived protocols](docs/concepts/long-lived-protocols.md).
+
 ## Development
 
 ```bash
