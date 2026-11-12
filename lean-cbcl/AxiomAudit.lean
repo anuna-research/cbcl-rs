@@ -3557,3 +3557,11 @@ editing only this file is enough to extend the audit.
 #print axioms CBCL.DialectEnactability.Examples.cyclic_enactable
 #print axioms CBCL.DialectEnactability.Examples.deadlock_unenactable
 #print axioms CBCL.DialectEnactability.Examples.emptyAny_unenactable
+#print axioms CBCL.DialectEnactability.acc_of_acyclic
+#print axioms CBCL.DialectEnactability.wf_of_acyclic
+#print axioms CBCL.DialectEnactability.enactable_of_checkAcyclicity
+#print axioms CBCL.DialectEnactability.built_mirrors
+#print axioms CBCL.DialectEnactability.justified_all_true
+#print axioms CBCL.DialectEnactability.built_satisfiable
+#print axioms CBCL.DialectEnactability.built_enactable
+#print axioms CBCL.DialectEnactability.Examples.askEdges_enactable

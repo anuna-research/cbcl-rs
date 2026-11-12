@@ -20,6 +20,13 @@
     relation is well-founded and no step has a degenerate clause list, every
     performative is enactable. So for such protocols the check can never fail, and
     enactability is a consequence of acyclicity, not an additional requirement.
+  * THE R5 CHECK SUFFICES (`enactable_of_checkAcyclicity`): the well-foundedness premise
+    follows from a passing R5 acyclicity check on the successor graph, provided the
+    successor graph mirrors the predecessor declarations (`Mirrors`).
+  * INSTALLED IMPLIES ENACTABLE, IN THE MODEL (`built_enactable`): a protocol built from
+    `then` edges mirrors by construction (`built_mirrors`) and is non-degenerate unless
+    an edge has an empty `(any)` (`built_satisfiable`). So if it passes R5 acyclicity,
+    one arrival-order trace contains every declared step.
   * The converse fails (`Examples.cyclic_enactable`), and the degenerate case is real
     (`Examples.emptyAny_unenactable`): a step whose only declaration is an empty
     `(any)` is acyclic and can never be justified.
@@ -34,13 +41,19 @@
     order-free at name level and so admits words in which two steps justify each other;
     messages cannot do that, because a citation is a content address of an earlier
     message. `causalTrace_storeTrace` gives the inclusion.
-  * `enactable_of_acyclic` assumes well-foundedness of `dependsOn`. It is NOT derived
-    from the R5 acyclicity checker (`R5.lean`), which is stated over a different step
-    record and over the successor graph. That the two agree for parser-built protocols
-    is expected and unproved.
+  * `graphOf` and `roleOf` state the RESULT of the parser's edge loop
+    (`protocol_parser.rs`: for each `then` edge, push the successor clause onto every
+    predecessor name and the predecessor clause onto every successor name). They are a
+    model written from that code, not extracted from it. The value-level comparison with
+    the Rust parser is `crates/cbcl-parser/tests/lean_parity_enactability.rs`. `repeat`
+    expansion happens before edges are formed and is not modelled; the theorems apply to
+    the expanded edge list.
+  * The R5 link uses `checkAcyclicity_sound` only. The other R5 sub-checks and the
+    role-annotation checks play no part.
   * Roles do not enter: every participant is taken as willing. Obligations, casts and
     sealed role rosters are outside this file.
 -/
+import LeanCbcl.R5
 import LeanCbcl.R6DCFLPreservation
 import LeanCbcl.Enactability
 
@@ -345,6 +358,208 @@ theorem acyclic_one_trace {P : RoleProtocol}
   (unenactableSteps_eq_nil_iff P).1 (List.filter_eq_nil_iff.2 (fun t _ => by
     simp [enactable_of_acyclic hwf hsat t]))
 
+/-! ## From the R5 acyclicity check
+
+`enactable_of_acyclic` assumes a well-founded predecessor relation. Here that premise is
+derived from the R5 acyclicity checker of `R5.lean`, which works on the SUCCESSOR graph of
+a `ProtocolGraph`, given that the two protocol records mirror each other: whenever a step
+`t` names `x` as a predecessor, `x` lists `t` as a successor. -/
+
+/-- A node with a neighbour is a key of the graph. -/
+theorem key_of_neighbor {g : List (String × List String)} {x t : String}
+    (h : t ∈ graphNeighbors g x) : x ∈ g.map Prod.fst := by
+  unfold graphNeighbors at h
+  cases hf : g.find? (fun p => p.1 == x) with
+  | none => rw [hf] at h; exact nomatch h
+  | some kv =>
+    have hbeq := List.find?_some hf
+    have hk : kv.1 = x := eq_of_beq hbeq
+    exact hk ▸ List.mem_map.2 ⟨kv, List.mem_of_find?_eq_some hf, rfl⟩
+
+/-- In an acyclic finite graph, every key is accessible for any relation contained in
+    the reversed edges. `vis` is the path walked so far; it cannot revisit a node, so the
+    number of keys outside it strictly decreases. -/
+theorem acc_of_acyclic {g : List (String × List String)}
+    (hac : ∀ a, ¬ Reachable g a a) {R : String → String → Prop}
+    (hR : ∀ x t, R x t → t ∈ graphNeighbors g x) :
+    ∀ (n : Nat) (t : String) (vis : List String), t ∈ g.map Prod.fst →
+      (∀ v, v ∈ vis → Reachable g t v) →
+      ((g.map Prod.fst).filter (fun k => !vis.contains k)).length ≤ n → Acc R t := by
+  intro n
+  induction n with
+  | zero =>
+    intro t vis ht hreach hm
+    have htv : t ∉ vis := fun h => hac t (hreach t h)
+    have hpos : t ∈ (g.map Prod.fst).filter (fun k => !vis.contains k) :=
+      List.mem_filter.2 ⟨ht, by simpa using htv⟩
+    have := List.length_pos_of_mem hpos
+    omega
+  | succ n ih =>
+    intro t vis ht hreach hm
+    have htv : t ∉ vis := fun h => hac t (hreach t h)
+    have hlt : ((g.map Prod.fst).filter (fun k => !(t :: vis).contains k)).length <
+        ((g.map Prod.fst).filter (fun k => !vis.contains k)).length :=
+      LeanCbcl.Enactability.filter_length_lt
+        (fun k hk => by
+          simp only [Bool.not_eq_true', List.contains_eq_mem, decide_eq_false_iff_not,
+            List.mem_cons, not_or] at hk ⊢
+          exact hk.2)
+        ht (by simpa using htv) (by simp)
+    refine Acc.intro t (fun x hx => ?_)
+    have hedge := hR x t hx
+    refine ih x (t :: vis) (key_of_neighbor hedge) (fun v hv => ?_) (by omega)
+    cases List.mem_cons.1 hv with
+    | inl e => exact e ▸ Reachable.single hedge
+    | inr hv' => exact Reachable.cons hedge (hreach v hv')
+
+/-- A relation contained in the reversed edges of an acyclic finite graph is
+    well-founded. -/
+theorem wf_of_acyclic {g : List (String × List String)}
+    (hac : ∀ a, ¬ Reachable g a a) {R : String → String → Prop}
+    (hR : ∀ x t, R x t → t ∈ graphNeighbors g x) : WellFounded R :=
+  ⟨fun t => Acc.intro t (fun x hx =>
+    acc_of_acyclic hac hR _ x [] (key_of_neighbor (hR x t hx)) (fun _ h => nomatch h)
+      (Nat.le_refl _))⟩
+
+/-- The successor graph `p` mirrors the predecessor declarations of `P`: if step `t`
+    names `x` as a predecessor then `x` lists `t` as a successor. -/
+def Mirrors (p : ProtocolGraph) (P : RoleProtocol) : Prop :=
+  ∀ t x, dependsOn P t x → t ∈ graphNeighbors p.successorGraph x
+
+/-- **A protocol that passes R5 acyclicity is enactable.** If the successor graph the R5
+    check reads mirrors the predecessor declarations the verifier reads, and no clause
+    list is degenerate, then a passing acyclicity check gives one arrival-order trace
+    containing every declared step. -/
+theorem enactable_of_checkAcyclicity {p : ProtocolGraph} {P : RoleProtocol}
+    (hm : Mirrors p P) (hsat : Satisfiable P) (hc : p.checkAcyclicity = []) :
+    unenactableSteps P = [] ∧ ∃ w, CausalTrace P w ∧ ∀ t, t ∈ stepNames P → t ∈ w := by
+  have hac : ∀ a, ¬ Reachable p.successorGraph a a :=
+    fun a h => checkAcyclicity_sound p hc ⟨a, h⟩
+  have hwf : WellFounded (fun x t : String => dependsOn P t x) := wf_of_acyclic hac (fun x t h => hm t x h)
+  have h := acyclic_one_trace hwf hsat
+  exact ⟨(unenactableSteps_eq_nil_iff P).2 h, h⟩
+
+/-! ## Protocols built from `then` edges
+
+The parser desugars `(then a b c)` into edges `(a, b)`, `(b, c)` and, for each edge
+`(pred, succ)`, appends `succ` to the successors of every name in `pred` and `pred` to the
+predecessors of every name in `succ`. `graphOf` and `roleOf` state the result of that
+loop directly. For these, `Mirrors` holds by construction, and the only degenerate clause
+list is one containing an empty `(any)`. -/
+
+/-- A `then` edge: predecessor clause, successor clause. -/
+abbrev Edge := PredClause × PredClause
+
+/-- Every name mentioned by the edges (repetitions allowed; lookups take the first). -/
+def edgeNames (es : List Edge) : List String :=
+  es.flatMap (fun e => clauseNames e.1 ++ clauseNames e.2)
+
+/-- The successors recorded for `n`: the successor names of each edge whose predecessor
+    clause mentions `n`. -/
+def succsOf (es : List Edge) (n : String) : List String :=
+  (es.filter (fun e => (clauseNames e.1).contains n)).flatMap (fun e => clauseNames e.2)
+
+/-- The predecessor declarations recorded for `n`: the predecessor clause of each edge
+    whose successor clause mentions `n`. -/
+def predsOf (es : List Edge) (n : String) : List PredClause :=
+  (es.filter (fun e => (clauseNames e.2).contains n)).map (·.1)
+
+/-- The R5 view of the built protocol. -/
+def graphOf (es : List Edge) : ProtocolGraph :=
+  { steps := (edgeNames es).map (fun n =>
+      { performative := n
+        predecessors := (predsOf es n).flatMap clauseNames
+        successors := succsOf es n }) }
+
+/-- The verifier's view of the built protocol, with role annotations `ann`. -/
+def roleOf (ann : String → String × List String) (es : List Edge) : RoleProtocol :=
+  (edgeNames es).map (fun n =>
+    { name := n, sender := (ann n).1, recips := (ann n).2, preds := predsOf es n })
+
+theorem roleOf_find {ann : String → String × List String} {es : List Edge} {t : String}
+    {st : RoleStep} (h : (roleOf ann es).find? (fun st => st.name == t) = some st) :
+    st.preds = predsOf es t := by
+  have hbeq := List.find?_some h
+  have hk : st.name = t := eq_of_beq hbeq
+  obtain ⟨n, _, hn⟩ := List.mem_map.1 (List.mem_of_find?_eq_some h)
+  subst hn
+  exact hk ▸ rfl
+
+theorem graphOf_neighbors {es : List Edge} {x : String} (hx : x ∈ edgeNames es) :
+    graphNeighbors (graphOf es).successorGraph x = succsOf es x := by
+  have hg : (graphOf es).successorGraph = (edgeNames es).map (fun n => (n, succsOf es n)) := by
+    simp [graphOf, ProtocolGraph.successorGraph, List.map_map, Function.comp_def]
+  rw [hg]
+  unfold graphNeighbors
+  cases hf : ((edgeNames es).map (fun n => (n, succsOf es n))).find? (fun p => p.1 == x) with
+  | none =>
+    have hnone := List.find?_eq_none.1 hf (x, succsOf es x) (List.mem_map.2 ⟨x, hx, rfl⟩)
+    simp at hnone
+  | some kv =>
+    have hbeq := List.find?_some hf
+    have hk : kv.1 = x := eq_of_beq hbeq
+    obtain ⟨n, _, hn⟩ := List.mem_map.1 (List.mem_of_find?_eq_some hf)
+    subst hn
+    simp only at hk
+    subst hk
+    rfl
+
+/-- **Built protocols mirror.** -/
+theorem built_mirrors (ann : String → String × List String) (es : List Edge) :
+    Mirrors (graphOf es) (roleOf ann es) := by
+  intro t x ⟨st, hf, hx⟩
+  rw [roleOf_find hf] at hx
+  obtain ⟨c, hc, hxc⟩ := List.mem_flatMap.1 hx
+  obtain ⟨e, he, hec⟩ := List.mem_map.1 hc
+  obtain ⟨hes, ht⟩ := List.mem_filter.1 he
+  subst hec
+  have hxn : x ∈ edgeNames es :=
+    List.mem_flatMap.2 ⟨e, hes, List.mem_append.2 (Or.inl hxc)⟩
+  rw [graphOf_neighbors hxn]
+  exact List.mem_flatMap.2 ⟨e, List.mem_filter.2 ⟨hes, List.contains_iff_mem.2 hxc⟩,
+    List.contains_iff_mem.1 ht⟩
+
+/-- A clause list with no empty `(any)` is justified once everything has been seen. -/
+theorem justified_all_true (preds : List PredClause)
+    (h : ∀ c, c ∈ preds → c ≠ PredClause.anyOf []) :
+    justified preds (fun _ => true) = true := by
+  cases preds with
+  | nil => simp [justified]
+  | cons c rest =>
+    cases c with
+    | single t => simp [justified, pooledNames]
+    | anyOf ts =>
+      cases ts with
+      | nil => exact absurd rfl (h _ List.mem_cons_self)
+      | cons a as => simp [justified, pooledNames]
+    | allOf ts => simp [justified, fanInDecls]
+
+/-- **Built protocols are not degenerate** unless an edge has an empty `(any)` as its
+    predecessor clause. The parser rejects `any` and `all` groups with fewer than two
+    members. -/
+theorem built_satisfiable (ann : String → String × List String) (es : List Edge)
+    (hne : ∀ e, e ∈ es → e.1 ≠ PredClause.anyOf []) : Satisfiable (roleOf ann es) := by
+  intro t
+  unfold enabled
+  cases hf : (roleOf ann es).find? (fun st => st.name == t) with
+  | none => rfl
+  | some st =>
+    show justified st.preds _ = true
+    rw [roleOf_find hf]
+    refine justified_all_true _ (fun c hc => ?_)
+    obtain ⟨e, he, hec⟩ := List.mem_map.1 hc
+    exact hec ▸ hne e (List.mem_filter.1 he).1
+
+/-- **Installed implies enactable, in the model.** A protocol built from `then` edges
+    with no empty `(any)` that passes the R5 acyclicity check has one arrival-order trace
+    containing every declared step. -/
+theorem built_enactable (ann : String → String × List String) (es : List Edge)
+    (hne : ∀ e, e ∈ es → e.1 ≠ PredClause.anyOf [])
+    (hc : (graphOf es).checkAcyclicity = []) :
+    unenactableSteps (roleOf ann es) = [] ∧
+      ∃ w, CausalTrace (roleOf ann es) w ∧ ∀ t, t ∈ stepNames (roleOf ann es) → t ∈ w :=
+  enactable_of_checkAcyclicity (built_mirrors ann es) (built_satisfiable ann es hne) hc
+
 /-! ## Examples -/
 
 namespace Examples
@@ -380,6 +595,15 @@ def emptyAny : RoleProtocol :=
   [ { name := "x", sender := "A", recips := ["B"], preds := [.anyOf []] } ]
 
 theorem emptyAny_unenactable : unenactableSteps emptyAny = ["x"] := by decide
+
+/-- `begin`, then `ask`, then a reply that is either `tell` or `refuse`. -/
+def askEdges : List Edge :=
+  [ (.single "begin", .single "ask"), (.single "ask", .anyOf ["tell", "refuse"]) ]
+
+/-- The premises of `built_enactable` hold for a concrete edge list. -/
+theorem askEdges_enactable :
+    unenactableSteps (roleOf (fun _ => ("A", ["B"])) askEdges) = [] :=
+  (built_enactable _ askEdges (by decide) (by decide +kernel)).1
 
 end Examples
 
