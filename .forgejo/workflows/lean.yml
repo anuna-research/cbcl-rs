@@ -134,6 +134,16 @@ jobs:
       - name: Compare native progress state with kernel-reduced Lean
         run: cargo test -p cbcl-parser --test state_progress -- --include-ignored
 
+      - name: Build executable Lean enactability oracle
+        working-directory: lean-cbcl
+        run: lake build cbcl-enactability-oracle
+
+      - name: Compare native protocol building, acyclicity and causal verification against Lean enactability
+        env:
+          PROPTEST_RNG_SEED: '390039'
+          PROPTEST_CASES: '512'
+        run: cargo test -p cbcl-parser --test enactability_oracle -- --ignored
+
       - name: Build executable Lean state oracle
         working-directory: lean-cbcl
         run: lake build cbcl-state-oracle

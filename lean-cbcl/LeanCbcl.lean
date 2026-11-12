@@ -33,6 +33,10 @@ import LeanCbcl.VerifyKnowledge
 import LeanCbcl.R5
 import LeanCbcl.EPP
 import LeanCbcl.EPPCompletion
+import LeanCbcl.RoleProgress
+import LeanCbcl.Enactability
+import LeanCbcl.ConflictAttribution
+import LeanCbcl.DialectEnactability
 import LeanCbcl.Projectability
 import LeanCbcl.ProtocolProjection
 import LeanCbcl.ConcreteProjection
@@ -378,6 +382,7 @@ import LeanCbcl.StateFrozenSuccess
 import LeanCbcl.StateDataLocalWorld
 import LeanCbcl.StateAuthoredFrozenAgreement
 import LeanCbcl.StateAuthoredQuasiDeterminism
+import LeanCbcl.StateOperationalQuasiDeterminism
 
 import LeanCbcl.StateCondition
 
