@@ -33,6 +33,7 @@ import LeanCbcl.VerifyKnowledge
 import LeanCbcl.R5
 import LeanCbcl.EPP
 import LeanCbcl.EPPCompletion
+import LeanCbcl.RoleProgress
 import LeanCbcl.Projectability
 import LeanCbcl.ProtocolProjection
 import LeanCbcl.ConcreteProjection
