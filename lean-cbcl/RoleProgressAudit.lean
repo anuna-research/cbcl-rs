@@ -70,3 +70,6 @@ open LeanCbcl.RoleProgress
 #print axioms CBCL.DialectEnactability.built_satisfiable
 #print axioms CBCL.DialectEnactability.built_enactable
 #print axioms CBCL.DialectEnactability.Examples.askEdges_enactable
+#print axioms LeanCbcl.Enactability.Table.iter_eq_iterL
+#print axioms LeanCbcl.Enactability.Table.enactable_eq_enactableFast
+#print axioms CBCL.DialectEnactability.mem_dedup

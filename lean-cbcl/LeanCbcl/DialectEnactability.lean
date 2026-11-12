@@ -44,10 +44,16 @@
   * `graphOf` and `roleOf` state the RESULT of the parser's edge loop
     (`protocol_parser.rs`: for each `then` edge, push the successor clause onto every
     predecessor name and the predecessor clause onto every successor name). They are a
-    model written from that code, not extracted from it. The value-level comparison with
-    the Rust parser is `crates/cbcl-parser/tests/lean_parity_enactability.rs`. `repeat`
-    expansion happens before edges are formed and is not modelled; the theorems apply to
-    the expanded edge list.
+    model written from that code, not extracted from it. Names and successor lists are
+    deduplicated, as the parser's map and the R5 successor sets are. Two Rust tests
+    compare the model with the implementation:
+    `crates/cbcl-parser/tests/lean_parity_enactability.rs` at the value level, and
+    `crates/cbcl-parser/tests/enactability_oracle.rs` against the executable
+    `EnactabilityOracle.lean`, which also compares `enabled`, `CausalTrace` and
+    `unenactableSteps` with the Rust `verify_causal` on generated protocols and the
+    shipped dialects. `repeat` expansion happens before edges are formed and is not
+    modelled; the theorems apply to the expanded edge list, and `verify_causal` uses a
+    separate verifier for repeat-expanded protocols that the oracle tests skip.
   * The R5 link uses `checkAcyclicity_sound` only. The other R5 sub-checks and the
     role-annotation checks play no part.
   * Roles do not enter: every participant is taken as willing. Obligations, casts and
@@ -450,9 +456,27 @@ list is one containing an empty `(any)`. -/
 /-- A `then` edge: predecessor clause, successor clause. -/
 abbrev Edge := PredClause × PredClause
 
-/-- Every name mentioned by the edges (repetitions allowed; lookups take the first). -/
+/-- Remove repeated names (the last occurrence of each is kept). The parser stores steps
+    in a map and builds the successor graph from sets, so neither has repetitions. -/
+def dedup : List String → List String
+  | [] => []
+  | a :: as => if as.contains a then dedup as else a :: dedup as
+
+theorem mem_dedup {x : String} {l : List String} : x ∈ dedup l ↔ x ∈ l := by
+  induction l with
+  | nil => exact Iff.rfl
+  | cons a as ih =>
+    unfold dedup
+    cases h : as.contains a with
+    | true =>
+      have ha : a ∈ as := List.contains_iff_mem.1 h
+      simp only [if_true, ih, List.mem_cons]
+      exact ⟨Or.inr, fun hx => hx.elim (fun e => e ▸ ha) id⟩
+    | false => simp [ih]
+
+/-- Every name mentioned by the edges, without repetition. -/
 def edgeNames (es : List Edge) : List String :=
-  es.flatMap (fun e => clauseNames e.1 ++ clauseNames e.2)
+  dedup (es.flatMap (fun e => clauseNames e.1 ++ clauseNames e.2))
 
 /-- The successors recorded for `n`: the successor names of each edge whose predecessor
     clause mentions `n`. -/
@@ -469,7 +493,7 @@ def graphOf (es : List Edge) : ProtocolGraph :=
   { steps := (edgeNames es).map (fun n =>
       { performative := n
         predecessors := (predsOf es n).flatMap clauseNames
-        successors := succsOf es n }) }
+        successors := dedup (succsOf es n) }) }
 
 /-- The verifier's view of the built protocol, with role annotations `ann`. -/
 def roleOf (ann : String → String × List String) (es : List Edge) : RoleProtocol :=
@@ -486,14 +510,16 @@ theorem roleOf_find {ann : String → String × List String} {es : List Edge} {t
   exact hk ▸ rfl
 
 theorem graphOf_neighbors {es : List Edge} {x : String} (hx : x ∈ edgeNames es) :
-    graphNeighbors (graphOf es).successorGraph x = succsOf es x := by
-  have hg : (graphOf es).successorGraph = (edgeNames es).map (fun n => (n, succsOf es n)) := by
+    graphNeighbors (graphOf es).successorGraph x = dedup (succsOf es x) := by
+  have hg : (graphOf es).successorGraph =
+      (edgeNames es).map (fun n => (n, dedup (succsOf es n))) := by
     simp [graphOf, ProtocolGraph.successorGraph, List.map_map, Function.comp_def]
   rw [hg]
   unfold graphNeighbors
-  cases hf : ((edgeNames es).map (fun n => (n, succsOf es n))).find? (fun p => p.1 == x) with
+  cases hf : ((edgeNames es).map (fun n => (n, dedup (succsOf es n)))).find?
+      (fun p => p.1 == x) with
   | none =>
-    have hnone := List.find?_eq_none.1 hf (x, succsOf es x) (List.mem_map.2 ⟨x, hx, rfl⟩)
+    have hnone := List.find?_eq_none.1 hf (x, dedup (succsOf es x)) (List.mem_map.2 ⟨x, hx, rfl⟩)
     simp at hnone
   | some kv =>
     have hbeq := List.find?_some hf
@@ -514,8 +540,9 @@ theorem built_mirrors (ann : String → String × List String) (es : List Edge) 
   obtain ⟨hes, ht⟩ := List.mem_filter.1 he
   subst hec
   have hxn : x ∈ edgeNames es :=
-    List.mem_flatMap.2 ⟨e, hes, List.mem_append.2 (Or.inl hxc)⟩
+    mem_dedup.2 (List.mem_flatMap.2 ⟨e, hes, List.mem_append.2 (Or.inl hxc)⟩)
   rw [graphOf_neighbors hxn]
+  refine mem_dedup.2 ?_
   exact List.mem_flatMap.2 ⟨e, List.mem_filter.2 ⟨hes, List.contains_iff_mem.2 hxc⟩,
     List.contains_iff_mem.1 ht⟩
 

@@ -287,6 +287,45 @@ theorem fixed : T.step (T.iter T.perfs.length) = T.iter T.perfs.length := by
     rw [h1]; exact he
   | inr h => exact absurd (T.count_le (T.perfs.length + 1)) (by omega)
 
+/-! ## An executable form
+
+`iter` is a function iterated `perfs.length` times; evaluated directly it recomputes every
+earlier round at each lookup, which is exponential. `iterL` carries the performatives found
+so far as a list. It computes the same set, and compiled code uses it. -/
+
+/-- One round over the list of performatives found so far. -/
+def stepL (found : List Perf) : List Perf :=
+  found ++ T.perfs.filter (fun t =>
+    !found.contains t && T.honest t && T.sat t (T.avail (fun x => found.contains x) t))
+
+/-- `n` rounds from the empty list. -/
+def iterL : Nat → List Perf
+  | 0 => []
+  | n + 1 => T.stepL (iterL n)
+
+theorem iter_eq_iterL (n : Nat) : T.iter n = fun t => (T.iterL n).contains t := by
+  induction n with
+  | zero => funext t; simp [iter, iterL]
+  | succ n ih =>
+    funext t
+    show T.step (T.iter n) t = (T.stepL (T.iterL n)).contains t
+    rw [ih]
+    cases h : (T.iterL n).contains t with
+    | true =>
+      have hm : t ∈ T.iterL n := List.contains_iff_mem.1 h
+      simp [step, stepL, hm]
+    | false =>
+      have hm : t ∉ T.iterL n := fun hm => by
+        rw [List.contains_iff_mem.2 hm] at h; exact Bool.noConfusion h
+      simp [step, stepL, hm, Bool.and_assoc]
+
+/-- The checker, computed with `iterL`. -/
+def enactableFast (t : Perf) : Bool := (T.iterL T.perfs.length).contains t
+
+@[csimp] theorem enactable_eq_enactableFast : @Table.enactable = @Table.enactableFast := by
+  funext Perf T inst t
+  exact congrFun (T.iter_eq_iterL _) t
+
 /-- A declared performative whose clause is satisfied by enactable predecessors is
     enactable. -/
 theorem enactable_of_sat {t : Perf} (hp : t ∈ T.perfs) (hh : T.honest t = true)

@@ -20,9 +20,10 @@
 //!
 //! What these tests do not establish: `justified` below is a transcription of
 //! the Lean `R6DCFLPreservation.justified`, which itself models
-//! `verify_causal`. The tests do not run `verify_causal` on messages, so they
-//! check the parser model and the enactability argument, not the verifier
-//! model. `(repeat …)` is covered only through the corpus, where the parser
+//! `verify_causal`. The tests here do not run `verify_causal` on messages, so
+//! they check the parser model and the enactability argument, not the
+//! verifier model. `enactability_oracle.rs` does that comparison, against the
+//! executable Lean definitions. `(repeat …)` is covered only through the corpus, where the parser
 //! has already expanded it.
 
 use cbcl_core::protocol::{CausalProtocol, NodeRef, BEGIN_KEYWORD};

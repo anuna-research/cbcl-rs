@@ -21,3 +21,7 @@ root = "StateKernelOracle"
 [[lean_exe]]
 name = "cbcl-flat-contract-oracle"
 root = "FlatContractsOracle"
+
+[[lean_exe]]
+name = "cbcl-enactability-oracle"
+root = "EnactabilityOracle"
