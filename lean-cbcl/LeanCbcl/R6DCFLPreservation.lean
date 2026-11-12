@@ -478,7 +478,7 @@ private theorem fanIn_subset {preds : List PredClause} {g : List String} {x : St
   refine ⟨c, hc, ?_⟩
   cases c <;> simp_all [clauseNames]
 
-private theorem justified_congr {preds : List PredClause} {f g : String → Bool}
+theorem justified_congr {preds : List PredClause} {f g : String → Bool}
     (h : ∀ x ∈ preds.flatMap clauseNames, f x = g x) :
     justified preds f = justified preds g := by
   unfold justified
@@ -497,7 +497,7 @@ private theorem justified_congr {preds : List PredClause} {f g : String → Bool
         h x (fanIn_subset (by rw [hfd]; exact List.mem_cons_self) hx)
   rw [hpool, hfan]
 
-private theorem enabled_congr {P : RoleProtocol} {f g : String → Bool}
+theorem enabled_congr {P : RoleProtocol} {f g : String → Bool}
     (h : ∀ x ∈ relevantNames P, f x = g x) (t : String) :
     enabled P f t = enabled P g t := by
   unfold enabled
@@ -508,7 +508,7 @@ private theorem enabled_congr {P : RoleProtocol} {f g : String → Bool}
       h x (List.mem_append.mpr (Or.inr
         (List.mem_flatMap.mpr ⟨st, List.mem_of_find?_eq_some hf, hx⟩)))
 
-private theorem enabled_of_undeclared {P : RoleProtocol} {f : String → Bool} {t : String}
+theorem enabled_of_undeclared {P : RoleProtocol} {f : String → Bool} {t : String}
     (h : t ∉ stepNames P) : enabled P f t = true := by
   unfold enabled
   cases hf : P.find? (fun st => st.name == t) with
