@@ -50,8 +50,11 @@
     enabledness in ways this model cannot express; `ConsensusFree/OwnerTermination.lean`
     treats one such lifecycle directly.
   * `Supply` and the witness-closure premise of `realizing_of_perfRealizable` are
-    hypotheses, not facts about the deployed message type. No decision procedure for
-    `PerfRealizable` is implemented, and nothing here is connected to the Rust runtime.
+    hypotheses, not facts about the deployed message type. A decision procedure for
+    `PerfRealizable` over a finite clause table is in `Enactability.lean`; nothing here
+    is connected to the Rust runtime.
+  * Conflicts between individually valid messages are outside this file;
+    `ConflictAttribution.lean` treats their attribution to a single role.
   * Fairness (`Run.fair`) is assumed, not derived. It is where honesty enters.
 -/
 import LeanCbcl.EPPCompletion

@@ -1,4 +1,7 @@
 import LeanCbcl.RoleProgress
+import LeanCbcl.Enactability
+import LeanCbcl.ConflictAttribution
+import LeanCbcl.DialectEnactability
 open LeanCbcl.RoleProgress
 #print axioms enabled_persistent
 #print axioms extend_safe_closed
@@ -17,3 +20,45 @@ open LeanCbcl.RoleProgress
 #print axioms realizing_of_perfRealizable
 #print axioms RequestReply.completes
 #print axioms RequestReply.not_noInitial
+#print axioms LeanCbcl.Enactability.realizable_mono
+#print axioms LeanCbcl.Enactability.perfRealizable_of_realizable
+#print axioms LeanCbcl.Enactability.cone_safe_closed
+#print axioms LeanCbcl.Enactability.Table.fixed
+#print axioms LeanCbcl.Enactability.Table.enactable_of_sat
+#print axioms LeanCbcl.Enactability.Table.enactable_sound
+#print axioms LeanCbcl.Enactability.Table.enactable_complete
+#print axioms LeanCbcl.Enactability.Table.enactable_iff
+#print axioms LeanCbcl.Enactability.Table.present_enactable
+#print axioms LeanCbcl.Enactability.Table.enactable_iff_occurs
+#print axioms LeanCbcl.Enactability.Table.realizing_of_checkEnactable
+#print axioms LeanCbcl.Enactability.Table.checked_incomplete_has_enabled
+#print axioms LeanCbcl.Enactability.Examples.requestReply_represents
+#print axioms LeanCbcl.Enactability.Examples.requestReply_enactable
+#print axioms LeanCbcl.Enactability.Examples.circular_not_enactable
+#print axioms LeanCbcl.ConflictAttribution.cone_present
+#print axioms LeanCbcl.ConflictAttribution.cone_endpoint
+#print axioms LeanCbcl.ConflictAttribution.clash_attributable
+#print axioms LeanCbcl.ConflictAttribution.clash_equivocates
+#print axioms LeanCbcl.ConflictAttribution.conflictFree_of_no_equivocation
+#print axioms LeanCbcl.ConflictAttribution.equivocation_valid
+#print axioms LeanCbcl.ConflictAttribution.clash_locally_evident
+#print axioms LeanCbcl.ConflictAttribution.checkLocalChoice_iff
+#print axioms LeanCbcl.ConflictAttribution.AbruptCancel.not_localChoice
+#print axioms LeanCbcl.ConflictAttribution.AbruptCancel.check_fails
+#print axioms LeanCbcl.ConflictAttribution.AbruptCancel.unattributable
+#print axioms CBCL.DialectEnactability.foldl_some
+#print axioms CBCL.DialectEnactability.causalTrace_snoc
+#print axioms CBCL.DialectEnactability.causalTrace_append
+#print axioms CBCL.DialectEnactability.enabled_transfer
+#print axioms CBCL.DialectEnactability.iter_trace
+#print axioms CBCL.DialectEnactability.enactable_occurs
+#print axioms CBCL.DialectEnactability.occurs_enactable
+#print axioms CBCL.DialectEnactability.enactable_iff_occurs
+#print axioms CBCL.DialectEnactability.unenactableSteps_eq_nil_iff
+#print axioms CBCL.DialectEnactability.enactable_of_acyclic
+#print axioms CBCL.DialectEnactability.acyclic_one_trace
+#print axioms CBCL.DialectEnactability.Examples.ex_enactable
+#print axioms CBCL.DialectEnactability.Examples.fanIn_enactable
+#print axioms CBCL.DialectEnactability.Examples.cyclic_enactable
+#print axioms CBCL.DialectEnactability.Examples.deadlock_unenactable
+#print axioms CBCL.DialectEnactability.Examples.emptyAny_unenactable
