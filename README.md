@@ -159,7 +159,7 @@ Canonical atom tags are `F` and `D`; existing integer encodings are unchanged.
 NIF floats are BEAM floats; decimals are `{decimal, <<"12.34">>}`. JSON state and
 act views carry decimals as `{"decimal":"12.34"}` to preserve precision in browsers.
 
-For bindings, see [JavaScript/TypeScript](js/README.md), [WebAssembly](README-WASM.md), and [Erlang/BEAM](crates/cbcl-erl/README.md). The JavaScript/TypeScript package includes a JSON-authored object runtime.
+For bindings, see [JavaScript/TypeScript](js/README.md), [WebAssembly](crates/cbcl-wasm/README.md), and [Erlang/BEAM](crates/cbcl-erl/README.md). The JavaScript/TypeScript package includes a JSON-authored object runtime.
 
 ## Current capabilities
 

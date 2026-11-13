@@ -12,7 +12,6 @@ in pre-1.0 development, and compatibility changes are called out explicitly.
   P-256/P-384 keys, explicit Ed25519 identity conversion, and CLI inspection.
 - Long-lived language-edition design and guidance for offline evidence, identity,
   resource portability, and historical trust boundaries.
-
 - Finite binary64 float and exact arbitrary-precision decimal atoms, alongside
   signed 64-bit integers, with canonical serialization and binding support.
 - Named declarative flat contracts: numeric ranges, RFC 9485 I-Regexp matching
@@ -30,9 +29,28 @@ in pre-1.0 development, and compatibility changes are called out explicitly.
   documented in the [Lean guide](lean-cbcl/README.md).
 - Protocol-model, state-language, bounded-counter, and admission-model
   documentation and diagrams.
+- Operational quasi-determinism proofs for concurrent threshold programs with
+  partial delivery: finished runs agree on results and joint evidence, or both
+  hold conflicting evidence.
+- Role-model proofs of enabledness, deadlock freedom, and fair-run completion
+  under realizable-work assumptions; enactability checkers and conflict
+  attribution under a single-role choice condition. An executable Lean oracle
+  compares protocol construction, acyclicity, and causal verification with Rust.
+- Shared canonical message-audience accessors for WebAssembly, JavaScript/TypeScript,
+  and Erlang/BEAM, including wrapper and envelope routing and a lax accessor for
+  custom host control verbs.
 
 ### Changed
 
+- **Migration required:** wire content addresses now use canonical SHA2-256
+  multihashes in lowercase multibase base16 (`f1220…`). Legacy bare-hex addresses
+  are rejected; persisted references and host integrations must migrate.
+- **Migration required:** message keyword fields and recursive dialect shapes are
+  canonicalized at public boundaries. Equivalent field orders now share canonical
+  bytes and addresses; affected dialect self-addresses and signatures must be
+  regenerated. See [SPEC-042](specs/SPEC-042-boundary-canonicalisation.md).
+- Replaced the obsolete root Guile/Hoot WASM guide with a link to the Rust
+  WebAssembly bindings documentation.
 - **Migration required:** `number` now accepts integers, floats, and decimals.
   Use `integer` for declarations that must retain integer-only validation.
 - **Migration required:** optional shape defaults use explicit `(default value)`
@@ -51,7 +69,9 @@ in pre-1.0 development, and compatibility changes are called out explicitly.
 
 - Resource depth and expansion arithmetic now refuses overflow consistently in
   debug and release builds.
-
+- Message-audience accessors reject malformed wrapper bodies and trailing proof
+  fields instead of routing partially parsed frames. The frame-room corpus records
+  the stricter parser results separately from historical hub answers.
 - Aligned verdict composition with strong Kleene three-valued logic.
 - Restored the `no_std` build of `blame.rs` and added it to `make check`.
 

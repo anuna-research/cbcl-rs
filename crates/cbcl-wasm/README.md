@@ -1,3 +1,11 @@
+# CBCL WebAssembly bindings
+
+`cbcl-wasm` exposes the Rust parser, verifier, dialect and state APIs through
+`wasm-bindgen`. The JavaScript/TypeScript package wraps these bindings; see its
+[usage and build instructions](../../js/README.md).
+
+## State observations and message audiences
+
 State observations (SPEC-038): `state_schema` marks current field values with
 `"observation":"snapshot"`. An external effect fired on a snapshot has no
 finality guarantee from the kernel. Use a reached threshold to establish a
