@@ -196,7 +196,7 @@ fn duplicate_amount_cannot_hide_a_negative_state_contribution() {
         state_exports::admit(
             &d,
             &cbcl_core::store::ThreadId("t".into()),
-            &[o.clone()],
+            std::slice::from_ref(&o),
             &positive
         ),
         Admission::Accepted
@@ -870,7 +870,7 @@ fn authored_condition_schema_and_canonical_round_trip() {
         cbcl_core::canonical::dialect_name(d),
         cbcl_core::canonical::dialect_name(&different)
     );
-    let described = cbcl_parser::describe::describe(&d, &source);
+    let described = cbcl_parser::describe::describe(d, &source);
     assert_eq!(
         described["thresholds"][0]["condition"],
         schema["quorum"]["condition"]

@@ -1232,7 +1232,7 @@ fn signer_string_addresses_and_ambiguous_initializer_is_the_conflict_top() {
             key: "item".into(),
         },
     ));
-    let mut evidence = vec![old.address.clone(), edit.address.clone()];
+    let mut evidence = [old.address.clone(), edit.address.clone()];
     evidence.sort();
     let state = fold(&clause, None, &[old, edit]);
     assert_eq!(entries(&state[0].1).get("\"@a\""), Some(&"\"edit\"".into()));

@@ -857,9 +857,10 @@ pub fn representation_names(t: &TypeConstraint) -> Vec<&'static str> {
     .filter_map(|(bit, name)| if m & bit != 0 { Some(name) } else { None })
     .collect()
 }
-pub fn type_schema(
-    d: &crate::dialect::Dialect,
-) -> Result<Vec<(String, SExpr, Vec<&'static str>)>, String> {
+
+pub type TypeSchemaEntry = (String, SExpr, Vec<&'static str>);
+
+pub fn type_schema(d: &crate::dialect::Dialect) -> Result<Vec<TypeSchemaEntry>, String> {
     let mut compiler = Compiler::new(&d.types);
     let mut out = Vec::new();
     for (name, source) in &d.types {
