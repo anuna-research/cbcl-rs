@@ -343,6 +343,9 @@ fn read_regular(path: &Path, max: usize) -> Result<Vec<u8>> {
     Ok(b)
 }
 impl Provider for Cache {
+    // `AtomicUsize::try_update` is unavailable at the workspace's Rust 1.75
+    // MSRV, while newer compilers deprecate its former name.
+    #[allow(deprecated)]
     fn get(&mut self, id: Hash, max: usize, deadline: Instant) -> Result<Vec<u8>> {
         if Instant::now() >= deadline {
             return Err(Error::Cancelled);
