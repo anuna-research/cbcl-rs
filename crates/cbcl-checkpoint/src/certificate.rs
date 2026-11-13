@@ -7,7 +7,6 @@ use alloc::{boxed::Box, collections::BTreeSet, string::String, vec, vec::Vec};
 use cbcl_core::{
     canonical::dialect_hash,
     dialect::Dialect,
-    equivocation::message_content_hash,
     keyid::KeyId,
     message::{Message, WrapperType},
     projection::verify_causal_for_role,
@@ -78,11 +77,9 @@ impl SignedMessage {
         })
     }
     pub fn id(&self) -> Result<String> {
-        Ok(message_content_hash(
-            self.message
-                .innermost_simple()
-                .ok_or(Error::Invalid("missing simple message"))?,
-        ))
+        Act::from_message(self.message.clone(), "")
+            .map(|act| act.address)
+            .map_err(|_| Error::Invalid("missing simple message"))
     }
     pub fn authenticate(&self, keys: &dyn KeyVerifier) -> Result<Act> {
         bounded_message(&self.message)?;
