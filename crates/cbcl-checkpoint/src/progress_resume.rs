@@ -63,14 +63,8 @@ impl ProgressResume {
             .message
             .innermost_simple()
             .ok_or(Error::Invalid("progress simple"))?;
-        let native = cbcl_core::equivocation::message_content_hash(simple);
-        if act.address != cbcl_core::state::wire_address(simple)
-            || act.verb
-                != simple
-                    .performative()
-                    .ok_or(Error::Invalid("progress verb"))?
-                    .name()
-        {
+        let native = act.address.clone();
+        if act.validate_identity().is_err() {
             return Err(Error::Invalid("progress derived act"));
         }
         // The native kernel defines protocol-free progress as zero for every
@@ -89,7 +83,7 @@ impl ProgressResume {
                 return Err(Error::Budget);
             }
             return p
-                .apply_accepted(&act.message)
+                .apply_accepted_with_id(&act.message, native)
                 .map_err(|_| Error::Invalid("progress native position"));
         }
         if act.message.wrapper_type() != Some(WrapperType::WithRoles)
@@ -100,13 +94,13 @@ impl ProgressResume {
         let mut p = MaterializedPositions::new(
             PositionContext {
                 code: protocol_code(self.protocol.as_deref()),
-                root: ContentHash(native),
+                root: ContentHash(native.clone()),
                 thread,
             },
             self.protocol.as_deref(),
         )
         .map_err(|_| Error::Invalid("progress protocol"))?;
-        p.apply_accepted(&act.message)
+        p.apply_accepted_with_id(&act.message, native)
             .map_err(|_| Error::Invalid("progress root"))?;
         self.positions = Some(p);
         Ok(())

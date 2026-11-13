@@ -573,7 +573,6 @@ fn all_sixteen_native_prefixes_cuts_and_helper_binding() {
         test_support::{parse, Keys},
     };
     use cbcl_core::{
-        equivocation::message_content_hash,
         escrow::{CounterRule, Ownership},
         protocol::{NodeRef, StepDecl},
     };
@@ -629,9 +628,9 @@ fn all_sixteen_native_prefixes_cuts_and_helper_binding() {
             .unwrap()
     };
     let root=signed("(with-roles ((issuer @m0) (holder @m0 @m1)) (hello :sender @m0 :thread \"all16\" :caused-by begin))");
-    let open=signed(&alloc::format!("(lang all16 (open (@m0 @m1) :alloc ((@m0 10) (@m1 0)) :room ((@m0 5) (@m1 5)) :from @m0 :sender @m0 :thread \"all16\" :caused-by \"{}\"))",message_content_hash(root.simple())));
+    let open=signed(&alloc::format!("(lang all16 (open (@m0 @m1) :alloc ((@m0 10) (@m1 0)) :room ((@m0 5) (@m1 5)) :from @m0 :sender @m0 :thread \"all16\" :caused-by \"{}\"))",root.address));
     let put = |nonce: i64, value: i64, refs: &[String]| {
-        signed(&alloc::format!("(lang all16 (put (@m0 @m1) \"{nonce}\" :k \"x\" :v {value} :clock \"{}\" :replaces ({}) :sender @m0 :thread \"all16\" :caused-by \"{}\"))",Hlc::new(nonce as u64,0).render(),refs.iter().map(|s|alloc::format!("\"{s}\"")).collect::<Vec<_>>().join(" "),message_content_hash(open.simple())))
+        signed(&alloc::format!("(lang all16 (put (@m0 @m1) \"{nonce}\" :k \"x\" :v {value} :clock \"{}\" :replaces ({}) :sender @m0 :thread \"all16\" :caused-by \"{}\"))",Hlc::new(nonce as u64,0).render(),refs.iter().map(|s|alloc::format!("\"{s}\"")).collect::<Vec<_>>().join(" "),open.address))
     };
     let a = put(1, 3, &[]);
     let b = put(2, 5, core::slice::from_ref(&a.address));

@@ -684,11 +684,22 @@ impl MaterializedPositions {
     /// evaluator. No full message is retained.
     pub fn apply_accepted(&mut self, message: &crate::message::Message) -> Result<(), String> {
         let simple = message.innermost_simple().ok_or("resume simple")?;
+        let id = crate::equivocation::message_content_hash(simple);
+        self.apply_accepted_with_id(message, id)
+    }
+    /// Apply an accepted message under its authenticated state identity. This
+    /// differs from the simple-message hash only for sealed role roots.
+    pub fn apply_accepted_with_id(
+        &mut self,
+        message: &crate::message::Message,
+        id: String,
+    ) -> Result<(), String> {
+        let simple = message.innermost_simple().ok_or("resume simple")?;
         if simple.thread() != Some(self.context.thread.0.as_str()) {
             return Err(String::from("resume thread"));
         }
         let data = PositionMetadata {
-            id: crate::equivocation::message_content_hash(simple),
+            id,
             verb: String::from(simple.performative().ok_or("resume verb")?.name()),
             cause: simple.caused_by().cloned(),
         };

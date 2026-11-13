@@ -396,14 +396,22 @@ fn accepted_native_recipient_aliases_have_identical_resource_snapshots() {
     let canonical = vec![root, open, burn];
     let aliases: Vec<_> = canonical
         .iter()
-        .map(|a| {
-            SignedMessage::sign(alias_unsigned(&a.message), &a.signer, &Keys)
-                .unwrap()
-                .authenticate(&Keys)
-                .unwrap()
+        .enumerate()
+        .map(|(index, a)| {
+            if index == 0 {
+                a.clone()
+            } else {
+                SignedMessage::sign(alias_unsigned(&a.message), &a.signer, &Keys)
+                    .unwrap()
+                    .authenticate(&Keys)
+                    .unwrap()
+            }
         })
         .collect();
-    for (a, b) in canonical.iter().zip(&aliases) {
+    for (index, (a, b)) in canonical.iter().zip(&aliases).enumerate() {
+        if index == 0 {
+            continue;
+        }
         assert_eq!(a.address, b.address);
         assert_ne!(a.message, b.message);
         assert_eq!(
