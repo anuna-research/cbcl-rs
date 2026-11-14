@@ -239,7 +239,10 @@ fn missing_quorum_stalls_and_counts_overload() {
 #[test]
 fn active_byzantine_validator_cannot_forge_finality() {
     for mode in ["withhold", "equivocate", "invalid-flood"] {
-        let (temp, report) = run(&["--byzantine-mode", mode]);
+        // This is a safety/liveness check, not a latency benchmark. In the
+        // workspace suite it competes with other process-heavy tests, and the
+        // invalid flood deliberately adds signature-verification work.
+        let (temp, report) = run(&["--timeout-ms", "10000", "--byzantine-mode", mode]);
         assert_eq!(report["config"]["byzantine_mode"], mode);
         assert_eq!(report["metrics"]["finalized"], 6, "{mode}");
         assert_eq!(report["metrics"]["stalled"], 0, "{mode}");
