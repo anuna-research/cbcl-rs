@@ -17,6 +17,9 @@ static VALIDATORS: AtomicUsize = AtomicUsize::new(0);
 static COMMITS: AtomicUsize = AtomicUsize::new(0);
 struct Permit(&'static AtomicUsize);
 impl Permit {
+    // `AtomicUsize::try_update` is unavailable at the workspace's Rust 1.75
+    // MSRV, while newer compilers deprecate its former name.
+    #[allow(deprecated)]
     fn take(counter: &'static AtomicUsize) -> Result<Self> {
         counter
             .fetch_update(Ordering::AcqRel, Ordering::Relaxed, |n| {
