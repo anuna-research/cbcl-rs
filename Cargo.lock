@@ -138,7 +138,7 @@ checksum = "37b2a672a2cb129a2e41c10b1224bb368f9f37a2b16b612598138befd7b37eb5"
 
 [[package]]
 name = "cbcl-checkpoint"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "cbcl-core",
  "cbcl-parser",
@@ -154,7 +154,7 @@ dependencies = [
 
 [[package]]
 name = "cbcl-cli"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "cbcl-core",
  "cbcl-parser",
@@ -164,7 +164,7 @@ dependencies = [
 
 [[package]]
 name = "cbcl-core"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "bs58",
  "criterion",
@@ -182,7 +182,7 @@ dependencies = [
 
 [[package]]
 name = "cbcl-erl"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "cbcl-core",
  "cbcl-parser",
@@ -194,7 +194,7 @@ dependencies = [
 
 [[package]]
 name = "cbcl-ffi"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "cbcl-core",
  "cbcl-parser",
@@ -203,7 +203,7 @@ dependencies = [
 
 [[package]]
 name = "cbcl-parser"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "cbcl-core",
  "criterion",
@@ -215,7 +215,7 @@ dependencies = [
 
 [[package]]
 name = "cbcl-quorum-e2e"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "cbcl-core",
  "cbcl-parser",
@@ -230,7 +230,7 @@ dependencies = [
 
 [[package]]
 name = "cbcl-wasm"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "cbcl-core",
  "cbcl-parser",
