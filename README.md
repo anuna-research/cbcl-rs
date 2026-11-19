@@ -365,6 +365,22 @@ Contributions are welcome. Specs live under `specs/`, implementation plans under
 
 State conformance vectors live in `test-vectors/state/`. For client-observed certificate finality measurements, see [quorum benchmark](tools/quorum-e2e/README.md).
 
+## AI use disclosure
+
+The research and design of CBCL are the work of Hugo O'Connor at Anuna Research, including its
+theoretical framework, language design, and protocol architecture.
+
+CBCL has been developed with substantial assistance from Anthropic Claude and
+OpenAI Codex, including contributions to implementation, tests, Lean proofs,
+specifications, and documentation. The git history records this use through
+`Co-Authored-By` trailers, including on the initial Rust implementation and
+subsequent proof work. These attributions document contributions; they are not
+a complete accounting of AI use or a measure of the proportion of generated code.
+
+The project maintainer remains responsible for the work published here. Tests
+and machine-checked proofs provide evidence within their stated scope and
+assumptions; they do not establish correctness of the entire implementation.
+
 ## Background and license
 
 The theoretical framework is published in the [2026 IEEE Symposium on Security and Privacy Workshops (SPW)](https://www.computer.org/csdl/proceedings-article/spw/2026/107000a039/2hIfzFiEfjG), pp. 39–48. A [preprint](https://arxiv.org/abs/2604.14512) is also available. The original prototype is the [Scheme implementation](https://github.com/anuna-research/cbcl).
