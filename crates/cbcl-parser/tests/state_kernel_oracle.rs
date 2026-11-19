@@ -60,7 +60,10 @@ impl Oracle {
     }
 
     fn response(&mut self, case: &Value) -> Value {
-        assert!(self.healthy, "Lean oracle session poisoned by an earlier transport failure");
+        assert!(
+            self.healthy,
+            "Lean oracle session poisoned by an earlier transport failure"
+        );
         // A panic caught by proptest must not leave a late reply available to
         // the next shrink attempt. Restore health only after a complete frame.
         self.healthy = false;
@@ -98,26 +101,45 @@ impl Drop for Oracle {
 
 #[test]
 fn oracle_transport_failure_rejects_late_replies() {
-    let mut child = Command::new("cat").stdin(Stdio::piped())
-        .stdout(Stdio::null()).stderr(Stdio::null()).spawn().unwrap();
+    let mut child = Command::new("cat")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .unwrap();
     let input = child.stdin.take().unwrap();
     let (sender, output) = std::sync::mpsc::channel();
     drop(sender); // Immediate transport failure, without waiting ten seconds.
-    let mut oracle = Oracle { healthy: true, child, input, output, worker: None };
-    let failed = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| oracle.response(&json!({}))));
+    let mut oracle = Oracle {
+        healthy: true,
+        child,
+        input,
+        output,
+        worker: None,
+    };
+    let failed =
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| oracle.response(&json!({}))));
     assert!(failed.is_err());
     assert!(!oracle.healthy);
     let _ = oracle.child.wait();
-    let mut replacement = Command::new("cat").stdin(Stdio::piped())
-        .stdout(Stdio::null()).stderr(Stdio::null()).spawn().unwrap();
+    let mut replacement = Command::new("cat")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .unwrap();
     oracle.input = replacement.stdin.take().unwrap();
     oracle.child = replacement;
     let (late, output) = std::sync::mpsc::channel();
     late.send(Ok("{\"stale\":true}\n".to_owned())).unwrap();
     oracle.output = output;
-    let rejected = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| oracle.response(&json!({}))));
+    let rejected =
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| oracle.response(&json!({}))));
     assert!(rejected.is_err());
-    assert_eq!(oracle.output.try_recv().unwrap().unwrap(), "{\"stale\":true}\n");
+    assert_eq!(
+        oracle.output.try_recv().unwrap().unwrap(),
+        "{\"stale\":true}\n"
+    );
 }
 
 #[derive(Clone, Debug)]
@@ -303,8 +325,13 @@ fn dialect(case: &Value) -> String {
     };
     let source = format!("(define oracle-demo (cbcl) @a (extend open (to) (tell to)) (extend mark (to phase amount flag) (tell to :phase phase :amount amount :flag flag)) (shape mark (require :phase string) (require :amount integer) (require :flag bool)) (protocol (then begin open) (then open mark)) (state (lattice rank (elements {names}) (bottom e0) (top {}) (join {joins})) (value (lift mark (into rank) (contribute {rows}) {projection})) {threshold} {freeze}))",table["top"].as_str().unwrap());
     let source = if let Some(limit) = case.get("max-list").and_then(Value::as_u64) {
-        source.replace("(state", &format!("(:state-bounds (max-list {limit})) (state"))
-    } else { source };
+        source.replace(
+            "(state",
+            &format!("(:state-bounds (max-list {limit})) (state"),
+        )
+    } else {
+        source
+    };
     if has_freeze {
         source
             .replace("@a (extend open", "@a (:roles (owner)) (extend open")
@@ -580,12 +607,24 @@ fn finite_kernel_matches_live_lean_oracle() {
     let mut request = directed_cases()[0].request();
     request["max-list"] = json!(65);
     let actual = native(&request);
-    assert_eq!(oracle.borrow_mut().request(&request), actual, "R7 rejects max-list above default");
+    assert_eq!(
+        oracle.borrow_mut().request(&request),
+        actual,
+        "R7 rejects max-list above default"
+    );
     assert_eq!(actual["installed"], false);
     request["max-list"] = json!(0);
-    assert_eq!(oracle.borrow_mut().request(&request), native(&request), "R7 rejects zero max-list");
+    assert_eq!(
+        oracle.borrow_mut().request(&request),
+        native(&request),
+        "R7 rejects zero max-list"
+    );
     request["max-list"] = json!(3);
-    assert_eq!(oracle.borrow_mut().request(&request), native(&request), "configured limit rejects four elements");
+    assert_eq!(
+        oracle.borrow_mut().request(&request),
+        native(&request),
+        "configured limit rejects four elements"
+    );
 
     let mut config = proptest::test_runner::Config::default();
     if std::env::var_os("PROPTEST_CASES").is_none() {

@@ -304,15 +304,12 @@ pub fn r7_violations(d: &Dialect) -> Vec<R7Violation> {
         }
     }
     for (field, rule) in clause.fields() {
-        match rule {
-            Rule::Context { path, definition } => {
-                if !definition.as_ref().is_some_and(|d| d.valid_path(path)) {
-                    out.push(R7Violation::Typing(format!(
-                        "context '{field}' names an unknown path or role"
-                    )));
-                }
+        if let Rule::Context { path, definition } = rule {
+            if !definition.as_ref().is_some_and(|d| d.valid_path(path)) {
+                out.push(R7Violation::Typing(format!(
+                    "context '{field}' names an unknown path or role"
+                )));
             }
-            _ => {}
         }
     }
     check_thresholds(d, clause, &mut names, &mut out);

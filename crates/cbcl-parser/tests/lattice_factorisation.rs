@@ -274,7 +274,7 @@ fn domain_lift_obeys_union_law_across_distinct_openers() {
         ));
     }
     assert!(matches!(
-        state_exports::admit(&d, &thread, &[first.clone()], &vote),
+        state_exports::admit(&d, &thread, std::slice::from_ref(&first), &vote),
         Admission::Accepted
     ));
     assert!(matches!(

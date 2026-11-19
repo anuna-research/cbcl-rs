@@ -163,7 +163,10 @@ fn cast_validation_and_pins_are_not_bypassed_by_context_reads() {
     };
     let wrong = pinned_root(&format!("f1220{}", "0".repeat(64)));
     for bad in [malformed, wrong] {
-        assert_eq!(read(&src, &[bad.clone()])["reviewers"]["status"], "fault");
+        assert_eq!(
+            read(&src, std::slice::from_ref(&bad))["reviewers"]["status"],
+            "fault"
+        );
         assert_eq!(
             read(&src, &[root_act(""), bad.clone()]),
             read(&src, &[bad, root_act("")])

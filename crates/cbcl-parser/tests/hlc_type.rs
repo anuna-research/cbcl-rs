@@ -22,21 +22,21 @@ fn hlc_type_recognizes_canonical_strings_without_clock_field_conventions() {
         "hlc-000001A3185c5000-00000000",
         "hlc-000001a3185c5000-00000000x",
     ] {
-        assert!(!TypeConstraint::Hlc
+        assert!(TypeConstraint::Hlc
             .check(
                 &SExpr::Atom(Atom::Str(malformed.into())),
                 cbcl_core::contracts::DEFAULT_WORK
             )
-            .is_ok());
+            .is_err());
     }
     for malformed in [
         SExpr::Atom(Atom::Symbol(CLOCK.into())),
         SExpr::Atom(Atom::Num(12)),
         SExpr::List(vec![]),
     ] {
-        assert!(!TypeConstraint::Hlc
+        assert!(TypeConstraint::Hlc
             .check(&malformed, cbcl_core::contracts::DEFAULT_WORK)
-            .is_ok());
+            .is_err());
     }
 }
 

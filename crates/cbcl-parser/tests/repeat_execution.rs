@@ -475,7 +475,7 @@ fn repeat_positions_use_authenticated_redacted_and_opened_causal_headers() {
     }
     let d = dialect("(repeat 3 tick)");
     let wire_tick = |pred: &str, who: &str| {
-        let mut a = Act::from_message(
+        Act::from_message(
             parse_message(
                 &parse(&format!(
                     "(lang demo (tick @all :caused-by \"{pred}\" :thread \"t\" :sender {who}))"
@@ -485,11 +485,7 @@ fn repeat_positions_use_authenticated_redacted_and_opened_causal_headers() {
             .unwrap(),
             who,
         )
-        .unwrap();
-        // Envelope shelves use the typed-root ':' spelling; keep the test's
-        // content-address index and references in that same spelling.
-        a.address = a.address.replacen("f1220", "f1220", 1);
-        a
+        .unwrap()
     };
     let first = wire_tick("begin", "@a");
     let second = wire_tick(&first.address, "@b");

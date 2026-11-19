@@ -90,14 +90,18 @@ fn parameter_function_matches_formal_model() {
         let mut fixed = None;
         for order in permutations {
             let mut params = Vec::new();
-            for i in 0..4 {
+            for (i, key_index) in order
+                .into_iter()
+                .map(Some)
+                .chain(std::iter::once(None))
+                .enumerate()
+            {
                 if slots & (1 << i) != 0 {
                     params.push(SExpr::List(vec![SExpr::Atom(Atom::Str(format!(
                         "pos-{i}"
                     )))]));
                 }
-                if i < 3 {
-                    let k = order[i];
+                if let Some(k) = key_index {
                     params.push(SExpr::Atom(Atom::Keyword(keys[k].into())));
                     // A keyword-looking value must stay attached to its key.
                     params.push(SExpr::Atom(Atom::Keyword(format!("value-{k}"))));

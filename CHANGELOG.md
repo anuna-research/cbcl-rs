@@ -6,6 +6,8 @@ in pre-1.0 development, and compatibility changes are called out explicitly.
 
 ## Unreleased
 
+## [0.2.0] — 2026-11-13
+
 ### Added
 
 - Bounded public Multikey payload recognition for Ed25519, X25519 and compressed
@@ -94,5 +96,6 @@ present at the tag rather than changes from an earlier tagged version.
   and pushes a release commit and annotated tag. It does not publish packages
   or binaries.
 
-[Unreleased]: https://git.anuna.io/anuna-research/cbcl-rs/compare/v0.1.1...main
+[Unreleased]: https://git.anuna.io/anuna-research/cbcl-rs/compare/v0.2.0...main
+[0.2.0]: https://git.anuna.io/anuna-research/cbcl-rs/compare/v0.1.1...v0.2.0
 [0.1.1]: https://git.anuna.io/anuna-research/cbcl-rs/releases/tag/v0.1.1

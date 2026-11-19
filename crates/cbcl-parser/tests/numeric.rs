@@ -27,22 +27,22 @@ fn numeric_roundtrip_and_canonical_normalization() {
             canonical_encode(&atom),
             canonical_encode(&parse(expected).unwrap())
         );
-        assert!(!TypeConstraint::Integer
+        assert!(TypeConstraint::Integer
             .check(&atom, cbcl_core::contracts::DEFAULT_WORK)
-            .is_ok());
+            .is_err());
     }
     assert!(TypeConstraint::Float
         .check(&parse("1e2").unwrap(), cbcl_core::contracts::DEFAULT_WORK)
         .is_ok());
-    assert!(!TypeConstraint::Float
+    assert!(TypeConstraint::Float
         .check(&parse("100m").unwrap(), cbcl_core::contracts::DEFAULT_WORK)
-        .is_ok());
+        .is_err());
     assert!(TypeConstraint::Decimal
         .check(&parse("100m").unwrap(), cbcl_core::contracts::DEFAULT_WORK)
         .is_ok());
-    assert!(!TypeConstraint::Nonnegative
+    assert!(TypeConstraint::Nonnegative
         .check(&parse("1.5").unwrap(), cbcl_core::contracts::DEFAULT_WORK)
-        .is_ok());
+        .is_err());
     let atoms = [
         parse("1").unwrap(),
         parse("1.0").unwrap(),

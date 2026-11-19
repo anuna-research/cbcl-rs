@@ -3,7 +3,7 @@
 # CBCL
 
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
-[![Latest release: v0.1.1](https://img.shields.io/badge/release-v0.1.1-blue)](https://git.anuna.io/anuna-research/cbcl-rs/releases/tag/v0.1.1)
+[![Latest release: v0.2.0](https://img.shields.io/badge/release-v0.2.0-blue)](https://git.anuna.io/anuna-research/cbcl-rs/releases/tag/v0.2.0)
 [![Stage: pre-1.0](https://img.shields.io/badge/stage-pre--1.0-orange)](CHANGELOG.md#unreleased)
 [![Rust: 1.75+](https://img.shields.io/badge/rust-1.75%2B-orange)](Cargo.toml)
 

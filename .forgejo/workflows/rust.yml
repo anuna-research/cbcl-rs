@@ -1,0 +1,37 @@
+name: rust
+
+# Keep the ordinary Rust release gate on every change. Cargo's default test
+# selection skips #[ignore] tests, so proof-oracle, fixture-authoring and
+# performance probes remain opt-in. Mutation testing has its own manually
+# dispatched workflow, and fuzz/ is not a workspace member.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  workspace-checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        run: bash scripts/ci-install-rust.sh
+
+      - name: Install lint and formatting components
+        run: rustup component add clippy rustfmt
+
+      - name: Cache Cargo registry and build output
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-rust-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-rust-
+
+      - name: Run formatting, clippy, no_std and workspace tests
+        run: make check

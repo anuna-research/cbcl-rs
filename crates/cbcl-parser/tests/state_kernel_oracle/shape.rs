@@ -144,26 +144,103 @@ fn native_keywords(case: &Value) -> Value {
         (protocol (then begin open) (then open mint)) (state (credits (events mint :amount))))";
     let registry = state_exports::parse_and_install_dialect(&parse(source).unwrap()).unwrap();
     let dialect = registry.iter().last().unwrap();
-    let SExpr::List(params) = tree(&case["params"]) else { panic!("params must be a list"); };
-    let wire = format!("(lang keyword-demo (mint () {}))", params.iter().map(ToString::to_string).collect::<Vec<_>>().join(" "));
+    let SExpr::List(params) = tree(&case["params"]) else {
+        panic!("params must be a list");
+    };
+    let wire = format!(
+        "(lang keyword-demo (mint () {}))",
+        params
+            .iter()
+            .map(ToString::to_string)
+            .collect::<Vec<_>>()
+            .join(" ")
+    );
     let raw = parse(&wire).unwrap();
-    let Ok(message) = parse_message(&raw) else { return json!({"accepted":false}); };
-    if cbcl_core::r7::verify_state_shape(dialect, &message).is_err() { return json!({"accepted":false}); }
-    let act = Act::from_message(message, "@a").unwrap();
-    if dialect.shapes.iter().any(|shape| shape.performative == "mint" && shape.check(&SExpr::from(act.simple())).is_err()) {
+    let Ok(message) = parse_message(&raw) else {
+        return json!({"accepted":false});
+    };
+    if cbcl_core::r7::verify_state_shape(dialect, &message).is_err() {
         return json!({"accepted":false});
     }
-    let amount = match act.fields.get("amount") { Some(SExpr::Atom(Atom::Num(n))) => *n, _ => 0 };
+    let act = Act::from_message(message, "@a").unwrap();
+    if dialect.shapes.iter().any(|shape| {
+        shape.performative == "mint" && shape.check(&SExpr::from(act.simple())).is_err()
+    }) {
+        return json!({"accepted":false});
+    }
+    let amount = match act.fields.get("amount") {
+        Some(SExpr::Atom(Atom::Num(n))) => *n,
+        _ => 0,
+    };
     json!({"accepted":true,"amount":amount})
 }
 
 fn boundary_cases() -> Vec<(Value, Value)> {
     vec![
-        (json!(["list", [["keyword","thread"],["str","a"],["keyword","amount"],["num",5],["keyword","thread"],["str","b"]]]), json!({"accepted":false})),
-        (json!(["list", [["keyword","thread"],["str","a"],["keyword","amount"],["num",5],["keyword","thread"],["str","a"]]]), json!({"accepted":false})),
-        (json!(["list", [["keyword","thread"],["str","a"],["keyword","amount"],["num",5]]]), json!({"accepted":true,"amount":5})),
-        (json!(["list", [["keyword","other"],["keyword","amount"],["keyword","amount"],["num",5]]]), json!({"accepted":true,"amount":5})),
-        (json!(["list", [["keyword","amount"],["num",5],["keyword","other"],["keyword","amount"]]]), json!({"accepted":true,"amount":5})),
+        (
+            json!([
+                "list",
+                [
+                    ["keyword", "thread"],
+                    ["str", "a"],
+                    ["keyword", "amount"],
+                    ["num", 5],
+                    ["keyword", "thread"],
+                    ["str", "b"]
+                ]
+            ]),
+            json!({"accepted":false}),
+        ),
+        (
+            json!([
+                "list",
+                [
+                    ["keyword", "thread"],
+                    ["str", "a"],
+                    ["keyword", "amount"],
+                    ["num", 5],
+                    ["keyword", "thread"],
+                    ["str", "a"]
+                ]
+            ]),
+            json!({"accepted":false}),
+        ),
+        (
+            json!([
+                "list",
+                [
+                    ["keyword", "thread"],
+                    ["str", "a"],
+                    ["keyword", "amount"],
+                    ["num", 5]
+                ]
+            ]),
+            json!({"accepted":true,"amount":5}),
+        ),
+        (
+            json!([
+                "list",
+                [
+                    ["keyword", "other"],
+                    ["keyword", "amount"],
+                    ["keyword", "amount"],
+                    ["num", 5]
+                ]
+            ]),
+            json!({"accepted":true,"amount":5}),
+        ),
+        (
+            json!([
+                "list",
+                [
+                    ["keyword", "amount"],
+                    ["num", 5],
+                    ["keyword", "other"],
+                    ["keyword", "amount"]
+                ]
+            ]),
+            json!({"accepted":true,"amount":5}),
+        ),
     ]
 }
 
@@ -183,35 +260,93 @@ fn keyword_extraction_matches_lean() {
     for (params, expected) in boundary_cases() {
         let case = json!({"profile":"keyword-extraction","params":params});
         assert_eq!(native_keywords(&case), expected, "keyword case={case}");
-        assert_eq!(oracle.borrow_mut().request(&case), expected, "keyword case={case}");
+        assert_eq!(
+            oracle.borrow_mut().request(&case),
+            expected,
+            "keyword case={case}"
+        );
     }
     for params in [
-        json!(["list", [["keyword","amount"],["num",5]]]),
-        json!(["list", [["keyword","amount"],["num",10],["keyword","amount"],["num",-1]]]),
-        json!(["list", [["keyword","amount"],["num",1],["keyword","amount"],["num",1]]]),
-        json!(["list", [["keyword","thread"],["str","a"],["keyword","amount"],["num",5],["keyword","thread"],["str","b"]]]),
-        json!(["list", [["keyword","other"],["keyword","amount"],["keyword","amount"],["num",5]]]),
-        json!(["list", [["num",5],["keyword","amount"],["num",5]]]),
-        json!(["list", [["keyword","amount"]]]),
-        json!(["list", [["keyword","amount"],["num",1000000000001i64]]]),
+        json!(["list", [["keyword", "amount"], ["num", 5]]]),
+        json!([
+            "list",
+            [
+                ["keyword", "amount"],
+                ["num", 10],
+                ["keyword", "amount"],
+                ["num", -1]
+            ]
+        ]),
+        json!([
+            "list",
+            [
+                ["keyword", "amount"],
+                ["num", 1],
+                ["keyword", "amount"],
+                ["num", 1]
+            ]
+        ]),
+        json!([
+            "list",
+            [
+                ["keyword", "thread"],
+                ["str", "a"],
+                ["keyword", "amount"],
+                ["num", 5],
+                ["keyword", "thread"],
+                ["str", "b"]
+            ]
+        ]),
+        json!([
+            "list",
+            [
+                ["keyword", "other"],
+                ["keyword", "amount"],
+                ["keyword", "amount"],
+                ["num", 5]
+            ]
+        ]),
+        json!(["list", [["num", 5], ["keyword", "amount"], ["num", 5]]]),
+        json!(["list", [["keyword", "amount"]]]),
+        json!(["list", [["keyword", "amount"], ["num", 1000000000001i64]]]),
     ] {
         let case = json!({"profile":"keyword-extraction","params":params});
-        assert_eq!(native_keywords(&case), oracle.borrow_mut().request(&case), "keyword case={case}");
+        assert_eq!(
+            native_keywords(&case),
+            oracle.borrow_mut().request(&case),
+            "keyword case={case}"
+        );
     }
-    let value = prop_oneof![(-20i64..20).prop_map(|n| json!(["num",n])),
-        any::<bool>().prop_map(|b| json!(["bool",b])), Just(json!(["str","5"])),
-        Just(json!(["symbol","word"])), Just(json!(["keyword","amount"])),
-        Just(json!(["list",[["num",5]]]))];
-    let row = prop_oneof![(prop_oneof![Just("amount"),Just("other")], value)
-        .prop_map(|(key,value)| vec![json!(["keyword",key]),value]),
-        prop_oneof![Just("a"),Just("b")].prop_map(|thread| vec![json!(["keyword","thread"]),json!(["str",thread])])];
+    let value = prop_oneof![
+        (-20i64..20).prop_map(|n| json!(["num", n])),
+        any::<bool>().prop_map(|b| json!(["bool", b])),
+        Just(json!(["str", "5"])),
+        Just(json!(["symbol", "word"])),
+        Just(json!(["keyword", "amount"])),
+        Just(json!(["list", [["num", 5]]]))
+    ];
+    let row = prop_oneof![
+        (prop_oneof![Just("amount"), Just("other")], value)
+            .prop_map(|(key, value)| vec![json!(["keyword", key]), value]),
+        prop_oneof![Just("a"), Just("b")]
+            .prop_map(|thread| vec![json!(["keyword", "thread"]), json!(["str", thread])])
+    ];
     let mut config = proptest::test_runner::Config::default();
-    if std::env::var_os("PROPTEST_CASES").is_none() { config.cases = 512; }
+    if std::env::var_os("PROPTEST_CASES").is_none() {
+        config.cases = 512;
+    }
     let mut runner = proptest::test_runner::TestRunner::new(config);
-    runner.run(&prop::collection::vec(row, 0..9), |rows| {
-        let params = rows.into_iter().flatten().collect::<Vec<_>>();
-        let case = json!({"profile":"keyword-extraction","params":["list",params]});
-        prop_assert_eq!(native_keywords(&case), oracle.borrow_mut().request(&case), "keyword case={}",case);
-        Ok(())
-    }).unwrap();
+    runner
+        .run(&prop::collection::vec(row, 0..9), |rows| {
+            let params = rows.into_iter().flatten().collect::<Vec<_>>();
+            let case = json!({"profile":"keyword-extraction","params":["list",params]});
+            prop_assert_eq!(
+                native_keywords(&case),
+                oracle.borrow_mut().request(&case),
+                "keyword case={}",
+                case
+            );
+            Ok(())
+        })
+        .unwrap();
 }
