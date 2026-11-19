@@ -6,6 +6,7 @@
 [![Latest release: v0.2.0](https://img.shields.io/badge/release-v0.2.0-blue)](https://git.anuna.io/anuna-research/cbcl-rs/releases/tag/v0.2.0)
 [![Stage: pre-1.0](https://img.shields.io/badge/stage-pre--1.0-orange)](CHANGELOG.md#unreleased)
 [![Rust: 1.75+](https://img.shields.io/badge/rust-1.75%2B-orange)](Cargo.toml)
+[![AI Disclosure: ai-assisted](https://img.shields.io/badge/AI_Disclosure-ai--assisted-6B7280?style=flat-square&labelColor=20232a)](https://github.com/dcondrey/ai-disclosure-badges/blob/main/docs/ai-assisted.md)
 
 **A language for composing multi-agent protocols.**
 
