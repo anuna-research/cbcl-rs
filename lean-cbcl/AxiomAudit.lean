@@ -186,6 +186,7 @@ import LeanCbcl.DialectEnactability
 import LeanCbcl.ProtocolProjection
 import LeanCbcl.ConcreteProjection
 import LeanCbcl.Splice
+import LeanCbcl.PredecessorEvidence
 import LeanCbcl.Bridge
 import LeanCbcl.Repeat
 import LeanCbcl.StateProgress
@@ -319,6 +320,14 @@ editing only this file is enough to extend the audit.
 #print axioms LeanCbcl.Splice.decidesAll_iff_predsLocal
 #print axioms LeanCbcl.Splice.openings_suffice
 #print axioms LeanCbcl.Splice.openings_suffice_concrete
+
+-- Minimal evidence for a resolved predecessor.
+#print axioms LeanCbcl.PredecessorEvidence.sufficient_iff_recovers_answers
+#print axioms LeanCbcl.PredecessorEvidence.collision_loses_sufficiency
+#print axioms LeanCbcl.PredecessorEvidence.sufficient_clause_evidence_separates_names
+#print axioms LeanCbcl.PredecessorEvidence.recoverName_correct
+#print axioms LeanCbcl.PredecessorEvidence.shipping_counterexample
+#print axioms LeanCbcl.PredecessorEvidence.checked_type_minimal
 
 -- Temporal bridge (Bridge.lean).
 #print axioms LeanCbcl.Bridge.bridge_stability

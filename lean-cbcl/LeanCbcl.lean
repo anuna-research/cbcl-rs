@@ -41,6 +41,7 @@ import LeanCbcl.Projectability
 import LeanCbcl.ProtocolProjection
 import LeanCbcl.ConcreteProjection
 import LeanCbcl.Splice
+import LeanCbcl.PredecessorEvidence
 import LeanCbcl.Bridge
 import LeanCbcl.FiniteDPDA
 import LeanCbcl.FiniteForest
