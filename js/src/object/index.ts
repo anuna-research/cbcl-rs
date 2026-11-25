@@ -13,6 +13,11 @@ import { makeBroker, type BrokerHost, type IntentResult } from './broker.ts';
 import { ThreadStore, normaliseCausedBy, type Msg } from './store.ts';
 import type { Plain } from '../read.ts';
 
+export { t } from './types.ts';
+export type { ExactValue, ExactScalar } from '../read.ts';
+export type { ExactActInfo } from '../verifier.ts';
+export { parseDialect, readActExact } from '../verifier.ts';
+
 export { c, enumOf, isSDKDialect, openerText, readDialect, literal, keywordText, createRuntime, readAct, actRecord, makeBroker, ThreadStore, normaliseCausedBy, CONTRACT_VERSION, MAX_CONTRACT_BYTES, CORE_PERFORMATIVES, ROUTING_KEYWORDS };
 export type { Contract, DialectInfo, Rule, VerbSpec, FieldSpec, Runtime, ActEntry, VerdictName, BrokerHost, IntentResult, Msg, Plain, ActInfo };
 
@@ -86,6 +91,7 @@ export async function importObject(serialized: string): Promise<CbclObject> {
 /** Authoring input: the contract record with sugar (`dialect` for `name`, `causedBy` for `after`, `['string']` for `list`, `project` for `state`). */
 export interface Definition {
   name?: string; dialect?: string; version?: number; author?: string;
+  types?: Contract['types'];
   requirements?: Contract['requirements']; bounds?: Contract['bounds']; roles?: Contract['roles'];
   verbs: Record<string, { after?: string[]; causedBy?: string | string[]; fields?: Record<string, FieldSpec | string | ['string']>; from?: string; to?: string[] }>;
   state?: Record<string, Rule>; project?: Record<string, Rule>;
@@ -111,9 +117,9 @@ export async function defineContract(definition: Definition): Promise<CbclObject
   const normalized = normalizeAuthoring(definition);
   for (const key of ['view', 'layout', 'resources']) require(!Object.hasOwn(normalized, key), `a contract carries no presentation (${key}); views are a host package`);
   require(normalized.version === CONTRACT_VERSION, `contracts require version ${CONTRACT_VERSION}`);
-  const { version, name, verbs, state, author, requirements, bounds, roles, ...unknown } = normalized;
+  const { version, name, verbs, state, author, requirements, bounds, roles, types, ...unknown } = normalized;
   require(Object.keys(unknown).length === 0, `unknown contract field ${Object.keys(unknown)[0]}`);
-  const contract = { version, kind: 'contract', name, ...(author !== undefined ? { author } : {}), ...(requirements !== undefined ? { requirements } : {}), ...(bounds !== undefined ? { bounds } : {}), ...(roles !== undefined ? { roles } : {}), verbs, state };
+  const contract = { version, kind: 'contract', name, ...(author !== undefined ? { author } : {}), ...(requirements !== undefined ? { requirements } : {}), ...(bounds !== undefined ? { bounds } : {}), ...(roles !== undefined ? { roles } : {}), types, verbs, state };
   return importObject(JSON.stringify(contract));
 }
 

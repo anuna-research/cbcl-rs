@@ -9,10 +9,11 @@
 // synchronously from the bytes beside it, so scripts and tests need no
 // ceremony; a browser awaits `ready()` (or its own `init` of the same module,
 // which is idempotent) before its first frame.
+import type { ExactValue } from './read.ts';
 import init, {
   initSync, parse as wasmParse, recipient_of, recipient_of_lax, parse_message, message_hash, verify_dialect, verify_message_shape,
   verify_protocol, fold, intend, verify_state_shape, state_schema, may_send, frontier, dialect_hash,
-  admit, read as wasmRead, compile_contract, define_text, describe_dialect, read_act,
+  admit, read as wasmRead, compile_contract, define_text, describe_dialect, read_act, read_act_exact,
 } from './cbcl_wasm.js';
 
 let loaded = false;
@@ -202,6 +203,9 @@ export interface DialectInfo {
 /** A dialect text, `(meta (define …))`, or teach frame → its description. Throws with the parser's reason. */
 export function describeDialect(input: string): DialectInfo { return refusal(() => JSON.parse(describe_dialect(input)) as DialectInfo); }
 
+/** Parse CBCL dialect source into its canonical text and structured metadata. */
+export const parseDialect = describeDialect;
+
 /** A field value as an act carries it. */
 export type FieldValue = string | number | boolean | { decimal: string } | FieldValue[];
 
@@ -221,6 +225,13 @@ export interface ActInfo {
 
 /** An act's wire text → its dialect, address, verb, recipients, fields, and routing. Throws with the parser's reason. */
 export function readAct(text: string): ActInfo { return refusal(() => JSON.parse(read_act(text)) as ActInfo); }
+
+export type ExactActInfo = Omit<ActInfo, 'fields'> & { fields: Record<string, ExactValue> };
+
+/** Read fields suitable for lossless re-encoding, including nested list elements. */
+export function readActExact(text: string): ExactActInfo {
+  return refusal(() => JSON.parse(read_act_exact(text)) as ExactActInfo);
+}
 
 /** SPEC-087: a JSON contract → its dialect, named by self-address and installed through R1–R7. Throws with the reason. */
 export function compileContract(json: string): CompiledContract {

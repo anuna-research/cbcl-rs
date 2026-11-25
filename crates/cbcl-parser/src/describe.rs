@@ -298,6 +298,28 @@ fn dialect_of(m: &Message) -> Option<&str> {
 /// `read_act`: an act's wire text → its dialect, address, verb, recipients,
 /// data fields (routing excluded), and routing, as JSON.
 pub fn read_act_str(input: &str) -> Result<String, String> {
+    read_act_with(input, json_of_sexpr)
+}
+
+/// Read fields with explicit atom kinds where ordinary JSON would lose information.
+pub fn read_act_exact_str(input: &str) -> Result<String, String> {
+    read_act_with(input, exact_field)
+}
+
+fn exact_field(value: &SExpr) -> Json {
+    match value {
+        SExpr::List(values) => Json::Array(values.iter().map(exact_field).collect()),
+        SExpr::Atom(Atom::Keyword(s)) => json!({"keyword": s}),
+        SExpr::Atom(Atom::Symbol(s)) => json!({"symbol": s}),
+        SExpr::Atom(Atom::Float(n)) => json!({"float": n.get()}),
+        SExpr::Atom(Atom::Num(n)) if n.unsigned_abs() > (1_u64 << 53) - 1 => {
+            json!({"integer": n.to_string()})
+        }
+        _ => json_of_sexpr(value),
+    }
+}
+
+fn read_act_with(input: &str, field_value: fn(&SExpr) -> Json) -> Result<String, String> {
     let form = crate::parser::parse(input).map_err(|e| alloc::format!("parse error: {e}"))?;
     let message =
         crate::parse_message(&form).map_err(|e| alloc::format!("message parse error: {e}"))?;
@@ -330,7 +352,7 @@ pub fn read_act_str(input: &str) -> Result<String, String> {
     };
     let mut fields = Map::new();
     for (k, v) in &act.fields {
-        fields.insert(k.clone(), json_of_sexpr(v));
+        fields.insert(k.clone(), field_value(v));
     }
     Ok(json!({
         "dialect": dialect,

@@ -30,7 +30,10 @@ export function asText(v: Tree | undefined): string | undefined {
 }
 
 /** A plain field value: quoted strings unwrap, `#t`/`#f` are booleans, integer text is a number, lists map. */
-export type Plain = string | number | boolean | { decimal: string } | Plain[];
+export type ExactScalar = string | number | boolean | { decimal: string } | { integer: string }
+  | { float: number } | { keyword: string } | { symbol: string };
+export type ExactValue = ExactScalar | ExactValue[];
+export type Plain = ExactScalar | bigint | Plain[];
 export function readValue(v: Tree): Plain {
   if (typeof v === 'object' && !Array.isArray(v) && 'str' in v) return v.str;
   if (Array.isArray(v)) return v.map(readValue);

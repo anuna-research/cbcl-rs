@@ -761,6 +761,11 @@ mod wasm_bindgen_api {
     pub fn read_act(input: &str) -> Result<String, String> {
         cbcl_parser::read_act_str(input)
     }
+    /// Read an act with lossless JSON scalar fields.
+    #[wasm_bindgen]
+    pub fn read_act_exact(input: &str) -> Result<String, String> {
+        cbcl_parser::describe::read_act_exact_str(input)
+    }
     /// SPEC-087: a JSON contract → `{"name","label","dialect"}`, the dialect named by
     /// its self-address and installed through R1–R7, or a reason.
     #[wasm_bindgen]

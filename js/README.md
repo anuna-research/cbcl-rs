@@ -22,6 +22,12 @@ verifyShape(defineText, 'vote', '(vote @r :choice "x")');   // {ok: true} | {ok:
 compileContract(json);                   // {name: 'f1220…', label, dialect}   (SPEC-087)
 ```
 
+Use `parseDialect(source)` from either `cbcl` or `cbcl/object` to read a
+handwritten `.cbcl` dialect. It returns a `DialectInfo` with canonical CBCL
+in `text`, named definitions in `types`, and each verb’s field constraints,
+requiredness, and defaults in `verbs[verb].contracts`. Malformed source throws.
+Call `verifyDialect(info.text)` when you also need installation checks.
+
 Also exported: `parseSexpr`, `kwargs`, `asText`, `readValue`, `sliceForm` (reading helpers over `read`), and the state-layer frames `foldState`, `intendAct`, `admitAct`, `maySend`, `frontierOf`, `stateSchema` (SPEC-019 R.7), each taking the S-expression frame and returning typed results.
 
 Audience extraction is available as `recipientOf(message)` and
@@ -63,6 +69,40 @@ const agent = poll.agent({ store, me: () => '@me', send: text => transport.send(
 await agent.act('lunch-1', 'vote', { choice: 'Sushi', clock: 'hlc-000001a3185c5000-00000000' });   // cbcl-rs binds, the host signs
 agent.read('lunch-1');                                       // the fold
 ```
+
+Declare reusable field types in the top-level `types` record. Both definitions
+and verb fields accept the full CBCL flat type-expression grammar, including
+numeric bounds, string patterns, list lengths, `one-of`, `and`, and `or`.
+
+```js
+import { c, defineContract, t } from 'cbcl/object';
+
+const prices = await defineContract({
+  name: 'prices',
+  types: { price: t.decimal({ gte: 0 }) },
+  verbs: { open: { after: ['begin'], fields: { amount: 'price', quantity: t.integer({ gt: 0 }) } } },
+  state: { amount: c.initial('open', 'amount') },
+});
+prices.info.types.price.representations; // ['decimal']
+```
+
+The builders return CBCL type-expression strings. Compose them with `t.and(a, b)`
+or `t.or(a, b)`. Use `t.oneOf("draft", "final")` for string choices and
+`t.string({ length: { lte: 32 }, matches: "[A-Z]+" })` for constrained text.
+For repeated clauses or a specific order, pass tuples such as
+`t.string([["matches", "a.*"], ["length", [">=", 1]], ["matches", ".*b"]])`.
+Numeric builders accept ordered comparisons such as `t.float([[">=", { float: 2 }]])`.
+Builtin types and local type references also work as plain names.
+
+**Exact act fields.** The same literals work in enumerations, openers and intents.
+Use `{ keyword: "2fa" }` for `:2fa`, `{ symbol: "@team/red" }` for a symbol,
+`{ float: 2 }` for `2.0`, and `{ decimal: "0.01" }` for an exact decimal.
+Use a bigint or `{ integer: "9223372036854775807" }` for a signed 64-bit integer
+outside JavaScript’s safe range. These representations work inside lists.
+
+`readActExact(text).fields` (from either SDK entry point) returns fields you can
+pass back to `open` or `act`. Large integers use the JSON-safe string wrapper.
+`readAct` and folded state retain their existing display representations.
 
 The state grammar has 16 heads, including `initial` and the explicit
 `lwwRegister`, `lwwPerSigner` and `lwwMap` rules. LWW writes declare an `hlc` field and supply its

@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { verifyShape, describeDialect, compileContract } from '../src/index.ts';
+import { verifyShape, describeDialect, parseDialect, compileContract } from '../src/index.ts';
+import { parseDialect as parseObjectDialect } from '../src/object/index.ts';
 import { verify_message_shape } from '../src/cbcl_wasm.js';
 
 const cases = JSON.parse(await readFile(new URL('../../test-vectors/contracts/flat-contracts.json', import.meta.url), 'utf8')) as {id:string;frame:string;accept:boolean;errorContains?:string}[];
@@ -24,6 +25,21 @@ test('SPEC-040 optional metadata and JSON authoring use the same checker', () =>
   assert.equal(optional.verbs.submit.contracts.value.default, ':AUD');
   assert.equal(verifyShape(source, 'submit', '(submit :value :USD)').ok, true);
   assert.equal(verifyShape(source, 'submit', '(submit :value :EUR)').ok, false);
+});
+test('both SDK entry points parse handwritten CBCL with named types and optional defaults', () => {
+  const source = `(define colours (cbcl) @author
+    (type colour (one-of :red :blue))
+    (extend paint (to shade) (tell to :shade shade))
+    (shape paint (optional :shade colour (default :red))))`;
+  for (const parse of [parseDialect, parseObjectDialect]) {
+    const info = parse(source);
+    assert.equal(info.name, 'colours');
+    assert.deepEqual(info.types.colour.representations, ['keyword']);
+    assert.equal(info.verbs.paint.contracts.shade.required, false);
+    assert.equal(info.verbs.paint.contracts.shade.default, ':red');
+    assert.deepEqual(parse(info.text), info);
+    assert.throws(() => parse('(define unfinished'));
+  }
 });
 test('SPEC-040 maximum-input adversarial regex remains bounded in WASM', () => {
   const source = '(define bounded (cbcl) @author (extend submit (to value) (tell to :value value)) (shape submit (require :value (string (matches "(a|aa)*b")))))';

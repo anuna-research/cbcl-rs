@@ -18,7 +18,7 @@ export const CORE_PERFORMATIVES: ReadonlySet<string> = new Set(['tell', 'ask', '
 /** Keywords the binder owns: never a contract field, never set by a view. */
 export const ROUTING_KEYWORDS: ReadonlySet<string> = new Set(['from', 'thread', 'dialect', 'caused-by', 'to', 'sender', 'replaces', 'audience', 'sig', 'key', 'signing-key']);
 
-export type FieldType = 'string' | 'hlc' | 'integer' | 'number' | 'float' | 'decimal' | 'bool' | 'list';
+export type FieldType = 'string' | 'hlc' | 'integer' | 'number' | 'float' | 'decimal' | 'nonnegative' | 'bool' | 'symbol' | 'keyword' | 'list';
 /** A built-in name, local type name, or CBCL contract expression; validated by the shared core. */
 export type FieldSpec = FieldType | (string & {}) | { enumOf: string };
 export type RuleOp = 'lwwRegister' | 'lwwMap' | 'lwwPerSigner' | 'multiValueRegister' | 'multiValueMap' | 'initial' | 'exists' | 'count' | 'progress' | 'events' | 'setUnion'
@@ -73,10 +73,32 @@ export const enumOf = (field: string): { enumOf: string } => ({ enumOf: field })
 /** A plain JS value as a CBCL literal: strings quoted, integers, booleans, lists of those. */
 export function literal(value: Plain): string {
   if (typeof value === 'string') return '"' + value.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n') + '"';
-  if (typeof value === 'number') { if (!Number.isFinite(value)) throw new Error('numbers must be finite'); return String(value); }
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) throw new Error('numbers must be finite');
+    if (Number.isInteger(value) && !Number.isSafeInteger(value)) throw new Error('use bigint for exact integers or { float } for binary64');
+    return String(value);
+  }
+  if (typeof value === 'bigint') {
+    if (BigInt.asIntN(64, value) !== value) throw new Error('integer outside signed 64-bit range');
+    return String(value);
+  }
   if (typeof value === 'boolean') return value ? '#t' : '#f';
   if (Array.isArray(value)) return '(' + value.map(literal).join(' ') + ')';
-  if (typeof value === 'object' && value !== null && 'decimal' in value && /^-?\d+(?:\.\d+)?$/.test(value.decimal)) return value.decimal + 'm';
+  if (typeof value === 'object' && value !== null) {
+    if ('decimal' in value && typeof value.decimal === 'string' && /^-?\d+(?:\.\d+)?$/.test(value.decimal)) return value.decimal + 'm';
+    if ('integer' in value && typeof value.integer === 'string' && /^-?\d+$/.test(value.integer)) return literal(BigInt(value.integer));
+    if ('float' in value && Number.isFinite(value.float)) {
+      const text = String(value.float);
+      return /[.eE]/.test(text) ? text : text + '.0';
+    }
+    if ('keyword' in value || 'symbol' in value) {
+      const keyword = 'keyword' in value;
+      const token = keyword ? value.keyword : value.symbol;
+      // CBCL symbol characters. Bare numeric prefixes enter the number parser.
+      if (typeof token === 'string' && token.length && !/[^A-Za-z0-9_.\/!?+*<>=@-]/.test(token)
+          && (keyword || !/^-?\d/.test(token))) return keyword ? ':' + token : token;
+    }
+  }
   throw new Error('unsupported field value');
 }
 
