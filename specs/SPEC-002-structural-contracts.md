@@ -1972,7 +1972,7 @@ Usage with fan-in `:caused-by`:
 ```
 
 
-### HLC shape-type amendment — SPEC-035 ADR-3504
+### HLC shape-type amendment — SPEC-035 register semantics ADR-3504
 
 `hlc` is a refined string type. `(require :observed-at hlc)` requires the canonical
 29-byte encoding: `hlc-` + 16 lowercase hexadecimal physical-millisecond digits +

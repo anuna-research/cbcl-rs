@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { defineContract, c, createRuntime, actRecord, enumOf, readAct } from '../src/object/index.ts';
+import { defineContract, c, makeHlc, createRuntime, actRecord, enumOf, readAct } from '../src/object/index.ts';
 
 const source = {
   name: 'hlc-registers', author: '@a',
@@ -63,7 +63,20 @@ test('declared hlc fields validate without an LWW rule and retain their type', a
     state:{when:c.initial('open','when')}});
   assert.equal(object.info.verbs.open.fields.when,'hlc');
   assert.throws(()=>object.open({room:'@a',thread:'t',from:'@a',fields:{when:'invalid'}}),/hlc/);
-  const valid='hlc-000001a3185c5000-00000000';
+  const valid=makeHlc();
   const root=actRecord(object.open({room:'@a',thread:'t',from:'@a',fields:{when:valid}}),'@a');
   assert.equal(object.runtime.read('t',[root]).when,valid);
+});
+
+test('makeHlc issues and advances canonical timestamps from host evidence', () => {
+  const previous = makeHlc({ nowMs: 100 });
+  assert.equal(previous, 'hlc-0000000000000064-00000000');
+  const next = makeHlc({ previous, nowMs: 99 });
+  assert.equal(next, 'hlc-0000000000000064-00000001');
+  assert.equal(makeHlc({ previous, received: next, nowMs: 100 }), 'hlc-0000000000000064-00000002');
+  assert.equal(makeHlc({ received: next, nowMs: 101 }), 'hlc-0000000000000065-00000000');
+  assert.equal(makeHlc({ nowMs: (1n << 64n) - 1n }), 'hlc-ffffffffffffffff-00000000');
+  assert.throws(() => makeHlc({ previous: 'invalid' }), /invalid HLC/);
+  assert.throws(() => makeHlc({ received: 'hlc-ffffffffffffffff-ffffffff' }), /overflow/);
+  assert.throws(() => makeHlc({ nowMs: 1n << 64n }), RangeError);
 });

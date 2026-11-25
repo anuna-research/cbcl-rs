@@ -6,7 +6,7 @@
 // named by its self-address `f1220<body hash>`, installed through R1–R7,
 // and folds it with `fold`. Presentation is a separate concern of the host.
 import { ready, verifyShape, verifyStateShape, type State } from '../verifier.ts';
-import { compile, openerText, c, enumOf, isSDKDialect, readDialect, literal, keywordText, CONTRACT_VERSION, MAX_CONTRACT_BYTES, CORE_PERFORMATIVES, ROUTING_KEYWORDS, type Contract, type DialectInfo, type Rule, type VerbSpec, type FieldSpec } from './compile.ts';
+import { compile, openerText, optional, stateEntry, c, enumOf, isSDKDialect, readDialect, literal, keywordText, CONTRACT_VERSION, MAX_CONTRACT_BYTES, CORE_PERFORMATIVES, ROUTING_KEYWORDS, type Contract, type DialectInfo, type Rule, type VerbSpec, type FieldSpec } from './compile.ts';
 import { createRuntime, readAct, actRecord, type Runtime, type ActEntry, type VerdictName } from './runtime.ts';
 import type { ActInfo } from '../verifier.ts';
 import { makeBroker, type BrokerHost, type IntentResult } from './broker.ts';
@@ -16,9 +16,10 @@ import type { Plain } from '../read.ts';
 export { t } from './types.ts';
 export type { ExactValue, ExactScalar } from '../read.ts';
 export type { ExactActInfo } from '../verifier.ts';
-export { parseDialect, readActExact } from '../verifier.ts';
+export { makeHlc, parseDialect, readActExact } from '../verifier.ts';
 
-export { c, enumOf, isSDKDialect, openerText, readDialect, literal, keywordText, createRuntime, readAct, actRecord, makeBroker, ThreadStore, normaliseCausedBy, CONTRACT_VERSION, MAX_CONTRACT_BYTES, CORE_PERFORMATIVES, ROUTING_KEYWORDS };
+export type { StateForm, ShapeField } from './compile.ts';
+export { c, enumOf, optional, stateEntry, isSDKDialect, openerText, readDialect, literal, keywordText, createRuntime, readAct, actRecord, makeBroker, ThreadStore, normaliseCausedBy, CONTRACT_VERSION, MAX_CONTRACT_BYTES, CORE_PERFORMATIVES, ROUTING_KEYWORDS };
 export type { Contract, DialectInfo, Rule, VerbSpec, FieldSpec, Runtime, ActEntry, VerdictName, BrokerHost, IntentResult, Msg, Plain, ActInfo };
 
 function require(condition: unknown, message: string): asserts condition { if (!condition) throw new Error(`Object contract: ${message}`); }
@@ -67,9 +68,12 @@ export async function importObject(serialized: string): Promise<CbclObject> {
     verdicts: (messages, thread = messages[0]?.thread ?? 't') => runtime.verdicts(thread, messages),
     open({ room, thread, from, fields, causedBy }) {
       require(info.opener, 'the dialect declares no opener');
-      const declared = Object.keys(info.verbs[info.opener].fields);
+      const opener = info.verbs[info.opener];
+      const declared = Object.keys(opener.fields);
+      const required = declared.filter(f => opener.contracts[f]?.required !== false);
       const given = Object.keys(fields || {});
-      require(given.every(f => declared.includes(f)) && declared.every(f => given.includes(f)), `opener fields are exactly ${declared.join(', ')}`);
+      require(given.every(f => declared.includes(f)) && required.every(f => given.includes(f)),
+        required.length === declared.length ? `opener fields are exactly ${declared.join(', ')}` : `expected declared opener fields including ${required.join(', ')}`);
       const text = openerText({ dialect: name, verb: info.opener, room, thread, from, fields, causedBy });
       const shape = verifyShape(dialect, info.opener, text.replace(/^\(lang \S+ /, '').replace(/\)$/, ''));
       require(shape.ok, `invalid opener fields: ${shape.ok ? '' : shape.reason}`);
@@ -92,6 +96,7 @@ export async function importObject(serialized: string): Promise<CbclObject> {
 export interface Definition {
   name?: string; dialect?: string; version?: number; author?: string;
   types?: Contract['types'];
+  stateEntries?: string[];
   requirements?: Contract['requirements']; bounds?: Contract['bounds']; roles?: Contract['roles'];
   verbs: Record<string, { after?: string[]; causedBy?: string | string[]; fields?: Record<string, FieldSpec | string | ['string']>; from?: string; to?: string[] }>;
   state?: Record<string, Rule>; project?: Record<string, Rule>;
@@ -117,9 +122,9 @@ export async function defineContract(definition: Definition): Promise<CbclObject
   const normalized = normalizeAuthoring(definition);
   for (const key of ['view', 'layout', 'resources']) require(!Object.hasOwn(normalized, key), `a contract carries no presentation (${key}); views are a host package`);
   require(normalized.version === CONTRACT_VERSION, `contracts require version ${CONTRACT_VERSION}`);
-  const { version, name, verbs, state, author, requirements, bounds, roles, types, ...unknown } = normalized;
+  const { version, name, verbs, state, author, requirements, bounds, roles, types, stateEntries, ...unknown } = normalized;
   require(Object.keys(unknown).length === 0, `unknown contract field ${Object.keys(unknown)[0]}`);
-  const contract = { version, kind: 'contract', name, ...(author !== undefined ? { author } : {}), ...(requirements !== undefined ? { requirements } : {}), ...(bounds !== undefined ? { bounds } : {}), ...(roles !== undefined ? { roles } : {}), types, verbs, state };
+  const contract = { version, kind: 'contract', name, ...(author !== undefined ? { author } : {}), ...(requirements !== undefined ? { requirements } : {}), ...(bounds !== undefined ? { bounds } : {}), ...(roles !== undefined ? { roles } : {}), types, verbs, state: state ?? (stateEntries ? {} : undefined), stateEntries };
   return importObject(JSON.stringify(contract));
 }
 

@@ -206,6 +206,7 @@ fn positive_int(value: &Json, what: &str) -> Result<u64, String> {
 
 /// A recognised contract, ready to emit.
 struct Contract<'a> {
+    state_entries: Vec<String>,
     types: Vec<(&'a str, cbcl_core::sexpr::SExpr)>,
     name: &'a str,
     author: &'a str,
@@ -221,21 +222,98 @@ struct Contract<'a> {
 struct Verb<'a> {
     name: &'a str,
     after: Vec<&'a str>,
-    fields: Vec<(&'a str, String, Option<&'a str>)>, // (field, type, enumOf)
+    fields: Vec<(&'a str, String, Option<&'a str>)>, // (field, rendered shape rule, enumOf)
     from: Option<&'a str>,
     to: Vec<&'a str>,
+}
+
+fn source_form(value: &Json) -> Result<String, String> {
+    let text = value.as_str().ok_or("contract: expected CBCL source")?;
+    crate::parser::parse(text)
+        .map(|expr| cbcl_core::serializer::serialize(&expr))
+        .map_err(|e| format!("contract: {e}"))
+}
+
+fn field_rule(field: &str, spec: &Json) -> Result<String, String> {
+    let m = record(
+        spec,
+        &[],
+        &["type", "optional", "default", "children"],
+        field,
+    )?;
+    let optional = m
+        .get("optional")
+        .map(|x| x.as_bool().ok_or("contract: optional must be boolean"))
+        .transpose()?
+        .unwrap_or(false);
+    let head = if optional { "optional" } else { "require" };
+    let mut parts = alloc::vec![format!("({head} :{field}")];
+    if let Some(t) = m.get("type") {
+        parts.push(source_form(t)?);
+    }
+    if let Some(default) = m.get("default") {
+        if !optional {
+            return err("only optional fields may declare a default");
+        }
+        parts.push(format!("(default {})", source_form(default)?));
+    }
+    if let Some(children) = m.get("children") {
+        match children {
+            Json::Object(fields) => {
+                for (key, child) in fields {
+                    if !identifier(key) {
+                        return err("invalid nested field name");
+                    }
+                    if child.is_string() {
+                        parts.push(format!("(require :{key} {})", source_form(child)?));
+                    } else {
+                        parts.push(field_rule(key, child)?);
+                    }
+                }
+            }
+            Json::Array(rules) => {
+                for rule in rules {
+                    let expr = crate::parser::parse(
+                        rule.as_str()
+                            .ok_or("contract: expected child rule source")?,
+                    )
+                    .map_err(|e| format!("contract: {e}"))?;
+                    crate::shape_parser::parse_shape_rule(&expr)?;
+                    parts.push(cbcl_core::serializer::serialize(&expr));
+                }
+            }
+            _ => return err("children must be a field record or rule array"),
+        }
+    }
+    Ok(format!("{})", parts.join(" ")))
 }
 
 fn recognize(json: &Json) -> Result<Contract<'_>, String> {
     let top = record(
         json,
         &["version", "kind", "name", "verbs", "state"],
-        &["author", "requirements", "bounds", "roles", "types"],
+        &[
+            "author",
+            "requirements",
+            "bounds",
+            "roles",
+            "types",
+            "stateEntries",
+        ],
         "contract",
     )?;
     if top["version"].as_u64() != Some(CONTRACT_VERSION) || top["kind"].as_str() != Some("contract")
     {
         return err("unsupported contract version");
+    }
+    let mut state_entries = Vec::new();
+    if let Some(entries) = top.get("stateEntries") {
+        for entry in entries
+            .as_array()
+            .ok_or("contract: stateEntries must be an array")?
+        {
+            state_entries.push(source_form(entry)?);
+        }
     }
     let mut types = Vec::new();
     if let Some(definitions) = top.get("types") {
@@ -365,16 +443,24 @@ fn recognize(json: &Json) -> Result<Contract<'_>, String> {
                         .map_err(|e| format!("contract: field type: {e}"))?;
                     fields.push((
                         field.as_str(),
-                        cbcl_core::serializer::serialize(&expression),
+                        format!(
+                            "(require :{field} {})",
+                            cbcl_core::serializer::serialize(&expression)
+                        ),
                         None,
                     ));
+                }
+                Json::Object(map) if !map.contains_key("enumOf") => {
+                    fields.push((field.as_str(), field_rule(field, ty)?, None));
                 }
                 Json::Object(_) => {
                     let m = record(ty, &["enumOf"], &[], field)?;
                     match m["enumOf"].as_str() {
-                        Some(target) if identifier(target) => {
-                            fields.push((field.as_str(), "string".into(), Some(target)))
-                        }
+                        Some(target) if identifier(target) => fields.push((
+                            field.as_str(),
+                            format!("(require :{field} string)"),
+                            Some(target),
+                        )),
                         _ => return err("invalid domain"),
                     }
                 }
@@ -415,7 +501,7 @@ fn recognize(json: &Json) -> Result<Contract<'_>, String> {
     let Some(state_map) = top["state"].as_object() else {
         return err("state must be a record");
     };
-    if state_map.is_empty() || state_map.len() > 32 {
+    if (state_map.is_empty() && state_entries.is_empty()) || state_map.len() > 32 {
         return err("a state declares between 1 and 32 fields");
     }
     let mut state = Vec::new();
@@ -473,13 +559,14 @@ fn recognize(json: &Json) -> Result<Contract<'_>, String> {
     for verb in &verbs {
         for (_, _, domain) in &verb.fields {
             if let Some(target) = domain {
-                if !state_map.contains_key(*target) {
+                if state_entries.is_empty() && !state_map.contains_key(*target) {
                     return err(format!("domain {target} is not a state field"));
                 }
             }
         }
     }
     Ok(Contract {
+        state_entries,
         types,
         name,
         author,
@@ -564,7 +651,7 @@ fn emit(c: &Contract<'_>, name: &str) -> String {
         let rules: String = v
             .fields
             .iter()
-            .map(|(f, t, _)| format!(" (require :{f} {t})"))
+            .map(|(_, rule, _)| format!(" {rule}"))
             .collect();
         out.push_str(&format!("  (shape {}{rules})\n", v.name));
     }
@@ -615,6 +702,13 @@ fn emit(c: &Contract<'_>, name: &str) -> String {
             if reads == field {
                 entries.push(entry.clone());
             }
+        }
+    }
+    entries.extend(c.state_entries.iter().cloned());
+    // Native entries can supply the list used by an enumOf declaration.
+    for (target, domain) in domains {
+        if !c.state.iter().any(|(field, _, _)| *field == target) {
+            entries.push(domain);
         }
     }
     out.push_str(&format!("  (state {}))", entries.join(" ")));

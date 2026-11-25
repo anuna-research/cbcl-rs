@@ -63,18 +63,7 @@ pub struct Fixture {
 }
 impl Fixture {
     pub fn new() -> Self {
-        let target = installed(
-            r#"(define checkpoint-target (cbcl) @anuna
-   (:roles ((* member)))
-   (extend open (to title) :from member :to member (tell to :title title))
-   (extend write (to item value clock) :from member :to member (tell to :item item :value value :clock clock))
-   (extend drop (to item) :from member :to member (tell to :item item))
-   (shape open (require :title string))
-   (shape write (require :item string) (require :value string) (require :clock hlc))
-   (shape drop (require :item string))
-   (protocol (then begin open) (then open write) (then open drop))
-   (state (title (initial open :title)) (items (lww-map write :item :value :clock drop)) (versions (multi-value-map write :item :value drop))))"#,
-        );
+        let target = installed(TARGET_SOURCE);
         Self::with_target(target)
     }
     pub fn with_target(target: Dialect) -> Self {
@@ -163,4 +152,55 @@ impl Fixture {
             endorsements,
         }
     }
+}
+
+const TARGET_SOURCE: &str = r#"(define checkpoint-target (cbcl) @anuna
+   (:roles ((* member)))
+   (extend open (to title) :from member :to member (tell to :title title))
+   (extend write (to item value clock) :from member :to member (tell to :item item :value value :clock clock))
+   (extend drop (to item) :from member :to member (tell to :item item))
+   (shape open (require :title string))
+   (shape write (require :item string) (require :value string) (require :clock hlc))
+   (shape drop (require :item string))
+   (protocol (then begin open) (then open write) (then open drop))
+   (state (title (initial open :title)) (items (lww-map write :item :value :clock drop)) (versions (multi-value-map write :item :value drop))))"#;
+
+#[test]
+fn sdk_checkpoint_vector() {
+    use cbcl_core::{
+        multikey::{Multikey, PublicKeyCodec},
+        serializer::serialize,
+    };
+    use serde_json::json;
+    let f = Fixture::new();
+    let members = f.members(&[]);
+    let cert = f.certificate(&members);
+    let wire = |m: &SignedMessage| serialize(&SExpr::from(m.message().clone()));
+    let step = members[0].step(&f.write("after", 1, &[], "@m0")).unwrap();
+    let keys = ["@m0", "@m1", "@m2", "@m3", "@init"]
+        .into_iter()
+        .map(|id| {
+            let bytes = Keys::key(id).unwrap().verifying_key().to_bytes();
+            (
+                id.to_string(),
+                json!(Multikey::new(PublicKeyCodec::Ed25519, &bytes)
+                    .unwrap()
+                    .to_multibase()),
+            )
+        })
+        .collect::<serde_json::Map<_, _>>();
+    let vector = json!({"context":{
+        "dialect":TARGET_SOURCE.replace("define checkpoint-target", &format!("define {}", f.context.target().name)),
+        "targetRoot":wire(f.context.target_root()), "companionRoot":wire(f.context.companion_root()),
+        "policy":f.context.policy(),"publicKeys":keys
+    }, "certificate":hex(&cert.encode(&f.context)), "step":{"message":wire(&step.message),"ancestry":step.ancestry.iter().map(|(m,p)|(wire(m),p)).collect::<Vec<_>>(),"identity":step.identity,"replacements":step.replacements}});
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../test-vectors/checkpoints/sdk.json");
+    if std::env::var_os("CBCL_WRITE_SDK_VECTOR").is_some() {
+        std::fs::write(&path, vector.to_string() + "\n").unwrap();
+    }
+    assert_eq!(
+        vector,
+        serde_json::from_slice::<serde_json::Value>(&std::fs::read(path).unwrap()).unwrap()
+    );
 }

@@ -67,6 +67,35 @@ fn json_of_sexpr(s: &SExpr) -> Json {
     }
 }
 
+fn shape_description(rule: &ShapeRule) -> Json {
+    let (keyword, constraint, children, required, default) = match rule {
+        ShapeRule::Require {
+            keyword,
+            type_constraint,
+            children,
+        } => (keyword, type_constraint, children, true, None),
+        ShapeRule::Optional {
+            keyword,
+            type_constraint,
+            children,
+            default,
+        } => (
+            keyword,
+            type_constraint,
+            children,
+            false,
+            default.as_ref().map(serialize),
+        ),
+        ShapeRule::MaxDepth(limit) => return json!({"maxDepth":limit}),
+    };
+    json!({
+        "keyword":keyword, "required":required, "default":default,
+        "source":constraint.as_ref().map(|t| serialize(&t.source())).unwrap_or_default(),
+        "representations":constraint.as_ref().map(cbcl_core::contracts::representation_names).unwrap_or_default(),
+        "children":children.iter().map(shape_description).collect::<Vec<_>>(),
+    })
+}
+
 /// A rule of the state clause as JSON's spelling: `[op, arg…]`, keys without their colon.
 fn rule_json(rule: &Rule) -> Json {
     if let Rule::Lift(lift) = rule {
@@ -137,10 +166,12 @@ pub fn describe(d: &Dialect, text: &str) -> Json {
     let mut verbs = Map::new();
     for p in &d.performatives {
         let params: Vec<Json> = p.params.iter().map(json_of_sexpr).collect();
+        let mut shape_rules = Vec::new();
         let mut fields = Map::new();
         let mut contracts = Map::new();
         for shape in d.shapes.iter().filter(|s| s.performative == p.name) {
             for rule in &shape.rules {
+                let description = shape_description(rule);
                 if let ShapeRule::Require {
                     keyword,
                     type_constraint,
@@ -160,10 +191,9 @@ pub fn describe(d: &Dialect, text: &str) -> Json {
                         .map(|t| t.to_string())
                         .unwrap_or_default();
                     fields.insert(keyword.clone(), Json::String(ty));
-                    if let Some(tc) = type_constraint {
-                        contracts.insert(keyword.clone(), json!({"source":serialize(&tc.source()), "representations":cbcl_core::contracts::representation_names(tc), "required":matches!(rule,ShapeRule::Require {..}), "default":match rule { ShapeRule::Optional {default:Some(value),..}=>Some(serialize(value)),_=>None }}));
-                    }
+                    contracts.insert(keyword.clone(), description.clone());
                 }
+                shape_rules.push(description);
             }
         }
         let after: Vec<Json> = d
@@ -181,8 +211,7 @@ pub fn describe(d: &Dialect, text: &str) -> Json {
                     .collect()
             })
             .unwrap_or_default();
-        let mut entry =
-            json!({ "params": params, "fields": fields, "contracts":contracts, "after": after });
+        let mut entry = json!({ "params": params, "fields": fields, "contracts":contracts, "shapeRules":shape_rules, "after": after });
         if let Some(ann) = &p.role {
             entry["from"] = Json::String(ann.from.clone());
             entry["to"] = Json::Array(ann.to.iter().cloned().map(Json::String).collect());
