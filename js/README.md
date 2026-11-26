@@ -168,7 +168,7 @@ console.log(restored.presentation.id === presentation.id); // true
 ```
 
 `importView(text, contract)` checks a serialized view against its dialect.
-A presentation created or imported with a contract from `cbcl/object` retains its serialized contract for export. If you supplied only dialect text, pass the matching SDK contract explicitly with `exportBundle(contract, presentation)`.
+A presentation created or imported with a contract from `cbcl/object` retains its serialized contract for export. If you supplied only dialect text, pass the matching SDK contract explicitly with `exportBundle(presentation, contract)`.
 
 `defaultPresentation(contract)` gives a read-only view of the state.
 Version 3 view and bundle records from cbcl-bus use the same format and IDs.

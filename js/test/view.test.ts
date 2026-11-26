@@ -126,7 +126,7 @@ test('a bundle carries a contract and its view in one record and imports to both
   const text = exportBundle(view);
   const raw = await importView(view.serialized, contract.dialect);
   assert.throws(() => exportBundle(raw), /needs the cbcl\/object contract/);
-  assert.equal(exportBundle(contract, raw), text);
+  assert.equal(exportBundle(raw, contract), text);
   assert.equal(exportBundle(await importView(view.serialized, contract)), text);
   assert.equal(JSON.parse(exportBundle(await defaultPresentation(contract))).contract.name, contract.label);
   assert.deepEqual(JSON.parse(text), { version: VIEW_VERSION, kind: 'bundle', contract: JSON.parse(contract.serialized), view: JSON.parse(view.serialized) });
@@ -136,7 +136,7 @@ test('a bundle carries a contract and its view in one record and imports to both
   assert.equal(bundle.presentation.id, view.id);
   assert.equal(bundle.presentation.serialized, view.serialized);
   const other = await defineContract({ ...plainChecklist, state: { title: c.initial('open', 'title') } });
-  assert.throws(() => exportBundle(other, raw), /digest mismatch/);
+  assert.throws(() => exportBundle(raw, other), /digest mismatch/);
   await assert.rejects(importBundle(JSON.stringify({ version: VIEW_VERSION, kind: 'view', contract: {}, view: {} })), /invalid bundle record/);
   await assert.rejects(importBundle(JSON.stringify({ version: VIEW_VERSION, kind: 'bundle', contract: JSON.parse(contract.serialized), view: JSON.parse(view.serialized), extra: 1 })), /unknown record field/);
 });

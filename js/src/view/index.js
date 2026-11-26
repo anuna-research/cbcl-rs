@@ -170,11 +170,10 @@ export async function importView(text, contract) {
  * the view still binds by that dialect's self-address.
  */
 export const MAX_BUNDLE_BYTES = MAX_CONTRACT_BYTES + MAX_VIEW_BYTES + 256;
-export function exportBundle(source, presentation) {
-  const view = presentation ?? source;
-  const contractText = presentation ? source.serialized : verifiedPresentations.get(view);
-  require(typeof contractText === 'string', 'exportBundle needs the cbcl/object contract for a view bound only to dialect text; use exportBundle(contract, presentation)');
-  const record = viewRecord(view.serialized);
+export function exportBundle(presentation, contract) {
+  const contractText = contract === undefined ? verifiedPresentations.get(presentation) : contract.serialized;
+  require(typeof contractText === 'string', 'exportBundle needs the cbcl/object contract for a view bound only to dialect text; use exportBundle(presentation, contract)');
+  const record = viewRecord(presentation.serialized);
   require(compileContract(contractText).name === record.contract, 'view contract digest mismatch');
   return JSON.stringify({ version: VIEW_VERSION, kind: 'bundle', contract: JSON.parse(contractText), view: record });
 }
