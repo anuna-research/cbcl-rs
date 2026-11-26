@@ -123,7 +123,12 @@ test('default presentation exposes every state field read-only', async () => {
 test('a bundle carries a contract and its view in one record and imports to both, bound', async () => {
   const contract = await defineContract(plainChecklist);
   const view = await defineView({ contract, view: components });
-  const text = exportBundle(contract, view);
+  const text = exportBundle(view);
+  const raw = await importView(view.serialized, contract.dialect);
+  assert.throws(() => exportBundle(raw), /needs the cbcl\/object contract/);
+  assert.equal(exportBundle(contract, raw), text);
+  assert.equal(exportBundle(await importView(view.serialized, contract)), text);
+  assert.equal(JSON.parse(exportBundle(await defaultPresentation(contract))).contract.name, contract.label);
   assert.deepEqual(JSON.parse(text), { version: VIEW_VERSION, kind: 'bundle', contract: JSON.parse(contract.serialized), view: JSON.parse(view.serialized) });
   const bundle = await importBundle(text);
   assert.equal(bundle.object.name, contract.name);
@@ -131,7 +136,7 @@ test('a bundle carries a contract and its view in one record and imports to both
   assert.equal(bundle.presentation.id, view.id);
   assert.equal(bundle.presentation.serialized, view.serialized);
   const other = await defineContract({ ...plainChecklist, state: { title: c.initial('open', 'title') } });
-  await assert.rejects(importBundle(exportBundle(other, view)), /digest mismatch/);
+  assert.throws(() => exportBundle(other, raw), /digest mismatch/);
   await assert.rejects(importBundle(JSON.stringify({ version: VIEW_VERSION, kind: 'view', contract: {}, view: {} })), /invalid bundle record/);
   await assert.rejects(importBundle(JSON.stringify({ version: VIEW_VERSION, kind: 'bundle', contract: JSON.parse(contract.serialized), view: JSON.parse(view.serialized), extra: 1 })), /unknown record field/);
 });
@@ -157,7 +162,7 @@ test('a version 3 cbcl-bus bundle keeps its original contract and view identitie
   const restored = await importBundle(serialized);
   assert.equal(restored.object.name, view.contract);
   assert.equal(restored.presentation.id, 'view-e77027f43096989bf78f77dabf7f99ff1bcbd3fcb33a167a146d4dc4e42804ac');
-  assert.equal(exportBundle(restored.object, restored.presentation), serialized);
+  assert.equal(exportBundle(restored.presentation), serialized);
   assert.equal('composer' in restored.presentation, false);
   await assert.rejects(defineView({ contract: restored.object, view: view.view, composer: {} }), /unknown record field/);
 });

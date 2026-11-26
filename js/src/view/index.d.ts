@@ -57,6 +57,7 @@ export function defaultView(info: DialectInfo): { view: Component[] };
 export function validateView(spec: ViewSpec, info: DialectInfo): void;
 /** Checks the record envelope. importView also validates the presentation against its contract. */
 export function recognizeView(text: string): ViewRecord;
+export function exportBundle(presentation: Presentation): string;
 export function exportBundle(object: Pick<CbclObject, 'serialized'>, presentation: Pick<Presentation, 'serialized'>): string;
 export function recognizeBundle(text: string): { version: 3; kind: 'bundle'; contract: unknown; view: unknown };
 export function importBundle(text: string): Promise<Readonly<{ object: CbclObject; presentation: Presentation }>>;
