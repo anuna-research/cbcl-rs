@@ -5,12 +5,12 @@
 // and what act an intent becomes (`intend`, R.5). This module keeps no
 // semantics of its own: it turns the store's messages into the
 // `(acts (<signer> <message>) …)` frame, retries pending admissions as the
-// accepted set grows, and remembers verdicts that cannot change (the store
-// only grows, so an accepted act stays accepted and a rejected one rejected).
-import { resourceCheck, type ResourceOutcome, admitAct, foldState, intendAct, maySend, frontierOf, stateSchema, readAct, describeDialect, type State, type IntendResult, type Admission, type DialectInfo } from '../verifier.ts';
+// accepted set grows. Only a verified extension of the same store snapshot can
+// reuse prior verdicts. Independent histories are always judged in full.
+import { resourceCheck, type ResourceOutcome, admitAct, foldState, intendAct, maySend, frontierOf, stateSchema, readAct, installDialect, type InstalledDialect, describeDialect, type State, type IntendResult, type Admission, type DialectInfo } from '../verifier.ts';
 import type { Plain } from '../read.ts';
 import { literal, keywordText } from './compile.ts';
-import type { Msg } from './store.ts';
+import { snapshotOrigins, type Msg } from './store.ts';
 
 export { readAct };
 
@@ -47,10 +47,11 @@ export interface Runtime {
 }
 
 /** Build a dialect's runtime from its `(define …)` text. The verifier must be initialised. */
-export function createRuntime(dialectText: string): Runtime {
-  const source = String(dialectText);
+export function createRuntime(dialectText: string | InstalledDialect): Runtime {
+  const source = installDialect(dialectText).dialect;
   const info = describeDialect(source);
-  const decided = new Map<string, 'accepted' | 'rejected'>();
+  type Cache = { thread: string; prefix: [string, string, string][]; decided: Map<string, VerdictName> };
+  const histories = new WeakMap<object, Cache>();
   let schema: ReturnType<typeof stateSchema> | null = null;
   const entry = (m: ActEntry) => `(${literal(String(m.signer))} ${m.canonical})`;
   const actsFrame = (list: ActEntry[]) => `(acts ${list.map(entry).join(' ')})`;
@@ -62,9 +63,18 @@ export function createRuntime(dialectText: string): Runtime {
 
   function admission(thread: string, messages: ActEntry[], { fresh = false } = {}) {
     const unique = dedupe(messages);
+    const origin = fresh ? undefined : snapshotOrigins.get(messages as Msg[]);
+    let cache = origin && histories.get(origin);
+    if (origin && (!cache || cache.thread !== thread || cache.prefix.length > unique.length ||
+        !cache.prefix.every(([cid, signer, canonical], i) =>
+          unique[i].cid === cid && unique[i].signer === signer && unique[i].canonical === canonical))) {
+      cache = { thread, prefix: [], decided: new Map() };
+      histories.set(origin, cache);
+    }
+    if (cache) for (const m of unique.slice(cache.prefix.length)) cache.prefix.push([m.cid, m.signer, m.canonical]);
     const accepted: ActEntry[] = [], pending: ActEntry[] = [];
     for (const m of unique) {
-      const known = fresh ? undefined : decided.get(m.cid);
+      const known = cache?.decided.get(m.cid);
       if (known === 'accepted') accepted.push(m);
       else if (known !== 'rejected') pending.push(m);
     }
@@ -77,7 +87,7 @@ export function createRuntime(dialectText: string): Runtime {
         pending.splice(pending.indexOf(m), 1);
         progressed = true;
         if (verdict === 'accepted') accepted.push(m);
-        if (!fresh) decided.set(m.cid, verdict);
+        cache?.decided.set(m.cid, verdict);
       }
     }
     return { accepted, pending };

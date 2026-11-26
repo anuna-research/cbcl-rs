@@ -1,7 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { ready, isReady, read, parse, parseMessage, messageHash, wireAddress, dialectHash, verifyDialect, verifyShape, verifyStateShape, verifyProtocol, compileContract, defineText, describeDialect, readAct, parseSexpr, kwargs, asText, readValue } from '../src/index.ts';
+import { ready, isReady, installDialect, read, parse, parseMessage, messageHash, wireAddress, dialectHash, verifyDialect, verifyShape, verifyStateShape, verifyProtocol, compileContract, defineText, describeDialect, readAct, parseSexpr, kwargs, asText, readValue } from '../src/index.ts';
+
+import { createRuntime } from '../src/object/index.ts';
+import { defaultPresentation, defineView, importView } from '../src/view/index.js';
 
 const dialects = new URL('../../dialects/', import.meta.url);
 const LUNCH = await readFile(new URL('lunch-vote.cbcl', dialects), 'utf8');
@@ -82,4 +85,19 @@ test('a refusal is thrown as an Error carrying cbcl-rs\'s reason', () => {
   assert.throws(() => readAct('(open'), (error: unknown) => error instanceof Error && /unexpected|unterminated|EOF|end/i.test(error.message));
   assert.throws(() => compileContract('{"version":3,"kind":"contract","name":"x","verbs":{"open":{"after":["begin"],"fields":{}},"a":{"after":["a"],"fields":{}}},"state":{"n":["count","open"]}}'),
     (error: unknown) => error instanceof Error && /R5.*cycle/.test(error.message));
+});
+
+test('inspection and installation have distinct guarantees for raw dialects', async () => {
+  const bad = LUNCH.replace('(then propose vote)', '(then missing vote)');
+  assert.equal(describeDialect(bad).name, 'lunch-vote');
+  assert.throws(() => installDialect(bad), /verification failed/);
+  assert.throws(() => createRuntime(bad), /verification failed/);
+  await assert.rejects(defaultPresentation(bad), /verification failed/);
+  await assert.rejects(defineView({ contract: bad, view: [] }), /verification failed/);
+  const handle = installDialect(LUNCH);
+  assert.equal(installDialect(handle), handle);
+  const view = await defaultPresentation(handle);
+  assert.equal(view.contract, handle.name);
+  assert.equal(createRuntime(handle).info.name, 'lunch-vote');
+  await assert.rejects(importView(view.serialized, bad), /verification failed/);
 });

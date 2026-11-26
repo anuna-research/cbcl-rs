@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { defineContract, importObject, c, t, enumOf, literal, readActExact, readAct, actRecord, isSDKDialect, keywordText, ThreadStore, type CbclObject, type Msg } from '../src/object/index.ts';
+import { defineContract, importObject, makeBroker, c, t, enumOf, literal, readActExact, readAct, actRecord, isSDKDialect, keywordText, ThreadStore, type CbclObject, type Msg } from '../src/object/index.ts';
 import { verifyDialect, dialectHash, wireAddress } from '../src/index.ts';
 
 const checklist = {
@@ -263,4 +263,44 @@ test('lwwPerSigner edits replace observed own votes and preserve other signers',
   const messages = store.messages('v1');
   assert.deepEqual(object.read(messages.slice().reverse()), object.read(messages));
   assert.deepEqual(object.read([...messages, ...messages]), object.read(messages));
+});
+
+test('admission rechecks snapshots from earlier and independent histories', async () => {
+  const object = await defineContract(checklist);
+  const { store, root } = opened(object);
+  const act = remote(object, root, 'check', { item: 'venue', done: true }, '@bo');
+  // A captured store snapshot must keep its original verdict even if re-read later.
+  const peer = new ThreadStore();
+  peer.append(act);
+  const before = peer.messages('demo');
+  peer.append(root);
+  store.append(act);
+  const verdict = (records: Msg[]) => object.runtime.verdicts('demo', records).get(act.cid);
+  assert.equal(verdict(store.messages('demo')), 'accepted');
+  assert.equal(verdict(peer.messages('demo')), 'accepted');
+  assert.equal(verdict(before), 'pending');
+  assert.equal(verdict([act]), 'pending');
+  assert.equal(verdict(store.messages('demo')), 'accepted');
+});
+
+test('delivery results survive local recording and observer failures', async () => {
+  const object = await defineContract(checklist);
+  const { store } = opened(object);
+  let sends = 0;
+  const fail = () => { throw Error('local failure'); };
+  const host = { store, me: () => '@b', getRuntime: () => object.runtime,
+    send() { sends++; }, onState: fail, report: fail };
+  const act = (broker: ReturnType<typeof makeBroker>) => broker.applyIntent('demo', object.name, 'check', { item: 'venue', done: true, clock: 'hlc-0000000000000000-00000000' });
+  assert.ok((await act(makeBroker(host))).ok);
+  const delivered = await act(makeBroker({ ...host, store: { messages: id => store.messages(id), append: fail } }));
+  assert.ok(delivered.ok);
+  assert.equal(delivered.recordError, 'local failure');
+  assert.equal(delivered.cid, actRecord(delivered.canonical, '@b').cid);
+  assert.equal((await act(makeBroker({ ...host, prepare: () => '(' }))).ok, false);
+  assert.equal(sends, 2);
+  const uncertain = await act(makeBroker({ ...host, send: fail }));
+  assert.ok(!uncertain.ok && uncertain.delivery === 'unknown');
+  assert.equal(uncertain.cid, actRecord(uncertain.canonical, '@b').cid);
+  assert.equal(uncertain.reason, 'local failure');
+  assert.ok((await act(makeBroker({ ...host, onState: async () => fail(), report: async () => fail() }))).ok);
 });
