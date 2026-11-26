@@ -342,7 +342,7 @@ See [[SPEC-038-lvar-state-kernel#ADR-3807]].
 ## Contracts and implementation status
 
 [SPEC-019](../../specs/SPEC-019-state-rules.md) defines the base state contract;
-[SPEC-035](../../specs/SPEC-035-register-semantics.md) covers HLC registers;
+[SPEC-035 register semantics](../../specs/SPEC-035-register-semantics.md) covers HLC registers;
 [SPEC-038](../../specs/SPEC-038-lvar-state-kernel.md) specifies the Causal Lattice Observation Kernel (CLOK).
 SPEC-038 v0.4 remains draft. Native sealed-root identity and its explicit fixture
 migration are implemented and under verification;

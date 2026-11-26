@@ -423,7 +423,7 @@ default-value   = "(" , "default" , ws , expression , ")" ;
 
 
 (* ================================================================== *)
-(* State declarations: SPEC-019, SPEC-035 and SPEC-038                   *)
+(* State declarations: SPEC-019, SPEC-035 register semantics and SPEC-038 *)
 (* Author reference: docs/reference/state-language.md.                 *)
 (* Reference: crates/cbcl-parser/src/state_parser.rs.                   *)
 (* Grammar describes recognition; the installation checks described   *)

@@ -18,6 +18,9 @@
 
 extern crate alloc;
 
+#[cfg(feature = "bindgen")]
+mod sdk;
+
 // ---------------------------------------------------------------------------
 // no_std wasm32 requirements: allocator + panic handler
 // ---------------------------------------------------------------------------
@@ -760,6 +763,30 @@ mod wasm_bindgen_api {
     #[wasm_bindgen]
     pub fn read_act(input: &str) -> Result<String, String> {
         cbcl_parser::read_act_str(input)
+    }
+    /// Issue the first host clock or advance from persisted and received evidence.
+    #[wasm_bindgen]
+    pub fn make_hlc(
+        now_ms: u64,
+        previous: Option<String>,
+        received: Option<String>,
+    ) -> Result<String, String> {
+        use cbcl_core::hlc::Hlc;
+        let parse = |s: String| Hlc::parse(&s).ok_or_else(|| String::from("invalid HLC"));
+        let previous = previous.map(parse).transpose()?;
+        let received = received.map(parse).transpose()?;
+        let next = match (previous, received) {
+            (Some(local), remote) => local.advance(now_ms, remote),
+            (None, Some(remote)) => remote.advance(now_ms, None),
+            (None, None) => Some(Hlc::new(now_ms, 0)),
+        };
+        next.map(|stamp| stamp.render())
+            .ok_or_else(|| String::from("HLC logical overflow"))
+    }
+    /// Read an act with lossless JSON scalar fields.
+    #[wasm_bindgen]
+    pub fn read_act_exact(input: &str) -> Result<String, String> {
+        cbcl_parser::describe::read_act_exact_str(input)
     }
     /// SPEC-087: a JSON contract → `{"name","label","dialect"}`, the dialect named by
     /// its self-address and installed through R1–R7, or a reason.

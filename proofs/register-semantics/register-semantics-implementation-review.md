@@ -95,7 +95,7 @@ build attempts; final workspace and no-default-feature checks completed afterwar
 
 Repository-wide zetl validation retains the baseline dead-link and SPL errors,
 with no new dead links or SPL errors from this change. New implementation links
-and heading anchors were checked separately. Updated SPEC-035 controlled-language
+and heading anchors were checked separately. Updated the SPEC-035 register semantics controlled-language
 and new explanation-mode documentation checks pass. Historical draft validation
 is [[register-semantics-draft-review]], not current implementation evidence.
 

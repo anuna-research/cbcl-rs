@@ -7,7 +7,7 @@
 // `(acts (<signer> <message>) …)` frame, retries pending admissions as the
 // accepted set grows, and remembers verdicts that cannot change (the store
 // only grows, so an accepted act stays accepted and a rejected one rejected).
-import { admitAct, foldState, intendAct, maySend, frontierOf, stateSchema, readAct, describeDialect, type State, type IntendResult, type Admission, type DialectInfo } from '../verifier.ts';
+import { resourceCheck, type ResourceOutcome, admitAct, foldState, intendAct, maySend, frontierOf, stateSchema, readAct, describeDialect, type State, type IntendResult, type Admission, type DialectInfo } from '../verifier.ts';
 import type { Plain } from '../read.ts';
 import { literal, keywordText } from './compile.ts';
 import type { Msg } from './store.ts';
@@ -40,6 +40,7 @@ export interface Runtime {
   admit(thread: string, messages: ActEntry[], message: ActEntry): Admission;
   verdicts(thread: string, messages: ActEntry[], options?: { fresh?: boolean }): Map<string, VerdictName>;
   read(thread: string, messages: ActEntry[], options?: { fresh?: boolean }): State;
+  resourceCheck(thread: string, messages: ActEntry[], candidate: ActEntry): ResourceOutcome;
   intend(thread: string, messages: ActEntry[], signer: string, verb: string, fields?: Record<string, Plain>): IntendResult;
   maySend(thread: string, messages: ActEntry[], signer: string): string[];
   frontier(thread: string, messages: ActEntry[]): { instance: string | null; frontier: string[] };
@@ -95,6 +96,7 @@ export function createRuntime(dialectText: string): Runtime {
       return out;
     },
     read: (thread, messages, options) => foldState(`(fold ${instance(thread, admission(thread, messages, options).accepted)})`),
+    resourceCheck: (thread, messages, candidate) => resourceCheck(`(resource-check ${instance(thread, admission(thread, messages).accepted)} ${entry(candidate)})`),
     intend: (thread, messages, signer, verb, fields) =>
       intendAct(`(intend ${instance(thread, admission(thread, messages).accepted)} ${literal(String(signer))} ${verb} (${keywordText(fields || {})}))`),
     maySend: (thread, messages, signer) => maySend(`(may-send ${instance(thread, admission(thread, messages).accepted)} ${literal(String(signer))})`),

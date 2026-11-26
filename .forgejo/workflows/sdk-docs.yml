@@ -1,0 +1,30 @@
+name: SDK documentation
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  examples:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Rust
+        run: bash scripts/ci-install-rust.sh
+      - name: Install WASM build tools
+        run: |
+          rustup target add wasm32-unknown-unknown
+          bindgen_version=$(awk '/^name = "wasm-bindgen"$/{getline; gsub(/version = |"/, ""); print; exit}' Cargo.lock)
+          cargo install wasm-bindgen-cli --version "$bindgen_version" --locked
+      - name: Build the SDK and run the documentation examples
+        working-directory: js
+        run: |
+          npm ci
+          npm run build:wasm
+          npm run build
+          npm run test:docs

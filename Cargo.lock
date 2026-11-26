@@ -232,9 +232,12 @@ dependencies = [
 name = "cbcl-wasm"
 version = "0.2.0"
 dependencies = [
+ "cbcl-checkpoint",
  "cbcl-core",
  "cbcl-parser",
  "dlmalloc",
+ "ed25519-dalek",
+ "serde",
  "serde_json",
  "sha2",
  "wasm-bindgen",

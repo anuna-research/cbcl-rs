@@ -17,7 +17,7 @@ Agents teach each other new interaction vocabularies as messages. Protocols can 
 These guarantees concern observable interactions. They do not establish that an agent’s claims are true or that compliant actions are beneficial.
 
 CBCL is in pre-1.0 development. See the [changelog](CHANGELOG.md) for released
-features, unreleased changes, and migration notes.
+features, unreleased changes, and migration notes. Start with the [lunch-vote tutorial](docs/tutorials/lunch-vote.md) or choose a task in the [documentation guide](docs/README.md).
 
 ## How it works
 
@@ -79,7 +79,7 @@ cargo run -p cbcl-cli -- agent --id @alice
 cargo run -p cbcl-cli -- --help
 ```
 
-`parse`, `verify`, and `simulate` read from stdin when their input argument is omitted. To verify your own dialect file, use `cargo run -p cbcl-cli -- verify < dialect.scm`.
+`parse`, `verify`, and `simulate` read from stdin when their input argument is omitted. To verify your own dialect file, use `cargo run -p cbcl-cli -- verify < dialect.cbcl`.
 
 Custom performatives require an explicit `(lang …)` scope; installed dialects do not provide an unscoped fallback.
 

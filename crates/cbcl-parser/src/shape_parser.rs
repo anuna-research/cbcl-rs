@@ -50,7 +50,7 @@ pub fn parse_shape(sexpr: &SExpr) -> Result<ShapeConstraint, String> {
 }
 
 /// Parse a single shape rule.
-fn parse_shape_rule(sexpr: &SExpr) -> Result<ShapeRule, String> {
+pub(crate) fn parse_shape_rule(sexpr: &SExpr) -> Result<ShapeRule, String> {
     let items = match sexpr {
         SExpr::List(items) if !items.is_empty() => items,
         _ => return Err(String::from("shape rule must be a non-empty list")),

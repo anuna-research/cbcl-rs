@@ -403,6 +403,11 @@ pub fn dialect_hash_str(input: &str) -> Result<String, String> {
 /// authenticated by the host. A locally ready result does not rule out a fork
 /// that a remote owner has withheld.
 pub fn resource_check_str(input: &str) -> Result<String, String> {
+    resource_check_value(input).map(|value| value.render())
+}
+
+/// The native result before JSON rendering, for hosts with limited integer precision.
+pub fn resource_check_value(input: &str) -> Result<Value, String> {
     use cbcl_core::escrow::{self, Outcome};
     let (d, thread, accepted, rest) = instance_frame(input, "resource-check")?;
     if rest.len() != 1 {
@@ -416,19 +421,18 @@ pub fn resource_check_str(input: &str) -> Result<String, String> {
     let (_, c) = escrow::rule_for(&d, &candidate.verb)
         .ok_or("candidate is not a bounded-counter operation")?;
     let rejected = |reason: String, evidence: Vec<String>| {
-        let value = Value::Map(alloc::vec![
+        Value::Map(alloc::vec![
             (Value::Str("status".into()), Value::Str("rejected".into())),
             (Value::Str("reason".into()), Value::Str(reason)),
             (
                 Value::Str("evidence".into()),
                 Value::List(evidence.into_iter().map(Value::Str).collect())
             )
-        ]);
-        value.render()
+        ])
     };
     match escrow::observe_in(&d, &thread.0, c, &accepted) {
         Outcome::Ready(_) => {}
-        other => return Ok(other.value().render()),
+        other => return Ok(other.value()),
     }
     if candidate.simple().thread() != Some(thread.0.as_str()) {
         return Ok(rejected(
@@ -454,6 +458,6 @@ pub fn resource_check_str(input: &str) -> Result<String, String> {
     with.push(candidate);
     Ok(match escrow::observe_in(&d, &thread.0, c, &with) {
         Outcome::Fault { reason, evidence } => rejected(reason, evidence),
-        other => other.value().render(),
+        other => other.value(),
     })
 }

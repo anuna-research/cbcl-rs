@@ -9,10 +9,11 @@
 // synchronously from the bytes beside it, so scripts and tests need no
 // ceremony; a browser awaits `ready()` (or its own `init` of the same module,
 // which is idempotent) before its first frame.
+import type { ExactValue } from './read.ts';
 import init, {
   initSync, parse as wasmParse, recipient_of, recipient_of_lax, parse_message, message_hash, verify_dialect, verify_message_shape,
   verify_protocol, fold, intend, verify_state_shape, state_schema, may_send, frontier, dialect_hash,
-  admit, read as wasmRead, compile_contract, define_text, describe_dialect, read_act,
+  admit, read as wasmRead, compile_contract, define_text, describe_dialect, resource_check_exact, inspect_multikey, encode_multikey, multikey_identity, open_checkpoint, make_hlc, read_act, read_act_exact,
 } from './cbcl_wasm.js';
 
 let loaded = false;
@@ -160,8 +161,22 @@ export function admitAct(frame: string): Admission {
   return JSON.parse(result) as Admission;
 }
 
+export interface StateFieldSchema {
+  type: string;
+  observation?: 'snapshot' | 'context';
+  freeze?: { verb: string; policy: 'supersede' | 'fault' };
+  condition?: ThresholdCondition;
+  field?: string;
+  elements?: StateValue[];
+  fields?: Record<string, StateFieldSchema>;
+  value?: StateFieldSchema;
+  of?: string;
+  key?: string;
+  [key: string]: unknown;
+}
+
 /** `(state-schema <dialect>)` → each state field's type. */
-export function stateSchema(frame: string): Record<string, { type: string; [k: string]: unknown }> {
+export function stateSchema(frame: string): Record<string, StateFieldSchema> {
   guard();
   return JSON.parse(state_schema(frame));
 }
@@ -181,18 +196,29 @@ export interface CompiledContract { name: string; label: string; dialect: string
 export function defineText(input: string): string { return refusal(() => define_text(input)); }
 
 /** A rule of the state clause as JSON spells it: `[op, arg…]`. */
-export type Rule = [string, ...string[]];
+export type RuleArgument = string | number | boolean | { decimal: string } | RuleArgument[];
+export type Rule = [string, ...RuleArgument[]];
+export type ThresholdCondition = { op: 'read'; field: string; element: StateValue }
+  | { op: 'and'; conditions: ThresholdCondition[] };
 
 /** What a host or a view needs to know about a dialect, read from cbcl-rs's installed structures. */
+export interface FieldConstraint {
+  keyword: string; source: string; representations: string[]; required: boolean;
+  default: string | null; children: ShapeRule[];
+}
+export type ShapeRule = FieldConstraint | { maxDepth: number };
 export interface DialectInfo {
   typeProfile: string;
   types: Record<string, { source: string; representations: string[] }>;
   name: string;
   author: string | null;
   opener: string | null;
-  verbs: Record<string, { params: string[]; fields: Record<string, string>; contracts: Record<string, { source: string; representations: string[]; required: boolean; default: string | null }>; after: string[]; from?: string; to?: string[] }>;
+  verbs: Record<string, { params: string[]; shapeRules: ShapeRule[]; fields: Record<string, string>; contracts: Record<string, FieldConstraint>; after: string[]; from?: string; to?: string[] }>;
   roles: Record<string, 'singleton' | 'indexed'>;
   state: Record<string, Rule>;
+  thresholds: ({ name: string; condition: ThresholdCondition } | { name: string; field: string; elements: StateValue[] })[];
+  freezes: { field: string; verb: string; policy: 'supersede' | 'fault' }[];
+  lattices: RuleArgument[][];
   domains: { verb: string; key: string; field: string }[];
   bounds: Record<string, number>;
   /** The canonical `(define …)` text. */
@@ -201,6 +227,9 @@ export interface DialectInfo {
 
 /** A dialect text, `(meta (define …))`, or teach frame → its description. Throws with the parser's reason. */
 export function describeDialect(input: string): DialectInfo { return refusal(() => JSON.parse(describe_dialect(input)) as DialectInfo); }
+
+/** Parse CBCL dialect source into its canonical text and structured metadata. */
+export const parseDialect = describeDialect;
 
 /** A field value as an act carries it. */
 export type FieldValue = string | number | boolean | { decimal: string } | FieldValue[];
@@ -222,7 +251,81 @@ export interface ActInfo {
 /** An act's wire text → its dialect, address, verb, recipients, fields, and routing. Throws with the parser's reason. */
 export function readAct(text: string): ActInfo { return refusal(() => JSON.parse(read_act(text)) as ActInfo); }
 
+/** Issue a canonical HLC using host time and optional persisted or received clocks. */
+export function makeHlc({ previous, received, nowMs = Date.now() }: {
+  previous?: string; received?: string; nowMs?: number | bigint;
+} = {}): string {
+  if (typeof nowMs !== 'bigint' && !Number.isSafeInteger(nowMs)) throw new RangeError('nowMs must be an exact integer');
+  const ms = BigInt(nowMs);
+  if (ms < 0n || ms > 0xffffffffffffffffn) throw new RangeError('nowMs outside unsigned 64-bit range');
+  return refusal(() => make_hlc(ms, previous, received));
+}
+
+export type ExactActInfo = Omit<ActInfo, 'fields'> & { fields: Record<string, ExactValue> };
+
+/** Read fields suitable for lossless re-encoding, including nested list elements. */
+export function readActExact(text: string): ExactActInfo {
+  return refusal(() => JSON.parse(read_act_exact(text)) as ExactActInfo);
+}
+
 /** SPEC-087: a JSON contract → its dialect, named by self-address and installed through R1–R7. Throws with the reason. */
 export function compileContract(json: string): CompiledContract {
   return refusal(() => JSON.parse(compile_contract(json)) as CompiledContract);
+}
+
+/** Balances beyond the JS safe-integer range use exact decimal text. */
+export type ResourceAmount = number | string;
+export type ResourceOutcome =
+  | { status: 'ready'; value: ResourceAmount; rights: Record<string, ResourceAmount>; headroom?: Record<string, ResourceAmount> }
+  | { status: 'pending'; evidence: string[] }
+  | { status: 'fault' | 'rejected'; reason: string; evidence: string[] };
+
+export function resourceCheck(frame: string): ResourceOutcome {
+  return refusal(() => JSON.parse(resource_check_exact(frame)) as ResourceOutcome);
+}
+
+export const publicKeyCodecs = { Ed25519: 0xed, X25519: 0xec, P256: 0x1200, P384: 0x1201 } as const;
+export type PublicKeyCodec = typeof publicKeyCodecs[keyof typeof publicKeyCodecs];
+export function inspectMultikey(source: string): { codec: PublicKeyCodec; bytes: Uint8Array } {
+  const key = refusal(() => JSON.parse(inspect_multikey(source)));
+  return { codec: key.codec, bytes: Uint8Array.from(key.bytes) };
+}
+export function encodeMultikey(codec: PublicKeyCodec, bytes: Uint8Array): string {
+  if (!Object.values(publicKeyCodecs).includes(codec)) throw new Error('unsupported public key codec');
+  return refusal(() => encode_multikey(codec, bytes));
+}
+export function multikeyIdentity(source: string): string {
+  return refusal(() => multikey_identity(source));
+}
+
+export interface CheckpointContext {
+  dialect: string; targetRoot: string; companionRoot: string;
+  policy: { roster: string[]; faults: number };
+  /** Independently trusted signer handles mapped to Ed25519 public Multikeys. */
+  publicKeys: Record<string, string>;
+}
+export interface CoverageProof { present: boolean; siblings: number[][] }
+export interface CheckpointStep {
+  message: string; ancestry: [string, CoverageProof][]; identity: CoverageProof;
+  replacements: [string, CoverageProof][];
+}
+export interface Checkpoint {
+  read(): State;
+  readJson(): string;
+  frontier(): string[];
+  replace(certificate: Uint8Array, floorProofs: [string, CoverageProof][], tail?: CheckpointStep[]): void;
+  apply(step: CheckpointStep): void;
+  close(): void;
+}
+/** Open a fresh in-memory client from a member-certified snapshot and independently pinned context. */
+export function openCheckpoint(context: CheckpointContext, certificate: Uint8Array): Checkpoint {
+  const client = refusal(() => open_checkpoint(JSON.stringify(context), certificate));
+  return {
+    read: () => refusal(() => JSON.parse(client.state()) as State),
+    readJson: () => refusal(() => client.state()),
+    frontier: () => refusal(() => client.frontier()),
+    replace: (bytes, proofs, tail = []) => refusal(() => client.replace(bytes, JSON.stringify(tail), JSON.stringify(proofs))),
+    apply: step => refusal(() => client.apply(JSON.stringify(step))),
+    close: () => client.free(),
+  };
 }

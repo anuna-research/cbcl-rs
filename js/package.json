@@ -31,6 +31,7 @@
     "build:wasm": "bash scripts/build-wasm.sh",
     "build": "cp ../LICENSE LICENSE && tsc -p tsconfig.json && cp src/cbcl_wasm.js src/cbcl_wasm.d.ts src/cbcl_wasm_bg.wasm src/cbcl_wasm_bg.wasm.d.ts src/cbcl_wasm.provenance.json dist/",
     "test": "node --experimental-strip-types --test test/*.test.ts",
+    "test:docs": "node --test scripts/docs.test.mjs",
     "check": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { defineContract, importObject, c, enumOf, readAct, actRecord, isSDKDialect, keywordText, ThreadStore, type CbclObject, type Msg } from '../src/object/index.ts';
+import { defineContract, importObject, c, t, enumOf, literal, readActExact, readAct, actRecord, isSDKDialect, keywordText, ThreadStore, type CbclObject, type Msg } from '../src/object/index.ts';
 import { verifyDialect, dialectHash, wireAddress } from '../src/index.ts';
 
 const checklist = {
@@ -58,6 +58,78 @@ test('a contract compiles to a self-addressed dialect the verifier accepts', asy
     (spec.verbs.check.fields as Record<string, string>)[field] = 'string';
     await assert.rejects(defineContract(spec), /invalid field name/);
   }
+});
+
+test('named and inline type expressions survive object authoring and constrain the opener', async () => {
+  const types = { price: '(decimal (>= 0))', label: '(or (one-of "free") (string (matches "[A-Z]+")))' };
+  const definition = {
+    name: 'prices', types,
+    verbs: { open: { after: ['begin'], fields: { amount: 'price', label: 'label', qty: '(integer (> 0))' } } },
+    state: { amount: c.initial('open', 'amount') },
+  };
+  const object = await defineContract(definition);
+  assert.deepEqual(JSON.parse(object.serialized).types, types);
+  assert.deepEqual(object.info.types.price.representations, ['decimal']);
+  assert.equal((await importObject(object.serialized)).dialect, object.dialect);
+  const args = { room: '@r', thread: 't', from: '@a' };
+  const fields = { amount: { decimal: '1.25' }, label: 'free', qty: 1 };
+  assert.doesNotThrow(() => object.open({ ...args, fields }));
+  for (const invalid of [{ amount: { decimal: '-1' } }, { label: 'other' }, { qty: 0 }]) {
+    assert.throws(() => object.open({ ...args, fields: { ...fields, ...invalid } }), /invalid opener fields/);
+  }
+  await assert.rejects(defineContract({ ...definition, types: { ...types, price: 'missing-type' } }));
+});
+
+test('JS type builders compile to the same dialect as CBCL source expressions', async () => {
+  const types = {
+    price: t.decimal({ gte: 0 }),
+    label: t.or(t.oneOf('free', 'a"b'), t.string({ matches: '[A-Z]+' })),
+    quantity: t.and(t.integer({ gt: 0n }), t.number({ lte: { decimal: '100.25' } })),
+    options: t.list({ length: { gte: 1, lt: 4 } }),
+  };
+  const source = {
+    price: '(decimal (>= 0))',
+    label: '(or (one-of "free" "a\\"b") (string (matches "[A-Z]+")))',
+    quantity: '(and (integer (> 0)) (number (<= 100.25m)))',
+    options: '(list (length (>= 1) (< 4)))',
+  };
+  assert.deepEqual(types, source);
+  const definition = { ...checklist, types };
+  assert.equal((await defineContract(definition)).name, (await defineContract({ ...definition, types: source })).name);
+  assert.equal(t.oneOf({ keyword: 'red' }, { symbol: 'blue' }, { float: 2 }, true), '(one-of :red blue 2.0 #t)');
+});
+
+test('ordered refinements and every scalar representation survive open, bind, and exact read-back', async () => {
+  const fields = {
+    tag: t.oneOf({ keyword: '2fa' }), who: t.oneOf({ symbol: '@team/red' }),
+    size: t.integer([['>=', -(1n << 63n)], ['<=', (1n << 63n) - 1n]]),
+    ratio: t.float([['>=', { float: 2 }], ['>=', 1]]),
+    note: t.string([['matches', 'a.*'], ['length', ['>=', 1]], ['matches', '.*b']]),
+    items: t.list([['length', ['>=', 1]], ['length', ['<=', 10]]]),
+  };
+  assert.equal(fields.ratio, '(float (>= 2.0) (>= 1))');
+  assert.equal(fields.note, '(string (matches "a.*") (length (>= 1)) (matches ".*b"))');
+  const object = await defineContract({ name: 'atoms',
+    verbs: { open: { after: ['begin'], fields }, update: { after: ['open'], fields } },
+    state: { updates: c.count('update') },
+  });
+  const values = {
+    tag: { keyword: '2fa' }, who: { symbol: '@team/red' }, size: (1n << 63n) - 1n,
+    ratio: { float: 2 }, note: 'ab', items: [[{ symbol: '?' }, ':tag', { decimal: '1.25' }, false, -(1n << 63n)]],
+  };
+  const root = object.open({ room: '@general', thread: 't', from: '@a', fields: values });
+  const exact = readActExact(root).fields;
+  assert.deepEqual(exact, { ...values, size: { integer: String(values.size) },
+    items: [[{ symbol: '?' }, ':tag', { decimal: '1.25' }, false, { integer: '-9223372036854775808' }]] });
+  const h = host('@a');
+  h.store.append(actRecord(root, '@a'));
+  const result = await object.agent(h).act('t', 'update', exact);
+  assert.ok(result.ok, JSON.stringify(result));
+  assert.deepEqual(readActExact(result.canonical).fields, exact);
+  assert.throws(() => literal(1n << 63n));
+  assert.throws(() => literal({ symbol: '-12' }));
+  assert.throws(() => literal({ keyword: 'x) (tell' }));
+  assert.throws(() => literal({ float: Infinity }));
 });
 
 test('the opener is verified; the fold is order-independent and duplicate-insensitive', async () => {

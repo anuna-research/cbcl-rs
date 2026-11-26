@@ -2,4 +2,4 @@
 // build, and (under `cbcl/object`) the object authoring runtime on it.
 export * from './verifier.ts';
 export { parseSexpr, kwargs, asText, readValue } from './read.ts';
-export type { Plain } from './read.ts';
+export type { Plain, ExactValue, ExactScalar } from './read.ts';
