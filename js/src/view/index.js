@@ -67,118 +67,22 @@ export function validateView(spec, info) {
   }
 }
 
-// ---------------------------------------------------------------------------
-// The composer block (SPEC-087 REQ-008 / CON-002): presentation for starting
-// an instance, consumed by SPEC-100's composer. This is the only recogniser.
-// The block is data: names that must resolve against the dialect, two host
-// lists, and plain capped text. It adds no field, verb or rule.
-// ---------------------------------------------------------------------------
-
-/** Host glyph names (`ICONS` in chat-elements.mjs) a block may name. */
-export const COMPOSER_ICONS = Object.freeze(['box', 'layers', 'bar-chart', 'bookmark', 'pin', 'check', 'star', 'clock', 'pencil', 'activity', 'archive', 'hash', 'globe', 'link']);
-/** Tint tokens; the host maps each to its own colour in each theme. */
-export const COMPOSER_TINTS = Object.freeze(['moss', 'stone', 'sage', 'olive', 'fern', 'ochre']);
-// C0, DEL and C1, the line and paragraph separators, and the bidi embeddings,
-// overrides and isolates.
-const FORBIDDEN_TEXT = /[\u0000-\u001f\u007f-\u009f\u2028\u2029\u202a-\u202e\u2066-\u2069]/u;
-const isText = (value, max) => typeof value === 'string' && value !== '' && bytes(value) <= max && !FORBIDDEN_TEXT.test(value);
-const isObject = value => value !== null && typeof value === 'object' && !Array.isArray(value);
-const HINT_TEXT = { label: 48, placeholder: 96, help: 160 };
-
-class Structural extends Error {}
-const structural = (condition, why) => { if (!condition) throw new Structural(why); };
-
-/**
- * Recognise a composer block in full against `info` (`readDialect` of the
- * dialect the view binds to). Total. A structural failure discards the whole
- * block: `{ block: null, discarded, dropped: [] }`. Otherwise every value
- * failing its own rule is left out and its path listed in `dropped`, and
- * `block` holds exactly the values that passed, in the block's own shape.
- */
-export function recognizeComposer(composer, info) {
-  const dropped = [];
-  const hints = (value, fields, path) => {
-    structural(isObject(value), `${path} is not an object`);
-    const out = {};
-    for (const [key, v] of Object.entries(value)) {
-      structural(Object.hasOwn(HINT_TEXT, key) || key === 'multiline', `unknown key ${path}.${key}`);
-      const ok = key === 'multiline' ? typeof v === 'boolean' : isText(v, HINT_TEXT[key]);
-      if (ok) out[key] = v; else dropped.push(`${path}.${key}`);
-    }
-    return out;
-  };
-  const fieldHints = (value, fields, path) => {
-    structural(isObject(value), `${path} is not an object`);
-    const keys = Object.keys(value);
-    structural(keys.length <= 16, `${path} names more than 16 fields`);
-    const out = {};
-    for (const key of keys) {
-      structural(Object.hasOwn(fields, key), `${path} names a field the verb does not declare`);
-      out[key] = hints(value[key], fields, `${path}.${key}`);
-    }
-    return out;
-  };
-  try {
-    structural(isObject(composer), 'composer is not an object');
-    const opener = info?.opener;
-    const spec = typeof opener === 'string' && info?.verbs && Object.hasOwn(info.verbs, opener) ? info.verbs[opener] : null;
-    structural(spec, 'the dialect has no opener');
-    const O = spec.fields || {};
-    const block = {};
-    for (const [key, value] of Object.entries(composer)) {
-      if (key === 'label' || key === 'send') {
-        if (isText(value, key === 'label' ? 48 : 24)) block[key] = value; else dropped.push(key);
-      } else if (key === 'icon' || key === 'tint') {
-        if ((key === 'icon' ? COMPOSER_ICONS : COMPOSER_TINTS).includes(value)) block[key] = value; else dropped.push(key);
-      } else if (key === 'title') {
-        // SPEC-087 CON-002 (0.3.0) / SPEC-100 REQ-030: the opener field that is
-        // the object's title. A name that is not an opener `string` field is a
-        // value failure, not a structural one: the title falls back alone.
-        if (typeof value === 'string' && Object.hasOwn(O, value) && O[value] === 'string') block.title = value; else dropped.push(key);
-      } else if (key === 'order') {
-        structural(Array.isArray(value), 'order is not an array');
-        structural(value.length <= 16, 'order names more than 16 fields');
-        structural(value.every(f => typeof f === 'string' && Object.hasOwn(O, f)), 'order names a field the opener does not declare');
-        structural(new Set(value).size === value.length, 'order repeats a field');
-        block.order = [...value];
-      } else if (key === 'fields') {
-        block.fields = fieldHints(value, O, 'fields');
-      } else if (key === 'then') {
-        structural(Array.isArray(value), 'then is not an array');
-        structural(value.length <= 4, 'then has more than 4 entries');
-        block.then = value.map((follow, i) => {
-          const path = `then.${i}`;
-          structural(isObject(follow), `${path} is not an object`);
-          structural(Object.keys(follow).every(k => ['verb', 'label', 'fields'].includes(k)), `unknown key in ${path}`);
-          structural(Object.hasOwn(follow, 'verb'), `${path} has no verb`);
-          const verb = follow.verb;
-          structural(typeof verb === 'string' && Object.hasOwn(info.verbs, verb) && verb !== opener && !CORE_PERFORMATIVES.has(verb)
-            && Array.isArray(info.verbs[verb].after) && info.verbs[verb].after.includes(opener), `${path} names a verb that cannot follow the opener`);
-          const out = { verb };
-          if (Object.hasOwn(follow, 'label')) { if (isText(follow.label, 48)) out.label = follow.label; else dropped.push(`${path}.label`); }
-          if (Object.hasOwn(follow, 'fields')) out.fields = fieldHints(follow.fields, info.verbs[verb].fields || {}, `${path}.fields`);
-          return out;
-        });
-      } else structural(false, `unknown key ${key}`);
-    }
-    return { block, dropped };
-  } catch (error) {
-    if (!(error instanceof Structural)) throw error;
-    return { block: null, discarded: error.message, dropped: [] };
-  }
-}
-
 /** The default presentation: every state field, read-only. */
 export function defaultView(info) {
   return { view: Object.keys(info.state).map(field => ({ type: 'value', field, label: field })) };
 }
 
 /** Recognise view text: exactly the record a `defineView` writes. */
-export function recognizeView(text) {
+function viewRecord(text) {
   require(typeof text === 'string' && bytes(text) <= MAX_VIEW_BYTES, 'view exceeds 64 KiB');
   const view = JSON.parse(text);
   record(view, ['version', 'kind', 'contract', 'view'], ['layout', 'resources', 'capabilities', 'composer']);
   require(view.version === VIEW_VERSION && view.kind === 'view' && isSDKDialect(view.contract), 'invalid view record');
+  return view;
+}
+
+export function recognizeView(text) {
+  const { composer: _legacy, ...view } = viewRecord(text);
   return view;
 }
 
@@ -194,11 +98,8 @@ async function presentation(view, dialectText) {
   const info = readDialect(dialectText);
   const name = dialectHash(dialectText);
   require(view.contract === name, `view contract digest mismatch: view is for ${view.contract}, dialect is ${name}`);
-  const { version, kind, contract, composer, ...spec } = view;
+  const spec = view;
   validateView(spec, info);
-  // SPEC-087 REQ-008: a block failing structural recognition is discarded
-  // alone; the rest of the record imports as before.
-  const block = Object.hasOwn(view, 'composer') ? recognizeComposer(composer, info) : { block: null, dropped: [] };
   const serialized = JSON.stringify(view);
   const crypto = globalThis.crypto?.subtle ?? (await import('node:crypto')).webcrypto.subtle;
   const digest = await crypto.digest('SHA-256', new TextEncoder().encode(serialized));
@@ -206,7 +107,25 @@ async function presentation(view, dialectText) {
   const external = !Array.isArray(spec.view);
   return Object.freeze({
     id, contract: name, serialized, view: spec.view, layout: spec.layout, resources: spec.resources, capabilities: spec.capabilities, external,
-    composer: block.block, composerDiscarded: block.discarded, composerDropped: block.dropped,
+    /** Bind the sandbox emit callback to a host-selected thread and this verified dialect. */
+    bindIntent(thread, broker, nextClock) {
+      return async (verb, fields = {}) => {
+        if (typeof verb !== 'string' || verb === info.opener || CORE_PERFORMATIVES.has(verb) || !Object.hasOwn(info.verbs, verb)) {
+          return { ok: false, reason: 'Expected a declared non-opener verb' };
+        }
+        if (!fields || typeof fields !== 'object' || Array.isArray(fields)) return { ok: false, reason: 'Expected intent fields' };
+        try {
+          const data = structuredClone(fields);
+          const clocks = Object.entries(info.verbs[verb].fields).filter(([, type]) => type === 'hlc');
+          if (clocks.some(([field]) => Object.hasOwn(data, field))) return { ok: false, reason: 'Clock fields are host-owned' };
+          if (clocks.length && nextClock) {
+            const stamp = nextClock();
+            for (const [field] of clocks) data[field] = stamp;
+          }
+          return await broker.applyIntent(thread, name, verb, data);
+        } catch (error) { return { ok: false, reason: String(error?.message ?? error) }; }
+      };
+    },
     /** The document body the sandbox host wraps in its policy. */
     body: () => external ? customBody(spec.view) : componentBody({ view: spec.view, verbs: info.verbs, state: info.state }),
   });
@@ -214,7 +133,7 @@ async function presentation(view, dialectText) {
 
 /** Bind presentation to the exact verified contract; does not execute it. */
 export async function defineView({ contract, view, ...rest }) {
-  record(rest, [], ['layout', 'resources', 'capabilities', 'composer']);
+  record(rest, [], ['layout', 'resources', 'capabilities']);
   const dialectText = dialectOf(contract);
   if (typeof view === 'function') view = { render: view.toString() };
   await ready();
@@ -224,7 +143,7 @@ export async function defineView({ contract, view, ...rest }) {
 
 /** Import exact view bytes for a dialect. */
 export async function importView(text, contract) {
-  return presentation(recognizeView(text), dialectOf(contract));
+  return presentation(viewRecord(text), dialectOf(contract));
 }
 
 /**

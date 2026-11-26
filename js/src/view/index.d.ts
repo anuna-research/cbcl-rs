@@ -1,12 +1,10 @@
-import type { CbclObject, DialectInfo } from '../object/index.js';
+import type { CbclObject, DialectInfo, IntentResult } from '../object/index.js';
 import type { State } from '../verifier.js';
 
 export const VIEW_VERSION: 3;
 export const MAX_VIEW_BYTES: number;
 export const MAX_CUSTOM_SOURCE_BYTES: number;
 export const MAX_BUNDLE_BYTES: number;
-export const COMPOSER_ICONS: readonly ['box', 'layers', 'bar-chart', 'bookmark', 'pin', 'check', 'star', 'clock', 'pencil', 'activity', 'archive', 'hash', 'globe', 'link'];
-export const COMPOSER_TINTS: readonly ['moss', 'stone', 'sage', 'olive', 'fern', 'ochre'];
 
 export type Component =
   | { type: 'text'; text: string }
@@ -27,30 +25,18 @@ export interface Capabilities {
   requests?: { id: string; url: string; response: 'text' | 'json'; parameters?: string[] }[];
 }
 export interface Resources { images?: string[]; styles?: string[] }
-export interface FieldHint { label?: string; placeholder?: string; help?: string; multiline?: boolean }
-export interface Composer {
-  label?: string;
-  send?: string;
-  icon?: typeof COMPOSER_ICONS[number];
-  tint?: typeof COMPOSER_TINTS[number];
-  title?: string;
-  order?: string[];
-  fields?: Record<string, FieldHint>;
-  then?: { verb: string; label?: string; fields?: Record<string, FieldHint> }[];
-}
 export interface ViewSpec { view: View; layout?: Layout; resources?: Resources; capabilities?: Capabilities }
 export interface ViewRecord {
   version: 3; kind: 'view'; contract: string; view: unknown;
-  layout?: unknown; resources?: unknown; capabilities?: unknown; composer?: unknown;
+  layout?: unknown; resources?: unknown; capabilities?: unknown;
 }
 export interface Presentation extends Readonly<ViewSpec> {
   readonly id: string;
   readonly contract: string;
   readonly serialized: string;
   readonly external: boolean;
-  readonly composer: Composer | null;
-  readonly composerDiscarded?: string;
-  readonly composerDropped: string[];
+  bindIntent(thread: string, broker: Pick<import('../object/broker.js').Broker, 'applyIntent'>, nextClock?: () => string):
+    (verb: string, fields?: Record<string, unknown>) => Promise<IntentResult>;
   body(): string;
 }
 export interface RenderHost {
@@ -61,14 +47,11 @@ export interface HtmlTemplate { strings: string[]; values: unknown[] }
 export function html(strings: TemplateStringsArray, ...values: unknown[]): HtmlTemplate;
 type Dialect = string | Pick<CbclObject, 'dialect'>;
 export function defineView(spec: Omit<ViewSpec, 'view'> & {
-  contract: Dialect; view: View | ((state: State, host: RenderHost) => unknown); composer?: Composer;
+  contract: Dialect; view: View | ((state: State, host: RenderHost) => unknown);
 }): Promise<Presentation>;
 export function importView(text: string, contract: Dialect): Promise<Presentation>;
 export function defaultPresentation(contract: Dialect): Promise<Presentation>;
 export function defaultView(info: DialectInfo): { view: Component[] };
-export function recognizeComposer(composer: unknown, info: DialectInfo): {
-  block: Composer | null; discarded?: string; dropped: string[];
-};
 export function validateView(spec: ViewSpec, info: DialectInfo): void;
 /** Checks the record envelope. importView also validates the presentation against its contract. */
 export function recognizeView(text: string): ViewRecord;

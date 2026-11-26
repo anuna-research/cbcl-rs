@@ -170,8 +170,17 @@ console.log(restored.presentation.id === presentation.id); // true
 `importView(text, contract)` checks a serialized view against its dialect.
 `defaultPresentation(contract)` gives a read-only view of the state.
 Version 3 view and bundle records from cbcl-bus use the same format and IDs.
-Optional `layout`, `composer`, `resources`, and `capabilities` describe
+Optional `layout`, `resources`, and `capabilities` describe
 presentation preferences and requests.
+
+On the host, call `presentation.bindIntent(thread, broker, nextClock)` and
+connect the returned `emit(verb, fields)` callback to the sandbox port.
+Use the same `makeBroker` instance from `cbcl/object` across mounts so writes
+share its per-thread queue. The callback pins the thread and dialect, rejects
+view-supplied clock fields, and returns the broker’s intent result. For verbs
+with HLC fields, supply a synchronous host clock issuer or a broker that stamps
+clocks in its runtime. The broker binds against accepted history and uses the
+host’s signer and transport.
 
 Custom views accept an HTML source record or a render function using the
 exported `html` template tag. A render function travels as source and must

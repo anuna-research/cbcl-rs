@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { c, enumOf, defineContract, readDialect } from '../src/object/index.ts';
+import { c, enumOf, defineContract, readDialect, makeBroker, ThreadStore, actRecord, makeHlc } from '../src/object/index.ts';
 import { bundleText, defaultPresentation, defineView, html, importBundle, importView, validateView, VIEW_VERSION } from '../src/view/index.js';
 
 const lunchVote = {
@@ -136,125 +136,6 @@ test('a bundle carries a contract and its view in one record and imports to both
   await assert.rejects(importBundle(JSON.stringify({ version: VIEW_VERSION, kind: 'bundle', contract: JSON.parse(contract.serialized), view: JSON.parse(view.serialized), extra: 1 })), /unknown record field/);
 });
 
-// ---------- SPEC-087 REQ-008 / CON-002: the composer block (SPEC-100 increment 7)
-const lunchComposer = () => ({
-  label: 'Lunch poll', icon: 'bar-chart', send: 'Ask the table', order: ['options'],
-  fields: { question: { placeholder: 'Where shall we eat?' } },
-  then: [{ verb: 'vote' }],
-});
-async function lunchWith(composer) {
-  const contract = await defineContract(lunchVote);
-  const record = { version: VIEW_VERSION, kind: 'view', contract: contract.name, view: [{ type: 'value', field: 'question', label: 'Question' }], composer };
-  return { contract, text: JSON.stringify(record) };
-}
-
-test('SPEC-087 TEST-003 · REQ-008: a lunch-vote view with a composer block imports, and its block reads back as written', async () => {
-  const { contract, text } = await lunchWith(lunchComposer());
-  const view = await importView(text, contract.dialect);
-  assert.deepEqual(view.composer, lunchComposer(), 'the block reads back as written');
-  assert.equal(view.composerDiscarded, undefined);
-  assert.deepEqual(view.composerDropped, []);
-  assert.equal(view.serialized, text, 'the record bytes are kept exactly');
-  // defineView accepts the block too, and a bundle carries it
-  const defined = await defineView({ contract, view: [{ type: 'value', field: 'question', label: 'Question' }], composer: lunchComposer() });
-  assert.deepEqual(defined.composer, lunchComposer());
-  const bundle = await importBundle(bundleText(contract, defined));
-  assert.deepEqual(bundle.presentation.composer, lunchComposer());
-  // a view without a block has none
-  const plain = await defineView({ contract, view: [{ type: 'value', field: 'question', label: 'Question' }] });
-  assert.equal(plain.composer, null);
-});
-
-test('SPEC-087 TEST-003 · negative input: a structural failure discards the block alone; the record still imports', async () => {
-  const cases = {
-    'fields key the opener lacks': { ...lunchComposer(), fields: { due: { label: 'Due' } } },
-    'then verb is the opener': { ...lunchComposer(), then: [{ verb: 'propose' }] },
-    'unknown key': { ...lunchComposer(), script: 'alert(1)' },
-    'then with 5 entries': { ...lunchComposer(), then: Array.from({ length: 5 }, () => ({ verb: 'vote' })) },
-    'order names options twice': { ...lunchComposer(), order: ['options', 'options'] },
-    'order names a field the opener lacks': { ...lunchComposer(), order: ['due'] },
-    'fields given as an array': { ...lunchComposer(), fields: [] },
-    'then not an array': { ...lunchComposer(), then: { verb: 'vote' } },
-    'a follow without verb': { ...lunchComposer(), then: [{ label: 'Vote' }] },
-    'a then verb that does not exist': { ...lunchComposer(), then: [{ verb: 'nosuch' }] },
-    'a core performative': { ...lunchComposer(), then: [{ verb: 'tell' }] },
-    'a follow field the verb lacks': { ...lunchComposer(), then: [{ verb: 'vote', fields: { question: { label: 'Q' } } }] },
-    'an unknown hint key': { ...lunchComposer(), fields: { question: { style: 'color:red' } } },
-    'composer not an object': 'Lunch poll',
-    'composer null': null,
-  };
-  for (const [why, composer] of Object.entries(cases)) {
-    const { contract, text } = await lunchWith(composer);
-    const view = await importView(text, contract.dialect);
-    assert.equal(view.composer, null, `${why}: the whole block is discarded`);
-    assert.equal(typeof view.composerDiscarded, 'string', `${why}: says why`);
-    assert.equal(view.view.length, 1, `${why}: the rest of the record imports`);
-  }
-});
-
-test('SPEC-087 TEST-003 · negative input: a value failure drops that value alone', async () => {
-  const cases = [
-    ['label', { label: 'x'.repeat(49) }, 'a 49-byte label'],
-    ['label', { label: 'Lunch ‮ poll' }, 'a label holding U+202E'],
-    ['label', { label: 'Lunch\npoll' }, 'a label holding a newline'],
-    ['label', { label: '' }, 'an empty label'],
-    ['icon', { icon: '<svg/>' }, 'icon <svg/>'],
-    ['icon', { icon: 'https://x/i.png' }, 'icon URL'],
-    ['icon', { icon: 'data:image/png;base64,AA' }, 'icon data URI'],
-    ['tint', { tint: '#ff0000' }, 'tint #ff0000'],
-    ['send', { send: 'y'.repeat(25) }, 'a 25-byte send label'],
-    ['fields.question.multiline', { fields: { question: { multiline: 'yes', placeholder: 'Where?' } } }, 'multiline "yes"'],
-    ['fields.question.help', { fields: { question: { help: 'h'.repeat(161), placeholder: 'Where?' } } }, 'a 161-byte help'],
-    ['then.0.label', { then: [{ verb: 'vote', label: 7 }] }, 'a follow label that is not a string'],
-    // SPEC-087 0.3.0: `title` names an opener `string` field; anything else is
-    // a value failure, not a structural one (SPEC-100 owner decision 12)
-    ['title', { title: 'due' }, 'a title naming a field the opener lacks'],
-    ['title', { title: 'options' }, 'a title naming a list field'],
-    ['title', { title: ['question'] }, 'a title that is not a string'],
-  ];
-  for (const [path, part, why] of cases) {
-    const block = { ...lunchComposer(), ...part };
-    const { contract, text } = await lunchWith(block);
-    const view = await importView(text, contract.dialect);
-    assert.ok(view.composer, `${why}: the block is kept`);
-    assert.deepEqual(view.composerDropped, [path], `${why}: only ${path} is dropped`);
-    const [head, ...rest] = path.split('.');
-    let at = view.composer;
-    for (const step of [head, ...rest].slice(0, -1)) at = at[step];
-    assert.equal(Object.hasOwn(at, path.split('.').pop()), false, `${why}: the value is gone`);
-    if (head !== 'label' && part.label === undefined) assert.equal(view.composer.label, 'Lunch poll', `${why}: other values apply`);
-    if (head !== 'icon') assert.equal(view.composer.icon, 'bar-chart');
-  }
-  // every icon on the host list and every tint token passes
-  for (const icon of ['box', 'layers', 'bar-chart', 'bookmark', 'pin', 'check', 'star', 'clock', 'pencil', 'activity', 'archive', 'hash', 'globe', 'link']) {
-    const { contract, text } = await lunchWith({ icon });
-    assert.equal((await importView(text, contract.dialect)).composer.icon, icon);
-  }
-  for (const tint of ['moss', 'stone', 'sage', 'olive', 'fern', 'ochre']) {
-    const { contract, text } = await lunchWith({ tint });
-    assert.equal((await importView(text, contract.dialect)).composer.tint, tint);
-  }
-  // a title naming an opener string field reads back as written
-  {
-    const { contract, text } = await lunchWith({ ...lunchComposer(), title: 'question' });
-    const view = await importView(text, contract.dialect);
-    assert.deepEqual([view.composer.title, view.composerDropped], ['question', []]);
-  }
-  // a 48-byte label of multi-byte characters passes; 49 bytes does not
-  const { contract, text } = await lunchWith({ label: 'é'.repeat(24) });
-  assert.equal((await importView(text, contract.dialect)).composer.label, 'é'.repeat(24));
-});
-
-test('SPEC-087 TEST-003 · negative output: a contract with a composer key is refused; the self-address is the same with and without any view', async () => {
-  await assert.rejects(defineContract({ ...lunchVote, composer: lunchComposer() }));
-  const plain = await defineContract(lunchVote);
-  const defined = await defineView({ contract: plain, view: [{ type: 'value', field: 'question', label: 'Question' }], composer: lunchComposer() });
-  const bundle = await importBundle(bundleText(plain, defined));
-  assert.equal(bundle.object.name, plain.name, 'the dialect is the same with a composer block');
-  assert.equal(bundle.object.dialect, plain.dialect);
-  assert.equal(defined.contract, plain.name);
-});
-
 test('custom view capability declarations survive import and require explicit valid operations', async () => {
   const contract = await defineContract(plainChecklist);
   const view = { html: '<p>Preview</p>' };
@@ -277,4 +158,29 @@ test('a version 3 cbcl-bus bundle keeps its original contract and view identitie
   assert.equal(restored.object.name, view.contract);
   assert.equal(restored.presentation.id, 'view-e77027f43096989bf78f77dabf7f99ff1bcbd3fcb33a167a146d4dc4e42804ac');
   assert.equal(bundleText(restored.object, restored.presentation), serialized);
+  assert.equal('composer' in restored.presentation, false);
+  await assert.rejects(defineView({ contract: restored.object, view: view.view, composer: {} }), /unknown record field/);
+});
+
+test('a view emits into the existing object broker with the host thread, clock and signer', async () => {
+  const object = await defineContract(lunchVote);
+  const presentation = await defaultPresentation(object);
+  const thread = 'lunch';
+  const store = new ThreadStore();
+  store.append(actRecord(object.open({ room: '@room', thread, from: '@alice',
+    fields: { question: 'Lunch?', options: ['Soup'] } }), '@alice'));
+  const sent: string[] = [];
+  const broker = makeBroker({ getRuntime: name => name === object.name ? object.runtime : null,
+    store, me: () => '@bob', send: text => { sent.push(text); } });
+  const emit = presentation.bindIntent(thread, broker, () => makeHlc({ nowMs: 1 }));
+  assert.equal((await emit('propose')).ok, false);
+  assert.equal((await emit('vote', { choice: 'Soup', thread: 'other' })).ok, false);
+  assert.equal((await emit('vote', { choice: 'Soup', clock: makeHlc() })).ok, false);
+  assert.equal((await emit('vote', { choice: 'Pizza' })).ok, false);
+  const fields = { choice: 'Soup' };
+  const result = emit('vote', fields);
+  fields.choice = 'Pizza';
+  assert.equal((await result).ok, true);
+  assert.equal(sent.length, 1);
+  assert.deepEqual(object.read(store.messages(thread)).tally, { Soup: 1 });
 });
