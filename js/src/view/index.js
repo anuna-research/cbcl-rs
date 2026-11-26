@@ -170,7 +170,7 @@ export async function importView(text, contract) {
  * the view still binds by that dialect's self-address.
  */
 export const MAX_BUNDLE_BYTES = MAX_CONTRACT_BYTES + MAX_VIEW_BYTES + 256;
-export function bundleText(object, presentation) {
+export function exportBundle(object, presentation) {
   return JSON.stringify({ version: VIEW_VERSION, kind: 'bundle', contract: JSON.parse(object.serialized), view: JSON.parse(presentation.serialized) });
 }
 export function recognizeBundle(text) {

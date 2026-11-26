@@ -153,7 +153,7 @@ poll above, this view shows the tally and offers a vote. The host supplies the
 HLC when it binds the submitted intent.
 
 ```js
-import { defineView, bundleText, importBundle } from 'cbcl/view';
+import { defineView, exportBundle, importBundle } from 'cbcl/view';
 
 const presentation = await defineView({
   contract: poll,
@@ -162,7 +162,7 @@ const presentation = await defineView({
     { type: 'form', verb: 'vote', label: 'Vote', fields: { choice: 'Your choice' } },
   ],
 });
-const bundle = bundleText(poll, presentation);
+const bundle = exportBundle(poll, presentation);
 const restored = await importBundle(bundle);
 console.log(restored.presentation.id === presentation.id); // true
 ```
