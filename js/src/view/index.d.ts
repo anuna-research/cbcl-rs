@@ -20,6 +20,7 @@ export interface Layout {
   overflow?: 'scroll';
 }
 export interface Capabilities {
+  operations?: import('./operations.js').OperationDeclaration[];
   sound?: boolean;
   media?: { accept: ('image' | 'audio')[] };
   requests?: { id: string; url: string; response: 'text' | 'json'; parameters?: string[] }[];
@@ -35,11 +36,12 @@ export interface Presentation extends Readonly<ViewSpec> {
   readonly contract: string;
   readonly serialized: string;
   readonly external: boolean;
-  bindIntent(thread: string, broker: Pick<import('../object/broker.js').Broker, 'applyIntent'>, nextClock?: () => string):
+  bindIntent(thread: string, broker: Pick<import('../object/broker.js').Broker, 'applyIntent'>, options?: (() => string) | { nextClock?: () => string; signal?: AbortSignal }):
     (verb: string, fields?: Record<string, unknown>) => Promise<IntentResult>;
   body(): string;
 }
 export interface RenderHost {
+  invoke: import('./operations.js').InvokeOperation;
   emit(verb: string, fields: Record<string, unknown>): void;
   request(id: string, parameters?: Record<string, string>): Promise<unknown>;
 }
@@ -60,3 +62,21 @@ export function recognizeBundle(text: string): { version: 3; kind: 'bundle'; con
 export function importBundle(text: string): Promise<Readonly<{ object: CbclObject; presentation: Presentation }>>;
 export function componentBody(spec: { view: readonly Component[]; verbs: DialectInfo['verbs']; state: DialectInfo['state'] }): string;
 export function customBody(view: CustomView): string;
+
+/** A per-mount request authority, restricted to host-granted operation IDs. */
+export function createRequestBroker(manifest?: Capabilities, grants?: string[], options?: {
+  fetch?: typeof fetch; now?: () => number;
+}): { request: RenderHost['request']; destroy(): void };
+export interface LoadedResources {
+  images: Map<string, string>; styles: string[]; failures: string[];
+}
+export function loadViewResources(requested: Resources | undefined, approved: Resources | undefined,
+  signal: AbortSignal, fetcher?: typeof fetch): Promise<LoadedResources>;
+export { bindProjection, mountView } from './mount.js';
+export type { ViewExecutor, ViewExecution, MountOptions, ViewPorts, ViewGrants } from './mount.js';
+
+/** Browser frame policy for interpreter-backed views. */
+export const CONFINED_VIEW_CSP: string;
+
+export { defineOperation } from './operations.js';
+export type { OperationLimits, OperationDeclaration, OperationGrant, CapabilityData, CapabilityScope, OperationHandler, InvokeOperation } from './operations.js';

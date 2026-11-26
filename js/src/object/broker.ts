@@ -11,6 +11,8 @@ import { actRecord, type Runtime } from './runtime.ts';
 import type { ThreadStore } from './store.ts';
 import type { Plain } from '../read.ts';
 
+import { stampHostClock, type HostClock } from './clock.ts';
+
 export { CORE_PERFORMATIVES };
 
 export interface BrokerHost {
@@ -19,12 +21,13 @@ export interface BrokerHost {
   /** The dialect's runtime, or null when unknown to this host. */
   getRuntime(dialect: string): Runtime | null;
   store: ThreadStore;
+  clock?: HostClock;
   /** Canonicalise text (optional; the act cbcl-rs returns is already canonical). */
   canonicalize?(text: string): string;
   /** The text to sign, e.g. with an account proof appended (optional). */
-  prepare?(canonical: string): Promise<string> | string;
+  prepare?(canonical: string, signal?: AbortSignal): Promise<string> | string;
   /** Sign and deliver. Return false to refuse. */
-  send(text: string): Promise<boolean | void> | boolean | void;
+  send(text: string, signal?: AbortSignal): Promise<boolean | void> | boolean | void;
   /** Re-fold and push to the view (optional). */
   onState?(thread: string): void;
   /** Wire-tap hook (optional). */
@@ -34,16 +37,17 @@ export interface BrokerHost {
 export type IntentResult = { ok: true; cid: string; canonical: string } | { ok: false; reason: string };
 
 export interface Broker {
-  applyIntent(thread: string, dialect: string, verb: string, fields?: Record<string, unknown>): Promise<IntentResult>;
+  applyIntent(thread: string, dialect: string, verb: string, fields?: Record<string, unknown>, signal?: AbortSignal): Promise<IntentResult>;
 }
 
 export function makeBroker(host: BrokerHost): Broker {
-  async function runIntent(thread: string, dialectName: string, verb: string, rawKw: unknown): Promise<IntentResult> {
+  async function runIntent(thread: string, dialectName: string, verb: string, rawKw: unknown, signal?: AbortSignal): Promise<IntentResult> {
     const report = (info: Record<string, unknown>) => { host.report?.(info); };
     const reject = (reason: string, label?: string): IntentResult => {
       report({ ok: false, thread, dialect: dialectName, verb: label || verb, reason });
       return { ok: false, reason };
     };
+    if (signal?.aborted) return reject('Intent binding revoked');
     const runtime = host.getRuntime(dialectName);
     if (!runtime) return reject(`unknown dialect ${dialectName}`);
     if (CORE_PERFORMATIVES.has(verb)) return reject(`'${verb}' is a core performative — never view-causable`);
@@ -66,13 +70,18 @@ export function makeBroker(host: BrokerHost): Broker {
     }
     const messages = host.store.messages(thread);
     let bound;
-    try { bound = runtime.intend(thread, messages, from, verb, kw); }
+    try {
+      if (host.clock) stampHostClock(host.clock, runtime, thread, messages, verb, kw);
+      bound = runtime.intend(thread, messages, from, verb, kw);
+    }
     catch (error) { return reject(String((error as Error)?.message ?? error), `shape-violation ${verb}`); }
     if (!bound.ok) return reject(`${bound.reject}: ${bound.reason}`, `${bound.reject} ${verb}`);
     let text = host.canonicalize ? host.canonicalize(bound.canonical) : bound.canonical;
-    if (host.prepare) text = await host.prepare(text);
+    if (signal?.aborted) return reject('Intent binding revoked');
+    if (host.prepare) text = await host.prepare(text, signal);
     if (host.me() !== from) return reject('identity changed before send');
-    const sent = await host.send(text);
+    if (signal?.aborted) return reject('Intent binding revoked');
+    const sent = await host.send(text, signal);
     if (sent === false) return reject('wire send blocked');
     // Optimistic union: the hub fans the signed copy back; the store's dedup
     // by address makes that a no-op. State re-folds.
@@ -86,9 +95,9 @@ export function makeBroker(host: BrokerHost): Broker {
   // Binding and signing yield. Serialise per thread so a rapid second act
   // sees the first in the accepted set (its :replaces names it).
   const queues = new Map<string, Promise<IntentResult>>();
-  function applyIntent(thread: string, dialectName: string, verb: string, rawKw: Record<string, unknown> = {}): Promise<IntentResult> {
+  function applyIntent(thread: string, dialectName: string, verb: string, rawKw: Record<string, unknown> = {}, signal?: AbortSignal): Promise<IntentResult> {
     const previous: Promise<unknown> = queues.get(thread) || Promise.resolve();
-    const next = previous.then(() => runIntent(thread, dialectName, verb, rawKw)).catch((error: unknown) => {
+    const next = previous.then(() => runIntent(thread, dialectName, verb, rawKw, signal)).catch((error: unknown) => {
       const result: IntentResult = { ok: false, reason: (error as Error)?.message || String(error) };
       host.report?.({ ...result, thread, dialect: dialectName, verb });
       return result;

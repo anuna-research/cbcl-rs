@@ -173,14 +173,117 @@ Version 3 view and bundle records from cbcl-bus use the same format and IDs.
 Optional `layout`, `resources`, and `capabilities` describe
 presentation preferences and requests.
 
-On the host, call `presentation.bindIntent(thread, broker, nextClock)` and
+On the host, call `presentation.bindIntent(thread, broker, { nextClock, signal })` and
 connect the returned `emit(verb, fields)` callback to the sandbox port.
 Use the same `makeBroker` instance from `cbcl/object` across mounts so writes
 share its per-thread queue. The callback pins the thread and dialect, rejects
 view-supplied clock fields, and returns the broker’s intent result. For verbs
-with HLC fields, supply a synchronous host clock issuer or a broker that stamps
-clocks in its runtime. The broker binds against accepted history and uses the
-host’s signer and transport.
+with HLC fields, configure the broker’s clock as shown below. Existing hosts
+can also supply a synchronous issuer through the binding’s `nextClock` option. The broker binds against accepted history and uses the
+host’s signer and transport. Give each mount its own AbortController and abort it on
+unmount to reject queued or preparing intents before send. A transport already
+in progress receives the abort signal and controls its own delivery. Each
+binding admits up to eight outstanding calls.
+
+### Mount a view in a host
+
+Use one broker for the host’s writes and one clock issuer per signer. The
+broker stamps each act inside its thread queue, using HLCs from accepted acts
+and the signer’s previous stamp. Supply synchronous storage callbacks to retain
+the stamp across restarts. Hosts sharing a signer across processes must
+coordinate issuance. A host doing asynchronous signing or delivery can check
+the signal passed to `prepare(text, signal)` and `send(text, signal)` before
+committing its work.
+
+```js
+import { createHostClock, makeBroker } from 'cbcl/object';
+import { mountView } from 'cbcl/view';
+
+const clock = createHostClock({
+  load: () => storage.getItem(clockKey),
+  save: stamp => storage.setItem(clockKey, stamp),
+});
+const broker = makeBroker({ store, me, getRuntime, clock, send });
+const dispose = await mountView(presentation, {
+  object, thread, store, broker, executor, onError: reportError,
+  grants: { requests: ['weather'] }, // host-approved ID declared by this view
+});
+// When the host removes the view
+dispose();
+```
+
+Implement `ViewExecutor.mount({ body, resources, ports, signal })` in the
+trusted adapter for your QuickJS/WASM runtime. It returns an execution with
+`project(state)` and `dispose()`. Marshal guest calls and results across the
+interpreter boundary. The adapter owns confinement, execution limits and
+rendering. Browser adapters can use the exported `CONFINED_VIEW_CSP` for the
+script-disabled document.
+
+The SDK delivers the initial fold as soon as the executor is ready. New local
+and peer records appended to the same thread trigger updates, coalesced per
+turn. For an existing renderer, use
+`bindProjection(object, thread, store, project, onError)` directly and call its
+returned unsubscribe function on teardown.
+
+Grants default to empty. Request operation IDs and image/style URLs must be
+subsets of the view’s declarations. The SDK enforces request arguments,
+concurrency, rate, timeout, response type and byte limits, and gives the
+executor loaded images, ordered styles and resource failures. Hosts may supply
+a fetch implementation. Mount disposal revokes the ports and pending requests.
+Pass an `AbortSignal` to cancel during startup.
+
+### Grant a browser operation to an object view
+
+A custom view declares the operation names it needs. The host selects handlers
+when it mounts that particular contract, view, and thread. For example, a
+view can declare `capabilities: { operations: ['clipboard.writeText'] }` and
+call `host.invoke('clipboard.writeText', text)` from a click handler. A host
+that approves copying text for this mount can pass the following grant:
+
+```js
+import { defineOperation } from 'cbcl/view';
+
+const grants = {
+  operations: {
+    'clipboard.writeText': defineOperation({
+      limits: { maxCalls: 5, maxConcurrent: 1, maxInputBytes: 4096 },
+      parse(input) {
+        if (typeof input !== 'string') throw new TypeError('Expected clipboard text');
+        return input;
+      },
+      run(text) {
+        return navigator.clipboard.writeText(text).then(() => null);
+      },
+    }),
+  },
+};
+```
+
+The view can also declare `{ id: 'clipboard.writeText', limits: { maxCalls: 1 } }`.
+That mount then permits one attempt. Each limit takes the lower of the view’s
+request and the host’s grant. Omitted host limits default to 1,024 attempts per
+operation per mount, eight concurrent calls, and 65,536 bytes each for input
+and result, measured as UTF-8 JSON. An invalid input consumes an attempt.
+A result over its limit is withheld after the handler runs.
+
+The trusted handler receives the contract digest, view ID, thread, mount signal,
+and `onDispose(cleanup)`. Register resource cleanup as soon as acquisition
+finishes, for example `onDispose(() => track.stop())` for a camera track. If
+the mount ended during acquisition, cleanup runs immediately. The handler is
+entered synchronously so it can use a gesture from the original event.
+
+`mountView` accepts immutable presentations created by this SDK's
+`defineView`, `importView`, or `defaultPresentation`. Treat even verified
+source as untrusted. The executor must isolate guest code and marshal calls
+through the mount's ports. Executing the body in a privileged browser context
+would give guest code direct access to that context's APIs. The host selects
+grants using its own policy; browser permission checks still apply.
+
+A host can use the same mechanism for sound, picking media, or other browser
+services. Legacy bus `sound` and `media` declarations still round-trip.
+An application supporting those records supplies its legacy guest bridge;
+new views can declare individual operations. Older SDKs that only recognize
+the legacy fields will reject a declaration containing `operations`.
 
 Custom views accept an HTML source record or a render function using the
 exported `html` template tag. A render function travels as source and must

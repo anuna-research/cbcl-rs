@@ -93,42 +93,59 @@ function dialectOf(contract) {
 }
 
 /** A presentation bound to a dialect: what a host mounts. */
+const verifiedPresentations = new WeakSet();
+function freezeRecord(node) {
+  if (node && typeof node === 'object') {
+    for (const child of Object.values(node)) freezeRecord(child);
+    Object.freeze(node);
+  }
+  return node;
+}
+
 async function presentation(view, dialectText) {
   await ready();
   const info = readDialect(dialectText);
   const name = dialectHash(dialectText);
   require(view.contract === name, `view contract digest mismatch: view is for ${view.contract}, dialect is ${name}`);
-  const spec = view;
+  const spec = freezeRecord(view);
   validateView(spec, info);
   const serialized = JSON.stringify(view);
   const crypto = globalThis.crypto?.subtle ?? (await import('node:crypto')).webcrypto.subtle;
   const digest = await crypto.digest('SHA-256', new TextEncoder().encode(serialized));
   const id = 'view-' + Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
   const external = !Array.isArray(spec.view);
-  return Object.freeze({
+  const verified = Object.freeze({
     id, contract: name, serialized, view: spec.view, layout: spec.layout, resources: spec.resources, capabilities: spec.capabilities, external,
     /** Bind the sandbox emit callback to a host-selected thread and this verified dialect. */
-    bindIntent(thread, broker, nextClock) {
+    bindIntent(thread, broker, options = {}) {
+      const { nextClock, signal } = typeof options === 'function' ? { nextClock: options } : options;
+      let pending = 0;
       return async (verb, fields = {}) => {
+        if (signal?.aborted) return { ok: false, reason: 'Intent binding revoked' };
+        if (pending >= 8) return { ok: false, reason: 'Too many pending intents' };
         if (typeof verb !== 'string' || verb === info.opener || CORE_PERFORMATIVES.has(verb) || !Object.hasOwn(info.verbs, verb)) {
           return { ok: false, reason: 'Expected a declared non-opener verb' };
         }
         if (!fields || typeof fields !== 'object' || Array.isArray(fields)) return { ok: false, reason: 'Expected intent fields' };
+        pending++;
         try {
           const data = structuredClone(fields);
           const clocks = Object.entries(info.verbs[verb].fields).filter(([, type]) => type === 'hlc');
-          if (clocks.some(([field]) => Object.hasOwn(data, field))) return { ok: false, reason: 'Clock fields are host-owned' };
+          if (Object.keys(data).some(key => clocks.some(([field]) => field === key.toLowerCase()))) return { ok: false, reason: 'Clock fields are host-owned' };
           if (clocks.length && nextClock) {
             const stamp = nextClock();
             for (const [field] of clocks) data[field] = stamp;
           }
-          return await broker.applyIntent(thread, name, verb, data);
+          return await broker.applyIntent(thread, name, verb, data, signal);
         } catch (error) { return { ok: false, reason: String(error?.message ?? error) }; }
+        finally { pending--; }
       };
     },
     /** The document body the sandbox host wraps in its policy. */
     body: () => external ? customBody(spec.view) : componentBody({ view: spec.view, verbs: info.verbs, state: info.state }),
   });
+  verifiedPresentations.add(verified);
+  return verified;
 }
 
 /** Bind presentation to the exact verified contract; does not execute it. */
@@ -329,7 +346,7 @@ function customRuntime(render) {
       return value == null ? '' : escape(value);
     }
     try {
-      root.innerHTML = markup(render(state, { emit: window.emit, request: window.request }));
+      root.innerHTML = markup(render(state, { emit: window.emit, request: window.request, invoke: window.invoke }));
       for (const node of root.querySelectorAll('*')) for (const attr of Array.from(node.attributes)) {
         if (!attr.name.startsWith('data-cbcl-on')) continue;
         const match = /^object-handler-(\d+)$/.exec(attr.value);
@@ -345,3 +362,16 @@ export function customBody(view) {
   return '<div id="object-root"></div><script>const html=' + html.toString()
     + ';(' + customRuntime.toString() + ')(' + source + ');</script>';
 }
+
+export { createRequestBroker } from './request-broker.js';
+export { loadViewResources } from './resource-loader.js';
+import { mountView as mountVerified } from './mount.ts';
+export { bindProjection } from './mount.ts';
+export { defineOperation } from './operations.ts';
+
+export async function mountView(presentation, options) {
+  if (!verifiedPresentations.has(presentation)) throw Error('Mount requires an SDK-verified presentation');
+  return mountVerified(presentation, options);
+}
+
+export const CONFINED_VIEW_CSP = "default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src data:; media-src blob:; connect-src 'none'; frame-src 'none'; object-src 'none'; worker-src 'none'; form-action 'none'; base-uri 'none'";

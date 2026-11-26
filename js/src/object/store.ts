@@ -19,6 +19,28 @@ export interface Msg {
 export class ThreadStore {
   private threadsMap = new Map<string, Map<string, Msg>>();
 
+  private listeners = new Map<string, Set<() => void>>();
+
+  /** Coalesce appends in the same turn and discard notifications after unsubscribe. */
+  subscribe(thread: string, notify: () => void): () => void {
+    const listeners = this.listeners.get(thread) ?? new Set<() => void>();
+    this.listeners.set(thread, listeners);
+    let queued = false;
+    const schedule = () => {
+      if (queued) return;
+      queued = true;
+      queueMicrotask(() => {
+        queued = false;
+        if (listeners.has(schedule)) notify();
+      });
+    };
+    listeners.add(schedule);
+    return () => {
+      listeners.delete(schedule);
+      if (!listeners.size && this.listeners.get(thread) === listeners) this.listeners.delete(thread);
+    };
+  }
+
   private thread(thread: string): Map<string, Msg> {
     let t = this.threadsMap.get(thread);
     if (!t) { t = new Map(); this.threadsMap.set(thread, t); }
@@ -31,6 +53,7 @@ export class ThreadStore {
     const t = this.thread(msg.thread);
     if (t.has(msg.cid)) return false;
     t.set(msg.cid, msg);
+    for (const schedule of this.listeners.get(msg.thread) ?? []) schedule();
     return true;
   }
 

@@ -1,5 +1,6 @@
 // Adapted from cbcl-bus. Copyright 2026 Anuna Research Pty Ltd. Apache-2.0.
 // SPEC-097 CON-001: pure recognition before granting or performing any effect.
+import { validateLimits } from './operations.ts';
 const identifier = /^[A-Za-z][A-Za-z0-9_-]{0,47}$/;
 function invalid(message) { throw new Error('Invalid view capability: ' + message); }
 function record(value, required, optional = []) {
@@ -9,7 +10,19 @@ function record(value, required, optional = []) {
       || Object.keys(value).some(key => !required.includes(key) && !optional.includes(key))) invalid('record');
 }
 export function viewCapabilities(value = {}) {
-  record(value, [], ['requests', 'sound', 'media']);
+  record(value, [], ['requests', 'operations', 'sound', 'media']);
+  const operations = Object.hasOwn(value, 'operations') ? value.operations : [];
+  if (!Array.isArray(operations)) invalid('operations');
+  const ids = new Set();
+  for (const declaration of operations) {
+    if (typeof declaration !== 'string') {
+      record(declaration, ['id'], ['limits']);
+      if (Object.hasOwn(declaration, 'limits')) validateLimits(declaration.limits);
+    }
+    const id = typeof declaration === 'string' ? declaration : declaration.id;
+    if (typeof id !== 'string' || !/^[a-zA-Z][a-zA-Z0-9_-]*(?:\.[a-zA-Z][a-zA-Z0-9_-]*)*$/.test(id) || ids.has(id)) invalid('operation name');
+    ids.add(id);
+  }
   if (Object.hasOwn(value, 'sound') && typeof value.sound !== 'boolean') invalid('sound');
   let media = null;
   if (Object.hasOwn(value, 'media')) {
@@ -21,7 +34,7 @@ export function viewCapabilities(value = {}) {
   const requests = value.requests ?? [];
   if (!Array.isArray(requests) || requests.length > 8 || (Object.hasOwn(value, 'requests') && value.requests === null)) invalid('operations');
   const names = new Set();
-  return Object.freeze({ sound: value.sound === true, ...(media ? {media} : {}), requests: Object.freeze(requests.map(operation => {
+  return Object.freeze({ operations: Object.freeze([...operations]), sound: value.sound === true, ...(media ? {media} : {}), requests: Object.freeze(requests.map(operation => {
     record(operation, ['id', 'url', 'response'], ['parameters']);
     const { id, url, response } = operation;
     if (typeof id !== 'string' || !identifier.test(id) || names.has(id)) invalid('operation id');
@@ -54,4 +67,14 @@ export function viewResources(value = {}) {
     }));
   }
   return Object.freeze(result);
+}
+
+export function requestArguments(operation, value = {}) {
+  record(value, [], operation.parameters || []);
+  const copy = Object.create(null);
+  for (const [key, text] of Object.entries(value)) {
+    if (typeof text !== 'string' || text.length > 2048) invalid('parameter value');
+    copy[key] = text;
+  }
+  return copy;
 }

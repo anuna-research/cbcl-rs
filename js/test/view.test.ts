@@ -2,8 +2,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { c, enumOf, defineContract, readDialect, makeBroker, ThreadStore, actRecord, makeHlc } from '../src/object/index.ts';
-import { bundleText, defaultPresentation, defineView, html, importBundle, importView, validateView, VIEW_VERSION } from '../src/view/index.js';
+import { c, enumOf, defineContract, readDialect, makeBroker, ThreadStore, actRecord, createHostClock, makeHlc } from '../src/object/index.ts';
+import { bundleText, defaultPresentation, defineView, html, importBundle, importView, validateView, defineOperation, mountView, createRequestBroker, loadViewResources, type ViewPorts, VIEW_VERSION } from '../src/view/index.js';
 
 const lunchVote = {
   name: 'lunch-vote', author: '@anuna',
@@ -183,4 +183,226 @@ test('a view emits into the existing object broker with the host thread, clock a
   assert.equal((await result).ok, true);
   assert.equal(sent.length, 1);
   assert.deepEqual(object.read(store.messages(thread)).tally, { Soup: 1 });
+});
+
+test('replacing a binding revokes preparing and queued intents while preserving the shared queue', async () => {
+  const object = await defineContract(lunchVote);
+  const view = await defaultPresentation(object);
+  const thread = 'lunch';
+  const store = new ThreadStore();
+  store.append(actRecord(object.open({ room: '@room', thread, from: '@alice',
+    fields: { question: 'Lunch?', options: ['Soup'] } }), '@alice'));
+  const started = Promise.withResolvers<void>();
+  const resume = Promise.withResolvers<void>();
+  let prepared = 0;
+  let sent = 0;
+  const broker = makeBroker({ getRuntime: () => object.runtime, store, me: () => '@bob',
+    async prepare(text) {
+      prepared++;
+      started.resolve();
+      await resume.promise;
+      return text;
+    },
+    send() { sent++; },
+  });
+  const controller = new AbortController();
+  const nextClock = () => makeHlc({ nowMs: 1 });
+  const emit = view.bindIntent(thread, broker, { signal: controller.signal, nextClock });
+  const fields = { choice: 'Soup' };
+  const pending = Array.from({ length: 8 }, () => emit('vote', fields));
+  await started.promise;
+  assert.deepEqual(await emit('vote', fields), { ok: false, reason: 'Too many pending intents' });
+  controller.abort();
+  const revoked = { ok: false, reason: 'Intent binding revoked' };
+  assert.deepEqual(await emit('vote', fields), revoked);
+  const replacement = view.bindIntent(thread, broker, { nextClock })('vote', fields);
+  await Promise.resolve();
+  assert.equal(prepared, 1);
+  resume.resolve();
+  for (const result of await Promise.all(pending)) assert.deepEqual(result, revoked);
+  assert.equal((await replacement).ok, true);
+  assert.equal(prepared, 2);
+  assert.equal(sent, 1);
+});
+
+test('a mounted executor observes peer and local folds, grants and host cancellation', async () => {
+  const object = await defineContract(lunchVote);
+  const store = new ThreadStore();
+  const thread = 'room-lunch';
+  const open = actRecord(object.open({ thread, room: '@room', from: '@alice',
+    fields: { question: 'Lunch?', options: ['Soup'] } }), '@alice');
+  store.append(open);
+  const presentation = await defineView({ contract: object, view: { html: '<p>Lunch</p>' },
+    capabilities: { operations: ['clipboard.writeText', 'host.info', 'location.read'] } });
+  const parent = new AbortController();
+  const signals: (AbortSignal | undefined)[] = [];
+  let persisted: string | null = null;
+  const persistence = { now: () => 1, load: () => persisted, save: (value: string) => { persisted = value; } };
+  const clock = createHostClock(persistence);
+  const broker = makeBroker({ store, me: () => '@bob', getRuntime: () => object.runtime, clock,
+    prepare(text, signal) { signals.push(signal); return text; }, send(_text, signal) { signals.push(signal); } });
+  let ports!: ViewPorts;
+  let disposed = 0;
+  const tallies: unknown[] = [];
+  const delayed = Promise.withResolvers<string>();
+  const dispose = await mountView(presentation, { object, thread, store, broker, signal: parent.signal,
+    grants: { operations: {
+      'clipboard.writeText': (input, scope) => {
+        assert.equal(scope.contract, object.name);
+        assert.equal(scope.view, presentation.id);
+        assert.equal(scope.thread, thread);
+        if (typeof input !== 'string') throw Error('Expected text');
+        return delayed.promise;
+      },
+      'host.info': input => input,
+    } }, onError: assert.fail,
+    executor: { mount(input) {
+      ports = input.ports;
+      return { project: state => tallies.push(state.tally), dispose: () => { disposed++; } };
+    } } });
+  assert.equal(tallies.length, 1);
+  const info = { version: 1 };
+  const result = ports.invoke('host.info', info);
+  assert.deepEqual(result, info);
+  assert.notEqual(result, info);
+  assert.throws(() => ports.invoke('clipboard.writeText', 42), /Expected text/);
+  assert.throws(() => ports.invoke('location.read'), /denied/);
+  assert.throws(() => ports.invoke('toString'), /denied/);
+  assert.throws(() => ports.invoke('host.info', new Date() as never), /record/);
+  const pendingCall = ports.invoke('clipboard.writeText', 'hello');
+  const remote = makeHlc({ nowMs: 5000 });
+  const vote = object.runtime.intend(thread, [open], '@alice', 'vote', { choice: 'Soup', clock: remote });
+  assert.ok(vote.ok);
+  store.append(actRecord(vote.canonical, '@alice'));
+  await Promise.resolve();
+  assert.deepEqual(tallies.at(-1), { Soup: 1 });
+  const local = await ports.emit('vote', { choice: 'Soup' });
+  assert.ok(local.ok);
+  assert.equal(actRecord(local.canonical, '@bob').kw.clock, makeHlc({ received: remote, nowMs: 1 }));
+  const beforeRestart = persisted!;
+  assert.equal(createHostClock(persistence).next(), makeHlc({ previous: beforeRestart, nowMs: 1 }));
+  assert.deepEqual(tallies.at(-1), { Soup: 2 });
+  assert.equal(signals.length, 2);
+  assert.ok(signals[0] && signals[0] === signals[1]);
+  parent.abort();
+  dispose();
+  assert.equal(disposed, 1);
+  assert.ok(signals[0].aborted);
+  assert.equal((await ports.emit('vote', { choice: 'Soup' })).ok, false);
+  delayed.resolve('copied');
+  await assert.rejects(Promise.resolve(pendingCall), { name: 'AbortError' });
+  assert.throws(() => ports.invoke('host.info'), { name: 'AbortError' });
+});
+
+test('only declared and granted requests and resources reach the fetch adapter', async () => {
+  const url = 'https://example.org/weather';
+  const manifest = { requests: [{ id: 'weather', url, response: 'json' as const, parameters: ['city'] }] };
+  const calls: string[] = [];
+  const fetcher = async (input: RequestInfo | URL) => {
+    calls.push(String(input));
+    return Response.json({ ok: true });
+  };
+  assert.throws(() => createRequestBroker(manifest, ['other']), /grant/);
+  const broker = createRequestBroker(manifest, ['weather'], { fetch: fetcher });
+  await assert.rejects(broker.request('other'), /denied/);
+  await assert.rejects(broker.request('weather', { path: 'here' }), /invalid/);
+  assert.deepEqual(await broker.request('weather', { city: 'A B' }), { ok: true });
+  broker.destroy();
+  await assert.rejects(broker.request('weather'), /revoked/);
+  const signal = new AbortController().signal;
+  await assert.rejects(loadViewResources({}, { styles: [url] }, signal, fetcher), /grant/);
+  assert.deepEqual(calls, [url + '?city=A+B']);
+  const css = { styles: [url] };
+  const loaded = await loadViewResources(css, css, signal, async () =>
+    new Response('p { color: green }', { headers: { 'Content-Type': 'text/css' } }));
+  assert.deepEqual(loaded.styles, ['p { color: green }']);
+});
+
+test('aborting during executor startup revokes ports and disposes the late execution', async () => {
+  const object = await defineContract(plainChecklist);
+  const presentation = await defaultPresentation(object);
+  const parent = new AbortController();
+  const started = Promise.withResolvers<ViewPorts>();
+  const resume = Promise.withResolvers<void>();
+  let disposed = 0;
+  const pending = mountView(presentation, { object, thread: 't', store: new ThreadStore(),
+    broker: { applyIntent: assert.fail }, signal: parent.signal, onError: assert.fail,
+    executor: { async mount({ ports }) {
+      started.resolve(ports);
+      await resume.promise;
+      return { project: assert.fail, dispose: () => { disposed++; } };
+    } } });
+  const ports = await started.promise;
+  assert.throws(() => ports.invoke('clipboard.writeText'), /denied/);
+  parent.abort();
+  await assert.rejects(ports.request('weather'), /revoked/);
+  assert.equal((await ports.emit('vote')).ok, false);
+  resume.resolve();
+  await assert.rejects(pending, { name: 'AbortError' });
+  assert.equal(disposed, 1);
+});
+
+test('browser grants must match the operations in the verified view record', async () => {
+  const object = await defineContract(plainChecklist);
+  const spec = { contract: object, view: { html: '<p>Copy</p>' } };
+  await assert.rejects(defineView({ ...spec, capabilities: { operations: ['clipboard.read', 'clipboard.read'] } }), /operation name/);
+  const view = await defineView({ ...spec, capabilities: { operations: ['clipboard.writeText'] } });
+  const restored = await importView(view.serialized, object);
+  assert.equal(restored.id, view.id);
+  // Mutating the presentation's convenience metadata cannot expand its declaration.
+  assert.throws(() => restored.capabilities!.operations!.push('clipboard.read'), TypeError);
+  await assert.rejects(mountView(restored, {
+    object, thread: 't', store: new ThreadStore(), broker: { applyIntent: assert.fail }, onError: assert.fail,
+    grants: { operations: { 'clipboard.read': assert.fail } }, executor: { mount: assert.fail },
+  }), /Invalid capability grant/);
+});
+
+test('mount quotas narrow declarations and host grants independently for each view instance', async () => {
+  const object = await defineContract(plainChecklist);
+  const view = await defineView({ contract: object, view: { html: '<p>Pick</p>' }, capabilities: { operations: [
+    { id: 'pick', limits: { maxCalls: 2, maxInputBytes: 12, maxResultBytes: 4 } },
+  ] } });
+  assert.throws(() => { (view.view as {html: string}).html = ''; }, TypeError);
+  const handles: string[] = [];
+  const closed: string[] = [];
+  const pending = Promise.withResolvers<string>();
+  const grant = defineOperation({
+    limits: { maxCalls: 3, maxConcurrent: 1, maxInputBytes: 4 },
+    parse(value) {
+      if (typeof value !== 'string') throw Error('Expected string');
+      return value;
+    },
+    run(value, scope) {
+      handles.push(scope.thread);
+      if (value === 'x') return pending.promise.then(result => {
+        scope.onDispose(() => closed.push(scope.thread));
+        return result;
+      });
+      scope.onDispose(() => closed.push(scope.thread));
+      return 'large';
+    },
+  });
+  const ports = new Map<string, ViewPorts>();
+  const mount = (thread: string, presentation = view) => mountView(presentation, { object, thread, store: new ThreadStore(),
+    broker: { applyIntent: assert.fail }, grants: { operations: { pick: grant } }, onError: assert.fail,
+    executor: { mount({ ports: mounted }) {
+      ports.set(thread, mounted);
+      return { project() {}, dispose() {} };
+    } } });
+  await assert.rejects(mount('forged', { ...view }), /verified presentation/);
+  const stopA = await mount('a'), stopB = await mount('b');
+  const a = ports.get('a')!, b = ports.get('b')!;
+  assert.throws(() => a.invoke('pick', '猫'), /byte limit/);
+  const result = a.invoke('pick', 'x');
+  assert.throws(() => a.invoke('pick', 'x'), /call limit/);
+  assert.throws(() => b.invoke('pick', 'b'), /byte limit/);
+  assert.throws(() => b.invoke('pick', 0), /Expected string/);
+  assert.throws(() => b.invoke('pick', 'b'), /call limit/);
+  assert.deepEqual(handles, ['a', 'b']);
+  stopA();
+  pending.resolve('ok');
+  await assert.rejects(Promise.resolve(result), { name: 'AbortError' });
+  assert.deepEqual(closed, ['a']);
+  stopB();
+  assert.deepEqual(closed, ['a', 'b']);
 });

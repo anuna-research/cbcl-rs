@@ -13,6 +13,7 @@ import { makeBroker, type BrokerHost, type IntentResult } from './broker.ts';
 import { ThreadStore, normaliseCausedBy, type Msg } from './store.ts';
 import type { Plain } from '../read.ts';
 
+export { createHostClock, type HostClock } from './clock.ts';
 export { t } from './types.ts';
 export type { ExactValue, ExactScalar } from '../read.ts';
 export type { ExactActInfo } from '../verifier.ts';
