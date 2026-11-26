@@ -187,6 +187,36 @@ unmount to reject queued or preparing intents before send. A transport already
 in progress receives the abort signal and controls its own delivery. Each
 binding admits up to eight outstanding calls.
 
+### Generate TypeScript types for a dialect
+
+Run this in your build script, passing either an object from `defineContract`
+or the source of its `.cbcl` dialect:
+
+```js
+import { writeFile } from 'node:fs/promises';
+import { generateViewTypes } from 'cbcl/view';
+
+await writeFile('poll.generated.d.ts', await generateViewTypes(poll));
+```
+
+Use the generated `Render` type when authoring the view. For the lunch-vote
+dialect, TypeScript checks the verb and its required `choice` field.
+
+```ts
+import { defineView, html } from 'cbcl/view';
+import type { Render } from './poll.generated.js';
+
+const render: Render = (_state, host) =>
+  html`<button data-cbcl-onclick=${() => host.emit('vote', { choice: 'Soup' })}>Vote</button>`;
+const presentation = await defineView({ contract: poll, view: render });
+```
+
+The module also exports `DialectTypes` for named types, `ViewState`, `IntentFields`, `EmitArgs`, and `ViewHost`.
+It omits host-owned fields and opener verbs from view intents. Regenerate when
+the dialect changes. Rust still checks refinements, nested list constraints,
+current domains, and admissibility. Host-defined browser operations get their
+types from the host; their signatures are outside the dialect.
+
 ### Mount a view in a host
 
 Use one broker for the host’s writes and one clock issuer per signer. The

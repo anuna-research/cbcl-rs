@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtemp, readFile, mkdir, symlink, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, writeFile, mkdir, symlink, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -56,4 +56,51 @@ test('the lunch-vote tutorial produces its documented output with the edited dia
   const expected = tutorial.match(/Expected output:\n\n```text\n([^]*?)\n```/);
   assert.ok(expected);
   assert.equal(output.trimEnd(), expected[1]);
+});
+
+test('generated dialect declarations type-check SDK view authors and reject invalid intents', async t => {
+  const cwd = await mkdtemp(join(tmpdir(), 'cbcl-view-types-'));
+  t.after(() => rm(cwd, { recursive: true, force: true }));
+  await mkdir(join(cwd, 'node_modules'));
+  await symlink(join(root, 'js'), join(cwd, 'node_modules/cbcl'), 'dir');
+  const source = await readFile(join(root, 'dialects/lunch-vote.cbcl'), 'utf8');
+  const poll = await view.generateViewTypes(source);
+  await writeFile(join(cwd, 'poll.d.mts'), poll);
+  const contract = await object.defineContract({ name: 'typed-colours',
+    types: { colour: object.t.oneOf({ keyword: 'red' }, { keyword: 'blue' }) },
+    verbs: { open: { after: ['begin'] }, paint: { after: ['open'], fields: { shade: object.optional('colour') } } },
+    state: { paints: object.c.count('paint') } });
+  const colours = await view.generateViewTypes(contract);
+  assert.equal(colours, await view.generateViewTypes(contract.dialect));
+  await writeFile(join(cwd, 'colours.d.mts'), colours);
+  await writeFile(join(cwd, 'consumer.mts'), `
+    import { defineView } from 'cbcl/view';
+    import type { Render } from './poll.mjs';
+    import type { Render as Paint } from './colours.mjs';
+    declare const dialect: string;
+    const render: Render = (state, host) => {
+      host.emit('vote', { choice: 'Soup' });
+      // @ts-expect-error vote requires choice
+      host.emit('vote');
+      // @ts-expect-error opener belongs to the host
+      host.emit('propose', {});
+      // @ts-expect-error clock belongs to the host
+      host.emit('vote', { choice: 'Soup', clock: 'x' });
+      // @ts-expect-error choice is a string
+      host.emit('vote', { choice: true });
+      // @ts-expect-error no such projection
+      return state.missing;
+    };
+    await defineView({ contract: dialect, view: render });
+    const paint: Paint = (state, host) => {
+      host.emit('paint');
+      host.emit('paint', { shade: { keyword: 'red' } });
+      // @ts-expect-error shade is a named one-of
+      host.emit('paint', { shade: { keyword: 'pink' } });
+      return state.paints.toFixed();
+    };
+    await defineView({ contract: dialect, view: paint });
+  `);
+  execFileSync(process.execPath, [join(root, 'js/node_modules/typescript/bin/tsc'), '--strict', '--noEmit',
+    '--target', 'ES2022', '--module', 'NodeNext', 'consumer.mts'], { cwd, stdio: 'inherit' });
 });

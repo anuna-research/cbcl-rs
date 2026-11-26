@@ -42,14 +42,14 @@ export interface Presentation extends Readonly<ViewSpec> {
 }
 export interface RenderHost {
   invoke: import('./operations.js').InvokeOperation;
-  emit(verb: string, fields: Record<string, unknown>): void;
+  emit(verb: string, fields?: Record<string, unknown>): void;
   request(id: string, parameters?: Record<string, string>): Promise<unknown>;
 }
 export interface HtmlTemplate { strings: string[]; values: unknown[] }
 export function html(strings: TemplateStringsArray, ...values: unknown[]): HtmlTemplate;
 type Dialect = string | Pick<CbclObject, 'dialect'>;
-export function defineView(spec: Omit<ViewSpec, 'view'> & {
-  contract: Dialect; view: View | ((state: State, host: RenderHost) => unknown);
+export function defineView<S extends State = State>(spec: Omit<ViewSpec, 'view'> & {
+  contract: Dialect; view: View | ((state: S, host: RenderHost) => unknown);
 }): Promise<Presentation>;
 export function importView(text: string, contract: Dialect): Promise<Presentation>;
 export function defaultPresentation(contract: Dialect): Promise<Presentation>;
@@ -80,3 +80,4 @@ export const CONFINED_VIEW_CSP: string;
 
 export { defineOperation } from './operations.js';
 export type { OperationLimits, OperationDeclaration, OperationGrant, CapabilityData, CapabilityScope, OperationHandler, InvokeOperation } from './operations.js';
+export { generateViewTypes } from './typegen.js';

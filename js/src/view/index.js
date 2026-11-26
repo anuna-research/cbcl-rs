@@ -379,3 +379,4 @@ export async function mountView(presentation, options) {
 }
 
 export const CONFINED_VIEW_CSP = "default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src data:; media-src blob:; connect-src 'none'; frame-src 'none'; object-src 'none'; worker-src 'none'; form-action 'none'; base-uri 'none'";
+export { generateViewTypes } from './typegen.ts';
