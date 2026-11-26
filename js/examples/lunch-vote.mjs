@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { parseDialect, verifyDialect } from 'cbcl';
 import { actRecord, createRuntime, makeHlc, openerText } from 'cbcl/object';
 
-const file = process.argv[2] ?? new URL('../../dialects/lunch-vote.cbcl', import.meta.url);
+const file = process.argv[2] ?? new URL('../dist/lunch-vote.cbcl', import.meta.url);
 const source = await readFile(file, 'utf8');
 verifyDialect(source);
 const dialect = parseDialect(source);

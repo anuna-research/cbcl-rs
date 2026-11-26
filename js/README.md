@@ -1,6 +1,6 @@
 # cbcl
 
-CBCL for JavaScript: the verifier as typed wrappers over the cbcl-rs WebAssembly build, and, under `cbcl/object`, the object authoring runtime on top of it. Nothing in this package judges a message or a dialect itself; every verdict is cbcl-rs's, so a browser, a Node agent, and a hub running the NIF agree by construction.
+The `cbcl` package runs the Rust CBCL verifier through WebAssembly in Node and browsers. Use `cbcl/object` to define contracts and work with thread state, and `cbcl/view` to author and mount dialect-bound presentations.
 
 ```sh
 npm install cbcl
@@ -8,7 +8,15 @@ npm install cbcl
 
 Requires Node 22.6 or later (or a browser with WebAssembly). The wasm is inside the package; under Node it initialises at import, in a browser call `await ready()` before the first frame.
 
-For a first working example, [open a lunch poll and count a vote](../docs/tutorials/lunch-vote.md). The [documentation guide](../docs/README.md) covers the language, hosts and proof model.
+Run the included lunch-poll tutorial after installing the package:
+
+```sh
+node node_modules/cbcl/examples/lunch-vote.mjs
+```
+
+It opens a poll, admits a vote, rejects an out-of-domain choice, and prints
+the tally. Pass a path to an edited copy of
+`node_modules/cbcl/dist/lunch-vote.cbcl` to try your own dialect.
 
 ## `cbcl`
 
@@ -28,7 +36,11 @@ Use `parseDialect(source)` from either `cbcl` or `cbcl/object` to read a
 handwritten `.cbcl` dialect. It returns a `DialectInfo` with canonical CBCL
 in `text`, named definitions in `types`, and each verb’s field constraints,
 requiredness, and defaults in `verbs[verb].contracts`. Malformed source throws.
-Call `verifyDialect(info.text)` when you also need installation checks.
+Use `installDialect(source)` for R1–R7 installation. The immutable handle carries
+the verified canonical `dialect` and its `name`. Pass it to `createRuntime`,
+`defineView`, `importView`, or `defaultPresentation`; these also install raw text.
+Call `await ready()` before synchronous installation in a browser. If the
+WASM fetch fails, a subsequent call to `ready()` retries.
 
 | Task | Functions exported by `cbcl` |
 |---|---|
@@ -141,7 +153,7 @@ reads the sole raw opener without arbitration. The retired `last`,
 `latestPerSigner`, `latestPerKey`, and `registerPerKey` operations are rejected.
 Conflict-preserving alternatives are `multiValueRegister` and `multiValueMap`.
 Replacement metadata remains compiler/binder-owned; callers cannot forge it.
-See [HLC registers](../docs/concepts/hlc-registers.md) for assumptions and migration.
+See [HLC registers](https://git.anuna.io/anuna-research/cbcl-rs/src/branch/main/docs/concepts/hlc-registers.md) for assumptions and migration.
 
 
 `poll.read(records)` folds without a transport; `poll.verdicts(records)` says which are accepted, pending, or rejected; `createRuntime(dialectText)` is the runtime for any dialect text, including one learned from a room.
@@ -264,6 +276,18 @@ executor loaded images, ordered styles and resource failures. Hosts may supply
 a fetch implementation. Mount disposal revokes the ports and pending requests.
 Pass an `AbortSignal` to cancel during startup.
 
+For database-backed state or a draft, pass `{ dialect: installed, projection }`
+instead of `{ object, store }` to `mountView`. The source implements
+`read(thread)` and `subscribe(thread, changed)`; the latter returns an
+unsubscribe function. The SDK subscribes before reading initial state and
+checks the installed dialect against the presentation.
+
+A successful broker send returns `ok: true`. If local recording fails after
+delivery, `recordError` accompanies the canonical act and its CID. Reconcile
+that record locally. A transport exception returns the CID, canonical act, and `delivery: 'unknown'`;
+check delivery before retrying. Exceptions from state or reporting observers
+do not reverse a completed send.
+
 ### Grant a browser operation to an object view
 
 A custom view declares the operation names it needs. The host selects handlers
@@ -330,13 +354,23 @@ npm run build:wasm   # cbcl-wasm → src/cbcl_wasm.*  (needs wasm-bindgen-cli ma
 npm test             # node --test over test/*.test.ts, no build step
 npm run build        # dist/: ES modules, .d.ts, the wasm, LICENSE
 npm run test:docs    # run the documentation examples against the built package
+npx --no-install playwright-core install chromium
+npm run test:package # install the tarball and exercise Node, TypeScript, and Chromium
 ```
+
+After building the WASM from source, `npm pack` rebuilds the JS output and
+checks the public entry points and WASM digest before creating a tarball.
+
+The packed browser test runs an isolated QuickJS/WASM test adapter. Set
+`CHROMIUM_EXECUTABLE_PATH` to use an existing browser. To also run the
+cbcl-bus evaluator compatibility check, set `CBCL_BUS_VIEW_RUNTIME` to its
+`apps/cbcl_chat/priv/web/view-runtime` directory.
 
 `test/corpus.test.ts` reproduces every vector of the cbcl-rs conformance corpus (`test-vectors/state`); `test/verifier.test.ts` proves the contract compile names `dialects/checklist.cbcl` by hash.
 
 Apache-2.0, as cbcl-rs.
 
-`c.progress('tick')` compiles to `(progress tick)`: the maximum established protocol occurrence, defaulting to zero. Competing ticks at the same occurrence do not inflate it. Installation rejects missing or incomparable occurrences. This reads causal metadata over accepted acts independently of application-data domain filters. See [protocol progress](../docs/concepts/protocol-progress.md) for semantics and the Lean proof boundary.
+`c.progress('tick')` compiles to `(progress tick)`: the maximum established protocol occurrence, defaulting to zero. Competing ticks at the same occurrence do not inflate it. Installation rejects missing or incomparable occurrences. This reads causal metadata over accepted acts independently of application-data domain filters. See [protocol progress](https://git.anuna.io/anuna-research/cbcl-rs/src/branch/main/docs/concepts/protocol-progress.md) for semantics and the Lean proof boundary.
 
 
 State observations (SPEC-038): `state_schema` marks current field values with

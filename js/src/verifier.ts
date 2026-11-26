@@ -29,7 +29,9 @@ if (underNode) {
 /** Initialise the verifier (idempotent). Resolves when every export may be called. */
 export function ready(): Promise<void> {
   if (probe()) return Promise.resolve();
-  pending ??= init({ module_or_path: new URL('./cbcl_wasm_bg.wasm', import.meta.url) }).then(() => { loaded = true; });
+  pending ??= init({ module_or_path: new URL('./cbcl_wasm_bg.wasm', import.meta.url) })
+    .then(() => { loaded = true; })
+    .catch(error => { pending = undefined; throw error; });
   return pending;
 }
 
@@ -95,6 +97,23 @@ export function verifyDialect(define: string): void {
   guard();
   const result = verify_dialect(define);
   if (result !== 'ok') throw new Error(`CBCL dialect verification failed: ${result}`);
+}
+
+export interface InstalledDialect {
+  readonly dialect: string;
+  readonly name: string;
+}
+const installed = new WeakMap<Pick<InstalledDialect, 'dialect'>, InstalledDialect>();
+
+/** Install once with Rust R1–R7 verification. Requires an initialized verifier. */
+export function installDialect(input: string | Pick<InstalledDialect, 'dialect'>): InstalledDialect {
+  const known = typeof input === 'string' ? undefined : installed.get(input);
+  if (known) return known;
+  const dialect = defineText(typeof input === 'string' ? input : input.dialect);
+  verifyDialect(dialect);
+  const handle = Object.freeze({ dialect, name: dialectHash(dialect) });
+  installed.set(handle, handle);
+  return handle;
 }
 
 export type Verdict = { ok: true } | { ok: false; reason: string };

@@ -73,7 +73,7 @@ export interface LoadedResources {
 export function loadViewResources(requested: Resources | undefined, approved: Resources | undefined,
   signal: AbortSignal, fetcher?: typeof fetch): Promise<LoadedResources>;
 export { bindProjection, mountView } from './mount.js';
-export type { ViewExecutor, ViewExecution, MountOptions, ViewPorts, ViewGrants } from './mount.js';
+export type { ViewExecutor, ViewExecution, MountOptions, ProjectionSource, ViewPorts, ViewGrants } from './mount.js';
 
 /** Browser frame policy for interpreter-backed views. */
 export const CONFINED_VIEW_CSP: string;

@@ -1,5 +1,5 @@
 // Emit declarations from the same installed metadata used by projection and intent binding.
-import { describeDialect, read, ready, stateSchema, type DialectInfo, type StateFieldSchema, type Tree } from '../verifier.ts';
+import { describeDialect, installDialect, read, ready, stateSchema, type DialectInfo, type StateFieldSchema, type Tree } from '../verifier.ts';
 import { CORE_PERFORMATIVES, ROUTING_KEYWORDS } from '../object/compile.ts';
 
 const inputTypes = new Map(Object.entries({
@@ -64,7 +64,7 @@ function stateType(schema: StateFieldSchema, scalarHint?: string): string {
 /** Generate a type-only TypeScript module from an SDK contract or CBCL dialect source. */
 export async function generateViewTypes(contract: string | { dialect: string }): Promise<string> {
   await ready();
-  const info = describeDialect(typeof contract === 'string' ? contract : contract.dialect);
+  const info = describeDialect(installDialect(contract).dialect);
   const schema = Object.keys(info.state).length || info.thresholds.length ? stateSchema('(state-schema ' + info.text + ')') : {};
   const state = Object.entries(schema).map(([key, value]) => {
     const [head, verb, field, third] = info.state[key] ?? [];

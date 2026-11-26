@@ -16,9 +16,13 @@ export interface Msg {
   canonical: string;
 }
 
+// Identifies the growing store/thread that issued a snapshot. Other arrays are independent histories.
+export const snapshotOrigins = new WeakMap<Msg[], object>();
+
 export class ThreadStore {
   private threadsMap = new Map<string, Map<string, Msg>>();
 
+  private origins = new WeakMap<Map<string, Msg>, object>();
   private listeners = new Map<string, Set<() => void>>();
 
   /** Coalesce appends in the same turn and discard notifications after unsubscribe. */
@@ -62,7 +66,15 @@ export class ThreadStore {
   get(thread: string, cid: string): Msg | null { return this.threadsMap.get(thread)?.get(cid) ?? null; }
 
   /** All messages in a thread (insertion order; consumers must not rely on it). */
-  messages(thread: string): Msg[] { const t = this.threadsMap.get(thread); return t ? [...t.values()] : []; }
+  messages(thread: string): Msg[] {
+    const entries = this.threadsMap.get(thread);
+    if (!entries) return [];
+    const snapshot = [...entries.values()];
+    let origin = this.origins.get(entries);
+    if (!origin) { origin = {}; this.origins.set(entries, origin); }
+    snapshotOrigins.set(snapshot, origin);
+    return snapshot;
+  }
 
   threads(): string[] { return [...this.threadsMap.keys()]; }
 

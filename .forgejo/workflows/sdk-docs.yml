@@ -27,4 +27,7 @@ jobs:
           npm ci
           npm run build:wasm
           npm run build
+          npm test
           npm run test:docs
+          npx --no-install playwright-core install --with-deps chromium
+          npm run test:package

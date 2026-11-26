@@ -20,7 +20,7 @@ export interface BrokerHost {
   me(): string;
   /** The dialect's runtime, or null when unknown to this host. */
   getRuntime(dialect: string): Runtime | null;
-  store: ThreadStore;
+  store: Pick<ThreadStore, 'messages' | 'append'>;
   clock?: HostClock;
   /** Canonicalise text (optional; the act cbcl-rs returns is already canonical). */
   canonicalize?(text: string): string;
@@ -34,15 +34,21 @@ export interface BrokerHost {
   report?(info: Record<string, unknown>): void;
 }
 
-export type IntentResult = { ok: true; cid: string; canonical: string } | { ok: false; reason: string };
+export type IntentResult =
+  | { ok: true; cid: string; canonical: string; recordError?: string }
+  | { ok: false; reason: string; delivery?: undefined }
+  | { ok: false; reason: string; delivery: 'unknown'; cid: string; canonical: string };
 
 export interface Broker {
   applyIntent(thread: string, dialect: string, verb: string, fields?: Record<string, unknown>, signal?: AbortSignal): Promise<IntentResult>;
 }
 
 export function makeBroker(host: BrokerHost): Broker {
+  const report = (info: Record<string, unknown>) => {
+    try { Promise.resolve(host.report?.(info)).catch(() => {}); }
+    catch { /* Reporting is best effort. */ }
+  };
   async function runIntent(thread: string, dialectName: string, verb: string, rawKw: unknown, signal?: AbortSignal): Promise<IntentResult> {
-    const report = (info: Record<string, unknown>) => { host.report?.(info); };
     const reject = (reason: string, label?: string): IntentResult => {
       report({ ok: false, thread, dialect: dialectName, verb: label || verb, reason });
       return { ok: false, reason };
@@ -81,15 +87,29 @@ export function makeBroker(host: BrokerHost): Broker {
     if (host.prepare) text = await host.prepare(text, signal);
     if (host.me() !== from) return reject('identity changed before send');
     if (signal?.aborted) return reject('Intent binding revoked');
-    const sent = await host.send(text, signal);
+    const record = actRecord(text, from);
+    let sent;
+    try { sent = await host.send(text, signal); }
+    catch (error) {
+      const reason = String((error as Error)?.message ?? error);
+      report({ ok: false, thread, verb, reason, delivery: 'unknown' });
+      return { ok: false, reason, delivery: 'unknown', cid: record.cid, canonical: text };
+    }
     if (sent === false) return reject('wire send blocked');
     // Optimistic union: the hub fans the signed copy back; the store's dedup
     // by address makes that a no-op. State re-folds.
-    const record = actRecord(text, from);
-    host.store.append(record);
-    host.onState?.(thread);
+    const delivered = { ok: true as const, cid: record.cid, canonical: text };
+    try { host.store.append(record); }
+    catch (error) {
+      const recordError = String((error as Error)?.message ?? error);
+      report({ ...delivered, thread, verb, recordError });
+      return { ...delivered, recordError };
+    }
+    const observerFailed = (error: unknown) => report({ thread, verb, cid: record.cid, observerError: String(error) });
+    try { Promise.resolve(host.onState?.(thread)).catch(observerFailed); }
+    catch (error) { observerFailed(error); }
     report({ ok: true, thread, dialect: dialectName, verb, cid: record.cid, causedBy: record.causedBy, from, kw: record.kw });
-    return { ok: true, cid: record.cid, canonical: text };
+    return delivered;
   }
 
   // Binding and signing yield. Serialise per thread so a rapid second act
@@ -99,7 +119,7 @@ export function makeBroker(host: BrokerHost): Broker {
     const previous: Promise<unknown> = queues.get(thread) || Promise.resolve();
     const next = previous.then(() => runIntent(thread, dialectName, verb, rawKw, signal)).catch((error: unknown) => {
       const result: IntentResult = { ok: false, reason: (error as Error)?.message || String(error) };
-      host.report?.({ ...result, thread, dialect: dialectName, verb });
+      report({ ...result, thread, dialect: dialectName, verb });
       return result;
     });
     queues.set(thread, next);

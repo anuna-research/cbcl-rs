@@ -7,7 +7,7 @@
 // carries no view (SPEC-019 ADR-1907).
 import { viewCapabilities, viewResources } from './policy.js';
 import { readDialect, isSDKDialect, importObject, MAX_CONTRACT_BYTES, CORE_PERFORMATIVES } from '../object/index.ts';
-import { ready, dialectHash, compileContract } from '../verifier.ts';
+import { ready, installDialect, compileContract } from '../verifier.ts';
 
 export const VIEW_VERSION = 3;
 export const MAX_VIEW_BYTES = 65536;
@@ -86,10 +86,9 @@ export function recognizeView(text) {
   return view;
 }
 
-function dialectOf(contract) {
-  const text = typeof contract === 'string' ? contract : contract?.dialect;
-  require(typeof text === 'string', 'expected a contract (from defineContract) or its dialect text');
-  return text;
+function installedContract(contract) {
+  require(typeof contract === 'string' || typeof contract?.dialect === 'string', 'expected a contract or its dialect text');
+  return installDialect(contract);
 }
 
 /** A presentation bound to a dialect: what a host mounts. */
@@ -102,10 +101,10 @@ function freezeRecord(node) {
   return node;
 }
 
-async function presentation(view, dialectText, contractText) {
+async function presentation(view, installed, contractText) {
   await ready();
-  const info = readDialect(dialectText);
-  const name = dialectHash(dialectText);
+  const info = readDialect(installed.dialect);
+  const name = installed.name;
   require(view.contract === name, `view contract digest mismatch: view is for ${view.contract}, dialect is ${name}`);
   const spec = freezeRecord(view);
   validateView(spec, info);
@@ -151,16 +150,17 @@ async function presentation(view, dialectText, contractText) {
 /** Bind presentation to the exact verified contract; does not execute it. */
 export async function defineView({ contract, view, ...rest }) {
   record(rest, [], ['layout', 'resources', 'capabilities']);
-  const dialectText = dialectOf(contract);
-  if (typeof view === 'function') view = { render: view.toString() };
   await ready();
-  const serialized = JSON.stringify({ version: VIEW_VERSION, kind: 'view', contract: dialectHash(dialectText), view, ...rest });
-  return presentation(recognizeView(serialized), dialectText, contract.serialized);
+  const installed = installedContract(contract);
+  if (typeof view === 'function') view = { render: view.toString() };
+  const serialized = JSON.stringify({ version: VIEW_VERSION, kind: 'view', contract: installed.name, view, ...rest });
+  return presentation(recognizeView(serialized), installed, contract.serialized);
 }
 
 /** Import exact view bytes for a dialect. */
 export async function importView(text, contract) {
-  return presentation(viewRecord(text), dialectOf(contract), contract.serialized);
+  await ready();
+  return presentation(viewRecord(text), installedContract(contract), contract.serialized);
 }
 
 /**
@@ -194,10 +194,10 @@ export async function importBundle(text) {
 
 /** The read-only presentation of a dialect, for a host with no view. */
 export async function defaultPresentation(contract) {
-  const dialectText = dialectOf(contract);
   await ready();
-  const info = readDialect(dialectText);
-  return presentation({ version: VIEW_VERSION, kind: 'view', contract: dialectHash(dialectText), ...defaultView(info) }, dialectText, contract.serialized);
+  const installed = installedContract(contract);
+  const info = readDialect(installed.dialect);
+  return presentation({ version: VIEW_VERSION, kind: 'view', contract: installed.name, ...defaultView(info) }, installed, contract.serialized);
 }
 
 // ---------------------------------------------------------------------------

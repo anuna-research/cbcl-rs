@@ -17,7 +17,7 @@ export { createHostClock, type HostClock } from './clock.ts';
 export { t } from './types.ts';
 export type { ExactValue, ExactScalar } from '../read.ts';
 export type { ExactActInfo } from '../verifier.ts';
-export { makeHlc, parseDialect, readActExact } from '../verifier.ts';
+export { installDialect, type InstalledDialect, makeHlc, parseDialect, readActExact } from '../verifier.ts';
 
 export type { StateForm, ShapeField } from './compile.ts';
 export { c, enumOf, optional, stateEntry, isSDKDialect, openerText, readDialect, literal, keywordText, createRuntime, readAct, actRecord, makeBroker, ThreadStore, normaliseCausedBy, CONTRACT_VERSION, MAX_CONTRACT_BYTES, CORE_PERFORMATIVES, ROUTING_KEYWORDS };

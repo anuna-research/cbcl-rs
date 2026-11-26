@@ -1,6 +1,7 @@
 import type { CbclObject, ThreadStore, IntentResult } from '../object/index.js';
 import type { Broker } from '../object/broker.js';
-import type { State } from '../verifier.js';
+import { installDialect } from '../verifier.ts';
+import type { InstalledDialect, State } from '../verifier.js';
 import type { Presentation, LoadedResources, Resources, RenderHost } from './index.js';
 import { createRequestBroker } from './request-broker.js';
 import { loadViewResources } from './resource-loader.js';
@@ -29,10 +30,17 @@ export interface ViewGrants {
   resources?: Resources;
   operations?: Readonly<Record<string, OperationGrant>>;
 }
-export interface MountOptions {
+export interface ProjectionSource {
+  read(thread: string): State;
+  subscribe(thread: string, changed: () => void): () => void;
+}
+type ProjectionStore = Pick<ThreadStore, 'messages' | 'subscribe'>;
+export type MountOptions = ({
+  object: CbclObject; store: ProjectionStore;
+} | {
+  dialect: InstalledDialect; projection: ProjectionSource;
+}) & {
   thread: string;
-  object: CbclObject;
-  store: ThreadStore;
   broker: Broker;
   executor: ViewExecutor;
   signal?: AbortSignal;
@@ -42,10 +50,16 @@ export interface MountOptions {
 }
 
 /** Deliver the initial fold immediately and observe subsequent local and peer appends. */
-export function bindProjection(object: CbclObject, thread: string, store: ThreadStore,
+export function bindProjection(object: CbclObject, thread: string, store: ProjectionStore,
   project: (state: State) => void, onError: (error: unknown) => void): () => void {
-  const update = () => project(object.read(store.messages(thread), thread));
-  const unsubscribe = store.subscribe(thread, () => {
+  return observeProjection(thread, { read: id => object.read(store.messages(id), id),
+    subscribe: (id, changed) => store.subscribe(id, changed) }, project, onError);
+}
+
+function observeProjection(thread: string, source: ProjectionSource, project: (state: State) => void,
+  onError: (error: unknown) => void): () => void {
+  const update = () => project(source.read(thread));
+  const unsubscribe = source.subscribe(thread, () => {
     try { update(); } catch (error) { onError(error); }
   });
   try { update(); } catch (error) { unsubscribe(); throw error; }
@@ -53,8 +67,9 @@ export function bindProjection(object: CbclObject, thread: string, store: Thread
 }
 
 export async function mountView(presentation: Presentation, options: MountOptions): Promise<() => void> {
-  const { object, store, thread, broker, executor, signal: parent, grants = {} } = options;
-  if (object.name !== presentation.contract) throw new Error('View contract digest mismatch');
+  const { thread, broker, executor, signal: parent, grants = {} } = options;
+  const name = 'object' in options ? options.object.name : installDialect(options.dialect).name;
+  if (name !== presentation.contract) throw new Error('View contract digest mismatch');
   parent?.throwIfAborted();
   const controller = new AbortController();
   const { signal } = controller;
@@ -66,10 +81,11 @@ export async function mountView(presentation: Presentation, options: MountOption
     parent?.removeEventListener('abort', dispose);
     controller.abort();
     requests.destroy();
-    unsubscribe?.();
+    const stop = unsubscribe;
+    unsubscribe = undefined;
     const mounted = execution;
     execution = undefined;
-    mounted?.dispose();
+    try { stop?.(); } finally { mounted?.dispose(); }
   }
   parent?.addEventListener('abort', dispose, { once: true });
   try {
@@ -77,13 +93,16 @@ export async function mountView(presentation: Presentation, options: MountOption
       emit: presentation.bindIntent(thread, broker, { signal }),
       request: requests.request,
       invoke: bindOperations(manifest.capabilities?.operations ?? [], grants.operations ?? {},
-        { contract: object.name, view: presentation.id, thread, signal }),
+        { contract: name, view: presentation.id, thread, signal }),
     };
     const resources = await loadViewResources(manifest.resources, grants.resources, signal, options.fetch);
     signal.throwIfAborted();
     execution = await executor.mount({ body: presentation.body(), resources, ports, signal });
     signal.throwIfAborted();
-    unsubscribe = bindProjection(object, thread, store, state => execution?.project(state), options.onError);
+    const project = (state: State) => execution?.project(state);
+    unsubscribe = 'object' in options
+      ? bindProjection(options.object, thread, options.store, project, options.onError)
+      : observeProjection(thread, options.projection, project, options.onError);
     signal.throwIfAborted();
     return dispose;
   } catch (error) {

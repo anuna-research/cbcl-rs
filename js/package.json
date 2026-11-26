@@ -27,20 +27,27 @@
     "dist",
     "README.md",
     "LICENSE",
-    "NOTICE"
+    "NOTICE",
+    "examples/lunch-vote.mjs"
   ],
   "engines": {
     "node": ">=22.6"
   },
   "scripts": {
     "build:wasm": "bash scripts/build-wasm.sh",
-    "build": "cp ../LICENSE LICENSE && tsc -p tsconfig.json && cp src/cbcl_wasm.js src/cbcl_wasm.d.ts src/cbcl_wasm_bg.wasm src/cbcl_wasm_bg.wasm.d.ts src/cbcl_wasm.provenance.json dist/ && cp src/view/index.d.ts dist/view/",
+    "build": "cp ../LICENSE LICENSE && tsc -p tsconfig.json && cp src/cbcl_wasm.js src/cbcl_wasm.d.ts src/cbcl_wasm_bg.wasm src/cbcl_wasm_bg.wasm.d.ts src/cbcl_wasm.provenance.json dist/ && cp src/view/index.d.ts dist/view/ && cp ../dialects/lunch-vote.cbcl dist/",
     "test": "node --experimental-strip-types --test test/*.test.ts",
     "test:docs": "node --test scripts/docs.test.mjs",
-    "check": "tsc -p tsconfig.json --noEmit"
+    "check": "tsc -p tsconfig.json --noEmit",
+    "prepack": "npm run build && node scripts/check-package.mjs",
+    "test:package": "node --test scripts/package.test.mjs"
   },
   "devDependencies": {
+    "@jitl/quickjs-singlefile-browser-release-sync": "^0.32.0",
     "@types/node": "^22",
+    "esbuild": "^0.28.2",
+    "playwright-core": "^1.65.1",
+    "quickjs-emscripten-core": "^0.32.0",
     "typescript": "^5.7"
   }
 }
