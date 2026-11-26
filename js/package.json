@@ -1,7 +1,7 @@
 {
   "name": "cbcl",
   "version": "0.1.0",
-  "description": "CBCL for JavaScript: the verifier (parse, verify, fold, bind, compile) as typed wrappers over the cbcl-rs WebAssembly build, and the object authoring runtime on top of it.",
+  "description": "CBCL for JavaScript: the verifier (parse, verify, fold, bind, compile) as typed wrappers over the cbcl-rs WebAssembly build, plus object and view authoring runtimes.",
   "license": "Apache-2.0",
   "type": "module",
   "repository": {
@@ -17,19 +17,24 @@
       "types": "./dist/object/index.d.ts",
       "default": "./dist/object/index.js"
     },
-    "./wasm": "./dist/cbcl_wasm.js"
+    "./wasm": "./dist/cbcl_wasm.js",
+    "./view": {
+      "types": "./dist/view/index.d.ts",
+      "default": "./dist/view/index.js"
+    }
   },
   "files": [
     "dist",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "NOTICE"
   ],
   "engines": {
     "node": ">=22.6"
   },
   "scripts": {
     "build:wasm": "bash scripts/build-wasm.sh",
-    "build": "cp ../LICENSE LICENSE && tsc -p tsconfig.json && cp src/cbcl_wasm.js src/cbcl_wasm.d.ts src/cbcl_wasm_bg.wasm src/cbcl_wasm_bg.wasm.d.ts src/cbcl_wasm.provenance.json dist/",
+    "build": "cp ../LICENSE LICENSE && tsc -p tsconfig.json && cp src/cbcl_wasm.js src/cbcl_wasm.d.ts src/cbcl_wasm_bg.wasm src/cbcl_wasm_bg.wasm.d.ts src/cbcl_wasm.provenance.json dist/ && cp src/view/index.d.ts dist/view/",
     "test": "node --experimental-strip-types --test test/*.test.ts",
     "test:docs": "node --test scripts/docs.test.mjs",
     "check": "tsc -p tsconfig.json --noEmit"

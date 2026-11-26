@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import * as cbcl from 'cbcl';
 import * as object from 'cbcl/object';
+import * as view from 'cbcl/view';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const guide = await readFile(join(root, 'js/README.md'), 'utf8');
@@ -22,9 +23,10 @@ function snippet(markdown, label, language) {
 }
 
 test('documented SDK imports and reading and state functions are public exports', () => {
-  for (const [, names, entry] of guide.matchAll(/import\s*\{([^}]+)\}\s*from '(cbcl(?:\/object)?)'/g)) {
+  const modules = { cbcl, 'cbcl/object': object, 'cbcl/view': view };
+  for (const [, names, entry] of guide.matchAll(/import\s*\{([^}]+)\}\s*from '(cbcl(?:\/(?:object|view))?)'/g)) {
     for (const name of names.split(',').map(n => n.trim())) {
-      assert.ok(Object.hasOwn(entry === 'cbcl' ? cbcl : object, name), entry + ' export ' + name);
+      assert.ok(Object.hasOwn(modules[entry], name), entry + ' export ' + name);
     }
   }
   for (const task of ['Read an S-expression', 'Work with state frames']) {

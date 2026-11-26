@@ -146,6 +146,39 @@ See [HLC registers](../docs/concepts/hlc-registers.md) for assumptions and migra
 
 `poll.read(records)` folds without a transport; `poll.verdicts(records)` says which are accepted, pending, or rejected; `createRuntime(dialectText)` is the runtime for any dialect text, including one learned from a room.
 
+## `cbcl/view`
+
+Use `defineView` to bind a presentation to an object’s dialect address. For the
+poll above, this view shows the tally and offers a vote. The host supplies the
+HLC when it binds the submitted intent.
+
+```js
+import { defineView, bundleText, importBundle } from 'cbcl/view';
+
+const presentation = await defineView({
+  contract: poll,
+  view: [
+    { type: 'value', field: 'tally', label: 'Votes' },
+    { type: 'form', verb: 'vote', label: 'Vote', fields: { choice: 'Your choice' } },
+  ],
+});
+const bundle = bundleText(poll, presentation);
+const restored = await importBundle(bundle);
+console.log(restored.presentation.id === presentation.id); // true
+```
+
+`importView(text, contract)` checks a serialized view against its dialect.
+`defaultPresentation(contract)` gives a read-only view of the state.
+Version 3 view and bundle records from cbcl-bus use the same format and IDs.
+Optional `layout`, `composer`, `resources`, and `capabilities` describe
+presentation preferences and requests.
+
+Custom views accept an HTML source record or a render function using the
+exported `html` template tag. A render function travels as source and must
+be self-contained. `presentation.body()` produces document source for a host
+sandbox. The host supplies isolation, grants requested capabilities, and binds
+intents to the authenticated signer. Importing a view does not execute it.
+
 ## Development
 
 ```sh
